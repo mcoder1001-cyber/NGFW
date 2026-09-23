@@ -1078,7 +1078,63 @@ export interface DataplaneConfig {
    */
   corelist: number[];
   /** TX queues per interface (dpdk num-tx-queues); unset = driver default. */
-  txQueues?: number | undefined;
+  txQueues?:
+    | number
+    | undefined;
+  /**
+   * PCI addresses of the management NIC(s): always `dpdk { blacklist }`, never a DPDK device
+   * (F-startup-gen, D-081; the generator also protects the NIC it detects on the host).
+   */
+  managementPci: string[];
+  /** DPDK devices keyed by PCI address ("0000:04:00.0") → `dpdk { dev <pci> { name … } }` (D-069, D-081). */
+  devices: { [key: string]: DataplaneDevice };
+  /** buffers { buffers-per-numa N }, 1024–4194304; unset = VPP default (16384). */
+  buffersPerNuma?:
+    | number
+    | undefined;
+  /**
+   * plugins { plugin <file> { enable|disable } } (D-060, D-081, D-084). Present = authoritative: exactly
+   * these switches are rendered; absent = the switches of the current start-up configuration are kept.
+   */
+  plugins?: PluginSet | undefined;
+}
+
+export interface DataplaneConfig_DevicesEntry {
+  key: string;
+  value: DataplaneDevice | undefined;
+}
+
+/** PluginSet mirrors `dataplane.plugins` (D-084): a message so presence survives the proto. */
+export interface PluginSet {
+  /** Plugin file name ("linux_cp_plugin.so") → true = enable, false = disable. */
+  switches: { [key: string]: boolean };
+}
+
+export interface PluginSet_SwitchesEntry {
+  key: string;
+  value: boolean;
+}
+
+/** DataplaneDevice mirrors one entry of `dataplane.devices` (F-startup-gen, D-081). */
+export interface DataplaneDevice {
+  /** Logical interface name (`name <logical>`, D-069): [a-z][a-z0-9_-]{0,14}; unset = VPP's PCI-derived name. */
+  name?:
+    | string
+    | undefined;
+  /** num-rx-queues, 1–256; unset = `dev default` / driver default. */
+  rxQueues?:
+    | number
+    | undefined;
+  /** num-tx-queues, 1–256. */
+  txQueues?:
+    | number
+    | undefined;
+  /** num-rx-desc, power of two 64–16384. */
+  rxDesc?:
+    | number
+    | undefined;
+  /** num-tx-desc, power of two 64–16384. */
+  txDesc?: number | undefined;
 }
 
 /** Interface mirrors one entry of the `interfaces` record. */
@@ -9581,6 +9637,10 @@ function createBaseDataplaneConfig(): DataplaneConfig {
     mainCore: undefined,
     corelist: [],
     txQueues: undefined,
+    managementPci: [],
+    devices: {},
+    buffersPerNuma: undefined,
+    plugins: undefined,
   };
 }
 
@@ -9608,6 +9668,18 @@ export const DataplaneConfig: MessageFns<DataplaneConfig> = {
     writer.join();
     if (message.txQueues !== undefined) {
       writer.uint32(56).uint32(message.txQueues);
+    }
+    for (const v of message.managementPci) {
+      writer.uint32(66).string(v!);
+    }
+    globalThis.Object.entries(message.devices).forEach(([key, value]: [string, DataplaneDevice]) => {
+      DataplaneConfig_DevicesEntry.encode({ key: key as any, value }, writer.uint32(74).fork()).join();
+    });
+    if (message.buffersPerNuma !== undefined) {
+      writer.uint32(80).uint32(message.buffersPerNuma);
+    }
+    if (message.plugins !== undefined) {
+      PluginSet.encode(message.plugins, writer.uint32(90).fork()).join();
     }
     return writer;
   },
@@ -9691,6 +9763,41 @@ export const DataplaneConfig: MessageFns<DataplaneConfig> = {
             message.txQueues = reader.uint32();
             continue;
           }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.managementPci.push(reader.string());
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            const entry9 = DataplaneConfig_DevicesEntry.decode(reader, reader.uint32());
+            if (entry9.value !== undefined) {
+              message.devices[entry9.key] = entry9.value;
+            }
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.buffersPerNuma = reader.uint32();
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.plugins = PluginSet.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -9734,6 +9841,31 @@ export const DataplaneConfig: MessageFns<DataplaneConfig> = {
         : isSet(object.tx_queues)
         ? globalThis.Number(object.tx_queues)
         : undefined,
+      managementPci: globalThis.Array.isArray(object?.managementPci)
+        ? object.managementPci.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.management_pci)
+        ? object.management_pci.map((e: any) => globalThis.String(e))
+        : [],
+      devices: isObject(object.devices)
+        ? (globalThis.Object.entries(object.devices) as [string, any][]).reduce(
+          (acc: { [key: string]: DataplaneDevice }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: DataplaneDevice.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      buffersPerNuma: isSet(object.buffersPerNuma)
+        ? globalThis.Number(object.buffersPerNuma)
+        : isSet(object.buffers_per_numa)
+        ? globalThis.Number(object.buffers_per_numa)
+        : undefined,
+      plugins: isSet(object.plugins) ? PluginSet.fromJSON(object.plugins) : undefined,
     };
   },
 
@@ -9760,6 +9892,24 @@ export const DataplaneConfig: MessageFns<DataplaneConfig> = {
     if (message.txQueues !== undefined) {
       obj.txQueues = Math.round(message.txQueues);
     }
+    if (message.managementPci?.length) {
+      obj.managementPci = message.managementPci;
+    }
+    if (message.devices) {
+      const entries = globalThis.Object.entries(message.devices) as [string, DataplaneDevice][];
+      if (entries.length > 0) {
+        obj.devices = {};
+        entries.forEach(([k, v]) => {
+          obj.devices[k] = DataplaneDevice.toJSON(v);
+        });
+      }
+    }
+    if (message.buffersPerNuma !== undefined) {
+      obj.buffersPerNuma = Math.round(message.buffersPerNuma);
+    }
+    if (message.plugins !== undefined) {
+      obj.plugins = PluginSet.toJSON(message.plugins);
+    }
     return obj;
   },
 
@@ -9775,6 +9925,440 @@ export const DataplaneConfig: MessageFns<DataplaneConfig> = {
     message.mainCore = object.mainCore ?? undefined;
     message.corelist = object.corelist?.map((e) => e) || [];
     message.txQueues = object.txQueues ?? undefined;
+    message.managementPci = object.managementPci?.map((e) => e) || [];
+    message.devices = (globalThis.Object.entries(object.devices ?? {}) as [string, DataplaneDevice][]).reduce(
+      (acc: { [key: string]: DataplaneDevice }, [key, value]: [string, DataplaneDevice]) => {
+        if (value !== undefined) {
+          acc[key] = DataplaneDevice.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.buffersPerNuma = object.buffersPerNuma ?? undefined;
+    message.plugins = (object.plugins !== undefined && object.plugins !== null)
+      ? PluginSet.fromPartial(object.plugins)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseDataplaneConfig_DevicesEntry(): DataplaneConfig_DevicesEntry {
+  return { key: "", value: undefined };
+}
+
+export const DataplaneConfig_DevicesEntry: MessageFns<DataplaneConfig_DevicesEntry> = {
+  encode(message: DataplaneConfig_DevicesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      DataplaneDevice.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DataplaneConfig_DevicesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDataplaneConfig_DevicesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = DataplaneDevice.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DataplaneConfig_DevicesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? DataplaneDevice.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: DataplaneConfig_DevicesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = DataplaneDevice.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DataplaneConfig_DevicesEntry>): DataplaneConfig_DevicesEntry {
+    return DataplaneConfig_DevicesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DataplaneConfig_DevicesEntry>): DataplaneConfig_DevicesEntry {
+    const message = createBaseDataplaneConfig_DevicesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? DataplaneDevice.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBasePluginSet(): PluginSet {
+  return { switches: {} };
+}
+
+export const PluginSet: MessageFns<PluginSet> = {
+  encode(message: PluginSet, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    globalThis.Object.entries(message.switches).forEach(([key, value]: [string, boolean]) => {
+      PluginSet_SwitchesEntry.encode({ key: key as any, value }, writer.uint32(10).fork()).join();
+    });
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PluginSet {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePluginSet();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            const entry1 = PluginSet_SwitchesEntry.decode(reader, reader.uint32());
+            if (entry1.value !== undefined) {
+              message.switches[entry1.key] = entry1.value;
+            }
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PluginSet {
+    return {
+      switches: isObject(object.switches)
+        ? (globalThis.Object.entries(object.switches) as [string, any][]).reduce(
+          (acc: { [key: string]: boolean }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: globalThis.Boolean(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+    };
+  },
+
+  toJSON(message: PluginSet): unknown {
+    const obj: any = {};
+    if (message.switches) {
+      const entries = globalThis.Object.entries(message.switches) as [string, boolean][];
+      if (entries.length > 0) {
+        obj.switches = {};
+        entries.forEach(([k, v]) => {
+          obj.switches[k] = v;
+        });
+      }
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PluginSet>): PluginSet {
+    return PluginSet.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PluginSet>): PluginSet {
+    const message = createBasePluginSet();
+    message.switches = (globalThis.Object.entries(object.switches ?? {}) as [string, boolean][]).reduce(
+      (acc: { [key: string]: boolean }, [key, value]: [string, boolean]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.Boolean(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    return message;
+  },
+};
+
+function createBasePluginSet_SwitchesEntry(): PluginSet_SwitchesEntry {
+  return { key: "", value: false };
+}
+
+export const PluginSet_SwitchesEntry: MessageFns<PluginSet_SwitchesEntry> = {
+  encode(message: PluginSet_SwitchesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== false) {
+      writer.uint32(16).bool(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PluginSet_SwitchesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePluginSet_SwitchesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.value = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PluginSet_SwitchesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.Boolean(object.value) : false,
+    };
+  },
+
+  toJSON(message: PluginSet_SwitchesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== false) {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PluginSet_SwitchesEntry>): PluginSet_SwitchesEntry {
+    return PluginSet_SwitchesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PluginSet_SwitchesEntry>): PluginSet_SwitchesEntry {
+    const message = createBasePluginSet_SwitchesEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? false;
+    return message;
+  },
+};
+
+function createBaseDataplaneDevice(): DataplaneDevice {
+  return { name: undefined, rxQueues: undefined, txQueues: undefined, rxDesc: undefined, txDesc: undefined };
+}
+
+export const DataplaneDevice: MessageFns<DataplaneDevice> = {
+  encode(message: DataplaneDevice, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== undefined) {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.rxQueues !== undefined) {
+      writer.uint32(16).uint32(message.rxQueues);
+    }
+    if (message.txQueues !== undefined) {
+      writer.uint32(24).uint32(message.txQueues);
+    }
+    if (message.rxDesc !== undefined) {
+      writer.uint32(32).uint32(message.rxDesc);
+    }
+    if (message.txDesc !== undefined) {
+      writer.uint32(40).uint32(message.txDesc);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DataplaneDevice {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDataplaneDevice();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.rxQueues = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.txQueues = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.rxDesc = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.txDesc = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DataplaneDevice {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : undefined,
+      rxQueues: isSet(object.rxQueues)
+        ? globalThis.Number(object.rxQueues)
+        : isSet(object.rx_queues)
+        ? globalThis.Number(object.rx_queues)
+        : undefined,
+      txQueues: isSet(object.txQueues)
+        ? globalThis.Number(object.txQueues)
+        : isSet(object.tx_queues)
+        ? globalThis.Number(object.tx_queues)
+        : undefined,
+      rxDesc: isSet(object.rxDesc)
+        ? globalThis.Number(object.rxDesc)
+        : isSet(object.rx_desc)
+        ? globalThis.Number(object.rx_desc)
+        : undefined,
+      txDesc: isSet(object.txDesc)
+        ? globalThis.Number(object.txDesc)
+        : isSet(object.tx_desc)
+        ? globalThis.Number(object.tx_desc)
+        : undefined,
+    };
+  },
+
+  toJSON(message: DataplaneDevice): unknown {
+    const obj: any = {};
+    if (message.name !== undefined) {
+      obj.name = message.name;
+    }
+    if (message.rxQueues !== undefined) {
+      obj.rxQueues = Math.round(message.rxQueues);
+    }
+    if (message.txQueues !== undefined) {
+      obj.txQueues = Math.round(message.txQueues);
+    }
+    if (message.rxDesc !== undefined) {
+      obj.rxDesc = Math.round(message.rxDesc);
+    }
+    if (message.txDesc !== undefined) {
+      obj.txDesc = Math.round(message.txDesc);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DataplaneDevice>): DataplaneDevice {
+    return DataplaneDevice.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DataplaneDevice>): DataplaneDevice {
+    const message = createBaseDataplaneDevice();
+    message.name = object.name ?? undefined;
+    message.rxQueues = object.rxQueues ?? undefined;
+    message.txQueues = object.txQueues ?? undefined;
+    message.rxDesc = object.rxDesc ?? undefined;
+    message.txDesc = object.txDesc ?? undefined;
     return message;
   },
 };

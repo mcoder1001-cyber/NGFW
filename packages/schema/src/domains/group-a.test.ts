@@ -74,7 +74,11 @@ describe('system', () => {
 
 describe('dataplane', () => {
   it('accepts the empty section and enforces bounds', () => {
-    expect(DataplaneSchema.parse({})).toEqual({ pciWhitelist: [] });
+    expect(DataplaneSchema.parse({})).toEqual({
+      pciWhitelist: [],
+      managementPci: [],
+      devices: {},
+    });
     expect(
       DataplaneSchema.safeParse({
         workers: 4,

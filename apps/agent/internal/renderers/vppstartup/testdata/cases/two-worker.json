@@ -1,0 +1,12 @@
+{
+  "dataplane": {
+    "workers": 2,
+    "corelist": [3, 2],
+    "mainCore": 1,
+    "rxQueues": 2,
+    "txQueues": 3,
+    "hugepagesGb": 2,
+    "buffersPerNuma": 32768,
+    "managementPci": ["0000:0b:00.0"]
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "dataplane": {
+    "workers": 2,
+    "corelist": [
+      2,
+      3
+    ],
+    "mainCore": 1,
+    "rxQueues": 2,
+    "hugepagesGb": 2,
+    "managementPci": [
+      "0000:0b:00.0"
+    ],
+    "devices": {
+      "0000:04:00.0": {
+        "name": "wan"
+      },
+      "0000:0c:00.0": {
+        "name": "lan"
+      },
+      "0000:13:00.0": {
+        "name": "dmz"
+      },
+      "0000:14:00.0": {
+        "name": "p2p"
+      },
+      "0000:1b:00.0": {
+        "name": "lan2",
+        "rxQueues": 1
+      },
+      "0000:1c:00.0": {
+        "name": "sync",
+        "rxDesc": 512,
+        "txDesc": 512
+      }
+    },
+    "plugins": {
+      "switches": {
+        "linux_cp_plugin.so": true,
+        "linux_nl_plugin.so": true,
+        "npt66_plugin.so": true
+      }
+    }
+  }
+}

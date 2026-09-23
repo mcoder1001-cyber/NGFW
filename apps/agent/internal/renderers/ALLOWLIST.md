@@ -39,6 +39,10 @@ Rules for an entry:
 | `/usr/lib/x86_64-linux-gnu/rsyslog` | rsyslog — module directory, **nothing executed**: `stat` of `lmnsd_ossl.so` before accepting a TLS export | TLS driver presence check | — | RF-4 |
 | `/usr/bin/ip` | keepalived integration test only (`_test.go`, never a renderer allowlist) | slot netns + veth pair, keepalived child inside it | `ip netns add\|delete ns-<prefix>-a`, `ip -n ns-<prefix>-a link\|addr …`, `ip netns exec ns-<prefix>-a keepalived -n -l -P -G -f <cfg> -p … -r … -c …` | RF-4 |
 
+`vppstartup` (F-startup-gen) runs no process: `Validate` is structural and `Apply` refuses (VPP restart = manager step,
+manual procedure in `docs/agent/renderers/vppstartup.md`, tooling in task F-startup-apply); the `vrx-startupgen` CLI only reads files. `/usr/lib/x86_64-linux-gnu/vpp_plugins` in its
+source is the plugin **directory** it lists (host facts), not a binary.
+
 ## Planned (documented ahead of use; move a row to *Active* when the renderer lands)
 
 | binary | renderer | purpose | argv shape | task |

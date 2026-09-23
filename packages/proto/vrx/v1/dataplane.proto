@@ -669,6 +669,36 @@ message DataplaneConfig {
   repeated uint32 corelist = 6;
   // TX queues per interface (dpdk num-tx-queues); unset = driver default.
   optional uint32 tx_queues = 7;
+  // PCI addresses of the management NIC(s): always `dpdk { blacklist }`, never a DPDK device
+  // (F-startup-gen, D-081; the generator also protects the NIC it detects on the host).
+  repeated string management_pci = 8;
+  // DPDK devices keyed by PCI address ("0000:04:00.0") → `dpdk { dev <pci> { name … } }` (D-069, D-081).
+  map<string, DataplaneDevice> devices = 9;
+  // buffers { buffers-per-numa N }, 1024–4194304; unset = VPP default (16384).
+  optional uint32 buffers_per_numa = 10;
+  // plugins { plugin <file> { enable|disable } } (D-060, D-081, D-084). Present = authoritative: exactly
+  // these switches are rendered; absent = the switches of the current start-up configuration are kept.
+  optional PluginSet plugins = 11;
+}
+
+// PluginSet mirrors `dataplane.plugins` (D-084): a message so presence survives the proto.
+message PluginSet {
+  // Plugin file name ("linux_cp_plugin.so") → true = enable, false = disable.
+  map<string, bool> switches = 1;
+}
+
+// DataplaneDevice mirrors one entry of `dataplane.devices` (F-startup-gen, D-081).
+message DataplaneDevice {
+  // Logical interface name (`name <logical>`, D-069): [a-z][a-z0-9_-]{0,14}; unset = VPP's PCI-derived name.
+  optional string name = 1;
+  // num-rx-queues, 1–256; unset = `dev default` / driver default.
+  optional uint32 rx_queues = 2;
+  // num-tx-queues, 1–256.
+  optional uint32 tx_queues = 3;
+  // num-rx-desc, power of two 64–16384.
+  optional uint32 rx_desc = 4;
+  // num-tx-desc, power of two 64–16384.
+  optional uint32 tx_desc = 5;
 }
 
 // ----- interfaces (P02a, mirrors packages/schema/src/domains/interfaces.ts) -----

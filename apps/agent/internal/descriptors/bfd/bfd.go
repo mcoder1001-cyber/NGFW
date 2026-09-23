@@ -24,6 +24,7 @@ import (
 	"sort"
 	"strconv"
 
+	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/bfd"
@@ -306,11 +307,7 @@ func (d *SessionDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	if err != nil {
 		return nil, err
 	}
-	ifs, err := d.Ifaces(ctx)
-	if err != nil {
-		return nil, err
-	}
-	idx, err := ifs.OwnedIndex(s.Interface)
+	idx, err := d.Attach(ctx, s.Interface, string(KeySession(s.Interface, s.Local, s.Peer)))
 	if err != nil {
 		return nil, err
 	}
@@ -333,7 +330,7 @@ func (d *SessionDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 // Update implements scheduler.Descriptor in place: timers (bfd_udp_mod), authentication
 // (bfd_udp_auth_activate / _deactivate, immediate) and admin state (set_flags). Interface and
 // addresses are the key.
-func (d *SessionDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
+func (d *SessionDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, _ any) (any, error) {
 	o, err := df7.Decode[Session](oldObj)
 	if err != nil {
 		return nil, err
@@ -345,12 +342,16 @@ func (d *SessionDescriptor) Update(ctx context.Context, oldObj, newObj proto.Mes
 	if o.Interface != n.Interface || o.Local != n.Local || o.Peer != n.Peer {
 		return nil, scheduler.ErrRecreate
 	}
-	m, ok := meta.(SessionMeta)
-	if !ok {
-		return nil, df7.BadMeta(NameSession, meta)
+	sw, found, err := d.Detach(ctx, n.Interface, string(KeySession(n.Interface, n.Local, n.Peer)))
+	if err != nil {
+		return nil, err
 	}
+	if !found {
+		return nil, fmt.Errorf("%s: %w: %q", NameSession, df7.ErrNoSuchInterface, n.Interface)
+	}
+	m := SessionMeta{SwIfIndex: sw}
 	svc := bfd.NewServiceClient(d.Client)
-	idx := interface_types.InterfaceIndex(m.SwIfIndex)
+	idx := interface_types.InterfaceIndex(sw)
 	l, p := mustAddr(n.Local), mustAddr(n.Peer)
 	if o.DesiredMinTx != n.DesiredMinTx || o.RequiredMinRx != n.RequiredMinRx || o.DetectMult != n.DetectMult {
 		if _, err := svc.BfdUDPMod(ctx, &bfd.BfdUDPMod{SwIfIndex: idx, DesiredMinTx: n.DesiredMinTx, RequiredMinRx: n.RequiredMinRx,
@@ -377,19 +378,27 @@ func (d *SessionDescriptor) Update(ctx context.Context, oldObj, newObj proto.Mes
 	return m, nil
 }
 
-// Delete implements scheduler.Descriptor: bfd_udp_del.
-func (d *SessionDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor: re-resolve the interface (D-071), bfd_udp_del (the
+// session is identified by interface + addresses; BFD_ENOENT = already gone) and release the
+// claim.
+func (d *SessionDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	s, err := df7.Decode[Session](obj)
 	if err != nil {
 		return err
 	}
-	m, ok := meta.(SessionMeta)
-	if !ok {
-		return df7.BadMeta(NameSession, meta)
+	key := string(KeySession(s.Interface, s.Local, s.Peer))
+	idx, found, err := d.Detach(ctx, s.Interface, key)
+	if err != nil {
+		return err
 	}
-	_, err = bfd.NewServiceClient(d.Client).BfdUDPDel(ctx, &bfd.BfdUDPDel{SwIfIndex: interface_types.InterfaceIndex(m.SwIfIndex),
-		LocalAddr: mustAddr(s.Local), PeerAddr: mustAddr(s.Peer)})
-	return d.Wrap(fmt.Sprintf("bfd_udp_del %s %s→%s", s.Interface, s.Local, s.Peer), err)
+	if found {
+		_, err = bfd.NewServiceClient(d.Client).BfdUDPDel(ctx, &bfd.BfdUDPDel{SwIfIndex: interface_types.InterfaceIndex(idx),
+			LocalAddr: mustAddr(s.Local), PeerAddr: mustAddr(s.Peer)})
+		if err != nil && !df7.IsVPPError(err, api.BFD_ENOENT) {
+			return d.Wrap(fmt.Sprintf("bfd_udp_del %s %s→%s", s.Interface, s.Local, s.Peer), err)
+		}
+	}
+	return d.Release(s.Interface, key)
 }
 
 // Retrieve implements scheduler.Descriptor: bfd_udp_session_dump, single-hop sessions on owned
@@ -409,11 +418,12 @@ func (d *SessionDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error
 		if uint32(det.SwIfIndex) == df7.NoIndex {
 			continue // multihop
 		}
-		name, ok := ifs.OwnedName(uint32(det.SwIfIndex))
+		local, peer := df7.FromAddress(det.LocalAddr).String(), df7.FromAddress(det.PeerAddr).String()
+		name, ok := ifs.Owned(uint32(det.SwIfIndex), func(n string) string { return string(KeySession(n, local, peer)) })
 		if !ok {
 			continue
 		}
-		s := Session{Interface: name, Local: df7.FromAddress(det.LocalAddr).String(), Peer: df7.FromAddress(det.PeerAddr).String(),
+		s := Session{Interface: name, Local: local, Peer: peer,
 			DesiredMinTx: det.DesiredMinTx, RequiredMinRx: det.RequiredMinRx, DetectMult: det.DetectMult,
 			AdminDown: det.State == bfd.BFD_STATE_API_ADMIN_DOWN}
 		if det.IsAuthenticated {
@@ -463,11 +473,7 @@ func (d *EchoSourceDescriptor) Create(ctx context.Context, obj proto.Message) (a
 	if err != nil {
 		return nil, err
 	}
-	ifs, err := d.Ifaces(ctx)
-	if err != nil {
-		return nil, err
-	}
-	idx, err := ifs.OwnedIndex(e.Interface)
+	idx, err := d.Attach(ctx, e.Interface, string(KeyEchoSource()))
 	if err != nil {
 		return nil, err
 	}
@@ -483,10 +489,23 @@ func (d *EchoSourceDescriptor) Update(ctx context.Context, _, newObj proto.Messa
 	return d.Create(ctx, newObj)
 }
 
-// Delete implements scheduler.Descriptor: bfd_udp_del_echo_source.
-func (d *EchoSourceDescriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
-	_, err := bfd.NewServiceClient(d.Client).BfdUDPDelEchoSource(ctx, &bfd.BfdUDPDelEchoSource{})
-	return d.Wrap("bfd_udp_del_echo_source", err)
+// Delete implements scheduler.Descriptor: bfd_udp_del_echo_source — only while the echo source
+// is still our interface (re-verified right before the delete, D-071).
+func (d *EchoSourceDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
+	e, err := df7.Decode[EchoSource](obj)
+	if err != nil {
+		return err
+	}
+	cur, err := d.Retrieve(ctx)
+	if err != nil {
+		return err
+	}
+	if len(cur) == 1 {
+		if _, err := bfd.NewServiceClient(d.Client).BfdUDPDelEchoSource(ctx, &bfd.BfdUDPDelEchoSource{}); err != nil {
+			return d.Wrap("bfd_udp_del_echo_source", err)
+		}
+	}
+	return d.Release(e.Interface, string(KeyEchoSource()))
 }
 
 // Retrieve implements scheduler.Descriptor: bfd_udp_get_echo_source; reported when set on an
@@ -503,16 +522,21 @@ func (d *EchoSourceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, er
 	if err != nil {
 		return nil, err
 	}
-	name, ok := ifs.OwnedName(uint32(rep.SwIfIndex))
+	name, ok := ifs.Owned(uint32(rep.SwIfIndex), func(string) string { return string(KeyEchoSource()) })
 	if !ok {
 		return nil, nil
 	}
 	return []scheduler.KV{df7.KV(KeyEchoSource(), EchoSource{Interface: name}, EchoMeta{SwIfIndex: uint32(rep.SwIfIndex)})}, nil
 }
 
-// Register constructs every bfd descriptor (keys before sessions).
+// Register constructs the per-object bfd descriptors (keys before sessions).
 func Register(r scheduler.Registry, c vpp.Client, owner string, secrets Secrets, opts ...df7.Option) {
 	r.Register(NewAuthKey(c, owner, secrets, opts...))
 	r.Register(NewSession(c, owner, opts...))
+}
+
+// RegisterGlobals constructs the VPP-global bfd.echo-source descriptor (one echo source per
+// VPP). Only the globals owner calls it (D-071).
+func RegisterGlobals(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
 	r.Register(NewEchoSource(c, owner, opts...))
 }

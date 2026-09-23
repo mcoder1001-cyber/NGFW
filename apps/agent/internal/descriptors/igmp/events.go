@@ -21,9 +21,10 @@ type Event struct {
 	Filter    string // "include" | "exclude"
 }
 
-// DecodeEvent converts an event; ok is false for interfaces this owner does not own.
+// DecodeEvent converts an event; ok is false unless the interface carries this owner's IGMP
+// configuration (its igmp.interface object owns it).
 func DecodeEvent(m *igmp.IgmpEvent, ifs *df7.Interfaces) (Event, bool) {
-	name, ok := ifs.OwnedName(uint32(m.SwIfIndex))
+	name, ok := ifs.Owned(uint32(m.SwIfIndex), func(n string) string { return string(KeyInterface(n)) })
 	if !ok {
 		return Event{}, false
 	}

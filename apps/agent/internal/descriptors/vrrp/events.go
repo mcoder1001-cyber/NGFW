@@ -45,7 +45,9 @@ type Event struct {
 
 // DecodeEvent converts an event; ok is false for VRs on interfaces this owner does not own.
 func DecodeEvent(m *vrrp.VrrpVrEvent, ifs *df7.Interfaces) (Event, bool) {
-	name, ok := ifs.OwnedName(uint32(m.Vr.SwIfIndex))
+	name, ok := ifs.Owned(uint32(m.Vr.SwIfIndex), func(n string) string {
+		return string(KeyVR(VR{Interface: n, VRID: m.Vr.VrID, IPv6: m.Vr.IsIPv6 != 0}))
+	})
 	if !ok {
 		return Event{}, false
 	}

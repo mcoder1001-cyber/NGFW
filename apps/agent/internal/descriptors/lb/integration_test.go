@@ -10,22 +10,19 @@ import (
 )
 
 // Host test: VIPs and ASes in this slot's 10.<slot>.30.0/24 / 10.<slot>.31.0/24, the NAT
-// feature on this slot's loopback (loop<slot>30). lb.conf is VPP-wide with no getter: the test
-// sets this slot's GRE source addresses and restores VPP's start-up values (255.255.255.255,
-// ffff:…, 1024 buckets, 40 s) in Cleanup — nothing else on the host uses the lb plugin.
+// feature on this slot's loopback (loop<slot>30). lb.conf is VPP-wide and has no getter, so
+// its previous value cannot be restored: the subtest runs only for the globals owner
+// (VRX_DF7_GLOBALS=1, D-071). VIPs work without it (the GRE source only matters for traffic).
 func TestLBOnHost(t *testing.T) {
 	h := df7test.StartHost(t)
 	cd, vd, ad, nd := NewConf(h.C, h.Owner), NewVIP(h.C, h.Owner), NewAS(h.C, h.Owner), NewIntfNat(h.C, h.Owner)
 	ifA, _ := h.Loopback(30, true, true)
 
-	conf := df7.Encode(Conf{IP4Src: h.Addr(30, 254), IP6Src: "2001:db8:10::fe", StickyBucketsPerCore: 1024, FlowTimeout: 40})
-	h.Apply(cd, df7test.Desired(cd, conf))
-	t.Cleanup(func() {
-		if err := cd.Delete(h.Ctx, conf, nil); err != nil {
-			t.Errorf("restore lb conf: %v", err)
-		} else {
-			t.Log("lb conf restored to VPP start-up values")
-		}
+	t.Run("conf (write-only, globals owner only)", func(t *testing.T) {
+		df7test.GlobalsOptIn(t, "lb.conf")
+		conf := df7.Encode(Conf{IP4Src: h.Addr(30, 254), IP6Src: "2001:db8:10::fe", StickyBucketsPerCore: 1024, FlowTimeout: 40})
+		h.Apply(cd, df7test.Desired(cd, conf))
+		h.Must("lb conf back to start-up values", cd.Delete(h.Ctx, conf, nil))
 	})
 
 	tcp := VIP{Prefix: h.Addr(30, 1) + "/32", Protocol: ProtoTCP, Port: 80}

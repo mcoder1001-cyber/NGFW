@@ -7,6 +7,7 @@ import (
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/df7/df7test"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp"
 )
 
 // Host test: VRs on this slot's loopback (loop<slot>70, 10.<slot>.70.1/24), VR ids = slot and
@@ -99,10 +100,19 @@ func TestVRRPOnHost(t *testing.T) {
 		h.ExpectRetrieved(fresh, vrs...)
 	})
 
+	t.Run("restart simulation with loss (state, tracking)", func(t *testing.T) {
+		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewState(c, h.Owner) }, states...)
+		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewTrack(c, h.Owner) }, tracks...)
+	})
+
 	h.DeleteAll(sd, cs)
 	h.ExpectNone(sd)
 	h.DeleteAll(td, ct)
 	h.DeleteAll(pd, cp)
+	t.Run("restart simulation with loss (VRs, after their children are gone)", func(t *testing.T) {
+		bare := []scheduler.KV{vrs[0]} // v2 is unicast: recreated without peers it is still a valid VR
+		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewVR(c, h.Owner) }, append(bare, vrs[1])...)
+	})
 	h.DeleteAll(vd, cv)
 	for _, d := range []scheduler.Descriptor{td, pd, vd} {
 		h.ExpectNone(d)

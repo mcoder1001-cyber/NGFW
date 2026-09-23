@@ -47,11 +47,12 @@ type SessionEvent struct {
 // DecodeEvent converts an event; ok is false for multihop sessions and sessions on interfaces
 // this owner does not own.
 func DecodeEvent(m *bfd.BfdUDPSessionEvent, ifs *df7.Interfaces) (SessionEvent, bool) {
-	name, ok := ifs.OwnedName(uint32(m.SwIfIndex))
+	local, peer := df7.FromAddress(m.LocalAddr).String(), df7.FromAddress(m.PeerAddr).String()
+	name, ok := ifs.Owned(uint32(m.SwIfIndex), func(n string) string { return string(KeySession(n, local, peer)) })
 	if !ok {
 		return SessionEvent{}, false
 	}
-	e := SessionEvent{Interface: name, Local: df7.FromAddress(m.LocalAddr).String(), Peer: df7.FromAddress(m.PeerAddr).String(), State: StateName(m.State)}
+	e := SessionEvent{Interface: name, Local: local, Peer: peer, State: StateName(m.State)}
 	e.Key = string(KeySession(e.Interface, e.Local, e.Peer))
 	return e, true
 }
@@ -99,11 +100,12 @@ func Sessions(ctx context.Context, c vpp.Client, owner string, opts ...df7.Optio
 	}
 	var out []SessionState
 	for _, d := range dets {
-		name, ok := ifs.OwnedName(uint32(d.SwIfIndex))
+		local, peer := df7.FromAddress(d.LocalAddr).String(), df7.FromAddress(d.PeerAddr).String()
+		name, ok := ifs.Owned(uint32(d.SwIfIndex), func(n string) string { return string(KeySession(n, local, peer)) })
 		if !ok {
 			continue
 		}
-		out = append(out, SessionState{Key: string(KeySession(name, df7.FromAddress(d.LocalAddr).String(), df7.FromAddress(d.PeerAddr).String())), State: StateName(d.State)})
+		out = append(out, SessionState{Key: string(KeySession(name, local, peer)), State: StateName(d.State)})
 	}
 	return out, nil
 }

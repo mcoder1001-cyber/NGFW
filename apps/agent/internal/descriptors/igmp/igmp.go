@@ -203,20 +203,19 @@ func (r *Modes) get(ifName string) string {
 	return r.m[ifName]
 }
 
-func ownedIndex(ctx context.Context, b df7.Base, name string) (uint32, error) {
-	ifs, err := b.Ifaces(ctx)
+// detach re-resolves an object's interface right before a delete (D-071), runs del when it
+// still exists and releases the claim of holder.
+func detach(ctx context.Context, b df7.Base, ifName, holder string, del func(idx uint32) error) error {
+	idx, found, err := b.Detach(ctx, ifName, holder)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	return ifs.OwnedIndex(name)
-}
-
-func metaOf(name string, meta any) (Meta, error) {
-	m, ok := meta.(Meta)
-	if !ok {
-		return Meta{}, df7.BadMeta(name, meta)
+	if found {
+		if err := del(idx); err != nil {
+			return err
+		}
 	}
-	return m, nil
+	return b.Release(ifName, holder)
 }
 
 // ---- igmp.interface ---------------------------------------------------------------------------
@@ -262,7 +261,7 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ownedIndex(ctx, d.Base, i.Interface)
+	idx, err := d.Attach(ctx, i.Interface, string(KeyInterface(i.Interface)))
 	if err != nil {
 		return nil, err
 	}
@@ -282,16 +281,18 @@ func (*InterfaceDescriptor) Update(context.Context, proto.Message, proto.Message
 
 // Delete implements scheduler.Descriptor: disable (VPP also removes the interface from its
 // proxy device and deletes a proxy device whose upstream it is).
-func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	i, err := df7.Decode[Interface](obj)
 	if err != nil {
 		return err
 	}
-	m, err := metaOf(NameInterface, meta)
+	err = detach(ctx, d.Base, i.Interface, string(KeyInterface(i.Interface)), func(idx uint32) error {
+		if err := d.set(ctx, idx, i, false); err != nil && !df7.IsVPPError(err, api.UNSPECIFIED) {
+			return err
+		}
+		return nil
+	})
 	if err != nil {
-		return err
-	}
-	if err := d.set(ctx, m.SwIfIndex, i, false); err != nil && !df7.IsVPPError(err, api.UNSPECIFIED) {
 		return err
 	}
 	if d.modes != nil {
@@ -350,7 +351,7 @@ func (d *ListenDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ownedIndex(ctx, d.Base, l.Interface)
+	idx, err := d.Attach(ctx, l.Interface, string(KeyListen(l.Interface, l.Group)))
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +360,7 @@ func (d *ListenDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 
 // Update implements scheduler.Descriptor: a new source list replaces the old one in place
 // (RFC 3376 §2: each listen request replaces the previous one).
-func (d *ListenDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
+func (d *ListenDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, _ any) (any, error) {
 	o, err := df7.Decode[Listen](oldObj)
 	if err != nil {
 		return nil, err
@@ -371,24 +372,26 @@ func (d *ListenDescriptor) Update(ctx context.Context, oldObj, newObj proto.Mess
 	if o.Interface != n.Interface || o.Group != n.Group {
 		return nil, scheduler.ErrRecreate
 	}
-	m, err := metaOf(NameListen, meta)
+	idx, found, err := d.Detach(ctx, n.Interface, string(KeyListen(n.Interface, n.Group)))
 	if err != nil {
 		return nil, err
 	}
-	return m, d.listen(ctx, m.SwIfIndex, n, n.Sources)
+	if !found {
+		return nil, fmt.Errorf("%s: %w: %q", NameListen, df7.ErrNoSuchInterface, n.Interface)
+	}
+	return Meta{SwIfIndex: idx}, d.listen(ctx, idx, n, n.Sources)
 }
 
-// Delete implements scheduler.Descriptor: an INCLUDE listen with no sources (leave).
-func (d *ListenDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor: an INCLUDE listen with no sources (leave), on the
+// re-resolved interface (D-071).
+func (d *ListenDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	l, err := df7.Decode[Listen](obj)
 	if err != nil {
 		return err
 	}
-	m, err := metaOf(NameListen, meta)
-	if err != nil {
-		return err
-	}
-	return d.listen(ctx, m.SwIfIndex, l, nil)
+	return detach(ctx, d.Base, l.Interface, string(KeyListen(l.Interface, l.Group)), func(idx uint32) error {
+		return d.listen(ctx, idx, l, nil)
+	})
 }
 
 // Retrieve implements scheduler.Descriptor: igmp_dump (INCLUDE sources per group) on owned
@@ -411,20 +414,23 @@ func (d *ListenDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 		group string
 	}
 	groups := map[gk]map[string]bool{}
+	names := map[uint32]string{}
 	for _, det := range dets {
-		name, ok := ifs.OwnedName(uint32(det.SwIfIndex))
+		g := netip.AddrFrom4(det.Gaddr).String()
+		name, ok := ifs.Owned(uint32(det.SwIfIndex), func(n string) string { return string(KeyListen(n, g)) })
 		if !ok || (d.modes != nil && d.modes.get(name) == ModeRouter) {
 			continue
 		}
-		k := gk{uint32(det.SwIfIndex), netip.AddrFrom4(det.Gaddr).String()}
+		names[uint32(det.SwIfIndex)] = name
+		k := gk{uint32(det.SwIfIndex), g}
 		if groups[k] == nil {
 			groups[k] = map[string]bool{}
 		}
-		groups[k][netip.AddrFrom4(det.Saddr).String()] = true // VPP sends every source twice
+		groups[k][netip.AddrFrom4(det.Saddr).String()] = true // VPP sends every source twice: dedupe
 	}
 	out := make([]scheduler.KV, 0, len(groups))
 	for k, srcs := range groups {
-		l := Listen{Interface: ifs.NameOrIndex(k.idx), Group: k.group}
+		l := Listen{Interface: names[k.idx], Group: k.group}
 		for s := range srcs {
 			l.Sources = append(l.Sources, s)
 		}
@@ -531,7 +537,7 @@ func (d *ProxyDeviceDescriptor) Create(ctx context.Context, obj proto.Message) (
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ownedIndex(ctx, d.Base, p.Upstream)
+	idx, err := d.Attach(ctx, p.Upstream, string(KeyProxyDevice(p.VRF)))
 	if err != nil {
 		return nil, err
 	}
@@ -543,17 +549,20 @@ func (*ProxyDeviceDescriptor) Update(context.Context, proto.Message, proto.Messa
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor (VPP also drops the downstream list).
-func (d *ProxyDeviceDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor on the re-resolved upstream interface (D-071); VPP
+// also drops the downstream list, and ignores a delete of a device that does not exist.
+func (d *ProxyDeviceDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	p, err := df7.Decode[ProxyDevice](obj)
 	if err != nil {
 		return err
 	}
-	m, err := metaOf(NameProxyDevice, meta)
-	if err != nil {
-		return err
-	}
-	return d.set(ctx, m.SwIfIndex, p, false)
+	return detach(ctx, d.Base, p.Upstream, string(KeyProxyDevice(p.VRF)), func(idx uint32) error {
+		// INVALID_INTERFACE: the upstream left the VRF or IGMP — the device is gone with it
+		if err := d.set(ctx, idx, p, false); err != nil && !df7.IsVPPError(err, api.INVALID_INTERFACE) {
+			return err
+		}
+		return nil
+	})
 }
 
 // Retrieve implements scheduler.Descriptor: write-only (D-063).
@@ -599,7 +608,7 @@ func (d *DownstreamDescriptor) Create(ctx context.Context, obj proto.Message) (a
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ownedIndex(ctx, d.Base, s.Interface)
+	idx, err := d.Attach(ctx, s.Interface, string(KeyDownstream(s.VRF, s.Interface)))
 	if err != nil {
 		return nil, err
 	}
@@ -616,19 +625,18 @@ func (*DownstreamDescriptor) Update(context.Context, proto.Message, proto.Messag
 
 // Delete implements scheduler.Descriptor. "Not a downstream" (-2/-3, e.g. the device was
 // already deleted with its list) is success.
-func (d *DownstreamDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+func (d *DownstreamDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	s, err := df7.Decode[Downstream](obj)
 	if err != nil {
 		return err
 	}
-	m, err := metaOf(NameDownstream, meta)
-	if err != nil {
-		return err
-	}
-	if err := d.set(ctx, m.SwIfIndex, s, false); err != nil && !df7.IsVPPError(err, api.UNSPECIFIED, api.INVALID_SW_IF_INDEX, api.NO_SUCH_FIB) {
-		return err
-	}
-	return nil
+	return detach(ctx, d.Base, s.Interface, string(KeyDownstream(s.VRF, s.Interface)), func(idx uint32) error {
+		if err := d.set(ctx, idx, s, false); err != nil &&
+			!df7.IsVPPError(err, api.UNSPECIFIED, api.INVALID_SW_IF_INDEX, api.NO_SUCH_FIB, api.INVALID_INTERFACE) {
+			return err
+		}
+		return nil
+	})
 }
 
 // Retrieve implements scheduler.Descriptor: write-only (D-063).
@@ -643,12 +651,18 @@ func ClearInterface(ctx context.Context, c vpp.Client, swIfIndex uint32) error {
 	return err
 }
 
-// Register constructs every igmp descriptor; interface and listen share one Modes registry.
+// Register constructs the per-interface igmp descriptors; interface and listen share one Modes
+// registry.
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
 	modes := NewModes()
 	r.Register(NewInterface(c, owner, modes, opts...))
-	r.Register(NewGroupPrefix(c, owner, opts...))
 	r.Register(NewListen(c, owner, modes, opts...))
 	r.Register(NewProxyDevice(c, owner, opts...))
 	r.Register(NewDownstream(c, owner, opts...))
+}
+
+// RegisterGlobals constructs the VPP-global igmp.group-prefix descriptor (the SSM range list is
+// one list per VPP). Only the globals owner calls it (D-071).
+func RegisterGlobals(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
+	r.Register(NewGroupPrefix(c, owner, opts...))
 }

@@ -264,8 +264,18 @@ func TestEchoSource(t *testing.T) {
 	}
 	r := scheduler.NewRegistry()
 	Register(r, f, df7test.Owner, secret)
+	if r.Len() != 2 {
+		t.Fatal("non-owners register no globals (D-071):", r.Names())
+	}
+	RegisterGlobals(r, f, df7test.Owner)
 	if r.Len() != 3 {
 		t.Fatal(r.Names())
+	}
+	// Delete re-verifies: the echo source now points at another owner's interface → untouched
+	set = 3
+	f.Reset()
+	if err := d.Delete(ctx, v.Value, nil); err != nil || len(f.CallsNamed("bfd_udp_del_echo_source")) != 0 {
+		t.Fatal("another owner's echo source must not be deleted", err)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/df7/df7test"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp"
 )
 
 // Host test: mirrors between this slot's loopbacks (loop<slot>40…), device and L2 level.
@@ -34,7 +35,7 @@ func TestSpanOnHost(t *testing.T) {
 	})
 	h.Hold("span mirrors")
 	t.Run("restart simulation", func(t *testing.T) {
-		h.ExpectRetrieved(New(df7test.Connect(t), h.Owner), desired...)
+		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return New(c, h.Owner) }, desired...)
 	})
 	h.DeleteAll(d, created)
 	h.ExpectNone(d)

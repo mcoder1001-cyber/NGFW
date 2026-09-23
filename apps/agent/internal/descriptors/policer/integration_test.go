@@ -12,6 +12,7 @@ import (
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/df7/df7test"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp"
 )
 
 // Integration test against the VPP on this host (VRX_INTEGRATION=1, shared lab lock): policers
@@ -67,7 +68,8 @@ func TestPolicerOnHost(t *testing.T) {
 		idx := created[0].Meta.(Meta).Index
 		_, err := policer.NewServiceClient(h.C).PolicerInputV2(h.Ctx, &policer.PolicerInputV2{PolicerIndex: idx, SwIfIndex: interface_types.InterfaceIndex(idxA), Apply: true})
 		t.Logf("policer_input_v2 probe: err=%v", err)
-		h.Must("undo v2 probe", ad.Delete(h.Ctx, in, att[0].Meta))
+		_, err = policer.NewServiceClient(h.C).PolicerInput(h.Ctx, &policer.PolicerInput{Name: h.Owner + ":gold", SwIfIndex: interface_types.InterfaceIndex(idxA), Apply: false})
+		h.Must("undo v2 probe", err)
 	})
 
 	t.Run("bind to worker", func(t *testing.T) {
@@ -106,8 +108,7 @@ func TestPolicerOnHost(t *testing.T) {
 	})
 
 	t.Run("restart simulation", func(t *testing.T) {
-		fresh := NewPolicer(df7test.Connect(t), h.Owner)
-		h.ExpectRetrieved(fresh, desired...)
+		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewPolicer(c, h.Owner) }, desired...)
 	})
 
 	h.DeleteAll(pd, created)

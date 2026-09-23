@@ -10,6 +10,7 @@ import (
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/df7/df7test"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp"
 )
 
 // testSecret is the fixture secret of a conf key: the literal VRX_TEST_PSK_<id> (00-CONTEXT:
@@ -70,6 +71,7 @@ func TestBFDOnHost(t *testing.T) {
 	})
 
 	t.Run("echo source", func(t *testing.T) {
+		df7test.GlobalsOptIn(t, "bfd.echo-source")
 		rep, err := bfd.NewServiceClient(h.C).BfdUDPGetEchoSource(h.Ctx, &bfd.BfdUDPGetEchoSource{})
 		h.Must("bfd_udp_get_echo_source", err)
 		if rep.IsSet {
@@ -90,13 +92,16 @@ func TestBFDOnHost(t *testing.T) {
 	h.Hold("bfd sessions")
 
 	t.Run("restart simulation", func(t *testing.T) {
-		c := df7test.Connect(t)
-		h.ExpectRetrieved(NewAuthKey(c, h.Owner, nil, opts...), keys...)
-		h.ExpectRetrieved(NewSession(c, h.Owner, opts...), sessions...)
+		// sessions first: a key in use cannot be deleted (BFD_EINUSE)
+		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewSession(c, h.Owner, opts...) }, sessions...)
+		h.ExpectRetrieved(NewAuthKey(df7test.Connect(t), h.Owner, nil, opts...), keys...)
 	})
 
 	h.DeleteAll(sd, cs)
-	h.DeleteAll(kd, ck)
 	h.ExpectNone(sd)
+	t.Run("restart simulation (keys, after their sessions are gone)", func(t *testing.T) {
+		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewAuthKey(c, h.Owner, testSecret, opts...) }, keys...)
+	})
+	h.DeleteAll(kd, ck)
 	h.ExpectNone(kd)
 }

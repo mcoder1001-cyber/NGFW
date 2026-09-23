@@ -181,6 +181,16 @@ func (h *Host) Hold(what string) {
 	}
 }
 
+// GlobalsOptIn skips t unless VRX_DF7_GLOBALS=1: a test slot on the shared host is never the
+// globals owner and must not set VPP-global settings (D-071). An operator who owns the host's
+// globals for the moment may opt in; the tests then restore what they can read back.
+func GlobalsOptIn(t *testing.T, what string) {
+	t.Helper()
+	if os.Getenv("VRX_DF7_GLOBALS") != "1" {
+		t.Skipf("skip: %s is VPP-global — only the globals owner sets it (D-071); VRX_DF7_GLOBALS=1 to opt in", what)
+	}
+}
+
 // Must fails the test on err.
 func (h *Host) Must(what string, err error) {
 	h.T.Helper()

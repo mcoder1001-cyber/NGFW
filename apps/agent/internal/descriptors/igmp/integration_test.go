@@ -9,6 +9,7 @@ import (
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/df7/df7test"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp"
 )
 
 // Host test: IP table <base>+80 (unicast + multicast FIB), this slot's loopbacks loop<slot>80
@@ -65,13 +66,17 @@ func TestIGMPOnHost(t *testing.T) {
 		h.DeleteAll(pd, cp)
 	})
 
-	t.Run("group prefix (write-only)", func(t *testing.T) {
-		v := df7.Encode(GroupPrefix{Prefix: "239." + itoa(h.Slot) + ".0.0/16"})
-		cg := h.Apply(gd, df7test.Desired(gd, v))
+	t.Run("group prefix dump (read-only probe)", func(t *testing.T) {
 		stream, err := igmp.NewServiceClient(h.C).IgmpGroupPrefixDump(h.Ctx, &igmp.IgmpGroupPrefixDump{})
 		h.Must("igmp_group_prefix_dump", err)
 		dets, err := df7.Collect(stream.Recv)
-		t.Logf("igmp_group_prefix_dump (why it is not used): %d details, err %v", len(dets), err)
+		t.Logf("igmp_group_prefix_dump (why igmp.group-prefix is write-only): %d details, err %v", len(dets), err)
+	})
+
+	t.Run("group prefix (write-only, globals owner only)", func(t *testing.T) {
+		df7test.GlobalsOptIn(t, "igmp.group-prefix (the SSM range list)")
+		v := df7.Encode(GroupPrefix{Prefix: "239." + itoa(h.Slot) + ".0.0/16"})
+		cg := h.Apply(gd, df7test.Desired(gd, v))
 		h.DeleteAll(gd, cg)
 		if _, err := gd.Retrieve(h.Ctx); !errors.Is(err, df7.ErrRetrieveUnsupported) {
 			t.Fatal(err)
@@ -87,7 +92,7 @@ func TestIGMPOnHost(t *testing.T) {
 
 	t.Run("restart simulation", func(t *testing.T) {
 		// a fresh process has an empty Modes registry: host-mode joins are still reported
-		h.ExpectRetrieved(NewListen(df7test.Connect(t), h.Owner, nil), listens...)
+		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewListen(c, h.Owner, nil) }, listens...)
 	})
 
 	h.DeleteAll(ld, cl)

@@ -6,6 +6,7 @@ import (
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/df7/df7test"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp"
 )
 
 // Host test: egress map ids from this slot's range (VRX_VPP_TABLE_BASE+1…), record/store/mark on
@@ -64,16 +65,18 @@ func TestQoSOnHost(t *testing.T) {
 	h.Hold("qos objects")
 
 	t.Run("restart simulation", func(t *testing.T) {
-		c := df7test.Connect(t)
-		h.ExpectRetrieved(NewEgressMap(c, h.Owner, opts...), maps...)
-		h.ExpectRetrieved(NewRecord(c, h.Owner, opts...), recs...)
-		h.ExpectRetrieved(NewStore(c, h.Owner, opts...), stores...)
-		h.ExpectRetrieved(NewMark(c, h.Owner, opts...), marks...)
+		h.ExpectRetrieved(NewEgressMap(df7test.Connect(t), h.Owner, opts...), maps...)
+		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewRecord(c, h.Owner, opts...) }, recs...)
+		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewStore(c, h.Owner, opts...) }, stores...)
+		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewMark(c, h.Owner, opts...) }, marks...)
 	})
 
 	h.DeleteAll(kd, ck)
 	h.DeleteAll(sd, cs)
 	h.DeleteAll(rd, cr)
+	t.Run("restart simulation (maps, after their marks are gone)", func(t *testing.T) {
+		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewEgressMap(c, h.Owner, opts...) }, maps...)
+	})
 	h.DeleteAll(md, cm)
 	for _, d := range []scheduler.Descriptor{kd, sd, rd, md} {
 		h.ExpectNone(d)

@@ -11,7 +11,576 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get: operations['HealthController_health'];
+    /** Liveness of the API process */
+    get: operations['Health_health'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/login': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Log in with a local user; sets the refresh cookie */
+    post: operations['Auth_login'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/refresh': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Rotate the refresh cookie and get a new access token */
+    post: operations['Auth_refresh'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/logout': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Revoke the refresh cookie (and its rotation family) */
+    post: operations['Auth_logout'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/me': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The authenticated user */
+    get: operations['Auth_me'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/password': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Change the own password (argon2id) */
+    post: operations['Auth_password'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/api-keys': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** API keys of the authenticated user */
+    get: operations['Auth_apiKeys'];
+    put?: never;
+    /** Create an API key (`Authorization: ApiKey <key>`); the key is shown once */
+    post: operations['Auth_createApiKey'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/api-keys/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete an API key (own; admin: any) */
+    delete: operations['Auth_deleteApiKey'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Whole running configuration (redacted) */
+    get: operations['Config_running'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** RFC 7386 merge patch of the whole candidate */
+    patch: operations['Config_patchRoot'];
+    trace?: never;
+  };
+  '/api/v1/config/candidate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Whole candidate configuration (redacted); equals running when nobody edits */
+    get: operations['Config_candidate'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config/candidate/{path}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Node of the candidate at a JSON pointer */
+    get: operations['Config_candidateAt'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config/diff': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Structured candidate ↔ running diff (RFC 6902-style ops with JSON pointers) */
+    get: operations['Config_diff'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config/lock': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Candidate lock (single writer) */
+    get: operations['Config_lock'];
+    put?: never;
+    post?: never;
+    /** Admin: break the lock of another user (the candidate is discarded) */
+    delete: operations['Config_breakLock'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config/validate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Three-tier validation of the candidate (schema → semantic → agent DryRun); nothing is applied */
+    post: operations['Config_validate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config/commit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Validate and apply the candidate; with ?confirm=<sec> the agent reverts unless confirmed */
+    post: operations['Config_commit'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config/commit/confirm': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Confirm the pending commit (cancels the auto-revert) and persist its revision */
+    post: operations['Config_confirm'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config/commit/pending': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The commit waiting for confirmation, if any */
+    get: operations['Config_pending'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config/discard': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Drop the candidate and release the lock */
+    post: operations['Config_discard'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config/revisions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Revision history, newest first */
+    get: operations['Config_revisions'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config/revisions/{rev}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One revision with its (redacted) payload */
+    get: operations['Config_revision'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config/rollback/{rev}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Apply an old revision as a new revision (payload = the old one) */
+    post: operations['Config_rollback'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Running configuration as a download (redacted) */
+    get: operations['Config_export'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config/import': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Replace the candidate with a document (schema-checked; not applied) */
+    post: operations['Config_import'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config/{path}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Node of the running configuration at a JSON pointer */
+    get: operations['Config_runningAt'];
+    /** Replace the candidate node at a JSON pointer */
+    put: operations['Config_putAt'];
+    post?: never;
+    /** Remove the candidate node at a JSON pointer */
+    delete: operations['Config_deleteAt'];
+    options?: never;
+    head?: never;
+    /** RFC 7386 merge patch of the candidate node at a JSON pointer */
+    patch: operations['Config_patchAt'];
+    trace?: never;
+  };
+  '/api/v1/state/system': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** API + agent health, pending commit, running revision */
+    get: operations['State_system'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/interfaces': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Interfaces as retrieved from VPP by the agent, with the latest counters */
+    get: operations['State_interfaces'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Connected + static routes retrieved from VPP by the agent (server-side paged) */
+    get: operations['State_routes'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/neighbors': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** IP neighbours — needs an agent state RPC that the v1 contract does not have (501) */
+    get: operations['State_neighbors'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/drift': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Running configuration vs what the agent retrieves (proto.md §5) */
+    get: operations['State_drift'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/events': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** System events (commits, confirm reverts, agent degradation), newest first */
+    get: operations['State_events'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/{action}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Run an action (all 501 until the agent implements Action) */
+    post: operations['Actions_run'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/secrets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Secret references (no values) */
+    get: operations['Secrets_list'];
+    put?: never;
+    /** Create or replace a secret; returns the reference to put into the configuration */
+    post: operations['Secrets_put'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/secrets/{kind}/{name}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a secret that nothing references */
+    delete: operations['Secrets_delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/audit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Audit log, newest first (admin) */
+    get: operations['Audit_list'];
     put?: never;
     post?: never;
     delete?: never;
@@ -23,7 +592,4757 @@ export interface paths {
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: never;
+  schemas: {
+    /**
+     * System
+     * @description Hostname, timezone, login banners and DNS client settings.
+     * @default {}
+     */
+    SystemConfig: {
+      /**
+       * Hostname
+       * @default vrx
+       */
+      hostname: string;
+      /**
+       * Time zone
+       * @default UTC
+       */
+      timezone: string;
+      /**
+       * Banners
+       * @default {}
+       */
+      banner: {
+        /** Pre-login banner */
+        login?: string;
+        /** Message of the day */
+        motd?: string;
+      };
+      /**
+       * DNS client
+       * @default {}
+       */
+      dns: {
+        /**
+         * Name servers
+         * @default []
+         */
+        servers: string[];
+        /**
+         * Search domains
+         * @default []
+         */
+        searchDomains: string[];
+        /**
+         * VRF
+         * @default default
+         */
+        vrf: string;
+      };
+    };
+    /**
+     * Dataplane
+     * @description VPP data-plane tuning: worker threads, RX queues, hugepages, PCI whitelist and core placement.
+     * @default {}
+     */
+    DataplaneConfig: {
+      /** Worker threads */
+      workers?: number;
+      /** Worker cores */
+      corelist?: number[];
+      /** Main core */
+      mainCore?: number;
+      /** RX queues per NIC */
+      rxQueues?: number;
+      /** TX queues per NIC */
+      txQueues?: number;
+      /** Hugepages (GB) */
+      hugepagesGb?: number;
+      /**
+       * PCI whitelist
+       * @default []
+       */
+      pciWhitelist: string[];
+    };
+    /**
+     * Interfaces
+     * @description Physical, virtual and sub-interfaces keyed by VPP interface name.
+     * @default {}
+     */
+    InterfacesConfig: {
+      [key: string]: {
+        /**
+         * Enabled
+         * @default false
+         */
+        enabled: boolean;
+        /** Description */
+        description?: string;
+        /** MTU */
+        mtu?: number;
+        /**
+         * IPv4 addresses
+         * @default []
+         */
+        ipv4: string[];
+        /**
+         * IPv6 addresses
+         * @default []
+         */
+        ipv6: string[];
+        /**
+         * VRF
+         * @default default
+         */
+        vrf: string;
+        /** IP unnumbered */
+        unnumbered?: string;
+        /** DHCP client */
+        dhcpClient?: {
+          /** Hostname */
+          hostname?: string;
+          /** Client identifier */
+          clientId?: string;
+          /**
+           * Broadcast flag
+           * @default false
+           */
+          setBroadcastFlag: boolean;
+        };
+        /** MAC address */
+        mac?: string;
+        /**
+         * Promiscuous
+         * @default false
+         */
+        promiscuous: boolean;
+        /**
+         * RX mode
+         * @enum {string}
+         */
+        rxMode?: 'polling' | 'interrupt' | 'adaptive';
+        /**
+         * Sub-interfaces
+         * @default {}
+         */
+        subinterfaces: {
+          [key: string]: {
+            /** VLAN ID */
+            vlanId: number;
+            /** Inner VLAN ID */
+            innerVlanId?: number;
+            /**
+             * 802.1ad outer tag
+             * @default false
+             */
+            dot1ad: boolean;
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /** Description */
+            description?: string;
+            /** MTU */
+            mtu?: number;
+            /**
+             * IPv4 addresses
+             * @default []
+             */
+            ipv4: string[];
+            /**
+             * IPv6 addresses
+             * @default []
+             */
+            ipv6: string[];
+            /**
+             * VRF
+             * @default default
+             */
+            vrf: string;
+            /** IP unnumbered */
+            unnumbered?: string;
+            /** DHCP client */
+            dhcpClient?: {
+              /** Hostname */
+              hostname?: string;
+              /** Client identifier */
+              clientId?: string;
+              /**
+               * Broadcast flag
+               * @default false
+               */
+              setBroadcastFlag: boolean;
+            };
+          };
+        };
+      };
+    };
+    /**
+     * VRFs
+     * @description VRF / FIB tables keyed by name.
+     * @default {}
+     */
+    VrfsConfig: {
+      [key: string]: {
+        /** Table ID */
+        id: number;
+        /** Description */
+        description?: string;
+      };
+    };
+    /**
+     * Routing
+     * @description Static routes and dynamic routing protocols (FRR).
+     * @default {}
+     */
+    RoutingConfig: {
+      /**
+       * Static routes
+       * @default []
+       */
+      static: {
+        /** Destination */
+        prefix: string;
+        /**
+         * VRF
+         * @default default
+         */
+        vrf: string;
+        /**
+         * Next hops
+         * @default []
+         */
+        nextHops: {
+          /** Next-hop address */
+          address?: string;
+          /** Interface */
+          interface?: string;
+          /**
+           * Weight
+           * @default 1
+           */
+          weight: number;
+        }[];
+        /**
+         * Blackhole
+         * @default false
+         */
+        blackhole: boolean;
+        /**
+         * Distance
+         * @default 1
+         */
+        distance: number;
+        /** Description */
+        description?: string;
+      }[];
+      /**
+       * Routing policy
+       * @default {}
+       */
+      policy: {
+        /**
+         * Prefix lists
+         * @default {}
+         */
+        prefixLists: {
+          [key: string]: {
+            /** Description */
+            description?: string;
+            /**
+             * Address family
+             * @default ipv4
+             * @enum {string}
+             */
+            family: 'ipv4' | 'ipv6';
+            /**
+             * Rules
+             * @default []
+             */
+            rules: {
+              /** Sequence */
+              seq: number;
+              /**
+               * Action
+               * @enum {string}
+               */
+              action: 'permit' | 'deny';
+              /** Prefix */
+              prefix: string;
+              /** Minimum length (ge) */
+              ge?: number;
+              /** Maximum length (le) */
+              le?: number;
+            }[];
+          };
+        };
+        /**
+         * Route maps
+         * @default {}
+         */
+        routeMaps: {
+          [key: string]: {
+            /** Description */
+            description?: string;
+            /**
+             * Entries
+             * @default []
+             */
+            entries: {
+              /** Sequence */
+              seq: number;
+              /**
+               * Action
+               * @enum {string}
+               */
+              action: 'permit' | 'deny';
+              /** Description */
+              description?: string;
+              /**
+               * Match
+               * @default {}
+               */
+              match: {
+                /** Prefix list */
+                prefixList?: string;
+                /** Next-hop prefix list */
+                nextHopPrefixList?: string;
+                /** Interface */
+                interface?: string;
+                /** Community */
+                community?: string;
+                /** AS path regex */
+                asPath?: string;
+                /** Metric */
+                metric?: number;
+                /** Tag */
+                tag?: number;
+              };
+              /**
+               * Set
+               * @default {}
+               */
+              set: {
+                /** Local preference */
+                localPref?: number;
+                /** MED / metric */
+                med?: number;
+                /** Weight */
+                weight?: number;
+                /** Next hop */
+                nextHop?: string;
+                /** Communities */
+                community?: string[];
+                /**
+                 * Additive
+                 * @default false
+                 */
+                communityAdditive: boolean;
+                /** AS path prepend */
+                asPathPrepend?: number[];
+                /** Tag */
+                tag?: number;
+              };
+            }[];
+          };
+        };
+      };
+      /** BGP */
+      bgp?: {
+        /** Local AS */
+        asn: number;
+        /**
+         * Router ID
+         * Format: ipv4
+         */
+        routerId?: string;
+        /**
+         * VRF
+         * @default default
+         */
+        vrf: string;
+        /**
+         * Peer groups
+         * @default {}
+         */
+        peerGroups: {
+          [key: string]: {
+            /** Remote AS */
+            remoteAs?: number;
+            /** Description */
+            description?: string;
+            /** Update source */
+            updateSource?: string | string;
+            /** eBGP multihop */
+            ebgpMultihop?: number;
+            /** MD5 password */
+            passwordRef?: string;
+            /** Keepalive (s) */
+            keepaliveSec?: number;
+            /** Hold time (s) */
+            holdTimeSec?: number;
+            /**
+             * BFD
+             * @default false
+             */
+            bfd: boolean;
+            /**
+             * Address families
+             * @default {}
+             */
+            afi: {
+              /** IPv4 unicast */
+              ipv4Unicast?: {
+                /**
+                 * Enabled
+                 * @default true
+                 */
+                enabled: boolean;
+                /** Route map in */
+                routeMapIn?: string;
+                /** Route map out */
+                routeMapOut?: string;
+                /** Prefix list in */
+                prefixListIn?: string;
+                /** Prefix list out */
+                prefixListOut?: string;
+                /**
+                 * Next-hop self
+                 * @default false
+                 */
+                nextHopSelf: boolean;
+                /**
+                 * Soft reconfiguration inbound
+                 * @default false
+                 */
+                softReconfig: boolean;
+                /** Maximum prefixes */
+                maximumPrefixes?: number;
+                /**
+                 * Default originate
+                 * @default false
+                 */
+                defaultOriginate: boolean;
+              };
+              /** IPv6 unicast */
+              ipv6Unicast?: {
+                /**
+                 * Enabled
+                 * @default true
+                 */
+                enabled: boolean;
+                /** Route map in */
+                routeMapIn?: string;
+                /** Route map out */
+                routeMapOut?: string;
+                /** Prefix list in */
+                prefixListIn?: string;
+                /** Prefix list out */
+                prefixListOut?: string;
+                /**
+                 * Next-hop self
+                 * @default false
+                 */
+                nextHopSelf: boolean;
+                /**
+                 * Soft reconfiguration inbound
+                 * @default false
+                 */
+                softReconfig: boolean;
+                /** Maximum prefixes */
+                maximumPrefixes?: number;
+                /**
+                 * Default originate
+                 * @default false
+                 */
+                defaultOriginate: boolean;
+              };
+            };
+          };
+        };
+        /**
+         * Neighbours
+         * @default {}
+         */
+        neighbors: {
+          [key: string]: {
+            /** Peer group */
+            peerGroup?: string;
+            /**
+             * Shutdown
+             * @default false
+             */
+            shutdown: boolean;
+            /** Remote AS */
+            remoteAs?: number;
+            /** Description */
+            description?: string;
+            /** Update source */
+            updateSource?: string | string;
+            /** eBGP multihop */
+            ebgpMultihop?: number;
+            /** MD5 password */
+            passwordRef?: string;
+            /** Keepalive (s) */
+            keepaliveSec?: number;
+            /** Hold time (s) */
+            holdTimeSec?: number;
+            /**
+             * BFD
+             * @default false
+             */
+            bfd: boolean;
+            /**
+             * Address families
+             * @default {}
+             */
+            afi: {
+              /** IPv4 unicast */
+              ipv4Unicast?: {
+                /**
+                 * Enabled
+                 * @default true
+                 */
+                enabled: boolean;
+                /** Route map in */
+                routeMapIn?: string;
+                /** Route map out */
+                routeMapOut?: string;
+                /** Prefix list in */
+                prefixListIn?: string;
+                /** Prefix list out */
+                prefixListOut?: string;
+                /**
+                 * Next-hop self
+                 * @default false
+                 */
+                nextHopSelf: boolean;
+                /**
+                 * Soft reconfiguration inbound
+                 * @default false
+                 */
+                softReconfig: boolean;
+                /** Maximum prefixes */
+                maximumPrefixes?: number;
+                /**
+                 * Default originate
+                 * @default false
+                 */
+                defaultOriginate: boolean;
+              };
+              /** IPv6 unicast */
+              ipv6Unicast?: {
+                /**
+                 * Enabled
+                 * @default true
+                 */
+                enabled: boolean;
+                /** Route map in */
+                routeMapIn?: string;
+                /** Route map out */
+                routeMapOut?: string;
+                /** Prefix list in */
+                prefixListIn?: string;
+                /** Prefix list out */
+                prefixListOut?: string;
+                /**
+                 * Next-hop self
+                 * @default false
+                 */
+                nextHopSelf: boolean;
+                /**
+                 * Soft reconfiguration inbound
+                 * @default false
+                 */
+                softReconfig: boolean;
+                /** Maximum prefixes */
+                maximumPrefixes?: number;
+                /**
+                 * Default originate
+                 * @default false
+                 */
+                defaultOriginate: boolean;
+              };
+            };
+          };
+        };
+        /**
+         * Networks
+         * @default []
+         */
+        networks: {
+          /** Prefix */
+          prefix: string;
+          /** Route map */
+          routeMap?: string;
+        }[];
+        /**
+         * Redistribute
+         * @default {}
+         */
+        redistribute: {
+          /** Redistribute connected */
+          connected?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute static */
+          static?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute ospf */
+          ospf?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute isis */
+          isis?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute rip */
+          rip?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+        };
+        /**
+         * Graceful restart
+         * @default false
+         */
+        gracefulRestart: boolean;
+        /**
+         * eBGP requires policy
+         * @default true
+         */
+        ebgpRequiresPolicy: boolean;
+      };
+      /** OSPF */
+      ospf?: {
+        /**
+         * Router ID
+         * Format: ipv4
+         */
+        routerId?: string;
+        /**
+         * VRF
+         * @default default
+         */
+        vrf: string;
+        /**
+         * Areas
+         * @default {}
+         */
+        areas: {
+          [key: string]: {
+            /**
+             * Area type
+             * @default normal
+             * @enum {string}
+             */
+            type: 'normal' | 'stub' | 'nssa';
+            /**
+             * No summary
+             * @default false
+             */
+            noSummary: boolean;
+          };
+        };
+        /**
+         * Interfaces
+         * @default {}
+         */
+        interfaces: {
+          [key: string]: {
+            /** Area */
+            area: string;
+            /** Cost */
+            cost?: number;
+            /**
+             * Passive
+             * @default false
+             */
+            passive: boolean;
+            /**
+             * Network type
+             * @enum {string}
+             */
+            networkType?: 'broadcast' | 'point-to-point' | 'non-broadcast' | 'point-to-multipoint';
+            /** Hello interval (s) */
+            helloIntervalSec?: number;
+            /** Dead interval (s) */
+            deadIntervalSec?: number;
+            /** DR priority */
+            priority?: number;
+            /**
+             * BFD
+             * @default false
+             */
+            bfd: boolean;
+          };
+        };
+        /**
+         * Redistribute
+         * @default {}
+         */
+        redistribute: {
+          /** Redistribute connected */
+          connected?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute static */
+          static?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute bgp */
+          bgp?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute isis */
+          isis?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute rip */
+          rip?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+        };
+        /**
+         * Default route origination
+         * @default off
+         * @enum {string}
+         */
+        defaultInformationOriginate: 'off' | 'on' | 'always';
+      };
+      /** IS-IS */
+      isis?: {
+        /** NET */
+        net: string;
+        /**
+         * IS type
+         * @default level-1-2
+         * @enum {string}
+         */
+        level: 'level-1' | 'level-2' | 'level-1-2';
+        /**
+         * VRF
+         * @default default
+         */
+        vrf: string;
+        /**
+         * Interfaces
+         * @default {}
+         */
+        interfaces: {
+          [key: string]: {
+            /**
+             * Passive
+             * @default false
+             */
+            passive: boolean;
+            /** Metric */
+            metric?: number;
+            /**
+             * Circuit type
+             * @enum {string}
+             */
+            circuitType?: 'level-1' | 'level-2' | 'level-1-2';
+            /**
+             * Network type
+             * @enum {string}
+             */
+            networkType?: 'broadcast' | 'point-to-point';
+            /**
+             * BFD
+             * @default false
+             */
+            bfd: boolean;
+          };
+        };
+        /**
+         * Redistribute
+         * @default {}
+         */
+        redistribute: {
+          /** Redistribute connected */
+          connected?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute static */
+          static?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute bgp */
+          bgp?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute ospf */
+          ospf?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute rip */
+          rip?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+        };
+      };
+      /** RIP */
+      rip?: {
+        /**
+         * VRF
+         * @default default
+         */
+        vrf: string;
+        /**
+         * Networks
+         * @default []
+         */
+        networks: string[];
+        /**
+         * Interfaces
+         * @default {}
+         */
+        interfaces: {
+          [key: string]: {
+            /**
+             * Passive
+             * @default false
+             */
+            passive: boolean;
+          };
+        };
+        /**
+         * Redistribute
+         * @default {}
+         */
+        redistribute: {
+          /** Redistribute connected */
+          connected?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute static */
+          static?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute bgp */
+          bgp?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute ospf */
+          ospf?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute isis */
+          isis?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+        };
+        /**
+         * Default metric
+         * @default 1
+         */
+        defaultMetric: number;
+      };
+      /** BFD */
+      bfd?: {
+        /**
+         * Sessions
+         * @default []
+         */
+        sessions: {
+          /** Interface */
+          interface: string;
+          /** Local address */
+          localAddress: string;
+          /** Peer address */
+          peerAddress: string;
+          /**
+           * Desired min TX (µs)
+           * @default 300000
+           */
+          desiredMinTxUs: number;
+          /**
+           * Required min RX (µs)
+           * @default 300000
+           */
+          requiredMinRxUs: number;
+          /**
+           * Detect multiplier
+           * @default 3
+           */
+          detectMultiplier: number;
+          /**
+           * Enabled
+           * @default true
+           */
+          enabled: boolean;
+        }[];
+      };
+    };
+    /**
+     * NAT
+     * @description NAT44 (ED/EI) with pools, static/port-forward/identity/load-balanced mappings; NAT64, NAT66, NPTv6, DET44 CGNAT, DS-Lite, MAP-E/T, lw4o6 and CNAT.
+     * @default {}
+     */
+    NatConfig: {
+      /** NAT44 enabled */
+      enabled?: boolean;
+      /**
+       * Mode
+       * @default ed
+       * @enum {string}
+       */
+      mode: 'ed' | 'ei';
+      /**
+       * Inside interfaces
+       * @default []
+       */
+      inside: string[];
+      /**
+       * Outside interfaces
+       * @default []
+       */
+      outside: string[];
+      /**
+       * Output-feature interfaces
+       * @default []
+       */
+      outputFeature: string[];
+      /** Inside VRF */
+      insideVrf?: string;
+      /** Outside VRF */
+      outsideVrf?: string;
+      /**
+       * Forwarding
+       * @default false
+       */
+      forwarding: boolean;
+      /**
+       * Static mappings only
+       * @default false
+       */
+      staticMappingOnly: boolean;
+      /**
+       * Connection tracking
+       * @default false
+       */
+      connectionTracking: boolean;
+      /** Session limit */
+      sessionLimit?: number;
+      /**
+       * Address pools
+       * @default []
+       */
+      pools: (
+        | {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string;
+            /**
+             * Twice-NAT pool
+             * @default false
+             */
+            twiceNat: boolean;
+            /** Address range */
+            range: string;
+            /** VRF */
+            vrf?: string;
+          }
+        | {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string;
+            /**
+             * Twice-NAT pool
+             * @default false
+             */
+            twiceNat: boolean;
+            /** Interface */
+            interface: string;
+          }
+      )[];
+      /**
+       * Static mappings & port forwards
+       * @default []
+       */
+      staticMappings: {
+        /** Name */
+        name: string;
+        /** Description */
+        description?: string;
+        /**
+         * Protocol
+         * @enum {string}
+         */
+        protocol?: 'tcp' | 'udp' | 'icmp';
+        /** Local */
+        local: {
+          /**
+           * Local address
+           * Format: ipv4
+           */
+          ip: string;
+          /** Local port */
+          port?: number;
+        };
+        /** External */
+        external: {
+          /**
+           * External address
+           * Format: ipv4
+           */
+          ip?: string;
+          /** External pool */
+          pool?: string;
+          /** External interface */
+          interface?: string;
+          /** External port */
+          port?: number;
+        };
+        /** VRF */
+        vrf?: string;
+        /**
+         * Twice-NAT
+         * @default false
+         */
+        twiceNat: boolean;
+        /**
+         * Self twice-NAT
+         * @default false
+         */
+        selfTwiceNat: boolean;
+        /**
+         * Out-to-in only
+         * @default false
+         */
+        out2inOnly: boolean;
+      }[];
+      /**
+       * Identity mappings
+       * @default []
+       */
+      identityMappings: {
+        /** Description */
+        description?: string;
+        /**
+         * Address
+         * Format: ipv4
+         */
+        ip?: string;
+        /** Interface */
+        interface?: string;
+        /**
+         * Protocol
+         * @enum {string}
+         */
+        protocol?: 'tcp' | 'udp' | 'icmp';
+        /** Port */
+        port?: number;
+        /** VRF */
+        vrf?: string;
+      }[];
+      /**
+       * Load-balanced mappings
+       * @default []
+       */
+      loadBalancedMappings: {
+        /** Name */
+        name: string;
+        /** Description */
+        description?: string;
+        /**
+         * Protocol
+         * @enum {string}
+         */
+        protocol: 'tcp' | 'udp';
+        /** External */
+        external: {
+          /**
+           * External address
+           * Format: ipv4
+           */
+          ip: string;
+          /** External port */
+          port: number;
+        };
+        /** Local endpoints */
+        locals: {
+          /**
+           * Local address
+           * Format: ipv4
+           */
+          ip: string;
+          /** Local port */
+          port: number;
+          /**
+           * Weight
+           * @default 1
+           */
+          probability: number;
+          /** VRF */
+          vrf?: string;
+        }[];
+        /**
+         * Affinity
+         * @default 0
+         */
+        affinity: number;
+        /**
+         * Twice-NAT
+         * @default false
+         */
+        twiceNat: boolean;
+        /**
+         * Self twice-NAT
+         * @default false
+         */
+        selfTwiceNat: boolean;
+        /**
+         * Out-to-in only
+         * @default false
+         */
+        out2inOnly: boolean;
+      }[];
+      /**
+       * Timeouts
+       * @default {}
+       */
+      timeouts: {
+        /**
+         * UDP
+         * @default 300
+         */
+        udp: number;
+        /**
+         * TCP established
+         * @default 7440
+         */
+        tcpEstablished: number;
+        /**
+         * TCP transitory
+         * @default 240
+         */
+        tcpTransitory: number;
+        /**
+         * ICMP
+         * @default 60
+         */
+        icmp: number;
+      };
+      /**
+       * IPFIX logging
+       * @default {}
+       */
+      ipfix: {
+        /**
+         * Enabled
+         * @default false
+         */
+        enabled: boolean;
+        /** Observation domain id */
+        domainId?: number;
+        /** Source port */
+        sourcePort?: number;
+      };
+      /**
+       * NAT64
+       * @default {}
+       */
+      nat64: {
+        /**
+         * Enabled
+         * @default false
+         */
+        enabled: boolean;
+        /**
+         * Inside (IPv6)
+         * @default []
+         */
+        inside: string[];
+        /**
+         * Outside (IPv4)
+         * @default []
+         */
+        outside: string[];
+        /**
+         * Prefixes
+         * @default []
+         */
+        prefixes: {
+          /**
+           * NAT64 prefix
+           * Format: cidrv6
+           */
+          prefix: string;
+          /** VRF */
+          vrf?: string;
+        }[];
+        /**
+         * IPv4 pools
+         * @default []
+         */
+        pools: {
+          /** Address range */
+          range: string;
+          /** VRF */
+          vrf?: string;
+        }[];
+        /**
+         * Static BIB entries
+         * @default []
+         */
+        staticBibs: {
+          /** Description */
+          description?: string;
+          /**
+           * Protocol
+           * @enum {string}
+           */
+          protocol: 'tcp' | 'udp' | 'icmp';
+          /** Inside (IPv6) */
+          inside: {
+            /**
+             * IPv6 address
+             * Format: ipv6
+             */
+            ip: string;
+            /** Port */
+            port: number;
+          };
+          /** Outside (IPv4) */
+          outside: {
+            /**
+             * IPv4 address
+             * Format: ipv4
+             */
+            ip: string;
+            /** Port */
+            port: number;
+          };
+          /** VRF */
+          vrf?: string;
+        }[];
+        /**
+         * Timeouts
+         * @default {}
+         */
+        timeouts: {
+          /**
+           * UDP
+           * @default 300
+           */
+          udp: number;
+          /**
+           * TCP established
+           * @default 7440
+           */
+          tcpEstablished: number;
+          /**
+           * TCP transitory
+           * @default 240
+           */
+          tcpTransitory: number;
+          /**
+           * ICMP
+           * @default 60
+           */
+          icmp: number;
+        };
+      };
+      /**
+       * NAT66
+       * @default {}
+       */
+      nat66: {
+        /**
+         * Enabled
+         * @default false
+         */
+        enabled: boolean;
+        /**
+         * Inside
+         * @default []
+         */
+        inside: string[];
+        /**
+         * Outside
+         * @default []
+         */
+        outside: string[];
+        /**
+         * Static mappings
+         * @default []
+         */
+        staticMappings: {
+          /** Description */
+          description?: string;
+          /**
+           * Local address
+           * Format: ipv6
+           */
+          local: string;
+          /**
+           * External address
+           * Format: ipv6
+           */
+          external: string;
+          /** VRF */
+          vrf?: string;
+        }[];
+      };
+      /**
+       * NPTv6
+       * @default {}
+       */
+      nptv6: {
+        /**
+         * Bindings
+         * @default []
+         */
+        bindings: {
+          /** Description */
+          description?: string;
+          /** Interface */
+          interface: string;
+          /**
+           * Internal prefix
+           * Format: cidrv6
+           */
+          internal: string;
+          /**
+           * External prefix
+           * Format: cidrv6
+           */
+          external: string;
+        }[];
+      };
+      /**
+       * Deterministic NAT (DET44)
+       * @default {}
+       */
+      det44: {
+        /**
+         * Enabled
+         * @default false
+         */
+        enabled: boolean;
+        /**
+         * Inside
+         * @default []
+         */
+        inside: string[];
+        /**
+         * Outside
+         * @default []
+         */
+        outside: string[];
+        /** Inside VRF */
+        insideVrf?: string;
+        /** Outside VRF */
+        outsideVrf?: string;
+        /**
+         * Mappings
+         * @default []
+         */
+        mappings: {
+          /** Description */
+          description?: string;
+          /**
+           * Inside prefix
+           * Format: cidrv4
+           */
+          inside: string;
+          /**
+           * Outside prefix
+           * Format: cidrv4
+           */
+          outside: string;
+        }[];
+        /**
+         * Timeouts
+         * @default {}
+         */
+        timeouts: {
+          /**
+           * UDP
+           * @default 300
+           */
+          udp: number;
+          /**
+           * TCP established
+           * @default 7440
+           */
+          tcpEstablished: number;
+          /**
+           * TCP transitory
+           * @default 240
+           */
+          tcpTransitory: number;
+          /**
+           * ICMP
+           * @default 60
+           */
+          icmp: number;
+        };
+      };
+      /**
+       * DS-Lite
+       * @default {}
+       */
+      dslite: {
+        /**
+         * Enabled
+         * @default false
+         */
+        enabled: boolean;
+        /** AFTR */
+        aftr?: {
+          /**
+           * AFTR IPv6 address
+           * Format: ipv6
+           */
+          ipv6: string;
+          /**
+           * AFTR IPv4 address
+           * Format: ipv4
+           */
+          ipv4?: string;
+        };
+        /** B4 (CE mode) */
+        b4?: {
+          /**
+           * B4 IPv6 address
+           * Format: ipv6
+           */
+          ipv6: string;
+          /**
+           * B4 IPv4 address
+           * Format: ipv4
+           */
+          ipv4?: string;
+        };
+        /**
+         * IPv4 pools
+         * @default []
+         */
+        pools: {
+          /** Address range */
+          range: string;
+        }[];
+      };
+      /**
+       * MAP-E / MAP-T / lw4o6
+       * @default {}
+       */
+      map: {
+        /**
+         * Interfaces
+         * @default []
+         */
+        interfaces: {
+          /** Interface */
+          interface: string;
+          /**
+           * Mode
+           * @enum {string}
+           */
+          mode: 'map-e' | 'map-t';
+        }[];
+        /**
+         * Domains
+         * @default []
+         */
+        domains: {
+          /** Name */
+          name: string;
+          /** Description */
+          description?: string;
+          /**
+           * Mode
+           * @enum {string}
+           */
+          mode: 'map-e' | 'map-t' | 'lw4o6';
+          /**
+           * Rule IPv4 prefix
+           * Format: cidrv4
+           */
+          ipv4Prefix: string;
+          /**
+           * Rule IPv6 prefix
+           * Format: cidrv6
+           */
+          ipv6Prefix: string;
+          /**
+           * BR IPv6 source / DMR prefix
+           * Format: cidrv6
+           */
+          ipv6Source: string;
+          /**
+           * EA bits length
+           * @default 0
+           */
+          eaBitsLength: number;
+          /**
+           * PSID offset
+           * @default 0
+           */
+          psidOffset: number;
+          /**
+           * PSID length
+           * @default 0
+           */
+          psidLength: number;
+          /** MTU */
+          mtu?: number;
+          /**
+           * Rules
+           * @default []
+           */
+          rules: {
+            /** PSID */
+            psid: number;
+            /**
+             * IPv6 destination
+             * Format: ipv6
+             */
+            ipv6Destination: string;
+          }[];
+        }[];
+        /**
+         * MAP parameters
+         * @default {}
+         */
+        parameters: {
+          /**
+           * Fragmentation
+           * @default {}
+           */
+          fragmentation?: {
+            /**
+             * Fragment inner packet
+             * @default false
+             */
+            inner?: boolean;
+            /**
+             * Ignore DF bit
+             * @default false
+             */
+            ignoreDf?: boolean;
+          };
+          /**
+           * ICMP relay source address
+           * Format: ipv4
+           */
+          icmpSourceAddress?: string;
+          /**
+           * Send ICMPv6 unreachables
+           * @default false
+           */
+          icmp6Unreachables?: boolean;
+          /**
+           * Security check
+           * @default {}
+           */
+          securityCheck?: {
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled?: boolean;
+            /**
+             * Check fragments
+             * @default false
+             */
+            fragments?: boolean;
+          };
+          /** TCP MSS clamp */
+          tcpMss?: number;
+          /**
+           * Traffic class
+           * @default {}
+           */
+          trafficClass?: {
+            /**
+             * Copy traffic class
+             * @default false
+             */
+            copy?: boolean;
+            /** Value */
+            value?: number;
+          };
+          /**
+           * Pre-resolve next hops
+           * @default {}
+           */
+          preResolve?: {
+            /**
+             * IPv4 next hop
+             * Format: ipv4
+             */
+            ipv4?: string;
+            /**
+             * IPv6 next hop
+             * Format: ipv6
+             */
+            ipv6?: string;
+          };
+        };
+      };
+      /**
+       * CNAT
+       * @default {}
+       */
+      cnat: {
+        /**
+         * Translations
+         * @default []
+         */
+        translations: {
+          /** Name */
+          name: string;
+          /** Description */
+          description?: string;
+          /**
+           * Protocol
+           * @enum {string}
+           */
+          protocol: 'tcp' | 'udp';
+          /** Virtual endpoint */
+          vip: {
+            /** Address */
+            ip: string;
+            /** Port */
+            port: number;
+          };
+          /** Backends */
+          backends: {
+            /** Address */
+            ip: string;
+            /** Port */
+            port: number;
+          }[];
+          /**
+           * Load balancing
+           * @default default
+           * @enum {string}
+           */
+          lbType: 'default' | 'maglev';
+        }[];
+        /**
+         * SNAT
+         * @default {}
+         */
+        snat: {
+          /**
+           * SNAT policy
+           * @default none
+           * @enum {string}
+           */
+          policy: 'none' | 'interface' | 'k8s';
+          /**
+           * SNAT addresses
+           * @default {}
+           */
+          addresses: {
+            /**
+             * IPv4 SNAT address
+             * Format: ipv4
+             */
+            ipv4?: string;
+            /**
+             * IPv6 SNAT address
+             * Format: ipv6
+             */
+            ipv6?: string;
+            /** SNAT address interface */
+            interface?: string;
+          };
+          /**
+           * Policy interfaces
+           * @default []
+           */
+          interfaces: {
+            /** Interface */
+            interface: string;
+            /**
+             * Policy table
+             * @enum {string}
+             */
+            table: 'include-v4' | 'include-v6' | 'pod' | 'host';
+          }[];
+          /**
+           * Excluded prefixes
+           * @default []
+           */
+          excludePrefixes: string[];
+        };
+      };
+    };
+    /**
+     * Objects
+     * @description Reusable address, address-group, service, service-group, schedule, zone and tag objects referenced by ACL and NAT.
+     * @default {}
+     */
+    ObjectsConfig: {
+      /**
+       * Addresses
+       * @default {}
+       */
+      addresses: {
+        [key: string]:
+          | {
+              /** @constant */
+              type: 'host';
+              /** Address */
+              address: string;
+              /** Description */
+              description?: string;
+              /**
+               * Tags
+               * @default []
+               */
+              tags: string[];
+            }
+          | {
+              /** @constant */
+              type: 'network';
+              /** Prefix */
+              prefix: string;
+              /** Description */
+              description?: string;
+              /**
+               * Tags
+               * @default []
+               */
+              tags: string[];
+            }
+          | {
+              /** @constant */
+              type: 'range';
+              /** First address */
+              start: string;
+              /** Last address */
+              end: string;
+              /** Description */
+              description?: string;
+              /**
+               * Tags
+               * @default []
+               */
+              tags: string[];
+            }
+          | {
+              /** @constant */
+              type: 'fqdn';
+              /** FQDN */
+              fqdn: string;
+              /** Description */
+              description?: string;
+              /**
+               * Tags
+               * @default []
+               */
+              tags: string[];
+            };
+      };
+      /**
+       * Address groups
+       * @default {}
+       */
+      addressGroups: {
+        [key: string]: {
+          /** Description */
+          description?: string;
+          /**
+           * Tags
+           * @default []
+           */
+          tags: string[];
+          /**
+           * Members
+           * @default []
+           */
+          members: string[];
+        };
+      };
+      /**
+       * Services
+       * @default {}
+       */
+      services: {
+        [key: string]:
+          | {
+              /**
+               * Protocol
+               * @enum {string}
+               */
+              protocol: 'tcp' | 'tcp-udp';
+              /**
+               * Destination ports
+               * @default []
+               */
+              destinationPorts: string[];
+              /**
+               * Source ports
+               * @default []
+               */
+              sourcePorts: string[];
+              /** TCP flags */
+              tcpFlags?: {
+                /** Mask */
+                mask: number;
+                /** Value */
+                value: number;
+              };
+              /** Description */
+              description?: string;
+              /**
+               * Tags
+               * @default []
+               */
+              tags: string[];
+            }
+          | {
+              /**
+               * Protocol
+               * @enum {string}
+               */
+              protocol: 'udp' | 'sctp';
+              /**
+               * Destination ports
+               * @default []
+               */
+              destinationPorts: string[];
+              /**
+               * Source ports
+               * @default []
+               */
+              sourcePorts: string[];
+              /** Description */
+              description?: string;
+              /**
+               * Tags
+               * @default []
+               */
+              tags: string[];
+            }
+          | {
+              /**
+               * Protocol
+               * @enum {string}
+               */
+              protocol: 'icmp' | 'icmp6';
+              /** ICMP type */
+              type?: number;
+              /** ICMP code */
+              code?: number;
+              /** Description */
+              description?: string;
+              /**
+               * Tags
+               * @default []
+               */
+              tags: string[];
+            }
+          | {
+              /**
+               * Protocol
+               * @constant
+               */
+              protocol: 'any';
+              /** Description */
+              description?: string;
+              /**
+               * Tags
+               * @default []
+               */
+              tags: string[];
+            }
+          | {
+              /**
+               * Protocol
+               * @constant
+               */
+              protocol: 'other';
+              /** IP protocol number */
+              number: number;
+              /** Description */
+              description?: string;
+              /**
+               * Tags
+               * @default []
+               */
+              tags: string[];
+            };
+      };
+      /**
+       * Service groups
+       * @default {}
+       */
+      serviceGroups: {
+        [key: string]: {
+          /** Description */
+          description?: string;
+          /**
+           * Tags
+           * @default []
+           */
+          tags: string[];
+          /**
+           * Members
+           * @default []
+           */
+          members: string[];
+        };
+      };
+      /**
+       * Schedules
+       * @default {}
+       */
+      schedules: {
+        [key: string]:
+          | {
+              /** @constant */
+              type: 'recurring';
+              /** Days */
+              days: ('mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun')[];
+              /** Start */
+              start: string;
+              /** End */
+              end: string;
+              /** Description */
+              description?: string;
+              /**
+               * Tags
+               * @default []
+               */
+              tags: string[];
+            }
+          | {
+              /** @constant */
+              type: 'once';
+              /**
+               * Start
+               * Format: date-time
+               */
+              start: string;
+              /**
+               * End
+               * Format: date-time
+               */
+              end: string;
+              /** Description */
+              description?: string;
+              /**
+               * Tags
+               * @default []
+               */
+              tags: string[];
+            };
+      };
+      /**
+       * Zones
+       * @default {}
+       */
+      zones: {
+        [key: string]: {
+          /** Description */
+          description?: string;
+          /**
+           * Tags
+           * @default []
+           */
+          tags: string[];
+          /**
+           * Interfaces
+           * @default []
+           */
+          interfaces: string[];
+        };
+      };
+      /**
+       * Tags
+       * @default {}
+       */
+      tags: {
+        [key: string]: {
+          /** Description */
+          description?: string;
+          /** Colour */
+          color?: string;
+        };
+      };
+    };
+    /**
+     * ACL
+     * @description L3/L4, MACIP and host access-control lists and their attachments to interfaces, zones and host chains.
+     * @default {}
+     */
+    AclConfig: {
+      /**
+       * Access lists
+       * @default {}
+       */
+      lists: {
+        [key: string]: {
+          /** Description */
+          description?: string;
+          /**
+           * Tags
+           * @default []
+           */
+          tags: string[];
+          /**
+           * Rules
+           * @default []
+           */
+          rules: {
+            /** Sequence */
+            sequence: number;
+            /** Description */
+            description?: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: 'permit' | 'deny' | 'reflect';
+            /**
+             * IP version
+             * @default any
+             * @enum {string}
+             */
+            ipVersion: 'ipv4' | 'ipv6' | 'any';
+            /**
+             * Address match
+             * @default {
+             *       "kind": "any"
+             *     }
+             */
+            source:
+              | {
+                  /** @constant */
+                  kind: 'any';
+                }
+              | {
+                  /** @constant */
+                  kind: 'prefix';
+                  /** IP prefix */
+                  prefix: string;
+                }
+              | {
+                  /** @constant */
+                  kind: 'object';
+                  /** Object */
+                  name: string;
+                };
+            /**
+             * Address match
+             * @default {
+             *       "kind": "any"
+             *     }
+             */
+            destination:
+              | {
+                  /** @constant */
+                  kind: 'any';
+                }
+              | {
+                  /** @constant */
+                  kind: 'prefix';
+                  /** IP prefix */
+                  prefix: string;
+                }
+              | {
+                  /** @constant */
+                  kind: 'object';
+                  /** Object */
+                  name: string;
+                };
+            /**
+             * Service match
+             * @default {
+             *       "kind": "any"
+             *     }
+             */
+            service:
+              | {
+                  /** @constant */
+                  kind: 'any';
+                }
+              | {
+                  /** @constant */
+                  kind: 'object';
+                  /** Object */
+                  name: string;
+                }
+              | {
+                  /** @constant */
+                  kind: 'inline';
+                  /** Service */
+                  spec:
+                    | {
+                        /**
+                         * Protocol
+                         * @enum {string}
+                         */
+                        protocol: 'tcp' | 'tcp-udp';
+                        /**
+                         * Destination ports
+                         * @default []
+                         */
+                        destinationPorts: string[];
+                        /**
+                         * Source ports
+                         * @default []
+                         */
+                        sourcePorts: string[];
+                        /** TCP flags */
+                        tcpFlags?: {
+                          /** Mask */
+                          mask: number;
+                          /** Value */
+                          value: number;
+                        };
+                      }
+                    | {
+                        /**
+                         * Protocol
+                         * @enum {string}
+                         */
+                        protocol: 'udp' | 'sctp';
+                        /**
+                         * Destination ports
+                         * @default []
+                         */
+                        destinationPorts: string[];
+                        /**
+                         * Source ports
+                         * @default []
+                         */
+                        sourcePorts: string[];
+                      }
+                    | {
+                        /**
+                         * Protocol
+                         * @enum {string}
+                         */
+                        protocol: 'icmp' | 'icmp6';
+                        /** ICMP type */
+                        type?: number;
+                        /** ICMP code */
+                        code?: number;
+                      }
+                    | {
+                        /**
+                         * Protocol
+                         * @constant
+                         */
+                        protocol: 'any';
+                      }
+                    | {
+                        /**
+                         * Protocol
+                         * @constant
+                         */
+                        protocol: 'other';
+                        /** IP protocol number */
+                        number: number;
+                      };
+                };
+            /** Schedule */
+            schedule?: string;
+            /**
+             * Log
+             * @default false
+             */
+            log: boolean;
+          }[];
+        };
+      };
+      /**
+       * MACIP lists
+       * @default {}
+       */
+      macip: {
+        [key: string]: {
+          /** Description */
+          description?: string;
+          /**
+           * Tags
+           * @default []
+           */
+          tags: string[];
+          /**
+           * Rules
+           * @default []
+           */
+          rules: {
+            /** Sequence */
+            sequence: number;
+            /** Description */
+            description?: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: 'permit' | 'deny';
+            /** Source MAC */
+            sourceMac: string;
+            /**
+             * Source MAC mask
+             * @default ff:ff:ff:ff:ff:ff
+             */
+            sourceMacMask: string;
+            /** Source prefix */
+            sourcePrefix?: string;
+          }[];
+        };
+      };
+      /**
+       * Host lists
+       * @default {}
+       */
+      host: {
+        [key: string]: {
+          /** Description */
+          description?: string;
+          /**
+           * Tags
+           * @default []
+           */
+          tags: string[];
+          /**
+           * Rules
+           * @default []
+           */
+          rules: {
+            /** Sequence */
+            sequence: number;
+            /** Description */
+            description?: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: 'accept' | 'drop' | 'reject';
+            /**
+             * IP version
+             * @default any
+             * @enum {string}
+             */
+            ipVersion: 'ipv4' | 'ipv6' | 'any';
+            /**
+             * Address match
+             * @default {
+             *       "kind": "any"
+             *     }
+             */
+            source:
+              | {
+                  /** @constant */
+                  kind: 'any';
+                }
+              | {
+                  /** @constant */
+                  kind: 'prefix';
+                  /** IP prefix */
+                  prefix: string;
+                }
+              | {
+                  /** @constant */
+                  kind: 'object';
+                  /** Object */
+                  name: string;
+                };
+            /**
+             * Address match
+             * @default {
+             *       "kind": "any"
+             *     }
+             */
+            destination:
+              | {
+                  /** @constant */
+                  kind: 'any';
+                }
+              | {
+                  /** @constant */
+                  kind: 'prefix';
+                  /** IP prefix */
+                  prefix: string;
+                }
+              | {
+                  /** @constant */
+                  kind: 'object';
+                  /** Object */
+                  name: string;
+                };
+            /**
+             * Service match
+             * @default {
+             *       "kind": "any"
+             *     }
+             */
+            service:
+              | {
+                  /** @constant */
+                  kind: 'any';
+                }
+              | {
+                  /** @constant */
+                  kind: 'object';
+                  /** Object */
+                  name: string;
+                }
+              | {
+                  /** @constant */
+                  kind: 'inline';
+                  /** Service */
+                  spec:
+                    | {
+                        /**
+                         * Protocol
+                         * @enum {string}
+                         */
+                        protocol: 'tcp' | 'tcp-udp';
+                        /**
+                         * Destination ports
+                         * @default []
+                         */
+                        destinationPorts: string[];
+                        /**
+                         * Source ports
+                         * @default []
+                         */
+                        sourcePorts: string[];
+                        /** TCP flags */
+                        tcpFlags?: {
+                          /** Mask */
+                          mask: number;
+                          /** Value */
+                          value: number;
+                        };
+                      }
+                    | {
+                        /**
+                         * Protocol
+                         * @enum {string}
+                         */
+                        protocol: 'udp' | 'sctp';
+                        /**
+                         * Destination ports
+                         * @default []
+                         */
+                        destinationPorts: string[];
+                        /**
+                         * Source ports
+                         * @default []
+                         */
+                        sourcePorts: string[];
+                      }
+                    | {
+                        /**
+                         * Protocol
+                         * @enum {string}
+                         */
+                        protocol: 'icmp' | 'icmp6';
+                        /** ICMP type */
+                        type?: number;
+                        /** ICMP code */
+                        code?: number;
+                      }
+                    | {
+                        /**
+                         * Protocol
+                         * @constant
+                         */
+                        protocol: 'any';
+                      }
+                    | {
+                        /**
+                         * Protocol
+                         * @constant
+                         */
+                        protocol: 'other';
+                        /** IP protocol number */
+                        number: number;
+                      };
+                };
+            /** Host interface */
+            interface?: string;
+            /**
+             * Log
+             * @default false
+             */
+            log: boolean;
+          }[];
+        };
+      };
+      /**
+       * Attachments
+       * @default []
+       */
+      attachments: {
+        /** Access list */
+        list: string;
+        /** Target */
+        target:
+          | {
+              /** @constant */
+              kind: 'interface';
+              /** Interface */
+              interface: string;
+            }
+          | {
+              /** @constant */
+              kind: 'zone';
+              /** Zone */
+              zone: string;
+            };
+        /**
+         * Direction
+         * @default in
+         * @enum {string}
+         */
+        direction: 'in' | 'out';
+        /** Sequence */
+        sequence: number;
+        /** VRF */
+        vrf?: string;
+        /**
+         * Enabled
+         * @default true
+         */
+        enabled: boolean;
+        /** Description */
+        description?: string;
+      }[];
+      /**
+       * MACIP attachments
+       * @default []
+       */
+      macipAttachments: {
+        /** MACIP access list */
+        list: string;
+        /** Interface */
+        interface: string;
+        /** VRF */
+        vrf?: string;
+        /**
+         * Enabled
+         * @default true
+         */
+        enabled: boolean;
+        /** Description */
+        description?: string;
+      }[];
+      /**
+       * Host attachments
+       * @default []
+       */
+      hostAttachments: {
+        /** Host access list */
+        list: string;
+        /**
+         * Chain
+         * @enum {string}
+         */
+        chain: 'input' | 'output' | 'forward';
+        /**
+         * Priority
+         * @default 0
+         */
+        priority: number;
+        /**
+         * Enabled
+         * @default true
+         */
+        enabled: boolean;
+        /** Description */
+        description?: string;
+      }[];
+    };
+    /**
+     * VPN
+     * @description IPsec (strongSwan / native IKEv2), WireGuard, PKI and remote-access VPN.
+     * @default {}
+     */
+    VpnConfig: {
+      /**
+       * IPsec
+       * @default {}
+       */
+      ipsec: {
+        /**
+         * IPsec settings
+         * @default {}
+         */
+        settings: {
+          /**
+           * VPP crypto engine
+           * @default auto
+           * @enum {string}
+           */
+          cryptoEngine: 'auto' | 'native' | 'ipsecmb' | 'openssl';
+          /**
+           * Asynchronous crypto
+           * @default false
+           */
+          asyncCrypto: boolean;
+        };
+        /**
+         * Proposals
+         * @default {}
+         */
+        proposals: {
+          [key: string]: {
+            /** Description */
+            description?: string;
+            /** IKE (phase 1) */
+            ike: {
+              /**
+               * Encryption
+               * @enum {string}
+               */
+              encr:
+                | 'aes128'
+                | 'aes192'
+                | 'aes256'
+                | 'aes128ctr'
+                | 'aes256ctr'
+                | 'aes128gcm8'
+                | 'aes128gcm12'
+                | 'aes128gcm16'
+                | 'aes192gcm16'
+                | 'aes256gcm8'
+                | 'aes256gcm12'
+                | 'aes256gcm16'
+                | 'chacha20poly1305'
+                | '3des';
+              /**
+               * Integrity
+               * @enum {string}
+               */
+              integ?: 'sha1' | 'sha256' | 'sha384' | 'sha512' | 'md5' | 'aesxcbc' | 'aescmac';
+              /**
+               * PRF
+               * @enum {string}
+               */
+              prf?:
+                | 'prfsha1'
+                | 'prfsha256'
+                | 'prfsha384'
+                | 'prfsha512'
+                | 'prfmd5'
+                | 'prfaesxcbc'
+                | 'prfaescmac';
+              /**
+               * DH group
+               * @enum {string}
+               */
+              dh:
+                | 'modp768'
+                | 'modp1024'
+                | 'modp1536'
+                | 'modp2048'
+                | 'modp3072'
+                | 'modp4096'
+                | 'modp6144'
+                | 'modp8192'
+                | 'ecp256'
+                | 'ecp384'
+                | 'ecp521'
+                | 'modp1024s160'
+                | 'modp2048s224'
+                | 'modp2048s256'
+                | 'ecp192'
+                | 'ecp224'
+                | 'curve25519'
+                | 'curve448';
+            };
+            /** ESP (phase 2) */
+            esp: {
+              /**
+               * Encryption
+               * @enum {string}
+               */
+              encr:
+                | 'aes128'
+                | 'aes192'
+                | 'aes256'
+                | 'aes128ctr'
+                | 'aes256ctr'
+                | 'aes128gcm8'
+                | 'aes128gcm12'
+                | 'aes128gcm16'
+                | 'aes192gcm16'
+                | 'aes256gcm8'
+                | 'aes256gcm12'
+                | 'aes256gcm16'
+                | 'chacha20poly1305'
+                | '3des'
+                | 'null';
+              /**
+               * Integrity
+               * @enum {string}
+               */
+              integ?: 'sha1' | 'sha256' | 'sha384' | 'sha512' | 'md5' | 'aesxcbc' | 'aescmac';
+              /**
+               * PFS DH group
+               * @enum {string}
+               */
+              dh?:
+                | 'modp768'
+                | 'modp1024'
+                | 'modp1536'
+                | 'modp2048'
+                | 'modp3072'
+                | 'modp4096'
+                | 'modp6144'
+                | 'modp8192'
+                | 'ecp256'
+                | 'ecp384'
+                | 'ecp521'
+                | 'modp1024s160'
+                | 'modp2048s224'
+                | 'modp2048s256'
+                | 'ecp192'
+                | 'ecp224'
+                | 'curve25519'
+                | 'curve448';
+            };
+          };
+        };
+        /**
+         * Tunnels
+         * @default {}
+         */
+        tunnels: {
+          [key: string]: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Description */
+            description?: string;
+            /**
+             * IKE engine
+             * @default strongswan
+             * @enum {string}
+             */
+            engine: 'strongswan' | 'vpp-ikev2';
+            /**
+             * IKE version
+             * @default 2
+             */
+            ikeVersion: 1 | 2;
+            /**
+             * Mode
+             * @default tunnel
+             * @enum {string}
+             */
+            mode: 'tunnel' | 'transport';
+            /**
+             * Protocol
+             * @default esp
+             * @enum {string}
+             */
+            protocol: 'esp' | 'ah';
+            /** Local address */
+            localAddr: string;
+            /** Remote address */
+            remoteAddr: string | string | '%any';
+            /** IKE identity */
+            localId?: string;
+            /** IKE identity */
+            remoteId?: string;
+            /** Authentication */
+            auth:
+              | {
+                  /** @constant */
+                  method: 'psk';
+                  /** Pre-shared key (reference) */
+                  secretRef: string;
+                }
+              | {
+                  /** @constant */
+                  method: 'cert';
+                  /** Local certificate */
+                  certificate: string;
+                  /** Remote CA */
+                  remoteCa?: string;
+                };
+            /** Proposal */
+            proposal: string;
+            /**
+             * Local traffic selectors
+             * @default []
+             */
+            localTs: string[];
+            /**
+             * Remote traffic selectors
+             * @default []
+             */
+            remoteTs: string[];
+            /**
+             * Dead peer detection
+             * @default {}
+             */
+            dpd: {
+              /**
+               * Enabled
+               * @default true
+               */
+              enabled: boolean;
+              /**
+               * DPD delay (s)
+               * @default 30
+               */
+              delaySec: number;
+              /**
+               * DPD timeout (s)
+               * @default 150
+               */
+              timeoutSec: number;
+              /**
+               * DPD action
+               * @default restart
+               * @enum {string}
+               */
+              action: 'clear' | 'trap' | 'restart';
+            };
+            /**
+             * NAT traversal (UDP encapsulation)
+             * @default true
+             */
+            natT: boolean;
+            /** MOBIKE */
+            mobike?: boolean;
+            /**
+             * IKE fragmentation
+             * @enum {string}
+             */
+            fragmentation?: 'yes' | 'no' | 'force' | 'accept';
+            /**
+             * Rekeying
+             * @default {}
+             */
+            rekey: {
+              /**
+               * IKE SA lifetime (s)
+               * @default 14400
+               */
+              ikeSec: number;
+              /**
+               * CHILD SA lifetime (s)
+               * @default 3600
+               */
+              espSec: number;
+              /** CHILD SA lifetime (bytes) */
+              espBytes?: number;
+              /** CHILD SA lifetime (packets) */
+              espPackets?: number;
+              /**
+               * Re-authenticate instead of rekeying the IKE SA
+               * @default false
+               */
+              reauth: boolean;
+            };
+            /**
+             * Start action
+             * @default start
+             * @enum {string}
+             */
+            startAction: 'none' | 'start' | 'trap';
+            /**
+             * Close action
+             * @default none
+             * @enum {string}
+             */
+            closeAction: 'none' | 'start' | 'trap';
+            /**
+             * VRF
+             * @default default
+             */
+            vrf: string;
+            /**
+             * Underlay VRF
+             * @default default
+             */
+            underlayVrf: string;
+            /** Route-based (VTI) */
+            routeBased?: {
+              /** IPIP tunnel */
+              ipipInterface: string;
+            };
+            /**
+             * Extended sequence numbers
+             * @default false
+             */
+            esn: boolean;
+            /**
+             * Anti-replay
+             * @default true
+             */
+            antiReplay: boolean;
+          };
+        };
+      };
+      /**
+       * WireGuard
+       * @default {}
+       */
+      wireguard: {
+        /**
+         * WireGuard interfaces
+         * @default {}
+         */
+        interfaces: {
+          [key: string]: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Description */
+            description?: string;
+            /** Instance */
+            instance: number;
+            /**
+             * VRF
+             * @default default
+             */
+            vrf: string;
+            /**
+             * Underlay VRF
+             * @default default
+             */
+            underlayVrf: string;
+            /** Listen address */
+            listenAddress: string;
+            /**
+             * Listen port
+             * @default 51820
+             */
+            listenPort: number;
+            /** Private key (reference) */
+            privateKeyRef: string;
+            /**
+             * Interface addresses
+             * @default []
+             */
+            address: string[];
+            /**
+             * MTU
+             * @default 1420
+             */
+            mtu: number;
+            /**
+             * Peers
+             * @default {}
+             */
+            peers: {
+              [key: string]: {
+                /** Description */
+                description?: string;
+                /** WireGuard public key */
+                publicKey: string;
+                /** Pre-shared key (reference) */
+                presharedKeyRef?: string;
+                /** Endpoint */
+                endpoint?: {
+                  /** Address or hostname */
+                  address: string | string;
+                  /** Port */
+                  port: number;
+                };
+                /** Allowed IPs */
+                allowedIps: string[];
+                /**
+                 * Persistent keepalive (s)
+                 * @default 0
+                 */
+                persistentKeepaliveSec: number;
+              };
+            };
+          };
+        };
+      };
+      /**
+       * PKI
+       * @default {}
+       */
+      pki: {
+        /**
+         * Certificate authorities
+         * @default {}
+         */
+        cas: {
+          [key: string]: {
+            /** Description */
+            description?: string;
+            /** CA certificate (reference) */
+            certificateRef: string;
+            /** CRL */
+            crl?: {
+              /**
+               * URL
+               * Format: uri
+               */
+              url?: string;
+              /**
+               * CRL refresh (s)
+               * @default 86400
+               */
+              refreshIntervalSec: number;
+            };
+            /**
+             * OCSP responder URL
+             * Format: uri
+             */
+            ocspUrl?: string;
+          };
+        };
+        /**
+         * Certificates
+         * @default {}
+         */
+        certificates: {
+          [key: string]: {
+            /** Description */
+            description?: string;
+            /** Certificate (reference) */
+            certificateRef?: string;
+            /** Private key (reference) */
+            privateKeyRef: string;
+            /** Issuing CA */
+            ca?: string;
+            /** ACME */
+            acme?: {
+              /**
+               * URL
+               * Format: uri
+               * @default https://acme-v02.api.letsencrypt.org/directory
+               */
+              directoryUrl: string;
+              /** Domains */
+              domains: string[];
+              /**
+               * Account e-mail
+               * Format: email
+               */
+              email?: string;
+              /**
+               * Challenge
+               * @default http-01
+               * @enum {string}
+               */
+              challenge: 'http-01' | 'dns-01';
+            };
+            /**
+             * Expiry alert (days before)
+             * @default 30
+             */
+            expiryAlertDays: number;
+          };
+        };
+        /** PKCS#11 / HSM */
+        hsm?: {
+          /**
+           * Enabled
+           * @default false
+           */
+          enabled: boolean;
+          /** PKCS#11 module path */
+          module: string;
+          /** Token label */
+          tokenLabel?: string;
+          /** PIN (reference) */
+          pinRef?: string;
+        };
+      };
+      /**
+       * Remote access (IKEv2 + EAP)
+       * @default {}
+       */
+      remoteAccess: {
+        [key: string]: {
+          /**
+           * Enabled
+           * @default true
+           */
+          enabled: boolean;
+          /** Description */
+          description?: string;
+          /** Local address */
+          localAddr: string;
+          /** IKE identity */
+          localId?: string;
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /**
+           * Underlay VRF
+           * @default default
+           */
+          underlayVrf: string;
+          /**
+           * Client authentication
+           * @default eap-mschapv2
+           * @enum {string}
+           */
+          auth: 'eap-mschapv2' | 'eap-tls' | 'eap-radius' | 'pubkey';
+          /** Server certificate */
+          certificate: string;
+          /** Client CA */
+          clientCa?: string;
+          /** Proposal */
+          proposal: string;
+          /** Client pools */
+          pools: {
+            /** Name */
+            name: string;
+            /** Client pool prefix */
+            prefix: string;
+            /**
+             * DNS servers pushed to clients
+             * @default []
+             */
+            dns: string[];
+          }[];
+          /**
+           * Split-tunnel prefixes
+           * @default []
+           */
+          splitTunnel: string[];
+          /**
+           * Local EAP users
+           * @default []
+           */
+          users: {
+            /** Username */
+            username: string;
+            /** Password (reference) */
+            passwordRef: string;
+          }[];
+          /** RADIUS */
+          radius?: {
+            /** RADIUS servers */
+            servers: {
+              /** Address or hostname */
+              address: string | string;
+              /**
+               * Port
+               * @default 1812
+               */
+              port: number;
+              /** RADIUS shared secret (reference) */
+              secretRef: string;
+            }[];
+          };
+          /**
+           * Dead peer detection
+           * @default {}
+           */
+          dpd: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * DPD delay (s)
+             * @default 30
+             */
+            delaySec: number;
+            /**
+             * DPD timeout (s)
+             * @default 150
+             */
+            timeoutSec: number;
+            /**
+             * DPD action
+             * @default restart
+             * @enum {string}
+             */
+            action: 'clear' | 'trap' | 'restart';
+          };
+          /**
+           * Rekeying
+           * @default {}
+           */
+          rekey: {
+            /**
+             * IKE SA lifetime (s)
+             * @default 14400
+             */
+            ikeSec: number;
+            /**
+             * CHILD SA lifetime (s)
+             * @default 3600
+             */
+            espSec: number;
+            /** CHILD SA lifetime (bytes) */
+            espBytes?: number;
+            /** CHILD SA lifetime (packets) */
+            espPackets?: number;
+            /**
+             * Re-authenticate instead of rekeying the IKE SA
+             * @default false
+             */
+            reauth: boolean;
+          };
+        };
+      };
+    };
+    /**
+     * Tunnels
+     * @description GRE (L3, L2, ERSPAN), VXLAN and IPIP tunnels keyed by name.
+     * @default {}
+     */
+    TunnelsConfig: {
+      /**
+       * GRE tunnels
+       * @default {}
+       */
+      gre: {
+        [key: string]: {
+          /**
+           * Enabled
+           * @default true
+           */
+          enabled: boolean;
+          /** Description */
+          description?: string;
+          /** Instance */
+          instance?: number;
+          /** Source address */
+          src: string;
+          /**
+           * Underlay VRF
+           * @default default
+           */
+          underlayVrf: string;
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /** MTU */
+          mtu?: number;
+          /**
+           * IPv4 addresses
+           * @default []
+           */
+          ipv4: string[];
+          /**
+           * IPv6 addresses
+           * @default []
+           */
+          ipv6: string[];
+          /** Bridge domain */
+          bridgeDomain?: number;
+          /** Destination address */
+          dst: string;
+          /**
+           * Type
+           * @default l3
+           * @enum {string}
+           */
+          type: 'l3' | 'teb' | 'erspan';
+          /** ERSPAN session id */
+          sessionId?: number;
+        };
+      };
+      /**
+       * VXLAN tunnels
+       * @default {}
+       */
+      vxlan: {
+        [key: string]: {
+          /**
+           * Enabled
+           * @default true
+           */
+          enabled: boolean;
+          /** Description */
+          description?: string;
+          /** Instance */
+          instance?: number;
+          /** Source address */
+          src: string;
+          /**
+           * Underlay VRF
+           * @default default
+           */
+          underlayVrf: string;
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /** MTU */
+          mtu?: number;
+          /**
+           * IPv4 addresses
+           * @default []
+           */
+          ipv4: string[];
+          /**
+           * IPv6 addresses
+           * @default []
+           */
+          ipv6: string[];
+          /** Bridge domain */
+          bridgeDomain?: number;
+          /** Destination address */
+          dst: string;
+          /** VNI */
+          vni: number;
+          /**
+           * Source UDP port
+           * @default 4789
+           */
+          srcPort: number;
+          /**
+           * Destination UDP port
+           * @default 4789
+           */
+          dstPort: number;
+          /** Multicast interface */
+          mcastInterface?: string;
+          /**
+           * Decapsulation
+           * @default l2
+           * @enum {string}
+           */
+          decap: 'l2' | 'ip4' | 'ip6';
+        };
+      };
+      /**
+       * IPIP tunnels
+       * @default {}
+       */
+      ipip: {
+        [key: string]: {
+          /**
+           * Enabled
+           * @default true
+           */
+          enabled: boolean;
+          /** Description */
+          description?: string;
+          /** Instance */
+          instance?: number;
+          /** Source address */
+          src: string;
+          /**
+           * Underlay VRF
+           * @default default
+           */
+          underlayVrf: string;
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /** MTU */
+          mtu?: number;
+          /**
+           * IPv4 addresses
+           * @default []
+           */
+          ipv4: string[];
+          /**
+           * IPv6 addresses
+           * @default []
+           */
+          ipv6: string[];
+          /** Bridge domain */
+          bridgeDomain?: number;
+          /**
+           * Mode
+           * @default p2p
+           * @enum {string}
+           */
+          mode: 'p2p' | 'p2mp';
+          /** Destination address */
+          dst?: string;
+          /** Outer DSCP */
+          dscp?: number;
+        };
+      };
+    };
+    /**
+     * Services
+     * @description DHCP (Kea) and relay, DNS (Unbound + VPP cache), SNMP, LLDP, IPFIX/sFlow, NTP (chrony) and QoS (policers, shapers, marking).
+     * @default {}
+     */
+    ServicesConfig: {
+      /**
+       * DHCP
+       * @default {}
+       */
+      dhcp: {
+        /**
+         * DHCP servers (Kea instances)
+         * @default {}
+         */
+        servers: {
+          [key: string]: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Description */
+            description?: string;
+            /**
+             * Address family
+             * @default ipv4
+             * @enum {string}
+             */
+            family: 'ipv4' | 'ipv6';
+            /**
+             * VRF
+             * @default default
+             */
+            vrf: string;
+            /** Interfaces */
+            interfaces: string[];
+            /**
+             * Lease time (s)
+             * @default 3600
+             */
+            leaseTimeSec: number;
+            /** Renew timer T1 (s) */
+            renewTimerSec?: number;
+            /** Rebind timer T2 (s) */
+            rebindTimerSec?: number;
+            /**
+             * Authoritative
+             * @default true
+             */
+            authoritative: boolean;
+            /**
+             * Subnets
+             * @default {}
+             */
+            subnets: {
+              [key: string]: {
+                /** Description */
+                description?: string;
+                /** Subnet */
+                subnet: string;
+                /** Address pools */
+                pools: {
+                  /** First address */
+                  start: string;
+                  /** Last address */
+                  end: string;
+                }[];
+                /** Default gateway (DHCPv4 routers option) */
+                gateway?: string;
+                /**
+                 * DNS servers
+                 * @default []
+                 */
+                dnsServers: string[];
+                /**
+                 * NTP servers
+                 * @default []
+                 */
+                ntpServers: string[];
+                /** Domain name */
+                domainName?: string;
+                /**
+                 * Domain search list
+                 * @default []
+                 */
+                domainSearch: string[];
+                /** Lease time (s) */
+                leaseTimeSec?: number;
+                /**
+                 * Options
+                 * @default []
+                 */
+                options: {
+                  /** Option code */
+                  code: number;
+                  /** Value */
+                  data: string;
+                  /**
+                   * Always send
+                   * @default false
+                   */
+                  alwaysSend: boolean;
+                }[];
+                /**
+                 * Reservations
+                 * @default {}
+                 */
+                reservations: {
+                  [key: string]: {
+                    /** MAC address */
+                    mac?: string;
+                    /** DUID */
+                    duid?: string;
+                    /** Reserved address */
+                    ip: string;
+                    /** Hostname */
+                    hostname?: string;
+                    /**
+                     * Options
+                     * @default []
+                     */
+                    options: {
+                      /** Option code */
+                      code: number;
+                      /** Value */
+                      data: string;
+                      /**
+                       * Always send
+                       * @default false
+                       */
+                      alwaysSend: boolean;
+                    }[];
+                  };
+                };
+              };
+            };
+            /**
+             * Global options
+             * @default []
+             */
+            options: {
+              /** Option code */
+              code: number;
+              /** Value */
+              data: string;
+              /**
+               * Always send
+               * @default false
+               */
+              alwaysSend: boolean;
+            }[];
+          };
+        };
+        /**
+         * DHCP relays
+         * @default {}
+         */
+        relays: {
+          [key: string]: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Description */
+            description?: string;
+            /**
+             * Address family
+             * @default ipv4
+             * @enum {string}
+             */
+            family: 'ipv4' | 'ipv6';
+            /**
+             * Client VRF
+             * @default default
+             */
+            vrf: string;
+            /** Server VRF */
+            serverVrf?: string;
+            /** Client interfaces */
+            interfaces: string[];
+            /** DHCP servers */
+            servers: string[];
+            /** Relay source address */
+            sourceAddress: string;
+          };
+        };
+      };
+      /**
+       * DNS
+       * @default {}
+       */
+      dns: {
+        /**
+         * Resolvers (Unbound instances)
+         * @default {}
+         */
+        resolvers: {
+          [key: string]: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Description */
+            description?: string;
+            /**
+             * VRF
+             * @default default
+             */
+            vrf: string;
+            /** Listen addresses */
+            listen: {
+              /** Address */
+              address: string;
+              /**
+               * Port
+               * @default 53
+               */
+              port: number;
+            }[];
+            /**
+             * Access control
+             * @default []
+             */
+            accessControl: {
+              /** Client prefix */
+              prefix: string;
+              /**
+               * Action
+               * @default allow
+               * @enum {string}
+               */
+              action: 'allow' | 'deny' | 'refuse' | 'allow_snoop';
+            }[];
+            /**
+             * Forwarders
+             * @default []
+             */
+            forwarders: {
+              /** Server address */
+              address: string;
+              /**
+               * Port
+               * @default 53
+               */
+              port: number;
+              /**
+               * DNS over TLS
+               * @default false
+               */
+              tls: boolean;
+              /** TLS server name */
+              tlsServerName?: string;
+            }[];
+            /**
+             * Forward zones
+             * @default []
+             */
+            forwardZones: {
+              /** Zone */
+              zone: string;
+              /** Forwarders */
+              forwarders: {
+                /** Server address */
+                address: string;
+                /**
+                 * Port
+                 * @default 53
+                 */
+                port: number;
+                /**
+                 * DNS over TLS
+                 * @default false
+                 */
+                tls: boolean;
+                /** TLS server name */
+                tlsServerName?: string;
+              }[];
+              /**
+               * Forward first
+               * @default false
+               */
+              forwardFirst: boolean;
+            }[];
+            /**
+             * Local zones
+             * @default []
+             */
+            localZones: {
+              /** Zone */
+              zone: string;
+              /**
+               * Zone type
+               * @default static
+               * @enum {string}
+               */
+              type: 'static' | 'transparent' | 'redirect' | 'refuse' | 'deny' | 'nodefault';
+              /**
+               * Records
+               * @default []
+               */
+              records: {
+                /** Name */
+                name: string;
+                /**
+                 * Type
+                 * @enum {string}
+                 */
+                type: 'A' | 'AAAA' | 'CNAME' | 'MX' | 'NS' | 'PTR' | 'SRV' | 'TXT';
+                /**
+                 * TTL (s)
+                 * @default 3600
+                 */
+                ttlSec: number;
+                /** Data */
+                data: string;
+              }[];
+            }[];
+            /**
+             * DNSSEC
+             * @default {}
+             */
+            dnssec: {
+              /**
+               * DNSSEC validation
+               * @default true
+               */
+              enabled: boolean;
+              /**
+               * Automatic trust anchor (RFC 5011)
+               * @default true
+               */
+              trustAnchorAuto: boolean;
+            };
+            /**
+             * Cache
+             * @default {}
+             */
+            cache: {
+              /**
+               * Minimum TTL (s)
+               * @default 0
+               */
+              minTtlSec: number;
+              /**
+               * Maximum TTL (s)
+               * @default 86400
+               */
+              maxTtlSec: number;
+              /**
+               * Prefetch
+               * @default false
+               */
+              prefetch: boolean;
+              /**
+               * Message cache (MB)
+               * @default 4
+               */
+              msgCacheMb: number;
+              /**
+               * RRset cache (MB)
+               * @default 8
+               */
+              rrsetCacheMb: number;
+            };
+            /**
+             * Threads
+             * @default 1
+             */
+            threads: number;
+            /**
+             * QNAME minimisation
+             * @default true
+             */
+            qnameMinimisation: boolean;
+            /**
+             * Hide identity
+             * @default true
+             */
+            hideIdentity: boolean;
+            /**
+             * Hide version
+             * @default true
+             */
+            hideVersion: boolean;
+            /**
+             * Log queries
+             * @default false
+             */
+            logQueries: boolean;
+          };
+        };
+        /** VPP caching DNS plugin */
+        vppCache?: {
+          /**
+           * VPP DNS cache
+           * @default false
+           */
+          enabled: boolean;
+          /** Upstream name servers */
+          upstreams: string[];
+        };
+      };
+      /**
+       * SNMP
+       * @default {}
+       */
+      snmp: {
+        /**
+         * Enabled
+         * @default false
+         */
+        enabled: boolean;
+        /** Description */
+        description?: string;
+        /**
+         * VRF
+         * @default default
+         */
+        vrf: string;
+        /**
+         * Listen addresses
+         * @default []
+         */
+        listen: {
+          /** Address */
+          address: string;
+          /**
+           * Port
+           * @default 161
+           */
+          port: number;
+        }[];
+        /** Engine id */
+        engineId?: string;
+        /** sysName */
+        sysName?: string;
+        /** sysLocation */
+        sysLocation?: string;
+        /** sysContact */
+        sysContact?: string;
+        /**
+         * Communities (v1/v2c)
+         * @default {}
+         */
+        communities: {
+          [key: string]: {
+            /** Community string (reference) */
+            secretRef: string;
+            /**
+             * Access
+             * @default ro
+             * @enum {string}
+             */
+            access: 'ro' | 'rw';
+            /**
+             * Allowed sources
+             * @default []
+             */
+            sources: string[];
+          };
+        };
+        /**
+         * SNMPv3 users
+         * @default {}
+         */
+        v3Users: {
+          [key: string]: {
+            /**
+             * Security level
+             * @default authPriv
+             * @enum {string}
+             */
+            securityLevel: 'noAuthNoPriv' | 'authNoPriv' | 'authPriv';
+            /**
+             * Authentication protocol
+             * @default sha
+             * @enum {string}
+             */
+            authProtocol: 'sha' | 'sha256' | 'sha512' | 'md5';
+            /** Authentication passphrase (reference) */
+            authRef?: string;
+            /**
+             * Privacy protocol
+             * @default aes
+             * @enum {string}
+             */
+            privProtocol: 'aes' | 'aes256' | 'des';
+            /** Privacy passphrase (reference) */
+            privRef?: string;
+            /**
+             * Access
+             * @default ro
+             * @enum {string}
+             */
+            access: 'ro' | 'rw';
+          };
+        };
+        /**
+         * Trap receivers
+         * @default []
+         */
+        trapReceivers: {
+          /** Address or hostname */
+          address: string | string;
+          /**
+           * Port
+           * @default 162
+           */
+          port: number;
+          /**
+           * Version
+           * @default v2c
+           * @enum {string}
+           */
+          version: 'v2c' | 'v3';
+          /** Community */
+          community?: string;
+          /** SNMPv3 user */
+          user?: string;
+          /**
+           * Send informs
+           * @default false
+           */
+          inform: boolean;
+        }[];
+      };
+      /**
+       * LLDP
+       * @default {}
+       */
+      lldp: {
+        /**
+         * Enabled
+         * @default false
+         */
+        enabled: boolean;
+        /** System name */
+        systemName?: string;
+        /**
+         * TX hold multiplier
+         * @default 4
+         */
+        txHold: number;
+        /**
+         * TX interval (s)
+         * @default 30
+         */
+        txIntervalSec: number;
+        /**
+         * Interfaces
+         * @default []
+         */
+        interfaces: {
+          /** Interface */
+          interface: string;
+          /** Port description */
+          portDescription?: string;
+          /**
+           * Management IPv4
+           * Format: ipv4
+           */
+          mgmtIpv4?: string;
+          /**
+           * Management IPv6
+           * Format: ipv6
+           */
+          mgmtIpv6?: string;
+          /** Management OID */
+          mgmtOid?: string;
+        }[];
+      };
+      /**
+       * IPFIX / sFlow
+       * @default {}
+       */
+      ipfix: {
+        /**
+         * IPFIX exporters
+         * @default {}
+         */
+        exporters: {
+          [key: string]: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Description */
+            description?: string;
+            /** Collector */
+            collector: {
+              /** Address */
+              address: string;
+              /**
+               * Port
+               * @default 4739
+               */
+              port: number;
+            };
+            /** Source address */
+            sourceAddress: string;
+            /**
+             * VRF
+             * @default default
+             */
+            vrf: string;
+            /**
+             * Path MTU
+             * @default 512
+             */
+            pathMtu: number;
+            /**
+             * Template interval (s)
+             * @default 20
+             */
+            templateIntervalSec: number;
+            /**
+             * UDP checksum
+             * @default false
+             */
+            udpChecksum: boolean;
+          };
+        };
+        /**
+         * Flow probe
+         * @default {}
+         */
+        flowprobe: {
+          /**
+           * Active timer (s)
+           * @default 15
+           */
+          activeTimerSec: number;
+          /**
+           * Passive timer (s)
+           * @default 120
+           */
+          passiveTimerSec: number;
+          /**
+           * Record L2 fields
+           * @default false
+           */
+          recordL2: boolean;
+          /**
+           * Record L3 fields
+           * @default true
+           */
+          recordL3: boolean;
+          /**
+           * Record L4 fields
+           * @default true
+           */
+          recordL4: boolean;
+          /**
+           * Monitored interfaces
+           * @default []
+           */
+          interfaces: {
+            /** Interface */
+            interface: string;
+            /**
+             * Direction
+             * @default both
+             * @enum {string}
+             */
+            direction: 'rx' | 'tx' | 'both';
+            /**
+             * L2 flows
+             * @default false
+             */
+            l2: boolean;
+            /**
+             * IPv4 flows
+             * @default true
+             */
+            ip4: boolean;
+            /**
+             * IPv6 flows
+             * @default true
+             */
+            ip6: boolean;
+          }[];
+        };
+        /** sFlow */
+        sflow?: {
+          /**
+           * Enabled
+           * @default false
+           */
+          enabled: boolean;
+          /**
+           * Sampling rate (1 in N)
+           * @default 10000
+           */
+          samplingN: number;
+          /**
+           * Counter polling interval (s)
+           * @default 20
+           */
+          pollingIntervalSec: number;
+          /**
+           * Sampled header bytes
+           * @default 128
+           */
+          headerBytes: number;
+          /** Collectors */
+          collectors: {
+            /** Address */
+            address: string;
+            /**
+             * Port
+             * @default 6343
+             */
+            port: number;
+          }[];
+          /** Agent address */
+          agentAddress?: string;
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /**
+           * Sampled interfaces
+           * @default []
+           */
+          interfaces: string[];
+        };
+      };
+      /**
+       * NTP
+       * @default {}
+       */
+      ntp: {
+        /**
+         * Enabled
+         * @default false
+         */
+        enabled: boolean;
+        /**
+         * VRF
+         * @default default
+         */
+        vrf: string;
+        /**
+         * Servers
+         * @default []
+         */
+        servers: {
+          /** Address or hostname */
+          address: string | string;
+          /**
+           * iburst
+           * @default true
+           */
+          iburst: boolean;
+          /**
+           * Prefer
+           * @default false
+           */
+          prefer: boolean;
+          /** Minimum poll (log2 s) */
+          minPoll?: number;
+          /** Maximum poll (log2 s) */
+          maxPoll?: number;
+          /**
+           * NTS (authenticated NTP over TLS)
+           * @default false
+           */
+          nts: boolean;
+          /** Symmetric key (reference) */
+          keyRef?: string;
+        }[];
+        /**
+         * Pools
+         * @default []
+         */
+        pools: string[];
+        /**
+         * Serve time to
+         * @default []
+         */
+        allow: string[];
+        /**
+         * Bind addresses
+         * @default []
+         */
+        listen: string[];
+        /**
+         * Refuse time to
+         * @default []
+         */
+        deny: string[];
+        /**
+         * Server port
+         * @default 123
+         */
+        port: number;
+        /** Server rate limit */
+        rateLimit?: {
+          /**
+           * Interval (log2 s)
+           * @default 3
+           */
+          interval: number;
+          /**
+           * Burst
+           * @default 8
+           */
+          burst: number;
+          /**
+           * Leak (log2)
+           * @default 2
+           */
+          leak: number;
+        };
+        /** Local stratum */
+        localStratum?: number;
+        /**
+         * Orphan mode
+         * @default false
+         */
+        orphan: boolean;
+        /**
+         * Sync the RTC
+         * @default true
+         */
+        rtcSync: boolean;
+        /** NTS server */
+        ntsServer?: {
+          /** NTS-KE certificate (reference) */
+          certificateRef: string;
+          /** NTS-KE private key (reference) */
+          keyRef: string;
+          /**
+           * NTS-KE port
+           * @default 4460
+           */
+          port: number;
+        };
+        /**
+         * Step the clock
+         * @default {}
+         */
+        makestep: {
+          /**
+           * Threshold (s)
+           * @default 1
+           */
+          thresholdSec: number;
+          /**
+           * Limit
+           * @default 3
+           */
+          limit: number;
+        };
+      };
+      /**
+       * QoS
+       * @default {}
+       */
+      qos: {
+        /**
+         * Policers
+         * @default {}
+         */
+        policers: {
+          [key: string]: {
+            /** Description */
+            description?: string;
+            /**
+             * Algorithm
+             * @default 1r2c
+             * @enum {string}
+             */
+            type: '1r2c' | '1r3c-rfc2697' | '2r3c-rfc2698' | '2r3c-rfc4115' | '2r3c-mef5cf1';
+            /**
+             * Rate unit
+             * @default kbps
+             * @enum {string}
+             */
+            rateUnit: 'kbps' | 'pps';
+            /** Committed information rate */
+            cir: number;
+            /** Excess / peak information rate */
+            eir?: number;
+            /** Committed burst */
+            cb: number;
+            /** Excess burst */
+            eb?: number;
+            /**
+             * Rate rounding
+             * @default closest
+             * @enum {string}
+             */
+            round: 'closest' | 'up' | 'down';
+            /**
+             * Colour aware
+             * @default false
+             */
+            colorAware: boolean;
+            /**
+             * Conform action
+             * @default {}
+             */
+            conformAction: {
+              /**
+               * Action
+               * @default transmit
+               * @enum {string}
+               */
+              action: 'transmit' | 'drop' | 'mark-and-transmit';
+              /** DSCP */
+              dscp?: number;
+            };
+            /**
+             * Exceed action
+             * @default {
+             *       "action": "drop"
+             *     }
+             */
+            exceedAction: {
+              /**
+               * Action
+               * @default transmit
+               * @enum {string}
+               */
+              action: 'transmit' | 'drop' | 'mark-and-transmit';
+              /** DSCP */
+              dscp?: number;
+            };
+            /**
+             * Violate action
+             * @default {
+             *       "action": "drop"
+             *     }
+             */
+            violateAction: {
+              /**
+               * Action
+               * @default transmit
+               * @enum {string}
+               */
+              action: 'transmit' | 'drop' | 'mark-and-transmit';
+              /** DSCP */
+              dscp?: number;
+            };
+          };
+        };
+        /**
+         * Shapers
+         * @default {}
+         */
+        shapers: {
+          [key: string]: {
+            /** Description */
+            description?: string;
+            /** Rate (kbit/s) */
+            rateKbps: number;
+            /** Burst (bytes) */
+            burstBytes?: number;
+          };
+        };
+        /**
+         * Marking maps
+         * @default {}
+         */
+        maps: {
+          [key: string]: {
+            /** Description */
+            description?: string;
+            /** Map id */
+            id?: number;
+            /**
+             * Rows
+             * @default {}
+             */
+            rows: {
+              /** Recorded from ext */
+              ext?: {
+                /** Recorded value */
+                from: number;
+                /** Output value */
+                to: number;
+              }[];
+              /** Recorded from vlan */
+              vlan?: {
+                /** Recorded value */
+                from: number;
+                /** Output value */
+                to: number;
+              }[];
+              /** Recorded from mpls */
+              mpls?: {
+                /** Recorded value */
+                from: number;
+                /** Output value */
+                to: number;
+              }[];
+              /** Recorded from ip */
+              ip?: {
+                /** Recorded value */
+                from: number;
+                /** Output value */
+                to: number;
+              }[];
+            };
+          };
+        };
+        /**
+         * Interface attachments
+         * @default {}
+         */
+        interfaces: {
+          [key: string]: {
+            /** Description */
+            description?: string;
+            /** Policers */
+            policer?: {
+              /** Ingress policer */
+              input?: string;
+              /** Egress policer */
+              output?: string;
+            };
+            /** Egress shaper */
+            shaper?: string;
+            /**
+             * Record QoS bits from
+             * @enum {string}
+             */
+            record?: 'ext' | 'vlan' | 'mpls' | 'ip';
+            /** Store QoS value */
+            store?: {
+              /**
+               * Source slot
+               * @enum {string}
+               */
+              source: 'ext' | 'vlan' | 'mpls' | 'ip';
+              /** Value */
+              value: number;
+            };
+            /** Mark on egress */
+            mark?: {
+              /** Map */
+              map: string;
+              /**
+               * Output header
+               * @enum {string}
+               */
+              output: 'ext' | 'vlan' | 'mpls' | 'ip';
+            };
+          };
+        };
+      };
+    };
+    /**
+     * High availability
+     * @description VRRPv3 virtual routers (VPP plugin or keepalived) and cluster membership / config sync.
+     * @default {}
+     */
+    HaConfig: {
+      /**
+       * VRRP virtual routers
+       * @default {}
+       */
+      vrrp: {
+        [key: string]: {
+          /**
+           * Enabled
+           * @default true
+           */
+          enabled: boolean;
+          /** Description */
+          description?: string;
+          /** Interface */
+          interface: string;
+          /** VRID */
+          vrId: number;
+          /**
+           * Address family
+           * @default ipv4
+           * @enum {string}
+           */
+          addressFamily: 'ipv4' | 'ipv6';
+          /**
+           * Priority
+           * @default 100
+           */
+          priority: number;
+          /**
+           * Advertisement interval (ms)
+           * @default 1000
+           */
+          advertisementIntervalMs: number;
+          /**
+           * Preempt
+           * @default true
+           */
+          preempt: boolean;
+          /**
+           * Accept mode
+           * @default false
+           */
+          acceptMode: boolean;
+          /** Unicast VRRP */
+          unicast?: {
+            /** Peer addresses */
+            peers: string[];
+          };
+          /** Virtual addresses */
+          addresses: string[];
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /**
+           * Engine
+           * @default vpp
+           * @enum {string}
+           */
+          engine: 'vpp' | 'keepalived';
+          /**
+           * Tracked interfaces
+           * @default []
+           */
+          track: {
+            /** Tracked interface */
+            interface: string;
+            /**
+             * Priority decrement
+             * @default 10
+             */
+            priorityDecrement: number;
+          }[];
+        };
+      };
+      /** Cluster */
+      cluster?: {
+        /**
+         * Enabled
+         * @default false
+         */
+        enabled: boolean;
+        /** This node */
+        nodeName: string;
+        /** Peers */
+        peers: {
+          /** Peer name */
+          name: string;
+          /** Peer address */
+          address: string;
+        }[];
+        /**
+         * Cluster port
+         * @default 4370
+         */
+        port: number;
+        /** Cluster authentication key (reference) */
+        secretRef: string;
+        /** Sync interface */
+        interface?: string;
+        /**
+         * VRF
+         * @default default
+         */
+        vrf: string;
+        /**
+         * Configuration synchronisation
+         * @default true
+         */
+        configSync: boolean;
+        /**
+         * State synchronisation
+         * @default {}
+         */
+        stateSync: {
+          /**
+           * NAT sessions
+           * @default false
+           */
+          nat: boolean;
+          /**
+           * IPsec SAs
+           * @default false
+           */
+          ipsec: boolean;
+          /**
+           * ACL sessions
+           * @default false
+           */
+          acl: boolean;
+        };
+      };
+    };
+    /**
+     * Management
+     * @description Local users, AAA, TLS and syslog.
+     * @default {}
+     */
+    ManagementConfig: {
+      /**
+       * Local users
+       * @default []
+       */
+      users: {
+        /** Username */
+        username: string;
+        /**
+         * Role
+         * @enum {string}
+         */
+        role: 'admin' | 'operator' | 'readonly';
+        /**
+         * Scope
+         * @default *
+         * @constant
+         */
+        scope: '*';
+        /** Password hash */
+        passwordHash?: string;
+        /**
+         * SSH public keys
+         * @default []
+         */
+        sshKeys: string[];
+        /** Full name */
+        fullName?: string;
+        /**
+         * Disabled
+         * @default false
+         */
+        disabled: boolean;
+      }[];
+      /**
+       * AAA
+       * @default {}
+       */
+      aaa: {
+        /**
+         * Authentication order
+         * @default [
+         *       "local"
+         *     ]
+         */
+        order: ('local' | 'radius' | 'tacacs')[];
+        /**
+         * RADIUS
+         * @default {}
+         */
+        radius: {
+          /**
+           * Servers
+           * @default []
+           */
+          servers: {
+            /** Server */
+            address: string;
+            /**
+             * Authentication port
+             * @default 1812
+             */
+            authPort: number;
+            /**
+             * Accounting port
+             * @default 1813
+             */
+            acctPort: number;
+            /** Shared secret */
+            secretRef: string;
+            /**
+             * Timeout (s)
+             * @default 5
+             */
+            timeoutSec: number;
+            /**
+             * VRF
+             * @default default
+             */
+            vrf: string;
+          }[];
+        };
+        /**
+         * TACACS+
+         * @default {}
+         */
+        tacacs: {
+          /**
+           * Servers
+           * @default []
+           */
+          servers: {
+            /** Server */
+            address: string;
+            /**
+             * Port
+             * @default 49
+             */
+            port: number;
+            /** Shared secret */
+            secretRef: string;
+            /**
+             * Timeout (s)
+             * @default 5
+             */
+            timeoutSec: number;
+            /**
+             * VRF
+             * @default default
+             */
+            vrf: string;
+          }[];
+        };
+      };
+      /**
+       * TLS
+       * @default {}
+       */
+      tls: {
+        /** Certificate */
+        certificateRef?: string;
+        /** Private key */
+        privateKeyRef?: string;
+        /**
+         * Minimum TLS version
+         * @default 1.2
+         * @enum {string}
+         */
+        minVersion: '1.2' | '1.3';
+      };
+      /**
+       * Remote syslog
+       * @default []
+       */
+      syslog: {
+        /** Collector */
+        address: string;
+        /**
+         * Port
+         * @default 514
+         */
+        port: number;
+        /**
+         * Transport
+         * @default udp
+         * @enum {string}
+         */
+        protocol: 'udp' | 'tcp' | 'tls';
+        /**
+         * Minimum severity
+         * @default info
+         * @enum {string}
+         */
+        severity:
+          'emergency' | 'alert' | 'critical' | 'error' | 'warning' | 'notice' | 'info' | 'debug';
+        /**
+         * VRF
+         * @default default
+         */
+        vrf: string;
+      }[];
+    };
+    /** @description The whole configuration document (docs/04). Secret leaves are write-only and never returned. */
+    RootConfig: {
+      system?: components['schemas']['SystemConfig'];
+      dataplane?: components['schemas']['DataplaneConfig'];
+      interfaces?: components['schemas']['InterfacesConfig'];
+      vrfs?: components['schemas']['VrfsConfig'];
+      routing?: components['schemas']['RoutingConfig'];
+      nat?: components['schemas']['NatConfig'];
+      objects?: components['schemas']['ObjectsConfig'];
+      acl?: components['schemas']['AclConfig'];
+      vpn?: components['schemas']['VpnConfig'];
+      tunnels?: components['schemas']['TunnelsConfig'];
+      services?: components['schemas']['ServicesConfig'];
+      ha?: components['schemas']['HaConfig'];
+      management?: components['schemas']['ManagementConfig'];
+    };
+    /** @description RFC 9457 problem details */
+    Problem: {
+      type: string;
+      title: string;
+      status: number;
+      detail?: string;
+      instance?: string;
+      errors?: {
+        pointer: string;
+        message: string;
+        rule?: string;
+      }[];
+    } & {
+      [key: string]: unknown;
+    };
+  };
   responses: never;
   parameters: never;
   requestBodies: never;
@@ -32,7 +5351,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  HealthController_health: {
+  Health_health: {
     parameters: {
       query?: never;
       header?: never;
@@ -47,6 +5366,2317 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  Auth_login: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          username: string;
+          password: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            accessToken: string;
+            /** @constant */
+            tokenType: 'Bearer';
+            /** @description seconds */
+            expiresIn: number;
+            user: {
+              id: number;
+              username: string;
+              /** @enum {string} */
+              role: 'admin' | 'operator' | 'readonly';
+            };
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Rate limited */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Auth_refresh: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            accessToken: string;
+            /** @constant */
+            tokenType: 'Bearer';
+            /** @description seconds */
+            expiresIn: number;
+            user: {
+              id: number;
+              username: string;
+              /** @enum {string} */
+              role: 'admin' | 'operator' | 'readonly';
+            };
+          };
+        };
+      };
+      /** @description Invalid credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Auth_logout: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Logged out (also when the cookie was already invalid) */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  Auth_me: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            id: number;
+            username: string;
+            /** @enum {string} */
+            role: 'admin' | 'operator' | 'readonly';
+            lastLogin: string | null;
+            /** @enum {string} */
+            effectiveRole: 'admin' | 'operator' | 'readonly';
+            /** @enum {string} */
+            via: 'jwt' | 'apikey';
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Auth_password: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          current: string;
+          password: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Password changed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Auth_apiKeys: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            id: string;
+            name: string;
+            role: ('admin' | 'operator' | 'readonly') | null;
+            expiresAt: string | null;
+            lastUsed: string | null;
+            createdAt: string;
+          }[];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Auth_createApiKey: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          name: string;
+          /** @enum {string} */
+          role?: 'admin' | 'operator' | 'readonly';
+          expiresInDays?: number;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            role: 'admin' | 'operator' | 'readonly';
+            expiresAt: string | null;
+            /** @description shown once — store it now */
+            key: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Auth_deleteApiKey: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_running: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RootConfig'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_patchRoot: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': Record<string, never>;
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            pointer: string;
+            before: unknown;
+            after: unknown;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_candidate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RootConfig'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_candidateAt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description JSON pointer into the document without the leading slash, first segment a top-level key; `/` inside a name is `~1` (e.g. `interfaces/TenGigabitEthernet0~10~10/mtu`) */
+        path: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Any JSON value (the node) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_diff: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            baseRevision: number | null;
+            changes: {
+              /** @enum {string} */
+              op: 'add' | 'remove' | 'replace';
+              pointer: string;
+              from?: unknown;
+              to?: unknown;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_lock: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            locked: boolean;
+            owner: string | null;
+            ownerId: number | null;
+            lockedAt: string | null;
+            lastActivity: string | null;
+            expiresAt: string | null;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_breakLock: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            locked: boolean;
+            owner: string | null;
+            ownerId: number | null;
+            lockedAt: string | null;
+            lastActivity: string | null;
+            expiresAt: string | null;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_validate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @constant */
+            ok: true;
+            warnings: {
+              pointer: string;
+              message: string;
+              rule?: string;
+            }[];
+            plan: {
+              key: string;
+              op: string;
+              pointer: string;
+              subsystem: string;
+            }[];
+            notApplied: string[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_commit: {
+    parameters: {
+      query?: {
+        comment?: string;
+        confirm?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @enum {string} */
+            status: 'applied' | 'pending' | 'unchanged' | 'confirmed';
+            txnId?: string;
+            revision?: {
+              id: number;
+              createdAt: string;
+              authorId: number | null;
+              author: string | null;
+              comment: string;
+              parentId: number | null;
+              hash: string;
+              txnId: string | null;
+              kind: string;
+            };
+            confirmDeadline?: string;
+            results: {
+              key: string;
+              op: string;
+              code: string;
+              message: string;
+              pointer: string;
+              subsystem: string;
+            }[];
+            summary?: {
+              [key: string]: number;
+            };
+            warnings: {
+              pointer: string;
+              message: string;
+              rule?: string;
+            }[];
+            notApplied: string[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description The agent failed to apply; running is unchanged (per-object results) */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_confirm: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @enum {string} */
+            status: 'applied' | 'pending' | 'unchanged' | 'confirmed';
+            txnId?: string;
+            revision?: {
+              id: number;
+              createdAt: string;
+              authorId: number | null;
+              author: string | null;
+              comment: string;
+              parentId: number | null;
+              hash: string;
+              txnId: string | null;
+              kind: string;
+            };
+            confirmDeadline?: string;
+            results: {
+              key: string;
+              op: string;
+              code: string;
+              message: string;
+              pointer: string;
+              subsystem: string;
+            }[];
+            summary?: {
+              [key: string]: number;
+            };
+            warnings: {
+              pointer: string;
+              message: string;
+              rule?: string;
+            }[];
+            notApplied: string[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_pending: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            pending: {
+              txnId: string;
+              author: number | null;
+              comment: string;
+              kind: string;
+              deadline: string;
+              createdAt: string;
+            } | null;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_discard: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            discarded: boolean;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_revisions: {
+    parameters: {
+      query?: {
+        offset?: number;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: {
+              id: number;
+              createdAt: string;
+              authorId: number | null;
+              author: string | null;
+              comment: string;
+              parentId: number | null;
+              hash: string;
+              txnId: string | null;
+              kind: string;
+            }[];
+            total: number;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_revision: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        rev: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            id: number;
+            createdAt: string;
+            authorId: number | null;
+            author: string | null;
+            comment: string;
+            parentId: number | null;
+            hash: string;
+            txnId: string | null;
+            kind: string;
+            payload: {
+              [key: string]: unknown;
+            };
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_rollback: {
+    parameters: {
+      query?: {
+        comment?: string;
+        confirm?: number;
+      };
+      header?: never;
+      path: {
+        rev: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @enum {string} */
+            status: 'applied' | 'pending' | 'unchanged' | 'confirmed';
+            txnId?: string;
+            revision?: {
+              id: number;
+              createdAt: string;
+              authorId: number | null;
+              author: string | null;
+              comment: string;
+              parentId: number | null;
+              hash: string;
+              txnId: string | null;
+              kind: string;
+            };
+            confirmDeadline?: string;
+            results: {
+              key: string;
+              op: string;
+              code: string;
+              message: string;
+              pointer: string;
+              subsystem: string;
+            }[];
+            summary?: {
+              [key: string]: number;
+            };
+            warnings: {
+              pointer: string;
+              message: string;
+              rule?: string;
+            }[];
+            notApplied: string[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description The agent failed to apply; running is unchanged (per-object results) */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_export: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RootConfig'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_import: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RootConfig'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            pointer: string;
+            before: unknown;
+            after: unknown;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_runningAt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description JSON pointer into the document without the leading slash, first segment a top-level key; `/` inside a name is `~1` (e.g. `interfaces/TenGigabitEthernet0~10~10/mtu`) */
+        path: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Any JSON value (the node) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_putAt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description JSON pointer into the document without the leading slash, first segment a top-level key; `/` inside a name is `~1` (e.g. `interfaces/TenGigabitEthernet0~10~10/mtu`) */
+        path: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': unknown;
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            pointer: string;
+            before: unknown;
+            after: unknown;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_deleteAt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description JSON pointer into the document without the leading slash, first segment a top-level key; `/` inside a name is `~1` (e.g. `interfaces/TenGigabitEthernet0~10~10/mtu`) */
+        path: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            pointer: string;
+            before: unknown;
+            after: unknown;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_patchAt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description JSON pointer into the document without the leading slash, first segment a top-level key; `/` inside a name is `~1` (e.g. `interfaces/TenGigabitEthernet0~10~10/mtu`) */
+        path: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': unknown;
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            pointer: string;
+            before: unknown;
+            after: unknown;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  State_system: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            api: {
+              version: string;
+              startedAt: string;
+              wsClients: number;
+            };
+            /** @description HealthResponse plus reachable:true, or {reachable:false, error} */
+            agent: {
+              [key: string]: unknown;
+            };
+            runningRevision: number | null;
+            pendingCommit: {
+              [key: string]: unknown;
+            } | null;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  State_interfaces: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt?: string;
+            countersAt?: string;
+            items: {
+              name: string;
+              config: {
+                [key: string]: unknown;
+              };
+              counters: {
+                [key: string]: unknown;
+              } | null;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  State_routes: {
+    parameters: {
+      query?: {
+        pageSize?: number;
+        page?: number;
+        vrf?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            page: number;
+            pageSize: number;
+            total: number;
+            items: {
+              vrf: string;
+              prefix: string;
+              /** @enum {string} */
+              origin: 'connected' | 'static';
+              nextHops: {
+                address?: string;
+                interface?: string;
+              }[];
+              distance?: number;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  State_neighbors: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Neighbour table (reserved: answers 501 in this release) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  State_drift: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            subsystems: string[];
+            changes: {
+              op: string;
+              pointer: string;
+              from?: unknown;
+              to?: unknown;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  State_events: {
+    parameters: {
+      query?: {
+        offset?: number;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            total: number;
+            items: {
+              id: number;
+              ts: string;
+              severity: string;
+              subsystem: string;
+              code: string;
+              message: string;
+              data: unknown;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Actions_run: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        action:
+          'ping' | 'traceroute' | 'capture' | 'clear-counters' | 'reboot' | 'shutdown' | 'upgrade';
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Action output (reserved: every action answers 501 in this release) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Secrets_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            ref: string;
+            /** @enum {string} */
+            kind: 'psk' | 'key' | 'cert' | 'password' | 'token';
+            name: string;
+            createdAt: string;
+          }[];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Secrets_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @enum {string} */
+          kind: 'psk' | 'key' | 'cert' | 'password' | 'token';
+          name: string;
+          /** @description write-only; never returned */
+          value: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            ref: string;
+            created: boolean;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Secrets_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        kind: string;
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Audit_list: {
+    parameters: {
+      query?: {
+        offset?: number;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            total: number;
+            items: {
+              id: number;
+              ts: string;
+              userId: number | null;
+              username: string | null;
+              sourceIp: string | null;
+              action: string;
+              resource: string | null;
+              before: unknown;
+              after: unknown;
+              /** @enum {string} */
+              result: 'success' | 'failure';
+              status: number | null;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
       };
     };
   };

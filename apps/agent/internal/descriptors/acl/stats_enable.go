@@ -52,12 +52,18 @@ func (*StatsEnableDescriptor) Dependencies(proto.Message) []scheduler.Dependency
 // the generated Invoke would reject, so the reply is read on a raw stream and both reply types
 // are accepted.
 func EnableCounters(ctx context.Context, client vpp.Client) error {
+	return setCounters(ctx, client, true)
+}
+
+// setCounters sends acl_stats_intf_counters_enable(enable) on a raw stream (see EnableCounters).
+// Production code only ever passes true; the integration test uses false to restore the host.
+func setCounters(ctx context.Context, client vpp.Client, enable bool) error {
 	stream, err := client.NewStream(ctx)
 	if err != nil {
 		return fmt.Errorf("acl_stats_intf_counters_enable: %w", err)
 	}
 	defer func() { _ = stream.Close() }()
-	if err := stream.SendMsg(&acl.ACLStatsIntfCountersEnable{Enable: true}); err != nil {
+	if err := stream.SendMsg(&acl.ACLStatsIntfCountersEnable{Enable: enable}); err != nil {
 		return fmt.Errorf("acl_stats_intf_counters_enable: %w", err)
 	}
 	msg, err := stream.RecvMsg()

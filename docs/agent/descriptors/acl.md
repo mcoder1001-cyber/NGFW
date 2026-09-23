@@ -69,7 +69,7 @@ ranges and wildcards).
 | `acl.macip-acl` | `macip_acl_add_replace` (`acl_index=~0`) | `macip_acl_add_replace` on index | `macip_acl_del` | `macip_acl_dump` (`~0`) → `macip_acl_details` | tag | none |
 | `acl.interface-binding` | `acl_interface_set_acl_list` (`acls` = input ++ output, `n_input`) | same message (reorder = update) | same message with empty list | `acl_interface_list_dump` (`~0`) → `acl_interface_list_details`; `sw_interface_dump` for index→name | non-empty list **and** every ACL in it is ours | interface (optional, `WithInterfaceKey`), every listed `acl.acl` (mandatory) |
 | `acl.etype-whitelist` | `acl_interface_set_etype_whitelist` (`whitelist` = input ++ output, `n_input`) | same | same with empty list | `acl_interface_etype_whitelist_dump` (`~0`) → `…_details` | interface tag parses as `<owner>:…` | interface (optional) |
-| `acl.macip-interface-binding` | `macip_acl_interface_add_del` (`is_add=1`) | `macip_acl_interface_add_del` add with the new index (VPP unapplies the old one) | `is_add=0` | `macip_acl_interface_list_dump` (`~0`) → `…_details` | the bound MACIP ACL is ours | interface (optional), `acl.macip-acl` (mandatory) |
+| `acl.macip-interface-binding` | `macip_acl_interface_add_del` (`is_add=1`) | `macip_acl_interface_add_del` add with the new index (VPP unapplies the old one) | `is_add=0` | `macip_acl_interface_list_dump` (`~0`) → `…_details` | the bound MACIP ACL is ours | interface (optional), `acl.macip-acl` (mandatory, for ordering — see caveat) |
 | `acl.stats-enable` | `acl_stats_intf_counters_enable` (`enable=1`) via raw stream, see caveat | same | **no-op** (never disables) | last value applied by this process (VPP has no getter) | n/a (global) | none |
 | hit counters (`acl.StatsReader`, not a descriptor) | – | – | – | stats segment `/acl/<acl_index>/matches` (combined counters, one slot per rule + 1 spare, per worker) via `adapter.StatsAPI.DumpStats`; ACL names via `acl_dump` | tag | reads `acl.acl` objects |
 | health (`acl.GetPluginInfo`) | – | – | – | `acl_plugin_get_version`, `acl_plugin_get_conn_table_max_entries` | – | – |
@@ -107,6 +107,9 @@ There is no per-interface or per-MACIP-ACL hit counter in the stats segment.
   not ours either.
 - `acl_del` fails with `ACL_IN_USE_INBOUND/OUTBOUND/BY_LOOKUP_CONTEXT` while bound — the mandatory binding →
   ACL dependency makes the scheduler unbind first (and ABF policies, DF-2, must depend on `acl.KeyACL`).
+- **`macip_acl_del` of a bound MACIP ACL succeeds** and unapplies it from every interface itself (acl.c
+  `macip_acl_del_list`; verified on the host) — unlike `acl_del`, which fails with `ACL_IN_USE_INBOUND (-142)`.
+  The binding → MACIP ACL dependency therefore only orders operations; a binding vanishes with its ACL.
 - `acl_interface_set_acl_list` rejects an ACL listed twice in one direction (`ENTRY_ALREADY_EXISTS`) and unknown
   indexes (`NO_SUCH_ENTRY`); `Validate` catches the former before the call.
 - Not built here (out of scope): API/UI/schema, classifier `input_acl_set_interface` (DF-2), ABF (DF-2), conn-table

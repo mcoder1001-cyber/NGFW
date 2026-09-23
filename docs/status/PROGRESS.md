@@ -7,8 +7,8 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 | state | tasks |
 |---|---|
 | merged | 15 |
-| review | 1 |
-| running | 11 |
+| review | 0 |
+| running | 12 |
 | ready | 0 |
 | parked | 0 |
 | failed | 0 |
@@ -18,7 +18,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
-| S2 | 62 / 223 | 27.8% | 5/17 | 10 | 0 | 0 |
+| S2 | 62 / 223 | 27.8% | 5/17 | 11 | 0 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
 | S4 | 0 / 384 | 0.0% | 0/37 | 0 | 0 | 0 |
 | S5 | 0 / 128 | 0.0% | 0/13 | 1 | 0 | 0 |
@@ -30,7 +30,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 - P06 — API core: datastore, commit engine, auth/RBAC/audit, telemetry relay (running, host-agent slot1)
 - DF-3 — Descriptors: nat44_ed (nat), nat44_ei, nat64, nat66, det44, map, cnat, pnat (running, host-agent slot9)
 - DF-5 — Descriptors: ipsec, ikev2, wireguard (running, host-agent slot4)
-- DF-6 — Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp (review, host-agent slot11)
+- DF-6 — Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp (running, host-agent slot11)
 - DF-7 — Descriptors: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls (running, host-agent slot10)
 - DF-8 — Descriptors: dhcp, dns, flowprobe, sflow, prom, pcap/tracenode, lcp [skip-unless-loaded] (running, host-agent slot5)
 - RF-2 — Renderers: strongswan (swanctl/VICI path; vrx build lands in P11) (running, host-agent slot3)

@@ -189,7 +189,7 @@ func (a *Agent) watchVPP(ctx context.Context) {
 				if st.Err != nil {
 					msg += ": " + st.Err.Error()
 				}
-				a.svc.Events().publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_VPP_DISCONNECTED, Message: msg})
+				a.svc.events().publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_VPP_DISCONNECTED, Message: msg})
 				continue
 			}
 			vctx, vcancel := context.WithTimeout(ctx, 5*time.Second)
@@ -199,7 +199,7 @@ func (a *Agent) watchVPP(ctx context.Context) {
 				a.log.Warn("show_version", "err", err)
 			}
 			a.svc.SetVPPVersion(v)
-			a.svc.Events().publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_VPP_CONNECTED, Message: "VPP " + v})
+			a.svc.events().publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_VPP_CONNECTED, Message: "VPP " + v})
 			resp := a.svc.Resync(ctx)
 			if resp != nil {
 				a.log.Info("resync finished", "status", resp.GetStatus().String(), "summary", resp.GetSummary().String())
@@ -208,7 +208,7 @@ func (a *Agent) watchVPP(ctx context.Context) {
 			lctx, cancelLinks := context.WithCancel(ctx)
 			linkCancel = cancelLinks
 			go func() {
-				if err := watchLinks(lctx, a.conn, a.svc.Events(), a.log); err != nil && lctx.Err() == nil {
+				if err := watchLinks(lctx, a.conn, a.svc.events(), a.log); err != nil && lctx.Err() == nil {
 					a.log.Warn("link events stopped", "err", err)
 				}
 			}()

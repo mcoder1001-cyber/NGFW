@@ -102,7 +102,9 @@ func Names() []string {
 func InterfaceKey(name string) scheduler.Key { return scheduler.Join(InterfaceRef, name) }
 
 // VRFKey is "vrf/<id>".
-func VRFKey(id uint32) scheduler.Key { return scheduler.Join(VRFName, strconv.FormatUint(uint64(id), 10)) }
+func VRFKey(id uint32) scheduler.Key {
+	return scheduler.Join(VRFName, strconv.FormatUint(uint64(id), 10))
+}
 
 // LoopbackKey is "interface.loopback/<name>".
 func LoopbackKey(name string) scheduler.Key { return scheduler.Join(LoopbackName, name) }
@@ -113,7 +115,9 @@ func InterfaceAddrKey(ifName, prefix string) scheduler.Key {
 }
 
 // InterfaceTableKey is "interface-ip.table/<if>".
-func InterfaceTableKey(ifName string) scheduler.Key { return scheduler.Join(InterfaceTableName, ifName) }
+func InterfaceTableKey(ifName string) scheduler.Key {
+	return scheduler.Join(InterfaceTableName, ifName)
+}
 
 // RouteKey is "ip.route/<table>/<prefix>".
 func RouteKey(table uint32, prefix string) scheduler.Key {

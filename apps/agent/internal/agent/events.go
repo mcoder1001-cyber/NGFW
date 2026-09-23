@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -136,8 +135,4 @@ func summaryPB(s summaryCounts) *vrxv1.ApplySummary {
 		Created: uint32(s.Created), Updated: uint32(s.Updated), Deleted: uint32(s.Deleted), //nolint:gosec // small counts
 		Unchanged: uint32(s.Unchanged), Failed: uint32(s.Failed), Reverted: uint32(s.Reverted), //nolint:gosec // small counts
 	}
-}
-
-func eventAt(kind vrxv1.EventKind, msg string, t time.Time) *vrxv1.Event {
-	return &vrxv1.Event{Ts: timestamppb.New(t), Kind: kind, Message: msg}
 }

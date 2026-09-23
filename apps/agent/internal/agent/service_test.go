@@ -347,7 +347,7 @@ func TestConfirmTimeoutReverts(t *testing.T) {
 	s := newSvc(t, v, t.TempDir())
 	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "base", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	baseline := v.Snapshot()
-	sub := s.Events().subscribe(&vrxv1.StreamEventsRequest{})
+	sub := s.events().subscribe(&vrxv1.StreamEventsRequest{})
 	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, sampleDoc), ConfirmTimeoutSec: 1}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if _, ok := v.InterfaceByName("loop701"); !ok {
 		t.Fatal("pending txn not applied")
@@ -408,7 +408,7 @@ func TestResyncRecreatesAfterLoss(t *testing.T) {
 	v.DeleteTable(7001, false)
 	v.DeleteTable(7001, true)
 	s2 := newSvc(t, v, dir)
-	sub := s2.Events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE}})
+	sub := s2.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE}})
 	resp := s2.Resync(context.Background())
 	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if resp.GetSummary().GetCreated() == 0 {
@@ -461,7 +461,7 @@ func TestResyncDeletesOwnedLeftovers(t *testing.T) {
 func TestDryRun(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir())
-	sub := s.Events().subscribe(&vrxv1.StreamEventsRequest{})
+	sub := s.events().subscribe(&vrxv1.StreamEventsRequest{})
 	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, `{
 	  "vrfs": {"red": {"id": 7001, "description": "x"}},
 	  "interfaces": {"loop701": {"vrf": "red", "mtu": 1500, "ipv4": ["10.7.1.1/24"]}}
@@ -532,8 +532,8 @@ func TestEventBufferOverflow(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		b.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_LINK_UP, Interface: &n})
 	}
-	b.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_LINK_UP, Interface: &other})    // filtered
-	b.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_RECONCILE_START})                 // filtered
+	b.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_LINK_UP, Interface: &other}) // filtered
+	b.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_RECONCILE_START})            // filtered
 	evs, err := sub.next(context.Background())
 	if err != nil || len(evs) != 4 || evs[0].GetKind() != vrxv1.EventKind_EVENT_KIND_ERROR || evs[0].GetMessage() != "dropped 2 events" {
 		t.Fatalf("events %v %v", err, evs)
@@ -585,7 +585,7 @@ func TestGRPCRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cc.Close()
+	defer func() { _ = cc.Close() }()
 	c := vrxv1.NewDataplaneClient(cc)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

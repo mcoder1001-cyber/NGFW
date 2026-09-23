@@ -525,8 +525,8 @@ func (s *Service) SetVPPVersion(v string) {
 	s.mu.Unlock()
 }
 
-// Events returns the event bus (StreamEvents, link events).
-func (s *Service) Events() *bus { return s.bus }
+// events returns the event bus (StreamEvents, link events).
+func (s *Service) events() *bus { return s.bus }
 
 // Close stops the confirm timer (the pending state stays persisted; a restart resumes it).
 func (s *Service) Close() {

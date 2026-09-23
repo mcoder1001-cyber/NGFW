@@ -122,7 +122,10 @@ func (d *RouteDescriptor) encode(ctx context.Context, v *Route) (ip.IPRoute, err
 		}
 		r.Paths = append(r.Paths, fp)
 	}
-	r.NPaths = uint8(len(r.Paths))
+	if len(r.Paths) > 255 {
+		return ip.IPRoute{}, fmt.Errorf("%w: %d paths > 255", ErrBadValue, len(r.Paths))
+	}
+	r.NPaths = uint8(len(r.Paths)) //nolint:gosec // bounded above
 	return r, nil
 }
 

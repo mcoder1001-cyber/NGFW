@@ -64,7 +64,9 @@ func obj(name, val string, deps ...string) *structpb.Struct {
 	return s
 }
 
-func str(o proto.Message, f string) string { return o.(*structpb.Struct).GetFields()[f].GetStringValue() }
+func str(o proto.Message, f string) string {
+	return o.(*structpb.Struct).GetFields()[f].GetStringValue()
+}
 
 type mem struct {
 	name  string
@@ -74,8 +76,8 @@ type mem struct {
 
 type memMeta struct{ Handle int }
 
-func (m *mem) Name() string                { return m.name }
-func (m *mem) KeyOf(o proto.Message) Key   { return Join(m.name, str(o, "name")) }
+func (m *mem) Name() string              { return m.name }
+func (m *mem) KeyOf(o proto.Message) Key { return Join(m.name, str(o, "name")) }
 func (m *mem) ProvidedKeys(o proto.Message) []Key {
 	if m.alias == "" {
 		return nil

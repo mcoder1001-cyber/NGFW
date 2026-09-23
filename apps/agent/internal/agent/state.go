@@ -65,7 +65,7 @@ func loadState(dir, owner string) (*state, error) {
 		return nil, fmt.Errorf("state dir: %w", err)
 	}
 	s := newState(dir, owner)
-	b, err := os.ReadFile(filepath.Join(dir, "agent-state.json"))
+	b, err := os.ReadFile(filepath.Join(dir, "agent-state.json")) //nolint:gosec // fixed name in the configured state dir
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		return s, nil
@@ -89,7 +89,7 @@ func loadState(dir, owner string) (*state, error) {
 
 func readPB(path string) (*vrxv1.DesiredState, error) {
 	ds := &vrxv1.DesiredState{}
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // fixed names in the configured state dir
 	if errors.Is(err, os.ErrNotExist) {
 		return ds, nil
 	}

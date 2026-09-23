@@ -59,8 +59,8 @@ func (g *server) StreamStats(req *vrxv1.StreamStatsRequest, stream grpc.ServerSt
 }
 
 func (g *server) StreamEvents(req *vrxv1.StreamEventsRequest, stream grpc.ServerStreamingServer[vrxv1.Event]) error {
-	sub := g.svc.Events().subscribe(req)
-	defer g.svc.Events().unsubscribe(sub)
+	sub := g.svc.events().subscribe(req)
+	defer g.svc.events().unsubscribe(sub)
 	for {
 		evs, err := sub.next(stream.Context())
 		if err != nil {
@@ -119,7 +119,7 @@ func listenUnix(path, group string, log *slog.Logger) (net.Listener, error) {
 		_ = l.Close()
 		return nil, fmt.Errorf("chown socket: %w", err)
 	}
-	if err := os.Chmod(path, 0o660); err != nil {
+	if err := os.Chmod(path, 0o660); err != nil { //nolint:gosec // contract: socket 0660 so the API's group can connect
 		_ = l.Close()
 		return nil, fmt.Errorf("chmod socket: %w", err)
 	}

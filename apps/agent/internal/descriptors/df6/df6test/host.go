@@ -11,6 +11,7 @@ import (
 	"go.fd.io/govpp/adapter/socketclient"
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/core"
+	"google.golang.org/protobuf/proto"
 
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
@@ -18,6 +19,7 @@ import (
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/mpls"
 	"ngfw/agent/internal/descriptors/df6"
+	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/vpptest"
 )
@@ -194,4 +196,62 @@ func (h *Host) Hold() {
 			time.Sleep(d)
 		}
 	}
+}
+
+// PlanFor computes the plan the reconciler would make for desired against d.Retrieve(), with
+// the semantics documented in internal/scheduler (absent → Create, !proto.Equal → Update,
+// retrieved and not desired → Delete). P05's reconciler is not in this branch; this is the
+// idempotency check of the DF-6 acceptance ("applying the same desired state twice yields an
+// empty plan").
+func PlanFor(ctx context.Context, d scheduler.Descriptor, desired ...proto.Message) (scheduler.Plan, error) {
+	actual, err := d.Retrieve(ctx)
+	if err != nil {
+		return scheduler.Plan{}, err
+	}
+	have := map[scheduler.Key]scheduler.KV{}
+	for _, kv := range actual {
+		have[kv.Key] = kv
+	}
+	var p scheduler.Plan
+	want := map[scheduler.Key]bool{}
+	for _, v := range desired {
+		k := d.KeyOf(v)
+		want[k] = true
+		a, ok := have[k]
+		switch {
+		case !ok:
+			p.Create = append(p.Create, scheduler.KV{Key: k, Value: v})
+		case !proto.Equal(a.Value, v):
+			p.Update = append(p.Update, scheduler.KV{Key: k, Value: v})
+		}
+	}
+	for k, kv := range have {
+		if !want[k] {
+			p.Delete = append(p.Delete, kv)
+		}
+	}
+	return p, nil
+}
+
+// AssertEmptyPlan fails unless desired (already applied) plans to nothing, and logs the plan
+// sizes as evidence.
+func (h *Host) AssertEmptyPlan(d scheduler.Descriptor, desired ...proto.Message) {
+	h.T.Helper()
+	p, err := PlanFor(h.Ctx, d, desired...)
+	if err != nil {
+		h.T.Fatalf("plan %s: %v", d.Name(), err)
+	}
+	h.T.Logf("re-apply plan %s: create=%d update=%d delete=%d (empty=%v)", d.Name(), len(p.Create), len(p.Update), len(p.Delete), p.Empty())
+	if !p.Empty() {
+		h.T.Errorf("re-applying %s is not a no-op: %+v", d.Name(), p)
+	}
+}
+
+// Msgs converts a typed slice to []proto.Message.
+func Msgs[T proto.Message](xs []T) []proto.Message {
+	out := make([]proto.Message, 0, len(xs))
+	for _, x := range xs {
+		out = append(out, x)
+	}
+	return out
 }

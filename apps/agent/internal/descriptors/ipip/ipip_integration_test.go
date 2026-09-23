@@ -1,6 +1,7 @@
 package ipip_test
 
 import (
+	"fmt"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -30,7 +31,7 @@ func TestTunnelOnHost(t *testing.T) {
 		t.Cleanup(func() { _ = d.Delete(h.Ctx, c, meta) })
 	}
 	// One 6rd tunnel next to them: write-only, but it must not be claimed by ipip.tunnel.
-	sixrd := &ipip.Tunnel6Rd{Name: h.Name("6rd"), Ip6Prefix: "2001:db8:" + h.Owner[1:] + "::/48", Ip4Prefix: h.IP4(0, 0) + "/16", Ip4Src: h.IP4(2, 1)}
+	sixrd := &ipip.Tunnel6Rd{Name: h.Name("6rd"), Ip6Prefix: fmt.Sprintf("fd%02d:6d::/32", h.Slot), Ip4Prefix: h.IP4(0, 0) + "/16", Ip4Src: h.IP4(2, 1)}
 	smeta, err := s.Create(h.Ctx, sixrd)
 	if err != nil {
 		t.Fatalf("create 6rd: %v", err)
@@ -38,6 +39,7 @@ func TestTunnelOnHost(t *testing.T) {
 	t.Cleanup(func() { _ = s.Delete(h.Ctx, sixrd, smeta) })
 
 	h.Hold()
+	h.AssertEmptyPlan(d, df6test.Msgs(cases)...)
 	actual, err := d.Retrieve(h.Ctx)
 	if err != nil {
 		t.Fatal(err)

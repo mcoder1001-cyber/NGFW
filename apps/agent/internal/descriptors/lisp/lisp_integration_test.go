@@ -85,6 +85,9 @@ func TestLISPOnHost(t *testing.T) {
 			t.Errorf("%s not observed", s.d.KeyOf(s.obj))
 		}
 		t.Logf("observed %s: %v", s.d.KeyOf(s.obj), s.obj)
+		if _, err := s.d.Retrieve(h.Ctx); err == nil {
+			h.AssertEmptyPlan(s.d, s.obj)
+		}
 	}
 	for i := len(steps) - 1; i >= 0; i-- {
 		if err := steps[i].d.Delete(h.Ctx, steps[i].obj, nil); err != nil {

@@ -1,4 +1,4 @@
-package sr_mpls //nolint:revive,stylecheck // see policy.go
+package sr_mpls //nolint:revive // see policy.go
 
 import (
 	"ngfw/agent/internal/scheduler"

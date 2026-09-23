@@ -22,6 +22,7 @@ func checkRoundTrip[T proto.Message](t *testing.T, h *df6test.Host, d scheduler.
 		t.Cleanup(func() { _ = d.Delete(h.Ctx, c, nil) })
 	}
 	h.Hold()
+	h.AssertEmptyPlan(d, df6test.Msgs(cases)...)
 	actual, err := d.Retrieve(h.Ctx)
 	if err != nil {
 		t.Fatal(err)

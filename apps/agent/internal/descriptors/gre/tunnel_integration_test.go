@@ -33,6 +33,7 @@ func TestTunnelOnHost(t *testing.T) {
 		t.Cleanup(func() { _ = d.Delete(h.Ctx, c, meta) })
 	}
 	h.Hold()
+	h.AssertEmptyPlan(d, df6test.Msgs(cases)...)
 	actual, err := d.Retrieve(h.Ctx)
 	if err != nil {
 		t.Fatal(err)

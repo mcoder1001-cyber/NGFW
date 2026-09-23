@@ -5,7 +5,7 @@
 // first segment of every list. All three descriptors are therefore write-only (Retrieve
 // returns df6.ErrRetrieveUnsupported); Create/Delete check presence through the BSID's MPLS
 // FIB entry so they stay idempotent. See docs/agent/descriptors/sr_mpls.md.
-package sr_mpls //nolint:revive,stylecheck // package name mirrors the VPP plugin / binapi package
+package sr_mpls //nolint:revive // package name mirrors the VPP plugin / binapi package
 
 import (
 	"context"

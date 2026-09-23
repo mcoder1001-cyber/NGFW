@@ -3,7 +3,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runSecret, startHarness, type Harness } from '../support/harness.js';
 
 /** Passwords of this run only — generated, never literal (gitleaks, 00-CONTEXT secrets rule). */
-const PW = { op: runSecret(), ro: runSecret(), ro2: runSecret(), victim: runSecret() };
+const PW = {
+  op: runSecret(),
+  ro: runSecret(),
+  ro2: runSecret(),
+  victim: runSecret(),
+  racer: runSecret(),
+};
 
 function refreshCookie(headers: Record<string, unknown>): { value: string; attrs: string } {
   const raw = [headers['set-cookie']]
@@ -19,12 +25,13 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
   let admin: string;
 
   beforeAll(async () => {
-    h = await startHarness({ VRX_LOGIN_RATE_PER_MIN: '25', VRX_LOGIN_MAX_FAILURES: '10' });
+    h = await startHarness({ VRX_LOGIN_RATE_PER_MIN: '100', VRX_LOGIN_MAX_FAILURES: '10' });
     admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [
       { username: 'op2', role: 'operator', password: PW.op },
       { username: 'ro2', role: 'readonly', password: PW.ro },
       { username: 'victim', role: 'operator', password: PW.victim },
+      { username: 'racer', role: 'operator', password: PW.racer },
     ]);
   });
   afterAll(async () => h?.close());
@@ -56,6 +63,7 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
     const c = refreshCookie(r.headers);
     expect(c.attrs).toContain('httponly');
     expect(c.attrs).toContain('samesite=strict');
+    expect(c.attrs).toContain('secure'); // review L3: Secure by default
     expect(c.attrs).toContain('path=/api/v1/auth');
     const me = await h.call(r.body.accessToken, 'GET', '/api/v1/auth/me');
     expect(me.body).toMatchObject({ username: 'op2', role: 'operator', via: 'jwt' });
@@ -191,9 +199,57 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
     await h.login('victim', PW.victim);
   });
 
+  it('review H1: 60 PARALLEL wrong passwords still lock the account; the right password is then refused', async () => {
+    const tries = await Promise.all(
+      Array.from({ length: 60 }, (_, i) =>
+        h.call(undefined, 'POST', '/api/v1/auth/login', {
+          username: 'racer',
+          password: `wrong-${i}`,
+        }),
+      ),
+    );
+    expect(tries.every((t) => t.status === 401)).toBe(true);
+    const u = await h.db.execute(
+      sql`select locked_until > now() as locked from app_user where username = 'racer'`,
+    );
+    expect(u.rows[0]).toEqual({ locked: true });
+    const ok = await h.call(undefined, 'POST', '/api/v1/auth/login', {
+      username: 'racer',
+      password: PW.racer,
+    });
+    expect(ok.status).toBe(401);
+    const last = await h.db.execute(
+      sql`select after->>'reason' as reason from audit_log where action = 'auth.login' and username = 'racer' order by id desc limit 1`,
+    );
+    expect(last.rows[0]).toEqual({ reason: 'locked' });
+  });
+
+  it('review L3: a password change ends the other sessions (refresh families revoked)', async () => {
+    const l1 = await h.call(undefined, 'POST', '/api/v1/auth/login', {
+      username: 'op2',
+      password: PW.op,
+    });
+    const other = refreshCookie(l1.headers).value;
+    const token = l1.body.accessToken as string;
+    const next = runSecret();
+    expect(
+      (await h.call(token, 'POST', '/api/v1/auth/password', { current: PW.op, password: next }))
+        .status,
+    ).toBe(204);
+    PW.op = next;
+    expect(
+      (
+        await h.call(undefined, 'POST', '/api/v1/auth/refresh', undefined, {
+          cookie: `vrx_refresh=${other}`,
+        })
+      ).status,
+    ).toBe(401);
+    await h.login('op2', PW.op);
+  });
+
   it('login rate limit per source IP → 429', async () => {
     let last = 0;
-    for (let i = 0; i < 30 && last !== 429; i++) {
+    for (let i = 0; i < 120 && last !== 429; i++) {
       last = (
         await h.call(undefined, 'POST', '/api/v1/auth/login', {
           username: 'nobody',

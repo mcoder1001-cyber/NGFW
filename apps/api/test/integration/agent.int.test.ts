@@ -22,12 +22,20 @@ const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const BIN = process.env['VRX_AGENT_BIN'] ?? resolve(REPO, 'apps/agent/bin/vrx-agent');
 const PREFIX = process.env['VRX_TEST_PREFIX'] ?? 'w1';
 const SOCKET = process.env['VRX_AGENT_SOCKET'] ?? `/run/vrx-test/${PREFIX}/agent.sock`;
+const SLOT = Number(/(\d+)$/.exec(PREFIX)?.[1] ?? '1');
 
 function startAgent(): ChildProcess {
   rmSync(SOCKET, { force: true });
   mkdirSync(dirname(SOCKET), { recursive: true });
   return spawn(BIN, (process.env['VRX_AGENT_ARGS'] ?? '').split(' ').filter(Boolean), {
-    env: { ...process.env, VRX_OWNER: PREFIX, VRX_AGENT_SOCKET: SOCKET },
+    env: {
+      ...process.env,
+      VRX_OWNER: PREFIX,
+      VRX_AGENT_SOCKET: SOCKET,
+      // slot-scoped state and metrics (shared-host rules): never /var/lib/vrx/agent or :9101
+      VRX_AGENT_STATE_DIR: process.env['VRX_AGENT_STATE_DIR'] ?? `${dirname(SOCKET)}/agent-state`,
+      VRX_METRICS_PORT: process.env['VRX_METRICS_PORT'] ?? String(9100 + 10 * SLOT + 1),
+    },
     stdio: ['ignore', 'inherit', 'inherit'],
   });
 }

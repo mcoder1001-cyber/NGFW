@@ -34,7 +34,7 @@ describe('telemetry relay e2e (WS /api/v1/stream)', () => {
   let base: string;
 
   beforeAll(async () => {
-    h = await startHarness();
+    h = await startHarness({ VRX_ACCESS_TTL_SEC: '8' });
     token = await h.login('admin', h.adminPassword);
     await h.app.listen({ port: h.env.VRX_HTTP_PORT, host: '127.0.0.1' });
     base = `ws://127.0.0.1:${h.env.VRX_HTTP_PORT}/api/v1/stream`;
@@ -118,4 +118,38 @@ describe('telemetry relay e2e (WS /api/v1/stream)', () => {
     a.ws.close();
     b.ws.close();
   });
+
+  function closed(c: ReturnType<typeof connect>): Promise<number> {
+    return new Promise((resolve) => c.ws.addEventListener('close', (e) => resolve(e.code)));
+  }
+
+  it("review L3: logout closes the session's WebSockets; the token's expiry closes the rest", async () => {
+    const l = await h.call(undefined, 'POST', '/api/v1/auth/login', {
+      username: 'admin',
+      password: h.adminPassword,
+    });
+    const t = l.body.accessToken as string;
+    const cookie = [l.headers['set-cookie']]
+      .flat()
+      .find((c) => String(c).startsWith('vrx_refresh=')) as string;
+    const s1 = connect(base, ['vrx.v1', `bearer.${t}`]);
+    const s2 = connect(base, ['vrx.v1', `bearer.${t}`]);
+    await Promise.all([s1.opened, s2.opened]);
+    const c1 = closed(s1);
+    expect(
+      (
+        await h.call(undefined, 'POST', '/api/v1/auth/logout', undefined, {
+          cookie: cookie.split(';')[0]!,
+        })
+      ).status,
+    ).toBe(204);
+    expect(await c1).toBe(4403);
+    // a fresh login's socket closes by itself when its access token expires (VRX_ACCESS_TTL_SEC=8 here)
+    const t2 = await h.login('admin', h.adminPassword);
+    const s3 = connect(base, ['vrx.v1', `bearer.${t2}`]);
+    await s3.opened;
+    const t0 = Date.now();
+    expect(await closed(s3)).toBe(4401);
+    expect(Date.now() - t0).toBeLessThan(9500);
+  }, 20_000);
 });

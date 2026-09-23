@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { ROOT_KEYS } from '@ngfw/schema';
+import { hashPassword } from '../../src/auth/password.js';
 import { runSecret, startHarness, type Harness } from '../support/harness.js';
 
 /** Passwords of this run only — generated, never literal (gitleaks, 00-CONTEXT secrets rule). */
@@ -18,7 +20,7 @@ describe('config e2e (PostgreSQL + fake agent)', () => {
   const IF = 'loop101';
 
   beforeAll(async () => {
-    h = await startHarness();
+    h = await startHarness({ VRX_LOCK_TTL_SEC: '3' });
     admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [
       { username: 'op1', role: 'operator', password: PW.op },
@@ -222,7 +224,15 @@ describe('config e2e (PostgreSQL + fake agent)', () => {
       name: 'tacacs-w1',
       value,
     });
-    expect(s.body).toEqual({ ref: 'psk/tacacs-w1', created: true });
+    expect(s.body).toEqual({ ref: 'psk/tacacs-w1', created: true, version: 1 });
+    // review M2: secret writes are admin-only; an existing secret is never overwritten without ?replace=true
+    expect(
+      (await h.call(op, 'POST', '/api/v1/secrets', { kind: 'psk', name: 'op-psk', value })).status,
+    ).toBe(403);
+    expect(
+      (await h.call(admin, 'POST', '/api/v1/secrets', { kind: 'psk', name: 'tacacs-w1', value }))
+        .status,
+    ).toBe(409);
     const list = await h.call(ro, 'GET', '/api/v1/secrets');
     expect(list.body).toEqual([
       expect.objectContaining({ ref: 'psk/tacacs-w1', kind: 'psk', name: 'tacacs-w1' }),
@@ -233,13 +243,91 @@ describe('config e2e (PostgreSQL + fake agent)', () => {
     await h.call(admin, 'PATCH', '/api/v1/config/management/aaa', {
       tacacs: { servers: [{ address: '10.1.0.9', secretRef: 'psk/tacacs-w1' }] },
     });
-    expect((await h.call(admin, 'POST', '/api/v1/config/commit')).status).toBe(200);
+    const c1 = await h.call(admin, 'POST', '/api/v1/config/commit');
+    expect(c1.status).toBe(200);
     expect((await h.call(admin, 'DELETE', '/api/v1/secrets/psk/tacacs-w1')).status).toBe(409);
+    // rotation = a new version; the revision keeps the version it was committed with (rollback-safe)
+    const rot = await h.call(admin, 'POST', '/api/v1/secrets?replace=true', {
+      kind: 'psk',
+      name: 'tacacs-w1',
+      value: value + '_2',
+    });
+    expect(rot.body).toEqual({ ref: 'psk/tacacs-w1', created: false, version: 2 });
+    const pinned = await h.db.execute(
+      sql`select secret_versions from config_revision where id = ${c1.body.revision.id}`,
+    );
+    expect(pinned.rows[0]).toEqual({ secret_versions: { 'psk/tacacs-w1': 1 } });
+    const versions = await h.db.execute(
+      sql`select version from secret_version where ref = 'psk/tacacs-w1' order by version`,
+    );
+    expect(versions.rows).toEqual([{ version: 1 }, { version: 2 }]);
+    const ev = await h.call(ro, 'GET', '/api/v1/state/events?limit=20');
+    expect(ev.body.items.map((e: { code: string }) => e.code)).toContain('SECRET_REPLACED');
+    // review L2: a pending confirmed commit that references it blocks the delete as well
+    await h.call(admin, 'PATCH', '/api/v1/config/management/aaa', { tacacs: { servers: [] } });
+    await h.call(admin, 'POST', '/api/v1/config/commit');
+    await h.call(admin, 'PATCH', '/api/v1/config/management/aaa', {
+      tacacs: { servers: [{ address: '10.1.0.9', secretRef: 'psk/tacacs-w1' }] },
+    });
+    expect((await h.call(admin, 'POST', '/api/v1/config/commit?confirm=30')).body.status).toBe(
+      'pending',
+    );
+    expect((await h.call(admin, 'DELETE', '/api/v1/secrets/psk/tacacs-w1')).status).toBe(409);
+    expect((await h.call(admin, 'POST', '/api/v1/config/commit/confirm')).status).toBe(200);
     await h.call(admin, 'PATCH', '/api/v1/config/management/aaa', { tacacs: { servers: [] } });
     await h.call(admin, 'POST', '/api/v1/config/commit');
     expect((await h.call(admin, 'DELETE', '/api/v1/secrets/psk/tacacs-w1')).status).toBe(204);
     const audit = await h.db.execute(sql`select * from audit_log`);
     expect(JSON.stringify(audit.rows)).not.toContain(value);
+  });
+
+  it("review M1: the stale-lock takeover by an operator does not smuggle the admin's `evil` user into running", async () => {
+    const evilPw = runSecret();
+    const users = (await h.call(admin, 'GET', '/api/v1/config/management/users')).body;
+    const hash = await hashPassword(evilPw);
+    await h.call(admin, 'PUT', '/api/v1/config/management/users', [
+      ...users,
+      { username: 'evil', role: 'admin', passwordHash: hash },
+    ]);
+    expect(
+      (await h.call(op, 'PATCH', '/api/v1/config/system', { hostname: 'op-edit' })).status,
+    ).toBe(409);
+    await new Promise((r) => setTimeout(r, 3300)); // VRX_LOCK_TTL_SEC=3 in this file
+    const take = await h.call(op, 'PATCH', '/api/v1/config/system', { hostname: 'op-edit' });
+    expect(take.status).toBe(200);
+    expect(take.body.discardedStaleCandidateOf).toBe('admin');
+    const d = await h.call(op, 'GET', '/api/v1/config/diff');
+    expect(d.body.changes).toEqual([
+      expect.objectContaining({ pointer: '/system/hostname', to: 'op-edit' }),
+    ]);
+    expect((await h.call(op, 'POST', '/api/v1/config/commit')).status).toBe(200);
+    const running = await h.call(admin, 'GET', '/api/v1/config/management/users');
+    expect(running.body.map((u: { username: string }) => u.username)).not.toContain('evil');
+    expect(
+      (
+        await h.call(undefined, 'POST', '/api/v1/auth/login', {
+          username: 'evil',
+          password: evilPw,
+        })
+      ).status,
+    ).toBe(401);
+  });
+
+  it('review M4: a commit that only touches domains the agent does not implement says not-applied', async () => {
+    h.fake.implemented = ['interfaces', 'vrfs', 'routing'];
+    try {
+      await h.call(op, 'PATCH', '/api/v1/config/system', { hostname: 'not-enforced' });
+      const c = await h.call(op, 'POST', '/api/v1/config/commit');
+      expect(c.body).toMatchObject({
+        status: 'not-applied',
+        notApplied: ['system'],
+        sync: { state: 'in-sync' },
+      });
+      const st = await h.call(ro, 'GET', '/api/v1/state/system');
+      expect(st.body.sync.state).toBe('in-sync');
+    } finally {
+      h.fake.implemented = [...ROOT_KEYS];
+    }
   });
 
   it('every mutation is audited with user, ip, route, before/after and result', async () => {

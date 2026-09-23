@@ -1,0 +1,43 @@
+{
+  "schemaForm": {
+    "title": "SchemaForm demo",
+    "pick": "Schema",
+    "demo": "All widgets (composed from packages/schema primitives)",
+    "root": "Root configuration (generated)",
+    "domain": "{{title}} (generated)",
+    "submitted": "Submitted value",
+    "none": "Nothing submitted yet",
+    "simulateProblem": "Simulate server problem+json",
+    "clearProblem": "Clear server problem",
+    "source": "JSON Schema source",
+    "emptyHint": "This generated schema has no fields yet (its P02 group has not merged into main); the renderer shows its passthrough object as a key/JSON editor.",
+    "problem": {
+      "title": "Validation failed",
+      "detail": "Simulated by the demo page (no server involved).",
+      "mtu": "Simulated: MTU exceeds the parent interface MTU",
+      "vlan": "Simulated: VLAN already in use on this parent",
+      "unmapped": "Simulated pointer that matches no field"
+    }
+  },
+  "dataGrid": {
+    "title": "ServerDataGrid demo",
+    "body": "{{count}} synthetic rows are generated in the browser; a local fetchPage pages, sorts and filters them with the same contract the API will use (paginationMode/sortingMode/filterMode = server).",
+    "columns": {
+      "id": "ID",
+      "name": "Name",
+      "state": "State",
+      "mtu": "MTU",
+      "rx": "RX rate",
+      "updated": "Updated"
+    }
+  },
+  "stream": {
+    "title": "WebSocket stream demo",
+    "body": "One multiplexed connection to /api/v1/stream, opened only while a topic has subscribers. Without vrx-api (P06) the client stays in the reconnecting state with exponential backoff; that is the real state, not simulated data.",
+    "subscribe": "Subscribe to iface.counters",
+    "status": "Connection",
+    "lastMessage": "Last message",
+    "noMessage": "No message received",
+    "batch": "Messages in last batch: {{count}}"
+  }
+}

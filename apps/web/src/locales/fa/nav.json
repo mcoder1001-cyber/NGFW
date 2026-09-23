@@ -1,0 +1,36 @@
+{
+  "groups": {
+    "dashboard": "داشبورد",
+    "interfaces": "اینترفیس‌ها",
+    "routing": "مسیریابی",
+    "firewall": "فایروال / NAT",
+    "vpn": "VPN",
+    "services": "سرویس‌ها",
+    "system": "سیستم",
+    "tools": "ابزارها",
+    "dev": "توسعه‌دهنده"
+  },
+  "dashboard": "داشبورد",
+  "users": "کاربران",
+  "revisions": "بازنگری‌ها",
+  "tools": "ابزارها",
+  "devSchemaForm": "نمایش SchemaForm",
+  "devDataGrid": "نمایش DataGrid",
+  "devStream": "نمایش جریان",
+  "soon": "به‌زودی",
+  "domains": {
+    "system": "سیستم",
+    "dataplane": "صفحهٔ داده",
+    "interfaces": "اینترفیس‌ها",
+    "vrfs": "VRFها",
+    "routing": "مسیریابی",
+    "nat": "NAT",
+    "objects": "اشیا",
+    "acl": "ACLها",
+    "vpn": "IPsec / WireGuard",
+    "tunnels": "تونل‌ها",
+    "services": "سرویس‌ها",
+    "ha": "دسترس‌پذیری بالا",
+    "management": "مدیریت"
+  }
+}

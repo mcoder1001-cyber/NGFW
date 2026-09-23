@@ -1,0 +1,36 @@
+{
+  "groups": {
+    "dashboard": "Dashboard",
+    "interfaces": "Interfaces",
+    "routing": "Routing",
+    "firewall": "Firewall / NAT",
+    "vpn": "VPN",
+    "services": "Services",
+    "system": "System",
+    "tools": "Tools",
+    "dev": "Developer"
+  },
+  "dashboard": "Dashboard",
+  "users": "Users",
+  "revisions": "Revisions",
+  "tools": "Tools",
+  "devSchemaForm": "SchemaForm demo",
+  "devDataGrid": "DataGrid demo",
+  "devStream": "Stream demo",
+  "soon": "soon",
+  "domains": {
+    "system": "System",
+    "dataplane": "Dataplane",
+    "interfaces": "Interfaces",
+    "vrfs": "VRFs",
+    "routing": "Routing",
+    "nat": "NAT",
+    "objects": "Objects",
+    "acl": "ACLs",
+    "vpn": "IPsec / WireGuard",
+    "tunnels": "Tunnels",
+    "services": "Services",
+    "ha": "High availability",
+    "management": "Management"
+  }
+}

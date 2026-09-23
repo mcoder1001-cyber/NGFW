@@ -48,7 +48,7 @@ const KNOWN_FORMAT_REGEXES: Record<string, RegExp | undefined> = {
   cidrv6: z.regexes.cidrv6,
   ipv4: z.regexes.ipv4,
   ipv6: z.regexes.ipv6,
-  mac: z.regexes.mac,
+  mac: z.regexes.mac(),
   hostname: z.regexes.hostname,
 };
 

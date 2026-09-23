@@ -263,6 +263,9 @@ importers:
       '@ngfw/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@ngfw/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
       '@ngfw/ui-kit':
         specifier: workspace:*
         version: link:../../packages/ui-kit
@@ -284,6 +287,9 @@ importers:
       react-router:
         specifier: ^7
         version: 7.18.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      zod:
+        specifier: ^4
+        version: 4.6.5
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^6

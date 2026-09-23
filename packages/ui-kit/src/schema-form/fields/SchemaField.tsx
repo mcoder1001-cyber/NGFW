@@ -83,6 +83,8 @@ function SchemaFieldBody({
 
   const Custom = hints.widget ? ctx.widgets[hints.widget] : undefined;
   if (Custom) return <Custom {...bound} />;
+  // Opaque blobs: edit any node as JSON text regardless of its type.
+  if (hints.widget === 'json') return <PrimitiveField {...bound} />;
 
   const variants = variantsOf(schema);
   if (variants && typeOf(schema) === undefined) {

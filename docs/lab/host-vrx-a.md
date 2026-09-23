@@ -13,11 +13,11 @@ Verified read-only on 2026-09-23 12:16 +0330. Re-verify before relying on anythi
 | API definitions | `/usr/share/vpp/api/{core,plugins}` — 143 `*.api.json` files → `binapi-generator` runs **locally**, no copying from another VM |
 | Hugepages | 1024 × 2 MB = 2 GB via `/etc/sysctl.d/80-vpp.conf` (no kernel-cmdline hugepages, no isolcpus) |
 | Plugins | 94 on disk, 84 loaded. **Not loaded (disabled by default):** `linux_cp_plugin.so`, `linux_nl_plugin.so` (needed by P12/FRR), `npt66_plugin.so` (needed for NPTv6, D4.3), `ip6_dad_autoremove`, `idpf`, `fateshare`, unittest plugins. Enabling them = a `plugins { plugin X { enable } }` block in startup.conf → requires the handover below |
-| Data-plane NICs | **none.** The only NIC (0000:0b:00.0 vmxnet3 = `ens192`, management, 172.30.126.195) is blacklisted from DPDK on purpose. VPP has only `local0` |
+| Data-plane NICs | **Six vmxnet3 NICs added by the product owner (seen 2026-09-23 13:17):** `ens161` 0000:04:00.0, `ens193` 0000:0c:00.0, `ens224` 0000:13:00.0, `ens225` 0000:14:00.0, `ens256` 0000:1b:00.0, `ens257` 0000:1c:00.0 — all DOWN, kernel `vmxnet3` driver, **port-group mapping unknown** (ask the product owner). Management stays `ens192` 0000:0b:00.0 (blacklisted from DPDK). VPP lists all seven in `show pci`; none is bound to DPDK yet — that needs `dpdk { dev 0000:xx:00.0 }` in startup.conf → handover-gated (D-012). Inventory: `test/topology/vrx-a.yml` (P04) |
 | libvirt | installed by mistake earlier (`virbr0` 192.168.122.1) — unused, harmless; may be purged |
 
 ## Consequences for the plan
-1. **Packet tests on this host until data NICs exist:** use `create host-interface name <veth>` (af_packet plugin is loaded) with veth peers inside Linux network namespaces (`ip netns`) on this host. That is real VPP forwarding, but not the DPDK path. Every test must record which path it used. The DPDK path is exercised when the product owner adds 2–3 extra vmxnet3 NICs on isolated port groups to this VM (then `dpdk { dev 0000:xx:00.0 }`), or on the other lab VMs.
+1. **Packet tests:** until handover, use `tools/lab rig` — `create host-interface` (af_packet) on veth pairs with peers in network namespaces (real VPP forwarding, `path: af_packet`). After handover, the six data NICs are bound to DPDK via the startup.conf generator (`dpdk { dev … }`) and tests can also run on the DPDK path (`path: dpdk`); the port-group mapping (which NIC is lan/wan/dmz/p2p) must come from the product owner first.
 2. **P12 (FRR/linux-cp) and NPTv6 need startup.conf changes** → they are gated on the handover flag below or on an explicit PENDING decision.
 3. **Workers:** no `cpu { corelist-workers }` yet — fine for functional work; irrelevant for FAST MODE (no performance work).
 

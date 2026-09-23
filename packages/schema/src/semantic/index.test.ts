@@ -70,7 +70,19 @@ describe('validateSemantics (process-wide registry)', () => {
     expect(semanticRegistry.list()).toHaveLength(SEMANTIC_VALIDATORS.length);
   });
 
-  it('reports no issues for the empty document', () => {
+  it('reports nothing for the empty document (D-048: the API seeds the first admin)', () => {
     expect(validateSemantics(RootConfig.parse({}))).toEqual([]);
+  });
+
+  it('reports no issues for the minimal committable document', () => {
+    const minimal = RootConfig.parse({
+      management: {
+        users: [
+          { username: 'admin', role: 'admin', passwordHash: '$vrx-test$VRX_TEST_HASH_admin' },
+        ],
+      },
+    });
+    expect(validateSemantics(minimal)).toEqual([]);
+    expect(validateSemantics(minimal, ['interfaces'])).toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { macAddress, objectName, vppInterfaceName } from '../primitives.js';
+import { macPattern, objectName, vppInterfaceName } from '../primitives.js';
 import { type UiHints, type UiMeta, withUi as setUi, X_VRX_UI } from '../ui.js';
 
 /**
@@ -149,8 +149,9 @@ export const MacipRuleSchema = withUi(
     sequence: ruleSequence,
     description: description.optional(),
     action: withUi(z.enum(['permit', 'deny']), { title: 'Action' }),
-    sourceMac: withUi(macAddress, { title: 'Source MAC' }),
-    sourceMacMask: withUi(macAddress.default('ff:ff:ff:ff:ff:ff'), {
+    // macPattern, not macAddress: match values and masks may be all-zero / have the group bit (P02a merge)
+    sourceMac: withUi(macPattern, { title: 'Source MAC' }),
+    sourceMacMask: withUi(macPattern.default('ff:ff:ff:ff:ff:ff'), {
       title: 'Source MAC mask',
       widget: 'mac',
       help: 'ff:ff:ff:ff:ff:ff = exact match',

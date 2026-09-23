@@ -12,7 +12,6 @@ package sflow
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -430,14 +429,13 @@ func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, met
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	var idx uint32
-	if m, ok := meta.(InterfaceMeta); ok {
-		idx = m.SwIfIndex
-	} else if idx, err = dfkit.ResolveInterface(ctx, d.client, s.Interface, d.owner); err != nil {
-		if errors.Is(err, dfkit.ErrNoInterface) {
-			return dfkit.Claims(d.owner).Release(s.Interface, NameInterface)
-		}
+	_ = meta // re-resolve right before acting by index (reused after a VPP restart, D-071)
+	idx, ok, err := dfkit.VerifyIndex(ctx, d.client, s.Interface, d.owner)
+	if err != nil {
 		return err
+	}
+	if !ok {
+		return dfkit.Claims(d.owner).Release(s.Interface, NameInterface)
 	}
 	err = d.enable(ctx, idx, false)
 	if err != nil && !dfkit.IsVPPError(err, api.VALUE_EXIST, api.INVALID_SW_IF_INDEX) {
@@ -463,7 +461,7 @@ func (d *InterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 		d.learned = map[uint32]uint32{}
 		return nil, nil
 	}
-	ifaces, err := dfkit.DumpInterfaces(ctx, d.client)
+	ifaces, err := dfkit.DumpInterfaces(ctx, d.client, d.owner)
 	if err != nil {
 		return nil, err
 	}
@@ -471,7 +469,7 @@ func (d *InterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 	var unknown []uint32
 	for hw := range hws {
 		sw, ok := d.learned[hw]
-		if name, mine := ifaces.Reportable(sw, d.owner, NameInterface); ok && mine {
+		if name, mine := ifaces.Reportable(sw, NameInterface); ok && mine {
 			enabled[name] = InterfaceMeta{SwIfIndex: sw, HwIfIndex: hw}
 			continue
 		}
@@ -514,7 +512,7 @@ func (d *InterfaceDescriptor) probe(ctx context.Context, ifaces *dfkit.Ifaces, e
 	var found []string
 	for _, idx := range idxs {
 		i := ifaces.ByIndex[idx]
-		name, mine := ifaces.Reportable(idx, d.owner, NameInterface)
+		name, mine := ifaces.Reportable(idx, NameInterface)
 		if _, known := enabled[name]; !mine || known || i.SupIndex != i.Index {
 			continue
 		}

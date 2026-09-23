@@ -54,7 +54,7 @@ func TestLCPOnHost(t *testing.T) {
 			}
 		}
 		dfkittest.AssertAbsent(t, pd, pd.KeyOf(v))
-		if tbl, err := dfkit.DumpInterfaces(ctx, c); err != nil {
+		if tbl, err := dfkit.DumpInterfaces(ctx, c, h.Owner); err != nil {
 			t.Fatal(err)
 		} else if _, ok := tbl.ByIndex[meta.(PairMeta).HostSwIfIndex]; ok {
 			t.Fatalf("host tap sw_if_index %d still exists after pair delete", meta.(PairMeta).HostSwIfIndex)

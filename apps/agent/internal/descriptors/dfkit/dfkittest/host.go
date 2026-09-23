@@ -70,7 +70,7 @@ func (h *Host) Loopback(t *testing.T, i int) (string, uint32) {
 	inst := vpptest.LoopbackInstance(t, i)
 	name := fmt.Sprintf("loop%d", inst)
 	svc := interfaces.NewServiceClient(c)
-	if tbl, err := dfkit.DumpInterfaces(ctx, c); err == nil {
+	if tbl, err := dfkit.DumpInterfaces(ctx, c, h.Owner); err == nil {
 		if old, ok := tbl.ByName[name]; ok {
 			t.Logf("leftover %s (sw_if_index %d, tag %q): deleting", name, old.Index, old.Tag)
 			if _, err := svc.DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: interfaceIndex(old.Index)}); err != nil {

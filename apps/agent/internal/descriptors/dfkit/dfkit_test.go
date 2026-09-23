@@ -67,20 +67,20 @@ func TestAddr(t *testing.T) {
 
 func TestInterfaces(t *testing.T) {
 	f := dfkittest.NewFake(dfkittest.Iface{Index: 1, Name: "loop501", Tag: "w5:loop501"}, dfkittest.Iface{Index: 2, Name: "loop601", Tag: "w6:loop601"})
-	tbl, err := dfkit.DumpInterfaces(context.Background(), f)
+	tbl, err := dfkit.DumpInterfaces(context.Background(), f, "w5")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if idx, err := tbl.Resolve("loop501", "w5"); err != nil || idx != 1 {
+	if idx, err := tbl.Resolve("loop501"); err != nil || idx != 1 {
 		t.Fatal(idx, err)
 	}
-	if _, err := tbl.Resolve("loop601", "w5"); !errors.Is(err, dfkit.ErrNotOwned) {
+	if _, err := tbl.Resolve("loop601"); !errors.Is(err, dfkit.ErrNotOwned) {
 		t.Fatal(err)
 	}
-	if _, err := tbl.Resolve("nope", "w5"); !errors.Is(err, dfkit.ErrNoInterface) {
+	if _, err := tbl.Resolve("nope"); !errors.Is(err, dfkit.ErrNoInterface) {
 		t.Fatal(err)
 	}
-	if n, ok := tbl.OwnedName(2, "w5"); ok || n != "" {
+	if n, ok := tbl.Reportable(2, "x.y"); ok || n != "" {
 		t.Fatal(n)
 	}
 	if dfkit.DefaultInterfaceKey("loop501") != "interface/loop501" || dfkit.DefaultVRFKey("5001") != "vrf/5001" {

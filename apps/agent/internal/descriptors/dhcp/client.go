@@ -2,7 +2,6 @@ package dhcp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/netip"
 	"sort"
@@ -116,17 +115,17 @@ func (d *ClientDescriptor) Delete(ctx context.Context, obj proto.Message, meta a
 	if err != nil {
 		return err
 	}
-	m, ok := meta.(ClientMeta)
-	if !ok {
-		idx, rerr := dfkit.ResolveInterface(ctx, d.client, s.Interface, d.owner)
-		if errors.Is(rerr, dfkit.ErrNoInterface) { // the interface and with it the client are gone
-			return dfkit.Claims(d.owner).Release(s.Interface, NameClient)
-		}
-		if rerr != nil {
-			return fmt.Errorf("%w: %T (%v)", dfkit.ErrBadMeta, meta, rerr)
-		}
-		m = ClientMeta{SwIfIndex: idx}
+	// Re-resolve the logical name right before deleting (sw_if_indexes in Meta are reused after
+	// a VPP restart, D-071); an interface that is gone took its client with it.
+	_ = meta
+	idx, ok, err := dfkit.VerifyIndex(ctx, d.client, s.Interface, d.owner)
+	if err != nil {
+		return err
 	}
+	if !ok {
+		return dfkit.Claims(d.owner).Release(s.Interface, NameClient)
+	}
+	m := ClientMeta{SwIfIndex: idx}
 	if s.Hostname == "" {
 		s.Hostname = "vrx"
 	}
@@ -175,13 +174,13 @@ func (d *ClientDescriptor) retrieveOne(ctx context.Context, idx uint32) (Client,
 	if err != nil {
 		return Client{}, false, err
 	}
-	ifaces, err := dfkit.DumpInterfaces(ctx, d.client)
+	ifaces, err := dfkit.DumpInterfaces(ctx, d.client, d.owner)
 	if err != nil {
 		return Client{}, false, err
 	}
 	for _, det := range details {
 		if uint32(det.Client.SwIfIndex) == idx {
-			name, _, _ := ifaces.Logical(idx, d.owner)
+			name, _ := ifaces.Logical(idx)
 			return clientFromDetails(det.Client, name), true, nil
 		}
 	}
@@ -197,14 +196,14 @@ func (d *ClientDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 	if len(details) == 0 {
 		return nil, nil
 	}
-	ifaces, err := dfkit.DumpInterfaces(ctx, d.client)
+	ifaces, err := dfkit.DumpInterfaces(ctx, d.client, d.owner)
 	if err != nil {
 		return nil, err
 	}
 	var out []scheduler.KV
 	for _, det := range details {
 		idx := uint32(det.Client.SwIfIndex)
-		name, ok := ifaces.Reportable(idx, d.owner, NameClient)
+		name, ok := ifaces.Reportable(idx, NameClient)
 		if !ok {
 			continue
 		}
@@ -254,13 +253,13 @@ func (d *ClientDescriptor) Leases(ctx context.Context) (map[string]Lease, error)
 	if err != nil {
 		return nil, err
 	}
-	ifaces, err := dfkit.DumpInterfaces(ctx, d.client)
+	ifaces, err := dfkit.DumpInterfaces(ctx, d.client, d.owner)
 	if err != nil {
 		return nil, err
 	}
 	out := map[string]Lease{}
 	for _, det := range details {
-		if name, ok := ifaces.Reportable(uint32(det.Client.SwIfIndex), d.owner, NameClient); ok {
+		if name, ok := ifaces.Reportable(uint32(det.Client.SwIfIndex), NameClient); ok {
 			out[name] = leaseFrom(det.Lease, 0)
 		}
 	}

@@ -2,6 +2,7 @@ package dhcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 
@@ -29,10 +30,9 @@ type IfaceMeta struct {
 	SwIfIndex uint32
 }
 
-func ifaceIndex(ctx context.Context, c vpp.Client, name, owner string, meta any) (uint32, error) {
-	if m, ok := meta.(IfaceMeta); ok {
-		return m.SwIfIndex, nil
-	}
+// ifaceIndex resolves the logical name on every call — never trusts a sw_if_index from Meta,
+// which VPP reuses after a restart (D-071: re-verify identity right before acting by index).
+func ifaceIndex(ctx context.Context, c vpp.Client, name, owner string, _ any) (uint32, error) {
 	return dfkit.ResolveInterface(ctx, c, name, owner)
 }
 
@@ -106,7 +106,7 @@ func (d *DHCP6ClientDescriptor) Update(ctx context.Context, _, newObj proto.Mess
 // Delete implements scheduler.Descriptor.
 func (d *DHCP6ClientDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	_, err := d.set(ctx, obj, meta, false)
-	if dfkit.IsVPPError(err, api.INVALID_SW_IF_INDEX) {
+	if dfkit.IsVPPError(err, api.INVALID_SW_IF_INDEX) || errors.Is(err, dfkit.ErrNoInterface) {
 		return nil
 	}
 	return err
@@ -191,7 +191,7 @@ func (d *DHCP6PDClientDescriptor) Update(context.Context, proto.Message, proto.M
 // Delete implements scheduler.Descriptor.
 func (d *DHCP6PDClientDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	_, err := d.set(ctx, obj, meta, false)
-	if dfkit.IsVPPError(err, api.INVALID_SW_IF_INDEX) {
+	if dfkit.IsVPPError(err, api.INVALID_SW_IF_INDEX) || errors.Is(err, dfkit.ErrNoInterface) {
 		return nil
 	}
 	return err
@@ -303,7 +303,7 @@ func (d *DHCP6PDAddressDescriptor) Update(ctx context.Context, _, newObj proto.M
 // Delete implements scheduler.Descriptor.
 func (d *DHCP6PDAddressDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	_, err := d.set(ctx, obj, meta, false)
-	if dfkit.IsVPPError(err, api.ADDRESS_NOT_FOUND_FOR_INTERFACE, api.INVALID_VALUE) {
+	if dfkit.IsVPPError(err, api.ADDRESS_NOT_FOUND_FOR_INTERFACE, api.INVALID_VALUE) || errors.Is(err, dfkit.ErrNoInterface) {
 		return nil
 	}
 	return err

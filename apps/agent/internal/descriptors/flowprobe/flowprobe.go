@@ -307,22 +307,19 @@ func (d *InterfaceDescriptor) addDel(ctx context.Context, obj proto.Message, met
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
-	var idx uint32
-	if m, ok := meta.(InterfaceMeta); ok {
-		idx = m.SwIfIndex
-	} else {
-		var err error
-		resolve := dfkit.ResolveInterface
-		if add {
-			resolve = func(ctx context.Context, c vpp.Client, name, owner string) (uint32, error) {
-				return dfkit.ResolveAndClaim(ctx, c, name, owner, NameInterface)
-			}
-		}
-		if idx, err = resolve(ctx, d.client, s.Interface, d.owner); err != nil {
-			return nil, err
+	// resolve the logical name on every call, never a Meta index (reused after a VPP restart)
+	_ = meta
+	resolve := dfkit.ResolveInterface
+	if add {
+		resolve = func(ctx context.Context, c vpp.Client, name, owner string) (uint32, error) {
+			return dfkit.ResolveAndClaim(ctx, c, name, owner, NameInterface)
 		}
 	}
-	_, err := flowprobe.NewServiceClient(d.client).FlowprobeInterfaceAddDel(ctx, &flowprobe.FlowprobeInterfaceAddDel{
+	idx, err := resolve(ctx, d.client, s.Interface, d.owner)
+	if err != nil {
+		return nil, err
+	}
+	_, err = flowprobe.NewServiceClient(d.client).FlowprobeInterfaceAddDel(ctx, &flowprobe.FlowprobeInterfaceAddDel{
 		IsAdd: add, Which: whichToAPI[s.Which], Direction: dirToAPI[s.Direction], SwIfIndex: interface_types.InterfaceIndex(idx),
 	})
 	if err != nil {
@@ -400,14 +397,14 @@ func (d *InterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 	if len(details) == 0 {
 		return nil, nil
 	}
-	ifaces, err := dfkit.DumpInterfaces(ctx, d.client)
+	ifaces, err := dfkit.DumpInterfaces(ctx, d.client, d.owner)
 	if err != nil {
 		return nil, err
 	}
 	var out []scheduler.KV
 	for _, det := range details {
 		idx := uint32(det.SwIfIndex)
-		name, ok := ifaces.Reportable(idx, d.owner, NameInterface)
+		name, ok := ifaces.Reportable(idx, NameInterface)
 		if !ok {
 			continue
 		}

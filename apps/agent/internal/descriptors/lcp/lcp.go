@@ -335,14 +335,13 @@ func (d *ItfPairDescriptor) Delete(ctx context.Context, obj proto.Message, meta 
 	if err != nil {
 		return err
 	}
-	var idx uint32
-	if m, ok := meta.(PairMeta); ok {
-		idx = m.PhySwIfIndex
-	} else if idx, err = dfkit.ResolveInterface(ctx, d.client, s.Interface, d.owner); err != nil {
-		if errors.Is(err, dfkit.ErrNoInterface) {
-			return dfkit.Claims(d.owner).Release(s.Interface, NameItfPair)
-		}
+	_ = meta // re-resolve right before acting by index (reused after a VPP restart, D-071)
+	idx, ok, err := dfkit.VerifyIndex(ctx, d.client, s.Interface, d.owner)
+	if err != nil {
 		return err
+	}
+	if !ok {
+		return dfkit.Claims(d.owner).Release(s.Interface, NameItfPair)
 	}
 	// D-074: delete only a pair that still exists on this interface
 	pairs, err := Pairs(ctx, d.client)
@@ -409,13 +408,13 @@ func (d *ItfPairDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error
 	if len(pairs) == 0 {
 		return nil, nil
 	}
-	ifaces, err := dfkit.DumpInterfaces(ctx, d.client)
+	ifaces, err := dfkit.DumpInterfaces(ctx, d.client, d.owner)
 	if err != nil {
 		return nil, err
 	}
 	var out []scheduler.KV
 	for _, p := range pairs {
-		name, ok := ifaces.Reportable(uint32(p.PhySwIfIndex), d.owner, NameItfPair)
+		name, ok := ifaces.Reportable(uint32(p.PhySwIfIndex), NameItfPair)
 		if !ok {
 			continue
 		}

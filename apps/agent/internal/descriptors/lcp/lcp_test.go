@@ -115,6 +115,7 @@ func TestItfPair(t *testing.T) {
 	}
 	dfkittest.AssertAbsent(t, d, d.KeyOf(v))
 	// an untagged NIC (P12's DPDK ports) is paired through a claim (D-071) and reported only while claimed
+	delete(m.pairs, 9) // the foreign test pair above
 	nv := ItfPair{Interface: "ens192", HostIfName: "w5-e0", HostIfType: "tap"}.Proto()
 	nm, err := d.Create(ctx, nv)
 	if err != nil {

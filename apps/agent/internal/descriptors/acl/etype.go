@@ -135,7 +135,7 @@ func (d *EtypeWhitelistDescriptor) Create(ctx context.Context, obj proto.Message
 	if err := w.Validate(); err != nil {
 		return nil, err
 	}
-	ifaces, err := dumpInterfaces(ctx, d.client)
+	ifaces, err := dumpInterfaces(ctx, d.client, d.owner)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +206,7 @@ func (d *EtypeWhitelistDescriptor) Delete(ctx context.Context, obj proto.Message
 // Retrieve implements scheduler.Descriptor: acl_interface_etype_whitelist_dump for all
 // interfaces, keeping non-empty whitelists on interfaces this owner owns (see the type doc).
 func (d *EtypeWhitelistDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
-	ifaces, err := dumpInterfaces(ctx, d.client)
+	ifaces, err := dumpInterfaces(ctx, d.client, d.owner)
 	if err != nil {
 		return nil, err
 	}

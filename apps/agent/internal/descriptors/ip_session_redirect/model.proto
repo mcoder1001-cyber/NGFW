@@ -1,0 +1,25 @@
+// Desired state of the ip_session_redirect descriptor (agent-internal until moved to
+// packages/proto).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.sessionredirect;
+
+import "df2/df2.proto";
+
+option go_package = "ngfw/agent/internal/descriptors/ip_session_redirect;sessionredirect";
+
+// Redirect forwards the sessions matching a classifier entry over paths
+// (ip_session_redirect_add_v2 / ip_session_redirect_del).
+message Redirect {
+  // Classifier table name (dependency classify.table/<name>).
+  string table = 1;
+  // Classifier match, (skip + match) * 16 bytes, at most 80.
+  bytes match = 2;
+  // Opaque index stored in the session; 4294967295 = none.
+  uint32 opaque_index = 3;
+  // Punt instead of forwarding.
+  bool punt = 4;
+  // IPv6 (true) or IPv4 (false) session.
+  bool ipv6 = 5;
+  repeated ngfw.agent.descriptors.df2.FibPath paths = 6;
+}

@@ -1,0 +1,47 @@
+// NAT64 (nat64 plugin) objects of the DF-3 descriptors; see common.proto for the conventions.
+// Shared: InterfaceFeature (inside = IPv6, outside = IPv4), Timeouts.
+syntax = "proto3";
+
+package vrx.model.nat.v1;
+
+option go_package = "ngfw/agent/gen/vrx/model/nat/v1;natv1";
+
+// Nat64Enable is the plugin singleton (nat64_plugin_enable_disable): on/off only (sizing
+// parameters have no getter and are not modelled). Presence = enabled. VPP-global (D-071).
+message Nat64Enable {}
+
+// Nat64Prefix is one NAT64 IPv6 prefix for a VRF (nat64_add_del_prefix).
+message Nat64Prefix {
+  // IPv6 prefix, canonical CIDR (e.g. "64:ff9b::/96").
+  string prefix = 1;
+  // FIB table id.
+  uint32 vrf = 2;
+}
+
+// Nat64Pool is one contiguous IPv4 pool range (nat64_add_del_pool_addr_range); VPP stores single
+// addresses, Retrieve merges them back per VRF.
+message Nat64Pool {
+  // First IPv4 address.
+  string first = 1;
+  // Last IPv4 address (≥ first).
+  string last = 2;
+  // FIB table id.
+  uint32 vrf = 3;
+}
+
+// Nat64StaticBib is one static binding (nat64_add_del_static_bib): inside IPv6 ip:port → outside
+// IPv4 ip:port for a protocol in a VRF.
+message Nat64StaticBib {
+  // Inside IPv6 address.
+  string inside_ip = 1;
+  // Inside port.
+  uint32 inside_port = 2;
+  // Outside IPv4 address.
+  string outside_ip = 3;
+  // Outside port.
+  uint32 outside_port = 4;
+  // Protocol name ("tcp" | "udp" | "icmp").
+  string protocol = 5;
+  // FIB table id.
+  uint32 vrf = 6;
+}

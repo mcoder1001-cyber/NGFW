@@ -1,0 +1,12 @@
+frr version 10.7.1
+frr defaults traditional
+log syslog informational
+service integrated-vtysh-config
+!
+vrf w12blue
+exit-vrf
+!
+vrf w12red
+exit-vrf
+!
+end

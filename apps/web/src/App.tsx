@@ -1,50 +1,32 @@
-import { useMemo, useState } from 'react';
-import { CssBaseline, ThemeProvider } from '@mui/material';
-import AppBar from '@mui/material/AppBar';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Toolbar from '@mui/material/Toolbar';
-import Typography from '@mui/material/Typography';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
-import { createVrxTheme } from '@ngfw/ui-kit';
-import { RTL_LANGS } from './i18n';
-import { HealthCard } from './HealthCard';
+import { WsProvider, defaultStreamUrl } from '@ngfw/ui-kit/ws';
+import { useMemo } from 'react';
+import { RouterProvider } from 'react-router';
+import { createAppRouter } from './router';
+import { UiSettingsProvider } from './settings/UiSettings';
 
-const queryClient = new QueryClient();
+const defaultQueryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 5_000 } } });
 
-export function App() {
-  const { t, i18n } = useTranslation();
-  const [mode, setMode] = useState<'light' | 'dark'>('light');
-  const dir = RTL_LANGS.has(i18n.language) ? 'rtl' : 'ltr';
-  const theme = useMemo(() => createVrxTheme(mode, dir), [mode, dir]);
-  document.documentElement.setAttribute('dir', dir);
-  document.documentElement.setAttribute('lang', i18n.language);
+export interface AppProps {
+  /** Injected by tests (memory router); the browser router is created otherwise. */
+  router?: ReturnType<typeof createAppRouter>;
+  /** Injected by tests; defaults to `wss://<host>/api/v1/stream`. */
+  streamUrl?: string;
+  /** Injected by tests (e.g. with queries disabled); one app-wide client otherwise. */
+  queryClient?: QueryClient;
+}
 
+/** Providers in dependency order: server state → UI settings/theme/i18n → the single WebSocket → routes. */
+export function App({ router, streamUrl, queryClient }: AppProps) {
+  const appRouter = useMemo(() => router ?? createAppRouter(), [router]);
+  const wsOptions = useMemo(() => ({ url: streamUrl ?? defaultStreamUrl() }), [streamUrl]);
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <AppBar position="static">
-          <Toolbar>
-            <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              {t('appName')}
-            </Typography>
-            <Button color="inherit" onClick={() => setMode(mode === 'light' ? 'dark' : 'light')}>
-              {t('theme.toggle')}
-            </Button>
-            <Button
-              color="inherit"
-              onClick={() => i18n.changeLanguage(i18n.language === 'fa' ? 'en' : 'fa')}
-            >
-              {t('lang.toggle')}
-            </Button>
-          </Toolbar>
-        </AppBar>
-        <Box component="main" sx={{ p: 2 }}>
-          <HealthCard />
-        </Box>
-      </ThemeProvider>
+    <QueryClientProvider client={queryClient ?? defaultQueryClient}>
+      <UiSettingsProvider>
+        <WsProvider options={wsOptions}>
+          <RouterProvider router={appRouter} />
+        </WsProvider>
+      </UiSettingsProvider>
     </QueryClientProvider>
   );
 }

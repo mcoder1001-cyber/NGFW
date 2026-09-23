@@ -1,0 +1,110 @@
+// NAT44 endpoint-dependent (nat44-ed plugin) objects of the DF-3 descriptors; see common.proto for
+// the conventions. Shared: Endpoint, Timeouts, InterfaceFeature, OutputFeature, Forwarding,
+// IdentityMapping.
+syntax = "proto3";
+
+package vrx.model.nat.v1;
+
+option go_package = "ngfw/agent/gen/vrx/model/nat/v1;natv1";
+
+import "vrx/model/nat/v1/common.proto";
+
+// Nat44EdEnable is the plugin singleton (nat44_ed_plugin_enable_disable). VPP-global (D-071).
+message Nat44EdEnable {
+  // Max sessions per thread; 0 = VPP default (63*1024), reported back as that number — state it
+  // explicitly for a stable diff.
+  uint32 sessions = 1;
+  // Inside FIB table id.
+  uint32 inside_vrf = 2;
+  // Outside FIB table id.
+  uint32 outside_vrf = 3;
+  // Out-to-in DPO.
+  bool out2in_dpo = 4;
+}
+
+// Nat44EdInterfaceAddress uses the interface's own address as a pool address
+// (nat44_add_del_interface_addr).
+message Nat44EdInterfaceAddress {
+  // Logical interface name (D-069).
+  string interface = 1;
+  // Address is used for twice-NAT.
+  bool twice_nat = 2;
+}
+
+// Nat44EdAddressPool is one contiguous pool range (nat44_add_del_address_range), first..last
+// inclusive, ≤ 1024 addresses; adjacent ranges of one VRF / twice-NAT class must be one object.
+message Nat44EdAddressPool {
+  // First IPv4 address.
+  string first = 1;
+  // Last IPv4 address (≥ first).
+  string last = 2;
+  // FIB table id.
+  uint32 vrf = 3;
+  // Twice-NAT pool.
+  bool twice_nat = 4;
+}
+
+// Nat44EdStaticMapping is one static mapping (nat44_add_del_static_mapping_v2), tagged
+// "<owner>:<name>". Pool pinning is not modelled (not reported by VPP 26.06).
+message Nat44EdStaticMapping {
+  // Stable id; VPP tag "<owner>:<name>".
+  string name = 1;
+  // Inside endpoint.
+  Endpoint local = 2;
+  // Outside endpoint (may name an interface).
+  Endpoint external = 3;
+  // Protocol name ("tcp" | "udp" | "icmp") or "" with addr_only.
+  string protocol = 4;
+  // FIB table id.
+  uint32 vrf = 5;
+  // Address-only mapping.
+  bool addr_only = 6;
+  // Twice-NAT.
+  bool twice_nat = 7;
+  // Self twice-NAT.
+  bool self_twice_nat = 8;
+  // Only out-to-in sessions are created.
+  bool out2in_only = 9;
+}
+
+// Nat44EdLbLocal is one backend of a load-balanced static mapping (spec LBLocal).
+message Nat44EdLbLocal {
+  // Backend IPv4 address.
+  string ip = 1;
+  // Backend port.
+  uint32 port = 2;
+  // Selection probability (weight).
+  uint32 probability = 3;
+  // FIB table id of the backend.
+  uint32 vrf = 4;
+}
+
+// Nat44EdLbStaticMapping is a load-balanced static mapping (nat44_add_del_lb_static_mapping);
+// backend changes are applied in place (nat44_lb_static_mapping_add_del_local).
+message Nat44EdLbStaticMapping {
+  // Stable id; VPP tag "<owner>:<name>".
+  string name = 1;
+  // Outside endpoint.
+  Endpoint external = 2;
+  // Protocol name ("tcp" | "udp").
+  string protocol = 3;
+  // Session affinity timeout in seconds; 0 = none.
+  uint32 affinity = 4;
+  // Twice-NAT.
+  bool twice_nat = 5;
+  // Self twice-NAT.
+  bool self_twice_nat = 6;
+  // Only out-to-in sessions are created.
+  bool out2in_only = 7;
+  // Backends (canonical order as normalised by the spec).
+  repeated Nat44EdLbLocal locals = 8;
+}
+
+// Nat44EdVrfTable is a nat44-ed VRF table (nat44_ed_add_del_vrf_table) with its routes — the VRFs
+// whose FIBs are consulted for the table's outside traffic (nat44_ed_add_del_vrf_route).
+message Nat44EdVrfTable {
+  // FIB table id.
+  uint32 table = 1;
+  // Route VRF table ids (sorted).
+  repeated uint32 routes = 2;
+}

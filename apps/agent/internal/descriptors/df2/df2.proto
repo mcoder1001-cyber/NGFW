@@ -1,0 +1,54 @@
+// Shared desired-state types for the DF-2 descriptors (abf, ip_session_redirect, …).
+// These models are agent-internal until a `contract/` branch moves them into packages/proto
+// (they are written so that move is a package rename, nothing else).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.df2;
+
+option go_package = "ngfw/agent/internal/descriptors/df2;df2";
+
+// AddressFamily selects IPv4 or IPv6 (ip_types.address_family).
+enum AddressFamily {
+  IPV4 = 0;
+  IPV6 = 1;
+}
+
+// FibPath is one next-hop of a policy path list (fib_types.fib_path). Interfaces are named,
+// never indexed: the descriptor resolves the sw_if_index at apply time.
+message FibPath {
+  // Type mirrors fib_types.fib_path_type.
+  enum Type {
+    NORMAL = 0;
+    LOCAL = 1;
+    DROP = 2;
+    UDP_ENCAP = 3;
+    BIER_IMP = 4;
+    ICMP_UNREACH = 5;
+    ICMP_PROHIBIT = 6;
+    SOURCE_LOOKUP = 7;
+    DVR = 8;
+    INTERFACE_RX = 9;
+    CLASSIFY = 10;
+  }
+  // Proto mirrors fib_types.fib_path_nh_proto.
+  enum Proto {
+    IP4 = 0;
+    IP6 = 1;
+    MPLS = 2;
+    ETHERNET = 3;
+    BIER = 4;
+  }
+  // Next-hop IP address (canonical netip text); empty when the path has none.
+  string next_hop = 1;
+  // Outgoing VPP interface name; empty for a recursive path (lookup in table_id).
+  string interface = 2;
+  // FIB table id for a recursive lookup; only meaningful when interface is empty.
+  uint32 table_id = 3;
+  // ECMP weight; 0 is normalised to 1 (what VPP reports).
+  uint32 weight = 4;
+  uint32 preference = 5;
+  Type type = 6;
+  Proto proto = 7;
+  bool resolve_via_attached = 8;
+  bool resolve_via_host = 9;
+}

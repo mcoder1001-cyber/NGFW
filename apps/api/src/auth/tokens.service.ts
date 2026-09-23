@@ -12,6 +12,9 @@ export interface AccessClaims {
   id: number;
   username: string;
   role: Role;
+  /** refresh-token family (login session) */
+  sid?: string;
+  exp?: number;
 }
 
 export interface IssuedRefresh {
@@ -59,7 +62,12 @@ export class TokensService {
   }
 
   signAccess(c: AccessClaims): Promise<string> {
-    return new SignJWT({ username: c.username, role: c.role, typ: 'access' })
+    return new SignJWT({
+      username: c.username,
+      role: c.role,
+      typ: 'access',
+      ...(c.sid ? { sid: c.sid } : {}),
+    })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(String(c.id))
       .setIssuer(ISSUER)
@@ -89,7 +97,14 @@ export class TokensService {
       ) {
         return null;
       }
-      return { id, username, role: role as Role };
+      const sid = typeof payload['sid'] === 'string' ? payload['sid'] : undefined;
+      return {
+        id,
+        username,
+        role: role as Role,
+        ...(sid ? { sid } : {}),
+        ...(payload.exp ? { exp: payload.exp } : {}),
+      };
     } catch {
       return null;
     }
@@ -103,6 +118,8 @@ export class TokensService {
       .multi()
       .set(`rt:${sha256(token)}`, JSON.stringify({ uid: userId, fam: family }), 'EX', ttl)
       .set(`rtfam:${family}`, String(userId), 'EX', ttl)
+      .sadd(`rtuser:${userId}`, family)
+      .expire(`rtuser:${userId}`, ttl)
       .exec();
     return { token, family };
   }
@@ -136,6 +153,20 @@ export class TokensService {
     const family = token.split('.')[0];
     if (family === undefined || !/^[A-Za-z0-9_-]{16}$/.test(family)) return;
     await this.kv.del(`rt:${sha256(token)}`, `rtfam:${family}`);
+  }
+
+  /** Password change / account disable: every login session of the user ends (review L3). */
+  async revokeUser(userId: number): Promise<string[]> {
+    const fams = await this.kv.smembers(`rtuser:${userId}`);
+    if (fams.length > 0) await this.kv.del(...fams.map((f) => `rtfam:${f}`));
+    await this.kv.del(`rtuser:${userId}`);
+    return fams;
+  }
+
+  /** Family of a refresh token (without consuming it). */
+  familyOf(token: string): string | undefined {
+    const f = token.split('.')[0];
+    return f !== undefined && /^[A-Za-z0-9_-]{16}$/.test(f) ? f : undefined;
   }
 
   /** Fixed-window counter; returns the count within the current window. */

@@ -89,6 +89,8 @@ export const configRevision = pgTable(
     txnId: text('txn_id'),
     /** commit · rollback · confirmed-commit */
     kind: text('kind').notNull().default('commit'),
+    /** Secret versions this revision was committed with, `{ "<kind>/<name>": version }` (rollback restores them). */
+    secretVersions: jsonb('secret_versions').$type<Record<string, number>>(),
   },
   (t) => [index('config_revision_created_idx').on(t.createdAt)],
 );
@@ -146,12 +148,40 @@ export const secret = pgTable(
     kind: text('kind').notNull(),
     /** The full reference `<kind>/<name>` (D-051). */
     ref: text('ref').notNull(),
-    /** base64(iv ‖ tag ‖ AES-256-GCM ciphertext). */
+    /** base64(iv ‖ tag ‖ AES-256-GCM ciphertext) of the CURRENT version; the ref is bound as AAD. */
     ciphertext: text('ciphertext').notNull(),
+    /** Current version (secret_version.version). */
+    version: integer('version').notNull().default(1),
     createdAt: ts('created_at').notNull().defaultNow(),
   },
   (t) => [uniqueIndex('secret_ref_uq').on(t.ref)],
 );
+
+/** Every value a secret ever had (review M2): a rollback re-activates the version its revision was committed with. */
+export const secretVersion = pgTable(
+  'secret_version',
+  {
+    id: serial('id').primaryKey(),
+    ref: text('ref').notNull(),
+    version: integer('version').notNull(),
+    ciphertext: text('ciphertext').notNull(),
+    createdBy: integer('created_by').references(() => appUser.id, { onDelete: 'set null' }),
+    createdAt: ts('created_at').notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('secret_version_ref_version_uq').on(t.ref, t.version)],
+);
+
+/**
+ * Whether running (PostgreSQL) and the data plane are known to agree (review M3). Singleton row (id = 1).
+ * `in-sync` · `unknown` (an Apply timed out / the revision could not be saved) · `degraded` (the agent said DEGRADED).
+ */
+export const configSync = pgTable('config_sync', {
+  id: integer('id').primaryKey(),
+  state: text('state').notNull(),
+  reason: text('reason').notNull().default(''),
+  txnId: text('txn_id'),
+  since: ts('since').notNull().defaultNow(),
+});
 
 export const systemEvent = pgTable(
   'system_event',

@@ -38,6 +38,17 @@ export class Bus {
     return () => this.ee.off('publish', fn);
   }
 
+  /** Sessions ended: a login session (sid), all sessions of a user (userId), or users changed by a commit. */
+  sessions(e: { sid?: string; userId?: number; usersChanged?: boolean }): void {
+    this.ee.emit('sessions', e);
+  }
+  onSessions(
+    fn: (e: { sid?: string; userId?: number; usersChanged?: boolean }) => void,
+  ): () => void {
+    this.ee.on('sessions', fn);
+    return () => this.ee.off('sessions', fn);
+  }
+
   agentEvent(e: Event): void {
     this.ee.emit('agent-event', e);
   }

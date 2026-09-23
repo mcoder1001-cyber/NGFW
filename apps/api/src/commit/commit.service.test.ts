@@ -345,4 +345,149 @@ describe('CommitService (fake agent over gRPC)', () => {
     // an operator may not roll the users back
     expect((await problem(commits.rollback(OPERATOR, 1, {}))).status).toBe(403);
   });
+
+  // ---------------------------------------------------------------- review fix round (P06-review.md)
+
+  it('M1: an operator cannot commit admin-only changes staged by someone else (stale takeover discards them)', async () => {
+    // admin stages a new admin user, then walks away
+    await ds.putCandidate(ADMIN, '/management/users', [
+      { username: 'admin', role: 'admin' },
+      { username: 'evil', role: 'admin', passwordHash: TEST_HASH },
+    ]);
+    // before the lock is stale the operator is refused
+    expect((await problem(ds.patchCandidate(OPERATOR, '/system', { hostname: 'x' }))).status).toBe(
+      409,
+    );
+    // after the TTL the operator takes over: the privileged staged changes are NOT inherited
+    ds.now = () => new Date(Date.now() + 61_000);
+    const r = await ds.patchCandidate(OPERATOR, '/system', { hostname: 'op-host' });
+    expect(r.discardedStaleCandidateOf).toBe('admin');
+    const c = await commits.commit(OPERATOR, {});
+    expect(c.status).toBe('applied');
+    expect(repo.state.users.has('evil')).toBe(false);
+    expect(JSON.stringify(repo.state.revisions.at(-1)?.payload)).not.toContain('evil');
+  });
+
+  it('M1: the commit itself is authorised on running → candidate, whoever staged it', async () => {
+    // simulate a candidate that already contains a users change but is owned by the operator
+    await ds.putCandidate(ADMIN, '/management/users', [
+      { username: 'admin', role: 'admin' },
+      { username: 'evil', role: 'admin', passwordHash: TEST_HASH },
+    ]);
+    repo.state.candidate.ownerId = 2; // op
+    const p = await problem(commits.commit(OPERATOR, {}));
+    expect(p.status).toBe(403);
+    expect(p.body['errors']).toEqual([{ pointer: '/management/users', message: 'admin only' }]);
+    expect((await problem(commits.validateCandidate(OPERATOR))).status).toBe(403);
+    expect(applies(fake)).toEqual([]);
+    repo.state.candidate.ownerId = 1;
+    expect((await commits.commit(ADMIN, {})).status).toBe('applied');
+  });
+
+  it('M3: a lost Apply answer marks running UNKNOWN; reconcile finds the txn applied and saves the revision', async () => {
+    const shortEnv = testEnv({
+      VRX_AGENT_SOCKET: socket,
+      VRX_AGENT_OWNER: 'w1',
+      VRX_AGENT_TIMEOUT_MS: '300',
+    });
+    const shortAgent = new AgentClient(shortEnv);
+    const c2 = new CommitService(
+      repo,
+      new ValidationService(repo, shortAgent),
+      shortAgent,
+      events as unknown as SystemEventsService,
+      bus,
+      shortEnv,
+    );
+    try {
+      await ds.patchCandidate(ADMIN, '/interfaces/loop1', { ipv4: ['10.1.0.1/24'] });
+      fake.applyDelayMs = 800;
+      const p = await problem(c2.commit(ADMIN, {}));
+      expect(p.status).toBe(504);
+      expect(p.body).toMatchObject({
+        type: 'https://vrx.dev/problems/running-unknown',
+        sync: { state: 'unknown' },
+      });
+      expect(String(p.body['detail'])).not.toMatch(/running is unchanged/);
+      fake.applyDelayMs = 0;
+      await vi.waitFor(async () => expect((await c2.syncStatus()).state).toBe('in-sync'), {
+        timeout: 8000,
+        interval: 200,
+      });
+      expect(repo.state.revisions).toHaveLength(1);
+      expect(repo.state.revisions[0]?.txnId).toBe(fake.lastTxnId);
+      expect((await ds.getRunning()).doc).toMatchObject({
+        interfaces: { loop1: { ipv4: ['10.1.0.1/24'] } },
+      });
+    } finally {
+      c2.onApplicationShutdown();
+      shortAgent.close();
+    }
+  });
+
+  it('M3: DEGRADED is never "running unchanged": sync degraded, reconcile re-applies running', async () => {
+    await ds.patchCandidate(ADMIN, '/interfaces/loop1', { ipv4: ['10.1.0.1/24'] });
+    fake.nextApply = () => ({
+      status: ApplyStatus.APPLY_STATUS_DEGRADED,
+      message: 'rollback failed',
+    });
+    const p = await problem(commits.commit(ADMIN, {}));
+    expect(p.status).toBe(422);
+    expect(p.body).toMatchObject({ applyStatus: 'degraded', sync: { state: 'degraded' } });
+    expect(String(p.body['detail'])).toMatch(/partially changed/);
+    await vi.waitFor(async () => expect((await commits.syncStatus()).state).toBe('in-sync'), {
+      timeout: 8000,
+      interval: 200,
+    });
+    // the reconcile was a re-apply of running (empty document: no loopback)
+    expect(fake.current['interfaces']).toBeUndefined();
+    expect(repo.state.revisions).toEqual([]);
+  });
+
+  it('M3: revision save failure after APPLIED → UNKNOWN, then the revision is saved by the reconcile', async () => {
+    await ds.patchCandidate(ADMIN, '/system', { hostname: 'db-down' });
+    repo.failNextTx = 1;
+    const p = await problem(commits.commit(ADMIN, {}));
+    expect(p.status).toBe(500);
+    expect(p.body).toMatchObject({
+      type: 'https://vrx.dev/problems/running-unknown',
+      sync: { state: 'unknown' },
+    });
+    await vi.waitFor(async () => expect((await commits.syncStatus()).state).toBe('in-sync'), {
+      timeout: 8000,
+      interval: 200,
+    });
+    expect((await ds.getRunning()).doc).toMatchObject({ system: { hostname: 'db-down' } });
+  });
+
+  it('M4: changes only in domains the agent does not implement → status not-applied', async () => {
+    fake.implemented = ['interfaces', 'vrfs', 'routing'];
+    await ds.patchCandidate(ADMIN, '/system', { hostname: 'not-enforced' });
+    const r = await commits.commit(ADMIN, {});
+    expect(r.status).toBe('not-applied');
+    expect(r.notApplied).toEqual(['system']);
+    await ds.patchCandidate(ADMIN, '/interfaces/loop1', { ipv4: ['10.1.0.1/24'] });
+    await ds.patchCandidate(ADMIN, '/system', { hostname: 'both' });
+    const r2 = await commits.commit(ADMIN, {});
+    expect(r2).toMatchObject({ status: 'partially-applied', notApplied: ['system'] });
+    // management.users is applied by the API itself
+    await ds.putCandidate(ADMIN, '/management/users', [{ username: 'admin', role: 'admin' }]);
+    expect(await commits.commit(ADMIN, {})).toMatchObject({ status: 'applied', notApplied: [] });
+  });
+
+  it('M2: revisions pin secret versions; rollback re-activates them', async () => {
+    expect(repo.putSecret('psk/tac')).toBe(1);
+    await ds.patchCandidate(ADMIN, '/management/aaa', {
+      tacacs: { servers: [{ address: '10.0.0.9', secretRef: 'psk/tac' }] },
+    });
+    const r1 = await commits.commit(ADMIN, {});
+    expect(repo.state.revisions.at(-1)?.secretVersions).toEqual({ 'psk/tac': 1 });
+    expect(repo.putSecret('psk/tac')).toBe(2);
+    await ds.patchCandidate(ADMIN, '/system', { hostname: 'after-rotation' });
+    await commits.commit(ADMIN, {});
+    expect(repo.state.revisions.at(-1)?.secretVersions).toEqual({ 'psk/tac': 2 });
+    await commits.rollback(ADMIN, r1.revision!.id, {});
+    expect(repo.state.secretVersion.get('psk/tac')).toBe(1);
+    expect(repo.state.revisions.at(-1)?.secretVersions).toEqual({ 'psk/tac': 1 });
+  });
 });

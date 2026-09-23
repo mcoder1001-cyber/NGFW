@@ -7,6 +7,7 @@ import type {
   PendingCommit,
   Revision,
   RevisionMeta,
+  SyncStatus,
 } from '../datastore/repo.js';
 
 /**
@@ -22,6 +23,10 @@ interface State {
     { id: number; role: string; disabled: boolean; hash: string | null; source: string }
   >;
   secrets: Set<string>;
+  /** ref → current version, and every stored version. */
+  secretVersion: Map<string, number>;
+  secretHistory: Set<string>;
+  sync: SyncStatus;
 }
 
 export class MemoryConfigRepo implements ConfigRepo {
@@ -37,7 +42,12 @@ export class MemoryConfigRepo implements ConfigRepo {
     pending: null,
     users: new Map(),
     secrets: new Set(),
+    secretVersion: new Map(),
+    secretHistory: new Set(),
+    sync: { state: 'in-sync', reason: '', txnId: null, since: new Date(0) },
   };
+  /** Make the next N transactions fail (simulates a database outage during promote). */
+  failNextTx = 0;
   private chain: Promise<unknown> = Promise.resolve();
   private nextUserId = 1;
 
@@ -84,6 +94,10 @@ export class MemoryConfigRepo implements ConfigRepo {
 
   tx<T>(fn: (tx: ConfigTx) => Promise<T>): Promise<T> {
     const run = async (): Promise<T> => {
+      if (this.failNextTx > 0) {
+        this.failNextTx -= 1;
+        throw new Error('simulated database failure');
+      }
       const s: State = structuredClone(this.state);
       const reads = this.reads(s);
       const tx: ConfigTx = {
@@ -104,6 +118,19 @@ export class MemoryConfigRepo implements ConfigRepo {
         },
         setPending: async (p) => {
           s.pending = p === null ? null : { ...structuredClone(p), createdAt: new Date() };
+        },
+        setSync: async (x) => {
+          s.sync = { ...x, since: new Date() };
+        },
+        restoreSecretVersions: async (versions) => {
+          const out: string[] = [];
+          for (const [ref, v] of Object.entries(versions)) {
+            if (s.secretHistory.has(`${ref}@${v}`) && s.secretVersion.get(ref) !== v) {
+              s.secretVersion.set(ref, v);
+              out.push(`${ref}@${v}`);
+            }
+          }
+          return out;
         },
         syncUsers: async (users: readonly UserConfig[]) => {
           const names = new Set(users.map((u) => u.username));
@@ -143,6 +170,32 @@ export class MemoryConfigRepo implements ConfigRepo {
     const m = new Map<string, string>();
     for (const [name, u] of this.state.users) if (u.hash !== null) m.set(name, u.hash);
     return m;
+  }
+
+  /** Store a new version of a secret (tests). */
+  putSecret(ref: string): number {
+    const v = (this.state.secretVersion.get(ref) ?? 0) + 1;
+    this.state.secrets.add(ref);
+    this.state.secretVersion.set(ref, v);
+    this.state.secretHistory.add(`${ref}@${v}`);
+    return v;
+  }
+
+  async secretVersions(refs: readonly string[]): Promise<Record<string, number>> {
+    const out: Record<string, number> = {};
+    for (const r of refs) {
+      const v = this.state.secretVersion.get(r);
+      if (v !== undefined) out[r] = v;
+    }
+    return out;
+  }
+
+  async getSync(): Promise<SyncStatus> {
+    return structuredClone(this.state.sync);
+  }
+
+  async setSync(x: Omit<SyncStatus, 'since'>): Promise<void> {
+    this.state.sync = { ...x, since: new Date() };
   }
 
   async existingSecretRefs(refs: readonly string[]): Promise<Set<string>> {

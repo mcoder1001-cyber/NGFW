@@ -7,7 +7,7 @@ import { loadEnv } from './config.js';
 const out = process.argv[2];
 if (!out) throw new Error('usage: node dist/openapi.js <output.json>');
 const env = loadEnv({});
-const app = await createApp({ env, logger: ['error'] });
+const app = await createApp({ env, logger: ['error'], docs: false });
 await app.init();
 writeFileSync(out, JSON.stringify(buildOpenApi(app), null, 2) + '\n');
 await app.close();

@@ -7,6 +7,10 @@ export interface Principal {
   username: string;
   role: Role;
   via: 'jwt' | 'apikey';
+  /** Credential expiry (epoch seconds): WebSockets close then (review L3). */
+  exp?: number;
+  /** Login session (refresh-token family) of a JWT: logout closes its WebSockets. */
+  sid?: string;
 }
 
 /** What a handler records for the audit interceptor (before/after are already redacted). */

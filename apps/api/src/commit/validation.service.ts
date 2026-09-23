@@ -62,6 +62,16 @@ export class ValidationService {
     return DesiredState.fromJSON(redact(config));
   }
 
+  /** Subsystems the agent implements (Health) and the top-level keys it does not. */
+  async implemented(): Promise<{ subsystems: string[]; notApplied: string[] }> {
+    const health = await this.agent.health();
+    const set = new Set(health.subsystems);
+    return {
+      subsystems: ROOT_KEYS.filter((k) => set.has(k)),
+      notApplied: ROOT_KEYS.filter((k) => !set.has(k)),
+    };
+  }
+
   async validate(doc: Doc, txnId: string): Promise<ValidationOutcome> {
     const base = {
       warnings: [] as ProblemIssue[],

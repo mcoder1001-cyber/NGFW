@@ -36,7 +36,7 @@ const Env = z.object({
   /** Mark the refresh cookie `Secure` (production: behind TLS). */
   VRX_COOKIE_SECURE: z
     .enum(['0', '1', 'true', 'false'])
-    .default('0')
+    .default('1')
     .transform((v) => v === '1' || v === 'true'),
 
   /** Master key of the secret store (AES-256-GCM): a file with 32 random bytes; created 0600 when missing. */

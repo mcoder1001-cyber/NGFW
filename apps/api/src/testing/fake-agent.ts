@@ -68,6 +68,8 @@ export class FakeAgent {
   dryRunIssues: ((desired: Json) => ValidationIssue[]) | undefined;
   /** gRPC status to fail every call with (simulates an unreachable/broken agent). */
   failAllWith: status | undefined;
+  /** Answer Apply only after this delay — the transaction IS applied (simulates a lost/late answer). */
+  applyDelayMs = 0;
 
   private server: Server | undefined;
   private socketPath = '';
@@ -126,6 +128,8 @@ export class FakeAgent {
     this.nextApply = undefined;
     this.dryRunIssues = undefined;
     this.failAllWith = undefined;
+    this.applyDelayMs = 0;
+    this.implemented = [...ROOT_KEYS];
     this.degraded = false;
     this.txnCache.clear();
   }
@@ -370,13 +374,15 @@ export class FakeAgent {
         summary,
         message: 'APPLY_STATUS_APPLIED',
       });
-      respond({
+      const res: ApplyResponse = {
         ...base,
         status: ApplyStatus.APPLY_STATUS_APPLIED,
         results,
         summary,
         confirmDeadline,
-      });
+      };
+      if (this.applyDelayMs > 0) setTimeout(() => respond(res), this.applyDelayMs);
+      else respond(res);
     };
 
     const dryRun: handleUnaryCall<DryRunRequest, ValidationReport> = (call, cb) => {

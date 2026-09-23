@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, type OnApplicationShutdown } from '@nestjs/common';
 import { ApplyStatus, EventKind, type ApplyResponse, type ObjectResult } from '@ngfw/proto';
-import { deepEqual, type UserConfig } from '@ngfw/schema';
+import { deepEqual, diff, parsePointer, type UserConfig } from '@ngfw/schema';
 import { randomUUID } from 'node:crypto';
 import { AgentClient } from '../agent/agent.client.js';
 import { SystemEventsService } from '../audit/system-events.service.js';
@@ -10,9 +10,21 @@ import { Mutex } from '../common/mutex.js';
 import { ProblemError, problems, type ProblemIssue } from '../common/problem.js';
 import type { Principal } from '../common/principal.js';
 import { CONFIG_REPO } from '../datastore/datastore.service.js';
-import { adminOnlyChanges, hydrateHashes, redact } from '../datastore/documents.js';
+import {
+  emptyDocument,
+  hydrateHashes,
+  privilegedChanges,
+  redact,
+  secretRefs,
+} from '../datastore/documents.js';
 import { checkLock } from '../datastore/lock.js';
-import type { ConfigRepo, Doc, PendingCommit, RevisionMeta } from '../datastore/repo.js';
+import type {
+  ConfigRepo,
+  Doc,
+  PendingCommit,
+  RevisionMeta,
+  SyncStatus,
+} from '../datastore/repo.js';
 import { Bus } from '../infra/bus.js';
 import { planEntry, ValidationService, type PlanEntry } from './validation.service.js';
 
@@ -31,16 +43,33 @@ export interface ObjectResultJson {
   subsystem: string;
 }
 
+export interface SyncJson {
+  state: SyncStatus['state'];
+  reason: string;
+  txnId: string | null;
+  since: string;
+}
+
+/**
+ * - `applied`: every changed domain is implemented by the agent (or applied by the API itself: management.users).
+ * - `partially-applied` / `not-applied`: some / all changed domains are stored in running but NOT enforced by this agent
+ *   build (review M4) — `notApplied` names them.
+ */
+export type CommitStatus =
+  'applied' | 'partially-applied' | 'not-applied' | 'pending' | 'unchanged' | 'confirmed';
+
 export interface CommitResult {
-  status: 'applied' | 'pending' | 'unchanged' | 'confirmed';
+  status: CommitStatus;
   txnId?: string;
   revision?: RevisionMeta;
   confirmDeadline?: string;
   results: ObjectResultJson[];
   summary?: Record<string, number>;
   warnings: ProblemIssue[];
-  /** Top-level keys the agent does not implement yet: stored in running, not applied. */
+  /** Changed top-level keys the agent does not implement: stored in running, not enforced (review M4). */
   notApplied: string[];
+  /** Whether running and the data plane are known to agree (review M3). */
+  sync?: SyncJson;
 }
 
 export interface PendingInfo {
@@ -71,21 +100,72 @@ function statusName(s: ApplyStatus): string {
   return ApplyStatus[s]?.replace('APPLY_STATUS_', '').toLowerCase() ?? String(s);
 }
 
+export function syncJson(s: SyncStatus): SyncJson {
+  return { state: s.state, reason: s.reason, txnId: s.txnId, since: s.since.toISOString() };
+}
+
 /** How long after a confirm deadline the API waits before asking the agent whether it reverted. */
 const REVERT_GRACE_MS = 1500;
+/** Reconcile retry delays (agent unreachable / still degraded). */
+const RECONCILE_RETRY_MS = [1000, 2000, 5000, 10_000, 30_000];
+
+/** The API applies `management.users` itself (app_user), so changes there count as applied (review M4). */
+const API_APPLIED = ['/management/users'];
 
 /**
- * The commit engine (P06 §4): validate (3 tiers) → agent Apply(txn) → on APPLIED persist a revision (full redacted
- * snapshot, sha256, author, comment, parent) and promote the candidate; FAILED/ROLLED_BACK/DEGRADED → 422 with the
- * per-object results, running untouched. Confirmed commits are held in `config_pending` until CONFIRMED; the agent
- * reverts on its own (proto.md §4) and the API learns it from the CONFIRM_REVERTED event or from Health after the
- * deadline. Commit, confirm and rollback are serialised in-process and on the candidate row.
+ * Changed top-level keys between two documents that the agent does not implement (review M4). A domain whose only
+ * changes are API-applied subtrees is not listed.
+ */
+export function notAppliedChanges(
+  before: Doc,
+  after: Doc,
+  unimplemented: readonly string[],
+): string[] {
+  const out = new Set<string>();
+  for (const c of diff(redact(before), redact(after))) {
+    const key = parsePointer(c.pointer)[0] ?? '';
+    if (!unimplemented.includes(key)) continue;
+    if (API_APPLIED.some((p) => c.pointer === p || c.pointer.startsWith(p + '/'))) continue;
+    out.add(key);
+  }
+  return [...out];
+}
+
+/** Agent failures after which the data plane state is not known (the request may have been applied). */
+function outcomeUnknown(e: unknown): boolean {
+  if (!(e instanceof ProblemError)) return true;
+  if (e.slug === 'agent-timeout' || e.slug === 'agent-error') return true;
+  if (e.slug === 'agent-unavailable') {
+    // refused/missing socket: the request never left the API
+    return !/No connection established|ECONNREFUSED|ENOENT|connect /i.test(String(e.detail));
+  }
+  return false;
+}
+
+interface InFlight {
+  txnId: string;
+  config: Doc;
+  meta: { authorId: number | null; comment: string; kind: string; clearPending: boolean };
+}
+
+/**
+ * The commit engine (P06 §4): validate (3 tiers) → admin check of the whole change (review M1) → agent Apply(txn) →
+ * on APPLIED persist a revision (full redacted snapshot, sha256, author, comment, parent, pinned secret versions) and
+ * promote the candidate; FAILED/ROLLED_BACK → 422 with per-object results, running untouched. Anything that leaves
+ * the data plane in an unknown state (DEGRADED, agent timeout/lost answer, revision not saved) marks sync `unknown`/
+ * `degraded` and starts a reconcile: if the agent applied the transaction (Health.last_txn_id) the revision is saved,
+ * otherwise running is re-applied (review M3). Confirmed commits wait in `config_pending` until CONFIRMED.
  */
 @Injectable()
 export class CommitService implements OnApplicationShutdown {
   private readonly log = new Logger('Commit');
   private readonly mutex = new Mutex();
   private watchTimer: NodeJS.Timeout | undefined;
+  private reconcileTimer: NodeJS.Timeout | undefined;
+  private reconcileAttempt = 0;
+  private inflight: InFlight | undefined;
+  /** In-memory copy: authoritative in this process even when the database write of the sync state fails. */
+  private sync: SyncStatus = { state: 'in-sync', reason: '', txnId: null, since: new Date() };
   private readonly unsubscribe: () => void;
 
   constructor(
@@ -105,25 +185,154 @@ export class CommitService implements OnApplicationShutdown {
   onApplicationShutdown(): void {
     this.unsubscribe();
     if (this.watchTimer) clearTimeout(this.watchTimer);
+    if (this.reconcileTimer) clearTimeout(this.reconcileTimer);
   }
 
+  // ------------------------------------------------------------------------------------------------ sync state
+
+  async syncStatus(): Promise<SyncJson> {
+    return syncJson(this.sync);
+  }
+
+  private async setSync(
+    state: SyncStatus['state'],
+    reason: string,
+    txnId: string | null,
+  ): Promise<void> {
+    const changed = state !== this.sync.state;
+    this.sync = { state, reason, txnId, since: new Date() };
+    await this.repo.setSync({ state, reason, txnId }).catch((e: Error) => {
+      this.log.error(`could not persist sync state '${state}': ${e.message}`);
+    });
+    if (changed) {
+      this.bus.publish('commit.events', { type: 'sync', state, reason, txnId });
+      await this.events.record(
+        state === 'in-sync' ? 'info' : 'error',
+        'commit',
+        state === 'in-sync' ? 'RUNNING_IN_SYNC' : `RUNNING_${state.toUpperCase()}`,
+        state === 'in-sync' ? 'running and the data plane agree again' : reason,
+        { txnId },
+      );
+    }
+  }
+
+  /** After an API restart: a persisted unknown/degraded state is reconciled again. */
+  async resumeSync(): Promise<void> {
+    const s = await this.repo.getSync();
+    this.sync = s;
+    if (s.state !== 'in-sync') this.scheduleReconcile(0);
+  }
+
+  private scheduleReconcile(delayMs?: number): void {
+    if (this.reconcileTimer) clearTimeout(this.reconcileTimer);
+    const d =
+      delayMs ??
+      RECONCILE_RETRY_MS[Math.min(this.reconcileAttempt, RECONCILE_RETRY_MS.length - 1)] ??
+      30_000;
+    this.reconcileAttempt += 1;
+    this.reconcileTimer = setTimeout(() => void this.reconcile(), d);
+    this.reconcileTimer.unref();
+  }
+
+  /**
+   * Bring running and the data plane together again (review M3). Returns the resulting state. Retries on its own while
+   * the agent is unreachable or still degraded.
+   */
+  reconcile(): Promise<SyncJson> {
+    return this.mutex.run(async () => {
+      this.reconcileTimer = undefined;
+      if (this.sync.state === 'in-sync') return syncJson(this.sync);
+      try {
+        const h = await this.agent.health();
+        const f = this.inflight;
+        if (f !== undefined && h.lastTxnId === f.txnId) {
+          // the agent applied the transaction whose answer (or revision save) we lost: keep it
+          await this.promote(f.config, { ...f.meta, txnId: f.txnId });
+          this.inflight = undefined;
+          await this.setSync(
+            'in-sync',
+            `transaction ${f.txnId} was applied; revision saved`,
+            f.txnId,
+          );
+        } else if (h.pendingConfirmTxnId) {
+          // a confirm window is open on the agent: wait for it to close (confirm or self-revert)
+          this.scheduleReconcile();
+          return syncJson(this.sync);
+        } else {
+          // put the data plane back on running
+          const running = await this.repo.latestRevision();
+          const doc = hydrateHashes(
+            running?.payload ?? emptyDocument(),
+            await this.repo.userHashes(),
+          );
+          const txnId = randomUUID();
+          const res = await this.agent.apply({
+            txnId,
+            desiredState: ValidationService.desiredState(doc),
+            subsystems: (await this.validation.implemented()).subsystems,
+            confirmTimeoutSec: 0,
+            confirmTxnId: '',
+          });
+          if (res.status !== ApplyStatus.APPLY_STATUS_APPLIED) {
+            await this.setSync(
+              res.status === ApplyStatus.APPLY_STATUS_DEGRADED ? 'degraded' : 'unknown',
+              `reconcile apply of running answered ${statusName(res.status)}`,
+              txnId,
+            );
+            this.scheduleReconcile();
+            return syncJson(this.sync);
+          }
+          this.inflight = undefined;
+          await this.setSync('in-sync', `running re-applied (${txnId})`, txnId);
+        }
+        this.reconcileAttempt = 0;
+      } catch (e) {
+        this.log.warn(`reconcile failed, retrying: ${(e as Error).message}`);
+        this.scheduleReconcile();
+      }
+      return syncJson(this.sync);
+    });
+  }
+
+  /** Mark running as not matching the data plane and start reconciling (review M3). */
+  private async lostTrack(
+    state: 'unknown' | 'degraded',
+    reason: string,
+    inflight: InFlight | undefined,
+  ): Promise<SyncJson> {
+    this.inflight = inflight;
+    this.reconcileAttempt = 0;
+    await this.setSync(state, reason, inflight?.txnId ?? null);
+    this.scheduleReconcile(250);
+    return syncJson(this.sync);
+  }
+
+  // ------------------------------------------------------------------------------------------------ commit
+
   /** Validate the candidate without applying: 200 with plan/warnings, 400 with pointers. */
-  async validateCandidate(): Promise<{
+  async validateCandidate(user: Principal): Promise<{
     ok: true;
     warnings: ProblemIssue[];
     plan: PlanEntry[];
     notApplied: string[];
   }> {
     const c = await this.repo.candidate();
-    const doc = c.payload ?? (await this.repo.latestRevision())?.payload;
+    const running = await this.repo.latestRevision();
+    const doc = c.payload ?? running?.payload;
     if (doc === undefined) return { ok: true, warnings: [], plan: [], notApplied: [] };
+    await this.assertMayApply(user, running?.payload ?? emptyDocument(), doc);
     const v = await this.validation.validate(doc, `validate-${randomUUID()}`);
     if (!v.ok)
       throw problems.validation(v.errors, `${v.tier} validation failed`, {
         tier: v.tier,
         warnings: v.warnings,
       });
-    return { ok: true, warnings: v.warnings, plan: v.plan, notApplied: v.notApplied };
+    return {
+      ok: true,
+      warnings: v.warnings,
+      plan: v.plan,
+      notApplied: notAppliedChanges(running?.payload ?? emptyDocument(), doc, v.notApplied),
+    };
   }
 
   commit(user: Principal, opts: CommitOptions): Promise<CommitResult> {
@@ -132,7 +341,13 @@ export class CommitService implements OnApplicationShutdown {
       const c = await this.repo.candidate();
       checkLock(c, user, new Date(), this.env.VRX_LOCK_TTL_SEC);
       if (c.payload === null)
-        return { status: 'unchanged', results: [], warnings: [], notApplied: [] };
+        return {
+          status: 'unchanged',
+          results: [],
+          warnings: [],
+          notApplied: [],
+          sync: syncJson(this.sync),
+        };
       const running = await this.repo.latestRevision();
       if (c.baseRevisionId !== (running?.id ?? null)) {
         throw problems.conflict(
@@ -163,23 +378,12 @@ export class CommitService implements OnApplicationShutdown {
         );
       }
       const running = await this.repo.latestRevision();
-      if (user.role !== 'admin') {
-        const hashes = await this.repo.userHashes();
-        const denied = adminOnlyChanges(
-          hydrateHashes(running?.payload ?? {}, hashes),
-          hydrateHashes(target.payload, hashes),
-        );
-        if (denied.length > 0) {
-          throw problems.forbidden(
-            `role '${user.role}' may not roll back users or AAA (${denied.join(', ')})`,
-          );
-        }
-      }
       return this.applyDocument(user, target.payload, {
         ...opts,
         comment: opts.comment || `rollback to revision ${rev}`,
         kind: 'rollback',
         parentId: running?.id ?? null,
+        restoreSecrets: target.secretVersions ?? {},
       });
     });
   }
@@ -222,13 +426,13 @@ export class CommitService implements OnApplicationShutdown {
           `confirm returned ${statusName(res.status)}`,
         );
       }
-      const revision = await this.promote(p.payload, {
+      const meta = {
         authorId: p.authorId,
         comment: p.comment,
         kind: p.kind,
-        txnId: p.txnId,
         clearPending: true,
-      });
+      };
+      const revision = await this.promoteOrLoseTrack(p.txnId, p.payload, meta);
       this.bus.publish('commit.events', {
         type: 'confirmed',
         txnId: p.txnId,
@@ -252,6 +456,7 @@ export class CommitService implements OnApplicationShutdown {
         results: [],
         warnings: [],
         notApplied: [],
+        sync: syncJson(this.sync),
       };
     });
   }
@@ -267,11 +472,34 @@ export class CommitService implements OnApplicationShutdown {
     }
   }
 
+  /**
+   * Review M1: the COMMIT is authorised on running → document, whoever staged the changes. Users, AAA and secret
+   * references need an admin.
+   */
+  private async assertMayApply(user: Principal, running: Doc, doc: Doc): Promise<void> {
+    if (user.role === 'admin') return;
+    const hashes = await this.repo.userHashes();
+    const denied = privilegedChanges(hydrateHashes(running, hashes), hydrateHashes(doc, hashes));
+    if (denied.length > 0) {
+      throw problems.forbidden(
+        `role '${user.role}' may not apply changes to users, AAA or secret references (${denied.join(', ')}); an admin must commit them`,
+        denied.map((p) => ({ pointer: p, message: 'admin only' })),
+      );
+    }
+  }
+
   private async applyDocument(
     user: Principal,
     doc: Doc,
-    opts: CommitOptions & { kind: string; parentId: number | null },
+    opts: CommitOptions & {
+      kind: string;
+      parentId: number | null;
+      restoreSecrets?: Record<string, number>;
+    },
   ): Promise<CommitResult> {
+    const running = await this.repo.latestRevision();
+    const runningDoc = running?.payload ?? emptyDocument();
+    await this.assertMayApply(user, runningDoc, doc);
     const txnId = randomUUID();
     const v = await this.validation.validate(doc, txnId);
     if (!v.ok || v.config === undefined || v.desired === undefined) {
@@ -280,19 +508,47 @@ export class CommitService implements OnApplicationShutdown {
         warnings: v.warnings,
       });
     }
+    const notApplied = notAppliedChanges(runningDoc, v.config, v.notApplied);
     const confirmSec = opts.confirmSec ?? 0;
-    const res = await this.agent.apply({
-      txnId,
-      desiredState: v.desired,
-      subsystems: v.subsystems,
-      confirmTimeoutSec: confirmSec,
-      confirmTxnId: '',
-    });
+    const meta = {
+      authorId: user.id,
+      comment: opts.comment ?? '',
+      kind: opts.kind,
+      clearPending: false,
+      ...(opts.restoreSecrets ? { restoreSecrets: opts.restoreSecrets } : {}),
+    };
+    let res: ApplyResponse;
+    try {
+      res = await this.agent.apply({
+        txnId,
+        desiredState: v.desired,
+        subsystems: v.subsystems,
+        confirmTimeoutSec: confirmSec,
+        confirmTxnId: '',
+      });
+    } catch (e) {
+      if (!outcomeUnknown(e)) throw e;
+      const p = e as ProblemError;
+      const sync = await this.lostTrack(
+        'unknown',
+        `no answer to Apply ${txnId}: ${p.detail ?? String(e)}`,
+        confirmSec > 0 ? undefined : { txnId, config: v.config, meta },
+      );
+      throw new ProblemError(
+        p instanceof ProblemError ? p.getStatus() : 502,
+        'running-unknown',
+        'Outcome unknown',
+        `the agent did not answer Apply ${txnId}; it may have been applied. Running is marked UNKNOWN and a reconcile has started (GET /api/v1/state/system)`,
+        undefined,
+        { txnId, sync },
+      );
+    }
     const results = res.results.map(resultJson);
     const summary = res.summary ? { ...res.summary } : undefined;
     if (res.status !== ApplyStatus.APPLY_STATUS_APPLIED) {
+      const degraded = res.status === ApplyStatus.APPLY_STATUS_DEGRADED;
       await this.events.record(
-        res.status === ApplyStatus.APPLY_STATUS_DEGRADED ? 'error' : 'warning',
+        degraded ? 'error' : 'warning',
         'commit',
         `COMMIT_${statusName(res.status).toUpperCase()}`,
         res.message || `apply ${statusName(res.status)}`,
@@ -312,20 +568,29 @@ export class CommitService implements OnApplicationShutdown {
             message: `${r.key}: ${r.message || CODE_NAMES[r.code]}`,
           })),
       ];
+      const sync = degraded
+        ? await this.lostTrack(
+            'degraded',
+            `Apply ${txnId} answered DEGRADED: the data plane is partially changed`,
+            undefined,
+          )
+        : syncJson(this.sync);
       throw new ProblemError(
         422,
         'apply-failed',
         'Apply failed',
-        `the agent answered ${statusName(res.status)}${res.message ? `: ${res.message}` : ''}; running is unchanged`,
+        degraded
+          ? `the agent answered degraded${res.message ? `: ${res.message}` : ''}; the data plane is partially changed, running is marked DEGRADED and a reconcile (re-apply of running) has started`
+          : `the agent answered ${statusName(res.status)}${res.message ? `: ${res.message}` : ''}; the data plane was rolled back, running is unchanged`,
         errors,
-        { txnId, applyStatus: statusName(res.status), results, summary },
+        { txnId, applyStatus: statusName(res.status), results, summary, sync },
       );
     }
     const base = {
       txnId,
       results,
       warnings: v.warnings,
-      notApplied: v.notApplied,
+      notApplied,
       ...(summary ? { summary } : {}),
     };
     if (confirmSec > 0) {
@@ -356,34 +621,73 @@ export class CommitService implements OnApplicationShutdown {
         `commit ${txnId} applied, confirm by ${deadline.toISOString()}`,
         { txnId },
       );
-      return { status: 'pending', confirmDeadline: deadline.toISOString(), ...base };
+      return {
+        status: 'pending',
+        confirmDeadline: deadline.toISOString(),
+        ...base,
+        sync: syncJson(this.sync),
+      };
     }
-    const revision = await this.promote(v.config, {
-      authorId: user.id,
-      comment: opts.comment ?? '',
-      kind: opts.kind,
-      txnId,
-      clearPending: false,
-    });
+    const revision = await this.promoteOrLoseTrack(txnId, v.config, meta);
+    const changedDomains = new Set(
+      diff(redact(runningDoc), redact(v.config)).map((c) => parsePointer(c.pointer)[0]),
+    );
+    const status: CommitStatus =
+      notApplied.length === 0
+        ? 'applied'
+        : notApplied.length === changedDomains.size
+          ? 'not-applied'
+          : 'partially-applied';
     this.bus.publish('commit.events', {
       type: 'applied',
+      status,
       txnId,
       revision: revision.id,
       by: user.username,
     });
     await this.events.record(
-      'info',
+      notApplied.length > 0 ? 'warning' : 'info',
       'commit',
-      'COMMIT_APPLIED',
-      `revision ${revision.id} (${opts.kind})`,
-      { txnId, revision: revision.id },
+      notApplied.length > 0 ? 'COMMIT_NOT_ENFORCED' : 'COMMIT_APPLIED',
+      notApplied.length > 0
+        ? `revision ${revision.id} (${opts.kind}) stored; not enforced by the agent: ${notApplied.join(', ')}`
+        : `revision ${revision.id} (${opts.kind})`,
+      { txnId, revision: revision.id, notApplied },
     );
-    return { status: 'applied', revision, ...base };
+    return { status, revision, ...base, sync: syncJson(this.sync) };
+  }
+
+  /** promote(); if the revision cannot be saved, the data plane is ahead of running → UNKNOWN + reconcile (M3). */
+  private async promoteOrLoseTrack(
+    txnId: string,
+    config: Doc,
+    meta: InFlight['meta'] & { restoreSecrets?: Record<string, number> },
+  ): Promise<RevisionMeta> {
+    try {
+      const rev = await this.promote(config, { ...meta, txnId });
+      if (this.sync.state !== 'in-sync')
+        await this.setSync('in-sync', `revision ${rev.id} applied`, txnId);
+      return rev;
+    } catch (e) {
+      const sync = await this.lostTrack(
+        'unknown',
+        `transaction ${txnId} was applied but its revision could not be saved: ${(e as Error).message}`,
+        { txnId, config, meta },
+      );
+      throw new ProblemError(
+        500,
+        'running-unknown',
+        'Revision not saved',
+        `the agent applied ${txnId} but the revision could not be saved; running is marked UNKNOWN and a reconcile has started`,
+        undefined,
+        { txnId, sync },
+      );
+    }
   }
 
   /**
-   * Persist the applied document as the new running revision (redacted, D-046), make app_user follow
-   * management.users, and clear the candidate when it is what was applied (edits made meanwhile stay, rebased).
+   * Persist the applied document as the new running revision (redacted, D-046) with the secret versions it uses,
+   * make app_user follow management.users, and clear the candidate when it is what was applied.
    */
   private promote(
     config: Doc,
@@ -393,11 +697,25 @@ export class CommitService implements OnApplicationShutdown {
       kind: string;
       txnId: string;
       clearPending: boolean;
+      restoreSecrets?: Record<string, number>;
     },
   ): Promise<RevisionMeta> {
     return this.repo.tx(async (tx) => {
       const running = await tx.latestRevision();
       const payload = redact(config);
+      if (meta.restoreSecrets && Object.keys(meta.restoreSecrets).length > 0) {
+        const restored = await tx.restoreSecretVersions(meta.restoreSecrets);
+        if (restored.length > 0) {
+          void this.events.record(
+            'info',
+            'secrets',
+            'SECRETS_RESTORED',
+            `rollback restored ${restored.join(', ')}`,
+          );
+        }
+      }
+      const refs = [...new Set(secretRefs(payload).map((r) => r.ref))];
+      const secretVersions = refs.length > 0 ? await this.repo.secretVersions(refs) : null;
       const revision = await tx.insertRevision({
         authorId: meta.authorId,
         comment: meta.comment,
@@ -406,6 +724,10 @@ export class CommitService implements OnApplicationShutdown {
         hash: documentHash(payload),
         txnId: meta.txnId,
         kind: meta.kind,
+        secretVersions:
+          meta.restoreSecrets && refs.length > 0
+            ? { ...secretVersions, ...pick(meta.restoreSecrets, refs) }
+            : secretVersions,
       });
       const management = config['management'] as { users?: UserConfig[] } | undefined;
       await tx.syncUsers(management?.users ?? []);
@@ -428,6 +750,7 @@ export class CommitService implements OnApplicationShutdown {
       }
       const { payload: stored, ...metaOut } = revision;
       void stored;
+      this.bus.sessions({ usersChanged: true });
       return metaOut;
     });
   }
@@ -480,12 +803,13 @@ export class CommitService implements OnApplicationShutdown {
       'commit',
       'CONFIRM_REVERTED',
       `commit ${txnId} was not confirmed and was reverted`,
-      {
-        txnId,
-        via,
-      },
+      { txnId, via },
     );
   }
+}
+
+function pick(m: Record<string, number>, keys: readonly string[]): Record<string, number> {
+  return Object.fromEntries(Object.entries(m).filter(([k]) => keys.includes(k)));
 }
 
 function pendingJson(p: PendingCommit): PendingInfo {

@@ -21,9 +21,13 @@ export interface RevisionMeta {
 export interface Revision extends RevisionMeta {
   /** Redacted (no secret leaves, D-046). */
   payload: Doc;
+  /** Secret versions pinned at commit time (review M2). */
+  secretVersions?: Record<string, number> | null;
 }
 
 export interface NewRevision {
+  /** Secret versions pinned by this revision (review M2). */
+  secretVersions?: Record<string, number> | null;
   authorId: number | null;
   comment: string;
   parentId: number | null;
@@ -56,6 +60,15 @@ export interface PendingCommit {
   createdAt: Date;
 }
 
+/** Does running (PostgreSQL) match the data plane? (review M3) */
+export type SyncState = 'in-sync' | 'unknown' | 'degraded';
+export interface SyncStatus {
+  state: SyncState;
+  reason: string;
+  txnId: string | null;
+  since: Date;
+}
+
 export interface ConfigReads {
   latestRevision(): Promise<Revision | null>;
   revision(id: number): Promise<Revision | null>;
@@ -71,6 +84,9 @@ export interface ConfigTx extends ConfigReads {
   setPending(p: Omit<PendingCommit, 'createdAt'> | null): Promise<void>;
   /** Make app_user follow `management.users` (hashes: only where the document carries one). */
   syncUsers(users: readonly UserConfig[]): Promise<void>;
+  /** Re-activate the given secret versions (rollback, review M2); unknown refs/versions are skipped. */
+  restoreSecretVersions(versions: Record<string, number>): Promise<string[]>;
+  setSync(s: Omit<SyncStatus, 'since'>): Promise<void>;
 }
 
 export interface ConfigRepo extends ConfigReads {
@@ -80,4 +96,8 @@ export interface ConfigRepo extends ConfigReads {
   userHashes(): Promise<Map<string, string>>;
   /** Refs (`<kind>/<name>`) present in the secret store among `refs`. */
   existingSecretRefs(refs: readonly string[]): Promise<Set<string>>;
+  /** Current version of each existing ref among `refs`. */
+  secretVersions(refs: readonly string[]): Promise<Record<string, number>>;
+  getSync(): Promise<SyncStatus>;
+  setSync(s: Omit<SyncStatus, 'since'>): Promise<void>;
 }

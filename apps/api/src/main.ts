@@ -1,5 +1,4 @@
-import { SwaggerModule } from '@nestjs/swagger';
-import { buildOpenApi, createApp } from './app.js';
+import { createApp } from './app.js';
 import { AuthService } from './auth/auth.service.js';
 import { CommitService } from './commit/commit.service.js';
 import { loadEnv } from './config.js';
@@ -13,8 +12,8 @@ app.enableShutdownHooks();
 await runMigrations(app.get<Db>(DB));
 await app.get(AuthService).seedBootstrapAdmin();
 await app.get(CommitService).resumePending();
+await app.get(CommitService).resumeSync();
 app.get(RelayService).start();
-SwaggerModule.setup('api/docs', app, buildOpenApi(app));
 await app.listen({ port: env.VRX_HTTP_PORT, host: env.VRX_HTTP_HOST });
 console.log(
   `vrx-api listening on http://${env.VRX_HTTP_HOST}:${env.VRX_HTTP_PORT} (docs at /api/docs)`,

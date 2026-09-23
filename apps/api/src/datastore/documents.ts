@@ -152,3 +152,21 @@ export const ADMIN_ONLY_POINTERS = ['/management/users', '/management/aaa'] as c
 export function adminOnlyChanges(before: Doc, after: Doc): string[] {
   return ADMIN_ONLY_POINTERS.filter((p) => !deepEqual(getAt(before, p), getAt(after, p)));
 }
+
+/**
+ * Everything only an admin may change (P06 §6 + review M1): users, AAA, and any secret reference anywhere in the
+ * document (added, removed or re-pointed) — a reference decides which credential a tunnel/server uses. Returns the
+ * pointers that differ; both documents must be in the same hydration state.
+ */
+export function privilegedChanges(before: Doc, after: Doc): string[] {
+  const out = adminOnlyChanges(before, after);
+  const a = new Map(secretRefs(before).map((r) => [r.pointer, r.ref]));
+  const b = new Map(secretRefs(after).map((r) => [r.pointer, r.ref]));
+  const refPointers = new Set<string>();
+  for (const [p, ref] of a) if (b.get(p) !== ref) refPointers.add(p);
+  for (const [p, ref] of b) if (a.get(p) !== ref) refPointers.add(p);
+  for (const p of [...refPointers].sort()) {
+    if (!out.some((o) => p === o || p.startsWith(o + '/'))) out.push(p);
+  }
+  return out;
+}

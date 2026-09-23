@@ -1,7 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { DesiredState, type StatsBatch } from '@ngfw/proto';
-import { canonicalPrefix, diff, isPlainObject } from '@ngfw/schema';
+import { DesiredState, IssueSeverity, type StatsBatch, type ValidationIssue } from '@ngfw/proto';
+import { canonicalPrefix, diff, isPlainObject, parsePointer, type Change } from '@ngfw/schema';
 import { z } from 'zod';
 import { AgentClient } from '../agent/agent.client.js';
 import { SystemEventsService } from '../audit/system-events.service.js';
@@ -9,6 +9,7 @@ import { problems } from '../common/problem.js';
 import { Protected } from '../common/responses.js';
 import { openapi, ZodPipe } from '../common/zod.js';
 import { CommitService } from '../commit/commit.service.js';
+import { ValidationService } from '../commit/validation.service.js';
 import { DatastoreService } from '../datastore/datastore.service.js';
 import { redact } from '../datastore/documents.js';
 import { RelayService } from '../telemetry/relay.service.js';
@@ -40,6 +41,12 @@ const SystemOut = z.object({
     .describe('HealthResponse plus reachable:true, or {reachable:false, error}'),
   runningRevision: z.number().int().nullable(),
   pendingCommit: z.record(z.string(), z.unknown()).nullable(),
+  sync: z.object({
+    state: z.string(),
+    reason: z.string(),
+    txnId: z.string().nullable(),
+    since: z.string(),
+  }),
 });
 const InterfacesOut = z.object({
   retrievedAt: z.string().optional(),
@@ -62,6 +69,7 @@ const DriftOut = z.object({
       to: z.unknown().optional(),
     }),
   ),
+  ignored: z.array(z.object({ pointer: z.string(), rule: z.string() })),
 });
 const EventsOut = z.object({
   total: z.number().int(),
@@ -94,6 +102,7 @@ export class StateController {
     private readonly commits: CommitService,
     private readonly ds: DatastoreService,
     private readonly sysEvents: SystemEventsService,
+    private readonly validation: ValidationService,
   ) {}
 
   @Get('system')
@@ -118,6 +127,7 @@ export class StateController {
       agent: health,
       runningRevision: running.revision?.id ?? null,
       pendingCommit: pending,
+      sync: await this.commits.syncStatus(),
     };
   }
 
@@ -220,11 +230,22 @@ export class StateController {
   @ApiOperation({ summary: 'Running configuration vs what the agent retrieves (proto.md §5)' })
   @ApiOkResponse({ schema: openapi(DriftOut, 'output') })
   async drift() {
-    const [running, r] = await Promise.all([this.ds.getRunning(), this.agent.retrieve([])]);
-    const expected = DesiredState.toJSON(DesiredState.fromJSON(redact(running.doc))) as Json;
+    const [running, r, impl] = await Promise.all([
+      this.ds.getRunning(),
+      this.agent.retrieve([]),
+      this.validation.implemented(),
+    ]);
+    const desired = DesiredState.fromJSON(redact(running.doc));
+    // the agent's own statement of what it does not manage (DryRun of running: no side effects, proto.md §3)
+    const report = await this.agent.dryRun({
+      txnId: `drift-${Date.now()}`,
+      desiredState: desired,
+      subsystems: impl.subsystems,
+    });
+    const expected = DesiredState.toJSON(desired) as Json;
     const actual = DesiredState.toJSON(r.desiredState ?? DesiredState.fromPartial({})) as Json;
     const pick = (d: Json) => Object.fromEntries(r.subsystems.map((s) => [s, d[s]]));
-    return { subsystems: r.subsystems, changes: diff(pick(expected), pick(actual)) };
+    return driftOf(diff(pick(expected), pick(actual)), report.errors, r.subsystems);
   }
 
   @Get('events')
@@ -238,6 +259,39 @@ export class StateController {
   events(@Query(new ZodPipe(PageQuery)) q: z.output<typeof PageQuery>) {
     return this.sysEvents.list(q.limit, q.offset);
   }
+}
+
+const COVERAGE_RULES = new Set(['agent.unsupported-field', 'agent.unimplemented-domain']);
+
+function isEmptyContainer(v: unknown): boolean {
+  return (Array.isArray(v) && v.length === 0) || (isPlainObject(v) && Object.keys(v).length === 0);
+}
+
+/**
+ * Running-vs-actual drift restricted to what the agent manages (review H2), without per-domain knowledge in the API:
+ * - fields the agent reported as `agent.unsupported-field` (field-level pointers) and domains it reported as
+ *   `agent.unimplemented-domain` are not compared — Retrieve cannot return what the agent never applies;
+ * - an empty object/list on one side and absence on the other is not drift (proto3 has no presence for them);
+ * a domain-level `unsupported-field` note (e.g. `/routing`: protocols are FRR's) does not hide the whole domain.
+ */
+export function driftOf(
+  changes: Change[],
+  report: readonly ValidationIssue[],
+  subsystems: string[],
+): { subsystems: string[]; changes: Change[]; ignored: { pointer: string; rule: string }[] } {
+  const ignored = report
+    .filter((i) => i.severity !== IssueSeverity.ISSUE_SEVERITY_ERROR && COVERAGE_RULES.has(i.rule))
+    .map((i) => ({ pointer: i.pointer, rule: i.rule }));
+  const skip = ignored
+    .filter((i) => i.rule === 'agent.unimplemented-domain' || parsePointer(i.pointer).length >= 2)
+    .map((i) => i.pointer);
+  const kept = changes.filter((c) => {
+    if (skip.some((p) => c.pointer === p || c.pointer.startsWith(p + '/'))) return false;
+    if (c.op === 'remove' && isEmptyContainer(c.from)) return false;
+    if (c.op === 'add' && isEmptyContainer(c.to)) return false;
+    return true;
+  });
+  return { subsystems, changes: kept, ignored };
 }
 
 /** Connected prefixes of every interface/sub-interface address + static routes, sorted by VRF then prefix. */

@@ -10,6 +10,7 @@ import type { FastifyInstance, RouteOptions } from 'fastify';
 import { AppModule } from './app.module.js';
 import { AuthService } from './auth/auth.service.js';
 import { loadEnv, type Env } from './config.js';
+import { problems, toProblem } from './common/problem.js';
 import { registerStreamRoute, STREAM_PROTOCOL } from './telemetry/stream.route.js';
 import { RelayService } from './telemetry/relay.service.js';
 
@@ -18,7 +19,11 @@ export interface CreateAppOptions {
   logger?: false | ('error' | 'warn' | 'log' | 'debug')[];
   /** Observe every route as it is registered (the route-guard test enumerates them). */
   onRoute?: (route: RouteOptions) => void;
+  /** Serve the OpenAPI UI/JSON at /api/docs (authenticated). Default true; the generator turns it off. */
+  docs?: boolean;
 }
+
+export const DOCS_PATH = 'api/docs';
 
 /** Body limit: a whole configuration document is well below this. */
 const BODY_LIMIT = 8 * 1024 * 1024;
@@ -37,6 +42,23 @@ export async function createApp(opts: CreateAppOptions = {}): Promise<NestFastif
     );
   }
   await configureApp(app);
+  if (opts.docs !== false) {
+    // review L1: the API description is not public; same credentials as every other route
+    const auth = app.get(AuthService);
+    const fastify = app.getHttpAdapter().getInstance() as unknown as FastifyInstance;
+    fastify.addHook('onRequest', async (req, reply) => {
+      if (!req.url.startsWith(`/${DOCS_PATH}`)) return;
+      const p = await auth.authenticate(req.headers.authorization).catch(() => null);
+      if (p === null) {
+        await reply
+          .status(401)
+          .header('content-type', 'application/problem+json')
+          .header('www-authenticate', 'Bearer, ApiKey')
+          .send(toProblem(problems.unauthorized(), req.url.split('?')[0]));
+      }
+    });
+    SwaggerModule.setup(DOCS_PATH, app, buildOpenApi(app));
+  }
   return app;
 }
 

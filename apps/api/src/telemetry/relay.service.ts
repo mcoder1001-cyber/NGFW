@@ -5,11 +5,14 @@ import type { WebSocket } from 'ws';
 import { AgentClient } from '../agent/agent.client.js';
 import { SystemEventsService } from '../audit/system-events.service.js';
 import { ENV, type Env } from '../config.js';
-import type { Principal } from '../common/principal.js';
+import { ROLE_RANK, type Principal } from '../common/principal.js';
+import { DB, type Db } from '../db/db.js';
+import { appUser } from '../db/schema.js';
 import { Bus, TOPICS, type Topic } from '../infra/bus.js';
 
 const STATS_TOPICS: readonly Topic[] = ['iface.counters', 'worker.cpu'];
 const MAX_CLIENT_MESSAGE = 4096;
+const MAX_BUFFERED = 1024 * 1024;
 
 export function eventTopic(kind: EventKind): Topic {
   switch (kind) {
@@ -44,7 +47,11 @@ interface Client {
   principal: Principal;
   topics: Set<Topic>;
   alive: boolean;
+  expiry?: NodeJS.Timeout;
 }
+
+/** Close codes (application range 4000–4999). */
+export const WS_CLOSE = { expired: 4401, revoked: 4403 } as const;
 
 /**
  * Telemetry relay (P06 §8): one upstream StreamEvents (always, with reconnect/backoff) and one StreamStats (only while
@@ -75,8 +82,14 @@ export class RelayService implements OnApplicationShutdown {
     private readonly bus: Bus,
     private readonly sysEvents: SystemEventsService,
     @Inject(ENV) private readonly env: Env,
+    @Inject(DB) private readonly db: Db,
   ) {
-    this.unsubscribe = this.bus.onPublish((m) => this.fanout(m.topic, m.data));
+    const offPublish = this.bus.onPublish((m) => this.fanout(m.topic, m.data));
+    const offSessions = this.bus.onSessions((e) => void this.onSessions(e));
+    this.unsubscribe = () => {
+      offPublish();
+      offSessions();
+    };
   }
 
   /** Start the upstream event stream and the heartbeat (main.ts / tests; not during OpenAPI generation). */
@@ -183,7 +196,10 @@ export class RelayService implements OnApplicationShutdown {
   }
 
   private send(c: Client, msg: unknown): void {
-    if (c.socket.readyState === c.socket.OPEN) c.socket.send(JSON.stringify(msg));
+    if (c.socket.readyState !== c.socket.OPEN) return;
+    // a slow client loses messages instead of growing the server's memory (counters are absolute, nothing is lost)
+    if (c.socket.bufferedAmount > MAX_BUFFERED) return;
+    c.socket.send(JSON.stringify(msg));
   }
 
   private fanout(topic: Topic, data: unknown): void {
@@ -204,16 +220,60 @@ export class RelayService implements OnApplicationShutdown {
     }
   }
 
+  /**
+   * Logout (sid), password change (userId) or a commit that changed users: close the affected connections — a
+   * deleted, disabled or demoted user keeps nothing open (review L3).
+   */
+  private async onSessions(e: {
+    sid?: string;
+    userId?: number;
+    usersChanged?: boolean;
+  }): Promise<void> {
+    for (const c of this.clients) {
+      if (
+        (e.sid && c.principal.sid === e.sid) ||
+        (e.userId !== undefined && c.principal.id === e.userId)
+      ) {
+        c.socket.close(WS_CLOSE.revoked, 'session ended');
+      }
+    }
+    if (!e.usersChanged || this.clients.size === 0) return;
+    try {
+      const rows = await this.db
+        .select({ id: appUser.id, role: appUser.role, disabled: appUser.disabled })
+        .from(appUser);
+      const users = new Map(rows.map((r) => [r.id, r]));
+      for (const c of this.clients) {
+        const u = users.get(c.principal.id);
+        if (u === undefined || u.disabled || ROLE_RANK[u.role] < ROLE_RANK[c.principal.role]) {
+          c.socket.close(WS_CLOSE.revoked, 'user changed');
+        }
+      }
+    } catch (err) {
+      this.log.warn(`could not re-check WebSocket users: ${(err as Error).message}`);
+    }
+  }
+
   /** A new authenticated WebSocket connection. */
   attach(socket: WebSocket, principal: Principal): void {
     const client: Client = { socket, principal, topics: new Set(), alive: true };
     this.clients.add(client);
+    if (principal.exp !== undefined) {
+      // review L3: the connection lives no longer than the credential that opened it
+      const ms = Math.max(0, principal.exp * 1000 - Date.now());
+      client.expiry = setTimeout(
+        () => socket.close(WS_CLOSE.expired, 'credential expired'),
+        Math.min(ms, 2 ** 31 - 1),
+      );
+      client.expiry.unref();
+    }
     socket.on('pong', () => (client.alive = true));
     socket.on('message', (raw, isBinary) => {
       client.alive = true;
       this.onMessage(client, raw as Buffer, isBinary);
     });
     socket.on('close', () => {
+      if (client.expiry) clearTimeout(client.expiry);
       this.clients.delete(client);
       this.syncStats();
     });

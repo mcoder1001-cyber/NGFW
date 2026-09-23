@@ -7,7 +7,9 @@ import {
   configCandidate,
   configPending,
   configRevision,
+  configSync,
   secret,
+  secretVersion,
   type Role,
 } from '../db/schema.js';
 import type {
@@ -19,6 +21,7 @@ import type {
   PendingCommit,
   Revision,
   RevisionMeta,
+  SyncStatus,
 } from './repo.js';
 
 const CANDIDATE_ID = 1;
@@ -40,7 +43,11 @@ const revisionMetaColumns = {
 
 async function readRevision(db: Exec, id?: number): Promise<Revision | null> {
   const q = db
-    .select({ ...revisionMetaColumns, payload: configRevision.payload })
+    .select({
+      ...revisionMetaColumns,
+      payload: configRevision.payload,
+      secretVersions: configRevision.secretVersions,
+    })
     .from(configRevision)
     .leftJoin(appUser, eq(appUser.id, configRevision.authorId));
   const rows = await (id === undefined
@@ -75,6 +82,21 @@ async function readCandidate(db: Exec, forUpdate: boolean): Promise<CandidateSta
     owner = u[0]?.username ?? null;
   }
   return { ...row, payload: (row.payload as Doc | null) ?? null, owner };
+}
+
+async function readSync(db: Exec): Promise<SyncStatus> {
+  const [r] = await db.select().from(configSync).where(eq(configSync.id, 1));
+  return r === undefined
+    ? { state: 'in-sync', reason: '', txnId: null, since: new Date(0) }
+    : { state: r.state as SyncStatus['state'], reason: r.reason, txnId: r.txnId, since: r.since };
+}
+
+async function writeSync(db: Exec, s: Omit<SyncStatus, 'since'>): Promise<void> {
+  const v = { state: s.state, reason: s.reason, txnId: s.txnId, since: sql`now()` };
+  await db
+    .insert(configSync)
+    .values({ id: 1, ...v })
+    .onConflictDoUpdate({ target: configSync.id, set: v });
 }
 
 async function readPending(db: Exec): Promise<PendingCommit | null> {
@@ -138,6 +160,28 @@ class PgConfigTx implements ConfigTx {
   async setPending(p: Omit<PendingCommit, 'createdAt'> | null): Promise<void> {
     await this.t.delete(configPending).where(eq(configPending.id, PENDING_ID));
     if (p !== null) await this.t.insert(configPending).values({ id: PENDING_ID, ...p });
+  }
+
+  setSync(s: Omit<SyncStatus, 'since'>) {
+    return writeSync(this.t, s);
+  }
+
+  async restoreSecretVersions(versions: Record<string, number>): Promise<string[]> {
+    const restored: string[] = [];
+    for (const [ref, version] of Object.entries(versions)) {
+      const [v] = await this.t
+        .select({ ciphertext: secretVersion.ciphertext })
+        .from(secretVersion)
+        .where(and(eq(secretVersion.ref, ref), eq(secretVersion.version, version)));
+      if (v === undefined) continue;
+      const updated = await this.t
+        .update(secret)
+        .set({ ciphertext: v.ciphertext, version })
+        .where(and(eq(secret.ref, ref), sql`${secret.version} <> ${version}`))
+        .returning({ id: secret.id });
+      if (updated.length > 0) restored.push(`${ref}@${version}`);
+    }
+    return restored;
   }
 
   async syncUsers(users: readonly UserConfig[]): Promise<void> {
@@ -204,6 +248,23 @@ export class PgConfigRepo implements ConfigRepo {
       .select({ username: appUser.username, hash: appUser.passwordHash })
       .from(appUser);
     return new Map(rows.filter((r) => r.hash !== null).map((r) => [r.username, r.hash as string]));
+  }
+
+  async secretVersions(refs: readonly string[]): Promise<Record<string, number>> {
+    if (refs.length === 0) return {};
+    const rows = await this.db
+      .select({ ref: secret.ref, version: secret.version })
+      .from(secret)
+      .where(inArray(secret.ref, [...refs]));
+    return Object.fromEntries(rows.map((r) => [r.ref, r.version]));
+  }
+
+  getSync() {
+    return readSync(this.db);
+  }
+
+  setSync(s: Omit<SyncStatus, 'since'>) {
+    return writeSync(this.db, s);
   }
 
   async existingSecretRefs(refs: readonly string[]): Promise<Set<string>> {

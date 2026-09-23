@@ -5,7 +5,8 @@ import { getAt, PointerNotFoundError, removeAt, setAt } from '../common/json.js'
 import { problems } from '../common/problem.js';
 import type { Principal } from '../common/principal.js';
 import {
-  adminOnlyChanges,
+  hydrateHashes,
+  privilegedChanges,
   emptyDocument,
   parseDocument,
   preserveSecrets,
@@ -27,6 +28,8 @@ export interface EditResult {
   /** Redacted subtree before/after — for the response and the audit log. */
   before: unknown;
   after: unknown;
+  /** Set when a stale candidate with admin-only changes was discarded on takeover (review M1). */
+  discardedStaleCandidateOf?: string;
 }
 
 /**
@@ -122,13 +125,27 @@ export class DatastoreService {
       const c = await tx.lockCandidate();
       const decision = checkLock(c, user, this.now(), this.ttl);
       const running = await tx.latestRevision();
-      const base = c.payload ?? running?.payload ?? emptyDocument();
+      const runningDoc = running?.payload ?? emptyDocument();
+      let staged = c.payload;
+      let discarded = false;
+      if (staged !== null && decision === 'stale' && user.role !== 'admin') {
+        // review M1: a lower role taking over a stale lock must not inherit staged admin-only changes
+        const hashes = await this.repo.userHashes();
+        if (
+          privilegedChanges(hydrateHashes(runningDoc, hashes), hydrateHashes(staged, hashes))
+            .length > 0
+        ) {
+          staged = null;
+          discarded = true;
+        }
+      }
+      const base = staged ?? runningDoc;
       const next = preserveSecrets(base, parseDocument(mutate(base)));
       if (user.role !== 'admin') {
-        const denied = adminOnlyChanges(base, next);
+        const denied = privilegedChanges(base, next);
         if (denied.length > 0) {
           throw problems.forbidden(
-            `role '${user.role}' may not change users or AAA (${denied.join(', ')})`,
+            `role '${user.role}' may not change users, AAA or secret references (${denied.join(', ')})`,
             denied.map((p) => ({ pointer: p, message: 'admin only' })),
           );
         }
@@ -137,9 +154,15 @@ export class DatastoreService {
         ownerId: user.id,
         lockedAt: decision === 'own' ? c.lockedAt : this.now(),
         payload: next,
-        baseRevisionId: c.payload === null ? (running?.id ?? null) : c.baseRevisionId,
+        baseRevisionId: staged === null ? (running?.id ?? null) : c.baseRevisionId,
       });
-      return { pointer, before: getAt(redact(base), pointer), after: getAt(redact(next), pointer) };
+      const r: EditResult = {
+        pointer,
+        before: getAt(redact(base), pointer),
+        after: getAt(redact(next), pointer),
+      };
+      if (discarded) r.discardedStaleCandidateOf = c.owner ?? `user #${c.ownerId}`;
+      return r;
     });
   }
 

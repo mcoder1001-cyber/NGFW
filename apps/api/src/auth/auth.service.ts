@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { and, count, eq, sql } from 'drizzle-orm';
+import { and, count, eq, isNull, lte, or, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
+import { Bus } from '../infra/bus.js';
 import { ENV, type Env } from '../config.js';
 import { problems } from '../common/problem.js';
 import { lowerRole, type Principal } from '../common/principal.js';
@@ -30,6 +31,7 @@ export class AuthService {
     @Inject(ENV) private readonly env: Env,
     private readonly tokens: TokensService,
     private readonly audit: AuditService,
+    private readonly bus: Bus,
   ) {}
 
   /** D-048: the API seeds the first admin when there is no user at all. Returns true when it created one. */
@@ -81,24 +83,34 @@ export class AuthService {
     const now = new Date();
     if (u.lockedUntil !== null && u.lockedUntil > now) throw await fail('locked', u.id);
     if (!ok) {
-      const failures = u.failedLogins + 1;
-      const lock = failures >= this.env.VRX_LOGIN_MAX_FAILURES;
-      await this.db
+      // ONE atomic statement (review H1): concurrent failures each add 1 — no read-modify-write race. PostgreSQL
+      // evaluates every SET expression against the old row, so both CASEs see the same pre-increment value.
+      const max = this.env.VRX_LOGIN_MAX_FAILURES;
+      const hit = sql`${appUser.failedLogins} + 1 >= ${max}`;
+      const [row] = await this.db
         .update(appUser)
         .set({
-          failedLogins: lock ? 0 : failures,
-          lockedUntil: lock
-            ? new Date(now.getTime() + this.env.VRX_LOGIN_LOCKOUT_SEC * 1000)
-            : u.lockedUntil,
+          failedLogins: sql`case when ${hit} then 0 else ${appUser.failedLogins} + 1 end`,
+          lockedUntil: sql`case when ${hit} then now() + make_interval(secs => ${this.env.VRX_LOGIN_LOCKOUT_SEC}) else ${appUser.lockedUntil} end`,
         })
-        .where(eq(appUser.id, u.id));
-      throw await fail(lock ? 'bad-password-locked' : 'bad-password', u.id);
+        .where(eq(appUser.id, u.id))
+        .returning({ lockedUntil: appUser.lockedUntil });
+      const lockedNow = row?.lockedUntil != null && row.lockedUntil > now;
+      throw await fail(lockedNow ? 'bad-password-locked' : 'bad-password', u.id);
     }
     if (u.disabled) throw await fail('disabled', u.id);
-    await this.db
+    // success only if the account is not locked at THIS moment (a parallel failure may have just locked it)
+    const unlocked = await this.db
       .update(appUser)
       .set({ failedLogins: 0, lockedUntil: null, lastLogin: now })
-      .where(eq(appUser.id, u.id));
+      .where(
+        and(
+          eq(appUser.id, u.id),
+          or(isNull(appUser.lockedUntil), lte(appUser.lockedUntil, sql`now()`)),
+        ),
+      )
+      .returning({ id: appUser.id });
+    if (unlocked.length === 0) throw await fail('locked', u.id);
     await this.audit.write({
       userId: u.id,
       username: u.username,
@@ -117,7 +129,7 @@ export class AuthService {
   ): Promise<LoginResult> {
     const refresh = await this.tokens.issueRefresh(user.id, family);
     return {
-      accessToken: await this.tokens.signAccess(user),
+      accessToken: await this.tokens.signAccess({ ...user, sid: refresh.family }),
       tokenType: 'Bearer',
       expiresIn: this.tokens.accessTtl,
       refreshToken: refresh.token,
@@ -151,7 +163,10 @@ export class AuthService {
   }
 
   async logout(token: string | undefined): Promise<void> {
-    if (token) await this.tokens.revokeRefresh(token);
+    if (!token) return;
+    await this.tokens.revokeRefresh(token);
+    const sid = this.tokens.familyOf(token);
+    if (sid) this.bus.sessions({ sid });
   }
 
   /** `Authorization: Bearer <jwt>` or `Authorization: ApiKey <key>` → principal, or null. */
@@ -188,6 +203,7 @@ export class AuthService {
       username: row.user.username,
       role: cap === undefined ? row.user.role : lowerRole(row.user.role, cap),
       via: 'apikey',
+      ...(row.key.expiresAt ? { exp: Math.floor(row.key.expiresAt.getTime() / 1000) } : {}),
     };
   }
 
@@ -247,6 +263,9 @@ export class AuthService {
       .update(appUser)
       .set({ passwordHash: await hashPassword(next), failedLogins: 0, lockedUntil: sql`null` })
       .where(eq(appUser.id, user.id));
+    // review L3: other sessions of this user end (refresh families revoked, WebSockets closed)
+    await this.tokens.revokeUser(user.id);
+    this.bus.sessions({ userId: user.id });
   }
 
   async me(user: Principal) {

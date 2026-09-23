@@ -76,8 +76,21 @@ const RevisionMetaOut = z.object({
   txnId: z.string().nullable(),
   kind: z.string(),
 });
+const SyncOut = z.object({
+  state: z.enum(['in-sync', 'unknown', 'degraded']),
+  reason: z.string(),
+  txnId: z.string().nullable(),
+  since: z.string(),
+});
 const CommitOut = z.object({
-  status: z.enum(['applied', 'pending', 'unchanged', 'confirmed']),
+  status: z.enum([
+    'applied',
+    'partially-applied',
+    'not-applied',
+    'pending',
+    'unchanged',
+    'confirmed',
+  ]),
   txnId: z.string().optional(),
   revision: RevisionMetaOut.optional(),
   confirmDeadline: z.string().optional(),
@@ -94,8 +107,14 @@ const CommitOut = z.object({
   summary: z.record(z.string(), z.number()).optional(),
   warnings: z.array(Issue),
   notApplied: z.array(z.string()),
+  sync: SyncOut.optional(),
 });
-const EditOut = z.object({ pointer: z.string(), before: z.unknown(), after: z.unknown() });
+const EditOut = z.object({
+  pointer: z.string(),
+  before: z.unknown(),
+  after: z.unknown(),
+  discardedStaleCandidateOf: z.string().optional(),
+});
 const PendingOut = z.object({
   pending: z
     .object({
@@ -216,8 +235,8 @@ export class ConfigController {
       'output',
     ),
   })
-  validate() {
-    return this.commits.validateCandidate();
+  validate(@Req() req: VrxRequest) {
+    return this.commits.validateCandidate(req.principal!);
   }
 
   @Post('commit')

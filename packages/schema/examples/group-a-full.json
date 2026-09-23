@@ -1,0 +1,164 @@
+{
+  "system": {
+    "hostname": "vrx-a",
+    "timezone": "Asia/Tehran",
+    "banner": {
+      "login": "Authorised access only.\nAll sessions are logged.",
+      "motd": "vrx-a lab router"
+    },
+    "dns": { "servers": ["10.0.0.53", "2001:db8::53"], "searchDomains": ["lab.example"] }
+  },
+  "dataplane": {
+    "workers": 2,
+    "corelist": [2, 3],
+    "mainCore": 1,
+    "rxQueues": 2,
+    "hugepagesGb": 4,
+    "pciWhitelist": ["0000:0b:00.0", "0000:13:00.0"]
+  },
+  "vrfs": {
+    "default": { "id": 0, "description": "global routing table" },
+    "customer-a": { "id": 10, "description": "customer A" },
+    "mgmt": { "id": 100 }
+  },
+  "interfaces": {
+    "TenGigabitEthernet0/0/0": {
+      "enabled": true,
+      "description": "uplink",
+      "mtu": 9000,
+      "ipv4": ["10.0.0.1/24"],
+      "ipv6": ["2001:db8::1/64"],
+      "vrf": "default",
+      "rxMode": "polling"
+    },
+    "TenGigabitEthernet0/0/1": {
+      "enabled": true,
+      "description": "customer A access",
+      "mtu": 1500,
+      "ipv4": ["192.168.10.1/24"],
+      "vrf": "customer-a",
+      "subinterfaces": {
+        "100": {
+          "enabled": true,
+          "vlanId": 100,
+          "ipv4": ["192.168.100.1/24"],
+          "vrf": "customer-a"
+        },
+        "200": { "enabled": true, "vlanId": 200, "innerVlanId": 20, "unnumbered": "loop0" }
+      }
+    },
+    "GigabitEthernet0/8/0": {
+      "enabled": true,
+      "description": "management",
+      "vrf": "mgmt",
+      "dhcpClient": { "hostname": "vrx-a-mgmt" }
+    },
+    "loop0": { "enabled": true, "ipv4": ["10.255.0.1/32"] }
+  },
+  "routing": {
+    "static": [
+      {
+        "prefix": "0.0.0.0/0",
+        "nextHops": [{ "address": "10.0.0.254", "weight": 1 }],
+        "vrf": "default"
+      },
+      {
+        "prefix": "0.0.0.0/0",
+        "nextHops": [{ "address": "192.168.10.254", "interface": "TenGigabitEthernet0/0/1" }],
+        "vrf": "customer-a",
+        "description": "customer A default via CE"
+      },
+      { "prefix": "2001:db8:1::/48", "nextHops": [{ "address": "2001:db8::fe" }] },
+      { "prefix": "192.0.2.0/24", "blackhole": true, "description": "documentation range, dropped" }
+    ],
+    "policy": {
+      "prefixLists": {
+        "customer-a-in": {
+          "family": "ipv4",
+          "rules": [
+            { "seq": 10, "action": "permit", "prefix": "192.168.0.0/16", "ge": 24, "le": 24 },
+            { "seq": 20, "action": "deny", "prefix": "0.0.0.0/0", "le": 32 }
+          ]
+        }
+      },
+      "routeMaps": {
+        "rm-customer-a-in": {
+          "entries": [
+            {
+              "seq": 10,
+              "action": "permit",
+              "match": { "prefixList": "customer-a-in", "asPath": "^65010_" },
+              "set": { "localPref": 200, "community": ["65000:10"] }
+            }
+          ]
+        }
+      }
+    },
+    "bgp": {
+      "asn": 65000,
+      "routerId": "10.255.0.1",
+      "peerGroups": {
+        "customers": {
+          "remoteAs": 65010,
+          "afi": { "ipv4Unicast": { "routeMapIn": "rm-customer-a-in" } }
+        }
+      },
+      "neighbors": {
+        "10.0.0.254": {
+          "remoteAs": 65001,
+          "description": "upstream",
+          "passwordRef": "password/bgp-upstream",
+          "bfd": true,
+          "afi": { "ipv4Unicast": { "prefixListIn": "customer-a-in", "softReconfig": true } }
+        },
+        "192.168.10.254": { "peerGroup": "customers" }
+      },
+      "networks": [{ "prefix": "10.255.0.0/24" }],
+      "redistribute": { "connected": {}, "static": { "routeMap": "rm-customer-a-in" } }
+    },
+    "ospf": {
+      "routerId": "10.255.0.1",
+      "areas": { "0": {}, "0.0.0.51": { "type": "stub" } },
+      "interfaces": {
+        "loop0": { "area": "0", "passive": true },
+        "TenGigabitEthernet0/0/1.100": { "area": "51", "cost": 10 }
+      }
+    },
+    "bfd": {
+      "sessions": [
+        {
+          "interface": "TenGigabitEthernet0/0/0",
+          "localAddress": "10.0.0.1",
+          "peerAddress": "10.0.0.254"
+        }
+      ]
+    }
+  },
+  "management": {
+    "users": [
+      {
+        "username": "admin",
+        "role": "admin",
+        "sshKeys": [
+          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeKeyForFixturesOnly0000000000000000000000 admin@lab"
+        ]
+      },
+      {
+        "username": "noc",
+        "role": "readonly",
+        "fullName": "NOC",
+        "sshKeys": [
+          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeKeyForFixturesOnly0000000000000000000001 noc@lab"
+        ]
+      }
+    ],
+    "aaa": {
+      "order": ["radius", "local"],
+      "radius": {
+        "servers": [{ "address": "10.0.0.10", "secretRef": "psk/radius-primary", "vrf": "mgmt" }]
+      }
+    },
+    "tls": { "certificateRef": "cert/api", "privateKeyRef": "key/api", "minVersion": "1.3" },
+    "syslog": [{ "address": "10.0.0.20", "protocol": "tcp", "severity": "notice", "vrf": "mgmt" }]
+  }
+}

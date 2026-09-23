@@ -1,0 +1,34 @@
+// Desired state of the ip_neighbor descriptors (agent-internal until moved to packages/proto).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.ipneighbor;
+
+import "df2/df2.proto";
+
+option go_package = "ngfw/agent/internal/descriptors/ip_neighbor;ipneighbor";
+
+// Neighbor is one static ARP / ND entry (ip_neighbor_add_del). Configured neighbours are
+// always static; VPP's learned entries are never part of desired or retrieved state.
+message Neighbor {
+  // VPP interface name (dependency interface/<name>).
+  string interface = 1;
+  // IPv4 or IPv6 address, canonical netip text.
+  string ip_address = 2;
+  // Lower-case colon-separated MAC.
+  string mac_address = 3;
+  // IP_API_NEIGHBOR_FLAG_NO_FIB_ENTRY: do not add the /32 or /128 adjacency FIB entry.
+  bool no_fib_entry = 4;
+}
+
+// Config is the per-address-family neighbour database configuration (ip_neighbor_config).
+// It is a singleton per AF: it always exists in VPP, so Retrieve always returns both
+// families and Delete restores the VPP defaults.
+message Config {
+  ngfw.agent.descriptors.df2.AddressFamily af = 1;
+  // Maximum number of entries (VPP default 50000).
+  uint32 max_number = 2;
+  // Maximum age in seconds, 0 = never age out (VPP default 0).
+  uint32 max_age = 3;
+  // Recycle the oldest entry when the limit is reached (VPP default false).
+  bool recycle = 4;
+}

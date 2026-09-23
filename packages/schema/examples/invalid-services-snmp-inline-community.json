@@ -1,0 +1,8 @@
+{
+  "services": {
+    "snmp": {
+      "enabled": true,
+      "communities": { "public": { "community": "public", "access": "ro" } }
+    }
+  }
+}

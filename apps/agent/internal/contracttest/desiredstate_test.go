@@ -469,7 +469,7 @@ func TestTypedConstruction(t *testing.T) {
 			Proposal: proto.String("default"), Vrf: proto.String("default"), Rekey: &vrxv1.IpsecRekey{EspBytes: proto.Uint64(1 << 40)}}}}},
 		Tunnels:    &vrxv1.TunnelsConfig{Gre: map[string]*vrxv1.GreTunnel{"gre0": {}}},
 		Services:   &vrxv1.ServicesConfig{Dhcp: &vrxv1.DhcpService{}},
-		Ha:         &vrxv1.HaConfig{Vrrp: []*vrxv1.VrrpInstance{{}}},
+		Ha:         &vrxv1.HaConfig{Vrrp: map[string]*vrxv1.VrrpInstance{"lan": {}}},
 		Management: &vrxv1.ManagementConfig{Users: []*vrxv1.ManagementUser{{Username: proto.String("admin"), Role: proto.String("admin"), Scope: proto.String("*"), SshKeys: []string{"ssh-ed25519 AAAAC3 test"}}}},
 	}
 	// Every root key is populated in this literal.

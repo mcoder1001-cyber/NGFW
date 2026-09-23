@@ -1,0 +1,248 @@
+// Package ip6nd implements the descriptors of VPP's ip6_nd API (router advertisements,
+// advertised prefixes, ND proxy) and of the ip6_dad_autoremove plugin (duplicate address
+// detection). Messages come from apps/agent/binapi/ip6_nd and binapi/ip6_dad only.
+package ip6nd
+
+import (
+	"context"
+	"fmt"
+	"math"
+
+	"google.golang.org/protobuf/proto"
+
+	"ngfw/agent/binapi/interface_types"
+	"ngfw/agent/binapi/ip6_nd"
+	"ngfw/agent/internal/descriptors/df2"
+	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp"
+)
+
+// RaConfigName is the descriptor name; keys are "ip6-nd.ra-config/<interface>".
+const RaConfigName = "ip6-nd.ra-config"
+
+// VPP 26.06 router-advertisement defaults (ip6_ra.c). An interface whose RA configuration
+// equals them is "unconfigured": Retrieve omits it and Delete restores them.
+const (
+	DefaultRouterLifetime  = 600
+	DefaultMaxInterval     = 600
+	DefaultMinInterval     = 200
+	DefaultInitialCount    = 3
+	DefaultInitialInterval = 16
+)
+
+// MinIntervalFor is VPP's rule for a minimum left unset next to an explicit maximum:
+// 0.75 × max interval.
+func MinIntervalFor(maxInterval uint32) uint32 { return maxInterval * 3 / 4 }
+
+// NormalizeRaConfig returns c with zero timers replaced by the VPP defaults — the form
+// Retrieve produces. Callers normalise desired objects with it before diffing.
+func NormalizeRaConfig(c *RaConfig) *RaConfig {
+	n := proto.Clone(c).(*RaConfig)
+	if n.MinInterval == 0 {
+		if n.MaxInterval == 0 {
+			n.MinInterval = DefaultMinInterval
+		} else {
+			n.MinInterval = MinIntervalFor(n.MaxInterval)
+		}
+	}
+	if n.MaxInterval == 0 {
+		n.MaxInterval = DefaultMaxInterval
+	}
+	if n.InitialCount == 0 {
+		n.InitialCount = DefaultInitialCount
+	}
+	if n.InitialInterval == 0 {
+		n.InitialInterval = DefaultInitialInterval
+	}
+	return n
+}
+
+// isDefaultRa reports whether a normalised configuration equals the VPP defaults.
+func isDefaultRa(c *RaConfig) bool {
+	return !c.GetSuppress() && !c.GetManaged() && !c.GetOther() && !c.GetSuppressLinkLayerOption() &&
+		!c.GetSendUnicast() && !c.GetCease() && c.GetRouterLifetime() == DefaultRouterLifetime &&
+		c.GetMaxInterval() == DefaultMaxInterval && c.GetMinInterval() == DefaultMinInterval &&
+		c.GetInitialCount() == DefaultInitialCount && c.GetInitialInterval() == DefaultInitialInterval
+}
+
+// RaConfigDescriptor manages per-interface RA settings (sw_interface_ip6nd_ra_config). The
+// API is toggle-style (a zero field means "unchanged"), so every apply first resets the
+// interface to defaults (is_no with every field set) and then sets the desired values.
+type RaConfigDescriptor struct {
+	client vpp.Client
+	owner  string
+}
+
+// NewRaConfig returns the descriptor for the given owner.
+func NewRaConfig(c vpp.Client, owner string) *RaConfigDescriptor {
+	return &RaConfigDescriptor{client: c, owner: owner}
+}
+
+// RaMeta is the runtime handle of ra-config and ra-prefix.
+type RaMeta struct{ SwIfIndex uint32 }
+
+// Name implements scheduler.Descriptor.
+func (*RaConfigDescriptor) Name() string { return RaConfigName }
+
+// KeyOf implements scheduler.Descriptor.
+func (*RaConfigDescriptor) KeyOf(obj proto.Message) scheduler.Key {
+	return scheduler.Join(RaConfigName, obj.(*RaConfig).GetInterface())
+}
+
+// Dependencies implements scheduler.Descriptor. IPv6 must be enabled on the interface (an
+// address assigned) before VPP accepts RA settings; P05 core orders that via the interface.
+func (*RaConfigDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
+	return []scheduler.Dependency{df2.InterfaceDep(obj.(*RaConfig).GetInterface())}
+}
+
+func b2u(b bool) uint8 {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// resetRa returns every RA setting of idx to the VPP defaults.
+func (d *RaConfigDescriptor) resetRa(ctx context.Context, idx interface_types.InterfaceIndex) error {
+	req := &ip6_nd.SwInterfaceIP6ndRaConfig{
+		SwIfIndex: idx, IsNo: true,
+		Suppress: 1, Managed: 1, Other: 1, LlOption: 1, SendUnicast: 1, Cease: 1, DefaultRouter: 1,
+		Lifetime: 1, MaxInterval: 1, MinInterval: 1, InitialCount: 1, InitialInterval: 1,
+	}
+	if _, err := ip6_nd.NewServiceClient(d.client).SwInterfaceIP6ndRaConfig(ctx, req); err != nil {
+		return fmt.Errorf("sw_interface_ip6nd_ra_config (reset): %w", err)
+	}
+	return nil
+}
+
+func (d *RaConfigDescriptor) apply(ctx context.Context, c *RaConfig, idx interface_types.InterfaceIndex) error {
+	if c.GetRouterLifetime() != 0 && c.GetRouterLifetime() < c.GetMaxInterval() {
+		return fmt.Errorf("%s: router_lifetime %d must be 0 or ≥ max_interval %d", RaConfigName, c.GetRouterLifetime(), c.GetMaxInterval())
+	}
+	if err := d.resetRa(ctx, idx); err != nil {
+		return err
+	}
+	req := &ip6_nd.SwInterfaceIP6ndRaConfig{
+		SwIfIndex:       idx,
+		Suppress:        b2u(c.GetSuppress()),
+		Managed:         b2u(c.GetManaged()),
+		Other:           b2u(c.GetOther()),
+		LlOption:        b2u(c.GetSuppressLinkLayerOption()),
+		SendUnicast:     b2u(c.GetSendUnicast()),
+		Cease:           b2u(c.GetCease()),
+		DefaultRouter:   1,
+		Lifetime:        c.GetRouterLifetime(),
+		MaxInterval:     c.GetMaxInterval(),
+		MinInterval:     c.GetMinInterval(),
+		InitialCount:    c.GetInitialCount(),
+		InitialInterval: c.GetInitialInterval(),
+	}
+	if _, err := ip6_nd.NewServiceClient(d.client).SwInterfaceIP6ndRaConfig(ctx, req); err != nil {
+		return fmt.Errorf("sw_interface_ip6nd_ra_config: %w", err)
+	}
+	return nil
+}
+
+// Create implements scheduler.Descriptor.
+func (d *RaConfigDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
+	c := NormalizeRaConfig(obj.(*RaConfig))
+	ifs, err := df2.DumpInterfaces(ctx, d.client, d.owner)
+	if err != nil {
+		return nil, err
+	}
+	idx, err := ifs.Index(c.GetInterface())
+	if err != nil {
+		return nil, err
+	}
+	if err := d.apply(ctx, c, idx); err != nil {
+		return nil, err
+	}
+	return RaMeta{SwIfIndex: uint32(idx)}, nil
+}
+
+// Update re-applies in place; a different interface is a different object.
+func (d *RaConfigDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
+	if d.KeyOf(oldObj) != d.KeyOf(newObj) {
+		return nil, scheduler.ErrRecreate
+	}
+	m, ok := meta.(RaMeta)
+	if !ok {
+		return nil, fmt.Errorf("%s: %w %T", RaConfigName, df2.ErrBadMeta, meta)
+	}
+	if err := d.apply(ctx, NormalizeRaConfig(newObj.(*RaConfig)), interface_types.InterfaceIndex(m.SwIfIndex)); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// Delete restores the VPP defaults.
+func (d *RaConfigDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
+	m, ok := meta.(RaMeta)
+	if !ok {
+		return fmt.Errorf("%s: %w %T", RaConfigName, df2.ErrBadMeta, meta)
+	}
+	return d.resetRa(ctx, interface_types.InterfaceIndex(m.SwIfIndex))
+}
+
+// dumpRa dumps the RA state of every interface.
+func dumpRa(ctx context.Context, c vpp.Client) ([]*ip6_nd.SwInterfaceIP6ndRaDetails, error) {
+	stream, err := ip6_nd.NewServiceClient(c).SwInterfaceIP6ndRaDump(ctx, &ip6_nd.SwInterfaceIP6ndRaDump{SwIfIndex: interface_types.InterfaceIndex(df2.NoInterface)})
+	if err != nil {
+		return nil, fmt.Errorf("sw_interface_ip6nd_ra_dump: %w", err)
+	}
+	details, err := df2.Collect(stream.Recv)
+	if err != nil {
+		return nil, fmt.Errorf("sw_interface_ip6nd_ra_dump: %w", err)
+	}
+	return details, nil
+}
+
+func secs(f float64) uint32 {
+	if f < 0 || f > math.MaxUint32 {
+		return 0
+	}
+	return uint32(math.Round(f))
+}
+
+func decodeRa(name string, det *ip6_nd.SwInterfaceIP6ndRaDetails) *RaConfig {
+	return &RaConfig{
+		Interface:               name,
+		Suppress:                !det.SendRadv,
+		Managed:                 det.AdvManagedFlag,
+		Other:                   det.AdvOtherFlag,
+		SuppressLinkLayerOption: !det.AdvLinkLayerAddress,
+		SendUnicast:             det.SendUnicast,
+		Cease:                   det.CeaseRadv,
+		RouterLifetime:          uint32(det.AdvRouterLifetime),
+		MaxInterval:             secs(det.MaxRadvInterval),
+		MinInterval:             secs(det.MinRadvInterval),
+		InitialCount:            det.InitialAdvertsCount,
+		InitialInterval:         secs(det.InitialAdvertsInterval),
+	}
+}
+
+// Retrieve returns the RA configuration of every owned interface that differs from the VPP
+// defaults (sw_interface_ip6nd_ra_dump).
+func (d *RaConfigDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+	ifs, err := df2.DumpInterfaces(ctx, d.client, d.owner)
+	if err != nil {
+		return nil, err
+	}
+	details, err := dumpRa(ctx, d.client)
+	if err != nil {
+		return nil, err
+	}
+	var out []scheduler.KV
+	for _, det := range details {
+		name, ok := ifs.OwnedName(uint32(det.SwIfIndex))
+		if !ok {
+			continue
+		}
+		v := decodeRa(name, det)
+		if isDefaultRa(v) {
+			continue
+		}
+		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: RaMeta{SwIfIndex: uint32(det.SwIfIndex)}})
+	}
+	return out, nil
+}

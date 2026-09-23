@@ -138,4 +138,13 @@ API (no seq/replay in `ipsec_sad_entry_update`), SRv6-mobile (D-074), traceroute
 
 ## Verification
 - `python3 tools/board.py` → `board ok: 82 tasks; progress 23.9% by hours, 20/82 merged; ready=0 running=6 parked=0` (PROGRESS.md unchanged)
-- `tools/ci.sh --base main` → see below
+- `tools/ci.sh --base main` → CI GATE PASSED (1m58s):
+
+```
+WARN commit subject(s) not in Conventional Commits form (type(scope): subject):
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+  mode quick · wall time 1m58s · logs /root/ngfw-wt/logs/ci/prompts-s4-20260924-021819-1903654
+CI GATE PASSED
+```
+Only warning: the `prompt:`/`board:` subjects (format requested by the manager) are not Conventional Commits.

@@ -82,8 +82,8 @@ func (d *Descriptor) table(name string) (classify.TableRecord, error) {
 }
 
 func (d *Descriptor) add(ctx context.Context, r *Redirect, rec classify.TableRecord) error {
-	if len(r.GetPaths()) == 0 && !r.GetPunt() {
-		return fmt.Errorf("%s: at least one path is required unless punt is set", Name)
+	if len(r.GetPaths()) == 0 {
+		return fmt.Errorf("%s: at least one path is required", Name)
 	}
 	match, err := classify.PadMatch(r.GetMatch(), rec)
 	if err != nil {
@@ -139,31 +139,11 @@ func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error)
 	return Meta{TableIndex: rec.Index}, nil
 }
 
-// Update re-adds the same session with the new paths / opaque index / punt flag (VPP
-// updates an existing redirect in place); table or match are the key.
-func (d *Descriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
-	if d.KeyOf(oldObj) != d.KeyOf(newObj) || oldObj.(*Redirect).GetIpv6() != newObj.(*Redirect).GetIpv6() {
-		return nil, scheduler.ErrRecreate
-	}
-	m, ok := meta.(Meta)
-	if !ok {
-		return nil, fmt.Errorf("%s: %w %T", Name, df2.ErrBadMeta, meta)
-	}
-	r, err := Normalize(newObj.(*Redirect))
-	if err != nil {
-		return nil, err
-	}
-	rec, err := d.table(r.GetTable())
-	if err != nil {
-		return nil, err
-	}
-	if rec.Index != m.TableIndex {
-		return nil, scheduler.ErrRecreate // the table was recreated under us
-	}
-	if err := d.add(ctx, r, rec); err != nil {
-		return nil, err
-	}
-	return m, nil
+// Update implements scheduler.Descriptor: VPP rejects re-adding an existing session with
+// different contents (ip_session_redirect_add_v2 returned -52 on vrx-a), so every change is
+// a delete + add by the scheduler.
+func (*Descriptor) Update(context.Context, proto.Message, proto.Message, any) (any, error) {
+	return nil, scheduler.ErrRecreate
 }
 
 // Delete implements scheduler.Descriptor.

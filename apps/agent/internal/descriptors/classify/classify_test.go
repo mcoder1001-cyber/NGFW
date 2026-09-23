@@ -57,7 +57,7 @@ func newFakeVPP() *fakeVPP {
 		idx := v.next
 		v.next++
 		v.tables[idx] = &table{info: classifyapi.ClassifyTableInfoReply{TableID: idx, Nbuckets: r.Nbuckets, MatchNVectors: r.MatchNVectors, SkipNVectors: r.SkipNVectors,
-			NextTableIndex: r.NextTableIndex, MissNextIndex: r.MissNextIndex, MaskLength: uint32(len(r.Mask)), Mask: append([]byte(nil), r.Mask...)}, sessions: map[string]classifyapi.ClassifySessionDetails{}}
+			NextTableIndex: r.NextTableIndex, MissNextIndex: r.MissNextIndex, MaskLength: uint32(len(r.Mask)), Mask: append([]byte(nil), r.Mask...)}, sessions: map[string]classifyapi.ClassifySessionDetails{}} //nolint:gosec // test sizes
 		return []api.Message{&classifyapi.ClassifyAddDelTableReply{NewTableIndex: idx, SkipNVectors: r.SkipNVectors, MatchNVectors: r.MatchNVectors}}, nil
 	})
 	v.On("classify_table_ids", func(api.Message) ([]api.Message, error) {
@@ -81,7 +81,7 @@ func newFakeVPP() *fakeVPP {
 		if !ok {
 			return []api.Message{&classifyapi.ClassifyAddDelSessionReply{Retval: -6}}, nil
 		}
-		if uint32(len(r.Match)) != (t.info.SkipNVectors+t.info.MatchNVectors)*VectorSize {
+		if uint32(len(r.Match)) != (t.info.SkipNVectors+t.info.MatchNVectors)*VectorSize { //nolint:gosec // test sizes
 			return []api.Message{&classifyapi.ClassifyAddDelSessionReply{Retval: -1}}, nil
 		}
 		k := hex.EncodeToString(r.Match)
@@ -285,7 +285,7 @@ func TestSessionLifecycle(t *testing.T) {
 		t.Fatalf("Create: %v %+v", err, meta)
 	}
 	req := v.CallsNamed("classify_add_del_session")[0].(*classifyapi.ClassifyAddDelSession)
-	if !req.IsAdd || req.TableIndex != 0 || req.MatchLen != 32 || len(req.Match) != 32 || !bytes.Equal(req.Match[:20], key) || req.HitNextIndex != NoIndex ||
+	if !req.IsAdd || req.TableIndex != 0 || req.MatchLen != 32 || len(req.Match) != 32 || !bytes.Equal(req.Match[:20], key) || req.HitNextIndex != 0xFFFF ||
 		req.OpaqueIndex != 77 || req.Advance != 8 || req.Action != classifyapi.CLASSIFY_API_ACTION_SET_METADATA || req.Metadata != 5 {
 		t.Fatalf("request = %+v", req)
 	}

@@ -25,6 +25,7 @@ message Interface {
   ngfw.agent.descriptors.df2.AddressFamily af = 2;
   Direction direction = 3;
   Mode mode = 4;
-  // FIB table used for the lookup; unset = the interface's own table.
-  optional uint32 table_id = 5;
+  // FIB table used for the lookup (VPP reports the resolved table, so it is explicit here:
+  // 0 = default table; the API layer fills the interface's VRF).
+  uint32 table_id = 5;
 }

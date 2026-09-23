@@ -31,10 +31,13 @@ func MatchID(m []byte) string {
 	return hex.EncodeToString(t)
 }
 
-// NormalizeSession returns s with the match trimmed.
+// NormalizeSession returns s in the form Retrieve produces: match trimmed and hit_next_index
+// reduced to 16 bits (VPP stores a session's next index in a u16, so 4294967295 reads back
+// as 65535).
 func NormalizeSession(s *Session) *Session {
 	n := proto.Clone(s).(*Session)
 	n.Match = TrimMatch(n.Match)
+	n.HitNextIndex &= 0xFFFF
 	return n
 }
 
@@ -99,7 +102,7 @@ func (d *SessionDescriptor) addDel(ctx context.Context, s *Session, rec TableRec
 
 // Create implements scheduler.Descriptor.
 func (d *SessionDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
-	s := obj.(*Session)
+	s := NormalizeSession(obj.(*Session))
 	rec, ok := d.store.Get(s.GetTable())
 	if !ok {
 		return nil, fmt.Errorf("%w: %q", ErrNoSuchTable, s.GetTable())

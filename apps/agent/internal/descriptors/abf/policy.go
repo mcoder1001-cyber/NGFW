@@ -111,8 +111,11 @@ func (d *PolicyDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	return PolicyMeta{ACLIndex: aclIndex}, nil
 }
 
-// Update replaces the path list in place (abf_policy_add_del with is_add on an existing
-// policy); a different ACL needs a recreate (VPP rejects it).
+// Update changes the path list in place. abf_policy_add_del is additive (is_add appends the
+// given paths to the policy's list, verified on vrx-a; !is_add removes them), so the new
+// paths are added first and the paths no longer desired removed afterwards — the list is
+// never empty in between, which would delete the policy. A different ACL needs a recreate
+// (VPP rejects changing it).
 func (d *PolicyDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	o, n := oldObj.(*Policy), newObj.(*Policy)
 	if o.GetPolicyId() != n.GetPolicyId() || o.GetAcl() != n.GetAcl() {
@@ -122,20 +125,56 @@ func (d *PolicyDescriptor) Update(ctx context.Context, oldObj, newObj proto.Mess
 	if !ok {
 		return nil, fmt.Errorf("%s: %w %T", PolicyName, df2.ErrBadMeta, meta)
 	}
-	p, err := NormalizePolicy(n)
+	oldP, err := NormalizePolicy(o)
 	if err != nil {
 		return nil, err
 	}
-	if len(p.GetPaths()) == 0 {
+	newP, err := NormalizePolicy(n)
+	if err != nil {
+		return nil, err
+	}
+	if len(newP.GetPaths()) == 0 {
 		return nil, fmt.Errorf("%s: at least one path is required", PolicyName)
 	}
-	if err := d.addDel(ctx, p, m.ACLIndex, true); err != nil {
-		return nil, err
+	add, del := pathDiff(oldP.GetPaths(), newP.GetPaths())
+	if len(add) > 0 {
+		if err := d.addDel(ctx, &Policy{PolicyId: newP.GetPolicyId(), Acl: newP.GetAcl(), Paths: add}, m.ACLIndex, true); err != nil {
+			return nil, err
+		}
+	}
+	if len(del) > 0 {
+		if err := d.addDel(ctx, &Policy{PolicyId: newP.GetPolicyId(), Acl: newP.GetAcl(), Paths: del}, m.ACLIndex, false); err != nil {
+			return nil, err
+		}
 	}
 	return m, nil
 }
 
-// Delete removes the policy (VPP needs its paths to release the path list).
+// pathDiff returns the paths only in newPaths (to add) and only in oldPaths (to remove).
+func pathDiff(oldPaths, newPaths []*df2.FibPath) (add, del []*df2.FibPath) {
+	contains := func(set []*df2.FibPath, p *df2.FibPath) bool {
+		for _, q := range set {
+			if proto.Equal(p, q) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, p := range newPaths {
+		if !contains(oldPaths, p) {
+			add = append(add, p)
+		}
+	}
+	for _, p := range oldPaths {
+		if !contains(newPaths, p) {
+			del = append(del, p)
+		}
+	}
+	return add, del
+}
+
+// Delete removes the policy by removing every path VPP currently holds for it (dumped, not
+// taken from the desired object, so a drifted list cannot leave the policy behind).
 func (d *PolicyDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	m, ok := meta.(PolicyMeta)
 	if !ok {
@@ -145,7 +184,34 @@ func (d *PolicyDescriptor) Delete(ctx context.Context, obj proto.Message, meta a
 	if err != nil {
 		return err
 	}
+	if actual, err := d.dumpPolicy(ctx, p.GetPolicyId()); err != nil {
+		return err
+	} else if actual != nil {
+		p.Paths = actual
+	}
 	return d.addDel(ctx, p, m.ACLIndex, false)
+}
+
+// dumpPolicy returns the current paths of policy id, or nil when VPP has no such policy.
+func (d *PolicyDescriptor) dumpPolicy(ctx context.Context, id uint32) ([]*df2.FibPath, error) {
+	ifs, err := df2.DumpInterfaces(ctx, d.client, d.owner)
+	if err != nil {
+		return nil, err
+	}
+	stream, err := abfapi.NewServiceClient(d.client).AbfPolicyDump(ctx, &abfapi.AbfPolicyDump{})
+	if err != nil {
+		return nil, fmt.Errorf("abf_policy_dump: %w", err)
+	}
+	details, err := df2.Collect(stream.Recv)
+	if err != nil {
+		return nil, fmt.Errorf("abf_policy_dump: %w", err)
+	}
+	for _, det := range details {
+		if det.Policy.PolicyID == id {
+			return df2.DecodePaths(det.Policy.Paths, ifs), nil
+		}
+	}
+	return nil, nil
 }
 
 // Retrieve dumps every policy (abf_policy_dump) and keeps those whose id is owned and whose

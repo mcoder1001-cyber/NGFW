@@ -54,15 +54,11 @@ func (*Descriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(Name, u.GetInterface(), afID(u.GetAf()), dirID(u.GetDirection()))
 }
 
-// Dependencies implements scheduler.Descriptor: the interface, plus the table when one is
-// named explicitly (table 0 always exists).
+// Dependencies implements scheduler.Descriptor: the interface and the table (table 0 always
+// exists and is not modelled).
 func (*Descriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	u := obj.(*Interface)
-	deps := []scheduler.Dependency{df2.InterfaceDep(u.GetInterface())}
-	if u.TableId != nil {
-		deps = append(deps, df2.VRFDeps(u.GetTableId())...)
-	}
-	return deps
+	return append([]scheduler.Dependency{df2.InterfaceDep(u.GetInterface())}, df2.VRFDeps(u.GetTableId())...)
 }
 
 func (d *Descriptor) update(ctx context.Context, u *Interface, idx interface_types.InterfaceIndex, mode urpfapi.UrpfMode) error {
@@ -71,10 +67,7 @@ func (d *Descriptor) update(ctx context.Context, u *Interface, idx interface_typ
 		Mode:      mode,
 		Af:        df2.ToIPTypesAF(u.GetAf()),
 		SwIfIndex: idx,
-		TableID:   ^uint32(0),
-	}
-	if u.TableId != nil {
-		req.TableID = u.GetTableId()
+		TableID:   u.GetTableId(),
 	}
 	if _, err := urpfapi.NewServiceClient(d.client).UrpfUpdateV2(ctx, req); err != nil {
 		return fmt.Errorf("urpf_update_v2: %w", err)
@@ -128,9 +121,7 @@ func (d *Descriptor) Delete(ctx context.Context, obj proto.Message, meta any) er
 	if !ok {
 		return fmt.Errorf("%s: %w %T", Name, df2.ErrBadMeta, meta)
 	}
-	u := proto.Clone(obj).(*Interface)
-	u.TableId = nil
-	return d.update(ctx, u, interface_types.InterfaceIndex(m.SwIfIndex), urpfapi.URPF_API_MODE_OFF)
+	return d.update(ctx, obj.(*Interface), interface_types.InterfaceIndex(m.SwIfIndex), urpfapi.URPF_API_MODE_OFF)
 }
 
 // Retrieve dumps every configured check (urpf_interface_dump) on owned interfaces.
@@ -156,12 +147,9 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 		if !ok {
 			continue
 		}
-		v := &Interface{Interface: name, Af: df2.FromIPTypesAF(det.Af), Mode: Interface_Mode(det.Mode)} //nolint:gosec // enum 0..2
+		v := &Interface{Interface: name, Af: df2.FromIPTypesAF(det.Af), Mode: Interface_Mode(det.Mode), TableId: det.TableID} //nolint:gosec // enum 0..2
 		if !det.IsInput {
 			v.Direction = Interface_TX
-		}
-		if det.TableID != ^uint32(0) {
-			v.TableId = proto.Uint32(det.TableID)
 		}
 		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: Meta{SwIfIndex: uint32(det.SwIfIndex)}})
 	}

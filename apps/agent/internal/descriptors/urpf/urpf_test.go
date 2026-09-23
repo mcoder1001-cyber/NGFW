@@ -37,7 +37,7 @@ func newFakeVPP() *fakeVPP {
 	)
 	v.On("urpf_update_v2", func(req api.Message) ([]api.Message, error) {
 		r := req.(*urpfapi.UrpfUpdateV2)
-		if r.TableID != ^uint32(0) && r.TableID >= 4000 {
+		if r.TableID >= 4000 {
 			return []api.Message{&urpfapi.UrpfUpdateV2Reply{Retval: -12}}, nil // NO_SUCH_FIB
 		}
 		k := cfgKey{uint32(r.SwIfIndex), r.Af, r.IsInput}
@@ -62,7 +62,7 @@ func newFakeVPP() *fakeVPP {
 func TestLifecycle(t *testing.T) {
 	ctx := context.Background()
 	v := newFakeVPP()
-	v.cfg[cfgKey{7, ip_types.ADDRESS_IP4, true}] = &urpfapi.UrpfUpdateV2{IsInput: true, Mode: urpfapi.URPF_API_MODE_LOOSE, SwIfIndex: 7, TableID: ^uint32(0)}
+	v.cfg[cfgKey{7, ip_types.ADDRESS_IP4, true}] = &urpfapi.UrpfUpdateV2{IsInput: true, Mode: urpfapi.URPF_API_MODE_LOOSE, SwIfIndex: 7}
 	d := New(v, "w3")
 	if !scheduler.ValidName(d.Name()) {
 		t.Fatal(d.Name())
@@ -77,7 +77,7 @@ func TestLifecycle(t *testing.T) {
 	if deps := d.Dependencies(desired); len(deps) != 1 || deps[0].Key != "interface/loop300" {
 		t.Fatalf("Dependencies = %+v", deps)
 	}
-	withTable := &Interface{Interface: "loop300", Af: df2.AddressFamily_IPV6, Direction: Interface_TX, Mode: Interface_LOOSE, TableId: proto.Uint32(3001)}
+	withTable := &Interface{Interface: "loop300", Af: df2.AddressFamily_IPV6, Direction: Interface_TX, Mode: Interface_LOOSE, TableId: 3001}
 	if deps := d.Dependencies(withTable); len(deps) != 2 || deps[1].Key != "vrf/3001" {
 		t.Fatalf("Dependencies = %+v", deps)
 	}
@@ -87,7 +87,7 @@ func TestLifecycle(t *testing.T) {
 		t.Fatalf("Create: %v %+v", err, meta)
 	}
 	req := v.CallsNamed("urpf_update_v2")[0].(*urpfapi.UrpfUpdateV2)
-	if !req.IsInput || req.Mode != urpfapi.URPF_API_MODE_STRICT || req.Af != ip_types.ADDRESS_IP4 || req.SwIfIndex != 5 || req.TableID != ^uint32(0) {
+	if !req.IsInput || req.Mode != urpfapi.URPF_API_MODE_STRICT || req.Af != ip_types.ADDRESS_IP4 || req.SwIfIndex != 5 || req.TableID != 0 {
 		t.Fatalf("request = %+v", req)
 	}
 	if _, err := d.Create(ctx, withTable); err != nil {
@@ -115,7 +115,7 @@ func TestLifecycle(t *testing.T) {
 	}
 
 	// Update in place: mode and table; key change → recreate.
-	if _, err := d.Update(ctx, desired, &Interface{Interface: "loop300", Af: df2.AddressFamily_IPV4, Mode: Interface_LOOSE, TableId: proto.Uint32(3002)}, meta); err != nil {
+	if _, err := d.Update(ctx, desired, &Interface{Interface: "loop300", Af: df2.AddressFamily_IPV4, Mode: Interface_LOOSE, TableId: 3002}, meta); err != nil {
 		t.Fatal(err)
 	}
 	req = v.CallsNamed("urpf_update_v2")[2].(*urpfapi.UrpfUpdateV2)
@@ -137,7 +137,7 @@ func TestLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	last := v.CallsNamed("urpf_update_v2")[4].(*urpfapi.UrpfUpdateV2)
-	if last.Mode != urpfapi.URPF_API_MODE_OFF || last.TableID != ^uint32(0) {
+	if last.Mode != urpfapi.URPF_API_MODE_OFF || last.TableID != 3001 {
 		t.Fatalf("delete request = %+v", last)
 	}
 	if actual, _ = d.Retrieve(ctx); len(actual) != 0 || len(v.cfg) != 1 {
@@ -151,7 +151,7 @@ func TestLifecycle(t *testing.T) {
 	if _, err := d.Create(ctx, &Interface{Interface: "nope", Mode: Interface_LOOSE}); !errors.Is(err, df2.ErrNoSuchInterface) {
 		t.Fatalf("unknown interface: %v", err)
 	}
-	if _, err := d.Create(ctx, &Interface{Interface: "loop300", Mode: Interface_LOOSE, TableId: proto.Uint32(4001)}); err == nil {
+	if _, err := d.Create(ctx, &Interface{Interface: "loop300", Mode: Interface_LOOSE, TableId: 4001}); err == nil {
 		t.Fatal("VPP retval must surface")
 	}
 	if err := d.Delete(ctx, desired, nil); !errors.Is(err, df2.ErrBadMeta) {

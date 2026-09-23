@@ -129,8 +129,9 @@ type Interface struct {
 	Af        df2.AddressFamily      `protobuf:"varint,2,opt,name=af,proto3,enum=ngfw.agent.descriptors.df2.AddressFamily" json:"af,omitempty"`
 	Direction Interface_Direction    `protobuf:"varint,3,opt,name=direction,proto3,enum=ngfw.agent.descriptors.urpf.Interface_Direction" json:"direction,omitempty"`
 	Mode      Interface_Mode         `protobuf:"varint,4,opt,name=mode,proto3,enum=ngfw.agent.descriptors.urpf.Interface_Mode" json:"mode,omitempty"`
-	// FIB table used for the lookup; unset = the interface's own table.
-	TableId       *uint32 `protobuf:"varint,5,opt,name=table_id,json=tableId,proto3,oneof" json:"table_id,omitempty"`
+	// FIB table used for the lookup (VPP reports the resolved table, so it is explicit here:
+	// 0 = default table; the API layer fills the interface's VRF).
+	TableId       uint32 `protobuf:"varint,5,opt,name=table_id,json=tableId,proto3" json:"table_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -194,8 +195,8 @@ func (x *Interface) GetMode() Interface_Mode {
 }
 
 func (x *Interface) GetTableId() uint32 {
-	if x != nil && x.TableId != nil {
-		return *x.TableId
+	if x != nil {
+		return x.TableId
 	}
 	return 0
 }
@@ -204,13 +205,13 @@ var File_urpf_model_proto protoreflect.FileDescriptor
 
 const file_urpf_model_proto_rawDesc = "" +
 	"\n" +
-	"\x10urpf/model.proto\x12\x1bngfw.agent.descriptors.urpf\x1a\rdf2/df2.proto\"\xe7\x02\n" +
+	"\x10urpf/model.proto\x12\x1bngfw.agent.descriptors.urpf\x1a\rdf2/df2.proto\"\xd5\x02\n" +
 	"\tInterface\x12\x1c\n" +
 	"\tinterface\x18\x01 \x01(\tR\tinterface\x129\n" +
 	"\x02af\x18\x02 \x01(\x0e2).ngfw.agent.descriptors.df2.AddressFamilyR\x02af\x12N\n" +
 	"\tdirection\x18\x03 \x01(\x0e20.ngfw.agent.descriptors.urpf.Interface.DirectionR\tdirection\x12?\n" +
-	"\x04mode\x18\x04 \x01(\x0e2+.ngfw.agent.descriptors.urpf.Interface.ModeR\x04mode\x12\x1e\n" +
-	"\btable_id\x18\x05 \x01(\rH\x00R\atableId\x88\x01\x01\"&\n" +
+	"\x04mode\x18\x04 \x01(\x0e2+.ngfw.agent.descriptors.urpf.Interface.ModeR\x04mode\x12\x19\n" +
+	"\btable_id\x18\x05 \x01(\rR\atableId\"&\n" +
 	"\x04Mode\x12\a\n" +
 	"\x03OFF\x10\x00\x12\t\n" +
 	"\x05LOOSE\x10\x01\x12\n" +
@@ -218,8 +219,7 @@ const file_urpf_model_proto_rawDesc = "" +
 	"\x06STRICT\x10\x02\"\x1b\n" +
 	"\tDirection\x12\x06\n" +
 	"\x02RX\x10\x00\x12\x06\n" +
-	"\x02TX\x10\x01B\v\n" +
-	"\t_table_idB+Z)ngfw/agent/internal/descriptors/urpf;urpfb\x06proto3"
+	"\x02TX\x10\x01B+Z)ngfw/agent/internal/descriptors/urpf;urpfb\x06proto3"
 
 var (
 	file_urpf_model_proto_rawDescOnce sync.Once
@@ -257,7 +257,6 @@ func file_urpf_model_proto_init() {
 	if File_urpf_model_proto != nil {
 		return
 	}
-	file_urpf_model_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

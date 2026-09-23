@@ -104,21 +104,12 @@ func TestLifecycle(t *testing.T) {
 	if err != nil || len(actual) != 1 || actual[0].Key != d.KeyOf(desired) || !proto.Equal(actual[0].Value, norm) || actual[0].Meta != meta {
 		t.Fatalf("Retrieve = %+v, %v\nwant %+v", actual, err, norm)
 	}
-	// Update in place: paths and punt; a different match is another redirect.
-	updated := &Redirect{Table: "w3-t1", Match: match, Punt: true}
-	if _, err := d.Update(ctx, desired, updated, meta); err != nil {
-		t.Fatal(err)
+	// Every change is a recreate (VPP rejects re-adding an existing session).
+	updated := &Redirect{Table: "w3-t1", Match: match, Punt: true, Paths: desired.Paths}
+	if _, err := d.Update(ctx, desired, updated, meta); !errors.Is(err, scheduler.ErrRecreate) {
+		t.Fatalf("Update: %v", err)
 	}
-	if actual, _ = d.Retrieve(ctx); len(actual) != 1 || !actual[0].Value.(*Redirect).GetPunt() || len(actual[0].Value.(*Redirect).GetPaths()) != 0 {
-		t.Fatalf("after Update = %+v", actual)
-	}
-	if _, err := d.Update(ctx, desired, &Redirect{Table: "w3-t1", Match: []byte{1}, Punt: true}, meta); !errors.Is(err, scheduler.ErrRecreate) {
-		t.Fatalf("match change: %v", err)
-	}
-	if _, err := d.Update(ctx, desired, &Redirect{Table: "w3-t1", Match: match, Punt: true, Ipv6: true}, meta); !errors.Is(err, scheduler.ErrRecreate) {
-		t.Fatalf("family change: %v", err)
-	}
-	if err := d.Delete(ctx, updated, meta); err != nil {
+	if err := d.Delete(ctx, desired, meta); err != nil {
 		t.Fatal(err)
 	}
 	del := v.CallsNamed("ip_session_redirect_del")[0].(*isr.IPSessionRedirectDel)
@@ -132,21 +123,21 @@ func TestLifecycle(t *testing.T) {
 	if _, err := d.Create(ctx, &Redirect{Table: "nope", Match: match, Punt: true}); !errors.Is(err, classify.ErrNoSuchTable) {
 		t.Fatalf("unknown table: %v", err)
 	}
-	if _, err := d.Create(ctx, &Redirect{Table: "w3-t1", Match: match}); err == nil {
-		t.Fatal("no paths and no punt accepted")
+	if _, err := d.Create(ctx, &Redirect{Table: "w3-t1", Match: match, Punt: true}); err == nil {
+		t.Fatal("no paths accepted")
 	}
 	if _, err := d.Create(ctx, &Redirect{Table: "w3-t1", Match: append(make([]byte, 48), 1), Punt: true}); err == nil {
 		t.Fatal("match longer than the table geometry accepted")
 	}
-	if err := d.Delete(ctx, updated, meta); err == nil {
+	if err := d.Delete(ctx, desired, meta); err == nil {
 		t.Fatal("deleting a missing redirect must surface the retval")
 	}
-	if err := d.Delete(ctx, updated, nil); !errors.Is(err, df2.ErrBadMeta) {
+	if err := d.Delete(ctx, desired, nil); !errors.Is(err, df2.ErrBadMeta) {
 		t.Fatalf("bad meta: %v", err)
 	}
 	// A table larger than the API's 80-byte match is rejected.
 	_ = store.Put(classify.TableRecord{Name: "w3-big", Index: 0, SkipNVectors: 2, MatchNVectors: 4})
-	if _, err := d.Create(ctx, &Redirect{Table: "w3-big", Match: match, Punt: true}); err == nil {
+	if _, err := d.Create(ctx, &Redirect{Table: "w3-big", Match: match, Paths: desired.Paths}); err == nil {
 		t.Fatal("96-byte geometry accepted")
 	}
 }

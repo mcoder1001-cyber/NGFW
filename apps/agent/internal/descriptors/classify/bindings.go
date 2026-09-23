@@ -201,9 +201,9 @@ func (*InterfaceL2TablesDescriptor) Dependencies(obj proto.Message) []scheduler.
 	return tableDeps(o.GetInterface(), o.GetIp4Table(), o.GetIp6Table(), o.GetOtherTable())
 }
 
-func (d *InterfaceL2TablesDescriptor) set(ctx context.Context, o *InterfaceL2Tables, idx interface_types.InterfaceIndex, clear bool) error {
+func (d *InterfaceL2TablesDescriptor) set(ctx context.Context, o *InterfaceL2Tables, idx interface_types.InterfaceIndex, unbind bool) error {
 	ip4, ip6, other := NoIndex, NoIndex, NoIndex
-	if !clear {
+	if !unbind {
 		var err error
 		if ip4, err = d.tableIndex(o.GetIp4Table()); err != nil {
 			return err

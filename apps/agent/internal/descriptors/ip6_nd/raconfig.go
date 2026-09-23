@@ -20,12 +20,15 @@ import (
 // RaConfigName is the descriptor name; keys are "ip6-nd.ra-config/<interface>".
 const RaConfigName = "ip6-nd.ra-config"
 
-// VPP 26.06 router-advertisement defaults (ip6_ra.c). An interface whose RA configuration
-// equals them is "unconfigured": Retrieve omits it and Delete restores them.
+// VPP 26.06 router-advertisement state of a freshly IPv6-enabled interface (ip6_ra.c,
+// verified on vrx-a with sw_interface_ip6nd_ra_dump): RAs suppressed, lifetime 600,
+// max/min interval 200/150, initial burst 3 × 16 s. An interface in that state is
+// "unconfigured": Retrieve omits it and Delete restores it.
 const (
+	DefaultSuppress        = true
 	DefaultRouterLifetime  = 600
-	DefaultMaxInterval     = 600
-	DefaultMinInterval     = 200
+	DefaultMaxInterval     = 200
+	DefaultMinInterval     = 150
 	DefaultInitialCount    = 3
 	DefaultInitialInterval = 16
 )
@@ -57,17 +60,19 @@ func NormalizeRaConfig(c *RaConfig) *RaConfig {
 	return n
 }
 
-// isDefaultRa reports whether a normalised configuration equals the VPP defaults.
+// isDefaultRa reports whether a normalised configuration equals the fresh-interface state.
 func isDefaultRa(c *RaConfig) bool {
-	return !c.GetSuppress() && !c.GetManaged() && !c.GetOther() && !c.GetSuppressLinkLayerOption() &&
+	return c.GetSuppress() /* DefaultSuppress */ && !c.GetManaged() && !c.GetOther() && !c.GetSuppressLinkLayerOption() &&
 		!c.GetSendUnicast() && !c.GetCease() && c.GetRouterLifetime() == DefaultRouterLifetime &&
 		c.GetMaxInterval() == DefaultMaxInterval && c.GetMinInterval() == DefaultMinInterval &&
 		c.GetInitialCount() == DefaultInitialCount && c.GetInitialInterval() == DefaultInitialInterval
 }
 
 // RaConfigDescriptor manages per-interface RA settings (sw_interface_ip6nd_ra_config). The
-// API is toggle-style (a zero field means "unchanged"), so every apply first resets the
-// interface to defaults (is_no with every field set) and then sets the desired values.
+// API is toggle-style (a zero field means "unchanged"; a set field means "set", or "back to
+// default" with is_no), so every apply is three calls: reset every flag and timer except
+// suppress to its default (is_no), set the desired flags and timers, then set the suppress
+// state on its own (un-suppressing needs is_no, which must not touch the other fields).
 type RaConfigDescriptor struct {
 	client vpp.Client
 	owner  string
@@ -102,15 +107,27 @@ func b2u(b bool) uint8 {
 	return 0
 }
 
-// resetRa returns every RA setting of idx to the VPP defaults.
+// resetRa returns every RA setting of idx to the fresh-interface state: flags and timers
+// with is_no, then suppress set explicitly (the is_no form would un-suppress).
 func (d *RaConfigDescriptor) resetRa(ctx context.Context, idx interface_types.InterfaceIndex) error {
+	svc := ip6_nd.NewServiceClient(d.client)
 	req := &ip6_nd.SwInterfaceIP6ndRaConfig{
 		SwIfIndex: idx, IsNo: true,
-		Suppress: 1, Managed: 1, Other: 1, LlOption: 1, SendUnicast: 1, Cease: 1, DefaultRouter: 1,
+		Managed: 1, Other: 1, LlOption: 1, SendUnicast: 1, Cease: 1, DefaultRouter: 1,
 		Lifetime: 1, MaxInterval: 1, MinInterval: 1, InitialCount: 1, InitialInterval: 1,
 	}
-	if _, err := ip6_nd.NewServiceClient(d.client).SwInterfaceIP6ndRaConfig(ctx, req); err != nil {
+	if _, err := svc.SwInterfaceIP6ndRaConfig(ctx, req); err != nil {
 		return fmt.Errorf("sw_interface_ip6nd_ra_config (reset): %w", err)
+	}
+	return d.setSuppress(ctx, idx, DefaultSuppress)
+}
+
+// setSuppress sets only the suppress state: suppress=1 with is_no=0 stops RAs, with is_no=1
+// (re)starts them; every other field is zero, i.e. unchanged.
+func (d *RaConfigDescriptor) setSuppress(ctx context.Context, idx interface_types.InterfaceIndex, suppress bool) error {
+	req := &ip6_nd.SwInterfaceIP6ndRaConfig{SwIfIndex: idx, Suppress: 1, IsNo: !suppress}
+	if _, err := ip6_nd.NewServiceClient(d.client).SwInterfaceIP6ndRaConfig(ctx, req); err != nil {
+		return fmt.Errorf("sw_interface_ip6nd_ra_config (suppress): %w", err)
 	}
 	return nil
 }
@@ -124,7 +141,6 @@ func (d *RaConfigDescriptor) apply(ctx context.Context, c *RaConfig, idx interfa
 	}
 	req := &ip6_nd.SwInterfaceIP6ndRaConfig{
 		SwIfIndex:       idx,
-		Suppress:        b2u(c.GetSuppress()),
 		Managed:         b2u(c.GetManaged()),
 		Other:           b2u(c.GetOther()),
 		LlOption:        b2u(c.GetSuppressLinkLayerOption()),
@@ -140,7 +156,7 @@ func (d *RaConfigDescriptor) apply(ctx context.Context, c *RaConfig, idx interfa
 	if _, err := ip6_nd.NewServiceClient(d.client).SwInterfaceIP6ndRaConfig(ctx, req); err != nil {
 		return fmt.Errorf("sw_interface_ip6nd_ra_config: %w", err)
 	}
-	return nil
+	return d.setSuppress(ctx, idx, c.GetSuppress())
 }
 
 // Create implements scheduler.Descriptor.

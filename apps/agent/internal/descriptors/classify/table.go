@@ -166,7 +166,10 @@ func (d *TableDescriptor) Delete(ctx context.Context, obj proto.Message, meta an
 		}
 		m = TableMeta{Index: rec.Index}
 	}
-	req := &classifyapi.ClassifyAddDelTable{IsAdd: false, TableIndex: m.Index, Nbuckets: DefaultNbuckets, MemorySize: DefaultMemorySize, MatchNVectors: DefaultMatchNVectors, NextTableIndex: NoIndex, MissNextIndex: NoIndex}
+	// The handler validates mask_len == match_n_vectors × 16 on delete too (-7 otherwise,
+	// verified on vrx-a), so a consistent dummy geometry is sent along with the index.
+	req := &classifyapi.ClassifyAddDelTable{IsAdd: false, TableIndex: m.Index, Nbuckets: DefaultNbuckets, MemorySize: DefaultMemorySize,
+		MatchNVectors: DefaultMatchNVectors, MaskLen: VectorSize, Mask: make([]byte, VectorSize), NextTableIndex: NoIndex, MissNextIndex: NoIndex}
 	if _, err := classifyapi.NewServiceClient(d.client).ClassifyAddDelTable(ctx, req); err != nil {
 		return fmt.Errorf("classify_add_del_table: %w", err)
 	}

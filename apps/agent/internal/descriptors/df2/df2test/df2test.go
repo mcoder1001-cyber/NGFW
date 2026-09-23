@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -197,3 +198,20 @@ func SkipIfNotLoaded(t testing.TB, plugin string, err error) {
 
 // Slot exposes the numeric slot for table ids and addresses ("10.<slot>.x.y", "2001:db8:<slot>::").
 func Slot(t testing.TB) int { return vpptest.Slot(t) }
+
+// Hold pauses the test for VRX_DF2_HOLD (a Go duration, e.g. "20s") while the objects it
+// created exist, so an operator can capture `vppctl show …` evidence from a shell. Unset in
+// CI, it returns immediately.
+func Hold(t testing.TB) {
+	t.Helper()
+	v := os.Getenv("VRX_DF2_HOLD")
+	if v == "" {
+		return
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		t.Fatalf("VRX_DF2_HOLD=%q: %v", v, err)
+	}
+	t.Logf("holding objects for %s (VRX_DF2_HOLD)", d)
+	time.Sleep(d)
+}

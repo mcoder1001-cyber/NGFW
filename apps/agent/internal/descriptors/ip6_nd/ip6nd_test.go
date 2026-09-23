@@ -30,7 +30,7 @@ type radv struct {
 
 func defaultRadv(idx uint32) *radv {
 	return &radv{det: ip6_nd.SwInterfaceIP6ndRaDetails{
-		SwIfIndex: interface_types.InterfaceIndex(idx), SendRadv: true, AdvLinkLayerAddress: true,
+		SwIfIndex: interface_types.InterfaceIndex(idx), SendRadv: !DefaultSuppress, AdvLinkLayerAddress: true,
 		AdvRouterLifetime: DefaultRouterLifetime, MaxRadvInterval: DefaultMaxInterval, MinRadvInterval: DefaultMinInterval,
 		InitialAdvertsCount: DefaultInitialCount, InitialAdvertsInterval: DefaultInitialInterval, CurHopLimit: 64,
 	}}
@@ -236,12 +236,21 @@ func TestRaConfigLifecycle(t *testing.T) {
 		t.Fatalf("Create: %v %+v", err, meta)
 	}
 	calls := v.CallsNamed("sw_interface_ip6nd_ra_config")
-	if len(calls) != 2 || !calls[0].(*ip6_nd.SwInterfaceIP6ndRaConfig).IsNo || calls[1].(*ip6_nd.SwInterfaceIP6ndRaConfig).IsNo {
-		t.Fatalf("expected reset + set, got %+v", calls)
+	if len(calls) != 4 {
+		t.Fatalf("expected reset, suppress, set, suppress: got %d calls", len(calls))
 	}
-	set := calls[1].(*ip6_nd.SwInterfaceIP6ndRaConfig)
-	if set.Managed != 1 || set.Other != 1 || set.LlOption != 1 || set.Suppress != 0 || set.DefaultRouter != 1 || set.Lifetime != 1800 || set.MaxInterval != 300 || set.MinInterval != 225 {
+	reset, sup0, set, sup1 := calls[0].(*ip6_nd.SwInterfaceIP6ndRaConfig), calls[1].(*ip6_nd.SwInterfaceIP6ndRaConfig), calls[2].(*ip6_nd.SwInterfaceIP6ndRaConfig), calls[3].(*ip6_nd.SwInterfaceIP6ndRaConfig)
+	if !reset.IsNo || reset.Suppress != 0 || reset.Managed != 1 || reset.MaxInterval != 1 {
+		t.Fatalf("reset request = %+v", reset)
+	}
+	if sup0.Suppress != 1 || sup0.IsNo || sup0.Managed != 0 {
+		t.Fatalf("reset-suppress request = %+v", sup0)
+	}
+	if set.IsNo || set.Managed != 1 || set.Other != 1 || set.LlOption != 1 || set.Suppress != 0 || set.DefaultRouter != 1 || set.Lifetime != 1800 || set.MaxInterval != 300 || set.MinInterval != 225 {
 		t.Fatalf("set request = %+v", set)
+	}
+	if sup1.Suppress != 1 || !sup1.IsNo { // desired.suppress == false → un-suppress
+		t.Fatalf("un-suppress request = %+v", sup1)
 	}
 	actual, err := d.Retrieve(ctx)
 	if err != nil || len(actual) != 1 {
@@ -263,8 +272,8 @@ func TestRaConfigLifecycle(t *testing.T) {
 	if _, err := d.Update(ctx, desired, &RaConfig{Interface: "loop301"}, meta); !errors.Is(err, scheduler.ErrRecreate) {
 		t.Fatalf("interface change: %v", err)
 	}
-	// Explicit defaults are indistinguishable from "unconfigured" (documented).
-	if _, err := d.Create(ctx, &RaConfig{Interface: "loop301", RouterLifetime: DefaultRouterLifetime}); err != nil {
+	// Explicit fresh-state values are indistinguishable from "unconfigured" (documented).
+	if _, err := d.Create(ctx, &RaConfig{Interface: "loop301", Suppress: true, RouterLifetime: DefaultRouterLifetime}); err != nil {
 		t.Fatal(err)
 	}
 	if actual, _ = d.Retrieve(ctx); len(actual) != 1 {

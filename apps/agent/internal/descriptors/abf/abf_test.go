@@ -43,16 +43,39 @@ func newFakeVPP() *fakeVPP {
 		if cur, ok := v.policies[r.Policy.PolicyID]; ok && cur.ACLIndex != r.Policy.ACLIndex {
 			return []api.Message{&abfapi.AbfPolicyAddDelReply{Retval: -1}}, nil // INVALID_VALUE: acl change
 		}
-		if r.IsAdd {
-			// VPP keeps paths sorted internally; model that by reversing the order.
-			p := r.Policy
-			p.Paths = append([]fib_types.FibPath(nil), r.Policy.Paths...)
-			for i, j := 0, len(p.Paths)-1; i < j; i, j = i+1, j-1 {
-				p.Paths[i], p.Paths[j] = p.Paths[j], p.Paths[i]
+		// abf_policy_add_del is additive: is_add appends the given paths, !is_add removes
+		// them and an empty list deletes the policy (verified on vrx-a). Paths are kept in
+		// reverse order to model VPP's own ordering.
+		cur, exists := v.policies[r.Policy.PolicyID]
+		if !exists {
+			if !r.IsAdd {
+				return []api.Message{&abfapi.AbfPolicyAddDelReply{Retval: -6}}, nil
 			}
-			v.policies[r.Policy.PolicyID] = p
+			cur = abfapi.AbfPolicy{PolicyID: r.Policy.PolicyID, ACLIndex: r.Policy.ACLIndex}
+		}
+		if r.IsAdd {
+			for i := len(r.Policy.Paths) - 1; i >= 0; i-- {
+				cur.Paths = append([]fib_types.FibPath{r.Policy.Paths[i]}, cur.Paths...)
+			}
 		} else {
+			var keep []fib_types.FibPath
+			for _, p := range cur.Paths {
+				found := false
+				for _, q := range r.Policy.Paths {
+					if p == q {
+						found = true
+					}
+				}
+				if !found {
+					keep = append(keep, p)
+				}
+			}
+			cur.Paths = keep
+		}
+		if len(cur.Paths) == 0 {
 			delete(v.policies, r.Policy.PolicyID)
+		} else {
+			v.policies[r.Policy.PolicyID] = cur
 		}
 		return []api.Message{&abfapi.AbfPolicyAddDelReply{}}, nil
 	})
@@ -156,19 +179,30 @@ func TestPolicyLifecycle(t *testing.T) {
 		t.Fatalf("Retrieve = %+v\nwant %+v", actual[0].Value, norm)
 	}
 
-	// Update: paths in place; ACL change → recreate.
-	updated := &Policy{PolicyId: 3001, Acl: "web", Paths: []*df2.FibPath{{Interface: "loop300"}}}
+	// Update: add the new paths, then remove the old ones (additive API); ACL change → recreate.
+	updated := &Policy{PolicyId: 3001, Acl: "web", Paths: []*df2.FibPath{{Interface: "loop300"}, {NextHop: "10.3.1.253", Interface: "loop300"}}}
 	if _, err := d.Update(ctx, desired, updated, meta); err != nil {
 		t.Fatal(err)
 	}
+	upd := v.CallsNamed("abf_policy_add_del") // [0] = Create
+	if len(upd) != 3 || !upd[1].(*abfapi.AbfPolicyAddDel).IsAdd || len(upd[1].(*abfapi.AbfPolicyAddDel).Policy.Paths) != 1 ||
+		upd[2].(*abfapi.AbfPolicyAddDel).IsAdd || len(upd[2].(*abfapi.AbfPolicyAddDel).Policy.Paths) != 3 {
+		t.Fatalf("expected add(1 new) then del(3 old), got %+v", upd[1:])
+	}
 	actual, _ = d.Retrieve(ctx)
-	if got := actual[0].Value.(*Policy); len(got.Paths) != 1 || got.Paths[0].Interface != "loop300" || got.Paths[0].Weight != 1 {
-		t.Fatalf("after Update = %+v", got)
+	wantUpd, _ := NormalizePolicy(updated)
+	if got := actual[0].Value.(*Policy); !proto.Equal(got, wantUpd) {
+		t.Fatalf("after Update = %+v, want %+v", got, wantUpd)
+	}
+	// A no-op update sends nothing.
+	if _, err := d.Update(ctx, updated, updated, meta); err != nil || len(v.CallsNamed("abf_policy_add_del")) != 3 {
+		t.Fatalf("no-op update: %v, calls %d", err, len(v.CallsNamed("abf_policy_add_del")))
 	}
 	if _, err := d.Update(ctx, desired, &Policy{PolicyId: 3001, Acl: "other", Paths: updated.Paths}, meta); !errors.Is(err, scheduler.ErrRecreate) {
 		t.Fatalf("acl change: %v", err)
 	}
-	if err := d.Delete(ctx, updated, meta); err != nil {
+	// Delete removes what VPP holds, even when the desired object drifted (stale path list).
+	if err := d.Delete(ctx, desired, meta); err != nil {
 		t.Fatal(err)
 	}
 	if actual, _ = d.Retrieve(ctx); len(actual) != 0 || len(v.policies) != 2 {

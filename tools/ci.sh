@@ -6,6 +6,7 @@
 #   tools/ci.sh [quick]                    unit-only gate (default). Budget: < 6 min, < 2 min on an unchanged tree
 #   tools/ci.sh full                       quick + integration: flock -x /run/lock/vrx-lab.lock, CI slot 12,
 #                                          tools/lab rig up w12, Go/TS suites with VRX_INTEGRATION=1, rig down
+#                                          (tools/lab absent = P04 not merged: loud WARNING, integration NOT RUN, gate still passes)
 #   tools/ci.sh [quick|full] --base <ref>  + contract guard and branch checks against <ref> (manager: --base main)
 #   tools/ci.sh gen-check                  only `pnpm gen` + the generated-output dirty gate (what `pnpm gen:check` runs)
 #   tools/ci.sh check [--base <ref>]       only the forbidden-pattern greps (+ contract guard with --base): ~2 s, run before committing
@@ -17,6 +18,7 @@
 # `CI GATE PASSED`, otherwise the script exits non-zero after `CI GATE FAILED — <reason>`.
 # Order of quick: tools → install → gen + dirty gate → [contract guard] → forbidden patterns (+gitleaks)
 #                 → lint/typecheck/unit tests/build (turbo, VRX_INTEGRATION unset) → apps/agent make lint test build
+#                 → every Go module under test/ (gofmt, go vet, go test -count=1; integration tests skip without VRX_INTEGRATION)
 set -euo pipefail
 
 usage() {
@@ -28,7 +30,7 @@ environment (all optional):
   VRX_CI_TOOLS_DIR=<dir>         where install-tools puts binaries (default /usr/local/bin; sudo used when needed)
   VRX_CI_ALLOW_MISSING_TOOLS=1   warn instead of fail when golangci-lint/gitleaks are absent and cannot be downloaded
   VRX_CI_LOCK=<file>             lab lock for `full` (default /run/lock/vrx-lab.lock)
-  VRX_CI_LOCK_TIMEOUT=<seconds>  how long `full` waits for the exclusive lock (default 1800)
+  VRX_CI_LOCK_TIMEOUT=<seconds>  how long `full` waits for the exclusive lock, before rig up and before rig down (default 1800)
   VRX_CI_SLOT=<n>                slot used by `full` (default 12 = the CI slot, docs/lab/shared-host-rules.md)
   VRX_CI_REQUIRE_INTEGRATION=1   make `full` fail (instead of warn) when tools/lab is not available
   GOLANGCI_LINT_VERSION / GITLEAKS_VERSION   override the pinned tool versions for install-tools
@@ -380,8 +382,29 @@ do_agent() {
   note "$(grep -E '^(ok|FAIL)\s' "$CUR_LOG" | head -n 12 | tr '\n' ';' | sed 's/;/; /g')"
 }
 
+# every Go module under test/ (e.g. test/integration/smoke, its own module with `replace ngfw/agent => ../../../apps/agent`)
+# is compiled, vetted and run in unit mode: its integration tests t.Skip without VRX_INTEGRATION, but a gofmt/vet/compile
+# regression or a stale go.sum ("missing go.sum entry" after apps/agent/go.mod grew) fails the gate here, not in someone's
+# integration run (P04 review F6). Nothing to do when test/ has no go.mod yet.
+do_test_modules() {
+  local mods=() mod
+  while IFS= read -r mod; do mods+=("$(dirname "$mod")"); done \
+    < <(find test -name go.mod -not -path '*/node_modules/*' 2>/dev/null | sort)
+  ((${#mods[@]})) || return 0
+  step "test/ Go modules, unit mode (${mods[*]})"
+  local unformatted
+  for mod in "${mods[@]}"; do
+    unformatted=$(gofmt -l "$mod" 2>/dev/null | grep -v '/node_modules/' || true)
+    [[ -z $unformatted ]] || fail "gofmt: files in $mod are not formatted (run gofmt -w):\n$(sed 's/^/    /' <<<"$unformatted")"
+    run "vet-${mod//\//_}" go -C "$mod" vet ./... || fail "go vet failed in $mod (a stale $mod/go.sum after apps/agent/go.mod changed? run 'go mod tidy' there and commit it)"
+    run "test-${mod//\//_}" env -u VRX_INTEGRATION go -C "$mod" test -count=1 ./... || fail "go test (unit mode) failed in $mod"
+    say "$mod: gofmt ok · go vet ok · $(grep -E '^(ok|FAIL|\?)\s' "$CUR_LOG" | head -n 3 | tr '\n' ';' | sed 's/;/; /g')"
+  done
+  note "integration tests inside these modules skip here (VRX_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot"
+}
+
 # export the VRX_* slot variables for slot $1: from `tools/lab env <slot>` when present and parseable (values are
-# never eval'd), missing ones from the formulas in docs/lab/shared-host-rules.md §1
+# never eval'd), missing ones from the formulas in docs/lab/shared-host-rules.md §1 (as `tools/lab env` computes them)
 slot_env() {
   local n=$1 line k v
   declare -A got=()
@@ -394,8 +417,10 @@ slot_env() {
       export "$k=$v"; got[$k]=1
     done < <(tools/lab env "$n" 2>/dev/null || true)
   fi
-  declare -A def=([VRX_SLOT]=$n [VRX_TEST_PREFIX]=w$n [VRX_HTTP_PORT]=3${n}00 [VRX_WEB_PORT]=5${n}00 [VRX_METRICS_PORT]=91${n}1
-                  [VRX_AGENT_SOCKET]=/run/vrx-test/w$n/agent.sock [VRX_PG_DATABASE]=vrx_w$n [VRX_VPP_TABLE_BASE]=${n}000)
+  # same arithmetic as `tools/lab env` (D-025: metrics = 9100 + 10·N + 1, so slots 10–12 stay valid ports)
+  declare -A def=([VRX_SLOT]=$n [VRX_TEST_PREFIX]=w$n [VRX_HTTP_PORT]=$((3000 + n * 100)) [VRX_WEB_PORT]=$((5000 + n * 100))
+                  [VRX_METRICS_PORT]=$((9100 + n * 10 + 1)) [VRX_AGENT_SOCKET]=/run/vrx-test/w$n/agent.sock
+                  [VRX_PG_DATABASE]=vrx_w$n [VRX_VALKEY_DB]=$n [VRX_VPP_TABLE_BASE]=$((n * 1000)))
   for k in "${!def[@]}"; do [[ -n ${got[$k]:-} ]] || export "$k=${def[$k]}"; done
   say "slot $n exports: $(env | grep '^VRX_' | sort | tr '\n' ' ')"
 }
@@ -412,24 +437,37 @@ do_integration() {
   say "acquiring exclusive $LOCK_FILE (timeout ${LOCK_TIMEOUT}s) — integration harnesses hold it shared, VPP restarts exclusive"
   local t0=$SECONDS
   flock -x -w "$LOCK_TIMEOUT" 9 || fail "could not acquire the exclusive lab lock within ${LOCK_TIMEOUT}s; holders:\n$(lslocks 2>/dev/null | grep -F "$(basename "$LOCK_FILE")" || echo '  unknown')"
-  say "lock held (waited $(fmt_dur $((SECONDS - t0))))"
+  say "exclusive lock held (waited $(fmt_dur $((SECONDS - t0))))"
   slot_env "$CI_SLOT"
   unset VRX_INTEGRATION
   RIG_PREFIX=$VRX_TEST_PREFIX
   if run lab-status tools/lab status; then sed 's/^/  /' "$CUR_LOG" | tail -n 15; else warn "tools/lab status failed (non-fatal)"; fi
   run rig-up tools/lab rig up "$RIG_PREFIX" || fail "tools/lab rig up $RIG_PREFIX failed"
   RIG_UP=1
+  # The suites are integration harnesses: by convention (00-CONTEXT, shared-host-rules §1b) each takes its own
+  # `flock -s` on the lab lock (P04's smoke_test.go does, on a fresh file description). Against our exclusive lock that
+  # would block forever — same process tree or not, flock is per open file description. So the gate converts its lock
+  # to SHARED for the duration of the suites (still held: no VPP restart can start underneath; other harnesses may run
+  # beside us on their own prefixes) and takes it EXCLUSIVE again for the teardown. VRX_LAB_LOCK_HELD=1 tells harnesses
+  # that the gate holds the lock for them (taking their own shared lock stays harmless).
+  flock -s 9 || fail "could not convert the lab lock to shared"
+  export VRX_LAB_LOCK_HELD=1 VRX_CI_FULL=1
+  say "lab lock converted to shared while the suites run"
   local mod
   while IFS= read -r mod; do
     mod=$(dirname "$mod")
     say "go integration: $mod"
-    run "go-integration-${mod//\//_}" env VRX_INTEGRATION=1 go -C "$mod" test -race -count=1 ./... \
+    run "go-integration-${mod//\//_}" env VRX_INTEGRATION=1 go -C "$mod" test -race -count=1 -timeout 20m ./... \
       || fail "Go integration tests failed in $mod"
     grep -E '^(ok|FAIL)\s' "$CUR_LOG" | sed 's/^/  /' || true
   done < <(find apps/agent test -name go.mod -not -path '*/node_modules/*' 2>/dev/null | sort)
   say "ts integration: pnpm -r run test:integration (packages that define it)"
   run ts-integration env VRX_INTEGRATION=1 pnpm -r --workspace-concurrency=1 --if-present run test:integration \
     || fail "TS integration tests failed"
+  unset VRX_LAB_LOCK_HELD VRX_CI_FULL
+  t0=$SECONDS
+  flock -x -w "$LOCK_TIMEOUT" 9 || fail "could not re-acquire the exclusive lab lock for the teardown within ${LOCK_TIMEOUT}s"
+  say "exclusive lock re-acquired for the teardown (waited $(fmt_dur $((SECONDS - t0))))"
   run rig-down tools/lab rig down "$RIG_PREFIX" || fail "tools/lab rig down $RIG_PREFIX failed — objects with prefix $RIG_PREFIX may be left on VPP; run 'tools/lab rig gc $RIG_PREFIX'"
   RIG_UP=0
   exec 9>&-
@@ -467,6 +505,7 @@ case $MODE in
     do_forbidden
     do_turbo
     do_agent
+    do_test_modules
     [[ $MODE != full ]] || do_integration
     passed ;;
 esac

@@ -15,6 +15,9 @@ pnpm gen:check                  # regenerate + verify you did not hand-edit gene
 ```
 
 Nothing is merged unless `tools/ci.sh --base main` ends with the line `CI GATE PASSED` in your worktree.
+`main` after a merge must pass a bare `tools/ci.sh` too — with golangci-lint installed, because `apps/agent/Makefile` `lint`
+fails on linter findings (D-031). A lint finding is fixed in the code or reported in the status file, never by weakening the
+linter or its configuration.
 
 ## The gate: `tools/ci.sh`
 
@@ -41,7 +44,8 @@ procedure depends on both.
 | 4 | contract guard (`--base` only) | see [The contract rule](#the-contract-rule) |
 | 5 | forbidden patterns | see [Forbidden patterns](#forbidden-patterns) |
 | 6 | `turbo run lint typecheck test build` | ESLint, `buf lint`, `tsc`, Vitest unit tests or a build fails. Run as one turbo invocation so `gen` (uncached by design) runs once, not four times; `VRX_INTEGRATION` is unset — this is unit-only |
-| 7 | `make -C apps/agent lint test build` | `go vet`, `golangci-lint run` (config `apps/agent/.golangci.yml`), `go test -race -count=1`, `go build` fail — or golangci-lint silently did not run |
+| 7 | `make -C apps/agent lint test build` | `go vet`, `golangci-lint run` (config `apps/agent/.golangci.yml`), `go test -race -count=1`, `go build` fail — or golangci-lint silently did not run (D-031: the Makefile's `lint` fails on linter findings) |
+| 8 | every Go module under `test/` in unit mode (`gofmt -l`, `go vet ./...`, `go test -count=1 ./...`) | a `gofmt`/`vet`/compile regression in e.g. `test/integration/smoke` (its own module, `replace ngfw/agent => ../../../apps/agent`), or a stale `go.sum` there after `apps/agent/go.mod` grew (`missing go.sum entry` — run `go mod tidy` in the module and commit). The integration tests inside `t.Skip` without `VRX_INTEGRATION`; this step only proves they compile and vet (P04 review F6). Skipped silently while `test/` has no `go.mod` |
 
 Every step's output goes to a log file (`/root/ngfw-wt/logs/ci/<worktree>-<timestamp>-<pid>/NN-<step>.log`, or `$TMPDIR/vrx-ci`
 elsewhere); only the failing step's tail is printed. `--verbose` / `VRX_CI_VERBOSE=1` streams everything. The summary at the end
@@ -54,14 +58,23 @@ lists each step with its duration and the total wall time. The final line is exa
 
 1. takes **`flock -x /run/lock/vrx-lab.lock`** (integration harnesses hold it shared; VPP restarts — manager-only, after handover —
    exclusive), waiting up to `VRX_CI_LOCK_TIMEOUT` (1800 s);
-2. exports **slot 12** — the CI slot from `docs/lab/shared-host-rules.md` §1 — from `tools/lab env 12` when it is present and
-   parseable (values are validated, never `eval`'d), otherwise from the rules' formulas
-   (`VRX_TEST_PREFIX=w12 VRX_HTTP_PORT=31200 VRX_WEB_PORT=51200 VRX_METRICS_PORT=91121 VRX_AGENT_SOCKET=/run/vrx-test/w12/agent.sock
-   VRX_PG_DATABASE=vrx_w12 VRX_VPP_TABLE_BASE=12000`);
-3. `tools/lab status`, then `tools/lab rig up w12`;
-4. `VRX_INTEGRATION=1 go test -race -count=1 ./...` in every Go module under `apps/agent` and `test/`, then
-   `VRX_INTEGRATION=1 pnpm -r --workspace-concurrency=1 --if-present run test:integration`;
-5. `tools/lab rig down w12` (also on failure, via the exit trap), release the lock.
+2. exports **slot 12** — the CI slot from `docs/lab/shared-host-rules.md` §1 — from `tools/lab env 12` (values are validated,
+   never `eval`'d); anything it does not print comes from the same arithmetic `tools/lab` uses (D-025 for the metrics port):
+   `VRX_SLOT=12 VRX_TEST_PREFIX=w12 VRX_HTTP_PORT=4200 VRX_WEB_PORT=6200 VRX_METRICS_PORT=9221 VRX_AGENT_SOCKET=/run/vrx-test/w12/agent.sock
+   VRX_PG_DATABASE=vrx_w12 VRX_VALKEY_DB=12 VRX_VPP_TABLE_BASE=12000`;
+3. `tools/lab status`, then `tools/lab rig up w12` (idempotent: a suite that runs `rig up`/`rig down` on the same prefix itself,
+   like the smoke test, just reuses it);
+4. **converts its lock to shared** (`flock -s` on the same descriptor) and exports `VRX_LAB_LOCK_HELD=1 VRX_CI_FULL=1`, then runs
+   `VRX_INTEGRATION=1 go test -race -count=1 -timeout 20m ./...` in every Go module under `apps/agent` and `test/`, then
+   `VRX_INTEGRATION=1 pnpm -r --workspace-concurrency=1 --if-present run test:integration`.
+   Why shared: every integration harness takes its own `flock -s /run/lock/vrx-lab.lock` (the convention in `00-CONTEXT.md`;
+   `test/integration/smoke/smoke_test.go` does it on a fresh file description). Against the gate's exclusive lock that call would
+   block until `go test` times out — flock is per open file description, the process tree does not matter. Holding the lock
+   shared keeps the protection that matters (no VPP restart — those take the exclusive lock — can start underneath the suites)
+   while other harnesses may run beside the gate on their own prefixes; harnesses may skip their own lock when
+   `VRX_LAB_LOCK_HELD=1`;
+5. re-acquires the **exclusive** lock (same timeout), `tools/lab rig down w12` (also on failure, via the exit trap — the rig is
+   torn down whatever happened), release the lock.
 
 It **never restarts VPP**. If `tools/lab` is not in the tree (P04 not merged) it prints a loud `WARNING: integration NOT RUN` and
 still passes — the quick gate ran; set `VRX_CI_REQUIRE_INTEGRATION=1` to turn that into a failure. Integration tests follow the

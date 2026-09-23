@@ -798,3 +798,44 @@ func TestVRFTableAndSessions(t *testing.T) {
 		t.Fatalf("del session %+v", req)
 	}
 }
+
+// TestClaimRule is review finding 5 / D-071: foreign-tagged interfaces are never touched (Create
+// refuses them), the production owner no longer reports every slot's objects, and objects on
+// untagged interfaces / untagged pools are reported only when this owner claimed them.
+func TestClaimRule(t *testing.T) {
+	f := newFakeNAT()
+	f.ifaces = append(f.ifaces, &interfaces.SwInterfaceDetails{SwIfIndex: 4, InterfaceName: "eth0"}) // untagged NIC
+	ctx := context.Background()
+	w9 := nat44ed.New(f, "w9", owner)
+	apply(t, w9.Enable, natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 1024}))
+	if _, err := w9.InterfaceFeature.Create(ctx, natcommon.MustEncode(&nat44ed.InterfaceFeatureSpec{Interface: "loop300", Side: "inside"})); !errors.Is(err, natcommon.ErrForeignInterface) || len(f.features) != 0 {
+		t.Fatalf("foreign-tagged interface must be refused: %v", err)
+	}
+	in := natcommon.MustEncode(&nat44ed.InterfaceFeatureSpec{Interface: "loop900", Side: "inside"})
+	pool := natcommon.MustEncode(&nat44ed.AddressPoolSpec{First: "10.9.1.1", Last: "10.9.1.2"})
+	if apply(t, w9.InterfaceFeature, in) != 1 || apply(t, w9.AddressPool, pool) != 1 {
+		t.Fatal("w9 objects")
+	}
+	// the production owner "vrx" (default config) sees none of w9's objects and cannot touch them
+	prod := nat44ed.New(f, "vrx")
+	if len(retrieveKeys(t, prod.InterfaceFeature)) != 0 || len(retrieveKeys(t, prod.AddressPool)) != 0 {
+		t.Fatal("production owner must not claim a slot's objects")
+	}
+	// untagged NIC: reported only after this owner created (claimed) the object
+	eth := natcommon.MustEncode(&nat44ed.InterfaceFeatureSpec{Interface: "eth0", Side: "outside"})
+	f.features[4] = nat_types.NAT_IS_OUTSIDE // someone else put eth0 outside
+	if len(retrieveKeys(t, prod.InterfaceFeature)) != 0 {
+		t.Fatal("unclaimed feature on an untagged NIC must be invisible")
+	}
+	delete(f.features, 4)
+	if apply(t, prod.InterfaceFeature, eth) != 1 || apply(t, prod.InterfaceFeature, eth) != 0 {
+		t.Fatal("claimed feature on an untagged NIC converges")
+	}
+	ppool := natcommon.MustEncode(&nat44ed.AddressPoolSpec{First: "192.0.2.1", Last: "192.0.2.1"})
+	if apply(t, prod.AddressPool, ppool) != 1 || apply(t, prod.AddressPool, ppool) != 0 {
+		t.Fatal("claimed untagged pool converges")
+	}
+	if keys := retrieveKeys(t, prod.AddressPool); len(keys) != 1 || keys[0] != "nat44-ed.address-pool/192.0.2.1-192.0.2.1/0" {
+		t.Fatalf("production pools %v (w9's 10.9.1.1-2 unclaimed)", keys)
+	}
+}

@@ -302,7 +302,7 @@ func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 				if d.Flags&nat_types.NAT_IS_INSIDE != 0 {
 					side = SideInside
 				}
-				out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Side: side}, Meta: IfMeta{SwIfIndex: uint32(d.SwIfIndex)}, NeedsClaim: nc})
+				out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: p.scope.LogicalName(i), Side: side}, Meta: IfMeta{SwIfIndex: uint32(d.SwIfIndex)}, NeedsClaim: nc})
 			}
 		},
 	})

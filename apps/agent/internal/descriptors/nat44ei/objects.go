@@ -412,10 +412,10 @@ func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpe
 				}
 				meta := IfMeta{SwIfIndex: uint32(d.SwIfIndex)}
 				if d.Flags&nat44_ei.NAT44_EI_IF_INSIDE != 0 {
-					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: i.Name, Side: SideInside}, Meta: meta, NeedsClaim: nc})
+					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: p.scope.LogicalName(i), Side: SideInside}, Meta: meta, NeedsClaim: nc})
 				}
 				if d.Flags&nat44_ei.NAT44_EI_IF_OUTSIDE != 0 {
-					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: i.Name, Side: SideOutside}, Meta: meta, NeedsClaim: nc})
+					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: p.scope.LogicalName(i), Side: SideOutside}, Meta: meta, NeedsClaim: nc})
 				}
 			}
 		},
@@ -464,7 +464,7 @@ func (p *Plugin) newOutputFeature() *natcommon.Descriptor[OutputFeatureSpec] {
 				if !ok {
 					continue
 				}
-				out = append(out, natcommon.Item[OutputFeatureSpec]{Spec: OutputFeatureSpec{Interface: i.Name}, Meta: IfMeta{SwIfIndex: idx}, NeedsClaim: nc})
+				out = append(out, natcommon.Item[OutputFeatureSpec]{Spec: OutputFeatureSpec{Interface: p.scope.LogicalName(i)}, Meta: IfMeta{SwIfIndex: idx}, NeedsClaim: nc})
 			}
 			return out, nil
 		},
@@ -520,7 +520,7 @@ func (p *Plugin) newInterfaceAddress() *natcommon.Descriptor[InterfaceAddressSpe
 				if !ok {
 					continue
 				}
-				out = append(out, natcommon.Item[InterfaceAddressSpec]{Spec: InterfaceAddressSpec{Interface: i.Name}, Meta: IfMeta{SwIfIndex: uint32(d.SwIfIndex)}, NeedsClaim: nc})
+				out = append(out, natcommon.Item[InterfaceAddressSpec]{Spec: InterfaceAddressSpec{Interface: p.scope.LogicalName(i)}, Meta: IfMeta{SwIfIndex: uint32(d.SwIfIndex)}, NeedsClaim: nc})
 			}
 		},
 	})
@@ -758,7 +758,7 @@ func (p *Plugin) newStaticMapping() *natcommon.Descriptor[StaticMappingSpec] {
 					External: Endpoint{IP: natcommon.IP4String(d.ExternalIPAddress), Port: uint32(d.ExternalPort)},
 					Protocol: natcommon.ProtoName(d.Protocol), VRF: d.VrfID, AddrOnly: d.Flags&nat44_ei.NAT44_EI_ADDR_ONLY_MAPPING != 0}
 				if d.ExternalSwIfIndex != noInterface {
-					s.External.Interface = ifaces.Name(uint32(d.ExternalSwIfIndex))
+					s.External.Interface = p.scope.LogicalNameOf(ifaces, uint32(d.ExternalSwIfIndex))
 				}
 				s.Normalize()
 				out = append(out, natcommon.Item[StaticMappingSpec]{Spec: s, Meta: MappingMeta{ExternalSwIfIndex: uint32(d.ExternalSwIfIndex)}})
@@ -860,7 +860,7 @@ func (p *Plugin) newIdentityMapping() *natcommon.Descriptor[IdentityMappingSpec]
 				}
 				s := IdentityMappingSpec{Name: name, IP: natcommon.IP4String(d.IPAddress), Protocol: natcommon.ProtoName(d.Protocol), Port: uint32(d.Port), VRF: d.VrfID, AddrOnly: d.Flags&nat44_ei.NAT44_EI_ADDR_ONLY_MAPPING != 0}
 				if d.SwIfIndex != noInterface {
-					s.Interface = ifaces.Name(uint32(d.SwIfIndex))
+					s.Interface = p.scope.LogicalNameOf(ifaces, uint32(d.SwIfIndex))
 				}
 				s.Normalize()
 				out = append(out, natcommon.Item[IdentityMappingSpec]{Spec: s, Meta: IfMeta{SwIfIndex: uint32(d.SwIfIndex)}})

@@ -495,10 +495,10 @@ func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 				}
 				meta := IfMeta{SwIfIndex: uint32(d.SwIfIndex)}
 				if d.Flags&nat_types.NAT_IS_INSIDE != 0 {
-					out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Side: SideInside}, Meta: meta, NeedsClaim: nc})
+					out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: p.scope.LogicalName(i), Side: SideInside}, Meta: meta, NeedsClaim: nc})
 				}
 				if d.Flags&nat_types.NAT_IS_OUTSIDE != 0 {
-					out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Side: SideOutside}, Meta: meta, NeedsClaim: nc})
+					out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: p.scope.LogicalName(i), Side: SideOutside}, Meta: meta, NeedsClaim: nc})
 				}
 			}
 		},

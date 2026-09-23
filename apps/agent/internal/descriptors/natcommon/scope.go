@@ -110,6 +110,23 @@ func (s Scope) InterfaceOwnership(i Iface) (ok, needsClaim bool) {
 	return true, true
 }
 
+// LogicalName is the name an owned interface is reported under (D-069): the owner-tag id of
+// this owner's interfaces, VPP's name for untagged ones.
+func (s Scope) LogicalName(i Iface) string {
+	if id, own := s.ParseTag(i.Tag); own {
+		return id
+	}
+	return i.Name
+}
+
+// LogicalNameOf is LogicalName by sw_if_index ("sw_if_index:<n>" for an unknown index).
+func (s Scope) LogicalNameOf(t *IfaceTable, idx uint32) string {
+	if i, ok := t.ByIndex(idx); ok {
+		return s.LogicalName(i)
+	}
+	return t.Name(idx)
+}
+
 // NeedsClaim reports whether an untagged object (pool, prefix, translation, binding, …) needs
 // a claim: a test slot owns the objects inside its range (the shared-host rules are the
 // slot's standing claim); everything else — including every untagged object of a production

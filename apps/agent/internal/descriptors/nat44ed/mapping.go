@@ -268,7 +268,7 @@ func (p *Plugin) newStaticMapping() *natcommon.Descriptor[StaticMappingSpec] {
 					SelfTwiceNAT: d.Flags&nat_types.NAT_IS_SELF_TWICE_NAT != 0, Out2InOnly: d.Flags&nat_types.NAT_IS_OUT2IN_ONLY != 0,
 				}
 				if d.ExternalSwIfIndex != noInterface {
-					s.External.Interface = ifaces.Name(uint32(d.ExternalSwIfIndex))
+					s.External.Interface = p.scope.LogicalNameOf(ifaces, uint32(d.ExternalSwIfIndex))
 				}
 				s.Normalize()
 				out = append(out, natcommon.Item[StaticMappingSpec]{Spec: s, Meta: MappingMeta{ExternalSwIfIndex: uint32(d.ExternalSwIfIndex)}})
@@ -371,7 +371,7 @@ func (p *Plugin) newIdentityMapping() *natcommon.Descriptor[IdentityMappingSpec]
 				}
 				s := IdentityMappingSpec{Name: name, IP: natcommon.IP4String(d.IPAddress), Protocol: natcommon.ProtoName(d.Protocol), Port: uint32(d.Port), VRF: d.VrfID, AddrOnly: d.Flags&nat_types.NAT_IS_ADDR_ONLY != 0}
 				if d.SwIfIndex != noInterface {
-					s.Interface = ifaces.Name(uint32(d.SwIfIndex))
+					s.Interface = p.scope.LogicalNameOf(ifaces, uint32(d.SwIfIndex))
 				}
 				s.Normalize()
 				out = append(out, natcommon.Item[IdentityMappingSpec]{Spec: s, Meta: IfMeta{SwIfIndex: uint32(d.SwIfIndex)}})

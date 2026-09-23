@@ -10,7 +10,9 @@ import (
 	"sync"
 	"syscall"
 
+	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp"
 )
 
 // ---- configuration (D-071) --------------------------------------------------------------------
@@ -246,3 +248,22 @@ func HostLock(dir, name string, exclusive bool) (func(), error) {
 
 // AnyValue is a GlobalOps.Match for globals whose value is not observable.
 func AnyValue[T any](T, T) bool { return true }
+
+// VPPIdentity returns the PID of VPP's main thread (show_threads, thread 0). It changes with
+// every VPP restart, so a claim record "<key>@<identity>" says "applied to THIS VPP process"
+// (D-076; same identity as DF-4's acl.stats-enable).
+func VPPIdentity(ctx context.Context, c vpp.Client) (uint32, error) {
+	rep, err := vlib.NewServiceClient(c).ShowThreads(ctx, &vlib.ShowThreads{})
+	if err != nil {
+		return 0, fmt.Errorf("show_threads: %w", err)
+	}
+	for _, t := range rep.ThreadData {
+		if t.ID == 0 {
+			return t.PID, nil
+		}
+	}
+	return 0, fmt.Errorf("show_threads: no main thread in %d entries", len(rep.ThreadData))
+}
+
+// AppliedRecord is the D-076 claim-record key for a non-idempotent write-only add.
+func AppliedRecord(key string, vppID uint32) string { return fmt.Sprintf("%s@vpp%d", key, vppID) }

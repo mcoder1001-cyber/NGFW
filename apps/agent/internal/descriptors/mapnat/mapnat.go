@@ -529,7 +529,7 @@ func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 						return nil, err
 					}
 					if on {
-						out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Translation: m.translation}, Meta: meta, NeedsClaim: nc})
+						out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: p.scope.LogicalName(i), Translation: m.translation}, Meta: meta, NeedsClaim: nc})
 					}
 				}
 			}

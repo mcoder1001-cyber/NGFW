@@ -118,10 +118,10 @@ func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpe
 				}
 				meta := IfMeta{SwIfIndex: uint32(d.SwIfIndex)}
 				if d.Flags&nat_types.NAT_IS_INSIDE != 0 {
-					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: i.Name, Side: SideInside}, Meta: meta, NeedsClaim: nc})
+					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: p.scope.LogicalName(i), Side: SideInside}, Meta: meta, NeedsClaim: nc})
 				}
 				if d.Flags&nat_types.NAT_IS_OUTSIDE != 0 {
-					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: i.Name, Side: SideOutside}, Meta: meta, NeedsClaim: nc})
+					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: p.scope.LogicalName(i), Side: SideOutside}, Meta: meta, NeedsClaim: nc})
 				}
 			}
 		},
@@ -170,7 +170,7 @@ func (p *Plugin) newOutputFeature() *natcommon.Descriptor[OutputFeatureSpec] {
 				if !ok {
 					continue
 				}
-				out = append(out, natcommon.Item[OutputFeatureSpec]{Spec: OutputFeatureSpec{Interface: i.Name}, Meta: IfMeta{SwIfIndex: idx}, NeedsClaim: nc})
+				out = append(out, natcommon.Item[OutputFeatureSpec]{Spec: OutputFeatureSpec{Interface: p.scope.LogicalName(i)}, Meta: IfMeta{SwIfIndex: idx}, NeedsClaim: nc})
 			}
 			return out, nil
 		},
@@ -267,7 +267,7 @@ func (p *Plugin) newInterfaceAddress() *natcommon.Descriptor[InterfaceAddressSpe
 					continue
 				}
 				out = append(out, natcommon.Item[InterfaceAddressSpec]{
-					Spec:       InterfaceAddressSpec{Interface: i.Name, TwiceNAT: d.Flags&nat_types.NAT_IS_TWICE_NAT != 0},
+					Spec:       InterfaceAddressSpec{Interface: p.scope.LogicalName(i), TwiceNAT: d.Flags&nat_types.NAT_IS_TWICE_NAT != 0},
 					Meta:       IfMeta{SwIfIndex: uint32(d.SwIfIndex)},
 					NeedsClaim: nc,
 				})

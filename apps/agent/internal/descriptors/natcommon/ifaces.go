@@ -13,6 +13,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
+	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/vpp"
 )
 
@@ -115,22 +116,21 @@ func ResolveInterface(ctx context.Context, c vpp.Client, name string) (interface
 	return idx, nil
 }
 
-// ResolveOwned is ResolveInterface for Create paths: it refuses an interface tagged by
-// another owner (ErrForeignInterface). Untagged interfaces are allowed; the created object is
-// then recorded in the ClaimStore by the generic Descriptor.
+// ResolveOwned resolves a LOGICAL interface name (D-065/D-069) with DF-1's resolver
+// (iface.ResolveName): this owner's tag id first, then an untagged interface by VPP name. An
+// interface tagged by another owner is refused with ErrForeignInterface (D-071); the created
+// object on an untagged interface is recorded in the ClaimStore by the generic Descriptor.
 func ResolveOwned(ctx context.Context, c vpp.Client, s Scope, name string) (interface_types.InterfaceIndex, error) {
-	t, err := DumpInterfaces(ctx, c)
-	if err != nil {
+	idx, err := iface.ResolveName(ctx, c, s.Owner, name)
+	switch {
+	case errors.Is(err, iface.ErrForeignInterface):
+		return 0, fmt.Errorf("%w: %w", ErrForeignInterface, err)
+	case errors.Is(err, iface.ErrNotFound):
+		return 0, fmt.Errorf("%w: %w", ErrNoSuchInterface, err)
+	case err != nil:
 		return 0, err
 	}
-	i, ok := t.ByName(name)
-	if !ok {
-		return 0, fmt.Errorf("%w: %q", ErrNoSuchInterface, name)
-	}
-	if own, _ := s.InterfaceOwnership(i); !own {
-		return 0, fmt.Errorf("%w: %q (tag %q)", ErrForeignInterface, name, i.Tag)
-	}
-	return interface_types.InterfaceIndex(i.SwIfIndex), nil
+	return interface_types.InterfaceIndex(idx), nil
 }
 
 // InterfaceAddresses returns the IPv4 addresses configured on the given interfaces

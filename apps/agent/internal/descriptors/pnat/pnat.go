@@ -795,7 +795,7 @@ func (p *Plugin) newAttachment() *natcommon.Descriptor[AttachmentSpec] {
 						if rep.BindingIndex != b.index {
 							continue
 						}
-						out = append(out, natcommon.Item[AttachmentSpec]{Spec: AttachmentSpec{Interface: i.Name, Point: pt, Binding: BindingID(b.spec)},
+						out = append(out, natcommon.Item[AttachmentSpec]{Spec: AttachmentSpec{Interface: p.scope.LogicalName(i), Point: pt, Binding: BindingID(b.spec)},
 							Meta: AttachMeta{SwIfIndex: sw, BindingIndex: b.index}, NeedsClaim: nc})
 					}
 				}

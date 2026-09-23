@@ -482,7 +482,7 @@ func (p *Plugin) readSnat(ctx context.Context) (natcommon.GlobalState[SnatAddres
 		if err != nil {
 			return natcommon.GlobalState[SnatAddressesSpec]{}, err
 		}
-		s = SnatAddressesSpec{Interface: ifaces.Name(idx)} // addresses are resolved from the interface
+		s = SnatAddressesSpec{Interface: p.scope.LogicalNameOf(ifaces, idx)} // addresses are resolved from the interface
 	}
 	return natcommon.GlobalState[SnatAddressesSpec]{Value: s, Present: true, Observable: true}, nil
 }
@@ -696,18 +696,42 @@ func (p *Plugin) addDelExclude(ctx context.Context, s SnatExcludePrefixSpec, add
 	return nil
 }
 
+// newSnatExcludePfx: write-only (no dump, D-063). VPP's add is NOT idempotent — every add
+// bumps a per-prefix-length refcount (cnat_snat_policy_add_pfx) — so, per D-076, a re-apply on
+// a resync is skipped while a claim record "<key>@vpp<main-thread PID>" exists: the prefix was
+// already added to THIS VPP process. A VPP restart changes the identity and the prefix is
+// re-added once.
 func (p *Plugin) newSnatExcludePfx() *natcommon.Descriptor[SnatExcludePrefixSpec] {
+	key := func(s SnatExcludePrefixSpec) string { return string(scheduler.Join(NameSnatExcludePfx, s.Prefix)) }
 	return natcommon.New(natcommon.Ops[SnatExcludePrefixSpec]{
 		Claims: p.cfg.Claims,
 		Name:   NameSnatExcludePfx,
 		ID:     func(s SnatExcludePrefixSpec) string { return s.Prefix },
 		Deps:   func(SnatExcludePrefixSpec) []scheduler.Dependency { return snatDep() },
-		// Re-adding is idempotent for the lookup (bihash add); VPP bumps a per-length
-		// refcount that only affects the search order (doc).
 		Create: func(ctx context.Context, s SnatExcludePrefixSpec) (any, error) {
-			return nil, p.addDelExclude(ctx, s, true)
+			id, err := natcommon.VPPIdentity(ctx, p.client)
+			if err != nil {
+				return nil, err
+			}
+			rec := natcommon.AppliedRecord(key(s), id)
+			if p.cfg.Claims.Claimed(rec) {
+				return nil, nil // already added to this VPP process: skip the non-idempotent add
+			}
+			if err := p.addDelExclude(ctx, s, true); err != nil {
+				return nil, err
+			}
+			return nil, p.cfg.Claims.Claim(rec)
 		},
-		Delete:   func(ctx context.Context, s SnatExcludePrefixSpec, _ any) error { return p.addDelExclude(ctx, s, false) },
+		Delete: func(ctx context.Context, s SnatExcludePrefixSpec, _ any) error {
+			if err := p.addDelExclude(ctx, s, false); err != nil {
+				return err
+			}
+			id, err := natcommon.VPPIdentity(ctx, p.client)
+			if err != nil {
+				return err
+			}
+			return p.cfg.Claims.Release(natcommon.AppliedRecord(key(s), id))
+		},
 		Retrieve: writeOnly[SnatExcludePrefixSpec],
 	})
 }
@@ -763,7 +787,7 @@ func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpe
 					return nil, fmt.Errorf("feature_is_enabled %s/%s: %w", featArc, featNode, err)
 				}
 				if rep.IsEnabled {
-					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: i.Name}, Meta: IfMeta{SwIfIndex: i.SwIfIndex}, NeedsClaim: nc})
+					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: p.scope.LogicalName(i)}, Meta: IfMeta{SwIfIndex: i.SwIfIndex}, NeedsClaim: nc})
 				}
 			}
 			return out, nil

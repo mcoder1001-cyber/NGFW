@@ -14,6 +14,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/memclnt"
+	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/internal/descriptors/cnat"
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/descriptors/natcommon/nattest"
@@ -30,6 +31,8 @@ type fakeCnat struct {
 	policy   cnatapi.CnatSnatPolicies
 	snatIfs  map[[2]uint32]bool
 	excluded map[string]bool
+	pfxRefs  map[string]int // VPP: every add bumps a per-prefix refcount (D-076)
+	vppPID   uint32
 	feat     map[uint32]bool
 }
 
@@ -37,7 +40,7 @@ var noIf = ^interface_types.InterfaceIndex(0)
 
 func newFakeCnat(t *testing.T) *fakeCnat {
 	f := &fakeCnat{Client: fake.New(fake.WithControlPingReply(&memclnt.ControlPingReply{})), t: t,
-		trs: map[uint32]cnatapi.CnatTranslation{}, snatIfs: map[[2]uint32]bool{}, excluded: map[string]bool{}, feat: map[uint32]bool{}}
+		trs: map[uint32]cnatapi.CnatTranslation{}, snatIfs: map[[2]uint32]bool{}, excluded: map[string]bool{}, pfxRefs: map[string]int{}, feat: map[uint32]bool{}, vppPID: 4242}
 	f.Reply("sw_interface_dump",
 		&interfaces.SwInterfaceDetails{SwIfIndex: 0, InterfaceName: "local0"},
 		&interfaces.SwInterfaceDetails{SwIfIndex: 1, InterfaceName: "loop940", Tag: "w9:loop940"},
@@ -90,7 +93,7 @@ func newFakeCnat(t *testing.T) *fakeCnat {
 			if f.snat == nil {
 				return []api.Message{&cnatapi.CnatSetSnatAddressesReply{Retval: int32(api.FEATURE_DISABLED)}}, nil
 			}
-			f.snat, f.policy, f.snatIfs, f.excluded = nil, 0, map[[2]uint32]bool{}, map[string]bool{}
+			f.snat, f.policy, f.snatIfs, f.excluded, f.pfxRefs = nil, 0, map[[2]uint32]bool{}, map[string]bool{}, map[string]int{}
 			return []api.Message{&cnatapi.CnatSetSnatAddressesReply{}}, nil
 		}
 		if f.snat == nil {
@@ -117,8 +120,12 @@ func newFakeCnat(t *testing.T) *fakeCnat {
 		k := natcommon.PrefixString(r.Prefix)
 		if r.IsAdd == 1 {
 			f.excluded[k] = true
+			f.pfxRefs[k]++
 		} else {
 			delete(f.excluded, k)
+			if f.pfxRefs[k] > 0 {
+				f.pfxRefs[k]--
+			}
 		}
 		return []api.Message{&cnatapi.CnatSnatPolicyAddDelExcludePfxReply{}}, nil
 	})
@@ -147,6 +154,9 @@ func newFakeCnat(t *testing.T) *fakeCnat {
 	})
 	f.Reply("cnat_session_dump", &cnatapi.CnatSessionDetails{Session: cnatapi.CnatSession{Tuple: cnatapi.Cnat5tuple{
 		Addr: [2]ip_types.Address{mustAddr("10.9.47.1"), mustAddr("10.9.48.1")}, Port: []uint16{1234, 80}, IPProto: ip_types.IP_API_PROTO_TCP}}})
+	f.On("show_threads", func(api.Message) ([]api.Message, error) {
+		return []api.Message{&vlib.ShowThreadsReply{Count: 1, ThreadData: []vlib.ThreadData{{ID: 0, PID: f.vppPID}}}}, nil
+	})
 	f.Reply("cnat_session_purge", &cnatapi.CnatSessionPurgeReply{})
 	return f
 }
@@ -369,5 +379,42 @@ func TestInterfaceFeatureAndState(t *testing.T) {
 	}
 	if err := p.PurgeSessions(ctx); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestExcludePrefixIdempotentAcrossResyncs is D-076: the reconciler re-applies write-only
+// objects on every resync; VPP's excluded-prefix add stacks a refcount, so a second resync must
+// not add again while VPP is the same process — and must re-add once after a VPP restart.
+func TestExcludePrefixIdempotentAcrossResyncs(t *testing.T) {
+	f := newFakeCnat(t)
+	p := cnat.New(f, "w9", owner, natcommon.WithLockDir(t.TempDir()))
+	ctx := context.Background()
+	if nattest.Apply(t, p.SnatAddresses, natcommon.MustEncode(&cnat.SnatAddressesSpec{IP4: "10.9.49.1"})) != 1 {
+		t.Fatal("snat entry")
+	}
+	ex := natcommon.MustEncode(&cnat.SnatExcludePrefixSpec{Prefix: "10.9.50.0/24"})
+	for resync := 0; resync < 3; resync++ {
+		if _, err := p.SnatExcludePfx.Create(ctx, ex); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if f.pfxRefs["10.9.50.0/24"] != 1 || len(f.CallsNamed("cnat_snat_policy_add_del_exclude_pfx")) != 1 {
+		t.Fatalf("three resyncs must leave one instance (refs %d)", f.pfxRefs["10.9.50.0/24"])
+	}
+	// VPP restart: new identity, state gone → re-added exactly once
+	f.vppPID, f.excluded, f.pfxRefs = 4343, map[string]bool{}, map[string]int{}
+	for resync := 0; resync < 2; resync++ {
+		if _, err := p.SnatExcludePfx.Create(ctx, ex); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if f.pfxRefs["10.9.50.0/24"] != 1 {
+		t.Fatalf("after a VPP restart: refs %d, want 1", f.pfxRefs["10.9.50.0/24"])
+	}
+	if err := p.SnatExcludePfx.Delete(ctx, ex, nil); err != nil || f.pfxRefs["10.9.50.0/24"] != 0 {
+		t.Fatalf("delete: %v", err)
+	}
+	if _, err := p.SnatExcludePfx.Create(ctx, ex); err != nil || f.pfxRefs["10.9.50.0/24"] != 1 {
+		t.Fatal("re-create after delete adds again")
 	}
 }

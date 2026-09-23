@@ -280,7 +280,7 @@ tasks:
   - P03
   priority: 1
   est_hours: 24
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D0.8
@@ -293,7 +293,8 @@ tasks:
   owner: host-agent slot1
   started: 2026-09-24T01:12
   finished: ''
-  notes: host postgres/valkey from P04; per-slot database | worker done 20e2a78 CI green (39 unit, 23 e2e); review spawned — agent e2e now runnable (P05 merged)
+  notes: 'host postgres/valkey from P04; per-slot database | worker done 20e2a78 CI green (39 unit, 23 e2e); review spawned — agent e2e now runnable (P05 merged) | review APPROVE WITH CHANGES befb3c6 (real-agent
+    e2e 25/26: commit→VPP→rollback→confirm revert work; H1 lockout race, H2 drift noise, M1 operator commits admin changes, M2 secrets, M3 DB/VPP divergence, M4 notApplied); fix round 1'
 - id: P07a
   title: 'UI shell: theme/RTL, i18n, SchemaForm, ServerDataGrid, WS hook, frame skeleton'
   prompt: prompts/P07-ui-shell.md

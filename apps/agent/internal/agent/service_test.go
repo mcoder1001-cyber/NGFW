@@ -80,8 +80,8 @@ const canonicalDoc = `{
     "loop702": {"vrf": "red", "ipv4": ["10.7.2.1/24"]}
   },
   "routing": {"static": [
-    {"prefix": "10.7.200.0/24", "vrf": "default", "nextHops": [{"interface": "loop701", "weight": 1}]},
-    {"prefix": "10.7.100.0/24", "vrf": "red", "distance": 1, "nextHops": [{"address": "10.7.1.254", "weight": 1}]}
+    {"prefix": "10.7.200.0/24", "vrf": "default", "blackhole": false, "nextHops": [{"interface": "loop701", "weight": 1}]},
+    {"prefix": "10.7.100.0/24", "vrf": "red", "distance": 1, "blackhole": false, "nextHops": [{"address": "10.7.1.254", "weight": 1}]}
   ]}
 }`
 
@@ -743,5 +743,25 @@ func TestDegradedWhenRollbackFails(t *testing.T) {
 	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "d2", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if s.Health().GetDegraded() {
 		t.Fatal("still degraded after a successful apply")
+	}
+}
+
+func TestBlackholeRoute(t *testing.T) {
+	v := coretest.New()
+	s := newSvc(t, v, t.TempDir())
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "b1", DesiredState: doc(t, `{"routing":{"static":[{"prefix":"10.7.66.0/24","vrf":"default","distance":1,"blackhole":true}]}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"routing"}})
+	if err != nil || !proto.Equal(got.GetDesiredState(), doc(t, `{"routing":{"static":[{"prefix":"10.7.66.0/24","vrf":"default","distance":1,"blackhole":true}]}}`)) {
+		t.Fatalf("blackhole retrieve %v %s", err, protojson.Format(got.GetDesiredState()))
+	}
+	for _, bad := range []string{
+		`{"routing":{"static":[{"prefix":"10.7.67.0/24","blackhole":false}]}}`,
+		`{"routing":{"static":[{"prefix":"10.7.67.0/24","blackhole":true,"nextHops":[{"address":"10.7.1.1"}]}]}}`,
+	} {
+		resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "bad-" + bad, DesiredState: doc(t, bad)})
+		mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_FAILED)
+		if resp.GetValidation().GetErrors()[0].GetRule() != "routing.static.blackhole" {
+			t.Fatalf("rule %v", resp.GetValidation())
+		}
 	}
 }

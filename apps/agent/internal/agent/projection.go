@@ -15,7 +15,7 @@ package agent
 //	routing.static[]                   → ip.route/<table>/<prefix>      (vrf → table id, distance → preference)
 //
 // Leaves the core descriptors do not implement (interface enabled/mtu/mac/rx_mode/promiscuous/
-// unnumbered/subinterfaces/description, vrf description, route description, routing protocols)
+// unnumbered/subinterfaces/description/dhcp_client, vrf description, route description, routing protocols)
 // are reported as ISSUE_SEVERITY_WARNING "agent.unsupported-field" by DryRun and are never part of
 // a Retrieve result (contract §5: a leaf the backend cannot report is left unset). DF-*/F-* tasks
 // extend the projection when they wire their descriptors.
@@ -294,11 +294,15 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver) *pro
 			if bad {
 				continue
 			}
+			if r.GetBlackhole() != (len(v.Paths) == 0) {
+				p.errorf(pt, "routing.static.blackhole", "a route needs at least one next hop, unless it is a blackhole route (then none)")
+				continue
+			}
 			core.SortPaths(v.Paths)
 			p.add(core.RouteKey(table, pfx), v, pt)
 		}
 		rt := ds.GetRouting()
-		if len(rt.GetPrefixLists()) > 0 || len(rt.GetRouteMaps()) > 0 || rt.GetBgp() != nil || rt.GetOspf() != nil || rt.GetIsis() != nil || rt.GetRip() != nil || rt.GetBfd() != nil {
+		if rt.GetPolicy() != nil || rt.GetBgp() != nil || rt.GetOspf() != nil || rt.GetIsis() != nil || rt.GetRip() != nil || rt.GetBfd() != nil {
 			p.warnf(ptr("routing"), "agent.unsupported-field", "routing protocols and policy are rendered by RF-1 (FRR), not by this agent build")
 		}
 	}
@@ -330,6 +334,9 @@ func unsupportedInterfaceFields(i *vrxv1.Interface) []string {
 	}
 	if i.Promiscuous != nil {
 		out = append(out, "promiscuous")
+	}
+	if i.DhcpClient != nil {
+		out = append(out, "dhcpClient")
 	}
 	return out
 }
@@ -417,7 +424,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 			return routes[a].GetPrefix() < routes[b].GetPrefix()
 		})
 		for _, r := range routes {
-			sr := &vrxv1.StaticRoute{Prefix: proto.String(r.GetPrefix()), Vrf: proto.String(nameOf(r.GetTableId()))}
+			sr := &vrxv1.StaticRoute{Prefix: proto.String(r.GetPrefix()), Vrf: proto.String(nameOf(r.GetTableId())), Blackhole: proto.Bool(len(r.GetPaths()) == 0)}
 			if r.GetPreference() != 0 {
 				sr.Distance = proto.Uint32(r.GetPreference())
 			}

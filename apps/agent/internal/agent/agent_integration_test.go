@@ -72,8 +72,8 @@ func hostDoc(t *testing.T, owner string) (*vrxv1.DesiredState, *vrxv1.DesiredSta
 	    %[4]q: {"vrf": %[1]q, "ipv4": ["10.%[5]d.2.1/24"]}
 	  },
 	  "routing": {"static": [
-	    {"prefix": "10.%[5]d.100.0/24", "vrf": %[1]q, "distance": 1, "nextHops": [{"address": "10.%[5]d.1.254", "weight": 1}]},
-	    {"prefix": "10.%[5]d.101.0/24", "vrf": %[1]q, "nextHops": [{"address": "10.%[5]d.2.254", "interface": %[4]q, "weight": 1}]}
+	    {"prefix": "10.%[5]d.100.0/24", "vrf": %[1]q, "distance": 1, "blackhole": false, "nextHops": [{"address": "10.%[5]d.1.254", "weight": 1}]},
+	    {"prefix": "10.%[5]d.101.0/24", "vrf": %[1]q, "blackhole": false, "nextHops": [{"address": "10.%[5]d.2.254", "interface": %[4]q, "weight": 1}]}
 	  ]}
 	}`, vrf, table, l1, l2, slot)
 	return doc(t, js), doc(t, canon)

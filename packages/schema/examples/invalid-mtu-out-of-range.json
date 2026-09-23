@@ -1,0 +1,8 @@
+{
+  "interfaces": { "TenGigabitEthernet0/0/0": { "mtu": 10000 } },
+  "management": {
+    "users": [
+      { "username": "admin", "role": "admin", "passwordHash": "$vrx-test$VRX_TEST_HASH_admin" }
+    ]
+  }
+}

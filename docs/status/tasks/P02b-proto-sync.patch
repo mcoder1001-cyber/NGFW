@@ -1,0 +1,91 @@
+--- a/packages/proto/vrx/v1/dataplane.proto
++++ b/packages/proto/vrx/v1/dataplane.proto
+@@ -970,12 +970,14 @@
+   optional string name = 1;
+   // Free-text description.
+   optional string description = 2;
+-  // IPv4 address range "a.b.c.d-a.b.c.e" (a single address is "a.b.c.d").
++  // IPv4 address range "a.b.c.d-a.b.c.e" (a single address is "a.b.c.d"); exactly one of range / interface.
+   optional string range = 3;
+-  // VRF name; unset = "default".
++  // VRF name; unset = "default". Range pools only.
+   optional string vrf = 4;
+   // Addresses used for the source side of twice-NAT mappings.
+   optional bool twice_nat = 5;
++  // Use the address configured on this VPP interface (nat44_add_del_interface_addr); exactly one of range / interface.
++  optional string interface = 6;
+ }
+ 
+ // NatStaticMapping mirrors one entry of `nat.staticMappings`.
+@@ -987,7 +989,7 @@
+     // Local L4 port; unset = 1:1 address mapping.
+     optional uint32 port = 2;
+   }
+-  // External endpoint; exactly one of ip / interface.
++  // External endpoint; exactly one of ip / pool / interface.
+   message External {
+     // External IPv4 address.
+     optional string ip = 1;
+@@ -995,6 +997,8 @@
+     optional string interface = 2;
+     // External L4 port; requires `protocol`.
+     optional uint32 port = 3;
++    // Name of an entry in nat.pools; its start address (range pool) or interface address is used.
++    optional string pool = 4;
+   }
+   // Mapping name (unique within nat.staticMappings).
+   optional string name = 1;
+@@ -1304,12 +1308,22 @@
+   PreResolve pre_resolve = 7;
+ }
+ 
++// MapInterface mirrors one entry of `nat.map.interfaces` (map_if_enable_disable).
++message MapInterface {
++  // VPP interface name.
++  optional string interface = 1;
++  // "map-e" (encapsulation; MAP-E and lw4o6 domains) | "map-t" (translation, is_translation).
++  optional string mode = 2;
++}
++
+ // MapConfig mirrors `nat.map`.
+ message MapConfig {
+   // Domains.
+   repeated MapDomain domains = 1;
+   // Plugin-wide parameters.
+   MapParameters parameters = 2;
++  // Interfaces MAP runs on.
++  repeated MapInterface interfaces = 3;
+ }
+ 
+ // CnatEndpoint is an address + port pair used by CNAT.
+@@ -1346,13 +1360,17 @@
+       optional string ipv4 = 1;
+       // IPv6 SNAT address.
+       optional string ipv6 = 2;
++      // Take the SNAT addresses from this VPP interface (cnat_set_snat_addresses.sw_if_index).
++      optional string interface = 3;
+     }
+     // One policy interface.
+     message PolicyInterface {
++      reserved 2;
++      reserved "side";
+       // VPP interface name.
+       optional string interface = 1;
+-      // "inside" | "outside".
+-      optional string side = 2;
++      // cnat_snat_policy_table: "include-v4" | "include-v6" | "pod" | "host".
++      optional string table = 3;
+     }
+     // "none" | "interface" | "k8s".
+     optional string policy = 1;
+--- a/packages/proto/test/fixtures/all-domains.json
++++ b/packages/proto/test/fixtures/all-domains.json
+@@ -206,7 +206,7 @@
+       "snat": {
+         "policy": "interface",
+         "addresses": { "ipv4": "203.0.113.201" },
+-        "interfaces": [{ "interface": "TenGigabitEthernet0/0/0", "side": "outside" }],
++        "interfaces": [{ "interface": "TenGigabitEthernet0/0/0", "table": "include-v4" }],
+         "excludePrefixes": ["10.0.0.0/8"]
+       }
+     }

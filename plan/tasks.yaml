@@ -547,18 +547,18 @@ tasks:
   - P03
   priority: 2
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D3.2
   scope: 'frr (renderer framework: files, vtysh -C, frr-reload.py, JSON state; protocol semantics in P12/F-*)'
-  files_owned: apps/agent/internal/renderers/<daemons of RF-1>/**
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  files_owned: apps/agent/internal/renderers/frr/** docs/agent/renderers/frr.md
+  branch: task/RF-1
+  worktree: /root/ngfw-wt/RF-1
+  owner: host-agent slot12
+  started: 2026-09-24T00:30
   finished: ''
-  notes: test-scoped daemon processes only; system units untouched
+  notes: test-scoped daemon processes only; system units untouched | 2026-09-24 00:30 spawned on host, slot 12, daemon-owner frr
 - id: RF-2
   title: 'Renderers: strongswan (swanctl/VICI path; vrx build lands in P11)'
   prompt: prompts/factories/RF-2.md

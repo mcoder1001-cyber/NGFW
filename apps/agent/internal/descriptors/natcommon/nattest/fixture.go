@@ -3,6 +3,9 @@ package nattest
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -26,27 +29,52 @@ type Plugin struct {
 	Disable func(ctx context.Context) error
 }
 
+// LockDir is where the host-wide fixture locks live (tests may point it elsewhere).
+var LockDir = "/run/lock"
+
 // EnsurePlugin enables p for the test when it is off and returns whether it was on before.
-// Cleanup (registered first, so it runs after every object cleanup) disables it again only if
-// this test enabled it AND the plugin is completely empty — otherwise another owner's objects
-// appeared meanwhile and the plugin is left enabled.
+// Re-review N4: every test using the plugin holds the host-wide lock
+// <LockDir>/vrx-nat-fixture-<plugin>.lock SHARED for its whole lifetime; the cleanup of the test
+// that enabled the plugin converts it to EXCLUSIVE around the emptiness check and the disable,
+// so no other slot's test can add an object between the two (it holds the shared lock while it
+// uses the plugin). Cleanup (registered first, so it runs after every object cleanup) disables
+// the plugin only if this test enabled it AND the plugin is completely empty.
 func EnsurePlugin(t testing.TB, p Plugin) (wasOn bool) {
 	t.Helper()
 	ctx := Ctx(t)
+	path := filepath.Join(LockDir, "vrx-nat-fixture-"+p.Name+".lock")
+	f, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0o644) //nolint:gosec // fixed lock path
+	if err != nil {
+		t.Fatalf("fixture lock %s: %v", path, err)
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_SH); err != nil {
+		_ = f.Close()
+		t.Fatalf("fixture lock %s: %v", path, err)
+	}
 	on, err := p.Enable(ctx)
 	if err != nil {
+		_ = f.Close()
 		t.Fatalf("fixture: enable %s: %v", p.Name, err)
 	}
-	if on {
+	disable := !on && p.Disable != nil
+	switch {
+	case on:
 		t.Logf("fixture: %s was already enabled (by another owner): it stays enabled", p.Name)
-		return true
-	}
-	t.Logf("fixture: %s enabled for this test", p.Name)
-	if p.Disable == nil {
-		t.Logf("fixture: %s is never disabled (D-068)", p.Name)
-		return false
+	case p.Disable == nil:
+		t.Logf("fixture: %s enabled for this test; never disabled (D-068)", p.Name)
+	default:
+		t.Logf("fixture: %s enabled for this test", p.Name)
 	}
 	t.Cleanup(func() {
+		defer func() { _ = f.Close() }() // releases the lock
+		if !disable {
+			return
+		}
+		// shared → exclusive: waits until no other test uses the plugin
+		if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+			t.Errorf("fixture: exclusive lock %s: %v", path, err)
+			return
+		}
 		cctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		empty, err := p.Empty(cctx)
@@ -59,11 +87,11 @@ func EnsurePlugin(t testing.TB, p Plugin) (wasOn bool) {
 			if err := p.Disable(cctx); err != nil {
 				t.Errorf("fixture: restore (disable) %s: %v", p.Name, err)
 			} else {
-				t.Logf("fixture: %s disabled again (previous state restored)", p.Name)
+				t.Logf("fixture: %s disabled again under the exclusive fixture lock (previous state restored)", p.Name)
 			}
 		}
 	})
-	return false
+	return on
 }
 
 // LoopbackOwnedBy is Loopback with the owner tag of ANOTHER owner (still inside this slot's

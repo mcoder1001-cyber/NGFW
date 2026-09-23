@@ -120,12 +120,10 @@ func newFakeCnat(t *testing.T) *fakeCnat {
 		k := natcommon.PrefixString(r.Prefix)
 		if r.IsAdd == 1 {
 			f.excluded[k] = true
-			f.pfxRefs[k]++
-		} else {
+			f.pfxRefs[k]++ // VPP: every add bumps the per-length refcount
+		} else if f.excluded[k] { // VPP: deleting an absent prefix is a no-op
 			delete(f.excluded, k)
-			if f.pfxRefs[k] > 0 {
-				f.pfxRefs[k]--
-			}
+			f.pfxRefs[k]--
 		}
 		return []api.Message{&cnatapi.CnatSnatPolicyAddDelExcludePfxReply{}}, nil
 	})
@@ -382,39 +380,74 @@ func TestInterfaceFeatureAndState(t *testing.T) {
 	}
 }
 
-// TestExcludePrefixIdempotentAcrossResyncs is D-076: the reconciler re-applies write-only
-// objects on every resync; VPP's excluded-prefix add stacks a refcount, so a second resync must
-// not add again while VPP is the same process — and must re-add once after a VPP restart.
+// TestExcludePrefixIdempotentAcrossResyncs is D-076 + re-review N2: the reconciler re-applies
+// write-only objects on every resync; VPP's excluded-prefix add stacks a refcount. Resyncs on
+// the same VPP process and entry leave one instance; a VPP restart or a recreated / changed
+// default SNAT entry (which drops the prefixes) makes the next resync re-add exactly once.
 func TestExcludePrefixIdempotentAcrossResyncs(t *testing.T) {
 	f := newFakeCnat(t)
 	p := cnat.New(f, "w9", owner, natcommon.WithLockDir(t.TempDir()))
 	ctx := context.Background()
-	if nattest.Apply(t, p.SnatAddresses, natcommon.MustEncode(&cnat.SnatAddressesSpec{IP4: "10.9.49.1"})) != 1 {
+	entry := natcommon.MustEncode(&cnat.SnatAddressesSpec{IP4: "10.9.49.1"})
+	if nattest.Apply(t, p.SnatAddresses, entry) != 1 {
 		t.Fatal("snat entry")
 	}
 	ex := natcommon.MustEncode(&cnat.SnatExcludePrefixSpec{Prefix: "10.9.50.0/24"})
-	for resync := 0; resync < 3; resync++ {
-		if _, err := p.SnatExcludePfx.Create(ctx, ex); err != nil {
-			t.Fatal(err)
+	adds := func() int {
+		n := 0
+		for _, c := range f.CallsNamed("cnat_snat_policy_add_del_exclude_pfx") {
+			if c.(*cnatapi.CnatSnatPolicyAddDelExcludePfx).IsAdd == 1 {
+				n++
+			}
+		}
+		return n
+	}
+	resync := func(n int) {
+		t.Helper()
+		for i := 0; i < n; i++ {
+			if _, err := p.SnatExcludePfx.Create(ctx, ex); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
-	if f.pfxRefs["10.9.50.0/24"] != 1 || len(f.CallsNamed("cnat_snat_policy_add_del_exclude_pfx")) != 1 {
-		t.Fatalf("three resyncs must leave one instance (refs %d)", f.pfxRefs["10.9.50.0/24"])
+	const k = "10.9.50.0/24"
+	resync(3)
+	if f.pfxRefs[k] != 1 || adds() != 1 {
+		t.Fatalf("three resyncs: refs %d adds %d, want 1/1", f.pfxRefs[k], adds())
 	}
-	// VPP restart: new identity, state gone → re-added exactly once
+	// the owner recreates the default entry (the entry and its prefixes go away) → re-add once
+	if err := p.SnatAddresses.Delete(ctx, entry, nil); err != nil || f.pfxRefs[k] != 0 {
+		t.Fatal("entry delete drops the prefixes")
+	}
+	if _, err := p.SnatAddresses.Create(ctx, entry); err != nil {
+		t.Fatal(err)
+	}
+	resync(2)
+	if f.pfxRefs[k] != 1 || adds() != 2 {
+		t.Fatalf("after the entry was recreated: refs %d adds %d, want 1/2", f.pfxRefs[k], adds())
+	}
+	// recreated behind our back with other addresses (observable fingerprint) → re-add once
+	f.snat, f.excluded, f.pfxRefs = &cnatapi.CnatGetSnatAddressesReply{SnatIP4: [4]uint8{10, 9, 49, 2}, SwIfIndex: noIf}, map[string]bool{}, map[string]int{}
+	resync(2)
+	if f.pfxRefs[k] != 1 || adds() != 3 {
+		t.Fatalf("after an external recreate: refs %d adds %d", f.pfxRefs[k], adds())
+	}
+	// VPP restart: new boot identity (PID), state gone → re-added exactly once
 	f.vppPID, f.excluded, f.pfxRefs = 4343, map[string]bool{}, map[string]int{}
-	for resync := 0; resync < 2; resync++ {
-		if _, err := p.SnatExcludePfx.Create(ctx, ex); err != nil {
-			t.Fatal(err)
-		}
+	resync(2)
+	if f.pfxRefs[k] != 1 || adds() != 4 {
+		t.Fatalf("after a VPP restart: refs %d adds %d", f.pfxRefs[k], adds())
 	}
-	if f.pfxRefs["10.9.50.0/24"] != 1 {
-		t.Fatalf("after a VPP restart: refs %d, want 1", f.pfxRefs["10.9.50.0/24"])
+	// a miss while the prefix is still present (record lost, e.g. agent restart with an
+	// in-memory store) still ends with ONE instance: del+add
+	fresh := cnat.New(f, "w9", natcommon.WithLockDir(t.TempDir()))
+	if _, err := fresh.SnatExcludePfx.Create(ctx, ex); err != nil || f.pfxRefs[k] != 1 {
+		t.Fatalf("miss with the prefix present: refs %d (%v)", f.pfxRefs[k], err)
 	}
-	if err := p.SnatExcludePfx.Delete(ctx, ex, nil); err != nil || f.pfxRefs["10.9.50.0/24"] != 0 {
+	if err := p.SnatExcludePfx.Delete(ctx, ex, nil); err != nil || f.pfxRefs[k] != 0 {
 		t.Fatalf("delete: %v", err)
 	}
-	if _, err := p.SnatExcludePfx.Create(ctx, ex); err != nil || f.pfxRefs["10.9.50.0/24"] != 1 {
+	if _, err := p.SnatExcludePfx.Create(ctx, ex); err != nil || f.pfxRefs[k] != 1 {
 		t.Fatal("re-create after delete adds again")
 	}
 }

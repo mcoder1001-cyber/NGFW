@@ -53,8 +53,9 @@ func TestMapOnHost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cur := mapnat.ParamsSpec{FragInner: before.FragInner != 0, FragIgnoreDF: before.FragIgnoreDf != 0, ICMPRelaySrc: natcommon.IP4String(before.ICMPIP4ErrRelaySrc),
-		ICMP6Unreachable: before.ICMP6EnableUnreachable, SecurityCheck: before.SecCheckEnable, SecurityCheckFrags: before.SecCheckFragments, TCCopy: before.TcCopy, TCClass: uint32(before.TcClass)}
+	// only the fields VPP fills: map_param_get leaves ip4_lifetime_ms / ip4_pool_size /
+	// ip4_buffers / ip4_ht_ratio uninitialised (vl_msg_api_alloc, map_api.c) — re-review N1
+	cur := modelled(before)
 	if _, err := p.Params.Create(ctx, natcommon.MustEncode(&cur)); err != nil {
 		t.Fatalf("params requirement (current): %v", err)
 	}
@@ -66,8 +67,8 @@ func TestMapOnHost(t *testing.T) {
 	if err := p.Params.Delete(ctx, natcommon.MustEncode(&cur), nil); err != nil {
 		t.Fatal(err)
 	}
-	if after, err := svc.MapParamGet(ctx, &maps.MapParamGet{}); err != nil || *after != *before {
-		t.Fatalf("a non-owner changed MAP params: %+v → %+v %v", before, after, err)
+	if after, err := svc.MapParamGet(ctx, &maps.MapParamGet{}); err != nil || modelled(after) != cur {
+		t.Fatalf("a non-owner changed MAP params: %+v → %+v %v", cur, after, err)
 	}
 	t.Log("map params required only, unchanged (D-071)")
 
@@ -75,4 +76,12 @@ func TestMapOnHost(t *testing.T) {
 	nattest.DeleteAll(ctx, t, p.Interface)
 	nattest.DeleteAll(ctx, t, p.Rule)
 	nattest.DeleteAll(ctx, t, p.Domain)
+}
+
+// modelled is the part of map_param_get_reply that VPP actually fills (and ParamsSpec models).
+func modelled(r *maps.MapParamGetReply) mapnat.ParamsSpec {
+	s := mapnat.ParamsSpec{FragInner: r.FragInner != 0, FragIgnoreDF: r.FragIgnoreDf != 0, ICMPRelaySrc: natcommon.IP4String(r.ICMPIP4ErrRelaySrc),
+		ICMP6Unreachable: r.ICMP6EnableUnreachable, SecurityCheck: r.SecCheckEnable, SecurityCheckFrags: r.SecCheckFragments, TCCopy: r.TcCopy, TCClass: uint32(r.TcClass)}
+	s.Normalize()
+	return s
 }

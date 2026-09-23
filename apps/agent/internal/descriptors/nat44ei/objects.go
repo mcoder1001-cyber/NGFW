@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/netip"
 	"sort"
+	"strings"
 
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip_types"
@@ -656,7 +657,10 @@ func ip4OrZero(s string) (ip_types.IP4Address, error) {
 type MappingMeta struct{ ExternalSwIfIndex uint32 }
 
 func (p *Plugin) staticRequest(ctx context.Context, s StaticMappingSpec, add bool, extIdx interface_types.InterfaceIndex) (*nat44_ei.Nat44EiAddDelStaticMapping, error) {
-	tag, err := p.scope.Tag(s.Name)
+	if add && strings.Contains(s.Name, "#") {
+		return nil, fmt.Errorf("nat44: mapping name %q must not contain '#' (reserved for duplicate extras)", s.Name)
+	}
+	tag, err := p.scope.Tag(natcommon.BaseName(s.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -743,9 +747,10 @@ func (p *Plugin) newStaticMapping() *natcommon.Descriptor[StaticMappingSpec] {
 			for {
 				d, err := stream.Recv()
 				if errors.Is(err, io.EOF) {
-					return dedupeByName(out, func(it natcommon.Item[StaticMappingSpec]) (string, bool) {
-						return it.Spec.Name, it.Meta.(MappingMeta).ExternalSwIfIndex != uint32(noInterface)
-					}), nil
+					return natcommon.DedupeTagged(out, func(it natcommon.Item[StaticMappingSpec]) (string, string, bool) {
+						l := it.Spec.Local
+						return it.Spec.Name, fmt.Sprintf("%s/%d/%s/%d", l.IP, l.Port, it.Spec.Protocol, it.Spec.VRF), it.Meta.(MappingMeta).ExternalSwIfIndex != uint32(noInterface)
+					}, func(s *StaticMappingSpec, n string) { s.Name = n }), nil
 				}
 				if err != nil {
 					return nil, fmt.Errorf("nat44_ei_static_mapping_dump: %w", err)
@@ -768,7 +773,10 @@ func (p *Plugin) newStaticMapping() *natcommon.Descriptor[StaticMappingSpec] {
 }
 
 func (p *Plugin) identityRequest(ctx context.Context, s IdentityMappingSpec, add bool, idx interface_types.InterfaceIndex) (*nat44_ei.Nat44EiAddDelIdentityMapping, error) {
-	tag, err := p.scope.Tag(s.Name)
+	if add && strings.Contains(s.Name, "#") {
+		return nil, fmt.Errorf("nat44: mapping name %q must not contain '#' (reserved for duplicate extras)", s.Name)
+	}
+	tag, err := p.scope.Tag(natcommon.BaseName(s.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -847,9 +855,11 @@ func (p *Plugin) newIdentityMapping() *natcommon.Descriptor[IdentityMappingSpec]
 			for {
 				d, err := stream.Recv()
 				if errors.Is(err, io.EOF) {
-					return dedupeByName(out, func(it natcommon.Item[IdentityMappingSpec]) (string, bool) {
-						return it.Spec.Name, it.Meta.(IfMeta).SwIfIndex != uint32(noInterface)
-					}), nil
+					return natcommon.DedupeTagged(out, func(it natcommon.Item[IdentityMappingSpec]) (string, string, bool) {
+						// one identity mapping = one proto/port; its per-VRF details and the resolved
+						// twin of an interface-bound one differ only in vrf / ip
+						return it.Spec.Name, fmt.Sprintf("%s/%d", it.Spec.Protocol, it.Spec.Port), it.Meta.(IfMeta).SwIfIndex != uint32(noInterface)
+					}, func(s *IdentityMappingSpec, n string) { s.Name = n }), nil
 				}
 				if err != nil {
 					return nil, fmt.Errorf("nat44_ei_identity_mapping_dump: %w", err)
@@ -972,25 +982,4 @@ func (p *Plugin) DeleteSession(ctx context.Context, inside Endpoint, protocol st
 		return fmt.Errorf("nat44_ei_del_session: %w", err)
 	}
 	return nil
-}
-
-// dedupeByName collapses the several details VPP sends for one tagged mapping into one item
-// (review finding 2): an interface-bound mapping is dumped as the resolved entry and as the
-// to-resolve record (nat44_ei_api.c), both with the same tag; an identity mapping sends one
-// detail per local/VRF. The interface-bound record wins; otherwise the first is kept.
-func dedupeByName[T any](items []natcommon.Item[T], key func(natcommon.Item[T]) (name string, ifBound bool)) []natcommon.Item[T] {
-	pos := map[string]int{}
-	out := items[:0]
-	for _, it := range items {
-		name, ifBound := key(it)
-		if i, seen := pos[name]; seen {
-			if _, curIf := key(out[i]); ifBound && !curIf {
-				out[i] = it
-			}
-			continue
-		}
-		pos[name] = len(out)
-		out = append(out, it)
-	}
-	return out
 }

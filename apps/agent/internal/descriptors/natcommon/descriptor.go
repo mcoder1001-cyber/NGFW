@@ -3,6 +3,7 @@ package natcommon
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 
@@ -173,4 +174,50 @@ func (d *Descriptor[T]) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 		out = append(out, scheduler.KV{Key: key, Value: val, Meta: items[i].Meta})
 	}
 	return out, nil
+}
+
+// DedupeTagged collapses the details VPP sends for ONE tagged object and separates different
+// objects that share a tag (re-review N3). key returns the object's name (from its tag), an
+// identity string (what makes two details the same object, e.g. local ip/port/proto/vrf of a
+// static mapping) and whether the detail is the interface-bound (to-resolve) record.
+//   - same name, same identity: one object (the resolved twin of an interface-bound mapping,
+//     or the per-VRF details of one identity mapping) — the interface-bound record wins;
+//   - same name, different identity: a genuinely different object (failed rollback, manual or
+//     second instance) — reported as "<name>#<n>" (n = 1, 2, … in dump order, D-066 pattern)
+//     so the scheduler deletes it instead of hiding it.
+//
+// rename sets the name of an extra.
+func DedupeTagged[T any](items []Item[T], key func(Item[T]) (name, identity string, ifBound bool), rename func(*T, string)) []Item[T] {
+	seen := map[string]map[string]int{} // name → identity → position in out
+	var out []Item[T]
+	for _, it := range items {
+		name, id, ifBound := key(it)
+		byID := seen[name]
+		if byID == nil {
+			byID = map[string]int{}
+			seen[name] = byID
+		}
+		if i, ok := byID[id]; ok {
+			if _, _, curIf := key(out[i]); ifBound && !curIf {
+				curName, _, _ := key(out[i]) // keep the name (base or "#n") the slot already has
+				rename(&it.Spec, curName)
+				out[i] = it
+			}
+			continue
+		}
+		if extra := len(byID); extra > 0 {
+			rename(&it.Spec, fmt.Sprintf("%s#%d", name, extra))
+		}
+		byID[id] = len(out)
+		out = append(out, it)
+	}
+	return out
+}
+
+// BaseName strips the "#<n>" suffix of a duplicate extra (the VPP tag is the base name).
+func BaseName(name string) string {
+	if i := strings.IndexByte(name, '#'); i >= 0 {
+		return name[:i]
+	}
+	return name
 }

@@ -201,8 +201,8 @@ func newFakeNAT() *fakeNAT {
 			f.statics = append(f.statics, &nat44_ed.Nat44StaticMappingDetails{Flags: r.Flags, LocalIPAddress: r.LocalIPAddress, ExternalIPAddress: r.ExternalIPAddress,
 				Protocol: r.Protocol, LocalPort: r.LocalPort, ExternalPort: r.ExternalPort, ExternalSwIfIndex: r.ExternalSwIfIndex, VrfID: r.VrfID, Tag: r.Tag})
 		} else {
-			for i, m := range f.statics {
-				if m.Tag == r.Tag {
+			for i, m := range f.statics { // like VPP: matched by local/external endpoint, not the tag
+				if m.LocalIPAddress == r.LocalIPAddress && m.LocalPort == r.LocalPort && m.Protocol == r.Protocol && m.VrfID == r.VrfID && m.ExternalPort == r.ExternalPort {
 					f.statics = append(f.statics[:i], f.statics[i+1:]...)
 					break
 				}
@@ -837,5 +837,29 @@ func TestClaimRule(t *testing.T) {
 	}
 	if keys := retrieveKeys(t, prod.AddressPool); len(keys) != 1 || keys[0] != "nat44-ed.address-pool/192.0.2.1-192.0.2.1/0" {
 		t.Fatalf("production pools %v (w9's 10.9.1.1-2 unclaimed)", keys)
+	}
+}
+
+// TestSameTagDifferentMappings is re-review N3: two genuinely different static mappings with
+// one tag are not collapsed — the second is reported as "<name>#1" and deleted — while the
+// resolved twin of an interface-bound mapping still collapses into one key.
+func TestSameTagDifferentMappings(t *testing.T) {
+	f := newFakeNAT()
+	p := nat44ed.New(f, "w9", owner)
+	noIf := ^interface_types.InterfaceIndex(0)
+	f.statics = append(f.statics,
+		&nat44_ed.Nat44StaticMappingDetails{Tag: "w9:dup", LocalIPAddress: [4]uint8{10, 9, 10, 1}, LocalPort: 80, ExternalIPAddress: [4]uint8{10, 9, 1, 1}, ExternalPort: 3080, Protocol: 6, ExternalSwIfIndex: noIf},
+		&nat44_ed.Nat44StaticMappingDetails{Tag: "w9:dup", LocalIPAddress: [4]uint8{10, 9, 10, 1}, LocalPort: 81, ExternalIPAddress: [4]uint8{10, 9, 1, 1}, ExternalPort: 3081, Protocol: 6, ExternalSwIfIndex: noIf},
+		&nat44_ed.Nat44StaticMappingDetails{Tag: "w9:ifm", LocalIPAddress: [4]uint8{10, 9, 10, 2}, LocalPort: 22, ExternalPort: 2222, Protocol: 6, ExternalSwIfIndex: 2}) // dumped twice by the fake
+	keys := retrieveKeys(t, p.StaticMapping)
+	if len(keys) != 3 || keys[0] != "nat44-ed.static-mapping/dup" || keys[1] != "nat44-ed.static-mapping/dup#1" || keys[2] != "nat44-ed.static-mapping/ifm" {
+		t.Fatalf("keys %v", keys)
+	}
+	want := natcommon.MustEncode(&nat44ed.StaticMappingSpec{Name: "dup", Local: nat44ed.Endpoint{IP: "10.9.10.1", Port: 80}, External: nat44ed.Endpoint{IP: "10.9.1.1", Port: 3080}, Protocol: "tcp"})
+	if apply(t, p.StaticMapping, want) != 2 || len(f.statics) != 1 || f.statics[0].LocalPort != 80 {
+		t.Fatalf("extra and ifm deleted, canonical kept: %+v", f.statics)
+	}
+	if _, err := p.StaticMapping.Create(context.Background(), natcommon.MustEncode(&nat44ed.StaticMappingSpec{Name: "x#1", Local: nat44ed.Endpoint{IP: "10.9.10.9"}, External: nat44ed.Endpoint{IP: "10.9.1.9"}, AddrOnly: true})); err == nil {
+		t.Fatal("'#' in a desired name must be rejected")
 	}
 }

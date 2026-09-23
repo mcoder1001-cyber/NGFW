@@ -22,3 +22,7 @@ Tests: `mapnat_test.go` covers the fake: create, idempotent re-apply, rule updat
 domains filtered, VPP errors, params presence semantics, and MAP-E plus MAP-T on one interface.
 `mapnat_integration_test.go` runs on the host: domain `w9-lw` with `10.9.46.0/24` / `fd00:9:46::/48`, two rules,
 MAP-E on `loop930` and MAP-T on `loop931`, and params required at their current value (never set by a slot).
+
+**VPP 26.06 quirk (re-review N1):** `map_param_get_reply` is allocated with `vl_msg_api_alloc` and never zeroed, and the
+handler never writes `ip4_lifetime_ms`, `ip4_pool_size`, `ip4_buffers` or `ip4_ht_ratio`. Those four fields carry heap
+garbage that changes between calls. `ParamsSpec` models only the fields VPP fills, and the tests compare only those.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip_types"
@@ -157,7 +158,10 @@ func ip4OrZero(s string) (ip_types.IP4Address, error) {
 }
 
 func (p *Plugin) staticMappingRequest(ctx context.Context, s StaticMappingSpec, add bool, extIdx interface_types.InterfaceIndex) (*nat44_ed.Nat44AddDelStaticMappingV2, error) {
-	tag, err := p.scope.Tag(s.Name)
+	if add && strings.Contains(s.Name, "#") {
+		return nil, fmt.Errorf("nat44: mapping name %q must not contain '#' (reserved for duplicate extras)", s.Name)
+	}
+	tag, err := p.scope.Tag(natcommon.BaseName(s.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -248,9 +252,10 @@ func (p *Plugin) newStaticMapping() *natcommon.Descriptor[StaticMappingSpec] {
 			for {
 				d, err := stream.Recv()
 				if errors.Is(err, io.EOF) {
-					return dedupeByName(out, func(it natcommon.Item[StaticMappingSpec]) (string, bool) {
-						return it.Spec.Name, it.Meta.(MappingMeta).ExternalSwIfIndex != uint32(noInterface)
-					}), nil
+					return natcommon.DedupeTagged(out, func(it natcommon.Item[StaticMappingSpec]) (string, string, bool) {
+						l := it.Spec.Local
+						return it.Spec.Name, fmt.Sprintf("%s/%d/%s/%d", l.IP, l.Port, it.Spec.Protocol, it.Spec.VRF), it.Meta.(MappingMeta).ExternalSwIfIndex != uint32(noInterface)
+					}, func(s *StaticMappingSpec, n string) { s.Name = n }), nil
 				}
 				if err != nil {
 					return nil, fmt.Errorf("nat44_static_mapping_dump: %w", err)
@@ -278,7 +283,10 @@ func (p *Plugin) newStaticMapping() *natcommon.Descriptor[StaticMappingSpec] {
 }
 
 func (p *Plugin) identityRequest(ctx context.Context, s IdentityMappingSpec, add bool, idx interface_types.InterfaceIndex) (*nat44_ed.Nat44AddDelIdentityMapping, error) {
-	tag, err := p.scope.Tag(s.Name)
+	if add && strings.Contains(s.Name, "#") {
+		return nil, fmt.Errorf("nat44: mapping name %q must not contain '#' (reserved for duplicate extras)", s.Name)
+	}
+	tag, err := p.scope.Tag(natcommon.BaseName(s.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -358,9 +366,11 @@ func (p *Plugin) newIdentityMapping() *natcommon.Descriptor[IdentityMappingSpec]
 			for {
 				d, err := stream.Recv()
 				if errors.Is(err, io.EOF) {
-					return dedupeByName(out, func(it natcommon.Item[IdentityMappingSpec]) (string, bool) {
-						return it.Spec.Name, it.Meta.(IfMeta).SwIfIndex != uint32(noInterface)
-					}), nil
+					return natcommon.DedupeTagged(out, func(it natcommon.Item[IdentityMappingSpec]) (string, string, bool) {
+						// one identity mapping = one proto/port; its per-VRF details and the resolved
+						// twin of an interface-bound one differ only in vrf / ip
+						return it.Spec.Name, fmt.Sprintf("%s/%d", it.Spec.Protocol, it.Spec.Port), it.Meta.(IfMeta).SwIfIndex != uint32(noInterface)
+					}, func(s *IdentityMappingSpec, n string) { s.Name = n }), nil
 				}
 				if err != nil {
 					return nil, fmt.Errorf("nat44_identity_mapping_dump: %w", err)
@@ -400,7 +410,10 @@ func lbLocals(locals []LBLocal) ([]nat44_ed.Nat44LbAddrPort, error) {
 }
 
 func (p *Plugin) lbRequest(s LBStaticMappingSpec, add bool) (*nat44_ed.Nat44AddDelLbStaticMapping, error) {
-	tag, err := p.scope.Tag(s.Name)
+	if add && strings.Contains(s.Name, "#") {
+		return nil, fmt.Errorf("nat44: mapping name %q must not contain '#' (reserved for duplicate extras)", s.Name)
+	}
+	tag, err := p.scope.Tag(natcommon.BaseName(s.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -550,28 +563,4 @@ func (p *Plugin) updateLBLocals(ctx context.Context, o, n LBStaticMappingSpec) e
 		}
 	}
 	return nil
-}
-
-// dedupeByName collapses the several details VPP sends for one tagged mapping into one item
-// (review finding 2): for an interface-bound mapping nat44_static_mapping_dump /
-// nat44_identity_mapping_dump send the resolved entry (external = the interface's current
-// address, sw_if_index ~0) *and* the to-resolve record (external = the interface), both with
-// the same tag; an identity mapping additionally sends one detail per local/VRF. The
-// interface-bound record wins (it is what was desired and carries the sw_if_index Meta);
-// otherwise the first detail is kept.
-func dedupeByName[T any](items []natcommon.Item[T], key func(natcommon.Item[T]) (name string, ifBound bool)) []natcommon.Item[T] {
-	pos := map[string]int{}
-	out := items[:0]
-	for _, it := range items {
-		name, ifBound := key(it)
-		if i, seen := pos[name]; seen {
-			if _, curIf := key(out[i]); ifBound && !curIf {
-				out[i] = it
-			}
-			continue
-		}
-		pos[name] = len(out)
-		out = append(out, it)
-	}
-	return out
 }

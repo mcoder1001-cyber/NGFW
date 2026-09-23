@@ -22,6 +22,8 @@ import (
 	"net/netip"
 	"sort"
 	"strconv"
+	"sync"
+	"sync/atomic"
 
 	"go.fd.io/govpp/api"
 
@@ -184,8 +186,12 @@ type Plugin struct {
 	client vpp.Client
 	scope  natcommon.Scope
 	cfg    natcommon.Config
-	svc    cnatapi.RPCService
-	feat   feature.RPCService
+
+	mu          sync.Mutex
+	excludeRecs map[string]string // prefix → this process's D-076 record
+	snatGen     atomic.Uint64     // default SNAT entry generation (bumped by the owner's Set/Reset)
+	svc         cnatapi.RPCService
+	feat        feature.RPCService
 
 	Translation      *natcommon.Descriptor[TranslationSpec]
 	SnatAddresses    *natcommon.Descriptor[SnatAddressesSpec]
@@ -197,7 +203,7 @@ type Plugin struct {
 
 // New constructs the family for client and owner.
 func New(client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {
-	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), cfg: natcommon.BuildConfig(opts), svc: cnatapi.NewServiceClient(client), feat: feature.NewServiceClient(client)}
+	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), cfg: natcommon.BuildConfig(opts), excludeRecs: map[string]string{}, svc: cnatapi.NewServiceClient(client), feat: feature.NewServiceClient(client)}
 	p.SnatAddresses = p.newSnatAddresses()
 	p.SnatPolicy = p.newSnatPolicy()
 	p.SnatInterface = p.newSnatInterface()
@@ -507,6 +513,7 @@ func (p *Plugin) newSnatAddresses() *natcommon.Descriptor[SnatAddressesSpec] {
 				return err
 			}
 			defer unlock()
+			p.snatGen.Add(1) // any excluded prefix must be re-applied to the new entry (N2)
 			return p.setSnat(ctx, s)
 		},
 		SetUpdate: func(context.Context, SnatAddressesSpec, SnatAddressesSpec) error { return scheduler.ErrRecreate },
@@ -519,6 +526,7 @@ func (p *Plugin) newSnatAddresses() *natcommon.Descriptor[SnatAddressesSpec] {
 			if _, ok, err := p.snatDefault(ctx); err != nil || !ok {
 				return err
 			}
+			p.snatGen.Add(1)
 			// all-zero addresses and no interface = delete the default entry (cnat_set_snat).
 			if _, err := p.svc.CnatSetSnatAddresses(ctx, &cnatapi.CnatSetSnatAddresses{SwIfIndex: ^interface_types.InterfaceIndex(0)}); err != nil {
 				return fmt.Errorf("cnat_set_snat_addresses (delete): %w", err)
@@ -666,13 +674,39 @@ func (p *Plugin) newSnatInterface() *natcommon.Descriptor[SnatInterfaceSpec] {
 	})
 }
 
+// excludeOnce makes the prefix present exactly once: under the shared host-wide cnat lock it
+// checks the default entry (the messages dereference it unchecked, V10) and sends a delete
+// followed by an add. VPP's delete of an absent prefix is a no-op and its add bumps a
+// per-length refcount, so del+add ends with one instance whatever VPP held before (fresh
+// entry, recreated entry, or already present).
+func (p *Plugin) excludeOnce(ctx context.Context, s SnatExcludePrefixSpec) error {
+	pfx, err := natcommon.Prefix(s.Prefix)
+	if err != nil {
+		return err
+	}
+	unlock, err := p.lock(false)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	if _, ok, err := p.snatDefault(ctx); err != nil {
+		return err
+	} else if !ok {
+		return ErrNoSnatDefault
+	}
+	for _, add := range []uint8{0, 1} {
+		if _, err := p.svc.CnatSnatPolicyAddDelExcludePfx(ctx, &cnatapi.CnatSnatPolicyAddDelExcludePfx{IsAdd: add, Prefix: pfx}); err != nil {
+			return fmt.Errorf("cnat_snat_policy_add_del_exclude_pfx: %w", err)
+		}
+	}
+	return nil
+}
+
 func (p *Plugin) addDelExclude(ctx context.Context, s SnatExcludePrefixSpec, add bool) error {
 	pfx, err := natcommon.Prefix(s.Prefix)
 	if err != nil {
 		return err
 	}
-	// cnat_snat_policy_add_del_exclude_pfx dereferences the default entry unchecked: guard and
-	// act under the shared host-wide cnat lock (finding 8).
 	unlock, err := p.lock(false)
 	if err != nil {
 		return err
@@ -696,11 +730,32 @@ func (p *Plugin) addDelExclude(ctx context.Context, s SnatExcludePrefixSpec, add
 	return nil
 }
 
-// newSnatExcludePfx: write-only (no dump, D-063). VPP's add is NOT idempotent — every add
-// bumps a per-prefix-length refcount (cnat_snat_policy_add_pfx) — so, per D-076, a re-apply on
-// a resync is skipped while a claim record "<key>@vpp<main-thread PID>" exists: the prefix was
-// already added to THIS VPP process. A VPP restart changes the identity and the prefix is
-// re-added once.
+// entryIdentity identifies the VPP instance and the default SNAT entry the excluded prefixes
+// live in (re-review N2, D-080): the boot identity triple, the entry's observable fingerprint
+// (addresses, interface) and the entry generation this process's globals-owner descriptor
+// bumps on every Set/Reset of the entry. VPP has no generation of its own: a recreate by
+// another agent with identical addresses is not observable (documented; under D-071 only the
+// globals owner — this same agent on a real box — mutates the entry).
+func (p *Plugin) entryIdentity(ctx context.Context) (string, error) {
+	boot, err := natcommon.BootIdentity(ctx, p.client)
+	if err != nil {
+		return "", err
+	}
+	rep, ok, err := p.snatDefault(ctx)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		return "", ErrNoSnatDefault
+	}
+	return fmt.Sprintf("%s/snat=%v,%v,%d/g%d", boot, rep.SnatIP4, rep.SnatIP6, rep.SwIfIndex, p.snatGen.Load()), nil
+}
+
+// newSnatExcludePfx: write-only (no dump, D-063). VPP's add is not idempotent (per-length
+// refcount), so (D-076, D-080) a re-apply is skipped while the record "<key>@<entry identity>"
+// exists; on a miss (first apply, VPP restart, entry recreated or changed) the prefix is made
+// present exactly once with del+add, the record is written and this process's older record
+// for the prefix is released (no growth across restarts, re-review I2).
 func (p *Plugin) newSnatExcludePfx() *natcommon.Descriptor[SnatExcludePrefixSpec] {
 	key := func(s SnatExcludePrefixSpec) string { return string(scheduler.Join(NameSnatExcludePfx, s.Prefix)) }
 	return natcommon.New(natcommon.Ops[SnatExcludePrefixSpec]{
@@ -709,16 +764,23 @@ func (p *Plugin) newSnatExcludePfx() *natcommon.Descriptor[SnatExcludePrefixSpec
 		ID:     func(s SnatExcludePrefixSpec) string { return s.Prefix },
 		Deps:   func(SnatExcludePrefixSpec) []scheduler.Dependency { return snatDep() },
 		Create: func(ctx context.Context, s SnatExcludePrefixSpec) (any, error) {
-			id, err := natcommon.VPPIdentity(ctx, p.client)
+			id, err := p.entryIdentity(ctx)
 			if err != nil {
 				return nil, err
 			}
 			rec := natcommon.AppliedRecord(key(s), id)
 			if p.cfg.Claims.Claimed(rec) {
-				return nil, nil // already added to this VPP process: skip the non-idempotent add
+				return nil, nil // already present in this entry of this VPP process
 			}
-			if err := p.addDelExclude(ctx, s, true); err != nil {
+			if err := p.excludeOnce(ctx, s); err != nil {
 				return nil, err
+			}
+			p.mu.Lock()
+			old := p.excludeRecs[s.Prefix]
+			p.excludeRecs[s.Prefix] = rec
+			p.mu.Unlock()
+			if old != "" && old != rec {
+				_ = p.cfg.Claims.Release(old)
 			}
 			return nil, p.cfg.Claims.Claim(rec)
 		},
@@ -726,11 +788,14 @@ func (p *Plugin) newSnatExcludePfx() *natcommon.Descriptor[SnatExcludePrefixSpec
 			if err := p.addDelExclude(ctx, s, false); err != nil {
 				return err
 			}
-			id, err := natcommon.VPPIdentity(ctx, p.client)
-			if err != nil {
-				return err
+			p.mu.Lock()
+			old := p.excludeRecs[s.Prefix]
+			delete(p.excludeRecs, s.Prefix)
+			p.mu.Unlock()
+			if old != "" {
+				return p.cfg.Claims.Release(old)
 			}
-			return p.cfg.Claims.Release(natcommon.AppliedRecord(key(s), id))
+			return nil
 		},
 		Retrieve: writeOnly[SnatExcludePrefixSpec],
 	})

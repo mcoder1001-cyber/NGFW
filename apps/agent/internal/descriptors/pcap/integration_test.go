@@ -25,7 +25,7 @@ func TestPcapOnHost(t *testing.T) {
 	file := h.Owner + "-df8.pcap"
 	t.Cleanup(func() { _ = os.Remove(filepath.Join(FileDir, file)) })
 
-	ff := NewFilterFunction(c)
+	ff := NewFilterFunction(c, WithGlobals(dfkit.GlobalsOwner(true))) // test acts as globals owner
 	fv := FilterFunction{Name: "bpf_trace_filter"}.Proto()
 	t.Cleanup(func() { _ = ff.Delete(context.Background(), fv, nil) })
 	for range 2 {

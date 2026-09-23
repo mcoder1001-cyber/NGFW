@@ -25,6 +25,7 @@ func newFake() (*dfkittest.FakeVPP, *model) {
 	f := dfkittest.NewFake(
 		dfkittest.Iface{Index: 7, Name: "loop501", Tag: "w5:loop501"},
 		dfkittest.Iface{Index: 9, Name: "ens192"},
+		dfkittest.Iface{Index: 8, Name: "loop601", Tag: "w6:loop601"},
 	)
 	m := &model{pairs: map[uint32]lcp.LcpItfPairDetails{}, next: 20}
 	f.On("lcp_default_ns_set", func(msg api.Message) ([]api.Message, error) {
@@ -90,8 +91,9 @@ func TestItfPair(t *testing.T) {
 	if !req.IsAdd || req.SwIfIndex != 7 || req.HostIfName != "w5-lcp0" || req.HostIfType != lcp.LCP_API_ITF_HOST_TAP || req.Netns != "ns-w5" {
 		t.Fatalf("request %+v", req)
 	}
-	// a pair on an interface of nobody (ens192) is not ours
+	// a pair on an unclaimed untagged NIC and one on another owner's interface are not ours
 	m.pairs[9] = lcp.LcpItfPairDetails{PhySwIfIndex: 9, HostIfName: "e0"}
+	m.pairs[8] = lcp.LcpItfPairDetails{PhySwIfIndex: 8, HostIfName: "w6-lcp0"}
 	got := dfkittest.AssertRetrieved(t, d, dfkittest.KV(d, v))
 	if got.Meta != meta || len(dfkittest.MustRetrieve(t, d)) != 1 {
 		t.Fatalf("retrieve %v", dfkittest.MustRetrieve(t, d))
@@ -112,8 +114,21 @@ func TestItfPair(t *testing.T) {
 		}
 	}
 	dfkittest.AssertAbsent(t, d, d.KeyOf(v))
-	if _, err := d.Create(ctx, ItfPair{Interface: "ens192", HostIfName: "w5-x", HostIfType: "tap"}.Proto()); !errors.Is(err, dfkit.ErrNotOwned) {
-		t.Fatalf("pairing an unowned NIC must be refused: %v", err)
+	// an untagged NIC (P12's DPDK ports) is paired through a claim (D-071) and reported only while claimed
+	nv := ItfPair{Interface: "ens192", HostIfName: "w5-e0", HostIfType: "tap"}.Proto()
+	nm, err := d.Create(ctx, nv)
+	if err != nil {
+		t.Fatalf("untagged NIC: %v", err)
+	}
+	dfkittest.AssertRetrieved(t, d, dfkittest.KV(d, nv))
+	if kvs := dfkittest.MustRetrieve(t, NewItfPair(f, "w7")); len(kvs) != 0 {
+		t.Fatalf("unclaimed pair reported to another owner: %v", kvs)
+	}
+	if err := d.Delete(ctx, nv, nm); err != nil || dfkit.Claims("w5").Claimed("ens192", NameItfPair) {
+		t.Fatalf("untagged delete: %v", err)
+	}
+	if _, err := d.Create(ctx, ItfPair{Interface: "loop601", HostIfName: "w5-x", HostIfType: "tap"}.Proto()); !errors.Is(err, dfkit.ErrNotOwned) {
+		t.Fatalf("pairing another owner's interface must be refused: %v", err)
 	}
 	for _, bad := range []ItfPair{
 		{Interface: "loop501", HostIfName: "w5-a-very-long-name", HostIfType: "tap"},
@@ -131,7 +146,7 @@ func TestItfPair(t *testing.T) {
 func TestDefaultNetns(t *testing.T) {
 	f, m := newFake()
 	ctx := context.Background()
-	d := NewDefaultNetns(f)
+	d := NewDefaultNetns(f, WithGlobals(dfkit.GlobalsOwner(true)))
 	if kvs := dfkittest.MustRetrieve(t, d); len(kvs) != 0 {
 		t.Fatalf("unset reported %v", kvs)
 	}
@@ -169,7 +184,7 @@ func TestPluginNotLoaded(t *testing.T) {
 	unknown := &adapter.UnknownMsgError{MsgName: "lcp_default_ns_get", MsgCrc: "x"}
 	f.Fail("lcp_default_ns_get", unknown)
 	f.Fail("lcp_itf_pair_get", unknown)
-	if _, err := NewDefaultNetns(f).Retrieve(context.Background()); !errors.Is(err, dfkit.ErrPluginNotLoaded) {
+	if _, err := NewDefaultNetns(f, WithGlobals(dfkit.GlobalsOwner(true))).Retrieve(context.Background()); !errors.Is(err, dfkit.ErrPluginNotLoaded) {
 		t.Fatalf("netns: %v", err)
 	}
 	if _, err := NewItfPair(f, "w5").Retrieve(context.Background()); !errors.Is(err, dfkit.ErrPluginNotLoaded) {

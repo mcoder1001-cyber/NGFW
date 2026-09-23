@@ -56,12 +56,28 @@ func TestDNSLifecycle(t *testing.T) {
 	f, m := newFake()
 	ctx := context.Background()
 	r := scheduler.NewRegistry()
-	Register(r, f)
+	Register(r, f, WithGlobals(dfkit.GlobalsOwner(true)))
 	if names := r.Names(); len(names) != 2 || names[0] != NameNameServer {
 		t.Fatalf("registration order %v (name servers must come first)", names)
 	}
-	ns := NewNameServer(f)
-	en := NewEnable(f)
+	own := dfkit.GlobalsOwner(true)
+	ns := NewNameServer(f, own)
+	en := NewEnable(f, own)
+	// D-071: a non-owner neither sets nor resets the resolver
+	for _, c := range []struct {
+		d scheduler.Descriptor
+		v proto.Message
+	}{{NewNameServer(f, dfkit.GlobalsOwner(false)), NameServer{Address: "10.5.0.1"}.Proto()}, {NewEnable(f, dfkit.GlobalsOwner(false)), Enable{Enabled: true}.Proto()}} {
+		if _, err := c.d.Create(ctx, c.v); !errors.Is(err, dfkit.ErrNotGlobalsOwner) {
+			t.Fatalf("non-owner create: %v", err)
+		}
+		if err := c.d.Delete(ctx, c.v, nil); err != nil {
+			t.Fatalf("non-owner delete: %v", err)
+		}
+	}
+	if len(f.Calls()) != 0 {
+		t.Fatalf("non-owner sent %d messages", len(f.Calls()))
+	}
 	on := Enable{Enabled: true}.Proto()
 	// enabling without a name server fails in VPP: the order matters
 	if _, err := en.Create(ctx, on); !dfkit.IsVPPError(err, api.NO_NAME_SERVERS) {

@@ -23,7 +23,7 @@ func TestHTTPStaticOnHost(t *testing.T) {
 	h := dfkittest.ConnectHost(t)
 	h.SkipUnlessCompatible(t, Plugin, &http_static.HTTPStaticEnableV5{})
 	c := h.Client()
-	d := NewHTTPStaticServer(c)
+	d := NewHTTPStaticServer(c, dfkit.GlobalsOwner(true))
 	if _, err := d.Retrieve(context.Background()); !errors.Is(err, dfkit.ErrRetrieveUnsupported) {
 		t.Fatal(err)
 	}

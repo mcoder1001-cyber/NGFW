@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"ngfw/agent/binapi/flowprobe"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dfkit/dfkittest"
 )
 
@@ -17,7 +18,7 @@ func TestFlowprobeOnHost(t *testing.T) {
 		&flowprobe.FlowprobeInterfaceAddDel{}, &flowprobe.FlowprobeInterfaceDump{})
 	c := h.Client()
 	ctx := context.Background()
-	pd := NewParams(c)
+	pd := NewParams(c, WithGlobals(dfkit.GlobalsOwner(true))) // test acts as globals owner, restores "unset"
 	if kvs := dfkittest.MustRetrieve(t, pd); len(kvs) != 0 {
 		t.Skipf("flowprobe params are set by someone else (%v): not touching a global", kvs[0].Value)
 	}

@@ -59,9 +59,20 @@ func (s BPFFilter) Validate() error {
 	return nil
 }
 
+// Option configures Register.
+type Option func(*dfkit.Globals)
+
+// WithGlobals sets the D-071 role (default: not the globals owner). The BPF program is VPP-global
+// without a getter: a non-owner's Create fails with ErrNotGlobalsOwner, its Delete is a no-op.
+func WithGlobals(g dfkit.Globals) Option { return func(o *dfkit.Globals) { *o = g } }
+
 // Register constructs and registers the trace descriptors.
-func Register(r scheduler.Registry, client vpp.Client) {
-	r.Register(NewBPFFilter(client))
+func Register(r scheduler.Registry, client vpp.Client, opts ...Option) {
+	var g dfkit.Globals
+	for _, o := range opts {
+		o(&g)
+	}
+	r.Register(NewBPFFilter(client, g))
 }
 
 // BPFFilterID is the object id of the singleton (key trace.bpf-filter/global).
@@ -75,13 +86,16 @@ var KeyBPFFilter = scheduler.Join(NameBPFFilter, BPFFilterID)
 // (write-only, D-063). Create replaces any program; Delete removes it (is_add=0). VPP frees the
 // old program before compiling the new one, so a Create that fails to compile leaves no filter
 // at all (the reconciler's rollback re-applies the previous value).
-type BPFFilterDescriptor struct{ client vpp.Client }
+type BPFFilterDescriptor struct {
+	client  vpp.Client
+	globals dfkit.Globals
+}
 
 var _ scheduler.Descriptor = (*BPFFilterDescriptor)(nil)
 
 // NewBPFFilter returns the trace.bpf-filter descriptor.
-func NewBPFFilter(client vpp.Client) *BPFFilterDescriptor {
-	return &BPFFilterDescriptor{client: client}
+func NewBPFFilter(client vpp.Client, g dfkit.Globals) *BPFFilterDescriptor {
+	return &BPFFilterDescriptor{client: client, globals: g}
 }
 
 // Name implements scheduler.Descriptor.
@@ -100,6 +114,9 @@ func (d *BPFFilterDescriptor) apply(ctx context.Context, obj proto.Message) erro
 	}
 	if err := s.Validate(); err != nil {
 		return err
+	}
+	if !d.globals.Owner() {
+		return d.globals.Require(ctx, NameBPFFilter, obj, nil)
 	}
 	_, err := bpf_trace_filter.NewServiceClient(d.client).BpfTraceFilterSetV2(ctx, &bpf_trace_filter.BpfTraceFilterSetV2{
 		IsAdd: true, Optimize: s.Optimize, Filter: s.Expression,
@@ -122,6 +139,9 @@ func (d *BPFFilterDescriptor) Update(ctx context.Context, _, newObj proto.Messag
 
 // Delete implements scheduler.Descriptor: removes the program (a no-op when none is set).
 func (d *BPFFilterDescriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
+	if !d.globals.Owner() {
+		return nil
+	}
 	_, err := bpf_trace_filter.NewServiceClient(d.client).BpfTraceFilterSetV2(ctx, &bpf_trace_filter.BpfTraceFilterSetV2{IsAdd: false})
 	if err != nil {
 		return fmt.Errorf("bpf_trace_filter_set_v2(del): %w", dfkit.PluginError(Plugin, err))

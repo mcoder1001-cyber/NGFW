@@ -94,9 +94,20 @@ func (s HTTPStaticServer) Validate() error {
 	return nil
 }
 
+// Option configures Register.
+type Option func(*dfkit.Globals)
+
+// WithGlobals sets the D-071 role (default: not the globals owner). http_static is VPP-global
+// without a getter: a non-owner's Create fails with ErrNotGlobalsOwner.
+func WithGlobals(g dfkit.Globals) Option { return func(o *dfkit.Globals) { *o = g } }
+
 // Register constructs and registers the prom descriptors.
-func Register(r scheduler.Registry, client vpp.Client) {
-	r.Register(NewHTTPStaticServer(client))
+func Register(r scheduler.Registry, client vpp.Client, opts ...Option) {
+	var g dfkit.Globals
+	for _, o := range opts {
+		o(&g)
+	}
+	r.Register(NewHTTPStaticServer(client, g))
 }
 
 // HTTPStaticServerID is the object id of the singleton (key prom.http-static-server/global).
@@ -107,7 +118,8 @@ var KeyHTTPStaticServer = scheduler.Join(NameHTTPStaticServer, HTTPStaticServerI
 
 // HTTPStaticServerDescriptor manages the prom.http-static-server singleton (see package doc).
 type HTTPStaticServerDescriptor struct {
-	client vpp.Client
+	client  vpp.Client
+	globals dfkit.Globals
 
 	mu      sync.Mutex
 	enabled *HTTPStaticServer // what this process enabled (VPP accepts one enable per process)
@@ -116,8 +128,8 @@ type HTTPStaticServerDescriptor struct {
 var _ scheduler.Descriptor = (*HTTPStaticServerDescriptor)(nil)
 
 // NewHTTPStaticServer returns the prom.http-static-server descriptor.
-func NewHTTPStaticServer(client vpp.Client) *HTTPStaticServerDescriptor {
-	return &HTTPStaticServerDescriptor{client: client}
+func NewHTTPStaticServer(client vpp.Client, g dfkit.Globals) *HTTPStaticServerDescriptor {
+	return &HTTPStaticServerDescriptor{client: client, globals: g}
 }
 
 // Name implements scheduler.Descriptor.
@@ -138,6 +150,9 @@ func (d *HTTPStaticServerDescriptor) Create(ctx context.Context, obj proto.Messa
 	}
 	if err := s.Validate(); err != nil {
 		return nil, err
+	}
+	if !d.globals.Owner() {
+		return nil, d.globals.Require(ctx, NameHTTPStaticServer, obj, nil)
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()

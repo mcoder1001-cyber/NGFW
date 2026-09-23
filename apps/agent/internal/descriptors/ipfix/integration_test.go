@@ -50,7 +50,8 @@ func TestIPFIXOnHost(t *testing.T) {
 	})
 
 	t.Run("default exporter + classify", func(t *testing.T) {
-		d := NewDefaultExporter(c)
+		own := WithGlobals(dfkit.GlobalsOwner(true)) // the test acts as globals owner and restores the unset state
+		d := NewDefaultExporter(c, own)
 		if cur, ok, err := d.Current(ctx); err != nil {
 			t.Fatal(err)
 		} else if ok {
@@ -66,7 +67,7 @@ func TestIPFIXOnHost(t *testing.T) {
 
 		// The classify stream has no working read-back (ErrClassifyDumpBroken): write-only. Nobody
 		// else on this host uses IPFIX classify reports; it is reset to "unset" in Cleanup.
-		cs := NewClassifyStream(c)
+		cs := NewClassifyStream(c, own)
 		if _, err := cs.Retrieve(ctx); !errors.Is(err, dfkit.ErrRetrieveUnsupported) {
 			t.Fatalf("classify stream retrieve: %v", err)
 		}

@@ -31,7 +31,13 @@ func TestBPFFilter(t *testing.T) {
 		return []api.Message{&bpf_trace_filter.BpfTraceFilterSetV2Reply{}}, nil
 	})
 	ctx := context.Background()
-	d := NewBPFFilter(f)
+	d := NewBPFFilter(f, dfkit.GlobalsOwner(true))
+	if _, err := NewBPFFilter(f, dfkit.GlobalsOwner(false)).Create(context.Background(), BPFFilter{Expression: "udp"}.Proto()); !errors.Is(err, dfkit.ErrNotGlobalsOwner) {
+		t.Fatalf("non-owner: %v", err)
+	}
+	if err := NewBPFFilter(f, dfkit.GlobalsOwner(false)).Delete(context.Background(), BPFFilter{Expression: "udp"}.Proto(), nil); err != nil || len(f.Calls()) != 0 {
+		t.Fatalf("non-owner must never send: %v %d", err, len(f.Calls()))
+	}
 	v := BPFFilter{Expression: "udp port 4739 and net 10.5.0.0/16", Optimize: true}.Proto()
 	if d.KeyOf(v) != KeyBPFFilter || d.Dependencies(v) != nil {
 		t.Fatal("key/deps")

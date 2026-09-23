@@ -100,7 +100,9 @@ func (d *ProxyVSSDescriptor) Update(ctx context.Context, _, newObj proto.Message
 	return nil, d.set(ctx, newObj, true)
 }
 
-// Delete implements scheduler.Descriptor.
+// Delete implements scheduler.Descriptor. VPP reports a VSS only on relaying VRFs, so the D-074
+// existence check cannot see every VSS; the delete itself answers NO_SUCH_ENTRY for a missing one
+// (host-verified harmless).
 func (d *ProxyVSSDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	err := d.set(ctx, obj, false)
 	if dfkit.IsVPPError(err, api.NO_SUCH_ENTRY) {

@@ -14,7 +14,7 @@ import (
 )
 
 func newFake() (*dfkittest.FakeVPP, *bool, *string) {
-	f := dfkittest.NewFake(dfkittest.Iface{Index: 7, Name: "loop501", Tag: "w5:loop501"}, dfkittest.Iface{Index: 9, Name: "ens192"})
+	f := dfkittest.NewFake(dfkittest.Iface{Index: 7, Name: "loop501", Tag: "w5:loop501"}, dfkittest.Iface{Index: 9, Name: "ens192"}, dfkittest.Iface{Index: 8, Name: "loop601", Tag: "w6:loop601"})
 	running := false
 	fn := DefaultFilterFunction
 	f.On("pcap_trace_on", func(api.Message) ([]api.Message, error) {
@@ -98,8 +98,8 @@ func TestCapture(t *testing.T) {
 	if calls[len(calls)-1].(*interfaces.PcapTraceOn).SwIfIndex != 0 {
 		t.Fatal("any must be sw_if_index 0")
 	}
-	if _, err := NewCapture(f, "w5").Create(ctx, Capture{Rx: true, Interface: "ens192", MaxPackets: 1, MaxBytesPerPacket: 64, File: "w5.pcap"}.Proto()); !errors.Is(err, dfkit.ErrNotOwned) {
-		t.Fatalf("unowned interface: %v", err)
+	if _, err := NewCapture(f, "w5").Create(ctx, Capture{Rx: true, Interface: "loop601", MaxPackets: 1, MaxBytesPerPacket: 64, File: "w5.pcap"}.Proto()); !errors.Is(err, dfkit.ErrNotOwned) {
+		t.Fatalf("another owner's interface: %v", err)
 	}
 	for _, bad := range []Capture{
 		{Interface: AnyInterface, MaxPackets: 1, MaxBytesPerPacket: 64, File: "a.pcap"},
@@ -118,7 +118,10 @@ func TestCapture(t *testing.T) {
 
 func TestFilterFunction(t *testing.T) {
 	f, _, fn := newFake()
-	d := NewFilterFunction(f)
+	d := NewFilterFunction(f, WithGlobals(dfkit.GlobalsOwner(true)))
+	if _, err := NewFilterFunction(f).Create(context.Background(), FilterFunction{Name: "bpf_trace_filter"}.Proto()); !errors.Is(err, dfkit.ErrNotGlobalsOwner) {
+		t.Fatalf("non-owner: %v", err)
+	}
 	ctx := context.Background()
 	v := FilterFunction{Name: "bpf_trace_filter"}.Proto()
 	if deps := d.Dependencies(v); len(deps) != 1 || deps[0].Key != "trace.bpf-filter/global" {

@@ -90,9 +90,17 @@ func (d *ProxyDescriptor) Update(context.Context, proto.Message, proto.Message, 
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor.
+// Delete implements scheduler.Descriptor. It first checks that the server is still configured
+// (D-074: delete only what exists).
 func (d *ProxyDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
-	err := d.config(ctx, obj, false)
+	kvs, err := d.Retrieve(ctx)
+	if err != nil {
+		return err
+	}
+	if !hasKey(kvs, d.KeyOf(obj)) {
+		return nil
+	}
+	err = d.config(ctx, obj, false)
 	if dfkit.IsVPPError(err, api.NO_SUCH_ENTRY) {
 		return nil
 	}
@@ -149,6 +157,15 @@ func (d *ProxyDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
 	return out, nil
+}
+
+func hasKey(kvs []scheduler.KV, k scheduler.Key) bool {
+	for _, kv := range kvs {
+		if kv.Key == k {
+			return true
+		}
+	}
+	return false
 }
 
 func canonAddr(s string) string {

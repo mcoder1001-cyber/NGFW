@@ -320,15 +320,18 @@ func (d *DHCP6PDAddressDescriptor) Retrieve(context.Context) ([]scheduler.KV, er
 // DHCP6DUIDDescriptor manages the dhcp.dhcp6-duid singleton (key dhcp.dhcp6-duid/global):
 // the DUID-LL all DHCPv6 clients of this VPP send. VPP has no getter and no reset: Delete is a
 // no-op (the DUID stays until VPP restarts, when VPP derives one from the first interface MAC).
+// The DUID is VPP-global (D-071): an agent that is not the globals owner cannot set it and, VPP
+// having no getter, cannot verify it either — its Create fails with ErrNotGlobalsOwner.
 type DHCP6DUIDDescriptor struct {
-	client vpp.Client
+	client  vpp.Client
+	globals dfkit.Globals
 }
 
 var _ scheduler.Descriptor = (*DHCP6DUIDDescriptor)(nil)
 
 // NewDHCP6DUID returns the dhcp.dhcp6-duid descriptor.
-func NewDHCP6DUID(client vpp.Client) *DHCP6DUIDDescriptor {
-	return &DHCP6DUIDDescriptor{client: client}
+func NewDHCP6DUID(client vpp.Client, g dfkit.Globals) *DHCP6DUIDDescriptor {
+	return &DHCP6DUIDDescriptor{client: client, globals: g}
 }
 
 // KeyDHCP6DUID is the key of the singleton.
@@ -350,6 +353,9 @@ func (d *DHCP6DUIDDescriptor) set(ctx context.Context, obj proto.Message) error 
 	}
 	if err := s.Validate(); err != nil {
 		return err
+	}
+	if !d.globals.Owner() {
+		return d.globals.Require(ctx, NameDHCP6DUID, obj, nil)
 	}
 	b, _ := parseDUID(s.DUIDLL)
 	if _, err := dhcp.NewServiceClient(d.client).DHCP6DuidLlSet(ctx, &dhcp.DHCP6DuidLlSet{DuidLl: b}); err != nil {

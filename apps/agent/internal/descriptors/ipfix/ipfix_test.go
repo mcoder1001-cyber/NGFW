@@ -135,7 +135,7 @@ func TestExporterLifecycle(t *testing.T) {
 
 func TestDefaultExporter(t *testing.T) {
 	f, pool := newFake()
-	d := NewDefaultExporter(f)
+	d := NewDefaultExporter(f, WithGlobals(dfkit.GlobalsOwner(true)))
 	ctx := context.Background()
 	if kvs := dfkittest.MustRetrieve(t, d); len(kvs) != 0 { // unset → not reported
 		t.Fatalf("unset exporter reported: %v", kvs)
@@ -153,6 +153,22 @@ func TestDefaultExporter(t *testing.T) {
 	if kvs := dfkittest.MustRetrieve(t, NewExporter(f)); len(kvs) != 0 {
 		t.Fatalf("exporter 0 leaked into ipfix.exporter: %v", kvs)
 	}
+	// D-071: a non-owner only requires exporter 0 — satisfied when VPP has exactly it, never set
+	other := NewDefaultExporter(f)
+	if _, err := other.Create(ctx, v); err != nil {
+		t.Fatalf("non-owner requirement met: %v", err)
+	}
+	v3 := Exporter{Collector: "10.5.0.99", CollectorPort: 4739, Src: "10.5.0.10", VRF: NoVRF, PathMTU: 1400, TemplateInterval: 20}.Proto()
+	sets := len(f.CallsNamed("set_ipfix_exporter"))
+	if _, err := other.Create(ctx, v3); !errors.Is(err, dfkit.ErrNotGlobalsOwner) {
+		t.Fatalf("non-owner requirement not met: %v", err)
+	}
+	if err := other.Delete(ctx, v, nil); err != nil || len(f.CallsNamed("set_ipfix_exporter")) != sets {
+		t.Fatalf("non-owner must never set or reset: %v", err)
+	}
+	if _, err := other.Retrieve(ctx); !errors.Is(err, dfkit.ErrRetrieveUnsupported) {
+		t.Fatalf("non-owner retrieve: %v", err)
+	}
 	if err := d.Delete(ctx, v, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +185,10 @@ func TestDefaultExporter(t *testing.T) {
 func TestClassifyWriteOnly(t *testing.T) {
 	f, _ := newFake()
 	ctx := context.Background()
-	cs := NewClassifyStream(f)
+	cs := NewClassifyStream(f, WithGlobals(dfkit.GlobalsOwner(true)))
+	if _, err := NewClassifyStream(f).Create(ctx, ClassifyStream{DomainID: 5, SrcPort: 4744}.Proto()); !errors.Is(err, dfkit.ErrNotGlobalsOwner) {
+		t.Fatalf("non-owner stream: %v", err)
+	}
 	ct := NewClassifyTable(f, WithClassifyTableKey(func(id string) scheduler.Key { return scheduler.Join("classify.table", id) }))
 	sv := ClassifyStream{DomainID: 5, SrcPort: 4744}.Proto()
 	tv := ClassifyTable{Table: 3, IPVersion: "ip6", Protocol: 6}.Proto()

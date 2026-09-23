@@ -7,8 +7,9 @@
 // linux_cp and linux_nl are loaded on vrx-a since 2026-09-24 (D-060). Where they are not, every
 // call fails with ErrPluginNotLoaded (govpp does not know the message ids).
 //
-// Ownership: a pair is owned through its VPP-side interface, which must carry this agent's owner
-// tag; the Linux-side name should carry the owner prefix too (tests: "w<N>-…").
+// Ownership: a pair is owned through its VPP-side interface (logical name, D-069): this owner's
+// tagged interface, or an untagged one (a DPDK NIC) claimed on Create (D-071); the Linux-side name
+// should carry the owner prefix in tests ("w<N>-…"). The default netns is VPP-global (D-071).
 package lcp
 
 import (
@@ -109,7 +110,22 @@ var (
 // Option configures the descriptors of this package.
 type Option func(*options)
 
-type options struct{ ifaceKey dfkit.KeyFunc }
+type options struct {
+	ifaceKey dfkit.KeyFunc
+	globals  dfkit.Globals
+}
+
+func buildOptions(opts []Option) options {
+	o := options{ifaceKey: dfkit.DefaultInterfaceKey}
+	for _, opt := range opts {
+		opt(&o)
+	}
+	return o
+}
+
+// WithGlobals sets the D-071 role for the VPP-global lcp.default-netns (default: not the globals
+// owner — the namespace is then only required, never set or reset).
+func WithGlobals(g dfkit.Globals) Option { return func(o *options) { o.globals = g } }
 
 // WithInterfaceKey sets the interface key scheme of Dependencies (default "interface/<name>", D-065).
 func WithInterfaceKey(f dfkit.KeyFunc) Option {
@@ -122,7 +138,7 @@ func WithInterfaceKey(f dfkit.KeyFunc) Option {
 
 // Register constructs and registers the lcp descriptors.
 func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Option) {
-	r.Register(NewDefaultNetns(client))
+	r.Register(NewDefaultNetns(client, opts...))
 	r.Register(NewItfPair(client, owner, opts...))
 }
 
@@ -136,13 +152,16 @@ var KeyDefaultNetns = scheduler.Join(NameDefaultNetns, DefaultNetnsID)
 
 // DefaultNetnsDescriptor manages the lcp.default-netns singleton (lcp_default_ns_set /
 // lcp_default_ns_get). Retrieve reports it while set; Delete unsets it.
-type DefaultNetnsDescriptor struct{ client vpp.Client }
+type DefaultNetnsDescriptor struct {
+	client vpp.Client
+	o      options
+}
 
 var _ scheduler.Descriptor = (*DefaultNetnsDescriptor)(nil)
 
 // NewDefaultNetns returns the lcp.default-netns descriptor.
-func NewDefaultNetns(client vpp.Client) *DefaultNetnsDescriptor {
-	return &DefaultNetnsDescriptor{client: client}
+func NewDefaultNetns(client vpp.Client, opts ...Option) *DefaultNetnsDescriptor {
+	return &DefaultNetnsDescriptor{client: client, o: buildOptions(opts)}
 }
 
 // Name implements scheduler.Descriptor.
@@ -169,6 +188,12 @@ func (d *DefaultNetnsDescriptor) apply(ctx context.Context, obj proto.Message) e
 	if err := s.Validate(); err != nil {
 		return err
 	}
+	if !d.o.globals.Owner() {
+		return d.o.globals.Require(ctx, NameDefaultNetns, s.Proto(), func(ctx context.Context) (proto.Message, bool, error) {
+			ns, err := d.Current(ctx)
+			return DefaultNetns{Netns: ns}.Proto(), err == nil, err
+		})
+	}
 	return d.set(ctx, s.Netns)
 }
 
@@ -182,8 +207,11 @@ func (d *DefaultNetnsDescriptor) Update(ctx context.Context, _, newObj proto.Mes
 	return nil, d.apply(ctx, newObj)
 }
 
-// Delete implements scheduler.Descriptor: unset.
+// Delete implements scheduler.Descriptor: unset (globals owner only).
 func (d *DefaultNetnsDescriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
+	if !d.o.globals.Owner() {
+		return nil
+	}
 	return d.set(ctx, "")
 }
 
@@ -196,8 +224,12 @@ func (d *DefaultNetnsDescriptor) Current(ctx context.Context) (string, error) {
 	return strings.TrimRight(rep.Netns, "\x00"), nil
 }
 
-// Retrieve implements scheduler.Descriptor: lcp_default_ns_get while set.
+// Retrieve implements scheduler.Descriptor: lcp_default_ns_get while set (for a non-owner:
+// write-only requirement, dfkit.Globals).
 func (d *DefaultNetnsDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+	if !d.o.globals.Owner() {
+		return d.o.globals.NonOwnerRetrieve(NameDefaultNetns)
+	}
 	ns, err := d.Current(ctx)
 	if err != nil || ns == "" {
 		return nil, err
@@ -227,11 +259,7 @@ var _ scheduler.Descriptor = (*ItfPairDescriptor)(nil)
 
 // NewItfPair returns the lcp.itf-pair descriptor.
 func NewItfPair(client vpp.Client, owner string, opts ...Option) *ItfPairDescriptor {
-	o := options{ifaceKey: dfkit.DefaultInterfaceKey}
-	for _, opt := range opts {
-		opt(&o)
-	}
-	return &ItfPairDescriptor{client: client, owner: owner, o: o}
+	return &ItfPairDescriptor{client: client, owner: owner, o: buildOptions(opts)}
 }
 
 // Name implements scheduler.Descriptor.
@@ -271,7 +299,7 @@ func (d *ItfPairDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	if err != nil {
 		return nil, err
 	}
-	idx, err := dfkit.ResolveInterface(ctx, d.client, s.Interface, d.owner)
+	idx, err := dfkit.ResolveAndClaim(ctx, d.client, s.Interface, d.owner, NameItfPair)
 	if err != nil {
 		return nil, err
 	}
@@ -312,17 +340,28 @@ func (d *ItfPairDescriptor) Delete(ctx context.Context, obj proto.Message, meta 
 		idx = m.PhySwIfIndex
 	} else if idx, err = dfkit.ResolveInterface(ctx, d.client, s.Interface, d.owner); err != nil {
 		if errors.Is(err, dfkit.ErrNoInterface) {
-			return nil
+			return dfkit.Claims(d.owner).Release(s.Interface, NameItfPair)
 		}
 		return err
 	}
-	_, err = lcp.NewServiceClient(d.client).LcpItfPairAddDelV3(ctx, &lcp.LcpItfPairAddDelV3{
-		IsAdd: false, SwIfIndex: interface_types.InterfaceIndex(idx),
-	})
-	if err != nil && !dfkit.IsVPPError(err, api.INVALID_SW_IF_INDEX, api.NO_SUCH_ENTRY, api.INVALID_VALUE) {
-		return fmt.Errorf("lcp_itf_pair_add_del_v3(del %s): %w", s.Interface, dfkit.PluginError(Plugin, err))
+	// D-074: delete only a pair that still exists on this interface
+	pairs, err := Pairs(ctx, d.client)
+	if err != nil {
+		return err
 	}
-	return nil
+	exists := false
+	for _, p := range pairs {
+		exists = exists || uint32(p.PhySwIfIndex) == idx
+	}
+	if exists {
+		_, err = lcp.NewServiceClient(d.client).LcpItfPairAddDelV3(ctx, &lcp.LcpItfPairAddDelV3{
+			IsAdd: false, SwIfIndex: interface_types.InterfaceIndex(idx),
+		})
+		if err != nil && !dfkit.IsVPPError(err, api.INVALID_SW_IF_INDEX, api.NO_SUCH_ENTRY, api.INVALID_VALUE) {
+			return fmt.Errorf("lcp_itf_pair_add_del_v3(del %s): %w", s.Interface, dfkit.PluginError(Plugin, err))
+		}
+	}
+	return dfkit.Claims(d.owner).Release(s.Interface, NameItfPair)
 }
 
 // Pairs reads every pair (lcp_itf_pair_get, cursor-paged). lcp_itf_pair_get_v2 is not used: for
@@ -376,7 +415,7 @@ func (d *ItfPairDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error
 	}
 	var out []scheduler.KV
 	for _, p := range pairs {
-		name, ok := ifaces.OwnedName(uint32(p.PhySwIfIndex), d.owner)
+		name, ok := ifaces.Reportable(uint32(p.PhySwIfIndex), d.owner, NameItfPair)
 		if !ok {
 			continue
 		}

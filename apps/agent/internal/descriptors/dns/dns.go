@@ -57,22 +57,39 @@ const EnableID = "global"
 // KeyEnable is the key of the singleton.
 var KeyEnable = scheduler.Join(NameEnable, EnableID)
 
+// Option configures Register.
+type Option func(*dfkit.Globals)
+
+// WithGlobals sets the D-071 role (default: not the globals owner). The resolver and its name
+// servers are VPP-global: only the globals owner sets them; any other agent's Create fails with
+// ErrNotGlobalsOwner (VPP has no getter to check a requirement) and its Delete is a no-op.
+func WithGlobals(g dfkit.Globals) Option { return func(o *dfkit.Globals) { *o = g } }
+
 // Register constructs and registers the dns descriptors (name servers first, see package doc).
-func Register(r scheduler.Registry, client vpp.Client) {
-	r.Register(NewNameServer(client))
-	r.Register(NewEnable(client))
+func Register(r scheduler.Registry, client vpp.Client, opts ...Option) {
+	var g dfkit.Globals
+	for _, o := range opts {
+		o(&g)
+	}
+	r.Register(NewNameServer(client, g))
+	r.Register(NewEnable(client, g))
 }
 
 // ---- dns.enable -----------------------------------------------------------------------------
 
 // EnableDescriptor manages the dns.enable singleton. Enabled=false (or Delete) sends
 // dns_enable_disable(enable=0).
-type EnableDescriptor struct{ client vpp.Client }
+type EnableDescriptor struct {
+	client  vpp.Client
+	globals dfkit.Globals
+}
 
 var _ scheduler.Descriptor = (*EnableDescriptor)(nil)
 
 // NewEnable returns the dns.enable descriptor.
-func NewEnable(client vpp.Client) *EnableDescriptor { return &EnableDescriptor{client: client} }
+func NewEnable(client vpp.Client, g dfkit.Globals) *EnableDescriptor {
+	return &EnableDescriptor{client: client, globals: g}
+}
 
 // Name implements scheduler.Descriptor.
 func (*EnableDescriptor) Name() string { return NameEnable }
@@ -99,6 +116,9 @@ func (d *EnableDescriptor) apply(ctx context.Context, obj proto.Message) error {
 	if err := dfkit.Decode(obj, &s); err != nil {
 		return err
 	}
+	if !d.globals.Owner() {
+		return d.globals.Require(ctx, NameEnable, obj, nil)
+	}
 	return d.set(ctx, s.Enabled)
 }
 
@@ -112,8 +132,12 @@ func (d *EnableDescriptor) Update(ctx context.Context, _, newObj proto.Message, 
 	return nil, d.apply(ctx, newObj)
 }
 
-// Delete implements scheduler.Descriptor: disables the resolver.
+// Delete implements scheduler.Descriptor: disables the resolver (globals owner only; a no-op
+// for everyone else).
 func (d *EnableDescriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
+	if !d.globals.Owner() {
+		return nil
+	}
 	return d.set(ctx, false)
 }
 
@@ -125,13 +149,16 @@ func (*EnableDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
 // ---- dns.name-server ------------------------------------------------------------------------
 
 // NameServerDescriptor manages dns.name-server objects: key dns.name-server/<address>.
-type NameServerDescriptor struct{ client vpp.Client }
+type NameServerDescriptor struct {
+	client  vpp.Client
+	globals dfkit.Globals
+}
 
 var _ scheduler.Descriptor = (*NameServerDescriptor)(nil)
 
 // NewNameServer returns the dns.name-server descriptor.
-func NewNameServer(client vpp.Client) *NameServerDescriptor {
-	return &NameServerDescriptor{client: client}
+func NewNameServer(client vpp.Client, g dfkit.Globals) *NameServerDescriptor {
+	return &NameServerDescriptor{client: client, globals: g}
 }
 
 // Name implements scheduler.Descriptor.
@@ -163,6 +190,12 @@ func (d *NameServerDescriptor) set(ctx context.Context, obj proto.Message, add b
 	}
 	if a.String() != s.Address || a.IsUnspecified() {
 		return dfkit.Specf("name server %q must be a canonical, specified address", s.Address)
+	}
+	if !d.globals.Owner() {
+		if !add {
+			return nil
+		}
+		return d.globals.Require(ctx, NameNameServer, obj, nil)
 	}
 	req := &dns.DNSNameServerAddDel{ServerAddress: make([]byte, 16)}
 	if a.Is6() {

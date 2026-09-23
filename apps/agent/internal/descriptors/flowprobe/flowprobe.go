@@ -11,6 +11,7 @@ package flowprobe
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -104,6 +105,7 @@ type Option func(*options)
 type options struct {
 	ifaceKey    dfkit.KeyFunc
 	exporterKey scheduler.Key
+	globals     dfkit.Globals
 }
 
 func buildOptions(opts []Option) options {
@@ -123,9 +125,13 @@ func WithInterfaceKey(f dfkit.KeyFunc) Option {
 	}
 }
 
+// WithGlobals sets the D-071 role for the VPP-global flowprobe.params (default: not the globals
+// owner — the parameters are then only required, never set or reset).
+func WithGlobals(g dfkit.Globals) Option { return func(o *options) { o.globals = g } }
+
 // Register constructs and registers the flowprobe descriptors.
 func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Option) {
-	r.Register(NewParams(client))
+	r.Register(NewParams(client, opts...))
 	r.Register(NewInterface(client, owner, opts...))
 }
 
@@ -140,12 +146,17 @@ var KeyParams = scheduler.Join(NameParams, ParamsID)
 // ParamsDescriptor manages the flowprobe.params singleton (flowprobe_set_params /
 // flowprobe_get_params). Retrieve reports it while a record flag is set; Delete sets record 0
 // (VPP's "unset", no interface can be enabled then) and the default timers.
-type ParamsDescriptor struct{ client vpp.Client }
+type ParamsDescriptor struct {
+	client vpp.Client
+	o      options
+}
 
 var _ scheduler.Descriptor = (*ParamsDescriptor)(nil)
 
 // NewParams returns the flowprobe.params descriptor.
-func NewParams(client vpp.Client) *ParamsDescriptor { return &ParamsDescriptor{client: client} }
+func NewParams(client vpp.Client, opts ...Option) *ParamsDescriptor {
+	return &ParamsDescriptor{client: client, o: buildOptions(opts)}
+}
 
 // Name implements scheduler.Descriptor.
 func (*ParamsDescriptor) Name() string { return NameParams }
@@ -178,6 +189,9 @@ func (d *ParamsDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
+	if !d.o.globals.Owner() {
+		return nil, d.o.globals.Require(ctx, NameParams, s.Proto(), d.current)
+	}
 	var flags flowprobe.FlowprobeRecordFlags
 	if s.RecordL2 {
 		flags |= flowprobe.FLOWPROBE_RECORD_FLAG_L2
@@ -197,19 +211,35 @@ func (*ParamsDescriptor) Update(context.Context, proto.Message, proto.Message, a
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor: record 0 + default timers.
+// Delete implements scheduler.Descriptor: record 0 + default timers (globals owner only).
 func (d *ParamsDescriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
+	if !d.o.globals.Owner() {
+		return nil
+	}
 	return d.set(ctx, 0, DefaultActiveTimer, DefaultPassiveTimer)
 }
 
-// Retrieve implements scheduler.Descriptor: flowprobe_get_params while a record flag is set.
+// Retrieve implements scheduler.Descriptor: flowprobe_get_params while a record flag is set (for
+// a non-owner: write-only requirement, dfkit.Globals).
 func (d *ParamsDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+	if !d.o.globals.Owner() {
+		return d.o.globals.NonOwnerRetrieve(NameParams)
+	}
+	v, ok, err := d.current(ctx)
+	if err != nil || !ok {
+		return nil, err
+	}
+	return []scheduler.KV{{Key: KeyParams, Value: v}}, nil
+}
+
+// current reads flowprobe_get_params (ok=false while no record flag is set).
+func (d *ParamsDescriptor) current(ctx context.Context) (proto.Message, bool, error) {
 	rep, err := flowprobe.NewServiceClient(d.client).FlowprobeGetParams(ctx, &flowprobe.FlowprobeGetParams{})
 	if err != nil {
-		return nil, fmt.Errorf("flowprobe_get_params: %w", err)
+		return nil, false, fmt.Errorf("flowprobe_get_params: %w", err)
 	}
 	if rep.RecordFlags == 0 {
-		return nil, nil
+		return nil, false, nil
 	}
 	s := Params{
 		RecordL2:    rep.RecordFlags&flowprobe.FLOWPROBE_RECORD_FLAG_L2 != 0,
@@ -217,7 +247,7 @@ func (d *ParamsDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 		RecordL4:    rep.RecordFlags&flowprobe.FLOWPROBE_RECORD_FLAG_L4 != 0,
 		ActiveTimer: rep.ActiveTimer, PassiveTimer: rep.PassiveTimer,
 	}
-	return []scheduler.KV{{Key: KeyParams, Value: s.Proto()}}, nil
+	return s.Proto(), true, nil
 }
 
 // ---- flowprobe.interface --------------------------------------------------------------------
@@ -227,8 +257,8 @@ type InterfaceMeta struct {
 	SwIfIndex uint32
 }
 
-// InterfaceDescriptor manages flowprobe.interface objects: key flowprobe.interface/<interface>.
-// The interface must carry this agent's owner tag.
+// InterfaceDescriptor manages flowprobe.interface objects: key flowprobe.interface/<interface>
+// (logical name, D-069): this owner's tagged interface, or an untagged one claimed on Create (D-071).
 type InterfaceDescriptor struct {
 	client vpp.Client
 	owner  string
@@ -282,7 +312,13 @@ func (d *InterfaceDescriptor) addDel(ctx context.Context, obj proto.Message, met
 		idx = m.SwIfIndex
 	} else {
 		var err error
-		if idx, err = dfkit.ResolveInterface(ctx, d.client, s.Interface, d.owner); err != nil {
+		resolve := dfkit.ResolveInterface
+		if add {
+			resolve = func(ctx context.Context, c vpp.Client, name, owner string) (uint32, error) {
+				return dfkit.ResolveAndClaim(ctx, c, name, owner, NameInterface)
+			}
+		}
+		if idx, err = resolve(ctx, d.client, s.Interface, d.owner); err != nil {
 			return nil, err
 		}
 	}
@@ -315,13 +351,30 @@ func (*InterfaceDescriptor) Update(context.Context, proto.Message, proto.Message
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor; NO_SUCH_ENTRY / INVALID_SW_IF_INDEX count as deleted.
+// Delete implements scheduler.Descriptor. It first checks that flowprobe is still on the
+// interface (D-074); NO_SUCH_ENTRY / INVALID_SW_IF_INDEX / a vanished interface count as deleted.
 func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
-	_, err := d.addDel(ctx, obj, meta, false)
-	if dfkit.IsVPPError(err, api.NO_SUCH_ENTRY, api.INVALID_SW_IF_INDEX) {
-		return nil
+	kvs, err := d.Retrieve(ctx)
+	if err != nil {
+		return err
 	}
-	return err
+	var name string
+	if s, derr := decodeIface(obj); derr == nil {
+		name = s.Interface
+	}
+	if _, ok := findKV(kvs, d.KeyOf(obj)); ok {
+		_, err = d.addDel(ctx, obj, meta, false)
+		if err != nil && !dfkit.IsVPPError(err, api.NO_SUCH_ENTRY, api.INVALID_SW_IF_INDEX) && !errors.Is(err, dfkit.ErrNoInterface) {
+			return err
+		}
+	}
+	return dfkit.Claims(d.owner).Release(name, NameInterface)
+}
+
+func decodeIface(obj proto.Message) (Interface, error) {
+	var s Interface
+	err := dfkit.Decode(obj, &s)
+	return s, err
 }
 
 var (
@@ -354,7 +407,7 @@ func (d *InterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 	var out []scheduler.KV
 	for _, det := range details {
 		idx := uint32(det.SwIfIndex)
-		name, ok := ifaces.OwnedName(idx, d.owner)
+		name, ok := ifaces.Reportable(idx, d.owner, NameInterface)
 		if !ok {
 			continue
 		}

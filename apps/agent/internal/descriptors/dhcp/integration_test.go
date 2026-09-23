@@ -148,7 +148,7 @@ func TestDHCPOnHost(t *testing.T) {
 		if os.Getenv("VRX_DF8_DUID") != "1" {
 			t.Skip("dhcp6_duid_ll_set changes a VPP-global without getter or reset; set VRX_DF8_DUID=1 to run")
 		}
-		d := NewDHCP6DUID(c)
+		d := NewDHCP6DUID(c, dfkit.GlobalsOwner(true))
 		v := DHCP6DUID{DUIDLL: fmt.Sprintf("00:03:00:01:02:00:00:%02x:00:01", slot)}.Proto()
 		if _, err := d.Create(ctx, v); err != nil {
 			t.Fatalf("create: %v", err)

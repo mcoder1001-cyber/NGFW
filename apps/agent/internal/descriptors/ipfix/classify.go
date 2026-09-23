@@ -48,15 +48,19 @@ const ClassifyStreamID = "global"
 // KeyClassifyStream is the key of the singleton.
 var KeyClassifyStream = scheduler.Join(NameClassifyStream, ClassifyStreamID)
 
-// ClassifyStreamDescriptor manages the ipfix.classify-stream singleton. Retrieve reports it while
-// src_port is set; Delete resets it to domain 0 / port 0 ("unset").
-type ClassifyStreamDescriptor struct{ client vpp.Client }
+// ClassifyStreamDescriptor manages the ipfix.classify-stream singleton (globals owner only,
+// D-071). Retrieve is write-only (ErrClassifyDumpBroken); Delete resets it to domain 0 / port 0
+// ("unset").
+type ClassifyStreamDescriptor struct {
+	client vpp.Client
+	o      options
+}
 
 var _ scheduler.Descriptor = (*ClassifyStreamDescriptor)(nil)
 
 // NewClassifyStream returns the ipfix.classify-stream descriptor.
-func NewClassifyStream(client vpp.Client) *ClassifyStreamDescriptor {
-	return &ClassifyStreamDescriptor{client: client}
+func NewClassifyStream(client vpp.Client, opts ...Option) *ClassifyStreamDescriptor {
+	return &ClassifyStreamDescriptor{client: client, o: buildOptions(opts)}
 }
 
 // Name implements scheduler.Descriptor.
@@ -88,6 +92,9 @@ func (d *ClassifyStreamDescriptor) apply(ctx context.Context, obj proto.Message)
 	if s.SrcPort == 0 {
 		return dfkit.Specf("ipfix classify stream: src_port must be set (0 means unset)")
 	}
+	if !d.o.globals.Owner() {
+		return d.o.globals.Require(ctx, NameClassifyStream, obj, nil) // no working getter
+	}
 	return d.set(ctx, s)
 }
 
@@ -101,8 +108,11 @@ func (d *ClassifyStreamDescriptor) Update(ctx context.Context, _, newObj proto.M
 	return nil, d.apply(ctx, newObj)
 }
 
-// Delete implements scheduler.Descriptor: back to the unset state.
+// Delete implements scheduler.Descriptor: back to the unset state (globals owner only).
 func (d *ClassifyStreamDescriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
+	if !d.o.globals.Owner() {
+		return nil
+	}
 	return d.set(ctx, ClassifyStream{})
 }
 

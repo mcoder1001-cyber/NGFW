@@ -25,8 +25,9 @@ func TestDNSOnHost(t *testing.T) {
 	c := h.Client()
 	ctx := context.Background()
 	slot := vpptest.Slot(t)
-	ns := NewNameServer(c)
-	en := NewEnable(c)
+	// the test acts as the globals owner (D-071) for the resolver nobody else on this host uses
+	ns := NewNameServer(c, dfkit.GlobalsOwner(true))
+	en := NewEnable(c, dfkit.GlobalsOwner(true))
 	v4 := NameServer{Address: fmt.Sprintf("10.%d.53.1", slot)}.Proto()
 	v6 := NameServer{Address: fmt.Sprintf("fd00:%d::53", slot)}.Proto()
 	on := Enable{Enabled: true}.Proto()

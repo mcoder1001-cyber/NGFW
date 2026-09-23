@@ -23,6 +23,7 @@ func newFake() (*dfkittest.FakeVPP, *model) {
 	f := dfkittest.NewFake(
 		dfkittest.Iface{Index: 7, Name: "loop501", Tag: "w5:loop501"},
 		dfkittest.Iface{Index: 8, Name: "loop601", Tag: "w6:loop601"},
+		dfkittest.Iface{Index: 9, Name: "ens192"},
 	)
 	m := &model{params: flowprobe.FlowprobeGetParamsReply{ActiveTimer: 15, PassiveTimer: 120}, ifs: map[uint32]flowprobe.FlowprobeInterfaceDetails{}}
 	f.On("flowprobe_set_params", func(msg api.Message) ([]api.Message, error) {
@@ -69,7 +70,7 @@ func newFake() (*dfkittest.FakeVPP, *model) {
 
 func TestParams(t *testing.T) {
 	f, m := newFake()
-	d := NewParams(f)
+	d := NewParams(f, WithGlobals(dfkit.GlobalsOwner(true)))
 	ctx := context.Background()
 	if kvs := dfkittest.MustRetrieve(t, d); len(kvs) != 0 {
 		t.Fatalf("unset params reported %v", kvs)
@@ -86,6 +87,21 @@ func TestParams(t *testing.T) {
 	if _, err := d.Update(ctx, v, v, nil); !errors.Is(err, scheduler.ErrRecreate) {
 		t.Fatal(err)
 	}
+	// D-071: a non-owner only requires the params
+	other := NewParams(f)
+	sets := len(f.CallsNamed("flowprobe_set_params"))
+	if _, err := other.Create(ctx, v); err != nil {
+		t.Fatalf("requirement met: %v", err)
+	}
+	if _, err := other.Create(ctx, Params{RecordL2: true, ActiveTimer: 1, PassiveTimer: 2}.Proto()); !errors.Is(err, dfkit.ErrNotGlobalsOwner) {
+		t.Fatalf("requirement not met: %v", err)
+	}
+	if err := other.Delete(ctx, v, nil); err != nil || len(f.CallsNamed("flowprobe_set_params")) != sets {
+		t.Fatalf("non-owner must never set: %v", err)
+	}
+	if _, err := other.Retrieve(ctx); !errors.Is(err, dfkit.ErrRetrieveUnsupported) {
+		t.Fatal(err)
+	}
 	if err := d.Delete(ctx, v, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +116,7 @@ func TestParams(t *testing.T) {
 func TestInterface(t *testing.T) {
 	f, m := newFake()
 	ctx := context.Background()
-	pd := NewParams(f)
+	pd := NewParams(f, WithGlobals(dfkit.GlobalsOwner(true)))
 	d := NewInterface(f, "w5")
 	v := Interface{Interface: "loop501", Which: "ip6", Direction: "tx"}.Proto()
 	deps := d.Dependencies(v)
@@ -152,6 +168,18 @@ func TestInterface(t *testing.T) {
 		if _, err := d.Create(ctx, bad.Proto()); !errors.Is(err, dfkit.ErrSpec) {
 			t.Errorf("%+v: %v", bad, err)
 		}
+	}
+	// untagged interface: usable with a claim, reported only while claimed (D-071)
+	uv := Interface{Interface: "ens192", Which: "l2", Direction: "rx"}.Proto()
+	if _, err := d.Create(ctx, uv); err != nil {
+		t.Fatal(err)
+	}
+	dfkittest.AssertRetrieved(t, d, dfkittest.KV(d, uv))
+	if kvs := dfkittest.MustRetrieve(t, NewInterface(f, "w7")); len(kvs) != 0 {
+		t.Fatalf("unclaimed untagged interface reported: %v", kvs)
+	}
+	if err := d.Delete(ctx, uv, nil); err != nil || dfkit.Claims("w5").Claimed("ens192", NameInterface) {
+		t.Fatalf("delete/release: %v", err)
 	}
 	r := scheduler.NewRegistry()
 	Register(r, f, "w5")

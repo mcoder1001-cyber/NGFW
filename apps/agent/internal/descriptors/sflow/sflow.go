@@ -12,6 +12,7 @@ package sflow
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -87,14 +88,29 @@ func (s Global) Validate() error {
 
 // Register constructs and registers the sflow descriptors.
 func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Option) {
-	r.Register(NewGlobal(client))
+	r.Register(NewGlobal(client, opts...))
 	r.Register(NewInterface(client, owner, opts...))
 }
 
 // Option configures the descriptors of this package.
 type Option func(*options)
 
-type options struct{ ifaceKey dfkit.KeyFunc }
+type options struct {
+	ifaceKey dfkit.KeyFunc
+	globals  dfkit.Globals
+}
+
+func buildOptions(opts []Option) options {
+	o := options{ifaceKey: dfkit.DefaultInterfaceKey}
+	for _, opt := range opts {
+		opt(&o)
+	}
+	return o
+}
+
+// WithGlobals sets the D-071 role for the VPP-global sflow.global (default: not the globals
+// owner — the parameters are then only required, never set or reset).
+func WithGlobals(g dfkit.Globals) Option { return func(o *options) { o.globals = g } }
 
 // WithInterfaceKey sets the interface key scheme of Dependencies (default "interface/<name>", D-065).
 func WithInterfaceKey(f dfkit.KeyFunc) Option {
@@ -116,12 +132,17 @@ var KeyGlobal = scheduler.Join(NameGlobal, GlobalID)
 // GlobalDescriptor manages the sflow.global singleton through the five *_set messages; Retrieve
 // reads the five *_get messages and reports the object while it differs from VPP's defaults;
 // Delete restores the defaults.
-type GlobalDescriptor struct{ client vpp.Client }
+type GlobalDescriptor struct {
+	client vpp.Client
+	o      options
+}
 
 var _ scheduler.Descriptor = (*GlobalDescriptor)(nil)
 
 // NewGlobal returns the sflow.global descriptor.
-func NewGlobal(client vpp.Client) *GlobalDescriptor { return &GlobalDescriptor{client: client} }
+func NewGlobal(client vpp.Client, opts ...Option) *GlobalDescriptor {
+	return &GlobalDescriptor{client: client, o: buildOptions(opts)}
+}
 
 // Name implements scheduler.Descriptor.
 func (*GlobalDescriptor) Name() string { return NameGlobal }
@@ -179,6 +200,15 @@ func (d *GlobalDescriptor) apply(ctx context.Context, obj proto.Message) error {
 	if err := dfkit.Decode(obj, &s); err != nil {
 		return err
 	}
+	if !d.o.globals.Owner() {
+		if err := s.Validate(); err != nil {
+			return err
+		}
+		return d.o.globals.Require(ctx, NameGlobal, s.Proto(), func(ctx context.Context) (proto.Message, bool, error) {
+			cur, err := d.Current(ctx)
+			return cur.Proto(), err == nil, err
+		})
+	}
 	return d.set(ctx, s)
 }
 
@@ -194,6 +224,9 @@ func (d *GlobalDescriptor) Update(ctx context.Context, _, newObj proto.Message, 
 
 // Delete implements scheduler.Descriptor: back to VPP's defaults.
 func (d *GlobalDescriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
+	if !d.o.globals.Owner() {
+		return nil
+	}
 	return d.set(ctx, DefaultGlobal())
 }
 
@@ -227,8 +260,12 @@ func (d *GlobalDescriptor) Current(ctx context.Context) (Global, error) {
 	return Global{SamplingRate: n.SamplingN, PollingInterval: p.PollingS, HeaderBytes: h.HeaderB, Direction: ds, DropMonitoring: m.DropM != 0}, nil
 }
 
-// Retrieve implements scheduler.Descriptor: the getters' values while they differ from the defaults.
+// Retrieve implements scheduler.Descriptor: the getters' values while they differ from the
+// defaults (for a non-owner: write-only requirement, dfkit.Globals).
 func (d *GlobalDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+	if !d.o.globals.Owner() {
+		return d.o.globals.NonOwnerRetrieve(NameGlobal)
+	}
 	cur, err := d.Current(ctx)
 	if err != nil {
 		return nil, err
@@ -248,33 +285,30 @@ type InterfaceMeta struct {
 	HwIfIndex uint32
 }
 
-// InterfaceDescriptor manages sflow.interface objects: key sflow.interface/<interface>, owned
-// interfaces only.
+// InterfaceDescriptor manages sflow.interface objects: key sflow.interface/<interface> (logical
+// name, D-069): this owner's tagged interfaces, or untagged ones claimed on Create (D-071).
 //
 // Retrieve: sflow_interface_dump gives the enabled hw_if_indexes. Those learned at Create map to
-// owned interfaces directly. If unlearned indexes remain, every owned interface not yet known to
-// be enabled is probed with sflow_enable_disable(enable=1): VALUE_EXIST means it is enabled
-// (reported); success means it was not, and it is disabled again at once (only this agent's own
-// interfaces are ever probed, and only while unlearned enabled indexes exist). The mapping found
-// this way is learned when it is unambiguous. All calls of one descriptor are serialised.
+// interfaces directly. If unlearned indexes remain, every interface of this agent (tagged, or
+// untagged and claimed; never a sub-interface) not yet known to be enabled is probed with
+// sflow_enable_disable(enable=1): VALUE_EXIST means it is enabled (reported); success means it
+// was not, and it is disabled again at once (only this agent's own interfaces are ever probed, and
+// only while unlearned enabled indexes exist). The mapping found this way is learned when it is
+// unambiguous. All calls of one descriptor are serialised.
 type InterfaceDescriptor struct {
 	client vpp.Client
 	owner  string
 	o      options
 
 	mu      sync.Mutex
-	learned map[uint32]string // hw_if_index → interface name
+	learned map[uint32]uint32 // hw_if_index → sw_if_index
 }
 
 var _ scheduler.Descriptor = (*InterfaceDescriptor)(nil)
 
 // NewInterface returns the sflow.interface descriptor.
 func NewInterface(client vpp.Client, owner string, opts ...Option) *InterfaceDescriptor {
-	o := options{ifaceKey: dfkit.DefaultInterfaceKey}
-	for _, opt := range opts {
-		opt(&o)
-	}
-	return &InterfaceDescriptor{client: client, owner: owner, o: o, learned: map[uint32]string{}}
+	return &InterfaceDescriptor{client: client, owner: owner, o: buildOptions(opts), learned: map[uint32]uint32{}}
 }
 
 // Name implements scheduler.Descriptor.
@@ -343,7 +377,7 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	idx, err := dfkit.ResolveInterface(ctx, d.client, s.Interface, d.owner)
+	idx, err := dfkit.ResolveAndClaim(ctx, d.client, s.Interface, d.owner, NameInterface)
 	if err != nil {
 		return nil, err
 	}
@@ -353,7 +387,7 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	}
 	if err := d.enable(ctx, idx, true); err != nil {
 		if dfkit.IsVPPError(err, api.VALUE_EXIST) {
-			return InterfaceMeta{SwIfIndex: idx, HwIfIndex: d.hwOf(s.Interface)}, nil
+			return InterfaceMeta{SwIfIndex: idx, HwIfIndex: d.hwOf(idx)}, nil
 		}
 		return nil, fmt.Errorf("sflow_enable_disable(%s, enable=1): %w", s.Interface, err)
 	}
@@ -365,15 +399,15 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	for hw := range after {
 		if !before[hw] {
 			meta.HwIfIndex = hw
-			d.learned[hw] = s.Interface
+			d.learned[hw] = idx
 		}
 	}
 	return meta, nil
 }
 
-func (d *InterfaceDescriptor) hwOf(name string) uint32 {
-	for hw, n := range d.learned {
-		if n == name {
+func (d *InterfaceDescriptor) hwOf(sw uint32) uint32 {
+	for hw, s := range d.learned {
+		if s == sw {
 			return hw
 		}
 	}
@@ -385,8 +419,10 @@ func (d *InterfaceDescriptor) Update(ctx context.Context, _, newObj proto.Messag
 	return d.Create(ctx, newObj)
 }
 
-// Delete implements scheduler.Descriptor; VALUE_EXIST (already disabled) and a vanished
-// interface count as deleted.
+// Delete implements scheduler.Descriptor. sflow_enable_disable(0) on a disabled interface is a
+// harmless VALUE_EXIST (host-verified), which is the D-074 existence check here: the sw → hw
+// mapping needed to consult the dump is not available after a restart. A vanished interface
+// counts as deleted.
 func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	s, err := d.spec(obj)
 	if err != nil {
@@ -398,18 +434,21 @@ func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, met
 	if m, ok := meta.(InterfaceMeta); ok {
 		idx = m.SwIfIndex
 	} else if idx, err = dfkit.ResolveInterface(ctx, d.client, s.Interface, d.owner); err != nil {
+		if errors.Is(err, dfkit.ErrNoInterface) {
+			return dfkit.Claims(d.owner).Release(s.Interface, NameInterface)
+		}
 		return err
 	}
 	err = d.enable(ctx, idx, false)
 	if err != nil && !dfkit.IsVPPError(err, api.VALUE_EXIST, api.INVALID_SW_IF_INDEX) {
 		return fmt.Errorf("sflow_enable_disable(%s, enable=0): %w", s.Interface, err)
 	}
-	for hw, n := range d.learned {
-		if n == s.Interface {
+	for hw, sw := range d.learned {
+		if sw == idx {
 			delete(d.learned, hw)
 		}
 	}
-	return nil
+	return dfkit.Claims(d.owner).Release(s.Interface, NameInterface)
 }
 
 // Retrieve implements scheduler.Descriptor (see the type doc for the probe).
@@ -421,7 +460,7 @@ func (d *InterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 		return nil, err
 	}
 	if len(hws) == 0 {
-		d.learned = map[uint32]string{}
+		d.learned = map[uint32]uint32{}
 		return nil, nil
 	}
 	ifaces, err := dfkit.DumpInterfaces(ctx, d.client)
@@ -431,9 +470,9 @@ func (d *InterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 	enabled := map[string]InterfaceMeta{}
 	var unknown []uint32
 	for hw := range hws {
-		name, ok := d.learned[hw]
-		if i, exists := ifaces.ByName[name]; ok && exists && i.Owned(d.owner) {
-			enabled[name] = InterfaceMeta{SwIfIndex: i.Index, HwIfIndex: hw}
+		sw, ok := d.learned[hw]
+		if name, mine := ifaces.Reportable(sw, d.owner, NameInterface); ok && mine {
+			enabled[name] = InterfaceMeta{SwIfIndex: sw, HwIfIndex: hw}
 			continue
 		}
 		delete(d.learned, hw)
@@ -450,10 +489,10 @@ func (d *InterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 			return nil, err
 		}
 		if len(unknown) == 1 && len(found) == 1 { // unambiguous: learn it
-			d.learned[unknown[0]] = found[0]
 			m := enabled[found[0]]
 			m.HwIfIndex = unknown[0]
 			enabled[found[0]] = m
+			d.learned[unknown[0]] = m.SwIfIndex
 		}
 	}
 	out := make([]scheduler.KV, 0, len(enabled))
@@ -464,26 +503,28 @@ func (d *InterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 	return out, nil
 }
 
-// probe finds the owned (non-sub) interfaces that are enabled but not yet in enabled, adding them.
+// probe finds this agent's (non-sub) interfaces that are enabled but not yet in enabled, adding
+// them; it returns their logical names.
 func (d *InterfaceDescriptor) probe(ctx context.Context, ifaces *dfkit.Ifaces, enabled map[string]InterfaceMeta) ([]string, error) {
-	var found []string
-	names := make([]string, 0, len(ifaces.ByName))
-	for n := range ifaces.ByName {
-		names = append(names, n)
+	idxs := make([]uint32, 0, len(ifaces.ByIndex))
+	for idx := range ifaces.ByIndex {
+		idxs = append(idxs, idx)
 	}
-	sort.Strings(names)
-	for _, name := range names {
-		i := ifaces.ByName[name]
-		if _, known := enabled[name]; known || !i.Owned(d.owner) || i.SupIndex != i.Index {
+	sort.Slice(idxs, func(i, j int) bool { return idxs[i] < idxs[j] })
+	var found []string
+	for _, idx := range idxs {
+		i := ifaces.ByIndex[idx]
+		name, mine := ifaces.Reportable(idx, d.owner, NameInterface)
+		if _, known := enabled[name]; !mine || known || i.SupIndex != i.Index {
 			continue
 		}
-		err := d.enable(ctx, i.Index, true)
+		err := d.enable(ctx, idx, true)
 		switch {
 		case dfkit.IsVPPError(err, api.VALUE_EXIST):
-			enabled[name] = InterfaceMeta{SwIfIndex: i.Index}
+			enabled[name] = InterfaceMeta{SwIfIndex: idx}
 			found = append(found, name)
 		case err == nil: // was disabled: undo at once
-			if err := d.enable(ctx, i.Index, false); err != nil {
+			if err := d.enable(ctx, idx, false); err != nil {
 				return nil, fmt.Errorf("sflow probe of %s: undo enable: %w", name, err)
 			}
 		default:

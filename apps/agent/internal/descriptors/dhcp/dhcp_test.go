@@ -291,7 +291,7 @@ func TestClientLifecycle(t *testing.T) {
 func TestClientRefusesForeignInterfaces(t *testing.T) {
 	f, _ := newClientFake()
 	d := NewClient(f, owner)
-	for name, want := range map[string]error{"loop601": dfkit.ErrNotOwned, "ens192": dfkit.ErrNotOwned, "loop999": dfkit.ErrNoInterface} {
+	for name, want := range map[string]error{"loop601": dfkit.ErrNotOwned, "loop999": dfkit.ErrNoInterface, "local0": dfkit.ErrNoInterface} {
 		if _, err := d.Create(context.Background(), Client{Interface: name, Hostname: "w5-h"}.Proto()); !errors.Is(err, want) {
 			t.Errorf("%s: %v, want %v", name, err, want)
 		}
@@ -303,6 +303,29 @@ func TestClientRefusesForeignInterfaces(t *testing.T) {
 	}
 	if n := len(f.CallsNamed("dhcp_client_config")); n != 0 {
 		t.Fatalf("%d VPP calls for refused clients", n)
+	}
+}
+
+// Untagged (physical) interfaces are usable through a claim (D-071): reported only while claimed,
+// released on Delete; another owner's claims are separate.
+func TestClientOnUntaggedInterface(t *testing.T) {
+	f, clients := newClientFake()
+	owner := "w5claims"
+	d := NewClient(f, owner)
+	v := Client{Interface: "ens192", Hostname: "w5-wan"}.Proto()
+	meta, err := d.Create(context.Background(), v)
+	if err != nil || meta != (ClientMeta{SwIfIndex: 9}) {
+		t.Fatalf("create on untagged: %v %v", meta, err)
+	}
+	dfkittest.AssertRetrieved(t, d, dfkittest.KV(d, v))
+	if kvs := dfkittest.MustRetrieve(t, NewClient(f, "w5other")); len(kvs) != 0 {
+		t.Fatalf("unclaimed untagged client reported to another owner: %v", kvs)
+	}
+	if err := d.Delete(context.Background(), v, meta); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := clients[9]; ok || dfkit.Claims(owner).Claimed("ens192", NameClient) {
+		t.Fatal("delete must remove the client and release the claim")
 	}
 }
 
@@ -432,8 +455,15 @@ func TestDHCP6WriteOnly(t *testing.T) {
 
 func TestDHCP6DUID(t *testing.T) {
 	f, _ := newDHCP6Fake()
-	d := NewDHCP6DUID(f)
+	d := NewDHCP6DUID(f, dfkit.GlobalsOwner(true))
 	v := DHCP6DUID{DUIDLL: "00:03:00:01:02:00:00:05:00:01"}.Proto()
+	// D-071: a non-owner can neither set nor (no getter) verify the global DUID
+	if _, err := NewDHCP6DUID(f, dfkit.GlobalsOwner(false)).Create(context.Background(), v); !errors.Is(err, dfkit.ErrNotGlobalsOwner) {
+		t.Fatalf("non-owner create: %v", err)
+	}
+	if n := len(f.CallsNamed("dhcp6_duid_ll_set")); n != 0 {
+		t.Fatalf("non-owner sent %d dhcp6_duid_ll_set", n)
+	}
 	if d.KeyOf(v) != KeyDHCP6DUID || d.Dependencies(v) != nil {
 		t.Fatal("key/deps")
 	}

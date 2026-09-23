@@ -18,7 +18,7 @@ func TestLCPOnHost(t *testing.T) {
 	h.SkipUnlessCompatible(t, Plugin, &lcp.LcpItfPairAddDelV3{}, &lcp.LcpItfPairGet{}, &lcp.LcpDefaultNsSet{}, &lcp.LcpDefaultNsGet{})
 	c := h.Client()
 	ctx := context.Background()
-	nd := NewDefaultNetns(c)
+	nd := NewDefaultNetns(c, WithGlobals(dfkit.GlobalsOwner(true))) // test acts as globals owner, restores "unset"
 	pd := NewItfPair(c, h.Owner)
 
 	t.Run("itf-pair", func(t *testing.T) {

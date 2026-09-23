@@ -7,7 +7,8 @@
 // Ownership on the shared VPP: additional exporters are owned through their collector address,
 // which must be inside the collector scope given to Register (tests: 10.<slot>.0.0/16);
 // classify tables through the table scope. The default exporter and the classify stream are
-// VPP-global singletons: Retrieve reports them whenever they differ from VPP's defaults.
+// VPP-global singletons managed only by the globals owner (D-071, dfkit.Globals): for it Retrieve
+// reports exporter 0 while its collector is set; every other agent can only require a value.
 package ipfix
 
 import (
@@ -115,6 +116,7 @@ type options struct {
 	tableKey    dfkit.KeyFunc
 	collectorIn func(netip.Addr) bool
 	tableIn     func(uint32) bool
+	globals     dfkit.Globals
 }
 
 func buildOptions(opts []Option) options {
@@ -167,11 +169,15 @@ func WithClassifyTableScope(in func(uint32) bool) Option {
 	}
 }
 
+// WithGlobals sets the D-071 role for the VPP-global default exporter and classify stream
+// (default: not the globals owner — they are then only required, never set or reset).
+func WithGlobals(g dfkit.Globals) Option { return func(o *options) { o.globals = g } }
+
 // Register constructs and registers the ipfix descriptors in dependency order.
 func Register(r scheduler.Registry, client vpp.Client, opts ...Option) {
 	r.Register(NewDefaultExporter(client, opts...))
 	r.Register(NewExporter(client, opts...))
-	r.Register(NewClassifyStream(client))
+	r.Register(NewClassifyStream(client, opts...))
 	r.Register(NewClassifyTable(client, opts...))
 }
 
@@ -259,9 +265,21 @@ func (d *ExporterDescriptor) Update(ctx context.Context, _, newObj proto.Message
 	return d.createDelete(ctx, newObj, true)
 }
 
-// Delete implements scheduler.Descriptor; NO_SUCH_ENTRY counts as deleted.
+// Delete implements scheduler.Descriptor. It first checks that the exporter still exists (D-074:
+// VPP would pool_put exporter 0 for a collector that matches it); NO_SUCH_ENTRY counts as deleted.
 func (d *ExporterDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
-	_, err := d.createDelete(ctx, obj, false)
+	kvs, err := d.Retrieve(ctx)
+	if err != nil {
+		return err
+	}
+	found := false
+	for _, kv := range kvs {
+		found = found || kv.Key == d.KeyOf(obj)
+	}
+	if !found {
+		return nil
+	}
+	_, err = d.createDelete(ctx, obj, false)
 	if dfkit.IsVPPError(err, api.NO_SUCH_ENTRY) {
 		return nil
 	}
@@ -371,6 +389,12 @@ func (d *DefaultExporterDescriptor) set(ctx context.Context, obj proto.Message) 
 	if !c.Is4() {
 		return dfkit.Specf("ipfix default exporter: collector %s must be IPv4", c)
 	}
+	if !d.o.globals.Owner() {
+		return d.o.globals.Require(ctx, NameDefaultExporter, s.Proto(), func(ctx context.Context) (proto.Message, bool, error) {
+			cur, ok, err := d.Current(ctx)
+			return cur.Proto(), ok, err
+		})
+	}
 	_, err = ipfix_export.NewServiceClient(d.client).SetIpfixExporter(ctx, &ipfix_export.SetIpfixExporter{
 		CollectorAddress: dfkit.ToAPIAddress(c), CollectorPort: s.CollectorPort, SrcAddress: dfkit.ToAPIAddress(src),
 		VrfID: s.VRF, PathMtu: s.PathMTU, TemplateInterval: s.TemplateInterval, UDPChecksum: s.UDPChecksum,
@@ -391,8 +415,12 @@ func (d *DefaultExporterDescriptor) Update(ctx context.Context, _, newObj proto.
 	return nil, d.set(ctx, newObj)
 }
 
-// Delete implements scheduler.Descriptor: collector and src 0.0.0.0 disable exporter 0.
+// Delete implements scheduler.Descriptor: collector and src 0.0.0.0 disable exporter 0 (globals
+// owner only; a no-op for everyone else).
 func (d *DefaultExporterDescriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
+	if !d.o.globals.Owner() {
+		return nil
+	}
 	zero := dfkit.ToAPIAddress(netip.IPv4Unspecified())
 	_, err := ipfix_export.NewServiceClient(d.client).SetIpfixExporter(ctx, &ipfix_export.SetIpfixExporter{
 		CollectorAddress: zero, CollectorPort: DefaultCollectorPort, SrcAddress: zero, VrfID: NoVRF,
@@ -425,8 +453,12 @@ func (d *DefaultExporterDescriptor) Current(ctx context.Context) (Exporter, bool
 	return exporterFrom(c, dfkit.FromAPIAddress(e.SrcAddress), e.CollectorPort, e.VrfID, e.PathMtu, e.TemplateInterval, e.UDPChecksum), true, nil
 }
 
-// Retrieve implements scheduler.Descriptor: exporter 0 while its collector is set.
+// Retrieve implements scheduler.Descriptor: exporter 0 while its collector is set (for a
+// non-owner: write-only requirement, see dfkit.Globals).
 func (d *DefaultExporterDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+	if !d.o.globals.Owner() {
+		return d.o.globals.NonOwnerRetrieve(NameDefaultExporter)
+	}
 	s, ok, err := d.Current(ctx)
 	if err != nil || !ok {
 		return nil, err

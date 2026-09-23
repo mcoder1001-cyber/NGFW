@@ -2,6 +2,7 @@ package dhcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"sort"
@@ -23,8 +24,8 @@ type ClientMeta struct {
 	SwIfIndex uint32
 }
 
-// ClientDescriptor manages dhcp.client objects: key dhcp.client/<interface>. The interface must
-// carry this agent's owner tag.
+// ClientDescriptor manages dhcp.client objects: key dhcp.client/<interface> (logical name, D-069).
+// The interface is this owner's tagged interface or an untagged one (claimed on Create, D-071).
 type ClientDescriptor struct {
 	client vpp.Client
 	owner  string
@@ -88,7 +89,7 @@ func (d *ClientDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
-	idx, err := dfkit.ResolveInterface(ctx, d.client, s.Interface, d.owner)
+	idx, err := dfkit.ResolveAndClaim(ctx, d.client, s.Interface, d.owner, NameClient)
 	if err != nil {
 		return nil, err
 	}
@@ -118,6 +119,9 @@ func (d *ClientDescriptor) Delete(ctx context.Context, obj proto.Message, meta a
 	m, ok := meta.(ClientMeta)
 	if !ok {
 		idx, rerr := dfkit.ResolveInterface(ctx, d.client, s.Interface, d.owner)
+		if errors.Is(rerr, dfkit.ErrNoInterface) { // the interface and with it the client are gone
+			return dfkit.Claims(d.owner).Release(s.Interface, NameClient)
+		}
 		if rerr != nil {
 			return fmt.Errorf("%w: %T (%v)", dfkit.ErrBadMeta, meta, rerr)
 		}
@@ -126,11 +130,17 @@ func (d *ClientDescriptor) Delete(ctx context.Context, obj proto.Message, meta a
 	if s.Hostname == "" {
 		s.Hostname = "vrx"
 	}
-	err = d.config(ctx, s, m.SwIfIndex, false)
-	if dfkit.IsVPPError(err, api.INVALID_VALUE, api.INVALID_SW_IF_INDEX) { // not enabled / interface gone
-		return nil
+	// D-074: delete only what still exists (and is still on the same interface)
+	if _, exists, rerr := d.retrieveOne(ctx, m.SwIfIndex); rerr != nil {
+		return rerr
+	} else if !exists {
+		return dfkit.Claims(d.owner).Release(s.Interface, NameClient)
 	}
-	return err
+	err = d.config(ctx, s, m.SwIfIndex, false)
+	if err != nil && !dfkit.IsVPPError(err, api.INVALID_VALUE, api.INVALID_SW_IF_INDEX) { // not enabled / interface gone
+		return err
+	}
+	return dfkit.Claims(d.owner).Release(s.Interface, NameClient)
 }
 
 func clientFromDetails(c dhcp.DHCPClient, ifName string) Client {
@@ -171,7 +181,7 @@ func (d *ClientDescriptor) retrieveOne(ctx context.Context, idx uint32) (Client,
 	}
 	for _, det := range details {
 		if uint32(det.Client.SwIfIndex) == idx {
-			name, _ := ifaces.OwnedName(idx, d.owner)
+			name, _, _ := ifaces.Logical(idx, d.owner)
 			return clientFromDetails(det.Client, name), true, nil
 		}
 	}
@@ -194,7 +204,7 @@ func (d *ClientDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 	var out []scheduler.KV
 	for _, det := range details {
 		idx := uint32(det.Client.SwIfIndex)
-		name, ok := ifaces.OwnedName(idx, d.owner)
+		name, ok := ifaces.Reportable(idx, d.owner, NameClient)
 		if !ok {
 			continue
 		}
@@ -250,7 +260,7 @@ func (d *ClientDescriptor) Leases(ctx context.Context) (map[string]Lease, error)
 	}
 	out := map[string]Lease{}
 	for _, det := range details {
-		if name, ok := ifaces.OwnedName(uint32(det.Client.SwIfIndex), d.owner); ok {
+		if name, ok := ifaces.Reportable(uint32(det.Client.SwIfIndex), d.owner, NameClient); ok {
 			out[name] = leaseFrom(det.Lease, 0)
 		}
 	}

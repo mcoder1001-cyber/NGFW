@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"ngfw/agent/binapi/sflow"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dfkit/dfkittest"
 )
 
@@ -17,7 +18,7 @@ func TestSflowOnHost(t *testing.T) {
 		&sflow.SflowSamplingRateGet{}, &sflow.SflowDirectionGet{}, &sflow.SflowDropMonitoringGet{})
 	c := h.Client()
 	ctx := context.Background()
-	gd := NewGlobal(c)
+	gd := NewGlobal(c, WithGlobals(dfkit.GlobalsOwner(true))) // test acts as globals owner, restores the defaults it found
 	if kvs := dfkittest.MustRetrieve(t, gd); len(kvs) != 0 {
 		t.Skipf("sflow globals are not at VPP defaults (%v): held by someone else", kvs[0].Value)
 	}

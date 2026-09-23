@@ -124,14 +124,29 @@ func (s FilterFunction) Validate() error {
 
 // Register constructs and registers the pcap descriptors.
 func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Option) {
-	r.Register(NewFilterFunction(client))
+	r.Register(NewFilterFunction(client, opts...))
 	r.Register(NewCapture(client, owner, opts...))
 }
 
 // Option configures the descriptors of this package.
 type Option func(*options)
 
-type options struct{ ifaceKey dfkit.KeyFunc }
+type options struct {
+	ifaceKey dfkit.KeyFunc
+	globals  dfkit.Globals
+}
+
+func buildOptions(opts []Option) options {
+	o := options{ifaceKey: dfkit.DefaultInterfaceKey}
+	for _, opt := range opts {
+		opt(&o)
+	}
+	return o
+}
+
+// WithGlobals sets the D-071 role for the VPP-global pcap.filter-function (default: not the
+// globals owner — VPP has no getter, so a non-owner's Create fails with ErrNotGlobalsOwner).
+func WithGlobals(g dfkit.Globals) Option { return func(o *options) { o.globals = g } }
 
 // WithInterfaceKey sets the interface key scheme of Dependencies (default "interface/<name>", D-065).
 func WithInterfaceKey(f dfkit.KeyFunc) Option {
@@ -164,11 +179,7 @@ var _ scheduler.Descriptor = (*CaptureDescriptor)(nil)
 
 // NewCapture returns the pcap.capture descriptor.
 func NewCapture(client vpp.Client, owner string, opts ...Option) *CaptureDescriptor {
-	o := options{ifaceKey: dfkit.DefaultInterfaceKey}
-	for _, opt := range opts {
-		opt(&o)
-	}
-	return &CaptureDescriptor{client: client, owner: owner, o: o}
+	return &CaptureDescriptor{client: client, owner: owner, o: buildOptions(opts)}
 }
 
 // Name implements scheduler.Descriptor.
@@ -267,13 +278,16 @@ var KeyFilterFunction = scheduler.Join(NameFilterFunction, FilterFunctionID)
 
 // FilterFunctionDescriptor manages the pcap.filter-function singleton; Delete restores
 // DefaultFilterFunction.
-type FilterFunctionDescriptor struct{ client vpp.Client }
+type FilterFunctionDescriptor struct {
+	client vpp.Client
+	o      options
+}
 
 var _ scheduler.Descriptor = (*FilterFunctionDescriptor)(nil)
 
 // NewFilterFunction returns the pcap.filter-function descriptor.
-func NewFilterFunction(client vpp.Client) *FilterFunctionDescriptor {
-	return &FilterFunctionDescriptor{client: client}
+func NewFilterFunction(client vpp.Client, opts ...Option) *FilterFunctionDescriptor {
+	return &FilterFunctionDescriptor{client: client, o: buildOptions(opts)}
 }
 
 // Name implements scheduler.Descriptor.
@@ -308,6 +322,9 @@ func (d *FilterFunctionDescriptor) apply(ctx context.Context, obj proto.Message)
 	if err := s.Validate(); err != nil {
 		return err
 	}
+	if !d.o.globals.Owner() {
+		return d.o.globals.Require(ctx, NameFilterFunction, obj, nil)
+	}
 	return d.set(ctx, s.Name)
 }
 
@@ -321,8 +338,11 @@ func (d *FilterFunctionDescriptor) Update(ctx context.Context, _, newObj proto.M
 	return nil, d.apply(ctx, newObj)
 }
 
-// Delete implements scheduler.Descriptor: back to the classifier function.
+// Delete implements scheduler.Descriptor: back to the classifier function (globals owner only).
 func (d *FilterFunctionDescriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
+	if !d.o.globals.Owner() {
+		return nil
+	}
 	return d.set(ctx, DefaultFilterFunction)
 }
 

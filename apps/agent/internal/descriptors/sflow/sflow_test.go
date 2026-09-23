@@ -26,8 +26,9 @@ func newFake() (*dfkittest.FakeVPP, *model) {
 		dfkittest.Iface{Index: 7, Name: "loop501", Tag: "w5:loop501"},
 		dfkittest.Iface{Index: 8, Name: "loop502", Tag: "w5:loop502"},
 		dfkittest.Iface{Index: 9, Name: "loop601", Tag: "w6:loop601"},
+		dfkittest.Iface{Index: 10, Name: "ens192"},
 	)
-	m := &model{g: DefaultGlobal(), hwOf: map[uint32]uint32{7: 3, 8: 4, 9: 5}, enabled: map[uint32]bool{}}
+	m := &model{g: DefaultGlobal(), hwOf: map[uint32]uint32{7: 3, 8: 4, 9: 5, 10: 6}, enabled: map[uint32]bool{}}
 	f.On("sflow_enable_disable", func(msg api.Message) ([]api.Message, error) {
 		r := msg.(*sflow.SflowEnableDisable)
 		sw := uint32(r.HwIfIndex)
@@ -91,7 +92,7 @@ func newFake() (*dfkittest.FakeVPP, *model) {
 
 func TestGlobal(t *testing.T) {
 	f, m := newFake()
-	d := NewGlobal(f)
+	d := NewGlobal(f, WithGlobals(dfkit.GlobalsOwner(true)))
 	ctx := context.Background()
 	if kvs := dfkittest.MustRetrieve(t, d); len(kvs) != 0 {
 		t.Fatalf("defaults reported: %v", kvs)
@@ -107,6 +108,17 @@ func TestGlobal(t *testing.T) {
 		t.Fatal(err)
 	}
 	dfkittest.AssertRetrieved(t, d, dfkittest.KV(d, v2))
+	// D-071: a non-owner only requires the globals
+	other := NewGlobal(f)
+	if _, err := other.Create(ctx, v2); err != nil {
+		t.Fatalf("requirement met: %v", err)
+	}
+	if _, err := other.Create(ctx, v); !errors.Is(err, dfkit.ErrNotGlobalsOwner) {
+		t.Fatalf("requirement not met: %v", err)
+	}
+	if err := other.Delete(ctx, v2, nil); err != nil || m.g.Direction != "both" {
+		t.Fatalf("non-owner must never reset: %v %+v", err, m.g)
+	}
 	if err := d.Delete(ctx, v2, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -183,6 +195,23 @@ func TestInterfaceLearnAndProbe(t *testing.T) {
 	}
 	if _, err := d.Create(ctx, Interface{Interface: "loop601"}.Proto()); !errors.Is(err, dfkit.ErrNotOwned) {
 		t.Fatal(err)
+	}
+	// an untagged NIC is probed only while claimed (D-071): never another owner's or unclaimed one
+	delete(m.enabled, 8)
+	uv := Interface{Interface: "ens192"}.Proto()
+	if _, err := d.Create(ctx, uv); err != nil {
+		t.Fatal(err)
+	}
+	if kvs := dfkittest.MustRetrieve(t, NewInterface(f, "w5")); len(kvs) != 1 || kvs[0].Key != "sflow.interface/ens192" {
+		t.Fatalf("claimed untagged NIC after restart: %v", kvs)
+	}
+	for _, c := range f.CallsNamed("sflow_enable_disable") {
+		if r := c.(*sflow.SflowEnableDisable); uint32(r.HwIfIndex) == 10 && r.EnableDisable && dfkit.Claims("w7").Claimed("ens192", NameInterface) {
+			t.Fatal("unexpected claim")
+		}
+	}
+	if err := d.Delete(ctx, uv, nil); err != nil || m.enabled[10] || dfkit.Claims("w5").Claimed("ens192", NameInterface) {
+		t.Fatalf("untagged delete: %v", err)
 	}
 	r := scheduler.NewRegistry()
 	Register(r, f, "w5")

@@ -20,7 +20,7 @@ func TestBPFFilterOnHost(t *testing.T) {
 	h.SkipUnlessCompatible(t, Plugin, &bpf_trace_filter.BpfTraceFilterSetV2{})
 	c := h.Client()
 	ctx := context.Background()
-	d := NewBPFFilter(c)
+	d := NewBPFFilter(c, dfkit.GlobalsOwner(true)) // test acts as globals owner; nobody else sets it
 	v := BPFFilter{Expression: fmt.Sprintf("udp port 4739 and net 10.%d.0.0/16", vpptest.Slot(t)), Optimize: true}.Proto()
 	t.Cleanup(func() { _ = d.Delete(context.Background(), v, nil) })
 	for range 2 {

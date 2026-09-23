@@ -7,9 +7,11 @@ Continued after a worker stall from the manager's salvage commit 800b936.
 
 | Plugin | Descriptor names | Retrieve |
 |---|---|---|
-| ip_neighbor | `ip-neighbor.neighbor`, `ip-neighbor.config` | full |
+| ip_neighbor | `ip-neighbor.neighbor` | full |
+| ip_neighbor | `ip-neighbor.config` | full; VPP-global → `RegisterGlobals` only (D-071) |
 | arp | `arp.proxy-range`, `arp.proxy-interface` | full |
-| ip6_nd | `ip6-nd.ra-config`, `ip6-nd.ra-prefix`, `ip6-nd.dad` | full |
+| ip6_nd | `ip6-nd.ra-config`, `ip6-nd.ra-prefix` | full |
+| ip6_nd | `ip6-nd.dad` | full; VPP-global → `RegisterGlobals` only (D-071) |
 | ip6_nd | `ip6-nd.proxy` | full, but **opt-in** (`RegisterProxyNd`, D-064): unverified on the host |
 | urpf | `urpf.interface` | full |
 | adl | `adl.interface` | presence via `feature_is_enabled` (review H2) |
@@ -349,3 +351,86 @@ CI GATE PASSED
 EXIT 0
 ```
 The two warnings are non-conventional subjects: this round's `git merge main` commit and the manager's review commit; they do not fail the gate.
+
+## Fix round 2 (re-review `docs/status/tasks/DF-2-rereview.md`, APPROVE WITH CHANGES)
+
+| Finding | Fix | Commit |
+|---|---|---|
+| N1 globals registered by every owner (D-071) | `ip-neighbor.config` and `ip6-nd.dad` removed from `Register`; new `ipneighbor.RegisterGlobals` / `ip6nd.RegisterGlobals` for the globals owner only; `TestRegister` in both packages asserts they are absent from the default set | abf1a2a |
+| N2 deletes by index without re-verification (D-071) | `classify.table` Delete: under the store lock, fresh snapshot right before the delete; delete only a live record whose index equals the Meta, otherwise drop the record and leave VPP alone. `abf.policy` Delete: policy must exist, be in range, carry the Meta's ACL index, and that ACL must carry our tag. Every delete by a stored `sw_if_index` (neighbor, proxy-arp interface, RA config/prefix, proxy-ND, uRPF, adl, abf attach, classify bindings) calls `df2.SkipDelete` first: re-dump, index must still name the object's interface and the interface must be ours (tag, or untagged + claimed). Unit tests + **host regression `TestTableDeleteStaleIndexOnHost`** (reviewer's probe P3: stale Meta pointing at another owner's table on the reused index → that table survives) | abf1a2a |
+| N4 ACL cleanup can wedge | output-acl unbind sends only what VPP still has bound (feature on, recorded table still exists), else drops the record; input-acl Delete unbinds the indices VPP reports (existing tables only), Create refuses an interface with input tables already bound; `TestACLCleanupWhenTableGone` | abf1a2a |
+| re-review N6 note | DF-4 file `acl/integration_test.go` restored to main's version (the gofmt-only change is gone from the branch) | abf1a2a |
+
+### Unit tests (`go test -count=1 -v -run … ./internal/descriptors/{ip_neighbor,ip6_nd,classify,abf,df2}/`)
+```
+--- PASS: TestNeighborErrors (0.00s)
+--- PASS: TestRegister (0.00s)
+ok  	ngfw/agent/internal/descriptors/ip_neighbor	0.021s
+--- PASS: TestRegister (0.00s)
+ok  	ngfw/agent/internal/descriptors/ip6_nd	0.020s
+--- PASS: TestRegister (0.00s)
+--- PASS: TestTableDeleteReverifiesIdentity (0.00s)
+--- PASS: TestACLCleanupWhenTableGone (0.00s)
+ok  	ngfw/agent/internal/descriptors/classify	0.028s
+--- PASS: TestRegister (0.00s)
+--- PASS: TestPolicyDeleteReverifiesIdentity (0.00s)
+ok  	ngfw/agent/internal/descriptors/abf	0.024s
+--- PASS: TestSkipDeleteReverifiesIdentity (0.00s)
+--- PASS: TestFileClaimStorePersists (0.00s)
+ok  	ngfw/agent/internal/descriptors/df2	0.025s
+```
+
+### Host run (`VRX_INTEGRATION=1 VRX_TEST_PREFIX=w3 VRX_SLOT=3 VRX_VPP_TABLE_BASE=3000 go test -p 1 -count=1 -v …`), NRestarts before/after
+```
+before: NRestarts=2
+ok  	ngfw/agent/internal/descriptors/ip_neighbor	0.048s
+ok  	ngfw/agent/internal/descriptors/arp	0.061s
+--- SKIP: TestProxyNdOnHost (0.00s)
+ok  	ngfw/agent/internal/descriptors/ip6_nd	0.062s
+ok  	ngfw/agent/internal/descriptors/urpf	0.050s
+ok  	ngfw/agent/internal/descriptors/adl	0.055s
+ok  	ngfw/agent/internal/descriptors/abf	0.047s
+    integration_test.go:218: our table 2 deleted out of band; foreign table now at index 2
+    integration_test.go:235: foreign table 2 survived both stale deletes; record dropped
+ok  	ngfw/agent/internal/descriptors/classify	0.115s
+ok  	ngfw/agent/internal/descriptors/ip_session_redirect	0.053s
+ok  	ngfw/agent/internal/descriptors/df2	0.023s
+    idempotency_test.go:198: apply #1 plan: create=17 update=0 delete=0
+    idempotency_test.go:225: apply #2 (same desired state) plan: create=0 update=0 delete=0 empty=true
+    idempotency_test.go:237: apply #3 (fresh descriptors, reopened classify store + claim store) plan: create=0 update=0 delete=0 empty=true
+ok  	ngfw/agent/internal/descriptors/df2/idempotency	0.147s
+exit=0
+after: NRestarts=2
+```
+Full log `/root/ngfw-wt/logs/DF-2-integration-r2.log`. After the run: no `loop3xx` interface left, `show classify tables` → "No classifier tables configured".
+
+### CI gate (`tools/ci.sh --base main`)
+```
+  install (pnpm --frozen-lockfile --prefer-offline)   0m00s
+  generate + generated-output gate                   0m19s
+  forbidden patterns (+ gitleaks)                    0m03s
+  lint · typecheck · unit tests · build (turbo)   0m18s
+  apps/agent: make lint test build                   0m16s
+  test/ Go modules, unit mode (test/integration/smoke)   0m02s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      review(DF-2): re-review after fix round
+      merge main into task/DF-2 (go.mod/go.sum: main's version; DF-4 acl, P02b, P02c)
+      review(DF-2): findings
+  mode quick · wall time 1m01s · logs /root/ngfw-wt/logs/ci/DF-2-20260924-011625-1213366
+CI GATE PASSED
+EXIT 0
+```
+Warnings: non-conventional subjects of the two manager review commits and this branch's merge commit; they do not fail the gate.
+
+### Known follow-ups (not in this round)
+- **N3** — classify fingerprint: add `nbuckets`, `next_table_index`, `miss_next_index` to the record check; the residual (another owner's
+  table with identical geometry on a reused index within one VPP instance) stays documented in `classify.md`.
+- **N5** — claim hygiene: undo the VPP call when `df2.Claim` fails; prune/instance-bind stale claims; proxy-ARP ranges are
+  attributed by table-id range rather than a ClaimStore record (single production agent; D-071 exception to confirm).
+- **VPP keeps per-`sw_if_index` state of deleted interfaces.** Observed on the host: a new loopback reusing sw_if_index 19 started
+  with `adl-input` enabled (left by an earlier interface). The idempotency test now disables such stale state on its fresh
+  loopbacks and logs it. Once (one full-suite run out of ~10) the idempotency test saw an `ip6-nd.ra-prefix` Update right after
+  Create on a reused index; not reproduced in 8 further runs. The test now logs the retrieved value for any unexpected Update so
+  the next occurrence shows which field; suspected same class (stale RA prefix state on a reused index). To investigate with N3/N5.
+- D-069 logical interface names / claim-key migration and D-073(c) alias — questions #9, #10.

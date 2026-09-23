@@ -25,6 +25,9 @@ type State struct {
 	Stubs      []Zone            `json:"stubs"`
 	LocalZones []LocalZone       `json:"localZones"`
 	LocalData  []string          `json:"localData"`
+	// LocalDataTruncated: list_local_data exceeded the capture limit (large blocklists);
+	// LocalData is then empty rather than silently partial (review L1).
+	LocalDataTruncated bool `json:"localDataTruncated,omitempty"`
 }
 
 // Zone is one list_forwards / list_stubs line: "<zone> IN <forward|stub> [+flags] <addr>…".
@@ -68,10 +71,14 @@ func (r *Renderer) State(ctx context.Context) (State, error) {
 		return st, err
 	}
 	st.LocalZones = ParseLocalZones(out)
-	if out, err = r.Control(ctx, "list_local_data"); err != nil {
+	switch out, err = r.Control(ctx, "list_local_data"); {
+	case errors.Is(err, ErrOutputTruncated):
+		st.LocalDataTruncated = true
+	case err != nil:
 		return st, err
+	default:
+		st.LocalData = ParseLocalData(out)
 	}
-	st.LocalData = ParseLocalData(out)
 	return st, nil
 }
 

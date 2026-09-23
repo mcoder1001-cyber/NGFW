@@ -13,7 +13,10 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -204,28 +207,101 @@ func (e *ActionRequired) Error() string {
 // NeedsRestart reports the unit and action (shared duck-typed shape with kea and chrony).
 func (e *ActionRequired) NeedsRestart() (unit, action string) { return e.Unit, e.Action }
 
-// Control runs one fixed unbound-control command against the running daemon.
-func (r *Renderer) Control(ctx context.Context, args ...string) ([]byte, error) {
-	// A stale socket survives an unbound that exited: probe it before running unbound-control.
+// ErrOutputTruncated is returned when unbound-control printed more than the runner keeps
+// (renderers.DefaultMaxOutput): the answer would be silently incomplete (review L1).
+var ErrOutputTruncated = errors.New("unbound: unbound-control output exceeds the capture limit")
+
+// running probes the control socket (a stale socket file survives an unbound that exited).
+func (r *Renderer) running() bool {
 	conn, err := net.DialTimeout("unix", r.paths.ControlSocket(), time.Second)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s: %w", ErrNotRunning, r.paths.ControlSocket(), err)
+		return false
 	}
 	_ = conn.Close()
+	return true
+}
+
+// Control runs one fixed unbound-control command against the running daemon.
+func (r *Renderer) Control(ctx context.Context, args ...string) ([]byte, error) {
+	if !r.running() {
+		return nil, fmt.Errorf("%w: %s", ErrNotRunning, r.paths.ControlSocket())
+	}
 	out, err := r.runner.Run(ctx, renderers.Command{
 		Path: ControlBin, Args: append([]string{"-c", r.paths.Conf()}, args...), Timeout: controlTimeout,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: unbound-control %s: %s", ErrDaemon, strings.Join(args, " "), toolMessage(out, err, ""))
 	}
+	if len(out.Stdout) >= renderers.DefaultMaxOutput {
+		return nil, fmt.Errorf("%w: unbound-control %s", ErrOutputTruncated, strings.Join(args, " "))
+	}
 	return out.Stdout, nil
 }
 
-// Apply implements renderers.Renderer: snapshot → atomic write → `unbound-control
-// reload_keep_cache` (Unbound ≥ 1.13: re-reads unbound.conf, keeps the cache when the cache
-// settings did not change) → on failure restore the snapshot and reload it. A daemon that is
-// not running is left alone when the configuration is idle and reported as *ActionRequired
-// ("start") otherwise.
+// startupKeys are the directives unbound applies only at startup: `reload` re-reads the file
+// but does not reopen sockets or change identity/paths (review H1, verified live: a new
+// interface is not bound after reload_keep_cache).
+var startupKeys = map[string]bool{
+	"interface": true, "port": true, "interface-view": true, "username": true, "chroot": true,
+	"directory": true, "pidfile": true, "do-daemonize": true, "control-enable": true,
+	"control-interface": true, "control-port": true, "control-use-cert": true,
+}
+
+// startupDirectives returns the startup-only lines of a rendered unbound.conf, in order.
+func startupDirectives(conf []byte) []string {
+	var out []string
+	for _, l := range strings.Split(string(conf), "\n") {
+		t := strings.TrimSpace(l)
+		if k, _, ok := strings.Cut(t, ":"); ok && startupKeys[k] {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+func (r *Renderer) restart(reason string) error {
+	if err := setPending(r.paths.PendingFile, "restart", reason); err != nil {
+		return fmt.Errorf("unbound: record pending restart: %w", err)
+	}
+	return &ActionRequired{Daemon: "unbound", Unit: "unbound", Action: "restart", Reason: reason}
+}
+
+var statusPidRe = regexp.MustCompile(`\(pid ([0-9]+)\)`)
+
+// daemonPid reads unbound's pid from `unbound-control status`.
+func (r *Renderer) daemonPid(ctx context.Context) (int, error) {
+	out, err := r.Control(ctx, "status")
+	if err != nil {
+		return 0, err
+	}
+	m := statusPidRe.FindSubmatch(out)
+	if m == nil {
+		return 0, fmt.Errorf("%w: no pid in unbound-control status", ErrDaemon)
+	}
+	return strconv.Atoi(string(m[1]))
+}
+
+// ensureDirs creates missing parent directories of the runtime files (review M4: the packaged
+// unit has no RuntimeDirectory; the renderer does not rely on one).
+func (r *Renderer) ensureDirs() error {
+	for _, p := range []string{r.paths.ControlSocket(), r.paths.PidFile()} {
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil { //nolint:gosec // runtime dir (like /run)
+			return fmt.Errorf("unbound: create %s: %w", filepath.Dir(p), err)
+		}
+	}
+	return nil
+}
+
+// Apply implements renderers.Renderer: snapshot → atomic write → one of:
+//   - unbound not running: idle config → nothing; resolvers present → *ActionRequired start;
+//   - a startup-only directive changed (listen address, port, interface-view, paths, user,
+//     remote-control) → *ActionRequired restart, persisted in Paths.PendingFile;
+//   - a restart is still pending (unbound's process started before the request) → the same
+//     *ActionRequired restart again, until unbound runs the new configuration (M2);
+//   - otherwise `unbound-control reload_keep_cache` followed by a convergence check: every
+//     rendered forward zone is in list_forwards, every global local zone in list_local_zones
+//     with its type, and every rendered interface accepts a TCP connection. A failed reload or
+//     check restores the snapshot and reloads it.
 func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 	if err := r.check(); err != nil {
 		return err
@@ -233,6 +309,10 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 	if err := r.checkFiles(files); err != nil {
 		return err
 	}
+	if err := r.ensureDirs(); err != nil {
+		return err
+	}
+	previous, prevErr := os.ReadFile(r.paths.Conf())
 	snap, err := renderers.TakeSnapshot(files.Paths()...)
 	if err != nil {
 		return err
@@ -240,22 +320,112 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 	if err := renderers.WriteFiles(files); err != nil {
 		return errors.Join(err, snap.Restore())
 	}
-	_, err = r.Control(ctx, "reload_keep_cache")
-	switch {
-	case err == nil:
-		return nil
-	case errors.Is(err, ErrNotRunning):
-		if Active(files[r.paths.Conf()].Content) {
+	conf := files[r.paths.Conf()].Content
+	if !r.running() {
+		clearPending(r.paths.PendingFile) // the next start reads the new file
+		if Active(conf) {
 			return &ActionRequired{Daemon: "unbound", Unit: "unbound", Action: "start", Reason: "configuration has resolvers but unbound is not running"}
 		}
 		return nil
 	}
+	if prevErr != nil || !slices.Equal(startupDirectives(previous), startupDirectives(conf)) {
+		return r.restart("listen addresses, port, views, paths or remote-control changed (unbound applies them only at startup)")
+	}
+	if rec := getPending(r.paths.PendingFile); rec != nil {
+		pid, err := r.daemonPid(ctx)
+		if err == nil && rec.startedAfter(pid) {
+			clearPending(r.paths.PendingFile)
+		} else {
+			return &ActionRequired{Daemon: "unbound", Unit: "unbound", Action: rec.Action, Reason: rec.Reason + " (still pending: unbound has not restarted since)"}
+		}
+	}
+	_, err = r.Control(ctx, "reload_keep_cache")
+	if err == nil {
+		err = r.converged(ctx, conf)
+	}
+	if err == nil {
+		return nil
+	}
+	rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), controlTimeout) // review L2
+	defer cancel()
 	restoreErr := snap.Restore()
-	_, reloadErr := r.Control(ctx, "reload_keep_cache")
+	_, reloadErr := r.Control(rctx, "reload_keep_cache")
 	if errors.Is(reloadErr, ErrNotRunning) {
 		reloadErr = nil
 	}
 	return errors.Join(err, restoreErr, reloadErr)
+}
+
+// converged checks that the running unbound serves what conf renders (see Apply).
+func (r *Renderer) converged(ctx context.Context, conf []byte) error {
+	var fwd, ifaces []string
+	zones := map[string]string{}
+	section := ""
+	for _, l := range strings.Split(string(conf), "\n") {
+		t := strings.TrimSpace(l)
+		if strings.HasSuffix(t, ":") && !strings.HasPrefix(l, "\t") {
+			section = t
+			continue
+		}
+		k, v, ok := strings.Cut(t, ": ")
+		if !ok {
+			continue
+		}
+		switch {
+		case section == "forward-zone:" && k == "name":
+			fwd = append(fwd, strings.Trim(v, `"`))
+		case section == "server:" && k == "local-zone":
+			z, typ, _ := strings.Cut(v, " ")
+			zones[strings.Trim(z, `"`)] = typ
+		case section == "server:" && k == "interface":
+			ifaces = append(ifaces, v)
+		}
+	}
+	out, err := r.Control(ctx, "list_forwards")
+	if err != nil {
+		return err
+	}
+	have := map[string]bool{}
+	for _, z := range ParseZones(out) {
+		have[z.Zone] = true
+	}
+	for _, z := range fwd {
+		if !have[z] {
+			return fmt.Errorf("%w: forward zone %s not active after reload", ErrDaemon, z)
+		}
+	}
+	out, err = r.Control(ctx, "list_local_zones")
+	if err != nil {
+		return err
+	}
+	lz := map[string]string{}
+	for _, z := range ParseLocalZones(out) {
+		lz[z.Zone] = z.Type
+	}
+	for z, typ := range zones {
+		if lz[z] != typ {
+			return fmt.Errorf("%w: local zone %s is %q, want %q", ErrDaemon, z, lz[z], typ)
+		}
+	}
+	for _, ifc := range ifaces {
+		ip, port, _ := strings.Cut(ifc, "@")
+		a, err := netip.ParseAddr(ip)
+		if err != nil {
+			continue
+		}
+		if a.IsUnspecified() {
+			a = netip.IPv6Loopback()
+			if ip == "0.0.0.0" {
+				a = netip.AddrFrom4([4]byte{127, 0, 0, 1})
+			}
+		}
+		c, err := net.DialTimeout("tcp", net.JoinHostPort(a.String(), port), 2*time.Second)
+		if err != nil {
+			return fmt.Errorf("%w: unbound does not listen on %s after reload: %w", ErrDaemon, ifc, err)
+		}
+		_ = c.Close()
+	}
+	return nil
 }
 
 // Retrieve implements renderers.Renderer: the State as a structpb.Struct (the proto has no

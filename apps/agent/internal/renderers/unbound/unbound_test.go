@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -18,7 +20,7 @@ import (
 
 var update = flag.Bool("update", false, "rewrite testdata/*.golden")
 
-func unitPaths() Paths { return TestPaths("w0") }
+func unitPaths() Paths { return TestPaths("w0", 6) }
 
 func newUnit() *Renderer { return New(renderers.NewRecordingRunner(), WithPaths(unitPaths())) }
 
@@ -305,7 +307,10 @@ func TestValidateArgv(t *testing.T) {
 func tmpPaths(t *testing.T) Paths {
 	p := unitPaths()
 	d := t.TempDir()
-	p.ConfDir, p.RunDir = d, d
+	p.ConfDir = d
+	p.ControlSocketPath = filepath.Join(d, "unbound.ctl")
+	p.PidFilePath = filepath.Join(d, "unbound.pid")
+	p.PendingFile = filepath.Join(d, "state", "vrx.pending")
 	return p
 }
 
@@ -319,26 +324,153 @@ func listenSocket(t *testing.T, path string) {
 	t.Cleanup(func() { _ = l.Close() })
 }
 
+// fakeUnbound answers unbound-control like a daemon (pid, forwards and local zones from the
+// rendered file) and listens on a real loopback TCP port for the convergence check.
+type fakeUnbound struct {
+	pid      int
+	conf     func() []byte
+	reloads  int
+	failNext bool
+	forwards string // override for list_forwards ("" = derive from the file)
+}
+
+func (f *fakeUnbound) run(cmd renderers.Command) (renderers.Output, error) {
+	verb := cmd.Args[len(cmd.Args)-1]
+	switch verb {
+	case "status":
+		return renderers.Output{Stdout: []byte(fmt.Sprintf("version: 1.24.2\nunbound (pid %d) is running...\n", f.pid))}, nil
+	case "reload_keep_cache":
+		f.reloads++
+		if f.failNext {
+			f.failNext = false
+			out := renderers.Output{Stderr: []byte("error: reload failed"), ExitCode: 1}
+			return out, &renderers.ExitError{Command: cmd, Output: out}
+		}
+		return renderers.Output{Stdout: []byte("ok\n")}, nil
+	case "list_forwards":
+		if f.forwards != "" {
+			return renderers.Output{Stdout: []byte(f.forwards)}, nil
+		}
+		var b strings.Builder
+		sec := ""
+		for _, l := range strings.Split(string(f.conf()), "\n") {
+			if !strings.HasPrefix(l, "\t") && strings.HasSuffix(l, ":") {
+				sec = l
+			}
+			if v, ok := strings.CutPrefix(strings.TrimSpace(l), "name: "); ok && sec == "forward-zone:" {
+				fmt.Fprintf(&b, "%s IN forward 192.0.2.1\n", strings.Trim(v, `"`))
+			}
+		}
+		return renderers.Output{Stdout: []byte(b.String())}, nil
+	case "list_local_zones":
+		var b strings.Builder
+		for _, l := range strings.Split(string(f.conf()), "\n") {
+			if v, ok := strings.CutPrefix(strings.TrimSpace(l), "local-zone: "); ok {
+				z, typ, _ := strings.Cut(v, " ")
+				fmt.Fprintf(&b, "%s %s\n", strings.Trim(z, `"`), typ)
+			}
+		}
+		return renderers.Output{Stdout: []byte(b.String())}, nil
+	}
+	return renderers.Output{}, nil
+}
+
+func tcpPort(t *testing.T) uint32 {
+	t.Helper()
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = l.Close() })
+	return uint32(l.Addr().(*net.TCPAddr).Port) //nolint:gosec // port
+}
+
+func resolverOn(ports ...uint32) *vrxv1.DnsService {
+	r := fullResolver()
+	r.Listen = nil
+	for _, p := range ports {
+		r.Listen = append(r.Listen, listen("127.0.0.1", p))
+	}
+	return dns(map[string]*vrxv1.DnsResolver{"lan": r})
+}
+
+// startChild starts a short-lived process: its start time is "after" any pending request made
+// before, so it stands in for a restarted unbound.
+func startChild(t *testing.T) int {
+	t.Helper()
+	cmd := exec.Command("/usr/bin/sleep", "30")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
+	return cmd.Process.Pid
+}
+
 func TestApply(t *testing.T) {
 	ctx := context.Background()
 	full := dns(map[string]*vrxv1.DnsResolver{"lan": fullResolver()})
-
-	t.Run("reload through unbound-control", func(t *testing.T) {
+	setup := func(t *testing.T) (Paths, *fakeUnbound, *Renderer) {
 		p := tmpPaths(t)
 		listenSocket(t, p.ControlSocket())
-		rr := renderers.NewRecordingRunner().Succeed(ControlBin, "ok")
-		r := New(rr, WithPaths(p))
-		files, _ := r.Render(ctx, full)
-		if err := r.Apply(ctx, files); err != nil {
+		fu := &fakeUnbound{pid: os.Getpid(), conf: func() []byte { b, _ := os.ReadFile(p.Conf()); return b }} //nolint:gosec // test
+		return p, fu, New(renderers.NewRecordingRunner().On(ControlBin, fu.run), WithPaths(p))
+	}
+	apply := func(t *testing.T, r *Renderer, d proto.Message) error {
+		t.Helper()
+		files, err := r.Render(ctx, d)
+		if err != nil {
 			t.Fatal(err)
 		}
-		c := rr.Calls()
-		if len(c) != 1 || strings.Join(c[0].Args, " ") != "-c "+p.Conf()+" reload_keep_cache" {
-			t.Fatalf("argv %v", c)
+		return r.Apply(ctx, files)
+	}
+
+	t.Run("reload with convergence check", func(t *testing.T) {
+		p, fu, r := setup(t)
+		port := tcpPort(t)
+		if err := os.WriteFile(p.Conf(), render(t, r, resolverOn(port)), 0o600); err != nil { // what unbound runs
+			t.Fatal(err)
 		}
-		b, _ := os.ReadFile(p.Conf()) //nolint:gosec // test
-		if string(b) != string(files[p.Conf()].Content) {
-			t.Fatal("file not written")
+		changed := resolverOn(port)
+		changed.Resolvers["lan"].LocalZones[0].Records = changed.Resolvers["lan"].LocalZones[0].Records[:1]
+		if err := apply(t, r, changed); err != nil {
+			t.Fatal(err)
+		}
+		if fu.reloads != 1 {
+			t.Fatalf("reloads %d", fu.reloads)
+		}
+		fu.forwards = ". IN forward 192.0.2.53\n" // corp.example.test. missing after reload
+		changed.Resolvers["lan"].LocalZones[0].Records = nil
+		if err := apply(t, r, changed); !errors.Is(err, ErrDaemon) || !strings.Contains(err.Error(), "corp.example.test.") {
+			t.Fatalf("missing forward zone: want ErrDaemon, got %v", err)
+		}
+	})
+
+	t.Run("listen change needs restart and stays pending", func(t *testing.T) {
+		p, fu, r := setup(t)
+		port, extra := tcpPort(t), tcpPort(t)
+		if err := os.WriteFile(p.Conf(), render(t, r, resolverOn(port)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		var ar *ActionRequired
+		for i := 0; i < 2; i++ { // the second Apply of the same document must still ask (M2)
+			if err := apply(t, r, resolverOn(port, extra)); !errors.As(err, &ar) || ar.Action != "restart" {
+				t.Fatalf("apply %d: want restart, got %v", i, err)
+			}
+		}
+		if fu.reloads != 0 || getPending(p.PendingFile) == nil {
+			t.Fatalf("no reload may happen, the request must be persisted: reloads=%d", fu.reloads)
+		}
+		// a new Renderer (agent restart) still sees the request
+		r2 := New(renderers.NewRecordingRunner().On(ControlBin, fu.run), WithPaths(p))
+		if err := apply(t, r2, resolverOn(port, extra)); !errors.As(err, &ar) {
+			t.Fatalf("after agent restart: want restart, got %v", err)
+		}
+		fu.pid = startChild(t) // unbound restarted after the request
+		if err := apply(t, r2, resolverOn(port, extra)); err != nil {
+			t.Fatalf("after the restart: %v", err)
+		}
+		if getPending(p.PendingFile) != nil || fu.reloads != 1 {
+			t.Fatalf("pending not cleared or no reload: reloads=%d", fu.reloads)
 		}
 	})
 
@@ -351,47 +483,73 @@ func TestApply(t *testing.T) {
 		l.(*net.UnixListener).SetUnlinkOnClose(false)
 		_ = l.Close() // the socket file stays, nobody listens (unbound killed)
 		r := New(renderers.NewRecordingRunner(), WithPaths(p))
-		files, _ := r.Render(ctx, full)
 		var ar *ActionRequired
-		if err := r.Apply(ctx, files); !errors.As(err, &ar) {
-			t.Fatalf("stale socket: want ActionRequired, got %v", err)
+		if err := apply(t, r, full); !errors.As(err, &ar) || ar.Action != "start" {
+			t.Fatalf("stale socket: want start, got %v", err)
 		}
-	})
-
-	t.Run("not running", func(t *testing.T) {
-		p := tmpPaths(t)
-		r := New(renderers.NewRecordingRunner(), WithPaths(p))
-		files, _ := r.Render(ctx, full)
-		var ar *ActionRequired
-		if err := r.Apply(ctx, files); !errors.As(err, &ar) || ar.Action != "start" {
-			t.Fatalf("want ActionRequired start, got %v", err)
-		}
-		files, _ = r.Render(ctx, nil)
-		if err := r.Apply(ctx, files); err != nil {
+		if err := apply(t, r, nil); err != nil {
 			t.Fatalf("idle config, not running: %v", err)
 		}
 	})
 
 	t.Run("reload failure restores", func(t *testing.T) {
-		p := tmpPaths(t)
-		listenSocket(t, p.ControlSocket())
-		old := []byte("# old\n")
+		p, fu, r := setup(t)
+		port := tcpPort(t)
+		old := render(t, r, resolverOn(port))
 		if err := os.WriteFile(p.Conf(), old, 0o600); err != nil {
 			t.Fatal(err)
 		}
-		rr := renderers.NewRecordingRunner().FailWith(ControlBin, 1, "error: reload failed")
-		r := New(rr, WithPaths(p))
-		files, _ := r.Render(ctx, full)
-		if err := r.Apply(ctx, files); !errors.Is(err, ErrDaemon) {
+		fu.failNext = true
+		changed := resolverOn(port)
+		changed.Resolvers["lan"].LocalZones = nil
+		if err := apply(t, r, changed); !errors.Is(err, ErrDaemon) {
 			t.Fatalf("want ErrDaemon, got %v", err)
 		}
 		if b, _ := os.ReadFile(p.Conf()); string(b) != string(old) { //nolint:gosec // test
 			t.Fatal("snapshot not restored")
 		}
-		if len(rr.Calls()) != 2 {
-			t.Fatalf("want reload + reload of the restored file, got %v", rr.Calls())
+		if fu.reloads != 2 {
+			t.Fatalf("want reload + reload of the restored file, got %d", fu.reloads)
 		}
 	})
+
+	t.Run("output cap is an error", func(t *testing.T) {
+		p := tmpPaths(t)
+		listenSocket(t, p.ControlSocket())
+		big := strings.Repeat("x", renderers.DefaultMaxOutput)
+		r := New(renderers.NewRecordingRunner().Succeed(ControlBin, big), WithPaths(p))
+		if _, err := r.Control(ctx, "list_local_data"); !errors.Is(err, ErrOutputTruncated) {
+			t.Fatalf("want ErrOutputTruncated, got %v", err)
+		}
+		st, err := r.State(ctx)
+		if err == nil || st.LocalDataTruncated {
+			t.Logf("state: %v %v", st.LocalDataTruncated, err)
+		}
+	})
+}
+
+// TestProductPaths (review M4): the product paths validate, render the Debian control socket
+// and pidfile directly in /run, and nothing points into a directory the package never creates.
+func TestProductPaths(t *testing.T) {
+	p := ProductPaths()
+	if err := p.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	r := New(renderers.NewRecordingRunner(), WithPaths(p))
+	conf := string(render(t, r, dns(map[string]*vrxv1.DnsResolver{"lan": {Listen: []*vrxv1.SocketAddress{listen("10.0.0.1", 53)}}})))
+	for _, want := range []string{`control-interface: "/run/unbound.ctl"`, `pidfile: "/run/unbound.pid"`, `directory: "/etc/unbound"`,
+		`auto-trust-anchor-file: "/var/lib/unbound/root.key"`, `username: "unbound"`, "use-syslog: yes"} {
+		if !strings.Contains(conf, want) {
+			t.Errorf("product render lacks %s", want)
+		}
+	}
+	if strings.Contains(conf, "/run/unbound/") {
+		t.Error("product render points into /run/unbound/ (no RuntimeDirectory in unbound.service)")
+	}
+	idle := string(render(t, New(renderers.NewRecordingRunner(), WithPaths(unitPaths())), nil))
+	if !strings.Contains(idle, "interface: 127.0.0.1@3653") || strings.Contains(idle, "@53\n") {
+		t.Errorf("idle test instance must use the slot port (review L5):\n%s", idle)
+	}
 }
 
 func TestParsers(t *testing.T) {

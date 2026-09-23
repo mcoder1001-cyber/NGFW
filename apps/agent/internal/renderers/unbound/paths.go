@@ -32,8 +32,18 @@ func NewRunner() *renderers.SystemRunner {
 type Paths struct {
 	// ConfDir holds unbound.conf; it is also unbound's `directory:`.
 	ConfDir string
-	// RunDir holds the pidfile and the unix control socket.
-	RunDir string
+	// ControlSocketPath is the unix remote-control socket and PidFilePath the pidfile. The
+	// product uses Debian's locations directly in /run (/run/unbound.ctl, /run/unbound.pid):
+	// the packaged unbound.service has no RuntimeDirectory, so /run/unbound would not exist
+	// (review M4). Apply creates missing parent directories anyway (0755, root).
+	ControlSocketPath string
+	PidFilePath       string
+	// PendingFile persists a restart request until unbound runs the new configuration
+	// (D-079, review M2); /run so that a reboot — which restarts unbound — clears it.
+	PendingFile string
+	// IdlePort is the loopback port of an instance without enabled resolvers (product 53,
+	// tests the slot port: never 127.0.0.1:53 on the shared host, review L5).
+	IdlePort uint32
 	// TrustAnchor is the RFC 5011 auto-trust-anchor-file (writable by unbound; must exist —
 	// Debian's unbound-anchor seeds it from dns-root-data).
 	TrustAnchor string
@@ -56,30 +66,36 @@ type Paths struct {
 // ProductPaths are the paths of the packaged Unbound 1.24 on Ubuntu 26.04.
 func ProductPaths() Paths {
 	return Paths{
-		ConfDir:       "/etc/unbound",
-		RunDir:        "/run/unbound",
-		TrustAnchor:   "/var/lib/unbound/root.key",
-		RootKey:       "/usr/share/dns/root.key",
-		TLSCertBundle: "/etc/ssl/certs/ca-certificates.crt",
-		Username:      "unbound",
-		FileOwner:     "root:unbound",
-		FileMode:      0o640,
+		ConfDir:           "/etc/unbound",
+		ControlSocketPath: "/run/unbound.ctl",
+		PidFilePath:       "/run/unbound.pid",
+		PendingFile:       "/run/vrx/renderers/unbound.pending",
+		IdlePort:          53,
+		TrustAnchor:       "/var/lib/unbound/root.key",
+		RootKey:           "/usr/share/dns/root.key",
+		TLSCertBundle:     "/etc/ssl/certs/ca-certificates.crt",
+		Username:          "unbound",
+		FileOwner:         "root:unbound",
+		FileMode:          0o640,
 	}
 }
 
-// TestPaths are the test-scoped paths for slot prefix ("w6"): everything under
-// /run/vrx-test/<prefix>/unbound, loopback listeners only.
-func TestPaths(prefix string) Paths {
+// TestPaths are the test-scoped paths for slot prefix ("w6") and slot number: everything
+// under /run/vrx-test/<prefix>/unbound, loopback listeners only, idle port 3<slot>53.
+func TestPaths(prefix string, slot int) Paths {
 	base := filepath.Join("/run/vrx-test", prefix, "unbound")
 	return Paths{
-		ConfDir:       base,
-		RunDir:        base,
-		TrustAnchor:   filepath.Join(base, "root.key"),
-		RootKey:       "/usr/share/dns/root.key",
-		TLSCertBundle: "/etc/ssl/certs/ca-certificates.crt",
-		LogFile:       filepath.Join(base, "unbound.log"),
-		FileMode:      0o640,
-		LoopbackOnly:  true,
+		ConfDir:           base,
+		ControlSocketPath: filepath.Join(base, "unbound.ctl"),
+		PidFilePath:       filepath.Join(base, "unbound.pid"),
+		PendingFile:       filepath.Join(base, "vrx.pending"),
+		IdlePort:          uint32(3000 + slot*100 + 53), //nolint:gosec // slots 1–12
+		TrustAnchor:       filepath.Join(base, "root.key"),
+		RootKey:           "/usr/share/dns/root.key",
+		TLSCertBundle:     "/etc/ssl/certs/ca-certificates.crt",
+		LogFile:           filepath.Join(base, "unbound.log"),
+		FileMode:          0o640,
+		LoopbackOnly:      true,
 	}
 }
 
@@ -92,7 +108,8 @@ var (
 // config inside quotes) and the user name.
 func (p Paths) Validate() error {
 	paths := map[string]string{
-		"ConfDir": p.ConfDir, "RunDir": p.RunDir, "TrustAnchor": p.TrustAnchor, "RootKey": p.RootKey,
+		"ConfDir": p.ConfDir, "ControlSocketPath": p.ControlSocketPath, "PidFilePath": p.PidFilePath,
+		"PendingFile": p.PendingFile, "TrustAnchor": p.TrustAnchor, "RootKey": p.RootKey,
 		"TLSCertBundle": p.TLSCertBundle,
 	}
 	if p.LogFile != "" {
@@ -102,6 +119,9 @@ func (p Paths) Validate() error {
 		if !filepath.IsAbs(v) || filepath.Clean(v) != v || !safePathRe.MatchString(v) {
 			return fmt.Errorf("unbound: Paths.%s %q must be an absolute, clean path of [A-Za-z0-9_./-]", name, v)
 		}
+	}
+	if p.IdlePort == 0 || p.IdlePort > 65535 {
+		return fmt.Errorf("unbound: Paths.IdlePort %d outside 1..65535", p.IdlePort)
 	}
 	if p.Username != "" && !userRe.MatchString(p.Username) {
 		return fmt.Errorf("unbound: Paths.Username %q is not a user name", p.Username)
@@ -116,10 +136,10 @@ func (p Paths) Validate() error {
 func (p Paths) Conf() string { return filepath.Join(p.ConfDir, "unbound.conf") }
 
 // PidFile is unbound's pidfile.
-func (p Paths) PidFile() string { return filepath.Join(p.RunDir, "unbound.pid") }
+func (p Paths) PidFile() string { return p.PidFilePath }
 
 // ControlSocket is the unix remote-control socket.
-func (p Paths) ControlSocket() string { return filepath.Join(p.RunDir, "unbound.ctl") }
+func (p Paths) ControlSocket() string { return p.ControlSocketPath }
 
 // listenAllowed applies LoopbackOnly.
 func (p Paths) listenAllowed(a netip.Addr) bool { return !p.LoopbackOnly || a.IsLoopback() }

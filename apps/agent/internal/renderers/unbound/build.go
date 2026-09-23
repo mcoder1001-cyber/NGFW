@@ -274,7 +274,7 @@ func (r *Renderer) build(in input) (*confData, error) {
 			names = append(names, n)
 		}
 	}
-	d := &confData{Paths: r.paths, Port: 53, Threads: 1}
+	d := &confData{Paths: r.paths, Port: r.paths.IdlePort, Threads: 1}
 	if len(names) == 0 {
 		return d, nil
 	}

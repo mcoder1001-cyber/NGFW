@@ -9,8 +9,8 @@ server:
 	use-syslog: no
 	logfile: "/run/vrx-test/w0/unbound/unbound.log"
 	verbosity: 1
-	port: 53
-	interface: 127.0.0.1@53
+	port: 3653
+	interface: 127.0.0.1@3653
 	num-threads: 1
 	msg-cache-size: 0m
 	rrset-cache-size: 0m

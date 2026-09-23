@@ -26,4 +26,4 @@ Findings so far:
 - [x] M1 git apply --check/apply; M2 path guards + vrx_rm_rf; M3 apt rc; L1 --require-files; L2 VERSION as data; L3 disk; L4 D-089; L5 no silent fallback
 - [x] tests/run.sh 64/64; prepare-only default; full --demo build 03:12→03:24 (11m18s) → 26.06-release+vrx1-demo, verify OK, install gate refuses
 - [x] before/after unchanged; Review fixes section in F-vpp-debs.md
-- [ ] CI gate
+- [x] CI GATE PASSED (03:28, /root/ngfw-wt/logs/F-vpp-debs-ci-r2.log)

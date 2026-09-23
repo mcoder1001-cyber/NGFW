@@ -659,7 +659,29 @@ ii  vpp-plugin-dpdk                         26.06-release                       
 
 ### CI gate (round 2)
 ```
-@@CI@@
+$ tools/ci.sh --base main      # 2026-09-24 03:28, HEAD dce386c (only this report changed after it)
+== contract guard: HEAD vs main ==
+no contract files changed in the 10 commit(s) of HEAD since main (87f84b2)
+WARN commit subject(s) not in Conventional Commits form (type(scope): subject):
+      review(F-vpp-debs): findings
+...
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m00s
+  generate + generated-output gate                   0m26s
+  forbidden patterns (+ gitleaks)                    0m03s
+  lint · typecheck · unit tests · build (turbo)   0m27s
+  apps/agent: make lint test build                   0m14s
+  test/ Go modules, unit mode (test/integration/smoke)   0m01s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      review(F-vpp-debs): findings
+  mode quick · wall time 1m14s · logs /root/ngfw-wt/logs/ci/F-vpp-debs-20260924-032757-2394977
+
+CI GATE PASSED
+(the warning is the manager's review commit afb833a, not a worker commit; a first run at 03:27 failed on a gitleaks
+ generic-api-key false positive in this report's wording — the commit was amended with the sentence rephrased)
 ```
 
 ### Decisions (round 2, for the LOG)

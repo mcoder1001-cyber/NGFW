@@ -241,3 +241,13 @@ Q7 harness namespace `ns-<prefix>-frr` instead of the rig's.
 | mgmtd socket location | (a) symlink `/run/frr/<prefix>` → test dir (b) mount namespace | (a) no shell/new helper needed; pathspace-scoped; refused if the path is anything else (Q6) |
 | Harness namespace | (a) rig `ns-<prefix>-lan` (b) own `ns-<prefix>-frr` | (b) FRR tests need no VPP; `Options.NetNS` reuses the rig for P12 (Q7) |
 | Branch history | (a) keep (b) recreate | (b) a WIP commit held a test literal (an `Event` composite literal with a `Key` field) and a status draft held pasted `%+v` event output that gitleaks' generic-api-key rule flags (false positives, no secret); `docs/contributing.md`: flagged history is recreated, not fixed forward — the RF-1 commits after the envelope were recreated (2 commits); `Event.String()` now prints `poller key: old -> new` |
+
+## CI on the final tree
+```
+$ tools/ci.sh --base main          # on 460be45 (code identical to the final commit, which only adds this section)
+ok: gitleaks — scanned ~162175 bytes (162.18 KB) in 784ms no leaks found
+ok  	ngfw/agent/internal/agent	1.142s; ok  	ngfw/agent/internal/contracttest	1.350s; ok  	ngfw/agent/internal/renderers	1.399s; ok  	ngfw/agent/internal/renderers/frr	1.929s; …
+  mode quick · wall time 0m57s · logs /root/ngfw-wt/logs/ci/RF-1-20260924-004643-919257
+CI GATE PASSED
+```
+Evidence files: `/root/ngfw-wt/logs/RF-1-evidence/{unit,integration}.txt`, `etc-frr-{before,after}.txt`.

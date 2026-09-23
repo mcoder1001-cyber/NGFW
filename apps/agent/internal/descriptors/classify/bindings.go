@@ -45,6 +45,11 @@ func (b binder) ifIndex(ctx context.Context, name string) (interface_types.Inter
 	return idx, err
 }
 
+// skipDelete re-verifies the stored sw_if_index right before an unbind (D-071).
+func (b binder) skipDelete(ctx context.Context, idx interface_types.InterfaceIndex, obj proto.Message, key scheduler.Key) (bool, error) {
+	return df2.SkipDelete(ctx, b.client, b.owner, uint32(idx), obj.(df2.Named), key, b.opts.Claims)
+}
+
 func (b binder) resolve(ctx context.Context, name string) (interface_types.InterfaceIndex, bool, error) {
 	ifs, err := df2.DumpInterfaces(ctx, b.client, b.owner)
 	if err != nil {
@@ -174,6 +179,11 @@ func (d *InterfaceIPTableDescriptor) Delete(ctx context.Context, obj proto.Messa
 	if err != nil {
 		return err
 	}
+	if skip, err := d.skipDelete(ctx, idx, obj, d.KeyOf(obj)); err != nil {
+		return err
+	} else if skip {
+		return df2.Release(d.opts.Claims, d.KeyOf(obj))
+	}
 	return d.set(ctx, obj.(*InterfaceIpTable), idx, NoIndex)
 }
 
@@ -273,6 +283,11 @@ func (d *InterfaceL2TablesDescriptor) Delete(ctx context.Context, obj proto.Mess
 	if err != nil {
 		return err
 	}
+	if skip, err := d.skipDelete(ctx, idx, obj, d.KeyOf(obj)); err != nil {
+		return err
+	} else if skip {
+		return df2.Release(d.opts.Claims, d.KeyOf(obj))
+	}
 	return d.set(ctx, obj.(*InterfaceL2Tables), idx, true)
 }
 
@@ -344,6 +359,13 @@ func (d *InputACLDescriptor) Create(ctx context.Context, obj proto.Message) (any
 	if err != nil {
 		return nil, err
 	}
+	// N4: VPP's add is a silent no-op while a table is bound; refuse instead of reporting a
+	// binding that did not happen (the scheduler removes the old one first on a recreate).
+	if cur, err := classifyapi.NewServiceClient(d.client).ClassifyTableByInterface(ctx, &classifyapi.ClassifyTableByInterface{SwIfIndex: idx}); err != nil {
+		return nil, fmt.Errorf("classify_table_by_interface: %w", err)
+	} else if cur.IP4TableID != NoIndex || cur.IP6TableID != NoIndex || cur.L2TableID != NoIndex {
+		return nil, fmt.Errorf("%s: %s already has input ACL tables bound (ip4 %d, ip6 %d, l2 %d)", InputACLName, o.GetInterface(), int32(cur.IP4TableID), int32(cur.IP6TableID), int32(cur.L2TableID)) //nolint:gosec // ~0 prints as -1
+	}
 	if err := d.set(ctx, o, idx, true); err != nil {
 		return nil, err
 	}
@@ -364,8 +386,33 @@ func (d *InputACLDescriptor) Delete(ctx context.Context, obj proto.Message, meta
 	if err != nil {
 		return err
 	}
-	if err := d.set(ctx, obj.(*InputAcl), idx, false); err != nil {
+	if skip, err := d.skipDelete(ctx, idx, obj, d.KeyOf(obj)); err != nil {
 		return err
+	} else if skip {
+		return df2.Release(d.opts.Claims, d.KeyOf(obj))
+	}
+	// N4: unbind the tables VPP reports bound (not re-resolved names, which may be "#<idx>"
+	// or vanished), and only those that still exist (VPP refuses a freed index).
+	cur, err := classifyapi.NewServiceClient(d.client).ClassifyTableByInterface(ctx, &classifyapi.ClassifyTableByInterface{SwIfIndex: idx})
+	if err != nil {
+		return fmt.Errorf("classify_table_by_interface: %w", err)
+	}
+	ids, err := tableIDs(ctx, d.client)
+	if err != nil {
+		return err
+	}
+	keep := func(i uint32) uint32 {
+		if i != NoIndex && ids[i] {
+			return i
+		}
+		return NoIndex
+	}
+	ip4, ip6, l2 := keep(cur.IP4TableID), keep(cur.IP6TableID), keep(cur.L2TableID)
+	if ip4 != NoIndex || ip6 != NoIndex || l2 != NoIndex {
+		req := &classifyapi.InputACLSetInterface{SwIfIndex: idx, IP4TableIndex: ip4, IP6TableIndex: ip6, L2TableIndex: l2, IsAdd: false}
+		if _, err := classifyapi.NewServiceClient(d.client).InputACLSetInterface(ctx, req); err != nil {
+			return fmt.Errorf("input_acl_set_interface: %w", err)
+		}
 	}
 	return df2.Release(d.opts.Claims, d.KeyOf(obj))
 }
@@ -467,17 +514,52 @@ func (d *OutputACLDescriptor) unbind(ctx context.Context, idx interface_types.In
 	if rec.IP4Table == "" && rec.IP6Table == "" {
 		return nil
 	}
-	ip4, ip6 := NoIndex, NoIndex
-	if rec.IP4Table != "" {
-		ip4 = rec.IP4Index
-	}
-	if rec.IP6Table != "" {
-		ip6 = rec.IP6Index
-	}
-	if err := d.call(ctx, idx, ip4, ip6, false); err != nil {
+	// N4: only unbind what VPP still has bound and can still unbind — the feature enabled and
+	// the recorded table still existing (VPP refuses an unbind naming a freed table). Anything
+	// else is already clean from our side: the record is dropped instead of failing forever.
+	ids, err := tableIDs(ctx, d.client)
+	if err != nil {
 		return err
 	}
+	ip4, ip6 := NoIndex, NoIndex
+	for _, f := range []struct {
+		arc, feature, table string
+		index               uint32
+		out                 *uint32
+	}{{outArc4, outFeature4, rec.IP4Table, rec.IP4Index, &ip4}, {outArc6, outFeature6, rec.IP6Table, rec.IP6Index, &ip6}} {
+		if f.table == "" || !ids[f.index] {
+			continue
+		}
+		on, err := featureEnabled(ctx, d.client, f.arc, f.feature, uint32(idx))
+		if df2.InterfaceVanished(err) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if on {
+			*f.out = f.index
+		}
+	}
+	if ip4 != NoIndex || ip6 != NoIndex {
+		if err := d.call(ctx, idx, ip4, ip6, false); err != nil {
+			return err
+		}
+	}
 	return d.store.DeleteOutput(rec.Interface)
+}
+
+// tableIDs returns the set of classify table indices VPP currently has.
+func tableIDs(ctx context.Context, c vpp.Client) (map[uint32]bool, error) {
+	rep, err := classifyapi.NewServiceClient(c).ClassifyTableIds(ctx, &classifyapi.ClassifyTableIds{})
+	if err != nil {
+		return nil, fmt.Errorf("classify_table_ids: %w", err)
+	}
+	ids := map[uint32]bool{}
+	for _, id := range rep.Ids {
+		ids[id] = true
+	}
+	return ids, nil
 }
 
 // Create implements scheduler.Descriptor: an existing recorded binding on the interface is
@@ -549,6 +631,14 @@ func (d *OutputACLDescriptor) Delete(ctx context.Context, obj proto.Message, met
 	o := obj.(*OutputAcl)
 	d.store.Lock()
 	defer d.store.Unlock()
+	if skip, err := d.skipDelete(ctx, idx, obj, d.KeyOf(obj)); err != nil {
+		return err
+	} else if skip {
+		if err := d.store.DeleteOutput(o.GetInterface()); err != nil {
+			return err
+		}
+		return df2.Release(d.opts.Claims, d.KeyOf(obj))
+	}
 	rec, ok := d.store.GetOutput(o.GetInterface())
 	if !ok {
 		return fmt.Errorf("%s: no recorded binding on %q (tables bound outside this agent cannot be unbound: VPP requires the bound table index)", OutputACLName, o.GetInterface())

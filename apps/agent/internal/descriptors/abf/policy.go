@@ -181,34 +181,51 @@ func (d *PolicyDescriptor) Delete(ctx context.Context, obj proto.Message, meta a
 	if err != nil {
 		return err
 	}
-	if actual, err := d.dumpPolicy(ctx, p.GetPolicyId()); err != nil {
-		return err
-	} else if actual != nil {
-		p.Paths = actual
+	// D-071: re-verify identity right before deleting by id — the policy must still exist,
+	// be inside our id range, carry the ACL index we created it with, and that ACL must still
+	// be tagged by this owner. Anything else is not ours (or already gone): leave it.
+	if !d.ids.Owns(p.GetPolicyId()) {
+		return nil
 	}
+	actual, aclIndex, found, err := d.dumpPolicy(ctx, p.GetPolicyId())
+	if err != nil || !found {
+		return err
+	}
+	if aclIndex != m.ACLIndex {
+		return nil
+	}
+	acls, err := DumpACLs(ctx, d.client, d.owner)
+	if err != nil {
+		return err
+	}
+	if _, ours := acls.Name(aclIndex); !ours {
+		return nil
+	}
+	p.Paths = actual
 	return d.addDel(ctx, p, m.ACLIndex, false)
 }
 
-// dumpPolicy returns the current paths of policy id, or nil when VPP has no such policy.
-func (d *PolicyDescriptor) dumpPolicy(ctx context.Context, id uint32) ([]*df2.FibPath, error) {
+// dumpPolicy returns the current paths and ACL index of policy id; found is false when VPP
+// has no such policy.
+func (d *PolicyDescriptor) dumpPolicy(ctx context.Context, id uint32) (paths []*df2.FibPath, aclIndex uint32, found bool, err error) {
 	ifs, err := df2.DumpInterfaces(ctx, d.client, d.owner)
 	if err != nil {
-		return nil, err
+		return nil, 0, false, err
 	}
 	stream, err := abfapi.NewServiceClient(d.client).AbfPolicyDump(ctx, &abfapi.AbfPolicyDump{})
 	if err != nil {
-		return nil, fmt.Errorf("abf_policy_dump: %w", err)
+		return nil, 0, false, fmt.Errorf("abf_policy_dump: %w", err)
 	}
 	details, err := df2.Collect(stream.Recv)
 	if err != nil {
-		return nil, fmt.Errorf("abf_policy_dump: %w", err)
+		return nil, 0, false, fmt.Errorf("abf_policy_dump: %w", err)
 	}
 	for _, det := range details {
 		if det.Policy.PolicyID == id {
-			return df2.DecodePaths(det.Policy.Paths, ifs), nil
+			return df2.DecodePaths(det.Policy.Paths, ifs), det.Policy.ACLIndex, true, nil
 		}
 	}
-	return nil, nil
+	return nil, 0, false, nil
 }
 
 // Retrieve dumps every policy (abf_policy_dump) and keeps those whose id is owned and whose

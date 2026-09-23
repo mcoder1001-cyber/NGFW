@@ -231,8 +231,14 @@ func TestNeighborErrors(t *testing.T) {
 	if _, err := d.Create(ctx, &Neighbor{Interface: "loop300", IpAddress: "10.3.1.1", MacAddress: "zz"}); err == nil {
 		t.Fatal("bad mac accepted")
 	}
-	if err := d.Delete(ctx, &Neighbor{Interface: "loop300", IpAddress: "10.3.1.1", MacAddress: "aa:bb:cc:00:11:22"}, NeighborMeta{SwIfIndex: 99}); err == nil {
-		t.Fatal("non-zero retval must be an error")
+	// D-071: a stale sw_if_index (interface gone, or the index now names another interface)
+	// is re-verified right before the delete and nothing is sent to VPP.
+	before := len(v.CallsNamed("ip_neighbor_add_del"))
+	if err := d.Delete(ctx, &Neighbor{Interface: "loop300", IpAddress: "10.3.1.1", MacAddress: "aa:bb:cc:00:11:22"}, NeighborMeta{SwIfIndex: 99}); err != nil {
+		t.Fatalf("delete on a vanished interface: %v", err)
+	}
+	if n := len(v.CallsNamed("ip_neighbor_add_del")); n != before {
+		t.Fatalf("delete by a stale sw_if_index reached VPP (%d calls)", n-before)
 	}
 	if err := d.Delete(ctx, &Neighbor{}, "wrong"); !errors.Is(err, df2.ErrBadMeta) {
 		t.Fatalf("bad meta: %v", err)
@@ -293,8 +299,12 @@ func TestConfigLifecycle(t *testing.T) {
 func TestRegister(t *testing.T) {
 	reg := scheduler.NewRegistry()
 	Register(reg, fake.New(), "w3")
-	if got := reg.Names(); len(got) != 2 || got[0] != NeighborName || got[1] != ConfigName {
-		t.Fatalf("Names = %v", got)
+	if got := reg.Names(); len(got) != 1 || got[0] != NeighborName {
+		t.Fatalf("Names = %v (ip-neighbor.config is a global: RegisterGlobals only, D-071)", got)
+	}
+	RegisterGlobals(reg, fake.New())
+	if _, ok := reg.Get(ConfigName); !ok {
+		t.Fatal("RegisterGlobals did not register ip-neighbor.config")
 	}
 	var _ interface_types.InterfaceIndex // keep the import used by the fixture types above
 }

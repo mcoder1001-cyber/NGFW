@@ -173,17 +173,30 @@ func (*TableDescriptor) Update(context.Context, proto.Message, proto.Message, an
 // Delete implements scheduler.Descriptor.
 func (d *TableDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	name := obj.(*Table).GetName()
+	m, hasMeta := meta.(TableMeta)
+	if meta != nil && !hasMeta {
+		return fmt.Errorf("%s: %w %T", TableName, df2.ErrBadMeta, meta)
+	}
 	d.store.Lock()
 	defer d.store.Unlock()
-	m, ok := meta.(TableMeta)
-	if !ok {
-		rec, err := d.indexOf(name)
-		if err != nil {
-			return fmt.Errorf("%s: %w %T and %v", TableName, df2.ErrBadMeta, meta, err)
-		}
-		m = TableMeta{Index: rec.Index}
+	// D-071: re-verify identity in the same sequence, right before deleting by index. The
+	// index is deleted only when the record is live now (same VPP instance, index listed,
+	// geometry equal — see snapshot) and it is the index the caller holds. Otherwise our
+	// table is already gone and the index may belong to someone else: drop the record only.
+	live, _, _, _, err := snapshot(ctx, d.client, d.store)
+	if err != nil {
+		return err
 	}
-	if err := deleteTable(ctx, d.client, m.Index); err != nil {
+	var rec *TableRecord
+	for i := range live {
+		if live[i].rec.Name == name {
+			rec = &live[i].rec
+		}
+	}
+	if rec == nil || (hasMeta && m.Index != rec.Index) {
+		return d.store.Delete(name)
+	}
+	if err := deleteTable(ctx, d.client, rec.Index); err != nil {
 		return err
 	}
 	return d.store.Delete(name)

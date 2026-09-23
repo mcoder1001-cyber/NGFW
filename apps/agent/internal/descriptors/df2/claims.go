@@ -1,6 +1,7 @@
 package df2
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -220,4 +221,24 @@ func WriteFileAtomic(path string, data []byte) error {
 		return err
 	}
 	return nil
+}
+
+// Named is any desired object attached to an interface by name.
+type Named interface{ GetInterface() string }
+
+// SkipDelete re-verifies, immediately before a delete by sw_if_index (D-071), that the index
+// still names the object's interface and that the interface is still ours (own tag, or
+// untagged and key claimed). skip=true means the interface is gone or the index now belongs
+// to another interface / owner: the caller must not touch VPP (our object went with the
+// interface) and only drops its claim.
+func SkipDelete(ctx context.Context, c vpp.Client, owner string, swIfIndex uint32, obj Named, key scheduler.Key, claims ClaimStore) (bool, error) {
+	ifs, err := DumpInterfaces(ctx, c, owner)
+	if err != nil {
+		return false, err
+	}
+	name, ok := ifs.Name(swIfIndex)
+	if !ok || name != obj.GetInterface() {
+		return true, nil
+	}
+	return !ifs.OwnsObject(swIfIndex, key, claims), nil
 }

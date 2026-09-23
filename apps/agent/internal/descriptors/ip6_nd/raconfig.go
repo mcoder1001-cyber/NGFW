@@ -202,6 +202,11 @@ func (d *RaConfigDescriptor) Delete(ctx context.Context, obj proto.Message, meta
 	if !ok {
 		return fmt.Errorf("%s: %w %T", RaConfigName, df2.ErrBadMeta, meta)
 	}
+	if skip, err := df2.SkipDelete(ctx, d.client, d.owner, m.SwIfIndex, obj.(df2.Named), d.KeyOf(obj), d.opts.Claims); err != nil {
+		return err
+	} else if skip {
+		return df2.Release(d.opts.Claims, d.KeyOf(obj)) // interface gone or index reused: nothing of ours to remove
+	}
 	if err := d.resetRa(ctx, interface_types.InterfaceIndex(m.SwIfIndex)); err != nil {
 		return err
 	}

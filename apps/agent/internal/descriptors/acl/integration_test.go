@@ -198,7 +198,7 @@ func TestACLPluginOnHost(t *testing.T) {
 	ifA := createLoopback(ctx, t, c, owner, 40, true)
 	ifB := createLoopback(ctx, t, c, owner, 41, true)
 	ifU := createLoopback(ctx, t, c, owner, 43, false) // untagged, like a physical port
-	foreignOwner := owner + "f"                        // a second owner on the same VPP (tag "w10f:…")
+	foreignOwner := owner + "f"                         // a second owner on the same VPP (tag "w10f:…")
 	foreignACL := NewACL(c, foreignOwner)
 	foreignBind := NewInterfaceBinding(c, foreignOwner)
 	deleteOwned(ctx, t, foreignBind, foreignACL)

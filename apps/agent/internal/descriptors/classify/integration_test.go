@@ -8,6 +8,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	classifyapi "ngfw/agent/binapi/classify"
+
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/descriptors/df2/df2test"
 	"ngfw/agent/internal/scheduler"
@@ -186,4 +188,49 @@ func TestClassifyOnHost(t *testing.T) {
 	if actual, _ = td.Retrieve(ctx); len(actual) != 0 || len(store.All()) != 0 {
 		t.Fatalf("tables still retrieved: %+v store=%+v", actual, store.All())
 	}
+}
+
+// TestTableDeleteStaleIndexOnHost is the host regression for re-review N2 / probe P3 (D-071):
+// our table disappears out of band, another owner's table takes an index, and a Delete with a
+// stale TableMeta pointing at that index must not remove it.
+func TestTableDeleteStaleIndexOnHost(t *testing.T) {
+	c := df2test.Connect(t)
+	ctx := df2test.Ctx(t)
+	owner := vpptest.Prefix(t)
+	store := NewMemStore()
+	td := NewTable(c, store)
+	ours := &Table{Name: owner + "-stale", MatchNVectors: 1, Mask: ip4SrcMask(), MissNextIndex: NoIndex, Nbuckets: 8}
+	meta, err := td.Create(ctx, ours)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := deleteTable(ctx, c, meta.(TableMeta).Index); err != nil { // out of band
+		t.Fatal(err)
+	}
+	// "Another owner's" table (other geometry), created straight through binapi.
+	rep, err := classifyapi.NewServiceClient(c).ClassifyAddDelTable(ctx, &classifyapi.ClassifyAddDelTable{IsAdd: true, TableIndex: NoIndex, Nbuckets: 2,
+		MemorySize: DefaultMemorySize, SkipNVectors: 1, MatchNVectors: 1, MaskLen: VectorSize, Mask: make([]byte, VectorSize), NextTableIndex: NoIndex, MissNextIndex: NoIndex})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign := rep.NewTableIndex
+	t.Cleanup(func() { _ = deleteTable(df2test.Ctx(t), c, foreign) })
+	t.Logf("our table %d deleted out of band; foreign table now at index %d", meta.(TableMeta).Index, foreign)
+	if err := td.Delete(ctx, ours, TableMeta{Index: foreign}); err != nil { // stale meta → foreign index (probe P3)
+		t.Fatal(err)
+	}
+	if err := td.Delete(ctx, ours, meta); err != nil { // the original, now stale, meta
+		t.Fatal(err)
+	}
+	ids, err := tableIDs(ctx, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ids[foreign] {
+		t.Fatalf("Delete by a stale index removed the foreign table %d", foreign)
+	}
+	if _, ok := store.Get(ours.Name); ok {
+		t.Fatal("record of the vanished table kept")
+	}
+	t.Logf("foreign table %d survived both stale deletes; record dropped", foreign)
 }

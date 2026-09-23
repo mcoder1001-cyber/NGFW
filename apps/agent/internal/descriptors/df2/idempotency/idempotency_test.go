@@ -17,6 +17,10 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	adlapi "ngfw/agent/binapi/adl"
+	featureapi "ngfw/agent/binapi/feature"
+	"ngfw/agent/binapi/interface_types"
+
 	"ngfw/agent/internal/descriptors/abf"
 	"ngfw/agent/internal/descriptors/adl"
 	"ngfw/agent/internal/descriptors/arp"
@@ -59,7 +63,7 @@ func plan(ctx context.Context, descs []scheduler.Descriptor, desired []applied) 
 		case !ok:
 			p.Create = append(p.Create, scheduler.KV{Key: k, Value: a.obj})
 		case !proto.Equal(kv.Value, a.obj):
-			p.Update = append(p.Update, scheduler.KV{Key: k, Value: a.obj, Meta: kv.Meta})
+			p.Update = append(p.Update, scheduler.KV{Key: k, Value: kv.Value, Meta: kv.Meta}) // actual, for the log
 		}
 	}
 	for k, kv := range actual {
@@ -101,6 +105,20 @@ func TestApplyTwiceEmptyPlan(t *testing.T) {
 	l1, i1 := df2test.Loopback(t, c, 50)
 	l2, i2 := df2test.Loopback(t, c, 51)
 	l3, _ := df2test.UntaggedLoopback(t, c, 52) // stands in for a physical port (no owner tag)
+	// VPP keeps feature-arc state of a deleted interface on its sw_if_index; a new loopback that
+	// reuses such an index starts with e.g. adl-input enabled. Start from a clean interface.
+	for _, idx := range []uint32{i1, i2} {
+		rep, err := featureapi.NewServiceClient(c).FeatureIsEnabled(ctx, &featureapi.FeatureIsEnabled{ArcName: "device-input", FeatureName: "adl-input", SwIfIndex: interface_types.InterfaceIndex(idx)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rep.IsEnabled {
+			t.Logf("sw_if_index %d is new but has adl-input enabled (stale feature state of a deleted interface): disabling", idx)
+			if _, err := adlapi.NewServiceClient(c).AdlInterfaceEnableDisable(ctx, &adlapi.AdlInterfaceEnableDisable{SwIfIndex: interface_types.InterfaceIndex(idx), EnableDisable: false}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 	df2test.AddAddress(t, c, i1, fmt.Sprintf("10.%d.50.1/24", slot))
 	df2test.AddAddress(t, c, i2, fmt.Sprintf("10.%d.51.1/24", slot))
 	df2test.AddAddress(t, c, i1, fmt.Sprintf("2001:db8:%d:50::1/64", slot))

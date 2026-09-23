@@ -49,3 +49,36 @@ func TestDuplicateACLTagsFollowDF4(t *testing.T) {
 		t.Fatalf("Dependencies = %+v, want DF-4 key %s", deps, aclpkg.KeyACL("dup"))
 	}
 }
+
+// Fix round 2 / N2 (D-071): a policy id that now carries another ACL (reused by someone else)
+// is not deleted by a stale Meta; a policy on our ACL is.
+func TestPolicyDeleteReverifiesIdentity(t *testing.T) {
+	ctx := context.Background()
+	v := newFakeVPP() // acl 4 = w3:web, acl 1 = w2:web
+	d := NewPolicy(v, "w3", nil)
+	p := &Policy{PolicyId: 3001, Acl: "web", Paths: []*df2.FibPath{{Type: df2.FibPath_DROP}}}
+	meta, err := d.Create(ctx, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pol := v.policies[3001]
+	pol.ACLIndex = 1 // the id now holds another owner's policy
+	v.policies[3001] = pol
+	if err := d.Delete(ctx, p, meta); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := v.policies[3001]; !ok {
+		t.Fatal("Delete removed a policy whose ACL is not ours")
+	}
+	pol.ACLIndex = 4
+	v.policies[3001] = pol
+	if err := d.Delete(ctx, p, meta); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := v.policies[3001]; ok {
+		t.Fatal("our policy was not deleted")
+	}
+	if err := d.Delete(ctx, p, meta); err != nil { // already gone: nothing to do
+		t.Fatalf("delete of an absent policy: %v", err)
+	}
+}

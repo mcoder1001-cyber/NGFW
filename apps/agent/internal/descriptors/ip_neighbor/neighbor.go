@@ -125,6 +125,11 @@ func (d *NeighborDescriptor) Delete(ctx context.Context, obj proto.Message, meta
 	if !ok {
 		return fmt.Errorf("%s: %w %T", NeighborName, df2.ErrBadMeta, meta)
 	}
+	if skip, err := df2.SkipDelete(ctx, d.client, d.owner, m.SwIfIndex, obj.(df2.Named), d.KeyOf(obj), d.opts.Claims); err != nil {
+		return err
+	} else if skip {
+		return df2.Release(d.opts.Claims, d.KeyOf(obj)) // interface gone or index reused: nothing of ours to remove
+	}
 	if err := d.addDel(ctx, obj.(*Neighbor), interface_types.InterfaceIndex(m.SwIfIndex), false); err != nil {
 		return err
 	}

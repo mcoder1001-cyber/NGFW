@@ -250,3 +250,88 @@ func TestSessionRefusesRedirectMatch(t *testing.T) {
 		t.Fatal("session over a redirect match accepted")
 	}
 }
+
+// Fix round 2 / N2 (D-071): Delete by a stale index re-verifies identity first. Our table
+// was removed out of band and its index now holds someone else's table: Delete must drop the
+// record and leave the foreign table alone.
+func TestTableDeleteReverifiesIdentity(t *testing.T) {
+	ctx := context.Background()
+	v := newFakeVPP()
+	st := NewMemStore()
+	td := NewTable(v, st)
+	ours := &Table{Name: "w3-a", Mask: ip4Mask(), MissNextIndex: NoIndex}
+	meta, err := td.Create(ctx, ours)
+	if err != nil {
+		t.Fatal(err)
+	}
+	idx := meta.(TableMeta).Index
+	delete(v.tables, idx) // out of band
+	v.next = idx          // the next table reuses the index
+	foreign, _ := classifyapi.NewServiceClient(v).ClassifyAddDelTable(ctx, &classifyapi.ClassifyAddDelTable{IsAdd: true, TableIndex: NoIndex, Nbuckets: 2, MemorySize: DefaultMemorySize,
+		SkipNVectors: 1, MatchNVectors: 1, MaskLen: 16, Mask: make([]byte, 16), NextTableIndex: NoIndex, MissNextIndex: NoIndex})
+	if foreign.NewTableIndex != idx {
+		t.Fatalf("fake did not reuse the index: %d", foreign.NewTableIndex)
+	}
+	if err := td.Delete(ctx, ours, meta); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := v.tables[idx]; !ok {
+		t.Fatal("Delete by a stale index removed another owner's table")
+	}
+	if _, ok := st.Get("w3-a"); ok {
+		t.Fatal("record of the vanished table kept")
+	}
+	// A meta index that is not the live record's index is not deleted either.
+	m2, err := td.Create(ctx, &Table{Name: "w3-b", Mask: ip4Mask(), MissNextIndex: NoIndex})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := td.Delete(ctx, &Table{Name: "w3-b"}, TableMeta{Index: idx}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := v.tables[idx]; !ok {
+		t.Fatal("Delete with a mismatching meta index removed the foreign table")
+	}
+	if _, ok := v.tables[m2.(TableMeta).Index]; !ok {
+		t.Fatal("w3-b removed although the meta did not match it")
+	}
+}
+
+// Fix round 2 / N4: cleanup succeeds when the bound table is already gone, and input-ACL
+// Create refuses an interface that already has tables bound (VPP's add would be a no-op).
+func TestACLCleanupWhenTableGone(t *testing.T) {
+	ctx := context.Background()
+	v := newFakeVPP()
+	st := NewMemStore()
+	twoTables(t, v, st) // A = 0, B = 1
+	out := NewOutputACL(v, "w3", st)
+	o := &OutputAcl{Interface: "loop300", Ip4Table: "w3-A"}
+	ometa, err := out.Create(ctx, o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	delete(v.tables, 0) // table A removed out of band; VPP could no longer unbind it
+	if err := out.Delete(ctx, o, ometa); err != nil {
+		t.Fatalf("output-acl Delete with its table gone: %v", err)
+	}
+	if _, ok := st.GetOutput("loop300"); ok {
+		t.Fatal("output record kept")
+	}
+
+	in := NewInputACL(v, "w3", st)
+	i := &InputAcl{Interface: "loop300", Ip4Table: "w3-B"}
+	imeta, err := in.Create(ctx, i)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := in.Create(ctx, &InputAcl{Interface: "loop300", Ip6Table: "w3-B"}); err == nil {
+		t.Fatal("input-acl Create over a bound interface accepted")
+	}
+	// Delete of a retrieved value naming an unknown table ("#7") unbinds what VPP reports.
+	if err := in.Delete(ctx, &InputAcl{Interface: "loop300", Ip4Table: "#7"}, imeta); err != nil {
+		t.Fatalf("input-acl Delete by dumped indices: %v", err)
+	}
+	if _, bound := v.inputACL[5]; bound {
+		t.Fatal("input ACL still bound")
+	}
+}

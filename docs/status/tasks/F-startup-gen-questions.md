@@ -35,3 +35,18 @@ blacklist). Suggest a follow-up on its owner to call `vrx-startupgen` instead, s
 The prompt says "workers + main core … disjoint from isolcpus rules". Implemented: when the host isolates CPUs, worker
 cores must be **inside** the isolated set and the main core **outside** it (housekeeping). The literal reading (all VPP
 cores disjoint from isolcpus) would forbid the usual layout of pinning workers onto isolated cores.
+
+## Answered by D-081 (2026-09-24)
+Q1 → contract branch `contract/F-startup-gen` (done, merged into the task branch); Q3 → renderer never in commit apply;
+Q4 → tech-debt; Q5 → confirmed.
+
+## Q6 (fix round) — `plugins` has no presence in proto3
+`map<string,bool>` cannot distinguish "absent" from "empty". Implemented: the generator **overlays** the document's
+switches on the current start-up file's switches (a plugin not in the document keeps its switch; turn one off with
+`false`). Consequence: a switch can only disappear from the file by editing the current file by hand. Alternative if
+the manager prefers the document to be authoritative: wrap the map in a message (`plugins: {switches: {...}}`) — a
+reshape of the contract field, so it should be decided before P06 exposes it.
+
+## Q7 (fix round) — deploy/vpp/test-apply-startup.sh is not in tools/ci.sh
+The fake-host test for the apply script runs standalone (36 checks, pasted in F-startup-gen.md). `tools/ci.sh` (P09) does
+not run scripts under `deploy/`; suggest adding it (plus `shellcheck deploy/vpp/*.sh`) to the quick gate — not my file.

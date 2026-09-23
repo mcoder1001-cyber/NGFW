@@ -1,0 +1,34 @@
+// Desired state of the vxlan descriptors (agent-internal until moved to packages/proto).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.vxlan;
+
+option go_package = "ngfw/agent/internal/descriptors/vxlan;vxlan";
+
+// Tunnel is one VXLAN tunnel interface (vxlan_add_del_tunnel_v3 / vxlan_tunnel_v2_dump). VPP
+// names it vxlan_tunnel<instance>, which is the object id; instance is mandatory and unique.
+message Tunnel {
+  uint32 instance = 1;
+  // Outer source address (IPv4 or IPv6).
+  string src = 2;
+  // Outer destination, unicast or multicast group.
+  string dst = 3;
+  // Interface for the multicast group (mandatory iff dst is multicast).
+  string mcast_interface = 4;
+  uint32 vni = 5;
+  // Encap FIB table id (dependency vrf/<id> unless 0).
+  uint32 encap_vrf_id = 6;
+  // UDP ports; 0 = VXLAN default 4789 (Retrieve canonicalises 4789 back to 0).
+  uint32 src_port = 7;
+  uint32 dst_port = 8;
+  // L3 tunnel (routed, no MAC) instead of the default L2 tunnel.
+  bool is_l3 = 9;
+}
+
+// Bypass enables the ip4/ip6-vxlan-bypass features on an interface
+// (sw_interface_set_vxlan_bypass). Write-only: VPP has no dump for it.
+message Bypass {
+  string interface = 1;
+  bool ipv4 = 2;
+  bool ipv6 = 3;
+}

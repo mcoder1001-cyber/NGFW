@@ -329,16 +329,16 @@ tasks:
   - P06
   priority: 1
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.10
   scope: ''
   files_owned: apps/web/** packages/ui-kit/**
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P07b
+  worktree: /root/ngfw-wt/P07b
+  owner: host-agent slot1
+  started: 2026-09-24T03:10
   finished: ''
   notes: ''
 - id: DF-1
@@ -1593,16 +1593,16 @@ tasks:
   - P06
   priority: 6
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.11
   scope: CLI basic
   files_owned: ''
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P13
+  worktree: /root/ngfw-wt/P13
+  owner: host-agent slot3
+  started: 2026-09-24T03:10
   finished: ''
   notes: ''
 - id: F-restconf-yang
@@ -1637,16 +1637,16 @@ tasks:
   - P06
   priority: 6
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D8.9
   scope: Terraform provider, Ansible collection, Python SDK
   files_owned: sdk/** docs/user/system/sdk-terraform-ansible.md test/topology/sdk-terraform-ansible/** docs/status/tasks/F-sdk-terraform-ansible*.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/F-sdk-terraform-ansible
+  worktree: /root/ngfw-wt/F-sdk-terraform-ansible
+  owner: host-agent slot5
+  started: 2026-09-24T03:10
   finished: ''
   notes: ''
 - id: F-aaa
@@ -2121,19 +2121,19 @@ tasks:
   finished: ''
   id: F-startup-apply
   notes: D-088 split from F-startup-gen
-  owner: ''
+  owner: host-agent slot6
   parked_on: ''
   priority: 4
   prompt: prompts/features/F-startup-gen.md
   scope: apply-startup.sh from branch task/F-startup-apply; fix re-review N1 N2 N3 N6 + lows (D-088)
   stage: S2
-  started: ''
-  state: ready
+  started: 2026-09-24T03:10
+  state: running
   template: FEATURE-TEMPLATE.md
   title: Robust startup.conf apply tooling (detached, watchdog, hung-VPP, ifupdown restore, Go API checks, handover gate)
   wbs:
   - D0.6
-  worktree: ''
+  worktree: /root/ngfw-wt/F-startup-apply
 - id: F-vpp-debs
   title: 'VPP package build pipeline: pinned 26.06 source, patch series, reproducible .deb build script'
   prompt: prompts/features/F-vpp-debs.md

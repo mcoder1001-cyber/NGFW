@@ -1,23 +1,177 @@
 import 'reflect-metadata';
+import fastifyCookie from '@fastify/cookie';
+import fastifyWebsocket from '@fastify/websocket';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swagger';
+import { RootConfig, ROOT_KEYS } from '@ngfw/schema';
+import { z } from 'zod';
+import type { FastifyInstance, RouteOptions } from 'fastify';
 import { AppModule } from './app.module.js';
+import { AuthService } from './auth/auth.service.js';
+import { loadEnv, type Env } from './config.js';
+import { registerStreamRoute, STREAM_PROTOCOL } from './telemetry/stream.route.js';
+import { RelayService } from './telemetry/relay.service.js';
 
-export async function createApp(): Promise<NestFastifyApplication> {
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
-    logger: ['error', 'warn', 'log'],
-  });
+export interface CreateAppOptions {
+  env?: Env;
+  logger?: false | ('error' | 'warn' | 'log' | 'debug')[];
+  /** Observe every route as it is registered (the route-guard test enumerates them). */
+  onRoute?: (route: RouteOptions) => void;
+}
+
+/** Body limit: a whole configuration document is well below this. */
+const BODY_LIMIT = 8 * 1024 * 1024;
+
+export async function createApp(opts: CreateAppOptions = {}): Promise<NestFastifyApplication> {
+  const env = opts.env ?? loadEnv();
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule.forRoot(env),
+    new FastifyAdapter({ bodyLimit: BODY_LIMIT }),
+    { logger: opts.logger ?? ['error', 'warn', 'log'], abortOnError: false },
+  );
+  if (opts.onRoute) {
+    (app.getHttpAdapter().getInstance() as unknown as FastifyInstance).addHook(
+      'onRoute',
+      opts.onRoute,
+    );
+  }
+  await configureApp(app);
   return app;
 }
 
+/**
+ * Fastify plumbing that Nest does not do: cookies (refresh token), JSON merge-patch bodies, the WebSocket relay route
+ * and problem+json for errors raised outside Nest's pipeline (404 of unknown routes, body parse errors).
+ */
+export async function configureApp(app: NestFastifyApplication): Promise<void> {
+  const fastify = app.getHttpAdapter().getInstance() as unknown as FastifyInstance;
+  await app.register(fastifyCookie as never);
+  const json = (
+    _req: unknown,
+    body: string,
+    done: (err: Error | null, value?: unknown) => void,
+  ) => {
+    if (body === '') return done(null, undefined);
+    try {
+      done(null, JSON.parse(body));
+    } catch (e) {
+      done(
+        Object.assign(new Error(`invalid JSON body: ${(e as Error).message}`), { statusCode: 400 }),
+      );
+    }
+  };
+  for (const type of ['application/merge-patch+json', 'application/problem+json']) {
+    fastify.addContentTypeParser(type, { parseAs: 'string' }, json);
+  }
+  await app.register(fastifyWebsocket as never, {
+    options: {
+      maxPayload: 64 * 1024,
+      handleProtocols: (protocols: Set<string>) =>
+        protocols.has(STREAM_PROTOCOL) ? STREAM_PROTOCOL : false,
+    },
+  });
+  await registerStreamRoute(fastify, app.get(AuthService), app.get(RelayService));
+}
+
+/** `interfaces` → `InterfacesConfig`: the component names packages/schema uses for its OpenAPI output. */
+function componentName(key: string): string {
+  return key.charAt(0).toUpperCase() + key.slice(1) + 'Config';
+}
+
+/** One domain as an OpenAPI 3.1 schema — the same Zod 4 conversion packages/schema's generator runs (D-006). */
+function domainSchema(key: (typeof ROOT_KEYS)[number]): unknown {
+  const js = z.toJSONSchema(RootConfig.shape[key], {
+    target: 'draft-2020-12',
+    io: 'input',
+  }) as Record<string, unknown>;
+  delete js['$schema'];
+  return js;
+}
+
+/**
+ * OpenAPI 3.1 from the Nest decorators plus the configuration schemas of packages/schema (00-CONTEXT rule 5: one
+ * definition). `RootConfig` references the per-domain components instead of inlining them again.
+ */
 export function buildOpenApi(app: NestFastifyApplication): OpenAPIObject {
   const cfg = new DocumentBuilder()
+    .setOpenAPIVersion('3.1.0')
     .setTitle('VRX API')
     .setDescription(
-      'Management API of the VRX secure router. /config is transactional, /state is live read-only, /actions are imperative.',
+      [
+        'Management API of the VRX secure router. `/config` is transactional (candidate → diff → commit → rollback),',
+        '`/state` is live read-only, `/actions` are imperative. Errors are RFC 9457 `application/problem+json` with',
+        '`errors[]{pointer,message}`. Telemetry: `WS /api/v1/stream` (subprotocols `vrx.v1, bearer.<token>`), messages',
+        '`{subscribe:[topics]}`.',
+      ].join(' '),
     )
     .setVersion('0.1.0')
+    .setLicense('Proprietary', 'https://vrx.dev/license')
+    .addServer('/', 'this device')
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'bearer')
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: 'Authorization',
+        description: '`Authorization: ApiKey <key>`',
+      },
+      'apiKey',
+    )
+    .addCookieAuth(
+      'vrx_refresh',
+      { type: 'apiKey', in: 'cookie', name: 'vrx_refresh' },
+      'refreshCookie',
+    )
     .build();
-  return SwaggerModule.createDocument(app, cfg);
+  const doc = SwaggerModule.createDocument(app, cfg, {
+    operationIdFactory: (controller, method) =>
+      `${controller.replace(/Controller$/, '')}_${method}`,
+  });
+  const schemas: Record<string, unknown> = { ...(doc.components?.schemas ?? {}) };
+  for (const key of ROOT_KEYS) schemas[componentName(key)] = domainSchema(key);
+  schemas['RootConfig'] = {
+    type: 'object',
+    description:
+      'The whole configuration document (docs/04). Secret leaves are write-only and never returned.',
+    additionalProperties: false,
+    properties: Object.fromEntries(
+      ROOT_KEYS.map((k) => [k, { $ref: `#/components/schemas/${componentName(k)}` }]),
+    ),
+  };
+  schemas['Problem'] = {
+    type: 'object',
+    description: 'RFC 9457 problem details',
+    required: ['type', 'title', 'status'],
+    properties: {
+      type: { type: 'string' },
+      title: { type: 'string' },
+      status: { type: 'integer' },
+      detail: { type: 'string' },
+      instance: { type: 'string' },
+      errors: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['pointer', 'message'],
+          properties: {
+            pointer: { type: 'string' },
+            message: { type: 'string' },
+            rule: { type: 'string' },
+          },
+        },
+      },
+    },
+    additionalProperties: true,
+  };
+  doc.components = { ...doc.components, schemas: schemas as never };
+  // routes without a security requirement are the reviewed @Public() ones: say so explicitly
+  for (const item of Object.values(doc.paths)) {
+    for (const op of Object.values(item) as { security?: unknown[]; operationId?: string }[]) {
+      if (op && typeof op === 'object' && 'operationId' in op && op.security === undefined) {
+        op.security = [];
+      }
+    }
+  }
+  return doc;
 }

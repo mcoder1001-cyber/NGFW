@@ -190,3 +190,21 @@ placement and parse-run validation, Q8 P10 packaging list, Q9 VRFs, Q10 event ki
 | D-RF4-9 | rsyslog: only `omfwd`; fixed template set; TLS refused unless the ossl driver exists; impstats file bounded read + truncation | — | task rules; `-N1` does not load the driver |
 | D-RF4-10 | Controller for tests = PID the test spawned with `/proc/<pid>/exe` check; product = systemctl reload/restart/kill of the owned unit only | — | shared-host §5, RF-1 M4 |
 | D-RF4-11 | VRRPv2 test keys `RF4tpsk*` instead of `VRX_TEST_PSK_<id>` | — | 8-character limit (Q3) |
+
+## Final gate
+`tools/ci.sh --base main` on `6fe7c05` (log `/root/ngfw-wt/logs/RF-4-ci-3.log`, step logs `/root/ngfw-wt/logs/ci/RF-4-20260924-022058-1953729`):
+```
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   0m21s
+  forbidden patterns (+ gitleaks)                    0m04s
+  lint · typecheck · unit tests · build (turbo)   0m23s
+  apps/agent: make lint test build                   0m26s
+  test/ Go modules, unit mode (test/integration/smoke)   0m02s
+  mode quick · wall time 1m20s · logs /root/ngfw-wt/logs/ci/RF-4-20260924-022058-1953729
+
+CI GATE PASSED
+```
+Only docs change after this run. Test daemons stopped, `ns-w8-a` removed, `/run/vrx-test/w8` empty, `apps/agent/bin` removed.

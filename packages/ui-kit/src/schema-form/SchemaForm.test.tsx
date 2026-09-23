@@ -145,6 +145,11 @@ describe('<SchemaForm>', () => {
     expect(screen.getByRole('button', { name: 'ذخیره' })).toBeInTheDocument();
     expect(document.documentElement).toHaveAttribute('dir', 'rtl');
     expect(document.documentElement).toHaveAttribute('lang', 'fa');
+    // technical inputs stay LTR inside the RTL page (review L7); free text follows the page direction
+    for (const label of ['Gateway', 'MAC', 'Parent interface', 'Extra']) {
+      expect(screen.getByLabelText(label, { exact: false }), label).toHaveAttribute('dir', 'ltr');
+    }
+    expect(screen.getAllByLabelText(/^Name/)[0]).not.toHaveAttribute('dir');
   });
 
   it('read-only mode disables saving', () => {

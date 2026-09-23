@@ -13,11 +13,20 @@ export default [
         'error',
         {
           mode: 'jsx-only',
+          // Review P07a L2: every attribute is checked except the non-text ones below (an allowlist missed `tooltip`,
+          // `description`, `message`, …), and all-caps words (`MTU`, `OK`) are no longer exempt — they go through t().
           'jsx-attributes': {
-            include: ['label', 'title', 'placeholder', 'helperText', 'alt', 'aria-label', 'aria-description', 'legend', 'primary', 'secondary'],
-            exclude: [],
+            include: [],
+            exclude: [
+              'className', 'style', 'sx', 'type', 'key', 'id', 'name', 'htmlFor', 'form', 'labelId', 'width', 'height',
+              'to', 'href', 'target', 'rel', 'src', 'component', 'variant', 'color', 'size', 'edge', 'severity',
+              'orientation', 'direction', 'position', 'anchor', 'justifyContent', 'alignItems', 'flexWrap', 'gap',
+              'autoComplete', 'inputMode', 'role', 'lang', 'dir', 'mode', 'fontFamily', 'underline', 'textColor',
+              'indicatorColor', 'labelKey', 'anchorOrigin', 'transformOrigin', 'queryKey', 'paginationMode', 'sortingMode',
+              'filterMode', 'density', 'valueLabelDisplay', 'data-.*', 'aria-(controls|labelledby|describedby|haspopup|live|current|hidden|expanded|owns)',
+            ],
           },
-          words: { exclude: ['[0-9!-/:-@[-`{-~]+', '[A-Z_-]+', '—', '…'] },
+          words: { exclude: ['[0-9!-/:-@[-`{-~]+', '—', '…'] },
         },
       ],
     },

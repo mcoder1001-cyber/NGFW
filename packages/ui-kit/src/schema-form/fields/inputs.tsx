@@ -45,6 +45,10 @@ export interface PrimitiveInputProps {
 
 const MONO_WIDGETS = new Set(['cidr', 'ip', 'mac', 'interface-picker', 'mono']);
 
+/** Technical values (IP/CIDR/MAC/interface names/JSON) stay LTR in RTL locales so bidi never reorders them (review L7). */
+const LTR = { dir: 'ltr' } as const;
+const NUMERIC = { inputMode: { integer: 'numeric', decimal: 'decimal' }, anyStep: 'any' } as const;
+
 export function inferStringWidget(schema: JsonSchema): string {
   switch (schema.format) {
     case 'ipv4':
@@ -140,6 +144,7 @@ function TextInput(props: PrimitiveInputProps) {
           ...(placeholder ? { placeholder } : {}),
           ...(schema.maxLength !== undefined ? { maxLength: schema.maxLength } : {}),
           ...(widget === 'ip' || widget === 'cidr' || widget === 'mac' ? { spellCheck: false } : {}),
+          ...(mono ? LTR : {}),
           'aria-readonly': readOnly || undefined,
         },
       }}
@@ -173,7 +178,7 @@ function InterfacePickerInput(props: PrimitiveInputProps) {
           helperText={error ?? helperText ?? t('form.interfacePickerHelp')}
           slotProps={{
             input: { ...params.InputProps, sx: { fontFamily: theme.vrx.monoFontFamily } },
-            htmlInput: { ...params.inputProps, spellCheck: false },
+            htmlInput: { ...params.inputProps, spellCheck: false, ...LTR },
           }}
         />
       )}
@@ -206,8 +211,8 @@ function NumberInput(props: PrimitiveInputProps) {
       slotProps={{
         input: { readOnly },
         htmlInput: {
-          inputMode: integer ? 'numeric' : 'decimal',
-          step: schema.multipleOf ?? (integer ? 1 : 'any'),
+          inputMode: integer ? NUMERIC.inputMode.integer : NUMERIC.inputMode.decimal,
+          step: schema.multipleOf ?? (integer ? 1 : NUMERIC.anyStep),
           ...(schema.minimum !== undefined ? { min: schema.minimum } : {}),
           ...(schema.maximum !== undefined ? { max: schema.maximum } : {}),
           ...(placeholder ? { placeholder } : {}),
@@ -396,7 +401,7 @@ function JsonInput(props: PrimitiveInputProps) {
       helperText={shown ?? helperText ?? t('form.jsonValue')}
       slotProps={{
         input: { readOnly, sx: { fontFamily: theme.vrx.monoFontFamily } },
-        htmlInput: { spellCheck: false, 'aria-readonly': readOnly || undefined },
+        htmlInput: { spellCheck: false, ...LTR, 'aria-readonly': readOnly || undefined },
       }}
     />
   );

@@ -100,6 +100,10 @@ func (t *Table) IndexByName(name string) (uint32, error) {
 		if t.Untagged(idx) {
 			return idx, nil
 		}
+		if id, ours := t.OwnedID(idx); ours {
+			// our own interface named by VPP's (index-based) name: its logical name is the tag id
+			return 0, fmt.Errorf("%w: %q is VPP's name of our interface %q; use the logical name", ErrNotFound, name, id)
+		}
 		return 0, fmt.Errorf("%w: %q is tagged %q", ErrForeignInterface, name, strings.TrimRight(t.byIndex[idx].Tag, "\x00"))
 	}
 	return 0, fmt.Errorf("%w: %q (owner %q)", ErrNotFound, name, t.owner)

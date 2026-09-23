@@ -63,7 +63,7 @@ that. Add a unit test with a foreign-source entry in table 0.
 
 ### M1 — Claim before add, never released on failure (recurring pattern) → foreign objects on untagged interfaces get adopted, then updated or deleted
 `df7/ifaces.go:61-70` (`Attach` records the ClaimStore claim), then the VPP add runs, and nothing calls `Release`
-if the add fails. Affected: `vrrp/vrrp.go:357-364`, `bfd/bfd.go:310-321`, `bfd.go:476-483`, `span/span.go:119`,
+if the add fails. Affected: `vrrp/vrrp.go:357-364`, `bfd/bfd.go:310-321`, `bfd.go:476-483`, `span/span.go:120`,
 `lldp/lldp.go:214-224`, `mpls/mpls.go:370-374`, the qos record/store/mark Creates, igmp (`igmp.go:264, 354, 540, 611`),
 `policer/attach.go:82`, `policer/attach.go:306`, `lb/lb.go:605`.
 
@@ -116,7 +116,7 @@ record written after our own successful add.
 - `policer/policer.go:79`: `policer_update(PolicerIndex: m.Index)`.
 - `policer/policer.go:220`: `Reset(index)`.
 
-Delete re-checks the index (`policer.go:98-114`); Update does not. If the Meta outlives a VPP restart (update before
+Delete re-checks the index (`policer.go:103-119`); Update does not. If the Meta outlives a VPP restart (update before
 resync), or the index was freed and reused by another owner, Update overwrites another owner's policer config.
 Fix: same pattern as Delete — `dumpV2(idx)` and a name check, otherwise `LookupIndex` — immediately before the update.
 

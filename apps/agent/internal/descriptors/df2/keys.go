@@ -7,12 +7,12 @@ import (
 )
 
 // Key prefixes of objects owned by other tasks that DF-2 descriptors depend on. They follow
-// the DF-2 task prompt ("interface/<name>", "vrf/<id>", "acl/<name>"); if P05 core / DF-4
+// the DF-2 task prompt ("interface/<name>", "vrf/<id>") and DF-4 docs/agent/descriptors/acl.md ("acl.acl/<name>"); if P05 core / DF-4
 // settle on other names, change them here only.
 const (
 	InterfaceKeyPrefix   = "interface"
 	VRFKeyPrefix         = "vrf"
-	ACLKeyPrefix         = "acl"
+	ACLKeyPrefix         = "acl.acl"
 	InterfaceIPKeyPrefix = "interface-ip"
 )
 

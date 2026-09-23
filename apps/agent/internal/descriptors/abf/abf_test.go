@@ -138,7 +138,7 @@ func TestPolicyLifecycle(t *testing.T) {
 		t.Fatalf("KeyOf = %s", k)
 	}
 	deps := d.Dependencies(desired)
-	if len(deps) != 3 || deps[0].Key != "acl/web" || deps[0].Optional || deps[1].Key != "interface/loop301" || !deps[1].Optional || deps[2].Key != "interface/loop300" {
+	if len(deps) != 3 || deps[0].Key != "acl.acl/web" || deps[0].Optional || deps[1].Key != "interface/loop301" || !deps[1].Optional || deps[2].Key != "interface/loop300" {
 		t.Fatalf("Dependencies = %+v", deps)
 	}
 	norm, err := NormalizePolicy(desired)

@@ -3,9 +3,11 @@ package df2
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"go.fd.io/govpp/adapter"
+	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/fib_types"
@@ -31,7 +33,7 @@ func snapshot(t *testing.T) *Interfaces {
 }
 
 func TestKeys(t *testing.T) {
-	if InterfaceKey("loop300") != "interface/loop300" || VRFKey(3001) != "vrf/3001" || ACLKey("web") != "acl/web" ||
+	if InterfaceKey("loop300") != "interface/loop300" || VRFKey(3001) != "vrf/3001" || ACLKey("web") != "acl.acl/web" ||
 		InterfaceIPKey("loop300", "2001:db8:3::/64") != "interface-ip/loop300/2001:db8:3::/64" {
 		t.Fatal("key builders")
 	}
@@ -161,5 +163,14 @@ func TestErrorsAndRange(t *testing.T) {
 	r = &IDRange{Lo: 3000, Hi: 3999}
 	if r.Owns(2999) || !r.Owns(3000) || !r.Owns(3999) || r.Owns(4000) {
 		t.Fatal("range bounds")
+	}
+}
+
+func TestInterfaceVanished(t *testing.T) {
+	if !InterfaceVanished(fmt.Errorf("wrapped: %w", api.INVALID_SW_IF_INDEX)) {
+		t.Fatal("INVALID_SW_IF_INDEX not recognised")
+	}
+	if InterfaceVanished(api.INVALID_VALUE) || InterfaceVanished(nil) || InterfaceVanished(errors.New("x")) {
+		t.Fatal("false positive")
 	}
 }

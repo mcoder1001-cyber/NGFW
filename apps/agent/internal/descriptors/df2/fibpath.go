@@ -94,9 +94,9 @@ func EncodePath(p *FibPath, ifs *Interfaces) (fib_types.FibPath, error) {
 	out := fib_types.FibPath{
 		SwIfIndex:  NoInterface,
 		TableID:    p.TableId,
-		Weight:     uint8(p.Weight),     //nolint:gosec // checked above
-		Preference: uint8(p.Preference), //nolint:gosec // checked above
-		Type:       fib_types.FibPathType(p.Type),    //nolint:gosec // enum values 0..10
+		Weight:     uint8(p.Weight),                   //nolint:gosec // checked above
+		Preference: uint8(p.Preference),               //nolint:gosec // checked above
+		Type:       fib_types.FibPathType(p.Type),     //nolint:gosec // enum values 0..10
 		Proto:      fib_types.FibPathNhProto(p.Proto), //nolint:gosec // enum values 0..4
 	}
 	if p.ResolveViaAttached {

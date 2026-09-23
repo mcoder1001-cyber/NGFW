@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"go.fd.io/govpp/adapter"
+	"go.fd.io/govpp/api"
 )
 
 // Typed errors descriptors return and integration tests recognise.
@@ -33,4 +34,12 @@ func PluginError(plugin string, err error) error {
 		return fmt.Errorf("%w: %s (%s)", ErrPluginNotLoaded, plugin, unknown.MsgName)
 	}
 	return err
+}
+
+// InterfaceVanished reports whether err is VPP's INVALID_SW_IF_INDEX (-2): the interface was
+// deleted between the sw_interface_dump snapshot and a per-interface query. Retrieve skips
+// such an interface instead of failing (it no longer carries anything to report).
+func InterfaceVanished(err error) bool {
+	var apiErr api.VPPApiError
+	return errors.As(err, &apiErr) && apiErr == api.INVALID_SW_IF_INDEX
 }

@@ -369,6 +369,9 @@ func (d *InputACLDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 	var out []scheduler.KV
 	for _, idx := range ifs.OwnedIndices() {
 		rep, err := svc.ClassifyTableByInterface(ctx, &classifyapi.ClassifyTableByInterface{SwIfIndex: interface_types.InterfaceIndex(idx)})
+		if df2.InterfaceVanished(err) {
+			continue // deleted after the interface snapshot
+		}
 		if err != nil {
 			return nil, fmt.Errorf("classify_table_by_interface %d: %w", idx, err)
 		}

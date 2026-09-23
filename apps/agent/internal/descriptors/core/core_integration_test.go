@@ -61,22 +61,24 @@ func cleanupSlot(t *testing.T, c vpp.Client, owners ...string) {
 func TestCoreOnHost(t *testing.T) {
 	vpptest.SkipUnlessIntegration(t)
 	vpptest.LockLab(t)
-	owner := vpptest.Prefix(t)
+	// Own owner and index/table range: the agent package's host tests run in parallel with this
+	// one under owner <prefix> and clean up by owner.
+	owner := vpptest.Prefix(t) + "c"
 	c := dialVPP(t)
 	t.Cleanup(func() { cleanupSlot(t, c, owner) })
 	ctx := context.Background()
 	slot := vpptest.Slot(t)
-	table := vpptest.TableBase(t) + 1
-	l1 := fmt.Sprintf("loop%d", vpptest.LoopbackInstance(t, 1))
-	l2 := fmt.Sprintf("loop%d", vpptest.LoopbackInstance(t, 2))
+	table := vpptest.TableBase(t) + 11
+	l1 := fmt.Sprintf("loop%d", vpptest.LoopbackInstance(t, 11))
+	l2 := fmt.Sprintf("loop%d", vpptest.LoopbackInstance(t, 12))
 	i1, _ := core.LoopbackInstance(l1)
 	i2, _ := core.LoopbackInstance(l2)
-	a1 := fmt.Sprintf("10.%d.1.1/24", slot)
-	a2 := fmt.Sprintf("10.%d.2.1/24", slot)
-	a6 := fmt.Sprintf("2001:db8:%d::1/64", slot)
-	nh := fmt.Sprintf("10.%d.1.254", slot)
-	dst := fmt.Sprintf("10.%d.100.0/24", slot)
-	blackhole := fmt.Sprintf("10.%d.200.0/24", slot)
+	a1 := fmt.Sprintf("10.%d.11.1/24", slot)
+	a2 := fmt.Sprintf("10.%d.12.1/24", slot)
+	a6 := fmt.Sprintf("2001:db8:%d:11::1/64", slot)
+	nh := fmt.Sprintf("10.%d.11.254", slot)
+	dst := fmt.Sprintf("10.%d.110.0/24", slot)
+	blackhole := fmt.Sprintf("10.%d.210.0/24", slot)
 
 	desired := []scheduler.KV{
 		{Key: core.VRFKey(table), Value: &core.Table{Id: table, Vrf: owner + "-red"}},
@@ -88,7 +90,7 @@ func TestCoreOnHost(t *testing.T) {
 		{Key: core.InterfaceAddrKey(l1, a6), Value: &core.InterfaceAddress{Interface: l1, Prefix: a6}},
 		{Key: core.InterfaceAddrKey(l2, a2), Value: &core.InterfaceAddress{Interface: l2, Prefix: a2}},
 		{Key: core.RouteKey(table, dst), Value: &core.Route{TableId: table, Prefix: dst, Preference: 1,
-			Paths: []*core.RoutePath{{Address: nh, Weight: 1}, {Address: fmt.Sprintf("10.%d.2.254", slot), Interface: l2, Weight: 3}}}},
+			Paths: []*core.RoutePath{{Address: nh, Weight: 1}, {Address: fmt.Sprintf("10.%d.12.254", slot), Interface: l2, Weight: 3}}}},
 		{Key: core.RouteKey(table, blackhole), Value: &core.Route{TableId: table, Prefix: blackhole}},
 	}
 	s := newScheduler(t, c, owner)
@@ -131,12 +133,12 @@ func TestCoreOnHost(t *testing.T) {
 	// successful create; and, separately, a route failing after an address was added.
 	for i, extra := range [][]scheduler.KV{
 		{
-			{Key: core.InterfaceAddrKey(l1, fmt.Sprintf("10.%d.3.1/24", slot)), Value: &core.InterfaceAddress{Interface: l1, Prefix: fmt.Sprintf("10.%d.3.1/24", slot)}},
-			{Key: core.InterfaceAddrKey(l2, fmt.Sprintf("10.%d.1.2/24", slot)), Value: &core.InterfaceAddress{Interface: l2, Prefix: fmt.Sprintf("10.%d.1.2/24", slot)}},
+			{Key: core.InterfaceAddrKey(l1, fmt.Sprintf("10.%d.13.1/24", slot)), Value: &core.InterfaceAddress{Interface: l1, Prefix: fmt.Sprintf("10.%d.13.1/24", slot)}},
+			{Key: core.InterfaceAddrKey(l2, fmt.Sprintf("10.%d.11.2/24", slot)), Value: &core.InterfaceAddress{Interface: l2, Prefix: fmt.Sprintf("10.%d.11.2/24", slot)}},
 		},
 		{
-			{Key: core.InterfaceAddrKey(l1, fmt.Sprintf("10.%d.3.1/24", slot)), Value: &core.InterfaceAddress{Interface: l1, Prefix: fmt.Sprintf("10.%d.3.1/24", slot)}},
-			{Key: core.RouteKey(table, fmt.Sprintf("10.%d.101.0/24", slot)), Value: &core.Route{TableId: table, Prefix: fmt.Sprintf("10.%d.101.0/24", slot), Paths: []*core.RoutePath{{Address: nh, Interface: owner + "-nosuch", Weight: 1}}}},
+			{Key: core.InterfaceAddrKey(l1, fmt.Sprintf("10.%d.13.1/24", slot)), Value: &core.InterfaceAddress{Interface: l1, Prefix: fmt.Sprintf("10.%d.13.1/24", slot)}},
+			{Key: core.RouteKey(table, fmt.Sprintf("10.%d.111.0/24", slot)), Value: &core.Route{TableId: table, Prefix: fmt.Sprintf("10.%d.111.0/24", slot), Paths: []*core.RoutePath{{Address: nh, Interface: owner + "-nosuch", Weight: 1}}}},
 		},
 	} {
 		bad := append(append([]scheduler.KV(nil), desired...), extra...)

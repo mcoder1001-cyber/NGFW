@@ -27,7 +27,7 @@ func TestParseSettingsRoundTrip(t *testing.T) {
 // TestParseSettingsRejects: everything outside the canonical subset, in particular the
 // constructs strongSwan's own lexer would treat as structure.
 func TestParseSettingsRejects(t *testing.T) {
-	bad := map[string]string{
+	bad := map[string]string{ //nolint:gosec // parser inputs, not credentials
 		"include":             "include /etc/passwd\n",
 		"include in section":  "a {\n\tinclude /etc/passwd\n}\n",
 		"include section":     "include {\n}\n",
@@ -51,7 +51,7 @@ func TestParseSettingsRejects(t *testing.T) {
 		"duplicate section":   "a {\n}\na {\n}\n",
 		"NUL":                 "a = b\x00\n",
 		"ESC in comment":      "# a\x1b[2J\n",
-		"U+2028":              "# a b\n",
+		"U+2028":              "# a\u2028b\n",
 		"invalid UTF-8":       "# \xff\n",
 		"empty key":           " = b\n",
 		"key with colon":      "a:b = c\n",
@@ -88,7 +88,7 @@ func TestValidateRejectsTamperedFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := goldenPaths()
-	edit := func(path, old, new string) renderers.Files {
+	edit := func(path, old, repl string) renderers.Files {
 		out := renderers.Files{}
 		for k, v := range files {
 			out[k] = v
@@ -97,7 +97,7 @@ func TestValidateRejectsTamperedFiles(t *testing.T) {
 		if !strings.Contains(string(f.Content), old) {
 			t.Fatalf("fixture: %q not in %s", old, path)
 		}
-		f.Content = []byte(strings.Replace(string(f.Content), old, new, 1))
+		f.Content = []byte(strings.Replace(string(f.Content), old, repl, 1))
 		out[path] = f
 		return out
 	}

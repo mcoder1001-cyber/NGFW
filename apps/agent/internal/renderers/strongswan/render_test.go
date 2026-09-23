@@ -305,7 +305,7 @@ var hostile = []string{
 	"a\r\nb",
 	"a\x00b",
 	"a\x1bb",
-	"a b",
+	"a\u2028b",
 	"\xff\xfe",
 	"ünïcødé-مرحبا",
 	strings.Repeat("A", 5*1024),
@@ -326,7 +326,7 @@ func tunnelWith(t *testing.T, name string, mutate func(tun map[string]any)) *str
 	t.Helper()
 	tun := map[string]any{
 		"localAddr": "10.3.250.1", "remoteAddr": "10.3.250.2", "proposal": "gcm",
-		"auth":    map[string]any{"method": "psk", "secretRef": "psk/w3-site-a"},
+		"auth":    map[string]any{"method": "psk", "secretRef": "psk/w3-site-a"}, //nolint:gosec // a D-051 reference, not a secret
 		"localTs": []any{"10.3.1.0/24"}, "remoteTs": []any{"10.3.2.0/24"},
 	}
 	mutate(tun)
@@ -417,7 +417,8 @@ func TestHostileStringsRejectedOrEscaped(t *testing.T) {
 					trim := strings.TrimLeft(line, "\t")
 					quoted := strings.Contains(trim, ` = "`)
 					bareToken := tokenRe.MatchString(h) // validated host/file name: safe unquoted
-					if field == "psk-value" || !(quoted || bareToken || strings.HasPrefix(trim, "# ")) {
+					safe := quoted || bareToken || strings.HasPrefix(trim, "# ")
+					if field == "psk-value" || !safe {
 						t.Errorf("%s=%q appears raw in %s: %q", field, clip(h), p, clip(line))
 					}
 				}

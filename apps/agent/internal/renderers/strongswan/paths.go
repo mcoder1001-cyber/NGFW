@@ -50,9 +50,6 @@ func ProductPaths() Paths {
 	}
 }
 
-// testInstanceRe bounds the instance name of TestPaths ("a", "b", "v", …).
-var testInstanceRe = regexp.MustCompile(`^[a-z0-9]{1,8}$`)
-
 // TestPaths are the test-scoped paths for slot prefix ("w3") and daemon instance ("a"):
 // everything under /run/vrx-test/<prefix>/swan/<instance>, files owned by the test process.
 func TestPaths(prefix, instance string) Paths {

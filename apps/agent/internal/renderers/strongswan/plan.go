@@ -281,15 +281,15 @@ func checkSecrets(root, conns *Section) error {
 			return fmt.Errorf("%w: %s: only ike-<connection> secrets are rendered", ErrInput, where)
 		}
 		for _, k := range it.Section.Keys() {
-			switch {
-			case k.Name == "secret":
+			switch k.Name {
+			case "secret":
 				if k.Quoted {
 					return fmt.Errorf("%w: %s.secret must be base64 (0s…)", ErrInput, where)
 				}
 				if _, err := decodeSecret(k.Value); err != nil {
 					return fmt.Errorf("%w: %s.secret: %v", ErrInput, where, err)
 				}
-			case k.Name == "id-local" || k.Name == "id-remote":
+			case "id-local", "id-remote":
 				if !k.Quoted {
 					return fmt.Errorf("%w: %s.%s must be quoted", ErrInput, where, k.Name)
 				}

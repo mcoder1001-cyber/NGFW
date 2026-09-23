@@ -31,7 +31,6 @@ type fakeCharon struct {
 	down bool
 	// subscribers get events pushed by the test.
 	subscribers []chan<- vici.Event
-	closed      []chan<- vici.Event
 }
 
 type fakeCall struct {
@@ -47,7 +46,7 @@ func newFakeCharon() *fakeCharon {
 }
 
 func (f *fakeCharon) dialer() Dialer {
-	return func(ctx context.Context, socket string) (ViciConn, error) {
+	return func(_ context.Context, socket string) (ViciConn, error) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		if f.down {
@@ -124,7 +123,7 @@ func (s *fakeSession) Close() error {
 	return nil
 }
 
-func (s *fakeSession) Subscribe(events ...string) error {
+func (s *fakeSession) Subscribe(_ ...string) error {
 	s.f.mu.Lock()
 	defer s.f.mu.Unlock()
 	if s.f.failOn["subscribe"] != "" {
@@ -140,7 +139,7 @@ func (s *fakeSession) NotifyEvents(c chan<- vici.Event) {
 	s.f.subscribers = append(s.f.subscribers, c)
 }
 
-func (s *fakeSession) Call(ctx context.Context, cmd string, in *vici.Message) (*vici.Message, error) {
+func (s *fakeSession) Call(_ context.Context, cmd string, in *vici.Message) (*vici.Message, error) {
 	f := s.f
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -262,7 +261,7 @@ func listConnView(body *vici.Message) *vici.Message {
 	return m
 }
 
-func (s *fakeSession) CallStreaming(ctx context.Context, cmd, event string, in *vici.Message) iter.Seq2[*vici.Message, error] {
+func (s *fakeSession) CallStreaming(_ context.Context, cmd, _ string, in *vici.Message) iter.Seq2[*vici.Message, error] {
 	return func(yield func(*vici.Message, error) bool) {
 		f := s.f
 		f.mu.Lock()

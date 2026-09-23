@@ -447,12 +447,16 @@ func TestWatchReconnectsAndPolls(t *testing.T) {
 	f.mu.Lock()
 	f.sas["w3-site-a"] = []*vici.Message{saMsg("2", "ESTABLISHED", "w3-site-a", "2", "INSTALLED")}
 	f.mu.Unlock()
-	for e := next(); e.Kind != KindPoll; e = next() {
+	for next().Kind != KindPoll { //nolint:revive // drain until the poll event
+		continue
 	}
 	f.mu.Lock()
 	delete(f.failOn, "subscribe")
 	f.mu.Unlock()
-	for e := next(); !(e.Kind == KindDaemon && e.Up); e = next() {
+	for {
+		if e := next(); e.Kind == KindDaemon && e.Up {
+			break
+		}
 	}
 	cancel()
 	if err := <-done; !errors.Is(err, context.Canceled) {

@@ -102,7 +102,7 @@ func (b *boundedConn) Read(p []byte) (int, error) {
 			b.hdrN = 0
 			l := binary.BigEndian.Uint32(b.hdr[:])
 			if l > b.max {
-				_ = b.Conn.Close()
+				_ = b.Close()
 				return 0, fmt.Errorf("%w: packet of %d bytes (max %d)", ErrTooLarge, l, b.max)
 			}
 			b.remaining = l

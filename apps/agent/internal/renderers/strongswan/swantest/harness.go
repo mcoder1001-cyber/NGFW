@@ -49,7 +49,9 @@ const (
 )
 
 // StockRoot is where README.md extracts the stock packages for slot prefix.
-func StockRoot(prefix string) string { return filepath.Join("/run/vrx-test", prefix, "swan-stock", "root") }
+func StockRoot(prefix string) string {
+	return filepath.Join("/run/vrx-test", prefix, "swan-stock", "root")
+}
 
 // FindRoot returns "/" when strongSwan is installed, the extracted stock root when present,
 // else "" (the integration test skips with the instructions).

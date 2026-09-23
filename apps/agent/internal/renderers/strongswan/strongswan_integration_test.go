@@ -274,7 +274,7 @@ func TestStrongswanIntegration(t *testing.T) {
 		t.Fatalf("xfrm state in %s: %q %v (want 2 ESP states)", h.NetNS("a"), xs, err)
 	}
 	t.Logf("ip -n %s xfrm state (keys removed):\n%s", h.NetNS("a"), xs)
-	for !(eventsSeen("ike-updown", true) && eventsSeen("child-updown", true)) {
+	for !eventsSeen("ike-updown", true) || !eventsSeen("child-updown", true) {
 		if time.Now().After(deadline.Add(5 * time.Second)) {
 			t.Fatalf("no up events: %v", got)
 		}
@@ -335,7 +335,7 @@ func TestStrongswanIntegration(t *testing.T) {
 		t.Fatalf("after restart: %+v %v", st, err)
 	}
 	t.Logf("charon a restarted (SIGTERM to the PID the harness spawned, then started again): re-Apply loaded %s from the files, IKE_SA #%s ESTABLISHED", conn, st.SAs[0].UniqueID)
-	for !(eventsSeen(strongswan.KindDaemon, false) && eventsSeen(strongswan.KindDaemon, true)) {
+	for !eventsSeen(strongswan.KindDaemon, false) || !eventsSeen(strongswan.KindDaemon, true) {
 		if time.Now().After(deadline.Add(60 * time.Second)) {
 			t.Fatalf("Watch did not report the restart: %v", got)
 		}

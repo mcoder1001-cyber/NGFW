@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ipAddress, ipv4Cidr, ipv6Cidr, objectName, vppInterfaceName } from '../primitives.js';
 import { withUi } from '../ui.js';
-import { ipPrefix, l4Port } from './objects.js';
+import { ipPrefix, l4PortNumber } from './objects.js';
 
 /**
  * `nat` — every translator VPP 26.06 offers (WBS D4.1–D4.7; TNSR "NAT" is the reference).
@@ -35,11 +35,13 @@ import { ipPrefix, l4Port } from './objects.js';
  */
 
 // ---------------------------------------------------------------------------------------------------------------
-// Local primitives (P02a owns primitives.ts — see docs/status/tasks/P02b-questions.md)
+// Local primitives (P02a owns primitives.ts — see docs/status/tasks/P02b-questions.md). `ipv4Address` and
+// `ipv6Address` are deliberately NOT exported: P02a's primitives.ts exports the same names and index.ts re-exports
+// every module with `export *` (two identical names would be TS2308).
 // ---------------------------------------------------------------------------------------------------------------
 
-export const ipv4Address = withUi(z.ipv4(), { title: 'IPv4 address', widget: 'ip' });
-export const ipv6Address = withUi(z.ipv6(), { title: 'IPv6 address', widget: 'ip' });
+const ipv4Address = withUi(z.ipv4(), { title: 'IPv4 address', widget: 'ip' });
+const ipv6Address = withUi(z.ipv6(), { title: 'IPv6 address', widget: 'ip' });
 
 const IPV4_RANGE_RE = /^(\d{1,3}(?:\.\d{1,3}){3})(?:-(\d{1,3}(?:\.\d{1,3}){3}))?$/;
 
@@ -123,8 +125,11 @@ export const NatPoolSchema = withUi(
 );
 
 /**
- * Static mapping. No ports = 1:1 NAT for the whole address; `local.port` + `external.port` (+ `protocol`) = port
- * forward. `external` is either a literal address or an interface whose address is used (VPP external interface).
+ * Static mapping (F-nat44-ed-sessions §Contract: `{ name, local{ip,port?}, external{ip|pool, port?}, protocol?,
+ * vrf?, twiceNat? }`). No ports = 1:1 NAT for the whole address; `local.port` + `external.port` + `protocol` =
+ * port forward. `external` names exactly one of: a literal `ip`, a `pool` from `nat.pools` (the renderer uses the
+ * pool's first address — VPP mappings take one address) or an `interface` whose address is used (VPP external
+ * sw_if_index; e.g. a DHCP-assigned WAN). Cross-field rules are in `../semantic/nat.ts` (`nat.static-mappings`).
  */
 export const NatStaticMappingSchema = withUi(
   z.strictObject({
@@ -134,18 +139,29 @@ export const NatStaticMappingSchema = withUi(
     local: withUi(
       z.strictObject({
         ip: withUi(ipv4Address, { title: 'Local address' }),
-        port: withUi(l4Port, { title: 'Local port' }).optional(),
+        port: withUi(l4PortNumber, { title: 'Local port' }).optional(),
       }),
       { title: 'Local' },
     ),
     external: withUi(
       z.strictObject({
-        ip: withUi(ipv4Address, { title: 'External address' }).optional(),
+        ip: withUi(ipv4Address, {
+          title: 'External address',
+          help: 'Exactly one of ip / pool / interface',
+        }).optional(),
+        pool: withUi(objectName, {
+          title: 'External pool',
+          widget: 'object-picker',
+          help: 'Name of an entry in nat.pools; its first address is used',
+        }).optional(),
         interface: withUi(vppInterfaceName, {
           title: 'External interface',
-          help: 'Use this interface’s address (exactly one of ip / interface)',
+          help: 'Use this interface’s address',
         }).optional(),
-        port: withUi(l4Port, { title: 'External port', help: 'Requires protocol' }).optional(),
+        port: withUi(l4PortNumber, {
+          title: 'External port',
+          help: 'Requires protocol and local.port',
+        }).optional(),
       }),
       { title: 'External' },
     ),
@@ -167,7 +183,7 @@ export const NatIdentityMappingSchema = withUi(
       help: 'Exactly one of ip / interface',
     }).optional(),
     protocol: natProtocol.optional(),
-    port: withUi(l4Port, { title: 'Port', help: 'Requires protocol' }).optional(),
+    port: withUi(l4PortNumber, { title: 'Port', help: 'Requires protocol' }).optional(),
     vrf,
   }),
   { title: 'Identity mapping' },
@@ -182,7 +198,7 @@ export const NatLoadBalancedMappingSchema = withUi(
     external: withUi(
       z.strictObject({
         ip: withUi(ipv4Address, { title: 'External address' }),
-        port: withUi(l4Port, { title: 'External port' }),
+        port: withUi(l4PortNumber, { title: 'External port' }),
       }),
       { title: 'External' },
     ),
@@ -191,7 +207,7 @@ export const NatLoadBalancedMappingSchema = withUi(
         .array(
           z.strictObject({
             ip: withUi(ipv4Address, { title: 'Local address' }),
-            port: withUi(l4Port, { title: 'Local port' }),
+            port: withUi(l4PortNumber, { title: 'Local port' }),
             probability: withUi(z.number().int().min(1).max(255).default(1), {
               title: 'Weight',
             }),
@@ -220,7 +236,7 @@ export const NatIpfixSchema = withUi(
     domainId: withUi(z.number().int().min(1).max(4_294_967_295), {
       title: 'Observation domain id',
     }).optional(),
-    sourcePort: withUi(l4Port, { title: 'Source port' }).optional(),
+    sourcePort: withUi(l4PortNumber, { title: 'Source port' }).optional(),
   }),
   { title: 'IPFIX logging' },
 );
@@ -250,7 +266,10 @@ export const Nat64Schema = withUi(
       { title: 'Prefixes' },
     ),
     pools: withUi(
-      z.array(z.strictObject({ range: ipv4AddressRange, vrf })).max(256).default([]),
+      z
+        .array(z.strictObject({ range: ipv4AddressRange, vrf }))
+        .max(256)
+        .default([]),
       { title: 'IPv4 pools' },
     ),
     staticBibs: withUi(
@@ -262,14 +281,14 @@ export const Nat64Schema = withUi(
             inside: withUi(
               z.strictObject({
                 ip: withUi(ipv6Address, { title: 'IPv6 address' }),
-                port: withUi(l4Port, { title: 'Port' }),
+                port: withUi(l4PortNumber, { title: 'Port' }),
               }),
               { title: 'Inside (IPv6)' },
             ),
             outside: withUi(
               z.strictObject({
                 ip: withUi(ipv4Address, { title: 'IPv4 address' }),
-                port: withUi(l4Port, { title: 'Port' }),
+                port: withUi(l4PortNumber, { title: 'Port' }),
               }),
               { title: 'Outside (IPv4)' },
             ),
@@ -377,9 +396,15 @@ export const DsliteSchema = withUi(
       }),
       { title: 'B4 (CE mode)' },
     ).optional(),
-    pools: withUi(z.array(z.strictObject({ range: ipv4AddressRange })).max(256).default([]), {
-      title: 'IPv4 pools',
-    }),
+    pools: withUi(
+      z
+        .array(z.strictObject({ range: ipv4AddressRange }))
+        .max(256)
+        .default([]),
+      {
+        title: 'IPv4 pools',
+      },
+    ),
   }),
   { title: 'DS-Lite' },
 );
@@ -422,34 +447,42 @@ export const MapDomainSchema = withUi(
 export const MapParametersSchema = withUi(
   z.strictObject({
     fragmentation: withUi(
-      z.strictObject({
-        inner: flag('Fragment inner packet'),
-        ignoreDf: flag('Ignore DF bit'),
-      }).prefault({}),
+      z
+        .strictObject({
+          inner: flag('Fragment inner packet'),
+          ignoreDf: flag('Ignore DF bit'),
+        })
+        .prefault({}),
       { title: 'Fragmentation' },
     ),
     icmpSourceAddress: withUi(ipv4Address, { title: 'ICMP relay source address' }).optional(),
     icmp6Unreachables: flag('Send ICMPv6 unreachables'),
     securityCheck: withUi(
-      z.strictObject({
-        enabled: flag('Enabled'),
-        fragments: flag('Check fragments'),
-      }).prefault({}),
+      z
+        .strictObject({
+          enabled: flag('Enabled'),
+          fragments: flag('Check fragments'),
+        })
+        .prefault({}),
       { title: 'Security check' },
     ),
     tcpMss: withUi(z.number().int().min(0).max(65535), { title: 'TCP MSS clamp' }).optional(),
     trafficClass: withUi(
-      z.strictObject({
-        copy: flag('Copy traffic class'),
-        value: withUi(z.number().int().min(0).max(255), { title: 'Value' }).optional(),
-      }).prefault({}),
+      z
+        .strictObject({
+          copy: flag('Copy traffic class'),
+          value: withUi(z.number().int().min(0).max(255), { title: 'Value' }).optional(),
+        })
+        .prefault({}),
       { title: 'Traffic class' },
     ),
     preResolve: withUi(
-      z.strictObject({
-        ipv4: withUi(ipv4Address, { title: 'IPv4 next hop' }).optional(),
-        ipv6: withUi(ipv6Address, { title: 'IPv6 next hop' }).optional(),
-      }).prefault({}),
+      z
+        .strictObject({
+          ipv4: withUi(ipv4Address, { title: 'IPv4 next hop' }).optional(),
+          ipv6: withUi(ipv6Address, { title: 'IPv6 next hop' }).optional(),
+        })
+        .prefault({}),
       { title: 'Pre-resolve next hops' },
     ),
   }),
@@ -472,7 +505,7 @@ const endpoint = (title: string) =>
   withUi(
     z.strictObject({
       ip: withUi(ipAddress, { title: 'Address' }),
-      port: withUi(l4Port, { title: 'Port' }),
+      port: withUi(l4PortNumber, { title: 'Port' }),
     }),
     { title },
   );
@@ -496,34 +529,38 @@ export const CnatSchema = withUi(
       title: 'Translations',
     }),
     snat: withUi(
-      z.strictObject({
-        policy: withUi(z.enum(['none', 'interface', 'k8s']).default('none'), {
-          title: 'SNAT policy',
-          help: 'interface = SNAT on outside interfaces; k8s = Kubernetes semantics',
-        }),
-        addresses: withUi(
-          z.strictObject({
-            ipv4: withUi(ipv4Address, { title: 'IPv4 SNAT address' }).optional(),
-            ipv6: withUi(ipv6Address, { title: 'IPv6 SNAT address' }).optional(),
-          }).prefault({}),
-          { title: 'SNAT addresses' },
-        ),
-        interfaces: withUi(
-          z
-            .array(
-              z.strictObject({
-                interface: vppInterfaceName,
-                side: withUi(z.enum(['inside', 'outside']), { title: 'Side' }),
-              }),
-            )
-            .max(1024)
-            .default([]),
-          { title: 'Policy interfaces' },
-        ),
-        excludePrefixes: withUi(z.array(ipPrefix).max(1024).default([]), {
-          title: 'Excluded prefixes',
-        }),
-      }).prefault({}),
+      z
+        .strictObject({
+          policy: withUi(z.enum(['none', 'interface', 'k8s']).default('none'), {
+            title: 'SNAT policy',
+            help: 'interface = SNAT on outside interfaces; k8s = Kubernetes semantics',
+          }),
+          addresses: withUi(
+            z
+              .strictObject({
+                ipv4: withUi(ipv4Address, { title: 'IPv4 SNAT address' }).optional(),
+                ipv6: withUi(ipv6Address, { title: 'IPv6 SNAT address' }).optional(),
+              })
+              .prefault({}),
+            { title: 'SNAT addresses' },
+          ),
+          interfaces: withUi(
+            z
+              .array(
+                z.strictObject({
+                  interface: vppInterfaceName,
+                  side: withUi(z.enum(['inside', 'outside']), { title: 'Side' }),
+                }),
+              )
+              .max(1024)
+              .default([]),
+            { title: 'Policy interfaces' },
+          ),
+          excludePrefixes: withUi(z.array(ipPrefix).max(1024).default([]), {
+            title: 'Excluded prefixes',
+          }),
+        })
+        .prefault({}),
       { title: 'SNAT' },
     ),
   }),
@@ -536,14 +573,21 @@ export const CnatSchema = withUi(
 
 export const NatSchema = withUi(
   z.strictObject({
-    enabled: withUi(z.boolean().default(false), { title: 'NAT44 enabled', group: 'General', order: 1 }),
+    enabled: withUi(z.boolean().default(false), {
+      title: 'NAT44 enabled',
+      group: 'General',
+      order: 1,
+    }),
     mode: withUi(z.enum(['ed', 'ei']).default('ed'), {
       title: 'Mode',
       group: 'General',
       order: 2,
       help: 'ed = endpoint-dependent (nat44-ed), ei = endpoint-independent (nat44-ei)',
     }),
-    inside: withUi(interfaceList('Inside interfaces', 'Local side'), { group: 'General', order: 3 }),
+    inside: withUi(interfaceList('Inside interfaces', 'Local side'), {
+      group: 'General',
+      order: 3,
+    }),
     outside: withUi(interfaceList('Outside interfaces', 'Public side'), {
       group: 'General',
       order: 4,
@@ -552,7 +596,11 @@ export const NatSchema = withUi(
       interfaceList('Output-feature interfaces', 'NAT applied on the output path (post-routing)'),
       { group: 'General', order: 5 },
     ),
-    insideVrf: withUi(objectName, { title: 'Inside VRF', widget: 'vrf-picker', group: 'General' }).optional(),
+    insideVrf: withUi(objectName, {
+      title: 'Inside VRF',
+      widget: 'vrf-picker',
+      group: 'General',
+    }).optional(),
     outsideVrf: withUi(objectName, {
       title: 'Outside VRF',
       widget: 'vrf-picker',

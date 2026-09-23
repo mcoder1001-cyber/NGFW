@@ -137,7 +137,10 @@ export const MacipRuleSchema = withUi(
       title: 'Source MAC mask',
       help: 'ff:ff:ff:ff:ff:ff = exact match',
     }),
-    sourcePrefix: withUi(ipPrefix, { title: 'Source prefix', help: 'omit = any address' }).optional(),
+    sourcePrefix: withUi(ipPrefix, {
+      title: 'Source prefix',
+      help: 'omit = any address',
+    }).optional(),
   }),
   { title: 'MACIP rule' },
 );

@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { hostname, ipAddress, ipv4Cidr, ipv6Cidr, objectName, vppInterfaceName } from '../primitives.js';
+import {
+  hostname,
+  ipAddress,
+  ipv4Cidr,
+  ipv6Cidr,
+  objectName,
+  vppInterfaceName,
+} from '../primitives.js';
 import { withUi } from '../ui.js';
 
 /**
@@ -29,7 +36,7 @@ export const ipPrefix = withUi(z.union([ipv4Cidr, ipv6Cidr]), {
 });
 
 /** A single TCP/UDP/SCTP port, 1–65535. */
-export const l4Port = withUi(z.number().int().min(1).max(65535), {
+export const l4PortNumber = withUi(z.number().int().min(1).max(65535), {
   title: 'Port',
   widget: 'number',
 });

@@ -8,5 +8,5 @@
     "noUncheckedIndexedAccess": false,
     "exactOptionalPropertyTypes": false
   },
-  "include": ["gen/ts/**/*.ts"]
+  "include": ["gen/ts/**/*.ts", "test/**/*.ts"]
 }

@@ -1,0 +1,44 @@
+// Desired-state model of the bond.* descriptors (task DF-1). Agent-internal, see interface/model.proto.
+syntax = "proto3";
+
+package vrx.agent.bond;
+
+option go_package = "ngfw/agent/internal/descriptors/bond;bond";
+
+// Mode values equal binapi bond.BondMode.
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  MODE_ROUND_ROBIN = 1;
+  MODE_ACTIVE_BACKUP = 2;
+  MODE_XOR = 3;
+  MODE_BROADCAST = 4;
+  MODE_LACP = 5;
+}
+
+// LoadBalance values equal binapi bond.BondLbAlgo. Only XOR and LACP choose freely between
+// L2/L23/L34; round-robin, active-backup and broadcast must carry their own value.
+enum LoadBalance {
+  LOAD_BALANCE_L2 = 0;
+  LOAD_BALANCE_L34 = 1;
+  LOAD_BALANCE_L23 = 2;
+  LOAD_BALANCE_ROUND_ROBIN = 3;
+  LOAD_BALANCE_BROADCAST = 4;
+  LOAD_BALANCE_ACTIVE_BACKUP = 5;
+}
+
+// Bond is bond_create2. id is mandatory: VPP names the interface BondEthernet<id>.
+message Bond {
+  string name = 1;
+  uint32 id = 2;
+  Mode mode = 3;
+  LoadBalance lb = 4;
+  bool numa_only = 5;
+}
+
+// Member attaches an interface to a bond (bond_add_member / bond_detach_member).
+message Member {
+  string bond = 1;       // full scheduler key of the bond
+  string interface = 2;  // full scheduler key of the member interface
+  bool passive = 3;
+  bool long_timeout = 4;
+}

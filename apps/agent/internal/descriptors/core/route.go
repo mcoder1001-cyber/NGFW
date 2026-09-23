@@ -144,7 +144,7 @@ func (d *RouteDescriptor) addDel(ctx context.Context, v *Route, add bool) error 
 	return nil
 }
 
-// ErrRouteConflict: the prefix already has a FIB entry in that table that this owner did not
+// ErrRouteConflict means the prefix already has a FIB entry in that table that this owner did not
 // create (D-071: never overwrite, never claim).
 var ErrRouteConflict = errors.New("core: route prefix already present in the FIB and not owned by this agent")
 

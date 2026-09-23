@@ -45,7 +45,7 @@ func (*VRFDescriptor) Dependencies(proto.Message) []scheduler.Dependency { retur
 // TableName is the VPP table name of an owned VRF: "<owner>:<vrf>".
 func TableName(owner, vrf string) (string, error) { return vpp.OwnerTag(owner, vrf) }
 
-// ErrTableConflict: the table id exists in VPP under a name that is not this owner's (D-071:
+// ErrTableConflict means the table id exists in VPP under a name that is not this owner's (D-071:
 // foreign → never touched).
 var ErrTableConflict = errors.New("core: VRF table id is in use by another owner or by VPP")
 

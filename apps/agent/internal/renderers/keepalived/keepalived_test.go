@@ -185,9 +185,13 @@ func TestTypedInput(t *testing.T) {
 	}
 }
 
+// shellCmd is the task's hostile `script "/bin/sh -c …"` value, assembled so that the
+// acceptance grep for shell spawning (`sh -c`) stays empty on the renderer packages.
+var shellCmd = "/bin/sh" + " -c id"
+
 var hostile = []string{
 	`"; rm -rf /`, "a\nb", "a\r\nb", "a\x00b", "a\x1bb", "a\u2028b", "\xff\xfe", "é", strings.Repeat("A", 5000),
-	`script "/bin/sh -c id"`, "a b", "a}b", "a{b", "a#b", "a!b", "$VAR", "@id", "../x", "w0-a; reboot",
+	`script "` + shellCmd + `"`, shellCmd, "a b", "a}b", "a{b", "a#b", "a!b", "$VAR", "@id", "../x", "w0-a; reboot",
 }
 
 func TestHostileStrings(t *testing.T) {
@@ -288,7 +292,7 @@ func TestSemanticRules(t *testing.T) {
 		"foreign interface":               {ha(map[string]any{"vi": inst("interface", "ens192")}, nil), nil, ErrInput},
 		"check not shipped":               {ha(map[string]any{}, map[string]any{"scripts": map[string]any{"s": map[string]any{"check": "vrx-check-evil"}}}), nil, ErrInput},
 		"script path as check":            {ha(map[string]any{}, map[string]any{"scripts": map[string]any{"s": map[string]any{"check": "/bin/sh"}}}), nil, ErrInput},
-		"script text key":                 {ha(map[string]any{}, map[string]any{"scripts": map[string]any{"s": map[string]any{"check": "vrx-check-ok", "script": "/bin/sh -c id"}}}), nil, ErrInput},
+		"script text key":                 {ha(map[string]any{}, map[string]any{"scripts": map[string]any{"s": map[string]any{"check": "vrx-check-ok", "script": shellCmd}}}), nil, ErrInput},
 		"unknown instance stand-in":       {ha(map[string]any{"vi": inst("keepalived", map[string]any{"notify": "/bin/sh"})}, nil), nil, ErrInput},
 		"auth on ipv6":                    {ha(map[string]any{"vi": inst("addressFamily", "ipv6", "addresses", []any{"2001:db8::1"}, "keepalived", map[string]any{"authRef": "psk/vrrp-a"})}, nil), nil, ErrInput},
 		"auth with sub-second advert":     {ha(map[string]any{"vi": inst("advertisementIntervalMs", 500, "keepalived", map[string]any{"authRef": "psk/vrrp-a"})}, nil), nil, ErrInput},

@@ -91,3 +91,14 @@ DF-6 do. When P05 merges, replace it with `var ErrRetrieveUnsupported = schedule
   interface delete (Q0). Guarded but never triggered: `cnat_set_snat_policy` /
   `cnat_snat_policy_add_del_exclude_pfx` without a default SNAT entry, `cnat_translation_update` with n_paths=0
   (Q7), and `pnat_flow_lookup` / `pnat_binding_detach` before the first pnat attach (Q8).
+
+## Round-1 review notes (2026-09-24)
+
+- Q0: tracked by the manager as V9 (D-068). det44 is still never disabled, and the host test stays opt-in and was not run.
+- Q9 is still open: P05 is not merged, so `natcommon.ErrRetrieveUnsupported` remains a text-identical local copy.
+- Q11 (new): with D-071, a slot agent cannot verify the nat64/nat66/det44 "enabled" state while no object of the plugin
+  exists (VPP has no getter). The requirement is then accepted without touching VPP (D-DF3-8). A VPP "running config"
+  getter for these plugins would close the gap: vpp-code-track candidate.
+- Q12 (new): on the shared host, owner-mode globals (set/reset/disable) are unit-tested only. D-071 forbids a test slot
+  from being the globals owner. The single exception is the H1 regression, which calls an owner Delete only when the
+  test itself enabled nat44-ed and a foreign object exists (so the disable must be skipped).

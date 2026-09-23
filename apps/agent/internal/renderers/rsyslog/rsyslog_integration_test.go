@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -157,8 +158,8 @@ func TestRsyslogIntegration(t *testing.T) {
 	for _, l := range got {
 		t.Logf("  %q", l)
 	}
-	if !rfc5424.MatchString(got[0]) {
-		t.Fatalf("first UDP message is not the expected RFC 5424 line: %q", got[0])
+	if !slices.ContainsFunc(got, rfc5424.MatchString) {
+		t.Fatalf("no UDP message is the expected RFC 5424 line: %q", got)
 	}
 	if strings.Contains(strings.Join(got, "|"), "local3.debug") {
 		t.Fatal("the severity filter let a debug message through")

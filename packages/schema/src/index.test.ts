@@ -23,13 +23,14 @@ describe('RootConfig', () => {
   it('accepts an empty document and fills every domain with its default', () => {
     const r = RootConfig.parse({});
     expect(Object.keys(r)).toEqual([...ROOT_KEYS]);
-    for (const key of ROOT_KEYS) expect(r[key]).toEqual({});
+    // Domains may fill nested defaults (D-017 prefault) — assert shape, not emptiness.
+    for (const key of ROOT_KEYS) expect(r[key]).toBeTypeOf('object');
   });
 
   it('accepts a partial document and keeps the given domains', () => {
     const r = RootConfig.parse({ system: { hostname: 'vrx-a' } });
-    expect(r.system).toEqual({ hostname: 'vrx-a' });
-    expect(r.vrfs).toEqual({});
+    expect(r.system).toMatchObject({ hostname: 'vrx-a' });
+    expect(r.vrfs).toBeTypeOf('object');
   });
 
   it('rejects unknown top-level keys (strict root)', () => {

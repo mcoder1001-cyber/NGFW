@@ -1,0 +1,69 @@
+# GitHub Actions wrapper around the real gate. Git on the dev host is local-only, so nothing runs this today;
+# it is kept for the day a remote exists. The workflow does nothing on its own: it installs the toolchain the
+# gate expects (node/pnpm from package.json, go from apps/agent/go.mod, buf, protoc-gen-go(-grpc)) and calls
+# `tools/ci.sh quick` (with `--base` on pull requests). Keep the logic in tools/ci.sh, not here.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quick:
+    name: tools/ci.sh quick
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # --base needs the merge base and the branch's commits (gitleaks scans them)
+
+      - uses: pnpm/action-setup@v4 # reads "packageManager" from package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/agent/go.mod
+          cache-dependency-path: apps/agent/go.sum
+
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+
+      - name: protoc plugins used by packages/proto/gen.sh
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+
+      - name: golangci-lint + gitleaks (pinned in tools/ci.sh)
+        run: sudo -E env PATH="$PATH" tools/ci.sh install-tools
+
+      - name: gate (pull request → contract guard against the base branch)
+        if: github.event_name == 'pull_request'
+        run: tools/ci.sh quick --base "origin/${{ github.base_ref }}"
+
+      - name: gate (push / manual)
+        if: github.event_name != 'pull_request'
+        run: tools/ci.sh quick
+
+      - name: keep the step logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs
+          path: /tmp/vrx-ci/
+          if-no-files-found: ignore

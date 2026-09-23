@@ -1,0 +1,8 @@
+{
+  "interfaces": {
+    "TenGigabitEthernet0/0/0": {
+      "subinterfaces": { "100": { "vlanId": 100 }, "101": { "vlanId": 100 } }
+    }
+  },
+  "management": { "users": [{ "username": "admin", "role": "admin", "passwordHash": "$vrx-test$VRX_TEST_HASH_admin" }] }
+}

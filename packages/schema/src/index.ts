@@ -74,3 +74,4 @@ export * from './pointer.js';
 export * from './diff.js';
 export * from './merge-patch.js';
 export * from './semantic/index.js';
+export * from './validate.js';

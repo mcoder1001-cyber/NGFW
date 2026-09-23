@@ -1,0 +1,4 @@
+{
+  "routing": { "static": [{ "prefix": "0.0.0.0/0", "nextHops": [{ "address": "10.0.0.254", "interface": "TenGigabitEthernet0/0/9" }] }] },
+  "management": { "users": [{ "username": "admin", "role": "admin", "passwordHash": "$vrx-test$VRX_TEST_HASH_admin" }] }
+}

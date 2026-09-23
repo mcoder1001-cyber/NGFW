@@ -58,7 +58,10 @@ export const bgpCommunity = withUi(
     .regex(
       /^(?:(?:0|[1-9][0-9]{0,4}):(?:0|[1-9][0-9]{0,4})|internet|no-export|no-advertise|local-AS)$/,
       'expected a community like 65000:100 or a well-known name (no-export …)',
-    ),
+    )
+    .refine((c) => c.split(':').every((part) => !/^[0-9]+$/.test(part) || Number(part) <= 65535), {
+      message: 'community numbers must be 0–65535',
+    }),
   { title: 'Community' },
 );
 
@@ -297,6 +300,7 @@ const HOLD_ABOVE_KEEPALIVE = 'hold time must be greater than the keepalive inter
 export const BgpPeerGroupSchema = z
   .strictObject(bgpPeerFields)
   .refine(holdAboveKeepalive, { message: HOLD_ABOVE_KEEPALIVE, path: ['holdTimeSec'] });
+export type BgpPeerGroupConfig = z.infer<typeof BgpPeerGroupSchema>;
 
 export const BgpNeighborSchema = z
   .strictObject({

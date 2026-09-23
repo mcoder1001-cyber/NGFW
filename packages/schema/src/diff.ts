@@ -21,8 +21,9 @@ export interface Change {
  * - A key whose value is `undefined` counts as absent (JSON has no undefined).
  * - Identical inputs yield `[]`; two different scalars at the root yield one change with pointer `''`.
  *
- * TODO(P02a): element-wise diffs for keyed collections (routing.static, management.users, acl.attachments …)
- * so a single edited route does not show up as a whole-array replace.
+ * Arrays stay leaves in contracts-v1 (D-021): a list such as `routing.static` is replaced as a whole. The UI can
+ * still show per-item changes by pairing `from`/`to` items on the `x-vrx-ui.itemKey` of the array's schema; an
+ * element-wise diff option can be added later without changing this signature.
  */
 export function diff(a: unknown, b: unknown, base = ''): Change[] {
   if (isPlainObject(a) && isPlainObject(b)) {

@@ -1,1 +1,7 @@
-{}
+{
+  "management": {
+    "users": [
+      { "username": "admin", "role": "admin", "passwordHash": "$vrx-test$VRX_TEST_HASH_admin" }
+    ]
+  }
+}

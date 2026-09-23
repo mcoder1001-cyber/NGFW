@@ -33,11 +33,11 @@ export function parseIpv4(text: string): bigint | undefined {
  * Zone identifiers (`fe80::1%eth0`) are not addresses and are rejected.
  */
 export function parseIpv6(text: string): bigint | undefined {
-  const halves = text.split('::');
-  if (halves.length > 2) return undefined;
-  const compressed = halves.length === 2;
-  const headText = halves[0] ?? '';
-  const tailText = halves[1] ?? '';
+  const gap = text.indexOf('::');
+  const compressed = gap >= 0;
+  if (compressed && text.indexOf('::', gap + 1) >= 0) return undefined; // a second `::` (also catches `:::`)
+  const headText = compressed ? text.slice(0, gap) : text;
+  const tailText = compressed ? text.slice(gap + 2) : '';
   const head = headText === '' ? [] : headText.split(':');
   const tail = tailText === '' ? [] : tailText.split(':');
   const headValues = expandGroups(head, tail.length === 0);

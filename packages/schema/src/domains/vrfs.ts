@@ -31,3 +31,8 @@ export type VrfsConfig = z.infer<typeof VrfsSchema>;
 
 /** Name of the always-present VRF (VPP table 0). */
 export const DEFAULT_VRF = 'default';
+
+/** True when `name` can be referenced as a VRF: declared under `/vrfs`, or the implicit `default`. */
+export function vrfExists(vrfs: VrfsConfig, name: string): boolean {
+  return name === DEFAULT_VRF || Object.hasOwn(vrfs, name);
+}

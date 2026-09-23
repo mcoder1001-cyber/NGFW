@@ -124,7 +124,8 @@ export const hostname = withUi(
     .min(1)
     .max(253)
     .regex(
-      /^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(?:\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*$/,
+      // no lookaround so the pattern is also valid RE2 (Go) and Python `re` — one pattern, three consumers
+      /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/,
       'expected an RFC 1123 hostname',
     )
     .refine((name) => !/(?:^|\.)[0-9]+$/.test(name), 'the last label must not be all digits'),
@@ -164,9 +165,14 @@ export const username = withUi(
 );
 
 /** Free-text description shown in lists (single line, ≤ 255 characters). */
-export const descriptionText = withUi(z.string().max(255).regex(/^[^\r\n]*$/, 'single line'), {
-  title: 'Description',
-});
+export const descriptionText = withUi(
+  z
+    .string()
+    .max(255)
+    // single line, no C0/C1 control characters (TAB allowed) — descriptions end up in CLI output and log lines
+    .regex(/^[^\u0000-\u0008\u000a-\u001f\u007f-\u009f]*$/, 'single line without control characters'),
+  { title: 'Description' },
+);
 
 /* ---------------------------------------------------------------------------------------------- numbers */
 
@@ -196,7 +202,9 @@ export const routerId = withUi(z.ipv4(), { title: 'Router ID', help: 'dotted qua
  * never stored inline in the configuration document (00-CONTEXT rule 10).
  */
 export const secretRef = withUi(
-  z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/, 'expected a secret reference like ipsec/psk/site-a'),
+  z
+    .string()
+    .regex(/^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$/, 'expected a secret reference like ipsec/psk/site-a'),
   { title: 'Secret reference', widget: 'secret-ref' },
 );
 
@@ -208,7 +216,7 @@ export const passwordHash = withUi(
   z
     .string()
     .max(512)
-    .regex(/^\$[A-Za-z0-9-]{1,32}\$[A-Za-z0-9./+=$,-]+$/, 'expected a crypt/PHC hash like $argon2id$…'),
+    .regex(/^\$[A-Za-z0-9-]{1,32}\$[A-Za-z0-9./+=$,_-]+$/, 'expected a crypt/PHC hash like $argon2id$…'),
   { title: 'Password hash', widget: 'password', secret: true },
 );
 

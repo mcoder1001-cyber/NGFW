@@ -19,7 +19,11 @@ Slot 7 · prefix `w7` · tables 7000–7999 · loopbacks loop700–loop799 · ad
 - D-065 applied: loopback no longer provides `interface/<name>`; core refs via Env.IfRef (creator key for loopbacks
   until DF-1's alias descriptor is wired, then AliasInterfaceRef).
 
-## Next
+- 00:55 host integration (in-process + real binary kill -9), manual evidence with vrx-agentctl, VRF API-lock bug found
+  by the loss simulation and fixed (Reapplier), main merged again (P02a proto sync: blackhole, routing.policy), CI GATE PASSED.
+- CLOSED: final report docs/status/tasks/P05.md.
+
+## Next (was)
 - agent-level host integration test (apply doc → Retrieve == desired, vppctl evidence, two owners, confirm revert)
 - process restart simulation (binary, kill -9 by PID, delete prefixed objects via binapi, restart → recreated)
 - dev client cmd/vrx-agentctl for evidence; core README table; tools/ci.sh --base main; P05.md

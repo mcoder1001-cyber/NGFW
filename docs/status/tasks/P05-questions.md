@@ -18,3 +18,10 @@
    VRFs: `vrf/<id>` as all DF prompts assume.
 4. **DF-2 classify store path** — proposal accepted for wiring time: `$VRX_AGENT_STATE_DIR/classify-<owner>.json`; P05
    provides `internal/ownertable` (`owned-<owner>.json`) for untaggable objects (routes use it).
+5. **D-065 wiring owner** — when DF-1 merges, someone must register DF-1's `interface` alias descriptor next to
+   `core.Register`, set `core.Env.IfRef = core.AliasInterfaceRef`, and emit one `interface/<name>` object per document
+   interface in `internal/agent/projection.go` (creator key for loopbacks). P08 or the manager's integration commit?
+6. **Description leaves** (`vrfs.*.description`, `routing.static[].description`, interface description) are not stored in
+   VPP; Retrieve leaves them unset (contract §5), so the API's running-vs-actual diff always shows them. Option (a) the
+   agent keeps them in its state dir and returns them; (b) the API excludes description leaves from the drift diff.
+   P05 did neither; DryRun warns `agent.unsupported-field`.

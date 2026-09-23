@@ -171,6 +171,19 @@ func (e *Ext) Uint(lo, hi uint32) (uint32, bool, error) {
 	return uint32(n.NumberValue), true, nil
 }
 
+// Int returns a signed integer field in [lo, hi] (ok=false when absent).
+func (e *Ext) Int(lo, hi int) (int, bool, error) {
+	if e == nil {
+		return 0, false, nil
+	}
+	n, isNum := e.v.GetKind().(*structpb.Value_NumberValue)
+	if !isNum || math.IsNaN(n.NumberValue) || n.NumberValue != math.Trunc(n.NumberValue) ||
+		n.NumberValue < float64(lo) || n.NumberValue > float64(hi) {
+		return 0, false, fmt.Errorf("%w: %s must be an integer %d..%d", ErrExt, e.path, lo, hi)
+	}
+	return int(n.NumberValue), true, nil
+}
+
 // Strings returns a list of strings (nil when absent).
 func (e *Ext) Strings() ([]string, error) {
 	n, err := e.Len()

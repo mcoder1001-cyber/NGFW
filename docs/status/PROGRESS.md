@@ -7,8 +7,8 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 | state | tasks |
 |---|---|
 | merged | 20 |
-| review | 0 |
-| running | 8 |
+| review | 1 |
+| running | 7 |
 | ready | 0 |
 | parked | 0 |
 | failed | 0 |
@@ -18,7 +18,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
-| S2 | 131 / 227 | 57.7% | 10/18 | 7 | 0 | 0 |
+| S2 | 131 / 227 | 57.7% | 10/18 | 6 | 0 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
 | S4 | 0 / 406 | 0.0% | 0/38 | 0 | 0 | 0 |
 | S5 | 0 / 128 | 0.0% | 0/13 | 1 | 0 | 0 |
@@ -30,7 +30,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 - DF-5 — Descriptors: ipsec, ikev2, wireguard (running, host-agent slot4)
 - DF-7 — Descriptors: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls (running, host-agent slot10)
 - RF-2 — Renderers: strongswan (swanctl/VICI path; vrx build lands in P11) (running, host-agent slot3)
-- RF-4 — Renderers: snmpd, keepalived, rsyslog (running, host-agent slot8)
+- RF-4 — Renderers: snmpd, keepalived, rsyslog (review, host-agent slot8)
 - F-startup-gen — startup.conf generator: hugepages, workers, RSS, NUMA, isolcpus, dpdk dev/name mapping, plugin enable list (running, host-agent slot12)
 - F-vpp-debs — VPP package build pipeline: pinned 26.06 source, patch series, reproducible .deb build script (running, host-agent slot2)
 - TD-1 — Tech-debt: one VPP boot-identity helper (D-080) in the agent vpp package; retrofit DF-2 classify store + DF-4 acl stats flag + dfkit/df6/df7 callers on main (running, host-agent slot12)

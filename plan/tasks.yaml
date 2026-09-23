@@ -637,7 +637,7 @@ tasks:
   - P03
   priority: 2
   est_hours: 12
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D7.5
@@ -650,7 +650,7 @@ tasks:
   owner: host-agent slot8
   started: 2026-09-24T02:30
   finished: ''
-  notes: test-scoped daemon processes only; system units untouched
+  notes: test-scoped daemon processes only; system units untouched | worker done e35351d CI green; review spawned; D-086
 - id: P08
   title: 'Vertical slice: interfaces end to end (af_packet rig)'
   prompt: prompts/P08-vertical-slice-interfaces.md

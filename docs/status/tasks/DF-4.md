@@ -251,7 +251,7 @@ ok  	ngfw/agent/internal/descriptors/acl	0.043s
 
 ### Host integration (`VRX_INTEGRATION=1 VRX_TEST_PREFIX=w10 go test -race -count=1 -run TestACLPluginOnHost -v ./internal/descriptors/acl/`)
 
-The manager restarted VPP (D-060) during this round (sw_if_index values differ between my runs: 2 → 16 → 2); the final run below is against the VPP that was running afterwards, and all runs before and after the restart passed.
+The manager restarted VPP (D-060) during this round (sw_if_index values differ between my runs: 2 → 16 → 2). The first host run failed in `macip-del-unbinds` (VPP reports `~0` for an interface whose MACIP ACL was removed; fixed in `cc9b01a`); every run after that passed. Final run:
 
 ```
     created loop1043 sw_if_index 2 (untagged)

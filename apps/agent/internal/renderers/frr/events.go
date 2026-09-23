@@ -39,6 +39,17 @@ type Event struct {
 	Old, New string
 }
 
+// String renders the event as "<poller> <key>: <old> -> <new>" ("-" for absent).
+func (e Event) String() string {
+	dash := func(s string) string {
+		if s == "" {
+			return "-"
+		}
+		return s
+	}
+	return fmt.Sprintf("%s %s: %s -> %s", e.Poller, e.Key, dash(e.Old), dash(e.New))
+}
+
 // ToProto maps the event to the agent's Event message: interface link changes become
 // LINK_UP / LINK_DOWN; everything else is EVENT_KIND_UNSPECIFIED with the details in
 // attributes (no FRR-specific EventKind exists yet: RF-1-questions.md Q3).

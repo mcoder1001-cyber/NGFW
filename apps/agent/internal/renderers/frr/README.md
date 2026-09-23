@@ -1,7 +1,7 @@
 # FRR renderer (RF-1) — framework
 
 Desired state → `frr.conf` + `vtysh.conf` → `vtysh -C` → `frr-reload.py --reload` (diff, the daemons keep
-running) → state from `vtysh -c "show … json"` → 1 Hz change events. Protocol sections (P12 BGP, F-ospf,
+running) → state from `vtysh --command "show … json"` → 1 Hz change events. Protocol sections (P12 BGP, F-ospf,
 F-isis-rip, F-bfd-redistribution, F-mpls-srmpls, F-igmp-mfib) plug in from their own packages; they never edit
 the files here. Mapping table desired state ↔ directives: `docs/agent/renderers/frr.md`.
 

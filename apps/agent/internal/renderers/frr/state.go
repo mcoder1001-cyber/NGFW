@@ -51,7 +51,7 @@ func (r *Renderer) Show(ctx context.Context, cmd ShowCommand) ([]byte, error) {
 	args := append(r.paths.vtyshArgs(r.paths.ConfDir), "-c", string(cmd))
 	out, err := r.runner.Run(ctx, renderers.Command{Path: VtyshBin, Args: args, Timeout: showTimeout})
 	if err != nil {
-		return nil, fmt.Errorf("%w: vtysh -c %q: %s", ErrDaemon, cmd, toolMessage(out, err, ""))
+		return nil, fmt.Errorf("%w: vtysh --command %q: %s", ErrDaemon, cmd, toolMessage(out, err, ""))
 	}
 	return out.Stdout, nil
 }
@@ -71,7 +71,7 @@ func (r *Renderer) ShowJSON(ctx context.Context, cmd ShowCommand) (json.RawMessa
 		trimmed = "{}" // some commands print nothing when there is nothing to show
 	}
 	if !json.Valid([]byte(trimmed)) {
-		return nil, fmt.Errorf("%w: vtysh -c %q returned non-JSON output: %.200s", ErrDaemon, cmd, trimmed)
+		return nil, fmt.Errorf("%w: vtysh --command %q returned non-JSON output: %.200s", ErrDaemon, cmd, trimmed)
 	}
 	return json.RawMessage(trimmed), nil
 }

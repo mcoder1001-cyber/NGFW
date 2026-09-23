@@ -171,7 +171,7 @@ func TestFRRRendererIntegration(t *testing.T) {
 				fmt.Fprintf(&b, "%q: %s\n", k, m[k])
 			}
 		}
-		t.Logf("%s: vtysh -c 'show ip route json' (static prefixes):\n%s", step, b.String())
+		t.Logf("%s: vtysh --command 'show ip route json' (static prefixes):\n%s", step, b.String())
 	}
 
 	pids := h.PIDs()
@@ -212,7 +212,7 @@ func TestFRRRendererIntegration(t *testing.T) {
 	if ev, err := poller.Step(ctx); err != nil || len(ev) == 0 {
 		t.Errorf("step1: no route-count events: %v %v", ev, err)
 	} else {
-		t.Logf("step1: events %+v", ev)
+		t.Logf("step1: events %v", ev)
 	}
 
 	// 2. change one route: frr-reload applies a diff; the daemons keep their PIDs.
@@ -246,9 +246,9 @@ func TestFRRRendererIntegration(t *testing.T) {
 		}
 	}
 	if !linkDown {
-		t.Errorf("step3: no LINK_DOWN for %s in %+v", up, ev)
+		t.Errorf("step3: no LINK_DOWN for %s in %v", up, ev)
 	}
-	t.Logf("step3: events after link down %+v", ev)
+	t.Logf("step3: events after link down %v", ev)
 	if _, err := h.Runner.Run(ctx, renderers.Command{Path: frrtest.IPBin, Args: []string{"-n", h.NetNS, "link", "set", up, "up"}}); err != nil {
 		t.Fatal(err)
 	}

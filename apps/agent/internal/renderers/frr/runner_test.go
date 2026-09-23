@@ -208,7 +208,7 @@ func TestApplyNeedsConfigDir(t *testing.T) {
 	}
 }
 
-// showRunner answers vtysh -c <cmd> from a table.
+// showRunner answers vtysh --command <cmd> from a table.
 func showRunner(t *testing.T, answers map[ShowCommand]string) *renderers.RecordingRunner {
 	t.Helper()
 	return renderers.NewRecordingRunner().On(VtyshBin, func(c renderers.Command) (renderers.Output, error) {

@@ -588,7 +588,7 @@ tasks:
   - P03
   priority: 2
   est_hours: 12
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D6.2
@@ -599,7 +599,8 @@ tasks:
   owner: host-agent slot3
   started: 2026-09-24T02:30
   finished: ''
-  notes: test-scoped daemon processes only; system units untouched | worker done 8d980d7 CI green (IKEv2 SA between 2 test charons); review spawned; D-083
+  notes: test-scoped daemon processes only; system units untouched | worker done 8d980d7 CI green (IKEv2 SA between 2 test charons); review spawned; D-083 | review APPROVE WITH CHANGES 709e08e (H1 live
+    SAs not converged, M1 needless SA teardown, M2 shared-charon ownership, M3 charon crash detection, M4 event drops, L1 name length, L2 redaction); fix round 1
 - id: RF-3
   title: 'Renderers: kea-dhcp4/6 + ctrl-agent, unbound, chrony'
   prompt: prompts/factories/RF-3.md

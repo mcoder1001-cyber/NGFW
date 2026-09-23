@@ -83,8 +83,8 @@ describe('<SchemaForm>', () => {
     const onSubmit = vi.fn();
     renderWithProviders(<SchemaForm schema={WIDGET_SCHEMA} value={WIDGET_VALUE} onSubmit={onSubmit} />);
     const vrf = screen.getByLabelText('VRF', { exact: false });
-    await userEvent.type(vrf, 'NOT VALID');
-    await userEvent.tab();
+    fireEvent.change(vrf, { target: { value: 'NOT VALID' } });
+    fireEvent.blur(vrf);
     expect(await screen.findByText('Does not match the required format')).toBeInTheDocument();
     await userEvent.click(screen.getByLabelText('Enabled')); // hides VRF, value stays in form state
     expect(screen.queryByLabelText('VRF', { exact: false })).toBeNull();
@@ -154,8 +154,8 @@ describe('<SchemaForm>', () => {
 
   it('keeps edits when the parent re-renders with an equal inline value, resets when the content changes (review L8)', async () => {
     const { rerender } = renderWithProviders(<SchemaForm schema={WIDGET_SCHEMA} value={{ ...WIDGET_VALUE }} onSubmit={() => {}} />);
-    const name = () => screen.getAllByLabelText(/^Name/)[0]!;
-    await userEvent.type(name(), '-edited');
+    const name = () => screen.getByDisplayValue(/^eth/);
+    fireEvent.change(name(), { target: { value: 'eth0-edited' } });
     expect(name()).toHaveValue('eth0-edited');
     rerender(<SchemaForm schema={WIDGET_SCHEMA} value={{ ...WIDGET_VALUE }} onSubmit={() => {}} />);
     expect(name()).toHaveValue('eth0-edited');

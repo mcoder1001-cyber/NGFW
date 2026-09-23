@@ -28,6 +28,16 @@ type EnableSpec struct {
 	Out2InDPO  bool   `json:"out2in_dpo"`
 }
 
+// DefaultSessions is VPP's per-thread session limit when the enable request says 0.
+const DefaultSessions = 63 * 1024
+
+// Normalize fills VPP's default so desired and retrieved carriers are proto.Equal.
+func (s *EnableSpec) Normalize() {
+	if s.Sessions == 0 {
+		s.Sessions = DefaultSessions
+	}
+}
+
 // TimeoutsSpec is the session-timeout singleton (nat_set_timeouts / running config).
 type TimeoutsSpec struct {
 	UDP            uint32 `json:"udp"`
@@ -36,10 +46,12 @@ type TimeoutsSpec struct {
 	ICMP           uint32 `json:"icmp"`
 }
 
-// ForwardingSpec is the forwarding singleton (nat44_forwarding_enable_disable).
-type ForwardingSpec struct {
-	Enabled bool `json:"enabled"`
-}
+// ForwardingSpec is the forwarding singleton (nat44_forwarding_enable_disable). Presence
+// means enabled: VPP's default (off) is "no object", so Retrieve reports it only while on.
+type ForwardingSpec struct{}
+
+// DefaultTimeouts are VPP's built-in values; a TimeoutsSpec equal to them is "no object".
+var DefaultTimeouts = TimeoutsSpec{UDP: DefaultUDPTimeout, TCPEstablished: DefaultTCPEstablishedTimeout, TCPTransitory: DefaultTCPTransitoryTimeout, ICMP: DefaultICMPTimeout}
 
 func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
 	return natcommon.New(natcommon.Ops[EnableSpec]{
@@ -56,7 +68,7 @@ func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
 			if enabled {
 				// Shared VPP: another owner (or an earlier run) enabled the plugin. A compatible
 				// configuration is converged; a different one must not be silently replaced.
-				if got := enableFromRunning(rc); got == s.withDefaults() {
+				if got := enableFromRunning(rc); got == s {
 					return nil, nil
 				}
 				return nil, fmt.Errorf("%w: plugin already enabled with %+v", ErrForeignObjects, enableFromRunning(rc))
@@ -104,14 +116,6 @@ func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
 	})
 }
 
-// withDefaults fills VPP's defaults the way the running config reports them.
-func (s EnableSpec) withDefaults() EnableSpec {
-	if s.Sessions == 0 {
-		s.Sessions = 63 * 1024
-	}
-	return s
-}
-
 func enableFromRunning(rc *nat44_ed.Nat44ShowRunningConfigReply) EnableSpec {
 	return EnableSpec{
 		Sessions:   rc.Sessions,
@@ -141,15 +145,20 @@ func (p *Plugin) newTimeouts() *natcommon.Descriptor[TimeoutsSpec] {
 		},
 		// Delete restores VPP's defaults so a removed object leaves no trace.
 		Delete: func(ctx context.Context, _ TimeoutsSpec, _ any) error {
-			return p.setTimeouts(ctx, TimeoutsSpec{UDP: DefaultUDPTimeout, TCPEstablished: DefaultTCPEstablishedTimeout, TCPTransitory: DefaultTCPTransitoryTimeout, ICMP: DefaultICMPTimeout})
+			return p.setTimeouts(ctx, DefaultTimeouts)
 		},
+		// Only non-default timeouts are an object; otherwise a desired state without
+		// timeouts would plan a Delete (reset) on every pass.
 		Retrieve: func(ctx context.Context) ([]natcommon.Item[TimeoutsSpec], error) {
 			rc, enabled, err := p.runningConfig(ctx)
 			if err != nil || !enabled {
 				return nil, err
 			}
-			t := rc.Timeouts
-			return []natcommon.Item[TimeoutsSpec]{{Spec: TimeoutsSpec{UDP: t.UDP, TCPEstablished: t.TCPEstablished, TCPTransitory: t.TCPTransitory, ICMP: t.ICMP}}}, nil
+			t := TimeoutsSpec{UDP: rc.Timeouts.UDP, TCPEstablished: rc.Timeouts.TCPEstablished, TCPTransitory: rc.Timeouts.TCPTransitory, ICMP: rc.Timeouts.ICMP}
+			if t == DefaultTimeouts {
+				return nil, nil
+			}
+			return []natcommon.Item[TimeoutsSpec]{{Spec: t}}, nil
 		},
 	})
 }
@@ -166,17 +175,14 @@ func (p *Plugin) newForwarding() *natcommon.Descriptor[ForwardingSpec] {
 		Name:   NameForwarding,
 		ID:     func(ForwardingSpec) string { return Singleton },
 		Deps:   func(ForwardingSpec) []scheduler.Dependency { return enableDep() },
-		Create: func(ctx context.Context, s ForwardingSpec) (any, error) { return nil, p.setForwarding(ctx, s.Enabled) },
-		Update: func(ctx context.Context, _, s ForwardingSpec, _ any) (any, error) {
-			return nil, p.setForwarding(ctx, s.Enabled)
-		},
+		Create: func(ctx context.Context, _ ForwardingSpec) (any, error) { return nil, p.setForwarding(ctx, true) },
 		Delete: func(ctx context.Context, _ ForwardingSpec, _ any) error { return p.setForwarding(ctx, false) },
 		Retrieve: func(ctx context.Context) ([]natcommon.Item[ForwardingSpec], error) {
 			rc, enabled, err := p.runningConfig(ctx)
-			if err != nil || !enabled {
+			if err != nil || !enabled || !rc.ForwardingEnabled {
 				return nil, err
 			}
-			return []natcommon.Item[ForwardingSpec]{{Spec: ForwardingSpec{Enabled: rc.ForwardingEnabled}}}, nil
+			return []natcommon.Item[ForwardingSpec]{{Spec: ForwardingSpec{}}}, nil
 		},
 	})
 }

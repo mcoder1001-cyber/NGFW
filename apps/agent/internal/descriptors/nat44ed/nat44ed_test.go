@@ -50,6 +50,7 @@ func newFakeNAT() *fakeNAT {
 			{SwIfIndex: 3, InterfaceName: "loop300", Tag: "w3:loop300"},
 		},
 	}
+	f.Reply("ip_address_dump") // loopbacks of the fake carry no addresses
 	f.On("sw_interface_dump", func(req api.Message) ([]api.Message, error) {
 		r := req.(*interfaces.SwInterfaceDump)
 		var out []api.Message
@@ -294,10 +295,10 @@ func newFakeNAT() *fakeNAT {
 		}
 		return []api.Message{&nat44_ed.Nat44EdAddDelVrfRouteReply{}}, nil
 	})
-	f.On("nat44_ed_vrf_tables_v2_dump", func(api.Message) ([]api.Message, error) {
+	f.On("nat44_ed_vrf_tables_dump", func(api.Message) ([]api.Message, error) {
 		var out []api.Message
 		for id, routes := range f.vrfTables {
-			out = append(out, &nat44_ed.Nat44EdVrfTablesV2Details{TableVrfID: id, NVrfIds: uint32(len(routes)), VrfIds: routes}) //nolint:gosec // test data
+			out = append(out, &nat44_ed.Nat44EdVrfTablesDetails{TableVrfID: id, NVrfIds: uint32(len(routes)), VrfIds: routes}) //nolint:gosec // test data
 		}
 		return out, nil
 	})
@@ -468,7 +469,7 @@ func TestTimeoutsAndForwarding(t *testing.T) {
 	if deps := p.Timeouts.Dependencies(tmo); len(deps) != 1 || deps[0].Key != nat44ed.EnableKey {
 		t.Fatalf("deps %+v", deps)
 	}
-	fwd := natcommon.MustEncode(&nat44ed.ForwardingSpec{Enabled: true})
+	fwd := natcommon.MustEncode(&nat44ed.ForwardingSpec{})
 	if apply(t, p.Forwarding, fwd) != 1 || !f.forwarding || apply(t, p.Forwarding, fwd) != 0 {
 		t.Fatal("forwarding")
 	}

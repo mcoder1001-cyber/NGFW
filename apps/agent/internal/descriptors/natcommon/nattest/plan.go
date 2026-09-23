@@ -110,22 +110,26 @@ func AssertPlan(t testing.TB, d scheduler.Descriptor, desired ...proto.Message) 
 func CreateAll(ctx context.Context, t testing.TB, d scheduler.Descriptor, objs ...proto.Message) {
 	t.Helper()
 	for _, o := range objs {
-		if _, err := d.Create(ctx, o); err != nil {
+		meta, err := d.Create(ctx, o)
+		if err != nil {
 			t.Fatalf("%s create %s: %v", d.Name(), d.KeyOf(o), err)
 		}
 		key := d.KeyOf(o)
 		t.Cleanup(func() {
 			cctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			kvs, err := d.Retrieve(cctx)
-			if err != nil {
-				return
-			}
-			for _, kv := range kvs {
-				if kv.Key == key {
-					_ = d.Delete(cctx, kv.Value, kv.Meta)
+			// Prefer what Retrieve reports now; if Retrieve does not see the object (a
+			// descriptor bug under test), still delete it with the Create-time Meta so the
+			// shared VPP is left clean.
+			if kvs, err := d.Retrieve(cctx); err == nil {
+				for _, kv := range kvs {
+					if kv.Key == key {
+						_ = d.Delete(cctx, kv.Value, kv.Meta)
+						return
+					}
 				}
 			}
+			_ = d.Delete(cctx, o, meta)
 		})
 	}
 }

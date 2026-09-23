@@ -95,9 +95,11 @@ func (p *Plugin) newVRFTable() *natcommon.Descriptor[VRFTableSpec] {
 			return nil
 		},
 		Retrieve: func(ctx context.Context) ([]natcommon.Item[VRFTableSpec], error) {
-			stream, err := p.svc.Nat44EdVrfTablesV2Dump(ctx, &nat44_ed.Nat44EdVrfTablesV2Dump{})
+			// VPP 26.06 answers nat44_ed_vrf_tables_v2_dump with nat44_ed_vrf_tables_details (v1)
+			// messages, which the generated v2 client rejects; the v1 dump carries the same fields.
+			stream, err := p.svc.Nat44EdVrfTablesDump(ctx, &nat44_ed.Nat44EdVrfTablesDump{})
 			if err != nil {
-				return nil, fmt.Errorf("nat44_ed_vrf_tables_v2_dump: %w", err)
+				return nil, fmt.Errorf("nat44_ed_vrf_tables_dump: %w", err)
 			}
 			var out []natcommon.Item[VRFTableSpec]
 			for {
@@ -106,7 +108,7 @@ func (p *Plugin) newVRFTable() *natcommon.Descriptor[VRFTableSpec] {
 					return out, nil
 				}
 				if err != nil {
-					return nil, fmt.Errorf("nat44_ed_vrf_tables_v2_dump: %w", err)
+					return nil, fmt.Errorf("nat44_ed_vrf_tables_dump: %w", err)
 				}
 				if !p.scope.OwnsTable(d.TableVrfID) {
 					continue

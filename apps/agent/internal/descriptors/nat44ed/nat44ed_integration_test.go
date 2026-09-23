@@ -73,7 +73,7 @@ func TestNat44EdOnHost(t *testing.T) {
 	})
 	nattest.AssertPlan(t, p.Timeouts, tmo)
 
-	fwd := natcommon.MustEncode(&nat44ed.ForwardingSpec{Enabled: true})
+	fwd := natcommon.MustEncode(&nat44ed.ForwardingSpec{})
 	if !rc.ForwardingEnabled {
 		if _, err := p.Forwarding.Create(ctx, fwd); err != nil {
 			t.Fatal(err)
@@ -95,7 +95,9 @@ func TestNat44EdOnHost(t *testing.T) {
 	nattest.CreateAll(ctx, t, p.InterfaceFeature, featIn, featOut)
 	nattest.AssertPlan(t, p.InterfaceFeature, featIn, featOut)
 
-	outFeat := natcommon.MustEncode(&nat44ed.OutputFeatureSpec{Interface: outside})
+	// VPP refuses a NAT interface to also be an output-feature interface (VALUE_EXIST): own loopback
+	outputIf, _ := nattest.Loopback(t, c, 6)
+	outFeat := natcommon.MustEncode(&nat44ed.OutputFeatureSpec{Interface: outputIf})
 	nattest.CreateAll(ctx, t, p.OutputFeature, outFeat)
 	nattest.AssertPlan(t, p.OutputFeature, outFeat)
 
@@ -111,12 +113,15 @@ func TestNat44EdOnHost(t *testing.T) {
 
 	// --- mappings ---------------------------------------------------------------------------
 	pf := natcommon.MustEncode(&nat44ed.StaticMappingSpec{Name: "pf", Local: nat44ed.Endpoint{IP: nattest.Addr4(t, 10, 50), Port: 80}, External: nat44ed.Endpoint{IP: nattest.Addr4(t, 1, 1), Port: 8080}, Protocol: "tcp"})
-	twiceMap := natcommon.MustEncode(&nat44ed.StaticMappingSpec{Name: "twice", Local: nat44ed.Endpoint{IP: nattest.Addr4(t, 10, 51)}, External: nat44ed.Endpoint{IP: nattest.Addr4(t, 1, 2)}, AddrOnly: true, TwiceNAT: true})
+	// VPP 26.06 rejects twice-NAT on address-only mappings (UNSUPPORTED): twice-NAT with ports,
+	// address-only 1:1 separately, and an interface-bound external.
+	twiceMap := natcommon.MustEncode(&nat44ed.StaticMappingSpec{Name: "twice", Local: nat44ed.Endpoint{IP: nattest.Addr4(t, 10, 51), Port: 443}, External: nat44ed.Endpoint{IP: nattest.Addr4(t, 1, 2), Port: 8443}, Protocol: "tcp", TwiceNAT: true})
+	one2one := natcommon.MustEncode(&nat44ed.StaticMappingSpec{Name: "one2one", Local: nat44ed.Endpoint{IP: nattest.Addr4(t, 10, 53)}, External: nat44ed.Endpoint{IP: nattest.Addr4(t, 1, 3)}, AddrOnly: true})
 	ifMap := natcommon.MustEncode(&nat44ed.StaticMappingSpec{Name: "ifmap", Local: nat44ed.Endpoint{IP: nattest.Addr4(t, 10, 52), Port: 22}, External: nat44ed.Endpoint{Interface: outside, Port: 2222}, Protocol: "tcp"})
-	nattest.CreateAll(ctx, t, p.StaticMapping, pf, twiceMap, ifMap)
-	nattest.AssertPlan(t, p.StaticMapping, pf, twiceMap, ifMap)
+	nattest.CreateAll(ctx, t, p.StaticMapping, pf, twiceMap, one2one, ifMap)
+	nattest.AssertPlan(t, p.StaticMapping, pf, twiceMap, one2one, ifMap)
 
-	ident := natcommon.MustEncode(&nat44ed.IdentityMappingSpec{Name: "id", IP: nattest.Addr4(t, 1, 3), Protocol: "udp", Port: 500})
+	ident := natcommon.MustEncode(&nat44ed.IdentityMappingSpec{Name: "id", IP: nattest.Addr4(t, 1, 4), Protocol: "udp", Port: 500})
 	nattest.CreateAll(ctx, t, p.IdentityMapping, ident)
 	nattest.AssertPlan(t, p.IdentityMapping, ident)
 

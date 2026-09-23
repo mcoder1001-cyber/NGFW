@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/netip"
 	"strings"
 
 	"ngfw/agent/binapi/interface_types"
 	interfaces "ngfw/agent/binapi/interface"
+	"ngfw/agent/binapi/ip"
+	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/internal/vpp"
 )
 
@@ -99,4 +102,32 @@ func ResolveInterface(ctx context.Context, c vpp.Client, name string) (interface
 		return 0, fmt.Errorf("%w: %q", ErrNoSuchInterface, name)
 	}
 	return idx, nil
+}
+
+// InterfaceAddresses returns the IPv4 addresses configured on the given interfaces
+// (ip_address_dump). The NAT44 plugins add an interface's addresses to the pool when the
+// interface is registered with *_add_del_interface_addr; pool Retrieve uses this set to tell
+// those apart from explicit pool ranges.
+func InterfaceAddresses(ctx context.Context, c vpp.Client, idxs []uint32) (map[netip.Addr]bool, error) {
+	svc := ip.NewServiceClient(c)
+	out := map[netip.Addr]bool{}
+	for _, idx := range idxs {
+		stream, err := svc.IPAddressDump(ctx, &ip.IPAddressDump{SwIfIndex: interface_types.InterfaceIndex(idx), IsIPv6: false})
+		if err != nil {
+			return nil, fmt.Errorf("ip_address_dump: %w", err)
+		}
+		for {
+			d, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				return nil, fmt.Errorf("ip_address_dump: %w", err)
+			}
+			if a, err := netip.ParseAddr(AddrString(ip_types.Prefix(d.Prefix).Address)); err == nil {
+				out[a] = true
+			}
+		}
+	}
+	return out, nil
 }

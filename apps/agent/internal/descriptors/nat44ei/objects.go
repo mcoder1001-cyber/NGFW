@@ -23,12 +23,10 @@ const (
 	DefaultICMPTimeout           = 60
 )
 
-// EnableSpec is the nat44-ei plugin singleton (nat44_ei_plugin_enable_disable). Sessions 0
-// is VPP's default (10*1024) and is reported back as that number. Flags static-mapping-only,
-// connection-tracking and out2in-dpo are passed through as VPP accepts them.
+// EnableSpec is the nat44-ei plugin singleton (nat44_ei_plugin_enable_disable): inside /
+// outside VRF and the flags VPP accepts. Session limits are startup.conf / CLI settings in
+// nat44-ei (not in the API enable message) and therefore not modelled.
 type EnableSpec struct {
-	Sessions           uint32 `json:"sessions"`
-	UserSessions       uint32 `json:"user_sessions"`
 	InsideVRF          uint32 `json:"inside_vrf"`
 	OutsideVRF         uint32 `json:"outside_vrf"`
 	StaticMappingOnly  bool   `json:"static_mapping_only"`
@@ -36,19 +34,9 @@ type EnableSpec struct {
 	Out2InDPO          bool   `json:"out2in_dpo"`
 }
 
-func (s EnableSpec) withDefaults() EnableSpec {
-	if s.Sessions == 0 {
-		s.Sessions = 10 * 1024
-	}
-	if s.UserSessions == 0 {
-		s.UserSessions = s.Sessions
-	}
-	return s
-}
-
 func enableFromRunning(rc *nat44_ei.Nat44EiShowRunningConfigReply) EnableSpec {
 	return EnableSpec{
-		Sessions: rc.Sessions, UserSessions: rc.UserSessions, InsideVRF: rc.InsideVrf, OutsideVRF: rc.OutsideVrf,
+		InsideVRF: rc.InsideVrf, OutsideVRF: rc.OutsideVrf,
 		StaticMappingOnly:  rc.Flags&nat44_ei.NAT44_EI_STATIC_MAPPING_ONLY != 0,
 		ConnectionTracking: rc.Flags&nat44_ei.NAT44_EI_CONNECTION_TRACKING != 0,
 		Out2InDPO:          rc.Flags&nat44_ei.NAT44_EI_OUT2IN_DPO != 0,
@@ -63,10 +51,12 @@ type TimeoutsSpec struct {
 	ICMP           uint32 `json:"icmp"`
 }
 
-// ForwardingSpec is the forwarding singleton (nat44_ei_forwarding_enable_disable).
-type ForwardingSpec struct {
-	Enabled bool `json:"enabled"`
-}
+// ForwardingSpec is the forwarding singleton (nat44_ei_forwarding_enable_disable); presence
+// means enabled (VPP's default, off, is "no object").
+type ForwardingSpec struct{}
+
+// DefaultTimeouts are VPP's built-in values; a TimeoutsSpec equal to them is "no object".
+var DefaultTimeouts = TimeoutsSpec{UDP: DefaultUDPTimeout, TCPEstablished: DefaultTCPEstablishedTimeout, TCPTransitory: DefaultTCPTransitoryTimeout, ICMP: DefaultICMPTimeout}
 
 // IpfixSpec is the IPFIX logging singleton (nat44_ei_ipfix_enable_disable). The exporter
 // itself is DF-8's object; this only flips the plugin's logging.
@@ -81,11 +71,12 @@ type InterfaceFeatureSpec struct {
 	Side      string `json:"side"`
 }
 
-// OutputFeatureSpec enables the output-feature path on an interface
-// (nat44_ei_interface_add_del_output_feature, one side).
+// OutputFeatureSpec puts an interface on the output-feature path
+// (nat44_ei_add_del_output_interface). The older per-side
+// nat44_ei_interface_add_del_output_feature is a shim whose dump does not report the
+// interface back, so it is not used.
 type OutputFeatureSpec struct {
 	Interface string `json:"interface"`
-	Side      string `json:"side"`
 }
 
 // InterfaceAddressSpec uses the interface's address as pool address.
@@ -199,7 +190,7 @@ func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
 				return nil, err
 			}
 			if enabled {
-				if enableFromRunning(rc) == s.withDefaults() {
+				if enableFromRunning(rc) == s {
 					return nil, nil
 				}
 				return nil, fmt.Errorf("%w: plugin already enabled with %+v", ErrForeignObjects, enableFromRunning(rc))
@@ -270,16 +261,17 @@ func (p *Plugin) newTimeouts() *natcommon.Descriptor[TimeoutsSpec] {
 		Update: func(ctx context.Context, _, s TimeoutsSpec, _ any) (any, error) {
 			return nil, p.setTimeouts(ctx, s)
 		},
-		Delete: func(ctx context.Context, _ TimeoutsSpec, _ any) error {
-			return p.setTimeouts(ctx, TimeoutsSpec{UDP: DefaultUDPTimeout, TCPEstablished: DefaultTCPEstablishedTimeout, TCPTransitory: DefaultTCPTransitoryTimeout, ICMP: DefaultICMPTimeout})
-		},
+		Delete: func(ctx context.Context, _ TimeoutsSpec, _ any) error { return p.setTimeouts(ctx, DefaultTimeouts) },
 		Retrieve: func(ctx context.Context) ([]natcommon.Item[TimeoutsSpec], error) {
 			rc, enabled, err := p.runningConfig(ctx)
 			if err != nil || !enabled {
 				return nil, err
 			}
-			t := rc.Timeouts
-			return []natcommon.Item[TimeoutsSpec]{{Spec: TimeoutsSpec{UDP: t.UDP, TCPEstablished: t.TCPEstablished, TCPTransitory: t.TCPTransitory, ICMP: t.ICMP}}}, nil
+			t := TimeoutsSpec{UDP: rc.Timeouts.UDP, TCPEstablished: rc.Timeouts.TCPEstablished, TCPTransitory: rc.Timeouts.TCPTransitory, ICMP: rc.Timeouts.ICMP}
+			if t == DefaultTimeouts {
+				return nil, nil
+			}
+			return []natcommon.Item[TimeoutsSpec]{{Spec: t}}, nil
 		},
 	})
 }
@@ -296,17 +288,14 @@ func (p *Plugin) newForwarding() *natcommon.Descriptor[ForwardingSpec] {
 		Name:   NameForwarding,
 		ID:     func(ForwardingSpec) string { return Singleton },
 		Deps:   func(ForwardingSpec) []scheduler.Dependency { return enableDep() },
-		Create: func(ctx context.Context, s ForwardingSpec) (any, error) { return nil, p.setForwarding(ctx, s.Enabled) },
-		Update: func(ctx context.Context, _, s ForwardingSpec, _ any) (any, error) {
-			return nil, p.setForwarding(ctx, s.Enabled)
-		},
+		Create: func(ctx context.Context, _ ForwardingSpec) (any, error) { return nil, p.setForwarding(ctx, true) },
 		Delete: func(ctx context.Context, _ ForwardingSpec, _ any) error { return p.setForwarding(ctx, false) },
 		Retrieve: func(ctx context.Context) ([]natcommon.Item[ForwardingSpec], error) {
 			rc, enabled, err := p.runningConfig(ctx)
-			if err != nil || !enabled {
+			if err != nil || !enabled || !rc.ForwardingEnabled {
 				return nil, err
 			}
-			return []natcommon.Item[ForwardingSpec]{{Spec: ForwardingSpec{Enabled: rc.ForwardingEnabled}}}, nil
+			return []natcommon.Item[ForwardingSpec]{{Spec: ForwardingSpec{}}}, nil
 		},
 	})
 }
@@ -433,33 +422,25 @@ func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpe
 func (p *Plugin) newOutputFeature() *natcommon.Descriptor[OutputFeatureSpec] {
 	return natcommon.New(natcommon.Ops[OutputFeatureSpec]{
 		Name: NameOutputFeature,
-		ID:   func(s OutputFeatureSpec) string { return s.Interface + "/" + s.Side },
+		ID:   func(s OutputFeatureSpec) string { return s.Interface },
 		Deps: func(s OutputFeatureSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
 		Create: func(ctx context.Context, s OutputFeatureSpec) (any, error) {
-			flag, err := sideFlag(s.Side)
-			if err != nil {
-				return nil, err
-			}
 			idx, err := natcommon.ResolveInterface(ctx, p.client, s.Interface)
 			if err != nil {
 				return nil, err
 			}
-			if _, err := p.svc.Nat44EiInterfaceAddDelOutputFeature(ctx, &nat44_ei.Nat44EiInterfaceAddDelOutputFeature{IsAdd: true, Flags: flag, SwIfIndex: idx}); err != nil {
-				return nil, fmt.Errorf("nat44_ei_interface_add_del_output_feature: %w", err)
+			if _, err := p.svc.Nat44EiAddDelOutputInterface(ctx, &nat44_ei.Nat44EiAddDelOutputInterface{IsAdd: true, SwIfIndex: idx}); err != nil {
+				return nil, fmt.Errorf("nat44_ei_add_del_output_interface: %w", err)
 			}
 			return IfMeta{SwIfIndex: uint32(idx)}, nil
 		},
-		Delete: func(ctx context.Context, s OutputFeatureSpec, meta any) error {
-			flag, err := sideFlag(s.Side)
-			if err != nil {
-				return err
-			}
+		Delete: func(ctx context.Context, _ OutputFeatureSpec, meta any) error {
 			m, ok := meta.(IfMeta)
 			if !ok {
 				return fmt.Errorf("%s: unexpected meta %T", NameOutputFeature, meta)
 			}
-			if _, err := p.svc.Nat44EiInterfaceAddDelOutputFeature(ctx, &nat44_ei.Nat44EiInterfaceAddDelOutputFeature{IsAdd: false, Flags: flag, SwIfIndex: interface_types.InterfaceIndex(m.SwIfIndex)}); err != nil && !natcommon.IsNoSuchEntry(err) {
-				return fmt.Errorf("nat44_ei_interface_add_del_output_feature: %w", err)
+			if _, err := p.svc.Nat44EiAddDelOutputInterface(ctx, &nat44_ei.Nat44EiAddDelOutputInterface{IsAdd: false, SwIfIndex: interface_types.InterfaceIndex(m.SwIfIndex)}); err != nil && !natcommon.IsNoSuchEntry(err) {
+				return fmt.Errorf("nat44_ei_add_del_output_interface: %w", err)
 			}
 			return nil
 		},
@@ -468,29 +449,34 @@ func (p *Plugin) newOutputFeature() *natcommon.Descriptor[OutputFeatureSpec] {
 			if err != nil {
 				return nil, err
 			}
-			stream, err := p.svc.Nat44EiInterfaceOutputFeatureDump(ctx, &nat44_ei.Nat44EiInterfaceOutputFeatureDump{})
-			if err != nil {
-				return nil, fmt.Errorf("nat44_ei_interface_output_feature_dump: %w", err)
-			}
 			var out []natcommon.Item[OutputFeatureSpec]
+			cursor := uint32(0)
 			for {
-				d, err := stream.Recv()
-				if errors.Is(err, io.EOF) {
-					return out, nil
-				}
+				stream, err := p.svc.Nat44EiOutputInterfaceGet(ctx, &nat44_ei.Nat44EiOutputInterfaceGet{Cursor: cursor})
 				if err != nil {
-					return nil, fmt.Errorf("nat44_ei_interface_output_feature_dump: %w", err)
+					return nil, fmt.Errorf("nat44_ei_output_interface_get: %w", err)
 				}
-				i, _ := ifaces.ByIndex(uint32(d.SwIfIndex))
-				if !p.scope.OwnsInterface(i) {
-					continue
+				again := false
+				for {
+					d, rep, err := stream.Recv()
+					if errors.Is(err, io.EOF) {
+						break
+					}
+					if err != nil {
+						if rv, ok := natcommon.Retval(err); ok && rv == -165 && rep != nil { // EAGAIN: continue from cursor
+							cursor, again = rep.Cursor, true
+							break
+						}
+						return nil, fmt.Errorf("nat44_ei_output_interface_get: %w", err)
+					}
+					i, _ := ifaces.ByIndex(uint32(d.SwIfIndex))
+					if !p.scope.OwnsInterface(i) {
+						continue
+					}
+					out = append(out, natcommon.Item[OutputFeatureSpec]{Spec: OutputFeatureSpec{Interface: i.Name}, Meta: IfMeta{SwIfIndex: uint32(d.SwIfIndex)}})
 				}
-				meta := IfMeta{SwIfIndex: uint32(d.SwIfIndex)}
-				if d.Flags&nat44_ei.NAT44_EI_IF_INSIDE != 0 {
-					out = append(out, natcommon.Item[OutputFeatureSpec]{Spec: OutputFeatureSpec{Interface: i.Name, Side: SideInside}, Meta: meta})
-				}
-				if d.Flags&nat44_ei.NAT44_EI_IF_OUTSIDE != 0 {
-					out = append(out, natcommon.Item[OutputFeatureSpec]{Spec: OutputFeatureSpec{Interface: i.Name, Side: SideOutside}, Meta: meta})
+				if !again {
+					return out, nil
 				}
 			}
 		},
@@ -612,6 +598,7 @@ func (p *Plugin) newAddressPool() *natcommon.Descriptor[AddressPoolSpec] {
 			if err != nil {
 				return nil, fmt.Errorf("nat44_ei_address_dump: %w", err)
 			}
+			var ifAddrs map[netip.Addr]bool
 			var addrs []poolAddr
 			for {
 				d, err := stream.Recv()
@@ -622,7 +609,15 @@ func (p *Plugin) newAddressPool() *natcommon.Descriptor[AddressPoolSpec] {
 					return nil, fmt.Errorf("nat44_ei_address_dump: %w", err)
 				}
 				a := netip.AddrFrom4(d.IPAddress)
-				if p.scope.OwnsAddr(a) {
+				if !p.scope.OwnsAddr(a) {
+					continue
+				}
+				if ifAddrs == nil {
+					if ifAddrs, err = p.interfacePoolAddresses(ctx); err != nil {
+						return nil, err
+					}
+				}
+				if !ifAddrs[a] {
 					addrs = append(addrs, poolAddr{addr: a, vrf: d.VrfID})
 				}
 			}
@@ -633,6 +628,27 @@ func (p *Plugin) newAddressPool() *natcommon.Descriptor[AddressPoolSpec] {
 			return out, nil
 		},
 	})
+}
+
+// interfacePoolAddresses is the set of IPv4 addresses of interfaces registered with
+// nat44_ei_add_del_interface_addr — VPP lists them in nat44_ei_address_dump like pool addresses.
+func (p *Plugin) interfacePoolAddresses(ctx context.Context) (map[netip.Addr]bool, error) {
+	stream, err := p.svc.Nat44EiInterfaceAddrDump(ctx, &nat44_ei.Nat44EiInterfaceAddrDump{})
+	if err != nil {
+		return nil, fmt.Errorf("nat44_ei_interface_addr_dump: %w", err)
+	}
+	var idxs []uint32
+	for {
+		d, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("nat44_ei_interface_addr_dump: %w", err)
+		}
+		idxs = append(idxs, uint32(d.SwIfIndex))
+	}
+	return natcommon.InterfaceAddresses(ctx, p.client, idxs)
 }
 
 // ---- mappings -------------------------------------------------------------------------------

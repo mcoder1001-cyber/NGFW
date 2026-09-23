@@ -94,6 +94,7 @@ func (p *Plugin) newAddressPool() *natcommon.Descriptor[AddressPoolSpec] {
 			if err != nil {
 				return nil, fmt.Errorf("nat44_address_dump: %w", err)
 			}
+			var ifAddrs map[netip.Addr]bool
 			var addrs []poolAddr
 			for {
 				d, err := stream.Recv()
@@ -106,6 +107,14 @@ func (p *Plugin) newAddressPool() *natcommon.Descriptor[AddressPoolSpec] {
 				a := netip.AddrFrom4(d.IPAddress)
 				if !p.scope.OwnsAddr(a) {
 					continue
+				}
+				if ifAddrs == nil {
+					if ifAddrs, err = p.interfacePoolAddresses(ctx); err != nil {
+						return nil, err
+					}
+				}
+				if ifAddrs[a] {
+					continue // added by nat44-ed.interface-address, not an explicit pool
 				}
 				addrs = append(addrs, poolAddr{addr: a, vrf: d.VrfID, twice: d.Flags&nat_types.NAT_IS_TWICE_NAT != 0})
 			}
@@ -146,4 +155,25 @@ func mergeRanges(addrs []poolAddr) []AddressPoolSpec {
 		i = j + 1
 	}
 	return out
+}
+
+// interfacePoolAddresses is the set of IPv4 addresses of interfaces registered with
+// nat44_add_del_interface_addr — VPP lists them in nat44_address_dump like pool addresses.
+func (p *Plugin) interfacePoolAddresses(ctx context.Context) (map[netip.Addr]bool, error) {
+	stream, err := p.svc.Nat44InterfaceAddrDump(ctx, &nat44_ed.Nat44InterfaceAddrDump{})
+	if err != nil {
+		return nil, fmt.Errorf("nat44_interface_addr_dump: %w", err)
+	}
+	var idxs []uint32
+	for {
+		d, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("nat44_interface_addr_dump: %w", err)
+		}
+		idxs = append(idxs, uint32(d.SwIfIndex))
+	}
+	return natcommon.InterfaceAddresses(ctx, p.client, idxs)
 }

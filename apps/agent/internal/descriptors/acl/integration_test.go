@@ -26,11 +26,11 @@ import (
 //
 // The global counters switch (acl.stats-enable) is turned on and left on: VPP has no getter and
 // another owner may rely on it. Set VRX_ACL_STATS_RESTORE_DISABLED=1 to have the test switch it
-// off again at the end when the operator has verified (vppctl show acl-plugin tables) that it
+// off again at the end when the operator has verified (VPP CLI: show acl-plugin tables) that it
 // was off before and nobody else uses it.
 
 // holdForEvidence pauses when VRX_ACL_EVIDENCE_HOLD (a duration) is set, so an operator can
-// capture `vppctl show acl-plugin …` for the status report while the objects exist.
+// capture the VPP CLI `show acl-plugin …` output for the status report while the objects exist.
 func holdForEvidence(t *testing.T) {
 	t.Helper()
 	if v := os.Getenv("VRX_ACL_EVIDENCE_HOLD"); v != "" {

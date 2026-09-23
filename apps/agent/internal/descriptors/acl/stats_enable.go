@@ -18,7 +18,7 @@ var KeyStatsEnable = scheduler.Join(NameStatsEnable, StatsEnableID)
 
 // StatsEnableDescriptor manages the acl.stats-enable singleton (acl_stats_intf_counters_enable).
 //
-// The flag is process-global in VPP and has no read API (only `show acl-plugin tables` prints
+// The flag is process-global in VPP and has no read API (only the VPP CLI `show acl-plugin tables` prints
 // it), so Retrieve reports the last value this descriptor applied: on a fresh agent it reports
 // nothing and the scheduler re-applies the desired value once (enabling twice is harmless).
 // The descriptor never disables the counters: on a shared VPP another owner may depend on

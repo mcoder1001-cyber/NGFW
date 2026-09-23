@@ -61,7 +61,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs.IntVar(&o.numaNodes, "numa-nodes", -1, "number of NUMA nodes (default: /sys/devices/system/node)")
 	fs.IntVar(&o.hugepagesMB, "hugepages-mb", -1, "hugepage memory reserved by the host in MiB (default: /proc/meminfo)")
 	fs.Usage = func() {
-		fmt.Fprintln(stderr, "usage: vrx-startupgen [flags] [document.json|-]")
+		_, _ = fmt.Fprintln(stderr, "usage: vrx-startupgen [flags] [document.json|-]")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -76,15 +76,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case 1:
 		o.input = fs.Arg(0)
 	default:
-		fmt.Fprintln(stderr, "vrx-startupgen: at most one document")
+		_, _ = fmt.Fprintln(stderr, "vrx-startupgen: at most one document")
 		return 2
 	}
 	if o.semantic && o.diff == "" {
-		fmt.Fprintln(stderr, "vrx-startupgen: --semantic needs --diff")
+		_, _ = fmt.Fprintln(stderr, "vrx-startupgen: --semantic needs --diff")
 		return 2
 	}
 	if o.check && (o.out != "" || o.diff != "") {
-		fmt.Fprintln(stderr, "vrx-startupgen: --check cannot be combined with -o or --diff")
+		_, _ = fmt.Fprintln(stderr, "vrx-startupgen: --check cannot be combined with -o or --diff")
 		return 2
 	}
 	visited := map[string]bool{}
@@ -92,7 +92,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 	code, err := generate(o, visited, stdin, stdout, stderr)
 	if err != nil {
-		fmt.Fprintf(stderr, "vrx-startupgen: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "vrx-startupgen: %v\n", err)
 	}
 	return code
 }
@@ -115,11 +115,11 @@ func generate(o options, visited map[string]bool, stdin io.Reader, stdout, stder
 		return 2, err
 	}
 	for _, w := range model.Warnings {
-		fmt.Fprintf(stderr, "vrx-startupgen: warning: %s\n", w)
+		_, _ = fmt.Fprintf(stderr, "vrx-startupgen: warning: %s\n", w)
 	}
 	switch {
 	case o.check:
-		fmt.Fprintf(stderr, "vrx-startupgen: ok (%d DPDK device(s), %d plugin switch(es))\n", len(model.Devices), len(model.Plugins))
+		_, _ = fmt.Fprintf(stderr, "vrx-startupgen: ok (%d DPDK device(s), %d plugin switch(es))\n", len(model.Devices), len(model.Plugins))
 		return 0, nil
 	case o.diff != "":
 		existing, err := os.ReadFile(o.diff) //nolint:gosec // operator-supplied file to compare with, read only
@@ -132,10 +132,10 @@ func generate(o options, visited map[string]bool, stdin io.Reader, stdout, stder
 				return 2, err
 			}
 			for _, l := range onlyOld {
-				fmt.Fprintf(stdout, "- %s\n", l)
+				_, _ = fmt.Fprintf(stdout, "- %s\n", l)
 			}
 			for _, l := range onlyNew {
-				fmt.Fprintf(stdout, "+ %s\n", l)
+				_, _ = fmt.Fprintf(stdout, "+ %s\n", l)
 			}
 			if len(onlyOld)+len(onlyNew) > 0 {
 				return 1, nil
@@ -165,7 +165,7 @@ func generate(o options, visited map[string]bool, stdin io.Reader, stdout, stder
 }
 
 func readInput(name string, stdin io.Reader) ([]byte, error) {
-	var r io.Reader = stdin
+	r := stdin
 	if name != "-" {
 		f, err := os.Open(name) //nolint:gosec // operator-supplied document, read only
 		if err != nil {

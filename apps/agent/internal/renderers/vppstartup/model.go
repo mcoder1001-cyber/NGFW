@@ -270,7 +270,8 @@ func uintValue(v *structpb.Value, path string) (uint32, error) {
 func jsonKey(k string) string {
 	for i := 0; i < len(k); i++ {
 		c := k[i]
-		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || strings.IndexByte("_.:-", c) >= 0) {
+		plain := c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || strings.IndexByte("_.:-", c) >= 0
+		if !plain {
 			return fmt.Sprintf("%q", k)
 		}
 	}

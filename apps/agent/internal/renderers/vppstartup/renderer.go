@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"google.golang.org/protobuf/proto"
@@ -67,7 +68,8 @@ func PathToken(p string) (string, error) {
 	}
 	for i := 0; i < len(p); i++ {
 		c := p[i]
-		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '.' || c == '@' || c == '/' || c == '-') {
+		ok := c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || strings.IndexByte("_.@/-", c) >= 0
+		if !ok {
 			return "", fmt.Errorf("%w: path %q contains %q", renderers.ErrUnsafe, p, c)
 		}
 	}

@@ -36,7 +36,7 @@ const mgmt = `"managementPci":["0000:0b:00.0"]`
 func TestHostile(t *testing.T) {
 	type tc struct {
 		name, doc, want string
-		host        *Host
+		host            *Host
 	}
 	var cases []tc
 	for _, s := range hostileStrings {

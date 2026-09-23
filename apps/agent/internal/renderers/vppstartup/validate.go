@@ -21,7 +21,8 @@ func PCIAddress(s string) (string, error) {
 			continue
 		}
 		c := s[i]
-		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
+		hex := c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'
+		if !hex {
 			return "", fmt.Errorf("%w: PCI address %q is not of the form 0000:0b:00.0", renderers.ErrUnsafe, s)
 		}
 	}
@@ -105,7 +106,8 @@ func PluginName(s string) error {
 	}
 	for i := 0; i < len(stem); i++ {
 		c := stem[i]
-		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || (i > 0 && (c == '_' || c == '-'))) {
+		ok := c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || (i > 0 && (c == '_' || c == '-'))
+		if !ok {
 			return fmt.Errorf("%w: plugin %q: character %q not allowed", renderers.ErrUnsafe, s, c)
 		}
 	}

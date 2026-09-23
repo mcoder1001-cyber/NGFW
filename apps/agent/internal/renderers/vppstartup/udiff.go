@@ -87,13 +87,11 @@ func hunkRange(start, n int, ops []editOp, sideA bool) string {
 	if n == 0 {
 		// position just before: the line index of the first op on the other side
 		pos := 0
-		for _, op := range ops {
+		if len(ops) > 0 {
+			pos = ops[0].bi
 			if sideA {
-				pos = op.ai
-			} else {
-				pos = op.bi
+				pos = ops[0].ai
 			}
-			break
 		}
 		return fmt.Sprintf("%d,0", pos)
 	}

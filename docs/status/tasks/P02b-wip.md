@@ -25,3 +25,6 @@
 - 00:45 L9 (11ba023: empty groups allowed, rules may not use them), L6 (0dcfd45: `enabled` optional + `isNat44Enabled()`),
   contract doc (H1 note, L6/L9 semantics, L8 "not modelled" list), questions #1 resolved, #9/#10, D-P02b-9…12.
   Next: `tools/ci.sh --base main`, P02b.md "Review fixes".
+- 00:55 gate: everything green except apps/agent contracttest strict decode (proto mirrors ec0ccda; M1/M2/M3 +
+  external.pool unknown). Not in my envelope → verified patch `P02b-proto-sync.patch`, questions #11. P02b.md
+  "Review fixes" written. DONE for this round pending the proto sync.

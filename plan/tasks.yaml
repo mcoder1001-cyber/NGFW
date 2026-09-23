@@ -133,7 +133,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 10
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.7
@@ -145,7 +145,32 @@ tasks:
   owner: desktop-agent slot7
   started: 2026-09-23T13:35
   finished: ''
-  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1'
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | worker done d1ba8ab; review agent spawned'
+- id: P03b
+  title: 'Proto sync after schema groups merge: mirror final P02a/b/c field names into DesiredState, buf breaking check, regen, drift-guard test'
+  prompt: prompts/P03-proto-contract.md
+  template: ''
+  stage: S1
+  deps:
+  - P02a
+  - P02b
+  - P02c
+  - P03
+  priority: 1
+  est_hours: 3
+  state: todo
+  parked_on: ''
+  wbs:
+  - D0.7
+  - D0.8
+  scope: contract(proto) sync only; add schema⊆proto drift test
+  files_owned: packages/proto/** apps/agent/gen/** docs/contracts/proto.md
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: raised by P03 Q4; run before tagging contracts-v1
 - id: P05a
   title: 'Agent interfaces: scheduler Descriptor, fake VPP client, renderer interface, READMEs'
   prompt: prompts/P05a-interfaces.md

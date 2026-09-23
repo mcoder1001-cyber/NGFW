@@ -1,0 +1,19 @@
+{
+  "vpn": {
+    "wireguard": {
+      "interfaces": {
+        "wg0": {
+          "instance": 0,
+          "listenAddress": "198.51.100.2",
+          "privateKeyRef": "key/wg0",
+          "peers": {
+            "short": {
+              "publicKey": "HIgo9xNzJMWLKASShiTqIybxZ0U3wGLiUeJ1PKf8yk=",
+              "allowedIps": ["10.0.0.2/32"]
+            }
+          }
+        }
+      }
+    }
+  }
+}

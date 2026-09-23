@@ -48,7 +48,7 @@ func TestLCPOnHost(t *testing.T) {
 		if _, err := pd.Create(ctx, other); err == nil {
 			t.Fatal("a second, different pair on the same interface must fail")
 		}
-		dfkittest.HoldForEvidence(t, "vppctl show lcp; ip link show "+h.Owner+"-lcp0")
+		dfkittest.HoldForEvidence(t, "CLI: show lcp; ip link show "+h.Owner+"-lcp0")
 		for range 2 {
 			if err := pd.Delete(ctx, v, meta); err != nil {
 				t.Fatal(err)

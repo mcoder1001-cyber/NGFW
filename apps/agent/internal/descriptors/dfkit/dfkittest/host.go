@@ -101,7 +101,7 @@ func (h *Host) Loopback(t *testing.T, i int) (string, uint32) {
 }
 
 // HoldForEvidence pauses while VRX_DF8_EVIDENCE_HOLD (a duration) is set, so an operator can
-// capture `vppctl show …` output for the status report while the test objects exist.
+// capture the VPP CLI `show …` output for the status report while the test objects exist.
 func HoldForEvidence(t *testing.T, what string) {
 	t.Helper()
 	v := os.Getenv("VRX_DF8_EVIDENCE_HOLD")

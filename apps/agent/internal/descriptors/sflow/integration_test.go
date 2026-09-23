@@ -57,7 +57,7 @@ func TestSflowOnHost(t *testing.T) {
 	got := dfkittest.AssertRetrieved(t, fresh, dfkittest.KV(fresh, v1))
 	t.Logf("fresh descriptor (probe) meta %+v", got.Meta)
 	dfkittest.AssertAbsent(t, fresh, fresh.KeyOf(v2))
-	dfkittest.HoldForEvidence(t, "vppctl show sflow")
+	dfkittest.HoldForEvidence(t, "CLI: show sflow")
 	if err := fresh.Delete(ctx, v1, got.Meta); err != nil {
 		t.Fatal(err)
 	}

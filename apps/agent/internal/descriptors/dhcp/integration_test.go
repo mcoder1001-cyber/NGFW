@@ -63,7 +63,7 @@ func TestDHCPOnHost(t *testing.T) {
 			t.Fatalf("update vss: %v", err)
 		}
 		dfkittest.AssertRetrieved(t, vd, dfkittest.KV(vd, vss2))
-		dfkittest.HoldForEvidence(t, "vppctl show dhcp proxy / show dhcpv6 proxy")
+		dfkittest.HoldForEvidence(t, "CLI: show dhcp proxy / show dhcpv6 proxy")
 		if err := vd.Delete(ctx, vss2, nil); err != nil {
 			t.Fatalf("delete vss: %v", err)
 		}
@@ -99,7 +99,7 @@ func TestDHCPOnHost(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Logf("lease state %s: %+v", ifName, leases[ifName])
-		dfkittest.HoldForEvidence(t, "vppctl show dhcp client")
+		dfkittest.HoldForEvidence(t, "CLI: show dhcp client")
 		if err := d.Delete(ctx, want, meta); err != nil {
 			t.Fatalf("delete: %v", err)
 		}
@@ -132,7 +132,7 @@ func TestDHCPOnHost(t *testing.T) {
 				t.Fatalf("%s Retrieve: %v, want ErrRetrieveUnsupported", step.d.Name(), err)
 			}
 		}
-		dfkittest.HoldForEvidence(t, "vppctl show dhcp6 clients / show dhcp6 pd clients / show ip6 address using prefix")
+		dfkittest.HoldForEvidence(t, "CLI: show dhcp6 clients / show dhcp6 pd clients / show ip6 address using prefix")
 		for _, step := range []struct {
 			d   scheduler.Descriptor
 			obj *scheduler.KV

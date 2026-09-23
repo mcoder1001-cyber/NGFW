@@ -54,7 +54,7 @@ func TestFlowprobeOnHost(t *testing.T) {
 	} else {
 		t.Logf("expected: %v", err)
 	}
-	dfkittest.HoldForEvidence(t, "vppctl show flowprobe params / show flowprobe feature")
+	dfkittest.HoldForEvidence(t, "CLI: show flowprobe params / show flowprobe feature")
 	if err := id.Delete(ctx, iv, meta); err != nil {
 		t.Fatal(err)
 	}

@@ -71,7 +71,7 @@ func TestPcapOnHost(t *testing.T) {
 	if _, err := d.Retrieve(ctx); !errors.Is(err, dfkit.ErrRetrieveUnsupported) {
 		t.Fatal(err)
 	}
-	dfkittest.HoldForEvidence(t, "vppctl pcap trace status")
+	dfkittest.HoldForEvidence(t, "CLI: pcap trace status")
 	for range 2 {
 		if err := d.Delete(ctx, v, nil); err != nil {
 			t.Fatal(err)

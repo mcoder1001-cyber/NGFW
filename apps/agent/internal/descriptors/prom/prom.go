@@ -6,7 +6,7 @@
 // What VPP 26.06 cannot do through its binary API (so there is no descriptor for it):
 //   - the prom exporter itself: the prom plugin has no .api file; it is enabled and tuned only by
 //     the CLI ("prom enable", "prom stat-patterns", "prom min-scrape-interval", "prom used-only")
-//     or startup.conf. Shelling out to vppctl is forbidden (00-CONTEXT rule 1/9), so
+//     or startup.conf. Shelling out to the VPP CLI is forbidden (00-CONTEXT rule 1/9), so
 //     "prom-exporter" is not API-configurable here — see DF-8-questions.md.
 //   - disabling or reconfiguring http_static: there is only http_static_enable_v4/v5, which VPP
 //     accepts once per process (APP_ALREADY_ATTACHED afterwards) and which also enables the

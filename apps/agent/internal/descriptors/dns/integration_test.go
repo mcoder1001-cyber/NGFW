@@ -59,7 +59,7 @@ func TestDNSOnHost(t *testing.T) {
 	ip4, ip6, err := ResolveName(rctx, c, h.Owner+"-nonexistent.invalid")
 	cancel()
 	t.Logf("dns_resolve_name via VPP: %v %v %v", ip4, ip6, err)
-	dfkittest.HoldForEvidence(t, "vppctl show dns servers")
+	dfkittest.HoldForEvidence(t, "CLI: show dns servers")
 	for range 2 {
 		if err := en.Delete(ctx, on, nil); err != nil {
 			t.Fatal(err)

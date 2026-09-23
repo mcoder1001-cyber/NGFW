@@ -43,7 +43,7 @@ func TestIPFIXOnHost(t *testing.T) {
 			t.Fatal(err)
 		}
 		dfkittest.AssertRetrieved(t, d, dfkittest.KV(d, v2))
-		dfkittest.HoldForEvidence(t, "vppctl show ipfix exporter all")
+		dfkittest.HoldForEvidence(t, "CLI: show ipfix exporter all")
 		if err := d.Delete(ctx, v2, nil); err != nil {
 			t.Fatal(err)
 		}

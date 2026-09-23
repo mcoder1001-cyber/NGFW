@@ -73,7 +73,7 @@ var sixrdSpec = df6.IfSpec[*Tunnel6Rd, *ipipapi.IpipTunnelDetails]{
 		}
 		return rep.SwIfIndex, nil
 	},
-	Del: func(ctx context.Context, c vpp.Client, _ *Tunnel6Rd, idx interface_types.InterfaceIndex) error {
+	Del: func(ctx context.Context, c vpp.Client, _ *df6.Interfaces, _ *Tunnel6Rd, idx interface_types.InterfaceIndex) error {
 		if _, err := ipipapi.NewServiceClient(c).Ipip6rdDelTunnel(ctx, &ipipapi.Ipip6rdDelTunnel{SwIfIndex: idx}); err != nil {
 			return fmt.Errorf("ipip_6rd_del_tunnel: %w", err)
 		}

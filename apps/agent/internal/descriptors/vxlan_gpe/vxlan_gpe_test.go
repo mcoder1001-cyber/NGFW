@@ -169,3 +169,19 @@ func TestTunnelDescriptor(t *testing.T) {
 		t.Fatalf("bypass delete: %v %v", err, f.bypass[mcastIf])
 	}
 }
+
+// TestBypassResync (review H3): two resyncs send one enable per family (VPP stacks features).
+func TestBypassResync(t *testing.T) {
+	ctx := context.Background()
+	f := newFakeGPE()
+	f.AddInterface("loop1190", "w11rs:loop1190")
+	b := vxlan_gpe.NewBypass(f, "w11rs")
+	for i := 0; i < 2; i++ {
+		if _, err := b.Create(ctx, &vxlan_gpe.Bypass{Interface: "loop1190", Ipv6: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := len(f.CallsNamed("sw_interface_set_vxlan_gpe_bypass")); n != 1 {
+		t.Fatalf("sent %d enables, want 1", n)
+	}
+}

@@ -182,3 +182,9 @@ func IP4(s string) ip_types.IP4Address {
 	}
 	return a
 }
+
+// SetBoot makes control_ping report VPP main-thread PID pid (df6.BootID): a new value
+// simulates a VPP restart for the per-boot claims of write-only descriptors (D-076).
+func (v *FakeVPP) SetBoot(pid uint32) {
+	v.Reply("control_ping", &memclnt.ControlPingReply{VpePID: pid})
+}

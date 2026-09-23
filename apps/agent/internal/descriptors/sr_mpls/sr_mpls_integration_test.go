@@ -17,8 +17,8 @@ func TestPolicySteeringOnHost(t *testing.T) {
 	h.MPLSTable(0) // DF-7's mpls-table fixture (reference counted)
 	v4 := h.Table(12)
 	h.IPTable(v4, false)
-	p := sr_mpls.NewPolicy(h.Client)
-	s := sr_mpls.NewSteering(h.Client)
+	p := sr_mpls.NewPolicy(h.Client, h.Owner)
+	s := sr_mpls.NewSteering(h.Client, h.Owner)
 	bsid := h.Table(600)
 	pol := &sr_mpls.Policy{Bsid: bsid, SegmentLists: []*sr_mpls.SegmentList{
 		{Labels: []uint32{h.Table(700), h.Table(701)}, Weight: 1},

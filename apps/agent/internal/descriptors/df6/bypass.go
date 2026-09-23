@@ -11,10 +11,22 @@ import (
 	"ngfw/agent/internal/vpp"
 )
 
-// BypassSpec describes a per-interface "bypass" feature toggle (sw_interface_set_vxlan_bypass,
-// sw_interface_set_vxlan_gpe_bypass, sw_interface_set_gtpu_bypass): enable/disable for IPv4
-// and IPv6 on one interface. VPP has no dump for these features, so the descriptors built from
-// it are write-only: Retrieve returns ErrRetrieveUnsupported and the doc table says so.
+// BypassSpec describes a per-interface feature toggle (sw_interface_set_vxlan_bypass,
+// sw_interface_set_vxlan_gpe_bypass, sw_interface_set_gtpu_bypass, and — through ToggleSpec —
+// l2tpv3_interface_enable_disable): enable/disable for IPv4 and IPv6 on one interface. VPP has
+// no dump for these features, so the descriptors are write-only (Retrieve →
+// ErrRetrieveUnsupported) and P05 re-applies them on every resync (D-063).
+//
+// Idempotency (D-076, review H3): most of these handlers call vnet_feature_enable_disable
+// directly, which does not deduplicate — a second enable inserts the node twice. So the
+// descriptor records, per (interface, family), a claim "<name>@vpp-<boot>" once the enable
+// succeeded on the running VPP (BootID) and skips the re-add while that VPP instance is
+// unchanged; after a VPP restart the feature is gone and is enabled exactly once again.
+//
+// Ownership (D-071, review H4/M1): the interface is resolved by logical name through DF-1's
+// resolver (foreign-tagged interfaces are refused); an untagged interface is claimed for the
+// descriptor. Delete re-resolves the interface, checks it is still the one in Meta (when Meta
+// is known) and still ours, and only disables a family whose enable this agent recorded.
 type BypassSpec[T proto.Message] struct {
 	// Name is the descriptor name ("vxlan.bypass").
 	Name string
@@ -24,6 +36,8 @@ type BypassSpec[T proto.Message] struct {
 	Fields func(obj T) (iface string, ipv4, ipv6 bool)
 	// Set sends the enable/disable message for one family.
 	Set func(ctx context.Context, c vpp.Client, idx interface_types.InterfaceIndex, ipv6, enable bool) error
+	// Families are the family names used in claim ids (default "ip4", "ip6").
+	Families [2]string
 }
 
 // BypassDescriptor is the scheduler.Descriptor built from a BypassSpec.
@@ -31,11 +45,15 @@ type BypassDescriptor[T proto.Message] struct {
 	spec   BypassSpec[T]
 	client vpp.Client
 	owner  string
+	claims ClaimStore
 }
 
 // NewBypassDescriptor returns the descriptor for spec.
-func NewBypassDescriptor[T proto.Message](spec BypassSpec[T], c vpp.Client, owner string) *BypassDescriptor[T] {
-	return &BypassDescriptor[T]{spec: spec, client: c, owner: owner}
+func NewBypassDescriptor[T proto.Message](spec BypassSpec[T], c vpp.Client, owner string, opts ...Option) *BypassDescriptor[T] {
+	if spec.Families == [2]string{} {
+		spec.Families = [2]string{"ip4", "ip6"}
+	}
+	return &BypassDescriptor[T]{spec: spec, client: c, owner: owner, claims: BuildOptions(owner, opts).Claims}
 }
 
 func (d *BypassDescriptor[T]) cast(obj proto.Message) (T, error) {
@@ -63,7 +81,7 @@ func (d *BypassDescriptor[T]) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(d.spec.Name, iface)
 }
 
-// Dependencies implements scheduler.Descriptor: the interface.
+// Dependencies implements scheduler.Descriptor: the interface (alias key interface/<name>).
 func (d *BypassDescriptor[T]) Dependencies(obj proto.Message) []scheduler.Dependency {
 	t, err := d.cast(obj)
 	if err != nil {
@@ -73,21 +91,67 @@ func (d *BypassDescriptor[T]) Dependencies(obj proto.Message) []scheduler.Depend
 	return InterfaceDeps(iface)
 }
 
-func (d *BypassDescriptor[T]) apply(ctx context.Context, idx interface_types.InterfaceIndex, v4, v6 bool, want4, want6 bool) error {
-	if v4 != want4 {
-		if err := d.spec.Set(ctx, d.client, idx, false, want4); err != nil {
-			return PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
-		}
+func (d *BypassDescriptor[T]) claimID(iface string, ipv6 bool) string {
+	if ipv6 {
+		return iface + "/" + d.spec.Families[1]
 	}
-	if v6 != want6 {
-		if err := d.spec.Set(ctx, d.client, idx, true, want6); err != nil {
-			return PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
-		}
-	}
-	return nil
+	return iface + "/" + d.spec.Families[0]
 }
 
-// Create implements scheduler.Descriptor.
+// ensure makes family ipv6 of the interface enabled (want) or disabled (!want), sending a
+// message only when the recorded state for this VPP boot differs.
+func (d *BypassDescriptor[T]) ensure(ctx context.Context, iface string, idx interface_types.InterfaceIndex, boot uint32, ipv6, want bool) error {
+	id := d.claimID(iface, ipv6)
+	holder := BootHolder(d.spec.Name, boot)
+	on := d.claims.Claimed(id, holder)
+	if on == want {
+		return nil
+	}
+	if err := d.spec.Set(ctx, d.client, idx, ipv6, want); err != nil {
+		return PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
+	}
+	if want {
+		return d.claims.Claim(id, holder)
+	}
+	return d.claims.Release(id, holder)
+}
+
+// resolve finds the interface by logical name and checks it is ours (tagged, or untagged and
+// claimable); meta, when known, must still be the same sw_if_index.
+func (d *BypassDescriptor[T]) resolve(ctx context.Context, iface string, meta any, claim bool) (interface_types.InterfaceIndex, error) {
+	ifs, err := DumpInterfaces(ctx, d.client, d.owner)
+	if err != nil {
+		return 0, err
+	}
+	idx, err := ifs.Index(iface)
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", d.spec.Name, err)
+	}
+	if m, ok := meta.(IfMeta); ok && m.SwIfIndex != uint32(idx) {
+		return 0, fmt.Errorf("%s: %w: %s is now sw_if_index %d, not %d", d.spec.Name, ErrNotOurs, iface, idx, m.SwIfIndex)
+	}
+	if claim {
+		if err := ifs.ClaimIfUntagged(uint32(idx), d.spec.Name); err != nil {
+			return 0, err
+		}
+	} else if !ifs.Owns(uint32(idx), d.spec.Name) {
+		return 0, fmt.Errorf("%s: %w: interface %s", d.spec.Name, ErrNotOurs, iface)
+	}
+	return idx, nil
+}
+
+func (d *BypassDescriptor[T]) apply(ctx context.Context, iface string, idx interface_types.InterfaceIndex, want4, want6 bool) error {
+	boot, err := BootID(ctx, d.client)
+	if err != nil {
+		return err
+	}
+	if err := d.ensure(ctx, iface, idx, boot, false, want4); err != nil {
+		return err
+	}
+	return d.ensure(ctx, iface, idx, boot, true, want6)
+}
+
+// Create implements scheduler.Descriptor (idempotent across resyncs, see BypassSpec).
 func (d *BypassDescriptor[T]) Create(ctx context.Context, obj proto.Message) (any, error) {
 	t, err := d.cast(obj)
 	if err != nil {
@@ -100,15 +164,11 @@ func (d *BypassDescriptor[T]) Create(ctx context.Context, obj proto.Message) (an
 	if !v4 && !v6 {
 		return nil, fmt.Errorf("%s: %w: at least one of ipv4/ipv6 must be set", d.spec.Name, ErrBadValue)
 	}
-	ifs, err := DumpInterfaces(ctx, d.client, d.owner)
+	idx, err := d.resolve(ctx, iface, nil, true)
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ifs.Index(iface)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", d.spec.Name, err)
-	}
-	if err := d.apply(ctx, idx, false, false, v4, v6); err != nil {
+	if err := d.apply(ctx, iface, idx, v4, v6); err != nil {
 		return nil, err
 	}
 	return IfMeta{SwIfIndex: uint32(idx)}, nil
@@ -124,11 +184,7 @@ func (d *BypassDescriptor[T]) Update(ctx context.Context, oldObj, newObj proto.M
 	if err != nil {
 		return nil, err
 	}
-	m, err := IfMetaOf(d.spec.Name, meta)
-	if err != nil {
-		return nil, err
-	}
-	oi, o4, o6 := d.spec.Fields(o)
+	oi, _, _ := d.spec.Fields(o)
 	ni, n4, n6 := d.spec.Fields(n)
 	if oi != ni {
 		return nil, scheduler.ErrRecreate
@@ -136,27 +192,35 @@ func (d *BypassDescriptor[T]) Update(ctx context.Context, oldObj, newObj proto.M
 	if !n4 && !n6 {
 		return nil, fmt.Errorf("%s: %w: at least one of ipv4/ipv6 must be set", d.spec.Name, ErrBadValue)
 	}
-	if err := d.apply(ctx, interface_types.InterfaceIndex(m.SwIfIndex), o4, o6, n4, n6); err != nil {
+	idx, err := d.resolve(ctx, ni, meta, false)
+	if err != nil {
 		return nil, err
 	}
-	return m, nil
+	if err := d.apply(ctx, ni, idx, n4, n6); err != nil {
+		return nil, err
+	}
+	return IfMeta{SwIfIndex: uint32(idx)}, nil
 }
 
-// Delete implements scheduler.Descriptor: disables the enabled families.
+// Delete implements scheduler.Descriptor: disables the families this agent enabled on the
+// running VPP, after re-verifying the interface. A missing interface means nothing is left.
 func (d *BypassDescriptor[T]) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	t, err := d.cast(obj)
 	if err != nil {
 		return err
 	}
-	m, err := IfMetaOf(d.spec.Name, meta)
+	iface, _, _ := d.spec.Fields(t)
+	idx, err := d.resolve(ctx, iface, meta, false)
 	if err != nil {
+		if IsNoSuchInterface(err) {
+			return nil
+		}
 		return err
 	}
-	_, v4, v6 := d.spec.Fields(t)
-	return d.apply(ctx, interface_types.InterfaceIndex(m.SwIfIndex), v4, v6, false, false)
+	return d.apply(ctx, iface, idx, false, false)
 }
 
-// Retrieve implements scheduler.Descriptor: VPP has no dump for bypass features.
+// Retrieve implements scheduler.Descriptor: VPP has no dump for these features.
 func (d *BypassDescriptor[T]) Retrieve(context.Context) ([]scheduler.KV, error) {
 	return nil, fmt.Errorf("%s: %w", d.spec.Name, ErrRetrieveUnsupported)
 }

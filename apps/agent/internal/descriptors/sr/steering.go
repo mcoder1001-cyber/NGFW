@@ -20,19 +20,15 @@ import (
 // "sr.steering/<ipv4|ipv6>/<table>/<prefix>".
 const SteeringName = "sr.steering"
 
-// SteeringDescriptor manages SRv6 steering entries (attributed by the policy BSID).
-type SteeringDescriptor struct {
-	client vpp.Client
-	scope  *df6.Scope
-}
+// SteeringDescriptor manages SRv6 steering entries (ours by claim, D-071). The id is the
+// steering key (family/table/prefix or l2/interface); the BSID is part of the identity: an
+// entry that points at another BSID is never deleted or taken over (review M3).
+type SteeringDescriptor = df6.KeyedDescriptor[*Steering]
 
 // NewSteering returns the descriptor.
-func NewSteering(c vpp.Client, scope *df6.Scope) *SteeringDescriptor {
-	return &SteeringDescriptor{client: c, scope: scope}
+func NewSteering(c vpp.Client, owner string, opts ...df6.Option) *SteeringDescriptor {
+	return df6.NewKeyedDescriptor(steeringSpec(owner), c, owner, opts...)
 }
-
-// Name implements scheduler.Descriptor.
-func (d *SteeringDescriptor) Name() string { return SteeringName }
 
 func canonSteering(s *Steering) (*Steering, error) {
 	bsid, err := df6.ParseAddr6(s.GetBsid())
@@ -76,40 +72,7 @@ func SteeringID(s *Steering) string {
 	return fam + "/" + df6.U32(s.GetTableId()) + "/" + s.GetPrefix()
 }
 
-func (d *SteeringDescriptor) cast(obj proto.Message) (*Steering, error) {
-	s, ok := obj.(*Steering)
-	if !ok {
-		return nil, fmt.Errorf("%s: %w: %T", SteeringName, df6.ErrBadValue, obj)
-	}
-	c, err := canonSteering(s)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", SteeringName, err)
-	}
-	return c, nil
-}
-
-// KeyOf implements scheduler.Descriptor.
-func (d *SteeringDescriptor) KeyOf(obj proto.Message) scheduler.Key {
-	s, err := d.cast(obj)
-	if err != nil {
-		return scheduler.Join(SteeringName, "invalid")
-	}
-	return scheduler.Join(SteeringName, SteeringID(s))
-}
-
-// Dependencies implements scheduler.Descriptor: the policy, plus the table (L3) or the
-// interface (L2).
-func (d *SteeringDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
-	s, err := d.cast(obj)
-	if err != nil {
-		return nil
-	}
-	deps := []scheduler.Dependency{{Key: PolicyKey(s.GetBsid())}}
-	deps = append(deps, df6.VRFDeps(s.GetTableId())...)
-	return append(deps, df6.InterfaceDeps(s.GetInterface())...)
-}
-
-func (d *SteeringDescriptor) request(ctx context.Context, s *Steering, isDel bool) (*srapi.SrSteeringAddDel, error) {
+func steeringRequest(ctx context.Context, c vpp.Client, owner string, s *Steering, isDel bool) (*srapi.SrSteeringAddDel, error) {
 	bsid, err := df6.IP6Of(s.GetBsid())
 	if err != nil {
 		return nil, err
@@ -123,7 +86,7 @@ func (d *SteeringDescriptor) request(ctx context.Context, s *Steering, isDel boo
 		TrafficType:   sr_types.SrSteer(s.GetTrafficType()), //nolint:gosec // validated enum
 	}
 	if s.GetTrafficType() == SteerType_L2 {
-		ifs, err := df6.DumpInterfaces(ctx, d.client, "")
+		ifs, err := df6.DumpInterfaces(ctx, c, owner)
 		if err != nil {
 			return nil, err
 		}
@@ -136,78 +99,75 @@ func (d *SteeringDescriptor) request(ctx context.Context, s *Steering, isDel boo
 		return nil, err
 	}
 	// VPP adds/deletes the steering FIB entry in fib_table_find(table) unchecked.
-	if err := df6.RequireTable(ctx, d.client, s.GetTableId(), s.GetTrafficType() == SteerType_IPV6); err != nil {
+	if err := df6.RequireTable(ctx, c, s.GetTableId(), s.GetTrafficType() == SteerType_IPV6); err != nil {
 		return nil, err
 	}
 	return req, nil
 }
 
-// Create implements scheduler.Descriptor.
-func (d *SteeringDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
-	s, err := d.cast(obj)
-	if err != nil {
-		return nil, err
-	}
-	req, err := d.request(ctx, s, false)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", SteeringName, err)
-	}
-	if _, err := srapi.NewServiceClient(d.client).SrSteeringAddDel(ctx, req); err != nil {
-		return nil, df6.PluginError(Plugin, fmt.Errorf("%s: sr_steering_add_del: %w", SteeringName, err))
-	}
-	return nil, nil
-}
-
-// Update implements scheduler.Descriptor: a new BSID re-points the existing entry in place
-// (VPP's add on an existing steering key); anything else is a different key anyway.
-func (d *SteeringDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
-	o, err := d.cast(oldObj)
-	if err != nil {
-		return nil, err
-	}
-	n, err := d.cast(newObj)
-	if err != nil {
-		return nil, err
-	}
-	probe := proto.Clone(n).(*Steering)
-	probe.Bsid = o.GetBsid()
-	if !proto.Equal(probe, o) {
-		return nil, scheduler.ErrRecreate
-	}
-	if _, err := d.Create(ctx, n); err != nil {
-		return nil, err
-	}
-	return meta, nil
-}
-
-// Delete implements scheduler.Descriptor; an entry VPP no longer has is already deleted.
-func (d *SteeringDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
-	s, err := d.cast(obj)
-	if err != nil {
-		return err
-	}
-	kvs, err := d.retrieve(ctx, nil)
-	if err != nil {
-		return err
-	}
-	id := SteeringID(s)
-	found := false
-	for _, kv := range kvs {
-		if kv.Key.ID() == id {
-			found = true
+func steeringSpec(owner string) df6.KeyedSpec[*Steering] {
+	send := func(ctx context.Context, c vpp.Client, s *Steering, isDel bool) error {
+		req, err := steeringRequest(ctx, c, owner, s, isDel)
+		if err != nil {
+			return err
 		}
-	}
-	if !found {
+		if _, err := srapi.NewServiceClient(c).SrSteeringAddDel(ctx, req); err != nil {
+			return fmt.Errorf("sr_steering_add_del: %w", err)
+		}
 		return nil
 	}
-	req, err := d.request(ctx, s, true)
-	if err != nil {
-		return fmt.Errorf("%s: %w", SteeringName, err)
+	return df6.KeyedSpec[*Steering]{
+		Name:   SteeringName,
+		Plugin: Plugin,
+		Canon:  canonSteering,
+		ID:     SteeringID,
+		Deps: func(s *Steering) []scheduler.Dependency {
+			deps := []scheduler.Dependency{{Key: PolicyKey(s.GetBsid())}}
+			deps = append(deps, df6.VRFDeps(s.GetTableId())...)
+			return append(deps, df6.InterfaceDeps(s.GetInterface())...)
+		},
+		Add:      func(ctx context.Context, c vpp.Client, s *Steering) error { return send(ctx, c, s, false) },
+		Del:      func(ctx context.Context, c vpp.Client, s *Steering) error { return send(ctx, c, s, true) },
+		Identity: func(want, have *Steering) bool { return want.GetBsid() == have.GetBsid() },
+		// Update: a new BSID re-points our entry in place (VPP's add on an existing key);
+		// only reached for claimed entries.
+		Update: func(ctx context.Context, c vpp.Client, o, n *Steering) (bool, error) {
+			probe := proto.Clone(n).(*Steering)
+			probe.Bsid = o.GetBsid()
+			if !proto.Equal(probe, o) {
+				return false, nil
+			}
+			return true, send(ctx, c, n, false)
+		},
+		List: func(ctx context.Context, c vpp.Client) ([]*Steering, error) {
+			recs, err := dumpSteering(ctx, c)
+			if err != nil {
+				return nil, err
+			}
+			ifs, err := df6.DumpInterfaces(ctx, c, owner)
+			if err != nil {
+				return nil, err
+			}
+			var out []*Steering
+			for _, r := range recs {
+				s := &Steering{TrafficType: SteerType(r.TrafficType), Bsid: df6.IP6String(r.Bsid)}
+				switch s.GetTrafficType() {
+				case SteerType_L2:
+					s.Interface = ifs.NameOrEmpty(uint32(r.SwIfIndex))
+					if s.Interface == "" {
+						continue // foreign / unknown interface: never ours, and "l2/" would collide (L3)
+					}
+				case SteerType_IPV4, SteerType_IPV6:
+					s.TableId = r.FibTable
+					s.Prefix = steerPrefix(r.Prefix, s.GetTrafficType() == SteerType_IPV4)
+				default:
+					continue
+				}
+				out = append(out, s)
+			}
+			return out, nil
+		},
 	}
-	if _, err := srapi.NewServiceClient(d.client).SrSteeringAddDel(ctx, req); err != nil {
-		return df6.PluginError(Plugin, fmt.Errorf("%s: sr_steering_add_del (del): %w", SteeringName, err))
-	}
-	return nil
 }
 
 func dumpSteering(ctx context.Context, c vpp.Client) ([]*srapi.SrSteeringPolDetails, error) {
@@ -220,41 +180,6 @@ func dumpSteering(ctx context.Context, c vpp.Client) ([]*srapi.SrSteeringPolDeta
 		return nil, df6.PluginError(Plugin, fmt.Errorf("sr_steering_pol_dump: %w", err))
 	}
 	return recs, nil
-}
-
-// Retrieve implements scheduler.Descriptor: every steering entry whose policy BSID is in scope.
-func (d *SteeringDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
-	return d.retrieve(ctx, d.scope)
-}
-
-func (d *SteeringDescriptor) retrieve(ctx context.Context, scope *df6.Scope) ([]scheduler.KV, error) {
-	recs, err := dumpSteering(ctx, d.client)
-	if err != nil {
-		return nil, err
-	}
-	ifs, err := df6.DumpInterfaces(ctx, d.client, d.scope.OwnerOf())
-	if err != nil {
-		return nil, err
-	}
-	var out []scheduler.KV
-	for _, r := range recs {
-		bsid := df6.IP6String(r.Bsid)
-		if !scope.OwnsAddrString(bsid) {
-			continue
-		}
-		s := &Steering{TrafficType: SteerType(r.TrafficType), Bsid: bsid}
-		switch s.GetTrafficType() {
-		case SteerType_L2:
-			s.Interface = ifs.NameOrEmpty(uint32(r.SwIfIndex))
-		case SteerType_IPV4, SteerType_IPV6:
-			s.TableId = r.FibTable
-			s.Prefix = steerPrefix(r.Prefix, s.GetTrafficType() == SteerType_IPV4)
-		default:
-			continue
-		}
-		out = append(out, scheduler.KV{Key: scheduler.Join(SteeringName, SteeringID(s)), Value: s})
-	}
-	return out, nil
 }
 
 // steerPrefix decodes the dump's prefix; VPP encodes it from an ip46 address with

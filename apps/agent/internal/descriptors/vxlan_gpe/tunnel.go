@@ -117,11 +117,7 @@ var tunnelSpec = df6.IfSpec[*Tunnel, *gpeapi.VxlanGpeTunnelV2Details]{
 		}
 		return rep.SwIfIndex, nil
 	},
-	Del: func(ctx context.Context, c vpp.Client, t *Tunnel, _ interface_types.InterfaceIndex) error {
-		ifs, err := df6.DumpInterfaces(ctx, c, "")
-		if err != nil {
-			return err
-		}
+	Del: func(ctx context.Context, c vpp.Client, ifs *df6.Interfaces, t *Tunnel, _ interface_types.InterfaceIndex) error {
 		req, err := encode(t, ifs, false)
 		if err != nil {
 			return err

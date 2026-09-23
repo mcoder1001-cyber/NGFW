@@ -2,14 +2,13 @@
 // minimal set: enable, locator sets and locators, local EIDs, map resolvers/servers, remote
 // mappings, adjacencies, EID-table maps, PITR, GPE enable and GPE forwarding entries).
 //
-// LISP objects carry no owner tag. On a shared VPP a df6.Scope attributes them: locator sets
-// by name prefix, EIDs / resolvers / servers by address block, EID-table maps by VNI range.
+// LISP objects carry no owner tag: an object is ours only through the claim written by our
+// own Create (D-071, df6.KeyedDescriptor); the global switches are the globals owner's.
 package lisp
 
 import (
 	"context"
 	"fmt"
-	"net/netip"
 	"strings"
 
 	"ngfw/agent/binapi/ethernet_types"
@@ -72,19 +71,6 @@ func eidString(e lisp_types.Eid) string {
 		return df6.MACString(m)
 	}
 	return ""
-}
-
-// ownsEID reports whether scope owns eid: prefixes by address block, MACs always (they are
-// scoped by their VNI instead).
-func ownsEID(scope *df6.Scope, eid string, vni uint32) bool {
-	if eid == "" {
-		return false
-	}
-	if isMAC(eid) {
-		return scope.OwnsVNI(vni)
-	}
-	p, err := netip.ParsePrefix(eid)
-	return err == nil && scope.OwnsPrefix(p)
 }
 
 func checkName(n string) error {

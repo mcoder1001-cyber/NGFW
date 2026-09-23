@@ -216,7 +216,10 @@ func TestTunnelErrors(t *testing.T) {
 	// A VPP error on a present tunnel surfaces.
 	idx := f.AddInterface("gre1109", "w11:gre1109")
 	f.tunnels[idx] = greapi.GreTunnelV2{Instance: 1109, SwIfIndex: interface_types.InterfaceIndex(idx), Src: df6test.Addr("10.11.9.1"), Dst: df6test.Addr("10.11.9.3")}
-	if err := d.Delete(ctx, &gre.Tunnel{Instance: 1109, Src: "10.11.9.1", Dst: "10.11.9.2"}, df6.IfMeta{SwIfIndex: idx}); err == nil {
+	f.On("gre_tunnel_add_del_v2", func(api.Message) ([]api.Message, error) {
+		return []api.Message{&greapi.GreTunnelAddDelV2Reply{Retval: -6}}, nil
+	})
+	if err := d.Delete(ctx, &gre.Tunnel{Instance: 1109, Src: "10.11.9.1", Dst: "10.11.9.3"}, df6.IfMeta{SwIfIndex: idx}); err == nil {
 		t.Fatal("non-zero retval must be an error")
 	}
 	if err := d.Delete(ctx, &gre.Tunnel{Instance: 9, Src: "10.11.9.1", Dst: "10.11.9.2"}, "bad"); !errors.Is(err, df6.ErrBadMeta) {

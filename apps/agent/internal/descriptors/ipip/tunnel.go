@@ -80,7 +80,7 @@ var tunnelSpec = df6.IfSpec[*Tunnel, *ipipapi.IpipTunnelDetails]{
 		}
 		return rep.SwIfIndex, nil
 	},
-	Del: func(ctx context.Context, c vpp.Client, _ *Tunnel, idx interface_types.InterfaceIndex) error {
+	Del: func(ctx context.Context, c vpp.Client, _ *df6.Interfaces, _ *Tunnel, idx interface_types.InterfaceIndex) error {
 		if _, err := ipipapi.NewServiceClient(c).IpipDelTunnel(ctx, &ipipapi.IpipDelTunnel{SwIfIndex: idx}); err != nil {
 			return fmt.Errorf("ipip_del_tunnel: %w", err)
 		}

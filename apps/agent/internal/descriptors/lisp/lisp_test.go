@@ -3,7 +3,6 @@ package lisp_test
 import (
 	"context"
 	"errors"
-	"net/netip"
 	"testing"
 
 	"go.fd.io/govpp/api"
@@ -17,6 +16,7 @@ import (
 	"ngfw/agent/binapi/lisp_types"
 	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/descriptors/df6/df6test"
+	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/lisp"
 	"ngfw/agent/internal/scheduler"
 )
@@ -305,6 +305,13 @@ func newFake() *fakeLISP {
 	})
 	f.On("gpe_add_del_fwd_entry", func(req api.Message) ([]api.Message, error) {
 		r := req.(*gpeapi.GpeAddDelFwdEntry)
+		if r.IsAdd {
+			for _, e := range f.fwd {
+				if e.Vni == r.Vni && e.RmtEid == r.RmtEid && e.LclEid == r.LclEid {
+					return ok(&gpeapi.GpeAddDelFwdEntryReply{Retval: -7}) // "don't support updates"
+				}
+			}
+		}
 		var keep []gpeapi.GpeAddDelFwdEntry
 		for _, e := range f.fwd {
 			if e.Vni != r.Vni || e.RmtEid != r.RmtEid || e.LclEid != r.LclEid {
@@ -345,11 +352,6 @@ func newFake() *fakeLISP {
 	return f
 }
 
-func scope() *df6.Scope {
-	return &df6.Scope{Owner: "w11", VNIs: &df6.IDRange{Lo: 11000, Hi: 11999}, NamePrefix: "w11-",
-		Addrs: []netip.Prefix{netip.MustParsePrefix("10.11.0.0/16"), netip.MustParsePrefix("fd11::/16")}}
-}
-
 func mustRetrieve(t *testing.T, d scheduler.Descriptor) map[scheduler.Key]proto.Message {
 	t.Helper()
 	kvs, err := d.Retrieve(context.Background())
@@ -366,10 +368,11 @@ func mustRetrieve(t *testing.T, d scheduler.Descriptor) map[scheduler.Key]proto.
 func TestLISP(t *testing.T) {
 	ctx := context.Background()
 	f := newFake()
-	loop := f.AddInterface("loop1114", "w11:loop1114")
-	sc := scope()
+	sc := "w11" + t.Name() // owner
+	iface.SetClaimStore(sc, nil)
+	loop := f.AddInterface("loop1114", sc+":loop1114")
 	reg := scheduler.NewRegistry()
-	lisp.Register(reg, f, sc)
+	lisp.Register(reg, f, sc, df6.WithGlobalsOwner(true))
 	if reg.Len() != 12 {
 		t.Fatalf("registered %d", reg.Len())
 	}
@@ -431,6 +434,17 @@ func TestLISP(t *testing.T) {
 			t.Fatalf("%s not observed after create", s.key)
 		}
 	}
+	// Resync (review H3): re-applying every object — write-only GPE entries included — is a
+	// no-op that sends no add.
+	adds := len(f.CallsNamed("gpe_add_del_fwd_entry"))
+	for _, s := range steps {
+		if _, err := s.d.Create(ctx, s.obj); err != nil {
+			t.Fatalf("resync %s: %v", s.key, err)
+		}
+	}
+	if len(f.CallsNamed("gpe_add_del_fwd_entry")) != adds {
+		t.Fatal("resync re-sent gpe_add_del_fwd_entry")
+	}
 	if got := mustRetrieve(t, steps[0].d); len(got) != 1 {
 		t.Fatalf("locator sets = %v (other slot's must be filtered)", got)
 	}
@@ -451,8 +465,40 @@ func TestLISP(t *testing.T) {
 			t.Fatalf("%s still present", steps[i].key)
 		}
 	}
+	// D-071: another owner's locator set still exists → the globals owner leaves LISP on.
+	if err := en.Delete(ctx, &lisp.Enable{}, nil); err != nil || !f.on {
+		t.Fatalf("disable while another owner uses LISP: %v on=%v", err, f.on)
+	}
+	delete(f.sets, 99)
 	if err := en.Delete(ctx, &lisp.Enable{}, nil); err != nil || f.on {
 		t.Fatalf("disable: %v", err)
+	}
+	if en.DeleteOnAbsence() {
+		t.Fatal("lisp.enable must never be deleted on absence (review H1)")
+	}
+	// Non-owners: require variants only — never enable, never disable.
+	reg2 := scheduler.NewRegistry()
+	lisp.Register(reg2, f, sc)
+	for _, name := range []string{lisp.EnableName, lisp.GpeEnableName, lisp.PitrName} {
+		d, _ := reg2.Get(name)
+		if _, ok := d.(*df6.RequireDescriptor[*lisp.Enable]); name == lisp.EnableName && !ok {
+			t.Fatalf("%s: non-owner got %T", name, d)
+		}
+	}
+	req, _ := reg2.Get(lisp.EnableName)
+	calls := len(f.CallsNamed("lisp_enable_disable"))
+	if _, err := req.Create(ctx, &lisp.Enable{}); !errors.Is(err, df6.ErrNotGlobalsOwner) {
+		t.Fatalf("require with LISP off = %v", err)
+	}
+	f.on = true
+	if _, err := req.Create(ctx, &lisp.Enable{}); err != nil {
+		t.Fatalf("require with LISP on = %v", err)
+	}
+	if err := req.Delete(ctx, &lisp.Enable{}, nil); err != nil || !f.on {
+		t.Fatalf("non-owner delete must be a no-op: %v", err)
+	}
+	if len(f.CallsNamed("lisp_enable_disable")) != calls {
+		t.Fatal("non-owner sent lisp_enable_disable")
 	}
 	for _, b := range []struct {
 		d   scheduler.Descriptor

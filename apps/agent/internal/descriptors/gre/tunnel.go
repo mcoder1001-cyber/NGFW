@@ -65,7 +65,7 @@ var tunnelSpec = df6.IfSpec[*Tunnel, *greapi.GreTunnelV2Details]{
 		}
 		return rep.SwIfIndex, nil
 	},
-	Del: func(ctx context.Context, c vpp.Client, t *Tunnel, idx interface_types.InterfaceIndex) error {
+	Del: func(ctx context.Context, c vpp.Client, _ *df6.Interfaces, t *Tunnel, idx interface_types.InterfaceIndex) error {
 		req, err := encode(t)
 		if err != nil {
 			return err

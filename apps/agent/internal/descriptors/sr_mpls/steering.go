@@ -3,9 +3,12 @@ package sr_mpls //nolint:revive // see policy.go
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 
+	"ngfw/agent/binapi/fib"
+	"ngfw/agent/binapi/fib_types"
 	"ngfw/agent/binapi/ip"
 	srmplsapi "ngfw/agent/binapi/sr_mpls"
 	"ngfw/agent/internal/descriptors/df6"
@@ -22,62 +25,37 @@ const EndpointColorName = "sr-mpls.endpoint-color"
 // noLabel is VPP's "no label" (~0) for vpn_label and color.
 const noLabel = ^uint32(0)
 
-// SteeringDescriptor manages SR-MPLS steering by BSID (write-only, see policy.go).
-type SteeringDescriptor struct {
-	client vpp.Client
-}
+// SteeringDescriptor manages SR-MPLS steering by BSID (write-only, ours by claim).
+type SteeringDescriptor = df6.KeyedDescriptor[*Steering]
 
 // NewSteering returns the descriptor.
-func NewSteering(c vpp.Client) *SteeringDescriptor { return &SteeringDescriptor{client: c} }
+func NewSteering(c vpp.Client, owner string, opts ...df6.Option) *SteeringDescriptor {
+	return df6.NewKeyedDescriptor(steeringSpec, c, owner, opts...)
+}
 
-// Name implements scheduler.Descriptor.
-func (d *SteeringDescriptor) Name() string { return SteeringName }
-
-func (d *SteeringDescriptor) cast(obj proto.Message) (*Steering, error) {
-	s, ok := obj.(*Steering)
-	if !ok {
-		return nil, fmt.Errorf("%s: %w: %T", SteeringName, df6.ErrBadValue, obj)
-	}
+func canonSteering(s *Steering) (*Steering, error) {
 	c, err := df6.CanonicalPrefix(s.GetPrefix())
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", SteeringName, err)
+		return nil, err
 	}
 	if !validLabel(s.GetBsid()) {
-		return nil, fmt.Errorf("%s: %w: bsid %d", SteeringName, df6.ErrBadValue, s.GetBsid())
+		return nil, fmt.Errorf("%w: bsid %d", df6.ErrBadValue, s.GetBsid())
 	}
 	if s.GetVpnLabel() != 0 && !validLabel(s.GetVpnLabel()) {
-		return nil, fmt.Errorf("%s: %w: vpn_label %d", SteeringName, df6.ErrBadValue, s.GetVpnLabel())
+		return nil, fmt.Errorf("%w: vpn_label %d", df6.ErrBadValue, s.GetVpnLabel())
 	}
 	out := proto.Clone(s).(*Steering)
 	out.Prefix = c
 	return out, nil
 }
 
-// KeyOf implements scheduler.Descriptor.
-func (d *SteeringDescriptor) KeyOf(obj proto.Message) scheduler.Key {
-	s, err := d.cast(obj)
-	if err != nil {
-		return scheduler.Join(SteeringName, "invalid")
-	}
-	return scheduler.Join(SteeringName, df6.U32(s.GetTableId()), s.GetPrefix())
-}
-
-// Dependencies implements scheduler.Descriptor: the policy and the table.
-func (d *SteeringDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
-	s, err := d.cast(obj)
-	if err != nil {
-		return nil
-	}
-	return append([]scheduler.Dependency{{Key: PolicyKey(s.GetBsid())}}, df6.VRFDeps(s.GetTableId())...)
-}
-
-func (d *SteeringDescriptor) request(ctx context.Context, s *Steering, isDel bool) (*srmplsapi.SrMplsSteeringAddDel, error) {
+func steeringRequest(ctx context.Context, c vpp.Client, s *Steering, isDel bool) (*srmplsapi.SrMplsSteeringAddDel, error) {
 	p, err := df6.ParsePrefix(s.GetPrefix())
 	if err != nil {
 		return nil, err
 	}
 	// VPP adds/deletes the steering route in fib_table_find(table) unchecked.
-	if err := df6.RequireTable(ctx, d.client, s.GetTableId(), p.Addr().Is6()); err != nil {
+	if err := df6.RequireTable(ctx, c, s.GetTableId(), p.Addr().Is6()); err != nil {
 		return nil, err
 	}
 	vpn := s.GetVpnLabel()
@@ -90,102 +68,122 @@ func (d *SteeringDescriptor) request(ctx context.Context, s *Steering, isDel boo
 	}, nil
 }
 
-// routePresent reports whether the steering route (prefix in table) exists.
-func (d *SteeringDescriptor) routePresent(ctx context.Context, s *Steering) (bool, error) {
-	p, err := df6.ParsePrefix(s.GetPrefix())
-	if err != nil {
-		return false, err
-	}
-	stream, err := ip.NewServiceClient(d.client).IPRouteV2Dump(ctx, &ip.IPRouteV2Dump{Src: 0, Table: ip.IPTable{TableID: s.GetTableId(), IsIP6: p.Addr().Is6()}})
-	if err != nil {
-		return false, fmt.Errorf("ip_route_v2_dump: %w", err)
-	}
-	routes, err := df6.Collect(stream.Recv)
-	if err != nil {
-		return false, fmt.Errorf("ip_route_v2_dump: %w", err)
-	}
-	for _, r := range routes {
-		if df6.FromPrefix(r.Route.Prefix) == p {
-			return true, nil
+var steeringSpec = df6.KeyedSpec[*Steering]{
+	Name:      SteeringName,
+	Plugin:    Plugin,
+	WriteOnly: true,
+	Canon:     canonSteering,
+	ID:        func(s *Steering) string { return df6.U32(s.GetTableId()) + "/" + s.GetPrefix() },
+	Deps: func(s *Steering) []scheduler.Dependency {
+		return append([]scheduler.Dependency{{Key: PolicyKey(s.GetBsid())}}, df6.VRFDeps(s.GetTableId())...)
+	},
+	// Add: the policy must exist — VPP 26.06 leaves a half-created steering entry behind when
+	// the BSID is unknown.
+	Add: func(ctx context.Context, c vpp.Client, s *Steering) error {
+		ok, err := BSIDPresent(ctx, c, s.GetBsid())
+		if err != nil {
+			return err
 		}
-	}
-	return false, nil
+		if !ok {
+			return fmt.Errorf("%w: bsid %d", ErrNoSuchPolicy, s.GetBsid())
+		}
+		req, err := steeringRequest(ctx, c, s, false)
+		if err != nil {
+			return err
+		}
+		if _, err := srmplsapi.NewServiceClient(c).SrMplsSteeringAddDel(ctx, req); err != nil {
+			return fmt.Errorf("sr_mpls_steering_add_del: %w", err)
+		}
+		return nil
+	},
+	Del: func(ctx context.Context, c vpp.Client, s *Steering) error {
+		req, err := steeringRequest(ctx, c, s, true)
+		if err != nil {
+			return err
+		}
+		if _, err := srmplsapi.NewServiceClient(c).SrMplsSteeringAddDel(ctx, req); err != nil {
+			return fmt.Errorf("sr_mpls_steering_add_del (del): %w", err)
+		}
+		return nil
+	},
+	// Identity: the VPN label pushed under the BSID (the BSID itself is not readable back).
+	Identity: func(want, have *Steering) bool { return want.GetVpnLabel() == have.GetVpnLabel() },
+	List:     listSteering,
 }
 
-// Create implements scheduler.Descriptor. The policy must exist: VPP 26.06 leaves a
-// half-created steering entry behind when the BSID is unknown.
-func (d *SteeringDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
-	s, err := d.cast(obj)
+// listSteering returns the SR-MPLS steering routes: FIB_SOURCE_SR routes (fib_source_dump
+// name "SR") with a recursive MPLS path, per IP table. Partial: prefix, table, vpn label.
+func listSteering(ctx context.Context, c vpp.Client) ([]*Steering, error) {
+	src, err := fibSource(ctx, c, "SR")
 	if err != nil {
 		return nil, err
 	}
-	ok, err := BSIDPresent(ctx, d.client, s.GetBsid())
+	stream, err := ip.NewServiceClient(c).IPTableDump(ctx, &ip.IPTableDump{})
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", SteeringName, err)
+		return nil, fmt.Errorf("ip_table_dump: %w", err)
 	}
-	if !ok {
-		return nil, fmt.Errorf("%s: %w: bsid %d", SteeringName, ErrNoSuchPolicy, s.GetBsid())
-	}
-	req, err := d.request(ctx, s, false)
+	tables, err := df6.Collect(stream.Recv)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", SteeringName, err)
+		return nil, fmt.Errorf("ip_table_dump: %w", err)
 	}
-	if _, err := srmplsapi.NewServiceClient(d.client).SrMplsSteeringAddDel(ctx, req); err != nil {
-		return nil, df6.PluginError(Plugin, fmt.Errorf("%s: sr_mpls_steering_add_del: %w", SteeringName, err))
+	var out []*Steering
+	for _, t := range tables {
+		rs, err := ip.NewServiceClient(c).IPRouteV2Dump(ctx, &ip.IPRouteV2Dump{Src: src, Table: t.Table})
+		if err != nil {
+			return nil, fmt.Errorf("ip_route_v2_dump: %w", err)
+		}
+		routes, err := df6.Collect(rs.Recv)
+		if err != nil {
+			return nil, fmt.Errorf("ip_route_v2_dump: %w", err)
+		}
+		for _, r := range routes {
+			for _, p := range r.Route.Paths {
+				if p.Proto != fib_types.FIB_API_PATH_NH_PROTO_MPLS || p.SwIfIndex != df6.NoInterface {
+					continue
+				}
+				s := &Steering{Prefix: df6.PrefixString(r.Route.Prefix), TableId: r.Route.TableID}
+				if p.NLabels > 0 {
+					s.VpnLabel = p.LabelStack[0].Label
+				}
+				out = append(out, s)
+				break
+			}
+		}
 	}
-	return nil, nil
+	return out, nil
 }
 
-// Present reports whether the steering route of obj exists in VPP (the presence probe Delete
-// uses; also the host-test evidence, since Retrieve is unsupported).
-func (d *SteeringDescriptor) Present(ctx context.Context, obj proto.Message) (bool, error) {
-	s, err := d.cast(obj)
+// fibSource returns the id of the FIB source called name.
+func fibSource(ctx context.Context, c vpp.Client, name string) (uint8, error) {
+	stream, err := fib.NewServiceClient(c).FibSourceDump(ctx, &fib.FibSourceDump{})
 	if err != nil {
-		return false, err
+		return 0, fmt.Errorf("fib_source_dump: %w", err)
 	}
-	return d.routePresent(ctx, s)
-}
-
-// Update implements scheduler.Descriptor: VPP refuses to re-point BSID steering; recreate.
-func (d *SteeringDescriptor) Update(context.Context, proto.Message, proto.Message, any) (any, error) {
-	return nil, scheduler.ErrRecreate
-}
-
-// Delete implements scheduler.Descriptor; a steering route VPP no longer has is deleted.
-func (d *SteeringDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
-	s, err := d.cast(obj)
+	srcs, err := df6.Collect(stream.Recv)
 	if err != nil {
-		return err
+		return 0, fmt.Errorf("fib_source_dump: %w", err)
 	}
-	req, err := d.request(ctx, s, true)
-	if err != nil {
-		return fmt.Errorf("%s: %w", SteeringName, err)
+	for _, s := range srcs {
+		if strings.EqualFold(strings.TrimRight(s.Src.Name, "\x00"), name) {
+			return s.Src.ID, nil
+		}
 	}
-	ok, err := d.routePresent(ctx, s)
-	if err != nil || !ok {
-		return err
-	}
-	if _, err := srmplsapi.NewServiceClient(d.client).SrMplsSteeringAddDel(ctx, req); err != nil {
-		return df6.PluginError(Plugin, fmt.Errorf("%s: sr_mpls_steering_add_del (del): %w", SteeringName, err))
-	}
-	return nil
+	return 0, fmt.Errorf("fib source %q not found", name)
 }
 
-// Retrieve implements scheduler.Descriptor: no dump (see policy.go).
-func (d *SteeringDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
-	return nil, fmt.Errorf("%s: %w", SteeringName, df6.ErrRetrieveUnsupported)
-}
-
-// EndpointColorDescriptor assigns (endpoint, color) to a policy. Write-only; VPP has no
-// message to clear the assignment other than deleting the policy, so Delete succeeds only
-// when the policy is gone and otherwise returns df6.ErrNoDelete.
+// EndpointColorDescriptor assigns (endpoint, color) to a policy. Write-only (no dump). The
+// re-apply guard is a claim for the running VPP boot (D-076): VPP's assign relocks internal
+// labels on every call, so it is sent once per VPP instance. VPP has no un-assign message;
+// the assignment is cleared together with the policy (sr_mpls_policy_del), so Delete is a
+// documented no-op (review M4) that only drops the claim.
 type EndpointColorDescriptor struct {
 	client vpp.Client
+	claims df6.ClaimStore
 }
 
 // NewEndpointColor returns the descriptor.
-func NewEndpointColor(c vpp.Client) *EndpointColorDescriptor {
-	return &EndpointColorDescriptor{client: c}
+func NewEndpointColor(c vpp.Client, owner string, opts ...df6.Option) *EndpointColorDescriptor {
+	return &EndpointColorDescriptor{client: c, claims: df6.BuildOptions(owner, opts).Claims}
 }
 
 // Name implements scheduler.Descriptor.
@@ -229,11 +227,26 @@ func (d *EndpointColorDescriptor) Dependencies(obj proto.Message) []scheduler.De
 	return []scheduler.Dependency{{Key: PolicyKey(e.GetBsid())}}
 }
 
+func claimValue(e *EndpointColor) string {
+	return df6.U32(e.GetBsid()) + "/" + e.GetEndpoint() + "/" + df6.U32(e.GetColor())
+}
+
 // Create implements scheduler.Descriptor.
 func (d *EndpointColorDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	e, err := d.cast(obj)
 	if err != nil {
 		return nil, err
+	}
+	if !d.claims.Claimed(df6.U32(e.GetBsid()), PolicyName) {
+		return nil, fmt.Errorf("%s: %w: policy %d", EndpointColorName, df6.ErrNotOurs, e.GetBsid())
+	}
+	boot, err := df6.BootID(ctx, d.client)
+	if err != nil {
+		return nil, err
+	}
+	holder := df6.BootHolder(EndpointColorName, boot)
+	if d.claims.Claimed(claimValue(e), holder) {
+		return nil, nil // already assigned on this VPP instance
 	}
 	ep, _ := df6.AddressOf(e.GetEndpoint())
 	if _, err := srmplsapi.NewServiceClient(d.client).SrMplsPolicyAssignEndpointColor(ctx, &srmplsapi.SrMplsPolicyAssignEndpointColor{
@@ -241,28 +254,32 @@ func (d *EndpointColorDescriptor) Create(ctx context.Context, obj proto.Message)
 	}); err != nil {
 		return nil, df6.PluginError(Plugin, fmt.Errorf("%s: sr_mpls_policy_assign_endpoint_color: %w", EndpointColorName, err))
 	}
-	return nil, nil
+	return nil, d.claims.Claim(claimValue(e), holder)
 }
 
 // Update implements scheduler.Descriptor: re-assigning replaces the previous pair in place.
-func (d *EndpointColorDescriptor) Update(ctx context.Context, _, newObj proto.Message, meta any) (any, error) {
+func (d *EndpointColorDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
+	if o, err := d.cast(oldObj); err == nil {
+		if boot, err := df6.BootID(ctx, d.client); err == nil {
+			_ = d.claims.Release(claimValue(o), df6.BootHolder(EndpointColorName, boot))
+		}
+	}
 	if _, err := d.Create(ctx, newObj); err != nil {
 		return nil, err
 	}
 	return meta, nil
 }
 
-// Delete implements scheduler.Descriptor.
+// Delete implements scheduler.Descriptor: documented no-op in VPP (cleared with the policy).
 func (d *EndpointColorDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	e, err := d.cast(obj)
 	if err != nil {
 		return err
 	}
-	ok, err := BSIDPresent(ctx, d.client, e.GetBsid())
-	if err != nil || !ok {
-		return err
+	if boot, err := df6.BootID(ctx, d.client); err == nil {
+		return d.claims.Release(claimValue(e), df6.BootHolder(EndpointColorName, boot))
 	}
-	return fmt.Errorf("%s: %w: the assignment is cleared only by deleting policy %d", EndpointColorName, df6.ErrNoDelete, e.GetBsid())
+	return nil
 }
 
 // Retrieve implements scheduler.Descriptor: no dump.

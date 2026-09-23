@@ -20,7 +20,7 @@ const LookupKeyName = "l2tp.lookup-key"
 type InterfaceEnableDescriptor = df6.BypassDescriptor[*InterfaceEnable]
 
 // NewInterfaceEnable returns the descriptor for the given owner.
-func NewInterfaceEnable(c vpp.Client, owner string) *InterfaceEnableDescriptor {
+func NewInterfaceEnable(c vpp.Client, owner string, opts ...df6.Option) *InterfaceEnableDescriptor {
 	return df6.NewToggleDescriptor(df6.ToggleSpec[*InterfaceEnable]{
 		Name:   InterfaceEnableName,
 		Plugin: Plugin,
@@ -31,16 +31,20 @@ func NewInterfaceEnable(c vpp.Client, owner string) *InterfaceEnableDescriptor {
 			}
 			return nil
 		},
-	}, c, owner)
+	}, c, owner, opts...)
 }
 
 // LookupKeyDescriptor sets the global L2TPv3 session lookup key (write-only singleton;
 // Delete is a no-op because VPP has no getter or reset).
 type LookupKeyDescriptor = df6.SingletonDescriptor[*LookupKey]
 
-// NewLookupKey returns the descriptor.
+// NewLookupKey returns the globals-owner setter (D-071).
 func NewLookupKey(c vpp.Client) *LookupKeyDescriptor {
-	return df6.NewSingletonDescriptor(df6.SingletonSpec[*LookupKey]{
+	return df6.NewSingletonDescriptor(lookupKeySpec(), c)
+}
+
+func lookupKeySpec() df6.SingletonSpec[*LookupKey] {
+	return df6.SingletonSpec[*LookupKey]{
 		Name:   LookupKeyName,
 		Plugin: Plugin,
 		Validate: func(k *LookupKey) error {
@@ -55,5 +59,5 @@ func NewLookupKey(c vpp.Client) *LookupKeyDescriptor {
 			}
 			return nil
 		},
-	}, c)
+	}
 }

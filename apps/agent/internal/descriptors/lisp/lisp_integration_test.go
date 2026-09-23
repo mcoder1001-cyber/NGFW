@@ -56,15 +56,15 @@ func TestLISPOnHost(t *testing.T) {
 		d   scheduler.Descriptor
 		obj proto.Message
 	}{
-		{lisp.NewLocatorSet(h.Client, h.Scope), &lisp.LocatorSet{Name: ls}},
-		{lisp.NewLocator(h.Client, h.Scope), &lisp.Locator{LocatorSet: ls, Interface: loop, Priority: 1, Weight: 10}},
-		{lisp.NewEidTableMap(h.Client, h.Scope), &lisp.EidTableMap{Vni: vni, DpTable: vrf}},
-		{lisp.NewLocalEid(h.Client, h.Scope), &lisp.LocalEid{Vni: vni, Eid: leid, LocatorSet: ls}},
-		{lisp.NewMapResolver(h.Client, h.Scope), &lisp.MapResolver{Address: h.IP4(14, 100)}},
-		{lisp.NewMapServer(h.Client, h.Scope), &lisp.MapServer{Address: h.IP4(14, 101)}},
-		{lisp.NewRemoteMapping(h.Client, h.Scope), &lisp.RemoteMapping{Vni: vni, Eid: reid, Rlocs: []*lisp.Rloc{{Address: h.IP4(14, 2), Priority: 1, Weight: 1}}}},
-		{lisp.NewAdjacency(h.Client, h.Scope), &lisp.Adjacency{Vni: vni, Reid: reid, Leid: leid}},
-		{lisp.NewGpeFwdEntry(h.Client, h.Scope), &lisp.GpeFwdEntry{Vni: vni, DpTable: vrf, Reid: h.IP4(17, 0) + "/24", Leid: leid, Pairs: []*lisp.LocatorPair{{Local: h.IP4(14, 1), Remote: h.IP4(14, 9), Weight: 1}}}},
+		{lisp.NewLocatorSet(h.Client, h.Owner), &lisp.LocatorSet{Name: ls}},
+		{lisp.NewLocator(h.Client, h.Owner), &lisp.Locator{LocatorSet: ls, Interface: loop, Priority: 1, Weight: 10}},
+		{lisp.NewEidTableMap(h.Client, h.Owner), &lisp.EidTableMap{Vni: vni, DpTable: vrf}},
+		{lisp.NewLocalEid(h.Client, h.Owner), &lisp.LocalEid{Vni: vni, Eid: leid, LocatorSet: ls}},
+		{lisp.NewMapResolver(h.Client, h.Owner), &lisp.MapResolver{Address: h.IP4(14, 100)}},
+		{lisp.NewMapServer(h.Client, h.Owner), &lisp.MapServer{Address: h.IP4(14, 101)}},
+		{lisp.NewRemoteMapping(h.Client, h.Owner), &lisp.RemoteMapping{Vni: vni, Eid: reid, Rlocs: []*lisp.Rloc{{Address: h.IP4(14, 2), Priority: 1, Weight: 1}}}},
+		{lisp.NewAdjacency(h.Client, h.Owner), &lisp.Adjacency{Vni: vni, Reid: reid, Leid: leid}},
+		{lisp.NewGpeFwdEntry(h.Client, h.Owner), &lisp.GpeFwdEntry{Vni: vni, DpTable: vrf, Reid: h.IP4(17, 0) + "/24", Leid: leid, Pairs: []*lisp.LocatorPair{{Local: h.IP4(14, 1), Remote: h.IP4(14, 9), Weight: 1}}}},
 	}
 	if s := os.Getenv(EnvLISPUpTo); s != "" {
 		n, err := strconv.Atoi(s)

@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"go.fd.io/govpp/api"
+	"google.golang.org/protobuf/proto"
 
+	"ngfw/agent/binapi/fib"
 	"ngfw/agent/binapi/fib_types"
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
@@ -14,6 +16,7 @@ import (
 	srmplsapi "ngfw/agent/binapi/sr_mpls"
 	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/descriptors/df6/df6test"
+	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/sr_mpls"
 	"ngfw/agent/internal/scheduler"
 )
@@ -75,7 +78,9 @@ func newFake() *fakeSRMPLS {
 		var out []api.Message
 		for b := range f.policies {
 			for eos := uint8(0); eos < 2; eos++ {
-				out = append(out, &mpls.MplsRouteDetails{MrRoute: mpls.MplsRoute{MrLabel: b, MrEos: eos}})
+				out = append(out, &mpls.MplsRouteDetails{MrRoute: mpls.MplsRoute{MrLabel: b, MrEos: eos, MrPaths: []fib_types.FibPath{
+					{SwIfIndex: ^uint32(0), Proto: fib_types.FIB_API_PATH_NH_PROTO_MPLS, Type: fib_types.FIB_API_PATH_TYPE_NORMAL},
+				}}})
 			}
 		}
 		return out, nil
@@ -99,6 +104,9 @@ func newFake() *fakeSRMPLS {
 			f.crashes++ // VPP leaves a half-created steering entry
 			return []api.Message{&srmplsapi.SrMplsSteeringAddDelReply{Retval: -1}}, nil
 		}
+		if _, dup := f.steer[k]; dup {
+			return []api.Message{&srmplsapi.SrMplsSteeringAddDelReply{Retval: -1}}, nil // VPP refuses re-adding BSID steering
+		}
 		f.steer[k] = r
 		return []api.Message{&srmplsapi.SrMplsSteeringAddDelReply{}}, nil
 	})
@@ -106,12 +114,18 @@ func newFake() *fakeSRMPLS {
 		r := req.(*ip.IPRouteV2Dump)
 		var out []api.Message
 		for _, s := range f.steer {
-			if s.TableID == r.Table.TableID {
-				out = append(out, &ip.IPRouteV2Details{Route: ip.IPRouteV2{TableID: s.TableID, Prefix: s.Prefix, Paths: []fib_types.FibPath{{Proto: fib_types.FIB_API_PATH_NH_PROTO_MPLS}}}})
+			if s.TableID == r.Table.TableID && (r.Src == 0 || r.Src == 5) {
+				p := fib_types.FibPath{Proto: fib_types.FIB_API_PATH_NH_PROTO_MPLS, SwIfIndex: ^uint32(0)}
+				if s.VPNLabel != ^uint32(0) {
+					p.NLabels = 1
+					p.LabelStack[0].Label = s.VPNLabel
+				}
+				out = append(out, &ip.IPRouteV2Details{Route: ip.IPRouteV2{TableID: s.TableID, Prefix: s.Prefix, Paths: []fib_types.FibPath{p}}})
 			}
 		}
 		return out, nil
 	})
+	f.Reply("fib_source_dump", &fib.FibSourceDetails{Src: fib.FibSource{ID: 5, Name: "SR"}})
 	f.On("sr_mpls_policy_assign_endpoint_color", func(req api.Message) ([]api.Message, error) {
 		r := req.(*srmplsapi.SrMplsPolicyAssignEndpointColor)
 		if _, ok := f.policies[r.Bsid]; !ok {
@@ -128,13 +142,15 @@ func TestPolicySteeringEndpointColor(t *testing.T) {
 	f := newFake()
 	f.tables[[2]uint32{11012, 0}] = true
 	reg := scheduler.NewRegistry()
-	sr_mpls.Register(reg, f)
+	owner := "w11" + t.Name()
+	iface.SetClaimStore(owner, nil)
+	sr_mpls.Register(reg, f, owner)
 	if reg.Len() != 3 {
 		t.Fatalf("registered %d", reg.Len())
 	}
-	p := sr_mpls.NewPolicy(f)
-	s := sr_mpls.NewSteering(f)
-	ec := sr_mpls.NewEndpointColor(f)
+	p := sr_mpls.NewPolicy(f, owner)
+	s := sr_mpls.NewSteering(f, owner)
+	ec := sr_mpls.NewEndpointColor(f, owner)
 
 	pol := &sr_mpls.Policy{Bsid: 11600, SegmentLists: []*sr_mpls.SegmentList{
 		{Labels: []uint32{11700, 11701}, Weight: 1},
@@ -180,7 +196,9 @@ func TestPolicySteeringEndpointColor(t *testing.T) {
 	if _, err := ec.Update(ctx, e, &sr_mpls.EndpointColor{Bsid: 11600, Endpoint: "10.11.0.9", Color: 8}, nil); err != nil || f.ec[11600] != 8 {
 		t.Fatalf("endpoint color update: %v", err)
 	}
-	if err := ec.Delete(ctx, e, nil); !errors.Is(err, df6.ErrNoDelete) {
+	// review M4: documented no-op (VPP clears the assignment with the policy), never blocks
+	// the policy's deletion
+	if err := ec.Delete(ctx, e, nil); err != nil {
 		t.Fatalf("endpoint color delete with policy = %v", err)
 	}
 	for _, d := range []scheduler.Descriptor{p, s, ec} {
@@ -224,5 +242,71 @@ func TestPolicySteeringEndpointColor(t *testing.T) {
 		if _, err := ec.Create(ctx, b); !errors.Is(err, df6.ErrBadValue) {
 			t.Errorf("%v: %v", b, err)
 		}
+	}
+}
+
+// TestResync (review H3/D-076): write-only SR-MPLS objects are re-applied on every resync
+// without a second add (VPP refuses duplicate adds); after a VPP restart (boot id change) the
+// endpoint/color is re-assigned exactly once; objects of other owners are never taken over.
+func TestResync(t *testing.T) {
+	ctx := context.Background()
+	f := newFake()
+	f.tables[[2]uint32{11012, 0}] = true
+	owner := "w11" + t.Name()
+	iface.SetClaimStore(owner, nil)
+	iface.SetClaimStore(owner+"x", nil)
+	p := sr_mpls.NewPolicy(f, owner)
+	s := sr_mpls.NewSteering(f, owner)
+	ec := sr_mpls.NewEndpointColor(f, owner)
+	pol := &sr_mpls.Policy{Bsid: 11600, SegmentLists: []*sr_mpls.SegmentList{{Labels: []uint32{11700}, Weight: 1}}}
+	st := &sr_mpls.Steering{Prefix: "10.11.13.0/24", TableId: 11012, Bsid: 11600}
+	e := &sr_mpls.EndpointColor{Bsid: 11600, Endpoint: "10.11.0.9", Color: 7}
+	f.SetBoot(1)
+	for i := 0; i < 3; i++ {
+		for _, x := range []struct {
+			d interface {
+				Create(context.Context, proto.Message) (any, error)
+			}
+			o proto.Message
+		}{{p, pol}, {s, st}, {ec, e}} {
+			if _, err := x.d.Create(ctx, x.o); err != nil {
+				t.Fatalf("apply %d: %v", i, err)
+			}
+		}
+	}
+	for name, want := range map[string]int{"sr_mpls_policy_add": 1, "sr_mpls_steering_add_del": 1, "sr_mpls_policy_assign_endpoint_color": 1} {
+		if n := len(f.CallsNamed(name)); n != want {
+			t.Errorf("%s sent %d times, want %d", name, n, want)
+		}
+	}
+	if f.crashes != 0 {
+		t.Fatalf("%d requests VPP would reject", f.crashes)
+	}
+	f.SetBoot(2) // VPP restart (fake keeps state; the assignment is re-sent once)
+	for i := 0; i < 2; i++ {
+		if _, err := ec.Create(ctx, e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := len(f.CallsNamed("sr_mpls_policy_assign_endpoint_color")); n != 2 {
+		t.Fatalf("assign sent %d times after restart, want 2 in total", n)
+	}
+	// another owner: no take-over, no delete
+	po := sr_mpls.NewPolicy(f, owner+"x")
+	if _, err := po.Create(ctx, pol); !errors.Is(err, df6.ErrNotOurs) {
+		t.Fatalf("take-over = %v", err)
+	}
+	if err := po.Delete(ctx, pol, nil); err != nil || len(f.policies) != 1 {
+		t.Fatalf("foreign delete: %v", err)
+	}
+	// ours: steering, then policy (endpoint-color no-op) — deletable after agent restart
+	if err := sr_mpls.NewSteering(f, owner).Delete(ctx, st, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := sr_mpls.NewEndpointColor(f, owner).Delete(ctx, e, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := sr_mpls.NewPolicy(f, owner).Delete(ctx, pol, nil); err != nil || len(f.policies) != 0 {
+		t.Fatalf("policy delete: %v", err)
 	}
 }

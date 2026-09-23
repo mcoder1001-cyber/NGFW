@@ -22,8 +22,12 @@ const DefaultEncapHopLimit = 64
 // getter; Delete resets it to ::).
 type EncapSourceDescriptor = df6.SingletonDescriptor[*EncapSource]
 
-// NewEncapSource returns the descriptor.
+// NewEncapSource returns the globals-owner setter (tests / the globals owner only, D-071).
 func NewEncapSource(c vpp.Client) *EncapSourceDescriptor {
+	return df6.NewSingletonDescriptor(encapSourceSpec(), c)
+}
+
+func encapSourceSpec() df6.SingletonSpec[*EncapSource] {
 	set := func(ctx context.Context, c vpp.Client, addr string) error {
 		a, err := df6.IP6Of(addr)
 		if err != nil {
@@ -34,7 +38,7 @@ func NewEncapSource(c vpp.Client) *EncapSourceDescriptor {
 		}
 		return nil
 	}
-	return df6.NewSingletonDescriptor(df6.SingletonSpec[*EncapSource]{
+	return df6.SingletonSpec[*EncapSource]{
 		Name:   EncapSourceName,
 		Plugin: Plugin,
 		Validate: func(e *EncapSource) error {
@@ -43,22 +47,26 @@ func NewEncapSource(c vpp.Client) *EncapSourceDescriptor {
 		},
 		Set:   func(ctx context.Context, c vpp.Client, e *EncapSource) error { return set(ctx, c, e.GetAddress()) },
 		Unset: func(ctx context.Context, c vpp.Client, _ *EncapSource) error { return set(ctx, c, "") },
-	}, c)
+	}
 }
 
 // EncapHopLimitDescriptor sets the global SRv6 encap hop limit (write-only; Delete resets
 // it to 64).
 type EncapHopLimitDescriptor = df6.SingletonDescriptor[*EncapHopLimit]
 
-// NewEncapHopLimit returns the descriptor.
+// NewEncapHopLimit returns the globals-owner setter (D-071).
 func NewEncapHopLimit(c vpp.Client) *EncapHopLimitDescriptor {
+	return df6.NewSingletonDescriptor(encapHopLimitSpec(), c)
+}
+
+func encapHopLimitSpec() df6.SingletonSpec[*EncapHopLimit] {
 	set := func(ctx context.Context, c vpp.Client, v uint32) error {
 		if _, err := srapi.NewServiceClient(c).SrSetEncapHopLimit(ctx, &srapi.SrSetEncapHopLimit{HopLimit: uint8(v)}); err != nil { //nolint:gosec // validated 1..255
 			return fmt.Errorf("sr_set_encap_hop_limit: %w", err)
 		}
 		return nil
 	}
-	return df6.NewSingletonDescriptor(df6.SingletonSpec[*EncapHopLimit]{
+	return df6.SingletonSpec[*EncapHopLimit]{
 		Name:   EncapHopLimitName,
 		Plugin: Plugin,
 		Validate: func(h *EncapHopLimit) error {
@@ -71,5 +79,5 @@ func NewEncapHopLimit(c vpp.Client) *EncapHopLimitDescriptor {
 		Unset: func(ctx context.Context, c vpp.Client, _ *EncapHopLimit) error {
 			return set(ctx, c, DefaultEncapHopLimit)
 		},
-	}, c)
+	}
 }

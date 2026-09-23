@@ -67,7 +67,7 @@ var forwardSpec = df6.IfSpec[*Forward, *gtpuapi.GtpuTunnelV2Details]{
 		}
 		return rep.SwIfIndex, nil
 	},
-	Del: func(ctx context.Context, c vpp.Client, f *Forward, _ interface_types.InterfaceIndex) error {
+	Del: func(ctx context.Context, c vpp.Client, _ *df6.Interfaces, f *Forward, _ interface_types.InterfaceIndex) error {
 		req, err := encodeForward(f, false)
 		if err != nil {
 			return err

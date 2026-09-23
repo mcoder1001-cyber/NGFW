@@ -288,3 +288,19 @@ func TestV8Guard(t *testing.T) {
 		t.Fatalf("sent %d add/del, want 2", n)
 	}
 }
+
+// TestBypassResync (review H3): two resyncs send one enable per family (VPP stacks features).
+func TestBypassResync(t *testing.T) {
+	ctx := context.Background()
+	f := newFakeGTPU()
+	f.AddInterface("loop1190", "w11rs:loop1190")
+	b := gtpu.NewBypass(f, "w11rs")
+	for i := 0; i < 2; i++ {
+		if _, err := b.Create(ctx, &gtpu.Bypass{Interface: "loop1190", Ipv4: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := len(f.CallsNamed("sw_interface_set_gtpu_bypass")); n != 1 {
+		t.Fatalf("sent %d enables, want 1", n)
+	}
+}

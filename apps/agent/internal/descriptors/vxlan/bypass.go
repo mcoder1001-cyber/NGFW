@@ -17,7 +17,7 @@ const BypassName = "vxlan.bypass" //nolint:gosec // descriptor name, not a crede
 type BypassDescriptor = df6.BypassDescriptor[*Bypass]
 
 // NewBypass returns the descriptor for the given owner.
-func NewBypass(c vpp.Client, owner string) *BypassDescriptor {
+func NewBypass(c vpp.Client, owner string, opts ...df6.Option) *BypassDescriptor {
 	return df6.NewBypassDescriptor(df6.BypassSpec[*Bypass]{
 		Name:   BypassName,
 		Plugin: Plugin,
@@ -28,5 +28,5 @@ func NewBypass(c vpp.Client, owner string) *BypassDescriptor {
 			}
 			return nil
 		},
-	}, c, owner)
+	}, c, owner, opts...)
 }

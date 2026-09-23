@@ -3,13 +3,15 @@
 package l2tp
 
 import (
+	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
 
 // Register registers the l2tp descriptors (tunnel, interface-enable, lookup-key) with r.
-func Register(r scheduler.Registry, c vpp.Client, owner string) {
+func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df6.Option) {
+	o := df6.BuildOptions(owner, opts)
 	r.Register(NewTunnel(c, owner))
-	r.Register(NewInterfaceEnable(c, owner))
-	r.Register(NewLookupKey(c))
+	r.Register(NewInterfaceEnable(c, owner, opts...))
+	r.Register(df6.Global(lookupKeySpec(), c, o)) // VPP-global: setter only on the globals owner (D-071)
 }

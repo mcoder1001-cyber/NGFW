@@ -3,7 +3,6 @@ package sr_test
 import (
 	"context"
 	"errors"
-	"net/netip"
 	"testing"
 
 	"go.fd.io/govpp/api"
@@ -15,6 +14,7 @@ import (
 	"ngfw/agent/binapi/sr_types"
 	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/descriptors/df6/df6test"
+	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/sr"
 	"ngfw/agent/internal/scheduler"
 )
@@ -212,8 +212,11 @@ func newFakeSR() *fakeSR {
 	return f
 }
 
-func scope() *df6.Scope {
-	return &df6.Scope{Owner: "w11", Addrs: []netip.Prefix{netip.MustParsePrefix("fd11::/16"), netip.MustParsePrefix("10.11.0.0/16")}}
+// owner is the claim owner of these tests; each test starts from an empty claim store.
+func freshOwner(t *testing.T) string {
+	o := "w11" + t.Name()
+	iface.SetClaimStore(o, nil)
+	return o
 }
 
 func retrieveMap(t *testing.T, d scheduler.Descriptor) map[scheduler.Key]proto.Message {
@@ -234,16 +237,17 @@ func TestLocalSid(t *testing.T) {
 	f := newFakeSR()
 	f.tables[[2]uint32{11001, 1}] = true
 	f.tables[[2]uint32{11002, 0}] = true
-	loop := f.AddInterface("loop1101", "w11:loop1101")
+	owner := freshOwner(t)
+	loop := f.AddInterface("loop1101", owner+":loop1101")
 	// Another slot's SID must stay invisible.
 	f.localsid[df6test.IP6("fd03::1")] = &srapi.SrLocalsidsDetails{Addr: df6test.IP6("fd03::1"), Behavior: sr_types.SR_BEHAVIOR_API_END}
 
 	reg := scheduler.NewRegistry()
-	sr.Register(reg, f, scope())
+	sr.Register(reg, f, owner)
 	if reg.Len() != 5 {
 		t.Fatalf("registered %d", reg.Len())
 	}
-	d := sr.NewLocalSid(f, scope())
+	d := sr.NewLocalSid(f, owner)
 	cases := []*sr.LocalSid{
 		{Sid: "fd11:1::1", Behavior: sr.Behavior_END, EndPsp: true},
 		{Sid: "fd11:1::2", Behavior: sr.Behavior_END_X, Interface: "loop1101", NextHop: "fd11:2::1", FibTable: 11001},
@@ -333,10 +337,11 @@ func TestPolicyAndSteering(t *testing.T) {
 	f := newFakeSR()
 	f.tables[[2]uint32{11001, 1}] = true
 	f.tables[[2]uint32{11002, 0}] = true
-	f.AddInterface("loop1101", "w11:loop1101")
+	owner := freshOwner(t)
+	f.AddInterface("loop1101", owner+":loop1101")
 	f.encapSrc = df6test.IP6("fd99::99") // someone's global encap source
-	p := sr.NewPolicy(f, scope())
-	s := sr.NewSteering(f, scope())
+	p := sr.NewPolicy(f, owner)
+	s := sr.NewSteering(f, owner)
 
 	encap := &sr.Policy{Bsid: "fd11:b::1", Encap: true, EncapSrc: "fd11::1", FibTable: 11001, SidLists: []*sr.SidList{
 		{Sids: []string{"fd11:1::1", "fd11:1::2"}, Weight: 1},
@@ -481,5 +486,74 @@ func TestGlobals(t *testing.T) {
 		if _, err := hl.Create(ctx, &sr.EncapHopLimit{HopLimit: v}); !errors.Is(err, df6.ErrBadValue) {
 			t.Errorf("%d: %v", v, err)
 		}
+	}
+}
+
+// TestClaims (review H2/M3): untagged SR objects are ours only by claim — Retrieve never
+// reports, Create never takes over and Delete never touches another owner's object; a claimed
+// steering entry that now points at another BSID is not deleted; a fresh descriptor set with
+// the same (persisted) claim store sees exactly our objects (agent restart).
+func TestClaims(t *testing.T) {
+	ctx := context.Background()
+	f := newFakeSR()
+	owner := freshOwner(t)
+	otherOwner := owner + "x"
+	iface.SetClaimStore(otherOwner, nil)
+	p := sr.NewPolicy(f, owner)
+	s := sr.NewSteering(f, owner)
+	po := sr.NewPolicy(f, otherOwner)
+	so := sr.NewSteering(f, otherOwner)
+
+	mine := &sr.Policy{Bsid: "fd11:b::1", SidLists: []*sr.SidList{{Sids: []string{"fd11:1::1"}, Weight: 1}}}
+	theirs := &sr.Policy{Bsid: "fd11:b::2", SidLists: []*sr.SidList{{Sids: []string{"fd11:1::2"}, Weight: 1}}}
+	if _, err := p.Create(ctx, mine); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := po.Create(ctx, theirs); err != nil {
+		t.Fatal(err)
+	}
+	if got := retrieveMap(t, p); len(got) != 1 || got[p.KeyOf(mine)] == nil {
+		t.Fatalf("Retrieve = %v, want only ours", got)
+	}
+	// re-apply (resync / restart) of ours is a no-op; taking over theirs is refused
+	n := len(f.CallsNamed("sr_policy_add_v2"))
+	if _, err := p.Create(ctx, mine); err != nil || len(f.CallsNamed("sr_policy_add_v2")) != n {
+		t.Fatalf("re-apply: %v", err)
+	}
+	if _, err := p.Create(ctx, theirs); !errors.Is(err, df6.ErrNotOurs) {
+		t.Fatalf("take-over = %v, want ErrNotOurs", err)
+	}
+	if err := p.Delete(ctx, theirs, nil); err != nil || len(f.policies) != 2 {
+		t.Fatalf("delete of theirs: %v (policies %d)", err, len(f.policies))
+	}
+	// steering: ours points at our policy; someone re-points it at theirs → never deleted
+	st := &sr.Steering{TrafficType: sr.SteerType_IPV6, Prefix: "fd11:9::/64", Bsid: "fd11:b::1"}
+	if _, err := s.Create(ctx, st); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := so.Create(ctx, &sr.Steering{TrafficType: sr.SteerType_IPV6, Prefix: "fd11:9::/64", Bsid: "fd11:b::2"}); !errors.Is(err, df6.ErrNotOurs) {
+		t.Fatalf("foreign take-over of steering = %v", err)
+	}
+	for _, e := range f.steer {
+		e.Bsid = df6test.IP6("fd11:b::2")
+	}
+	if err := s.Delete(ctx, st, nil); !errors.Is(err, df6.ErrNotOurs) {
+		t.Fatalf("delete of re-pointed steering = %v, want ErrNotOurs", err)
+	}
+	if len(f.steer) != 1 {
+		t.Fatal("re-pointed steering entry deleted")
+	}
+	// agent restart: fresh descriptors, same claim store
+	p2 := sr.NewPolicy(f, owner)
+	if got := retrieveMap(t, p2); len(got) != 1 || got[p2.KeyOf(mine)] == nil {
+		t.Fatalf("after restart Retrieve = %v", got)
+	}
+	// a claimed object VPP lost is absent (→ recreated by the scheduler)
+	f.policies = f.policies[1:]
+	if got := retrieveMap(t, p2); len(got) != 0 {
+		t.Fatalf("lost policy still retrieved: %v", got)
+	}
+	if _, err := p2.Create(ctx, mine); err != nil || len(retrieveMap(t, p2)) != 1 {
+		t.Fatalf("recreate: %v", err)
 	}
 }

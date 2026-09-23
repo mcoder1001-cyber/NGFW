@@ -2,6 +2,7 @@ package df6
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"google.golang.org/protobuf/proto"
@@ -28,7 +29,7 @@ type IfSpec[T proto.Message, D any] struct {
 	// resolving interface references.
 	Add func(ctx context.Context, c vpp.Client, ifs *Interfaces, obj T) (interface_types.InterfaceIndex, error)
 	// Del deletes the interface created for obj. nil → ErrNoDelete.
-	Del func(ctx context.Context, c vpp.Client, obj T, idx interface_types.InterfaceIndex) error
+	Del func(ctx context.Context, c vpp.Client, ifs *Interfaces, obj T, idx interface_types.InterfaceIndex) error
 	// Dump returns every object of the type VPP has.
 	Dump func(ctx context.Context, c vpp.Client) ([]D, error)
 	// Decode turns one dump record into the canonical desired object and its sw_if_index;
@@ -90,7 +91,10 @@ func (d *IfDescriptor[T, D]) Dependencies(obj proto.Message) []scheduler.Depende
 }
 
 // Create implements scheduler.Descriptor: add, then stamp the owner tag (rolling the add back
-// when tagging fails so nothing untagged is left on a shared VPP).
+// when tagging fails so nothing untagged is left on a shared VPP). When an interface tagged
+// "<owner>:<id>" already exists (a resync of a write-only type such as ipip.sixrd, or a
+// re-apply after an agent restart) it is adopted as Meta instead of adding a duplicate
+// (D-076, review H3).
 func (d *IfDescriptor[T, D]) Create(ctx context.Context, obj proto.Message) (any, error) {
 	t, err := d.cast(obj)
 	if err != nil {
@@ -104,6 +108,9 @@ func (d *IfDescriptor[T, D]) Create(ctx context.Context, obj proto.Message) (any
 	if err != nil {
 		return nil, err
 	}
+	if idx, ok := ifs.IndexByTag(id); ok {
+		return IfMeta{SwIfIndex: idx}, nil
+	}
 	idx, err := d.spec.Add(ctx, d.client, ifs, t)
 	if err != nil {
 		return nil, PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
@@ -112,12 +119,53 @@ func (d *IfDescriptor[T, D]) Create(ctx context.Context, obj proto.Message) (any
 		if d.spec.Del == nil {
 			return nil
 		}
-		return d.spec.Del(ctx, d.client, t, idx)
+		return d.spec.Del(ctx, d.client, ifs, t, idx)
 	}
 	if err := TagOrRollback(ctx, d.client, d.owner, scheduler.Join(d.spec.Name, id), idx, rollback); err != nil {
 		return nil, fmt.Errorf("%s: %w", d.spec.Name, err)
 	}
 	return IfMeta{SwIfIndex: uint32(idx)}, nil
+}
+
+// verify re-establishes the object's interface immediately before a destructive call
+// (D-071: deletes by index re-verify identity): the interface must carry "<owner>:<id>" and,
+// when VPP has a dump for the type, a record of this type at that index must decode to the
+// same id. Meta (possibly unknown after an agent restart) is only a hint: the tag decides.
+// ok=false: the object no longer exists (nothing to delete).
+func (d *IfDescriptor[T, D]) verify(ctx context.Context, t T, _ any) (*Interfaces, uint32, T, bool, error) {
+	var zero T
+	id, err := d.spec.ID(t)
+	if err != nil {
+		return nil, 0, zero, false, fmt.Errorf("%s: %w", d.spec.Name, err)
+	}
+	ifs, err := DumpInterfaces(ctx, d.client, d.owner)
+	if err != nil {
+		return nil, 0, zero, false, err
+	}
+	idx, ok := ifs.IndexByTag(id)
+	if !ok {
+		return ifs, 0, zero, false, nil
+	}
+	// A recorded Meta index that differs is stale (VPP restart / index reuse): the tagged
+	// interface is the object.
+	recs, err := d.spec.Dump(ctx, d.client)
+	if errors.Is(err, ErrRetrieveUnsupported) {
+		return ifs, idx, t, true, nil // no dump (6rd): the tag is the identity
+	}
+	if err != nil {
+		return nil, 0, zero, false, PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
+	}
+	for _, r := range recs {
+		obj, i, ok := d.spec.Decode(r, ifs)
+		if !ok || i != idx {
+			continue
+		}
+		if got, err := d.spec.ID(obj); err == nil && got == id {
+			return ifs, idx, obj, true, nil // delete what VPP actually has (its key fields)
+		}
+		return nil, 0, zero, false, fmt.Errorf("%s: %w: sw_if_index %d is tagged %q but holds another object", d.spec.Name, ErrNotOurs, idx, id)
+	}
+	return ifs, 0, zero, false, nil
 }
 
 // Update implements scheduler.Descriptor.
@@ -130,59 +178,51 @@ func (d *IfDescriptor[T, D]) Update(ctx context.Context, oldObj, newObj proto.Me
 	if err != nil {
 		return nil, err
 	}
-	m, err := IfMetaOf(d.spec.Name, meta)
-	if err != nil {
-		return nil, err
-	}
 	if d.spec.Update == nil {
 		return nil, scheduler.ErrRecreate
 	}
-	handled, err := d.spec.Update(ctx, d.client, o, n, interface_types.InterfaceIndex(m.SwIfIndex))
+	_, idx, _, ok, err := d.verify(ctx, o, meta)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, scheduler.ErrRecreate
+	}
+	handled, err := d.spec.Update(ctx, d.client, o, n, interface_types.InterfaceIndex(idx))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", d.spec.Name, err)
 	}
 	if !handled {
 		return nil, scheduler.ErrRecreate
 	}
-	return m, nil
+	return IfMeta{SwIfIndex: idx}, nil
 }
 
-// Delete implements scheduler.Descriptor.
+// Delete implements scheduler.Descriptor. The object is located by its owner tag (so it is
+// deletable after an agent restart, when Meta is unknown) and its identity re-verified; an
+// object VPP no longer has is already deleted and nothing is sent (V8: some handlers do not
+// survive a failed delete).
 func (d *IfDescriptor[T, D]) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	t, err := d.cast(obj)
 	if err != nil {
 		return err
 	}
-	m, err := IfMetaOf(d.spec.Name, meta)
-	if err != nil {
-		return err
+	if meta != nil {
+		if _, ok := meta.(IfMeta); !ok {
+			return fmt.Errorf("%s: %w %T", d.spec.Name, ErrBadMeta, meta)
+		}
 	}
 	if d.spec.Del == nil {
 		return fmt.Errorf("%s: %w", d.spec.Name, ErrNoDelete)
 	}
-	// Never send a delete VPP would reject: some 26.06 handlers do not survive a failed
-	// add/del (V8, gtpu). An object whose interface is gone is already deleted.
-	present, err := d.present(ctx, m.SwIfIndex)
-	if err != nil {
+	ifs, idx, actual, ok, err := d.verify(ctx, t, meta)
+	if err != nil || !ok {
 		return err
 	}
-	if !present {
-		return nil
-	}
-	if err := d.spec.Del(ctx, d.client, t, interface_types.InterfaceIndex(m.SwIfIndex)); err != nil {
+	if err := d.spec.Del(ctx, d.client, ifs, actual, interface_types.InterfaceIndex(idx)); err != nil {
 		return PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
 	}
 	return nil
-}
-
-// present reports whether sw_if_index idx still exists and carries this owner's tag (every
-// object of an IfDescriptor is a tagged interface).
-func (d *IfDescriptor[T, D]) present(ctx context.Context, idx uint32) (bool, error) {
-	ifs, err := DumpInterfaces(ctx, d.client, d.owner)
-	if err != nil {
-		return false, err
-	}
-	return ifs.Owned(idx), nil
 }
 
 // Retrieve implements scheduler.Descriptor: dump, keep the records whose interface carries

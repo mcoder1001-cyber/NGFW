@@ -61,7 +61,7 @@ func TestLocalSidOnHost(t *testing.T) {
 	v6 := h.Table(9)
 	h.IPTable(v4, false)
 	h.IPTable(v6, true)
-	d := sr.NewLocalSid(h.Client, h.Scope)
+	d := sr.NewLocalSid(h.Client, h.Owner)
 	cases := []*sr.LocalSid{
 		{Sid: h.IP6(0x51, 1), Behavior: sr.Behavior_END, EndPsp: true},
 		{Sid: h.IP6(0x51, 2), Behavior: sr.Behavior_END_X, Interface: loop, NextHop: h.IP6(8, 2), FibTable: v6},
@@ -76,7 +76,7 @@ func TestPolicyOnHost(t *testing.T) {
 	h := df6test.Connect(t)
 	v6 := h.Table(10)
 	h.IPTable(v6, true)
-	p := sr.NewPolicy(h.Client, h.Scope)
+	p := sr.NewPolicy(h.Client, h.Owner)
 	cases := []*sr.Policy{
 		{Bsid: h.IP6(0xb, 1), Encap: true, EncapSrc: h.IP6(0xa, 1), SidLists: []*sr.SidList{
 			{Sids: []string{h.IP6(0x51, 1), h.IP6(0x52, 1)}, Weight: 1},
@@ -91,13 +91,13 @@ func TestSteeringOnHost(t *testing.T) {
 	h := df6test.Connect(t)
 	v4 := h.Table(11)
 	h.IPTable(v4, false)
-	p := sr.NewPolicy(h.Client, h.Scope)
+	p := sr.NewPolicy(h.Client, h.Owner)
 	pol := &sr.Policy{Bsid: h.IP6(0xb, 3), Encap: true, EncapSrc: h.IP6(0xa, 1), SidLists: []*sr.SidList{{Sids: []string{h.IP6(0x55, 1)}, Weight: 1}}}
 	if _, err := p.Create(h.Ctx, pol); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = p.Delete(h.Ctx, pol, nil) })
-	s := sr.NewSteering(h.Client, h.Scope)
+	s := sr.NewSteering(h.Client, h.Owner)
 	cases := []*sr.Steering{
 		{TrafficType: sr.SteerType_IPV4, Prefix: h.IP4(12, 0) + "/24", TableId: v4, Bsid: pol.GetBsid()},
 		{TrafficType: sr.SteerType_IPV6, Prefix: canon(t, h.IP6(0x12, 0)+"/64"), Bsid: pol.GetBsid()},

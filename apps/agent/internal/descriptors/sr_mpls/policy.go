@@ -3,8 +3,10 @@
 // VPP 26.06 has no SR-MPLS dump, and the MPLS FIB entry a policy installs cannot stand in for
 // one: mpls_route_dump does not encode the via-label of recursive MPLS paths, which is the
 // first segment of every list. All three descriptors are therefore write-only (Retrieve
-// returns df6.ErrRetrieveUnsupported); Create/Delete check presence through the BSID's MPLS
-// FIB entry so they stay idempotent. See docs/agent/descriptors/sr_mpls.md.
+// returns df6.ErrRetrieveUnsupported). Ownership is a claim record (D-071); presence is probed
+// exactly (the BSID's end-of-stack entry in MPLS table 0 with SR-shaped paths; the steering
+// prefix among the FIB_SOURCE_SR routes of its table with an MPLS path), so a re-apply after a
+// resync is a no-op while VPP still has the object (D-076). See docs/agent/descriptors/sr_mpls.md.
 package sr_mpls //nolint:revive // package name mirrors the VPP plugin / binapi package
 
 import (
@@ -13,8 +15,7 @@ import (
 	"fmt"
 	"slices"
 
-	"google.golang.org/protobuf/proto"
-
+	"ngfw/agent/binapi/fib_types"
 	"ngfw/agent/binapi/mpls"
 	srmplsapi "ngfw/agent/binapi/sr_mpls"
 	"ngfw/agent/binapi/sr_types"
@@ -39,16 +40,13 @@ const (
 // ErrNoSuchPolicy means the referenced SR-MPLS policy (BSID) does not exist in VPP.
 var ErrNoSuchPolicy = errors.New("no such sr-mpls policy")
 
-// PolicyDescriptor manages SR-MPLS policies.
-type PolicyDescriptor struct {
-	client vpp.Client
-}
+// PolicyDescriptor manages SR-MPLS policies (write-only, ours by claim).
+type PolicyDescriptor = df6.KeyedDescriptor[*Policy]
 
 // NewPolicy returns the descriptor.
-func NewPolicy(c vpp.Client) *PolicyDescriptor { return &PolicyDescriptor{client: c} }
-
-// Name implements scheduler.Descriptor.
-func (d *PolicyDescriptor) Name() string { return PolicyName }
+func NewPolicy(c vpp.Client, owner string, opts ...df6.Option) *PolicyDescriptor {
+	return df6.NewKeyedDescriptor(policySpec, c, owner, opts...)
+}
 
 func validLabel(l uint32) bool { return l >= MinLabel && l <= MaxLabel }
 
@@ -86,101 +84,94 @@ func compareLists(a, b *SegmentList) int {
 	return int(a.GetWeight()) - int(b.GetWeight())
 }
 
-func (d *PolicyDescriptor) cast(obj proto.Message) (*Policy, error) {
-	p, ok := obj.(*Policy)
-	if !ok {
-		return nil, fmt.Errorf("%s: %w: %T", PolicyName, df6.ErrBadValue, obj)
-	}
-	if err := validatePolicy(p); err != nil {
-		return nil, fmt.Errorf("%s: %w", PolicyName, err)
-	}
-	return p, nil
-}
-
 // PolicyKey is the key of the policy with binding SID bsid.
 func PolicyKey(bsid uint32) scheduler.Key { return scheduler.Join(PolicyName, df6.U32(bsid)) }
 
-// KeyOf implements scheduler.Descriptor.
-func (d *PolicyDescriptor) KeyOf(obj proto.Message) scheduler.Key {
-	p, err := d.cast(obj)
-	if err != nil {
-		return scheduler.Join(PolicyName, "invalid")
-	}
-	return PolicyKey(p.GetBsid())
-}
-
-// Dependencies implements scheduler.Descriptor: MPLS table 0 (DF-7's mpls-table key); VPP
-// installs every SR-MPLS BSID there and refuses policies without it.
-func (d *PolicyDescriptor) Dependencies(proto.Message) []scheduler.Dependency {
-	return []scheduler.Dependency{{Key: df6.MPLSTableKey(0)}}
-}
-
-// Create implements scheduler.Descriptor: sr_mpls_policy_add with the first list, then
-// sr_mpls_policy_mod (ADD) per further list; a failure deletes the half-built policy.
-func (d *PolicyDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
-	p, err := d.cast(obj)
-	if err != nil {
-		return nil, err
-	}
-	svc := srmplsapi.NewServiceClient(d.client)
-	first := p.GetSegmentLists()[0]
-	if _, err := svc.SrMplsPolicyAdd(ctx, &srmplsapi.SrMplsPolicyAdd{
-		Bsid: p.GetBsid(), Weight: first.GetWeight(), IsSpray: p.GetSpray(), Segments: first.GetLabels(),
-	}); err != nil {
-		return nil, df6.PluginError(Plugin, fmt.Errorf("%s: sr_mpls_policy_add: %w", PolicyName, err))
-	}
-	for i, sl := range p.GetSegmentLists()[1:] {
-		if _, err := svc.SrMplsPolicyMod(ctx, &srmplsapi.SrMplsPolicyMod{
-			Bsid: p.GetBsid(), Operation: sr_types.SR_POLICY_OP_API_ADD, Weight: sl.GetWeight(), Segments: sl.GetLabels(),
+var policySpec = df6.KeyedSpec[*Policy]{
+	Name:      PolicyName,
+	Plugin:    Plugin,
+	WriteOnly: true,
+	Canon: func(p *Policy) (*Policy, error) {
+		return p, validatePolicy(p)
+	},
+	ID: func(p *Policy) string { return df6.U32(p.GetBsid()) },
+	// MPLS table 0 (DF-7's mpls-table key): VPP installs every SR-MPLS BSID there.
+	Deps: func(*Policy) []scheduler.Dependency { return []scheduler.Dependency{{Key: df6.MPLSTableKey(0)}} },
+	// Add: sr_mpls_policy_add with the first list, then sr_mpls_policy_mod (ADD) per further
+	// list; a failure deletes the half-built policy.
+	Add: func(ctx context.Context, c vpp.Client, p *Policy) error {
+		svc := srmplsapi.NewServiceClient(c)
+		first := p.GetSegmentLists()[0]
+		if _, err := svc.SrMplsPolicyAdd(ctx, &srmplsapi.SrMplsPolicyAdd{
+			Bsid: p.GetBsid(), Weight: first.GetWeight(), IsSpray: p.GetSpray(), Segments: first.GetLabels(),
 		}); err != nil {
-			_, rerr := svc.SrMplsPolicyDel(ctx, &srmplsapi.SrMplsPolicyDel{Bsid: p.GetBsid()})
-			return nil, df6.PluginError(Plugin, fmt.Errorf("%s: sr_mpls_policy_mod (add list %d): %w (rollback: %v)", PolicyName, i+1, err, rerr))
+			return fmt.Errorf("sr_mpls_policy_add: %w", err)
 		}
-	}
-	return nil, nil
+		for i, sl := range p.GetSegmentLists()[1:] {
+			if _, err := svc.SrMplsPolicyMod(ctx, &srmplsapi.SrMplsPolicyMod{
+				Bsid: p.GetBsid(), Operation: sr_types.SR_POLICY_OP_API_ADD, Weight: sl.GetWeight(), Segments: sl.GetLabels(),
+			}); err != nil {
+				_, rerr := svc.SrMplsPolicyDel(ctx, &srmplsapi.SrMplsPolicyDel{Bsid: p.GetBsid()})
+				return fmt.Errorf("sr_mpls_policy_mod (add list %d): %w (rollback: %v)", i+1, err, rerr)
+			}
+		}
+		return nil
+	},
+	// Del also clears an endpoint/color assignment (VPP does so inside sr_mpls_policy_del).
+	Del: func(ctx context.Context, c vpp.Client, p *Policy) error {
+		if _, err := srmplsapi.NewServiceClient(c).SrMplsPolicyDel(ctx, &srmplsapi.SrMplsPolicyDel{Bsid: p.GetBsid()}); err != nil {
+			return fmt.Errorf("sr_mpls_policy_del: %w", err)
+		}
+		return nil
+	},
+	List: func(ctx context.Context, c vpp.Client) ([]*Policy, error) {
+		bsids, err := srBSIDs(ctx, c)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]*Policy, 0, len(bsids))
+		for _, b := range bsids {
+			out = append(out, &Policy{Bsid: b}) // partial: only the id is readable
+		}
+		return out, nil
+	},
 }
 
-// Update implements scheduler.Descriptor: every change recreates.
-func (d *PolicyDescriptor) Update(context.Context, proto.Message, proto.Message, any) (any, error) {
-	return nil, scheduler.ErrRecreate
-}
-
-// Delete implements scheduler.Descriptor; a BSID VPP no longer has is already deleted.
-func (d *PolicyDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
-	p, err := d.cast(obj)
-	if err != nil {
-		return err
-	}
-	ok, err := BSIDPresent(ctx, d.client, p.GetBsid())
-	if err != nil || !ok {
-		return err
-	}
-	if _, err := srmplsapi.NewServiceClient(d.client).SrMplsPolicyDel(ctx, &srmplsapi.SrMplsPolicyDel{Bsid: p.GetBsid()}); err != nil {
-		return df6.PluginError(Plugin, fmt.Errorf("%s: sr_mpls_policy_del: %w", PolicyName, err))
-	}
-	return nil
-}
-
-// Retrieve implements scheduler.Descriptor: VPP has no SR-MPLS dump (see the package doc).
-func (d *PolicyDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
-	return nil, fmt.Errorf("%s: %w", PolicyName, df6.ErrRetrieveUnsupported)
-}
-
-// BSIDPresent reports whether MPLS table 0 has the end-of-stack local-label entry of bsid,
-// which VPP installs for every SR-MPLS policy (and removes with it).
-func BSIDPresent(ctx context.Context, c vpp.Client, bsid uint32) (bool, error) {
+// srBSIDs returns the labels of MPLS table 0 whose end-of-stack entry has the shape VPP gives
+// an SR-MPLS BSID: every path a recursive MPLS path (proto MPLS, no interface, type normal).
+// Ordinary MPLS routes (DF-7: out-labels via an interface / next hop) do not match (review M3).
+func srBSIDs(ctx context.Context, c vpp.Client) ([]uint32, error) {
 	stream, err := mpls.NewServiceClient(c).MplsRouteDump(ctx, &mpls.MplsRouteDump{Table: mpls.MplsTable{MtTableID: 0}})
 	if err != nil {
-		return false, fmt.Errorf("mpls_route_dump: %w", err)
+		return nil, fmt.Errorf("mpls_route_dump: %w", err)
 	}
 	routes, err := df6.Collect(stream.Recv)
 	if err != nil {
-		return false, fmt.Errorf("mpls_route_dump: %w", err)
+		return nil, fmt.Errorf("mpls_route_dump: %w", err)
 	}
+	var out []uint32
 	for _, r := range routes {
-		if r.MrRoute.MrLabel == bsid && r.MrRoute.MrEos == 1 {
-			return true, nil
+		if r.MrRoute.MrEos != 1 || len(r.MrRoute.MrPaths) == 0 {
+			continue
+		}
+		sr := true
+		for _, p := range r.MrRoute.MrPaths {
+			if p.Proto != fib_types.FIB_API_PATH_NH_PROTO_MPLS || p.SwIfIndex != df6.NoInterface || p.Type != fib_types.FIB_API_PATH_TYPE_NORMAL {
+				sr = false
+			}
+		}
+		if sr {
+			out = append(out, r.MrRoute.MrLabel)
 		}
 	}
-	return false, nil
+	return out, nil
+}
+
+// BSIDPresent reports whether VPP has an SR-MPLS-shaped BSID entry for bsid (any owner).
+func BSIDPresent(ctx context.Context, c vpp.Client, bsid uint32) (bool, error) {
+	bsids, err := srBSIDs(ctx, c)
+	if err != nil {
+		return false, err
+	}
+	return slices.Contains(bsids, bsid), nil
 }

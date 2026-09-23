@@ -83,7 +83,7 @@ var sessionSpec = df6.IfSpec[*Session, *pppoeapi.PppoeSessionDetails]{
 		}
 		return rep.SwIfIndex, nil
 	},
-	Del: func(ctx context.Context, c vpp.Client, s *Session, _ interface_types.InterfaceIndex) error {
+	Del: func(ctx context.Context, c vpp.Client, _ *df6.Interfaces, s *Session, _ interface_types.InterfaceIndex) error {
 		req, err := encode(s, false)
 		if err != nil {
 			return err

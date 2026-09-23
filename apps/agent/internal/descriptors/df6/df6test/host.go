@@ -3,7 +3,6 @@ package df6test
 import (
 	"context"
 	"fmt"
-	"net/netip"
 	"os"
 	"testing"
 	"time"
@@ -18,7 +17,6 @@ import (
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/mpls"
-	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/vpptest"
@@ -43,7 +41,6 @@ type Host struct {
 	Client vpp.Client
 	Owner  string
 	Slot   int
-	Scope  *df6.Scope
 	Ctx    context.Context
 }
 
@@ -66,30 +63,12 @@ func Connect(t testing.TB) *Host {
 	t.Cleanup(conn.Disconnect)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
-	base := vpptest.TableBase(t)
 	return &Host{
 		T:      t,
 		Client: hostClient{conn},
 		Owner:  owner,
 		Slot:   slot,
-		Scope:  SlotScope(owner, slot, base),
 		Ctx:    ctx,
-	}
-}
-
-// SlotScope is the ownership scope of a slot: tables/labels/VNIs base..base+999, addresses
-// 10.<slot>.0.0/16 and fd<slot>::/16 (slot as two decimal digits), names "<owner>-".
-func SlotScope(owner string, slot int, base uint32) *df6.Scope {
-	return &df6.Scope{
-		Owner:  owner,
-		Tables: &df6.IDRange{Lo: base, Hi: base + 999},
-		Labels: &df6.IDRange{Lo: base, Hi: base + 999},
-		VNIs:   &df6.IDRange{Lo: base, Hi: base + 999},
-		Addrs: []netip.Prefix{
-			netip.MustParsePrefix(fmt.Sprintf("10.%d.0.0/16", slot)),
-			netip.MustParsePrefix(fmt.Sprintf("fd%02d::/16", slot)),
-		},
-		NamePrefix: owner + "-",
 	}
 }
 

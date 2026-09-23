@@ -8,12 +8,14 @@ import (
 	"ngfw/agent/internal/vpp"
 )
 
-// Register registers the SRv6 descriptors (localsid, policy, steering, encap source, encap
-// hop limit) with r. scope attributes untagged SR objects on a shared VPP (nil = all).
-func Register(r scheduler.Registry, c vpp.Client, scope *df6.Scope) {
-	r.Register(NewEncapSource(c))
-	r.Register(NewEncapHopLimit(c))
-	r.Register(NewLocalSid(c, scope))
-	r.Register(NewPolicy(c, scope))
-	r.Register(NewSteering(c, scope))
+// Register registers the SRv6 descriptors with r: local SIDs, policies and steering (ours by
+// claim, D-071) and the VPP-global encap source / hop limit (setters only for the globals
+// owner, df6.WithGlobalsOwner; require variants otherwise).
+func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df6.Option) {
+	o := df6.BuildOptions(owner, opts)
+	r.Register(df6.Global(encapSourceSpec(), c, o))
+	r.Register(df6.Global(encapHopLimitSpec(), c, o))
+	r.Register(NewLocalSid(c, owner, opts...))
+	r.Register(NewPolicy(c, owner, opts...))
+	r.Register(NewSteering(c, owner, opts...))
 }

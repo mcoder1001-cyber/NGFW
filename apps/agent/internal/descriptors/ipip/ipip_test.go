@@ -56,6 +56,11 @@ func newFakeIPIP() *fakeIPIP {
 	})
 	f.On("ipip_6rd_add_tunnel", func(req api.Message) ([]api.Message, error) {
 		r := req.(*ipipapi.Ipip6rdAddTunnel)
+		for _, x := range f.sixrd {
+			if x.IP6Prefix == r.IP6Prefix && x.IP6TableID == r.IP6TableID {
+				return []api.Message{&ipipapi.Ipip6rdAddTunnelReply{Retval: -65}}, nil // IF_ALREADY_EXISTS
+			}
+		}
 		idx := f.AddInterface(ipip.InterfaceName(50+uint32(len(f.sixrd))), "") //nolint:gosec // tiny test map
 		f.sixrd[idx] = r
 		return []api.Message{&ipipapi.Ipip6rdAddTunnelReply{SwIfIndex: interface_types.InterfaceIndex(idx)}}, nil
@@ -190,5 +195,35 @@ func TestTunnelVariantsAndErrors(t *testing.T) {
 	}
 	if deps := s.Dependencies(&ipip.Tunnel6Rd{Ip6TableId: 11001, Ip4TableId: 11002}); len(deps) != 2 {
 		t.Fatalf("6rd deps = %+v", deps)
+	}
+}
+
+// TestSixrdResyncAndRestart (review H3): the write-only 6RD tunnel is re-applied on every
+// resync without a second add, and is deletable after an agent restart (no Meta) by its tag.
+func TestSixrdResyncAndRestart(t *testing.T) {
+	ctx := context.Background()
+	f := newFakeIPIP()
+	d := ipip.NewSixrd(f, "w11rs")
+	obj := &ipip.Tunnel6Rd{Name: "w11rs-6rd", Ip6Prefix: "fd11:6d::/32", Ip4Prefix: "10.11.0.0/16", Ip4Src: "10.11.1.1"}
+	m1, err := d.Create(ctx, obj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m2, err := d.Create(ctx, obj) // resync
+	if err != nil || m2 != m1 {
+		t.Fatalf("resync create = %v %v, want adopt %v", m2, err, m1)
+	}
+	if n := len(f.CallsNamed("ipip_6rd_add_tunnel")); n != 1 {
+		t.Fatalf("sent %d adds, want 1", n)
+	}
+	fresh := ipip.NewSixrd(f, "w11rs") // agent restart
+	if err := fresh.Delete(ctx, obj, nil); err != nil {
+		t.Fatalf("delete without meta: %v", err)
+	}
+	if len(f.sixrd) != 0 {
+		t.Fatal("6rd tunnel not deleted")
+	}
+	if err := fresh.Delete(ctx, obj, nil); err != nil || len(f.CallsNamed("ipip_6rd_del_tunnel")) != 1 {
+		t.Fatalf("second delete: %v", err)
 	}
 }

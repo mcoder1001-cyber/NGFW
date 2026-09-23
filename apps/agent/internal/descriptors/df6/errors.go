@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"go.fd.io/govpp/adapter"
+
+	iface "ngfw/agent/internal/descriptors/interface"
 )
 
 // Typed errors descriptors return and integration tests recognise.
@@ -51,4 +53,9 @@ func IfMetaOf(name string, meta any) (IfMeta, error) {
 		return IfMeta{}, fmt.Errorf("%s: %w %T", name, ErrBadMeta, meta)
 	}
 	return m, nil
+}
+
+// IsNoSuchInterface reports whether err says the interface does not exist (not: foreign).
+func IsNoSuchInterface(err error) bool {
+	return errors.Is(err, ErrNoSuchInterface) && !errors.Is(err, iface.ErrForeignInterface)
 }

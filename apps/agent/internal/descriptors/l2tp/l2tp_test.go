@@ -179,3 +179,25 @@ func TestGlobals(t *testing.T) {
 		t.Fatalf("bad key: %v", err)
 	}
 }
+
+// TestInterfaceEnableResync (review H3): two resyncs send one enable (VPP stacks features).
+func TestInterfaceEnableResync(t *testing.T) {
+	ctx := context.Background()
+	f := newFakeL2TP()
+	f.AddInterface("loop1190", "w11rs:loop1190")
+	e := l2tp.NewInterfaceEnable(f, "w11rs")
+	for i := 0; i < 2; i++ {
+		if _, err := e.Create(ctx, &l2tp.InterfaceEnable{Interface: "loop1190"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := len(f.CallsNamed("l2tpv3_interface_enable_disable")); n != 1 {
+		t.Fatalf("sent %d enables, want 1", n)
+	}
+	if err := e.Delete(ctx, &l2tp.InterfaceEnable{Interface: "loop1190"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(f.CallsNamed("l2tpv3_interface_enable_disable")); n != 2 {
+		t.Fatalf("delete: %d calls, want 2", n)
+	}
+}

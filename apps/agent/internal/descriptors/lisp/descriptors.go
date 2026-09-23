@@ -33,53 +33,105 @@ const (
 	GpeFwdEntryName   = "lisp-gpe.fwd-entry"
 )
 
-// NewEnable returns the global LISP switch. Note: VPP enables LISP-GPE together with LISP.
-func NewEnable(c vpp.Client) *df6.SingletonDescriptor[*Enable] {
+// SafeToDisable is the cross-owner emptiness check before LISP / LISP-GPE is switched off
+// (D-071): no local locator set, no mapping, no non-default EID-table map and no GPE
+// forwarding entry of ANY owner may exist.
+func SafeToDisable(ctx context.Context, c vpp.Client) (bool, error) {
+	on, gpe, err := status(ctx, c)
+	if err != nil {
+		return false, err
+	}
+	if on {
+		sets, err := locatorSets(ctx, c)
+		if err != nil {
+			return false, err
+		}
+		if len(sets) > 0 {
+			return false, nil
+		}
+		recs, err := eidTable(ctx, c, lispapi.LISP_LOCATOR_SET_FILTER_API_ALL)
+		if err != nil {
+			return false, err
+		}
+		if len(recs) > 0 {
+			return false, nil
+		}
+		for _, l2 := range []bool{false, true} {
+			stream, err := lispapi.NewServiceClient(c).LispEidTableMapDump(ctx, &lispapi.LispEidTableMapDump{IsL2: l2})
+			if err != nil {
+				return false, err
+			}
+			maps, err := df6.Collect(stream.Recv)
+			if err != nil {
+				return false, err
+			}
+			for _, m := range maps {
+				if m.Vni != 0 {
+					return false, nil
+				}
+			}
+		}
+	}
+	if gpe {
+		vr, err := gpeapi.NewServiceClient(c).GpeFwdEntryVnisGet(ctx, &gpeapi.GpeFwdEntryVnisGet{})
+		if err != nil {
+			return false, err
+		}
+		if len(vr.Vnis) > 0 {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func enableSpec() df6.SingletonSpec[*Enable] {
 	set := func(ctx context.Context, c vpp.Client, on bool) error {
 		if _, err := lispapi.NewServiceClient(c).LispEnableDisable(ctx, &lispapi.LispEnableDisable{IsEnable: on}); err != nil {
 			return fmt.Errorf("lisp_enable_disable: %w", err)
 		}
 		return nil
 	}
-	return df6.NewSingletonDescriptor(df6.SingletonSpec[*Enable]{
+	return df6.SingletonSpec[*Enable]{
 		Name: EnableName, Plugin: Plugin,
-		Set:   func(ctx context.Context, c vpp.Client, _ *Enable) error { return set(ctx, c, true) },
-		Unset: func(ctx context.Context, c vpp.Client, _ *Enable) error { return set(ctx, c, false) },
+		KeepOnAbsence: true,
+		SafeToUnset:   SafeToDisable,
+		Set:           func(ctx context.Context, c vpp.Client, _ *Enable) error { return set(ctx, c, true) },
+		Unset:         func(ctx context.Context, c vpp.Client, _ *Enable) error { return set(ctx, c, false) },
 		Get: func(ctx context.Context, c vpp.Client) (*Enable, bool, error) {
 			on, _, err := status(ctx, c)
 			return &Enable{}, on, err
 		},
-	}, c)
+	}
 }
 
-// NewGpeEnable returns the global LISP-GPE switch.
-func NewGpeEnable(c vpp.Client) *df6.SingletonDescriptor[*GpeEnable] {
+func gpeEnableSpec() df6.SingletonSpec[*GpeEnable] {
 	set := func(ctx context.Context, c vpp.Client, on bool) error {
 		if _, err := gpeapi.NewServiceClient(c).GpeEnableDisable(ctx, &gpeapi.GpeEnableDisable{IsEnable: on}); err != nil {
 			return fmt.Errorf("gpe_enable_disable: %w", err)
 		}
 		return nil
 	}
-	return df6.NewSingletonDescriptor(df6.SingletonSpec[*GpeEnable]{
+	return df6.SingletonSpec[*GpeEnable]{
 		Name: GpeEnableName, Plugin: Plugin,
-		Set:   func(ctx context.Context, c vpp.Client, _ *GpeEnable) error { return set(ctx, c, true) },
-		Unset: func(ctx context.Context, c vpp.Client, _ *GpeEnable) error { return set(ctx, c, false) },
+		KeepOnAbsence: true,
+		SafeToUnset:   SafeToDisable,
+		Set:           func(ctx context.Context, c vpp.Client, _ *GpeEnable) error { return set(ctx, c, true) },
+		Unset:         func(ctx context.Context, c vpp.Client, _ *GpeEnable) error { return set(ctx, c, false) },
 		Get: func(ctx context.Context, c vpp.Client) (*GpeEnable, bool, error) {
 			_, on, err := status(ctx, c)
 			return &GpeEnable{}, on, err
 		},
-	}, c)
+	}
 }
 
-// NewPitr returns the proxy-ITR singleton.
-func NewPitr(c vpp.Client) *df6.SingletonDescriptor[*Pitr] {
+func pitrSpec() df6.SingletonSpec[*Pitr] {
 	set := func(ctx context.Context, c vpp.Client, name string, on bool) error {
 		if _, err := lispapi.NewServiceClient(c).LispPitrSetLocatorSet(ctx, &lispapi.LispPitrSetLocatorSet{IsAdd: on, LsName: name}); err != nil {
 			return fmt.Errorf("lisp_pitr_set_locator_set: %w", err)
 		}
 		return nil
 	}
-	return df6.NewSingletonDescriptor(df6.SingletonSpec[*Pitr]{
+	return df6.SingletonSpec[*Pitr]{
 		Name: PitrName, Plugin: Plugin,
 		Validate: func(p *Pitr) error { return checkName(p.GetLocatorSet()) },
 		Set:      func(ctx context.Context, c vpp.Client, p *Pitr) error { return set(ctx, c, p.GetLocatorSet(), true) },
@@ -94,11 +146,27 @@ func NewPitr(c vpp.Client) *df6.SingletonDescriptor[*Pitr] {
 		Deps: func(p *Pitr) []scheduler.Dependency {
 			return []scheduler.Dependency{{Key: LocatorSetKey(p.GetLocatorSet())}, {Key: EnableKey}}
 		},
-	}, c)
+	}
+}
+
+// NewEnable returns the globals-owner setter of the LISP switch (VPP enables LISP-GPE with it).
+// Never deleted on absence; Delete disables only when SafeToDisable (D-071, review H1).
+func NewEnable(c vpp.Client) *df6.SingletonDescriptor[*Enable] {
+	return df6.NewSingletonDescriptor(enableSpec(), c)
+}
+
+// NewGpeEnable returns the globals-owner setter of the LISP-GPE switch.
+func NewGpeEnable(c vpp.Client) *df6.SingletonDescriptor[*GpeEnable] {
+	return df6.NewSingletonDescriptor(gpeEnableSpec(), c)
+}
+
+// NewPitr returns the globals-owner setter of the proxy-ITR locator set.
+func NewPitr(c vpp.Client) *df6.SingletonDescriptor[*Pitr] {
+	return df6.NewSingletonDescriptor(pitrSpec(), c)
 }
 
 // NewLocatorSet returns the local locator set descriptor.
-func NewLocatorSet(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*LocatorSet] {
+func NewLocatorSet(c vpp.Client, owner string, opts ...df6.Option) *df6.KeyedDescriptor[*LocatorSet] {
 	addDel := func(ctx context.Context, c vpp.Client, ls *LocatorSet, add bool) error {
 		if _, err := lispapi.NewServiceClient(c).LispAddDelLocatorSet(ctx, &lispapi.LispAddDelLocatorSet{IsAdd: add, LocatorSetName: ls.GetName()}); err != nil {
 			return fmt.Errorf("lisp_add_del_locator_set: %w", err)
@@ -123,14 +191,13 @@ func NewLocatorSet(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*Locator
 			}
 			return out, nil
 		},
-		Owns: func(ls *LocatorSet) bool { return scope.OwnsName(ls.GetName()) },
-	}, c)
+	}, c, owner, opts...)
 }
 
 // NewLocator returns the descriptor of interfaces in local locator sets.
-func NewLocator(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*Locator] {
+func NewLocator(c vpp.Client, owner string, opts ...df6.Option) *df6.KeyedDescriptor[*Locator] {
 	addDel := func(ctx context.Context, c vpp.Client, l *Locator, add bool) error {
-		ifs, err := df6.DumpInterfaces(ctx, c, "")
+		ifs, err := df6.DumpInterfaces(ctx, c, owner)
 		if err != nil {
 			return err
 		}
@@ -173,7 +240,7 @@ func NewLocator(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*Locator] {
 			if err != nil {
 				return nil, err
 			}
-			ifs, err := df6.DumpInterfaces(ctx, c, "")
+			ifs, err := df6.DumpInterfaces(ctx, c, owner)
 			if err != nil {
 				return nil, err
 			}
@@ -192,8 +259,7 @@ func NewLocator(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*Locator] {
 			}
 			return out, nil
 		},
-		Owns: func(l *Locator) bool { return scope.OwnsName(l.GetLocatorSet()) },
-	}, c)
+	}, c, owner, opts...)
 }
 
 // eidTableMapKey is the key of the EID-table map a (vni, eid) needs (none for VNI 0).
@@ -209,7 +275,7 @@ func eidTableMapDeps(vni uint32, eid string) []scheduler.Dependency {
 }
 
 // NewLocalEid returns the local EID descriptor.
-func NewLocalEid(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*LocalEid] {
+func NewLocalEid(c vpp.Client, owner string, opts ...df6.Option) *df6.KeyedDescriptor[*LocalEid] {
 	addDel := func(ctx context.Context, c vpp.Client, e *LocalEid, add bool) error {
 		eid, err := eidOf(e.GetEid())
 		if err != nil {
@@ -288,15 +354,14 @@ func NewLocalEid(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*LocalEid]
 			}
 			return out, nil
 		},
-		Owns: func(e *LocalEid) bool { return ownsEID(scope, e.GetEid(), e.GetVni()) },
-	}, c)
+	}, c, owner, opts...)
 }
 
 // addrSpec builds the map-resolver / map-server descriptors (one address each).
 func addrSpec[T interface {
 	proto.Message
 	GetAddress() string
-}](name string, mk func(string) T, addDel func(context.Context, vpp.Client, T, bool) error, list func(context.Context, vpp.Client) ([]T, error), scope *df6.Scope) df6.KeyedSpec[T] {
+}](name string, mk func(string) T, addDel func(context.Context, vpp.Client, T, bool) error, list func(context.Context, vpp.Client) ([]T, error)) df6.KeyedSpec[T] {
 	return df6.KeyedSpec[T]{
 		Name: name, Plugin: Plugin,
 		Canon: func(t T) (T, error) {
@@ -312,12 +377,11 @@ func addrSpec[T interface {
 		Add:  func(ctx context.Context, c vpp.Client, t T) error { return addDel(ctx, c, t, true) },
 		Del:  func(ctx context.Context, c vpp.Client, t T) error { return addDel(ctx, c, t, false) },
 		List: list,
-		Owns: func(t T) bool { return scope.OwnsAddrString(t.GetAddress()) },
 	}
 }
 
 // NewMapResolver returns the map-resolver descriptor.
-func NewMapResolver(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*MapResolver] {
+func NewMapResolver(c vpp.Client, owner string, opts ...df6.Option) *df6.KeyedDescriptor[*MapResolver] {
 	mk := func(a string) *MapResolver { return &MapResolver{Address: a} }
 	return df6.NewKeyedDescriptor(addrSpec(MapResolverName, mk,
 		func(ctx context.Context, c vpp.Client, m *MapResolver, add bool) error {
@@ -344,11 +408,11 @@ func NewMapResolver(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*MapRes
 				out = append(out, mk(df6.FromAddress(r.IPAddress).String()))
 			}
 			return out, nil
-		}, scope), c)
+		}), c, owner, opts...)
 }
 
 // NewMapServer returns the map-server descriptor.
-func NewMapServer(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*MapServer] {
+func NewMapServer(c vpp.Client, owner string, opts ...df6.Option) *df6.KeyedDescriptor[*MapServer] {
 	mk := func(a string) *MapServer { return &MapServer{Address: a} }
 	return df6.NewKeyedDescriptor(addrSpec(MapServerName, mk,
 		func(ctx context.Context, c vpp.Client, m *MapServer, add bool) error {
@@ -375,7 +439,7 @@ func NewMapServer(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*MapServe
 				out = append(out, mk(df6.FromAddress(r.IPAddress).String()))
 			}
 			return out, nil
-		}, scope), c)
+		}), c, owner, opts...)
 }
 
 func canonRlocs(in []*Rloc) ([]*Rloc, error) {
@@ -399,7 +463,7 @@ func canonRlocs(in []*Rloc) ([]*Rloc, error) {
 }
 
 // NewRemoteMapping returns the static remote-mapping descriptor.
-func NewRemoteMapping(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*RemoteMapping] {
+func NewRemoteMapping(c vpp.Client, owner string, opts ...df6.Option) *df6.KeyedDescriptor[*RemoteMapping] {
 	return df6.NewKeyedDescriptor(df6.KeyedSpec[*RemoteMapping]{
 		Name: RemoteMappingName, Plugin: Plugin,
 		Canon: func(m *RemoteMapping) (*RemoteMapping, error) {
@@ -477,12 +541,11 @@ func NewRemoteMapping(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*Remo
 			}
 			return out, nil
 		},
-		Owns: func(m *RemoteMapping) bool { return ownsEID(scope, m.GetEid(), m.GetVni()) },
-	}, c)
+	}, c, owner, opts...)
 }
 
 // NewAdjacency returns the adjacency descriptor.
-func NewAdjacency(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*Adjacency] {
+func NewAdjacency(c vpp.Client, owner string, opts ...df6.Option) *df6.KeyedDescriptor[*Adjacency] {
 	addDel := func(ctx context.Context, c vpp.Client, a *Adjacency, add bool) error {
 		reid, err := eidOf(a.GetReid())
 		if err != nil {
@@ -537,8 +600,7 @@ func NewAdjacency(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*Adjacenc
 			}
 			return out, nil
 		},
-		Owns: func(a *Adjacency) bool { return ownsEID(scope, a.GetReid(), a.GetVni()) },
-	}, c)
+	}, c, owner, opts...)
 }
 
 // eidVNIs lists the VNIs VPP has EID-table entries for (VNI 0 always included).
@@ -569,7 +631,7 @@ func EidTableMapID(m *EidTableMap) string {
 }
 
 // NewEidTableMap returns the VNI ↔ VRF/BD map descriptor.
-func NewEidTableMap(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*EidTableMap] {
+func NewEidTableMap(c vpp.Client, owner string, opts ...df6.Option) *df6.KeyedDescriptor[*EidTableMap] {
 	addDel := func(ctx context.Context, c vpp.Client, m *EidTableMap, add bool) error {
 		if _, err := lispapi.NewServiceClient(c).LispEidTableAddDelMap(ctx, &lispapi.LispEidTableAddDelMap{IsAdd: add, Vni: m.GetVni(), DpTable: m.GetDpTable(), IsL2: m.GetIsL2()}); err != nil {
 			return fmt.Errorf("lisp_eid_table_add_del_map: %w", err)
@@ -621,12 +683,11 @@ func NewEidTableMap(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*EidTab
 			}
 			return out, nil
 		},
-		Owns: func(m *EidTableMap) bool { return scope.OwnsVNI(m.GetVni()) },
-	}, c)
+	}, c, owner, opts...)
 }
 
 // NewGpeFwdEntry returns the LISP-GPE forwarding entry descriptor.
-func NewGpeFwdEntry(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*GpeFwdEntry] {
+func NewGpeFwdEntry(c vpp.Client, owner string, opts ...df6.Option) *df6.KeyedDescriptor[*GpeFwdEntry] {
 	req := func(e *GpeFwdEntry, add bool) (*gpeapi.GpeAddDelFwdEntry, error) {
 		reid, err := eidOf(e.GetReid())
 		if err != nil {
@@ -755,25 +816,27 @@ func NewGpeFwdEntry(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*GpeFwd
 			}
 			return out, nil
 		},
-		Owns:      func(e *GpeFwdEntry) bool { return ownsEID(scope, e.GetReid(), e.GetVni()) },
 		WriteOnly: true,
-	}, c)
+	}, c, owner, opts...)
 }
 
-// Register registers every LISP / LISP-GPE descriptor with r.
-func Register(r scheduler.Registry, c vpp.Client, scope *df6.Scope) {
-	r.Register(NewEnable(c))
-	r.Register(NewGpeEnable(c))
-	r.Register(NewLocatorSet(c, scope))
-	r.Register(NewLocator(c, scope))
-	r.Register(NewEidTableMap(c, scope))
-	r.Register(NewLocalEid(c, scope))
-	r.Register(NewMapResolver(c, scope))
-	r.Register(NewMapServer(c, scope))
-	r.Register(NewRemoteMapping(c, scope))
-	r.Register(NewAdjacency(c, scope))
-	r.Register(NewPitr(c))
-	r.Register(NewGpeFwdEntry(c, scope))
+// Register registers every LISP / LISP-GPE descriptor with r. The global switches (LISP,
+// LISP-GPE, PITR) are setters only on the globals owner (df6.WithGlobalsOwner); other agents
+// get the require variants (check, never set or reset — D-071).
+func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df6.Option) {
+	o := df6.BuildOptions(owner, opts)
+	r.Register(df6.Global(enableSpec(), c, o))
+	r.Register(df6.Global(gpeEnableSpec(), c, o))
+	r.Register(NewLocatorSet(c, owner, opts...))
+	r.Register(NewLocator(c, owner, opts...))
+	r.Register(NewEidTableMap(c, owner, opts...))
+	r.Register(NewLocalEid(c, owner, opts...))
+	r.Register(NewMapResolver(c, owner, opts...))
+	r.Register(NewMapServer(c, owner, opts...))
+	r.Register(NewRemoteMapping(c, owner, opts...))
+	r.Register(NewAdjacency(c, owner, opts...))
+	r.Register(df6.Global(pitrSpec(), c, o))
+	r.Register(NewGpeFwdEntry(c, owner, opts...))
 }
 
 // mappingEID is the EID of a non-src/dst mapping: VPP encodes it in seid (deid is only

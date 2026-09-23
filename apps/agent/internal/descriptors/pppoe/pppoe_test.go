@@ -13,6 +13,7 @@ import (
 	pppoeapi "ngfw/agent/binapi/pppoe"
 	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/descriptors/df6/df6test"
+	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/pppoe"
 	"ngfw/agent/internal/scheduler"
 )
@@ -20,11 +21,11 @@ import (
 type fakePPPoE struct {
 	*df6test.FakeVPP
 	sessions map[uint32]*pppoeapi.PppoeSessionDetails
-	cp       map[uint32]bool
+	cp       map[uint32]int // device-input feature count per interface (VPP does not dedupe)
 }
 
 func newFakePPPoE() *fakePPPoE {
-	f := &fakePPPoE{FakeVPP: df6test.NewFakeVPP(), sessions: map[uint32]*pppoeapi.PppoeSessionDetails{}, cp: map[uint32]bool{}}
+	f := &fakePPPoE{FakeVPP: df6test.NewFakeVPP(), sessions: map[uint32]*pppoeapi.PppoeSessionDetails{}, cp: map[uint32]int{}}
 	n := 0
 	f.On("pppoe_add_del_session", func(req api.Message) ([]api.Message, error) {
 		r := req.(*pppoeapi.PppoeAddDelSession)
@@ -55,7 +56,11 @@ func newFakePPPoE() *fakePPPoE {
 	})
 	f.On("pppoe_add_del_cp", func(req api.Message) ([]api.Message, error) {
 		r := req.(*pppoeapi.PppoeAddDelCp)
-		f.cp[uint32(r.SwIfIndex)] = r.IsAdd == 1
+		if r.IsAdd == 1 {
+			f.cp[uint32(r.SwIfIndex)]++
+		} else if f.cp[uint32(r.SwIfIndex)] > 0 {
+			f.cp[uint32(r.SwIfIndex)]--
+		}
 		return []api.Message{&pppoeapi.PppoeAddDelCpReply{}}, nil
 	})
 	return f
@@ -119,21 +124,58 @@ func TestSessionDescriptor(t *testing.T) {
 		}
 	}
 
-	// cp (write-only)
+	// cp: VPP-global (review M2), globals owner only, one enable per VPP boot (D-076).
 	cp := pppoe.NewCp(f, "w11")
 	idx := f.AddInterface("loop1101", "w11:loop1101")
+	f.AddInterface("w3-tap1", "w3:w3-tap1")
 	c := &pppoe.Cp{Interface: "loop1101"}
-	if k := cp.KeyOf(c); k != "pppoe.cp/loop1101" {
+	if k := cp.KeyOf(c); k != "pppoe.cp/global" {
 		t.Fatalf("KeyOf = %s", k)
 	}
-	cmeta, err := cp.Create(ctx, c)
-	if err != nil || !f.cp[idx] {
-		t.Fatalf("cp create: %v %v", err, f.cp)
+	f.SetBoot(100)
+	for i := 0; i < 2; i++ { // two resyncs
+		if _, err := cp.Create(ctx, c); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if _, err := cp.Retrieve(ctx); !errors.Is(err, df6.ErrRetrieveUnsupported) {
-		t.Fatalf("Retrieve = %v", err)
+	if f.cp[idx] != 1 {
+		t.Fatalf("after two resyncs the feature is enabled %d times, want 1", f.cp[idx])
 	}
-	if err := cp.Delete(ctx, c, cmeta); err != nil || f.cp[idx] {
+	f.SetBoot(101) // VPP restarted: the feature is gone, re-added once
+	f.cp[idx] = 0
+	for i := 0; i < 2; i++ {
+		if _, err := cp.Create(ctx, c); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if f.cp[idx] != 1 {
+		t.Fatalf("after restart + two resyncs: %d, want 1", f.cp[idx])
+	}
+	if _, err := cp.Create(ctx, &pppoe.Cp{Interface: "w3-tap1"}); !errors.Is(err, iface.ErrForeignInterface) {
+		t.Fatalf("foreign interface = %v", err)
+	}
+	if err := cp.Delete(ctx, c, nil); err != nil || f.cp[idx] != 0 {
 		t.Fatalf("cp delete: %v %v", err, f.cp)
+	}
+	if err := cp.Delete(ctx, c, nil); err != nil || f.cp[idx] != 0 {
+		t.Fatalf("second cp delete: %v %v", err, f.cp)
+	}
+	// Non-owners only get the require variant: never set, never reset.
+	reg = scheduler.NewRegistry()
+	pppoe.Register(reg, f, "w11")
+	rd, _ := reg.Get(pppoe.CpName)
+	if _, err := rd.Create(ctx, c); !errors.Is(err, df6.ErrNotGlobalsOwner) {
+		t.Fatalf("non-owner create = %v", err)
+	}
+	if err := rd.Delete(ctx, c, nil); err != nil || f.cp[idx] != 0 {
+		t.Fatalf("non-owner delete: %v", err)
+	}
+	if ad, ok := rd.(interface{ DeleteOnAbsence() bool }); !ok || ad.DeleteOnAbsence() {
+		t.Fatal("require variant must not be deleted on absence")
+	}
+	reg2 := scheduler.NewRegistry()
+	pppoe.Register(reg2, f, "w11", df6.WithGlobalsOwner(true))
+	if od, _ := reg2.Get(pppoe.CpName); od == nil {
+		t.Fatal("owner setter not registered")
 	}
 }

@@ -4,7 +4,7 @@
 # after merging; workers run it before declaring done. Never weaken it — extend it (owner: P09).
 #
 #   tools/ci.sh [quick]                    unit-only gate (default). Budget: < 6 min, < 2 min on an unchanged tree
-#   tools/ci.sh full                       quick + integration: flock -x /run/lock/vrx-lab.lock, CI slot 12,
+#   tools/ci.sh full                       quick + integration: flock -x /run/lock/vrx-lab.lock (barrier) → held shared, CI slot 12,
 #                                          tools/lab rig up w12, Go/TS suites with VRX_INTEGRATION=1, rig down
 #                                          (tools/lab absent = P04 not merged: loud WARNING, integration NOT RUN, gate still passes)
 #   tools/ci.sh [quick|full] --base <ref>  + contract guard and branch checks against <ref> (manager: --base main)
@@ -30,7 +30,7 @@ environment (all optional):
   VRX_CI_TOOLS_DIR=<dir>         where install-tools puts binaries (default /usr/local/bin; sudo used when needed)
   VRX_CI_ALLOW_MISSING_TOOLS=1   warn instead of fail when golangci-lint/gitleaks are absent and cannot be downloaded
   VRX_CI_LOCK=<file>             lab lock for `full` (default /run/lock/vrx-lab.lock)
-  VRX_CI_LOCK_TIMEOUT=<seconds>  how long `full` waits for the exclusive lock, before rig up and before rig down (default 1800)
+  VRX_CI_LOCK_TIMEOUT=<seconds>  how long `full` waits for the exclusive lab lock (the barrier before rig up; default 1800)
   VRX_CI_SLOT=<n>                slot used by `full` (default 12 = the CI slot, docs/lab/shared-host-rules.md)
   VRX_CI_REQUIRE_INTEGRATION=1   make `full` fail (instead of warn) when tools/lab is not available
   VRX_CI_HEAD_REF=<ref>          the branch tip for --base (default HEAD; the pre-merge-commit hook passes the ref being merged)
@@ -458,22 +458,23 @@ do_integration() {
   say "acquiring exclusive $LOCK_FILE (timeout ${LOCK_TIMEOUT}s) — integration harnesses hold it shared, VPP restarts exclusive"
   local t0=$SECONDS
   flock -x -w "$LOCK_TIMEOUT" 9 || fail "could not acquire the exclusive lab lock within ${LOCK_TIMEOUT}s; holders:\n$(lslocks 2>/dev/null | grep -F "$(basename "$LOCK_FILE")" || echo '  unknown')"
-  say "exclusive lock held (waited $(fmt_dur $((SECONDS - t0))))"
+  say "exclusive lock held (waited $(fmt_dur $((SECONDS - t0)))) — barrier passed: no VPP restart and no harness is running right now"
   slot_env "$CI_SLOT"
   unset VRX_INTEGRATION
   RIG_PREFIX=$VRX_TEST_PREFIX
+  # From here on the gate holds the lock SHARED, like every integration harness (00-CONTEXT, shared-host-rules §1b), because
+  #  - `tools/lab rig up` refuses to touch VPP while the lock is held exclusively (it reads that as "VPP restart / CI in progress"),
+  #  - the suites take their own `flock -s` on a fresh file description (P04's smoke_test.go does) — against our exclusive lock
+  #    that would block until `go test` times out; flock is per open file description, the process tree does not matter.
+  # Shared still gives the protection that matters: a VPP restart (exclusive) cannot start underneath the rig or the suites.
+  # Other harnesses may run beside the gate on their own prefixes. VRX_LAB_LOCK_HELD=1 / VRX_CI_FULL=1 tell tools/lab and the
+  # harnesses that the gate holds the lock for them.
+  flock -s 9 || fail "could not convert the lab lock to shared"
+  export VRX_LAB_LOCK_HELD=1 VRX_CI_FULL=1
+  say "lab lock converted to shared for rig up → suites → rig down"
   if run lab-status tools/lab status; then sed 's/^/  /' "$CUR_LOG" | tail -n 15; else warn "tools/lab status failed (non-fatal)"; fi
   run rig-up tools/lab rig up "$RIG_PREFIX" || fail "tools/lab rig up $RIG_PREFIX failed"
   RIG_UP=1
-  # The suites are integration harnesses: by convention (00-CONTEXT, shared-host-rules §1b) each takes its own
-  # `flock -s` on the lab lock (P04's smoke_test.go does, on a fresh file description). Against our exclusive lock that
-  # would block forever — same process tree or not, flock is per open file description. So the gate converts its lock
-  # to SHARED for the duration of the suites (still held: no VPP restart can start underneath; other harnesses may run
-  # beside us on their own prefixes) and takes it EXCLUSIVE again for the teardown. VRX_LAB_LOCK_HELD=1 tells harnesses
-  # that the gate holds the lock for them (taking their own shared lock stays harmless).
-  flock -s 9 || fail "could not convert the lab lock to shared"
-  export VRX_LAB_LOCK_HELD=1 VRX_CI_FULL=1
-  say "lab lock converted to shared while the suites run"
   local mod
   while IFS= read -r mod; do
     mod=$(dirname "$mod")
@@ -485,12 +486,9 @@ do_integration() {
   say "ts integration: pnpm -r run test:integration (packages that define it)"
   run ts-integration env VRX_INTEGRATION=1 pnpm -r --workspace-concurrency=1 --if-present run test:integration \
     || fail "TS integration tests failed"
-  unset VRX_LAB_LOCK_HELD VRX_CI_FULL
-  t0=$SECONDS
-  flock -x -w "$LOCK_TIMEOUT" 9 || fail "could not re-acquire the exclusive lab lock for the teardown within ${LOCK_TIMEOUT}s"
-  say "exclusive lock re-acquired for the teardown (waited $(fmt_dur $((SECONDS - t0))))"
   run rig-down tools/lab rig down "$RIG_PREFIX" || fail "tools/lab rig down $RIG_PREFIX failed — objects with prefix $RIG_PREFIX may be left on VPP; run 'tools/lab rig gc $RIG_PREFIX'"
   RIG_UP=0
+  unset VRX_LAB_LOCK_HELD VRX_CI_FULL
   exec 9>&-
   INTEGRATION_STATUS="ran on slot $CI_SLOT (prefix $RIG_PREFIX): rig up → Go + TS suites with VRX_INTEGRATION=1 → rig down"
 }

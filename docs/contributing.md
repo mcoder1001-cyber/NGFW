@@ -62,19 +62,18 @@ lists each step with its duration and the total wall time. The final line is exa
    never `eval`'d); anything it does not print comes from the same arithmetic `tools/lab` uses (D-025 for the metrics port):
    `VRX_SLOT=12 VRX_TEST_PREFIX=w12 VRX_HTTP_PORT=4200 VRX_WEB_PORT=6200 VRX_METRICS_PORT=9221 VRX_AGENT_SOCKET=/run/vrx-test/w12/agent.sock
    VRX_PG_DATABASE=vrx_w12 VRX_VALKEY_DB=12 VRX_VPP_TABLE_BASE=12000`;
-3. `tools/lab status`, then `tools/lab rig up w12` (idempotent: a suite that runs `rig up`/`rig down` on the same prefix itself,
+3. **converts the lock to shared** (`flock -s` on the same descriptor) and exports `VRX_LAB_LOCK_HELD=1 VRX_CI_FULL=1`. The
+   exclusive acquisition is a barrier (it returns only when no VPP restart and no harness is running); everything after it runs
+   under a shared lock, like every integration harness, for two hard reasons: `tools/lab rig up` refuses to touch VPP while the
+   lock is held exclusively (it reads that as "VPP restart / CI in progress"), and every harness takes its own
+   `flock -s /run/lock/vrx-lab.lock` on a fresh file description (`test/integration/smoke/smoke_test.go` does) — against an
+   exclusive lock that call blocks until `go test` times out, process tree or not. Shared keeps the protection that matters: a VPP
+   restart (exclusive) cannot start underneath the rig or the suites. Other harnesses may run beside the gate on their own prefixes;
+4. `tools/lab status`, then `tools/lab rig up w12` (idempotent: a suite that runs `rig up`/`rig down` on the same prefix itself,
    like the smoke test, just reuses it);
-4. **converts its lock to shared** (`flock -s` on the same descriptor) and exports `VRX_LAB_LOCK_HELD=1 VRX_CI_FULL=1`, then runs
-   `VRX_INTEGRATION=1 go test -race -count=1 -timeout 20m ./...` in every Go module under `apps/agent` and `test/`, then
-   `VRX_INTEGRATION=1 pnpm -r --workspace-concurrency=1 --if-present run test:integration`.
-   Why shared: every integration harness takes its own `flock -s /run/lock/vrx-lab.lock` (the convention in `00-CONTEXT.md`;
-   `test/integration/smoke/smoke_test.go` does it on a fresh file description). Against the gate's exclusive lock that call would
-   block until `go test` times out — flock is per open file description, the process tree does not matter. Holding the lock
-   shared keeps the protection that matters (no VPP restart — those take the exclusive lock — can start underneath the suites)
-   while other harnesses may run beside the gate on their own prefixes; harnesses may skip their own lock when
-   `VRX_LAB_LOCK_HELD=1`;
-5. re-acquires the **exclusive** lock (same timeout), `tools/lab rig down w12` (also on failure, via the exit trap — the rig is
-   torn down whatever happened), release the lock.
+5. `VRX_INTEGRATION=1 go test -race -count=1 -timeout 20m ./...` in every Go module under `apps/agent` and `test/`, then
+   `VRX_INTEGRATION=1 pnpm -r --workspace-concurrency=1 --if-present run test:integration`;
+6. `tools/lab rig down w12` (also on failure, via the exit trap — the rig is torn down whatever happened), release the lock.
 
 It **never restarts VPP**. If `tools/lab` is not in the tree (P04 not merged) it prints a loud `WARNING: integration NOT RUN` and
 still passes — the quick gate ran; set `VRX_CI_REQUIRE_INTEGRATION=1` to turn that into a failure. Integration tests follow the

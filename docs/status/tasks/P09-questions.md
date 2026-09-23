@@ -1,16 +1,19 @@
 # P09 — questions for the manager (none blocking; decisions taken are in P09.md)
 
-## Q1 — `full` holds the lab lock *shared* while the suites run (rules §1b say "exclusive")
-`docs/lab/shared-host-rules.md` §1b: harnesses take `flock -s`, `tools/ci.sh full` takes `flock -x`. Both cannot be true at the
-same time: P04's `test/integration/smoke/smoke_test.go` opens `/run/lock/vrx-lab.lock` itself and takes `LOCK_SH` on a fresh
-file description, and flock is per open file description — inside `full`'s exclusive lock that call blocks until `go test`
-times out (verified by reading the code; the same would hold for any harness that follows the 00-CONTEXT convention).
-What `full` does now: exclusive for `rig up` → **convert to shared** for the suites (still held, so no VPP restart can start
-underneath; other harnesses may run beside the gate on their own prefixes) → exclusive again for `rig down`. It also exports
-`VRX_LAB_LOCK_HELD=1 VRX_CI_FULL=1`.
-Options: (a) keep as implemented and amend §1b ("full: exclusive around rig up/down, shared while suites run"); (b) require
-every harness to skip its own lock when `VRX_LAB_LOCK_HELD=1` (P04 fix round could add it to `sharedLock()`), then `full` can stay
-exclusive throughout — but a single harness that forgets it hangs the gate for 20 min. I chose (a); (b) can be layered later.
+## Q1 — `full` holds the lab lock *shared* after an exclusive barrier (rules §1b say "exclusive")
+`docs/lab/shared-host-rules.md` §1b: harnesses take `flock -s`, `tools/ci.sh full` takes `flock -x`. Two facts make "exclusive
+throughout" impossible with the code that exists:
+1. P04's fix round (`6601efd`) made `tools/lab rig up` refuse while the lock is exclusively held:
+   `error: rig: /run/lock/vrx-lab.lock is held exclusively (manager ci full / VPP restart) — retry when 'tools/lab lock status' says free`
+   — observed in the evidence run D4 (`CI GATE FAILED — tools/lab rig up w12 failed`). The gate itself was the exclusive holder.
+2. `test/integration/smoke/smoke_test.go` opens the lock file itself and takes `LOCK_SH` on a fresh file description; flock is per
+   open file description, so inside an exclusive lock held by the same process tree that call blocks until `go test` times out.
+What `full` does now: acquire **exclusive** (barrier: returns only when no restart and no harness is running) → **convert to
+shared** → `rig up` → suites → `rig down` → release; exports `VRX_LAB_LOCK_HELD=1 VRX_CI_FULL=1` throughout.
+Options: (a) keep as implemented and amend §1b ("full: exclusive barrier, then shared"); (b) make `tools/lab rig up|down` skip
+its exclusive-holder guard when `VRX_CI_FULL=1` and every harness skip its own lock when `VRX_LAB_LOCK_HELD=1`, then `full` can
+stay exclusive — but one harness that forgets it hangs the gate for 20 min, and P04's tool is not mine to change. I chose (a);
+(b) can be layered on later without touching the gate's interface.
 
 ## Q2 — P04's smoke module vs. the new quick step 8
 Step 8 runs `gofmt -l`, `go vet`, `go test -count=1` in every Go module under `test/`. With P04 merged after P05a, the smoke

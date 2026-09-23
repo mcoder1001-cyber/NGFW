@@ -32,16 +32,17 @@ func TestBPFFilterOnHost(t *testing.T) {
 	if _, err := d.Update(ctx, v, v2, nil); err != nil {
 		t.Fatal(err)
 	}
-	// libpcap rejects it inside VPP: the error surfaces, nothing crashes
+	if _, err := d.Retrieve(ctx); !errors.Is(err, dfkit.ErrRetrieveUnsupported) {
+		t.Fatal(err)
+	}
+	dfkittest.HoldForEvidence(t, "vppctl show bpf trace filter")
+	// libpcap rejects it inside VPP: the error surfaces, nothing crashes. VPP frees the old
+	// program before compiling, so a failed Create leaves no filter (documented in trace.md).
 	if _, err := d.Create(ctx, BPFFilter{Expression: "udp port port"}.Proto()); err == nil {
 		t.Fatal("uncompilable expression accepted")
 	} else {
 		t.Logf("expected compile error: %v", err)
 	}
-	if _, err := d.Retrieve(ctx); !errors.Is(err, dfkit.ErrRetrieveUnsupported) {
-		t.Fatal(err)
-	}
-	dfkittest.HoldForEvidence(t, "vppctl show bpf trace filter")
 	for range 2 {
 		if err := d.Delete(ctx, v2, nil); err != nil {
 			t.Fatal(err)

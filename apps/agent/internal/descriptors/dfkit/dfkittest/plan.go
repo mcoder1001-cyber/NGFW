@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/internal/scheduler"
@@ -106,6 +107,8 @@ func AssertRetrieved(t testing.TB, d scheduler.Descriptor, want scheduler.KV) sc
 	if !proto.Equal(got.Value, want.Value) {
 		t.Fatalf("%s Retrieve %s:\n got  %v\n want %v", d.Name(), want.Key, got.Value, want.Value)
 	}
+	raw, _ := protojson.Marshal(got.Value)
+	t.Logf("Retrieve %s = %s (meta %+v)", got.Key, raw, got.Meta)
 	return got
 }
 

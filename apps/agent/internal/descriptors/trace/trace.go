@@ -72,7 +72,9 @@ var KeyBPFFilter = scheduler.Join(NameBPFFilter, BPFFilterID)
 
 // BPFFilterDescriptor manages the trace.bpf-filter singleton (bpf_trace_filter_set_v2). VPP has
 // no getter (`show bpf trace filter` is CLI only): Retrieve returns ErrRetrieveUnsupported
-// (write-only, D-063). Create replaces any program; Delete removes it (is_add=0).
+// (write-only, D-063). Create replaces any program; Delete removes it (is_add=0). VPP frees the
+// old program before compiling the new one, so a Create that fails to compile leaves no filter
+// at all (the reconciler's rollback re-applies the previous value).
 type BPFFilterDescriptor struct{ client vpp.Client }
 
 var _ scheduler.Descriptor = (*BPFFilterDescriptor)(nil)

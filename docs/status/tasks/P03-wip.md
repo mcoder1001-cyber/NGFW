@@ -19,4 +19,4 @@
 | 15:45 | Go test relocated to `apps/agent/internal/contracttest/` (9 tests incl. strict negatives, F3 probe, D-039/D-040 walks); TS test rewritten (13 tests, structural strictness, 64-bit strings); fixture `test/fixtures/all-domains.json` | done, all green |
 | 15:50 | buf lint/breaking green, `pnpm gen` deterministic, Node ESM import of `@ngfw/proto` from `apps/api` verified; WIP contract commit `13e1c6f` | done |
 | 16:10 | `docs/contracts/proto.md` (presence, secrets, D-041 table, diff rule, counters), `P03.md` wording + "Review fixes" section, `P03-contract.md`, questions #9–#12 | done |
-| 16:20 | `tools/ci.sh --base main`, paste output, final commit | running |
+| 16:20 | docs commit `9098de8`; `tools/ci.sh --base main` → CI GATE PASSED (`logs/P03-fix-ci.log`); paste + final commit | done |

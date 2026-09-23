@@ -59,3 +59,11 @@ is bumped). Doing better needs a VPP API addition (`cnat_snat_policy_get`, `cnat
 builds compile `ASSERT` out), so sending either one before `cnat_set_snat_addresses` crashes VPP.
 `cnat_translation_update` with `n_paths = 0` underflows `vec_validate`. The DF-3 descriptors guard all three; any
 other caller (vppctl scripts, other tasks) must do the same.
+
+## Q8 — pnat: missing binding index in details, flow-hash crash, detach bug (worth V-items)
+
+- `pnat_bindings_details` has no binding index. The DF-3 descriptor recovers it from the `pnat_bindings_get` cursor
+  semantics (binary search). An upstream fix would add `binding_index` to the details.
+- `pnat_flow_lookup` and `pnat_binding_detach` crash VPP if no binding was ever attached: the `bihash_16_8` flow hash
+  is not lazily instantiated. This is guarded in DF-3.
+- `pnat_binding_detach` disables the interface's attachment point even when other bindings remain attached there.

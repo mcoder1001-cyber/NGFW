@@ -2513,9 +2513,9 @@ type DesiredState struct {
 	Vpn *VpnConfig `protobuf:"bytes,9,opt,name=vpn,proto3" json:"vpn,omitempty"`
 	// `tunnels` — GRE, VXLAN, IPIP.
 	Tunnels *TunnelsConfig `protobuf:"bytes,10,opt,name=tunnels,proto3" json:"tunnels,omitempty"`
-	// `services` — DHCP, DNS, SNMP, LLDP, IPFIX.
+	// `services` — DHCP, DNS, SNMP, LLDP, IPFIX/sFlow, NTP, QoS.
 	Services *ServicesConfig `protobuf:"bytes,11,opt,name=services,proto3" json:"services,omitempty"`
-	// `ha` — VRRP.
+	// `ha` — VRRP, cluster.
 	Ha *HaConfig `protobuf:"bytes,12,opt,name=ha,proto3" json:"ha,omitempty"`
 	// `management` — local users, AAA, TLS, syslog.
 	Management    *ManagementConfig `protobuf:"bytes,13,opt,name=management,proto3" json:"management,omitempty"`
@@ -5529,14 +5529,14 @@ func (x *BfdConfig) GetSessions() []*BfdSession {
 	return nil
 }
 
-// TunnelsConfig mirrors `tunnels`; the records are keyed by tunnel name.
+// TunnelsConfig mirrors `tunnels`; the records are keyed by tunnel name (unique across kinds).
 type TunnelsConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// GRE tunnels (gre_tunnel_add_del). Fields land with the P02c model.
+	// GRE tunnels (gre_tunnel_add_del).
 	Gre map[string]*GreTunnel `protobuf:"bytes,1,rep,name=gre,proto3" json:"gre,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// VXLAN tunnels (vxlan_add_del_tunnel). Fields land with the P02c model.
+	// VXLAN tunnels (vxlan_add_del_tunnel).
 	Vxlan map[string]*VxlanTunnel `protobuf:"bytes,2,rep,name=vxlan,proto3" json:"vxlan,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// IPIP tunnels (ipip_add_tunnel), also the VTI of route-based IPsec. Fields land with the P02c model.
+	// IPIP tunnels (ipip_add_tunnel), also the VTI of route-based IPsec.
 	Ipip          map[string]*IpipTunnel `protobuf:"bytes,3,rep,name=ipip,proto3" json:"ipip,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5593,9 +5593,35 @@ func (x *TunnelsConfig) GetIpip() map[string]*IpipTunnel {
 	return nil
 }
 
-// GreTunnel is `tunnels.gre.<name>`; P02c fields are added from 1 (underlay/overlay `vrf` are explicit, vdom.md #1).
+// GreTunnel is `tunnels.gre.<name>`.
 type GreTunnel struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// Free-text description.
+	Description *string `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// VPP instance (interface gre<instance>); unset = allocated by VPP, not referenceable.
+	Instance *uint32 `protobuf:"varint,3,opt,name=instance,proto3,oneof" json:"instance,omitempty"`
+	// Source address (configured on an interface in underlay_vrf).
+	Src *string `protobuf:"bytes,4,opt,name=src,proto3,oneof" json:"src,omitempty"`
+	// FIB of the outer packets.
+	UnderlayVrf *string `protobuf:"bytes,5,opt,name=underlay_vrf,json=underlayVrf,proto3,oneof" json:"underlay_vrf,omitempty"`
+	// FIB of the tunnel interface (overlay).
+	Vrf *string `protobuf:"bytes,6,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// MTU; unset = VPP default.
+	Mtu *uint32 `protobuf:"varint,7,opt,name=mtu,proto3,oneof" json:"mtu,omitempty"`
+	// IPv4 interface addresses (CIDR); L3 tunnels only.
+	Ipv4 []string `protobuf:"bytes,8,rep,name=ipv4,proto3" json:"ipv4,omitempty"`
+	// IPv6 interface addresses (CIDR); L3 tunnels only.
+	Ipv6 []string `protobuf:"bytes,9,rep,name=ipv6,proto3" json:"ipv6,omitempty"`
+	// Bridge domain id (L2 tunnels: teb, erspan).
+	BridgeDomain *uint32 `protobuf:"varint,10,opt,name=bridge_domain,json=bridgeDomain,proto3,oneof" json:"bridge_domain,omitempty"`
+	// Destination address.
+	Dst *string `protobuf:"bytes,11,opt,name=dst,proto3,oneof" json:"dst,omitempty"`
+	// "l3" | "teb" | "erspan".
+	Type *string `protobuf:"bytes,12,opt,name=type,proto3,oneof" json:"type,omitempty"`
+	// ERSPAN session id 0–1023 (type erspan only).
+	SessionId     *uint32 `protobuf:"varint,13,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5630,9 +5656,132 @@ func (*GreTunnel) Descriptor() ([]byte, []int) {
 	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{60}
 }
 
-// VxlanTunnel is `tunnels.vxlan.<name>`; P02c fields are added from 1.
+func (x *GreTunnel) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *GreTunnel) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *GreTunnel) GetInstance() uint32 {
+	if x != nil && x.Instance != nil {
+		return *x.Instance
+	}
+	return 0
+}
+
+func (x *GreTunnel) GetSrc() string {
+	if x != nil && x.Src != nil {
+		return *x.Src
+	}
+	return ""
+}
+
+func (x *GreTunnel) GetUnderlayVrf() string {
+	if x != nil && x.UnderlayVrf != nil {
+		return *x.UnderlayVrf
+	}
+	return ""
+}
+
+func (x *GreTunnel) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *GreTunnel) GetMtu() uint32 {
+	if x != nil && x.Mtu != nil {
+		return *x.Mtu
+	}
+	return 0
+}
+
+func (x *GreTunnel) GetIpv4() []string {
+	if x != nil {
+		return x.Ipv4
+	}
+	return nil
+}
+
+func (x *GreTunnel) GetIpv6() []string {
+	if x != nil {
+		return x.Ipv6
+	}
+	return nil
+}
+
+func (x *GreTunnel) GetBridgeDomain() uint32 {
+	if x != nil && x.BridgeDomain != nil {
+		return *x.BridgeDomain
+	}
+	return 0
+}
+
+func (x *GreTunnel) GetDst() string {
+	if x != nil && x.Dst != nil {
+		return *x.Dst
+	}
+	return ""
+}
+
+func (x *GreTunnel) GetType() string {
+	if x != nil && x.Type != nil {
+		return *x.Type
+	}
+	return ""
+}
+
+func (x *GreTunnel) GetSessionId() uint32 {
+	if x != nil && x.SessionId != nil {
+		return *x.SessionId
+	}
+	return 0
+}
+
+// VxlanTunnel is `tunnels.vxlan.<name>`.
 type VxlanTunnel struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// Free-text description.
+	Description *string `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// VPP instance (interface vxlan_tunnel<instance>).
+	Instance *uint32 `protobuf:"varint,3,opt,name=instance,proto3,oneof" json:"instance,omitempty"`
+	// Source address (configured on an interface in underlay_vrf).
+	Src *string `protobuf:"bytes,4,opt,name=src,proto3,oneof" json:"src,omitempty"`
+	// FIB of the outer packets.
+	UnderlayVrf *string `protobuf:"bytes,5,opt,name=underlay_vrf,json=underlayVrf,proto3,oneof" json:"underlay_vrf,omitempty"`
+	// FIB of the tunnel interface (overlay, decap ip4/ip6).
+	Vrf *string `protobuf:"bytes,6,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// MTU; unset = VPP default.
+	Mtu *uint32 `protobuf:"varint,7,opt,name=mtu,proto3,oneof" json:"mtu,omitempty"`
+	// IPv4 interface addresses (CIDR); decap ip4/ip6 only.
+	Ipv4 []string `protobuf:"bytes,8,rep,name=ipv4,proto3" json:"ipv4,omitempty"`
+	// IPv6 interface addresses (CIDR); decap ip4/ip6 only.
+	Ipv6 []string `protobuf:"bytes,9,rep,name=ipv6,proto3" json:"ipv6,omitempty"`
+	// Bridge domain id (decap l2).
+	BridgeDomain *uint32 `protobuf:"varint,10,opt,name=bridge_domain,json=bridgeDomain,proto3,oneof" json:"bridge_domain,omitempty"`
+	// Unicast peer or multicast group.
+	Dst *string `protobuf:"bytes,11,opt,name=dst,proto3,oneof" json:"dst,omitempty"`
+	// 24-bit VNI.
+	Vni *uint32 `protobuf:"varint,12,opt,name=vni,proto3,oneof" json:"vni,omitempty"`
+	// Source UDP port.
+	SrcPort *uint32 `protobuf:"varint,13,opt,name=src_port,json=srcPort,proto3,oneof" json:"src_port,omitempty"`
+	// Destination UDP port.
+	DstPort *uint32 `protobuf:"varint,14,opt,name=dst_port,json=dstPort,proto3,oneof" json:"dst_port,omitempty"`
+	// Interface joining the multicast group (multicast dst only).
+	McastInterface *string `protobuf:"bytes,15,opt,name=mcast_interface,json=mcastInterface,proto3,oneof" json:"mcast_interface,omitempty"`
+	// "l2" | "ip4" | "ip6".
+	Decap         *string `protobuf:"bytes,16,opt,name=decap,proto3,oneof" json:"decap,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5667,9 +5816,147 @@ func (*VxlanTunnel) Descriptor() ([]byte, []int) {
 	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{61}
 }
 
-// IpipTunnel is `tunnels.ipip.<name>`; P02c fields are added from 1.
+func (x *VxlanTunnel) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *VxlanTunnel) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *VxlanTunnel) GetInstance() uint32 {
+	if x != nil && x.Instance != nil {
+		return *x.Instance
+	}
+	return 0
+}
+
+func (x *VxlanTunnel) GetSrc() string {
+	if x != nil && x.Src != nil {
+		return *x.Src
+	}
+	return ""
+}
+
+func (x *VxlanTunnel) GetUnderlayVrf() string {
+	if x != nil && x.UnderlayVrf != nil {
+		return *x.UnderlayVrf
+	}
+	return ""
+}
+
+func (x *VxlanTunnel) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *VxlanTunnel) GetMtu() uint32 {
+	if x != nil && x.Mtu != nil {
+		return *x.Mtu
+	}
+	return 0
+}
+
+func (x *VxlanTunnel) GetIpv4() []string {
+	if x != nil {
+		return x.Ipv4
+	}
+	return nil
+}
+
+func (x *VxlanTunnel) GetIpv6() []string {
+	if x != nil {
+		return x.Ipv6
+	}
+	return nil
+}
+
+func (x *VxlanTunnel) GetBridgeDomain() uint32 {
+	if x != nil && x.BridgeDomain != nil {
+		return *x.BridgeDomain
+	}
+	return 0
+}
+
+func (x *VxlanTunnel) GetDst() string {
+	if x != nil && x.Dst != nil {
+		return *x.Dst
+	}
+	return ""
+}
+
+func (x *VxlanTunnel) GetVni() uint32 {
+	if x != nil && x.Vni != nil {
+		return *x.Vni
+	}
+	return 0
+}
+
+func (x *VxlanTunnel) GetSrcPort() uint32 {
+	if x != nil && x.SrcPort != nil {
+		return *x.SrcPort
+	}
+	return 0
+}
+
+func (x *VxlanTunnel) GetDstPort() uint32 {
+	if x != nil && x.DstPort != nil {
+		return *x.DstPort
+	}
+	return 0
+}
+
+func (x *VxlanTunnel) GetMcastInterface() string {
+	if x != nil && x.McastInterface != nil {
+		return *x.McastInterface
+	}
+	return ""
+}
+
+func (x *VxlanTunnel) GetDecap() string {
+	if x != nil && x.Decap != nil {
+		return *x.Decap
+	}
+	return ""
+}
+
+// IpipTunnel is `tunnels.ipip.<name>`.
 type IpipTunnel struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// Free-text description.
+	Description *string `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// VPP instance (interface ipip<instance>).
+	Instance *uint32 `protobuf:"varint,3,opt,name=instance,proto3,oneof" json:"instance,omitempty"`
+	// Source address (configured on an interface in underlay_vrf).
+	Src *string `protobuf:"bytes,4,opt,name=src,proto3,oneof" json:"src,omitempty"`
+	// FIB of the outer packets.
+	UnderlayVrf *string `protobuf:"bytes,5,opt,name=underlay_vrf,json=underlayVrf,proto3,oneof" json:"underlay_vrf,omitempty"`
+	// FIB of the tunnel interface (overlay).
+	Vrf *string `protobuf:"bytes,6,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// MTU; unset = VPP default.
+	Mtu *uint32 `protobuf:"varint,7,opt,name=mtu,proto3,oneof" json:"mtu,omitempty"`
+	// IPv4 interface addresses (CIDR).
+	Ipv4 []string `protobuf:"bytes,8,rep,name=ipv4,proto3" json:"ipv4,omitempty"`
+	// IPv6 interface addresses (CIDR).
+	Ipv6 []string `protobuf:"bytes,9,rep,name=ipv6,proto3" json:"ipv6,omitempty"`
+	// Bridge domain id (never valid for IPIP; kept for the common tunnel shape).
+	BridgeDomain *uint32 `protobuf:"varint,10,opt,name=bridge_domain,json=bridgeDomain,proto3,oneof" json:"bridge_domain,omitempty"`
+	// "p2p" | "p2mp".
+	Mode *string `protobuf:"bytes,11,opt,name=mode,proto3,oneof" json:"mode,omitempty"`
+	// Destination address (p2p only).
+	Dst *string `protobuf:"bytes,12,opt,name=dst,proto3,oneof" json:"dst,omitempty"`
+	// Outer DSCP 0–63; unset = copy the inner DSCP.
+	Dscp          *uint32 `protobuf:"varint,13,opt,name=dscp,proto3,oneof" json:"dscp,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5704,20 +5991,114 @@ func (*IpipTunnel) Descriptor() ([]byte, []int) {
 	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{62}
 }
 
-// ServicesConfig mirrors `services`. Renderers are written so that "one daemon instance per
-// <vrf|interface>" is a parameter of these messages, not an assumption (vdom.md #5).
+func (x *IpipTunnel) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *IpipTunnel) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *IpipTunnel) GetInstance() uint32 {
+	if x != nil && x.Instance != nil {
+		return *x.Instance
+	}
+	return 0
+}
+
+func (x *IpipTunnel) GetSrc() string {
+	if x != nil && x.Src != nil {
+		return *x.Src
+	}
+	return ""
+}
+
+func (x *IpipTunnel) GetUnderlayVrf() string {
+	if x != nil && x.UnderlayVrf != nil {
+		return *x.UnderlayVrf
+	}
+	return ""
+}
+
+func (x *IpipTunnel) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *IpipTunnel) GetMtu() uint32 {
+	if x != nil && x.Mtu != nil {
+		return *x.Mtu
+	}
+	return 0
+}
+
+func (x *IpipTunnel) GetIpv4() []string {
+	if x != nil {
+		return x.Ipv4
+	}
+	return nil
+}
+
+func (x *IpipTunnel) GetIpv6() []string {
+	if x != nil {
+		return x.Ipv6
+	}
+	return nil
+}
+
+func (x *IpipTunnel) GetBridgeDomain() uint32 {
+	if x != nil && x.BridgeDomain != nil {
+		return *x.BridgeDomain
+	}
+	return 0
+}
+
+func (x *IpipTunnel) GetMode() string {
+	if x != nil && x.Mode != nil {
+		return *x.Mode
+	}
+	return ""
+}
+
+func (x *IpipTunnel) GetDst() string {
+	if x != nil && x.Dst != nil {
+		return *x.Dst
+	}
+	return ""
+}
+
+func (x *IpipTunnel) GetDscp() uint32 {
+	if x != nil && x.Dscp != nil {
+		return *x.Dscp
+	}
+	return 0
+}
+
+// ServicesConfig mirrors `services`.
 type ServicesConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// DHCPv4/v6 server (Kea) and relay. Fields land with the P02c model.
+	// DHCP servers (Kea instances) and relays (VPP dhcp proxy).
 	Dhcp *DhcpService `protobuf:"bytes,1,opt,name=dhcp,proto3" json:"dhcp,omitempty"`
-	// DNS resolver/forwarder (Unbound). Fields land with the P02c model.
+	// DNS resolvers (Unbound instances) and the VPP dns cache.
 	Dns *DnsService `protobuf:"bytes,2,opt,name=dns,proto3" json:"dns,omitempty"`
-	// SNMP agent (net-snmp). Fields land with the P02c model.
+	// SNMP agent (net-snmp).
 	Snmp *SnmpService `protobuf:"bytes,3,opt,name=snmp,proto3" json:"snmp,omitempty"`
-	// LLDP (VPP lldp plugin). Fields land with the P02c model.
+	// LLDP (VPP lldp plugin).
 	Lldp *LldpService `protobuf:"bytes,4,opt,name=lldp,proto3" json:"lldp,omitempty"`
-	// IPFIX/NetFlow export (VPP flowprobe). Fields land with the P02c model.
-	Ipfix         *IpfixService `protobuf:"bytes,5,opt,name=ipfix,proto3" json:"ipfix,omitempty"`
+	// IPFIX exporters, flowprobe and sFlow (VPP plugins).
+	Ipfix *IpfixService `protobuf:"bytes,5,opt,name=ipfix,proto3" json:"ipfix,omitempty"`
+	// NTP client/server (chrony) — the only NTP model (D-050).
+	Ntp *NtpService `protobuf:"bytes,6,opt,name=ntp,proto3" json:"ntp,omitempty"`
+	// QoS: policers, shapers, marking maps, interface attachments (D-052).
+	Qos           *QosService `protobuf:"bytes,7,opt,name=qos,proto3" json:"qos,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5787,16 +6168,89 @@ func (x *ServicesConfig) GetIpfix() *IpfixService {
 	return nil
 }
 
-// DhcpService is `services.dhcp`; P02c fields are added from 1.
+func (x *ServicesConfig) GetNtp() *NtpService {
+	if x != nil {
+		return x.Ntp
+	}
+	return nil
+}
+
+func (x *ServicesConfig) GetQos() *QosService {
+	if x != nil {
+		return x.Qos
+	}
+	return nil
+}
+
+// SocketAddress is an `{ address, port }` pair (listen sockets, collectors).
+type SocketAddress struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// IP address.
+	Address *string `protobuf:"bytes,1,opt,name=address,proto3,oneof" json:"address,omitempty"`
+	// UDP/TCP port.
+	Port          *uint32 `protobuf:"varint,2,opt,name=port,proto3,oneof" json:"port,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SocketAddress) Reset() {
+	*x = SocketAddress{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SocketAddress) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SocketAddress) ProtoMessage() {}
+
+func (x *SocketAddress) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SocketAddress.ProtoReflect.Descriptor instead.
+func (*SocketAddress) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *SocketAddress) GetAddress() string {
+	if x != nil && x.Address != nil {
+		return *x.Address
+	}
+	return ""
+}
+
+func (x *SocketAddress) GetPort() uint32 {
+	if x != nil && x.Port != nil {
+		return *x.Port
+	}
+	return 0
+}
+
+// DhcpService is `services.dhcp`.
 type DhcpService struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Kea server instances keyed by name.
+	Servers map[string]*DhcpServer `protobuf:"bytes,1,rep,name=servers,proto3" json:"servers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Relays keyed by name.
+	Relays        map[string]*DhcpRelay `protobuf:"bytes,2,rep,name=relays,proto3" json:"relays,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DhcpService) Reset() {
 	*x = DhcpService{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[64]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5808,7 +6262,7 @@ func (x *DhcpService) String() string {
 func (*DhcpService) ProtoMessage() {}
 
 func (x *DhcpService) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[64]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5821,19 +6275,619 @@ func (x *DhcpService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DhcpService.ProtoReflect.Descriptor instead.
 func (*DhcpService) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{64}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{65}
 }
 
-// DnsService is `services.dns`; P02c fields are added from 1.
+func (x *DhcpService) GetServers() map[string]*DhcpServer {
+	if x != nil {
+		return x.Servers
+	}
+	return nil
+}
+
+func (x *DhcpService) GetRelays() map[string]*DhcpRelay {
+	if x != nil {
+		return x.Relays
+	}
+	return nil
+}
+
+// DhcpOption is one DHCP option.
+type DhcpOption struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Option code (DHCPv4 1–254, DHCPv6 1–65535).
+	Code *uint32 `protobuf:"varint,1,opt,name=code,proto3,oneof" json:"code,omitempty"`
+	// Kea option data.
+	Data *string `protobuf:"bytes,2,opt,name=data,proto3,oneof" json:"data,omitempty"`
+	// Send even when not requested.
+	AlwaysSend    *bool `protobuf:"varint,3,opt,name=always_send,json=alwaysSend,proto3,oneof" json:"always_send,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DhcpOption) Reset() {
+	*x = DhcpOption{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DhcpOption) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DhcpOption) ProtoMessage() {}
+
+func (x *DhcpOption) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DhcpOption.ProtoReflect.Descriptor instead.
+func (*DhcpOption) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *DhcpOption) GetCode() uint32 {
+	if x != nil && x.Code != nil {
+		return *x.Code
+	}
+	return 0
+}
+
+func (x *DhcpOption) GetData() string {
+	if x != nil && x.Data != nil {
+		return *x.Data
+	}
+	return ""
+}
+
+func (x *DhcpOption) GetAlwaysSend() bool {
+	if x != nil && x.AlwaysSend != nil {
+		return *x.AlwaysSend
+	}
+	return false
+}
+
+// DhcpPool is one address range of a subnet.
+type DhcpPool struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// First address.
+	Start *string `protobuf:"bytes,1,opt,name=start,proto3,oneof" json:"start,omitempty"`
+	// Last address.
+	End           *string `protobuf:"bytes,2,opt,name=end,proto3,oneof" json:"end,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DhcpPool) Reset() {
+	*x = DhcpPool{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DhcpPool) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DhcpPool) ProtoMessage() {}
+
+func (x *DhcpPool) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DhcpPool.ProtoReflect.Descriptor instead.
+func (*DhcpPool) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *DhcpPool) GetStart() string {
+	if x != nil && x.Start != nil {
+		return *x.Start
+	}
+	return ""
+}
+
+func (x *DhcpPool) GetEnd() string {
+	if x != nil && x.End != nil {
+		return *x.End
+	}
+	return ""
+}
+
+// DhcpReservation is `…subnets.<name>.reservations.<name>`.
+type DhcpReservation struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Client MAC (exactly one of mac / duid).
+	Mac *string `protobuf:"bytes,1,opt,name=mac,proto3,oneof" json:"mac,omitempty"`
+	// Client DUID (DHCPv6).
+	Duid *string `protobuf:"bytes,2,opt,name=duid,proto3,oneof" json:"duid,omitempty"`
+	// Reserved address.
+	Ip *string `protobuf:"bytes,3,opt,name=ip,proto3,oneof" json:"ip,omitempty"`
+	// Hostname.
+	Hostname *string `protobuf:"bytes,4,opt,name=hostname,proto3,oneof" json:"hostname,omitempty"`
+	// Options.
+	Options       []*DhcpOption `protobuf:"bytes,5,rep,name=options,proto3" json:"options,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DhcpReservation) Reset() {
+	*x = DhcpReservation{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DhcpReservation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DhcpReservation) ProtoMessage() {}
+
+func (x *DhcpReservation) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DhcpReservation.ProtoReflect.Descriptor instead.
+func (*DhcpReservation) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *DhcpReservation) GetMac() string {
+	if x != nil && x.Mac != nil {
+		return *x.Mac
+	}
+	return ""
+}
+
+func (x *DhcpReservation) GetDuid() string {
+	if x != nil && x.Duid != nil {
+		return *x.Duid
+	}
+	return ""
+}
+
+func (x *DhcpReservation) GetIp() string {
+	if x != nil && x.Ip != nil {
+		return *x.Ip
+	}
+	return ""
+}
+
+func (x *DhcpReservation) GetHostname() string {
+	if x != nil && x.Hostname != nil {
+		return *x.Hostname
+	}
+	return ""
+}
+
+func (x *DhcpReservation) GetOptions() []*DhcpOption {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+// DhcpSubnet is `services.dhcp.servers.<name>.subnets.<name>`.
+type DhcpSubnet struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Free-text description.
+	Description *string `protobuf:"bytes,1,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// Subnet (CIDR).
+	Subnet *string `protobuf:"bytes,2,opt,name=subnet,proto3,oneof" json:"subnet,omitempty"`
+	// Address pools.
+	Pools []*DhcpPool `protobuf:"bytes,3,rep,name=pools,proto3" json:"pools,omitempty"`
+	// Default gateway (DHCPv4).
+	Gateway *string `protobuf:"bytes,4,opt,name=gateway,proto3,oneof" json:"gateway,omitempty"`
+	// DNS servers.
+	DnsServers []string `protobuf:"bytes,5,rep,name=dns_servers,json=dnsServers,proto3" json:"dns_servers,omitempty"`
+	// NTP servers.
+	NtpServers []string `protobuf:"bytes,6,rep,name=ntp_servers,json=ntpServers,proto3" json:"ntp_servers,omitempty"`
+	// Domain name.
+	DomainName *string `protobuf:"bytes,7,opt,name=domain_name,json=domainName,proto3,oneof" json:"domain_name,omitempty"`
+	// Domain search list.
+	DomainSearch []string `protobuf:"bytes,8,rep,name=domain_search,json=domainSearch,proto3" json:"domain_search,omitempty"`
+	// Lease time in seconds; unset = server default.
+	LeaseTimeSec *uint32 `protobuf:"varint,9,opt,name=lease_time_sec,json=leaseTimeSec,proto3,oneof" json:"lease_time_sec,omitempty"`
+	// Options.
+	Options []*DhcpOption `protobuf:"bytes,10,rep,name=options,proto3" json:"options,omitempty"`
+	// Reservations keyed by name.
+	Reservations  map[string]*DhcpReservation `protobuf:"bytes,11,rep,name=reservations,proto3" json:"reservations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DhcpSubnet) Reset() {
+	*x = DhcpSubnet{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DhcpSubnet) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DhcpSubnet) ProtoMessage() {}
+
+func (x *DhcpSubnet) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DhcpSubnet.ProtoReflect.Descriptor instead.
+func (*DhcpSubnet) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *DhcpSubnet) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *DhcpSubnet) GetSubnet() string {
+	if x != nil && x.Subnet != nil {
+		return *x.Subnet
+	}
+	return ""
+}
+
+func (x *DhcpSubnet) GetPools() []*DhcpPool {
+	if x != nil {
+		return x.Pools
+	}
+	return nil
+}
+
+func (x *DhcpSubnet) GetGateway() string {
+	if x != nil && x.Gateway != nil {
+		return *x.Gateway
+	}
+	return ""
+}
+
+func (x *DhcpSubnet) GetDnsServers() []string {
+	if x != nil {
+		return x.DnsServers
+	}
+	return nil
+}
+
+func (x *DhcpSubnet) GetNtpServers() []string {
+	if x != nil {
+		return x.NtpServers
+	}
+	return nil
+}
+
+func (x *DhcpSubnet) GetDomainName() string {
+	if x != nil && x.DomainName != nil {
+		return *x.DomainName
+	}
+	return ""
+}
+
+func (x *DhcpSubnet) GetDomainSearch() []string {
+	if x != nil {
+		return x.DomainSearch
+	}
+	return nil
+}
+
+func (x *DhcpSubnet) GetLeaseTimeSec() uint32 {
+	if x != nil && x.LeaseTimeSec != nil {
+		return *x.LeaseTimeSec
+	}
+	return 0
+}
+
+func (x *DhcpSubnet) GetOptions() []*DhcpOption {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+func (x *DhcpSubnet) GetReservations() map[string]*DhcpReservation {
+	if x != nil {
+		return x.Reservations
+	}
+	return nil
+}
+
+// DhcpServer is `services.dhcp.servers.<name>` (one Kea instance).
+type DhcpServer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// Free-text description.
+	Description *string `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// "ipv4" | "ipv6".
+	Family *string `protobuf:"bytes,3,opt,name=family,proto3,oneof" json:"family,omitempty"`
+	// VRF of the instance.
+	Vrf *string `protobuf:"bytes,4,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// Interfaces the instance listens on.
+	Interfaces []string `protobuf:"bytes,5,rep,name=interfaces,proto3" json:"interfaces,omitempty"`
+	// Lease time in seconds.
+	LeaseTimeSec *uint32 `protobuf:"varint,6,opt,name=lease_time_sec,json=leaseTimeSec,proto3,oneof" json:"lease_time_sec,omitempty"`
+	// Renew timer T1 in seconds.
+	RenewTimerSec *uint32 `protobuf:"varint,7,opt,name=renew_timer_sec,json=renewTimerSec,proto3,oneof" json:"renew_timer_sec,omitempty"`
+	// Rebind timer T2 in seconds.
+	RebindTimerSec *uint32 `protobuf:"varint,8,opt,name=rebind_timer_sec,json=rebindTimerSec,proto3,oneof" json:"rebind_timer_sec,omitempty"`
+	// Authoritative.
+	Authoritative *bool `protobuf:"varint,9,opt,name=authoritative,proto3,oneof" json:"authoritative,omitempty"`
+	// Subnets keyed by name.
+	Subnets map[string]*DhcpSubnet `protobuf:"bytes,10,rep,name=subnets,proto3" json:"subnets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Global options.
+	Options       []*DhcpOption `protobuf:"bytes,11,rep,name=options,proto3" json:"options,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DhcpServer) Reset() {
+	*x = DhcpServer{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DhcpServer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DhcpServer) ProtoMessage() {}
+
+func (x *DhcpServer) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DhcpServer.ProtoReflect.Descriptor instead.
+func (*DhcpServer) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *DhcpServer) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *DhcpServer) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *DhcpServer) GetFamily() string {
+	if x != nil && x.Family != nil {
+		return *x.Family
+	}
+	return ""
+}
+
+func (x *DhcpServer) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *DhcpServer) GetInterfaces() []string {
+	if x != nil {
+		return x.Interfaces
+	}
+	return nil
+}
+
+func (x *DhcpServer) GetLeaseTimeSec() uint32 {
+	if x != nil && x.LeaseTimeSec != nil {
+		return *x.LeaseTimeSec
+	}
+	return 0
+}
+
+func (x *DhcpServer) GetRenewTimerSec() uint32 {
+	if x != nil && x.RenewTimerSec != nil {
+		return *x.RenewTimerSec
+	}
+	return 0
+}
+
+func (x *DhcpServer) GetRebindTimerSec() uint32 {
+	if x != nil && x.RebindTimerSec != nil {
+		return *x.RebindTimerSec
+	}
+	return 0
+}
+
+func (x *DhcpServer) GetAuthoritative() bool {
+	if x != nil && x.Authoritative != nil {
+		return *x.Authoritative
+	}
+	return false
+}
+
+func (x *DhcpServer) GetSubnets() map[string]*DhcpSubnet {
+	if x != nil {
+		return x.Subnets
+	}
+	return nil
+}
+
+func (x *DhcpServer) GetOptions() []*DhcpOption {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+// DhcpRelay is `services.dhcp.relays.<name>` (VPP dhcp proxy).
+type DhcpRelay struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// Free-text description.
+	Description *string `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// "ipv4" | "ipv6".
+	Family *string `protobuf:"bytes,3,opt,name=family,proto3,oneof" json:"family,omitempty"`
+	// Client-side VRF.
+	Vrf *string `protobuf:"bytes,4,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// VRF the servers are reached in; unset = vrf.
+	ServerVrf *string `protobuf:"bytes,5,opt,name=server_vrf,json=serverVrf,proto3,oneof" json:"server_vrf,omitempty"`
+	// Client interfaces.
+	Interfaces []string `protobuf:"bytes,6,rep,name=interfaces,proto3" json:"interfaces,omitempty"`
+	// DHCP server addresses.
+	Servers []string `protobuf:"bytes,7,rep,name=servers,proto3" json:"servers,omitempty"`
+	// Relay source address (configured in server_vrf, else vrf).
+	SourceAddress *string `protobuf:"bytes,8,opt,name=source_address,json=sourceAddress,proto3,oneof" json:"source_address,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DhcpRelay) Reset() {
+	*x = DhcpRelay{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DhcpRelay) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DhcpRelay) ProtoMessage() {}
+
+func (x *DhcpRelay) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DhcpRelay.ProtoReflect.Descriptor instead.
+func (*DhcpRelay) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *DhcpRelay) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *DhcpRelay) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *DhcpRelay) GetFamily() string {
+	if x != nil && x.Family != nil {
+		return *x.Family
+	}
+	return ""
+}
+
+func (x *DhcpRelay) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *DhcpRelay) GetServerVrf() string {
+	if x != nil && x.ServerVrf != nil {
+		return *x.ServerVrf
+	}
+	return ""
+}
+
+func (x *DhcpRelay) GetInterfaces() []string {
+	if x != nil {
+		return x.Interfaces
+	}
+	return nil
+}
+
+func (x *DhcpRelay) GetServers() []string {
+	if x != nil {
+		return x.Servers
+	}
+	return nil
+}
+
+func (x *DhcpRelay) GetSourceAddress() string {
+	if x != nil && x.SourceAddress != nil {
+		return *x.SourceAddress
+	}
+	return ""
+}
+
+// DnsService is `services.dns`.
 type DnsService struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unbound instances keyed by name.
+	Resolvers map[string]*DnsResolver `protobuf:"bytes,1,rep,name=resolvers,proto3" json:"resolvers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// VPP dns cache; unset = not configured.
+	VppCache      *DnsService_VppCache `protobuf:"bytes,2,opt,name=vpp_cache,json=vppCache,proto3" json:"vpp_cache,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DnsService) Reset() {
 	*x = DnsService{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[65]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5845,7 +6899,7 @@ func (x *DnsService) String() string {
 func (*DnsService) ProtoMessage() {}
 
 func (x *DnsService) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[65]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5858,19 +6912,556 @@ func (x *DnsService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsService.ProtoReflect.Descriptor instead.
 func (*DnsService) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{65}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{72}
 }
 
-// SnmpService is `services.snmp`; P02c fields are added from 1.
+func (x *DnsService) GetResolvers() map[string]*DnsResolver {
+	if x != nil {
+		return x.Resolvers
+	}
+	return nil
+}
+
+func (x *DnsService) GetVppCache() *DnsService_VppCache {
+	if x != nil {
+		return x.VppCache
+	}
+	return nil
+}
+
+// DnsUpstream is one upstream resolver.
+type DnsUpstream struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Server address.
+	Address *string `protobuf:"bytes,1,opt,name=address,proto3,oneof" json:"address,omitempty"`
+	// Port.
+	Port *uint32 `protobuf:"varint,2,opt,name=port,proto3,oneof" json:"port,omitempty"`
+	// DNS over TLS.
+	Tls *bool `protobuf:"varint,3,opt,name=tls,proto3,oneof" json:"tls,omitempty"`
+	// TLS server name (tls only).
+	TlsServerName *string `protobuf:"bytes,4,opt,name=tls_server_name,json=tlsServerName,proto3,oneof" json:"tls_server_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DnsUpstream) Reset() {
+	*x = DnsUpstream{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[73]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DnsUpstream) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DnsUpstream) ProtoMessage() {}
+
+func (x *DnsUpstream) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[73]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DnsUpstream.ProtoReflect.Descriptor instead.
+func (*DnsUpstream) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{73}
+}
+
+func (x *DnsUpstream) GetAddress() string {
+	if x != nil && x.Address != nil {
+		return *x.Address
+	}
+	return ""
+}
+
+func (x *DnsUpstream) GetPort() uint32 {
+	if x != nil && x.Port != nil {
+		return *x.Port
+	}
+	return 0
+}
+
+func (x *DnsUpstream) GetTls() bool {
+	if x != nil && x.Tls != nil {
+		return *x.Tls
+	}
+	return false
+}
+
+func (x *DnsUpstream) GetTlsServerName() string {
+	if x != nil && x.TlsServerName != nil {
+		return *x.TlsServerName
+	}
+	return ""
+}
+
+// DnsForwardZone is one forward zone.
+type DnsForwardZone struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zone name.
+	Zone *string `protobuf:"bytes,1,opt,name=zone,proto3,oneof" json:"zone,omitempty"`
+	// Forwarders.
+	Forwarders []*DnsUpstream `protobuf:"bytes,2,rep,name=forwarders,proto3" json:"forwarders,omitempty"`
+	// Fall back to recursion.
+	ForwardFirst  *bool `protobuf:"varint,3,opt,name=forward_first,json=forwardFirst,proto3,oneof" json:"forward_first,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DnsForwardZone) Reset() {
+	*x = DnsForwardZone{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[74]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DnsForwardZone) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DnsForwardZone) ProtoMessage() {}
+
+func (x *DnsForwardZone) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[74]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DnsForwardZone.ProtoReflect.Descriptor instead.
+func (*DnsForwardZone) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{74}
+}
+
+func (x *DnsForwardZone) GetZone() string {
+	if x != nil && x.Zone != nil {
+		return *x.Zone
+	}
+	return ""
+}
+
+func (x *DnsForwardZone) GetForwarders() []*DnsUpstream {
+	if x != nil {
+		return x.Forwarders
+	}
+	return nil
+}
+
+func (x *DnsForwardZone) GetForwardFirst() bool {
+	if x != nil && x.ForwardFirst != nil {
+		return *x.ForwardFirst
+	}
+	return false
+}
+
+// DnsRecord is one local record.
+type DnsRecord struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Owner name.
+	Name *string `protobuf:"bytes,1,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	// "A" | "AAAA" | "CNAME" | "MX" | "NS" | "PTR" | "SRV" | "TXT".
+	Type *string `protobuf:"bytes,2,opt,name=type,proto3,oneof" json:"type,omitempty"`
+	// TTL in seconds.
+	TtlSec *uint32 `protobuf:"varint,3,opt,name=ttl_sec,json=ttlSec,proto3,oneof" json:"ttl_sec,omitempty"`
+	// Record data.
+	Data          *string `protobuf:"bytes,4,opt,name=data,proto3,oneof" json:"data,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DnsRecord) Reset() {
+	*x = DnsRecord{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[75]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DnsRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DnsRecord) ProtoMessage() {}
+
+func (x *DnsRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[75]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DnsRecord.ProtoReflect.Descriptor instead.
+func (*DnsRecord) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{75}
+}
+
+func (x *DnsRecord) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
+	}
+	return ""
+}
+
+func (x *DnsRecord) GetType() string {
+	if x != nil && x.Type != nil {
+		return *x.Type
+	}
+	return ""
+}
+
+func (x *DnsRecord) GetTtlSec() uint32 {
+	if x != nil && x.TtlSec != nil {
+		return *x.TtlSec
+	}
+	return 0
+}
+
+func (x *DnsRecord) GetData() string {
+	if x != nil && x.Data != nil {
+		return *x.Data
+	}
+	return ""
+}
+
+// DnsLocalZone is one Unbound local zone.
+type DnsLocalZone struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zone name.
+	Zone *string `protobuf:"bytes,1,opt,name=zone,proto3,oneof" json:"zone,omitempty"`
+	// Unbound local-zone type.
+	Type *string `protobuf:"bytes,2,opt,name=type,proto3,oneof" json:"type,omitempty"`
+	// Records.
+	Records       []*DnsRecord `protobuf:"bytes,3,rep,name=records,proto3" json:"records,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DnsLocalZone) Reset() {
+	*x = DnsLocalZone{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[76]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DnsLocalZone) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DnsLocalZone) ProtoMessage() {}
+
+func (x *DnsLocalZone) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[76]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DnsLocalZone.ProtoReflect.Descriptor instead.
+func (*DnsLocalZone) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{76}
+}
+
+func (x *DnsLocalZone) GetZone() string {
+	if x != nil && x.Zone != nil {
+		return *x.Zone
+	}
+	return ""
+}
+
+func (x *DnsLocalZone) GetType() string {
+	if x != nil && x.Type != nil {
+		return *x.Type
+	}
+	return ""
+}
+
+func (x *DnsLocalZone) GetRecords() []*DnsRecord {
+	if x != nil {
+		return x.Records
+	}
+	return nil
+}
+
+// DnsAccessControl is one access-control entry.
+type DnsAccessControl struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Client prefix (CIDR).
+	Prefix *string `protobuf:"bytes,1,opt,name=prefix,proto3,oneof" json:"prefix,omitempty"`
+	// "allow" | "deny" | "refuse" | "allow_snoop".
+	Action        *string `protobuf:"bytes,2,opt,name=action,proto3,oneof" json:"action,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DnsAccessControl) Reset() {
+	*x = DnsAccessControl{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[77]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DnsAccessControl) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DnsAccessControl) ProtoMessage() {}
+
+func (x *DnsAccessControl) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[77]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DnsAccessControl.ProtoReflect.Descriptor instead.
+func (*DnsAccessControl) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *DnsAccessControl) GetPrefix() string {
+	if x != nil && x.Prefix != nil {
+		return *x.Prefix
+	}
+	return ""
+}
+
+func (x *DnsAccessControl) GetAction() string {
+	if x != nil && x.Action != nil {
+		return *x.Action
+	}
+	return ""
+}
+
+// DnsResolver is `services.dns.resolvers.<name>` (one Unbound instance).
+type DnsResolver struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// Free-text description.
+	Description *string `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// VRF of the instance.
+	Vrf *string `protobuf:"bytes,3,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// Listen sockets.
+	Listen []*SocketAddress `protobuf:"bytes,4,rep,name=listen,proto3" json:"listen,omitempty"`
+	// Access control.
+	AccessControl []*DnsAccessControl `protobuf:"bytes,5,rep,name=access_control,json=accessControl,proto3" json:"access_control,omitempty"`
+	// Default forwarders; empty = full recursion.
+	Forwarders []*DnsUpstream `protobuf:"bytes,6,rep,name=forwarders,proto3" json:"forwarders,omitempty"`
+	// Forward zones.
+	ForwardZones []*DnsForwardZone `protobuf:"bytes,7,rep,name=forward_zones,json=forwardZones,proto3" json:"forward_zones,omitempty"`
+	// Local zones.
+	LocalZones []*DnsLocalZone `protobuf:"bytes,8,rep,name=local_zones,json=localZones,proto3" json:"local_zones,omitempty"`
+	// DNSSEC.
+	Dnssec *DnsResolver_Dnssec `protobuf:"bytes,9,opt,name=dnssec,proto3" json:"dnssec,omitempty"`
+	// Cache.
+	Cache *DnsResolver_Cache `protobuf:"bytes,10,opt,name=cache,proto3" json:"cache,omitempty"`
+	// Worker threads.
+	Threads *uint32 `protobuf:"varint,11,opt,name=threads,proto3,oneof" json:"threads,omitempty"`
+	// QNAME minimisation.
+	QnameMinimisation *bool `protobuf:"varint,12,opt,name=qname_minimisation,json=qnameMinimisation,proto3,oneof" json:"qname_minimisation,omitempty"`
+	// Hide identity.
+	HideIdentity *bool `protobuf:"varint,13,opt,name=hide_identity,json=hideIdentity,proto3,oneof" json:"hide_identity,omitempty"`
+	// Hide version.
+	HideVersion *bool `protobuf:"varint,14,opt,name=hide_version,json=hideVersion,proto3,oneof" json:"hide_version,omitempty"`
+	// Log queries.
+	LogQueries    *bool `protobuf:"varint,15,opt,name=log_queries,json=logQueries,proto3,oneof" json:"log_queries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DnsResolver) Reset() {
+	*x = DnsResolver{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[78]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DnsResolver) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DnsResolver) ProtoMessage() {}
+
+func (x *DnsResolver) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[78]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DnsResolver.ProtoReflect.Descriptor instead.
+func (*DnsResolver) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{78}
+}
+
+func (x *DnsResolver) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *DnsResolver) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *DnsResolver) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *DnsResolver) GetListen() []*SocketAddress {
+	if x != nil {
+		return x.Listen
+	}
+	return nil
+}
+
+func (x *DnsResolver) GetAccessControl() []*DnsAccessControl {
+	if x != nil {
+		return x.AccessControl
+	}
+	return nil
+}
+
+func (x *DnsResolver) GetForwarders() []*DnsUpstream {
+	if x != nil {
+		return x.Forwarders
+	}
+	return nil
+}
+
+func (x *DnsResolver) GetForwardZones() []*DnsForwardZone {
+	if x != nil {
+		return x.ForwardZones
+	}
+	return nil
+}
+
+func (x *DnsResolver) GetLocalZones() []*DnsLocalZone {
+	if x != nil {
+		return x.LocalZones
+	}
+	return nil
+}
+
+func (x *DnsResolver) GetDnssec() *DnsResolver_Dnssec {
+	if x != nil {
+		return x.Dnssec
+	}
+	return nil
+}
+
+func (x *DnsResolver) GetCache() *DnsResolver_Cache {
+	if x != nil {
+		return x.Cache
+	}
+	return nil
+}
+
+func (x *DnsResolver) GetThreads() uint32 {
+	if x != nil && x.Threads != nil {
+		return *x.Threads
+	}
+	return 0
+}
+
+func (x *DnsResolver) GetQnameMinimisation() bool {
+	if x != nil && x.QnameMinimisation != nil {
+		return *x.QnameMinimisation
+	}
+	return false
+}
+
+func (x *DnsResolver) GetHideIdentity() bool {
+	if x != nil && x.HideIdentity != nil {
+		return *x.HideIdentity
+	}
+	return false
+}
+
+func (x *DnsResolver) GetHideVersion() bool {
+	if x != nil && x.HideVersion != nil {
+		return *x.HideVersion
+	}
+	return false
+}
+
+func (x *DnsResolver) GetLogQueries() bool {
+	if x != nil && x.LogQueries != nil {
+		return *x.LogQueries
+	}
+	return false
+}
+
+// SnmpService is `services.snmp` (one instance, bound to vrf).
 type SnmpService struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// Free-text description.
+	Description *string `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// VRF of the agent.
+	Vrf *string `protobuf:"bytes,3,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// Listen sockets; empty = all addresses of the VRF.
+	Listen []*SocketAddress `protobuf:"bytes,4,rep,name=listen,proto3" json:"listen,omitempty"`
+	// Engine id (hex).
+	EngineId *string `protobuf:"bytes,5,opt,name=engine_id,json=engineId,proto3,oneof" json:"engine_id,omitempty"`
+	// sysName.
+	SysName *string `protobuf:"bytes,6,opt,name=sys_name,json=sysName,proto3,oneof" json:"sys_name,omitempty"`
+	// sysLocation.
+	SysLocation *string `protobuf:"bytes,7,opt,name=sys_location,json=sysLocation,proto3,oneof" json:"sys_location,omitempty"`
+	// sysContact.
+	SysContact *string `protobuf:"bytes,8,opt,name=sys_contact,json=sysContact,proto3,oneof" json:"sys_contact,omitempty"`
+	// Communities keyed by name.
+	Communities map[string]*SnmpService_Community `protobuf:"bytes,9,rep,name=communities,proto3" json:"communities,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// SNMPv3 users keyed by name.
+	V3Users map[string]*SnmpService_V3User `protobuf:"bytes,10,rep,name=v3_users,json=v3Users,proto3" json:"v3_users,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Trap receivers.
+	TrapReceivers []*SnmpService_TrapReceiver `protobuf:"bytes,11,rep,name=trap_receivers,json=trapReceivers,proto3" json:"trap_receivers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SnmpService) Reset() {
 	*x = SnmpService{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[66]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5882,7 +7473,7 @@ func (x *SnmpService) String() string {
 func (*SnmpService) ProtoMessage() {}
 
 func (x *SnmpService) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[66]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5895,19 +7486,106 @@ func (x *SnmpService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnmpService.ProtoReflect.Descriptor instead.
 func (*SnmpService) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{66}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{79}
 }
 
-// LldpService is `services.lldp`; P02c fields are added from 1.
+func (x *SnmpService) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *SnmpService) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *SnmpService) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *SnmpService) GetListen() []*SocketAddress {
+	if x != nil {
+		return x.Listen
+	}
+	return nil
+}
+
+func (x *SnmpService) GetEngineId() string {
+	if x != nil && x.EngineId != nil {
+		return *x.EngineId
+	}
+	return ""
+}
+
+func (x *SnmpService) GetSysName() string {
+	if x != nil && x.SysName != nil {
+		return *x.SysName
+	}
+	return ""
+}
+
+func (x *SnmpService) GetSysLocation() string {
+	if x != nil && x.SysLocation != nil {
+		return *x.SysLocation
+	}
+	return ""
+}
+
+func (x *SnmpService) GetSysContact() string {
+	if x != nil && x.SysContact != nil {
+		return *x.SysContact
+	}
+	return ""
+}
+
+func (x *SnmpService) GetCommunities() map[string]*SnmpService_Community {
+	if x != nil {
+		return x.Communities
+	}
+	return nil
+}
+
+func (x *SnmpService) GetV3Users() map[string]*SnmpService_V3User {
+	if x != nil {
+		return x.V3Users
+	}
+	return nil
+}
+
+func (x *SnmpService) GetTrapReceivers() []*SnmpService_TrapReceiver {
+	if x != nil {
+		return x.TrapReceivers
+	}
+	return nil
+}
+
+// LldpService is `services.lldp`.
 type LldpService struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// System name; unset = system.hostname.
+	SystemName *string `protobuf:"bytes,2,opt,name=system_name,json=systemName,proto3,oneof" json:"system_name,omitempty"`
+	// TX hold multiplier.
+	TxHold *uint32 `protobuf:"varint,3,opt,name=tx_hold,json=txHold,proto3,oneof" json:"tx_hold,omitempty"`
+	// TX interval in seconds.
+	TxIntervalSec *uint32 `protobuf:"varint,4,opt,name=tx_interval_sec,json=txIntervalSec,proto3,oneof" json:"tx_interval_sec,omitempty"`
+	// Interfaces.
+	Interfaces    []*LldpService_Interface `protobuf:"bytes,5,rep,name=interfaces,proto3" json:"interfaces,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *LldpService) Reset() {
 	*x = LldpService{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[67]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5919,7 +7597,7 @@ func (x *LldpService) String() string {
 func (*LldpService) ProtoMessage() {}
 
 func (x *LldpService) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[67]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5932,19 +7610,60 @@ func (x *LldpService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LldpService.ProtoReflect.Descriptor instead.
 func (*LldpService) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{67}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{80}
 }
 
-// IpfixService is `services.ipfix`; P02c fields are added from 1.
+func (x *LldpService) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *LldpService) GetSystemName() string {
+	if x != nil && x.SystemName != nil {
+		return *x.SystemName
+	}
+	return ""
+}
+
+func (x *LldpService) GetTxHold() uint32 {
+	if x != nil && x.TxHold != nil {
+		return *x.TxHold
+	}
+	return 0
+}
+
+func (x *LldpService) GetTxIntervalSec() uint32 {
+	if x != nil && x.TxIntervalSec != nil {
+		return *x.TxIntervalSec
+	}
+	return 0
+}
+
+func (x *LldpService) GetInterfaces() []*LldpService_Interface {
+	if x != nil {
+		return x.Interfaces
+	}
+	return nil
+}
+
+// IpfixService is `services.ipfix`.
 type IpfixService struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Exporters keyed by name.
+	Exporters map[string]*IpfixService_Exporter `protobuf:"bytes,1,rep,name=exporters,proto3" json:"exporters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Flowprobe.
+	Flowprobe *IpfixService_Flowprobe `protobuf:"bytes,2,opt,name=flowprobe,proto3" json:"flowprobe,omitempty"`
+	// sFlow; unset = not configured.
+	Sflow         *IpfixService_Sflow `protobuf:"bytes,3,opt,name=sflow,proto3" json:"sflow,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *IpfixService) Reset() {
 	*x = IpfixService{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[68]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5956,7 +7675,7 @@ func (x *IpfixService) String() string {
 func (*IpfixService) ProtoMessage() {}
 
 func (x *IpfixService) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[68]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5969,21 +7688,754 @@ func (x *IpfixService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpfixService.ProtoReflect.Descriptor instead.
 func (*IpfixService) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{68}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{81}
+}
+
+func (x *IpfixService) GetExporters() map[string]*IpfixService_Exporter {
+	if x != nil {
+		return x.Exporters
+	}
+	return nil
+}
+
+func (x *IpfixService) GetFlowprobe() *IpfixService_Flowprobe {
+	if x != nil {
+		return x.Flowprobe
+	}
+	return nil
+}
+
+func (x *IpfixService) GetSflow() *IpfixService_Sflow {
+	if x != nil {
+		return x.Sflow
+	}
+	return nil
+}
+
+// NtpService is `services.ntp` (chrony; one instance, bound to vrf).
+type NtpService struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// VRF.
+	Vrf *string `protobuf:"bytes,2,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// Servers.
+	Servers []*NtpService_Server `protobuf:"bytes,3,rep,name=servers,proto3" json:"servers,omitempty"`
+	// Pools (hostnames).
+	Pools []string `protobuf:"bytes,4,rep,name=pools,proto3" json:"pools,omitempty"`
+	// Client prefixes served (CIDR).
+	Allow []string `protobuf:"bytes,5,rep,name=allow,proto3" json:"allow,omitempty"`
+	// Bind addresses.
+	Listen []string `protobuf:"bytes,6,rep,name=listen,proto3" json:"listen,omitempty"`
+	// Client prefixes refused (CIDR).
+	Deny []string `protobuf:"bytes,7,rep,name=deny,proto3" json:"deny,omitempty"`
+	// Server UDP port; 0 = client only.
+	Port *uint32 `protobuf:"varint,8,opt,name=port,proto3,oneof" json:"port,omitempty"`
+	// Rate limit; unset = none.
+	RateLimit *NtpService_RateLimit `protobuf:"bytes,9,opt,name=rate_limit,json=rateLimit,proto3" json:"rate_limit,omitempty"`
+	// Local stratum; unset = none.
+	LocalStratum *uint32 `protobuf:"varint,10,opt,name=local_stratum,json=localStratum,proto3,oneof" json:"local_stratum,omitempty"`
+	// Orphan mode.
+	Orphan *bool `protobuf:"varint,11,opt,name=orphan,proto3,oneof" json:"orphan,omitempty"`
+	// Sync the RTC.
+	RtcSync *bool `protobuf:"varint,12,opt,name=rtc_sync,json=rtcSync,proto3,oneof" json:"rtc_sync,omitempty"`
+	// NTS server; unset = none.
+	NtsServer *NtpService_NtsServer `protobuf:"bytes,13,opt,name=nts_server,json=ntsServer,proto3" json:"nts_server,omitempty"`
+	// Clock stepping.
+	Makestep      *NtpService_Makestep `protobuf:"bytes,14,opt,name=makestep,proto3" json:"makestep,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NtpService) Reset() {
+	*x = NtpService{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NtpService) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NtpService) ProtoMessage() {}
+
+func (x *NtpService) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NtpService.ProtoReflect.Descriptor instead.
+func (*NtpService) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *NtpService) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *NtpService) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *NtpService) GetServers() []*NtpService_Server {
+	if x != nil {
+		return x.Servers
+	}
+	return nil
+}
+
+func (x *NtpService) GetPools() []string {
+	if x != nil {
+		return x.Pools
+	}
+	return nil
+}
+
+func (x *NtpService) GetAllow() []string {
+	if x != nil {
+		return x.Allow
+	}
+	return nil
+}
+
+func (x *NtpService) GetListen() []string {
+	if x != nil {
+		return x.Listen
+	}
+	return nil
+}
+
+func (x *NtpService) GetDeny() []string {
+	if x != nil {
+		return x.Deny
+	}
+	return nil
+}
+
+func (x *NtpService) GetPort() uint32 {
+	if x != nil && x.Port != nil {
+		return *x.Port
+	}
+	return 0
+}
+
+func (x *NtpService) GetRateLimit() *NtpService_RateLimit {
+	if x != nil {
+		return x.RateLimit
+	}
+	return nil
+}
+
+func (x *NtpService) GetLocalStratum() uint32 {
+	if x != nil && x.LocalStratum != nil {
+		return *x.LocalStratum
+	}
+	return 0
+}
+
+func (x *NtpService) GetOrphan() bool {
+	if x != nil && x.Orphan != nil {
+		return *x.Orphan
+	}
+	return false
+}
+
+func (x *NtpService) GetRtcSync() bool {
+	if x != nil && x.RtcSync != nil {
+		return *x.RtcSync
+	}
+	return false
+}
+
+func (x *NtpService) GetNtsServer() *NtpService_NtsServer {
+	if x != nil {
+		return x.NtsServer
+	}
+	return nil
+}
+
+func (x *NtpService) GetMakestep() *NtpService_Makestep {
+	if x != nil {
+		return x.Makestep
+	}
+	return nil
+}
+
+// QosService is `services.qos` (VPP policer and qos plugins; HQoS excluded, V3).
+type QosService struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Policers keyed by name.
+	Policers map[string]*QosPolicer `protobuf:"bytes,1,rep,name=policers,proto3" json:"policers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Shapers keyed by name.
+	Shapers map[string]*QosShaper `protobuf:"bytes,2,rep,name=shapers,proto3" json:"shapers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Marking maps keyed by name.
+	Maps map[string]*QosMap `protobuf:"bytes,3,rep,name=maps,proto3" json:"maps,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Attachments keyed by VPP interface name.
+	Interfaces    map[string]*QosInterface `protobuf:"bytes,4,rep,name=interfaces,proto3" json:"interfaces,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QosService) Reset() {
+	*x = QosService{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QosService) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QosService) ProtoMessage() {}
+
+func (x *QosService) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QosService.ProtoReflect.Descriptor instead.
+func (*QosService) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *QosService) GetPolicers() map[string]*QosPolicer {
+	if x != nil {
+		return x.Policers
+	}
+	return nil
+}
+
+func (x *QosService) GetShapers() map[string]*QosShaper {
+	if x != nil {
+		return x.Shapers
+	}
+	return nil
+}
+
+func (x *QosService) GetMaps() map[string]*QosMap {
+	if x != nil {
+		return x.Maps
+	}
+	return nil
+}
+
+func (x *QosService) GetInterfaces() map[string]*QosInterface {
+	if x != nil {
+		return x.Interfaces
+	}
+	return nil
+}
+
+// QosPolicerAction is a conform/exceed/violate action.
+type QosPolicerAction struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// "transmit" | "drop" | "mark-and-transmit".
+	Action *string `protobuf:"bytes,1,opt,name=action,proto3,oneof" json:"action,omitempty"`
+	// DSCP written by mark-and-transmit.
+	Dscp          *uint32 `protobuf:"varint,2,opt,name=dscp,proto3,oneof" json:"dscp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QosPolicerAction) Reset() {
+	*x = QosPolicerAction{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QosPolicerAction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QosPolicerAction) ProtoMessage() {}
+
+func (x *QosPolicerAction) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QosPolicerAction.ProtoReflect.Descriptor instead.
+func (*QosPolicerAction) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{84}
+}
+
+func (x *QosPolicerAction) GetAction() string {
+	if x != nil && x.Action != nil {
+		return *x.Action
+	}
+	return ""
+}
+
+func (x *QosPolicerAction) GetDscp() uint32 {
+	if x != nil && x.Dscp != nil {
+		return *x.Dscp
+	}
+	return 0
+}
+
+// QosPolicer is `services.qos.policers.<name>`.
+type QosPolicer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Free-text description.
+	Description *string `protobuf:"bytes,1,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// "1r2c" | "1r3c-rfc2697" | "2r3c-rfc2698" | "2r3c-rfc4115" | "2r3c-mef5cf1".
+	Type *string `protobuf:"bytes,2,opt,name=type,proto3,oneof" json:"type,omitempty"`
+	// "kbps" | "pps".
+	RateUnit *string `protobuf:"bytes,3,opt,name=rate_unit,json=rateUnit,proto3,oneof" json:"rate_unit,omitempty"`
+	// Committed information rate.
+	Cir *uint32 `protobuf:"varint,4,opt,name=cir,proto3,oneof" json:"cir,omitempty"`
+	// Excess / peak information rate (two-rate).
+	Eir *uint32 `protobuf:"varint,5,opt,name=eir,proto3,oneof" json:"eir,omitempty"`
+	// Committed burst.
+	Cb *uint64 `protobuf:"varint,6,opt,name=cb,proto3,oneof" json:"cb,omitempty"`
+	// Excess burst (three-colour).
+	Eb *uint64 `protobuf:"varint,7,opt,name=eb,proto3,oneof" json:"eb,omitempty"`
+	// "closest" | "up" | "down".
+	Round *string `protobuf:"bytes,8,opt,name=round,proto3,oneof" json:"round,omitempty"`
+	// Colour aware.
+	ColorAware *bool `protobuf:"varint,9,opt,name=color_aware,json=colorAware,proto3,oneof" json:"color_aware,omitempty"`
+	// Conform action.
+	ConformAction *QosPolicerAction `protobuf:"bytes,10,opt,name=conform_action,json=conformAction,proto3" json:"conform_action,omitempty"`
+	// Exceed action.
+	ExceedAction *QosPolicerAction `protobuf:"bytes,11,opt,name=exceed_action,json=exceedAction,proto3" json:"exceed_action,omitempty"`
+	// Violate action.
+	ViolateAction *QosPolicerAction `protobuf:"bytes,12,opt,name=violate_action,json=violateAction,proto3" json:"violate_action,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QosPolicer) Reset() {
+	*x = QosPolicer{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QosPolicer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QosPolicer) ProtoMessage() {}
+
+func (x *QosPolicer) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QosPolicer.ProtoReflect.Descriptor instead.
+func (*QosPolicer) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *QosPolicer) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *QosPolicer) GetType() string {
+	if x != nil && x.Type != nil {
+		return *x.Type
+	}
+	return ""
+}
+
+func (x *QosPolicer) GetRateUnit() string {
+	if x != nil && x.RateUnit != nil {
+		return *x.RateUnit
+	}
+	return ""
+}
+
+func (x *QosPolicer) GetCir() uint32 {
+	if x != nil && x.Cir != nil {
+		return *x.Cir
+	}
+	return 0
+}
+
+func (x *QosPolicer) GetEir() uint32 {
+	if x != nil && x.Eir != nil {
+		return *x.Eir
+	}
+	return 0
+}
+
+func (x *QosPolicer) GetCb() uint64 {
+	if x != nil && x.Cb != nil {
+		return *x.Cb
+	}
+	return 0
+}
+
+func (x *QosPolicer) GetEb() uint64 {
+	if x != nil && x.Eb != nil {
+		return *x.Eb
+	}
+	return 0
+}
+
+func (x *QosPolicer) GetRound() string {
+	if x != nil && x.Round != nil {
+		return *x.Round
+	}
+	return ""
+}
+
+func (x *QosPolicer) GetColorAware() bool {
+	if x != nil && x.ColorAware != nil {
+		return *x.ColorAware
+	}
+	return false
+}
+
+func (x *QosPolicer) GetConformAction() *QosPolicerAction {
+	if x != nil {
+		return x.ConformAction
+	}
+	return nil
+}
+
+func (x *QosPolicer) GetExceedAction() *QosPolicerAction {
+	if x != nil {
+		return x.ExceedAction
+	}
+	return nil
+}
+
+func (x *QosPolicer) GetViolateAction() *QosPolicerAction {
+	if x != nil {
+		return x.ViolateAction
+	}
+	return nil
+}
+
+// QosShaper is `services.qos.shapers.<name>`.
+type QosShaper struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Free-text description.
+	Description *string `protobuf:"bytes,1,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// Rate in kbit/s.
+	RateKbps *uint32 `protobuf:"varint,2,opt,name=rate_kbps,json=rateKbps,proto3,oneof" json:"rate_kbps,omitempty"`
+	// Burst in bytes; unset = derived.
+	BurstBytes    *uint64 `protobuf:"varint,3,opt,name=burst_bytes,json=burstBytes,proto3,oneof" json:"burst_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QosShaper) Reset() {
+	*x = QosShaper{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[86]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QosShaper) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QosShaper) ProtoMessage() {}
+
+func (x *QosShaper) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[86]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QosShaper.ProtoReflect.Descriptor instead.
+func (*QosShaper) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{86}
+}
+
+func (x *QosShaper) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *QosShaper) GetRateKbps() uint32 {
+	if x != nil && x.RateKbps != nil {
+		return *x.RateKbps
+	}
+	return 0
+}
+
+func (x *QosShaper) GetBurstBytes() uint64 {
+	if x != nil && x.BurstBytes != nil {
+		return *x.BurstBytes
+	}
+	return 0
+}
+
+// QosMapEntry is one row entry of a marking map.
+type QosMapEntry struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Recorded value.
+	From *uint32 `protobuf:"varint,1,opt,name=from,proto3,oneof" json:"from,omitempty"`
+	// Output value.
+	To            *uint32 `protobuf:"varint,2,opt,name=to,proto3,oneof" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QosMapEntry) Reset() {
+	*x = QosMapEntry{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[87]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QosMapEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QosMapEntry) ProtoMessage() {}
+
+func (x *QosMapEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[87]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QosMapEntry.ProtoReflect.Descriptor instead.
+func (*QosMapEntry) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *QosMapEntry) GetFrom() uint32 {
+	if x != nil && x.From != nil {
+		return *x.From
+	}
+	return 0
+}
+
+func (x *QosMapEntry) GetTo() uint32 {
+	if x != nil && x.To != nil {
+		return *x.To
+	}
+	return 0
+}
+
+// QosMap is `services.qos.maps.<name>`.
+type QosMap struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Free-text description.
+	Description *string `protobuf:"bytes,1,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// VPP egress map id.
+	Id *uint32 `protobuf:"varint,2,opt,name=id,proto3,oneof" json:"id,omitempty"`
+	// Rows.
+	Rows          *QosMap_Rows `protobuf:"bytes,3,opt,name=rows,proto3" json:"rows,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QosMap) Reset() {
+	*x = QosMap{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[88]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QosMap) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QosMap) ProtoMessage() {}
+
+func (x *QosMap) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[88]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QosMap.ProtoReflect.Descriptor instead.
+func (*QosMap) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{88}
+}
+
+func (x *QosMap) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *QosMap) GetId() uint32 {
+	if x != nil && x.Id != nil {
+		return *x.Id
+	}
+	return 0
+}
+
+func (x *QosMap) GetRows() *QosMap_Rows {
+	if x != nil {
+		return x.Rows
+	}
+	return nil
+}
+
+// QosInterface is `services.qos.interfaces.<vpp interface name>`.
+type QosInterface struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Free-text description.
+	Description *string `protobuf:"bytes,1,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// Policers.
+	Policer *QosInterface_Policer `protobuf:"bytes,2,opt,name=policer,proto3" json:"policer,omitempty"`
+	// Shaper name.
+	Shaper *string `protobuf:"bytes,3,opt,name=shaper,proto3,oneof" json:"shaper,omitempty"`
+	// "ext" | "vlan" | "mpls" | "ip".
+	Record *string `protobuf:"bytes,4,opt,name=record,proto3,oneof" json:"record,omitempty"`
+	// Store.
+	Store *QosInterface_Store `protobuf:"bytes,5,opt,name=store,proto3" json:"store,omitempty"`
+	// Mark.
+	Mark          *QosInterface_Mark `protobuf:"bytes,6,opt,name=mark,proto3" json:"mark,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QosInterface) Reset() {
+	*x = QosInterface{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QosInterface) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QosInterface) ProtoMessage() {}
+
+func (x *QosInterface) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QosInterface.ProtoReflect.Descriptor instead.
+func (*QosInterface) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *QosInterface) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *QosInterface) GetPolicer() *QosInterface_Policer {
+	if x != nil {
+		return x.Policer
+	}
+	return nil
+}
+
+func (x *QosInterface) GetShaper() string {
+	if x != nil && x.Shaper != nil {
+		return *x.Shaper
+	}
+	return ""
+}
+
+func (x *QosInterface) GetRecord() string {
+	if x != nil && x.Record != nil {
+		return *x.Record
+	}
+	return ""
+}
+
+func (x *QosInterface) GetStore() *QosInterface_Store {
+	if x != nil {
+		return x.Store
+	}
+	return nil
+}
+
+func (x *QosInterface) GetMark() *QosInterface_Mark {
+	if x != nil {
+		return x.Mark
+	}
+	return nil
 }
 
 // HaConfig mirrors `ha`.
 type HaConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// VRRP virtual routers (VPP vrrp plugin or keepalived). Fields land with the P02c model.
-	Vrrp          []*VrrpInstance `protobuf:"bytes,1,rep,name=vrrp,proto3" json:"vrrp,omitempty"`
+	// VRRP virtual routers keyed by name (D-053).
+	Vrrp map[string]*VrrpInstance `protobuf:"bytes,2,rep,name=vrrp,proto3" json:"vrrp,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Cluster membership / sync; unset = standalone.
+	Cluster       *HaCluster `protobuf:"bytes,3,opt,name=cluster,proto3" json:"cluster,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *HaConfig) Reset() {
 	*x = HaConfig{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[69]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5995,7 +8447,7 @@ func (x *HaConfig) String() string {
 func (*HaConfig) ProtoMessage() {}
 
 func (x *HaConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[69]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6008,26 +8460,61 @@ func (x *HaConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HaConfig.ProtoReflect.Descriptor instead.
 func (*HaConfig) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{69}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{90}
 }
 
-func (x *HaConfig) GetVrrp() []*VrrpInstance {
+func (x *HaConfig) GetVrrp() map[string]*VrrpInstance {
 	if x != nil {
 		return x.Vrrp
 	}
 	return nil
 }
 
-// VrrpInstance is one entry of `ha.vrrp`; P02c fields are added from 1.
+func (x *HaConfig) GetCluster() *HaCluster {
+	if x != nil {
+		return x.Cluster
+	}
+	return nil
+}
+
+// VrrpInstance is `ha.vrrp.<name>`.
 type VrrpInstance struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// Free-text description.
+	Description *string `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// VPP interface name.
+	Interface *string `protobuf:"bytes,3,opt,name=interface,proto3,oneof" json:"interface,omitempty"`
+	// Virtual router id 1–255.
+	VrId *uint32 `protobuf:"varint,4,opt,name=vr_id,json=vrId,proto3,oneof" json:"vr_id,omitempty"`
+	// "ipv4" | "ipv6".
+	AddressFamily *string `protobuf:"bytes,5,opt,name=address_family,json=addressFamily,proto3,oneof" json:"address_family,omitempty"`
+	// Priority 1–255.
+	Priority *uint32 `protobuf:"varint,6,opt,name=priority,proto3,oneof" json:"priority,omitempty"`
+	// Advertisement interval in ms (multiple of 10).
+	AdvertisementIntervalMs *uint32 `protobuf:"varint,7,opt,name=advertisement_interval_ms,json=advertisementIntervalMs,proto3,oneof" json:"advertisement_interval_ms,omitempty"`
+	// Preempt.
+	Preempt *bool `protobuf:"varint,8,opt,name=preempt,proto3,oneof" json:"preempt,omitempty"`
+	// Accept mode.
+	AcceptMode *bool `protobuf:"varint,9,opt,name=accept_mode,json=acceptMode,proto3,oneof" json:"accept_mode,omitempty"`
+	// Unicast; unset = multicast.
+	Unicast *VrrpInstance_Unicast `protobuf:"bytes,10,opt,name=unicast,proto3" json:"unicast,omitempty"`
+	// Virtual addresses.
+	Addresses []string `protobuf:"bytes,11,rep,name=addresses,proto3" json:"addresses,omitempty"`
+	// VRF.
+	Vrf *string `protobuf:"bytes,12,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// "vpp" | "keepalived".
+	Engine *string `protobuf:"bytes,13,opt,name=engine,proto3,oneof" json:"engine,omitempty"`
+	// Tracked interfaces.
+	Track         []*VrrpInstance_Track `protobuf:"bytes,14,rep,name=track,proto3" json:"track,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *VrrpInstance) Reset() {
 	*x = VrrpInstance{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[70]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6039,7 +8526,7 @@ func (x *VrrpInstance) String() string {
 func (*VrrpInstance) ProtoMessage() {}
 
 func (x *VrrpInstance) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[70]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6052,7 +8539,223 @@ func (x *VrrpInstance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VrrpInstance.ProtoReflect.Descriptor instead.
 func (*VrrpInstance) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{70}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{91}
+}
+
+func (x *VrrpInstance) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *VrrpInstance) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *VrrpInstance) GetInterface() string {
+	if x != nil && x.Interface != nil {
+		return *x.Interface
+	}
+	return ""
+}
+
+func (x *VrrpInstance) GetVrId() uint32 {
+	if x != nil && x.VrId != nil {
+		return *x.VrId
+	}
+	return 0
+}
+
+func (x *VrrpInstance) GetAddressFamily() string {
+	if x != nil && x.AddressFamily != nil {
+		return *x.AddressFamily
+	}
+	return ""
+}
+
+func (x *VrrpInstance) GetPriority() uint32 {
+	if x != nil && x.Priority != nil {
+		return *x.Priority
+	}
+	return 0
+}
+
+func (x *VrrpInstance) GetAdvertisementIntervalMs() uint32 {
+	if x != nil && x.AdvertisementIntervalMs != nil {
+		return *x.AdvertisementIntervalMs
+	}
+	return 0
+}
+
+func (x *VrrpInstance) GetPreempt() bool {
+	if x != nil && x.Preempt != nil {
+		return *x.Preempt
+	}
+	return false
+}
+
+func (x *VrrpInstance) GetAcceptMode() bool {
+	if x != nil && x.AcceptMode != nil {
+		return *x.AcceptMode
+	}
+	return false
+}
+
+func (x *VrrpInstance) GetUnicast() *VrrpInstance_Unicast {
+	if x != nil {
+		return x.Unicast
+	}
+	return nil
+}
+
+func (x *VrrpInstance) GetAddresses() []string {
+	if x != nil {
+		return x.Addresses
+	}
+	return nil
+}
+
+func (x *VrrpInstance) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *VrrpInstance) GetEngine() string {
+	if x != nil && x.Engine != nil {
+		return *x.Engine
+	}
+	return ""
+}
+
+func (x *VrrpInstance) GetTrack() []*VrrpInstance_Track {
+	if x != nil {
+		return x.Track
+	}
+	return nil
+}
+
+// HaCluster is `ha.cluster`.
+type HaCluster struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// This node's name.
+	NodeName *string `protobuf:"bytes,2,opt,name=node_name,json=nodeName,proto3,oneof" json:"node_name,omitempty"`
+	// Peers.
+	Peers []*HaCluster_Peer `protobuf:"bytes,3,rep,name=peers,proto3" json:"peers,omitempty"`
+	// Cluster port.
+	Port *uint32 `protobuf:"varint,4,opt,name=port,proto3,oneof" json:"port,omitempty"`
+	// Reference to the cluster key (key/…).
+	SecretRef *string `protobuf:"bytes,5,opt,name=secret_ref,json=secretRef,proto3,oneof" json:"secret_ref,omitempty"`
+	// Sync interface.
+	Interface *string `protobuf:"bytes,6,opt,name=interface,proto3,oneof" json:"interface,omitempty"`
+	// VRF.
+	Vrf *string `protobuf:"bytes,7,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// Configuration sync.
+	ConfigSync *bool `protobuf:"varint,8,opt,name=config_sync,json=configSync,proto3,oneof" json:"config_sync,omitempty"`
+	// State sync.
+	StateSync     *HaCluster_StateSync `protobuf:"bytes,9,opt,name=state_sync,json=stateSync,proto3" json:"state_sync,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HaCluster) Reset() {
+	*x = HaCluster{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[92]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HaCluster) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HaCluster) ProtoMessage() {}
+
+func (x *HaCluster) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[92]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HaCluster.ProtoReflect.Descriptor instead.
+func (*HaCluster) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{92}
+}
+
+func (x *HaCluster) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *HaCluster) GetNodeName() string {
+	if x != nil && x.NodeName != nil {
+		return *x.NodeName
+	}
+	return ""
+}
+
+func (x *HaCluster) GetPeers() []*HaCluster_Peer {
+	if x != nil {
+		return x.Peers
+	}
+	return nil
+}
+
+func (x *HaCluster) GetPort() uint32 {
+	if x != nil && x.Port != nil {
+		return *x.Port
+	}
+	return 0
+}
+
+func (x *HaCluster) GetSecretRef() string {
+	if x != nil && x.SecretRef != nil {
+		return *x.SecretRef
+	}
+	return ""
+}
+
+func (x *HaCluster) GetInterface() string {
+	if x != nil && x.Interface != nil {
+		return *x.Interface
+	}
+	return ""
+}
+
+func (x *HaCluster) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *HaCluster) GetConfigSync() bool {
+	if x != nil && x.ConfigSync != nil {
+		return *x.ConfigSync
+	}
+	return false
+}
+
+func (x *HaCluster) GetStateSync() *HaCluster_StateSync {
+	if x != nil {
+		return x.StateSync
+	}
+	return nil
 }
 
 // ManagementConfig mirrors `management` minus the schema's secret-flagged leaves (D-040). Most of
@@ -6074,7 +8777,7 @@ type ManagementConfig struct {
 
 func (x *ManagementConfig) Reset() {
 	*x = ManagementConfig{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[71]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6086,7 +8789,7 @@ func (x *ManagementConfig) String() string {
 func (*ManagementConfig) ProtoMessage() {}
 
 func (x *ManagementConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[71]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6099,7 +8802,7 @@ func (x *ManagementConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManagementConfig.ProtoReflect.Descriptor instead.
 func (*ManagementConfig) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{71}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *ManagementConfig) GetUsers() []*ManagementUser {
@@ -6151,7 +8854,7 @@ type ManagementUser struct {
 
 func (x *ManagementUser) Reset() {
 	*x = ManagementUser{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[72]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6163,7 +8866,7 @@ func (x *ManagementUser) String() string {
 func (*ManagementUser) ProtoMessage() {}
 
 func (x *ManagementUser) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[72]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6176,7 +8879,7 @@ func (x *ManagementUser) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManagementUser.ProtoReflect.Descriptor instead.
 func (*ManagementUser) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{72}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *ManagementUser) GetUsername() string {
@@ -6234,7 +8937,7 @@ type ManagementAaa struct {
 
 func (x *ManagementAaa) Reset() {
 	*x = ManagementAaa{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[73]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6246,7 +8949,7 @@ func (x *ManagementAaa) String() string {
 func (*ManagementAaa) ProtoMessage() {}
 
 func (x *ManagementAaa) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[73]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6259,7 +8962,7 @@ func (x *ManagementAaa) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManagementAaa.ProtoReflect.Descriptor instead.
 func (*ManagementAaa) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{73}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *ManagementAaa) GetOrder() []string {
@@ -6293,7 +8996,7 @@ type AaaRadius struct {
 
 func (x *AaaRadius) Reset() {
 	*x = AaaRadius{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[74]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6305,7 +9008,7 @@ func (x *AaaRadius) String() string {
 func (*AaaRadius) ProtoMessage() {}
 
 func (x *AaaRadius) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[74]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6318,7 +9021,7 @@ func (x *AaaRadius) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AaaRadius.ProtoReflect.Descriptor instead.
 func (*AaaRadius) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{74}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *AaaRadius) GetServers() []*RadiusServer {
@@ -6348,7 +9051,7 @@ type RadiusServer struct {
 
 func (x *RadiusServer) Reset() {
 	*x = RadiusServer{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[75]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6360,7 +9063,7 @@ func (x *RadiusServer) String() string {
 func (*RadiusServer) ProtoMessage() {}
 
 func (x *RadiusServer) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[75]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6373,7 +9076,7 @@ func (x *RadiusServer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RadiusServer.ProtoReflect.Descriptor instead.
 func (*RadiusServer) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{75}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *RadiusServer) GetAddress() string {
@@ -6428,7 +9131,7 @@ type AaaTacacs struct {
 
 func (x *AaaTacacs) Reset() {
 	*x = AaaTacacs{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[76]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6440,7 +9143,7 @@ func (x *AaaTacacs) String() string {
 func (*AaaTacacs) ProtoMessage() {}
 
 func (x *AaaTacacs) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[76]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6453,7 +9156,7 @@ func (x *AaaTacacs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AaaTacacs.ProtoReflect.Descriptor instead.
 func (*AaaTacacs) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{76}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *AaaTacacs) GetServers() []*TacacsServer {
@@ -6479,7 +9182,7 @@ type TacacsServer struct {
 
 func (x *TacacsServer) Reset() {
 	*x = TacacsServer{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[77]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6491,7 +9194,7 @@ func (x *TacacsServer) String() string {
 func (*TacacsServer) ProtoMessage() {}
 
 func (x *TacacsServer) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[77]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6504,7 +9207,7 @@ func (x *TacacsServer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TacacsServer.ProtoReflect.Descriptor instead.
 func (*TacacsServer) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{77}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *TacacsServer) GetAddress() string {
@@ -6557,7 +9260,7 @@ type ManagementTls struct {
 
 func (x *ManagementTls) Reset() {
 	*x = ManagementTls{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[78]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6569,7 +9272,7 @@ func (x *ManagementTls) String() string {
 func (*ManagementTls) ProtoMessage() {}
 
 func (x *ManagementTls) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[78]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6582,7 +9285,7 @@ func (x *ManagementTls) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManagementTls.ProtoReflect.Descriptor instead.
 func (*ManagementTls) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{78}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *ManagementTls) GetCertificateRef() string {
@@ -6623,7 +9326,7 @@ type SyslogTarget struct {
 
 func (x *SyslogTarget) Reset() {
 	*x = SyslogTarget{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[79]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6635,7 +9338,7 @@ func (x *SyslogTarget) String() string {
 func (*SyslogTarget) ProtoMessage() {}
 
 func (x *SyslogTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[79]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6648,7 +9351,7 @@ func (x *SyslogTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyslogTarget.ProtoReflect.Descriptor instead.
 func (*SyslogTarget) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{79}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *SyslogTarget) GetAddress() string {
@@ -6744,7 +9447,7 @@ type NatConfig struct {
 
 func (x *NatConfig) Reset() {
 	*x = NatConfig{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[80]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6756,7 +9459,7 @@ func (x *NatConfig) String() string {
 func (*NatConfig) ProtoMessage() {}
 
 func (x *NatConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[80]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6769,7 +9472,7 @@ func (x *NatConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatConfig.ProtoReflect.Descriptor instead.
 func (*NatConfig) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{80}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *NatConfig) GetEnabled() bool {
@@ -6957,7 +9660,7 @@ type NatTimeouts struct {
 
 func (x *NatTimeouts) Reset() {
 	*x = NatTimeouts{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[81]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6969,7 +9672,7 @@ func (x *NatTimeouts) String() string {
 func (*NatTimeouts) ProtoMessage() {}
 
 func (x *NatTimeouts) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[81]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6982,7 +9685,7 @@ func (x *NatTimeouts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatTimeouts.ProtoReflect.Descriptor instead.
 func (*NatTimeouts) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{81}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *NatTimeouts) GetUdp() uint32 {
@@ -7034,7 +9737,7 @@ type NatPool struct {
 
 func (x *NatPool) Reset() {
 	*x = NatPool{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[82]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[104]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7046,7 +9749,7 @@ func (x *NatPool) String() string {
 func (*NatPool) ProtoMessage() {}
 
 func (x *NatPool) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[82]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[104]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7059,7 +9762,7 @@ func (x *NatPool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatPool.ProtoReflect.Descriptor instead.
 func (*NatPool) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{82}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *NatPool) GetName() string {
@@ -7131,7 +9834,7 @@ type NatStaticMapping struct {
 
 func (x *NatStaticMapping) Reset() {
 	*x = NatStaticMapping{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[83]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[105]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7143,7 +9846,7 @@ func (x *NatStaticMapping) String() string {
 func (*NatStaticMapping) ProtoMessage() {}
 
 func (x *NatStaticMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[83]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[105]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7156,7 +9859,7 @@ func (x *NatStaticMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatStaticMapping.ProtoReflect.Descriptor instead.
 func (*NatStaticMapping) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{83}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{105}
 }
 
 func (x *NatStaticMapping) GetName() string {
@@ -7243,7 +9946,7 @@ type NatIdentityMapping struct {
 
 func (x *NatIdentityMapping) Reset() {
 	*x = NatIdentityMapping{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[84]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[106]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7255,7 +9958,7 @@ func (x *NatIdentityMapping) String() string {
 func (*NatIdentityMapping) ProtoMessage() {}
 
 func (x *NatIdentityMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[84]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[106]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7268,7 +9971,7 @@ func (x *NatIdentityMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatIdentityMapping.ProtoReflect.Descriptor instead.
 func (*NatIdentityMapping) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{84}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *NatIdentityMapping) GetDescription() string {
@@ -7340,7 +10043,7 @@ type NatLoadBalancedMapping struct {
 
 func (x *NatLoadBalancedMapping) Reset() {
 	*x = NatLoadBalancedMapping{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[85]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7352,7 +10055,7 @@ func (x *NatLoadBalancedMapping) String() string {
 func (*NatLoadBalancedMapping) ProtoMessage() {}
 
 func (x *NatLoadBalancedMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[85]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7365,7 +10068,7 @@ func (x *NatLoadBalancedMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatLoadBalancedMapping.ProtoReflect.Descriptor instead.
 func (*NatLoadBalancedMapping) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{85}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *NatLoadBalancedMapping) GetName() string {
@@ -7446,7 +10149,7 @@ type NatIpfix struct {
 
 func (x *NatIpfix) Reset() {
 	*x = NatIpfix{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[86]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7458,7 +10161,7 @@ func (x *NatIpfix) String() string {
 func (*NatIpfix) ProtoMessage() {}
 
 func (x *NatIpfix) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[86]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7471,7 +10174,7 @@ func (x *NatIpfix) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatIpfix.ProtoReflect.Descriptor instead.
 func (*NatIpfix) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{86}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *NatIpfix) GetEnabled() bool {
@@ -7518,7 +10221,7 @@ type Nat64Config struct {
 
 func (x *Nat64Config) Reset() {
 	*x = Nat64Config{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[87]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[109]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7530,7 +10233,7 @@ func (x *Nat64Config) String() string {
 func (*Nat64Config) ProtoMessage() {}
 
 func (x *Nat64Config) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[87]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[109]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7543,7 +10246,7 @@ func (x *Nat64Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat64Config.ProtoReflect.Descriptor instead.
 func (*Nat64Config) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{87}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *Nat64Config) GetEnabled() bool {
@@ -7612,7 +10315,7 @@ type Nat66Config struct {
 
 func (x *Nat66Config) Reset() {
 	*x = Nat66Config{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[88]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[110]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7624,7 +10327,7 @@ func (x *Nat66Config) String() string {
 func (*Nat66Config) ProtoMessage() {}
 
 func (x *Nat66Config) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[88]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[110]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7637,7 +10340,7 @@ func (x *Nat66Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat66Config.ProtoReflect.Descriptor instead.
 func (*Nat66Config) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{88}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *Nat66Config) GetEnabled() bool {
@@ -7679,7 +10382,7 @@ type Nptv6Config struct {
 
 func (x *Nptv6Config) Reset() {
 	*x = Nptv6Config{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[89]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7691,7 +10394,7 @@ func (x *Nptv6Config) String() string {
 func (*Nptv6Config) ProtoMessage() {}
 
 func (x *Nptv6Config) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[89]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7704,7 +10407,7 @@ func (x *Nptv6Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nptv6Config.ProtoReflect.Descriptor instead.
 func (*Nptv6Config) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{89}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *Nptv6Config) GetBindings() []*Nptv6Config_Binding {
@@ -7737,7 +10440,7 @@ type Det44Config struct {
 
 func (x *Det44Config) Reset() {
 	*x = Det44Config{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[90]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[112]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7749,7 +10452,7 @@ func (x *Det44Config) String() string {
 func (*Det44Config) ProtoMessage() {}
 
 func (x *Det44Config) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[90]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[112]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7762,7 +10465,7 @@ func (x *Det44Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Det44Config.ProtoReflect.Descriptor instead.
 func (*Det44Config) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{90}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *Det44Config) GetEnabled() bool {
@@ -7831,7 +10534,7 @@ type DsliteConfig struct {
 
 func (x *DsliteConfig) Reset() {
 	*x = DsliteConfig{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[91]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[113]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7843,7 +10546,7 @@ func (x *DsliteConfig) String() string {
 func (*DsliteConfig) ProtoMessage() {}
 
 func (x *DsliteConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[91]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[113]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7856,7 +10559,7 @@ func (x *DsliteConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DsliteConfig.ProtoReflect.Descriptor instead.
 func (*DsliteConfig) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{91}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{113}
 }
 
 func (x *DsliteConfig) GetEnabled() bool {
@@ -7918,7 +10621,7 @@ type MapDomain struct {
 
 func (x *MapDomain) Reset() {
 	*x = MapDomain{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[92]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[114]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7930,7 +10633,7 @@ func (x *MapDomain) String() string {
 func (*MapDomain) ProtoMessage() {}
 
 func (x *MapDomain) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[92]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[114]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7943,7 +10646,7 @@ func (x *MapDomain) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapDomain.ProtoReflect.Descriptor instead.
 func (*MapDomain) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{92}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{114}
 }
 
 func (x *MapDomain) GetName() string {
@@ -8046,7 +10749,7 @@ type MapParameters struct {
 
 func (x *MapParameters) Reset() {
 	*x = MapParameters{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[93]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[115]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8058,7 +10761,7 @@ func (x *MapParameters) String() string {
 func (*MapParameters) ProtoMessage() {}
 
 func (x *MapParameters) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[93]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[115]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8071,7 +10774,7 @@ func (x *MapParameters) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapParameters.ProtoReflect.Descriptor instead.
 func (*MapParameters) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{93}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{115}
 }
 
 func (x *MapParameters) GetFragmentation() *MapParameters_Fragmentation {
@@ -8136,7 +10839,7 @@ type MapInterface struct {
 
 func (x *MapInterface) Reset() {
 	*x = MapInterface{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[94]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[116]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8148,7 +10851,7 @@ func (x *MapInterface) String() string {
 func (*MapInterface) ProtoMessage() {}
 
 func (x *MapInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[94]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[116]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8161,7 +10864,7 @@ func (x *MapInterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapInterface.ProtoReflect.Descriptor instead.
 func (*MapInterface) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{94}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{116}
 }
 
 func (x *MapInterface) GetInterface() string {
@@ -8193,7 +10896,7 @@ type MapConfig struct {
 
 func (x *MapConfig) Reset() {
 	*x = MapConfig{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[95]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[117]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8205,7 +10908,7 @@ func (x *MapConfig) String() string {
 func (*MapConfig) ProtoMessage() {}
 
 func (x *MapConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[95]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[117]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8218,7 +10921,7 @@ func (x *MapConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapConfig.ProtoReflect.Descriptor instead.
 func (*MapConfig) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{95}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{117}
 }
 
 func (x *MapConfig) GetDomains() []*MapDomain {
@@ -8255,7 +10958,7 @@ type CnatEndpoint struct {
 
 func (x *CnatEndpoint) Reset() {
 	*x = CnatEndpoint{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[96]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[118]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8267,7 +10970,7 @@ func (x *CnatEndpoint) String() string {
 func (*CnatEndpoint) ProtoMessage() {}
 
 func (x *CnatEndpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[96]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[118]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8280,7 +10983,7 @@ func (x *CnatEndpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatEndpoint.ProtoReflect.Descriptor instead.
 func (*CnatEndpoint) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{96}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{118}
 }
 
 func (x *CnatEndpoint) GetIp() string {
@@ -8318,7 +11021,7 @@ type CnatTranslation struct {
 
 func (x *CnatTranslation) Reset() {
 	*x = CnatTranslation{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[97]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[119]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8330,7 +11033,7 @@ func (x *CnatTranslation) String() string {
 func (*CnatTranslation) ProtoMessage() {}
 
 func (x *CnatTranslation) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[97]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[119]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8343,7 +11046,7 @@ func (x *CnatTranslation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatTranslation.ProtoReflect.Descriptor instead.
 func (*CnatTranslation) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{97}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{119}
 }
 
 func (x *CnatTranslation) GetName() string {
@@ -8401,7 +11104,7 @@ type CnatConfig struct {
 
 func (x *CnatConfig) Reset() {
 	*x = CnatConfig{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[98]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[120]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8413,7 +11116,7 @@ func (x *CnatConfig) String() string {
 func (*CnatConfig) ProtoMessage() {}
 
 func (x *CnatConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[98]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[120]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8426,7 +11129,7 @@ func (x *CnatConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatConfig.ProtoReflect.Descriptor instead.
 func (*CnatConfig) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{98}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{120}
 }
 
 func (x *CnatConfig) GetTranslations() []*CnatTranslation {
@@ -8467,7 +11170,7 @@ type ObjectsConfig struct {
 
 func (x *ObjectsConfig) Reset() {
 	*x = ObjectsConfig{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[99]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[121]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8479,7 +11182,7 @@ func (x *ObjectsConfig) String() string {
 func (*ObjectsConfig) ProtoMessage() {}
 
 func (x *ObjectsConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[99]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[121]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8492,7 +11195,7 @@ func (x *ObjectsConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObjectsConfig.ProtoReflect.Descriptor instead.
 func (*ObjectsConfig) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{99}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{121}
 }
 
 func (x *ObjectsConfig) GetAddresses() map[string]*AddressObject {
@@ -8569,7 +11272,7 @@ type AddressObject struct {
 
 func (x *AddressObject) Reset() {
 	*x = AddressObject{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[100]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[122]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8581,7 +11284,7 @@ func (x *AddressObject) String() string {
 func (*AddressObject) ProtoMessage() {}
 
 func (x *AddressObject) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[100]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[122]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8594,7 +11297,7 @@ func (x *AddressObject) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddressObject.ProtoReflect.Descriptor instead.
 func (*AddressObject) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{100}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{122}
 }
 
 func (x *AddressObject) GetType() string {
@@ -8668,7 +11371,7 @@ type AddressGroup struct {
 
 func (x *AddressGroup) Reset() {
 	*x = AddressGroup{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[101]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[123]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8680,7 +11383,7 @@ func (x *AddressGroup) String() string {
 func (*AddressGroup) ProtoMessage() {}
 
 func (x *AddressGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[101]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[123]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8693,7 +11396,7 @@ func (x *AddressGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddressGroup.ProtoReflect.Descriptor instead.
 func (*AddressGroup) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{101}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{123}
 }
 
 func (x *AddressGroup) GetDescription() string {
@@ -8730,7 +11433,7 @@ type TcpFlags struct {
 
 func (x *TcpFlags) Reset() {
 	*x = TcpFlags{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[102]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[124]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8742,7 +11445,7 @@ func (x *TcpFlags) String() string {
 func (*TcpFlags) ProtoMessage() {}
 
 func (x *TcpFlags) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[102]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[124]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8755,7 +11458,7 @@ func (x *TcpFlags) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TcpFlags.ProtoReflect.Descriptor instead.
 func (*TcpFlags) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{102}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{124}
 }
 
 func (x *TcpFlags) GetMask() uint32 {
@@ -8795,7 +11498,7 @@ type ServiceSpec struct {
 
 func (x *ServiceSpec) Reset() {
 	*x = ServiceSpec{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[103]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[125]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8807,7 +11510,7 @@ func (x *ServiceSpec) String() string {
 func (*ServiceSpec) ProtoMessage() {}
 
 func (x *ServiceSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[103]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[125]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8820,7 +11523,7 @@ func (x *ServiceSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceSpec.ProtoReflect.Descriptor instead.
 func (*ServiceSpec) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{103}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{125}
 }
 
 func (x *ServiceSpec) GetProtocol() string {
@@ -8899,7 +11602,7 @@ type ServiceObject struct {
 
 func (x *ServiceObject) Reset() {
 	*x = ServiceObject{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[104]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[126]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8911,7 +11614,7 @@ func (x *ServiceObject) String() string {
 func (*ServiceObject) ProtoMessage() {}
 
 func (x *ServiceObject) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[104]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[126]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8924,7 +11627,7 @@ func (x *ServiceObject) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceObject.ProtoReflect.Descriptor instead.
 func (*ServiceObject) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{104}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{126}
 }
 
 func (x *ServiceObject) GetProtocol() string {
@@ -9005,7 +11708,7 @@ type ServiceGroup struct {
 
 func (x *ServiceGroup) Reset() {
 	*x = ServiceGroup{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[105]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[127]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9017,7 +11720,7 @@ func (x *ServiceGroup) String() string {
 func (*ServiceGroup) ProtoMessage() {}
 
 func (x *ServiceGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[105]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[127]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9030,7 +11733,7 @@ func (x *ServiceGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceGroup.ProtoReflect.Descriptor instead.
 func (*ServiceGroup) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{105}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{127}
 }
 
 func (x *ServiceGroup) GetDescription() string {
@@ -9075,7 +11778,7 @@ type Schedule struct {
 
 func (x *Schedule) Reset() {
 	*x = Schedule{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[106]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[128]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9087,7 +11790,7 @@ func (x *Schedule) String() string {
 func (*Schedule) ProtoMessage() {}
 
 func (x *Schedule) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[106]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[128]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9100,7 +11803,7 @@ func (x *Schedule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Schedule.ProtoReflect.Descriptor instead.
 func (*Schedule) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{106}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{128}
 }
 
 func (x *Schedule) GetType() string {
@@ -9160,7 +11863,7 @@ type Zone struct {
 
 func (x *Zone) Reset() {
 	*x = Zone{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[107]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[129]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9172,7 +11875,7 @@ func (x *Zone) String() string {
 func (*Zone) ProtoMessage() {}
 
 func (x *Zone) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[107]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[129]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9185,7 +11888,7 @@ func (x *Zone) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Zone.ProtoReflect.Descriptor instead.
 func (*Zone) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{107}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{129}
 }
 
 func (x *Zone) GetDescription() string {
@@ -9222,7 +11925,7 @@ type Tag struct {
 
 func (x *Tag) Reset() {
 	*x = Tag{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[108]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[130]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9234,7 +11937,7 @@ func (x *Tag) String() string {
 func (*Tag) ProtoMessage() {}
 
 func (x *Tag) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[108]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[130]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9247,7 +11950,7 @@ func (x *Tag) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Tag.ProtoReflect.Descriptor instead.
 func (*Tag) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{108}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{130}
 }
 
 func (x *Tag) GetDescription() string {
@@ -9285,7 +11988,7 @@ type AclConfig struct {
 
 func (x *AclConfig) Reset() {
 	*x = AclConfig{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[109]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[131]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9297,7 +12000,7 @@ func (x *AclConfig) String() string {
 func (*AclConfig) ProtoMessage() {}
 
 func (x *AclConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[109]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[131]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9310,7 +12013,7 @@ func (x *AclConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AclConfig.ProtoReflect.Descriptor instead.
 func (*AclConfig) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{109}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{131}
 }
 
 func (x *AclConfig) GetLists() map[string]*AclList {
@@ -9370,7 +12073,7 @@ type AddressMatch struct {
 
 func (x *AddressMatch) Reset() {
 	*x = AddressMatch{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[110]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[132]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9382,7 +12085,7 @@ func (x *AddressMatch) String() string {
 func (*AddressMatch) ProtoMessage() {}
 
 func (x *AddressMatch) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[110]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[132]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9395,7 +12098,7 @@ func (x *AddressMatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddressMatch.ProtoReflect.Descriptor instead.
 func (*AddressMatch) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{110}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{132}
 }
 
 func (x *AddressMatch) GetKind() string {
@@ -9434,7 +12137,7 @@ type ServiceMatch struct {
 
 func (x *ServiceMatch) Reset() {
 	*x = ServiceMatch{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[111]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[133]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9446,7 +12149,7 @@ func (x *ServiceMatch) String() string {
 func (*ServiceMatch) ProtoMessage() {}
 
 func (x *ServiceMatch) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[111]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[133]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9459,7 +12162,7 @@ func (x *ServiceMatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceMatch.ProtoReflect.Descriptor instead.
 func (*ServiceMatch) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{111}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{133}
 }
 
 func (x *ServiceMatch) GetKind() string {
@@ -9512,7 +12215,7 @@ type AclRule struct {
 
 func (x *AclRule) Reset() {
 	*x = AclRule{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[112]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[134]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9524,7 +12227,7 @@ func (x *AclRule) String() string {
 func (*AclRule) ProtoMessage() {}
 
 func (x *AclRule) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[112]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[134]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9537,7 +12240,7 @@ func (x *AclRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AclRule.ProtoReflect.Descriptor instead.
 func (*AclRule) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{112}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{134}
 }
 
 func (x *AclRule) GetSequence() uint32 {
@@ -9625,7 +12328,7 @@ type AclList struct {
 
 func (x *AclList) Reset() {
 	*x = AclList{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[113]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[135]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9637,7 +12340,7 @@ func (x *AclList) String() string {
 func (*AclList) ProtoMessage() {}
 
 func (x *AclList) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[113]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[135]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9650,7 +12353,7 @@ func (x *AclList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AclList.ProtoReflect.Descriptor instead.
 func (*AclList) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{113}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{135}
 }
 
 func (x *AclList) GetDescription() string {
@@ -9695,7 +12398,7 @@ type MacipRule struct {
 
 func (x *MacipRule) Reset() {
 	*x = MacipRule{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[114]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[136]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9707,7 +12410,7 @@ func (x *MacipRule) String() string {
 func (*MacipRule) ProtoMessage() {}
 
 func (x *MacipRule) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[114]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[136]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9720,7 +12423,7 @@ func (x *MacipRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MacipRule.ProtoReflect.Descriptor instead.
 func (*MacipRule) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{114}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{136}
 }
 
 func (x *MacipRule) GetSequence() uint32 {
@@ -9780,7 +12483,7 @@ type MacipList struct {
 
 func (x *MacipList) Reset() {
 	*x = MacipList{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[115]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[137]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9792,7 +12495,7 @@ func (x *MacipList) String() string {
 func (*MacipList) ProtoMessage() {}
 
 func (x *MacipList) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[115]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[137]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9805,7 +12508,7 @@ func (x *MacipList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MacipList.ProtoReflect.Descriptor instead.
 func (*MacipList) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{115}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{137}
 }
 
 func (x *MacipList) GetDescription() string {
@@ -9858,7 +12561,7 @@ type HostRule struct {
 
 func (x *HostRule) Reset() {
 	*x = HostRule{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[116]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[138]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9870,7 +12573,7 @@ func (x *HostRule) String() string {
 func (*HostRule) ProtoMessage() {}
 
 func (x *HostRule) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[116]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[138]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9883,7 +12586,7 @@ func (x *HostRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostRule.ProtoReflect.Descriptor instead.
 func (*HostRule) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{116}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{138}
 }
 
 func (x *HostRule) GetSequence() uint32 {
@@ -9971,7 +12674,7 @@ type HostList struct {
 
 func (x *HostList) Reset() {
 	*x = HostList{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[117]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[139]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9983,7 +12686,7 @@ func (x *HostList) String() string {
 func (*HostList) ProtoMessage() {}
 
 func (x *HostList) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[117]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[139]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9996,7 +12699,7 @@ func (x *HostList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostList.ProtoReflect.Descriptor instead.
 func (*HostList) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{117}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{139}
 }
 
 func (x *HostList) GetDescription() string {
@@ -10035,7 +12738,7 @@ type AttachmentTarget struct {
 
 func (x *AttachmentTarget) Reset() {
 	*x = AttachmentTarget{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[118]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[140]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10047,7 +12750,7 @@ func (x *AttachmentTarget) String() string {
 func (*AttachmentTarget) ProtoMessage() {}
 
 func (x *AttachmentTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[118]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[140]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10060,7 +12763,7 @@ func (x *AttachmentTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttachmentTarget.ProtoReflect.Descriptor instead.
 func (*AttachmentTarget) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{118}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{140}
 }
 
 func (x *AttachmentTarget) GetKind() string {
@@ -10107,7 +12810,7 @@ type AclAttachment struct {
 
 func (x *AclAttachment) Reset() {
 	*x = AclAttachment{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[119]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[141]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10119,7 +12822,7 @@ func (x *AclAttachment) String() string {
 func (*AclAttachment) ProtoMessage() {}
 
 func (x *AclAttachment) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[119]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[141]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10132,7 +12835,7 @@ func (x *AclAttachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AclAttachment.ProtoReflect.Descriptor instead.
 func (*AclAttachment) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{119}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{141}
 }
 
 func (x *AclAttachment) GetList() string {
@@ -10203,7 +12906,7 @@ type MacipAttachment struct {
 
 func (x *MacipAttachment) Reset() {
 	*x = MacipAttachment{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[120]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[142]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10215,7 +12918,7 @@ func (x *MacipAttachment) String() string {
 func (*MacipAttachment) ProtoMessage() {}
 
 func (x *MacipAttachment) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[120]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[142]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10228,7 +12931,7 @@ func (x *MacipAttachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MacipAttachment.ProtoReflect.Descriptor instead.
 func (*MacipAttachment) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{120}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{142}
 }
 
 func (x *MacipAttachment) GetList() string {
@@ -10285,7 +12988,7 @@ type HostAttachment struct {
 
 func (x *HostAttachment) Reset() {
 	*x = HostAttachment{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[121]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[143]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10297,7 +13000,7 @@ func (x *HostAttachment) String() string {
 func (*HostAttachment) ProtoMessage() {}
 
 func (x *HostAttachment) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[121]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[143]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10310,7 +13013,7 @@ func (x *HostAttachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostAttachment.ProtoReflect.Descriptor instead.
 func (*HostAttachment) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{121}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{143}
 }
 
 func (x *HostAttachment) GetList() string {
@@ -10365,7 +13068,7 @@ type VpnConfig struct {
 
 func (x *VpnConfig) Reset() {
 	*x = VpnConfig{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[122]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[144]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10377,7 +13080,7 @@ func (x *VpnConfig) String() string {
 func (*VpnConfig) ProtoMessage() {}
 
 func (x *VpnConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[122]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[144]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10390,7 +13093,7 @@ func (x *VpnConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VpnConfig.ProtoReflect.Descriptor instead.
 func (*VpnConfig) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{122}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{144}
 }
 
 func (x *VpnConfig) GetIpsec() *IpsecConfig {
@@ -10438,7 +13141,7 @@ type IkeProposal struct {
 
 func (x *IkeProposal) Reset() {
 	*x = IkeProposal{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[123]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[145]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10450,7 +13153,7 @@ func (x *IkeProposal) String() string {
 func (*IkeProposal) ProtoMessage() {}
 
 func (x *IkeProposal) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[123]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[145]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10463,7 +13166,7 @@ func (x *IkeProposal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IkeProposal.ProtoReflect.Descriptor instead.
 func (*IkeProposal) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{123}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{145}
 }
 
 func (x *IkeProposal) GetEncr() string {
@@ -10509,7 +13212,7 @@ type EspProposal struct {
 
 func (x *EspProposal) Reset() {
 	*x = EspProposal{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[124]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[146]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10521,7 +13224,7 @@ func (x *EspProposal) String() string {
 func (*EspProposal) ProtoMessage() {}
 
 func (x *EspProposal) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[124]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[146]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10534,7 +13237,7 @@ func (x *EspProposal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EspProposal.ProtoReflect.Descriptor instead.
 func (*EspProposal) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{124}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{146}
 }
 
 func (x *EspProposal) GetEncr() string {
@@ -10573,7 +13276,7 @@ type IpsecProposal struct {
 
 func (x *IpsecProposal) Reset() {
 	*x = IpsecProposal{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[125]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[147]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10585,7 +13288,7 @@ func (x *IpsecProposal) String() string {
 func (*IpsecProposal) ProtoMessage() {}
 
 func (x *IpsecProposal) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[125]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[147]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10598,7 +13301,7 @@ func (x *IpsecProposal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecProposal.ProtoReflect.Descriptor instead.
 func (*IpsecProposal) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{125}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{147}
 }
 
 func (x *IpsecProposal) GetDescription() string {
@@ -10639,7 +13342,7 @@ type IpsecAuth struct {
 
 func (x *IpsecAuth) Reset() {
 	*x = IpsecAuth{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[126]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[148]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10651,7 +13354,7 @@ func (x *IpsecAuth) String() string {
 func (*IpsecAuth) ProtoMessage() {}
 
 func (x *IpsecAuth) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[126]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[148]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10664,7 +13367,7 @@ func (x *IpsecAuth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecAuth.ProtoReflect.Descriptor instead.
 func (*IpsecAuth) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{126}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{148}
 }
 
 func (x *IpsecAuth) GetMethod() string {
@@ -10712,7 +13415,7 @@ type IpsecDpd struct {
 
 func (x *IpsecDpd) Reset() {
 	*x = IpsecDpd{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[127]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[149]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10724,7 +13427,7 @@ func (x *IpsecDpd) String() string {
 func (*IpsecDpd) ProtoMessage() {}
 
 func (x *IpsecDpd) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[127]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[149]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10737,7 +13440,7 @@ func (x *IpsecDpd) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecDpd.ProtoReflect.Descriptor instead.
 func (*IpsecDpd) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{127}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{149}
 }
 
 func (x *IpsecDpd) GetEnabled() bool {
@@ -10787,7 +13490,7 @@ type IpsecRekey struct {
 
 func (x *IpsecRekey) Reset() {
 	*x = IpsecRekey{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[128]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[150]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10799,7 +13502,7 @@ func (x *IpsecRekey) String() string {
 func (*IpsecRekey) ProtoMessage() {}
 
 func (x *IpsecRekey) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[128]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[150]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10812,7 +13515,7 @@ func (x *IpsecRekey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecRekey.ProtoReflect.Descriptor instead.
 func (*IpsecRekey) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{128}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{150}
 }
 
 func (x *IpsecRekey) GetIkeSec() uint32 {
@@ -10865,7 +13568,7 @@ type IpsecTunnel struct {
 	Mode *string `protobuf:"bytes,5,opt,name=mode,proto3,oneof" json:"mode,omitempty"`
 	// "esp" | "ah".
 	Protocol *string `protobuf:"bytes,6,opt,name=protocol,proto3,oneof" json:"protocol,omitempty"`
-	// Local address (configured on an interface in `vrf`).
+	// Local address (configured on an interface in `underlay_vrf`).
 	LocalAddr *string `protobuf:"bytes,7,opt,name=local_addr,json=localAddr,proto3,oneof" json:"local_addr,omitempty"`
 	// Remote address: IP, hostname or "%any" (responder only).
 	RemoteAddr *string `protobuf:"bytes,8,opt,name=remote_addr,json=remoteAddr,proto3,oneof" json:"remote_addr,omitempty"`
@@ -10895,21 +13598,23 @@ type IpsecTunnel struct {
 	StartAction *string `protobuf:"bytes,20,opt,name=start_action,json=startAction,proto3,oneof" json:"start_action,omitempty"`
 	// "none" | "start" | "trap".
 	CloseAction *string `protobuf:"bytes,21,opt,name=close_action,json=closeAction,proto3,oneof" json:"close_action,omitempty"`
-	// VRF name (first-class, vdom.md #1).
+	// Overlay VRF: FIB the traffic selectors apply to / the protected IPIP interface belongs to (vdom.md #1).
 	Vrf *string `protobuf:"bytes,22,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
 	// Route-based settings; unset = policy-based.
 	RouteBased *IpsecTunnel_RouteBased `protobuf:"bytes,23,opt,name=route_based,json=routeBased,proto3" json:"route_based,omitempty"`
 	// Extended sequence numbers.
 	Esn *bool `protobuf:"varint,24,opt,name=esn,proto3,oneof" json:"esn,omitempty"`
 	// Anti-replay.
-	AntiReplay    *bool `protobuf:"varint,25,opt,name=anti_replay,json=antiReplay,proto3,oneof" json:"anti_replay,omitempty"`
+	AntiReplay *bool `protobuf:"varint,25,opt,name=anti_replay,json=antiReplay,proto3,oneof" json:"anti_replay,omitempty"`
+	// FIB IKE/ESP run in (outer packets); local_addr is configured in it. `vrf` is the overlay (F4).
+	UnderlayVrf   *string `protobuf:"bytes,26,opt,name=underlay_vrf,json=underlayVrf,proto3,oneof" json:"underlay_vrf,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *IpsecTunnel) Reset() {
 	*x = IpsecTunnel{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[129]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[151]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10921,7 +13626,7 @@ func (x *IpsecTunnel) String() string {
 func (*IpsecTunnel) ProtoMessage() {}
 
 func (x *IpsecTunnel) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[129]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[151]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10934,7 +13639,7 @@ func (x *IpsecTunnel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecTunnel.ProtoReflect.Descriptor instead.
 func (*IpsecTunnel) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{129}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{151}
 }
 
 func (x *IpsecTunnel) GetEnabled() bool {
@@ -11112,6 +13817,13 @@ func (x *IpsecTunnel) GetAntiReplay() bool {
 	return false
 }
 
+func (x *IpsecTunnel) GetUnderlayVrf() string {
+	if x != nil && x.UnderlayVrf != nil {
+		return *x.UnderlayVrf
+	}
+	return ""
+}
+
 // IpsecSettings mirrors `vpn.ipsec.settings`.
 type IpsecSettings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -11125,7 +13837,7 @@ type IpsecSettings struct {
 
 func (x *IpsecSettings) Reset() {
 	*x = IpsecSettings{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[130]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[152]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11137,7 +13849,7 @@ func (x *IpsecSettings) String() string {
 func (*IpsecSettings) ProtoMessage() {}
 
 func (x *IpsecSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[130]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[152]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11150,7 +13862,7 @@ func (x *IpsecSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecSettings.ProtoReflect.Descriptor instead.
 func (*IpsecSettings) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{130}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{152}
 }
 
 func (x *IpsecSettings) GetCryptoEngine() string {
@@ -11182,7 +13894,7 @@ type IpsecConfig struct {
 
 func (x *IpsecConfig) Reset() {
 	*x = IpsecConfig{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[131]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[153]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11194,7 +13906,7 @@ func (x *IpsecConfig) String() string {
 func (*IpsecConfig) ProtoMessage() {}
 
 func (x *IpsecConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[131]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[153]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11207,7 +13919,7 @@ func (x *IpsecConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecConfig.ProtoReflect.Descriptor instead.
 func (*IpsecConfig) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{131}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{153}
 }
 
 func (x *IpsecConfig) GetSettings() *IpsecSettings {
@@ -11252,7 +13964,7 @@ type WireguardPeer struct {
 
 func (x *WireguardPeer) Reset() {
 	*x = WireguardPeer{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[132]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[154]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11264,7 +13976,7 @@ func (x *WireguardPeer) String() string {
 func (*WireguardPeer) ProtoMessage() {}
 
 func (x *WireguardPeer) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[132]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[154]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11277,7 +13989,7 @@ func (x *WireguardPeer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireguardPeer.ProtoReflect.Descriptor instead.
 func (*WireguardPeer) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{132}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{154}
 }
 
 func (x *WireguardPeer) GetDescription() string {
@@ -11353,7 +14065,7 @@ type WireguardInterface struct {
 
 func (x *WireguardInterface) Reset() {
 	*x = WireguardInterface{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[133]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[155]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11365,7 +14077,7 @@ func (x *WireguardInterface) String() string {
 func (*WireguardInterface) ProtoMessage() {}
 
 func (x *WireguardInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[133]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[155]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11378,7 +14090,7 @@ func (x *WireguardInterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireguardInterface.ProtoReflect.Descriptor instead.
 func (*WireguardInterface) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{133}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{155}
 }
 
 func (x *WireguardInterface) GetEnabled() bool {
@@ -11469,7 +14181,7 @@ type WireguardConfig struct {
 
 func (x *WireguardConfig) Reset() {
 	*x = WireguardConfig{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[134]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[156]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11481,7 +14193,7 @@ func (x *WireguardConfig) String() string {
 func (*WireguardConfig) ProtoMessage() {}
 
 func (x *WireguardConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[134]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[156]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11494,7 +14206,7 @@ func (x *WireguardConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireguardConfig.ProtoReflect.Descriptor instead.
 func (*WireguardConfig) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{134}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{156}
 }
 
 func (x *WireguardConfig) GetInterfaces() map[string]*WireguardInterface {
@@ -11521,7 +14233,7 @@ type PkiCa struct {
 
 func (x *PkiCa) Reset() {
 	*x = PkiCa{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[135]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[157]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11533,7 +14245,7 @@ func (x *PkiCa) String() string {
 func (*PkiCa) ProtoMessage() {}
 
 func (x *PkiCa) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[135]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[157]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11546,7 +14258,7 @@ func (x *PkiCa) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiCa.ProtoReflect.Descriptor instead.
 func (*PkiCa) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{135}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{157}
 }
 
 func (x *PkiCa) GetDescription() string {
@@ -11598,7 +14310,7 @@ type PkiCertificate struct {
 
 func (x *PkiCertificate) Reset() {
 	*x = PkiCertificate{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[136]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[158]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11610,7 +14322,7 @@ func (x *PkiCertificate) String() string {
 func (*PkiCertificate) ProtoMessage() {}
 
 func (x *PkiCertificate) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[136]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[158]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11623,7 +14335,7 @@ func (x *PkiCertificate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiCertificate.ProtoReflect.Descriptor instead.
 func (*PkiCertificate) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{136}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{158}
 }
 
 func (x *PkiCertificate) GetDescription() string {
@@ -11683,7 +14395,7 @@ type PkiConfig struct {
 
 func (x *PkiConfig) Reset() {
 	*x = PkiConfig{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[137]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[159]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11695,7 +14407,7 @@ func (x *PkiConfig) String() string {
 func (*PkiConfig) ProtoMessage() {}
 
 func (x *PkiConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[137]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[159]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11708,7 +14420,7 @@ func (x *PkiConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiConfig.ProtoReflect.Descriptor instead.
 func (*PkiConfig) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{137}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{159}
 }
 
 func (x *PkiConfig) GetCas() map[string]*PkiCa {
@@ -11747,7 +14459,7 @@ type RemoteAccessPool struct {
 
 func (x *RemoteAccessPool) Reset() {
 	*x = RemoteAccessPool{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[138]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[160]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11759,7 +14471,7 @@ func (x *RemoteAccessPool) String() string {
 func (*RemoteAccessPool) ProtoMessage() {}
 
 func (x *RemoteAccessPool) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[138]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[160]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11772,7 +14484,7 @@ func (x *RemoteAccessPool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoteAccessPool.ProtoReflect.Descriptor instead.
 func (*RemoteAccessPool) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{138}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{160}
 }
 
 func (x *RemoteAccessPool) GetName() string {
@@ -11809,7 +14521,7 @@ type RemoteAccessUser struct {
 
 func (x *RemoteAccessUser) Reset() {
 	*x = RemoteAccessUser{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[139]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[161]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11821,7 +14533,7 @@ func (x *RemoteAccessUser) String() string {
 func (*RemoteAccessUser) ProtoMessage() {}
 
 func (x *RemoteAccessUser) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[139]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[161]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11834,7 +14546,7 @@ func (x *RemoteAccessUser) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoteAccessUser.ProtoReflect.Descriptor instead.
 func (*RemoteAccessUser) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{139}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{161}
 }
 
 func (x *RemoteAccessUser) GetUsername() string {
@@ -11883,14 +14595,16 @@ type RemoteAccessProfile struct {
 	// Dead peer detection.
 	Dpd *IpsecDpd `protobuf:"bytes,14,opt,name=dpd,proto3" json:"dpd,omitempty"`
 	// Rekeying.
-	Rekey         *IpsecRekey `protobuf:"bytes,15,opt,name=rekey,proto3" json:"rekey,omitempty"`
+	Rekey *IpsecRekey `protobuf:"bytes,15,opt,name=rekey,proto3" json:"rekey,omitempty"`
+	// FIB IKE/ESP run in (outer packets); local_addr is configured in it. `vrf` is the overlay (F4).
+	UnderlayVrf   *string `protobuf:"bytes,16,opt,name=underlay_vrf,json=underlayVrf,proto3,oneof" json:"underlay_vrf,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RemoteAccessProfile) Reset() {
 	*x = RemoteAccessProfile{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[140]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[162]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11902,7 +14616,7 @@ func (x *RemoteAccessProfile) String() string {
 func (*RemoteAccessProfile) ProtoMessage() {}
 
 func (x *RemoteAccessProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[140]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[162]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11915,7 +14629,7 @@ func (x *RemoteAccessProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoteAccessProfile.ProtoReflect.Descriptor instead.
 func (*RemoteAccessProfile) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{140}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{162}
 }
 
 func (x *RemoteAccessProfile) GetEnabled() bool {
@@ -12023,6 +14737,1665 @@ func (x *RemoteAccessProfile) GetRekey() *IpsecRekey {
 	return nil
 }
 
+func (x *RemoteAccessProfile) GetUnderlayVrf() string {
+	if x != nil && x.UnderlayVrf != nil {
+		return *x.UnderlayVrf
+	}
+	return ""
+}
+
+// VPP dns cache plugin.
+type DnsService_VppCache struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// Upstream name servers.
+	Upstreams     []string `protobuf:"bytes,2,rep,name=upstreams,proto3" json:"upstreams,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DnsService_VppCache) Reset() {
+	*x = DnsService_VppCache{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[183]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DnsService_VppCache) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DnsService_VppCache) ProtoMessage() {}
+
+func (x *DnsService_VppCache) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[183]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DnsService_VppCache.ProtoReflect.Descriptor instead.
+func (*DnsService_VppCache) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{72, 0}
+}
+
+func (x *DnsService_VppCache) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *DnsService_VppCache) GetUpstreams() []string {
+	if x != nil {
+		return x.Upstreams
+	}
+	return nil
+}
+
+// DNSSEC settings.
+type DnsResolver_Dnssec struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Validation enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// RFC 5011 automatic trust anchor.
+	TrustAnchorAuto *bool `protobuf:"varint,2,opt,name=trust_anchor_auto,json=trustAnchorAuto,proto3,oneof" json:"trust_anchor_auto,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *DnsResolver_Dnssec) Reset() {
+	*x = DnsResolver_Dnssec{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[185]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DnsResolver_Dnssec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DnsResolver_Dnssec) ProtoMessage() {}
+
+func (x *DnsResolver_Dnssec) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[185]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DnsResolver_Dnssec.ProtoReflect.Descriptor instead.
+func (*DnsResolver_Dnssec) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{78, 0}
+}
+
+func (x *DnsResolver_Dnssec) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *DnsResolver_Dnssec) GetTrustAnchorAuto() bool {
+	if x != nil && x.TrustAnchorAuto != nil {
+		return *x.TrustAnchorAuto
+	}
+	return false
+}
+
+// Cache settings.
+type DnsResolver_Cache struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Minimum TTL in seconds.
+	MinTtlSec *uint32 `protobuf:"varint,1,opt,name=min_ttl_sec,json=minTtlSec,proto3,oneof" json:"min_ttl_sec,omitempty"`
+	// Maximum TTL in seconds.
+	MaxTtlSec *uint32 `protobuf:"varint,2,opt,name=max_ttl_sec,json=maxTtlSec,proto3,oneof" json:"max_ttl_sec,omitempty"`
+	// Prefetch.
+	Prefetch *bool `protobuf:"varint,3,opt,name=prefetch,proto3,oneof" json:"prefetch,omitempty"`
+	// Message cache in MB.
+	MsgCacheMb *uint32 `protobuf:"varint,4,opt,name=msg_cache_mb,json=msgCacheMb,proto3,oneof" json:"msg_cache_mb,omitempty"`
+	// RRset cache in MB.
+	RrsetCacheMb  *uint32 `protobuf:"varint,5,opt,name=rrset_cache_mb,json=rrsetCacheMb,proto3,oneof" json:"rrset_cache_mb,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DnsResolver_Cache) Reset() {
+	*x = DnsResolver_Cache{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[186]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DnsResolver_Cache) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DnsResolver_Cache) ProtoMessage() {}
+
+func (x *DnsResolver_Cache) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[186]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DnsResolver_Cache.ProtoReflect.Descriptor instead.
+func (*DnsResolver_Cache) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{78, 1}
+}
+
+func (x *DnsResolver_Cache) GetMinTtlSec() uint32 {
+	if x != nil && x.MinTtlSec != nil {
+		return *x.MinTtlSec
+	}
+	return 0
+}
+
+func (x *DnsResolver_Cache) GetMaxTtlSec() uint32 {
+	if x != nil && x.MaxTtlSec != nil {
+		return *x.MaxTtlSec
+	}
+	return 0
+}
+
+func (x *DnsResolver_Cache) GetPrefetch() bool {
+	if x != nil && x.Prefetch != nil {
+		return *x.Prefetch
+	}
+	return false
+}
+
+func (x *DnsResolver_Cache) GetMsgCacheMb() uint32 {
+	if x != nil && x.MsgCacheMb != nil {
+		return *x.MsgCacheMb
+	}
+	return 0
+}
+
+func (x *DnsResolver_Cache) GetRrsetCacheMb() uint32 {
+	if x != nil && x.RrsetCacheMb != nil {
+		return *x.RrsetCacheMb
+	}
+	return 0
+}
+
+// Community (v1/v2c).
+type SnmpService_Community struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Reference to the community string (password/…), never the string.
+	SecretRef *string `protobuf:"bytes,1,opt,name=secret_ref,json=secretRef,proto3,oneof" json:"secret_ref,omitempty"`
+	// "ro" | "rw".
+	Access *string `protobuf:"bytes,2,opt,name=access,proto3,oneof" json:"access,omitempty"`
+	// Allowed source prefixes (CIDR); empty = any.
+	Sources       []string `protobuf:"bytes,3,rep,name=sources,proto3" json:"sources,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SnmpService_Community) Reset() {
+	*x = SnmpService_Community{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[187]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SnmpService_Community) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SnmpService_Community) ProtoMessage() {}
+
+func (x *SnmpService_Community) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[187]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SnmpService_Community.ProtoReflect.Descriptor instead.
+func (*SnmpService_Community) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{79, 0}
+}
+
+func (x *SnmpService_Community) GetSecretRef() string {
+	if x != nil && x.SecretRef != nil {
+		return *x.SecretRef
+	}
+	return ""
+}
+
+func (x *SnmpService_Community) GetAccess() string {
+	if x != nil && x.Access != nil {
+		return *x.Access
+	}
+	return ""
+}
+
+func (x *SnmpService_Community) GetSources() []string {
+	if x != nil {
+		return x.Sources
+	}
+	return nil
+}
+
+// SNMPv3 USM user.
+type SnmpService_V3User struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// "noAuthNoPriv" | "authNoPriv" | "authPriv".
+	SecurityLevel *string `protobuf:"bytes,1,opt,name=security_level,json=securityLevel,proto3,oneof" json:"security_level,omitempty"`
+	// "sha" | "sha256" | "sha512" | "md5".
+	AuthProtocol *string `protobuf:"bytes,2,opt,name=auth_protocol,json=authProtocol,proto3,oneof" json:"auth_protocol,omitempty"`
+	// Reference to the authentication passphrase (password/…).
+	AuthRef *string `protobuf:"bytes,3,opt,name=auth_ref,json=authRef,proto3,oneof" json:"auth_ref,omitempty"`
+	// "aes" | "aes256" | "des".
+	PrivProtocol *string `protobuf:"bytes,4,opt,name=priv_protocol,json=privProtocol,proto3,oneof" json:"priv_protocol,omitempty"`
+	// Reference to the privacy passphrase (password/…).
+	PrivRef *string `protobuf:"bytes,5,opt,name=priv_ref,json=privRef,proto3,oneof" json:"priv_ref,omitempty"`
+	// "ro" | "rw".
+	Access        *string `protobuf:"bytes,6,opt,name=access,proto3,oneof" json:"access,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SnmpService_V3User) Reset() {
+	*x = SnmpService_V3User{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[188]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SnmpService_V3User) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SnmpService_V3User) ProtoMessage() {}
+
+func (x *SnmpService_V3User) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[188]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SnmpService_V3User.ProtoReflect.Descriptor instead.
+func (*SnmpService_V3User) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{79, 1}
+}
+
+func (x *SnmpService_V3User) GetSecurityLevel() string {
+	if x != nil && x.SecurityLevel != nil {
+		return *x.SecurityLevel
+	}
+	return ""
+}
+
+func (x *SnmpService_V3User) GetAuthProtocol() string {
+	if x != nil && x.AuthProtocol != nil {
+		return *x.AuthProtocol
+	}
+	return ""
+}
+
+func (x *SnmpService_V3User) GetAuthRef() string {
+	if x != nil && x.AuthRef != nil {
+		return *x.AuthRef
+	}
+	return ""
+}
+
+func (x *SnmpService_V3User) GetPrivProtocol() string {
+	if x != nil && x.PrivProtocol != nil {
+		return *x.PrivProtocol
+	}
+	return ""
+}
+
+func (x *SnmpService_V3User) GetPrivRef() string {
+	if x != nil && x.PrivRef != nil {
+		return *x.PrivRef
+	}
+	return ""
+}
+
+func (x *SnmpService_V3User) GetAccess() string {
+	if x != nil && x.Access != nil {
+		return *x.Access
+	}
+	return ""
+}
+
+// Trap / inform receiver.
+type SnmpService_TrapReceiver struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// IP address or hostname.
+	Address *string `protobuf:"bytes,1,opt,name=address,proto3,oneof" json:"address,omitempty"`
+	// UDP port.
+	Port *uint32 `protobuf:"varint,2,opt,name=port,proto3,oneof" json:"port,omitempty"`
+	// "v2c" | "v3".
+	Version *string `protobuf:"bytes,3,opt,name=version,proto3,oneof" json:"version,omitempty"`
+	// Community name (v2c).
+	Community *string `protobuf:"bytes,4,opt,name=community,proto3,oneof" json:"community,omitempty"`
+	// SNMPv3 user name (v3).
+	User *string `protobuf:"bytes,5,opt,name=user,proto3,oneof" json:"user,omitempty"`
+	// Send informs.
+	Inform        *bool `protobuf:"varint,6,opt,name=inform,proto3,oneof" json:"inform,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SnmpService_TrapReceiver) Reset() {
+	*x = SnmpService_TrapReceiver{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[189]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SnmpService_TrapReceiver) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SnmpService_TrapReceiver) ProtoMessage() {}
+
+func (x *SnmpService_TrapReceiver) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[189]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SnmpService_TrapReceiver.ProtoReflect.Descriptor instead.
+func (*SnmpService_TrapReceiver) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{79, 2}
+}
+
+func (x *SnmpService_TrapReceiver) GetAddress() string {
+	if x != nil && x.Address != nil {
+		return *x.Address
+	}
+	return ""
+}
+
+func (x *SnmpService_TrapReceiver) GetPort() uint32 {
+	if x != nil && x.Port != nil {
+		return *x.Port
+	}
+	return 0
+}
+
+func (x *SnmpService_TrapReceiver) GetVersion() string {
+	if x != nil && x.Version != nil {
+		return *x.Version
+	}
+	return ""
+}
+
+func (x *SnmpService_TrapReceiver) GetCommunity() string {
+	if x != nil && x.Community != nil {
+		return *x.Community
+	}
+	return ""
+}
+
+func (x *SnmpService_TrapReceiver) GetUser() string {
+	if x != nil && x.User != nil {
+		return *x.User
+	}
+	return ""
+}
+
+func (x *SnmpService_TrapReceiver) GetInform() bool {
+	if x != nil && x.Inform != nil {
+		return *x.Inform
+	}
+	return false
+}
+
+// One LLDP-enabled interface.
+type LldpService_Interface struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// VPP interface name.
+	Interface *string `protobuf:"bytes,1,opt,name=interface,proto3,oneof" json:"interface,omitempty"`
+	// Port description.
+	PortDescription *string `protobuf:"bytes,2,opt,name=port_description,json=portDescription,proto3,oneof" json:"port_description,omitempty"`
+	// Management IPv4 address.
+	MgmtIpv4 *string `protobuf:"bytes,3,opt,name=mgmt_ipv4,json=mgmtIpv4,proto3,oneof" json:"mgmt_ipv4,omitempty"`
+	// Management IPv6 address.
+	MgmtIpv6 *string `protobuf:"bytes,4,opt,name=mgmt_ipv6,json=mgmtIpv6,proto3,oneof" json:"mgmt_ipv6,omitempty"`
+	// Management OID.
+	MgmtOid       *string `protobuf:"bytes,5,opt,name=mgmt_oid,json=mgmtOid,proto3,oneof" json:"mgmt_oid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LldpService_Interface) Reset() {
+	*x = LldpService_Interface{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[192]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LldpService_Interface) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LldpService_Interface) ProtoMessage() {}
+
+func (x *LldpService_Interface) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[192]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LldpService_Interface.ProtoReflect.Descriptor instead.
+func (*LldpService_Interface) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{80, 0}
+}
+
+func (x *LldpService_Interface) GetInterface() string {
+	if x != nil && x.Interface != nil {
+		return *x.Interface
+	}
+	return ""
+}
+
+func (x *LldpService_Interface) GetPortDescription() string {
+	if x != nil && x.PortDescription != nil {
+		return *x.PortDescription
+	}
+	return ""
+}
+
+func (x *LldpService_Interface) GetMgmtIpv4() string {
+	if x != nil && x.MgmtIpv4 != nil {
+		return *x.MgmtIpv4
+	}
+	return ""
+}
+
+func (x *LldpService_Interface) GetMgmtIpv6() string {
+	if x != nil && x.MgmtIpv6 != nil {
+		return *x.MgmtIpv6
+	}
+	return ""
+}
+
+func (x *LldpService_Interface) GetMgmtOid() string {
+	if x != nil && x.MgmtOid != nil {
+		return *x.MgmtOid
+	}
+	return ""
+}
+
+// IPFIX exporter.
+type IpfixService_Exporter struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// Free-text description.
+	Description *string `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// Collector socket.
+	Collector *SocketAddress `protobuf:"bytes,3,opt,name=collector,proto3" json:"collector,omitempty"`
+	// Source address (configured in vrf).
+	SourceAddress *string `protobuf:"bytes,4,opt,name=source_address,json=sourceAddress,proto3,oneof" json:"source_address,omitempty"`
+	// VRF.
+	Vrf *string `protobuf:"bytes,5,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// Path MTU.
+	PathMtu *uint32 `protobuf:"varint,6,opt,name=path_mtu,json=pathMtu,proto3,oneof" json:"path_mtu,omitempty"`
+	// Template interval in seconds.
+	TemplateIntervalSec *uint32 `protobuf:"varint,7,opt,name=template_interval_sec,json=templateIntervalSec,proto3,oneof" json:"template_interval_sec,omitempty"`
+	// UDP checksum.
+	UdpChecksum   *bool `protobuf:"varint,8,opt,name=udp_checksum,json=udpChecksum,proto3,oneof" json:"udp_checksum,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IpfixService_Exporter) Reset() {
+	*x = IpfixService_Exporter{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[193]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IpfixService_Exporter) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IpfixService_Exporter) ProtoMessage() {}
+
+func (x *IpfixService_Exporter) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[193]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IpfixService_Exporter.ProtoReflect.Descriptor instead.
+func (*IpfixService_Exporter) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{81, 0}
+}
+
+func (x *IpfixService_Exporter) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *IpfixService_Exporter) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *IpfixService_Exporter) GetCollector() *SocketAddress {
+	if x != nil {
+		return x.Collector
+	}
+	return nil
+}
+
+func (x *IpfixService_Exporter) GetSourceAddress() string {
+	if x != nil && x.SourceAddress != nil {
+		return *x.SourceAddress
+	}
+	return ""
+}
+
+func (x *IpfixService_Exporter) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *IpfixService_Exporter) GetPathMtu() uint32 {
+	if x != nil && x.PathMtu != nil {
+		return *x.PathMtu
+	}
+	return 0
+}
+
+func (x *IpfixService_Exporter) GetTemplateIntervalSec() uint32 {
+	if x != nil && x.TemplateIntervalSec != nil {
+		return *x.TemplateIntervalSec
+	}
+	return 0
+}
+
+func (x *IpfixService_Exporter) GetUdpChecksum() bool {
+	if x != nil && x.UdpChecksum != nil {
+		return *x.UdpChecksum
+	}
+	return false
+}
+
+// Flowprobe settings.
+type IpfixService_Flowprobe struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Active timer in seconds.
+	ActiveTimerSec *uint32 `protobuf:"varint,1,opt,name=active_timer_sec,json=activeTimerSec,proto3,oneof" json:"active_timer_sec,omitempty"`
+	// Passive timer in seconds.
+	PassiveTimerSec *uint32 `protobuf:"varint,2,opt,name=passive_timer_sec,json=passiveTimerSec,proto3,oneof" json:"passive_timer_sec,omitempty"`
+	// Record L2 fields.
+	RecordL2 *bool `protobuf:"varint,3,opt,name=record_l2,json=recordL2,proto3,oneof" json:"record_l2,omitempty"`
+	// Record L3 fields.
+	RecordL3 *bool `protobuf:"varint,4,opt,name=record_l3,json=recordL3,proto3,oneof" json:"record_l3,omitempty"`
+	// Record L4 fields.
+	RecordL4 *bool `protobuf:"varint,5,opt,name=record_l4,json=recordL4,proto3,oneof" json:"record_l4,omitempty"`
+	// Monitored interfaces.
+	Interfaces    []*IpfixService_Flowprobe_Interface `protobuf:"bytes,6,rep,name=interfaces,proto3" json:"interfaces,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IpfixService_Flowprobe) Reset() {
+	*x = IpfixService_Flowprobe{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[194]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IpfixService_Flowprobe) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IpfixService_Flowprobe) ProtoMessage() {}
+
+func (x *IpfixService_Flowprobe) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[194]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IpfixService_Flowprobe.ProtoReflect.Descriptor instead.
+func (*IpfixService_Flowprobe) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{81, 1}
+}
+
+func (x *IpfixService_Flowprobe) GetActiveTimerSec() uint32 {
+	if x != nil && x.ActiveTimerSec != nil {
+		return *x.ActiveTimerSec
+	}
+	return 0
+}
+
+func (x *IpfixService_Flowprobe) GetPassiveTimerSec() uint32 {
+	if x != nil && x.PassiveTimerSec != nil {
+		return *x.PassiveTimerSec
+	}
+	return 0
+}
+
+func (x *IpfixService_Flowprobe) GetRecordL2() bool {
+	if x != nil && x.RecordL2 != nil {
+		return *x.RecordL2
+	}
+	return false
+}
+
+func (x *IpfixService_Flowprobe) GetRecordL3() bool {
+	if x != nil && x.RecordL3 != nil {
+		return *x.RecordL3
+	}
+	return false
+}
+
+func (x *IpfixService_Flowprobe) GetRecordL4() bool {
+	if x != nil && x.RecordL4 != nil {
+		return *x.RecordL4
+	}
+	return false
+}
+
+func (x *IpfixService_Flowprobe) GetInterfaces() []*IpfixService_Flowprobe_Interface {
+	if x != nil {
+		return x.Interfaces
+	}
+	return nil
+}
+
+// sFlow settings.
+type IpfixService_Sflow struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enabled.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// Sampling rate 1 in N.
+	SamplingN *uint32 `protobuf:"varint,2,opt,name=sampling_n,json=samplingN,proto3,oneof" json:"sampling_n,omitempty"`
+	// Counter polling interval in seconds.
+	PollingIntervalSec *uint32 `protobuf:"varint,3,opt,name=polling_interval_sec,json=pollingIntervalSec,proto3,oneof" json:"polling_interval_sec,omitempty"`
+	// Sampled header bytes.
+	HeaderBytes *uint32 `protobuf:"varint,4,opt,name=header_bytes,json=headerBytes,proto3,oneof" json:"header_bytes,omitempty"`
+	// Collectors.
+	Collectors []*SocketAddress `protobuf:"bytes,5,rep,name=collectors,proto3" json:"collectors,omitempty"`
+	// Agent address (configured in vrf).
+	AgentAddress *string `protobuf:"bytes,6,opt,name=agent_address,json=agentAddress,proto3,oneof" json:"agent_address,omitempty"`
+	// VRF.
+	Vrf *string `protobuf:"bytes,7,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// Sampled interfaces.
+	Interfaces    []string `protobuf:"bytes,8,rep,name=interfaces,proto3" json:"interfaces,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IpfixService_Sflow) Reset() {
+	*x = IpfixService_Sflow{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[195]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IpfixService_Sflow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IpfixService_Sflow) ProtoMessage() {}
+
+func (x *IpfixService_Sflow) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[195]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IpfixService_Sflow.ProtoReflect.Descriptor instead.
+func (*IpfixService_Sflow) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{81, 2}
+}
+
+func (x *IpfixService_Sflow) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *IpfixService_Sflow) GetSamplingN() uint32 {
+	if x != nil && x.SamplingN != nil {
+		return *x.SamplingN
+	}
+	return 0
+}
+
+func (x *IpfixService_Sflow) GetPollingIntervalSec() uint32 {
+	if x != nil && x.PollingIntervalSec != nil {
+		return *x.PollingIntervalSec
+	}
+	return 0
+}
+
+func (x *IpfixService_Sflow) GetHeaderBytes() uint32 {
+	if x != nil && x.HeaderBytes != nil {
+		return *x.HeaderBytes
+	}
+	return 0
+}
+
+func (x *IpfixService_Sflow) GetCollectors() []*SocketAddress {
+	if x != nil {
+		return x.Collectors
+	}
+	return nil
+}
+
+func (x *IpfixService_Sflow) GetAgentAddress() string {
+	if x != nil && x.AgentAddress != nil {
+		return *x.AgentAddress
+	}
+	return ""
+}
+
+func (x *IpfixService_Sflow) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *IpfixService_Sflow) GetInterfaces() []string {
+	if x != nil {
+		return x.Interfaces
+	}
+	return nil
+}
+
+// Monitored interface.
+type IpfixService_Flowprobe_Interface struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// VPP interface name.
+	Interface *string `protobuf:"bytes,1,opt,name=interface,proto3,oneof" json:"interface,omitempty"`
+	// "rx" | "tx" | "both".
+	Direction *string `protobuf:"bytes,2,opt,name=direction,proto3,oneof" json:"direction,omitempty"`
+	// L2 flows.
+	L2 *bool `protobuf:"varint,3,opt,name=l2,proto3,oneof" json:"l2,omitempty"`
+	// IPv4 flows.
+	Ip4 *bool `protobuf:"varint,4,opt,name=ip4,proto3,oneof" json:"ip4,omitempty"`
+	// IPv6 flows.
+	Ip6           *bool `protobuf:"varint,5,opt,name=ip6,proto3,oneof" json:"ip6,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IpfixService_Flowprobe_Interface) Reset() {
+	*x = IpfixService_Flowprobe_Interface{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[197]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IpfixService_Flowprobe_Interface) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IpfixService_Flowprobe_Interface) ProtoMessage() {}
+
+func (x *IpfixService_Flowprobe_Interface) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[197]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IpfixService_Flowprobe_Interface.ProtoReflect.Descriptor instead.
+func (*IpfixService_Flowprobe_Interface) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{81, 1, 0}
+}
+
+func (x *IpfixService_Flowprobe_Interface) GetInterface() string {
+	if x != nil && x.Interface != nil {
+		return *x.Interface
+	}
+	return ""
+}
+
+func (x *IpfixService_Flowprobe_Interface) GetDirection() string {
+	if x != nil && x.Direction != nil {
+		return *x.Direction
+	}
+	return ""
+}
+
+func (x *IpfixService_Flowprobe_Interface) GetL2() bool {
+	if x != nil && x.L2 != nil {
+		return *x.L2
+	}
+	return false
+}
+
+func (x *IpfixService_Flowprobe_Interface) GetIp4() bool {
+	if x != nil && x.Ip4 != nil {
+		return *x.Ip4
+	}
+	return false
+}
+
+func (x *IpfixService_Flowprobe_Interface) GetIp6() bool {
+	if x != nil && x.Ip6 != nil {
+		return *x.Ip6
+	}
+	return false
+}
+
+// One upstream server.
+type NtpService_Server struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// IP address or hostname.
+	Address *string `protobuf:"bytes,1,opt,name=address,proto3,oneof" json:"address,omitempty"`
+	// iburst.
+	Iburst *bool `protobuf:"varint,2,opt,name=iburst,proto3,oneof" json:"iburst,omitempty"`
+	// prefer.
+	Prefer *bool `protobuf:"varint,3,opt,name=prefer,proto3,oneof" json:"prefer,omitempty"`
+	// Minimum poll (log2 s).
+	MinPoll *int32 `protobuf:"varint,4,opt,name=min_poll,json=minPoll,proto3,oneof" json:"min_poll,omitempty"`
+	// Maximum poll (log2 s).
+	MaxPoll *int32 `protobuf:"varint,5,opt,name=max_poll,json=maxPoll,proto3,oneof" json:"max_poll,omitempty"`
+	// NTS.
+	Nts *bool `protobuf:"varint,6,opt,name=nts,proto3,oneof" json:"nts,omitempty"`
+	// Reference to the symmetric key (key/…).
+	KeyRef        *string `protobuf:"bytes,7,opt,name=key_ref,json=keyRef,proto3,oneof" json:"key_ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NtpService_Server) Reset() {
+	*x = NtpService_Server{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[198]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NtpService_Server) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NtpService_Server) ProtoMessage() {}
+
+func (x *NtpService_Server) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[198]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NtpService_Server.ProtoReflect.Descriptor instead.
+func (*NtpService_Server) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{82, 0}
+}
+
+func (x *NtpService_Server) GetAddress() string {
+	if x != nil && x.Address != nil {
+		return *x.Address
+	}
+	return ""
+}
+
+func (x *NtpService_Server) GetIburst() bool {
+	if x != nil && x.Iburst != nil {
+		return *x.Iburst
+	}
+	return false
+}
+
+func (x *NtpService_Server) GetPrefer() bool {
+	if x != nil && x.Prefer != nil {
+		return *x.Prefer
+	}
+	return false
+}
+
+func (x *NtpService_Server) GetMinPoll() int32 {
+	if x != nil && x.MinPoll != nil {
+		return *x.MinPoll
+	}
+	return 0
+}
+
+func (x *NtpService_Server) GetMaxPoll() int32 {
+	if x != nil && x.MaxPoll != nil {
+		return *x.MaxPoll
+	}
+	return 0
+}
+
+func (x *NtpService_Server) GetNts() bool {
+	if x != nil && x.Nts != nil {
+		return *x.Nts
+	}
+	return false
+}
+
+func (x *NtpService_Server) GetKeyRef() string {
+	if x != nil && x.KeyRef != nil {
+		return *x.KeyRef
+	}
+	return ""
+}
+
+// Server rate limit.
+type NtpService_RateLimit struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Interval (log2 s).
+	Interval *int32 `protobuf:"varint,1,opt,name=interval,proto3,oneof" json:"interval,omitempty"`
+	// Burst.
+	Burst *uint32 `protobuf:"varint,2,opt,name=burst,proto3,oneof" json:"burst,omitempty"`
+	// Leak (log2).
+	Leak          *uint32 `protobuf:"varint,3,opt,name=leak,proto3,oneof" json:"leak,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NtpService_RateLimit) Reset() {
+	*x = NtpService_RateLimit{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[199]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NtpService_RateLimit) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NtpService_RateLimit) ProtoMessage() {}
+
+func (x *NtpService_RateLimit) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[199]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NtpService_RateLimit.ProtoReflect.Descriptor instead.
+func (*NtpService_RateLimit) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{82, 1}
+}
+
+func (x *NtpService_RateLimit) GetInterval() int32 {
+	if x != nil && x.Interval != nil {
+		return *x.Interval
+	}
+	return 0
+}
+
+func (x *NtpService_RateLimit) GetBurst() uint32 {
+	if x != nil && x.Burst != nil {
+		return *x.Burst
+	}
+	return 0
+}
+
+func (x *NtpService_RateLimit) GetLeak() uint32 {
+	if x != nil && x.Leak != nil {
+		return *x.Leak
+	}
+	return 0
+}
+
+// NTS-KE server.
+type NtpService_NtsServer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Reference to the certificate (cert/…).
+	CertificateRef *string `protobuf:"bytes,1,opt,name=certificate_ref,json=certificateRef,proto3,oneof" json:"certificate_ref,omitempty"`
+	// Reference to the private key (key/…).
+	KeyRef *string `protobuf:"bytes,2,opt,name=key_ref,json=keyRef,proto3,oneof" json:"key_ref,omitempty"`
+	// NTS-KE port.
+	Port          *uint32 `protobuf:"varint,3,opt,name=port,proto3,oneof" json:"port,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NtpService_NtsServer) Reset() {
+	*x = NtpService_NtsServer{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[200]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NtpService_NtsServer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NtpService_NtsServer) ProtoMessage() {}
+
+func (x *NtpService_NtsServer) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[200]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NtpService_NtsServer.ProtoReflect.Descriptor instead.
+func (*NtpService_NtsServer) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{82, 2}
+}
+
+func (x *NtpService_NtsServer) GetCertificateRef() string {
+	if x != nil && x.CertificateRef != nil {
+		return *x.CertificateRef
+	}
+	return ""
+}
+
+func (x *NtpService_NtsServer) GetKeyRef() string {
+	if x != nil && x.KeyRef != nil {
+		return *x.KeyRef
+	}
+	return ""
+}
+
+func (x *NtpService_NtsServer) GetPort() uint32 {
+	if x != nil && x.Port != nil {
+		return *x.Port
+	}
+	return 0
+}
+
+// Clock stepping.
+type NtpService_Makestep struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Threshold in seconds.
+	ThresholdSec *float64 `protobuf:"fixed64,1,opt,name=threshold_sec,json=thresholdSec,proto3,oneof" json:"threshold_sec,omitempty"`
+	// Number of updates that may step; -1 = always.
+	Limit         *int32 `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NtpService_Makestep) Reset() {
+	*x = NtpService_Makestep{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[201]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NtpService_Makestep) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NtpService_Makestep) ProtoMessage() {}
+
+func (x *NtpService_Makestep) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[201]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NtpService_Makestep.ProtoReflect.Descriptor instead.
+func (*NtpService_Makestep) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{82, 3}
+}
+
+func (x *NtpService_Makestep) GetThresholdSec() float64 {
+	if x != nil && x.ThresholdSec != nil {
+		return *x.ThresholdSec
+	}
+	return 0
+}
+
+func (x *NtpService_Makestep) GetLimit() int32 {
+	if x != nil && x.Limit != nil {
+		return *x.Limit
+	}
+	return 0
+}
+
+// One translation table per recorded source.
+type QosMap_Rows struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Recorded from ext.
+	Ext []*QosMapEntry `protobuf:"bytes,1,rep,name=ext,proto3" json:"ext,omitempty"`
+	// Recorded from vlan.
+	Vlan []*QosMapEntry `protobuf:"bytes,2,rep,name=vlan,proto3" json:"vlan,omitempty"`
+	// Recorded from mpls.
+	Mpls []*QosMapEntry `protobuf:"bytes,3,rep,name=mpls,proto3" json:"mpls,omitempty"`
+	// Recorded from ip.
+	Ip            []*QosMapEntry `protobuf:"bytes,4,rep,name=ip,proto3" json:"ip,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QosMap_Rows) Reset() {
+	*x = QosMap_Rows{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[206]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QosMap_Rows) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QosMap_Rows) ProtoMessage() {}
+
+func (x *QosMap_Rows) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[206]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QosMap_Rows.ProtoReflect.Descriptor instead.
+func (*QosMap_Rows) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{88, 0}
+}
+
+func (x *QosMap_Rows) GetExt() []*QosMapEntry {
+	if x != nil {
+		return x.Ext
+	}
+	return nil
+}
+
+func (x *QosMap_Rows) GetVlan() []*QosMapEntry {
+	if x != nil {
+		return x.Vlan
+	}
+	return nil
+}
+
+func (x *QosMap_Rows) GetMpls() []*QosMapEntry {
+	if x != nil {
+		return x.Mpls
+	}
+	return nil
+}
+
+func (x *QosMap_Rows) GetIp() []*QosMapEntry {
+	if x != nil {
+		return x.Ip
+	}
+	return nil
+}
+
+// Policers.
+type QosInterface_Policer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Ingress policer name.
+	Input *string `protobuf:"bytes,1,opt,name=input,proto3,oneof" json:"input,omitempty"`
+	// Egress policer name.
+	Output        *string `protobuf:"bytes,2,opt,name=output,proto3,oneof" json:"output,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QosInterface_Policer) Reset() {
+	*x = QosInterface_Policer{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[207]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QosInterface_Policer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QosInterface_Policer) ProtoMessage() {}
+
+func (x *QosInterface_Policer) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[207]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QosInterface_Policer.ProtoReflect.Descriptor instead.
+func (*QosInterface_Policer) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{89, 0}
+}
+
+func (x *QosInterface_Policer) GetInput() string {
+	if x != nil && x.Input != nil {
+		return *x.Input
+	}
+	return ""
+}
+
+func (x *QosInterface_Policer) GetOutput() string {
+	if x != nil && x.Output != nil {
+		return *x.Output
+	}
+	return ""
+}
+
+// Store a QoS value.
+type QosInterface_Store struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// "ext" | "vlan" | "mpls" | "ip".
+	Source *string `protobuf:"bytes,1,opt,name=source,proto3,oneof" json:"source,omitempty"`
+	// Value.
+	Value         *uint32 `protobuf:"varint,2,opt,name=value,proto3,oneof" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QosInterface_Store) Reset() {
+	*x = QosInterface_Store{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[208]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QosInterface_Store) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QosInterface_Store) ProtoMessage() {}
+
+func (x *QosInterface_Store) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[208]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QosInterface_Store.ProtoReflect.Descriptor instead.
+func (*QosInterface_Store) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{89, 1}
+}
+
+func (x *QosInterface_Store) GetSource() string {
+	if x != nil && x.Source != nil {
+		return *x.Source
+	}
+	return ""
+}
+
+func (x *QosInterface_Store) GetValue() uint32 {
+	if x != nil && x.Value != nil {
+		return *x.Value
+	}
+	return 0
+}
+
+// Mark on egress.
+type QosInterface_Mark struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Map name.
+	Map *string `protobuf:"bytes,1,opt,name=map,proto3,oneof" json:"map,omitempty"`
+	// "ext" | "vlan" | "mpls" | "ip".
+	Output        *string `protobuf:"bytes,2,opt,name=output,proto3,oneof" json:"output,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QosInterface_Mark) Reset() {
+	*x = QosInterface_Mark{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[209]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QosInterface_Mark) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QosInterface_Mark) ProtoMessage() {}
+
+func (x *QosInterface_Mark) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[209]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QosInterface_Mark.ProtoReflect.Descriptor instead.
+func (*QosInterface_Mark) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{89, 2}
+}
+
+func (x *QosInterface_Mark) GetMap() string {
+	if x != nil && x.Map != nil {
+		return *x.Map
+	}
+	return ""
+}
+
+func (x *QosInterface_Mark) GetOutput() string {
+	if x != nil && x.Output != nil {
+		return *x.Output
+	}
+	return ""
+}
+
+// Unicast advertisements.
+type VrrpInstance_Unicast struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Peer addresses.
+	Peers         []string `protobuf:"bytes,1,rep,name=peers,proto3" json:"peers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VrrpInstance_Unicast) Reset() {
+	*x = VrrpInstance_Unicast{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[211]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VrrpInstance_Unicast) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VrrpInstance_Unicast) ProtoMessage() {}
+
+func (x *VrrpInstance_Unicast) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[211]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VrrpInstance_Unicast.ProtoReflect.Descriptor instead.
+func (*VrrpInstance_Unicast) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{91, 0}
+}
+
+func (x *VrrpInstance_Unicast) GetPeers() []string {
+	if x != nil {
+		return x.Peers
+	}
+	return nil
+}
+
+// Tracked interface.
+type VrrpInstance_Track struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// VPP interface name.
+	Interface *string `protobuf:"bytes,1,opt,name=interface,proto3,oneof" json:"interface,omitempty"`
+	// Priority decrement while down.
+	PriorityDecrement *uint32 `protobuf:"varint,2,opt,name=priority_decrement,json=priorityDecrement,proto3,oneof" json:"priority_decrement,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *VrrpInstance_Track) Reset() {
+	*x = VrrpInstance_Track{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[212]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VrrpInstance_Track) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VrrpInstance_Track) ProtoMessage() {}
+
+func (x *VrrpInstance_Track) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[212]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VrrpInstance_Track.ProtoReflect.Descriptor instead.
+func (*VrrpInstance_Track) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{91, 1}
+}
+
+func (x *VrrpInstance_Track) GetInterface() string {
+	if x != nil && x.Interface != nil {
+		return *x.Interface
+	}
+	return ""
+}
+
+func (x *VrrpInstance_Track) GetPriorityDecrement() uint32 {
+	if x != nil && x.PriorityDecrement != nil {
+		return *x.PriorityDecrement
+	}
+	return 0
+}
+
+// Cluster peer.
+type HaCluster_Peer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Peer name.
+	Name *string `protobuf:"bytes,1,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	// Peer address.
+	Address       *string `protobuf:"bytes,2,opt,name=address,proto3,oneof" json:"address,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HaCluster_Peer) Reset() {
+	*x = HaCluster_Peer{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[213]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HaCluster_Peer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HaCluster_Peer) ProtoMessage() {}
+
+func (x *HaCluster_Peer) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[213]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HaCluster_Peer.ProtoReflect.Descriptor instead.
+func (*HaCluster_Peer) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{92, 0}
+}
+
+func (x *HaCluster_Peer) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
+	}
+	return ""
+}
+
+func (x *HaCluster_Peer) GetAddress() string {
+	if x != nil && x.Address != nil {
+		return *x.Address
+	}
+	return ""
+}
+
+// State synchronisation flags.
+type HaCluster_StateSync struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// NAT sessions.
+	Nat *bool `protobuf:"varint,1,opt,name=nat,proto3,oneof" json:"nat,omitempty"`
+	// IPsec SAs.
+	Ipsec *bool `protobuf:"varint,2,opt,name=ipsec,proto3,oneof" json:"ipsec,omitempty"`
+	// ACL sessions.
+	Acl           *bool `protobuf:"varint,3,opt,name=acl,proto3,oneof" json:"acl,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HaCluster_StateSync) Reset() {
+	*x = HaCluster_StateSync{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[214]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HaCluster_StateSync) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HaCluster_StateSync) ProtoMessage() {}
+
+func (x *HaCluster_StateSync) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[214]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HaCluster_StateSync.ProtoReflect.Descriptor instead.
+func (*HaCluster_StateSync) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{92, 1}
+}
+
+func (x *HaCluster_StateSync) GetNat() bool {
+	if x != nil && x.Nat != nil {
+		return *x.Nat
+	}
+	return false
+}
+
+func (x *HaCluster_StateSync) GetIpsec() bool {
+	if x != nil && x.Ipsec != nil {
+		return *x.Ipsec
+	}
+	return false
+}
+
+func (x *HaCluster_StateSync) GetAcl() bool {
+	if x != nil && x.Acl != nil {
+		return *x.Acl
+	}
+	return false
+}
+
 // Local endpoint.
 type NatStaticMapping_Local struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -12036,7 +16409,7 @@ type NatStaticMapping_Local struct {
 
 func (x *NatStaticMapping_Local) Reset() {
 	*x = NatStaticMapping_Local{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[157]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[215]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12048,7 +16421,7 @@ func (x *NatStaticMapping_Local) String() string {
 func (*NatStaticMapping_Local) ProtoMessage() {}
 
 func (x *NatStaticMapping_Local) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[157]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[215]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12061,7 +16434,7 @@ func (x *NatStaticMapping_Local) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatStaticMapping_Local.ProtoReflect.Descriptor instead.
 func (*NatStaticMapping_Local) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{83, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{105, 0}
 }
 
 func (x *NatStaticMapping_Local) GetIp() string {
@@ -12095,7 +16468,7 @@ type NatStaticMapping_External struct {
 
 func (x *NatStaticMapping_External) Reset() {
 	*x = NatStaticMapping_External{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[158]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[216]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12107,7 +16480,7 @@ func (x *NatStaticMapping_External) String() string {
 func (*NatStaticMapping_External) ProtoMessage() {}
 
 func (x *NatStaticMapping_External) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[158]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[216]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12120,7 +16493,7 @@ func (x *NatStaticMapping_External) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatStaticMapping_External.ProtoReflect.Descriptor instead.
 func (*NatStaticMapping_External) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{83, 1}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{105, 1}
 }
 
 func (x *NatStaticMapping_External) GetIp() string {
@@ -12164,7 +16537,7 @@ type NatLoadBalancedMapping_External struct {
 
 func (x *NatLoadBalancedMapping_External) Reset() {
 	*x = NatLoadBalancedMapping_External{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[159]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[217]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12176,7 +16549,7 @@ func (x *NatLoadBalancedMapping_External) String() string {
 func (*NatLoadBalancedMapping_External) ProtoMessage() {}
 
 func (x *NatLoadBalancedMapping_External) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[159]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[217]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12189,7 +16562,7 @@ func (x *NatLoadBalancedMapping_External) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatLoadBalancedMapping_External.ProtoReflect.Descriptor instead.
 func (*NatLoadBalancedMapping_External) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{85, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{107, 0}
 }
 
 func (x *NatLoadBalancedMapping_External) GetIp() string {
@@ -12223,7 +16596,7 @@ type NatLoadBalancedMapping_Local struct {
 
 func (x *NatLoadBalancedMapping_Local) Reset() {
 	*x = NatLoadBalancedMapping_Local{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[160]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[218]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12235,7 +16608,7 @@ func (x *NatLoadBalancedMapping_Local) String() string {
 func (*NatLoadBalancedMapping_Local) ProtoMessage() {}
 
 func (x *NatLoadBalancedMapping_Local) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[160]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[218]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12248,7 +16621,7 @@ func (x *NatLoadBalancedMapping_Local) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatLoadBalancedMapping_Local.ProtoReflect.Descriptor instead.
 func (*NatLoadBalancedMapping_Local) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{85, 1}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{107, 1}
 }
 
 func (x *NatLoadBalancedMapping_Local) GetIp() string {
@@ -12292,7 +16665,7 @@ type Nat64Config_Prefix struct {
 
 func (x *Nat64Config_Prefix) Reset() {
 	*x = Nat64Config_Prefix{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[161]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[219]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12304,7 +16677,7 @@ func (x *Nat64Config_Prefix) String() string {
 func (*Nat64Config_Prefix) ProtoMessage() {}
 
 func (x *Nat64Config_Prefix) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[161]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[219]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12317,7 +16690,7 @@ func (x *Nat64Config_Prefix) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat64Config_Prefix.ProtoReflect.Descriptor instead.
 func (*Nat64Config_Prefix) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{87, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{109, 0}
 }
 
 func (x *Nat64Config_Prefix) GetPrefix() string {
@@ -12347,7 +16720,7 @@ type Nat64Config_Pool struct {
 
 func (x *Nat64Config_Pool) Reset() {
 	*x = Nat64Config_Pool{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[162]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[220]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12359,7 +16732,7 @@ func (x *Nat64Config_Pool) String() string {
 func (*Nat64Config_Pool) ProtoMessage() {}
 
 func (x *Nat64Config_Pool) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[162]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[220]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12372,7 +16745,7 @@ func (x *Nat64Config_Pool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat64Config_Pool.ProtoReflect.Descriptor instead.
 func (*Nat64Config_Pool) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{87, 1}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{109, 1}
 }
 
 func (x *Nat64Config_Pool) GetRange() string {
@@ -12408,7 +16781,7 @@ type Nat64Config_StaticBib struct {
 
 func (x *Nat64Config_StaticBib) Reset() {
 	*x = Nat64Config_StaticBib{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[163]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[221]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12420,7 +16793,7 @@ func (x *Nat64Config_StaticBib) String() string {
 func (*Nat64Config_StaticBib) ProtoMessage() {}
 
 func (x *Nat64Config_StaticBib) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[163]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[221]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12433,7 +16806,7 @@ func (x *Nat64Config_StaticBib) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat64Config_StaticBib.ProtoReflect.Descriptor instead.
 func (*Nat64Config_StaticBib) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{87, 2}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{109, 2}
 }
 
 func (x *Nat64Config_StaticBib) GetDescription() string {
@@ -12484,7 +16857,7 @@ type Nat64Config_StaticBib_Endpoint struct {
 
 func (x *Nat64Config_StaticBib_Endpoint) Reset() {
 	*x = Nat64Config_StaticBib_Endpoint{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[164]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[222]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12496,7 +16869,7 @@ func (x *Nat64Config_StaticBib_Endpoint) String() string {
 func (*Nat64Config_StaticBib_Endpoint) ProtoMessage() {}
 
 func (x *Nat64Config_StaticBib_Endpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[164]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[222]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12509,7 +16882,7 @@ func (x *Nat64Config_StaticBib_Endpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat64Config_StaticBib_Endpoint.ProtoReflect.Descriptor instead.
 func (*Nat64Config_StaticBib_Endpoint) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{87, 2, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{109, 2, 0}
 }
 
 func (x *Nat64Config_StaticBib_Endpoint) GetIp() string {
@@ -12543,7 +16916,7 @@ type Nat66Config_StaticMapping struct {
 
 func (x *Nat66Config_StaticMapping) Reset() {
 	*x = Nat66Config_StaticMapping{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[165]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[223]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12555,7 +16928,7 @@ func (x *Nat66Config_StaticMapping) String() string {
 func (*Nat66Config_StaticMapping) ProtoMessage() {}
 
 func (x *Nat66Config_StaticMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[165]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[223]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12568,7 +16941,7 @@ func (x *Nat66Config_StaticMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat66Config_StaticMapping.ProtoReflect.Descriptor instead.
 func (*Nat66Config_StaticMapping) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{88, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{110, 0}
 }
 
 func (x *Nat66Config_StaticMapping) GetDescription() string {
@@ -12616,7 +16989,7 @@ type Nptv6Config_Binding struct {
 
 func (x *Nptv6Config_Binding) Reset() {
 	*x = Nptv6Config_Binding{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[166]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[224]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12628,7 +17001,7 @@ func (x *Nptv6Config_Binding) String() string {
 func (*Nptv6Config_Binding) ProtoMessage() {}
 
 func (x *Nptv6Config_Binding) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[166]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[224]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12641,7 +17014,7 @@ func (x *Nptv6Config_Binding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nptv6Config_Binding.ProtoReflect.Descriptor instead.
 func (*Nptv6Config_Binding) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{89, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{111, 0}
 }
 
 func (x *Nptv6Config_Binding) GetDescription() string {
@@ -12687,7 +17060,7 @@ type Det44Config_Mapping struct {
 
 func (x *Det44Config_Mapping) Reset() {
 	*x = Det44Config_Mapping{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[167]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[225]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12699,7 +17072,7 @@ func (x *Det44Config_Mapping) String() string {
 func (*Det44Config_Mapping) ProtoMessage() {}
 
 func (x *Det44Config_Mapping) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[167]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[225]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12712,7 +17085,7 @@ func (x *Det44Config_Mapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Det44Config_Mapping.ProtoReflect.Descriptor instead.
 func (*Det44Config_Mapping) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{90, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{112, 0}
 }
 
 func (x *Det44Config_Mapping) GetDescription() string {
@@ -12749,7 +17122,7 @@ type DsliteConfig_Endpoint struct {
 
 func (x *DsliteConfig_Endpoint) Reset() {
 	*x = DsliteConfig_Endpoint{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[168]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[226]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12761,7 +17134,7 @@ func (x *DsliteConfig_Endpoint) String() string {
 func (*DsliteConfig_Endpoint) ProtoMessage() {}
 
 func (x *DsliteConfig_Endpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[168]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[226]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12774,7 +17147,7 @@ func (x *DsliteConfig_Endpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DsliteConfig_Endpoint.ProtoReflect.Descriptor instead.
 func (*DsliteConfig_Endpoint) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{91, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{113, 0}
 }
 
 func (x *DsliteConfig_Endpoint) GetIpv6() string {
@@ -12802,7 +17175,7 @@ type DsliteConfig_Pool struct {
 
 func (x *DsliteConfig_Pool) Reset() {
 	*x = DsliteConfig_Pool{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[169]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[227]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12814,7 +17187,7 @@ func (x *DsliteConfig_Pool) String() string {
 func (*DsliteConfig_Pool) ProtoMessage() {}
 
 func (x *DsliteConfig_Pool) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[169]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[227]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12827,7 +17200,7 @@ func (x *DsliteConfig_Pool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DsliteConfig_Pool.ProtoReflect.Descriptor instead.
 func (*DsliteConfig_Pool) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{91, 1}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{113, 1}
 }
 
 func (x *DsliteConfig_Pool) GetRange() string {
@@ -12850,7 +17223,7 @@ type MapDomain_Rule struct {
 
 func (x *MapDomain_Rule) Reset() {
 	*x = MapDomain_Rule{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[170]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[228]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12862,7 +17235,7 @@ func (x *MapDomain_Rule) String() string {
 func (*MapDomain_Rule) ProtoMessage() {}
 
 func (x *MapDomain_Rule) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[170]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[228]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12875,7 +17248,7 @@ func (x *MapDomain_Rule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapDomain_Rule.ProtoReflect.Descriptor instead.
 func (*MapDomain_Rule) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{92, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{114, 0}
 }
 
 func (x *MapDomain_Rule) GetPsid() uint32 {
@@ -12905,7 +17278,7 @@ type MapParameters_Fragmentation struct {
 
 func (x *MapParameters_Fragmentation) Reset() {
 	*x = MapParameters_Fragmentation{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[171]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[229]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12917,7 +17290,7 @@ func (x *MapParameters_Fragmentation) String() string {
 func (*MapParameters_Fragmentation) ProtoMessage() {}
 
 func (x *MapParameters_Fragmentation) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[171]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[229]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12930,7 +17303,7 @@ func (x *MapParameters_Fragmentation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapParameters_Fragmentation.ProtoReflect.Descriptor instead.
 func (*MapParameters_Fragmentation) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{93, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{115, 0}
 }
 
 func (x *MapParameters_Fragmentation) GetInner() bool {
@@ -12960,7 +17333,7 @@ type MapParameters_SecurityCheck struct {
 
 func (x *MapParameters_SecurityCheck) Reset() {
 	*x = MapParameters_SecurityCheck{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[172]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[230]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12972,7 +17345,7 @@ func (x *MapParameters_SecurityCheck) String() string {
 func (*MapParameters_SecurityCheck) ProtoMessage() {}
 
 func (x *MapParameters_SecurityCheck) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[172]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[230]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12985,7 +17358,7 @@ func (x *MapParameters_SecurityCheck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapParameters_SecurityCheck.ProtoReflect.Descriptor instead.
 func (*MapParameters_SecurityCheck) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{93, 1}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{115, 1}
 }
 
 func (x *MapParameters_SecurityCheck) GetEnabled() bool {
@@ -13015,7 +17388,7 @@ type MapParameters_TrafficClass struct {
 
 func (x *MapParameters_TrafficClass) Reset() {
 	*x = MapParameters_TrafficClass{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[173]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[231]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13027,7 +17400,7 @@ func (x *MapParameters_TrafficClass) String() string {
 func (*MapParameters_TrafficClass) ProtoMessage() {}
 
 func (x *MapParameters_TrafficClass) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[173]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[231]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13040,7 +17413,7 @@ func (x *MapParameters_TrafficClass) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapParameters_TrafficClass.ProtoReflect.Descriptor instead.
 func (*MapParameters_TrafficClass) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{93, 2}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{115, 2}
 }
 
 func (x *MapParameters_TrafficClass) GetCopy() bool {
@@ -13070,7 +17443,7 @@ type MapParameters_PreResolve struct {
 
 func (x *MapParameters_PreResolve) Reset() {
 	*x = MapParameters_PreResolve{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[174]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[232]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13082,7 +17455,7 @@ func (x *MapParameters_PreResolve) String() string {
 func (*MapParameters_PreResolve) ProtoMessage() {}
 
 func (x *MapParameters_PreResolve) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[174]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[232]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13095,7 +17468,7 @@ func (x *MapParameters_PreResolve) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapParameters_PreResolve.ProtoReflect.Descriptor instead.
 func (*MapParameters_PreResolve) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{93, 3}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{115, 3}
 }
 
 func (x *MapParameters_PreResolve) GetIpv4() string {
@@ -13129,7 +17502,7 @@ type CnatConfig_Snat struct {
 
 func (x *CnatConfig_Snat) Reset() {
 	*x = CnatConfig_Snat{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[175]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[233]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13141,7 +17514,7 @@ func (x *CnatConfig_Snat) String() string {
 func (*CnatConfig_Snat) ProtoMessage() {}
 
 func (x *CnatConfig_Snat) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[175]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[233]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13154,7 +17527,7 @@ func (x *CnatConfig_Snat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatConfig_Snat.ProtoReflect.Descriptor instead.
 func (*CnatConfig_Snat) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{98, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{120, 0}
 }
 
 func (x *CnatConfig_Snat) GetPolicy() string {
@@ -13200,7 +17573,7 @@ type CnatConfig_Snat_Addresses struct {
 
 func (x *CnatConfig_Snat_Addresses) Reset() {
 	*x = CnatConfig_Snat_Addresses{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[176]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[234]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13212,7 +17585,7 @@ func (x *CnatConfig_Snat_Addresses) String() string {
 func (*CnatConfig_Snat_Addresses) ProtoMessage() {}
 
 func (x *CnatConfig_Snat_Addresses) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[176]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[234]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13225,7 +17598,7 @@ func (x *CnatConfig_Snat_Addresses) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatConfig_Snat_Addresses.ProtoReflect.Descriptor instead.
 func (*CnatConfig_Snat_Addresses) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{98, 0, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{120, 0, 0}
 }
 
 func (x *CnatConfig_Snat_Addresses) GetIpv4() string {
@@ -13262,7 +17635,7 @@ type CnatConfig_Snat_PolicyInterface struct {
 
 func (x *CnatConfig_Snat_PolicyInterface) Reset() {
 	*x = CnatConfig_Snat_PolicyInterface{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[177]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[235]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13274,7 +17647,7 @@ func (x *CnatConfig_Snat_PolicyInterface) String() string {
 func (*CnatConfig_Snat_PolicyInterface) ProtoMessage() {}
 
 func (x *CnatConfig_Snat_PolicyInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[177]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[235]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13287,7 +17660,7 @@ func (x *CnatConfig_Snat_PolicyInterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatConfig_Snat_PolicyInterface.ProtoReflect.Descriptor instead.
 func (*CnatConfig_Snat_PolicyInterface) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{98, 0, 1}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{120, 0, 1}
 }
 
 func (x *CnatConfig_Snat_PolicyInterface) GetInterface() string {
@@ -13316,7 +17689,7 @@ type IpsecTunnel_RouteBased struct {
 
 func (x *IpsecTunnel_RouteBased) Reset() {
 	*x = IpsecTunnel_RouteBased{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[189]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[247]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13328,7 +17701,7 @@ func (x *IpsecTunnel_RouteBased) String() string {
 func (*IpsecTunnel_RouteBased) ProtoMessage() {}
 
 func (x *IpsecTunnel_RouteBased) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[189]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[247]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13341,7 +17714,7 @@ func (x *IpsecTunnel_RouteBased) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecTunnel_RouteBased.ProtoReflect.Descriptor instead.
 func (*IpsecTunnel_RouteBased) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{129, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{151, 0}
 }
 
 func (x *IpsecTunnel_RouteBased) GetIpipInterface() string {
@@ -13364,7 +17737,7 @@ type WireguardPeer_Endpoint struct {
 
 func (x *WireguardPeer_Endpoint) Reset() {
 	*x = WireguardPeer_Endpoint{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[192]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[250]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13376,7 +17749,7 @@ func (x *WireguardPeer_Endpoint) String() string {
 func (*WireguardPeer_Endpoint) ProtoMessage() {}
 
 func (x *WireguardPeer_Endpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[192]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[250]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13389,7 +17762,7 @@ func (x *WireguardPeer_Endpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireguardPeer_Endpoint.ProtoReflect.Descriptor instead.
 func (*WireguardPeer_Endpoint) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{132, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{154, 0}
 }
 
 func (x *WireguardPeer_Endpoint) GetAddress() string {
@@ -13419,7 +17792,7 @@ type PkiCa_Crl struct {
 
 func (x *PkiCa_Crl) Reset() {
 	*x = PkiCa_Crl{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[195]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[253]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13431,7 +17804,7 @@ func (x *PkiCa_Crl) String() string {
 func (*PkiCa_Crl) ProtoMessage() {}
 
 func (x *PkiCa_Crl) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[195]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[253]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13444,7 +17817,7 @@ func (x *PkiCa_Crl) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiCa_Crl.ProtoReflect.Descriptor instead.
 func (*PkiCa_Crl) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{135, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{157, 0}
 }
 
 func (x *PkiCa_Crl) GetUrl() string {
@@ -13478,7 +17851,7 @@ type PkiCertificate_Acme struct {
 
 func (x *PkiCertificate_Acme) Reset() {
 	*x = PkiCertificate_Acme{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[196]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[254]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13490,7 +17863,7 @@ func (x *PkiCertificate_Acme) String() string {
 func (*PkiCertificate_Acme) ProtoMessage() {}
 
 func (x *PkiCertificate_Acme) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[196]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[254]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13503,7 +17876,7 @@ func (x *PkiCertificate_Acme) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiCertificate_Acme.ProtoReflect.Descriptor instead.
 func (*PkiCertificate_Acme) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{136, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{158, 0}
 }
 
 func (x *PkiCertificate_Acme) GetDirectoryUrl() string {
@@ -13551,7 +17924,7 @@ type PkiConfig_Hsm struct {
 
 func (x *PkiConfig_Hsm) Reset() {
 	*x = PkiConfig_Hsm{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[197]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[255]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13563,7 +17936,7 @@ func (x *PkiConfig_Hsm) String() string {
 func (*PkiConfig_Hsm) ProtoMessage() {}
 
 func (x *PkiConfig_Hsm) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[197]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[255]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13576,7 +17949,7 @@ func (x *PkiConfig_Hsm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiConfig_Hsm.ProtoReflect.Descriptor instead.
 func (*PkiConfig_Hsm) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{137, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{159, 0}
 }
 
 func (x *PkiConfig_Hsm) GetEnabled() bool {
@@ -13618,7 +17991,7 @@ type RemoteAccessProfile_Radius struct {
 
 func (x *RemoteAccessProfile_Radius) Reset() {
 	*x = RemoteAccessProfile_Radius{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[200]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[258]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13630,7 +18003,7 @@ func (x *RemoteAccessProfile_Radius) String() string {
 func (*RemoteAccessProfile_Radius) ProtoMessage() {}
 
 func (x *RemoteAccessProfile_Radius) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[200]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[258]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13643,7 +18016,7 @@ func (x *RemoteAccessProfile_Radius) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoteAccessProfile_Radius.ProtoReflect.Descriptor instead.
 func (*RemoteAccessProfile_Radius) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{140, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{162, 0}
 }
 
 func (x *RemoteAccessProfile_Radius) GetServers() []*RemoteAccessProfile_Radius_Server {
@@ -13668,7 +18041,7 @@ type RemoteAccessProfile_Radius_Server struct {
 
 func (x *RemoteAccessProfile_Radius_Server) Reset() {
 	*x = RemoteAccessProfile_Radius_Server{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[201]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[259]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13680,7 +18053,7 @@ func (x *RemoteAccessProfile_Radius_Server) String() string {
 func (*RemoteAccessProfile_Radius_Server) ProtoMessage() {}
 
 func (x *RemoteAccessProfile_Radius_Server) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[201]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[259]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13693,7 +18066,7 @@ func (x *RemoteAccessProfile_Radius_Server) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use RemoteAccessProfile_Radius_Server.ProtoReflect.Descriptor instead.
 func (*RemoteAccessProfile_Radius_Server) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{140, 0, 0}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{162, 0, 0}
 }
 
 func (x *RemoteAccessProfile_Radius_Server) GetAddress() string {
@@ -14380,26 +18753,734 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x13.vrx.v1.VxlanTunnelR\x05value:\x028\x01\x1aK\n" +
 	"\tIpipEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
-	"\x05value\x18\x02 \x01(\v2\x12.vrx.v1.IpipTunnelR\x05value:\x028\x01\"\v\n" +
-	"\tGreTunnel\"\r\n" +
-	"\vVxlanTunnel\"\f\n" +
+	"\x05value\x18\x02 \x01(\v2\x12.vrx.v1.IpipTunnelR\x05value:\x028\x01\"\x89\x04\n" +
+	"\tGreTunnel\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1f\n" +
+	"\binstance\x18\x03 \x01(\rH\x02R\binstance\x88\x01\x01\x12\x15\n" +
+	"\x03src\x18\x04 \x01(\tH\x03R\x03src\x88\x01\x01\x12&\n" +
+	"\funderlay_vrf\x18\x05 \x01(\tH\x04R\vunderlayVrf\x88\x01\x01\x12\x15\n" +
+	"\x03vrf\x18\x06 \x01(\tH\x05R\x03vrf\x88\x01\x01\x12\x15\n" +
+	"\x03mtu\x18\a \x01(\rH\x06R\x03mtu\x88\x01\x01\x12\x12\n" +
+	"\x04ipv4\x18\b \x03(\tR\x04ipv4\x12\x12\n" +
+	"\x04ipv6\x18\t \x03(\tR\x04ipv6\x12(\n" +
+	"\rbridge_domain\x18\n" +
+	" \x01(\rH\aR\fbridgeDomain\x88\x01\x01\x12\x15\n" +
+	"\x03dst\x18\v \x01(\tH\bR\x03dst\x88\x01\x01\x12\x17\n" +
+	"\x04type\x18\f \x01(\tH\tR\x04type\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"IpipTunnel\"\xdd\x01\n" +
+	"session_id\x18\r \x01(\rH\n" +
+	"R\tsessionId\x88\x01\x01B\n" +
+	"\n" +
+	"\b_enabledB\x0e\n" +
+	"\f_descriptionB\v\n" +
+	"\t_instanceB\x06\n" +
+	"\x04_srcB\x0f\n" +
+	"\r_underlay_vrfB\x06\n" +
+	"\x04_vrfB\x06\n" +
+	"\x04_mtuB\x10\n" +
+	"\x0e_bridge_domainB\x06\n" +
+	"\x04_dstB\a\n" +
+	"\x05_typeB\r\n" +
+	"\v_session_id\"\x96\x05\n" +
+	"\vVxlanTunnel\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1f\n" +
+	"\binstance\x18\x03 \x01(\rH\x02R\binstance\x88\x01\x01\x12\x15\n" +
+	"\x03src\x18\x04 \x01(\tH\x03R\x03src\x88\x01\x01\x12&\n" +
+	"\funderlay_vrf\x18\x05 \x01(\tH\x04R\vunderlayVrf\x88\x01\x01\x12\x15\n" +
+	"\x03vrf\x18\x06 \x01(\tH\x05R\x03vrf\x88\x01\x01\x12\x15\n" +
+	"\x03mtu\x18\a \x01(\rH\x06R\x03mtu\x88\x01\x01\x12\x12\n" +
+	"\x04ipv4\x18\b \x03(\tR\x04ipv4\x12\x12\n" +
+	"\x04ipv6\x18\t \x03(\tR\x04ipv6\x12(\n" +
+	"\rbridge_domain\x18\n" +
+	" \x01(\rH\aR\fbridgeDomain\x88\x01\x01\x12\x15\n" +
+	"\x03dst\x18\v \x01(\tH\bR\x03dst\x88\x01\x01\x12\x15\n" +
+	"\x03vni\x18\f \x01(\rH\tR\x03vni\x88\x01\x01\x12\x1e\n" +
+	"\bsrc_port\x18\r \x01(\rH\n" +
+	"R\asrcPort\x88\x01\x01\x12\x1e\n" +
+	"\bdst_port\x18\x0e \x01(\rH\vR\adstPort\x88\x01\x01\x12,\n" +
+	"\x0fmcast_interface\x18\x0f \x01(\tH\fR\x0emcastInterface\x88\x01\x01\x12\x19\n" +
+	"\x05decap\x18\x10 \x01(\tH\rR\x05decap\x88\x01\x01B\n" +
+	"\n" +
+	"\b_enabledB\x0e\n" +
+	"\f_descriptionB\v\n" +
+	"\t_instanceB\x06\n" +
+	"\x04_srcB\x0f\n" +
+	"\r_underlay_vrfB\x06\n" +
+	"\x04_vrfB\x06\n" +
+	"\x04_mtuB\x10\n" +
+	"\x0e_bridge_domainB\x06\n" +
+	"\x04_dstB\x06\n" +
+	"\x04_vniB\v\n" +
+	"\t_src_portB\v\n" +
+	"\t_dst_portB\x12\n" +
+	"\x10_mcast_interfaceB\b\n" +
+	"\x06_decap\"\xf9\x03\n" +
+	"\n" +
+	"IpipTunnel\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1f\n" +
+	"\binstance\x18\x03 \x01(\rH\x02R\binstance\x88\x01\x01\x12\x15\n" +
+	"\x03src\x18\x04 \x01(\tH\x03R\x03src\x88\x01\x01\x12&\n" +
+	"\funderlay_vrf\x18\x05 \x01(\tH\x04R\vunderlayVrf\x88\x01\x01\x12\x15\n" +
+	"\x03vrf\x18\x06 \x01(\tH\x05R\x03vrf\x88\x01\x01\x12\x15\n" +
+	"\x03mtu\x18\a \x01(\rH\x06R\x03mtu\x88\x01\x01\x12\x12\n" +
+	"\x04ipv4\x18\b \x03(\tR\x04ipv4\x12\x12\n" +
+	"\x04ipv6\x18\t \x03(\tR\x04ipv6\x12(\n" +
+	"\rbridge_domain\x18\n" +
+	" \x01(\rH\aR\fbridgeDomain\x88\x01\x01\x12\x17\n" +
+	"\x04mode\x18\v \x01(\tH\bR\x04mode\x88\x01\x01\x12\x15\n" +
+	"\x03dst\x18\f \x01(\tH\tR\x03dst\x88\x01\x01\x12\x17\n" +
+	"\x04dscp\x18\r \x01(\rH\n" +
+	"R\x04dscp\x88\x01\x01B\n" +
+	"\n" +
+	"\b_enabledB\x0e\n" +
+	"\f_descriptionB\v\n" +
+	"\t_instanceB\x06\n" +
+	"\x04_srcB\x0f\n" +
+	"\r_underlay_vrfB\x06\n" +
+	"\x04_vrfB\x06\n" +
+	"\x04_mtuB\x10\n" +
+	"\x0e_bridge_domainB\a\n" +
+	"\x05_modeB\x06\n" +
+	"\x04_dstB\a\n" +
+	"\x05_dscp\"\xa9\x02\n" +
 	"\x0eServicesConfig\x12'\n" +
 	"\x04dhcp\x18\x01 \x01(\v2\x13.vrx.v1.DhcpServiceR\x04dhcp\x12$\n" +
 	"\x03dns\x18\x02 \x01(\v2\x12.vrx.v1.DnsServiceR\x03dns\x12'\n" +
 	"\x04snmp\x18\x03 \x01(\v2\x13.vrx.v1.SnmpServiceR\x04snmp\x12'\n" +
 	"\x04lldp\x18\x04 \x01(\v2\x13.vrx.v1.LldpServiceR\x04lldp\x12*\n" +
-	"\x05ipfix\x18\x05 \x01(\v2\x14.vrx.v1.IpfixServiceR\x05ipfix\"\r\n" +
-	"\vDhcpService\"\f\n" +
+	"\x05ipfix\x18\x05 \x01(\v2\x14.vrx.v1.IpfixServiceR\x05ipfix\x12$\n" +
+	"\x03ntp\x18\x06 \x01(\v2\x12.vrx.v1.NtpServiceR\x03ntp\x12$\n" +
+	"\x03qos\x18\a \x01(\v2\x12.vrx.v1.QosServiceR\x03qos\"\\\n" +
+	"\rSocketAddress\x12\x1d\n" +
+	"\aaddress\x18\x01 \x01(\tH\x00R\aaddress\x88\x01\x01\x12\x17\n" +
+	"\x04port\x18\x02 \x01(\rH\x01R\x04port\x88\x01\x01B\n" +
 	"\n" +
-	"DnsService\"\r\n" +
-	"\vSnmpService\"\r\n" +
-	"\vLldpService\"\x0e\n" +
-	"\fIpfixService\"4\n" +
-	"\bHaConfig\x12(\n" +
-	"\x04vrrp\x18\x01 \x03(\v2\x14.vrx.v1.VrrpInstanceR\x04vrrp\"\x0e\n" +
-	"\fVrrpInstance\"\xc0\x01\n" +
+	"\b_addressB\a\n" +
+	"\x05_port\"\xa0\x02\n" +
+	"\vDhcpService\x12:\n" +
+	"\aservers\x18\x01 \x03(\v2 .vrx.v1.DhcpService.ServersEntryR\aservers\x127\n" +
+	"\x06relays\x18\x02 \x03(\v2\x1f.vrx.v1.DhcpService.RelaysEntryR\x06relays\x1aN\n" +
+	"\fServersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
+	"\x05value\x18\x02 \x01(\v2\x12.vrx.v1.DhcpServerR\x05value:\x028\x01\x1aL\n" +
+	"\vRelaysEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12'\n" +
+	"\x05value\x18\x02 \x01(\v2\x11.vrx.v1.DhcpRelayR\x05value:\x028\x01\"\x86\x01\n" +
+	"\n" +
+	"DhcpOption\x12\x17\n" +
+	"\x04code\x18\x01 \x01(\rH\x00R\x04code\x88\x01\x01\x12\x17\n" +
+	"\x04data\x18\x02 \x01(\tH\x01R\x04data\x88\x01\x01\x12$\n" +
+	"\valways_send\x18\x03 \x01(\bH\x02R\n" +
+	"alwaysSend\x88\x01\x01B\a\n" +
+	"\x05_codeB\a\n" +
+	"\x05_dataB\x0e\n" +
+	"\f_always_send\"N\n" +
+	"\bDhcpPool\x12\x19\n" +
+	"\x05start\x18\x01 \x01(\tH\x00R\x05start\x88\x01\x01\x12\x15\n" +
+	"\x03end\x18\x02 \x01(\tH\x01R\x03end\x88\x01\x01B\b\n" +
+	"\x06_startB\x06\n" +
+	"\x04_end\"\xca\x01\n" +
+	"\x0fDhcpReservation\x12\x15\n" +
+	"\x03mac\x18\x01 \x01(\tH\x00R\x03mac\x88\x01\x01\x12\x17\n" +
+	"\x04duid\x18\x02 \x01(\tH\x01R\x04duid\x88\x01\x01\x12\x13\n" +
+	"\x02ip\x18\x03 \x01(\tH\x02R\x02ip\x88\x01\x01\x12\x1f\n" +
+	"\bhostname\x18\x04 \x01(\tH\x03R\bhostname\x88\x01\x01\x12,\n" +
+	"\aoptions\x18\x05 \x03(\v2\x12.vrx.v1.DhcpOptionR\aoptionsB\x06\n" +
+	"\x04_macB\a\n" +
+	"\x05_duidB\x05\n" +
+	"\x03_ipB\v\n" +
+	"\t_hostname\"\xeb\x04\n" +
+	"\n" +
+	"DhcpSubnet\x12%\n" +
+	"\vdescription\x18\x01 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x1b\n" +
+	"\x06subnet\x18\x02 \x01(\tH\x01R\x06subnet\x88\x01\x01\x12&\n" +
+	"\x05pools\x18\x03 \x03(\v2\x10.vrx.v1.DhcpPoolR\x05pools\x12\x1d\n" +
+	"\agateway\x18\x04 \x01(\tH\x02R\agateway\x88\x01\x01\x12\x1f\n" +
+	"\vdns_servers\x18\x05 \x03(\tR\n" +
+	"dnsServers\x12\x1f\n" +
+	"\vntp_servers\x18\x06 \x03(\tR\n" +
+	"ntpServers\x12$\n" +
+	"\vdomain_name\x18\a \x01(\tH\x03R\n" +
+	"domainName\x88\x01\x01\x12#\n" +
+	"\rdomain_search\x18\b \x03(\tR\fdomainSearch\x12)\n" +
+	"\x0elease_time_sec\x18\t \x01(\rH\x04R\fleaseTimeSec\x88\x01\x01\x12,\n" +
+	"\aoptions\x18\n" +
+	" \x03(\v2\x12.vrx.v1.DhcpOptionR\aoptions\x12H\n" +
+	"\freservations\x18\v \x03(\v2$.vrx.v1.DhcpSubnet.ReservationsEntryR\freservations\x1aX\n" +
+	"\x11ReservationsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12-\n" +
+	"\x05value\x18\x02 \x01(\v2\x17.vrx.v1.DhcpReservationR\x05value:\x028\x01B\x0e\n" +
+	"\f_descriptionB\t\n" +
+	"\a_subnetB\n" +
+	"\n" +
+	"\b_gatewayB\x0e\n" +
+	"\f_domain_nameB\x11\n" +
+	"\x0f_lease_time_sec\"\x8e\x05\n" +
+	"\n" +
+	"DhcpServer\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1b\n" +
+	"\x06family\x18\x03 \x01(\tH\x02R\x06family\x88\x01\x01\x12\x15\n" +
+	"\x03vrf\x18\x04 \x01(\tH\x03R\x03vrf\x88\x01\x01\x12\x1e\n" +
+	"\n" +
+	"interfaces\x18\x05 \x03(\tR\n" +
+	"interfaces\x12)\n" +
+	"\x0elease_time_sec\x18\x06 \x01(\rH\x04R\fleaseTimeSec\x88\x01\x01\x12+\n" +
+	"\x0frenew_timer_sec\x18\a \x01(\rH\x05R\rrenewTimerSec\x88\x01\x01\x12-\n" +
+	"\x10rebind_timer_sec\x18\b \x01(\rH\x06R\x0erebindTimerSec\x88\x01\x01\x12)\n" +
+	"\rauthoritative\x18\t \x01(\bH\aR\rauthoritative\x88\x01\x01\x129\n" +
+	"\asubnets\x18\n" +
+	" \x03(\v2\x1f.vrx.v1.DhcpServer.SubnetsEntryR\asubnets\x12,\n" +
+	"\aoptions\x18\v \x03(\v2\x12.vrx.v1.DhcpOptionR\aoptions\x1aN\n" +
+	"\fSubnetsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
+	"\x05value\x18\x02 \x01(\v2\x12.vrx.v1.DhcpSubnetR\x05value:\x028\x01B\n" +
+	"\n" +
+	"\b_enabledB\x0e\n" +
+	"\f_descriptionB\t\n" +
+	"\a_familyB\x06\n" +
+	"\x04_vrfB\x11\n" +
+	"\x0f_lease_time_secB\x12\n" +
+	"\x10_renew_timer_secB\x13\n" +
+	"\x11_rebind_timer_secB\x10\n" +
+	"\x0e_authoritative\"\xe0\x02\n" +
+	"\tDhcpRelay\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1b\n" +
+	"\x06family\x18\x03 \x01(\tH\x02R\x06family\x88\x01\x01\x12\x15\n" +
+	"\x03vrf\x18\x04 \x01(\tH\x03R\x03vrf\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"server_vrf\x18\x05 \x01(\tH\x04R\tserverVrf\x88\x01\x01\x12\x1e\n" +
+	"\n" +
+	"interfaces\x18\x06 \x03(\tR\n" +
+	"interfaces\x12\x18\n" +
+	"\aservers\x18\a \x03(\tR\aservers\x12*\n" +
+	"\x0esource_address\x18\b \x01(\tH\x05R\rsourceAddress\x88\x01\x01B\n" +
+	"\n" +
+	"\b_enabledB\x0e\n" +
+	"\f_descriptionB\t\n" +
+	"\a_familyB\x06\n" +
+	"\x04_vrfB\r\n" +
+	"\v_server_vrfB\x11\n" +
+	"\x0f_source_address\"\xaf\x02\n" +
+	"\n" +
+	"DnsService\x12?\n" +
+	"\tresolvers\x18\x01 \x03(\v2!.vrx.v1.DnsService.ResolversEntryR\tresolvers\x128\n" +
+	"\tvpp_cache\x18\x02 \x01(\v2\x1b.vrx.v1.DnsService.VppCacheR\bvppCache\x1aS\n" +
+	"\bVppCache\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12\x1c\n" +
+	"\tupstreams\x18\x02 \x03(\tR\tupstreamsB\n" +
+	"\n" +
+	"\b_enabled\x1aQ\n" +
+	"\x0eResolversEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12)\n" +
+	"\x05value\x18\x02 \x01(\v2\x13.vrx.v1.DnsResolverR\x05value:\x028\x01\"\xba\x01\n" +
+	"\vDnsUpstream\x12\x1d\n" +
+	"\aaddress\x18\x01 \x01(\tH\x00R\aaddress\x88\x01\x01\x12\x17\n" +
+	"\x04port\x18\x02 \x01(\rH\x01R\x04port\x88\x01\x01\x12\x15\n" +
+	"\x03tls\x18\x03 \x01(\bH\x02R\x03tls\x88\x01\x01\x12+\n" +
+	"\x0ftls_server_name\x18\x04 \x01(\tH\x03R\rtlsServerName\x88\x01\x01B\n" +
+	"\n" +
+	"\b_addressB\a\n" +
+	"\x05_portB\x06\n" +
+	"\x04_tlsB\x12\n" +
+	"\x10_tls_server_name\"\xa3\x01\n" +
+	"\x0eDnsForwardZone\x12\x17\n" +
+	"\x04zone\x18\x01 \x01(\tH\x00R\x04zone\x88\x01\x01\x123\n" +
+	"\n" +
+	"forwarders\x18\x02 \x03(\v2\x13.vrx.v1.DnsUpstreamR\n" +
+	"forwarders\x12(\n" +
+	"\rforward_first\x18\x03 \x01(\bH\x01R\fforwardFirst\x88\x01\x01B\a\n" +
+	"\x05_zoneB\x10\n" +
+	"\x0e_forward_first\"\x9b\x01\n" +
+	"\tDnsRecord\x12\x17\n" +
+	"\x04name\x18\x01 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x17\n" +
+	"\x04type\x18\x02 \x01(\tH\x01R\x04type\x88\x01\x01\x12\x1c\n" +
+	"\attl_sec\x18\x03 \x01(\rH\x02R\x06ttlSec\x88\x01\x01\x12\x17\n" +
+	"\x04data\x18\x04 \x01(\tH\x03R\x04data\x88\x01\x01B\a\n" +
+	"\x05_nameB\a\n" +
+	"\x05_typeB\n" +
+	"\n" +
+	"\b_ttl_secB\a\n" +
+	"\x05_data\"\x7f\n" +
+	"\fDnsLocalZone\x12\x17\n" +
+	"\x04zone\x18\x01 \x01(\tH\x00R\x04zone\x88\x01\x01\x12\x17\n" +
+	"\x04type\x18\x02 \x01(\tH\x01R\x04type\x88\x01\x01\x12+\n" +
+	"\arecords\x18\x03 \x03(\v2\x11.vrx.v1.DnsRecordR\arecordsB\a\n" +
+	"\x05_zoneB\a\n" +
+	"\x05_type\"b\n" +
+	"\x10DnsAccessControl\x12\x1b\n" +
+	"\x06prefix\x18\x01 \x01(\tH\x00R\x06prefix\x88\x01\x01\x12\x1b\n" +
+	"\x06action\x18\x02 \x01(\tH\x01R\x06action\x88\x01\x01B\t\n" +
+	"\a_prefixB\t\n" +
+	"\a_action\"\xc1\t\n" +
+	"\vDnsResolver\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x15\n" +
+	"\x03vrf\x18\x03 \x01(\tH\x02R\x03vrf\x88\x01\x01\x12-\n" +
+	"\x06listen\x18\x04 \x03(\v2\x15.vrx.v1.SocketAddressR\x06listen\x12?\n" +
+	"\x0eaccess_control\x18\x05 \x03(\v2\x18.vrx.v1.DnsAccessControlR\raccessControl\x123\n" +
+	"\n" +
+	"forwarders\x18\x06 \x03(\v2\x13.vrx.v1.DnsUpstreamR\n" +
+	"forwarders\x12;\n" +
+	"\rforward_zones\x18\a \x03(\v2\x16.vrx.v1.DnsForwardZoneR\fforwardZones\x125\n" +
+	"\vlocal_zones\x18\b \x03(\v2\x14.vrx.v1.DnsLocalZoneR\n" +
+	"localZones\x122\n" +
+	"\x06dnssec\x18\t \x01(\v2\x1a.vrx.v1.DnsResolver.DnssecR\x06dnssec\x12/\n" +
+	"\x05cache\x18\n" +
+	" \x01(\v2\x19.vrx.v1.DnsResolver.CacheR\x05cache\x12\x1d\n" +
+	"\athreads\x18\v \x01(\rH\x03R\athreads\x88\x01\x01\x122\n" +
+	"\x12qname_minimisation\x18\f \x01(\bH\x04R\x11qnameMinimisation\x88\x01\x01\x12(\n" +
+	"\rhide_identity\x18\r \x01(\bH\x05R\fhideIdentity\x88\x01\x01\x12&\n" +
+	"\fhide_version\x18\x0e \x01(\bH\x06R\vhideVersion\x88\x01\x01\x12$\n" +
+	"\vlog_queries\x18\x0f \x01(\bH\aR\n" +
+	"logQueries\x88\x01\x01\x1az\n" +
+	"\x06Dnssec\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12/\n" +
+	"\x11trust_anchor_auto\x18\x02 \x01(\bH\x01R\x0ftrustAnchorAuto\x88\x01\x01B\n" +
+	"\n" +
+	"\b_enabledB\x14\n" +
+	"\x12_trust_anchor_auto\x1a\x95\x02\n" +
+	"\x05Cache\x12#\n" +
+	"\vmin_ttl_sec\x18\x01 \x01(\rH\x00R\tminTtlSec\x88\x01\x01\x12#\n" +
+	"\vmax_ttl_sec\x18\x02 \x01(\rH\x01R\tmaxTtlSec\x88\x01\x01\x12\x1f\n" +
+	"\bprefetch\x18\x03 \x01(\bH\x02R\bprefetch\x88\x01\x01\x12%\n" +
+	"\fmsg_cache_mb\x18\x04 \x01(\rH\x03R\n" +
+	"msgCacheMb\x88\x01\x01\x12)\n" +
+	"\x0errset_cache_mb\x18\x05 \x01(\rH\x04R\frrsetCacheMb\x88\x01\x01B\x0e\n" +
+	"\f_min_ttl_secB\x0e\n" +
+	"\f_max_ttl_secB\v\n" +
+	"\t_prefetchB\x0f\n" +
+	"\r_msg_cache_mbB\x11\n" +
+	"\x0f_rrset_cache_mbB\n" +
+	"\n" +
+	"\b_enabledB\x0e\n" +
+	"\f_descriptionB\x06\n" +
+	"\x04_vrfB\n" +
+	"\n" +
+	"\b_threadsB\x15\n" +
+	"\x13_qname_minimisationB\x10\n" +
+	"\x0e_hide_identityB\x0f\n" +
+	"\r_hide_versionB\x0e\n" +
+	"\f_log_queries\"\xd9\v\n" +
+	"\vSnmpService\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x15\n" +
+	"\x03vrf\x18\x03 \x01(\tH\x02R\x03vrf\x88\x01\x01\x12-\n" +
+	"\x06listen\x18\x04 \x03(\v2\x15.vrx.v1.SocketAddressR\x06listen\x12 \n" +
+	"\tengine_id\x18\x05 \x01(\tH\x03R\bengineId\x88\x01\x01\x12\x1e\n" +
+	"\bsys_name\x18\x06 \x01(\tH\x04R\asysName\x88\x01\x01\x12&\n" +
+	"\fsys_location\x18\a \x01(\tH\x05R\vsysLocation\x88\x01\x01\x12$\n" +
+	"\vsys_contact\x18\b \x01(\tH\x06R\n" +
+	"sysContact\x88\x01\x01\x12F\n" +
+	"\vcommunities\x18\t \x03(\v2$.vrx.v1.SnmpService.CommunitiesEntryR\vcommunities\x12;\n" +
+	"\bv3_users\x18\n" +
+	" \x03(\v2 .vrx.v1.SnmpService.V3UsersEntryR\av3Users\x12G\n" +
+	"\x0etrap_receivers\x18\v \x03(\v2 .vrx.v1.SnmpService.TrapReceiverR\rtrapReceivers\x1a\x80\x01\n" +
+	"\tCommunity\x12\"\n" +
+	"\n" +
+	"secret_ref\x18\x01 \x01(\tH\x00R\tsecretRef\x88\x01\x01\x12\x1b\n" +
+	"\x06access\x18\x02 \x01(\tH\x01R\x06access\x88\x01\x01\x12\x18\n" +
+	"\asources\x18\x03 \x03(\tR\asourcesB\r\n" +
+	"\v_secret_refB\t\n" +
+	"\a_access\x1a\xc1\x02\n" +
+	"\x06V3User\x12*\n" +
+	"\x0esecurity_level\x18\x01 \x01(\tH\x00R\rsecurityLevel\x88\x01\x01\x12(\n" +
+	"\rauth_protocol\x18\x02 \x01(\tH\x01R\fauthProtocol\x88\x01\x01\x12\x1e\n" +
+	"\bauth_ref\x18\x03 \x01(\tH\x02R\aauthRef\x88\x01\x01\x12(\n" +
+	"\rpriv_protocol\x18\x04 \x01(\tH\x03R\fprivProtocol\x88\x01\x01\x12\x1e\n" +
+	"\bpriv_ref\x18\x05 \x01(\tH\x04R\aprivRef\x88\x01\x01\x12\x1b\n" +
+	"\x06access\x18\x06 \x01(\tH\x05R\x06access\x88\x01\x01B\x11\n" +
+	"\x0f_security_levelB\x10\n" +
+	"\x0e_auth_protocolB\v\n" +
+	"\t_auth_refB\x10\n" +
+	"\x0e_priv_protocolB\v\n" +
+	"\t_priv_refB\t\n" +
+	"\a_access\x1a\x81\x02\n" +
+	"\fTrapReceiver\x12\x1d\n" +
+	"\aaddress\x18\x01 \x01(\tH\x00R\aaddress\x88\x01\x01\x12\x17\n" +
+	"\x04port\x18\x02 \x01(\rH\x01R\x04port\x88\x01\x01\x12\x1d\n" +
+	"\aversion\x18\x03 \x01(\tH\x02R\aversion\x88\x01\x01\x12!\n" +
+	"\tcommunity\x18\x04 \x01(\tH\x03R\tcommunity\x88\x01\x01\x12\x17\n" +
+	"\x04user\x18\x05 \x01(\tH\x04R\x04user\x88\x01\x01\x12\x1b\n" +
+	"\x06inform\x18\x06 \x01(\bH\x05R\x06inform\x88\x01\x01B\n" +
+	"\n" +
+	"\b_addressB\a\n" +
+	"\x05_portB\n" +
+	"\n" +
+	"\b_versionB\f\n" +
+	"\n" +
+	"_communityB\a\n" +
+	"\x05_userB\t\n" +
+	"\a_inform\x1a]\n" +
+	"\x10CommunitiesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
+	"\x05value\x18\x02 \x01(\v2\x1d.vrx.v1.SnmpService.CommunityR\x05value:\x028\x01\x1aV\n" +
+	"\fV3UsersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
+	"\x05value\x18\x02 \x01(\v2\x1a.vrx.v1.SnmpService.V3UserR\x05value:\x028\x01B\n" +
+	"\n" +
+	"\b_enabledB\x0e\n" +
+	"\f_descriptionB\x06\n" +
+	"\x04_vrfB\f\n" +
+	"\n" +
+	"_engine_idB\v\n" +
+	"\t_sys_nameB\x0f\n" +
+	"\r_sys_locationB\x0e\n" +
+	"\f_sys_contact\"\xa9\x04\n" +
+	"\vLldpService\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12$\n" +
+	"\vsystem_name\x18\x02 \x01(\tH\x01R\n" +
+	"systemName\x88\x01\x01\x12\x1c\n" +
+	"\atx_hold\x18\x03 \x01(\rH\x02R\x06txHold\x88\x01\x01\x12+\n" +
+	"\x0ftx_interval_sec\x18\x04 \x01(\rH\x03R\rtxIntervalSec\x88\x01\x01\x12=\n" +
+	"\n" +
+	"interfaces\x18\x05 \x03(\v2\x1d.vrx.v1.LldpService.InterfaceR\n" +
+	"interfaces\x1a\x8e\x02\n" +
+	"\tInterface\x12!\n" +
+	"\tinterface\x18\x01 \x01(\tH\x00R\tinterface\x88\x01\x01\x12.\n" +
+	"\x10port_description\x18\x02 \x01(\tH\x01R\x0fportDescription\x88\x01\x01\x12 \n" +
+	"\tmgmt_ipv4\x18\x03 \x01(\tH\x02R\bmgmtIpv4\x88\x01\x01\x12 \n" +
+	"\tmgmt_ipv6\x18\x04 \x01(\tH\x03R\bmgmtIpv6\x88\x01\x01\x12\x1e\n" +
+	"\bmgmt_oid\x18\x05 \x01(\tH\x04R\amgmtOid\x88\x01\x01B\f\n" +
+	"\n" +
+	"_interfaceB\x13\n" +
+	"\x11_port_descriptionB\f\n" +
+	"\n" +
+	"_mgmt_ipv4B\f\n" +
+	"\n" +
+	"_mgmt_ipv6B\v\n" +
+	"\t_mgmt_oidB\n" +
+	"\n" +
+	"\b_enabledB\x0e\n" +
+	"\f_system_nameB\n" +
+	"\n" +
+	"\b_tx_holdB\x12\n" +
+	"\x10_tx_interval_sec\"\xb9\r\n" +
+	"\fIpfixService\x12A\n" +
+	"\texporters\x18\x01 \x03(\v2#.vrx.v1.IpfixService.ExportersEntryR\texporters\x12<\n" +
+	"\tflowprobe\x18\x02 \x01(\v2\x1e.vrx.v1.IpfixService.FlowprobeR\tflowprobe\x120\n" +
+	"\x05sflow\x18\x03 \x01(\v2\x1a.vrx.v1.IpfixService.SflowR\x05sflow\x1a\xb8\x03\n" +
+	"\bExporter\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x123\n" +
+	"\tcollector\x18\x03 \x01(\v2\x15.vrx.v1.SocketAddressR\tcollector\x12*\n" +
+	"\x0esource_address\x18\x04 \x01(\tH\x02R\rsourceAddress\x88\x01\x01\x12\x15\n" +
+	"\x03vrf\x18\x05 \x01(\tH\x03R\x03vrf\x88\x01\x01\x12\x1e\n" +
+	"\bpath_mtu\x18\x06 \x01(\rH\x04R\apathMtu\x88\x01\x01\x127\n" +
+	"\x15template_interval_sec\x18\a \x01(\rH\x05R\x13templateIntervalSec\x88\x01\x01\x12&\n" +
+	"\fudp_checksum\x18\b \x01(\bH\x06R\vudpChecksum\x88\x01\x01B\n" +
+	"\n" +
+	"\b_enabledB\x0e\n" +
+	"\f_descriptionB\x11\n" +
+	"\x0f_source_addressB\x06\n" +
+	"\x04_vrfB\v\n" +
+	"\t_path_mtuB\x18\n" +
+	"\x16_template_interval_secB\x0f\n" +
+	"\r_udp_checksum\x1a\xba\x04\n" +
+	"\tFlowprobe\x12-\n" +
+	"\x10active_timer_sec\x18\x01 \x01(\rH\x00R\x0eactiveTimerSec\x88\x01\x01\x12/\n" +
+	"\x11passive_timer_sec\x18\x02 \x01(\rH\x01R\x0fpassiveTimerSec\x88\x01\x01\x12 \n" +
+	"\trecord_l2\x18\x03 \x01(\bH\x02R\brecordL2\x88\x01\x01\x12 \n" +
+	"\trecord_l3\x18\x04 \x01(\bH\x03R\brecordL3\x88\x01\x01\x12 \n" +
+	"\trecord_l4\x18\x05 \x01(\bH\x04R\brecordL4\x88\x01\x01\x12H\n" +
+	"\n" +
+	"interfaces\x18\x06 \x03(\v2(.vrx.v1.IpfixService.Flowprobe.InterfaceR\n" +
+	"interfaces\x1a\xc7\x01\n" +
+	"\tInterface\x12!\n" +
+	"\tinterface\x18\x01 \x01(\tH\x00R\tinterface\x88\x01\x01\x12!\n" +
+	"\tdirection\x18\x02 \x01(\tH\x01R\tdirection\x88\x01\x01\x12\x13\n" +
+	"\x02l2\x18\x03 \x01(\bH\x02R\x02l2\x88\x01\x01\x12\x15\n" +
+	"\x03ip4\x18\x04 \x01(\bH\x03R\x03ip4\x88\x01\x01\x12\x15\n" +
+	"\x03ip6\x18\x05 \x01(\bH\x04R\x03ip6\x88\x01\x01B\f\n" +
+	"\n" +
+	"_interfaceB\f\n" +
+	"\n" +
+	"_directionB\x05\n" +
+	"\x03_l2B\x06\n" +
+	"\x04_ip4B\x06\n" +
+	"\x04_ip6B\x13\n" +
+	"\x11_active_timer_secB\x14\n" +
+	"\x12_passive_timer_secB\f\n" +
+	"\n" +
+	"_record_l2B\f\n" +
+	"\n" +
+	"_record_l3B\f\n" +
+	"\n" +
+	"_record_l4\x1a\xa0\x03\n" +
+	"\x05Sflow\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"sampling_n\x18\x02 \x01(\rH\x01R\tsamplingN\x88\x01\x01\x125\n" +
+	"\x14polling_interval_sec\x18\x03 \x01(\rH\x02R\x12pollingIntervalSec\x88\x01\x01\x12&\n" +
+	"\fheader_bytes\x18\x04 \x01(\rH\x03R\vheaderBytes\x88\x01\x01\x125\n" +
+	"\n" +
+	"collectors\x18\x05 \x03(\v2\x15.vrx.v1.SocketAddressR\n" +
+	"collectors\x12(\n" +
+	"\ragent_address\x18\x06 \x01(\tH\x04R\fagentAddress\x88\x01\x01\x12\x15\n" +
+	"\x03vrf\x18\a \x01(\tH\x05R\x03vrf\x88\x01\x01\x12\x1e\n" +
+	"\n" +
+	"interfaces\x18\b \x03(\tR\n" +
+	"interfacesB\n" +
+	"\n" +
+	"\b_enabledB\r\n" +
+	"\v_sampling_nB\x17\n" +
+	"\x15_polling_interval_secB\x0f\n" +
+	"\r_header_bytesB\x10\n" +
+	"\x0e_agent_addressB\x06\n" +
+	"\x04_vrf\x1a[\n" +
+	"\x0eExportersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
+	"\x05value\x18\x02 \x01(\v2\x1d.vrx.v1.IpfixService.ExporterR\x05value:\x028\x01\"\xfe\t\n" +
+	"\n" +
+	"NtpService\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12\x15\n" +
+	"\x03vrf\x18\x02 \x01(\tH\x01R\x03vrf\x88\x01\x01\x123\n" +
+	"\aservers\x18\x03 \x03(\v2\x19.vrx.v1.NtpService.ServerR\aservers\x12\x14\n" +
+	"\x05pools\x18\x04 \x03(\tR\x05pools\x12\x14\n" +
+	"\x05allow\x18\x05 \x03(\tR\x05allow\x12\x16\n" +
+	"\x06listen\x18\x06 \x03(\tR\x06listen\x12\x12\n" +
+	"\x04deny\x18\a \x03(\tR\x04deny\x12\x17\n" +
+	"\x04port\x18\b \x01(\rH\x02R\x04port\x88\x01\x01\x12;\n" +
+	"\n" +
+	"rate_limit\x18\t \x01(\v2\x1c.vrx.v1.NtpService.RateLimitR\trateLimit\x12(\n" +
+	"\rlocal_stratum\x18\n" +
+	" \x01(\rH\x03R\flocalStratum\x88\x01\x01\x12\x1b\n" +
+	"\x06orphan\x18\v \x01(\bH\x04R\x06orphan\x88\x01\x01\x12\x1e\n" +
+	"\brtc_sync\x18\f \x01(\bH\x05R\artcSync\x88\x01\x01\x12;\n" +
+	"\n" +
+	"nts_server\x18\r \x01(\v2\x1c.vrx.v1.NtpService.NtsServerR\tntsServer\x127\n" +
+	"\bmakestep\x18\x0e \x01(\v2\x1b.vrx.v1.NtpService.MakestepR\bmakestep\x1a\xa6\x02\n" +
+	"\x06Server\x12\x1d\n" +
+	"\aaddress\x18\x01 \x01(\tH\x00R\aaddress\x88\x01\x01\x12\x1b\n" +
+	"\x06iburst\x18\x02 \x01(\bH\x01R\x06iburst\x88\x01\x01\x12\x1b\n" +
+	"\x06prefer\x18\x03 \x01(\bH\x02R\x06prefer\x88\x01\x01\x12\x1e\n" +
+	"\bmin_poll\x18\x04 \x01(\x05H\x03R\aminPoll\x88\x01\x01\x12\x1e\n" +
+	"\bmax_poll\x18\x05 \x01(\x05H\x04R\amaxPoll\x88\x01\x01\x12\x15\n" +
+	"\x03nts\x18\x06 \x01(\bH\x05R\x03nts\x88\x01\x01\x12\x1c\n" +
+	"\akey_ref\x18\a \x01(\tH\x06R\x06keyRef\x88\x01\x01B\n" +
+	"\n" +
+	"\b_addressB\t\n" +
+	"\a_iburstB\t\n" +
+	"\a_preferB\v\n" +
+	"\t_min_pollB\v\n" +
+	"\t_max_pollB\x06\n" +
+	"\x04_ntsB\n" +
+	"\n" +
+	"\b_key_ref\x1a\x80\x01\n" +
+	"\tRateLimit\x12\x1f\n" +
+	"\binterval\x18\x01 \x01(\x05H\x00R\binterval\x88\x01\x01\x12\x19\n" +
+	"\x05burst\x18\x02 \x01(\rH\x01R\x05burst\x88\x01\x01\x12\x17\n" +
+	"\x04leak\x18\x03 \x01(\rH\x02R\x04leak\x88\x01\x01B\v\n" +
+	"\t_intervalB\b\n" +
+	"\x06_burstB\a\n" +
+	"\x05_leak\x1a\x99\x01\n" +
+	"\tNtsServer\x12,\n" +
+	"\x0fcertificate_ref\x18\x01 \x01(\tH\x00R\x0ecertificateRef\x88\x01\x01\x12\x1c\n" +
+	"\akey_ref\x18\x02 \x01(\tH\x01R\x06keyRef\x88\x01\x01\x12\x17\n" +
+	"\x04port\x18\x03 \x01(\rH\x02R\x04port\x88\x01\x01B\x12\n" +
+	"\x10_certificate_refB\n" +
+	"\n" +
+	"\b_key_refB\a\n" +
+	"\x05_port\x1ak\n" +
+	"\bMakestep\x12(\n" +
+	"\rthreshold_sec\x18\x01 \x01(\x01H\x00R\fthresholdSec\x88\x01\x01\x12\x19\n" +
+	"\x05limit\x18\x02 \x01(\x05H\x01R\x05limit\x88\x01\x01B\x10\n" +
+	"\x0e_threshold_secB\b\n" +
+	"\x06_limitB\n" +
+	"\n" +
+	"\b_enabledB\x06\n" +
+	"\x04_vrfB\a\n" +
+	"\x05_portB\x10\n" +
+	"\x0e_local_stratumB\t\n" +
+	"\a_orphanB\v\n" +
+	"\t_rtc_sync\"\xb9\x04\n" +
+	"\n" +
+	"QosService\x12<\n" +
+	"\bpolicers\x18\x01 \x03(\v2 .vrx.v1.QosService.PolicersEntryR\bpolicers\x129\n" +
+	"\ashapers\x18\x02 \x03(\v2\x1f.vrx.v1.QosService.ShapersEntryR\ashapers\x120\n" +
+	"\x04maps\x18\x03 \x03(\v2\x1c.vrx.v1.QosService.MapsEntryR\x04maps\x12B\n" +
+	"\n" +
+	"interfaces\x18\x04 \x03(\v2\".vrx.v1.QosService.InterfacesEntryR\n" +
+	"interfaces\x1aO\n" +
+	"\rPolicersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
+	"\x05value\x18\x02 \x01(\v2\x12.vrx.v1.QosPolicerR\x05value:\x028\x01\x1aM\n" +
+	"\fShapersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12'\n" +
+	"\x05value\x18\x02 \x01(\v2\x11.vrx.v1.QosShaperR\x05value:\x028\x01\x1aG\n" +
+	"\tMapsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12$\n" +
+	"\x05value\x18\x02 \x01(\v2\x0e.vrx.v1.QosMapR\x05value:\x028\x01\x1aS\n" +
+	"\x0fInterfacesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.vrx.v1.QosInterfaceR\x05value:\x028\x01\"\\\n" +
+	"\x10QosPolicerAction\x12\x1b\n" +
+	"\x06action\x18\x01 \x01(\tH\x00R\x06action\x88\x01\x01\x12\x17\n" +
+	"\x04dscp\x18\x02 \x01(\rH\x01R\x04dscp\x88\x01\x01B\t\n" +
+	"\a_actionB\a\n" +
+	"\x05_dscp\"\xa7\x04\n" +
+	"\n" +
+	"QosPolicer\x12%\n" +
+	"\vdescription\x18\x01 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x17\n" +
+	"\x04type\x18\x02 \x01(\tH\x01R\x04type\x88\x01\x01\x12 \n" +
+	"\trate_unit\x18\x03 \x01(\tH\x02R\brateUnit\x88\x01\x01\x12\x15\n" +
+	"\x03cir\x18\x04 \x01(\rH\x03R\x03cir\x88\x01\x01\x12\x15\n" +
+	"\x03eir\x18\x05 \x01(\rH\x04R\x03eir\x88\x01\x01\x12\x13\n" +
+	"\x02cb\x18\x06 \x01(\x04H\x05R\x02cb\x88\x01\x01\x12\x13\n" +
+	"\x02eb\x18\a \x01(\x04H\x06R\x02eb\x88\x01\x01\x12\x19\n" +
+	"\x05round\x18\b \x01(\tH\aR\x05round\x88\x01\x01\x12$\n" +
+	"\vcolor_aware\x18\t \x01(\bH\bR\n" +
+	"colorAware\x88\x01\x01\x12?\n" +
+	"\x0econform_action\x18\n" +
+	" \x01(\v2\x18.vrx.v1.QosPolicerActionR\rconformAction\x12=\n" +
+	"\rexceed_action\x18\v \x01(\v2\x18.vrx.v1.QosPolicerActionR\fexceedAction\x12?\n" +
+	"\x0eviolate_action\x18\f \x01(\v2\x18.vrx.v1.QosPolicerActionR\rviolateActionB\x0e\n" +
+	"\f_descriptionB\a\n" +
+	"\x05_typeB\f\n" +
+	"\n" +
+	"_rate_unitB\x06\n" +
+	"\x04_cirB\x06\n" +
+	"\x04_eirB\x05\n" +
+	"\x03_cbB\x05\n" +
+	"\x03_ebB\b\n" +
+	"\x06_roundB\x0e\n" +
+	"\f_color_aware\"\xa8\x01\n" +
+	"\tQosShaper\x12%\n" +
+	"\vdescription\x18\x01 \x01(\tH\x00R\vdescription\x88\x01\x01\x12 \n" +
+	"\trate_kbps\x18\x02 \x01(\rH\x01R\brateKbps\x88\x01\x01\x12$\n" +
+	"\vburst_bytes\x18\x03 \x01(\x04H\x02R\n" +
+	"burstBytes\x88\x01\x01B\x0e\n" +
+	"\f_descriptionB\f\n" +
+	"\n" +
+	"_rate_kbpsB\x0e\n" +
+	"\f_burst_bytes\"K\n" +
+	"\vQosMapEntry\x12\x17\n" +
+	"\x04from\x18\x01 \x01(\rH\x00R\x04from\x88\x01\x01\x12\x13\n" +
+	"\x02to\x18\x02 \x01(\rH\x01R\x02to\x88\x01\x01B\a\n" +
+	"\x05_fromB\x05\n" +
+	"\x03_to\"\xab\x02\n" +
+	"\x06QosMap\x12%\n" +
+	"\vdescription\x18\x01 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x13\n" +
+	"\x02id\x18\x02 \x01(\rH\x01R\x02id\x88\x01\x01\x12'\n" +
+	"\x04rows\x18\x03 \x01(\v2\x13.vrx.v1.QosMap.RowsR\x04rows\x1a\xa4\x01\n" +
+	"\x04Rows\x12%\n" +
+	"\x03ext\x18\x01 \x03(\v2\x13.vrx.v1.QosMapEntryR\x03ext\x12'\n" +
+	"\x04vlan\x18\x02 \x03(\v2\x13.vrx.v1.QosMapEntryR\x04vlan\x12'\n" +
+	"\x04mpls\x18\x03 \x03(\v2\x13.vrx.v1.QosMapEntryR\x04mpls\x12#\n" +
+	"\x02ip\x18\x04 \x03(\v2\x13.vrx.v1.QosMapEntryR\x02ipB\x0e\n" +
+	"\f_descriptionB\x05\n" +
+	"\x03_id\"\xab\x04\n" +
+	"\fQosInterface\x12%\n" +
+	"\vdescription\x18\x01 \x01(\tH\x00R\vdescription\x88\x01\x01\x126\n" +
+	"\apolicer\x18\x02 \x01(\v2\x1c.vrx.v1.QosInterface.PolicerR\apolicer\x12\x1b\n" +
+	"\x06shaper\x18\x03 \x01(\tH\x01R\x06shaper\x88\x01\x01\x12\x1b\n" +
+	"\x06record\x18\x04 \x01(\tH\x02R\x06record\x88\x01\x01\x120\n" +
+	"\x05store\x18\x05 \x01(\v2\x1a.vrx.v1.QosInterface.StoreR\x05store\x12-\n" +
+	"\x04mark\x18\x06 \x01(\v2\x19.vrx.v1.QosInterface.MarkR\x04mark\x1aV\n" +
+	"\aPolicer\x12\x19\n" +
+	"\x05input\x18\x01 \x01(\tH\x00R\x05input\x88\x01\x01\x12\x1b\n" +
+	"\x06output\x18\x02 \x01(\tH\x01R\x06output\x88\x01\x01B\b\n" +
+	"\x06_inputB\t\n" +
+	"\a_output\x1aT\n" +
+	"\x05Store\x12\x1b\n" +
+	"\x06source\x18\x01 \x01(\tH\x00R\x06source\x88\x01\x01\x12\x19\n" +
+	"\x05value\x18\x02 \x01(\rH\x01R\x05value\x88\x01\x01B\t\n" +
+	"\a_sourceB\b\n" +
+	"\x06_value\x1aM\n" +
+	"\x04Mark\x12\x15\n" +
+	"\x03map\x18\x01 \x01(\tH\x00R\x03map\x88\x01\x01\x12\x1b\n" +
+	"\x06output\x18\x02 \x01(\tH\x01R\x06output\x88\x01\x01B\x06\n" +
+	"\x04_mapB\t\n" +
+	"\a_outputB\x0e\n" +
+	"\f_descriptionB\t\n" +
+	"\a_shaperB\t\n" +
+	"\a_record\"\xbc\x01\n" +
+	"\bHaConfig\x12.\n" +
+	"\x04vrrp\x18\x02 \x03(\v2\x1a.vrx.v1.HaConfig.VrrpEntryR\x04vrrp\x12+\n" +
+	"\acluster\x18\x03 \x01(\v2\x11.vrx.v1.HaClusterR\acluster\x1aM\n" +
+	"\tVrrpEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.vrx.v1.VrrpInstanceR\x05value:\x028\x01J\x04\b\x01\x10\x02\"\xe8\x06\n" +
+	"\fVrrpInstance\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12!\n" +
+	"\tinterface\x18\x03 \x01(\tH\x02R\tinterface\x88\x01\x01\x12\x18\n" +
+	"\x05vr_id\x18\x04 \x01(\rH\x03R\x04vrId\x88\x01\x01\x12*\n" +
+	"\x0eaddress_family\x18\x05 \x01(\tH\x04R\raddressFamily\x88\x01\x01\x12\x1f\n" +
+	"\bpriority\x18\x06 \x01(\rH\x05R\bpriority\x88\x01\x01\x12?\n" +
+	"\x19advertisement_interval_ms\x18\a \x01(\rH\x06R\x17advertisementIntervalMs\x88\x01\x01\x12\x1d\n" +
+	"\apreempt\x18\b \x01(\bH\aR\apreempt\x88\x01\x01\x12$\n" +
+	"\vaccept_mode\x18\t \x01(\bH\bR\n" +
+	"acceptMode\x88\x01\x01\x126\n" +
+	"\aunicast\x18\n" +
+	" \x01(\v2\x1c.vrx.v1.VrrpInstance.UnicastR\aunicast\x12\x1c\n" +
+	"\taddresses\x18\v \x03(\tR\taddresses\x12\x15\n" +
+	"\x03vrf\x18\f \x01(\tH\tR\x03vrf\x88\x01\x01\x12\x1b\n" +
+	"\x06engine\x18\r \x01(\tH\n" +
+	"R\x06engine\x88\x01\x01\x120\n" +
+	"\x05track\x18\x0e \x03(\v2\x1a.vrx.v1.VrrpInstance.TrackR\x05track\x1a\x1f\n" +
+	"\aUnicast\x12\x14\n" +
+	"\x05peers\x18\x01 \x03(\tR\x05peers\x1a\x83\x01\n" +
+	"\x05Track\x12!\n" +
+	"\tinterface\x18\x01 \x01(\tH\x00R\tinterface\x88\x01\x01\x122\n" +
+	"\x12priority_decrement\x18\x02 \x01(\rH\x01R\x11priorityDecrement\x88\x01\x01B\f\n" +
+	"\n" +
+	"_interfaceB\x15\n" +
+	"\x13_priority_decrementB\n" +
+	"\n" +
+	"\b_enabledB\x0e\n" +
+	"\f_descriptionB\f\n" +
+	"\n" +
+	"_interfaceB\b\n" +
+	"\x06_vr_idB\x11\n" +
+	"\x0f_address_familyB\v\n" +
+	"\t_priorityB\x1c\n" +
+	"\x1a_advertisement_interval_msB\n" +
+	"\n" +
+	"\b_preemptB\x0e\n" +
+	"\f_accept_modeB\x06\n" +
+	"\x04_vrfB\t\n" +
+	"\a_engine\"\xf0\x04\n" +
+	"\tHaCluster\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12 \n" +
+	"\tnode_name\x18\x02 \x01(\tH\x01R\bnodeName\x88\x01\x01\x12,\n" +
+	"\x05peers\x18\x03 \x03(\v2\x16.vrx.v1.HaCluster.PeerR\x05peers\x12\x17\n" +
+	"\x04port\x18\x04 \x01(\rH\x02R\x04port\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"secret_ref\x18\x05 \x01(\tH\x03R\tsecretRef\x88\x01\x01\x12!\n" +
+	"\tinterface\x18\x06 \x01(\tH\x04R\tinterface\x88\x01\x01\x12\x15\n" +
+	"\x03vrf\x18\a \x01(\tH\x05R\x03vrf\x88\x01\x01\x12$\n" +
+	"\vconfig_sync\x18\b \x01(\bH\x06R\n" +
+	"configSync\x88\x01\x01\x12:\n" +
+	"\n" +
+	"state_sync\x18\t \x01(\v2\x1b.vrx.v1.HaCluster.StateSyncR\tstateSync\x1aS\n" +
+	"\x04Peer\x12\x17\n" +
+	"\x04name\x18\x01 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x1d\n" +
+	"\aaddress\x18\x02 \x01(\tH\x01R\aaddress\x88\x01\x01B\a\n" +
+	"\x05_nameB\n" +
+	"\n" +
+	"\b_address\x1an\n" +
+	"\tStateSync\x12\x15\n" +
+	"\x03nat\x18\x01 \x01(\bH\x00R\x03nat\x88\x01\x01\x12\x19\n" +
+	"\x05ipsec\x18\x02 \x01(\bH\x01R\x05ipsec\x88\x01\x01\x12\x15\n" +
+	"\x03acl\x18\x03 \x01(\bH\x02R\x03acl\x88\x01\x01B\x06\n" +
+	"\x04_natB\b\n" +
+	"\x06_ipsecB\x06\n" +
+	"\x04_aclB\n" +
+	"\n" +
+	"\b_enabledB\f\n" +
+	"\n" +
+	"_node_nameB\a\n" +
+	"\x05_portB\r\n" +
+	"\v_secret_refB\f\n" +
+	"\n" +
+	"_interfaceB\x06\n" +
+	"\x04_vrfB\x0e\n" +
+	"\f_config_sync\"\xc0\x01\n" +
 	"\x10ManagementConfig\x12,\n" +
 	"\x05users\x18\x01 \x03(\v2\x16.vrx.v1.ManagementUserR\x05users\x12'\n" +
 	"\x03aaa\x18\x02 \x01(\v2\x15.vrx.v1.ManagementAaaR\x03aaa\x12'\n" +
@@ -15190,7 +20271,7 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\n" +
 	"_esp_bytesB\x0e\n" +
 	"\f_esp_packetsB\t\n" +
-	"\a_reauth\"\xbb\t\n" +
+	"\a_reauth\"\xf4\t\n" +
 	"\vIpsecTunnel\x12\x1d\n" +
 	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1b\n" +
@@ -15223,7 +20304,8 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"routeBased\x12\x15\n" +
 	"\x03esn\x18\x18 \x01(\bH\x11R\x03esn\x88\x01\x01\x12$\n" +
 	"\vanti_replay\x18\x19 \x01(\bH\x12R\n" +
-	"antiReplay\x88\x01\x01\x1aK\n" +
+	"antiReplay\x88\x01\x01\x12&\n" +
+	"\funderlay_vrf\x18\x1a \x01(\tH\x13R\vunderlayVrf\x88\x01\x01\x1aK\n" +
 	"\n" +
 	"RouteBased\x12*\n" +
 	"\x0eipip_interface\x18\x01 \x01(\tH\x00R\ripipInterface\x88\x01\x01B\x11\n" +
@@ -15248,7 +20330,8 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\r_close_actionB\x06\n" +
 	"\x04_vrfB\x06\n" +
 	"\x04_esnB\x0e\n" +
-	"\f_anti_replay\"\x84\x01\n" +
+	"\f_anti_replayB\x0f\n" +
+	"\r_underlay_vrf\"\x84\x01\n" +
 	"\rIpsecSettings\x12(\n" +
 	"\rcrypto_engine\x18\x01 \x01(\tH\x00R\fcryptoEngine\x88\x01\x01\x12&\n" +
 	"\fasync_crypto\x18\x02 \x01(\bH\x01R\vasyncCrypto\x88\x01\x01B\x10\n" +
@@ -15384,7 +20467,7 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\busername\x18\x01 \x01(\tH\x00R\busername\x88\x01\x01\x12&\n" +
 	"\fpassword_ref\x18\x02 \x01(\tH\x01R\vpasswordRef\x88\x01\x01B\v\n" +
 	"\t_usernameB\x0f\n" +
-	"\r_password_ref\"\x95\a\n" +
+	"\r_password_ref\"\xce\a\n" +
 	"\x13RemoteAccessProfile\x12\x1d\n" +
 	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\"\n" +
@@ -15402,7 +20485,8 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\x05users\x18\f \x03(\v2\x18.vrx.v1.RemoteAccessUserR\x05users\x12:\n" +
 	"\x06radius\x18\r \x01(\v2\".vrx.v1.RemoteAccessProfile.RadiusR\x06radius\x12\"\n" +
 	"\x03dpd\x18\x0e \x01(\v2\x10.vrx.v1.IpsecDpdR\x03dpd\x12(\n" +
-	"\x05rekey\x18\x0f \x01(\v2\x12.vrx.v1.IpsecRekeyR\x05rekey\x1a\xd8\x01\n" +
+	"\x05rekey\x18\x0f \x01(\v2\x12.vrx.v1.IpsecRekeyR\x05rekey\x12&\n" +
+	"\funderlay_vrf\x18\x10 \x01(\tH\tR\vunderlayVrf\x88\x01\x01\x1a\xd8\x01\n" +
 	"\x06Radius\x12C\n" +
 	"\aservers\x18\x01 \x03(\v2).vrx.v1.RemoteAccessProfile.Radius.ServerR\aservers\x1a\x88\x01\n" +
 	"\x06Server\x12\x1d\n" +
@@ -15424,7 +20508,8 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\f_certificateB\f\n" +
 	"\n" +
 	"_client_caB\v\n" +
-	"\t_proposal*\xb3\x01\n" +
+	"\t_proposalB\x0f\n" +
+	"\r_underlay_vrf*\xb3\x01\n" +
 	"\vApplyStatus\x12\x1c\n" +
 	"\x18APPLY_STATUS_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14APPLY_STATUS_APPLIED\x10\x01\x12\x17\n" +
@@ -15491,217 +20576,275 @@ func file_vrx_v1_dataplane_proto_rawDescGZIP() []byte {
 }
 
 var file_vrx_v1_dataplane_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_vrx_v1_dataplane_proto_msgTypes = make([]protoimpl.MessageInfo, 202)
+var file_vrx_v1_dataplane_proto_msgTypes = make([]protoimpl.MessageInfo, 260)
 var file_vrx_v1_dataplane_proto_goTypes = []any{
-	(ApplyStatus)(0),                        // 0: vrx.v1.ApplyStatus
-	(ApplyOperation)(0),                     // 1: vrx.v1.ApplyOperation
-	(ObjectResultCode)(0),                   // 2: vrx.v1.ObjectResultCode
-	(IssueSeverity)(0),                      // 3: vrx.v1.IssueSeverity
-	(EventKind)(0),                          // 4: vrx.v1.EventKind
-	(CaptureDirection)(0),                   // 5: vrx.v1.CaptureDirection
-	(*ApplyRequest)(nil),                    // 6: vrx.v1.ApplyRequest
-	(*ApplyResponse)(nil),                   // 7: vrx.v1.ApplyResponse
-	(*ObjectResult)(nil),                    // 8: vrx.v1.ObjectResult
-	(*ApplySummary)(nil),                    // 9: vrx.v1.ApplySummary
-	(*DryRunRequest)(nil),                   // 10: vrx.v1.DryRunRequest
-	(*ValidationIssue)(nil),                 // 11: vrx.v1.ValidationIssue
-	(*ValidationReport)(nil),                // 12: vrx.v1.ValidationReport
-	(*RetrieveRequest)(nil),                 // 13: vrx.v1.RetrieveRequest
-	(*RetrieveResponse)(nil),                // 14: vrx.v1.RetrieveResponse
-	(*StreamStatsRequest)(nil),              // 15: vrx.v1.StreamStatsRequest
-	(*StatsBatch)(nil),                      // 16: vrx.v1.StatsBatch
-	(*InterfaceCounters)(nil),               // 17: vrx.v1.InterfaceCounters
-	(*WorkerCpu)(nil),                       // 18: vrx.v1.WorkerCpu
-	(*StreamEventsRequest)(nil),             // 19: vrx.v1.StreamEventsRequest
-	(*Event)(nil),                           // 20: vrx.v1.Event
-	(*ActionRequest)(nil),                   // 21: vrx.v1.ActionRequest
-	(*PingAction)(nil),                      // 22: vrx.v1.PingAction
-	(*TracerouteAction)(nil),                // 23: vrx.v1.TracerouteAction
-	(*CaptureAction)(nil),                   // 24: vrx.v1.CaptureAction
-	(*ActionOutput)(nil),                    // 25: vrx.v1.ActionOutput
-	(*ActionDone)(nil),                      // 26: vrx.v1.ActionDone
-	(*HealthRequest)(nil),                   // 27: vrx.v1.HealthRequest
-	(*HealthResponse)(nil),                  // 28: vrx.v1.HealthResponse
-	(*DesiredState)(nil),                    // 29: vrx.v1.DesiredState
-	(*SystemConfig)(nil),                    // 30: vrx.v1.SystemConfig
-	(*SystemBanner)(nil),                    // 31: vrx.v1.SystemBanner
-	(*SystemDns)(nil),                       // 32: vrx.v1.SystemDns
-	(*DataplaneConfig)(nil),                 // 33: vrx.v1.DataplaneConfig
-	(*Interface)(nil),                       // 34: vrx.v1.Interface
-	(*DhcpClient)(nil),                      // 35: vrx.v1.DhcpClient
-	(*Subinterface)(nil),                    // 36: vrx.v1.Subinterface
-	(*Vrf)(nil),                             // 37: vrx.v1.Vrf
-	(*RoutingConfig)(nil),                   // 38: vrx.v1.RoutingConfig
-	(*StaticRoute)(nil),                     // 39: vrx.v1.StaticRoute
-	(*NextHop)(nil),                         // 40: vrx.v1.NextHop
-	(*RoutingPolicy)(nil),                   // 41: vrx.v1.RoutingPolicy
-	(*PrefixList)(nil),                      // 42: vrx.v1.PrefixList
-	(*PrefixListRule)(nil),                  // 43: vrx.v1.PrefixListRule
-	(*RouteMap)(nil),                        // 44: vrx.v1.RouteMap
-	(*RouteMapEntry)(nil),                   // 45: vrx.v1.RouteMapEntry
-	(*RouteMapMatch)(nil),                   // 46: vrx.v1.RouteMapMatch
-	(*RouteMapSet)(nil),                     // 47: vrx.v1.RouteMapSet
-	(*RedistributeOptions)(nil),             // 48: vrx.v1.RedistributeOptions
-	(*Redistribute)(nil),                    // 49: vrx.v1.Redistribute
-	(*BgpAddressFamily)(nil),                // 50: vrx.v1.BgpAddressFamily
-	(*BgpAfi)(nil),                          // 51: vrx.v1.BgpAfi
-	(*BgpPeerGroup)(nil),                    // 52: vrx.v1.BgpPeerGroup
-	(*BgpNeighbor)(nil),                     // 53: vrx.v1.BgpNeighbor
-	(*BgpNetwork)(nil),                      // 54: vrx.v1.BgpNetwork
-	(*BgpConfig)(nil),                       // 55: vrx.v1.BgpConfig
-	(*OspfArea)(nil),                        // 56: vrx.v1.OspfArea
-	(*OspfInterface)(nil),                   // 57: vrx.v1.OspfInterface
-	(*OspfConfig)(nil),                      // 58: vrx.v1.OspfConfig
-	(*IsisInterface)(nil),                   // 59: vrx.v1.IsisInterface
-	(*IsisConfig)(nil),                      // 60: vrx.v1.IsisConfig
-	(*RipInterface)(nil),                    // 61: vrx.v1.RipInterface
-	(*RipConfig)(nil),                       // 62: vrx.v1.RipConfig
-	(*BfdSession)(nil),                      // 63: vrx.v1.BfdSession
-	(*BfdConfig)(nil),                       // 64: vrx.v1.BfdConfig
-	(*TunnelsConfig)(nil),                   // 65: vrx.v1.TunnelsConfig
-	(*GreTunnel)(nil),                       // 66: vrx.v1.GreTunnel
-	(*VxlanTunnel)(nil),                     // 67: vrx.v1.VxlanTunnel
-	(*IpipTunnel)(nil),                      // 68: vrx.v1.IpipTunnel
-	(*ServicesConfig)(nil),                  // 69: vrx.v1.ServicesConfig
-	(*DhcpService)(nil),                     // 70: vrx.v1.DhcpService
-	(*DnsService)(nil),                      // 71: vrx.v1.DnsService
-	(*SnmpService)(nil),                     // 72: vrx.v1.SnmpService
-	(*LldpService)(nil),                     // 73: vrx.v1.LldpService
-	(*IpfixService)(nil),                    // 74: vrx.v1.IpfixService
-	(*HaConfig)(nil),                        // 75: vrx.v1.HaConfig
-	(*VrrpInstance)(nil),                    // 76: vrx.v1.VrrpInstance
-	(*ManagementConfig)(nil),                // 77: vrx.v1.ManagementConfig
-	(*ManagementUser)(nil),                  // 78: vrx.v1.ManagementUser
-	(*ManagementAaa)(nil),                   // 79: vrx.v1.ManagementAaa
-	(*AaaRadius)(nil),                       // 80: vrx.v1.AaaRadius
-	(*RadiusServer)(nil),                    // 81: vrx.v1.RadiusServer
-	(*AaaTacacs)(nil),                       // 82: vrx.v1.AaaTacacs
-	(*TacacsServer)(nil),                    // 83: vrx.v1.TacacsServer
-	(*ManagementTls)(nil),                   // 84: vrx.v1.ManagementTls
-	(*SyslogTarget)(nil),                    // 85: vrx.v1.SyslogTarget
-	(*NatConfig)(nil),                       // 86: vrx.v1.NatConfig
-	(*NatTimeouts)(nil),                     // 87: vrx.v1.NatTimeouts
-	(*NatPool)(nil),                         // 88: vrx.v1.NatPool
-	(*NatStaticMapping)(nil),                // 89: vrx.v1.NatStaticMapping
-	(*NatIdentityMapping)(nil),              // 90: vrx.v1.NatIdentityMapping
-	(*NatLoadBalancedMapping)(nil),          // 91: vrx.v1.NatLoadBalancedMapping
-	(*NatIpfix)(nil),                        // 92: vrx.v1.NatIpfix
-	(*Nat64Config)(nil),                     // 93: vrx.v1.Nat64Config
-	(*Nat66Config)(nil),                     // 94: vrx.v1.Nat66Config
-	(*Nptv6Config)(nil),                     // 95: vrx.v1.Nptv6Config
-	(*Det44Config)(nil),                     // 96: vrx.v1.Det44Config
-	(*DsliteConfig)(nil),                    // 97: vrx.v1.DsliteConfig
-	(*MapDomain)(nil),                       // 98: vrx.v1.MapDomain
-	(*MapParameters)(nil),                   // 99: vrx.v1.MapParameters
-	(*MapInterface)(nil),                    // 100: vrx.v1.MapInterface
-	(*MapConfig)(nil),                       // 101: vrx.v1.MapConfig
-	(*CnatEndpoint)(nil),                    // 102: vrx.v1.CnatEndpoint
-	(*CnatTranslation)(nil),                 // 103: vrx.v1.CnatTranslation
-	(*CnatConfig)(nil),                      // 104: vrx.v1.CnatConfig
-	(*ObjectsConfig)(nil),                   // 105: vrx.v1.ObjectsConfig
-	(*AddressObject)(nil),                   // 106: vrx.v1.AddressObject
-	(*AddressGroup)(nil),                    // 107: vrx.v1.AddressGroup
-	(*TcpFlags)(nil),                        // 108: vrx.v1.TcpFlags
-	(*ServiceSpec)(nil),                     // 109: vrx.v1.ServiceSpec
-	(*ServiceObject)(nil),                   // 110: vrx.v1.ServiceObject
-	(*ServiceGroup)(nil),                    // 111: vrx.v1.ServiceGroup
-	(*Schedule)(nil),                        // 112: vrx.v1.Schedule
-	(*Zone)(nil),                            // 113: vrx.v1.Zone
-	(*Tag)(nil),                             // 114: vrx.v1.Tag
-	(*AclConfig)(nil),                       // 115: vrx.v1.AclConfig
-	(*AddressMatch)(nil),                    // 116: vrx.v1.AddressMatch
-	(*ServiceMatch)(nil),                    // 117: vrx.v1.ServiceMatch
-	(*AclRule)(nil),                         // 118: vrx.v1.AclRule
-	(*AclList)(nil),                         // 119: vrx.v1.AclList
-	(*MacipRule)(nil),                       // 120: vrx.v1.MacipRule
-	(*MacipList)(nil),                       // 121: vrx.v1.MacipList
-	(*HostRule)(nil),                        // 122: vrx.v1.HostRule
-	(*HostList)(nil),                        // 123: vrx.v1.HostList
-	(*AttachmentTarget)(nil),                // 124: vrx.v1.AttachmentTarget
-	(*AclAttachment)(nil),                   // 125: vrx.v1.AclAttachment
-	(*MacipAttachment)(nil),                 // 126: vrx.v1.MacipAttachment
-	(*HostAttachment)(nil),                  // 127: vrx.v1.HostAttachment
-	(*VpnConfig)(nil),                       // 128: vrx.v1.VpnConfig
-	(*IkeProposal)(nil),                     // 129: vrx.v1.IkeProposal
-	(*EspProposal)(nil),                     // 130: vrx.v1.EspProposal
-	(*IpsecProposal)(nil),                   // 131: vrx.v1.IpsecProposal
-	(*IpsecAuth)(nil),                       // 132: vrx.v1.IpsecAuth
-	(*IpsecDpd)(nil),                        // 133: vrx.v1.IpsecDpd
-	(*IpsecRekey)(nil),                      // 134: vrx.v1.IpsecRekey
-	(*IpsecTunnel)(nil),                     // 135: vrx.v1.IpsecTunnel
-	(*IpsecSettings)(nil),                   // 136: vrx.v1.IpsecSettings
-	(*IpsecConfig)(nil),                     // 137: vrx.v1.IpsecConfig
-	(*WireguardPeer)(nil),                   // 138: vrx.v1.WireguardPeer
-	(*WireguardInterface)(nil),              // 139: vrx.v1.WireguardInterface
-	(*WireguardConfig)(nil),                 // 140: vrx.v1.WireguardConfig
-	(*PkiCa)(nil),                           // 141: vrx.v1.PkiCa
-	(*PkiCertificate)(nil),                  // 142: vrx.v1.PkiCertificate
-	(*PkiConfig)(nil),                       // 143: vrx.v1.PkiConfig
-	(*RemoteAccessPool)(nil),                // 144: vrx.v1.RemoteAccessPool
-	(*RemoteAccessUser)(nil),                // 145: vrx.v1.RemoteAccessUser
-	(*RemoteAccessProfile)(nil),             // 146: vrx.v1.RemoteAccessProfile
-	nil,                                     // 147: vrx.v1.Event.AttributesEntry
-	nil,                                     // 148: vrx.v1.ActionDone.StatsEntry
-	nil,                                     // 149: vrx.v1.DesiredState.InterfacesEntry
-	nil,                                     // 150: vrx.v1.DesiredState.VrfsEntry
-	nil,                                     // 151: vrx.v1.Interface.SubinterfacesEntry
-	nil,                                     // 152: vrx.v1.RoutingPolicy.PrefixListsEntry
-	nil,                                     // 153: vrx.v1.RoutingPolicy.RouteMapsEntry
-	nil,                                     // 154: vrx.v1.BgpConfig.PeerGroupsEntry
-	nil,                                     // 155: vrx.v1.BgpConfig.NeighborsEntry
-	nil,                                     // 156: vrx.v1.OspfConfig.AreasEntry
-	nil,                                     // 157: vrx.v1.OspfConfig.InterfacesEntry
-	nil,                                     // 158: vrx.v1.IsisConfig.InterfacesEntry
-	nil,                                     // 159: vrx.v1.RipConfig.InterfacesEntry
-	nil,                                     // 160: vrx.v1.TunnelsConfig.GreEntry
-	nil,                                     // 161: vrx.v1.TunnelsConfig.VxlanEntry
-	nil,                                     // 162: vrx.v1.TunnelsConfig.IpipEntry
-	(*NatStaticMapping_Local)(nil),          // 163: vrx.v1.NatStaticMapping.Local
-	(*NatStaticMapping_External)(nil),       // 164: vrx.v1.NatStaticMapping.External
-	(*NatLoadBalancedMapping_External)(nil), // 165: vrx.v1.NatLoadBalancedMapping.External
-	(*NatLoadBalancedMapping_Local)(nil),    // 166: vrx.v1.NatLoadBalancedMapping.Local
-	(*Nat64Config_Prefix)(nil),              // 167: vrx.v1.Nat64Config.Prefix
-	(*Nat64Config_Pool)(nil),                // 168: vrx.v1.Nat64Config.Pool
-	(*Nat64Config_StaticBib)(nil),           // 169: vrx.v1.Nat64Config.StaticBib
-	(*Nat64Config_StaticBib_Endpoint)(nil),  // 170: vrx.v1.Nat64Config.StaticBib.Endpoint
-	(*Nat66Config_StaticMapping)(nil),       // 171: vrx.v1.Nat66Config.StaticMapping
-	(*Nptv6Config_Binding)(nil),             // 172: vrx.v1.Nptv6Config.Binding
-	(*Det44Config_Mapping)(nil),             // 173: vrx.v1.Det44Config.Mapping
-	(*DsliteConfig_Endpoint)(nil),           // 174: vrx.v1.DsliteConfig.Endpoint
-	(*DsliteConfig_Pool)(nil),               // 175: vrx.v1.DsliteConfig.Pool
-	(*MapDomain_Rule)(nil),                  // 176: vrx.v1.MapDomain.Rule
-	(*MapParameters_Fragmentation)(nil),     // 177: vrx.v1.MapParameters.Fragmentation
-	(*MapParameters_SecurityCheck)(nil),     // 178: vrx.v1.MapParameters.SecurityCheck
-	(*MapParameters_TrafficClass)(nil),      // 179: vrx.v1.MapParameters.TrafficClass
-	(*MapParameters_PreResolve)(nil),        // 180: vrx.v1.MapParameters.PreResolve
-	(*CnatConfig_Snat)(nil),                 // 181: vrx.v1.CnatConfig.Snat
-	(*CnatConfig_Snat_Addresses)(nil),       // 182: vrx.v1.CnatConfig.Snat.Addresses
-	(*CnatConfig_Snat_PolicyInterface)(nil), // 183: vrx.v1.CnatConfig.Snat.PolicyInterface
-	nil,                                     // 184: vrx.v1.ObjectsConfig.AddressesEntry
-	nil,                                     // 185: vrx.v1.ObjectsConfig.AddressGroupsEntry
-	nil,                                     // 186: vrx.v1.ObjectsConfig.ServicesEntry
-	nil,                                     // 187: vrx.v1.ObjectsConfig.ServiceGroupsEntry
-	nil,                                     // 188: vrx.v1.ObjectsConfig.SchedulesEntry
-	nil,                                     // 189: vrx.v1.ObjectsConfig.ZonesEntry
-	nil,                                     // 190: vrx.v1.ObjectsConfig.TagsEntry
-	nil,                                     // 191: vrx.v1.AclConfig.ListsEntry
-	nil,                                     // 192: vrx.v1.AclConfig.MacipEntry
-	nil,                                     // 193: vrx.v1.AclConfig.HostEntry
-	nil,                                     // 194: vrx.v1.VpnConfig.RemoteAccessEntry
-	(*IpsecTunnel_RouteBased)(nil),          // 195: vrx.v1.IpsecTunnel.RouteBased
-	nil,                                     // 196: vrx.v1.IpsecConfig.ProposalsEntry
-	nil,                                     // 197: vrx.v1.IpsecConfig.TunnelsEntry
-	(*WireguardPeer_Endpoint)(nil),          // 198: vrx.v1.WireguardPeer.Endpoint
-	nil,                                     // 199: vrx.v1.WireguardInterface.PeersEntry
-	nil,                                     // 200: vrx.v1.WireguardConfig.InterfacesEntry
-	(*PkiCa_Crl)(nil),                       // 201: vrx.v1.PkiCa.Crl
-	(*PkiCertificate_Acme)(nil),             // 202: vrx.v1.PkiCertificate.Acme
-	(*PkiConfig_Hsm)(nil),                   // 203: vrx.v1.PkiConfig.Hsm
-	nil,                                     // 204: vrx.v1.PkiConfig.CasEntry
-	nil,                                     // 205: vrx.v1.PkiConfig.CertificatesEntry
-	(*RemoteAccessProfile_Radius)(nil),      // 206: vrx.v1.RemoteAccessProfile.Radius
-	(*RemoteAccessProfile_Radius_Server)(nil), // 207: vrx.v1.RemoteAccessProfile.Radius.Server
-	(*timestamppb.Timestamp)(nil),             // 208: google.protobuf.Timestamp
+	(ApplyStatus)(0),                         // 0: vrx.v1.ApplyStatus
+	(ApplyOperation)(0),                      // 1: vrx.v1.ApplyOperation
+	(ObjectResultCode)(0),                    // 2: vrx.v1.ObjectResultCode
+	(IssueSeverity)(0),                       // 3: vrx.v1.IssueSeverity
+	(EventKind)(0),                           // 4: vrx.v1.EventKind
+	(CaptureDirection)(0),                    // 5: vrx.v1.CaptureDirection
+	(*ApplyRequest)(nil),                     // 6: vrx.v1.ApplyRequest
+	(*ApplyResponse)(nil),                    // 7: vrx.v1.ApplyResponse
+	(*ObjectResult)(nil),                     // 8: vrx.v1.ObjectResult
+	(*ApplySummary)(nil),                     // 9: vrx.v1.ApplySummary
+	(*DryRunRequest)(nil),                    // 10: vrx.v1.DryRunRequest
+	(*ValidationIssue)(nil),                  // 11: vrx.v1.ValidationIssue
+	(*ValidationReport)(nil),                 // 12: vrx.v1.ValidationReport
+	(*RetrieveRequest)(nil),                  // 13: vrx.v1.RetrieveRequest
+	(*RetrieveResponse)(nil),                 // 14: vrx.v1.RetrieveResponse
+	(*StreamStatsRequest)(nil),               // 15: vrx.v1.StreamStatsRequest
+	(*StatsBatch)(nil),                       // 16: vrx.v1.StatsBatch
+	(*InterfaceCounters)(nil),                // 17: vrx.v1.InterfaceCounters
+	(*WorkerCpu)(nil),                        // 18: vrx.v1.WorkerCpu
+	(*StreamEventsRequest)(nil),              // 19: vrx.v1.StreamEventsRequest
+	(*Event)(nil),                            // 20: vrx.v1.Event
+	(*ActionRequest)(nil),                    // 21: vrx.v1.ActionRequest
+	(*PingAction)(nil),                       // 22: vrx.v1.PingAction
+	(*TracerouteAction)(nil),                 // 23: vrx.v1.TracerouteAction
+	(*CaptureAction)(nil),                    // 24: vrx.v1.CaptureAction
+	(*ActionOutput)(nil),                     // 25: vrx.v1.ActionOutput
+	(*ActionDone)(nil),                       // 26: vrx.v1.ActionDone
+	(*HealthRequest)(nil),                    // 27: vrx.v1.HealthRequest
+	(*HealthResponse)(nil),                   // 28: vrx.v1.HealthResponse
+	(*DesiredState)(nil),                     // 29: vrx.v1.DesiredState
+	(*SystemConfig)(nil),                     // 30: vrx.v1.SystemConfig
+	(*SystemBanner)(nil),                     // 31: vrx.v1.SystemBanner
+	(*SystemDns)(nil),                        // 32: vrx.v1.SystemDns
+	(*DataplaneConfig)(nil),                  // 33: vrx.v1.DataplaneConfig
+	(*Interface)(nil),                        // 34: vrx.v1.Interface
+	(*DhcpClient)(nil),                       // 35: vrx.v1.DhcpClient
+	(*Subinterface)(nil),                     // 36: vrx.v1.Subinterface
+	(*Vrf)(nil),                              // 37: vrx.v1.Vrf
+	(*RoutingConfig)(nil),                    // 38: vrx.v1.RoutingConfig
+	(*StaticRoute)(nil),                      // 39: vrx.v1.StaticRoute
+	(*NextHop)(nil),                          // 40: vrx.v1.NextHop
+	(*RoutingPolicy)(nil),                    // 41: vrx.v1.RoutingPolicy
+	(*PrefixList)(nil),                       // 42: vrx.v1.PrefixList
+	(*PrefixListRule)(nil),                   // 43: vrx.v1.PrefixListRule
+	(*RouteMap)(nil),                         // 44: vrx.v1.RouteMap
+	(*RouteMapEntry)(nil),                    // 45: vrx.v1.RouteMapEntry
+	(*RouteMapMatch)(nil),                    // 46: vrx.v1.RouteMapMatch
+	(*RouteMapSet)(nil),                      // 47: vrx.v1.RouteMapSet
+	(*RedistributeOptions)(nil),              // 48: vrx.v1.RedistributeOptions
+	(*Redistribute)(nil),                     // 49: vrx.v1.Redistribute
+	(*BgpAddressFamily)(nil),                 // 50: vrx.v1.BgpAddressFamily
+	(*BgpAfi)(nil),                           // 51: vrx.v1.BgpAfi
+	(*BgpPeerGroup)(nil),                     // 52: vrx.v1.BgpPeerGroup
+	(*BgpNeighbor)(nil),                      // 53: vrx.v1.BgpNeighbor
+	(*BgpNetwork)(nil),                       // 54: vrx.v1.BgpNetwork
+	(*BgpConfig)(nil),                        // 55: vrx.v1.BgpConfig
+	(*OspfArea)(nil),                         // 56: vrx.v1.OspfArea
+	(*OspfInterface)(nil),                    // 57: vrx.v1.OspfInterface
+	(*OspfConfig)(nil),                       // 58: vrx.v1.OspfConfig
+	(*IsisInterface)(nil),                    // 59: vrx.v1.IsisInterface
+	(*IsisConfig)(nil),                       // 60: vrx.v1.IsisConfig
+	(*RipInterface)(nil),                     // 61: vrx.v1.RipInterface
+	(*RipConfig)(nil),                        // 62: vrx.v1.RipConfig
+	(*BfdSession)(nil),                       // 63: vrx.v1.BfdSession
+	(*BfdConfig)(nil),                        // 64: vrx.v1.BfdConfig
+	(*TunnelsConfig)(nil),                    // 65: vrx.v1.TunnelsConfig
+	(*GreTunnel)(nil),                        // 66: vrx.v1.GreTunnel
+	(*VxlanTunnel)(nil),                      // 67: vrx.v1.VxlanTunnel
+	(*IpipTunnel)(nil),                       // 68: vrx.v1.IpipTunnel
+	(*ServicesConfig)(nil),                   // 69: vrx.v1.ServicesConfig
+	(*SocketAddress)(nil),                    // 70: vrx.v1.SocketAddress
+	(*DhcpService)(nil),                      // 71: vrx.v1.DhcpService
+	(*DhcpOption)(nil),                       // 72: vrx.v1.DhcpOption
+	(*DhcpPool)(nil),                         // 73: vrx.v1.DhcpPool
+	(*DhcpReservation)(nil),                  // 74: vrx.v1.DhcpReservation
+	(*DhcpSubnet)(nil),                       // 75: vrx.v1.DhcpSubnet
+	(*DhcpServer)(nil),                       // 76: vrx.v1.DhcpServer
+	(*DhcpRelay)(nil),                        // 77: vrx.v1.DhcpRelay
+	(*DnsService)(nil),                       // 78: vrx.v1.DnsService
+	(*DnsUpstream)(nil),                      // 79: vrx.v1.DnsUpstream
+	(*DnsForwardZone)(nil),                   // 80: vrx.v1.DnsForwardZone
+	(*DnsRecord)(nil),                        // 81: vrx.v1.DnsRecord
+	(*DnsLocalZone)(nil),                     // 82: vrx.v1.DnsLocalZone
+	(*DnsAccessControl)(nil),                 // 83: vrx.v1.DnsAccessControl
+	(*DnsResolver)(nil),                      // 84: vrx.v1.DnsResolver
+	(*SnmpService)(nil),                      // 85: vrx.v1.SnmpService
+	(*LldpService)(nil),                      // 86: vrx.v1.LldpService
+	(*IpfixService)(nil),                     // 87: vrx.v1.IpfixService
+	(*NtpService)(nil),                       // 88: vrx.v1.NtpService
+	(*QosService)(nil),                       // 89: vrx.v1.QosService
+	(*QosPolicerAction)(nil),                 // 90: vrx.v1.QosPolicerAction
+	(*QosPolicer)(nil),                       // 91: vrx.v1.QosPolicer
+	(*QosShaper)(nil),                        // 92: vrx.v1.QosShaper
+	(*QosMapEntry)(nil),                      // 93: vrx.v1.QosMapEntry
+	(*QosMap)(nil),                           // 94: vrx.v1.QosMap
+	(*QosInterface)(nil),                     // 95: vrx.v1.QosInterface
+	(*HaConfig)(nil),                         // 96: vrx.v1.HaConfig
+	(*VrrpInstance)(nil),                     // 97: vrx.v1.VrrpInstance
+	(*HaCluster)(nil),                        // 98: vrx.v1.HaCluster
+	(*ManagementConfig)(nil),                 // 99: vrx.v1.ManagementConfig
+	(*ManagementUser)(nil),                   // 100: vrx.v1.ManagementUser
+	(*ManagementAaa)(nil),                    // 101: vrx.v1.ManagementAaa
+	(*AaaRadius)(nil),                        // 102: vrx.v1.AaaRadius
+	(*RadiusServer)(nil),                     // 103: vrx.v1.RadiusServer
+	(*AaaTacacs)(nil),                        // 104: vrx.v1.AaaTacacs
+	(*TacacsServer)(nil),                     // 105: vrx.v1.TacacsServer
+	(*ManagementTls)(nil),                    // 106: vrx.v1.ManagementTls
+	(*SyslogTarget)(nil),                     // 107: vrx.v1.SyslogTarget
+	(*NatConfig)(nil),                        // 108: vrx.v1.NatConfig
+	(*NatTimeouts)(nil),                      // 109: vrx.v1.NatTimeouts
+	(*NatPool)(nil),                          // 110: vrx.v1.NatPool
+	(*NatStaticMapping)(nil),                 // 111: vrx.v1.NatStaticMapping
+	(*NatIdentityMapping)(nil),               // 112: vrx.v1.NatIdentityMapping
+	(*NatLoadBalancedMapping)(nil),           // 113: vrx.v1.NatLoadBalancedMapping
+	(*NatIpfix)(nil),                         // 114: vrx.v1.NatIpfix
+	(*Nat64Config)(nil),                      // 115: vrx.v1.Nat64Config
+	(*Nat66Config)(nil),                      // 116: vrx.v1.Nat66Config
+	(*Nptv6Config)(nil),                      // 117: vrx.v1.Nptv6Config
+	(*Det44Config)(nil),                      // 118: vrx.v1.Det44Config
+	(*DsliteConfig)(nil),                     // 119: vrx.v1.DsliteConfig
+	(*MapDomain)(nil),                        // 120: vrx.v1.MapDomain
+	(*MapParameters)(nil),                    // 121: vrx.v1.MapParameters
+	(*MapInterface)(nil),                     // 122: vrx.v1.MapInterface
+	(*MapConfig)(nil),                        // 123: vrx.v1.MapConfig
+	(*CnatEndpoint)(nil),                     // 124: vrx.v1.CnatEndpoint
+	(*CnatTranslation)(nil),                  // 125: vrx.v1.CnatTranslation
+	(*CnatConfig)(nil),                       // 126: vrx.v1.CnatConfig
+	(*ObjectsConfig)(nil),                    // 127: vrx.v1.ObjectsConfig
+	(*AddressObject)(nil),                    // 128: vrx.v1.AddressObject
+	(*AddressGroup)(nil),                     // 129: vrx.v1.AddressGroup
+	(*TcpFlags)(nil),                         // 130: vrx.v1.TcpFlags
+	(*ServiceSpec)(nil),                      // 131: vrx.v1.ServiceSpec
+	(*ServiceObject)(nil),                    // 132: vrx.v1.ServiceObject
+	(*ServiceGroup)(nil),                     // 133: vrx.v1.ServiceGroup
+	(*Schedule)(nil),                         // 134: vrx.v1.Schedule
+	(*Zone)(nil),                             // 135: vrx.v1.Zone
+	(*Tag)(nil),                              // 136: vrx.v1.Tag
+	(*AclConfig)(nil),                        // 137: vrx.v1.AclConfig
+	(*AddressMatch)(nil),                     // 138: vrx.v1.AddressMatch
+	(*ServiceMatch)(nil),                     // 139: vrx.v1.ServiceMatch
+	(*AclRule)(nil),                          // 140: vrx.v1.AclRule
+	(*AclList)(nil),                          // 141: vrx.v1.AclList
+	(*MacipRule)(nil),                        // 142: vrx.v1.MacipRule
+	(*MacipList)(nil),                        // 143: vrx.v1.MacipList
+	(*HostRule)(nil),                         // 144: vrx.v1.HostRule
+	(*HostList)(nil),                         // 145: vrx.v1.HostList
+	(*AttachmentTarget)(nil),                 // 146: vrx.v1.AttachmentTarget
+	(*AclAttachment)(nil),                    // 147: vrx.v1.AclAttachment
+	(*MacipAttachment)(nil),                  // 148: vrx.v1.MacipAttachment
+	(*HostAttachment)(nil),                   // 149: vrx.v1.HostAttachment
+	(*VpnConfig)(nil),                        // 150: vrx.v1.VpnConfig
+	(*IkeProposal)(nil),                      // 151: vrx.v1.IkeProposal
+	(*EspProposal)(nil),                      // 152: vrx.v1.EspProposal
+	(*IpsecProposal)(nil),                    // 153: vrx.v1.IpsecProposal
+	(*IpsecAuth)(nil),                        // 154: vrx.v1.IpsecAuth
+	(*IpsecDpd)(nil),                         // 155: vrx.v1.IpsecDpd
+	(*IpsecRekey)(nil),                       // 156: vrx.v1.IpsecRekey
+	(*IpsecTunnel)(nil),                      // 157: vrx.v1.IpsecTunnel
+	(*IpsecSettings)(nil),                    // 158: vrx.v1.IpsecSettings
+	(*IpsecConfig)(nil),                      // 159: vrx.v1.IpsecConfig
+	(*WireguardPeer)(nil),                    // 160: vrx.v1.WireguardPeer
+	(*WireguardInterface)(nil),               // 161: vrx.v1.WireguardInterface
+	(*WireguardConfig)(nil),                  // 162: vrx.v1.WireguardConfig
+	(*PkiCa)(nil),                            // 163: vrx.v1.PkiCa
+	(*PkiCertificate)(nil),                   // 164: vrx.v1.PkiCertificate
+	(*PkiConfig)(nil),                        // 165: vrx.v1.PkiConfig
+	(*RemoteAccessPool)(nil),                 // 166: vrx.v1.RemoteAccessPool
+	(*RemoteAccessUser)(nil),                 // 167: vrx.v1.RemoteAccessUser
+	(*RemoteAccessProfile)(nil),              // 168: vrx.v1.RemoteAccessProfile
+	nil,                                      // 169: vrx.v1.Event.AttributesEntry
+	nil,                                      // 170: vrx.v1.ActionDone.StatsEntry
+	nil,                                      // 171: vrx.v1.DesiredState.InterfacesEntry
+	nil,                                      // 172: vrx.v1.DesiredState.VrfsEntry
+	nil,                                      // 173: vrx.v1.Interface.SubinterfacesEntry
+	nil,                                      // 174: vrx.v1.RoutingPolicy.PrefixListsEntry
+	nil,                                      // 175: vrx.v1.RoutingPolicy.RouteMapsEntry
+	nil,                                      // 176: vrx.v1.BgpConfig.PeerGroupsEntry
+	nil,                                      // 177: vrx.v1.BgpConfig.NeighborsEntry
+	nil,                                      // 178: vrx.v1.OspfConfig.AreasEntry
+	nil,                                      // 179: vrx.v1.OspfConfig.InterfacesEntry
+	nil,                                      // 180: vrx.v1.IsisConfig.InterfacesEntry
+	nil,                                      // 181: vrx.v1.RipConfig.InterfacesEntry
+	nil,                                      // 182: vrx.v1.TunnelsConfig.GreEntry
+	nil,                                      // 183: vrx.v1.TunnelsConfig.VxlanEntry
+	nil,                                      // 184: vrx.v1.TunnelsConfig.IpipEntry
+	nil,                                      // 185: vrx.v1.DhcpService.ServersEntry
+	nil,                                      // 186: vrx.v1.DhcpService.RelaysEntry
+	nil,                                      // 187: vrx.v1.DhcpSubnet.ReservationsEntry
+	nil,                                      // 188: vrx.v1.DhcpServer.SubnetsEntry
+	(*DnsService_VppCache)(nil),              // 189: vrx.v1.DnsService.VppCache
+	nil,                                      // 190: vrx.v1.DnsService.ResolversEntry
+	(*DnsResolver_Dnssec)(nil),               // 191: vrx.v1.DnsResolver.Dnssec
+	(*DnsResolver_Cache)(nil),                // 192: vrx.v1.DnsResolver.Cache
+	(*SnmpService_Community)(nil),            // 193: vrx.v1.SnmpService.Community
+	(*SnmpService_V3User)(nil),               // 194: vrx.v1.SnmpService.V3User
+	(*SnmpService_TrapReceiver)(nil),         // 195: vrx.v1.SnmpService.TrapReceiver
+	nil,                                      // 196: vrx.v1.SnmpService.CommunitiesEntry
+	nil,                                      // 197: vrx.v1.SnmpService.V3UsersEntry
+	(*LldpService_Interface)(nil),            // 198: vrx.v1.LldpService.Interface
+	(*IpfixService_Exporter)(nil),            // 199: vrx.v1.IpfixService.Exporter
+	(*IpfixService_Flowprobe)(nil),           // 200: vrx.v1.IpfixService.Flowprobe
+	(*IpfixService_Sflow)(nil),               // 201: vrx.v1.IpfixService.Sflow
+	nil,                                      // 202: vrx.v1.IpfixService.ExportersEntry
+	(*IpfixService_Flowprobe_Interface)(nil), // 203: vrx.v1.IpfixService.Flowprobe.Interface
+	(*NtpService_Server)(nil),                // 204: vrx.v1.NtpService.Server
+	(*NtpService_RateLimit)(nil),             // 205: vrx.v1.NtpService.RateLimit
+	(*NtpService_NtsServer)(nil),             // 206: vrx.v1.NtpService.NtsServer
+	(*NtpService_Makestep)(nil),              // 207: vrx.v1.NtpService.Makestep
+	nil,                                      // 208: vrx.v1.QosService.PolicersEntry
+	nil,                                      // 209: vrx.v1.QosService.ShapersEntry
+	nil,                                      // 210: vrx.v1.QosService.MapsEntry
+	nil,                                      // 211: vrx.v1.QosService.InterfacesEntry
+	(*QosMap_Rows)(nil),                      // 212: vrx.v1.QosMap.Rows
+	(*QosInterface_Policer)(nil),             // 213: vrx.v1.QosInterface.Policer
+	(*QosInterface_Store)(nil),               // 214: vrx.v1.QosInterface.Store
+	(*QosInterface_Mark)(nil),                // 215: vrx.v1.QosInterface.Mark
+	nil,                                      // 216: vrx.v1.HaConfig.VrrpEntry
+	(*VrrpInstance_Unicast)(nil),             // 217: vrx.v1.VrrpInstance.Unicast
+	(*VrrpInstance_Track)(nil),               // 218: vrx.v1.VrrpInstance.Track
+	(*HaCluster_Peer)(nil),                   // 219: vrx.v1.HaCluster.Peer
+	(*HaCluster_StateSync)(nil),              // 220: vrx.v1.HaCluster.StateSync
+	(*NatStaticMapping_Local)(nil),           // 221: vrx.v1.NatStaticMapping.Local
+	(*NatStaticMapping_External)(nil),        // 222: vrx.v1.NatStaticMapping.External
+	(*NatLoadBalancedMapping_External)(nil),  // 223: vrx.v1.NatLoadBalancedMapping.External
+	(*NatLoadBalancedMapping_Local)(nil),     // 224: vrx.v1.NatLoadBalancedMapping.Local
+	(*Nat64Config_Prefix)(nil),               // 225: vrx.v1.Nat64Config.Prefix
+	(*Nat64Config_Pool)(nil),                 // 226: vrx.v1.Nat64Config.Pool
+	(*Nat64Config_StaticBib)(nil),            // 227: vrx.v1.Nat64Config.StaticBib
+	(*Nat64Config_StaticBib_Endpoint)(nil),   // 228: vrx.v1.Nat64Config.StaticBib.Endpoint
+	(*Nat66Config_StaticMapping)(nil),        // 229: vrx.v1.Nat66Config.StaticMapping
+	(*Nptv6Config_Binding)(nil),              // 230: vrx.v1.Nptv6Config.Binding
+	(*Det44Config_Mapping)(nil),              // 231: vrx.v1.Det44Config.Mapping
+	(*DsliteConfig_Endpoint)(nil),            // 232: vrx.v1.DsliteConfig.Endpoint
+	(*DsliteConfig_Pool)(nil),                // 233: vrx.v1.DsliteConfig.Pool
+	(*MapDomain_Rule)(nil),                   // 234: vrx.v1.MapDomain.Rule
+	(*MapParameters_Fragmentation)(nil),      // 235: vrx.v1.MapParameters.Fragmentation
+	(*MapParameters_SecurityCheck)(nil),      // 236: vrx.v1.MapParameters.SecurityCheck
+	(*MapParameters_TrafficClass)(nil),       // 237: vrx.v1.MapParameters.TrafficClass
+	(*MapParameters_PreResolve)(nil),         // 238: vrx.v1.MapParameters.PreResolve
+	(*CnatConfig_Snat)(nil),                  // 239: vrx.v1.CnatConfig.Snat
+	(*CnatConfig_Snat_Addresses)(nil),        // 240: vrx.v1.CnatConfig.Snat.Addresses
+	(*CnatConfig_Snat_PolicyInterface)(nil),  // 241: vrx.v1.CnatConfig.Snat.PolicyInterface
+	nil,                                      // 242: vrx.v1.ObjectsConfig.AddressesEntry
+	nil,                                      // 243: vrx.v1.ObjectsConfig.AddressGroupsEntry
+	nil,                                      // 244: vrx.v1.ObjectsConfig.ServicesEntry
+	nil,                                      // 245: vrx.v1.ObjectsConfig.ServiceGroupsEntry
+	nil,                                      // 246: vrx.v1.ObjectsConfig.SchedulesEntry
+	nil,                                      // 247: vrx.v1.ObjectsConfig.ZonesEntry
+	nil,                                      // 248: vrx.v1.ObjectsConfig.TagsEntry
+	nil,                                      // 249: vrx.v1.AclConfig.ListsEntry
+	nil,                                      // 250: vrx.v1.AclConfig.MacipEntry
+	nil,                                      // 251: vrx.v1.AclConfig.HostEntry
+	nil,                                      // 252: vrx.v1.VpnConfig.RemoteAccessEntry
+	(*IpsecTunnel_RouteBased)(nil),           // 253: vrx.v1.IpsecTunnel.RouteBased
+	nil,                                      // 254: vrx.v1.IpsecConfig.ProposalsEntry
+	nil,                                      // 255: vrx.v1.IpsecConfig.TunnelsEntry
+	(*WireguardPeer_Endpoint)(nil),           // 256: vrx.v1.WireguardPeer.Endpoint
+	nil,                                      // 257: vrx.v1.WireguardInterface.PeersEntry
+	nil,                                      // 258: vrx.v1.WireguardConfig.InterfacesEntry
+	(*PkiCa_Crl)(nil),                        // 259: vrx.v1.PkiCa.Crl
+	(*PkiCertificate_Acme)(nil),              // 260: vrx.v1.PkiCertificate.Acme
+	(*PkiConfig_Hsm)(nil),                    // 261: vrx.v1.PkiConfig.Hsm
+	nil,                                      // 262: vrx.v1.PkiConfig.CasEntry
+	nil,                                      // 263: vrx.v1.PkiConfig.CertificatesEntry
+	(*RemoteAccessProfile_Radius)(nil),       // 264: vrx.v1.RemoteAccessProfile.Radius
+	(*RemoteAccessProfile_Radius_Server)(nil), // 265: vrx.v1.RemoteAccessProfile.Radius.Server
+	(*timestamppb.Timestamp)(nil),             // 266: google.protobuf.Timestamp
 }
 var file_vrx_v1_dataplane_proto_depIdxs = []int32{
 	29,  // 0: vrx.v1.ApplyRequest.desired_state:type_name -> vrx.v1.DesiredState
@@ -15709,8 +20852,8 @@ var file_vrx_v1_dataplane_proto_depIdxs = []int32{
 	8,   // 2: vrx.v1.ApplyResponse.results:type_name -> vrx.v1.ObjectResult
 	9,   // 3: vrx.v1.ApplyResponse.summary:type_name -> vrx.v1.ApplySummary
 	12,  // 4: vrx.v1.ApplyResponse.validation:type_name -> vrx.v1.ValidationReport
-	208, // 5: vrx.v1.ApplyResponse.applied_at:type_name -> google.protobuf.Timestamp
-	208, // 6: vrx.v1.ApplyResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
+	266, // 5: vrx.v1.ApplyResponse.applied_at:type_name -> google.protobuf.Timestamp
+	266, // 6: vrx.v1.ApplyResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
 	1,   // 7: vrx.v1.ObjectResult.op:type_name -> vrx.v1.ApplyOperation
 	2,   // 8: vrx.v1.ObjectResult.code:type_name -> vrx.v1.ObjectResultCode
 	29,  // 9: vrx.v1.DryRunRequest.desired_state:type_name -> vrx.v1.DesiredState
@@ -15719,39 +20862,39 @@ var file_vrx_v1_dataplane_proto_depIdxs = []int32{
 	8,   // 12: vrx.v1.ValidationReport.plan:type_name -> vrx.v1.ObjectResult
 	9,   // 13: vrx.v1.ValidationReport.summary:type_name -> vrx.v1.ApplySummary
 	29,  // 14: vrx.v1.RetrieveResponse.desired_state:type_name -> vrx.v1.DesiredState
-	208, // 15: vrx.v1.RetrieveResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	208, // 16: vrx.v1.StatsBatch.ts:type_name -> google.protobuf.Timestamp
+	266, // 15: vrx.v1.RetrieveResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	266, // 16: vrx.v1.StatsBatch.ts:type_name -> google.protobuf.Timestamp
 	17,  // 17: vrx.v1.StatsBatch.interface_counters:type_name -> vrx.v1.InterfaceCounters
 	18,  // 18: vrx.v1.StatsBatch.worker_cpu:type_name -> vrx.v1.WorkerCpu
 	4,   // 19: vrx.v1.StreamEventsRequest.kinds:type_name -> vrx.v1.EventKind
-	208, // 20: vrx.v1.Event.ts:type_name -> google.protobuf.Timestamp
+	266, // 20: vrx.v1.Event.ts:type_name -> google.protobuf.Timestamp
 	4,   // 21: vrx.v1.Event.kind:type_name -> vrx.v1.EventKind
 	9,   // 22: vrx.v1.Event.summary:type_name -> vrx.v1.ApplySummary
-	147, // 23: vrx.v1.Event.attributes:type_name -> vrx.v1.Event.AttributesEntry
+	169, // 23: vrx.v1.Event.attributes:type_name -> vrx.v1.Event.AttributesEntry
 	22,  // 24: vrx.v1.ActionRequest.ping:type_name -> vrx.v1.PingAction
 	23,  // 25: vrx.v1.ActionRequest.traceroute:type_name -> vrx.v1.TracerouteAction
 	24,  // 26: vrx.v1.ActionRequest.capture:type_name -> vrx.v1.CaptureAction
 	5,   // 27: vrx.v1.CaptureAction.direction:type_name -> vrx.v1.CaptureDirection
 	26,  // 28: vrx.v1.ActionOutput.done:type_name -> vrx.v1.ActionDone
-	148, // 29: vrx.v1.ActionDone.stats:type_name -> vrx.v1.ActionDone.StatsEntry
-	208, // 30: vrx.v1.HealthResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
-	208, // 31: vrx.v1.HealthResponse.last_reconcile_at:type_name -> google.protobuf.Timestamp
+	170, // 29: vrx.v1.ActionDone.stats:type_name -> vrx.v1.ActionDone.StatsEntry
+	266, // 30: vrx.v1.HealthResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
+	266, // 31: vrx.v1.HealthResponse.last_reconcile_at:type_name -> google.protobuf.Timestamp
 	30,  // 32: vrx.v1.DesiredState.system:type_name -> vrx.v1.SystemConfig
 	33,  // 33: vrx.v1.DesiredState.dataplane:type_name -> vrx.v1.DataplaneConfig
-	149, // 34: vrx.v1.DesiredState.interfaces:type_name -> vrx.v1.DesiredState.InterfacesEntry
-	150, // 35: vrx.v1.DesiredState.vrfs:type_name -> vrx.v1.DesiredState.VrfsEntry
+	171, // 34: vrx.v1.DesiredState.interfaces:type_name -> vrx.v1.DesiredState.InterfacesEntry
+	172, // 35: vrx.v1.DesiredState.vrfs:type_name -> vrx.v1.DesiredState.VrfsEntry
 	38,  // 36: vrx.v1.DesiredState.routing:type_name -> vrx.v1.RoutingConfig
-	86,  // 37: vrx.v1.DesiredState.nat:type_name -> vrx.v1.NatConfig
-	105, // 38: vrx.v1.DesiredState.objects:type_name -> vrx.v1.ObjectsConfig
-	115, // 39: vrx.v1.DesiredState.acl:type_name -> vrx.v1.AclConfig
-	128, // 40: vrx.v1.DesiredState.vpn:type_name -> vrx.v1.VpnConfig
+	108, // 37: vrx.v1.DesiredState.nat:type_name -> vrx.v1.NatConfig
+	127, // 38: vrx.v1.DesiredState.objects:type_name -> vrx.v1.ObjectsConfig
+	137, // 39: vrx.v1.DesiredState.acl:type_name -> vrx.v1.AclConfig
+	150, // 40: vrx.v1.DesiredState.vpn:type_name -> vrx.v1.VpnConfig
 	65,  // 41: vrx.v1.DesiredState.tunnels:type_name -> vrx.v1.TunnelsConfig
 	69,  // 42: vrx.v1.DesiredState.services:type_name -> vrx.v1.ServicesConfig
-	75,  // 43: vrx.v1.DesiredState.ha:type_name -> vrx.v1.HaConfig
-	77,  // 44: vrx.v1.DesiredState.management:type_name -> vrx.v1.ManagementConfig
+	96,  // 43: vrx.v1.DesiredState.ha:type_name -> vrx.v1.HaConfig
+	99,  // 44: vrx.v1.DesiredState.management:type_name -> vrx.v1.ManagementConfig
 	31,  // 45: vrx.v1.SystemConfig.banner:type_name -> vrx.v1.SystemBanner
 	32,  // 46: vrx.v1.SystemConfig.dns:type_name -> vrx.v1.SystemDns
-	151, // 47: vrx.v1.Interface.subinterfaces:type_name -> vrx.v1.Interface.SubinterfacesEntry
+	173, // 47: vrx.v1.Interface.subinterfaces:type_name -> vrx.v1.Interface.SubinterfacesEntry
 	35,  // 48: vrx.v1.Interface.dhcp_client:type_name -> vrx.v1.DhcpClient
 	35,  // 49: vrx.v1.Subinterface.dhcp_client:type_name -> vrx.v1.DhcpClient
 	39,  // 50: vrx.v1.RoutingConfig.static:type_name -> vrx.v1.StaticRoute
@@ -15762,8 +20905,8 @@ var file_vrx_v1_dataplane_proto_depIdxs = []int32{
 	64,  // 55: vrx.v1.RoutingConfig.bfd:type_name -> vrx.v1.BfdConfig
 	41,  // 56: vrx.v1.RoutingConfig.policy:type_name -> vrx.v1.RoutingPolicy
 	40,  // 57: vrx.v1.StaticRoute.next_hops:type_name -> vrx.v1.NextHop
-	152, // 58: vrx.v1.RoutingPolicy.prefix_lists:type_name -> vrx.v1.RoutingPolicy.PrefixListsEntry
-	153, // 59: vrx.v1.RoutingPolicy.route_maps:type_name -> vrx.v1.RoutingPolicy.RouteMapsEntry
+	174, // 58: vrx.v1.RoutingPolicy.prefix_lists:type_name -> vrx.v1.RoutingPolicy.PrefixListsEntry
+	175, // 59: vrx.v1.RoutingPolicy.route_maps:type_name -> vrx.v1.RoutingPolicy.RouteMapsEntry
 	43,  // 60: vrx.v1.PrefixList.rules:type_name -> vrx.v1.PrefixListRule
 	45,  // 61: vrx.v1.RouteMap.entries:type_name -> vrx.v1.RouteMapEntry
 	46,  // 62: vrx.v1.RouteMapEntry.match:type_name -> vrx.v1.RouteMapMatch
@@ -15778,182 +20921,251 @@ var file_vrx_v1_dataplane_proto_depIdxs = []int32{
 	50,  // 71: vrx.v1.BgpAfi.ipv6_unicast:type_name -> vrx.v1.BgpAddressFamily
 	51,  // 72: vrx.v1.BgpPeerGroup.afi:type_name -> vrx.v1.BgpAfi
 	51,  // 73: vrx.v1.BgpNeighbor.afi:type_name -> vrx.v1.BgpAfi
-	154, // 74: vrx.v1.BgpConfig.peer_groups:type_name -> vrx.v1.BgpConfig.PeerGroupsEntry
-	155, // 75: vrx.v1.BgpConfig.neighbors:type_name -> vrx.v1.BgpConfig.NeighborsEntry
+	176, // 74: vrx.v1.BgpConfig.peer_groups:type_name -> vrx.v1.BgpConfig.PeerGroupsEntry
+	177, // 75: vrx.v1.BgpConfig.neighbors:type_name -> vrx.v1.BgpConfig.NeighborsEntry
 	54,  // 76: vrx.v1.BgpConfig.networks:type_name -> vrx.v1.BgpNetwork
 	49,  // 77: vrx.v1.BgpConfig.redistribute:type_name -> vrx.v1.Redistribute
-	156, // 78: vrx.v1.OspfConfig.areas:type_name -> vrx.v1.OspfConfig.AreasEntry
-	157, // 79: vrx.v1.OspfConfig.interfaces:type_name -> vrx.v1.OspfConfig.InterfacesEntry
+	178, // 78: vrx.v1.OspfConfig.areas:type_name -> vrx.v1.OspfConfig.AreasEntry
+	179, // 79: vrx.v1.OspfConfig.interfaces:type_name -> vrx.v1.OspfConfig.InterfacesEntry
 	49,  // 80: vrx.v1.OspfConfig.redistribute:type_name -> vrx.v1.Redistribute
-	158, // 81: vrx.v1.IsisConfig.interfaces:type_name -> vrx.v1.IsisConfig.InterfacesEntry
+	180, // 81: vrx.v1.IsisConfig.interfaces:type_name -> vrx.v1.IsisConfig.InterfacesEntry
 	49,  // 82: vrx.v1.IsisConfig.redistribute:type_name -> vrx.v1.Redistribute
-	159, // 83: vrx.v1.RipConfig.interfaces:type_name -> vrx.v1.RipConfig.InterfacesEntry
+	181, // 83: vrx.v1.RipConfig.interfaces:type_name -> vrx.v1.RipConfig.InterfacesEntry
 	49,  // 84: vrx.v1.RipConfig.redistribute:type_name -> vrx.v1.Redistribute
 	63,  // 85: vrx.v1.BfdConfig.sessions:type_name -> vrx.v1.BfdSession
-	160, // 86: vrx.v1.TunnelsConfig.gre:type_name -> vrx.v1.TunnelsConfig.GreEntry
-	161, // 87: vrx.v1.TunnelsConfig.vxlan:type_name -> vrx.v1.TunnelsConfig.VxlanEntry
-	162, // 88: vrx.v1.TunnelsConfig.ipip:type_name -> vrx.v1.TunnelsConfig.IpipEntry
-	70,  // 89: vrx.v1.ServicesConfig.dhcp:type_name -> vrx.v1.DhcpService
-	71,  // 90: vrx.v1.ServicesConfig.dns:type_name -> vrx.v1.DnsService
-	72,  // 91: vrx.v1.ServicesConfig.snmp:type_name -> vrx.v1.SnmpService
-	73,  // 92: vrx.v1.ServicesConfig.lldp:type_name -> vrx.v1.LldpService
-	74,  // 93: vrx.v1.ServicesConfig.ipfix:type_name -> vrx.v1.IpfixService
-	76,  // 94: vrx.v1.HaConfig.vrrp:type_name -> vrx.v1.VrrpInstance
-	78,  // 95: vrx.v1.ManagementConfig.users:type_name -> vrx.v1.ManagementUser
-	79,  // 96: vrx.v1.ManagementConfig.aaa:type_name -> vrx.v1.ManagementAaa
-	84,  // 97: vrx.v1.ManagementConfig.tls:type_name -> vrx.v1.ManagementTls
-	85,  // 98: vrx.v1.ManagementConfig.syslog:type_name -> vrx.v1.SyslogTarget
-	80,  // 99: vrx.v1.ManagementAaa.radius:type_name -> vrx.v1.AaaRadius
-	82,  // 100: vrx.v1.ManagementAaa.tacacs:type_name -> vrx.v1.AaaTacacs
-	81,  // 101: vrx.v1.AaaRadius.servers:type_name -> vrx.v1.RadiusServer
-	83,  // 102: vrx.v1.AaaTacacs.servers:type_name -> vrx.v1.TacacsServer
-	88,  // 103: vrx.v1.NatConfig.pools:type_name -> vrx.v1.NatPool
-	89,  // 104: vrx.v1.NatConfig.static_mappings:type_name -> vrx.v1.NatStaticMapping
-	90,  // 105: vrx.v1.NatConfig.identity_mappings:type_name -> vrx.v1.NatIdentityMapping
-	91,  // 106: vrx.v1.NatConfig.load_balanced_mappings:type_name -> vrx.v1.NatLoadBalancedMapping
-	87,  // 107: vrx.v1.NatConfig.timeouts:type_name -> vrx.v1.NatTimeouts
-	92,  // 108: vrx.v1.NatConfig.ipfix:type_name -> vrx.v1.NatIpfix
-	93,  // 109: vrx.v1.NatConfig.nat64:type_name -> vrx.v1.Nat64Config
-	94,  // 110: vrx.v1.NatConfig.nat66:type_name -> vrx.v1.Nat66Config
-	95,  // 111: vrx.v1.NatConfig.nptv6:type_name -> vrx.v1.Nptv6Config
-	96,  // 112: vrx.v1.NatConfig.det44:type_name -> vrx.v1.Det44Config
-	97,  // 113: vrx.v1.NatConfig.dslite:type_name -> vrx.v1.DsliteConfig
-	101, // 114: vrx.v1.NatConfig.map:type_name -> vrx.v1.MapConfig
-	104, // 115: vrx.v1.NatConfig.cnat:type_name -> vrx.v1.CnatConfig
-	163, // 116: vrx.v1.NatStaticMapping.local:type_name -> vrx.v1.NatStaticMapping.Local
-	164, // 117: vrx.v1.NatStaticMapping.external:type_name -> vrx.v1.NatStaticMapping.External
-	165, // 118: vrx.v1.NatLoadBalancedMapping.external:type_name -> vrx.v1.NatLoadBalancedMapping.External
-	166, // 119: vrx.v1.NatLoadBalancedMapping.locals:type_name -> vrx.v1.NatLoadBalancedMapping.Local
-	167, // 120: vrx.v1.Nat64Config.prefixes:type_name -> vrx.v1.Nat64Config.Prefix
-	168, // 121: vrx.v1.Nat64Config.pools:type_name -> vrx.v1.Nat64Config.Pool
-	169, // 122: vrx.v1.Nat64Config.static_bibs:type_name -> vrx.v1.Nat64Config.StaticBib
-	87,  // 123: vrx.v1.Nat64Config.timeouts:type_name -> vrx.v1.NatTimeouts
-	171, // 124: vrx.v1.Nat66Config.static_mappings:type_name -> vrx.v1.Nat66Config.StaticMapping
-	172, // 125: vrx.v1.Nptv6Config.bindings:type_name -> vrx.v1.Nptv6Config.Binding
-	173, // 126: vrx.v1.Det44Config.mappings:type_name -> vrx.v1.Det44Config.Mapping
-	87,  // 127: vrx.v1.Det44Config.timeouts:type_name -> vrx.v1.NatTimeouts
-	174, // 128: vrx.v1.DsliteConfig.aftr:type_name -> vrx.v1.DsliteConfig.Endpoint
-	174, // 129: vrx.v1.DsliteConfig.b4:type_name -> vrx.v1.DsliteConfig.Endpoint
-	175, // 130: vrx.v1.DsliteConfig.pools:type_name -> vrx.v1.DsliteConfig.Pool
-	176, // 131: vrx.v1.MapDomain.rules:type_name -> vrx.v1.MapDomain.Rule
-	177, // 132: vrx.v1.MapParameters.fragmentation:type_name -> vrx.v1.MapParameters.Fragmentation
-	178, // 133: vrx.v1.MapParameters.security_check:type_name -> vrx.v1.MapParameters.SecurityCheck
-	179, // 134: vrx.v1.MapParameters.traffic_class:type_name -> vrx.v1.MapParameters.TrafficClass
-	180, // 135: vrx.v1.MapParameters.pre_resolve:type_name -> vrx.v1.MapParameters.PreResolve
-	98,  // 136: vrx.v1.MapConfig.domains:type_name -> vrx.v1.MapDomain
-	99,  // 137: vrx.v1.MapConfig.parameters:type_name -> vrx.v1.MapParameters
-	100, // 138: vrx.v1.MapConfig.interfaces:type_name -> vrx.v1.MapInterface
-	102, // 139: vrx.v1.CnatTranslation.vip:type_name -> vrx.v1.CnatEndpoint
-	102, // 140: vrx.v1.CnatTranslation.backends:type_name -> vrx.v1.CnatEndpoint
-	103, // 141: vrx.v1.CnatConfig.translations:type_name -> vrx.v1.CnatTranslation
-	181, // 142: vrx.v1.CnatConfig.snat:type_name -> vrx.v1.CnatConfig.Snat
-	184, // 143: vrx.v1.ObjectsConfig.addresses:type_name -> vrx.v1.ObjectsConfig.AddressesEntry
-	185, // 144: vrx.v1.ObjectsConfig.address_groups:type_name -> vrx.v1.ObjectsConfig.AddressGroupsEntry
-	186, // 145: vrx.v1.ObjectsConfig.services:type_name -> vrx.v1.ObjectsConfig.ServicesEntry
-	187, // 146: vrx.v1.ObjectsConfig.service_groups:type_name -> vrx.v1.ObjectsConfig.ServiceGroupsEntry
-	188, // 147: vrx.v1.ObjectsConfig.schedules:type_name -> vrx.v1.ObjectsConfig.SchedulesEntry
-	189, // 148: vrx.v1.ObjectsConfig.zones:type_name -> vrx.v1.ObjectsConfig.ZonesEntry
-	190, // 149: vrx.v1.ObjectsConfig.tags:type_name -> vrx.v1.ObjectsConfig.TagsEntry
-	108, // 150: vrx.v1.ServiceSpec.tcp_flags:type_name -> vrx.v1.TcpFlags
-	108, // 151: vrx.v1.ServiceObject.tcp_flags:type_name -> vrx.v1.TcpFlags
-	191, // 152: vrx.v1.AclConfig.lists:type_name -> vrx.v1.AclConfig.ListsEntry
-	192, // 153: vrx.v1.AclConfig.macip:type_name -> vrx.v1.AclConfig.MacipEntry
-	193, // 154: vrx.v1.AclConfig.host:type_name -> vrx.v1.AclConfig.HostEntry
-	125, // 155: vrx.v1.AclConfig.attachments:type_name -> vrx.v1.AclAttachment
-	126, // 156: vrx.v1.AclConfig.macip_attachments:type_name -> vrx.v1.MacipAttachment
-	127, // 157: vrx.v1.AclConfig.host_attachments:type_name -> vrx.v1.HostAttachment
-	109, // 158: vrx.v1.ServiceMatch.spec:type_name -> vrx.v1.ServiceSpec
-	116, // 159: vrx.v1.AclRule.source:type_name -> vrx.v1.AddressMatch
-	116, // 160: vrx.v1.AclRule.destination:type_name -> vrx.v1.AddressMatch
-	117, // 161: vrx.v1.AclRule.service:type_name -> vrx.v1.ServiceMatch
-	118, // 162: vrx.v1.AclList.rules:type_name -> vrx.v1.AclRule
-	120, // 163: vrx.v1.MacipList.rules:type_name -> vrx.v1.MacipRule
-	116, // 164: vrx.v1.HostRule.source:type_name -> vrx.v1.AddressMatch
-	116, // 165: vrx.v1.HostRule.destination:type_name -> vrx.v1.AddressMatch
-	117, // 166: vrx.v1.HostRule.service:type_name -> vrx.v1.ServiceMatch
-	122, // 167: vrx.v1.HostList.rules:type_name -> vrx.v1.HostRule
-	124, // 168: vrx.v1.AclAttachment.target:type_name -> vrx.v1.AttachmentTarget
-	137, // 169: vrx.v1.VpnConfig.ipsec:type_name -> vrx.v1.IpsecConfig
-	140, // 170: vrx.v1.VpnConfig.wireguard:type_name -> vrx.v1.WireguardConfig
-	143, // 171: vrx.v1.VpnConfig.pki:type_name -> vrx.v1.PkiConfig
-	194, // 172: vrx.v1.VpnConfig.remote_access:type_name -> vrx.v1.VpnConfig.RemoteAccessEntry
-	129, // 173: vrx.v1.IpsecProposal.ike:type_name -> vrx.v1.IkeProposal
-	130, // 174: vrx.v1.IpsecProposal.esp:type_name -> vrx.v1.EspProposal
-	132, // 175: vrx.v1.IpsecTunnel.auth:type_name -> vrx.v1.IpsecAuth
-	133, // 176: vrx.v1.IpsecTunnel.dpd:type_name -> vrx.v1.IpsecDpd
-	134, // 177: vrx.v1.IpsecTunnel.rekey:type_name -> vrx.v1.IpsecRekey
-	195, // 178: vrx.v1.IpsecTunnel.route_based:type_name -> vrx.v1.IpsecTunnel.RouteBased
-	136, // 179: vrx.v1.IpsecConfig.settings:type_name -> vrx.v1.IpsecSettings
-	196, // 180: vrx.v1.IpsecConfig.proposals:type_name -> vrx.v1.IpsecConfig.ProposalsEntry
-	197, // 181: vrx.v1.IpsecConfig.tunnels:type_name -> vrx.v1.IpsecConfig.TunnelsEntry
-	198, // 182: vrx.v1.WireguardPeer.endpoint:type_name -> vrx.v1.WireguardPeer.Endpoint
-	199, // 183: vrx.v1.WireguardInterface.peers:type_name -> vrx.v1.WireguardInterface.PeersEntry
-	200, // 184: vrx.v1.WireguardConfig.interfaces:type_name -> vrx.v1.WireguardConfig.InterfacesEntry
-	201, // 185: vrx.v1.PkiCa.crl:type_name -> vrx.v1.PkiCa.Crl
-	202, // 186: vrx.v1.PkiCertificate.acme:type_name -> vrx.v1.PkiCertificate.Acme
-	204, // 187: vrx.v1.PkiConfig.cas:type_name -> vrx.v1.PkiConfig.CasEntry
-	205, // 188: vrx.v1.PkiConfig.certificates:type_name -> vrx.v1.PkiConfig.CertificatesEntry
-	203, // 189: vrx.v1.PkiConfig.hsm:type_name -> vrx.v1.PkiConfig.Hsm
-	144, // 190: vrx.v1.RemoteAccessProfile.pools:type_name -> vrx.v1.RemoteAccessPool
-	145, // 191: vrx.v1.RemoteAccessProfile.users:type_name -> vrx.v1.RemoteAccessUser
-	206, // 192: vrx.v1.RemoteAccessProfile.radius:type_name -> vrx.v1.RemoteAccessProfile.Radius
-	133, // 193: vrx.v1.RemoteAccessProfile.dpd:type_name -> vrx.v1.IpsecDpd
-	134, // 194: vrx.v1.RemoteAccessProfile.rekey:type_name -> vrx.v1.IpsecRekey
-	34,  // 195: vrx.v1.DesiredState.InterfacesEntry.value:type_name -> vrx.v1.Interface
-	37,  // 196: vrx.v1.DesiredState.VrfsEntry.value:type_name -> vrx.v1.Vrf
-	36,  // 197: vrx.v1.Interface.SubinterfacesEntry.value:type_name -> vrx.v1.Subinterface
-	42,  // 198: vrx.v1.RoutingPolicy.PrefixListsEntry.value:type_name -> vrx.v1.PrefixList
-	44,  // 199: vrx.v1.RoutingPolicy.RouteMapsEntry.value:type_name -> vrx.v1.RouteMap
-	52,  // 200: vrx.v1.BgpConfig.PeerGroupsEntry.value:type_name -> vrx.v1.BgpPeerGroup
-	53,  // 201: vrx.v1.BgpConfig.NeighborsEntry.value:type_name -> vrx.v1.BgpNeighbor
-	56,  // 202: vrx.v1.OspfConfig.AreasEntry.value:type_name -> vrx.v1.OspfArea
-	57,  // 203: vrx.v1.OspfConfig.InterfacesEntry.value:type_name -> vrx.v1.OspfInterface
-	59,  // 204: vrx.v1.IsisConfig.InterfacesEntry.value:type_name -> vrx.v1.IsisInterface
-	61,  // 205: vrx.v1.RipConfig.InterfacesEntry.value:type_name -> vrx.v1.RipInterface
-	66,  // 206: vrx.v1.TunnelsConfig.GreEntry.value:type_name -> vrx.v1.GreTunnel
-	67,  // 207: vrx.v1.TunnelsConfig.VxlanEntry.value:type_name -> vrx.v1.VxlanTunnel
-	68,  // 208: vrx.v1.TunnelsConfig.IpipEntry.value:type_name -> vrx.v1.IpipTunnel
-	170, // 209: vrx.v1.Nat64Config.StaticBib.inside:type_name -> vrx.v1.Nat64Config.StaticBib.Endpoint
-	170, // 210: vrx.v1.Nat64Config.StaticBib.outside:type_name -> vrx.v1.Nat64Config.StaticBib.Endpoint
-	182, // 211: vrx.v1.CnatConfig.Snat.addresses:type_name -> vrx.v1.CnatConfig.Snat.Addresses
-	183, // 212: vrx.v1.CnatConfig.Snat.interfaces:type_name -> vrx.v1.CnatConfig.Snat.PolicyInterface
-	106, // 213: vrx.v1.ObjectsConfig.AddressesEntry.value:type_name -> vrx.v1.AddressObject
-	107, // 214: vrx.v1.ObjectsConfig.AddressGroupsEntry.value:type_name -> vrx.v1.AddressGroup
-	110, // 215: vrx.v1.ObjectsConfig.ServicesEntry.value:type_name -> vrx.v1.ServiceObject
-	111, // 216: vrx.v1.ObjectsConfig.ServiceGroupsEntry.value:type_name -> vrx.v1.ServiceGroup
-	112, // 217: vrx.v1.ObjectsConfig.SchedulesEntry.value:type_name -> vrx.v1.Schedule
-	113, // 218: vrx.v1.ObjectsConfig.ZonesEntry.value:type_name -> vrx.v1.Zone
-	114, // 219: vrx.v1.ObjectsConfig.TagsEntry.value:type_name -> vrx.v1.Tag
-	119, // 220: vrx.v1.AclConfig.ListsEntry.value:type_name -> vrx.v1.AclList
-	121, // 221: vrx.v1.AclConfig.MacipEntry.value:type_name -> vrx.v1.MacipList
-	123, // 222: vrx.v1.AclConfig.HostEntry.value:type_name -> vrx.v1.HostList
-	146, // 223: vrx.v1.VpnConfig.RemoteAccessEntry.value:type_name -> vrx.v1.RemoteAccessProfile
-	131, // 224: vrx.v1.IpsecConfig.ProposalsEntry.value:type_name -> vrx.v1.IpsecProposal
-	135, // 225: vrx.v1.IpsecConfig.TunnelsEntry.value:type_name -> vrx.v1.IpsecTunnel
-	138, // 226: vrx.v1.WireguardInterface.PeersEntry.value:type_name -> vrx.v1.WireguardPeer
-	139, // 227: vrx.v1.WireguardConfig.InterfacesEntry.value:type_name -> vrx.v1.WireguardInterface
-	141, // 228: vrx.v1.PkiConfig.CasEntry.value:type_name -> vrx.v1.PkiCa
-	142, // 229: vrx.v1.PkiConfig.CertificatesEntry.value:type_name -> vrx.v1.PkiCertificate
-	207, // 230: vrx.v1.RemoteAccessProfile.Radius.servers:type_name -> vrx.v1.RemoteAccessProfile.Radius.Server
-	6,   // 231: vrx.v1.Dataplane.Apply:input_type -> vrx.v1.ApplyRequest
-	13,  // 232: vrx.v1.Dataplane.Retrieve:input_type -> vrx.v1.RetrieveRequest
-	10,  // 233: vrx.v1.Dataplane.DryRun:input_type -> vrx.v1.DryRunRequest
-	15,  // 234: vrx.v1.Dataplane.StreamStats:input_type -> vrx.v1.StreamStatsRequest
-	19,  // 235: vrx.v1.Dataplane.StreamEvents:input_type -> vrx.v1.StreamEventsRequest
-	21,  // 236: vrx.v1.Dataplane.Action:input_type -> vrx.v1.ActionRequest
-	27,  // 237: vrx.v1.Dataplane.Health:input_type -> vrx.v1.HealthRequest
-	7,   // 238: vrx.v1.Dataplane.Apply:output_type -> vrx.v1.ApplyResponse
-	14,  // 239: vrx.v1.Dataplane.Retrieve:output_type -> vrx.v1.RetrieveResponse
-	12,  // 240: vrx.v1.Dataplane.DryRun:output_type -> vrx.v1.ValidationReport
-	16,  // 241: vrx.v1.Dataplane.StreamStats:output_type -> vrx.v1.StatsBatch
-	20,  // 242: vrx.v1.Dataplane.StreamEvents:output_type -> vrx.v1.Event
-	25,  // 243: vrx.v1.Dataplane.Action:output_type -> vrx.v1.ActionOutput
-	28,  // 244: vrx.v1.Dataplane.Health:output_type -> vrx.v1.HealthResponse
-	238, // [238:245] is the sub-list for method output_type
-	231, // [231:238] is the sub-list for method input_type
-	231, // [231:231] is the sub-list for extension type_name
-	231, // [231:231] is the sub-list for extension extendee
-	0,   // [0:231] is the sub-list for field type_name
+	182, // 86: vrx.v1.TunnelsConfig.gre:type_name -> vrx.v1.TunnelsConfig.GreEntry
+	183, // 87: vrx.v1.TunnelsConfig.vxlan:type_name -> vrx.v1.TunnelsConfig.VxlanEntry
+	184, // 88: vrx.v1.TunnelsConfig.ipip:type_name -> vrx.v1.TunnelsConfig.IpipEntry
+	71,  // 89: vrx.v1.ServicesConfig.dhcp:type_name -> vrx.v1.DhcpService
+	78,  // 90: vrx.v1.ServicesConfig.dns:type_name -> vrx.v1.DnsService
+	85,  // 91: vrx.v1.ServicesConfig.snmp:type_name -> vrx.v1.SnmpService
+	86,  // 92: vrx.v1.ServicesConfig.lldp:type_name -> vrx.v1.LldpService
+	87,  // 93: vrx.v1.ServicesConfig.ipfix:type_name -> vrx.v1.IpfixService
+	88,  // 94: vrx.v1.ServicesConfig.ntp:type_name -> vrx.v1.NtpService
+	89,  // 95: vrx.v1.ServicesConfig.qos:type_name -> vrx.v1.QosService
+	185, // 96: vrx.v1.DhcpService.servers:type_name -> vrx.v1.DhcpService.ServersEntry
+	186, // 97: vrx.v1.DhcpService.relays:type_name -> vrx.v1.DhcpService.RelaysEntry
+	72,  // 98: vrx.v1.DhcpReservation.options:type_name -> vrx.v1.DhcpOption
+	73,  // 99: vrx.v1.DhcpSubnet.pools:type_name -> vrx.v1.DhcpPool
+	72,  // 100: vrx.v1.DhcpSubnet.options:type_name -> vrx.v1.DhcpOption
+	187, // 101: vrx.v1.DhcpSubnet.reservations:type_name -> vrx.v1.DhcpSubnet.ReservationsEntry
+	188, // 102: vrx.v1.DhcpServer.subnets:type_name -> vrx.v1.DhcpServer.SubnetsEntry
+	72,  // 103: vrx.v1.DhcpServer.options:type_name -> vrx.v1.DhcpOption
+	190, // 104: vrx.v1.DnsService.resolvers:type_name -> vrx.v1.DnsService.ResolversEntry
+	189, // 105: vrx.v1.DnsService.vpp_cache:type_name -> vrx.v1.DnsService.VppCache
+	79,  // 106: vrx.v1.DnsForwardZone.forwarders:type_name -> vrx.v1.DnsUpstream
+	81,  // 107: vrx.v1.DnsLocalZone.records:type_name -> vrx.v1.DnsRecord
+	70,  // 108: vrx.v1.DnsResolver.listen:type_name -> vrx.v1.SocketAddress
+	83,  // 109: vrx.v1.DnsResolver.access_control:type_name -> vrx.v1.DnsAccessControl
+	79,  // 110: vrx.v1.DnsResolver.forwarders:type_name -> vrx.v1.DnsUpstream
+	80,  // 111: vrx.v1.DnsResolver.forward_zones:type_name -> vrx.v1.DnsForwardZone
+	82,  // 112: vrx.v1.DnsResolver.local_zones:type_name -> vrx.v1.DnsLocalZone
+	191, // 113: vrx.v1.DnsResolver.dnssec:type_name -> vrx.v1.DnsResolver.Dnssec
+	192, // 114: vrx.v1.DnsResolver.cache:type_name -> vrx.v1.DnsResolver.Cache
+	70,  // 115: vrx.v1.SnmpService.listen:type_name -> vrx.v1.SocketAddress
+	196, // 116: vrx.v1.SnmpService.communities:type_name -> vrx.v1.SnmpService.CommunitiesEntry
+	197, // 117: vrx.v1.SnmpService.v3_users:type_name -> vrx.v1.SnmpService.V3UsersEntry
+	195, // 118: vrx.v1.SnmpService.trap_receivers:type_name -> vrx.v1.SnmpService.TrapReceiver
+	198, // 119: vrx.v1.LldpService.interfaces:type_name -> vrx.v1.LldpService.Interface
+	202, // 120: vrx.v1.IpfixService.exporters:type_name -> vrx.v1.IpfixService.ExportersEntry
+	200, // 121: vrx.v1.IpfixService.flowprobe:type_name -> vrx.v1.IpfixService.Flowprobe
+	201, // 122: vrx.v1.IpfixService.sflow:type_name -> vrx.v1.IpfixService.Sflow
+	204, // 123: vrx.v1.NtpService.servers:type_name -> vrx.v1.NtpService.Server
+	205, // 124: vrx.v1.NtpService.rate_limit:type_name -> vrx.v1.NtpService.RateLimit
+	206, // 125: vrx.v1.NtpService.nts_server:type_name -> vrx.v1.NtpService.NtsServer
+	207, // 126: vrx.v1.NtpService.makestep:type_name -> vrx.v1.NtpService.Makestep
+	208, // 127: vrx.v1.QosService.policers:type_name -> vrx.v1.QosService.PolicersEntry
+	209, // 128: vrx.v1.QosService.shapers:type_name -> vrx.v1.QosService.ShapersEntry
+	210, // 129: vrx.v1.QosService.maps:type_name -> vrx.v1.QosService.MapsEntry
+	211, // 130: vrx.v1.QosService.interfaces:type_name -> vrx.v1.QosService.InterfacesEntry
+	90,  // 131: vrx.v1.QosPolicer.conform_action:type_name -> vrx.v1.QosPolicerAction
+	90,  // 132: vrx.v1.QosPolicer.exceed_action:type_name -> vrx.v1.QosPolicerAction
+	90,  // 133: vrx.v1.QosPolicer.violate_action:type_name -> vrx.v1.QosPolicerAction
+	212, // 134: vrx.v1.QosMap.rows:type_name -> vrx.v1.QosMap.Rows
+	213, // 135: vrx.v1.QosInterface.policer:type_name -> vrx.v1.QosInterface.Policer
+	214, // 136: vrx.v1.QosInterface.store:type_name -> vrx.v1.QosInterface.Store
+	215, // 137: vrx.v1.QosInterface.mark:type_name -> vrx.v1.QosInterface.Mark
+	216, // 138: vrx.v1.HaConfig.vrrp:type_name -> vrx.v1.HaConfig.VrrpEntry
+	98,  // 139: vrx.v1.HaConfig.cluster:type_name -> vrx.v1.HaCluster
+	217, // 140: vrx.v1.VrrpInstance.unicast:type_name -> vrx.v1.VrrpInstance.Unicast
+	218, // 141: vrx.v1.VrrpInstance.track:type_name -> vrx.v1.VrrpInstance.Track
+	219, // 142: vrx.v1.HaCluster.peers:type_name -> vrx.v1.HaCluster.Peer
+	220, // 143: vrx.v1.HaCluster.state_sync:type_name -> vrx.v1.HaCluster.StateSync
+	100, // 144: vrx.v1.ManagementConfig.users:type_name -> vrx.v1.ManagementUser
+	101, // 145: vrx.v1.ManagementConfig.aaa:type_name -> vrx.v1.ManagementAaa
+	106, // 146: vrx.v1.ManagementConfig.tls:type_name -> vrx.v1.ManagementTls
+	107, // 147: vrx.v1.ManagementConfig.syslog:type_name -> vrx.v1.SyslogTarget
+	102, // 148: vrx.v1.ManagementAaa.radius:type_name -> vrx.v1.AaaRadius
+	104, // 149: vrx.v1.ManagementAaa.tacacs:type_name -> vrx.v1.AaaTacacs
+	103, // 150: vrx.v1.AaaRadius.servers:type_name -> vrx.v1.RadiusServer
+	105, // 151: vrx.v1.AaaTacacs.servers:type_name -> vrx.v1.TacacsServer
+	110, // 152: vrx.v1.NatConfig.pools:type_name -> vrx.v1.NatPool
+	111, // 153: vrx.v1.NatConfig.static_mappings:type_name -> vrx.v1.NatStaticMapping
+	112, // 154: vrx.v1.NatConfig.identity_mappings:type_name -> vrx.v1.NatIdentityMapping
+	113, // 155: vrx.v1.NatConfig.load_balanced_mappings:type_name -> vrx.v1.NatLoadBalancedMapping
+	109, // 156: vrx.v1.NatConfig.timeouts:type_name -> vrx.v1.NatTimeouts
+	114, // 157: vrx.v1.NatConfig.ipfix:type_name -> vrx.v1.NatIpfix
+	115, // 158: vrx.v1.NatConfig.nat64:type_name -> vrx.v1.Nat64Config
+	116, // 159: vrx.v1.NatConfig.nat66:type_name -> vrx.v1.Nat66Config
+	117, // 160: vrx.v1.NatConfig.nptv6:type_name -> vrx.v1.Nptv6Config
+	118, // 161: vrx.v1.NatConfig.det44:type_name -> vrx.v1.Det44Config
+	119, // 162: vrx.v1.NatConfig.dslite:type_name -> vrx.v1.DsliteConfig
+	123, // 163: vrx.v1.NatConfig.map:type_name -> vrx.v1.MapConfig
+	126, // 164: vrx.v1.NatConfig.cnat:type_name -> vrx.v1.CnatConfig
+	221, // 165: vrx.v1.NatStaticMapping.local:type_name -> vrx.v1.NatStaticMapping.Local
+	222, // 166: vrx.v1.NatStaticMapping.external:type_name -> vrx.v1.NatStaticMapping.External
+	223, // 167: vrx.v1.NatLoadBalancedMapping.external:type_name -> vrx.v1.NatLoadBalancedMapping.External
+	224, // 168: vrx.v1.NatLoadBalancedMapping.locals:type_name -> vrx.v1.NatLoadBalancedMapping.Local
+	225, // 169: vrx.v1.Nat64Config.prefixes:type_name -> vrx.v1.Nat64Config.Prefix
+	226, // 170: vrx.v1.Nat64Config.pools:type_name -> vrx.v1.Nat64Config.Pool
+	227, // 171: vrx.v1.Nat64Config.static_bibs:type_name -> vrx.v1.Nat64Config.StaticBib
+	109, // 172: vrx.v1.Nat64Config.timeouts:type_name -> vrx.v1.NatTimeouts
+	229, // 173: vrx.v1.Nat66Config.static_mappings:type_name -> vrx.v1.Nat66Config.StaticMapping
+	230, // 174: vrx.v1.Nptv6Config.bindings:type_name -> vrx.v1.Nptv6Config.Binding
+	231, // 175: vrx.v1.Det44Config.mappings:type_name -> vrx.v1.Det44Config.Mapping
+	109, // 176: vrx.v1.Det44Config.timeouts:type_name -> vrx.v1.NatTimeouts
+	232, // 177: vrx.v1.DsliteConfig.aftr:type_name -> vrx.v1.DsliteConfig.Endpoint
+	232, // 178: vrx.v1.DsliteConfig.b4:type_name -> vrx.v1.DsliteConfig.Endpoint
+	233, // 179: vrx.v1.DsliteConfig.pools:type_name -> vrx.v1.DsliteConfig.Pool
+	234, // 180: vrx.v1.MapDomain.rules:type_name -> vrx.v1.MapDomain.Rule
+	235, // 181: vrx.v1.MapParameters.fragmentation:type_name -> vrx.v1.MapParameters.Fragmentation
+	236, // 182: vrx.v1.MapParameters.security_check:type_name -> vrx.v1.MapParameters.SecurityCheck
+	237, // 183: vrx.v1.MapParameters.traffic_class:type_name -> vrx.v1.MapParameters.TrafficClass
+	238, // 184: vrx.v1.MapParameters.pre_resolve:type_name -> vrx.v1.MapParameters.PreResolve
+	120, // 185: vrx.v1.MapConfig.domains:type_name -> vrx.v1.MapDomain
+	121, // 186: vrx.v1.MapConfig.parameters:type_name -> vrx.v1.MapParameters
+	122, // 187: vrx.v1.MapConfig.interfaces:type_name -> vrx.v1.MapInterface
+	124, // 188: vrx.v1.CnatTranslation.vip:type_name -> vrx.v1.CnatEndpoint
+	124, // 189: vrx.v1.CnatTranslation.backends:type_name -> vrx.v1.CnatEndpoint
+	125, // 190: vrx.v1.CnatConfig.translations:type_name -> vrx.v1.CnatTranslation
+	239, // 191: vrx.v1.CnatConfig.snat:type_name -> vrx.v1.CnatConfig.Snat
+	242, // 192: vrx.v1.ObjectsConfig.addresses:type_name -> vrx.v1.ObjectsConfig.AddressesEntry
+	243, // 193: vrx.v1.ObjectsConfig.address_groups:type_name -> vrx.v1.ObjectsConfig.AddressGroupsEntry
+	244, // 194: vrx.v1.ObjectsConfig.services:type_name -> vrx.v1.ObjectsConfig.ServicesEntry
+	245, // 195: vrx.v1.ObjectsConfig.service_groups:type_name -> vrx.v1.ObjectsConfig.ServiceGroupsEntry
+	246, // 196: vrx.v1.ObjectsConfig.schedules:type_name -> vrx.v1.ObjectsConfig.SchedulesEntry
+	247, // 197: vrx.v1.ObjectsConfig.zones:type_name -> vrx.v1.ObjectsConfig.ZonesEntry
+	248, // 198: vrx.v1.ObjectsConfig.tags:type_name -> vrx.v1.ObjectsConfig.TagsEntry
+	130, // 199: vrx.v1.ServiceSpec.tcp_flags:type_name -> vrx.v1.TcpFlags
+	130, // 200: vrx.v1.ServiceObject.tcp_flags:type_name -> vrx.v1.TcpFlags
+	249, // 201: vrx.v1.AclConfig.lists:type_name -> vrx.v1.AclConfig.ListsEntry
+	250, // 202: vrx.v1.AclConfig.macip:type_name -> vrx.v1.AclConfig.MacipEntry
+	251, // 203: vrx.v1.AclConfig.host:type_name -> vrx.v1.AclConfig.HostEntry
+	147, // 204: vrx.v1.AclConfig.attachments:type_name -> vrx.v1.AclAttachment
+	148, // 205: vrx.v1.AclConfig.macip_attachments:type_name -> vrx.v1.MacipAttachment
+	149, // 206: vrx.v1.AclConfig.host_attachments:type_name -> vrx.v1.HostAttachment
+	131, // 207: vrx.v1.ServiceMatch.spec:type_name -> vrx.v1.ServiceSpec
+	138, // 208: vrx.v1.AclRule.source:type_name -> vrx.v1.AddressMatch
+	138, // 209: vrx.v1.AclRule.destination:type_name -> vrx.v1.AddressMatch
+	139, // 210: vrx.v1.AclRule.service:type_name -> vrx.v1.ServiceMatch
+	140, // 211: vrx.v1.AclList.rules:type_name -> vrx.v1.AclRule
+	142, // 212: vrx.v1.MacipList.rules:type_name -> vrx.v1.MacipRule
+	138, // 213: vrx.v1.HostRule.source:type_name -> vrx.v1.AddressMatch
+	138, // 214: vrx.v1.HostRule.destination:type_name -> vrx.v1.AddressMatch
+	139, // 215: vrx.v1.HostRule.service:type_name -> vrx.v1.ServiceMatch
+	144, // 216: vrx.v1.HostList.rules:type_name -> vrx.v1.HostRule
+	146, // 217: vrx.v1.AclAttachment.target:type_name -> vrx.v1.AttachmentTarget
+	159, // 218: vrx.v1.VpnConfig.ipsec:type_name -> vrx.v1.IpsecConfig
+	162, // 219: vrx.v1.VpnConfig.wireguard:type_name -> vrx.v1.WireguardConfig
+	165, // 220: vrx.v1.VpnConfig.pki:type_name -> vrx.v1.PkiConfig
+	252, // 221: vrx.v1.VpnConfig.remote_access:type_name -> vrx.v1.VpnConfig.RemoteAccessEntry
+	151, // 222: vrx.v1.IpsecProposal.ike:type_name -> vrx.v1.IkeProposal
+	152, // 223: vrx.v1.IpsecProposal.esp:type_name -> vrx.v1.EspProposal
+	154, // 224: vrx.v1.IpsecTunnel.auth:type_name -> vrx.v1.IpsecAuth
+	155, // 225: vrx.v1.IpsecTunnel.dpd:type_name -> vrx.v1.IpsecDpd
+	156, // 226: vrx.v1.IpsecTunnel.rekey:type_name -> vrx.v1.IpsecRekey
+	253, // 227: vrx.v1.IpsecTunnel.route_based:type_name -> vrx.v1.IpsecTunnel.RouteBased
+	158, // 228: vrx.v1.IpsecConfig.settings:type_name -> vrx.v1.IpsecSettings
+	254, // 229: vrx.v1.IpsecConfig.proposals:type_name -> vrx.v1.IpsecConfig.ProposalsEntry
+	255, // 230: vrx.v1.IpsecConfig.tunnels:type_name -> vrx.v1.IpsecConfig.TunnelsEntry
+	256, // 231: vrx.v1.WireguardPeer.endpoint:type_name -> vrx.v1.WireguardPeer.Endpoint
+	257, // 232: vrx.v1.WireguardInterface.peers:type_name -> vrx.v1.WireguardInterface.PeersEntry
+	258, // 233: vrx.v1.WireguardConfig.interfaces:type_name -> vrx.v1.WireguardConfig.InterfacesEntry
+	259, // 234: vrx.v1.PkiCa.crl:type_name -> vrx.v1.PkiCa.Crl
+	260, // 235: vrx.v1.PkiCertificate.acme:type_name -> vrx.v1.PkiCertificate.Acme
+	262, // 236: vrx.v1.PkiConfig.cas:type_name -> vrx.v1.PkiConfig.CasEntry
+	263, // 237: vrx.v1.PkiConfig.certificates:type_name -> vrx.v1.PkiConfig.CertificatesEntry
+	261, // 238: vrx.v1.PkiConfig.hsm:type_name -> vrx.v1.PkiConfig.Hsm
+	166, // 239: vrx.v1.RemoteAccessProfile.pools:type_name -> vrx.v1.RemoteAccessPool
+	167, // 240: vrx.v1.RemoteAccessProfile.users:type_name -> vrx.v1.RemoteAccessUser
+	264, // 241: vrx.v1.RemoteAccessProfile.radius:type_name -> vrx.v1.RemoteAccessProfile.Radius
+	155, // 242: vrx.v1.RemoteAccessProfile.dpd:type_name -> vrx.v1.IpsecDpd
+	156, // 243: vrx.v1.RemoteAccessProfile.rekey:type_name -> vrx.v1.IpsecRekey
+	34,  // 244: vrx.v1.DesiredState.InterfacesEntry.value:type_name -> vrx.v1.Interface
+	37,  // 245: vrx.v1.DesiredState.VrfsEntry.value:type_name -> vrx.v1.Vrf
+	36,  // 246: vrx.v1.Interface.SubinterfacesEntry.value:type_name -> vrx.v1.Subinterface
+	42,  // 247: vrx.v1.RoutingPolicy.PrefixListsEntry.value:type_name -> vrx.v1.PrefixList
+	44,  // 248: vrx.v1.RoutingPolicy.RouteMapsEntry.value:type_name -> vrx.v1.RouteMap
+	52,  // 249: vrx.v1.BgpConfig.PeerGroupsEntry.value:type_name -> vrx.v1.BgpPeerGroup
+	53,  // 250: vrx.v1.BgpConfig.NeighborsEntry.value:type_name -> vrx.v1.BgpNeighbor
+	56,  // 251: vrx.v1.OspfConfig.AreasEntry.value:type_name -> vrx.v1.OspfArea
+	57,  // 252: vrx.v1.OspfConfig.InterfacesEntry.value:type_name -> vrx.v1.OspfInterface
+	59,  // 253: vrx.v1.IsisConfig.InterfacesEntry.value:type_name -> vrx.v1.IsisInterface
+	61,  // 254: vrx.v1.RipConfig.InterfacesEntry.value:type_name -> vrx.v1.RipInterface
+	66,  // 255: vrx.v1.TunnelsConfig.GreEntry.value:type_name -> vrx.v1.GreTunnel
+	67,  // 256: vrx.v1.TunnelsConfig.VxlanEntry.value:type_name -> vrx.v1.VxlanTunnel
+	68,  // 257: vrx.v1.TunnelsConfig.IpipEntry.value:type_name -> vrx.v1.IpipTunnel
+	76,  // 258: vrx.v1.DhcpService.ServersEntry.value:type_name -> vrx.v1.DhcpServer
+	77,  // 259: vrx.v1.DhcpService.RelaysEntry.value:type_name -> vrx.v1.DhcpRelay
+	74,  // 260: vrx.v1.DhcpSubnet.ReservationsEntry.value:type_name -> vrx.v1.DhcpReservation
+	75,  // 261: vrx.v1.DhcpServer.SubnetsEntry.value:type_name -> vrx.v1.DhcpSubnet
+	84,  // 262: vrx.v1.DnsService.ResolversEntry.value:type_name -> vrx.v1.DnsResolver
+	193, // 263: vrx.v1.SnmpService.CommunitiesEntry.value:type_name -> vrx.v1.SnmpService.Community
+	194, // 264: vrx.v1.SnmpService.V3UsersEntry.value:type_name -> vrx.v1.SnmpService.V3User
+	70,  // 265: vrx.v1.IpfixService.Exporter.collector:type_name -> vrx.v1.SocketAddress
+	203, // 266: vrx.v1.IpfixService.Flowprobe.interfaces:type_name -> vrx.v1.IpfixService.Flowprobe.Interface
+	70,  // 267: vrx.v1.IpfixService.Sflow.collectors:type_name -> vrx.v1.SocketAddress
+	199, // 268: vrx.v1.IpfixService.ExportersEntry.value:type_name -> vrx.v1.IpfixService.Exporter
+	91,  // 269: vrx.v1.QosService.PolicersEntry.value:type_name -> vrx.v1.QosPolicer
+	92,  // 270: vrx.v1.QosService.ShapersEntry.value:type_name -> vrx.v1.QosShaper
+	94,  // 271: vrx.v1.QosService.MapsEntry.value:type_name -> vrx.v1.QosMap
+	95,  // 272: vrx.v1.QosService.InterfacesEntry.value:type_name -> vrx.v1.QosInterface
+	93,  // 273: vrx.v1.QosMap.Rows.ext:type_name -> vrx.v1.QosMapEntry
+	93,  // 274: vrx.v1.QosMap.Rows.vlan:type_name -> vrx.v1.QosMapEntry
+	93,  // 275: vrx.v1.QosMap.Rows.mpls:type_name -> vrx.v1.QosMapEntry
+	93,  // 276: vrx.v1.QosMap.Rows.ip:type_name -> vrx.v1.QosMapEntry
+	97,  // 277: vrx.v1.HaConfig.VrrpEntry.value:type_name -> vrx.v1.VrrpInstance
+	228, // 278: vrx.v1.Nat64Config.StaticBib.inside:type_name -> vrx.v1.Nat64Config.StaticBib.Endpoint
+	228, // 279: vrx.v1.Nat64Config.StaticBib.outside:type_name -> vrx.v1.Nat64Config.StaticBib.Endpoint
+	240, // 280: vrx.v1.CnatConfig.Snat.addresses:type_name -> vrx.v1.CnatConfig.Snat.Addresses
+	241, // 281: vrx.v1.CnatConfig.Snat.interfaces:type_name -> vrx.v1.CnatConfig.Snat.PolicyInterface
+	128, // 282: vrx.v1.ObjectsConfig.AddressesEntry.value:type_name -> vrx.v1.AddressObject
+	129, // 283: vrx.v1.ObjectsConfig.AddressGroupsEntry.value:type_name -> vrx.v1.AddressGroup
+	132, // 284: vrx.v1.ObjectsConfig.ServicesEntry.value:type_name -> vrx.v1.ServiceObject
+	133, // 285: vrx.v1.ObjectsConfig.ServiceGroupsEntry.value:type_name -> vrx.v1.ServiceGroup
+	134, // 286: vrx.v1.ObjectsConfig.SchedulesEntry.value:type_name -> vrx.v1.Schedule
+	135, // 287: vrx.v1.ObjectsConfig.ZonesEntry.value:type_name -> vrx.v1.Zone
+	136, // 288: vrx.v1.ObjectsConfig.TagsEntry.value:type_name -> vrx.v1.Tag
+	141, // 289: vrx.v1.AclConfig.ListsEntry.value:type_name -> vrx.v1.AclList
+	143, // 290: vrx.v1.AclConfig.MacipEntry.value:type_name -> vrx.v1.MacipList
+	145, // 291: vrx.v1.AclConfig.HostEntry.value:type_name -> vrx.v1.HostList
+	168, // 292: vrx.v1.VpnConfig.RemoteAccessEntry.value:type_name -> vrx.v1.RemoteAccessProfile
+	153, // 293: vrx.v1.IpsecConfig.ProposalsEntry.value:type_name -> vrx.v1.IpsecProposal
+	157, // 294: vrx.v1.IpsecConfig.TunnelsEntry.value:type_name -> vrx.v1.IpsecTunnel
+	160, // 295: vrx.v1.WireguardInterface.PeersEntry.value:type_name -> vrx.v1.WireguardPeer
+	161, // 296: vrx.v1.WireguardConfig.InterfacesEntry.value:type_name -> vrx.v1.WireguardInterface
+	163, // 297: vrx.v1.PkiConfig.CasEntry.value:type_name -> vrx.v1.PkiCa
+	164, // 298: vrx.v1.PkiConfig.CertificatesEntry.value:type_name -> vrx.v1.PkiCertificate
+	265, // 299: vrx.v1.RemoteAccessProfile.Radius.servers:type_name -> vrx.v1.RemoteAccessProfile.Radius.Server
+	6,   // 300: vrx.v1.Dataplane.Apply:input_type -> vrx.v1.ApplyRequest
+	13,  // 301: vrx.v1.Dataplane.Retrieve:input_type -> vrx.v1.RetrieveRequest
+	10,  // 302: vrx.v1.Dataplane.DryRun:input_type -> vrx.v1.DryRunRequest
+	15,  // 303: vrx.v1.Dataplane.StreamStats:input_type -> vrx.v1.StreamStatsRequest
+	19,  // 304: vrx.v1.Dataplane.StreamEvents:input_type -> vrx.v1.StreamEventsRequest
+	21,  // 305: vrx.v1.Dataplane.Action:input_type -> vrx.v1.ActionRequest
+	27,  // 306: vrx.v1.Dataplane.Health:input_type -> vrx.v1.HealthRequest
+	7,   // 307: vrx.v1.Dataplane.Apply:output_type -> vrx.v1.ApplyResponse
+	14,  // 308: vrx.v1.Dataplane.Retrieve:output_type -> vrx.v1.RetrieveResponse
+	12,  // 309: vrx.v1.Dataplane.DryRun:output_type -> vrx.v1.ValidationReport
+	16,  // 310: vrx.v1.Dataplane.StreamStats:output_type -> vrx.v1.StatsBatch
+	20,  // 311: vrx.v1.Dataplane.StreamEvents:output_type -> vrx.v1.Event
+	25,  // 312: vrx.v1.Dataplane.Action:output_type -> vrx.v1.ActionOutput
+	28,  // 313: vrx.v1.Dataplane.Health:output_type -> vrx.v1.HealthResponse
+	307, // [307:314] is the sub-list for method output_type
+	300, // [300:307] is the sub-list for method input_type
+	300, // [300:300] is the sub-list for extension type_name
+	300, // [300:300] is the sub-list for extension extendee
+	0,   // [0:300] is the sub-list for field type_name
 }
 
 func init() { file_vrx_v1_dataplane_proto_init() }
@@ -16002,27 +21214,36 @@ func file_vrx_v1_dataplane_proto_init() {
 	file_vrx_v1_dataplane_proto_msgTypes[55].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[56].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[57].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[72].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[60].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[61].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[62].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[64].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[66].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[67].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[68].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[69].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[70].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[71].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[73].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[74].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[75].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[76].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[77].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[78].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[79].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[80].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[81].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[82].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[83].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[84].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[85].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[86].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[87].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[88].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[90].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[89].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[91].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[92].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[93].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[94].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[96].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[97].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[99].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[100].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[101].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[102].OneofWrappers = []any{}
@@ -16032,18 +21253,16 @@ func file_vrx_v1_dataplane_proto_init() {
 	file_vrx_v1_dataplane_proto_msgTypes[106].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[107].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[108].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[109].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[110].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[111].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[112].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[113].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[114].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[115].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[116].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[117].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[118].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[119].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[120].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[121].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[122].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[123].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[124].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[125].OneofWrappers = []any{}
@@ -16054,45 +21273,86 @@ func file_vrx_v1_dataplane_proto_init() {
 	file_vrx_v1_dataplane_proto_msgTypes[130].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[132].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[133].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[134].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[135].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[136].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[137].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[138].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[139].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[140].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[141].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[142].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[143].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[145].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[146].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[147].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[148].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[149].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[150].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[151].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[152].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[154].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[155].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[157].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[158].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[159].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[160].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[161].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[162].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[163].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[164].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[165].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[166].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[167].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[168].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[169].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[170].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[171].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[172].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[173].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[174].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[175].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[176].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[177].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[183].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[185].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[186].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[187].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[188].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[189].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[192].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[193].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[194].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[195].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[196].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[197].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[198].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[199].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[200].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[201].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[207].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[208].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[209].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[212].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[213].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[214].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[215].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[216].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[217].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[218].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[219].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[220].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[221].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[222].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[223].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[224].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[225].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[226].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[227].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[228].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[229].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[230].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[231].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[232].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[233].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[234].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[235].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[247].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[250].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[253].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[254].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[255].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[259].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrx_v1_dataplane_proto_rawDesc), len(file_vrx_v1_dataplane_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   202,
+			NumMessages:   260,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

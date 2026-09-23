@@ -230,10 +230,10 @@ describe('DesiredState mirrors RootConfig', () => {
         lists: { in: { rules: [{ sequence: 10, enabled: true, action: 'permit', ipVersion: 'any', source: { kind: 'object', name: 'h1' } }] } },
         attachments: [{ list: 'in', target: { kind: 'interface', interface: 'loop700' }, direction: 'in', sequence: 1, enabled: true }],
       },
-      vpn: { wireguard: { interfaces: { wg0: { instance: 0, listenPort: 51820, privateKeyRef: 'wg/wg0', peers: {} } } } },
+      vpn: { wireguard: { interfaces: { wg0: { instance: 0, listenPort: 51820, privateKeyRef: 'key/wg0', peers: {} } } } },
       tunnels: { gre: { gre0: {} } },
       services: { dhcp: {} },
-      ha: { vrrp: [{}] },
+      ha: { vrrp: { lan: {} } },
       management: { users: [{ username: 'admin', role: 'admin', scope: '*', sshKeys: [], disabled: false }] },
     });
     for (const key of ROOT_KEYS) {

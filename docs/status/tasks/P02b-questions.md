@@ -1,6 +1,6 @@
 # P02b — questions / notes for the manager (none blocking; work continued)
 
-1. **`packages/schema/src/index.test.ts:26` (P02a-owned) fails on every group's branch.** It asserts
+1. **RESOLVED (D-036, fix on main, merged into this branch at 757edaa).** ~~`packages/schema/src/index.test.ts:26` (P02a-owned) fails on every group's branch.~~ It asserts
    `RootConfig.parse({})[key]` deep-equals `{}` for all 13 keys — true only for the P02s `looseObject({})`
    placeholders. D-017 chose `.prefault({})` precisely so nested field defaults are filled, and P02a's `system`
    (`ntp.enabled`, `servers`, `vrf`), `dataplane` (`pciWhitelist`) and P02c's `vpn` use `.default(...)` just like
@@ -39,6 +39,14 @@
 8. **Gate note**: `tools/ci.sh --base main` requires a `contract…` commit subject on the branch; this branch carries
    `contract(schema): …` on `task/P02b` (same approach P02s used, see P02s-questions #3).
 
+9. **H1 root cause is still in `ui.ts` (P02a-owned).** This branch no longer depends on it (private merging
+   `withUi` in the three domain files), but other groups' re-wrapped leaves keep losing hints until `ui.ts` merges
+   `x-vrx-ui` itself (D-043: manager fix after P02a merges). Suggested one-liner: in `withUi`,
+   `[X_VRX_UI]: { ...(schema.meta()?.[X_VRX_UI] ?? {}), ...hints }`. After that my private helper can become a plain
+   re-export (not required — it is idempotent with the fixed one).
+10. **P03b proto sync**: `nat.enabled` is now optional without default (D-P02b-10) — `optional bool enabled`
+    (explicit presence, D-039) already matches; the renderer must call `isNat44Enabled()` rather than read the field.
+
 ## Decisions taken (to be copied to docs/decisions/LOG.md by the manager)
 
 | date | id | decision | options considered | why | reversal cost | tasks |
@@ -51,3 +59,7 @@
 | 2026-09-23 | D-P02b-6 | Semantic validators live in three files with one shared helper set in `semantic/objects.ts` (`interfaceExists`, `vrfExists`, IP arithmetic); `acl` imports `duplicates()` from `semantic/nat.ts` | (a) a new `semantic/refs.ts` (not in my file allowlist) (b) helpers inside owned files | (b) respects the envelope; move to `refs.ts` is a mechanical follow-up (question 3) | trivial | P02b, P02a |
 | 2026-09-23 | D-P02b-7 | ACL `attachments[].vrf` must equal the VRF declared by the target interface(s); a zone target checks every member | (a) informational only (b) hard rule | (b) is the vdom.md #1 guardrail: VRF is first-class, a mismatch is always a mistake | trivial | P02b, D5.2 |
 | 2026-09-23 | D-P02b-8 | `objects.schedules.recurring` windows are same-day (`start < end`); overnight = two schedules | (a) allow wrap-around (b) two schedules | (b) renderers/UI stay unambiguous; wrap-around can be added later without breaking documents | trivial | P02b |
+| 2026-09-24 | D-P02b-9 | Review H1 fixed inside the owned files: a private `withUi` in `domains/{nat,acl,objects}.ts` merges `x-vrx-ui` with the wrapped schema's hints; leaf tests + a walker (every format-carrying leaf with hints has a `widget`) | (a) wait for the `ui.ts` fix on main (b) explicit widget at every re-wrap (c) private merging helper | (c) one place per file, no dependence on merge order, idempotent with the later `ui.ts` fix | trivial | P02b, P02a |
+| 2026-09-24 | D-P02b-10 | `nat.enabled` optional, no default; `isNat44Enabled()` = explicit value, else "any NAT44 object configured" (review L6) | (a) error rule `nat.enabled-consistency` (b) infer when absent (c) leave as is | (b) documents written to the F-nat44 contract work verbatim, and a disabled-but-staged config stays legal (an error rule would forbid it) | low | P02b, F-nat44, P03b |
+| 2026-09-24 | D-P02b-11 | Address/service groups may be empty (`members` default `[]`); `acl.rule-references` rejects a rule that references a group with no members (transitively) (review L9) | (a) keep `min(1)` (b) allow empty everywhere (c) allow empty groups, forbid using them | (c) create-then-fill UI flows work, and a deny rule over an empty group can never silently vanish | trivial | P02b, D5.4 |
+| 2026-09-24 | D-P02b-12 | Review L2: keep the shared `addresses`∩`addressGroups` / `services`∩`serviceGroups` namespace (D-P02b-3) — reviewer concurs; the D5.4 picker enforces it on create | (a) `kind` discriminator in `AddressMatch` (b) keep | changing later is a reshape; FortiGate/PAN convention; tier (b) rule already exists | low | P02b, D5.4 |

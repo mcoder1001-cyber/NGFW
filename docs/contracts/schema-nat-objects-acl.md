@@ -12,6 +12,9 @@ branch; renaming or reshaping an existing field is always a PENDING decision (`d
 Conventions shared by the three domains:
 
 - Every field goes through `withUi()` → `title` + `x-vrx-ui { widget, group, order, help }` in the JSON Schema.
+  The three domain files use a private `withUi` that **merges** with the hints already on the wrapped schema, so a
+  re-wrapped primitive keeps its `widget`/`help` (review H1; `ui.ts`'s own `withUi` replaces `x-vrx-ui` wholesale
+  until its owner fixes it, D-043). Leaf-level tests pin this: every address/prefix leaf with hints has a `widget`.
 - Every domain accepts `{}` (root `prefault`, D-017); lists default to `[]`, records to `{}`, flags to `false`
   (`enabled` on ACL rules/attachments defaults to `true`), so a parsed document is fully populated and `diff()` never
   sees "absent vs empty" noise.
@@ -39,7 +42,7 @@ the API path stays `/config/nat/<translator>/…`. Docs/04's `static` + `portFor
 
 | field | type | default | notes |
 |---|---|---|---|
-| `enabled` | boolean | `false` | NAT44 plugin enabled |
+| `enabled` | boolean? | absent | NAT44 on/off; absent = on exactly when interfaces, pools or mappings are configured (`isNat44Enabled()`); `false` = keep the configuration but render nothing |
 | `mode` | `ed` \| `ei` | `ed` | `nat44-ed` (endpoint-dependent) or `nat44-ei`; ED-only features are rejected in EI (`nat.mode-ed-features`) |
 | `inside[]`, `outside[]`, `outputFeature[]` | `vppInterfaceName[]` ≤ 1024 | `[]` | interface NAT features; output-feature = post-routing path |
 | `insideVrf?`, `outsideVrf?` | `objectName` | — | plugin-wide inside/outside FIBs |
@@ -84,10 +87,12 @@ Semantic rules (`semantic/nat.ts`; pointer = the offending element):
 
 Documented semantics that are **not** rules:
 
-- `enabled: false` with pools/interfaces/mappings present is legal and means *NAT44 administratively down*: the
-  renderer disables the plugin and renders none of the NAT44 objects (they stay in the document). The F-nat44 contract
-  has no `enabled`; a document written verbatim to it must add `enabled: true` or nothing is applied. Whether to add a
-  rule `nat.enabled-consistency` is left to the F-nat44 worker (see `docs/status/tasks/P02b-questions.md`).
+- `enabled` is optional with no default (review L6). Renderers use `isNat44Enabled(nat)` (exported from
+  `domains/nat.ts`): explicit `true`/`false` wins; absent = on exactly when any NAT44 object (inside/outside/
+  output-feature interface, pool, static/identity/load-balanced mapping) exists. So a document written verbatim to
+  the F-nat44 contract (no `enabled`) is applied, and `enabled: false` with objects present is legal and means
+  *NAT44 administratively down*: the objects stay in the document, none is rendered. No semantic rule — staging a
+  disabled configuration is a use case, not an error. Sibling translators keep their own `enabled` (default false).
 - One interface on both `inside` and `outside` (one-armed NAT, VPP `NAT_IS_INSIDE|NAT_IS_OUTSIDE`) is rejected by
   `nat.inside-outside-disjoint` per F-nat44 §1; an additive `both[]` list can lift that later.
 - `nat64.pools[]` and `dslite.pools[]` are range-only; the interface-address form (`nat64_add_del_interface_addr`)
@@ -103,9 +108,9 @@ Reusable firewall objects referenced by ACL rules (and later NAT policies). Ever
 | record | value | notes |
 |---|---|---|
 | `addresses` | `{ type: host, address }` \| `{ type: network, prefix }` \| `{ type: range, start, end }` \| `{ type: fqdn, fqdn }`, each `+ description?, tags[]` | v4 or v6 |
-| `addressGroups` | `{ members[] (1–4096), description?, tags[] }` | members are addresses or address groups |
+| `addressGroups` | `{ members[] (0–4096, default `[]`), description?, tags[] }` | members are addresses or address groups |
 | `services` | discriminated on `protocol`: `tcp`\|`tcp-udp` `{ destinationPorts[], sourcePorts[], tcpFlags? { mask, value } }`; `udp`\|`sctp` `{ destinationPorts[], sourcePorts[] }`; `icmp`\|`icmp6` `{ type?, code? }`; `any`; `other { number 0–255 }`, each `+ description?, tags[]` | ports are `l4PortRange` strings, ≤ 64 per list, empty = any |
-| `serviceGroups` | `{ members[] (1–4096), description?, tags[] }` | members are services or service groups |
+| `serviceGroups` | `{ members[] (0–4096, default `[]`), description?, tags[] }` | members are services or service groups |
 | `schedules` | `{ type: recurring, days[] (mon…sun, 1–7), start: HH:MM, end: HH:MM }` \| `{ type: once, start, end }` (RFC 3339 with offset), `+ description?, tags[]` | overnight window = two schedules |
 | `zones` | `{ interfaces[] ≤ 1024, description?, tags[] }` | an ACL attachment may target a zone |
 | `tags` | `{ description?, color?: #rrggbb }` | |
@@ -144,7 +149,7 @@ Hit counters are state (`/state/…`), not config.
 | rule | rejects | pointer |
 |---|---|---|
 | `acl.rule-sequences-unique` | the same `sequence` twice in one list (lists, macip, host) | `/acl/<kind>/<name>/rules/<i>/sequence` |
-| `acl.rule-references` | source/destination/service object or `schedule` not found in `objects` | `/acl/<kind>/<name>/rules/<i>/{source/name,destination/name,service/name,schedule}` |
+| `acl.rule-references` | source/destination/service object or `schedule` not found in `objects`; an address/service group with no members, directly or through nested groups (groups may be empty so UIs can create-then-fill, review L9; a rule over an empty group would silently match nothing) | `/acl/<kind>/<name>/rules/<i>/{source/name,destination/name,service/name,schedule}` |
 | `acl.rule-consistency` | prefix family ≠ `ipVersion`; mixed source/destination families; `icmp` in an IPv6 rule or `icmp6` in an IPv4 rule; inline spec failing the service checks | `…/rules/<i>/{source/prefix,destination/prefix,service/spec/…}` |
 | `acl.tags-exist` | list `tags[]` entry not in `objects.tags` | `/acl/<kind>/<name>/tags/<i>` |
 | `acl.macip-rules` | source MAC with bits outside `sourceMacMask` | `/acl/macip/<name>/rules/<i>/sourceMac` |
@@ -153,6 +158,18 @@ Hit counters are state (`/state/…`), not config.
 | `acl.host-attachments` | unknown list; same list twice on one chain | `/acl/hostAttachments/<i>/{list,chain}` |
 
 ---
+
+## Not modelled yet (all additive; for the F-nat44 / DF workers — review L8)
+
+- NAT: `nat_set_mss_clamping`; per-VRF NAT44-ED tables/routes (`nat44_ed_add_del_vrf_table`, `_vrf_route`);
+  per-VRF session limit (`nat44_set_session_limit.vrf_id` — today `sessionLimit` maps to
+  `nat44_ed_plugin_enable_disable.sessions`); NAT44-EI HA (`nat_ha_*`) and the address/port allocation algorithm;
+  twice-NAT pool address selection on static mappings (`pool_ip_address`); interface-address pools for
+  `nat64`/`dslite`; one-armed NAT (`both[]`).
+- DS-Lite: `dslite_set_aftr_addr` sets IPv4 and IPv6 together while `aftr.ipv4` is optional — the renderer must default
+  it (VPP's own default `192.0.0.1`, RFC 6333).
+- ACL: `acl_stats_intf_counters_enable` (hit counters on/off) and `acl_interface_set_etype_whitelist`.
+- Naming: VPP's plugin is `npt66`; the schema key is `nptv6` (operator-facing name, the renderer maps it).
 
 ## Examples (`packages/schema/examples/`)
 
@@ -170,7 +187,7 @@ Hit counters are state (`/state/…`), not config.
 `nat{ mode: "ed", inside, outside, pools: [{name, range, vrf?}], staticMappings: [{name, local{ip,port?},
 external{ip|pool, port?}, protocol?, vrf?, twiceNat?}], timeouts{udp,tcpEstablished,tcpTransitory,icmp}, sessionLimit }`
 is exactly the top level of `NatSchema` (plus the interface-pool variant `{name, interface}`, `external.interface`
-and the additional flags, all optional/defaulted; **`enabled: true` is required for anything to be rendered**).
+and the additional flags, all optional/defaulted; `enabled` may be omitted — NAT44 is then on because objects are configured).
 Semantic rules required by that feature — inside/outside exist and are disjoint, pools valid and non-overlapping,
 external port requires protocol, session limit ≥ 1024 — are `nat.interfaces-exist`, `nat.inside-outside-disjoint`,
 `nat.pools-valid`, `nat.static-mappings` and the schema `minimum`. "Overlapping pools → 400 with pointer" is

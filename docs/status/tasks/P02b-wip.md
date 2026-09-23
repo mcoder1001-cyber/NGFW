@@ -22,3 +22,6 @@
   H1: P02a (owner of ui.ts) not merged yet → fixed in own files: private merging `withUi` in domains/{nat,acl,objects}.ts
   (inherits `x-vrx-ui` of the wrapped schema), + leaf tests and a walker (every format-carrying leaf with hints has a
   widget); verified the tests fail with the merge disabled. Next: L6, L9, doc notes L4/L8, M5 evidence.
+- 00:45 L9 (11ba023: empty groups allowed, rules may not use them), L6 (0dcfd45: `enabled` optional + `isNat44Enabled()`),
+  contract doc (H1 note, L6/L9 semantics, L8 "not modelled" list), questions #1 resolved, #9/#10, D-P02b-9…12.
+  Next: `tools/ci.sh --base main`, P02b.md "Review fixes".

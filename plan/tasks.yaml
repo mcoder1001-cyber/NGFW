@@ -637,7 +637,7 @@ tasks:
   - P03
   priority: 2
   est_hours: 12
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D7.5
@@ -650,7 +650,8 @@ tasks:
   owner: host-agent slot8
   started: 2026-09-24T02:30
   finished: ''
-  notes: test-scoped daemon processes only; system units untouched | worker done e35351d CI green; review spawned; D-086
+  notes: test-scoped daemon processes only; system units untouched | worker done e35351d CI green; review spawned; D-086 | review APPROVE WITH CHANGES ae35adb (H1 snmpd bind change via HUP, M1 default bind
+    0.0.0.0, M2 rsyslog restart when unchanged, M3 impstats double-load); fix round 1
 - id: P08
   title: 'Vertical slice: interfaces end to end (af_packet rig)'
   prompt: prompts/P08-vertical-slice-interfaces.md

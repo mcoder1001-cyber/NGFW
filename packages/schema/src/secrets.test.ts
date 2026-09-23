@@ -108,9 +108,9 @@ describe('secretPointers / redactSecrets (D-046, review M4)', () => {
       viaNowhere: z.object({ key: secret }).meta({ $ref: '#/properties/elsewhere' }),
       viaMissingDefs: z.object({ key: secret }).meta({ $ref: '#/$defs/missing' }),
     });
-    expect(
-      secretPointers({ viaNowhere: { key: 'x' }, viaMissingDefs: { key: 'y' } }, odd),
-    ).toEqual([]);
+    expect(secretPointers({ viaNowhere: { key: 'x' }, viaMissingDefs: { key: 'y' } }, odd)).toEqual(
+      [],
+    );
     type Loop = string | Loop[];
     const loop: z.ZodType<Loop> = z.lazy(() => z.union([z.string(), z.array(loop)]));
     expect(secretPointers(['a', ['b']], loop)).toEqual([]);

@@ -6,7 +6,7 @@ import {
   type BgpPeerGroupConfig,
 } from '../domains/routing.js';
 import { vrfExists } from '../domains/vrfs.js';
-import { canonicalIp, canonicalPrefix, ipFamily } from '../ip.js';
+import { ipFamily, ipKey, prefixKey } from '../ip.js';
 import { jsonPointer } from '../pointer.js';
 import type { RootConfig } from '../index.js';
 import type { SemanticIssue, ValidatorDefinition } from './registry.js';
@@ -110,7 +110,7 @@ export const routingValidators: readonly ValidatorDefinition[] = [
     validate: (config) =>
       duplicateIssues(
         config.routing.static,
-        (route) => `${route.vrf} ${canonicalPrefix(route.prefix) ?? route.prefix}`,
+        (route) => `${route.vrf} ${prefixKey(route.prefix)}`,
         (_route, i) => ['routing', 'static', i, 'prefix'],
         (route) =>
           `route ${route.prefix} in VRF '${route.vrf}' is already defined; add next hops there instead`,
@@ -174,7 +174,7 @@ export const routingValidators: readonly ValidatorDefinition[] = [
     validate: (config) =>
       duplicateIssues(
         Object.keys(config.routing.bgp?.neighbors ?? {}),
-        (address) => canonicalIp(address) ?? address,
+        ipKey,
         (address) => ['routing', 'bgp', 'neighbors', address],
         (address) => `neighbour ${address} is configured twice (addresses compare canonically)`,
       ),
@@ -187,13 +187,13 @@ export const routingValidators: readonly ValidatorDefinition[] = [
       return [
         ...duplicateIssues(
           bgp?.networks ?? [],
-          (n) => canonicalPrefix(n.prefix) ?? n.prefix,
+          (n) => prefixKey(n.prefix),
           (_n, i) => ['routing', 'bgp', 'networks', i, 'prefix'],
           (n) => `network ${n.prefix} is listed more than once`,
         ),
         ...duplicateIssues(
           rip?.networks ?? [],
-          (n) => canonicalPrefix(n) ?? n,
+          prefixKey,
           (_n, i) => ['routing', 'rip', 'networks', i],
           (n) => `network ${n} is listed more than once`,
         ),
@@ -206,7 +206,7 @@ export const routingValidators: readonly ValidatorDefinition[] = [
     validate: (config) =>
       duplicateIssues(
         config.routing.bfd?.sessions ?? [],
-        (s) => `${s.interface} ${canonicalIp(s.peerAddress) ?? s.peerAddress}`,
+        (s) => `${s.interface} ${ipKey(s.peerAddress)}`,
         (_s, i) => ['routing', 'bfd', 'sessions', i, 'peerAddress'],
         (s) => `a BFD session to ${s.peerAddress} on ${s.interface} already exists`,
       ),

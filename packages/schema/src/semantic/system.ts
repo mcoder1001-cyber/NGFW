@@ -1,6 +1,6 @@
 import { jsonPointer } from '../pointer.js';
 import { vrfExists } from '../domains/vrfs.js';
-import { canonicalIp } from '../ip.js';
+import { ipKey } from '../ip.js';
 import type { ValidatorDefinition } from './registry.js';
 import { duplicateIssues } from './unique.js';
 
@@ -30,7 +30,7 @@ export const systemValidators: readonly ValidatorDefinition[] = [
     validate: (config) =>
       duplicateIssues(
         config.system.dns.servers,
-        (server) => canonicalIp(server) ?? server,
+        ipKey,
         (_server, i) => ['system', 'dns', 'servers', i],
         (server) => `name server ${server} is listed more than once`,
       ),

@@ -163,3 +163,13 @@ export function canonicalPrefix(text: string): string | undefined {
   const network = networkAddress(prefix);
   return `${prefix.family === 4 ? formatIpv4(network) : formatIpv6(network)}/${prefix.length}`;
 }
+
+/** Uniqueness key of an address: {@link canonicalIp}, or the text itself when it is not an address. */
+export function ipKey(text: string): string {
+  return canonicalIp(text) ?? text;
+}
+
+/** Uniqueness key of a prefix: {@link canonicalPrefix}, or the text itself when it is not a prefix. */
+export function prefixKey(text: string): string {
+  return canonicalPrefix(text) ?? text;
+}

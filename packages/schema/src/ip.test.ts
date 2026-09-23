@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canonicalIp,
+  canonicalPrefix,
+  formatIpv4,
+  formatIpv6,
   ipFamily,
+  ipKey,
+  prefixKey,
   isNetworkAddress,
   networkAddress,
   parseCidr,
@@ -142,5 +148,35 @@ describe('prefixesOverlap / prefixContains', () => {
     expect(prefixContains(p('10.0.0.0/24'), 4, parseIpv4('10.0.1.1')!)).toBe(false);
     expect(prefixContains(p('10.0.0.0/24'), 6, parseIpv6('::a00:1')!)).toBe(false);
     expect(prefixContains(p('2001:db8::/64'), 6, parseIpv6('2001:db8::dead:beef')!)).toBe(true);
+  });
+});
+
+describe('canonical forms (D-049)', () => {
+  it('formats addresses per RFC 5952', () => {
+    expect(formatIpv4(167772161n)).toBe('10.0.0.1');
+    const v6 = (t: string) => formatIpv6(parseIpv6(t)!);
+    expect(v6('2001:DB8:0:0:0:0:0:1')).toBe('2001:db8::1');
+    expect(v6('0:0:0:0:0:0:0:0')).toBe('::');
+    expect(v6('0:0:0:0:0:0:0:1')).toBe('::1');
+    expect(v6('1:0:0:0:0:0:0:0')).toBe('1::');
+    expect(v6('2001:db8:0:1:1:1:1:1')).toBe('2001:db8:0:1:1:1:1:1'); // a single zero group stays
+    expect(v6('1:2:3:4:5:6:7:8')).toBe('1:2:3:4:5:6:7:8'); // no zero group at all
+    expect(v6('2001:0:0:1:0:0:0:1')).toBe('2001:0:0:1::1'); // the longest run wins
+    expect(v6('2001:0:0:1:0:0:1:1')).toBe('2001::1:0:0:1:1'); // first run on a tie
+    expect(v6('::ffff:10.0.0.1')).toBe('::ffff:a00:1');
+  });
+  it('canonicalises addresses and prefixes, undefined on garbage', () => {
+    expect(canonicalIp('10.0.0.1')).toBe('10.0.0.1');
+    expect(canonicalIp('2001:DB8:0::1')).toBe('2001:db8::1');
+    expect(canonicalIp('nope')).toBeUndefined();
+    expect(canonicalPrefix('10.0.0.1/24')).toBe('10.0.0.0/24');
+    expect(canonicalPrefix('2001:DB8:0::/32')).toBe('2001:db8::/32');
+    expect(canonicalPrefix('10.0.0.1')).toBeUndefined();
+  });
+  it('uniqueness keys fall back to the text', () => {
+    expect(ipKey('2001:DB8::1')).toBe('2001:db8::1');
+    expect(ipKey('host.example')).toBe('host.example');
+    expect(prefixKey('2001:DB8::/32')).toBe('2001:db8::/32');
+    expect(prefixKey('x/99')).toBe('x/99');
   });
 });

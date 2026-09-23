@@ -244,8 +244,19 @@ no service commands); the build only compiled in `deploy/vpp/.build`. Reported f
 
 ### CI gate
 ```
-$ tools/ci.sh --base main
-(final run pasted below at finish)
+$ tools/ci.sh --base main      # final run, 2026-09-24 02:36, HEAD 74fc56d (only this report changed after it)
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m00s
+  generate + generated-output gate                   0m27s
+  forbidden patterns (+ gitleaks)                    0m04s
+  lint · typecheck · unit tests · build (turbo)   0m26s
+  apps/agent: make lint test build                   0m13s
+  test/ Go modules, unit mode (test/integration/smoke)   0m02s
+  mode quick · wall time 1m15s · logs /root/ngfw-wt/logs/ci/F-vpp-debs-20260924-023628-2103994
+
+CI GATE PASSED
 ```
 
 ## Out of scope / not done

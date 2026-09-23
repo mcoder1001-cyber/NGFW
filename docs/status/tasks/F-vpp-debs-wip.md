@@ -18,4 +18,4 @@ Findings so far:
 - [x] full build 01:49 → 02:34 (45m01s): 11 packages 26.06-release, SHA256SUMS + manifest.json, verify.sh OK
 - [x] README.md, questions Q1–Q5
 - [x] after-state == before (VPP itself aborted+auto-restarted 02:23, unrelated), F-vpp-debs.md written
-- [ ] final CI gate
+- [x] final CI gate: CI GATE PASSED (02:36, log /root/ngfw-wt/logs/F-vpp-debs-ci-final.log)

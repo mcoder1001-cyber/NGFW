@@ -66,11 +66,11 @@ tasks:
   files_owned: packages/schema/src/{index,primitives,diff,merge-patch,gen}.ts packages/schema/src/domains/{system,dataplane,interfaces,vrfs,routing,management}.ts packages/schema/src/semantic/{system,interfaces,routing}*.ts
   branch: task/P02a
   worktree: /root/ngfw-wt/P02a
-  owner: desktop-agent slot1
+  owner: host-agent slot1
   started: 2026-09-23T13:35
   finished: ''
   notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | worker done df554dc; review agent spawned | review APPROVE WITH CHANGES (H1-H4, M1-M7 + withUi H1 from P02b review)
-    → fix round'
+    → fix round | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
 - id: P02b
   title: 'Schema group (b): nat, objects, acl'
   prompt: prompts/P02-schema-package.md
@@ -94,10 +94,11 @@ tasks:
   files_owned: packages/schema/src/domains/{nat,objects,acl}.ts packages/schema/src/semantic/{nat,objects,acl}*.ts
   branch: task/P02b
   worktree: /root/ngfw-wt/P02b
-  owner: desktop-agent slot5
+  owner: host-agent slot5
   started: 2026-09-23T13:35
   finished: ''
-  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | review APPROVE WITH CHANGES (M1-M5 before tag) → fix round'
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | review APPROVE WITH CHANGES (M1-M5 before tag) → fix round | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted
+    work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
 - id: P02c
   title: 'Schema group (c): vpn, tunnels, services, ha'
   prompt: prompts/P02-schema-package.md
@@ -121,10 +122,11 @@ tasks:
   files_owned: packages/schema/src/domains/{vpn,tunnels,services,ha}.ts packages/schema/src/semantic/{vpn,tunnels,services,ha}*.ts
   branch: task/P02c
   worktree: /root/ngfw-wt/P02c
-  owner: desktop-agent slot6
+  owner: host-agent slot6
   started: 2026-09-23T13:35
   finished: ''
-  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | worker done 2e0d449; review agent spawned | review BLOCK (F1-F9) → fix round'
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | worker done 2e0d449; review agent spawned | review BLOCK (F1-F9) → fix round | 2026-09-24 00:2x: worker stalled
+    ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
 - id: P03
   title: gRPC contract agent↔api (messages for all domains, RPC semantics doc)
   prompt: prompts/P03-proto-contract.md
@@ -258,10 +260,10 @@ tasks:
   files_owned: apps/agent/** except internal/descriptors/{non-core} and binapi
   branch: task/P05
   worktree: /root/ngfw-wt/P05
-  owner: desktop-agent slot7
+  owner: host-agent slot7
   started: 2026-09-23T16:01
   finished: ''
-  notes: ''
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
 - id: P06
   title: 'API core: datastore, commit engine, auth/RBAC/audit, telemetry relay'
   prompt: prompts/P06-api-core.md
@@ -305,10 +307,11 @@ tasks:
   files_owned: apps/web/** packages/ui-kit/**
   branch: task/P07a
   worktree: /root/ngfw-wt/P07a
-  owner: desktop-agent slot8
+  owner: host-agent slot8
   started: 2026-09-23T13:35
   finished: ''
-  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | worker done 22febb3; review agent spawned'
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | worker done 22febb3; review agent spawned | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged;
+    review agent by host manager (Agent tool, same slot)'
 - id: P07b
   title: 'UI flows: login, pending-change bar + commit dialog, revisions, users, Playwright login→commit→rollback'
   prompt: prompts/P07-ui-shell.md
@@ -352,10 +355,10 @@ tasks:
   files_owned: apps/agent/internal/descriptors/<plugins of DF-1>/** docs/agent/descriptors/<plugins>.md
   branch: task/DF-1
   worktree: /root/ngfw-wt/DF-1
-  owner: desktop-agent slot2
+  owner: host-agent slot2
   started: 2026-09-23T15:10
   finished: ''
-  notes: ''
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
 - id: DF-2
   title: 'Descriptors: ip_neighbor, ip6_nd (RA, DAD), urpf, abf, classify (ip tables/routes are P05 core)'
   prompt: prompts/factories/DF-2.md
@@ -376,10 +379,10 @@ tasks:
   files_owned: apps/agent/internal/descriptors/<plugins of DF-2>/** docs/agent/descriptors/<plugins>.md
   branch: task/DF-2
   worktree: /root/ngfw-wt/DF-2
-  owner: desktop-agent slot3
+  owner: host-agent slot3
   started: 2026-09-23T15:10
   finished: ''
-  notes: ''
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
 - id: DF-3
   title: 'Descriptors: nat44_ed (nat), nat44_ei, nat64, nat66, det44, map, cnat, pnat'
   prompt: prompts/factories/DF-3.md
@@ -403,10 +406,10 @@ tasks:
   files_owned: apps/agent/internal/descriptors/<plugins of DF-3>/** docs/agent/descriptors/<plugins>.md
   branch: task/DF-3
   worktree: /root/ngfw-wt/DF-3
-  owner: desktop-agent slot9
+  owner: host-agent slot9
   started: 2026-09-23T15:10
   finished: ''
-  notes: ''
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
 - id: DF-4
   title: 'Descriptors: acl (incl. macip), acl stats'
   prompt: prompts/factories/DF-4.md
@@ -425,10 +428,10 @@ tasks:
   files_owned: apps/agent/internal/descriptors/<plugins of DF-4>/** docs/agent/descriptors/<plugins>.md
   branch: task/DF-4
   worktree: /root/ngfw-wt/DF-4
-  owner: desktop-agent slot10
+  owner: host-agent slot10
   started: 2026-09-23T15:10
   finished: ''
-  notes: ' | worker done 14defa2; review agent spawned'
+  notes: ' | worker done 14defa2; review agent spawned | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; review agent by host manager (Agent tool, same slot)'
 - id: DF-5
   title: 'Descriptors: ipsec, ikev2, wireguard'
   prompt: prompts/factories/DF-5.md
@@ -449,10 +452,10 @@ tasks:
   files_owned: apps/agent/internal/descriptors/<plugins of DF-5>/** docs/agent/descriptors/<plugins>.md
   branch: task/DF-5
   worktree: /root/ngfw-wt/DF-5
-  owner: desktop-agent slot4
+  owner: host-agent slot4
   started: 2026-09-23T15:28
   finished: ''
-  notes: ''
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
 - id: DF-6
   title: 'Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp'
   prompt: prompts/factories/DF-6.md
@@ -474,10 +477,10 @@ tasks:
   files_owned: apps/agent/internal/descriptors/<plugins of DF-6>/** docs/agent/descriptors/<plugins>.md
   branch: task/DF-6
   worktree: /root/ngfw-wt/DF-6
-  owner: desktop-agent slot11
+  owner: host-agent slot11
   started: 2026-09-23T15:28
   finished: ''
-  notes: ''
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
 - id: DF-7
   title: 'Descriptors: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls'
   prompt: prompts/factories/DF-7.md

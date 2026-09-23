@@ -26,17 +26,17 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 
 ## Running / review
 
-- P02a — Schema group (a): system, dataplane, interfaces, vrfs, routing, management + primitives/diff/merge-patch/gen (running, desktop-agent slot1)
-- P02b — Schema group (b): nat, objects, acl (running, desktop-agent slot5)
-- P02c — Schema group (c): vpn, tunnels, services, ha (running, desktop-agent slot6)
-- P05 — Agent core: govpp, reconciler, ownership scoping, gRPC server, resync, confirm timer (running, desktop-agent slot7)
-- P07a — UI shell: theme/RTL, i18n, SchemaForm, ServerDataGrid, WS hook, frame skeleton (review, desktop-agent slot8)
-- DF-1 — Descriptors: bond, l2 (bridge, xconnect), memif, tap, host-interface/af_packet, subinterface, admin-state, mtu, rx-mode (running, desktop-agent slot2)
-- DF-2 — Descriptors: ip_neighbor, ip6_nd (RA, DAD), urpf, abf, classify (ip tables/routes are P05 core) (running, desktop-agent slot3)
-- DF-3 — Descriptors: nat44_ed (nat), nat44_ei, nat64, nat66, det44, map, cnat, pnat (running, desktop-agent slot9)
-- DF-4 — Descriptors: acl (incl. macip), acl stats (review, desktop-agent slot10)
-- DF-5 — Descriptors: ipsec, ikev2, wireguard (running, desktop-agent slot4)
-- DF-6 — Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp (running, desktop-agent slot11)
+- P02a — Schema group (a): system, dataplane, interfaces, vrfs, routing, management + primitives/diff/merge-patch/gen (running, host-agent slot1)
+- P02b — Schema group (b): nat, objects, acl (running, host-agent slot5)
+- P02c — Schema group (c): vpn, tunnels, services, ha (running, host-agent slot6)
+- P05 — Agent core: govpp, reconciler, ownership scoping, gRPC server, resync, confirm timer (running, host-agent slot7)
+- P07a — UI shell: theme/RTL, i18n, SchemaForm, ServerDataGrid, WS hook, frame skeleton (review, host-agent slot8)
+- DF-1 — Descriptors: bond, l2 (bridge, xconnect), memif, tap, host-interface/af_packet, subinterface, admin-state, mtu, rx-mode (running, host-agent slot2)
+- DF-2 — Descriptors: ip_neighbor, ip6_nd (RA, DAD), urpf, abf, classify (ip tables/routes are P05 core) (running, host-agent slot3)
+- DF-3 — Descriptors: nat44_ed (nat), nat44_ei, nat64, nat66, det44, map, cnat, pnat (running, host-agent slot9)
+- DF-4 — Descriptors: acl (incl. macip), acl stats (review, host-agent slot10)
+- DF-5 — Descriptors: ipsec, ikev2, wireguard (running, host-agent slot4)
+- DF-6 — Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp (running, host-agent slot11)
 
 ## Parked
 

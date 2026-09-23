@@ -53,6 +53,7 @@ func TestNat66OnHost(t *testing.T) {
 	nattest.CreateAll(ctx, t, p.StaticMapping, m)
 	nattest.AssertPlan(t, p.StaticMapping, m)
 
+	nattest.Pause(t, "nat66") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
 	nattest.DeleteAll(ctx, t, p.StaticMapping)
 	nattest.DeleteAll(ctx, t, p.Interface)
 }

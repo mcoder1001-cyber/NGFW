@@ -61,6 +61,7 @@ func TestDet44OnHost(t *testing.T) {
 		t.Logf("det44 sessions of %s: %d (shape only)", nattest.Addr4(t, 44, 1), len(sess))
 	}
 
+	nattest.Pause(t, "det44") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
 	nattest.DeleteAll(ctx, t, p.Map)
 	nattest.DeleteAll(ctx, t, p.Interface)
 	nattest.DeleteAll(ctx, t, p.Timeouts)

@@ -154,6 +154,7 @@ func TestNat44EdOnHost(t *testing.T) {
 	t.Logf("nat44-ed session users on host: %d (asserted for shape only)", len(users))
 
 	// --- delete everything (reverse order), Retrieve shows nothing of ours --------------------
+	nattest.Pause(t, "nat44ed") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
 	nattest.DeleteAll(ctx, t, p.VRFTable)
 	nattest.DeleteAll(ctx, t, p.LBStaticMapping)
 	nattest.DeleteAll(ctx, t, p.IdentityMapping)

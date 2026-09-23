@@ -69,6 +69,7 @@ func TestCnatOnHost(t *testing.T) {
 		nattest.CreateAll(ctx, t, p.SnatExcludePfx, ex)
 		nattest.AssertPlan(t, p.SnatExcludePfx, ex)
 
+		nattest.Pause(t, "cnat") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
 		nattest.DeleteAll(ctx, t, p.SnatExcludePfx)
 		nattest.DeleteAll(ctx, t, p.SnatInterface)
 		nattest.DeleteAll(ctx, t, p.SnatPolicy)

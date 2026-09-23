@@ -75,6 +75,7 @@ func TestNat64OnHost(t *testing.T) {
 		t.Logf("nat64 sessions: %d (shape only)", len(sess))
 	}
 
+	nattest.Pause(t, "nat64") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
 	nattest.DeleteAll(ctx, t, p.StaticBIB)
 	nattest.DeleteAll(ctx, t, p.Interface)
 	nattest.DeleteAll(ctx, t, p.Pool)

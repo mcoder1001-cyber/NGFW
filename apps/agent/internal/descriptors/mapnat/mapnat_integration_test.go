@@ -48,6 +48,7 @@ func TestMapOnHost(t *testing.T) {
 	nattest.CreateAll(ctx, t, p.Interface, ie, it)
 	nattest.AssertPlan(t, p.Interface, ie, it)
 
+	nattest.Pause(t, "map") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
 	// global parameters: only from defaults, restored in Cleanup
 	if kvs, err := p.Params.Retrieve(ctx); err != nil {
 		t.Fatal(err)

@@ -35,6 +35,7 @@ func TestPnatOnHost(t *testing.T) {
 	nattest.CreateAll(ctx, t, p.Attachment, a1, a2)
 	nattest.AssertPlan(t, p.Attachment, a1, a2)
 
+	nattest.Pause(t, "pnat") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
 	nattest.DeleteAll(ctx, t, p.Attachment)
 	nattest.DeleteAll(ctx, t, p.Binding)
 }

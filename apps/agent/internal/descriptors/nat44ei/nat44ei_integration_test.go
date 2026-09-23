@@ -103,6 +103,7 @@ func TestNat44EiOnHost(t *testing.T) {
 	}
 	t.Logf("nat44-ei users: %d (shape only)", len(users))
 
+	nattest.Pause(t, "nat44ei") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
 	nattest.DeleteAll(ctx, t, p.OutputFeature)
 	nattest.DeleteAll(ctx, t, p.IdentityMapping)
 	nattest.DeleteAll(ctx, t, p.StaticMapping)

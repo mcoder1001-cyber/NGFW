@@ -80,7 +80,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 10
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D4.1
@@ -94,11 +94,11 @@ tasks:
   files_owned: packages/schema/src/domains/{nat,objects,acl}.ts packages/schema/src/semantic/{nat,objects,acl}*.ts
   branch: task/P02b
   worktree: /root/ngfw-wt/P02b
-  owner: host-agent slot5
+  owner: manager
   started: 2026-09-23T13:35
   finished: ''
   notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | review APPROVE WITH CHANGES (M1-M5 before tag) → fix round | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted
-    work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
+    work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | fix round 2 done 3e7f8a3; proto sync applied by manager (D-061); manager CI gate running before merge'
 - id: P02c
   title: 'Schema group (c): vpn, tunnels, services, ha'
   prompt: prompts/P02-schema-package.md
@@ -522,7 +522,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D7.2
@@ -533,12 +533,12 @@ tasks:
   - D3.1
   scope: dhcp, dns, flowprobe, sflow, prom, pcap/tracenode, lcp [skip-unless-loaded]
   files_owned: apps/agent/internal/descriptors/<plugins of DF-8>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-8
+  worktree: /root/ngfw-wt/DF-8
+  owner: host-agent slot5
+  started: 2026-09-24T00:35
   finished: ''
-  notes: ''
+  notes: ' | spawned on host slot 5 (freed by P02b); lcp testable since D-060'
 - id: RF-1
   title: 'Renderers: frr (renderer framework: files, vtysh -C, frr-reload.py, JSON state; protocol semantics in P12/F-*)'
   prompt: prompts/factories/RF-1.md

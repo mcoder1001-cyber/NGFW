@@ -38,3 +38,5 @@ The product owner reviews; to overturn, append `OVERTURNED → …` to the line 
 | 2026-09-23 | D-031 | `apps/agent/Makefile` lint target no longer swallows golangci-lint's exit code | (a) leave (b) if/else | (b) a failing linter must fail the gate | trivial | P05a finding |
 
 | 2026-09-23 | D-032 | Usage-limit interruption (resets 14:50 Tehran) killed 7 workers + 1 reviewer; manager salvaged unpushed desktop edits onto each branch (never generated files or lockfiles) and respawned all with CONTINUE envelopes; P04 review verdict BLOCK (F1–F4) goes back to a P04 fix worker | (a) restart tasks from scratch (b) salvage + continue | (b) preserves ~1–2 h of work per task | trivial | S1 |
+| 2026-09-23 | D-033 | P04 merged after the review BLOCK was cleared: the reviewer stated F1–F4 as the approval condition; the manager verified the pasted F1 re-test (rig down/gc anchored) and the gate instead of running a second review round | (a) second full review (b) manager verifies the stated condition | (b) saves ~15 min; condition was explicit and evidenced | low | P04 |
+

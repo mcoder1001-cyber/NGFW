@@ -205,6 +205,15 @@ message Ikev2SleepInterval {
   double seconds = 1;
 }
 
+// Ikev2Liveness is the plugin-wide dead-peer-detection setting (ikev2_profile_set_liveness: despite
+// the name the message carries no profile, VPP stores it in ikev2_main). Global singleton without a
+// getter: key ikev2.liveness/global; Retrieve reports the last value this process applied; Delete
+// leaves VPP as it is.
+message Ikev2Liveness {
+  uint32 period = 1;       // seconds, > 0
+  uint32 max_retries = 2;  // > 0
+}
+
 // ------------------------------------------------------------------------------------- wireguard
 
 // WireguardInterface is a WireGuard interface (wireguard_interface_create / _delete; dump

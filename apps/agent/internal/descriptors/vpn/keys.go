@@ -3,6 +3,7 @@ package vpn
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"ngfw/agent/internal/scheduler"
 )
@@ -17,6 +18,39 @@ const (
 
 // InterfaceKey returns the dependency key of a VPP interface by name.
 func InterfaceKey(name string) scheduler.Key { return scheduler.Join(InterfaceDescriptor, name) }
+
+// Descriptor names of the interfaces the DF-5 packages create themselves (ipsec.itf names its
+// interfaces ipsec<instance>, wireguard.interface wg<instance>). They are spelled here, not
+// imported, so vpn stays a leaf package; the ipsec and wireguard tests assert they match.
+const (
+	IpsecItfDescriptor     = "ipsec.itf"
+	WireguardItfDescriptor = "wireguard.interface"
+)
+
+// InterfaceDependency returns the key an object attached to interface name depends on: the DF-5
+// descriptor that creates it for ipsec<N> / wg<N> (those are never produced under interface/…),
+// interface/<name> for everything else (loopbacks, ipip/gre from DF-6, physical interfaces).
+func InterfaceDependency(name string) scheduler.Key {
+	if n, ok := strings.CutPrefix(name, "ipsec"); ok && isDigits(n) {
+		return scheduler.Join(IpsecItfDescriptor, name)
+	}
+	if n, ok := strings.CutPrefix(name, "wg"); ok && isDigits(n) {
+		return scheduler.Join(WireguardItfDescriptor, name)
+	}
+	return InterfaceKey(name)
+}
+
+func isDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
 
 // VRFKey returns the dependency key of a FIB table.
 func VRFKey(id uint32) scheduler.Key {

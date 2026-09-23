@@ -389,6 +389,12 @@ func TestTunnelProtect(t *testing.T) {
 	if len(deps) != 3 || deps[0].Key != "interface/ipip4001" || deps[1].Key != "ipsec.sa/4001" || deps[2].Key != "ipsec.sa/4002" {
 		t.Fatalf("deps %+v", deps)
 	}
+	// an ipsec interface created by ipsec.itf is depended on by that descriptor's key
+	itf := ipsecd.NewItf(newCfg(v))
+	onItf := &vpnpb.IpsecTunnelProtect{Interface: ipsecd.ItfInterfaceName(4001), SaOut: 4001, SaIn: []uint32{4002}}
+	if deps := d.Dependencies(onItf); deps[0].Key != itf.KeyOf(&vpnpb.IpsecItf{Instance: 4001}) || vpn.IpsecItfDescriptor != itf.Name() {
+		t.Fatalf("deps on ipsec itf %+v", deps)
+	}
 	if _, err := d.Create(ctx, &vpnpb.IpsecTunnelProtect{Interface: "ipip4001", SaOut: 4001}); err == nil {
 		t.Fatal("no sa_in must be refused")
 	}

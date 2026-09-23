@@ -58,7 +58,7 @@ func (*SpdInterface) Dependencies(obj proto.Message) []scheduler.Dependency {
 	o, _ := obj.(*vpnpb.IpsecSpdInterface)
 	return []scheduler.Dependency{
 		{Key: scheduler.Join(SpdName, vpn.Uint(o.GetSpdId()))},
-		{Key: vpn.InterfaceKey(o.GetInterface())},
+		{Key: vpn.InterfaceDependency(o.GetInterface())},
 	}
 }
 

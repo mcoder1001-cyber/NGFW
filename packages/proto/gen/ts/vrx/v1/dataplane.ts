@@ -1093,10 +1093,10 @@ export interface DataplaneConfig {
     | number
     | undefined;
   /**
-   * plugins { plugin <file> { enable|disable } } keyed by plugin file name (true = enable); files not
-   * listed keep the switch of the current start-up configuration (D-060, D-081).
+   * plugins { plugin <file> { enable|disable } } (D-060, D-081, D-084). Present = authoritative: exactly
+   * these switches are rendered; absent = the switches of the current start-up configuration are kept.
    */
-  plugins: { [key: string]: boolean };
+  plugins?: PluginSet | undefined;
 }
 
 export interface DataplaneConfig_DevicesEntry {
@@ -1104,7 +1104,13 @@ export interface DataplaneConfig_DevicesEntry {
   value: DataplaneDevice | undefined;
 }
 
-export interface DataplaneConfig_PluginsEntry {
+/** PluginSet mirrors `dataplane.plugins` (D-084): a message so presence survives the proto. */
+export interface PluginSet {
+  /** Plugin file name ("linux_cp_plugin.so") → true = enable, false = disable. */
+  switches: { [key: string]: boolean };
+}
+
+export interface PluginSet_SwitchesEntry {
   key: string;
   value: boolean;
 }
@@ -9634,7 +9640,7 @@ function createBaseDataplaneConfig(): DataplaneConfig {
     managementPci: [],
     devices: {},
     buffersPerNuma: undefined,
-    plugins: {},
+    plugins: undefined,
   };
 }
 
@@ -9672,9 +9678,9 @@ export const DataplaneConfig: MessageFns<DataplaneConfig> = {
     if (message.buffersPerNuma !== undefined) {
       writer.uint32(80).uint32(message.buffersPerNuma);
     }
-    globalThis.Object.entries(message.plugins).forEach(([key, value]: [string, boolean]) => {
-      DataplaneConfig_PluginsEntry.encode({ key: key as any, value }, writer.uint32(90).fork()).join();
-    });
+    if (message.plugins !== undefined) {
+      PluginSet.encode(message.plugins, writer.uint32(90).fork()).join();
+    }
     return writer;
   },
 
@@ -9789,10 +9795,7 @@ export const DataplaneConfig: MessageFns<DataplaneConfig> = {
               break;
             }
 
-            const entry11 = DataplaneConfig_PluginsEntry.decode(reader, reader.uint32());
-            if (entry11.value !== undefined) {
-              message.plugins[entry11.key] = entry11.value;
-            }
+            message.plugins = PluginSet.decode(reader, reader.uint32());
             continue;
           }
         }
@@ -9862,20 +9865,7 @@ export const DataplaneConfig: MessageFns<DataplaneConfig> = {
         : isSet(object.buffers_per_numa)
         ? globalThis.Number(object.buffers_per_numa)
         : undefined,
-      plugins: isObject(object.plugins)
-        ? (globalThis.Object.entries(object.plugins) as [string, any][]).reduce(
-          (acc: { [key: string]: boolean }, [key, value]: [string, any]) => {
-            globalThis.Object.defineProperty(acc, key, {
-              value: globalThis.Boolean(value),
-              enumerable: true,
-              configurable: true,
-              writable: true,
-            });
-            return acc;
-          },
-          {},
-        )
-        : {},
+      plugins: isSet(object.plugins) ? PluginSet.fromJSON(object.plugins) : undefined,
     };
   },
 
@@ -9917,14 +9907,8 @@ export const DataplaneConfig: MessageFns<DataplaneConfig> = {
     if (message.buffersPerNuma !== undefined) {
       obj.buffersPerNuma = Math.round(message.buffersPerNuma);
     }
-    if (message.plugins) {
-      const entries = globalThis.Object.entries(message.plugins) as [string, boolean][];
-      if (entries.length > 0) {
-        obj.plugins = {};
-        entries.forEach(([k, v]) => {
-          obj.plugins[k] = v;
-        });
-      }
+    if (message.plugins !== undefined) {
+      obj.plugins = PluginSet.toJSON(message.plugins);
     }
     return obj;
   },
@@ -9952,15 +9936,9 @@ export const DataplaneConfig: MessageFns<DataplaneConfig> = {
       {},
     );
     message.buffersPerNuma = object.buffersPerNuma ?? undefined;
-    message.plugins = (globalThis.Object.entries(object.plugins ?? {}) as [string, boolean][]).reduce(
-      (acc: { [key: string]: boolean }, [key, value]: [string, boolean]) => {
-        if (value !== undefined) {
-          acc[key] = globalThis.Boolean(value);
-        }
-        return acc;
-      },
-      {},
-    );
+    message.plugins = (object.plugins !== undefined && object.plugins !== null)
+      ? PluginSet.fromPartial(object.plugins)
+      : undefined;
     return message;
   },
 };
@@ -10052,12 +10030,111 @@ export const DataplaneConfig_DevicesEntry: MessageFns<DataplaneConfig_DevicesEnt
   },
 };
 
-function createBaseDataplaneConfig_PluginsEntry(): DataplaneConfig_PluginsEntry {
+function createBasePluginSet(): PluginSet {
+  return { switches: {} };
+}
+
+export const PluginSet: MessageFns<PluginSet> = {
+  encode(message: PluginSet, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    globalThis.Object.entries(message.switches).forEach(([key, value]: [string, boolean]) => {
+      PluginSet_SwitchesEntry.encode({ key: key as any, value }, writer.uint32(10).fork()).join();
+    });
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PluginSet {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePluginSet();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            const entry1 = PluginSet_SwitchesEntry.decode(reader, reader.uint32());
+            if (entry1.value !== undefined) {
+              message.switches[entry1.key] = entry1.value;
+            }
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PluginSet {
+    return {
+      switches: isObject(object.switches)
+        ? (globalThis.Object.entries(object.switches) as [string, any][]).reduce(
+          (acc: { [key: string]: boolean }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: globalThis.Boolean(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+    };
+  },
+
+  toJSON(message: PluginSet): unknown {
+    const obj: any = {};
+    if (message.switches) {
+      const entries = globalThis.Object.entries(message.switches) as [string, boolean][];
+      if (entries.length > 0) {
+        obj.switches = {};
+        entries.forEach(([k, v]) => {
+          obj.switches[k] = v;
+        });
+      }
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PluginSet>): PluginSet {
+    return PluginSet.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PluginSet>): PluginSet {
+    const message = createBasePluginSet();
+    message.switches = (globalThis.Object.entries(object.switches ?? {}) as [string, boolean][]).reduce(
+      (acc: { [key: string]: boolean }, [key, value]: [string, boolean]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.Boolean(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    return message;
+  },
+};
+
+function createBasePluginSet_SwitchesEntry(): PluginSet_SwitchesEntry {
   return { key: "", value: false };
 }
 
-export const DataplaneConfig_PluginsEntry: MessageFns<DataplaneConfig_PluginsEntry> = {
-  encode(message: DataplaneConfig_PluginsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const PluginSet_SwitchesEntry: MessageFns<PluginSet_SwitchesEntry> = {
+  encode(message: PluginSet_SwitchesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.key !== "") {
       writer.uint32(10).string(message.key);
     }
@@ -10067,7 +10144,7 @@ export const DataplaneConfig_PluginsEntry: MessageFns<DataplaneConfig_PluginsEnt
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): DataplaneConfig_PluginsEntry {
+  decode(input: BinaryReader | Uint8Array, length?: number): PluginSet_SwitchesEntry {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
@@ -10076,7 +10153,7 @@ export const DataplaneConfig_PluginsEntry: MessageFns<DataplaneConfig_PluginsEnt
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
       const end = length === undefined ? reader.len : reader.pos + length;
-      const message = createBaseDataplaneConfig_PluginsEntry();
+      const message = createBasePluginSet_SwitchesEntry();
       while (reader.pos < end) {
         const tag = reader.uint32();
         switch (tag >>> 3) {
@@ -10108,14 +10185,14 @@ export const DataplaneConfig_PluginsEntry: MessageFns<DataplaneConfig_PluginsEnt
     }
   },
 
-  fromJSON(object: any): DataplaneConfig_PluginsEntry {
+  fromJSON(object: any): PluginSet_SwitchesEntry {
     return {
       key: isSet(object.key) ? globalThis.String(object.key) : "",
       value: isSet(object.value) ? globalThis.Boolean(object.value) : false,
     };
   },
 
-  toJSON(message: DataplaneConfig_PluginsEntry): unknown {
+  toJSON(message: PluginSet_SwitchesEntry): unknown {
     const obj: any = {};
     if (message.key !== "") {
       obj.key = message.key;
@@ -10126,11 +10203,11 @@ export const DataplaneConfig_PluginsEntry: MessageFns<DataplaneConfig_PluginsEnt
     return obj;
   },
 
-  create(base?: DeepPartial<DataplaneConfig_PluginsEntry>): DataplaneConfig_PluginsEntry {
-    return DataplaneConfig_PluginsEntry.fromPartial(base ?? {});
+  create(base?: DeepPartial<PluginSet_SwitchesEntry>): PluginSet_SwitchesEntry {
+    return PluginSet_SwitchesEntry.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<DataplaneConfig_PluginsEntry>): DataplaneConfig_PluginsEntry {
-    const message = createBaseDataplaneConfig_PluginsEntry();
+  fromPartial(object: DeepPartial<PluginSet_SwitchesEntry>): PluginSet_SwitchesEntry {
+    const message = createBasePluginSet_SwitchesEntry();
     message.key = object.key ?? "";
     message.value = object.value ?? false;
     return message;

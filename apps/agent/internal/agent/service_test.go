@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"net"
 	"path/filepath"
 	"strings"
@@ -16,12 +17,14 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/ip"
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp"
 )
 
 const testOwner = "w7"
@@ -660,3 +663,85 @@ func (fakeStats) InterfaceStats() ([]api.InterfaceCounters, error) {
 }
 
 var _ net.Listener = (*net.UnixListener)(nil)
+
+// fakeConn adds connection-state notifications to the fake VPP model.
+type fakeConn struct {
+	*coretest.VPP
+	states chan vpp.ConnState
+}
+
+func (f *fakeConn) States() <-chan vpp.ConnState { return f.states }
+func (f *fakeConn) Close()                       {}
+
+func TestWatchVPPResyncsOnEveryConnect(t *testing.T) {
+	v := coretest.New()
+	dir := t.TempDir()
+	s := newSvc(t, v, dir)
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	fc := &fakeConn{VPP: v, states: make(chan vpp.ConnState, 4)}
+	a := &Agent{log: s.log, conn: fc, svc: s, metrics: s.metrics}
+	sub := s.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{
+		vrxv1.EventKind_EVENT_KIND_VPP_CONNECTED, vrxv1.EventKind_EVENT_KIND_VPP_DISCONNECTED,
+		vrxv1.EventKind_EVENT_KIND_RECONCILE_START, vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE,
+	}})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { a.watchVPP(ctx); close(done) }()
+	defer func() { cancel(); <-done }()
+
+	fc.states <- vpp.ConnState{Connected: true}
+	evs := collect(t, sub, 3)
+	// VPP "restarted": everything gone, disconnect, reconnect → resync recreates it.
+	v.DeleteInterface("loop701")
+	v.DeleteInterface("loop702")
+	v.DeleteTable(7001, false)
+	v.DeleteTable(7001, true)
+	fc.states <- vpp.ConnState{Connected: false}
+	fc.states <- vpp.ConnState{Connected: true}
+	evs = append(evs, collect(t, sub, 4)...)
+	if got := kinds(evs); got != "VPP_CONNECTED:,RECONCILE_START:,RECONCILE_DONE:,VPP_DISCONNECTED:,VPP_CONNECTED:,RECONCILE_START:,RECONCILE_DONE:" {
+		t.Fatalf("events %s", got)
+	}
+	if evs[6].GetSummary().GetCreated() == 0 || evs[6].GetMessage() != "APPLY_STATUS_APPLIED" {
+		t.Fatalf("resync after reconnect %v", evs[6])
+	}
+	if h := s.Health(); h.GetVppVersion() != "26.06-fake" {
+		t.Fatalf("vpp version %q", h.GetVppVersion())
+	}
+	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{})
+	if err != nil || !proto.Equal(got.GetDesiredState(), doc(t, canonicalDoc)) {
+		t.Fatalf("after reconnect resync: %v", err)
+	}
+}
+
+func TestDegradedWhenRollbackFails(t *testing.T) {
+	v := coretest.New()
+	s := newSvc(t, v, t.TempDir())
+	sub := s.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_DEGRADED}})
+	// loop701 is created, then the overlapping address on loop702 fails, and deleting loop701
+	// during the rollback fails too.
+	v.Fail("delete_loopback", errors.New("stuck"))
+	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "d1", DesiredState: doc(t, `{"interfaces":{"loop701":{"ipv4":["10.7.1.1/24"]},"loop702":{"ipv4":["10.7.1.2/24"]}}}`)})
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED)
+	if !s.Health().GetDegraded() {
+		t.Fatal("health not degraded")
+	}
+	if evs := collect(t, sub, 1); evs[0].GetKind() != vrxv1.EventKind_EVENT_KIND_DEGRADED {
+		t.Fatalf("event %v", evs)
+	}
+	var revertFailed int
+	for _, r := range resp.GetResults() {
+		if r.GetCode() == vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_REVERT_FAILED {
+			revertFailed++
+		}
+	}
+	if revertFailed == 0 {
+		t.Fatalf("results %v", resp.GetResults())
+	}
+	// A later successful transaction clears the flag.
+	v.Reply("delete_loopback", &interfaces.DeleteLoopbackReply{})
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "d2", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if s.Health().GetDegraded() {
+		t.Fatal("still degraded after a successful apply")
+	}
+}

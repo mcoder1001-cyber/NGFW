@@ -84,11 +84,18 @@ func (c Config) Validate() error {
 	return nil
 }
 
+// vppConn is what the agent needs from the VPP connection manager (vpp.Conn; fakes in tests).
+type vppConn interface {
+	vpp.Client
+	States() <-chan vpp.ConnState
+	Close()
+}
+
 // Agent is a running agent (Start/Stop form, used by Run and by in-process tests).
 type Agent struct {
 	cfg     Config
 	log     *slog.Logger
-	conn    *vpp.Conn
+	conn    vppConn
 	svc     *Service
 	grpc    *grpc.Server
 	metrics *metrics

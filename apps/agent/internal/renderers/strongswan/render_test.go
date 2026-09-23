@@ -42,6 +42,7 @@ func unitPaths(t *testing.T) Paths {
 		SwanctlDir:     filepath.Join(dir, "swanctl"),
 		ViciSocket:     filepath.Join(dir, "charon.vici"),
 		LogFile:        filepath.Join(dir, "charon.log"),
+		BootRecord:     filepath.Join(dir, "charon-boot"),
 		ConfMode:       0o640,
 		SecretMode:     0o600,
 	}
@@ -254,7 +255,10 @@ func TestRenderGoldenModelExtras(t *testing.T) {
 }
 
 func TestRenderGoldenEmptyAndProduct(t *testing.T) {
-	r := New(WithSecretResolver(testResolver(nil)))
+	if _, err := New(WithSecretResolver(testResolver(nil))).Render(context.Background(), &vrxv1.DesiredState{}); err == nil || !strings.Contains(err.Error(), "no Paths") {
+		t.Fatalf("renderer without Paths: %v, want refusal (no implicit product default)", err)
+	}
+	r := New(WithPaths(ProductPaths()), WithSecretResolver(testResolver(nil)))
 	files, err := r.Render(context.Background(), &vrxv1.DesiredState{})
 	if err != nil {
 		t.Fatal(err)

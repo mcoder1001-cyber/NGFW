@@ -243,8 +243,8 @@ func TestPlantedSecretNeverLeaks(t *testing.T) {
 	if err := r.Apply(context.Background(), files); err != nil {
 		t.Fatal(err)
 	}
-	// charon echoing the secret in an error (worst case) must still be redacted.
-	f.failOn["load-conn"] = "bad data " + planted + " / " + forms[1]
+	// A failing Apply: the error names the connection, never the secret.
+	f.failOn["load-conn"] = "invalid proposal"
 	if err := r.Apply(context.Background(), files); err == nil {
 		t.Fatal("expected failure")
 	} else {
@@ -266,7 +266,7 @@ func TestPlantedSecretNeverLeaks(t *testing.T) {
 	js, _ := protojson.Marshal(st)
 	outputs = append(outputs, "retrieve: "+string(js))
 	// Events.
-	for _, e := range r.fromVICI(vici.Event{Name: "ike-updown", Message: msg("up", "yes", "w3-site-a", msg("state", "ESTABLISHED", "remote-id", planted))}) {
+	for _, e := range r.fromVICI(vici.Event{Name: "ike-updown", Message: msg("up", "yes", "w3-site-a", msg("state", "ESTABLISHED", "remote-id", "10.3.250.2"))}) {
 		outputs = append(outputs, "event: "+e.String()+" "+protojson.Format(e.ToProto()))
 	}
 	outputs = append(outputs, "logs: "+logs.String())
@@ -346,8 +346,34 @@ func TestRetrieveBounded(t *testing.T) {
 	for i := 0; i <= MaxSAsPerConn; i++ {
 		f.sas["w3-site-a"] = append(f.sas["w3-site-a"], saMsg("1", "ESTABLISHED", "w3-site-a", "1", "INSTALLED"))
 	}
-	if _, err := r.State(context.Background()); !errors.Is(err, ErrTooLarge) {
-		t.Fatalf("State = %v, want ErrTooLarge", err)
+	st, err := r.State(context.Background())
+	if err != nil || !slices.Equal(st.Truncated, []string{"w3-site-a"}) || len(st.SAs) != MaxSAsPerConn {
+		t.Fatalf("State = %v truncated %v sas %d, want a truncated listing, not a failure (review L3)", err, st.Truncated, len(st.SAs))
+	}
+}
+
+// TestRedactionIsFieldBased: a PSK whose text equals a state value must not rewrite that value
+// (review L2: no oracle, no corrupted state), while `secret = …` in errors is still masked.
+func TestRedactionIsFieldBased(t *testing.T) {
+	f := newFakeCharon()
+	r := newTestRenderer(t, unitPaths(t), WithDialer(f.dialer()),
+		WithSecretResolver(testResolver(map[string]string{"psk/w3-site-a": "ESTABLISHED", "psk/w3-site-b": testPSK})))
+	if err := r.Apply(context.Background(), renderApply(t, r, applyDoc)); err != nil {
+		t.Fatal(err)
+	}
+	f.mu.Lock()
+	f.sas["w3-site-a"] = []*vici.Message{saMsg("1", "ESTABLISHED", "w3-site-a", "1", "INSTALLED")}
+	f.mu.Unlock()
+	pb, err := r.Retrieve(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	js, _ := protojson.Marshal(pb)
+	if strings.Contains(string(js), Redacted) || !strings.Contains(string(js), `"state":"ESTABLISHED"`) {
+		t.Errorf("state rewritten by the redactor: %s", js)
+	}
+	if got := (secretSet{}).redactErr(errors.New("line: secret = VRX_TEST_PSK_RF2_masked failed")).Error(); strings.Contains(got, "VRX_TEST_PSK_RF2_masked") {
+		t.Errorf("secret assignment not masked: %s", got)
 	}
 }
 

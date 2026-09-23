@@ -35,6 +35,9 @@ type Paths struct {
 	ConfMode os.FileMode
 	// SecretMode is the mode of vrx-secrets.conf (0600; never world- or group-readable).
 	SecretMode os.FileMode
+	// BootRecord persists the charon start time the agent last acknowledged (AckRestart), so a
+	// charon restart is detected even across agent restarts (RF-2 review M3). "" disables it.
+	BootRecord string
 }
 
 // ProductPaths are the paths of the packaged strongSwan on Ubuntu 26.04 (and of the P11
@@ -47,6 +50,7 @@ func ProductPaths() Paths {
 		FileOwner:      "root:root",
 		ConfMode:       0o640,
 		SecretMode:     0o600,
+		BootRecord:     "/var/lib/vrx/agent/strongswan-charon-boot",
 	}
 }
 
@@ -61,6 +65,7 @@ func TestPaths(prefix, instance string) Paths {
 		LogFile:        filepath.Join(base, "charon.log"),
 		ConfMode:       0o640,
 		SecretMode:     0o600,
+		BootRecord:     filepath.Join(base, "charon-boot"),
 	}
 }
 
@@ -90,8 +95,11 @@ func (p Paths) CertDir(key string) string {
 // pathRe is what a path may look like when it is rendered into strongswan.conf unquoted.
 var pathRe = regexp.MustCompile(`^/[A-Za-z0-9_./+-]{0,254}$`)
 
-// Validate checks the paths are absolute, clean and renderable.
+// Validate checks the paths are set, absolute, clean and renderable.
 func (p Paths) Validate() error {
+	if p.StrongswanConf == "" && p.SwanctlDir == "" && p.ViciSocket == "" {
+		return fmt.Errorf("strongswan: no Paths configured: pass WithPaths(ProductPaths()) explicitly in the product, TestPaths in tests (RF-2 review M2)")
+	}
 	for name, v := range map[string]string{
 		"StrongswanConf": p.StrongswanConf, "SwanctlDir": p.SwanctlDir, "ViciSocket": p.ViciSocket,
 	} {
@@ -99,8 +107,10 @@ func (p Paths) Validate() error {
 			return fmt.Errorf("strongswan: path %s %q must be absolute, clean and match %s", name, v, pathRe)
 		}
 	}
-	if p.LogFile != "" && (!pathRe.MatchString(p.LogFile) || filepath.Clean(p.LogFile) != p.LogFile) {
-		return fmt.Errorf("strongswan: path LogFile %q must be absolute, clean and match %s", p.LogFile, pathRe)
+	for name, v := range map[string]string{"LogFile": p.LogFile, "BootRecord": p.BootRecord} {
+		if v != "" && (!pathRe.MatchString(v) || filepath.Clean(v) != v) {
+			return fmt.Errorf("strongswan: path %s %q must be absolute, clean and match %s", name, v, pathRe)
+		}
 	}
 	if p.ConfMode == 0 || p.ConfMode&0o007 != 0 {
 		return fmt.Errorf("strongswan: ConfMode %v must be set and not world-accessible", p.ConfMode)

@@ -2,23 +2,23 @@ package strongswan
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"regexp"
-	"slices"
-	"strings"
-	"sync"
 )
 
 // Secrets (00-CONTEXT rule 10, D-051; P11 "secret handling contract"). The document carries
 // only references "psk/<name>"; Render resolves them through the injected SecretResolver. The
-// plaintext then exists in memory, in the VICI load-shared message (never logged) and — as
-// base64 — in vrx-secrets.conf (mode 0600, marked Secret so Files.Redacted hides it). It is
-// never in vrx.conf, strongswan.conf, argv, Retrieve/State, DryRun, events or errors: every
-// string the renderer hands back passes through the redactor, which masks every value this
-// renderer resolved (plaintext, base64 and hex forms) and every `secret = …` assignment.
+// plaintext then exists in memory, in the VICI load-shared request (never logged; its String
+// is redacted) and — as base64 — in vrx-secrets.conf (mode 0600, marked Secret so
+// Files.Redacted hides it). It never reaches vrx.conf, strongswan.conf or argv, and Retrieve,
+// State and events carry no key material by construction (VICI never returns it).
+//
+// Redaction is by field, never by text replacement of the secret value (RF-2 review L2: a
+// global replace corrupts state that happens to contain the PSK's text and turns GET into an
+// oracle): the only secret-bearing text shapes are `secret = …` assignments, which are masked
+// in errors and tool output; parse errors never quote lines; malformed secret references are
+// not echoed (they may be pasted secrets); resolver errors are the secret store's own text.
 
 // Redacted replaces secrets in everything the renderer returns.
 const Redacted = "<redacted>"
@@ -64,40 +64,11 @@ func checkPSK(v []byte) error {
 // secretAssignRe masks the value of any `secret = …` line (settings files, VICI dumps).
 var secretAssignRe = regexp.MustCompile(`(?m)(\bsecret\s*=\s*)([^\s#}]+)`)
 
-// secretSet remembers the values this renderer resolved, to mask them literally.
-type secretSet struct {
-	mu     sync.Mutex
-	values map[string]bool
-}
+// secretSet masks the secret-bearing fields of text the renderer returns.
+type secretSet struct{}
 
-// add remembers v in every form the renderer could emit (plaintext, base64, hex).
-func (ss *secretSet) add(v []byte) {
-	if len(v) == 0 {
-		return
-	}
-	ss.mu.Lock()
-	defer ss.mu.Unlock()
-	if ss.values == nil {
-		ss.values = map[string]bool{}
-	}
-	ss.values[string(v)] = true
-	ss.values[base64.StdEncoding.EncodeToString(v)] = true
-	ss.values[hex.EncodeToString(v)] = true
-}
-
-// redact masks every remembered value and every secret assignment in s.
-func (ss *secretSet) redact(s string) string {
-	ss.mu.Lock()
-	vals := make([]string, 0, len(ss.values))
-	for v := range ss.values {
-		vals = append(vals, v)
-	}
-	ss.mu.Unlock()
-	// Longest first, so a value containing another is masked whole.
-	slices.SortFunc(vals, func(a, b string) int { return len(b) - len(a) })
-	for _, v := range vals {
-		s = strings.ReplaceAll(s, v, Redacted)
-	}
+// redact masks every `secret = …` assignment in s.
+func (secretSet) redact(s string) string {
 	return secretAssignRe.ReplaceAllString(s, "${1}"+Redacted)
 }
 
@@ -110,7 +81,7 @@ type redactedError struct {
 func (e *redactedError) Error() string { return e.msg }
 func (e *redactedError) Unwrap() error { return e.err }
 
-func (ss *secretSet) redactErr(err error) error {
+func (ss secretSet) redactErr(err error) error {
 	if err == nil {
 		return nil
 	}

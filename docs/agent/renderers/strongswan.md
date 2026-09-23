@@ -13,6 +13,9 @@ semantic checks); state from `list-conns`/`list-sas`/`stats`/`version`; events f
 `vpn.ipsec.tunnels.<name>` with `enabled` ≠ false and `engine` unset or `strongswan`
 (`vpp-ikev2` tunnels belong to a VPP descriptor). One connection + one CHILD_SA per tunnel,
 both named `ConnName(<name>)` (`.` → `+`; `site.a` → `site+a`; state and events report both names).
+Tunnel names are limited to **60** characters (the derived secret `ike-<name>` must fit strongSwan-side
+names of 64; the schema's `objectName` allows 63 — questions file). With an owner prefix every name
+must start with it.
 
 ## Mapping (connection `connections.<conn>`)
 
@@ -36,7 +39,7 @@ both named `ConnName(<name>)` (`.` → `+`; `site.a` → `site+a`; state and eve
 | `mode` | child `mode = tunnel\|transport` | transport without selectors = dynamic |
 | `localTs[]`, `remoteTs[]` | child `local_ts`, `remote_ts` (comma lists, masked) | ≤ 64 each; policy-based tunnel mode needs both |
 | `routeBased.ipipInterface` | child `local_ts/remote_ts = 0.0.0.0/0,::/0` (unless given) + `if_id_in/if_id_out` | if_ids from the `IfIDMapper` P11 provides; none → rejected |
-| `startAction`, `closeAction` | child `start_action`, `close_action` (`none` not rendered) | |
+| `startAction`, `closeAction` | child `start_action`, `close_action` (`none` not rendered) | `start` is in the file (boot path) but withheld from VICI: the renderer initiates the child only when it has no CHILD_SA (no teardown on edits, no duplicates) |
 | `description` | `# <text>` comment line | ≤ 255, no control characters |
 | `natT` | not rendered: NAT-T detection is always on in charon; `encap = yes` (forced UDP encapsulation) exists in the model but has no document field yet | |
 | `vrf`, `underlayVrf`, `enabled`, `engine` | not rendered (VRF placement is P11/kernel-vpp; see "Which tunnels") | |
@@ -57,3 +60,11 @@ P11 sets the plugin list (kernel-vpp); charon-systemd reads the `charon` section
 
 `swanctl --load-all` (boot path, same files), `swanctl --list-conns`, `swanctl --list-sas`,
 `swanctl --initiate --child <conn> --ike <conn>`, `swanctl --terminate --ike <conn>`.
+
+## What a change does to a running tunnel (`Renderer.Impact`)
+
+| change | effect on established SAs |
+|---|---|
+| local/remote address, IKE version, IKE proposal, auth method, identities, PSK | IKE_SA terminated (DELETE to the peer) and re-negotiated (`start`: by the renderer; else by the peer/trap) |
+| selectors, ESP/AH proposal (incl. PFS group, ESN), mode, route-based if_id, anti-replay | that CHILD_SA terminated and re-negotiated |
+| DPD, MOBIKE, fragmentation, lifetimes, start/close/DPD action, pools | none: applies at the next negotiation |

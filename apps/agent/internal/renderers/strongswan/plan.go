@@ -1,6 +1,7 @@
 package strongswan
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -44,6 +45,17 @@ func (r *Renderer) parseFiles(files renderers.Files) (*trees, error) {
 	}
 	if err := checkSecrets(t.secrets, t.conns); err != nil {
 		return nil, err
+	}
+	if r.owner != "" {
+		for _, sec := range []string{"connections", "pools", "authorities"} {
+			if s := t.conns.Sub(sec); s != nil {
+				for _, it := range s.Sections() {
+					if !r.owns(it.Name) {
+						return nil, fmt.Errorf("%w: %s.%s does not carry the owner prefix %q", ErrInput, sec, it.Name, r.owner)
+					}
+				}
+			}
+		}
 	}
 	return &t, nil
 }
@@ -460,6 +472,61 @@ type plan struct {
 	shared      []sharedSecret
 	pools       []namedMsg
 	authorities []namedMsg
+	// starts are the children with start_action = start per connection. The loaded config
+	// carries start_action none instead: charon undoes and re-runs start actions whenever a
+	// connection is replaced (tearing the tunnel down on a DPD edit, duplicating the CHILD_SA
+	// on none→start — RF-2 review M1), so the renderer initiates them itself, only when no
+	// CHILD_SA of that child exists. trap stays with charon (uninstall/install, no SA impact).
+	starts map[string][]string
+	// fp are the security-relevant fingerprints per connection (H1).
+	fp map[string]connFP
+}
+
+// connFP fingerprints what an established SA was negotiated from. A change of ike means the
+// IKE_SA (and all its CHILD_SAs) no longer match the config: version, addresses, proposals,
+// authentication rounds, identities, the PSK and its owners. A change of a child entry means
+// that CHILD_SA no longer matches: selectors, ESP/AH proposals, mode, if_ids, replay window.
+// Everything else (DPD, MOBIKE, fragmentation, lifetimes, start/close/dpd actions, pools) is
+// soft: it applies to new SAs without disturbing established ones.
+type connFP struct {
+	ike      string
+	children map[string]string
+}
+
+var softConnKeys = map[string]bool{"dpd_delay": true, "dpd_timeout": true, "mobike": true, "fragmentation": true, "rekey_time": true, "reauth_time": true, "pools": true, "encap": true}
+var softChildKeys = map[string]bool{"start_action": true, "close_action": true, "dpd_action": true, "rekey_time": true, "rekey_bytes": true, "rekey_packets": true}
+
+func fingerprint(conn *Section, secret *sharedSecret) connFP {
+	var b strings.Builder
+	for _, k := range conn.Keys() {
+		if !softConnKeys[k.Name] {
+			fmt.Fprintf(&b, "%s=%q;", k.Name, k.Value)
+		}
+	}
+	for _, side := range []string{"local", "remote"} {
+		if a := conn.Sub(side); a != nil {
+			for _, k := range a.Keys() {
+				fmt.Fprintf(&b, "%s.%s=%q;", side, k.Name, k.Value)
+			}
+		}
+	}
+	if secret != nil {
+		h := sha256.Sum256(append(append([]byte{}, secret.data...), []byte("\x00"+strings.Join(secret.owners, "\x00"))...))
+		fmt.Fprintf(&b, "psk=%x;", h)
+	}
+	fp := connFP{ike: b.String(), children: map[string]string{}}
+	if ch := conn.Sub("children"); ch != nil {
+		for _, it := range ch.Sections() {
+			var cb strings.Builder
+			for _, k := range it.Section.Keys() {
+				if !softChildKeys[k.Name] {
+					fmt.Fprintf(&cb, "%s=%q;", k.Name, k.Value)
+				}
+			}
+			fp.children[it.Name] = cb.String()
+		}
+	}
+	return fp
 }
 
 type namedMsg struct {
@@ -492,11 +559,19 @@ const MaxCertFile = 64 << 10
 // buildPlan converts parsed trees to VICI messages. readFile loads certificate files (nil in
 // Validate, which only checks the structure).
 func (r *Renderer) buildPlan(t *trees) (*plan, error) {
-	p := &plan{}
+	p := &plan{starts: map[string][]string{}, fp: map[string]connFP{}}
 	for _, it := range t.conns.Sub("connections").Sections() {
 		body, err := r.sectionMsg(it.Section)
 		if err != nil {
 			return nil, fmt.Errorf("connections.%s: %w", it.Name, err)
+		}
+		if children := sub(body, "children"); children != nil {
+			for _, name := range children.Keys() {
+				if c := sub(children, name); c != nil && str(c, "start_action") == "start" {
+					c.Unset("start_action")
+					p.starts[it.Name] = append(p.starts[it.Name], name)
+				}
+			}
 		}
 		p.conns = append(p.conns, namedMsg{name: it.Name, msg: msg(it.Name, body)})
 	}
@@ -538,6 +613,15 @@ func (r *Renderer) buildPlan(t *trees) (*plan, error) {
 			}
 		}
 		p.shared = append(p.shared, s)
+	}
+	for _, it := range t.conns.Sub("connections").Sections() {
+		var sec *sharedSecret
+		for i := range p.shared {
+			if p.shared[i].id == "ike-"+it.Name {
+				sec = &p.shared[i]
+			}
+		}
+		p.fp[it.Name] = fingerprint(it.Section, sec)
 	}
 	return p, nil
 }

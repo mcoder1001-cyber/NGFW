@@ -104,6 +104,8 @@ type Renderer struct {
 	log      *slog.Logger
 	secrets  secretSet
 	now      func() time.Time
+	owner    string
+	resync   time.Duration
 }
 
 var _ renderers.Renderer = (*Renderer)(nil)
@@ -111,7 +113,8 @@ var _ renderers.Renderer = (*Renderer)(nil)
 // Option configures a Renderer.
 type Option func(*Renderer)
 
-// WithPaths overrides ProductPaths (tests: TestPaths(prefix, instance)).
+// WithPaths sets the paths. Required: there is no implicit product default (RF-2 review M2);
+// the product passes ProductPaths(), tests TestPaths(prefix, instance).
 func WithPaths(p Paths) Option { return func(r *Renderer) { r.paths = p } }
 
 // WithDaemonConfig sets the strongswan.conf parameters (default: DefaultPlugins).
@@ -129,13 +132,27 @@ func WithDialer(d Dialer) Option { return func(r *Renderer) { r.dial = d } }
 // WithChecker enables the swanctl integration check in Validate.
 func WithChecker(c Checker) Option { return func(r *Renderer) { r.checker = &c } }
 
+// WithOwnerPrefix limits the renderer to charon objects whose names start with prefix
+// (connections, pools, authorities; shared secrets "ike-<prefix>…"): every rendered name must
+// carry it, and Apply/State/converge ignore everything else, so several owners (test slots on
+// a shared charon) never unload each other's connections. The product uses none (it owns
+// charon's VICI configuration, like `swanctl --load-all`).
+func WithOwnerPrefix(prefix string) Option { return func(r *Renderer) { r.owner = prefix } }
+
+var ownerRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,15}$`)
+
+// owns reports whether a connection, pool or authority name belongs to this renderer.
+func (r *Renderer) owns(name string) bool { return strings.HasPrefix(name, r.owner) }
+
+// ownsShared reports whether a shared-secret id ("ike-<conn>") belongs to this renderer.
+func (r *Renderer) ownsShared(id string) bool { return strings.HasPrefix(id, "ike-"+r.owner) }
+
 // WithLogger sets the logger (default: discard). Every line is redacted.
 func WithLogger(l *slog.Logger) Option { return func(r *Renderer) { r.log = l } }
 
 // New returns a strongSwan renderer.
 func New(opts ...Option) *Renderer {
 	r := &Renderer{
-		paths:  ProductPaths(),
 		daemon: DaemonConfig{Plugins: DefaultPlugins(), LogLevel: 1},
 		dial:   DialVICI,
 		log:    slog.New(slog.DiscardHandler),
@@ -159,6 +176,9 @@ func (r *Renderer) check() error {
 	}
 	if err := r.daemon.check(); err != nil {
 		return err
+	}
+	if r.owner != "" && !ownerRe.MatchString(r.owner) {
+		return fmt.Errorf("strongswan: owner prefix %q must match %s", r.owner, ownerRe)
 	}
 	if r.checker != nil && r.checker.ViciSocket == r.paths.ViciSocket {
 		return errors.New("strongswan: the Validate checker must use a scratch charon, not the live VICI socket")
@@ -214,6 +234,9 @@ func (r *Renderer) RenderModel(m *Model) (renderers.Files, error) {
 	if err := m.normalize(); err != nil {
 		return nil, err
 	}
+	if err := r.checkOwnedModel(m); err != nil {
+		return nil, err
+	}
 	conns, err := renderers.ExecuteTemplate(templates, "vrx.conf.tmpl", m)
 	if err != nil {
 		return nil, r.secrets.redactErr(err)
@@ -255,7 +278,6 @@ func (r *Renderer) Render(ctx context.Context, desired proto.Message) (renderers
 		if err != nil {
 			return nil, r.secrets.redactErr(err)
 		}
-		r.secrets.add(v)
 		return v, nil
 	}
 	m, err := BuildModel(ctx, ds, buildOptions{resolve: resolve, ifID: r.ifID})
@@ -263,6 +285,28 @@ func (r *Renderer) Render(ctx context.Context, desired proto.Message) (renderers
 		return nil, r.secrets.redactErr(err)
 	}
 	return r.RenderModel(m)
+}
+
+func (r *Renderer) checkOwnedModel(m *Model) error {
+	if r.owner == "" {
+		return nil
+	}
+	var names []string
+	for _, c := range m.Conns {
+		names = append(names, c.Name)
+	}
+	for _, p := range m.Pools {
+		names = append(names, p.Name)
+	}
+	for _, a := range m.Authorities {
+		names = append(names, a.Name)
+	}
+	for _, n := range names {
+		if !r.owns(n) {
+			return fmt.Errorf("%w: %q does not carry the owner prefix %q of this renderer", ErrInput, n, r.owner)
+		}
+	}
+	return nil
 }
 
 // checkFiles verifies files is exactly this renderer's file set.

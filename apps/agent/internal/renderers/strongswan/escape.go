@@ -46,12 +46,19 @@ func SectionName(s string) (string, error) {
 	return s, nil
 }
 
+// MaxConnNameLen bounds a connection name so that every name derived from it — the secret
+// section and VICI shared-key id "ike-<conn>" — stays within MaxNameLen (RF-2 review L1).
+const MaxConnNameLen = MaxNameLen - len("ike-")
+
 // ConnName maps a document object name (objectName: [A-Za-z0-9][A-Za-z0-9_.-]{0,62}) to a
 // strongSwan section name: `.` is a settings path separator, so it becomes `+` — which
 // objectName never contains, so the mapping is bijective (TunnelName reverses it).
 func ConnName(objectName string) (string, error) {
 	if !objectNameRe.MatchString(objectName) {
 		return "", fmt.Errorf("%w: name %q must match %s", ErrInput, clip(objectName), objectNameRe)
+	}
+	if len(objectName) > MaxConnNameLen {
+		return "", fmt.Errorf("%w: name %q is %d characters; tunnel names are limited to %d so that the derived secret name ike-<name> fits %d", ErrInput, clip(objectName), len(objectName), MaxConnNameLen, MaxNameLen)
 	}
 	return SectionName(strings.ReplaceAll(objectName, ".", "+"))
 }

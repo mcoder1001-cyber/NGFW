@@ -32,11 +32,16 @@ const integrationPSK = "VRX_TEST_PSK_RF2_integration"
 // siteDoc renders one side of the w<N>-ab tunnel.
 func siteDoc(t *testing.T, slot int, local, remote, lts, rts, start string, extra string) *vrxv1.DesiredState {
 	t.Helper()
+	return siteDocX(t, slot, local, remote, lts, rts, start, 30, extra)
+}
+
+func siteDocX(t *testing.T, slot int, local, remote, lts, rts, start string, dpd int, extra string) *vrxv1.DesiredState {
+	t.Helper()
 	js := fmt.Sprintf(`{"vpn":{"ipsec":{
 	 "proposals":{"gcm":{"ike":{"encr":"aes256gcm16","prf":"prfsha256","dh":"curve25519"},"esp":{"encr":"aes256gcm16"}}},
 	 "tunnels":{"w%[1]d-ab":{"ikeVersion":2,"localAddr":%[2]q,"remoteAddr":%[3]q,
 	   "auth":{"method":"psk","secretRef":"psk/w%[1]d-ab"},"proposal":"gcm","localTs":[%[4]q],"remoteTs":[%[5]q],
-	   "dpd":{"enabled":true,"delaySec":30,"action":"clear"},"startAction":%[6]q}%[7]s}}}}`, slot, local, remote, lts, rts, start, extra)
+	   "dpd":{"enabled":true,"delaySec":%[8]d,"action":"clear"},"startAction":%[6]q}%[7]s}}}}`, slot, local, remote, lts, rts, start, extra, dpd)
 	ds := &vrxv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatalf("fixture: %v\n%s", err, js)
@@ -91,6 +96,14 @@ func TestStrongswanIntegration(t *testing.T) {
 		t.Skipf("no strongSwan binaries: install strongSwan or extract the stock packages into %s (README.md)", swantest.StockRoot(prefix))
 	}
 	etcBefore := statEtc(t)
+	// Validate's checker stages the files (incl. the PSKs) under TMPDIR: keep them on the
+	// slot's tmpfs, never on disk (review L4).
+	tmp := filepath.Join("/run/vrx-test", prefix, "tmp")
+	if err := os.MkdirAll(tmp, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("TMPDIR", tmp)
+	t.Cleanup(func() { _ = os.RemoveAll(tmp) })
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
@@ -130,17 +143,22 @@ func TestStrongswanIntegration(t *testing.T) {
 
 	var logs syncBuffer
 	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	var pskMu sync.Mutex
+	psk := integrationPSK
 	resolver := strongswan.SecretResolverFunc(func(_ context.Context, ref string) ([]byte, error) {
 		if ref != fmt.Sprintf("psk/w%d-ab", slot) {
 			return nil, fmt.Errorf("unknown secret reference %s", ref)
 		}
-		return []byte(integrationPSK), nil
+		pskMu.Lock()
+		defer pskMu.Unlock()
+		return []byte(psk), nil
 	})
 	daemon := strongswan.DaemonConfig{Plugins: strongswan.DefaultPlugins(), LogLevel: 1, QuietJournal: true}
 	checker := strongswan.Checker{ViciSocket: h.Paths("v").ViciSocket, Runner: h.NSRunner(h.Paths("v").StrongswanConf)}
 	newR := func(x string) *strongswan.Renderer {
 		return strongswan.New(strongswan.WithPaths(h.Paths(x)), strongswan.WithSecretResolver(resolver),
-			strongswan.WithDaemonConfig(daemon), strongswan.WithChecker(checker), strongswan.WithLogger(logger))
+			strongswan.WithDaemonConfig(daemon), strongswan.WithChecker(checker), strongswan.WithLogger(logger),
+			strongswan.WithOwnerPrefix(prefix))
 	}
 	ra, rb, rv := newR("a"), newR("b"), strongswan.New(strongswan.WithPaths(h.Paths("v")), strongswan.WithDaemonConfig(daemon))
 
@@ -314,38 +332,173 @@ func TestStrongswanIntegration(t *testing.T) {
 	}
 	t.Logf("failed Apply rolled back: error %q; vrx.conf restored byte-for-byte; charon still has only %s with IKE_SA #%s", applyErr, conn, sa.UniqueID)
 
-	// Restart safety: charon a restarts empty; re-Apply of the files restores the config and
-	// the tunnel comes back (b still has its SA until DPD; initiate again from a).
-	if err := h.Stop("a"); err != nil {
+	// ---- review M1: a soft edit (DPD 30→20) plus start_action none→start keeps the IKE_SA and
+	// does not add a second CHILD_SA.
+	stateOf := func(r *strongswan.Renderer) *strongswan.State {
+		t.Helper()
+		st, err := r.State(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return st
+	}
+	waitFor := func(what string, cond func() bool) {
+		t.Helper()
+		dl := time.Now().Add(20 * time.Second)
+		for !cond() {
+			if time.Now().After(dl) {
+				t.Fatalf("timeout waiting for %s: a %+v b %+v", what, stateOf(ra).SAs, stateOf(rb).SAs)
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
+	render := func(r *strongswan.Renderer, ds *vrxv1.DesiredState) renderers.Files {
+		t.Helper()
+		f, err := r.Render(ctx, ds)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := r.Validate(ctx, f); err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+	curA := render(ra, siteDocX(t, slot, aAddr, bAddr, lanA, lanB, "start", 20, ""))
+	impact, err := ra.Impact(curA)
+	if err != nil || impact[conn] != "update" {
+		t.Fatalf("Impact(soft edit) = %v %v", impact, err)
+	}
+	if err := ra.Apply(ctx, curA); err != nil {
+		t.Fatalf("Apply soft edit: %v", err)
+	}
+	st = stateOf(ra)
+	if len(st.SAs) != 1 || st.SAs[0].UniqueID != sa.UniqueID || len(st.SAs[0].Children) != 1 {
+		t.Fatalf("soft edit disturbed the tunnel: %+v", st.SAs)
+	}
+	t.Logf("M1: Impact %v; Apply(dpd 30→20, start_action none→start): IKE_SA #%s kept, %d CHILD_SA (no duplicate)", impact, sa.UniqueID, len(st.SAs[0].Children))
+
+	// ---- review H1 probe 1: the responder b narrows its remote selector to 10.<N>.1.0/25. The
+	// old /24 CHILD_SA must be gone before Apply returns; a follows, and the renderer (start
+	// action) brings up a CHILD_SA that carries the /25.
+	narrow := fmt.Sprintf("10.%d.1.0/25", slot)
+	curB := render(rb, siteDocX(t, slot, bAddr, aAddr, lanB, narrow, "none", 30, ""))
+	if im, _ := rb.Impact(curB); im[conn] != "reestablish" {
+		t.Fatalf("Impact(narrowed) = %v", im)
+	}
+	if err := rb.Apply(ctx, curB); err != nil {
+		t.Fatalf("Apply b narrowed: %v", err)
+	}
+	stB := stateOf(rb)
+	for _, s := range stB.SAs {
+		for _, c := range s.Children {
+			if c.State == "INSTALLED" && !slices.Equal(c.RemoteTS, []string{narrow}) {
+				t.Fatalf("b still has CHILD_SA #%s with remote TS %v after Apply", c.UniqueID, c.RemoteTS)
+			}
+		}
+	}
+	xp, _ := h.XfrmPolicy(ctx, h.NetNS("b"))
+	if strings.Contains(xp, "src "+lanA) || strings.Contains(xp, "dst "+lanA) {
+		t.Fatalf("b xfrm policy still covers %s:\n%s", lanA, xp)
+	}
+	t.Logf("H1 probe 1: Apply(b, remote_ts %s) returned after terminating the /24 CHILD_SA; b: stale %d, xfrm policy has no %s", narrow, stB.StaleSAs, lanA)
+	curA = render(ra, siteDocX(t, slot, aAddr, bAddr, narrow, lanB, "start", 20, ""))
+	if err := ra.Apply(ctx, curA); err != nil {
+		t.Fatalf("Apply a narrowed: %v", err)
+	}
+	waitFor("a /25 CHILD_SA on both sides", func() bool {
+		for _, r := range []*strongswan.Renderer{ra, rb} {
+			st := stateOf(r)
+			if len(st.SAs) != 1 || len(st.SAs[0].Children) != 1 || st.SAs[0].Children[0].State != "INSTALLED" || st.StaleSAs != 0 {
+				return false
+			}
+		}
+		c := stateOf(ra).SAs[0].Children[0]
+		return slices.Equal(c.LocalTS, []string{narrow})
+	})
+	ca := stateOf(ra).SAs[0]
+	t.Logf("H1 probe 1: a followed; IKE_SA #%s CHILD_SA #%s INSTALLED local_ts %v remote_ts %v (b: remote %v)",
+		ca.UniqueID, ca.Children[0].UniqueID, ca.Children[0].LocalTS, ca.Children[0].RemoteTS, stateOf(rb).SAs[0].Children[0].RemoteTS)
+
+	// ---- review H1 probe 2: rotate the PSK on both sides. The IKE_SA authenticated with the old
+	// key must be gone; the new one is authenticated with the new key (charon would fail AUTH
+	// otherwise).
+	oldIKE := ca.UniqueID
+	pskMu.Lock()
+	psk = integrationPSK + "_rotated"
+	pskMu.Unlock()
+	curB = render(rb, siteDocX(t, slot, bAddr, aAddr, lanB, narrow, "none", 30, ""))
+	if err := rb.Apply(ctx, curB); err != nil {
+		t.Fatalf("Apply b rotated: %v", err)
+	}
+	curA = render(ra, siteDocX(t, slot, aAddr, bAddr, narrow, lanB, "start", 20, ""))
+	if im, _ := ra.Impact(curA); im[conn] != "reestablish" {
+		t.Fatalf("Impact(rotated PSK) = %v", im)
+	}
+	if err := ra.Apply(ctx, curA); err != nil {
+		t.Fatalf("Apply a rotated: %v", err)
+	}
+	waitFor("a new IKE_SA with the rotated PSK", func() bool {
+		sa, sb := stateOf(ra).SAs, stateOf(rb).SAs
+		return len(sa) == 1 && sa[0].UniqueID != oldIKE && sa[0].State == "ESTABLISHED" && len(sa[0].Children) == 1 &&
+			len(sb) == 1 && sb[0].State == "ESTABLISHED"
+	})
+	t.Logf("H1 probe 2: PSK rotated on b then a: old IKE_SA #%s gone, IKE_SA #%s ESTABLISHED (authenticated with the new key)", oldIKE, stateOf(ra).SAs[0].UniqueID)
+
+	// ---- review M3: charon a crashes (SIGKILL to the PID the harness spawned). Its xfrm states
+	// stay; the restarted charon is reported as restarted (State + event) until acknowledged.
+	if err := h.Crash("a"); err != nil {
 		t.Fatal(err)
+	}
+	residue, _ := h.XfrmState(ctx, h.NetNS("a"))
+	if strings.Count(residue, "proto esp") == 0 {
+		t.Fatalf("expected xfrm residue after the crash, got %q", residue)
 	}
 	if _, err := h.Start(ctx, "a", h.NetNS("a"), filesA[h.Paths("a").StrongswanConf].Content); err != nil {
 		t.Fatal(err)
 	}
-	if st, err := ra.State(ctx); err != nil || len(st.Conns) != 0 {
-		t.Fatalf("restarted charon not empty: %+v %v", st, err)
+	st = stateOf(ra)
+	if !st.Restarted || len(st.Conns) != 0 {
+		t.Fatalf("restart not reported: %+v", st)
 	}
-	if err := ra.Apply(ctx, filesA); err != nil {
+	waitFor("the restarted event", func() bool {
+		gotMu.Lock()
+		defer gotMu.Unlock()
+		return slices.ContainsFunc(got, func(e strongswan.Event) bool { return e.Kind == strongswan.KindDaemon && e.State == "restarted" })
+	})
+	t.Logf("M3: after SIGKILL + restart: State.restarted=%v (started %q, acked %q), Watch sent daemon/restarted; xfrm residue in %s:\n%s",
+		st.Restarted, st.DaemonStartedAt, st.AckedStartedAt, h.NetNS("a"), residue)
+	if err := h.FlushXfrm(ctx, h.NetNS("a")); err != nil {
+		t.Fatal(err)
+	}
+	if err := ra.AckRestart(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := ra.Apply(ctx, curA); err != nil {
 		t.Fatalf("Apply after restart: %v", err)
 	}
-	if err := ra.Initiate(ctx, conn, conn, 10000); err != nil {
-		t.Fatalf("initiate after restart: %v", err)
-	}
-	if st, err = ra.State(ctx); err != nil || len(st.SAs) != 1 || st.SAs[0].State != "ESTABLISHED" {
-		t.Fatalf("after restart: %+v %v", st, err)
-	}
-	t.Logf("charon a restarted (SIGTERM to the PID the harness spawned, then started again): re-Apply loaded %s from the files, IKE_SA #%s ESTABLISHED", conn, st.SAs[0].UniqueID)
+	waitFor("a re-established after the restart", func() bool {
+		sa := stateOf(ra).SAs
+		return len(sa) == 1 && sa[0].State == "ESTABLISHED" && len(sa[0].Children) == 1
+	})
+	st = stateOf(ra)
+	t.Logf("M3: residue flushed, AckRestart → restarted=%v; re-Apply loaded %s and initiated it (start action): IKE_SA #%s ESTABLISHED", st.Restarted, conn, st.SAs[0].UniqueID)
 	for !eventsSeen(strongswan.KindDaemon, false) || !eventsSeen(strongswan.KindDaemon, true) {
 		if time.Now().After(deadline.Add(60 * time.Second)) {
 			t.Fatalf("Watch did not report the restart: %v", got)
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
-	t.Log("events: Watch reported daemon down and, after re-subscribing, daemon up")
+	t.Log("events: Watch reported daemon down and, after re-subscribing, daemon restarted")
 
 	// Terminate → SAs gone on both sides.
 	if err := ra.Terminate(ctx, conn, 5000); err != nil {
 		t.Fatalf("terminate: %v", err)
+	}
+	// b may still hold the SA of the crashed charon (it only learns by DPD): terminate there too.
+	if st := stateOf(rb); len(st.SAs) > 0 {
+		if err := rb.Terminate(ctx, conn, 5000); err != nil {
+			t.Fatalf("terminate b: %v", err)
+		}
 	}
 	for {
 		stA, _ := ra.State(ctx)
@@ -400,7 +553,9 @@ func TestStrongswanIntegration(t *testing.T) {
 	// Planted secret: the PSK (and its base64/hex forms) appears nowhere except the 0600
 	// secrets file — not in vrx.conf, strongswan.conf, charon's logs, the renderer log,
 	// Retrieve, events or errors.
-	forms := []string{integrationPSK, base64.StdEncoding.EncodeToString([]byte(integrationPSK)), fmt.Sprintf("%x", integrationPSK)}
+	rotated := integrationPSK + "_rotated"
+	forms := []string{integrationPSK, base64.StdEncoding.EncodeToString([]byte(integrationPSK)), fmt.Sprintf("%x", integrationPSK),
+		base64.StdEncoding.EncodeToString([]byte(rotated))}
 	sources := map[string]string{"renderer log": logs.String(), "retrieve": string(retrieved), "rollback error": applyErr.Error()}
 	for _, x := range []string{"a", "b"} {
 		for _, p := range []string{h.Paths(x).ConnsFile(), h.Paths(x).StrongswanConf, h.Paths(x).LogFile} {

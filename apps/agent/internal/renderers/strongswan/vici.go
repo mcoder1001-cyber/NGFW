@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"iter"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -120,7 +121,7 @@ func (b *boundedConn) Read(p []byte) (int, error) {
 // session is one VICI conversation with redacted errors and per-call timeouts.
 type session struct {
 	c       ViciConn
-	secrets *secretSet
+	secrets secretSet
 }
 
 func (r *Renderer) open(ctx context.Context) (*session, error) {
@@ -128,7 +129,7 @@ func (r *Renderer) open(ctx context.Context) (*session, error) {
 	if err != nil {
 		return nil, r.secrets.redactErr(fmt.Errorf("%w: %v", ErrDaemon, err))
 	}
-	return &session{c: c, secrets: &r.secrets}, nil
+	return &session{c: c, secrets: r.secrets}, nil
 }
 
 func (s *session) Close() { _ = s.c.Close() }
@@ -253,8 +254,9 @@ func (s *session) listConn(ctx context.Context, name string) (*vici.Message, err
 	return found, err
 }
 
-// listSAs returns the IKE_SAs of one connection name (config name → SA sections).
-func (s *session) listSAs(ctx context.Context, name string) ([]*vici.Message, error) {
+// listSAs returns the IKE_SAs of one connection name, at most MaxSAsPerConn; truncated
+// reports that there were more (review L3: callers degrade instead of failing).
+func (s *session) listSAs(ctx context.Context, name string) ([]*vici.Message, bool, error) {
 	var out []*vici.Message
 	err := s.stream(ctx, "list-sas", "list-sa", msg("ike", name, "noblock", "yes"), MaxSAsPerConn, func(m *vici.Message) error {
 		for _, k := range m.Keys() {
@@ -264,5 +266,51 @@ func (s *session) listSAs(ctx context.Context, name string) ([]*vici.Message, er
 		}
 		return nil
 	})
-	return out, err
+	if errors.Is(err, ErrTooLarge) {
+		return out, true, nil
+	}
+	return out, false, err
+}
+
+// terminateTimeout bounds a graceful terminate (DELETE exchange with the peer).
+const terminateTimeout = "3000"
+
+// terminateIKE deletes one IKE_SA (and its CHILD_SAs) by unique id: gracefully first, so the
+// peer drops its side too, forced when the peer does not answer. A SA that is already gone
+// is not an error.
+func (s *session) terminateIKE(ctx context.Context, id string) error {
+	return s.terminate(ctx, "ike-id", id)
+}
+
+// terminateChild deletes one CHILD_SA by unique id (the IKE_SA stays).
+func (s *session) terminateChild(ctx context.Context, id string) error {
+	return s.terminate(ctx, "child-id", id)
+}
+
+func (s *session) terminate(ctx context.Context, key, id string) error {
+	if !uintRe.MatchString(id) {
+		return fmt.Errorf("%w: terminate %s %q", ErrDaemon, key, id)
+	}
+	_, err := s.call(ctx, "terminate", msg(key, id, "timeout", terminateTimeout))
+	if err == nil || strings.Contains(err.Error(), "no matching") {
+		return nil
+	}
+	if key == "child-id" {
+		return err
+	}
+	_, ferr := s.call(ctx, "terminate", msg(key, id, "force", "yes", "timeout", "1000"))
+	if ferr == nil || strings.Contains(ferr.Error(), "no matching") {
+		return nil
+	}
+	return errors.Join(err, ferr)
+}
+
+// initiateAsync starts a CHILD_SA without waiting for the result (a peer that is down must
+// not fail a commit; the SA check in Apply only rejects contradicting SAs).
+func (s *session) initiateAsync(ctx context.Context, conn, child string) error {
+	_, err := s.call(ctx, "initiate", msg("child", child, "ike", conn, "timeout", "-1", "init-limits", "no"))
+	if err != nil && !strings.Contains(err.Error(), "establishing") {
+		return fmt.Errorf("initiate %s/%s: %w", conn, child, err)
+	}
+	return nil
 }

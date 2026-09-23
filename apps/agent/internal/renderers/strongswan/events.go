@@ -27,8 +27,11 @@ var EventNames = []string{"ike-updown", "child-updown", "ike-rekey", "child-reke
 const (
 	// KindDaemon: the event channel to charon went down or came back (State "down"/"up").
 	KindDaemon = "daemon"
-	// KindPoll: a state change seen by 1 Hz polling while the event channel is down.
+	// KindPoll: a state change seen by polling (1 Hz while the event channel is down, and the
+	// periodic / overflow resync while subscribed).
 	KindPoll = "poll"
+	// KindResync: the event buffer overflowed; a resync (KindPoll events) follows.
+	KindResync = "resync"
 )
 
 // Event is one observed change.
@@ -92,7 +95,6 @@ var childAttrs = []string{"uniqueid", "state", "spi-in", "spi-out", "mode", "pro
 const maxAttr = 256
 
 func (r *Renderer) clean(s string) string {
-	s = r.secrets.redact(s)
 	if len(s) > maxAttr {
 		s = s[:maxAttr]
 	}
@@ -160,8 +162,8 @@ const (
 // closes out. Sends are non-blocking-with-context: a full channel blocks Watch, not charon.
 func (r *Renderer) Watch(ctx context.Context, out chan<- Event) error {
 	backoff := minBackoff
-	var snapshot map[string]string // poll mode: "conn#ikeid[/child#childid]" → state
-	downReported := false
+	var snapshot map[string]string // "conn#ikeid[/child#childid]" → state
+	downReported, wasDown := false, false
 	send := func(e Event) bool {
 		select {
 		case out <- e:
@@ -176,18 +178,16 @@ func (r *Renderer) Watch(ctx context.Context, out chan<- Event) error {
 		}
 		evs, closeFn, err := r.subscribe(ctx)
 		if err == nil {
-			if downReported && !send(Event{Time: r.now(), Kind: KindDaemon, Up: true, State: "up"}) {
+			downReported, backoff = false, minBackoff
+			snapshot = r.pollOnce(ctx, nil, send) // baseline for the resyncs below
+			if up := r.upEvent(ctx, wasDown); up != nil && !send(*up) {
 				closeFn()
 				return ctx.Err()
 			}
-			downReported, backoff, snapshot = false, minBackoff, nil
-			for ev := range evs {
-				for _, e := range r.fromVICI(ev) {
-					if !send(e) {
-						closeFn()
-						return ctx.Err()
-					}
-				}
+			wasDown = false
+			if !r.watchSubscribed(ctx, evs, &snapshot, send) {
+				closeFn()
+				return ctx.Err()
 			}
 			closeFn()
 			if ctx.Err() != nil {
@@ -202,7 +202,7 @@ func (r *Renderer) Watch(ctx context.Context, out chan<- Event) error {
 			if !send(Event{Time: r.now(), Kind: KindDaemon, State: "down", Attrs: map[string]string{"reason": msg}}) {
 				return ctx.Err()
 			}
-			downReported = true
+			downReported, wasDown = true, true
 		}
 		// Poll at 1 Hz until the next subscription attempt is due.
 		deadline := r.now().Add(backoff)
@@ -216,6 +216,75 @@ func (r *Renderer) Watch(ctx context.Context, out chan<- Event) error {
 		}
 		backoff = min(backoff*2, maxBackoff)
 	}
+}
+
+// watchSubscribed forwards VICI events until the channel closes. Because govici drops events
+// silently when the channel is full (RF-2 review M4), a full channel triggers an immediate
+// resync (a KindResync event, then list-sas diffed against the last snapshot as KindPoll
+// events), and the same resync runs every resyncInterval anyway, so a lost event is repaired
+// within that interval at the latest. It returns false when ctx ended.
+func (r *Renderer) watchSubscribed(ctx context.Context, evs <-chan vici.Event, snapshot *map[string]string, send func(Event) bool) bool {
+	ticker := time.NewTicker(r.resyncEvery())
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		case ev, ok := <-evs:
+			if !ok {
+				return true
+			}
+			overflow := len(evs) >= cap(evs)-1
+			for _, e := range r.fromVICI(ev) {
+				if !send(e) {
+					return false
+				}
+			}
+			if overflow {
+				if !send(Event{Time: r.now(), Kind: KindResync, Attrs: map[string]string{"reason": "event buffer full: events may have been dropped"}}) {
+					return false
+				}
+				*snapshot = r.pollOnce(ctx, *snapshot, send)
+			}
+		case <-ticker.C:
+			*snapshot = r.pollOnce(ctx, *snapshot, send)
+		}
+	}
+}
+
+// DefaultResyncInterval is how often Watch re-lists SAs while subscribed.
+const DefaultResyncInterval = 30 * time.Second
+
+// WithResyncInterval overrides DefaultResyncInterval (tests).
+func WithResyncInterval(d time.Duration) Option { return func(r *Renderer) { r.resync = d } }
+
+func (r *Renderer) resyncEvery() time.Duration {
+	if r.resync > 0 {
+		return r.resync
+	}
+	return DefaultResyncInterval
+}
+
+// upEvent is sent after a (re-)subscription: "restarted" when charon's start time differs
+// from the acknowledged one (review M3; attrs started/acked), "up" after a reported outage,
+// nothing otherwise.
+func (r *Renderer) upEvent(ctx context.Context, wasDown bool) *Event {
+	since := ""
+	if s, err := r.open(ctx); err == nil {
+		if st, err := s.call(ctx, "stats", nil); err == nil {
+			since = str(sub(st, "uptime"), "since")
+		}
+		s.Close()
+	}
+	acked, restarted := r.restartState(since)
+	if restarted {
+		return &Event{Time: r.now(), Kind: KindDaemon, Up: true, State: "restarted",
+			Attrs: map[string]string{"restarted": "yes", "started": r.clean(since), "acked": r.clean(acked)}}
+	}
+	if wasDown {
+		return &Event{Time: r.now(), Kind: KindDaemon, Up: true, State: "up"}
+	}
+	return nil
 }
 
 // subscribe opens an event session; the returned channel is closed when charon goes away.

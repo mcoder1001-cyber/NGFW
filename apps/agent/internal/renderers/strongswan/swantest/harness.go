@@ -328,16 +328,55 @@ func (h *Harness) Stop(x string) error {
 	select {
 	case <-d.done:
 	case <-time.After(10 * time.Second):
-		d.cancel()
+		d.cancel() // SIGKILL: charon cannot remove its kernel state, so the harness does
 		select {
 		case <-d.done:
 		case <-time.After(10 * time.Second):
 			return fmt.Errorf("swantest: charon %s did not exit", x)
 		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = h.FlushXfrm(ctx, d.NetNS)
 	}
 	d.cancel()
 	_ = os.Remove(d.Paths.ViciSocket)
 	return nil
+}
+
+// Crash SIGKILLs instance x (the PID the harness spawned) to simulate a charon crash: its
+// kernel state (xfrm SAs/policies) stays behind, as it would in production. FlushXfrm cleans it.
+func (h *Harness) Crash(x string) error {
+	h.mu.Lock()
+	d := h.procs[x]
+	delete(h.procs, x)
+	h.mu.Unlock()
+	if d == nil {
+		return fmt.Errorf("swantest: no daemon %s", x)
+	}
+	if pid := h.childPID(filepath.Join(filepath.Dir(d.Paths.StrongswanConf), "charon-systemd")); pid > 0 {
+		_ = syscall.Kill(pid, syscall.SIGKILL)
+	}
+	d.cancel()
+	select {
+	case <-d.done:
+	case <-time.After(10 * time.Second):
+		return fmt.Errorf("swantest: charon %s did not exit", x)
+	}
+	_ = os.Remove(d.Paths.ViciSocket)
+	return nil
+}
+
+// FlushXfrm removes every xfrm state and policy in the namespace (only rig namespaces of this
+// harness: ns-<prefix>-*).
+func (h *Harness) FlushXfrm(ctx context.Context, ns string) error {
+	if !strings.HasPrefix(ns, "ns-"+h.Prefix+"-") {
+		return fmt.Errorf("swantest: %s is not a namespace of this harness", ns)
+	}
+	if _, err := h.ip(ctx, "-n", ns, "xfrm", "state", "flush"); err != nil {
+		return err
+	}
+	_, err := h.ip(ctx, "-n", ns, "xfrm", "policy", "flush")
+	return err
 }
 
 // childPID finds our own child process whose argv0 is argv0 (0 when none).

@@ -31,6 +31,11 @@ type fakeCharon struct {
 	down bool
 	// subscribers get events pushed by the test.
 	subscribers []chan<- vici.Event
+	terminated  []string
+	initiated   []string
+	nextID      int
+	since       string
+	plugins     []string
 }
 
 type fakeCall struct {
@@ -43,6 +48,13 @@ func newFakeCharon() *fakeCharon {
 		conns: map[string]*vici.Message{}, shared: map[string]sharedSecret{}, pools: map[string]*vici.Message{},
 		authorities: map[string]*vici.Message{}, sas: map[string][]*vici.Message{}, failOn: map[string]string{}, ignoreLoad: map[string]bool{},
 	}
+}
+
+func (f *fakeCharon) pluginsOr() []string {
+	if f.plugins != nil {
+		return f.plugins
+	}
+	return DefaultPlugins()
 }
 
 func (f *fakeCharon) dialer() Dialer {
@@ -156,9 +168,13 @@ func (s *fakeSession) Call(_ context.Context, cmd string, in *vici.Message) (*vi
 		for _, l := range f.sas {
 			total += len(l)
 		}
-		return msg("uptime", msg("running", "1 minute", "since", "Sep 24 01:00:00 2026"),
+		since := f.since
+		if since == "" {
+			since = "Sep 24 01:00:00 2026"
+		}
+		return msg("uptime", msg("running", "1 minute", "since", since),
 			"workers", msg("total", "16", "idle", "11"), "ikesas", msg("total", fmt.Sprint(total), "half-open", "0"),
-			"plugins", []string{"charon-systemd", "vici"}), nil
+			"plugins", append([]string{"charon-systemd"}, f.pluginsOr()...)), nil
 	case "load-conn":
 		for _, name := range in.Keys() {
 			if f.ignoreLoad[name] {
@@ -212,7 +228,47 @@ func (s *fakeSession) Call(_ context.Context, cmd string, in *vici.Message) (*vi
 	case "get-authorities":
 		return msg("authorities", slices.Sorted(mapKeys(f.authorities))), nil
 	case "terminate":
-		delete(f.sas, str(in, "ike"))
+		f.terminated = append(f.terminated, in.String())
+		if name := str(in, "ike"); name != "" {
+			delete(f.sas, name)
+			return ok, nil
+		}
+		for conn, list := range f.sas {
+			for i, sa := range list {
+				if id := str(in, "ike-id"); id != "" && str(sa, "uniqueid") == id {
+					f.sas[conn] = slices.Delete(list, i, i+1)
+					return ok, nil
+				}
+				if id := str(in, "child-id"); id != "" {
+					cs := sub(sa, "child-sas")
+					for _, k := range cs.Keys() {
+						if str(sub(cs, k), "uniqueid") == id {
+							cs.Unset(k)
+							return ok, nil
+						}
+					}
+				}
+			}
+		}
+		return msg("success", "no", "errmsg", "no matching SAs to terminate found"), errors.New("command failed: no matching SAs to terminate found")
+	case "initiate":
+		f.initiated = append(f.initiated, str(in, "ike")+"/"+str(in, "child"))
+		f.nextID++
+		id := fmt.Sprint(100 + f.nextID)
+		conn := str(in, "ike")
+		body := f.conns[conn]
+		lts, rts := []string{"10.3.1.0/24"}, []string{"10.3.2.0/24"}
+		if c := sub(sub(body, "children"), str(in, "child")); c != nil {
+			lts, rts = strs(c, "local_ts"), strs(c, "remote_ts")
+		}
+		sa := saMsg(id, "ESTABLISHED", str(in, "child"), id, "INSTALLED")
+		cs := sub(sa, "child-sas")
+		ch := sub(cs, cs.Keys()[0])
+		_ = ch.Set("local-ts", lts)
+		_ = ch.Set("remote-ts", rts)
+		_ = sa.Set("local-id", str(sub(body, "local"), "id"))
+		_ = sa.Set("remote-id", str(sub(body, "remote"), "id"))
+		f.sas[conn] = append(f.sas[conn], sa)
 		return ok, nil
 	}
 	return msg("success", "no", "errmsg", "unknown command "+cmd), errors.New("unknown command " + cmd)

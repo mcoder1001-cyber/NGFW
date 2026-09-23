@@ -641,3 +641,16 @@ func TestProductAllowlist(t *testing.T) {
 		}
 	}
 }
+
+// services.snmp.description is never rendered (the acceptance `"; rm -rf /` description case
+// for snmpd; the rest-of-line fields are covered by the hostile-location golden).
+func TestDescriptionNeverRendered(t *testing.T) {
+	r := newRenderer(t)
+	files, err := r.Render(context.Background(), doc(t, with(base(), "description", "\"; rm -rf /\nrocommunity public")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := files[r.paths.ConfFile].Content; bytes.Contains(c, []byte("rm -rf")) || bytes.Contains(c, []byte("public")) {
+		t.Fatalf("description reached snmpd.conf:\n%s", c)
+	}
+}

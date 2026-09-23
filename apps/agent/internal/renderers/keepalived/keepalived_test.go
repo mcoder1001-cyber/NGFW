@@ -496,3 +496,17 @@ func TestProductDefaults(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+// The acceptance case: `"; rm -rf /` in a description field. keepalived has no description
+// directive; the renderer never writes it, so the text cannot reach the file.
+func TestDescriptionNeverRendered(t *testing.T) {
+	files, err := newRenderer().Render(context.Background(), doc(t, ha(map[string]any{"vi": inst("description", `"; rm -rf / } vrrp_script x { script "/bin/true" }`)}, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := files[testPaths().ConfFile].Content
+	if bytes.Contains(c, []byte("rm -rf")) || bytes.Contains(c, []byte("/bin/true")) {
+		t.Fatalf("description reached keepalived.conf:\n%s", c)
+	}
+	assertSafeConfig(t, c, testPaths())
+}

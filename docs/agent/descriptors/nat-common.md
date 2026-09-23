@@ -61,6 +61,10 @@ Create, and Retrieve reports the owner-tag id for our interfaces and the VPP nam
   record); they are collapsed to the interface-bound record.
 - Duplicates that VPP genuinely holds (a retried Create) are reported as `<id>#<index>` extras so the scheduler deletes
   them (the D-066 pattern). This applies to pnat bindings (same match tuple) and MAP domains (same tag).
+- nat44 static and identity mappings (re-review N3): `natcommon.DedupeTagged` collapses only details of the **same**
+  mapping, i.e. the resolved twin (same local ip/port/proto/vrf) and the per-VRF details of one identity mapping
+  (same proto/port). A different mapping that shares the tag is reported as `<name>#<n>` and deleted, since VPP
+  matches deletes by endpoint, not by tag. `#` is rejected in desired names.
 - Deletes by index or id re-verify identity immediately before the delete message:
   - `map.domain` and `map.rule` check the tag at the index;
   - `cnat.translation` checks the VIP, port and protocol at the id;
@@ -74,11 +78,23 @@ Create, and Retrieve reports the owner-tag id for our interfaces and the VPP nam
 Write-only Creates run again on every resync:
 - the nat64, nat66 and det44 enables ("already enabled" is tolerated), nat44-ei IPFIX (VPP compare-and-swap), the cnat
   SNAT policy (assignment) and cnat snat-interface (a bitmap bit) are idempotent in VPP;
-- the one non-idempotent add is `cnat.snat-exclude-prefix`, because every add bumps a per-prefix-length refcount. Its
-  Create records `<key>@vpp<main-thread PID>` in the ClaimStore (`natcommon.VPPIdentity`, like DF-4's
-  acl.stats-enable) and skips the add while the same VPP process runs. After a VPP restart the identity changes and
-  the prefix is re-added once.
-- The unit tests model the duplicate add (the fake's refcount) and show that three resyncs leave one instance.
+- the one non-idempotent add is `cnat.snat-exclude-prefix`, because every add bumps a per-prefix-length refcount.
+  - Its Create records `<key>@<entry identity>` in the ClaimStore and skips re-adds while the identity is unchanged.
+    The entry identity is the D-080 boot identity (kernel `boot_id`, VPP main PID and `/proc/<pid>/stat` start time,
+    via `natcommon.BootIdentity`) plus the default SNAT entry's observable fingerprint (addresses, interface) plus an
+    entry generation that the globals-owner descriptor bumps on every Set/Reset of the entry.
+  - When the identity changes (VPP restart, entry recreated by the owner, or entry changed by anyone), the next
+    resync re-applies the prefix. It sends del+add under the shared cnat lock: VPP's delete of an absent prefix is a
+    no-op, so the result is exactly one instance whatever VPP held before (re-review N2).
+  - The superseded record of the same prefix is released, so records do not accumulate across restarts (I2).
+  - **Limitation:** VPP has no generation for the entry, so a recreate by another agent with identical addresses on
+    the same VPP process is not observable. Under D-071 only the globals owner, which is the same agent on a real box,
+    mutates the entry.
+- Claim keys never contain VPP ids (sw_if_index, pool indices); they are semantic ids. So the D-080 invalidation
+  concerns only the D-076 records above.
+- The unit tests model the duplicate add (the fake's refcount) and cover four cases: three resyncs leave one
+  instance; an entry recreated by the owner, a changed entry and a VPP restart each give exactly one re-add.
+  `TestCnatExcludeReaddOnHost` shows the same on the host.
 
 ## Host-wide lock
 
@@ -93,7 +109,9 @@ lock directory can be changed with `natcommon.WithLockDir`.
 
 Integration tests run as **non-owners**:
 - The plugins are **test fixtures** (`nattest.EnsurePlugin`). A plugin is enabled if it was off and disabled again only
-  if the test enabled it and it is completely empty; det44 is never disabled.
+  if the test enabled it and it is completely empty; det44 is never disabled. Every test using the plugin holds
+  `/run/lock/vrx-nat-fixture-<plugin>.lock` shared. The enabling test converts it to exclusive around the emptiness
+  check and the disable, so no other slot can add an object in between (re-review N4).
 - Globals are exercised as requirements: the current value is accepted, a different one fails with `ErrGlobalMismatch`,
   and the values read before and after are asserted equal (the previous value is restored by never changing it).
 - The cnat default SNAT entry is a fixture, created only if absent and removed under the exclusive lock.

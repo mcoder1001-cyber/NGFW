@@ -13,7 +13,8 @@ vpp:
   cli_socket: /run/vpp/cli.sock
   stats_socket: /run/vpp/stats.sock
   startup_conf: /etc/vpp/startup.conf   # read-only for everyone while handover is pending (D-012)
-  handover_doc: docs/lab/host-vrx-a.md  # `handover: pending|done` is read from this file
+  # `handover: pending|done` is NOT configurable here: tools/lab reads docs/lab/host-vrx-a.md from the canonical main checkout
+  # (/root/ngfw) AND from the calling worktree; both must say `done` before restart-vpp/kill-vpp run (review F3).
   unit: vpp.service
 data_path: af_packet                    # veth/netns rig (D-010); DPDK only after NICs are bound (needs startup.conf → handover)
 nics:

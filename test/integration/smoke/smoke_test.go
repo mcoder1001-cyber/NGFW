@@ -11,11 +11,11 @@ package smoke
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
 	"testing"
@@ -224,33 +224,84 @@ func rxPackets(t *testing.T, names ...string) map[string]uint64 {
 	return out
 }
 
+// rigObjects are the exact names `tools/lab rig` creates for one prefix, as anchored patterns (review F1): prefix w1 must
+// never match slot 11's ns-w11-lan / w11l0 / host-w11l0. Same patterns as rig_own_netns/links/vpp in tools/lab.
+type rigObjects struct{ netns, link, vpp *regexp.Regexp }
+
+func rigObjectsFor(prefix string) rigObjects {
+	p := regexp.QuoteMeta(prefix)
+	return rigObjects{
+		netns: regexp.MustCompile(`^ns-` + p + `-(lan|wan)$`),
+		link:  regexp.MustCompile(`^` + p + `[lw][0-9]+$`),
+		vpp:   regexp.MustCompile(`^host-` + p + `[lw][0-9]+$`),
+	}
+}
+
+// leftovers lists every object of THIS prefix that still exists. A failing `ip` is an error, not "nothing left" (review F7).
 func leftovers(ctx context.Context, t *testing.T, conn api.Connection, prefix string) []string {
 	t.Helper()
+	own := rigObjectsFor(prefix)
 	var left []string
-	if out, _ := exec.Command("ip", "netns", "list").Output(); true {
-		for _, l := range strings.Split(string(out), "\n") {
-			if f := strings.Fields(l); len(f) > 0 && strings.HasPrefix(f[0], "ns-"+prefix+"-") {
-				left = append(left, "netns:"+f[0])
-			}
+	out, err := exec.Command("ip", "netns", "list").Output()
+	if err != nil {
+		t.Fatalf("ip netns list: %v", err)
+	}
+	for _, l := range strings.Split(string(out), "\n") {
+		if f := strings.Fields(l); len(f) > 0 && own.netns.MatchString(f[0]) {
+			left = append(left, "netns:"+f[0])
 		}
 	}
-	if out, _ := exec.Command("ip", "-o", "link", "show").Output(); true {
-		for _, l := range strings.Split(string(out), "\n") {
-			f := strings.SplitN(l, ": ", 3)
-			if len(f) >= 2 {
-				name := strings.SplitN(f[1], "@", 2)[0]
-				if strings.HasPrefix(name, prefix+"l") || strings.HasPrefix(name, prefix+"w") {
-					left = append(left, "link:"+name)
-				}
+	out, err = exec.Command("ip", "-o", "link", "show").Output()
+	if err != nil {
+		t.Fatalf("ip -o link show: %v", err)
+	}
+	for _, l := range strings.Split(string(out), "\n") {
+		if f := strings.SplitN(l, ": ", 3); len(f) >= 2 {
+			if name := strings.SplitN(f[1], "@", 2)[0]; own.link.MatchString(name) {
+				left = append(left, "link:"+name)
 			}
 		}
 	}
 	for name := range dumpInterfaces(ctx, t, conn) {
-		if strings.HasPrefix(name, "host-"+prefix) {
+		if own.vpp.MatchString(name) {
 			left = append(left, "vpp:"+name)
 		}
 	}
 	return left
+}
+
+// TestRigObjectMatchIsAnchored is a pure unit test (no VPP; runs without VRX_INTEGRATION): the leftover check must see
+// exactly its own prefix's objects. Regression for review F1 (`rig gc w1` deleted slot 11's host-w11l0/host-w11w0).
+func TestRigObjectMatchIsAnchored(t *testing.T) {
+	w1 := rigObjectsFor("w1")
+	match := map[*regexp.Regexp][]string{
+		w1.netns: {"ns-w1-lan", "ns-w1-wan"},
+		w1.link:  {"w1l0", "w1l1", "w1w0", "w1w1"},
+		w1.vpp:   {"host-w1l0", "host-w1w0"},
+	}
+	noMatch := map[*regexp.Regexp][]string{
+		w1.netns: {"ns-w11-lan", "ns-w12-wan", "ns-w10-lan", "ns-w1-foo", "ns-w1-lan2", "xns-w1-lan", "ns-w1"},
+		w1.link:  {"w11l0", "w10w0", "w12l1", "w1lan", "w1", "aw1l0", "w1l0x", "w1x0"},
+		w1.vpp:   {"host-w11l0", "host-w12w0", "host-w10l0", "host-w1", "host-w1lan", "host-w1l0x", "local0", "w1l0"},
+	}
+	for re, names := range match {
+		for _, n := range names {
+			if !re.MatchString(n) {
+				t.Errorf("%s must match %q", re, n)
+			}
+		}
+	}
+	for re, names := range noMatch {
+		for _, n := range names {
+			if re.MatchString(n) {
+				t.Errorf("%s must NOT match %q (another slot's or a foreign object)", re, n)
+			}
+		}
+	}
+	// a prefix with regexp metacharacters cannot widen the match (prefixes are validated by tools/lab, but be safe)
+	if rigObjectsFor("w.").vpp.MatchString("host-w1l0") {
+		t.Error("prefix metacharacters must be quoted")
+	}
 }
 
 func keys(m map[string]uint32) []string {
@@ -260,5 +311,3 @@ func keys(m map[string]uint32) []string {
 	}
 	return out
 }
-
-var _ = fmt.Sprintf // keep fmt available for ad-hoc debugging without an unused-import churn

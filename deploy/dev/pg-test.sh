@@ -23,12 +23,15 @@ cmd="${1:-}"; name="${2:-}"
 case "$cmd" in
   create)
     valid "$name"; db="vrx_$name"; role="vrx_$name"; dir="$RUN_BASE/$name"; envf="$dir/pg.env"
-    pw="${VRX_PG_PASSWORD:-}"
-    [[ -n "$pw" || ! -r "$envf" ]] || pw="$(sed -n 's/^VRX_PG_PASSWORD=//p' "$envf")"
-    [[ -n "$pw" ]] || pw="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)"
+    pw="${VRX_PG_PASSWORD:-}"; pw_src="VRX_PG_PASSWORD"
+    if [[ -z "$pw" && -r "$envf" ]]; then pw="$(sed -n 's/^VRX_PG_PASSWORD=//p' "$envf")"; pw_src="pg.env"; fi
+    if [[ -z "$pw" ]]; then pw="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)"; pw_src="new"; fi
     [[ "$pw" =~ ^[A-Za-z0-9_.-]+$ ]] || die "VRX_PG_PASSWORD may only contain [A-Za-z0-9_.-]"
     if [[ "$(adm -c "select 1 from pg_roles where rolname='$role'")" == 1 ]]; then
-      adm -c "alter role $role with login password '$pw'" >/dev/null; echo "reuse  role $role (password refreshed)"
+      # re-applying the same password keeps the role and pg.env in step; say so instead of claiming a refresh (review F7)
+      adm -c "alter role $role with login password '$pw'" >/dev/null
+      if [[ "$pw_src" == pg.env ]]; then echo "reuse  role $role (password unchanged, re-applied from $envf)"
+      else echo "reuse  role $role (password refreshed: $pw_src)"; fi
     else adm -c "create role $role with login password '$pw'" >/dev/null; echo "create role $role"; fi
     if [[ "$(adm -c "select 1 from pg_database where datname='$db'")" == 1 ]]; then echo "reuse  database $db"
     else adm -c "create database $db owner $role" >/dev/null; echo "create database $db (owner $role)"; fi

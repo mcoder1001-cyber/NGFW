@@ -6,20 +6,25 @@
 #
 #   tools/lab status [vm]                    VPP active?, version, plugins, sockets, handover flag, data NICs, rig, PostgreSQL, Valkey
 #   tools/lab vppctl <vm> <cmd...>           run a vppctl command on that machine
-#   tools/lab provision <vm> [--apply]       local (vrx-a): VERIFY ONLY + manual steps; remote: print plan, --apply provisions
-#   tools/lab restart-vpp <vm>               REFUSED while docs/lab/host-vrx-a.md says `handover: pending`; else flock -x vrx-vpp.lock
+#   tools/lab provision <vm> [--apply]       local (vrx-a): VERIFY ONLY + manual steps; remote role=vrx: print plan; --apply provisions
+#                                            only with VRX_LAB_REMOTE_APPLY=1, never a machine whose mgmt IP is this host, never role host/peer-*
+#   tools/lab restart-vpp <vm>               REFUSED unless BOTH /root/ngfw/docs/lab/host-<vm>.md (main) AND this worktree's copy say
+#                                            `handover: done` (inventory/env cannot override); then flock -x vrx-vpp.lock + lab lock
 #   tools/lab kill-vpp <vm>                  same guard; SIGKILL to the vpp unit (systemd restarts it) — simulates a crash
 #   tools/lab lock shared|exclusive <cmd...> run <cmd> under flock -s|-x /run/lock/vrx-lab.lock (test harnesses use shared)
 #   tools/lab lock status                    who holds the lab lock
 #   tools/lab env <slot>                     print the slot exports from docs/lab/shared-host-rules.md (eval "$(tools/lab env 3)")
-#   tools/lab rig up|down|gc|show <prefix>   veth/netns packet rig through VPP af_packet host-interfaces (prefix = VRX_TEST_PREFIX)
+#   tools/lab rig up|down|gc|show <prefix>   veth/netns packet rig through VPP af_packet host-interfaces (prefix = VRX_TEST_PREFIX);
+#                                            w<N> → 10.<N>.{1,2}.0/24 (the prefix wins over VRX_SLOT); other prefixes need VRX_SLOT
 #   tools/lab inventory                      list test/topology/*.yml
 #
 # Hard rules (docs/lab/host-vrx-a.md, docs/lab/shared-host-rules.md): never edits /etc/vpp/*, never installs/removes packages on
-# this host, never restarts or kills VPP while handover is pending, only touches objects that carry the caller's prefix.
+# this host, never restarts or kills VPP while handover is pending, only touches objects that carry the caller's prefix
+# (rig down/gc match the exact rig names: `w1` never touches `w11`'s objects). rig up/down/gc hold flock -s on the lab lock.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+CANON_ROOT=/root/ngfw   # the manager's `main` checkout: the handover flag is read from HERE (and from $ROOT), never from an override (review F3)
 TOPO_DIR="${VRX_TOPOLOGY_DIR:-$ROOT/test/topology}"
 LAB_LOCK="${VRX_LAB_LOCK:-/run/lock/vrx-lab.lock}"
 VPP_LOCK="${VRX_VPP_LOCK:-/run/lock/vrx-vpp.lock}"
@@ -82,29 +87,54 @@ PY
 }
 is_local() { [[ "$(inv_get "$1" mgmt local)" == "local" ]]; }
 is_planned() { [[ "$(inv_get "$1" state active)" == "planned" ]]; }
-run_on() {  # <vm> <cmd...> — run locally or over SSH
+host_addrs() {  # every address of THIS host (ip + hostname -I), one per line
+  { ip -o addr show 2>/dev/null | awk '{print $4}' | cut -d/ -f1; hostname -I 2>/dev/null | tr ' ' '\n'; } | sed '/^$/d' | sort -u
+}
+is_self_ip() { [[ "$1" =~ ^127\. || "$1" == "::1" || "$1" == "0.0.0.0" ]] || grep -qx -- "$1" <<<"$(host_addrs)"; }
+remote_ip() {  # <vm> → validated mgmt IP of a REMOTE machine; dies when 'planned', not an IP, or THIS host (review F4)
+  local vm="$1" ip
+  is_planned "$vm" && die "$vm is 'planned' (not created yet) — see docs/lab/vmware.md"
+  ip="$(inv_get "$vm" mgmt)"
+  [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "$vm: mgmt '$ip' is not an IP address"
+  is_self_ip "$ip" && die "REFUSED: $vm has mgmt $ip, which is THIS host ($(host_addrs | tr '\n' ' ')) — remote commands never target the machine they run on (ssh-to-self would write /etc/vpp here). Use 'mgmt: local' for this host."
+  echo "$ip"
+}
+run_on() {  # <vm> <cmd...> — run locally or over SSH (never SSH to ourselves)
   local vm="$1"; shift
   if is_local "$vm"; then "$@"; else
-    is_planned "$vm" && die "$vm is 'planned' (not created yet) — see docs/lab/vmware.md"
-    local ip; ip="$(inv_get "$vm" mgmt)"
-    [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "$vm: mgmt '$ip' is not an IP address"
+    local ip; ip="$(remote_ip "$vm")"
     ssh "${SSH_OPTS[@]}" "root@$ip" -- "$(printf '%q ' "$@")"
   fi
 }
 
-# ---------------------------------------------------------------- handover flag
-handover_doc() { local d; d="$(inv_get "$1" vpp.handover_doc docs/lab/host-vrx-a.md)"; [[ "$d" = /* ]] || d="$ROOT/$d"; echo "$d"; }
-handover_state() {  # <vm> → pending|done   (unreadable/ambiguous → pending, fail-safe)
-  local doc s; doc="$(handover_doc "$1")"
-  [[ -r "$doc" ]] || { echo pending; return; }
-  s="$(grep -oE '^`?handover: *(pending|done)' "$doc" | head -1 | grep -oE 'pending|done' || true)"
-  echo "${s:-pending}"
+# ---------------------------------------------------------------- handover flag (review F3: fixed paths, no inventory/env override)
+# The flag for <vm> lives in docs/lab/host-<vm>.md. It is read from the CANONICAL copy (main: /root/ngfw, or `git show main:` when
+# that checkout is elsewhere) AND from this worktree's copy; `done` counts only when every source says done. A branch that edits
+# its own copy, a VRX_TOPOLOGY_DIR pointing at another inventory, or a missing file can therefore only make the answer `pending`.
+handover_flag() {  # stdin: doc text → pending|done (no/ambiguous flag → pending)
+  local s; s="$(grep -oE '^`?handover: *(pending|done)' | head -1 | grep -oE 'pending|done' || true)"; echo "${s:-pending}"
 }
+handover_sources() {  # <vm> → lines "<label> <pending|done>" — canonical copy first, this worktree's copy second
+  local rel="docs/lab/host-$1.md"
+  if [[ -r "$CANON_ROOT/$rel" ]]; then echo "canonical:$CANON_ROOT/$rel $(handover_flag < "$CANON_ROOT/$rel")"
+  elif git -C "$ROOT" cat-file -e "main:$rel" 2>/dev/null; then echo "canonical:main:$rel $(git -C "$ROOT" show "main:$rel" 2>/dev/null | handover_flag)"
+  else echo "canonical:$CANON_ROOT/$rel(absent) pending"; fi
+  [[ "$ROOT" != "$CANON_ROOT" ]] || return 0   # running from main itself: one source
+  if [[ -r "$ROOT/$rel" ]]; then echo "worktree:$rel $(handover_flag < "$ROOT/$rel")"; else echo "worktree:$rel(absent) pending"; fi
+}
+handover_state() {  # <vm> → done only when EVERY source says done; anything else → pending (fail-safe)
+  local st="done" _ s
+  while read -r _ s; do [[ "$s" == "done" ]] || st=pending; done < <(handover_sources "$1")
+  echo "$st"
+}
+handover_summary() { handover_sources "$1" | awk '{printf "%s%s=%s", (NR>1?" · ":""), $1, $2}'; }
 refuse_if_pending() {  # <vm> <action>
-  local vm="$1" action="$2" doc; doc="$(handover_doc "$vm")"
+  local vm="$1" action="$2"
   if [[ "$(handover_state "$vm")" != "done" ]]; then
     cat >&2 <<MSG
-${c_red}REFUSED:${c_off} '$action $vm' is not allowed while ${doc#"$ROOT"/} says 'handover: pending' (D-012).
+${c_red}REFUSED:${c_off} '$action $vm' is not allowed while docs/lab/host-$vm.md says 'handover: pending' (D-012).
+  sources: $(handover_summary "$vm")
+  (read from the canonical main checkout AND this worktree — both must say done; inventory/env cannot override this)
   Nobody restarts or kills the VPP process before the VPP bring-up agent hands the host over.
   Restart-safety is proven by the agent-restart simulation (FAST MODE DoD 3): stop YOUR agent, delete YOUR prefixed
   objects via binapi, start YOUR agent → it recreates them. After handover only the manager runs this, under
@@ -119,13 +149,14 @@ vppctl_on() { run_on "$1" vppctl "${@:2}"; }
 vpp_cli_ok() {  # run a vppctl command locally, fail on CLI error text. Prints output.
   local out
   out="$(vppctl "$@" 2>&1)" || { echo "$out"; return 1; }
-  if grep -qiE '(^|[^a-z])(error|fail|failed|unknown input|invalid|not found|no such)' <<<"$out"; then echo "$out"; return 1; fi
+  if grep -qiE '(^|[^a-z])(error|fail|failed|unknown input|invalid|not found|no such|conflicts?|already)' <<<"$out"; then echo "$out"; return 1; fi
   echo "$out"
 }
 vpp_plugins() { vppctl show plugins 2>/dev/null || true; }          # captured by callers via $(...), never piped into grep -q
-vpp_ifnames() { vppctl show interface 2>/dev/null | awk 'NR>1 && /^[^ ]/{print $1}' || true; }   # skip counter rows
+vpp_ifnames() { vppctl show interface 2>/dev/null | tr -d '\r' | awk 'NR>1 && /^[^ ]/{print $1}' || true; }   # skip counter rows; vppctl emits CRLF
 vpp_has_plugin() { grep -qE "^ *[0-9]+\. +${1}_plugin\.so" <<<"$(vpp_plugins)"; }
 vpp_if_exists() { grep -qx -- "$1" <<<"$(vpp_ifnames)"; }
+vpp_if_addrs() { vppctl show interface addr "$1" 2>/dev/null | tr -d '\r' | awk '$1=="L3"{print $2}' || true; }   # L3 addresses VPP really has (CRLF stripped)
 
 # ---------------------------------------------------------------- status
 svc_line() {  # <unit> → "active (enabled) pid 123 since ..."
@@ -175,7 +206,7 @@ cmd_status() {
   for s in "$apisock" "$clisock" "$statsock"; do
     if [[ -S "$s" ]]; then printf ' %s (%s)' "$(basename "$s")" "$(stat -c '%U:%G %a' "$s")"; else printf ' %s (MISSING)' "$(basename "$s")"; fi
   done; echo
-  echo "handover:    $(handover_state "$vm")  ($(handover_doc "$vm" | sed "s#^$ROOT/##")) → restart-vpp/kill-vpp $(
+  echo "handover:    $(handover_state "$vm")  ($(handover_summary "$vm")) → restart-vpp/kill-vpp $(
     [[ "$(handover_state "$vm")" == "done" ]] && echo 'allowed for the manager under flock -x' || echo 'REFUSED')"
   echo "startup.conf: $(inv_get "$vm" vpp.startup_conf /etc/vpp/startup.conf) (read-only) · hugepages $(awk '/HugePages_Total/{t=$2}/HugePages_Free/{f=$2}END{print t" total, "f" free"}' /proc/meminfo)"
   local nics_total=0 nics_data=0
@@ -237,20 +268,35 @@ EOV
 }
 
 # ---------------------------------------------------------------- packet rig (af_packet host-interfaces on veth + netns)
-rig_setup_names() {  # <prefix> → sets globals
+rig_setup_names() {  # <prefix> → sets the object names (no slot needed: down/gc/show work on names alone)
   P="$1"
   [[ "$P" =~ ^[a-z][a-z0-9]{1,5}$ ]] || die "rig: prefix '$P' must match ^[a-z][a-z0-9]{1,5}\$ (2–6 chars, e.g. w3 = VRX_TEST_PREFIX)"
-  if [[ -n "${VRX_SLOT:-}" ]]; then SLOT="$VRX_SLOT"
-  elif [[ "$P" =~ ^w([0-9]{1,2})$ ]]; then SLOT="${BASH_REMATCH[1]}"
-  else SLOT=$(( 100 + $(printf '%s' "$P" | cksum | cut -d' ' -f1) % 100 )); fi   # non-slot prefixes → 10.100–199.x.x
-  [[ "$SLOT" =~ ^[0-9]+$ ]] && (( SLOT >= 1 && SLOT <= 254 )) || die "rig: slot '$SLOT' out of range"
   NS_LAN="ns-$P-lan"; NS_WAN="ns-$P-wan"
   L0="${P}l0"; L1="${P}l1"; W0="${P}w0"; W1="${P}w1"
   VL="host-$L0"; VW="host-$W0"
+  SLOT="?"; LAN_GW="?"; LAN_IP="?"; WAN_GW="?"; WAN_IP="?"
+}
+rig_resolve_slot() {  # <strict 0|1> → SLOT + addresses. w<N>: the prefix decides (VRX_SLOT is ignored with a warning, review F2);
+  local strict="$1"    # other prefixes: VRX_SLOT is required — no hashing, silent collisions are worse than an error (review F7)
+  if [[ "$P" =~ ^w([0-9]{1,2})$ ]]; then
+    SLOT=$((10#${BASH_REMATCH[1]}))
+    [[ -z "${VRX_SLOT:-}" || "$VRX_SLOT" == "$SLOT" ]] || warn "rig: prefix $P means slot $SLOT — ignoring VRX_SLOT=$VRX_SLOT (the prefix wins)"
+  elif [[ -n "${VRX_SLOT:-}" ]]; then
+    SLOT="$VRX_SLOT"
+    [[ "$SLOT" =~ ^[0-9]+$ ]] && (( SLOT <= 12 )) && warn "rig: VRX_SLOT=$SLOT is worker slot w$SLOT's range (10.$SLOT.x.x) — its rig and yours cannot coexist"
+  elif (( strict )); then
+    die "rig: prefix '$P' is not w<N>, so its addresses cannot be derived — export VRX_SLOT=<13..254> (10.<slot>.{1,2}.0/24); no hash fallback"
+  else return 0; fi
+  [[ "$SLOT" =~ ^[0-9]+$ ]] && (( SLOT >= 1 && SLOT <= 254 )) || die "rig: slot '$SLOT' out of range 1..254"
   LAN_GW="10.$SLOT.1.1"; LAN_IP="10.$SLOT.1.2"; WAN_GW="10.$SLOT.2.1"; WAN_IP="10.$SLOT.2.2"
 }
 rig_require_root() { [[ $EUID -eq 0 ]] || die "rig: must run as root (netns/veth/VPP CLI)"; }
-rig_print() {  # state
+rig_shared_lock() {  # hold flock -s on the lab lock while rig objects change: blocks only during the manager's flock -x windows (review F5)
+  exec 9>>"$LAB_LOCK" || die "rig: cannot open $LAB_LOCK"
+  flock -s -w 120 9 || die "rig: $LAB_LOCK is held exclusively (manager ci full / VPP restart) — retry when 'tools/lab lock status' says free"
+}
+rig_print() {  # <state> — the vpp_*_addr lines are read back from VPP (what it really has), the *_gw lines are what we intended
+  local la wa; la="$(vpp_if_addrs "$VL" | tr '\n' ' ')"; wa="$(vpp_if_addrs "$VW" | tr '\n' ' ')"
   cat <<EOR
 rig: $1
 prefix: $P
@@ -261,11 +307,13 @@ lan_veth: $L1
 lan_ip: $LAN_IP/24
 lan_gw: $LAN_GW
 vpp_lan_if: $VL
+vpp_lan_addr: ${la:--}
 wan_ns: $NS_WAN
 wan_veth: $W1
 wan_ip: $WAN_IP/24
 wan_gw: $WAN_GW
 vpp_wan_if: $VW
+vpp_wan_addr: ${wa:--}
 ping: ip netns exec $NS_LAN ping -c 3 $WAN_IP
 EOR
 }
@@ -285,7 +333,13 @@ rig_side_up() {  # <ns> <host-veth> <ns-veth> <vpp-if> <gw> <ip>
     [[ "$out" == *"$vif"* ]] || die "rig: expected VPP to create $vif, got: $out"
     echo "  create vpp $vif (af_packet on $h)"; fi
   vpp_cli_ok set interface state "$vif" up >/dev/null || die "rig: set interface state $vif up failed"
-  vpp_cli_ok set interface ip address "$vif" "$gw/24" >/dev/null || true   # "already" when reusing
+  vpp_cli_ok set interface mtu packet 1500 "$vif" >/dev/null || die "rig: set interface mtu packet 1500 $vif failed"   # match the veth MTU (review F7)
+  if grep -qx -- "$gw/24" <<<"$(vpp_if_addrs "$vif")"; then echo "  reuse  addr $vif $gw/24"; else
+    local aout   # any refusal (overlapping subnet of another rig, bad interface, …) fails the up — never report `up` without the address (review F2)
+    aout="$(vpp_cli_ok set interface ip address "$vif" "$gw/24")" \
+      || die "rig: VPP refused 'set interface ip address $vif $gw/24': ${aout:-<no message>} — is 10.$SLOT.x.x already used by another rig? (vppctl show interface addr)"
+    grep -qx -- "$gw/24" <<<"$(vpp_if_addrs "$vif")" || die "rig: $vif has no $gw/24 after 'set interface ip address' (VPP said: ${aout:-<nothing>})"
+    echo "  set    addr $vif $gw/24"; fi
 }
 rig_side_down() {  # <ns> <host-veth> <vpp-if>
   local ns="$1" h="$2" vif="$3"
@@ -293,10 +347,12 @@ rig_side_down() {  # <ns> <host-veth> <vpp-if>
   if ip netns list | awk '{print $1}' | grep -qx "$ns"; then ip netns del "$ns" && echo "  delete netns $ns (and its veth peer)"; fi
   if ip link show "$h" >/dev/null 2>&1; then ip link del "$h" && echo "  delete veth $h"; fi
 }
-rig_leftovers() {  # → lines of remaining prefixed objects (empty = clean)
-  ip netns list 2>/dev/null | awk '{print $1}' | grep -E "^ns-$P-" || true
-  ip -o link show 2>/dev/null | awk -F': ' '{print $2}' | sed 's/@.*//' | grep -E "^${P}[lw][0-9]+$" || true
-  vpp_ifnames | grep -E "^host-$P" || true
+# Exact, anchored rig-object matchers (review F1): prefix w1 must never match w11's ns-w11-lan / w11l0 / host-w11l0.
+rig_own_netns() { ip netns list 2>/dev/null | awk '{print $1}' | grep -E "^ns-${P}-(lan|wan)$" || true; }
+rig_own_links() { ip -o link show 2>/dev/null | awk -F': ' '{print $2}' | sed 's/@.*//' | grep -E "^${P}[lw][0-9]+$" || true; }
+rig_own_vpp()   { vpp_ifnames | grep -E "^host-${P}[lw][0-9]+$" || true; }
+rig_leftovers() {  # → lines of remaining objects of THIS prefix (empty = clean)
+  rig_own_netns; rig_own_links; rig_own_vpp
 }
 rig_state_word() {
   local have=0 want=6
@@ -316,14 +372,17 @@ cmd_rig() {
   case "$action" in
     up)
       rig_require_root; need vppctl; need ip
+      rig_resolve_slot 1
       [[ -S "$(inv_get "$DEFAULT_VM" vpp.cli_socket /run/vpp/cli.sock)" ]] || die "rig: VPP CLI socket missing — is VPP running?"
       vpp_has_plugin af_packet || die "rig: af_packet plugin is not loaded in VPP"
+      rig_shared_lock
       hdr "rig up $P (slot $SLOT, path af_packet)"
       rig_side_up "$NS_LAN" "$L0" "$L1" "$VL" "$LAN_GW" "$LAN_IP"
       rig_side_up "$NS_WAN" "$W0" "$W1" "$VW" "$WAN_GW" "$WAN_IP"
       rig_print up ;;
     down)
       rig_require_root; need ip
+      rig_resolve_slot 0; rig_shared_lock
       hdr "rig down $P"
       rig_side_down "$NS_LAN" "$L0" "$VL"
       rig_side_down "$NS_WAN" "$W0" "$VW"
@@ -332,17 +391,18 @@ cmd_rig() {
       rig_print down ;;
     gc)
       rig_require_root; need ip
-      hdr "rig gc $P (everything named ns-$P-*, ${P}[lw]N, host-$P*)"
+      rig_resolve_slot 0; rig_shared_lock
+      hdr "rig gc $P (exactly: ns-$P-lan|wan, ${P}[lw]<n>, host-${P}[lw]<n> — nothing of any other prefix)"
       local n
-      for n in $(vpp_ifnames | grep -E "^host-$P" || true); do
+      for n in $(rig_own_vpp); do
         vpp_cli_ok delete host-interface name "${n#host-}" >/dev/null && echo "  delete vpp $n" || warn "could not delete $n"; done
-      for n in $(ip netns list 2>/dev/null | awk '{print $1}' | grep -E "^ns-$P-" || true); do ip netns del "$n" && echo "  delete netns $n"; done
-      for n in $(ip -o link show 2>/dev/null | awk -F': ' '{print $2}' | sed 's/@.*//' | grep -E "^${P}[lw][0-9]+$" || true); do
-        ip link del "$n" 2>/dev/null && echo "  delete veth $n" || true; done
+      for n in $(rig_own_netns); do ip netns del "$n" && echo "  delete netns $n"; done
+      for n in $(rig_own_links); do ip link del "$n" 2>/dev/null && echo "  delete veth $n" || true; done
       local left; left="$(rig_leftovers)"
       [[ -z "$left" ]] || { echo "$left" | sed 's/^/  LEFTOVER /'; die "rig gc $P could not remove everything"; }
       rig_print down ;;
     show|status)
+      rig_resolve_slot 0
       rig_print "$(rig_state_word)" ;;
     *) die "rig up|down|gc|show <prefix>" ;;
   esac
@@ -428,6 +488,13 @@ cmd_provision() {
     (( apply == 0 )) || warn "--apply is ignored in local mode: provision on this host is verify-only (handover rule)"
     cmd_provision_local_verify "$vm"; return
   fi
+  local role; role="$(inv_get "$vm" role unknown)"
+  if [[ "$role" != vrx ]]; then   # review F4: only role=vrx machines ever get VPP + a startup.conf from this tool
+    hdr "provision $vm — role '$role' (no VPP): plan only"
+    echo "  plain Linux networking; its software (iperf3 / FRR / strongSwan) is installed by the task that needs it (docs/lab/vmware.md)."
+    (( apply == 0 )) || die "REFUSED: provision --apply on $vm (role '$role') — tools/lab provisions VPP only on 'role: vrx' machines"
+    return 0
+  fi
   hdr "provision $vm — REMOTE MODE (Ubuntu $(inv_get "$vm" os) + our .debs from $(inv_get "$vm" vpp.source) + DPDK dev <pci> on vmxnet3)"
   echo "plan:"
   echo "  1. ssh root@$(inv_get "$vm" mgmt) — check Ubuntu 26.04, hugepages sysctl (vm.nr_hugepages=1024), iommu/vfio-pci"
@@ -436,8 +503,12 @@ cmd_provision() {
   echo "  4. write /etc/vpp/startup.conf:"; render_startup_conf "$vm" | sed 's/^/       /'
   echo "  5. driverctl set-override <pci> vfio-pci for each dpdk NIC; systemctl enable --now vpp; verify sockets + show version + show hardware"
   if is_planned "$vm"; then echo; echo "${c_yel}$vm is 'planned' — create the VM first (docs/lab/vmware.md), fill mgmt/pci in $TOPO_DIR/$vm.yml, then rerun with --apply.${c_off}"; return 3; fi
-  (( apply == 1 )) || { echo; echo "dry run — add --apply to execute (never runs against a 'local' machine)."; return 0; }
-  local ip src; ip="$(inv_get "$vm" mgmt)"; src="$(inv_get "$vm" vpp.source /root/vpp/build-root)"
+  (( apply == 1 )) || { echo; echo "dry run — add --apply (and VRX_LAB_REMOTE_APPLY=1) to execute; never runs against this host."; return 0; }
+  # review F4: three guards before anything is written remotely — the target is not this host (remote_ip), the role is vrx (above),
+  # and the caller confirmed that /etc/vpp, /etc/sysctl.d and the package set of root@<mgmt> will be changed.
+  local ip src; ip="$(remote_ip "$vm")"; src="$(inv_get "$vm" vpp.source /root/vpp/build-root)"
+  [[ "${VRX_LAB_REMOTE_APPLY:-}" == 1 ]] \
+    || die "REFUSED: provision --apply writes /etc/vpp/startup.conf + /etc/sysctl.d/80-vpp.conf and installs packages on root@$ip — rerun with VRX_LAB_REMOTE_APPLY=1 to confirm"
   run_on "$vm" bash -c '. /etc/os-release && [[ "$VERSION_ID" == 26.04 ]] || { echo "not Ubuntu 26.04: $PRETTY_NAME"; exit 1; }'
   run_on "$vm" bash -c 'echo vm.nr_hugepages=1024 > /etc/sysctl.d/80-vpp.conf && sysctl -q --system && mkdir -p /tmp/vrx-debs'
   scp "${SSH_OPTS[@]}" "$src"/{libvppinfra,vpp,vpp-plugin-core,vpp-plugin-dpdk,vpp-drivers,vpp-crypto-engines,python3-vpp-api}_26.06-release_amd64.deb "root@$ip:/tmp/vrx-debs/"
@@ -452,19 +523,25 @@ cmd_provision() {
 }
 
 # ---------------------------------------------------------------- restart / kill VPP (guarded)
+vpp_cycle_locked() {  # <vm> <unit> <systemctl verb...> — the systemctl action AND the wait for api.sock run inside ONE flock -x on both
+  local vm="$1" unit="$2"; shift 2   # locks, so shared-lock holders (integration tests, rig) cannot start against a booting VPP (review F5)
+  run_on "$vm" flock -x "$VPP_LOCK" flock -x "$LAB_LOCK" bash -c '
+    unit="$1"; shift; systemctl "$@" "$unit" || exit 1
+    for i in $(seq 1 30); do [[ -S /run/vpp/api.sock ]] && vppctl show version >/dev/null 2>&1 && exit 0; sleep 1; done
+    echo "VPP did not answer on /run/vpp/api.sock within 30 s" >&2; exit 1' _ "$unit" "$@"
+  run_on "$vm" vppctl show version
+}
 cmd_restart_vpp() {
   local vm="${1:-}"; [[ -n "$vm" ]] || die "restart-vpp <vm>"; inv_file "$vm" >/dev/null
   refuse_if_pending "$vm" restart-vpp
-  hdr "restart-vpp $vm under flock -x $VPP_LOCK (and exclusive lab lock)"
-  run_on "$vm" flock -x "$VPP_LOCK" flock -x "$LAB_LOCK" systemctl restart "$(inv_get "$vm" vpp.unit vpp.service)"
-  run_on "$vm" bash -c 'for i in $(seq 1 30); do [[ -S /run/vpp/api.sock ]] && vppctl show version >/dev/null 2>&1 && break; sleep 1; done; vppctl show version'
+  hdr "restart-vpp $vm under flock -x $VPP_LOCK + flock -x $LAB_LOCK (held until VPP answers again)"
+  vpp_cycle_locked "$vm" "$(inv_get "$vm" vpp.unit vpp.service)" restart
 }
 cmd_kill_vpp() {
   local vm="${1:-}"; [[ -n "$vm" ]] || die "kill-vpp <vm>"; inv_file "$vm" >/dev/null
   refuse_if_pending "$vm" kill-vpp
-  hdr "kill-vpp $vm (SIGKILL to the vpp unit's main process; systemd restarts it) under flock -x $VPP_LOCK"
-  run_on "$vm" flock -x "$VPP_LOCK" flock -x "$LAB_LOCK" systemctl kill -s SIGKILL "$(inv_get "$vm" vpp.unit vpp.service)"
-  run_on "$vm" bash -c 'for i in $(seq 1 30); do [[ -S /run/vpp/api.sock ]] && vppctl show version >/dev/null 2>&1 && break; sleep 1; done; vppctl show version'
+  hdr "kill-vpp $vm (SIGKILL to the vpp unit's main process; systemd restarts it) under flock -x $VPP_LOCK + $LAB_LOCK (held until VPP answers again)"
+  vpp_cycle_locked "$vm" "$(inv_get "$vm" vpp.unit vpp.service)" kill -s SIGKILL
 }
 
 # ---------------------------------------------------------------- main

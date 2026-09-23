@@ -51,12 +51,19 @@ af_packet veth/netns rig (`tools/lab rig`, D-010) and every test records `path: 
   set-override <pci> vfio-pci`, `systemctl enable --now vpp`, then `show version` / `show hardware-interfaces`.
   `provision <vm>` without `--apply` prints the plan and the rendered startup.conf (dry run); with `state: planned` it
   refuses (exit 3) until `mgmt`/`pci` are filled in. **The remote path is written but untested — no remote VM exists yet.**
-- **`host-*`, `peer-*` (remote, no VPP)** — out of P04's scope; `provision` prints the plan only. Their software (iperf3,
-  FRR, strongSwan) will be installed by the tasks that need them (S6 `tri` topology).
+  Three guards stand in front of `--apply` (review F4): the `mgmt` address must not be one of **this** host's addresses
+  (`127.x`, `::1`, anything in `ip addr`/`hostname -I` — ssh-to-self would rewrite `/etc/vpp/startup.conf` here), the
+  inventory `role` must be `vrx`, and the caller must export `VRX_LAB_REMOTE_APPLY=1` to confirm that `/etc/vpp`,
+  `/etc/sysctl.d/80-vpp.conf` and the package set of `root@<mgmt>` will be changed. Without all three it refuses (exit 1).
+- **`host-*`, `peer-*` (remote, no VPP)** — out of P04's scope; `provision` prints a one-line plan and **refuses `--apply`**
+  (only `role: vrx` machines ever get VPP from this tool). Their software (iperf3, FRR, strongSwan) will be installed by
+  the tasks that need them (S6 `tri` topology).
 
-Remote commands run as `root@<mgmt>` over SSH (`BatchMode`, 5 s connect timeout). `tools/lab status <vm>` /
-`vppctl <vm> …` work the same way once a VM is `state: active`. Data path on these VMs: **DPDK on vmxnet3**
-(`vpp-plugin-dpdk`), tests then record `path: dpdk`.
+Remote commands run as `root@<mgmt>` over SSH (`BatchMode`, 5 s connect timeout) and never against an address of the
+machine they run on. `tools/lab status <vm>` / `vppctl <vm> …` work the same way once a VM is `state: active`. Data path
+on these VMs: **DPDK on vmxnet3** (`vpp-plugin-dpdk`), tests then record `path: dpdk`. `restart-vpp`/`kill-vpp <vm>` read
+the handover flag from `docs/lab/host-<vm>.md` in the canonical main checkout **and** the calling worktree (both must say
+`done`; no inventory or environment override) — for a new VM that file is written in checklist step 4 below.
 
 ## When the VMs exist — checklist
 

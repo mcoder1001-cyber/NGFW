@@ -1,0 +1,4 @@
+{
+  "interfaces": { "Gig0/0/0": { "vrf": "default" }, "Gig0/0/1": { "vrf": "default" } },
+  "nat": { "inside": ["Gig0/0/0"], "outside": ["Gig0/0/0", "Gig0/0/9"] }
+}

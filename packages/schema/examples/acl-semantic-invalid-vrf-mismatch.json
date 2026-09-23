@@ -1,0 +1,15 @@
+{
+  "interfaces": { "Gig0/0/2": { "vrf": "customer-a" } },
+  "vrfs": { "customer-a": { "id": 10 } },
+  "acl": {
+    "lists": { "l": { "rules": [] } },
+    "attachments": [
+      {
+        "list": "l",
+        "target": { "kind": "interface", "interface": "Gig0/0/2" },
+        "sequence": 1,
+        "vrf": "default"
+      }
+    ]
+  }
+}

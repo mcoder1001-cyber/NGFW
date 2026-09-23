@@ -1,0 +1,1 @@
+{ "acl": { "lists": { "l": { "rules": [{ "sequence": 1, "action": "allow" }] } } } }

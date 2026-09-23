@@ -14,7 +14,7 @@ Findings so far:
 
 - [x] VERSION, patches/series, demo patch (V16), optional trace-core patch
 - [x] build.sh, verify.sh (shellcheck clean)
-- [ ] prepare-only run (clone + verify + patch + dep check) — log /root/ngfw-wt/logs/F-vpp-debs-prepare.log
-- [ ] full build — log /root/ngfw-wt/logs/F-vpp-debs-build.log
-- [ ] README.md
+- [x] prepare-only run OK (devtools + core), 01:48; CI GATE PASSED 01:51 (early run)
+- [ ] full build started 01:49 (pid 1588729), at vpp compile 1983/2922 by 02:21 — log /root/ngfw-wt/logs/F-vpp-debs-build.log
+- [x] README.md, questions Q1–Q5
 - [ ] after-state, CI gate, F-vpp-debs.md

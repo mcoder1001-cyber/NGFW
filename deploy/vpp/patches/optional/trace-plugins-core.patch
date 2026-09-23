@@ -1,0 +1,29 @@
+Subject: [PATCH] build: package tracedump and tracenode in vpp-plugin-core
+Track: V18 (docs/vpp-code-track.md), D-077 — build configuration only, no C code
+Status: optional — applied only by `build.sh --trace-plugins core`; the default build keeps upstream packaging
+Upstream: not submitted (upstream intentionally ships them in vpp-plugin-devtools)
+
+Upstream 26.06 builds tracedump/tracenode but ships them in vpp-plugin-devtools,
+together with unittest/perfmon/oddbuf/bufmon/dispatch_trace/tracepath, which the
+appliance does not install. Moving the two CMake components to vpp-plugin-core
+makes their binary APIs (tracedump.api, graph.api, tracenode.api) available on a
+product install without shipping the devtools package.
+
+--- a/src/plugins/tracedump/CMakeLists.txt
++++ b/src/plugins/tracedump/CMakeLists.txt
+@@ -28,5 +28,5 @@
+   tracedump_test.c
+ 
+   COMPONENT
+-  vpp-plugin-devtools
++  vpp-plugin-core
+ )
+--- a/src/plugins/tracenode/CMakeLists.txt
++++ b/src/plugins/tracenode/CMakeLists.txt
+@@ -33,5 +33,5 @@
+   test.c
+ 
+   COMPONENT
+-  vpp-plugin-devtools
++  vpp-plugin-core
+ )

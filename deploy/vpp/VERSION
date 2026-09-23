@@ -1,0 +1,14 @@
+# deploy/vpp/VERSION — the pinned upstream VPP source the product ships (WBS D0.2, F-vpp-debs).
+# Shell-sourceable KEY=VALUE (no spaces around '='); read by build.sh and verify.sh. Bump procedure: README.md.
+VPP_UPSTREAM_URL=https://gerrit.fd.io/r/vpp
+VPP_BRANCH=stable/2606
+VPP_TAG=v26.06
+# annotated tag object and the commit it points to (git rev-parse v26.06 / v26.06^{commit}); both are verified before building
+VPP_TAG_OBJECT=29c51fb8b95a92d0d325cff2e502549e652aad9f
+VPP_COMMIT=c3200b88dc46bd380f00a49ca3392a102cc1980b
+# Debian version the build must produce (src/scripts/version on the exact tag, patches applied uncommitted → "<tag>-release")
+VPP_DEB_VERSION=26.06-release
+# the package set `make pkg-deb` produces for this tag on Ubuntu 26.04 amd64 (same set as /root/vpp/build-root/*.deb on vrx-a)
+VPP_PACKAGES="libvppinfra libvppinfra-dev python3-vpp-api vpp vpp-crypto-engines vpp-dbg vpp-dev vpp-drivers vpp-plugin-core vpp-plugin-devtools vpp-plugin-dpdk"
+# the subset installed on vrx-a today (docs/lab/host-vrx-a.md); the rest are built but not installed
+VPP_PACKAGES_INSTALLED="libvppinfra python3-vpp-api vpp vpp-crypto-engines vpp-drivers vpp-plugin-core vpp-plugin-dpdk"

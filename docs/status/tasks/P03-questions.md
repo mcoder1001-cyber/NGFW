@@ -39,3 +39,21 @@
    `owner` fails with INVALID_ARGUMENT. Multi-owner agents were rejected (one desired.pb, one confirm timer, one resync).
    Envelope listed `owner` in ApplyRequest without semantics — this is the interpretation written into
    `docs/contracts/proto.md` §6.
+
+## Added by the review-fix round (2026-09-23, worker P03-fix)
+
+9. **F6 → P03b sizing.** Measured by the reviewer against the branch heads: ~160 leaf keys in P02c (`services` 118, `ha` 24,
+   `tunnels` 16), ~70 in P02a `routing`, ~18 in `management`, ~9 in `system`, plus the P02b/P02c additions since the mirrored
+   commits (`NatStaticMapping.External.pool`, `ha.cluster`, VRRP fields). P03b is half a day plus the drift guard
+   (`RootConfig.parse()` of every example → JSON Schema keys ⊆ proto fields → strict protojson), not "1–2 h"; it must start
+   from the P02x branch heads. All of it is additive after this round (no renames found in P02b/P02c since `ec0ccda`/`b815d15`).
+10. **F8 done here, note for P05.** The Go contract test now lives in `apps/agent/internal/contracttest/` (owned by the contract
+    task; `gen.sh` wipes `apps/agent/gen` fully again). P05 should not put implementation code in that package; if the agent
+    grows its own `internal/contract` helpers, keep them separate.
+11. **F9 done here, note for P06.** `@ngfw/proto` has a real `build` (`tsc -p tsconfig.build.json` → `dist/`, `exports` → `dist/vrx/v1/dataplane.js`).
+    Consumers need `pnpm build` (turbo `^build`) before `node` can import it; `tsx`/vitest resolve through `dist/` too, so run
+    `pnpm --filter @ngfw/proto build` after `pnpm gen` in dev. Verified: `node --input-type=module -e 'await import("@ngfw/proto")'`
+    from `apps/api` resolves (195 exports).
+12. **64-bit fields are strings in TS** (`forceLong=string`, D-039). P06's telemetry relay must not do arithmetic on `rxBytes` etc.
+    without `BigInt()`; the WebSocket relay can forward the strings as-is. The Zod side keeps `espBytes` as a number — the API must
+    diff `toJSON(fromJSON(running))` against `toJSON(actual)` (proto.md §1), never the raw running document.

@@ -5,10 +5,11 @@ Source: `packages/proto/vrx/v1/dataplane.proto`. Generated stubs: Go `apps/agent
 `@grpc/grpc-js` service stubs — D-005). Regenerate with `pnpm gen`; CI fails on dirty output.
 
 **Changing this contract requires a `contract(proto): …` commit** (`tools/ci.sh --base main` contract guard) and
-`buf breaking --against .git#branch=main,subdir=packages/proto` must stay green: field numbers are never reused, fields
-and messages are never renamed or retyped after `contracts-v1` — only added (decision-policy #1). Lint is buf `STANDARD`
-minus `SERVICE_SUFFIX` (D-008) and `RPC_RESPONSE_STANDARD_NAME` (stream element types and the DryRun report keep their
-docs/04 names).
+`buf breaking --against "../../.git#branch=main,subdir=packages/proto"` (run from `packages/proto`; in a worktree `.git`
+is a file, hence the repo-root path) must stay green: field numbers are never reused, fields and messages are never
+renamed or retyped after `contracts-v1` — only added, and removed fields become `reserved` (decision-policy #1). Lint
+is buf `STANDARD` minus `SERVICE_SUFFIX` (D-008) and `RPC_RESPONSE_STANDARD_NAME` (stream element types and the DryRun
+report keep their docs/04 names). Review fixes before the tag: `docs/status/tasks/P03-contract.md` (D-039…D-042).
 
 Transport: gRPC over the unix socket `/run/vrx/agent.sock` (0660, group `VRX_SOCKET_GROUP`); tests use their slot's
 `VRX_AGENT_SOCKET`. Only `vrx-api` talks to the agent (00-CONTEXT rule 1). No TLS, no auth on the socket — the file
@@ -26,29 +27,66 @@ mode is the boundary.
 | array | `repeated` | `routing.static`, `nat.pools` |
 | field name `fooBar` | `foo_bar` (protobuf JSON name is `fooBar` again) | `rxMode` ↔ `rx_mode` |
 | `z.enum([...])`, literals | `string` — allowed values in the field comment | `mode: "ed" \| "ei"` |
-| `.optional()` scalar | proto3 `optional` (presence) | `optional uint32 mtu` |
-| scalar with `.default()` | plain scalar (Zod fills the default before Apply) | `bool enabled` |
+| every scalar leaf (`.optional()` or not, with or without `.default()`) | proto3 `optional` — explicit presence, **D-039** | `optional uint32 mtu`, `optional bool enabled`, `optional uint32 id` |
 | `z.discriminatedUnion(k, …)` | one message: discriminator + every variant's fields, non-active ones unset | `AddressObject{type, address?, prefix?, start?, end?, fqdn?}` |
-| numbers | `uint32` (ids, ports, counts), `uint64` (byte/packet lifetimes), `int32` only where negative is legal | `HostAttachment.priority` |
+| numbers | `uint32` (ids, ports, counts), `uint64` (byte/packet lifetimes — a JSON **string** in protobuf JSON and in TS), `int32` only where negative is legal | `HostAttachment.priority`, `IpsecRekey.esp_bytes` |
+| schema leaf flagged `secret: true` | **no field** (D-040) — only `*_ref` references cross the boundary | `passwordHash` → nothing; `auth.secretRef` |
 
-Consequence (tested in `apps/agent/gen/vrx/v1/desiredstate_test.go` and `packages/proto/test/desired-state.test.ts`):
-**the protobuf JSON mapping of a parsed configuration document *is* a `DesiredState`.** The API converts with
-`DesiredState.fromJSON(RootConfig.parse(doc))`, the agent with `protojson.Unmarshal`; no hand-written mapper per domain.
-`Retrieve` comes back the same way, so `diff(running, actual)` from the schema package works on `DesiredState.toJSON()`.
+Consequence (tested in `apps/agent/internal/contracttest/desiredstate_test.go` and
+`packages/proto/test/desired-state.test.ts` over every `packages/schema/examples/*.json` and `packages/proto/test/fixtures/*.json`):
+**the protobuf JSON mapping of a valid configuration document *is* a `DesiredState`.** The API converts with
+`DesiredState.fromJSON(stripSecrets(RootConfig.parse(doc)))`, the agent with strict `protojson.Unmarshal`
+(`DiscardUnknown=false` — an unknown key is an error); no hand-written mapper per domain. `Retrieve` comes back the
+same way.
 
 The two record-shaped domains (`interfaces`, `vrfs`) are maps directly on `DesiredState` (a wrapper message would break
 the projection). All other domains are `<Key>Config` messages, so per-domain renderers get one typed message.
 
-Domain models still in flight when this contract was written: `system`, `dataplane`, `interfaces`, `vrfs`, `routing`,
-`management` (P02a) carry the documented target shape with empty sub-messages where fields are not designed yet
-(`SystemNtp`, `BgpConfig`, `ManagementAaa`, …); `tunnels`, `services`, `ha` (P02c) likewise; `nat`, `objects`, `acl`
-(P02b) and `vpn` (P02c) mirror the committed WIP models (`task/P02b@ec0ccda`, `task/P02c@b815d15`). When those merge,
-the follow-up `contract(proto)` commit is a mechanical diff: add fields into the empty messages (numbering from 1 in
-Zod declaration order; agent-only annotations from 100), never rename.
+### Presence (D-039)
 
-Secrets never travel in `DesiredState` (00-CONTEXT rule 10): `*_ref` fields reference the API's secret store; the agent
-resolves them through its own channel. `ManagementUser.password_hash` is write-only — the API strips it unless the agent
-needs it, the agent never logs or persists it, and `Retrieve` leaves it unset.
+Every scalar leaf under `DesiredState` is proto3 `optional`. Rationale (review F3): with implicit presence,
+`toJSON`/`protojson.Marshal` drop proto3 defaults, so `vrfs.default.id = 0` came back as `{}` (false drift on every
+Retrieve) and a tunnel disabled in VPP (`enabled: false` omitted, then re-filled to the Zod default `true`) compared
+equal to an enabled one (hidden drift). With explicit presence only what was set is on the wire and comes back out —
+`id: 0` and `enabled: false` included; fields the document does not set stay unset in Go (`nil` pointer) and TS
+(`undefined`). Consequences for consumers:
+
+- Go: scalars are pointers; use the `Get*()` accessors (zero value when unset) and `proto.String/Bool/Uint32` in
+  literals; test presence with `x.Field != nil`.
+- TS: fields are `T | undefined`; `fromPartial` and `fromJSON` leave unset fields `undefined`, `toJSON` omits them.
+- `repeated` and `map` fields have no presence in proto3: absent and empty are the same thing (they are in Zod too:
+  `.default([])` / `.default({})`).
+- Zod fills defaults before Apply, so a *parsed* document always carries every defaulted leaf; the agent must still
+  treat an unset scalar as "not specified" (never assume the Zod default).
+
+### Running-vs-actual diff
+
+`Retrieve` returns the same messages, so drift is `diff(toJSON(fromJSON(running)), toJSON(actual))` with the schema
+package's `diff()`: **always pass the running document through the proto first**. That normalises what the projection
+changes on purpose — 64-bit leaves become JSON strings (`espBytes: 1073741824` → `"1073741824"`), secret-flagged leaves
+disappear (D-040), unknown keys are rejected — so the two sides are comparable. Never apply `RootConfig.parse()` to a
+Retrieve result (it would re-fill defaults the agent deliberately left unset). The tests pin
+`toJSON(fromJSON(doc)) deep-equals doc` for every corpus document (none carries a 64-bit number).
+
+Domain models still in flight when this contract was written (D-042): `system`, `dataplane`, `interfaces`, `vrfs`,
+`routing.static` and `management.users` mirror **`task/P02a` HEAD (`df554dc`)** in types and presence — `system.banner`
+is a `{login?, motd?}` message, `dataplane.corelist` a `repeated uint32`, `Interface.rx_mode` and `NextHop.address`
+are optional, plus the flat P02a additions (`promiscuous`, `dot1ad`, `tx_queues`, `distance`/`description`,
+`ssh_keys`/`full_name`/`disabled`). The remaining P02a sub-messages (`SystemNtp`, `SystemDns`, `PrefixList`, `RouteMap`,
+`BgpConfig`…`BfdConfig`, `ManagementAaa`, `ManagementTls`, `SyslogTarget`) and `tunnels`, `services`, `ha` (P02c) are
+empty shells with the documented container shape; `nat`, `objects`, `acl` (P02b) and `vpn` (P02c) mirror the committed
+WIP models (`task/P02b@ec0ccda`, `task/P02c@b815d15`; verified 2026-09-23: no renames since, only additions such as
+`NatStaticMapping.External.pool` and `ha.cluster`). **P03b** (after the P02x merges) fills the shells and adds the new
+leaves — additive only, `buf breaking` stays green — and adds the drift guard (`RootConfig.parse()` of every example →
+JSON Schema keys ⊆ proto fields → strict protojson). Numbering is append-only: a new field takes the next free number
+regardless of its position in the Zod declaration; removed fields are `reserved` (`ManagementUser` 4).
+
+Secrets never travel in `DesiredState` (00-CONTEXT rule 10, **D-040**): schema leaves flagged `secret: true` in their
+`withUi()` meta (password hashes, private keys, PSKs, PINs) have **no proto field** — the API strips them generically
+before `fromJSON`, and the strict tests reject a document that still carries one (`passwordHash` → "unknown field").
+Only `*_ref` references cross the boundary; the agent resolves them through its own channel to the secret store and
+never logs or persists their values. The agent therefore never holds authentication material, and `desired.pb` on
+disk (P05) contains none.
 
 ## 2. Apply
 
@@ -78,13 +116,26 @@ applied). Any other combination is `INVALID_ARGUMENT`.
 3. Transactions are serialised: one at a time per agent. A second `Apply` while one is running blocks until it finishes
    (bounded by the caller's deadline), it is never interleaved.
 
-### Subsystems and authority
+### Subsystems and authority (D-041)
 
-`subsystems` selects top-level keys (`ROOT_KEYS`; empty = all). **A selected domain is authoritative**: whatever is
-absent from it is deleted (owned objects only — see §6). An unset domain message and an empty one are the same thing
-(maps have no presence), so the API always sends the whole parsed document and selects with `subsystems`. Unknown keys
-→ `INVALID_ARGUMENT`; keys not implemented by this agent build → `UNIMPLEMENTED` (`HealthResponse.subsystems` lists the
-implemented ones). Dotted sub-keys (`routing.bgp`) are not accepted in v1 (reserved for an additive extension).
+Which domains a transaction manages is decided per top-level key (`ROOT_KEYS`):
+
+| `desired_state.<key>` | `<key>` in `subsystems` | effect |
+|---|---|---|
+| **unset** (message absent; for `interfaces`/`vrfs`: empty map) | no | **skipped** — "not managed by this transaction"; nothing of that domain is touched |
+| unset / empty | yes | **authoritative and empty** — every owned object of that domain is deleted |
+| **present**, even as an empty message `{}` | no, `subsystems` empty | authoritative — whatever is absent from it is deleted (owned objects only, §6) |
+| present | no, `subsystems` non-empty and does not name it | skipped — `subsystems` narrows |
+| present | yes | authoritative |
+
+So `subsystems` **narrows** the set of domains considered (empty = every domain present in `desired_state`), and
+naming a key there is the only way to make an unset/empty map domain authoritative. A partial document — an API bug, a
+hand-crafted `grpcurl` Apply, a caller that only knows about `system` — can therefore never wipe interfaces, VRFs or
+routes it does not mention (review F7). The API sends the whole parsed document (all 13 domains present, Zod
+prefaults every key) and selects with `subsystems`, so from its side "empty `subsystems` = all" still holds. Unknown
+keys → `INVALID_ARGUMENT`; keys not implemented by this agent build → `UNIMPLEMENTED` (`HealthResponse.subsystems`
+lists the implemented ones). Dotted sub-keys (`routing.bgp`) are not accepted in v1 (reserved for an additive
+extension). `DryRun` applies the same table when planning.
 
 ### Outcomes
 
@@ -109,7 +160,7 @@ objects are not listed. `summary` carries counts; the same counts go out as Even
 
 `DryRun(DryRunRequest) → ValidationReport`: validation + planning, **nothing is applied, nothing is persisted, no
 events are emitted**. Same `desired_state`/`subsystems`/`owner` rules as Apply; no confirm fields (a dry run is not a
-transaction). `errors` holds every finding (`SEVERITY_ERROR` first, then by `pointer`; `rule` is a stable id such as
+transaction). `errors` holds every finding (`ISSUE_SEVERITY_ERROR` first, then by `pointer`; `rule` is a stable id such as
 `interfaces.vrf-exists`), `ok` is true when none is an ERROR, `plan` lists the operations in execution order with
 `code` unset — converged objects are not listed, `summary.unchanged` counts them — and `summary` counts the rest. DryRun never fails with an application error; gRPC errors as for Apply. The commit engine runs DryRun as its
 tier-3 validation before it touches the datastore.
@@ -151,18 +202,21 @@ and is what makes drift detection and restart safety possible (AD-3). Rules the 
 - **Same messages, canonical form.** Decoded into the `DesiredState` messages, canonicalised so that `proto.Equal` is a
   correct diff: addresses through `net/netip` (lower-case, no leading zeros), `repeated` fields sorted (addresses,
   next hops by address, rules by sequence), MACs lower-case, map keys = the object's document key (interface name,
-  VRF name).
+  VRF name). **Presence is part of the value** (D-039): a scalar is set in the result exactly when the object carries
+  it on VPP/in the daemon (`enabled: false` is returned as `false`, not omitted; a leaf the backend cannot report — e.g.
+  `description` on objects without a tag — is left unset, never invented).
 - **Configuration only.** No read-only status (link state, counters, sw_if_index, SA lifetimes) — those come from
   `StreamStats`/`StreamEvents`/state RPCs. Runtime handles live in descriptor `Meta`, never in the value.
-- **No secrets.** `*_ref` fields are returned as stored (they are references); write-only fields are left unset.
+- **No secrets.** `*_ref` fields are returned as stored (they are references). There are no write-only fields any
+  more (D-040), so a Retrieve result never differs from the running document because of stripped material.
 - **Partial coverage is explicit.** `subsystems` in the response lists what was actually dumped. With an empty request
   list, subsystems this build does not implement are omitted; naming one explicitly fails with `UNIMPLEMENTED`.
 - **Consistency.** One Retrieve is a snapshot taken while no transaction is applying (it waits for a running Apply to
   finish); it may be called concurrently with itself and with the streams.
 - **Never mutates.** Retrieve performs dumps only.
 
-The API exposes it as running-vs-actual diff (`diff(running, DesiredState.toJSON(actual))`) and uses it in the
-integration proof "after commit, `Retrieve()` equals desired".
+The API exposes it as running-vs-actual diff — `diff(toJSON(fromJSON(running)), toJSON(actual))`, see §1 "Running-vs-actual
+diff" — and uses it in the integration proof "after commit, `Retrieve()` equals desired".
 
 ## 6. Ownership scoping
 
@@ -219,7 +273,12 @@ The API's `/api/v1/state/system` and the UI's status bar derive "data plane OK /
 
 - Treat unknown enum values as `UNSPECIFIED` (new kinds/codes may be added).
 - Never rely on message field order in JSON; rely on names.
-- `uint64` counters arrive as `number` in TypeScript (ts-proto `forceLong=number`): exact below 2^53 — fine for byte
-  counters for decades at 100 Gbit/s; if ever a problem, switch the option in a `contract(proto)` commit.
+- **64-bit integers are `string` in TypeScript** (ts-proto `forceLong=string`, D-039/F1) and `uint64` in Go: every
+  `StatsBatch` counter (`rx_bytes`, `tx_bytes`, `seq`, …), `WorkerCpu.calls/vectors`, `IpsecRekey.esp_bytes/esp_packets`.
+  The default `number` mapping *throws* above 2^53 = 9.0 PB; counters are absolute since VPP start, so at 100 Gbit/s
+  that is ~8.3 days, at 10 Gbit/s ~83 days — not decades. Consumers convert with `BigInt(s)` for arithmetic and derive
+  rates from consecutive batches; `string` is also the canonical protobuf JSON form, so `toJSON` output is identical
+  between Go and TS.
+- Explicit presence everywhere under `DesiredState` (§1): check `!== undefined` / `!= nil`, never `!== 0` / `!== ""`.
 - `google.protobuf.Timestamp` is a `Date` in TypeScript and `*timestamppb.Timestamp` in Go; all times are agent clock,
   UTC.

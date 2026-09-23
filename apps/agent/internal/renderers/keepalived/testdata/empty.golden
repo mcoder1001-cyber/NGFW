@@ -1,0 +1,7 @@
+# Rendered by vrx-agent (keepalived renderer). Do not edit: every commit overwrites this file.
+global_defs {
+    router_id vrx
+    enable_script_security
+    script_user root
+    vrrp_version 3
+}

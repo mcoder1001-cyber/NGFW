@@ -2095,7 +2095,7 @@ tasks:
   - P02a
   priority: 3
   est_hours: 8
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.6
@@ -2107,7 +2107,8 @@ tasks:
   started: 2026-09-24T02:30
   finished: ''
   notes: 'D-058: added — PENDING-handover option 1 relies on it | worker done 2888b94 CI green; review spawned; D-081 | review BLOCK e049b31 (F1 mgmt NIC from document not host, F2 unsound rollback, F3
-    stand-in fields → contract branch, F4 CPU pinning, F5/F6 validation); fix round 1 | fix round 1 0ba5a37 + contract/F-startup-gen 9cd24eb, CI green; D-084 plugins wrap requested, then re-review'
+    stand-in fields → contract branch, F4 CPU pinning, F5/F6 validation); fix round 1 | fix round 1 0ba5a37 + contract/F-startup-gen 9cd24eb, CI green; D-084 plugins wrap requested, then re-review | D-084
+    amendment 130cc33 + contract b662ff8, CI green; re-review spawned'
 - id: F-vpp-debs
   title: 'VPP package build pipeline: pinned 26.06 source, patch series, reproducible .deb build script'
   prompt: prompts/features/F-vpp-debs.md
@@ -2169,7 +2170,7 @@ tasks:
   - P05
   priority: 2
   est_hours: 4
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D0.12
@@ -2179,5 +2180,5 @@ tasks:
   worktree: /root/ngfw-wt/TD-1
   owner: host-agent slot12
   started: 2026-09-24T04:30
-  finished: ''
-  notes: D-080 consolidation pulled forward from P08 to use idle capacity | worker done f1282a0 CI green; NOTE ran on slot 12 concurrently with ci.sh full (D-087)
+  finished: '2026-09-24'
+  notes: D-080 consolidation pulled forward from P08 to use idle capacity | worker done f1282a0 CI green; NOTE ran on slot 12 concurrently with ci.sh full (D-087) | merged c128fc7; main CI green

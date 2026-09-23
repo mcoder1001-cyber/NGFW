@@ -2,13 +2,13 @@
 
 Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 23.2% by hours (210/904 h), 23.8% by tasks (20/84)**
+**Overall: 23.7% by hours (214/904 h), 25.0% by tasks (21/84)**
 
 | state | tasks |
 |---|---|
-| merged | 20 |
+| merged | 21 |
 | review | 2 |
-| running | 6 |
+| running | 5 |
 | ready | 0 |
 | parked | 0 |
 | failed | 0 |
@@ -18,7 +18,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
-| S2 | 131 / 227 | 57.7% | 10/18 | 5 | 0 | 0 |
+| S2 | 135 / 227 | 59.5% | 11/18 | 4 | 0 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
 | S4 | 0 / 406 | 0.0% | 0/38 | 0 | 0 | 0 |
 | S5 | 0 / 128 | 0.0% | 0/13 | 1 | 0 | 0 |
@@ -31,9 +31,8 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 - DF-7 — Descriptors: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls (running, host-agent slot10)
 - RF-2 — Renderers: strongswan (swanctl/VICI path; vrx build lands in P11) (running, host-agent slot3)
 - RF-4 — Renderers: snmpd, keepalived, rsyslog (review, host-agent slot8)
-- F-startup-gen — startup.conf generator: hugepages, workers, RSS, NUMA, isolcpus, dpdk dev/name mapping, plugin enable list (running, host-agent slot12)
+- F-startup-gen — startup.conf generator: hugepages, workers, RSS, NUMA, isolcpus, dpdk dev/name mapping, plugin enable list (review, host-agent slot12)
 - F-vpp-debs — VPP package build pipeline: pinned 26.06 source, patch series, reproducible .deb build script (running, host-agent slot2)
-- TD-1 — Tech-debt: one VPP boot-identity helper (D-080) in the agent vpp package; retrofit DF-2 classify store + DF-4 acl stats flag + dfkit/df6/df7 callers on main (review, host-agent slot12)
 
 ## Parked
 

@@ -50,3 +50,50 @@ The host test verifies that path and skips the create/retrieve part; full verifi
 ## Q4 — write-only object types (no dump in VPP)
 vxlan.bypass, vxlan-gpe.bypass, gtpu.bypass, l2tp.interface-enable, pppoe.cp, l2tp.lookup-key: Retrieve returns
 `df6.ErrRetrieveUnsupported`. The scheduler needs a policy for such descriptors (trust the last applied state?).
+
+## Q5 — SR-MPLS has no dump; mpls_route_dump cannot replace it (partial / write-only)
+binapi `sr_mpls` has add/mod/del/steering/assign-endpoint-color and **no dump**. Deriving policies from
+`mpls_route_dump` (task fallback) was tried on the host: the BSID entry's paths come back with `via_label = 0`
+(`fib_path` encode never sets `frp_local_label` for recursive MPLS paths), i.e. the first segment of every list is
+lost, and the second list added by `sr_mpls_policy_mod` was not visible as a separate path. So `sr-mpls.policy`,
+`sr-mpls.steering` and `sr-mpls.endpoint-color` are write-only (Retrieve → `ErrRetrieveUnsupported`, never cached
+state); Create/Delete use presence probes (BSID EOS entry in MPLS table 0; steering prefix in the IP table).
+Endpoint-color has no un-assign message (cleared only with the policy). Ask: an `sr_mpls_policy_dump` upstream (VPP
+code track) if SR-MPLS restart-safety matters; color-based automated steering is not modelled.
+
+## Q6 — SRv6 plugin behaviours / srv6-mobile
+`binapi/srv6_ad|am|as` are **not generated** (only `sr`, `sr_types`, `sr_mpls`, `sr_pt`, `sr_mobile`, `sr_mobile_types`),
+so End.AD/AM/AS proxy SIDs cannot be built (manager: regenerate if wanted). `sr_mobile` is generated but not built
+(decision, T3): `sr_mobile_policy_add` has no delete (a mobile policy is an SR policy deleted by `sr_policy_del`, and it
+would appear in `sr_policies_v2_dump` where `sr.policy` claims it), and mobile local SIDs appear in
+`sr_localsids_dump` only as an opaque plugin behaviour number (no prefix/behaviour name) — no faithful Retrieve.
+uSID behaviours (`sr_localsid_add_del_v2` locator lengths) are not modelled either (the dump has no locator lengths).
+
+## Q7 (INCIDENT, fixed) — deleting an IP table that still holds SR-sourced routes leaks them
+During the first SR-MPLS host run my steering-presence probe filtered `ip_route_v2_dump` with `src = 0xff` (matches
+nothing), so the steering delete was skipped and the fixture deleted table 11012 underneath it. VPP kept the SR route
+(fib index 1) and an MPLS recursive-resolution entry for label 11600 plus MPLS table 0. Repaired on the host without a
+crash (recreated table 11012 — it reused fib index 1 — then `sr_mpls_steering_add_del` del, then table delete); probe
+fixed (`src = 0`) and the host test now asserts the route is gone. Lesson for P05: never delete a vrf before its
+dependents (the scheduler's reverse topological delete does this).
+
+## Q8 — V9 candidate: gpe_fwd_entry_path_details sent without the plugin message-id base
+`plugins/lisp/lisp-gpe/lisp_gpe_api.c:110` sets `rmp->_vl_msg_id = htons(VL_API_GPE_FWD_ENTRY_PATH_DETAILS)` (no
+`gpe_base_msg_id`), so clients receive another message (`memclnt.GetFirstMsgIDReply` in govpp). GPE forwarding-entry
+locator pairs cannot be read → `lisp-gpe.fwd-entry` is write-only. Ask: record as V9 (one-line upstream fix).
+
+## Q9 — LISP leftovers on the shared host (VPP behaviour, not DF-6 objects)
+- **V10 candidate**: deleting a remote mapping leaves VPP's auto-created remote locator set: `show lisp locator-set`
+  now lists `<remote-1>` … `<remote-5>` (rloc 10.11.14.2, one per opt-in LISP host run). No API can delete them (they
+  have no name in the by-name hash); they disappear on the next VPP restart.
+- LISP-GPE created `lisp_gpe0` and `lisp_gpe11100` interfaces (down); VPP keeps them for reuse after the EID-table map
+  is removed and LISP disabled. Harmless; gone after a VPP restart. LISP itself was restored to `disabled`.
+- One earlier failed run (EID decoded from `deid` instead of `seid`) orphaned a local EID; cleaned up via the API.
+
+## Q10 — P05 wiring notes
+- `Register` signatures: `gre|ipip|vxlan|vxlan_gpe|gtpu|l2tp|pppoe.Register(r, client, owner)`,
+  `sr.Register(r, client, scope *df6.Scope)`, `lisp.Register(r, client, scope)`, `sr_mpls.Register(r, client)`.
+  Production passes a nil scope (everything on the VPP belongs to the agent).
+- Write-only descriptors return `df6.ErrRetrieveUnsupported` (see docs/agent/descriptors/df6.md): the reconciler
+  needs a policy (e.g. trust last-applied state for these keys, skip drift detection). DF-6 decides nothing here.
+- `lisp.enable` implicitly enables LISP-GPE in VPP; desired state with `lisp.enable` should include `lisp-gpe.enable`.

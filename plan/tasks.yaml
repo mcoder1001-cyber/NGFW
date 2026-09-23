@@ -474,7 +474,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D6.6
@@ -488,7 +488,8 @@ tasks:
   owner: host-agent slot11
   started: 2026-09-23T15:28
   finished: ''
-  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done 82d0e65 (35 types, CI green); V8/V13/V14 recorded; review
+    spawned (slot 11)'
 - id: DF-7
   title: 'Descriptors: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls'
   prompt: prompts/factories/DF-7.md
@@ -1291,7 +1292,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | D-074: manager generates srv6_ad/am/as binapi on main before spawning'
 - id: F-lisp
   title: 'Wave C (day 13-15): LISP/LISP-GPE'
   prompt: prompts/features/F-lisp.md

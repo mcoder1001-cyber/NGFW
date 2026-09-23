@@ -35,15 +35,33 @@ Rules for an entry:
 
 | binary | renderer | purpose | argv shape | task |
 |---|---|---|---|---|
-| `/usr/sbin/kea-dhcp4` | kea-dhcp4 | config syntax check | `kea-dhcp4 -t <file>` | RF |
-| `/usr/sbin/kea-dhcp6` | kea-dhcp6 | config syntax check | `kea-dhcp6 -t <file>` | RF |
-| `/usr/sbin/unbound-checkconf` | unbound | config syntax check | `unbound-checkconf <file>` | RF |
-| `/usr/sbin/unbound-control` | unbound | reload, stats | `unbound-control -c <cfg> reload` / `stats_noreset` | RF |
-| `/usr/bin/chronyc` | chrony | reload sources, state | `chronyc reload sources` / `chronyc -c sources` | RF |
-| `/usr/sbin/chronyd` | chrony | config check | `chronyd -p -f <file>` (if the installed version supports `-p`) | RF |
 | `/usr/bin/systemctl` | keepalived, snmpd, rsyslog | reload the unit **owned by this task's envelope** | `systemctl reload <unit>` / `systemctl restart <unit>` | RF |
 | `/usr/sbin/keepalived` | keepalived | config check | `keepalived -t -f <file>` | RF |
 | `/usr/sbin/snmpd` | snmpd | integration test child process only | `snmpd -f -c <cfg> -p <pid> 127.0.0.1:<slot port>` | RF |
+
+## Active — RF-3 (kea, unbound, chrony)
+
+Production allowlists are `kea.Binaries()`, `unbound.Binaries()`, `chrony.Binaries()`; each package's
+`TestProductAllowlistHasNoTrampoline` keeps `ip`, `env`, shells and `systemctl` out of them. Restarts are
+never executed by these renderers (unit tests also spawn `/usr/bin/sleep` as a stand-in "restarted daemon" process): `Apply` returns a typed `*ActionRequired{Unit, Action}` and the commit
+engine (product: systemd) acts on it.
+
+| binary | renderer | purpose | argv shape | added by |
+|---|---|---|---|---|
+| `/usr/sbin/kea-dhcp4` | kea | validate a staged kea-dhcp4.conf (Kea 3.0.3; env `KEA_CONTROL_SOCKET_DIR`/`KEA_DHCP_DATA_DIR`/`KEA_LOG_FILE_DIR`) | `kea-dhcp4 -t <staged kea-dhcp4.conf>` | RF-3 |
+| `/usr/sbin/kea-dhcp6` | kea | validate a staged kea-dhcp6.conf | `kea-dhcp6 -t <staged kea-dhcp6.conf>` | RF-3 |
+| `/usr/bin/ip` | kea (**test-only**, never in `kea.Binaries()`) | run the DHCP checkers inside the rig namespace (`Paths.Netns`, tests only); create/delete `ns-<prefix>-a` and its veths; start the test servers in it | `ip netns exec ns-<prefix>-a /usr/sbin/kea-dhcp4\|kea-dhcp6 -t <staged file>`; test harness: `ip netns add\|del ns-<prefix>-a`, `ip -n <ns> link\|addr …`, `ip netns exec <ns> kea-dhcp4\|kea-dhcp6 -c <cfg>` | RF-3 |
+| `/usr/sbin/unbound-checkconf` | unbound | validate a staged unbound.conf | `unbound-checkconf <staged unbound.conf>` | RF-3 |
+| `/usr/sbin/unbound-control` | unbound | apply and read state over the unix control socket | `unbound-control -c <unbound.conf> reload_keep_cache\|status\|stats_noreset\|list_forwards\|list_stubs\|list_local_zones\|list_local_data` | RF-3 |
+| `/usr/sbin/chronyd` | chrony | validate staged chrony.conf and sources file (chrony 4.8 `-p`: parse, print, exit) | `chronyd -p -f <staged chrony.conf>` / `chronyd -p -f <staged vrx.sources>` | RF-3 |
+| `/usr/bin/chronyc` | chrony | reload sources / keys, read state over the unix command socket | `chronyc -h <chronyd.sock> reload sources\|rekey` / `chronyc -h <chronyd.sock> -c sources\|sourcestats\|tracking\|serverstats` | RF-3 |
+
+Test-only children started by the RF-3 integration tests (killed by PID in `t.Cleanup`): `/usr/sbin/kea-dhcp4`,
+`/usr/sbin/kea-dhcp6` (`-c <cfg>`, inside `ip netns exec ns-<prefix>-a`) — no kea-ctrl-agent (D-079),
+`/usr/sbin/unbound -d -c <cfg>`, `/usr/sbin/chronyd -f <cfg> -n -x -l <log>` (`-x` mandatory: never touch the host clock).
+
+Not a binary: `kea.DefaultHooksDir` = `/usr/lib/x86_64-linux-gnu/kea/hooks` is only searched for
+`libdhcp_lease_cmds.so`, which Kea itself loads from the rendered `hooks-libraries`.
 
 Integration tests that start a daemon as a child process (`zebra -N`, `kea-dhcp4 -c`,
 `unbound -c`, `chronyd -f -x`, `charon`) use the same runner and the same rule: the binary is

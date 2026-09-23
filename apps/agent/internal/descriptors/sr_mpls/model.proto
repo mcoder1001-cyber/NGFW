@@ -1,0 +1,47 @@
+// Desired state of the SR-MPLS descriptors (agent-internal until moved to packages/proto).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.sr_mpls;
+
+option go_package = "ngfw/agent/internal/descriptors/sr_mpls;sr_mpls";
+
+// SegmentList is one label stack of a policy: labels[0] is the first segment (resolved in
+// the MPLS table), the rest are pushed. weight 1–255.
+message SegmentList {
+  repeated uint32 labels = 1;
+  uint32 weight = 2;
+}
+
+// Policy is one SR-MPLS policy (sr_mpls_policy_add + sr_mpls_policy_mod for further lists /
+// sr_mpls_policy_del). VPP has no SR-MPLS dump: Retrieve derives the policy from the BSID's
+// local-label entry in MPLS table 0 (mpls_route_dump) — "partial". Id = bsid. Every change
+// recreates. segment_lists must be in ascending order (VPP's path list does not keep the
+// configured order, so Retrieve reports them sorted).
+message Policy {
+  // Binding SID label (16–1048575).
+  uint32 bsid = 1;
+  // Replicate on all lists (spray) instead of load-balancing.
+  bool spray = 2;
+  repeated SegmentList segment_lists = 3;
+}
+
+// Steering steers an IP prefix into a policy by BSID (sr_mpls_steering_add_del; the
+// color/next-hop automated steering mode is not modelled). Retrieve derives it from the IP
+// route that recurses via the BSID label (ip_route_v2_dump) — "partial". Id =
+// "<table>/<prefix>". Every change recreates.
+message Steering {
+  string prefix = 1;
+  uint32 table_id = 2;
+  uint32 bsid = 3;
+  // Optional VPN label pushed under the BSID (0 = none).
+  uint32 vpn_label = 4;
+}
+
+// EndpointColor assigns an (endpoint, color) to a policy for automated steering
+// (sr_mpls_policy_assign_endpoint_color). Write-only: no dump; VPP clears it only when the
+// policy is deleted. Id = bsid.
+message EndpointColor {
+  uint32 bsid = 1;
+  string endpoint = 2;
+  uint32 color = 3;
+}

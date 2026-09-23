@@ -206,6 +206,11 @@ func TestSpdEntry(t *testing.T) {
 			return e
 		}(),
 		"protocol": func() *vpnpb.IpsecSpdEntry { e := spdEntry(1, "inbound", "bypass", 0); e.Protocol = 256; return e }(),
+		"literal 255": func() *vpnpb.IpsecSpdEntry {
+			e := spdEntry(1, "inbound", "bypass", 0)
+			e.Protocol = 255 // "any" is 0 in desired state
+			return e
+		}(),
 	} {
 		if _, err := d.Create(ctx, bad); err == nil {
 			t.Fatalf("%s: invalid entry accepted", name)
@@ -219,6 +224,11 @@ func TestSpdEntry(t *testing.T) {
 	reqs := v.CallsNamed("ipsec_spd_entry_add_del_v2")
 	if len(reqs) != 2 || !reqs[0].(*ipsec.IpsecSpdEntryAddDelV2).Entry.IsOutbound || reqs[1].(*ipsec.IpsecSpdEntryAddDelV2).Entry.Protocol != 17 {
 		t.Fatalf("requests %+v", reqs)
+	}
+	// v2 stores protocol as sent: desired 0 ("any") must go out as 255 (IPSEC_POLICY_PROTOCOL_ANY),
+	// or VPP installs a HOPOPT-only policy
+	if p := reqs[0].(*ipsec.IpsecSpdEntryAddDelV2).Entry.Protocol; p != 255 {
+		t.Fatalf("protocol any sent as %d, want 255", p)
 	}
 	kvs, err := d.Retrieve(ctx)
 	if err != nil {

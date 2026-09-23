@@ -21,7 +21,11 @@ import (
 // always ErrRecreate. Meta is nil: ipsec_spd_details carries no stat index and Delete needs none.
 type SpdEntry struct{ cfg Config }
 
-// Directions and the "any protocol" value VPP uses internally (IP_PROTOCOL_RESERVED).
+// Directions and VPP's "any protocol" value (IPSEC_POLICY_PROTOCOL_ANY = IP_PROTOCOL_RESERVED).
+// ipsec_spd_entry_add_del_v2 stores protocol exactly as sent — unlike the v1 handler it does NOT
+// map 0 to "any" (verified in VPP 26.06 ipsec_api.c and on the host: protocol 0 shows as
+// IP6_HOP_BY_HOP_OPTIONS). Desired protocol 0 means "any" and is sent as 255; a literal IP
+// protocol 0 (HOPOPT) cannot be expressed.
 const (
 	Inbound     = "inbound"
 	Outbound    = "outbound"
@@ -148,8 +152,8 @@ func encodeSpdEntry(o *vpnpb.IpsecSpdEntry) (ipsec_types.IpsecSpdEntryV2, error)
 	if action == ipsec_types.IPSEC_API_SPD_ACTION_PROTECT && o.GetSaId() == 0 {
 		return e, errors.New("ipsec: spd entry action protect needs sa_id")
 	}
-	if o.GetProtocol() > 255 {
-		return e, fmt.Errorf("ipsec: spd entry protocol %d > 255", o.GetProtocol())
+	if o.GetProtocol() >= protocolAny {
+		return e, fmt.Errorf("ipsec: spd entry protocol %d out of range 0 (any)–254", o.GetProtocol())
 	}
 	for _, p := range []uint32{o.GetLocalPortStart(), o.GetLocalPortStop(), o.GetRemotePortStart(), o.GetRemotePortStop()} {
 		if p > 65535 {
@@ -167,6 +171,9 @@ func encodeSpdEntry(o *vpnpb.IpsecSpdEntry) (ipsec_types.IpsecSpdEntryV2, error)
 	e.SaID = o.GetSaId()
 	e.Policy = action
 	e.Protocol = uint8(o.GetProtocol()) //nolint:gosec // checked above
+	if e.Protocol == 0 {
+		e.Protocol = protocolAny
+	}
 	e.LocalAddressStart, e.LocalAddressStop = addrs[0], addrs[1]
 	e.RemoteAddressStart, e.RemoteAddressStop = addrs[2], addrs[3]
 	e.LocalPortStart, e.LocalPortStop = uint16(o.GetLocalPortStart()), uint16(o.GetLocalPortStop())     //nolint:gosec // checked

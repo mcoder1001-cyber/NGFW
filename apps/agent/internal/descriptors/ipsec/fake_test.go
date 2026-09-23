@@ -129,10 +129,7 @@ func newFakeVPP() *fakeVPP {
 		if _, ok := v.spds[r.Entry.SpdID]; !ok {
 			return []api.Message{&ipsec.IpsecSpdEntryAddDelV2Reply{Retval: retvalNoSuch}}, nil
 		}
-		e := r.Entry
-		if e.Protocol == 0 {
-			e.Protocol = 255 // IPSEC_POLICY_PROTOCOL_ANY, as VPP stores it
-		}
+		e := r.Entry // stored as sent: the v2 handler does not map 0 to "any" (unlike v1)
 		list := v.policies[e.SpdID]
 		pos := -1
 		for i, p := range list {

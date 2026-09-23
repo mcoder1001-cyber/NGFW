@@ -201,3 +201,76 @@ engine acting on `ActionRequired` (P05, Q3); `tools/ci.sh full` (manager, CI slo
 
 `docs/status/tasks/RF-3-questions.md` (Q1 host chrony.service active; Q2 state messages; Q3 ActionRequired in the contract;
 Q4 schema gaps; Q5 ntsServer; Q6 per-VRF instances; Q7 ALLOWLIST.md outside the file set).
+
+---
+
+## Review fixes (fix round after `RF-3-review.md`, APPROVE WITH CHANGES; D-079)
+
+`git merge main` first (RF-1, P03b; `ALLOWLIST.md` merged cleanly: merge commit `00ef805`).
+
+| finding | fix |
+|---|---|
+| **H1** Unbound listen/port change reported success | `Apply` compares the startup-only directives of the old and new file (`interface`, `port`, `interface-view`, `username`, `chroot`, `directory`, `pidfile`, `do-daemonize`, `control-*`). If they differ it returns `*ActionRequired{restart}` without a reload. Otherwise it runs `reload_keep_cache` plus a **convergence check**: every rendered forward zone must be in `list_forwards`, every global local zone in `list_local_zones` with its type, and every `interface` must accept TCP. A failure restores and reloads |
+| **M1** Kea subnet ids renumbered on collision | An existing subnet keeps the id Kea runs. The assignment is persisted in the applied config itself (`user-context.vrx` next to `id`) and re-read by `New` and after every `Apply`, so it survives agent restarts and rollbacks. New subnets get FNV-32a, salted `#1`, `#2`… until free. Existing names are placed first and are never renumbered. Tested with the reviewer's pair |
+| **M2** pending restart lost | `unbound` and `chrony` persist the request in `Paths.PendingFile` (product `/run/vrx/renderers/<daemon>.pending`). It holds uptime ticks and the daemon pid. Every later `Apply` returns it again until the daemon's process started after it (from `/proc/<pid>/stat` starttime, or a new pid within the same 10 ms tick). Kea only ever needs "start", which is re-derived from the socket on every Apply, so it cannot be lost |
+| **M3 / D-079** kea-ctrl-agent | Removed everywhere: no `kea-ctrl-agent.conf`, no HTTP client, no `CtrlAgentBin`, no ALLOWLIST row, and no agent in the tests. The DHCP servers are driven over their own unix sockets only. `Client` refuses (`ErrInsecure`) a socket that grants anything to others, and a socket directory with group write or any access for others |
+| **M4** product unbound paths | Product control socket is `/run/unbound.ctl` and pidfile `/run/unbound.pid` (the Debian defaults, no `/run/unbound`). `Apply` creates missing parent directories. `TestProductPaths` pins the product render. The integration test runs `unbound-checkconf` on the staged product render (host: `/var/lib/unbound/root.key` present) |
+| L1 output cap | `unbound-control` / `chronyc` output at the runner's capture limit is now an error (`unbound.ErrOutputTruncated`, `chrony.ErrDaemon`). `unbound.State` sets `localDataTruncated` instead of returning a partial `list_local_data` |
+| L2 rollback context | Rollback runs on `context.WithoutCancel(ctx)` with its own timeout, in kea, unbound and chrony |
+| L3 leases | Leases are no longer part of Kea `State` / `Retrieve`; counts come from the statistics. `Leases(ctx, fam, limit)` is paged (1000 per message), with limit ≤ 100 000 and a truncated flag |
+| L4 leftovers | The stale `unbound.ctl` is gone (it is removed by the fix-round runs). **`/run/vrx-test/w6/{c1,x}` are still there: every `rm -rf` of them was denied by this session's permission system.** Please remove them (they are mine: hand-made chrony/unbound/kea test configs, no running process) |
+| L5 idle bind | `Paths.IdlePort`: product 53, tests 3<slot>53. An idle test instance never renders `@53` |
+| L6 chrony key ids | Id = FNV-32a(ref) in 1..2³²−1. Adding a key does not renumber the others (`TestKeyIDsStable`). A collision is refused |
+| L7 Kea default mapper | The product default is `NoMapper`, which refuses every interface until the linux-cp mapper is injected. Tests use `IdentityMapper` |
+
+### Evidence
+
+```
+$ go test -count=1 -v -run 'TestSubnetIDCollision|TestSocketPrivacy|TestProductPaths|TestApply|TestKeyIDsStable' ./internal/renderers/{kea,unbound,chrony}/
+    --- PASS: TestApply/config-set_failure_restores_files_and_previous_config (0.00s)
+    kea_test.go:604: after adding the colliding subnet: map[vlan1340126:1204698144 vlan957918:2851699104]
+    kea_test.go:604: after adding the colliding subnet: map[vlan1340126:1204698144 vlan957918:2851699104]   (new Renderer = agent restart)
+--- PASS: TestSubnetIDCollision (0.00s)
+--- PASS: TestSocketPrivacy (0.00s)
+ok  	ngfw/agent/internal/renderers/kea	0.054s
+    --- PASS: TestApply/reload_with_convergence_check (0.01s)
+    --- PASS: TestApply/listen_change_needs_restart_and_stays_pending (0.05s)
+    --- PASS: TestApply/stale_socket_is_not_running (0.00s)
+    --- PASS: TestApply/reload_failure_restores (0.00s)
+    --- PASS: TestApply/output_cap_is_an_error (0.08s)
+--- PASS: TestProductPaths (0.00s)
+ok  	ngfw/agent/internal/renderers/unbound	0.209s
+--- PASS: TestKeyIDsStable (0.00s)
+    --- PASS: TestApply/sources_and_keys_reload_and_conf_restart (0.05s)
+    --- PASS: TestApply/chronyc_failure_restores (0.04s)
+ok  	ngfw/agent/internal/renderers/chrony	0.123s
+
+$ VRX_INTEGRATION=1 go test -count=1 -v ./internal/renderers/{kea,unbound,chrony}/...     (full log: /root/ngfw-wt/logs/RF-3-integration-fix.log)
+kea_integration_test.go:266: dhcp4: config-get vs rendered (normalised subset diff): 0 differences   (also after change and rollback)
+kea_integration_test.go:288: control socket /run/vrx-test/w6/kea/run/kea4.sock mode -rwxrwx---, dir mode -rwxr-x--- (D-079: private unix socket, no HTTP)
+unbound_integration_test.go:61: product paths (control-interface /run/unbound.ctl, pidfile /run/unbound.pid, /var/lib/unbound/root.key): unbound-checkconf accepted the staged render
+unbound_integration_test.go:239: listen change, Apply #1: unbound: unbound needs restart (unbound): listen addresses, port, views, paths or remote-control changed (unbound applies them only at startup)
+unbound_integration_test.go:239: listen change, Apply #2: unbound: unbound needs restart (unbound): … (still pending: unbound has not restarted since)
+unbound_integration_test.go:245: before restart: 127.0.0.1:3654 refused (dial tcp 127.0.0.1:3654: connect: connection refused) — and Apply did not report success
+unbound_integration_test.go:262: after restart: Apply → nil (pending cleared, convergence check passed); net.Resolver @127.0.0.1:3654 gw.rig.example.test → [10.6.10.1]
+chrony_integration_test.go:280: conf change: chrony: chronyd needs restart (chrony): chrony.conf changed (only sources and keys reload at run time)
+chrony_integration_test.go:284: second Apply, same files, chronyd not restarted: chrony: chronyd needs restart (chrony): … (still pending: chronyd has not restarted since)
+chrony_integration_test.go:292: Apply after the restart: nil (pending request cleared: chronyd started after it)
+ok  	ngfw/agent/internal/renderers/kea	1.215s
+ok  	ngfw/agent/internal/renderers/unbound	11.368s
+ok  	ngfw/agent/internal/renderers/chrony	1.908s
+
+$ pgrep -af /run/vrx-test/w6/            → (none)
+$ systemctl is-active kea-dhcp4-server kea-dhcp6-server unbound chrony
+inactive inactive inactive active        (chrony = host timesync, untouched; review I1 accepts it)
+$ diff etc-stat-before.txt <stat of /etc/kea /etc/unbound /etc/chrony now>   → identical (15 files)
+$ ip netns list | grep w6                → (none)
+
+$ tools/ci.sh --base main
+branch    task/RF-3 @ 53b8e80   (base: main)
+no contract files changed in the 16 commit(s) of HEAD since main (d30c543)
+ok: gitleaks — scanned ~396899 bytes (396.90 KB) in 1.08s no leaks found
+CI GATE PASSED
+```
+
+Decisions added in this round: D-RF3-2 still holds (`config-set` without `config-write`). D-RF3-3 is replaced by the M1 scheme (ids persisted in the applied config, salted hashing only for new names; renaming a subnet gives it a new id). D-RF3-13: the pending restart request lives in `/run/vrx/renderers/<daemon>.pending` and is cleared by a daemon process start after it (options: (a) conf mtime vs start time, which fails for reload-only changes; (b) persisted request + process start time [taken]). D-RF3-14: Kea control sockets are accepted only when private (no access for others, no group write on the directory). Q1 is closed by review I1. Q3 stays open (P05 to hoist `ActionRequired`, with pending persistence, into `renderers`).

@@ -252,7 +252,7 @@ tasks:
   - P04
   priority: 1
   est_hours: 21
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D0.7
@@ -265,7 +265,7 @@ tasks:
   started: 2026-09-23T16:01
   finished: ''
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done 5062933 (CI green, kill -9 restart sim, confirm timer);
-    review spawned (slot 7)'
+    review spawned (slot 7) | review BLOCK b7d8533 (H1 foreign VRF delete, H2 foreign route overwrite, H3 lost revert, M1–M4); fix round 1'
 - id: P06
   title: 'API core: datastore, commit engine, auth/RBAC/audit, telemetry relay'
   prompt: prompts/P06-api-core.md

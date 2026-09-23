@@ -7,8 +7,8 @@ Updated 2026-09-23 from plan/tasks.yaml (estimated hours are the plan's, not act
 | state | tasks |
 |---|---|
 | merged | 5 |
-| review | 0 |
-| running | 11 |
+| review | 1 |
+| running | 10 |
 | ready | 2 |
 | parked | 1 |
 | failed | 0 |
@@ -18,7 +18,7 @@ Updated 2026-09-23 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S1 | 26 / 71 | 36.6% | 4/9 | 4 | 0 | 0 |
-| S2 | 0 / 215 | 0.0% | 0/16 | 7 | 2 | 0 |
+| S2 | 0 / 215 | 0.0% | 0/16 | 6 | 2 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
 | S4 | 0 / 372 | 0.0% | 0/36 | 0 | 0 | 1 |
 | S5 | 0 / 120 | 0.0% | 0/12 | 0 | 0 | 0 |
@@ -34,7 +34,7 @@ Updated 2026-09-23 from plan/tasks.yaml (estimated hours are the plan's, not act
 - DF-1 — Descriptors: bond, l2 (bridge, xconnect), memif, tap, host-interface/af_packet, subinterface, admin-state, mtu, rx-mode (running, desktop-agent slot2)
 - DF-2 — Descriptors: ip_neighbor, ip6_nd (RA, DAD), urpf, abf, classify (ip tables/routes are P05 core) (running, desktop-agent slot3)
 - DF-3 — Descriptors: nat44_ed (nat), nat44_ei, nat64, nat66, det44, map, cnat, pnat (running, desktop-agent slot9)
-- DF-4 — Descriptors: acl (incl. macip), acl stats (running, desktop-agent slot10)
+- DF-4 — Descriptors: acl (incl. macip), acl stats (review, desktop-agent slot10)
 - DF-5 — Descriptors: ipsec, ikev2, wireguard (running, desktop-agent slot4)
 - DF-6 — Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp (running, desktop-agent slot11)
 

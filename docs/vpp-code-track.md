@@ -13,3 +13,4 @@ fund the item with a VPP engineer.
 | V4 | NAT ALGs (SIP, active FTP, PPTP) | plan | nat44-ed has limited ALGs | document unsupported | 2–3 weeks each |
 | V5 | kernel→VPP sync of MPLS/LDP and multicast (PIM) routes | plan | linux-nl syncs unicast v4/v6 only | **agent reads FRR JSON and programs VPP via API (control plane, no VPP code)** — build this instead | 0 (fallback is the plan) |
 | V6 | vpp_sswan (strongSwan kernel-vpp) patches | plan | possible incompatibility with strongSwan 6.x | pin a compatible strongSwan version | 0–2 weeks |
+| V7 | VPP 26.06  replies with the  message id (acl.c) and has no getter/disable path | DF-4 | upstream bug in the ACL plugin API | agent sends the request on a raw stream and treats the mismatched reply as success; counters flag is never disabled by the agent | 1–2 days (upstream patch + our build) |

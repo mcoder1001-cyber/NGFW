@@ -171,7 +171,8 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: raised by P03 Q4; run before tagging contracts-v1
+  notes: 'raised by P03 Q4; run before tagging contracts-v1 | also: add the domain leaf messages the factories need (ACL rules/bindings per DF-4 typed specs, NAT per DF-3, interface attrs per DF-1) so factories
+    can drop their structpb stand-ins'
 - id: P05a
   title: 'Agent interfaces: scheduler Descriptor, fake VPP client, renderer interface, READMEs'
   prompt: prompts/P05a-interfaces.md
@@ -415,7 +416,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D5.2
@@ -426,7 +427,7 @@ tasks:
   owner: desktop-agent slot10
   started: 2026-09-23T15:10
   finished: ''
-  notes: ''
+  notes: ' | worker done 14defa2; review agent spawned'
 - id: DF-5
   title: 'Descriptors: ipsec, ikev2, wireguard'
   prompt: prompts/factories/DF-5.md

@@ -18,6 +18,10 @@ const (
 	Dhcp6Bin = "/usr/sbin/kea-dhcp6"
 	// CtrlAgentBin checks kea-ctrl-agent.conf (`-t <file>`).
 	CtrlAgentBin = "/usr/sbin/kea-ctrl-agent"
+	// IPBin runs the DHCP checkers inside Paths.Netns (`ip netns exec <ns> kea-dhcp4 -t
+	// <file>`): Kea checks that a subnet's "interface" exists, so the checker must see the
+	// namespace the server runs in. Used only when Paths.Netns is set (tests: the rig).
+	IPBin = "/usr/bin/ip"
 )
 
 // DefaultHooksDir is where Ubuntu 26.04 installs the Kea 3.0 hook libraries. It is not a
@@ -28,7 +32,7 @@ const DefaultHooksDir = "/usr/lib/x86_64-linux-gnu/kea/hooks"
 const LeaseCmdsHook = "libdhcp_lease_cmds.so"
 
 // Binaries is the allowlist for the production SystemRunner of this renderer.
-func Binaries() []string { return []string{Dhcp4Bin, Dhcp6Bin, CtrlAgentBin} }
+func Binaries() []string { return []string{Dhcp4Bin, Dhcp6Bin, CtrlAgentBin, IPBin} }
 
 // NewRunner returns the production runner: allow-listed binaries and the Kea 3.0 path
 // environment (Env) so `kea-* -t` accepts the configured socket, lease and log directories.
@@ -80,6 +84,9 @@ type Paths struct {
 	InterfacePrefix string
 	// LFCInterval is the memfile lease-file cleanup interval in seconds.
 	LFCInterval uint32
+	// Netns is the network namespace the DHCP servers run in ("" = the agent's own). The
+	// DHCP checkers run there too (IPBin).
+	Netns string
 }
 
 // ProductPaths are the paths of the packaged Kea 3.0 on Ubuntu 26.04.
@@ -115,10 +122,14 @@ func TestPaths(prefix string, slot int) Paths {
 		SocketType:      "raw",
 		InterfacePrefix: prefix + "-",
 		LFCInterval:     3600,
+		Netns:           "ns-" + prefix + "-a",
 	}
 }
 
-var safePathRe = regexp.MustCompile(`^/[A-Za-z0-9_./-]*$`)
+var (
+	safePathRe = regexp.MustCompile(`^/[A-Za-z0-9_./-]*$`)
+	netnsRe    = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
+)
 
 // Validate checks that every path is absolute, clean and made of safe characters, and that
 // the listener is loopback.
@@ -141,6 +152,9 @@ func (p Paths) Validate() error {
 	}
 	if p.SocketType != "raw" && p.SocketType != "udp" {
 		return fmt.Errorf("kea: Paths.SocketType %q must be raw or udp", p.SocketType)
+	}
+	if p.Netns != "" && !netnsRe.MatchString(p.Netns) {
+		return fmt.Errorf("kea: Paths.Netns %q must match %s", p.Netns, netnsRe)
 	}
 	if p.InterfacePrefix != "" && !ifNameRe.MatchString(p.InterfacePrefix+"x") {
 		return fmt.Errorf("kea: Paths.InterfacePrefix %q is not an interface-name prefix", p.InterfacePrefix)

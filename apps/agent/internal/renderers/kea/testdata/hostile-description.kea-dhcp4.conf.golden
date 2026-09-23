@@ -4,7 +4,6 @@
       "interfaces": [
         "w0-a"
       ],
-      "dhcp-socket-type": "raw",
       "re-detect": true
     },
     "control-sockets": [
@@ -88,7 +87,7 @@
             "code": 225,
             "space": "dhcp4",
             "csv-format": false,
-            "data": "0x0a0b0c",
+            "data": "0a0b0c",
             "always-send": true
           }
         ],
@@ -119,7 +118,7 @@
           "vrx": {
             "server": "lan",
             "subnet": "lan",
-            "description": "\"}]} , \"Dhcp4\": {\"hooks-libraries\": [{\"library\": \"/tmp/evil.so\"}]} ☃ \\",
+            "description": "\"}]} , \"Dhcp4\": {\"hooks-libraries\": [{\"library\": \"/tmp/evil.so\"}]} \\u2603 \\\\",
             "server-description": "\"; rm -rf /"
           }
         }

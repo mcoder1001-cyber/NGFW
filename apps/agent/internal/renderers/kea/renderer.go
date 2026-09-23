@@ -212,7 +212,11 @@ func (r *Renderer) Validate(ctx context.Context, files renderers.Files) error {
 	defer func() { _ = st.Close() }()
 	for _, p := range files.Paths() {
 		bin := r.checker(p)
-		out, err := r.runner.Run(ctx, renderers.Command{Path: bin, Args: []string{"-t", st.Path(p)}, Timeout: validateTimeout})
+		cmd := renderers.Command{Path: bin, Args: []string{"-t", st.Path(p)}, Timeout: validateTimeout}
+		if r.paths.Netns != "" && bin != CtrlAgentBin {
+			cmd = renderers.Command{Path: IPBin, Args: []string{"netns", "exec", r.paths.Netns, bin, "-t", st.Path(p)}, Timeout: validateTimeout}
+		}
+		out, err := r.runner.Run(ctx, cmd)
 		if err != nil {
 			return fmt.Errorf("%w: %s -t rejected %s: %s", ErrDaemon, filepath.Base(bin), filepath.Base(p), toolMessage(out, err, st.Dir))
 		}

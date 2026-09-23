@@ -4,7 +4,6 @@
       "interfaces": [
         "w0-a/10.6.10.1"
       ],
-      "dhcp-socket-type": "raw",
       "re-detect": true
     },
     "control-sockets": [
@@ -88,7 +87,7 @@
             "code": 225,
             "space": "dhcp4",
             "csv-format": false,
-            "data": "0x0a0b0c",
+            "data": "0a0b0c",
             "always-send": true
           }
         ],

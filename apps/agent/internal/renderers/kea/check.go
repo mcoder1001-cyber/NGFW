@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/netip"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -55,7 +56,34 @@ func checkDescription(path, s string) (string, error) {
 	if _, err := renderers.Line(s); err != nil {
 		return "", fmt.Errorf("%w: %s: %w", ErrInvalid, path, err)
 	}
-	return s, nil
+	return asciiText(s), nil
+}
+
+// asciiText makes validated free text safe for Kea's JSON parser, which is byte-oriented:
+// Kea 3.0 re-emits every non-ASCII byte as its own \u00XX escape, so UTF-8 text does not
+// round-trip through config-get. Backslash becomes "\\" and every rune outside printable
+// ASCII becomes "\uXXXX" / "\UXXXXXXXX" (Go/JSON escape syntax as plain text), so the text
+// is pure printable ASCII and DecodeText restores the original exactly.
+func asciiText(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r == '\\':
+			b.WriteString(`\\`)
+		case r >= ' ' && r <= '~':
+			b.WriteRune(r)
+		case r <= 0xFFFF:
+			fmt.Fprintf(&b, `\u%04x`, r)
+		default:
+			fmt.Fprintf(&b, `\U%08x`, r)
+		}
+	}
+	return b.String()
+}
+
+// DecodeText reverses asciiText (for Retrieve consumers reading user-context descriptions).
+func DecodeText(s string) (string, error) {
+	return strconv.Unquote(`"` + strings.ReplaceAll(s, `"`, `\"`) + `"`)
 }
 
 func checkHostname(path, s string) (string, error) {

@@ -20,7 +20,11 @@ var update = flag.Bool("update", false, "rewrite testdata/*.golden")
 
 const hook = "/usr/lib/x86_64-linux-gnu/kea/hooks/libdhcp_lease_cmds.so"
 
-func unitPaths() Paths { return TestPaths("w0", 6) }
+func unitPaths() Paths {
+	p := TestPaths("w0", 6)
+	p.Netns = ""
+	return p
+}
 
 func newUnit(opts ...Option) *Renderer {
 	base := []Option{WithPaths(unitPaths()), WithLeaseCmdsHook(hook)}
@@ -202,20 +206,28 @@ var hostile = []string{
 func TestRejects(t *testing.T) {
 	type mut func(s *vrxv1.DhcpServer)
 	cases := map[string]mut{
-		"desc-5k":         func(s *vrxv1.DhcpServer) { s.Description = proto.String(strings.Repeat("x", 5*1024)) },
-		"iface-hostile":   func(s *vrxv1.DhcpServer) { s.Interfaces = []string{`w0-a"; rm -rf /`} },
-		"iface-host-nic":  func(s *vrxv1.DhcpServer) { s.Interfaces = []string{"ens192"} },
-		"iface-none":      func(s *vrxv1.DhcpServer) { s.Interfaces = nil },
-		"vrf-hostile":     func(s *vrxv1.DhcpServer) { s.Vrf = proto.String("a b") },
-		"family":          func(s *vrxv1.DhcpServer) { s.Family = proto.String("ipx") },
-		"renew":           func(s *vrxv1.DhcpServer) { s.RenewTimerSec = proto.Uint32(9000) },
-		"opt-code-0":      func(s *vrxv1.DhcpServer) { s.Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(0), Data: proto.String("x")}} },
-		"opt-code-v4-300": func(s *vrxv1.DhcpServer) { s.Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(300), Data: proto.String("x")}} },
+		"desc-5k":        func(s *vrxv1.DhcpServer) { s.Description = proto.String(strings.Repeat("x", 5*1024)) },
+		"iface-hostile":  func(s *vrxv1.DhcpServer) { s.Interfaces = []string{`w0-a"; rm -rf /`} },
+		"iface-host-nic": func(s *vrxv1.DhcpServer) { s.Interfaces = []string{"ens192"} },
+		"iface-none":     func(s *vrxv1.DhcpServer) { s.Interfaces = nil },
+		"vrf-hostile":    func(s *vrxv1.DhcpServer) { s.Vrf = proto.String("a b") },
+		"family":         func(s *vrxv1.DhcpServer) { s.Family = proto.String("ipx") },
+		"renew":          func(s *vrxv1.DhcpServer) { s.RenewTimerSec = proto.Uint32(9000) },
+		"opt-code-0": func(s *vrxv1.DhcpServer) {
+			s.Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(0), Data: proto.String("x")}}
+		},
+		"opt-code-v4-300": func(s *vrxv1.DhcpServer) {
+			s.Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(300), Data: proto.String("x")}}
+		},
 		"opt-dup": func(s *vrxv1.DhcpServer) {
 			s.Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(66), Data: proto.String("a")}, {Code: proto.Uint32(66), Data: proto.String("b")}}
 		},
-		"opt-unicode": func(s *vrxv1.DhcpServer) { s.Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(66), Data: proto.String("☃")}} },
-		"opt-5k":      func(s *vrxv1.DhcpServer) { s.Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(66), Data: proto.String(strings.Repeat("a", 5*1024))}} },
+		"opt-unicode": func(s *vrxv1.DhcpServer) {
+			s.Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(66), Data: proto.String("☃")}}
+		},
+		"opt-5k": func(s *vrxv1.DhcpServer) {
+			s.Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(66), Data: proto.String(strings.Repeat("a", 5*1024))}}
+		},
 		"opt-typed-dup": func(s *vrxv1.DhcpServer) {
 			s.Subnets["lan"].Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(3), Data: proto.String("10.6.10.2")}}
 		},
@@ -352,6 +364,19 @@ func TestValidateArgv(t *testing.T) {
 	if err := r.Validate(context.Background(), files); !errors.Is(err, ErrDaemon) {
 		t.Fatalf("want ErrDaemon, got %v", err)
 	}
+	// With Paths.Netns the DHCP checkers run inside the namespace (ip netns exec).
+	np := unitPaths()
+	np.Netns = "ns-w0-a"
+	rr = renderers.NewRecordingRunner().Succeed(IPBin, "").Succeed(CtrlAgentBin, "")
+	r = New(rr, WithPaths(np), WithLeaseCmdsHook(""))
+	if err := r.Validate(context.Background(), render(t, r, nil)); err != nil {
+		t.Fatal(err)
+	}
+	calls = rr.Calls()
+	if len(calls) != 3 || calls[1].Path != IPBin || strings.Join(calls[1].Args[:5], " ") != "netns exec ns-w0-a "+Dhcp4Bin+" -t" {
+		t.Fatalf("netns argv: %v", calls)
+	}
+	r = New(renderers.NewRecordingRunner(), WithPaths(unitPaths()), WithLeaseCmdsHook(""))
 	foreign := renderers.Files{"/etc/passwd": {Mode: 0o644, Content: []byte("{}")}}
 	if err := r.Validate(context.Background(), foreign); !errors.Is(err, renderers.ErrInvalidFiles) {
 		t.Fatalf("foreign file: want ErrInvalidFiles, got %v", err)
@@ -494,5 +519,34 @@ func TestFlattenStatsAndEvents(t *testing.T) {
 	}
 	if p := ev[0].ToProto(); p.GetAttributes()["source"] != "kea" {
 		t.Fatal(p)
+	}
+}
+
+func TestASCIIText(t *testing.T) {
+	for _, s := range []string{`plain`, `"; rm -rf /`, `back\slash \" ☃ 𝄞 فارسی`, `"}]}`} {
+		enc := asciiText(s)
+		for i := 0; i < len(enc); i++ {
+			if enc[i] < ' ' || enc[i] > '~' {
+				t.Fatalf("%q: non-printable byte in %q", s, enc)
+			}
+		}
+		dec, err := DecodeText(enc)
+		if err != nil || dec != s {
+			t.Fatalf("%q -> %q -> %q (%v)", s, enc, dec, err)
+		}
+	}
+}
+
+func TestNormPool(t *testing.T) {
+	for in, want := range map[string]string{
+		"fd00:6:10::1000/116": "fd00:6:10::1000-fd00:6:10::1fff",
+		"10.0.0.0/30":         "10.0.0.0-10.0.0.3",
+		"10.0.0.5 - 10.0.0.9": "10.0.0.5-10.0.0.9",
+		"FD00::1-fd00::2":     "fd00::1-fd00::2",
+		"garbage":             "garbage",
+	} {
+		if got := normPool(in); got != want {
+			t.Errorf("normPool(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

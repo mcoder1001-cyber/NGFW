@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // LeasePageSize is the lease4/6-get-page limit: leases are always read in pages, never with
@@ -186,6 +188,35 @@ func ConfigDrift(rendered, running []byte) ([]string, error) {
 	return diffs, nil
 }
 
+// normPool turns a Kea pool ("a-b" or the "p/len" form Kea reports for aligned ranges) into
+// "first-last".
+func normPool(s string) string {
+	if p, err := netip.ParsePrefix(strings.TrimSpace(s)); err == nil {
+		p = p.Masked()
+		return p.Addr().String() + "-" + lastAddr(p).String()
+	}
+	a, b, ok := strings.Cut(s, "-")
+	if !ok {
+		return s
+	}
+	x, err1 := netip.ParseAddr(strings.TrimSpace(a))
+	y, err2 := netip.ParseAddr(strings.TrimSpace(b))
+	if err1 != nil || err2 != nil {
+		return s
+	}
+	return x.String() + "-" + y.String()
+}
+
+// lastAddr is the highest address of p.
+func lastAddr(p netip.Prefix) netip.Addr {
+	b := p.Addr().AsSlice()
+	for i := p.Bits(); i < len(b)*8; i++ {
+		b[i/8] |= 1 << (7 - i%8)
+	}
+	a, _ := netip.AddrFromSlice(b)
+	return a
+}
+
 func subset(path string, want, got any, diffs *[]string) {
 	switch w := want.(type) {
 	case map[string]any:
@@ -212,6 +243,9 @@ func subset(path string, want, got any, diffs *[]string) {
 			subset(fmt.Sprintf("%s/%d", path, i), w[i], g[i], diffs)
 		}
 	default:
+		if strings.HasSuffix(path, "/pool") {
+			want, got = normPool(fmt.Sprint(want)), normPool(fmt.Sprint(got))
+		}
 		if fmt.Sprint(want) != fmt.Sprint(got) {
 			*diffs = append(*diffs, fmt.Sprintf("%s: want %v, got %v", path, want, got))
 		}

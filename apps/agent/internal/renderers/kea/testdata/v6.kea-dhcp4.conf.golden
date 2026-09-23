@@ -2,7 +2,6 @@
   "Dhcp4": {
     "interfaces-config": {
       "interfaces": [],
-      "dhcp-socket-type": "raw",
       "re-detect": true
     },
     "control-sockets": [

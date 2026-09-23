@@ -140,8 +140,8 @@ func (r *Renderer) buildFamily(in input, family int) (serverConfig, error) {
 	if family == 6 {
 		cfg.LeaseDatabase.Name = r.paths.Leases6()
 		cfg.Loggers[0].OutputOptions[0].Output = r.paths.Log6()
-	} else {
-		cfg.InterfacesConfig.DHCPSocketType = r.paths.SocketType
+	} else if r.paths.SocketType != "raw" {
+		cfg.InterfacesConfig.DHCPSocketType = r.paths.SocketType // "raw" is Kea's default (config-get omits it)
 	}
 	if r.leaseCmdsHook != "" {
 		cfg.HooksLibraries = []hookLibrary{{Library: r.leaseCmdsHook}}
@@ -467,6 +467,7 @@ func (fb *famBuild) options(path string, in []*vrxv1.DhcpOption) ([]optionData, 
 		case hexDataRe.MatchString(data):
 			f := false
 			od.CSVFormat = &f
+			od.Data = strings.ToLower(data[2:]) // Kea stores hex without the 0x prefix
 		default:
 			name := fmt.Sprintf("vrx-%d", code)
 			fb.optionDefs[code] = optionDef{Name: name, Code: code, Type: "string", Space: fb.space}

@@ -9,6 +9,8 @@ github.com/golang/protobuf v1.5.4 h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek
 github.com/golang/protobuf v1.5.4/go.mod h1:lnTiLA8Wa4RWRcIUkrtSVa5nRhsEGBg48fD6rSs7xps=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
+github.com/gosnmp/gosnmp v1.43.1 h1:7wsShHqUxP7BPAv3AkGA+PyZBknrJktN0R+yxtlJSog=
+github.com/gosnmp/gosnmp v1.43.1/go.mod h1:MQJo+kP0Ka2n1lkOL44ZgNkz3dBcDxtfgx5/hpkXMKE=
 github.com/lunixbochs/struc v0.0.0-20200521075829-a4cb8d33dbbe h1:ewr1srjRCmcQogPQ/NCx6XCk6LGVmsVCc9Y3vvPZj+Y=
 github.com/lunixbochs/struc v0.0.0-20200521075829-a4cb8d33dbbe/go.mod h1:vy1vK6wD6j7xX6O6hXe621WabdtNkou2h7uRtTfRMyg=
 github.com/onsi/gomega v1.38.2 h1:eZCjf2xjZAqe+LeWvKb5weQ+NcPwX84kqJ0cZNxok2A=
@@ -18,10 +20,14 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
-github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
+<<<<<<< HEAD
 github.com/strongswan/govici v0.8.2 h1:0LuY16Z8pRvbA1SW/BBdKcBERpFpwwCXkhLbwETVThQ=
 github.com/strongswan/govici v0.8.2/go.mod h1:Auq9H2J1gSMD3D+r2g9HlUpF5tep/wP0u0fMCfBE+Bw=
+=======
+github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
+github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
+>>>>>>> task/RF-4
 go.fd.io/govpp v0.13.0 h1:MnjH9I5K+X0860CeeuBcMSu3uyUKA6X9AenKzdiGpnA=
 go.fd.io/govpp v0.13.0/go.mod h1:MQw6XdULE9qJiqYzIUXPSVyOGWCwVLMhhFRjcf+9hmM=
 go.yaml.in/yaml/v3 v3.0.4 h1:tfq32ie2Jv2UxXFdLJdh3jXuOzWiL1fo0bu/FbuKpbc=

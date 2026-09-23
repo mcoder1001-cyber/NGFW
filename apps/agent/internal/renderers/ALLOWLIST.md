@@ -30,14 +30,26 @@ Rules for an entry:
 | `/usr/lib/frr/zebra` | frr (test harness only) | test-scoped daemon | same as mgmtd + `-z <dir>/zserv.api -f <empty cfg>` | RF-1 |
 | `/usr/lib/frr/staticd` | frr (test harness only) | test-scoped daemon | same as mgmtd + `-z <dir>/zserv.api` | RF-1 |
 | `/usr/lib/frr/bgpd` `/usr/lib/frr/ospfd` `/usr/lib/frr/ospf6d` `/usr/lib/frr/bfdd` `/usr/lib/frr/pimd` `/usr/lib/frr/isisd` `/usr/lib/frr/ripd` `/usr/lib/frr/ldpd` | frr (test harness only, for P12/F-*) | protocol daemons started only when a test names them in `frrtest.Options.Daemons` — **unused until P12 (bgpd), F-ospf (ospfd/ospf6d), F-bfd-redistribution (bfdd), F-igmp-mfib (pimd), F-isis-rip (isisd/ripd), F-mpls-srmpls (ldpd)** | same as staticd | RF-1 (ahead of P12/F-*) |
+| `/usr/sbin/snmpd` | snmpd | Validate *parse run* (net-snmp has no offline checker): a daemonised instance on a staged check copy whose agentaddress/agentXSocket point to unix sockets in the staging dir and whose trap sinks are removed; stopped by its pidfile PID (verified `/proc/<pid>/exe` + cmdline) right after | `snmpd -C -c <staging>/check/snmpd.conf -Lf <staging>/check/snmpd.log -p <staging>/check/snmpd.pid -m "" -M <staging>/check/mibs` | RF-4 |
+| `/usr/sbin/keepalived` | keepalived | config check (interfaces, script security); SIGJSON number | `keepalived -t -f <staged keepalived.conf> [-s <netns>]` / `keepalived --signum=JSON` | RF-4 |
+| `/usr/sbin/rsyslogd` | rsyslog | config validation run | `rsyslogd -N1 -f <staged file>` | RF-4 |
+| `/usr/bin/systemctl` | snmpd, keepalived, rsyslog (product control channel, `rfkit.SystemdController`) | reload / restart / signal **the unit this renderer owns** — never start, enable or disable | `systemctl reload snmpd` · `systemctl reload keepalived` · `systemctl kill --kill-whom=main --signal=<n> keepalived` · `systemctl restart rsyslog` | RF-4 |
+| `/usr/libexec/vrx/vrx-keepalived-notify` | keepalived — **not executed by the agent**: the only `notify_*` target keepalived.conf ever names (source `keepalived/cmd/vrx-keepalived-notify`, packaged by P10) | writes `<state dir>/<instance>.state` (the state/event channel) | keepalived runs `vrx-keepalived-notify <state-dir> INSTANCE <name> MASTER\|BACKUP\|FAULT\|STOP` | RF-4 |
+| `/usr/libexec/vrx/checks` | keepalived — directory of the **shipped** `vrrp_script` executables (keepalived runs them; a script is chosen by name from the renderer's allow-list, never user text or paths; empty until F-vrrp ships checks) | track scripts | `vrrp_script <name> { script "/usr/libexec/vrx/checks/<check>" }` | RF-4 |
+| `/usr/lib/x86_64-linux-gnu/rsyslog` | rsyslog — module directory, **nothing executed**: `stat` of `lmnsd_ossl.so` before accepting a TLS export | TLS driver presence check | — | RF-4 |
+| `/usr/bin/ip` | keepalived integration test only (`_test.go`, never a renderer allowlist) | slot netns + veth pair, keepalived child inside it | `ip netns add\|delete ns-<prefix>-a`, `ip -n ns-<prefix>-a link\|addr …`, `ip netns exec ns-<prefix>-a keepalived -n -l -P -G -f <cfg> -p … -r … -c …` | RF-4 |
 
 ## Planned (documented ahead of use; move a row to *Active* when the renderer lands)
 
 | binary | renderer | purpose | argv shape | task |
 |---|---|---|---|---|
+<<<<<<< HEAD
 | `/usr/bin/systemctl` | keepalived, snmpd, rsyslog | reload the unit **owned by this task's envelope** | `systemctl reload <unit>` / `systemctl restart <unit>` | RF |
 | `/usr/sbin/keepalived` | keepalived | config check | `keepalived -t -f <file>` | RF |
 | `/usr/sbin/snmpd` | snmpd | integration test child process only | `snmpd -f -c <cfg> -p <pid> 127.0.0.1:<slot port>` | RF |
+=======
+| `/usr/sbin/swanctl` | strongswan | load / list SAs when VICI is unavailable | `swanctl --load-all --noprompt`, `swanctl --list-sas --raw` | P11 |
+>>>>>>> task/RF-4
 
 ## Active — RF-3 (kea, unbound, chrony)
 

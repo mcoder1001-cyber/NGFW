@@ -507,7 +507,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D7.8
@@ -524,9 +524,9 @@ tasks:
   worktree: /root/ngfw-wt/DF-7
   owner: host-agent slot10
   started: 2026-09-24T00:40
-  finished: ''
+  finished: '2026-09-24'
   notes: ' | worker done 27a742a (32 types, CI green); V19/V20 recorded; review spawned | review APPROVE WITH CHANGES 09b4a16 (H1 D-080 + sw_if_index, H2 mpls table-0 ownership, M1 claim before add, M2
-    lb byte-swap check, M3/M4 lb leftovers+adoption, M5, M6); fix round 1'
+    lb byte-swap check, M3/M4 lb leftovers+adoption, M5, M6); fix round 1 | fix round a394cfb; merged 67bf1de; main CI green; D-090'
 - id: DF-8
   title: 'Descriptors: dhcp, dns, flowprobe, sflow, prom, pcap/tracenode, lcp [skip-unless-loaded]'
   prompt: prompts/factories/DF-8.md
@@ -2141,7 +2141,7 @@ tasks:
   - P01
   priority: 5
   est_hours: 8
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D0.2
@@ -2152,7 +2152,8 @@ tasks:
   owner: host-agent slot2
   started: 2026-09-24T03:20
   finished: ''
-  notes: 'D-058: added; P10 consumes its output | worker done 90dbb81 (45 min build, 11 debs = host set); review spawned; D-089'
+  notes: 'D-058: added; P10 consumes its output | worker done 90dbb81 (45 min build, 11 debs = host set); review spawned; D-089 | review APPROVE WITH CHANGES afb833a (H1 unpinned wheels from /root/vpp,
+    H2 demo patch unsuffixed, M1 fuzz, M2 rm -rf guards, M3 apt rc); fix round 1'
 - id: F-ha-state-sync
   title: 'HA state sync (T2, partial ok): NAT/ACL session sync, IPsec SA sync, failover test automation'
   prompt: prompts/features/F-ha-state-sync.md

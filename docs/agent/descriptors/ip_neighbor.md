@@ -11,4 +11,12 @@ Values: package-local proto `ip_neighbor/model.proto` (D-055 stand-in until P03b
 Limitations
 - VPP 26.06 `ip_neighbor_flags` has only `STATIC` and `NO_FIB_ENTRY`; the "no-adj-fib" flag named in the task prompt does not exist in binapi → not modelled.
 - Dynamic (learned) neighbours are never retrieved (not configuration). `ip_neighbor_flush` is an action, not a descriptor.
-- Ownership: a neighbour belongs to the owner of its interface (interface tag `"<owner>:<name>"`).
+- Ownership: see below.
+- `ip-neighbor.config` is a global singleton without an owner: on the shared lab VPP any slot whose reconciler registers it overrides the others (tests restore it); in production there is one agent (review L8).
+
+## Ownership on untagged interfaces (review H3)
+Objects on interfaces tagged `"<owner>:<name>"` are ours. Physical ports (DPDK NICs) carry no tag: an object created on
+an untagged interface is recorded by its **key** in the claim store (`df2.WithClaims(store)`, DF-4's `acl.ClaimStore`
+interface; `df2.FileClaimStore` persists it in the agent state dir) and Retrieve reports it only while claimed. Interfaces
+tagged by another owner — and `local0` — are refused with `df2.ErrForeignInterface`. Dependencies use the interface
+alias key `interface/<name>` (D-065, DF-1).

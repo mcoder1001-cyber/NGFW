@@ -1,28 +1,31 @@
 # DF-2 — questions for the manager (non-blocking; work continued)
 
-1. **ip6nd_proxy_add_del crashed the shared VPP.** On 2026-09-23 15:52:38 the first `ip6nd_proxy_add_del`
-   (loop305, 2001:db8:3:5::99, after `ip6nd_proxy_enable_disable`) was followed by a VPP 26.06 abort / systemd restart
-   (recorded by the previous DF-2 worker). The host integration test `TestProxyNdOnHost` is therefore skipped unless
-   `VRX_DF2_PROXY_ND=1`; the descriptor is unit-tested on the fake. Proposal: the manager reproduces it under the
-   exclusive lock after handover and files it in `docs/vpp-code-track.md` (DF-2 must not edit that file).
-2. **Write-only descriptors (no dump in the VPP 26.06 API):** `adl.interface`, `adl.allowlist`,
-   `classify.interface-ip-table`, `classify.interface-l2-tables`, `classify.output-acl`. Their `Retrieve` returns
-   `df2.ErrRetrieveUnsupported` (no cached desired state faked). P05 needs a rule for them — proposal: the reconciler
-   treats `ErrRetrieveUnsupported` as "actual unknown": always (re)apply desired objects of such a descriptor after a
-   restart, never plan Deletes from them, and exclude them from the verify step. Contract question for P05 (descriptor.go
-   is frozen; nothing changed).
+1. **ip6nd_proxy_add_del aborted the shared VPP — please record it in `docs/vpp-code-track.md` (D-064; DF-2 does not own that file).**
+   - When: 2026-09-23 15:52:38, VPP 26.06 (pid 1109) on vrx-a, first host run of `TestProxyNdOnHost` (slot 3).
+   - Calls: `ip6nd_proxy_enable_disable` (loop305, enable) → `ip6nd_proxy_add_del` (loop305, 2001:db8:3:5::99, is_add),
+     loop305 = loopback with 2001:db8:3:5::1/64, admin up.
+   - Journal: `Out-of-memory, calling os_panic()` → SIGABRT; stack `os_panic ← clib_mem_heap_realloc_aligned ← _vec_realloc_internal
+     ← vlib_put_next_frame ← vnet_interface_output_node_fn_x86_64_v3 ← vlib_main` — data-path frame growth in interface-output,
+     consistent with an ND proxy loop on the loopback. systemd restarted VPP (restart #1).
+   - Done in DF-2: `ip6-nd.proxy` is out of the default `Register` (opt-in `RegisterProxyNd`), host test only with `VRX_DF2_PROXY_ND=1`,
+     doc says "unverified on host". Proposal: the manager reproduces it under the exclusive lab lock; if loopbacks are the trigger,
+     DF-2 adds a Create guard refusing loopback / non-ethernet interfaces in a follow-up.
+2. **Write-only descriptors — answered by D-063.** `adl.allowlist`, `classify.interface-ip-table`, `classify.interface-l2-tables` stay
+   write-only and are only registered via `RegisterWriteOnly` (the D-063 reconciler must opt in). `adl.interface` and
+   `classify.output-acl` now read presence back through `feature_is_enabled` (review H2) and are in the default `Register`.
 3. **Normalisation contract.** `proto.Equal` diffing needs the desired value in Retrieve's canonical form. DF-2 exports
    `NormalizeRaConfig`, `NormalizeRaPrefix`, `NormalizeDad`, `NormalizePolicy`, `NormalizeTable`, `NormalizeSession`,
-   `sessionredirect.Normalize`; the F-* wiring / API layer must call them (or P05 adds an optional
-   `Normalize(proto.Message) proto.Message` hook — contract change, manager's call).
-4. **Key strings of other tasks.** DF-2 uses `interface/<name>`, `vrf/<id>`, `interface-ip/<if>/<prefix>` (task prompt)
-   and `acl.acl/<name>` (DF-4 acl.md). If P05/DF-1 settle on `interface.loopback/…`-style keys, only
-   `internal/descriptors/df2/keys.go` changes.
-5. **classify Store location.** Classify tables have no tag; the owner's name ↔ index map (plus memory_size,
-   current_data, session action/metadata that VPP does not report) lives in `classify.FileStore`. P05/P08 must give it a
-   path in the agent state dir (proposal: `$STATE_DIR/classify-<owner>.json`).
-6. **Shared VPP instability during DF-2 runs.** VPP aborted again at 2026-09-24 00:26:04 in `gtpu_plugin.so`
-   (another slot's test, not DF-2) while a DF-2 held test had objects on it; the DF-2 run failed on vanished loopbacks.
-   Re-ran green afterwards. No DF-2 leftovers remain (VPP restart wiped them; post-run checks below in DF-2.md).
-7. **Registry list.** Each DF-2 package exposes `Register(r, client, owner, …)`; there is no central descriptor list on
-   the base (P05 in progress), so wiring the eight `Register` calls is left to P05/P08 (signatures in DF-2.md).
+   `sessionredirect.Normalize`; the F-* wiring / API layer must call them (or P05 adds an optional normalise hook — contract, manager's call).
+4. **Key strings.** Interfaces: alias `interface/<name>` (D-065, DF-1). ACLs: `acl.KeyACL` = `acl.acl/<name>` (D-066). VRFs:
+   `vrf/<id>`, interface addresses `interface-ip/<if>/<prefix>` (P05 core; only `df2/keys.go` changes if they differ).
+5. **State-dir paths for P05/P08.** Two DF-2 stores need a path in the agent state dir: the classify `FileStore`
+   (proposal `$STATE_DIR/classify-<owner>.json`) and the claim store for objects on untagged interfaces (`df2.FileClaimStore`,
+   proposal `$STATE_DIR/claims-df2-<owner>.json`, passed to every DF-2 `Register` via `df2.WithClaims`). DF-4's etype
+   whitelist could share the same store (it claims by interface name, DF-2 by object key — no collision).
+6. **Shared VPP instability during DF-2 runs.** VPP aborted at 2026-09-24 00:25:16 / 00:26:04 in `gtpu_plugin.so` (DF-6, recorded
+   in D-064). Review-fix host runs: `NRestarts` 2 before and after.
+7. **Registry wiring.** No central descriptor list exists yet; the `Register` calls (and the opt-in `RegisterProxyNd` /
+   `RegisterWriteOnly`) are for P05/P08. Signatures in DF-2.md.
+8. **Global singletons on the shared host (review L8).** `ip-neighbor.config` and `ip6-nd.dad` have no owner: any slot whose
+   reconciler registers them overrides the others. Fine for one production agent; proposal: `shared-host-rules.md` says slot
+   reconcilers must not register them (tests set + restore them).

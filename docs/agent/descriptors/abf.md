@@ -4,8 +4,15 @@ Package `apps/agent/internal/descriptors/abf`. Messages from `apps/agent/binapi/
 
 | Object | Descriptor / key | Create / Update / Delete | Retrieve | Dependencies | Notes |
 |---|---|---|---|---|---|
-| policy | `abf.policy` / `abf.policy/<policy_id>` | `abf_policy_add_del` (policy_id, acl_index, paths); Update: path changes in place (the API is additive: add new paths first, then remove stale ones); ACL change → `ErrRecreate` | `abf_policy_dump` (acl_index → ACL name via `acl_dump` tags, paths decoded to `df2.FibPath` with interface names) | `acl.acl/<name>` (DF-4 key, mandatory), path interfaces (Optional) | No tag: owned by policy id in the agent's `df2.IDRange` **and** an ACL of this owner. Meta `{ACLIndex}`. Pass desired through `NormalizePolicy` (path defaults, sort). |
+| policy | `abf.policy` / `abf.policy/<policy_id>` | `abf_policy_add_del` (policy_id, acl_index, paths); Update: path changes in place (the API is additive: add new paths first, then remove stale ones); ACL change → `ErrRecreate` | `abf_policy_dump` (acl_index → ACL name via DF-4 `acl.LookupIndex` for Create; `acl_dump` tags with DF-4's duplicate rule for Retrieve, paths decoded to `df2.FibPath` with interface names) | `acl.acl/<name>` (DF-4 key, mandatory), path interfaces (Optional) | No tag: owned by policy id in the agent's `df2.IDRange` **and** an ACL of this owner. Meta `{ACLIndex}`. Pass desired through `NormalizePolicy` (path defaults, sort). |
 | interface attach | `abf.attach` / `abf.attach/<policy_id>/<ifname>/<ipv4\|ipv6>` | `abf_itf_attach_add_del` (policy, sw_if_index, priority, is_ipv6); Update → `ErrRecreate` | `abf_itf_attach_dump`, owned policy id + owner-tagged interface | `abf.policy/<id>`, `interface/<ifname>` | Meta `{SwIfIndex}`. |
 
-ACL key contract: DF-4 `docs/agent/descriptors/acl.md` — `acl.acl/<name>`, VPP tag `"<owner>:<name>"`. Until DF-4 merges the tests create the ACL through `binapi/acl` with that tag (`df2test.ACL`).
+ACL key contract (D-066, DF-4 merged): dependency `acl.KeyACL(name)` = `acl.acl/<name>`, VPP tag `"<owner>:<name>"`. Create resolves the index with `acl.LookupIndex` (lowest index canonical when a tag is duplicated). Retrieve reports a policy on a non-canonical duplicate as `acl: "<name>#<index>"`, so it diffs and is recreated on the canonical ACL — the one DF-4 keeps. Host tests create the ACL through `binapi/acl` with that tag (`df2test.ACL`).
 `abf_plugin_get_version` = health check only. CLI: `show abf policy`, `show abf attach <if>`.
+
+## Ownership on untagged interfaces (review H3)
+Objects on interfaces tagged `"<owner>:<name>"` are ours. Physical ports (DPDK NICs) carry no tag: an object created on
+an untagged interface is recorded by its **key** in the claim store (`df2.WithClaims(store)`, DF-4's `acl.ClaimStore`
+interface; `df2.FileClaimStore` persists it in the agent state dir) and Retrieve reports it only while claimed. Interfaces
+tagged by another owner — and `local0` — are refused with `df2.ErrForeignInterface`. Dependencies use the interface
+alias key `interface/<name>` (D-065, DF-1).

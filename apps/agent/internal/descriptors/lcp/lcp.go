@@ -228,7 +228,14 @@ func (d *DefaultNetnsDescriptor) Current(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("lcp_default_ns_get: %w", dfkit.PluginError(Plugin, err))
 	}
-	return strings.TrimRight(rep.Netns, "\x00"), nil
+	ns := strings.TrimRight(rep.Netns, "\x00")
+	// VPP 26.06 bug: while no default netns is set, lcp_default_ns_get returns the reply's
+	// uninitialised bytes (REPLY_MACRO_DETAILS2 does not zero netns; host run 2026-09-24 got
+	// "\xfd\x11"). A value that is not a valid netns name is therefore "unset".
+	if validName("netns", ns, 31, true) != nil {
+		return "", nil
+	}
+	return ns, nil
 }
 
 // Retrieve implements scheduler.Descriptor: lcp_default_ns_get while set (for a non-owner:

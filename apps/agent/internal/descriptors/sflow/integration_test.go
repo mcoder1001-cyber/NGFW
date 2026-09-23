@@ -51,11 +51,16 @@ func TestSflowOnHost(t *testing.T) {
 	dfkittest.AssertAbsent(t, id, id.KeyOf(v2))
 	dfkittest.AssertEmptyPlan(t, id, dfkittest.KV(id, v1))
 
-	// agent restart: a fresh descriptor has learned nothing and finds if1 by probing; if2 (off)
-	// is probed and left off
+	// agent restart: a fresh descriptor has learned nothing; its Retrieve is read-only and reports
+	// nothing (M2); the scheduler's Create hits VALUE_EXIST on our interface and learns the hw
+	// index by toggling only that interface; then Retrieve reports it
 	fresh := NewInterface(c, h.Owner)
+	dfkittest.AssertAbsent(t, fresh, fresh.KeyOf(v1))
+	if _, err := fresh.Create(ctx, v1); err != nil {
+		t.Fatalf("re-learn: %v", err)
+	}
 	got := dfkittest.AssertRetrieved(t, fresh, dfkittest.KV(fresh, v1))
-	t.Logf("fresh descriptor (probe) meta %+v", got.Meta)
+	t.Logf("fresh descriptor (learned in Create) meta %+v", got.Meta)
 	dfkittest.AssertAbsent(t, fresh, fresh.KeyOf(v2))
 	dfkittest.HoldForEvidence(t, "CLI: show sflow")
 	if err := fresh.Delete(ctx, v1, got.Meta); err != nil {

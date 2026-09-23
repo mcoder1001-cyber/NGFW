@@ -26,6 +26,7 @@
     "@grpc/grpc-js": "^1.12"
   },
   "devDependencies": {
+    "@ngfw/schema": "workspace:*",
     "ts-proto": "^2",
     "typescript": "^5.6",
     "vitest": "^3"

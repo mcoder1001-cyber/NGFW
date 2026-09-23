@@ -19,3 +19,11 @@ Findings so far:
 - [x] README.md, questions Q1–Q5
 - [x] after-state == before (VPP itself aborted+auto-restarted 02:23, unrelated), F-vpp-debs.md written
 - [x] final CI gate: CI GATE PASSED (02:36, log /root/ngfw-wt/logs/F-vpp-debs-ci-final.log)
+
+## 2026-09-24 — review fix round (review afb833a, D-089)
+- [x] H1 pydeps.lock + verified wheelhouse + build-patches/0001 (DPDK venv --require-hashes); all build pip via wheelhouse (vpp_papi)
+- [x] H2 +vrx<N> for patched builds, demo only with --demo, round-1 unsuffixed demo output deleted, install gate
+- [x] M1 git apply --check/apply; M2 path guards + vrx_rm_rf; M3 apt rc; L1 --require-files; L2 VERSION as data; L3 disk; L4 D-089; L5 no silent fallback
+- [x] tests/run.sh 64/64; prepare-only default; full --demo build 03:12→03:24 (11m18s) → 26.06-release+vrx1-demo, verify OK, install gate refuses
+- [x] before/after unchanged; Review fixes section in F-vpp-debs.md
+- [ ] CI gate

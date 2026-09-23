@@ -535,6 +535,65 @@ func (x *Subinterface) GetInnerVlanAny() bool {
 	return false
 }
 
+// InterfaceAlias is the generic interface reference "interface/<name>" every consumer (DF-2…DF-8,
+// F-*) depends on (D-065). It creates nothing in VPP: it names an interface and, when this agent
+// created it, the creating descriptor's full key (e.g. "tapv2.tap/w2-tap10"), which becomes its
+// mandatory dependency. Physical / pre-existing interfaces (DPDK NICs, anything not created by a
+// descriptor) have no creator.
+type InterfaceAlias struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable name: the id of the creator key for our interfaces, VPP's interface name otherwise.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Full scheduler key of the creating descriptor's object; empty for physical/pre-existing.
+	Creator       string `protobuf:"bytes,2,opt,name=creator,proto3" json:"creator,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InterfaceAlias) Reset() {
+	*x = InterfaceAlias{}
+	mi := &file_iface_model_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InterfaceAlias) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InterfaceAlias) ProtoMessage() {}
+
+func (x *InterfaceAlias) ProtoReflect() protoreflect.Message {
+	mi := &file_iface_model_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InterfaceAlias.ProtoReflect.Descriptor instead.
+func (*InterfaceAlias) Descriptor() ([]byte, []int) {
+	return file_iface_model_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *InterfaceAlias) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *InterfaceAlias) GetCreator() string {
+	if x != nil {
+		return x.Creator
+	}
+	return ""
+}
+
 var File_iface_model_proto protoreflect.FileDescriptor
 
 const file_iface_model_proto_rawDesc = "" +
@@ -576,7 +635,10 @@ const file_iface_model_proto_rawDesc = "" +
 	"\buntagged\x18\b \x01(\bR\buntagged\x12$\n" +
 	"\x0eouter_vlan_any\x18\t \x01(\bR\fouterVlanAny\x12$\n" +
 	"\x0einner_vlan_any\x18\n" +
-	" \x01(\bR\finnerVlanAny*{\n" +
+	" \x01(\bR\finnerVlanAny\">\n" +
+	"\x0eInterfaceAlias\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\acreator\x18\x02 \x01(\tR\acreator*{\n" +
 	"\n" +
 	"RxModeKind\x12\x1c\n" +
 	"\x18RX_MODE_KIND_UNSPECIFIED\x10\x00\x12\x18\n" +
@@ -597,16 +659,17 @@ func file_iface_model_proto_rawDescGZIP() []byte {
 }
 
 var file_iface_model_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_iface_model_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_iface_model_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_iface_model_proto_goTypes = []any{
-	(RxModeKind)(0),      // 0: vrx.agent.iface.RxModeKind
-	(*AdminState)(nil),   // 1: vrx.agent.iface.AdminState
-	(*Mtu)(nil),          // 2: vrx.agent.iface.Mtu
-	(*MacAddress)(nil),   // 3: vrx.agent.iface.MacAddress
-	(*Promisc)(nil),      // 4: vrx.agent.iface.Promisc
-	(*RxMode)(nil),       // 5: vrx.agent.iface.RxMode
-	(*RxPlacement)(nil),  // 6: vrx.agent.iface.RxPlacement
-	(*Subinterface)(nil), // 7: vrx.agent.iface.Subinterface
+	(RxModeKind)(0),        // 0: vrx.agent.iface.RxModeKind
+	(*AdminState)(nil),     // 1: vrx.agent.iface.AdminState
+	(*Mtu)(nil),            // 2: vrx.agent.iface.Mtu
+	(*MacAddress)(nil),     // 3: vrx.agent.iface.MacAddress
+	(*Promisc)(nil),        // 4: vrx.agent.iface.Promisc
+	(*RxMode)(nil),         // 5: vrx.agent.iface.RxMode
+	(*RxPlacement)(nil),    // 6: vrx.agent.iface.RxPlacement
+	(*Subinterface)(nil),   // 7: vrx.agent.iface.Subinterface
+	(*InterfaceAlias)(nil), // 8: vrx.agent.iface.InterfaceAlias
 }
 var file_iface_model_proto_depIdxs = []int32{
 	0, // 0: vrx.agent.iface.RxMode.mode:type_name -> vrx.agent.iface.RxModeKind
@@ -628,7 +691,7 @@ func file_iface_model_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_iface_model_proto_rawDesc), len(file_iface_model_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

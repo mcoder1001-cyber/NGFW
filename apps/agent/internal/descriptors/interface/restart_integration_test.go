@@ -52,6 +52,8 @@ func descriptorOf(o proto.Message) string {
 		return iface.PromiscName
 	case *iface.RxMode:
 		return iface.RxModeName
+	case *iface.InterfaceAlias:
+		return iface.AliasName
 	case *iface.RxPlacement:
 		return iface.RxPlacementName
 	case *l2.BridgeDomain:
@@ -151,12 +153,20 @@ func plan(desired []scheduler.KV, actual map[scheduler.Key]scheduler.KV) []strin
 		}
 	}
 	for k, kv := range actual {
-		if !want[k] {
+		if !want[k] && !foreignAlias(kv) {
 			ops = append(ops, fmt.Sprintf("delete %s: actual %v meta %+v", k, kv.Value, kv.Meta))
 		}
 	}
 	sort.Strings(ops)
 	return ops
+}
+
+// foreignAlias: the "interface" alias Retrieve lists every VPP interface (D-065), incl. other
+// workers' and P05's loopback; an undesired alias would be a no-op Delete, so the test ignores the
+// aliases of interfaces without a creator of ours (see DF-1-questions.md Q4 for the reconciler).
+func foreignAlias(kv scheduler.KV) bool {
+	a, ok := kv.Value.(*iface.InterfaceAlias)
+	return ok && a.GetCreator() == ""
 }
 
 // restartVeth is the fixed-argv Linux rig helper (same as af_packet's test): slot-prefixed veth
@@ -238,6 +248,17 @@ func TestRestartSimulationOnHost(t *testing.T) {
 		&l2.VlanTagRewrite{Interface: subKey, Op: l2.VtrOp_VTR_OP_POP_1},
 		&l2.Xconnect{Rx: tapKey(64), Tx: afKey},
 		&l2.Xconnect{Rx: afKey, Tx: tapKey(64)},
+		// generic interface aliases consumers depend on (D-065): the desired-state builder emits one per interface
+		&iface.InterfaceAlias{Name: "loop" + strconv.Itoa(int(vpptest.LoopbackInstance(t, 60))), Creator: loopKey},
+		&iface.InterfaceAlias{Name: vpptest.Name(t, "tap60"), Creator: tapKey(60)},
+		&iface.InterfaceAlias{Name: vpptest.Name(t, "tap61"), Creator: tapKey(61)},
+		&iface.InterfaceAlias{Name: vpptest.Name(t, "tap62"), Creator: tapKey(62)},
+		&iface.InterfaceAlias{Name: vpptest.Name(t, "tap63"), Creator: tapKey(63)},
+		&iface.InterfaceAlias{Name: vpptest.Name(t, "tap64"), Creator: tapKey(64)},
+		&iface.InterfaceAlias{Name: vpptest.Name(t, "memif60"), Creator: "memif.memif/" + vpptest.Name(t, "memif60")},
+		&iface.InterfaceAlias{Name: vpptest.Name(t, "tap62") + ".100", Creator: subKey},
+		&iface.InterfaceAlias{Name: af, Creator: afKey},
+		&iface.InterfaceAlias{Name: bondObj.Name, Creator: bondKey},
 		// l3xc
 		&l3xc.L3Xc{Interface: tapKey(63), Paths: []*l3xc.Path{{NextHop: "10." + slot + ".60.254", Interface: loopKey, Weight: 1}}},
 	}
@@ -332,7 +353,13 @@ func TestRestartSimulationOnHost(t *testing.T) {
 		}
 		delete(metas, kv.Key)
 	}
-	if left := retrieveAll(t, r2); len(left) != 0 {
+	left := retrieveAll(t, r2)
+	for k, kv := range left {
+		if a, ok := kv.Value.(*iface.InterfaceAlias); ok && (foreignAlias(kv) || a.GetCreator() == loopKey) {
+			delete(left, k) // the loopback is P05's, created by the test and deleted in Cleanup
+		}
+	}
+	if len(left) != 0 {
 		keys := make([]string, 0, len(left))
 		for k := range left {
 			keys = append(keys, string(k))

@@ -16,7 +16,7 @@ func TestRegisterAllDF1(t *testing.T) {
 	want := []string{
 		"af-packet.host-interface",
 		"bond.bond", "bond.member",
-		"interface.admin-state", "interface.mac-address", "interface.mtu", "interface.promisc",
+		"interface", "interface.admin-state", "interface.mac-address", "interface.mtu", "interface.promisc",
 		"interface.rx-mode", "interface.rx-placement", "interface.subinterface",
 		"l2.bridge-domain", "l2.bridge-domain-member", "l2.fib-entry", "l2.flags", "l2.vlan-tag-rewrite", "l2.xconnect",
 		"l3xc.l3xc",

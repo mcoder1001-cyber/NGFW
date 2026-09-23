@@ -16,4 +16,5 @@ func Register(r scheduler.Registry, c vpp.Client, owner string) {
 	r.Register(NewPromisc(c, owner))
 	r.Register(NewRxMode(c, owner))
 	r.Register(NewRxPlacement(c, owner))
+	r.Register(NewAlias(c, owner)) // "interface/<name>", the key every consumer depends on (D-065)
 }

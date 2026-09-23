@@ -72,3 +72,15 @@ message Subinterface {
   bool outer_vlan_any = 9;
   bool inner_vlan_any = 10;
 }
+
+// InterfaceAlias is the generic interface reference "interface/<name>" every consumer (DF-2…DF-8,
+// F-*) depends on (D-065). It creates nothing in VPP: it names an interface and, when this agent
+// created it, the creating descriptor's full key (e.g. "tapv2.tap/w2-tap10"), which becomes its
+// mandatory dependency. Physical / pre-existing interfaces (DPDK NICs, anything not created by a
+// descriptor) have no creator.
+message InterfaceAlias {
+  // Stable name: the id of the creator key for our interfaces, VPP's interface name otherwise.
+  string name = 1;
+  // Full scheduler key of the creating descriptor's object; empty for physical/pre-existing.
+  string creator = 2;
+}

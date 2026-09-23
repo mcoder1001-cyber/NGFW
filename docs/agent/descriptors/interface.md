@@ -4,14 +4,37 @@ Package `apps/agent/internal/descriptors/interface` (Go package `iface`), models
 (agent-internal stand-in per D-055 until P03b adds the domain leaf messages). Registered by
 `iface.Register(r, client, owner)`.
 
-## Interface keys — the contract DF-2 … DF-8 depend on
+## Interface keys — what consumers use: `interface/<name>` (D-065)
 
-An interface is referenced by the **full scheduler key of the descriptor that creates it**:
+**Every consumer outside DF-1 (DF-2 … DF-8, F-*, P08) depends on `interface/<name>`** and never needs
+to know which descriptor created the interface. That key is an object of the alias descriptor
+`interface` (`iface.AliasName`, `iface.AliasKey(name)`), value `InterfaceAlias{name, creator}`:
 
-| Interface kind | Creating descriptor | Key (= dependency key) | Example |
+| Field | Meaning |
+|---|---|
+| `name` | the interface's stable name: the creator key's id for interfaces we create (`w2-tap10`, `loop201`, `w2-tap11.100`), VPP's interface name for physical / pre-existing ones (`ens161`, `tap271`) |
+| `creator` | full key of the creating descriptor's object (`tapv2.tap/w2-tap10`), **empty** for DPDK NICs and anything not created by a descriptor |
+
+| Method | Behaviour |
+|---|---|
+| Dependencies | `creator` when set (mandatory); none for physical / pre-existing interfaces |
+| Create / Update | create nothing; verify the interface exists in one `sw_interface_dump` (by creator key → owner tag, else this owner's tag id, else VPP interface name; never `local0`) and return `Meta{SwIfIndex}`; `ErrNotFound` otherwise |
+| Delete | **no-op** — an alias Delete never touches VPP, so it can never remove a foreign interface |
+| Retrieve | one alias per VPP interface except `local0`, **including interfaces we do not own**; ours carry name = tag id and their creator key |
+
+The desired-state builder emits one alias per interface the config names (with `creator` for the ones
+it also creates). Reconciler note for P05 (DF-1-questions.md Q4): Retrieve returns foreign aliases, so
+undesired aliases must not count as drift (their Delete is a no-op).
+
+### Creator keys (DF-1-internal)
+
+Inside DF-1 an interface is referenced by the **full scheduler key of the descriptor that creates it**:
+
+| Interface kind | Creating descriptor | Creator key | Example |
 |---|---|---|---|
 | loopback (P05 core) | `interface.loopback` | `interface.loopback/<name>` | `interface.loopback/loop201` |
-| sub-interface | `interface.subinterface` | `interface.subinterface/<parent id>.<sub_id>` | `interface.subinterface/w2-tap11.100` |
+| sub-interface | `interface` (alias, D-065) | `interface/<name>` | creator key when set | `sw_interface_dump` only | re-verify | See above: creates nothing, Delete no-op, Retrieve lists every VPP interface except local0. |
+| `interface.subinterface` | `interface.subinterface/<parent id>.<sub_id>` | `interface.subinterface/w2-tap11.100` |
 | tap | `tapv2.tap` | `tapv2.tap/<name>` | `tapv2.tap/w2-tap10` |
 | host-interface (af_packet) | `af-packet.host-interface` | `af-packet.host-interface/<name>` | `af-packet.host-interface/w2-af50` |
 | bond | `bond.bond` | `bond.bond/<name>` | `bond.bond/w2-bond20` |
@@ -21,20 +44,17 @@ An interface is referenced by the **full scheduler key of the descriptor that cr
 - The id part (`<name>`) is the interface's **stable name** chosen by the desired state, not VPP's
   index-based name (`tap3`, `BondEthernet220`, `memif40/0`, `host-w2-af50`). Interface names form one
   namespace across all kinds, as in VPP.
-- Every model field that points at an interface (`interface`, `parent`, `bond`, `rx`, `tx`, l3xc path
-  `interface`) holds such a full key; `Dependencies()` returns it verbatim.
+- DF-1's own model fields that point at an interface (`interface`, `parent`, `bond`, `rx`, `tx`, l3xc
+  path `interface`) hold creator keys; `Dependencies()` returns them verbatim.
 - Ownership: the creating descriptor stamps `sw_interface_tag_add_del` tag `"<owner>:<name>"`
   (`vpp.OwnerTag`, D-030). Resolution (`iface.Table.Index`) finds the `sw_if_index` whose tag is
   `"<owner>:<name>"` in one `sw_interface_dump`, and checks that the VPP device class matches the key's
   descriptor (`ErrWrongKind`). `Table.KeyFor` rebuilds the full key at Retrieve time from the tag and
   `interface_dev_type` (`Loopback`, `tap`, `af-packet`, `bond`, `memif`; sub-interfaces by
   `IF_API_TYPE_SUB`; all verified on the host).
-- `sw_if_index` lives in `Meta` (`iface.Meta{SwIfIndex}`), never in a key. The P05a contract gives
-  Create no access to a dependency's Meta, so Create resolves the parent/decorated interface by owner
-  tag (one dump) — the stable-name → index map is VPP's own tag table, not a second map in the agent.
-  Update/Delete use the Meta they are handed.
-- **Open**: DF-2/3/4/5/6 branches assume a generic `interface/<name>` key. See
-  `docs/status/tasks/DF-1-questions.md` Q2 — the manager decides; DF-1 publishes the table above.
+- `sw_if_index` lives in `Meta` (`iface.Meta{SwIfIndex}`), never in a key. The contract gives Create no
+  access to a dependency's Meta, so Create resolves the interface by owner tag (one dump) — the
+  stable-name → index map is VPP's own tag table, not a second map in the agent.
 
 ## Object types
 

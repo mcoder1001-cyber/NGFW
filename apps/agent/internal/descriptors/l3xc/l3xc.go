@@ -23,8 +23,8 @@ import (
 // Descriptor and dependency names.
 const (
 	L3xcName = "l3xc.l3xc"
-	// TableDescriptor is P05 core's FIB-table (vrf) descriptor name as named by the DF-* task
-	// prompts ("vrf/<id>"); see docs/status/tasks/DF-1-questions.md Q1 if P05 chooses another.
+	// TableDescriptor is P05 core's FIB-table descriptor name: "vrf", keys "vrf/<id>"
+	// (task/P05 core.VRFName / core.VRFKey; DF-1-questions.md Q1, resolved).
 	TableDescriptor = "vrf"
 )
 

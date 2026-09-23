@@ -1,0 +1,12 @@
+# host-lan — planned VMware VM (not created yet). Shape per docs/lab/vmware.md.
+name: host-lan
+role: host
+mgmt: tbd
+state: planned
+os: ubuntu-26.04
+vcpu: 1
+ram_gb: 1
+data_path: kernel                        # plain Linux networking; no VPP on this machine
+nics:
+  - { name: ens192, pci: tbd, model: vmxnet3, segment: mgmt, driver: kernel }
+  - { name: ens224, pci: tbd, model: vmxnet3, segment: lan, driver: kernel, address: 10.101.1.100/24 }

@@ -360,7 +360,8 @@ tasks:
   owner: host-agent slot2
   started: 2026-09-23T15:10
   finished: ''
-  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done bf364c6 (CI green, restart sim 28 objects); D-065 alias
+    follow-up requested, then review'
 - id: DF-2
   title: 'Descriptors: ip_neighbor, ip6_nd (RA, DAD), urpf, abf, classify (ip tables/routes are P05 core)'
   prompt: prompts/factories/DF-2.md
@@ -422,7 +423,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D5.2
@@ -432,9 +433,9 @@ tasks:
   worktree: /root/ngfw-wt/DF-4
   owner: host-agent slot10
   started: 2026-09-23T15:10
-  finished: ''
+  finished: 2026-09-24T00:37
   notes: ' | worker done 14defa2; review agent spawned | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; review agent by host manager (Agent tool, same slot) | review APPROVE WITH CHANGES
-    (M1 stats Retrieve, M2 etype untagged, L3-L6, I7) d75fed1; fix round 1 spawned 00:50'
+    (M1 stats Retrieve, M2 etype untagged, L3-L6, I7) d75fed1; fix round 1 spawned 00:50 | fix round 1 c36662d; merged 3a2cf8e; main CI quick green'
 - id: DF-5
   title: 'Descriptors: ipsec, ikev2, wireguard'
   prompt: prompts/factories/DF-5.md

@@ -15,12 +15,12 @@ var (
 	// of absence. The message text equals scheduler.ErrRetrieveUnsupported's (P05), which
 	// recognises it by text until the sentinel is on main; DF-8 aliases it then.
 	ErrRetrieveUnsupported = errors.New("vpp has no dump for this object type")
-	// ErrPluginNotLoaded: the VPP on this host does not know the plugin's messages.
+	// ErrPluginNotLoaded means the VPP on this host does not know the plugin's messages.
 	// Integration tests t.Skip on it.
 	ErrPluginNotLoaded = errors.New("vpp plugin not loaded")
-	// ErrBadMeta: Update/Delete received a Meta of the wrong type.
+	// ErrBadMeta means Update/Delete received a Meta of the wrong type.
 	ErrBadMeta = errors.New("unexpected meta type")
-	// ErrNotSupported: the requested change cannot be made through the VPP API at all (for
+	// ErrNotSupported means the requested change cannot be made through the VPP API at all (for
 	// example disabling the http_static server); the error names the manual step.
 	ErrNotSupported = errors.New("not supported by the VPP API")
 )

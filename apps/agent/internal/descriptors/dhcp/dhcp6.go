@@ -382,7 +382,7 @@ func (*DHCP6DUIDDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
 // and streams the events until ctx is cancelled; the subscription is removed then.
 func WatchDHCP6Replies(ctx context.Context, c vpp.Client) (<-chan *dhcp.DHCP6ReplyEvent, error) {
 	svc := dhcp.NewServiceClient(c)
-	pid := uint32(pidSelf())
+	pid := pidSelf()
 	w, err := c.WatchEvent(ctx, &dhcp.DHCP6ReplyEvent{})
 	if err != nil {
 		return nil, fmt.Errorf("watch dhcp6_reply_event: %w", err)
@@ -413,7 +413,7 @@ func WatchDHCP6Replies(ctx context.Context, c vpp.Client) (<-chan *dhcp.DHCP6Rep
 // WatchDHCP6PDReplies is WatchDHCP6Replies for dhcp6_pd_reply_event (want_dhcp6_pd_reply_events).
 func WatchDHCP6PDReplies(ctx context.Context, c vpp.Client) (<-chan *dhcp.DHCP6PdReplyEvent, error) {
 	svc := dhcp.NewServiceClient(c)
-	pid := uint32(pidSelf())
+	pid := pidSelf()
 	w, err := c.WatchEvent(ctx, &dhcp.DHCP6PdReplyEvent{})
 	if err != nil {
 		return nil, fmt.Errorf("watch dhcp6_pd_reply_event: %w", err)

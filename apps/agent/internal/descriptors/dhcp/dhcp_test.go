@@ -74,7 +74,7 @@ func newProxyFake() (*dfkittest.FakeVPP, *proxyModel) {
 		v6 := msg.(*dhcp.DHCPProxyDump).IsIP6
 		var out []api.Message
 		for vrf, list := range m.servers[v6] {
-			d := &dhcp.DHCPProxyDetails{RxVrfID: vrf, IsIPv6: v6, VssType: dhcp.VSS_TYPE_API_INVALID, Servers: list, Count: uint8(len(list))}
+			d := &dhcp.DHCPProxyDetails{RxVrfID: vrf, IsIPv6: v6, VssType: dhcp.VSS_TYPE_API_INVALID, Servers: list, Count: uint8(len(list))} //nolint:gosec // test model, few servers
 			// VPP fills only the union of the details addresses (af stays 0)
 			d.DHCPSrcAddress = ip_types.Address{Un: m.src[v6][vrf].Un}
 			d.Servers = nil

@@ -78,7 +78,9 @@ type BPFFilterDescriptor struct{ client vpp.Client }
 var _ scheduler.Descriptor = (*BPFFilterDescriptor)(nil)
 
 // NewBPFFilter returns the trace.bpf-filter descriptor.
-func NewBPFFilter(client vpp.Client) *BPFFilterDescriptor { return &BPFFilterDescriptor{client: client} }
+func NewBPFFilter(client vpp.Client) *BPFFilterDescriptor {
+	return &BPFFilterDescriptor{client: client}
+}
 
 // Name implements scheduler.Descriptor.
 func (*BPFFilterDescriptor) Name() string { return NameBPFFilter }

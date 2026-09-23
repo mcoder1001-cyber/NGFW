@@ -41,7 +41,7 @@ const NameHTTPStaticServer = "prom.http-static-server"
 // Plugin is the plugin name used in ErrPluginNotLoaded.
 const Plugin = "http_static"
 
-// ErrServerBusy: http_static is already enabled in this VPP process by someone else (or with
+// ErrServerBusy means http_static is already enabled in this VPP process by someone else (or with
 // other parameters) — VPP accepts one enable per process.
 var ErrServerBusy = errors.New("http_static is already enabled in this VPP process")
 

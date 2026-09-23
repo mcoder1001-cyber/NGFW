@@ -43,7 +43,7 @@ const AnyInterface = "any"
 // FileDir is where VPP writes capture files.
 const FileDir = "/tmp"
 
-// ErrCaptureBusy: a pcap capture this process did not start is running (one per VPP).
+// ErrCaptureBusy means a pcap capture this process did not start is running (one per VPP).
 var ErrCaptureBusy = errors.New("a pcap capture is already running on this VPP")
 
 // Capture is the pcap.capture singleton (pcap_trace_on / pcap_trace_off): what to capture (rx,

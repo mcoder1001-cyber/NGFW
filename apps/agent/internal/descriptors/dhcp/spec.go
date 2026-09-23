@@ -255,4 +255,5 @@ func formatDUID(b []byte) string {
 
 func uitoa(v uint32) string { return strconv.FormatUint(uint64(v), 10) }
 
-func pidSelf() int { return os.Getpid() }
+// pidSelf is this process's PID as VPP's u32 pid field (Linux PIDs fit).
+func pidSelf() uint32 { return uint32(os.Getpid()) } //nolint:gosec // pid_max ≤ 2^22

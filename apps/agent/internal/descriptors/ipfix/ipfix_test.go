@@ -233,7 +233,9 @@ func TestClassifyWriteOnly(t *testing.T) {
 	}
 }
 
-func protoEqual(a, b scheduler.KV) bool { return dfkittest.DiffPlan([]scheduler.KV{a}, []scheduler.KV{b}).Empty() }
+func protoEqual(a, b scheduler.KV) bool {
+	return dfkittest.DiffPlan([]scheduler.KV{a}, []scheduler.KV{b}).Empty()
+}
 
 func TestRegister(t *testing.T) {
 	r := scheduler.NewRegistry()

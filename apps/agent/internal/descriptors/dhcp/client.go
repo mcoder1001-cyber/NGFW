@@ -69,7 +69,7 @@ func (d *ClientDescriptor) config(ctx context.Context, s Client, swIfIndex uint3
 			WantDHCPEvent:    s.WantEvents,
 			SetBroadcastFlag: s.SetBroadcastFlag,
 			Dscp:             ip_types.IPDscp(s.DSCP),
-			PID:              uint32(pidSelf()), //nolint:gosec // PIDs fit in u32
+			PID:              pidSelf(),
 		},
 	})
 	if err != nil {

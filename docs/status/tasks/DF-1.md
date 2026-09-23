@@ -5,7 +5,7 @@ in at bf4c137 (40 commits: P09 ci.sh, P03 proto). Continued on 2026-09-24 after 
 following 51073b1; that continuation found and fixed four Retrieve drift bugs with a new restart
 simulation (below).
 
-## Object types (20 descriptors, 7 packages)
+## Object types (20 descriptors + the D-065 `interface` alias, 7 packages)
 
 | Package (`internal/descriptors/…`) | Descriptors | Doc |
 |---|---|---|
@@ -230,6 +230,68 @@ internal/descriptors/af_packet/integration_test.go:29:	_ = exec.Command("/usr/sb
 internal/descriptors/af_packet/integration_test.go:31:	t.Cleanup(func() { _ = exec.Command("/usr/sbin/ip", "link", "del", name).Run() }) //nolint:gosec // G204 ALLOW: cleanup
 ```
 
+## D-065 alias — `interface/<name>` (manager decision on Q2, added 2026-09-24)
+
+`apps/agent/internal/descriptors/interface/alias.go`: descriptor `interface` (registered by
+`iface.Register`), value `InterfaceAlias{name, creator}` (added to `iface_model.proto`, regenerated with the
+pinned protoc-gen-go v1.36.12 / protoc 3.21.12). Dependencies → creator key when set (mandatory), none for
+physical/pre-existing interfaces; Create/Update only verify existence in one `sw_interface_dump` (creator
+key → owner tag, else our tag id, else VPP name; never local0) and return `Meta{SwIfIndex}`; Delete is a
+no-op; Retrieve lists every VPP interface except local0 (ours: name = tag id + creator key; others: VPP
+name, no creator). DF-1's own fields keep creator keys; `docs/agent/descriptors/interface.md` now tells
+consumers to use `interface/<name>`. Q1 resolved: task/P05 names the VRF key `vrf/<id>` = what l3xc uses.
+Q3: re-apply kept. New Q4 for P05 (alias Retrieve includes foreign interfaces → reconciler must not treat
+undesired aliases as drift; overlap with P05's `KeyProvider` alias `interface/<name>` on loopbacks).
+
+Unit test `TestAlias` (fake: ours with creator, ours of an unclaimed class, a foreign owner's loopback, an
+untagged "ens161" NIC, local0 skipped; Create sends nothing but `sw_interface_dump`; Delete sends nothing and
+leaves the foreign interface; missing / local0 / creator-name mismatch / wrong kind / bad ref / empty rejected;
+disconnected error surfaces).
+
+Host (`VRX_INTEGRATION=1 … go test -count=1 -v ./internal/descriptors/...`, excerpt):
+```
+alias_integration_test.go:69: interface alias: Retrieve == desired: interface/loop270 name:"loop270" creator:"interface.loopback/loop270" deps=[{interface.loopback/loop270 false}] meta={SwIfIndex:4}
+alias_integration_test.go:69: interface alias: Retrieve == desired: interface/tap271 name:"tap271" deps=[] meta={SwIfIndex:14}
+alias_integration_test.go:87: alias Delete left both interfaces in place; missing interface rejected; 10 aliases retrieved (all VPP interfaces but local0)
+--- PASS: TestAliasOnHost (0.69s)
+--- PASS: TestAlias (0.00s)
+--- PASS: TestRegisterAllDF1 (0.00s)
+restart_integration_test.go:306: same agent, same desired state: plan is empty (38 objects)
+restart_integration_test.go:330: restarted agent: Retrieve rebuilt 36 objects with equal Meta; plan = ["create interface.mac-address/loop260" "create interface.promisc/w2-tap63"] (VPP cannot report promisc / a configured MAC: re-applied idempotently)
+restart_integration_test.go:344: restarted agent, second apply: plan is empty
+restart_integration_test.go:370: restarted agent deleted 38 objects; Retrieve for owner w2r is empty
+--- PASS: TestRestartSimulationOnHost (1.21s)
+ok  	ngfw/agent/internal/descriptors/af_packet	1.405s
+ok  	ngfw/agent/internal/descriptors/bond	1.835s
+ok  	ngfw/agent/internal/descriptors/interface	2.165s
+ok  	ngfw/agent/internal/descriptors/l2	1.550s
+ok  	ngfw/agent/internal/descriptors/l3xc	0.616s
+ok  	ngfw/agent/internal/descriptors/memif	0.538s
+ok  	ngfw/agent/internal/descriptors/tapv2	0.508s
+```
+(`tap271` is an untagged tap made directly with `tap_create_v3`, standing in for a pre-existing/DPDK
+interface. The restart simulation now carries 10 aliases with creators; aliases without a creator of ours
+— other workers' interfaces — are ignored in its diff, see Q4.)
+
+`tools/ci.sh --base main` after the alias commit:
+```
+== apps/agent: make lint test build ==
+ok  	ngfw/agent/internal/agent	1.149s; ok  	ngfw/agent/internal/contracttest	1.441s; ok  	ngfw/agent/internal/descriptors/af_packet	1.149s; ok  	ngfw/agent/internal/descriptors/bond	1.116s; ok  	ngfw/agent/internal/descriptors/interface	1.176s; ok  	ngfw/agent/internal/descriptors/l2	1.183s; ok  	ngfw/agent/internal/descriptors/l3xc	1.153s; ok  	ngfw/agent/internal/descriptors/memif	1.113s; ok  	ngfw/agent/internal/descriptors/tapv2	1.117s; ok  	ngfw/agent/internal/renderers	1.453s; ok  	ngfw/agent/internal/scheduler	1.107s; ok  	ngfw/agent/internal/vpp	1.130s;
+
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   0m12s
+  forbidden patterns (+ gitleaks)                    0m03s
+  lint · typecheck · unit tests · build (turbo)   0m16s
+  apps/agent: make lint test build                   0m10s
+  test/ Go modules, unit mode (test/integration/smoke)   0m02s
+  mode quick · wall time 0m47s · logs /root/ngfw-wt/logs/ci/DF-1-20260924-004058-845569
+
+CI GATE PASSED
+```
+
 ## Acceptance checklist
 - [x] unit + integration green for all seven packages (above)
 - [x] no `vppctl` / `exec.Command` except the fixed-argv test rig helper
@@ -248,12 +310,10 @@ internal/descriptors/af_packet/integration_test.go:31:	t.Cleanup(func() { _ = ex
 - Loopback is P05's; tests create prefixed loopbacks directly with the same tag scheme.
 
 ## Open questions — docs/status/tasks/DF-1-questions.md
-- Q1 FIB-table dependency key for l3xc: `vrf/<id>` (prompt) vs P05's final name (one constant).
-- Q2 **Interface key scheme**: DF-1 uses the creator's full key (`tapv2.tap/w2-tap10`,
-  `interface.loopback/loop201`, …), as the P05a contract routes keys by descriptor name; DF-2…DF-6
-  branches build `interface/<name>`, which no descriptor produces. Needs a manager decision before P08.
-- Q3 promisc / configured MAC are not readable from VPP: one idempotent re-apply after an agent restart;
-  should P05 persist an owner table for them instead?
+- Q1 resolved (P05 uses `vrf/<id>`); Q2 decided D-065 (alias built, section above); Q3 decided (keep re-apply).
+- Q4 (new, for P05): the alias Retrieve includes foreign interfaces — the reconciler must not plan/verify
+  deletes of undesired aliases; and P05's `KeyProvider` alias `interface/<name>` on loopbacks overlaps with
+  the real `interface` descriptor — one of the two should go.
 
 ## Decisions (for the LOG)
 - D1 Interface references are full creator keys; resolution by owner tag (`"<owner>:<name>"`) in one
@@ -275,4 +335,5 @@ internal/descriptors/af_packet/integration_test.go:31:	t.Cleanup(func() { _ = ex
 - D7 Sub-interfaces via `create_subif` only (not `create_vlan_subif`), one decoding path.
 - D8 memif socket ownership = file directly in the owner's socket dir (`/run/vrx/memif`, tests
   `/run/vrx-test/<owner>/memif`); bridge domains by `bd_tag`; l3xc by owned rx interface.
+- D10 (D-065) `interface/<name>` alias descriptor in DF-1; consumers depend only on it; creator keys stay DF-1-internal.
 - D9 Merged main into the task branch (bf4c137) so the branch is gated by the current P09 `tools/ci.sh`.

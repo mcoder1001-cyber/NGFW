@@ -1,0 +1,62 @@
+{
+  "vrfs": {
+    "default": { "id": 0, "description": "global routing table" },
+    "customer-a": { "id": 10, "description": "customer A" }
+  },
+  "interfaces": {
+    "TenGigabitEthernet0/0/0": {
+      "enabled": true,
+      "description": "uplink",
+      "mtu": 1500,
+      "ipv4": ["198.51.100.2/30"],
+      "ipv6": ["2001:db8:0:1::2/64"],
+      "vrf": "default",
+      "rxMode": "polling"
+    },
+    "TenGigabitEthernet0/0/1": {
+      "enabled": true,
+      "description": "lan",
+      "mtu": 1500,
+      "ipv4": ["192.168.10.1/24"],
+      "ipv6": ["2001:db8:10::1/64"],
+      "vrf": "default",
+      "rxMode": "polling"
+    },
+    "TenGigabitEthernet0/0/2": {
+      "enabled": true,
+      "description": "customer A access",
+      "mtu": 1500,
+      "ipv4": ["10.20.0.1/24"],
+      "vrf": "customer-a",
+      "rxMode": "polling"
+    }
+  },
+  "vpn": {
+    "wireguard": {
+      "interfaces": {
+        "wg-branches": {
+          "instance": 0,
+          "vrf": "default",
+          "underlayVrf": "default",
+          "listenAddress": "198.51.100.2",
+          "listenPort": 51820,
+          "privateKeyRef": "key/wg-branches",
+          "address": ["10.200.0.1/24"],
+          "peers": {
+            "branch-1": {
+              "publicKey": "HIgo9xNzJMWLKASShiTqIybxZ0U3wGLiUeJ1PKf8ykw=",
+              "endpoint": { "address": "203.0.113.20", "port": 51820 },
+              "allowedIps": ["10.200.0.2/32", "192.168.20.0/24"],
+              "persistentKeepaliveSec": 25
+            },
+            "branch-2": {
+              "publicKey": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+              "presharedKeyRef": "psk/wg-branch-2",
+              "allowedIps": ["10.200.0.3/32"]
+            }
+          }
+        }
+      }
+    }
+  }
+}

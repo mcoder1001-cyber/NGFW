@@ -1,0 +1,48 @@
+{
+  "vrfs": {
+    "default": { "id": 0, "description": "global routing table" },
+    "customer-a": { "id": 10, "description": "customer A" }
+  },
+  "interfaces": {
+    "TenGigabitEthernet0/0/0": {
+      "enabled": true,
+      "description": "uplink",
+      "mtu": 1500,
+      "ipv4": ["198.51.100.2/30"],
+      "ipv6": ["2001:db8:0:1::2/64"],
+      "vrf": "default",
+      "rxMode": "polling"
+    },
+    "TenGigabitEthernet0/0/1": {
+      "enabled": true,
+      "description": "lan",
+      "mtu": 1500,
+      "ipv4": ["192.168.10.1/24"],
+      "ipv6": ["2001:db8:10::1/64"],
+      "vrf": "default",
+      "rxMode": "polling"
+    },
+    "TenGigabitEthernet0/0/2": {
+      "enabled": true,
+      "description": "customer A access",
+      "mtu": 1500,
+      "ipv4": ["10.20.0.1/24"],
+      "vrf": "customer-a",
+      "rxMode": "polling"
+    }
+  },
+  "vpn": {
+    "ipsec": {
+      "tunnels": {
+        "site-b": {
+          "localAddr": "198.51.100.2",
+          "remoteAddr": "203.0.113.10",
+          "auth": { "method": "psk", "secretRef": "psk/site-b" },
+          "proposal": "does-not-exist",
+          "localTs": ["192.168.10.0/24"],
+          "remoteTs": ["10.99.0.0/16"]
+        }
+      }
+    }
+  }
+}

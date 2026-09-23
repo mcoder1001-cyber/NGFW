@@ -136,7 +136,7 @@ func (r *Renderer) State(context.Context) (*State, error) {
 		return nil, fmt.Errorf("rsyslog: read %s: %w", r.paths.ConfFile, err)
 	}
 	st := &State{Inputs: map[string]int64{}}
-	stats, err := readStatsFrom(r.paths.StatsFile, 0, time.Time{})
+	stats, err := readStatsFrom(r.statsFile(), 0, time.Time{})
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		st.Error = "no impstats yet"
@@ -145,7 +145,8 @@ func (r *Renderer) State(context.Context) (*State, error) {
 		st.Error = r.red.Redact(err.Error())
 		stats = map[string]Counters{}
 	}
-	if statsSize(r.paths.StatsFile) > statsTruncateAt && r.statsMu.TryLock() {
+	// Only our own stats file is ever truncated, never the host's (review M3).
+	if !r.host.Loaded && statsSize(r.paths.StatsFile) > statsTruncateAt && r.statsMu.TryLock() {
 		_ = os.Truncate(r.paths.StatsFile, 0)
 		r.statsMu.Unlock()
 	}

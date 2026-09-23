@@ -199,6 +199,16 @@ func TestRsyslogIntegration(t *testing.T) {
 		t.Fatal("rsyslog was not restarted")
 	}
 	t.Logf("Apply restarted rsyslogd: pid %d → %d; impstats reports %v", pid1, pid2, actionNames(files2[paths.ConfFile].Content))
+	// Review M2: re-applying the same rendering never restarts the logger.
+	for range 2 {
+		if err := r.Apply(ctx, files2); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if pid3, _ := ctl.PID(); pid3 != pid2 {
+		t.Fatalf("unchanged re-apply restarted rsyslog: pid %d → %d", pid2, pid3)
+	}
+	t.Logf("two more Applies of the same files: pid %d unchanged (no restart)", pid2)
 	udp.reset()
 	sendUnix(t, paths.Standalone.Socket, "<14>vrxtest: after restart user.info (filtered now)")
 	sendUnix(t, paths.Standalone.Socket, "<13>vrxtest: after restart user.notice")
@@ -252,6 +262,143 @@ func TestRsyslogIntegration(t *testing.T) {
 		t.Fatalf("the host's rsyslog changed: MainPID %s → %s", hostPID, cur)
 	}
 	t.Logf("host rsyslog.service MainPID %s unchanged", hostPID)
+}
+
+// TestRsyslogHostImpstatsIntegration (review M3): a "host" rsyslog main config that already
+// loads impstats and includes the export file, like /etc/rsyslog.conf + /etc/rsyslog.d in the
+// product. The renderer detects the host's impstats, renders no second load, and verifies the
+// export through the host's JSON stats file. A file with its own load (the pre-fix rendering)
+// makes rsyslogd refuse the whole configuration — shown with rsyslogd -N1.
+func TestRsyslogHostImpstatsIntegration(t *testing.T) {
+	vpptest.SkipUnlessIntegration(t)
+	vpptest.LockLab(t)
+	prefix, slot := vpptest.Prefix(t), vpptest.Slot(t)
+	n, _ := strconv.Atoi(fmt.Sprintf("3%d17", slot))
+	colPort := uint32(n) //nolint:gosec // slot port
+	hostPID := rsyslogUnitPID(t)
+	ctx := context.Background()
+	base := filepath.Join("/run/vrx-test", prefix, "rsyslog-host")
+	lockSlotDir(t, base)
+	dropIns := filepath.Join(base, "rsyslog.d")
+	for _, d := range []string{dropIns, filepath.Join(base, "work")} {
+		if err := os.MkdirAll(d, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	hostStats, sock := filepath.Join(base, "host-impstats.json"), filepath.Join(base, "log.sock")
+	mainConf := filepath.Join(base, "rsyslog.conf")
+	host := fmt.Sprintf(`global(workDirectory=%q)
+module(load="imuxsock" SysSock.Use="off")
+input(type="imuxsock" Socket=%q CreatePath="off")
+module(load="impstats" interval="1" format="json" log.file=%q log.syslog="off")
+include(file=%q)
+`, filepath.Join(base, "work"), sock, hostStats, filepath.Join(dropIns, "*.conf"))
+	if err := os.WriteFile(mainConf, []byte(host), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	paths := ProductPaths()
+	paths.ConfFile, paths.StatsFile, paths.TLSDir = filepath.Join(dropIns, "50-vrx-export.conf"), filepath.Join(base, "vrx-impstats.json"), filepath.Join(base, "tls")
+	paths.HostConfigs = []string{mainConf, filepath.Join(dropIns, "*.conf")}
+	paths.FileOwner, paths.KeyOwner = "", ""
+	udp := udpCollector(t, colPort)
+
+	var child *exec.Cmd
+	start := func() error {
+		child = exec.Command(RsyslogdBin, "-n", "-iNONE", "-f", mainConf) //nolint:gosec // test harness: fixed argv of an allow-listed binary
+		child.Env, child.Dir = []string{"PATH=/usr/sbin:/usr/bin"}, base
+		return child.Start()
+	}
+	stop := func() {
+		if child == nil || child.ProcessState != nil {
+			return
+		}
+		_ = child.Process.Signal(syscall.SIGTERM)
+		_ = child.Wait()
+	}
+	t.Cleanup(func() {
+		stop()
+		if left := procsUnder(base); len(left) > 0 {
+			t.Errorf("processes still running with %s in their command line: %v", base, left)
+		}
+	})
+	ctl := &rfkit.ProcessController{Binary: RsyslogdBin,
+		PID: func() (int, error) {
+			if child == nil || child.ProcessState != nil {
+				return 0, rfkit.ErrNotRunning
+			}
+			return child.Process.Pid, nil
+		},
+		OnRestart: func(context.Context) error { stop(); return start() }}
+	runner := renderers.NewSystemRunner(renderers.NewAllowlist(Binaries()...))
+	r := New(runner, WithPaths(paths), WithController(ctl))
+	t.Logf("host scan: %+v", r.Host())
+	if h := r.Host(); !h.Loaded || h.File != hostStats {
+		t.Fatalf("host impstats not detected: %+v", h)
+	}
+	files, err := r.Render(ctx, doc(t, []any{map[string]any{"address": "127.0.0.1", "port": colPort}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(files[paths.ConfFile].Content, []byte(`module(load="impstats"`)) {
+		t.Fatal("second impstats load rendered")
+	}
+	if err := r.Validate(ctx, files); err != nil {
+		t.Fatal(err)
+	}
+	if err := renderers.WriteFiles(files); err != nil {
+		t.Fatal(err)
+	}
+	// The whole host config (main + our include) passes rsyslogd's own check …
+	out, err := exec.Command(RsyslogdBin, "-N1", "-f", mainConf).CombinedOutput() //nolint:gosec // fixed argv
+	t.Logf("rsyslogd -N1 -f <host main + our include>: err=%v\n%s", err, bytes.TrimSpace(out))
+	if err != nil {
+		t.Fatal("host config with the export include rejected")
+	}
+	// … while the pre-fix rendering (own impstats load) breaks it.
+	old := New(runner, WithPaths(func() Paths { p := paths; p.HostConfigs = nil; return p }()))
+	oldFiles, _ := old.Render(ctx, doc(t, []any{map[string]any{"address": "127.0.0.1", "port": colPort}}))
+	oldPath := filepath.Join(dropIns, "51-prefix-copy.conf")
+	if err := os.WriteFile(oldPath, bytes.ReplaceAll(oldFiles[paths.ConfFile].Content, []byte("vrx_export_"), []byte("old_export_")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, err = exec.Command(RsyslogdBin, "-N1", "-f", mainConf).CombinedOutput() //nolint:gosec // fixed argv
+	t.Logf("rsyslogd -N1 with a second impstats load (pre-fix rendering): err=%v\n%s", err, firstLines(out, 3))
+	if err == nil || !bytes.Contains(out, []byte("already in this config")) {
+		t.Fatal("expected rsyslogd to refuse a second impstats load")
+	}
+	if err := os.Remove(oldPath); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := start(); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, 5*time.Second, "log.sock", func() bool { _, err := os.Stat(sock); return err == nil })
+	sendUnix(t, sock, "<14>vrxtest: via the host config")
+	got := udp.wait(t, 1, 5*time.Second)
+	t.Logf("collector 127.0.0.1:%d: %q", colPort, got[0])
+	// A changed export: restart, converged on the host's impstats file.
+	files2, _ := r.Render(ctx, doc(t, []any{map[string]any{"address": "127.0.0.1", "port": colPort, "severity": "notice"}}))
+	if err := r.Apply(ctx, files2); err != nil {
+		t.Fatalf("apply with host impstats: %v", err)
+	}
+	st, err := r.State(ctx)
+	if err != nil || len(st.Targets) != 1 || !st.Targets[0].Reported {
+		t.Fatalf("state %+v %v", st, err)
+	}
+	t.Logf("Apply converged via %s; Retrieve: %s reported=%v", hostStats, st.Targets[0].Name, st.Targets[0].Reported)
+	stop()
+	if cur := rsyslogUnitPID(t); cur != hostPID {
+		t.Fatalf("the host's rsyslog changed: MainPID %s → %s", hostPID, cur)
+	}
+}
+
+func firstLines(b []byte, n int) string {
+	l := strings.SplitN(string(bytes.TrimSpace(b)), "\n", n+1)
+	if len(l) > n {
+		l = l[:n]
+	}
+	return strings.Join(l, "\n")
 }
 
 // ---------------------------------------------------------------- helpers

@@ -46,6 +46,11 @@ type Paths struct {
 	ModuleDir string
 	// Standalone is set in tests only.
 	Standalone *Standalone
+	// HostConfigs are the host rsyslog files (globs) that include ConfFile. The renderer reads
+	// them — never writes — to find an impstats module the host already loads: rsyslog refuses a
+	// second load ("module 'impstats' already in this config") and the whole config fails
+	// (review M3). Empty in standalone tests.
+	HostConfigs []string
 	// FileOwner owns the config and certificate files; KeyOwner the private keys (rsyslog
 	// drops privileges to user syslog before a TLS action opens its key: root:syslog 0640).
 	FileOwner, KeyOwner string
@@ -57,13 +62,14 @@ type Paths struct {
 // stats file lives in its spool directory).
 func ProductPaths() Paths {
 	return Paths{
-		ConfFile:  "/etc/rsyslog.d/50-vrx-export.conf",
-		StatsFile: "/var/spool/rsyslog/vrx-impstats.json",
-		TLSDir:    "/etc/vrx/rsyslog-tls",
-		ModuleDir: ModuleDirProduct,
-		FileOwner: "root:root",
-		KeyOwner:  "root:syslog",
-		FileMode:  0o644,
+		ConfFile:    "/etc/rsyslog.d/50-vrx-export.conf",
+		StatsFile:   "/var/spool/rsyslog/vrx-impstats.json",
+		TLSDir:      "/etc/vrx/rsyslog-tls",
+		ModuleDir:   ModuleDirProduct,
+		HostConfigs: []string{"/etc/rsyslog.conf", "/etc/rsyslog.d/*.conf"},
+		FileOwner:   "root:root",
+		KeyOwner:    "root:syslog",
+		FileMode:    0o644,
 	}
 }
 

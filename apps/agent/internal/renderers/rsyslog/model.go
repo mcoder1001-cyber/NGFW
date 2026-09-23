@@ -30,7 +30,10 @@ const MaxTargets = 16
 type Model struct {
 	Standalone *Standalone
 	StatsFile  string
-	Targets    []Target
+	// LoadStats is false when the host's rsyslog already loads impstats (the export then reads
+	// the host's impstats file; see HostStats).
+	LoadStats bool
+	Targets   []Target
 }
 
 // Target is one export: a ruleset with one omfwd action, called from the main flow under

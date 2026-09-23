@@ -357,14 +357,17 @@ func TestValidate(t *testing.T) {
 // fakeRsyslog restarts by appending an impstats batch for the actions of the live (or a stale)
 // config, stamped one second after the restart.
 type fakeRsyslog struct {
-	p        Paths
-	stale    []byte
-	failNext bool
+	p         Paths
+	stale     []byte
+	failNext  bool
+	restarts  int
+	statsFile string // "" = p.StatsFile
 }
 
 func (f *fakeRsyslog) Reload(context.Context) error                 { return errors.New("rsyslog cannot reload") }
 func (f *fakeRsyslog) Signal(context.Context, syscall.Signal) error { return nil }
 func (f *fakeRsyslog) Restart(context.Context) error {
+	f.restarts++
 	if f.failNext {
 		f.failNext = false
 		return errors.New("restart failed")
@@ -380,7 +383,11 @@ func (f *fakeRsyslog) Restart(context.Context) error {
 		fmt.Fprintf(&b, "%s: { \"name\": \"%s queue\", \"origin\": \"core.queue\", \"size\": 2, \"enqueued\": 9, \"discarded.full\": 0, \"discarded.nf\": 0 }\n", ts, n)
 	}
 	fmt.Fprintf(&b, "%s: { \"name\": \"imuxsock\", \"origin\": \"imuxsock\", \"submitted\": 9 }\n", ts)
-	fh, err := os.OpenFile(f.p.StatsFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	sf := f.p.StatsFile
+	if f.statsFile != "" {
+		sf = f.statsFile
+	}
+	fh, err := os.OpenFile(sf, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //nolint:gosec // test temp dir
 	if err != nil {
 		return err
 	}
@@ -491,5 +498,112 @@ func TestProductDefaults(t *testing.T) {
 		if b == "/usr/bin/ip" {
 			t.Fatal("trampoline in the product allowlist")
 		}
+	}
+}
+
+// Review M2 (D-076): an Apply whose files are already on disk never restarts the logger.
+func TestUnchangedApplyDoesNotRestart(t *testing.T) {
+	dir := t.TempDir()
+	p := productLike()
+	p.ConfFile, p.StatsFile, p.TLSDir, p.ModuleDir, p.HostConfigs = filepath.Join(dir, "50-vrx-export.conf"), filepath.Join(dir, "impstats.json"), filepath.Join(dir, "tls"), dir, nil
+	fake := &fakeRsyslog{p: p}
+	r := New(renderers.NewRecordingRunner(), WithPaths(p), WithController(fake), WithSecretResolver(resolver(nil)), WithVerifyTimeout(3*time.Second))
+	ctx := context.Background()
+	f1, _ := r.Render(ctx, doc(t, []any{tgt(), tlsTarget}))
+	for i := range 3 {
+		if err := r.Apply(ctx, f1); err != nil {
+			t.Fatal(err)
+		}
+		if fake.restarts != 1 {
+			t.Fatalf("apply %d: %d restarts for an unchanged config", i+1, fake.restarts)
+		}
+	}
+	// A real delta (mode of a key file drifted on disk) restarts once more.
+	if err := os.Chmod(filepath.Join(p.TLSDir, "export-1-key.pem"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Apply(ctx, f1); err != nil || fake.restarts != 2 {
+		t.Fatalf("drifted mode: %v, %d restarts", err, fake.restarts)
+	}
+	// An empty export on an empty disk: nothing to restart either after the first write.
+	f0, _ := r.Render(ctx, doc(t, []any{}))
+	_ = r.Apply(ctx, f0)
+	n := fake.restarts
+	if err := r.Apply(ctx, f0); err != nil || fake.restarts != n {
+		t.Fatalf("empty export re-applied: %v, %d → %d restarts", err, n, fake.restarts)
+	}
+}
+
+// Review M3: a host rsyslog that already loads impstats.
+func TestHostImpstats(t *testing.T) {
+	dir := t.TempDir()
+	hostStats := filepath.Join(dir, "host-impstats.json")
+	mainConf := filepath.Join(dir, "rsyslog.conf")
+	dropIns := filepath.Join(dir, "rsyslog.d")
+	if err := os.MkdirAll(dropIns, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	write := func(path, content string) {
+		t.Helper()
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	paths := func() Paths {
+		p := productLike()
+		p.ConfFile, p.StatsFile, p.TLSDir, p.ModuleDir = filepath.Join(dropIns, "50-vrx-export.conf"), filepath.Join(dir, "vrx.json"), filepath.Join(dir, "tls"), dir
+		p.HostConfigs = []string{mainConf, filepath.Join(dropIns, "*.conf")}
+		return p
+	}
+	ctx := context.Background()
+	// Our own previous file loading impstats is not "the host".
+	write(filepath.Join(dropIns, "50-vrx-export.conf"), `module(load="impstats" format="json" log.file="/x")`+"\n")
+	write(mainConf, "# module(load=\"impstats\")\n$WorkDirectory /var/spool/rsyslog\n")
+	if hs, err := ScanHost(paths()); err != nil || hs.Loaded {
+		t.Fatalf("commented load / own file counted: %+v %v", hs, err)
+	}
+	write(mainConf, "module(load=\"imuxsock\")\nmodule(\n  load=\"impstats\" interval=\"10\"\n  format=\"json\" log.file=\""+hostStats+"\")\n")
+	rec := renderers.NewRecordingRunner().Succeed(RsyslogdBin, "")
+	fake := &fakeRsyslog{p: paths(), statsFile: hostStats}
+	r := New(rec, WithPaths(paths()), WithController(fake), WithSecretResolver(resolver(nil)), WithVerifyTimeout(3*time.Second))
+	if h := r.Host(); !h.Loaded || h.File != hostStats || h.Source != mainConf {
+		t.Fatalf("host scan %+v", h)
+	}
+	files, err := r.Render(ctx, doc(t, []any{tgt()}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := files[paths().ConfFile].Content
+	if bytes.Contains(c, []byte(`module(load="impstats"`)) || !bytes.Contains(c, []byte("impstats is loaded by the host")) {
+		t.Fatalf("second impstats load rendered:\n%s", c)
+	}
+	if err := r.Validate(ctx, files); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Apply(ctx, files); err != nil {
+		t.Fatalf("apply converges on the host's impstats file: %v", err)
+	}
+	st, err := r.State(ctx)
+	if err != nil || len(st.Targets) != 1 || !st.Targets[0].Reported {
+		t.Fatalf("state from the host stats file: %+v %v", st, err)
+	}
+	// The host config changes after the renderer was made: Validate refuses the stale rendering.
+	write(mainConf, "$ModLoad impstats\n")
+	if err := r.Validate(ctx, files); !errors.Is(err, ErrDaemon) || !strings.Contains(err.Error(), "changed") {
+		t.Fatalf("stale host scan: %v", err)
+	}
+	// Legacy load without a JSON file: the export cannot be verified → refused.
+	r2 := New(rec, WithPaths(paths()), WithSecretResolver(resolver(nil)))
+	f2, _ := r2.Render(ctx, doc(t, []any{tgt()}))
+	if err := r2.Validate(ctx, f2); !errors.Is(err, ErrDaemon) || !strings.Contains(err.Error(), "format") {
+		t.Fatalf("legacy host impstats: %v", err)
+	}
+	// Our rendered load while the host loads it too (a file rendered before the host changed).
+	rNo := New(rec, WithPaths(func() Paths { p := paths(); p.HostConfigs = nil; return p }()), WithSecretResolver(resolver(nil)))
+	fNo, _ := rNo.Render(ctx, doc(t, []any{tgt()}))
+	write(mainConf, "module(load=\"impstats\" format=\"json\" log.file=\""+hostStats+"\")\n")
+	r3 := New(rec, WithPaths(paths()), WithSecretResolver(resolver(nil)))
+	if err := r3.checkHost(fNo[paths().ConfFile].Content); !errors.Is(err, ErrDaemon) || !strings.Contains(err.Error(), "already loads impstats") {
+		t.Fatalf("double impstats load: %v", err)
 	}
 }

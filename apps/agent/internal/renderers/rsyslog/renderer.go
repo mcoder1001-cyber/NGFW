@@ -9,6 +9,7 @@ package rsyslog
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"embed"
 	"errors"
 	"fmt"
@@ -54,6 +55,8 @@ type Renderer struct {
 	red           rfkit.Redactor
 	verifyTimeout time.Duration
 	tmpl          *template.Template
+	host          HostStats
+	hostErr       error
 	// statsMu keeps State's truncation of the stats file out of an Apply's convergence window
 	// (the check reads the records written after the restart by file offset).
 	statsMu sync.Mutex
@@ -86,12 +89,24 @@ func New(runner renderers.Runner, opts ...Option) *Renderer {
 	if r.ctl == nil {
 		r.ctl = &rfkit.SystemdController{Runner: runner, Unit: "rsyslog"}
 	}
+	r.host, r.hostErr = ScanHost(r.paths)
 	r.tmpl = template.Must(renderers.NewTemplate("rsyslog").Funcs(funcs()).ParseFS(templateFS, "templates/*.tmpl"))
 	return r
 }
 
 // Name implements renderers.Renderer.
 func (r *Renderer) Name() string { return "rsyslog" }
+
+// Host returns what the host's rsyslog configuration loads (scanned when the renderer was made).
+func (r *Renderer) Host() HostStats { return r.host }
+
+// statsFile is where impstats writes: the host's JSON file when the host loads impstats.
+func (r *Renderer) statsFile() string {
+	if r.host.Loaded {
+		return r.host.File
+	}
+	return r.paths.StatsFile
+}
 
 // Paths returns the paths this renderer uses.
 func (r *Renderer) Paths() Paths { return r.paths }
@@ -179,17 +194,19 @@ func (r *Renderer) Render(ctx context.Context, desired proto.Message) (renderers
 		return nil, fmt.Errorf("%w: %w", ErrInput, err)
 	}
 	sec := &rfkit.Secrets{Ctx: ctx, Resolver: r.resolver}
-	model, TLSFiles, err := BuildModel(ds, ext, sec, r.paths)
+	model, tlsFiles, err := BuildModel(ds, ext, sec, r.paths)
 	r.red.Add(sec.Values()...)
 	if err != nil {
 		return nil, r.red.Error(err)
 	}
+	// Render stays deterministic: the host scan happened in New (Validate re-checks it).
+	model.LoadStats, model.StatsFile = !r.host.Loaded, r.statsFile()
 	content, err := renderers.ExecuteTemplate(r.tmpl, "rsyslog.conf.tmpl", model)
 	if err != nil {
 		return nil, r.red.Error(err)
 	}
 	files := renderers.Files{r.paths.ConfFile: {Mode: r.paths.FileMode, Owner: r.paths.FileOwner, Content: content}}
-	for _, f := range TLSFiles {
+	for _, f := range tlsFiles {
 		if f.Secret {
 			files[f.Path] = renderers.File{Mode: 0o640, Owner: r.paths.KeyOwner, Content: []byte(f.Content), Secret: true}
 		} else {
@@ -235,6 +252,9 @@ func (r *Renderer) Validate(ctx context.Context, files renderers.Files) error {
 		}
 	}
 	conf := files[r.paths.ConfFile].Content
+	if err := r.checkHost(conf); err != nil {
+		return err
+	}
 	if bytes.Contains(conf, []byte(`StreamDriver="`+TLSDriver+`"`)) {
 		if _, err := os.Stat(filepath.Join(r.paths.ModuleDir, "lmnsd_"+TLSDriver+".so")); err != nil {
 			return fmt.Errorf("%w: TLS export needs the rsyslog %s netstream driver (lmnsd_%s.so, package rsyslog-openssl), not installed in %s",
@@ -253,6 +273,30 @@ func (r *Renderer) Validate(ctx context.Context, files renderers.Files) error {
 	if err != nil {
 		out.Stdout, out.Stderr = []byte(r.red.Redact(string(out.Stdout))), []byte(r.red.Redact(string(out.Stderr)))
 		return r.red.Error(fmt.Errorf("%w: rsyslogd -N1 rejected the export config: %s", ErrDaemon, toolMessage(out, err, st.Dir)))
+	}
+	return nil
+}
+
+// checkHost re-scans the host rsyslog files (review M3): the rendered file must match what the
+// host loads now (no second impstats load), and with export targets the host's impstats must
+// write JSON to a file the agent can read (convergence and Retrieve depend on it).
+func (r *Renderer) checkHost(conf []byte) error {
+	if r.hostErr != nil {
+		return fmt.Errorf("%w: %v", ErrDaemon, r.hostErr)
+	}
+	now, err := ScanHost(r.paths)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrDaemon, err)
+	}
+	if now != r.host {
+		return fmt.Errorf("%w: the host rsyslog configuration changed since the renderer was created (impstats %+v → %+v): re-render", ErrDaemon, r.host, now)
+	}
+	loads := bytes.Contains(conf, []byte(`module(load="impstats"`))
+	if loads && r.host.Loaded {
+		return fmt.Errorf("%w: %s already loads impstats; a second load would fail the whole rsyslog config", ErrDaemon, r.host.Source)
+	}
+	if r.host.Loaded && r.host.File == "" && bytes.Contains(conf, []byte("action(")) {
+		return fmt.Errorf("%w: %s loads impstats without format=\"json\" and an absolute log.file: the export cannot be verified or read (P10: configure the host impstats or drop it)", ErrDaemon, r.host.Source)
 	}
 	return nil
 }
@@ -304,11 +348,19 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 			r.red.Add(string(f.Content))
 		}
 	}
+	// D-076 / review M2: rsyslog is the host's logger and can only be restarted (losing local
+	// messages for the restart window). An Apply whose files are already on disk byte for byte
+	// (same mode) is a no-op: no restart, no HUP.
+	if unchanged(files) {
+		r.pruneTLS(files)
+		return nil
+	}
 	want := actionNames(files[r.paths.ConfFile].Content)
+	statsFile := r.statsFile()
 	var offset int64
 	var restarted time.Time
 	activate := func(ctx context.Context) error {
-		offset = statsSize(r.paths.StatsFile)
+		offset = statsSize(statsFile)
 		err := r.ctl.Restart(ctx)
 		// The previous process has exited when Restart returns (systemctl restart waits for
 		// the stop; it writes a last impstats batch while stopping): only records stamped in a
@@ -321,7 +373,7 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 			return nil // no action, no stats: nothing rsyslog could report (README)
 		}
 		return rfkit.Poll(ctx, r.verifyTimeout, 200*time.Millisecond, func(context.Context) error {
-			stats, err := readStatsFrom(r.paths.StatsFile, offset, restarted)
+			stats, err := readStatsFrom(statsFile, offset, restarted)
 			if err != nil {
 				return fmt.Errorf("%w: %w: %v", ErrDaemon, rfkit.ErrNotConverged, err)
 			}
@@ -360,6 +412,21 @@ func (r *Renderer) pruneTLS(files renderers.Files) {
 			_ = os.Remove(p)
 		}
 	}
+}
+
+// unchanged reports whether every file is on disk with the same content (SHA-256) and mode.
+func unchanged(files renderers.Files) bool {
+	for p, f := range files {
+		info, err := os.Stat(p)
+		if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != f.Mode {
+			return false
+		}
+		b, err := rfkit.ReadFileLimit(p, 1<<20)
+		if err != nil || sha256.Sum256(b) != sha256.Sum256(f.Content) {
+			return false
+		}
+	}
+	return true
 }
 
 var actionNameRe = regexp.MustCompile(`action\(type="omfwd" name="(vrx_export_[0-9]{1,2}_[0-9a-f]{8})"`)

@@ -787,3 +787,157 @@ exit=0
   `#` is banned in MAP domain names.
 - **D-DF3-12:** the H1 host regression uses a globals-owner instance *only* when the test itself enabled nat44-ed, and
   only while a foreign object exists, so it can never disable NAT that another slot relies on.
+
+---
+
+## Fix round 2: re-review `docs/status/tasks/DF-3-rereview.md` (56b39a9), verdict APPROVE WITH CHANGES
+
+Main was merged first (contracts-v1 and P03b `vrx.model.nat.v1`; per D-078 the descriptors keep their own specs and the
+build stays green). `VRX_DF3_DET44` was never set.
+
+| Finding | Fix | Commit | Evidence |
+|---|---|---|---|
+| **N1** MAP host test compares uninitialised `map_param_get` fields | The test compares only the fields VPP fills (`modelled()` → `ParamsSpec`). `map.md` notes the 4 uninitialised reply fields | e2397fb | 10× runs below (plus 10/10 earlier in the round): 0 failures |
+| **N2** excluded-prefix record outlives the default SNAT entry | Record `<key>@<entry identity>`: the D-080 boot identity (`natcommon.BootIdentity`: kernel boot_id, VPP main PID, `/proc/<pid>/stat` start time) + the entry fingerprint (addresses, interface) + an entry generation the owner bumps on every Set/Reset. A miss sends del+add (exactly one instance whatever VPP held). The superseded record is released (I2). Limitation: an external recreate with identical addresses has no VPP-observable identity (documented; D-071: only the owner mutates it) | e2397fb | unit `TestExcludePrefixIdempotentAcrossResyncs`; **host `TestCnatExcludeReaddOnHost`**: 3 resyncs → 1 add; entry deleted+recreated on the same VPP → re-added once; external recreate → re-added once; vppctl shows the prefix present |
+| **N3** `dedupeByName` merges different mappings sharing a tag | `natcommon.DedupeTagged` merges only the same mapping (static: local ip/port/proto/vrf; identity: proto/port). Others become `<name>#<n>` extras and are deleted. `#` is rejected in desired names. The fake deletes by endpoint like VPP | e2397fb | unit `TestSameTagDifferentMappings` |
+| **N4** fixture disable check-then-act | `nattest.EnsurePlugin` holds `/run/lock/vrx-nat-fixture-<plugin>.lock` shared for the test's lifetime and converts it to exclusive around `Empty` + disable | e2397fb | host log: "disabled again under the exclusive fixture lock" |
+
+### Unit (`go test ./internal/descriptors/...`, DF-3 packages)
+```
+ok  	ngfw/agent/internal/descriptors/cnat	0.033s
+ok  	ngfw/agent/internal/descriptors/det44	0.020s
+ok  	ngfw/agent/internal/descriptors/mapnat	0.032s
+ok  	ngfw/agent/internal/descriptors/nat44ed	0.039s
+ok  	ngfw/agent/internal/descriptors/nat44ei	0.027s
+ok  	ngfw/agent/internal/descriptors/nat64	0.028s
+ok  	ngfw/agent/internal/descriptors/nat66	0.023s
+ok  	ngfw/agent/internal/descriptors/natcommon	0.025s
+?   	ngfw/agent/internal/descriptors/natcommon/nattest	[no test files]
+ok  	ngfw/agent/internal/descriptors/pnat	0.032s
+```
+
+### Host, all packages as non-owner (log `/root/ngfw-wt/logs/DF-3-r2-integration.log`)
+```
+$ git log --oneline -1: e2397fb fix(DF-3): re-review round 2 — N1 map params compare modelled fields o
+restarts before: ActiveEnterTimestamp=Thu 2026-09-24 00:26:04 +0330 NRestarts=2 
+    nat44ed_integration_test.go:59: fixture: nat44-ed enabled for this test
+    nat44ed_integration_test.go:73: nat44-ed.enable is write-only: Retrieve → ErrRetrieveUnsupported
+    nat44ed_integration_test.go:92: globals required only: timeouts/forwarding/enable unchanged (D-071)
+    nat44ed_integration_test.go:105: plan for nat44-ed.interface-feature after re-apply: empty (2 objects converged)
+    nat44ed_integration_test.go:111: plan for nat44-ed.output-feature after re-apply: empty (1 objects converged)
+    nat44ed_integration_test.go:115: plan for nat44-ed.interface-address after re-apply: empty (1 objects converged)
+    nat44ed_integration_test.go:121: plan for nat44-ed.address-pool after re-apply: empty (2 objects converged)
+    nat44ed_integration_test.go:131: plan for nat44-ed.static-mapping after re-apply: empty (4 objects converged)
+    nat44ed_integration_test.go:135: plan for nat44-ed.identity-mapping after re-apply: empty (1 objects converged)
+    nat44ed_integration_test.go:140: plan for nat44-ed.lb-static-mapping after re-apply: empty (1 objects converged)
+    nat44ed_integration_test.go:146: plan for nat44-ed.lb-static-mapping after re-apply: empty (1 objects converged)
+    nat44ed_integration_test.go:151: plan for nat44-ed.vrf-table after re-apply: empty (1 objects converged)
+    nat44ed_integration_test.go:163: nat44-ed session users on host: 0 (asserted for shape only)
+    nat44ed_integration_test.go:200: H1: w9b's output-feature interface loop907 present → globals-owner Delete skipped, nat44-ed still enabled
+    fixture.go:90: fixture: nat44-ed disabled again under the exclusive fixture lock (previous state restored)
+--- PASS: TestNat44EdOnHost (0.40s)
+PASS
+ok  	ngfw/agent/internal/descriptors/nat44ed	0.433s
+    nat44ei_integration_test.go:34: fixture: nat44-ei enabled for this test
+    nat44ei_integration_test.go:68: nat44-ei.enable is write-only: Retrieve → ErrRetrieveUnsupported
+    nat44ei_integration_test.go:87: plan for nat44-ei.interface-feature after re-apply: empty (2 objects converged)
+    nat44ei_integration_test.go:91: plan for nat44-ei.interface-address after re-apply: empty (1 objects converged)
+    nat44ei_integration_test.go:95: plan for nat44-ei.address-pool after re-apply: empty (1 objects converged)
+    nat44ei_integration_test.go:100: plan for nat44-ei.static-mapping after re-apply: empty (2 objects converged)
+    nat44ei_integration_test.go:104: plan for nat44-ei.identity-mapping after re-apply: empty (1 objects converged)
+    nat44ei_integration_test.go:110: plan for nat44-ei.output-feature after re-apply: empty (1 objects converged)
+    nat44ei_integration_test.go:116: nat44-ei users: 0 (shape only)
+    nat44ei_integration_test.go:74: globals required only: timeouts/forwarding/ipfix unchanged (D-071)
+    fixture.go:90: fixture: nat44-ei disabled again under the exclusive fixture lock (previous state restored)
+--- PASS: TestNat44EiOnHost (0.27s)
+PASS
+ok  	ngfw/agent/internal/descriptors/nat44ei	0.298s
+    nat64_integration_test.go:23: fixture: nat64 enabled for this test
+    nat64_integration_test.go:42: nat64.enable is write-only: Retrieve → ErrRetrieveUnsupported
+    nat64_integration_test.go:65: plan for nat64.prefix after re-apply: empty (1 objects converged)
+    nat64_integration_test.go:69: plan for nat64.pool after re-apply: empty (1 objects converged)
+    nat64_integration_test.go:74: plan for nat64.interface after re-apply: empty (2 objects converged)
+    nat64_integration_test.go:78: plan for nat64.static-bib after re-apply: empty (1 objects converged)
+    nat64_integration_test.go:83: nat64 sessions: 0 (shape only)
+    fixture.go:90: fixture: nat64 disabled again under the exclusive fixture lock (previous state restored)
+--- PASS: TestNat64OnHost (0.26s)
+PASS
+ok  	ngfw/agent/internal/descriptors/nat64	0.276s
+    nat66_integration_test.go:22: fixture: nat66 enabled for this test
+    nat66_integration_test.go:41: nat66.enable is write-only: Retrieve → ErrRetrieveUnsupported
+    nat66_integration_test.go:48: plan for nat66.interface after re-apply: empty (2 objects converged)
+    nat66_integration_test.go:52: plan for nat66.static-mapping after re-apply: empty (1 objects converged)
+    fixture.go:90: fixture: nat66 disabled again under the exclusive fixture lock (previous state restored)
+--- PASS: TestNat66OnHost (0.13s)
+PASS
+ok  	ngfw/agent/internal/descriptors/nat66	0.158s
+    det44_integration_test.go:22: det44 host test is opt-in (D-064): set VRX_DF3_DET44=1
+--- SKIP: TestDet44OnHost (0.00s)
+PASS
+ok  	ngfw/agent/internal/descriptors/det44	0.025s
+    mapnat_integration_test.go:29: plan for map.domain after re-apply: empty (1 objects converged)
+    mapnat_integration_test.go:34: plan for map.rule after re-apply: empty (2 objects converged)
+    mapnat_integration_test.go:40: plan for map.rule after re-apply: empty (2 objects converged)
+    mapnat_integration_test.go:48: plan for map.interface after re-apply: empty (2 objects converged)
+    mapnat_integration_test.go:73: map params required only, unchanged (D-071)
+--- PASS: TestMapOnHost (0.26s)
+PASS
+ok  	ngfw/agent/internal/descriptors/mapnat	0.289s
+    cnat_integration_test.go:37: plan for cnat.translation after re-apply: empty (2 objects converged)
+    cnat_integration_test.go:44: plan for cnat.translation after re-apply: empty (2 objects converged)
+    cnat_integration_test.go:51: plan for cnat.interface-feature after re-apply: empty (1 objects converged)
+    cnat_integration_test.go:56: cnat sessions: 0 (shape only)
+    cnat_integration_test.go:106: cnat.snat-addresses is write-only: Retrieve → ErrRetrieveUnsupported
+    cnat_integration_test.go:120: cnat.snat-interface: create re-applied twice without error (idempotent)
+    cnat_integration_test.go:121: cnat.snat-interface is write-only: Retrieve → ErrRetrieveUnsupported
+    cnat_integration_test.go:120: cnat.snat-exclude-prefix: create re-applied twice without error (idempotent)
+    cnat_integration_test.go:121: cnat.snat-exclude-prefix is write-only: Retrieve → ErrRetrieveUnsupported
+--- PASS: TestCnatOnHost (0.25s)
+    cnat_integration_test.go:196: N2: 3 resyncs → 1 add
+    cnat_integration_test.go:208: N2: entry deleted+recreated (same VPP) → 3 resyncs → re-added once (adds 2)
+    cnat_integration_test.go:230: N2: entry recreated externally with other addresses → re-added once (adds 3)
+--- PASS: TestCnatExcludeReaddOnHost (0.24s)
+PASS
+ok  	ngfw/agent/internal/descriptors/cnat	0.527s
+    pnat_integration_test.go:27: plan for pnat.binding after re-apply: empty (2 objects converged)
+    pnat_integration_test.go:36: plan for pnat.attachment after re-apply: empty (2 objects converged)
+--- PASS: TestPnatOnHost (0.36s)
+PASS
+ok  	ngfw/agent/internal/descriptors/pnat	0.379s
+exit=0
+restarts after: ActiveEnterTimestamp=Thu 2026-09-24 00:26:04 +0330 NRestarts=2 
+```
+
+### N1: TestMapOnHost ×10 (log `/root/ngfw-wt/logs/DF-3-r2-map10.log`)
+```
+$ go test -count=10 -v ./internal/descriptors/mapnat/ -run TestMapOnHost | grep -c '^--- PASS'
+10
+$ ... | grep -c '^--- FAIL'
+0
+```
+
+### N2: `vppctl show cnat snat-policy` at the end of `TestCnatExcludeReaddOnHost` (after the external recreate)
+```
+### [cnat-n2] while the test's objects exist
+$ vppctl show cnat snat-policy
+Source NAT
+  ip4: 10.9.49.2;0
+  ip6: local0 (ip4);0
+
+Excluded prefixes:
+  Hash table 'snat prefixes'
+[43]: heap offset 449162688, len 1, refcnt 1, linear 0
+```
+After the run: `show cnat snat-policy` → `no default snat policy`; no `loop9xx` left; NRestarts 2 → 2.
+
+### CI (`tools/ci.sh --base main`, log `/root/ngfw-wt/logs/DF-3-r2-ci.log`)
+```
+
+CI GATE PASSED
+exit=0
+```
+
+Decisions: **D-DF3-13**: the N2 entry identity combines the VPP-observable fingerprint with the owner's generation,
+because VPP exposes no entry generation; a miss re-applies with del+add, which is exactly-once by VPP semantics.
+**D-DF3-14**: DF-3 claim keys are semantic ids (never VPP indices), so the D-080 invalidation applies only to the
+D-076 records.

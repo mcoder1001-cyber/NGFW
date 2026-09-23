@@ -479,7 +479,8 @@ do_integration() {
   while IFS= read -r mod; do
     mod=$(dirname "$mod")
     say "go integration: $mod"
-    run "go-integration-${mod//\//_}" env VRX_INTEGRATION=1 go -C "$mod" test -race -count=1 -timeout 20m ./... \
+    # -p 1: one package at a time — packages share the CI slot's prefix/instance ranges on one VPP (D-087)
+    run "go-integration-${mod//\//_}" env VRX_INTEGRATION=1 go -C "$mod" test -p 1 -race -count=1 -timeout 30m ./... \
       || fail "Go integration tests failed in $mod"
     grep -E '^(ok|FAIL)\s' "$CUR_LOG" | sed 's/^/  /' || true
   done < <(find apps/agent test -name go.mod -not -path '*/node_modules/*' 2>/dev/null | sort)

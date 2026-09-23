@@ -44,3 +44,18 @@ stream and accepts either details type. No binapi change is requested. This may 
 The envelope scope lists nat44_ed, nat44_ei, nat64, nat66, det44, map, cnat and pnat. The factory prompt also
 mentions npt66 and dslite. I followed the envelope (higher precedence), so npt66 and dslite are **not** built.
 Please schedule them in a follow-up DF task if they are wanted.
+
+## Q6 — cnat objects without a VPP getter
+
+`cnat.snat-policy`, `cnat.snat-interface` and `cnat.snat-exclude-prefix` have no dump or getter in VPP 26.06. The
+same goes for the write-only translation flags (`flags`, `is_real_ip`, `flow_hash_config`). The descriptors keep an
+in-process cache, so after an agent restart they re-apply once (idempotent, except that an excluded prefix's refcount
+is bumped). Doing better needs a VPP API addition (`cnat_snat_policy_get`, `cnat_snat_policy_if_dump`,
+`cnat_snat_exclude_pfx_dump`, flags in `cnat_translation_details`). Possible vpp-code-track item; not blocking.
+
+## Q7 — cnat crash hazards (guarded in DF-3, worth a V-item)
+
+`cnat_set_snat_policy` and `cnat_snat_policy_add_del_exclude_pfx` dereference a NULL default SNAT entry (release
+builds compile `ASSERT` out), so sending either one before `cnat_set_snat_addresses` crashes VPP.
+`cnat_translation_update` with `n_paths = 0` underflows `vec_validate`. The DF-3 descriptors guard all three; any
+other caller (vppctl scripts, other tasks) must do the same.

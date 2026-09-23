@@ -101,25 +101,16 @@ func RegisterPoller(name string, fn PollFunc) {
 	pollers[name] = fn
 }
 
-// pollRoutes counts RIB entries per address family and VRF ("ipv4/default" → "3").
+// pollRoutes reports RIB counts per family, VRF and protocol ("ipv4/default/static" → "3")
+// from the summary commands — O(VRFs × protocols), independent of the table size (M3).
 func pollRoutes(ctx context.Context, show ShowFunc) (map[string]string, error) {
-	out := map[string]string{}
-	for afi, cmd := range map[string]ShowCommand{"ipv4": ShowIPRouteAll, "ipv6": ShowIPv6RouteAll} {
-		raw, err := show(ctx, cmd)
-		if err != nil {
-			return nil, err
-		}
-		rs, err := DecodeRIB(raw)
-		if err != nil {
-			return nil, err
-		}
-		counts := map[string]int{}
-		for _, r := range rs {
-			counts[r.VRFName]++
-		}
-		for vrf, n := range counts {
-			out[afi+"/"+vrf] = strconv.Itoa(n)
-		}
+	sum, err := ribSummary(ctx, show)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(sum))
+	for k, n := range sum {
+		out[k] = strconv.Itoa(n)
 	}
 	return out, nil
 }

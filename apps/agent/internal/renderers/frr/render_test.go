@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,9 +21,20 @@ var update = flag.Bool("update", false, "rewrite testdata/*.golden")
 
 func ptr[T any](v T) *T { return &v }
 
-// testRenderer renders with the product paths and no registered protocol sections.
+// allStaticsToFRR makes every routing.static entry FRR-owned for the test (proto inputs have
+// no D-072 flag yet).
+func allStaticsToFRR(t *testing.T) {
+	t.Helper()
+	selectorMu.Lock()
+	prev := staticSelector
+	staticSelector = func(int, *vrxv1.StaticRoute, *Extensions) bool { return true }
+	selectorMu.Unlock()
+	t.Cleanup(func() { selectorMu.Lock(); staticSelector = prev; selectorMu.Unlock() })
+}
+
+// testRenderer renders with the product paths, IdentityMapper and no registered protocol sections.
 func testRenderer(extra ...Section) *Renderer {
-	return New(renderers.NewRecordingRunner(), WithSections(extra...))
+	return New(renderers.NewRecordingRunner(), WithSections(extra...), WithInterfaceMapper(IdentityMapper))
 }
 
 func renderConf(t *testing.T, r *Renderer, desired proto.Message) string {
@@ -69,20 +81,23 @@ func doc(t *testing.T, m map[string]any) *structpb.Struct {
 }
 
 func staticDoc(t *testing.T) *structpb.Struct {
+	// "frr": true is the D-072 flag (stand-in): only flagged routes are FRR's; the last entry
+	// is unflagged and must not be rendered (the agent programs it in VPP).
 	return doc(t, map[string]any{
 		"routing": map[string]any{"static": []any{
-			map[string]any{"prefix": "10.12.200.0/24", "nextHops": []any{map[string]any{"address": "10.12.1.1", "weight": 1}}},
-			map[string]any{"prefix": "10.12.201.7/24", "nextHops": []any{map[string]any{"blackhole": true}}, "distance": 50, "tag": 100},
-			map[string]any{"prefix": "10.12.202.0/24", "nextHops": []any{map[string]any{"interface": "w12f0"}}},
-			map[string]any{"prefix": "10.12.203.0/24", "nextHops": []any{map[string]any{"address": "10.12.1.1", "interface": "w12f0"}}, "distance": 200},
-			map[string]any{"prefix": "10.12.204.0/24", "vrf": "default", "nextHops": []any{
+			map[string]any{"frr": true, "prefix": "10.12.200.0/24", "nextHops": []any{map[string]any{"address": "10.12.1.1", "weight": 1}}},
+			map[string]any{"frr": true, "prefix": "10.12.201.7/24", "blackhole": true, "distance": 50, "tag": 100},
+			map[string]any{"frr": true, "prefix": "10.12.202.0/24", "nextHops": []any{map[string]any{"interface": "w12f0"}}},
+			map[string]any{"frr": true, "prefix": "10.12.203.0/24", "nextHops": []any{map[string]any{"address": "10.12.1.1", "interface": "w12f0"}}, "distance": 200},
+			map[string]any{"frr": true, "prefix": "10.12.204.0/24", "vrf": "default", "nextHops": []any{
 				map[string]any{"address": "10.12.1.3"}, map[string]any{"address": "10.12.1.2"},
 			}},
-			map[string]any{"prefix": "2001:DB8:12:0:0::/64", "nextHops": []any{map[string]any{"address": "2001:db8:12::1"}}},
-			map[string]any{"prefix": "2001:db8:12:1::/64", "nextHops": []any{map[string]any{"blackhole": true}}, "tag": 7},
-			map[string]any{"prefix": "2001:db8:12:2::/64", "nextHops": []any{map[string]any{"address": "fe80::1", "interface": "w12f0"}}, "distance": 20},
-			map[string]any{"prefix": "10.12.210.0/24", "vrf": "w12red", "nextHops": []any{map[string]any{"blackhole": true}}},
-			map[string]any{"prefix": "2001:db8:12:10::/64", "vrf": "w12red", "nextHops": []any{map[string]any{"interface": "w12r0"}}, "tag": 9, "distance": 5},
+			map[string]any{"frr": true, "prefix": "2001:DB8:12:0:0::/64", "nextHops": []any{map[string]any{"address": "2001:db8:12::1"}}},
+			map[string]any{"frr": true, "prefix": "2001:db8:12:1::/64", "blackhole": true, "tag": 7},
+			map[string]any{"frr": true, "prefix": "2001:db8:12:2::/64", "nextHops": []any{map[string]any{"address": "fe80::1", "interface": "w12f0"}}, "distance": 20},
+			map[string]any{"frr": true, "prefix": "10.12.210.0/24", "vrf": "w12red", "blackhole": true},
+			map[string]any{"frr": true, "prefix": "2001:db8:12:10::/64", "vrf": "w12red", "nextHops": []any{map[string]any{"interface": "w12r0"}}, "tag": 9, "distance": 5},
+			map[string]any{"prefix": "10.12.250.0/24", "nextHops": []any{map[string]any{"address": "10.12.1.1"}}},
 		}},
 	})
 }
@@ -106,6 +121,7 @@ func TestRenderGolden(t *testing.T) {
 			"TenGigabitEthernet0/0/0": {Description: ptr("no Linux side yet: skipped")},
 		}}},
 		{name: "static", desired: staticDoc(t)},
+		// D-072: proto routes carry no FRR flag → programmed by the agent in VPP, not rendered.
 		{name: "static-proto", desired: &vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
 			{Prefix: ptr("0.0.0.0/0"), NextHops: []*vrxv1.NextHop{{Address: ptr("10.12.1.1"), Weight: ptr(uint32(1))}}, Vrf: ptr("default"), Distance: ptr(uint32(1))},
 			{Prefix: ptr("::/0"), NextHops: []*vrxv1.NextHop{{Address: ptr("2001:db8::1")}}, Distance: ptr(uint32(250))},
@@ -183,11 +199,24 @@ var hostile = []string{
 	" leading",
 	"trailing ",
 	"double  blank",
+	"a | b",
+	"a | include b",
+	"uplink|ISP-A",
+	"Null0",
+	"null0",
+	"blackhole",
+	"bl",
+	"reject",
+	"tag",
+	"10.12.1.1",
+	"2001:db8::1",
+	"10.0.0.0/8",
 	"end",
 	"",
 }
 
 func TestHostileStringsRejectedOrEscaped(t *testing.T) {
+	allStaticsToFRR(t)
 	r := testRenderer()
 	render := func(d *vrxv1.DesiredState) (string, error) {
 		files, err := r.Render(context.Background(), d)
@@ -228,14 +257,17 @@ func TestHostileStringsRejectedOrEscaped(t *testing.T) {
 	}
 	// validator decides whether a value may be accepted at all; everything else must fail with ErrInput.
 	validator := map[string]func(string) error{
-		"system.hostname":                   func(s string) error { _, err := Hostname(s); return err },
-		"vrfs key":                          func(s string) error { _, err := VRFName(s); return err },
-		"interfaces key (mapped)":           func(s string) error { _, err := IfName(s); return err },
-		"interfaces.description":            func(s string) error { _, err := Description(s); return err },
-		"routing.static.vrf":                func(s string) error { _, err := VRFName(s); return err },
-		"routing.static.prefix":             func(string) error { return errors.New("never") },
-		"routing.static.nextHops.address":   func(string) error { return errors.New("never") },
-		"routing.static.nextHops.interface": func(s string) error { _, err := IfName(s); return err },
+		"system.hostname":         func(s string) error { _, err := Hostname(s); return err },
+		"vrfs key":                func(s string) error { _, err := VRFName(s); return err },
+		"interfaces key (mapped)": func(s string) error { _, err := IfName(s); return err },
+		"interfaces.description":  func(s string) error { _, err := Description(s); return err },
+		"routing.static.vrf":      func(s string) error { _, err := VRFName(s); return err },
+		"routing.static.prefix":   func(s string) error { _, err := netip.ParsePrefix(s); return err },
+		"routing.static.nextHops.address": func(s string) error {
+			_, err := gateway(s, netip.MustParsePrefix("10.0.0.0/8"), false)
+			return err
+		},
+		"routing.static.nextHops.interface": func(s string) error { _, err := RouteIfName(s); return err },
 	}
 	for field, mk := range fields {
 		for _, h := range hostile {
@@ -292,6 +324,7 @@ func TestDescriptionRmRfIsConfinedToOneLine(t *testing.T) {
 }
 
 func TestModelErrors(t *testing.T) {
+	allStaticsToFRR(t)
 	cases := map[string]struct {
 		d    proto.Message
 		want string
@@ -300,6 +333,18 @@ func TestModelErrors(t *testing.T) {
 			{Prefix: ptr("10.0.0.0/8"), NextHops: []*vrxv1.NextHop{{Address: ptr("2001:db8::1")}}}}}}, "address family"},
 		"no next hop": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
 			{Prefix: ptr("10.0.0.0/8")}}}}, "nextHops is empty"},
+		"blackhole with next hops": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
+			{Prefix: ptr("10.0.0.0/8"), Blackhole: ptr(true), NextHops: []*vrxv1.NextHop{{Address: ptr("10.0.0.1")}}}}}}, "blackhole route has no next hops"},
+		"gateway unspecified": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
+			{Prefix: ptr("0.0.0.0/0"), NextHops: []*vrxv1.NextHop{{Address: ptr("0.0.0.0")}}}}}}, "unspecified, multicast or loopback"},
+		"gateway v6 unspecified": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
+			{Prefix: ptr("::/0"), NextHops: []*vrxv1.NextHop{{Address: ptr("::")}}}}}}, "unspecified, multicast or loopback"},
+		"gateway multicast": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
+			{Prefix: ptr("10.0.0.0/8"), NextHops: []*vrxv1.NextHop{{Address: ptr("224.0.0.5")}}}}}}, "unspecified, multicast or loopback"},
+		"gateway loopback": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
+			{Prefix: ptr("10.0.0.0/8"), NextHops: []*vrxv1.NextHop{{Address: ptr("127.0.0.1")}}}}}}, "unspecified, multicast or loopback"},
+		"link-local without interface": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
+			{Prefix: ptr("2001:db8::/64"), NextHops: []*vrxv1.NextHop{{Address: ptr("fe80::1")}}}}}}, "needs an interface"},
 		"empty next hop": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
 			{Prefix: ptr("10.0.0.0/8"), NextHops: []*vrxv1.NextHop{{Weight: ptr(uint32(1))}}}}}}, "needs an address"},
 		"distance": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
@@ -308,12 +353,10 @@ func TestModelErrors(t *testing.T) {
 			{Prefix: ptr("fe80::/64"), NextHops: []*vrxv1.NextHop{{Address: ptr("fe80::1%eth0")}}}}}}, "routing.static[0].nextHops[0].address"},
 		"unmapped next-hop interface": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
 			{Prefix: ptr("10.0.0.0/8"), NextHops: []*vrxv1.NextHop{{Interface: ptr("TenGigabitEthernet0/0/0")}}}}}}, "has no Linux interface"},
-		"blackhole with address": {doc(t, map[string]any{"routing": map[string]any{"static": []any{
-			map[string]any{"prefix": "10.0.0.0/8", "nextHops": []any{map[string]any{"blackhole": true, "address": "10.0.0.1"}}}}}}), "blackhole next hop has no address"},
 		"bad tag": {doc(t, map[string]any{"routing": map[string]any{"static": []any{
 			map[string]any{"prefix": "10.0.0.0/8", "tag": -1, "nextHops": []any{map[string]any{"address": "10.0.0.1"}}}}}}), "tag must be an integer"},
-		"bad blackhole": {doc(t, map[string]any{"routing": map[string]any{"static": []any{
-			map[string]any{"prefix": "10.0.0.0/8", "nextHops": []any{map[string]any{"blackhole": "yes"}}}}}}), "blackhole must be a boolean"},
+		"bad frr flag": {doc(t, map[string]any{"routing": map[string]any{"static": []any{
+			map[string]any{"prefix": "10.0.0.0/8", "frr": "yes", "nextHops": []any{map[string]any{"address": "10.0.0.1"}}}}}}), "frr must be a boolean"},
 		"wrong type": {&vrxv1.Vrf{}, "unsupported input type"},
 		"two names map to one": {&vrxv1.DesiredState{Interfaces: map[string]*vrxv1.Interface{
 			"a": {Description: ptr("x")}, "b": {Description: ptr("y")}}}, "map to Linux name"},
@@ -349,6 +392,7 @@ func TestRenderOptionsChecked(t *testing.T) {
 }
 
 func TestInterfaceMapper(t *testing.T) {
+	allStaticsToFRR(t)
 	r := New(renderers.NewRecordingRunner(), WithSections(), WithInterfaceMapper(func(n string) (string, bool) {
 		if n == "TenGigabitEthernet0/0/0" {
 			return "vpp1", true

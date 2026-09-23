@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"google.golang.org/protobuf/proto"
-
 	"ngfw/agent/internal/renderers"
 )
 
@@ -17,13 +15,9 @@ type fakeBGP struct{}
 
 func (fakeBGP) Name() string { return "bgp" }
 func (fakeBGP) Order() int   { return 500 }
-func (fakeBGP) Render(desired proto.Message) ([]string, error) {
-	ds, _, err := Desired(desired)
-	if err != nil {
-		return nil, err
-	}
+func (fakeBGP) Render(rc *RenderContext) ([]string, error) {
 	rid := "0.0.0.0"
-	if ds.GetSystem().GetHostname() != "" {
+	if rc.Desired.GetSystem().GetHostname() != "" {
 		rid = "10.12.0.1"
 	}
 	return []string{"router bgp 65012", " bgp router-id " + rid, "exit"}, nil
@@ -37,9 +31,9 @@ type lineSection struct {
 	err   error
 }
 
-func (s lineSection) Name() string                           { return s.name }
-func (s lineSection) Order() int                             { return s.order }
-func (s lineSection) Render(proto.Message) ([]string, error) { return s.lines, s.err }
+func (s lineSection) Name() string                            { return s.name }
+func (s lineSection) Order() int                              { return s.order }
+func (s lineSection) Render(*RenderContext) ([]string, error) { return s.lines, s.err }
 
 func TestSectionOrderAndSeparators(t *testing.T) {
 	r := testRenderer(
@@ -62,6 +56,9 @@ func TestSectionLineBackstop(t *testing.T) {
 		"escape":           {"description \x1b[2J"},
 		"nul":              {"a\x00"},
 		"invalid utf8":     {"a\xff"},
+		"cli pipe":         {"interface w12f0", " description a | b", "exit"},
+		"cli pipe include": {"interface w12f0", " description a | include b", "exit"},
+		"trailing pipe":    {"route-map X permit 10", " description x |", "exit"},
 	} {
 		r := testRenderer(lineSection{name: "evil", order: 500, lines: lines})
 		if _, err := r.Render(context.Background(), nil); err == nil || !errors.Is(err, renderers.ErrUnsafe) {
@@ -119,7 +116,7 @@ func TestFrameworkSectionsArePublicSections(t *testing.T) {
 		if s.Order() >= OrderProtocolMin && s.Order() <= OrderProtocolMax {
 			t.Errorf("framework section %s uses the protocol order range", s.Name())
 		}
-		if _, err := s.Render(nil); err != nil {
+		if _, err := s.Render(&RenderContext{}); err != nil {
 			t.Errorf("%s.Render(nil): %v", s.Name(), err)
 		}
 	}

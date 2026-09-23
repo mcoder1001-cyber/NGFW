@@ -18,7 +18,7 @@ service integrated-vtysh-config
 {{- define "route" -}}
 {{.AFI}} route {{network .PrefixText}}
 {{- if .Blackhole}} blackhole
-{{- else}}{{with .GatewayText}} {{addr .}}{{end}}{{with .Interface}} {{ifname .}}{{end}}
+{{- else}}{{with .GatewayText}} {{addr .}}{{end}}{{with .Interface}} {{rtifname .}}{{end}}
 {{- end}}
 {{- if .Tag}} tag {{.Tag}}{{end}}
 {{- if .ShowDistance}} {{.Distance}}{{end}}

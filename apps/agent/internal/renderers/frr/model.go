@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+	"sync"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -85,13 +86,56 @@ func (r Route) GatewayText() string {
 // stand-in, docs/status/tasks/RF-1-questions.md Q1). They are read from a *structpb.Struct
 // input at the same JSON paths the schema will use:
 //
-//	routing.static[i].tag                    uint32 route tag
-//	routing.static[i].nextHops[j].blackhole  bool   blackhole next hop (no address/interface)
+//	routing.static[i].tag  uint32 route tag
+//	routing.static[i].frr  bool   D-072 flag: FRR (staticd) programs this route, the agent does not
 type Extensions struct {
 	// Tag maps a routing.static index to its tag.
 	Tag map[int]uint32
-	// Blackhole holds [static index, next-hop index] pairs that are blackhole next hops.
-	Blackhole map[[2]int]bool
+	// FRR holds the routing.static indexes flagged for FRR (D-072).
+	FRR map[int]bool
+}
+
+// ---------------------------------------------------------------- D-072: one programmer per static route
+
+// StaticSelector decides whether routing.static[i] is programmed by FRR (true) or by the agent
+// directly in VPP (false, the default). D-072: never both.
+type StaticSelector func(i int, sr *vrxv1.StaticRoute, ext *Extensions) bool
+
+// FlaggedStatic is the default selector: only routes carrying the explicit flag go to FRR
+// (today the stand-in `routing.static[i].frr: true`; when the schema/proto field lands, the
+// owner of that field registers a selector reading it).
+func FlaggedStatic(i int, _ *vrxv1.StaticRoute, ext *Extensions) bool {
+	return ext != nil && ext.FRR[i]
+}
+
+var (
+	selectorMu     sync.Mutex
+	staticSelector StaticSelector = FlaggedStatic
+	selectorSet    bool
+)
+
+// RegisterStaticSelector replaces FlaggedStatic once (P03b/P12 when the real flag exists).
+// It panics on nil or a second registration (init()-time programming errors).
+func RegisterStaticSelector(fn StaticSelector) {
+	if fn == nil {
+		panic("frr: RegisterStaticSelector(nil)")
+	}
+	selectorMu.Lock()
+	defer selectorMu.Unlock()
+	if selectorSet {
+		panic("frr: static selector registered twice")
+	}
+	staticSelector, selectorSet = fn, true
+}
+
+// StaticOwnedByFRR reports whether routing.static[i] belongs to FRR. The FRR renderer renders
+// exactly these routes; the P05 static-route descriptor must skip exactly these (D-072). Both
+// call this one function so the two programmers can never disagree.
+func StaticOwnedByFRR(i int, sr *vrxv1.StaticRoute, ext *Extensions) bool {
+	selectorMu.Lock()
+	fn := staticSelector
+	selectorMu.Unlock()
+	return fn(i, sr, ext)
 }
 
 // InterfaceMapper maps a VPP interface name from the document to the Linux interface name
@@ -99,8 +143,14 @@ type Extensions struct {
 // has no Linux side.
 type InterfaceMapper func(vppName string) (linuxName string, ok bool)
 
+// NoMapper is the product default until P12 injects the linux-cp mapping: no VPP interface
+// has a known Linux side, so no interface block is rendered and an FRR static route with a
+// next-hop interface is an error (RF-1 review L4).
+func NoMapper(string) (string, bool) { return "", false }
+
 // IdentityMapper maps every name that is already a valid Linux interface name to itself and
-// reports ok=false for the rest (e.g. "TenGigabitEthernet0/0/0" until P12 maps it).
+// reports ok=false for the rest. Tests and the frrtest harness use it (their interfaces are
+// Linux devices in the test namespace).
 func IdentityMapper(name string) (string, bool) {
 	if _, err := IfName(name); err != nil {
 		return "", false
@@ -113,7 +163,7 @@ func IdentityMapper(name string) (string, bool) {
 // (unknown fields ignored) and its stand-in fields returned as Extensions; nil is the empty
 // state. Protocol sections may call it to get the typed state from whatever Render received.
 func Desired(msg proto.Message) (*vrxv1.DesiredState, *Extensions, error) {
-	ext := &Extensions{Tag: map[int]uint32{}, Blackhole: map[[2]int]bool{}}
+	ext := &Extensions{Tag: map[int]uint32{}, FRR: map[int]bool{}}
 	switch m := msg.(type) {
 	case nil:
 		return &vrxv1.DesiredState{}, ext, nil
@@ -155,17 +205,13 @@ func readExtensions(doc *structpb.Struct, ext *Extensions) error {
 			}
 			ext.Tag[i] = uint32(n.NumberValue)
 		}
-		for j, hv := range route.GetFields()["nextHops"].GetListValue().GetValues() {
-			bh, ok := hv.GetStructValue().GetFields()["blackhole"]
-			if !ok {
-				continue
-			}
-			b, isBool := bh.GetKind().(*structpb.Value_BoolValue)
+		if f, ok := route.GetFields()["frr"]; ok {
+			b, isBool := f.GetKind().(*structpb.Value_BoolValue)
 			if !isBool {
-				return fmt.Errorf("%w: routing.static[%d].nextHops[%d].blackhole must be a boolean", ErrInput, i, j)
+				return fmt.Errorf("%w: routing.static[%d].frr must be a boolean", ErrInput, i)
 			}
 			if b.BoolValue {
-				ext.Blackhole[[2]int{i, j}] = true
+				ext.FRR[i] = true
 			}
 		}
 	}
@@ -182,7 +228,7 @@ func BuildModel(ds *vrxv1.DesiredState, ext *Extensions, mapIf InterfaceMapper) 
 		ext = &Extensions{}
 	}
 	if mapIf == nil {
-		mapIf = IdentityMapper
+		mapIf = NoMapper
 	}
 	m := &Model{}
 	if h := ds.GetSystem().GetHostname(); h != "" {
@@ -241,6 +287,9 @@ func BuildModel(ds *vrxv1.DesiredState, ext *Extensions, mapIf InterfaceMapper) 
 	}
 
 	for i, sr := range ds.GetRouting().GetStatic() {
+		if !StaticOwnedByFRR(i, sr, ext) {
+			continue // D-072: programmed in VPP by the agent, never by FRR as well
+		}
 		path := fmt.Sprintf("routing.static[%d]", i)
 		routes, err := buildRoutes(sr, i, path, ext, mapIf)
 		if err != nil {
@@ -283,31 +332,28 @@ func buildRoutes(sr *vrxv1.StaticRoute, idx int, path string, ext *Extensions, m
 	case distance > 255:
 		return nil, fmt.Errorf("%w: %s.distance %d not in 1..255", ErrInput, path, distance)
 	}
+	base := Route{AFI: afi, Prefix: pfx, Tag: ext.Tag[idx], Distance: distance}
+	if sr.GetBlackhole() {
+		if len(sr.GetNextHops()) != 0 {
+			return nil, fmt.Errorf("%w: %s: a blackhole route has no next hops", ErrInput, path)
+		}
+		base.Blackhole = true
+		return []Route{base}, nil
+	}
 	if len(sr.GetNextHops()) == 0 {
-		return nil, fmt.Errorf("%w: %s.nextHops is empty", ErrInput, path)
+		return nil, fmt.Errorf("%w: %s.nextHops is empty (and blackhole is not set)", ErrInput, path)
 	}
 	out := make([]Route, 0, len(sr.GetNextHops()))
 	for j, nh := range sr.GetNextHops() {
 		hpath := fmt.Sprintf("%s.nextHops[%d]", path, j)
-		r := Route{AFI: afi, Prefix: pfx, Tag: ext.Tag[idx], Distance: distance}
-		if ext.Blackhole[[2]int{idx, j}] {
-			if nh.Address != nil || nh.Interface != nil {
-				return nil, fmt.Errorf("%w: %s: a blackhole next hop has no address or interface", ErrInput, hpath)
-			}
-			r.Blackhole = true
-			out = append(out, r)
-			continue
-		}
+		r := base
 		if nh.Address == nil && nh.Interface == nil {
-			return nil, fmt.Errorf("%w: %s needs an address, an interface or blackhole", ErrInput, hpath)
+			return nil, fmt.Errorf("%w: %s needs an address or an interface", ErrInput, hpath)
 		}
 		if nh.Address != nil {
-			a, err := netip.ParseAddr(nh.GetAddress())
-			if err != nil || a.Zone() != "" {
-				return nil, inputErr(hpath+".address", fmt.Errorf("%w: address %q is not a plain IP address", renderers.ErrUnsafe, nh.GetAddress()))
-			}
-			if a.Is4() != pfx.Addr().Is4() {
-				return nil, fmt.Errorf("%w: %s.address %s is not in the address family of %s", ErrInput, hpath, a, pfx)
+			a, err := gateway(nh.GetAddress(), pfx, nh.Interface != nil)
+			if err != nil {
+				return nil, inputErr(hpath+".address", err)
 			}
 			r.Gateway = a
 		}
@@ -316,7 +362,7 @@ func buildRoutes(sr *vrxv1.StaticRoute, idx int, path string, ext *Extensions, m
 			if !ok {
 				return nil, fmt.Errorf("%w: %s.interface %q has no Linux interface for FRR", ErrInput, hpath, nh.GetInterface())
 			}
-			name, err := IfName(linux)
+			name, err := RouteIfName(linux)
 			if err != nil {
 				return nil, inputErr(hpath+".interface", err)
 			}
@@ -325,6 +371,23 @@ func buildRoutes(sr *vrxv1.StaticRoute, idx int, path string, ext *Extensions, m
 		out = append(out, r)
 	}
 	return out, nil
+}
+
+// gateway validates a next-hop address (RF-1 review M1): a plain unicast address of the
+// prefix's family; not unspecified, multicast or loopback; link-local only with an interface.
+func gateway(s string, pfx netip.Prefix, hasIf bool) (netip.Addr, error) {
+	a, err := netip.ParseAddr(s)
+	switch {
+	case err != nil || a.Zone() != "":
+		return netip.Addr{}, fmt.Errorf("%w: address %q is not a plain IP address", renderers.ErrUnsafe, s)
+	case a.Is4() != pfx.Addr().Is4():
+		return netip.Addr{}, fmt.Errorf("%w: address %s is not in the address family of %s", renderers.ErrUnsafe, a, pfx)
+	case a.IsUnspecified(), a.IsMulticast(), a.IsLoopback():
+		return netip.Addr{}, fmt.Errorf("%w: address %s is unspecified, multicast or loopback", renderers.ErrUnsafe, a)
+	case a.IsLinkLocalUnicast() && !hasIf:
+		return netip.Addr{}, fmt.Errorf("%w: link-local gateway %s needs an interface", renderers.ErrUnsafe, a)
+	}
+	return a, nil
 }
 
 func sortRoutes(rs []Route) {

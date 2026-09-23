@@ -111,7 +111,10 @@ func (p Paths) vtyshArgs(confDir string) []string {
 
 // reloadArgs is the fixed argv of frr-reload.py in mode ("--reload" or "--test") for file.
 func (p Paths) reloadArgs(mode, file string) []string {
-	args := []string{mode, "--log-level", "info", "--logfile", p.ReloadLog,
+	// critical: at info/warning/error frr-reload.py logs the config lines it applies or failed
+	// to apply — including secrets — to the log file (RF-1 review M2). Errors reach the caller
+	// through the exit status and the (redacted) convergence diff instead.
+	args := []string{mode, "--log-level", "critical", "--logfile", p.ReloadLog,
 		"--bindir", p.BinDir, "--confdir", p.ConfDir, "--rundir", p.SocketDir(), "--vty_socket", p.RunDir}
 	if p.Namespace != "" {
 		args = append(args, "--pathspace", p.Namespace)

@@ -152,11 +152,7 @@ func TestFRRRendererIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		rs, err := st.StaticRoutes()
-		if err != nil {
-			t.Fatal(err)
-		}
-		return rs
+		return st.StaticRoutes
 	}
 	showIPRoute := func(step string) {
 		raw, err := r.ShowJSON(ctx, frr.ShowIPRoute)

@@ -1,9 +1,12 @@
 package frr
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"regexp"
 	"slices"
 	"strings"
@@ -32,7 +35,43 @@ const (
 	ShowIPv6RouteAll  ShowCommand = "show ipv6 route vrf all json"
 	ShowInterface     ShowCommand = "show interface json"
 	ShowInterfaceAll  ShowCommand = "show interface vrf all json"
+	// Scoped commands (RF-1 review M3): Retrieve reads only what the framework owns (static
+	// routes) and the poller only counts — never the whole RIB.
+	ShowIPStaticAll    ShowCommand = "show ip route vrf all static json"
+	ShowIPv6StaticAll  ShowCommand = "show ipv6 route vrf all static json"
+	ShowIPSummaryAll   ShowCommand = "show ip route vrf all summary json"
+	ShowIPv6SummaryAll ShowCommand = "show ipv6 route vrf all summary json"
 )
+
+// MaxShowOutput bounds one vtysh answer (stdout) for the runner built by NewSystemRunner.
+// Sizing: the largest framework read is `show ip route vrf all static json`, measured at
+// ~0.5–0.7 KB per static route in FRR 10.7, so 64 MiB holds ≥ 90 000 FRR static routes;
+// protocol readers must use summary/filtered commands (never a full-table dump). An answer
+// that reaches the bound is reported as ErrTruncated, never parsed.
+const MaxShowOutput = 64 << 20
+
+// ErrTruncated is returned when a show command's output hit the runner's output bound.
+var ErrTruncated = errors.New("frr: show output truncated at the runner's bound")
+
+// NewSystemRunner is the production runner for this renderer: the allowlist frr.Binaries()
+// and the output bound MaxShowOutput.
+func NewSystemRunner() *renderers.SystemRunner {
+	return &renderers.SystemRunner{Allow: renderers.NewAllowlist(Binaries()...), MaxOutput: MaxShowOutput}
+}
+
+// OutputLimiter is implemented by runners with their own output bound (tests, wrappers).
+type OutputLimiter interface{ OutputLimit() int }
+
+// outputCap is the runner's stdout bound (DefaultMaxOutput for unknown runners).
+func (r *Renderer) outputCap() int {
+	if l, ok := r.runner.(OutputLimiter); ok && l.OutputLimit() > 0 {
+		return l.OutputLimit()
+	}
+	if sr, ok := r.runner.(*renderers.SystemRunner); ok && sr.MaxOutput > 0 {
+		return sr.MaxOutput
+	}
+	return renderers.DefaultMaxOutput
+}
 
 const showTimeout = 15 * time.Second
 
@@ -40,7 +79,8 @@ var showCommandRe = regexp.MustCompile(`^show( [A-Za-z0-9_.:/-]+)+$`)
 
 func (c ShowCommand) valid() bool { return showCommandRe.MatchString(string(c)) }
 
-// Show runs one show command and returns its raw output.
+// Show runs one show command and returns its output with every secret masked (values this
+// renderer resolved + secret-bearing FRR patterns). Output at the runner's bound is ErrTruncated.
 func (r *Renderer) Show(ctx context.Context, cmd ShowCommand) ([]byte, error) {
 	if err := r.check(); err != nil {
 		return nil, err
@@ -51,9 +91,12 @@ func (r *Renderer) Show(ctx context.Context, cmd ShowCommand) ([]byte, error) {
 	args := append(r.paths.vtyshArgs(r.paths.ConfDir), "-c", string(cmd))
 	out, err := r.runner.Run(ctx, renderers.Command{Path: VtyshBin, Args: args, Timeout: showTimeout})
 	if err != nil {
-		return nil, fmt.Errorf("%w: vtysh --command %q: %s", ErrDaemon, cmd, toolMessage(out, err, ""))
+		return nil, fmt.Errorf("%w: vtysh --command %q: %s", ErrDaemon, cmd, r.toolMessage(out, err, ""))
 	}
-	return out.Stdout, nil
+	if len(out.Stdout) >= r.outputCap() {
+		return nil, fmt.Errorf("%w: vtysh --command %q (%d bytes)", ErrTruncated, cmd, len(out.Stdout))
+	}
+	return []byte(r.secrets.redact(string(out.Stdout))), nil
 }
 
 // ShowJSON runs a `show … json` command and returns the JSON document. Output that is not
@@ -90,7 +133,7 @@ var (
 )
 
 // builtinKeys are the framework's Retrieve keys.
-var builtinKeys = []string{"version", "runningConfig", "vrfs", "ipv4Routes", "ipv6Routes", "interfaces"}
+var builtinKeys = []string{"version", "runningConfig", "vrfs", "staticRoutes", "summary", "interfaces"}
 
 // RegisterStateReader adds a reader to the global registry used by every Renderer created
 // without WithStateReaders. It panics on an invalid or duplicate key or a command that is
@@ -139,18 +182,21 @@ type VRFState struct {
 	Table int `json:"table"`
 }
 
-// State is FRR's actual state as structured data.
+// State is FRR's actual state as structured data — bounded by what the framework owns.
 type State struct {
 	// Version is the FRR version from `show version` ("10.7.1").
 	Version string `json:"version"`
-	// RunningConfig is `show running-config`, normalised (see NormalizeConfig) — for drift.
+	// RunningConfig is `show running-config`, normalised (see NormalizeConfig) and redacted —
+	// for drift.
 	RunningConfig []string `json:"runningConfig"`
 	// VRFs is `show vrf`.
 	VRFs []VRFState `json:"vrfs"`
-	// IPv4Routes / IPv6Routes are `show ip[v6] route vrf all json` (VRF name → prefix → entries).
-	IPv4Routes json.RawMessage `json:"ipv4Routes"`
-	IPv6Routes json.RawMessage `json:"ipv6Routes"`
-	// Interfaces is `show interface vrf all json`.
+	// StaticRoutes are the protocol-static RIB entries of both families
+	// (`show ip[v6] route vrf all static json`, stream-decoded), sorted.
+	StaticRoutes []RIBRoute `json:"staticRoutes"`
+	// Summary is `show ip[v6] route vrf all summary json`: "ipv4/<vrf>/<type>" → RIB count.
+	Summary map[string]int `json:"summary"`
+	// Interfaces is `show interface vrf all json` (bounded by the number of interfaces).
 	Interfaces json.RawMessage `json:"interfaces"`
 	// Extra holds the registered readers' JSON by key.
 	Extra map[string]json.RawMessage `json:"extra,omitempty"`
@@ -174,13 +220,24 @@ func (r *Renderer) State(ctx context.Context) (*State, error) {
 		return nil, err
 	}
 	st.VRFs = parseVRFs(string(vrfOut))
-	for _, x := range []struct {
-		dst *json.RawMessage
-		cmd ShowCommand
-	}{{&st.IPv4Routes, ShowIPRouteAll}, {&st.IPv6Routes, ShowIPv6RouteAll}, {&st.Interfaces, ShowInterfaceAll}} {
-		if *x.dst, err = r.ShowJSON(ctx, x.cmd); err != nil {
+	for _, cmd := range []ShowCommand{ShowIPStaticAll, ShowIPv6StaticAll} {
+		raw, err := r.ShowJSON(ctx, cmd)
+		if err != nil {
 			return nil, err
 		}
+		if err := StreamRIB(bytes.NewReader(raw), func(rt RIBRoute) error {
+			st.StaticRoutes = append(st.StaticRoutes, rt)
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+	}
+	st.StaticRoutes = sortRIB(st.StaticRoutes)
+	if st.Summary, err = ribSummary(ctx, r.ShowJSON); err != nil {
+		return nil, err
+	}
+	if st.Interfaces, err = r.ShowJSON(ctx, ShowInterfaceAll); err != nil {
+		return nil, err
 	}
 	rs := r.readers
 	if rs == nil {
@@ -195,6 +252,33 @@ func (r *Renderer) State(ctx context.Context) (*State, error) {
 		}
 	}
 	return st, nil
+}
+
+// ribSummary reads the per-VRF, per-protocol RIB counts of both families.
+func ribSummary(ctx context.Context, show ShowFunc) (map[string]int, error) {
+	type summary struct {
+		Routes []struct {
+			RIB  int    `json:"rib"`
+			Type string `json:"type"`
+		} `json:"routes"`
+	}
+	out := map[string]int{}
+	for afi, cmd := range map[string]ShowCommand{"ipv4": ShowIPSummaryAll, "ipv6": ShowIPv6SummaryAll} {
+		raw, err := show(ctx, cmd)
+		if err != nil {
+			return nil, err
+		}
+		var byVRF map[string]summary
+		if err := json.Unmarshal(raw, &byVRF); err != nil {
+			return nil, fmt.Errorf("frr: decode %s: %w", cmd, err)
+		}
+		for vrf, sm := range byVRF {
+			for _, rt := range sm.Routes {
+				out[afi+"/"+vrf+"/"+rt.Type] += rt.RIB
+			}
+		}
+	}
+	return out, nil
 }
 
 // Retrieve implements renderers.Renderer: State as a *structpb.Struct (keys as in State's
@@ -219,13 +303,28 @@ func (st *State) Struct() (*structpb.Struct, error) {
 		vrfs = append(vrfs, map[string]any{"name": v.Name, "active": v.Active, "id": v.ID, "table": v.Table})
 	}
 	m["vrfs"] = vrfs
-	for k, raw := range map[string]json.RawMessage{"ipv4Routes": st.IPv4Routes, "ipv6Routes": st.IPv6Routes, "interfaces": st.Interfaces} {
-		v, err := decodeAny(raw)
-		if err != nil {
-			return nil, fmt.Errorf("frr: state %s: %w", k, err)
+	statics := make([]any, 0, len(st.StaticRoutes))
+	for _, rt := range st.StaticRoutes {
+		hops := make([]any, 0, len(rt.Nexthops))
+		for _, h := range rt.Nexthops {
+			hops = append(hops, map[string]any{"ip": h.IP, "interface": h.InterfaceName, "active": h.Active, "fib": h.FIB, "blackhole": h.Blackhole})
 		}
-		m[k] = v
+		statics = append(statics, map[string]any{
+			"vrf": rt.VRFName, "prefix": rt.Prefix, "distance": rt.Distance, "tag": float64(rt.Tag),
+			"selected": rt.Selected, "installed": rt.Installed, "nexthops": hops,
+		})
 	}
+	m["staticRoutes"] = statics
+	summary := map[string]any{}
+	for k, v := range st.Summary {
+		summary[k] = v
+	}
+	m["summary"] = summary
+	ifs, err := decodeAny(st.Interfaces)
+	if err != nil {
+		return nil, fmt.Errorf("frr: state interfaces: %w", err)
+	}
+	m["interfaces"] = ifs
 	for k, raw := range st.Extra {
 		v, err := decodeAny(raw)
 		if err != nil {
@@ -385,22 +484,80 @@ func sortRIB(rs []RIBRoute) []RIBRoute {
 	return rs
 }
 
-// StaticRoutes returns the protocol "static" routes of both address families.
-func (st *State) StaticRoutes() ([]RIBRoute, error) {
-	var out []RIBRoute
-	for _, raw := range []json.RawMessage{st.IPv4Routes, st.IPv6Routes} {
-		if len(raw) == 0 {
-			continue
-		}
-		rs, err := DecodeRIB(raw)
+// StreamRIB decodes `show ip[v6] route [vrf all] … json` token by token and calls fn for
+// every entry, so memory stays proportional to one entry, not to the table. It accepts the
+// flat shape (prefix → entries) and the per-VRF shape (vrf → prefix → entries).
+func StreamRIB(rd io.Reader, fn func(RIBRoute) error) error {
+	dec := json.NewDecoder(rd)
+	if err := expectDelim(dec, '{'); err != nil {
+		return err
+	}
+	for dec.More() {
+		key, err := dec.Token()
 		if err != nil {
-			return nil, err
+			return fmt.Errorf("frr: decode RIB: %w", err)
 		}
-		for _, r := range rs {
-			if r.Protocol == "static" {
-				out = append(out, r)
+		outer, _ := key.(string)
+		tok, err := dec.Token()
+		if err != nil {
+			return fmt.Errorf("frr: decode RIB: %w", err)
+		}
+		switch tok {
+		case json.Delim('['): // flat: outer is a prefix
+			if err := streamEntries(dec, outer, "", fn); err != nil {
+				return err
 			}
+		case json.Delim('{'): // per VRF: outer is a VRF name
+			for dec.More() {
+				pk, err := dec.Token()
+				if err != nil {
+					return fmt.Errorf("frr: decode RIB: %w", err)
+				}
+				pfx, _ := pk.(string)
+				if err := expectDelim(dec, '['); err != nil {
+					return err
+				}
+				if err := streamEntries(dec, pfx, outer, fn); err != nil {
+					return err
+				}
+			}
+			if err := expectDelim(dec, '}'); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("frr: decode RIB: unexpected %v under %q", tok, outer)
 		}
 	}
-	return sortRIB(out), nil
+	return expectDelim(dec, '}')
+}
+
+// streamEntries decodes one entry array (its '[' already consumed) up to its ']'.
+func streamEntries(dec *json.Decoder, prefix, vrf string, fn func(RIBRoute) error) error {
+	for dec.More() {
+		var e RIBRoute
+		if err := dec.Decode(&e); err != nil {
+			return fmt.Errorf("frr: decode RIB entry %s: %w", prefix, err)
+		}
+		if e.Prefix == "" {
+			e.Prefix = prefix
+		}
+		if e.VRFName == "" {
+			e.VRFName = vrf
+		}
+		if err := fn(e); err != nil {
+			return err
+		}
+	}
+	return expectDelim(dec, ']')
+}
+
+func expectDelim(dec *json.Decoder, d json.Delim) error {
+	tok, err := dec.Token()
+	if err != nil {
+		return fmt.Errorf("frr: decode RIB: %w", err)
+	}
+	if tok != d {
+		return fmt.Errorf("frr: decode RIB: want %v, got %v", d, tok)
+	}
+	return nil
 }

@@ -38,6 +38,8 @@ type Renderer struct {
 	mapIf    InterfaceMapper
 	sections []Section // nil: framework + RegisteredSections() at Render time
 	readers  []StateReader
+	resolver SecretResolver
+	secrets  secretSet
 }
 
 var _ renderers.Renderer = (*Renderer)(nil)
@@ -51,8 +53,8 @@ func WithPaths(p Paths) Option { return func(r *Renderer) { r.paths = p } }
 // WithVersion sets the `frr version` line (default DefaultVersion).
 func WithVersion(v string) Option { return func(r *Renderer) { r.version = v } }
 
-// WithInterfaceMapper sets the VPP→Linux interface name mapping (default IdentityMapper;
-// P12 passes the linux-cp mapping).
+// WithInterfaceMapper sets the VPP→Linux interface name mapping (default NoMapper: no
+// interface has a Linux side until P12 passes the linux-cp mapping; tests use IdentityMapper).
 func WithInterfaceMapper(m InterfaceMapper) Option { return func(r *Renderer) { r.mapIf = m } }
 
 // WithSections replaces the globally registered protocol sections by extra (tests, or a
@@ -62,15 +64,18 @@ func WithSections(extra ...Section) Option {
 	return func(r *Renderer) { r.sections = append([]Section{}, extra...) }
 }
 
+// WithSecretResolver sets the resolver sections use through RenderContext.Secret (D-051).
+func WithSecretResolver(sr SecretResolver) Option { return func(r *Renderer) { r.resolver = sr } }
+
 // WithStateReaders replaces the globally registered state readers by extra.
 func WithStateReaders(extra ...StateReader) Option {
 	return func(r *Renderer) { r.readers = append([]StateReader{}, extra...) }
 }
 
 // New returns an FRR renderer running its commands through runner (production:
-// renderers.NewSystemRunner(renderers.NewAllowlist(frr.Binaries()...))).
+// frr.NewSystemRunner(), which carries the documented output bound MaxShowOutput).
 func New(runner renderers.Runner, opts ...Option) *Renderer {
-	r := &Renderer{runner: runner, paths: ProductPaths(), version: DefaultVersion, mapIf: IdentityMapper}
+	r := &Renderer{runner: runner, paths: ProductPaths(), version: DefaultVersion, mapIf: NoMapper}
 	for _, o := range opts {
 		o(r)
 	}
@@ -105,22 +110,35 @@ func (r *Renderer) check() error {
 }
 
 // Render implements renderers.Renderer: the complete frr.conf (all sections) and vtysh.conf.
-// Pure: no I/O. desired is a *vrxv1.DesiredState or (D-055 stand-in) a *structpb.Struct
-// holding the configuration document.
-func (r *Renderer) Render(_ context.Context, desired proto.Message) (renderers.Files, error) {
+// No I/O except the injected secret resolver. desired is a *vrxv1.DesiredState or (D-055
+// stand-in) a *structpb.Struct holding the configuration document. When a section resolved a
+// secret, frr.conf is marked Secret (Files.Redacted hides it) and the value is remembered so
+// every later output of this renderer masks it.
+func (r *Renderer) Render(ctx context.Context, desired proto.Message) (renderers.Files, error) {
 	if err := r.check(); err != nil {
 		return nil, err
 	}
-	conf, err := assemble(r.allSections(), desired)
+	ds, ext, err := Desired(desired)
 	if err != nil {
 		return nil, err
 	}
+	model, err := BuildModel(ds, ext, r.mapIf)
+	if err != nil {
+		return nil, err
+	}
+	rc := &RenderContext{Ctx: ctx, Input: desired, Desired: ds, Ext: ext, mapIf: r.mapIf, resolver: r.resolver, model: model}
+	conf, err := assemble(r.allSections(), rc)
+	if err != nil {
+		return nil, redactErr(err, &r.secrets)
+	}
+	secrets := rc.secretValues()
+	r.secrets.add(secrets...)
 	vtysh, err := renderVtyshConf()
 	if err != nil {
 		return nil, err
 	}
 	files := renderers.Files{
-		r.paths.ConfFile():  {Mode: r.paths.FileMode, Owner: r.paths.FileOwner, Content: conf},
+		r.paths.ConfFile():  {Mode: r.paths.FileMode, Owner: r.paths.FileOwner, Content: conf, Secret: len(secrets) > 0},
 		r.paths.VtyshConf(): {Mode: r.paths.FileMode, Owner: r.paths.FileOwner, Content: vtysh},
 	}
 	return files, files.Validate()
@@ -164,7 +182,7 @@ func (r *Renderer) Validate(ctx context.Context, files renderers.Files) error {
 	args := append(r.paths.vtyshArgs(st.Path(r.paths.ConfDir)), "-C", "-f", st.Path(r.paths.ConfFile()))
 	out, err := r.runner.Run(ctx, renderers.Command{Path: VtyshBin, Args: args, Timeout: validateTimeout})
 	if err != nil {
-		return fmt.Errorf("%w: vtysh -C rejected frr.conf: %s", ErrDaemon, toolMessage(out, err, st.Dir))
+		return fmt.Errorf("%w: vtysh -C rejected frr.conf: %s", ErrDaemon, r.toolMessage(out, err, st.Dir))
 	}
 	return nil
 }
@@ -188,15 +206,22 @@ func (r *Renderer) DryRun(ctx context.Context, files renderers.Files) (string, e
 		Path: ReloadBin, Args: r.paths.reloadArgs("--test", st.Path(r.paths.ConfFile())), Timeout: reloadTimeout,
 	})
 	if err != nil {
-		return "", fmt.Errorf("%w: frr-reload.py --test: %s", ErrDaemon, toolMessage(out, err, st.Dir))
+		return "", fmt.Errorf("%w: frr-reload.py --test: %s", ErrDaemon, r.toolMessage(out, err, st.Dir))
 	}
-	return NormalizeDiff(string(out.Stdout)), nil
+	return r.secrets.redact(NormalizeDiff(string(out.Stdout))), nil
 }
 
 // Apply implements renderers.Renderer: snapshot → atomic write of frr.conf and vtysh.conf →
-// `frr-reload.py --reload` (diff applied through vtysh; the daemons keep running) → on any
-// failure restore the snapshot and reload it. Idempotent: applying the running config again
-// is a no-op diff.
+// `frr-reload.py --reload` (diff applied through vtysh; the daemons keep running) →
+// convergence check → on any failure restore the snapshot and reload it.
+//
+// Convergence (RF-1 review H2): frr-reload.py feeds the added lines to `vtysh -f`, which
+// carries on after a line the daemon rejects and exits 0. So after a successful reload Apply
+// runs the same `--test` diff against the rendered files; anything left is a failure
+// ("not converged") and is rolled back like a failed reload.
+//
+// Idempotent: applying the running config again is a no-op diff. Not safe for concurrent use
+// on one set of paths: the commit engine serialises commits (one Apply at a time).
 func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 	if err := r.check(); err != nil {
 		return err
@@ -214,26 +239,46 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 	if err := renderers.WriteFiles(files); err != nil {
 		return errors.Join(err, snap.Restore())
 	}
-	reload := renderers.Command{
-		Path: ReloadBin, Args: r.paths.reloadArgs("--reload", r.paths.ConfFile()), Timeout: reloadTimeout,
+	applyErr := r.reload(ctx)
+	if applyErr == nil {
+		diff, err := r.DryRun(ctx, files)
+		switch {
+		case err != nil:
+			applyErr = fmt.Errorf("frr: convergence check: %w", err)
+		case diff != "":
+			applyErr = fmt.Errorf("%w: not converged after frr-reload.py --reload (FRR did not take these lines):\n%s", ErrDaemon, diff)
+		default:
+			return nil
+		}
 	}
-	out, err := r.runner.Run(ctx, reload)
-	if err == nil {
-		return nil
-	}
-	applyErr := fmt.Errorf("%w: frr-reload.py --reload: %s", ErrDaemon, toolMessage(out, err, ""))
+	// Roll back with a context of its own: the failure may have been the caller's deadline.
+	rbCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), reloadTimeout)
+	defer cancel()
 	restoreErr := snap.Restore()
 	if _, statErr := os.Stat(r.paths.ConfFile()); statErr == nil {
-		if _, rbErr := r.runner.Run(ctx, reload); rbErr != nil {
+		if rbErr := r.reload(rbCtx); rbErr != nil {
 			restoreErr = errors.Join(restoreErr, fmt.Errorf("frr: reloading the previous config: %w", rbErr))
 		}
 	}
+	// With no previous frr.conf (never the case in the product: the package ships one) the
+	// snapshot restore removes the file and nothing is reloaded: the daemons keep what was
+	// applied until the next successful Apply.
 	return errors.Join(applyErr, restoreErr)
+}
+
+func (r *Renderer) reload(ctx context.Context) error {
+	out, err := r.runner.Run(ctx, renderers.Command{
+		Path: ReloadBin, Args: r.paths.reloadArgs("--reload", r.paths.ConfFile()), Timeout: reloadTimeout,
+	})
+	if err != nil {
+		return fmt.Errorf("%w: frr-reload.py --reload: %s", ErrDaemon, r.toolMessage(out, err, ""))
+	}
+	return nil
 }
 
 // toolMessage condenses a failed tool run into one line for the error (stdout first: vtysh
 // -C prints "line N: % Unknown command" there), with the staging dir path shortened.
-func toolMessage(out renderers.Output, err error, stagingDir string) string {
+func (r *Renderer) toolMessage(out renderers.Output, err error, stagingDir string) string {
 	var parts []string
 	for _, b := range [][]byte{out.Stdout, out.Stderr} {
 		if s := strings.TrimSpace(string(bytes.ToValidUTF8(b, []byte("?")))); s != "" {
@@ -247,7 +292,7 @@ func toolMessage(out renderers.Output, err error, stagingDir string) string {
 	if stagingDir != "" {
 		msg = strings.ReplaceAll(msg, stagingDir, "<staging>")
 	}
-	msg = strings.Join(strings.Fields(msg), " ")
+	msg = r.secrets.redact(strings.Join(strings.Fields(msg), " "))
 	if len(msg) > 1024 {
 		msg = msg[:1024] + "..."
 	}

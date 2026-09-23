@@ -109,6 +109,27 @@ type Harness struct {
 	ownNetNS bool
 	symlink  string
 	uid, gid int // of user frr
+	lock     *os.File
+}
+
+// LockFile is the slot-scoped harness lock (flock LOCK_EX for the harness lifetime).
+func LockFile(prefix string) string { return filepath.Join("/run/vrx-test", prefix, "frr.lock") }
+
+func (h *Harness) lockSlot() error {
+	path := LockFile(h.prefix)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { //nolint:gosec // /run/vrx-test/<prefix>, shared-host layout
+		return err
+	}
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600) //nolint:gosec // slot lock file, no content
+	if err != nil {
+		return err
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("lock %s: %w", path, err)
+	}
+	h.lock = f
+	return nil
 }
 
 var prefixRe = regexp.MustCompile(`^[a-z][a-z0-9]{1,5}$`)
@@ -149,7 +170,7 @@ func start(ctx context.Context, opts Options) (*Harness, error) {
 	paths := frr.TestPaths(opts.Prefix)
 	h := &Harness{
 		Paths:   paths,
-		Runner:  renderers.NewSystemRunner(renderers.NewAllowlist(Binaries()...)),
+		Runner:  &renderers.SystemRunner{Allow: renderers.NewAllowlist(Binaries()...), MaxOutput: frr.MaxShowOutput},
 		Base:    filepath.Dir(paths.ConfDir),
 		prefix:  opts.Prefix,
 		daemons: slices.Clone(daemons),
@@ -158,6 +179,12 @@ func start(ctx context.Context, opts Options) (*Harness, error) {
 	}
 	if !strings.HasPrefix(h.Base, "/run/vrx-test/"+opts.Prefix+"/") {
 		return nil, fmt.Errorf("base %s is not under /run/vrx-test/%s", h.Base, opts.Prefix)
+	}
+	// One harness per slot prefix at a time (RF-1 review M4): packages run in parallel under
+	// the same VRX_TEST_PREFIX would otherwise kill each other's daemons in killStale and
+	// remove each other's directories. The lock file lives next to (not in) the base dir.
+	if err := h.lockSlot(); err != nil {
+		return nil, err
 	}
 	// Leftovers of a killed earlier run of this harness (same prefix, same paths) go first.
 	h.killStale()
@@ -369,7 +396,7 @@ func (h *Harness) startDaemon(ctx context.Context, d string) error {
 	deadline := time.Now().Add(startTimeout)
 	for {
 		pid, err := h.readPID(d)
-		if err == nil && alive(pid) {
+		if err == nil && alive(pid) && h.ours(d, pid) {
 			if _, err := os.Stat(filepath.Join(h.Paths.SocketDir(), d+".vty")); err == nil {
 				h.pids[d] = pid
 				return nil
@@ -394,11 +421,16 @@ func alive(pid int) bool {
 	return pid > 0 && syscall.Kill(pid, 0) == nil
 }
 
-// ours reports whether pid is an FRR daemon started with this harness's paths (a guard
-// against a recycled PID before any signal is sent).
-func (h *Harness) ours(pid int) bool {
+// ours reports whether pid is daemon d started by this harness: /proc/<pid>/exe is the
+// daemon binary and its argv carries `-i <this harness's pidfile for d>` (a guard against a
+// recycled PID or an unrelated process whose cmdline mentions the path, e.g. `tail -f`).
+func (h *Harness) ours(d string, pid int) bool {
+	exe, err := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
+	if err != nil || exe != daemonBins[d] {
+		return false
+	}
 	b, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
-	return err == nil && bytes.Contains(b, []byte(h.Paths.SocketDir()))
+	return err == nil && bytes.Contains(b, []byte("\x00-i\x00"+h.pidFile(d)+"\x00"))
 }
 
 // PIDs returns the current PID of each started daemon (from its pidfile).
@@ -412,10 +444,11 @@ func (h *Harness) PIDs() map[string]int {
 	return out
 }
 
-// Renderer returns an FRR renderer bound to this harness (paths, runner, no registered
-// protocol sections unless opts add them).
+// Renderer returns an FRR renderer bound to this harness (paths, runner, IdentityMapper —
+// the test namespace's devices are Linux interfaces; later opts override).
 func (h *Harness) Renderer(opts ...frr.Option) *frr.Renderer {
-	return frr.New(h.Runner, append([]frr.Option{frr.WithPaths(h.Paths)}, opts...)...)
+	base := []frr.Option{frr.WithPaths(h.Paths), frr.WithInterfaceMapper(frr.IdentityMapper)}
+	return frr.New(h.Runner, append(base, opts...)...)
 }
 
 // AssertScoped fails t when a rendered config names an interface or VRF without the slot
@@ -446,12 +479,12 @@ func (h *Harness) Stop() error {
 	for _, d := range slices.Backward(h.daemons) {
 		pid, ok := h.pids[d]
 		if !ok {
-			if p, err := h.readPID(d); err == nil && h.ours(p) {
+			if p, err := h.readPID(d); err == nil && h.ours(d, p) {
 				pid, ok = p, true
 			}
 		}
 		if ok {
-			if err := h.kill(pid); err != nil {
+			if err := h.kill(d, pid); err != nil {
 				errs = append(errs, fmt.Errorf("%s (pid %d): %w", d, pid, err))
 			}
 			delete(h.pids, d)
@@ -471,25 +504,29 @@ func (h *Harness) Stop() error {
 	if err := os.RemoveAll(h.Base); err != nil {
 		errs = append(errs, err)
 	}
+	if h.lock != nil {
+		_ = h.lock.Close() // releases the slot flock
+		h.lock = nil
+	}
 	return errors.Join(errs...)
 }
 
-func (h *Harness) kill(pid int) error {
+func (h *Harness) kill(d string, pid int) error {
 	if !alive(pid) {
 		return nil
 	}
-	if !h.ours(pid) {
+	if !h.ours(d, pid) {
 		return fmt.Errorf("pid %d is not a harness daemon any more: not signalled", pid)
 	}
 	if err := syscall.Kill(pid, syscall.SIGTERM); err != nil && !errors.Is(err, syscall.ESRCH) {
 		return err
 	}
 	deadline := time.Now().Add(10 * time.Second)
-	for alive(pid) && h.ours(pid) {
+	for alive(pid) && h.ours(d, pid) {
 		if time.Now().After(deadline) {
 			_ = syscall.Kill(pid, syscall.SIGKILL)
 			time.Sleep(200 * time.Millisecond)
-			if alive(pid) && h.ours(pid) {
+			if alive(pid) && h.ours(d, pid) {
 				return errors.New("still running after SIGKILL")
 			}
 			break
@@ -503,8 +540,8 @@ func (h *Harness) kill(pid int) error {
 // the same test paths, cmdline naming the same socket dir) and removes the stale symlink.
 func (h *Harness) killStale() {
 	for d := range daemonBins {
-		if pid, err := h.readPID(d); err == nil && alive(pid) && h.ours(pid) {
-			_ = h.kill(pid)
+		if pid, err := h.readPID(d); err == nil && alive(pid) && h.ours(d, pid) {
+			_ = h.kill(d, pid)
 		}
 	}
 	if target, err := os.Readlink(h.symlink); err == nil && target == h.Paths.SocketDir() {

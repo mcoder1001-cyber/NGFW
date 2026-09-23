@@ -40,7 +40,7 @@ func TestValidateArgvAndStaging(t *testing.T) {
 		staged = string(b)
 		return renderers.Output{}, nil
 	})
-	r := New(rr, WithPaths(p), WithSections())
+	r := New(rr, WithPaths(p), WithSections(), WithInterfaceMapper(IdentityMapper))
 	files, err := r.Render(context.Background(), staticDoc(t))
 	if err != nil {
 		t.Fatal(err)
@@ -76,7 +76,7 @@ func TestValidateReportsCheckerOutput(t *testing.T) {
 		out := renderers.Output{Stdout: []byte("line 7: % Unknown command[4]: ip route 10.0.0.0/8 bogus\n"), ExitCode: 2}
 		return out, &renderers.ExitError{Command: c, Output: out}
 	})
-	r := New(rr, WithPaths(p), WithSections())
+	r := New(rr, WithPaths(p), WithSections(), WithInterfaceMapper(IdentityMapper))
 	files, _ := r.Render(context.Background(), nil)
 	err := r.Validate(context.Background(), files)
 	if !errors.Is(err, ErrDaemon) || !strings.Contains(err.Error(), "line 7: % Unknown command") {
@@ -114,7 +114,7 @@ ip route 10.12.200.0/24 10.12.1.9
 func TestDryRunArgvAndDiff(t *testing.T) {
 	p := tempPaths(t)
 	rr := renderers.NewRecordingRunner().Succeed(ReloadBin, reloadTestOutput)
-	r := New(rr, WithPaths(p), WithSections())
+	r := New(rr, WithPaths(p), WithSections(), WithInterfaceMapper(IdentityMapper))
 	files, _ := r.Render(context.Background(), nil)
 	diff, err := r.DryRun(context.Background(), files)
 	if err != nil {
@@ -125,7 +125,7 @@ func TestDryRunArgvAndDiff(t *testing.T) {
 		t.Errorf("diff = %q, want %q", diff, want)
 	}
 	a := rr.Calls()[0].Args
-	wantPrefix := []string{"--test", "--log-level", "info", "--logfile", p.ReloadLog, "--bindir", "/usr/bin",
+	wantPrefix := []string{"--test", "--log-level", "critical", "--logfile", p.ReloadLog, "--bindir", "/usr/bin",
 		"--confdir", p.ConfDir, "--rundir", p.SocketDir(), "--vty_socket", p.RunDir, "--pathspace", "w12"}
 	if !slices.Equal(a[:len(wantPrefix)], wantPrefix) || len(a) != len(wantPrefix)+1 || a[len(a)-1] == p.ConfFile() {
 		t.Fatalf("argv = %q (the file must be the staged copy)", a)
@@ -138,7 +138,7 @@ func TestDryRunArgvAndDiff(t *testing.T) {
 func TestApplyWritesAtomicallyAndReloads(t *testing.T) {
 	p := tempPaths(t)
 	rr := renderers.NewRecordingRunner().Succeed(ReloadBin, "")
-	r := New(rr, WithPaths(p), WithSections())
+	r := New(rr, WithPaths(p), WithSections(), WithInterfaceMapper(IdentityMapper))
 	files, _ := r.Render(context.Background(), staticDoc(t))
 	if err := r.Apply(context.Background(), files); err != nil {
 		t.Fatal(err)
@@ -181,7 +181,7 @@ func TestApplyRestoresOnReloadFailure(t *testing.T) {
 		}
 		return renderers.Output{}, nil
 	})
-	r := New(rr, WithPaths(p), WithSections())
+	r := New(rr, WithPaths(p), WithSections(), WithInterfaceMapper(IdentityMapper))
 	files, _ := r.Render(context.Background(), staticDoc(t))
 	err := r.Apply(context.Background(), files)
 	if !errors.Is(err, ErrDaemon) || !strings.Contains(err.Error(), "vtysh failed") {
@@ -226,18 +226,21 @@ func showRunner(t *testing.T, answers map[ShowCommand]string) *renderers.Recordi
 }
 
 const (
-	ribV4 = `{"default":{"10.12.200.0/24":[{"prefix":"10.12.200.0/24","protocol":"static","vrfName":"default","distance":1,"selected":true,"installed":true,"nexthops":[{"ip":"10.12.1.1","interfaceName":"w12f0","active":true,"fib":true}]}],"10.12.1.0/24":[{"prefix":"10.12.1.0/24","protocol":"connected","vrfName":"default","selected":true,"installed":true,"nexthops":[{"interfaceName":"w12f0","active":true}]}]},"w12red":{"10.12.210.0/24":[{"prefix":"10.12.210.0/24","protocol":"static","vrfName":"w12red","tag":100,"distance":50,"nexthops":[{"blackhole":true,"unreachable":true,"active":true}]}]}}`
+	ribV4 = `{"default":{"10.12.200.0/24":[{"prefix":"10.12.200.0/24","protocol":"static","vrfName":"default","distance":1,"selected":true,"installed":true,"nexthops":[{"ip":"10.12.1.1","interfaceName":"w12f0","active":true,"fib":true}]}]},"w12red":{"10.12.210.0/24":[{"prefix":"10.12.210.0/24","protocol":"static","vrfName":"w12red","tag":100,"distance":50,"nexthops":[{"blackhole":true,"unreachable":true,"active":true}]}]}}`
 	ribV6 = `{"default":{}}`
 	ifs   = `{"default":{"w12f0":{"operationalStatus":"up","description":"\"; rm -rf /","vrfName":"default"},"lo":{"operationalStatus":"up","vrfName":"default"}}}`
 	rc    = "Building configuration...\n\nCurrent configuration:\n!\nfrr version 10.7.1\nfrr defaults traditional\nhostname vrx-a\n!\nip route 10.12.200.0/24 10.12.1.1\n!\nend\n"
 	vrfs  = "vrf w12red id 5 table 12001\nvrf w12blue inactive (configured)\n"
+	sumV4 = `{"default":{"routes":[{"fib":1,"rib":1,"type":"connected"},{"fib":1,"rib":1,"type":"local"},{"fib":1,"rib":1,"type":"static"}],"routesTotal":3},"w12red":{"routes":[{"fib":1,"rib":1,"type":"static"}],"routesTotal":1}}`
+	sumV6 = `{"default":{"routes":[{"fib":1,"rib":1,"type":"connected"}],"routesTotal":1}}`
 	ver   = "FRRouting 10.7.1 (vrx-a) on Linux(7.0.0-31-generic).\nCopyright 1996-2005 Kunihiro Ishiguro, et al.\n"
 )
 
 func standardAnswers() map[ShowCommand]string {
 	return map[ShowCommand]string{
 		ShowVersion: ver, ShowRunningConfig: rc, ShowVRF: vrfs,
-		ShowIPRouteAll: ribV4, ShowIPv6RouteAll: ribV6, ShowInterfaceAll: ifs,
+		ShowIPStaticAll: ribV4, ShowIPv6StaticAll: ribV6, ShowInterfaceAll: ifs,
+		ShowIPSummaryAll: sumV4, ShowIPv6SummaryAll: sumV6,
 		"show bgp summary json": `{"ipv4Unicast":{"routerId":"10.12.0.1","peers":{}}}`,
 	}
 }
@@ -261,7 +264,7 @@ func TestRetrieve(t *testing.T) {
 	if v, _ := got["vrfs"].([]any); len(v) != 2 {
 		t.Errorf("vrfs = %v", got["vrfs"])
 	}
-	for _, k := range []string{"ipv4Routes", "ipv6Routes", "interfaces", "bgpSummary"} {
+	for _, k := range []string{"staticRoutes", "summary", "interfaces", "bgpSummary"} {
 		if _, ok := got[k]; !ok {
 			t.Errorf("Retrieve has no %q", k)
 		}
@@ -277,9 +280,9 @@ func TestRetrieve(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	statics, err := st.StaticRoutes()
-	if err != nil {
-		t.Fatal(err)
+	statics := st.StaticRoutes
+	if st.Summary["ipv4/default/static"] != 1 || st.Summary["ipv4/w12red/static"] != 1 || st.Summary["ipv6/default/connected"] != 1 {
+		t.Errorf("summary = %v", st.Summary)
 	}
 	if len(statics) != 2 || statics[0].Prefix != "10.12.200.0/24" || statics[1].VRFName != "w12red" || !statics[1].Nexthops[0].Blackhole || statics[1].Tag != 100 {
 		t.Fatalf("static routes = %+v", statics)
@@ -347,7 +350,7 @@ func TestPollerEvents(t *testing.T) {
 		t.Fatalf("baseline: %v %v", ev, err)
 	}
 	answers[ShowInterfaceAll] = strings.Replace(ifs, `"w12f0":{"operationalStatus":"up"`, `"w12f0":{"operationalStatus":"down"`, 1)
-	answers[ShowIPRouteAll] = `{"default":{},"w12red":{}}`
+	answers[ShowIPSummaryAll] = `{"default":{"routes":[{"fib":1,"rib":1,"type":"connected"},{"fib":1,"rib":1,"type":"local"},{"fib":3,"rib":3,"type":"static"}]},"w12red":{"routes":[]}}`
 	ev, err := p.Step(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -356,8 +359,8 @@ func TestPollerEvents(t *testing.T) {
 	event := func(f ...string) Event { return Event{Poller: f[0], Key: f[1], Old: f[2], New: f[3]} }
 	want := []Event{
 		event("interfaces", "w12f0", "up", "down"),
-		event("routes", "ipv4/default", "2", ""),
-		event("routes", "ipv4/w12red", "1", ""),
+		event("routes", "ipv4/default/static", "1", "3"),
+		event("routes", "ipv4/w12red/static", "1", ""),
 	}
 	if !slices.Equal(ev, want) {
 		t.Fatalf("events = %+v\nwant %+v", ev, want)

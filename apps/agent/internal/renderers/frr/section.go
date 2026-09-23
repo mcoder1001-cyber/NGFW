@@ -10,8 +10,6 @@ import (
 	"sync"
 	"text/template"
 
-	"google.golang.org/protobuf/proto"
-
 	"ngfw/agent/internal/renderers"
 )
 
@@ -21,20 +19,22 @@ import (
 //
 // Protocol tasks (P12 BGP, F-ospf, F-isis-rip, F-bfd-redistribution, F-mpls-srmpls,
 // F-igmp-mfib) implement Section in their own package and call RegisterSection from init();
-// they never edit framework files. Render receives the message given to Renderer.Render
-// (a *vrxv1.DesiredState, or a *structpb.Struct during the D-055 stand-in period — use
-// frr.Desired to get the typed state) and returns complete config lines in FRR syntax,
-// including the block's own "exit"/"exit-vrf" lines. Every user string must pass one of the
-// escaping helpers (frr.Hostname/IfName/VRFName/Description, renderers.Ident/Addr/Network…);
-// the framework additionally rejects any line with a control character, an embedded newline
-// or a bare "end".
+// they never edit framework files. Render receives a RenderContext: the typed desired state
+// (rc.Desired, rc.Ext; rc.Input is the original message), the interface mapper
+// (rc.MapInterface) and the secret resolver (rc.Secret("password/<name>") — D-051/D-072; the
+// value is masked in everything the renderer returns). It returns complete config lines in
+// FRR syntax, including the block's own "exit"/"exit-vrf" lines. Every user string must pass
+// one of the escaping helpers (frr.Hostname/IfName/RouteIfName/VRFName/Description,
+// renderers.Ident/Addr/Network…); LINE-type tokens (descriptions) must never contain '|' —
+// FRR's CLI pipe hook cuts a line at "| " (review H1). The framework additionally rejects any
+// line with a control character, an embedded newline, "| " or a bare "end".
 type Section interface {
 	// Name is a unique lower-case identifier ("bgp", "ospf", "route-map").
 	Name() string
 	// Order places the section; protocol sections use OrderProtocolMin..OrderProtocolMax.
 	Order() int
 	// Render returns the section's lines; nil/empty means the section is absent.
-	Render(desired proto.Message) ([]string, error)
+	Render(rc *RenderContext) ([]string, error)
 }
 
 // Section order. The framework owns everything outside the protocol range.
@@ -124,14 +124,13 @@ type frameworkSection struct {
 func (s frameworkSection) Name() string { return s.name }
 func (s frameworkSection) Order() int   { return s.order }
 
-func (s frameworkSection) Render(desired proto.Message) ([]string, error) {
-	ds, ext, err := Desired(desired)
-	if err != nil {
-		return nil, err
-	}
-	m, err := BuildModel(ds, ext, s.mapIf)
-	if err != nil {
-		return nil, err
+func (s frameworkSection) Render(rc *RenderContext) ([]string, error) {
+	m := rc.model
+	if m == nil {
+		var err error
+		if m, err = BuildModel(rc.Desired, rc.Ext, s.mapIf); err != nil {
+			return nil, err
+		}
 	}
 	out, err := renderers.ExecuteTemplate(tmpl, s.name, struct {
 		Version string
@@ -173,6 +172,9 @@ func checkLine(section string, i int, line string) error {
 	if err := renderers.CheckRendered([]byte(line)); err != nil {
 		return fmt.Errorf("section %q line %d: %w", section, i+1, err)
 	}
+	if strings.Contains(line, "| ") || strings.HasSuffix(line, "|") {
+		return fmt.Errorf("%w: section %q line %d contains \"| \" (FRR's CLI pipe would cut the line)", renderers.ErrUnsafe, section, i+1)
+	}
 	if strings.TrimSpace(line) == "end" {
 		return fmt.Errorf("%w: section %q line %d is a bare \"end\" (would truncate frr.conf)", renderers.ErrUnsafe, section, i+1)
 	}
@@ -180,7 +182,7 @@ func checkLine(section string, i int, line string) error {
 }
 
 // assemble renders all sections in order into the complete frr.conf.
-func assemble(sections []Section, desired proto.Message) ([]byte, error) {
+func assemble(sections []Section, rc *RenderContext) ([]byte, error) {
 	ss := slices.Clone(sections)
 	sortSections(ss)
 	seen := map[string]bool{}
@@ -191,7 +193,7 @@ func assemble(sections []Section, desired proto.Message) ([]byte, error) {
 			return nil, fmt.Errorf("frr: section %q appears twice", name)
 		}
 		seen[name] = true
-		lines, err := s.Render(desired)
+		lines, err := s.Render(rc)
 		if err != nil {
 			return nil, fmt.Errorf("frr: section %q: %w", name, err)
 		}

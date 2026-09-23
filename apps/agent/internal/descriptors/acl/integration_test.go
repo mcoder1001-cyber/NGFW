@@ -375,6 +375,11 @@ func TestACLPluginOnHost(t *testing.T) {
 			t.Fatalf("enable counters (raw-stream reply handling): %v", err)
 		}
 		assertRetrieved(t, statsD, kv(statsD, StatsEnable{Enabled: true}.Proto()))
+		id, err := vppIdentity(ctx, c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("acl.stats-enable applied to VPP identity (main-thread PID from show_threads) %d", id)
 		paths, err := reader.ListPaths()
 		if err != nil {
 			t.Fatal(err)

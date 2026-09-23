@@ -478,7 +478,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D6.6
@@ -493,7 +493,8 @@ tasks:
   started: 2026-09-23T15:28
   finished: ''
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done 82d0e65 (35 types, CI green); V8/V13/V14 recorded; review
-    spawned (slot 11) | review BLOCK fb83447 (H1 globals, H2 range claims, H3 non-idempotent write-only → D-076, H4 logical names, M1–M5); fix round 1 | fix round a9b6005 CI green; re-review spawned'
+    spawned (slot 11) | review BLOCK fb83447 (H1 globals, H2 range claims, H3 non-idempotent write-only → D-076, H4 logical names, M1–M5); fix round 1 | fix round a9b6005 CI green; re-review spawned | re-review
+    APPROVE WITH CHANGES 910426f (N1 per-iface record by name, N2 PID identity → D-080, N3 claims survive VPP restart, N5 pppoe.cp move); fix round 2 (last); N4/N6/N7 → tech-debt'
 - id: DF-7
   title: 'Descriptors: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls'
   prompt: prompts/factories/DF-7.md
@@ -671,7 +672,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | consolidate D-080 boot-identity helper; install persisted ClaimStore/records (DF-1 Q5, DF-6 Q10, DF-8 Q8); retrofit DF-2/DF-4 records'
 - id: F-vlan-qinq
   title: 'Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking'
   prompt: prompts/features/F-vlan-qinq.md
@@ -2005,7 +2006,7 @@ tasks:
   - P02a
   priority: 3
   est_hours: 8
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.6
@@ -2016,7 +2017,7 @@ tasks:
   owner: host-agent slot12
   started: 2026-09-24T02:30
   finished: ''
-  notes: 'D-058: added — PENDING-handover option 1 relies on it'
+  notes: 'D-058: added — PENDING-handover option 1 relies on it | worker done 2888b94 CI green; review spawned; D-081'
 - id: F-vpp-debs
   title: 'VPP package build pipeline: pinned 26.06 source, patch series, reproducible .deb build script'
   prompt: prompts/features/F-vpp-debs.md
@@ -2026,16 +2027,16 @@ tasks:
   - P01
   priority: 5
   est_hours: 8
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.2
   scope: build script + patch dir + docs; does not touch /root/vpp or the running service (D-058)
-  files_owned: ''
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  files_owned: deploy/vpp/**
+  branch: task/F-vpp-debs
+  worktree: /root/ngfw-wt/F-vpp-debs
+  owner: host-agent slot2
+  started: 2026-09-24T03:20
   finished: ''
   notes: 'D-058: added; P10 consumes its output'
 - id: F-ha-state-sync

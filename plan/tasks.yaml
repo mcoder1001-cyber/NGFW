@@ -252,7 +252,7 @@ tasks:
   - P04
   priority: 1
   est_hours: 21
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.7
@@ -267,7 +267,7 @@ tasks:
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done 5062933 (CI green, kill -9 restart sim, confirm timer);
     review spawned (slot 7) | review BLOCK b7d8533 (H1 foreign VRF delete, H2 foreign route overwrite, H3 lost revert, M1–M4); fix round 1 | fix round e83cbc6 CI green; re-review spawned | D-072: static-route
     descriptor must skip routes where frr.StaticOwnedByFRR (RF-1 hook) — P08 wiring | re-review BLOCK 40c1b43 (N1 route ownership ignores FIB source, N2 owed revert blocks all Apply forever); fix round
-    2 (last)'
+    2 (last) | fix round 2 24e4cd7 CI green; targeted verify (N1/N2) spawned'
 - id: P06
   title: 'API core: datastore, commit engine, auth/RBAC/audit, telemetry relay'
   prompt: prompts/P06-api-core.md

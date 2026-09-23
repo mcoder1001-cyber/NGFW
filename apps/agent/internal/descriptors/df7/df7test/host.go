@@ -43,9 +43,10 @@ func StartHost(t *testing.T) *Host {
 	t.Helper()
 	vpptest.SkipUnlessIntegration(t)
 	vpptest.LockLab(t)
+	c := Connect(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	t.Cleanup(cancel)
-	return &Host{T: t, Ctx: ctx, C: Connect(t), Owner: vpptest.Prefix(t), Slot: vpptest.Slot(t), TableB: vpptest.TableBase(t)}
+	t.Cleanup(cancel) // registered after Connect: event watchers unregister before the disconnect
+	return &Host{T: t, Ctx: ctx, C: c, Owner: vpptest.Prefix(t), Slot: vpptest.Slot(t), TableB: vpptest.TableBase(t)}
 }
 
 // Connect opens a new govpp connection (closed in Cleanup). A second connection is what the

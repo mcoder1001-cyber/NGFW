@@ -7,8 +7,8 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 | state | tasks |
 |---|---|
 | merged | 15 |
-| review | 0 |
-| running | 12 |
+| review | 1 |
+| running | 11 |
 | ready | 0 |
 | parked | 0 |
 | failed | 0 |
@@ -18,7 +18,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
-| S2 | 62 / 223 | 27.8% | 5/17 | 11 | 0 | 0 |
+| S2 | 62 / 223 | 27.8% | 5/17 | 10 | 0 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
 | S4 | 0 / 384 | 0.0% | 0/37 | 0 | 0 | 0 |
 | S5 | 0 / 128 | 0.0% | 0/13 | 1 | 0 | 0 |
@@ -36,7 +36,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 - RF-2 — Renderers: strongswan (swanctl/VICI path; vrx build lands in P11) (running, host-agent slot3)
 - RF-3 — Renderers: kea-dhcp4/6 + ctrl-agent, unbound, chrony (running, host-agent slot6)
 - RF-4 — Renderers: snmpd, keepalived, rsyslog (running, host-agent slot8)
-- F-startup-gen — startup.conf generator: hugepages, workers, RSS, NUMA, isolcpus, dpdk dev/name mapping, plugin enable list (running, host-agent slot12)
+- F-startup-gen — startup.conf generator: hugepages, workers, RSS, NUMA, isolcpus, dpdk dev/name mapping, plugin enable list (review, host-agent slot12)
 - F-vpp-debs — VPP package build pipeline: pinned 26.06 source, patch series, reproducible .deb build script (running, host-agent slot2)
 
 ## Parked

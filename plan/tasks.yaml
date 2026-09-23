@@ -2006,7 +2006,7 @@ tasks:
   - P02a
   priority: 3
   est_hours: 8
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.6
@@ -2017,7 +2017,7 @@ tasks:
   owner: host-agent slot12
   started: 2026-09-24T02:30
   finished: ''
-  notes: 'D-058: added — PENDING-handover option 1 relies on it'
+  notes: 'D-058: added — PENDING-handover option 1 relies on it | worker done 2888b94 CI green; review spawned; D-081'
 - id: F-vpp-debs
   title: 'VPP package build pipeline: pinned 26.06 source, patch series, reproducible .deb build script'
   prompt: prompts/features/F-vpp-debs.md

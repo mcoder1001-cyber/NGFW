@@ -596,18 +596,18 @@ tasks:
   - P03
   priority: 2
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D7.1
   - D7.3
   - D7.4
   scope: kea-dhcp4/6 + ctrl-agent, unbound, chrony
-  files_owned: apps/agent/internal/renderers/<daemons of RF-3>/**
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  files_owned: apps/agent/internal/renderers/{kea,unbound,chrony}/**
+  branch: task/RF-3
+  worktree: /root/ngfw-wt/RF-3
+  owner: host-agent slot6
+  started: 2026-09-24T00:58
   finished: ''
   notes: test-scoped daemon processes only; system units untouched
 - id: RF-4

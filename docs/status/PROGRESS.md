@@ -8,8 +8,8 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|
 | merged | 9 |
 | review | 1 |
-| running | 10 |
-| ready | 4 |
+| running | 11 |
+| ready | 3 |
 | parked | 0 |
 | failed | 0 |
 | todo | 58 |
@@ -18,7 +18,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S1 | 56 / 71 | 78.9% | 7/9 | 1 | 0 | 0 |
-| S2 | 12 / 223 | 5.4% | 1/17 | 9 | 3 | 0 |
+| S2 | 12 / 223 | 5.4% | 1/17 | 10 | 2 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
 | S4 | 0 / 384 | 0.0% | 0/37 | 0 | 0 | 0 |
 | S5 | 0 / 128 | 0.0% | 0/13 | 0 | 1 | 0 |
@@ -37,6 +37,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 - DF-7 — Descriptors: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls (running, host-agent slot10)
 - DF-8 — Descriptors: dhcp, dns, flowprobe, sflow, prom, pcap/tracenode, lcp [skip-unless-loaded] (running, host-agent slot5)
 - RF-1 — Renderers: frr (renderer framework: files, vtysh -C, frr-reload.py, JSON state; protocol semantics in P12/F-*) (running, host-agent slot12)
+- RF-3 — Renderers: kea-dhcp4/6 + ctrl-agent, unbound, chrony (running, host-agent slot6)
 
 ## Parked
 

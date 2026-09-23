@@ -664,6 +664,41 @@ export interface components {
        * @default []
        */
       pciWhitelist: string[];
+      /**
+       * Management NICs
+       * @default []
+       */
+      managementPci: string[];
+      /**
+       * DPDK devices
+       * @default {}
+       */
+      devices: {
+        [key: string]: {
+          /** Logical name */
+          name?: string;
+          /** RX queues */
+          rxQueues?: number;
+          /** TX queues */
+          txQueues?: number;
+          /** RX descriptors */
+          rxDesc?: number;
+          /** TX descriptors */
+          txDesc?: number;
+        };
+      };
+      /** Buffers per NUMA node */
+      buffersPerNuma?: number;
+      /** Plugins */
+      plugins?: {
+        /**
+         * Plugin switches
+         * @default {}
+         */
+        switches: {
+          [key: string]: boolean;
+        };
+      };
     };
     /**
      * Interfaces

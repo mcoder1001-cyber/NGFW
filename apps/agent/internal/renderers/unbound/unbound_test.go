@@ -353,7 +353,7 @@ func TestApply(t *testing.T) {
 			t.Fatal(err)
 		}
 		old := []byte("# old\n")
-		if err := os.WriteFile(p.Conf(), old, 0o640); err != nil {
+		if err := os.WriteFile(p.Conf(), old, 0o600); err != nil {
 			t.Fatal(err)
 		}
 		rr := renderers.NewRecordingRunner().FailWith(ControlBin, 1, "error: reload failed")

@@ -186,9 +186,13 @@ func (p Paths) Leases4() string { return filepath.Join(p.DataDir, "leases4.csv")
 // Leases6 is the DHCPv6 memfile.
 func (p Paths) Leases6() string { return filepath.Join(p.DataDir, "leases6.csv") }
 
-// Log4, Log6 and LogCtrlAgent are the daemons' log files.
-func (p Paths) Log4() string         { return filepath.Join(p.LogDir, "kea-dhcp4.log") }
-func (p Paths) Log6() string         { return filepath.Join(p.LogDir, "kea-dhcp6.log") }
+// Log4 is kea-dhcp4's log file.
+func (p Paths) Log4() string { return filepath.Join(p.LogDir, "kea-dhcp4.log") }
+
+// Log6 is kea-dhcp6's log file.
+func (p Paths) Log6() string { return filepath.Join(p.LogDir, "kea-dhcp6.log") }
+
+// LogCtrlAgent is kea-ctrl-agent's log file.
 func (p Paths) LogCtrlAgent() string { return filepath.Join(p.LogDir, "kea-ctrl-agent.log") }
 
 // socket returns the control socket of family 4 or 6.

@@ -52,7 +52,7 @@ func setupRig(t *testing.T) *rig {
 		if err := os.MkdirAll(d, 0o750); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Chmod(d, 0o750); err != nil {
+		if err := os.Chmod(d, 0o750); err != nil { //nolint:gosec // directory; Kea 3.0 requires ≤ 0750 on the socket dir
 			t.Fatal(err)
 		}
 	}

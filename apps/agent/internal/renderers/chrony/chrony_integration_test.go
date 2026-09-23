@@ -52,15 +52,15 @@ func prepare(t *testing.T, prefix, name string, sourcePort uint16, secrets Secre
 		if err := os.Chown(d, uid, gid); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Chmod(d, 0o750); err != nil {
+		if err := os.Chmod(d, 0o750); err != nil { //nolint:gosec // directory: _chrony must traverse it
 			t.Fatal(err)
 		}
 	}
-	if err := os.MkdirAll(p.SourceDir(), 0o755); err != nil {
+	if err := os.MkdirAll(p.SourceDir(), 0o755); err != nil { //nolint:gosec // chronyd reads sourcedir as _chrony
 		t.Fatal(err)
 	}
 	// chronyd and chronyc run as _chrony after dropping root: the parent must be traversable.
-	if err := os.Chmod(filepath.Dir(p.ConfDir), 0o755); err != nil {
+	if err := os.Chmod(filepath.Dir(p.ConfDir), 0o755); err != nil { //nolint:gosec // parent must be traversable by _chrony
 		t.Fatal(err)
 	}
 	return &instance{paths: p, r: New(NewRunner(), WithPaths(p), WithSecrets(secrets)), log: filepath.Join(p.LogDir, "chronyd.log")}

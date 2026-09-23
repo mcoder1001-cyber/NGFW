@@ -174,7 +174,7 @@ func TestKeys(t *testing.T) {
 }
 
 func TestSecretErrorsDoNotLeak(t *testing.T) {
-	leaky := func(ref string) ([]byte, error) {
+	leaky := func(string) ([]byte, error) {
 		return nil, fmt.Errorf("backend said: value VRX_TEST_PSK_RF3_leak is expired")
 	}
 	r := New(renderers.NewRecordingRunner(), WithPaths(unitPaths()), WithSecrets(leaky))
@@ -302,7 +302,7 @@ func tmpPaths(t *testing.T) Paths {
 	d := t.TempDir()
 	p.ConfDir, p.RunDir, p.StateDir, p.LogDir = d, d, d, d
 	p.FileOwner, p.KeyOwner = "", ""
-	if err := os.MkdirAll(p.SourceDir(), 0o755); err != nil {
+	if err := os.MkdirAll(p.SourceDir(), 0o750); err != nil {
 		t.Fatal(err)
 	}
 	return p

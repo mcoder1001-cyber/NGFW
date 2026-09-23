@@ -7,6 +7,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -393,7 +394,7 @@ type fakeCtrl struct {
 }
 
 func (f *fakeCtrl) Command(_ context.Context, fam int, cmd string, args any) (Response, error) {
-	f.calls = append(f.calls, cmd+"/"+string(rune('0'+fam)))
+	f.calls = append(f.calls, cmd+"/"+strconv.Itoa(fam))
 	if !f.running[fam] {
 		return Response{}, ErrNotRunning
 	}

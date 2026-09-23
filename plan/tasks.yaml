@@ -96,7 +96,7 @@ tasks:
   owner: desktop-agent slot5
   started: 2026-09-23T13:35
   finished: ''
-  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1'
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | review APPROVE WITH CHANGES (M1-M5 before tag) → fix round'
 - id: P02c
   title: 'Schema group (c): vpn, tunnels, services, ha'
   prompt: prompts/P02-schema-package.md

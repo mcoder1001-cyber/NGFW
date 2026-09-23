@@ -33,7 +33,7 @@ environment (all optional):
   VRX_CI_LOCK_TIMEOUT=<seconds>  how long `full` waits for the exclusive lock, before rig up and before rig down (default 1800)
   VRX_CI_SLOT=<n>                slot used by `full` (default 12 = the CI slot, docs/lab/shared-host-rules.md)
   VRX_CI_REQUIRE_INTEGRATION=1   make `full` fail (instead of warn) when tools/lab is not available
-  VRX_CI_HEAD_REF=<ref>          the branch tip for --base (default HEAD; the pre-merge-commit hook passes MERGE_HEAD)
+  VRX_CI_HEAD_REF=<ref>          the branch tip for --base (default HEAD; the pre-merge-commit hook passes the ref being merged)
   GOLANGCI_LINT_VERSION / GITLEAKS_VERSION   override the pinned tool versions for install-tools
   TURBO_CACHE_DIR                shared turbo cache (default ~/.cache/vrx-turbo); GOCACHE: go's default (~/.cache/go-build)
 EOF
@@ -51,7 +51,7 @@ CONTRACT_PATHS=(packages/schema packages/proto apps/agent/gen packages/api-clien
 # the control plane: never shells out, never talks to VPP directly (00-CONTEXT rules 1 and 9)
 CONTROL_PLANE_PATHS=(apps/api/src apps/web/src 'packages/*/src')
 
-TIP="${VRX_CI_HEAD_REF:-HEAD}"    # the branch under test for --base: HEAD, or MERGE_HEAD inside the pre-merge-commit hook
+TIP="${VRX_CI_HEAD_REF:-HEAD}"    # the branch under test for --base: HEAD, or the branch being merged inside the pre-merge-commit hook
 LOCK_FILE="${VRX_CI_LOCK:-/run/lock/vrx-lab.lock}"
 LOCK_TIMEOUT="${VRX_CI_LOCK_TIMEOUT:-1800}"
 CI_SLOT="${VRX_CI_SLOT:-12}"
@@ -223,16 +223,20 @@ set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
 cd "$(git rev-parse --show-toplevel)"
 [[ -x tools/ci.sh ]] || { echo "pre-merge-commit: tools/ci.sh not found — refusing the merge" >&2; exit 1; }
-if [[ -f $(git rev-parse --git-path MERGE_HEAD) ]]; then
-  # the quick gate on the merged tree + the contract guard / gitleaks on the commits being merged (MERGE_HEAD vs HEAD)
-  echo "pre-merge-commit: tools/ci.sh quick --base HEAD on the merged tree, contract guard on $(git rev-parse --short MERGE_HEAD) (git merge --no-verify bypasses this)" >&2
-  VRX_CI_HEAD_REF=MERGE_HEAD exec tools/ci.sh quick --base HEAD
+# Which branch is being merged? git writes MERGE_HEAD only AFTER this hook, but it exports GIT_REFLOG_ACTION="merge <ref>"
+# with the ref named on the command line (git merge --no-ff task/<id> → "merge task/<id>").
+tip=""
+case "${GIT_REFLOG_ACTION:-}" in "merge "*) tip=${GIT_REFLOG_ACTION#merge }; tip=${tip%% *} ;; esac
+if [[ -n $tip ]] && git rev-parse -q --verify "$tip^{commit}" >/dev/null 2>&1; then
+  # the quick gate on the merged tree + the contract guard / gitleaks on the commits of the branch being merged
+  echo "pre-merge-commit: tools/ci.sh quick --base HEAD on the merged tree; contract guard + gitleaks on '$tip' ($(git rev-parse --short "$tip")) (git merge --no-verify bypasses this)" >&2
+  VRX_CI_HEAD_REF=$tip exec tools/ci.sh quick --base HEAD
 fi
-echo "pre-merge-commit: running tools/ci.sh quick on the merged tree (git merge --no-verify bypasses this)" >&2
+echo "pre-merge-commit: cannot tell which ref is being merged (GIT_REFLOG_ACTION='${GIT_REFLOG_ACTION:-}') — running tools/ci.sh quick on the merged tree without the contract guard (git merge --no-verify bypasses this)" >&2
 exec tools/ci.sh quick
 HOOK
   chmod 0755 "$f"
-  echo "installed $f  → runs 'tools/ci.sh quick --base HEAD' (contract guard on MERGE_HEAD) before every merge commit in $(readlink -f "$repo")"
+  echo "installed $f  → runs 'tools/ci.sh quick --base HEAD' (contract guard on the branch being merged) before every merge commit in $(readlink -f "$repo")"
   echo "note: git runs pre-merge-commit only when it creates a merge commit — not for fast-forward or --squash merges (the manager merges with --no-ff)"
 }
 
@@ -249,8 +253,8 @@ preflight() {
   if [[ -n ${VRX_INTEGRATION:-} ]]; then warn "VRX_INTEGRATION was set in the environment — ignored: the quick gate is unit-only"; fi
   unset VRX_INTEGRATION
   local gen_re dirty; gen_re=$(IFS='|'; echo "${GEN_PATHS[*]}")
-  if [[ -f $(git rev-parse --git-path MERGE_HEAD) ]]; then
-    say "merge     in progress: $(git rev-parse --short MERGE_HEAD) into $branch — the gate runs on the merged tree (pre-merge-commit hook)"
+  if [[ -n ${VRX_CI_HEAD_REF:-} && $TIP != HEAD ]] || [[ -f $(git rev-parse --git-path MERGE_HEAD) ]]; then
+    say "merge     in progress: $TIP into $branch — the gate runs on the merged tree (pre-merge-commit hook)"
     dirty=""
   else
     dirty=$(git status --porcelain --untracked-files=normal | grep -vE "^.. ($gen_re)" || true)

@@ -180,17 +180,16 @@ export const username = withUi(
   { title: 'Username' },
 );
 
+// eslint-disable-next-line no-control-regex -- matching control characters is the purpose of this pattern
+const NO_CONTROL_CHARS = /^[^\u0000-\u0008\u000a-\u001f\u007f-\u009f]*$/;
+
 /** Free-text description shown in lists (single line, ≤ 255 characters). */
 export const descriptionText = withUi(
   z
     .string()
     .max(255)
     // single line, no C0/C1 control characters (TAB allowed) — descriptions end up in CLI output and log lines
-    // eslint-disable-next-line no-control-regex -- matching control characters is the purpose of this pattern
-    .regex(
-      /^[^\u0000-\u0008\u000a-\u001f\u007f-\u009f]*$/,
-      'single line without control characters',
-    ),
+    .regex(NO_CONTROL_CHARS, 'single line without control characters'),
   { title: 'Description' },
 );
 

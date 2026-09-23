@@ -1,7 +1,7 @@
 # pcap capture descriptors (DF-8, WBS D8.2)
 
 Package `apps/agent/internal/descriptors/pcap` — VPP's built-in pcap dispatch capture (vnet `interface.api`) and the
-filter function it uses. Message names only from `apps/agent/binapi/interface`. `pcap.Register(registry, client, owner, opts...)` (+ `RegisterGlobals` for the filter function).
+filter function it uses. Message names only from `apps/agent/binapi/interface`. `pcap.Register(registry, client, owner, bootStore, opts...)` (+ `RegisterGlobals` for the filter function).
 
 | Object type | Key | VPP messages | Retrieve | Update | Dependencies |
 |---|---|---|---|---|---|
@@ -20,7 +20,9 @@ max_bytes_per_packet 32..9000, filter, error ("node/error", optional), file}`; `
   `VALUE_EXIST` when nothing ran; both count as deleted.
 - **Capture file under /tmp:** VPP takes a bare file name and writes `/tmp/<file>` (`unformat_vlib_tmpfile` rejects
   "/" and ".."), so files cannot live under `/run/vrx-test/<prefix>/` as the prompt asked; Validate rejects paths,
-  tests use `/tmp/<prefix>-df8.pcap` and remove it. Recorded as a decision in `DF-8.md`.
+  the file name must start with `<owner>-` (review L1; tests use `/tmp/<prefix>-df8.pcap` and remove
+  it). VPP creates the file world-readable (0664, `vppinfra/pcap.c`): F-capture-trace must move/chmod it to 0600 into an
+  agent directory after `pcap_trace_off` and apply a retention policy.
 - `interface: "any"` is sw_if_index 0 in `pcap_trace_on` — VPP's "any" wildcard, not `local0`.
 - No pcap status/dump message exists (`pcap trace status` is CLI only) → write-only (D-063).
 - The filter function names are VPP-registered trace filter functions (`vnet_is_packet_traced`, `bpf_trace_filter`);
@@ -35,13 +37,21 @@ max_bytes_per_packet 32..9000, filter, error ("node/error", optional), file}`; `
 - Interfaces are named by their **logical name** and resolved with DF-1's `iface.ResolveName` (D-069): this owner's
   tag id first, then an untagged interface's VPP name; another owner's interface fails with
   `iface.ErrForeignInterface`, local0 never resolves. Objects on an **untagged** interface (a DPDK NIC) are recorded
-  in the owner's ClaimStore (`iface.Claims`, shared with DF-1; P05/P08 install a persisted one) on Create, released on
-  Delete, and reported by Retrieve only while claimed (D-071 claim rule).
+  in the owner's ClaimStore (`iface.Claims`, shared with DF-1; P05/P08 install a persisted one) **only after VPP
+  accepted the add**, released on Delete, and reported by Retrieve only while claimed (D-071 claim rule). An object that
+  already exists on an untagged interface without our claim is **never adopted** (Create fails with
+  `dfkit.ErrNotOurs`, nothing is claimed) and Delete never touches it (review H1). Claims are bound to the D-080 VPP
+  boot identity (kernel boot_id, VPP main PID, VPP start time — `dfkit.BootIdentity`) and the sw_if_index, so they
+  expire when VPP restarts or the name moves to another interface.
 - Deletes re-resolve the logical name right before acting by sw_if_index (never a Meta index — indexes are reused
   after a VPP restart) and first check that the object still exists (D-074); "already gone" is success.
 - Retrieve never reports a key twice (`dfkit.Dedupe`).
-- **D-076:** `pcap_trace_on` is not idempotent (`INVALID_VALUE` while a capture runs); the applied capture is recorded
-  in the owner's BootStore (`dfkit.Boot`, keyed by the VPP main-thread PID) so a resync skips the re-add and Delete
+- **D-076 / review M4:** the BootStore is an explicit `NewCapture`/`Register` argument (nil panics); the agent passes a
+  persisted `dfkit.NewFileBootStore` so a restarted agent recognises — and can stop — its own capture (host-verified).
+  Records are bound to the D-080 boot identity. `pcap_trace_on` is not idempotent (`INVALID_VALUE` while a capture runs); the applied capture is recorded
+  in that BootStore so a resync skips the re-add and Delete
   stops only a capture this owner started on the running VPP process; after a VPP restart it is started once more.
 - Restart simulation (fresh connection + fresh descriptors → empty plan; objects deleted via binapi → exactly their
   re-creation planned → empty plan again): `internal/descriptors/dfkit/restarttest`, output in `DF-8.md`.
+
+- The filter-function host test is opt-in (`VRX_DF8_GLOBALS=1`, getter-less VPP-global, review M3).

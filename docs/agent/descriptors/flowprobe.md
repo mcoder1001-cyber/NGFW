@@ -7,7 +7,7 @@ option `WithInterfaceKey`.
 | Object type | Key | VPP messages | Retrieve | Update | Dependencies |
 |---|---|---|---|---|---|
 | `flowprobe.params` (singleton) | `flowprobe.params/global` | `flowprobe_set_params`; delete = record 0 + default timers (15/120) | `flowprobe_get_params` while a record flag is set | `ErrRecreate` (see below) | — |
-| `flowprobe.interface` | `flowprobe.interface/<ifname>` | `flowprobe_interface_add_del` is_add=1 / 0 (which ip4\|ip6\|l2, direction rx\|tx\|both) | `flowprobe_interface_dump` (owned interfaces) | `ErrRecreate` | `interface/<ifname>`, `flowprobe.params/global` (mandatory — VPP refuses interfaces before record flags are set), `ipfix.default-exporter/global` optional |
+| `flowprobe.interface` | `flowprobe.interface/<ifname>` | `flowprobe_interface_add_del` is_add=1 / 0 (which ip4\|ip6\|l2, direction rx\|tx\|both) | `flowprobe_interface_dump` (owned interfaces) | `ErrRecreate` | `interface/<ifname>`, `flowprobe.params/global` optional (registered by the globals owner only, review L2; VPP refuses interfaces before record flags are set), `ipfix.default-exporter/global` optional |
 
 Value fields: `Params{record_l2, record_l3, record_l4, active_timer, passive_timer}` (explicit seconds, passive ≥ active
 unless 0 = off, at least one record flag); `Interface{interface, which, direction}`.
@@ -32,8 +32,12 @@ unless 0 = off, at least one record flag); `Interface{interface, which, directio
 - Interfaces are named by their **logical name** and resolved with DF-1's `iface.ResolveName` (D-069): this owner's
   tag id first, then an untagged interface's VPP name; another owner's interface fails with
   `iface.ErrForeignInterface`, local0 never resolves. Objects on an **untagged** interface (a DPDK NIC) are recorded
-  in the owner's ClaimStore (`iface.Claims`, shared with DF-1; P05/P08 install a persisted one) on Create, released on
-  Delete, and reported by Retrieve only while claimed (D-071 claim rule).
+  in the owner's ClaimStore (`iface.Claims`, shared with DF-1; P05/P08 install a persisted one) **only after VPP
+  accepted the add**, released on Delete, and reported by Retrieve only while claimed (D-071 claim rule). An object that
+  already exists on an untagged interface without our claim is **never adopted** (Create fails with
+  `dfkit.ErrNotOurs`, nothing is claimed) and Delete never touches it (review H1). Claims are bound to the D-080 VPP
+  boot identity (kernel boot_id, VPP main PID, VPP start time — `dfkit.BootIdentity`) and the sw_if_index, so they
+  expire when VPP restarts or the name moves to another interface.
 - Deletes re-resolve the logical name right before acting by sw_if_index (never a Meta index — indexes are reused
   after a VPP restart) and first check that the object still exists (D-074); "already gone" is success.
 - Retrieve never reports a key twice (`dfkit.Dedupe`).

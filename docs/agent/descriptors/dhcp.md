@@ -55,10 +55,23 @@ Status / actions (not desired state): `ClientDescriptor.Leases` (lease per owned
 - Interfaces are named by their **logical name** and resolved with DF-1's `iface.ResolveName` (D-069): this owner's
   tag id first, then an untagged interface's VPP name; another owner's interface fails with
   `iface.ErrForeignInterface`, local0 never resolves. Objects on an **untagged** interface (a DPDK NIC) are recorded
-  in the owner's ClaimStore (`iface.Claims`, shared with DF-1; P05/P08 install a persisted one) on Create, released on
-  Delete, and reported by Retrieve only while claimed (D-071 claim rule).
+  in the owner's ClaimStore (`iface.Claims`, shared with DF-1; P05/P08 install a persisted one) **only after VPP
+  accepted the add**, released on Delete, and reported by Retrieve only while claimed (D-071 claim rule). An object that
+  already exists on an untagged interface without our claim is **never adopted** (Create fails with
+  `dfkit.ErrNotOurs`, nothing is claimed) and Delete never touches it (review H1). Claims are bound to the D-080 VPP
+  boot identity (kernel boot_id, VPP main PID, VPP start time — `dfkit.BootIdentity`) and the sw_if_index, so they
+  expire when VPP restarts or the name moves to another interface.
 - Deletes re-resolve the logical name right before acting by sw_if_index (never a Meta index — indexes are reused
   after a VPP restart) and first check that the object still exists (D-074); "already gone" is success.
 - Retrieve never reports a key twice (`dfkit.Dedupe`).
 - Restart simulation (fresh connection + fresh descriptors → empty plan; objects deleted via binapi → exactly their
   re-creation planned → empty plan again): `internal/descriptors/dfkit/restarttest`, output in `DF-8.md`.
+
+## Review fixes (H1, M6, L6)
+- H1: a DHCP client (or DHCPv6 object) that exists on an untagged interface without our claim is never adopted, not even
+  when identical; the claim is recorded only after VPP accepted the add.
+- M6: VPP delivers `dhcp_compl_event` to the API connection that configured the client. The descriptor sends
+  `pid = agent PID | connection generation << 22` (`ClientDescriptor.EventPID`); Retrieve reports `want_events` only when
+  VPP holds exactly that pid, so a client configured by an earlier process or connection is drift → recreate on the
+  current connection. P05 calls `ClientDescriptor.Reconnected()` from its reconnect hook.
+- L6: VPP keeps one source address per rx VRF and family; a second server with another `src` is refused (`ErrSpec`).

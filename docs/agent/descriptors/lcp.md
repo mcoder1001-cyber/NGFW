@@ -41,10 +41,25 @@ fill it identically).
 - Interfaces are named by their **logical name** and resolved with DF-1's `iface.ResolveName` (D-069): this owner's
   tag id first, then an untagged interface's VPP name; another owner's interface fails with
   `iface.ErrForeignInterface`, local0 never resolves. Objects on an **untagged** interface (a DPDK NIC) are recorded
-  in the owner's ClaimStore (`iface.Claims`, shared with DF-1; P05/P08 install a persisted one) on Create, released on
-  Delete, and reported by Retrieve only while claimed (D-071 claim rule).
+  in the owner's ClaimStore (`iface.Claims`, shared with DF-1; P05/P08 install a persisted one) **only after VPP
+  accepted the add**, released on Delete, and reported by Retrieve only while claimed (D-071 claim rule). An object that
+  already exists on an untagged interface without our claim is **never adopted** (Create fails with
+  `dfkit.ErrNotOurs`, nothing is claimed) and Delete never touches it (review H1). Claims are bound to the D-080 VPP
+  boot identity (kernel boot_id, VPP main PID, VPP start time — `dfkit.BootIdentity`) and the sw_if_index, so they
+  expire when VPP restarts or the name moves to another interface.
 - Deletes re-resolve the logical name right before acting by sw_if_index (never a Meta index — indexes are reused
   after a VPP restart) and first check that the object still exists (D-074); "already gone" is success.
 - Retrieve never reports a key twice (`dfkit.Dedupe`).
 - Restart simulation (fresh connection + fresh descriptors → empty plan; objects deleted via binapi → exactly their
   re-creation planned → empty plan again): `internal/descriptors/dfkit/restarttest`, output in `DF-8.md`.
+
+## Review fixes (H1, L3, M3, VPP bug)
+- An existing pair on an untagged interface without our claim is never adopted — neither a different nor an identical
+  one (`dfkit.ErrNotOurs`); host regression: a raw pair on an untagged slot loopback survives Create/Retrieve/Delete.
+- L3 (open, P12): the VPP-side host tap (`tapN`) stays untagged; tagging it `<owner>:…` would make DF-1's tapv2
+  descriptor treat it as an owned, undesired tap and delete it.
+- VPP 26.06 bug: `lcp_default_ns_get` returns uninitialised bytes while no default netns is set (`REPLY_MACRO_DETAILS2`
+  does not zero `netns`; host run returned `"\xfd\x11"`); `Current` treats an invalid name as unset.
+- Host tests: `default-netns` is opt-in (`VRX_DF8_GLOBALS=1`: a nonexistent default netns would break other slots'
+  pairs meanwhile), `replace helpers` is opt-in (`VRX_DF8_LCP_REPLACE=1`: `replace_end` deletes pairs other slots create
+  meanwhile); both are unit-tested with the fake.

@@ -30,7 +30,7 @@ P05's shared helpers when they land.
   do nothing; feature toggles whose VPP enable stacks (gtpu / vxlan-gpe / vxlan bypass, l2tp decap, pppoe cp) and the
   SR-MPLS endpoint/color record a claim `<name>@vpp-<boot>` and send the enable once per VPP instance. The boot
   identity is the D-080 triple (kernel boot_id, VPP PID from `control_ping`, VPP start time from `/proc/<pid>/stat`
-  field 22; `df6.BootID`). Toggle records key on logical name **and** sw_if_index, and every toggle whose feature
+  field 22; `internal/vpp/bootid`). Toggle records key on logical name **and** sw_if_index, and every toggle whose feature
   node is known reads VPP's actual state with `feature_is_enabled` (`df6.FeatureProbe`), so an interface recreated on
   the same boot (new or reused index) gets its feature back exactly once. vxlan's handler keeps a per-index bitmap VPP
   never clears on interface delete; `ResetBeforeEnable` sends a (no-op when clear) disable before the enable.

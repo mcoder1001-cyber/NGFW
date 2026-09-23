@@ -81,7 +81,7 @@ Write-only Creates run again on every resync:
 - the one non-idempotent add is `cnat.snat-exclude-prefix`, because every add bumps a per-prefix-length refcount.
   - Its Create records `<key>@<entry identity>` in the ClaimStore and skips re-adds while the identity is unchanged.
     The entry identity is the D-080 boot identity (kernel `boot_id`, VPP main PID and `/proc/<pid>/stat` start time,
-    via `natcommon.BootIdentity`) plus the default SNAT entry's observable fingerprint (addresses, interface) plus an
+    via `internal/vpp/bootid`) plus the default SNAT entry's observable fingerprint (addresses, interface) plus an
     entry generation that the globals-owner descriptor bumps on every Set/Reset of the entry.
   - When the identity changes (VPP restart, entry recreated by the owner, or entry changed by anyone), the next
     resync re-applies the prefix. It sends del+add under the shared cnat lock: VPP's delete of an absent prefix is a

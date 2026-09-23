@@ -33,7 +33,7 @@ from `apps/agent/binapi/bpf_trace_filter`. `trace.RegisterGlobals(registry, clie
   accepted the add**, released on Delete, and reported by Retrieve only while claimed (D-071 claim rule). An object that
   already exists on an untagged interface without our claim is **never adopted** (Create fails with
   `dfkit.ErrNotOurs`, nothing is claimed) and Delete never touches it (review H1). Claims are bound to the D-080 VPP
-  boot identity (kernel boot_id, VPP main PID, VPP start time — `dfkit.BootIdentity`) and the sw_if_index, so they
+  boot identity (kernel boot_id, VPP main PID, VPP start time — `internal/vpp/bootid` via `dfkit.BootIdentity`) and the sw_if_index, so they
   expire when VPP restarts or the name moves to another interface.
 - Deletes re-resolve the logical name right before acting by sw_if_index (never a Meta index — indexes are reused
   after a VPP restart) and first check that the object still exists (D-074); "already gone" is success.

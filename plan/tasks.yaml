@@ -109,7 +109,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D6.2
@@ -125,9 +125,9 @@ tasks:
   worktree: /root/ngfw-wt/P02c
   owner: host-agent slot6
   started: 2026-09-23T13:35
-  finished: ''
+  finished: 2026-09-24T00:55
   notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | worker done 2e0d449; review agent spawned | review BLOCK (F1-F9) → fix round | 2026-09-24 00:2x: worker stalled
-    ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
+    ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | fix round bd8c38f (history rewritten for gitleaks); merged 65aaf4d; main CI green'
 - id: P03
   title: gRPC contract agent↔api (messages for all domains, RPC semantics doc)
   prompt: prompts/P03-proto-contract.md
@@ -346,7 +346,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D1.2
@@ -361,7 +361,7 @@ tasks:
   started: 2026-09-23T15:10
   finished: ''
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done bf364c6 (CI green, restart sim 28 objects); D-065 alias
-    follow-up requested, then review'
+    follow-up requested, then review | D-065 alias done f2e1eaf, CI green; review spawned'
 - id: DF-2
   title: 'Descriptors: ip_neighbor, ip6_nd (RA, DAD), urpf, abf, classify (ip tables/routes are P05 core)'
   prompt: prompts/factories/DF-2.md
@@ -372,7 +372,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D2.3
@@ -385,7 +385,8 @@ tasks:
   owner: host-agent slot3
   started: 2026-09-23T15:10
   finished: ''
-  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done 45c3da6, CI green; review agent spawned (slot 3)'
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done 45c3da6, CI green; review agent spawned (slot 3) | review
+    BLOCK 69ceb3d (H1 classify index reuse, H2 no-dump types, H3 untagged ifaces, H4 proxy-ND default, M5 abf dup tags, M6 race, L7 rebase); fix round 1'
 - id: DF-3
   title: 'Descriptors: nat44_ed (nat), nat44_ei, nat64, nat66, det44, map, cnat, pnat'
   prompt: prompts/factories/DF-3.md

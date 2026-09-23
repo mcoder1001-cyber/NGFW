@@ -159,6 +159,7 @@ func TestFilterFunction(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := scheduler.NewRegistry()
+	RegisterGlobals(r, f)
 	Register(r, f, "w5")
 	if names := r.Names(); len(names) != 2 || names[0] != NameFilterFunction {
 		t.Fatal(names)

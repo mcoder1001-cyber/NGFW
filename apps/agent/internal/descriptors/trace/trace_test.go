@@ -75,7 +75,7 @@ func TestBPFFilter(t *testing.T) {
 		t.Fatalf("plugin not loaded: %v", err)
 	}
 	r := scheduler.NewRegistry()
-	Register(r, f)
+	RegisterGlobals(r, f)
 	if r.Len() != 1 {
 		t.Fatal(r.Names())
 	}

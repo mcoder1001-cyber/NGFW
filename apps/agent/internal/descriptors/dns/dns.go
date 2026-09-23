@@ -57,20 +57,11 @@ const EnableID = "global"
 // KeyEnable is the key of the singleton.
 var KeyEnable = scheduler.Join(NameEnable, EnableID)
 
-// Option configures Register.
-type Option func(*dfkit.Globals)
-
-// WithGlobals sets the D-071 role (default: not the globals owner). The resolver and its name
-// servers are VPP-global: only the globals owner sets them; any other agent's Create fails with
-// ErrNotGlobalsOwner (VPP has no getter to check a requirement) and its Delete is a no-op.
-func WithGlobals(g dfkit.Globals) Option { return func(o *dfkit.Globals) { *o = g } }
-
-// Register constructs and registers the dns descriptors (name servers first, see package doc).
-func Register(r scheduler.Registry, client vpp.Client, opts ...Option) {
-	var g dfkit.Globals
-	for _, o := range opts {
-		o(&g)
-	}
+// RegisterGlobals registers this package's VPP-global singleton descriptors, constructed as the
+// globals owner (D-071). Call it only in the designated globals owner's agent (config
+// globalsOwner: true — never a test slot on the shared host), name servers first (see package doc).
+func RegisterGlobals(r scheduler.Registry, client vpp.Client) {
+	g := dfkit.GlobalsOwner(true)
 	r.Register(NewNameServer(client, g))
 	r.Register(NewEnable(client, g))
 }

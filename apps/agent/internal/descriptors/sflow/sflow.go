@@ -87,8 +87,15 @@ func (s Global) Validate() error {
 
 // Register constructs and registers the sflow descriptors.
 func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Option) {
-	r.Register(NewGlobal(client, opts...))
 	r.Register(NewInterface(client, owner, opts...))
+}
+
+// RegisterGlobals registers this package's VPP-global singleton descriptors, constructed as the
+// globals owner (D-071). Call it only in the designated globals owner's agent (config
+// globalsOwner: true — never a test slot on the shared host), before Register.
+func RegisterGlobals(r scheduler.Registry, client vpp.Client, opts ...Option) {
+	opts = append(opts, WithGlobals(dfkit.GlobalsOwner(true)))
+	r.Register(NewGlobal(client, opts...))
 }
 
 // Option configures the descriptors of this package.

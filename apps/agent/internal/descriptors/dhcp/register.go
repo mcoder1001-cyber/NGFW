@@ -38,7 +38,6 @@ type options struct {
 	ifaceKey dfkit.KeyFunc
 	vrfKey   dfkit.KeyFunc
 	vrfScope func(vrf uint32) bool
-	globals  dfkit.Globals
 }
 
 func buildOptions(opts []Option) options {
@@ -82,20 +81,22 @@ func WithVRFScope(in func(vrf uint32) bool) Option {
 	}
 }
 
-// WithGlobals sets the D-071 role for the VPP-global dhcp.dhcp6-duid (default: not the globals
-// owner — the DUID is then only required, never set).
-func WithGlobals(g dfkit.Globals) Option { return func(o *options) { o.globals = g } }
-
 // Register constructs every descriptor of the dhcp plugin with the shared client and owner and
 // registers them in dependency-friendly order. This is the one entry point the agent (P05) wires.
 func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Option) {
 	r.Register(NewProxy(client, opts...))
 	r.Register(NewProxyVSS(client, opts...))
 	r.Register(NewClient(client, owner, opts...))
-	r.Register(NewDHCP6DUID(client, buildOptions(opts).globals))
 	r.Register(NewDHCP6Client(client, owner, opts...))
 	r.Register(NewDHCP6PDClient(client, owner, opts...))
 	r.Register(NewDHCP6PDAddress(client, owner, opts...))
+}
+
+// RegisterGlobals registers this package's VPP-global singleton descriptors, constructed as the
+// globals owner (D-071). Call it only in the designated globals owner's agent (config
+// globalsOwner: true — never a test slot on the shared host).
+func RegisterGlobals(r scheduler.Registry, client vpp.Client) {
+	r.Register(NewDHCP6DUID(client, dfkit.GlobalsOwner(true)))
 }
 
 func (o options) vrfDeps(vrfs ...uint32) []scheduler.Dependency {

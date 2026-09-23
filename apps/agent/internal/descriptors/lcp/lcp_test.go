@@ -202,6 +202,7 @@ func TestReplaceAndRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := scheduler.NewRegistry()
+	RegisterGlobals(r, f)
 	Register(r, f, "w5")
 	if r.Len() != 2 {
 		t.Fatal(r.Names())

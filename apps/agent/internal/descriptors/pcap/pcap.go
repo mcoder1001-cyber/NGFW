@@ -127,8 +127,15 @@ func (s FilterFunction) Validate() error {
 
 // Register constructs and registers the pcap descriptors.
 func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Option) {
-	r.Register(NewFilterFunction(client, opts...))
 	r.Register(NewCapture(client, owner, opts...))
+}
+
+// RegisterGlobals registers this package's VPP-global singleton descriptors, constructed as the
+// globals owner (D-071). Call it only in the designated globals owner's agent (config
+// globalsOwner: true — never a test slot on the shared host), before Register.
+func RegisterGlobals(r scheduler.Registry, client vpp.Client, opts ...Option) {
+	opts = append(opts, WithGlobals(dfkit.GlobalsOwner(true)))
+	r.Register(NewFilterFunction(client, opts...))
 }
 
 // Option configures the descriptors of this package.

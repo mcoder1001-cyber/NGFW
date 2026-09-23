@@ -56,7 +56,7 @@ func TestDNSLifecycle(t *testing.T) {
 	f, m := newFake()
 	ctx := context.Background()
 	r := scheduler.NewRegistry()
-	Register(r, f, WithGlobals(dfkit.GlobalsOwner(true)))
+	RegisterGlobals(r, f)
 	if names := r.Names(); len(names) != 2 || names[0] != NameNameServer {
 		t.Fatalf("registration order %v (name servers must come first)", names)
 	}

@@ -67,7 +67,7 @@ func TestHTTPStaticServer(t *testing.T) {
 		}
 	}
 	r := scheduler.NewRegistry()
-	Register(r, f, "w5")
+	RegisterGlobals(r, f, "w5")
 	if r.Len() != 1 {
 		t.Fatal(r.Names())
 	}

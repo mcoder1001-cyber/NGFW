@@ -182,6 +182,7 @@ func TestInterface(t *testing.T) {
 		t.Fatalf("delete/release: %v", err)
 	}
 	r := scheduler.NewRegistry()
+	RegisterGlobals(r, f)
 	Register(r, f, "w5")
 	if r.Len() != 2 {
 		t.Fatal(r.Names())

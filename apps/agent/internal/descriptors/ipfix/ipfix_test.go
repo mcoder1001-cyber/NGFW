@@ -258,7 +258,9 @@ func protoEqual(a, b scheduler.KV) bool {
 
 func TestRegister(t *testing.T) {
 	r := scheduler.NewRegistry()
-	Register(r, dfkittest.NewFake())
+	f := dfkittest.NewFake()
+	RegisterGlobals(r, f)
+	Register(r, f)
 	if r.Len() != 4 {
 		t.Fatalf("registered %v", r.Names())
 	}

@@ -59,20 +59,11 @@ func (s BPFFilter) Validate() error {
 	return nil
 }
 
-// Option configures Register.
-type Option func(*dfkit.Globals)
-
-// WithGlobals sets the D-071 role (default: not the globals owner). The BPF program is VPP-global
-// without a getter: a non-owner's Create fails with ErrNotGlobalsOwner, its Delete is a no-op.
-func WithGlobals(g dfkit.Globals) Option { return func(o *dfkit.Globals) { *o = g } }
-
-// Register constructs and registers the trace descriptors.
-func Register(r scheduler.Registry, client vpp.Client, opts ...Option) {
-	var g dfkit.Globals
-	for _, o := range opts {
-		o(&g)
-	}
-	r.Register(NewBPFFilter(client, g))
+// RegisterGlobals registers this package's VPP-global singleton descriptors, constructed as the
+// globals owner (D-071). Call it only in the designated globals owner's agent (config
+// globalsOwner: true — never a test slot on the shared host).
+func RegisterGlobals(r scheduler.Registry, client vpp.Client) {
+	r.Register(NewBPFFilter(client, dfkit.GlobalsOwner(true)))
 }
 
 // BPFFilterID is the object id of the singleton (key trace.bpf-filter/global).

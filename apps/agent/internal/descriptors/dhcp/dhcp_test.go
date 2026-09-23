@@ -489,7 +489,9 @@ func TestDHCP6DUID(t *testing.T) {
 
 func TestRegister(t *testing.T) {
 	r := scheduler.NewRegistry()
-	Register(r, dfkittest.NewFake(), owner)
+	f := dfkittest.NewFake()
+	RegisterGlobals(r, f)
+	Register(r, f, owner)
 	for _, n := range []string{NameProxy, NameProxyVSS, NameClient, NameDHCP6Client, NameDHCP6PDClient, NameDHCP6PDAddr, NameDHCP6DUID} {
 		if _, ok := r.Get(n); !ok {
 			t.Errorf("%s not registered", n)

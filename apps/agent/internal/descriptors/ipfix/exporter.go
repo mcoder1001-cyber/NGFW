@@ -175,10 +175,17 @@ func WithGlobals(g dfkit.Globals) Option { return func(o *options) { o.globals =
 
 // Register constructs and registers the ipfix descriptors in dependency order.
 func Register(r scheduler.Registry, client vpp.Client, opts ...Option) {
-	r.Register(NewDefaultExporter(client, opts...))
 	r.Register(NewExporter(client, opts...))
-	r.Register(NewClassifyStream(client, opts...))
 	r.Register(NewClassifyTable(client, opts...))
+}
+
+// RegisterGlobals registers this package's VPP-global singleton descriptors, constructed as the
+// globals owner (D-071). Call it only in the designated globals owner's agent (config
+// globalsOwner: true — never a test slot on the shared host), before Register.
+func RegisterGlobals(r scheduler.Registry, client vpp.Client, opts ...Option) {
+	opts = append(opts, WithGlobals(dfkit.GlobalsOwner(true)))
+	r.Register(NewDefaultExporter(client, opts...))
+	r.Register(NewClassifyStream(client, opts...))
 }
 
 func (o options) vrfDeps(vrf uint32) []scheduler.Dependency {

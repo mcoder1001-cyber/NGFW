@@ -214,6 +214,7 @@ func TestInterfaceLearnAndProbe(t *testing.T) {
 		t.Fatalf("untagged delete: %v", err)
 	}
 	r := scheduler.NewRegistry()
+	RegisterGlobals(r, f)
 	Register(r, f, "w5")
 	if r.Len() != 2 {
 		t.Fatal(r.Names())

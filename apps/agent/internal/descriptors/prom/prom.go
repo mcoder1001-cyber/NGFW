@@ -95,20 +95,11 @@ func (s HTTPStaticServer) Validate() error {
 	return nil
 }
 
-// Option configures Register.
-type Option func(*dfkit.Globals)
-
-// WithGlobals sets the D-071 role (default: not the globals owner). http_static is VPP-global
-// without a getter: a non-owner's Create fails with ErrNotGlobalsOwner.
-func WithGlobals(g dfkit.Globals) Option { return func(o *dfkit.Globals) { *o = g } }
-
-// Register constructs and registers the prom descriptors.
-func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Option) {
-	var g dfkit.Globals
-	for _, o := range opts {
-		o(&g)
-	}
-	r.Register(NewHTTPStaticServer(client, owner, g))
+// RegisterGlobals registers this package's VPP-global singleton descriptors, constructed as the
+// globals owner (D-071). Call it only in the designated globals owner's agent (config
+// globalsOwner: true — never a test slot on the shared host).
+func RegisterGlobals(r scheduler.Registry, client vpp.Client, owner string) {
+	r.Register(NewHTTPStaticServer(client, owner, dfkit.GlobalsOwner(true)))
 }
 
 // HTTPStaticServerID is the object id of the singleton (key prom.http-static-server/global).

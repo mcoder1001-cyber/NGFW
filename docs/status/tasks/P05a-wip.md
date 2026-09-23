@@ -24,4 +24,5 @@ Branch `task/P05a`, worktree `/root/ngfw-wt/P05a`, slot 2 (`w2`). Task: `prompts
 
 ## Left
 
-- `make lint test build` + `tools/ci.sh --base main` evidence, `docs/status/tasks/P05a.md`, `P05a-questions.md`, final commit.
+Nothing. Final evidence and decisions are in `P05a.md`; questions in `P05a-questions.md`. Code-final commit `5afbd9c`
+(golangci-lint 0 issues, tests green, `CI GATE PASSED`); this docs commit follows it.

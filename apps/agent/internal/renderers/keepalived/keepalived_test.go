@@ -510,3 +510,35 @@ func TestDescriptionNeverRendered(t *testing.T) {
 	}
 	assertSafeConfig(t, c, testPaths())
 }
+
+// Review L3: Retrieve does not signal keepalived for every call.
+func TestRetrieveDumpIsRateLimited(t *testing.T) {
+	p := tempPaths(t)
+	d := &countingDaemon{fakeDaemon: fakeDaemon{paths: p}}
+	r := New(renderers.NewRecordingRunner(), WithPaths(p), WithController(d), WithInterfaceMapper(PrefixMapper("w0-")),
+		WithSecretResolver(resolver(nil)), WithJSONSignal(36), WithVerifyTimeout(300_000_000))
+	ctx := context.Background()
+	f, _ := r.Render(ctx, doc(t, goldenCases["one"]))
+	if err := r.Apply(ctx, f); err != nil {
+		t.Fatal(err)
+	}
+	afterApply := d.signals
+	for range 5 {
+		if _, err := r.Retrieve(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := d.signals - afterApply; got != 1 {
+		t.Fatalf("5 Retrieves sent %d SIGJSON, want 1", got)
+	}
+}
+
+type countingDaemon struct {
+	fakeDaemon
+	signals int
+}
+
+func (d *countingDaemon) Signal(ctx context.Context, sig syscall.Signal) error {
+	d.signals++
+	return d.fakeDaemon.Signal(ctx, sig)
+}

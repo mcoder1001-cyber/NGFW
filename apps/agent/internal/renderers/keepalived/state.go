@@ -25,6 +25,9 @@ const (
 	maxDumpSize  = 4 << 20
 	maxStateSize = 4 << 10
 	dumpWait     = 3 * time.Second
+	// dumpCacheTTL: Retrieve reuses a dump this young instead of signalling keepalived again
+	// (review L3: each dump is a signal plus a file holding auth_data). Apply never uses it.
+	dumpCacheTTL = 5 * time.Second
 )
 
 // rendered is what the agent needs to know about a keepalived.conf it wrote (parsed from the
@@ -213,6 +216,27 @@ func (r *Renderer) dump(ctx context.Context) ([]DumpInstance, error) {
 	return ParseDump(b)
 }
 
+// cachedDump returns a dump no older than dumpCacheTTL, taking a new one otherwise.
+func (r *Renderer) cachedDump(ctx context.Context) ([]DumpInstance, error) {
+	r.cacheMu.Lock()
+	defer r.cacheMu.Unlock()
+	if r.lastDump != nil && time.Since(r.lastDumpAt) < dumpCacheTTL {
+		return r.lastDump, nil
+	}
+	d, err := r.dump(ctx)
+	if err != nil {
+		return nil, err
+	}
+	r.lastDump, r.lastDumpAt = d, time.Now()
+	return d, nil
+}
+
+func (r *Renderer) dropDumpCache() {
+	r.cacheMu.Lock()
+	r.lastDump = nil
+	r.cacheMu.Unlock()
+}
+
 // StateRecord is one <instance>.state file written by vrx-keepalived-notify.
 type StateRecord struct {
 	Name  string `json:"name"`
@@ -270,7 +294,7 @@ func (r *Renderer) State(ctx context.Context) (*State, error) {
 	st := &State{}
 	var dump []DumpInstance
 	if len(want.instances) > 0 {
-		if dump, err = r.dump(ctx); err != nil {
+		if dump, err = r.cachedDump(ctx); err != nil {
 			st.DumpError = r.red.Redact(err.Error())
 		}
 	}

@@ -52,6 +52,10 @@ type Renderer struct {
 
 	dumpMu  sync.Mutex // one SIGJSON + read at a time
 	jsonSig int        // cached `keepalived --signum=JSON`
+
+	cacheMu    sync.Mutex
+	lastDump   []DumpInstance
+	lastDumpAt time.Time
 }
 
 var _ renderers.Renderer = (*Renderer)(nil)
@@ -263,6 +267,8 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 			return want.matches(dump)
 		})
 	}
+	r.dropDumpCache()
+	defer r.dropDumpCache()
 	if err := rfkit.ApplyFiles(ctx, files, r.ctl.Reload, verify); err != nil {
 		return r.red.Error(err)
 	}

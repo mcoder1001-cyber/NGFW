@@ -40,7 +40,7 @@ procedure depends on both.
 |---|---|---|
 | 1 | tools | `golangci-lint` / `gitleaks` missing and the download from GitHub fails (`VRX_CI_ALLOW_MISSING_TOOLS=1` downgrades to a warning — never for a merge) |
 | 2 | `pnpm install --frozen-lockfile --prefer-offline` | the lockfile is stale (you added a dependency: run `pnpm install` once, commit `pnpm-lock.yaml`) |
-| 3 | `pnpm gen` + **generated-output gate** | anything under `packages/proto/gen`, `apps/agent/gen`, `packages/schema/dist`, `packages/api-client/src/generated` differs from what the generators produce, or `go mod tidy` (run by the proto generator) changed `apps/agent/go.mod`/`go.sum`. Only these paths are checked — other uncommitted files just produce a warning |
+| 3 | `pnpm gen` + **generated-output gate** | anything under `packages/proto/gen`, `apps/agent/gen`, `packages/schema/dist`, `packages/api-client/src/generated` differs from what the generators produce (working tree vs index after `pnpm gen`, plus untracked files there — so a staged merge inside the hook is not "dirty"), or `go mod tidy` (run by the proto generator) changed `apps/agent/go.mod`/`go.sum`. Only these paths are checked — other uncommitted files just produce a warning. A file in a generated directory that no generator writes (`.gitkeep`) is covered by the contract guard, not by this step |
 | 4 | contract guard (`--base` only) | see [The contract rule](#the-contract-rule) |
 | 5 | forbidden patterns | see [Forbidden patterns](#forbidden-patterns) |
 | 6 | `turbo run lint typecheck test build` | ESLint, `buf lint`, `tsc`, Vitest unit tests or a build fails. Run as one turbo invocation so `gen` (uncached by design) runs once, not four times; `VRX_INTEGRATION` is unset — this is unit-only |
@@ -136,9 +136,11 @@ and `make test` are unit-only. Slot 12 and the exclusive lock are the gate's.
 1. `git -C /root/ngfw status --porcelain` is empty (board and status committed first).
 2. In the worker's worktree: `tools/ci.sh --base main` → must end with `CI GATE PASSED` (contract guard included).
 3. `git -C /root/ngfw merge --no-ff task/<id>`. With the hook installed (`cd /root/ngfw && tools/ci.sh install-hooks`),
-   `pre-merge-commit` runs `tools/ci.sh quick` on the merged tree and aborts the merge commit when it is red; the working tree
+   `pre-merge-commit` runs `tools/ci.sh quick --base HEAD` with `VRX_CI_HEAD_REF=MERGE_HEAD`: the quick gate on the merged
+   tree plus the contract guard and gitleaks on the commits being merged. A red gate aborts the merge commit; the working tree
    keeps the merge result for inspection (`git merge --abort` to drop it). `git merge --no-verify` bypasses the hook — only
-   deliberately, and logged in the status entry.
+   deliberately, and logged in the status entry. Git runs this hook only when it creates a merge commit: never for
+   fast-forward or `--squash` merges, which is why the procedure says `--no-ff`.
 4. If the merge touched `pnpm-lock.yaml` or `--frozen-lockfile` fails: `pnpm install` once on `main`, commit the lockfile.
 5. `tools/ci.sh` on `main`; red → `git revert -m 1 <merge>` and reopen the task with the log attached.
 6. `tools/ci.sh full` on `main`, serialized under the lab lock, at most once per hour, never while a worker's envelope says it is in

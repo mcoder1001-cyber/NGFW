@@ -33,6 +33,7 @@ environment (all optional):
   VRX_CI_LOCK_TIMEOUT=<seconds>  how long `full` waits for the exclusive lock, before rig up and before rig down (default 1800)
   VRX_CI_SLOT=<n>                slot used by `full` (default 12 = the CI slot, docs/lab/shared-host-rules.md)
   VRX_CI_REQUIRE_INTEGRATION=1   make `full` fail (instead of warn) when tools/lab is not available
+  VRX_CI_HEAD_REF=<ref>          the branch tip for --base (default HEAD; the pre-merge-commit hook passes MERGE_HEAD)
   GOLANGCI_LINT_VERSION / GITLEAKS_VERSION   override the pinned tool versions for install-tools
   TURBO_CACHE_DIR                shared turbo cache (default ~/.cache/vrx-turbo); GOCACHE: go's default (~/.cache/go-build)
 EOF
@@ -50,6 +51,7 @@ CONTRACT_PATHS=(packages/schema packages/proto apps/agent/gen packages/api-clien
 # the control plane: never shells out, never talks to VPP directly (00-CONTEXT rules 1 and 9)
 CONTROL_PLANE_PATHS=(apps/api/src apps/web/src 'packages/*/src')
 
+TIP="${VRX_CI_HEAD_REF:-HEAD}"    # the branch under test for --base: HEAD, or MERGE_HEAD inside the pre-merge-commit hook
 LOCK_FILE="${VRX_CI_LOCK:-/run/lock/vrx-lab.lock}"
 LOCK_TIMEOUT="${VRX_CI_LOCK_TIMEOUT:-1800}"
 CI_SLOT="${VRX_CI_SLOT:-12}"
@@ -221,11 +223,17 @@ set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
 cd "$(git rev-parse --show-toplevel)"
 [[ -x tools/ci.sh ]] || { echo "pre-merge-commit: tools/ci.sh not found — refusing the merge" >&2; exit 1; }
+if [[ -f $(git rev-parse --git-path MERGE_HEAD) ]]; then
+  # the quick gate on the merged tree + the contract guard / gitleaks on the commits being merged (MERGE_HEAD vs HEAD)
+  echo "pre-merge-commit: tools/ci.sh quick --base HEAD on the merged tree, contract guard on $(git rev-parse --short MERGE_HEAD) (git merge --no-verify bypasses this)" >&2
+  VRX_CI_HEAD_REF=MERGE_HEAD exec tools/ci.sh quick --base HEAD
+fi
 echo "pre-merge-commit: running tools/ci.sh quick on the merged tree (git merge --no-verify bypasses this)" >&2
 exec tools/ci.sh quick
 HOOK
   chmod 0755 "$f"
-  echo "installed $f  → runs 'tools/ci.sh quick' before every merge commit in $(readlink -f "$repo")"
+  echo "installed $f  → runs 'tools/ci.sh quick --base HEAD' (contract guard on MERGE_HEAD) before every merge commit in $(readlink -f "$repo")"
+  echo "note: git runs pre-merge-commit only when it creates a merge commit — not for fast-forward or --squash merges (the manager merges with --no-ff)"
 }
 
 # ---------------------------------------------------------------- the gate steps
@@ -234,14 +242,19 @@ preflight() {
   branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?'); head=$(git rev-parse --short HEAD 2>/dev/null || echo '?')
   printf '%s== VRX CI gate: %s%s%s ==%s\n' "$B" "$N" "$MODE" "$B" "$N"
   say "worktree  $ROOT"
-  say "branch    $branch @ $head${BASE:+   (base: $BASE)}"
+  say "branch    $branch @ $head${BASE:+   (base: $BASE)}${VRX_CI_HEAD_REF:+   (tip: $TIP)}"
   say "tools     node $(tool_ver node) · pnpm $(tool_ver pnpm) · $(tool_ver go) · buf $(tool_ver buf) · golangci-lint ${GOLANGCI_LINT_VERSION} (pinned) · gitleaks ${GITLEAKS_VERSION} (pinned)"
   say "caches    pnpm store $(pnpm store path 2>/dev/null || echo '?') · turbo $TURBO_CACHE_DIR · go $(go env GOCACHE 2>/dev/null || echo '?')"
   say "logs      $LOG_DIR"
   if [[ -n ${VRX_INTEGRATION:-} ]]; then warn "VRX_INTEGRATION was set in the environment — ignored: the quick gate is unit-only"; fi
   unset VRX_INTEGRATION
   local gen_re dirty; gen_re=$(IFS='|'; echo "${GEN_PATHS[*]}")
-  dirty=$(git status --porcelain --untracked-files=normal | grep -vE "^.. ($gen_re)" || true)
+  if [[ -f $(git rev-parse --git-path MERGE_HEAD) ]]; then
+    say "merge     in progress: $(git rev-parse --short MERGE_HEAD) into $branch — the gate runs on the merged tree (pre-merge-commit hook)"
+    dirty=""
+  else
+    dirty=$(git status --porcelain --untracked-files=normal | grep -vE "^.. ($gen_re)" || true)
+  fi
   if [[ -n $dirty ]]; then
     warn "uncommitted changes in the worktree — the gate checks the working tree, but only commits get merged:\n$(sed 's/^/      /' <<<"$dirty" | head -n 15)"
   fi
@@ -281,7 +294,10 @@ do_gen_check() {
   before=$(git hash-object apps/agent/go.mod apps/agent/go.sum 2>/dev/null | tr '\n' ' ' || true)
   run pnpm-gen pnpm gen || fail "'pnpm gen' failed"
   after=$(git hash-object apps/agent/go.mod apps/agent/go.sum 2>/dev/null | tr '\n' ' ' || true)
-  local dirty; dirty=$(git status --porcelain --untracked-files=all -- "${GEN_PATHS[@]}")
+  # what did the generators change? working tree vs INDEX (plus untracked files) — never vs HEAD, so a staged but not yet
+  # committed merge (the pre-merge-commit hook runs before the merge commit exists) is not mistaken for hand-edited output
+  local dirty
+  dirty=$( { git diff --name-status -- "${GEN_PATHS[@]}"; git ls-files --others --exclude-standard -- "${GEN_PATHS[@]}" | sed 's/^/??\t/'; } )
   if [[ -n $dirty ]]; then
     say "$dirty"
     git --no-pager diff --stat -- "${GEN_PATHS[@]}" | tail -n 20 || true
@@ -296,18 +312,19 @@ do_gen_check() {
 }
 
 do_contract_guard() {
-  step "contract guard vs $BASE"
+  step "contract guard: $TIP vs $BASE"
   git rev-parse --verify -q "$BASE^{commit}" >/dev/null || fail "--base $BASE: no such ref in this repository"
-  local mb; mb=$(git merge-base "$BASE" HEAD) || fail "no merge base between $BASE and HEAD"
+  git rev-parse --verify -q "$TIP^{commit}" >/dev/null || fail "VRX_CI_HEAD_REF=$TIP: no such ref in this repository"
+  local mb; mb=$(git merge-base "$BASE" "$TIP") || fail "no merge base between $BASE and $TIP"
   MERGE_BASE=$mb
-  local n; n=$(git rev-list --count "$mb..HEAD")
-  local changed; changed=$(git diff --name-only "$mb" HEAD -- "${CONTRACT_PATHS[@]}")
+  local n; n=$(git rev-list --count "$mb..$TIP")
+  local changed; changed=$(git diff --name-only "$mb" "$TIP" -- "${CONTRACT_PATHS[@]}")
   if [[ -z $changed ]]; then
-    say "no contract files changed in the $n commit(s) since $BASE ($(git rev-parse --short "$mb"))"
+    say "no contract files changed in the $n commit(s) of $TIP since $BASE ($(git rev-parse --short "$mb"))"
   else
-    say "contract files changed since $BASE:"; sed 's/^/  /' <<<"$changed"
-    if git log --format=%s "$mb..HEAD" | grep -qiE '^contract(\(|:|!)'; then
-      say "ok — contract commit(s) on the branch:"; git log --format='  %h %s' "$mb..HEAD" | grep -iE '^  [0-9a-f]+ contract(\(|:|!)'
+    say "contract files changed in $TIP since $BASE:"; sed 's/^/  /' <<<"$changed"
+    if git log --format=%s "$mb..$TIP" | grep -qiE '^contract(\(|:|!)'; then
+      say "ok — contract commit(s) on the branch:"; git log --format='  %h %s' "$mb..$TIP" | grep -iE '^  [0-9a-f]+ contract(\(|:|!)'
     else
       fail "CONTRACT FILES CHANGED WITHOUT A CONTRACT COMMIT. [${CONTRACT_PATHS[*]}] are the contract between packages;
   a branch that changes them must carry a commit whose subject starts with 'contract(<pkg>): …' so the manager reviews it
@@ -316,7 +333,7 @@ do_contract_guard() {
     fi
   fi
   local bad
-  bad=$(git log --format=%s "$mb..HEAD" | grep -vE '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|contract|status|wip)(\([^)]*\))?!?: ' | grep -vE '^(Merge|Revert) ' || true)
+  bad=$(git log --format=%s "$mb..$TIP" | grep -vE '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|contract|status|wip)(\([^)]*\))?!?: ' | grep -vE '^(Merge|Revert) ' || true)
   [[ -z $bad ]] || warn "commit subject(s) not in Conventional Commits form (type(scope): subject):\n$(sed 's/^/      /' <<<"$bad" | head -n 10)"
 }
 
@@ -356,7 +373,7 @@ do_forbidden() {
   if command -v gitleaks >/dev/null 2>&1; then
     local opts=(git . --no-banner --redact --exit-code 1 --report-format json --report-path "$LOG_DIR/gitleaks-report.json")
     [[ -f .github/gitleaks.toml ]] && opts+=(--config .github/gitleaks.toml)
-    if [[ -n $MERGE_BASE ]]; then opts+=(--log-opts="$MERGE_BASE..HEAD"); else opts+=(--log-opts="-n 500 HEAD"); fi
+    if [[ -n $MERGE_BASE ]]; then opts+=(--log-opts="$MERGE_BASE..$TIP"); else opts+=(--log-opts="-n 500 HEAD"); fi
     run gitleaks gitleaks "${opts[@]}" \
       || fail "gitleaks found secrets in the commit history (report: $LOG_DIR/gitleaks-report.json). A secret in history stays there: the manager must not merge this branch; recreate the commits without it."
     say "ok: gitleaks — $(sed 's/\x1b\[[0-9;]*m//g' "$CUR_LOG" | grep -oE '(no leaks found|leaks found: [0-9]+|scanned ~?[0-9]+ bytes \([^)]*\) in [0-9.a-z]+)' | head -n 2 | tr '\n' ' ')"

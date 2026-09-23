@@ -1,15 +1,16 @@
 # sr (SRv6) descriptors (DF-6, WBS D6.7 / D2.8)
 
 Package `apps/agent/internal/descriptors/sr`. Messages only from `apps/agent/binapi/sr` (+ `sr_types`, `ip`). Shared rules: [df6.md](df6.md).
-SR objects carry no owner tag: `df6.Scope` attributes them by address (SID / BSID in the slot's `fdNN::/16`; production: nil scope).
+SR objects carry no owner tag: an SR object is ours only through the ClaimStore record of our own Create (D-071,
+[df6.md](df6.md)); Create never takes over an existing unclaimed SID / policy / steering key.
 
 | Object type | Descriptor / key | Create / Delete | Retrieve | Update | Dependencies |
 |---|---|---|---|---|---|
 | Local SID (END, END.X, END.T, END.DX2/DX4/DX6, END.DT4/DT6) | `sr.localsid` · `sr.localsid/<sid>` | `sr_localsid_add_del` (is_del) | `sr_localsids_dump` (classic behaviours only) | `ErrRecreate` | `vrf/<fib_table>`, `vrf/<lookup_table>`, `interface/<interface>` |
 | Policy (default / spray / TEF, encap / insert, ≥1 SID list) | `sr.policy` · `sr.policy/<bsid>` | `sr_policy_add_v2` + `sr_policy_mod_v2` (ADD) per further list / `sr_policy_del` | `sr_policies_v2_dump` | `ErrRecreate` (steering recreated by the scheduler) | `vrf/<fib_table>` |
-| Steering (L2 interface or L3 prefix + table → BSID) | `sr.steering` · `sr.steering/l2/<if>` or `sr.steering/<ipv4\|ipv6>/<table>/<prefix>` | `sr_steering_add_del` (by BSID) | `sr_steering_pol_dump` | new BSID re-points in place (VPP add on existing key); else `ErrRecreate` | `sr.policy/<bsid>`, `vrf/<table>` or `interface/<if>` |
-| Encap source (global) | `sr.encap-source` · `…/global` | `sr_set_encap_source`; Delete resets to `::` | **write-only** (no getter) | set in place | — |
-| Encap hop limit (global) | `sr.encap-hop-limit` · `…/global` | `sr_set_encap_hop_limit`; Delete resets to 64 | **write-only** | set in place | — |
+| Steering (L2 interface or L3 prefix + table → BSID) | `sr.steering` · `sr.steering/l2/<if>` or `sr.steering/<ipv4\|ipv6>/<table>/<prefix>` | `sr_steering_add_del` (by BSID); Delete only while the entry still points at our BSID | `sr_steering_pol_dump` | our entry: new BSID re-points in place; else `ErrRecreate` | `sr.policy/<bsid>`, `vrf/<table>` or `interface/<if>` |
+| Encap source (global, **globals owner only**) | `sr.encap-source` · `…/global` | `sr_set_encap_source`; Delete resets to `::` | **write-only** (no getter) | set in place | — |
+| Encap hop limit (global, **globals owner only**) | `sr.encap-hop-limit` · `…/global` | `sr_set_encap_hop_limit`; Delete resets to 64 | **write-only** | set in place | — |
 
 Models: `sr.LocalSid{sid, behavior, end_psp, fib_table, interface, next_hop, lookup_table}`,
 `sr.Policy{bsid, type, encap, fib_table, sid_lists[{sids ≤16, weight}], encap_src}`,

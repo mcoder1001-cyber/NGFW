@@ -90,10 +90,12 @@ locator pairs cannot be read → `lisp-gpe.fwd-entry` is write-only. Ask: record
   is removed and LISP disabled. Harmless; gone after a VPP restart. LISP itself was restored to `disabled`.
 - One earlier failed run (EID decoded from `deid` instead of `seid`) orphaned a local EID; cleaned up via the API.
 
-## Q10 — P05 wiring notes
-- `Register` signatures: `gre|ipip|vxlan|vxlan_gpe|gtpu|l2tp|pppoe.Register(r, client, owner)`,
-  `sr.Register(r, client, scope *df6.Scope)`, `lisp.Register(r, client, scope)`, `sr_mpls.Register(r, client)`.
-  Production passes a nil scope (everything on the VPP belongs to the agent).
-- Write-only descriptors return `df6.ErrRetrieveUnsupported` (see docs/agent/descriptors/df6.md): the reconciler
-  needs a policy (e.g. trust last-applied state for these keys, skip drift detection). DF-6 decides nothing here.
+## Q10 — P05/P08 wiring notes (updated in the review fix round)
+- Every Register is now `Register(r, client, owner, opts ...df6.Option)` (gre and ipip: `(r, client, owner)`).
+  Options: `df6.WithGlobalsOwner(true)` on the globals owner only (D-071); `df6.WithClaims(store)` (default DF-1's
+  `iface.Claims(owner)` — install a persisted store with `iface.SetClaimStore`, e.g. `df6.OpenFileClaimStore`; without
+  it, claims and per-boot records are lost on agent restart and SR/LISP objects become invisible / toggles re-enable).
+- Write-only descriptors return `df6.ErrRetrieveUnsupported`; alias it to `scheduler.ErrRetrieveUnsupported` when P05
+  merges (D-073c, review L5). Globals / require variants implement `DeleteOnAbsence() bool` (P05 AbsenceDeleter).
 - `lisp.enable` implicitly enables LISP-GPE in VPP; desired state with `lisp.enable` should include `lisp-gpe.enable`.
+- The `df6` helpers still duplicate DF-2's; fold both into P05 core helpers when that lands (review L5).

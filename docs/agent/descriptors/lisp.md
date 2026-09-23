@@ -1,8 +1,10 @@
 # lisp / lisp-gpe descriptors (DF-6, WBS D6.8 — minimal set, T3)
 
 Package `apps/agent/internal/descriptors/lisp`. Messages only from `apps/agent/binapi/lisp`, `lisp_gpe`, `lisp_types`.
-Shared rules: [df6.md](df6.md). LISP objects have no owner tag; `df6.Scope` attributes locator sets by name prefix
-(`w11-`), EIDs / resolvers / servers by address block, EID-table maps by VNI range.
+Shared rules: [df6.md](df6.md). LISP objects have no owner tag; an object is ours only through the ClaimStore record
+of our own Create (D-071). `lisp.enable`, `lisp-gpe.enable` and `lisp.pitr` are VPP-global: setters only on the
+globals owner (never deleted on absence; disabled only when `lisp.SafeToDisable` finds no LISP object of any owner),
+require variants elsewhere.
 
 | Object type | Descriptor / key | Create / Delete | Retrieve | Update | Dependencies |
 |---|---|---|---|---|---|
@@ -35,4 +37,6 @@ VPP quirks handled
 - Disabling LISP leaves the down `lisp_gpe0` / `lisp_gpe<vni>` interfaces VPP created (reused, not deletable by API).
 
 Host test: opt-in `VRX_DF6_LISP_HOST=1` (turns the global LISP switch on only if it was off and restores it), with
-`VRX_DF6_LISP_UPTO=<n>` for stepwise bring-up. PITR is unit-tested only (it changes the global LISP mode).
+`VRX_DF6_LISP_UPTO=<n>` for stepwise bring-up. Per the manager rule after the review it is **not run on the shared
+VPP** any more (LISP is a global only the globals owner may switch); the evidence from the first round stands, the
+fix-round behaviour is covered by the unit tests (claims, resync without re-add, require variants, emptiness check).

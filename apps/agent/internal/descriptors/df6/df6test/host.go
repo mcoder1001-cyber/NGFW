@@ -72,6 +72,22 @@ func Connect(t testing.TB) *Host {
 	}
 }
 
+// Reconnect opens a second, independent API connection (a restarted agent's), closed in
+// Cleanup.
+func (h *Host) Reconnect() vpp.Client {
+	h.T.Helper()
+	sock := os.Getenv(EnvSocket)
+	if sock == "" {
+		sock = socketclient.DefaultSocketName
+	}
+	conn, err := core.Connect(socketclient.NewVppClient(sock))
+	if err != nil {
+		h.T.Fatalf("reconnect to VPP at %s: %v", sock, err)
+	}
+	h.T.Cleanup(conn.Disconnect)
+	return hostClient{conn}
+}
+
 // Table returns table id base+i of the slot.
 func (h *Host) Table(i uint32) uint32 { return vpptest.TableBase(h.T) + i }
 

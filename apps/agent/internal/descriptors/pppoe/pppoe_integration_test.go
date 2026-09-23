@@ -3,6 +3,7 @@ package pppoe_test
 import (
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -13,6 +14,11 @@ import (
 
 // TestCpOnHost: pppoe_add_del_cp on a prefixed loopback (write-only: no dump exists).
 func TestCpOnHost(t *testing.T) {
+	// pppoe_add_del_cp sets VPP's single CP interface (review M2): a VPP-global that only the
+	// globals owner may change (D-071) — never run against the shared VPP.
+	if os.Getenv("VRX_DF6_PPPOE_CP_HOST") != "1" {
+		t.Skip("pppoe.cp is a VPP-global (globals owner only, D-071); host test is opt-in VRX_DF6_PPPOE_CP_HOST=1 and must not run on the shared VPP")
+	}
 	h := df6test.Connect(t)
 	loop, _ := h.Loopback(7, h.IP4(7, 1)+"/24")
 	cp := pppoe.NewCp(h.Client, h.Owner)

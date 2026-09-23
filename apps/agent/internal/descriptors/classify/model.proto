@@ -1,0 +1,87 @@
+// Desired state of the classify descriptors (agent-internal until moved to packages/proto).
+// Mask and match are opaque bytes: (skip_n_vectors + match_n_vectors) * 16 bytes.
+syntax = "proto3";
+
+package ngfw.agent.descriptors.classify;
+
+option go_package = "ngfw/agent/internal/descriptors/classify;classify";
+
+// Table is one classifier table (classify_add_del_table). VPP has no tag field: the owner's
+// name ↔ table index mapping lives in the Store (see docs/agent/descriptors/classify.md).
+message Table {
+  // Owner-unique name; the key.
+  string name = 1;
+  // Hash buckets; VPP rounds up to a power of two (Normalize does the same). Default 2.
+  uint32 nbuckets = 2;
+  // Heap size in bytes; default 2097152. Not reported by VPP (kept in the Store).
+  uint32 memory_size = 3;
+  uint32 skip_n_vectors = 4;
+  // Default 1.
+  uint32 match_n_vectors = 5;
+  // (skip_n_vectors + match_n_vectors) * 16 bytes; shorter masks are zero-padded.
+  bytes mask = 6;
+  // Name of the next table in the chain; empty = none.
+  string next_table = 7;
+  // Next node on miss; 4294967295 = table default.
+  uint32 miss_next_index = 8;
+  // Not reported by VPP (kept in the Store).
+  bool current_data_flag = 9;
+  int32 current_data_offset = 10;
+}
+
+// Session is one entry of a table (classify_add_del_session).
+message Session {
+  // Action mirrors classify.classify_action.
+  enum Action {
+    NONE = 0;
+    SET_IP4_FIB_INDEX = 1;
+    SET_IP6_FIB_INDEX = 2;
+    SET_METADATA = 3;
+  }
+  string table = 1;
+  // (skip_n_vectors + match_n_vectors) * 16 bytes; the skipped bytes are normalised to zero.
+  bytes match = 2;
+  // 4294967295 = table default.
+  uint32 hit_next_index = 3;
+  uint32 opaque_index = 4;
+  int32 advance = 5;
+  // Action and metadata are not reported by VPP (kept in the Store).
+  Action action = 6;
+  uint32 metadata = 7;
+}
+
+// InterfaceIpTable binds a table to the ip4-classify / ip6-classify lookup of an interface
+// (classify_set_interface_ip_table). Write-only: VPP has no readback.
+message InterfaceIpTable {
+  string interface = 1;
+  bool ipv6 = 2;
+  string table = 3;
+}
+
+// InterfaceL2Tables binds the L2 input or output classifier tables of an interface
+// (classify_set_interface_l2_tables). Write-only: VPP has no readback.
+message InterfaceL2Tables {
+  string interface = 1;
+  bool input = 2;
+  string ip4_table = 3;
+  string ip6_table = 4;
+  string other_table = 5;
+}
+
+// InputAcl binds the input ACL classifier tables of an interface (input_acl_set_interface).
+// Retrieved with classify_table_by_interface.
+message InputAcl {
+  string interface = 1;
+  string ip4_table = 2;
+  string ip6_table = 3;
+  string l2_table = 4;
+}
+
+// OutputAcl binds the output ACL classifier tables of an interface
+// (output_acl_set_interface). Write-only: VPP has no readback.
+message OutputAcl {
+  string interface = 1;
+  string ip4_table = 2;
+  string ip6_table = 3;
+  string l2_table = 4;
+}

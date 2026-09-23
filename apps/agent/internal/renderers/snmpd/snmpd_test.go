@@ -161,7 +161,7 @@ func golden(t *testing.T, name string, got []byte) {
 	t.Helper()
 	path := filepath.Join("testdata", name+".golden")
 	if *update {
-		if err := os.MkdirAll("testdata", 0o755); err != nil {
+		if err := os.MkdirAll("testdata", 0o755); err != nil { //nolint:gosec // test data directory
 			t.Fatal(err)
 		}
 		if err := os.WriteFile(path, got, 0o644); err != nil { //nolint:gosec // golden file
@@ -347,7 +347,7 @@ func TestSecretRefRules(t *testing.T) {
 		opts []Option
 		want error
 	}{
-		{"wrong kind", with(base(), "communities", map[string]any{"ro": map[string]any{"secretRef": "key/snmp-ro"}}), nil, rfkit.ErrSecretRef},
+		{"wrong kind", with(base(), "communities", map[string]any{"ro": map[string]any{"secretRef": "key/snmp-ro"}}), nil, rfkit.ErrSecretRef}, //nolint:gosec // test fixture, not a credential
 		{"inline value", with(base(), "communities", map[string]any{"ro": map[string]any{"secretRef": "public"}}), nil, rfkit.ErrSecretRef},
 		{"no resolver", with(base(), "communities", map[string]any{"ro": map[string]any{"secretRef": "password/snmp-ro"}}), []Option{WithSecretResolver(nil)}, rfkit.ErrNoSecretResolver},
 		{"missing auth", with(base(), "v3Users", map[string]any{"u": map[string]any{"securityLevel": "authPriv", "privRef": "password/u1-priv"}}), nil, rfkit.ErrSecretRef},

@@ -94,7 +94,7 @@ func TestSecretsAndRedactor(t *testing.T) {
 	calls := 0
 	s := &Secrets{Resolver: SecretResolverFunc(func(_ context.Context, ref string) (string, error) {
 		calls++
-		return map[string]string{"password/a": "VRX_TEST_PSK_RF4_a", "password/e": "", "password/r": "x" + Redacted}[ref], nil
+		return map[string]string{"password/a": "VRX_TEST_PSK_RF4_a", "password/e": "", "password/r": "x" + Redacted}[ref], nil //nolint:gosec // test fixture, not a credential
 	})}
 	v, err := s.Resolve("password/a", nil)
 	if err != nil || v != "VRX_TEST_PSK_RF4_a" {
@@ -149,7 +149,7 @@ func TestApplyFilesRollback(t *testing.T) {
 	if !errors.Is(err, ErrNotConverged) {
 		t.Fatal(err)
 	}
-	if b, _ := os.ReadFile(path); string(b) != "old\n" || activations != 2 {
+	if b, _ := os.ReadFile(path); string(b) != "old\n" || activations != 2 { //nolint:gosec // test temp dir / slot dir
 		t.Fatalf("content %q activations %d", b, activations)
 	}
 	// Cancelled caller context: the rollback still activates the old configuration.

@@ -179,7 +179,7 @@ func (r *Renderer) Render(ctx context.Context, desired proto.Message) (renderers
 		return nil, fmt.Errorf("%w: %w", ErrInput, err)
 	}
 	sec := &rfkit.Secrets{Ctx: ctx, Resolver: r.resolver}
-	model, tlsFiles, err := BuildModel(ds, ext, sec, r.paths)
+	model, TLSFiles, err := BuildModel(ds, ext, sec, r.paths)
 	r.red.Add(sec.Values()...)
 	if err != nil {
 		return nil, r.red.Error(err)
@@ -189,7 +189,7 @@ func (r *Renderer) Render(ctx context.Context, desired proto.Message) (renderers
 		return nil, r.red.Error(err)
 	}
 	files := renderers.Files{r.paths.ConfFile: {Mode: r.paths.FileMode, Owner: r.paths.FileOwner, Content: content}}
-	for _, f := range tlsFiles {
+	for _, f := range TLSFiles {
 		if f.Secret {
 			files[f.Path] = renderers.File{Mode: 0o640, Owner: r.paths.KeyOwner, Content: []byte(f.Content), Secret: true}
 		} else {

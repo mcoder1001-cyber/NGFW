@@ -95,7 +95,7 @@ func TestSnmpdIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	logFile := filepath.Join(base, "snmpd.log")
-	child = exec.Command(SnmpdBin, "-f", "-Lf", logFile, "-C", "-c", paths.ConfFile, "-p", filepath.Join(base, "snmpd.pid"),
+	child = exec.Command(SnmpdBin, "-f", "-Lf", logFile, "-C", "-c", paths.ConfFile, "-p", filepath.Join(base, "snmpd.pid"), //nolint:gosec // test harness: fixed argv of an allow-listed binary
 		"-m", "", "-M", filepath.Join(base, "mibs"))
 	child.Env = []string{"PATH=/usr/sbin:/usr/bin", "SNMP_PERSISTENT_DIR=" + filepath.Join(base, "persist"), "SNMPCONFPATH=" + base}
 	child.Dir = base
@@ -113,11 +113,11 @@ func TestSnmpdIntegration(t *testing.T) {
 		t.Fatalf("unexpected state %+v", st)
 	}
 	// Both credentials work over the wire (gosnmp, in-process: no secret in any argv).
-	v2, err := GoSNMP{}.Get(ctx, Target{Addr: netip.MustParseAddr("127.0.0.1"), Port: uint16(port), Community: secRO}, []string{OIDSysName})
+	v2, err := GoSNMP{}.Get(ctx, Target{Addr: netip.MustParseAddr("127.0.0.1"), Port: uint16(port), Community: secRO}, []string{OIDSysName}) //nolint:gosec // slot port < 65536
 	if err != nil || v2[OIDSysName] != prefix+"-snmpd" {
 		t.Fatalf("v2c get: %v %v", v2, err)
 	}
-	if _, err := (GoSNMP{}).Get(ctx, Target{Addr: netip.MustParseAddr("127.0.0.1"), Port: uint16(port), Community: "wrong-community"}, []string{OIDSysName}); err == nil {
+	if _, err := (GoSNMP{}).Get(ctx, Target{Addr: netip.MustParseAddr("127.0.0.1"), Port: uint16(port), Community: "wrong-community"}, []string{OIDSysName}); err == nil { //nolint:gosec // slot port < 65536
 		t.Fatal("a wrong community was answered")
 	}
 

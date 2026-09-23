@@ -65,7 +65,7 @@ func run(args []string) error {
 	case !states[state]:
 		return fmt.Errorf("state must be MASTER, BACKUP, FAULT or STOP")
 	}
-	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+	if info, err := os.Stat(dir); err != nil || !info.IsDir() { //nolint:gosec // path validated (absolute, clean, [A-Za-z0-9_./-]) or test temp dir
 		return fmt.Errorf("state dir %s is not a directory", dir)
 	}
 	line, err := json.Marshal(Record{Name: name, Type: kind, State: state, Time: nowFunc().UTC().Format(time.RFC3339Nano)})
@@ -83,20 +83,20 @@ func writeAtomic(path string, content []byte) error {
 	name := tmp.Name()
 	if _, err := tmp.Write(content); err != nil {
 		_ = tmp.Close()
-		_ = os.Remove(name)
+		_ = os.Remove(name) //nolint:gosec // path validated (absolute, clean, [A-Za-z0-9_./-]) or test temp dir
 		return err
 	}
 	if err := tmp.Chmod(0o644); err != nil {
 		_ = tmp.Close()
-		_ = os.Remove(name)
+		_ = os.Remove(name) //nolint:gosec // path validated (absolute, clean, [A-Za-z0-9_./-]) or test temp dir
 		return err
 	}
 	if err := tmp.Close(); err != nil {
-		_ = os.Remove(name)
+		_ = os.Remove(name) //nolint:gosec // path validated (absolute, clean, [A-Za-z0-9_./-]) or test temp dir
 		return err
 	}
-	if err := os.Rename(name, path); err != nil {
-		_ = os.Remove(name)
+	if err := os.Rename(name, path); err != nil { //nolint:gosec // path validated (absolute, clean, [A-Za-z0-9_./-]) or test temp dir
+		_ = os.Remove(name) //nolint:gosec // path validated (absolute, clean, [A-Za-z0-9_./-]) or test temp dir
 		return err
 	}
 	return nil

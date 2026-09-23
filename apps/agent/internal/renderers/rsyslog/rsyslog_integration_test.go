@@ -52,7 +52,7 @@ func TestRsyslogIntegration(t *testing.T) {
 	start := func() error {
 		mu.Lock()
 		defer mu.Unlock()
-		c := exec.Command(RsyslogdBin, "-n", "-iNONE", "-f", paths.ConfFile)
+		c := exec.Command(RsyslogdBin, "-n", "-iNONE", "-f", paths.ConfFile) //nolint:gosec // test harness: fixed argv of an allow-listed binary
 		c.Env, c.Dir = []string{"PATH=/usr/sbin:/usr/bin"}, base
 		lf, err := os.OpenFile(filepath.Join(base, "rsyslogd.out"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600) //nolint:gosec // test log
 		if err != nil {
@@ -201,7 +201,7 @@ func TestRsyslogIntegration(t *testing.T) {
 	udp.reset()
 	sendUnix(t, paths.Standalone.Socket, "<14>vrxtest: after restart user.info (filtered now)")
 	sendUnix(t, paths.Standalone.Socket, "<13>vrxtest: after restart user.notice")
-	got = udp.wait(t, 1, 5*time.Second)
+	_ = udp.wait(t, 1, 5*time.Second)
 	time.Sleep(300 * time.Millisecond)
 	got = udp.snapshot()
 	if len(got) != 1 || !strings.Contains(got[0], "user.notice") {
@@ -230,7 +230,7 @@ func TestRsyslogIntegration(t *testing.T) {
 		if t.Failed() {
 			st, _ := r.State(ctx)
 			t.Logf("events so far: %v; state: %+v", evs, st)
-			b, _ := os.ReadFile(filepath.Join(base, "rsyslogd.out"))
+			b, _ := os.ReadFile(filepath.Join(base, "rsyslogd.out")) //nolint:gosec // test temp dir / slot dir
 			t.Logf("rsyslogd output: %s", b)
 		}
 	})

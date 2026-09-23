@@ -154,7 +154,7 @@ func golden(t *testing.T, name string, got []byte) {
 	t.Helper()
 	path := filepath.Join("testdata", name+".golden")
 	if *update {
-		if err := os.MkdirAll("testdata", 0o755); err != nil {
+		if err := os.MkdirAll("testdata", 0o755); err != nil { //nolint:gosec // test data directory
 			t.Fatal(err)
 		}
 		if err := os.WriteFile(path, got, 0o644); err != nil { //nolint:gosec // golden file
@@ -378,7 +378,7 @@ func (d *fakeDaemon) Signal(_ context.Context, sig syscall.Signal) error {
 		items = append(items, fmt.Sprintf(`{"data":{"iname":%q,"ifp_ifname":%q,"vrid":%d,"base_priority":%d,"effective_priority":%d,"vipset":true,"state":2,"version":3,"vips":["10.0.240.1/24 dev w0-a scope global set"],"auth_type":1,"auth_data":%q,"script_master":"'/x' 'y'"},"stats":{"advert_sent":5,"become_master":1}}`,
 			in.name, in.iface, in.vrid, in.prio, in.prio, pass))
 	}
-	return os.WriteFile(filepath.Join(d.paths.DumpDir, "keepalived.json"), []byte("["+strings.Join(items, ",")+"]"), 0o600)
+	return os.WriteFile(filepath.Join(d.paths.DumpDir, "keepalived.json"), []byte("["+strings.Join(items, ",")+"]"), 0o600) //nolint:gosec // path validated (absolute, clean, [A-Za-z0-9_./-]) or test temp dir
 }
 
 func tempPaths(t *testing.T) Paths {
@@ -408,7 +408,7 @@ func TestApplyConvergesRollsBackAndRetrieveRedacts(t *testing.T) {
 		t.Fatalf("mode %v", info.Mode())
 	}
 	// Retrieve: dump fields whitelisted (no auth_data), dump file removed, state files merged.
-	if err := os.WriteFile(filepath.Join(p.StateDir, "a.state"), []byte(`{"name":"a","type":"INSTANCE","state":"MASTER","time":"2026-09-24T00:00:00Z"}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(p.StateDir, "a.state"), []byte(`{"name":"a","type":"INSTANCE","state":"MASTER","time":"2026-09-24T00:00:00Z"}`+"\n"), 0o644); err != nil { //nolint:gosec // test fixture file
 		t.Fatal(err)
 	}
 	msg, err := r.Retrieve(ctx)
@@ -455,7 +455,7 @@ func TestApplyConvergesRollsBackAndRetrieveRedacts(t *testing.T) {
 	// Events from state files.
 	pl := r.Poller()
 	_ = pl.Step(ctx)
-	_ = os.WriteFile(filepath.Join(p.StateDir, "vi1.state"), []byte(`{"name":"vi1","type":"INSTANCE","state":"BACKUP","time":"t"}`), 0o644)
+	_ = os.WriteFile(filepath.Join(p.StateDir, "vi1.state"), []byte(`{"name":"vi1","type":"INSTANCE","state":"BACKUP","time":"t"}`), 0o644) //nolint:gosec // test fixture file
 	ev := pl.Step(ctx)
 	if len(ev) != 1 || ev[0].Key != "vi1" || ev[0].New != "BACKUP" || ev[0].ToProto().GetAttributes()["source"] != "keepalived" {
 		t.Fatalf("events %v", ev)

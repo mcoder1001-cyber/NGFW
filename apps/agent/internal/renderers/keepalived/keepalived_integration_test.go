@@ -96,7 +96,7 @@ func TestKeepalivedIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	child = exec.Command(ipBin, "netns", "exec", ns, KeepalivedBin, "-n", "-l", "-P", "-G", "-f", paths.ConfFile,
+	child = exec.Command(ipBin, "netns", "exec", ns, KeepalivedBin, "-n", "-l", "-P", "-G", "-f", paths.ConfFile, //nolint:gosec // test harness: fixed argv of an allow-listed binary
 		"-p", filepath.Join(base, "keepalived.pid"), "-r", filepath.Join(base, "vrrp.pid"), "-c", filepath.Join(base, "checkers.pid"))
 	child.Env = []string{"PATH=/usr/sbin:/usr/bin", "TMPDIR=" + paths.DumpDir}
 	child.Stdout, child.Stderr, child.Dir = lf, lf, base
@@ -239,7 +239,7 @@ func buildHelpers(t *testing.T, prefix string) string {
 	if err := os.Chmod(dir, 0o755); err != nil { //nolint:gosec // keepalived script security: root-owned, not writable by others
 		t.Fatal(err)
 	}
-	build := exec.Command("go", "build", "-o", filepath.Join(dir, "vrx-keepalived-notify"), "./cmd/vrx-keepalived-notify")
+	build := exec.Command("go", "build", "-o", filepath.Join(dir, "vrx-keepalived-notify"), "./cmd/vrx-keepalived-notify") //nolint:gosec // test harness: fixed argv of an allow-listed binary
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build notify helper: %v\n%s", err, out)
 	}
@@ -259,16 +259,16 @@ func buildHelpers(t *testing.T, prefix string) string {
 func makeNetNS(t *testing.T, ns, ifA, ifB, cidrA, cidrB string) {
 	t.Helper()
 	run := func(args ...string) {
-		if out, err := exec.Command(ipBin, args...).CombinedOutput(); err != nil {
+		if out, err := exec.Command(ipBin, args...).CombinedOutput(); err != nil { //nolint:gosec // test harness: fixed argv of an allow-listed binary
 			t.Fatalf("ip %s: %v %s", strings.Join(args, " "), err, out)
 		}
 	}
-	if exec.Command(ipBin, "netns", "pids", ns).Run() == nil {
-		_ = exec.Command(ipBin, "netns", "delete", ns).Run() // stale namespace of an earlier run of this slot
+	if exec.Command(ipBin, "netns", "pids", ns).Run() == nil { //nolint:gosec // test harness: fixed argv of an allow-listed binary
+		_ = exec.Command(ipBin, "netns", "delete", ns).Run() //nolint:gosec // stale namespace of an earlier run of this slot (fixed argv)
 	}
 	run("netns", "add", ns)
 	t.Cleanup(func() {
-		if out, err := exec.Command(ipBin, "netns", "delete", ns).CombinedOutput(); err != nil {
+		if out, err := exec.Command(ipBin, "netns", "delete", ns).CombinedOutput(); err != nil { //nolint:gosec // test harness: fixed argv of an allow-listed binary
 			t.Errorf("ip netns delete %s: %v %s", ns, err, out)
 		}
 	})
@@ -283,7 +283,7 @@ func makeNetNS(t *testing.T, ns, ifA, ifB, cidrA, cidrB string) {
 
 func vipOn(t *testing.T, ns, dev, cidr string) bool {
 	t.Helper()
-	out, err := exec.Command(ipBin, "-n", ns, "-j", "addr", "show", "dev", dev).Output()
+	out, err := exec.Command(ipBin, "-n", ns, "-j", "addr", "show", "dev", dev).Output() //nolint:gosec // test harness: fixed argv of an allow-listed binary
 	if err != nil {
 		t.Fatalf("ip -j addr: %v", err)
 	}

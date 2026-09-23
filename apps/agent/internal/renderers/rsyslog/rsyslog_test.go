@@ -138,7 +138,7 @@ func golden(t *testing.T, name string, got []byte) {
 	t.Helper()
 	path := filepath.Join("testdata", name+".golden")
 	if *update {
-		if err := os.MkdirAll("testdata", 0o755); err != nil {
+		if err := os.MkdirAll("testdata", 0o755); err != nil { //nolint:gosec // test data directory
 			t.Fatal(err)
 		}
 		if err := os.WriteFile(path, got, 0o644); err != nil { //nolint:gosec // golden file

@@ -76,21 +76,22 @@ func checkPEM(v string) error {
 	return nil
 }
 
-// Files the model needs besides the config: TLS material resolved from secret references.
-type tlsFile struct {
+// TLSFile is a file the model needs besides the config: TLS material resolved from a secret
+// reference (Content is secret for keys).
+type TLSFile struct {
 	Path    string
 	Content string
 	Secret  bool
 }
 
 // BuildModel validates management.syslog (+ stand-ins, D-055) and resolves TLS material.
-func BuildModel(ds *vrxv1.DesiredState, ext *rfkit.Ext, sec *rfkit.Secrets, p Paths) (*Model, []tlsFile, error) {
+func BuildModel(ds *vrxv1.DesiredState, ext *rfkit.Ext, sec *rfkit.Secrets, p Paths) (*Model, []TLSFile, error) {
 	m := &Model{Standalone: p.Standalone, StatsFile: p.StatsFile}
 	list := ds.GetManagement().GetSyslog()
 	if len(list) > MaxTargets {
 		return nil, nil, fmt.Errorf("%w: management.syslog holds %d targets (max %d)", ErrInput, len(list), MaxTargets)
 	}
-	var files []tlsFile
+	var files []TLSFile
 	seen := map[string]int{}
 	for i, s := range list {
 		path := fmt.Sprintf("management.syslog[%d]", i)
@@ -114,7 +115,7 @@ func BuildModel(ds *vrxv1.DesiredState, ext *rfkit.Ext, sec *rfkit.Secrets, p Pa
 	return m, files, nil
 }
 
-func buildTarget(i int, s *vrxv1.SyslogTarget, x *rfkit.Ext, sec *rfkit.Secrets, p Paths, path string) (*Target, []tlsFile, error) {
+func buildTarget(i int, s *vrxv1.SyslogTarget, x *rfkit.Ext, sec *rfkit.Secrets, p Paths, path string) (*Target, []TLSFile, error) {
 	if vrf := s.GetVrf(); vrf != "" && vrf != "default" {
 		return nil, nil, fmt.Errorf("%w: %s.vrf %q: syslog export runs in the default VRF only (F-logging)", ErrInput, path, vrf)
 	}
@@ -203,9 +204,9 @@ func buildTarget(i int, s *vrxv1.SyslogTarget, x *rfkit.Ext, sec *rfkit.Secrets,
 // the hash: it is secret; a rotated key keeps the name).
 func actionName(i int, t *Target) string {
 	h := fnv.New32a()
-	fmt.Fprintf(h, "%s|%d|%s|%s|%s|%s|%d", t.Host, t.Port, t.Protocol, t.Filter, t.Template, t.Framing, t.QueueSize)
+	_, _ = fmt.Fprintf(h, "%s|%d|%s|%s|%s|%s|%d", t.Host, t.Port, t.Protocol, t.Filter, t.Template, t.Framing, t.QueueSize)
 	if t.TLS != nil {
-		fmt.Fprintf(h, "|%s|%s|%s|%s|%s", t.TLS.AuthMode, strings.Join(t.TLS.Peers, ","), t.TLS.CAFile, t.TLS.CertFile, t.TLS.KeyFile)
+		_, _ = fmt.Fprintf(h, "|%s|%s|%s|%s|%s", t.TLS.AuthMode, strings.Join(t.TLS.Peers, ","), t.TLS.CAFile, t.TLS.CertFile, t.TLS.KeyFile)
 	}
 	return fmt.Sprintf("vrx_export_%d_%08x", i, h.Sum32())
 }
@@ -226,7 +227,7 @@ func checkExtKeys(x *rfkit.Ext) error {
 	return nil
 }
 
-func buildTLS(t *Target, i int, tx *rfkit.Ext, sec *rfkit.Secrets, p Paths, path string) (*Target, []tlsFile, error) {
+func buildTLS(t *Target, i int, tx *rfkit.Ext, sec *rfkit.Secrets, p Paths, path string) (*Target, []TLSFile, error) {
 	if err := tx.OnlyKeys("caRef", "certRef", "keyRef", "authMode", "permittedPeers"); err != nil {
 		return nil, nil, fmt.Errorf("%w: %w", ErrInput, err)
 	}
@@ -252,7 +253,7 @@ func buildTLS(t *Target, i int, tx *rfkit.Ext, sec *rfkit.Secrets, p Paths, path
 	if tls.AuthMode == "x509/name" && len(tls.Peers) == 0 && !hostnameRe.MatchString(t.Host) {
 		return nil, nil, fmt.Errorf("%w: %s.tls: x509/name needs permittedPeers", ErrInput, path)
 	}
-	var files []tlsFile
+	var files []TLSFile
 	for _, f := range []struct {
 		key, kind, suffix string
 		dst               *string
@@ -277,7 +278,7 @@ func buildTLS(t *Target, i int, tx *rfkit.Ext, sec *rfkit.Secrets, p Paths, path
 			return nil, nil, fmt.Errorf("%w: %s.tls.%s: %w", ErrInput, path, f.key, err)
 		}
 		*f.dst = filepath.Join(p.TLSDir, fmt.Sprintf("export-%d-%s", i, f.suffix))
-		files = append(files, tlsFile{Path: *f.dst, Content: v, Secret: f.secret})
+		files = append(files, TLSFile{Path: *f.dst, Content: v, Secret: f.secret})
 	}
 	if (tls.CertFile == "") != (tls.KeyFile == "") {
 		return nil, nil, fmt.Errorf("%w: %s.tls: certRef and keyRef go together", ErrInput, path)

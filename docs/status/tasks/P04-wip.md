@@ -13,3 +13,4 @@ started: 2026-09-23T13:13 (+0330) · slot 3 (`w3`) · worktree /root/ngfw-wt/P04
 | smoke test `test/integration/smoke` | done | PASS 3.2 s, rx counters 1→9 / 0→6, path af_packet |
 | `docs/lab/vmware.md` | done | |
 | CI gate + P04.md | done | `tools/ci.sh --base main` → CI GATE PASSED (log /root/ngfw-wt/logs/P04-ci.log) |
+| review fixes F1–F7 (`P04-review.md` BLOCK) | done | F1 anchored matches (+unit test), F2 addr failure/prefix-wins, F3 canonical guard, F4 self-IP/role/confirm, F5 single flock + rig shared lock, F7 items; re-test pasted in P04.md "Review fixes"; F6 → P09 (questions #9) |

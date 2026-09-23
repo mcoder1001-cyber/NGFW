@@ -21,3 +21,22 @@
 8. Operator tooling note: `wt.sh pull` uses `rsync --delete` and `push` never deletes — a worker who edits locally
    after running generators on the host (go mod tidy) silently reverts them on push. P04 hit this once (fixed in
    commit 2). Suggest WORKER-OPS say "pull immediately after any host-side generator, push immediately after writing".
+
+Added after the review (`P04-review.md`, fixes in the "Review fixes" section of `P04.md`):
+
+9. **For P09 (review F6):** `test/integration/smoke` is its own Go module and `tools/ci.sh` only runs `make lint/test/build`
+   in `apps/agent`, so a gofmt/vet/compile regression in the smoke module stays invisible to the quick gate until someone runs
+   `run.sh`. Please add `(cd test/integration/smoke && test -z "$(gofmt -l .)" && go vet ./... && go test -count=1 ./...)` to
+   `tools/ci.sh` — without `VRX_INTEGRATION` the VPP test skips and the pure unit test `TestRigObjectMatchIsAnchored` runs (so the
+   step is meaningful even on a non-VPP checkout). Alternative: a root `go.work` listing both modules (one `go vet ./...` then covers
+   both and the second `go.sum` goes away). P04 did not touch `tools/ci.sh` (not P04-owned).
+10. **VPP log quirk — one line for `docs/lab/host-vrx-a.md` (not P04-owned):** every `delete host-interface` logs
+    `vlib/file: vlib_file_update: epoll_ctl() failed on epfd (7), file 'host-<p>w0 queue 0' (fd N), errno 9` in `journalctl -u vpp`
+    (`/var/log/vpp/vpp.log` does not exist on this host; the unit logs to the journal). af_packet quirk of this build, harmless —
+    the interface is gone and the next `create` works. Seen 48× during the review-fix session (every rig down).
+11. **`CANON_ROOT=/root/ngfw` is hard-coded in `tools/lab`** (review F3 asked for no env override): `restart-vpp`/`kill-vpp` read
+    `docs/lab/host-<vm>.md` from there AND from the calling worktree. If the canonical checkout ever moves, that constant must follow
+    (the `git show main:` fallback covers a missing directory, not a moved one). For a future remote VM the guard requires
+    `docs/lab/host-<vm>.md` to exist and say `done` in both places (vmware.md checklist step 4) — until then refuse, fail-safe.
+12. **`rig up` addressing for non-`w<N>` prefixes now requires `VRX_SLOT`** (D-P04-1 amended, review F2/F7). The reviewer's own
+    `rva`/`rvb` style runs need `VRX_SLOT=<13..254>`; `w<N>` prefixes ignore `VRX_SLOT` (warning) — the prefix wins.

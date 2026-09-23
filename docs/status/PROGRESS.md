@@ -7,8 +7,8 @@ Updated 2026-09-23 from plan/tasks.yaml (estimated hours are the plan's, not act
 | state | tasks |
 |---|---|
 | merged | 5 |
-| review | 3 |
-| running | 8 |
+| review | 2 |
+| running | 9 |
 | ready | 2 |
 | parked | 1 |
 | failed | 0 |
@@ -17,7 +17,7 @@ Updated 2026-09-23 from plan/tasks.yaml (estimated hours are the plan's, not act
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
-| S1 | 26 / 71 | 36.6% | 4/9 | 1 | 0 | 0 |
+| S1 | 26 / 71 | 36.6% | 4/9 | 2 | 0 | 0 |
 | S2 | 0 / 215 | 0.0% | 0/16 | 7 | 2 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
 | S4 | 0 / 372 | 0.0% | 0/36 | 0 | 0 | 1 |
@@ -29,7 +29,7 @@ Updated 2026-09-23 from plan/tasks.yaml (estimated hours are the plan's, not act
 - P02a — Schema group (a): system, dataplane, interfaces, vrfs, routing, management + primitives/diff/merge-patch/gen (review, desktop-agent slot1)
 - P02b — Schema group (b): nat, objects, acl (running, desktop-agent slot5)
 - P02c — Schema group (c): vpn, tunnels, services, ha (review, desktop-agent slot6)
-- P03 — gRPC contract agent↔api (messages for all domains, RPC semantics doc) (review, desktop-agent slot7)
+- P03 — gRPC contract agent↔api (messages for all domains, RPC semantics doc) (running, desktop-agent slot7)
 - P07a — UI shell: theme/RTL, i18n, SchemaForm, ServerDataGrid, WS hook, frame skeleton (running, desktop-agent slot8)
 - DF-1 — Descriptors: bond, l2 (bridge, xconnect), memif, tap, host-interface/af_packet, subinterface, admin-state, mtu, rx-mode (running, desktop-agent slot2)
 - DF-2 — Descriptors: ip_neighbor, ip6_nd (RA, DAD), urpf, abf, classify (ip tables/routes are P05 core) (running, desktop-agent slot3)

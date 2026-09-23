@@ -767,3 +767,11 @@ $ vppctl show ip table
 [0] table_id:0 ipv4-VRF:0
 [1] table_id:11013 w11-t11013
 
+
+=== fix 2: a VRF repaired by Update (one family lost) re-asserts both families' API locks ===
+(loss restart again: kill -9, delete_owned.py w7, restart)
+{"time":"2026-09-24T00:54:36.376194406+03:30","level":"INFO","msg":"reconcile done","owner":"w7","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing"],"status":"APPLY_STATUS_APPLIED","summary":"created:7 updated:2 unchanged:1","reapplied":0,"duration":40353715,"err":""}
+{"time":"2026-09-24T00:54:45.740170439+03:30","level":"INFO","msg":"reconcile done","owner":"w7","txn_id":"w7-cleanup2","mode":"apply","domains":["interfaces","vrfs","routing"],"status":"APPLY_STATUS_APPLIED","summary":"deleted:10","reapplied":0,"duration":13881346,"err":""}
+$ vppctl show ip fib table 7001 | head -1   /  vppctl show ip6 fib table 7001 | head -1   (taken before cleanup)
+w7:w7-red, fib_index:2, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[interface:2, API:1, recursive-resolution:1, ]
+w7:w7-red, fib_index:2, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[interface:2, API:1, ]

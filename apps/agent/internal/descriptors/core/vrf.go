@@ -80,23 +80,15 @@ func (d *VRFDescriptor) Create(ctx context.Context, obj proto.Message) (any, err
 }
 
 // Update implements scheduler.Descriptor. A renamed VRF needs new VPP tables (VPP does not rename
-// an existing table); a VRF missing one address family gets it re-added in place.
+// an existing table); a VRF missing one address family is repaired in place by re-adding both
+// families — ip_table_add_del(add) is idempotent and also re-asserts the API lock of the family that
+// survived (VPP keeps a referenced table alive after its API lock is gone).
 func (d *VRFDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	o, n := asTable(oldObj), asTable(newObj)
 	if o.GetVrf() != n.GetVrf() || o.GetId() != n.GetId() {
 		return nil, scheduler.ErrRecreate
 	}
-	var fams []bool
-	if o.GetMissingIp4() && !n.GetMissingIp4() {
-		fams = append(fams, false)
-	}
-	if o.GetMissingIp6() && !n.GetMissingIp6() {
-		fams = append(fams, true)
-	}
-	if len(fams) == 0 {
-		return meta, nil
-	}
-	return meta, d.addDel(ctx, n, true, fams...)
+	return meta, d.addDel(ctx, n, true)
 }
 
 // Reapply implements scheduler.Reapplier: VPP keeps a table alive while routes or interfaces

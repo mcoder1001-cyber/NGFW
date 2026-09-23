@@ -567,18 +567,17 @@ message HealthResponse {
 // convention inside every domain message: append-only — a new field takes the next free number
 // regardless of its position in the Zod declaration (the first fields of a message happen to
 // follow the Zod order); agent-only annotations, if ever needed, start at 100. Removed fields are
-// `reserved`. system, dataplane, interfaces, vrfs, routing.static and management.users mirror
-// task/P02a HEAD (df554dc) in types and presence (D-042); the remaining P02a sub-messages (ntp,
-// dns, prefix lists, route maps, bgp/ospf/isis/rip/bfd, aaa, tls, syslog) and tunnels/services/ha
-// (P02c) carry the documented target shape with empty sub-messages — filling them is additive
-// (P03b). nat/objects/acl (P02b) and vpn (P02c) mirror the committed work-in-progress models
+// `reserved`. system, dataplane, interfaces, vrfs, routing and management mirror the group-(a)
+// schema of task/P02a completely, in types and presence (D-042, D-061: synced by P02a's review-fix
+// round); tunnels/services/ha (P02c) carry the documented target shape with empty sub-messages —
+// filling them is additive (P03b). nat/objects/acl (P02b) and vpn (P02c) mirror the committed work-in-progress models
 // (task/P02b@ec0ccda, task/P02c@b815d15; no renames since, only additions — P03b).
 
 // DesiredState is the whole configuration as the agent sees it. Domain messages are named
 // `<Key>Config` like the schema package's `<Key>Config` types; the two record-shaped domains
 // (`interfaces`, `vrfs`) are maps keyed exactly like the JSON records.
 message DesiredState {
-  // `system` — hostname, timezone, banner, NTP/DNS client.
+  // `system` — hostname, timezone, banner, DNS client.
   SystemConfig system = 1;
   // `dataplane` — VPP startup tuning (workers, RX queues, hugepages, PCI whitelist, cores).
   DataplaneConfig dataplane = 2;
@@ -616,25 +615,31 @@ message SystemConfig {
   optional string timezone = 2;
   // Login banners (pre-login + message of the day).
   SystemBanner banner = 3;
-  // NTP client settings (chrony renderer). Fields land with the P02a model.
-  SystemNtp ntp = 4;
-  // DNS client settings (resolv.conf / Unbound forwarders). Fields land with the P02a model.
+  // Field 4 was `ntp`: NTP is modelled once, in `services.ntp` (chrony renderer, D-050).
+  reserved 4;
+  reserved "ntp";
+  // DNS client of the router itself (resolv.conf).
   SystemDns dns = 5;
 }
 
 // SystemBanner mirrors `system.banner` (rendered into /etc/issue, /etc/motd and the web login page).
 message SystemBanner {
-  // Pre-login banner shown before authentication (SSH issue, web login page); up to 4096 chars.
+  // Pre-login banner shown before authentication (SSH issue, web login page); up to 4096 chars,
+  // printable + LF/TAB only (D-049).
   optional string login = 1;
-  // Message of the day shown after a successful login; up to 4096 chars.
+  // Message of the day shown after a successful login; same alphabet.
   optional string motd = 2;
 }
 
-// SystemNtp is `system.ntp`; P02a fields (enabled, servers[], vrf) are added here from 1 (P03b).
-message SystemNtp {}
-
-// SystemDns is `system.dns`; P02a fields (servers[], searchDomains[], vrf) are added here from 1 (P03b).
-message SystemDns {}
+// SystemDns mirrors `system.dns`.
+message SystemDns {
+  // Upstream resolvers of the system itself (IP addresses), in order.
+  repeated string servers = 1;
+  // Search domains (RFC 1123 names).
+  repeated string search_domains = 2;
+  // VRF used to reach the name servers; Zod default "default".
+  optional string vrf = 3;
+}
 
 // ----- dataplane (P02a) -----
 
@@ -684,6 +689,18 @@ message Interface {
   optional string unnumbered = 10;
   // Accept frames for any destination MAC (sw_interface_set_promisc); Zod default false.
   optional bool promiscuous = 11;
+  // DHCPv4 client (dhcp_client_config); present = enabled (D-050).
+  DhcpClient dhcp_client = 12;
+}
+
+// DhcpClient mirrors `interfaces.<name>.dhcpClient` / `….subinterfaces.<id>.dhcpClient`.
+message DhcpClient {
+  // Hostname sent in option 12; unset = the system hostname.
+  optional string hostname = 1;
+  // Client identifier (option 61); unset = the interface MAC address.
+  optional string client_id = 2;
+  // Ask the server to broadcast its replies; Zod default false.
+  optional bool set_broadcast_flag = 3;
 }
 
 // Subinterface mirrors one entry of `interfaces.<name>.subinterfaces` (dot1q / dot1ad).
@@ -708,6 +725,8 @@ message Subinterface {
   optional string unnumbered = 9;
   // Outer tag is 802.1ad (0x88a8) instead of 802.1Q (0x8100); Zod default false.
   optional bool dot1ad = 10;
+  // DHCPv4 client; present = enabled (D-050).
+  DhcpClient dhcp_client = 11;
 }
 
 // ----- vrfs (P02a) -----
@@ -722,31 +741,34 @@ message Vrf {
 
 // ----- routing (P02a) -----
 
-// RoutingConfig mirrors `routing`.
+// RoutingConfig mirrors `routing`. Shapes follow the FRR renderer contract of P12 §2 (D-045):
+// collections with a natural key are maps (neighbours by address, IGP interfaces by name, OSPF
+// areas by id); ordered lists stay repeated.
 message RoutingConfig {
   // Static routes (ip_route_add_del).
   repeated StaticRoute static = 1;
-  // Prefix lists keyed by name (FRR policy skeleton). Fields land with the P02a model.
-  map<string, PrefixList> prefix_lists = 2;
-  // Route maps keyed by name (FRR policy skeleton). Fields land with the P02a model.
-  map<string, RouteMap> route_maps = 3;
-  // BGP (FRR bgpd). Fields land with the P02a model.
+  // Fields 2/3 were `prefix_lists` / `route_maps`: moved under `policy` (D-045).
+  reserved 2, 3;
+  reserved "prefix_lists", "route_maps";
+  // BGP (FRR bgpd); unset = BGP not configured.
   BgpConfig bgp = 4;
-  // OSPFv2/v3 (FRR ospfd/ospf6d). Fields land with the P02a model.
+  // OSPFv2 (FRR ospfd); unset = not configured.
   OspfConfig ospf = 5;
-  // IS-IS (FRR isisd). Fields land with the P02a model.
+  // IS-IS (FRR isisd); unset = not configured.
   IsisConfig isis = 6;
-  // RIP (FRR ripd). Fields land with the P02a model.
+  // RIP (FRR ripd); unset = not configured.
   RipConfig rip = 7;
-  // BFD (VPP bfd plugin + FRR bfdd). Fields land with the P02a model.
+  // BFD sessions (VPP bfd plugin); unset = none.
   BfdConfig bfd = 8;
+  // Routing policy: prefix lists and route maps (FRR).
+  RoutingPolicy policy = 9;
 }
 
 // StaticRoute mirrors one entry of `routing.static`.
 message StaticRoute {
   // Destination prefix in CIDR notation, IPv4 or IPv6 ("0.0.0.0/0", "2001:db8::/32").
   optional string prefix = 1;
-  // Next hops (ECMP when more than one), sorted by address.
+  // Next hops (ECMP when more than one); empty only for a blackhole route.
   repeated NextHop next_hops = 2;
   // VRF name the route is installed in; first-class (vdom.md #1). Zod default "default".
   optional string vrf = 3;
@@ -754,6 +776,8 @@ message StaticRoute {
   optional uint32 distance = 4;
   // Free-text description.
   optional string description = 5;
+  // Drop matching traffic (null route, FIB_PATH_TYPE drop); requires empty next_hops. Zod default false.
+  optional bool blackhole = 6;
 }
 
 // NextHop is one path of a StaticRoute.
@@ -767,26 +791,291 @@ message NextHop {
   optional uint32 weight = 3;
 }
 
-// PrefixList is `routing.prefixLists.<name>`; P02a fields are added from 1.
-message PrefixList {}
+// RoutingPolicy mirrors `routing.policy`.
+message RoutingPolicy {
+  // Prefix lists keyed by name.
+  map<string, PrefixList> prefix_lists = 1;
+  // Route maps keyed by name.
+  map<string, RouteMap> route_maps = 2;
+}
 
-// RouteMap is `routing.routeMaps.<name>`; P02a fields are added from 1.
-message RouteMap {}
+// PrefixList mirrors `routing.policy.prefixLists.<name>` (FRR `ip|ipv6 prefix-list`).
+message PrefixList {
+  // Free-text description.
+  optional string description = 1;
+  // "ipv4" | "ipv6"; Zod default "ipv4".
+  optional string family = 2;
+  // Rules in document order; `seq` unique.
+  repeated PrefixListRule rules = 3;
+}
 
-// BgpConfig is `routing.bgp`; P02a fields are added from 1.
-message BgpConfig {}
+// PrefixListRule is one `seq N permit|deny <prefix> [ge G] [le L]`.
+message PrefixListRule {
+  // Sequence number 1..2^32-1.
+  optional uint32 seq = 1;
+  // "permit" | "deny".
+  optional string action = 2;
+  // Network prefix (host bits zero).
+  optional string prefix = 3;
+  // Minimum matched length (len < ge ≤ max).
+  optional uint32 ge = 4;
+  // Maximum matched length (len ≤ le ≤ max, ge ≤ le).
+  optional uint32 le = 5;
+}
 
-// OspfConfig is `routing.ospf`; P02a fields are added from 1.
-message OspfConfig {}
+// RouteMap mirrors `routing.policy.routeMaps.<name>`.
+message RouteMap {
+  // Free-text description.
+  optional string description = 1;
+  // Entries in document order; `seq` unique.
+  repeated RouteMapEntry entries = 2;
+}
 
-// IsisConfig is `routing.isis`; P02a fields are added from 1.
-message IsisConfig {}
+// RouteMapEntry is one `route-map NAME permit|deny SEQ` block.
+message RouteMapEntry {
+  // Sequence number 1..2^32-1.
+  optional uint32 seq = 1;
+  // "permit" | "deny".
+  optional string action = 2;
+  // Free-text description.
+  optional string description = 3;
+  // Match clauses (all must match; empty = everything).
+  RouteMapMatch match = 4;
+  // Set clauses.
+  RouteMapSet set = 5;
+}
 
-// RipConfig is `routing.rip`; P02a fields are added from 1.
-message RipConfig {}
+// RouteMapMatch mirrors `…entries[].match`.
+message RouteMapMatch {
+  // `match ip[v6] address prefix-list`.
+  optional string prefix_list = 1;
+  // `match ip[v6] next-hop prefix-list`.
+  optional string next_hop_prefix_list = 2;
+  // `match interface`.
+  optional string interface = 3;
+  // `match community` (standard community or well-known name).
+  optional string community = 4;
+  // `match as-path` regex (FRR alphabet only, D-049).
+  optional string as_path = 5;
+  // `match metric`.
+  optional uint32 metric = 6;
+  // `match tag`.
+  optional uint32 tag = 7;
+}
 
-// BfdConfig is `routing.bfd`; P02a fields are added from 1.
-message BfdConfig {}
+// RouteMapSet mirrors `…entries[].set`; names follow P12 §2.
+message RouteMapSet {
+  // `set local-preference`.
+  optional uint32 local_pref = 1;
+  // `set metric` (BGP MED).
+  optional uint32 med = 2;
+  // `set weight` 0–65535.
+  optional uint32 weight = 3;
+  // `set ip[v6] next-hop`.
+  optional string next_hop = 4;
+  // `set community …`.
+  repeated string community = 5;
+  // Append instead of replace (`additive`); Zod default false.
+  optional bool community_additive = 6;
+  // `set as-path prepend …`.
+  repeated uint32 as_path_prepend = 7;
+  // `set tag`.
+  optional uint32 tag = 8;
+}
+
+// RedistributeOptions is one redistributed source; the field being set means "redistribute it".
+message RedistributeOptions {
+  // `metric N`.
+  optional uint32 metric = 1;
+  // `route-map NAME`.
+  optional string route_map = 2;
+}
+
+// Redistribute mirrors `routing.<protocol>.redistribute` (a record keyed by source protocol; the
+// schema rejects a protocol redistributing into itself).
+message Redistribute {
+  RedistributeOptions connected = 1;
+  RedistributeOptions static = 2;
+  RedistributeOptions bgp = 3;
+  RedistributeOptions ospf = 4;
+  RedistributeOptions isis = 5;
+  RedistributeOptions rip = 6;
+}
+
+// BgpAddressFamily mirrors `…afi.ipv4Unicast` / `…afi.ipv6Unicast` of a neighbour or peer group.
+message BgpAddressFamily {
+  // `activate`; Zod default true.
+  optional bool enabled = 1;
+  optional string route_map_in = 2;
+  optional string route_map_out = 3;
+  optional string prefix_list_in = 4;
+  optional string prefix_list_out = 5;
+  // Zod default false.
+  optional bool next_hop_self = 6;
+  // `soft-reconfiguration inbound`; Zod default false.
+  optional bool soft_reconfig = 7;
+  // `maximum-prefix N`.
+  optional uint32 maximum_prefixes = 8;
+  // `default-originate`; Zod default false.
+  optional bool default_originate = 9;
+}
+
+// BgpAfi mirrors `…afi`; an unset family is not activated.
+message BgpAfi {
+  BgpAddressFamily ipv4_unicast = 1;
+  BgpAddressFamily ipv6_unicast = 2;
+}
+
+// BgpPeerGroup mirrors `routing.bgp.peerGroups.<name>`.
+message BgpPeerGroup {
+  optional uint32 remote_as = 1;
+  optional string description = 2;
+  // Local address or interface name.
+  optional string update_source = 3;
+  optional uint32 ebgp_multihop = 4;
+  // TCP MD5 password: a secret-store reference "password/<name>" (D-051), never the password.
+  optional string password_ref = 5;
+  optional uint32 keepalive_sec = 6;
+  optional uint32 hold_time_sec = 7;
+  // Zod default false.
+  optional bool bfd = 8;
+  BgpAfi afi = 9;
+}
+
+// BgpNeighbor mirrors `routing.bgp.neighbors.<address>` (map key = neighbour address).
+message BgpNeighbor {
+  optional uint32 remote_as = 1;
+  optional string description = 2;
+  optional string update_source = 3;
+  optional uint32 ebgp_multihop = 4;
+  // Secret-store reference "password/<name>" (D-051).
+  optional string password_ref = 5;
+  optional uint32 keepalive_sec = 6;
+  optional uint32 hold_time_sec = 7;
+  optional bool bfd = 8;
+  BgpAfi afi = 9;
+  // Inherit settings from this peer group.
+  optional string peer_group = 10;
+  // Keep the configuration, do not bring the session up; Zod default false.
+  optional bool shutdown = 11;
+}
+
+// BgpNetwork mirrors one entry of `routing.bgp.networks`.
+message BgpNetwork {
+  optional string prefix = 1;
+  optional string route_map = 2;
+}
+
+// BgpConfig mirrors `routing.bgp`.
+message BgpConfig {
+  // Local AS (asplain).
+  optional uint32 asn = 1;
+  optional string router_id = 2;
+  // Zod default "default".
+  optional string vrf = 3;
+  map<string, BgpPeerGroup> peer_groups = 4;
+  // Keyed by neighbour address.
+  map<string, BgpNeighbor> neighbors = 5;
+  repeated BgpNetwork networks = 6;
+  Redistribute redistribute = 7;
+  // Zod default false.
+  optional bool graceful_restart = 8;
+  // RFC 8212; Zod default true.
+  optional bool ebgp_requires_policy = 9;
+}
+
+// OspfArea mirrors `routing.ospf.areas.<id>` (map key = area id, decimal or dotted quad).
+message OspfArea {
+  // "normal" | "stub" | "nssa"; Zod default "normal".
+  optional string type = 1;
+  // Totally stubby / totally NSSA; Zod default false.
+  optional bool no_summary = 2;
+}
+
+// OspfInterface mirrors `routing.ospf.interfaces.<name>`.
+message OspfInterface {
+  // Area id (decimal or dotted quad string), must exist under `areas`.
+  optional string area = 1;
+  optional uint32 cost = 2;
+  // Zod default false.
+  optional bool passive = 3;
+  // "broadcast" | "point-to-point" | "non-broadcast" | "point-to-multipoint".
+  optional string network_type = 4;
+  optional uint32 hello_interval_sec = 5;
+  optional uint32 dead_interval_sec = 6;
+  optional uint32 priority = 7;
+  // Zod default false.
+  optional bool bfd = 8;
+}
+
+// OspfConfig mirrors `routing.ospf`.
+message OspfConfig {
+  optional string router_id = 1;
+  optional string vrf = 2;
+  map<string, OspfArea> areas = 3;
+  map<string, OspfInterface> interfaces = 4;
+  Redistribute redistribute = 5;
+  // "off" | "on" | "always"; Zod default "off".
+  optional string default_information_originate = 6;
+}
+
+// IsisInterface mirrors `routing.isis.interfaces.<name>`.
+message IsisInterface {
+  optional bool passive = 1;
+  optional uint32 metric = 2;
+  // "level-1" | "level-2" | "level-1-2".
+  optional string circuit_type = 3;
+  // "broadcast" | "point-to-point".
+  optional string network_type = 4;
+  optional bool bfd = 5;
+}
+
+// IsisConfig mirrors `routing.isis`.
+message IsisConfig {
+  // Network entity title, e.g. "49.0001.1921.6800.1001.00".
+  optional string net = 1;
+  // IS type; Zod default "level-1-2".
+  optional string level = 2;
+  optional string vrf = 3;
+  map<string, IsisInterface> interfaces = 4;
+  Redistribute redistribute = 5;
+}
+
+// RipInterface mirrors `routing.rip.interfaces.<name>`.
+message RipInterface {
+  optional bool passive = 1;
+}
+
+// RipConfig mirrors `routing.rip`.
+message RipConfig {
+  optional string vrf = 1;
+  // IPv4 network prefixes RIP runs on.
+  repeated string networks = 2;
+  map<string, RipInterface> interfaces = 3;
+  Redistribute redistribute = 4;
+  // Zod default 1.
+  optional uint32 default_metric = 5;
+}
+
+// BfdSession mirrors one entry of `routing.bfd.sessions` (bfd_udp_add).
+message BfdSession {
+  optional string interface = 1;
+  optional string local_address = 2;
+  optional string peer_address = 3;
+  // Microseconds; Zod default 300000.
+  optional uint32 desired_min_tx_us = 4;
+  // Microseconds; Zod default 300000.
+  optional uint32 required_min_rx_us = 5;
+  // Zod default 3.
+  optional uint32 detect_multiplier = 6;
+  // Zod default true.
+  optional bool enabled = 7;
+}
+
+// BfdConfig mirrors `routing.bfd`.
+message BfdConfig {
+  repeated BfdSession sessions = 1;
+}
 
 // ----- tunnels (P02c) -----
 
@@ -860,11 +1149,11 @@ message VrrpInstance {}
 message ManagementConfig {
   // Local users.
   repeated ManagementUser users = 1;
-  // AAA (RADIUS/TACACS+/LDAP). Fields land with the P02a model.
+  // AAA (RADIUS / TACACS+).
   ManagementAaa aaa = 2;
-  // TLS settings of the management endpoint. Fields land with the P02a model.
+  // TLS settings of the management endpoint.
   ManagementTls tls = 3;
-  // Remote syslog targets (rsyslog renderer). Fields land with the P02a model.
+  // Remote syslog targets (rsyslog renderer).
   repeated SyslogTarget syslog = 4;
 }
 
@@ -888,14 +1177,71 @@ message ManagementUser {
   optional bool disabled = 7;
 }
 
-// ManagementAaa is `management.aaa`; P02a fields are added from 1.
-message ManagementAaa {}
+// ManagementAaa mirrors `management.aaa`.
+message ManagementAaa {
+  // Authentication methods in order: "local" | "radius" | "tacacs"; Zod default ["local"].
+  repeated string order = 1;
+  AaaRadius radius = 2;
+  AaaTacacs tacacs = 3;
+}
 
-// ManagementTls is `management.tls`; P02a fields are added from 1.
-message ManagementTls {}
+// AaaRadius mirrors `management.aaa.radius`.
+message AaaRadius {
+  repeated RadiusServer servers = 1;
+}
 
-// SyslogTarget is one entry of `management.syslog`; P02a fields are added from 1.
-message SyslogTarget {}
+// RadiusServer mirrors one entry of `management.aaa.radius.servers`.
+message RadiusServer {
+  // IP address or hostname.
+  optional string address = 1;
+  // Zod default 1812.
+  optional uint32 auth_port = 2;
+  // Zod default 1813.
+  optional uint32 acct_port = 3;
+  // Shared secret: secret-store reference "psk/<name>" (D-051), never the secret.
+  optional string secret_ref = 4;
+  // Zod default 5.
+  optional uint32 timeout_sec = 5;
+  optional string vrf = 6;
+}
+
+// AaaTacacs mirrors `management.aaa.tacacs`.
+message AaaTacacs {
+  repeated TacacsServer servers = 1;
+}
+
+// TacacsServer mirrors one entry of `management.aaa.tacacs.servers`.
+message TacacsServer {
+  optional string address = 1;
+  // Zod default 49.
+  optional uint32 port = 2;
+  // Secret-store reference "psk/<name>" (D-051).
+  optional string secret_ref = 3;
+  optional uint32 timeout_sec = 4;
+  optional string vrf = 5;
+}
+
+// ManagementTls mirrors `management.tls` (both refs or neither; unset = self-signed).
+message ManagementTls {
+  // Secret-store reference "cert/<name>".
+  optional string certificate_ref = 1;
+  // Secret-store reference "key/<name>".
+  optional string private_key_ref = 2;
+  // "1.2" | "1.3"; Zod default "1.2".
+  optional string min_version = 3;
+}
+
+// SyslogTarget mirrors one entry of `management.syslog`.
+message SyslogTarget {
+  optional string address = 1;
+  // Zod default 514.
+  optional uint32 port = 2;
+  // "udp" | "tcp" | "tls"; Zod default "udp".
+  optional string protocol = 3;
+  // Minimum severity forwarded; Zod default "info".
+  optional string severity = 4;
+  optional string vrf = 5;
+}
 
 // ----- nat (P02b, mirrors task/P02b@ec0ccda) -----
 

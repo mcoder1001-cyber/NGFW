@@ -38,10 +38,10 @@ procedure depends on both.
 
 | # | Step | Fails when |
 |---|---|---|
+| 0 | contract guard (`--base` only; git-only, ~1 s, so a contract-less branch fails with the root-cause message before anything is built) | see [The contract rule](#the-contract-rule) |
 | 1 | tools | `golangci-lint` / `gitleaks` missing and the download from GitHub fails (`VRX_CI_ALLOW_MISSING_TOOLS=1` downgrades to a warning — never for a merge) |
 | 2 | `pnpm install --frozen-lockfile --prefer-offline` | the lockfile is stale (you added a dependency: run `pnpm install` once, commit `pnpm-lock.yaml`) |
 | 3 | `pnpm gen` + **generated-output gate** | anything under `packages/proto/gen`, `apps/agent/gen`, `packages/schema/dist`, `packages/api-client/src/generated` differs from what the generators produce (working tree vs index after `pnpm gen`, plus untracked files there — so a staged merge inside the hook is not "dirty"), or `go mod tidy` (run by the proto generator) changed `apps/agent/go.mod`/`go.sum`. Only these paths are checked — other uncommitted files just produce a warning. A file in a generated directory that no generator writes (`.gitkeep`) is covered by the contract guard, not by this step |
-| 4 | contract guard (`--base` only) | see [The contract rule](#the-contract-rule) |
 | 5 | forbidden patterns | see [Forbidden patterns](#forbidden-patterns) |
 | 6 | `turbo run lint typecheck test build` | ESLint, `buf lint`, `tsc`, Vitest unit tests or a build fails. Run as one turbo invocation so `gen` (uncached by design) runs once, not four times; `VRX_INTEGRATION` is unset — this is unit-only |
 | 7 | `make -C apps/agent lint test build` | `go vet`, `golangci-lint run` (config `apps/agent/.golangci.yml`), `go test -race -count=1`, `go build` fail — or golangci-lint silently did not run (D-031: the Makefile's `lint` fails on linter findings) |
@@ -157,8 +157,9 @@ and `make test` are unit-only. Slot 12 and the exclusive lock are the gate's.
   inputs hit the cache in every worktree, which is what makes quick on an unchanged tree take about a minute.
 - golangci-lint keeps its own cache under `~/.cache/golangci-lint`.
 
-Measured on the dev host (30 vCPU): quick with a cold turbo cache ≈ 1 min; unchanged tree with a warm cache well under 1 min
-(the numbers are pasted in `docs/status/tasks/P09.md`).
+Measured on the dev host (30 vCPU), 2026-09-23: quick with a cold turbo cache 1m04s; the hook-guarded merge of task/P09 into
+main (16/30 turbo tasks cached) 52 s; quick on the unchanged merged main (24/30 cached) **39 s**; `check --base main` 2–3 s
+(the outputs are pasted in `docs/status/tasks/P09.md`).
 
 ## Tool versions (pinned in `tools/ci.sh`; `tools/ci.sh install-tools` installs exactly these)
 

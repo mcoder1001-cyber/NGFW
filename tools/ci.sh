@@ -16,7 +16,7 @@
 #
 # Each step's output is captured to a log file; on failure the tail is printed. The very last line is exactly
 # `CI GATE PASSED`, otherwise the script exits non-zero after `CI GATE FAILED — <reason>`.
-# Order of quick: tools → install → gen + dirty gate → [contract guard] → forbidden patterns (+gitleaks)
+# Order of quick: [contract guard] → tools → install → gen + dirty gate → forbidden patterns (+gitleaks)
 #                 → lint/typecheck/unit tests/build (turbo, VRX_INTEGRATION unset) → apps/agent make lint test build
 #                 → every Go module under test/ (gofmt, go vet, go test -count=1; integration tests skip without VRX_INTEGRATION)
 set -euo pipefail
@@ -515,10 +515,10 @@ case $MODE in
   quick|full)
     init_logs
     preflight
+    [[ -z $BASE ]] || do_contract_guard      # git-only, ~1 s: a contract-less branch fails with the root-cause message first
     ensure_tools
     do_install
     do_gen_check
-    [[ -z $BASE ]] || do_contract_guard
     do_forbidden
     do_turbo
     do_agent

@@ -78,7 +78,6 @@ describe('dataplane', () => {
       pciWhitelist: [],
       managementPci: [],
       devices: {},
-      plugins: {},
     });
     expect(
       DataplaneSchema.safeParse({

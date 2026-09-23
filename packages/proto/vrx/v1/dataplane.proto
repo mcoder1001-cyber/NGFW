@@ -676,9 +676,15 @@ message DataplaneConfig {
   map<string, DataplaneDevice> devices = 9;
   // buffers { buffers-per-numa N }, 1024–4194304; unset = VPP default (16384).
   optional uint32 buffers_per_numa = 10;
-  // plugins { plugin <file> { enable|disable } } keyed by plugin file name (true = enable); files not
-  // listed keep the switch of the current start-up configuration (D-060, D-081).
-  map<string, bool> plugins = 11;
+  // plugins { plugin <file> { enable|disable } } (D-060, D-081, D-084). Present = authoritative: exactly
+  // these switches are rendered; absent = the switches of the current start-up configuration are kept.
+  optional PluginSet plugins = 11;
+}
+
+// PluginSet mirrors `dataplane.plugins` (D-084): a message so presence survives the proto.
+message PluginSet {
+  // Plugin file name ("linux_cp_plugin.so") → true = enable, false = disable.
+  map<string, bool> switches = 1;
 }
 
 // DataplaneDevice mirrors one entry of `dataplane.devices` (F-startup-gen, D-081).

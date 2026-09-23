@@ -9,23 +9,27 @@
 //	                     indentation ignored)
 //	--check              validate only; print warnings; exit 0/2
 //	--current <file>     current start-up file whose plugin switches are kept ("none" = no file)
-//	--mgmt-if, --mgmt-pci  extra management NICs besides the default-route interface(s)
+//	--mgmt-if, --mgmt-pci  extra management NICs besides the detected ones (default routes and the
+//	                     NICs established control connections arrive on, --control-ports, default 22)
+//	stderr always shows the management NICs found and the sha256 of the rendering
 //	--plugin-dir, --online-cpus, --isolcpus, --numa-nodes, --hugepages-mb
 //	                     host fact overrides; --no-host reads nothing from /sys and /proc, so every
 //	                     fact must then come from a flag (the management NIC via --mgmt-pci)
 //
 // Exit status: 0 = ok / no difference, 1 = --diff found differences, 2 = invalid input or error.
 // It never restarts VPP and never touches the running data plane; applying the file is the
-// manager script deploy/vpp/apply-startup.sh.
+// manual manager procedure in docs/agent/renderers/vppstartup.md.
 package main
 
 import (
+	"crypto/sha256"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -45,6 +49,7 @@ type options struct {
 	semantic, check, noHost bool
 	pluginDir, current      string
 	mgmtIfs, mgmtPCIs       string
+	controlPorts            string
 	onlineCPUs, isolcpus    string
 	numaNodes, hugepagesMB  int
 	input                   string
@@ -64,6 +69,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs.StringVar(&o.current, "current", vppstartup.DefaultConfPath, "current start-up `file` whose plugin switches are kept; \"none\" = there is none")
 	fs.StringVar(&o.mgmtIfs, "mgmt-if", "", "extra management `interfaces` (comma separated) besides the default-route interface(s)")
 	fs.StringVar(&o.mgmtPCIs, "mgmt-pci", "", "extra management NIC PCI `addresses` (comma separated); required with --no-host")
+	fs.StringVar(&o.controlPorts, "control-ports", "22", "local TCP `ports` of control connections (sshd, agent API) whose established peers mark their NIC as management")
 	fs.StringVar(&o.onlineCPUs, "online-cpus", "", "online CPU `list` (default: /sys/devices/system/cpu/online)")
 	fs.StringVar(&o.isolcpus, "isolcpus", "", "isolated CPU `list` (default: /sys/devices/system/cpu/isolated)")
 	fs.IntVar(&o.numaNodes, "numa-nodes", 0, "number of NUMA nodes (default: /sys/devices/system/node)")
@@ -123,6 +129,11 @@ func generate(o options, visited map[string]bool, stdin io.Reader, stdout, stder
 		return 2, err
 	}
 	_, _ = fmt.Fprintf(stderr, "vrx-startupgen: host management NIC(s) %s (always blacklisted)\n", strings.Join(host.ManagementPCI, ","))
+	for _, n := range host.ManagementNotes {
+		_, _ = fmt.Fprintf(stderr, "vrx-startupgen: management: %s\n", n)
+	}
+	// N5: the sha256 of exactly this rendering, so a reviewer can pin what gets installed
+	_, _ = fmt.Fprintf(stderr, "vrx-startupgen: rendered sha256 %x\n", sha256.Sum256(out))
 	for _, w := range model.Warnings {
 		_, _ = fmt.Fprintf(stderr, "vrx-startupgen: warning: %s\n", w)
 	}
@@ -219,6 +230,18 @@ func writeAtomic(path string, b []byte) error {
 	return os.Rename(name, path)
 }
 
+func parsePorts(s string) ([]uint16, error) {
+	ports := []uint16{}
+	for _, p := range splitList(s) {
+		n, err := strconv.ParseUint(p, 10, 16)
+		if err != nil || n == 0 {
+			return nil, fmt.Errorf("--control-ports: bad port %q", p)
+		}
+		ports = append(ports, uint16(n))
+	}
+	return ports, nil
+}
+
 func splitList(s string) []string {
 	var out []string
 	for _, p := range strings.Split(s, ",") {
@@ -239,9 +262,13 @@ func hostFacts(o options, visited map[string]bool) (vppstartup.Host, error) {
 	var h vppstartup.Host
 	if !o.noHost {
 		var err error
+		ports, err := parsePorts(o.controlPorts)
+		if err != nil {
+			return h, err
+		}
 		h, err = vppstartup.ReadHost(vppstartup.HostSources{
 			Root: o.sysRoot, PluginDir: o.pluginDir, CurrentConf: current,
-			MgmtIfaces: splitList(o.mgmtIfs), MgmtPCI: splitList(o.mgmtPCIs),
+			MgmtIfaces: splitList(o.mgmtIfs), MgmtPCI: splitList(o.mgmtPCIs), ControlPorts: ports,
 		})
 		if err != nil {
 			return h, err

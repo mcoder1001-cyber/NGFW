@@ -1,9 +1,9 @@
 # VPP startup.conf generator — dataplane domain ↔ startup.conf (F-startup-gen, WBS D0.6)
 
 Code: `apps/agent/internal/renderers/vppstartup` (pure generator, host-fact reader, `renderers.Renderer` for dry runs),
-the CLI `apps/agent/cmd/vrx-startupgen`, and the manager's apply script `deploy/vpp/apply-startup.sh`. File:
+and the CLI `apps/agent/cmd/vrx-startupgen`. File:
 `/etc/vpp/startup.conf`, mode 0644. VPP reads it only at start, so every change needs a **VPP restart**, which is a
-**manager step** (script below). The agent never applies it: `Renderer.Apply` returns `ErrManagerStep`, `Retrieve`
+**manual manager step** (procedure below; tooling is task F-startup-apply, D-088). The agent never applies it: `Renderer.Apply` returns `ErrManagerStep`, `Retrieve`
 returns `ErrRetrieveUnsupported` (VPP has no API that reports its start-up config; compare with `vrx-startupgen --diff`).
 
 ## Pipeline
@@ -19,7 +19,7 @@ Host = ReadHost(/sys, /proc, plugin dir, current startup.conf)  — required, ne
 
 | fact | source (`ReadHost`) | used for |
 |---|---|---|
-| management NIC(s) | PCI device behind every interface with an IPv4/IPv6 default route (`/proc/net/route`, `/proc/net/ipv6_route` → `/sys/class/net/<if>/device`), plus `--mgmt-if` / `--mgmt-pci` | always `blacklist`ed; never a DPDK device, **whatever the document says** |
+| management NIC(s) | every interface with an IPv4/IPv6 default route (`/proc/net/route`, `/proc/net/ipv6_route`) **plus** the interface the route lookup picks for the peer of every established control connection (`/proc/net/tcp{,6}`, local port in `--control-ports`, default 22 = sshd — so a management subnet that is only directly connected is covered), plus `--mgmt-if` / `--mgmt-pci`; each resolved via `/sys/class/net/<if>/device`, bonds/VLANs via their `lower_*` members. A tun/tap without a device (a **linux-cp tap, VPP-owned**) and unreachable/blackhole defaults (`*`) are skipped with a note, never an error; an interface that cannot be resolved is an error unless `--mgmt-pci` names the NIC(s). The CLI prints every NIC found and why | always `blacklist`ed; never a DPDK device, **whatever the document says** |
 | online / isolated CPUs | `/sys/devices/system/cpu/{online,isolated}` | core placement |
 | NUMA nodes | `/sys/devices/system/node/node*` | buffer budget |
 | hugepage reservation | `/proc/meminfo` HugePages_Total × Hugepagesize (0 ⇒ refused) | buffer budget |
@@ -81,6 +81,8 @@ vrx-startupgen [flags] [document.json|-]
   --diff <existing>    unified diff existing → rendering; exit 1 when different
   --semantic           with --diff: compare sections/entries, ignoring comments ('#' anywhere, as VPP), order, indentation
   --check              validate only (host NIC + warnings on stderr)
+  --control-ports <p>  local TCP ports of control connections whose peers mark their NIC as management (default 22)
+  stderr always: management NICs found (and why), warnings, "rendered sha256 <hex>" of exactly this rendering
   --current <file>     current start-up file whose plugin switches are kept (default /etc/vpp/startup.conf; "none")
   --mgmt-if <ifs>      extra management interfaces   --mgmt-pci <pcis>  extra management NICs
   --online-cpus L  --isolcpus L  --numa-nodes N  --hugepages-mb N  --plugin-dir D   host fact overrides
@@ -90,46 +92,34 @@ exit: 0 ok / identical · 1 different · 2 invalid input, missing host facts or 
 
 The CLI never restarts VPP, never talks to VPP and runs no other process. Build: `cd apps/agent && go build -o bin/vrx-startupgen ./cmd/vrx-startupgen`.
 
-## Manager apply procedure — `deploy/vpp/apply-startup.sh`
+## Manager apply procedure (manual, manager-only; tooling in task F-startup-apply)
 
-Only the manager runs it, and only when a VPP restart is allowed (after handover, or on an explicit decision — D-012,
-D-060). Workers and tests never touch `/etc/vpp/startup.conf`.
+Only the manager does this, and only when a VPP restart is allowed (after handover, or on an explicit decision — D-012,
+D-060). Workers and tests never touch `/etc/vpp/startup.conf`. A scripted version (detached run, dead-man timer, driver
+rebind, API interface check) is being finished in task **F-startup-apply** (D-088); until it is merged the steps are manual:
 
-```bash
-cd /root/ngfw/apps/agent && go build -o bin/vrx-startupgen ./cmd/vrx-startupgen
-# 1. dry run (default): diff (unified + semantic), drivers of every PCI device involved, sha256 of the live file
-deploy/vpp/apply-startup.sh --doc running.json
-# 2. apply what was reviewed: detached from the SSH session, lock first, watchdog + automatic rollback
-deploy/vpp/apply-startup.sh --doc running.json --apply --expect-sha256 <sha256 from step 1> [--window 60]
-journalctl -fu vrx-startup-apply-<stamp>        # or tail -f /var/lib/vrx/startup-apply/<stamp>/log
-```
-
-What the detached run does (`systemd-run --unit=vrx-startup-apply-<stamp>`, fallback `setsid nohup`, so a dropped SSH
-session cannot kill the rollback):
-
-1. `flock -x /run/lock/vrx-vpp.lock` then `/run/lock/vrx-lab.lock` (the order `tools/lab` uses) **before** anything else.
-2. Refuses (exit 3, nothing changed) unless `sha256(/etc/vpp/startup.conf)` equals `--expect-sha256` — the file the
-   manager reviewed is the file that gets replaced.
-3. Renders again, backs up (`<work>/backup.conf` and `/etc/vpp/startup.conf.bak-<stamp>`), logs both diffs; "nothing to
-   do" if identical. Records the kernel driver of every PCI device in the old and new file and of the management NIC,
-   the loaded plugins (`show plugins`), NRestarts, the default-route interface and gateway.
-4. Arms a **dead-man timer** (`systemd-run --on-active=window+api-wait+120 … --stage rollback`) that restores
-   everything unless the run commits — covers the run itself being killed.
-5. Installs the file, `systemctl restart vpp`, waits for the API, then checks every `--interval` s for `--window` s:
-   `vpp` active and NRestarts unchanged (no crash loop) · API socket + `show version` · plugins by **`show plugins`
-   content** (enabled ones loaded, disabled ones absent, previously loaded ones still loaded unless now disabled) ·
-   every logical interface present via the **VPP API** (`deploy/vpp/vpp-iface-check.py`: `sw_interface_dump` with name
-   filter, exact match — never `vppctl` exit codes) · management interface UP with its IPv4 address, its NIC still on
-   the recorded driver, its gateway answering ping.
-6. Any failure → **rollback**: stop VPP, restore the backup, rebind every NIC whose driver changed (`driverctl
-   unset-override`, sysfs `unbind` / clear `driver_override` / `bind` to the recorded driver), bring the management
-   interface up (`netplan apply` if it lost its address), start VPP, verify, mark `rolled-back` (exit 1). Success →
-   mark `committed`, cancel the timer.
+1. Build the generator from a known tree and use that absolute path for every step
+   (`cd /root/ngfw/apps/agent && go build -o /root/vrx-startupgen ./cmd/vrx-startupgen`).
+2. Review: `vrx-startupgen --diff /etc/vpp/startup.conf running.json` and `… --semantic`. Check the management NICs
+   the CLI prints (default route + SSH path) and every warning (kept/removed plugins, chosen cores).
+3. Pin what was reviewed: note `sha256sum /etc/vpp/startup.conf` **and** the `rendered sha256 …` line the CLI prints
+   (N5: it is the sha256 of exactly the file `-o` writes; the rendering depends on the host facts too, so render once).
+4. From a console or a detached session (`systemd-run --unit=vrx-startup-apply --collect …` / `setsid nohup`, never the
+   bare SSH shell), under `flock -x /run/lock/vrx-vpp.lock flock -x /run/lock/vrx-lab.lock`: re-check the live file's
+   sha256, render with `-o /run/vrx-startupgen/startup.conf`, compare its sha256 with the reviewed one, back up
+   (`cp -p /etc/vpp/startup.conf /etc/vpp/startup.conf.bak-<stamp>`), record `readlink /sys/bus/pci/devices/<pci>/driver`
+   for every PCI in the old and new file and for the management NICs, `install -m 0644` the new file,
+   `systemctl restart vpp`.
+5. Verify by content, not exit codes: `vppctl show plugins` lists every enabled plugin and none of the disabled ones;
+   every logical name appears in `vppctl show interface` output (first column); the management interface is UP, keeps
+   its address and its NIC's driver; the gateway answers.
+6. On any failure: `systemctl stop vpp`, restore the backup, rebind any NIC whose driver changed (driverctl
+   `unset-override`, sysfs unbind/`driver_override`/bind), bring the management interface up, `systemctl start vpp`.
 7. Record it in `docs/decisions/LOG.md` (what changed, backup name) and update `docs/lab/host-vrx-a.md`.
 
-Tested against a fake host (fake `systemctl`/`systemd-run`/`vppctl`/`ip`/`ping`/`driverctl`, fake sysfs, temp file):
-`deploy/vpp/test-apply-startup.sh` — 13 scenarios incl. driver steal, missing interface, missing plugin, crash loop,
-lost gateway/address, dead-man timer, busy lock, detached start.
+A `dataplane.plugins` that leaves out a plugin the current file enables (D-084 "present = authoritative") is accepted by
+the generator with a warning; if the plugin is `default_disabled` in VPP (linux_cp, linux_nl, npt66) it will not load after
+the restart — expected, not a failure, when the omission was intended.
 
 After a successful apply, the agent's reconcile (P05) recreates everything else. `show hardware-interfaces` then lists
 the data NICs under their logical names; the `interface/<name>` alias keys (D-065/D-069) resolve without further mapping.
@@ -140,7 +130,9 @@ the data NICs under their logical names; the `interface/<name>` alias keys (D-06
 - The semantic diff compares entries line by line in the layout VPP ships and we render; a review aid, not VPP's parser.
 - NIC → port-group mapping on vrx-a is still unknown: the six-NIC golden (`testdata/six-nic-sample.golden`) uses a
   **SAMPLE** mapping (`04:00.0 wan`, `0c:00.0 lan`, `13:00.0 dmz`, `14:00.0 p2p`, `1b:00.0 lan2`, `1c:00.0 sync`).
-- A management path through a bond/VLAN has no `/sys/class/net/<if>/device`: name the NIC(s) with `--mgmt-pci`.
+- A management path through a bond/VLAN is resolved through its `lower_*` members; anything else without a PCI device
+  (and not a linux-cp tap) needs `--mgmt-pci`.
+- Control connections are recognised by local port (`--control-ports`, default 22). A manager connected through a
+  jump host is protected only via the NIC its jump-host session arrives on.
 - `tools/lab provision` still renders remote startup.conf files with its own shell template (tech-debt, D-081).
-- NIC driver binding for DPDK (vfio-pci / `driverctl set-override`) is outside the file and the generator; the apply
-  script only undoes an unexpected driver change on rollback.
+- NIC driver binding for DPDK (vfio-pci / `driverctl set-override`) is outside the file and the generator.

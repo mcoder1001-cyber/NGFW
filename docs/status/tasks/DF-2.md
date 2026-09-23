@@ -348,4 +348,4 @@ found by fresh descriptors only through the reopened claim store.) After the run
 CI GATE PASSED
 EXIT 0
 ```
-The two warnings are commit subjects not written by this fix round's code commits (the merge commit and the manager's review commit).
+The two warnings are non-conventional subjects: this round's `git merge main` commit and the manager's review commit; they do not fail the gate.

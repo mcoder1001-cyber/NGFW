@@ -28,6 +28,9 @@ Rules for an entry:
 | `/usr/lib/frr/staticd` | frr (test harness only) | test-scoped daemon | same as mgmtd + `-z <dir>/zserv.api` | RF-1 |
 | `/usr/lib/frr/bgpd` `/usr/lib/frr/ospfd` `/usr/lib/frr/ospf6d` `/usr/lib/frr/bfdd` `/usr/lib/frr/pimd` `/usr/lib/frr/isisd` `/usr/lib/frr/ripd` `/usr/lib/frr/ldpd` | frr (test harness only, for P12/F-*) | protocol daemons started only when a test names them in `frrtest.Options.Daemons` — **unused until P12 (bgpd), F-ospf (ospfd/ospf6d), F-bfd-redistribution (bfdd), F-igmp-mfib (pimd), F-isis-rip (isisd/ripd), F-mpls-srmpls (ldpd)** | same as staticd | RF-1 (ahead of P12/F-*) |
 
+`vppstartup` (F-startup-gen) runs no process: `Validate` is structural and `Apply` refuses (VPP restart = manager step,
+`docs/agent/renderers/vppstartup.md`); the `vrx-startupgen` CLI only reads files.
+
 ## Planned (documented ahead of use; move a row to *Active* when the renderer lands)
 
 | binary | renderer | purpose | argv shape | task |

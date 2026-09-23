@@ -1,0 +1,7 @@
+{
+  "objects": {
+    "schedules": {
+      "bad": { "type": "recurring", "days": ["mon"], "start": "24:00", "end": "25:00" }
+    }
+  }
+}

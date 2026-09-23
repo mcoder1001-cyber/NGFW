@@ -264,7 +264,7 @@
       "snat": {
         "policy": "interface",
         "addresses": { "ipv4": "203.0.113.201" },
-        "interfaces": [{ "interface": "TenGigabitEthernet0/0/0", "side": "outside" }],
+        "interfaces": [{ "interface": "TenGigabitEthernet0/0/0", "table": "include-v4" }],
         "excludePrefixes": ["10.0.0.0/8"]
       }
     }

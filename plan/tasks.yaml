@@ -69,7 +69,7 @@ tasks:
   owner: desktop-agent slot1
   started: 2026-09-23T13:35
   finished: ''
-  notes: ''
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1'
 - id: P02b
   title: 'Schema group (b): nat, objects, acl'
   prompt: prompts/P02-schema-package.md
@@ -96,7 +96,7 @@ tasks:
   owner: desktop-agent slot5
   started: 2026-09-23T13:35
   finished: ''
-  notes: ''
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1'
 - id: P02c
   title: 'Schema group (c): vpn, tunnels, services, ha'
   prompt: prompts/P02-schema-package.md
@@ -123,7 +123,7 @@ tasks:
   owner: desktop-agent slot6
   started: 2026-09-23T13:35
   finished: ''
-  notes: ''
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1'
 - id: P03
   title: gRPC contract agent↔api (messages for all domains, RPC semantics doc)
   prompt: prompts/P03-proto-contract.md
@@ -145,7 +145,7 @@ tasks:
   owner: desktop-agent slot7
   started: 2026-09-23T13:35
   finished: ''
-  notes: ''
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1'
 - id: P05a
   title: 'Agent interfaces: scheduler Descriptor, fake VPP client, renderer interface, READMEs'
   prompt: prompts/P05a-interfaces.md
@@ -188,7 +188,7 @@ tasks:
   owner: desktop-agent slot3
   started: 2026-09-23T13:13
   finished: ''
-  notes: host facts in docs/lab/host-vrx-a.md; no data NICs (D-010)
+  notes: 'host facts in docs/lab/host-vrx-a.md; no data NICs (D-010) | review: BLOCK (F1-F4); worker respawned to fix'
 - id: P09
   title: CI gate for local-only git (tools/ci.sh quick|full|--base, hooks, golangci-lint, gitleaks)
   prompt: prompts/P09-ci-pipeline.md
@@ -209,7 +209,7 @@ tasks:
   owner: desktop-agent slot4
   started: 2026-09-23T13:13
   finished: ''
-  notes: ''
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1'
 - id: P05
   title: 'Agent core: govpp, reconciler, ownership scoping, gRPC server, resync, confirm timer'
   prompt: prompts/P05-agent-core.md
@@ -280,7 +280,7 @@ tasks:
   owner: desktop-agent slot8
   started: 2026-09-23T13:35
   finished: ''
-  notes: ''
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1'
 - id: P07b
   title: 'UI flows: login, pending-change bar + commit dialog, revisions, users, Playwright login→commit→rollback'
   prompt: prompts/P07-ui-shell.md

@@ -156,10 +156,10 @@ export const AddressObjectSchema = withUi(
 export const AddressGroupSchema = withUi(
   z.strictObject({
     ...common,
-    members: withUi(z.array(objectName).min(1).max(4096), {
+    members: withUi(z.array(objectName).max(4096).default([]), {
       title: 'Members',
       widget: 'object-picker',
-      help: 'Names from objects.addresses or objects.addressGroups',
+      help: 'Names from objects.addresses or objects.addressGroups; may be empty while the group is being built, but an ACL rule may not reference an empty group',
     }),
   }),
   { title: 'Address group' },
@@ -243,10 +243,10 @@ export const ServiceObjectSchema = withUi(
 export const ServiceGroupSchema = withUi(
   z.strictObject({
     ...common,
-    members: withUi(z.array(objectName).min(1).max(4096), {
+    members: withUi(z.array(objectName).max(4096).default([]), {
       title: 'Members',
       widget: 'object-picker',
-      help: 'Names from objects.services or objects.serviceGroups',
+      help: 'Names from objects.services or objects.serviceGroups; may be empty while the group is being built, but an ACL rule may not reference an empty group',
     }),
   }),
   { title: 'Service group' },

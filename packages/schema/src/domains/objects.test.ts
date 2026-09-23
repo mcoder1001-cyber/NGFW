@@ -10,6 +10,7 @@ import {
   ObjectsSchema,
   parsePortRange,
   ScheduleSchema,
+  ServiceGroupSchema,
   ServiceObjectSchema,
   ServiceSpecSchema,
   TagSchema,
@@ -143,9 +144,10 @@ describe('AddressObjectSchema / AddressGroupSchema', () => {
     bad(AddressObjectSchema, { address: '10.0.0.1' });
     bad(AddressObjectSchema, 'host');
     ok(AddressGroupSchema, { members: ['a'] });
-    bad(AddressGroupSchema, { members: [] });
+    ok(AddressGroupSchema, { members: [] }); // review L9: empty groups allowed (create-then-fill)
+    expect(AddressGroupSchema.parse({})).toMatchObject({ members: [] });
+    ok(ServiceGroupSchema, {});
     bad(AddressGroupSchema, { members: ['a b'] });
-    bad(AddressGroupSchema, {});
     bad(AddressGroupSchema, { members: ['a'], interfaces: [] });
   });
 });

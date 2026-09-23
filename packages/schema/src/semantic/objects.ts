@@ -222,6 +222,23 @@ interface Group {
   members: string[];
 }
 
+/**
+ * True when group `name` reaches at least one non-group member, directly or through nested groups (cycles are
+ * tolerated here — `objects.*-group-members` reports them). Groups may be empty (review L9: create-then-fill UI
+ * flows), so rules that *use* a group check this instead of the schema forcing `members.min(1)`.
+ */
+export function groupHasMembers(groups: Record<string, Group>, name: string): boolean {
+  const seen = new Set<string>();
+  const walk = (n: string): boolean => {
+    if (seen.has(n)) return false;
+    seen.add(n);
+    const group = own(groups, n);
+    if (group === undefined) return true; // a leaf (or an unknown name, reported by the existence rules)
+    return group.members.some(walk);
+  };
+  return walk(name);
+}
+
 /** Existence, duplicates and cycles for one group kind (`addressGroups` over `addresses`, …). */
 function groupIssues(
   kind: 'addressGroups' | 'serviceGroups',

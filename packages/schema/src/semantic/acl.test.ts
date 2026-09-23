@@ -122,6 +122,61 @@ describe('acl.rule-references', () => {
   });
 });
 
+describe('acl.rule-references — empty groups (review L9)', () => {
+  it('accepts empty groups in objects but rejects rules that reference them, also through nesting', () => {
+    const v = aclValidators.find((x) => x.name === 'acl.rule-references');
+    const doc = RootConfig.parse({
+      ...base,
+      objects: {
+        ...base.objects,
+        addressGroups: {
+          grp: { members: ['srv'] },
+          empty: {},
+          outer: { members: ['empty'] },
+          nested: { members: ['empty', 'grp'] },
+          loop: { members: ['loop'] },
+        },
+        serviceGroups: { web: { members: ['http'] }, none: { members: [] } },
+      },
+      acl: {
+        lists: {
+          l: {
+            rules: [
+              rule(1, { source: { kind: 'object', name: 'empty' } }),
+              rule(2, { destination: { kind: 'object', name: 'outer' } }),
+              rule(3, { source: { kind: 'object', name: 'nested' } }),
+              rule(4, { service: { kind: 'object', name: 'none' } }),
+              rule(5, { source: { kind: 'object', name: 'loop' } }),
+              rule(6, {
+                source: { kind: 'object', name: 'srv' },
+                service: { kind: 'object', name: 'web' },
+              }),
+            ],
+          },
+        },
+      },
+    });
+    expect(sortIssues(v?.validate(doc) ?? [])).toEqual([
+      {
+        pointer: '/acl/lists/l/rules/0/source/name',
+        message: "address group 'empty' has no members; the rule would match nothing",
+      },
+      {
+        pointer: '/acl/lists/l/rules/1/destination/name',
+        message: "address group 'outer' has no members; the rule would match nothing",
+      },
+      {
+        pointer: '/acl/lists/l/rules/3/service/name',
+        message: "service group 'none' has no members; the rule would match nothing",
+      },
+      {
+        pointer: '/acl/lists/l/rules/4/source/name',
+        message: "address group 'loop' has no members; the rule would match nothing",
+      },
+    ]);
+  });
+});
+
 describe('acl.rule-consistency', () => {
   it('rejects family mismatches between ipVersion, prefixes and ICMP flavour', () => {
     const issues = run('acl.rule-consistency', {

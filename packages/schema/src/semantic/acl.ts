@@ -4,6 +4,7 @@ import type { AclConfig, AclRule, HostRule } from '../domains/acl.js';
 import { duplicates } from './nat.js';
 import {
   addressObjectNames,
+  groupHasMembers,
   ipFamily,
   interfaceExists,
   interfaceVrf,
@@ -19,7 +20,8 @@ import type { SemanticIssue, ValidatorDefinition } from './registry.js';
  *
  * Rules (name → what it rejects):
  *   acl.rule-sequences-unique  two rules with the same `sequence` inside one list (lists, macip, host)
- *   acl.rule-references        a rule whose source/destination/service `name` or `schedule` is not in `objects`
+ *   acl.rule-references        a rule whose source/destination/service `name` or `schedule` is not in `objects`,
+ *                              or names an address/service group with no members (transitively; groups may be empty)
  *   acl.rule-consistency       prefix family ≠ `ipVersion`, mixed source/destination families, icmp vs icmp6 in
  *                              the wrong family, and inline service specs failing `serviceSpecIssues`
  *   acl.tags-exist             a list `tags[]` entry that is not a key of `objects.tags`
@@ -145,18 +147,38 @@ export const aclValidators: readonly ValidatorDefinition[] = [
         const at = (...s: Segment[]): string => jsonPointer('acl', kind, name, 'rules', i, ...s);
         for (const sideName of ['source', 'destination'] as const) {
           const side = rule[sideName];
-          if (side.kind === 'object' && !addresses.has(side.name)) {
+          if (side.kind !== 'object') continue;
+          if (!addresses.has(side.name)) {
             issues.push({
               pointer: at(sideName, 'name'),
               message: `'${side.name}' is not an entry of objects.addresses or objects.addressGroups`,
             });
+          } else if (
+            !Object.hasOwn(objects.addresses, side.name) &&
+            !groupHasMembers(objects.addressGroups, side.name)
+          ) {
+            issues.push({
+              pointer: at(sideName, 'name'),
+              message: `address group '${side.name}' has no members; the rule would match nothing`,
+            });
           }
         }
-        if (rule.service.kind === 'object' && !services.has(rule.service.name)) {
-          issues.push({
-            pointer: at('service', 'name'),
-            message: `'${rule.service.name}' is not an entry of objects.services or objects.serviceGroups`,
-          });
+        if (rule.service.kind === 'object') {
+          const { name: svc } = rule.service;
+          if (!services.has(svc)) {
+            issues.push({
+              pointer: at('service', 'name'),
+              message: `'${svc}' is not an entry of objects.services or objects.serviceGroups`,
+            });
+          } else if (
+            !Object.hasOwn(objects.services, svc) &&
+            !groupHasMembers(objects.serviceGroups, svc)
+          ) {
+            issues.push({
+              pointer: at('service', 'name'),
+              message: `service group '${svc}' has no members; the rule would match nothing`,
+            });
+          }
         }
         if (
           'schedule' in rule &&

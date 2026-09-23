@@ -51,7 +51,7 @@ func plan(t *testing.T, h *df6test.Host, set []obj, stage string) int {
 	return total
 }
 
-func apply(t *testing.T, ctx context.Context, set []obj, stage string) {
+func apply(ctx context.Context, t *testing.T, set []obj, stage string) {
 	t.Helper()
 	for _, o := range set {
 		kv, err := o.d.Retrieve(ctx)
@@ -96,7 +96,7 @@ func TestAgentRestartOnHost(t *testing.T) {
 		o := a[i]
 		t.Cleanup(func() { _ = o.d.Delete(context.Background(), o.v, nil) })
 	}
-	apply(t, h.Ctx, a, "agent 1")
+	apply(h.Ctx, t, a, "agent 1")
 	if n := plan(t, h, a, "agent 1 re-apply"); n != 0 {
 		t.Fatalf("agent 1 re-apply plans %d operations", n)
 	}
@@ -130,7 +130,7 @@ func TestAgentRestartOnHost(t *testing.T) {
 	if n := plan(t, h, b, "agent 2 after loss"); n != 2 {
 		t.Fatalf("after losing 2 objects the plan has %d operations, want 2 creates", n)
 	}
-	apply(t, h.Ctx, b, "agent 2 reconcile")
+	apply(h.Ctx, t, b, "agent 2 reconcile")
 	h.Hold()
 	if n := plan(t, h, b, "agent 2 after reconcile"); n != 0 {
 		t.Fatalf("after reconcile the plan has %d operations", n)

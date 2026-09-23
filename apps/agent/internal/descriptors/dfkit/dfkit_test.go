@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"go.fd.io/govpp/adapter"
@@ -102,5 +104,100 @@ func TestErrors(t *testing.T) {
 	wrapped := fmt.Errorf("ctx: %w", api.VPPApiError(api.VALUE_EXIST))
 	if !dfkit.IsVPPError(wrapped, api.NO_SUCH_ENTRY, api.VALUE_EXIST) || dfkit.IsVPPError(wrapped, api.NO_SUCH_ENTRY) || dfkit.IsVPPError(errors.New("x"), api.VALUE_EXIST) {
 		t.Fatal("IsVPPError")
+	}
+}
+
+func TestBootIdentity(t *testing.T) {
+	root := t.TempDir()
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	must(os.MkdirAll(filepath.Join(root, "sys/kernel/random"), 0o750))
+	must(os.WriteFile(filepath.Join(root, "sys/kernel/random/boot_id"), []byte("b7712a53-c1e7\n"), 0o600))
+	must(os.MkdirAll(filepath.Join(root, "1000"), 0o750))
+	// comm with blanks and ')' — fields are counted after the last ')'
+	stat := "1000 (vpp main) x) S 1 1000 1000 0 -1 4194560 1 0 0 0 5 6 0 0 20 0 3 0 424242 1000 10 18446744073709551615"
+	must(os.WriteFile(filepath.Join(root, "1000/stat"), []byte(stat), 0o600))
+	old := dfkit.ProcRoot
+	dfkit.ProcRoot = root
+	t.Cleanup(func() { dfkit.ProcRoot = old })
+	f := dfkittest.NewFake()
+	id, err := dfkit.BootIdentity(context.Background(), f)
+	if err != nil || id != "b7712a53-c1e7/1000/424242" {
+		t.Fatalf("identity %q %v", id, err)
+	}
+	f.RestartVPP() // PID 1001: no /proc entry → error, never a guessed identity
+	if _, err := dfkit.BootIdentity(context.Background(), f); err == nil {
+		t.Fatal("missing /proc/<pid>/stat must be an error")
+	}
+}
+
+func TestFileBootStore(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "boot.json")
+	s, err := dfkit.NewFileBootStore(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Put(dfkit.BootRecord{Key: "pcap.capture/global", Identity: "a/1/2", Value: "{}"}); err != nil {
+		t.Fatal(err)
+	}
+	s2, err := dfkit.NewFileBootStore(p) // agent restart
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r, ok := s2.Get("pcap.capture/global"); !ok || r.Identity != "a/1/2" {
+		t.Fatalf("not persisted: %+v", r)
+	}
+	if err := s2.Delete("pcap.capture/global"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(filepath.Dir(p), 0o500); err != nil { //nolint:gosec // test: make the dir read-only // write fails → memory unchanged
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(filepath.Dir(p), 0o700) }) //nolint:gosec // test cleanup
+	if os.Geteuid() != 0 {
+		if err := s2.Put(dfkit.BootRecord{Key: "k"}); err == nil {
+			t.Fatal("write into a read-only dir succeeded")
+		}
+		if _, ok := s2.Get("k"); ok {
+			t.Fatal("memory changed although the write failed")
+		}
+	}
+}
+
+func TestTargetClaims(t *testing.T) {
+	f := dfkittest.NewFake(dfkittest.Iface{Index: 1, Name: "loop501", Tag: "w5c:loop501"}, dfkittest.Iface{Index: 9, Name: "ens192"})
+	ctx := context.Background()
+	tagged, err := dfkit.ResolveTarget(ctx, f, "loop501", "w5c", "x.y")
+	if err != nil || tagged.Untagged || tagged.Adopt() != nil {
+		t.Fatalf("tagged: %+v %v", tagged, err)
+	}
+	u, err := dfkit.ResolveTarget(ctx, f, "ens192", "w5c", "x.y")
+	if err != nil || !u.Untagged {
+		t.Fatal(err)
+	}
+	if !errors.Is(u.Adopt(), dfkit.ErrNotOurs) {
+		t.Fatal("unclaimed untagged object adopted")
+	}
+	if err := u.Claim(); err != nil || u.Adopt() != nil {
+		t.Fatalf("claimed: %v", err)
+	}
+	tbl, _ := dfkit.DumpInterfaces(ctx, f, "w5c")
+	if n, ok := tbl.Reportable(9, "x.y"); !ok || n != "ens192" {
+		t.Fatal("claimed untagged not reportable")
+	}
+	f.RestartVPP() // D-080: claims of an earlier VPP instance expire
+	u2, _ := dfkit.ResolveTarget(ctx, f, "ens192", "w5c", "x.y")
+	if u2.Claimed() {
+		t.Fatal("claim survived a VPP restart")
+	}
+	if _, ok, err := dfkit.ResolveForDelete(ctx, f, "ens192", "w5c", "x.y"); ok || err != nil {
+		t.Fatalf("unclaimed untagged must not be deleted: %v %v", ok, err)
+	}
+	if _, ok, err := dfkit.ResolveForDelete(ctx, f, "gone0", "w5c", "x.y"); ok || err != nil {
+		t.Fatalf("gone interface: %v %v", ok, err)
 	}
 }

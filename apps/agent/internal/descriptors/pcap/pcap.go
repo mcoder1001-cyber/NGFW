@@ -19,9 +19,9 @@ package pcap
 import (
 	"context"
 	"encoding/json"
-	"strings"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"go.fd.io/govpp/api"

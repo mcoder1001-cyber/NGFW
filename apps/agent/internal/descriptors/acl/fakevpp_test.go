@@ -14,6 +14,7 @@ import (
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/memclnt"
+	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/internal/vpp/fake"
 )
 
@@ -52,7 +53,8 @@ type fakeVPP struct {
 	macipBind        map[uint32]uint32 // sw_if_index → macip acl index
 	countersEnabled  bool
 	countersCalls    int
-	properStatsReply bool // false = mirror VPP 26.06 (replies with acl_del_reply)
+	properStatsReply bool   // false = mirror VPP 26.06 (replies with acl_del_reply)
+	vppPID           uint32 // main-thread PID reported by show_threads (the VPP identity)
 }
 
 func newFakeVPP() *fakeVPP {
@@ -64,6 +66,7 @@ func newFakeVPP() *fakeVPP {
 		etypes:    map[uint32]*vppacl.ACLInterfaceEtypeWhitelistDetails{},
 		macips:    map[uint32]*vppacl.MacipACLDetails{},
 		macipBind: map[uint32]uint32{},
+		vppPID:    4242,
 	}
 	v.addInterface(ifLocal0, "local0", "")
 	v.addInterface(ifLoop1040, "loop1040", "w10:loop1040")
@@ -305,6 +308,14 @@ func newFakeVPP() *fakeVPP {
 		}
 		return reply(&vppacl.ACLDelReply{}) // what VPP 26.06 really sends (acl.c REPLY_MACRO (VL_API_ACL_DEL_REPLY))
 	})
+	v.On("show_threads", func(api.Message) ([]api.Message, error) {
+		v.mu.Lock()
+		defer v.mu.Unlock()
+		return reply(&vlib.ShowThreadsReply{Count: 2, ThreadData: []vlib.ThreadData{
+			{ID: 0, Name: "vpp_main", PID: v.vppPID},
+			{ID: 1, Name: "vpp_wk_0", PID: v.vppPID + 1},
+		}})
+	})
 	v.Reply("acl_plugin_get_version", &vppacl.ACLPluginGetVersionReply{Major: 1, Minor: 0})
 	v.Reply("acl_plugin_get_conn_table_max_entries", &vppacl.ACLPluginGetConnTableMaxEntriesReply{ConnTableMaxEntries: 1 << 20})
 	return v
@@ -352,6 +363,15 @@ func (v *fakeVPP) bind(swif uint32, nInput uint8, acls ...uint32) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.bindings[swif] = &vppacl.ACLInterfaceListDetails{SwIfIndex: interface_types.InterfaceIndex(swif), NInput: nInput, Acls: acls}
+}
+
+// restartVPP simulates a VPP restart for the global state the tests look at: a new main-thread
+// PID and the counters flag back to its default (off).
+func (v *fakeVPP) restartVPP() {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.vppPID += 100
+	v.countersEnabled = false
 }
 
 // setEtypes plants an ethertype whitelist directly.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 
 	"google.golang.org/protobuf/proto"
 
@@ -119,7 +120,9 @@ func (d *MacipACLDescriptor) Delete(ctx context.Context, _ proto.Message, meta a
 	return nil
 }
 
-// Retrieve implements scheduler.Descriptor: macip_acl_dump (all), owner-tagged only.
+// Retrieve implements scheduler.Descriptor: macip_acl_dump (all), owner-tagged only. Duplicate
+// tags are handled like acl.acl: the lowest index is "acl.macip-acl/<name>", every other one
+// "acl.macip-acl/<name>#<index>" (never desired, so the scheduler deletes it).
 func (d *MacipACLDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	owned, err := dumpOwnedMacipACLs(ctx, d.client, d.owner)
 	if err != nil {
@@ -132,8 +135,8 @@ func (d *MacipACLDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 			return nil, fmt.Errorf("macip acl %d (%q): %w", e.Index, e.Name, err)
 		}
 		out = append(out, scheduler.KV{
-			Key:   KeyMacipACL(e.Name),
-			Value: MacipACL{Name: e.Name, Rules: rules}.Proto(),
+			Key:   KeyMacipACL(e.keyName()),
+			Value: MacipACL{Name: e.keyName(), Rules: rules}.Proto(),
 			Meta:  MacipMeta{ACLIndex: e.Index},
 		})
 	}
@@ -143,8 +146,11 @@ func (d *MacipACLDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 type ownedMacipACL struct {
 	Index uint32
 	Name  string
+	Dup   bool // another MACIP ACL with the same tag has a lower index
 	Rules []acl_types.MacipACLRule
 }
+
+func (e ownedMacipACL) keyName() string { return dupName(e.Name, e.Index, e.Dup) }
 
 func dumpOwnedMacipACLs(ctx context.Context, c vpp.Client, owner string) ([]ownedMacipACL, error) {
 	stream, err := acl.NewServiceClient(c).MacipACLDump(ctx, &acl.MacipACLDump{ACLIndex: noACL})
@@ -163,13 +169,24 @@ func dumpOwnedMacipACLs(ctx context.Context, c vpp.Client, owner string) ([]owne
 		}
 		out = append(out, ownedMacipACL{Index: det.ACLIndex, Name: name, Rules: det.R})
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Index < out[j].Index })
+	seen := make(map[string]struct{}, len(out))
+	for i := range out {
+		if _, dup := seen[out[i].Name]; dup {
+			out[i].Dup = true
+			continue
+		}
+		seen[out[i].Name] = struct{}{}
+	}
 	return out, nil
 }
 
 func macipIndexByName(owned []ownedMacipACL) map[string]uint32 {
 	m := make(map[string]uint32, len(owned))
 	for _, e := range owned {
-		m[e.Name] = e.Index
+		if !e.Dup {
+			m[e.Name] = e.Index
+		}
 	}
 	return m
 }
@@ -177,7 +194,7 @@ func macipIndexByName(owned []ownedMacipACL) map[string]uint32 {
 func macipNameByIndex(owned []ownedMacipACL) map[uint32]string {
 	m := make(map[uint32]string, len(owned))
 	for _, e := range owned {
-		m[e.Index] = e.Name
+		m[e.Index] = e.keyName()
 	}
 	return m
 }

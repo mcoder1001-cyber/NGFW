@@ -42,10 +42,9 @@ func TestInterfaceBindingLifecycle(t *testing.T) {
 	a, _ := acls.Create(ctx, ACL{Name: "a", Rules: sampleRules()[:1]}.Proto())
 	b, _ := acls.Create(ctx, ACL{Name: "b", Rules: sampleRules()[4:5]}.Proto())
 	aIdx, bIdx := a.(Meta).ACLIndex, b.(Meta).ACLIndex
-	// a foreign binding and a mixed one exist too
+	// a foreign binding exists too
 	foreign := v.addACL("w3:f")
 	v.bind(ifLoop300, 1, foreign)
-	v.bind(ifHostEth0, 1, foreign, aIdx)
 
 	d := NewInterfaceBinding(v, owner)
 	desired := InterfaceBinding{Interface: "loop1040", Input: []string{"a", "b"}, Output: []string{"a"}}
@@ -63,7 +62,7 @@ func TestInterfaceBindingLifecycle(t *testing.T) {
 
 	actual := mustRetrieve(t, d)
 	if len(actual) != 1 || actual[0].Key != KeyInterfaceBinding("loop1040") || !proto.Equal(actual[0].Value, desired.Proto()) || actual[0].Meta != meta {
-		t.Fatalf("Retrieve = %+v (foreign and mixed bindings must be filtered)", actual)
+		t.Fatalf("Retrieve = %+v (foreign bindings must be filtered)", actual)
 	}
 	assertEmptyPlan(t, d, kv(d, desired.Proto()))
 
@@ -104,16 +103,78 @@ func TestInterfaceBindingLifecycle(t *testing.T) {
 	if actual := mustRetrieve(t, d); len(actual) != 1 || actual[0].Key != KeyInterfaceBinding("loop1041") {
 		t.Fatalf("after delete Retrieve = %+v", actual)
 	}
-	// "a" is still referenced by the planted mixed binding on host-eth0: VPP refuses acl_del (in use)
-	if err := acls.Delete(ctx, ACL{Name: "a"}.Proto(), a); err == nil {
-		t.Fatal("acl a is still bound on another interface; acl_del must fail")
+	// "b" is still bound on loop1041: VPP refuses acl_del (in use); "a" is unbound everywhere
+	if err := acls.Delete(ctx, ACL{Name: "b"}.Proto(), b); err == nil {
+		t.Fatal("acl b is still bound on loop1041; acl_del must fail")
 	}
-	v.mu.Lock()
-	delete(v.bindings, ifHostEth0)
-	v.mu.Unlock()
 	if err := acls.Delete(ctx, ACL{Name: "a"}.Proto(), a); err != nil {
 		t.Fatalf("acl a should be deletable once unbound everywhere: %v", err)
 	}
+}
+
+// Review finding 6: ACLs of another owner on the same interface are preserved (kept first in
+// their direction), never reported as ours, and survive our Update and Delete.
+func TestInterfaceBindingPreservesForeignACLs(t *testing.T) {
+	ctx := t.Context()
+	v := newFakeVPP()
+	acls := NewACL(v, owner)
+	a, _ := acls.Create(ctx, ACL{Name: "a", Rules: sampleRules()[:1]}.Proto())
+	b, _ := acls.Create(ctx, ACL{Name: "b", Rules: sampleRules()[4:5]}.Proto())
+	aIdx, bIdx := a.(Meta).ACLIndex, b.(Meta).ACLIndex
+	fIn, fOut, untagged := v.addACL("w3:f-in"), v.addACL("w3:f-out"), v.addACL("")
+	v.bind(ifHostEth0, 2, fIn, untagged, fOut)
+
+	d := NewInterfaceBinding(v, owner)
+	if kvs := mustRetrieve(t, d); len(kvs) != 0 {
+		t.Fatalf("an interface with only foreign ACLs has no binding of ours: %+v", kvs)
+	}
+	desired := InterfaceBinding{Interface: "host-eth0", Input: []string{"a"}, Output: []string{"b"}}
+	meta, err := d.Create(ctx, desired.Proto())
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := v.CallsNamed("acl_interface_set_acl_list")[0].(*vppacl.ACLInterfaceSetACLList)
+	if want := []uint32{fIn, untagged, aIdx, fOut, bIdx}; req.NInput != 3 || !equalU32(req.Acls, want) {
+		t.Fatalf("create request n_input=%d acls=%v, want 3 %v", req.NInput, req.Acls, want)
+	}
+	actual := mustRetrieve(t, d)
+	if len(actual) != 1 || !proto.Equal(actual[0].Value, desired.Proto()) || actual[0].Meta != meta {
+		t.Fatalf("Retrieve = %+v, want only our entries", actual)
+	}
+	assertEmptyPlan(t, d, kv(d, desired.Proto()))
+
+	updated := InterfaceBinding{Interface: "host-eth0", Input: []string{"b", "a"}}
+	if _, err := d.Update(ctx, desired.Proto(), updated.Proto(), meta); err != nil {
+		t.Fatal(err)
+	}
+	req = v.CallsNamed("acl_interface_set_acl_list")[1].(*vppacl.ACLInterfaceSetACLList)
+	if want := []uint32{fIn, untagged, bIdx, aIdx, fOut}; req.NInput != 4 || !equalU32(req.Acls, want) {
+		t.Fatalf("update request n_input=%d acls=%v, want 4 %v", req.NInput, req.Acls, want)
+	}
+	assertEmptyPlan(t, d, kv(d, updated.Proto()))
+
+	if err := d.Delete(ctx, updated.Proto(), meta); err != nil {
+		t.Fatal(err)
+	}
+	req = v.CallsNamed("acl_interface_set_acl_list")[2].(*vppacl.ACLInterfaceSetACLList)
+	if want := []uint32{fIn, untagged, fOut}; req.NInput != 2 || !equalU32(req.Acls, want) {
+		t.Fatalf("delete request n_input=%d acls=%v, want 2 %v", req.NInput, req.Acls, want)
+	}
+	if kvs := mustRetrieve(t, d); len(kvs) != 0 {
+		t.Fatalf("after Delete: %+v", kvs)
+	}
+}
+
+func equalU32(a, b []uint32) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestInterfaceBindingErrors(t *testing.T) {
@@ -132,6 +193,10 @@ func TestInterfaceBindingErrors(t *testing.T) {
 	}
 	if _, err := d.Create(ctx, InterfaceBinding{Interface: "loop1040", Input: []string{"a", "a"}}.Proto()); !errors.Is(err, ErrSpec) {
 		t.Fatalf("duplicate: %v", err)
+	}
+	// review finding 3: an empty binding is never reported by Retrieve, so it is rejected
+	if _, err := d.Create(ctx, InterfaceBinding{Interface: "loop1040", Input: []string{}, Output: []string{}}.Proto()); !errors.Is(err, ErrSpec) {
+		t.Fatalf("empty binding: %v", err)
 	}
 	if len(v.CallsNamed("acl_interface_set_acl_list")) != 0 {
 		t.Fatal("no set_acl_list must be sent on validation errors")

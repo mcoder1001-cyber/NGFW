@@ -2,6 +2,7 @@ package acl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"google.golang.org/protobuf/proto"
@@ -26,7 +27,7 @@ func KeyMacipBinding(ifName string) scheduler.Key {
 // MacipBindingDescriptor manages acl.macip-interface-binding objects with
 // macip_acl_interface_add_del (one MACIP ACL per interface, inbound; adding another replaces
 // it, acl.c macip_acl_interface_add_acl) and macip_acl_interface_list_dump. Ownership: the
-// bound MACIP ACL's tag.
+// bound MACIP ACL's tag; Create refuses an interface that carries another owner's MACIP ACL.
 type MacipBindingDescriptor struct {
 	client vpp.Client
 	owner  string
@@ -56,16 +57,45 @@ func (d *MacipBindingDescriptor) Dependencies(obj proto.Message) []scheduler.Dep
 	return []scheduler.Dependency{d.opts.interfaceDependency(b.Interface), {Key: KeyMacipACL(b.ACL)}}
 }
 
-func (d *MacipBindingDescriptor) resolveACL(ctx context.Context, name string) (uint32, error) {
+// ErrForeignMacipBinding is returned (wrapped) by Create when another owner's (or an untagged)
+// MACIP ACL is applied to the interface: VPP holds one MACIP ACL per interface, so binding ours
+// would silently replace theirs.
+var ErrForeignMacipBinding = errors.New("acl: interface has a MACIP ACL of another owner")
+
+// resolveACL returns the index of our MACIP ACL name and the index of every MACIP ACL we own.
+func (d *MacipBindingDescriptor) resolveACL(ctx context.Context, name string) (uint32, map[uint32]string, error) {
 	owned, err := dumpOwnedMacipACLs(ctx, d.client, d.owner)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	idx, ok := macipIndexByName(owned)[name]
 	if !ok {
-		return 0, fmt.Errorf("%w: %q (owner %q)", ErrNoMacipACL, name, d.owner)
+		return 0, nil, fmt.Errorf("%w: %q (owner %q)", ErrNoMacipACL, name, d.owner)
 	}
-	return idx, nil
+	return idx, macipNameByIndex(owned), nil
+}
+
+// checkNotForeign fails when a MACIP ACL that is not ours is applied to swIfIndex.
+func (d *MacipBindingDescriptor) checkNotForeign(ctx context.Context, swIfIndex uint32, ifName string, ours map[uint32]string) error {
+	stream, err := acl.NewServiceClient(d.client).MacipACLInterfaceListDump(ctx, &acl.MacipACLInterfaceListDump{SwIfIndex: interface_types.InterfaceIndex(swIfIndex)})
+	if err != nil {
+		return fmt.Errorf("macip_acl_interface_list_dump(%d): %w", swIfIndex, err)
+	}
+	details, err := drain(stream, stream.Recv)
+	if err != nil {
+		return fmt.Errorf("macip_acl_interface_list_dump(%d): %w", swIfIndex, err)
+	}
+	for _, det := range details {
+		if uint32(det.SwIfIndex) != swIfIndex {
+			continue
+		}
+		for _, idx := range det.Acls {
+			if _, mine := ours[idx]; !mine {
+				return fmt.Errorf("%w: %q has MACIP ACL %d", ErrForeignMacipBinding, ifName, idx)
+			}
+		}
+	}
+	return nil
 }
 
 func (d *MacipBindingDescriptor) addDel(ctx context.Context, isAdd bool, swIfIndex, aclIndex uint32) error {
@@ -93,8 +123,11 @@ func (d *MacipBindingDescriptor) Create(ctx context.Context, obj proto.Message) 
 	if err != nil {
 		return nil, err
 	}
-	aclIndex, err := d.resolveACL(ctx, b.ACL)
+	aclIndex, ours, err := d.resolveACL(ctx, b.ACL)
 	if err != nil {
+		return nil, err
+	}
+	if err := d.checkNotForeign(ctx, swIfIndex, b.Interface, ours); err != nil {
 		return nil, err
 	}
 	if err := d.addDel(ctx, true, swIfIndex, aclIndex); err != nil {
@@ -124,7 +157,7 @@ func (d *MacipBindingDescriptor) Update(ctx context.Context, oldObj, newObj prot
 	if !ok {
 		return nil, fmt.Errorf("acl.macip-interface-binding: unexpected meta %T", meta)
 	}
-	aclIndex, err := d.resolveACL(ctx, newB.ACL)
+	aclIndex, _, err := d.resolveACL(ctx, newB.ACL)
 	if err != nil {
 		return nil, err
 	}

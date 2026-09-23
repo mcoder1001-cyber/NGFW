@@ -38,7 +38,7 @@ type RuleCounter struct {
 
 // Counters is the per-rule hit counters of one owned ACL.
 type Counters struct {
-	Name     string
+	Name     string // object name; "<name>#<index>" for a duplicate-tag ACL (see Descriptor.Retrieve)
 	ACLIndex uint32
 	Rules    []RuleCounter // len == number of rules of the ACL, in rule order
 }
@@ -108,7 +108,7 @@ func (r *StatsReader) ReadOwned(ctx context.Context) ([]Counters, error) {
 		}
 		rules := make([]RuleCounter, len(a.Rules))
 		copy(rules, slots) // copies min(len) — drops VPP's extra slot, zero-fills missing ones
-		out = append(out, Counters{Name: a.Name, ACLIndex: a.Index, Rules: rules})
+		out = append(out, Counters{Name: a.keyName(), ACLIndex: a.Index, Rules: rules})
 	}
 	return out, nil
 }

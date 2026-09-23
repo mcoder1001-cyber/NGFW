@@ -151,6 +151,11 @@ func TestSpecValidation(t *testing.T) {
 		"etype unsorted":      EtypeWhitelist{Interface: "loop1", Input: []uint16{0x88cc, 0x0806}}.Validate(),
 		"etype dup":           EtypeWhitelist{Interface: "loop1", Output: []uint16{0x0806, 0x0806}}.Validate(),
 		"macip binding noacl": MacipBinding{Interface: "loop1"}.Validate(),
+		"binding empty":       InterfaceBinding{Interface: "loop1"}.Validate(),
+		"binding empty lists": InterfaceBinding{Interface: "loop1", Input: []string{}, Output: []string{}}.Validate(),
+		"etype empty":         EtypeWhitelist{Interface: "loop1"}.Validate(),
+		"acl name with #":     ACL{Name: "x#3"}.Validate(),
+		"macip name with #":   MacipACL{Name: "m#3"}.Validate(),
 		"macip bad mask":      MacipACL{Name: "m", Rules: []MacipRule{{Action: ActionPermit, SrcMac: "02:00:00:00:00:01", SrcMacMask: "FF:ff:ff:ff:ff:ff", SrcPrefix: AnyV4}}}.Validate(),
 	}
 	for name, err := range cases {
@@ -162,7 +167,8 @@ func TestSpecValidation(t *testing.T) {
 		ACL{Name: "x", Rules: sampleRules()}.Validate(),
 		ACL{Name: "empty-rules"}.Validate(),
 		InterfaceBinding{Interface: "loop1", Input: []string{"a", "b"}, Output: []string{"a"}}.Validate(),
-		InterfaceBinding{Interface: "loop1"}.Validate(),
+		InterfaceBinding{Interface: "loop1", Output: []string{"a"}}.Validate(),
+		EtypeWhitelist{Interface: "loop1", Output: []uint16{0x0806}}.Validate(),
 		EtypeWhitelist{Interface: "loop1", Input: []uint16{0x0806, 0x88cc}, Output: []uint16{0x0806}}.Validate(),
 		MacipBinding{Interface: "loop1", ACL: "m"}.Validate(),
 	}

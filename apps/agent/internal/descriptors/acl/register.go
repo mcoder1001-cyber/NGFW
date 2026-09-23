@@ -19,6 +19,7 @@ type Option func(*options)
 
 type options struct {
 	ifaceKey InterfaceKeyFunc
+	claims   ClaimStore
 }
 
 func buildOptions(opts []Option) options {
@@ -34,6 +35,17 @@ func WithInterfaceKey(f InterfaceKeyFunc) Option {
 	return func(o *options) {
 		if f != nil {
 			o.ifaceKey = f
+		}
+	}
+}
+
+// WithEtypeClaims sets the store in which acl.etype-whitelist records the untagged interfaces
+// it has applied a whitelist to (see ClaimStore). Default: a fresh in-memory store per
+// descriptor, which forgets its claims when the agent restarts.
+func WithEtypeClaims(s ClaimStore) Option {
+	return func(o *options) {
+		if s != nil {
+			o.claims = s
 		}
 	}
 }

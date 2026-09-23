@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/acl"
+	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
@@ -19,15 +20,23 @@ var KeyStatsEnable = scheduler.Join(NameStatsEnable, StatsEnableID)
 // StatsEnableDescriptor manages the acl.stats-enable singleton (acl_stats_intf_counters_enable).
 //
 // The flag is process-global in VPP and has no read API (only the VPP CLI `show acl-plugin tables` prints
-// it), so Retrieve reports the last value this descriptor applied: on a fresh agent it reports
-// nothing and the scheduler re-applies the desired value once (enabling twice is harmless).
+// it), so Retrieve reports the last value this descriptor applied *to the running VPP process*:
+// the value is stored together with the VPP identity (the PID of VPP's main thread from
+// show_threads, read before the request is sent) and Retrieve reports nothing once the identity
+// differs — after `restart-vpp` / `kill -9 vpp` the scheduler sees the object missing and enables
+// the counters again. On a fresh agent Retrieve also reports nothing and the desired value is
+// re-applied once (enabling twice is harmless). Reset forgets the applied value explicitly (for a
+// reconnect hook).
+//
 // The descriptor never disables the counters: on a shared VPP another owner may depend on
-// them, and Delete of the singleton is therefore a no-op. Enabled = false is recorded but not
-// sent.
+// them, and Delete of the singleton is therefore a no-op. Enabled = false means "not managed by
+// this agent", not "off": it is recorded but not sent, and Retrieve then reports false whatever
+// the flag is on VPP.
 type StatsEnableDescriptor struct {
 	client  vpp.Client
 	mu      sync.Mutex
 	applied *StatsEnable
+	vppID   uint32 // VPP identity (main-thread PID) the applied value belongs to
 }
 
 var _ scheduler.Descriptor = (*StatsEnableDescriptor)(nil)
@@ -85,10 +94,32 @@ func setCounters(ctx context.Context, client vpp.Client, enable bool) error {
 	return nil
 }
 
+// vppIdentity returns the PID of VPP's main thread (show_threads, thread 0: vlib_worker_threads[0].lwp).
+// It changes whenever VPP restarts, which is what StatsEnableDescriptor needs to notice that the
+// global counters flag was reset.
+func vppIdentity(ctx context.Context, client vpp.Client) (uint32, error) {
+	rep, err := vlib.NewServiceClient(client).ShowThreads(ctx, &vlib.ShowThreads{})
+	if err != nil {
+		return 0, fmt.Errorf("show_threads: %w", err)
+	}
+	for _, t := range rep.ThreadData {
+		if t.ID == 0 {
+			return t.PID, nil
+		}
+	}
+	return 0, fmt.Errorf("show_threads: no main thread in %d entries", len(rep.ThreadData))
+}
+
 func (d *StatsEnableDescriptor) apply(ctx context.Context, obj proto.Message) error {
 	s, err := StatsEnableFromProto(obj)
 	if err != nil {
 		return err
+	}
+	// identity first: if VPP restarts after this read, Retrieve sees a new identity and the
+	// counters are enabled again; the reverse order could record a stale "enabled".
+	id, err := vppIdentity(ctx, d.client)
+	if err != nil {
+		return fmt.Errorf("acl.stats-enable: %w", err)
 	}
 	if s.Enabled {
 		if err := EnableCounters(ctx, d.client); err != nil {
@@ -97,8 +128,18 @@ func (d *StatsEnableDescriptor) apply(ctx context.Context, obj proto.Message) er
 	}
 	d.mu.Lock()
 	d.applied = &s
+	d.vppID = id
 	d.mu.Unlock()
 	return nil
+}
+
+// Reset forgets the applied value, so the next Retrieve reports nothing and the scheduler
+// re-applies the desired value. Retrieve already does this on its own when VPP's identity
+// changes; P05 may also call it on every binary-API reconnect.
+func (d *StatsEnableDescriptor) Reset() {
+	d.mu.Lock()
+	d.applied = nil
+	d.mu.Unlock()
 }
 
 // Create implements scheduler.Descriptor. Meta is nil (there is no handle).
@@ -120,12 +161,26 @@ func (d *StatsEnableDescriptor) Delete(context.Context, proto.Message, any) erro
 	return nil
 }
 
-// Retrieve implements scheduler.Descriptor: the last applied value of this process, or nothing.
-func (d *StatsEnableDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
+// Retrieve implements scheduler.Descriptor: the last value this process applied to the running
+// VPP, or nothing (never applied, Reset, or VPP restarted since — see the type doc).
+func (d *StatsEnableDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	d.mu.Lock()
-	defer d.mu.Unlock()
-	if d.applied == nil {
+	applied, appliedID := d.applied, d.vppID
+	d.mu.Unlock()
+	if applied == nil {
 		return nil, nil
 	}
-	return []scheduler.KV{{Key: KeyStatsEnable, Value: d.applied.Proto()}}, nil
+	id, err := vppIdentity(ctx, d.client)
+	if err != nil {
+		return nil, fmt.Errorf("acl.stats-enable: %w", err)
+	}
+	if id != appliedID {
+		d.mu.Lock()
+		if d.applied == applied { // not re-applied concurrently
+			d.applied = nil
+		}
+		d.mu.Unlock()
+		return nil, nil
+	}
+	return []scheduler.KV{{Key: KeyStatsEnable, Value: applied.Proto()}}, nil
 }

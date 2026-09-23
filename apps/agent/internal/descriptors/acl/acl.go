@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 
 	"google.golang.org/protobuf/proto"
 
@@ -128,7 +129,10 @@ func (d *Descriptor) Delete(ctx context.Context, _ proto.Message, meta any) erro
 }
 
 // Retrieve implements scheduler.Descriptor: acl_dump (all), keep the ACLs tagged by this owner,
-// decode their rules in VPP order.
+// decode their rules in VPP order. When several VPP ACLs carry the same owner tag (a lost
+// acl_add_replace reply followed by a retry, two agents with one owner id), the lowest index is
+// the object ("acl.acl/<name>") and every other one is reported as "acl.acl/<name>#<index>": such
+// a key is never desired (names cannot contain "#"), so the scheduler deletes the extras.
 func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	owned, err := dumpOwnedACLs(ctx, d.client, d.owner)
 	if err != nil {
@@ -141,8 +145,8 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 			return nil, fmt.Errorf("acl %d (%q): %w", e.Index, e.Name, err)
 		}
 		out = append(out, scheduler.KV{
-			Key:   KeyACL(e.Name),
-			Value: ACL{Name: e.Name, Rules: rules}.Proto(),
+			Key:   KeyACL(e.keyName()),
+			Value: ACL{Name: e.keyName(), Rules: rules}.Proto(),
 			Meta:  Meta{ACLIndex: e.Index},
 		})
 	}
@@ -153,11 +157,23 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 type ownedACL struct {
 	Index uint32
 	Name  string
+	Dup   bool // another ACL with the same tag has a lower index (see Descriptor.Retrieve)
 	Rules []acl_types.ACLRule
 }
 
-// dumpOwnedACLs runs acl_dump for all ACLs and keeps those whose tag parses as this owner's, in
-// dump (index) order.
+// keyName is the object name the ACL is reported under: Name, or "<Name>#<index>" for a duplicate.
+func (e ownedACL) keyName() string { return dupName(e.Name, e.Index, e.Dup) }
+
+// dupName builds the reported name of an owned (MACIP) ACL; see Descriptor.Retrieve.
+func dupName(name string, index uint32, dup bool) string {
+	if !dup {
+		return name
+	}
+	return fmt.Sprintf("%s%s%d", name, dupSeparator, index)
+}
+
+// dumpOwnedACLs runs acl_dump for all ACLs and keeps those whose tag parses as this owner's,
+// sorted by index; for a tag seen more than once every entry but the lowest index is marked Dup.
 func dumpOwnedACLs(ctx context.Context, c vpp.Client, owner string) ([]ownedACL, error) {
 	stream, err := acl.NewServiceClient(c).ACLDump(ctx, &acl.ACLDump{ACLIndex: noACL})
 	if err != nil {
@@ -175,23 +191,35 @@ func dumpOwnedACLs(ctx context.Context, c vpp.Client, owner string) ([]ownedACL,
 		}
 		out = append(out, ownedACL{Index: det.ACLIndex, Name: name, Rules: det.R})
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Index < out[j].Index })
+	seen := make(map[string]struct{}, len(out))
+	for i := range out {
+		if _, dup := seen[out[i].Name]; dup {
+			out[i].Dup = true
+			continue
+		}
+		seen[out[i].Name] = struct{}{}
+	}
 	return out, nil
 }
 
-// aclIndexByName indexes a dumpOwnedACLs result by object name.
+// aclIndexByName indexes a dumpOwnedACLs result by object name (duplicates excluded, so a
+// name always resolves to the lowest index — the one Retrieve reports under the plain key).
 func aclIndexByName(owned []ownedACL) map[string]uint32 {
 	m := make(map[string]uint32, len(owned))
 	for _, e := range owned {
-		m[e.Name] = e.Index
+		if !e.Dup {
+			m[e.Name] = e.Index
+		}
 	}
 	return m
 }
 
-// aclNameByIndex indexes a dumpOwnedACLs result by acl_index.
+// aclNameByIndex indexes a dumpOwnedACLs result by acl_index, with the reported (keyName) names.
 func aclNameByIndex(owned []ownedACL) map[uint32]string {
 	m := make(map[uint32]string, len(owned))
 	for _, e := range owned {
-		m[e.Index] = e.Name
+		m[e.Index] = e.keyName()
 	}
 	return m
 }

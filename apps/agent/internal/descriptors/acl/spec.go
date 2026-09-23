@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -108,8 +109,8 @@ type MacipACL struct {
 }
 
 // InterfaceBinding is the desired state of one acl.interface-binding object: the complete
-// ordered ACL lists (by acl.acl name) applied to one interface, inbound and outbound. Both lists
-// empty is equivalent to no binding; Delete sets empty lists.
+// ordered ACL lists (by acl.acl name) applied to one interface, inbound and outbound. At least
+// one list must be non-empty (Validate): to unbind, omit the object from the desired state.
 type InterfaceBinding struct {
 	Interface string // VPP interface name, e.g. "loop1040"
 	Input     []string
@@ -457,10 +458,24 @@ func validateName(what, name string) error {
 	return nil
 }
 
+// dupSeparator marks the key/name of a duplicate owned ACL ("<name>#<acl_index>", see
+// dumpOwnedACLs); desired ACL and MACIP ACL names must not contain it.
+const dupSeparator = "#"
+
+func validateACLName(what, name string) error {
+	if err := validateName(what, name); err != nil {
+		return err
+	}
+	if strings.Contains(name, dupSeparator) {
+		return fmt.Errorf("%w: %s name %q contains %q (reserved for duplicate cleanup)", ErrSpec, what, name, dupSeparator)
+	}
+	return nil
+}
+
 // Validate checks a for what VPP would reject (acl_add_replace): empty name, non-canonical or
 // mixed-family prefixes, port ranges with first > last, unknown actions.
 func (a ACL) Validate() error {
-	if err := validateName("acl", a.Name); err != nil {
+	if err := validateACLName("acl", a.Name); err != nil {
 		return err
 	}
 	for i, r := range a.Rules {
@@ -498,7 +513,7 @@ func (r Rule) validate() error {
 // Validate checks a for what VPP would reject (macip_acl_add_replace) plus the reflect action,
 // which has no meaning for L2 rules.
 func (a MacipACL) Validate() error {
-	if err := validateName("macip-acl", a.Name); err != nil {
+	if err := validateACLName("macip-acl", a.Name); err != nil {
 		return err
 	}
 	for i, r := range a.Rules {
@@ -542,8 +557,18 @@ func validateACLList(direction string, names []string) error {
 	return nil
 }
 
-// Validate checks b: interface name present, no duplicate ACL per direction, ≤ 255 per direction.
+// Validate checks b: interface name present, at least one ACL (an empty binding is never
+// reported by Retrieve, so it would be re-created on every reconcile — omit the object to
+// unbind), no duplicate ACL per direction, ≤ 255 in total.
 func (b InterfaceBinding) Validate() error {
+	if len(b.Input)+len(b.Output) == 0 {
+		return fmt.Errorf("%w: binding on %q has no ACLs; omit the object to unbind", ErrSpec, b.Interface)
+	}
+	return b.validateLists()
+}
+
+// validateLists is Validate without the non-empty rule; the unbind path (Delete) sends empty lists.
+func (b InterfaceBinding) validateLists() error {
 	if err := validateName("interface", b.Interface); err != nil {
 		return err
 	}
@@ -569,8 +594,17 @@ func validateEtypes(direction string, list []uint16) error {
 	return nil
 }
 
-// Validate checks w: interface name present, lists strictly ascending, ≤ 255 in total.
+// Validate checks w: interface name present, at least one ethertype (an empty whitelist is never
+// reported by Retrieve — omit the object to clear it), lists strictly ascending, ≤ 255 in total.
 func (w EtypeWhitelist) Validate() error {
+	if len(w.Input)+len(w.Output) == 0 {
+		return fmt.Errorf("%w: ethertype whitelist on %q is empty; omit the object to clear it", ErrSpec, w.Interface)
+	}
+	return w.validateLists()
+}
+
+// validateLists is Validate without the non-empty rule; the clear path (Delete) sends empty lists.
+func (w EtypeWhitelist) validateLists() error {
 	if err := validateName("interface", w.Interface); err != nil {
 		return err
 	}

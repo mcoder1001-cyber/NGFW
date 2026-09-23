@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	vppacl "ngfw/agent/binapi/acl"
+	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -63,6 +64,53 @@ func TestStatsEnableDescriptor(t *testing.T) {
 	}
 	if _, err := NewStatsEnable(v).Create(ctx, ACL{Name: "not-a-stats-spec"}.Proto()); err != nil {
 		t.Fatalf("a struct without 'enabled' reads as false (tolerant decode): %v", err)
+	}
+}
+
+// Review finding 1: after a VPP restart the counters flag is off again; Retrieve must stop
+// reporting the applied value so the scheduler re-enables it.
+func TestStatsEnableSurvivesVPPRestart(t *testing.T) {
+	ctx := t.Context()
+	v := newFakeVPP()
+	d := NewStatsEnable(v)
+	desired := StatsEnable{Enabled: true}
+	if _, err := d.Create(ctx, desired.Proto()); err != nil {
+		t.Fatal(err)
+	}
+	assertEmptyPlan(t, d, kv(d, desired.Proto()))
+
+	v.restartVPP()
+	kvs := mustRetrieve(t, d)
+	if len(kvs) != 0 {
+		t.Fatalf("after a VPP restart Retrieve must report nothing, got %+v", kvs)
+	}
+	if p := diffPlan([]scheduler.KV{kv(d, desired.Proto())}, kvs); len(p.Create) != 1 {
+		t.Fatalf("the scheduler must plan a Create: %s", planString(p))
+	}
+	if _, err := d.Create(ctx, desired.Proto()); err != nil {
+		t.Fatal(err)
+	}
+	if !v.countersEnabled || v.countersCalls != 2 {
+		t.Fatalf("counters must be enabled again: enabled=%v calls=%d", v.countersEnabled, v.countersCalls)
+	}
+	assertEmptyPlan(t, d, kv(d, desired.Proto()))
+
+	// explicit Reset (reconnect hook) forgets the value too
+	d.Reset()
+	if kvs := mustRetrieve(t, d); len(kvs) != 0 {
+		t.Fatalf("after Reset: %+v", kvs)
+	}
+
+	// the identity read failing is an error, not a silent "enabled"
+	if _, err := d.Create(ctx, desired.Proto()); err != nil {
+		t.Fatal(err)
+	}
+	v.Reply("show_threads", &vlib.ShowThreadsReply{Retval: rvInvalidValue})
+	if _, err := d.Retrieve(ctx); err == nil {
+		t.Fatal("show_threads failure must surface from Retrieve")
+	}
+	if _, err := d.Create(ctx, desired.Proto()); err == nil {
+		t.Fatal("show_threads failure must surface from Create")
 	}
 }
 

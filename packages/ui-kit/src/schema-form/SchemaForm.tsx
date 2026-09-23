@@ -4,7 +4,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import type { SxProps, Theme } from '@mui/material/styles';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FormProvider, useForm, type FieldValues } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { UI_KIT_NS } from '../i18n/index.js';
@@ -18,7 +18,7 @@ import type { JsonSchema, ProblemDetails, ProblemFieldError, Translate } from '.
 export interface SchemaFormProps {
   /** JSON Schema 2020-12 (root of the document being edited; `$defs` are resolved against it). */
   schema: JsonSchema;
-  /** Initial JSON value; defaults from the schema when omitted. Changing it resets the form. */
+  /** Initial JSON value; defaults from the schema when omitted. Changing its *content* resets the form (identity alone does not). */
   value?: unknown;
   /** Receives the *validated, parsed* JSON value (defaults applied, records as objects). */
   onSubmit: (value: unknown) => void | Promise<void>;
@@ -80,9 +80,15 @@ export function SchemaForm({
 }: SchemaFormProps) {
   const { t } = useTranslation(UI_KIT_NS);
   const translate = useMemo<Translate>(() => (key, options) => String(t(key, options ?? {})), [t]);
+  // Reset only when the value's *content* changes (review P07a L8): an inline `value={{…}}` literal gets a new identity on
+  // every parent render and must not wipe the user's edits.
+  const valueKey = useMemo(() => JSON.stringify(value ?? null), [value]);
+  const stableValue = useRef<{ key: string; value: unknown }>({ key: valueKey, value });
+  if (stableValue.current.key !== valueKey) stableValue.current = { key: valueKey, value };
+  const currentValue = stableValue.current.value;
   const initial = useMemo<FieldValues>(
-    () => ({ [ROOT_FIELD]: toFormValue(schema, withDefaults(schema, value, schema), schema) }),
-    [schema, value],
+    () => ({ [ROOT_FIELD]: toFormValue(schema, withDefaults(schema, currentValue, schema), schema) }),
+    [schema, currentValue],
   );
   const resolver = useMemo(() => createSchemaResolver(schema, translate), [schema, translate]);
   /** Schema Zod cannot compile → validation unavailable: shown up front and submitting is refused (review M4). */

@@ -152,6 +152,17 @@ describe('<SchemaForm>', () => {
     expect(screen.getAllByLabelText(/^Name/)[0]).not.toHaveAttribute('dir');
   });
 
+  it('keeps edits when the parent re-renders with an equal inline value, resets when the content changes (review L8)', async () => {
+    const { rerender } = renderWithProviders(<SchemaForm schema={WIDGET_SCHEMA} value={{ ...WIDGET_VALUE }} onSubmit={() => {}} />);
+    const name = () => screen.getAllByLabelText(/^Name/)[0]!;
+    await userEvent.type(name(), '-edited');
+    expect(name()).toHaveValue('eth0-edited');
+    rerender(<SchemaForm schema={WIDGET_SCHEMA} value={{ ...WIDGET_VALUE }} onSubmit={() => {}} />);
+    expect(name()).toHaveValue('eth0-edited');
+    rerender(<SchemaForm schema={WIDGET_SCHEMA} value={{ ...WIDGET_VALUE, name: 'eth1' }} onSubmit={() => {}} />);
+    await waitFor(() => expect(name()).toHaveValue('eth1'));
+  });
+
   it('read-only mode disables saving', () => {
     renderWithProviders(<SchemaForm schema={WIDGET_SCHEMA} value={WIDGET_VALUE} onSubmit={() => {}} readOnly />);
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();

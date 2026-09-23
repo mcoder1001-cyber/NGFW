@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { compile, compileError, findRecordKeyIssues, formPathFor, formatForPattern, fromFormValue, pointerToFormPath, toFormValue } from './form-value.js';
 import { issueMessage } from './messages.js';
 import { createSchemaResolver, ROOT_FIELD } from './resolver.js';
-import { defaultValueFor, parsePointer } from './schema-utils.js';
+import { defaultValueFor, mergeAllOf, parsePointer, resolveRef } from './schema-utils.js';
 import { WIDGET_SCHEMA, WIDGET_VALUE } from './test-schema.js';
 import type { JsonSchema, Translate } from './types.js';
 
@@ -136,6 +136,26 @@ describe('dependsOn pruning and compile failures (review M3, M4)', () => {
     expect(JSON.stringify(r.errors)).toContain('form.validationUnavailable');
     expect(compileError(S, S)).toBeUndefined();
     error.mockRestore();
+  });
+});
+
+describe('schema memoisation (review L1)', () => {
+  it('resolveRef/mergeAllOf return the same object for the same input, so compile() hits its cache', () => {
+    const root: JsonSchema = {
+      $defs: { name: { type: 'string', minLength: 1 }, base: { type: 'object', properties: { a: { type: 'string' } } } },
+      type: 'object',
+      properties: {
+        n: { $ref: '#/$defs/name', title: 'N' },
+        m: { allOf: [{ $ref: '#/$defs/base' }, { properties: { b: { type: 'integer' } } }] },
+      },
+    };
+    const n = root.properties!.n!;
+    const m = root.properties!.m!;
+    expect(resolveRef(n, root)).toBe(resolveRef(n, root));
+    expect(resolveRef(n, root)).toMatchObject({ type: 'string', minLength: 1, title: 'N' });
+    expect(mergeAllOf(m, root)).toBe(mergeAllOf(m, root));
+    expect(Object.keys(mergeAllOf(m, root).properties!)).toEqual(['a', 'b']);
+    expect(compile(resolveRef(n, root), root)).toBe(compile(resolveRef(n, root), root));
   });
 });
 

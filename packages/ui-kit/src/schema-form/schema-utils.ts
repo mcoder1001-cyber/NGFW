@@ -25,8 +25,30 @@ export function getByPointer(doc: unknown, pointer: string): unknown {
   return cur;
 }
 
-/** Follow local `$ref`s (`#/$defs/...`); keywords next to the `$ref` (title, x-vrx-ui) override the target's. */
+/**
+ * Per-root memo of derived schema objects (review P07a L1): `resolveRef`/`mergeAllOf` return the *same* object for the
+ * same input, so `compile()`'s identity-keyed cache hits instead of re-running `z.fromJSONSchema` on every keystroke.
+ */
+function memo(): (root: JsonSchema, schema: JsonSchema, make: () => JsonSchema) => JsonSchema {
+  const byRoot = new WeakMap<JsonSchema, WeakMap<JsonSchema, JsonSchema>>();
+  return (root, schema, make) => {
+    let m = byRoot.get(root);
+    if (!m) byRoot.set(root, (m = new WeakMap()));
+    let out = m.get(schema);
+    if (!out) m.set(schema, (out = make()));
+    return out;
+  };
+}
+const refMemo = memo();
+const allOfMemo = memo();
+
+/** Follow local `$ref`s (`#/$defs/...`); keywords next to the `$ref` (title, x-vrx-ui) override the target's. Memoised. */
 export function resolveRef(schema: JsonSchema, root: JsonSchema): JsonSchema {
+  if (typeof schema.$ref !== 'string') return schema;
+  return refMemo(root, schema, () => resolveRefUncached(schema, root));
+}
+
+function resolveRefUncached(schema: JsonSchema, root: JsonSchema): JsonSchema {
   let cur = schema;
   const seen = new Set<string>();
   while (typeof cur.$ref === 'string' && cur.$ref.startsWith('#') && !seen.has(cur.$ref)) {
@@ -96,12 +118,16 @@ export function isAnySchema(schema: JsonSchema): boolean {
   );
 }
 
-/** Shallow `allOf` merge (properties/required unioned, scalar keywords from the last member). */
+/** Shallow `allOf` merge (properties/required unioned, scalar keywords from the last member). Memoised. */
 export function mergeAllOf(schema: JsonSchema, root: JsonSchema): JsonSchema {
   if (!schema.allOf) return schema;
+  return allOfMemo(root, schema, () => mergeAllOfUncached(schema, root));
+}
+
+function mergeAllOfUncached(schema: JsonSchema, root: JsonSchema): JsonSchema {
   const { allOf, ...base } = schema;
   let out: JsonSchema = { ...base };
-  for (const raw of allOf) {
+  for (const raw of allOf ?? []) {
     const m = resolveRef(raw, root);
     out = {
       ...out,

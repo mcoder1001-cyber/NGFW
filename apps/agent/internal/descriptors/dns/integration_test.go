@@ -10,9 +10,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/dns"
-	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dfkit/dfkittest"
+	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 

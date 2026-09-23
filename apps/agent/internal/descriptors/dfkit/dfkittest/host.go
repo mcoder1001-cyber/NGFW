@@ -114,4 +114,6 @@ func HoldForEvidence(t *testing.T, what string) {
 	time.Sleep(d)
 }
 
-func interfaceIndex(i uint32) interface_types.InterfaceIndex { return interface_types.InterfaceIndex(i) }
+func interfaceIndex(i uint32) interface_types.InterfaceIndex {
+	return interface_types.InterfaceIndex(i)
+}

@@ -327,7 +327,9 @@ type DHCP6DUIDDescriptor struct {
 var _ scheduler.Descriptor = (*DHCP6DUIDDescriptor)(nil)
 
 // NewDHCP6DUID returns the dhcp.dhcp6-duid descriptor.
-func NewDHCP6DUID(client vpp.Client) *DHCP6DUIDDescriptor { return &DHCP6DUIDDescriptor{client: client} }
+func NewDHCP6DUID(client vpp.Client) *DHCP6DUIDDescriptor {
+	return &DHCP6DUIDDescriptor{client: client}
+}
 
 // KeyDHCP6DUID is the key of the singleton.
 var KeyDHCP6DUID = scheduler.Join(NameDHCP6DUID, DUIDID)

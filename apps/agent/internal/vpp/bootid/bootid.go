@@ -205,7 +205,7 @@ func Current(ctx context.Context, c vpp.Client) (Identity, error) {
 // WriteFakeProc writes a fake proc tree under root for tests: boot_id and, for each pid → start
 // time, a <pid>/stat line whose comm contains blanks and parentheses.
 func WriteFakeProc(root, bootID string, starts map[int]uint64) error {
-	if err := os.MkdirAll(filepath.Join(root, "sys/kernel/random"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "sys/kernel/random"), 0o750); err != nil {
 		return err
 	}
 	if bootID != "" {
@@ -215,7 +215,7 @@ func WriteFakeProc(root, bootID string, starts map[int]uint64) error {
 	}
 	for pid, st := range starts {
 		dir := filepath.Join(root, strconv.Itoa(pid))
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
 			return err
 		}
 		line := fmt.Sprintf("%d (vpp main) (x)) S 1 %d %d 0 -1 4194560 0 0 0 0 0 0 0 0 20 0 3 0 %d 1000 10 0\n", pid, pid, pid, st)

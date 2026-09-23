@@ -4,3 +4,5 @@
 - 15:35 first commit 9948f7d: package `internal/descriptors/acl` (6 descriptors + stats reader + plugin info), key contract doc.
 - 15:43 unit tests green on the fake; first host run: 5/7 subtests green; learned `macip_acl_del` auto-unbinds (VPP) → fake/tests/doc aligned.
 - 15:47 host integration rerun: 8/8 subtests PASS, flag restored, no leftovers. 15:50 ci.sh --base main: CI GATE PASSED (40ee367). Status report written.
+- 2026-09-24 00:20 review round (d75fed1, APPROVE WITH CHANGES): merged main (4d2839d); fixes M1..L6 + I7 in f1d47cf, cc9b01a,
+  d4173f3, 4b40b0d; unit + host integration green (10/10 subtests), flag 0 and no leftovers after; ci.sh --base main PASSED.

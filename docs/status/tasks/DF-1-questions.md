@@ -32,7 +32,7 @@ set; after an agent restart the scheduler plans one idempotent Create for each (
 is not reverted. Acceptable for P05's "empty plan after restart" criterion, or should P05 persist an
 owner table for these two (state dir) as the README allows for tag-less objects?
 
-## Q4 — alias `interface/<name>` vs the P05 reconciler (new, from implementing D-065)
+## Q4 — alias `interface/<name>` vs the P05 reconciler — part 1 RESOLVED in the fix round (review H1): the alias implements P05's `DeleteOnAbsence() false` and Retrieve only reports ours + untagged interfaces; part 2 (P05's `KeyProvider` alias on loopbacks) still open for P05
 1. The alias Retrieve lists every VPP interface except local0, including foreign ones (as specified).
    The P05a diff rule "owned actual keys absent from desired → Delete" would then plan a no-op Delete for
    every interface the desired state does not alias (other workers' interfaces on the shared host, P05's
@@ -45,3 +45,9 @@ owner table for these two (state dir) as the README allows for tag-less objects?
    interfaces (the desired-state builder emits `InterfaceAlias{name, creator: "interface.loopback/…"}`), or
    the alias descriptor is not registered and ProvidedKeys is extended to every creator (then physical NICs
    need another provider). Recommendation: drop ProvidedKeys for interfaces, keep it for `vrf/<id>` if needed.
+
+## Q5 — claims of untagged interfaces across agent restarts (fix round, review H2)
+`iface.ClaimStore` is in-memory per owner by default. P05 should install a store persisted in the state
+dir with `iface.SetClaimStore(owner, store)` before the first transaction (as for DF-4's acl claims);
+otherwise, after an agent restart, per-interface objects on physical NICs are re-applied once (like
+promisc/MAC) and a NIC setting removed from the config while the agent was down is not reverted.

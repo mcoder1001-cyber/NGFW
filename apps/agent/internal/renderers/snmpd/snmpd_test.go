@@ -114,7 +114,7 @@ var goldenCases = map[string]map[string]any{
 		"communities", map[string]any{"ro": map[string]any{"secretRef": "password/snmp-ro", "sources": []any{"127.0.0.1/32"}, "view": "ifs"}},
 		"v3Users", map[string]any{"u1": map[string]any{"authProtocol": "sha256", "authRef": "password/u1-auth", "privRef": "password/u1-priv", "view": "ifs"}},
 		"views", map[string]any{
-			"ifs": map[string]any{"include": []any{"system", "interfaces", "ifMIB", "1.3.6.1.4.1.2021.10"}, "exclude": []any{".1.3.6.1.2.1.1.9"}},
+			"ifs":  map[string]any{"include": []any{"system", "interfaces", "ifMIB", "1.3.6.1.4.1.2021.10"}, "exclude": []any{".1.3.6.1.2.1.1.9"}},
 			"all2": map[string]any{"include": []any{"all"}},
 		},
 		"monitors", map[string]any{

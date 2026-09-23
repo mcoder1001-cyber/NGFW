@@ -1,7 +1,7 @@
 import { ROOT_KEYS } from '@ngfw/schema';
 import { describe, expect, it } from 'vitest';
 import { domains } from '../schema/registry';
-import { buildNav, DOMAIN_GROUP, NAV_GROUPS, domainPath } from './nav';
+import { buildNav, currentNavPath, DOMAIN_GROUP, NAV_GROUPS, domainPath } from './nav';
 
 describe('navigation from the schema (vdom.md guardrail 4)', () => {
   it('places every root key exactly once, in x-vrx-ui.order, with dashboard first and dev last', () => {
@@ -39,5 +39,16 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
     expect(nav.map((g) => g.id)).not.toContain('dev');
     expect(nav.flatMap((g) => g.items).filter((i) => i.path.startsWith('/dev'))).toEqual([]);
     expect(nav.at(-1)!.id).toBe('tools');
+  });
+
+  it('marks exactly one item current, the most specific one (review L4)', () => {
+    const nav = buildNav(domains, { devRoutes: false });
+    expect(currentNavPath(nav, '/')).toBe('/');
+    expect(currentNavPath(nav, '/vpn/tunnels')).toBe('/vpn/tunnels');
+    expect(currentNavPath(nav, '/vpn')).toBe('/vpn');
+    expect(currentNavPath(nav, '/system/users')).toBe('/system/users');
+    expect(currentNavPath(nav, '/system/users/admin')).toBe('/system/users');
+    expect(currentNavPath(nav, '/routing/vrfs')).toBe('/routing/vrfs');
+    expect(currentNavPath(nav, '/nope')).toBeUndefined();
   });
 });

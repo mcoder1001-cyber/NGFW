@@ -90,3 +90,13 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   if (devRoutes) groups.get('dev')!.push(...DEV_NAV_ITEMS);
   return NAV_GROUPS.map((id) => ({ id, labelKey: id === 'dev' ? DEV_GROUP_LABEL : `nav:groups.${id}`, items: groups.get(id)! })).filter((g) => g.items.length > 0);
 }
+
+/** The single nav path to mark current for `pathname`: the longest item path equal to it or a parent of it. */
+export function currentNavPath(nav: readonly NavGroup[], pathname: string): string | undefined {
+  let best: string | undefined;
+  for (const item of nav.flatMap((g) => g.items)) {
+    const hit = item.path === '/' ? pathname === '/' : pathname === item.path || pathname.startsWith(`${item.path}/`);
+    if (hit && (best === undefined || item.path.length > best.length)) best = item.path;
+  }
+  return best;
+}

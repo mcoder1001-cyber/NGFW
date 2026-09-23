@@ -19,7 +19,7 @@ import { Suspense, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { DEV_ROUTES } from '../build-flags';
-import { buildNav } from '../nav/nav';
+import { buildNav, currentNavPath } from '../nav/nav';
 import { domains } from '../schema/registry';
 import { SettingsPopover } from './SettingsPopover';
 
@@ -29,6 +29,9 @@ function NavList({ onNavigate, devRoutes }: { onNavigate: () => void; devRoutes:
   const { t } = useTranslation(['common', 'nav']);
   const nav = useMemo(() => buildNav(domains, { devRoutes }), [devRoutes]);
   const { pathname } = useLocation();
+  // Exactly one item is current (review L4): the longest nav path that is the location or a parent of it, so `/vpn/tunnels`
+  // selects "Tunnels" only, not also "VPN" (`/vpn`).
+  const current = useMemo(() => currentNavPath(nav, pathname), [nav, pathname]);
   return (
     <List component="nav" aria-label={t('menu.navigation')} dense sx={{ pt: 0 }}>
       {nav.map((group) => (
@@ -42,8 +45,8 @@ function NavList({ onNavigate, devRoutes }: { onNavigate: () => void; devRoutes:
                 key={item.id}
                 component={NavLink}
                 to={item.path}
-                end={item.path === '/'}
-                selected={item.path === '/' ? pathname === '/' : pathname === item.path || pathname.startsWith(`${item.path}/`)}
+                end
+                selected={item.path === current}
                 onClick={onNavigate}
                 sx={{ paddingInlineStart: (theme) => theme.spacing(3) }}
               >

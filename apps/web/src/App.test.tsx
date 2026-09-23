@@ -1,6 +1,6 @@
 import { ROOT_KEYS } from '@ngfw/schema';
 import { QueryClient } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import i18n from './i18n';
@@ -70,6 +70,25 @@ describe('App frame', () => {
     const nav = screen.getByRole('navigation', { name: 'Main navigation' });
     expect(within(nav).queryByText('Developer')).toBeNull();
     expect(within(nav).queryByRole('link', { name: /demo/i })).toBeNull();
+  });
+
+  it('marks exactly one navigation item as the current page on nested domain paths (review L4)', async () => {
+    render(app('/vpn/tunnels'));
+    await screen.findByRole('heading', { level: 2, name: 'Tunnels' });
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' });
+    const current = nav.querySelectorAll('[aria-current="page"]');
+    expect(current).toHaveLength(1);
+    expect(current[0]).toHaveTextContent('Tunnels');
+    expect(nav.querySelectorAll('.Mui-selected')).toHaveLength(1);
+  });
+
+  it('placeholder titles follow a language switch without navigating (review L3)', async () => {
+    render(app('/system/users'));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Users' })).toBeInTheDocument();
+    await act(async () => {
+      await i18n.changeLanguage('fa');
+    });
+    expect(await screen.findByRole('heading', { level: 2, name: i18n.t('nav:users', { lng: 'fa' }) })).toBeInTheDocument();
   });
 
   it('renders a not-found page for unknown paths', async () => {

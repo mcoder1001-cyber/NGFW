@@ -1,19 +1,18 @@
 # DF-7 — WIP (slot 10, prefix w10)
 
-Started 2026-09-24. Shared helpers in `apps/agent/internal/descriptors/df7` (codec, interface snapshot +
-ownership, fib paths, keys, options) and `df7/df7test` (fake with interface table, plan diff, host helpers).
+State 2026-09-24: **complete** — see `DF-7.md` (evidence, decisions) and `DF-7-questions.md`.
 
 | plugin | descriptors | unit | host | doc |
 |---|---|---|---|---|
-| policer | policer (R), interface (W), bind (W), classify (W) | done | done | todo |
-| qos | record, store, egress-map, mark | todo | todo | todo |
-| lb | conf, vip, as, intf-nat (all W — dump bugs) | todo | todo | todo |
-| span | mirror | todo | todo | todo |
-| lldp | global (W), interface (W) | todo | todo | todo |
-| bfd | auth-key, udp-session, echo-source + events | todo | todo | todo |
-| vrrp | vr, peers, track-if, state + events | todo | todo | todo |
-| igmp | interface (W), listen, group-prefix (W), proxy-device (W), proxy-downstream (W) + events | todo | todo | todo |
-| mpls | table, interface, route, ip-bind (W), tunnel | todo | todo | todo |
+| policer | policer (R), interface (W), bind (W), classify (W) | done | done (bind: no workers) | done |
+| qos | record, store, egress-map, mark | done | done | done |
+| lb | conf (W, global), vip, as, intf-nat (W) | done | done (conf: globals opt-in) | done |
+| span | mirror | done | done | done |
+| lldp | global (W, global), interface (W) | done | done (global: opt-in; interface needs aligned loopback) | done |
+| bfd | auth-key, udp-session, echo-source (global) + events | done | done (echo: opt-in) | done |
+| vrrp | vr, peers, track-if, state + events | done | done | done |
+| igmp | interface (W), listen, group-prefix (W, global), proxy-device (W), proxy-downstream (W) + events | done | done (prefix: opt-in) | done |
+| mpls | table, interface, route, ip-bind (W), tunnel | done | done (interface/ip-bind need table 0: opt-in) | done |
 
-R = Retrieve from a dump; W = write-only (D-063 ErrRetrieveUnsupported).
-VPP NRestarts baseline 2 (checked before the first policer host run and after: 2).
+Main merged in (D-069 resolver, D-071 globals/claims/index re-verify, D-076 boot identity) and applied everywhere.
+VPP NRestarts 2 before the first and after the last host run of every plugin.

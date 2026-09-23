@@ -20,6 +20,7 @@ func TestIGMPOnHost(t *testing.T) {
 	h := df7test.StartHost(t)
 	vrf := h.TableB + 80
 	h.IPTable(vrf)
+	t.Cleanup(func() { h.NoLeftovers(vrf) }) // after interfaces/addresses are gone, before the table (V15)
 	up, upIdx := h.Loopback(80, true, true)
 	down, downIdx := h.Loopback(81, true, true)
 	host, hostIdx := h.Loopback(82, true, true)

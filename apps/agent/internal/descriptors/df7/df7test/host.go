@@ -12,10 +12,12 @@ import (
 	"go.fd.io/govpp/adapter/socketclient"
 	"go.fd.io/govpp/core"
 
+	"ngfw/agent/binapi/classify"
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
+	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/vpptest"
@@ -145,6 +147,18 @@ func (h *Host) Address(swIfIndex uint32, addr string) {
 	// remove the address before the interface and its table go (VPP bug V15: FIB entries left
 	// in a deleted table leak into the next table that reuses its index)
 	h.T.Cleanup(func() {
+		// VPP keeps a per-sw_if_index "ip classify table" across interface delete/create: a
+		// reused index inherits another test's binding, and every address added to it gets a
+		// classify-sourced /32 that survives the address removal (seen: 10.10.82.1/32,
+		// 10.10.70.1/32). Clearing the binding removes one reference of that entry per call
+		// (earlier runs may have stacked several; a call without one is a no-op in VPP).
+		for i := 0; i < 8; i++ {
+			if _, err := classify.NewServiceClient(h.C).ClassifySetInterfaceIPTable(context.Background(), &classify.ClassifySetInterfaceIPTable{
+				IsIPv6: p.Addr().Is6(), SwIfIndex: interface_types.InterfaceIndex(swIfIndex), TableIndex: ^uint32(0)}); err != nil {
+				h.T.Logf("cleanup clear ip classify binding of %d: %v", swIfIndex, err)
+				break
+			}
+		}
 		del := *req
 		del.IsAdd = false
 		if _, err := interfaces.NewServiceClient(h.C).SwInterfaceAddDelAddress(context.Background(), &del); err != nil {
@@ -208,6 +222,11 @@ func (h *Host) NoLeftovers(id uint32) {
 		}
 	}
 	if len(left) > 0 {
+		for _, p := range left { // test-only diagnostic: which FIB source holds it
+			if rep, err := vlib.NewServiceClient(h.C).CliInband(h.Ctx, &vlib.CliInband{Cmd: fmt.Sprintf("show ip fib table %d %s", id, p)}); err == nil {
+				h.T.Logf("%s", rep.Reply)
+			}
+		}
 		h.T.Errorf("table %d still holds %v of this slot", id, left)
 	} else {
 		h.T.Logf("ip_route_dump table %d: nothing of %s left", id, slot)

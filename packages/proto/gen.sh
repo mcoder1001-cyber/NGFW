@@ -3,6 +3,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin"
+# Both output trees are 100% generated (the contract tests live in apps/agent/internal/contracttest
+# and packages/proto/test): wipe and regenerate.
 rm -rf gen/ts ../../apps/agent/gen
 mkdir -p gen/ts ../../apps/agent/gen
 buf generate

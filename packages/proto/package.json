@@ -3,20 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "./gen/ts/vrx/v1/dataplane.js",
-  "types": "./gen/ts/vrx/v1/dataplane.d.ts",
+  "main": "./dist/vrx/v1/dataplane.js",
+  "types": "./dist/vrx/v1/dataplane.d.ts",
   "exports": {
     ".": {
-      "types": "./gen/ts/vrx/v1/dataplane.d.ts",
-      "import": "./gen/ts/vrx/v1/dataplane.js"
+      "types": "./dist/vrx/v1/dataplane.d.ts",
+      "import": "./dist/vrx/v1/dataplane.js"
     }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "gen": "bash ./gen.sh",
-    "build": "echo \"proto: generated only, nothing to build\"",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "buf lint",
-    "test": "echo 'proto: no tests'"
+    "test": "vitest run"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2",
@@ -24,6 +27,7 @@
   },
   "devDependencies": {
     "ts-proto": "^2",
-    "typescript": "^5.6"
+    "typescript": "^5.6",
+    "vitest": "^3"
   }
 }

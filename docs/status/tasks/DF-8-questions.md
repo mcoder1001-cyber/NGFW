@@ -38,10 +38,22 @@ Recommendation (a).
 `dhcp6_duid_ll_set` changes a VPP-global without getter or reset; gated behind `VRX_DF8_DUID=1` (unit-tested with the fake).
 
 ## Q5 — shared helper package `internal/descriptors/dfkit`
-The envelope lists `descriptors/<plugins of DF-8>/**`. Nine packages need the same codec/interface/error helpers, so
-they live in one new package `descriptors/dfkit` (+ `dfkit/dfkittest` for tests) instead of nine copies. No existing
-file is touched. Options: (a) keep as DF-8's package; (b) P05 promotes it to a shared `descriptors/kit`. Recommendation (a) now, (b) when a second factory wants it.
+The envelope lists `descriptors/<plugins of DF-8>/**`. Nine packages need the same codec/globals/boot-store/error
+helpers, so they live in one new package `descriptors/dfkit` (+ `dfkit/dfkittest` for tests, `dfkit/restarttest` for the
+restart simulation) instead of nine copies. Interface resolution and claims delegate to DF-1's `iface` (D-069/D-075).
+No existing file is touched. Options: (a) keep as DF-8's package; (b) P05 promotes it to a shared `descriptors/kit`. Recommendation (a) now, (b) when a second factory wants it.
 
 ## Q6 — scheduler sentinel
 `dfkit.ErrRetrieveUnsupported` has the same text as P05's `scheduler.ErrRetrieveUnsupported` (recognised by
 `scheduler.IsRetrieveUnsupported`); once P05 is on main, DF-8 aliases it in a one-line follow-up.
+
+## Q7 — dhcp relay ownership (D-071 wording)
+The manager's message lists "dhcp proxy/global" among VPP-global settings. DF-8 keeps `dhcp.proxy`/`dhcp.proxy-vss` as
+per-owner objects scoped by rx VRF (`dhcp.WithVRFScope`; production: every VRF, tests: a slot sub-range), because a relay
+is configured per VRF table and the VRF range is the documented ownership unit; only the DHCPv6 DUID is in
+`dhcp.RegisterGlobals`. Options: (a) keep per-VRF (current); (b) move the relays to `RegisterGlobals`. Recommendation (a).
+
+## Q8 — persisted stores for P05/P08
+Untagged-interface claims (`iface.Claims`, shared with DF-1) and the D-076 boot records (`dfkit.Boot`) are in memory by
+default; P05/P08 install persisted ones: `iface.SetClaimStore(owner, …)`, `dfkit.SetBootStore(owner,
+dfkit.NewFileBootStore(<state dir>/df8-boot.json))`.

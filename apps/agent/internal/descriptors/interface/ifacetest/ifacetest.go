@@ -15,6 +15,7 @@ import (
 	ifapi "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/memclnt"
+	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/internal/vpp/fake"
 )
 
@@ -45,6 +46,9 @@ type VPP struct {
 	Workers uint32
 	// FailTag makes the next FailTag sw_interface_tag_add_del calls fail (retval -9).
 	FailTag int
+	// PID is the main-thread PID show_threads reports (the VPP identity); change it to simulate a
+	// VPP restart.
+	PID uint32
 }
 
 // New returns a fake with local0 (index 0) and handlers for the interface.api messages the
@@ -57,6 +61,12 @@ func New() *VPP {
 		Promisc: map[uint32]bool{},
 		Queues:  map[uint32][]Queue{},
 	}
+	v.PID = 4242
+	v.On("show_threads", func(api.Message) ([]api.Message, error) {
+		v.Mu.Lock()
+		defer v.Mu.Unlock()
+		return []api.Message{&vlib.ShowThreadsReply{Count: 1, ThreadData: []vlib.ThreadData{{ID: 0, Name: "vpp_main", PID: v.PID}}}}, nil
+	})
 	v.Ifs[0] = &ifapi.SwInterfaceDetails{InterfaceName: "local0", InterfaceDevType: "local", Mtu: []uint32{0, 0, 0, 0}}
 	v.On("sw_interface_dump", func(req api.Message) ([]api.Message, error) {
 		r := req.(*ifapi.SwInterfaceDump)

@@ -339,8 +339,9 @@ func (d *MtuDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 // MAC removed from the desired state while the agent was down simply stays (Delete is a no-op).
 type MacAddressDescriptor struct {
 	base
-	mu  sync.Mutex
-	set map[uint32]bool
+	mu    sync.Mutex
+	set   map[uint32]bool
+	epoch vppEpoch
 }
 
 // NewMacAddress returns the descriptor for owner.
@@ -388,7 +389,11 @@ func (d *MacAddressDescriptor) apply(ctx context.Context, idx uint32, mac string
 	if _, err := d.svc().SwInterfaceSetMacAddress(ctx, &ifapi.SwInterfaceSetMacAddress{SwIfIndex: interface_types.InterfaceIndex(idx), MacAddress: m}); err != nil {
 		return fmt.Errorf("sw_interface_set_mac_address: %w", err)
 	}
+	restarted := d.epoch.restarted(ctx, d.client)
 	d.mu.Lock()
+	if restarted {
+		clear(d.set)
+	}
 	d.set[idx] = true
 	d.mu.Unlock()
 	return nil
@@ -446,8 +451,12 @@ func (d *MacAddressDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, er
 	if err != nil {
 		return nil, err
 	}
+	restarted := d.epoch.restarted(ctx, d.client)
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if restarted {
+		clear(d.set) // indexes of the old VPP are meaningless (review L1)
+	}
 	var out []scheduler.KV
 	for _, idx := range t.order {
 		key, ok := t.OwnedRef(idx, MacAddressName)
@@ -480,8 +489,9 @@ func (d *MacAddressDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, er
 // an agent restart the desired objects are simply re-applied (the set is idempotent).
 type PromiscDescriptor struct {
 	base
-	mu sync.Mutex
-	on map[uint32]bool
+	mu    sync.Mutex
+	on    map[uint32]bool
+	epoch vppEpoch
 }
 
 // NewPromisc returns the descriptor for owner.
@@ -506,8 +516,12 @@ func (d *PromiscDescriptor) set(ctx context.Context, idx uint32, on bool) error 
 	if _, err := d.svc().SwInterfaceSetPromisc(ctx, &ifapi.SwInterfaceSetPromisc{SwIfIndex: interface_types.InterfaceIndex(idx), PromiscOn: on}); err != nil {
 		return fmt.Errorf("sw_interface_set_promisc: %w", err)
 	}
+	restarted := d.epoch.restarted(ctx, d.client)
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if restarted {
+		clear(d.on)
+	}
 	if on {
 		d.on[idx] = true
 	} else {
@@ -557,8 +571,12 @@ func (d *PromiscDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error
 	if err != nil {
 		return nil, err
 	}
+	restarted := d.epoch.restarted(ctx, d.client)
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if restarted {
+		clear(d.on) // indexes of the old VPP are meaningless (review L1)
+	}
 	var out []scheduler.KV
 	for _, idx := range t.order {
 		key, ok := t.OwnedRef(idx, PromiscName)

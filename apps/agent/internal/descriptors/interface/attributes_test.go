@@ -305,3 +305,25 @@ func TestRxPlacement(t *testing.T) {
 		t.Fatalf("after Delete: %+v", kvs)
 	}
 }
+
+// TestProcessMemoryDroppedOnVPPRestart (review L1): the promisc / MAC "what I set" maps belong to
+// one VPP identity; after a VPP restart (new main-thread PID) they are dropped, so a reused
+// sw_if_index is never reported with a setting VPP does not have.
+func TestProcessMemoryDroppedOnVPPRestart(t *testing.T) {
+	w := newWorld()
+	pd, md := iface.NewPromisc(w.v, owner), iface.NewMacAddress(w.v, owner)
+	mustCreate(t, pd, &iface.Promisc{Interface: tapKey})
+	mustCreate(t, md, &iface.MacAddress{Interface: loopKey, Mac: "02:00:00:00:00:01"})
+	if len(retrieve(t, pd)) != 1 || len(retrieve(t, md)) != 1 {
+		t.Fatal("not recorded")
+	}
+	w.v.Mu.Lock()
+	w.v.PID = 5151 // VPP restarted; indexes are reused by whatever gets created next
+	w.v.Mu.Unlock()
+	if kvs := retrieve(t, pd); len(kvs) != 0 {
+		t.Fatalf("promisc after a VPP restart = %+v", kvs)
+	}
+	if kvs := retrieve(t, md); len(kvs) != 0 {
+		t.Fatalf("mac after a VPP restart = %+v", kvs)
+	}
+}

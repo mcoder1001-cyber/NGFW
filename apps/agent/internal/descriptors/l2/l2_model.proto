@@ -1,0 +1,93 @@
+// Desired-state model of the l2.* descriptors (task DF-1). Agent-internal, see interface/model.proto.
+syntax = "proto3";
+
+package vrx.agent.l2;
+
+option go_package = "ngfw/agent/internal/descriptors/l2;l2";
+
+// BridgeDomain is bridge_domain_add_del_v2. Ownership: bd_tag = "<owner>:<id>".
+message BridgeDomain {
+  uint32 id = 1;
+  bool flood = 2;
+  bool uu_flood = 3;
+  bool forward = 4;
+  bool learn = 5;
+  bool arp_term = 6;
+  bool arp_ufwd = 7;
+  uint32 mac_age = 8;  // minutes, 0 = disabled
+}
+
+enum PortType {
+  PORT_TYPE_NORMAL = 0;
+  PORT_TYPE_BVI = 1;
+  PORT_TYPE_UU_FWD = 2;
+}
+
+// BridgeDomainMember binds an interface to a bridge domain (sw_interface_set_l2_bridge).
+message BridgeDomainMember {
+  uint32 bridge_domain = 1;
+  string interface = 2;  // full scheduler key of the interface
+  PortType port_type = 3;
+  uint32 shg = 4;  // split-horizon group, 0 = none
+}
+
+// Xconnect is one direction of an L2 cross-connect (sw_interface_set_l2_xconnect): rx → tx.
+// A bidirectional cross-connect is two objects.
+message Xconnect {
+  string rx = 1;  // full scheduler key
+  string tx = 2;  // full scheduler key
+}
+
+// FibEntry is a static / filter / BVI L2 FIB entry (l2fib_add_del). Learned entries are never
+// part of the desired or retrieved state.
+message FibEntry {
+  uint32 bridge_domain = 1;
+  string mac = 2;        // lower-case
+  string interface = 3;  // full scheduler key; empty for filter entries
+  bool static = 4;
+  bool filter = 5;
+  bool bvi = 6;
+}
+
+// Flags overrides the L2 input feature flags of a bridge member (l2_interface_feat_flags_set).
+// The object exists only while the flags differ from the bridge domain's own flags.
+message Flags {
+  string interface = 1;
+  bool learn = 2;
+  bool forward = 3;
+  bool flood = 4;
+  bool uu_flood = 5;
+  bool arp_term = 6;
+  bool arp_ufwd = 7;
+  // Bridge domain the interface is a member of. Mandatory: the flags only exist while the interface
+  // is a member, so the object depends on l2.bridge-domain-member/<bridge_domain>/<interface id> and
+  // is re-created with it (review M5).
+  uint32 bridge_domain = 8;
+}
+
+// VtrOp values are VPP's l2_vtr_op_t (src/vnet/l2/l2_vtr.h); 0 is "disabled" and has no object.
+enum VtrOp {
+  VTR_OP_DISABLED = 0;
+  VTR_OP_PUSH_1 = 1;
+  VTR_OP_PUSH_2 = 2;
+  VTR_OP_POP_1 = 3;
+  VTR_OP_POP_2 = 4;
+  VTR_OP_TRANSLATE_1_1 = 5;
+  VTR_OP_TRANSLATE_1_2 = 6;
+  VTR_OP_TRANSLATE_2_1 = 7;
+  VTR_OP_TRANSLATE_2_2 = 8;
+}
+
+// VlanTagRewrite is l2_interface_vlan_tag_rewrite on a (sub-)interface.
+message VlanTagRewrite {
+  string interface = 1;
+  VtrOp op = 2;
+  bool push_dot1q = 3;  // pushed tags are 802.1q (true) or 802.1ad (false)
+  uint32 tag1 = 4;
+  uint32 tag2 = 5;
+  // L2 mode of the interface (review M5): leaving/re-joining a bridge or an xconnect resets the
+  // rewrite in VPP, so the object depends on that membership and is re-created with it. Both must
+  // match the interface's actual mode (0/false = not in a bridge / not an xconnect rx).
+  uint32 bridge_domain = 6;
+  bool xconnect = 7;
+}

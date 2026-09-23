@@ -162,18 +162,18 @@ tasks:
   - P02c
   - P03
   priority: 1
-  est_hours: 3
-  state: ready
+  est_hours: 5
+  state: running
   parked_on: ''
   wbs:
   - D0.7
   - D0.8
   scope: contract(proto) sync only; add schema⊆proto drift test
   files_owned: packages/proto/** apps/agent/gen/** docs/contracts/proto.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P03b
+  worktree: /root/ngfw-wt/P03b
+  owner: host-agent slot2
+  started: 2026-09-24T01:47
   finished: ''
   notes: 'raised by P03 Q4; run before tagging contracts-v1 | also: add the domain leaf messages the factories need (ACL rules/bindings per DF-4 typed specs, NAT per DF-3, interface attrs per DF-1) so factories
     can drop their structpb stand-ins'
@@ -264,7 +264,8 @@ tasks:
   owner: host-agent slot7
   started: 2026-09-23T16:01
   finished: ''
-  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done 5062933 (CI green, kill -9 restart sim, confirm timer);
+    review spawned (slot 7) | review BLOCK b7d8533 (H1 foreign VRF delete, H2 foreign route overwrite, H3 lost revert, M1–M4); fix round 1'
 - id: P06
   title: 'API core: datastore, commit engine, auth/RBAC/audit, telemetry relay'
   prompt: prompts/P06-api-core.md
@@ -346,7 +347,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D1.2
@@ -359,10 +360,10 @@ tasks:
   worktree: /root/ngfw-wt/DF-1
   owner: host-agent slot2
   started: 2026-09-23T15:10
-  finished: ''
+  finished: 2026-09-24T01:45
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done bf364c6 (CI green, restart sim 28 objects); D-065 alias
     follow-up requested, then review | D-065 alias done f2e1eaf, CI green; review spawned | review APPROVE WITH CHANGES 705c6ca (H1 DeleteOnAbsence, H2 physical NICs, H3 naming → D-069, M1–M5); fix round
-    1 (incl. acl resolver switch)'
+    1 (incl. acl resolver switch) | fix round 1 dea885a; merged dfc2f90; main CI green'
 - id: DF-2
   title: 'Descriptors: ip_neighbor, ip6_nd (RA, DAD), urpf, abf, classify (ip tables/routes are P05 core)'
   prompt: prompts/factories/DF-2.md
@@ -387,7 +388,8 @@ tasks:
   started: 2026-09-23T15:10
   finished: ''
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done 45c3da6, CI green; review agent spawned (slot 3) | review
-    BLOCK 69ceb3d (H1 classify index reuse, H2 no-dump types, H3 untagged ifaces, H4 proxy-ND default, M5 abf dup tags, M6 race, L7 rebase); fix round 1'
+    BLOCK 69ceb3d (H1 classify index reuse, H2 no-dump types, H3 untagged ifaces, H4 proxy-ND default, M5 abf dup tags, M6 race, L7 rebase); fix round 1 | fix round 1 eed9066 CI green; re-review spawned
+    | re-review APPROVE WITH CHANGES b5730b0 (N1 globals, N2 delete re-verify); fix round 2 (last)'
 - id: DF-3
   title: 'Descriptors: nat44_ed (nat), nat44_ei, nat64, nat66, det44, map, cnat, pnat'
   prompt: prompts/factories/DF-3.md
@@ -487,7 +489,8 @@ tasks:
   owner: host-agent slot11
   started: 2026-09-23T15:28
   finished: ''
-  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done 82d0e65 (35 types, CI green); V8/V13/V14 recorded; review
+    spawned (slot 11) | review BLOCK fb83447 (H1 globals, H2 range claims, H3 non-idempotent write-only → D-076, H4 logical names, M1–M5); fix round 1'
 - id: DF-7
   title: 'Descriptors: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls'
   prompt: prompts/factories/DF-7.md
@@ -1290,7 +1293,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | D-074: manager generates srv6_ad/am/as binapi on main before spawning'
 - id: F-lisp
   title: 'Wave C (day 13-15): LISP/LISP-GPE'
   prompt: prompts/features/F-lisp.md

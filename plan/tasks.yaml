@@ -505,7 +505,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D7.8
@@ -523,7 +523,7 @@ tasks:
   owner: host-agent slot10
   started: 2026-09-24T00:40
   finished: ''
-  notes: ''
+  notes: ' | worker done 27a742a (32 types, CI green); V19/V20 recorded; review spawned'
 - id: DF-8
   title: 'Descriptors: dhcp, dns, flowprobe, sflow, prom, pcap/tracenode, lcp [skip-unless-loaded]'
   prompt: prompts/factories/DF-8.md

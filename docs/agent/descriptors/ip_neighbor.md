@@ -12,7 +12,7 @@ Limitations
 - VPP 26.06 `ip_neighbor_flags` has only `STATIC` and `NO_FIB_ENTRY`; the "no-adj-fib" flag named in the task prompt does not exist in binapi → not modelled.
 - Dynamic (learned) neighbours are never retrieved (not configuration). `ip_neighbor_flush` is an action, not a descriptor.
 - Ownership: see below.
-- `ip-neighbor.config` is a global singleton without an owner: on the shared lab VPP any slot whose reconciler registers it overrides the others (tests restore it); in production there is one agent (review L8).
+- `ip-neighbor.config` is a VPP-global singleton: **not in `Register`**; only `RegisterGlobals`, called by the designated globals owner (agent config `globalsOwner: true`, never a test slot on the shared host — D-071). Host tests set it and restore the previous value.
 
 ## Ownership on untagged interfaces (review H3)
 Objects on interfaces tagged `"<owner>:<name>"` are ours. Physical ports (DPDK NICs) carry no tag: an object created on
@@ -20,3 +20,8 @@ an untagged interface is recorded by its **key** in the claim store (`df2.WithCl
 interface; `df2.FileClaimStore` persists it in the agent state dir) and Retrieve reports it only while claimed. Interfaces
 tagged by another owner — and `local0` — are refused with `df2.ErrForeignInterface`. Dependencies use the interface
 alias key `interface/<name>` (D-065, DF-1).
+
+## Deletes re-verify identity (D-071, fix round 2)
+A Delete that acts on a stored `sw_if_index` first re-dumps the interfaces (`df2.SkipDelete`): the index must still name the
+object's interface and that interface must still be ours (own tag, or untagged and the key claimed). Otherwise nothing is
+sent to VPP — our object went with the interface, or the index now belongs to someone else — and only the claim is dropped.

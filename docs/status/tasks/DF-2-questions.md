@@ -26,6 +26,8 @@
    in D-064). Review-fix host runs: `NRestarts` 2 before and after.
 7. **Registry wiring.** No central descriptor list exists yet; the `Register` calls (and the opt-in `RegisterProxyNd` /
    `RegisterWriteOnly`) are for P05/P08. Signatures in DF-2.md.
-8. **Global singletons on the shared host (review L8).** `ip-neighbor.config` and `ip6-nd.dad` have no owner: any slot whose
-   reconciler registers them overrides the others. Fine for one production agent; proposal: `shared-host-rules.md` says slot
-   reconcilers must not register them (tests set + restore them).
+8. **Global singletons — answered by D-071.** `ip-neighbor.config` and `ip6-nd.dad` are only in `RegisterGlobals`
+   (globals owner only); the default `Register` of ip_neighbor / ip6_nd no longer contains them.
+9. **D-069 (re-review N6).** DF-2 resolves interfaces by the VPP name. When DF-1's logical-name resolver lands, DF-2 switches
+   to it; persisted claim keys embed the interface name and need a one-off key migration then.
+10. **D-073(c).** `df2.ErrRetrieveUnsupported` becomes an alias of the scheduler's error once P05 merges.

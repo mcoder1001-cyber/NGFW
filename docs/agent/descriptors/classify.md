@@ -31,3 +31,15 @@ tagged by another owner — and `local0` — are refused with `df2.ErrForeignInt
 alias key `interface/<name>` (D-065, DF-1).
 
 Registration: `classify.Register` = table, session, input-acl, output-acl (all read back); `classify.RegisterWriteOnly` = interface-ip-table, interface-l2-tables (D-063 reconciler only).
+
+## Deletes re-verify identity (D-071, fix round 2)
+- `classify.table` Delete runs the store snapshot under the transaction lock right before deleting: the index is deleted only if
+  the record is live now (same VPP instance, index listed, same geometry) **and** equals the caller's Meta index. Otherwise the
+  record is dropped and VPP is not touched (host regression `TestTableDeleteStaleIndexOnHost`).
+- Binding deletes re-resolve the stored `sw_if_index` (`df2.SkipDelete`, see the other plugin docs).
+- `classify.input-acl` Delete unbinds the tables `classify_table_by_interface` reports (only those that still exist); Create
+  refuses an interface that already has input tables bound (VPP's add would be a silent no-op).
+- `classify.output-acl` unbind only sends what VPP still has bound (feature enabled, recorded table still existing) and
+  otherwise just drops the record, so a vanished table cannot wedge Create/Delete.
+- Residual (follow-up N3): a table of another owner with **identical geometry** on a reused index within one VPP instance is
+  indistinguishable from ours.

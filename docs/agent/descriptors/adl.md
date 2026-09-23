@@ -15,3 +15,8 @@ tagged by another owner — and `local0` — are refused with `df2.ErrForeignInt
 alias key `interface/<name>` (D-065, DF-1).
 
 Registration: `adl.Register` = adl.interface; `adl.RegisterWriteOnly` = adl.allowlist (D-063 reconciler only).
+
+## Deletes re-verify identity (D-071, fix round 2)
+A Delete that acts on a stored `sw_if_index` first re-dumps the interfaces (`df2.SkipDelete`): the index must still name the
+object's interface and that interface must still be ours (own tag, or untagged and the key claimed). Otherwise nothing is
+sent to VPP — our object went with the interface, or the index now belongs to someone else — and only the claim is dropped.

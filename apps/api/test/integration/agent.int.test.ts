@@ -22,6 +22,7 @@ const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const BIN = process.env['VRX_AGENT_BIN'] ?? resolve(REPO, 'apps/agent/bin/vrx-agent');
 const PREFIX = process.env['VRX_TEST_PREFIX'] ?? 'w1';
 const SOCKET = process.env['VRX_AGENT_SOCKET'] ?? `/run/vrx-test/${PREFIX}/agent.sock`;
+const STATE_DIR = process.env['VRX_AGENT_STATE_DIR'] ?? `${dirname(SOCKET)}/agent-state`;
 const SLOT = Number(/(\d+)$/.exec(PREFIX)?.[1] ?? '1');
 
 function startAgent(): ChildProcess {
@@ -33,7 +34,7 @@ function startAgent(): ChildProcess {
       VRX_OWNER: PREFIX,
       VRX_AGENT_SOCKET: SOCKET,
       // slot-scoped state and metrics (shared-host rules): never /var/lib/vrx/agent or :9101
-      VRX_AGENT_STATE_DIR: process.env['VRX_AGENT_STATE_DIR'] ?? `${dirname(SOCKET)}/agent-state`,
+      VRX_AGENT_STATE_DIR: STATE_DIR,
       VRX_METRICS_PORT: process.env['VRX_METRICS_PORT'] ?? String(9100 + 10 * SLOT + 1),
     },
     stdio: ['ignore', 'inherit', 'inherit'],
@@ -108,7 +109,13 @@ describe.skipIf(!enabled)('agent integration (real vrx-agent + VPP)', () => {
       await h.call(admin, 'POST', '/api/v1/config/commit?comment=cleanup');
       await h.close();
     }
-    if (agent?.pid) agent.kill('SIGTERM');
+    if (agent?.pid && agent.exitCode === null) {
+      const exited = new Promise((r) => agent!.once('exit', r));
+      agent.kill('SIGTERM');
+      await exited;
+    }
+    // the agent's slot state (desired.pb …) goes with it; the next run starts clean
+    rmSync(STATE_DIR, { recursive: true, force: true });
   });
 
   it('patch → diff → commit → Retrieve + vppctl → rollback → reverted', async () => {

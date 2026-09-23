@@ -1,0 +1,30 @@
+// Desired state of the abf (ACL-based forwarding) descriptors (agent-internal until moved to
+// packages/proto).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.abf;
+
+import "df2/df2.proto";
+
+option go_package = "ngfw/agent/internal/descriptors/abf;abf";
+
+// Policy is one ABF policy: packets matching the ACL are forwarded over paths
+// (abf_policy_add_del).
+message Policy {
+  // Policy id chosen by the operator (tests: the slot's table range).
+  uint32 policy_id = 1;
+  // Name of the ACL (dependency acl/<name>; resolved through its owner tag).
+  string acl = 2;
+  // Forwarding paths, canonicalised with df2.NormalizePaths.
+  repeated ngfw.agent.descriptors.df2.FibPath paths = 3;
+}
+
+// Attach binds a policy to an interface (abf_itf_attach_add_del).
+message Attach {
+  uint32 policy_id = 1;
+  string interface = 2;
+  // Evaluation order among policies on the interface (lower first).
+  uint32 priority = 3;
+  // Attach to the IPv6 (true) or IPv4 (false) feature arc.
+  bool ipv6 = 4;
+}

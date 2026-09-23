@@ -1,0 +1,12 @@
+version: v2
+# Agent-internal reconciler object model (vrx/model/**, D-055): the Value types of the scheduler's
+# descriptors (ACL, NAT family, interface attributes). Go only — these messages never cross the
+# API↔agent boundary, so no TS stubs; the API↔agent contract (vrx/v1) is buf.gen.yaml.
+inputs:
+  - directory: .
+    paths:
+      - vrx/model
+plugins:
+  - local: protoc-gen-go
+    out: ../../apps/agent/gen
+    opt: paths=source_relative

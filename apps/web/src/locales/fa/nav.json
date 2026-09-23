@@ -7,16 +7,12 @@
     "vpn": "VPN",
     "services": "سرویس‌ها",
     "system": "سیستم",
-    "tools": "ابزارها",
-    "dev": "توسعه‌دهنده"
+    "tools": "ابزارها"
   },
   "dashboard": "داشبورد",
   "users": "کاربران",
   "revisions": "بازنگری‌ها",
   "tools": "ابزارها",
-  "devSchemaForm": "نمایش SchemaForm",
-  "devDataGrid": "نمایش DataGrid",
-  "devStream": "نمایش جریان",
   "soon": "به‌زودی",
   "domains": {
     "system": "سیستم",

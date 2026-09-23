@@ -1,4 +1,5 @@
 import type { RootKey } from '@ngfw/schema';
+import { DEV_ROUTES } from '../build-flags';
 import type { DomainInfo } from '../schema/registry';
 
 /** Left-navigation groups (docs/05-ui-spec.md screen inventory), in display order. */
@@ -50,8 +51,24 @@ export function domainPath(key: RootKey): string {
   return group === key ? `/${key}` : `/${group}/${key}`;
 }
 
-/** Build the navigation from the schema domains plus the fixed non-schema screens. */
-export function buildNav(domains: readonly DomainInfo[]): NavGroup[] {
+/**
+ * Developer demo entries. `DEV_ROUTES` is a build-time literal, so in a production build these are empty and the
+ * strings are not in the bundle (scripts/check-no-dev-routes.mjs).
+ */
+const DEV_NAV_ITEMS: NavItem[] = DEV_ROUTES
+  ? [
+      { id: 'dev-schema-form', path: '/dev/schema-form', labelKey: 'dev:nav.schemaForm', fallbackLabel: 'SchemaForm demo', available: true },
+      { id: 'dev-data-grid', path: '/dev/data-grid', labelKey: 'dev:nav.dataGrid', fallbackLabel: 'DataGrid demo', available: true },
+      { id: 'dev-stream', path: '/dev/stream', labelKey: 'dev:nav.stream', fallbackLabel: 'Stream demo', available: true },
+    ]
+  : [];
+const DEV_GROUP_LABEL = DEV_ROUTES ? 'dev:nav.group' : '';
+
+/**
+ * Build the navigation from the schema domains plus the fixed non-schema screens. The "Developer" group exists only when
+ * `devRoutes` is on (defaults to the build flag; a production build has no entries to add either way).
+ */
+export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTES }: { devRoutes?: boolean } = {}): NavGroup[] {
   const groups = new Map<NavGroupId, NavItem[]>(NAV_GROUPS.map((g) => [g, []]));
   groups.get('dashboard')!.push({ id: 'dashboard', path: '/', labelKey: 'nav:dashboard', fallbackLabel: 'Dashboard', available: true });
   for (const d of domains) {
@@ -70,10 +87,6 @@ export function buildNav(domains: readonly DomainInfo[]): NavGroup[] {
     { id: 'revisions', path: '/system/revisions', labelKey: 'nav:revisions', fallbackLabel: 'Revisions', available: false },
   );
   groups.get('tools')!.push({ id: 'tools', path: '/tools', labelKey: 'nav:tools', fallbackLabel: 'Tools', available: false });
-  groups.get('dev')!.push(
-    { id: 'dev-schema-form', path: '/dev/schema-form', labelKey: 'nav:devSchemaForm', fallbackLabel: 'SchemaForm demo', available: true },
-    { id: 'dev-data-grid', path: '/dev/data-grid', labelKey: 'nav:devDataGrid', fallbackLabel: 'DataGrid demo', available: true },
-    { id: 'dev-stream', path: '/dev/stream', labelKey: 'nav:devStream', fallbackLabel: 'Stream demo', available: true },
-  );
-  return NAV_GROUPS.map((id) => ({ id, labelKey: `nav:groups.${id}`, items: groups.get(id)! })).filter((g) => g.items.length > 0);
+  if (devRoutes) groups.get('dev')!.push(...DEV_NAV_ITEMS);
+  return NAV_GROUPS.map((id) => ({ id, labelKey: id === 'dev' ? DEV_GROUP_LABEL : `nav:groups.${id}`, items: groups.get(id)! })).filter((g) => g.items.length > 0);
 }

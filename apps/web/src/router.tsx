@@ -1,34 +1,57 @@
+import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, createMemoryRouter, type RouteObject } from 'react-router';
+import { DEV_ROUTES } from './build-flags';
 import { domainPath } from './nav/nav';
-import { DashboardPage } from './pages/DashboardPage';
-import { DomainPlaceholderPage } from './pages/DomainPlaceholderPage';
 import { domains } from './schema/registry';
 import { AppShell } from './shell/AppShell';
 import { NotAvailablePage } from './shell/NotAvailablePage';
 import { NotFoundPage } from './shell/NotFoundPage';
 import { RouteErrorPage } from './shell/RouteErrorPage';
-import i18n from './i18n';
 
+/** Subscribes to the language (review L3): the title follows a language switch without navigating away. */
 function NotAvailableByKey({ labelKey }: { labelKey: string }) {
-  return <NotAvailablePage title={i18n.t(labelKey)} />;
+  const { t } = useTranslation();
+  return <NotAvailablePage title={t(labelKey)} />;
 }
 
-/** Route table: domain routes come from the schema's root keys; dev demos are code-split. */
-export function buildRoutes(): RouteObject[] {
+/**
+ * Developer demos (code-split). `DEV_ROUTES` is a build-time literal: in a production build this list is empty and the
+ * demo chunks are not emitted at all (scripts/check-no-dev-routes.mjs).
+ */
+const DEV_ROUTE_OBJECTS: RouteObject[] = DEV_ROUTES
+  ? [
+      { path: 'dev/schema-form', lazy: async () => ({ Component: (await import('./pages/dev/SchemaFormDemoPage')).SchemaFormDemoPage }) },
+      { path: 'dev/data-grid', lazy: async () => ({ Component: (await import('./pages/dev/DataGridDemoPage')).DataGridDemoPage }) },
+      { path: 'dev/stream', lazy: async () => ({ Component: (await import('./pages/dev/StreamDemoPage')).StreamDemoPage }) },
+    ]
+  : [];
+
+export interface RouteOptions {
+  /** Include the `/dev/*` demo routes. Defaults to the build flag (off in production builds). */
+  devRoutes?: boolean;
+}
+
+/** Route table: domain routes come from the schema's root keys; dev demos exist only in dev builds. */
+export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): RouteObject[] {
   return [
     {
       path: '/',
-      element: <AppShell />,
+      element: <AppShell devRoutes={devRoutes} />,
       errorElement: <RouteErrorPage />,
       children: [
-        { index: true, element: <DashboardPage /> },
-        ...domains.map((d) => ({ path: domainPath(d.key).slice(1), element: <DomainPlaceholderPage domainKey={d.key} /> })),
+        // Screens are code-split per route; feature screens (P08+) plug in the same way.
+        { index: true, lazy: async () => ({ Component: (await import('./pages/DashboardPage')).DashboardPage }) },
+        ...domains.map((d) => ({
+          path: domainPath(d.key).slice(1),
+          lazy: async () => {
+            const { DomainPlaceholderPage } = await import('./pages/DomainPlaceholderPage');
+            return { element: <DomainPlaceholderPage domainKey={d.key} /> };
+          },
+        })),
         { path: 'system/users', element: <NotAvailableByKey labelKey="nav:users" /> },
         { path: 'system/revisions', element: <NotAvailableByKey labelKey="nav:revisions" /> },
         { path: 'tools', element: <NotAvailableByKey labelKey="nav:tools" /> },
-        { path: 'dev/schema-form', lazy: async () => ({ Component: (await import('./pages/dev/SchemaFormDemoPage')).SchemaFormDemoPage }) },
-        { path: 'dev/data-grid', lazy: async () => ({ Component: (await import('./pages/dev/DataGridDemoPage')).DataGridDemoPage }) },
-        { path: 'dev/stream', lazy: async () => ({ Component: (await import('./pages/dev/StreamDemoPage')).StreamDemoPage }) },
+        ...(devRoutes ? DEV_ROUTE_OBJECTS : []),
         { path: '*', element: <NotFoundPage /> },
       ],
     },
@@ -39,6 +62,6 @@ export function createAppRouter() {
   return createBrowserRouter(buildRoutes());
 }
 
-export function createTestRouter(initialEntries: string[]) {
-  return createMemoryRouter(buildRoutes(), { initialEntries });
+export function createTestRouter(initialEntries: string[], options?: RouteOptions) {
+  return createMemoryRouter(buildRoutes(options), { initialEntries });
 }

@@ -1,4 +1,11 @@
 {
+  "banner": "نمایش توسعه‌دهنده: اجزا با ورودی‌های مصنوعی تولیدشده در مرورگر کار می‌کنند، نه دادهٔ دستگاه.",
+  "nav": {
+    "group": "توسعه‌دهنده",
+    "schemaForm": "نمایش SchemaForm",
+    "dataGrid": "نمایش DataGrid",
+    "stream": "نمایش جریان"
+  },
   "schemaForm": {
     "title": "نمایش SchemaForm",
     "pick": "شِما",

@@ -5,8 +5,10 @@ import { defineConfig } from 'vitest/config';
 const apiPort = process.env.VRX_HTTP_PORT ?? '3000';
 const webPort = Number(process.env.VRX_WEB_PORT ?? '5173');
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  // Developer demo routes (/dev/*) never ship in a production build unless explicitly requested (review P07a M1).
+  define: { __VRX_DEV_ROUTES__: JSON.stringify(mode !== 'production' || process.env.VITE_VRX_DEV_ROUTES === '1') },
   server: {
     host: '127.0.0.1',
     port: webPort,
@@ -22,4 +24,4 @@ export default defineConfig({
     testTimeout: 30_000,
     hookTimeout: 30_000,
   },
-});
+}));

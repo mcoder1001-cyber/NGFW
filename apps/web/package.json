@@ -6,7 +6,7 @@
   "scripts": {
     "gen": "echo 'web: nothing to generate'",
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc -p tsconfig.json --noEmit && vite build && node scripts/bundle-budget.mjs",
+    "build": "tsc -p tsconfig.json --noEmit && vite build && node scripts/bundle-budget.mjs && node scripts/check-no-dev-routes.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src && node scripts/check-logical-css.mjs",
     "test": "vitest run",

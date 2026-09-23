@@ -130,7 +130,7 @@ export function DataGridDemoPage() {
   return (
     <PageHeader title={t('dev:dataGrid.title')}>
       <Stack gap={2}>
-        <Alert severity="warning">{t('common:dev.banner')}</Alert>
+        <Alert severity="warning">{t('dev:banner')}</Alert>
         <Typography>{t('dev:dataGrid.body', { count: TOTAL })}</Typography>
         <Paper sx={{ blockSize: 560, display: 'flex', flexDirection: 'column' }}>
           <ServerDataGrid<DemoRow> columns={columns} queryKey={['dev', 'data-grid']} fetchPage={fetchPage} initialPageSize={50} showToolbar />

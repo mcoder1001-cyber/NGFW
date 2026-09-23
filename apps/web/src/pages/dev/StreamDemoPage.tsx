@@ -38,7 +38,7 @@ export function StreamDemoPage() {
   return (
     <PageHeader title={t('dev:stream.title')}>
       <Stack gap={2} sx={{ maxInlineSize: 720 }}>
-        <Alert severity="warning">{t('common:dev.banner')}</Alert>
+        <Alert severity="warning">{t('dev:banner')}</Alert>
         <Typography>{t('dev:stream.body')}</Typography>
         <Stack direction="row" gap={2} alignItems="center">
           <Typography>{t('dev:stream.status')}</Typography>

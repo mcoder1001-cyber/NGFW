@@ -58,7 +58,7 @@ export function SchemaFormDemoPage() {
   return (
     <PageHeader title={t('dev:schemaForm.title')}>
       <Stack gap={2} sx={{ maxInlineSize: 960 }}>
-        <Alert severity="warning">{t('common:dev.banner')}</Alert>
+        <Alert severity="warning">{t('dev:banner')}</Alert>
         <TextField
           select
           label={t('dev:schemaForm.pick')}

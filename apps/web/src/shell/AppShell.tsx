@@ -18,15 +18,16 @@ import { useWsStatus } from '@ngfw/ui-kit/ws';
 import { Suspense, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet, useLocation } from 'react-router';
+import { DEV_ROUTES } from '../build-flags';
 import { buildNav } from '../nav/nav';
 import { domains } from '../schema/registry';
 import { SettingsPopover } from './SettingsPopover';
 
 const DRAWER_WIDTH = 264;
 
-function NavList({ onNavigate }: { onNavigate: () => void }) {
+function NavList({ onNavigate, devRoutes }: { onNavigate: () => void; devRoutes: boolean }) {
   const { t } = useTranslation(['common', 'nav']);
-  const nav = useMemo(() => buildNav(domains), []);
+  const nav = useMemo(() => buildNav(domains, { devRoutes }), [devRoutes]);
   const { pathname } = useLocation();
   return (
     <List component="nav" aria-label={t('menu.navigation')} dense sx={{ pt: 0 }}>
@@ -58,7 +59,7 @@ function NavList({ onNavigate }: { onNavigate: () => void }) {
 }
 
 /** Application frame: fixed AppBar, grouped left navigation (from the schema's root keys), routed main area. */
-export function AppShell() {
+export function AppShell({ devRoutes = DEV_ROUTES }: { devRoutes?: boolean }) {
   const { t } = useTranslation(['common', UI_KIT_NS]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null);
@@ -69,7 +70,7 @@ export function AppShell() {
     <>
       <Toolbar />
       <Divider />
-      <NavList onNavigate={closeMobile} />
+      <NavList onNavigate={closeMobile} devRoutes={devRoutes} />
     </>
   );
 

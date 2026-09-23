@@ -5,14 +5,14 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import i18n from './i18n';
 import { App } from './App';
-import { createTestRouter } from './router';
+import { buildRoutes, createTestRouter, type RouteOptions } from './router';
 
 const STREAM = 'ws://127.0.0.1:1/api/v1/stream';
 
 /** No network in unit tests: queries stay disabled (the health card then shows its loading state). */
-function app(path: string) {
+function app(path: string, options?: RouteOptions) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { enabled: false, retry: false } } });
-  return <App router={createTestRouter([path])} streamUrl={STREAM} queryClient={queryClient} />;
+  return <App router={createTestRouter([path], options)} streamUrl={STREAM} queryClient={queryClient} />;
 }
 
 describe('App frame', () => {
@@ -59,6 +59,17 @@ describe('App frame', () => {
     render(app('/dev/schema-form'));
     expect(await screen.findByRole('button', { name: 'Save' })).toBeInTheDocument();
     expect(screen.getByLabelText('MTU', { exact: false })).toHaveValue(1500);
+  });
+
+  it('has no /dev routes and no Developer nav group when dev routes are off (production builds, review M1)', async () => {
+    const paths = (routes: ReturnType<typeof buildRoutes>): string[] => routes.flatMap((r) => [r.path ?? '', ...paths(r.children ?? [])]);
+    expect(paths(buildRoutes({ devRoutes: false })).filter((p) => p.startsWith('dev'))).toEqual([]);
+    expect(paths(buildRoutes({ devRoutes: true })).filter((p) => p.startsWith('dev'))).toEqual(['dev/schema-form', 'dev/data-grid', 'dev/stream']);
+    render(app('/dev/schema-form', { devRoutes: false }));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Page not found' })).toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' });
+    expect(within(nav).queryByText('Developer')).toBeNull();
+    expect(within(nav).queryByRole('link', { name: /demo/i })).toBeNull();
   });
 
   it('renders a not-found page for unknown paths', async () => {

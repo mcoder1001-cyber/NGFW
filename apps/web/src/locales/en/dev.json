@@ -1,4 +1,11 @@
 {
+  "banner": "Developer demo: components driven by synthetic inputs generated in the browser, not device data.",
+  "nav": {
+    "group": "Developer",
+    "schemaForm": "SchemaForm demo",
+    "dataGrid": "DataGrid demo",
+    "stream": "Stream demo"
+  },
   "schemaForm": {
     "title": "SchemaForm demo",
     "pick": "Schema",

@@ -48,8 +48,5 @@
   "stream": {
     "label": "Live stream"
   },
-  "dev": {
-    "banner": "Developer demo: components driven by synthetic inputs generated in the browser, not device data."
-  },
   "loading": "Loading…"
 }

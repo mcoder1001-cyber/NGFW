@@ -5,7 +5,7 @@ import { buildNav, DOMAIN_GROUP, NAV_GROUPS, domainPath } from './nav';
 
 describe('navigation from the schema (vdom.md guardrail 4)', () => {
   it('places every root key exactly once, in x-vrx-ui.order, with dashboard first and dev last', () => {
-    const nav = buildNav(domains);
+    const nav = buildNav(domains, { devRoutes: true });
     const domainItems = nav.flatMap((g) => g.items).filter((i) => i.domain);
     expect([...domainItems.map((i) => i.domain)].sort()).toEqual([...ROOT_KEYS].sort());
     expect(new Set(domainItems.map((i) => i.domain)).size).toBe(ROOT_KEYS.length);
@@ -29,8 +29,15 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
   });
 
   it('marks unbuilt screens unavailable and only the dashboard/dev demos available', () => {
-    const nav = buildNav(domains);
+    const nav = buildNav(domains, { devRoutes: true });
     const available = nav.flatMap((g) => g.items).filter((i) => i.available).map((i) => i.id);
     expect(available).toEqual(['dashboard', 'dev-schema-form', 'dev-data-grid', 'dev-stream']);
+  });
+
+  it('has no Developer group and no /dev entries when dev routes are off (production builds, review M1)', () => {
+    const nav = buildNav(domains, { devRoutes: false });
+    expect(nav.map((g) => g.id)).not.toContain('dev');
+    expect(nav.flatMap((g) => g.items).filter((i) => i.path.startsWith('/dev'))).toEqual([]);
+    expect(nav.at(-1)!.id).toBe('tools');
   });
 });

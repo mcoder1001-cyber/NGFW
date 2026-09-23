@@ -1,6 +1,7 @@
 import { UI_KIT_NS, uiKitResources } from '@ngfw/ui-kit';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import { DEV_ROUTES } from './build-flags';
 import enCommon from './locales/en/common.json';
 import enDev from './locales/en/dev.json';
 import enNav from './locales/en/nav.json';
@@ -11,10 +12,16 @@ import { loadSettings } from './settings/storage';
 
 export const NAMESPACES = ['common', 'nav', 'dev', UI_KIT_NS] as const;
 
-export const resources = {
-  en: { common: enCommon, nav: enNav, dev: enDev, [UI_KIT_NS]: uiKitResources.en },
-  fa: { common: faCommon, nav: faNav, dev: faDev, [UI_KIT_NS]: uiKitResources.fa },
-} as const;
+/** The `dev` namespace (developer demo pages) is loaded only when the demo routes are built in (review P07a M1). */
+export const resources = DEV_ROUTES
+  ? {
+      en: { common: enCommon, nav: enNav, dev: enDev, [UI_KIT_NS]: uiKitResources.en },
+      fa: { common: faCommon, nav: faNav, dev: faDev, [UI_KIT_NS]: uiKitResources.fa },
+    }
+  : {
+      en: { common: enCommon, nav: enNav, [UI_KIT_NS]: uiKitResources.en },
+      fa: { common: faCommon, nav: faNav, [UI_KIT_NS]: uiKitResources.fa },
+    };
 
 void i18n.use(initReactI18next).init({
   resources,

@@ -7,16 +7,12 @@
     "vpn": "VPN",
     "services": "Services",
     "system": "System",
-    "tools": "Tools",
-    "dev": "Developer"
+    "tools": "Tools"
   },
   "dashboard": "Dashboard",
   "users": "Users",
   "revisions": "Revisions",
   "tools": "Tools",
-  "devSchemaForm": "SchemaForm demo",
-  "devDataGrid": "DataGrid demo",
-  "devStream": "Stream demo",
   "soon": "soon",
   "domains": {
     "system": "System",

@@ -20,14 +20,18 @@ Rules for an entry:
 
 | binary | renderer | purpose | argv shape | added by |
 |---|---|---|---|---|
-| _none yet_ | | | | |
+| `/usr/bin/vtysh` | frr | validate a staged frr.conf; read state | `vtysh --config_dir <dir> --vty_socket <rundir> [-N <ns>] -C -f <staged frr.conf>` / `… -c "<constant show command>"` | RF-1 |
+| `/usr/lib/frr/frr-reload.py` | frr | apply (diff, no restart) / dry-run diff | `frr-reload.py --reload\|--test --log-level info --logfile <log> --bindir /usr/bin --confdir <dir> --rundir <rundir> --vty_socket <rundir> [--pathspace <ns>] <frr.conf>` | RF-1 |
+| `/usr/bin/ip` | frr (test harness `frr/frrtest` only) | create/delete the slot netns + dummy/vrf links; start the test daemons inside it | `ip netns add\|delete ns-<prefix>-frr`, `ip -n <ns> link\|addr …`, `ip netns exec <ns> <daemon> <fixed daemon argv>` | RF-1 |
+| `/usr/lib/frr/mgmtd` | frr (test harness only) | test-scoped daemon, child of `ip netns exec` | `mgmtd -d -N <prefix> --vty_socket <dir> -i <pid> -A 127.0.0.1 -P 0 --log file:<log> --log-level warn` | RF-1 |
+| `/usr/lib/frr/zebra` | frr (test harness only) | test-scoped daemon | same as mgmtd + `-z <dir>/zserv.api -f <empty cfg>` | RF-1 |
+| `/usr/lib/frr/staticd` | frr (test harness only) | test-scoped daemon | same as mgmtd + `-z <dir>/zserv.api` | RF-1 |
+| `/usr/lib/frr/bgpd` `/usr/lib/frr/ospfd` `/usr/lib/frr/ospf6d` `/usr/lib/frr/bfdd` `/usr/lib/frr/pimd` `/usr/lib/frr/isisd` `/usr/lib/frr/ripd` `/usr/lib/frr/ldpd` | frr (test harness only, for P12/F-*) | protocol daemons started only when a test names them in `frrtest.Options.Daemons` | same as staticd | RF-1 (ahead of P12/F-*) |
 
 ## Planned (documented ahead of use; move a row to *Active* when the renderer lands)
 
 | binary | renderer | purpose | argv shape | task |
 |---|---|---|---|---|
-| `/usr/bin/vtysh` | frr | validate (`-C -f <staged>`), state (`-c "show ... json"`) | `vtysh -C -f <file>` / `vtysh -c <show cmd>` | P12 / RF |
-| `/usr/lib/frr/frr-reload.py` | frr | apply rendered `frr.conf` | `frr-reload.py --reload <file>` (`--test` for dry-run) | P12 / RF |
 | `/usr/sbin/swanctl` | strongswan | load / list SAs when VICI is unavailable | `swanctl --load-all --noprompt`, `swanctl --list-sas --raw` | P11 |
 | `/usr/sbin/kea-dhcp4` | kea-dhcp4 | config syntax check | `kea-dhcp4 -t <file>` | RF |
 | `/usr/sbin/kea-dhcp6` | kea-dhcp6 | config syntax check | `kea-dhcp6 -t <file>` | RF |

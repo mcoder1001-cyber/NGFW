@@ -490,7 +490,7 @@ func TestDryRun(t *testing.T) {
 			warn++
 		}
 	}
-	if warn != 2 {
+	if warn != 1 { // interfaces.mtu; vrfs.description is kept by the agent (D-073b)
 		t.Fatalf("warnings %v", rep.GetErrors())
 	}
 	for _, c := range v.Calls() {
@@ -510,6 +510,59 @@ func TestDryRun(t *testing.T) {
 	}
 	if _, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{Owner: "w1"}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("owner: %v", err)
+	}
+}
+
+// M4: an owned interface in the default table is reported with vrf "default" (the Zod default).
+func TestDefaultVRFNoDrift(t *testing.T) {
+	v := coretest.New()
+	s := newSvc(t, v, t.TempDir())
+	d := `{"interfaces":{"loop705":{"vrf":"default","ipv4":["10.7.5.1/24"]},"loop706":{}}}`
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "d1", DesiredState: doc(t, d)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces"}})
+	want := doc(t, `{"interfaces":{"loop705":{"vrf":"default","ipv4":["10.7.5.1/24"]},"loop706":{"vrf":"default"}}}`)
+	if err != nil || !proto.Equal(got.GetDesiredState(), want) {
+		t.Fatalf("retrieve %v %s", err, protojson.Format(got.GetDesiredState()))
+	}
+	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "d2", DesiredState: want})
+	if len(resp.GetResults()) != 0 {
+		t.Fatalf("re-applying the retrieved document changed something: %v", resp.GetResults())
+	}
+}
+
+// D-073b: descriptions are returned from the agent's stored state for existing objects.
+func TestDescriptionsRoundTrip(t *testing.T) {
+	v := coretest.New()
+	s := newSvc(t, v, t.TempDir())
+	d := `{"vrfs":{"red":{"id":7001,"description":"customer red"}},"routing":{"static":[{"prefix":"10.7.66.0/24","vrf":"red","distance":1,"blackhole":true,"description":"sink"}]}}`
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "d1", DesiredState: doc(t, d)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"vrfs", "routing"}})
+	if err != nil || !proto.Equal(got.GetDesiredState(), doc(t, d)) {
+		t.Fatalf("retrieve %v %s", err, protojson.Format(got.GetDesiredState()))
+	}
+	// An object that does not exist in VPP gets no description invented.
+	v.DeleteTable(7001, false)
+	v.DeleteTable(7001, true)
+	got, _ = s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"vrfs"}})
+	if len(got.GetDesiredState().GetVrfs()) != 0 {
+		t.Fatalf("vrf invented: %v", got.GetDesiredState())
+	}
+}
+
+// L3: a non-empty domain this build does not implement is applied as "not managed" and DryRun
+// says so.
+func TestUnimplementedDomainWarning(t *testing.T) {
+	s := newSvc(t, coretest.New(), t.TempDir())
+	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{DesiredState: doc(t, `{"system":{"hostname":"x"},"nat":{},"vrfs":{"red":{"id":7001}}}`)})
+	if err != nil || !rep.GetOk() {
+		t.Fatalf("%v %v", err, rep)
+	}
+	var rules []string
+	for _, e := range rep.GetErrors() {
+		rules = append(rules, e.GetPointer()+" "+e.GetRule())
+	}
+	if strings.Join(rules, ",") != "/system agent.unimplemented-domain" {
+		t.Fatalf("warnings %v", rules)
 	}
 }
 

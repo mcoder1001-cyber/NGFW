@@ -14,8 +14,10 @@ package agent
 //	vrfs.<name> (id ≠ 0)               → vrf/<id>                       (VPP table name "<owner>:<name>")
 //	routing.static[]                   → ip.route/<table>/<prefix>      (vrf → table id, distance → preference)
 //
-// Leaves the core descriptors do not implement (interface enabled/mtu/mac/rx_mode/promiscuous/
-// unnumbered/subinterfaces/description/dhcp_client, vrf description, route description, routing protocols)
+// VRF and static-route descriptions are not VPP state: the service returns them from its stored
+// desired state for objects that exist (D-073b). Leaves the core descriptors do not implement
+// (interface enabled/mtu/mac/rx_mode/promiscuous/unnumbered/subinterfaces/description/dhcp_client,
+// routing protocols)
 // are reported as ISSUE_SEVERITY_WARNING "agent.unsupported-field" by DryRun and are never part of
 // a Retrieve result (contract §5: a leaf the backend cannot report is left unset). DF-*/F-* tasks
 // extend the projection when they wire their descriptors.
@@ -192,9 +194,6 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver) *pro
 				p.errorf(ptr("vrfs", name, "id"), "vrfs.id-required", "VRF %q has no table id", name)
 				continue
 			}
-			if v.Description != nil {
-				p.warnf(ptr("vrfs", name, "description"), "agent.unsupported-field", "vrfs.description is not stored in VPP by this agent build")
-			}
 			if v.GetId() == 0 {
 				if name != "default" {
 					p.warnf(ptr("vrfs", name, "id"), "vrfs.default-table", "VRF %q uses table 0 (VPP's default table); it is not created or deleted", name)
@@ -251,6 +250,12 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver) *pro
 		}
 	}
 
+	for _, k := range rootKeys {
+		if _, impl := domainDescriptors[k]; !impl && domainPresent(ds, k) && !isEmptyDomain(ds, k) {
+			p.warnf(ptr(k), "agent.unimplemented-domain", "%s is not implemented by this agent build (Health.subsystems) and is not applied", k)
+		}
+	}
+
 	if in["routing"] {
 		for i, r := range ds.GetRouting().GetStatic() {
 			pt := ptr("routing", "static", strconv.Itoa(i))
@@ -264,9 +269,6 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver) *pro
 			if !ok {
 				p.errorf(ptr("routing", "static", strconv.Itoa(i), "vrf"), "routing.static.vrf-exists", "VRF %q does not exist", vrf)
 				continue
-			}
-			if r.Description != nil {
-				p.warnf(ptr("routing", "static", strconv.Itoa(i), "description"), "agent.unsupported-field", "routing.static.description is not stored in VPP")
 			}
 			v := &core.Route{TableId: table, Prefix: pfx, Preference: r.GetDistance()}
 			bad := false
@@ -307,6 +309,16 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver) *pro
 		}
 	}
 	return p
+}
+
+// isEmptyDomain reports whether a present domain message carries nothing (the API sends all 13
+// domains, most of them prefaulted to {}); only non-empty unimplemented domains are worth a warning.
+func isEmptyDomain(ds *vrxv1.DesiredState, key string) bool {
+	fd := ds.ProtoReflect().Descriptor().Fields().ByName(protoName(key))
+	if fd == nil || fd.Message() == nil {
+		return true
+	}
+	return proto.Size(ds.ProtoReflect().Get(fd).Message().Interface()) == 0
 }
 
 func unsupportedInterfaceFields(i *vrxv1.Interface) []string {
@@ -413,6 +425,11 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	for _, i := range ds.Interfaces {
 		sortAddrs(i.Ipv4)
 		sortAddrs(i.Ipv6)
+		// M4: every VPP interface is in exactly one table; without a binding it is the default VRF
+		// (the Zod default is "default", so an unset value here would be permanent drift).
+		if i.Vrf == nil {
+			i.Vrf = proto.String("default")
+		}
 	}
 	if in["routing"] {
 		ds.Routing = &vrxv1.RoutingConfig{}

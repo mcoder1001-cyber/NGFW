@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
+	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
@@ -56,6 +57,8 @@ type Service struct {
 	lastReconcileAt time.Time
 	vppVersion      string
 	vrfIDs          map[string]uint32 // VRF name → table id of the stored desired state
+	vrfDesc         map[string]string // VRF name → description (D-073b)
+	routeDesc       map[string]string // "<vrf>|<prefix>" → description (D-073b)
 	pendingTxn      string
 	deadline        time.Time
 	lastTxn         string
@@ -117,7 +120,26 @@ func (s *Service) refreshSnapshotLocked() {
 			ids[name] = v.GetId()
 		}
 	}
+	vrfDesc, routeDesc := map[string]string{}, map[string]string{}
+	for name, v := range s.st.desired.GetVrfs() {
+		if v.Description != nil {
+			vrfDesc[name] = v.GetDescription()
+		}
+	}
+	for _, r := range s.st.desired.GetRouting().GetStatic() {
+		if r.Description == nil {
+			continue
+		}
+		vrf := r.GetVrf()
+		if vrf == "" {
+			vrf = "default"
+		}
+		if p, err := core.CanonNetPrefix(r.GetPrefix()); err == nil {
+			routeDesc[vrf+"|"+p] = r.GetDescription()
+		}
+	}
 	s.mu.Lock()
+	s.vrfDesc, s.routeDesc = vrfDesc, routeDesc
 	s.vrfIDs = ids
 	s.pendingTxn = s.st.meta.PendingTxnID
 	s.deadline = time.Time{}
@@ -504,7 +526,26 @@ func (s *Service) Retrieve(ctx context.Context, req *vrxv1.RetrieveRequest) (*vr
 		}
 		return "", false
 	})
+	s.addDescriptions(ds)
 	return &vrxv1.RetrieveResponse{DesiredState: ds, Subsystems: domains, Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}, nil
+}
+
+// addDescriptions fills VRF and static-route descriptions — VPP cannot store them (D-073b) —
+// from the stored desired state for objects that actually exist.
+func (s *Service) addDescriptions(ds *vrxv1.DesiredState) {
+	s.mu.Lock()
+	vrfDesc, routeDesc := s.vrfDesc, s.routeDesc
+	s.mu.Unlock()
+	for name, v := range ds.GetVrfs() {
+		if d, ok := vrfDesc[name]; ok {
+			v.Description = proto.String(d)
+		}
+	}
+	for _, r := range ds.GetRouting().GetStatic() {
+		if d, ok := routeDesc[r.GetVrf()+"|"+r.GetPrefix()]; ok {
+			r.Description = proto.String(d)
+		}
+	}
 }
 
 // DryRun implements the DryRun RPC: validation + plan, nothing applied, no events.

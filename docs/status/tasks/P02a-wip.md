@@ -9,3 +9,5 @@
   (`invalid-semantic-*`), exhaustive primitive tests (nasty inputs), `vitest.config.ts` thresholds; 664 tests, 100 % coverage;
   commit `64db6aa`.
 - next: prettier, gen determinism, `docs/contracts/schema.md`, README, CI gate, status report.
+- 17:10 prettier on the package, gen determinism (15 files identical), `contract(schema): …` commit `b5a05a6`, lint fix `0e36ffc`,
+  `tools/ci.sh --base main` → CI GATE PASSED; status report + questions written. DONE.

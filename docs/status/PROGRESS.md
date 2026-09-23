@@ -7,8 +7,8 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 | state | tasks |
 |---|---|
 | merged | 10 |
-| review | 1 |
-| running | 11 |
+| review | 0 |
+| running | 12 |
 | ready | 5 |
 | parked | 0 |
 | failed | 0 |
@@ -18,7 +18,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S1 | 68 / 71 | 95.8% | 8/9 | 0 | 1 | 0 |
-| S2 | 12 / 223 | 5.4% | 1/17 | 11 | 3 | 0 |
+| S2 | 12 / 223 | 5.4% | 1/17 | 12 | 3 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
 | S4 | 0 / 384 | 0.0% | 0/37 | 0 | 0 | 0 |
 | S5 | 0 / 128 | 0.0% | 0/13 | 0 | 1 | 0 |
@@ -36,7 +36,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 - DF-6 — Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp (running, host-agent slot11)
 - DF-7 — Descriptors: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls (running, host-agent slot10)
 - DF-8 — Descriptors: dhcp, dns, flowprobe, sflow, prom, pcap/tracenode, lcp [skip-unless-loaded] (running, host-agent slot5)
-- RF-1 — Renderers: frr (renderer framework: files, vtysh -C, frr-reload.py, JSON state; protocol semantics in P12/F-*) (review, host-agent slot12)
+- RF-1 — Renderers: frr (renderer framework: files, vtysh -C, frr-reload.py, JSON state; protocol semantics in P12/F-*) (running, host-agent slot12)
 - RF-3 — Renderers: kea-dhcp4/6 + ctrl-agent, unbound, chrony (running, host-agent slot6)
 
 ## Parked

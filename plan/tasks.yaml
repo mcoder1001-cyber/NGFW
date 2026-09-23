@@ -554,7 +554,7 @@ tasks:
   - P03
   priority: 2
   est_hours: 12
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D3.2
@@ -566,7 +566,8 @@ tasks:
   started: 2026-09-24T00:30
   finished: ''
   notes: 'test-scoped daemon processes only; system units untouched | 2026-09-24 00:30 spawned on host, slot 12, daemon-owner frr | worker done 7d941e2 (CI green, integration vs test-scoped FRR); review
-    spawned; open: Q4 VPP+FRR double-programming of static routes (for P12)'
+    spawned; open: Q4 VPP+FRR double-programming of static routes (for P12) | review APPROVE WITH CHANGES d17febd (H1 pipe in description, H2 silent reload failure, M1 nexthop keywords, M2 secrets, M3 4MiB
+    cap, M4 harness lock); fix round 1; Q4 → D-072'
 - id: RF-2
   title: 'Renderers: strongswan (swanctl/VICI path; vrx build lands in P11)'
   prompt: prompts/factories/RF-2.md

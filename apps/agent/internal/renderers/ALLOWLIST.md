@@ -43,13 +43,10 @@ Rules for an entry:
 
 | binary | renderer | purpose | argv shape | task |
 |---|---|---|---|---|
-<<<<<<< HEAD
 | `/usr/bin/systemctl` | keepalived, snmpd, rsyslog | reload the unit **owned by this task's envelope** | `systemctl reload <unit>` / `systemctl restart <unit>` | RF |
 | `/usr/sbin/keepalived` | keepalived | config check | `keepalived -t -f <file>` | RF |
 | `/usr/sbin/snmpd` | snmpd | integration test child process only | `snmpd -f -c <cfg> -p <pid> 127.0.0.1:<slot port>` | RF |
-=======
 | `/usr/sbin/swanctl` | strongswan | load / list SAs when VICI is unavailable | `swanctl --load-all --noprompt`, `swanctl --list-sas --raw` | P11 |
->>>>>>> task/RF-4
 
 ## Active — RF-3 (kea, unbound, chrony)
 

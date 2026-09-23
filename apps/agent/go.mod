@@ -3,11 +3,8 @@ module ngfw/agent
 go 1.26
 
 require (
-<<<<<<< HEAD
-	github.com/strongswan/govici v0.8.2
-=======
 	github.com/gosnmp/gosnmp v1.43.1
->>>>>>> task/RF-4
+	github.com/strongswan/govici v0.8.2
 	go.fd.io/govpp v0.13.0
 	golang.org/x/sys v0.47.0
 	google.golang.org/grpc v1.84.0

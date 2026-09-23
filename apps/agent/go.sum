@@ -21,13 +21,10 @@ github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
-<<<<<<< HEAD
 github.com/strongswan/govici v0.8.2 h1:0LuY16Z8pRvbA1SW/BBdKcBERpFpwwCXkhLbwETVThQ=
 github.com/strongswan/govici v0.8.2/go.mod h1:Auq9H2J1gSMD3D+r2g9HlUpF5tep/wP0u0fMCfBE+Bw=
-=======
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
->>>>>>> task/RF-4
 go.fd.io/govpp v0.13.0 h1:MnjH9I5K+X0860CeeuBcMSu3uyUKA6X9AenKzdiGpnA=
 go.fd.io/govpp v0.13.0/go.mod h1:MQw6XdULE9qJiqYzIUXPSVyOGWCwVLMhhFRjcf+9hmM=
 go.yaml.in/yaml/v3 v3.0.4 h1:tfq32ie2Jv2UxXFdLJdh3jXuOzWiL1fo0bu/FbuKpbc=

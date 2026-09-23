@@ -15,6 +15,7 @@ Findings so far:
 - [x] VERSION, patches/series, demo patch (V16), optional trace-core patch
 - [x] build.sh, verify.sh (shellcheck clean)
 - [x] prepare-only run OK (devtools + core), 01:48; CI GATE PASSED 01:51 (early run)
-- [ ] full build started 01:49 (pid 1588729), at vpp compile 1983/2922 by 02:21 — log /root/ngfw-wt/logs/F-vpp-debs-build.log
+- [x] full build 01:49 → 02:34 (45m01s): 11 packages 26.06-release, SHA256SUMS + manifest.json, verify.sh OK
 - [x] README.md, questions Q1–Q5
-- [ ] after-state, CI gate, F-vpp-debs.md
+- [x] after-state == before (VPP itself aborted+auto-restarted 02:23, unrelated), F-vpp-debs.md written
+- [ ] final CI gate

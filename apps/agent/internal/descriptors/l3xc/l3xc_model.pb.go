@@ -4,7 +4,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        v3.21.12
-// source: model.proto
+// source: l3xc_model.proto
 
 package l3xc
 
@@ -37,7 +37,7 @@ type Path struct {
 
 func (x *Path) Reset() {
 	*x = Path{}
-	mi := &file_model_proto_msgTypes[0]
+	mi := &file_l3xc_model_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -49,7 +49,7 @@ func (x *Path) String() string {
 func (*Path) ProtoMessage() {}
 
 func (x *Path) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[0]
+	mi := &file_l3xc_model_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -62,7 +62,7 @@ func (x *Path) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Path.ProtoReflect.Descriptor instead.
 func (*Path) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{0}
+	return file_l3xc_model_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Path) GetNextHop() string {
@@ -112,7 +112,7 @@ type L3Xc struct {
 
 func (x *L3Xc) Reset() {
 	*x = L3Xc{}
-	mi := &file_model_proto_msgTypes[1]
+	mi := &file_l3xc_model_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -124,7 +124,7 @@ func (x *L3Xc) String() string {
 func (*L3Xc) ProtoMessage() {}
 
 func (x *L3Xc) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[1]
+	mi := &file_l3xc_model_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -137,7 +137,7 @@ func (x *L3Xc) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use L3Xc.ProtoReflect.Descriptor instead.
 func (*L3Xc) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{1}
+	return file_l3xc_model_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *L3Xc) GetInterface() string {
@@ -161,11 +161,11 @@ func (x *L3Xc) GetPaths() []*Path {
 	return nil
 }
 
-var File_model_proto protoreflect.FileDescriptor
+var File_l3xc_model_proto protoreflect.FileDescriptor
 
-const file_model_proto_rawDesc = "" +
+const file_l3xc_model_proto_rawDesc = "" +
 	"\n" +
-	"\vmodel.proto\x12\x0evrx.agent.l3xc\"\x8d\x01\n" +
+	"\x10l3xc_model.proto\x12\x0evrx.agent.l3xc\"\x8d\x01\n" +
 	"\x04Path\x12\x19\n" +
 	"\bnext_hop\x18\x01 \x01(\tR\anextHop\x12\x1c\n" +
 	"\tinterface\x18\x02 \x01(\tR\tinterface\x12\x14\n" +
@@ -180,23 +180,23 @@ const file_model_proto_rawDesc = "" +
 	"\x05paths\x18\x03 \x03(\v2\x14.vrx.agent.l3xc.PathR\x05pathsB+Z)ngfw/agent/internal/descriptors/l3xc;l3xcb\x06proto3"
 
 var (
-	file_model_proto_rawDescOnce sync.Once
-	file_model_proto_rawDescData []byte
+	file_l3xc_model_proto_rawDescOnce sync.Once
+	file_l3xc_model_proto_rawDescData []byte
 )
 
-func file_model_proto_rawDescGZIP() []byte {
-	file_model_proto_rawDescOnce.Do(func() {
-		file_model_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_model_proto_rawDesc), len(file_model_proto_rawDesc)))
+func file_l3xc_model_proto_rawDescGZIP() []byte {
+	file_l3xc_model_proto_rawDescOnce.Do(func() {
+		file_l3xc_model_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_l3xc_model_proto_rawDesc), len(file_l3xc_model_proto_rawDesc)))
 	})
-	return file_model_proto_rawDescData
+	return file_l3xc_model_proto_rawDescData
 }
 
-var file_model_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_model_proto_goTypes = []any{
+var file_l3xc_model_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_l3xc_model_proto_goTypes = []any{
 	(*Path)(nil), // 0: vrx.agent.l3xc.Path
 	(*L3Xc)(nil), // 1: vrx.agent.l3xc.L3xc
 }
-var file_model_proto_depIdxs = []int32{
+var file_l3xc_model_proto_depIdxs = []int32{
 	0, // 0: vrx.agent.l3xc.L3xc.paths:type_name -> vrx.agent.l3xc.Path
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
@@ -205,26 +205,26 @@ var file_model_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_model_proto_init() }
-func file_model_proto_init() {
-	if File_model_proto != nil {
+func init() { file_l3xc_model_proto_init() }
+func file_l3xc_model_proto_init() {
+	if File_l3xc_model_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_model_proto_rawDesc), len(file_model_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_l3xc_model_proto_rawDesc), len(file_l3xc_model_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_model_proto_goTypes,
-		DependencyIndexes: file_model_proto_depIdxs,
-		MessageInfos:      file_model_proto_msgTypes,
+		GoTypes:           file_l3xc_model_proto_goTypes,
+		DependencyIndexes: file_l3xc_model_proto_depIdxs,
+		MessageInfos:      file_l3xc_model_proto_msgTypes,
 	}.Build()
-	File_model_proto = out.File
-	file_model_proto_goTypes = nil
-	file_model_proto_depIdxs = nil
+	File_l3xc_model_proto = out.File
+	file_l3xc_model_proto_goTypes = nil
+	file_l3xc_model_proto_depIdxs = nil
 }

@@ -4,7 +4,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        v3.21.12
-// source: model.proto
+// source: l2_model.proto
 
 package l2
 
@@ -56,11 +56,11 @@ func (x PortType) String() string {
 }
 
 func (PortType) Descriptor() protoreflect.EnumDescriptor {
-	return file_model_proto_enumTypes[0].Descriptor()
+	return file_l2_model_proto_enumTypes[0].Descriptor()
 }
 
 func (PortType) Type() protoreflect.EnumType {
-	return &file_model_proto_enumTypes[0]
+	return &file_l2_model_proto_enumTypes[0]
 }
 
 func (x PortType) Number() protoreflect.EnumNumber {
@@ -69,7 +69,7 @@ func (x PortType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PortType.Descriptor instead.
 func (PortType) EnumDescriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{0}
+	return file_l2_model_proto_rawDescGZIP(), []int{0}
 }
 
 // VtrOp values are VPP's l2_vtr_op_t (src/vnet/l2/l2_vtr.h); 0 is "disabled" and has no object.
@@ -124,11 +124,11 @@ func (x VtrOp) String() string {
 }
 
 func (VtrOp) Descriptor() protoreflect.EnumDescriptor {
-	return file_model_proto_enumTypes[1].Descriptor()
+	return file_l2_model_proto_enumTypes[1].Descriptor()
 }
 
 func (VtrOp) Type() protoreflect.EnumType {
-	return &file_model_proto_enumTypes[1]
+	return &file_l2_model_proto_enumTypes[1]
 }
 
 func (x VtrOp) Number() protoreflect.EnumNumber {
@@ -137,7 +137,7 @@ func (x VtrOp) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use VtrOp.Descriptor instead.
 func (VtrOp) EnumDescriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{1}
+	return file_l2_model_proto_rawDescGZIP(), []int{1}
 }
 
 // BridgeDomain is bridge_domain_add_del_v2. Ownership: bd_tag = "<owner>:<id>".
@@ -157,7 +157,7 @@ type BridgeDomain struct {
 
 func (x *BridgeDomain) Reset() {
 	*x = BridgeDomain{}
-	mi := &file_model_proto_msgTypes[0]
+	mi := &file_l2_model_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -169,7 +169,7 @@ func (x *BridgeDomain) String() string {
 func (*BridgeDomain) ProtoMessage() {}
 
 func (x *BridgeDomain) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[0]
+	mi := &file_l2_model_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -182,7 +182,7 @@ func (x *BridgeDomain) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeDomain.ProtoReflect.Descriptor instead.
 func (*BridgeDomain) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{0}
+	return file_l2_model_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *BridgeDomain) GetId() uint32 {
@@ -254,7 +254,7 @@ type BridgeDomainMember struct {
 
 func (x *BridgeDomainMember) Reset() {
 	*x = BridgeDomainMember{}
-	mi := &file_model_proto_msgTypes[1]
+	mi := &file_l2_model_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -266,7 +266,7 @@ func (x *BridgeDomainMember) String() string {
 func (*BridgeDomainMember) ProtoMessage() {}
 
 func (x *BridgeDomainMember) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[1]
+	mi := &file_l2_model_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -279,7 +279,7 @@ func (x *BridgeDomainMember) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeDomainMember.ProtoReflect.Descriptor instead.
 func (*BridgeDomainMember) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{1}
+	return file_l2_model_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *BridgeDomainMember) GetBridgeDomain() uint32 {
@@ -322,7 +322,7 @@ type Xconnect struct {
 
 func (x *Xconnect) Reset() {
 	*x = Xconnect{}
-	mi := &file_model_proto_msgTypes[2]
+	mi := &file_l2_model_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -334,7 +334,7 @@ func (x *Xconnect) String() string {
 func (*Xconnect) ProtoMessage() {}
 
 func (x *Xconnect) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[2]
+	mi := &file_l2_model_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -347,7 +347,7 @@ func (x *Xconnect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Xconnect.ProtoReflect.Descriptor instead.
 func (*Xconnect) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{2}
+	return file_l2_model_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Xconnect) GetRx() string {
@@ -380,7 +380,7 @@ type FibEntry struct {
 
 func (x *FibEntry) Reset() {
 	*x = FibEntry{}
-	mi := &file_model_proto_msgTypes[3]
+	mi := &file_l2_model_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -392,7 +392,7 @@ func (x *FibEntry) String() string {
 func (*FibEntry) ProtoMessage() {}
 
 func (x *FibEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[3]
+	mi := &file_l2_model_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -405,7 +405,7 @@ func (x *FibEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FibEntry.ProtoReflect.Descriptor instead.
 func (*FibEntry) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{3}
+	return file_l2_model_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *FibEntry) GetBridgeDomain() uint32 {
@@ -467,7 +467,7 @@ type Flags struct {
 
 func (x *Flags) Reset() {
 	*x = Flags{}
-	mi := &file_model_proto_msgTypes[4]
+	mi := &file_l2_model_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -479,7 +479,7 @@ func (x *Flags) String() string {
 func (*Flags) ProtoMessage() {}
 
 func (x *Flags) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[4]
+	mi := &file_l2_model_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -492,7 +492,7 @@ func (x *Flags) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Flags.ProtoReflect.Descriptor instead.
 func (*Flags) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{4}
+	return file_l2_model_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Flags) GetInterface() string {
@@ -558,7 +558,7 @@ type VlanTagRewrite struct {
 
 func (x *VlanTagRewrite) Reset() {
 	*x = VlanTagRewrite{}
-	mi := &file_model_proto_msgTypes[5]
+	mi := &file_l2_model_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -570,7 +570,7 @@ func (x *VlanTagRewrite) String() string {
 func (*VlanTagRewrite) ProtoMessage() {}
 
 func (x *VlanTagRewrite) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[5]
+	mi := &file_l2_model_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -583,7 +583,7 @@ func (x *VlanTagRewrite) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VlanTagRewrite.ProtoReflect.Descriptor instead.
 func (*VlanTagRewrite) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{5}
+	return file_l2_model_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *VlanTagRewrite) GetInterface() string {
@@ -621,11 +621,11 @@ func (x *VlanTagRewrite) GetTag2() uint32 {
 	return 0
 }
 
-var File_model_proto protoreflect.FileDescriptor
+var File_l2_model_proto protoreflect.FileDescriptor
 
-const file_model_proto_rawDesc = "" +
+const file_l2_model_proto_rawDesc = "" +
 	"\n" +
-	"\vmodel.proto\x12\fvrx.agent.l2\"\xce\x01\n" +
+	"\x0el2_model.proto\x12\fvrx.agent.l2\"\xce\x01\n" +
 	"\fBridgeDomain\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x14\n" +
 	"\x05flood\x18\x02 \x01(\bR\x05flood\x12\x19\n" +
@@ -681,20 +681,20 @@ const file_model_proto_rawDesc = "" +
 	"\x14VTR_OP_TRANSLATE_2_2\x10\bB'Z%ngfw/agent/internal/descriptors/l2;l2b\x06proto3"
 
 var (
-	file_model_proto_rawDescOnce sync.Once
-	file_model_proto_rawDescData []byte
+	file_l2_model_proto_rawDescOnce sync.Once
+	file_l2_model_proto_rawDescData []byte
 )
 
-func file_model_proto_rawDescGZIP() []byte {
-	file_model_proto_rawDescOnce.Do(func() {
-		file_model_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_model_proto_rawDesc), len(file_model_proto_rawDesc)))
+func file_l2_model_proto_rawDescGZIP() []byte {
+	file_l2_model_proto_rawDescOnce.Do(func() {
+		file_l2_model_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_l2_model_proto_rawDesc), len(file_l2_model_proto_rawDesc)))
 	})
-	return file_model_proto_rawDescData
+	return file_l2_model_proto_rawDescData
 }
 
-var file_model_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_model_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
-var file_model_proto_goTypes = []any{
+var file_l2_model_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_l2_model_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_l2_model_proto_goTypes = []any{
 	(PortType)(0),              // 0: vrx.agent.l2.PortType
 	(VtrOp)(0),                 // 1: vrx.agent.l2.VtrOp
 	(*BridgeDomain)(nil),       // 2: vrx.agent.l2.BridgeDomain
@@ -704,7 +704,7 @@ var file_model_proto_goTypes = []any{
 	(*Flags)(nil),              // 6: vrx.agent.l2.Flags
 	(*VlanTagRewrite)(nil),     // 7: vrx.agent.l2.VlanTagRewrite
 }
-var file_model_proto_depIdxs = []int32{
+var file_l2_model_proto_depIdxs = []int32{
 	0, // 0: vrx.agent.l2.BridgeDomainMember.port_type:type_name -> vrx.agent.l2.PortType
 	1, // 1: vrx.agent.l2.VlanTagRewrite.op:type_name -> vrx.agent.l2.VtrOp
 	2, // [2:2] is the sub-list for method output_type
@@ -714,27 +714,27 @@ var file_model_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_model_proto_init() }
-func file_model_proto_init() {
-	if File_model_proto != nil {
+func init() { file_l2_model_proto_init() }
+func file_l2_model_proto_init() {
+	if File_l2_model_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_model_proto_rawDesc), len(file_model_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_l2_model_proto_rawDesc), len(file_l2_model_proto_rawDesc)),
 			NumEnums:      2,
 			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_model_proto_goTypes,
-		DependencyIndexes: file_model_proto_depIdxs,
-		EnumInfos:         file_model_proto_enumTypes,
-		MessageInfos:      file_model_proto_msgTypes,
+		GoTypes:           file_l2_model_proto_goTypes,
+		DependencyIndexes: file_l2_model_proto_depIdxs,
+		EnumInfos:         file_l2_model_proto_enumTypes,
+		MessageInfos:      file_l2_model_proto_msgTypes,
 	}.Build()
-	File_model_proto = out.File
-	file_model_proto_goTypes = nil
-	file_model_proto_depIdxs = nil
+	File_l2_model_proto = out.File
+	file_l2_model_proto_goTypes = nil
+	file_l2_model_proto_depIdxs = nil
 }

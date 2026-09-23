@@ -2,6 +2,6 @@
 // in the descriptor files and docs/agent/descriptors/tapv2.md for the object ↔ VPP message table.
 package tapv2
 
-// model.pb.go is generated from model.proto with the protoc-gen-go pinned by go.mod; the output is
+// tapv2_model.pb.go is generated from tapv2_model.proto with the protoc-gen-go pinned by go.mod; the output is
 // committed. Regenerate with: go generate ./internal/descriptors/...
-//go:generate protoc -I . --go_out=. --go_opt=paths=source_relative model.proto
+//go:generate protoc -I . --go_out=. --go_opt=paths=source_relative tapv2_model.proto

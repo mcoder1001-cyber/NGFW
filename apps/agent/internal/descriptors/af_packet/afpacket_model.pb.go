@@ -4,7 +4,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        v3.21.12
-// source: model.proto
+// source: afpacket_model.proto
 
 package afpacket
 
@@ -53,11 +53,11 @@ func (x Mode) String() string {
 }
 
 func (Mode) Descriptor() protoreflect.EnumDescriptor {
-	return file_model_proto_enumTypes[0].Descriptor()
+	return file_afpacket_model_proto_enumTypes[0].Descriptor()
 }
 
 func (Mode) Type() protoreflect.EnumType {
-	return &file_model_proto_enumTypes[0]
+	return &file_afpacket_model_proto_enumTypes[0]
 }
 
 func (x Mode) Number() protoreflect.EnumNumber {
@@ -66,7 +66,7 @@ func (x Mode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Mode.Descriptor instead.
 func (Mode) EnumDescriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{0}
+	return file_afpacket_model_proto_rawDescGZIP(), []int{0}
 }
 
 // HostInterface is af_packet_create_v3 on an existing Linux netdev. Flags and frame sizes are
@@ -82,7 +82,7 @@ type HostInterface struct {
 
 func (x *HostInterface) Reset() {
 	*x = HostInterface{}
-	mi := &file_model_proto_msgTypes[0]
+	mi := &file_afpacket_model_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -94,7 +94,7 @@ func (x *HostInterface) String() string {
 func (*HostInterface) ProtoMessage() {}
 
 func (x *HostInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[0]
+	mi := &file_afpacket_model_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -107,7 +107,7 @@ func (x *HostInterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostInterface.ProtoReflect.Descriptor instead.
 func (*HostInterface) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{0}
+	return file_afpacket_model_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *HostInterface) GetName() string {
@@ -131,11 +131,11 @@ func (x *HostInterface) GetMode() Mode {
 	return Mode_MODE_ETHERNET
 }
 
-var File_model_proto protoreflect.FileDescriptor
+var File_afpacket_model_proto protoreflect.FileDescriptor
 
-const file_model_proto_rawDesc = "" +
+const file_afpacket_model_proto_rawDesc = "" +
 	"\n" +
-	"\vmodel.proto\x12\x12vrx.agent.afpacket\"s\n" +
+	"\x14afpacket_model.proto\x12\x12vrx.agent.afpacket\"s\n" +
 	"\rHostInterface\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\fhost_if_name\x18\x02 \x01(\tR\n" +
@@ -146,24 +146,24 @@ const file_model_proto_rawDesc = "" +
 	"\aMODE_IP\x10\x01B4Z2ngfw/agent/internal/descriptors/af_packet;afpacketb\x06proto3"
 
 var (
-	file_model_proto_rawDescOnce sync.Once
-	file_model_proto_rawDescData []byte
+	file_afpacket_model_proto_rawDescOnce sync.Once
+	file_afpacket_model_proto_rawDescData []byte
 )
 
-func file_model_proto_rawDescGZIP() []byte {
-	file_model_proto_rawDescOnce.Do(func() {
-		file_model_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_model_proto_rawDesc), len(file_model_proto_rawDesc)))
+func file_afpacket_model_proto_rawDescGZIP() []byte {
+	file_afpacket_model_proto_rawDescOnce.Do(func() {
+		file_afpacket_model_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_afpacket_model_proto_rawDesc), len(file_afpacket_model_proto_rawDesc)))
 	})
-	return file_model_proto_rawDescData
+	return file_afpacket_model_proto_rawDescData
 }
 
-var file_model_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_model_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_model_proto_goTypes = []any{
+var file_afpacket_model_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_afpacket_model_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_afpacket_model_proto_goTypes = []any{
 	(Mode)(0),             // 0: vrx.agent.afpacket.Mode
 	(*HostInterface)(nil), // 1: vrx.agent.afpacket.HostInterface
 }
-var file_model_proto_depIdxs = []int32{
+var file_afpacket_model_proto_depIdxs = []int32{
 	0, // 0: vrx.agent.afpacket.HostInterface.mode:type_name -> vrx.agent.afpacket.Mode
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
@@ -172,27 +172,27 @@ var file_model_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_model_proto_init() }
-func file_model_proto_init() {
-	if File_model_proto != nil {
+func init() { file_afpacket_model_proto_init() }
+func file_afpacket_model_proto_init() {
+	if File_afpacket_model_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_model_proto_rawDesc), len(file_model_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_afpacket_model_proto_rawDesc), len(file_afpacket_model_proto_rawDesc)),
 			NumEnums:      1,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_model_proto_goTypes,
-		DependencyIndexes: file_model_proto_depIdxs,
-		EnumInfos:         file_model_proto_enumTypes,
-		MessageInfos:      file_model_proto_msgTypes,
+		GoTypes:           file_afpacket_model_proto_goTypes,
+		DependencyIndexes: file_afpacket_model_proto_depIdxs,
+		EnumInfos:         file_afpacket_model_proto_enumTypes,
+		MessageInfos:      file_afpacket_model_proto_msgTypes,
 	}.Build()
-	File_model_proto = out.File
-	file_model_proto_goTypes = nil
-	file_model_proto_depIdxs = nil
+	File_afpacket_model_proto = out.File
+	file_afpacket_model_proto_goTypes = nil
+	file_afpacket_model_proto_depIdxs = nil
 }

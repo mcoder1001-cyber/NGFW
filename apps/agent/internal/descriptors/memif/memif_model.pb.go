@@ -4,7 +4,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        v3.21.12
-// source: model.proto
+// source: memif_model.proto
 
 package memif
 
@@ -53,11 +53,11 @@ func (x Role) String() string {
 }
 
 func (Role) Descriptor() protoreflect.EnumDescriptor {
-	return file_model_proto_enumTypes[0].Descriptor()
+	return file_memif_model_proto_enumTypes[0].Descriptor()
 }
 
 func (Role) Type() protoreflect.EnumType {
-	return &file_model_proto_enumTypes[0]
+	return &file_memif_model_proto_enumTypes[0]
 }
 
 func (x Role) Number() protoreflect.EnumNumber {
@@ -66,7 +66,7 @@ func (x Role) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Role.Descriptor instead.
 func (Role) EnumDescriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{0}
+	return file_memif_model_proto_rawDescGZIP(), []int{0}
 }
 
 type Mode int32
@@ -102,11 +102,11 @@ func (x Mode) String() string {
 }
 
 func (Mode) Descriptor() protoreflect.EnumDescriptor {
-	return file_model_proto_enumTypes[1].Descriptor()
+	return file_memif_model_proto_enumTypes[1].Descriptor()
 }
 
 func (Mode) Type() protoreflect.EnumType {
-	return &file_model_proto_enumTypes[1]
+	return &file_memif_model_proto_enumTypes[1]
 }
 
 func (x Mode) Number() protoreflect.EnumNumber {
@@ -115,7 +115,7 @@ func (x Mode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Mode.Descriptor instead.
 func (Mode) EnumDescriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{1}
+	return file_memif_model_proto_rawDescGZIP(), []int{1}
 }
 
 // Socket is memif_socket_filename_add_del_v2. Ownership: filename lives in the owner's socket dir.
@@ -129,7 +129,7 @@ type Socket struct {
 
 func (x *Socket) Reset() {
 	*x = Socket{}
-	mi := &file_model_proto_msgTypes[0]
+	mi := &file_memif_model_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -141,7 +141,7 @@ func (x *Socket) String() string {
 func (*Socket) ProtoMessage() {}
 
 func (x *Socket) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[0]
+	mi := &file_memif_model_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -154,7 +154,7 @@ func (x *Socket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Socket.ProtoReflect.Descriptor instead.
 func (*Socket) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{0}
+	return file_memif_model_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Socket) GetId() uint32 {
@@ -189,7 +189,7 @@ type Memif struct {
 
 func (x *Memif) Reset() {
 	*x = Memif{}
-	mi := &file_model_proto_msgTypes[1]
+	mi := &file_memif_model_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -201,7 +201,7 @@ func (x *Memif) String() string {
 func (*Memif) ProtoMessage() {}
 
 func (x *Memif) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[1]
+	mi := &file_memif_model_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -214,7 +214,7 @@ func (x *Memif) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Memif.ProtoReflect.Descriptor instead.
 func (*Memif) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{1}
+	return file_memif_model_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Memif) GetName() string {
@@ -273,11 +273,11 @@ func (x *Memif) GetZeroCopy() bool {
 	return false
 }
 
-var File_model_proto protoreflect.FileDescriptor
+var File_memif_model_proto protoreflect.FileDescriptor
 
-const file_model_proto_rawDesc = "" +
+const file_memif_model_proto_rawDesc = "" +
 	"\n" +
-	"\vmodel.proto\x12\x0fvrx.agent.memif\"4\n" +
+	"\x11memif_model.proto\x12\x0fvrx.agent.memif\"4\n" +
 	"\x06Socket\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1a\n" +
 	"\bfilename\x18\x02 \x01(\tR\bfilename\"\xf4\x01\n" +
@@ -301,26 +301,26 @@ const file_model_proto_rawDesc = "" +
 	"\x10MODE_PUNT_INJECT\x10\x02B-Z+ngfw/agent/internal/descriptors/memif;memifb\x06proto3"
 
 var (
-	file_model_proto_rawDescOnce sync.Once
-	file_model_proto_rawDescData []byte
+	file_memif_model_proto_rawDescOnce sync.Once
+	file_memif_model_proto_rawDescData []byte
 )
 
-func file_model_proto_rawDescGZIP() []byte {
-	file_model_proto_rawDescOnce.Do(func() {
-		file_model_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_model_proto_rawDesc), len(file_model_proto_rawDesc)))
+func file_memif_model_proto_rawDescGZIP() []byte {
+	file_memif_model_proto_rawDescOnce.Do(func() {
+		file_memif_model_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_memif_model_proto_rawDesc), len(file_memif_model_proto_rawDesc)))
 	})
-	return file_model_proto_rawDescData
+	return file_memif_model_proto_rawDescData
 }
 
-var file_model_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_model_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_model_proto_goTypes = []any{
+var file_memif_model_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_memif_model_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_memif_model_proto_goTypes = []any{
 	(Role)(0),      // 0: vrx.agent.memif.Role
 	(Mode)(0),      // 1: vrx.agent.memif.Mode
 	(*Socket)(nil), // 2: vrx.agent.memif.Socket
 	(*Memif)(nil),  // 3: vrx.agent.memif.Memif
 }
-var file_model_proto_depIdxs = []int32{
+var file_memif_model_proto_depIdxs = []int32{
 	0, // 0: vrx.agent.memif.Memif.role:type_name -> vrx.agent.memif.Role
 	1, // 1: vrx.agent.memif.Memif.mode:type_name -> vrx.agent.memif.Mode
 	2, // [2:2] is the sub-list for method output_type
@@ -330,27 +330,27 @@ var file_model_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_model_proto_init() }
-func file_model_proto_init() {
-	if File_model_proto != nil {
+func init() { file_memif_model_proto_init() }
+func file_memif_model_proto_init() {
+	if File_memif_model_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_model_proto_rawDesc), len(file_model_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_memif_model_proto_rawDesc), len(file_memif_model_proto_rawDesc)),
 			NumEnums:      2,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_model_proto_goTypes,
-		DependencyIndexes: file_model_proto_depIdxs,
-		EnumInfos:         file_model_proto_enumTypes,
-		MessageInfos:      file_model_proto_msgTypes,
+		GoTypes:           file_memif_model_proto_goTypes,
+		DependencyIndexes: file_memif_model_proto_depIdxs,
+		EnumInfos:         file_memif_model_proto_enumTypes,
+		MessageInfos:      file_memif_model_proto_msgTypes,
 	}.Build()
-	File_model_proto = out.File
-	file_model_proto_goTypes = nil
-	file_model_proto_depIdxs = nil
+	File_memif_model_proto = out.File
+	file_memif_model_proto_goTypes = nil
+	file_memif_model_proto_depIdxs = nil
 }

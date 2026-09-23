@@ -4,7 +4,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        v3.21.12
-// source: model.proto
+// source: bond_model.proto
 
 package bond
 
@@ -66,11 +66,11 @@ func (x Mode) String() string {
 }
 
 func (Mode) Descriptor() protoreflect.EnumDescriptor {
-	return file_model_proto_enumTypes[0].Descriptor()
+	return file_bond_model_proto_enumTypes[0].Descriptor()
 }
 
 func (Mode) Type() protoreflect.EnumType {
-	return &file_model_proto_enumTypes[0]
+	return &file_bond_model_proto_enumTypes[0]
 }
 
 func (x Mode) Number() protoreflect.EnumNumber {
@@ -79,7 +79,7 @@ func (x Mode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Mode.Descriptor instead.
 func (Mode) EnumDescriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{0}
+	return file_bond_model_proto_rawDescGZIP(), []int{0}
 }
 
 // LoadBalance values equal binapi bond.BondLbAlgo. Only XOR and LACP choose freely between
@@ -126,11 +126,11 @@ func (x LoadBalance) String() string {
 }
 
 func (LoadBalance) Descriptor() protoreflect.EnumDescriptor {
-	return file_model_proto_enumTypes[1].Descriptor()
+	return file_bond_model_proto_enumTypes[1].Descriptor()
 }
 
 func (LoadBalance) Type() protoreflect.EnumType {
-	return &file_model_proto_enumTypes[1]
+	return &file_bond_model_proto_enumTypes[1]
 }
 
 func (x LoadBalance) Number() protoreflect.EnumNumber {
@@ -139,7 +139,7 @@ func (x LoadBalance) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use LoadBalance.Descriptor instead.
 func (LoadBalance) EnumDescriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{1}
+	return file_bond_model_proto_rawDescGZIP(), []int{1}
 }
 
 // Bond is bond_create2. id is mandatory: VPP names the interface BondEthernet<id>.
@@ -156,7 +156,7 @@ type Bond struct {
 
 func (x *Bond) Reset() {
 	*x = Bond{}
-	mi := &file_model_proto_msgTypes[0]
+	mi := &file_bond_model_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -168,7 +168,7 @@ func (x *Bond) String() string {
 func (*Bond) ProtoMessage() {}
 
 func (x *Bond) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[0]
+	mi := &file_bond_model_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -181,7 +181,7 @@ func (x *Bond) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Bond.ProtoReflect.Descriptor instead.
 func (*Bond) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{0}
+	return file_bond_model_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Bond) GetName() string {
@@ -232,7 +232,7 @@ type Member struct {
 
 func (x *Member) Reset() {
 	*x = Member{}
-	mi := &file_model_proto_msgTypes[1]
+	mi := &file_bond_model_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -244,7 +244,7 @@ func (x *Member) String() string {
 func (*Member) ProtoMessage() {}
 
 func (x *Member) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[1]
+	mi := &file_bond_model_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -257,7 +257,7 @@ func (x *Member) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Member.ProtoReflect.Descriptor instead.
 func (*Member) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{1}
+	return file_bond_model_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Member) GetBond() string {
@@ -288,11 +288,11 @@ func (x *Member) GetLongTimeout() bool {
 	return false
 }
 
-var File_model_proto protoreflect.FileDescriptor
+var File_bond_model_proto protoreflect.FileDescriptor
 
-const file_model_proto_rawDesc = "" +
+const file_bond_model_proto_rawDesc = "" +
 	"\n" +
-	"\vmodel.proto\x12\x0evrx.agent.bond\"\x9e\x01\n" +
+	"\x10bond_model.proto\x12\x0evrx.agent.bond\"\x9e\x01\n" +
 	"\x04Bond\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\rR\x02id\x12(\n" +
@@ -320,26 +320,26 @@ const file_model_proto_rawDesc = "" +
 	"\x1aLOAD_BALANCE_ACTIVE_BACKUP\x10\x05B+Z)ngfw/agent/internal/descriptors/bond;bondb\x06proto3"
 
 var (
-	file_model_proto_rawDescOnce sync.Once
-	file_model_proto_rawDescData []byte
+	file_bond_model_proto_rawDescOnce sync.Once
+	file_bond_model_proto_rawDescData []byte
 )
 
-func file_model_proto_rawDescGZIP() []byte {
-	file_model_proto_rawDescOnce.Do(func() {
-		file_model_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_model_proto_rawDesc), len(file_model_proto_rawDesc)))
+func file_bond_model_proto_rawDescGZIP() []byte {
+	file_bond_model_proto_rawDescOnce.Do(func() {
+		file_bond_model_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_bond_model_proto_rawDesc), len(file_bond_model_proto_rawDesc)))
 	})
-	return file_model_proto_rawDescData
+	return file_bond_model_proto_rawDescData
 }
 
-var file_model_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_model_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_model_proto_goTypes = []any{
+var file_bond_model_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_bond_model_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_bond_model_proto_goTypes = []any{
 	(Mode)(0),        // 0: vrx.agent.bond.Mode
 	(LoadBalance)(0), // 1: vrx.agent.bond.LoadBalance
 	(*Bond)(nil),     // 2: vrx.agent.bond.Bond
 	(*Member)(nil),   // 3: vrx.agent.bond.Member
 }
-var file_model_proto_depIdxs = []int32{
+var file_bond_model_proto_depIdxs = []int32{
 	0, // 0: vrx.agent.bond.Bond.mode:type_name -> vrx.agent.bond.Mode
 	1, // 1: vrx.agent.bond.Bond.lb:type_name -> vrx.agent.bond.LoadBalance
 	2, // [2:2] is the sub-list for method output_type
@@ -349,27 +349,27 @@ var file_model_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_model_proto_init() }
-func file_model_proto_init() {
-	if File_model_proto != nil {
+func init() { file_bond_model_proto_init() }
+func file_bond_model_proto_init() {
+	if File_bond_model_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_model_proto_rawDesc), len(file_model_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bond_model_proto_rawDesc), len(file_bond_model_proto_rawDesc)),
 			NumEnums:      2,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_model_proto_goTypes,
-		DependencyIndexes: file_model_proto_depIdxs,
-		EnumInfos:         file_model_proto_enumTypes,
-		MessageInfos:      file_model_proto_msgTypes,
+		GoTypes:           file_bond_model_proto_goTypes,
+		DependencyIndexes: file_bond_model_proto_depIdxs,
+		EnumInfos:         file_bond_model_proto_enumTypes,
+		MessageInfos:      file_bond_model_proto_msgTypes,
 	}.Build()
-	File_model_proto = out.File
-	file_model_proto_goTypes = nil
-	file_model_proto_depIdxs = nil
+	File_bond_model_proto = out.File
+	file_bond_model_proto_goTypes = nil
+	file_bond_model_proto_depIdxs = nil
 }

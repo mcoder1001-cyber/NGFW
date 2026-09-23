@@ -6,7 +6,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        v3.21.12
-// source: model.proto
+// source: iface_model.proto
 
 package iface
 
@@ -61,11 +61,11 @@ func (x RxModeKind) String() string {
 }
 
 func (RxModeKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_model_proto_enumTypes[0].Descriptor()
+	return file_iface_model_proto_enumTypes[0].Descriptor()
 }
 
 func (RxModeKind) Type() protoreflect.EnumType {
-	return &file_model_proto_enumTypes[0]
+	return &file_iface_model_proto_enumTypes[0]
 }
 
 func (x RxModeKind) Number() protoreflect.EnumNumber {
@@ -74,7 +74,7 @@ func (x RxModeKind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RxModeKind.Descriptor instead.
 func (RxModeKind) EnumDescriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{0}
+	return file_iface_model_proto_rawDescGZIP(), []int{0}
 }
 
 // AdminState marks an interface administratively UP. Presence of the object means "up";
@@ -89,7 +89,7 @@ type AdminState struct {
 
 func (x *AdminState) Reset() {
 	*x = AdminState{}
-	mi := &file_model_proto_msgTypes[0]
+	mi := &file_iface_model_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -101,7 +101,7 @@ func (x *AdminState) String() string {
 func (*AdminState) ProtoMessage() {}
 
 func (x *AdminState) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[0]
+	mi := &file_iface_model_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -114,7 +114,7 @@ func (x *AdminState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminState.ProtoReflect.Descriptor instead.
 func (*AdminState) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{0}
+	return file_iface_model_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *AdminState) GetInterface() string {
@@ -138,7 +138,7 @@ type Mtu struct {
 
 func (x *Mtu) Reset() {
 	*x = Mtu{}
-	mi := &file_model_proto_msgTypes[1]
+	mi := &file_iface_model_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -150,7 +150,7 @@ func (x *Mtu) String() string {
 func (*Mtu) ProtoMessage() {}
 
 func (x *Mtu) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[1]
+	mi := &file_iface_model_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -163,7 +163,7 @@ func (x *Mtu) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Mtu.ProtoReflect.Descriptor instead.
 func (*Mtu) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{1}
+	return file_iface_model_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Mtu) GetInterface() string {
@@ -212,7 +212,7 @@ type MacAddress struct {
 
 func (x *MacAddress) Reset() {
 	*x = MacAddress{}
-	mi := &file_model_proto_msgTypes[2]
+	mi := &file_iface_model_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -224,7 +224,7 @@ func (x *MacAddress) String() string {
 func (*MacAddress) ProtoMessage() {}
 
 func (x *MacAddress) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[2]
+	mi := &file_iface_model_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -237,7 +237,7 @@ func (x *MacAddress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MacAddress.ProtoReflect.Descriptor instead.
 func (*MacAddress) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{2}
+	return file_iface_model_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *MacAddress) GetInterface() string {
@@ -264,7 +264,7 @@ type Promisc struct {
 
 func (x *Promisc) Reset() {
 	*x = Promisc{}
-	mi := &file_model_proto_msgTypes[3]
+	mi := &file_iface_model_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -276,7 +276,7 @@ func (x *Promisc) String() string {
 func (*Promisc) ProtoMessage() {}
 
 func (x *Promisc) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[3]
+	mi := &file_iface_model_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -289,7 +289,7 @@ func (x *Promisc) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Promisc.ProtoReflect.Descriptor instead.
 func (*Promisc) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{3}
+	return file_iface_model_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Promisc) GetInterface() string {
@@ -311,7 +311,7 @@ type RxMode struct {
 
 func (x *RxMode) Reset() {
 	*x = RxMode{}
-	mi := &file_model_proto_msgTypes[4]
+	mi := &file_iface_model_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -323,7 +323,7 @@ func (x *RxMode) String() string {
 func (*RxMode) ProtoMessage() {}
 
 func (x *RxMode) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[4]
+	mi := &file_iface_model_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -336,7 +336,7 @@ func (x *RxMode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RxMode.ProtoReflect.Descriptor instead.
 func (*RxMode) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{4}
+	return file_iface_model_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RxMode) GetInterface() string {
@@ -366,7 +366,7 @@ type RxPlacement struct {
 
 func (x *RxPlacement) Reset() {
 	*x = RxPlacement{}
-	mi := &file_model_proto_msgTypes[5]
+	mi := &file_iface_model_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -378,7 +378,7 @@ func (x *RxPlacement) String() string {
 func (*RxPlacement) ProtoMessage() {}
 
 func (x *RxPlacement) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[5]
+	mi := &file_iface_model_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -391,7 +391,7 @@ func (x *RxPlacement) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RxPlacement.ProtoReflect.Descriptor instead.
 func (*RxPlacement) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{5}
+	return file_iface_model_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RxPlacement) GetInterface() string {
@@ -437,7 +437,7 @@ type Subinterface struct {
 
 func (x *Subinterface) Reset() {
 	*x = Subinterface{}
-	mi := &file_model_proto_msgTypes[6]
+	mi := &file_iface_model_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -449,7 +449,7 @@ func (x *Subinterface) String() string {
 func (*Subinterface) ProtoMessage() {}
 
 func (x *Subinterface) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[6]
+	mi := &file_iface_model_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -462,7 +462,7 @@ func (x *Subinterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Subinterface.ProtoReflect.Descriptor instead.
 func (*Subinterface) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{6}
+	return file_iface_model_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Subinterface) GetParent() string {
@@ -535,11 +535,11 @@ func (x *Subinterface) GetInnerVlanAny() bool {
 	return false
 }
 
-var File_model_proto protoreflect.FileDescriptor
+var File_iface_model_proto protoreflect.FileDescriptor
 
-const file_model_proto_rawDesc = "" +
+const file_iface_model_proto_rawDesc = "" +
 	"\n" +
-	"\vmodel.proto\x12\x0fvrx.agent.iface\"*\n" +
+	"\x11iface_model.proto\x12\x0fvrx.agent.iface\"*\n" +
 	"\n" +
 	"AdminState\x12\x1c\n" +
 	"\tinterface\x18\x01 \x01(\tR\tinterface\"m\n" +
@@ -585,20 +585,20 @@ const file_model_proto_rawDesc = "" +
 	"\x15RX_MODE_KIND_ADAPTIVE\x10\x03B1Z/ngfw/agent/internal/descriptors/interface;ifaceb\x06proto3"
 
 var (
-	file_model_proto_rawDescOnce sync.Once
-	file_model_proto_rawDescData []byte
+	file_iface_model_proto_rawDescOnce sync.Once
+	file_iface_model_proto_rawDescData []byte
 )
 
-func file_model_proto_rawDescGZIP() []byte {
-	file_model_proto_rawDescOnce.Do(func() {
-		file_model_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_model_proto_rawDesc), len(file_model_proto_rawDesc)))
+func file_iface_model_proto_rawDescGZIP() []byte {
+	file_iface_model_proto_rawDescOnce.Do(func() {
+		file_iface_model_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_iface_model_proto_rawDesc), len(file_iface_model_proto_rawDesc)))
 	})
-	return file_model_proto_rawDescData
+	return file_iface_model_proto_rawDescData
 }
 
-var file_model_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_model_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
-var file_model_proto_goTypes = []any{
+var file_iface_model_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_iface_model_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_iface_model_proto_goTypes = []any{
 	(RxModeKind)(0),      // 0: vrx.agent.iface.RxModeKind
 	(*AdminState)(nil),   // 1: vrx.agent.iface.AdminState
 	(*Mtu)(nil),          // 2: vrx.agent.iface.Mtu
@@ -608,7 +608,7 @@ var file_model_proto_goTypes = []any{
 	(*RxPlacement)(nil),  // 6: vrx.agent.iface.RxPlacement
 	(*Subinterface)(nil), // 7: vrx.agent.iface.Subinterface
 }
-var file_model_proto_depIdxs = []int32{
+var file_iface_model_proto_depIdxs = []int32{
 	0, // 0: vrx.agent.iface.RxMode.mode:type_name -> vrx.agent.iface.RxModeKind
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
@@ -617,27 +617,27 @@ var file_model_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_model_proto_init() }
-func file_model_proto_init() {
-	if File_model_proto != nil {
+func init() { file_iface_model_proto_init() }
+func file_iface_model_proto_init() {
+	if File_iface_model_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_model_proto_rawDesc), len(file_model_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_iface_model_proto_rawDesc), len(file_iface_model_proto_rawDesc)),
 			NumEnums:      1,
 			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_model_proto_goTypes,
-		DependencyIndexes: file_model_proto_depIdxs,
-		EnumInfos:         file_model_proto_enumTypes,
-		MessageInfos:      file_model_proto_msgTypes,
+		GoTypes:           file_iface_model_proto_goTypes,
+		DependencyIndexes: file_iface_model_proto_depIdxs,
+		EnumInfos:         file_iface_model_proto_enumTypes,
+		MessageInfos:      file_iface_model_proto_msgTypes,
 	}.Build()
-	File_model_proto = out.File
-	file_model_proto_goTypes = nil
-	file_model_proto_depIdxs = nil
+	File_iface_model_proto = out.File
+	file_iface_model_proto_goTypes = nil
+	file_iface_model_proto_depIdxs = nil
 }

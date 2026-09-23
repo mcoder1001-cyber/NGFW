@@ -4,7 +4,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        v3.21.12
-// source: model.proto
+// source: tapv2_model.proto
 
 package tapv2
 
@@ -46,7 +46,7 @@ type Tap struct {
 
 func (x *Tap) Reset() {
 	*x = Tap{}
-	mi := &file_model_proto_msgTypes[0]
+	mi := &file_tapv2_model_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -58,7 +58,7 @@ func (x *Tap) String() string {
 func (*Tap) ProtoMessage() {}
 
 func (x *Tap) ProtoReflect() protoreflect.Message {
-	mi := &file_model_proto_msgTypes[0]
+	mi := &file_tapv2_model_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -71,7 +71,7 @@ func (x *Tap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Tap.ProtoReflect.Descriptor instead.
 func (*Tap) Descriptor() ([]byte, []int) {
-	return file_model_proto_rawDescGZIP(), []int{0}
+	return file_tapv2_model_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Tap) GetName() string {
@@ -165,11 +165,11 @@ func (x *Tap) GetCsumOffload() bool {
 	return false
 }
 
-var File_model_proto protoreflect.FileDescriptor
+var File_tapv2_model_proto protoreflect.FileDescriptor
 
-const file_model_proto_rawDesc = "" +
+const file_tapv2_model_proto_rawDesc = "" +
 	"\n" +
-	"\vmodel.proto\x12\x0fvrx.agent.tapv2\"\x92\x03\n" +
+	"\x11tapv2_model.proto\x12\x0fvrx.agent.tapv2\"\x92\x03\n" +
 	"\x03Tap\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\rR\x02id\x12 \n" +
@@ -191,22 +191,22 @@ const file_model_proto_rawDesc = "" +
 	"\fcsum_offload\x18\r \x01(\bR\vcsumOffloadB-Z+ngfw/agent/internal/descriptors/tapv2;tapv2b\x06proto3"
 
 var (
-	file_model_proto_rawDescOnce sync.Once
-	file_model_proto_rawDescData []byte
+	file_tapv2_model_proto_rawDescOnce sync.Once
+	file_tapv2_model_proto_rawDescData []byte
 )
 
-func file_model_proto_rawDescGZIP() []byte {
-	file_model_proto_rawDescOnce.Do(func() {
-		file_model_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_model_proto_rawDesc), len(file_model_proto_rawDesc)))
+func file_tapv2_model_proto_rawDescGZIP() []byte {
+	file_tapv2_model_proto_rawDescOnce.Do(func() {
+		file_tapv2_model_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_tapv2_model_proto_rawDesc), len(file_tapv2_model_proto_rawDesc)))
 	})
-	return file_model_proto_rawDescData
+	return file_tapv2_model_proto_rawDescData
 }
 
-var file_model_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_model_proto_goTypes = []any{
+var file_tapv2_model_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_tapv2_model_proto_goTypes = []any{
 	(*Tap)(nil), // 0: vrx.agent.tapv2.Tap
 }
-var file_model_proto_depIdxs = []int32{
+var file_tapv2_model_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
 	0, // [0:0] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -214,26 +214,26 @@ var file_model_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_model_proto_init() }
-func file_model_proto_init() {
-	if File_model_proto != nil {
+func init() { file_tapv2_model_proto_init() }
+func file_tapv2_model_proto_init() {
+	if File_tapv2_model_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_model_proto_rawDesc), len(file_model_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tapv2_model_proto_rawDesc), len(file_tapv2_model_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_model_proto_goTypes,
-		DependencyIndexes: file_model_proto_depIdxs,
-		MessageInfos:      file_model_proto_msgTypes,
+		GoTypes:           file_tapv2_model_proto_goTypes,
+		DependencyIndexes: file_tapv2_model_proto_depIdxs,
+		MessageInfos:      file_tapv2_model_proto_msgTypes,
 	}.Build()
-	File_model_proto = out.File
-	file_model_proto_goTypes = nil
-	file_model_proto_depIdxs = nil
+	File_tapv2_model_proto = out.File
+	file_tapv2_model_proto_goTypes = nil
+	file_tapv2_model_proto_depIdxs = nil
 }

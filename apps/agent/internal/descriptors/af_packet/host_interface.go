@@ -14,13 +14,13 @@ import (
 	"ngfw/agent/internal/vpp"
 )
 
-// HostInterfaceName is the descriptor name ("af_packet.host-interface").
+// HostInterfaceName is the descriptor name ("af-packet.host-interface").
 const HostInterfaceName = iface.HostInterfaceName
 
 // ErrEmptyValue is returned for a nil or foreign desired value.
 var ErrEmptyValue = errors.New("af_packet: nil or wrong desired value type")
 
-// HostInterfaceDescriptor implements af_packet.host-interface (af_packet_create_v3 /
+// HostInterfaceDescriptor implements af-packet.host-interface (af_packet_create_v3 /
 // af_packet_delete) on an existing Linux netdev. VPP names the interface host-<host_if_name>.
 // af_packet_details reports only sw_if_index and host_if_name, so flags, frame sizes and
 // queue counts are not modelled (VPP defaults, create-only); mode is decoded from the presence

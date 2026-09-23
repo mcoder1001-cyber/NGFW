@@ -34,7 +34,7 @@ const (
 	LoopbackName      = "interface.loopback"
 	SubinterfaceName  = "interface.subinterface"
 	TapName           = "tapv2.tap"
-	HostInterfaceName = "af_packet.host-interface"
+	HostInterfaceName = "af-packet.host-interface"
 	BondName          = "bond.bond"
 	MemifName         = "memif.memif"
 )

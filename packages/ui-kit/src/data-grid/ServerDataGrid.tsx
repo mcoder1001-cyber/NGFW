@@ -1,3 +1,4 @@
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -126,7 +127,7 @@ export function ServerDataGrid<R extends GridValidRowModel>({
   sx,
   ...rest
 }: ServerDataGridProps<R>) {
-  const { i18n } = useTranslation(UI_KIT_NS);
+  const { t, i18n } = useTranslation(UI_KIT_NS);
   const theme = useTheme();
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: initialPageSize });
   const [sortModel, setSortModel] = useState<GridSortModel>(initialSort);
@@ -145,38 +146,57 @@ export function ServerDataGrid<R extends GridValidRowModel>({
   const lang = i18n.resolvedLanguage ?? i18n.language ?? 'en';
   const localeText = (lang.startsWith('fa') ? faIR : enUS).components.MuiDataGrid.defaultProps.localeText;
   const retry = () => void query.refetch();
+  // Review L5: the overlay only covers a change of page/sort/filter (placeholder rows shown), not a background poll.
+  const loading = query.isPending || (query.isFetching && query.isPlaceholderData);
+  // Review L5: a failed refetch while older rows are still shown must not go unnoticed.
+  const staleError = query.isError && query.data !== undefined;
 
   return (
-    <DataGrid<R>
-      {...rest}
-      columns={columns as GridColDef<R>[]}
-      rows={query.data?.rows ?? []}
-      rowCount={lastTotal.current}
-      loading={query.isPending || (query.isFetching && !query.isError)}
-      paginationMode="server"
-      sortingMode="server"
-      filterMode="server"
-      paginationModel={paginationModel}
-      onPaginationModelChange={setPaginationModel}
-      sortModel={sortModel}
-      onSortModelChange={(m) => {
-        setSortModel(m);
-        setPaginationModel((p) => ({ ...p, page: 0 }));
-      }}
-      filterModel={filterModel}
-      onFilterModelChange={(m) => {
-        setFilterModel(m);
-        setPaginationModel((p) => ({ ...p, page: 0 }));
-      }}
-      pageSizeOptions={pageSizeOptions}
-      density="compact"
-      rowHeight={theme.vrx.denseRowHeight}
-      columnHeaderHeight={theme.vrx.denseRowHeight + 4}
-      disableRowSelectionOnClick
-      localeText={{ ...localeText, ...rest.localeText }}
-      slots={{ noRowsOverlay: StateOverlay, ...slots }}
-      slotProps={{ ...slotProps, noRowsOverlay: { error: query.isError, onRetry: retry, ...slotProps?.noRowsOverlay } }}
-      sx={[{ border: 0 }, ...(Array.isArray(sx) ? sx : sx ? [sx] : [])]}
-    />
+    <>
+      {staleError && (
+        <Alert
+          severity="warning"
+          role="alert"
+          action={
+            <Button color="inherit" size="small" onClick={retry}>
+              {t('grid.retry')}
+            </Button>
+          }
+        >
+          {t('grid.staleError')}
+        </Alert>
+      )}
+      <DataGrid<R>
+        {...rest}
+        columns={columns as GridColDef<R>[]}
+        rows={query.data?.rows ?? []}
+        rowCount={lastTotal.current}
+        loading={loading}
+        paginationMode="server"
+        sortingMode="server"
+        filterMode="server"
+        paginationModel={paginationModel}
+        onPaginationModelChange={setPaginationModel}
+        sortModel={sortModel}
+        onSortModelChange={(m) => {
+          setSortModel(m);
+          setPaginationModel((p) => ({ ...p, page: 0 }));
+        }}
+        filterModel={filterModel}
+        onFilterModelChange={(m) => {
+          setFilterModel(m);
+          setPaginationModel((p) => ({ ...p, page: 0 }));
+        }}
+        pageSizeOptions={pageSizeOptions}
+        density="compact"
+        rowHeight={theme.vrx.denseRowHeight}
+        columnHeaderHeight={theme.vrx.denseRowHeight + 4}
+        disableRowSelectionOnClick
+        localeText={{ ...localeText, ...rest.localeText }}
+        slots={{ noRowsOverlay: StateOverlay, ...slots }}
+        slotProps={{ ...slotProps, noRowsOverlay: { error: query.isError, onRetry: retry, ...slotProps?.noRowsOverlay } }}
+        sx={[{ border: 0 }, ...(Array.isArray(sx) ? sx : sx ? [sx] : [])]}
+      />
+    </>
   );
 }

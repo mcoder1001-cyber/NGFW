@@ -61,6 +61,7 @@ export const en = {
     loading: 'Loading…',
     error: 'Could not load rows',
     retry: 'Retry',
+    staleError: 'Refreshing failed; showing the last loaded rows.',
     rowsPerPage: 'Rows per page',
     of: 'of',
     moreThan: 'more than',

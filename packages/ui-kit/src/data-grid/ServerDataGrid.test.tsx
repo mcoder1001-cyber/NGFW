@@ -55,4 +55,26 @@ describe('<ServerDataGrid>', () => {
     );
     expect(await screen.findByText('No rows')).toBeInTheDocument();
   });
+
+  it('does not flash the loading overlay on background polls, and flags a failed refetch over stale rows (review L5)', async () => {
+    let fail = false;
+    let calls = 0;
+    const fetchPage = vi.fn(async () => {
+      calls += 1;
+      if (fail) throw new Error('poll failed');
+      return { rows: [{ id: 1, name: `poll-${calls}` }], total: 1 };
+    });
+    renderWithProviders(
+      <div style={{ height: 400, width: 600 }}>
+        <ServerDataGrid<Row> columns={columns} queryKey={['test', 'poll']} fetchPage={fetchPage} refetchInterval={100} disableVirtualization />
+      </div>,
+    );
+    expect(await screen.findByText('poll-1')).toBeInTheDocument();
+    // background refetches replace the row without ever showing the grid's loading overlay
+    await screen.findByText(/poll-[2-9]/);
+    expect(document.querySelector('.MuiDataGrid-overlay .MuiCircularProgress-root, .MuiDataGrid-loadingOverlay')).toBeNull();
+    fail = true;
+    expect(await screen.findByText('Refreshing failed; showing the last loaded rows.')).toBeInTheDocument();
+    expect(screen.getByText(/poll-\d/)).toBeInTheDocument(); // stale rows still visible
+  });
 });

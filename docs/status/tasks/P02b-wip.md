@@ -8,3 +8,13 @@
   services, serviceGroups, schedules, zones, tags; `acl` = lists, macip, host, attachments, macipAttachments, hostAttachments.
   Local primitives (ipPrefix, l4Port, l4PortRange, ipv4AddressRange, timeOfDay …) live in domains/objects.ts / nat.ts
   because P02a owns primitives.ts. Writing domains next.
+- 14:50 (CONTINUE respawn, worker P02b) pulled host state (`ec0ccda`): drafts of domains/{nat,objects,acl}.ts present,
+  semantic stubs empty, no tests/examples/docs. Baseline: typecheck+lint green, 163/164 tests (index.test.ts:26 stale).
+- 15:05 export-name collision check against `task/P02a` / `task/P02c` (read-only `git show`): un-exported
+  `ipv4Address`/`ipv6Address` in nat.ts, renamed `l4Port` → `l4PortNumber`; added `staticMappings[].external.pool`
+  (F-nat44 contract). Wrote semantic/{objects,nat,acl}.ts (8 + 14 + 8 rules) — commit d7d775b.
+- 15:40 semantic tests (objects 20, nat 22, acl 11), domain hostile-input tests (nat 29, objects 10, acl 10),
+  examples nat-basic/nat-cgnat/objects-basic/acl-basic + 8 invalid-* + 7 *-semantic-invalid-* + examples semantic
+  test; 296/297 tests green (the 1 = P02a's index.test.ts:26) — commit e65cddd.
+- 16:00 docs/contracts/schema-nat-objects-acl.md, P02b-questions.md (8 questions, 8 decisions). Next: contract commit,
+  `tools/ci.sh --base main`, P02b.md with pasted output.

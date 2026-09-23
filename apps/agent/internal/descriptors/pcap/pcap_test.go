@@ -45,7 +45,8 @@ func newFake() (*dfkittest.FakeVPP, *bool, *string) {
 func TestCapture(t *testing.T) {
 	f, running, _ := newFake()
 	ctx := context.Background()
-	d := NewCapture(f, "w5")
+	boot := dfkit.NewMemoryBootStore()
+	d := NewCapture(f, "w5", boot)
 	v := Capture{Rx: true, Drop: true, Interface: "loop501", MaxPackets: 100, MaxBytesPerPacket: 256, Filter: true, Error: "ip4-input/ttl_expired", File: "w5-cap.pcap"}.Proto()
 	deps := d.Dependencies(v)
 	if len(deps) != 2 || deps[0].Key != KeyFilterFunction || !deps[0].Optional || deps[1].Key != "interface/loop501" {
@@ -66,11 +67,11 @@ func TestCapture(t *testing.T) {
 	}
 	// agent restart (same owner, fresh descriptor): the BootStore record skips the re-add (D-076)
 	ons := len(f.CallsNamed("pcap_trace_on"))
-	if _, err := NewCapture(f, "w5").Create(ctx, v); err != nil || len(f.CallsNamed("pcap_trace_on")) != ons {
+	if _, err := NewCapture(f, "w5", boot).Create(ctx, v); err != nil || len(f.CallsNamed("pcap_trace_on")) != ons {
 		t.Fatalf("resync re-added the running capture: %v", err)
 	}
-	other := NewCapture(f, "w5b") // another owner (slot)
-	otherCap := Capture{Rx: true, Interface: AnyInterface, MaxPackets: 1, MaxBytesPerPacket: 64, File: "w5b.pcap"}.Proto()
+	other := NewCapture(f, "w5b", dfkit.NewMemoryBootStore()) // another owner (slot)
+	otherCap := Capture{Rx: true, Interface: AnyInterface, MaxPackets: 1, MaxBytesPerPacket: 64, File: "w5b-x.pcap"}.Proto()
 	if _, err := other.Create(ctx, otherCap); !errors.Is(err, ErrCaptureBusy) {
 		t.Fatalf("busy: %v", err)
 	}
@@ -114,7 +115,30 @@ func TestCapture(t *testing.T) {
 	if err := d.Delete(ctx, anyCap, nil); err != nil || *running {
 		t.Fatalf("delete after restart: %v", err)
 	}
-	if _, err := NewCapture(f, "w5").Create(ctx, Capture{Rx: true, Interface: "loop601", MaxPackets: 1, MaxBytesPerPacket: 64, File: "w5.pcap"}.Proto()); !errors.Is(err, dfkit.ErrNotOwned) {
+	// an agent restart WITHOUT the persisted store cannot recognise its own capture: documented
+	// busy error (the agent must pass a persisted store, M4)
+	if _, err := d.Create(ctx, anyCap); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewCapture(f, "w5", dfkit.NewMemoryBootStore()).Create(ctx, anyCap); !errors.Is(err, ErrCaptureBusy) {
+		t.Fatalf("lost store: %v", err)
+	}
+	if err := d.Delete(ctx, anyCap, nil); err != nil {
+		t.Fatal(err)
+	}
+	// L1: the file must carry the owner prefix
+	if _, err := d.Create(ctx, Capture{Rx: true, Interface: AnyInterface, MaxPackets: 1, MaxBytesPerPacket: 64, File: "w6-a.pcap"}.Proto()); !errors.Is(err, dfkit.ErrSpec) {
+		t.Fatalf("foreign file prefix: %v", err)
+	}
+	func() {
+		defer func() {
+			if recover() == nil {
+				t.Fatal("NewCapture without a BootStore must panic")
+			}
+		}()
+		NewCapture(f, "w5", nil)
+	}()
+	if _, err := NewCapture(f, "w5", boot).Create(ctx, Capture{Rx: true, Interface: "loop601", MaxPackets: 1, MaxBytesPerPacket: 64, File: "w5-f.pcap"}.Proto()); !errors.Is(err, dfkit.ErrNotOwned) {
 		t.Fatalf("another owner's interface: %v", err)
 	}
 	for _, bad := range []Capture{
@@ -160,7 +184,7 @@ func TestFilterFunction(t *testing.T) {
 	}
 	r := scheduler.NewRegistry()
 	RegisterGlobals(r, f)
-	Register(r, f, "w5")
+	Register(r, f, "w5", dfkit.NewMemoryBootStore())
 	if names := r.Names(); len(names) != 2 || names[0] != NameFilterFunction {
 		t.Fatal(names)
 	}

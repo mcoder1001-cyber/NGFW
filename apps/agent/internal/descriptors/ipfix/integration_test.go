@@ -2,13 +2,12 @@ package ipfix
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/netip"
 	"testing"
 
-	"ngfw/agent/binapi/classify"
 	"ngfw/agent/binapi/ipfix_export"
+	"ngfw/agent/internal/descriptors/classify"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dfkit/dfkittest"
 	"ngfw/agent/internal/vpp/vpptest"
@@ -50,7 +49,7 @@ func TestIPFIXOnHost(t *testing.T) {
 		dfkittest.AssertAbsent(t, d, d.KeyOf(v2))
 	})
 
-	t.Run("default exporter + classify", func(t *testing.T) {
+	t.Run("default exporter", func(t *testing.T) {
 		own := WithGlobals(dfkit.GlobalsOwner(true)) // the test acts as globals owner and restores the unset state
 		d := NewDefaultExporter(c, own)
 		if cur, ok, err := d.Current(ctx); err != nil {
@@ -66,58 +65,51 @@ func TestIPFIXOnHost(t *testing.T) {
 		dfkittest.AssertRetrieved(t, d, dfkittest.KV(d, v))
 		dfkittest.AssertEmptyPlan(t, d, dfkittest.KV(d, v))
 
-		// The classify stream has no working read-back (ErrClassifyDumpBroken): write-only. Nobody
-		// else on this host uses IPFIX classify reports; it is reset to "unset" in Cleanup.
-		cs := NewClassifyStream(c, own)
-		if _, err := cs.Retrieve(ctx); !errors.Is(err, dfkit.ErrRetrieveUnsupported) {
-			t.Fatalf("classify stream retrieve: %v", err)
-		}
-		sv := ClassifyStream{DomainID: uint32(slot), SrcPort: uint16(4739 + slot)}.Proto() //nolint:gosec // slot ≤ 12
-		t.Cleanup(func() { _ = cs.Delete(context.Background(), sv, nil) })
-		for range 2 {
-			if _, err := cs.Create(ctx, sv); err != nil {
-				t.Fatal(err)
-			}
-		}
-
-		// a raw classify table stands in for DF-2's descriptor
-		cl := classify.NewServiceClient(c)
-		mask := make([]byte, 16)
-		mask[12] = 0xff
-		tbl, err := cl.ClassifyAddDelTable(ctx, &classify.ClassifyAddDelTable{
-			IsAdd: true, TableIndex: ^uint32(0), Nbuckets: 2, MemorySize: 2 << 20, MatchNVectors: 1,
-			NextTableIndex: ^uint32(0), MissNextIndex: ^uint32(0), Mask: mask, MaskLen: 16,
-		})
-		if err != nil {
-			t.Fatalf("classify_add_del_table: %v", err)
-		}
-		t.Cleanup(func() {
-			_, _ = cl.ClassifyAddDelTable(context.Background(), &classify.ClassifyAddDelTable{TableIndex: tbl.NewTableIndex, DelChain: true})
-		})
-		ct := NewClassifyTable(c, WithClassifyTableScope(func(i uint32) bool { return i == tbl.NewTableIndex }))
-		tv := ClassifyTable{Table: tbl.NewTableIndex, IPVersion: "ip4", Protocol: 17}.Proto()
-		t.Cleanup(func() { _ = ct.Delete(context.Background(), tv, nil) })
-		if _, err := ct.Create(ctx, tv); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := ct.Create(ctx, tv); err != nil { // re-apply: VALUE_EXIST is success
-			t.Fatal(err)
-		}
-		if _, err := ct.Retrieve(ctx); !errors.Is(err, dfkit.ErrRetrieveUnsupported) {
-			t.Fatalf("classify table retrieve: %v", err)
-		}
-		dfkittest.HoldForEvidence(t, "ipfix default exporter + classify stream/table configured")
-		for range 2 { // second delete: NO_SUCH_ENTRY counts as deleted
-			if err := ct.Delete(ctx, tv, nil); err != nil {
-				t.Fatal(err)
-			}
-		}
-		if err := cs.Delete(ctx, sv, nil); err != nil {
-			t.Fatal(err)
-		}
 		if err := d.Delete(ctx, v, nil); err != nil {
 			t.Fatal(err)
 		}
 		dfkittest.AssertAbsent(t, d, KeyDefaultExporter)
 	})
+}
+
+// The classify stream is a getter-less VPP-global (its dump is broken, V16) and VPP refuses
+// classify tables before it is set: this host check is opt-in (VRX_DF8_GLOBALS=1, manager window,
+// review M3). The table is DF-2's, created by name through classify.TableDescriptor (H2).
+func TestIPFIXClassifyOnHost(t *testing.T) {
+	dfkittest.SkipUnlessGlobals(t, "set_ipfix_classify_stream")
+	h := dfkittest.ConnectHost(t)
+	h.LockGlobals(t)
+	c := h.Client()
+	ctx := context.Background()
+	slot := vpptest.Slot(t)
+	cs := NewClassifyStream(c, WithGlobals(dfkit.GlobalsOwner(true)))
+	sv := ClassifyStream{DomainID: uint32(slot), SrcPort: uint16(4739 + slot)}.Proto() //nolint:gosec // slot ≤ 12
+	t.Cleanup(func() { _ = cs.Delete(context.Background(), sv, nil) })
+	for range 2 {
+		if _, err := cs.Create(ctx, sv); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store := classify.NewMemStore()
+	tdesc := classify.NewTable(c, store)
+	mask := make([]byte, 16)
+	mask[12] = 0xff
+	tbl := &classify.Table{Name: h.Owner + "-ipfix", Mask: mask}
+	if _, err := tdesc.Create(ctx, tbl); err != nil {
+		t.Fatalf("DF-2 classify.table: %v", err)
+	}
+	t.Cleanup(func() { _ = tdesc.Delete(context.Background(), tbl, nil) })
+	ct := NewClassifyTable(c, store)
+	tv := ClassifyTable{Table: tbl.Name, IPVersion: "ip4", Protocol: 17}.Proto()
+	t.Cleanup(func() { _ = ct.Delete(context.Background(), tv, nil) })
+	for range 2 { // re-apply: VALUE_EXIST is success
+		if _, err := ct.Create(ctx, tv); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for range 2 {
+		if err := ct.Delete(ctx, tv, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
 }

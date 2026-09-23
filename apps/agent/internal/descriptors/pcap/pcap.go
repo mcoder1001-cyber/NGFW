@@ -11,12 +11,15 @@
 //
 // The capture file: VPP accepts a bare file name and writes /tmp/<name> (unformat_vlib_tmpfile
 // rejects "/" and ".."), so files cannot live under /run/vrx-test/<prefix>/; tests use
-// "<prefix>-….pcap" and remove the file.
+// "<prefix>-….pcap" and remove the file. The file name must start with "<owner>-" (review L1).
+// VPP creates it world-readable (vppinfra/pcap.c opens it 0664): F-capture-trace must move or
+// chmod it to 0600 into an agent directory after pcap_trace_off and apply a retention policy.
 package pcap
 
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"errors"
 	"fmt"
 	"sync"
@@ -126,8 +129,8 @@ func (s FilterFunction) Validate() error {
 }
 
 // Register constructs and registers the pcap descriptors.
-func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Option) {
-	r.Register(NewCapture(client, owner, opts...))
+func Register(r scheduler.Registry, client vpp.Client, owner string, boot dfkit.BootStore, opts ...Option) {
+	r.Register(NewCapture(client, owner, boot, opts...))
 }
 
 // RegisterGlobals registers this package's VPP-global singleton descriptors, constructed as the
@@ -181,14 +184,21 @@ type CaptureDescriptor struct {
 	owner  string
 	o      options
 
-	mu sync.Mutex // serialises Create/Delete (one capture per VPP)
+	boot dfkit.BootStore
+	mu   sync.Mutex // serialises Create/Delete (one capture per VPP)
 }
 
 var _ scheduler.Descriptor = (*CaptureDescriptor)(nil)
 
-// NewCapture returns the pcap.capture descriptor.
-func NewCapture(client vpp.Client, owner string, opts ...Option) *CaptureDescriptor {
-	return &CaptureDescriptor{client: client, owner: owner, o: buildOptions(opts)}
+// NewCapture returns the pcap.capture descriptor. boot records the capture this owner started,
+// bound to the VPP boot identity (D-076/D-080); it must survive an agent restart (a persisted
+// dfkit.NewFileBootStore), otherwise the agent cannot recognise — nor stop — its own running
+// capture after a restart. A nil store panics (programming error, like a duplicate registration).
+func NewCapture(client vpp.Client, owner string, boot dfkit.BootStore, opts ...Option) *CaptureDescriptor {
+	if boot == nil {
+		panic("pcap: NewCapture needs a BootStore (the agent passes a persisted dfkit.NewFileBootStore, review M4)")
+	}
+	return &CaptureDescriptor{client: client, owner: owner, boot: boot, o: buildOptions(opts)}
 }
 
 // Name implements scheduler.Descriptor.
@@ -223,10 +233,13 @@ func (d *CaptureDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
+	if !strings.HasPrefix(s.File, d.owner+"-") { // L1: owners never overwrite each other's capture
+		return nil, dfkit.Specf("pcap capture: file %q must start with the owner prefix %q", s.File, d.owner+"-")
+	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	value, _ := json.Marshal(s)
-	applied, id, err := dfkit.AppliedThisBoot(ctx, d.client, d.owner, KeyCapture, string(value))
+	applied, id, err := dfkit.AppliedThisBoot(ctx, d.client, d.boot, KeyCapture, string(value))
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +263,7 @@ func (d *CaptureDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	if err != nil {
 		return nil, fmt.Errorf("pcap_trace_on(%s): %w", s.File, err)
 	}
-	return nil, dfkit.Record(d.owner, KeyCapture, id, string(value))
+	return nil, d.boot.Put(dfkit.BootRecord{Key: string(KeyCapture), Identity: id, Value: string(value)})
 }
 
 // Update implements scheduler.Descriptor: a running capture cannot be changed — recreate.
@@ -263,12 +276,12 @@ func (*CaptureDescriptor) Update(context.Context, proto.Message, proto.Message, 
 func (d *CaptureDescriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	started, err := dfkit.StartedThisBoot(ctx, d.client, d.owner, KeyCapture)
+	started, err := dfkit.StartedThisBoot(ctx, d.client, d.boot, KeyCapture)
 	if err != nil {
 		return err
 	}
 	if !started {
-		return dfkit.Forget(d.owner, KeyCapture)
+		return d.boot.Delete(string(KeyCapture))
 	}
 	_, err = interfaces.NewServiceClient(d.client).PcapTraceOff(ctx, &interfaces.PcapTraceOff{})
 	// VALUE_EXIST: nothing was running; NO_SUCH_ENTRY: stopped, but no packet was captured (VPP
@@ -276,7 +289,7 @@ func (d *CaptureDescriptor) Delete(ctx context.Context, _ proto.Message, _ any) 
 	if err != nil && !dfkit.IsVPPError(err, api.VALUE_EXIST, api.NO_SUCH_ENTRY) {
 		return fmt.Errorf("pcap_trace_off: %w", err)
 	}
-	return dfkit.Forget(d.owner, KeyCapture)
+	return d.boot.Delete(string(KeyCapture))
 }
 
 // Retrieve implements scheduler.Descriptor: VPP has no pcap status message (write-only, D-063).

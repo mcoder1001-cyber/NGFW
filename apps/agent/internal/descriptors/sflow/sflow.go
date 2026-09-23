@@ -292,22 +292,25 @@ type InterfaceMeta struct {
 }
 
 // InterfaceDescriptor manages sflow.interface objects: key sflow.interface/<interface> (logical
-// name, D-069): this owner's tagged interfaces, or untagged ones claimed on Create (D-071).
+// name, D-069): this owner's tagged interfaces, or untagged ones claimed after a successful enable
+// (D-071, review H1).
 //
-// Retrieve: sflow_interface_dump gives the enabled hw_if_indexes. Those learned at Create map to
-// interfaces directly. If unlearned indexes remain, every interface of this agent (tagged, or
-// untagged and claimed; never a sub-interface) not yet known to be enabled is probed with
-// sflow_enable_disable(enable=1): VALUE_EXIST means it is enabled (reported); success means it
-// was not, and it is disabled again at once (only this agent's own interfaces are ever probed, and
-// only while unlearned enabled indexes exist). The mapping found this way is learned when it is
-// unambiguous. All calls of one descriptor are serialised.
+// The hw_if_index gap: sflow_interface_details carries only hw_if_index and no VPP API maps it to
+// a sw_if_index. The descriptor keeps a hw → sw map bound to the D-080 VPP boot identity (cleared
+// when VPP restarts, review M1). It learns an entry only deterministically, in Create: from the
+// dump difference of its own enable when exactly one hw index appeared, otherwise (and when the
+// interface was already enabled, e.g. after an agent restart) by disabling it, dumping and
+// re-enabling it — the hw index that disappears is its own. Retrieve is read-only (review M2): it
+// reports learned entries that are still enabled; an enabled interface it has not learned is not
+// reported, so the scheduler runs Create once, which learns it. All calls are serialised.
 type InterfaceDescriptor struct {
 	client vpp.Client
 	owner  string
 	o      options
 
-	mu      sync.Mutex
-	learned map[uint32]uint32 // hw_if_index → sw_if_index
+	mu         sync.Mutex
+	learned    map[uint32]uint32 // hw_if_index → sw_if_index
+	learnedFor string            // boot identity the map belongs to
 }
 
 var _ scheduler.Descriptor = (*InterfaceDescriptor)(nil)
@@ -315,6 +318,19 @@ var _ scheduler.Descriptor = (*InterfaceDescriptor)(nil)
 // NewInterface returns the sflow.interface descriptor.
 func NewInterface(client vpp.Client, owner string, opts ...Option) *InterfaceDescriptor {
 	return &InterfaceDescriptor{client: client, owner: owner, o: buildOptions(opts), learned: map[uint32]uint32{}}
+}
+
+// epoch drops the map when VPP's boot identity changed (M1). Caller holds d.mu.
+func (d *InterfaceDescriptor) epoch(ctx context.Context) error {
+	id, err := dfkit.IdentitySource(ctx, d.client)
+	if err != nil {
+		return err
+	}
+	if id != d.learnedFor {
+		d.learned = map[uint32]uint32{}
+		d.learnedFor = id
+	}
+	return nil
 }
 
 // Name implements scheduler.Descriptor.
@@ -374,8 +390,9 @@ func (d *InterfaceDescriptor) spec(obj proto.Message) (Interface, error) {
 	return s, nil
 }
 
-// Create implements scheduler.Descriptor; VALUE_EXIST (already enabled) is success. The
-// hw_if_index is learned from the dump difference.
+// Create implements scheduler.Descriptor. An already enabled interface (VALUE_EXIST) is accepted
+// only if it is ours (tagged, or claimed before an agent restart); the claim is recorded only after
+// VPP accepted the enable (review H1).
 func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	s, err := d.spec(obj)
 	if err != nil {
@@ -383,7 +400,10 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	idx, err := dfkit.ResolveAndClaim(ctx, d.client, s.Interface, d.owner, NameInterface)
+	if err := d.epoch(ctx); err != nil {
+		return nil, err
+	}
+	tg, err := dfkit.ResolveTarget(ctx, d.client, s.Interface, d.owner, NameInterface)
 	if err != nil {
 		return nil, err
 	}
@@ -391,24 +411,71 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	if err != nil {
 		return nil, err
 	}
-	if err := d.enable(ctx, idx, true); err != nil {
-		if dfkit.IsVPPError(err, api.VALUE_EXIST) {
-			return InterfaceMeta{SwIfIndex: idx, HwIfIndex: d.hwOf(idx)}, nil
+	err = d.enable(ctx, tg.Index, true)
+	switch {
+	case dfkit.IsVPPError(err, api.VALUE_EXIST):
+		if aerr := tg.Adopt(); aerr != nil {
+			return nil, aerr
 		}
+		if d.hwOf(tg.Index) == 0 {
+			if err := d.learnByToggle(ctx, tg.Index); err != nil {
+				return nil, err
+			}
+		}
+	case err != nil:
 		return nil, fmt.Errorf("sflow_enable_disable(%s, enable=1): %w", s.Interface, err)
-	}
-	after, err := d.enabledHw(ctx)
-	if err != nil {
-		return nil, err
-	}
-	meta := InterfaceMeta{SwIfIndex: idx}
-	for hw := range after {
-		if !before[hw] {
-			meta.HwIfIndex = hw
-			d.learned[hw] = idx
+	default:
+		after, err := d.enabledHw(ctx)
+		if err != nil {
+			return nil, err
+		}
+		var fresh []uint32
+		for hw := range after {
+			if !before[hw] {
+				fresh = append(fresh, hw)
+			}
+		}
+		if len(fresh) == 1 {
+			d.learned[fresh[0]] = tg.Index
+		} else if err := d.learnByToggle(ctx, tg.Index); err != nil { // someone else enabled concurrently
+			return nil, err
+		}
+		if err := tg.Claim(); err != nil {
+			return nil, err
 		}
 	}
-	return meta, nil
+	return InterfaceMeta{SwIfIndex: tg.Index, HwIfIndex: d.hwOf(tg.Index)}, nil
+}
+
+// learnByToggle finds the hw index of our enabled interface sw: disable, dump, re-enable — the
+// index that disappeared is ours. It writes the data plane only for our own interface and only on
+// the Create (write) path. Ambiguous results (a concurrent change) learn nothing; the next
+// resync's Create tries again. Caller holds d.mu.
+func (d *InterfaceDescriptor) learnByToggle(ctx context.Context, sw uint32) error {
+	before, err := d.enabledHw(ctx)
+	if err != nil {
+		return err
+	}
+	if err := d.enable(ctx, sw, false); err != nil {
+		return fmt.Errorf("sflow learn (disable): %w", err)
+	}
+	mid, derr := d.enabledHw(ctx)
+	if err := d.enable(ctx, sw, true); err != nil && !dfkit.IsVPPError(err, api.VALUE_EXIST) {
+		return fmt.Errorf("sflow learn (re-enable): %w", err)
+	}
+	if derr != nil {
+		return derr
+	}
+	var gone []uint32
+	for hw := range before {
+		if !mid[hw] {
+			gone = append(gone, hw)
+		}
+	}
+	if len(gone) == 1 {
+		d.learned[gone[0]] = sw
+	}
+	return nil
 }
 
 func (d *InterfaceDescriptor) hwOf(sw uint32) uint32 {
@@ -425,116 +492,65 @@ func (d *InterfaceDescriptor) Update(ctx context.Context, _, newObj proto.Messag
 	return d.Create(ctx, newObj)
 }
 
-// Delete implements scheduler.Descriptor. sflow_enable_disable(0) on a disabled interface is a
-// harmless VALUE_EXIST (host-verified), which is the D-074 existence check here: the sw → hw
-// mapping needed to consult the dump is not available after a restart. A vanished interface
-// counts as deleted.
-func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor. It re-resolves the interface right before acting by
+// index and never touches an unclaimed untagged interface (H1). sflow_enable_disable(0) on a
+// disabled interface is a harmless VALUE_EXIST (host-verified): that is the D-074 existence check.
+func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	s, err := d.spec(obj)
 	if err != nil {
 		return err
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	_ = meta // re-resolve right before acting by index (reused after a VPP restart, D-071)
-	idx, ok, err := dfkit.VerifyIndex(ctx, d.client, s.Interface, d.owner)
-	if err != nil {
+	tg, ok, err := dfkit.ResolveForDelete(ctx, d.client, s.Interface, d.owner, NameInterface)
+	if err != nil || !ok {
 		return err
 	}
-	if !ok {
-		return dfkit.Claims(d.owner).Release(s.Interface, NameInterface)
-	}
-	err = d.enable(ctx, idx, false)
+	err = d.enable(ctx, tg.Index, false)
 	if err != nil && !dfkit.IsVPPError(err, api.VALUE_EXIST, api.INVALID_SW_IF_INDEX) {
 		return fmt.Errorf("sflow_enable_disable(%s, enable=0): %w", s.Interface, err)
 	}
 	for hw, sw := range d.learned {
-		if sw == idx {
+		if sw == tg.Index {
 			delete(d.learned, hw)
 		}
 	}
-	return dfkit.Claims(d.owner).Release(s.Interface, NameInterface)
+	return tg.Release()
 }
 
-// Retrieve implements scheduler.Descriptor (see the type doc for the probe).
+// Retrieve implements scheduler.Descriptor: read-only (M2) — learned entries (current VPP boot
+// identity) whose hw index is enabled and whose interface is still ours.
 func (d *InterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if err := d.epoch(ctx); err != nil {
+		return nil, err
+	}
 	hws, err := d.enabledHw(ctx)
 	if err != nil {
 		return nil, err
-	}
-	if len(hws) == 0 {
-		d.learned = map[uint32]uint32{}
-		return nil, nil
-	}
-	ifaces, err := dfkit.DumpInterfaces(ctx, d.client, d.owner)
-	if err != nil {
-		return nil, err
-	}
-	enabled := map[string]InterfaceMeta{}
-	var unknown []uint32
-	for hw := range hws {
-		sw, ok := d.learned[hw]
-		if name, mine := ifaces.Reportable(sw, NameInterface); ok && mine {
-			enabled[name] = InterfaceMeta{SwIfIndex: sw, HwIfIndex: hw}
-			continue
-		}
-		delete(d.learned, hw)
-		unknown = append(unknown, hw)
 	}
 	for hw := range d.learned { // learned but no longer enabled
 		if !hws[hw] {
 			delete(d.learned, hw)
 		}
 	}
-	if len(unknown) > 0 {
-		found, err := d.probe(ctx, ifaces, enabled)
-		if err != nil {
-			return nil, err
-		}
-		if len(unknown) == 1 && len(found) == 1 { // unambiguous: learn it
-			m := enabled[found[0]]
-			m.HwIfIndex = unknown[0]
-			enabled[found[0]] = m
-			d.learned[unknown[0]] = m.SwIfIndex
-		}
+	if len(d.learned) == 0 {
+		return nil, nil
 	}
-	out := make([]scheduler.KV, 0, len(enabled))
-	for name, m := range enabled {
-		out = append(out, scheduler.KV{Key: scheduler.Join(NameInterface, name), Value: Interface{Interface: name}.Proto(), Meta: m})
+	ifaces, err := dfkit.DumpInterfaces(ctx, d.client, d.owner)
+	if err != nil {
+		return nil, err
+	}
+	var out []scheduler.KV
+	for hw, sw := range d.learned {
+		name, mine := ifaces.Reportable(sw, NameInterface)
+		if !mine {
+			continue
+		}
+		out = append(out, scheduler.KV{Key: scheduler.Join(NameInterface, name), Value: Interface{Interface: name}.Proto(),
+			Meta: InterfaceMeta{SwIfIndex: sw, HwIfIndex: hw}})
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Key < out[j].Key })
 	return dfkit.Dedupe(out), nil
-}
-
-// probe finds this agent's (non-sub) interfaces that are enabled but not yet in enabled, adding
-// them; it returns their logical names.
-func (d *InterfaceDescriptor) probe(ctx context.Context, ifaces *dfkit.Ifaces, enabled map[string]InterfaceMeta) ([]string, error) {
-	idxs := make([]uint32, 0, len(ifaces.ByIndex))
-	for idx := range ifaces.ByIndex {
-		idxs = append(idxs, idx)
-	}
-	sort.Slice(idxs, func(i, j int) bool { return idxs[i] < idxs[j] })
-	var found []string
-	for _, idx := range idxs {
-		i := ifaces.ByIndex[idx]
-		name, mine := ifaces.Reportable(idx, NameInterface)
-		if _, known := enabled[name]; !mine || known || i.SupIndex != i.Index {
-			continue
-		}
-		err := d.enable(ctx, idx, true)
-		switch {
-		case dfkit.IsVPPError(err, api.VALUE_EXIST):
-			enabled[name] = InterfaceMeta{SwIfIndex: idx}
-			found = append(found, name)
-		case err == nil: // was disabled: undo at once
-			if err := d.enable(ctx, idx, false); err != nil {
-				return nil, fmt.Errorf("sflow probe of %s: undo enable: %w", name, err)
-			}
-		default:
-			return nil, fmt.Errorf("sflow probe of %s: %w", name, err)
-		}
-	}
-	return found, nil
 }

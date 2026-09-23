@@ -324,8 +324,87 @@ func TestClientOnUntaggedInterface(t *testing.T) {
 	if err := d.Delete(context.Background(), v, meta); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := clients[9]; ok || dfkit.Claims(owner).Claimed("ens192", NameClient) {
-		t.Fatal("delete must remove the client and release the claim")
+	if _, ok := clients[9]; ok {
+		t.Fatal("delete must remove the client")
+	}
+	if kvs := dfkittest.MustRetrieve(t, d); len(kvs) != 0 {
+		t.Fatalf("claim not released: %v", kvs)
+	}
+}
+
+// H1: a DHCP client someone else configured on an untagged NIC is never adopted (not even when
+// identical), a failed add leaves no claim, and Retrieve/Delete leave it alone.
+func TestClientForeignOnUntagged(t *testing.T) {
+	f, clients := newClientFake()
+	owner := "w5h1"
+	d := NewClient(f, owner)
+	foreign := dhcp.DHCPClient{SwIfIndex: 9, Hostname: "w5-wan", ID: make([]byte, 64)}
+	clients[9] = foreign
+	for _, v := range []Client{{Interface: "ens192", Hostname: "w5-other"}, {Interface: "ens192", Hostname: "w5-wan"}} {
+		if _, err := d.Create(context.Background(), v.Proto()); !errors.Is(err, dfkit.ErrNotOurs) {
+			t.Fatalf("%+v: foreign client adopted: %v", v, err)
+		}
+	}
+	if kvs := dfkittest.MustRetrieve(t, d); len(kvs) != 0 {
+		t.Fatalf("foreign client reported: %v", kvs)
+	}
+	if err := d.Delete(context.Background(), Client{Interface: "ens192", Hostname: "w5-wan"}.Proto(), nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := clients[9]; !ok {
+		t.Fatal("foreign client deleted")
+	}
+}
+
+// M6: VPP binds lease events to the API connection that configured the client. A client
+// configured by an earlier process or connection (another pid in VPP) is reported with
+// want_events=false → drift → recreate; Reconnected() makes the current subscription stale too.
+func TestClientEventSubscriptionPerConnection(t *testing.T) {
+	f, clients := newClientFake()
+	d := NewClient(f, owner)
+	want := Client{Interface: "loop501", Hostname: "w5-ev", WantEvents: true}.Proto()
+	if _, err := d.Create(context.Background(), want); err != nil {
+		t.Fatal(err)
+	}
+	dfkittest.AssertEmptyPlan(t, d, dfkittest.KV(d, want))
+	c := clients[7]
+	c.PID ^= 1 // configured by another process
+	clients[7] = c
+	if p := dfkittest.DiffPlan([]scheduler.KV{dfkittest.KV(d, want)}, dfkittest.MustRetrieve(t, d)); len(p.Update) != 1 {
+		t.Fatalf("stale event pid must be drift: %s", dfkittest.PlanString(p))
+	}
+	c.PID = d.EventPID()
+	clients[7] = c
+	dfkittest.AssertEmptyPlan(t, d, dfkittest.KV(d, want))
+	d.Reconnected()
+	if p := dfkittest.DiffPlan([]scheduler.KV{dfkittest.KV(d, want)}, dfkittest.MustRetrieve(t, d)); len(p.Update) != 1 {
+		t.Fatalf("a new API connection must re-register the events: %s", dfkittest.PlanString(p))
+	}
+	// the scheduler recreates it: delete + create on the new connection → no drift
+	if err := d.Delete(context.Background(), want, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.Create(context.Background(), want); err != nil {
+		t.Fatal(err)
+	}
+	dfkittest.AssertEmptyPlan(t, d, dfkittest.KV(d, want))
+}
+
+// L6: all servers of one rx VRF and family share VPP's single source address.
+func TestProxyRefusesSecondSrc(t *testing.T) {
+	f, _ := newProxyFake()
+	d := NewProxy(f, WithVRFScope(inScope))
+	if _, err := d.Create(context.Background(), Proxy{RxVRF: 5001, Server: "10.5.0.1", Src: "10.5.0.2"}.Proto()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.Create(context.Background(), Proxy{RxVRF: 5001, Server: "10.5.0.3", Src: "10.5.0.9"}.Proto()); !errors.Is(err, dfkit.ErrSpec) {
+		t.Fatalf("second src accepted: %v", err)
+	}
+	if _, err := d.Create(context.Background(), Proxy{RxVRF: 5001, Server: "10.5.0.3", Src: "10.5.0.2"}.Proto()); err != nil {
+		t.Fatalf("same src: %v", err)
+	}
+	if _, err := d.Create(context.Background(), Proxy{RxVRF: 5001, Server: "fd00::3", Src: "fd00::9"}.Proto()); err != nil {
+		t.Fatalf("other family: %v", err)
 	}
 }
 

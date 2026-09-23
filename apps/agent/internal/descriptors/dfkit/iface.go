@@ -37,6 +37,10 @@ type Ifaces struct {
 	T       *iface.Table
 	ByIndex map[uint32]Iface
 	ByName  map[string]Iface
+
+	ctx      context.Context //nolint:containedctx // one Retrieve call's context, for the lazy identity
+	client   vpp.Client
+	identity string
 }
 
 // DumpInterfaces runs sw_interface_dump for all interfaces (iface.Dump) for owner.
@@ -45,7 +49,7 @@ func DumpInterfaces(ctx context.Context, c vpp.Client, owner string) (*Ifaces, e
 	if err != nil {
 		return nil, err
 	}
-	out := &Ifaces{T: t, ByIndex: map[uint32]Iface{}, ByName: map[string]Iface{}}
+	out := &Ifaces{T: t, ByIndex: map[uint32]Iface{}, ByName: map[string]Iface{}, ctx: ctx, client: c}
 	for _, idx := range t.Indexes() {
 		d, _ := t.Details(idx)
 		i := Iface{
@@ -64,12 +68,27 @@ func DumpInterfaces(ctx context.Context, c vpp.Client, owner string) (*Ifaces, e
 func (t *Ifaces) Resolve(name string) (uint32, error) { return t.T.IndexByName(name) }
 
 // Reportable returns the logical name of idx when an object of descriptor holder on it is this
-// agent's: always on our tagged interfaces, on untagged ones only with holder's claim (D-071).
+// agent's: always on our tagged interfaces, on untagged ones only with holder's claim made on the
+// running VPP instance for this sw_if_index (D-071, D-080). The boot identity is read once per
+// Ifaces, only when an untagged interface is asked about; if it cannot be read nothing untagged is
+// reported.
 func (t *Ifaces) Reportable(idx uint32, holder string) (string, bool) {
-	if !t.T.Owns(idx, holder) {
+	name, ok := t.T.Logical(idx)
+	if !ok {
 		return "", false
 	}
-	return t.T.Logical(idx)
+	if !t.T.Untagged(idx) {
+		return name, true
+	}
+	if t.identity == "" {
+		id, err := IdentitySource(t.ctx, t.client)
+		if err != nil {
+			return "", false
+		}
+		t.identity = id
+	}
+	tg := Target{Name: name, Index: idx, Untagged: true, Owner: t.T.Owner(), Holder: holder, Identity: t.identity}
+	return name, tg.Claimed()
 }
 
 // Logical returns the logical name of idx (our tag id, or VPP's name when untagged).
@@ -80,21 +99,76 @@ func ResolveInterface(ctx context.Context, c vpp.Client, name, owner string) (ui
 	return iface.ResolveName(ctx, c, owner, name)
 }
 
-// ResolveAndClaim resolves name and, when it is an untagged interface, records holder's claim in
-// the owner's ClaimStore (iface.Claims, shared with DF-1) so Retrieve reports the object (D-071).
-func ResolveAndClaim(ctx context.Context, c vpp.Client, name, owner, holder string) (uint32, error) {
+// Target is a resolved interface for a per-interface object of descriptor Holder.
+type Target struct {
+	Name     string
+	Index    uint32
+	Untagged bool
+	Owner    string
+	Holder   string
+	Identity string // D-080 boot identity at resolution time
+}
+
+// claimHolder qualifies the claim with the VPP boot identity and the sw_if_index (D-080): a claim
+// made on another VPP instance, or on another interface that now has the same name, never matches
+// and so has expired. (Stale entries of earlier instances stay in the store as inert garbage.)
+func (t Target) claimHolder() string {
+	return fmt.Sprintf("%s@%s#%d", t.Holder, t.Identity, t.Index)
+}
+
+// ResolveTarget resolves a logical name (D-069) for holder. Nothing is claimed here: the claim is
+// recorded only after VPP accepted the add (Claim), so a failed add never leaves one (review H1).
+func ResolveTarget(ctx context.Context, c vpp.Client, name, owner, holder string) (Target, error) {
 	t, err := iface.Dump(ctx, c, owner)
 	if err != nil {
-		return 0, err
+		return Target{}, err
 	}
 	idx, err := t.IndexByName(name)
 	if err != nil {
-		return 0, err
+		return Target{}, err
 	}
-	if err := t.ClaimIfUntagged(idx, holder); err != nil {
-		return 0, fmt.Errorf("claim %s for %s: %w", name, holder, err)
+	tg := Target{Name: name, Index: idx, Untagged: t.Untagged(idx), Owner: owner, Holder: holder}
+	if tg.Untagged {
+		if tg.Identity, err = IdentitySource(ctx, c); err != nil {
+			return Target{}, err
+		}
 	}
-	return idx, nil
+	return tg, nil
+}
+
+// Claimed reports whether the object on this interface is this holder's: always on our tagged
+// interfaces, on an untagged one only with an existing claim.
+func (t Target) Claimed() bool {
+	return !t.Untagged || iface.Claims(t.Owner).Claimed(t.Name, t.claimHolder())
+}
+
+// Claim records the claim after a successful add (no-op on tagged interfaces).
+func (t Target) Claim() error {
+	if !t.Untagged {
+		return nil
+	}
+	if err := iface.Claims(t.Owner).Claim(t.Name, t.claimHolder()); err != nil {
+		return fmt.Errorf("claim %s for %s: %w", t.Name, t.Holder, err)
+	}
+	return nil
+}
+
+// Release drops the claim (after a delete).
+func (t Target) Release() error {
+	if !t.Untagged {
+		return nil
+	}
+	return iface.Claims(t.Owner).Release(t.Name, t.claimHolder())
+}
+
+// Adopt is the "already exists" path of a Create: an existing object may be treated as ours
+// only if we created it before (our tagged interface, or our claim survived an agent restart);
+// otherwise the result is ErrNotOurs and nothing is claimed.
+func (t Target) Adopt() error {
+	if t.Claimed() {
+		return nil
+	}
+	return fmt.Errorf("%w: %s on untagged interface %q has no claim of %s", ErrNotOurs, t.Holder, t.Name, t.Owner)
 }
 
 // VerifyIndex re-resolves name right before a delete by index (D-071/D-074: sw_if_indexes are
@@ -125,10 +199,6 @@ func DefaultInterfaceKey(name string) scheduler.Key { return iface.AliasKey(name
 // DefaultVRFKey is the VRF key scheme of the DF-8 prompt: "vrf/<id>".
 func DefaultVRFKey(id string) scheduler.Key { return scheduler.Join("vrf", id) }
 
-// DefaultClassifyTableKey is the classify table key scheme assumed until DF-2 is merged:
-// "classify-table/<id>".
-func DefaultClassifyTableKey(id string) scheduler.Key { return scheduler.Join("classify-table", id) }
-
 // Drain reads a generated dump stream until io.EOF (the control_ping_reply). On any other error
 // the stream is closed and the error returned.
 func Drain[T any](stream interface{ Close() error }, recv func() (T, error)) ([]T, error) {
@@ -144,4 +214,19 @@ func Drain[T any](stream interface{ Close() error }, recv func() (T, error)) ([]
 		}
 		out = append(out, d)
 	}
+}
+
+// ResolveForDelete re-resolves the logical name right before a delete by sw_if_index (indexes are
+// reused after a VPP restart, D-071/D-074). ok is false when there is nothing of ours to delete:
+// the interface is gone, or it is untagged and this holder has no claim on it for the running VPP
+// instance (a foreign object is never deleted, review H1).
+func ResolveForDelete(ctx context.Context, c vpp.Client, name, owner, holder string) (Target, bool, error) {
+	tg, err := ResolveTarget(ctx, c, name, owner, holder)
+	switch {
+	case errors.Is(err, iface.ErrNotFound):
+		return Target{}, false, nil
+	case err != nil:
+		return Target{}, false, err
+	}
+	return tg, tg.Claimed(), nil
 }

@@ -6,7 +6,7 @@
 //
 // Ownership on the shared VPP: additional exporters are owned through their collector address,
 // which must be inside the collector scope given to Register (tests: 10.<slot>.0.0/16);
-// classify tables through the table scope. The default exporter and the classify stream are
+// classify tables by name through this owner's DF-2 classify store. The default exporter and the classify stream are
 // VPP-global singletons managed only by the globals owner (D-071, dfkit.Globals): for it Retrieve
 // reports exporter 0 while its collector is set; every other agent can only require a value.
 package ipfix
@@ -25,6 +25,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"ngfw/agent/binapi/ipfix_export"
+	"ngfw/agent/internal/descriptors/classify"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
@@ -113,18 +114,14 @@ type Option func(*options)
 
 type options struct {
 	vrfKey      dfkit.KeyFunc
-	tableKey    dfkit.KeyFunc
 	collectorIn func(netip.Addr) bool
-	tableIn     func(uint32) bool
 	globals     dfkit.Globals
 }
 
 func buildOptions(opts []Option) options {
 	o := options{
 		vrfKey:      dfkit.DefaultVRFKey,
-		tableKey:    dfkit.DefaultClassifyTableKey,
 		collectorIn: func(netip.Addr) bool { return true },
-		tableIn:     func(uint32) bool { return true },
 	}
 	for _, opt := range opts {
 		opt(&o)
@@ -141,15 +138,6 @@ func WithVRFKey(f dfkit.KeyFunc) Option {
 	}
 }
 
-// WithClassifyTableKey sets the classify table key scheme (DF-2; default "classify-table/<id>").
-func WithClassifyTableKey(f dfkit.KeyFunc) Option {
-	return func(o *options) {
-		if f != nil {
-			o.tableKey = f
-		}
-	}
-}
-
 // WithCollectorScope limits the additional exporters this agent owns to collectors for which in
 // returns true (default: all). Tests pass their slot's 10.<N>.0.0/16.
 func WithCollectorScope(in func(netip.Addr) bool) Option {
@@ -160,23 +148,14 @@ func WithCollectorScope(in func(netip.Addr) bool) Option {
 	}
 }
 
-// WithClassifyTableScope limits the IPFIX classify tables this agent owns (default: all).
-func WithClassifyTableScope(in func(uint32) bool) Option {
-	return func(o *options) {
-		if in != nil {
-			o.tableIn = in
-		}
-	}
-}
-
 // WithGlobals sets the D-071 role for the VPP-global default exporter and classify stream
 // (default: not the globals owner — they are then only required, never set or reset).
 func WithGlobals(g dfkit.Globals) Option { return func(o *options) { o.globals = g } }
 
 // Register constructs and registers the ipfix descriptors in dependency order.
-func Register(r scheduler.Registry, client vpp.Client, opts ...Option) {
+func Register(r scheduler.Registry, client vpp.Client, store classify.Store, opts ...Option) {
 	r.Register(NewExporter(client, opts...))
-	r.Register(NewClassifyTable(client, opts...))
+	r.Register(NewClassifyTable(client, store, opts...))
 }
 
 // RegisterGlobals registers this package's VPP-global singleton descriptors, constructed as the

@@ -306,28 +306,38 @@ func (d *ItfPairDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	if err != nil {
 		return nil, err
 	}
-	idx, err := dfkit.ResolveAndClaim(ctx, d.client, s.Interface, d.owner, NameItfPair)
+	tg, err := dfkit.ResolveTarget(ctx, d.client, s.Interface, d.owner, NameItfPair)
 	if err != nil {
 		return nil, err
 	}
 	rep, err := lcp.NewServiceClient(d.client).LcpItfPairAddDelV3(ctx, &lcp.LcpItfPairAddDelV3{
-		IsAdd: true, SwIfIndex: interface_types.InterfaceIndex(idx), HostIfName: s.HostIfName,
+		IsAdd: true, SwIfIndex: interface_types.InterfaceIndex(tg.Index), HostIfName: s.HostIfName,
 		HostIfType: hostTypeToAPI[s.HostIfType], Netns: s.Netns,
 	})
-	if err != nil {
-		if dfkit.IsVPPError(err, api.VALUE_EXIST) {
-			kvs, rerr := d.Retrieve(ctx)
-			if rerr == nil {
-				for _, kv := range kvs {
-					if kv.Key == d.KeyOf(obj) && proto.Equal(kv.Value, s.Proto()) {
-						return kv.Meta, nil
-					}
+	if dfkit.IsVPPError(err, api.VALUE_EXIST) {
+		// a pair exists: ours only if we made it (tagged interface, or our claim survived an
+		// agent restart) and it is identical; never adopt a foreign pair (review H1)
+		if aerr := tg.Adopt(); aerr != nil {
+			return nil, aerr
+		}
+		kvs, rerr := d.Retrieve(ctx)
+		if rerr == nil {
+			for _, kv := range kvs {
+				if kv.Key == d.KeyOf(obj) && proto.Equal(kv.Value, s.Proto()) {
+					return kv.Meta, nil
 				}
 			}
 		}
+	}
+	if err != nil {
 		return nil, fmt.Errorf("lcp_itf_pair_add_del_v3(add %s ↔ %s): %w", s.Interface, s.HostIfName, dfkit.PluginError(Plugin, err))
 	}
-	return PairMeta{PhySwIfIndex: idx, HostSwIfIndex: uint32(rep.HostSwIfIndex), VifIndex: rep.VifIndex}, nil
+	// L3 (open, P12): the VPP-side host tap stays untagged. Tagging it "<owner>:…" would make DF-1's
+	// tapv2 descriptor see an owned, undesired tap and delete it; P12 decides the tap's ownership.
+	if err := tg.Claim(); err != nil { // only after VPP accepted the add
+		return nil, err
+	}
+	return PairMeta{PhySwIfIndex: tg.Index, HostSwIfIndex: uint32(rep.HostSwIfIndex), VifIndex: rep.VifIndex}, nil
 }
 
 // Update implements scheduler.Descriptor: recreate.
@@ -343,13 +353,11 @@ func (d *ItfPairDescriptor) Delete(ctx context.Context, obj proto.Message, meta 
 		return err
 	}
 	_ = meta // re-resolve right before acting by index (reused after a VPP restart, D-071)
-	idx, ok, err := dfkit.VerifyIndex(ctx, d.client, s.Interface, d.owner)
-	if err != nil {
-		return err
+	tg, ok, err := dfkit.ResolveForDelete(ctx, d.client, s.Interface, d.owner, NameItfPair)
+	if err != nil || !ok {
+		return err // gone, or a foreign pair on an unclaimed untagged interface: never touched
 	}
-	if !ok {
-		return dfkit.Claims(d.owner).Release(s.Interface, NameItfPair)
-	}
+	idx := tg.Index
 	// D-074: delete only a pair that still exists on this interface
 	pairs, err := Pairs(ctx, d.client)
 	if err != nil {
@@ -367,7 +375,7 @@ func (d *ItfPairDescriptor) Delete(ctx context.Context, obj proto.Message, meta 
 			return fmt.Errorf("lcp_itf_pair_add_del_v3(del %s): %w", s.Interface, dfkit.PluginError(Plugin, err))
 		}
 	}
-	return dfkit.Claims(d.owner).Release(s.Interface, NameItfPair)
+	return tg.Release()
 }
 
 // Pairs reads every pair (lcp_itf_pair_get, cursor-paged). lcp_itf_pair_get_v2 is not used: for

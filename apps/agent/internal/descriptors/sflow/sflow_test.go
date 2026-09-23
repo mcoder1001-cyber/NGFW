@@ -132,7 +132,9 @@ func TestGlobal(t *testing.T) {
 	}
 }
 
-func TestInterfaceLearnAndProbe(t *testing.T) {
+func enables(f *dfkittest.FakeVPP) int { return len(f.CallsNamed("sflow_enable_disable")) }
+
+func TestInterfaceLearnReadOnlyRetrieve(t *testing.T) {
 	f, m := newFake()
 	ctx := context.Background()
 	d := NewInterface(f, "w5")
@@ -148,75 +150,119 @@ func TestInterfaceLearnAndProbe(t *testing.T) {
 	if uint32(req.HwIfIndex) != 7 || !req.EnableDisable {
 		t.Fatalf("request must carry the sw_if_index: %+v", req)
 	}
-	if _, err := d.Create(ctx, v); err != nil { // VALUE_EXIST = success
+	if _, err := d.Create(ctx, v); err != nil { // VALUE_EXIST on our tagged interface = success
 		t.Fatal(err)
 	}
-	toggles := m.toggles
-	got := dfkittest.AssertRetrieved(t, d, dfkittest.KV(d, v))
-	if got.Meta != meta || m.toggles != toggles {
-		t.Fatalf("learned retrieve must not probe: meta %v toggles %d→%d", got.Meta, toggles, m.toggles)
-	}
-	dfkittest.AssertEmptyPlan(t, d, dfkittest.KV(d, v))
-
-	// agent restart + another owner's interface enabled: the fresh descriptor probes loop501 and
-	// loop502 (ours), never loop601; loop502 is turned on and straight off again
+	// M2: Retrieve never writes, also with another owner's unknown enabled index present
 	m.enabled[9] = true
+	n := enables(f)
+	got := dfkittest.AssertRetrieved(t, d, dfkittest.KV(d, v))
+	dfkittest.AssertEmptyPlan(t, d, dfkittest.KV(d, v))
+	if got.Meta != meta || enables(f) != n {
+		t.Fatalf("retrieve wrote the data plane or lost the mapping: %v, %d→%d", got.Meta, n, enables(f))
+	}
+
+	// agent restart: a fresh descriptor knows nothing and reports nothing (read-only); the
+	// scheduler's Create finds VALUE_EXIST on our interface and learns by toggling only it
 	fresh := NewInterface(f, "w5")
-	kvs := dfkittest.MustRetrieve(t, fresh)
-	if len(kvs) != 1 || kvs[0].Key != "sflow.interface/loop501" || m.enabled[8] || !m.enabled[9] {
-		t.Fatalf("probe result %v, state %v", kvs, m.enabled)
+	if kvs := dfkittest.MustRetrieve(t, fresh); len(kvs) != 0 || enables(f) != n {
+		t.Fatalf("fresh retrieve %v, enables %d→%d", kvs, n, enables(f))
+	}
+	meta2, err := fresh.Create(ctx, v)
+	if err != nil || meta2 != (InterfaceMeta{SwIfIndex: 7, HwIfIndex: 3}) || !m.enabled[7] {
+		t.Fatalf("learn by toggle: %v %v", meta2, err)
 	}
 	for _, c := range f.CallsNamed("sflow_enable_disable") {
 		if uint32(c.(*sflow.SflowEnableDisable).HwIfIndex) == 9 {
-			t.Fatal("probed another owner's interface")
+			t.Fatal("touched another owner's interface")
 		}
 	}
-	// two unknown hw indexes (3 and 5), one found → ambiguous, not learned: meta has no hw
-	if kvs[0].Meta.(InterfaceMeta).HwIfIndex != 0 {
-		t.Fatalf("ambiguous mapping learned: %v", kvs[0].Meta)
+	dfkittest.AssertRetrieved(t, fresh, dfkittest.KV(fresh, v))
+
+	// M1: VPP restart — the map is dropped; a foreign interface now owning hw index 3 is not ours
+	f.RestartVPP()
+	m.enabled = map[uint32]bool{9: true}
+	m.hwOf[9] = 3
+	if kvs := dfkittest.MustRetrieve(t, fresh); len(kvs) != 0 {
+		t.Fatalf("stale hw→sw map survived the VPP restart: %v", kvs)
+	}
+	m.hwOf[9] = 5
+	delete(m.enabled, 9)
+
+	// learning only from an unambiguous dump difference: a concurrent enable (hw 6 of ens192)
+	// during our add makes Create fall back to the toggle, which still finds hw 4 for loop502
+	v2 := Interface{Interface: "loop502"}.Proto()
+	f.On("sflow_enable_disable", concurrentEnabler(m, 8, 10))
+	meta3, err := fresh.Create(ctx, v2)
+	if err != nil || meta3 != (InterfaceMeta{SwIfIndex: 8, HwIfIndex: 4}) {
+		t.Fatalf("concurrent enable: %v %v", meta3, err)
 	}
 	for range 2 {
-		if err := fresh.Delete(ctx, v, kvs[0].Meta); err != nil {
+		if err := fresh.Delete(ctx, v2, nil); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if m.enabled[7] {
+	if m.enabled[8] {
 		t.Fatal("not disabled")
-	}
-	delete(m.enabled, 9)
-	if kvs := dfkittest.MustRetrieve(t, fresh); len(kvs) != 0 {
-		t.Fatalf("after delete %v", kvs)
-	}
-	// unambiguous probe learns the mapping
-	m.enabled[8] = true
-	kvs = dfkittest.MustRetrieve(t, NewInterface(f, "w5"))
-	if len(kvs) != 1 || kvs[0].Meta != (InterfaceMeta{SwIfIndex: 8, HwIfIndex: 4}) {
-		t.Fatalf("unambiguous probe %v", kvs)
 	}
 	if _, err := d.Create(ctx, Interface{Interface: "loop601"}.Proto()); !errors.Is(err, dfkit.ErrNotOwned) {
 		t.Fatal(err)
-	}
-	// an untagged NIC is probed only while claimed (D-071): never another owner's or unclaimed one
-	delete(m.enabled, 8)
-	uv := Interface{Interface: "ens192"}.Proto()
-	if _, err := d.Create(ctx, uv); err != nil {
-		t.Fatal(err)
-	}
-	if kvs := dfkittest.MustRetrieve(t, NewInterface(f, "w5")); len(kvs) != 1 || kvs[0].Key != "sflow.interface/ens192" {
-		t.Fatalf("claimed untagged NIC after restart: %v", kvs)
-	}
-	for _, c := range f.CallsNamed("sflow_enable_disable") {
-		if r := c.(*sflow.SflowEnableDisable); uint32(r.HwIfIndex) == 10 && r.EnableDisable && dfkit.Claims("w7").Claimed("ens192", NameInterface) {
-			t.Fatal("unexpected claim")
-		}
-	}
-	if err := d.Delete(ctx, uv, nil); err != nil || m.enabled[10] || dfkit.Claims("w5").Claimed("ens192", NameInterface) {
-		t.Fatalf("untagged delete: %v", err)
 	}
 	r := scheduler.NewRegistry()
 	RegisterGlobals(r, f)
 	Register(r, f, "w5")
 	if r.Len() != 2 {
 		t.Fatal(r.Names())
+	}
+}
+
+// concurrentEnabler behaves like VPP's sflow_enable_disable and, the first time sw is enabled,
+// also enables other (someone else's concurrent change).
+func concurrentEnabler(m *model, sw, other uint32) func(api.Message) ([]api.Message, error) {
+	done := false
+	return func(msg api.Message) ([]api.Message, error) {
+		r := msg.(*sflow.SflowEnableDisable)
+		idx := uint32(r.HwIfIndex)
+		if m.enabled[idx] == r.EnableDisable {
+			return []api.Message{&sflow.SflowEnableDisableReply{Retval: int32(api.VALUE_EXIST)}}, nil
+		}
+		m.enabled[idx] = r.EnableDisable
+		if idx == sw && r.EnableDisable && !done {
+			done = true
+			m.enabled[other] = true
+		}
+		return []api.Message{&sflow.SflowEnableDisableReply{}}, nil
+	}
+}
+
+// H1: an sFlow enable found on an untagged NIC without our claim is foreign: Create fails, nothing
+// is claimed, Retrieve does not report it and Delete leaves it alone.
+func TestInterfaceForeignOnUntagged(t *testing.T) {
+	f, m := newFake()
+	ctx := context.Background()
+	d := NewInterface(f, "w5h1")
+	uv := Interface{Interface: "ens192"}.Proto()
+	m.enabled[10] = true // someone else's
+	if _, err := d.Create(ctx, uv); !errors.Is(err, dfkit.ErrNotOurs) {
+		t.Fatalf("foreign enable adopted: %v", err)
+	}
+	if kvs := dfkittest.MustRetrieve(t, d); len(kvs) != 0 {
+		t.Fatalf("foreign reported: %v", kvs)
+	}
+	if err := d.Delete(ctx, uv, nil); err != nil || !m.enabled[10] {
+		t.Fatalf("foreign enable deleted: %v", err)
+	}
+	// our own enable on an untagged NIC: claimed after the add, adopted after an agent restart
+	delete(m.enabled, 10)
+	if _, err := d.Create(ctx, uv); err != nil {
+		t.Fatal(err)
+	}
+	fresh := NewInterface(f, "w5h1")
+	if _, err := fresh.Create(ctx, uv); err != nil { // VALUE_EXIST + our claim → adopt, learn
+		t.Fatalf("own claimed enable: %v", err)
+	}
+	dfkittest.AssertRetrieved(t, fresh, dfkittest.KV(fresh, uv))
+	if err := fresh.Delete(ctx, uv, nil); err != nil || m.enabled[10] {
+		t.Fatalf("own delete: %v", err)
 	}
 }

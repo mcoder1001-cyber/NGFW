@@ -9,24 +9,24 @@ import (
 	"sort"
 	"sync"
 
-	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
 
-// BootRecord says that this owner applied an object to the VPP process with identity VPPID
-// (main-thread PID, iface.VPPIdentity) with the given canonical value (JSON).
+// BootRecord says that this owner applied an object to the VPP instance with the D-080 boot
+// identity Identity (BootIdentity), with the given canonical value (JSON).
 type BootRecord struct {
-	Key   string `json:"key"`
-	VPPID uint32 `json:"vpp_id"`
-	Value string `json:"value"`
+	Key      string `json:"key"`
+	Identity string `json:"identity"`
+	Value    string `json:"value"`
 }
 
-// BootStore keeps BootRecords (D-076): write-only objects whose VPP add is not idempotent (pcap
-// capture, http_static) record what they applied, keyed by the VPP boot identity, and skip the
-// re-add on a resync while VPP is the same process; after a VPP restart the identity differs and
-// they add once more. P05/P08 install a persisted store (NewFileBootStore in the state dir) with
-// SetBootStore; the default is in memory.
+// BootStore keeps BootRecords (D-076): write-only objects whose VPP add is not idempotent (the
+// pcap capture) record what they applied, keyed by the VPP boot identity, and skip the re-add on
+// a resync while VPP is the same process; after a VPP restart the identity differs and they add
+// once more. The store is an explicit constructor argument (review M4): the agent passes a
+// persisted NewFileBootStore in its state dir so an agent restart does not orphan its own
+// capture; NewMemoryBootStore is for tests.
 type BootStore interface {
 	Get(key string) (BootRecord, bool)
 	Put(r BootRecord) error
@@ -97,25 +97,47 @@ func (s *FileBootStore) Get(key string) (BootRecord, bool) {
 	return r, ok
 }
 
-// Put implements BootStore.
+// Put implements BootStore. The file is written (and fsynced) before memory changes, so a
+// failed write leaves both unchanged.
 func (s *FileBootStore) Put(r BootRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.mem[r.Key] = r
-	return s.flush()
+	next := s.copyMem()
+	next[r.Key] = r
+	if err := s.flush(next); err != nil {
+		return err
+	}
+	s.mem = next
+	return nil
 }
 
-// Delete implements BootStore.
+// Delete implements BootStore (write first, as Put).
 func (s *FileBootStore) Delete(key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.mem, key)
-	return s.flush()
+	if _, ok := s.mem[key]; !ok {
+		return nil
+	}
+	next := s.copyMem()
+	delete(next, key)
+	if err := s.flush(next); err != nil {
+		return err
+	}
+	s.mem = next
+	return nil
 }
 
-func (s *FileBootStore) flush() error {
-	recs := make([]BootRecord, 0, len(s.mem))
-	for _, r := range s.mem {
+func (s *FileBootStore) copyMem() map[string]BootRecord {
+	out := make(map[string]BootRecord, len(s.mem)+1)
+	for k, v := range s.mem {
+		out[k] = v
+	}
+	return out
+}
+
+func (s *FileBootStore) flush(m map[string]BootRecord) error {
+	recs := make([]BootRecord, 0, len(m))
+	for _, r := range m {
 		recs = append(recs, r)
 	}
 	sort.Slice(recs, func(i, j int) bool { return recs[i].Key < recs[j].Key })
@@ -124,7 +146,19 @@ func (s *FileBootStore) flush() error {
 		return err
 	}
 	tmp := s.path + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o600); err != nil {
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600) //nolint:gosec // agent state file
+	if err != nil {
+		return fmt.Errorf("boot store: %w", err)
+	}
+	if _, err := f.Write(raw); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("boot store: %w", err)
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("boot store: %w", err)
+	}
+	if err := f.Close(); err != nil {
 		return fmt.Errorf("boot store: %w", err)
 	}
 	if err := os.Rename(tmp, s.path); err != nil {
@@ -133,61 +167,26 @@ func (s *FileBootStore) flush() error {
 	return nil
 }
 
-var (
-	bootMu sync.Mutex
-	boots  = map[string]BootStore{}
-)
-
-// SetBootStore installs the BootStore of owner; nil restores a fresh in-memory store.
-func SetBootStore(owner string, s BootStore) {
-	bootMu.Lock()
-	defer bootMu.Unlock()
-	if s == nil {
-		s = NewMemoryBootStore()
-	}
-	boots[owner] = s
-}
-
-// Boot returns the BootStore of owner (in memory unless SetBootStore installed another).
-func Boot(owner string) BootStore {
-	bootMu.Lock()
-	defer bootMu.Unlock()
-	s, ok := boots[owner]
-	if !ok {
-		s = NewMemoryBootStore()
-		boots[owner] = s
-	}
-	return s
-}
-
-// AppliedThisBoot reports whether owner recorded exactly value for key on the running VPP
-// process, and returns the current VPP identity for a following Record.
-func AppliedThisBoot(ctx context.Context, c vpp.Client, owner string, key scheduler.Key, value string) (bool, uint32, error) {
-	id, err := iface.VPPIdentity(ctx, c)
+// AppliedThisBoot reports whether store holds exactly value for key on the running VPP instance,
+// and returns the current boot identity for a following Record.
+func AppliedThisBoot(ctx context.Context, c vpp.Client, store BootStore, key scheduler.Key, value string) (bool, string, error) {
+	id, err := IdentitySource(ctx, c)
 	if err != nil {
-		return false, 0, err
+		return false, "", err
 	}
-	r, ok := Boot(owner).Get(string(key))
-	return ok && r.VPPID == id && r.Value == value, id, nil
+	r, ok := store.Get(string(key))
+	return ok && r.Identity == id && r.Value == value, id, nil
 }
 
-// StartedThisBoot reports whether owner has any record for key on the running VPP process.
-func StartedThisBoot(ctx context.Context, c vpp.Client, owner string, key scheduler.Key) (bool, error) {
-	id, err := iface.VPPIdentity(ctx, c)
+// StartedThisBoot reports whether store has any record for key on the running VPP instance.
+func StartedThisBoot(ctx context.Context, c vpp.Client, store BootStore, key scheduler.Key) (bool, error) {
+	id, err := IdentitySource(ctx, c)
 	if err != nil {
 		return false, err
 	}
-	r, ok := Boot(owner).Get(string(key))
-	return ok && r.VPPID == id, nil
+	r, ok := store.Get(string(key))
+	return ok && r.Identity == id, nil
 }
-
-// Record stores that owner applied value for key to the VPP process id.
-func Record(owner string, key scheduler.Key, id uint32, value string) error {
-	return Boot(owner).Put(BootRecord{Key: string(key), VPPID: id, Value: value})
-}
-
-// Forget removes owner's record for key.
-func Forget(owner string, key scheduler.Key) error { return Boot(owner).Delete(string(key)) }
 
 // Dedupe drops KVs with a key seen before (keeps the first) — a Retrieve must never report one
 // key twice (two interfaces with one logical name, a repeated dump entry).

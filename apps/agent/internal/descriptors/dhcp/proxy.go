@@ -79,9 +79,34 @@ func (d *ProxyDescriptor) config(ctx context.Context, obj proto.Message, add boo
 	return nil
 }
 
-// Create implements scheduler.Descriptor (adding an existing server is a no-op in VPP).
+// Create implements scheduler.Descriptor (adding an existing server is a no-op in VPP). VPP keeps
+// one source address per rx VRF and family (set by the first server): a server with another src
+// on a relaying VRF is refused instead of flip-flopping forever (review L6).
 func (d *ProxyDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
+	s, err := decode[Proxy](obj)
+	if err != nil {
+		return nil, err
+	}
+	kvs, err := d.Retrieve(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, kv := range kvs {
+		var cur Proxy
+		if dfkit.Decode(kv.Value, &cur) != nil || cur.RxVRF != s.RxVRF || cur.Src == canonAddr(s.Src) {
+			continue
+		}
+		if a, b := canonAddr(cur.Src), canonAddr(s.Src); sameFamily(a, b) {
+			return nil, dfkit.Specf("dhcp proxy: rx vrf %d already relays with src %s; all its servers must use one src (got %s)", s.RxVRF, a, b)
+		}
+	}
 	return nil, d.config(ctx, obj, true)
+}
+
+func sameFamily(a, b string) bool {
+	x, e1 := dfkit.ParseAddr(a)
+	y, e2 := dfkit.ParseAddr(b)
+	return e1 == nil && e2 == nil && x.Is4() == y.Is4()
 }
 
 // Update implements scheduler.Descriptor: the only non-key field is the source address, which

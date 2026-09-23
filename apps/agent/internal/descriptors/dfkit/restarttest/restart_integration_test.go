@@ -18,6 +18,7 @@ import (
 	"ngfw/agent/internal/descriptors/dfkit/dfkittest"
 	"ngfw/agent/internal/descriptors/dhcp"
 	"ngfw/agent/internal/descriptors/flowprobe"
+	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/ipfix"
 	"ngfw/agent/internal/descriptors/lcp"
 	"ngfw/agent/internal/descriptors/sflow"
@@ -159,12 +160,18 @@ func TestRestartSimulationOnHost(t *testing.T) {
 		t.Fatalf("agent 1 re-apply planned %d op(s)", n)
 	}
 
-	t.Log("== agent restart: fresh connection, fresh descriptors → empty plan")
+	t.Log("== agent restart: fresh connection, fresh descriptors, fresh in-memory claim store")
+	iface.SetClaimStore(h1.Owner, nil)
 	h2 := dfkittest.ConnectHost(t)
 	h2.Owner = h1.Owner
 	a2 := agent(t, h2.Client(), h2.Owner, ifs)
+	// sflow.interface cannot read its hw→sw mapping back (read-only Retrieve, review M2): the
+	// first resync plans its re-create once, whose Create learns the mapping on our own interface
+	if n := reconcile(ctx, t, a2); n != 1 {
+		t.Fatalf("fresh agent planned %d op(s), want exactly the sflow re-learn", n)
+	}
 	if n := reconcile(ctx, t, a2); n != 0 {
-		t.Fatalf("fresh agent planned %d op(s) against unchanged VPP state", n)
+		t.Fatalf("fresh agent planned %d op(s) after the first resync", n)
 	}
 
 	t.Log("== simulated loss: delete the objects through the binary API")

@@ -8,8 +8,10 @@ import (
 
 	"go.fd.io/govpp/api"
 
+	classifyapi "ngfw/agent/binapi/classify"
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/ipfix_export"
+	"ngfw/agent/internal/descriptors/classify"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dfkit/dfkittest"
 	"ngfw/agent/internal/scheduler"
@@ -182,6 +184,23 @@ func TestDefaultExporter(t *testing.T) {
 	}
 }
 
+// classifyFake adds DF-2's classify table (index 3 = name "w5-t") to the fake.
+func classifyFake(t *testing.T, f *dfkittest.FakeVPP) classify.Store {
+	t.Helper()
+	mask := make([]byte, 16)
+	mask[12] = 0xff
+	f.Reply("classify_table_ids", &classifyapi.ClassifyTableIdsReply{Ids: []uint32{3}, Count: 1})
+	f.Reply("classify_table_info", &classifyapi.ClassifyTableInfoReply{TableID: 3, MatchNVectors: 1, Mask: mask, MaskLength: 16})
+	st := classify.NewMemStore()
+	if err := st.Reset(0); err != nil { // the fake's control_ping has vpe_pid 0
+		t.Fatal(err)
+	}
+	if err := st.Put(classify.TableRecord{Name: "w5-t", Index: 3, MatchNVectors: 1, Mask: mask}); err != nil {
+		t.Fatal(err)
+	}
+	return st
+}
+
 func TestClassifyWriteOnly(t *testing.T) {
 	f, _ := newFake()
 	ctx := context.Background()
@@ -189,10 +208,14 @@ func TestClassifyWriteOnly(t *testing.T) {
 	if _, err := NewClassifyStream(f).Create(ctx, ClassifyStream{DomainID: 5, SrcPort: 4744}.Proto()); !errors.Is(err, dfkit.ErrNotGlobalsOwner) {
 		t.Fatalf("non-owner stream: %v", err)
 	}
-	ct := NewClassifyTable(f, WithClassifyTableKey(func(id string) scheduler.Key { return scheduler.Join("classify.table", id) }))
+	st := classifyFake(t, f)
+	ct := NewClassifyTable(f, st)
 	sv := ClassifyStream{DomainID: 5, SrcPort: 4744}.Proto()
-	tv := ClassifyTable{Table: 3, IPVersion: "ip6", Protocol: 6}.Proto()
-	if deps := ct.Dependencies(tv); len(deps) != 2 || deps[0].Key != KeyClassifyStream || deps[0].Optional || deps[1].Key != "classify.table/3" {
+	tv := ClassifyTable{Table: "w5-t", IPVersion: "ip6", Protocol: 6}.Proto()
+	if k := ct.KeyOf(tv); k != "ipfix.classify-table/w5-t" {
+		t.Fatal(k)
+	}
+	if deps := ct.Dependencies(tv); len(deps) != 2 || deps[0].Key != classify.TableKey("w5-t") || deps[0].Optional || deps[1].Key != KeyClassifyStream || !deps[1].Optional {
 		t.Fatalf("deps %+v", deps)
 	}
 	if deps := cs.Dependencies(sv); len(deps) != 1 || deps[0].Key != KeyDefaultExporter || !deps[0].Optional {
@@ -208,7 +231,11 @@ func TestClassifyWriteOnly(t *testing.T) {
 	}
 	req := f.CallsNamed("ipfix_classify_table_add_del")[0].(*ipfix_export.IpfixClassifyTableAddDel)
 	if req.TableID != 3 || req.IPVersion != ip_types.ADDRESS_IP6 || req.TransportProtocol != 6 || !req.IsAdd {
-		t.Fatalf("request %+v", req)
+		t.Fatalf("request %+v (the index must come from DF-2's live record)", req)
+	}
+	// H2: a name that is not a live table of ours never becomes an index
+	if _, err := ct.Create(ctx, ClassifyTable{Table: "w6-t", IPVersion: "ip4"}.Proto()); !errors.Is(err, ErrNoClassifyTable) {
+		t.Fatalf("unknown table: %v", err)
 	}
 	for _, d := range []scheduler.Descriptor{cs, ct} {
 		if kvs, err := d.Retrieve(ctx); kvs != nil || !errors.Is(err, dfkit.ErrRetrieveUnsupported) || !errors.Is(err, ErrClassifyDumpBroken) {
@@ -226,6 +253,12 @@ func TestClassifyWriteOnly(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// the table is gone from VPP (DF-2 deleted it / VPP restarted): Delete never uses a stale index
+	f.Reply("classify_table_ids", &classifyapi.ClassifyTableIdsReply{})
+	dels := len(f.CallsNamed("ipfix_classify_table_add_del"))
+	if err := ct.Delete(ctx, tv, nil); err != nil || len(f.CallsNamed("ipfix_classify_table_add_del")) != dels {
+		t.Fatalf("delete of a gone table: %v", err)
+	}
 	if err := cs.Delete(ctx, sv, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -236,19 +269,15 @@ func TestClassifyWriteOnly(t *testing.T) {
 	if _, err := cs.Create(ctx, ClassifyStream{DomainID: 1}.Proto()); !errors.Is(err, dfkit.ErrSpec) {
 		t.Fatal(err)
 	}
-	if _, err := ct.Create(ctx, ClassifyTable{Table: 1, IPVersion: "ipx"}.Proto()); !errors.Is(err, dfkit.ErrSpec) {
+	if _, err := ct.Create(ctx, ClassifyTable{Table: "w5-t", IPVersion: "ipx"}.Proto()); !errors.Is(err, dfkit.ErrSpec) {
 		t.Fatal(err)
 	}
 	// the decoder that replaces the write-only Retrieve once VPP is fixed
-	scoped := NewClassifyTable(f, WithClassifyTableScope(func(i uint32) bool { return i < 10 }))
-	kvs := scoped.DecodeClassifyTables([]*ipfix_export.IpfixClassifyTableDetails{
+	kvs := ct.DecodeClassifyTables([]*ipfix_export.IpfixClassifyTableDetails{
 		{TableID: 3, IPVersion: ip_types.ADDRESS_IP6, TransportProtocol: 6}, {TableID: 42},
-	})
-	if len(kvs) != 1 || kvs[0].Key != "ipfix.classify-table/3" {
+	}, []classify.TableRecord{{Name: "w5-t", Index: 3}})
+	if len(kvs) != 1 || kvs[0].Key != "ipfix.classify-table/w5-t" || !protoEqual(kvs[0], dfkittest.KV(ct, tv)) {
 		t.Fatalf("decoded %v", kvs)
-	}
-	if got, _ := dfkittest.Find(kvs, "ipfix.classify-table/3"); got.Value == nil || !protoEqual(got, dfkittest.KV(ct, tv)) {
-		t.Fatalf("decoded %v", got.Value)
 	}
 }
 
@@ -260,7 +289,7 @@ func TestRegister(t *testing.T) {
 	r := scheduler.NewRegistry()
 	f := dfkittest.NewFake()
 	RegisterGlobals(r, f)
-	Register(r, f)
+	Register(r, f, classify.NewMemStore())
 	if r.Len() != 4 {
 		t.Fatalf("registered %v", r.Names())
 	}

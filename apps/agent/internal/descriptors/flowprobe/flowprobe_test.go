@@ -178,9 +178,24 @@ func TestInterface(t *testing.T) {
 	if kvs := dfkittest.MustRetrieve(t, NewInterface(f, "w7")); len(kvs) != 0 {
 		t.Fatalf("unclaimed untagged interface reported: %v", kvs)
 	}
-	if err := d.Delete(ctx, uv, nil); err != nil || dfkit.Claims("w5").Claimed("ens192", NameInterface) {
-		t.Fatalf("delete/release: %v", err)
+	if err := d.Delete(ctx, uv, nil); err != nil {
+		t.Fatalf("delete: %v", err)
 	}
+	// H1: a flowprobe that someone else put on the untagged NIC is never adopted, reported or deleted
+	m.ifs[9] = flowprobe.FlowprobeInterfaceDetails{SwIfIndex: 9, Which: flowprobe.FLOWPROBE_WHICH_L2}
+	if _, err := d.Create(ctx, uv); !errors.Is(err, dfkit.ErrNotOurs) {
+		t.Fatalf("foreign flowprobe adopted: %v", err)
+	}
+	if _, ok := dfkittest.Find(dfkittest.MustRetrieve(t, d), d.KeyOf(uv)); ok {
+		t.Fatal("foreign flowprobe reported (a failed add must leave no claim)")
+	}
+	if err := d.Delete(ctx, uv, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := m.ifs[9]; !ok {
+		t.Fatal("foreign flowprobe deleted")
+	}
+	delete(m.ifs, 9)
 	r := scheduler.NewRegistry()
 	RegisterGlobals(r, f)
 	Register(r, f, "w5")

@@ -125,9 +125,27 @@ func TestItfPair(t *testing.T) {
 	if kvs := dfkittest.MustRetrieve(t, NewItfPair(f, "w7")); len(kvs) != 0 {
 		t.Fatalf("unclaimed pair reported to another owner: %v", kvs)
 	}
-	if err := d.Delete(ctx, nv, nm); err != nil || dfkit.Claims("w5").Claimed("ens192", NameItfPair) {
+	if err := d.Delete(ctx, nv, nm); err != nil {
 		t.Fatalf("untagged delete: %v", err)
 	}
+	// H1: a pair someone else made on the untagged NIC is never adopted — neither a different nor
+	// an identical one; the failed add leaves no claim, Retrieve and Delete leave it alone
+	m.pairs[9] = lcp.LcpItfPairDetails{PhySwIfIndex: 9, HostIfName: "w5-e0", HostIfType: lcp.LCP_API_ITF_HOST_TAP}
+	for _, v := range []ItfPair{{Interface: "ens192", HostIfName: "w5-e1", HostIfType: "tap"}, {Interface: "ens192", HostIfName: "w5-e0", HostIfType: "tap"}} {
+		if _, err := d.Create(ctx, v.Proto()); !errors.Is(err, dfkit.ErrNotOurs) {
+			t.Fatalf("%+v: foreign pair adopted: %v", v, err)
+		}
+	}
+	if _, ok := dfkittest.Find(dfkittest.MustRetrieve(t, d), d.KeyOf(nv)); ok {
+		t.Fatal("foreign pair reported")
+	}
+	if err := d.Delete(ctx, nv, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := m.pairs[9]; !ok {
+		t.Fatal("foreign pair deleted")
+	}
+	delete(m.pairs, 9)
 	if _, err := d.Create(ctx, ItfPair{Interface: "loop601", HostIfName: "w5-x", HostIfType: "tap"}.Proto()); !errors.Is(err, dfkit.ErrNotOwned) {
 		t.Fatalf("pairing another owner's interface must be refused: %v", err)
 	}

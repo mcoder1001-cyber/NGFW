@@ -16,6 +16,7 @@ import (
 // else on this host sets it (checked with `show bpf trace filter` before the first run); the
 // test removes it in Cleanup.
 func TestBPFFilterOnHost(t *testing.T) {
+	dfkittest.SkipUnlessGlobals(t, "bpf_trace_filter_set_v2")
 	h := dfkittest.ConnectHost(t)
 	h.LockGlobals(t)
 	h.SkipUnlessCompatible(t, Plugin, &bpf_trace_filter.BpfTraceFilterSetV2{})

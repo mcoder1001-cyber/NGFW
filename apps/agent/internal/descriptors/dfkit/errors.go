@@ -20,9 +20,9 @@ var (
 	ErrPluginNotLoaded = errors.New("vpp plugin not loaded")
 	// ErrBadMeta means Update/Delete received a Meta of the wrong type.
 	ErrBadMeta = errors.New("unexpected meta type")
-	// ErrNotSupported means the requested change cannot be made through the VPP API at all (for
-	// example disabling the http_static server); the error names the manual step.
-	ErrNotSupported = errors.New("not supported by the VPP API")
+	// ErrNotOurs means the object already exists in VPP but was not created by this owner (an
+	// untagged interface without this descriptor's claim): it is never adopted (review H1).
+	ErrNotOurs = errors.New("object exists in VPP but is not this owner's")
 )
 
 // RetrieveUnsupported returns the wrapped ErrRetrieveUnsupported for descriptor name.

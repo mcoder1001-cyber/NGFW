@@ -4,6 +4,8 @@
 package dfkittest
 
 import (
+	"context"
+	"fmt"
 	"sync"
 
 	"go.fd.io/govpp/api"
@@ -12,6 +14,9 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/binapi/vlib"
+	"ngfw/agent/internal/descriptors/dfkit"
+	iface "ngfw/agent/internal/descriptors/interface"
+	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/fake"
 )
 
@@ -52,10 +57,15 @@ func NewFake(ifaces ...Iface) *FakeVPP {
 		}
 		return out, nil
 	})
+	// The fake PID is not a real process: derive the D-080 identity from it alone.
+	dfkit.IdentitySource = func(ctx context.Context, c vpp.Client) (string, error) {
+		pid, err := iface.VPPIdentity(ctx, c)
+		return fmt.Sprintf("fake/%d", pid), err
+	}
 	return f
 }
 
-// RestartVPP changes the VPP identity, as a VPP restart would.
+// RestartVPP changes the VPP identity (PID → D-080 identity), as a VPP restart would.
 func (f *FakeVPP) RestartVPP() {
 	f.mu.Lock()
 	defer f.mu.Unlock()

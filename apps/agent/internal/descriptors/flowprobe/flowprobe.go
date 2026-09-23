@@ -11,7 +11,6 @@ package flowprobe
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 
@@ -301,45 +300,43 @@ func (d *InterfaceDescriptor) Dependencies(obj proto.Message) []scheduler.Depend
 	}
 	return []scheduler.Dependency{
 		{Key: d.o.ifaceKey(s.Interface)},
-		{Key: KeyParams},
+		{Key: KeyParams, Optional: true}, // registered by the globals owner only (L2); VPP refuses the add while unset
 		{Key: d.o.exporterKey, Optional: true},
 	}
 }
 
-func (d *InterfaceDescriptor) addDel(ctx context.Context, obj proto.Message, meta any, add bool) (any, error) {
-	var s Interface
-	if err := dfkit.Decode(obj, &s); err != nil {
+func (d *InterfaceDescriptor) addDel(ctx context.Context, s Interface, tg dfkit.Target, add bool) error {
+	_, err := flowprobe.NewServiceClient(d.client).FlowprobeInterfaceAddDel(ctx, &flowprobe.FlowprobeInterfaceAddDel{
+		IsAdd: add, Which: whichToAPI[s.Which], Direction: dirToAPI[s.Direction], SwIfIndex: interface_types.InterfaceIndex(tg.Index),
+	})
+	if err != nil {
+		return fmt.Errorf("flowprobe_interface_add_del(%s %s %s, add=%t): %w", s.Interface, s.Which, s.Direction, add, err)
+	}
+	return nil
+}
+
+// Create implements scheduler.Descriptor. The interface is resolved by logical name on every call
+// (never a Meta index). VPP answers ENTRY_ALREADY_EXISTS for any variant already on the
+// interface; Create then succeeds only if the object is ours (tagged interface, or our claim) and
+// identical — a foreign flowprobe is never adopted, and the claim is recorded only after a
+// successful add (review H1).
+func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
+	s, err := decodeIface(obj)
+	if err != nil {
 		return nil, err
 	}
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
-	// resolve the logical name on every call, never a Meta index (reused after a VPP restart)
-	_ = meta
-	resolve := dfkit.ResolveInterface
-	if add {
-		resolve = func(ctx context.Context, c vpp.Client, name, owner string) (uint32, error) {
-			return dfkit.ResolveAndClaim(ctx, c, name, owner, NameInterface)
-		}
-	}
-	idx, err := resolve(ctx, d.client, s.Interface, d.owner)
+	tg, err := dfkit.ResolveTarget(ctx, d.client, s.Interface, d.owner, NameInterface)
 	if err != nil {
 		return nil, err
 	}
-	_, err = flowprobe.NewServiceClient(d.client).FlowprobeInterfaceAddDel(ctx, &flowprobe.FlowprobeInterfaceAddDel{
-		IsAdd: add, Which: whichToAPI[s.Which], Direction: dirToAPI[s.Direction], SwIfIndex: interface_types.InterfaceIndex(idx),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("flowprobe_interface_add_del(%s %s %s, add=%t): %w", s.Interface, s.Which, s.Direction, add, err)
-	}
-	return InterfaceMeta{SwIfIndex: idx}, nil
-}
-
-// Create implements scheduler.Descriptor. VPP answers ENTRY_ALREADY_EXISTS for any variant
-// already on the interface; Create then succeeds only if the retrieved state is identical.
-func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
-	meta, err := d.addDel(ctx, obj, nil, true)
+	err = d.addDel(ctx, s, tg, true)
 	if dfkit.IsVPPError(err, api.ENTRY_ALREADY_EXISTS) {
+		if aerr := tg.Adopt(); aerr != nil {
+			return nil, aerr
+		}
 		kvs, rerr := d.Retrieve(ctx)
 		if rerr == nil {
 			if cur, ok := findKV(kvs, d.KeyOf(obj)); ok && proto.Equal(cur.Value, obj) {
@@ -347,7 +344,13 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 			}
 		}
 	}
-	return meta, err
+	if err != nil {
+		return nil, err
+	}
+	if err := tg.Claim(); err != nil {
+		return nil, err
+	}
+	return InterfaceMeta{SwIfIndex: tg.Index}, nil
 }
 
 // Update implements scheduler.Descriptor: variant and direction change needs disable + enable.
@@ -355,24 +358,29 @@ func (*InterfaceDescriptor) Update(context.Context, proto.Message, proto.Message
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor. It first checks that flowprobe is still on the
-// interface (D-074); NO_SUCH_ENTRY / INVALID_SW_IF_INDEX / a vanished interface count as deleted.
-func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor. It re-resolves the interface, never touches a foreign
+// flowprobe on an unclaimed untagged interface, and first checks that flowprobe is still on the
+// interface (D-074); NO_SUCH_ENTRY / INVALID_SW_IF_INDEX count as deleted.
+func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
+	s, err := decodeIface(obj)
+	if err != nil {
+		return err
+	}
+	tg, ok, err := dfkit.ResolveForDelete(ctx, d.client, s.Interface, d.owner, NameInterface)
+	if err != nil || !ok {
+		return err
+	}
 	kvs, err := d.Retrieve(ctx)
 	if err != nil {
 		return err
 	}
-	var name string
-	if s, derr := decodeIface(obj); derr == nil {
-		name = s.Interface
-	}
 	if _, ok := findKV(kvs, d.KeyOf(obj)); ok {
-		_, err = d.addDel(ctx, obj, meta, false)
-		if err != nil && !dfkit.IsVPPError(err, api.NO_SUCH_ENTRY, api.INVALID_SW_IF_INDEX) && !errors.Is(err, dfkit.ErrNoInterface) {
+		err = d.addDel(ctx, s, tg, false)
+		if err != nil && !dfkit.IsVPPError(err, api.NO_SUCH_ENTRY, api.INVALID_SW_IF_INDEX) {
 			return err
 		}
 	}
-	return dfkit.Claims(d.owner).Release(name, NameInterface)
+	return tg.Release()
 }
 
 func decodeIface(obj proto.Message) (Interface, error) {

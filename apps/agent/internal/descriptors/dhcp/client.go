@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"sort"
 	"strings"
+	"sync/atomic"
 
 	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
@@ -29,7 +30,21 @@ type ClientDescriptor struct {
 	client vpp.Client
 	owner  string
 	o      options
+	gen    atomic.Uint32 // API connection generation (Reconnected), part of the event pid
 }
+
+// EventPID is the pid this descriptor puts into dhcp_client_config: the agent PID (≤ 2^22) with
+// the API connection generation in the top 10 bits. VPP delivers dhcp_compl_event to the API
+// client (connection) that configured the client, so an event client made by an earlier process
+// or on an earlier connection is stale; Retrieve reports want_events only when VPP holds exactly
+// this pid, which turns a stale subscription into drift → recreate on the current connection
+// (review M6).
+func (d *ClientDescriptor) EventPID() uint32 { return pidSelf()&(1<<22-1) | (d.gen.Load()&0x3ff)<<22 }
+
+// Reconnected must be called (P05's reconnect hook) whenever the binary-API connection was
+// re-established: clients with WantEvents are then reported as drifted and re-configured on the
+// new connection, so lease events keep arriving.
+func (d *ClientDescriptor) Reconnected() { d.gen.Add(1) }
 
 var _ scheduler.Descriptor = (*ClientDescriptor)(nil)
 
@@ -69,7 +84,7 @@ func (d *ClientDescriptor) config(ctx context.Context, s Client, swIfIndex uint3
 			WantDHCPEvent:    s.WantEvents,
 			SetBroadcastFlag: s.SetBroadcastFlag,
 			Dscp:             ip_types.IPDscp(s.DSCP),
-			PID:              pidSelf(),
+			PID:              d.EventPID(),
 		},
 	})
 	if err != nil {
@@ -88,16 +103,23 @@ func (d *ClientDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
-	idx, err := dfkit.ResolveAndClaim(ctx, d.client, s.Interface, d.owner, NameClient)
+	tg, err := dfkit.ResolveTarget(ctx, d.client, s.Interface, d.owner, NameClient)
 	if err != nil {
 		return nil, err
 	}
+	idx := tg.Index
 	if err := d.config(ctx, s, idx, true); err != nil {
-		if dfkit.IsVPPError(err, api.INVALID_VALUE) {
+		if dfkit.IsVPPError(err, api.INVALID_VALUE) { // a client exists on the interface
+			if aerr := tg.Adopt(); aerr != nil { // never adopt a foreign client (review H1)
+				return nil, aerr
+			}
 			if cur, ok, rerr := d.retrieveOne(ctx, idx); rerr == nil && ok && proto.Equal(cur.Proto(), s.Proto()) {
 				return ClientMeta{SwIfIndex: idx}, nil
 			}
 		}
+		return nil, err
+	}
+	if err := tg.Claim(); err != nil { // only after VPP accepted the add
 		return nil, err
 	}
 	return ClientMeta{SwIfIndex: idx}, nil
@@ -118,14 +140,11 @@ func (d *ClientDescriptor) Delete(ctx context.Context, obj proto.Message, meta a
 	// Re-resolve the logical name right before deleting (sw_if_indexes in Meta are reused after
 	// a VPP restart, D-071); an interface that is gone took its client with it.
 	_ = meta
-	idx, ok, err := dfkit.VerifyIndex(ctx, d.client, s.Interface, d.owner)
-	if err != nil {
-		return err
+	tg, ok, err := dfkit.ResolveForDelete(ctx, d.client, s.Interface, d.owner, NameClient)
+	if err != nil || !ok {
+		return err // gone, or a foreign client on an unclaimed untagged interface: never touched
 	}
-	if !ok {
-		return dfkit.Claims(d.owner).Release(s.Interface, NameClient)
-	}
-	m := ClientMeta{SwIfIndex: idx}
+	m := ClientMeta{SwIfIndex: tg.Index}
 	if s.Hostname == "" {
 		s.Hostname = "vrx"
 	}
@@ -133,16 +152,16 @@ func (d *ClientDescriptor) Delete(ctx context.Context, obj proto.Message, meta a
 	if _, exists, rerr := d.retrieveOne(ctx, m.SwIfIndex); rerr != nil {
 		return rerr
 	} else if !exists {
-		return dfkit.Claims(d.owner).Release(s.Interface, NameClient)
+		return tg.Release()
 	}
 	err = d.config(ctx, s, m.SwIfIndex, false)
 	if err != nil && !dfkit.IsVPPError(err, api.INVALID_VALUE, api.INVALID_SW_IF_INDEX) { // not enabled / interface gone
 		return err
 	}
-	return dfkit.Claims(d.owner).Release(s.Interface, NameClient)
+	return tg.Release()
 }
 
-func clientFromDetails(c dhcp.DHCPClient, ifName string) Client {
+func clientFromDetails(c dhcp.DHCPClient, ifName string, eventPID uint32) Client {
 	id := string(c.ID)
 	if i := strings.IndexByte(id, 0); i >= 0 {
 		id = id[:i]
@@ -153,7 +172,7 @@ func clientFromDetails(c dhcp.DHCPClient, ifName string) Client {
 		ClientID:         id,
 		SetBroadcastFlag: c.SetBroadcastFlag,
 		DSCP:             uint8(c.Dscp),
-		WantEvents:       c.WantDHCPEvent,
+		WantEvents:       c.WantDHCPEvent && c.PID == eventPID, // stale subscription = drift (M6)
 	}
 }
 
@@ -181,7 +200,7 @@ func (d *ClientDescriptor) retrieveOne(ctx context.Context, idx uint32) (Client,
 	for _, det := range details {
 		if uint32(det.Client.SwIfIndex) == idx {
 			name, _ := ifaces.Logical(idx)
-			return clientFromDetails(det.Client, name), true, nil
+			return clientFromDetails(det.Client, name, d.EventPID()), true, nil
 		}
 	}
 	return Client{}, false, nil
@@ -207,7 +226,7 @@ func (d *ClientDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 		if !ok {
 			continue
 		}
-		s := clientFromDetails(det.Client, name)
+		s := clientFromDetails(det.Client, name, d.EventPID())
 		out = append(out, scheduler.KV{Key: scheduler.Join(NameClient, name), Value: s.Proto(), Meta: ClientMeta{SwIfIndex: idx}})
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Key < out[j].Key })

@@ -20,6 +20,7 @@ import (
 // on this host uses VPP's resolver (Unbound is RF-3's), so the test enables it with this slot's
 // name servers and disables it again in Cleanup.
 func TestDNSOnHost(t *testing.T) {
+	dfkittest.SkipUnlessGlobals(t, "dns_enable_disable / dns_name_server_add_del")
 	h := dfkittest.ConnectHost(t)
 	h.LockGlobals(t)
 	h.SkipUnlessCompatible(t, "dns", &dns.DNSEnableDisable{}, &dns.DNSNameServerAddDel{}, &dns.DNSResolveName{})

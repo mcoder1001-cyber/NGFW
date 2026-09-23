@@ -2,9 +2,9 @@ package ipfix
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 
 	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
@@ -12,6 +12,7 @@ import (
 
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/ipfix_export"
+	"ngfw/agent/internal/descriptors/classify"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
@@ -29,10 +30,11 @@ type ClassifyStream struct {
 func (s ClassifyStream) Proto() *structpb.Struct { return dfkit.Encode(s) }
 
 // ClassifyTable is one classify table reported over IPFIX (ipfix_classify_table_add_del): the
-// VPP classify table index (DF-2's table), the IP version of its records and the transport
-// protocol whose ports are reported (0 = none).
+// DF-2 classify table by NAME (key classify.table/<name>; its VPP index is resolved from DF-2's
+// store right before every call, never kept — review H2), the IP version of its records and the
+// transport protocol whose ports are reported (0 = none).
 type ClassifyTable struct {
-	Table     uint32 `json:"table"`
+	Table     string `json:"table"`
 	IPVersion string `json:"ip_version"` // "ip4" | "ip6"
 	Protocol  uint8  `json:"protocol"`
 }
@@ -131,23 +133,23 @@ func (d *ClassifyStreamDescriptor) Retrieve(context.Context) ([]scheduler.KV, er
 
 // ---- ipfix.classify-table -------------------------------------------------------------------
 
-// ClassifyTableDescriptor manages ipfix.classify-table objects: key ipfix.classify-table/<table>.
+// ClassifyTableDescriptor manages ipfix.classify-table objects: key ipfix.classify-table/<name>.
+// Only tables in this owner's DF-2 classify store can be named (ownership comes from DF-2).
 type ClassifyTableDescriptor struct {
 	client vpp.Client
+	store  classify.Store
 	o      options
 }
 
 var _ scheduler.Descriptor = (*ClassifyTableDescriptor)(nil)
 
-// NewClassifyTable returns the ipfix.classify-table descriptor.
-func NewClassifyTable(client vpp.Client, opts ...Option) *ClassifyTableDescriptor {
-	return &ClassifyTableDescriptor{client: client, o: buildOptions(opts)}
+// NewClassifyTable returns the ipfix.classify-table descriptor over the owner's DF-2 classify store.
+func NewClassifyTable(client vpp.Client, store classify.Store, opts ...Option) *ClassifyTableDescriptor {
+	return &ClassifyTableDescriptor{client: client, store: store, o: buildOptions(opts)}
 }
 
 // Name implements scheduler.Descriptor.
 func (*ClassifyTableDescriptor) Name() string { return NameClassifyTable }
-
-func tableID(t uint32) string { return strconv.FormatUint(uint64(t), 10) }
 
 // KeyOf implements scheduler.Descriptor.
 func (*ClassifyTableDescriptor) KeyOf(obj proto.Message) scheduler.Key {
@@ -155,20 +157,39 @@ func (*ClassifyTableDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	if err := dfkit.Decode(obj, &s); err != nil {
 		return scheduler.Join(NameClassifyTable, "invalid")
 	}
-	return scheduler.Join(NameClassifyTable, tableID(s.Table))
+	return scheduler.Join(NameClassifyTable, s.Table)
 }
 
-// Dependencies implements scheduler.Descriptor: the classify stream (VPP refuses tables before
-// it is set) and the classify table itself (DF-2 key, optional until DF-2's key scheme is merged).
+// Dependencies implements scheduler.Descriptor: DF-2's classify table (mandatory) and the
+// classify stream (optional: it is registered by the globals owner only, L2; VPP refuses the add
+// while it is unset).
 func (d *ClassifyTableDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	var s ClassifyTable
 	if err := dfkit.Decode(obj, &s); err != nil {
 		return nil
 	}
 	return []scheduler.Dependency{
-		{Key: KeyClassifyStream},
-		{Key: d.o.tableKey(tableID(s.Table)), Optional: true},
+		{Key: classify.TableKey(s.Table)},
+		{Key: KeyClassifyStream, Optional: true},
 	}
+}
+
+// ErrNoClassifyTable means the named table is not a live table of this owner's DF-2 store.
+var ErrNoClassifyTable = errors.New("ipfix: no such classify table of this owner")
+
+// tableIndex resolves a DF-2 table name to its live VPP index (classify.LiveTables verifies the VPP
+// instance and the table geometry, so a reused index is never taken for ours).
+func (d *ClassifyTableDescriptor) tableIndex(ctx context.Context, name string) (uint32, error) {
+	recs, err := classify.LiveTables(ctx, d.client, d.store)
+	if err != nil {
+		return 0, err
+	}
+	for _, r := range recs {
+		if r.Name == name {
+			return r.Index, nil
+		}
+	}
+	return 0, fmt.Errorf("%w: %q", ErrNoClassifyTable, name)
 }
 
 func (d *ClassifyTableDescriptor) addDel(ctx context.Context, obj proto.Message, add bool) error {
@@ -184,14 +205,18 @@ func (d *ClassifyTableDescriptor) addDel(ctx context.Context, obj proto.Message,
 	default:
 		return dfkit.Specf("ipfix classify table: ip_version %q must be ip4 or ip6", s.IPVersion)
 	}
-	if !d.o.tableIn(s.Table) {
-		return dfkit.Specf("ipfix classify table %d is outside this agent's scope", s.Table)
+	if s.Table == "" {
+		return dfkit.Specf("ipfix classify table: table name is empty")
 	}
-	_, err := ipfix_export.NewServiceClient(d.client).IpfixClassifyTableAddDel(ctx, &ipfix_export.IpfixClassifyTableAddDel{
-		TableID: s.Table, IPVersion: af, TransportProtocol: ip_types.IPProto(s.Protocol), IsAdd: add,
+	idx, err := d.tableIndex(ctx, s.Table) // right before the call (D-071, H2)
+	if err != nil {
+		return err
+	}
+	_, err = ipfix_export.NewServiceClient(d.client).IpfixClassifyTableAddDel(ctx, &ipfix_export.IpfixClassifyTableAddDel{
+		TableID: idx, IPVersion: af, TransportProtocol: ip_types.IPProto(s.Protocol), IsAdd: add,
 	})
 	if err != nil {
-		return fmt.Errorf("ipfix_classify_table_add_del(%d, add=%t): %w", s.Table, add, err)
+		return fmt.Errorf("ipfix_classify_table_add_del(%s=%d, add=%t): %w", s.Table, idx, add, err)
 	}
 	return nil
 }
@@ -210,10 +235,12 @@ func (d *ClassifyTableDescriptor) Update(context.Context, proto.Message, proto.M
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor; NO_SUCH_ENTRY counts as deleted.
+// Delete implements scheduler.Descriptor; NO_SUCH_ENTRY, and a table that is no longer a live
+// table of ours (DF-2 deleted it, or VPP restarted), count as deleted — an index that may now be
+// someone else's is never used.
 func (d *ClassifyTableDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	err := d.addDel(ctx, obj, false)
-	if dfkit.IsVPPError(err, api.NO_SUCH_ENTRY) {
+	if dfkit.IsVPPError(err, api.NO_SUCH_ENTRY) || errors.Is(err, ErrNoClassifyTable) {
 		return nil
 	}
 	return err
@@ -225,20 +252,26 @@ func (d *ClassifyTableDescriptor) Retrieve(context.Context) ([]scheduler.KV, err
 	return nil, fmt.Errorf("%s: %w", NameClassifyTable, ErrClassifyDumpBroken)
 }
 
-// DecodeClassifyTables turns ipfix_classify_table_details into KVs (tables in scope, sorted):
-// the Retrieve body once the VPP message-id bug is fixed; unit-tested now.
-func (d *ClassifyTableDescriptor) DecodeClassifyTables(details []*ipfix_export.IpfixClassifyTableDetails) []scheduler.KV {
+// DecodeClassifyTables turns ipfix_classify_table_details into KVs for the live tables of this
+// owner's DF-2 store (index → name), sorted: the Retrieve body once the VPP message-id bug is
+// fixed; unit-tested now.
+func (d *ClassifyTableDescriptor) DecodeClassifyTables(details []*ipfix_export.IpfixClassifyTableDetails, live []classify.TableRecord) []scheduler.KV {
+	names := map[uint32]string{}
+	for _, r := range live {
+		names[r.Index] = r.Name
+	}
 	var out []scheduler.KV
 	for _, t := range details {
-		if !d.o.tableIn(t.TableID) {
+		name, ok := names[t.TableID]
+		if !ok {
 			continue
 		}
-		s := ClassifyTable{Table: t.TableID, IPVersion: "ip4", Protocol: uint8(t.TransportProtocol)}
+		s := ClassifyTable{Table: name, IPVersion: "ip4", Protocol: uint8(t.TransportProtocol)}
 		if t.IPVersion == ip_types.ADDRESS_IP6 {
 			s.IPVersion = "ip6"
 		}
-		out = append(out, scheduler.KV{Key: scheduler.Join(NameClassifyTable, tableID(s.Table)), Value: s.Proto()})
+		out = append(out, scheduler.KV{Key: scheduler.Join(NameClassifyTable, name), Value: s.Proto()})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
-	return out
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Key < out[j].Key })
+	return dfkit.Dedupe(out)
 }

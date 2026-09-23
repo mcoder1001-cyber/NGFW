@@ -30,10 +30,27 @@ type IfaceMeta struct {
 	SwIfIndex uint32
 }
 
-// ifaceIndex resolves the logical name on every call — never trusts a sw_if_index from Meta,
-// which VPP reuses after a restart (D-071: re-verify identity right before acting by index).
-func ifaceIndex(ctx context.Context, c vpp.Client, name, owner string, _ any) (uint32, error) {
-	return dfkit.ResolveInterface(ctx, c, name, owner)
+// target resolves the logical name on every call — never a sw_if_index from Meta, which VPP
+// reuses after a restart (D-071). For a delete, act is false when there is nothing of ours: the
+// interface is gone, or it is untagged without this holder's claim (review H1). The caller claims
+// only after VPP accepted an add and releases after a delete.
+func target(ctx context.Context, c vpp.Client, name, owner, holder string, create bool) (dfkit.Target, bool, error) {
+	if create {
+		tg, err := dfkit.ResolveTarget(ctx, c, name, owner, holder)
+		return tg, err == nil, err
+	}
+	return dfkit.ResolveForDelete(ctx, c, name, owner, holder)
+}
+
+func finish(tg dfkit.Target, create bool) (any, error) {
+	if create {
+		if err := tg.Claim(); err != nil {
+			return nil, err
+		}
+	} else if err := tg.Release(); err != nil {
+		return nil, err
+	}
+	return IfaceMeta{SwIfIndex: tg.Index}, nil
 }
 
 // ---- dhcp.dhcp6-client ----------------------------------------------------------------------
@@ -81,16 +98,18 @@ func (d *DHCP6ClientDescriptor) set(ctx context.Context, obj proto.Message, meta
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
-	idx, err := ifaceIndex(ctx, d.client, s.Interface, d.owner, meta)
-	if err != nil {
+	_ = meta
+	tg, act, err := target(ctx, d.client, s.Interface, d.owner, NameDHCP6Client, enable)
+	if err != nil || !act {
 		return nil, err
 	}
+	idx := tg.Index
 	_, err = dhcp6_ia_na_client_cp.NewServiceClient(d.client).DHCP6ClientEnableDisable(ctx,
 		&dhcp6_ia_na_client_cp.DHCP6ClientEnableDisable{SwIfIndex: interface_types.InterfaceIndex(idx), Enable: enable})
 	if err != nil {
 		return nil, fmt.Errorf("dhcp6_client_enable_disable(%s, enable=%t): %w", s.Interface, enable, err)
 	}
-	return IfaceMeta{SwIfIndex: idx}, nil
+	return finish(tg, enable)
 }
 
 // Create implements scheduler.Descriptor (idempotent).
@@ -163,10 +182,12 @@ func (d *DHCP6PDClientDescriptor) set(ctx context.Context, obj proto.Message, me
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
-	idx, err := ifaceIndex(ctx, d.client, s.Interface, d.owner, meta)
-	if err != nil {
+	_ = meta
+	tg, act, err := target(ctx, d.client, s.Interface, d.owner, NameDHCP6PDClient, enable)
+	if err != nil || !act {
 		return nil, err
 	}
+	idx := tg.Index
 	_, err = dhcp6_pd_client_cp.NewServiceClient(d.client).DHCP6PdClientEnableDisable(ctx,
 		&dhcp6_pd_client_cp.DHCP6PdClientEnableDisable{
 			SwIfIndex: interface_types.InterfaceIndex(idx), PrefixGroup: s.PrefixGroup, Enable: enable,
@@ -174,7 +195,7 @@ func (d *DHCP6PDClientDescriptor) set(ctx context.Context, obj proto.Message, me
 	if err != nil {
 		return nil, fmt.Errorf("dhcp6_pd_client_enable_disable(%s, group %q, enable=%t): %w", s.Interface, s.PrefixGroup, enable, err)
 	}
-	return IfaceMeta{SwIfIndex: idx}, nil
+	return finish(tg, enable)
 }
 
 // Create implements scheduler.Descriptor (idempotent for the same prefix group; VPP rejects a
@@ -262,10 +283,12 @@ func (d *DHCP6PDAddressDescriptor) set(ctx context.Context, obj proto.Message, m
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
-	idx, err := ifaceIndex(ctx, d.client, s.Interface, d.owner, meta)
-	if err != nil {
+	_ = meta
+	tg, act, err := target(ctx, d.client, s.Interface, d.owner, NameDHCP6PDAddr, add)
+	if err != nil || !act {
 		return nil, err
 	}
+	idx := tg.Index
 	a, l, _ := parseAddrLen(s.Address)
 	_, err = dhcp6_pd_client_cp.NewServiceClient(d.client).IP6AddDelAddressUsingPrefix(ctx,
 		&dhcp6_pd_client_cp.IP6AddDelAddressUsingPrefix{
@@ -277,19 +300,23 @@ func (d *DHCP6PDAddressDescriptor) set(ctx context.Context, obj proto.Message, m
 	if err != nil {
 		return nil, fmt.Errorf("ip6_add_del_address_using_prefix(%s, %q, %s, add=%t): %w", s.Interface, s.PrefixGroup, s.Address, add, err)
 	}
-	return IfaceMeta{SwIfIndex: idx}, nil
+	return finish(tg, add)
 }
 
 // Create implements scheduler.Descriptor; an existing identical entry (DUPLICATE_IF_ADDRESS) is success.
 func (d *DHCP6PDAddressDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	meta, err := d.set(ctx, obj, nil, true)
 	if dfkit.IsVPPError(err, api.DUPLICATE_IF_ADDRESS) {
+		// already there: ours only on our tagged interface or with our claim (review H1)
 		s, _ := decode[DHCP6PDAddress](obj)
-		idx, rerr := dfkit.ResolveInterface(ctx, d.client, s.Interface, d.owner)
+		tg, rerr := dfkit.ResolveTarget(ctx, d.client, s.Interface, d.owner, NameDHCP6PDAddr)
 		if rerr != nil {
 			return nil, rerr
 		}
-		return IfaceMeta{SwIfIndex: idx}, nil
+		if aerr := tg.Adopt(); aerr != nil {
+			return nil, aerr
+		}
+		return IfaceMeta{SwIfIndex: tg.Index}, nil
 	}
 	return meta, err
 }

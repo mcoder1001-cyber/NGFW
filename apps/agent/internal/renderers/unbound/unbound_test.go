@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -308,15 +309,23 @@ func tmpPaths(t *testing.T) Paths {
 	return p
 }
 
+// listenSocket stands in for unbound's control socket (Control probes it before unbound-control).
+func listenSocket(t *testing.T, path string) {
+	t.Helper()
+	l, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = l.Close() })
+}
+
 func TestApply(t *testing.T) {
 	ctx := context.Background()
 	full := dns(map[string]*vrxv1.DnsResolver{"lan": fullResolver()})
 
 	t.Run("reload through unbound-control", func(t *testing.T) {
 		p := tmpPaths(t)
-		if err := os.WriteFile(p.ControlSocket(), nil, 0o600); err != nil { // stands in for the socket
-			t.Fatal(err)
-		}
+		listenSocket(t, p.ControlSocket())
 		rr := renderers.NewRecordingRunner().Succeed(ControlBin, "ok")
 		r := New(rr, WithPaths(p))
 		files, _ := r.Render(ctx, full)
@@ -330,6 +339,22 @@ func TestApply(t *testing.T) {
 		b, _ := os.ReadFile(p.Conf()) //nolint:gosec // test
 		if string(b) != string(files[p.Conf()].Content) {
 			t.Fatal("file not written")
+		}
+	})
+
+	t.Run("stale socket is not running", func(t *testing.T) {
+		p := tmpPaths(t)
+		l, err := net.Listen("unix", p.ControlSocket())
+		if err != nil {
+			t.Fatal(err)
+		}
+		l.(*net.UnixListener).SetUnlinkOnClose(false)
+		_ = l.Close() // the socket file stays, nobody listens (unbound killed)
+		r := New(renderers.NewRecordingRunner(), WithPaths(p))
+		files, _ := r.Render(ctx, full)
+		var ar *ActionRequired
+		if err := r.Apply(ctx, files); !errors.As(err, &ar) {
+			t.Fatalf("stale socket: want ActionRequired, got %v", err)
 		}
 	})
 
@@ -349,9 +374,7 @@ func TestApply(t *testing.T) {
 
 	t.Run("reload failure restores", func(t *testing.T) {
 		p := tmpPaths(t)
-		if err := os.WriteFile(p.ControlSocket(), nil, 0o600); err != nil {
-			t.Fatal(err)
-		}
+		listenSocket(t, p.ControlSocket())
 		old := []byte("# old\n")
 		if err := os.WriteFile(p.Conf(), old, 0o600); err != nil {
 			t.Fatal(err)

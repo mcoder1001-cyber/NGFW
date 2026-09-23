@@ -11,8 +11,8 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -206,9 +206,12 @@ func (e *ActionRequired) NeedsRestart() (unit, action string) { return e.Unit, e
 
 // Control runs one fixed unbound-control command against the running daemon.
 func (r *Renderer) Control(ctx context.Context, args ...string) ([]byte, error) {
-	if _, err := os.Stat(r.paths.ControlSocket()); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrNotRunning, r.paths.ControlSocket())
+	// A stale socket survives an unbound that exited: probe it before running unbound-control.
+	conn, err := net.DialTimeout("unix", r.paths.ControlSocket(), time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s: %w", ErrNotRunning, r.paths.ControlSocket(), err)
 	}
+	_ = conn.Close()
 	out, err := r.runner.Run(ctx, renderers.Command{
 		Path: ControlBin, Args: append([]string{"-c", r.paths.Conf()}, args...), Timeout: controlTimeout,
 	})

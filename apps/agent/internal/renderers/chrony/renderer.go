@@ -12,6 +12,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
 	"os"
 	"regexp"
@@ -222,9 +223,19 @@ func (e *ActionRequired) Error() string {
 // NeedsRestart reports the unit and action (shared duck-typed shape with kea and unbound).
 func (e *ActionRequired) NeedsRestart() (unit, action string) { return e.Unit, e.Action }
 
+// running probes the command socket (a stale socket file survives a chronyd that was killed).
+func (r *Renderer) running() bool {
+	conn, err := net.DialTimeout("unixgram", r.paths.Socket(), time.Second)
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
+}
+
 // Chronyc runs one fixed chronyc command over the unix command socket.
 func (r *Renderer) Chronyc(ctx context.Context, args ...string) ([]byte, error) {
-	if _, err := os.Stat(r.paths.Socket()); err != nil {
+	if !r.running() {
 		return nil, fmt.Errorf("%w: %s", ErrNotRunning, r.paths.Socket())
 	}
 	out, err := r.runner.Run(ctx, renderers.Command{
@@ -261,7 +272,7 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 		return errors.Join(err, snap.Restore())
 	}
 	enabled := !bytes.Contains(files[r.paths.Conf()].Content, []byte("\n# services.ntp is disabled"))
-	if _, err := os.Stat(r.paths.Socket()); err != nil {
+	if !r.running() {
 		if enabled {
 			return &ActionRequired{Daemon: "chronyd", Unit: r.paths.Unit, Action: "start", Reason: "services.ntp is enabled but chronyd is not running"}
 		}

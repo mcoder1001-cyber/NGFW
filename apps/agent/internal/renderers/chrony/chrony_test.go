@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -310,11 +311,24 @@ func tmpPaths(t *testing.T) Paths {
 
 func TestApply(t *testing.T) {
 	ctx := context.Background()
-	socket := func(p Paths) {
-		if err := os.WriteFile(p.Socket(), nil, 0o600); err != nil {
+	socket := func(p Paths) { // stands in for chronyd's command socket
+		c, err := net.ListenPacket("unixgram", p.Socket())
+		if err != nil {
 			t.Fatal(err)
 		}
+		t.Cleanup(func() { _ = c.Close() })
 	}
+	t.Run("stale socket is not running", func(t *testing.T) {
+		p := tmpPaths(t)
+		if err := os.WriteFile(p.Socket(), nil, 0o600); err != nil { // file left behind, nobody listens
+			t.Fatal(err)
+		}
+		r := New(renderers.NewRecordingRunner(), WithPaths(p), WithSecrets(resolver))
+		var ar *ActionRequired
+		if err := r.Apply(ctx, render(t, r, clientNTP())); !errors.As(err, &ar) || ar.Action != "start" {
+			t.Fatalf("want start, got %v", err)
+		}
+	})
 	t.Run("not running", func(t *testing.T) {
 		p := tmpPaths(t)
 		r := New(renderers.NewRecordingRunner(), WithPaths(p), WithSecrets(resolver))

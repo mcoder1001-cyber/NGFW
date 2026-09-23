@@ -52,7 +52,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.8
@@ -64,10 +64,10 @@ tasks:
   - D3.3
   scope: group (a) domains fully modelled per docs/04
   files_owned: packages/schema/src/{index,primitives,diff,merge-patch,gen}.ts packages/schema/src/domains/{system,dataplane,interfaces,vrfs,routing,management}.ts packages/schema/src/semantic/{system,interfaces,routing}*.ts
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P02a
+  worktree: /root/ngfw-wt/P02a
+  owner: desktop-agent slot1
+  started: 2026-09-23T13:35
   finished: ''
   notes: ''
 - id: P02b
@@ -79,7 +79,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D4.1
@@ -91,10 +91,10 @@ tasks:
   - D5.2
   scope: group (b) domains fully modelled per docs/04 + WBS D4/D5
   files_owned: packages/schema/src/domains/{nat,objects,acl}.ts packages/schema/src/semantic/{nat,objects,acl}*.ts
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P02b
+  worktree: /root/ngfw-wt/P02b
+  owner: desktop-agent slot5
+  started: 2026-09-23T13:35
   finished: ''
   notes: ''
 - id: P02c
@@ -106,7 +106,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D6.2
@@ -118,10 +118,10 @@ tasks:
   - D9.1
   scope: group (c) domains fully modelled per docs/04 + WBS D6/D7/D9
   files_owned: packages/schema/src/domains/{vpn,tunnels,services,ha}.ts packages/schema/src/semantic/{vpn,tunnels,services,ha}*.ts
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P02c
+  worktree: /root/ngfw-wt/P02c
+  owner: desktop-agent slot6
+  started: 2026-09-23T13:35
   finished: ''
   notes: ''
 - id: P03
@@ -133,17 +133,17 @@ tasks:
   - P02s
   priority: 1
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.7
   - D0.8
   scope: mirror schema domain keys; reserve field numbers
   files_owned: packages/proto/** apps/agent/gen/** docs/contracts/proto.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P03
+  worktree: /root/ngfw-wt/P03
+  owner: desktop-agent slot7
+  started: 2026-09-23T13:35
   finished: ''
   notes: ''
 - id: P05a
@@ -269,16 +269,16 @@ tasks:
   - P02s
   priority: 1
   est_hours: 14
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.10
   scope: ''
   files_owned: apps/web/** packages/ui-kit/**
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P07a
+  worktree: /root/ngfw-wt/P07a
+  owner: desktop-agent slot8
+  started: 2026-09-23T13:35
   finished: ''
   notes: ''
 - id: P07b

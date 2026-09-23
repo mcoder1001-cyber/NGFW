@@ -2,7 +2,7 @@
 
 Package `apps/agent/internal/descriptors/sflow` — random packet sampling: global parameters and sFlow on an
 interface. Export to a collector is hsflowd's job (out of scope). Message names only from `apps/agent/binapi/sflow`.
-`sflow.Register(registry, client, owner, opts...)`; option `WithInterfaceKey`.
+`sflow.Register(registry, client, owner, opts...)` (+ `RegisterGlobals` for `sflow.global`); option `WithInterfaceKey`.
 
 | Object type | Key | VPP messages | Retrieve | Update | Dependencies |
 |---|---|---|---|---|---|
@@ -27,5 +27,22 @@ Proposed VPP fix (for `docs/vpp-code-track.md`): add `sw_if_index` to `sflow_int
 
 ## Notes
 - VPP answers a redundant enable/disable with `VALUE_EXIST`; Create and Delete treat it as success.
-- Ownership: interfaces by owner tag. The global singleton is VPP-global: the host test skips when not at defaults and
+- Ownership: this owner's tagged interfaces or claimed untagged ones (below). The global singleton is VPP-global: the host test skips when not at defaults and
   restores the defaults in Cleanup.
+
+## Registration, ownership and restarts (D-069, D-071, D-074, D-076)
+- `sflow.Register(...)` registers the per-owner object types (`sflow.interface`); `sflow.RegisterGlobals(...)` registers the
+  VPP-global singletons (`sflow.global`) constructed as **globals owner** — P08 calls it only in the designated globals
+  owner's agent (D-071), before `Register`. A descriptor constructed without the role (`dfkit.GlobalsOwner(false)`)
+  only *requires* the value: Create succeeds when VPP already has it (checked through the getter where one exists,
+  otherwise `dfkit.ErrNotGlobalsOwner`), Delete is a no-op, Retrieve is write-only.
+- Interfaces are named by their **logical name** and resolved with DF-1's `iface.ResolveName` (D-069): this owner's
+  tag id first, then an untagged interface's VPP name; another owner's interface fails with
+  `iface.ErrForeignInterface`, local0 never resolves. Objects on an **untagged** interface (a DPDK NIC) are recorded
+  in the owner's ClaimStore (`iface.Claims`, shared with DF-1; P05/P08 install a persisted one) on Create, released on
+  Delete, and reported by Retrieve only while claimed (D-071 claim rule).
+- Deletes re-resolve the logical name right before acting by sw_if_index (never a Meta index — indexes are reused
+  after a VPP restart) and first check that the object still exists (D-074); "already gone" is success.
+- Retrieve never reports a key twice (`dfkit.Dedupe`).
+- Restart simulation (fresh connection + fresh descriptors → empty plan; objects deleted via binapi → exactly their
+  re-creation planned → empty plan again): `internal/descriptors/dfkit/restarttest`, output in `DF-8.md`.

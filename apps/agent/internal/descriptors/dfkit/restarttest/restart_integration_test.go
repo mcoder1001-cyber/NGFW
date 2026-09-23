@@ -74,7 +74,7 @@ func agent(t *testing.T, c vpp.Client, owner string, ifs [3]string) []step {
 
 // reconcile plans every step and applies Creates (in step order) and Deletes (reverse order);
 // it returns the number of planned operations.
-func reconcile(t *testing.T, ctx context.Context, steps []step) int {
+func reconcile(ctx context.Context, t *testing.T, steps []step) int {
 	t.Helper()
 	total := 0
 	plans := make([]scheduler.Plan, len(steps))
@@ -152,10 +152,10 @@ func TestRestartSimulationOnHost(t *testing.T) {
 	t.Log("== agent 1: apply the desired state")
 	a1 := agent(t, h1.Client(), h1.Owner, ifs)
 	t.Cleanup(func() { deleteAll(context.Background(), t, a1) })
-	if n := reconcile(t, ctx, a1); n == 0 {
+	if n := reconcile(ctx, t, a1); n == 0 {
 		t.Fatal("agent 1 planned nothing on an empty VPP")
 	}
-	if n := reconcile(t, ctx, a1); n != 0 {
+	if n := reconcile(ctx, t, a1); n != 0 {
 		t.Fatalf("agent 1 re-apply planned %d op(s)", n)
 	}
 
@@ -163,7 +163,7 @@ func TestRestartSimulationOnHost(t *testing.T) {
 	h2 := dfkittest.ConnectHost(t)
 	h2.Owner = h1.Owner
 	a2 := agent(t, h2.Client(), h2.Owner, ifs)
-	if n := reconcile(t, ctx, a2); n != 0 {
+	if n := reconcile(ctx, t, a2); n != 0 {
 		t.Fatalf("fresh agent planned %d op(s) against unchanged VPP state", n)
 	}
 
@@ -176,11 +176,11 @@ func TestRestartSimulationOnHost(t *testing.T) {
 	for _, s := range a3 {
 		want += len(s.desired)
 	}
-	if n := reconcile(t, ctx, a3); n != want {
+	if n := reconcile(ctx, t, a3); n != want {
 		t.Fatalf("after the loss the plan has %d op(s), want %d creates", n, want)
 	}
 	dfkittest.HoldForEvidence(t, "restart simulation: objects re-created")
-	if n := reconcile(t, ctx, a3); n != 0 {
+	if n := reconcile(ctx, t, a3); n != 0 {
 		t.Fatalf("after re-creation the plan has %d op(s)", n)
 	}
 }

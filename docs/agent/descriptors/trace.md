@@ -1,7 +1,7 @@
 # trace descriptors (DF-8, WBS D8.2)
 
 Package `apps/agent/internal/descriptors/trace` — the BPF trace filter (`bpf_trace_filter` plugin). Message names only
-from `apps/agent/binapi/bpf_trace_filter`. `trace.Register(registry, client)`.
+from `apps/agent/binapi/bpf_trace_filter`. `trace.RegisterGlobals(registry, client)`.
 
 | Object type | Key | VPP messages | Retrieve | Update | Dependencies |
 |---|---|---|---|---|---|
@@ -21,3 +21,20 @@ object types). `binapi/trace` is the iOAM trace-profile API (`trace_profile_add/
   compiling**: a failed Create leaves no filter (host-verified). The reconciler's rollback re-applies the old value.
 - VPP-global without getter: nobody else on the shared host sets it; the host test sets and removes it.
 - The filter is used by the packet tracer and by pcap when `pcap.filter-function` is `bpf_trace_filter`.
+
+## Registration, ownership and restarts (D-069, D-071, D-074, D-076)
+- There is no per-owner `Register` (everything here is VPP-global); `trace.RegisterGlobals(...)` registers the
+  VPP-global singletons (`trace.bpf-filter`) constructed as **globals owner** — P08 calls it only in the designated globals
+  owner's agent (D-071). A descriptor constructed without the role (`dfkit.GlobalsOwner(false)`)
+  only *requires* the value: Create succeeds when VPP already has it (checked through the getter where one exists,
+  otherwise `dfkit.ErrNotGlobalsOwner`), Delete is a no-op, Retrieve is write-only.
+- Interfaces are named by their **logical name** and resolved with DF-1's `iface.ResolveName` (D-069): this owner's
+  tag id first, then an untagged interface's VPP name; another owner's interface fails with
+  `iface.ErrForeignInterface`, local0 never resolves. Objects on an **untagged** interface (a DPDK NIC) are recorded
+  in the owner's ClaimStore (`iface.Claims`, shared with DF-1; P05/P08 install a persisted one) on Create, released on
+  Delete, and reported by Retrieve only while claimed (D-071 claim rule).
+- Deletes re-resolve the logical name right before acting by sw_if_index (never a Meta index — indexes are reused
+  after a VPP restart) and first check that the object still exists (D-074); "already gone" is success.
+- Retrieve never reports a key twice (`dfkit.Dedupe`).
+- Restart simulation (fresh connection + fresh descriptors → empty plan; objects deleted via binapi → exactly their
+  re-creation planned → empty plan again): `internal/descriptors/dfkit/restarttest`, output in `DF-8.md`.

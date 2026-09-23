@@ -1,7 +1,7 @@
 # linux-cp descriptors (DF-8, WBS D3.1)
 
 Package `apps/agent/internal/descriptors/lcp` — the linux-cp default namespace and interface pairs, plus the replace
-transaction helpers P12 uses. Message names only from `apps/agent/binapi/lcp`. `lcp.Register(registry, client, owner, opts...)`;
+transaction helpers P12 uses. Message names only from `apps/agent/binapi/lcp`. `lcp.Register(registry, client, owner, opts...)` (+ `RegisterGlobals` for the default netns);
 option `WithInterfaceKey`.
 
 | Object type | Key | VPP messages | Retrieve | Update | Dependencies |
@@ -26,7 +26,25 @@ fill it identically).
   reports that name; desire "" only while no default namespace is set (the API layer fills in the effective value).
 - A second, different pair on the same interface is `VALUE_EXIST` (error); an identical re-apply returns the
   existing pair's Meta. VPP refuses a tap for non-ethernet interfaces (use tun).
-- Ownership: pairs are owned through the VPP-side interface tag; Create refuses unowned interfaces (never pairs an
-  `ens*` NIC or `local0` of another owner). The replace helpers act on **every** pair of every owner: call them only
+- Ownership: pairs are owned through the VPP-side interface (logical name): this owner's tagged interfaces, or an
+  untagged NIC claimed on Create (P12's DPDK ports); another owner's interface is refused and `local0` never resolves.
+  Host tests pair only this slot's loopbacks, never an `ens*` NIC. The replace helpers act on **every** pair of every owner: call them only
   when this agent owns the whole VPP; the host test runs begin/end only while no pair exists.
 - The default netns is VPP-global: the host test skips when it is set by someone else and unsets it in Cleanup.
+
+## Registration, ownership and restarts (D-069, D-071, D-074, D-076)
+- `lcp.Register(...)` registers the per-owner object types (`lcp.itf-pair`); `lcp.RegisterGlobals(...)` registers the
+  VPP-global singletons (`lcp.default-netns`) constructed as **globals owner** — P08 calls it only in the designated globals
+  owner's agent (D-071), before `Register`. A descriptor constructed without the role (`dfkit.GlobalsOwner(false)`)
+  only *requires* the value: Create succeeds when VPP already has it (checked through the getter where one exists,
+  otherwise `dfkit.ErrNotGlobalsOwner`), Delete is a no-op, Retrieve is write-only.
+- Interfaces are named by their **logical name** and resolved with DF-1's `iface.ResolveName` (D-069): this owner's
+  tag id first, then an untagged interface's VPP name; another owner's interface fails with
+  `iface.ErrForeignInterface`, local0 never resolves. Objects on an **untagged** interface (a DPDK NIC) are recorded
+  in the owner's ClaimStore (`iface.Claims`, shared with DF-1; P05/P08 install a persisted one) on Create, released on
+  Delete, and reported by Retrieve only while claimed (D-071 claim rule).
+- Deletes re-resolve the logical name right before acting by sw_if_index (never a Meta index — indexes are reused
+  after a VPP restart) and first check that the object still exists (D-074); "already gone" is success.
+- Retrieve never reports a key twice (`dfkit.Dedupe`).
+- Restart simulation (fresh connection + fresh descriptors → empty plan; objects deleted via binapi → exactly their
+  re-creation planned → empty plan again): `internal/descriptors/dfkit/restarttest`, output in `DF-8.md`.

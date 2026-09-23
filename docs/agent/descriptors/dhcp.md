@@ -3,7 +3,8 @@
 Package `apps/agent/internal/descriptors/dhcp` — DHCPv4/v6 relay per VRF, relay VSS, DHCPv4 client, DHCPv6 IA_NA
 and prefix-delegation clients, prefix-derived addresses and the DHCPv6 DUID. Message names only from
 `apps/agent/binapi/{dhcp,dhcp6_ia_na_client_cp,dhcp6_pd_client_cp}`. `dhcp.Register(registry, client, owner, opts...)`
-registers all seven; options: `WithInterfaceKey`, `WithVRFKey`, `WithVRFScope`.
+registers the six per-owner types, `dhcp.RegisterGlobals(registry, client)` the DUID; options: `WithInterfaceKey`,
+`WithVRFKey`, `WithVRFScope`.
 
 Values are `*structpb.Struct` documents built from the typed specs in `spec.go` (`dhcp.Proxy{...}.Proto()`, D-055
 stand-in; codec in `descriptors/dfkit`). Always build values with `.Proto()` — every field is emitted, addresses are
@@ -25,10 +26,11 @@ Status / actions (not desired state): `ClientDescriptor.Leases` (lease per owned
 `SendDHCP6ClientMessage` / `SendDHCP6PDClientMessage` (action helpers).
 
 ## Ownership (shared VPP)
-- Interface-bound objects: the interface must carry the owner tag `<owner>:<id>` (`vpp.OwnerTag`); Create refuses
-  others (`dfkit.ErrNotOwned`), Retrieve filters by tag. The DHCPv4 hostname should carry the owner prefix (tests: `w5-host`).
+- Interface-bound objects: this owner's tagged interfaces (`<owner>:<id>`) or claimed untagged ones (below); another
+  owner's interface is refused (`iface.ErrForeignInterface`), Retrieve filters accordingly. The DHCPv4 hostname should carry the owner prefix (tests: `w5-host`).
 - Relay objects have no tag: they are owned through their **rx VRF**, which must be inside `WithVRFScope` (production:
-  every VRF; tests: the slot's table range `N000–N999`).
+  every VRF; tests: a sub-range of the slot's table range `N000–N999`). Relays are per-VRF objects, not VPP-globals
+  (D-071 decision in `DF-8.md`).
 
 ## Notes and limitations
 - **Write-only (D-063):** VPP 26.06 has no dump for the DHCPv6 clients, prefix addresses or the DUID. Retrieve returns
@@ -43,3 +45,20 @@ Status / actions (not desired state): `ClientDescriptor.Leases` (lease per owned
 - The DUID is VPP-global without getter or reset: the host test runs only with `VRX_DF8_DUID=1`.
 - Evidence: `docs/status/tasks/DF-8.md` (`show dhcp proxy`, `show dhcpv6 proxy`, `show dhcp vss`, `show dhcp client`,
   `show dhcp6 clients` during the host run, empty after).
+
+## Registration, ownership and restarts (D-069, D-071, D-074, D-076)
+- `dhcp.Register(...)` registers the per-owner object types (proxy, proxy-vss, client, dhcp6-client, dhcp6-pd-client, dhcp6-pd-address); `dhcp.RegisterGlobals(...)` registers the
+  VPP-global singletons (`dhcp.dhcp6-duid`) constructed as **globals owner** — P08 calls it only in the designated globals
+  owner's agent (D-071), before `Register`. A descriptor constructed without the role (`dfkit.GlobalsOwner(false)`)
+  only *requires* the value: Create succeeds when VPP already has it (checked through the getter where one exists,
+  otherwise `dfkit.ErrNotGlobalsOwner`), Delete is a no-op, Retrieve is write-only.
+- Interfaces are named by their **logical name** and resolved with DF-1's `iface.ResolveName` (D-069): this owner's
+  tag id first, then an untagged interface's VPP name; another owner's interface fails with
+  `iface.ErrForeignInterface`, local0 never resolves. Objects on an **untagged** interface (a DPDK NIC) are recorded
+  in the owner's ClaimStore (`iface.Claims`, shared with DF-1; P05/P08 install a persisted one) on Create, released on
+  Delete, and reported by Retrieve only while claimed (D-071 claim rule).
+- Deletes re-resolve the logical name right before acting by sw_if_index (never a Meta index — indexes are reused
+  after a VPP restart) and first check that the object still exists (D-074); "already gone" is success.
+- Retrieve never reports a key twice (`dfkit.Dedupe`).
+- Restart simulation (fresh connection + fresh descriptors → empty plan; objects deleted via binapi → exactly their
+  re-creation planned → empty plan again): `internal/descriptors/dfkit/restarttest`, output in `DF-8.md`.

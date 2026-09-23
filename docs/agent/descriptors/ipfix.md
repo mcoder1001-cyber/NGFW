@@ -2,7 +2,7 @@
 
 Package `apps/agent/internal/descriptors/ipfix` — VPP's IPFIX exporters (vnet `ipfix-export`), the classify report
 stream and the classify tables reported over IPFIX. Message names only from `apps/agent/binapi/ipfix_export`.
-`ipfix.Register(registry, client, opts...)`; options `WithVRFKey`, `WithClassifyTableKey`, `WithCollectorScope`,
+`ipfix.Register(registry, client, opts...)` (+ `ipfix.RegisterGlobals` for exporter 0 and the classify stream); options `WithVRFKey`, `WithClassifyTableKey`, `WithCollectorScope`,
 `WithClassifyTableScope`.
 
 | Object type | Key | VPP messages | Retrieve | Update | Dependencies |
@@ -32,3 +32,20 @@ Retrieve — the dump does not carry it).
   `WithClassifyTableScope`. Singletons are VPP-global: reported only when set (not at VPP's defaults); the host test
   skips when someone else set them and resets them in Cleanup.
 - VPP 26.06 has no `show ipfix …` CLI; the evidence is the Retrieve log of the host run.
+
+## Registration, ownership and restarts (D-069, D-071, D-074, D-076)
+- `ipfix.Register(...)` registers the per-owner object types (`ipfix.exporter`, `ipfix.classify-table`); `ipfix.RegisterGlobals(...)` registers the
+  VPP-global singletons (`ipfix.default-exporter`, `ipfix.classify-stream`) constructed as **globals owner** — P08 calls it only in the designated globals
+  owner's agent (D-071), before `Register`. A descriptor constructed without the role (`dfkit.GlobalsOwner(false)`)
+  only *requires* the value: Create succeeds when VPP already has it (checked through the getter where one exists,
+  otherwise `dfkit.ErrNotGlobalsOwner`), Delete is a no-op, Retrieve is write-only.
+- Interfaces are named by their **logical name** and resolved with DF-1's `iface.ResolveName` (D-069): this owner's
+  tag id first, then an untagged interface's VPP name; another owner's interface fails with
+  `iface.ErrForeignInterface`, local0 never resolves. Objects on an **untagged** interface (a DPDK NIC) are recorded
+  in the owner's ClaimStore (`iface.Claims`, shared with DF-1; P05/P08 install a persisted one) on Create, released on
+  Delete, and reported by Retrieve only while claimed (D-071 claim rule).
+- Deletes re-resolve the logical name right before acting by sw_if_index (never a Meta index — indexes are reused
+  after a VPP restart) and first check that the object still exists (D-074); "already gone" is success.
+- Retrieve never reports a key twice (`dfkit.Dedupe`).
+- Restart simulation (fresh connection + fresh descriptors → empty plan; objects deleted via binapi → exactly their
+  re-creation planned → empty plan again): `internal/descriptors/dfkit/restarttest`, output in `DF-8.md`.

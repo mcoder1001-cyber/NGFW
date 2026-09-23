@@ -142,6 +142,15 @@ func (h *Host) Address(swIfIndex uint32, addr string) {
 	if _, err := interfaces.NewServiceClient(h.C).SwInterfaceAddDelAddress(h.Ctx, req); err != nil {
 		h.T.Fatalf("sw_interface_add_del_address %s: %v", addr, err)
 	}
+	// remove the address before the interface and its table go (VPP bug V15: FIB entries left
+	// in a deleted table leak into the next table that reuses its index)
+	h.T.Cleanup(func() {
+		del := *req
+		del.IsAdd = false
+		if _, err := interfaces.NewServiceClient(h.C).SwInterfaceAddDelAddress(context.Background(), &del); err != nil {
+			h.T.Errorf("cleanup remove address %s: %v", addr, err)
+		}
+	})
 }
 
 // IPTable creates IPv4 table id (with its mFIB) named "<owner>:<id>" and deletes it in Cleanup
@@ -165,6 +174,43 @@ func (h *Host) BindTable(swIfIndex, id uint32) {
 	h.T.Helper()
 	if _, err := interfaces.NewServiceClient(h.C).SwInterfaceSetTable(h.Ctx, &interfaces.SwInterfaceSetTable{SwIfIndex: interface_types.InterfaceIndex(swIfIndex), VrfID: id}); err != nil {
 		h.T.Fatalf("sw_interface_set_table %d → %d: %v", swIfIndex, id, err)
+	}
+	// back to table 0 before the table is deleted (V15); runs after the address cleanups
+	h.T.Cleanup(func() {
+		if _, err := interfaces.NewServiceClient(h.C).SwInterfaceSetTable(context.Background(), &interfaces.SwInterfaceSetTable{SwIfIndex: interface_types.InterfaceIndex(swIfIndex)}); err != nil {
+			h.T.Errorf("cleanup unbind %d from table %d: %v", swIfIndex, id, err)
+		}
+	})
+}
+
+// NoLeftovers asserts that no FIB entry of this slot's 10.<slot>.0.0/16 is left in IPv4 table
+// id (ip_route_dump) — the check P05 asked for after V15.
+func (h *Host) NoLeftovers(id uint32) {
+	h.T.Helper()
+	stream, err := ip.NewServiceClient(h.C).IPRouteDump(h.Ctx, &ip.IPRouteDump{Table: ip.IPTable{TableID: id}})
+	if err != nil {
+		h.T.Fatalf("ip_route_dump %d: %v", id, err)
+	}
+	slot := netip.MustParsePrefix(fmt.Sprintf("10.%d.0.0/16", h.Slot))
+	var left []string
+	for {
+		d, err := stream.Recv()
+		if err != nil {
+			break
+		}
+		a := d.Route.Prefix.Address
+		if a.Af != ip_types.ADDRESS_IP4 {
+			continue
+		}
+		addr := netip.AddrFrom4(a.Un.GetIP4())
+		if slot.Contains(addr) {
+			left = append(left, fmt.Sprintf("%s/%d", addr, d.Route.Prefix.Len))
+		}
+	}
+	if len(left) > 0 {
+		h.T.Errorf("table %d still holds %v of this slot", id, left)
+	} else {
+		h.T.Logf("ip_route_dump table %d: nothing of %s left", id, slot)
 	}
 }
 

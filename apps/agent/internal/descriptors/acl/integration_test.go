@@ -24,10 +24,10 @@ import (
 // loopbacks, cleanup in t.Cleanup (unbind before delete). Assertions filter by owner — other
 // workers' ACLs are on the same VPP at the same time.
 //
-// The global counters switch (acl.stats-enable) is turned on and left on: VPP has no getter and
-// another owner may rely on it. Set VRX_ACL_STATS_RESTORE_DISABLED=1 to have the test switch it
-// off again at the end when the operator has verified (VPP CLI: show acl-plugin tables) that it
-// was off before and nobody else uses it.
+// The global counters switch (acl.stats-enable) has no getter. It is off on this host (nothing on
+// main enables it), so the test switches it on for the stats subtest and restores it to
+// disabled in Cleanup. Set VRX_ACL_STATS_KEEP=1 to leave it on (e.g. when the operator knows
+// another consumer needs it).
 
 // holdForEvidence pauses when VRX_ACL_EVIDENCE_HOLD (a duration) is set, so an operator can
 // capture the VPP CLI `show acl-plugin …` output for the status report while the objects exist.
@@ -68,9 +68,10 @@ func connectStats(t *testing.T) *statsclient.StatsClient {
 }
 
 // createLoopback creates this slot's loopback number i (loop<slot><ii>), tags it with the owner
-// and deletes it in Cleanup. A leftover of the same name from an earlier failed run is removed
+// (unless tagged is false: an untagged interface stands in for a physical port) and deletes it
+// in Cleanup. A leftover of the same name from an earlier failed run is removed
 // first (same slot ⇒ ours).
-func createLoopback(ctx context.Context, t *testing.T, c vpp.Client, owner string, i int) string {
+func createLoopback(ctx context.Context, t *testing.T, c vpp.Client, owner string, i int, tagged bool) string {
 	t.Helper()
 	inst := vpptest.LoopbackInstance(t, i)
 	name := fmt.Sprintf("loop%d", inst)
@@ -92,6 +93,10 @@ func createLoopback(ctx context.Context, t *testing.T, c vpp.Client, owner strin
 			t.Errorf("cleanup delete_loopback %s: %v", name, err)
 		}
 	})
+	if !tagged {
+		t.Logf("created %s sw_if_index %d (untagged)", name, rep.SwIfIndex)
+		return name
+	}
 	tag, err := vpp.OwnerTag(owner, name)
 	if err != nil {
 		t.Fatal(err)
@@ -179,18 +184,26 @@ func TestACLPluginOnHost(t *testing.T) {
 	reader := NewStatsReader(stats, c, owner)
 
 	deleteOwned(ctx, t, bindD, etypeD, mbindD, aclD, macipD) // leftovers of an earlier failed run
-	if os.Getenv("VRX_ACL_STATS_RESTORE_DISABLED") == "1" {
+	if os.Getenv("VRX_ACL_STATS_KEEP") != "1" {
 		t.Cleanup(func() {
 			if err := setCounters(context.Background(), c, false); err != nil {
 				t.Errorf("restore counters flag: %v", err)
 			} else {
-				t.Log("restored acl stats counters flag to disabled (VRX_ACL_STATS_RESTORE_DISABLED=1)")
+				t.Log("restored acl stats counters flag to disabled (set VRX_ACL_STATS_KEEP=1 to keep it on)")
 			}
 		})
+	} else {
+		t.Log("VRX_ACL_STATS_KEEP=1: acl stats counters flag stays enabled after the test")
 	}
-	ifA := createLoopback(ctx, t, c, owner, 40)
-	ifB := createLoopback(ctx, t, c, owner, 41)
+	ifA := createLoopback(ctx, t, c, owner, 40, true)
+	ifB := createLoopback(ctx, t, c, owner, 41, true)
+	ifU := createLoopback(ctx, t, c, owner, 43, false) // untagged, like a physical port
+	foreignOwner := owner + "f"                         // a second owner on the same VPP (tag "w10f:…")
+	foreignACL := NewACL(c, foreignOwner)
+	foreignBind := NewInterfaceBinding(c, foreignOwner)
+	deleteOwned(ctx, t, foreignBind, foreignACL)
 	t.Cleanup(func() { deleteOwned(context.Background(), t, bindD, etypeD, mbindD, aclD, macipD) })
+	t.Cleanup(func() { deleteOwned(context.Background(), t, foreignBind, foreignACL) })
 
 	lanIn := ACL{Name: "t-lan-in", Rules: sampleRules()}
 	big := ACL{Name: "t-big50", Rules: manyRules(50)}
@@ -252,6 +265,15 @@ func TestACLPluginOnHost(t *testing.T) {
 		}
 		binding = reordered
 		assertRetrieved(t, bindD, kv(bindD, binding.Proto()))
+		// update a bound ACL in place: index kept, binding unchanged
+		updated := ACL{Name: lanIn.Name, Rules: append(append([]Rule{}, lanIn.Rules...), sampleRules()[0])}
+		if m, err := aclD.Update(ctx, lanIn.Proto(), updated.Proto(), lanMeta); err != nil || m != lanMeta {
+			t.Fatalf("Update of a bound ACL: %v (meta %+v)", err, m)
+		}
+		lanIn = updated
+		assertRetrieved(t, aclD, kv(aclD, lanIn.Proto()), kv(aclD, big.Proto()))
+		assertRetrieved(t, bindD, kv(bindD, binding.Proto()))
+		t.Logf("bound ACL %s updated in place (%d rules), binding unchanged", lanIn.Name, len(lanIn.Rules))
 		// the ACL cannot go while bound
 		if err := aclD.Delete(ctx, lanIn.Proto(), lanMeta); err == nil {
 			t.Fatal("acl_del of a bound ACL must fail (ACL_IN_USE)")
@@ -276,6 +298,52 @@ func TestACLPluginOnHost(t *testing.T) {
 			t.Fatal(err)
 		}
 		assertRetrieved(t, etypeD)
+	})
+	t.Run("etype-whitelist-untagged", func(t *testing.T) {
+		// review finding 2: an untagged interface (physical port) — visible, idempotent, deletable
+		w := EtypeWhitelist{Interface: ifU, Input: []uint16{0x0806}, Output: []uint16{0x0806, 0x88cc}}
+		meta, err := etypeD.Create(ctx, w.Proto())
+		if err != nil {
+			t.Fatal(err)
+		}
+		actual := assertRetrieved(t, etypeD, kv(etypeD, w.Proto()))
+		if actual[0].Meta != meta {
+			t.Fatalf("Retrieve meta %+v != Create meta %+v", actual[0].Meta, meta)
+		}
+		p := diffPlan(nil, actual)
+		if len(p.Delete) != 1 {
+			t.Fatalf("removing it from desired must plan a Delete:\n%s", planString(p))
+		}
+		if err := etypeD.Delete(ctx, p.Delete[0].Value, p.Delete[0].Meta); err != nil {
+			t.Fatal(err)
+		}
+		assertRetrieved(t, etypeD)
+		t.Logf("untagged %s: whitelist created, retrieved, deleted", ifU)
+	})
+	t.Run("foreign-acl-preserved", func(t *testing.T) {
+		// review finding 6: another owner's ACL on the same interface survives our Create/Delete
+		fa := ACL{Name: "t-foreign", Rules: sampleRules()[:1]}
+		faMeta, err := foreignACL.Create(ctx, fa.Proto())
+		if err != nil {
+			t.Fatal(err)
+		}
+		fb := InterfaceBinding{Interface: ifB, Input: []string{fa.Name}}
+		if _, err := foreignBind.Create(ctx, fb.Proto()); err != nil {
+			t.Fatal(err)
+		}
+		ours := InterfaceBinding{Interface: ifB, Input: []string{lanIn.Name}, Output: []string{big.Name}}
+		oursMeta, err := bindD.Create(ctx, ours.Proto())
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertRetrieved(t, bindD, kv(bindD, binding.Proto()), kv(bindD, ours.Proto()))
+		assertRetrieved(t, foreignBind, kv(foreignBind, fb.Proto()))
+		if err := bindD.Delete(ctx, ours.Proto(), oursMeta); err != nil {
+			t.Fatal(err)
+		}
+		assertRetrieved(t, bindD, kv(bindD, binding.Proto()))
+		assertRetrieved(t, foreignBind, kv(foreignBind, fb.Proto()))
+		t.Logf("foreign ACL %d (owner %s) kept on %s across our Create and Delete", faMeta.(Meta).ACLIndex, foreignOwner, ifB)
 	})
 	m1 := MacipACL{Name: "t-l2-guard", Rules: macipRules()}
 	m2 := MacipACL{Name: "t-l2-alt", Rules: macipRules()[:1]}

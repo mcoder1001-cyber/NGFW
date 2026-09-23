@@ -167,6 +167,10 @@ func TestMacipBindingRefusesForeign(t *testing.T) {
 	if len(v.CallsNamed("macip_acl_interface_add_del")) != 0 {
 		t.Fatal("nothing may be sent")
 	}
+	// VPP reports ~0 for an interface whose MACIP ACL was removed (seen on the host): free
+	v.mu.Lock()
+	v.macipBind[ifLoop1040] = noACL
+	v.mu.Unlock()
 	if _, err := d.Create(ctx, MacipBinding{Interface: "loop1040", ACL: "m"}.Proto()); err != nil {
 		t.Fatalf("free interface: %v", err)
 	}

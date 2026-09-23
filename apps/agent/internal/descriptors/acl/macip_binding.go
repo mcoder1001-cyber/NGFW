@@ -90,6 +90,9 @@ func (d *MacipBindingDescriptor) checkNotForeign(ctx context.Context, swIfIndex 
 			continue
 		}
 		for _, idx := range det.Acls {
+			if idx == noACL {
+				continue // VPP keeps ~0 for an interface whose MACIP ACL was removed
+			}
 			if _, mine := ours[idx]; !mine {
 				return fmt.Errorf("%w: %q has MACIP ACL %d", ErrForeignMacipBinding, ifName, idx)
 			}

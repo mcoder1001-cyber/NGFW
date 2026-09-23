@@ -8,6 +8,10 @@ plugins:
     opt: paths=source_relative
   - local: ./node_modules/.bin/protoc-gen-ts_proto
     out: gen/ts
+    # Well-known types (google.protobuf.Timestamp) are imported by the TS stubs, so they must be
+    # generated alongside them; Go uses the timestamppb module instead.
+    include_imports: true
+    include_wkt: true
     opt:
       - outputServices=grpc-js
       - esModuleInterop=true

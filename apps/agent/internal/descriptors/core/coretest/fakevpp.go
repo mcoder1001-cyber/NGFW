@@ -13,6 +13,7 @@ import (
 	"go.fd.io/govpp/api"
 
 	interfaces "ngfw/agent/binapi/interface"
+	"ngfw/agent/binapi/fib_types"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
@@ -59,6 +60,9 @@ type VPP struct {
 	Ifaces map[uint32]*Iface
 	Tables map[tableKey]string // name
 	Routes map[routeKey]ip.IPRoute
+	// Internal are VPP-generated FIB entries (source id, e.g. 18 recursive-resolution, 4 interface,
+	// 15 adjacency); an API route on the same prefix is reported instead (API outranks them).
+	Internal map[routeKey]uint8
 }
 
 // New returns a model with local0 and the default tables.
@@ -68,7 +72,8 @@ func New() *VPP {
 		next:   1,
 		Ifaces: map[uint32]*Iface{0: {Index: 0, Name: "local0", DevType: "local", Addrs: map[string]bool{}}},
 		Tables: map[tableKey]string{{0, false}: "ipv4-VRF:0", {0, true}: "ipv6-VRF:0"},
-		Routes: map[routeKey]ip.IPRoute{},
+		Routes:   map[routeKey]ip.IPRoute{},
+		Internal: map[routeKey]uint8{},
 	}
 	v.install()
 	return v
@@ -285,6 +290,7 @@ func (v *VPP) install() {
 				return reply(&ip.IPRouteAddDelReply{Retval: RetvalNoSuchEntry})
 			}
 			delete(v.Routes, rk)
+			v.syncRRLocked()
 			return reply(&ip.IPRouteAddDelReply{})
 		}
 		for _, fp := range req.Route.Paths {
@@ -297,7 +303,40 @@ func (v *VPP) install() {
 		r := req.Route
 		r.Paths = append(r.Paths[:0:0], req.Route.Paths...)
 		v.Routes[rk] = r
+		v.syncRRLocked()
 		return reply(&ip.IPRouteAddDelReply{})
+	})
+	v.On("ip_route_v2_dump", func(m api.Message) ([]api.Message, error) {
+		req := m.(*ip.IPRouteV2Dump)
+		v.mu.Lock()
+		defer v.mu.Unlock()
+		if _, ok := v.Tables[tableKey{req.Table.TableID, req.Table.IsIP6}]; !ok {
+			return nil, nil
+		}
+		seen := map[routeKey]bool{}
+		var keys []routeKey
+		for rk, r := range v.Routes {
+			if rk.table == req.Table.TableID && r.Prefix.Address.Af == afOf(req.Table.IsIP6) {
+				keys, seen[rk] = append(keys, rk), true
+			}
+		}
+		for rk := range v.Internal {
+			if rk.table == req.Table.TableID && netip.MustParsePrefix(rk.prefix).Addr().Is6() == req.Table.IsIP6 && !seen[rk] {
+				keys = append(keys, rk)
+			}
+		}
+		sort.Slice(keys, func(i, j int) bool { return keys[i].prefix < keys[j].prefix })
+		var out []api.Message
+		for _, rk := range keys {
+			if r, ok := v.Routes[rk]; ok {
+				out = append(out, &ip.IPRouteV2Details{Route: ip.IPRouteV2{TableID: r.TableID, Prefix: r.Prefix, NPaths: r.NPaths, Paths: r.Paths, Src: 8}})
+				continue
+			}
+			pfx, _ := ip_types.ParsePrefix(rk.prefix)
+			out = append(out, &ip.IPRouteV2Details{Route: ip.IPRouteV2{TableID: rk.table, Prefix: pfx, NPaths: 1,
+				Paths: []fib_types.FibPath{{SwIfIndex: ^uint32(0), Type: fib_types.FIB_API_PATH_TYPE_DROP}}, Src: v.Internal[rk]}})
+		}
+		return out, nil
 	})
 	v.On("ip_route_dump", func(m api.Message) ([]api.Message, error) {
 		req := m.(*ip.IPRouteDump)
@@ -319,6 +358,41 @@ func (v *VPP) install() {
 		}
 		return out, nil
 	})
+}
+
+// rrSrc is recursive-resolution (fib_source_t 18).
+const rrSrc = 18
+
+// syncRRLocked models VPP's recursive-resolution /32 (/128) entries for the next-hop addresses of
+// API routes that have no egress interface.
+func (v *VPP) syncRRLocked() {
+	for rk, src := range v.Internal {
+		if src == rrSrc {
+			delete(v.Internal, rk)
+		}
+	}
+	for _, r := range v.Routes {
+		for _, fp := range r.Paths {
+			if fp.Type != fib_types.FIB_API_PATH_TYPE_NORMAL || fp.SwIfIndex != ^uint32(0) {
+				continue
+			}
+			var a netip.Addr
+			if fp.Proto == fib_types.FIB_API_PATH_NH_PROTO_IP6 {
+				a = netip.AddrFrom16(fp.Nh.Address.GetIP6())
+			} else {
+				a = netip.AddrFrom4(fp.Nh.Address.GetIP4())
+			}
+			v.Internal[routeKey{r.TableID, netip.PrefixFrom(a, a.BitLen()).String()}] = rrSrc
+		}
+	}
+}
+
+// AddInternalRoute adds a VPP-generated FIB entry (src: fib_source_t id, e.g. 4 interface,
+// 15 adjacency) that no API client owns.
+func (v *VPP) AddInternalRoute(table uint32, prefix string, src uint8) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.Internal[routeKey{table, netip.MustParsePrefix(prefix).Masked().String()}] = src
 }
 
 func afOf(v6 bool) ip_types.AddressFamily {

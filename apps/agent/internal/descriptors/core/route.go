@@ -144,56 +144,85 @@ func (d *RouteDescriptor) addDel(ctx context.Context, v *Route, add bool) error 
 	return nil
 }
 
-// ErrRouteConflict means the prefix already has a FIB entry in that table that this owner did not
-// create (D-071: never overwrite, never claim).
+// ErrRouteConflict means the prefix already has a client-programmed FIB entry in that table that
+// this owner did not create (D-071: never overwrite, never claim).
 var ErrRouteConflict = errors.New("core: route prefix already present in the FIB and not owned by this agent")
 
-// lookup returns the dumped FIB entry of exactly v's prefix in v's table, if any.
-func (d *RouteDescriptor) lookup(ctx context.Context, v *Route) (*ip.IPRoute, error) {
+// FIB sources as reported by ip_route_v2_details.src (fib_source_t, src/vnet/fib/fib_source.h in
+// VPP 26.06; verified on the host: API=8, recursive-resolution=18, default-route=20, special=1).
+// The value is the entry's BEST source; API (priority 0x80) outranks every VPP-generated source
+// except special/classify/proxy/interface (review N1).
+const (
+	fibSrcSR      = 5
+	fibSrc6RD     = 7
+	fibSrcAPI     = 8
+	fibSrcCLI     = 9
+	fibSrcLISP    = 10
+	fibSrcMAP     = 11
+	fibSrcDHCP    = 12
+	fibSrcLastFix = 21 // FIB_SOURCE_INTERPOSE; higher ids are allocated by plugins (lcp-rt, nat-hi, lb…)
+)
+
+// clientSource reports whether a best source means "someone programmed this route": API/CLI/DHCP and
+// the other client sources, and every plugin-allocated source. VPP-generated sources (interface,
+// adjacency, recursive-resolution, default-route, special, …) never block a claim: VPP stacks our API
+// source next to them and nobody else's object is touched.
+func clientSource(src uint8) bool {
+	switch src {
+	case fibSrcSR, fibSrc6RD, fibSrcAPI, fibSrcCLI, fibSrcLISP, fibSrcMAP, fibSrcDHCP:
+		return true
+	}
+	return src > fibSrcLastFix
+}
+
+// mayHideAPI reports whether a best source outranks API, i.e. an API source (ours) may sit below it.
+func mayHideAPI(src uint8) bool { return src != 0 && src < fibSrcAPI }
+
+// dumpTable returns every FIB entry of one table/family with its best source, keyed by canonical
+// prefix; a missing table yields an empty map.
+func (d *RouteDescriptor) dumpTable(ctx context.Context, table uint32, v6 bool) (map[string]ip.IPRouteV2, error) {
+	stream, err := ip.NewServiceClient(d.Client).IPRouteV2Dump(ctx, &ip.IPRouteV2Dump{Table: ip.IPTable{TableID: table, IsIP6: v6}})
+	if err != nil {
+		return nil, fmt.Errorf("ip_route_v2_dump %d: %w", table, err)
+	}
+	out := map[string]ip.IPRouteV2{}
+	for {
+		det, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			return out, nil
+		}
+		if err != nil {
+			if isNoSuchTable(err) {
+				return out, nil
+			}
+			return nil, fmt.Errorf("ip_route_v2_dump %d: %w", table, err)
+		}
+		if p, err := CanonNetPrefix(det.Route.Prefix.String()); err == nil {
+			out[p] = det.Route
+		}
+	}
+}
+
+// lookup returns the FIB entry of exactly v's prefix in v's table, if any.
+func (d *RouteDescriptor) lookup(ctx context.Context, v *Route) (*ip.IPRouteV2, error) {
 	dst, err := netip.ParsePrefix(v.GetPrefix())
 	if err != nil {
 		return nil, fmt.Errorf("%w %q: %v", ErrBadPrefix, v.GetPrefix(), err)
 	}
-	stream, err := ip.NewServiceClient(d.Client).IPRouteDump(ctx, &ip.IPRouteDump{Table: ip.IPTable{TableID: v.GetTableId(), IsIP6: dst.Addr().Is6()}})
+	all, err := d.dumpTable(ctx, v.GetTableId(), dst.Addr().Is6())
 	if err != nil {
-		return nil, fmt.Errorf("ip_route_dump %d: %w", v.GetTableId(), err)
+		return nil, err
 	}
-	var found *ip.IPRoute
-	for {
-		det, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			return found, nil
-		}
-		if err != nil {
-			if isNoSuchTable(err) {
-				return nil, nil
-			}
-			return nil, fmt.Errorf("ip_route_dump %d: %w", v.GetTableId(), err)
-		}
-		if p, err := CanonNetPrefix(det.Route.Prefix.String()); err == nil && p == dst.Masked().String() {
-			r := det.Route
-			found = &r
-		}
+	if r, ok := all[dst.Masked().String()]; ok {
+		return &r, nil
 	}
-}
-
-// defaultDrop reports VPP's own per-table default entry (0.0.0.0/0 or ::/0 with only drop paths),
-// which a configured default route legitimately overrides.
-func defaultDrop(r *ip.IPRoute) bool {
-	if r.Prefix.Len != 0 {
-		return false
-	}
-	for _, p := range r.Paths {
-		if p.Type != fib_types.FIB_API_PATH_TYPE_DROP {
-			return false
-		}
-	}
-	return true
+	return nil, nil
 }
 
 // Create implements scheduler.Descriptor. Claim rule (D-071): a route not yet in the owner table is
-// claimed only when the FIB has no entry for the prefix in that table (VPP's default-drop /0 aside);
-// otherwise Create fails without sending anything and without recording ownership.
+// claimed only when the FIB has no client-programmed entry for the prefix in that table (entries VPP
+// generates itself — connected, neighbour, recursive-resolution next hops, default-drop — never
+// block); otherwise Create fails without sending anything and without recording ownership.
 func (d *RouteDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	v, ok := obj.(*Route)
 	if !ok {
@@ -206,8 +235,8 @@ func (d *RouteDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 		if err != nil {
 			return nil, err
 		}
-		if cur != nil && !defaultDrop(cur) {
-			return nil, fmt.Errorf("%w: table %d %s", ErrRouteConflict, v.GetTableId(), v.GetPrefix())
+		if cur != nil && clientSource(cur.Src) {
+			return nil, fmt.Errorf("%w: table %d %s (fib source %d)", ErrRouteConflict, v.GetTableId(), v.GetPrefix(), cur.Src)
 		}
 	}
 	if err := d.Owned.Add(key); err != nil {
@@ -243,15 +272,10 @@ func (d *RouteDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) 
 	if err != nil {
 		return err
 	}
-	switch {
-	case cur == nil:
-		// already gone
-	case defaultDrop(cur):
-		// our own blackhole default route looks like VPP's default entry: remove our (API) source;
-		// VPP keeps its default-route source either way
-		_ = d.addDel(ctx, v, false)
-	default:
-		if err := d.addDel(ctx, v, false); err != nil {
+	// Our API source exists only if it is the best source or hidden below a higher-priority one;
+	// entries whose best source is VPP-generated and below API carry no API source: nothing to delete.
+	if cur != nil && (cur.Src == fibSrcAPI || mayHideAPI(cur.Src)) {
+		if err := d.addDel(ctx, v, false); err != nil && cur.Src == fibSrcAPI {
 			return err
 		}
 	}
@@ -306,36 +330,25 @@ func (d *RouteDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 		}
 		return !fams[i].v6 && fams[j].v6
 	})
-	svc := ip.NewServiceClient(d.Client)
 	var out []scheduler.KV
 	for _, f := range fams {
-		stream, err := svc.IPRouteDump(ctx, &ip.IPRouteDump{Table: ip.IPTable{TableID: f.table, IsIP6: f.v6}})
+		all, err := d.dumpTable(ctx, f.table, f.v6)
 		if err != nil {
-			return nil, fmt.Errorf("ip_route_dump %d: %w", f.table, err)
+			return nil, err
 		}
-		for {
-			det, err := stream.Recv()
-			if errors.Is(err, io.EOF) {
-				break
+		for p := range want[f] {
+			e, ok := all[p]
+			if !ok || e.Src != fibSrcAPI {
+				continue // gone, or only VPP-generated/foreign-hidden state left: not our route
 			}
-			if err != nil {
-				// a table that does not exist (any more) has no routes of ours
-				if isNoSuchTable(err) {
-					break
-				}
-				return nil, fmt.Errorf("ip_route_dump %d: %w", f.table, err)
-			}
-			p, err := CanonNetPrefix(det.Route.Prefix.String())
-			if err != nil || !want[f][p] {
-				continue
-			}
-			v := decodeRoute(det.Route, p, ifs)
+			v := decodeRoute(ip.IPRoute{TableID: e.TableID, Prefix: e.Prefix, NPaths: e.NPaths, Paths: e.Paths}, p, ifs)
 			if v == nil {
 				continue
 			}
 			out = append(out, scheduler.KV{Key: RouteKey(f.table, p), Value: v})
 		}
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
 	return out, nil
 }
 

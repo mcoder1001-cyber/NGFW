@@ -407,3 +407,40 @@ func TestRouteOfAnotherOwner(t *testing.T) {
 		t.Fatalf("default route not removed: %s %v", res.Outcome, res.Err)
 	}
 }
+
+// N1: VPP-generated FIB entries (recursive-resolution next-hop /32, connected, adjacency) never
+// block a route claim and are never deleted by us.
+func TestRouteOverVPPGeneratedEntries(t *testing.T) {
+	v := coretest.New()
+	r := newRig(t, "w7rr", v)
+	ctx := context.Background()
+	vrf := scheduler.KV{Key: "vrf/7060", Value: &core.Table{Id: 7060, Vrf: "rr"}}
+	agg := scheduler.KV{Key: "ip.route/7060/10.7.160.0/24", Value: &core.Route{TableId: 7060, Prefix: "10.7.160.0/24", Paths: []*core.RoutePath{{Address: "10.7.161.1", Weight: 1}}}}
+	pin := scheduler.KV{Key: "ip.route/7060/10.7.161.1/32", Value: &core.Route{TableId: 7060, Prefix: "10.7.161.1/32", Paths: []*core.RoutePath{{Address: "10.7.162.1", Weight: 1}}}}
+	step := func(name string, kvs ...scheduler.KV) {
+		t.Helper()
+		if res := r.s.Apply(ctx, kvs, nil); res.Outcome != scheduler.OutcomeApplied {
+			t.Fatalf("%s: %s %v", name, res.Outcome, res.Err)
+		}
+	}
+	step("aggregate via next hop", vrf, agg)
+	step("+ host route for the next hop (RR /32 present)", vrf, agg, pin)
+	step("remove the /32", vrf, agg)
+	if kvs, _ := r.s.Retrieve(ctx, nil); len(kvs) != 2 {
+		t.Fatalf("the RR /32 must not be reported as ours: %v", kvs)
+	}
+	step("re-add the /32", vrf, agg, pin)
+	step("remove all", vrf)
+	step("both in one fresh transaction", vrf, agg, pin)
+	// connected (interface, 4) and neighbour (adjacency, 15) entries
+	v.AddInternalRoute(7060, "10.7.163.0/24", 4)
+	v.AddInternalRoute(7060, "10.7.164.9/32", 15)
+	conn := scheduler.KV{Key: "ip.route/7060/10.7.163.0/24", Value: &core.Route{TableId: 7060, Prefix: "10.7.163.0/24"}}
+	adj := scheduler.KV{Key: "ip.route/7060/10.7.164.9/32", Value: &core.Route{TableId: 7060, Prefix: "10.7.164.9/32"}}
+	step("static over connected + neighbour", vrf, agg, pin, conn, adj)
+	step("remove them again", vrf, agg, pin)
+	res := r.s.Apply(ctx, nil, scheduler.Only(core.RouteName))
+	if res.Outcome != scheduler.OutcomeApplied || v.RouteCount() != 0 {
+		t.Fatalf("remove routes: %s %v %d", res.Outcome, res.Err, v.RouteCount())
+	}
+}

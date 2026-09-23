@@ -273,3 +273,41 @@ func TestClaimRulesOnHost(t *testing.T) {
 		t.Fatalf("default route delete: %s %+v %v", r.Outcome, r.Summary, r.Err)
 	}
 }
+
+// TestRouteOverVPPEntriesOnHost (re-review N1): a /32 for an existing route's next hop (VPP's
+// recursive-resolution entry), remove, re-add, and both in one fresh transaction.
+func TestRouteOverVPPEntriesOnHost(t *testing.T) {
+	vpptest.SkipUnlessIntegration(t)
+	vpptest.LockLab(t)
+	c := dialVPP(t)
+	ctx := context.Background()
+	slot := vpptest.Slot(t)
+	table := vpptest.TableBase(t) + 60
+	s := newScheduler(t, c, vpptest.Prefix(t)+"rr")
+	t.Cleanup(func() {
+		if r := s.Apply(ctx, nil, nil); r.Outcome != scheduler.OutcomeApplied {
+			t.Errorf("cleanup: %s %v", r.Outcome, r.Err)
+		}
+	})
+	nh := fmt.Sprintf("10.%d.161.1", slot)
+	vrf := scheduler.KV{Key: core.VRFKey(table), Value: &core.Table{Id: table, Vrf: "rr"}}
+	agg := scheduler.KV{Key: core.RouteKey(table, fmt.Sprintf("10.%d.160.0/24", slot)), Value: &core.Route{TableId: table, Prefix: fmt.Sprintf("10.%d.160.0/24", slot), Paths: []*core.RoutePath{{Address: nh, Weight: 1}}}}
+	pin := scheduler.KV{Key: core.RouteKey(table, nh+"/32"), Value: &core.Route{TableId: table, Prefix: nh + "/32", Paths: []*core.RoutePath{{Address: fmt.Sprintf("10.%d.162.1", slot), Weight: 1}}}}
+	for _, st := range []struct {
+		name string
+		kvs  []scheduler.KV
+	}{
+		{"aggregate via next hop", []scheduler.KV{vrf, agg}},
+		{"+ /32 for the next hop", []scheduler.KV{vrf, agg, pin}},
+		{"remove the /32", []scheduler.KV{vrf, agg}},
+		{"re-add the /32", []scheduler.KV{vrf, agg, pin}},
+		{"remove both routes", []scheduler.KV{vrf}},
+		{"both in one fresh transaction", []scheduler.KV{vrf, agg, pin}},
+	} {
+		r := s.Apply(ctx, st.kvs, nil)
+		if r.Outcome != scheduler.OutcomeApplied {
+			t.Fatalf("%s: %s %v", st.name, r.Outcome, r.Err)
+		}
+		t.Logf("%s: %s %+v", st.name, r.Outcome, r.Summary)
+	}
+}

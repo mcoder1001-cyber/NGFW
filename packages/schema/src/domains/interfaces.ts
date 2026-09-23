@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   descriptionText,
+  hostname,
   ipv4Cidr,
   ipv6Cidr,
   macAddress,
@@ -52,6 +53,33 @@ export const subInterfaceId = withUi(
   { title: 'Sub-interface ID', widget: 'number' },
 );
 
+/**
+ * DHCPv4 client on the interface (VPP `dhcp_client_config`; WBS D7.2, D-050). Present = enabled. The leased
+ * address is runtime state and never written back into `ipv4`.
+ */
+export const DhcpClientSchema = z.strictObject({
+  hostname: withUi(hostname.optional(), {
+    title: 'Hostname',
+    help: 'sent in option 12; absent = the system hostname',
+    order: 1,
+  }),
+  clientId: withUi(
+    z
+      .string()
+      .min(1)
+      .max(64)
+      .regex(/^[\x21-\x7e]+$/, 'printable ASCII without spaces')
+      .optional(),
+    { title: 'Client identifier', help: 'option 61; absent = the interface MAC address', order: 2 },
+  ),
+  setBroadcastFlag: withUi(z.boolean().default(false), {
+    title: 'Broadcast flag',
+    help: 'ask the server to broadcast its replies',
+    order: 3,
+  }),
+});
+export type DhcpClientConfig = z.infer<typeof DhcpClientSchema>;
+
 /** Fields shared by interfaces and sub-interfaces. */
 const commonFields = {
   enabled: withUi(z.boolean().default(false), {
@@ -95,16 +123,27 @@ const commonFields = {
     group: 'addressing',
     order: 13,
   }),
+  dhcpClient: withUi(DhcpClientSchema.optional(), {
+    title: 'DHCP client',
+    help: 'obtain an IPv4 address by DHCP; cannot be combined with unnumbered',
+    group: 'addressing',
+    order: 14,
+  }),
 } as const;
 
-const UNNUMBERED_EXCLUSIVE = 'an unnumbered interface cannot have its own ipv4/ipv6 addresses';
+const UNNUMBERED_EXCLUSIVE =
+  'an unnumbered interface cannot have its own ipv4/ipv6 addresses or a DHCP client';
 
 function noAddressesWhenUnnumbered(value: {
   unnumbered?: string | undefined;
   ipv4: readonly string[];
   ipv6: readonly string[];
+  dhcpClient?: DhcpClientConfig | undefined;
 }): boolean {
-  return value.unnumbered === undefined || (value.ipv4.length === 0 && value.ipv6.length === 0);
+  return (
+    value.unnumbered === undefined ||
+    (value.ipv4.length === 0 && value.ipv6.length === 0 && value.dhcpClient === undefined)
+  );
 }
 
 export const SubinterfaceSchema = z

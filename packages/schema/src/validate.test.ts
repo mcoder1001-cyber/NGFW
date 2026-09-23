@@ -9,20 +9,23 @@ describe('validateConfig', () => {
     const result = validateConfig({ management: { users: [ADMIN] } });
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.config.system.timezone).toBe('UTC');
+    expect(validateConfig({}).ok).toBe(true); // D-048: the empty document is valid in both tiers
   });
 
   it('reports schema failures with escaped RFC 6901 pointers, sorted', () => {
     const result = validateConfig({
-      interfaces: { 'TenGigabitEthernet0/0/0': { mtu: 10, bogus: true } },
+      interfaces: { 'TenGigabitEthernet0/0/0': { mtu: 10, bogus: true, 'x/y': 1 } },
       system: { hostname: '-bad' },
     });
     expect(result).toMatchObject({ ok: false, tier: 'schema' });
     if (!result.ok) {
       expect(result.issues.map((i) => i.pointer)).toEqual([
-        '/interfaces/TenGigabitEthernet0~10~10',
+        '/interfaces/TenGigabitEthernet0~10~10/bogus',
         '/interfaces/TenGigabitEthernet0~10~10/mtu',
+        '/interfaces/TenGigabitEthernet0~10~10/x~1y',
         '/system/hostname',
       ]);
+      expect(result.issues[0]?.message).toBe("unknown key 'bogus'");
     }
   });
 

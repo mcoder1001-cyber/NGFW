@@ -9,45 +9,29 @@ describe('system.vrf-exists', () => {
   it('resolves the implicit default VRF and declared VRFs', () => {
     expect(run('system.vrf-exists', {})).toEqual([]);
     expect(
-      run('system.vrf-exists', {
-        vrfs: { mgmt: { id: 1 } },
-        system: { ntp: { vrf: 'mgmt' }, dns: { vrf: 'mgmt' } },
-      }),
+      run('system.vrf-exists', { vrfs: { mgmt: { id: 1 } }, system: { dns: { vrf: 'mgmt' } } }),
     ).toEqual([]);
   });
-  it('reports NTP and DNS VRFs that do not exist', () => {
-    expect(
-      run('system.vrf-exists', { system: { ntp: { vrf: 'mgmt' }, dns: { vrf: 'oob' } } }),
-    ).toEqual([
-      { pointer: '/system/ntp/vrf', message: "VRF 'mgmt' does not exist" },
+  it('reports a DNS VRF that does not exist', () => {
+    expect(run('system.vrf-exists', { system: { dns: { vrf: 'oob' } } })).toEqual([
       { pointer: '/system/dns/vrf', message: "VRF 'oob' does not exist" },
     ]);
   });
 });
 
-describe('system.ntp-server-unique', () => {
-  it('accepts distinct servers and reports duplicates case-insensitively', () => {
+describe('system.dns-server-unique', () => {
+  it('accepts distinct servers and reports duplicates in any spelling', () => {
     expect(
-      run('system.ntp-server-unique', {
-        system: { ntp: { servers: [{ address: 'a.ntp' }, { address: 'b.ntp' }] } },
-      }),
+      run('system.dns-server-unique', { system: { dns: { servers: ['10.0.0.1', '2001:db8::1'] } } }),
     ).toEqual([]);
     expect(
-      run('system.ntp-server-unique', {
-        system: {
-          ntp: {
-            servers: [
-              { address: 'pool.ntp.org' },
-              { address: '10.0.0.1' },
-              { address: 'POOL.ntp.org' },
-            ],
-          },
-        },
+      run('system.dns-server-unique', {
+        system: { dns: { servers: ['2001:db8::53', '10.0.0.1', '2001:DB8:0:0::53'] } },
       }),
     ).toEqual([
       {
-        pointer: '/system/ntp/servers/2/address',
-        message: "NTP server 'POOL.ntp.org' is listed more than once",
+        pointer: '/system/dns/servers/2',
+        message: 'name server 2001:DB8:0:0::53 is listed more than once (first defined at /system/dns/servers/0)',
       },
     ]);
   });

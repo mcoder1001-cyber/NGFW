@@ -4,7 +4,7 @@ import {
   hostOrIp,
   passwordHash,
   portNumber,
-  secretRef,
+  secretRefOf,
   username,
   vrfName,
 } from '../primitives.js';
@@ -18,11 +18,16 @@ import { DEFAULT_VRF } from './vrfs.js';
  *   when multi-tenancy lands (widening the literal is an additive contract change).
  * - Secrets (00-CONTEXT rule 10): `passwordHash` is write-only (never returned by GET, never logged); RADIUS /
  *   TACACS+ shared secrets and TLS keys are `secretRef`s into the secret store, never inline.
- * - Semantic rules (`../semantic/management.ts`): at least one enabled admin, unique usernames, VRFs exist.
+ * - Semantic rules (`../semantic/management.ts`): once users are configured at least one of them is a usable admin
+ *   (D-048: an empty list is valid — the API seeds the first admin), unique usernames, unique AAA / syslog servers,
+ *   VRFs exist.
  */
 
 export const UserRole = z.enum(['admin', 'operator', 'readonly']);
 export type UserRole = z.infer<typeof UserRole>;
+
+// eslint-disable-next-line no-control-regex -- the comment part must not contain control characters (D-049)
+const SSH_KEY_LINE = /^(?:ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com) [A-Za-z0-9+/]+={0,3}(?: [^\u0000-\u001f\u007f-\u009f]{1,255})?$/;
 
 /** OpenSSH `authorized_keys` line: `<type> <base64> [comment]` (public material — not a secret). */
 export const sshPublicKey = withUi(
@@ -30,7 +35,7 @@ export const sshPublicKey = withUi(
     .string()
     .max(4096)
     .regex(
-      /^(?:ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com) [A-Za-z0-9+/]+={0,3}(?: [^\r\n]{1,255})?$/,
+      SSH_KEY_LINE,
       'expected an OpenSSH public key line like "ssh-ed25519 AAAA… comment"',
     ),
   { title: 'SSH public key', widget: 'textarea' },
@@ -78,9 +83,9 @@ export const RadiusServerSchema = z.strictObject({
   address: withUi(hostOrIp, { title: 'Server', order: 1 }),
   authPort: withUi(portNumber.default(1812), { title: 'Authentication port', order: 2 }),
   acctPort: withUi(portNumber.default(1813), { title: 'Accounting port', order: 3 }),
-  secretRef: withUi(secretRef, {
+  secretRef: withUi(secretRefOf('psk'), {
     title: 'Shared secret',
-    help: 'reference into the secret store, e.g. aaa/radius/primary',
+    help: 'reference into the secret store, e.g. psk/radius-primary',
     order: 4,
   }),
   timeoutSec: withUi(timeoutSec, { order: 5 }),
@@ -90,9 +95,9 @@ export const RadiusServerSchema = z.strictObject({
 export const TacacsServerSchema = z.strictObject({
   address: withUi(hostOrIp, { title: 'Server', order: 1 }),
   port: withUi(portNumber.default(49), { title: 'Port', order: 2 }),
-  secretRef: withUi(secretRef, {
+  secretRef: withUi(secretRefOf('psk'), {
     title: 'Shared secret',
-    help: 'reference into the secret store, e.g. aaa/tacacs/primary',
+    help: 'reference into the secret store, e.g. psk/tacacs-primary',
     order: 3,
   }),
   timeoutSec: withUi(timeoutSec, { order: 4 }),
@@ -147,12 +152,12 @@ export const AaaSchema = z
 
 export const TlsSchema = z
   .strictObject({
-    certificateRef: withUi(secretRef.optional(), {
+    certificateRef: withUi(secretRefOf('cert').optional(), {
       title: 'Certificate',
       help: 'PEM certificate chain in the secret store; absent = self-signed certificate generated on first boot',
       order: 1,
     }),
-    privateKeyRef: withUi(secretRef.optional(), {
+    privateKeyRef: withUi(secretRefOf('key').optional(), {
       title: 'Private key',
       help: 'matching private key in the secret store',
       order: 2,

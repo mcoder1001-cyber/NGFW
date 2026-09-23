@@ -12,13 +12,23 @@ export type ValidationResult =
   | { ok: true; config: RootConfig }
   | { ok: false; tier: 'schema' | 'semantic'; issues: SemanticIssue[] };
 
-/** Zod issues → `{ pointer, message }` with RFC 6901 pointers (the `pointer` member of RFC 9457 problem+json). */
+/**
+ * Zod issues → `{ pointer, message }` with RFC 6901 pointers (the `pointer` member of RFC 9457 problem+json).
+ * An unknown key is reported at the key itself (`/interfaces/loop0/bogus`), one issue per key, so the UI can
+ * highlight it (review L1).
+ */
 export function pointerIssues(error: z.ZodError): SemanticIssue[] {
   return sortIssues(
-    error.issues.map((issue) => ({
-      pointer: jsonPointer(...issue.path.map(String)),
-      message: issue.message,
-    })),
+    error.issues.flatMap((issue) => {
+      const path = issue.path.map(String);
+      if (issue.code === 'unrecognized_keys') {
+        return issue.keys.map((key) => ({
+          pointer: jsonPointer(...path, key),
+          message: `unknown key '${key}'`,
+        }));
+      }
+      return [{ pointer: jsonPointer(...path), message: issue.message }];
+    }),
   );
 }
 

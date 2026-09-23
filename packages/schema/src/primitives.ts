@@ -183,6 +183,21 @@ export const username = withUi(
 // eslint-disable-next-line no-control-regex -- matching control characters is the purpose of this pattern
 const NO_CONTROL_CHARS = /^[^\u0000-\u0008\u000a-\u001f\u007f-\u009f]*$/;
 
+// eslint-disable-next-line no-control-regex -- matching control characters is the purpose of this pattern
+const PRINTABLE_MULTILINE = /^[^\u0000-\u0008\u000b-\u001f\u007f-\u009f]*$/;
+
+/**
+ * Multi-line free text (banners): printable characters plus LF and TAB only. CR, other C0 controls, DEL and C1
+ * controls are rejected — the text is rendered into /etc/issue, /etc/motd and daemon configs, where ESC/BEL/CR
+ * sequences could hide or forge lines (D-049).
+ */
+export function multilineText(max: number) {
+  return z
+    .string()
+    .max(max)
+    .regex(PRINTABLE_MULTILINE, 'printable text, LF and TAB only');
+}
+
 /** Free-text description shown in lists (single line, ≤ 255 characters). */
 export const descriptionText = withUi(
   z
@@ -229,18 +244,38 @@ export const routerId = withUi(z.ipv4(), {
 /* ------------------------------------------------------------------------------------------------- secrets */
 
 /**
- * Reference to an entry in the secret store (`secret.ref`) — PSKs, private keys, RADIUS shared secrets are
- * never stored inline in the configuration document (00-CONTEXT rule 10).
+ * Kinds of entries in the secret store (D-051): `psk` pre-shared / shared secrets (IPsec, RADIUS, TACACS+),
+ * `key` private and symmetric keys, `cert` certificates, `password` passphrases (BGP MD5 …), `token` bearer tokens.
  */
-export const secretRef = withUi(
-  z
-    .string()
-    .regex(
-      /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$/,
-      'expected a secret reference like ipsec/psk/site-a',
-    ),
-  { title: 'Secret reference', widget: 'secret-ref' },
-);
+export const SECRET_KINDS = ['psk', 'key', 'cert', 'password', 'token'] as const;
+export type SecretKind = (typeof SECRET_KINDS)[number];
+
+/**
+ * Reference to an entry in the secret store: exactly `<kind>/<name>` (D-051), e.g. `psk/radius-primary`.
+ * `POST /api/v1/secrets` returns one; the schema checks the format, the API checks existence. Pasting the secret
+ * itself (a passphrase with spaces, base64 key material, a PEM block) is a schema error — a structural guard, not
+ * the secrecy mechanism (00-CONTEXT rule 10).
+ */
+export function secretRefOf(kind: SecretKind | readonly SecretKind[]) {
+  const kinds: readonly SecretKind[] = typeof kind === 'string' ? [kind] : kind;
+  return withUi(
+    z
+      .string()
+      .max(127)
+      .regex(
+        new RegExp(`^(?:${kinds.join('|')})/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$`),
+        `expected a secret reference like ${kinds[0]}/<name>, never the secret itself`,
+      ),
+    {
+      title: 'Secret reference',
+      widget: 'secret-ref',
+      help: `reference to a stored secret of kind ${kinds.join(' or ')}`,
+    },
+  );
+}
+
+/** A secret reference of any kind (`psk/…`, `key/…`, `cert/…`, `password/…`, `token/…`). */
+export const secretRef = secretRefOf(SECRET_KINDS);
 
 /**
  * Password hash in modular-crypt / PHC format (`$argon2id$…`, `$6$…`, `$2b$…`). Write-only: the API accepts

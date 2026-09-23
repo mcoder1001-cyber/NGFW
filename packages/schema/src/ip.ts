@@ -110,3 +110,56 @@ export function prefixesOverlap(a: IpPrefix, b: IpPrefix): boolean {
 export function prefixContains(prefix: IpPrefix, family: IpFamily, address: bigint): boolean {
   return prefixesOverlap(prefix, { family, address, length: BITS[family] });
 }
+
+/** `167772161n` → `10.0.0.1`. */
+export function formatIpv4(value: bigint): string {
+  return [24n, 16n, 8n, 0n].map((shift) => String((value >> shift) & 0xffn)).join('.');
+}
+
+/**
+ * 128-bit value → RFC 5952 canonical text: lower case, no leading zeros, the longest run (≥ 2) of zero groups
+ * compressed to `::` (the first one on a tie). Embedded-IPv4 notation is not produced.
+ */
+export function formatIpv6(value: bigint): string {
+  const groups = Array.from({ length: 8 }, (_, i) => (value >> BigInt(112 - 16 * i)) & 0xffffn);
+  let bestStart = -1;
+  let bestLength = 1; // a single zero group is never compressed
+  for (let i = 0; i < 8; ) {
+    if (groups[i] !== 0n) {
+      i += 1;
+      continue;
+    }
+    let j = i;
+    while (j < 8 && groups[j] === 0n) j += 1;
+    if (j - i > bestLength) {
+      bestStart = i;
+      bestLength = j - i;
+    }
+    i = j;
+  }
+  const hex = (gs: bigint[]) => gs.map((g) => g.toString(16)).join(':');
+  if (bestStart < 0) return hex(groups);
+  return `${hex(groups.slice(0, bestStart))}::${hex(groups.slice(bestStart + bestLength))}`;
+}
+
+/**
+ * Canonical text of a bare address (`2001:DB8:0::1` → `2001:db8::1`, `10.0.0.1` unchanged) or `undefined` when
+ * `text` is not an address. Use it as the key whenever two spellings of one address must compare equal (D-049).
+ */
+export function canonicalIp(text: string): string | undefined {
+  const v4 = parseIpv4(text);
+  if (v4 !== undefined) return formatIpv4(v4);
+  const v6 = parseIpv6(text);
+  return v6 === undefined ? undefined : formatIpv6(v6);
+}
+
+/**
+ * Canonical text of a prefix with its host bits cleared (`2001:DB8:0::/32` → `2001:db8::/32`,
+ * `10.0.0.1/24` → `10.0.0.0/24`) or `undefined` for malformed input — the uniqueness key of routes and networks.
+ */
+export function canonicalPrefix(text: string): string | undefined {
+  const prefix = parseCidr(text);
+  if (prefix === undefined) return undefined;
+  const network = networkAddress(prefix);
+  return `${prefix.family === 4 ? formatIpv4(network) : formatIpv6(network)}/${prefix.length}`;
+}

@@ -1,15 +1,19 @@
 import { z } from 'zod';
-import { hostname, hostOrIp, ipAddress, timezone, vrfName } from '../primitives.js';
+import { hostname, ipAddress, multilineText, timezone, vrfName } from '../primitives.js';
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
 
 /**
- * `system` — hostname, time zone, login banners, NTP (chrony) and DNS client (resolv.conf / Unbound forward)
- * settings (docs/04-api-datamodel.md). Every field has a default so `{}` is a complete system section.
+ * `system` — hostname, time zone, login banners and the DNS client of the router itself (docs/04-api-datamodel.md).
+ * Every field has a default so `{}` is a complete system section. NTP is modelled once, in `services.ntp`
+ * (chrony is a rendered daemon, D-050).
  */
 
-/** Multi-line banner text (rendered into /etc/issue, /etc/motd and the web login page). */
-const bannerText = withUi(z.string().max(4096), { widget: 'textarea' });
+/**
+ * Multi-line banner text (rendered into /etc/issue, /etc/motd and the web login page): printable, LF and TAB
+ * only — no CR / ESC / BEL / C1 that could forge or hide lines on a terminal (D-049).
+ */
+const bannerText = withUi(multilineText(4096), { widget: 'textarea' });
 
 export const BannerSchema = z.strictObject({
   login: withUi(bannerText.optional(), {
@@ -24,31 +28,11 @@ export const BannerSchema = z.strictObject({
   }),
 });
 
-export const NtpServerSchema = z.strictObject({
-  address: withUi(hostOrIp, { title: 'Server', order: 1 }),
-  prefer: withUi(z.boolean().default(false), { title: 'Preferred', order: 2 }),
-  iburst: withUi(z.boolean().default(true), {
-    title: 'iburst',
-    help: 'send a burst of packets at start-up for fast initial sync',
-    order: 3,
-  }),
-});
-
-export const NtpSchema = z.strictObject({
-  enabled: withUi(z.boolean().default(true), { title: 'Enabled', order: 1 }),
-  servers: withUi(z.array(NtpServerSchema).max(16).default([]), {
-    title: 'Servers',
-    itemKey: ['address'],
-    order: 2,
-  }),
-  vrf: withUi(vrfName.default(DEFAULT_VRF), {
-    title: 'VRF',
-    help: 'VRF used to reach the NTP servers',
-    order: 3,
-  }),
-});
-
-export const DnsSchema = z.strictObject({
+/**
+ * DNS client of the router itself (resolv.conf). Named `SystemDnsSchema` so it cannot collide with the DNS
+ * *service* schema of `services` under `export *` (D-047). The TS identifier is not part of the JSON contract.
+ */
+export const SystemDnsSchema = z.strictObject({
   servers: withUi(z.array(ipAddress).max(8).default([]), {
     title: 'Name servers',
     help: 'upstream resolvers for the system itself',
@@ -80,16 +64,15 @@ export const SystemSchema = withUi(
       order: 2,
     }),
     banner: withUi(BannerSchema.prefault({}), { title: 'Banners', group: 'identity', order: 3 }),
-    ntp: withUi(NtpSchema.prefault({}), { title: 'NTP', group: 'time', order: 4 }),
-    dns: withUi(DnsSchema.prefault({}), {
+    dns: withUi(SystemDnsSchema.prefault({}), {
       title: 'DNS client',
       group: 'name-resolution',
-      order: 5,
+      order: 4,
     }),
   }),
   {
     title: 'System',
-    description: 'Hostname, timezone, login banner, NTP and DNS client settings.',
+    description: 'Hostname, timezone, login banners and DNS client settings.',
     order: 10,
   },
 );

@@ -17,6 +17,8 @@ import {
   ipv6Network,
   isKnownTimeZone,
   macAddress,
+  multilineText,
+  secretRefOf,
   mtu,
   objectName,
   passwordHash,
@@ -330,8 +332,30 @@ const stringCases: [string, z.ZodType, string[], string[]][] = [
   [
     'secretRef',
     secretRef,
-    ['ipsec/psk/site-a', 'aaa/radius/primary', 'tls:api:cert', 'a', 'A.b_c-d:e/f', 'a'.repeat(128)],
-    ['/ipsec/psk', '-x', 'a b', 'a'.repeat(129), 'psk=hunter2', 'a\\b', 'a#b'],
+    [
+      'psk/site-a',
+      'psk/radius-primary',
+      'cert/api',
+      'key/api.2026',
+      'password/bgp_upstream',
+      'token/enrol',
+      `psk/${'a'.repeat(63)}`,
+    ],
+    [
+      'ipsec/psk/site-a',
+      'aaa/radius/primary',
+      'psk/a/b',
+      'psk/',
+      '/psk',
+      'psk/-x',
+      'psk/a b',
+      `psk/${'a'.repeat(64)}`,
+      'PSK/x',
+      'hunter2',
+      'psk=hunter2',
+      '-----BEGIN PRIVATE KEY-----',
+      'psk/x\n',
+    ],
   ],
   [
     'passwordHash',
@@ -457,5 +481,29 @@ describe('isKnownTimeZone', () => {
     expect(isKnownTimeZone('Asia/Tehran')).toBe(true);
     expect(isKnownTimeZone('Mars/Olympus')).toBe(false);
     expect(isKnownTimeZone('')).toBe(false);
+  });
+});
+
+describe('secretRefOf (D-051)', () => {
+  it('restricts the kind when asked', () => {
+    const password = secretRefOf('password');
+    expect(password.safeParse('password/bgp-upstream').success).toBe(true);
+    expect(password.safeParse('psk/bgp-upstream').success).toBe(false);
+    const tls = secretRefOf(['cert', 'key']);
+    expect(tls.safeParse('cert/api').success).toBe(true);
+    expect(tls.safeParse('key/api').success).toBe(true);
+    expect(tls.safeParse('token/api').success).toBe(false);
+  });
+});
+
+describe('multilineText (D-049)', () => {
+  const banner = multilineText(20);
+  it('accepts printable text with LF and TAB', () => {
+    for (const ok of ['', 'Authorised\nonly', 'a\tb', `${UMLAUT_U}${CHECK_MARK}`])
+      expect(banner.safeParse(ok).success).toBe(true);
+  });
+  it('rejects CR, ESC, BEL, NUL, DEL, C1 controls and overlong text', () => {
+    for (const bad of ['a\r\nb', `x${cp(0x1b)}[2J`, `${cp(7)}`, NUL, cp(0x7f), cp(0x9b), 'x'.repeat(21)])
+      expect(banner.safeParse(bad).success).toBe(false);
   });
 });

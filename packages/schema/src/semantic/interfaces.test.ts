@@ -211,3 +211,30 @@ describe('interfaces.mac-unique', () => {
     ]);
   });
 });
+
+describe('interfaces.subinterface-mtu (review L8)', () => {
+  it('is silent when either MTU is unset or the sub-interface fits', () => {
+    expect(
+      run('interfaces.subinterface-mtu', {
+        interfaces: {
+          a: { subinterfaces: { '1': { vlanId: 1, mtu: 9000 } } },
+          b: { mtu: 1500, subinterfaces: { '1': { vlanId: 1 }, '2': { vlanId: 2, mtu: 1500 } } },
+        },
+      }),
+    ).toEqual([]);
+  });
+  it('reports a sub-interface MTU above the parent MTU', () => {
+    expect(
+      run('interfaces.subinterface-mtu', {
+        interfaces: {
+          'TenGigabitEthernet0/0/0': { mtu: 1500, subinterfaces: { '7': { vlanId: 7, mtu: 9000 } } },
+        },
+      }),
+    ).toEqual([
+      {
+        pointer: '/interfaces/TenGigabitEthernet0~10~10/subinterfaces/7/mtu',
+        message: 'sub-interface MTU 9000 exceeds the MTU 1500 of TenGigabitEthernet0/0/0',
+      },
+    ]);
+  });
+});

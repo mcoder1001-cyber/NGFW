@@ -8,7 +8,7 @@ import {
   ipv4Network,
   objectName,
   routerId,
-  secretRef,
+  secretRefOf,
   uint32,
   vppInterfaceName,
   vrfName,
@@ -21,6 +21,11 @@ import { DEFAULT_VRF } from './vrfs.js';
  * (docs/04-api-datamodel.md; WBS D2.2, D3.x). Static routes and BFD are programmed in VPP by vrx-agent; bgp / ospf /
  * isis / rip are rendered into FRR configuration. Each protocol is a typed object that is *absent* when the
  * protocol is not enabled — `{}` is a valid, empty routing section.
+ *
+ * Shapes follow the FRR renderer contract of P12 §2 (D-045): collections with a natural key are records
+ * (`bgp.neighbors` by address, `*.interfaces` by interface name, `ospf.areas` by area id, `redistribute` by source
+ * protocol) so PATCH pointers are stable and duplicates are impossible; ordered lists (`static`, prefix-list rules,
+ * route-map entries, `bgp.networks`, `bfd.sessions`) stay arrays and their keys are unique by refine / semantic rule.
  *
  * Guardrail (vdom.md #1): every route and protocol instance carries `vrf` (default `default`).
  * Cross-object rules live in `../semantic/routing.ts` (next-hop interface exists, VRF exists, referenced
@@ -44,12 +49,35 @@ const metric = withUi(uint32, { title: 'Metric', widget: 'number' });
 
 /** Protocols whose routes can be redistributed into another protocol. */
 export const RedistributeSource = z.enum(['connected', 'static', 'bgp', 'ospf', 'isis', 'rip']);
+export type RedistributeSource = z.infer<typeof RedistributeSource>;
 
-const RedistributeSchema = z.strictObject({
-  protocol: withUi(RedistributeSource, { title: 'Source protocol', widget: 'select', order: 1 }),
-  metric: withUi(metric.optional(), { order: 2 }),
-  routeMap: withUi(objectName.optional(), { title: 'Route map', order: 3 }),
+/** Options of one redistributed source; the key being present means "redistribute it". */
+export const RedistributeOptionsSchema = z.strictObject({
+  metric: withUi(metric.optional(), { order: 1 }),
+  routeMap: withUi(objectName.optional(), { title: 'Route map', order: 2 }),
 });
+
+/**
+ * `redistribute{ connected?, static?, … }` — a record keyed by source protocol (P12 §2, D-045), so a source can be
+ * listed only once. A protocol cannot redistribute into itself: its own key is not accepted.
+ */
+function redistributeInto<S extends RedistributeSource>(self: S) {
+  type Option = z.ZodOptional<typeof RedistributeOptionsSchema>;
+  const shape = {} as Record<Exclude<RedistributeSource, S>, Option>;
+  for (const [i, source] of RedistributeSource.options.entries()) {
+    if (source === self) continue;
+    shape[source as Exclude<RedistributeSource, S>] = withUi(RedistributeOptionsSchema.optional(), {
+      title: `Redistribute ${source}`,
+      order: i + 1,
+    });
+  }
+  const sources = z.strictObject(shape);
+  // every member is optional, so `{}` is a valid input (the cast only helps TS with the generic mapped type)
+  return withUi(sources.prefault({} as z.input<typeof sources>), {
+    title: 'Redistribute',
+    help: 'routes of these sources are announced; presence of a key enables it',
+  });
+}
 
 /** BGP standard community `AS:NN` or a well-known name. */
 export const bgpCommunity = withUi(
@@ -76,14 +104,25 @@ export const isisNet = withUi(
   { title: 'NET', help: 'network entity title, e.g. 49.0001.1921.6800.1001.00' },
 );
 
-/** OSPF area id: decimal (`0`, `51`) or dotted quad (`0.0.0.51`); `ospfAreaNumber()` normalises both. */
-export const ospfAreaId = withUi(z.union([uint32, z.ipv4()]), {
-  title: 'Area',
-  help: 'decimal or dotted quad, e.g. 0 or 0.0.0.51',
-});
+/**
+ * OSPF area id — decimal (`"0"`, `"51"`) or dotted quad (`"0.0.0.51"`), always a JSON string so the record key
+ * (`/routing/ospf/areas/<id>`) and the references to it have one type (a number|string union has no protobuf
+ * projection). `ospfAreaNumber()` normalises both spellings; `"0"` and `"0.0.0.0"` are the same area.
+ */
+export const ospfAreaId = withUi(
+  z.union([
+    z
+      .string()
+      .regex(/^(?:0|[1-9][0-9]{0,9})$/, 'expected a decimal area id or a dotted quad')
+      .refine((id) => Number(id) <= 4294967295, 'area id must fit in 32 bits'),
+    z.ipv4(),
+  ]),
+  { title: 'Area', help: 'decimal or dotted quad, e.g. 0 or 0.0.0.51' },
+);
 
-export function ospfAreaNumber(id: number | string): number {
-  if (typeof id === 'number') return id;
+/** `'51'` and `'0.0.0.51'` → 51. */
+export function ospfAreaNumber(id: string): number {
+  if (!id.includes('.')) return Number(id);
   return id.split('.').reduce((acc, octet) => acc * 256 + Number(octet), 0);
 }
 
@@ -125,17 +164,26 @@ export const StaticRouteSchema = z
       order: 1,
     }),
     vrf: withUi(vrfName.default(DEFAULT_VRF), { title: 'VRF', order: 2 }),
-    nextHops: withUi(z.array(NextHopSchema).min(1).max(32), {
+    nextHops: withUi(z.array(NextHopSchema).max(32).default([]), {
       title: 'Next hops',
-      help: 'more than one = equal-cost multipath',
+      help: 'more than one = equal-cost multipath; empty only for a blackhole route',
       order: 3,
+    }),
+    blackhole: withUi(z.boolean().default(false), {
+      title: 'Blackhole',
+      help: 'silently drop matching traffic (null route); requires an empty next-hop list',
+      order: 4,
     }),
     distance: withUi(distance.default(1), {
       title: 'Distance',
       help: 'administrative distance (1–255)',
-      order: 4,
+      order: 5,
     }),
-    description: withUi(descriptionText.optional(), { title: 'Description', order: 5 }),
+    description: withUi(descriptionText.optional(), { title: 'Description', order: 6 }),
+  })
+  .refine((route) => route.blackhole === (route.nextHops.length === 0), {
+    message: 'a route needs at least one next hop, unless it is a blackhole route (then none)',
+    path: ['nextHops'],
   })
   .refine(
     (route) => {
@@ -153,16 +201,20 @@ export type StaticRouteConfig = z.infer<typeof StaticRouteSchema>;
 
 /* ---------------------------------------------------------------------------------------- routing policy */
 
-export const PrefixFamily = z.enum(['ipv4', 'ipv6']);
+const MAX_LENGTH = { 4: 32, 6: 128 } as const;
 
+/**
+ * One prefix-list rule. Length ranges follow FRR (`lib/plist.c`): `len < ge`, `len ≤ le ≤ max`, `ge ≤ le`, with
+ * `max` = 32 for IPv4 and 128 for IPv6 — anything else is rejected here instead of by `vtysh -C` (review L5).
+ */
 export const PrefixListRuleSchema = z
   .strictObject({
     seq: withUi(sequence, { order: 1 }),
     action: withUi(RouteAction, { title: 'Action', widget: 'select', order: 2 }),
     prefix: withUi(ipNetwork, { title: 'Prefix', order: 3 }),
-    ge: withUi(z.number().int().min(0).max(128).optional(), {
+    ge: withUi(z.number().int().min(1).max(128).optional(), {
       title: 'Minimum length (ge)',
-      help: 'match prefixes at least this long',
+      help: 'match prefixes at least this long (longer than the prefix itself)',
       order: 4,
     }),
     le: withUi(z.number().int().min(0).max(128).optional(), {
@@ -171,16 +223,34 @@ export const PrefixListRuleSchema = z
       order: 5,
     }),
   })
-  .refine((rule) => rule.ge === undefined || rule.le === undefined || rule.ge <= rule.le, {
-    message: 'ge must not exceed le',
-    path: ['le'],
+  .superRefine((rule, ctx) => {
+    const prefix = parseCidr(rule.prefix);
+    if (prefix === undefined) return; // reported by `prefix`
+    const max = MAX_LENGTH[prefix.family];
+    const fail = (path: 'ge' | 'le', message: string) =>
+      ctx.addIssue({ code: 'custom', path: [path], message });
+    if (rule.ge !== undefined && (rule.ge <= prefix.length || rule.ge > max))
+      fail('ge', `ge must be greater than ${prefix.length} and at most ${max}`);
+    if (rule.le !== undefined && (rule.le < prefix.length || rule.le > max))
+      fail('le', `le must be between ${prefix.length} and ${max}`);
+    if (rule.ge !== undefined && rule.le !== undefined && rule.ge > rule.le)
+      fail('le', 'ge must not exceed le');
   });
+export type PrefixListRuleConfig = z.infer<typeof PrefixListRuleSchema>;
 
+export const PrefixFamily = z.enum(['ipv4', 'ipv6']);
+
+/**
+ * `routing.policy.prefixLists.<name>` — the ordered rules of one list (P12 §2) plus its family and description.
+ * An object rather than a bare array (P12's sketch) because the document is projected 1:1 onto protobuf, whose
+ * map values cannot be `repeated` (D-042/D-061; logged in P02a-contract.md).
+ */
 export const PrefixListSchema = z
   .strictObject({
     description: withUi(descriptionText.optional(), { title: 'Description', order: 1 }),
     family: withUi(PrefixFamily.default('ipv4'), {
       title: 'Address family',
+      help: 'ip (IPv4) or ipv6 prefix-list',
       widget: 'select',
       order: 2,
     }),
@@ -200,6 +270,20 @@ export const PrefixListSchema = z
   );
 export type PrefixListConfig = z.infer<typeof PrefixListSchema>;
 
+/**
+ * FRR AS-path regular expression: digits and the regex/FRR metacharacters only (`^$_.*+?()[]|{},-` and space).
+ * Rendered verbatim into `bgp as-path access-list … permit <regex>`, so CR/LF and every other character that
+ * could end the line or start a new FRR statement are rejected (review M1, D-049).
+ */
+export const bgpAsPathRegex = withUi(
+  z
+    .string()
+    .min(1)
+    .max(255)
+    .regex(/^[0-9_.*+?^$()|[\]{}, -]+$/, 'digits and ^ $ _ . * + ? ( ) [ ] { } | , - and space only'),
+  { title: 'AS path regex', help: 'FRR as-path regular expression, e.g. ^65000_' },
+);
+
 export const RouteMapMatchSchema = z.strictObject({
   prefixList: withUi(objectName.optional(), {
     title: 'Prefix list',
@@ -213,18 +297,19 @@ export const RouteMapMatchSchema = z.strictObject({
   }),
   interface: withUi(vppInterfaceName.optional(), { title: 'Interface', order: 3 }),
   community: withUi(bgpCommunity.optional(), { title: 'Community', order: 4 }),
-  asPath: withUi(z.string().max(255).optional(), {
-    title: 'AS path regex',
-    help: 'FRR as-path regular expression, e.g. ^65000_',
-    order: 5,
-  }),
+  asPath: withUi(bgpAsPathRegex.optional(), { order: 5 }),
   metric: withUi(metric.optional(), { order: 6 }),
   tag: withUi(uint32.optional(), { title: 'Tag', order: 7 }),
 });
 
+/** `set` clauses; names follow P12 §2 (`localPref`, `med`, `community`, `nextHop`) plus FRR extras. */
 export const RouteMapSetSchema = z.strictObject({
-  localPreference: withUi(uint32.optional(), { title: 'Local preference', order: 1 }),
-  metric: withUi(metric.optional(), { order: 2 }),
+  localPref: withUi(uint32.optional(), { title: 'Local preference', order: 1 }),
+  med: withUi(metric.optional(), {
+    title: 'MED / metric',
+    help: 'BGP multi-exit discriminator (FRR `set metric`)',
+    order: 2,
+  }),
   weight: withUi(z.number().int().min(0).max(65535).optional(), { title: 'Weight', order: 3 }),
   nextHop: withUi(ipAddress.optional(), { title: 'Next hop', order: 4 }),
   community: withUi(z.array(bgpCommunity).max(32).optional(), { title: 'Communities', order: 5 }),
@@ -251,7 +336,9 @@ export const RouteMapEntrySchema = z.strictObject({
   }),
   set: withUi(RouteMapSetSchema.prefault({}), { title: 'Set', order: 5 }),
 });
+export type RouteMapEntryConfig = z.infer<typeof RouteMapEntrySchema>;
 
+/** `routing.policy.routeMaps.<name>` — ordered entries (P12 §2) plus a description; an object for the same reason. */
 export const RouteMapSchema = z
   .strictObject({
     description: withUi(descriptionText.optional(), { title: 'Description', order: 1 }),
@@ -264,8 +351,22 @@ export const RouteMapSchema = z
   .refine((map) => uniqueSequences(map.entries), { message: SEQ_UNIQUE, path: ['entries'] });
 export type RouteMapConfig = z.infer<typeof RouteMapSchema>;
 
+/** `routing.policy` — the filters referenced by BGP/OSPF/… (P12 §2). */
+export const RoutingPolicySchema = z.strictObject({
+  prefixLists: withUi(z.record(objectName, PrefixListSchema).default({}), {
+    title: 'Prefix lists',
+    order: 1,
+  }),
+  routeMaps: withUi(z.record(objectName, RouteMapSchema).default({}), {
+    title: 'Route maps',
+    order: 2,
+  }),
+});
+export type RoutingPolicyConfig = z.infer<typeof RoutingPolicySchema>;
+
 /* -------------------------------------------------------------------------------------------------- BGP */
 
+/** Per-peer settings of one address family (P12 §2 `afi.<family>`). */
 export const BgpAddressFamilySchema = z.strictObject({
   enabled: withUi(z.boolean().default(true), { title: 'Enabled', order: 1 }),
   routeMapIn: withUi(objectName.optional(), { title: 'Route map in', order: 2 }),
@@ -273,12 +374,27 @@ export const BgpAddressFamilySchema = z.strictObject({
   prefixListIn: withUi(objectName.optional(), { title: 'Prefix list in', order: 4 }),
   prefixListOut: withUi(objectName.optional(), { title: 'Prefix list out', order: 5 }),
   nextHopSelf: withUi(z.boolean().default(false), { title: 'Next-hop self', order: 6 }),
+  softReconfig: withUi(z.boolean().default(false), {
+    title: 'Soft reconfiguration inbound',
+    help: 'keep an unmodified copy of received routes so policy changes apply without a session reset',
+    order: 7,
+  }),
   maximumPrefixes: withUi(uint32.min(1).optional(), {
     title: 'Maximum prefixes',
     help: 'tear the session down above this many prefixes',
-    order: 7,
+    order: 8,
   }),
-  defaultOriginate: withUi(z.boolean().default(false), { title: 'Default originate', order: 8 }),
+  defaultOriginate: withUi(z.boolean().default(false), { title: 'Default originate', order: 9 }),
+});
+export type BgpAddressFamilyConfig = z.infer<typeof BgpAddressFamilySchema>;
+
+export const BGP_AFIS = ['ipv4Unicast', 'ipv6Unicast'] as const;
+export type BgpAfi = (typeof BGP_AFIS)[number];
+
+/** `afi{ ipv4Unicast?, ipv6Unicast? }` — an absent family is not activated for the peer. */
+export const BgpAfiSchema = z.strictObject({
+  ipv4Unicast: withUi(BgpAddressFamilySchema.optional(), { title: 'IPv4 unicast', order: 1 }),
+  ipv6Unicast: withUi(BgpAddressFamilySchema.optional(), { title: 'IPv6 unicast', order: 2 }),
 });
 
 /** Fields shared by neighbours and peer groups (a neighbour inherits what its peer group sets). */
@@ -295,9 +411,9 @@ const bgpPeerFields = {
     help: 'TTL for eBGP sessions that are not directly connected',
     order: 5,
   }),
-  passwordRef: withUi(secretRef.optional(), {
+  passwordRef: withUi(secretRefOf('password').optional(), {
     title: 'MD5 password',
-    help: 'TCP MD5 session password in the secret store',
+    help: 'TCP MD5 session password in the secret store, e.g. password/bgp-upstream',
     order: 6,
   }),
   keepaliveSec: withUi(z.number().int().min(1).max(65535).optional(), {
@@ -313,8 +429,7 @@ const bgpPeerFields = {
     help: 'fast failure detection',
     order: 9,
   }),
-  ipv4Unicast: withUi(BgpAddressFamilySchema.optional(), { title: 'IPv4 unicast', order: 10 }),
-  ipv6Unicast: withUi(BgpAddressFamilySchema.optional(), { title: 'IPv6 unicast', order: 11 }),
+  afi: withUi(BgpAfiSchema.prefault({}), { title: 'Address families', order: 10 }),
 } as const;
 
 const holdAboveKeepalive = (peer: {
@@ -331,9 +446,9 @@ export const BgpPeerGroupSchema = z
   .refine(holdAboveKeepalive, { message: HOLD_ABOVE_KEEPALIVE, path: ['holdTimeSec'] });
 export type BgpPeerGroupConfig = z.infer<typeof BgpPeerGroupSchema>;
 
+/** A neighbour; its address is the record key (`/routing/bgp/neighbors/10.0.0.1`, P12 §2, D-045). */
 export const BgpNeighborSchema = z
   .strictObject({
-    address: withUi(ipAddress, { title: 'Neighbour address', order: 1 }),
     peerGroup: withUi(objectName.optional(), {
       title: 'Peer group',
       help: 'inherit settings from this peer group',
@@ -342,7 +457,7 @@ export const BgpNeighborSchema = z
     shutdown: withUi(z.boolean().default(false), {
       title: 'Shutdown',
       help: 'keep the configuration but do not bring the session up',
-      order: 12,
+      order: 11,
     }),
     ...bgpPeerFields,
   })
@@ -366,22 +481,23 @@ export const BgpSchema = z.strictObject({
     title: 'Peer groups',
     order: 4,
   }),
-  neighbors: withUi(z.array(BgpNeighborSchema).max(1024).default([]), {
-    title: 'Neighbours',
-    itemKey: ['address'],
-    order: 5,
-  }),
+  neighbors: withUi(
+    z
+      .record(withUi(ipAddress, { title: 'Neighbour address' }), BgpNeighborSchema)
+      .default({}),
+    {
+      title: 'Neighbours',
+      help: 'keyed by neighbour address, e.g. 10.0.0.1 or 2001:db8::1',
+      order: 5,
+    },
+  ),
   networks: withUi(z.array(BgpNetworkSchema).max(4096).default([]), {
     title: 'Networks',
     help: 'prefixes originated by this router',
     itemKey: ['prefix'],
     order: 6,
   }),
-  redistribute: withUi(z.array(RedistributeSchema).max(8).default([]), {
-    title: 'Redistribute',
-    itemKey: ['protocol'],
-    order: 7,
-  }),
+  redistribute: withUi(redistributeInto('bgp'), { order: 7 }),
   gracefulRestart: withUi(z.boolean().default(false), { title: 'Graceful restart', order: 8 }),
   ebgpRequiresPolicy: withUi(z.boolean().default(true), {
     title: 'eBGP requires policy',
@@ -393,64 +509,63 @@ export type BgpConfig = z.infer<typeof BgpSchema>;
 
 /* -------------------------------------------------------------------------------------------------- OSPF */
 
+/** An OSPF area; its id is the record key (`/routing/ospf/areas/0.0.0.51`). */
 export const OspfAreaSchema = z.strictObject({
-  id: withUi(ospfAreaId, { order: 1 }),
   type: withUi(z.enum(['normal', 'stub', 'nssa']).default('normal'), {
     title: 'Area type',
     widget: 'select',
-    order: 2,
+    order: 1,
   }),
   noSummary: withUi(z.boolean().default(false), {
     title: 'No summary',
     help: 'totally stubby / totally NSSA: do not inject inter-area routes',
-    order: 3,
+    order: 2,
   }),
 });
 
+/** OSPF on one interface; the interface name is the record key (`/routing/ospf/interfaces/loop0`). */
 export const OspfInterfaceSchema = z.strictObject({
-  name: withUi(vppInterfaceName, { title: 'Interface', order: 1 }),
-  area: withUi(ospfAreaId, { order: 2 }),
-  cost: withUi(z.number().int().min(1).max(65535).optional(), { title: 'Cost', order: 3 }),
+  area: withUi(ospfAreaId, { order: 1 }),
+  cost: withUi(z.number().int().min(1).max(65535).optional(), { title: 'Cost', order: 2 }),
   passive: withUi(z.boolean().default(false), {
     title: 'Passive',
     help: 'advertise the subnet but form no adjacencies',
-    order: 4,
+    order: 3,
   }),
   networkType: withUi(
     z.enum(['broadcast', 'point-to-point', 'non-broadcast', 'point-to-multipoint']).optional(),
-    { title: 'Network type', widget: 'select', order: 5 },
+    { title: 'Network type', widget: 'select', order: 4 },
   ),
   helloIntervalSec: withUi(z.number().int().min(1).max(65535).optional(), {
     title: 'Hello interval (s)',
-    order: 6,
+    order: 5,
   }),
   deadIntervalSec: withUi(z.number().int().min(1).max(65535).optional(), {
     title: 'Dead interval (s)',
-    order: 7,
+    order: 6,
   }),
-  priority: withUi(z.number().int().min(0).max(255).optional(), { title: 'DR priority', order: 8 }),
-  bfd: withUi(z.boolean().default(false), { title: 'BFD', order: 9 }),
+  priority: withUi(z.number().int().min(0).max(255).optional(), { title: 'DR priority', order: 7 }),
+  bfd: withUi(z.boolean().default(false), { title: 'BFD', order: 8 }),
 });
+
+/** Record keyed by the interface an IGP runs on (parent or `<parent>.<id>`). */
+const igpInterfaces = <T extends z.ZodType>(item: T) =>
+  withUi(z.record(vppInterfaceName, item).default({}), {
+    title: 'Interfaces',
+    help: 'keyed by interface name',
+  });
 
 export const OspfSchema = z
   .strictObject({
     routerId: withUi(routerId.optional(), { title: 'Router ID', order: 1 }),
     vrf: withUi(vrfName.default(DEFAULT_VRF), { title: 'VRF', order: 2 }),
-    areas: withUi(z.array(OspfAreaSchema).max(64).default([]), {
+    areas: withUi(z.record(ospfAreaId, OspfAreaSchema).default({}), {
       title: 'Areas',
-      itemKey: ['id'],
+      help: 'keyed by area id, e.g. 0 or 0.0.0.51',
       order: 3,
     }),
-    interfaces: withUi(z.array(OspfInterfaceSchema).max(256).default([]), {
-      title: 'Interfaces',
-      itemKey: ['name'],
-      order: 4,
-    }),
-    redistribute: withUi(z.array(RedistributeSchema).max(8).default([]), {
-      title: 'Redistribute',
-      itemKey: ['protocol'],
-      order: 5,
-    }),
+    interfaces: withUi(igpInterfaces(OspfInterfaceSchema), { order: 4 }),
+    redistribute: withUi(redistributeInto('ospf'), { order: 5 }),
     defaultInformationOriginate: withUi(z.enum(['off', 'on', 'always']).default('off'), {
       title: 'Default route origination',
       widget: 'select',
@@ -458,7 +573,8 @@ export const OspfSchema = z
     }),
   })
   .refine(
-    (ospf) => new Set(ospf.areas.map((a) => ospfAreaNumber(a.id))).size === ospf.areas.length,
+    (ospf) =>
+      new Set(Object.keys(ospf.areas).map(ospfAreaNumber)).size === Object.keys(ospf.areas).length,
     {
       message: 'area ids must be unique (0 and 0.0.0.0 are the same area)',
       path: ['areas'],
@@ -471,7 +587,6 @@ export type OspfConfig = z.infer<typeof OspfSchema>;
 export const IsisLevel = z.enum(['level-1', 'level-2', 'level-1-2']);
 
 export const IsisInterfaceSchema = z.strictObject({
-  name: withUi(vppInterfaceName, { title: 'Interface', order: 1 }),
   passive: withUi(z.boolean().default(false), { title: 'Passive', order: 2 }),
   metric: withUi(z.number().int().min(1).max(16777215).optional(), { title: 'Metric', order: 3 }),
   circuitType: withUi(IsisLevel.optional(), { title: 'Circuit type', widget: 'select', order: 4 }),
@@ -487,23 +602,14 @@ export const IsisSchema = z.strictObject({
   net: withUi(isisNet, { order: 1 }),
   level: withUi(IsisLevel.default('level-1-2'), { title: 'IS type', widget: 'select', order: 2 }),
   vrf: withUi(vrfName.default(DEFAULT_VRF), { title: 'VRF', order: 3 }),
-  interfaces: withUi(z.array(IsisInterfaceSchema).max(256).default([]), {
-    title: 'Interfaces',
-    itemKey: ['name'],
-    order: 4,
-  }),
-  redistribute: withUi(z.array(RedistributeSchema).max(8).default([]), {
-    title: 'Redistribute',
-    itemKey: ['protocol'],
-    order: 5,
-  }),
+  interfaces: withUi(igpInterfaces(IsisInterfaceSchema), { order: 4 }),
+  redistribute: withUi(redistributeInto('isis'), { order: 5 }),
 });
 export type IsisConfig = z.infer<typeof IsisSchema>;
 
 /* --------------------------------------------------------------------------------------------------- RIP */
 
 export const RipInterfaceSchema = z.strictObject({
-  name: withUi(vppInterfaceName, { title: 'Interface', order: 1 }),
   passive: withUi(z.boolean().default(false), { title: 'Passive', order: 2 }),
 });
 
@@ -514,16 +620,8 @@ export const RipSchema = z.strictObject({
     help: 'run RIP on interfaces inside these prefixes',
     order: 2,
   }),
-  interfaces: withUi(z.array(RipInterfaceSchema).max(256).default([]), {
-    title: 'Interfaces',
-    itemKey: ['name'],
-    order: 3,
-  }),
-  redistribute: withUi(z.array(RedistributeSchema).max(8).default([]), {
-    title: 'Redistribute',
-    itemKey: ['protocol'],
-    order: 4,
-  }),
+  interfaces: withUi(igpInterfaces(RipInterfaceSchema), { order: 3 }),
+  redistribute: withUi(redistributeInto('rip'), { order: 4 }),
   defaultMetric: withUi(z.number().int().min(1).max(16).default(1), {
     title: 'Default metric',
     order: 5,
@@ -583,21 +681,17 @@ export const RoutingSchema = withUi(
       group: 'static',
       order: 1,
     }),
-    prefixLists: withUi(z.record(objectName, PrefixListSchema).default({}), {
-      title: 'Prefix lists',
+    policy: withUi(RoutingPolicySchema.prefault({}), {
+      title: 'Routing policy',
+      help: 'prefix lists and route maps',
       group: 'policy',
       order: 2,
     }),
-    routeMaps: withUi(z.record(objectName, RouteMapSchema).default({}), {
-      title: 'Route maps',
-      group: 'policy',
-      order: 3,
-    }),
-    bgp: withUi(BgpSchema.optional(), { title: 'BGP', group: 'dynamic', order: 4 }),
-    ospf: withUi(OspfSchema.optional(), { title: 'OSPF', group: 'dynamic', order: 5 }),
-    isis: withUi(IsisSchema.optional(), { title: 'IS-IS', group: 'dynamic', order: 6 }),
-    rip: withUi(RipSchema.optional(), { title: 'RIP', group: 'dynamic', order: 7 }),
-    bfd: withUi(BfdSchema.optional(), { title: 'BFD', group: 'dynamic', order: 8 }),
+    bgp: withUi(BgpSchema.optional(), { title: 'BGP', group: 'dynamic', order: 3 }),
+    ospf: withUi(OspfSchema.optional(), { title: 'OSPF', group: 'dynamic', order: 4 }),
+    isis: withUi(IsisSchema.optional(), { title: 'IS-IS', group: 'dynamic', order: 5 }),
+    rip: withUi(RipSchema.optional(), { title: 'RIP', group: 'dynamic', order: 6 }),
+    bfd: withUi(BfdSchema.optional(), { title: 'BFD', group: 'dynamic', order: 7 }),
   }),
   {
     title: 'Routing',

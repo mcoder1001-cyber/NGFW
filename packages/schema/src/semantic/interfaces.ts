@@ -11,7 +11,7 @@ import type { SemanticIssue, ValidatorDefinition } from './registry.js';
 
 /**
  * Semantic validators for `interfaces`: VRF references resolve, no overlapping addresses inside a VRF, VLAN tags
- * unique per parent, `unnumbered` targets exist, MAC addresses unique. Pointers are built with `jsonPointer()`
+ * unique per parent, `unnumbered` targets exist, sub-interface MTU ≤ parent MTU, MAC addresses unique. Pointers are built with `jsonPointer()`
  * because VPP interface names contain `/`.
  */
 
@@ -133,6 +133,25 @@ export const interfacesValidators: readonly ValidatorDefinition[] = [
             pointer: jsonPointer(...node.path, 'unnumbered'),
             message: `interface '${target}' does not exist`,
           });
+        }
+      }
+      return issues;
+    },
+  },
+  {
+    name: 'interfaces.subinterface-mtu',
+    domains: ['interfaces'],
+    validate: (config) => {
+      const issues: SemanticIssue[] = [];
+      for (const [parent, iface] of Object.entries(config.interfaces)) {
+        if (iface.mtu === undefined) continue;
+        for (const [id, sub] of Object.entries(iface.subinterfaces)) {
+          if (sub.mtu !== undefined && sub.mtu > iface.mtu) {
+            issues.push({
+              pointer: jsonPointer('interfaces', parent, 'subinterfaces', id, 'mtu'),
+              message: `sub-interface MTU ${sub.mtu} exceeds the MTU ${iface.mtu} of ${parent}`,
+            });
+          }
         }
       }
       return issues;

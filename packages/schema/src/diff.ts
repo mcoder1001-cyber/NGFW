@@ -23,9 +23,16 @@ export interface Change {
  *
  * Arrays stay leaves in contracts-v1 (D-021): a list such as `routing.static` is replaced as a whole. The UI can
  * still show per-item changes by pairing `from`/`to` items on the `x-vrx-ui.itemKey` of the array's schema; an
- * element-wise diff option can be added later without changing this signature.
+ * element-wise diff option can be added later as a third `options` parameter (review L2).
+ *
+ * Secret leaves (`x-vrx-ui.secret`) are diffed like any other value: callers that show or store a diff pass
+ * `redactSecrets()` documents (D-046).
  */
-export function diff(a: unknown, b: unknown, base = ''): Change[] {
+export function diff(a: unknown, b: unknown): Change[] {
+  return walk(a, b, '');
+}
+
+function walk(a: unknown, b: unknown, base: string): Change[] {
   if (isPlainObject(a) && isPlainObject(b)) {
     const changes: Change[] = [];
     const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].sort();
@@ -35,7 +42,7 @@ export function diff(a: unknown, b: unknown, base = ''): Change[] {
       const to = b[key];
       if (from !== undefined && to === undefined) changes.push({ op: 'remove', pointer, from });
       else if (from === undefined && to !== undefined) changes.push({ op: 'add', pointer, to });
-      else if (from !== undefined && to !== undefined) changes.push(...diff(from, to, pointer));
+      else if (from !== undefined && to !== undefined) changes.push(...walk(from, to, pointer));
     }
     return changes;
   }

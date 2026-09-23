@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mergePatch, mergePatchAt } from './merge-patch.js';
+import { FORBIDDEN_KEYS, MergePatchError, mergePatch, mergePatchAt } from './merge-patch.js';
 
 // RFC 7386 Appendix A test cases (original, patch, result).
 const rfc7386: [unknown, unknown, unknown][] = [
@@ -82,5 +82,38 @@ describe('mergePatchAt (PATCH /api/v1/config/{path})', () => {
     mergePatchAt(doc, '/system/banner', { motd: null });
     mergePatchAt(doc, '/routing/static/0', { distance: 5 });
     expect(JSON.stringify(doc)).toBe(before);
+  });
+});
+
+describe('prototype keys are rejected (review M6, D-049)', () => {
+  const hostile = (key: string) => JSON.parse(`{"a":{"${key}":{"pwn":1}}}`) as unknown;
+
+  it.each(FORBIDDEN_KEYS)('mergePatch throws MergePatchError on a %s member', (key) => {
+    let error: unknown;
+    try {
+      mergePatch({ a: {} }, hostile(key));
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(MergePatchError);
+    expect((error as MergePatchError).pointer).toBe(`/a/${key}`);
+    expect((error as MergePatchError).message).toBe(`the key '${key}' is not allowed`);
+    expect(({} as Record<string, unknown>)['pwn']).toBeUndefined();
+  });
+
+  it.each(FORBIDDEN_KEYS)('mergePatchAt throws on %s in the pointer or the patch', (key) => {
+    expect(() => mergePatchAt({}, `/${key}/pwn`, true)).toThrow(MergePatchError);
+    expect(() => mergePatchAt({ x: {} }, '/x', hostile(key))).toThrow(MergePatchError);
+  });
+
+  it('reports the array path of a bad index', () => {
+    try {
+      mergePatchAt({ l: [1] }, '/l/9', 2);
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(MergePatchError);
+      expect((e as MergePatchError).pointer).toBe('/l/9');
+      expect((e as MergePatchError).name).toBe('MergePatchError');
+    }
   });
 });

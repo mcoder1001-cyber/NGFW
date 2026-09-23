@@ -3,6 +3,8 @@ package df2
 import (
 	"strconv"
 
+	"ngfw/agent/internal/descriptors/acl"
+
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -24,8 +26,8 @@ func VRFKey(id uint32) scheduler.Key {
 	return scheduler.Join(VRFKeyPrefix, strconv.FormatUint(uint64(id), 10))
 }
 
-// ACLKey is the key of an acl-plugin ACL by name (DF-4).
-func ACLKey(name string) scheduler.Key { return scheduler.Join(ACLKeyPrefix, name) }
+// ACLKey is the key of an acl-plugin ACL by name: DF-4's acl.KeyACL (D-066).
+func ACLKey(name string) scheduler.Key { return acl.KeyACL(name) }
 
 // InterfaceIPKey is the key of an interface address (P05 core).
 func InterfaceIPKey(iface, prefix string) scheduler.Key {

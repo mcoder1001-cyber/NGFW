@@ -128,6 +128,32 @@ func TestClassifyOnHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = outd.Delete(df2test.Ctx(t), out, ometa) })
+	oactual, err := outd.Retrieve(ctx)
+	if err != nil || find(oactual, outd.KeyOf(out)) == nil || !proto.Equal(find(oactual, outd.KeyOf(out)).Value, out) {
+		t.Fatalf("output-acl Retrieve = %+v, %v", oactual, err)
+	}
+	t.Logf("output-acl Retrieve = %+v", find(oactual, outd.KeyOf(out)).Value)
+	// A→B: Delete(A) + Create(B) as the scheduler does on ErrRecreate; the successful unbind
+	// of B below proves VPP holds B (an unbind naming the wrong table fails with NO_SUCH_TABLE).
+	tableB := &Table{Name: owner + "-t2", MatchNVectors: 1, Mask: ip4SrcMask(), MissNextIndex: NoIndex, Nbuckets: 8}
+	tbmeta, err := td.Create(ctx, tableB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = td.Delete(df2test.Ctx(t), tableB, tbmeta) })
+	if err := outd.Delete(ctx, out, ometa); err != nil {
+		t.Fatal(err)
+	}
+	outB := &OutputAcl{Interface: loop, Ip4Table: tableB.Name}
+	if ometa, err = outd.Create(ctx, outB); err != nil {
+		t.Fatal(err)
+	}
+	out = outB
+	oactual, _ = outd.Retrieve(ctx)
+	if kv := find(oactual, outd.KeyOf(outB)); kv == nil || !proto.Equal(kv.Value, outB) {
+		t.Fatalf("output-acl after A→B = %+v", oactual)
+	}
+	t.Logf("output-acl after A→B = %+v", find(oactual, outd.KeyOf(outB)).Value)
 	l2d := NewInterfaceL2Tables(c, owner, store)
 	l2 := &InterfaceL2Tables{Interface: loop, Input: true, Ip4Table: table.Name}
 	l2meta, err := l2d.Create(ctx, l2)
@@ -145,6 +171,7 @@ func TestClassifyOnHost(t *testing.T) {
 		func() error { return ind.Delete(ctx, in, imeta) },
 		func() error { return sd.Delete(ctx, session, smeta) },
 		func() error { return td.Delete(ctx, table, tmeta) },
+		func() error { return td.Delete(ctx, tableB, tbmeta) },
 	} {
 		if err := del(); err != nil {
 			t.Fatal(err)
@@ -152,6 +179,9 @@ func TestClassifyOnHost(t *testing.T) {
 	}
 	if iactual, _ = ind.Retrieve(ctx); find(iactual, ind.KeyOf(in)) != nil {
 		t.Fatalf("input-acl still retrieved: %+v", iactual)
+	}
+	if oactual, _ := outd.Retrieve(ctx); find(oactual, outd.KeyOf(out)) != nil {
+		t.Fatalf("output-acl still retrieved: %+v", oactual)
 	}
 	if actual, _ = td.Retrieve(ctx); len(actual) != 0 || len(store.All()) != 0 {
 		t.Fatalf("tables still retrieved: %+v store=%+v", actual, store.All())

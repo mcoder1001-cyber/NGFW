@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	abfapi "ngfw/agent/binapi/abf"
+	"ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
@@ -57,7 +58,7 @@ func (*PolicyDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 // interface (optional: ordering only).
 func (*PolicyDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	p := obj.(*Policy)
-	deps := []scheduler.Dependency{{Key: df2.ACLKey(p.GetAcl())}}
+	deps := []scheduler.Dependency{{Key: acl.KeyACL(p.GetAcl())}} // DF-4 key acl.acl/<name>
 	for _, path := range p.GetPaths() {
 		if path.GetInterface() != "" {
 			deps = append(deps, scheduler.Dependency{Key: df2.InterfaceKey(path.GetInterface()), Optional: true})
@@ -97,11 +98,7 @@ func (d *PolicyDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	if len(p.GetPaths()) == 0 {
 		return nil, fmt.Errorf("%s: at least one path is required", PolicyName)
 	}
-	acls, err := DumpACLs(ctx, d.client, d.owner)
-	if err != nil {
-		return nil, err
-	}
-	aclIndex, err := acls.Index(p.GetAcl())
+	aclIndex, err := acl.LookupIndex(ctx, d.client, d.owner, p.GetAcl()) // DF-4's canonical index (D-066)
 	if err != nil {
 		return nil, err
 	}

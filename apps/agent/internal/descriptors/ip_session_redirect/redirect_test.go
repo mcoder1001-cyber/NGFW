@@ -73,7 +73,10 @@ func TestLifecycle(t *testing.T) {
 	ctx := context.Background()
 	v := newFakeVPP()
 	store := classify.NewMemStore()
-	_ = store.Put(classify.TableRecord{Name: "w3-t1", Index: 1, SkipNVectors: 1, MatchNVectors: 2})
+	mask := bytes.Repeat([]byte{255}, 32)
+	_ = store.Reset(0) // records written against the running VPP (vpe_pid 0 on the fake)
+	_ = store.Put(classify.TableRecord{Name: "w3-t1", Index: 1, SkipNVectors: 1, MatchNVectors: 2, Mask: mask})
+	v.Reply("classify_table_info", &classifyapi.ClassifyTableInfoReply{TableID: 1, SkipNVectors: 1, MatchNVectors: 2, MaskLength: 32, Mask: mask})
 	// A redirect in a table that is not ours (index 2) must stay invisible.
 	v.redirects = []isr.IPSessionRedirectDetails{{TableIndex: 2, MatchLength: 16, Match: []byte{9}}}
 	d := New(v, "w3", store)

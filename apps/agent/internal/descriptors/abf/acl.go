@@ -1,28 +1,31 @@
 // Package abf implements the descriptors of VPP's abf plugin (ACL-based forwarding): the
 // policy (ACL → path list) and its attachment to interfaces. Messages come from
-// apps/agent/binapi/abf (and binapi/acl for resolving ACL names) only.
+// apps/agent/binapi/abf (and binapi/acl for mapping ACL indices back to names) only.
 package abf
 
 import (
 	"context"
 	"fmt"
+	"sort"
 
-	"ngfw/agent/binapi/acl"
+	aclapi "ngfw/agent/binapi/acl"
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/vpp"
 )
 
-// ACLs is one acl_dump snapshot restricted to this owner's ACLs. DF-4 stamps every ACL it
-// creates with acl_add_replace.tag = vpp.OwnerTag(owner, <name>); the policy references the
-// ACL by that name (key acl/<name>) and this snapshot turns it into the acl_index.
-type ACLs struct {
-	byName  map[string]uint32
-	byIndex map[uint32]string
-}
+// dupSeparator is DF-4's separator for non-canonical duplicates ("<name>#<index>", D-066).
+const dupSeparator = "#"
+
+// ACLs maps this owner's acl_index values to the names DF-4 reports for them (D-066): the
+// ACL tag is vpp.OwnerTag(owner, <name>); when several ACLs carry one tag, the lowest index
+// is canonical ("<name>") and every other one is "<name>#<index>", which DF-4 deletes. A
+// policy on a non-canonical ACL therefore diffs against desired and is recreated on the
+// canonical one. Create resolves names with DF-4's acl.LookupIndex (same rule).
+type ACLs struct{ byIndex map[uint32]string }
 
 // DumpACLs dumps every ACL and keeps those tagged by owner.
 func DumpACLs(ctx context.Context, c vpp.Client, owner string) (*ACLs, error) {
-	stream, err := acl.NewServiceClient(c).ACLDump(ctx, &acl.ACLDump{ACLIndex: ^uint32(0)})
+	stream, err := aclapi.NewServiceClient(c).ACLDump(ctx, &aclapi.ACLDump{ACLIndex: ^uint32(0)})
 	if err != nil {
 		return nil, fmt.Errorf("acl_dump: %w", err)
 	}
@@ -30,28 +33,31 @@ func DumpACLs(ctx context.Context, c vpp.Client, owner string) (*ACLs, error) {
 	if err != nil {
 		return nil, fmt.Errorf("acl_dump: %w", err)
 	}
-	s := &ACLs{byName: map[string]uint32{}, byIndex: map[uint32]string{}}
+	type owned struct {
+		index uint32
+		name  string
+	}
+	var list []owned
 	for _, d := range details {
-		name, owned := vpp.ParseOwnerTag(d.Tag, owner)
-		if !owned {
+		if name, ok := vpp.ParseOwnerTag(d.Tag, owner); ok {
+			list = append(list, owned{d.ACLIndex, name})
+		}
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].index < list[j].index })
+	s := &ACLs{byIndex: map[uint32]string{}}
+	seen := map[string]bool{}
+	for _, o := range list {
+		if seen[o.name] {
+			s.byIndex[o.index] = fmt.Sprintf("%s%s%d", o.name, dupSeparator, o.index)
 			continue
 		}
-		s.byName[name] = d.ACLIndex
-		s.byIndex[d.ACLIndex] = name
+		seen[o.name] = true
+		s.byIndex[o.index] = o.name
 	}
 	return s, nil
 }
 
-// Index resolves an ACL name.
-func (s *ACLs) Index(name string) (uint32, error) {
-	idx, ok := s.byName[name]
-	if !ok {
-		return 0, fmt.Errorf("acl %q: not found among this owner's ACLs", name)
-	}
-	return idx, nil
-}
-
-// Name returns the name of an owned ACL index.
+// Name returns the reported name of an owned ACL index.
 func (s *ACLs) Name(idx uint32) (string, bool) {
 	n, ok := s.byIndex[idx]
 	return n, ok

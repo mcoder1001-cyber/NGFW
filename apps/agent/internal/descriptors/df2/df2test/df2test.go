@@ -64,14 +64,27 @@ func Ctx(t testing.TB) context.Context {
 // it in t.Cleanup. A leftover of the same name from an earlier run is removed first.
 func Loopback(t testing.TB, c vpp.Client, i int) (name string, swIfIndex uint32) {
 	t.Helper()
+	return loopback(t, c, i, true)
+}
+
+// UntaggedLoopback creates loop<slot><ii> WITHOUT an owner tag — the stand-in for a physical
+// port (DPDK NICs carry no tag) in the claim-store tests — and deletes it in t.Cleanup. The
+// name is still inside the slot's range; an existing interface of that name is never touched.
+func UntaggedLoopback(t testing.TB, c vpp.Client, i int) (name string, swIfIndex uint32) {
+	t.Helper()
+	return loopback(t, c, i, false)
+}
+
+func loopback(t testing.TB, c vpp.Client, i int, tagged bool) (name string, swIfIndex uint32) {
+	t.Helper()
 	ctx := Ctx(t)
 	inst := vpptest.LoopbackInstance(t, i)
 	name = fmt.Sprintf("loop%d", inst)
 	svc := interfaces.NewServiceClient(c)
 	if ifs, err := df2.DumpInterfaces(ctx, c, vpptest.Prefix(t)); err == nil {
 		if idx, err := ifs.Index(name); err == nil {
-			if !ifs.Owned(uint32(idx)) {
-				t.Fatalf("%s exists and is not ours: refusing to touch it", name)
+			if !tagged || !ifs.Owned(uint32(idx)) {
+				t.Fatalf("%s exists and is not provably ours: refusing to touch it", name)
 			}
 			t.Logf("removing leftover %s (sw_if_index %d)", name, idx)
 			_, _ = svc.DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: idx})
@@ -89,6 +102,12 @@ func Loopback(t testing.TB, c vpp.Client, i int) (name string, swIfIndex uint32)
 			t.Errorf("cleanup delete_loopback %s: %v", name, err)
 		}
 	})
+	if !tagged {
+		if _, err := svc.SwInterfaceSetFlags(ctx, &interfaces.SwInterfaceSetFlags{SwIfIndex: rep.SwIfIndex, Flags: interface_types.IF_STATUS_API_FLAG_ADMIN_UP}); err != nil {
+			t.Fatalf("sw_interface_set_flags %s: %v", name, err)
+		}
+		return name, swIfIndex
+	}
 	tag, err := vpp.OwnerTag(vpptest.Prefix(t), name)
 	if err != nil {
 		t.Fatal(err)

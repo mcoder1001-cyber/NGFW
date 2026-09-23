@@ -12,7 +12,7 @@ import (
 
 // TestADLOnHost enables the interface feature and the allow-list, then disables both. The
 // plugin has no dump, so the only Retrieve assertion is the typed ErrRetrieveUnsupported;
-// the CLI `show features <loop>` (run by an operator) during VRX_DF2_HOLD is the evidence.
+// adl.interface is read back through feature_is_enabled; adl.allowlist stays write-only.
 func TestADLOnHost(t *testing.T) {
 	c := df2test.Connect(t)
 	ctx := df2test.Ctx(t)
@@ -37,18 +37,23 @@ func TestADLOnHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = ald.Delete(df2test.Ctx(t), allow, ameta) })
-	if _, err := ifd.Retrieve(ctx); !errors.Is(err, df2.ErrRetrieveUnsupported) {
-		t.Fatalf("interface Retrieve: %v", err)
+	iactual, err := ifd.Retrieve(ctx)
+	if err != nil || len(iactual) != 1 || iactual[0].Key != ifd.KeyOf(iface) || iactual[0].Meta != imeta {
+		t.Fatalf("interface Retrieve (feature_is_enabled device-input/adl-input) = %+v, %v", iactual, err)
 	}
+	t.Logf("adl.interface Retrieve = %+v (meta %+v)", iactual[0].Value, iactual[0].Meta)
 	if _, err := ald.Retrieve(ctx); !errors.Is(err, df2.ErrRetrieveUnsupported) {
 		t.Fatalf("allowlist Retrieve: %v", err)
 	}
-	t.Logf("adl enabled on %s with allow-list table %d (write-only: no dump in the adl API)", loop, table)
+	t.Logf("adl enabled on %s with allow-list table %d (allowlist write-only: no readback in VPP)", loop, table)
 	df2test.Hold(t)
 	if err := ald.Delete(ctx, allow, ameta); err != nil {
 		t.Fatal(err)
 	}
 	if err := ifd.Delete(ctx, iface, imeta); err != nil {
 		t.Fatal(err)
+	}
+	if iactual, err := ifd.Retrieve(ctx); err != nil || len(iactual) != 0 {
+		t.Fatalf("interface still retrieved after Delete: %+v, %v", iactual, err)
 	}
 }

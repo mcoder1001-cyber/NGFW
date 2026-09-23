@@ -3,7 +3,6 @@ package natcommon
 import (
 	"errors"
 	"strings"
-	"sync"
 
 	"go.fd.io/govpp/api"
 )
@@ -12,10 +11,14 @@ import (
 // VPP (docs/lab/host-vrx-a.md: npt66 is not loaded). Integration tests t.Skip on it.
 var ErrPluginNotLoaded = errors.New("natcommon: plugin not loaded on this VPP")
 
-// ErrNoDump is returned by Retrieve of object types whose plugin offers no dump message;
-// such descriptors return what this process created (restart-unsafe, documented per
-// plugin) and this error only when nothing is known.
-var ErrNoDump = errors.New("natcommon: VPP offers no dump for this object type")
+// ErrRetrieveUnsupported is returned by Retrieve of object types whose VPP state cannot be
+// read back (no dump / getter for the object or for fields the diff needs). D-063: the P05
+// reconciler treats such descriptors as write-only — it re-applies desired state on every
+// resync (Create is idempotent), never deletes on absence and skips them in post-apply
+// verification. A descriptor must not fake Retrieve by echoing cached desired state.
+// Same text as scheduler.ErrRetrieveUnsupported (task/P05); once P05 is merged this becomes
+// an alias of that variable (one line, DF-3-questions.md Q9).
+var ErrRetrieveUnsupported = errors.New("vpp has no dump for this object type")
 
 // Retval extracts the VPP api error carried by err (the generated clients wrap Retval with
 // api.RetvalToVPPApiError).
@@ -82,28 +85,4 @@ func IsUnknownMessage(err error) bool {
 		return true
 	}
 	return strings.Contains(err.Error(), "unknown message")
-}
-
-// EnableState remembers whether this process enabled a plugin whose VPP API has no
-// "is enabled" getter (nat64, nat66, det44). Retrieve reports the singleton as present when
-// the cache says so or when the heuristic (any dependent object exists) says so; a plugin
-// that is enabled but empty is therefore re-enabled idempotently once after a restart.
-type EnableState struct {
-	mu      sync.Mutex
-	known   bool
-	enabled bool
-}
-
-// Set records the outcome of an enable/disable.
-func (s *EnableState) Set(enabled bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.known, s.enabled = true, enabled
-}
-
-// Get returns (enabled, known).
-func (s *EnableState) Get() (enabled, known bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.enabled, s.known
 }

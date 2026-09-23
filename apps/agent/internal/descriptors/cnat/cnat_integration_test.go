@@ -3,10 +3,13 @@ package cnat_test
 import (
 	"testing"
 
+	"google.golang.org/protobuf/types/known/structpb"
+
 	cnatapi "ngfw/agent/binapi/cnat"
 	"ngfw/agent/internal/descriptors/cnat"
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/descriptors/natcommon/nattest"
+	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
@@ -23,12 +26,12 @@ func TestCnatOnHost(t *testing.T) {
 	// translations (no SNAT entry needed; the dependency is optional)
 	tr := natcommon.MustEncode(&cnat.TranslationSpec{VIP: nattest.Addr4(t, 47, 1), Port: 80, Proto: "tcp",
 		Paths: []cnat.PathSpec{{Dst: nattest.Addr4(t, 48, 1), DstPort: 8080}, {Dst: nattest.Addr4(t, 48, 2), DstPort: 8080}}})
-	tr2 := natcommon.MustEncode(&cnat.TranslationSpec{VIP: nattest.Addr4(t, 47, 1), Port: 53, Proto: "udp", LBType: cnat.LBMaglev, AllocPort: true,
+	tr2 := natcommon.MustEncode(&cnat.TranslationSpec{VIP: nattest.Addr4(t, 47, 1), Port: 53, Proto: "udp", LBType: cnat.LBMaglev,
 		Paths: []cnat.PathSpec{{Dst: nattest.Addr4(t, 48, 3), DstPort: 5353}}})
 	nattest.CreateAll(ctx, t, p.Translation, tr, tr2)
 	nattest.AssertPlan(t, p.Translation, tr, tr2)
 	// backend change converges in place
-	tr2b := natcommon.MustEncode(&cnat.TranslationSpec{VIP: nattest.Addr4(t, 47, 1), Port: 53, Proto: "udp", LBType: cnat.LBMaglev, AllocPort: true,
+	tr2b := natcommon.MustEncode(&cnat.TranslationSpec{VIP: nattest.Addr4(t, 47, 1), Port: 53, Proto: "udp", LBType: cnat.LBMaglev,
 		Paths: []cnat.PathSpec{{Dst: nattest.Addr4(t, 48, 3), DstPort: 5353}, {Dst: nattest.Addr4(t, 48, 4), DstPort: 5353, NoNAT: true}}})
 	if n := nattest.Apply(t, p.Translation, tr, tr2b); n != 1 {
 		t.Fatalf("translation update planned %d ops", n)
@@ -57,22 +60,28 @@ func TestCnatOnHost(t *testing.T) {
 		nattest.CreateAll(ctx, t, p.SnatAddresses, snat)
 		nattest.AssertPlan(t, p.SnatAddresses, snat)
 
+		// snat-policy / snat-interface / snat-exclude-prefix are write-only (D-063): Create,
+		// re-apply (idempotent), Retrieve → ErrRetrieveUnsupported; deleted before the entry.
 		pol := natcommon.MustEncode(&cnat.SnatPolicySpec{Policy: cnat.PolicyIfPfx})
-		nattest.CreateAll(ctx, t, p.SnatPolicy, pol)
-		nattest.AssertPlan(t, p.SnatPolicy, pol)
-
 		sif := natcommon.MustEncode(&cnat.SnatInterfaceSpec{Interface: l1, Table: cnat.TableIncludeV4})
-		nattest.CreateAll(ctx, t, p.SnatInterface, sif)
-		nattest.AssertPlan(t, p.SnatInterface, sif)
-
 		ex := natcommon.MustEncode(&cnat.SnatExcludePrefixSpec{Prefix: nattest.Addr4(t, 50, 0) + "/24"})
-		nattest.CreateAll(ctx, t, p.SnatExcludePfx, ex)
-		nattest.AssertPlan(t, p.SnatExcludePfx, ex)
+		for _, w := range []struct {
+			d   scheduler.Descriptor
+			obj *structpb.Struct
+		}{{p.SnatPolicy, pol}, {p.SnatInterface, sif}, {p.SnatExcludePfx, ex}} {
+			nattest.CreateWriteOnly(ctx, t, w.d, w.obj)
+			nattest.AssertWriteOnly(t, w.d)
+		}
 
 		nattest.Pause(t, "cnat") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
-		nattest.DeleteAll(ctx, t, p.SnatExcludePfx)
-		nattest.DeleteAll(ctx, t, p.SnatInterface)
-		nattest.DeleteAll(ctx, t, p.SnatPolicy)
+		for _, w := range []struct {
+			d   scheduler.Descriptor
+			obj *structpb.Struct
+		}{{p.SnatExcludePfx, ex}, {p.SnatInterface, sif}, {p.SnatPolicy, pol}} {
+			if err := w.d.Delete(ctx, w.obj, nil); err != nil {
+				t.Fatalf("%s delete: %v", w.d.Name(), err)
+			}
+		}
 		nattest.DeleteAll(ctx, t, p.SnatAddresses)
 		if _, err := cnatapi.NewServiceClient(c).CnatGetSnatAddresses(ctx, &cnatapi.CnatGetSnatAddresses{}); err == nil {
 			t.Fatal("default SNAT entry still present after delete")

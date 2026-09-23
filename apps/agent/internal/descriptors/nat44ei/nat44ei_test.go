@@ -263,8 +263,17 @@ func TestSingletons(t *testing.T) {
 		t.Fatal("forwarding")
 	}
 	ipfix := natcommon.MustEncode(&nat44ei.IpfixSpec{DomainID: 9, SrcPort: 4739})
-	if nattest.Apply(t, p.Ipfix, ipfix) != 1 || !f.ipfix || nattest.Apply(t, p.Ipfix, ipfix) != 0 || nattest.Apply(t, p.Ipfix) != 1 || f.ipfix {
-		t.Fatal("ipfix")
+	nattest.AssertWriteOnly(t, p.Ipfix) // domain id / src port have no getter (D-063)
+	for i := 0; i < 2; i++ {
+		if _, err := p.Ipfix.Create(ctx, ipfix); err != nil || !f.ipfix {
+			t.Fatalf("ipfix enable #%d: %v", i, err)
+		}
+	}
+	if r := f.CallsNamed("nat44_ei_ipfix_enable_disable")[0].(*nat44_ei.Nat44EiIpfixEnableDisable); r.DomainID != 9 || r.SrcPort != 4739 {
+		t.Fatalf("ipfix request %+v", r)
+	}
+	if err := p.Ipfix.Delete(ctx, ipfix, nil); err != nil || f.ipfix {
+		t.Fatalf("ipfix disable: %v", err)
 	}
 	if deps := p.Ipfix.Dependencies(ipfix); len(deps) != 1 || deps[0].Key != nat44ei.EnableKey {
 		t.Fatalf("deps %+v", deps)

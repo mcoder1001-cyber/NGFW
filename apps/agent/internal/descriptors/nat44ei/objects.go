@@ -311,41 +311,21 @@ func (p *Plugin) setIpfix(ctx context.Context, s IpfixSpec, enable bool) error {
 	return nil
 }
 
-// IPFIX: VPP reports only the on/off state; domain id and source port are write-only, so
-// Retrieve echoes the cached spec of the last successful call (documented limitation).
+// IPFIX: VPP reports only the on/off state (show_running_config); domain id and source port
+// are write-only, so the descriptor is write-only (ErrRetrieveUnsupported, D-063). The enable
+// is idempotent in VPP (nat_ipfix_logging_enable_disable returns 0 when already in state),
+// so the reconciler's re-apply on every resync is safe; note that a changed domain id / port
+// is not applied while logging is already on (VPP keeps the first one).
 func (p *Plugin) newIpfix() *natcommon.Descriptor[IpfixSpec] {
-	var last IpfixSpec
 	return natcommon.New(natcommon.Ops[IpfixSpec]{
-		Name: NameIpfix,
-		ID:   func(IpfixSpec) string { return Singleton },
-		Deps: func(IpfixSpec) []scheduler.Dependency { return enableDep() },
-		Create: func(ctx context.Context, s IpfixSpec) (any, error) {
-			if err := p.setIpfix(ctx, s, true); err != nil {
-				return nil, err
-			}
-			last = s
-			return nil, nil
-		},
-		Update: func(ctx context.Context, _, s IpfixSpec, _ any) (any, error) {
-			if err := p.setIpfix(ctx, s, true); err != nil {
-				return nil, err
-			}
-			last = s
-			return nil, nil
-		},
-		Delete: func(ctx context.Context, s IpfixSpec, _ any) error {
-			if err := p.setIpfix(ctx, s, false); err != nil {
-				return err
-			}
-			last = IpfixSpec{}
-			return nil
-		},
-		Retrieve: func(ctx context.Context) ([]natcommon.Item[IpfixSpec], error) {
-			rc, enabled, err := p.runningConfig(ctx)
-			if err != nil || !enabled || !rc.IpfixLoggingEnabled {
-				return nil, err
-			}
-			return []natcommon.Item[IpfixSpec]{{Spec: last}}, nil
+		Name:   NameIpfix,
+		ID:     func(IpfixSpec) string { return Singleton },
+		Deps:   func(IpfixSpec) []scheduler.Dependency { return enableDep() },
+		Create: func(ctx context.Context, s IpfixSpec) (any, error) { return nil, p.setIpfix(ctx, s, true) },
+		Update: func(ctx context.Context, _, s IpfixSpec, _ any) (any, error) { return nil, p.setIpfix(ctx, s, true) },
+		Delete: func(ctx context.Context, s IpfixSpec, _ any) error { return p.setIpfix(ctx, s, false) },
+		Retrieve: func(context.Context) ([]natcommon.Item[IpfixSpec], error) {
+			return nil, natcommon.ErrRetrieveUnsupported
 		},
 	})
 }

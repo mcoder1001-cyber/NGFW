@@ -119,8 +119,11 @@ func TestDet44(t *testing.T) {
 		t.Fatalf("registered %d", reg.Len())
 	}
 	en := natcommon.MustEncode(&det44d.EnableSpec{InsideVRF: 9001, OutsideVRF: 9002})
-	if len(nattest.Keys(t, p.Enable)) != 0 || nattest.Apply(t, p.Enable, en) != 1 || nattest.Apply(t, p.Enable, en) != 0 || !f.enabled {
-		t.Fatal("enable")
+	nattest.AssertWriteOnly(t, p.Enable)
+	for i := 0; i < 2; i++ { // re-apply on every resync is idempotent (retval 1 tolerated)
+		if _, err := p.Enable.Create(ctx, en); err != nil || !f.enabled {
+			t.Fatalf("enable #%d: %v", i, err)
+		}
 	}
 	req := f.CallsNamed("det44_plugin_enable_disable")[0].(*det44.Det44PluginEnableDisable)
 	if req.InsideVrf != 9001 || req.OutsideVrf != 9002 || !req.Enable {
@@ -129,12 +132,7 @@ func TestDet44(t *testing.T) {
 	if deps := p.Enable.Dependencies(en); len(deps) != 2 || deps[0].Key != "vrf/9001" || deps[1].Key != "vrf/9002" {
 		t.Fatalf("deps %+v", deps)
 	}
-	// a fresh plugin: heuristic (a map of any owner exists) → enabled
-	f.maps = append(f.maps, &det44.Det44MapDetails{InAddr: [4]uint8{10, 3, 0, 0}, InPlen: 24, OutAddr: [4]uint8{10, 3, 1, 0}, OutPlen: 30})
-	fresh := det44d.New(f, "w9")
-	if len(nattest.Keys(t, fresh.Enable)) != 1 {
-		t.Fatal("heuristic")
-	}
+	f.maps = append(f.maps, &det44.Det44MapDetails{InAddr: [4]uint8{10, 3, 0, 0}, InPlen: 24, OutAddr: [4]uint8{10, 3, 1, 0}, OutPlen: 30}) // w3's map
 	// VRF change needs a disable (crashes VPP 26.06) → explicit error, no VPP call
 	before := len(f.CallsNamed("det44_plugin_enable_disable"))
 	if _, err := p.Enable.Update(ctx, en, natcommon.MustEncode(&det44d.EnableSpec{InsideVRF: 9003}), nil); !errors.Is(err, det44d.ErrVRFChangeUnsafe) {
@@ -199,10 +197,7 @@ func TestDet44(t *testing.T) {
 	if err := p.Enable.Delete(ctx, en, nil); err != nil || !f.enabled || len(f.CallsNamed("det44_plugin_enable_disable")) != before {
 		t.Fatalf("release: %v enabled=%v", err, f.enabled)
 	}
-	if len(nattest.Keys(t, p.Enable)) != 0 {
-		t.Fatal("released singleton must not be retrieved")
-	}
-	if nattest.Apply(t, p.Enable, en) != 1 || len(nattest.Keys(t, p.Enable)) != 1 {
-		t.Fatal("re-create after release (already enabled tolerated)")
+	if _, err := p.Enable.Create(ctx, en); err != nil {
+		t.Fatalf("re-create after release (already enabled tolerated): %v", err)
 	}
 }

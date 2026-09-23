@@ -3,6 +3,7 @@ package natcommon_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"go.fd.io/govpp/api"
@@ -137,13 +138,8 @@ func TestErrorClassification(t *testing.T) {
 	if !natcommon.IsUnknownMessage(&api.CompatibilityError{IncompatibleMessages: []string{"x"}}) || !natcommon.IsUnknownMessage(errors.New("unknown message: npt66_binding_add_del")) || natcommon.IsUnknownMessage(nil) {
 		t.Fatal("unknown message")
 	}
-	var st natcommon.EnableState
-	if _, known := st.Get(); known {
-		t.Fatal("fresh state must be unknown")
-	}
-	st.Set(true)
-	if en, known := st.Get(); !en || !known {
-		t.Fatal("set/get")
+	if !errors.Is(fmt.Errorf("x: retrieve: %w", natcommon.ErrRetrieveUnsupported), natcommon.ErrRetrieveUnsupported) {
+		t.Fatal("ErrRetrieveUnsupported must survive wrapping")
 	}
 	if !natcommon.PluginLoaded(struct{}{}) {
 		t.Fatal("a client without CompatChecker counts as loaded")

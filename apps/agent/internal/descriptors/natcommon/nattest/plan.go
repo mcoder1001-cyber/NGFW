@@ -8,6 +8,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -149,4 +150,35 @@ func DeleteAll(ctx context.Context, t testing.TB, d scheduler.Descriptor) {
 	if left, err := d.Retrieve(ctx); err != nil || len(left) != 0 {
 		t.Fatalf("%s after delete: %+v %v", d.Name(), left, err)
 	}
+}
+
+// AssertWriteOnly checks the D-063 contract of a descriptor without a VPP dump: Retrieve
+// reports ErrRetrieveUnsupported (never echoed desired state).
+func AssertWriteOnly(t testing.TB, d scheduler.Descriptor) {
+	t.Helper()
+	kvs, err := d.Retrieve(context.Background())
+	if !errors.Is(err, natcommon.ErrRetrieveUnsupported) || len(kvs) != 0 {
+		t.Fatalf("%s: want ErrRetrieveUnsupported (write-only, D-063), got %v %v", d.Name(), kvs, err)
+	}
+	t.Logf("%s is write-only: Retrieve → ErrRetrieveUnsupported", d.Name())
+}
+
+// CreateWriteOnly creates a write-only object twice (the reconciler re-applies it on every
+// resync, so Create must be idempotent) and registers a best-effort Delete in Cleanup.
+func CreateWriteOnly(ctx context.Context, t testing.TB, d scheduler.Descriptor, obj proto.Message) {
+	t.Helper()
+	var meta any
+	for i := 0; i < 2; i++ {
+		m, err := d.Create(ctx, obj)
+		if err != nil {
+			t.Fatalf("%s create #%d %s: %v", d.Name(), i, d.KeyOf(obj), err)
+		}
+		meta = m
+	}
+	t.Cleanup(func() {
+		cctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_ = d.Delete(cctx, obj, meta)
+	})
+	t.Logf("%s: create re-applied twice without error (idempotent)", d.Name())
 }

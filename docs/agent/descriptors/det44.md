@@ -1,12 +1,12 @@
 # det44 descriptors (DF-3)
 
 Package `apps/agent/internal/descriptors/det44`, binapi `apps/agent/binapi/det44` (plugin `det44_plugin.so`, loaded on
-vrx-a). Entry point `det44.Register(registry, client, owner)`. No "is enabled" getter → cache ∪ heuristic (any
-det44 interface or map exists), as for nat64/nat66.
+vrx-a). Entry point `det44.Register(registry, client, owner)`. No "is enabled" getter → `det44.enable` is **write-only**
+(`ErrRetrieveUnsupported`, D-063), as for nat64/nat66.
 
 | Descriptor | Key id | Create / Delete | Update | Retrieve | Dependencies | Notes / limitations |
 |---|---|---|---|---|---|---|
-| `det44.enable` | `global` | Create `det44_plugin_enable_disable(enable=1)` (`inside_vrf`, `outside_vrf`; retval 1 "already" tolerated). **Delete never disables** (see below) | `ErrVRFChangeUnsafe` (VRF change needs a disable) | cache ∪ heuristic | optional `vrf/<inside>`, `vrf/<outside>` | VRFs have no getter: after an agent restart the heuristic reports zeros. |
+| `det44.enable` | `global` | Create `det44_plugin_enable_disable(enable=1)` (`inside_vrf`, `outside_vrf`; retval 1 "already" tolerated). **Delete never disables** (see below) | `ErrVRFChangeUnsafe` (VRF change needs a disable) | `ErrRetrieveUnsupported` (write-only) | optional `vrf/<inside>`, `vrf/<outside>` | No getter for "enabled" or the VRFs. The re-apply on every resync is idempotent (retval 1 tolerated). |
 | `det44.timeouts` | `global` | `det44_set_timeouts`; Delete restores 300/7440/240/60 | in place | `det44_get_timeouts` — object only when non-default | enable | Presence = non-default values. |
 | `det44.interface` | `<interface>/<inside\|outside>` | `det44_interface_add_del_feature` (`is_inside`) | recreate | `det44_interface_dump` (`is_inside` / `is_outside`) | enable, `interface/<name>` | |
 | `det44.map` | `<inside prefix>/<outside prefix>` | `det44_add_del_map` | recreate | `det44_map_dump` (sharing ratio / ports per host are derived, not part of the value) | enable | Ownership: inside or outside prefix inside the slot v4 block. |
@@ -27,3 +27,4 @@ feature node lingers until the interface is deleted.
 
 Tests: `det44_test.go` (fake), `det44_integration_test.go` (loopbacks `loop920/921`, map `10.9.44.0/24 → 10.9.45.0/30`).
 The integration test never disables det44, and it touches the det44 timeouts only when they are at VPP's defaults.
+Per D-064 it is **opt-in** (`VRX_DF3_DET44=1`), because its first host run crashed the shared VPP (before the fix).

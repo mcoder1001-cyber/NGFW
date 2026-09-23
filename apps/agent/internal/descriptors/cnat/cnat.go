@@ -9,9 +9,9 @@
 //     exists crashes VPP. Every such call is guarded by cnat_get_snat_addresses.
 //   - cnat_translation_update with n_paths = 0 underflows vec_validate(paths, n_paths - 1):
 //     a translation must have at least one path.
-//   - translation flags / is_real_ip / flow_hash_config and the SNAT policy, policy
-//     interfaces and excluded prefixes have no getter: they are kept in an in-process cache
-//     (see the per-object notes and the doc).
+//   - the SNAT policy, policy interfaces and excluded prefixes have no getter: those
+//     descriptors are write-only (ErrRetrieveUnsupported, D-063). Translation flags /
+//     is_real_ip / flow_hash_config are write-only fields and are not modelled (VPP defaults).
 package cnat
 
 import (
@@ -22,7 +22,6 @@ import (
 	"net/netip"
 	"sort"
 	"strconv"
-	"sync"
 
 	"go.fd.io/govpp/api"
 
@@ -96,18 +95,16 @@ type PathSpec struct {
 }
 
 // TranslationSpec is one CNat translation (cnat_translation_update): a VIP (address, port,
-// protocol) load-balanced over Paths. AllocPort / NoReturnSession / NoClient / IsRealIP are
-// write-only in VPP (see package doc).
+// protocol) load-balanced over Paths. The translation flags (alloc-port, no-return-session,
+// no-client), is_real_ip and flow_hash_config are not returned by cnat_translation_dump, so
+// they are not modelled: VPP's defaults are sent (flags 0, is_real_ip 0 = exclusive VIP, as
+// the CLI default), DF-3-questions.md Q6.
 type TranslationSpec struct {
-	VIP             string     `json:"vip"`
-	Port            uint32     `json:"port"`
-	Proto           string     `json:"proto"`
-	LBType          string     `json:"lb_type"`
-	Paths           []PathSpec `json:"paths"`
-	AllocPort       bool       `json:"alloc_port"`
-	NoReturnSession bool       `json:"no_return_session"`
-	NoClient        bool       `json:"no_client"`
-	IsRealIP        bool       `json:"is_real_ip"`
+	VIP    string     `json:"vip"`
+	Port   uint32     `json:"port"`
+	Proto  string     `json:"proto"`
+	LBType string     `json:"lb_type"`
+	Paths  []PathSpec `json:"paths"`
 }
 
 // Normalize canonicalises addresses, protocol, lb type and sorts the paths.
@@ -184,18 +181,12 @@ type IfMeta struct{ SwIfIndex uint32 }
 
 // ---- plugin -------------------------------------------------------------------------------
 
-// Plugin bundles the client, the owner scope, the in-process caches and the descriptors.
+// Plugin bundles the client, the owner scope and the descriptors.
 type Plugin struct {
 	client vpp.Client
 	scope  natcommon.Scope
 	svc    cnatapi.RPCService
 	feat   feature.RPCService
-
-	mu       sync.Mutex
-	trFlags  map[uint32]TranslationSpec // write-only translation fields by id
-	policy   *SnatPolicySpec
-	snatIfs  map[string]SnatInterfaceSpec
-	excluded map[string]SnatExcludePrefixSpec
 
 	Translation      *natcommon.Descriptor[TranslationSpec]
 	SnatAddresses    *natcommon.Descriptor[SnatAddressesSpec]
@@ -207,8 +198,7 @@ type Plugin struct {
 
 // New constructs the family for client and owner.
 func New(client vpp.Client, owner string) *Plugin {
-	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), svc: cnatapi.NewServiceClient(client), feat: feature.NewServiceClient(client),
-		trFlags: map[uint32]TranslationSpec{}, snatIfs: map[string]SnatInterfaceSpec{}, excluded: map[string]SnatExcludePrefixSpec{}}
+	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), svc: cnatapi.NewServiceClient(client), feat: feature.NewServiceClient(client)}
 	p.SnatAddresses = p.newSnatAddresses()
 	p.SnatPolicy = p.newSnatPolicy()
 	p.SnatInterface = p.newSnatInterface()
@@ -318,18 +308,6 @@ func (p *Plugin) buildTranslation(s TranslationSpec) (*cnatapi.CnatTranslationUp
 		return nil, err
 	}
 	tr := cnatapi.CnatTranslation{Vip: vipEP, IPProto: ip_types.IPProto(proto), LbType: lb}
-	if s.AllocPort {
-		tr.Flags |= uint8(cnatapi.CNAT_TRANSLATION_ALLOC_PORT)
-	}
-	if s.NoReturnSession {
-		tr.Flags |= uint8(cnatapi.CNAT_TRANSLATION_NO_RETURN_SESSION)
-	}
-	if s.NoClient {
-		tr.Flags |= uint8(cnatapi.CNAT_TRANSLATION_NO_CLIENT)
-	}
-	if s.IsRealIP {
-		tr.IsRealIP = 1
-	}
 	for i, ps := range s.Paths {
 		dst, err := endpoint(ps.Dst, ps.DstPort, v6, fmt.Sprintf("paths[%d].dst", i))
 		if err != nil {
@@ -358,9 +336,6 @@ func (p *Plugin) updateTranslation(ctx context.Context, s TranslationSpec) (any,
 	if err != nil {
 		return nil, fmt.Errorf("cnat_translation_update: %w", err)
 	}
-	p.mu.Lock()
-	p.trFlags[rep.ID] = s
-	p.mu.Unlock()
 	return TranslationMeta{ID: rep.ID}, nil
 }
 
@@ -387,9 +362,6 @@ func (p *Plugin) newTranslation() *natcommon.Descriptor[TranslationSpec] {
 			if _, err := p.svc.CnatTranslationDel(ctx, &cnatapi.CnatTranslationDel{ID: m.ID}); err != nil && !natcommon.IsNoSuchEntry(err) {
 				return fmt.Errorf("cnat_translation_del: %w", err)
 			}
-			p.mu.Lock()
-			delete(p.trFlags, m.ID)
-			p.mu.Unlock()
 			return nil
 		},
 		Retrieve: func(ctx context.Context) ([]natcommon.Item[TranslationSpec], error) {
@@ -419,11 +391,6 @@ func (p *Plugin) newTranslation() *natcommon.Descriptor[TranslationSpec] {
 					s.Paths = append(s.Paths, PathSpec{Src: epString(pt.SrcEp), SrcPort: uint32(pt.SrcEp.Port), Dst: epString(pt.DstEp), DstPort: uint32(pt.DstEp.Port),
 						NoNAT: pt.Flags&uint8(cnatapi.CNAT_EPT_NO_NAT) != 0}) // other bits are internal tracker state
 				}
-				p.mu.Lock()
-				if c, ok := p.trFlags[tr.ID]; ok {
-					s.AllocPort, s.NoReturnSession, s.NoClient, s.IsRealIP = c.AllocPort, c.NoReturnSession, c.NoClient, c.IsRealIP
-				}
-				p.mu.Unlock()
 				s.Normalize()
 				out = append(out, natcommon.Item[TranslationSpec]{Spec: s, Meta: TranslationMeta{ID: tr.ID}})
 			}
@@ -465,14 +432,11 @@ func (p *Plugin) setSnat(ctx context.Context, s SnatAddressesSpec) error {
 	return nil
 }
 
-// forgetSnatDependents drops the cached state of the default entry (VPP frees the policy,
-// interface maps and excluded prefixes together with the entry).
-func (p *Plugin) forgetSnatDependents() {
-	p.mu.Lock()
-	p.policy = nil
-	p.snatIfs = map[string]SnatInterfaceSpec{}
-	p.excluded = map[string]SnatExcludePrefixSpec{}
-	p.mu.Unlock()
+// ownedSnat reports whether the default SNAT entry exists and is this owner's (it would be
+// retrieved by cnat.snat-addresses).
+func (p *Plugin) ownedSnat(ctx context.Context) (bool, error) {
+	items, err := p.SnatAddresses.Retrieve(ctx)
+	return len(items) == 1, err
 }
 
 func (p *Plugin) newSnatAddresses() *natcommon.Descriptor[SnatAddressesSpec] {
@@ -502,7 +466,6 @@ func (p *Plugin) newSnatAddresses() *natcommon.Descriptor[SnatAddressesSpec] {
 			if _, err := p.svc.CnatSetSnatAddresses(ctx, &cnatapi.CnatSetSnatAddresses{SwIfIndex: ^interface_types.InterfaceIndex(0)}); err != nil {
 				return fmt.Errorf("cnat_set_snat_addresses (delete): %w", err)
 			}
-			p.forgetSnatDependents()
 			return nil
 		},
 		Retrieve: func(ctx context.Context) ([]natcommon.Item[SnatAddressesSpec], error) {
@@ -511,7 +474,6 @@ func (p *Plugin) newSnatAddresses() *natcommon.Descriptor[SnatAddressesSpec] {
 				return nil, err
 			}
 			if !ok {
-				p.forgetSnatDependents()
 				return nil, nil
 			}
 			s := SnatAddressesSpec{IP4: canonOptAddr(natcommon.IP4String(rep.SnatIP4)), IP6: canonOptAddr(natcommon.IP6String(rep.SnatIP6))}
@@ -535,9 +497,13 @@ func (p *Plugin) newSnatAddresses() *natcommon.Descriptor[SnatAddressesSpec] {
 	})
 }
 
-// ---- snat policy / interfaces / excluded prefixes (no getter: in-process cache) ----------
+// ---- snat policy / interfaces / excluded prefixes (no getter: write-only, D-063) ---------
 
 func snatDep() []scheduler.Dependency { return []scheduler.Dependency{natcommon.Dep(SnatAddressesKey)} }
+
+func writeOnly[T any](context.Context) ([]natcommon.Item[T], error) {
+	return nil, natcommon.ErrRetrieveUnsupported
+}
 
 func policyValue(s string) (cnatapi.CnatSnatPolicies, error) {
 	switch s {
@@ -551,13 +517,6 @@ func policyValue(s string) (cnatapi.CnatSnatPolicies, error) {
 		return cnatapi.CNAT_POLICY_DNAT, nil
 	}
 	return 0, fmt.Errorf("cnat: unknown snat policy %q", s)
-}
-
-// ownedSnat reports whether the default SNAT entry exists and is this owner's (it would be
-// retrieved by cnat.snat-addresses).
-func (p *Plugin) ownedSnat(ctx context.Context) (bool, error) {
-	items, err := p.SnatAddresses.Retrieve(ctx)
-	return len(items) == 1, err
 }
 
 func (p *Plugin) setPolicy(ctx context.Context, s SnatPolicySpec) error {
@@ -578,47 +537,18 @@ func (p *Plugin) setPolicy(ctx context.Context, s SnatPolicySpec) error {
 
 func (p *Plugin) newSnatPolicy() *natcommon.Descriptor[SnatPolicySpec] {
 	return natcommon.New(natcommon.Ops[SnatPolicySpec]{
-		Name: NameSnatPolicy,
-		ID:   func(SnatPolicySpec) string { return Singleton },
-		Deps: func(SnatPolicySpec) []scheduler.Dependency { return snatDep() },
-		Create: func(ctx context.Context, s SnatPolicySpec) (any, error) {
-			if err := p.setPolicy(ctx, s); err != nil {
-				return nil, err
-			}
-			p.mu.Lock()
-			p.policy = &s
-			p.mu.Unlock()
-			return nil, nil
-		},
-		Update: func(ctx context.Context, _, s SnatPolicySpec, _ any) (any, error) {
-			if err := p.setPolicy(ctx, s); err != nil {
-				return nil, err
-			}
-			p.mu.Lock()
-			p.policy = &s
-			p.mu.Unlock()
-			return nil, nil
-		},
+		Name:   NameSnatPolicy,
+		ID:     func(SnatPolicySpec) string { return Singleton },
+		Deps:   func(SnatPolicySpec) []scheduler.Dependency { return snatDep() },
+		Create: func(ctx context.Context, s SnatPolicySpec) (any, error) { return nil, p.setPolicy(ctx, s) },
+		Update: func(ctx context.Context, _, s SnatPolicySpec, _ any) (any, error) { return nil, p.setPolicy(ctx, s) },
 		Delete: func(ctx context.Context, _ SnatPolicySpec, _ any) error {
 			if err := p.setPolicy(ctx, SnatPolicySpec{Policy: PolicyNone}); err != nil && !errors.Is(err, ErrNoSnatDefault) {
 				return err
 			}
-			p.mu.Lock()
-			p.policy = nil
-			p.mu.Unlock()
 			return nil
 		},
-		Retrieve: func(ctx context.Context) ([]natcommon.Item[SnatPolicySpec], error) {
-			if ok, err := p.ownedSnat(ctx); err != nil || !ok {
-				return nil, err
-			}
-			p.mu.Lock()
-			defer p.mu.Unlock()
-			if p.policy == nil {
-				return nil, nil
-			}
-			return []natcommon.Item[SnatPolicySpec]{{Spec: *p.policy}}, nil
-		},
+		Retrieve: writeOnly[SnatPolicySpec],
 	})
 }
 
@@ -635,8 +565,6 @@ func tableValue(s string) (cnatapi.CnatSnatPolicyTable, error) {
 	}
 	return 0, fmt.Errorf("cnat: unknown snat policy table %q", s)
 }
-
-func snatIfID(s SnatInterfaceSpec) string { return s.Interface + "/" + s.Table }
 
 func (p *Plugin) addDelSnatIf(ctx context.Context, s SnatInterfaceSpec, idx interface_types.InterfaceIndex, add bool) error {
 	tbl, err := tableValue(s.Table)
@@ -662,10 +590,11 @@ func (p *Plugin) addDelSnatIf(ctx context.Context, s SnatInterfaceSpec, idx inte
 func (p *Plugin) newSnatInterface() *natcommon.Descriptor[SnatInterfaceSpec] {
 	return natcommon.New(natcommon.Ops[SnatInterfaceSpec]{
 		Name: NameSnatInterface,
-		ID:   snatIfID,
+		ID:   func(s SnatInterfaceSpec) string { return s.Interface + "/" + s.Table },
 		Deps: func(s SnatInterfaceSpec) []scheduler.Dependency {
 			return append(snatDep(), natcommon.InterfaceDep(s.Interface))
 		},
+		// Idempotent: the per-table interface bitmap is set, not counted.
 		Create: func(ctx context.Context, s SnatInterfaceSpec) (any, error) {
 			idx, err := natcommon.ResolveInterface(ctx, p.client, s.Interface)
 			if err != nil {
@@ -674,46 +603,25 @@ func (p *Plugin) newSnatInterface() *natcommon.Descriptor[SnatInterfaceSpec] {
 			if err := p.addDelSnatIf(ctx, s, idx, true); err != nil {
 				return nil, err
 			}
-			p.mu.Lock()
-			p.snatIfs[snatIfID(s)] = s
-			p.mu.Unlock()
 			return IfMeta{SwIfIndex: uint32(idx)}, nil
 		},
+		// Write-only objects may be deleted without a Meta (after an agent restart): the
+		// interface is then resolved by name; a vanished interface has nothing to remove.
 		Delete: func(ctx context.Context, s SnatInterfaceSpec, meta any) error {
 			m, ok := meta.(IfMeta)
 			if !ok {
-				return fmt.Errorf("%s: unexpected meta %T", NameSnatInterface, meta)
-			}
-			if err := p.addDelSnatIf(ctx, s, interface_types.InterfaceIndex(m.SwIfIndex), false); err != nil {
-				return err
-			}
-			p.mu.Lock()
-			delete(p.snatIfs, snatIfID(s))
-			p.mu.Unlock()
-			return nil
-		},
-		Retrieve: func(ctx context.Context) ([]natcommon.Item[SnatInterfaceSpec], error) {
-			if ok, err := p.ownedSnat(ctx); err != nil || !ok {
-				return nil, err
-			}
-			ifaces, err := natcommon.DumpInterfaces(ctx, p.client)
-			if err != nil {
-				return nil, err
-			}
-			p.mu.Lock()
-			defer p.mu.Unlock()
-			var out []natcommon.Item[SnatInterfaceSpec]
-			for id, s := range p.snatIfs {
-				i, ok := ifaces.ByName(s.Interface)
-				if !ok { // interface gone: VPP's bitmap entry is meaningless
-					delete(p.snatIfs, id)
-					continue
+				idx, err := natcommon.ResolveInterface(ctx, p.client, s.Interface)
+				if errors.Is(err, natcommon.ErrNoSuchInterface) {
+					return nil
 				}
-				out = append(out, natcommon.Item[SnatInterfaceSpec]{Spec: s, Meta: IfMeta{SwIfIndex: i.SwIfIndex}})
+				if err != nil {
+					return err
+				}
+				m = IfMeta{SwIfIndex: uint32(idx)}
 			}
-			sort.Slice(out, func(a, b int) bool { return snatIfID(out[a].Spec) < snatIfID(out[b].Spec) })
-			return out, nil
+			return p.addDelSnatIf(ctx, s, interface_types.InterfaceIndex(m.SwIfIndex), false)
 		},
+		Retrieve: writeOnly[SnatInterfaceSpec],
 	})
 }
 
@@ -746,37 +654,13 @@ func (p *Plugin) newSnatExcludePfx() *natcommon.Descriptor[SnatExcludePrefixSpec
 		Name: NameSnatExcludePfx,
 		ID:   func(s SnatExcludePrefixSpec) string { return s.Prefix },
 		Deps: func(SnatExcludePrefixSpec) []scheduler.Dependency { return snatDep() },
+		// Re-adding is idempotent for the lookup (bihash add); VPP bumps a per-length
+		// refcount that only affects the search order (doc).
 		Create: func(ctx context.Context, s SnatExcludePrefixSpec) (any, error) {
-			if err := p.addDelExclude(ctx, s, true); err != nil {
-				return nil, err
-			}
-			p.mu.Lock()
-			p.excluded[s.Prefix] = s
-			p.mu.Unlock()
-			return nil, nil
+			return nil, p.addDelExclude(ctx, s, true)
 		},
-		Delete: func(ctx context.Context, s SnatExcludePrefixSpec, _ any) error {
-			if err := p.addDelExclude(ctx, s, false); err != nil {
-				return err
-			}
-			p.mu.Lock()
-			delete(p.excluded, s.Prefix)
-			p.mu.Unlock()
-			return nil
-		},
-		Retrieve: func(ctx context.Context) ([]natcommon.Item[SnatExcludePrefixSpec], error) {
-			if ok, err := p.ownedSnat(ctx); err != nil || !ok {
-				return nil, err
-			}
-			p.mu.Lock()
-			defer p.mu.Unlock()
-			out := make([]natcommon.Item[SnatExcludePrefixSpec], 0, len(p.excluded))
-			for _, s := range p.excluded {
-				out = append(out, natcommon.Item[SnatExcludePrefixSpec]{Spec: s})
-			}
-			sort.Slice(out, func(a, b int) bool { return out[a].Spec.Prefix < out[b].Spec.Prefix })
-			return out, nil
-		},
+		Delete:   func(ctx context.Context, s SnatExcludePrefixSpec, _ any) error { return p.addDelExclude(ctx, s, false) },
+		Retrieve: writeOnly[SnatExcludePrefixSpec],
 	})
 }
 

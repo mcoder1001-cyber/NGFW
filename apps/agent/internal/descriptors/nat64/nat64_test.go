@@ -157,21 +157,17 @@ func TestNat64(t *testing.T) {
 		t.Fatalf("registered %d", reg.Len())
 	}
 
-	// enable: unknown state + nothing configured → absent; create; idempotent; already-enabled retval 1 tolerated
+	// enable: write-only (D-063); create; re-apply is idempotent (already-enabled retval 1 tolerated)
 	en := natcommon.MustEncode(&nat64d.EnableSpec{})
-	if len(nattest.Keys(t, p.Enable)) != 0 || nattest.Apply(t, p.Enable, en) != 1 || nattest.Apply(t, p.Enable, en) != 0 || !f.enabled {
-		t.Fatal("enable")
+	nattest.AssertWriteOnly(t, p.Enable)
+	for i := 0; i < 2; i++ {
+		if _, err := p.Enable.Create(ctx, en); err != nil || !f.enabled {
+			t.Fatalf("enable #%d: %v", i, err)
+		}
 	}
-	f.enabled = true
-	if _, err := nat64d.New(f, "w9").Enable.Create(ctx, en); err != nil {
-		t.Fatalf("already enabled must be success: %v", err)
-	}
-	// heuristic after restart: a fresh plugin sees objects → enabled
+	// disable refused while another owner's objects exist
 	f.bibs = append(f.bibs, &nat64.Nat64BibDetails{OAddr: [4]uint8{10, 3, 0, 1}, Flags: nat_types.NAT_IS_STATIC}) // w3's static bib
 	fresh := nat64d.New(f, "w9")
-	if len(nattest.Keys(t, fresh.Enable)) != 1 {
-		t.Fatal("heuristic must report enabled when objects exist")
-	}
 	if err := fresh.Enable.Delete(ctx, en, nil); !errors.Is(err, nat64d.ErrForeignObjects) {
 		t.Fatalf("disable with foreign bib: %v", err)
 	}
@@ -255,7 +251,5 @@ func TestNat64(t *testing.T) {
 	if err := p.Enable.Delete(ctx, en, nil); err != nil || f.enabled {
 		t.Fatalf("disable: %v", err)
 	}
-	if len(nattest.Keys(t, p.Enable)) != 0 {
-		t.Fatal("disabled must be absent")
-	}
+	nattest.AssertWriteOnly(t, p.Enable)
 }

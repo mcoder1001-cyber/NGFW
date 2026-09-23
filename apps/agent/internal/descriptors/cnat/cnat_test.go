@@ -189,7 +189,7 @@ func TestTranslation(t *testing.T) {
 		Paths: []cnatapi.CnatEndpointTuple{{DstEp: cnatapi.CnatEndpoint{Addr: mustAddr("10.3.48.1")}}}}
 	f.nextID = 51
 
-	tr := natcommon.MustEncode(&cnat.TranslationSpec{VIP: "10.9.47.1", Port: 80, Proto: "6", AllocPort: true,
+	tr := natcommon.MustEncode(&cnat.TranslationSpec{VIP: "10.9.47.1", Port: 80, Proto: "6",
 		Paths: []cnat.PathSpec{{Dst: "10.9.48.2", DstPort: 8080}, {Dst: "10.9.48.1", DstPort: 8080, Src: "0.0.0.0"}}})
 	if deps := p.Translation.Dependencies(tr); len(deps) != 1 || deps[0].Key != "cnat.snat-addresses/global" || !deps[0].Optional {
 		t.Fatalf("deps %+v", deps)
@@ -201,11 +201,11 @@ func TestTranslation(t *testing.T) {
 		t.Fatalf("keys %v", keys)
 	}
 	req := f.CallsNamed("cnat_translation_update")[0].(*cnatapi.CnatTranslationUpdate).Translation
-	if req.NPaths != 2 || req.Flags != uint8(cnatapi.CNAT_TRANSLATION_ALLOC_PORT) || req.Vip.SwIfIndex != noIf || req.Paths[0].SrcEp.SwIfIndex != noIf || req.IPProto != ip_types.IP_API_PROTO_TCP {
+	if req.NPaths != 2 || req.Flags != 0 || req.IsRealIP != 0 || req.Vip.SwIfIndex != noIf || req.Paths[0].SrcEp.SwIfIndex != noIf || req.IPProto != ip_types.IP_API_PROTO_TCP {
 		t.Fatalf("translation request %+v", req)
 	}
-	// backend set change → in-place update, same id
-	tr2 := natcommon.MustEncode(&cnat.TranslationSpec{VIP: "10.9.47.1", Port: 80, Proto: "tcp", AllocPort: true, LBType: cnat.LBMaglev,
+	// backend set / lb change → in-place update, same id; internal tracker bits are ignored
+	tr2 := natcommon.MustEncode(&cnat.TranslationSpec{VIP: "10.9.47.1", Port: 80, Proto: "tcp", LBType: cnat.LBMaglev,
 		Paths: []cnat.PathSpec{{Dst: "10.9.48.3", DstPort: 8080, NoNAT: true}}})
 	if nattest.Apply(t, p.Translation, tr2) != 1 || nattest.Apply(t, p.Translation, tr2) != 0 || len(f.trs) != 2 {
 		t.Fatal("update in place")
@@ -213,10 +213,9 @@ func TestTranslation(t *testing.T) {
 	if f.trs[51].LbType != cnatapi.CNAT_LB_TYPE_MAGLEV || f.trs[51].Paths[0].Flags&uint8(cnatapi.CNAT_EPT_NO_NAT) == 0 {
 		t.Fatalf("updated %+v", f.trs[51])
 	}
-	// after an agent restart the write-only flags are unknown → one in-place update
-	fresh := cnat.New(f, "w9")
-	if nattest.Apply(t, fresh.Translation, tr2) != 1 || nattest.Apply(t, fresh.Translation, tr2) != 0 {
-		t.Fatal("restart: write-only flags re-applied once")
+	// a fresh process (agent restart) converges without any cached state
+	if nattest.Apply(t, cnat.New(f, "w9").Translation, tr2) != 0 {
+		t.Fatal("restart: Retrieve alone must reproduce the desired value")
 	}
 	if _, err := p.Translation.Create(ctx, natcommon.MustEncode(&cnat.TranslationSpec{VIP: "10.9.47.9", Port: 1, Proto: "udp"})); !errors.Is(err, cnat.ErrNoPaths) {
 		t.Fatalf("no paths: %v", err)
@@ -237,6 +236,10 @@ func TestSnat(t *testing.T) {
 	ex := natcommon.MustEncode(&cnat.SnatExcludePrefixSpec{Prefix: "10.9.49.7/24"})
 	sif := natcommon.MustEncode(&cnat.SnatInterfaceSpec{Interface: "loop940", Table: cnat.TableIncludeV4})
 
+	// policy / interface tables / excluded prefixes have no getter: write-only (D-063)
+	for _, d := range []scheduler.Descriptor{p.SnatPolicy, p.SnatInterface, p.SnatExcludePfx} {
+		nattest.AssertWriteOnly(t, d)
+	}
 	// without the default entry: guarded errors, nothing sent that would crash VPP
 	if _, err := p.SnatPolicy.Create(ctx, pol); !errors.Is(err, cnat.ErrNoSnatDefault) {
 		t.Fatalf("policy without default: %v", err)
@@ -249,6 +252,9 @@ func TestSnat(t *testing.T) {
 	}
 	if err := p.SnatExcludePfx.Delete(ctx, ex, nil); err != nil {
 		t.Fatalf("exclude delete without default is a no-op: %v", err)
+	}
+	if err := p.SnatPolicy.Delete(ctx, pol, nil); err != nil {
+		t.Fatalf("policy delete without default is a no-op: %v", err)
 	}
 	for _, c := range []struct {
 		d   scheduler.Descriptor
@@ -272,37 +278,40 @@ func TestSnat(t *testing.T) {
 	if _, err := p.SnatAddresses.Update(ctx, addrs, natcommon.MustEncode(&cnat.SnatAddressesSpec{IP4: "10.9.49.2"}), nil); !errors.Is(err, scheduler.ErrRecreate) {
 		t.Fatalf("update: %v", err)
 	}
-	if nattest.Apply(t, p.SnatPolicy, pol) != 1 || nattest.Apply(t, p.SnatPolicy, pol) != 0 || f.policy != cnatapi.CNAT_POLICY_IF_PFX {
-		t.Fatal("policy")
+	// write-only creates are re-applied on every resync: idempotent in VPP
+	for i := 0; i < 2; i++ {
+		for _, c := range []struct {
+			d   scheduler.Descriptor
+			obj *structpb.Struct
+		}{{p.SnatPolicy, pol}, {p.SnatExcludePfx, ex}, {p.SnatInterface, sif}} {
+			if _, err := c.d.Create(ctx, c.obj); err != nil {
+				t.Fatalf("%s create #%d: %v", c.d.Name(), i, err)
+			}
+		}
 	}
-	if nattest.Apply(t, p.SnatExcludePfx, ex) != 1 || nattest.Apply(t, p.SnatExcludePfx, ex) != 0 || !f.excluded["10.9.49.0/24"] {
-		t.Fatalf("exclude %v", f.excluded)
+	if f.policy != cnatapi.CNAT_POLICY_IF_PFX || !f.excluded["10.9.49.0/24"] || !f.snatIfs[[2]uint32{1, 0}] {
+		t.Fatalf("snat state policy=%v excluded=%v ifs=%v", f.policy, f.excluded, f.snatIfs)
 	}
-	sif6 := natcommon.MustEncode(&cnat.SnatInterfaceSpec{Interface: "loop941", Table: cnat.TableIncludeV6})
-	if nattest.Apply(t, p.SnatInterface, sif, sif6) != 2 || nattest.Apply(t, p.SnatInterface, sif, sif6) != 0 || !f.snatIfs[[2]uint32{2, 1}] {
-		t.Fatalf("snat interfaces %v", f.snatIfs)
+	// delete without Meta (after an agent restart): the interface is resolved by name
+	if err := p.SnatInterface.Delete(ctx, sif, nil); err != nil || len(f.snatIfs) != 0 {
+		t.Fatalf("snat interface delete: %v %v", err, f.snatIfs)
 	}
-	if keys := nattest.Keys(t, p.SnatInterface); len(keys) != 2 || keys[0] != "cnat.snat-interface/loop940/include-v4" {
-		t.Fatalf("keys %v", keys)
+	if err := p.SnatInterface.Delete(ctx, natcommon.MustEncode(&cnat.SnatInterfaceSpec{Interface: "gone0", Table: cnat.TableHost}), nil); err != nil {
+		t.Fatalf("delete on a vanished interface is a no-op: %v", err)
 	}
-	if nattest.Apply(t, p.SnatInterface, sif) != 1 || len(f.snatIfs) != 1 {
-		t.Fatal("snat interface leftover delete")
+	if err := p.SnatExcludePfx.Delete(ctx, ex, nil); err != nil || len(f.excluded) != 0 {
+		t.Fatalf("exclude delete: %v", err)
 	}
-	if nattest.Apply(t, p.SnatPolicy) != 1 || f.policy != cnatapi.CNAT_POLICY_NONE {
-		t.Fatal("policy delete → none")
+	if err := p.SnatPolicy.Delete(ctx, pol, nil); err != nil || f.policy != cnatapi.CNAT_POLICY_NONE {
+		t.Fatalf("policy delete → none: %v", err)
 	}
-
-	// deleting the default entry drops VPP's dependents and the caches with it
 	if nattest.Apply(t, p.SnatAddresses) != 1 || f.snat != nil {
 		t.Fatal("snat delete")
-	}
-	if len(nattest.Keys(t, p.SnatExcludePfx)) != 0 || len(nattest.Keys(t, p.SnatInterface)) != 0 {
-		t.Fatal("dependents must vanish with the default entry")
 	}
 
 	// a foreign default entry (w3) is invisible and never deleted
 	f.snat = &cnatapi.CnatGetSnatAddressesReply{SnatIP4: [4]uint8{10, 3, 0, 1}}
-	if len(nattest.Keys(t, p.SnatAddresses)) != 0 || len(nattest.Keys(t, p.SnatPolicy)) != 0 {
+	if len(nattest.Keys(t, p.SnatAddresses)) != 0 {
 		t.Fatal("foreign snat visible")
 	}
 	if err := p.SnatAddresses.Delete(ctx, addrs, nil); !errors.Is(err, cnat.ErrForeignSnat) || f.snat == nil {

@@ -94,8 +94,11 @@ func TestNat66(t *testing.T) {
 		t.Fatalf("registered %d", reg.Len())
 	}
 	en := natcommon.MustEncode(&nat66d.EnableSpec{OutsideVRF: 9001})
-	if len(nattest.Keys(t, p.Enable)) != 0 || nattest.Apply(t, p.Enable, en) != 1 || nattest.Apply(t, p.Enable, en) != 0 || !f.enabled {
-		t.Fatal("enable")
+	nattest.AssertWriteOnly(t, p.Enable)
+	for i := 0; i < 2; i++ { // re-apply on every resync is idempotent
+		if _, err := p.Enable.Create(ctx, en); err != nil || !f.enabled {
+			t.Fatalf("enable #%d: %v", i, err)
+		}
 	}
 	if req := f.CallsNamed("nat66_plugin_enable_disable")[0].(*nat66.Nat66PluginEnableDisable); req.OutsideVrf != 9001 {
 		t.Fatalf("enable request %+v", req)
@@ -103,12 +106,9 @@ func TestNat66(t *testing.T) {
 	if deps := p.Enable.Dependencies(en); len(deps) != 1 || deps[0].Key != "vrf/9001" {
 		t.Fatalf("deps %+v", deps)
 	}
-	// foreign mapping outside our scope: heuristic says enabled, disable refused
+	// foreign mapping outside our scope: disable refused
 	f.mappings = append(f.mappings, &nat66.Nat66StaticMappingDetails{LocalIPAddress: ip_types.IP6Address{0xfd, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, ExternalIPAddress: ip_types.IP6Address{0x20, 0x01, 0x0d, 0xb8}, VrfID: 3001})
 	fresh := nat66d.New(f, "w9")
-	if len(nattest.Keys(t, fresh.Enable)) != 1 {
-		t.Fatal("heuristic")
-	}
 	if err := fresh.Enable.Delete(ctx, en, nil); !errors.Is(err, nat66d.ErrForeignObjects) {
 		t.Fatalf("foreign delete: %v", err)
 	}

@@ -3,9 +3,9 @@
 // BIB entries and session timeouts, plus the Retrieve-only session-table helper. Object <->
 // message table: docs/agent/descriptors/nat64.md.
 //
-// VPP 26.06 offers no "is nat64 enabled" getter: the enable singleton is reported from an
-// in-process cache plus the heuristic "any nat64 interface, prefix, pool or static BIB
-// exists"; Create/Delete treat VPP's "already enabled/disabled" (retval 1) as success.
+// VPP 26.06 offers no "is nat64 enabled" getter: the enable singleton is write-only
+// (ErrRetrieveUnsupported, D-063); Create/Delete treat VPP's "already enabled/disabled"
+// (retval 1) as success.
 package nat64
 
 import (
@@ -127,7 +127,6 @@ type Plugin struct {
 	client vpp.Client
 	scope  natcommon.Scope
 	svc    nat64.RPCService
-	state  natcommon.EnableState
 
 	Enable    *natcommon.Descriptor[EnableSpec]
 	Prefix    *natcommon.Descriptor[PrefixSpec]
@@ -265,7 +264,6 @@ func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
 			if _, err := p.svc.Nat64PluginEnableDisable(ctx, &nat64.Nat64PluginEnableDisable{Enable: true}); err != nil && !natcommon.IsAlreadyEnabled(err) {
 				return nil, fmt.Errorf("nat64_plugin_enable_disable: %w", err)
 			}
-			p.state.Set(true)
 			return nil, nil
 		},
 		Delete: func(ctx context.Context, _ EnableSpec, _ any) error {
@@ -281,21 +279,12 @@ func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
 			if _, err := p.svc.Nat64PluginEnableDisable(ctx, &nat64.Nat64PluginEnableDisable{Enable: false}); err != nil && !natcommon.IsAlreadyDisabled(err) {
 				return fmt.Errorf("nat64_plugin_enable_disable: %w", err)
 			}
-			p.state.Set(false)
 			return nil
 		},
-		Retrieve: func(ctx context.Context) ([]natcommon.Item[EnableSpec], error) {
-			if enabled, known := p.state.Get(); known {
-				if enabled {
-					return []natcommon.Item[EnableSpec]{{Spec: EnableSpec{}}}, nil
-				}
-				return nil, nil
-			}
-			found, _, err := p.inventory(ctx)
-			if err != nil || !found {
-				return nil, err
-			}
-			return []natcommon.Item[EnableSpec]{{Spec: EnableSpec{}}}, nil
+		// No "is nat64 enabled" getter (D-063): write-only; the reconciler re-applies the
+		// (idempotent) enable on every resync and never disables on absence.
+		Retrieve: func(context.Context) ([]natcommon.Item[EnableSpec], error) {
+			return nil, natcommon.ErrRetrieveUnsupported
 		},
 	})
 }

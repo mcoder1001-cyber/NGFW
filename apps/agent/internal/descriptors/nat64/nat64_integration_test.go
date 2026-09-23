@@ -41,7 +41,7 @@ func TestNat64OnHost(t *testing.T) {
 	if _, err := p.Enable.Create(ctx, en); err != nil { // idempotent on an enabled plugin
 		t.Fatal(err)
 	}
-	nattest.AssertPlan(t, p.Enable, en)
+	nattest.AssertWriteOnly(t, p.Enable)
 
 	tmo := natcommon.MustEncode(&nat64d.TimeoutsSpec{UDP: 299, TCPEstablished: 7439, TCPTransitory: 239, ICMP: 59})
 	nattest.CreateAll(ctx, t, p.Timeouts, tmo)

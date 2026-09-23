@@ -1,8 +1,7 @@
 // Package nat66 holds the descriptors of VPP's NAT66 plugin (binapi/nat66, nat66_plugin.so):
 // plugin enable (with outside VRF), inside/outside interfaces and 1:1 static mappings. Object
-// <-> message table: docs/agent/descriptors/nat66.md. VPP has no "is nat66 enabled" getter;
-// the enable singleton uses the in-process cache plus the "any interface or mapping exists"
-// heuristic (see package nat64).
+// <-> message table: docs/agent/descriptors/nat66.md. VPP has no "is nat66 enabled" getter:
+// the enable singleton is write-only (ErrRetrieveUnsupported, D-063).
 package nat66
 
 import (
@@ -42,10 +41,9 @@ var ErrForeignObjects = errors.New("nat66: plugin holds objects of another owner
 // EnableKey is the key every other nat66 object depends on.
 var EnableKey = scheduler.Join(NameEnable, Singleton)
 
-// EnableSpec is the plugin singleton (nat66_plugin_enable_disable). OutsideVRF has no getter:
-// Retrieve reports the value this process enabled with, or 0 after a restart when the plugin
-// is found enabled by the heuristic — a non-zero desired OutsideVRF then plans one
-// disable/enable cycle (documented).
+// EnableSpec is the plugin singleton (nat66_plugin_enable_disable), write-only: VPP has no
+// getter for "enabled" or OutsideVRF. An enable on an already enabled plugin keeps the VRF it
+// was enabled with (a VRF change needs the singleton removed and re-added).
 type EnableSpec struct {
 	OutsideVRF uint32 `json:"outside_vrf"`
 }
@@ -79,8 +77,6 @@ type Plugin struct {
 	client vpp.Client
 	scope  natcommon.Scope
 	svc    nat66.RPCService
-	state  natcommon.EnableState
-	cfg    EnableSpec
 
 	Enable        *natcommon.Descriptor[EnableSpec]
 	Interface     *natcommon.Descriptor[InterfaceSpec]
@@ -167,8 +163,6 @@ func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
 			if _, err := p.svc.Nat66PluginEnableDisable(ctx, &nat66.Nat66PluginEnableDisable{Enable: true, OutsideVrf: s.OutsideVRF}); err != nil && !natcommon.IsAlreadyEnabled(err) {
 				return nil, fmt.Errorf("nat66_plugin_enable_disable: %w", err)
 			}
-			p.state.Set(true)
-			p.cfg = s
 			return nil, nil
 		},
 		Update: func(ctx context.Context, _, _ EnableSpec, _ any) (any, error) {
@@ -192,22 +186,11 @@ func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
 			if _, err := p.svc.Nat66PluginEnableDisable(ctx, &nat66.Nat66PluginEnableDisable{Enable: false}); err != nil && !natcommon.IsAlreadyDisabled(err) {
 				return fmt.Errorf("nat66_plugin_enable_disable: %w", err)
 			}
-			p.state.Set(false)
-			p.cfg = EnableSpec{}
 			return nil
 		},
-		Retrieve: func(ctx context.Context) ([]natcommon.Item[EnableSpec], error) {
-			if enabled, known := p.state.Get(); known {
-				if enabled {
-					return []natcommon.Item[EnableSpec]{{Spec: p.cfg}}, nil
-				}
-				return nil, nil
-			}
-			found, _, err := p.inventory(ctx)
-			if err != nil || !found {
-				return nil, err
-			}
-			return []natcommon.Item[EnableSpec]{{Spec: EnableSpec{}}}, nil
+		// No getter for "enabled" / outside_vrf (D-063): write-only.
+		Retrieve: func(context.Context) ([]natcommon.Item[EnableSpec], error) {
+			return nil, natcommon.ErrRetrieveUnsupported
 		},
 	})
 }

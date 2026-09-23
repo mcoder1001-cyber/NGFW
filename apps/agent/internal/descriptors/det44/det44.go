@@ -2,7 +2,7 @@
 // det44_plugin.so): plugin enable (inside/outside VRF), interfaces, deterministic maps and
 // session timeouts, plus Retrieve-only session state and the close-session action helpers.
 // Object <-> message table: docs/agent/descriptors/det44.md. Like nat64/nat66, VPP has no
-// "is det44 enabled" getter: cache plus "any interface or map exists" heuristic.
+// "is det44 enabled" getter: the enable singleton is write-only (ErrRetrieveUnsupported, D-063).
 package det44
 
 import (
@@ -42,9 +42,8 @@ var EnableKey = scheduler.Join(NameEnable, Singleton)
 // DefaultTimeouts are VPP's default det44 timeouts (det44.c).
 var DefaultTimeouts = TimeoutsSpec{UDP: 300, TCPEstablished: 7440, TCPTransitory: 240, ICMP: 60}
 
-// EnableSpec is the plugin singleton (det44_plugin_enable_disable). The VRFs have no getter:
-// Retrieve reports the values this process enabled with, or zeros after a restart when the
-// plugin is found enabled by the heuristic (one disable/enable cycle if non-zero is desired).
+// EnableSpec is the plugin singleton (det44_plugin_enable_disable), write-only: VPP has no
+// getter for "enabled" or the VRFs. An enable on an already enabled plugin keeps its VRFs.
 type EnableSpec struct {
 	InsideVRF  uint32 `json:"inside_vrf"`
 	OutsideVRF uint32 `json:"outside_vrf"`
@@ -85,8 +84,6 @@ type Plugin struct {
 	client vpp.Client
 	scope  natcommon.Scope
 	svc    det44.RPCService
-	state  natcommon.EnableState
-	cfg    EnableSpec
 
 	Enable    *natcommon.Descriptor[EnableSpec]
 	Interface *natcommon.Descriptor[InterfaceSpec]
@@ -128,24 +125,6 @@ func mapPrefixes(d *det44.Det44MapDetails) (netip.Prefix, netip.Prefix) {
 	return netip.PrefixFrom(netip.AddrFrom4(d.InAddr), int(d.InPlen)).Masked(), netip.PrefixFrom(netip.AddrFrom4(d.OutAddr), int(d.OutPlen)).Masked()
 }
 
-// inventory reports whether any det44 interface or map exists (of any owner): the
-// "is enabled" heuristic after an agent restart.
-func (p *Plugin) inventory(ctx context.Context) (bool, error) {
-	is, err := p.svc.Det44InterfaceDump(ctx, &det44.Det44InterfaceDump{})
-	if err != nil {
-		return false, fmt.Errorf("det44_interface_dump: %w", err)
-	}
-	if n, err := natcommon.Count(is.Recv); err != nil || n > 0 {
-		return n > 0, err
-	}
-	ms, err := p.svc.Det44MapDump(ctx, &det44.Det44MapDump{})
-	if err != nil {
-		return false, fmt.Errorf("det44_map_dump: %w", err)
-	}
-	n, err := natcommon.Count(ms.Recv)
-	return n > 0, err
-}
-
 // ErrVRFChangeUnsafe is returned when the desired inside/outside VRF differs from the one det44
 // was enabled with: changing it needs det44_plugin_enable_disable(disable), which crashes VPP
 // 26.06 (see Enable.Delete). The operator changes det44 VRFs with a VPP restart.
@@ -162,8 +141,6 @@ func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
 			if _, err := p.svc.Det44PluginEnableDisable(ctx, &det44.Det44PluginEnableDisable{Enable: true, InsideVrf: s.InsideVRF, OutsideVrf: s.OutsideVRF}); err != nil && !natcommon.IsAlreadyEnabled(err) {
 				return nil, fmt.Errorf("det44_plugin_enable_disable: %w", err)
 			}
-			p.state.Set(true)
-			p.cfg = s
 			return nil, nil
 		},
 		Update: func(context.Context, EnableSpec, EnableSpec, any) (any, error) {
@@ -174,25 +151,12 @@ func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
 		// a stale slot fails, and the error log formats with unformat_vnet_sw_interface →
 		// SIGSEGV. Any det44 interface ever removed makes the next disable crash VPP (seen
 		// twice on vrx-a, 2026-09-23 16:03 and 2026-09-24 00:19). The singleton is released
-		// in the agent only: the plugin stays enabled (idle, no interfaces, no maps) until
-		// the next VPP restart, and a later Create finds it "already enabled".
-		Delete: func(context.Context, EnableSpec, any) error {
-			p.state.Set(false)
-			p.cfg = EnableSpec{}
-			return nil
-		},
-		Retrieve: func(ctx context.Context) ([]natcommon.Item[EnableSpec], error) {
-			if enabled, known := p.state.Get(); known {
-				if enabled {
-					return []natcommon.Item[EnableSpec]{{Spec: p.cfg}}, nil
-				}
-				return nil, nil
-			}
-			found, err := p.inventory(ctx)
-			if err != nil || !found {
-				return nil, err
-			}
-			return []natcommon.Item[EnableSpec]{{Spec: EnableSpec{}}}, nil
+		// in the agent only (a no-op): the plugin stays enabled (idle, no interfaces, no
+		// maps) until the next VPP restart, and a later Create finds it "already enabled".
+		Delete: func(context.Context, EnableSpec, any) error { return nil },
+		// No getter for "enabled" / the VRFs (D-063): write-only.
+		Retrieve: func(context.Context) ([]natcommon.Item[EnableSpec], error) {
+			return nil, natcommon.ErrRetrieveUnsupported
 		},
 	})
 }

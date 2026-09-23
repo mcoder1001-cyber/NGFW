@@ -26,12 +26,12 @@ the numbering below keeps Q4, which `docs/agent/descriptors/nat44-ed.md` already
   Until it is fixed upstream, nobody should call `det44_plugin_enable_disable` with `enable=0`, and that includes
   the manager's nightly cleanup sweep.
 
-## Q1 — dependency key names for interfaces and VRFs
+## Q1 — dependency key names for interfaces and VRFs (RESOLVED by D-065)
 
 `natcommon/scope.go` uses `interface/<name>` and `vrf/<id>` as dependency keys, as the DF-3 prompt specifies. The
-README examples use `interface.loopback/<name>` and `ip.table/<id>`. Once DF-1/DF-2/P05 merge their descriptor
-names, change the two variables `natcommon.InterfaceDescriptor` / `natcommon.VRFDescriptor` (one place). Nothing is
-blocked; the default is the prompt's scheme.
+README examples use `interface.loopback/<name>` and `ip.table/<id>`. D-065 settles interfaces: the alias key
+`interface/<name>` stays. `vrf/<id>` still follows the prompt; if DF-1/P05 name the table descriptor differently,
+it is one variable (`natcommon.VRFDescriptor`).
 
 ## Q4 — `nat44_ed_vrf_tables_v2_dump` answers with v1 details on VPP 26.06
 
@@ -45,13 +45,18 @@ The envelope scope lists nat44_ed, nat44_ei, nat64, nat66, det44, map, cnat and 
 mentions npt66 and dslite. I followed the envelope (higher precedence), so npt66 and dslite are **not** built.
 Please schedule them in a follow-up DF task if they are wanted.
 
-## Q6 — cnat objects without a VPP getter
+## Q6 — objects without a VPP getter (D-063 applied)
 
-`cnat.snat-policy`, `cnat.snat-interface` and `cnat.snat-exclude-prefix` have no dump or getter in VPP 26.06. The
-same goes for the write-only translation flags (`flags`, `is_real_ip`, `flow_hash_config`). The descriptors keep an
-in-process cache, so after an agent restart they re-apply once (idempotent, except that an excluded prefix's refcount
-is bumped). Doing better needs a VPP API addition (`cnat_snat_policy_get`, `cnat_snat_policy_if_dump`,
-`cnat_snat_exclude_pfx_dump`, flags in `cnat_translation_details`). Possible vpp-code-track item; not blocking.
+These are write-only (Retrieve returns `ErrRetrieveUnsupported`, with no cache echo): `cnat.snat-policy`,
+`cnat.snat-interface`, `cnat.snat-exclude-prefix`, `nat64.enable`, `nat66.enable`, `det44.enable` (none of these has an
+"is enabled" or VRF getter) and `nat44-ei.ipfix` (domain id and source port have no getter). The re-apply on every
+resync is idempotent in VPP for all of them. The exception is an excluded cnat prefix, whose per-length refcount grows
+(search order only).
+Translation `flags`, `is_real_ip` and `flow_hash_config` are **not modelled**: they are not in
+`cnat_translation_details`, so VPP defaults are sent. If F-* features need them, a VPP API addition is required
+(flags in `cnat_translation_details`, `cnat_snat_policy_get`, `cnat_snat_policy_if_dump`,
+`cnat_snat_exclude_pfx_dump`, a nat64/nat66/det44 "running config" getter). This is a possible vpp-code-track item;
+it does not block anything.
 
 ## Q7 — cnat crash hazards (guarded in DF-3, worth a V-item)
 
@@ -67,3 +72,22 @@ other caller (vppctl scripts, other tasks) must do the same.
 - `pnat_flow_lookup` and `pnat_binding_detach` crash VPP if no binding was ever attached: the `bihash_16_8` flow hash
   is not lazily instantiated. This is guarded in DF-3.
 - `pnat_binding_detach` disables the interface's attachment point even when other bindings remain attached there.
+
+## Q9 — `ErrRetrieveUnsupported` is a local copy until P05 merges
+
+`natcommon.ErrRetrieveUnsupported` has the same text as `scheduler.ErrRetrieveUnsupported` on task/P05, as DF-2 and
+DF-6 do. When P05 merges, replace it with `var ErrRetrieveUnsupported = scheduler.ErrRetrieveUnsupported` (one line,
+`natcommon/errors.go`) so that the reconciler's `errors.Is` matches.
+
+## Q10 — D-064 compliance record
+
+`systemctl show vpp -p NRestarts` before/after the first host run of each new plugin (all times 2026-09-24):
+- det44: the first run (00:19) raised NRestarts: **crash caused by DF-3** (`det44_plugin_enable_disable` with
+  enable=0, see Q0). Fixed so that det44 is never disabled, and the test is gated behind `VRX_DF3_DET44=1`. Re-runs
+  after the fix left VPP unchanged (ActiveEnterTimestamp 00:19:53 → 00:19:53, and later 00:26:04 → 00:26:04).
+- map: NRestarts 1 → 1 (00:25:17). cnat: 2 → 2. pnat: 2 → 2. The restarts at 00:24:53 (manual), 00:25:16 and
+  00:26:04 were gtpu (DF-6), not DF-3.
+- The crashing messages for docs/vpp-code-track.md: `det44_plugin_enable_disable(enable=0)` after any det44
+  interface delete (Q0). Guarded but never triggered: `cnat_set_snat_policy` /
+  `cnat_snat_policy_add_del_exclude_pfx` without a default SNAT entry, `cnat_translation_update` with n_paths=0
+  (Q7), and `pnat_flow_lookup` / `pnat_binding_detach` before the first pnat attach (Q8).

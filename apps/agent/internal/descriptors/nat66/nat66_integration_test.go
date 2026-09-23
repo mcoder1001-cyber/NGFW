@@ -40,7 +40,7 @@ func TestNat66OnHost(t *testing.T) {
 	if _, err := p.Enable.Create(ctx, en); err != nil {
 		t.Fatal(err)
 	}
-	nattest.AssertPlan(t, p.Enable, en)
+	nattest.AssertWriteOnly(t, p.Enable)
 
 	inside, _ := nattest.Loopback(t, c, 12)
 	outside, _ := nattest.Loopback(t, c, 13)

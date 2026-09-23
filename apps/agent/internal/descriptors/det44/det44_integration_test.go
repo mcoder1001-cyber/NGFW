@@ -2,6 +2,7 @@ package det44_test
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"ngfw/agent/binapi/det44"
@@ -14,6 +15,11 @@ import (
 // TestDet44OnHost: one integration check per det44 object type. The plugin is enabled and
 // deliberately never disabled (VPP 26.06 crash, see det44.go Enable.Delete).
 func TestDet44OnHost(t *testing.T) {
+	// D-064: this test's first host run crashed the shared VPP (det44_plugin_enable_disable
+	// with enable=0, VPP 26.06 bug — fixed here by never disabling det44). It stays opt-in.
+	if os.Getenv("VRX_DF3_DET44") != "1" {
+		t.Skip("det44 host test is opt-in (D-064): set VRX_DF3_DET44=1")
+	}
 	c := nattest.Connect(t)
 	ctx := nattest.Ctx(t)
 	p := det44d.New(c, vpptest.Prefix(t))
@@ -27,7 +33,7 @@ func TestDet44OnHost(t *testing.T) {
 	if _, err := p.Enable.Create(ctx, en); err != nil {
 		t.Fatal(err)
 	}
-	nattest.AssertPlan(t, p.Enable, en)
+	nattest.AssertWriteOnly(t, p.Enable)
 	t.Cleanup(func() { _ = p.Enable.Delete(context.Background(), en, nil) }) // agent-side release only
 
 	// timeouts are a global singleton: only touch them when they are at VPP's defaults, and

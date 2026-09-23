@@ -1,0 +1,22 @@
+// Desired-state model of the l3xc descriptor (task DF-1). Agent-internal, see interface/model.proto.
+syntax = "proto3";
+
+package vrx.agent.l3xc;
+
+option go_package = "ngfw/agent/internal/descriptors/l3xc;l3xc";
+
+// Path is one fib path of the cross-connect. Paths are kept sorted by (next_hop, interface, table).
+message Path {
+  string next_hop = 1;   // IPv4 or IPv6 address, canonical form; empty for interface-only paths
+  string interface = 2;  // full scheduler key of the egress interface; empty for table lookups
+  uint32 table = 3;      // FIB table id (vrf); 0 = default
+  uint32 weight = 4;
+  uint32 preference = 5;
+}
+
+// L3xc redirects every packet received on interface into paths (l3xc_update / l3xc_del).
+message L3xc {
+  string interface = 1;  // full scheduler key of the rx interface
+  bool ipv6 = 2;
+  repeated Path paths = 3;
+}

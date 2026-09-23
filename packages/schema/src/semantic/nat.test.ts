@@ -8,7 +8,7 @@ const interfaces = {
   'Gig0/0/1': { vrf: 'default' },
   'Gig0/0/2': { vrf: 'cust' },
 };
-const vrfs = { cust: {} };
+const vrfs = { cust: { id: 10 } }; // group (a) VrfSchema requires the table id (P02a merge)
 
 function run(name: string, nat: unknown, extra: Record<string, unknown> = {}): SemanticIssue[] {
   const v = natValidators.find((x) => x.name === name);

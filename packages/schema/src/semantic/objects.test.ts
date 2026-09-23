@@ -97,7 +97,9 @@ describe('IP helpers', () => {
 });
 
 describe('cross-domain lookups', () => {
-  const config = RootConfig.parse({
+  // Raw (unparsed) data on purpose: the helpers must tolerate shapes the group (a) schema rejects
+  // (a top-level `<parent>.<id>` key, a non-object entry) — P02a merge.
+  const config = {
     interfaces: {
       'Gig0/0/0': { vrf: 'default' },
       'Gig0/0/1': { subinterfaces: { '100': { vrf: 'cust' } } },
@@ -105,7 +107,7 @@ describe('cross-domain lookups', () => {
       weird: 5,
     },
     vrfs: { cust: {} },
-  });
+  } as unknown as RootConfig;
 
   it('interfaceExists handles top-level, nested and own-key sub-interfaces', () => {
     expect(interfaceExists(config, 'Gig0/0/0')).toBe(true);
@@ -371,7 +373,7 @@ describe('objects.schedule-valid', () => {
 describe('objects.zone-interfaces', () => {
   const interfaces = {
     'Gig0/0/0': {},
-    'Gig0/0/1': { subinterfaces: { '100': {} } },
+    'Gig0/0/1': { subinterfaces: { '100': { vlanId: 100 } } },
   };
 
   it('rejects unknown, duplicate and already-zoned interfaces', () => {

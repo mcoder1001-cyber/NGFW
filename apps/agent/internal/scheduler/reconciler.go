@@ -401,10 +401,7 @@ func (s *Scheduler) plan(ctx context.Context, desired []KV, scope Scope, opts Ap
 		return nil, err
 	}
 	// Write-only descriptors: what this process applied is their actual state (D-063).
-	p.writeOnly = wo
-	for name := range wo {
-		s.woDescriptors[name] = true
-	}
+	p.writeOnly = wo // recorded into s.woDescriptors by ApplyWith under the write lock (plan may run under RLock)
 	for k, kv := range s.writeOnly {
 		if wo[k.Descriptor()] {
 			actual[k] = kv
@@ -633,6 +630,9 @@ func (s *Scheduler) ApplyWith(ctx context.Context, desired []KV, scope Scope, op
 	if err != nil {
 		res.Outcome, res.Err = OutcomeFailed, err
 		return res
+	}
+	for name := range p.writeOnly {
+		s.woDescriptors[name] = true
 	}
 	res.Plan = p
 	if len(p.Issues) > 0 {

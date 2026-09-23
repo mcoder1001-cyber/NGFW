@@ -660,3 +660,30 @@ func TestReapplyOnResyncOnly(t *testing.T) {
 		t.Fatalf("resync reapply: calls %v result %+v", d.calls, r)
 	}
 }
+
+// M2: concurrent Plans (DryRun) and Retrieves with a write-only descriptor must not race
+// (run with -race).
+func TestConcurrentPlansWithWriteOnly(t *testing.T) {
+	st := newStore()
+	reg := NewRegistry()
+	reg.Register(&mem{name: "a", st: st})
+	reg.Register(&wo{mem{name: "w", st: st}})
+	s := New(reg, nil)
+	ctx := context.Background()
+	mustApplied(t, s.Apply(ctx, []KV{kv("a", obj("x", "1")), kv("w", obj("q", "1"))}, nil))
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 20; j++ {
+				if _, err := s.Plan(ctx, []KV{kv("a", obj("x", "1")), kv("w", obj("q", "2"))}, nil); err != nil {
+					t.Error(err)
+				}
+				_, _ = s.Retrieve(ctx, nil)
+				_, _ = s.WriteOnly()
+			}
+		}()
+	}
+	wg.Wait()
+}

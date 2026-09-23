@@ -35,7 +35,7 @@ describe('VrxWsClient against a mock WebSocket server', () => {
   const factory = (u: string): WebSocketLike => new WebSocket(u) as unknown as WebSocketLike;
 
   it('multiplexes topics on one socket, buffers at the flush rate and unsubscribes on release', async () => {
-    const client = new VrxWsClient({ url, factory, flushIntervalMs: 50, backoff: { baseMs: 10, maxMs: 50 } });
+    const client = new VrxWsClient({ url, factory, flushIntervalMs: 50, backoff: { baseMs: 10, maxMs: 50 }, idleCloseDelayMs: 0 });
     const statuses: WsStatus[] = [];
     client.onStatus((s) => statuses.push(s));
     const batches: TopicMessage<{ rx: number }>[][] = [];
@@ -64,7 +64,7 @@ describe('VrxWsClient against a mock WebSocket server', () => {
   });
 
   it('reconnects with backoff after the server drops the connection and re-subscribes', async () => {
-    const client = new VrxWsClient({ url, factory, flushIntervalMs: 0, backoff: { baseMs: 10, maxMs: 40, jitter: 0 } });
+    const client = new VrxWsClient({ url, factory, flushIntervalMs: 0, backoff: { baseMs: 10, maxMs: 40, jitter: 0 }, idleCloseDelayMs: 0 });
     const statuses: WsStatus[] = [];
     client.onStatus((s) => statuses.push(s));
     const data: unknown[] = [];

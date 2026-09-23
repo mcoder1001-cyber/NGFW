@@ -40,6 +40,16 @@ export interface VrxWsClientOptions {
   backoff?: Partial<BackoffOptions>;
   /** Close the socket when the last topic is unsubscribed (default true). */
   closeWhenIdle?: boolean;
+  /**
+   * Grace period before an idle socket is closed (default 2000 ms), so navigating between two pages that both use
+   * topics does not drop and reopen the connection (review P07a L6c). 0 closes immediately.
+   */
+  idleCloseDelayMs?: number;
+  /**
+   * Most samples kept per topic between flushes (default 600); older ones are dropped. Background tabs throttle
+   * timers to about once a minute, so an unbounded buffer could grow without limit (review P07a L6a).
+   */
+  maxBufferPerTopic?: number;
   onError?: (err: unknown) => void;
   /** Injected clock/timers for deterministic tests. */
   now?: () => number;
@@ -59,6 +69,9 @@ export class VrxWsClient {
   private readonly flushIntervalMs: number;
   private readonly backoff: BackoffOptions;
   private readonly closeWhenIdle: boolean;
+  private readonly idleCloseDelayMs: number;
+  private readonly maxBufferPerTopic: number;
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly onError: ((err: unknown) => void) | undefined;
   private readonly now: () => number;
 
@@ -85,6 +98,8 @@ export class VrxWsClient {
     this.flushIntervalMs = opts.flushIntervalMs ?? 1000;
     this.backoff = { ...DEFAULT_BACKOFF, ...opts.backoff };
     this.closeWhenIdle = opts.closeWhenIdle ?? true;
+    this.idleCloseDelayMs = opts.idleCloseDelayMs ?? 2000;
+    this.maxBufferPerTopic = Math.max(1, opts.maxBufferPerTopic ?? 600);
     this.onError = opts.onError;
     this.now = opts.now ?? (() => Date.now());
   }
@@ -110,8 +125,10 @@ export class VrxWsClient {
     const isNewTopic = !set;
     if (!set) this.handlers.set(topic, (set = new Set()));
     set.add(handler as TopicHandler);
+    this.cancelIdleClose();
     if (isNewTopic && this.statusValue === 'open') this.send({ subscribe: [topic] });
-    if (this.socket === null) this.connect();
+    // During backoff the pending reconnect timer connects; do not bypass the delay (review P07a L6b).
+    if (this.socket === null && this.reconnectTimer === null) this.connect();
     return () => {
       const s = this.handlers.get(topic);
       if (!s) return;
@@ -120,7 +137,7 @@ export class VrxWsClient {
         this.handlers.delete(topic);
         this.buffer.delete(topic);
         if (this.statusValue === 'open') this.send({ unsubscribe: [topic] });
-        if (this.handlers.size === 0 && this.closeWhenIdle) this.close();
+        if (this.handlers.size === 0 && this.closeWhenIdle) this.scheduleIdleClose();
       }
     };
   }
@@ -169,6 +186,7 @@ export class VrxWsClient {
 
   /** Close intentionally; no reconnect until `subscribe()`/`connect()` is called again. */
   close(): void {
+    this.cancelIdleClose();
     this.closedByUser = true;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -208,6 +226,25 @@ export class VrxWsClient {
 
   // ---- internals ----
 
+  private scheduleIdleClose(): void {
+    if (this.idleCloseDelayMs <= 0) {
+      this.close();
+      return;
+    }
+    this.cancelIdleClose();
+    this.idleTimer = setTimeout(() => {
+      this.idleTimer = null;
+      if (this.handlers.size === 0) this.close();
+    }, this.idleCloseDelayMs);
+  }
+
+  private cancelIdleClose(): void {
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+  }
+
   private scheduleReconnect(): void {
     if (this.reconnectTimer) return;
     const delay = backoffDelay(this.attempt, this.backoff);
@@ -243,8 +280,10 @@ export class VrxWsClient {
       ts: typeof m.ts === 'number' ? m.ts : this.now(),
     };
     const list = this.buffer.get(m.topic);
-    if (list) list.push(entry);
-    else this.buffer.set(m.topic, [entry]);
+    if (list) {
+      list.push(entry);
+      if (list.length > this.maxBufferPerTopic) list.splice(0, list.length - this.maxBufferPerTopic);
+    } else this.buffer.set(m.topic, [entry]);
     if (this.flushIntervalMs <= 0) this.flush();
   }
 

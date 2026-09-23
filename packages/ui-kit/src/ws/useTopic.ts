@@ -36,6 +36,8 @@ export function useTopic<T = unknown>(topic: string, opts: UseTopicOptions<T> = 
   });
 
   useEffect(() => {
+    // A new topic must not show the previous topic's data (review P07a L6d).
+    setState((prev) => (prev.data === undefined && prev.updatedAt === undefined ? prev : { data: undefined, updatedAt: undefined, batchSize: 0 }));
     if (!enabled) return;
     return client.subscribe<T>(topic, (batch) => {
       const last = batch[batch.length - 1];

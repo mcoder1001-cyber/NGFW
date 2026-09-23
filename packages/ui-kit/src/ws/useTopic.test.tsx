@@ -40,6 +40,7 @@ function setup() {
       return s;
     },
     flushIntervalMs: 0,
+    idleCloseDelayMs: 0,
   });
   const wrapper = ({ children }: { children: ReactNode }) => <WsProvider client={client}>{children}</WsProvider>;
   return { sockets, client, wrapper };

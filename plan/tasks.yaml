@@ -2026,16 +2026,16 @@ tasks:
   - P01
   priority: 5
   est_hours: 8
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.2
   scope: build script + patch dir + docs; does not touch /root/vpp or the running service (D-058)
-  files_owned: ''
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  files_owned: deploy/vpp/**
+  branch: task/F-vpp-debs
+  worktree: /root/ngfw-wt/F-vpp-debs
+  owner: host-agent slot2
+  started: 2026-09-24T03:20
   finished: ''
   notes: 'D-058: added; P10 consumes its output'
 - id: F-ha-state-sync

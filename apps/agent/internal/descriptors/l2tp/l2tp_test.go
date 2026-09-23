@@ -58,6 +58,7 @@ func newFakeL2TP() *fakeL2TP {
 	})
 	f.On("l2tpv3_interface_enable_disable", func(req api.Message) ([]api.Message, error) {
 		r := req.(*l2tpapi.L2tpv3InterfaceEnableDisable)
+		f.SetFeature("ip6-unicast", "l2tp-decap", uint32(r.SwIfIndex), r.EnableDisable)
 		f.enabled[uint32(r.SwIfIndex)] = r.EnableDisable
 		return []api.Message{&l2tpapi.L2tpv3InterfaceEnableDisableReply{}}, nil
 	})

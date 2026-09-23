@@ -56,6 +56,7 @@ func newFakePPPoE() *fakePPPoE {
 	})
 	f.On("pppoe_add_del_cp", func(req api.Message) ([]api.Message, error) {
 		r := req.(*pppoeapi.PppoeAddDelCp)
+		f.SetFeature("device-input", "pppoe-input", uint32(r.SwIfIndex), r.IsAdd == 1)
 		if r.IsAdd == 1 {
 			f.cp[uint32(r.SwIfIndex)]++
 		} else if f.cp[uint32(r.SwIfIndex)] > 0 {
@@ -143,6 +144,7 @@ func TestSessionDescriptor(t *testing.T) {
 	}
 	f.SetBoot(101) // VPP restarted: the feature is gone, re-added once
 	f.cp[idx] = 0
+	f.ClearFeatures(idx)
 	for i := 0; i < 2; i++ {
 		if _, err := cp.Create(ctx, c); err != nil {
 			t.Fatal(err)
@@ -159,6 +161,20 @@ func TestSessionDescriptor(t *testing.T) {
 	}
 	if err := cp.Delete(ctx, c, nil); err != nil || f.cp[idx] != 0 {
 		t.Fatalf("second cp delete: %v %v", err, f.cp)
+	}
+	// N5: moving the CP interface disables pppoe-input on the old one.
+	idxB := f.AddInterface("loop1102", "w11:loop1102")
+	if _, err := cp.Create(ctx, c); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cp.Update(ctx, c, &pppoe.Cp{Interface: "loop1102"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if a, b := f.Feature("device-input", "pppoe-input", idx), f.Feature("device-input", "pppoe-input", idxB); a != 0 || b != 1 {
+		t.Fatalf("after move: old=%d new=%d, want 0/1", a, b)
+	}
+	if err := cp.Delete(ctx, &pppoe.Cp{Interface: "loop1102"}, nil); err != nil || f.Feature("device-input", "pppoe-input", idxB) != 0 {
+		t.Fatalf("delete after move: %v", err)
 	}
 	// Non-owners only get the require variant: never set, never reset.
 	reg = scheduler.NewRegistry()

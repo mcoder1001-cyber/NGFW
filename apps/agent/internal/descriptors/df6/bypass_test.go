@@ -19,12 +19,29 @@ import (
 type countingFake struct {
 	*df6test.FakeVPP
 	count map[[2]uint32]int // {sw_if_index, is_ipv6} → times enabled
+	// bm is vxlan's bypass bitmap, which VPP does not clear when an interface is deleted
+	bm map[[2]uint32]bool
 }
 
 func newCountingFake() *countingFake {
-	f := &countingFake{FakeVPP: df6test.NewFakeVPP(), count: map[[2]uint32]int{}}
+	f := &countingFake{FakeVPP: df6test.NewFakeVPP(), count: map[[2]uint32]int{}, bm: map[[2]uint32]bool{}}
 	f.On("sw_interface_set_vxlan_bypass", func(req api.Message) ([]api.Message, error) {
 		r := req.(*vxlanapi.SwInterfaceSetVxlanBypass)
+		bk := [2]uint32{uint32(r.SwIfIndex), 0}
+		if r.IsIPv6 {
+			bk[1] = 1
+		}
+		if f.bm[bk] == r.Enable { // vnet_int_vxlan_bypass_mode: bitmap guard
+			return []api.Message{&vxlanapi.SwInterfaceSetVxlanBypassReply{}}, nil
+		}
+		f.bm[bk] = r.Enable
+		{
+			arc, node := "ip4-unicast", "ip4-vxlan-bypass"
+			if r.IsIPv6 {
+				arc, node = "ip6-unicast", "ip6-vxlan-bypass"
+			}
+			f.SetFeature(arc, node, uint32(r.SwIfIndex), r.Enable)
+		}
 		k := [2]uint32{uint32(r.SwIfIndex), 0}
 		if r.IsIPv6 {
 			k[1] = 1
@@ -76,6 +93,7 @@ func TestBypassIdempotentAcrossResyncs(t *testing.T) {
 
 	// VPP restart: features are gone, a new boot id → enabled exactly once again.
 	f.count = map[[2]uint32]int{}
+	f.ClearFeatures(ours)
 	f.SetBoot(501)
 	for i := 0; i < 2; i++ {
 		if _, err := d2.Create(ctx, obj); err != nil {

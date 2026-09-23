@@ -11,6 +11,7 @@ import (
 
 	"go.fd.io/govpp/api"
 
+	"ngfw/agent/binapi/feature"
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip_types"
@@ -27,6 +28,8 @@ type FakeVPP struct {
 	mu     sync.Mutex
 	next   uint32
 	ifaces map[uint32]*interfaces.SwInterfaceDetails
+	// features counts enables per "<arc>/<node>/<sw_if_index>" (VPP does not deduplicate)
+	features map[string]int
 }
 
 // NewFakeVPP returns a fake with local0 at index 0 and the next index at 1.
@@ -77,6 +80,11 @@ func NewFakeVPP() *FakeVPP {
 	})
 	v.Reply("sw_interface_add_del_address", &interfaces.SwInterfaceAddDelAddressReply{})
 	v.Reply("sw_interface_set_flags", &interfaces.SwInterfaceSetFlagsReply{})
+	v.features = map[string]int{}
+	v.On("feature_is_enabled", func(req api.Message) ([]api.Message, error) {
+		r := req.(*feature.FeatureIsEnabled)
+		return []api.Message{&feature.FeatureIsEnabledReply{IsEnabled: v.Feature(r.ArcName, r.FeatureName, uint32(r.SwIfIndex)) > 0}}, nil
+	})
 	return v
 }
 
@@ -111,6 +119,7 @@ func (v *FakeVPP) SetL2Address(idx uint32, mac [6]byte) {
 
 // RemoveInterface deletes an interface.
 func (v *FakeVPP) RemoveInterface(idx uint32) {
+	v.ClearFeatures(idx)
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	delete(v.ifaces, idx)
@@ -187,4 +196,36 @@ func IP4(s string) ip_types.IP4Address {
 // simulates a VPP restart for the per-boot claims of write-only descriptors (D-076).
 func (v *FakeVPP) SetBoot(pid uint32) {
 	v.Reply("control_ping", &memclnt.ControlPingReply{VpePID: pid})
+}
+
+// SetFeature applies one vnet_feature_enable_disable to the fake's feature table: an enable
+// always adds one more instance (VPP stacks), a disable removes one.
+func (v *FakeVPP) SetFeature(arc, node string, idx uint32, enable bool) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	k := fmt.Sprintf("%s/%s/%d", arc, node, idx)
+	if enable {
+		v.features[k]++
+	} else if v.features[k] > 0 {
+		v.features[k]--
+	}
+}
+
+// Feature returns how many instances of node are on the arc of idx.
+func (v *FakeVPP) Feature(arc, node string, idx uint32) int {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.features[fmt.Sprintf("%s/%s/%d", arc, node, idx)]
+}
+
+// ClearFeatures drops every feature of idx (VPP forgets them when the interface is deleted).
+func (v *FakeVPP) ClearFeatures(idx uint32) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	suffix := fmt.Sprintf("/%d", idx)
+	for k := range v.features {
+		if len(k) > len(suffix) && k[len(k)-len(suffix):] == suffix {
+			delete(v.features, k)
+		}
+	}
 }

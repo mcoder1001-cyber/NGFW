@@ -28,8 +28,15 @@ P05's shared helpers when they land.
   tunnels adopt the interface tagged `<owner>:<id>` instead of adding again (6RD is also deletable after an agent
   restart, located by its tag); keyed write-only types (SR-MPLS, GPE entries) see the object with an exact probe and
   do nothing; feature toggles whose VPP enable stacks (gtpu / vxlan-gpe / vxlan bypass, l2tp decap, pppoe cp) and the
-  SR-MPLS endpoint/color record a claim `<name>@vpp-<boot>` (boot = VPP PID from `control_ping`, `df6.BootID`) and
-  send the enable once per VPP instance.
+  SR-MPLS endpoint/color record a claim `<name>@vpp-<boot>` and send the enable once per VPP instance. The boot
+  identity is the D-080 triple (kernel boot_id, VPP PID from `control_ping`, VPP start time from `/proc/<pid>/stat`
+  field 22; `df6.BootID`). Toggle records key on logical name **and** sw_if_index, and every toggle whose feature
+  node is known reads VPP's actual state with `feature_is_enabled` (`df6.FeatureProbe`), so an interface recreated on
+  the same boot (new or reused index) gets its feature back exactly once. vxlan's handler keeps a per-index bitmap VPP
+  never clears on interface delete; `ResetBeforeEnable` sends a (no-op when clear) disable before the enable.
+- **Claims expire with the VPP instance (D-080).** Keyed claims (SR, SR-MPLS, LISP) are held by
+  `<name>@vpp-<boot>`: after a VPP or host restart none is valid, so a foreign object that reuses an id is never
+  reported, adopted, updated or deleted; ours are re-claimed by our own successful Create.
 - **Identity-verified deletes (D-071, review M1).** Tunnels: the interface tagged with the object's id is located
   and the dump record at that index must decode to the same id; the delete uses the key fields VPP reports. Toggles:
   the interface is re-resolved by logical name, must match Meta (when known) and still be ours, and only families

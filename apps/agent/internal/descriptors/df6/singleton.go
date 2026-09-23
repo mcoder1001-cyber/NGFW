@@ -37,6 +37,8 @@ type SingletonSpec[T proto.Message] struct {
 	// SafeToUnset (optional) is the cross-owner emptiness check run before Unset; false →
 	// Delete is a no-op (D-071: disable only when nothing of any owner uses the plugin).
 	SafeToUnset func(ctx context.Context, c vpp.Client) (bool, error)
+	// Change (optional) replaces old by new in place; nil = Set(new).
+	Change func(ctx context.Context, c vpp.Client, oldObj, newObj T) error
 	// Equal compares a retrieved value with a required one (require variant; nil =
 	// proto.Equal).
 	Equal func(have, want T) bool
@@ -99,9 +101,23 @@ func (d *SingletonDescriptor[T]) Create(ctx context.Context, obj proto.Message) 
 	return nil, nil
 }
 
-// Update implements scheduler.Descriptor: set the new value in place.
-func (d *SingletonDescriptor[T]) Update(ctx context.Context, _, newObj proto.Message, _ any) (any, error) {
-	return d.Create(ctx, newObj)
+// Update implements scheduler.Descriptor: set the new value in place (Change when given).
+func (d *SingletonDescriptor[T]) Update(ctx context.Context, oldObj, newObj proto.Message, _ any) (any, error) {
+	if d.spec.Change == nil {
+		return d.Create(ctx, newObj)
+	}
+	o, err := d.cast(oldObj)
+	if err != nil {
+		return nil, err
+	}
+	n, err := d.cast(newObj)
+	if err != nil {
+		return nil, err
+	}
+	if err := d.spec.Change(ctx, d.client, o, n); err != nil {
+		return nil, PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
+	}
+	return nil, nil
 }
 
 // Delete implements scheduler.Descriptor: restore the default (or nothing, when VPP has no

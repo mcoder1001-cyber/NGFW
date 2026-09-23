@@ -19,6 +19,8 @@ type ToggleSpec[T proto.Message] struct {
 	Iface func(obj T) string
 	// Set enables or disables the feature on idx.
 	Set func(ctx context.Context, c vpp.Client, idx interface_types.InterfaceIndex, enable bool) error
+	// Arc / Node name the feature for the feature_is_enabled probe ("" = no probe).
+	Arc, Node string
 }
 
 // NewToggleDescriptor builds the descriptor from spec on top of the bypass implementation
@@ -28,9 +30,17 @@ func NewToggleDescriptor[T proto.Message](spec ToggleSpec[T], c vpp.Client, owne
 		Name:     spec.Name,
 		Plugin:   spec.Plugin,
 		Families: [2]string{"on", "unused"},
+		Probe:    probeFor(spec.Arc, spec.Node),
 		Fields:   func(obj T) (string, bool, bool) { return spec.Iface(obj), true, false },
 		Set: func(ctx context.Context, c vpp.Client, idx interface_types.InterfaceIndex, _ bool, enable bool) error {
 			return spec.Set(ctx, c, idx, enable)
 		},
 	}, c, owner, opts...)
+}
+
+func probeFor(arc, node string) func(ctx context.Context, c vpp.Client, idx interface_types.InterfaceIndex, ipv6 bool) (bool, error) {
+	if node == "" {
+		return nil
+	}
+	return FeatureProbe(arc, node, "", "")
 }

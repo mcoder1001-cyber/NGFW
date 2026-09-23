@@ -227,8 +227,17 @@ func (d *EndpointColorDescriptor) Dependencies(obj proto.Message) []scheduler.De
 	return []scheduler.Dependency{{Key: PolicyKey(e.GetBsid())}}
 }
 
-func claimValue(e *EndpointColor) string {
-	return df6.U32(e.GetBsid()) + "/" + e.GetEndpoint() + "/" + df6.U32(e.GetColor())
+// claimValue is keyed by the BSID only: a policy (re-)add on the same VPP boot releases it
+// (review N1: VPP cleared the assignment with the lost policy), see policySpec.Add.
+func claimValue(e *EndpointColor) string { return df6.U32(e.GetBsid()) }
+
+// releaseEndpointColor drops the applied-once record of bsid's endpoint/color on the running VPP.
+func releaseEndpointColor(ctx context.Context, c vpp.Client, claims df6.ClaimStore, bsid uint32) error {
+	boot, err := df6.BootID(ctx, c)
+	if err != nil {
+		return err
+	}
+	return claims.Release(df6.U32(bsid), df6.BootHolder(EndpointColorName, boot))
 }
 
 // Create implements scheduler.Descriptor.
@@ -237,7 +246,11 @@ func (d *EndpointColorDescriptor) Create(ctx context.Context, obj proto.Message)
 	if err != nil {
 		return nil, err
 	}
-	if !d.claims.Claimed(df6.U32(e.GetBsid()), PolicyName) {
+	ours, err := df6.ClaimedNow(ctx, d.client, d.claims, PolicyName, df6.U32(e.GetBsid()))
+	if err != nil {
+		return nil, err
+	}
+	if !ours {
 		return nil, fmt.Errorf("%s: %w: policy %d", EndpointColorName, df6.ErrNotOurs, e.GetBsid())
 	}
 	boot, err := df6.BootID(ctx, d.client)

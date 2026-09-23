@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 
 	"ngfw/agent/binapi/memclnt"
@@ -65,18 +67,49 @@ func BuildOptions(owner string, opts []Option) Options {
 	return o
 }
 
-// BootID is the identity of the running VPP instance: the PID control_ping reports. A
-// write-only object whose VPP add is not idempotent is re-added only when this changes (D-076).
-func BootID(ctx context.Context, c vpp.Client) (uint32, error) {
+// ProcRoot is where BootID reads the kernel boot id and VPP's process start time (tests may
+// point it elsewhere).
+var ProcRoot = "/proc"
+
+// BootID is the identity of the running VPP instance (D-080): the kernel boot id
+// (/proc/sys/kernel/random/boot_id), VPP's main PID (control_ping vpe_pid) and that process's
+// start time (/proc/<pid>/stat field 22) — the PID alone repeats across host reboots and wraps.
+// Every per-boot record (applied-once toggles, keyed claims) is keyed by it, so all of them
+// expire together when VPP or the host restarts. A part that cannot be read (VPP in another
+// PID namespace) is "?", which still changes with the others.
+func BootID(ctx context.Context, c vpp.Client) (string, error) {
 	rep := &memclnt.ControlPingReply{}
 	if err := c.Invoke(ctx, &memclnt.ControlPing{}, rep); err != nil {
-		return 0, fmt.Errorf("control_ping: %w", err)
+		return "", fmt.Errorf("control_ping: %w", err)
 	}
-	return rep.VpePID, nil
+	boot := "?"
+	if b, err := os.ReadFile(filepath.Join(ProcRoot, "sys/kernel/random/boot_id")); err == nil {
+		boot = strings.TrimSpace(string(b))
+	}
+	return fmt.Sprintf("%s/%d/%s", boot, rep.VpePID, procStart(rep.VpePID)), nil
 }
 
-// BootHolder is the claim holder recording that holder's object was applied to VPP boot id.
-func BootHolder(holder string, boot uint32) string { return fmt.Sprintf("%s@vpp-%d", holder, boot) }
+// procStart returns field 22 (starttime) of /proc/<pid>/stat, "?" when unreadable.
+func procStart(pid uint32) string {
+	b, err := os.ReadFile(filepath.Join(ProcRoot, strconv.FormatUint(uint64(pid), 10), "stat"))
+	if err != nil {
+		return "?"
+	}
+	s := string(b)
+	// comm (field 2) may contain spaces; fields after the closing parenthesis start at 3.
+	i := strings.LastIndexByte(s, ')')
+	if i < 0 {
+		return "?"
+	}
+	f := strings.Fields(s[i+1:])
+	if len(f) < 20 {
+		return "?"
+	}
+	return f[19] // field 22
+}
+
+// BootHolder is the claim holder recording that holder's object belongs to VPP instance boot.
+func BootHolder(holder, boot string) string { return holder + "@vpp-" + boot }
 
 // FileClaimStore is a ClaimStore persisted as JSON in one file (agent state dir). Safe for
 // concurrent use within one process.

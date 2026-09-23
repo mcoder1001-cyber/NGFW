@@ -49,6 +49,11 @@ type KeyedSpec[T proto.Message] struct {
 //   - Delete: unclaimed → no-op (never touch foreign objects); claimed and present with the
 //     same identity → Del, then Release; claimed but gone → Release only.
 //   - Retrieve: the claimed ids VPP has (a claimed id VPP lost is absent → recreated).
+//
+// Claims are per VPP instance (D-080, review N3): the holder is "<name>@vpp-<BootID>", so after a
+// VPP or host restart every claim has expired — an object someone else created at a formerly
+// claimed id is never adopted, updated or deleted; ours are re-established only by our own
+// successful Create (VPP lost them anyway).
 type KeyedDescriptor[T proto.Message] struct {
 	spec   KeyedSpec[T]
 	client vpp.Client
@@ -111,6 +116,27 @@ func (d *KeyedDescriptor[T]) find(ctx context.Context, t T) (T, bool, error) {
 	return zero, false, nil
 }
 
+// holder is the claim holder for the running VPP instance.
+func (d *KeyedDescriptor[T]) holder(ctx context.Context) (string, error) {
+	boot, err := BootID(ctx, d.client)
+	if err != nil {
+		return "", err
+	}
+	return KeyedHolder(d.spec.Name, boot), nil
+}
+
+// KeyedHolder is the claim holder of keyed descriptor name on VPP instance boot.
+func KeyedHolder(name, boot string) string { return BootHolder(name, boot) }
+
+// ClaimedNow reports whether id of descriptor name is claimed by this owner on the running VPP.
+func ClaimedNow(ctx context.Context, c vpp.Client, claims ClaimStore, name, id string) (bool, error) {
+	boot, err := BootID(ctx, c)
+	if err != nil {
+		return false, err
+	}
+	return claims.Claimed(id, KeyedHolder(name, boot)), nil
+}
+
 func (d *KeyedDescriptor[T]) same(want, have T) bool {
 	return d.spec.Identity == nil || d.spec.Identity(want, have)
 }
@@ -122,12 +148,16 @@ func (d *KeyedDescriptor[T]) Create(ctx context.Context, obj proto.Message) (any
 		return nil, err
 	}
 	id := d.spec.ID(t)
+	holder, err := d.holder(ctx)
+	if err != nil {
+		return nil, err
+	}
 	have, present, err := d.find(ctx, t)
 	if err != nil {
 		return nil, err
 	}
 	if present {
-		if d.claims.Claimed(id, d.spec.Name) && d.same(t, have) {
+		if d.claims.Claimed(id, holder) && d.same(t, have) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("%s: %w: %s", d.spec.Name, ErrNotOurs, id)
@@ -135,7 +165,7 @@ func (d *KeyedDescriptor[T]) Create(ctx context.Context, obj proto.Message) (any
 	if err := d.spec.Add(ctx, d.client, t); err != nil {
 		return nil, PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
 	}
-	if err := d.claims.Claim(id, d.spec.Name); err != nil {
+	if err := d.claims.Claim(id, holder); err != nil {
 		return nil, fmt.Errorf("%s: claim %s: %w", d.spec.Name, id, err)
 	}
 	return nil, nil
@@ -154,7 +184,11 @@ func (d *KeyedDescriptor[T]) Update(ctx context.Context, oldObj, newObj proto.Me
 	if err != nil {
 		return nil, err
 	}
-	if !d.claims.Claimed(d.spec.ID(o), d.spec.Name) {
+	holder, err := d.holder(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !d.claims.Claimed(d.spec.ID(o), holder) {
 		return nil, fmt.Errorf("%s: %w: %s", d.spec.Name, ErrNotOurs, d.spec.ID(o))
 	}
 	handled, err := d.spec.Update(ctx, d.client, o, n)
@@ -174,8 +208,12 @@ func (d *KeyedDescriptor[T]) Delete(ctx context.Context, obj proto.Message, _ an
 		return err
 	}
 	id := d.spec.ID(t)
-	if !d.claims.Claimed(id, d.spec.Name) {
-		return nil // not ours: never touched (D-071)
+	holder, err := d.holder(ctx)
+	if err != nil {
+		return err
+	}
+	if !d.claims.Claimed(id, holder) {
+		return nil // not ours on this VPP instance: never touched (D-071, D-080)
 	}
 	have, present, err := d.find(ctx, t)
 	if err != nil {
@@ -193,7 +231,7 @@ func (d *KeyedDescriptor[T]) Delete(ctx context.Context, obj proto.Message, _ an
 			return PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
 		}
 	}
-	return d.claims.Release(id, d.spec.Name)
+	return d.claims.Release(id, holder)
 }
 
 // Present reports whether VPP has an object under obj's id (any owner).
@@ -206,10 +244,14 @@ func (d *KeyedDescriptor[T]) Present(ctx context.Context, obj proto.Message) (bo
 	return ok, err
 }
 
-// Claimed reports whether obj's id is claimed by this owner.
-func (d *KeyedDescriptor[T]) Claimed(obj proto.Message) bool {
+// Claimed reports whether obj's id is claimed by this owner on the running VPP.
+func (d *KeyedDescriptor[T]) Claimed(ctx context.Context, obj proto.Message) bool {
 	t, err := d.cast(obj)
-	return err == nil && d.claims.Claimed(d.spec.ID(t), d.spec.Name)
+	if err != nil {
+		return false
+	}
+	h, err := d.holder(ctx)
+	return err == nil && d.claims.Claimed(d.spec.ID(t), h)
 }
 
 // Retrieve implements scheduler.Descriptor: the claimed objects VPP has; an id VPP lists twice
@@ -217,6 +259,10 @@ func (d *KeyedDescriptor[T]) Claimed(obj proto.Message) bool {
 func (d *KeyedDescriptor[T]) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	if d.spec.WriteOnly {
 		return nil, fmt.Errorf("%s: %w", d.spec.Name, ErrRetrieveUnsupported)
+	}
+	holder, err := d.holder(ctx)
+	if err != nil {
+		return nil, err
 	}
 	all, err := d.spec.List(ctx, d.client)
 	if err != nil {
@@ -226,7 +272,7 @@ func (d *KeyedDescriptor[T]) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 	out := make([]scheduler.KV, 0, len(all))
 	for _, a := range all {
 		id := d.spec.ID(a)
-		if seen[id] || !d.claims.Claimed(id, d.spec.Name) {
+		if seen[id] || !d.claims.Claimed(id, holder) {
 			continue
 		}
 		seen[id] = true

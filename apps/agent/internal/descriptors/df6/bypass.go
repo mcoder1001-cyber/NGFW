@@ -6,6 +6,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"ngfw/agent/binapi/feature"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
@@ -38,6 +39,36 @@ type BypassSpec[T proto.Message] struct {
 	Set func(ctx context.Context, c vpp.Client, idx interface_types.InterfaceIndex, ipv6, enable bool) error
 	// Families are the family names used in claim ids (default "ip4", "ip6").
 	Families [2]string
+	// Probe (optional) reads whether the feature of a family is enabled on idx
+	// (feature_is_enabled, see FeatureProbe). With a probe the actual VPP state decides —
+	// correct across interface re-creation with a reused sw_if_index and across VPP restarts;
+	// without one the per-boot records keyed by name + sw_if_index do (D-076/D-080).
+	Probe func(ctx context.Context, c vpp.Client, idx interface_types.InterfaceIndex, ipv6 bool) (bool, error)
+	// ResetBeforeEnable: the plugin guards enable/disable with its own per-sw_if_index bitmap
+	// that VPP does not clear when the interface is deleted (vxlan: bm_ip4/6_bypass_enabled_by_sw_if).
+	// A recreated interface that reuses the index then reads as "already enabled" and the
+	// enable is ignored; when the probe says the feature is off, a disable is sent first to
+	// clear the stale bit (a no-op when the bit is clear). Only for bitmap-guarded plugins.
+	ResetBeforeEnable bool
+}
+
+// FeatureProbe returns a Probe built on feature_is_enabled for the given ip4 / ip6 arc and
+// feature node names ("" = family not supported).
+func FeatureProbe(arc4, node4, arc6, node6 string) func(ctx context.Context, c vpp.Client, idx interface_types.InterfaceIndex, ipv6 bool) (bool, error) {
+	return func(ctx context.Context, c vpp.Client, idx interface_types.InterfaceIndex, ipv6 bool) (bool, error) {
+		arc, node := arc4, node4
+		if ipv6 {
+			arc, node = arc6, node6
+		}
+		if node == "" {
+			return false, nil
+		}
+		rep, err := feature.NewServiceClient(c).FeatureIsEnabled(ctx, &feature.FeatureIsEnabled{ArcName: arc, FeatureName: node, SwIfIndex: idx})
+		if err != nil {
+			return false, fmt.Errorf("feature_is_enabled %s/%s: %w", arc, node, err)
+		}
+		return rep.IsEnabled, nil
+	}
 }
 
 // BypassDescriptor is the scheduler.Descriptor built from a BypassSpec.
@@ -91,21 +122,38 @@ func (d *BypassDescriptor[T]) Dependencies(obj proto.Message) []scheduler.Depend
 	return InterfaceDeps(iface)
 }
 
-func (d *BypassDescriptor[T]) claimID(iface string, ipv6 bool) string {
+// claimID keys the per-boot record on the logical name AND the sw_if_index (D-080, review
+// N1): an interface recreated on the same VPP boot gets a new index and a fresh record.
+func (d *BypassDescriptor[T]) claimID(iface string, idx interface_types.InterfaceIndex, ipv6 bool) string {
+	fam := d.spec.Families[0]
 	if ipv6 {
-		return iface + "/" + d.spec.Families[1]
+		fam = d.spec.Families[1]
 	}
-	return iface + "/" + d.spec.Families[0]
+	return fmt.Sprintf("%s@%d/%s", iface, idx, fam)
 }
 
 // ensure makes family ipv6 of the interface enabled (want) or disabled (!want), sending a
 // message only when the recorded state for this VPP boot differs.
-func (d *BypassDescriptor[T]) ensure(ctx context.Context, iface string, idx interface_types.InterfaceIndex, boot uint32, ipv6, want bool) error {
-	id := d.claimID(iface, ipv6)
+func (d *BypassDescriptor[T]) ensure(ctx context.Context, iface string, idx interface_types.InterfaceIndex, boot string, ipv6, want bool) error {
+	id := d.claimID(iface, idx, ipv6)
 	holder := BootHolder(d.spec.Name, boot)
 	on := d.claims.Claimed(id, holder)
+	if d.spec.Probe != nil {
+		var err error
+		if on, err = d.spec.Probe(ctx, d.client, idx, ipv6); err != nil {
+			return PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
+		}
+	}
 	if on == want {
-		return nil
+		if want {
+			return d.claims.Claim(id, holder)
+		}
+		return d.claims.Release(id, holder)
+	}
+	if want && d.spec.Probe != nil && d.spec.ResetBeforeEnable {
+		if err := d.spec.Set(ctx, d.client, idx, ipv6, false); err != nil {
+			return PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
+		}
 	}
 	if err := d.spec.Set(ctx, d.client, idx, ipv6, want); err != nil {
 		return PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))

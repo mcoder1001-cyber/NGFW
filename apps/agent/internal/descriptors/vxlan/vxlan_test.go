@@ -61,6 +61,13 @@ func newFakeVXLAN() *fakeVXLAN {
 	})
 	f.On("sw_interface_set_vxlan_bypass", func(req api.Message) ([]api.Message, error) {
 		r := req.(*vxlanapi.SwInterfaceSetVxlanBypass)
+		{
+			arc, node := "ip4-unicast", "ip4-vxlan-bypass"
+			if r.IsIPv6 {
+				arc, node = "ip6-unicast", "ip6-vxlan-bypass"
+			}
+			f.SetFeature(arc, node, uint32(r.SwIfIndex), r.Enable)
+		}
 		if !f.Has(uint32(r.SwIfIndex)) {
 			return []api.Message{&vxlanapi.SwInterfaceSetVxlanBypassReply{Retval: -2}}, nil
 		}
@@ -193,8 +200,15 @@ func TestBypassDescriptor(t *testing.T) {
 	if f.bypass[idx] != [2]bool{true, true} {
 		t.Fatalf("bypass state = %v", f.bypass[idx])
 	}
-	if n := len(f.CallsNamed("sw_interface_set_vxlan_bypass")); n != 2 {
-		t.Fatalf("set calls = %d, want only the changed family", n)
+	enables := 0
+	for _, m := range f.CallsNamed("sw_interface_set_vxlan_bypass") {
+		if m.(*vxlanapi.SwInterfaceSetVxlanBypass).Enable {
+			enables++
+		}
+	}
+	// each enable is preceded by a stale-bitmap reset (ResetBeforeEnable, a VPP no-op when clear)
+	if enables != 2 {
+		t.Fatalf("enables = %d, want only the changed family (2 in total)", enables)
 	}
 	if _, err := d.Update(ctx, both, &vxlan.Bypass{Interface: "loop1102", Ipv4: true}, meta); !errors.Is(err, scheduler.ErrRecreate) {
 		t.Fatalf("Update other interface = %v", err)

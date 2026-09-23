@@ -45,7 +45,7 @@ type PolicyDescriptor = df6.KeyedDescriptor[*Policy]
 
 // NewPolicy returns the descriptor.
 func NewPolicy(c vpp.Client, owner string, opts ...df6.Option) *PolicyDescriptor {
-	return df6.NewKeyedDescriptor(policySpec, c, owner, opts...)
+	return df6.NewKeyedDescriptor(policySpec(df6.BuildOptions(owner, opts).Claims), c, owner, opts...)
 }
 
 func validLabel(l uint32) bool { return l >= MinLabel && l <= MaxLabel }
@@ -87,54 +87,57 @@ func compareLists(a, b *SegmentList) int {
 // PolicyKey is the key of the policy with binding SID bsid.
 func PolicyKey(bsid uint32) scheduler.Key { return scheduler.Join(PolicyName, df6.U32(bsid)) }
 
-var policySpec = df6.KeyedSpec[*Policy]{
-	Name:      PolicyName,
-	Plugin:    Plugin,
-	WriteOnly: true,
-	Canon: func(p *Policy) (*Policy, error) {
-		return p, validatePolicy(p)
-	},
-	ID: func(p *Policy) string { return df6.U32(p.GetBsid()) },
-	// MPLS table 0 (DF-7's mpls-table key): VPP installs every SR-MPLS BSID there.
-	Deps: func(*Policy) []scheduler.Dependency { return []scheduler.Dependency{{Key: df6.MPLSTableKey(0)}} },
-	// Add: sr_mpls_policy_add with the first list, then sr_mpls_policy_mod (ADD) per further
-	// list; a failure deletes the half-built policy.
-	Add: func(ctx context.Context, c vpp.Client, p *Policy) error {
-		svc := srmplsapi.NewServiceClient(c)
-		first := p.GetSegmentLists()[0]
-		if _, err := svc.SrMplsPolicyAdd(ctx, &srmplsapi.SrMplsPolicyAdd{
-			Bsid: p.GetBsid(), Weight: first.GetWeight(), IsSpray: p.GetSpray(), Segments: first.GetLabels(),
-		}); err != nil {
-			return fmt.Errorf("sr_mpls_policy_add: %w", err)
-		}
-		for i, sl := range p.GetSegmentLists()[1:] {
-			if _, err := svc.SrMplsPolicyMod(ctx, &srmplsapi.SrMplsPolicyMod{
-				Bsid: p.GetBsid(), Operation: sr_types.SR_POLICY_OP_API_ADD, Weight: sl.GetWeight(), Segments: sl.GetLabels(),
+func policySpec(claims df6.ClaimStore) df6.KeyedSpec[*Policy] {
+	return df6.KeyedSpec[*Policy]{
+		Name:      PolicyName,
+		Plugin:    Plugin,
+		WriteOnly: true,
+		Canon: func(p *Policy) (*Policy, error) {
+			return p, validatePolicy(p)
+		},
+		ID: func(p *Policy) string { return df6.U32(p.GetBsid()) },
+		// MPLS table 0 (DF-7's mpls-table key): VPP installs every SR-MPLS BSID there.
+		Deps: func(*Policy) []scheduler.Dependency { return []scheduler.Dependency{{Key: df6.MPLSTableKey(0)}} },
+		// Add: sr_mpls_policy_add with the first list, then sr_mpls_policy_mod (ADD) per further
+		// list; a failure deletes the half-built policy.
+		Add: func(ctx context.Context, c vpp.Client, p *Policy) error {
+			svc := srmplsapi.NewServiceClient(c)
+			first := p.GetSegmentLists()[0]
+			if _, err := svc.SrMplsPolicyAdd(ctx, &srmplsapi.SrMplsPolicyAdd{
+				Bsid: p.GetBsid(), Weight: first.GetWeight(), IsSpray: p.GetSpray(), Segments: first.GetLabels(),
 			}); err != nil {
-				_, rerr := svc.SrMplsPolicyDel(ctx, &srmplsapi.SrMplsPolicyDel{Bsid: p.GetBsid()})
-				return fmt.Errorf("sr_mpls_policy_mod (add list %d): %w (rollback: %v)", i+1, err, rerr)
+				return fmt.Errorf("sr_mpls_policy_add: %w", err)
 			}
-		}
-		return nil
-	},
-	// Del also clears an endpoint/color assignment (VPP does so inside sr_mpls_policy_del).
-	Del: func(ctx context.Context, c vpp.Client, p *Policy) error {
-		if _, err := srmplsapi.NewServiceClient(c).SrMplsPolicyDel(ctx, &srmplsapi.SrMplsPolicyDel{Bsid: p.GetBsid()}); err != nil {
-			return fmt.Errorf("sr_mpls_policy_del: %w", err)
-		}
-		return nil
-	},
-	List: func(ctx context.Context, c vpp.Client) ([]*Policy, error) {
-		bsids, err := srBSIDs(ctx, c)
-		if err != nil {
-			return nil, err
-		}
-		out := make([]*Policy, 0, len(bsids))
-		for _, b := range bsids {
-			out = append(out, &Policy{Bsid: b}) // partial: only the id is readable
-		}
-		return out, nil
-	},
+			for i, sl := range p.GetSegmentLists()[1:] {
+				if _, err := svc.SrMplsPolicyMod(ctx, &srmplsapi.SrMplsPolicyMod{
+					Bsid: p.GetBsid(), Operation: sr_types.SR_POLICY_OP_API_ADD, Weight: sl.GetWeight(), Segments: sl.GetLabels(),
+				}); err != nil {
+					_, rerr := svc.SrMplsPolicyDel(ctx, &srmplsapi.SrMplsPolicyDel{Bsid: p.GetBsid()})
+					return fmt.Errorf("sr_mpls_policy_mod (add list %d): %w (rollback: %v)", i+1, err, rerr)
+				}
+			}
+			// a fresh policy has no endpoint/color: forget the applied-once record (review N1)
+			return releaseEndpointColor(ctx, c, claims, p.GetBsid())
+		},
+		// Del also clears an endpoint/color assignment (VPP does so inside sr_mpls_policy_del).
+		Del: func(ctx context.Context, c vpp.Client, p *Policy) error {
+			if _, err := srmplsapi.NewServiceClient(c).SrMplsPolicyDel(ctx, &srmplsapi.SrMplsPolicyDel{Bsid: p.GetBsid()}); err != nil {
+				return fmt.Errorf("sr_mpls_policy_del: %w", err)
+			}
+			return nil
+		},
+		List: func(ctx context.Context, c vpp.Client) ([]*Policy, error) {
+			bsids, err := srBSIDs(ctx, c)
+			if err != nil {
+				return nil, err
+			}
+			out := make([]*Policy, 0, len(bsids))
+			for _, b := range bsids {
+				out = append(out, &Policy{Bsid: b}) // partial: only the id is readable
+			}
+			return out, nil
+		},
+	}
 }
 
 // srBSIDs returns the labels of MPLS table 0 whose end-of-stack entry has the shape VPP gives

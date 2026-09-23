@@ -282,14 +282,45 @@ func TestResync(t *testing.T) {
 	if f.crashes != 0 {
 		t.Fatalf("%d requests VPP would reject", f.crashes)
 	}
-	f.SetBoot(2) // VPP restart (fake keeps state; the assignment is re-sent once)
+	// VPP restart: VPP lost everything; every claim expired with the old identity (D-080).
+	f.SetBoot(2)
+	f.policies = map[uint32][][]uint32{}
+	f.steer = map[[2]string]*srmplsapi.SrMplsSteeringAddDel{}
 	for i := 0; i < 2; i++ {
-		if _, err := ec.Create(ctx, e); err != nil {
-			t.Fatal(err)
+		for _, x := range []struct {
+			d interface {
+				Create(context.Context, proto.Message) (any, error)
+			}
+			o proto.Message
+		}{{p, pol}, {s, st}, {ec, e}} {
+			if _, err := x.d.Create(ctx, x.o); err != nil {
+				t.Fatalf("re-apply after VPP restart %d: %v", i, err)
+			}
 		}
 	}
-	if n := len(f.CallsNamed("sr_mpls_policy_assign_endpoint_color")); n != 2 {
-		t.Fatalf("assign sent %d times after restart, want 2 in total", n)
+	for name, want := range map[string]int{"sr_mpls_policy_add": 2, "sr_mpls_steering_add_del": 2, "sr_mpls_policy_assign_endpoint_color": 2} {
+		if n := len(f.CallsNamed(name)); n != want {
+			t.Errorf("after VPP restart %s sent %d times in total, want %d", name, n, want)
+		}
+	}
+	// policy lost and re-added on the SAME VPP boot (review N1): VPP cleared the
+	// endpoint/color with it, so it is re-assigned exactly once.
+	delete(f.policies, 11600)
+	delete(f.steer, [2]string{"11012", "10.11.13.0/24"})
+	for i := 0; i < 2; i++ {
+		for _, x := range []struct {
+			d interface {
+				Create(context.Context, proto.Message) (any, error)
+			}
+			o proto.Message
+		}{{p, pol}, {s, st}, {ec, e}} {
+			if _, err := x.d.Create(ctx, x.o); err != nil {
+				t.Fatalf("re-apply after loss %d: %v", i, err)
+			}
+		}
+	}
+	if n := len(f.CallsNamed("sr_mpls_policy_assign_endpoint_color")); n != 3 {
+		t.Fatalf("endpoint/color after policy loss: %d assigns in total, want 3", n)
 	}
 	// another owner: no take-over, no delete
 	po := sr_mpls.NewPolicy(f, owner+"x")

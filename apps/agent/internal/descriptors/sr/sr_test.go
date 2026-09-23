@@ -557,3 +557,35 @@ func TestClaims(t *testing.T) {
 		t.Fatalf("recreate: %v", err)
 	}
 }
+
+// TestStaleClaimAfterVPPRestart (fix round 2, N3, D-080): our policy's claim expires with the
+// VPP instance; a foreign policy that reuses the BSID after the restart is never reported,
+// taken over or deleted.
+func TestStaleClaimAfterVPPRestart(t *testing.T) {
+	ctx := context.Background()
+	f := newFakeSR()
+	owner := freshOwner(t)
+	p := sr.NewPolicy(f, owner)
+	mine := &sr.Policy{Bsid: "fd11:b::7", SidLists: []*sr.SidList{{Sids: []string{"fd11:1::1"}, Weight: 1}}}
+	f.SetBoot(900)
+	if _, err := p.Create(ctx, mine); err != nil {
+		t.Fatal(err)
+	}
+	// VPP restarts (state lost); before we reconcile, someone else creates the same BSID.
+	f.SetBoot(901)
+	f.policies = nil
+	iface.SetClaimStore(owner+"op", nil)
+	foreign := &sr.Policy{Bsid: "fd11:b::7", SidLists: []*sr.SidList{{Sids: []string{"fd11:1::9"}, Weight: 1}}}
+	if _, err := sr.NewPolicy(f, owner+"op").Create(ctx, foreign); err != nil {
+		t.Fatal(err)
+	}
+	if got := retrieveMap(t, p); len(got) != 0 {
+		t.Fatalf("foreign policy reported as ours: %v", got)
+	}
+	if _, err := p.Create(ctx, mine); !errors.Is(err, df6.ErrNotOurs) {
+		t.Fatalf("re-apply over the foreign policy = %v, want ErrNotOurs", err)
+	}
+	if err := p.Delete(ctx, mine, nil); err != nil || len(f.policies) != 1 || df6.IP6String(f.policies[0].SidLists[0].Sids[0]) != "fd11:1::9" {
+		t.Fatalf("delete touched the foreign policy: %v %v", err, f.policies)
+	}
+}

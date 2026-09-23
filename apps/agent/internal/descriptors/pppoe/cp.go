@@ -28,6 +28,10 @@ func NewCp(c vpp.Client, owner string, opts ...df6.Option) *CpDescriptor {
 	return df6.NewSingletonDescriptor(cpSpec(owner, df6.BuildOptions(owner, opts).Claims), c)
 }
 
+// cpProbe reads VPP's actual state of pppoe-input on the device-input arc (decides over the
+// per-boot record: correct after interface re-creation and VPP restarts, review N1).
+var cpProbe = df6.FeatureProbe("device-input", "pppoe-input", "", "")
+
 func cpSpec(owner string, claims df6.ClaimStore) df6.SingletonSpec[*Cp] {
 	send := func(ctx context.Context, c vpp.Client, cp *Cp, enable bool) error {
 		boot, err := df6.BootID(ctx, c)
@@ -35,9 +39,6 @@ func cpSpec(owner string, claims df6.ClaimStore) df6.SingletonSpec[*Cp] {
 			return err
 		}
 		holder := df6.BootHolder(CpName, boot)
-		if claims.Claimed(cp.GetInterface(), holder) == enable {
-			return nil
-		}
 		ifs, err := df6.DumpInterfaces(ctx, c, owner)
 		if err != nil {
 			return err
@@ -45,9 +46,21 @@ func cpSpec(owner string, claims df6.ClaimStore) df6.SingletonSpec[*Cp] {
 		idx, err := ifs.Index(cp.GetInterface())
 		if err != nil {
 			if !enable && df6.IsNoSuchInterface(err) {
-				return claims.Release(cp.GetInterface(), holder)
+				return nil // interface gone: nothing enabled on it any more
 			}
 			return err
+		}
+		// keyed by logical name AND sw_if_index (D-080, review N1): a recreated interface is new
+		id := fmt.Sprintf("%s@%d", cp.GetInterface(), idx)
+		on, err := cpProbe(ctx, c, idx, false)
+		if err != nil {
+			return err
+		}
+		if on == enable {
+			if enable {
+				return claims.Claim(id, holder)
+			}
+			return claims.Release(id, holder)
 		}
 		var isAdd uint8
 		if enable {
@@ -57,9 +70,9 @@ func cpSpec(owner string, claims df6.ClaimStore) df6.SingletonSpec[*Cp] {
 			return fmt.Errorf("pppoe_add_del_cp: %w", err)
 		}
 		if enable {
-			return claims.Claim(cp.GetInterface(), holder)
+			return claims.Claim(id, holder)
 		}
-		return claims.Release(cp.GetInterface(), holder)
+		return claims.Release(id, holder)
 	}
 	return df6.SingletonSpec[*Cp]{
 		Name:   CpName,
@@ -72,6 +85,15 @@ func cpSpec(owner string, claims df6.ClaimStore) df6.SingletonSpec[*Cp] {
 		},
 		Set:   func(ctx context.Context, c vpp.Client, cp *Cp) error { return send(ctx, c, cp, true) },
 		Unset: func(ctx context.Context, c vpp.Client, cp *Cp) error { return send(ctx, c, cp, false) },
-		Deps:  func(cp *Cp) []scheduler.Dependency { return df6.InterfaceDeps(cp.GetInterface()) },
+		// moving the CP interface disables pppoe-input on the old one first (review N5)
+		Change: func(ctx context.Context, c vpp.Client, old, cp *Cp) error {
+			if old.GetInterface() != cp.GetInterface() {
+				if err := send(ctx, c, old, false); err != nil {
+					return err
+				}
+			}
+			return send(ctx, c, cp, true)
+		},
+		Deps: func(cp *Cp) []scheduler.Dependency { return df6.InterfaceDeps(cp.GetInterface()) },
 	}
 }

@@ -61,6 +61,13 @@ func newFakeGPE() *fakeGPE {
 	})
 	f.On("sw_interface_set_vxlan_gpe_bypass", func(req api.Message) ([]api.Message, error) {
 		r := req.(*gpeapi.SwInterfaceSetVxlanGpeBypass)
+		{
+			arc, node := "ip4-unicast", "ip4-vxlan-gpe-bypass"
+			if r.IsIPv6 {
+				arc, node = "ip6-unicast", "ip6-vxlan-gpe-bypass"
+			}
+			f.SetFeature(arc, node, uint32(r.SwIfIndex), r.Enable)
+		}
 		b := f.bypass[uint32(r.SwIfIndex)]
 		if r.IsIPv6 {
 			b[1] = r.Enable

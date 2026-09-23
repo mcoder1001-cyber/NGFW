@@ -19,6 +19,7 @@ type BypassDescriptor = df6.BypassDescriptor[*Bypass]
 // NewBypass returns the descriptor for the given owner.
 func NewBypass(c vpp.Client, owner string, opts ...df6.Option) *BypassDescriptor {
 	return df6.NewBypassDescriptor(df6.BypassSpec[*Bypass]{
+		Probe:  df6.FeatureProbe("ip4-unicast", "ip4-gtpu-bypass", "ip6-unicast", "ip6-gtpu-bypass"),
 		Name:   BypassName,
 		Plugin: Plugin,
 		Fields: func(b *Bypass) (string, bool, bool) { return b.GetInterface(), b.GetIpv4(), b.GetIpv6() },

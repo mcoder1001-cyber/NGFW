@@ -100,6 +100,13 @@ func newFakeGTPU() *fakeGTPU {
 	})
 	f.On("sw_interface_set_gtpu_bypass", func(req api.Message) ([]api.Message, error) {
 		r := req.(*gtpuapi.SwInterfaceSetGtpuBypass)
+		{
+			arc, node := "ip4-unicast", "ip4-gtpu-bypass"
+			if r.IsIPv6 {
+				arc, node = "ip6-unicast", "ip6-gtpu-bypass"
+			}
+			f.SetFeature(arc, node, uint32(r.SwIfIndex), r.Enable)
+		}
 		b := f.bypass[uint32(r.SwIfIndex)]
 		if r.IsIPv6 {
 			b[1] = r.Enable

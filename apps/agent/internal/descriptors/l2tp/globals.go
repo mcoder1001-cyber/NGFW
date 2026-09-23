@@ -22,6 +22,8 @@ type InterfaceEnableDescriptor = df6.BypassDescriptor[*InterfaceEnable]
 // NewInterfaceEnable returns the descriptor for the given owner.
 func NewInterfaceEnable(c vpp.Client, owner string, opts ...df6.Option) *InterfaceEnableDescriptor {
 	return df6.NewToggleDescriptor(df6.ToggleSpec[*InterfaceEnable]{
+		Arc:    "ip6-unicast",
+		Node:   "l2tp-decap",
 		Name:   InterfaceEnableName,
 		Plugin: Plugin,
 		Iface:  func(e *InterfaceEnable) string { return e.GetInterface() },

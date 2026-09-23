@@ -1,0 +1,11 @@
+{
+  "acl": {
+    "lists": {
+      "lan-in": {
+        "rules": [
+          { "sequence": 10, "action": "permit", "source": { "kind": "object", "name": "ghost" } }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "interfaces": {
+    "TenGigabitEthernet0/0/0": { "description": "WAN", "vrf": "default" },
+    "TenGigabitEthernet0/0/1": { "description": "LAN", "vrf": "default" },
+    "TenGigabitEthernet0/0/2": { "description": "customer A", "vrf": "customer-a" }
+  },
+  "vrfs": { "default": { "id": 0 }, "customer-a": { "id": 10 } },
+  "objects": {
+    "tags": { "prod": {} },
+    "addresses": {
+      "web-1": { "type": "host", "address": "10.0.10.11" },
+      "lan": { "type": "network", "prefix": "192.168.1.0/24" },
+      "mgmt": { "type": "network", "prefix": "192.168.100.0/24" }
+    },
+    "addressGroups": { "web-servers": { "members": ["web-1"] } },
+    "services": {
+      "http": { "protocol": "tcp", "destinationPorts": ["80"] },
+      "https": { "protocol": "tcp", "destinationPorts": ["443"] },
+      "ssh": { "protocol": "tcp", "destinationPorts": ["22"] },
+      "ping": { "protocol": "icmp" }
+    },
+    "serviceGroups": { "web": { "members": ["http", "https"] } },
+    "schedules": {
+      "business-hours": {
+        "type": "recurring",
+        "days": ["mon", "tue", "wed", "thu", "fri"],
+        "start": "08:00",
+        "end": "18:00"
+      }
+    },
+    "zones": {
+      "lan": { "interfaces": ["TenGigabitEthernet0/0/1"] },
+      "wan": { "interfaces": ["TenGigabitEthernet0/0/0"] }
+    }
+  },
+  "acl": {
+    "lists": {
+      "lan-in": {
+        "description": "from the LAN towards the world",
+        "tags": ["prod"],
+        "rules": [
+          {
+            "sequence": 10,
+            "action": "reflect",
+            "source": { "kind": "object", "name": "lan" },
+            "destination": { "kind": "object", "name": "web-servers" },
+            "service": { "kind": "object", "name": "web" },
+            "schedule": "business-hours"
+          },
+          {
+            "sequence": 20,
+            "action": "permit",
+            "ipVersion": "ipv4",
+            "source": { "kind": "prefix", "prefix": "192.168.1.0/24" },
+            "service": { "kind": "inline", "spec": { "protocol": "icmp", "type": 8 } }
+          },
+          {
+            "sequence": 30,
+            "action": "permit",
+            "ipVersion": "ipv6",
+            "service": { "kind": "inline", "spec": { "protocol": "icmp6" } }
+          },
+          { "sequence": 1000, "action": "deny", "log": true, "description": "default deny" }
+        ]
+      },
+      "wan-in": {
+        "rules": [
+          {
+            "sequence": 10,
+            "action": "permit",
+            "destination": { "kind": "object", "name": "web-servers" },
+            "service": {
+              "kind": "inline",
+              "spec": {
+                "protocol": "tcp",
+                "destinationPorts": ["80", "443"],
+                "tcpFlags": { "mask": 2, "value": 2 }
+              }
+            }
+          },
+          { "sequence": 20, "action": "deny", "log": true }
+        ]
+      },
+      "customer-a-in": { "rules": [{ "sequence": 10, "action": "permit" }] }
+    },
+    "macip": {
+      "lan-mac": {
+        "rules": [
+          {
+            "sequence": 10,
+            "action": "permit",
+            "sourceMac": "02:00:00:00:00:00",
+            "sourceMacMask": "ff:00:00:00:00:00",
+            "sourcePrefix": "192.168.1.0/24"
+          },
+          {
+            "sequence": 20,
+            "action": "deny",
+            "sourceMac": "00:00:00:00:00:00",
+            "sourceMacMask": "00:00:00:00:00:00"
+          }
+        ]
+      }
+    },
+    "host": {
+      "mgmt-in": {
+        "rules": [
+          {
+            "sequence": 10,
+            "action": "accept",
+            "source": { "kind": "object", "name": "mgmt" },
+            "service": { "kind": "object", "name": "ssh" }
+          },
+          {
+            "sequence": 20,
+            "action": "accept",
+            "service": {
+              "kind": "inline",
+              "spec": { "protocol": "tcp", "destinationPorts": ["443"] }
+            },
+            "interface": "eth0"
+          },
+          { "sequence": 100, "action": "drop", "log": true }
+        ]
+      }
+    },
+    "attachments": [
+      {
+        "list": "lan-in",
+        "target": { "kind": "zone", "zone": "lan" },
+        "direction": "in",
+        "sequence": 10,
+        "vrf": "default"
+      },
+      {
+        "list": "wan-in",
+        "target": { "kind": "interface", "interface": "TenGigabitEthernet0/0/0" },
+        "direction": "in",
+        "sequence": 10,
+        "vrf": "default"
+      },
+      {
+        "list": "customer-a-in",
+        "target": { "kind": "interface", "interface": "TenGigabitEthernet0/0/2" },
+        "direction": "in",
+        "sequence": 10,
+        "vrf": "customer-a"
+      }
+    ],
+    "macipAttachments": [
+      { "list": "lan-mac", "interface": "TenGigabitEthernet0/0/1", "vrf": "default" }
+    ],
+    "hostAttachments": [{ "list": "mgmt-in", "chain": "input", "priority": 0 }]
+  }
+}

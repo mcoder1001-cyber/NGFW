@@ -1,0 +1,162 @@
+{
+  "interfaces": {
+    "TenGigabitEthernet0/0/0": {
+      "description": "upstream",
+      "vrf": "default"
+    },
+    "TenGigabitEthernet0/0/1": {
+      "description": "subscribers (DET44)",
+      "vrf": "default"
+    },
+    "TenGigabitEthernet0/0/2": {
+      "description": "IPv6-only access (NAT64)",
+      "vrf": "default"
+    },
+    "TenGigabitEthernet0/0/3": {
+      "description": "NPTv6 site",
+      "vrf": "default"
+    },
+    "TenGigabitEthernet0/0/4": {
+      "description": "lw4o6 subscribers (MAP-E encapsulation)",
+      "vrf": "default"
+    }
+  },
+  "nat": {
+    "ipfix": {
+      "enabled": true,
+      "domainId": 1,
+      "sourcePort": 4739
+    },
+    "det44": {
+      "enabled": true,
+      "inside": ["TenGigabitEthernet0/0/1"],
+      "outside": ["TenGigabitEthernet0/0/0"],
+      "mappings": [
+        {
+          "inside": "100.64.0.0/16",
+          "outside": "203.0.113.0/28"
+        }
+      ],
+      "timeouts": {
+        "udp": 300,
+        "tcpEstablished": 7440,
+        "tcpTransitory": 240,
+        "icmp": 60
+      }
+    },
+    "nat64": {
+      "enabled": true,
+      "inside": ["TenGigabitEthernet0/0/2"],
+      "outside": ["TenGigabitEthernet0/0/0"],
+      "prefixes": [
+        {
+          "prefix": "64:ff9b::/96"
+        }
+      ],
+      "pools": [
+        {
+          "range": "198.51.100.1-198.51.100.14"
+        }
+      ],
+      "staticBibs": [
+        {
+          "protocol": "tcp",
+          "inside": {
+            "ip": "2001:db8:1::10",
+            "port": 443
+          },
+          "outside": {
+            "ip": "198.51.100.1",
+            "port": 443
+          }
+        }
+      ]
+    },
+    "nptv6": {
+      "bindings": [
+        {
+          "interface": "TenGigabitEthernet0/0/3",
+          "internal": "fd00:1::/48",
+          "external": "2001:db8:2::/48"
+        }
+      ]
+    },
+    "map": {
+      "interfaces": [
+        {
+          "interface": "TenGigabitEthernet0/0/4",
+          "mode": "map-e"
+        }
+      ],
+      "domains": [
+        {
+          "name": "lw4o6-br",
+          "mode": "lw4o6",
+          "ipv4Prefix": "192.0.2.0/24",
+          "ipv6Prefix": "2001:db8:f::/64",
+          "ipv6Source": "2001:db8:ffff::1/128",
+          "eaBitsLength": 0,
+          "psidOffset": 6,
+          "psidLength": 6,
+          "mtu": 1500,
+          "rules": [
+            {
+              "psid": 1,
+              "ipv6Destination": "2001:db8:f::1"
+            },
+            {
+              "psid": 2,
+              "ipv6Destination": "2001:db8:f::2"
+            }
+          ]
+        }
+      ],
+      "parameters": {
+        "fragmentation": {
+          "inner": true
+        },
+        "tcpMss": 1400
+      }
+    },
+    "cnat": {
+      "translations": [
+        {
+          "name": "web-vip",
+          "protocol": "tcp",
+          "vip": {
+            "ip": "203.0.113.100",
+            "port": 80
+          },
+          "backends": [
+            {
+              "ip": "10.10.0.1",
+              "port": 8080
+            },
+            {
+              "ip": "10.10.0.2",
+              "port": 8080
+            }
+          ],
+          "lbType": "maglev"
+        }
+      ],
+      "snat": {
+        "policy": "interface",
+        "addresses": {
+          "ipv4": "203.0.113.101"
+        },
+        "interfaces": [
+          {
+            "interface": "TenGigabitEthernet0/0/0",
+            "table": "include-v4"
+          },
+          {
+            "interface": "TenGigabitEthernet0/0/0",
+            "table": "include-v6"
+          }
+        ],
+        "excludePrefixes": ["10.0.0.0/8"]
+      }
+    }
+  }
+}

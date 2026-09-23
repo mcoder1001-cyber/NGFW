@@ -206,7 +206,7 @@
       "snat": {
         "policy": "interface",
         "addresses": { "ipv4": "203.0.113.201" },
-        "interfaces": [{ "interface": "TenGigabitEthernet0/0/0", "side": "outside" }],
+        "interfaces": [{ "interface": "TenGigabitEthernet0/0/0", "table": "include-v4" }],
         "excludePrefixes": ["10.0.0.0/8"]
       }
     }
@@ -308,8 +308,9 @@
           "mobike": false,
           "rekey": { "ikeSec": 14400, "espSec": 3600, "espBytes": "1073741824", "reauth": false },
           "startAction": "start",
-          "closeAction": "restart",
+          "closeAction": "trap",
           "vrf": "default",
+          "underlayVrf": "default",
           "routeBased": { "ipipInterface": "ipip0" },
           "esn": true,
           "antiReplay": true
@@ -325,14 +326,14 @@
           "underlayVrf": "default",
           "listenAddress": "10.0.0.1",
           "listenPort": 51820,
-          "privateKeyRef": "wg/wg0",
+          "privateKeyRef": "key/wg0",
           "address": ["10.200.0.1/24"],
           "mtu": 1420,
           "peers": {
             "laptop": {
               "description": "road warrior",
               "publicKey": "VRX_TEST_PUBKEY_wg0_laptop",
-              "presharedKeyRef": "wg/wg0/laptop",
+              "presharedKeyRef": "psk/wg0-laptop",
               "endpoint": { "address": "198.51.100.7", "port": 51820 },
               "allowedIps": ["10.200.0.2/32"],
               "persistentKeepaliveSec": 25
@@ -342,10 +343,10 @@
       }
     },
     "pki": {
-      "cas": { "lab-ca": { "description": "lab CA", "certificateRef": "pki/ca/lab", "crl": { "url": "http://pki.example.net/lab.crl", "refreshIntervalSec": 86400 } } },
+      "cas": { "lab-ca": { "description": "lab CA", "certificateRef": "cert/lab-ca", "crl": { "url": "http://pki.example.net/lab.crl", "refreshIntervalSec": 86400 } } },
       "certificates": {
-        "api": { "certificateRef": "pki/cert/api", "privateKeyRef": "pki/key/api", "ca": "lab-ca", "expiryAlertDays": 30 },
-        "acme-edge": { "privateKeyRef": "pki/key/edge", "acme": { "directoryUrl": "https://acme.example.net/directory", "domains": ["edge.example.net"], "challenge": "http-01" }, "expiryAlertDays": 14 }
+        "api": { "certificateRef": "cert/api", "privateKeyRef": "key/api", "ca": "lab-ca", "expiryAlertDays": 30 },
+        "acme-edge": { "privateKeyRef": "key/edge", "acme": { "directoryUrl": "https://acme.example.net/directory", "domains": ["edge.example.net"], "challenge": "http-01" }, "expiryAlertDays": 14 }
       },
       "hsm": { "enabled": false, "module": "/usr/lib/softhsm/libsofthsm2.so" }
     },
@@ -354,21 +355,165 @@
         "enabled": true,
         "localAddr": "10.0.0.1",
         "vrf": "default",
+        "underlayVrf": "default",
         "auth": "eap-mschapv2",
         "certificate": "api",
         "proposal": "default",
         "pools": [{ "name": "ra-pool", "prefix": "10.201.0.0/24", "dns": ["10.255.0.1"] }],
         "splitTunnel": ["192.168.200.0/24"],
-        "users": [{ "username": "alice", "passwordRef": "ra/alice" }],
-        "radius": { "servers": [{ "address": "10.255.0.5", "port": 1812, "secretRef": "aaa/radius/ra" }] },
+        "users": [{ "username": "alice", "passwordRef": "password/alice" }],
+        "radius": { "servers": [{ "address": "10.255.0.5", "port": 1812, "secretRef": "psk/radius-ra" }] },
         "dpd": { "enabled": true, "delaySec": 30, "timeoutSec": 120, "action": "clear" },
         "rekey": { "ikeSec": 14400, "espSec": 3600, "reauth": true }
       }
     }
   },
-  "tunnels": { "gre": { "gre0": {} }, "vxlan": { "vx100": {} }, "ipip": { "ipip0": {} } },
-  "services": { "dhcp": {}, "dns": {}, "snmp": {}, "lldp": {}, "ipfix": {} },
-  "ha": { "vrrp": [{}] },
+  "tunnels": {
+    "gre": {
+      "gre0": { "enabled": true, "description": "to DC", "instance": 0, "src": "10.0.0.1", "underlayVrf": "default", "vrf": "default", "mtu": 1476, "ipv4": ["10.254.0.1/30"], "ipv6": ["fd00:254::1/64"], "dst": "192.0.2.10", "type": "l3" },
+      "mirror": { "src": "10.0.0.1", "dst": "192.0.2.20", "type": "erspan", "sessionId": 7, "bridgeDomain": 20 }
+    },
+    "vxlan": {
+      "vx100": { "instance": 100, "src": "10.0.0.1", "dst": "239.1.1.100", "vni": 100, "srcPort": 4789, "dstPort": 4789, "mcastInterface": "TenGigabitEthernet0/0/0", "decap": "l2", "bridgeDomain": 100 }
+    },
+    "ipip": {
+      "ipip0": { "instance": 0, "src": "10.0.0.1", "underlayVrf": "default", "vrf": "default", "mode": "p2p", "dst": "192.0.2.1", "dscp": 46, "ipv4": ["10.255.1.1/30"] }
+    }
+  },
+  "services": {
+    "dhcp": {
+      "servers": {
+        "lan": {
+          "enabled": true,
+          "family": "ipv4",
+          "vrf": "default",
+          "interfaces": ["TenGigabitEthernet0/0/1"],
+          "leaseTimeSec": 3600,
+          "renewTimerSec": 900,
+          "rebindTimerSec": 1800,
+          "authoritative": true,
+          "subnets": {
+            "lan": {
+              "subnet": "192.168.200.0/24",
+              "pools": [{ "start": "192.168.200.100", "end": "192.168.200.199" }],
+              "gateway": "192.168.200.1",
+              "dnsServers": ["192.168.200.1"],
+              "ntpServers": ["192.168.200.1"],
+              "domainName": "lan.example",
+              "domainSearch": ["lan.example"],
+              "options": [{ "code": 42, "data": "192.168.200.1", "alwaysSend": false }],
+              "reservations": { "printer": { "mac": "02:00:00:00:00:10", "ip": "192.168.200.10", "hostname": "printer" } }
+            }
+          },
+          "options": [{ "code": 15, "data": "lan.example", "alwaysSend": true }]
+        }
+      },
+      "relays": {
+        "customer": { "enabled": true, "family": "ipv4", "vrf": "default", "serverVrf": "default", "interfaces": ["TenGigabitEthernet0/0/1"], "servers": ["10.255.0.53"], "sourceAddress": "10.0.0.1" }
+      }
+    },
+    "dns": {
+      "resolvers": {
+        "lan": {
+          "enabled": true,
+          "vrf": "default",
+          "listen": [{ "address": "192.168.200.1", "port": 53 }],
+          "accessControl": [{ "prefix": "192.168.200.0/24", "action": "allow" }],
+          "forwarders": [{ "address": "9.9.9.9", "port": 853, "tls": true, "tlsServerName": "dns.quad9.net" }],
+          "forwardZones": [{ "zone": "corp.example", "forwarders": [{ "address": "10.255.0.53" }], "forwardFirst": false }],
+          "localZones": [{ "zone": "lan.example", "type": "static", "records": [{ "name": "printer.lan.example", "type": "A", "ttlSec": 300, "data": "192.168.200.10" }] }],
+          "dnssec": { "enabled": true, "trustAnchorAuto": true },
+          "cache": { "minTtlSec": 0, "maxTtlSec": 86400, "prefetch": true, "msgCacheMb": 4, "rrsetCacheMb": 8 },
+          "threads": 2,
+          "qnameMinimisation": true,
+          "hideIdentity": true,
+          "hideVersion": true,
+          "logQueries": false
+        }
+      },
+      "vppCache": { "enabled": false, "upstreams": ["10.255.0.53"] }
+    },
+    "snmp": {
+      "enabled": true,
+      "vrf": "default",
+      "listen": [{ "address": "10.0.0.1", "port": 161 }],
+      "engineId": "800000090300aabbccddeeff",
+      "sysName": "vrx-a",
+      "sysLocation": "lab",
+      "sysContact": "noc@example.net",
+      "communities": { "monitoring": { "secretRef": "password/snmp-monitoring", "access": "ro", "sources": ["10.255.0.0/24"] } },
+      "v3Users": { "noc": { "securityLevel": "authPriv", "authProtocol": "sha256", "authRef": "password/snmp-noc-auth", "privProtocol": "aes", "privRef": "password/snmp-noc-priv", "access": "ro" } },
+      "trapReceivers": [{ "address": "10.255.0.9", "port": 162, "version": "v3", "user": "noc", "inform": true }]
+    },
+    "lldp": {
+      "enabled": true,
+      "systemName": "vrx-a",
+      "txHold": 4,
+      "txIntervalSec": 30,
+      "interfaces": [{ "interface": "TenGigabitEthernet0/0/1", "portDescription": "lan", "mgmtIpv4": "10.0.0.1", "mgmtIpv6": "2001:db8::1", "mgmtOid": "1.3.6.1.4.1" }]
+    },
+    "ipfix": {
+      "exporters": { "collector": { "enabled": true, "collector": { "address": "10.255.0.9", "port": 4739 }, "sourceAddress": "10.0.0.1", "vrf": "default", "pathMtu": 512, "templateIntervalSec": 20, "udpChecksum": false } },
+      "flowprobe": { "activeTimerSec": 15, "passiveTimerSec": 120, "recordL2": false, "recordL3": true, "recordL4": true, "interfaces": [{ "interface": "TenGigabitEthernet0/0/1", "direction": "both", "l2": false, "ip4": true, "ip6": true }] },
+      "sflow": { "enabled": true, "samplingN": 10000, "pollingIntervalSec": 20, "headerBytes": 128, "collectors": [{ "address": "10.255.0.9", "port": 6343 }], "agentAddress": "10.0.0.1", "vrf": "default", "interfaces": ["TenGigabitEthernet0/0/0"] }
+    },
+    "ntp": {
+      "enabled": true,
+      "vrf": "default",
+      "servers": [{ "address": "10.255.0.123", "iburst": true, "prefer": true, "minPoll": 4, "maxPoll": 10, "nts": false, "keyRef": "key/ntp-1" }],
+      "pools": ["pool.ntp.org"],
+      "allow": ["192.168.200.0/24"],
+      "listen": ["192.168.200.1"],
+      "deny": ["192.168.200.99/32"],
+      "port": 123,
+      "rateLimit": { "interval": 3, "burst": 8, "leak": 2 },
+      "localStratum": 10,
+      "orphan": true,
+      "rtcSync": true,
+      "ntsServer": { "certificateRef": "cert/ntp", "keyRef": "key/ntp", "port": 4460 },
+      "makestep": { "thresholdSec": 0.5, "limit": 3 }
+    },
+    "qos": {
+      "policers": {
+        "wan-in": { "type": "2r3c-rfc2698", "rateUnit": "kbps", "cir": 100000, "eir": 200000, "cb": "125000", "eb": "250000", "round": "closest", "colorAware": false, "conformAction": { "action": "transmit" }, "exceedAction": { "action": "mark-and-transmit", "dscp": 10 }, "violateAction": { "action": "drop" } }
+      },
+      "shapers": { "wan-out": { "rateKbps": 500000, "burstBytes": "625000" } },
+      "maps": { "dscp-to-pcp": { "id": 1, "rows": { "ip": [{ "from": 46, "to": 5 }], "vlan": [{ "from": 3, "to": 3 }] } } },
+      "interfaces": {
+        "TenGigabitEthernet0/0/0": { "description": "WAN", "policer": { "input": "wan-in" }, "shaper": "wan-out", "record": "ip", "store": { "source": "ext", "value": 1 }, "mark": { "map": "dscp-to-pcp", "output": "vlan" } }
+      }
+    }
+  },
+  "ha": {
+    "vrrp": {
+      "lan-v4": {
+        "enabled": true,
+        "interface": "TenGigabitEthernet0/0/1",
+        "vrId": 10,
+        "addressFamily": "ipv4",
+        "priority": 200,
+        "advertisementIntervalMs": 1000,
+        "preempt": true,
+        "acceptMode": false,
+        "unicast": { "peers": ["192.168.200.3"] },
+        "addresses": ["192.168.200.254"],
+        "vrf": "default",
+        "engine": "vpp",
+        "track": [{ "interface": "TenGigabitEthernet0/0/0", "priorityDecrement": 50 }]
+      }
+    },
+    "cluster": {
+      "enabled": true,
+      "nodeName": "vrx-a",
+      "peers": [{ "name": "vrx-b", "address": "192.168.200.3" }],
+      "port": 4370,
+      "secretRef": "key/cluster-sync",
+      "interface": "TenGigabitEthernet0/0/1",
+      "vrf": "default",
+      "configSync": true,
+      "stateSync": { "nat": true, "ipsec": true, "acl": false }
+    }
+  },
   "management": {
     "users": [
       { "username": "admin", "role": "admin", "scope": "*", "sshKeys": ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyMaterialForTestsOnly0000000000 admin@lab"], "disabled": false },

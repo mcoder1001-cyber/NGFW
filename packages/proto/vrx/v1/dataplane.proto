@@ -569,10 +569,10 @@ message HealthResponse {
 // follow the Zod order); agent-only annotations, if ever needed, start at 100. Removed fields are
 // `reserved`. system, dataplane, interfaces, vrfs, routing.static and management.users mirror
 // task/P02a HEAD (df554dc) in types and presence (D-042); the remaining P02a sub-messages (ntp,
-// dns, prefix lists, route maps, bgp/ospf/isis/rip/bfd, aaa, tls, syslog) and tunnels/services/ha
-// (P02c) carry the documented target shape with empty sub-messages — filling them is additive
-// (P03b). nat/objects/acl (P02b) and vpn (P02c) mirror the committed work-in-progress models
-// (task/P02b@ec0ccda, task/P02c@b815d15; no renames since, only additions — P03b).
+// dns, prefix lists, route maps, bgp/ospf/isis/rip/bfd, aaa, tls, syslog) carry the documented
+// target shape with empty sub-messages — filling them is additive (P03b). nat/objects/acl (P02b)
+// mirror task/P02b@ec0ccda; vpn/tunnels/services/ha mirror the P02c schema leaf-for-leaf (D-061,
+// synced on task/P02c; ha.vrrp became a record, D-053).
 
 // DesiredState is the whole configuration as the agent sees it. Domain messages are named
 // `<Key>Config` like the schema package's `<Key>Config` types; the two record-shaped domains
@@ -598,9 +598,9 @@ message DesiredState {
   VpnConfig vpn = 9;
   // `tunnels` — GRE, VXLAN, IPIP.
   TunnelsConfig tunnels = 10;
-  // `services` — DHCP, DNS, SNMP, LLDP, IPFIX.
+  // `services` — DHCP, DNS, SNMP, LLDP, IPFIX/sFlow, NTP, QoS.
   ServicesConfig services = 11;
-  // `ha` — VRRP.
+  // `ha` — VRRP, cluster.
   HaConfig ha = 12;
   // `management` — local users, AAA, TLS, syslog.
   ManagementConfig management = 13;
@@ -788,69 +788,841 @@ message RipConfig {}
 // BfdConfig is `routing.bfd`; P02a fields are added from 1.
 message BfdConfig {}
 
-// ----- tunnels (P02c) -----
+// ----- tunnels (P02c, mirrors packages/schema/src/domains/tunnels.ts) -----
+//
+// Every tunnel has two VRFs (vdom.md #1): `underlay_vrf` is the FIB of the outer packets (src/dst),
+// `vrf` the FIB of the tunnel interface. `instance` fixes the VPP interface name (gre<n>, ipip<n>,
+// vxlan_tunnel<n>) so other domains can reference the tunnel as an interface.
 
-// TunnelsConfig mirrors `tunnels`; the records are keyed by tunnel name.
+// TunnelsConfig mirrors `tunnels`; the records are keyed by tunnel name (unique across kinds).
 message TunnelsConfig {
-  // GRE tunnels (gre_tunnel_add_del). Fields land with the P02c model.
+  // GRE tunnels (gre_tunnel_add_del).
   map<string, GreTunnel> gre = 1;
-  // VXLAN tunnels (vxlan_add_del_tunnel). Fields land with the P02c model.
+  // VXLAN tunnels (vxlan_add_del_tunnel).
   map<string, VxlanTunnel> vxlan = 2;
-  // IPIP tunnels (ipip_add_tunnel), also the VTI of route-based IPsec. Fields land with the P02c model.
+  // IPIP tunnels (ipip_add_tunnel), also the VTI of route-based IPsec.
   map<string, IpipTunnel> ipip = 3;
 }
 
-// GreTunnel is `tunnels.gre.<name>`; P02c fields are added from 1 (underlay/overlay `vrf` are explicit, vdom.md #1).
-message GreTunnel {}
-
-// VxlanTunnel is `tunnels.vxlan.<name>`; P02c fields are added from 1.
-message VxlanTunnel {}
-
-// IpipTunnel is `tunnels.ipip.<name>`; P02c fields are added from 1.
-message IpipTunnel {}
-
-// ----- services (P02c) -----
-
-// ServicesConfig mirrors `services`. Renderers are written so that "one daemon instance per
-// <vrf|interface>" is a parameter of these messages, not an assumption (vdom.md #5).
-message ServicesConfig {
-  // DHCPv4/v6 server (Kea) and relay. Fields land with the P02c model.
-  DhcpService dhcp = 1;
-  // DNS resolver/forwarder (Unbound). Fields land with the P02c model.
-  DnsService dns = 2;
-  // SNMP agent (net-snmp). Fields land with the P02c model.
-  SnmpService snmp = 3;
-  // LLDP (VPP lldp plugin). Fields land with the P02c model.
-  LldpService lldp = 4;
-  // IPFIX/NetFlow export (VPP flowprobe). Fields land with the P02c model.
-  IpfixService ipfix = 5;
+// GreTunnel is `tunnels.gre.<name>`.
+message GreTunnel {
+  // Enabled.
+  optional bool enabled = 1;
+  // Free-text description.
+  optional string description = 2;
+  // VPP instance (interface gre<instance>); unset = allocated by VPP, not referenceable.
+  optional uint32 instance = 3;
+  // Source address (configured on an interface in underlay_vrf).
+  optional string src = 4;
+  // FIB of the outer packets.
+  optional string underlay_vrf = 5;
+  // FIB of the tunnel interface (overlay).
+  optional string vrf = 6;
+  // MTU; unset = VPP default.
+  optional uint32 mtu = 7;
+  // IPv4 interface addresses (CIDR); L3 tunnels only.
+  repeated string ipv4 = 8;
+  // IPv6 interface addresses (CIDR); L3 tunnels only.
+  repeated string ipv6 = 9;
+  // Bridge domain id (L2 tunnels: teb, erspan).
+  optional uint32 bridge_domain = 10;
+  // Destination address.
+  optional string dst = 11;
+  // "l3" | "teb" | "erspan".
+  optional string type = 12;
+  // ERSPAN session id 0–1023 (type erspan only).
+  optional uint32 session_id = 13;
 }
 
-// DhcpService is `services.dhcp`; P02c fields are added from 1.
-message DhcpService {}
+// VxlanTunnel is `tunnels.vxlan.<name>`.
+message VxlanTunnel {
+  // Enabled.
+  optional bool enabled = 1;
+  // Free-text description.
+  optional string description = 2;
+  // VPP instance (interface vxlan_tunnel<instance>).
+  optional uint32 instance = 3;
+  // Source address (configured on an interface in underlay_vrf).
+  optional string src = 4;
+  // FIB of the outer packets.
+  optional string underlay_vrf = 5;
+  // FIB of the tunnel interface (overlay, decap ip4/ip6).
+  optional string vrf = 6;
+  // MTU; unset = VPP default.
+  optional uint32 mtu = 7;
+  // IPv4 interface addresses (CIDR); decap ip4/ip6 only.
+  repeated string ipv4 = 8;
+  // IPv6 interface addresses (CIDR); decap ip4/ip6 only.
+  repeated string ipv6 = 9;
+  // Bridge domain id (decap l2).
+  optional uint32 bridge_domain = 10;
+  // Unicast peer or multicast group.
+  optional string dst = 11;
+  // 24-bit VNI.
+  optional uint32 vni = 12;
+  // Source UDP port.
+  optional uint32 src_port = 13;
+  // Destination UDP port.
+  optional uint32 dst_port = 14;
+  // Interface joining the multicast group (multicast dst only).
+  optional string mcast_interface = 15;
+  // "l2" | "ip4" | "ip6".
+  optional string decap = 16;
+}
 
-// DnsService is `services.dns`; P02c fields are added from 1.
-message DnsService {}
+// IpipTunnel is `tunnels.ipip.<name>`.
+message IpipTunnel {
+  // Enabled.
+  optional bool enabled = 1;
+  // Free-text description.
+  optional string description = 2;
+  // VPP instance (interface ipip<instance>).
+  optional uint32 instance = 3;
+  // Source address (configured on an interface in underlay_vrf).
+  optional string src = 4;
+  // FIB of the outer packets.
+  optional string underlay_vrf = 5;
+  // FIB of the tunnel interface (overlay).
+  optional string vrf = 6;
+  // MTU; unset = VPP default.
+  optional uint32 mtu = 7;
+  // IPv4 interface addresses (CIDR).
+  repeated string ipv4 = 8;
+  // IPv6 interface addresses (CIDR).
+  repeated string ipv6 = 9;
+  // Bridge domain id (never valid for IPIP; kept for the common tunnel shape).
+  optional uint32 bridge_domain = 10;
+  // "p2p" | "p2mp".
+  optional string mode = 11;
+  // Destination address (p2p only).
+  optional string dst = 12;
+  // Outer DSCP 0–63; unset = copy the inner DSCP.
+  optional uint32 dscp = 13;
+}
 
-// SnmpService is `services.snmp`; P02c fields are added from 1.
-message SnmpService {}
+// ----- services (P02c, mirrors packages/schema/src/domains/services.ts) -----
+//
+// Renderers are written so that "one daemon instance per <vrf|interface>" is a parameter of these
+// messages, not an assumption (vdom.md #5). Secrets are `*_ref` references only (D-051).
 
-// LldpService is `services.lldp`; P02c fields are added from 1.
-message LldpService {}
+// ServicesConfig mirrors `services`.
+message ServicesConfig {
+  // DHCP servers (Kea instances) and relays (VPP dhcp proxy).
+  DhcpService dhcp = 1;
+  // DNS resolvers (Unbound instances) and the VPP dns cache.
+  DnsService dns = 2;
+  // SNMP agent (net-snmp).
+  SnmpService snmp = 3;
+  // LLDP (VPP lldp plugin).
+  LldpService lldp = 4;
+  // IPFIX exporters, flowprobe and sFlow (VPP plugins).
+  IpfixService ipfix = 5;
+  // NTP client/server (chrony) — the only NTP model (D-050).
+  NtpService ntp = 6;
+  // QoS: policers, shapers, marking maps, interface attachments (D-052).
+  QosService qos = 7;
+}
 
-// IpfixService is `services.ipfix`; P02c fields are added from 1.
-message IpfixService {}
+// SocketAddress is an `{ address, port }` pair (listen sockets, collectors).
+message SocketAddress {
+  // IP address.
+  optional string address = 1;
+  // UDP/TCP port.
+  optional uint32 port = 2;
+}
 
-// ----- ha (P02c) -----
+// DhcpService is `services.dhcp`.
+message DhcpService {
+  // Kea server instances keyed by name.
+  map<string, DhcpServer> servers = 1;
+  // Relays keyed by name.
+  map<string, DhcpRelay> relays = 2;
+}
+
+// DhcpOption is one DHCP option.
+message DhcpOption {
+  // Option code (DHCPv4 1–254, DHCPv6 1–65535).
+  optional uint32 code = 1;
+  // Kea option data.
+  optional string data = 2;
+  // Send even when not requested.
+  optional bool always_send = 3;
+}
+
+// DhcpPool is one address range of a subnet.
+message DhcpPool {
+  // First address.
+  optional string start = 1;
+  // Last address.
+  optional string end = 2;
+}
+
+// DhcpReservation is `…subnets.<name>.reservations.<name>`.
+message DhcpReservation {
+  // Client MAC (exactly one of mac / duid).
+  optional string mac = 1;
+  // Client DUID (DHCPv6).
+  optional string duid = 2;
+  // Reserved address.
+  optional string ip = 3;
+  // Hostname.
+  optional string hostname = 4;
+  // Options.
+  repeated DhcpOption options = 5;
+}
+
+// DhcpSubnet is `services.dhcp.servers.<name>.subnets.<name>`.
+message DhcpSubnet {
+  // Free-text description.
+  optional string description = 1;
+  // Subnet (CIDR).
+  optional string subnet = 2;
+  // Address pools.
+  repeated DhcpPool pools = 3;
+  // Default gateway (DHCPv4).
+  optional string gateway = 4;
+  // DNS servers.
+  repeated string dns_servers = 5;
+  // NTP servers.
+  repeated string ntp_servers = 6;
+  // Domain name.
+  optional string domain_name = 7;
+  // Domain search list.
+  repeated string domain_search = 8;
+  // Lease time in seconds; unset = server default.
+  optional uint32 lease_time_sec = 9;
+  // Options.
+  repeated DhcpOption options = 10;
+  // Reservations keyed by name.
+  map<string, DhcpReservation> reservations = 11;
+}
+
+// DhcpServer is `services.dhcp.servers.<name>` (one Kea instance).
+message DhcpServer {
+  // Enabled.
+  optional bool enabled = 1;
+  // Free-text description.
+  optional string description = 2;
+  // "ipv4" | "ipv6".
+  optional string family = 3;
+  // VRF of the instance.
+  optional string vrf = 4;
+  // Interfaces the instance listens on.
+  repeated string interfaces = 5;
+  // Lease time in seconds.
+  optional uint32 lease_time_sec = 6;
+  // Renew timer T1 in seconds.
+  optional uint32 renew_timer_sec = 7;
+  // Rebind timer T2 in seconds.
+  optional uint32 rebind_timer_sec = 8;
+  // Authoritative.
+  optional bool authoritative = 9;
+  // Subnets keyed by name.
+  map<string, DhcpSubnet> subnets = 10;
+  // Global options.
+  repeated DhcpOption options = 11;
+}
+
+// DhcpRelay is `services.dhcp.relays.<name>` (VPP dhcp proxy).
+message DhcpRelay {
+  // Enabled.
+  optional bool enabled = 1;
+  // Free-text description.
+  optional string description = 2;
+  // "ipv4" | "ipv6".
+  optional string family = 3;
+  // Client-side VRF.
+  optional string vrf = 4;
+  // VRF the servers are reached in; unset = vrf.
+  optional string server_vrf = 5;
+  // Client interfaces.
+  repeated string interfaces = 6;
+  // DHCP server addresses.
+  repeated string servers = 7;
+  // Relay source address (configured in server_vrf, else vrf).
+  optional string source_address = 8;
+}
+
+// DnsService is `services.dns`.
+message DnsService {
+  // VPP dns cache plugin.
+  message VppCache {
+    // Enabled.
+    optional bool enabled = 1;
+    // Upstream name servers.
+    repeated string upstreams = 2;
+  }
+  // Unbound instances keyed by name.
+  map<string, DnsResolver> resolvers = 1;
+  // VPP dns cache; unset = not configured.
+  VppCache vpp_cache = 2;
+}
+
+// DnsUpstream is one upstream resolver.
+message DnsUpstream {
+  // Server address.
+  optional string address = 1;
+  // Port.
+  optional uint32 port = 2;
+  // DNS over TLS.
+  optional bool tls = 3;
+  // TLS server name (tls only).
+  optional string tls_server_name = 4;
+}
+
+// DnsForwardZone is one forward zone.
+message DnsForwardZone {
+  // Zone name.
+  optional string zone = 1;
+  // Forwarders.
+  repeated DnsUpstream forwarders = 2;
+  // Fall back to recursion.
+  optional bool forward_first = 3;
+}
+
+// DnsRecord is one local record.
+message DnsRecord {
+  // Owner name.
+  optional string name = 1;
+  // "A" | "AAAA" | "CNAME" | "MX" | "NS" | "PTR" | "SRV" | "TXT".
+  optional string type = 2;
+  // TTL in seconds.
+  optional uint32 ttl_sec = 3;
+  // Record data.
+  optional string data = 4;
+}
+
+// DnsLocalZone is one Unbound local zone.
+message DnsLocalZone {
+  // Zone name.
+  optional string zone = 1;
+  // Unbound local-zone type.
+  optional string type = 2;
+  // Records.
+  repeated DnsRecord records = 3;
+}
+
+// DnsAccessControl is one access-control entry.
+message DnsAccessControl {
+  // Client prefix (CIDR).
+  optional string prefix = 1;
+  // "allow" | "deny" | "refuse" | "allow_snoop".
+  optional string action = 2;
+}
+
+// DnsResolver is `services.dns.resolvers.<name>` (one Unbound instance).
+message DnsResolver {
+  // DNSSEC settings.
+  message Dnssec {
+    // Validation enabled.
+    optional bool enabled = 1;
+    // RFC 5011 automatic trust anchor.
+    optional bool trust_anchor_auto = 2;
+  }
+  // Cache settings.
+  message Cache {
+    // Minimum TTL in seconds.
+    optional uint32 min_ttl_sec = 1;
+    // Maximum TTL in seconds.
+    optional uint32 max_ttl_sec = 2;
+    // Prefetch.
+    optional bool prefetch = 3;
+    // Message cache in MB.
+    optional uint32 msg_cache_mb = 4;
+    // RRset cache in MB.
+    optional uint32 rrset_cache_mb = 5;
+  }
+  // Enabled.
+  optional bool enabled = 1;
+  // Free-text description.
+  optional string description = 2;
+  // VRF of the instance.
+  optional string vrf = 3;
+  // Listen sockets.
+  repeated SocketAddress listen = 4;
+  // Access control.
+  repeated DnsAccessControl access_control = 5;
+  // Default forwarders; empty = full recursion.
+  repeated DnsUpstream forwarders = 6;
+  // Forward zones.
+  repeated DnsForwardZone forward_zones = 7;
+  // Local zones.
+  repeated DnsLocalZone local_zones = 8;
+  // DNSSEC.
+  Dnssec dnssec = 9;
+  // Cache.
+  Cache cache = 10;
+  // Worker threads.
+  optional uint32 threads = 11;
+  // QNAME minimisation.
+  optional bool qname_minimisation = 12;
+  // Hide identity.
+  optional bool hide_identity = 13;
+  // Hide version.
+  optional bool hide_version = 14;
+  // Log queries.
+  optional bool log_queries = 15;
+}
+
+// SnmpService is `services.snmp` (one instance, bound to vrf).
+message SnmpService {
+  // Community (v1/v2c).
+  message Community {
+    // Reference to the community string (password/…), never the string.
+    optional string secret_ref = 1;
+    // "ro" | "rw".
+    optional string access = 2;
+    // Allowed source prefixes (CIDR); empty = any.
+    repeated string sources = 3;
+  }
+  // SNMPv3 USM user.
+  message V3User {
+    // "noAuthNoPriv" | "authNoPriv" | "authPriv".
+    optional string security_level = 1;
+    // "sha" | "sha256" | "sha512" | "md5".
+    optional string auth_protocol = 2;
+    // Reference to the authentication passphrase (password/…).
+    optional string auth_ref = 3;
+    // "aes" | "aes256" | "des".
+    optional string priv_protocol = 4;
+    // Reference to the privacy passphrase (password/…).
+    optional string priv_ref = 5;
+    // "ro" | "rw".
+    optional string access = 6;
+  }
+  // Trap / inform receiver.
+  message TrapReceiver {
+    // IP address or hostname.
+    optional string address = 1;
+    // UDP port.
+    optional uint32 port = 2;
+    // "v2c" | "v3".
+    optional string version = 3;
+    // Community name (v2c).
+    optional string community = 4;
+    // SNMPv3 user name (v3).
+    optional string user = 5;
+    // Send informs.
+    optional bool inform = 6;
+  }
+  // Enabled.
+  optional bool enabled = 1;
+  // Free-text description.
+  optional string description = 2;
+  // VRF of the agent.
+  optional string vrf = 3;
+  // Listen sockets; empty = all addresses of the VRF.
+  repeated SocketAddress listen = 4;
+  // Engine id (hex).
+  optional string engine_id = 5;
+  // sysName.
+  optional string sys_name = 6;
+  // sysLocation.
+  optional string sys_location = 7;
+  // sysContact.
+  optional string sys_contact = 8;
+  // Communities keyed by name.
+  map<string, Community> communities = 9;
+  // SNMPv3 users keyed by name.
+  map<string, V3User> v3_users = 10;
+  // Trap receivers.
+  repeated TrapReceiver trap_receivers = 11;
+}
+
+// LldpService is `services.lldp`.
+message LldpService {
+  // One LLDP-enabled interface.
+  message Interface {
+    // VPP interface name.
+    optional string interface = 1;
+    // Port description.
+    optional string port_description = 2;
+    // Management IPv4 address.
+    optional string mgmt_ipv4 = 3;
+    // Management IPv6 address.
+    optional string mgmt_ipv6 = 4;
+    // Management OID.
+    optional string mgmt_oid = 5;
+  }
+  // Enabled.
+  optional bool enabled = 1;
+  // System name; unset = system.hostname.
+  optional string system_name = 2;
+  // TX hold multiplier.
+  optional uint32 tx_hold = 3;
+  // TX interval in seconds.
+  optional uint32 tx_interval_sec = 4;
+  // Interfaces.
+  repeated Interface interfaces = 5;
+}
+
+// IpfixService is `services.ipfix`.
+message IpfixService {
+  // IPFIX exporter.
+  message Exporter {
+    // Enabled.
+    optional bool enabled = 1;
+    // Free-text description.
+    optional string description = 2;
+    // Collector socket.
+    SocketAddress collector = 3;
+    // Source address (configured in vrf).
+    optional string source_address = 4;
+    // VRF.
+    optional string vrf = 5;
+    // Path MTU.
+    optional uint32 path_mtu = 6;
+    // Template interval in seconds.
+    optional uint32 template_interval_sec = 7;
+    // UDP checksum.
+    optional bool udp_checksum = 8;
+  }
+  // Flowprobe settings.
+  message Flowprobe {
+    // Monitored interface.
+    message Interface {
+      // VPP interface name.
+      optional string interface = 1;
+      // "rx" | "tx" | "both".
+      optional string direction = 2;
+      // L2 flows.
+      optional bool l2 = 3;
+      // IPv4 flows.
+      optional bool ip4 = 4;
+      // IPv6 flows.
+      optional bool ip6 = 5;
+    }
+    // Active timer in seconds.
+    optional uint32 active_timer_sec = 1;
+    // Passive timer in seconds.
+    optional uint32 passive_timer_sec = 2;
+    // Record L2 fields.
+    optional bool record_l2 = 3;
+    // Record L3 fields.
+    optional bool record_l3 = 4;
+    // Record L4 fields.
+    optional bool record_l4 = 5;
+    // Monitored interfaces.
+    repeated Interface interfaces = 6;
+  }
+  // sFlow settings.
+  message Sflow {
+    // Enabled.
+    optional bool enabled = 1;
+    // Sampling rate 1 in N.
+    optional uint32 sampling_n = 2;
+    // Counter polling interval in seconds.
+    optional uint32 polling_interval_sec = 3;
+    // Sampled header bytes.
+    optional uint32 header_bytes = 4;
+    // Collectors.
+    repeated SocketAddress collectors = 5;
+    // Agent address (configured in vrf).
+    optional string agent_address = 6;
+    // VRF.
+    optional string vrf = 7;
+    // Sampled interfaces.
+    repeated string interfaces = 8;
+  }
+  // Exporters keyed by name.
+  map<string, Exporter> exporters = 1;
+  // Flowprobe.
+  Flowprobe flowprobe = 2;
+  // sFlow; unset = not configured.
+  Sflow sflow = 3;
+}
+
+// NtpService is `services.ntp` (chrony; one instance, bound to vrf).
+message NtpService {
+  // One upstream server.
+  message Server {
+    // IP address or hostname.
+    optional string address = 1;
+    // iburst.
+    optional bool iburst = 2;
+    // prefer.
+    optional bool prefer = 3;
+    // Minimum poll (log2 s).
+    optional int32 min_poll = 4;
+    // Maximum poll (log2 s).
+    optional int32 max_poll = 5;
+    // NTS.
+    optional bool nts = 6;
+    // Reference to the symmetric key (key/…).
+    optional string key_ref = 7;
+  }
+  // Server rate limit.
+  message RateLimit {
+    // Interval (log2 s).
+    optional int32 interval = 1;
+    // Burst.
+    optional uint32 burst = 2;
+    // Leak (log2).
+    optional uint32 leak = 3;
+  }
+  // NTS-KE server.
+  message NtsServer {
+    // Reference to the certificate (cert/…).
+    optional string certificate_ref = 1;
+    // Reference to the private key (key/…).
+    optional string key_ref = 2;
+    // NTS-KE port.
+    optional uint32 port = 3;
+  }
+  // Clock stepping.
+  message Makestep {
+    // Threshold in seconds.
+    optional double threshold_sec = 1;
+    // Number of updates that may step; -1 = always.
+    optional int32 limit = 2;
+  }
+  // Enabled.
+  optional bool enabled = 1;
+  // VRF.
+  optional string vrf = 2;
+  // Servers.
+  repeated Server servers = 3;
+  // Pools (hostnames).
+  repeated string pools = 4;
+  // Client prefixes served (CIDR).
+  repeated string allow = 5;
+  // Bind addresses.
+  repeated string listen = 6;
+  // Client prefixes refused (CIDR).
+  repeated string deny = 7;
+  // Server UDP port; 0 = client only.
+  optional uint32 port = 8;
+  // Rate limit; unset = none.
+  RateLimit rate_limit = 9;
+  // Local stratum; unset = none.
+  optional uint32 local_stratum = 10;
+  // Orphan mode.
+  optional bool orphan = 11;
+  // Sync the RTC.
+  optional bool rtc_sync = 12;
+  // NTS server; unset = none.
+  NtsServer nts_server = 13;
+  // Clock stepping.
+  Makestep makestep = 14;
+}
+
+// QosService is `services.qos` (VPP policer and qos plugins; HQoS excluded, V3).
+message QosService {
+  // Policers keyed by name.
+  map<string, QosPolicer> policers = 1;
+  // Shapers keyed by name.
+  map<string, QosShaper> shapers = 2;
+  // Marking maps keyed by name.
+  map<string, QosMap> maps = 3;
+  // Attachments keyed by VPP interface name.
+  map<string, QosInterface> interfaces = 4;
+}
+
+// QosPolicerAction is a conform/exceed/violate action.
+message QosPolicerAction {
+  // "transmit" | "drop" | "mark-and-transmit".
+  optional string action = 1;
+  // DSCP written by mark-and-transmit.
+  optional uint32 dscp = 2;
+}
+
+// QosPolicer is `services.qos.policers.<name>`.
+message QosPolicer {
+  // Free-text description.
+  optional string description = 1;
+  // "1r2c" | "1r3c-rfc2697" | "2r3c-rfc2698" | "2r3c-rfc4115" | "2r3c-mef5cf1".
+  optional string type = 2;
+  // "kbps" | "pps".
+  optional string rate_unit = 3;
+  // Committed information rate.
+  optional uint32 cir = 4;
+  // Excess / peak information rate (two-rate).
+  optional uint32 eir = 5;
+  // Committed burst.
+  optional uint64 cb = 6;
+  // Excess burst (three-colour).
+  optional uint64 eb = 7;
+  // "closest" | "up" | "down".
+  optional string round = 8;
+  // Colour aware.
+  optional bool color_aware = 9;
+  // Conform action.
+  QosPolicerAction conform_action = 10;
+  // Exceed action.
+  QosPolicerAction exceed_action = 11;
+  // Violate action.
+  QosPolicerAction violate_action = 12;
+}
+
+// QosShaper is `services.qos.shapers.<name>`.
+message QosShaper {
+  // Free-text description.
+  optional string description = 1;
+  // Rate in kbit/s.
+  optional uint32 rate_kbps = 2;
+  // Burst in bytes; unset = derived.
+  optional uint64 burst_bytes = 3;
+}
+
+// QosMapEntry is one row entry of a marking map.
+message QosMapEntry {
+  // Recorded value.
+  optional uint32 from = 1;
+  // Output value.
+  optional uint32 to = 2;
+}
+
+// QosMap is `services.qos.maps.<name>`.
+message QosMap {
+  // One translation table per recorded source.
+  message Rows {
+    // Recorded from ext.
+    repeated QosMapEntry ext = 1;
+    // Recorded from vlan.
+    repeated QosMapEntry vlan = 2;
+    // Recorded from mpls.
+    repeated QosMapEntry mpls = 3;
+    // Recorded from ip.
+    repeated QosMapEntry ip = 4;
+  }
+  // Free-text description.
+  optional string description = 1;
+  // VPP egress map id.
+  optional uint32 id = 2;
+  // Rows.
+  Rows rows = 3;
+}
+
+// QosInterface is `services.qos.interfaces.<vpp interface name>`.
+message QosInterface {
+  // Policers.
+  message Policer {
+    // Ingress policer name.
+    optional string input = 1;
+    // Egress policer name.
+    optional string output = 2;
+  }
+  // Store a QoS value.
+  message Store {
+    // "ext" | "vlan" | "mpls" | "ip".
+    optional string source = 1;
+    // Value.
+    optional uint32 value = 2;
+  }
+  // Mark on egress.
+  message Mark {
+    // Map name.
+    optional string map = 1;
+    // "ext" | "vlan" | "mpls" | "ip".
+    optional string output = 2;
+  }
+  // Free-text description.
+  optional string description = 1;
+  // Policers.
+  Policer policer = 2;
+  // Shaper name.
+  optional string shaper = 3;
+  // "ext" | "vlan" | "mpls" | "ip".
+  optional string record = 4;
+  // Store.
+  Store store = 5;
+  // Mark.
+  Mark mark = 6;
+}
+
+// ----- ha (P02c, mirrors packages/schema/src/domains/ha.ts) -----
 
 // HaConfig mirrors `ha`.
 message HaConfig {
-  // VRRP virtual routers (VPP vrrp plugin or keepalived). Fields land with the P02c model.
-  repeated VrrpInstance vrrp = 1;
+  // Field 1 was `repeated VrrpInstance vrrp` (array shape, before D-053).
+  reserved 1;
+  // VRRP virtual routers keyed by name (D-053).
+  map<string, VrrpInstance> vrrp = 2;
+  // Cluster membership / sync; unset = standalone.
+  HaCluster cluster = 3;
 }
 
-// VrrpInstance is one entry of `ha.vrrp`; P02c fields are added from 1.
-message VrrpInstance {}
+// VrrpInstance is `ha.vrrp.<name>`.
+message VrrpInstance {
+  // Unicast advertisements.
+  message Unicast {
+    // Peer addresses.
+    repeated string peers = 1;
+  }
+  // Tracked interface.
+  message Track {
+    // VPP interface name.
+    optional string interface = 1;
+    // Priority decrement while down.
+    optional uint32 priority_decrement = 2;
+  }
+  // Enabled.
+  optional bool enabled = 1;
+  // Free-text description.
+  optional string description = 2;
+  // VPP interface name.
+  optional string interface = 3;
+  // Virtual router id 1–255.
+  optional uint32 vr_id = 4;
+  // "ipv4" | "ipv6".
+  optional string address_family = 5;
+  // Priority 1–255.
+  optional uint32 priority = 6;
+  // Advertisement interval in ms (multiple of 10).
+  optional uint32 advertisement_interval_ms = 7;
+  // Preempt.
+  optional bool preempt = 8;
+  // Accept mode.
+  optional bool accept_mode = 9;
+  // Unicast; unset = multicast.
+  Unicast unicast = 10;
+  // Virtual addresses.
+  repeated string addresses = 11;
+  // VRF.
+  optional string vrf = 12;
+  // "vpp" | "keepalived".
+  optional string engine = 13;
+  // Tracked interfaces.
+  repeated Track track = 14;
+}
+
+// HaCluster is `ha.cluster`.
+message HaCluster {
+  // Cluster peer.
+  message Peer {
+    // Peer name.
+    optional string name = 1;
+    // Peer address.
+    optional string address = 2;
+  }
+  // State synchronisation flags.
+  message StateSync {
+    // NAT sessions.
+    optional bool nat = 1;
+    // IPsec SAs.
+    optional bool ipsec = 2;
+    // ACL sessions.
+    optional bool acl = 3;
+  }
+  // Enabled.
+  optional bool enabled = 1;
+  // This node's name.
+  optional string node_name = 2;
+  // Peers.
+  repeated Peer peers = 3;
+  // Cluster port.
+  optional uint32 port = 4;
+  // Reference to the cluster key (key/…).
+  optional string secret_ref = 5;
+  // Sync interface.
+  optional string interface = 6;
+  // VRF.
+  optional string vrf = 7;
+  // Configuration sync.
+  optional bool config_sync = 8;
+  // State sync.
+  StateSync state_sync = 9;
+}
 
 // ----- management (P02a) -----
 
@@ -970,12 +1742,14 @@ message NatPool {
   optional string name = 1;
   // Free-text description.
   optional string description = 2;
-  // IPv4 address range "a.b.c.d-a.b.c.e" (a single address is "a.b.c.d").
+  // IPv4 address range "a.b.c.d-a.b.c.e" (a single address is "a.b.c.d"); exactly one of range / interface.
   optional string range = 3;
-  // VRF name; unset = "default".
+  // VRF name; unset = "default". Range pools only.
   optional string vrf = 4;
   // Addresses used for the source side of twice-NAT mappings.
   optional bool twice_nat = 5;
+  // Use the address configured on this VPP interface (nat44_add_del_interface_addr); exactly one of range / interface.
+  optional string interface = 6;
 }
 
 // NatStaticMapping mirrors one entry of `nat.staticMappings`.
@@ -987,7 +1761,7 @@ message NatStaticMapping {
     // Local L4 port; unset = 1:1 address mapping.
     optional uint32 port = 2;
   }
-  // External endpoint; exactly one of ip / interface.
+  // External endpoint; exactly one of ip / pool / interface.
   message External {
     // External IPv4 address.
     optional string ip = 1;
@@ -995,6 +1769,8 @@ message NatStaticMapping {
     optional string interface = 2;
     // External L4 port; requires `protocol`.
     optional uint32 port = 3;
+    // Name of an entry in nat.pools; its start address (range pool) or interface address is used.
+    optional string pool = 4;
   }
   // Mapping name (unique within nat.staticMappings).
   optional string name = 1;
@@ -1304,12 +2080,22 @@ message MapParameters {
   PreResolve pre_resolve = 7;
 }
 
+// MapInterface mirrors one entry of `nat.map.interfaces` (map_if_enable_disable).
+message MapInterface {
+  // VPP interface name.
+  optional string interface = 1;
+  // "map-e" (encapsulation; MAP-E and lw4o6 domains) | "map-t" (translation, is_translation).
+  optional string mode = 2;
+}
+
 // MapConfig mirrors `nat.map`.
 message MapConfig {
   // Domains.
   repeated MapDomain domains = 1;
   // Plugin-wide parameters.
   MapParameters parameters = 2;
+  // Interfaces MAP runs on.
+  repeated MapInterface interfaces = 3;
 }
 
 // CnatEndpoint is an address + port pair used by CNAT.
@@ -1346,13 +2132,17 @@ message CnatConfig {
       optional string ipv4 = 1;
       // IPv6 SNAT address.
       optional string ipv6 = 2;
+      // Take the SNAT addresses from this VPP interface (cnat_set_snat_addresses.sw_if_index).
+      optional string interface = 3;
     }
     // One policy interface.
     message PolicyInterface {
+      reserved 2;
+      reserved "side";
       // VPP interface name.
       optional string interface = 1;
-      // "inside" | "outside".
-      optional string side = 2;
+      // cnat_snat_policy_table: "include-v4" | "include-v6" | "pod" | "host".
+      optional string table = 3;
     }
     // "none" | "interface" | "k8s".
     optional string policy = 1;
@@ -1700,10 +2490,10 @@ message HostAttachment {
   optional string description = 5;
 }
 
-// ----- vpn (P02c, mirrors task/P02c@b815d15) -----
+// ----- vpn (P02c, mirrors packages/schema/src/domains/vpn.ts) -----
 //
-// Secrets never appear here: `*_ref` fields are references into the API's secret store
-// (00-CONTEXT rule 10); the agent resolves them through its own channel, never logs them.
+// Secrets never appear here: `*_ref` fields are references `<kind>/<name>` into the API's secret
+// store (00-CONTEXT rule 10, D-051); the agent resolves them through its own channel, never logs them.
 
 // VpnConfig mirrors `vpn`.
 message VpnConfig {
@@ -1807,7 +2597,7 @@ message IpsecTunnel {
   optional string mode = 5;
   // "esp" | "ah".
   optional string protocol = 6;
-  // Local address (configured on an interface in `vrf`).
+  // Local address (configured on an interface in `underlay_vrf`).
   optional string local_addr = 7;
   // Remote address: IP, hostname or "%any" (responder only).
   optional string remote_addr = 8;
@@ -1837,7 +2627,7 @@ message IpsecTunnel {
   optional string start_action = 20;
   // "none" | "start" | "trap".
   optional string close_action = 21;
-  // VRF name (first-class, vdom.md #1).
+  // Overlay VRF: FIB the traffic selectors apply to / the protected IPIP interface belongs to (vdom.md #1).
   optional string vrf = 22;
   // Route-based settings; unset = policy-based.
   RouteBased route_based = 23;
@@ -1845,6 +2635,8 @@ message IpsecTunnel {
   optional bool esn = 24;
   // Anti-replay.
   optional bool anti_replay = 25;
+  // FIB IKE/ESP run in (outer packets); local_addr is configured in it. `vrf` is the overlay (F4).
+  optional string underlay_vrf = 26;
 }
 
 // IpsecSettings mirrors `vpn.ipsec.settings`.
@@ -2051,4 +2843,6 @@ message RemoteAccessProfile {
   IpsecDpd dpd = 14;
   // Rekeying.
   IpsecRekey rekey = 15;
+  // FIB IKE/ESP run in (outer packets); local_addr is configured in it. `vrf` is the overlay (F4).
+  optional string underlay_vrf = 16;
 }

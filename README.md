@@ -1,4 +1,6 @@
-# VRX — an open-source TNSR-class secure router platform
+# NGFW / VRX — an open-source TNSR-class secure router platform
+
+> Repository home: `root@172.30.126.195:/root/ngfw`. Dev/CI host; the lab is VMware VMs with VPP 26.06 + DPDK on vmxnet3.
 
 > `VRX` is a placeholder codename. Replace it everywhere before starting.
 > Alternatives: ParsRouter, NovaEdge, Hyperion, TerraNode, SepehrGate.
@@ -29,6 +31,7 @@ Node.js control plane with a React + MUI web UI.
 | [wbs/VRX-WBS-msproject.csv](wbs/VRX-WBS-msproject.csv) | MS Project / generic CSV: work, duration, start, finish, resources, dependencies |
 | [docs/09-os-packages.md](docs/09-os-packages.md) | **بسته‌های سیستم‌عامل (فارسی)** — سه پروفایل Runtime/Build/Lab، مخازن APT، تنظیم کرنل و hugepage، آنچه نباید نصب شود |
 | [scripts/](scripts/) | Runnable installers: `00-add-repos.sh`, `10-install-runtime.sh`, `20-install-build.sh`, `25-build-strongswan-vpp.sh`, `30-tune-dataplane.sh`, `40-install-lab.sh` |
+| [docs/decisions/os.md](docs/decisions/os.md) | Open decision: appliance OS (24.04 with FD.io packages vs 26.04 with source build) |
 | [docs/10-30-day-agent-plan-fa.md](docs/10-30-day-agent-plan-fa.md) | **برنامهٔ ۳۰ روزهٔ ایجنت‌محور (فارسی)** — چه چیزی شدنی است و چه نه، مدل اجرا با ایجنت‌های موازی، ۱۶ موج، گیت‌های انسانی |
 | [prompts/](prompts/) | **Agent prompts** — `00-CONTEXT.md` shared preamble, P01–P14 task prompts, `FEATURE-TEMPLATE.md`, `REVIEW-PROMPT.md`, `INTEGRATOR-PROMPT.md`, filled examples in `features/` |
 | [docs/11-compressed-plan-fa.md](docs/11-compressed-plan-fa.md) | **طرح فشردهٔ ۲۱ روزه (فارسی)** — جای طرح ۳۰ روزه؛ VM به‌جای Docker، وضعیت دقیق هر ۱۰۲ قلم (✅/🟡/🔧/⏳/❌)، ترک جدای کد VPP (V1–V6)، سیاست تست فشرده |

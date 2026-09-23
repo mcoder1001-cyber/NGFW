@@ -5,7 +5,7 @@
 
 | تغییر | قبل | حالا |
 |---|---|---|
-| محیط | Docker | **VM (QEMU/KVM + libvirt)** با DPDK روی virtio — همان مسیر سخت‌افزار |
+| محیط | Docker | **VM های VMware** با DPDK روی vmxnet3 — همان مسیر سخت‌افزار |
 | اعتبارسنجی | آزمایشگاه، TRex، soak، گواهی‌نامه | **فقط تأیید پیکربندی روی VPP** (`Retrieve` = desired و `vppctl show`)؛ گذردهی بعد از هفتهٔ ۳ و فقط اگر کد VPP تغییر کند |
 | تست | ۹ شرط DoD برای هر قابلیت | unit فقط برای هستهٔ تراکنشی؛ بقیه یک چک پیکربندی؛ E2E فقط مسیر ورود→commit |
 | دامنه | Tier-1 + بخشی از T2 | **هر قابلیتی که با پیکربندی VPP/FRR/strongSwan/Kea قابل انجام است** — T1+T2+T3 |
@@ -34,7 +34,7 @@
 
 | روز | لِین‌های موازی | خروجی روز |
 |---|---|---|
-| **۱** | P01 اسکلت · P04 محیط VM · P02 schema ×۳ ایجنت (تقسیم دامنه: زیرساخت/L2/L3 — NAT/ACL/اشیا — VPN/سرویس/مسیریابی/عملیات/سیستم) · P03 proto ×۲ · P09 CI-lite | VM ها بالا، VPP 26.06 با DPDK روی virtio، پیش‌نویس کامل schema برای **همهٔ** دامنه‌ها |
+| **۱** | P01 اسکلت · P04 محیط VM · P02 schema ×۳ ایجنت (تقسیم دامنه: زیرساخت/L2/L3 — NAT/ACL/اشیا — VPN/سرویس/مسیریابی/عملیات/سیستم) · P03 proto ×۲ · P09 CI-lite | VM ها بالا، VPP 26.06 با DPDK روی vmxnet3، پیش‌نویس کامل schema برای **همهٔ** دامنه‌ها |
 | **۲** | ادامهٔ P02/P03 · بازبینی انسانی قرارداد · P05/P06/P07 شروع روی پیش‌نویس | **قفل قرارداد پایان روز ۲** · تصمیم چنداجاره‌ای (D10.1) همین روز |
 | **۳–۵** | P05 هستهٔ agent · P06 هستهٔ API · P07 پوستهٔ UI · **کارخانهٔ descriptor** ×۸ ایجنت (هر ایجنت چند پلاگین VPP: interface/l2/bond · ip/ip_neighbor/urpf/abf · nat44_ed/ei/64/66/det44/map/cnat · acl/macip · ipsec/ikev2/wireguard · gre/ipip/vxlan/gpe/gtpu/l2tp/pppoe/sr/lisp · policer/qos/lb/span/lldp/bfd/vrrp/igmp/mpls · dhcp/dns/flowprobe/sflow/prom/pcap) · **کارخانهٔ renderer** ×۴ (frr · strongSwan · kea+unbound+chrony · snmpd+keepalived+rsyslog) | descriptor ها با `Retrieve` علیه binapi نوشته شده‌اند ولی هنوز به هم وصل نیستند |
 | **۶** | P08 اسلایس عمودی · یکپارچه‌ساز | پینگ از VPP، شمارندهٔ زنده، commit/rollback، `kill -9 vpp` → بازسازی |
@@ -85,7 +85,7 @@
 | D1.2 پایهٔ اینترفیس | ✅ | ۶ | |
 | D1.3 آدرس‌دهی/unnumbered | ✅ | ۶ | |
 | D1.4 VLAN/QinQ | ✅ | ۷ | |
-| D1.5 bonding/LACP | ✅ | ۷ | LACP روی virtio تست می‌شود؛ رفتار با سوییچ واقعی ⏳ |
+| D1.5 bonding/LACP | ✅ | ۷ | LACP روی vmxnet3 تست می‌شود؛ رفتار با سوییچ واقعی ⏳ |
 | D1.6 L2 | ✅ | ۷ | |
 | D1.7 LLDP | ✅ | ۷ | |
 | D1.8 GSO/offload | ⏳ | ۷ | پیکربندی ✅؛ اثر واقعی offload فقط روی NIC فیزیکی |
@@ -210,28 +210,25 @@
 
 ---
 
-## ۶. محیط VM
+## ۶. محیط آزمایشگاه — VM های VMware
 
 | جزء | انتخاب |
 |---|---|
-| هایپروایزر | QEMU/KVM + libvirt روی یک سرور توسعه (۳۲+ هسته، ۶۴+ GB) — هر ایجنت یک VM اختصاصی برای smoke و یک توپولوژی مشترک شبانه |
-| ایمیج پایه | Ubuntu 24.04 cloud image + cloud-init nocloud؛ VPP 26.06 از `fdio/2606`؛ همان بسته‌های `scripts/10-install-runtime.sh` |
-| دیتاپلین در VM | **DPDK روی virtio-pci با `uio_pci_generic`** (یا vfio-noiommu) + ۲ hugepage یک‌گیگی — همان مسیر کد سخت‌افزار؛ روز انتقال فقط PCI whitelist و درایور عوض می‌شود |
-| توپولوژی | شبکه‌های ایزولهٔ libvirt = سگمنت L2: `mgmt`، `lan`، `wan`، `dmz`، `p2p-ab`، `p2p-bc` |
-| VM ها | `vrx-a` `vrx-b` `vrx-c` (روتر) · `host-lan` `host-wan` (scapy/iperf3) · `peer-frr` · `peer-sswan` |
-| ابزار | `tools/lab` (bash/Go): `up`, `down`, `snapshot`, `restore`, `restart-vpp <vm>`, `ssh <vm>`, `vppctl <vm> …`, `topology <name>` |
-| CI | همان `tools/lab` روی runner با KVM تودرتو یا سرور فیزیکی CI |
+| میزبان توسعه/CI | `172.30.126.195` (Ubuntu 26.04، ۳۰ vCPU، ۳۹ GB، ۱۹۷ GB) — خودش VM روی VMware است، **بدون nested KVM**؛ فقط بیلد، CI و راندن آزمایشگاه از راه SSH. مخزن در `/root/ngfw` |
+| روترها | VM های جدا روی همان vSphere: `vrx-a/b/c` (۴ vCPU، ۶ GB، ۴ کارت vmxnet3) — **VPP 26.06 + پلاگین DPDK روی vmxnet3** (همان مسیر سخت‌افزار؛ روز انتقال فقط PCI whitelist و درایور عوض می‌شود) |
+| همتاها | `host-lan` `host-wan` (scapy/iperf3) · `peer-frr` · `peer-sswan` — ۱ vCPU، ۱ GB |
+| سگمنت‌ها | port group های vSphere: `mgmt`، `lan`، `wan`، `dmz`، `p2p-ab`، `p2p-bc` |
+| ابزار | `tools/lab` روی SSH (+ `govc` اختیاری برای snapshot/restore و ساخت VM): `up`, `down`, `status`, `provision`, `restart-vpp`, `kill-vpp`, `vppctl`, `snapshot`, `restore` |
+| سیستم‌عامل روتر | تصمیم ثبت‌شده در `docs/decisions/os.md` (24.04 با بستهٔ packagecloud، یا 26.04 با بیلد از سورس) |
 
-انتقال به سخت‌افزار = همان ایمیج ISO روی سرور فیزیکی + مولد startup.conf با PCI واقعی. هیچ
-مسیر کدی «مخصوص VM» وجود ندارد.
-
----
+بدون Docker، بدون libvirt، بدون VM تودرتو. انتقال به سخت‌افزار = همان ISO روی سرور فیزیکی +
+مولد startup.conf با PCI واقعی.
 
 ## ۷. فرض‌ها و ریسک‌های این فشردگی
 
 1. **دو انسان تمام‌وقت** برای بازبینی و merge؛ کمتر از این = زمان بیشتر، نه ایجنت بیشتر.
 2. **قرارداد در روز ۲ قفل می‌شود** حتی اگر ناقص باشد؛ کمبودها با PR برچسب `contract` و تأیید انسانی.
 3. **کیفیت = «پیکربندی درست روی VPP»**، نه پایداری تحت بار. باگ‌های همزمانی و نشتی در روز ۲۱ کشف نشده‌اند.
-4. **سرور توسعهٔ قوی از روز ۱** (۳۲ هسته، ۶۴ GB، KVM) — بدون آن کارخانهٔ descriptor موازی نمی‌شود.
+4. **سرور توسعهٔ قوی از روز ۱** (میزبان ۱۷۲.۳۰.۱۲۶.۱۹۵ + VM های آزمایشگاه روی vSphere) — بدون آن کارخانهٔ descriptor موازی نمی‌شود.
 5. هزینهٔ توکن ایجنت‌ها در این ۲۱ روز قابل‌توجه است؛ برای ۱۵ لِین × ۱۵ روز بودجه بگذارید.
 6. پس از روز ۲۱، هرچه ⏳ است روی سخت‌افزار خودش را نشان می‌دهد — به‌خصوص D0.6، D1.1، D3.1.

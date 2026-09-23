@@ -53,7 +53,7 @@ packages/schema Zod schemas → types/OpenAPI/JSON Schema
 packages/proto  .proto + generated Go/TS stubs
 packages/api-client  GENERATED TS client — never hand-edit
 packages/ui-kit MUI theme, SchemaForm, DataGrid wrapper, charts
-deploy/         dev helpers, debian/, systemd units, image build   tools/lab   VM lab (QEMU/KVM)
+deploy/         dev helpers, debian/, systemd units, image build   tools/lab   VMware lab driver (SSH/govc)
 test/           integration (testcontainers+VPP), topology (containerlab), e2e (playwright)
 docs/           design docs
 ```
@@ -85,7 +85,7 @@ docs/           design docs
 
 1. Read this file, then `docs/00-MASTER-PROMPT.md`, `docs/01-architecture.md`,
    `docs/04-api-datamodel.md` and the contracts in `packages/schema` and `packages/proto`.
-2. `tools/lab up single` gives a router VM (VPP 26.06 + DPDK on virtio, FRR/Kea/Unbound installed) plus host-lan/host-wan VMs; postgres and valkey run on the dev host or in the router VM (see P04).
+2. `tools/lab up single` provisions the pre-created VMware VMs: a router (VPP 26.06 + DPDK on vmxnet3, FRR/Kea/Unbound installed) plus host-lan/host-wan; postgres and valkey run on the dev host or in the router VM (see P04).
 3. Work only inside your task's scope. If you find you need a contract change, stop and
    open a separate PR labelled `contract` with the reasoning — do not silently change it.
 4. Run the full check before declaring done: `pnpm lint && pnpm typecheck && pnpm test`
@@ -106,8 +106,9 @@ docs/           design docs
 
 We are running the compressed 21-day plan (`docs/11-compressed-plan-fa.md`). Rules:
 
-- **Environment is VMs, never Docker.** `tools/lab` (QEMU/KVM + libvirt) runs VPP 26.06
-  with DPDK on virtio NICs — the hardware code path. Do not add Dockerfiles or compose files.
+- **Environment is VMware VMs, never Docker, never nested KVM.** `tools/lab` drives them over
+  SSH (govc optional); VPP 26.06 runs with DPDK on vmxnet3 — the hardware code path. The dev/CI
+  host is `172.30.126.195`, repo `/root/ngfw`, user root. Do not add Dockerfiles or compose files.
 - **No C code in VPP. Ever, in this plan.** If your task seems to need a VPP plugin change or
   patch, STOP, write the reason into `docs/vpp-code-track.md` under the matching V1–V6 item
   (or a new one), implement the best configuration-only fallback, and say so in the PR.

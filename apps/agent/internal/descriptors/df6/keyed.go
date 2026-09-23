@@ -29,6 +29,9 @@ type KeyedSpec[T proto.Message] struct {
 	List func(ctx context.Context, c vpp.Client) ([]T, error)
 	// Owns filters List for Retrieve (nil = everything is ours).
 	Owns func(obj T) bool
+	// WriteOnly: List cannot read everything the diff needs, so Retrieve returns
+	// ErrRetrieveUnsupported; List still serves Delete's (and Present's) existence check by ID.
+	WriteOnly bool
 	// Update changes what can change in place (nil or false → scheduler.ErrRecreate).
 	Update func(ctx context.Context, c vpp.Client, oldObj, newObj T) (bool, error)
 }
@@ -137,8 +140,30 @@ func (d *KeyedDescriptor[T]) Delete(ctx context.Context, obj proto.Message, _ an
 	return nil
 }
 
+// Present reports whether VPP has the object of obj's id.
+func (d *KeyedDescriptor[T]) Present(ctx context.Context, obj proto.Message) (bool, error) {
+	t, err := d.cast(obj)
+	if err != nil {
+		return false, err
+	}
+	all, err := d.spec.List(ctx, d.client)
+	if err != nil {
+		return false, PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
+	}
+	id := d.spec.ID(t)
+	for _, a := range all {
+		if d.spec.ID(a) == id {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // Retrieve implements scheduler.Descriptor.
 func (d *KeyedDescriptor[T]) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+	if d.spec.WriteOnly {
+		return nil, fmt.Errorf("%s: %w", d.spec.Name, ErrRetrieveUnsupported)
+	}
 	all, err := d.spec.List(ctx, d.client)
 	if err != nil {
 		return nil, PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))

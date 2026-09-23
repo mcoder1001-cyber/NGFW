@@ -223,7 +223,11 @@ func newFake() *fakeLISP {
 			if (r.Filter == lispapi.LISP_LOCATOR_SET_FILTER_API_LOCAL) != m.local {
 				continue
 			}
-			out = append(out, &lispapi.LispEidTableDetails{LocatorSetIndex: m.lsIdx, Action: m.action, IsLocal: m.local, Vni: m.vni, Deid: m.eid})
+			idx := m.lsIdx
+			if len(f.locs[idx]) == 0 {
+				idx = ^uint32(0) // VPP reports ~0 for a locator set without locators
+			}
+			out = append(out, &lispapi.LispEidTableDetails{LocatorSetIndex: idx, Action: m.action, IsLocal: m.local, Vni: m.vni, Seid: m.eid})
 		}
 		return out, nil
 	})
@@ -423,9 +427,8 @@ func TestLISP(t *testing.T) {
 		if _, err := s.d.Create(ctx, s.obj); err != nil {
 			t.Fatalf("create %s: %v", s.key, err)
 		}
-		got := mustRetrieve(t, s.d)
-		if !proto.Equal(got[s.key], s.obj) {
-			t.Fatalf("Retrieve %s = %v, want %v", s.key, got[s.key], s.obj)
+		if !observed(t, s.d, s.obj) {
+			t.Fatalf("%s not observed after create", s.key)
 		}
 	}
 	if got := mustRetrieve(t, steps[0].d); len(got) != 1 {
@@ -444,8 +447,8 @@ func TestLISP(t *testing.T) {
 				t.Fatalf("delete %s: %v", steps[i].key, err)
 			}
 		}
-		if got := mustRetrieve(t, steps[i].d); got[steps[i].key] != nil {
-			t.Fatalf("%s still retrieved", steps[i].key)
+		if observedAny(t, steps[i].d, steps[i].obj) {
+			t.Fatalf("%s still present", steps[i].key)
 		}
 	}
 	if err := en.Delete(ctx, &lisp.Enable{}, nil); err != nil || f.on {
@@ -479,4 +482,57 @@ func equalKeys(a, b []scheduler.Key) bool {
 		}
 	}
 	return true
+}
+
+// presence is implemented by the write-only descriptors (lisp-gpe.fwd-entry).
+type presence interface {
+	Present(ctx context.Context, obj proto.Message) (bool, error)
+}
+
+// observed: Retrieve returns obj exactly, or — for a write-only descriptor — Present says
+// it exists.
+func observed(t *testing.T, d scheduler.Descriptor, obj proto.Message) bool {
+	t.Helper()
+	kvs, err := d.Retrieve(context.Background())
+	if errors.Is(err, df6.ErrRetrieveUnsupported) {
+		ok, perr := d.(presence).Present(context.Background(), obj)
+		if perr != nil {
+			t.Fatal(perr)
+		}
+		return ok
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, kv := range kvs {
+		if kv.Key == d.KeyOf(obj) {
+			if !proto.Equal(kv.Value, obj) {
+				t.Errorf("Retrieve %s = %v, want %v", kv.Key, kv.Value, obj)
+			}
+			return true
+		}
+	}
+	return false
+}
+
+// observedAny: obj's key is still in VPP (by Retrieve or Present).
+func observedAny(t *testing.T, d scheduler.Descriptor, obj proto.Message) bool {
+	t.Helper()
+	kvs, err := d.Retrieve(context.Background())
+	if errors.Is(err, df6.ErrRetrieveUnsupported) {
+		ok, perr := d.(presence).Present(context.Background(), obj)
+		if perr != nil {
+			t.Fatal(perr)
+		}
+		return ok
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, kv := range kvs {
+		if kv.Key == d.KeyOf(obj) {
+			return true
+		}
+	}
+	return false
 }

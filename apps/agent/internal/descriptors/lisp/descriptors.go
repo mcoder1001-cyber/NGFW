@@ -229,8 +229,12 @@ func NewLocalEid(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*LocalEid]
 			if err != nil {
 				return nil, err
 			}
-			if err := checkName(e.GetLocatorSet()); err != nil {
-				return nil, err
+			// An empty locator_set is accepted here only so that a retrieved mapping whose
+			// set VPP reports as ~0 can still be deleted; Add requires it.
+			if e.GetLocatorSet() != "" {
+				if err := checkName(e.GetLocatorSet()); err != nil {
+					return nil, err
+				}
 			}
 			out := proto.Clone(e).(*LocalEid)
 			out.Eid = eid
@@ -241,8 +245,27 @@ func NewLocalEid(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*LocalEid]
 			deps := []scheduler.Dependency{{Key: LocatorSetKey(e.GetLocatorSet())}, {Key: EnableKey}}
 			return append(deps, eidTableMapDeps(e.GetVni(), e.GetEid())...)
 		},
-		Add: func(ctx context.Context, c vpp.Client, e *LocalEid) error { return addDel(ctx, c, e, true) },
-		Del: func(ctx context.Context, c vpp.Client, e *LocalEid) error { return addDel(ctx, c, e, false) },
+		Add: func(ctx context.Context, c vpp.Client, e *LocalEid) error {
+			if err := checkName(e.GetLocatorSet()); err != nil {
+				return err
+			}
+			return addDel(ctx, c, e, true)
+		},
+		Del: func(ctx context.Context, c vpp.Client, e *LocalEid) error {
+			if e.GetLocatorSet() == "" {
+				// VPP's delete only needs *a* valid locator-set name for its lookup.
+				sets, err := locatorSets(ctx, c)
+				if err != nil {
+					return err
+				}
+				for _, n := range sets {
+					e = proto.Clone(e).(*LocalEid)
+					e.LocatorSet = n
+					break
+				}
+			}
+			return addDel(ctx, c, e, false)
+		},
 		List: func(ctx context.Context, c vpp.Client) ([]*LocalEid, error) {
 			recs, err := eidTable(ctx, c, lispapi.LISP_LOCATOR_SET_FILTER_API_LOCAL)
 			if err != nil {
@@ -254,17 +277,18 @@ func NewLocalEid(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*LocalEid]
 			}
 			var out []*LocalEid
 			for _, r := range recs {
-				eid := eidString(r.Deid)
+				eid := mappingEID(r)
 				if !r.IsLocal || eid == "" {
 					continue
 				}
+				// VPP reports locator_set_index ~0 when the set has no locators; the name
+				// is then unknown ("") and Retrieve differs from desired until a locator
+				// is added (docs/agent/descriptors/lisp.md).
 				out = append(out, &LocalEid{Vni: r.Vni, Eid: eid, LocatorSet: sets[r.LocatorSetIndex]})
 			}
 			return out, nil
 		},
-		Owns: func(e *LocalEid) bool {
-			return scope.OwnsName(e.GetLocatorSet()) && ownsEID(scope, e.GetEid(), e.GetVni())
-		},
+		Owns: func(e *LocalEid) bool { return ownsEID(scope, e.GetEid(), e.GetVni()) },
 	}, c)
 }
 
@@ -431,7 +455,7 @@ func NewRemoteMapping(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*Remo
 			}
 			var out []*RemoteMapping
 			for _, r := range recs {
-				eid := eidString(r.Deid)
+				eid := mappingEID(r)
 				if r.IsLocal || eid == "" || r.IsSrcDst {
 					continue
 				}
@@ -694,6 +718,20 @@ func NewGpeFwdEntry(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*GpeFwd
 		},
 		List: func(ctx context.Context, c vpp.Client) ([]*GpeFwdEntry, error) {
 			svc := gpeapi.NewServiceClient(c)
+			// Entries the LISP control plane programs for its adjacencies belong to
+			// lisp.adjacency, not to this descriptor.
+			cp := map[string]bool{}
+			if on, _, err := status(ctx, c); err == nil && on {
+				if vnis, err := eidVNIs(ctx, c); err == nil {
+					for _, v := range vnis {
+						if rep, err := lispapi.NewServiceClient(c).LispAdjacenciesGet(ctx, &lispapi.LispAdjacenciesGet{Vni: v}); err == nil {
+							for _, a := range rep.Adjacencies {
+								cp[df6.U32(v)+"/"+eidString(a.Reid)+"/"+eidString(a.Leid)] = true
+							}
+						}
+					}
+				}
+			}
 			vr, err := svc.GpeFwdEntryVnisGet(ctx, &gpeapi.GpeFwdEntryVnisGet{})
 			if err != nil {
 				return nil, fmt.Errorf("gpe_fwd_entry_vnis_get: %w", err)
@@ -706,29 +744,19 @@ func NewGpeFwdEntry(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*GpeFwd
 				}
 				for _, fe := range er.Entries {
 					e := &GpeFwdEntry{Vni: fe.Vni, DpTable: fe.DpTable, Reid: eidString(fe.Reid), Leid: eidString(fe.Leid), Action: uint32(fe.Action)}
-					stream, err := svc.GpeFwdEntryPathDump(ctx, &gpeapi.GpeFwdEntryPathDump{FwdEntryIndex: fe.FwdEntryIndex})
-					if err != nil {
-						return nil, fmt.Errorf("gpe_fwd_entry_path_dump: %w", err)
+					if cp[df6.U32(e.GetVni())+"/"+e.GetReid()+"/"+e.GetLeid()] {
+						continue
 					}
-					paths, err := df6.Collect(stream.Recv)
-					if err != nil {
-						return nil, fmt.Errorf("gpe_fwd_entry_path_dump: %w", err)
-					}
-					for _, p := range paths {
-						e.Pairs = append(e.Pairs, &LocatorPair{Local: df6.FromAddress(p.LclLoc.Addr).String(), Remote: df6.FromAddress(p.RmtLoc.Addr).String(), Weight: uint32(p.LclLoc.Weight)})
-					}
-					if len(e.Pairs) > 0 {
-						e.Action = 0
-					}
-					slices.SortFunc(e.Pairs, func(a, b *LocatorPair) int {
-						return strings.Compare(a.GetLocal()+" "+a.GetRemote(), b.GetLocal()+" "+b.GetRemote())
-					})
+					// gpe_fwd_entry_path_dump is unusable in VPP 26.06 (V9: its details carry
+					// the message id without the plugin base), so pairs cannot be read back
+					// and the descriptor is write-only (WriteOnly below).
 					out = append(out, e)
 				}
 			}
 			return out, nil
 		},
-		Owns: func(e *GpeFwdEntry) bool { return ownsEID(scope, e.GetReid(), e.GetVni()) },
+		Owns:      func(e *GpeFwdEntry) bool { return ownsEID(scope, e.GetReid(), e.GetVni()) },
+		WriteOnly: true,
 	}, c)
 }
 
@@ -746,4 +774,13 @@ func Register(r scheduler.Registry, c vpp.Client, scope *df6.Scope) {
 	r.Register(NewAdjacency(c, scope))
 	r.Register(NewPitr(c))
 	r.Register(NewGpeFwdEntry(c, scope))
+}
+
+// mappingEID is the EID of a non-src/dst mapping: VPP encodes it in seid (deid is only
+// used, with seid, for src/dst mappings).
+func mappingEID(r *lispapi.LispEidTableDetails) string {
+	if r.IsSrcDst {
+		return ""
+	}
+	return eidString(r.Seid)
 }

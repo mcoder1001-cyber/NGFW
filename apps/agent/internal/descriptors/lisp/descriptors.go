@@ -642,7 +642,7 @@ func NewGpeFwdEntry(c vpp.Client, scope *df6.Scope) *df6.KeyedDescriptor[*GpeFwd
 		for _, p := range e.GetPairs() {
 			l, _ := df6.AddressOf(p.GetLocal())
 			rm, _ := df6.AddressOf(p.GetRemote())
-			r.Locs = append(r.Locs, gpeapi.GpeLocator{Weight: uint8(p.GetWeight()), Addr: l}) //nolint:gosec // ≤ 255
+			r.Locs = append(r.Locs, gpeapi.GpeLocator{Weight: uint8(p.GetWeight()), Addr: l})  //nolint:gosec // ≤ 255
 			remote = append(remote, gpeapi.GpeLocator{Weight: uint8(p.GetWeight()), Addr: rm}) //nolint:gosec // ≤ 255
 		}
 		r.Locs = append(r.Locs, remote...)

@@ -67,7 +67,9 @@ func NewEncapHopLimit(c vpp.Client) *EncapHopLimitDescriptor {
 			}
 			return nil
 		},
-		Set:   func(ctx context.Context, c vpp.Client, h *EncapHopLimit) error { return set(ctx, c, h.GetHopLimit()) },
-		Unset: func(ctx context.Context, c vpp.Client, _ *EncapHopLimit) error { return set(ctx, c, DefaultEncapHopLimit) },
+		Set: func(ctx context.Context, c vpp.Client, h *EncapHopLimit) error { return set(ctx, c, h.GetHopLimit()) },
+		Unset: func(ctx context.Context, c vpp.Client, _ *EncapHopLimit) error {
+			return set(ctx, c, DefaultEncapHopLimit)
+		},
 	}, c)
 }

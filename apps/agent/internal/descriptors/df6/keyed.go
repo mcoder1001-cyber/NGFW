@@ -8,6 +8,7 @@ import (
 
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // KeyedSpec describes an object type that is not an interface and carries no owner tag (SR
@@ -118,7 +119,7 @@ func (d *KeyedDescriptor[T]) find(ctx context.Context, t T) (T, bool, error) {
 
 // holder is the claim holder for the running VPP instance.
 func (d *KeyedDescriptor[T]) holder(ctx context.Context) (string, error) {
-	boot, err := BootID(ctx, d.client)
+	boot, err := bootid.Current(ctx, d.client)
 	if err != nil {
 		return "", err
 	}
@@ -126,11 +127,11 @@ func (d *KeyedDescriptor[T]) holder(ctx context.Context) (string, error) {
 }
 
 // KeyedHolder is the claim holder of keyed descriptor name on VPP instance boot.
-func KeyedHolder(name, boot string) string { return BootHolder(name, boot) }
+func KeyedHolder(name string, boot bootid.Identity) string { return BootHolder(name, boot) }
 
 // ClaimedNow reports whether id of descriptor name is claimed by this owner on the running VPP.
 func ClaimedNow(ctx context.Context, c vpp.Client, claims ClaimStore, name, id string) (bool, error) {
-	boot, err := BootID(ctx, c)
+	boot, err := bootid.Current(ctx, c)
 	if err != nil {
 		return false, err
 	}

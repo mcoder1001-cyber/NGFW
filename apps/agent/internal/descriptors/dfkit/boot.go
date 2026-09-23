@@ -11,10 +11,12 @@ import (
 
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // BootRecord says that this owner applied an object to the VPP instance with the D-080 boot
-// identity Identity (BootIdentity), with the given canonical value (JSON).
+// identity Identity (bootid.Identity.String of BootIdentity), with the given canonical value
+// (JSON). A record in another format (pre-D-080 PID only) never matches: re-added once.
 type BootRecord struct {
 	Key      string `json:"key"`
 	Identity string `json:"identity"`
@@ -168,14 +170,14 @@ func (s *FileBootStore) flush(m map[string]BootRecord) error {
 }
 
 // AppliedThisBoot reports whether store holds exactly value for key on the running VPP instance,
-// and returns the current boot identity for a following Record.
+// and returns the current boot identity (encoded, for a following BootRecord).
 func AppliedThisBoot(ctx context.Context, c vpp.Client, store BootStore, key scheduler.Key, value string) (bool, string, error) {
 	id, err := IdentitySource(ctx, c)
 	if err != nil {
 		return false, "", err
 	}
 	r, ok := store.Get(string(key))
-	return ok && r.Identity == id && r.Value == value, id, nil
+	return ok && bootid.Matches(r.Identity, id) && r.Value == value, id.String(), nil
 }
 
 // StartedThisBoot reports whether store has any record for key on the running VPP instance.
@@ -185,7 +187,7 @@ func StartedThisBoot(ctx context.Context, c vpp.Client, store BootStore, key sch
 		return false, err
 	}
 	r, ok := store.Get(string(key))
-	return ok && r.Identity == id, nil
+	return ok && bootid.Matches(r.Identity, id), nil
 }
 
 // Dedupe drops KVs with a key seen before (keeps the first) — a Retrieve must never report one

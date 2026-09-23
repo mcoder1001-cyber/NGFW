@@ -10,6 +10,7 @@ import (
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // ErrNoInterface is returned (wrapped) when a desired object names an interface this owner
@@ -40,7 +41,7 @@ type Ifaces struct {
 
 	ctx      context.Context //nolint:containedctx // one Retrieve call's context, for the lazy identity
 	client   vpp.Client
-	identity string
+	identity bootid.Identity
 }
 
 // DumpInterfaces runs sw_interface_dump for all interfaces (iface.Dump) for owner.
@@ -80,7 +81,7 @@ func (t *Ifaces) Reportable(idx uint32, holder string) (string, bool) {
 	if !t.T.Untagged(idx) {
 		return name, true
 	}
-	if t.identity == "" {
+	if t.identity.IsZero() {
 		id, err := IdentitySource(t.ctx, t.client)
 		if err != nil {
 			return "", false
@@ -106,7 +107,7 @@ type Target struct {
 	Untagged bool
 	Owner    string
 	Holder   string
-	Identity string // D-080 boot identity at resolution time
+	Identity bootid.Identity // D-080 boot identity at resolution time
 }
 
 // claimHolder qualifies the claim with the VPP boot identity and the sw_if_index (D-080): a claim

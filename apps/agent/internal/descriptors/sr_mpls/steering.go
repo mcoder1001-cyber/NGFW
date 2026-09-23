@@ -14,6 +14,7 @@ import (
 	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // SteeringName is the descriptor name; keys are "sr-mpls.steering/<table>/<prefix>".
@@ -233,7 +234,7 @@ func claimValue(e *EndpointColor) string { return df6.U32(e.GetBsid()) }
 
 // releaseEndpointColor drops the applied-once record of bsid's endpoint/color on the running VPP.
 func releaseEndpointColor(ctx context.Context, c vpp.Client, claims df6.ClaimStore, bsid uint32) error {
-	boot, err := df6.BootID(ctx, c)
+	boot, err := bootid.Current(ctx, c)
 	if err != nil {
 		return err
 	}
@@ -253,7 +254,7 @@ func (d *EndpointColorDescriptor) Create(ctx context.Context, obj proto.Message)
 	if !ours {
 		return nil, fmt.Errorf("%s: %w: policy %d", EndpointColorName, df6.ErrNotOurs, e.GetBsid())
 	}
-	boot, err := df6.BootID(ctx, d.client)
+	boot, err := bootid.Current(ctx, d.client)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +274,7 @@ func (d *EndpointColorDescriptor) Create(ctx context.Context, obj proto.Message)
 // Update implements scheduler.Descriptor: re-assigning replaces the previous pair in place.
 func (d *EndpointColorDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	if o, err := d.cast(oldObj); err == nil {
-		if boot, err := df6.BootID(ctx, d.client); err == nil {
+		if boot, err := bootid.Current(ctx, d.client); err == nil {
 			_ = d.claims.Release(claimValue(o), df6.BootHolder(EndpointColorName, boot))
 		}
 	}
@@ -289,7 +290,7 @@ func (d *EndpointColorDescriptor) Delete(ctx context.Context, obj proto.Message,
 	if err != nil {
 		return err
 	}
-	if boot, err := df6.BootID(ctx, d.client); err == nil {
+	if boot, err := bootid.Current(ctx, d.client); err == nil {
 		return d.claims.Release(claimValue(e), df6.BootHolder(EndpointColorName, boot))
 	}
 	return nil

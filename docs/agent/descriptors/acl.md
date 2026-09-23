@@ -79,7 +79,7 @@ ranges and wildcards).
 | `acl.interface-binding` | `acl_interface_list_dump` for the interface, then `acl_interface_set_acl_list` (`acls` = input ++ output, `n_input`; other owners' entries kept first per direction) | same (reorder = update) | same with only the other owners' entries left (empty list if none) | `acl_interface_list_dump` (`~0`) → `acl_interface_list_details`; `sw_interface_dump` for index→name | the entries whose ACL is ours (others skipped); no binding if none | interface (optional, `WithInterfaceKey`), every listed `acl.acl` (mandatory) |
 | `acl.etype-whitelist` | `acl_interface_set_etype_whitelist` (`whitelist` = input ++ output, `n_input`) | same | same with empty list | `acl_interface_etype_whitelist_dump` (`~0`) → `…_details` | interface tag parses as `<owner>:…`, or interface untagged **and** claimed by this descriptor (ClaimStore); Create refuses another owner's interface (`ErrForeignInterface`) | interface (optional) |
 | `acl.macip-interface-binding` | `macip_acl_interface_add_del` (`is_add=1`) | `macip_acl_interface_add_del` add with the new index (VPP unapplies the old one) | `is_add=0` | `macip_acl_interface_list_dump` (`~0`) → `…_details` (VPP reports `~0` for an interface whose MACIP ACL was removed) | the bound MACIP ACL is ours; Create refuses an interface with another owner's MACIP ACL (`ErrForeignMacipBinding`) | interface (optional), `acl.macip-acl` (mandatory, for ordering — see caveat) |
-| `acl.stats-enable` | `acl_stats_intf_counters_enable` (`enable=1`) via raw stream, see caveat | same | **no-op** (never disables) | last value applied by this process **to the running VPP** (identity = main-thread PID from `show_threads`; VPP has no getter) | n/a (global) | none |
+| `acl.stats-enable` | `acl_stats_intf_counters_enable` (`enable=1`) via raw stream, see caveat | same | **no-op** (never disables) | last value applied by this process **to the running VPP** (identity = D-080 boot identity from `internal/vpp/bootid`: boot_id, vpe_pid, start time; VPP has no getter) | n/a (global) | none |
 | hit counters (`acl.StatsReader`, not a descriptor) | – | – | – | stats segment `/acl/<acl_index>/matches` (combined counters, one slot per rule + 1 spare, per worker) via `adapter.StatsAPI.DumpStats`; ACL names via `acl_dump` | tag | reads `acl.acl` objects |
 | health (`acl.GetPluginInfo`) | – | – | – | `acl_plugin_get_version`, `acl_plugin_get_conn_table_max_entries` | – | – |
 
@@ -104,7 +104,7 @@ There is no per-interface or per-MACIP-ACL hit counter in the stats segment.
   `docs/vpp-code-track.md` by the manager).
 - **No getter for the counters flag** (only `vppctl show acl-plugin tables` prints "Stats counters enabled for
   interface ACLs"). Retrieve of `acl.stats-enable` reports what this process applied, tied to the VPP identity
-  (PID of VPP's main thread, `show_threads` thread 0, read *before* the enable request): after `restart-vpp` /
+  (D-080 boot identity `bootid.Current`: kernel boot_id, control_ping vpe_pid, VPP start time; read *before* the enable request): after `restart-vpp` /
   `kill -9 vpp` the identity changes, Retrieve reports nothing and the scheduler enables the counters again. After an
   agent restart the scheduler also enables once more (idempotent on VPP). `StatsEnableDescriptor.Reset()` forgets
   the value explicitly (optional reconnect hook for P05). Limitation: PID reuse by a restarted VPP is not detected

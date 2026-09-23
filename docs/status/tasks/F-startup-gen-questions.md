@@ -40,13 +40,13 @@ cores disjoint from isolcpus) would forbid the usual layout of pinning workers o
 Q1 → contract branch `contract/F-startup-gen` (done, merged into the task branch); Q3 → renderer never in commit apply;
 Q4 → tech-debt; Q5 → confirmed.
 
-## Q6 (fix round) — `plugins` has no presence in proto3
+## Q6 (fix round) — `plugins` has no presence in proto3 — ANSWERED D-084: wrapped as `{ switches }` / `optional PluginSet`; present = authoritative, absent = overlay (done)
 `map<string,bool>` cannot distinguish "absent" from "empty". Implemented: the generator **overlays** the document's
 switches on the current start-up file's switches (a plugin not in the document keeps its switch; turn one off with
 `false`). Consequence: a switch can only disappear from the file by editing the current file by hand. Alternative if
 the manager prefers the document to be authoritative: wrap the map in a message (`plugins: {switches: {...}}`) — a
 reshape of the contract field, so it should be decided before P06 exposes it.
 
-## Q7 (fix round) — deploy/vpp/test-apply-startup.sh is not in tools/ci.sh
+## Q7 (fix round) — deploy/vpp/test-apply-startup.sh is not in tools/ci.sh — manager takes it (D-084 message)
 The fake-host test for the apply script runs standalone (36 checks, pasted in F-startup-gen.md). `tools/ci.sh` (P09) does
 not run scripts under `deploy/`; suggest adding it (plus `shellcheck deploy/vpp/*.sh`) to the quick gate — not my file.

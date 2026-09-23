@@ -42,7 +42,5 @@ plugins {
   plugin gtpu_plugin.so { disable }
   plugin ikev2_plugin.so { disable }
   plugin linux_cp_plugin.so { enable }
-  plugin linux_nl_plugin.so { enable }
-  plugin npt66_plugin.so { enable }
   plugin vxlan-gpe_plugin.so { disable }
 }

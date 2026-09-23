@@ -24,7 +24,7 @@ Host = ReadHost(/sys, /proc, plugin dir, current startup.conf)  — required, ne
 | NUMA nodes | `/sys/devices/system/node/node*` | buffer budget |
 | hugepage reservation | `/proc/meminfo` HugePages_Total × Hugepagesize (0 ⇒ refused) | buffer budget |
 | on-disk plugins | `/usr/lib/x86_64-linux-gnu/vpp_plugins/*.so` | plugin names |
-| current plugin switches | `plugins { }` of the current `/etc/vpp/startup.conf` (`--current`, `none` = no file) | kept for plugins the document does not mention |
+| current plugin switches | `plugins { }` of the current `/etc/vpp/startup.conf` (`--current`, `none` = no file) | kept when the document has no `dataplane.plugins`; otherwise only compared (warnings for removed switches) |
 
 ## File layout (section order)
 
@@ -37,7 +37,7 @@ Host = ReadHost(/sys, /proc, plugin dir, current startup.conf)  — required, ne
 | `cpu { }` | **always** `main-core N`; `corelist-workers …` whenever there are workers (never VPP's own placement) | `dataplane` + host CPUs |
 | `buffers { }` | `buffers-per-numa` (only when set) | `dataplane.buffersPerNuma` |
 | `dpdk { }` | `dev default { … }`, `dev <pci> { name … }`, `blacklist <host mgmt pci>` (always), `no-pci` when there are no devices; **omitted** when `dpdk_plugin.so` is disabled (VPP rejects the section of an unloaded plugin) | `dataplane` + host |
-| `plugins { }` | `plugin <file> { enable|disable }`, sorted: current file's switches overlaid by `dataplane.plugins` | `dataplane.plugins` + current file |
+| `plugins { }` | `plugin <file> { enable|disable }`, sorted: exactly `dataplane.plugins.switches` when `plugins` is present; the current file's switches when it is absent (D-084) | `dataplane.plugins` or current file |
 
 ## Mapping
 
@@ -58,8 +58,8 @@ Host = ReadHost(/sys, /proc, plugin dir, current startup.conf)  — required, ne
 | `dataplane.devices.<pci>.rxQueues` / `.txQueues` | `num-rx-queues` / `num-tx-queues` | 1–256; rxQueues ≤ max(workers, 1) |
 | `dataplane.devices.<pci>.rxDesc` / `.txDesc` | `num-rx-desc` / `num-tx-desc` | power of two, 64–16384 |
 | no device at all | `dpdk { no-pci }` + the host blacklist (the current vrx-a semantics) | — |
-| `dataplane.plugins.<file>` | `plugin <file> { enable }` (`true`) / `{ disable }` (`false`) | `[a-z0-9][a-z0-9_-]*_plugin.so`, **must exist in the plugin directory**; ≤ 128; `dpdk_plugin.so: false` is rejected while devices are listed |
-| plugins **not** in the document | the current file's switch is kept (a warning names it) — a document without `plugins` never drops the D-060 block | the kept names must exist on disk too |
+| `dataplane.plugins` **present** | authoritative: `plugin <file> { enable }` (`true`) / `{ disable }` (`false`) for exactly `switches.<file>`; switches of the current file that are not listed disappear (warning each); `{}` / `{switches:{}}` = no plugins block | names `[a-z0-9][a-z0-9_-]*_plugin.so`, **must exist in the plugin directory**; ≤ 128; `dpdk_plugin.so: false` is rejected while devices are listed; warning for each D-060 plugin (`linux_cp`, `linux_nl`, `npt66`) not listed |
+| `dataplane.plugins` **absent** | the current file's switches are kept (a warning names each) — a document without `plugins` never drops the D-060 block | the kept names must exist on disk too |
 
 **Hugepage budget:** `buffersPerNuma (default 16384) × NUMA nodes × 2560 B` must fit in `min(hugepagesGb, host reservation)`
 (always checked — the host value is required). 2560 B is a conservative per-buffer figure (2048 B data + metadata +
@@ -70,7 +70,8 @@ for paths); numbers are bounded (VPP's `~0` sentinel 4294967295 is rejected). `r
 backstop. Error messages quote hostile keys, so an error text is always one line.
 
 Contract: the four fields `managementPci`, `devices`, `buffersPerNuma`, `plugins` are in the schema and the proto
-(`contract/F-startup-gen`, D-081; `docs/status/tasks/F-startup-gen-contract.md`).
+(`contract/F-startup-gen`, D-081; `docs/status/tasks/F-startup-gen-contract.md`). `plugins` is the wrapper
+`{ switches: {<file>: bool} }` / `optional PluginSet` so its presence survives the proto (D-084).
 
 ## CLI
 

@@ -262,10 +262,10 @@ func TestTypedInputMatchesDocument(t *testing.T) {
 	typed := &vrxv1.DataplaneConfig{
 		Workers: proto.Uint32(2), Corelist: []uint32{2, 3}, MainCore: proto.Uint32(1), RxQueues: proto.Uint32(2), HugepagesGb: proto.Uint32(2),
 		ManagementPci: []string{"0000:0b:00.0"}, Devices: map[string]*vrxv1.DataplaneDevice{"0000:04:00.0": {Name: proto.String("wan"), RxDesc: proto.Uint32(512)}},
-		BuffersPerNuma: proto.Uint32(32768), Plugins: map[string]bool{"acl_plugin.so": true},
+		BuffersPerNuma: proto.Uint32(32768), Plugins: &vrxv1.PluginSet{Switches: map[string]bool{"acl_plugin.so": true}},
 	}
 	doc := parseDoc(t, `{"dataplane":{"workers":2,"corelist":[2,3],"mainCore":1,"rxQueues":2,"hugepagesGb":2,"managementPci":["0000:0b:00.0"],
-		"devices":{"0000:04:00.0":{"name":"wan","rxDesc":512}},"buffersPerNuma":32768,"plugins":{"acl_plugin.so":true}}}`)
+		"devices":{"0000:04:00.0":{"name":"wan","rxDesc":512}},"buffersPerNuma":32768,"plugins":{"switches":{"acl_plugin.so":true}}}}`)
 	a, _, err := Generate(typed, vrxA(t), DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
@@ -312,7 +312,7 @@ func TestWarnings(t *testing.T) {
 	}
 	h := vrxA(t)
 	h.HugepageBytes = 1 << 30
-	_, m, err = Generate(parseDoc(t, `{"dataplane":{"hugepagesGb":2,"mainCore":1,"plugins":{"linux_cp_plugin.so":true,"linux_nl_plugin.so":true,"npt66_plugin.so":true}}}`), h, DefaultSettings())
+	_, m, err = Generate(parseDoc(t, `{"dataplane":{"hugepagesGb":2,"mainCore":1,"plugins":{"switches":{"linux_cp_plugin.so":true,"linux_nl_plugin.so":true,"npt66_plugin.so":true}}}}`), h, DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
 	}

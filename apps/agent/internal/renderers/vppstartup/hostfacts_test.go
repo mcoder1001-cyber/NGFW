@@ -204,28 +204,58 @@ func TestManagementFromHost(t *testing.T) {
 	}
 }
 
-// TestPluginOverlay: the current file's switches survive a document without `plugins`; the
-// document wins per key.
-func TestPluginOverlay(t *testing.T) {
-	out, m, err := Generate(parseDoc(t, `{"dataplane":{"plugins":{"npt66_plugin.so":false,"acl_plugin.so":true}}}`), vrxA(t), DefaultSettings())
+// TestPluginSemantics (D-084): `plugins` absent → the current file's switches are kept; present →
+// authoritative (exactly its switches; warnings for missing D-060 plugins and removed switches).
+func TestPluginSemantics(t *testing.T) {
+	count := func(ws []string, sub string) int {
+		n := 0
+		for _, w := range ws {
+			if strings.Contains(w, sub) {
+				n++
+			}
+		}
+		return n
+	}
+	// absent: D-060 block kept
+	out, m, err := Generate(parseDoc(t, `{"dataplane":{"mainCore":1}}`), vrxA(t), DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{
-		"plugin acl_plugin.so { enable }", "plugin linux_cp_plugin.so { enable }",
-		"plugin linux_nl_plugin.so { enable }", "plugin npt66_plugin.so { disable }",
-	} {
+	for _, want := range []string{"plugin linux_cp_plugin.so { enable }", "plugin linux_nl_plugin.so { enable }", "plugin npt66_plugin.so { enable }"} {
 		if !strings.Contains(string(out), want) {
-			t.Errorf("missing %q", want)
+			t.Errorf("absent: missing %q", want)
 		}
 	}
-	kept := 0
-	for _, w := range m.Warnings {
-		if strings.Contains(w, "kept from the current start-up file") {
-			kept++
-		}
+	if count(m.Warnings, "kept from the current start-up file") != 3 {
+		t.Errorf("absent: warnings %q", m.Warnings)
 	}
-	if kept != 2 {
-		t.Errorf("warnings %q (want the two inherited switches)", m.Warnings)
+
+	// present: exactly the listed switches
+	out, m, err = Generate(parseDoc(t, `{"dataplane":{"mainCore":1,"plugins":{"switches":{"npt66_plugin.so":false,"acl_plugin.so":true}}}}`), vrxA(t), DefaultSettings())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(out)
+	if !strings.Contains(s, "plugin acl_plugin.so { enable }") || !strings.Contains(s, "plugin npt66_plugin.so { disable }") ||
+		strings.Contains(s, "linux_cp_plugin.so") || strings.Contains(s, "linux_nl_plugin.so") {
+		t.Errorf("present: not authoritative:\n%s", s)
+	}
+	if count(m.Warnings, "(D-060) is not listed") != 2 || count(m.Warnings, "is removed (not in dataplane.plugins.switches)") != 2 {
+		t.Errorf("present: warnings %q", m.Warnings)
+	}
+
+	// present and empty: no plugins block at all, warnings for all three D-060 plugins
+	out, m, err = Generate(parseDoc(t, `{"dataplane":{"mainCore":1,"plugins":{}}}`), vrxA(t), DefaultSettings())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(out), "plugins {") || count(m.Warnings, "(D-060) is not listed") != 3 {
+		t.Errorf("present, empty: %q\n%s", m.Warnings, out)
+	}
+
+	// present, listing the D-060 set: no warnings
+	_, m, err = Generate(parseDoc(t, `{"dataplane":{"mainCore":1,"plugins":{"switches":{"linux_cp_plugin.so":true,"linux_nl_plugin.so":true,"npt66_plugin.so":true}}}}`), vrxA(t), DefaultSettings())
+	if err != nil || len(m.Warnings) != 0 {
+		t.Errorf("present, D-060 listed: %v %q", err, m.Warnings)
 	}
 }

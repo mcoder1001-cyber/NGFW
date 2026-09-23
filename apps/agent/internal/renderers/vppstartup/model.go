@@ -59,6 +59,10 @@ const DefaultBuffersPerNuma = 16384
 // of default data size + vlib_buffer_t metadata + headroom + mempool overhead, rounded up.
 const BufferFootprint = 2560
 
+// D060Plugins are the plugins D-060 enabled on vrx-a (P12/FRR, NPTv6); an authoritative
+// `dataplane.plugins` that does not list them gets a warning.
+var D060Plugins = []string{"linux_cp_plugin.so", "linux_nl_plugin.so", "npt66_plugin.so"}
+
 // DPDKPlugin is the plugin file that parses the `dpdk { }` section.
 const DPDKPlugin = "dpdk_plugin.so"
 
@@ -252,7 +256,7 @@ func BuildModel(dp *vrxv1.DataplaneConfig, host Host) (*Model, error) {
 		return nil, err
 	}
 	if !m.DPDK && len(m.Devices) > 0 {
-		return nil, inputErr("dataplane.plugins."+DPDKPlugin, "dpdk_plugin.so cannot be disabled while DPDK devices are listed (%d)", len(m.Devices))
+		return nil, inputErr("dataplane.plugins.switches."+DPDKPlugin, "dpdk_plugin.so cannot be disabled while DPDK devices are listed (%d)", len(m.Devices))
 	}
 
 	// RSS: queues vs the worker threads that poll them
@@ -318,7 +322,7 @@ func checkBounds(dp *vrxv1.DataplaneConfig) error {
 		{"dataplane.pciWhitelist", len(dp.GetPciWhitelist()), MaxPCIWhitelist},
 		{"dataplane.managementPci", len(dp.GetManagementPci()), MaxManagementPCI},
 		{"dataplane.devices", len(dp.GetDevices()), MaxDevices},
-		{"dataplane.plugins", len(dp.GetPlugins()), MaxPlugins},
+		{"dataplane.plugins.switches", len(dp.GetPlugins().GetSwitches()), MaxPlugins},
 	} {
 		if c.n > c.max {
 			return inputErr(c.path, "%d entries, at most %d", c.n, c.max)
@@ -327,9 +331,9 @@ func checkBounds(dp *vrxv1.DataplaneConfig) error {
 	return nil
 }
 
-// buildPlugins overlays the document's switches on the current file's switches (D-060: a document
-// that does not mention a plugin never silently drops its switch). Every effective name must be
-// a plugin file on disk.
+// buildPlugins (D-084): `dataplane.plugins` present → exactly its switches (warnings for missing
+// D-060 plugins and for switches of the current file that disappear); absent → the current file's
+// switches are kept. Every rendered name must be a plugin file on disk.
 func buildPlugins(dp *vrxv1.DataplaneConfig, host Host, m *Model) error {
 	onDisk := map[string]bool{}
 	for _, p := range host.Plugins {
@@ -345,18 +349,31 @@ func buildPlugins(dp *vrxv1.DataplaneConfig, host Host, m *Model) error {
 		return nil
 	}
 	eff := map[string]bool{}
-	for name, enable := range host.CurrentPlugins {
-		if _, inDoc := dp.GetPlugins()[name]; inDoc {
-			continue
+	docSwitches := dp.GetPlugins().GetSwitches()
+	if dp.Plugins == nil {
+		// absent (D-084): keep the current file's switches
+		for name, enable := range host.CurrentPlugins {
+			if err := check("current start-up file: plugins."+jsonKey(name), name); err != nil {
+				return err
+			}
+			eff[name] = enable
+			m.Warnings = append(m.Warnings, fmt.Sprintf("plugins: %s { %s } kept from the current start-up file (dataplane.plugins absent)", name, enableWord(enable)))
 		}
-		if err := check("current start-up file: plugins."+jsonKey(name), name); err != nil {
-			return err
+	} else {
+		// present (D-084): the document is authoritative
+		for _, want := range D060Plugins {
+			if _, listed := docSwitches[want]; !listed {
+				m.Warnings = append(m.Warnings, fmt.Sprintf("dataplane.plugins.switches: %s (D-060) is not listed and will not be enabled", want))
+			}
 		}
-		eff[name] = enable
-		m.Warnings = append(m.Warnings, fmt.Sprintf("plugins: %s { %s } kept from the current start-up file (not in dataplane.plugins)", name, enableWord(enable)))
+		for name, enable := range host.CurrentPlugins {
+			if _, listed := docSwitches[name]; !listed {
+				m.Warnings = append(m.Warnings, fmt.Sprintf("plugins: %s { %s } in the current start-up file is removed (not in dataplane.plugins.switches)", name, enableWord(enable)))
+			}
+		}
 	}
-	for name, enable := range dp.GetPlugins() {
-		if err := check("dataplane.plugins."+jsonKey(name), name); err != nil {
+	for name, enable := range docSwitches {
+		if err := check("dataplane.plugins.switches."+jsonKey(name), name); err != nil {
 			return err
 		}
 		eff[name] = enable

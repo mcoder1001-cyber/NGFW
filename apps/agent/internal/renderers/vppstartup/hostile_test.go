@@ -53,7 +53,7 @@ func TestHostile(t *testing.T) {
 			tc{"pci key " + q, `{"dataplane":{` + mgmt + `,"devices":{` + jsonString("0000:04:00.0"+s) + `:{"name":"wan"}}}}`, "PCI address", nil},
 			tc{"whitelist " + q, `{"dataplane":{` + mgmt + `,"pciWhitelist":[` + jsonString("0000:04:00.0"+s) + `]}}`, "PCI address", nil},
 			tc{"mgmt " + q, `{"dataplane":{"managementPci":[` + jsonString("0000:0b:00.0"+s) + `]}}`, "PCI address", nil},
-			tc{"plugin " + q, `{"dataplane":{"plugins":{` + jsonString("acl_plugin.so"+s) + `:true}}}`, "plugin", nil},
+			tc{"plugin " + q, `{"dataplane":{"plugins":{"switches":{` + jsonString("acl_plugin.so"+s) + `:true}}}}`, "plugin", nil},
 		)
 	}
 	cases = append(cases, []tc{
@@ -88,12 +88,12 @@ func TestHostile(t *testing.T) {
 		{"managementPci not a list", `{"dataplane":{"managementPci":"0000:0b:00.0"}}`, "syntax error", nil},
 		{"too many managementPci", `{"dataplane":{"managementPci":["0000:0b:00.0","0000:0b:00.1","0000:0b:00.2","0000:0b:00.3","0000:0b:00.4"]}}`, "5 entries, at most 4", nil},
 		// plugins
-		{"plugin not on disk", `{"dataplane":{"plugins":{"evil_plugin.so":true}}}`, "not installed", nil},
-		{"plugin path traversal", `{"dataplane":{"plugins":{"../../../tmp/x_plugin.so":true}}}`, "not allowed", nil},
-		{"plugin not a .so", `{"dataplane":{"plugins":{"acl_plugin":true}}}`, "not a plugin file name", nil},
-		{"plugin default", `{"dataplane":{"plugins":{"default":false}}}`, "not a plugin file name", nil},
-		{"plugin value not bool", `{"dataplane":{"plugins":{"acl_plugin.so":"enable"}}}`, "dataplane", nil},
-		{"dpdk disabled with devices", `{"dataplane":{"devices":{"0000:04:00.0":{"name":"wan"}},"plugins":{"dpdk_plugin.so":false}}}`, "cannot be disabled while DPDK devices are listed", nil},
+		{"plugin not on disk", `{"dataplane":{"plugins":{"switches":{"evil_plugin.so":true}}}}`, "not installed", nil},
+		{"plugin path traversal", `{"dataplane":{"plugins":{"switches":{"../../../tmp/x_plugin.so":true}}}}`, "not allowed", nil},
+		{"plugin not a .so", `{"dataplane":{"plugins":{"switches":{"acl_plugin":true}}}}`, "not a plugin file name", nil},
+		{"plugin default", `{"dataplane":{"plugins":{"switches":{"default":false}}}}`, "not a plugin file name", nil},
+		{"plugin value not bool", `{"dataplane":{"plugins":{"switches":{"acl_plugin.so":"enable"}}}}`, "dataplane", nil},
+		{"dpdk disabled with devices", `{"dataplane":{"devices":{"0000:04:00.0":{"name":"wan"}},"plugins":{"switches":{"dpdk_plugin.so":false}}}}`, "cannot be disabled while DPDK devices are listed", nil},
 		{"current file names a plugin not on disk", `{}`, "current start-up file: plugins.gone_plugin.so: plugin gone_plugin.so is not installed", withCurrent(t, map[string]bool{"gone_plugin.so": true})},
 		// CPUs (F4: explicit pinning, online set)
 		{"main core not online", `{"dataplane":{"mainCore":32}}`, "core 32 is not an online CPU (online CPUs 0-31)", nil},

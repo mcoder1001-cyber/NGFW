@@ -162,18 +162,18 @@ tasks:
   - P02c
   - P03
   priority: 1
-  est_hours: 3
-  state: ready
+  est_hours: 5
+  state: running
   parked_on: ''
   wbs:
   - D0.7
   - D0.8
   scope: contract(proto) sync only; add schema⊆proto drift test
   files_owned: packages/proto/** apps/agent/gen/** docs/contracts/proto.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P03b
+  worktree: /root/ngfw-wt/P03b
+  owner: host-agent slot2
+  started: 2026-09-24T01:47
   finished: ''
   notes: 'raised by P03 Q4; run before tagging contracts-v1 | also: add the domain leaf messages the factories need (ACL rules/bindings per DF-4 typed specs, NAT per DF-3, interface attrs per DF-1) so factories
     can drop their structpb stand-ins'
@@ -347,7 +347,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D1.2
@@ -360,10 +360,10 @@ tasks:
   worktree: /root/ngfw-wt/DF-1
   owner: host-agent slot2
   started: 2026-09-23T15:10
-  finished: ''
+  finished: 2026-09-24T01:45
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done bf364c6 (CI green, restart sim 28 objects); D-065 alias
     follow-up requested, then review | D-065 alias done f2e1eaf, CI green; review spawned | review APPROVE WITH CHANGES 705c6ca (H1 DeleteOnAbsence, H2 physical NICs, H3 naming → D-069, M1–M5); fix round
-    1 (incl. acl resolver switch)'
+    1 (incl. acl resolver switch) | fix round 1 dea885a; merged dfc2f90; main CI green'
 - id: DF-2
   title: 'Descriptors: ip_neighbor, ip6_nd (RA, DAD), urpf, abf, classify (ip tables/routes are P05 core)'
   prompt: prompts/factories/DF-2.md

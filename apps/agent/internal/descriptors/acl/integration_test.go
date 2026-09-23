@@ -76,7 +76,7 @@ func createLoopback(ctx context.Context, t *testing.T, c vpp.Client, owner strin
 	inst := vpptest.LoopbackInstance(t, i)
 	name := fmt.Sprintf("loop%d", inst)
 	svc := interfaces.NewServiceClient(c)
-	if ifaces, err := dumpInterfaces(ctx, c); err == nil {
+	if ifaces, err := dumpInterfaces(ctx, c, owner); err == nil {
 		if old, ok := ifaces.byName[name]; ok {
 			t.Logf("leftover %s (sw_if_index %d, tag %q) from an earlier run: deleting", name, old.Index, old.Tag)
 			if _, err := svc.DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: interface_types.InterfaceIndex(old.Index)}); err != nil {
@@ -198,7 +198,7 @@ func TestACLPluginOnHost(t *testing.T) {
 	ifA := createLoopback(ctx, t, c, owner, 40, true)
 	ifB := createLoopback(ctx, t, c, owner, 41, true)
 	ifU := createLoopback(ctx, t, c, owner, 43, false) // untagged, like a physical port
-	foreignOwner := owner + "f"                         // a second owner on the same VPP (tag "w10f:…")
+	foreignOwner := owner + "f"                        // a second owner on the same VPP (tag "w10f:…")
 	foreignACL := NewACL(c, foreignOwner)
 	foreignBind := NewInterfaceBinding(c, foreignOwner)
 	deleteOwned(ctx, t, foreignBind, foreignACL)

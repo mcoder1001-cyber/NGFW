@@ -1,0 +1,19 @@
+// Desired-state model of the af_packet descriptor (task DF-1). Agent-internal, see interface/model.proto.
+syntax = "proto3";
+
+package vrx.agent.afpacket;
+
+option go_package = "ngfw/agent/internal/descriptors/af_packet;afpacket";
+
+enum Mode {
+  MODE_ETHERNET = 0;
+  MODE_IP = 1;
+}
+
+// HostInterface is af_packet_create_v3 on an existing Linux netdev. Flags and frame sizes are
+// create-only in VPP 26.06 (af_packet_details returns host_if_name only) and are not modelled.
+message HostInterface {
+  string name = 1;
+  string host_if_name = 2;
+  Mode mode = 3;
+}

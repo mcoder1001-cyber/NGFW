@@ -118,11 +118,11 @@ func (d *MacipBindingDescriptor) Create(ctx context.Context, obj proto.Message) 
 	if err := b.Validate(); err != nil {
 		return nil, err
 	}
-	ifaces, err := dumpInterfaces(ctx, d.client)
+	ifaces, err := dumpInterfaces(ctx, d.client, d.owner)
 	if err != nil {
 		return nil, err
 	}
-	swIfIndex, err := ifaces.index(b.Interface)
+	swIfIndex, err := ifaces.indexShared(b.Interface)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func (d *MacipBindingDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, 
 		return nil, err
 	}
 	names := macipNameByIndex(owned)
-	ifaces, err := dumpInterfaces(ctx, d.client)
+	ifaces, err := dumpInterfaces(ctx, d.client, d.owner)
 	if err != nil {
 		return nil, err
 	}

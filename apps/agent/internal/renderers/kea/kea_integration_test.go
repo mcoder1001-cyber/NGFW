@@ -20,10 +20,10 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// Integration: real kea-dhcp4 / kea-dhcp6 / kea-ctrl-agent as child processes of the test,
+// Integration: real kea-dhcp4 / kea-dhcp6 as child processes of the test (no kea-ctrl-agent, D-079),
 // with test-scoped paths under /run/vrx-test/<prefix>/kea, the DHCP servers inside the
 // test's own network namespace ns-<prefix>-a (veth <prefix>-a/<prefix>-b, 10.<slot>.10.1/24)
-// and the ctrl-agent on 127.0.0.1:3<slot>80. Never the system units, never /etc/kea.
+// and control over their own unix sockets only. Never the system units, never /etc/kea.
 
 const ipBin = IPBin
 
@@ -47,7 +47,7 @@ func setupRig(t *testing.T) *rig {
 	vpptest.SkipUnlessIntegration(t)
 	vpptest.LockLab(t)
 	prefix, slot := vpptest.Prefix(t), vpptest.Slot(t)
-	rg := &rig{prefix: prefix, slot: slot, ns: "ns-" + prefix + "-a", ifA: prefix + "-a", ifB: prefix + "-b", paths: TestPaths(prefix, slot)}
+	rg := &rig{prefix: prefix, slot: slot, ns: "ns-" + prefix + "-a", ifA: prefix + "-a", ifB: prefix + "-b", paths: TestPaths(prefix)}
 	for _, d := range []string{rg.paths.ConfDir, rg.paths.RunDir, rg.paths.DataDir, rg.paths.LogDir} {
 		if err := os.MkdirAll(d, 0o750); err != nil {
 			t.Fatal(err)
@@ -190,20 +190,12 @@ func (rg *rig) assertScoped(t *testing.T, files renderers.Files) {
 			t.Logf("%s listens on %v (inside %s)", p, v.IC.Interfaces, rg.ns)
 		}
 	}
-	var ca ctrlAgentRoot
-	if err := json.Unmarshal(files[rg.paths.CtrlAgentConf()].Content, &ca); err != nil {
-		t.Fatal(err)
-	}
-	if ca.ControlAgent.HTTPHost != "127.0.0.1" || ca.ControlAgent.HTTPPort != rg.paths.CtrlAgentPort {
-		t.Fatalf("ctrl-agent listens on %s:%d", ca.ControlAgent.HTTPHost, ca.ControlAgent.HTTPPort)
-	}
-	t.Logf("kea-ctrl-agent listens on %s:%d", ca.ControlAgent.HTTPHost, ca.ControlAgent.HTTPPort)
 }
 
 func TestKeaIntegration(t *testing.T) {
 	rg := setupRig(t)
 	ctx := context.Background()
-	r := New(rg.runner, WithPaths(rg.paths))
+	r := New(rg.runner, WithPaths(rg.paths), WithInterfaceMapper(IdentityMapper))
 	if r.leaseCmdsHook == "" {
 		t.Fatalf("libdhcp_lease_cmds.so not found under %s", rg.paths.HooksDir)
 	}
@@ -218,7 +210,7 @@ func TestKeaIntegration(t *testing.T) {
 	if err := r.Validate(ctx, files); err != nil {
 		t.Fatalf("Validate: %v", err)
 	}
-	t.Log("kea-dhcp4 -t / kea-dhcp6 -t / kea-ctrl-agent -t: accepted")
+	t.Log("kea-dhcp4 -t / kea-dhcp6 -t: accepted")
 	// …and reject a semantically broken one (routers option with a non-address).
 	bad := renderers.Files{}
 	for p, f := range files {
@@ -243,17 +235,12 @@ func TestKeaIntegration(t *testing.T) {
 
 	rg.start(t, ipBin, "netns", "exec", rg.ns, Dhcp4Bin, "-c", rg.paths.Dhcp4Conf())
 	rg.start(t, ipBin, "netns", "exec", rg.ns, Dhcp6Bin, "-c", rg.paths.Dhcp6Conf())
-	rg.start(t, CtrlAgentBin, "-c", rg.paths.CtrlAgentConf())
 	for _, fam := range []int{4, 6} {
 		waitFor(t, fmt.Sprintf("dhcp%d control socket", fam), func() error {
 			_, err := SocketController{Paths: rg.paths}.Command(ctx, fam, "status-get", nil)
 			return err
 		})
 	}
-	waitFor(t, "ctrl-agent", func() error {
-		_, err := r.agent.Command(ctx, "", "status-get", nil)
-		return err
-	})
 
 	// Apply through the control channel, then compare config-get with the rendering.
 	if err := r.Apply(ctx, files); err != nil {
@@ -288,25 +275,32 @@ func TestKeaIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !st.Dhcp4.Running || !st.Dhcp6.Running || len(st.Dhcp4.Leases) != 0 || st.Dhcp4.LeasesUnsupported {
+	if !st.Dhcp4.Running || !st.Dhcp6.Running {
 		t.Fatalf("state: %+v", st)
+	}
+	leases, truncated, err := r.Leases(ctx, 4, 10)
+	if err != nil || len(leases) != 0 || truncated {
+		t.Fatalf("lease4-get-page: %v %v %v", leases, truncated, err)
+	}
+	for _, sock := range []string{rg.paths.Socket4(), rg.paths.Socket6()} {
+		si, _ := os.Stat(sock)
+		di, _ := os.Stat(rg.paths.RunDir)
+		t.Logf("control socket %s mode %v, dir mode %v (D-079: private unix socket, no HTTP)", sock, si.Mode().Perm(), di.Mode().Perm())
 	}
 	msg, err := r.Retrieve(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	fields := msg.(*structpb.Struct).GetFields()
-	t.Logf("Retrieve: keys dhcp4/dhcp6=%v/%v, dhcp4.running=%v, dhcp4.leases=%d", fields["dhcp4"] != nil, fields["dhcp6"] != nil, st.Dhcp4.Running, len(st.Dhcp4.Leases))
-
-	// Through kea-ctrl-agent (HTTP on loopback, forwarded to dhcp4).
-	caResp, err := r.agent.Command(ctx, "dhcp4", "config-get", nil)
+	t.Logf("Retrieve: keys dhcp4/dhcp6=%v/%v, dhcp4.running=%v (leases via paged Leases: %d)", fields["dhcp4"] != nil, fields["dhcp6"] != nil, st.Dhcp4.Running, len(leases))
+	cfg, err := r.ConfigGet(ctx, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(caResp.Arguments), `"}]} {\"Dhcp4\": 1}`) {
-		t.Fatalf("ctrl-agent config-get lacks the verbatim hostile description")
+	if !strings.Contains(string(cfg), `"}]} {\"Dhcp4\": 1}`) {
+		t.Fatalf("config-get lacks the verbatim hostile description")
 	}
-	t.Log("kea-ctrl-agent config-get (service dhcp4): hostile description round-trips verbatim")
+	t.Log("config-get over the unix socket: hostile description round-trips verbatim")
 
 	// Events: first poll reports the servers running.
 	p := r.NewPoller()

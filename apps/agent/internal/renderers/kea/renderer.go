@@ -1,5 +1,5 @@
 // Package kea is the Kea DHCP renderer (RF-3, WBS D7.1): services.dhcp.servers → validated
-// kea-dhcp4.conf / kea-dhcp6.conf / kea-ctrl-agent.conf → applied through the daemons' unix
+// kea-dhcp4.conf / kea-dhcp6.conf → applied through the daemons' own unix
 // control sockets (`config-set`, no process spawned, no restart) → state read back with
 // `status-get`, `config-get`, `statistic-get-all` and paged `lease4/6-get-page` → change
 // events by 1 Hz polling. Kea configs are JSON: they are rendered by marshalling typed Go
@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -26,6 +27,7 @@ import (
 const (
 	validateTimeout = 30 * time.Second
 	controlTimeout  = 30 * time.Second
+	rollbackTimeout = 30 * time.Second
 )
 
 // ErrDaemon is wrapped by errors that come from Kea (checker rejected a file, config-set
@@ -36,8 +38,14 @@ var ErrDaemon = errors.New("kea: daemon error")
 // binds (linux-cp tap / rig veth). The default is the identity (valid Linux names only).
 type InterfaceMapper func(vppName string) (string, error)
 
-// IdentityMapper passes names through unchanged.
+// IdentityMapper passes names through unchanged (tests, rigs whose interfaces are Linux names).
 func IdentityMapper(name string) (string, error) { return name, nil }
+
+// NoMapper is the default: without the linux-cp mapping (P12) injected, a VPP interface name
+// is refused rather than bound to a Linux interface that may not be the same one (review L7).
+func NoMapper(name string) (string, error) {
+	return "", fmt.Errorf("no VPP→Linux interface mapper configured for %q (WithInterfaceMapper)", name)
+}
 
 // Controller sends one Kea command to the DHCPv4 (family 4) or DHCPv6 (family 6) server.
 // Production: SocketController over the unix control sockets; unit tests inject a fake.
@@ -53,15 +61,18 @@ func (s SocketController) Command(ctx context.Context, family int, command strin
 	return Client{Socket: s.Paths.socket(family), Timeout: controlTimeout}.Command(ctx, command, args)
 }
 
-// Renderer implements renderers.Renderer for Kea DHCPv4 + DHCPv6 + the control agent.
+// Renderer implements renderers.Renderer for Kea DHCPv4 + DHCPv6 (no kea-ctrl-agent, D-079).
+// The commit engine serialises Apply calls; the id map is guarded for concurrent Render.
 type Renderer struct {
 	runner        renderers.Runner
 	paths         Paths
 	mapIf         InterfaceMapper
 	ctrl          Controller
-	agent         *HTTPClient
 	leaseCmdsHook string
 	hookSet       bool
+
+	mu  sync.Mutex
+	ids map[int]map[string]uint32 // family → "<server>/<subnet>" → subnet id Kea runs (ids.go)
 }
 
 var _ renderers.Renderer = (*Renderer)(nil)
@@ -69,7 +80,7 @@ var _ renderers.Renderer = (*Renderer)(nil)
 // Option configures a Renderer.
 type Option func(*Renderer)
 
-// WithPaths overrides ProductPaths (tests: TestPaths(prefix, slot)).
+// WithPaths overrides ProductPaths (tests: TestPaths(prefix)).
 func WithPaths(p Paths) Option { return func(r *Renderer) { r.paths = p } }
 
 // WithInterfaceMapper sets the VPP→Linux interface name mapping.
@@ -77,10 +88,6 @@ func WithInterfaceMapper(m InterfaceMapper) Option { return func(r *Renderer) { 
 
 // WithController replaces the unix-socket controller (unit tests).
 func WithController(c Controller) Option { return func(r *Renderer) { r.ctrl = c } }
-
-// WithCtrlAgent overrides the kea-ctrl-agent HTTP client used to reload the agent's own
-// configuration (nil disables that step).
-func WithCtrlAgent(c *HTTPClient) Option { return func(r *Renderer) { r.agent = c } }
 
 // WithLeaseCmdsHook fixes the lease_cmds hook path ("" renders no hook) instead of
 // discovering it under Paths.HooksDir.
@@ -92,15 +99,12 @@ func WithLeaseCmdsHook(path string) Option {
 // Unless WithLeaseCmdsHook is given, libdhcp_lease_cmds.so is looked up under
 // Paths.HooksDir once, here, so Render stays free of I/O.
 func New(runner renderers.Runner, opts ...Option) *Renderer {
-	r := &Renderer{runner: runner, paths: ProductPaths(), mapIf: IdentityMapper}
+	r := &Renderer{runner: runner, paths: ProductPaths(), mapIf: NoMapper}
 	for _, o := range opts {
 		o(r)
 	}
 	if r.ctrl == nil {
 		r.ctrl = SocketController{Paths: r.paths}
-	}
-	if r.agent == nil {
-		r.agent = &HTTPClient{Host: r.paths.CtrlAgentHost, Port: r.paths.CtrlAgentPort, Timeout: controlTimeout}
 	}
 	if !r.hookSet {
 		candidate := filepath.Join(r.paths.HooksDir, LeaseCmdsHook)
@@ -108,6 +112,7 @@ func New(runner renderers.Runner, opts ...Option) *Renderer {
 			r.leaseCmdsHook = candidate
 		}
 	}
+	r.loadIDs()
 	return r
 }
 
@@ -125,8 +130,8 @@ func (r *Renderer) check() error {
 }
 
 // Render implements renderers.Renderer: kea-dhcp4.conf, kea-dhcp6.conf (both always present;
-// a family without enabled servers gets an idle config with no interfaces and no subnets) and
-// kea-ctrl-agent.conf. Pure: no I/O.
+// a family without enabled servers gets an idle config with no interfaces and no subnets).
+// Pure: no I/O (subnet ids come from the assignment loaded by New / Apply).
 func (r *Renderer) Render(_ context.Context, desired proto.Message) (renderers.Files, error) {
 	if err := r.check(); err != nil {
 		return nil, err
@@ -152,17 +157,12 @@ func (r *Renderer) Render(_ context.Context, desired proto.Message) (renderers.F
 	if err != nil {
 		return nil, err
 	}
-	bca, err := marshal(r.buildCtrlAgent())
-	if err != nil {
-		return nil, err
-	}
 	file := func(b []byte) renderers.File {
 		return renderers.File{Mode: r.paths.FileMode, Owner: r.paths.FileOwner, Content: b}
 	}
 	files := renderers.Files{
-		r.paths.Dhcp4Conf():     file(b4),
-		r.paths.Dhcp6Conf():     file(b6),
-		r.paths.CtrlAgentConf(): file(bca),
+		r.paths.Dhcp4Conf(): file(b4),
+		r.paths.Dhcp6Conf(): file(b6),
 	}
 	return files, files.Validate()
 }
@@ -171,7 +171,7 @@ func (r *Renderer) checkFiles(files renderers.Files) error {
 	if err := files.Validate(); err != nil {
 		return err
 	}
-	own := map[string]bool{r.paths.Dhcp4Conf(): true, r.paths.Dhcp6Conf(): true, r.paths.CtrlAgentConf(): true}
+	own := map[string]bool{r.paths.Dhcp4Conf(): true, r.paths.Dhcp6Conf(): true}
 	for p, f := range files {
 		if !own[p] {
 			return fmt.Errorf("%w: kea renderer does not own %s", renderers.ErrInvalidFiles, p)
@@ -186,16 +186,14 @@ func (r *Renderer) checkFiles(files renderers.Files) error {
 // checker returns the binary that validates path.
 func (r *Renderer) checker(path string) string {
 	switch path {
-	case r.paths.Dhcp4Conf():
-		return Dhcp4Bin
 	case r.paths.Dhcp6Conf():
 		return Dhcp6Bin
 	default:
-		return CtrlAgentBin
+		return Dhcp4Bin
 	}
 }
 
-// Validate implements renderers.Renderer: `kea-dhcp4 -t`, `kea-dhcp6 -t`, `kea-ctrl-agent -t`
+// Validate implements renderers.Renderer: `kea-dhcp4 -t`, `kea-dhcp6 -t`
 // on a staged copy. The checkers parse the full configuration (option definitions and data,
 // pools inside subnets, reservations, hook loading) without opening sockets.
 func (r *Renderer) Validate(ctx context.Context, files renderers.Files) error {
@@ -213,7 +211,7 @@ func (r *Renderer) Validate(ctx context.Context, files renderers.Files) error {
 	for _, p := range files.Paths() {
 		bin := r.checker(p)
 		cmd := renderers.Command{Path: bin, Args: []string{"-t", st.Path(p)}, Timeout: validateTimeout}
-		if r.paths.Netns != "" && bin != CtrlAgentBin {
+		if r.paths.Netns != "" {
 			cmd = renderers.Command{Path: IPBin, Args: []string{"netns", "exec", r.paths.Netns, bin, "-t", st.Path(p)}, Timeout: validateTimeout}
 		}
 		out, err := r.runner.Run(ctx, cmd)
@@ -244,11 +242,12 @@ func (e *ActionRequired) NeedsRestart() (unit, action string) { return e.Unit, e
 
 // Apply implements renderers.Renderer: snapshot → atomic write → `config-set` with the
 // rendered configuration on each running server (the daemon swaps its configuration in
-// place; leases survive) → kea-ctrl-agent `config-reload` when its file changed and it runs.
-// On a failed config-set the snapshot is restored and the previous configuration is set
+// place; leases survive). On a failed config-set the snapshot is restored and the previous configuration is set
 // again. A family whose server is not running is skipped when its configuration is idle and
 // reported as *ActionRequired otherwise. `config-write` is not used: the file on disk is
-// already exactly the rendered configuration.
+// already exactly the rendered configuration. A "start" request needs no persistence: it is
+// derived from the daemon's socket on every Apply, so it repeats until the server runs (M2).
+// After every Apply (success or rollback) the subnet-id assignment is re-read from disk.
 func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 	if err := r.check(); err != nil {
 		return err
@@ -266,6 +265,7 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 	if err != nil {
 		return err
 	}
+	defer r.loadIDs()
 	if err := renderers.WriteFiles(files); err != nil {
 		return errors.Join(err, snap.Restore())
 	}
@@ -294,17 +294,15 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 			return errors.Join(fmt.Errorf("%w: dhcp%d config-set: %w", ErrDaemon, fam, err), rbErr)
 		}
 	}
-	if f, ok := files[r.paths.CtrlAgentConf()]; ok && r.agent != nil && !bytes.Equal(previous[r.paths.CtrlAgentConf()], f.Content) {
-		if _, err := r.agent.Command(ctx, "", "config-reload", nil); err != nil && !errors.Is(err, ErrNotRunning) {
-			rbErr := r.rollback(ctx, snap, previous, applied)
-			return errors.Join(fmt.Errorf("%w: kea-ctrl-agent config-reload: %w", ErrDaemon, err), rbErr)
-		}
-	}
 	return errors.Join(actions...)
 }
 
-// rollback restores the files and sets the previous configuration on the given families.
+// rollback restores the files and sets the previous configuration on the given families. It
+// runs on a context detached from the caller's (whose deadline may be what failed the forward
+// step) with its own timeout (review L2).
 func (r *Renderer) rollback(ctx context.Context, snap *renderers.Snapshot, previous map[string][]byte, families []int) error {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rollbackTimeout)
+	defer cancel()
 	errs := []error{snap.Restore()}
 	for _, fam := range families {
 		old, ok := previous[r.paths.conf(fam)]

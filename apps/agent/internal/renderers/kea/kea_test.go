@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -22,13 +23,13 @@ var update = flag.Bool("update", false, "rewrite testdata/*.golden")
 const hook = "/usr/lib/x86_64-linux-gnu/kea/hooks/libdhcp_lease_cmds.so"
 
 func unitPaths() Paths {
-	p := TestPaths("w0", 6)
+	p := TestPaths("w0")
 	p.Netns = ""
 	return p
 }
 
 func newUnit(opts ...Option) *Renderer {
-	base := []Option{WithPaths(unitPaths()), WithLeaseCmdsHook(hook)}
+	base := []Option{WithPaths(unitPaths()), WithLeaseCmdsHook(hook), WithInterfaceMapper(IdentityMapper)}
 	return New(renderers.NewRecordingRunner(), append(base, opts...)...)
 }
 
@@ -150,8 +151,8 @@ func TestRenderGolden(t *testing.T) {
 	for name, desired := range cases {
 		t.Run(name, func(t *testing.T) {
 			files := render(t, newUnit(), desired)
-			if len(files) != 3 {
-				t.Fatalf("want 3 files, got %v", files.Paths())
+			if len(files) != 2 {
+				t.Fatalf("want 2 files (no kea-ctrl-agent, D-079), got %v", files.Paths())
 			}
 			for p, f := range files {
 				if f.Mode != 0o640 || !json.Valid(f.Content) {
@@ -328,7 +329,12 @@ func TestInterfaceMapperAndPrefix(t *testing.T) {
 	s.Interfaces = []string{"GigabitEthernet0/8/0"}
 	d := dhcp(map[string]*vrxv1.DhcpServer{"lan": s})
 	if _, err := newUnit().Render(context.Background(), d); !errors.Is(err, ErrInvalid) {
-		t.Fatalf("VPP name without mapper: want ErrInvalid, got %v", err)
+		t.Fatalf("VPP name with the identity mapper: want ErrInvalid, got %v", err)
+	}
+	// product default: no mapper injected → every interface is refused (review L7)
+	plain := New(renderers.NewRecordingRunner(), WithPaths(unitPaths()), WithLeaseCmdsHook(""))
+	if _, err := plain.Render(context.Background(), dhcp(map[string]*vrxv1.DhcpServer{"lan": v4Server()})); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("default mapper: want ErrInvalid, got %v", err)
 	}
 	m := WithInterfaceMapper(func(string) (string, error) { return "w0-a", nil })
 	files := render(t, newUnit(m), d)
@@ -338,46 +344,46 @@ func TestInterfaceMapperAndPrefix(t *testing.T) {
 }
 
 func TestValidateArgv(t *testing.T) {
-	rr := renderers.NewRecordingRunner().Succeed(Dhcp4Bin, "").Succeed(Dhcp6Bin, "").Succeed(CtrlAgentBin, "")
-	r := New(rr, WithPaths(unitPaths()), WithLeaseCmdsHook(""))
+	rr := renderers.NewRecordingRunner().Succeed(Dhcp4Bin, "").Succeed(Dhcp6Bin, "")
+	r := New(rr, WithPaths(unitPaths()), WithLeaseCmdsHook(""), WithInterfaceMapper(IdentityMapper))
 	files := render(t, r, dhcp(map[string]*vrxv1.DhcpServer{"lan": v4Server()}))
 	if err := r.Validate(context.Background(), files); err != nil {
 		t.Fatal(err)
 	}
 	calls := rr.Calls()
-	if len(calls) != 3 {
-		t.Fatalf("want 3 checker calls, got %v", calls)
+	if len(calls) != 2 {
+		t.Fatalf("want 2 checker calls, got %v", calls)
 	}
 	for _, c := range calls {
 		if len(c.Args) != 2 || c.Args[0] != "-t" || !strings.HasPrefix(c.Args[1], os.TempDir()) {
 			t.Errorf("unexpected argv %v", c)
 		}
 	}
-	want := []string{CtrlAgentBin, Dhcp4Bin, Dhcp6Bin} // Paths() order: kea-ctrl-agent, kea-dhcp4, kea-dhcp6
+	want := []string{Dhcp4Bin, Dhcp6Bin} // Paths() order
 	for i, c := range calls {
 		if c.Path != want[i] {
 			t.Errorf("call %d: %s, want %s", i, c.Path, want[i])
 		}
 	}
 
-	rr = renderers.NewRecordingRunner().FailWith(CtrlAgentBin, 1, "ERROR bad config").Succeed(Dhcp4Bin, "").Succeed(Dhcp6Bin, "")
-	r = New(rr, WithPaths(unitPaths()), WithLeaseCmdsHook(""))
+	rr = renderers.NewRecordingRunner().FailWith(Dhcp6Bin, 1, "ERROR bad config").Succeed(Dhcp4Bin, "")
+	r = New(rr, WithPaths(unitPaths()), WithLeaseCmdsHook(""), WithInterfaceMapper(IdentityMapper))
 	if err := r.Validate(context.Background(), files); !errors.Is(err, ErrDaemon) {
 		t.Fatalf("want ErrDaemon, got %v", err)
 	}
 	// With Paths.Netns the DHCP checkers run inside the namespace (ip netns exec).
 	np := unitPaths()
 	np.Netns = "ns-w0-a"
-	rr = renderers.NewRecordingRunner().Succeed(IPBin, "").Succeed(CtrlAgentBin, "")
-	r = New(rr, WithPaths(np), WithLeaseCmdsHook(""))
+	rr = renderers.NewRecordingRunner().Succeed(IPBin, "")
+	r = New(rr, WithPaths(np), WithLeaseCmdsHook(""), WithInterfaceMapper(IdentityMapper))
 	if err := r.Validate(context.Background(), render(t, r, nil)); err != nil {
 		t.Fatal(err)
 	}
 	calls = rr.Calls()
-	if len(calls) != 3 || calls[1].Path != IPBin || strings.Join(calls[1].Args[:5], " ") != "netns exec ns-w0-a "+Dhcp4Bin+" -t" {
+	if len(calls) != 2 || calls[0].Path != IPBin || strings.Join(calls[0].Args[:5], " ") != "netns exec ns-w0-a "+Dhcp4Bin+" -t" {
 		t.Fatalf("netns argv: %v", calls)
 	}
-	r = New(renderers.NewRecordingRunner(), WithPaths(unitPaths()), WithLeaseCmdsHook(""))
+	r = New(renderers.NewRecordingRunner(), WithPaths(unitPaths()), WithLeaseCmdsHook(""), WithInterfaceMapper(IdentityMapper))
 	foreign := renderers.Files{"/etc/passwd": {Mode: 0o644, Content: []byte("{}")}}
 	if err := r.Validate(context.Background(), foreign); !errors.Is(err, renderers.ErrInvalidFiles) {
 		t.Fatalf("foreign file: want ErrInvalidFiles, got %v", err)
@@ -430,7 +436,7 @@ func TestApply(t *testing.T) {
 
 	t.Run("config-set on running servers", func(t *testing.T) {
 		p, fc := tmpPaths(t), newFake(4, 6)
-		r := New(renderers.NewRecordingRunner(), WithPaths(p), WithController(fc), WithCtrlAgent(nil), WithLeaseCmdsHook(""))
+		r := New(renderers.NewRecordingRunner(), WithPaths(p), WithController(fc), WithLeaseCmdsHook(""), WithInterfaceMapper(IdentityMapper))
 		files := render(t, r, d)
 		if err := r.Apply(ctx, files); err != nil {
 			t.Fatal(err)
@@ -451,7 +457,7 @@ func TestApply(t *testing.T) {
 
 	t.Run("idle family not running is skipped and active one needs start", func(t *testing.T) {
 		p, fc := tmpPaths(t), newFake(6)
-		r := New(renderers.NewRecordingRunner(), WithPaths(p), WithController(fc), WithCtrlAgent(nil), WithLeaseCmdsHook(""))
+		r := New(renderers.NewRecordingRunner(), WithPaths(p), WithController(fc), WithLeaseCmdsHook(""), WithInterfaceMapper(IdentityMapper))
 		err := r.Apply(ctx, render(t, r, d))
 		var ar *ActionRequired
 		if !errors.As(err, &ar) || ar.Daemon != "kea-dhcp4" || ar.Unit != "kea-dhcp4-server" || ar.Action != "start" {
@@ -461,7 +467,7 @@ func TestApply(t *testing.T) {
 			t.Fatal("files must stay written on ActionRequired")
 		}
 		fc = newFake()
-		r = New(renderers.NewRecordingRunner(), WithPaths(p), WithController(fc), WithCtrlAgent(nil), WithLeaseCmdsHook(""))
+		r = New(renderers.NewRecordingRunner(), WithPaths(p), WithController(fc), WithLeaseCmdsHook(""), WithInterfaceMapper(IdentityMapper))
 		if err := r.Apply(ctx, render(t, r, nil)); err != nil {
 			t.Fatalf("idle config, nothing running: %v", err)
 		}
@@ -470,7 +476,7 @@ func TestApply(t *testing.T) {
 	t.Run("config-set failure restores files and previous config", func(t *testing.T) {
 		p := tmpPaths(t)
 		fc := newFake(4, 6)
-		r := New(renderers.NewRecordingRunner(), WithPaths(p), WithController(fc), WithCtrlAgent(nil), WithLeaseCmdsHook(""))
+		r := New(renderers.NewRecordingRunner(), WithPaths(p), WithController(fc), WithLeaseCmdsHook(""), WithInterfaceMapper(IdentityMapper))
 		old := render(t, r, nil)
 		if err := r.Apply(ctx, old); err != nil {
 			t.Fatal(err)
@@ -549,5 +555,84 @@ func TestNormPool(t *testing.T) {
 		if got := normPool(in); got != want {
 			t.Errorf("normPool(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// TestSubnetIDCollision uses the colliding pair found by the reviewer (M1): lan/vlan957918 and
+// lan/vlan1340126 both hash to 2851699104. The existing subnet keeps its id when the other is
+// added, also across a new Renderer (the assignment is read back from the applied file), and
+// two new colliding subnets get deterministic ids.
+func TestSubnetIDCollision(t *testing.T) {
+	if hashID("lan/vlan957918", 0) != 2851699104 || hashID("lan/vlan1340126", 0) != 2851699104 {
+		t.Fatalf("fixture pair no longer collides: %d %d", hashID("lan/vlan957918", 0), hashID("lan/vlan1340126", 0))
+	}
+	sub := func(n int) *vrxv1.DhcpSubnet {
+		return &vrxv1.DhcpSubnet{Subnet: proto.String(fmt.Sprintf("10.6.%d.0/24", n)),
+			Pools: []*vrxv1.DhcpPool{{Start: proto.String(fmt.Sprintf("10.6.%d.10", n)), End: proto.String(fmt.Sprintf("10.6.%d.20", n))}}}
+	}
+	server := func(subs map[string]*vrxv1.DhcpSubnet) *vrxv1.DhcpService {
+		return dhcp(map[string]*vrxv1.DhcpServer{"lan": {Interfaces: []string{"w0-a"}, Subnets: subs}})
+	}
+	ids := func(f renderers.Files, p Paths) map[string]uint32 {
+		var root dhcp4Root
+		if err := json.Unmarshal(f[p.Dhcp4Conf()].Content, &root); err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]uint32{}
+		for _, s := range *root.Dhcp4.Subnet4 {
+			out[s.UserContext.VRX.Subnet] = s.ID
+		}
+		return out
+	}
+	ctx := context.Background()
+	p := tmpPaths(t)
+	opts := []Option{WithPaths(p), WithController(newFake(4, 6)), WithLeaseCmdsHook(""), WithInterfaceMapper(IdentityMapper)}
+	r := New(renderers.NewRecordingRunner(), opts...)
+	first := render(t, r, server(map[string]*vrxv1.DhcpSubnet{"vlan957918": sub(1)}))
+	if got := ids(first, p)["vlan957918"]; got != 2851699104 {
+		t.Fatalf("first id %d", got)
+	}
+	if err := r.Apply(ctx, first); err != nil {
+		t.Fatal(err)
+	}
+	both := server(map[string]*vrxv1.DhcpSubnet{"vlan957918": sub(1), "vlan1340126": sub(2)})
+	for _, rr := range []*Renderer{r, New(renderers.NewRecordingRunner(), opts...)} { // same renderer, and after an agent restart
+		got := ids(render(t, rr, both), p)
+		if got["vlan957918"] != 2851699104 || got["vlan1340126"] == 2851699104 || got["vlan1340126"] == 0 {
+			t.Fatalf("existing subnet renumbered or collision unresolved: %v", got)
+		}
+		t.Logf("after adding the colliding subnet: %v", got)
+	}
+	// both new at once (no previous assignment): deterministic, sorted order wins
+	fresh := New(renderers.NewRecordingRunner(), WithPaths(unitPaths()), WithLeaseCmdsHook(""), WithInterfaceMapper(IdentityMapper))
+	a, b := ids(render(t, fresh, both), unitPaths()), ids(render(t, fresh, both), unitPaths())
+	if a["vlan1340126"] != 2851699104 || a["vlan957918"] != hashID("lan/vlan957918", 1) || a["vlan957918"] != b["vlan957918"] {
+		t.Fatalf("fresh assignment not deterministic: %v %v", a, b)
+	}
+}
+
+func TestSocketPrivacy(t *testing.T) {
+	dir := t.TempDir()
+	sock := filepath.Join(dir, "kea4.sock")
+	if err := os.WriteFile(sock, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0o777); err != nil { //nolint:gosec // the insecure case under test
+		t.Fatal(err)
+	}
+	if _, err := (Client{Socket: sock}).Command(context.Background(), "status-get", nil); !errors.Is(err, ErrInsecure) {
+		t.Fatalf("world-writable dir: want ErrInsecure, got %v", err)
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(sock, 0o666); err != nil { //nolint:gosec // the insecure case under test
+		t.Fatal(err)
+	}
+	if _, err := (Client{Socket: sock}).Command(context.Background(), "status-get", nil); !errors.Is(err, ErrInsecure) {
+		t.Fatalf("world-accessible socket: want ErrInsecure, got %v", err)
+	}
+	if _, err := (Client{Socket: filepath.Join(dir, "none.sock")}).Command(context.Background(), "status-get", nil); !errors.Is(err, ErrNotRunning) {
+		t.Fatalf("missing socket: want ErrNotRunning, got %v", err)
 	}
 }

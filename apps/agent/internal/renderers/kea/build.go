@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
 	"net/netip"
 	"slices"
 	"sort"
@@ -87,7 +86,7 @@ type famBuild struct {
 	interfaces []string
 	subnets    []subnet
 	optionDefs map[uint32]optionDef
-	usedIDs    map[uint32]bool
+	ids        map[string]uint32
 	vrf        string
 	vrfOwner   string
 }
@@ -96,8 +95,19 @@ type famBuild struct {
 // kea-dhcp6 process serves all of them). Server-level settings (lease time, timers,
 // authoritative, global options) are pushed down to each subnet so servers stay independent.
 func (r *Renderer) buildFamily(in input, family int) (serverConfig, error) {
-	fb := &famBuild{family: family, space: fmt.Sprintf("dhcp%d", family), optionDefs: map[uint32]optionDef{}, usedIDs: map[uint32]bool{}}
+	fb := &famBuild{family: family, space: fmt.Sprintf("dhcp%d", family), optionDefs: map[uint32]optionDef{}}
 	servers := in.dhcp.GetServers()
+	var names []string
+	for _, name := range sortedKeys(servers) {
+		s := servers[name]
+		if (s.Enabled != nil && !s.GetEnabled()) || (s.GetFamily() == "ipv6") != (family == 6) {
+			continue
+		}
+		for _, sn := range sortedKeys(s.GetSubnets()) {
+			names = append(names, name+"/"+sn)
+		}
+	}
+	fb.ids = assignIDs(names, r.prevIDs(family))
 	for _, name := range sortedKeys(servers) {
 		s := servers[name]
 		if s.Enabled != nil && !s.GetEnabled() {
@@ -263,18 +273,9 @@ func sortOptions(opts []optionData) {
 	sort.SliceStable(opts, func(i, j int) bool { return opts[i].Code < opts[j].Code })
 }
 
-// subnetID derives a stable Kea subnet id from the document names (leases reference it, so it
-// must not change when other subnets are added): FNV-32a of "<server>/<subnet>" in
-// 1..2^32-2, linear probing on the (rare) collision.
+// subnetID returns the id assigned by assignIDs (ids.go).
 func (fb *famBuild) subnetID(server, subnetName string) uint32 {
-	h := fnv.New32a()
-	_, _ = h.Write([]byte(server + "/" + subnetName))
-	id := h.Sum32()%4294967294 + 1
-	for fb.usedIDs[id] {
-		id = id%4294967294 + 1
-	}
-	fb.usedIDs[id] = true
-	return id
+	return fb.ids[server+"/"+subnetName]
 }
 
 func (r *Renderer) buildSubnet(fb *famBuild, server, name string, s *vrxv1.DhcpSubnet, linux []string) (subnet, error) {
@@ -561,22 +562,6 @@ func (r *Renderer) interfaceBindings(in input, cfg *serverConfig, family int) {
 			}
 		}
 	}
-}
-
-func (r *Renderer) buildCtrlAgent() ctrlAgentRoot {
-	return ctrlAgentRoot{ControlAgent: ctrlAgent{
-		HTTPHost: r.paths.CtrlAgentHost,
-		HTTPPort: r.paths.CtrlAgentPort,
-		ControlSockets: map[string]controlSocket{
-			"dhcp4": {SocketType: "unix", SocketName: r.paths.Socket4()},
-			"dhcp6": {SocketType: "unix", SocketName: r.paths.Socket6()},
-		},
-		Loggers: []logger{{
-			Name:          "kea-ctrl-agent",
-			OutputOptions: []outputOption{{Output: r.paths.LogCtrlAgent(), MaxSize: 10 << 20, MaxVer: 4}},
-			Severity:      "INFO",
-		}},
-	}}
 }
 
 // marshal encodes v as indented JSON without HTML escaping and with a trailing newline.

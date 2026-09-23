@@ -16,8 +16,6 @@ const (
 	Dhcp4Bin = "/usr/sbin/kea-dhcp4"
 	// Dhcp6Bin checks kea-dhcp6.conf (`-t <file>`).
 	Dhcp6Bin = "/usr/sbin/kea-dhcp6"
-	// CtrlAgentBin checks kea-ctrl-agent.conf (`-t <file>`).
-	CtrlAgentBin = "/usr/sbin/kea-ctrl-agent"
 	// IPBin runs the DHCP checkers inside Paths.Netns (`ip netns exec <ns> kea-dhcp4 -t
 	// <file>`): Kea checks that a subnet's "interface" exists, so the checker must see the
 	// namespace the server runs in. TEST-ONLY: `ip netns exec` can run any binary, so IPBin is
@@ -34,7 +32,7 @@ const DefaultHooksDir = "/usr/lib/x86_64-linux-gnu/kea/hooks"
 const LeaseCmdsHook = "libdhcp_lease_cmds.so"
 
 // Binaries is the allowlist for the production SystemRunner of this renderer.
-func Binaries() []string { return []string{Dhcp4Bin, Dhcp6Bin, CtrlAgentBin} }
+func Binaries() []string { return []string{Dhcp4Bin, Dhcp6Bin} }
 
 // NewRunner returns the production runner: allow-listed binaries and the Kea 3.0 path
 // environment (Env) so `kea-* -t` accepts the configured socket, lease and log directories.
@@ -75,9 +73,6 @@ type Paths struct {
 	FileOwner string
 	// FileMode of the rendered files (0640).
 	FileMode os.FileMode
-	// CtrlAgentHost / CtrlAgentPort are the kea-ctrl-agent HTTP listener (loopback only).
-	CtrlAgentHost string
-	CtrlAgentPort uint16
 	// SocketType is interfaces-config.dhcp-socket-type for DHCPv4: "raw" (product: serves
 	// clients without an address) or "udp".
 	SocketType string
@@ -95,23 +90,21 @@ type Paths struct {
 // ProductPaths are the paths of the packaged Kea 3.0 on Ubuntu 26.04.
 func ProductPaths() Paths {
 	return Paths{
-		ConfDir:       "/etc/kea",
-		RunDir:        "/run/kea",
-		DataDir:       "/var/lib/kea",
-		LogDir:        "/var/log/kea",
-		HooksDir:      DefaultHooksDir,
-		FileOwner:     "_kea:_kea",
-		FileMode:      0o640,
-		CtrlAgentHost: "127.0.0.1",
-		CtrlAgentPort: 8000,
-		SocketType:    "raw",
-		LFCInterval:   3600,
+		ConfDir:     "/etc/kea",
+		RunDir:      "/run/kea",
+		DataDir:     "/var/lib/kea",
+		LogDir:      "/var/log/kea",
+		HooksDir:    DefaultHooksDir,
+		FileOwner:   "_kea:_kea",
+		FileMode:    0o640,
+		SocketType:  "raw",
+		LFCInterval: 3600,
 	}
 }
 
-// TestPaths are the test-scoped paths for slot prefix ("w6") and slot number: everything
-// under /run/vrx-test/<prefix>/kea, ctrl-agent on 127.0.0.1:3<slot>80, interfaces "<prefix>-*".
-func TestPaths(prefix string, slot int) Paths {
+// TestPaths are the test-scoped paths for slot prefix ("w6"): everything
+// under /run/vrx-test/<prefix>/kea, interfaces "<prefix>-*", servers in ns-<prefix>-a.
+func TestPaths(prefix string) Paths {
 	base := filepath.Join("/run/vrx-test", prefix, "kea")
 	return Paths{
 		ConfDir:         filepath.Join(base, "etc"),
@@ -120,8 +113,6 @@ func TestPaths(prefix string, slot int) Paths {
 		LogDir:          filepath.Join(base, "log"),
 		HooksDir:        DefaultHooksDir,
 		FileMode:        0o640,
-		CtrlAgentHost:   "127.0.0.1",
-		CtrlAgentPort:   uint16(3000 + slot*100 + 80), //nolint:gosec // slots are 1–12
 		SocketType:      "raw",
 		InterfacePrefix: prefix + "-",
 		LFCInterval:     3600,
@@ -134,8 +125,7 @@ var (
 	netnsRe    = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
 )
 
-// Validate checks that every path is absolute, clean and made of safe characters, and that
-// the listener is loopback.
+// Validate checks that every path is absolute, clean and made of safe characters.
 func (p Paths) Validate() error {
 	for name, v := range map[string]string{
 		"ConfDir": p.ConfDir, "RunDir": p.RunDir, "DataDir": p.DataDir, "LogDir": p.LogDir, "HooksDir": p.HooksDir,
@@ -146,12 +136,6 @@ func (p Paths) Validate() error {
 	}
 	if p.FileMode == 0 || p.FileMode&^os.ModePerm != 0 || p.FileMode&0o007 != 0 {
 		return fmt.Errorf("kea: Paths.FileMode %v must be permission bits and not world-accessible", p.FileMode)
-	}
-	if p.CtrlAgentHost != "127.0.0.1" && p.CtrlAgentHost != "::1" {
-		return fmt.Errorf("kea: Paths.CtrlAgentHost %q must be a loopback address", p.CtrlAgentHost)
-	}
-	if p.CtrlAgentPort == 0 {
-		return fmt.Errorf("kea: Paths.CtrlAgentPort must be set")
 	}
 	if p.SocketType != "raw" && p.SocketType != "udp" {
 		return fmt.Errorf("kea: Paths.SocketType %q must be raw or udp", p.SocketType)
@@ -171,9 +155,6 @@ func (p Paths) Dhcp4Conf() string { return filepath.Join(p.ConfDir, "kea-dhcp4.c
 // Dhcp6Conf is kea-dhcp6.conf.
 func (p Paths) Dhcp6Conf() string { return filepath.Join(p.ConfDir, "kea-dhcp6.conf") }
 
-// CtrlAgentConf is kea-ctrl-agent.conf.
-func (p Paths) CtrlAgentConf() string { return filepath.Join(p.ConfDir, "kea-ctrl-agent.conf") }
-
 // Socket4 is the DHCPv4 server's unix control socket.
 func (p Paths) Socket4() string { return filepath.Join(p.RunDir, "kea4.sock") }
 
@@ -191,9 +172,6 @@ func (p Paths) Log4() string { return filepath.Join(p.LogDir, "kea-dhcp4.log") }
 
 // Log6 is kea-dhcp6's log file.
 func (p Paths) Log6() string { return filepath.Join(p.LogDir, "kea-dhcp6.log") }
-
-// LogCtrlAgent is kea-ctrl-agent's log file.
-func (p Paths) LogCtrlAgent() string { return filepath.Join(p.LogDir, "kea-ctrl-agent.log") }
 
 // socket returns the control socket of family 4 or 6.
 func (p Paths) socket(family int) string {

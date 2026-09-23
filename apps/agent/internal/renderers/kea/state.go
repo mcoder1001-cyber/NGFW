@@ -15,7 +15,7 @@ import (
 // one lease4-get-all message (Kea builds the whole answer in memory).
 const LeasePageSize = 1000
 
-// MaxLeases bounds one Retrieve (DaemonState.LeasesTruncated reports the cut).
+// MaxLeases bounds one Leases call; callers page further with their own limit.
 const MaxLeases = 100_000
 
 // State is the actual Kea state.
@@ -24,16 +24,15 @@ type State struct {
 	Dhcp6 DaemonState `json:"dhcp6"`
 }
 
-// DaemonState is one server's state as Kea reports it (JSON passed through).
+// DaemonState is one server's state as Kea reports it (JSON passed through). Leases are not
+// part of it (review L3: Retrieve is the drift read; leases are not desired state): lease
+// counts are in Statistics (subnet[N].assigned-addresses), the leases themselves come from
+// Leases (paged, bounded) for the lease browser (F-dhcp).
 type DaemonState struct {
-	Running         bool              `json:"running"`
-	Status          json.RawMessage   `json:"status,omitempty"`
-	Config          json.RawMessage   `json:"config,omitempty"`
-	Statistics      json.RawMessage   `json:"statistics,omitempty"`
-	Leases          []json.RawMessage `json:"leases"`
-	LeasesTruncated bool              `json:"leasesTruncated,omitempty"`
-	// LeasesUnsupported: the lease_cmds hook is not loaded.
-	LeasesUnsupported bool `json:"leasesUnsupported,omitempty"`
+	Running    bool            `json:"running"`
+	Status     json.RawMessage `json:"status,omitempty"`
+	Config     json.RawMessage `json:"config,omitempty"`
+	Statistics json.RawMessage `json:"statistics,omitempty"`
 }
 
 // State reads both servers. A server that is not running is reported with Running false.
@@ -50,7 +49,7 @@ func (r *Renderer) State(ctx context.Context) (State, error) {
 }
 
 func (r *Renderer) daemonState(ctx context.Context, fam int) (DaemonState, error) {
-	ds := DaemonState{Leases: []json.RawMessage{}}
+	ds := DaemonState{}
 	status, err := r.ctrl.Command(ctx, fam, "status-get", nil)
 	if errors.Is(err, ErrNotRunning) {
 		return ds, nil
@@ -69,15 +68,6 @@ func (r *Renderer) daemonState(ctx context.Context, fam int) (DaemonState, error
 		return ds, fmt.Errorf("kea: dhcp%d statistic-get-all: %w", fam, err)
 	}
 	ds.Statistics = stats.Arguments
-	leases, truncated, err := r.Leases(ctx, fam, MaxLeases)
-	switch {
-	case errors.Is(err, errUnsupported):
-		ds.LeasesUnsupported = true
-	case err != nil:
-		return ds, err
-	default:
-		ds.Leases, ds.LeasesTruncated = leases, truncated
-	}
 	return ds, nil
 }
 
@@ -96,11 +86,15 @@ func (r *Renderer) ConfigGet(ctx context.Context, fam int) (json.RawMessage, err
 	return json.Marshal(m)
 }
 
-var errUnsupported = errors.New("kea: command unsupported (hook not loaded)")
+// ErrUnsupported is returned by Leases when the lease_cmds hook is not loaded.
+var ErrUnsupported = errors.New("kea: command unsupported (hook not loaded)")
 
-// Leases reads every lease of family 4 or 6 with lease4/6-get-page (LeasePageSize per
-// message), up to limit leases.
+// Leases reads the leases of family 4 or 6 with lease4/6-get-page (LeasePageSize per
+// message), at most limit (≤ MaxLeases); truncated reports that more exist.
 func (r *Renderer) Leases(ctx context.Context, fam, limit int) ([]json.RawMessage, bool, error) {
+	if limit <= 0 || limit > MaxLeases {
+		limit = MaxLeases
+	}
 	cmd := fmt.Sprintf("lease%d-get-page", fam)
 	from := "start"
 	out := []json.RawMessage{}
@@ -108,7 +102,7 @@ func (r *Renderer) Leases(ctx context.Context, fam, limit int) ([]json.RawMessag
 		resp, err := r.ctrl.Command(ctx, fam, cmd, map[string]any{"from": from, "limit": LeasePageSize})
 		if err != nil {
 			if resp.Result == ResultUnsupported {
-				return nil, false, errUnsupported
+				return nil, false, ErrUnsupported
 			}
 			return nil, false, fmt.Errorf("kea: %s: %w", cmd, err)
 		}

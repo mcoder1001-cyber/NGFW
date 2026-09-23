@@ -118,15 +118,3 @@ type outputOption struct {
 	MaxSize uint64 `json:"maxsize"`
 	MaxVer  uint32 `json:"maxver"`
 }
-
-// ctrlAgentRoot is kea-ctrl-agent.conf.
-type ctrlAgentRoot struct {
-	ControlAgent ctrlAgent `json:"Control-agent"`
-}
-
-type ctrlAgent struct {
-	HTTPHost       string                   `json:"http-host"`
-	HTTPPort       uint16                   `json:"http-port"`
-	ControlSockets map[string]controlSocket `json:"control-sockets"`
-	Loggers        []logger                 `json:"loggers"`
-}

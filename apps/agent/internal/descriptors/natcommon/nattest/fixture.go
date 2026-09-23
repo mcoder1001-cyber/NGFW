@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"ngfw/agent/binapi/interface_types"
 	interfaces "ngfw/agent/binapi/interface"
+	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/vpptest"
 )

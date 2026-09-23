@@ -1,5 +1,7 @@
 # map descriptors (DF-3, D4.5: MAP-E / MAP-T / LW4o6)
 
+> **Ownership, globals (D-071), claims, unique keys and write-only re-application: see [nat-common.md](nat-common.md)** — it overrides older wording below where they differ.
+
 Package `apps/agent/internal/descriptors/mapnat` (named `mapnat` because `map` is a Go keyword). Bindings are in
 `apps/agent/binapi/map` (plugin `map_plugin.so`, loaded on vrx-a) plus `binapi/feature` for `feature_is_enabled`.
 Entry point: `mapnat.Register(registry, client, owner)`. The desired-state carrier is `*structpb.Struct`, built from
@@ -19,4 +21,4 @@ tag (`natcommon.Scope`). The params singleton is global, so a test slot touches 
 Tests: `mapnat_test.go` covers the fake: create, idempotent re-apply, rule update in place, foreign and untagged
 domains filtered, VPP errors, params presence semantics, and MAP-E plus MAP-T on one interface.
 `mapnat_integration_test.go` runs on the host: domain `w9-lw` with `10.9.46.0/24` / `fd00:9:46::/48`, two rules,
-MAP-E on `loop930` and MAP-T on `loop931`, and params set and then restored to the defaults.
+MAP-E on `loop930` and MAP-T on `loop931`, and params required at their current value (never set by a slot).

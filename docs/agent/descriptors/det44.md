@@ -1,5 +1,7 @@
 # det44 descriptors (DF-3)
 
+> **Ownership, globals (D-071), claims, unique keys and write-only re-application: see [nat-common.md](nat-common.md)** — it overrides older wording below where they differ.
+
 Package `apps/agent/internal/descriptors/det44`, binapi `apps/agent/binapi/det44` (plugin `det44_plugin.so`, loaded on
 vrx-a). Entry point `det44.Register(registry, client, owner)`. No "is enabled" getter → `det44.enable` is **write-only**
 (`ErrRetrieveUnsupported`, D-063), as for nat64/nat66.

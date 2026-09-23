@@ -1,5 +1,7 @@
 # cnat descriptors (DF-3, D4.6)
 
+> **Ownership, globals (D-071), claims, unique keys and write-only re-application: see [nat-common.md](nat-common.md)** — it overrides older wording below where they differ.
+
 Package `apps/agent/internal/descriptors/cnat`. Bindings are in `apps/agent/binapi/cnat` (plugin `cnat_plugin.so`,
 loaded on vrx-a) plus `binapi/feature`. Entry point: `cnat.Register(registry, client, owner)`. The carrier is
 `*structpb.Struct` built from typed specs (D-055).

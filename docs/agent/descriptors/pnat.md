@@ -1,5 +1,7 @@
 # pnat descriptors (DF-3)
 
+> **Ownership, globals (D-071), claims, unique keys and write-only re-application: see [nat-common.md](nat-common.md)** — it overrides older wording below where they differ.
+
 Package `apps/agent/internal/descriptors/pnat`. Bindings are in `apps/agent/binapi/pnat` (plugin `pnat_plugin.so`,
 policy 1:1 NAT, loaded on vrx-a). Entry point: `pnat.Register(registry, client, owner)`. The carrier is
 `*structpb.Struct` built from typed specs (D-055).

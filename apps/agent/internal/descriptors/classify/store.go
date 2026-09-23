@@ -47,10 +47,10 @@ type SessionRecord struct {
 // with a different table index, so the indices bound are kept here.
 type OutputRecord struct {
 	Interface string `json:"interface"`
-	Ip4Table  string `json:"ip4_table,omitempty"`
-	Ip4Index  uint32 `json:"ip4_index"`
-	Ip6Table  string `json:"ip6_table,omitempty"`
-	Ip6Index  uint32 `json:"ip6_index"`
+	IP4Table  string `json:"ip4_table,omitempty"`
+	IP4Index  uint32 `json:"ip4_index"`
+	IP6Table  string `json:"ip6_table,omitempty"`
+	IP6Index  uint32 `json:"ip6_index"`
 }
 
 // ErrNoSuchTable is returned when a classify table name is not in the Store.

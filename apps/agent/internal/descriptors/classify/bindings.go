@@ -464,15 +464,15 @@ func (d *OutputACLDescriptor) call(ctx context.Context, idx interface_types.Inte
 // feature is already enabled, without switching the table, so a new binding is only applied
 // after the old one is gone (A→B otherwise silently keeps A).
 func (d *OutputACLDescriptor) unbind(ctx context.Context, idx interface_types.InterfaceIndex, rec OutputRecord) error {
-	if rec.Ip4Table == "" && rec.Ip6Table == "" {
+	if rec.IP4Table == "" && rec.IP6Table == "" {
 		return nil
 	}
 	ip4, ip6 := NoIndex, NoIndex
-	if rec.Ip4Table != "" {
-		ip4 = rec.Ip4Index
+	if rec.IP4Table != "" {
+		ip4 = rec.IP4Index
 	}
-	if rec.Ip6Table != "" {
-		ip6 = rec.Ip6Index
+	if rec.IP6Table != "" {
+		ip6 = rec.IP6Index
 	}
 	if err := d.call(ctx, idx, ip4, ip6, false); err != nil {
 		return err
@@ -523,7 +523,7 @@ func (d *OutputACLDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	if err := d.call(ctx, idx, ip4, ip6, true); err != nil {
 		return nil, err
 	}
-	rec := OutputRecord{Interface: o.GetInterface(), Ip4Table: o.GetIp4Table(), Ip4Index: ip4, Ip6Table: o.GetIp6Table(), Ip6Index: ip6}
+	rec := OutputRecord{Interface: o.GetInterface(), IP4Table: o.GetIp4Table(), IP4Index: ip4, IP6Table: o.GetIp6Table(), IP6Index: ip6}
 	if err := d.store.PutOutput(rec); err != nil {
 		_ = d.call(ctx, idx, ip4, ip6, false)
 		return nil, err
@@ -618,7 +618,7 @@ func (d *OutputACLDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 			continue
 		}
 		rec, _ := d.store.GetOutput(name)
-		v := &OutputAcl{Interface: name, Ip4Table: pick(on4, rec.Ip4Table, rec.Ip4Index), Ip6Table: pick(on6, rec.Ip6Table, rec.Ip6Index)}
+		v := &OutputAcl{Interface: name, Ip4Table: pick(on4, rec.IP4Table, rec.IP4Index), Ip6Table: pick(on6, rec.IP6Table, rec.IP6Index)}
 		out = append(out, scheduler.KV{Key: key, Value: v, Meta: BindingMeta{SwIfIndex: idx}})
 	}
 	return out, nil

@@ -36,7 +36,7 @@ func encodeForward(f *Forward, isAdd bool) (*gtpuapi.GtpuAddDelForward, error) {
 		DstAddress:     df6.ToAddress(dst),
 		ForwardingType: gtpuapi.GtpuForwardingType(f.GetForwardingType()), //nolint:gosec // validated mask
 		EncapVrfID:     f.GetEncapVrfId(),
-		DecapNextIndex: gtpuapi.GtpuDecapNextType(f.GetDecapNext()),
+		DecapNextIndex: gtpuapi.GtpuDecapNextType(f.GetDecapNext()), //nolint:gosec // proto enum 0–3
 	}, nil
 }
 

@@ -1,3 +1,5 @@
+// Package vxlan holds the VXLAN descriptors: tunnels and the ip4/ip6 bypass feature.
+// See docs/agent/descriptors/vxlan.md.
 package vxlan
 
 import (

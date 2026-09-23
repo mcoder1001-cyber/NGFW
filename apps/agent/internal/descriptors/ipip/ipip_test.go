@@ -56,7 +56,7 @@ func newFakeIPIP() *fakeIPIP {
 	})
 	f.On("ipip_6rd_add_tunnel", func(req api.Message) ([]api.Message, error) {
 		r := req.(*ipipapi.Ipip6rdAddTunnel)
-		idx := f.AddInterface(ipip.InterfaceName(50+uint32(len(f.sixrd))), "")
+		idx := f.AddInterface(ipip.InterfaceName(50+uint32(len(f.sixrd))), "") //nolint:gosec // tiny test map
 		f.sixrd[idx] = r
 		return []api.Message{&ipipapi.Ipip6rdAddTunnelReply{SwIfIndex: interface_types.InterfaceIndex(idx)}}, nil
 	})

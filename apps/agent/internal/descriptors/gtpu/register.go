@@ -1,3 +1,5 @@
+// Package gtpu holds the GTP-U descriptors: tunnels (with in-place tteid update), forwarding
+// entries and the ip4/ip6 bypass feature. See docs/agent/descriptors/gtpu.md.
 package gtpu
 
 import (

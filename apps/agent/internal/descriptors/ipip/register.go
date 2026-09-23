@@ -1,3 +1,5 @@
+// Package ipip holds the IP-in-IP descriptors: point-to-point / multipoint tunnels and 6RD
+// tunnels. See docs/agent/descriptors/ipip.md.
 package ipip
 
 import (

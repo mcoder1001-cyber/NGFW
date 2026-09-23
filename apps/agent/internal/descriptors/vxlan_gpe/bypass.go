@@ -11,7 +11,7 @@ import (
 )
 
 // BypassName is the descriptor name; keys are "vxlan-gpe.bypass/<interface>".
-const BypassName = "vxlan-gpe.bypass"
+const BypassName = "vxlan-gpe.bypass" //nolint:gosec // descriptor name, not a credential
 
 // BypassDescriptor toggles ip4/ip6-vxlan-gpe-bypass on an interface (write-only, no dump).
 type BypassDescriptor = df6.BypassDescriptor[*Bypass]

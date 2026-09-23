@@ -242,6 +242,6 @@ func (d *PolicyDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 	return out, nil
 }
 
-// ErrPolicyInUse: a steering entry still points at the policy (delete the steering first;
+// ErrPolicyInUse means a steering entry still points at the policy (delete the steering first;
 // the scheduler's dependency order does so).
 var ErrPolicyInUse = errors.New("sr policy still has steering entries")

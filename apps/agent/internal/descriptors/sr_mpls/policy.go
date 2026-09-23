@@ -36,7 +36,7 @@ const (
 	MaxSegments = 16
 )
 
-// ErrNoSuchPolicy: the referenced SR-MPLS policy (BSID) does not exist in VPP.
+// ErrNoSuchPolicy means the referenced SR-MPLS policy (BSID) does not exist in VPP.
 var ErrNoSuchPolicy = errors.New("no such sr-mpls policy")
 
 // PolicyDescriptor manages SR-MPLS policies.

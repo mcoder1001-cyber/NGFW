@@ -89,7 +89,7 @@ func TestTunnelOnHost(t *testing.T) {
 	if _, err := d.Update(h.Ctx, cases[0], upd, actual[0].Meta); err != nil {
 		t.Fatalf("tteid update: %v", err)
 	}
-	if again, _ := d.Retrieve(h.Ctx); len(again) != 2 || !(proto.Equal(again[0].Value, upd) || proto.Equal(again[1].Value, upd)) {
+	if again, _ := d.Retrieve(h.Ctx); len(again) != 2 || (!proto.Equal(again[0].Value, upd) && !proto.Equal(again[1].Value, upd)) {
 		t.Fatalf("after tteid update Retrieve = %+v", again)
 	}
 	if err := b.Delete(h.Ctx, bdesired, bmeta); err != nil {

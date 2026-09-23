@@ -50,7 +50,7 @@ func NewLookupKey(c vpp.Client) *LookupKeyDescriptor {
 			return nil
 		},
 		Set: func(ctx context.Context, c vpp.Client, k *LookupKey) error {
-			if _, err := l2tpapi.NewServiceClient(c).L2tpv3SetLookupKey(ctx, &l2tpapi.L2tpv3SetLookupKey{Key: l2tpapi.L2tLookupKey(k.GetKey())}); err != nil {
+			if _, err := l2tpapi.NewServiceClient(c).L2tpv3SetLookupKey(ctx, &l2tpapi.L2tpv3SetLookupKey{Key: l2tpapi.L2tLookupKey(k.GetKey())}); err != nil { //nolint:gosec // validated enum
 				return fmt.Errorf("l2tpv3_set_lookup_key: %w", err)
 			}
 			return nil

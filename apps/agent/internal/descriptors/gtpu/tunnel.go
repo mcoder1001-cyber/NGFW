@@ -75,7 +75,7 @@ func encode(t *Tunnel, ifs *df6.Interfaces, isAdd bool) (*gtpuapi.GtpuAddDelTunn
 		DstAddress:     df6.ToAddress(dst),
 		McastSwIfIndex: mcast,
 		EncapVrfID:     t.GetEncapVrfId(),
-		DecapNextIndex: gtpuapi.GtpuDecapNextType(t.GetDecapNext()),
+		DecapNextIndex: gtpuapi.GtpuDecapNextType(t.GetDecapNext()), //nolint:gosec // validated 0–3
 		Teid:           t.GetTeid(),
 		Tteid:          effectiveTteid(t),
 		PduExtension:   t.GetPduExtension(),
@@ -195,7 +195,7 @@ func dump(ctx context.Context, c vpp.Client) ([]*gtpuapi.GtpuTunnelV2Details, er
 	return df6.Collect(stream.Recv)
 }
 
-// ErrTunnelExists: VPP already has a GTP-U tunnel with the same (dst, teid) decap key.
+// ErrTunnelExists means VPP already has a GTP-U tunnel with the same (dst, teid) decap key.
 var ErrTunnelExists = errors.New("gtpu tunnel key already in use")
 
 // tunnelExists reports whether VPP has a GTP-U tunnel (not a forwarding entry) with VPP's

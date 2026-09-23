@@ -121,8 +121,8 @@ func encode(t *Tunnel) (greapi.GreTunnelV2, error) {
 		}
 	}
 	return greapi.GreTunnelV2{
-		Type:         greapi.GreTunnelType(t.GetType()),
-		Mode:         tunnel_types.TunnelMode(t.GetMode()),
+		Type:         greapi.GreTunnelType(t.GetType()),                //nolint:gosec // validated enum
+		Mode:         tunnel_types.TunnelMode(t.GetMode()),             //nolint:gosec // validated enum
 		Flags:        tunnel_types.TunnelEncapDecapFlags(t.GetFlags()), //nolint:gosec // 8-bit mask, validated by VPP
 		SessionID:    uint16(t.GetSessionId()),                         //nolint:gosec // validated ≤ 1023
 		Instance:     t.GetInstance(),

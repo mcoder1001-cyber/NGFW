@@ -9,7 +9,7 @@ import (
 	"ngfw/agent/internal/vpp"
 )
 
-// ErrNoSuchTable: a referenced IP table does not exist in VPP.
+// ErrNoSuchTable means a referenced IP table does not exist in VPP.
 var ErrNoSuchTable = errors.New("no such ip table")
 
 // RequireTable checks that IP table id (IPv6 when ip6) exists; table 0 always exists. Several

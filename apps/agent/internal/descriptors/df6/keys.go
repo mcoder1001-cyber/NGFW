@@ -34,7 +34,7 @@ func MPLSTableKey(id uint32) scheduler.Key {
 	return scheduler.Join(MPLSTableKeyPrefix, strconv.FormatUint(uint64(id), 10))
 }
 
-// InterfaceDep is the mandatory dependency on an interface; "" yields nothing.
+// InterfaceDeps is the mandatory dependency on an interface; "" yields nothing.
 func InterfaceDeps(name string) []scheduler.Dependency {
 	if name == "" {
 		return nil

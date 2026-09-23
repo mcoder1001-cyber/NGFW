@@ -113,7 +113,7 @@ var sessionSpec = df6.IfSpec[*Session, *pppoeapi.PppoeSessionDetails]{
 // retvalInvalidSwIfIndex is VNET_API_ERROR_INVALID_SW_IF_INDEX.
 const retvalInvalidSwIfIndex = -2
 
-// ErrClientNotLearned: VPP creates a PPPoE session only for a client MAC its pppoe-input node
+// ErrClientNotLearned means VPP refused the session: it creates a PPPoE session only for a client MAC its pppoe-input node
 // has already learned from discovery (PADI/PADR) packets on some interface; for an unknown MAC
 // pppoe_add_del_session fails with INVALID_SW_IF_INDEX. The scheduler retries on the next
 // reconcile, after the control plane has seen the client.

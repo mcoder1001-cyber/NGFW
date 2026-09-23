@@ -11,7 +11,7 @@ import (
 )
 
 // BypassName is the descriptor name; keys are "gtpu.bypass/<interface>".
-const BypassName = "gtpu.bypass"
+const BypassName = "gtpu.bypass" //nolint:gosec // descriptor name, not a credential
 
 // BypassDescriptor toggles ip4/ip6-gtpu-bypass on an interface (write-only, no dump).
 type BypassDescriptor = df6.BypassDescriptor[*Bypass]

@@ -1,3 +1,5 @@
+// Package sr holds the SRv6 descriptors: local SIDs, policies, steering and the global encap
+// source / hop limit. See docs/agent/descriptors/sr.md.
 package sr
 
 import (

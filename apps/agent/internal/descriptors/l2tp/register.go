@@ -1,3 +1,5 @@
+// Package l2tp holds the L2TPv3 descriptors: tunnels (cookies updated in place), per-interface
+// decap enable and the global lookup key. See docs/agent/descriptors/l2tp.md.
 package l2tp
 
 import (

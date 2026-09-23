@@ -1,3 +1,5 @@
+// Package pppoe holds the PPPoE descriptors: sessions and the control-plane punt interface.
+// See docs/agent/descriptors/pppoe.md.
 package pppoe
 
 import (

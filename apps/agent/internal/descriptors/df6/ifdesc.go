@@ -160,10 +160,29 @@ func (d *IfDescriptor[T, D]) Delete(ctx context.Context, obj proto.Message, meta
 	if d.spec.Del == nil {
 		return fmt.Errorf("%s: %w", d.spec.Name, ErrNoDelete)
 	}
+	// Never send a delete VPP would reject: some 26.06 handlers do not survive a failed
+	// add/del (V8, gtpu). An object whose interface is gone is already deleted.
+	present, err := d.present(ctx, m.SwIfIndex)
+	if err != nil {
+		return err
+	}
+	if !present {
+		return nil
+	}
 	if err := d.spec.Del(ctx, d.client, t, interface_types.InterfaceIndex(m.SwIfIndex)); err != nil {
 		return PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
 	}
 	return nil
+}
+
+// present reports whether sw_if_index idx still exists and carries this owner's tag (every
+// object of an IfDescriptor is a tagged interface).
+func (d *IfDescriptor[T, D]) present(ctx context.Context, idx uint32) (bool, error) {
+	ifs, err := DumpInterfaces(ctx, d.client, d.owner)
+	if err != nil {
+		return false, err
+	}
+	return ifs.Owned(idx), nil
 }
 
 // Retrieve implements scheduler.Descriptor: dump, keep the records whose interface carries

@@ -1,0 +1,2 @@
+# test tooling of the Python SDK (the SDK itself is stdlib-only). Lock: ./lock.sh lock → requirements-dev.lock
+pytest==9.1.1

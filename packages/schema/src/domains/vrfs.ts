@@ -1,21 +1,33 @@
 import { z } from 'zod';
+import { descriptionText, objectName, uint32 } from '../primitives.js';
 import { withUi } from '../ui.js';
 
 /**
- * `vrfs` — VRFs.
+ * `vrfs` — VRF / FIB tables keyed by name (docs/04-api-datamodel.md).
  *
- * Target shape (docs/04-api-datamodel.md, prompts/P02-schema-package.md §2):
- *   record<name, { id (0..2^32-1), description }>
- *
- * Guardrail (vdom.md #1): VRF is first-class everywhere; the `default` VRF is an ordinary entry, not an implicit 0.
- *
- * TODO(P02a): replace this passthrough placeholder with the full model and add the domain's semantic
- * validators in `../semantic/vrfs.ts`. Only P02a edits this file.
+ * Guardrail (vdom.md #1): VRF is first-class on every object that routes; nothing assumes table 0.
+ * The `default` VRF is table 0 and always exists on VPP. It MAY be declared here (to give it a description) and
+ * then must carry `id: 0`; references to `default` resolve whether or not it is declared (semantic
+ * `vrfs.default-is-table-zero`, `interfaces.vrf-exists`, …). Every other VRF must be declared with a unique id
+ * (`vrfs.id-unique`). VPP creates both an IPv4 and an IPv6 FIB with that id.
  */
-export const VrfsSchema = withUi(z.looseObject({}), {
+export const VrfSchema = z.strictObject({
+  id: withUi(uint32, {
+    title: 'Table ID',
+    help: 'VPP FIB table id (0 is the default VRF)',
+    order: 1,
+  }),
+  description: withUi(descriptionText.optional(), { title: 'Description', order: 2 }),
+});
+export type VrfConfig = z.infer<typeof VrfSchema>;
+
+export const VrfsSchema = withUi(z.record(objectName, VrfSchema), {
   title: 'VRFs',
   description: 'VRF / FIB tables keyed by name.',
   order: 40,
 });
 
 export type VrfsConfig = z.infer<typeof VrfsSchema>;
+
+/** Name of the always-present VRF (VPP table 0). */
+export const DEFAULT_VRF = 'default';

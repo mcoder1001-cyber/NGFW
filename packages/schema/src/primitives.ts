@@ -127,7 +127,7 @@ export const hostname = withUi(
       /^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(?:\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*$/,
       'expected an RFC 1123 hostname',
     )
-    .refine((name) => !/^[0-9]+$/.test(name.split('.').at(-1) ?? ''), 'the last label must not be all digits'),
+    .refine((name) => !/(?:^|\.)[0-9]+$/.test(name), 'the last label must not be all digits'),
   { title: 'Hostname' },
 );
 
@@ -169,6 +169,12 @@ export const descriptionText = withUi(z.string().max(255).regex(/^[^\r\n]*$/, 's
 });
 
 /* ---------------------------------------------------------------------------------------------- numbers */
+
+/** Unsigned 32-bit integer (VRF / FIB table ids, sequence numbers, sub-interface ids, tags). */
+export const uint32 = withUi(z.number().int().min(0).max(4294967295), { title: 'Number', widget: 'number' });
+
+/** CPU core index as used by `cpu { main-core N corelist-workers … }`. */
+export const cpuCore = withUi(z.number().int().min(0).max(1023), { title: 'CPU core', widget: 'number' });
 
 /** TCP/UDP port number. */
 export const portNumber = withUi(z.number().int().min(1).max(65535), { title: 'Port', widget: 'number' });

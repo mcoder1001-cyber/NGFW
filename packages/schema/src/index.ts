@@ -45,6 +45,9 @@ export const RootConfig = z.strictObject({
 
 export type RootConfig = z.infer<typeof RootConfig>;
 
+/** What the API accepts (`PUT`/`PATCH`/import): every field with a default may be omitted. */
+export type RootConfigInput = z.input<typeof RootConfig>;
+
 /** A top-level key of the configuration document. */
 export type RootKey = keyof RootConfig;
 

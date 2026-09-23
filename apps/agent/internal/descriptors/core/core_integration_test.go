@@ -217,7 +217,6 @@ func TestClaimRulesOnHost(t *testing.T) {
 	p := vpptest.Prefix(t)
 	ownerB, ownerA := p+"rb", p+"ra"
 	c := dialVPP(t)
-	t.Cleanup(func() { cleanupSlot(t, c, ownerA, ownerB) })
 	ctx := context.Background()
 	slot := vpptest.Slot(t)
 	table := vpptest.TableBase(t) + 50
@@ -225,6 +224,15 @@ func TestClaimRulesOnHost(t *testing.T) {
 	shared := fmt.Sprintf("10.%d.99.0/24", slot)
 	sb := newScheduler(t, c, ownerB)
 	sa := newScheduler(t, c, ownerA)
+	// Clean up through the same schedulers: their owner tables hold the route claims (a fresh
+	// scheduler would not own — and therefore never delete — the table-0 route).
+	t.Cleanup(func() {
+		for _, s := range []*scheduler.Scheduler{sa, sb} {
+			if r := s.Apply(ctx, nil, nil); r.Outcome != scheduler.OutcomeApplied {
+				t.Errorf("cleanup: %s %v", r.Outcome, r.Err)
+			}
+		}
+	})
 	theirs := []scheduler.KV{
 		{Key: core.VRFKey(table), Value: &core.Table{Id: table, Vrf: "blue"}},
 		{Key: core.RouteKey(table, blue), Value: &core.Route{TableId: table, Prefix: blue}},

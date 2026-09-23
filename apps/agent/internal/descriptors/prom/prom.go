@@ -18,6 +18,7 @@ package prom
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -102,12 +103,12 @@ type Option func(*dfkit.Globals)
 func WithGlobals(g dfkit.Globals) Option { return func(o *dfkit.Globals) { *o = g } }
 
 // Register constructs and registers the prom descriptors.
-func Register(r scheduler.Registry, client vpp.Client, opts ...Option) {
+func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Option) {
 	var g dfkit.Globals
 	for _, o := range opts {
 		o(&g)
 	}
-	r.Register(NewHTTPStaticServer(client, g))
+	r.Register(NewHTTPStaticServer(client, owner, g))
 }
 
 // HTTPStaticServerID is the object id of the singleton (key prom.http-static-server/global).
@@ -119,17 +120,16 @@ var KeyHTTPStaticServer = scheduler.Join(NameHTTPStaticServer, HTTPStaticServerI
 // HTTPStaticServerDescriptor manages the prom.http-static-server singleton (see package doc).
 type HTTPStaticServerDescriptor struct {
 	client  vpp.Client
+	owner   string
 	globals dfkit.Globals
-
 	mu      sync.Mutex
-	enabled *HTTPStaticServer // what this process enabled (VPP accepts one enable per process)
 }
 
 var _ scheduler.Descriptor = (*HTTPStaticServerDescriptor)(nil)
 
 // NewHTTPStaticServer returns the prom.http-static-server descriptor.
-func NewHTTPStaticServer(client vpp.Client, g dfkit.Globals) *HTTPStaticServerDescriptor {
-	return &HTTPStaticServerDescriptor{client: client, globals: g}
+func NewHTTPStaticServer(client vpp.Client, owner string, g dfkit.Globals) *HTTPStaticServerDescriptor {
+	return &HTTPStaticServerDescriptor{client: client, owner: owner, globals: g}
 }
 
 // Name implements scheduler.Descriptor.
@@ -141,8 +141,10 @@ func (*HTTPStaticServerDescriptor) KeyOf(proto.Message) scheduler.Key { return K
 // Dependencies implements scheduler.Descriptor: none.
 func (*HTTPStaticServerDescriptor) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 
-// Create implements scheduler.Descriptor: http_static_enable_v5. APP_ALREADY_ATTACHED is success
-// only for this process's identical server (write-only re-apply), ErrServerBusy otherwise.
+// Create implements scheduler.Descriptor: http_static_enable_v5. VPP accepts one enable per
+// process (APP_ALREADY_ATTACHED afterwards), so the applied value is recorded in the owner's
+// BootStore under the VPP boot identity and a re-apply on the same VPP process is skipped (D-076);
+// any other attached server is ErrServerBusy.
 func (d *HTTPStaticServerDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	var s HTTPStaticServer
 	if err := dfkit.Decode(obj, &s); err != nil {
@@ -156,23 +158,27 @@ func (d *HTTPStaticServerDescriptor) Create(ctx context.Context, obj proto.Messa
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	value, _ := json.Marshal(s)
+	applied, id, err := dfkit.AppliedThisBoot(ctx, d.client, d.owner, KeyHTTPStaticServer, string(value))
+	if err != nil {
+		return nil, err
+	}
+	if applied {
+		return nil, nil
+	}
 	req := &http_static.HTTPStaticEnableV5{
 		FifoSize: s.FifoSize, CacheSizeLimit: s.CacheSizeLimit, MaxAge: s.MaxAge, KeepaliveTimeout: s.KeepaliveTimeout,
 		MaxBodySize: uint64(s.MaxBodySize), RxBuffThresh: s.RxBuffThresh, PreallocFifos: s.PreallocFifos,
 		PrivateSegmentSize: s.PrivateSegmentSize, WwwRoot: s.WWWRoot, URI: s.URI,
 	}
-	_, err := http_static.NewServiceClient(d.client).HTTPStaticEnableV5(ctx, req)
+	_, err = http_static.NewServiceClient(d.client).HTTPStaticEnableV5(ctx, req)
 	if dfkit.IsVPPError(err, api.APP_ALREADY_ATTACHED) {
-		if d.enabled != nil && *d.enabled == s {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("http_static_enable_v5: %w (%v)", ErrServerBusy, err)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("http_static_enable_v5(%s): %w", s.URI, dfkit.PluginError(Plugin, err))
 	}
-	d.enabled = &s
-	return nil, nil
+	return nil, dfkit.Record(d.owner, KeyHTTPStaticServer, id, string(value))
 }
 
 // Update implements scheduler.Descriptor: VPP cannot reconfigure a running http_static server.

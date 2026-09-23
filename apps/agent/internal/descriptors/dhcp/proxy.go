@@ -155,8 +155,8 @@ func (d *ProxyDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 			out = append(out, scheduler.KV{Key: ProxyKey(s.RxVRF, s.ServerVRF, s.Server), Value: s.Proto()})
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
-	return out, nil
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Key < out[j].Key })
+	return dfkit.Dedupe(out), nil
 }
 
 func hasKey(kvs []scheduler.KV, k scheduler.Key) bool {

@@ -139,6 +139,6 @@ func (d *ProxyVSSDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 		}
 		out = append(out, scheduler.KV{Key: ProxyVSSKey(s.Family, s.VRF), Value: s.Proto()})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
-	return out, nil
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Key < out[j].Key })
+	return dfkit.Dedupe(out), nil
 }

@@ -48,18 +48,24 @@ func TestPcapOnHost(t *testing.T) {
 	} else if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := d.Create(ctx, v); err != nil { // re-apply of this process's capture
+	if _, err := d.Create(ctx, v); err != nil { // re-apply: skipped via the BootStore record (D-076)
 		t.Fatalf("re-apply: %v", err)
 	}
-	other := NewCapture(c, h.Owner) // a second agent (or slot) must be refused, not take over
-	if _, err := other.Create(ctx, v); !errors.Is(err, ErrCaptureBusy) {
+	if _, err := NewCapture(c, h.Owner).Create(ctx, v); err != nil { // agent restart, same owner
+		t.Fatalf("re-apply after agent restart: %v", err)
+	}
+	// another owner (slot) must be refused, not take over; its Delete never stops our capture.
+	// It asks for an "any" capture (it cannot name our interface), which VPP refuses as busy.
+	other := NewCapture(c, h.Owner+"x")
+	vOther := Capture{Rx: true, Interface: AnyInterface, MaxPackets: 1, MaxBytesPerPacket: 64, File: h.Owner + "x-df8.pcap"}.Proto()
+	if _, err := other.Create(ctx, vOther); !errors.Is(err, ErrCaptureBusy) {
 		t.Fatalf("second capture: %v", err)
 	}
-	if err := other.Delete(ctx, v, nil); err != nil { // never stops a capture it did not start
+	if err := other.Delete(ctx, vOther, nil); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := d.Create(ctx, v); err != nil {
-		t.Fatalf("capture must still be ours after the other descriptor's Delete: %v", err)
+		t.Fatalf("capture must still be ours after the other owner's Delete: %v", err)
 	}
 	if _, err := d.Retrieve(ctx); !errors.Is(err, dfkit.ErrRetrieveUnsupported) {
 		t.Fatal(err)
@@ -70,11 +76,11 @@ func TestPcapOnHost(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// the capture is off: a new one can start (and is stopped again)
-	if _, err := other.Create(ctx, v); err != nil {
+	// the capture is off: this owner can start it again (the record was forgotten)
+	if _, err := d.Create(ctx, v); err != nil {
 		t.Fatalf("after delete: %v", err)
 	}
-	if err := other.Delete(ctx, v, nil); err != nil {
+	if err := d.Delete(ctx, v, nil); err != nil {
 		t.Fatal(err)
 	}
 }

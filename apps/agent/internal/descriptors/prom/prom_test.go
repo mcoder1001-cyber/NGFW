@@ -24,8 +24,8 @@ func TestHTTPStaticServer(t *testing.T) {
 		return []api.Message{&http_static.HTTPStaticEnableV5Reply{}}, nil
 	})
 	ctx := context.Background()
-	d := NewHTTPStaticServer(f, dfkit.GlobalsOwner(true))
-	if _, err := NewHTTPStaticServer(f, dfkit.GlobalsOwner(false)).Create(ctx, HTTPStaticServer{URI: "tcp://127.0.0.1/9152", WWWRoot: "/srv"}.Proto()); !errors.Is(err, dfkit.ErrNotGlobalsOwner) {
+	d := NewHTTPStaticServer(f, "w5", dfkit.GlobalsOwner(true))
+	if _, err := NewHTTPStaticServer(f, "w5", dfkit.GlobalsOwner(false)).Create(ctx, HTTPStaticServer{URI: "tcp://127.0.0.1/9152", WWWRoot: "/srv"}.Proto()); !errors.Is(err, dfkit.ErrNotGlobalsOwner) {
 		t.Fatalf("non-owner: %v", err)
 	}
 	v := HTTPStaticServer{URI: "tcp://127.0.0.1/9152", WWWRoot: "/run/vrx-test/w5/www", MaxAge: 600, KeepaliveTimeout: 60, MaxBodySize: 8192}.Proto()
@@ -41,7 +41,7 @@ func TestHTTPStaticServer(t *testing.T) {
 	if req.URI != "tcp://127.0.0.1/9152" || req.WwwRoot != "/run/vrx-test/w5/www" || req.MaxAge != 600 || req.MaxBodySize != 8192 {
 		t.Fatalf("request %+v", req)
 	}
-	if _, err := NewHTTPStaticServer(f, dfkit.GlobalsOwner(true)).Create(ctx, v); !errors.Is(err, ErrServerBusy) {
+	if _, err := NewHTTPStaticServer(f, "w5other", dfkit.GlobalsOwner(true)).Create(ctx, v); !errors.Is(err, ErrServerBusy) {
 		t.Fatalf("other process's server: %v", err)
 	}
 	if _, err := d.Update(ctx, v, v, nil); !errors.Is(err, dfkit.ErrNotSupported) {
@@ -67,7 +67,7 @@ func TestHTTPStaticServer(t *testing.T) {
 		}
 	}
 	r := scheduler.NewRegistry()
-	Register(r, f)
+	Register(r, f, "w5")
 	if r.Len() != 1 {
 		t.Fatal(r.Names())
 	}

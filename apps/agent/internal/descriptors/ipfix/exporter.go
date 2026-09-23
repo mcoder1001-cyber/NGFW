@@ -338,8 +338,8 @@ func (d *ExporterDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 		s := exporterFrom(c, dfkit.FromAPIAddress(e.SrcAddress), e.CollectorPort, e.VrfID, e.PathMtu, e.TemplateInterval, e.UDPChecksum)
 		out = append(out, scheduler.KV{Key: scheduler.Join(NameExporter, s.Collector), Value: s.Proto(), Meta: ExporterMeta{}})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
-	return out, nil
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Key < out[j].Key })
+	return dfkit.Dedupe(out), nil
 }
 
 // ---- ipfix.default-exporter (exporter 0) ----------------------------------------------------

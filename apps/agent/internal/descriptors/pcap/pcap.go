@@ -5,8 +5,9 @@
 //
 // Both objects are VPP-global singletons without a getter: Retrieve returns
 // ErrRetrieveUnsupported (write-only, D-063). There is exactly one capture per VPP: Create fails
-// with ErrCaptureBusy when a capture this process did not start is running, and Delete stops
-// only a capture this process started ("clear only what you started").
+// with ErrCaptureBusy when a capture this owner did not start is running, and Delete stops only a
+// capture this owner started on the running VPP process ("clear only what you started"), as
+// recorded in the owner's BootStore (D-076).
 //
 // The capture file: VPP accepts a bare file name and writes /tmp/<name> (unformat_vlib_tmpfile
 // rejects "/" and ".."), so files cannot live under /run/vrx-test/<prefix>/; tests use
@@ -15,6 +16,7 @@ package pcap
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -43,7 +45,8 @@ const AnyInterface = "any"
 // FileDir is where VPP writes capture files.
 const FileDir = "/tmp"
 
-// ErrCaptureBusy means a pcap capture this process did not start is running (one per VPP).
+// ErrCaptureBusy means a pcap capture this owner did not start, or started with other
+// parameters, is running (one per VPP).
 var ErrCaptureBusy = errors.New("a pcap capture is already running on this VPP")
 
 // Capture is the pcap.capture singleton (pcap_trace_on / pcap_trace_off): what to capture (rx,
@@ -171,8 +174,7 @@ type CaptureDescriptor struct {
 	owner  string
 	o      options
 
-	mu      sync.Mutex
-	started *Capture // the capture this process started (nil: none)
+	mu sync.Mutex // serialises Create/Delete (one capture per VPP)
 }
 
 var _ scheduler.Descriptor = (*CaptureDescriptor)(nil)
@@ -202,9 +204,10 @@ func (d *CaptureDescriptor) Dependencies(obj proto.Message) []scheduler.Dependen
 	return deps
 }
 
-// Create implements scheduler.Descriptor. VPP refuses a second capture (INVALID_VALUE): that is
-// success when it is this process's identical capture (write-only re-apply), ErrCaptureBusy
-// otherwise.
+// Create implements scheduler.Descriptor. VPP refuses a second capture (INVALID_VALUE), so a
+// resync must not re-add this agent's own running capture (D-076): the applied value is recorded
+// in the owner's BootStore under the VPP boot identity and an identical re-apply on the same VPP
+// process is skipped. Any other running capture is ErrCaptureBusy.
 func (d *CaptureDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	var s Capture
 	if err := dfkit.Decode(obj, &s); err != nil {
@@ -213,31 +216,34 @@ func (d *CaptureDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	value, _ := json.Marshal(s)
+	applied, id, err := dfkit.AppliedThisBoot(ctx, d.client, d.owner, KeyCapture, string(value))
+	if err != nil {
+		return nil, err
+	}
+	if applied {
+		return nil, nil
+	}
 	var idx uint32 // 0 = any
 	if s.Interface != AnyInterface {
-		var err error
 		if idx, err = dfkit.ResolveInterface(ctx, d.client, s.Interface, d.owner); err != nil {
 			return nil, err
 		}
 	}
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	_, err := interfaces.NewServiceClient(d.client).PcapTraceOn(ctx, &interfaces.PcapTraceOn{
+	_, err = interfaces.NewServiceClient(d.client).PcapTraceOn(ctx, &interfaces.PcapTraceOn{
 		CaptureRx: s.Rx, CaptureTx: s.Tx, CaptureDrop: s.Drop, Filter: s.Filter,
 		MaxPackets: s.MaxPackets, MaxBytesPerPacket: s.MaxBytesPerPacket,
 		SwIfIndex: interface_types.InterfaceIndex(idx), Error: s.Error, Filename: s.File,
 	})
 	if dfkit.IsVPPError(err, api.INVALID_VALUE, api.INVALID_VALUE_2) {
-		if d.started != nil && *d.started == s {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("pcap_trace_on: %w (%v)", ErrCaptureBusy, err)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("pcap_trace_on(%s): %w", s.File, err)
 	}
-	d.started = &s
-	return nil, nil
+	return nil, dfkit.Record(d.owner, KeyCapture, id, string(value))
 }
 
 // Update implements scheduler.Descriptor: a running capture cannot be changed — recreate.
@@ -246,21 +252,24 @@ func (*CaptureDescriptor) Update(context.Context, proto.Message, proto.Message, 
 }
 
 // Delete implements scheduler.Descriptor: pcap_trace_off (VPP writes the file if packets were
-// captured) — only when this process started the running capture.
+// captured) — only when this owner started the capture running on this VPP process (BootStore).
 func (d *CaptureDescriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if d.started == nil {
-		return nil
+	started, err := dfkit.StartedThisBoot(ctx, d.client, d.owner, KeyCapture)
+	if err != nil {
+		return err
 	}
-	_, err := interfaces.NewServiceClient(d.client).PcapTraceOff(ctx, &interfaces.PcapTraceOff{})
+	if !started {
+		return dfkit.Forget(d.owner, KeyCapture)
+	}
+	_, err = interfaces.NewServiceClient(d.client).PcapTraceOff(ctx, &interfaces.PcapTraceOff{})
 	// VALUE_EXIST: nothing was running; NO_SUCH_ENTRY: stopped, but no packet was captured (VPP
 	// writes no file then). Both leave the capture off.
 	if err != nil && !dfkit.IsVPPError(err, api.VALUE_EXIST, api.NO_SUCH_ENTRY) {
 		return fmt.Errorf("pcap_trace_off: %w", err)
 	}
-	d.started = nil
-	return nil
+	return dfkit.Forget(d.owner, KeyCapture)
 }
 
 // Retrieve implements scheduler.Descriptor: VPP has no pcap status message (write-only, D-063).

@@ -411,8 +411,8 @@ func (d *InterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 		s := Interface{Interface: name, Which: whichFromAPI[det.Which], Direction: dirFromAPI[det.Direction]}
 		out = append(out, scheduler.KV{Key: scheduler.Join(NameInterface, name), Value: s.Proto(), Meta: InterfaceMeta{SwIfIndex: idx}})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
-	return out, nil
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Key < out[j].Key })
+	return dfkit.Dedupe(out), nil
 }
 
 func findKV(kvs []scheduler.KV, k scheduler.Key) (scheduler.KV, bool) {

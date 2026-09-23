@@ -427,8 +427,8 @@ func (d *ItfPairDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error
 			Meta: PairMeta{PhySwIfIndex: uint32(p.PhySwIfIndex), HostSwIfIndex: uint32(p.HostSwIfIndex), VifIndex: p.VifIndex},
 		})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
-	return out, nil
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Key < out[j].Key })
+	return dfkit.Dedupe(out), nil
 }
 
 // ---- replace transaction (P12) --------------------------------------------------------------

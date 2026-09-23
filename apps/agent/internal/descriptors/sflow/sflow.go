@@ -497,8 +497,8 @@ func (d *InterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 	for name, m := range enabled {
 		out = append(out, scheduler.KV{Key: scheduler.Join(NameInterface, name), Value: Interface{Interface: name}.Proto(), Meta: m})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
-	return out, nil
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Key < out[j].Key })
+	return dfkit.Dedupe(out), nil
 }
 
 // probe finds this agent's (non-sub) interfaces that are enabled but not yet in enabled, adding

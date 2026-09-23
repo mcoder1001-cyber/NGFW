@@ -64,11 +64,17 @@ func TestCapture(t *testing.T) {
 		!req.Filter || req.Error != "ip4-input/ttl_expired" || req.Filename != "w5-cap.pcap" {
 		t.Fatalf("request %+v", req)
 	}
-	other := NewCapture(f, "w5")
-	if _, err := other.Create(ctx, v); !errors.Is(err, ErrCaptureBusy) {
+	// agent restart (same owner, fresh descriptor): the BootStore record skips the re-add (D-076)
+	ons := len(f.CallsNamed("pcap_trace_on"))
+	if _, err := NewCapture(f, "w5").Create(ctx, v); err != nil || len(f.CallsNamed("pcap_trace_on")) != ons {
+		t.Fatalf("resync re-added the running capture: %v", err)
+	}
+	other := NewCapture(f, "w5b") // another owner (slot)
+	otherCap := Capture{Rx: true, Interface: AnyInterface, MaxPackets: 1, MaxBytesPerPacket: 64, File: "w5b.pcap"}.Proto()
+	if _, err := other.Create(ctx, otherCap); !errors.Is(err, ErrCaptureBusy) {
 		t.Fatalf("busy: %v", err)
 	}
-	if err := other.Delete(ctx, v, nil); err != nil || !*running {
+	if err := other.Delete(ctx, otherCap, nil); err != nil || !*running {
 		t.Fatalf("foreign delete stopped the capture: %v", err)
 	}
 	// a different capture from the same descriptor while running is busy too
@@ -97,6 +103,16 @@ func TestCapture(t *testing.T) {
 	calls := f.CallsNamed("pcap_trace_on")
 	if calls[len(calls)-1].(*interfaces.PcapTraceOn).SwIfIndex != 0 {
 		t.Fatal("any must be sw_if_index 0")
+	}
+	// VPP restart: the capture is gone, the record's identity is stale → added once more
+	*running = false
+	f.RestartVPP()
+	ons = len(f.CallsNamed("pcap_trace_on"))
+	if _, err := d.Create(ctx, anyCap); err != nil || len(f.CallsNamed("pcap_trace_on")) != ons+1 {
+		t.Fatalf("after VPP restart: %v", err)
+	}
+	if err := d.Delete(ctx, anyCap, nil); err != nil || *running {
+		t.Fatalf("delete after restart: %v", err)
 	}
 	if _, err := NewCapture(f, "w5").Create(ctx, Capture{Rx: true, Interface: "loop601", MaxPackets: 1, MaxBytesPerPacket: 64, File: "w5.pcap"}.Proto()); !errors.Is(err, dfkit.ErrNotOwned) {
 		t.Fatalf("another owner's interface: %v", err)

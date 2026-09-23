@@ -210,8 +210,8 @@ func (d *ClientDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 		s := clientFromDetails(det.Client, name)
 		out = append(out, scheduler.KV{Key: scheduler.Join(NameClient, name), Value: s.Proto(), Meta: ClientMeta{SwIfIndex: idx}})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
-	return out, nil
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Key < out[j].Key })
+	return dfkit.Dedupe(out), nil
 }
 
 // Lease is the read-only DHCPv4 lease state of a client (dhcp_client_details.lease and

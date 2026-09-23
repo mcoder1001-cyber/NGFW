@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -763,5 +764,128 @@ func TestBlackholeRoute(t *testing.T) {
 		if resp.GetValidation().GetErrors()[0].GetRule() != "routing.static.blackhole" {
 			t.Fatalf("rule %v", resp.GetValidation())
 		}
+	}
+}
+
+// H3: VPP disconnected at the confirm deadline → the revert fails, stays owed (persisted, the
+// transaction stays pending), and the next resync converges to the confirmed baseline — it never
+// re-applies the unconfirmed config.
+func TestRevertOwedWhenVPPDownAtDeadline(t *testing.T) {
+	v := coretest.New()
+	dir := t.TempDir()
+	s := newSvc(t, v, dir)
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "base", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	baseline := v.Snapshot()
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, sampleDoc), ConfirmTimeoutSec: 1}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	v.SetConnected(false)
+	deadline := time.Now().Add(3 * time.Second)
+	for !s.Health().GetDegraded() && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	h := s.Health()
+	if !h.GetDegraded() || h.GetPendingConfirmTxnId() != "p1" {
+		t.Fatalf("after failed revert: %v", h)
+	}
+	if _, err := s.Apply(context.Background(), &vrxv1.ApplyRequest{ConfirmTxnId: "p1"}); grpcCode(err) != codes.FailedPrecondition {
+		t.Fatalf("confirm of an owed revert: %v", err)
+	}
+	if _, err := s.Apply(context.Background(), &vrxv1.ApplyRequest{TxnId: "n1", DesiredState: doc(t, sampleDoc)}); grpcCode(err) != codes.FailedPrecondition {
+		t.Fatalf("new apply while the revert is owed: %v", err)
+	}
+	// The owed revert survives an agent restart too.
+	s.Close()
+	s2 := newSvc(t, v, dir)
+	if !s2.st.meta.Reverting || s2.st.meta.PendingTxnID != "p1" || !proto.Equal(s2.st.desired, s2.st.confirm) {
+		t.Fatalf("persisted state: reverting=%v pending=%q desired==confirmed %v", s2.st.meta.Reverting, s2.st.meta.PendingTxnID, proto.Equal(s2.st.desired, s2.st.confirm))
+	}
+	// VPP back → resync performs the revert.
+	v.SetConnected(true)
+	resp := s2.Resync(context.Background())
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if v.Snapshot() != baseline {
+		t.Fatalf("resync did not converge to the confirmed baseline:\n%s\n%s", baseline, v.Snapshot())
+	}
+	if h := s2.Health(); h.GetPendingConfirmTxnId() != "" || h.GetDegraded() {
+		t.Fatalf("health after the owed revert: %v", h)
+	}
+	// A converged resync afterwards changes nothing.
+	resp = s2.Resync(context.Background())
+	if resp.GetSummary().GetCreated()+resp.GetSummary().GetDeleted()+resp.GetSummary().GetUpdated() != 0 {
+		t.Fatalf("second resync %v", resp.GetSummary())
+	}
+}
+
+// M1: a confirm after the deadline is rejected, also after a restart before the first resync.
+func TestLateConfirmRejectedAfterRestart(t *testing.T) {
+	v := coretest.New()
+	dir := t.TempDir()
+	s := newSvc(t, v, dir)
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, sampleDoc), ConfirmTimeoutSec: 1}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	s.Close()
+	time.Sleep(1100 * time.Millisecond)
+	s2 := newSvc(t, v, dir) // no resync yet (VPP not connected in real life)
+	if _, err := s2.Apply(context.Background(), &vrxv1.ApplyRequest{ConfirmTxnId: "p1"}); grpcCode(err) != codes.FailedPrecondition {
+		t.Fatalf("late confirm accepted: %v", err)
+	}
+	s2.Resync(context.Background())
+	if _, ok := v.InterfaceByName("loop701"); ok {
+		t.Fatal("expired transaction not reverted")
+	}
+}
+
+// M3: crash injection between the write stages never leaves a pending transaction confirmed.
+func TestStateCrashInjection(t *testing.T) {
+	defer func() { saveHook = nil }()
+	crash := errors.New("injected crash")
+	for _, stage := range []string{"state", "mirror"} {
+		t.Run(stage, func(t *testing.T) {
+			v := coretest.New()
+			dir := t.TempDir()
+			s := newSvc(t, v, dir)
+			mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "base", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+			saveHook = func(st string) error {
+				if st == stage {
+					return crash
+				}
+				return nil
+			}
+			mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, sampleDoc), ConfirmTimeoutSec: 60}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+			saveHook = nil
+			s.Close()
+			s2 := newSvc(t, v, dir)
+			switch stage {
+			case "state": // crashed before the single state file was replaced: old, consistent state
+				if s2.st.meta.PendingTxnID != "" || s2.st.meta.LastTxnID != "base" || len(s2.st.desired.GetInterfaces()) != 0 {
+					t.Fatalf("state after crash before write: pending=%q last=%q desired=%v", s2.st.meta.PendingTxnID, s2.st.meta.LastTxnID, s2.st.desired)
+				}
+			case "mirror": // state file written: the pending transaction is known and not confirmed
+				if s2.st.meta.PendingTxnID != "p1" || len(s2.st.desired.GetInterfaces()) != 2 || len(s2.st.confirm.GetInterfaces()) != 0 {
+					t.Fatalf("state after crash before mirror: pending=%q", s2.st.meta.PendingTxnID)
+				}
+			}
+			if s2.st.meta.PendingTxnID == "" && len(s2.st.desired.GetInterfaces()) != 0 {
+				t.Fatal("pending document without pending marker")
+			}
+		})
+	}
+}
+
+// Pre-review state dirs (desired.pb + confirmed.pb + json without documents) still load.
+func TestStateMigratesOldLayout(t *testing.T) {
+	dir := t.TempDir()
+	old := &vrxv1.DesiredState{Vrfs: map[string]*vrxv1.Vrf{"red": {Id: proto.Uint32(7001)}}}
+	b, _ := proto.Marshal(old)
+	if err := os.WriteFile(filepath.Join(dir, "desired.pb"), b, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "confirmed.pb"), b, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, stateFile), []byte(`{"owner":"w7","managed":["vrfs"],"confirmed_managed":["vrfs"],"last_txn_id":"t0"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	st, err := loadState(dir, "w7")
+	if err != nil || !proto.Equal(st.desired, old) || !proto.Equal(st.confirm, old) {
+		t.Fatalf("migration: %v %v", err, st)
 	}
 }

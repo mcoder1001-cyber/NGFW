@@ -46,8 +46,9 @@ type Service struct {
 	now     func() time.Time
 
 	// txn serialises transactions (Apply, resync, revert) and guards st and timer.
-	txn   chan struct{}
-	timer *time.Timer
+	txn      chan struct{}
+	timer    *time.Timer
+	lastResp *vrxv1.ApplyResponse // last applyLocked result (guarded by txn)
 
 	mu              sync.Mutex // guards the fields below (Health snapshot)
 	degraded        bool
@@ -225,6 +226,11 @@ func (s *Service) Apply(ctx context.Context, req *vrxv1.ApplyRequest) (*vrxv1.Ap
 		if s.st.meta.PendingTxnID != req.GetConfirmTxnId() {
 			return nil, status.Errorf(codes.FailedPrecondition, "transaction %q is not pending confirmation", req.GetConfirmTxnId())
 		}
+		// M1: after the deadline (also after a restart, before the first resync) or once the
+		// revert is owed, a confirm is too late — the transaction reverts.
+		if s.st.meta.Reverting || (s.st.meta.ConfirmDeadline != nil && !s.now().Before(*s.st.meta.ConfirmDeadline)) {
+			return nil, status.Errorf(codes.FailedPrecondition, "transaction %q passed its confirm deadline and is being reverted", req.GetConfirmTxnId())
+		}
 		if err := s.confirmLocked(); err != nil {
 			return nil, status.Errorf(codes.Internal, "confirm: %v", err)
 		}
@@ -308,9 +314,11 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 				s.st.meta.LastTxnID = txnID
 			}
 		case modeRevert:
-			s.st.desired = proto.Clone(s.st.confirm).(*vrxv1.DesiredState)
 			s.st.meta.Managed = domains
 			s.st.meta.ConfirmedManaged = domains
+			s.st.meta.PendingTxnID = ""
+			s.st.meta.ConfirmDeadline = nil
+			s.st.meta.Reverting = false
 		}
 	case vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED:
 		s.setDegraded(true, resp.GetMessage())
@@ -334,6 +342,7 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	if res != nil {
 		reapplied = res.Reapplied
 	}
+	s.lastResp = resp
 	log.Info("reconcile done", "status", resp.GetStatus().String(), "summary", resp.GetSummary().String(), "reapplied", reapplied, "duration", d, "err", resp.GetMessage())
 	return resp
 }
@@ -392,17 +401,38 @@ func (s *Service) revertLocked(txnID string) {
 	if s.st.meta.PendingTxnID == "" || s.st.meta.PendingTxnID != txnID {
 		return
 	}
-	s.timer = nil
-	s.log.Warn("confirm timeout: reverting to the last confirmed state", "txn_id", txnID)
-	s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_CONFIRM_REVERTED, TxnId: txnID, Message: "confirm timeout expired; reverting to the last confirmed state"})
-	s.st.meta.PendingTxnID = ""
-	s.st.meta.ConfirmDeadline = nil
-	domains := union(s.st.meta.Managed, s.st.meta.ConfirmedManaged)
-	resp := s.applyLocked(context.Background(), modeRevert, "", s.st.confirm, domains, 0)
-	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
-		s.setDegraded(true, "confirm revert failed: "+resp.GetMessage())
+	if s.timer != nil {
+		s.timer.Stop()
 	}
-	s.metrics.reverts.Add(1)
+	s.timer = nil
+	first := !s.st.meta.Reverting
+	// H3: make the revert durable BEFORE attempting it: from now on the stored desired state is the
+	// confirmed baseline and the transaction stays pending with "revert owed", so a failed attempt
+	// (VPP down, rollback) is retried by every resync and nothing re-applies the unconfirmed config.
+	s.st.desired = proto.Clone(s.st.confirm).(*vrxv1.DesiredState)
+	s.st.meta.Managed = union(s.st.meta.Managed, s.st.meta.ConfirmedManaged)
+	s.st.meta.Reverting = true
+	s.refreshSnapshotLocked()
+	if err := s.st.save(); err != nil {
+		s.log.Error("persist state", "err", err)
+	}
+	if first {
+		s.log.Warn("confirm timeout: reverting to the last confirmed state", "txn_id", txnID)
+		s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_CONFIRM_REVERTED, TxnId: txnID, Message: "confirm timeout expired; reverting to the last confirmed state"})
+		s.metrics.reverts.Add(1)
+	} else {
+		s.log.Warn("retrying the owed confirm revert", "txn_id", txnID)
+	}
+	var domains []string
+	for _, d := range s.st.meta.Managed {
+		if implemented(d) {
+			domains = append(domains, d)
+		}
+	}
+	resp := s.applyLocked(context.Background(), modeRevert, "", s.st.desired, domains, 0)
+	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+		s.setDegraded(true, "confirm revert failed (retried on the next resync): "+resp.GetMessage())
+	}
 	s.refreshSnapshotLocked()
 	if err := s.st.save(); err != nil {
 		s.log.Error("persist state", "err", err)
@@ -417,6 +447,12 @@ func (s *Service) Resync(ctx context.Context) *vrxv1.ApplyResponse {
 		return nil
 	}
 	defer s.unlock()
+	// A pending transaction whose deadline passed (while the agent was down, or whose revert is
+	// owed): converge straight to the confirmed baseline, never re-apply the unconfirmed config.
+	if p := s.st.meta.PendingTxnID; p != "" && (s.st.meta.Reverting || (s.st.meta.ConfirmDeadline != nil && !s.st.meta.ConfirmDeadline.After(s.now()))) {
+		s.revertLocked(p)
+		return s.lastResp
+	}
 	var domains []string
 	for _, d := range s.st.meta.Managed {
 		if implemented(d) {
@@ -427,12 +463,8 @@ func (s *Service) Resync(ctx context.Context) *vrxv1.ApplyResponse {
 	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		s.setDegraded(true, "resync failed: "+resp.GetMessage())
 	}
-	if p := s.st.meta.PendingTxnID; p != "" && s.st.meta.ConfirmDeadline != nil {
-		if !s.st.meta.ConfirmDeadline.After(s.now()) {
-			s.revertLocked(p)
-		} else if s.timer == nil {
-			s.armTimerLocked(p, *s.st.meta.ConfirmDeadline)
-		}
+	if p := s.st.meta.PendingTxnID; p != "" && s.st.meta.ConfirmDeadline != nil && s.timer == nil {
+		s.armTimerLocked(p, *s.st.meta.ConfirmDeadline)
 	}
 	return resp
 }

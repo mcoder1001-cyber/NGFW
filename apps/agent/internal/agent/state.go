@@ -2,13 +2,16 @@ package agent
 
 // Persistent agent state in the state dir (VRX_AGENT_STATE_DIR, product /var/lib/vrx/agent):
 //
-//	desired.pb        DesiredState last applied (the pending one while a confirm timer runs)
-//	confirmed.pb      DesiredState of the confirmed baseline (what a confirm timeout reverts to)
-//	agent-state.json  managed domains, last/pending txn, confirm deadline, recent Apply responses
+//	agent-state.json  THE state, written atomically as one file (temp + fsync + rename): managed
+//	                  domains, last/pending txn, confirm deadline, "revert owed" flag, recent Apply
+//	                  responses, and both documents (current desired state and confirmed baseline,
+//	                  protobuf JSON). One file means a crash can never pair a pending document with
+//	                  metadata that says "confirmed" (review M3).
+//	desired.pb        binary mirror of the current desired state for operators/tools, written after
+//	                  agent-state.json and never read back (except to migrate a pre-review state dir)
 //	owned-<owner>.json  owner table (internal/ownertable)
 //
-// Every file is replaced atomically (temp file + fsync + rename). desired.pb never contains
-// secrets: DesiredState has no secret fields (D-040).
+// DesiredState has no secret fields (D-040), so neither file carries secrets.
 
 import (
 	"encoding/json"
@@ -28,6 +31,13 @@ import (
 // historySize is how many Apply responses are kept for txn_id retry idempotency (contract ≥ 16).
 const historySize = 32
 
+// stateFile is the authoritative state file name.
+const stateFile = "agent-state.json"
+
+// saveHook, when set (tests only), is called before each write stage ("state", "mirror"); a
+// non-nil error aborts save at that point, simulating a crash there.
+var saveHook func(stage string) error
+
 // txnRecord is one remembered Apply.
 type txnRecord struct {
 	TxnID       string `json:"txn_id"`
@@ -38,13 +48,19 @@ type txnRecord struct {
 
 // persisted is agent-state.json.
 type persisted struct {
-	Owner            string      `json:"owner"`
-	Managed          []string    `json:"managed"`
-	ConfirmedManaged []string    `json:"confirmed_managed"`
-	LastTxnID        string      `json:"last_txn_id,omitempty"`
-	PendingTxnID     string      `json:"pending_txn_id,omitempty"`
-	ConfirmDeadline  *time.Time  `json:"confirm_deadline,omitempty"`
-	History          []txnRecord `json:"history,omitempty"`
+	Owner            string     `json:"owner"`
+	Managed          []string   `json:"managed"`
+	ConfirmedManaged []string   `json:"confirmed_managed"`
+	LastTxnID        string     `json:"last_txn_id,omitempty"`
+	PendingTxnID     string     `json:"pending_txn_id,omitempty"`
+	ConfirmDeadline  *time.Time `json:"confirm_deadline,omitempty"`
+	// Reverting: the pending transaction's deadline passed and the revert to the confirmed baseline
+	// is owed (Desired already equals Confirmed); it is retried on every resync until it succeeds
+	// (review H3).
+	Reverting bool            `json:"reverting,omitempty"`
+	History   []txnRecord     `json:"history,omitempty"`
+	Desired   json.RawMessage `json:"desired,omitempty"`
+	Confirmed json.RawMessage `json:"confirmed,omitempty"`
 }
 
 // state is the in-memory copy; the service guards it with its transaction lock.
@@ -59,13 +75,15 @@ func newState(dir, owner string) *state {
 	return &state{dir: dir, desired: &vrxv1.DesiredState{}, confirm: &vrxv1.DesiredState{}, meta: persisted{Owner: owner}}
 }
 
-// loadState reads the state dir; a missing dir or files mean a fresh agent.
+var docJSON = protojson.UnmarshalOptions{DiscardUnknown: true}
+
+// loadState reads the state dir; a missing dir or file means a fresh agent.
 func loadState(dir, owner string) (*state, error) {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, fmt.Errorf("state dir: %w", err)
 	}
 	s := newState(dir, owner)
-	b, err := os.ReadFile(filepath.Join(dir, "agent-state.json")) //nolint:gosec // fixed name in the configured state dir
+	b, err := os.ReadFile(filepath.Join(dir, stateFile)) //nolint:gosec // fixed name in the configured state dir
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		return s, nil
@@ -73,11 +91,21 @@ func loadState(dir, owner string) (*state, error) {
 		return nil, fmt.Errorf("state: %w", err)
 	}
 	if err := json.Unmarshal(b, &s.meta); err != nil {
-		return nil, fmt.Errorf("state: agent-state.json: %w", err)
+		return nil, fmt.Errorf("state: %s: %w", stateFile, err)
 	}
 	if s.meta.Owner != owner {
 		return nil, fmt.Errorf("state: %s belongs to owner %q, this agent is %q", dir, s.meta.Owner, owner)
 	}
+	if len(s.meta.Desired) > 0 {
+		if err := docJSON.Unmarshal(s.meta.Desired, s.desired); err != nil {
+			return nil, fmt.Errorf("state: desired: %w", err)
+		}
+		if err := docJSON.Unmarshal(s.meta.Confirmed, s.confirm); err != nil {
+			return nil, fmt.Errorf("state: confirmed: %w", err)
+		}
+		return s, nil
+	}
+	// pre-review layout: documents in desired.pb / confirmed.pb
 	if s.desired, err = readPB(filepath.Join(dir, "desired.pb")); err != nil {
 		return nil, err
 	}
@@ -102,29 +130,40 @@ func readPB(path string) (*vrxv1.DesiredState, error) {
 	return ds, nil
 }
 
-func writePB(path string, ds *vrxv1.DesiredState) error {
-	b, err := proto.MarshalOptions{Deterministic: true}.Marshal(ds)
-	if err != nil {
+// save writes the state atomically as one file, then the desired.pb mirror.
+func (s *state) save() error {
+	var err error
+	if s.meta.Desired, err = protojson.Marshal(s.desired); err != nil {
 		return err
 	}
-	return ownertable.WriteAtomic(path, b, 0o640)
-}
-
-// save writes all three files (pb files first: the json names what they mean).
-func (s *state) save() error {
-	if err := writePB(filepath.Join(s.dir, "desired.pb"), s.desired); err != nil {
-		return fmt.Errorf("state: desired.pb: %w", err)
-	}
-	if err := writePB(filepath.Join(s.dir, "confirmed.pb"), s.confirm); err != nil {
-		return fmt.Errorf("state: confirmed.pb: %w", err)
+	if s.meta.Confirmed, err = protojson.Marshal(s.confirm); err != nil {
+		return err
 	}
 	b, err := json.MarshalIndent(s.meta, "", "  ")
 	if err != nil {
 		return err
 	}
-	if err := ownertable.WriteAtomic(filepath.Join(s.dir, "agent-state.json"), append(b, '\n'), 0o640); err != nil {
-		return fmt.Errorf("state: agent-state.json: %w", err)
+	if saveHook != nil {
+		if err := saveHook("state"); err != nil {
+			return err
+		}
 	}
+	if err := ownertable.WriteAtomic(filepath.Join(s.dir, stateFile), append(b, '\n'), 0o640); err != nil {
+		return fmt.Errorf("state: %s: %w", stateFile, err)
+	}
+	if saveHook != nil {
+		if err := saveHook("mirror"); err != nil {
+			return err
+		}
+	}
+	pb, err := proto.MarshalOptions{Deterministic: true}.Marshal(s.desired)
+	if err != nil {
+		return err
+	}
+	if err := ownertable.WriteAtomic(filepath.Join(s.dir, "desired.pb"), pb, 0o640); err != nil {
+		return fmt.Errorf("state: desired.pb mirror: %w", err)
+	}
+	_ = os.Remove(filepath.Join(s.dir, "confirmed.pb")) // pre-review layout
 	return nil
 }
 

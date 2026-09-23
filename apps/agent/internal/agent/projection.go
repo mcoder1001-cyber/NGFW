@@ -90,6 +90,8 @@ func scopeOf(domains []string) scheduler.Scope {
 
 // domainPresent reports whether a domain is present in ds (D-041: message set; for the two map
 // domains a non-empty map).
+func protoName(key string) protoreflect.Name { return protoreflect.Name(key) }
+
 func domainPresent(ds *vrxv1.DesiredState, key string) bool {
 	if ds == nil {
 		return false

@@ -133,11 +133,15 @@ func (c *Conn) loop() {
 			c.mu.Lock()
 			c.conn = nil
 			c.mu.Unlock()
-			c.setConnected(false, errors.New("connection closed"))
-			conn.Disconnect()
 			if !failed {
-				return // stopped
+				// stopped: govpp's Disconnect waits for its connect loop, which may sit in
+				// WaitReady for seconds when the socket is missing — do not block Close on it.
+				c.connected.Store(false)
+				go conn.Disconnect()
+				return
 			}
+			c.setConnected(false, errors.New("connect round failed"))
+			conn.Disconnect()
 		}
 		select {
 		case <-c.stop:

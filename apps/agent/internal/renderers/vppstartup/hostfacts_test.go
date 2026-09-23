@@ -3,7 +3,9 @@ package vppstartup
 import (
 	"context"
 	"errors"
+	"fmt"
 	"maps"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"slices"
@@ -257,5 +259,163 @@ func TestPluginSemantics(t *testing.T) {
 	_, m, err = Generate(parseDoc(t, `{"dataplane":{"mainCore":1,"plugins":{"switches":{"linux_cp_plugin.so":true,"linux_nl_plugin.so":true,"npt66_plugin.so":true}}}}`), vrxA(t), DefaultSettings())
 	if err != nil || len(m.Warnings) != 0 {
 		t.Errorf("present, D-060 listed: %v %q", err, m.Warnings)
+	}
+}
+
+// procLE4 writes an IPv4 address the way /proc/net/{route,tcp} do (little-endian hex).
+func procLE4(a string) string {
+	b := netip.MustParseAddr(a).As4()
+	return fmt.Sprintf("%02X%02X%02X%02X", b[3], b[2], b[1], b[0])
+}
+
+// procTCP6 writes an IPv6 address the way /proc/net/tcp6 does (four little-endian 32-bit words).
+func procTCP6(a string) string {
+	b := netip.MustParseAddr(a).As16()
+	var s strings.Builder
+	for w := 0; w < 4; w++ {
+		fmt.Fprintf(&s, "%02X%02X%02X%02X", b[w*4+3], b[w*4+2], b[w*4+1], b[w*4])
+	}
+	return s.String()
+}
+
+// mgmtRoot: management reached on a directly connected subnet (ens193), the default route on a
+// linux-cp tap (VPP-owned) plus a blackhole default, an IPv6 session on ens224.
+func mgmtRoot(t *testing.T, defaultIf string) string {
+	t.Helper()
+	root := fakeRoot(t)
+	w := func(p, s string) {
+		if err := os.WriteFile(filepath.Join(root, p), []byte(s), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	line := func(ifname, dst, mask string) string {
+		return fmt.Sprintf("%s\t%s\t00000000\t0001\t0\t0\t0\t%s\t0\t0\t0\n", ifname, procLE4(dst), procLE4(mask))
+	}
+	w("proc/net/route", "Iface\tDestination\tGateway\tFlags\tRefCnt\tUse\tMetric\tMask\tMTU\tWindow\tIRTT\n"+
+		line(defaultIf, "0.0.0.0", "0.0.0.0")+line("*", "0.0.0.0", "0.0.0.0")+
+		line("ens193", "10.1.2.0", "255.255.255.0")+line("ens161", "10.9.0.0", "255.255.0.0"))
+	w("proc/net/ipv6_route", "20010db8000000000000000000000000 40 00000000000000000000000000000000 00 00000000000000000000000000000000 00000100 00000001 00000000 00000001 ens224\n")
+	tcp := "  sl  local_address rem_address   st\n" +
+		fmt.Sprintf("   0: %s:0016 %s:C350 01 0\n", procLE4("10.1.2.5"), procLE4("10.1.2.50")) + // ssh on the connected subnet
+		fmt.Sprintf("   1: %s:01BB %s:C351 01 0\n", procLE4("10.9.0.5"), procLE4("10.9.1.1")) + // https, not a control port
+		fmt.Sprintf("   2: %s:0016 %s:C352 0A 0\n", procLE4("0.0.0.0"), procLE4("0.0.0.0")) + // listening
+		fmt.Sprintf("   3: %s:0016 %s:C353 01 0\n", procLE4("127.0.0.1"), procLE4("127.0.0.1")) // loopback
+	w("proc/net/tcp", tcp)
+	w("proc/net/tcp6", "  sl  local_address rem_address   st\n"+
+		fmt.Sprintf("   0: %s:0016 %s:C354 01 0\n", procTCP6("2001:db8::1"), procTCP6("2001:db8::5"))+
+		fmt.Sprintf("   1: %s:0016 %s:C355 01 0\n", procTCP6("::ffff:10.1.2.5"), procTCP6("::ffff:10.1.2.51")))
+	for ifname, pci := range map[string]string{"ens193": "0000:0c:00.0", "ens224": "0000:13:00.0"} {
+		if err := os.RemoveAll(filepath.Join(root, "sys/class/net", ifname)); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(filepath.Join(root, "sys/class/net", ifname), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink("../../../devices/pci0000:00/"+pci, filepath.Join(root, "sys/class/net", ifname, "device")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// "wan": a linux-cp tap (tun_flags, no device); "bond0": a kernel bond (no device, no tun_flags)
+	for _, d := range []string{"wan", "bond0"} {
+		if err := os.MkdirAll(filepath.Join(root, "sys/class/net", d), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	w("sys/class/net/wan/tun_flags", "0x1002\n")
+	return root
+}
+
+// TestManagementPaths: re-review N4 — control connections on a connected subnet are protected, a
+// default route through a VPP-owned linux-cp tap (and a blackhole default) does not stop rendering.
+func TestManagementPaths(t *testing.T) {
+	root := mgmtRoot(t, "wan")
+	src := HostSources{Root: root, PluginDir: filepath.Join(root, "plugins"), CurrentConf: filepath.Join(root, "etc/startup.conf")}
+	h, err := ReadHost(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(h.ManagementPCI, []string{"0000:0c:00.0", "0000:13:00.0"}) {
+		t.Fatalf("management = %v, want the ssh NICs 0c (IPv4 + v4-mapped) and 13 (IPv6)", h.ManagementPCI)
+	}
+	notes := strings.Join(h.ManagementNotes, "\n")
+	for _, want := range []string{
+		"wan (default route) is a tun/tap interface (linux-cp, VPP-owned), not a kernel NIC: not protected",
+		"ens193 → 0000:0c:00.0 (control connection from 10.1.2.50)",
+		"ens224 → 0000:13:00.0 (control connection from 2001:db8::5)",
+	} {
+		if !strings.Contains(notes, want) {
+			t.Errorf("notes lack %q:\n%s", want, notes)
+		}
+	}
+	if strings.Contains(notes, "ens161") {
+		t.Errorf("a non-control connection marked ens161 as management:\n%s", notes)
+	}
+	// the reviewer's case: the ssh NIC 0c only carries a connected subnet — handing it to DPDK is refused
+	h.OnlineCPUs, h.NUMANodes, h.HugepageBytes = []uint32{0, 1, 2, 3}, 1, 2<<30
+	h.Plugins = vrxA(t).Plugins
+	h.CurrentPlugins = map[string]bool{}
+	if _, _, err := Generate(parseDoc(t, `{"dataplane":{"devices":{"0000:0c:00.0":{"name":"lan"}}}}`), h, DefaultSettings()); !errors.Is(err, ErrInput) ||
+		!strings.Contains(err.Error(), "0000:0c:00.0 is the host's management NIC") {
+		t.Fatalf("ssh NIC accepted as a DPDK device: %v", err)
+	}
+	out, _, err := Generate(parseDoc(t, `{"dataplane":{"devices":{"0000:04:00.0":{"name":"wan0"}}}}`), h, DefaultSettings())
+	if err != nil || !strings.Contains(string(out), "blacklist 0000:0c:00.0") || !strings.Contains(string(out), "blacklist 0000:13:00.0") {
+		t.Fatalf("%v\n%s", err, out)
+	}
+
+	// an extra control port adds the https peer's NIC (ens161 → 0000:04:00.0)
+	src.ControlPorts = []uint16{22, 443}
+	if h, err = ReadHost(src); err != nil || !slices.Contains(h.ManagementPCI, "0000:04:00.0") {
+		t.Fatalf("control port 443: %v %v", h.ManagementPCI, err)
+	}
+
+	// a default route on a kernel bond without resolvable members needs --mgmt-pci (then it is noted)
+	root = mgmtRoot(t, "bond0")
+	if _, err := ReadHost(HostSources{Root: root, PluginDir: filepath.Join(root, "plugins")}); !errors.Is(err, ErrHost) ||
+		!strings.Contains(err.Error(), "bond0 (default route): no PCI device underneath") {
+		t.Fatalf("bond default: %v", err)
+	}
+	h, err = ReadHost(HostSources{Root: root, PluginDir: filepath.Join(root, "plugins"), MgmtPCI: []string{"0000:1b:00.0"}})
+	if err != nil || !slices.Contains(h.ManagementPCI, "0000:1b:00.0") || !strings.Contains(strings.Join(h.ManagementNotes, "\n"), "unresolved bond0") {
+		t.Fatalf("bond default with --mgmt-pci: %v %v %q", h.ManagementPCI, err, h.ManagementNotes)
+	}
+	// a bond whose members are PCI NICs resolves through lower_* (re-review N7)
+	for _, m := range []string{"ens256", "ens257"} {
+		pci := map[string]string{"ens256": "0000:1b:00.0", "ens257": "0000:1c:00.0"}[m]
+		if err := os.MkdirAll(filepath.Join(root, "sys/class/net", m), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink("../../../devices/pci0000:00/"+pci, filepath.Join(root, "sys/class/net", m, "device")); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink("../"+m, filepath.Join(root, "sys/class/net/bond0", "lower_"+m)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h, err = ReadHost(HostSources{Root: root, PluginDir: filepath.Join(root, "plugins")})
+	if err != nil || !slices.Contains(h.ManagementPCI, "0000:1b:00.0") || !slices.Contains(h.ManagementPCI, "0000:1c:00.0") {
+		t.Fatalf("bond members: %v %v", h.ManagementPCI, err)
+	}
+}
+
+// TestManagementOnlyVPPOwned: the only default route is on a linux-cp tap and nobody is connected
+// → no kernel management NIC is known and rendering is refused (Host.Check), never a guess.
+func TestManagementOnlyVPPOwned(t *testing.T) {
+	root := mgmtRoot(t, "wan")
+	for _, f := range []string{"proc/net/tcp", "proc/net/tcp6"} {
+		if err := os.Remove(filepath.Join(root, f)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h, err := ReadHost(HostSources{Root: root, PluginDir: filepath.Join(root, "plugins")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(h.ManagementPCI) != 0 || !errors.Is(h.Check(), ErrHost) {
+		t.Fatalf("management %v check %v", h.ManagementPCI, h.Check())
+	}
+	h.ManagementPCI = nil
+	if h, err = ReadHost(HostSources{Root: root, PluginDir: filepath.Join(root, "plugins"), MgmtPCI: []string{"0000:0b:00.0"}}); err != nil || !slices.Equal(h.ManagementPCI, []string{"0000:0b:00.0"}) {
+		t.Fatalf("--mgmt-pci fallback: %v %v", h.ManagementPCI, err)
 	}
 }

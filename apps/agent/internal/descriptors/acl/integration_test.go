@@ -16,6 +16,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
@@ -375,11 +376,14 @@ func TestACLPluginOnHost(t *testing.T) {
 			t.Fatalf("enable counters (raw-stream reply handling): %v", err)
 		}
 		assertRetrieved(t, statsD, kv(statsD, StatsEnable{Enabled: true}.Proto()))
-		id, err := vppIdentity(ctx, c)
+		id, err := bootid.Current(ctx, c)
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Logf("acl.stats-enable applied to VPP identity (main-thread PID from show_threads) %d", id)
+		if !id.Complete() {
+			t.Fatalf("boot identity %v incomplete on the host", id)
+		}
+		t.Logf("acl.stats-enable applied to VPP boot identity (D-080 boot_id/vpe_pid/starttime) %s", id)
 		paths, err := reader.ListPaths()
 		if err != nil {
 			t.Fatal(err)

@@ -1,0 +1,58 @@
+# vrx.conf: rendered by vrx-agent (strongswan renderer); every change is overwritten.
+# Secrets are in vrx-secrets.conf (mode 0600).
+connections {
+	w3-multi {
+		version = 2
+		local_addrs = 10.3.250.1
+		remote_addrs = %any
+		proposals = aes128gcm16-prfsha256-ecp256,aes256-sha384-prfsha384-ecp384
+		dpd_delay = 20s
+		encap = yes
+		rekey_time = 3600s
+		pools = w3-pool4,w3-pool6
+		local {
+			auth = pubkey
+			id = "@gw-a.example.net"
+			certs = gw-a.pem
+		}
+		remote {
+			auth = pubkey
+			cacerts = lab-ca.pem
+		}
+		children {
+			w3-net1 {
+				esp_proposals = aes256-sha256,aes128-sha1
+				mode = transport
+				close_action = start
+				rekey_bytes = 1073741824
+				rekey_packets = 1048576
+				replay_window = 0
+			}
+			w3-net2 {
+				local_ts = 10.3.1.0/24
+				remote_ts = 10.3.2.0/24
+				esp_proposals = aes128gcm16-ecp256
+				mode = tunnel
+				start_action = trap
+				dpd_action = trap
+				rekey_time = 1200s
+				if_id_in = 7
+				if_id_out = 8
+			}
+		}
+	}
+}
+pools {
+	w3-pool4 {
+		addrs = 10.3.99.0/24
+		dns = 10.3.0.53,2001:db8:3::53
+	}
+	w3-pool6 {
+		addrs = 2001:db8:3:ff::/112
+	}
+}
+authorities {
+	lab-ca {
+		cacert = lab-ca.pem
+	}
+}

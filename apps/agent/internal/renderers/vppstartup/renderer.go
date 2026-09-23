@@ -25,9 +25,9 @@ var startupTmpl = template.Must(renderers.NewTemplate("startup.conf.tmpl").
 const DefaultConfPath = "/etc/vpp/startup.conf"
 
 // ErrManagerStep is returned by Apply: writing the live file and restarting VPP is a manager
-// step (deploy/vpp/apply-startup.sh under `flock -x /run/lock/vrx-lab.lock`), never
+// step (manual procedure in docs/agent/renderers/vppstartup.md, tooling in F-startup-apply), never
 // something the agent or a commit does.
-var ErrManagerStep = errors.New("vppstartup: applying startup.conf restarts VPP and is a manager step (deploy/vpp/apply-startup.sh)")
+var ErrManagerStep = errors.New("vppstartup: applying startup.conf restarts VPP and is a manager step (docs/agent/renderers/vppstartup.md)")
 
 // ErrRetrieveUnsupported is returned by Retrieve: VPP has no API that returns its start-up
 // configuration; compare files with vrx-startupgen --diff instead.

@@ -4,7 +4,7 @@
 // The generator is a pure function: BuildModel validates the domain against the facts of the host
 // the file is for (Host — required, never defaulted) and returns a Model; RenderModel turns the
 // Model into the file. Nothing here writes the live file or restarts VPP — applying a rendering
-// is the manager script deploy/vpp/apply-startup.sh, so Renderer.Apply always refuses.
+// is a manual manager step (docs/agent/renderers/vppstartup.md), so Renderer.Apply always refuses.
 package vppstartup
 
 import (
@@ -75,6 +75,9 @@ type Host struct {
 	// / the address the agent is reached on). They are always blacklisted and can never be a DPDK
 	// device, whatever the document says.
 	ManagementPCI []string
+	// ManagementNotes explain ManagementPCI (which interface, why) and list skipped VPP-owned taps;
+	// informational, printed by the CLI.
+	ManagementNotes []string
 	// OnlineCPUs is the set of online logical CPUs (/sys/devices/system/cpu/online).
 	OnlineCPUs []uint32
 	// IsolCPUs is the kernel's isolated CPU set (/sys/devices/system/cpu/isolated); empty = none.

@@ -1,6 +1,6 @@
 # vppstartup — VPP startup.conf generator (F-startup-gen, WBS D0.6)
 
-Mapping table, CLI and the manager apply procedure (`deploy/vpp/apply-startup.sh`): `docs/agent/renderers/vppstartup.md`.
+Mapping table, CLI and the manual manager apply procedure: `docs/agent/renderers/vppstartup.md`.
 
 | file | what |
 |---|---|

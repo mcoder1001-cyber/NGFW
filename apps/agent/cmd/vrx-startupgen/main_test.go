@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,6 +69,10 @@ func TestStdinAndOutputFile(t *testing.T) {
 	got, _ := os.ReadFile(dst) //nolint:gosec // test temp file
 	if !bytes.Equal(got, want) {
 		t.Fatal("written file differs from golden")
+	}
+	// N5: stderr carries the sha256 of exactly the rendering that was written
+	if !strings.Contains(stderr, fmt.Sprintf("rendered sha256 %x", sha256.Sum256(want))) {
+		t.Fatalf("no rendered sha256 in stderr: %s", stderr)
 	}
 	leftovers, _ := filepath.Glob(filepath.Join(filepath.Dir(dst), ".*tmp-*"))
 	if len(leftovers) != 0 {

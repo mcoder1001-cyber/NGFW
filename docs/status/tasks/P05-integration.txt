@@ -1,0 +1,17 @@
+=== RUN   TestAgentOnHost
+    agent_integration_test.go:231: apply: {
+    agent_integration_test.go:272: restart after loss: converged in 212.184162ms
+--- PASS: TestAgentOnHost (4.85s)
+=== RUN   TestAgentProcessOnHost
+    agent_integration_test.go:397: kill -9 1081664
+    agent_integration_test.go:404: restart after kill -9 + loss: converged in 1.21870104s
+    agent_integration_test.go:407: kill -9 1081947
+--- PASS: TestAgentProcessOnHost (7.12s)
+ok  	ngfw/agent/internal/agent	12.007s
+=== RUN   TestCoreOnHost
+    core_integration_test.go:101: apply: {Created:10 Updated:0 Deleted:0 Unchanged:0 Failed:0 Reverted:0} in 27.287475ms
+    core_integration_test.go:149: rollback case 0: err=create interface-ip/loop712/10.7.11.2/24: sw_interface_add_del_address loop712 10.7.11.2/24 add=true: VPPApiError: Address in use (-105) results=[{Key:interface-ip/loop711/10.7.13.1/24 Op:create Code:REVERTED Err:<nil>} {Key:interface-ip/loop712/10.7.11.2/24 Op:create Code:FAILED Err:sw_interface_add_del_address loop712 10.7.11.2/24 add=true: VPPApiError: Address in use (-105)}]
+    core_integration_test.go:149: rollback case 1: err=create ip.route/7011/10.7.111.0/24: core: egress interface "w7c-nosuch" not found results=[{Key:interface-ip/loop711/10.7.13.1/24 Op:create Code:REVERTED Err:<nil>} {Key:ip.route/7011/10.7.111.0/24 Op:create Code:FAILED Err:core: egress interface "w7c-nosuch" not found}]
+--- PASS: TestCoreOnHost (0.17s)
+ok  	ngfw/agent/internal/descriptors/core	0.195s
+NRestarts=2

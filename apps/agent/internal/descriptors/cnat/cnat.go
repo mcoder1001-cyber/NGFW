@@ -34,6 +34,7 @@ import (
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // Descriptor names.
@@ -737,7 +738,7 @@ func (p *Plugin) addDelExclude(ctx context.Context, s SnatExcludePrefixSpec, add
 // another agent with identical addresses is not observable (documented; under D-071 only the
 // globals owner — this same agent on a real box — mutates the entry).
 func (p *Plugin) entryIdentity(ctx context.Context) (string, error) {
-	boot, err := natcommon.BootIdentity(ctx, p.client)
+	boot, err := bootid.Current(ctx, p.client)
 	if err != nil {
 		return "", err
 	}

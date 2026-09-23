@@ -14,7 +14,6 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/memclnt"
-	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/internal/descriptors/cnat"
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/descriptors/natcommon/nattest"
@@ -152,8 +151,8 @@ func newFakeCnat(t *testing.T) *fakeCnat {
 	})
 	f.Reply("cnat_session_dump", &cnatapi.CnatSessionDetails{Session: cnatapi.CnatSession{Tuple: cnatapi.Cnat5tuple{
 		Addr: [2]ip_types.Address{mustAddr("10.9.47.1"), mustAddr("10.9.48.1")}, Port: []uint16{1234, 80}, IPProto: ip_types.IP_API_PROTO_TCP}}})
-	f.On("show_threads", func(api.Message) ([]api.Message, error) {
-		return []api.Message{&vlib.ShowThreadsReply{Count: 1, ThreadData: []vlib.ThreadData{{ID: 0, PID: f.vppPID}}}}, nil
+	f.On("control_ping", func(api.Message) ([]api.Message, error) { // dumps + VPP boot identity (vpe_pid)
+		return []api.Message{&memclnt.ControlPingReply{VpePID: f.vppPID}}, nil
 	})
 	f.Reply("cnat_session_purge", &cnatapi.CnatSessionPurgeReply{})
 	return f

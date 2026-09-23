@@ -2,40 +2,35 @@
 
 Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 17.4% by hours (153/878 h), 19.5% by tasks (16/82)**
+**Overall: 31.0% by hours (282/910 h), 30.6% by tasks (26/85)**
 
 | state | tasks |
 |---|---|
-| merged | 16 |
-| review | 2 |
-| running | 9 |
+| merged | 26 |
+| review | 0 |
+| running | 6 |
 | ready | 0 |
 | parked | 0 |
 | failed | 0 |
-| todo | 55 |
+| todo | 53 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
-| S2 | 74 / 223 | 33.2% | 6/17 | 8 | 0 | 0 |
+| S2 | 203 / 233 | 87.1% | 16/19 | 3 | 0 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
-| S4 | 0 / 384 | 0.0% | 0/37 | 0 | 0 | 0 |
-| S5 | 0 / 128 | 0.0% | 0/13 | 1 | 0 | 0 |
+| S4 | 0 / 406 | 0.0% | 0/38 | 0 | 0 | 0 |
+| S5 | 0 / 128 | 0.0% | 0/13 | 3 | 0 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
 ## Running / review
 
-- P05 — Agent core: govpp, reconciler, ownership scoping, gRPC server, resync, confirm timer (review, host-agent slot7)
-- P06 — API core: datastore, commit engine, auth/RBAC/audit, telemetry relay (running, host-agent slot1)
+- P07b — UI flows: login, pending-change bar + commit dialog, revisions, users, Playwright login→commit→rollback (running, host-agent slot1)
 - DF-5 — Descriptors: ipsec, ikev2, wireguard (running, host-agent slot4)
-- DF-6 — Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp (running, host-agent slot11)
-- DF-7 — Descriptors: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls (review, host-agent slot10)
-- DF-8 — Descriptors: dhcp, dns, flowprobe, sflow, prom, pcap/tracenode, lcp [skip-unless-loaded] (running, host-agent slot5)
-- RF-2 — Renderers: strongswan (swanctl/VICI path; vrx build lands in P11) (running, host-agent slot3)
-- RF-3 — Renderers: kea-dhcp4/6 + ctrl-agent, unbound, chrony (running, host-agent slot6)
-- RF-4 — Renderers: snmpd, keepalived, rsyslog (running, host-agent slot8)
-- F-startup-gen — startup.conf generator: hugepages, workers, RSS, NUMA, isolcpus, dpdk dev/name mapping, plugin enable list (running, host-agent slot12)
+- P13 — CLI basic (running, host-agent slot3)
+- F-sdk-terraform-ansible — Terraform provider, Ansible collection, Python SDK (running, host-agent slot5)
+- F-startup-apply — Robust startup.conf apply tooling (detached, watchdog, hung-VPP, ifupdown restore, Go API checks, handover gate) (running, host-agent slot6)
 - F-vpp-debs — VPP package build pipeline: pinned 26.06 source, patch series, reproducible .deb build script (running, host-agent slot2)
 
 ## Parked

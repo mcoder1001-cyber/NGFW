@@ -7,14 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 
-	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/internal/scheduler"
-	"ngfw/agent/internal/vpp"
 )
 
 // ---- configuration (D-071) --------------------------------------------------------------------
@@ -250,50 +246,6 @@ func HostLock(dir, name string, exclusive bool) (func(), error) {
 
 // AnyValue is a GlobalOps.Match for globals whose value is not observable.
 func AnyValue[T any](T, T) bool { return true }
-
-// VPPIdentity returns the PID of VPP's main thread (show_threads, thread 0).
-func VPPIdentity(ctx context.Context, c vpp.Client) (uint32, error) {
-	rep, err := vlib.NewServiceClient(c).ShowThreads(ctx, &vlib.ShowThreads{})
-	if err != nil {
-		return 0, fmt.Errorf("show_threads: %w", err)
-	}
-	for _, t := range rep.ThreadData {
-		if t.ID == 0 {
-			return t.PID, nil
-		}
-	}
-	return 0, fmt.Errorf("show_threads: no main thread in %d entries", len(rep.ThreadData))
-}
-
-// ProcRoot is where BootIdentity reads the kernel boot id and VPP's process start time
-// (tests point it elsewhere).
-var ProcRoot = "/proc"
-
-// BootIdentity is the D-080 VPP boot identity: kernel boot_id, VPP main PID and the VPP
-// process start time (/proc/<pid>/stat field 22) — the PID alone repeats across reboots.
-// P08 consolidates this into the agent's vpp package; until then the factories implement it.
-// A part that cannot be read (VPP in another PID namespace, a test) is recorded as "?"; the
-// remaining parts still change on every VPP restart.
-func BootIdentity(ctx context.Context, c vpp.Client) (string, error) {
-	pid, err := VPPIdentity(ctx, c)
-	if err != nil {
-		return "", err
-	}
-	boot := "?"
-	if b, err := os.ReadFile(filepath.Join(ProcRoot, "sys/kernel/random/boot_id")); err == nil {
-		boot = strings.TrimSpace(string(b))
-	}
-	start := "?"
-	if st, err := os.ReadFile(filepath.Join(ProcRoot, strconv.FormatUint(uint64(pid), 10), "stat")); err == nil {
-		// field 22 (starttime); fields after the parenthesised comm, which may contain spaces
-		if i := strings.LastIndexByte(string(st), ')'); i >= 0 {
-			if f := strings.Fields(string(st)[i+1:]); len(f) >= 20 {
-				start = f[19] // f[0] is field 3 (state) → field 22 is f[19]
-			}
-		}
-	}
-	return fmt.Sprintf("%s/%d/%s", boot, pid, start), nil
-}
 
 // AppliedRecord is the D-076 claim-record key for a non-idempotent write-only add.
 func AppliedRecord(key, identity string) string { return key + "@" + identity }

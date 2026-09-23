@@ -10,6 +10,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // BypassSpec describes a per-interface feature toggle (sw_interface_set_vxlan_bypass,
@@ -21,7 +22,7 @@ import (
 // Idempotency (D-076, review H3): most of these handlers call vnet_feature_enable_disable
 // directly, which does not deduplicate — a second enable inserts the node twice. So the
 // descriptor records, per (interface, family), a claim "<name>@vpp-<boot>" once the enable
-// succeeded on the running VPP (BootID) and skips the re-add while that VPP instance is
+// succeeded on the running VPP (bootid.Current) and skips the re-add while that VPP instance is
 // unchanged; after a VPP restart the feature is gone and is enabled exactly once again.
 //
 // Ownership (D-071, review H4/M1): the interface is resolved by logical name through DF-1's
@@ -134,7 +135,7 @@ func (d *BypassDescriptor[T]) claimID(iface string, idx interface_types.Interfac
 
 // ensure makes family ipv6 of the interface enabled (want) or disabled (!want), sending a
 // message only when the recorded state for this VPP boot differs.
-func (d *BypassDescriptor[T]) ensure(ctx context.Context, iface string, idx interface_types.InterfaceIndex, boot string, ipv6, want bool) error {
+func (d *BypassDescriptor[T]) ensure(ctx context.Context, iface string, idx interface_types.InterfaceIndex, boot bootid.Identity, ipv6, want bool) error {
 	id := d.claimID(iface, idx, ipv6)
 	holder := BootHolder(d.spec.Name, boot)
 	on := d.claims.Claimed(id, holder)
@@ -189,7 +190,7 @@ func (d *BypassDescriptor[T]) resolve(ctx context.Context, iface string, meta an
 }
 
 func (d *BypassDescriptor[T]) apply(ctx context.Context, iface string, idx interface_types.InterfaceIndex, want4, want6 bool) error {
-	boot, err := BootID(ctx, d.client)
+	boot, err := bootid.Current(ctx, d.client)
 	if err != nil {
 		return err
 	}

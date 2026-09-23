@@ -6,8 +6,8 @@
 // indices are reused after a delete or a VPP restart. The owner's name ↔ index mapping
 // therefore lives in a Store next to the create-time parameters VPP does not report back
 // (memory_size, current_data_*, session action/metadata) and the output-ACL tables. A record
-// is trusted only when (1) the Store was written against the running VPP instance (the
-// vpe_pid of control_ping_reply; a different pid drops every record), (2) classify_table_ids
+// is trusted only when (1) the Store was written against the running VPP instance (the D-080
+// boot identity, bootid.Current; a different identity drops every record), (2) classify_table_ids
 // still lists its index and (3) classify_table_info shows the recorded geometry (skip/match
 // vectors and mask). See docs/agent/descriptors/classify.md.
 package classify
@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"ngfw/agent/internal/descriptors/df2"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // TableRecord is what the Store keeps per owned classify table.
@@ -70,17 +71,20 @@ type Store interface {
 	GetOutput(iface string) (OutputRecord, bool)
 	PutOutput(rec OutputRecord) error
 	DeleteOutput(iface string) error
-	// Instance returns the VPP instance (vpe_pid) the records were written against; known is
-	// false for a fresh or legacy store.
-	Instance() (pid uint32, known bool)
-	// Reset drops every record and binds the store to VPP instance pid.
-	Reset(pid uint32) error
+	// Instance returns the VPP instance (D-080 boot identity) the records were written against;
+	// known is false for a fresh or legacy store (pre-TD-1 files carried the vpe_pid only).
+	Instance() (id bootid.Identity, known bool)
+	// Reset drops every record and binds the store to VPP instance id.
+	Reset(id bootid.Identity) error
 }
 
 type storeData struct {
-	VPPInstance *uint32        `json:"vpp_instance,omitempty"`
-	Tables      []TableRecord  `json:"tables"`
-	Outputs     []OutputRecord `json:"outputs,omitempty"`
+	// VPPBoot is the encoded boot identity (bootid.Identity.String). Files written before TD-1
+	// carry "vpp_instance" (the vpe_pid) instead, which is ignored: such a store has an unknown
+	// instance, so its records are not trusted and the first Prune resets it.
+	VPPBoot string         `json:"vpp_boot,omitempty"`
+	Tables  []TableRecord  `json:"tables"`
+	Outputs []OutputRecord `json:"outputs,omitempty"`
 }
 
 // store is the Store implementation; path "" keeps it in memory.
@@ -88,7 +92,7 @@ type store struct {
 	txn      sync.Mutex
 	mu       sync.Mutex
 	path     string
-	instance *uint32
+	instance *bootid.Identity
 	recs     map[string]TableRecord
 	outputs  map[string]OutputRecord
 }
@@ -108,7 +112,8 @@ func NewMemStore() *MemStore {
 type FileStore struct{ store }
 
 // OpenFileStore loads path (a missing file is an empty store). A legacy file (a bare array of
-// records, no VPP instance) loads with an unknown instance, so its records are not trusted.
+// records, or a vpe_pid-only "vpp_instance") loads with an unknown instance, so its records are
+// not trusted.
 func OpenFileStore(path string) (*FileStore, error) {
 	s := &FileStore{store{path: path, recs: map[string]TableRecord{}, outputs: map[string]OutputRecord{}}}
 	data, err := os.ReadFile(path) //nolint:gosec // the agent's own state file
@@ -128,7 +133,11 @@ func OpenFileStore(path string) (*FileStore, error) {
 			d = storeData{Tables: legacy}
 		}
 	}
-	s.instance = d.VPPInstance
+	if d.VPPBoot != "" {
+		if id, err := bootid.Parse(d.VPPBoot); err == nil {
+			s.instance = &id
+		}
+	}
 	for _, r := range d.Tables {
 		s.recs[r.Name] = r
 	}
@@ -189,21 +198,21 @@ func (s *store) DeleteOutput(iface string) error {
 	return s.save()
 }
 
-func (s *store) Instance() (uint32, bool) {
+func (s *store) Instance() (bootid.Identity, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.instance == nil {
-		return 0, false
+		return bootid.Identity{}, false
 	}
 	return *s.instance, true
 }
 
-func (s *store) Reset(pid uint32) error {
+func (s *store) Reset(id bootid.Identity) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.recs = map[string]TableRecord{}
 	s.outputs = map[string]OutputRecord{}
-	s.instance = &pid
+	s.instance = &id
 	return s.save()
 }
 
@@ -221,7 +230,10 @@ func (s *store) save() error {
 	if s.path == "" {
 		return nil
 	}
-	d := storeData{VPPInstance: s.instance, Tables: sorted(s.recs)}
+	d := storeData{Tables: sorted(s.recs)}
+	if s.instance != nil {
+		d.VPPBoot = s.instance.String()
+	}
 	for _, o := range s.outputs {
 		d.Outputs = append(d.Outputs, o)
 	}

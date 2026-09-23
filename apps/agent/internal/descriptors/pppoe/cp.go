@@ -8,6 +8,7 @@ import (
 	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // CpName is the descriptor name; the key is "pppoe.cp/global".
@@ -34,7 +35,7 @@ var cpProbe = df6.FeatureProbe("device-input", "pppoe-input", "", "")
 
 func cpSpec(owner string, claims df6.ClaimStore) df6.SingletonSpec[*Cp] {
 	send := func(ctx context.Context, c vpp.Client, cp *Cp, enable bool) error {
-		boot, err := df6.BootID(ctx, c)
+		boot, err := bootid.Current(ctx, c)
 		if err != nil {
 			return err
 		}

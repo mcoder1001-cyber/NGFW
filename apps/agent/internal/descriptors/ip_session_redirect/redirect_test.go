@@ -17,6 +17,7 @@ import (
 	"ngfw/agent/internal/descriptors/classify"
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp/bootid"
 	"ngfw/agent/internal/vpp/fake"
 )
 
@@ -74,7 +75,11 @@ func TestLifecycle(t *testing.T) {
 	v := newFakeVPP()
 	store := classify.NewMemStore()
 	mask := bytes.Repeat([]byte{255}, 32)
-	_ = store.Reset(0) // records written against the running VPP (vpe_pid 0 on the fake)
+	cur, err := bootid.Current(ctx, v) // records written against the running VPP (vpe_pid 0 on the fake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = store.Reset(cur)
 	_ = store.Put(classify.TableRecord{Name: "w3-t1", Index: 1, SkipNVectors: 1, MatchNVectors: 2, Mask: mask})
 	v.Reply("classify_table_info", &classifyapi.ClassifyTableInfoReply{TableID: 1, SkipNVectors: 1, MatchNVectors: 2, MaskLength: 32, Mask: mask})
 	// A redirect in a table that is not ours (index 2) must stay invisible.

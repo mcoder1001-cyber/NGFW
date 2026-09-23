@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	vppacl "ngfw/agent/binapi/acl"
-	"ngfw/agent/binapi/vlib"
+	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -105,12 +105,12 @@ func TestStatsEnableSurvivesVPPRestart(t *testing.T) {
 	if _, err := d.Create(ctx, desired.Proto()); err != nil {
 		t.Fatal(err)
 	}
-	v.Reply("show_threads", &vlib.ShowThreadsReply{Retval: rvInvalidValue})
+	v.Reply("control_ping", &memclnt.ControlPingReply{Retval: rvInvalidValue})
 	if _, err := d.Retrieve(ctx); err == nil {
-		t.Fatal("show_threads failure must surface from Retrieve")
+		t.Fatal("boot identity (control_ping) failure must surface from Retrieve")
 	}
 	if _, err := d.Create(ctx, desired.Proto()); err == nil {
-		t.Fatal("show_threads failure must surface from Create")
+		t.Fatal("boot identity (control_ping) failure must surface from Create")
 	}
 }
 

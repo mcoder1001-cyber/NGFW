@@ -25,6 +25,7 @@ import (
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // Descriptor names.
@@ -310,7 +311,7 @@ type InterfaceDescriptor struct {
 
 	mu         sync.Mutex
 	learned    map[uint32]uint32 // hw_if_index → sw_if_index
-	learnedFor string            // boot identity the map belongs to
+	learnedFor bootid.Identity   // boot identity the map belongs to
 }
 
 var _ scheduler.Descriptor = (*InterfaceDescriptor)(nil)
@@ -326,7 +327,7 @@ func (d *InterfaceDescriptor) epoch(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if id != d.learnedFor {
+	if !id.Equal(d.learnedFor) {
 		d.learned = map[uint32]uint32{}
 		d.learnedFor = id
 	}

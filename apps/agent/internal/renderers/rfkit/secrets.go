@@ -147,7 +147,10 @@ func (r *Redactor) Add(values ...string) {
 	}
 }
 
-// Redact returns s with every remembered value replaced by Redacted.
+// Redact returns s with every remembered value replaced by Redacted. A value is replaced only
+// where it stands as a whole token — not preceded or followed by a letter, digit, '_', '.' or
+// '-' — so a short or common secret never blanks unrelated words ("ro" inside "router";
+// review L1). Longest values first.
 func (r *Redactor) Redact(s string) string {
 	r.mu.Lock()
 	vals := make([]string, 0, len(r.values))
@@ -162,9 +165,37 @@ func (r *Redactor) Redact(s string) string {
 		return strings.Compare(a, b)
 	})
 	for _, v := range vals {
-		s = strings.ReplaceAll(s, v, Redacted)
+		s = replaceToken(s, v)
 	}
 	return s
+}
+
+func isTokenByte(c byte) bool {
+	return c == '_' || c == '.' || c == '-' || (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
+// replaceToken replaces the whole-token occurrences of v in s by Redacted.
+func replaceToken(s, v string) string {
+	var b strings.Builder
+	i := 0
+	for {
+		j := strings.Index(s[i:], v)
+		if j < 0 {
+			b.WriteString(s[i:])
+			return b.String()
+		}
+		j += i
+		end := j + len(v)
+		left := j == 0 || !isTokenByte(s[j-1]) || !isTokenByte(v[0])
+		right := end == len(s) || !isTokenByte(s[end]) || !isTokenByte(v[len(v)-1])
+		b.WriteString(s[i:j])
+		if left && right {
+			b.WriteString(Redacted)
+		} else {
+			b.WriteString(v)
+		}
+		i = end
+	}
 }
 
 // Error returns err with its message redacted; errors.Is/As still see the chain.

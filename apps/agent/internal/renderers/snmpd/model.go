@@ -28,6 +28,9 @@ type Model struct {
 	Enabled bool
 	// Listen are the agentaddress transports ("udp:127.0.0.1:161", "udp6:[::1]:161").
 	Listen []string
+	// Warnings are rendered as "# WARNING:" lines (Warnings() reads them back): loopback-only
+	// default, wildcard listen addresses (review M1).
+	Warnings []string
 	// EngineID is the SNMPv3 engine id in hex without 0x ("" = daemon default).
 	EngineID                    string
 	SysName, SysLoc, SysContact string
@@ -155,9 +158,13 @@ func Text(s string) (string, error) {
 	return s, nil
 }
 
+// communityRe: one word, at least 8 characters (review L1: a short community is guessable and
+// would make redaction of error texts ambiguous).
+var communityRe = regexp.MustCompile(`^[A-Za-z0-9_.-]{8,64}$`)
+
 func checkCommunity(v string) error {
-	if !tokenRe.MatchString(v) {
-		return fmt.Errorf("a community string must be 1–64 characters of [A-Za-z0-9_.-]")
+	if !communityRe.MatchString(v) {
+		return fmt.Errorf("a community string must be 8–64 characters of [A-Za-z0-9_.-]")
 	}
 	return nil
 }
@@ -323,7 +330,10 @@ func buildSystem(m *Model, snmp *vrxv1.SnmpService, sx *rfkit.Ext) error {
 
 func buildListen(m *Model, snmp *vrxv1.SnmpService) error {
 	if len(snmp.GetListen()) == 0 {
-		m.Listen = []string{"udp:0.0.0.0:161", "udp6:[::]:161"}
+		// Never all addresses by default (review M1): without an explicit listen address the
+		// agent answers on loopback only.
+		m.Listen = []string{"udp:127.0.0.1:161", "udp6:[::1]:161"}
+		m.Warnings = append(m.Warnings, "services.snmp.listen is empty: snmpd listens on 127.0.0.1:161 and [::1]:161 only; set listen to reach it from the network")
 		return nil
 	}
 	seen := map[string]bool{}
@@ -348,6 +358,9 @@ func buildListen(m *Model, snmp *vrxv1.SnmpService) error {
 		}
 		seen[t] = true
 		m.Listen = append(m.Listen, t)
+		if a.IsUnspecified() {
+			m.Warnings = append(m.Warnings, fmt.Sprintf("services.snmp.listen[%d] %s listens on every address of the host (management and data-plane sides)", i, t))
+		}
 	}
 	return nil
 }

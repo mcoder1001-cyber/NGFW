@@ -81,6 +81,28 @@ func (c *SystemdController) Signal(ctx context.Context, sig syscall.Signal) erro
 	return c.run(ctx, "kill", "--kill-whom=main", "--signal="+strconv.Itoa(int(sig)))
 }
 
+// MainPID is implemented by controllers that can name the daemon's main process
+// (convergence checks on the process itself: listening sockets, start time).
+type MainPID interface {
+	MainPID(ctx context.Context) (int, error)
+}
+
+// MainPID implements MainPID: `systemctl show <unit> -p MainPID --value` (0 = not running).
+func (c *SystemdController) MainPID(ctx context.Context) (int, error) {
+	if c.Runner == nil || !unitRe.MatchString(c.Unit) {
+		return 0, fmt.Errorf("rfkit: systemd controller needs a runner and a plain unit name (got %q)", c.Unit)
+	}
+	out, err := c.Runner.Run(ctx, renderers.Command{Path: SystemctlBin, Args: []string{"show", c.Unit, "-p", "MainPID", "--value"}})
+	if err != nil {
+		return 0, fmt.Errorf("rfkit: systemctl show %s: %w", c.Unit, err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(out.Stdout)))
+	if err != nil || pid <= 0 {
+		return 0, fmt.Errorf("%w: unit %s has no main process", ErrNotRunning, c.Unit)
+	}
+	return pid, nil
+}
+
 // ProcessController signals a daemon the caller spawned (integration tests; shared-host
 // rules §5: only PIDs you started). Before every signal it checks that the PID still runs
 // Binary (via /proc/<pid>/exe), so a recycled PID is never signalled (RF-1 review M4).
@@ -130,6 +152,9 @@ func (c *ProcessController) pid() (int, error) {
 	}
 	return pid, nil
 }
+
+// MainPID implements MainPID (the verified PID of the child).
+func (c *ProcessController) MainPID(context.Context) (int, error) { return c.pid() }
 
 // Signal implements Controller.
 func (c *ProcessController) Signal(_ context.Context, sig syscall.Signal) error {

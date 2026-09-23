@@ -7,8 +7,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -316,7 +318,7 @@ func TestHostileSecretValues(t *testing.T) {
 				}
 				r := New(renderers.NewRecordingRunner(), WithPaths(TestPaths("w0")), WithSecretResolver(resolver(map[string]string{"password/evil": h})))
 				_, err := r.Render(context.Background(), doc(t, snmp))
-				ok := regexp.MustCompile(`^[A-Za-z0-9_.-]{1,64}$`).MatchString(h)
+				ok := regexp.MustCompile(`^[A-Za-z0-9_.-]{8,64}$`).MatchString(h)
 				if which == "passphrase" {
 					ok = regexp.MustCompile(`^[A-Za-z0-9_.,:;@%+=/~^*!?-]{8,64}$`).MatchString(h)
 				}
@@ -470,6 +472,14 @@ type fakeCtl struct {
 	mu       sync.Mutex
 	reloads  int
 	failNext bool
+	pid      int // MainPID (0 = not running)
+}
+
+func (c *fakeCtl) MainPID(context.Context) (int, error) {
+	if c.pid == 0 {
+		return 0, rfkit.ErrNotRunning
+	}
+	return c.pid, nil
 }
 
 func (c *fakeCtl) Reload(context.Context) error {
@@ -508,14 +518,41 @@ func (a *fakeAgent) Get(_ context.Context, tg Target, _ []string) (map[string]st
 
 func tempPaths(t *testing.T) Paths {
 	dir := t.TempDir()
-	return Paths{ConfFile: filepath.Join(dir, "snmpd.conf"), AgentXSocket: filepath.Join(dir, "agentx.sock"), FileMode: 0o600}
+	return Paths{ConfFile: filepath.Join(dir, "snmpd.conf"), AgentXSocket: filepath.Join(dir, "agentx.sock"), PendingFile: filepath.Join(dir, "vrx.pending"), FileMode: 0o600}
+}
+
+// fakeSockets reports the listen set of the file on disk (a daemon that restarted onto it), or
+// a fixed stale set.
+type fakeSockets struct {
+	path  string
+	stale []string
+}
+
+func (f *fakeSockets) get(int) ([]string, error) {
+	if f.stale != nil {
+		return f.stale, nil
+	}
+	b, _ := os.ReadFile(f.path)
+	return renderedListeners(b), nil
+}
+
+// startProcess starts a throw-away process: a daemon "restarted" after a pending request.
+func startProcess(t *testing.T) int {
+	t.Helper()
+	cmd := exec.Command("/usr/bin/sleep", "30")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
+	return cmd.Process.Pid
 }
 
 func TestApplyConvergesAndRollsBack(t *testing.T) {
 	p := tempPaths(t)
-	ctl := &fakeCtl{}
+	ctl := &fakeCtl{pid: os.Getpid()}
 	agent := &fakeAgent{path: p.ConfFile}
-	r := New(renderers.NewRecordingRunner(), WithPaths(p), WithController(ctl), WithQuerier(agent),
+	socks := &fakeSockets{path: p.ConfFile}
+	r := New(renderers.NewRecordingRunner(), WithPaths(p), WithController(ctl), WithQuerier(agent), WithListeners(socks.get),
 		WithSecretResolver(resolver(nil)), WithVerifyTimeout(300_000_000))
 	ctx := context.Background()
 	d1 := with(base(), "communities", map[string]any{"ro": map[string]any{"secretRef": "password/snmp-ro", "sources": []any{"127.0.0.1/32"}}},
@@ -524,11 +561,28 @@ func TestApplyConvergesAndRollsBack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := r.Apply(ctx, f1); err != nil {
-		t.Fatal(err)
+	// No previous file: the listen set is new → a persisted restart request, file written, no reload.
+	var ar *rfkit.ActionRequired
+	if err := r.Apply(ctx, f1); !errors.As(err, &ar) || ar.Action != "restart" || ctl.reloads != 0 {
+		t.Fatalf("want a restart request, got %v (reloads %d)", err, ctl.reloads)
+	}
+	if got, _ := os.ReadFile(p.ConfFile); !bytes.Equal(got, f1[p.ConfFile].Content) {
+		t.Fatal("file not written with a restart request")
 	}
 	if info, _ := os.Stat(p.ConfFile); info.Mode().Perm() != 0o600 {
 		t.Fatalf("mode %v", info.Mode())
+	}
+	// Still pending while the same process runs.
+	if err := r.Apply(ctx, f1); !errors.As(err, &ar) || !strings.Contains(ar.Reason, "still pending") {
+		t.Fatalf("pending request not repeated: %v", err)
+	}
+	// The daemon restarted (a process started after the request): pending cleared, reload + convergence.
+	ctl.pid = startProcess(t)
+	if err := r.Apply(ctx, f1); err != nil {
+		t.Fatal(err)
+	}
+	if rfkit.GetPending(p.PendingFile) != nil {
+		t.Fatal("pending request not cleared")
 	}
 	if ctl.reloads != 1 || len(agent.seen) == 0 || agent.seen[0].User == nil || agent.seen[0].User.Name != "u1" || agent.seen[0].Port != 3861 {
 		t.Fatalf("apply must reload once and verify with the v3 user on 127.0.0.1:3861: reloads=%d seen=%+v", ctl.reloads, agent.seen)
@@ -546,8 +600,15 @@ func TestApplyConvergesAndRollsBack(t *testing.T) {
 	if ctl.reloads != 3 {
 		t.Fatalf("want reload + rollback reload (3 total), got %d", ctl.reloads)
 	}
-	// A failing reload also restores.
+	// Sys values converge but the daemon still holds a wildcard socket: not converged (review H1's
+	// "false success" direction).
 	agent.stale = false
+	socks.stale = []string{"udp:0.0.0.0:161", "udp:127.0.0.1:3861"}
+	if err := r.Apply(ctx, f2); !errors.Is(err, rfkit.ErrNotConverged) || !strings.Contains(err.Error(), "0.0.0.0:161") {
+		t.Fatalf("stray listening socket not detected: %v", err)
+	}
+	socks.stale = nil
+	// A failing reload also restores.
 	ctl.failNext = true
 	if err := r.Apply(ctx, f2); err == nil {
 		t.Fatal("reload failure not reported")
@@ -561,6 +622,51 @@ func TestApplyConvergesAndRollsBack(t *testing.T) {
 	}
 	if err := r.Apply(ctx, f1); err != nil {
 		t.Fatal(err)
+	}
+	// A port change: restart request (SIGHUP would keep the old socket), no reload.
+	before := ctl.reloads
+	f3, _ := r.Render(ctx, doc(t, with(d1, "listen", []any{map[string]any{"address": "127.0.0.1", "port": 3863}})))
+	if err := r.Apply(ctx, f3); !errors.As(err, &ar) || ar.Action != "restart" || ctl.reloads != before {
+		t.Fatalf("port change: %v (reloads %d → %d)", err, before, ctl.reloads)
+	}
+	// Not running: an enabled agent asks to be started; the request file is dropped.
+	ctl.pid = 0
+	if err := r.Apply(ctx, f3); !errors.As(err, &ar) || ar.Action != "start" || rfkit.GetPending(p.PendingFile) != nil {
+		t.Fatalf("not running: %v", err)
+	}
+}
+
+func TestDefaultListenIsLoopbackWithWarning(t *testing.T) {
+	r := newRenderer(t)
+	files, err := r.Render(context.Background(), doc(t, with(base(), "listen", []any{})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := string(files[r.paths.ConfFile].Content)
+	if !strings.Contains(c, "agentaddress udp:127.0.0.1:161,udp6:[::1]:161\n") || strings.Contains(c, "0.0.0.0") || strings.Contains(c, "[::]") {
+		t.Fatalf("default listen:\n%s", c)
+	}
+	if w := Warnings(files, r.paths); len(w) != 1 || !strings.Contains(w[0], "127.0.0.1:161") {
+		t.Fatalf("warnings %q", w)
+	}
+	files, _ = r.Render(context.Background(), doc(t, with(base(), "listen", []any{map[string]any{"address": "0.0.0.0"}})))
+	if w := Warnings(files, r.paths); len(w) != 1 || !strings.Contains(w[0], "every address") {
+		t.Fatalf("wildcard warnings %q", w)
+	}
+	files, _ = r.Render(context.Background(), doc(t, base()))
+	if w := Warnings(files, r.paths); len(w) != 0 {
+		t.Fatalf("explicit loopback listen warns: %q", w)
+	}
+}
+
+func TestStartupDirectives(t *testing.T) {
+	r := newRenderer(t)
+	a, _ := r.Render(context.Background(), doc(t, base()))
+	b, _ := r.Render(context.Background(), doc(t, with(base(), "sysLocation", "elsewhere")))
+	c, _ := r.Render(context.Background(), doc(t, with(base(), "engineId", "800007e5804a")))
+	sa, sb, sc := startupDirectives(a[r.paths.ConfFile].Content), startupDirectives(b[r.paths.ConfFile].Content), startupDirectives(c[r.paths.ConfFile].Content)
+	if !slices.Equal(sa, sb) || slices.Equal(sa, sc) || len(sa) != 4 {
+		t.Fatalf("%q %q %q", sa, sb, sc)
 	}
 }
 

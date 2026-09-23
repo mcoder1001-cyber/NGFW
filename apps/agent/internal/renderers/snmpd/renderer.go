@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -51,6 +52,7 @@ type Renderer struct {
 	red           rfkit.Redactor
 	verifyTimeout time.Duration
 	tmpl          *template.Template
+	listeners     func(pid int) ([]string, error)
 }
 
 var _ renderers.Renderer = (*Renderer)(nil)
@@ -71,13 +73,16 @@ func WithSecretResolver(sr rfkit.SecretResolver) Option { return func(r *Rendere
 // WithQuerier replaces the gosnmp client (unit tests).
 func WithQuerier(q Querier) Option { return func(r *Renderer) { r.querier = q } }
 
+// WithListeners replaces the /proc socket reader (unit tests).
+func WithListeners(f func(pid int) ([]string, error)) Option { return func(r *Renderer) { r.listeners = f } }
+
 // WithVerifyTimeout bounds the post-reload convergence check (default 5 s).
 func WithVerifyTimeout(d time.Duration) Option { return func(r *Renderer) { r.verifyTimeout = d } }
 
 // New returns an snmpd renderer running its commands through runner (production:
 // renderers.NewSystemRunner(renderers.NewAllowlist(snmpd.Binaries()...))).
 func New(runner renderers.Runner, opts ...Option) *Renderer {
-	r := &Renderer{runner: runner, paths: ProductPaths(), querier: GoSNMP{}, verifyTimeout: verifyTimeout}
+	r := &Renderer{runner: runner, paths: ProductPaths(), querier: GoSNMP{}, verifyTimeout: verifyTimeout, listeners: rfkit.UDPListeners}
 	for _, o := range opts {
 		o(r)
 	}
@@ -107,6 +112,9 @@ func (r *Renderer) check() error {
 // funcs are the strict per-daemon template helpers; each returns an error for a bad value.
 func (r *Renderer) funcs() template.FuncMap {
 	return template.FuncMap{
+		"warn": func(s string) (string, error) {
+			return renderers.Line(s)
+		},
 		"tok":  Token,
 		"text": Text,
 		"oid": func(s string) (string, error) {
@@ -285,34 +293,35 @@ func CheckCopy(conf []byte, dir string) []byte {
 	return []byte(b.String())
 }
 
-// benignLog are daemon log lines of a parse run that do not concern the file.
+// problemLog matches the forms in which snmpd reports a problem with its configuration (review
+// L2: keyed on snmpd's own structured messages, not on loose keywords):
+//
+//	<file>: line N: Error: …      <file>: line N: Warning: …   (read_config)
+//	Warning: Unknown token: …     Error: …                      (token handlers without a line)
+//	Error opening specified endpoint …                          (transport)
+var problemLog = regexp.MustCompile(`(?i)(?:line [0-9]+: (?:error|warning)\b)|(?:^(?:error|warning)\b[: ])|unknown token|^error opening`)
+
+// benignLog: messages matching problemLog that do not concern the file.
 var benignLog = []*regexp.Regexp{
-	regexp.MustCompile(`^NET-SNMP version`),
-	regexp.MustCompile(`^Created directory:`),
 	// A disabled agent grants no access on purpose.
 	regexp.MustCompile(`^Warning: no access control information configured\.`),
-	regexp.MustCompile(`^\s*\(Config search path:`),
-	regexp.MustCompile(`^\s*It's unlikely this agent can serve any useful purpose in this state\.`),
-	regexp.MustCompile(`^\s*Run "snmpconf -g basic_setup"`),
 }
-
-var problemLog = regexp.MustCompile(`(?i)error|warning|unknown|line [0-9]+|cannot|could not|failed|invalid|bad `)
 
 func parseProblems(log string) []string {
 	var out []string
 	for _, l := range strings.Split(log, "\n") {
 		t := strings.TrimSpace(l)
-		if t == "" {
+		if t == "" || !problemLog.MatchString(t) {
 			continue
 		}
 		benign := false
 		for _, re := range benignLog {
-			if re.MatchString(l) {
+			if re.MatchString(t) {
 				benign = true
 				break
 			}
 		}
-		if !benign && problemLog.MatchString(t) {
+		if !benign {
 			out = append(out, t)
 		}
 	}
@@ -367,11 +376,89 @@ func stopCheckInstance(ctx context.Context, pidFile, dir string) error {
 	return nil
 }
 
-// Apply implements renderers.Renderer: snapshot → atomic write of snmpd.conf (0600) → reload
-// (SIGHUP: snmpd re-reads its configuration in place, same PID) → convergence check over SNMP
-// (sysName/sysLocation/sysContact as rendered, using a credential from the file itself) → on
-// any failure restore the previous file and reload again. Idempotent. Not safe for concurrent
-// use on one set of paths: the commit engine serialises commits.
+// startupKeys are the directives snmpd applies only when it starts: SIGHUP re-reads the file
+// but never reopens the listening sockets (review H1, reproduced live: after a port change and
+// SIGHUP the agent still answers on the old port) nor the AgentX master or the engine id.
+var startupKeys = map[string]bool{"agentaddress": true, "agentxsocket": true, "agentxperms": true, "master": true, "exactengineid": true}
+
+func startupDirectives(conf []byte) []string {
+	var out []string
+	for _, l := range strings.Split(string(conf), "\n") {
+		word, _, _ := strings.Cut(strings.TrimSpace(l), " ")
+		if startupKeys[strings.ToLower(word)] {
+			out = append(out, strings.TrimSpace(l))
+		}
+	}
+	return out
+}
+
+// Warnings returns the warnings recorded in a rendered snmpd.conf ("# WARNING:" lines: the
+// loopback-only default, wildcard listen addresses). They never fail Validate; the commit
+// engine shows them.
+func Warnings(files renderers.Files, p Paths) []string {
+	var out []string
+	for _, l := range strings.Split(string(files[p.ConfFile].Content), "\n") {
+		if w, ok := strings.CutPrefix(l, "# WARNING: "); ok {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
+// mainPID returns snmpd's main PID through the controller (0 when not running or unknown).
+func (r *Renderer) mainPID(ctx context.Context) int {
+	if m, ok := r.ctl.(rfkit.MainPID); ok {
+		if pid, err := m.MainPID(ctx); err == nil {
+			return pid
+		}
+	}
+	return 0
+}
+
+// listenersMatch proves the listening sockets of the running snmpd are exactly the rendered
+// agentaddress set (UDP transports; a disabled agent listens on none).
+func (r *Renderer) listenersMatch(ctx context.Context, conf []byte) error {
+	pid := r.mainPID(ctx)
+	if pid == 0 {
+		return fmt.Errorf("%w: %w: snmpd main process unknown", ErrDaemon, rfkit.ErrNotConverged)
+	}
+	got, err := r.listeners(pid)
+	if err != nil {
+		return fmt.Errorf("%w: %w: %v", ErrDaemon, rfkit.ErrNotConverged, err)
+	}
+	want := renderedListeners(conf)
+	if !slices.Equal(got, want) {
+		return fmt.Errorf("%w: %w: snmpd listens on %v, rendered %v", ErrDaemon, rfkit.ErrNotConverged, got, want)
+	}
+	return nil
+}
+
+func renderedListeners(conf []byte) []string {
+	var out []string
+	for _, l := range strings.Split(string(conf), "\n") {
+		if rest, ok := strings.CutPrefix(l, "agentaddress "); ok {
+			for _, t := range strings.Split(rest, ",") {
+				if strings.HasPrefix(t, "udp:") || strings.HasPrefix(t, "udp6:") {
+					out = append(out, t)
+				}
+			}
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// Apply implements renderers.Renderer: snapshot → atomic write of snmpd.conf (0600) → then
+//   - snmpd not running: nothing to reload; an enabled agent → *rfkit.ActionRequired start;
+//   - a startup-only directive changed (agentaddress, AgentX, engine id) → a restart request
+//     (*rfkit.ActionRequired restart), persisted in Paths.PendingFile and returned by every
+//     Apply until snmpd runs a process started after it (D-079);
+//   - otherwise SIGHUP (`systemctl reload snmpd`) → convergence: the sockets snmpd actually
+//     holds equal the rendered listen set (/proc/<pid>/fd + net/udp{,6}), and an SNMP GET shows
+//     the rendered sysName/sysLocation/sysContact → on any failure restore + reload.
+//
+// The files stay written when a restart is requested (the restart must read them). Idempotent.
+// Not safe for concurrent use: the commit engine serialises commits.
 func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 	if err := r.check(); err != nil {
 		return err
@@ -379,13 +466,46 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 	if err := r.checkFiles(files); err != nil {
 		return err
 	}
-	want := parseRendered(files[r.paths.ConfFile].Content)
+	conf := files[r.paths.ConfFile].Content
+	want := parseRendered(conf)
 	r.red.Add(want.secrets...)
-	verify := func(ctx context.Context) error {
-		if !want.queryable() {
-			return nil // nothing the agent can ask (disabled, or no local credential): README
+	previous, prevErr := rfkit.ReadFileLimit(r.paths.ConfFile, maxConfSize)
+	snap, err := renderers.TakeSnapshot(files.Paths()...)
+	if err != nil {
+		return err
+	}
+	if err := renderers.WriteFiles(files); err != nil {
+		return errors.Join(err, snap.Restore())
+	}
+	pid := r.mainPID(ctx)
+	if pid == 0 {
+		rfkit.ClearPending(r.paths.PendingFile) // the next start reads the new file
+		if want.enabled {
+			return &rfkit.ActionRequired{Daemon: "snmpd", Unit: "snmpd", Action: "start", Reason: "services.snmp is enabled but snmpd is not running"}
 		}
+		return nil
+	}
+	if prevErr != nil || !slices.Equal(startupDirectives(previous), startupDirectives(conf)) {
+		reason := "listen addresses, AgentX or engine id changed (snmpd applies them only at startup; SIGHUP keeps the old sockets)"
+		if err := rfkit.SetPending(r.paths.PendingFile, "restart", reason, pid); err != nil {
+			return fmt.Errorf("snmpd: record pending restart: %w", err)
+		}
+		return &rfkit.ActionRequired{Daemon: "snmpd", Unit: "snmpd", Action: "restart", Reason: reason}
+	}
+	if rec := rfkit.GetPending(r.paths.PendingFile); rec != nil {
+		if !rec.StartedAfter(pid) {
+			return &rfkit.ActionRequired{Daemon: "snmpd", Unit: "snmpd", Action: rec.Action, Reason: rec.Reason + " (still pending: snmpd has not restarted since)"}
+		}
+		rfkit.ClearPending(r.paths.PendingFile)
+	}
+	verify := func(ctx context.Context) error {
 		return rfkit.Poll(ctx, r.verifyTimeout, 200*time.Millisecond, func(ctx context.Context) error {
+			if err := r.listenersMatch(ctx, conf); err != nil {
+				return err
+			}
+			if !want.queryable() {
+				return nil // no local credential: the socket set is the proof (README)
+			}
 			st, err := r.query(ctx, want)
 			if err != nil {
 				return fmt.Errorf("%w: %w: %v", ErrDaemon, rfkit.ErrNotConverged, err)
@@ -393,6 +513,29 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 			return want.matches(st)
 		})
 	}
-	err := rfkit.ApplyFiles(ctx, files, r.ctl.Reload, verify)
-	return r.red.Error(err)
+	return r.red.Error(rfkit.Finish(ctx, snap, r.ctl.Reload, verify))
+}
+
+// Converged checks that the running snmpd serves the live snmpd.conf (listening sockets and
+// sys* values) — for the commit engine after it acted on a restart request.
+func (r *Renderer) Converged(ctx context.Context) error {
+	conf, err := rfkit.ReadFileLimit(r.paths.ConfFile, maxConfSize)
+	if err != nil {
+		return err
+	}
+	if err := r.listenersMatch(ctx, conf); err != nil {
+		return r.red.Error(err)
+	}
+	if rec := rfkit.GetPending(r.paths.PendingFile); rec != nil && rec.StartedAfter(r.mainPID(ctx)) {
+		rfkit.ClearPending(r.paths.PendingFile)
+	}
+	p := parseRendered(conf)
+	if !p.queryable() {
+		return nil
+	}
+	st, err := r.query(ctx, p)
+	if err != nil {
+		return r.red.Error(fmt.Errorf("%w: %w: %v", ErrDaemon, rfkit.ErrNotConverged, err))
+	}
+	return p.matches(st)
 }

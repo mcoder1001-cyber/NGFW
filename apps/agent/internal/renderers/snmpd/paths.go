@@ -22,6 +22,9 @@ type Paths struct {
 	ConfFile string
 	// AgentXSocket is the AgentX master socket for the future private-MIB subagent (F-snmp).
 	AgentXSocket string
+	// PendingFile persists a restart request until snmpd runs the configuration that needed it
+	// (D-079).
+	PendingFile string
 	// FileOwner is the owner of snmpd.conf ("root:root" in the product, "" in tests).
 	FileOwner string
 	// FileMode is the mode of snmpd.conf (0600: it holds secrets).
@@ -33,6 +36,7 @@ func ProductPaths() Paths {
 	return Paths{
 		ConfFile:     "/etc/snmp/snmpd.conf",
 		AgentXSocket: "/run/vrx/snmpd/agentx.sock",
+		PendingFile:  "/run/vrx/renderers/snmpd.pending",
 		FileOwner:    "root:root",
 		FileMode:     0o600,
 	}
@@ -44,6 +48,7 @@ func TestPaths(prefix string) Paths {
 	return Paths{
 		ConfFile:     filepath.Join(base, "snmpd.conf"),
 		AgentXSocket: filepath.Join(base, "agentx.sock"),
+		PendingFile:  filepath.Join(base, "vrx.pending"),
 		FileMode:     0o600,
 	}
 }
@@ -54,7 +59,7 @@ var pathRe = regexp.MustCompile(`^/[A-Za-z0-9_./-]{1,100}$`)
 // Validate checks that every path is absolute, clean and made of safe characters, and that
 // the file mode keeps the secrets private.
 func (p Paths) Validate() error {
-	for name, v := range map[string]string{"ConfFile": p.ConfFile, "AgentXSocket": p.AgentXSocket} {
+	for name, v := range map[string]string{"ConfFile": p.ConfFile, "AgentXSocket": p.AgentXSocket, "PendingFile": p.PendingFile} {
 		if !pathRe.MatchString(v) || filepath.Clean(v) != v {
 			return fmt.Errorf("snmpd: Paths.%s %q must be an absolute clean path of [A-Za-z0-9_./-]", name, v)
 		}

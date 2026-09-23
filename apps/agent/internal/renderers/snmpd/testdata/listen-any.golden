@@ -1,6 +1,7 @@
 # Rendered by vrx-agent (snmpd renderer). Do not edit: every commit overwrites this file.
 # Holds SNMP communities and USM passphrases: mode 0600.
-agentaddress udp:0.0.0.0:161,udp6:[::]:161
+# WARNING: services.snmp.listen is empty: snmpd listens on 127.0.0.1:161 and [::1]:161 only; set listen to reach it from the network
+agentaddress udp:127.0.0.1:161,udp6:[::1]:161
 dontLogTCPWrappersConnects yes
 sysName vrx-w8
 sysLocation Rack 4, Hall B

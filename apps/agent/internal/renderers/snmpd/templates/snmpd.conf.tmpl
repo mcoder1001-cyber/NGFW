@@ -8,6 +8,9 @@
 # services.snmp is disabled: the agent listens on a private unix socket only and grants no access.
 agentaddress unix:{{path .AgentX}}.disabled
 {{- else}}
+{{- range .Warnings}}
+# WARNING: {{warn .}}
+{{- end}}
 agentaddress {{range $i, $t := .Listen}}{{if $i}},{{end}}{{transport $t}}{{end}}
 dontLogTCPWrappersConnects yes
 {{- with .EngineID}}

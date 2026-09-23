@@ -95,13 +95,16 @@ func TestSnmpdIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	logFile := filepath.Join(base, "snmpd.log")
-	child = exec.Command(SnmpdBin, "-f", "-Lf", logFile, "-C", "-c", paths.ConfFile, "-p", filepath.Join(base, "snmpd.pid"), //nolint:gosec // test harness: fixed argv of an allow-listed binary
-		"-m", "", "-M", filepath.Join(base, "mibs"))
-	child.Env = []string{"PATH=/usr/sbin:/usr/bin", "SNMP_PERSISTENT_DIR=" + filepath.Join(base, "persist"), "SNMPCONFPATH=" + base}
-	child.Dir = base
-	if err := child.Start(); err != nil {
-		t.Fatal(err)
+	startChild := func() {
+		child = exec.Command(SnmpdBin, "-f", "-Lf", logFile, "-A", "-C", "-c", paths.ConfFile, "-p", filepath.Join(base, "snmpd.pid"), //nolint:gosec // test harness: fixed argv of an allow-listed binary
+			"-m", "", "-M", filepath.Join(base, "mibs"))
+		child.Env = []string{"PATH=/usr/sbin:/usr/bin", "SNMP_PERSISTENT_DIR=" + filepath.Join(base, "persist"), "SNMPCONFPATH=" + base}
+		child.Dir = base
+		if err := child.Start(); err != nil {
+			t.Fatal(err)
+		}
 	}
+	startChild()
 	pid := child.Process.Pid
 	t.Cleanup(func() { stopChild(t, child, base) })
 	t.Logf("snmpd child pid %d: %s", pid, strings.Join(child.Args, " "))
@@ -138,7 +141,7 @@ func TestSnmpdIntegration(t *testing.T) {
 	// A reload that the daemon never sees (control channel lost) must not report success: the
 	// convergence check fails and the previous file is restored.
 	lost := New(sysRunner, WithPaths(paths), WithSecretResolver(resolver(nil)), WithVerifyTimeout(1500*time.Millisecond),
-		WithController(&fakeCtl{})) // "reloads" without signalling the daemon
+		WithController(&fakeCtl{pid: child.Process.Pid})) // "reloads" without signalling the daemon
 	files3, _ := lost.Render(ctx, doc(t, with(d, "sysLocation", "never applied")))
 	lostErr := lost.Apply(ctx, files3)
 	if lostErr == nil {
@@ -161,6 +164,72 @@ func TestSnmpdIntegration(t *testing.T) {
 		t.Fatalf("events %v", evs)
 	}
 	t.Logf("event: %s", evs[0])
+
+	// Review H1, reproduced live: a listen-port change. SIGHUP re-reads the file but keeps the old
+	// socket, so Apply must not reload: it returns a persisted restart request.
+	answers := func(port int) error {
+		_, err := GoSNMP{}.Get(ctx, Target{Addr: netip.MustParseAddr("127.0.0.1"), Port: uint16(port), Community: secRO}, []string{OIDSysName}) //nolint:gosec // slot port
+		return err
+	}
+	portA, portB := port+1, port+2 // 3<N>62, 3<N>63
+	dPort := func(p int) map[string]any {
+		return with(d, "sysLocation", "RF-4 rack three", "listen", []any{map[string]any{"address": "127.0.0.1", "port": p}})
+	}
+	var ar *rfkit.ActionRequired
+	fA, _ := r.Render(ctx, doc(t, dPort(portA)))
+	reqErr := r.Apply(ctx, fA)
+	if !errors.As(reqErr, &ar) || ar.Action != "restart" {
+		t.Fatalf("listen change %d→%d: want a restart request, got %v", port, portA, reqErr)
+	}
+	t.Logf("listen %d→%d: Apply → %v", port, portA, reqErr)
+	if err := r.Apply(ctx, fA); !errors.As(err, &ar) || !strings.Contains(ar.Reason, "still pending") {
+		t.Fatalf("restart request not persisted: %v", err)
+	}
+	// The daemon itself, SIGHUPed on the new file, still holds the old socket (the reviewer's probe).
+	if err := ctl.Reload(ctx); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(500 * time.Millisecond)
+	errOld, errNew := answers(port), answers(portA)
+	socks, _ := rfkit.UDPListeners(child.Process.Pid)
+	t.Logf("after a raw SIGHUP: :%d answers=%v, :%d error=%v, sockets %v", port, errOld == nil, portA, errNew, socks)
+	if errOld != nil || errNew == nil {
+		t.Fatalf("expected the SIGHUP to keep the old socket: old=%v new=%v", errOld, errNew)
+	}
+	if err := r.Converged(ctx); !errors.Is(err, rfkit.ErrNotConverged) {
+		t.Fatalf("Converged must see the stale socket: %v", err)
+	}
+	t.Logf("Converged before the restart: %v", r.Converged(ctx))
+	// The commit engine acts on the request: restart; the next Apply clears it and proves the sockets.
+	restart := func() {
+		stopChild(t, child, base)
+		startChild()
+		waitReachable(t, r, 5*time.Second)
+	}
+	restart()
+	if err := r.Apply(ctx, fA); err != nil {
+		t.Fatalf("apply after the restart: %v", err)
+	}
+	socks, _ = rfkit.UDPListeners(child.Process.Pid)
+	if rfkit.GetPending(paths.PendingFile) != nil || answers(portA) != nil || answers(port) == nil {
+		t.Fatalf("after restart: pending=%v sockets=%v", rfkit.GetPending(paths.PendingFile), socks)
+	}
+	t.Logf("after restart + Apply: pending cleared, snmpd listens on %v, :%d refused", socks, port)
+	// The reviewer's exact case, 3<N>62 → 3<N>63.
+	fB, _ := r.Render(ctx, doc(t, dPort(portB)))
+	err = r.Apply(ctx, fB)
+	if !errors.As(err, &ar) || answers(portA) != nil {
+		t.Fatalf("%d→%d: %v", portA, portB, err)
+	}
+	restart()
+	if err := r.Apply(ctx, fB); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Converged(ctx); err != nil || answers(portB) != nil || answers(portA) == nil {
+		t.Fatalf("%d→%d not converged: %v", portA, portB, err)
+	}
+	socks, _ = rfkit.UDPListeners(child.Process.Pid)
+	t.Logf("%d→%d: restart request, restart, Apply converged: sockets %v, :%d refused", portA, portB, socks, portA)
 
 	// Secrets: plaintext only in the 0600 snmpd.conf; nothing else under the slot dir, the
 	// daemon log or anything the renderer returned holds them.

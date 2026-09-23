@@ -37,15 +37,22 @@ func ApplyFiles(ctx context.Context, files renderers.Files, activate, verify fun
 	if err != nil {
 		return err
 	}
-	applyErr := renderers.WriteFiles(files)
+	if err := renderers.WriteFiles(files); err != nil {
+		return errors.Join(err, snap.Restore())
+	}
+	return Finish(ctx, snap, activate, verify)
+}
+
+// Finish is the second half of ApplyFiles for renderers that must look at the written files
+// before choosing the path (e.g. a restart request instead of a reload): activate → verify →
+// on failure restore snap and activate again on a fresh context.
+func Finish(ctx context.Context, snap *renderers.Snapshot, activate, verify func(context.Context) error) error {
+	applyErr := activate(ctx)
+	if applyErr == nil && verify != nil {
+		applyErr = verify(ctx)
+	}
 	if applyErr == nil {
-		applyErr = activate(ctx)
-		if applyErr == nil && verify != nil {
-			applyErr = verify(ctx)
-		}
-		if applyErr == nil {
-			return nil
-		}
+		return nil
 	}
 	rbCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), RollbackTimeout)
 	defer cancel()

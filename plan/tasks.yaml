@@ -712,7 +712,8 @@ tasks:
   wbs:
   - D1.5
   scope: LACP/XOR/RR/active-backup bonds
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/bond/** docs/agent/descriptors/bond.md apps/agent/internal/agent/project_bonding*.go apps/api/src/features/bonding/** apps/web/src/domains/interfaces/bonding/**
+    apps/web/src/locales/*/bonding.json docs/user/interfaces/bonding.md test/topology/bonding/** docs/status/tasks/F-bonding*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -734,7 +735,8 @@ tasks:
   wbs:
   - D1.6
   scope: bridge domains, L2XC/L3XC, split-horizon, MAC aging, time-range MAC filter
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/{l2,l3xc,mactime}/** docs/agent/descriptors/{l2,l3xc,mactime}.md apps/agent/internal/agent/project_bridge_l2*.go apps/api/src/features/bridge-l2/** apps/web/src/domains/interfaces/bridge-l2/**
+    apps/web/src/locales/*/bridge-l2.json docs/user/interfaces/bridge-l2.md test/topology/bridge-l2/** docs/status/tasks/F-bridge-l2*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -761,13 +763,15 @@ tasks:
   - D1.10
   - D1.9
   scope: loopback/BVI, GSO/offload flags, LLDP, SPAN/ERSPAN, nsim
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/{lldp,span,gso,nsim}/** docs/agent/descriptors/{lldp,span,gso,nsim}.md apps/agent/internal/agent/project_loopback_bvi_gso_lldp_span*.go apps/api/src/features/loopback-bvi-gso-lldp-span/**
+    apps/web/src/domains/interfaces/loopback-bvi-gso-lldp-span/** apps/web/src/locales/*/loopback-bvi-gso-lldp-span.json docs/user/interfaces/loopback-bvi-gso-lldp-span.md test/topology/loopback-bvi-gso-lldp-span/**
+    docs/status/tasks/F-loopback-bvi-gso-lldp-span*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +F-bridge-l2 (BVI membership uses its l2 descriptor); soft +F-tunnels (ERSPAN over GRE) — docs/status/tasks/prompts-s4.md'
 - id: F-vrf-static-ecmp
   title: 'Wave A (day 7-9): VRF mgmt, static routes, ECMP, FIB browser (paged), ping/traceroute actions'
   prompt: prompts/features/F-vrf-static-ecmp.md
@@ -785,7 +789,9 @@ tasks:
   - D2.5
   - D2.6
   scope: VRF mgmt, static routes, ECMP, FIB browser (paged), ping/traceroute actions
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/core/{route,vrf}*.go apps/agent/internal/descriptors/svs/** docs/agent/descriptors/svs.md apps/agent/internal/actions/vrf-static-ecmp/** apps/agent/internal/agent/project_vrf_static_ecmp*.go
+    apps/api/src/features/vrf-static-ecmp/** apps/web/src/domains/routing/vrf-static-ecmp/** apps/web/src/locales/*/vrf-static-ecmp.json docs/user/routing/vrf-static-ecmp.md test/topology/vrf-static-ecmp/**
+    docs/status/tasks/F-vrf-static-ecmp*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -807,7 +813,8 @@ tasks:
   wbs:
   - D2.3
   scope: ARP/ND table, proxy-ND, IPv6 RA, DAD
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/{ip_neighbor,ip6_nd,arp}/** docs/agent/descriptors/{ip_neighbor,ip6_nd,arp}.md apps/agent/internal/actions/neighbors-ra/** apps/agent/internal/agent/project_neighbors_ra*.go
+    apps/api/src/features/neighbors-ra/** apps/web/src/domains/routing/neighbors-ra/** apps/web/src/locales/*/neighbors-ra.json docs/user/routing/neighbors-ra.md test/topology/neighbors-ra/** docs/status/tasks/F-neighbors-ra*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -831,13 +838,14 @@ tasks:
   - D2.7
   - D3.9
   scope: uRPF strict/loose, ADL, ABF policy-based routing
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/{urpf,adl,auto_sdl,abf,classify,ip_session_redirect}/** docs/agent/descriptors/{urpf,adl,auto_sdl,abf,classify,ip_session_redirect}.md apps/agent/internal/agent/project_rpf_adl_pbr*.go
+    apps/api/src/features/rpf-adl-pbr/** apps/web/src/domains/routing/rpf-adl-pbr/** apps/web/src/locales/*/rpf-adl-pbr.json docs/user/routing/rpf-adl-pbr.md test/topology/rpf-adl-pbr/** docs/status/tasks/F-rpf-adl-pbr*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +DF-4 (ABF policies resolve ACLs by name) — docs/status/tasks/prompts-s4.md'
 - id: F-object-model
   title: 'Wave A (day 7-9): addresses, groups, FQDN (agent-resolved), services, schedules, zones, tags'
   prompt: prompts/features/F-object-model.md
@@ -852,7 +860,8 @@ tasks:
   wbs:
   - D5.1
   scope: addresses, groups, FQDN (agent-resolved), services, schedules, zones, tags
-  files_owned: ''
+  files_owned: apps/agent/internal/objects/** apps/agent/internal/agent/project_object_model*.go apps/api/src/features/object-model/** apps/web/src/domains/firewall/object-model/** apps/web/src/locales/*/object-model.json
+    docs/user/firewall/object-model.md test/topology/object-model/** docs/status/tasks/F-object-model*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -877,13 +886,14 @@ tasks:
   - D5.4
   - D5.5
   scope: MACIP/L3/L4 ACLs, attachments, hit counters, 100k-rule editor, ADL/Auto-SDL
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/acl/** docs/agent/descriptors/acl.md apps/agent/internal/agent/project_acl*.go apps/api/src/features/acl/** apps/web/src/domains/firewall/acl/** apps/web/src/locales/*/acl.json
+    docs/user/firewall/acl.md test/topology/acl/** docs/status/tasks/F-acl*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps soft +F-rpf-adl-pbr (ADL/Auto-SDL screens it links to) — docs/status/tasks/prompts-s4.md'
 - id: F-host-acl-nftables
   title: 'Wave A (day 7-9): local-in ACL + nftables host policy renderer'
   prompt: prompts/features/F-host-acl-nftables.md
@@ -899,13 +909,14 @@ tasks:
   wbs:
   - D5.3
   scope: local-in ACL + nftables host policy renderer
-  files_owned: ''
+  files_owned: apps/agent/internal/renderers/nftables/** docs/agent/renderers/nftables.md apps/agent/internal/agent/project_host_acl_nftables*.go apps/api/src/features/host-acl-nftables/** apps/web/src/domains/firewall/host-acl-nftables/**
+    apps/web/src/locales/*/host-acl-nftables.json docs/user/firewall/host-acl-nftables.md test/topology/host-acl-nftables/** docs/status/tasks/F-host-acl-nftables*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +F-object-model (host rules expand objects via internal/objects) — docs/status/tasks/prompts-s4.md'
 - id: F-nat44-ed-sessions
   title: 'Wave A (day 7-9): NAT44-ED outbound/1:1/port-forward + session browser/kill'
   prompt: prompts/features/F-nat44-ed-sessions.md
@@ -945,13 +956,15 @@ tasks:
   - D4.2
   - D4.3
   scope: NAT44-EI, NAT64, NAT66, NPTv6 (npt66 skip-unless-loaded)
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/{nat44ei,nat64,nat66,npt66}/** docs/agent/descriptors/{nat44-ei,nat64,nat66,npt66}.md apps/agent/internal/agent/project_nat44_ei_64_66_nptv6*.go apps/api/src/features/nat44-ei-64-66-nptv6/**
+    apps/web/src/domains/firewall/nat44-ei-64-66-nptv6/** apps/web/src/locales/*/nat44-ei-64-66-nptv6.json docs/user/firewall/nat44-ei-64-66-nptv6.md test/topology/nat44-ei-64-66-nptv6/** docs/status/tasks/F-nat44-ei-64-66-nptv6*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: 'NPTv6 part needs npt66 plugin (handover) — build the rest, skip-unless-loaded | D-060: npt66 loaded — NPTv6 part no longer skipped'
+  notes: 'NPTv6 part needs npt66 plugin (handover) — build the rest, skip-unless-loaded | D-060: npt66 loaded — NPTv6 part no longer skipped | prompts-s4: suggested deps +F-nat44-ed-sessions (shared nat
+    page/tabs; ED and EI mutually exclusive on one VPP) — docs/status/tasks/prompts-s4.md'
 - id: F-det44-map-dslite-cnat
   title: 'Wave B (day 10-12): DET44 CGNAT, MAP-E/T, DS-Lite, LW4o6, 464XLAT, CNAT policies'
   prompt: prompts/features/F-det44-map-dslite-cnat.md
@@ -969,13 +982,14 @@ tasks:
   - D4.5
   - D4.6
   scope: DET44 CGNAT, MAP-E/T, DS-Lite, LW4o6, 464XLAT, CNAT policies
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/{det44,mapnat,dslite,cnat,pnat}/** docs/agent/descriptors/{det44,map,dslite,cnat,pnat}.md apps/agent/internal/agent/project_det44_map_dslite_cnat*.go apps/api/src/features/det44-map-dslite-cnat/**
+    apps/web/src/domains/firewall/det44-map-dslite-cnat/** apps/web/src/locales/*/det44-map-dslite-cnat.json docs/user/firewall/det44-map-dslite-cnat.md test/topology/det44-map-dslite-cnat/** docs/status/tasks/F-det44-map-dslite-cnat*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +F-nat44-ed-sessions (NAT page tab hook); consider splitting CNAT+PNAT into its own task — docs/status/tasks/prompts-s4.md'
 - id: P11
   title: 'Wave B (day 10-12): strongSwan+VPP build (staging sysroot) + IPsec S2S + tunnel dashboards'
   prompt: prompts/P11-strongswan-vpp.md
@@ -1016,13 +1030,14 @@ tasks:
   wbs:
   - D6.3
   scope: VPP native IKEv2 responder path
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/ikev2/** docs/agent/descriptors/ikev2.md apps/agent/internal/actions/ikev2-native/** apps/agent/internal/agent/project_ikev2_native*.go apps/api/src/features/ikev2-native/**
+    apps/web/src/domains/vpn/ikev2-native/** apps/web/src/locales/*/ikev2-native.json docs/user/vpn/ikev2-native.md test/topology/ikev2-native/** docs/status/tasks/F-ikev2-native*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +P11 (ipsec itf/tunnel-protect + SA state); soft +F-pki (cert auth) — docs/status/tasks/prompts-s4.md'
 - id: F-wireguard
   title: 'Wave B (day 10-12): WireGuard peers/keys'
   prompt: prompts/features/F-wireguard.md
@@ -1038,7 +1053,8 @@ tasks:
   wbs:
   - D6.5
   scope: WireGuard peers/keys
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/wireguard/** docs/agent/descriptors/wireguard.md apps/agent/internal/actions/wireguard/** apps/agent/internal/agent/project_wireguard*.go apps/api/src/features/wireguard/**
+    apps/web/src/domains/vpn/wireguard/** apps/web/src/locales/*/wireguard.json docs/user/vpn/wireguard.md test/topology/wireguard/** docs/status/tasks/F-wireguard*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -1060,13 +1076,14 @@ tasks:
   wbs:
   - D6.6
   scope: GRE, IPIP, VXLAN(-GPE), GTP-U, L2TPv3, PPPoE
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/{gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe}/** docs/agent/descriptors/{gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe}.md apps/agent/internal/agent/project_tunnels*.go
+    apps/api/src/features/tunnels/** apps/web/src/domains/vpn/tunnels/** apps/web/src/locales/*/tunnels.json docs/user/vpn/tunnels.md test/topology/tunnels/** docs/status/tasks/F-tunnels*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +F-bridge-l2 (TEB GRE / VXLAN bridge-domain membership) — docs/status/tasks/prompts-s4.md'
 - id: F-pki
   title: 'Wave B (day 10-12): CA, CSR, import/export, CRL/OCSP, expiry alerts'
   prompt: prompts/features/F-pki.md
@@ -1082,7 +1099,8 @@ tasks:
   wbs:
   - D6.4
   scope: CA, CSR, import/export, CRL/OCSP, expiry alerts
-  files_owned: ''
+  files_owned: apps/agent/internal/pki/** apps/agent/internal/agent/project_pki*.go apps/api/src/features/pki/** apps/web/src/domains/vpn/pki/** apps/web/src/locales/*/pki.json docs/user/vpn/pki.md test/topology/pki/**
+    docs/status/tasks/F-pki*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -1130,7 +1148,8 @@ tasks:
   - D3.4
   - D3.5
   scope: OSPFv2/v3 via FRR
-  files_owned: ''
+  files_owned: apps/agent/internal/renderers/frr/ospf/** docs/agent/renderers/frr-ospf.md apps/agent/internal/agent/project_ospf*.go apps/api/src/features/ospf/** apps/web/src/domains/routing/ospf/** apps/web/src/locales/*/ospf.json
+    docs/user/routing/ospf.md test/topology/ospf/** docs/status/tasks/F-ospf*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -1153,7 +1172,8 @@ tasks:
   - D3.6
   - D3.7
   scope: IS-IS, RIPv2/RIPng via FRR
-  files_owned: ''
+  files_owned: apps/agent/internal/renderers/frr/{isis,rip}/** docs/agent/renderers/frr-{isis,rip}.md apps/agent/internal/agent/project_isis_rip*.go apps/api/src/features/isis-rip/** apps/web/src/domains/routing/isis-rip/**
+    apps/web/src/locales/*/isis-rip.json docs/user/routing/isis-rip.md test/topology/isis-rip/** docs/status/tasks/F-isis-rip*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -1177,13 +1197,15 @@ tasks:
   - D3.8
   - D3.10
   scope: BFD (VPP+FRR), redistribution matrix, route-policy UX
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/bfd/** apps/agent/internal/renderers/frr/{bfd,redistribute}/** docs/agent/descriptors/bfd.md docs/agent/renderers/frr-{bfd,redistribute}.md apps/agent/internal/agent/project_bfd_redistribution*.go
+    apps/api/src/features/bfd-redistribution/** apps/web/src/domains/routing/bfd-redistribution/** apps/web/src/locales/*/bfd-redistribution.json docs/user/routing/bfd-redistribution.md test/topology/bfd-redistribution/**
+    docs/status/tasks/F-bfd-redistribution*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +F-ospf (acceptance redistributes static into OSPF) — docs/status/tasks/prompts-s4.md'
 - id: F-kea-dhcp-relay
   title: 'Wave B (day 10-12): Kea DHCPv4/v6 server + VPP DHCP relay/client'
   prompt: prompts/features/F-kea-dhcp-relay.md
@@ -1201,7 +1223,9 @@ tasks:
   - D7.1
   - D7.2
   scope: Kea DHCPv4/v6 server + VPP DHCP relay/client
-  files_owned: ''
+  files_owned: apps/agent/internal/renderers/kea/** apps/agent/internal/descriptors/dhcp/** docs/agent/renderers/kea.md docs/agent/descriptors/dhcp.md apps/agent/internal/agent/project_kea_dhcp_relay*.go
+    apps/api/src/features/kea-dhcp-relay/** apps/web/src/domains/services/kea-dhcp-relay/** apps/web/src/locales/*/kea-dhcp-relay.json docs/user/services/kea-dhcp-relay.md test/topology/kea-dhcp-relay/**
+    docs/status/tasks/F-kea-dhcp-relay*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -1226,7 +1250,9 @@ tasks:
   - D7.4
   - D7.7
   scope: Unbound DNS, chrony NTP, syslog export + log explorer
-  files_owned: ''
+  files_owned: apps/agent/internal/renderers/{unbound,chrony,rsyslog}/** apps/agent/internal/descriptors/dns/** docs/agent/renderers/{unbound,chrony,rsyslog}.md docs/agent/descriptors/dns.md apps/agent/internal/agent/project_unbound_chrony_syslog*.go
+    apps/api/src/features/unbound-chrony-syslog/** apps/web/src/domains/services/unbound-chrony-syslog/** apps/web/src/locales/*/unbound-chrony-syslog.json docs/user/services/unbound-chrony-syslog.md test/topology/unbound-chrony-syslog/**
+    docs/status/tasks/F-unbound-chrony-syslog*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -1250,13 +1276,15 @@ tasks:
   wbs:
   - D2.8
   scope: static MPLS, SR-MPLS (LDP via agent-side FRR sync, V5 fallback)
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/{mpls,sr_mpls}/** apps/agent/internal/renderers/frr/ldp/** apps/agent/internal/frrsync/ldp/** docs/agent/descriptors/{mpls,sr_mpls}.md docs/agent/renderers/frr-ldp.md
+    apps/agent/internal/agent/project_mpls_srmpls*.go apps/api/src/features/mpls-srmpls/** apps/web/src/domains/routing/mpls-srmpls/** apps/web/src/locales/*/mpls-srmpls.json docs/user/routing/mpls-srmpls.md
+    test/topology/mpls-srmpls/** docs/status/tasks/F-mpls-srmpls*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: 'D-056: FRR-side part (LDP/PIM via V5 agent-side sync) needs RF-1; no linux-cp needed'
+  notes: 'D-056: FRR-side part (LDP/PIM via V5 agent-side sync) needs RF-1; no linux-cp needed | prompts-s4: suggested deps consider splitting: static MPLS/SR-MPLS vs LDP sync (V5) — docs/status/tasks/prompts-s4.md'
 - id: F-igmp-mfib
   title: 'Wave C (day 13-15): IGMPv3, static mfib, BIER (PIM via agent-side sync, V5 fallback)'
   prompt: prompts/features/F-igmp-mfib.md
@@ -1273,7 +1301,9 @@ tasks:
   wbs:
   - D2.9
   scope: IGMPv3, static mfib, BIER (PIM via agent-side sync, V5 fallback)
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/{igmp,mfib,bier}/** apps/agent/internal/renderers/frr/pim/** apps/agent/internal/frrsync/pim/** docs/agent/descriptors/{igmp,mfib,bier}.md docs/agent/renderers/frr-pim.md
+    apps/agent/internal/agent/project_igmp_mfib*.go apps/api/src/features/igmp-mfib/** apps/web/src/domains/routing/igmp-mfib/** apps/web/src/locales/*/igmp-mfib.json docs/user/routing/igmp-mfib.md test/topology/igmp-mfib/**
+    docs/status/tasks/F-igmp-mfib*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -1295,7 +1325,8 @@ tasks:
   wbs:
   - D6.7
   scope: SRv6 policies, network programming, service chaining proxies, SRv6-mobile
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/{sr,sr_proxy}/** docs/agent/descriptors/{sr,sr_proxy}.md apps/agent/internal/agent/project_srv6*.go apps/api/src/features/srv6/** apps/web/src/domains/vpn/srv6/**
+    apps/web/src/locales/*/srv6.json docs/user/vpn/srv6.md test/topology/srv6/** docs/status/tasks/F-srv6*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -1317,7 +1348,8 @@ tasks:
   wbs:
   - D6.8
   scope: LISP/LISP-GPE
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/lisp/** docs/agent/descriptors/lisp.md apps/agent/internal/agent/project_lisp*.go apps/api/src/features/lisp/** apps/web/src/domains/vpn/lisp/** apps/web/src/locales/*/lisp.json
+    docs/user/vpn/lisp.md test/topology/lisp/** docs/status/tasks/F-lisp*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -1339,13 +1371,14 @@ tasks:
   wbs:
   - D7.10
   scope: 'expose host-stack config: session layer, TCP/UDP tuning, TLS, QUIC, HTTP static, HTTP/3 proxy'
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/hoststack/** docs/agent/descriptors/hoststack.md apps/agent/internal/agent/project_host_stack*.go apps/api/src/features/host-stack/** apps/web/src/domains/services/host-stack/**
+    apps/web/src/locales/*/host-stack.json docs/user/services/host-stack.md test/topology/host-stack/** docs/status/tasks/F-host-stack*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +F-startup-gen (TCP/UDP buffer tuning is startup.conf-only) — docs/status/tasks/prompts-s4.md'
 - id: F-lb
   title: 'Wave C (day 13-15): Load Balancer plugin (GRE/NAT/L3DSR/maglev)'
   prompt: prompts/features/F-lb.md
@@ -1361,7 +1394,8 @@ tasks:
   wbs:
   - D7.9
   scope: Load Balancer plugin (GRE/NAT/L3DSR/maglev)
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/lb/** docs/agent/descriptors/lb.md apps/agent/internal/agent/project_lb*.go apps/api/src/features/lb/** apps/web/src/domains/services/lb/** apps/web/src/locales/*/lb.json
+    docs/user/services/lb.md test/topology/lb/** docs/status/tasks/F-lb*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -1383,7 +1417,8 @@ tasks:
   wbs:
   - D7.8
   scope: policer, marking, QoS record/map, DSCP/dot1p (HQoS = V3, excluded)
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/{policer,qos}/** docs/agent/descriptors/{policer,qos}.md apps/agent/internal/agent/project_qos_flat*.go apps/api/src/features/qos-flat/** apps/web/src/domains/services/qos-flat/**
+    apps/web/src/locales/*/qos-flat.json docs/user/services/qos-flat.md test/topology/qos-flat/** docs/status/tasks/F-qos-flat*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -1405,7 +1440,8 @@ tasks:
   wbs:
   - D7.5
   scope: SNMP v2c/v3 via snmpd renderer + private MIB
-  files_owned: ''
+  files_owned: apps/agent/internal/renderers/snmpd/** apps/agent/internal/snmpagent/** deploy/snmp/** docs/agent/renderers/snmpd.md apps/agent/internal/agent/project_snmp*.go apps/api/src/features/snmp/**
+    apps/web/src/domains/services/snmp/** apps/web/src/locales/*/snmp.json docs/user/services/snmp.md test/topology/snmp/** docs/status/tasks/F-snmp*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -1427,13 +1463,14 @@ tasks:
   wbs:
   - D7.6
   scope: IPFIX/flowprobe + sFlow exporters
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/{ipfix,flowprobe,sflow}/** docs/agent/descriptors/{ipfix,flowprobe,sflow}.md apps/agent/internal/agent/project_ipfix_sflow*.go apps/api/src/features/ipfix-sflow/**
+    apps/web/src/domains/services/ipfix-sflow/** apps/web/src/locales/*/ipfix-sflow.json docs/user/services/ipfix-sflow.md test/topology/ipfix-sflow/** docs/status/tasks/F-ipfix-sflow*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps soft: hsflowd packaging (P10 or follow-up) for sFlow collector export — docs/status/tasks/prompts-s4.md'
 - id: F-dashboard-prom-alarms
   title: 'Wave C (day 13-15): dashboard, Prometheus exporter/prom plugin, alarms/events, tunnel dashboards'
   prompt: prompts/features/F-dashboard-prom-alarms.md
@@ -1452,13 +1489,14 @@ tasks:
   - D8.4
   - D6.10
   scope: dashboard, Prometheus exporter/prom plugin, alarms/events, tunnel dashboards
-  files_owned: ''
+  files_owned: apps/agent/internal/promexport/** deploy/grafana/** apps/agent/internal/agent/project_dashboard_prom_alarms*.go apps/api/src/features/dashboard-prom-alarms/** apps/web/src/domains/dashboard/dashboard-prom-alarms/**
+    apps/web/src/locales/*/dashboard-prom-alarms.json docs/user/dashboard/dashboard-prom-alarms.md test/topology/dashboard-prom-alarms/** docs/status/tasks/F-dashboard-prom-alarms*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps soft +F-startup-gen only if the VPP prom plugin path is chosen — docs/status/tasks/prompts-s4.md'
 - id: F-capture-trace
   title: 'Wave C (day 13-15): pcap capture, BPF trace filter, trace node, Trace Path, PG'
   prompt: prompts/features/F-capture-trace.md
@@ -1475,13 +1513,14 @@ tasks:
   - D8.2
   - D7.11
   scope: pcap capture, BPF trace filter, trace node, Trace Path, PG
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/{pcap,trace,bpf_trace_filter,pg}/** docs/agent/descriptors/{pcap,trace,bpf_trace_filter,pg}.md apps/agent/internal/actions/capture-trace/** apps/agent/internal/agent/project_capture_trace*.go
+    apps/api/src/features/capture-trace/** apps/web/src/domains/tools/capture-trace/** apps/web/src/locales/*/capture-trace.json docs/user/tools/capture-trace.md test/topology/capture-trace/** docs/status/tasks/F-capture-trace*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +F-vpp-debs (tracedump/tracenode build flag, V18) then manager binapi regen — docs/status/tasks/prompts-s4.md'
 - id: F-vrrp-config-sync
   title: 'Wave C (day 13-15): VRRPv3 (VPP plugin + keepalived path), config sync, cluster UI'
   prompt: prompts/features/F-vrrp-config-sync.md
@@ -1500,13 +1539,15 @@ tasks:
   - D9.2
   - D9.5
   scope: VRRPv3 (VPP plugin + keepalived path), config sync, cluster UI
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/vrrp/** apps/agent/internal/renderers/keepalived/** docs/agent/descriptors/vrrp.md docs/agent/renderers/keepalived.md apps/agent/internal/agent/project_vrrp_config_sync*.go
+    apps/api/src/features/vrrp-config-sync/** apps/web/src/domains/system/vrrp-config-sync/** apps/web/src/locales/*/vrrp-config-sync.json docs/user/system/vrrp-config-sync.md test/topology/vrrp-config-sync/**
+    docs/status/tasks/F-vrrp-config-sync*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +P12 (keepalived path needs linux-cp pairs); consider splitting config sync + cluster UI (D9.2/D9.5) — docs/status/tasks/prompts-s4.md'
 - id: P13
   title: CLI basic
   prompt: prompts/P13-cli-basic.md
@@ -1542,13 +1583,14 @@ tasks:
   wbs:
   - D8.8
   scope: RESTCONF/NETCONF + YANG generated from schema
-  files_owned: ''
+  files_owned: packages/yang/** apps/api/src/features/restconf-yang/** apps/web/src/domains/system/restconf-yang/** apps/web/src/locales/*/restconf-yang.json docs/user/system/restconf-yang.md test/topology/restconf-yang/**
+    docs/status/tasks/F-restconf-yang*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +P07b/P08 (owns apps/web/** and apps/**; overlap check) — docs/status/tasks/prompts-s4.md'
 - id: F-sdk-terraform-ansible
   title: Terraform provider, Ansible collection, Python SDK
   prompt: prompts/features/F-sdk-terraform-ansible.md
@@ -1563,7 +1605,7 @@ tasks:
   wbs:
   - D8.9
   scope: Terraform provider, Ansible collection, Python SDK
-  files_owned: ''
+  files_owned: sdk/** docs/user/system/sdk-terraform-ansible.md test/topology/sdk-terraform-ansible/** docs/status/tasks/F-sdk-terraform-ansible*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -1584,13 +1626,13 @@ tasks:
   wbs:
   - D10.2
   scope: RADIUS/TACACS+/LDAP/SAML/OIDC + MFA
-  files_owned: ''
+  files_owned: apps/api/src/features/aaa/** apps/web/src/domains/system/aaa/** apps/web/src/locales/*/aaa.json docs/user/system/aaa.md test/topology/aaa/** docs/status/tasks/F-aaa*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +P07b/P08 (owns apps/web/** and apps/**; overlap check) — docs/status/tasks/prompts-s4.md'
 - id: F-backup-restore
   title: backup/restore, scheduled export, templates, support bundle, upgrade UI
   prompt: prompts/features/F-backup-restore.md
@@ -1608,13 +1650,14 @@ tasks:
   - D8.6
   - D8.7
   scope: backup/restore, scheduled export, templates, support bundle, upgrade UI
-  files_owned: ''
+  files_owned: deploy/support-bundle/** apps/api/src/features/backup-restore/** apps/web/src/domains/system/backup-restore/** apps/web/src/locales/*/backup-restore.json docs/user/system/backup-restore.md
+    test/topology/backup-restore/** docs/status/tasks/F-backup-restore*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +F-ab-upgrade (upgrade UI D8.7 drives vrx-upgrade); +P07b/P08 (web frame; overlap check) — docs/status/tasks/prompts-s4.md'
 - id: F-ra-vpn
   title: remote-access VPN IKEv2+EAP
   prompt: prompts/features/F-ra-vpn.md
@@ -1630,7 +1673,8 @@ tasks:
   wbs:
   - D6.9
   scope: remote-access VPN IKEv2+EAP
-  files_owned: ''
+  files_owned: apps/agent/internal/renderers/strongswan/** docs/agent/renderers/strongswan.md apps/agent/internal/actions/ra-vpn/** apps/agent/internal/agent/project_ra_vpn*.go apps/api/src/features/ra-vpn/**
+    apps/web/src/domains/vpn/ra-vpn/** apps/web/src/locales/*/ra-vpn.json docs/user/vpn/ra-vpn.md test/topology/ra-vpn/** docs/status/tasks/F-ra-vpn*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -1694,13 +1738,13 @@ tasks:
   wbs:
   - D0.5
   scope: A/B image upgrade with rollback
-  files_owned: ''
+  files_owned: deploy/upgrade/** docs/install/ab-upgrade.md test/topology/ab-upgrade/** docs/status/tasks/F-ab-upgrade*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +P14 (rootB partition layout) — docs/status/tasks/prompts-s4.md'
 - id: F-images
   title: VM/cloud image builds
   prompt: prompts/features/F-images.md
@@ -1716,13 +1760,13 @@ tasks:
   - D11.2
   - D11.1
   scope: VM/cloud image builds
-  files_owned: ''
+  files_owned: deploy/image/{vm,cloud}/** docs/install/images.md test/topology/images/** docs/status/tasks/F-images*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +P14 (autoinstall + offline pool reuse) — docs/status/tasks/prompts-s4.md'
 - id: F-hardening-lite
   title: nftables host policy, systemd hardening, package signing
   prompt: prompts/features/F-hardening-lite.md
@@ -1738,7 +1782,7 @@ tasks:
   wbs:
   - D12.1
   scope: systemd hardening, package signing; consumes the nftables host-policy renderer owned by F-host-acl-nftables (D-057)
-  files_owned: ''
+  files_owned: deploy/hardening/** docs/install/hardening.md test/topology/hardening-lite/** docs/status/tasks/F-hardening-lite*.md
   branch: ''
   worktree: ''
   owner: ''
@@ -1759,13 +1803,14 @@ tasks:
   wbs:
   - D12.2
   scope: simple licence/entitlement
-  files_owned: ''
+  files_owned: tools/license/** apps/api/src/features/licensing/** apps/web/src/domains/system/licensing/** apps/web/src/locales/*/licensing.json docs/user/system/licensing.md test/topology/licensing/**
+    docs/status/tasks/F-licensing*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'prompts-s4: suggested deps +P07b/P08 (owns apps/web/** and apps/**; overlap check) — docs/status/tasks/prompts-s4.md'
 - id: INTEGRATE-E2E
   title: 'Freeze: integration + E2E on available topology'
   prompt: prompts/INTEGRATOR-PROMPT.md
@@ -2045,7 +2090,7 @@ tasks:
 - id: F-ha-state-sync
   title: 'HA state sync (T2, partial ok): NAT/ACL session sync, IPsec SA sync, failover test automation'
   prompt: prompts/features/F-ha-state-sync.md
-  template: FEATURE-TEMPLATE.md
+  template: prompts/FEATURE-TEMPLATE.md
   stage: S4
   deps:
   - P08
@@ -2060,10 +2105,11 @@ tasks:
   - D9.3
   - D9.4
   scope: Wave C; whatever VPP exposes via API only (no C code — park gaps to vpp-code-track); failover test on single-host rig
-  files_owned: ''
+  files_owned: apps/agent/internal/descriptors/hasync/** docs/agent/descriptors/hasync.md apps/agent/internal/agent/project_ha_state_sync*.go apps/api/src/features/ha-state-sync/** apps/web/src/domains/system/ha-state-sync/**
+    apps/web/src/locales/*/ha-state-sync.json docs/user/system/ha-state-sync.md test/topology/ha-state-sync/** docs/status/tasks/F-ha-state-sync*.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: 'D-058: added'
+  notes: 'D-058: added | prompts-s4: suggested deps +F-nat44-ei-64-66-nptv6 (only nat44_ei_ha exists, V2) — docs/status/tasks/prompts-s4.md'

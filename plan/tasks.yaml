@@ -398,7 +398,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D4.1
@@ -415,7 +415,7 @@ tasks:
   started: 2026-09-23T15:10
   finished: ''
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done 6417446 (46 descriptor types, CI green); VPP hazards
-    → V9–V11; review spawned'
+    → V9–V11; review spawned | review BLOCK 8317a71 (H1 NAT disable for all, H2 dup keys, H3 pnat index delete, M4 globals, M5 owner claims); fix round 1 per D-071'
 - id: DF-4
   title: 'Descriptors: acl (incl. macip), acl stats'
   prompt: prompts/factories/DF-4.md

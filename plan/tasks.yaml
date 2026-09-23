@@ -346,7 +346,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D1.2
@@ -361,7 +361,8 @@ tasks:
   started: 2026-09-23T15:10
   finished: ''
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done bf364c6 (CI green, restart sim 28 objects); D-065 alias
-    follow-up requested, then review | D-065 alias done f2e1eaf, CI green; review spawned'
+    follow-up requested, then review | D-065 alias done f2e1eaf, CI green; review spawned | review APPROVE WITH CHANGES 705c6ca (H1 DeleteOnAbsence, H2 physical NICs, H3 naming → D-069, M1–M5); fix round
+    1 (incl. acl resolver switch)'
 - id: DF-2
   title: 'Descriptors: ip_neighbor, ip6_nd (RA, DAD), urpf, abf, classify (ip tables/routes are P05 core)'
   prompt: prompts/factories/DF-2.md
@@ -1999,7 +2000,7 @@ tasks:
   parked_on: ''
   wbs:
   - D0.6
-  scope: generator + golden tests; applying it to the live host is a manager step after handover (D-058)
+  scope: generator + golden tests; applying it to the live host is a manager step after handover (D-058); DPDK NICs named by logical name (D-069)
   files_owned: ''
   branch: ''
   worktree: ''

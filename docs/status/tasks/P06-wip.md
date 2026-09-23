@@ -11,8 +11,8 @@ Worker slot 1 (w1, port 3100, DB vrx_w1, Valkey db 1 prefix vrx:w1:). Started 20
 - [x] audit
 - [x] revisions / rollback / confirmed commit
 - [x] telemetry WS relay
-- [ ] OpenAPI + api-client gen
-- [ ] CI gate, P06.md
+- [x] OpenAPI + api-client gen
+- [x] CI gate, P06.md
 
 ## Notes
 - deps added: drizzle-orm, pg, @node-rs/argon2 (napi prebuilt, no install script), jose, @fastify/cookie,
@@ -21,3 +21,4 @@ Worker slot 1 (w1, port 3100, DB vrx_w1, Valkey db 1 prefix vrx:w1:). Started 20
 ## Log
 - 01:30 unit (21 tests) + e2e on host PG (config 13, auth 8, stream 2) green; agent integration test written, skips (no P05 binary)
 - next: OpenAPI + api-client gen (+ redocly), CI gate, P06.md
+- 01:55 DONE: CI GATE PASSED (599fd53), P06.md written; history recreated once (gitleaks, D-P06-12)

@@ -375,7 +375,7 @@ func (r *Renderer) checkConf(root *Section) error {
 	}
 	level := matches(regexp.MustCompile(`^(-1|0|1)$`))
 	if err := checkKeys("charon", ch, map[string]keyCheck{
-		"load_modular": enum("no"), "load": listOfWords(pluginRe), "install_routes": enum("yes", "no"),
+		"load_modular": enum("no"), "load": listOfWords(pluginRe, true), "install_routes": enum("yes", "no"),
 		"port": matches(uintRe), "port_nat_t": matches(uintRe),
 	}, "plugins", "filelog", "journal", "syslog"); err != nil {
 		return err
@@ -425,14 +425,14 @@ func (r *Renderer) checkConf(root *Section) error {
 		}
 	}
 	if sw := root.Sub("swanctl"); sw != nil {
-		if err := checkKeys("swanctl", sw, map[string]keyCheck{"socket": socketIs}); err != nil {
+		if err := checkKeys("swanctl", sw, map[string]keyCheck{"socket": socketIs, "load": listOfWords(pluginRe, false)}); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func listOfWords(re *regexp.Regexp) keyCheck {
+func listOfWords(re *regexp.Regexp, needVici bool) keyCheck {
 	return func(v string) error {
 		ws := strings.Fields(v)
 		if len(ws) == 0 || strings.Join(ws, " ") != v {
@@ -443,7 +443,7 @@ func listOfWords(re *regexp.Regexp) keyCheck {
 				return fmt.Errorf("plugin %q does not match %s", w, re)
 			}
 		}
-		if !slices.Contains(ws, "vici") {
+		if needVici && !slices.Contains(ws, "vici") {
 			return errors.New("must load vici")
 		}
 		return nil

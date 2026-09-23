@@ -37,5 +37,6 @@ charon {
 {{- end}}
 }
 swanctl {
+	load = "random openssl pem pkcs1 pkcs8 x509 pubkey"
 	socket = {{tok .ViciURI}}
 }

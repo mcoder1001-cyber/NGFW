@@ -26,5 +26,6 @@ charon {
 	}
 }
 swanctl {
+	load = "random openssl pem pkcs1 pkcs8 x509 pubkey"
 	socket = unix:///run/vrx-test/w3/swan/a/charon.vici
 }

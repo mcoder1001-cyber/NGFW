@@ -10,5 +10,6 @@ charon {
 	}
 }
 swanctl {
+	load = "random openssl pem pkcs1 pkcs8 x509 pubkey"
 	socket = unix:///var/run/charon.vici
 }

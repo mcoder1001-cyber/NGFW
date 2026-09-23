@@ -1,0 +1,22 @@
+# vrx-b — planned VMware VM (not created yet). Shape per docs/lab/vmware.md; fill mgmt/pci when the VM exists.
+name: vrx-b
+role: vrx
+mgmt: tbd                                # management IP once created (ssh root@<ip>)
+state: planned
+os: ubuntu-26.04
+vcpu: 4
+ram_gb: 6
+vpp:
+  version: 26.06-release
+  source: /root/vpp/build-root           # copied from vrx-a by `tools/lab provision vrx-b --apply`
+  api_socket: /run/vpp/api.sock
+  cli_socket: /run/vpp/cli.sock
+  stats_socket: /run/vpp/stats.sock
+  startup_conf: /etc/vpp/startup.conf
+  unit: vpp.service
+data_path: dpdk                          # vmxnet3 bound to DPDK via `dpdk { dev <pci> }`
+nics:
+  - { name: ens192, pci: tbd, model: vmxnet3, segment: mgmt, driver: kernel }
+  - { name: ens224, pci: tbd, model: vmxnet3, segment: lan,  driver: dpdk, address: 10.101.1.1/24 }
+  - { name: ens256, pci: tbd, model: vmxnet3, segment: wan,  driver: dpdk, address: 10.101.2.1/24 }
+  - { name: ens161, pci: tbd, model: vmxnet3, segment: p2p,  driver: dpdk, address: 10.100.9.1/30 }

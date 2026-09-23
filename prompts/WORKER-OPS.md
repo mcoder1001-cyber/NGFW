@@ -13,7 +13,9 @@ Your TASK ENVELOPE names it: `/root/ngfw-wt/<id>` on the host, branch `task/<id>
    - `$WT run <id> '<command>'` → runs inside the host worktree (PATH includes Go). Example: `$WT run P04 'tools/ci.sh --base main'`.
    - `$WT commit <id> "<conventional commit message>"` → `git add -A && git commit` on the host.
    - `$WT log <id>` → commits on your branch + working-tree status.
-   Always `pull` again before editing after you ran generators or `pnpm install` on the host, so your local copy matches.
+   **Ordering matters:** `pull` uses `--delete` and `push` never deletes. Pull immediately after anything that changes files on the
+   host (`pnpm gen`, `pnpm install`, `go mod tidy`, `binapi-gen`), and push immediately after writing locally — otherwise you silently
+   revert host-side changes (P04 lost a `go mod tidy` this way once).
 2. **Direct SSH** — `ssh ngfw 'cd /root/ngfw-wt/<id> && …'`, heredocs (`cat > file <<'EOF'`), `scp file ngfw:/root/ngfw-wt/<id>/…`.
    Quote carefully; prefer method 1 for multi-line files.
 

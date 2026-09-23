@@ -10,7 +10,7 @@ VRX_SLOT=N
 VRX_TEST_PREFIX=w<N>            # every VPP/DB/daemon object a worker creates carries this prefix
 VRX_HTTP_PORT=3<N>00            # api dev/test port (3100, 3200, …), never 3000
 VRX_WEB_PORT=5<N>00             # vite dev port (5100, 5200, …), never 5173
-VRX_METRICS_PORT=91<N>1         # agent prometheus (9111, 9121, …)
+VRX_METRICS_PORT=$((9100+10*N+1))  # agent prometheus: 9111 … 9191, 9201, 9211, 9221 (slots 10–12) — `tools/lab env <N>` computes it
 VRX_AGENT_SOCKET=/run/vrx-test/w<N>/agent.sock
 VRX_PG_DATABASE=vrx_w<N>        # own database in the shared PostgreSQL; own Valkey db index N
 VRX_VPP_TABLE_BASE=<N>000       # VRF/table ids a worker may allocate: N000–N999
@@ -23,7 +23,7 @@ VPP restart (after handover only) take an **exclusive** lock. `/run/lock/vrx-vpp
 `VRX_TEST_PREFIX` ≤ 6 chars (Linux IFNAMSIZ is 15).
 
 ## 2. Shared VPP
-- Create only objects named/numbered inside your prefix/range: loopbacks `loop<N>xx`, host-interfaces `w<N>-*`, tables in your `VRX_VPP_TABLE_BASE` range, NAT pools in `10.<N>.0.0/16`, veth/netns names `w<N>-*`.
+- Create only objects that **carry your prefix** (`VRX_TEST_PREFIX`, e.g. `w3`): loopbacks `loop<N>xx`, host-interfaces `host-<prefix>l0`/`host-<prefix>w0` (the rig's names), veths `<prefix>l0…`, namespaces `ns-<prefix>-lan|wan`, tables in your `VRX_VPP_TABLE_BASE` range, NAT pools and rig addresses in `10.<N>.0.0/16`.
 - Never touch `local0`, the management path, or anything without your prefix. Never `vppctl clear`/`show runtime clear` globally.
 - Every integration test cleans up in `t.Cleanup`; the manager's nightly check deletes leftovers by prefix and files an issue against the slot.
 - Tests that need a plugin that is not loaded (`linux_cp`, `linux_nl`, `npt66`) `t.Skip` with the reason — they must not fail the gate.

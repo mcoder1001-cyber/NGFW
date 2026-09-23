@@ -21,3 +21,4 @@
   old commits (a306c2b test values, 4cf4236 review PEM quote) → rebuilt the branch as fresh commits on main. Manager D-061: proto sync in
   scope → group-(c) messages filled, vrrp map (reserved 1), fixture populated, gen.sh; contracttest + TS proto tests green.
 - 01:00 docs (contract doc, P02c-contract.md, questions Q9–Q12), then `tools/ci.sh --base main` → paste into P02c.md "Review fixes".
+- 01:05 gate PASSED on c637a7c; review-fixes section committed; `tools/ci.sh check --base main` PASSED on it.

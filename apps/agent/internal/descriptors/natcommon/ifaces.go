@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"sort"
 	"strings"
 
-	"ngfw/agent/binapi/interface_types"
 	interfaces "ngfw/agent/binapi/interface"
+	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/internal/vpp"
@@ -62,6 +63,16 @@ func (t *IfaceTable) ByIndex(idx uint32) (Iface, bool) {
 func (t *IfaceTable) ByName(name string) (Iface, bool) {
 	i, ok := t.byName[name]
 	return i, ok
+}
+
+// All returns every interface of the snapshot ordered by sw_if_index.
+func (t *IfaceTable) All() []Iface {
+	out := make([]Iface, 0, len(t.byIndex))
+	for _, i := range t.byIndex {
+		out = append(out, i)
+	}
+	sort.Slice(out, func(a, b int) bool { return out[a].SwIfIndex < out[b].SwIfIndex })
+	return out
 }
 
 // Name returns the interface name for idx, or "sw_if_index:<n>" when unknown (an interface
@@ -130,4 +141,19 @@ func InterfaceAddresses(ctx context.Context, c vpp.Client, idxs []uint32) (map[n
 		}
 	}
 	return out, nil
+}
+
+// Count drains a generated dump stream to io.EOF and returns the number of details.
+func Count[T any](recv func() (T, error)) (int, error) {
+	n := 0
+	for {
+		_, err := recv()
+		if errors.Is(err, io.EOF) {
+			return n, nil
+		}
+		if err != nil {
+			return n, err
+		}
+		n++
+	}
 }

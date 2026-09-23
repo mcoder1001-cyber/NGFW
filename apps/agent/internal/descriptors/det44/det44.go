@@ -36,9 +36,6 @@ const (
 	SideOutside = "outside"
 )
 
-// ErrForeignObjects is returned when disabling would destroy another owner's det44 objects.
-var ErrForeignObjects = errors.New("det44: plugin holds objects of another owner")
-
 // EnableKey is the key every other det44 object depends on.
 var EnableKey = scheduler.Join(NameEnable, Singleton)
 
@@ -131,48 +128,28 @@ func mapPrefixes(d *det44.Det44MapDetails) (netip.Prefix, netip.Prefix) {
 	return netip.PrefixFrom(netip.AddrFrom4(d.InAddr), int(d.InPlen)).Masked(), netip.PrefixFrom(netip.AddrFrom4(d.OutAddr), int(d.OutPlen)).Masked()
 }
 
-// inventory reports whether any det44 object exists and whether any is foreign.
-func (p *Plugin) inventory(ctx context.Context) (found bool, foreign bool, err error) {
-	ifaces, err := natcommon.DumpInterfaces(ctx, p.client)
-	if err != nil {
-		return false, false, err
-	}
+// inventory reports whether any det44 interface or map exists (of any owner): the
+// "is enabled" heuristic after an agent restart.
+func (p *Plugin) inventory(ctx context.Context) (bool, error) {
 	is, err := p.svc.Det44InterfaceDump(ctx, &det44.Det44InterfaceDump{})
 	if err != nil {
-		return false, false, fmt.Errorf("det44_interface_dump: %w", err)
+		return false, fmt.Errorf("det44_interface_dump: %w", err)
 	}
-	for {
-		d, err := is.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return false, false, err
-		}
-		found = true
-		if i, _ := ifaces.ByIndex(uint32(d.SwIfIndex)); !p.scope.OwnsInterface(i) {
-			foreign = true
-		}
+	if n, err := natcommon.Count(is.Recv); err != nil || n > 0 {
+		return n > 0, err
 	}
 	ms, err := p.svc.Det44MapDump(ctx, &det44.Det44MapDump{})
 	if err != nil {
-		return false, false, fmt.Errorf("det44_map_dump: %w", err)
+		return false, fmt.Errorf("det44_map_dump: %w", err)
 	}
-	for {
-		d, err := ms.Recv()
-		if errors.Is(err, io.EOF) {
-			return found, foreign, nil
-		}
-		if err != nil {
-			return false, false, err
-		}
-		found = true
-		in, out := mapPrefixes(d)
-		if !p.ownsMap(in, out) {
-			foreign = true
-		}
-	}
+	n, err := natcommon.Count(ms.Recv)
+	return n > 0, err
 }
+
+// ErrVRFChangeUnsafe is returned when the desired inside/outside VRF differs from the one det44
+// was enabled with: changing it needs det44_plugin_enable_disable(disable), which crashes VPP
+// 26.06 (see Enable.Delete). The operator changes det44 VRFs with a VPP restart.
+var ErrVRFChangeUnsafe = errors.New("det44: changing the det44 VRFs needs a plugin disable, which crashes VPP 26.06; restart VPP instead")
 
 func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
 	return natcommon.New(natcommon.Ops[EnableSpec]{
@@ -189,27 +166,17 @@ func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
 			p.cfg = s
 			return nil, nil
 		},
-		Update: func(ctx context.Context, _, _ EnableSpec, _ any) (any, error) {
-			_, foreign, err := p.inventory(ctx)
-			if err != nil {
-				return nil, err
-			}
-			if foreign {
-				return nil, ErrForeignObjects
-			}
-			return nil, scheduler.ErrRecreate
+		Update: func(context.Context, EnableSpec, EnableSpec, any) (any, error) {
+			return nil, ErrVRFChangeUnsafe
 		},
-		Delete: func(ctx context.Context, _ EnableSpec, _ any) error {
-			_, foreign, err := p.inventory(ctx)
-			if err != nil {
-				return err
-			}
-			if foreign {
-				return ErrForeignObjects
-			}
-			if _, err := p.svc.Det44PluginEnableDisable(ctx, &det44.Det44PluginEnableDisable{Enable: false}); err != nil && !natcommon.IsAlreadyDisabled(err) {
-				return fmt.Errorf("det44_plugin_enable_disable: %w", err)
-			}
+		// Delete never disables the plugin. VPP 26.06 bug (det44.c det44_plugin_disable):
+		// it iterates vec_dup(dm->interfaces) — a *pool*, so freed slots too — the delete of
+		// a stale slot fails, and the error log formats with unformat_vnet_sw_interface →
+		// SIGSEGV. Any det44 interface ever removed makes the next disable crash VPP (seen
+		// twice on vrx-a, 2026-09-23 16:03 and 2026-09-24 00:19). The singleton is released
+		// in the agent only: the plugin stays enabled (idle, no interfaces, no maps) until
+		// the next VPP restart, and a later Create finds it "already enabled".
+		Delete: func(context.Context, EnableSpec, any) error {
 			p.state.Set(false)
 			p.cfg = EnableSpec{}
 			return nil
@@ -221,7 +188,7 @@ func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
 				}
 				return nil, nil
 			}
-			found, _, err := p.inventory(ctx)
+			found, err := p.inventory(ctx)
 			if err != nil || !found {
 				return nil, err
 			}

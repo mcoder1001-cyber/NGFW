@@ -21,8 +21,8 @@ import (
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/core"
 
-	"ngfw/agent/binapi/interface_types"
 	interfaces "ngfw/agent/binapi/interface"
+	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/internal/descriptors/natcommon"

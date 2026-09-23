@@ -9,8 +9,8 @@ import (
 	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
 
-	"ngfw/agent/binapi/interface_types"
 	interfaces "ngfw/agent/binapi/interface"
+	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/binapi/nat44_ed"
 	"ngfw/agent/binapi/nat_types"
@@ -543,7 +543,7 @@ func TestAddressPool(t *testing.T) {
 	f := newFakeNAT()
 	p := nat44ed.New(f, "w9")
 	apply(t, p.Enable, natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 1024}))
-	f.addrs = append(f.addrs, &nat44_ed.Nat44AddressDetails{IPAddress: [4]uint8{10, 3, 0, 1}}) // w3's pool
+	f.addrs = append(f.addrs, &nat44_ed.Nat44AddressDetails{IPAddress: [4]uint8{10, 3, 0, 1}})   // w3's pool
 	pool := natcommon.MustEncode(&nat44ed.AddressPoolSpec{First: "10.9.0.10", Last: "10.9.0.1"}) // reversed: normalised
 	twice := natcommon.MustEncode(&nat44ed.AddressPoolSpec{First: "10.9.1.1", Last: "10.9.1.1", VRF: 9001, TwiceNAT: true})
 	if apply(t, p.AddressPool, pool, twice) != 2 || apply(t, p.AddressPool, pool, twice) != 0 {

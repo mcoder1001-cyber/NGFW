@@ -935,9 +935,9 @@ func (p *Plugin) UserSessions(ctx context.Context, user User, offset, limit int)
 			continue
 		}
 		out = append(out, Session{
-			Inside:  Endpoint{IP: natcommon.IP4String(d.InsideIPAddress), Port: uint32(d.InsidePort)},
-			Outside: Endpoint{IP: natcommon.IP4String(d.OutsideIPAddress), Port: uint32(d.OutsidePort)},
-			ExtHost: Endpoint{IP: natcommon.IP4String(d.ExtHostAddress), Port: uint32(d.ExtHostPort)},
+			Inside:   Endpoint{IP: natcommon.IP4String(d.InsideIPAddress), Port: uint32(d.InsidePort)},
+			Outside:  Endpoint{IP: natcommon.IP4String(d.OutsideIPAddress), Port: uint32(d.OutsidePort)},
+			ExtHost:  Endpoint{IP: natcommon.IP4String(d.ExtHostAddress), Port: uint32(d.ExtHostPort)},
 			Protocol: natcommon.ProtoName(uint8(d.Protocol)), //nolint:gosec // IP protocol numbers are 8-bit
 			Static:   d.Flags&nat44_ei.NAT44_EI_STATIC_MAPPING != 0, IdleSeconds: d.TimeSinceLastHeard, TotalBytes: d.TotalBytes, TotalPkts: d.TotalPkts,
 		})

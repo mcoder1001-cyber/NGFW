@@ -129,14 +129,19 @@ func TestDet44(t *testing.T) {
 	if deps := p.Enable.Dependencies(en); len(deps) != 2 || deps[0].Key != "vrf/9001" || deps[1].Key != "vrf/9002" {
 		t.Fatalf("deps %+v", deps)
 	}
-	// a fresh plugin: heuristic (foreign map exists) → enabled; disable refused
+	// a fresh plugin: heuristic (a map of any owner exists) → enabled
 	f.maps = append(f.maps, &det44.Det44MapDetails{InAddr: [4]uint8{10, 3, 0, 0}, InPlen: 24, OutAddr: [4]uint8{10, 3, 1, 0}, OutPlen: 30})
 	fresh := det44d.New(f, "w9")
 	if len(nattest.Keys(t, fresh.Enable)) != 1 {
 		t.Fatal("heuristic")
 	}
-	if err := fresh.Enable.Delete(ctx, en, nil); !errors.Is(err, det44d.ErrForeignObjects) {
-		t.Fatalf("foreign delete: %v", err)
+	// VRF change needs a disable (crashes VPP 26.06) → explicit error, no VPP call
+	before := len(f.CallsNamed("det44_plugin_enable_disable"))
+	if _, err := p.Enable.Update(ctx, en, natcommon.MustEncode(&det44d.EnableSpec{InsideVRF: 9003}), nil); !errors.Is(err, det44d.ErrVRFChangeUnsafe) {
+		t.Fatalf("vrf change: %v", err)
+	}
+	if len(f.CallsNamed("det44_plugin_enable_disable")) != before {
+		t.Fatal("update must not touch VPP")
 	}
 
 	tmo := natcommon.MustEncode(&det44d.TimeoutsSpec{UDP: 10, TCPEstablished: 7440, TCPTransitory: 240, ICMP: 60})
@@ -189,7 +194,15 @@ func TestDet44(t *testing.T) {
 	}
 	f.maps = nil
 	delete(f.ifaces, 3)
-	if err := p.Enable.Delete(ctx, en, nil); err != nil || f.enabled {
-		t.Fatalf("disable: %v", err)
+	// Delete releases the singleton in the agent only: det44_plugin_enable_disable(disable)
+	// crashes VPP 26.06 once an interface was removed, so it is never sent.
+	if err := p.Enable.Delete(ctx, en, nil); err != nil || !f.enabled || len(f.CallsNamed("det44_plugin_enable_disable")) != before {
+		t.Fatalf("release: %v enabled=%v", err, f.enabled)
+	}
+	if len(nattest.Keys(t, p.Enable)) != 0 {
+		t.Fatal("released singleton must not be retrieved")
+	}
+	if nattest.Apply(t, p.Enable, en) != 1 || len(nattest.Keys(t, p.Enable)) != 1 {
+		t.Fatal("re-create after release (already enabled tolerated)")
 	}
 }

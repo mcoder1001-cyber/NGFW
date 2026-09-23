@@ -7,8 +7,8 @@ import (
 
 	"go.fd.io/govpp/api"
 
-	"ngfw/agent/binapi/interface_types"
 	interfaces "ngfw/agent/binapi/interface"
+	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/binapi/nat64"

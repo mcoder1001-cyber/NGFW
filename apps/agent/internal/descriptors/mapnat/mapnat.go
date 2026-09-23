@@ -266,7 +266,9 @@ func (p *Plugin) newRule() *natcommon.Descriptor[RuleSpec] {
 	return natcommon.New(natcommon.Ops[RuleSpec]{
 		Name: NameRule,
 		ID:   func(s RuleSpec) string { return fmt.Sprintf("%s/%d", s.Domain, s.PSID) },
-		Deps: func(s RuleSpec) []scheduler.Dependency { return []scheduler.Dependency{natcommon.Dep(DomainKey(s.Domain))} },
+		Deps: func(s RuleSpec) []scheduler.Dependency {
+			return []scheduler.Dependency{natcommon.Dep(DomainKey(s.Domain))}
+		},
 		Create: func(ctx context.Context, s RuleSpec) (any, error) {
 			idx, err := p.domainIndex(ctx, s.Domain)
 			if err != nil {
@@ -407,16 +409,30 @@ func (p *Plugin) newParams() *natcommon.Descriptor[ParamsSpec] {
 	})
 }
 
-// ---- interface ------------------------------------------------------------------------------
+// ---- interface ----------------------------------------------------------------------------
 
-// MAP has no dump of enabled interfaces; Retrieve asks the feature arcs (feature_is_enabled)
-// for the MAP nodes on every owned interface.
+// MAP has no dump of enabled interfaces; Retrieve asks the feature arc (feature_is_enabled)
+// for the MAP nodes on every owned interface. map_if_enable_disable keeps MAP-E (encap) and
+// MAP-T (translation) in two independent bitmaps (map_api.c), so an interface may carry
+// both: the mode is part of the key.
 const (
-	arcIP4      = "ip4-unicast"
-	featMapE4   = "ip4-map"
-	featMapT4   = "ip4-map-t"
-	maxIfaceIdx = 4096 // safety bound for the per-interface probe
+	arcIP4    = "ip4-unicast"
+	featMapE4 = "ip4-map"
+	featMapT4 = "ip4-map-t"
 )
+
+// Modes of a MAP interface.
+const (
+	ModeEncap       = "map-e"
+	ModeTranslation = "map-t"
+)
+
+func mode(translation bool) string {
+	if translation {
+		return ModeTranslation
+	}
+	return ModeEncap
+}
 
 func (p *Plugin) mapFeature(ctx context.Context, idx uint32, name string) (bool, error) {
 	rep, err := p.feat.FeatureIsEnabled(ctx, &feature.FeatureIsEnabled{SwIfIndex: interface_types.InterfaceIndex(idx), ArcName: arcIP4, FeatureName: name})
@@ -429,8 +445,10 @@ func (p *Plugin) mapFeature(ctx context.Context, idx uint32, name string) (bool,
 func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceSpec]{
 		Name: NameInterface,
-		ID:   func(s InterfaceSpec) string { return s.Interface },
-		Deps: func(s InterfaceSpec) []scheduler.Dependency { return []scheduler.Dependency{natcommon.InterfaceDep(s.Interface)} },
+		ID:   func(s InterfaceSpec) string { return s.Interface + "/" + mode(s.Translation) },
+		Deps: func(s InterfaceSpec) []scheduler.Dependency {
+			return []scheduler.Dependency{natcommon.InterfaceDep(s.Interface)}
+		},
 		Create: func(ctx context.Context, s InterfaceSpec) (any, error) {
 			idx, err := natcommon.ResolveInterface(ctx, p.client, s.Interface)
 			if err != nil {
@@ -457,21 +475,22 @@ func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 				return nil, err
 			}
 			var out []natcommon.Item[InterfaceSpec]
-			for idx := uint32(0); idx < maxIfaceIdx; idx++ {
-				i, ok := ifaces.ByIndex(idx)
-				if !ok || !p.scope.OwnsInterface(i) {
+			for _, i := range ifaces.All() {
+				if !p.scope.OwnsInterface(i) {
 					continue
 				}
-				e, err := p.mapFeature(ctx, idx, featMapE4)
-				if err != nil {
-					return nil, err
-				}
-				t, err := p.mapFeature(ctx, idx, featMapT4)
-				if err != nil {
-					return nil, err
-				}
-				if e || t {
-					out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Translation: t && !e}, Meta: IfMeta{SwIfIndex: idx}})
+				meta := IfMeta{SwIfIndex: i.SwIfIndex}
+				for _, m := range []struct {
+					feat        string
+					translation bool
+				}{{featMapE4, false}, {featMapT4, true}} {
+					on, err := p.mapFeature(ctx, i.SwIfIndex, m.feat)
+					if err != nil {
+						return nil, err
+					}
+					if on {
+						out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Translation: m.translation}, Meta: meta})
+					}
 				}
 			}
 			return out, nil

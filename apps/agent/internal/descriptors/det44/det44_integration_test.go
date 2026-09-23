@@ -3,7 +3,6 @@ package det44_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"ngfw/agent/binapi/det44"
 	det44d "ngfw/agent/internal/descriptors/det44"
@@ -12,36 +11,34 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// TestDet44OnHost: one integration check per det44 object type; the enable singleton is
-// probed and disabled only when this test enabled it.
+// TestDet44OnHost: one integration check per det44 object type. The plugin is enabled and
+// deliberately never disabled (VPP 26.06 crash, see det44.go Enable.Delete).
 func TestDet44OnHost(t *testing.T) {
 	c := nattest.Connect(t)
 	ctx := nattest.Ctx(t)
 	p := det44d.New(c, vpptest.Prefix(t))
 	svc := det44.NewServiceClient(c)
 
+	// det44 is enabled and never disabled here: det44_plugin_enable_disable(disable)
+	// crashes VPP 26.06 once any det44 interface was removed (det44.c, see det44.go).
+	// The plugin stays enabled and idle until the next VPP restart; that is harmless for
+	// other slots (det44 does nothing without interfaces and maps).
 	en := natcommon.MustEncode(&det44d.EnableSpec{})
-	_, err := svc.Det44PluginEnableDisable(ctx, &det44.Det44PluginEnableDisable{Enable: true})
-	alreadyOn := natcommon.IsAlreadyEnabled(err)
-	if err != nil && !alreadyOn {
-		t.Fatalf("det44 enable: %v", err)
-	}
-	if alreadyOn {
-		t.Log("det44 already enabled by another owner: will not disable")
-	} else {
-		t.Cleanup(func() {
-			cctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			if err := p.Enable.Delete(cctx, en, nil); err != nil {
-				t.Errorf("restore: disable det44: %v", err)
-			}
-		})
-	}
 	if _, err := p.Enable.Create(ctx, en); err != nil {
 		t.Fatal(err)
 	}
 	nattest.AssertPlan(t, p.Enable, en)
+	t.Cleanup(func() { _ = p.Enable.Delete(context.Background(), en, nil) }) // agent-side release only
 
+	// timeouts are a global singleton: only touch them when they are at VPP's defaults, and
+	// Delete (run by CreateAll's cleanup) restores exactly those defaults.
+	cur, err := svc.Det44GetTimeouts(ctx, &det44.Det44GetTimeouts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if (det44d.TimeoutsSpec{UDP: cur.UDP, TCPEstablished: cur.TCPEstablished, TCPTransitory: cur.TCPTransitory, ICMP: cur.ICMP}) != det44d.DefaultTimeouts {
+		t.Skipf("det44 timeouts already changed by another owner (%+v): not touching the global", cur)
+	}
 	tmo := natcommon.MustEncode(&det44d.TimeoutsSpec{UDP: 299, TCPEstablished: 7439, TCPTransitory: 239, ICMP: 59})
 	nattest.CreateAll(ctx, t, p.Timeouts, tmo)
 	nattest.AssertPlan(t, p.Timeouts, tmo)

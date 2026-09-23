@@ -12,7 +12,7 @@ import (
 
 // TestADLOnHost enables the interface feature and the allow-list, then disables both. The
 // plugin has no dump, so the only Retrieve assertion is the typed ErrRetrieveUnsupported;
-// `vppctl show features <loop>` during VRX_DF2_HOLD is the evidence.
+// the CLI `show features <loop>` (run by an operator) during VRX_DF2_HOLD is the evidence.
 func TestADLOnHost(t *testing.T) {
 	c := df2test.Connect(t)
 	ctx := df2test.Ctx(t)

@@ -189,7 +189,9 @@ func KeyIPBind(b IPBind) scheduler.Key {
 // KeyTunnel is "mpls-tunnel/<name>".
 func KeyTunnel(name string) scheduler.Key { return scheduler.Join(NameTunnel, name) }
 
-func sortKVs(kvs []scheduler.KV) { sort.Slice(kvs, func(i, j int) bool { return kvs[i].Key < kvs[j].Key }) }
+func sortKVs(kvs []scheduler.KV) {
+	sort.Slice(kvs, func(i, j int) bool { return kvs[i].Key < kvs[j].Key })
+}
 
 // ownedTables returns the ids of this owner's MPLS tables (name = owner tag).
 func ownedTables(ctx context.Context, c vpp.Client, owner string) (map[uint32]bool, error) {

@@ -8,8 +8,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/fib_types"
+	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/mpls"
 	"ngfw/agent/internal/descriptors/df7"

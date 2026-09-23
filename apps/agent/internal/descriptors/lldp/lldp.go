@@ -241,7 +241,7 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 
 // Update implements scheduler.Descriptor: VPP ignores new parameters on an enabled interface,
 // so the interface is disabled and enabled again with the new ones.
-func (d *InterfaceDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
+func (d *InterfaceDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, _ any) (any, error) {
 	o, err := df7.Decode[Interface](oldObj)
 	if err != nil {
 		return nil, err

@@ -107,7 +107,7 @@ func TestPolicerOnHost(t *testing.T) {
 		h.DeleteAll(cd, kv)
 	})
 
-	t.Run("restart simulation", func(t *testing.T) {
+	t.Run("restart simulation", func(*testing.T) {
 		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewPolicer(c, h.Owner) }, desired...)
 	})
 

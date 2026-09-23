@@ -39,7 +39,7 @@ func fakeVRRP() (*df7test.Fake, map[uint32]*vr) {
 		r := m.(*vrrp.VrrpVrUpdate)
 		conf := vrrp.VrrpVrConf{SwIfIndex: r.SwIfIndex, VrID: r.VrID, Priority: r.Priority, Interval: r.Interval, Flags: r.Flags}
 		if r.VrrpIndex == df7.NoIndex {
-			idx := uint32(len(pool)) + 3 // leave holes at the start of the pool
+			idx := uint32(len(pool)) + 3 //nolint:gosec // test pool; leave holes at the start of the pool
 			pool[idx] = &vr{det: &vrrp.VrrpVrDetails{Config: conf, Addrs: r.Addrs, NAddrs: r.NAddrs}}
 			return []api.Message{&vrrp.VrrpVrUpdateReply{VrrpIndex: idx}}, nil
 		}
@@ -102,7 +102,7 @@ func fakeVRRP() (*df7test.Fake, map[uint32]*vr) {
 		if v == nil {
 			return nil, nil
 		}
-		return []api.Message{&vrrp.VrrpVrPeerDetails{SwIfIndex: r.SwIfIndex, VrID: r.VrID, IsIPv6: r.IsIPv6, NPeerAddrs: uint8(len(v.peers)), PeerAddrs: v.peers}}, nil
+		return []api.Message{&vrrp.VrrpVrPeerDetails{SwIfIndex: r.SwIfIndex, VrID: r.VrID, IsIPv6: r.IsIPv6, NPeerAddrs: uint8(len(v.peers)), PeerAddrs: v.peers}}, nil //nolint:gosec // test
 	})
 	f.On("vrrp_vr_track_if_add_del", func(m api.Message) ([]api.Message, error) {
 		r := m.(*vrrp.VrrpVrTrackIfAddDel)
@@ -131,7 +131,7 @@ func fakeVRRP() (*df7test.Fake, map[uint32]*vr) {
 		var out []api.Message
 		for _, v := range pool {
 			if len(v.tracks) > 0 {
-				out = append(out, &vrrp.VrrpVrTrackIfDetails{SwIfIndex: v.det.Config.SwIfIndex, VrID: v.det.Config.VrID, NIfs: uint8(len(v.tracks)), Ifs: v.tracks})
+				out = append(out, &vrrp.VrrpVrTrackIfDetails{SwIfIndex: v.det.Config.SwIfIndex, VrID: v.det.Config.VrID, NIfs: uint8(len(v.tracks)), Ifs: v.tracks}) //nolint:gosec // test
 			}
 		}
 		return out, nil
@@ -314,7 +314,8 @@ func TestEvents(t *testing.T) {
 		t.Fatal("no event")
 	}
 	cancel()
-	for range ch {
+	for e := range ch {
+		t.Logf("late event %+v", e)
 	}
 	if r := df7test.Last[*vrrp.WantVrrpVrEvents](t, f, "want_vrrp_vr_events"); r.EnableDisable {
 		t.Fatal("events must be disabled when the watch ends")

@@ -266,7 +266,8 @@ func TestEvents(t *testing.T) {
 		t.Fatal("no event")
 	}
 	cancel()
-	for range ch {
+	for e := range ch {
+		t.Logf("late event %+v", e)
 	}
 	if r := df7test.Last[*igmp.WantIgmpEvents](t, f, "want_igmp_events"); r.Enable != 0 {
 		t.Fatal("events must be disabled when the watch ends")

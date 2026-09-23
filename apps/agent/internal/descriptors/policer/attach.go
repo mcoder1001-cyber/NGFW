@@ -21,7 +21,9 @@ type AttachMeta struct{ SwIfIndex uint32 }
 // ---- policer.interface ------------------------------------------------------------------------
 
 // KeyInterface is "policer.interface/<interface>/<input|output>".
-func KeyInterface(ifName, dir string) scheduler.Key { return scheduler.Join(NameInterface, ifName, dir) }
+func KeyInterface(ifName, dir string) scheduler.Key {
+	return scheduler.Join(NameInterface, ifName, dir)
+}
 
 // InterfaceDescriptor manages policer.interface objects with policer_input / policer_output,
 // the name-based messages: they need no pool index, which VPP's policer dump does not report

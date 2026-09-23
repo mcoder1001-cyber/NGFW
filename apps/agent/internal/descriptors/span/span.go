@@ -150,7 +150,7 @@ func (d *Descriptor) reresolve(ctx context.Context, m Mirror) (Meta, bool, error
 }
 
 // Update implements scheduler.Descriptor: a new direction set is applied in place.
-func (d *Descriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
+func (d *Descriptor) Update(ctx context.Context, oldObj, newObj proto.Message, _ any) (any, error) {
 	o, err := df7.Decode[Mirror](oldObj)
 	if err != nil {
 		return nil, err

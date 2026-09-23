@@ -25,7 +25,7 @@ func TestVRRPOnHost(t *testing.T) {
 	events, err := WatchEvents(h.Ctx, h.C, h.Owner)
 	h.Must("want_vrrp_vr_events", err)
 
-	id := uint8(h.Slot)
+	id := uint8(h.Slot) //nolint:gosec // slots are 1–12
 	v1 := VR{Interface: ifA, VRID: id}
 	v2 := VR{Interface: ifA, VRID: id + 1}
 	vrs := []scheduler.KV{
@@ -54,7 +54,7 @@ func TestVRRPOnHost(t *testing.T) {
 		}
 	})
 
-	t.Run("peers update on a running VR", func(t *testing.T) {
+	t.Run("peers update on a running VR", func(*testing.T) {
 		p := df7.Encode(Peers{VR: v2, Peers: []string{h.Addr(70, 2), h.Addr(70, 3)}})
 		_, err := pd.Update(h.Ctx, peers[0].Value, p, cp[0].Meta)
 		h.Must("peers update", err)
@@ -63,7 +63,7 @@ func TestVRRPOnHost(t *testing.T) {
 		h.ExpectRetrieved(sd, states...) // restarted after the change
 	})
 
-	t.Run("track priority update", func(t *testing.T) {
+	t.Run("track priority update", func(*testing.T) {
 		n := df7.Encode(Track{VR: v1, Tracked: ifT, Priority: 30})
 		m, err := td.Update(h.Ctx, tracks[0].Value, n, ct[0].Meta)
 		h.Must("track update", err)
@@ -100,7 +100,7 @@ func TestVRRPOnHost(t *testing.T) {
 		h.ExpectRetrieved(fresh, vrs...)
 	})
 
-	t.Run("restart simulation with loss (state, tracking)", func(t *testing.T) {
+	t.Run("restart simulation with loss (state, tracking)", func(*testing.T) {
 		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewState(c, h.Owner) }, states...)
 		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewTrack(c, h.Owner) }, tracks...)
 	})
@@ -109,7 +109,7 @@ func TestVRRPOnHost(t *testing.T) {
 	h.ExpectNone(sd)
 	h.DeleteAll(td, ct)
 	h.DeleteAll(pd, cp)
-	t.Run("restart simulation with loss (VRs, after their children are gone)", func(t *testing.T) {
+	t.Run("restart simulation with loss (VRs, after their children are gone)", func(*testing.T) {
 		bare := []scheduler.KV{vrs[0]} // v2 is unicast: recreated without peers it is still a valid VR
 		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewVR(c, h.Owner) }, append(bare, vrs[1])...)
 	})

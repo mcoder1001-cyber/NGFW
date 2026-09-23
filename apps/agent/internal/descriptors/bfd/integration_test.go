@@ -47,7 +47,7 @@ func TestBFDOnHost(t *testing.T) {
 	h.ExpectRetrieved(kd, keys...)
 	h.ExpectRetrieved(sd, sessions...)
 
-	t.Run("update in place", func(t *testing.T) {
+	t.Run("update in place", func(*testing.T) {
 		s := Session{Interface: ifA, Local: h.Addr(60, 1), Peer: h.Addr(60, 3), DesiredMinTx: 200000, RequiredMinRx: 200000, DetectMult: 4,
 			Auth: &SessionAuth{ConfKeyID: keyID, BFDKeyID: 2}}
 		m, err := sd.Update(h.Ctx, sessions[1].Value, df7.Encode(s), cs[1].Meta)
@@ -99,7 +99,7 @@ func TestBFDOnHost(t *testing.T) {
 
 	h.DeleteAll(sd, cs)
 	h.ExpectNone(sd)
-	t.Run("restart simulation (keys, after their sessions are gone)", func(t *testing.T) {
+	t.Run("restart simulation (keys, after their sessions are gone)", func(*testing.T) {
 		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewAuthKey(c, h.Owner, testSecret, opts...) }, keys...)
 	})
 	h.DeleteAll(kd, ck)

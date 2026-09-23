@@ -3,6 +3,7 @@ package bfd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -20,7 +21,9 @@ func fakeBFD() (*df7test.Fake, map[uint32]*bfd.BfdAuthKeysDetails, map[string]*b
 	f := df7test.NewFake()
 	keys := map[uint32]*bfd.BfdAuthKeysDetails{}
 	sess := map[string]*bfd.BfdUDPSessionDetails{}
-	skey := func(idx interface_types.InterfaceIndex, l, p string) string { return l + ">" + p + "@" + string(rune('0'+idx)) }
+	skey := func(idx interface_types.InterfaceIndex, l, p string) string {
+		return l + ">" + p + "@" + fmt.Sprint(idx)
+	}
 	f.On("bfd_auth_set_key", func(m api.Message) ([]api.Message, error) {
 		r := m.(*bfd.BfdAuthSetKey)
 		keys[r.ConfKeyID] = &bfd.BfdAuthKeysDetails{ConfKeyID: r.ConfKeyID, AuthType: r.AuthType}
@@ -301,7 +304,8 @@ func TestEvents(t *testing.T) {
 		t.Fatal("no event")
 	}
 	cancel()
-	for range ch {
+	for e := range ch {
+		t.Logf("late event %+v", e)
 	}
 	if r := df7test.Last[*bfd.WantBfdEvents](t, f, "want_bfd_events"); r.EnableDisable {
 		t.Fatal("events must be disabled when the watch ends")

@@ -48,7 +48,7 @@ func TestMPLSOnHost(t *testing.T) {
 	cr := h.Apply(rd, routes...)
 	h.ExpectRetrieved(rd, routes...)
 
-	t.Run("route paths update in place", func(t *testing.T) {
+	t.Run("route paths update in place", func(*testing.T) {
 		n := df7.Encode(Route{Table: t1, Label: t1, EOS: true, EOSProto: PayloadIP4, Paths: []df7.Path{path(h.Addr(90, 2), 100, 200), path(h.Addr(90, 4), 101)}})
 		_, err := rd.Update(h.Ctx, routes[0].Value, n, nil)
 		h.Must("update", err)
@@ -101,7 +101,7 @@ func TestMPLSOnHost(t *testing.T) {
 	h.ExpectNone(nd)
 	h.DeleteAll(rd, cr)
 	h.ExpectNone(rd)
-	t.Run("restart simulation (tables, after their routes are gone)", func(t *testing.T) {
+	t.Run("restart simulation (tables, after their routes are gone)", func(*testing.T) {
 		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewTable(c, h.Owner) }, tables...)
 	})
 	h.DeleteAll(td, ct)

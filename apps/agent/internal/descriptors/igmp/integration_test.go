@@ -49,7 +49,7 @@ func TestIGMPOnHost(t *testing.T) {
 	cl := h.Apply(ld, listens...)
 	h.ExpectRetrieved(ld, listens...)
 
-	t.Run("listen update", func(t *testing.T) {
+	t.Run("listen update", func(*testing.T) {
 		n := df7.Encode(Listen{Interface: host, Group: g, Sources: []string{h.Addr(80, 12)}})
 		_, err := ld.Update(h.Ctx, listens[0].Value, n, cl[0].Meta)
 		h.Must("update", err)
@@ -57,7 +57,7 @@ func TestIGMPOnHost(t *testing.T) {
 		h.ExpectRetrieved(ld, listens...)
 	})
 
-	t.Run("proxy (write-only)", func(t *testing.T) {
+	t.Run("proxy (write-only)", func(*testing.T) {
 		dev := df7.Encode(ProxyDevice{VRF: vrf, Upstream: up})
 		cp := h.Apply(pd, df7test.Desired(pd, dev))
 		ds := h.Apply(sd, df7test.Desired(sd, df7.Encode(Downstream{VRF: vrf, Interface: down})))
@@ -91,7 +91,7 @@ func TestIGMPOnHost(t *testing.T) {
 		t.Log("no igmp_event (host-mode joins produce none; events come from router-mode learning)")
 	}
 
-	t.Run("restart simulation", func(t *testing.T) {
+	t.Run("restart simulation", func(*testing.T) {
 		// a fresh process has an empty Modes registry: host-mode joins are still reported
 		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewListen(c, h.Owner, nil) }, listens...)
 	})

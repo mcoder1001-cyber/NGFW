@@ -275,7 +275,9 @@ func ownedVRs(ctx context.Context, b df7.Base) ([]ownedVR, *df7.Interfaces, erro
 	return out, ifs, nil
 }
 
-func sortKVs(kvs []scheduler.KV) { sort.Slice(kvs, func(i, j int) bool { return kvs[i].Key < kvs[j].Key }) }
+func sortKVs(kvs []scheduler.KV) {
+	sort.Slice(kvs, func(i, j int) bool { return kvs[i].Key < kvs[j].Key })
+}
 
 func startStop(ctx context.Context, c vpp.Client, idx uint32, v VR, start bool) error {
 	var s uint8

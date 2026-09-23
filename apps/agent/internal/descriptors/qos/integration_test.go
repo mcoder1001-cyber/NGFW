@@ -48,7 +48,7 @@ func TestQoSOnHost(t *testing.T) {
 	h.ExpectRetrieved(sd, stores...)
 	h.ExpectRetrieved(kd, marks...)
 
-	t.Run("update in place", func(t *testing.T) {
+	t.Run("update in place", func(*testing.T) {
 		m1b := m1
 		m1b.VLAN = nil
 		_, err := md.Update(h.Ctx, maps[0].Value, df7.Encode(m1b), nil)
@@ -74,7 +74,7 @@ func TestQoSOnHost(t *testing.T) {
 	h.DeleteAll(kd, ck)
 	h.DeleteAll(sd, cs)
 	h.DeleteAll(rd, cr)
-	t.Run("restart simulation (maps, after their marks are gone)", func(t *testing.T) {
+	t.Run("restart simulation (maps, after their marks are gone)", func(*testing.T) {
 		h.RestartSimulation(func(c vpp.Client) scheduler.Descriptor { return NewEgressMap(c, h.Owner, opts...) }, maps...)
 	})
 	h.DeleteAll(md, cm)

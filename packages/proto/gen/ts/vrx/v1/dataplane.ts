@@ -126,7 +126,10 @@ export enum Operation {
    * recreated too.
    */
   OPERATION_RECREATE = 4,
-  /** OPERATION_NOOP - Desired equals actual; listed only in DryRun plans, never in ApplyResponse.results. */
+  /**
+   * OPERATION_NOOP - Desired equals actual. Not listed in v1 plans or results (ApplySummary.unchanged counts these
+   * objects); reserved for a verbose plan option.
+   */
   OPERATION_NOOP = 5,
   UNRECOGNIZED = -1,
 }
@@ -619,8 +622,8 @@ export interface ValidationReport {
   errors: ValidationIssue[];
   /**
    * The operations the reconciler would execute, in execution order (creates/updates in
-   * topological order, then deletes in reverse). `code` is unset in a plan. Empty when ok is
-   * false or the state is already converged.
+   * topological order, then deletes in reverse). `code` is unset in a plan; converged objects are
+   * not listed (summary.unchanged counts them). Empty when ok is false or nothing would change.
    */
   plan: ObjectResult[];
   /** Counts over `plan`. */

@@ -1,0 +1,225 @@
+# `vrx.v1.Dataplane` — the agent↔API gRPC contract
+
+Source: `packages/proto/vrx/v1/dataplane.proto`. Generated stubs: Go `apps/agent/gen/vrx/v1` (module path
+`ngfw/agent/gen/vrx/v1`, package `vrxv1`), TypeScript `packages/proto/gen/ts` (`@ngfw/proto`, ts-proto v2 with
+`@grpc/grpc-js` service stubs — D-005). Regenerate with `pnpm gen`; CI fails on dirty output.
+
+**Changing this contract requires a `contract(proto): …` commit** (`tools/ci.sh --base main` contract guard) and
+`buf breaking --against .git#branch=main,subdir=packages/proto` must stay green: field numbers are never reused, fields
+and messages are never renamed or retyped after `contracts-v1` — only added (decision-policy #1). Lint is buf `STANDARD`
+minus `SERVICE_SUFFIX` (D-008) and `RPC_RESPONSE_STANDARD_NAME` (stream element types and the DryRun report keep their
+docs/04 names).
+
+Transport: gRPC over the unix socket `/run/vrx/agent.sock` (0660, group `VRX_SOCKET_GROUP`); tests use their slot's
+`VRX_AGENT_SOCKET`. Only `vrx-api` talks to the agent (00-CONTEXT rule 1). No TLS, no auth on the socket — the file
+mode is the boundary.
+
+## 1. DesiredState — the configuration document as protobuf
+
+`DesiredState` is a **1:1 projection of `RootConfig`** (`packages/schema`):
+
+| Zod | proto | example |
+|---|---|---|
+| top-level key | field 1–13 of `DesiredState`, in `ROOT_KEYS` order | `routing` → `RoutingConfig routing = 5` |
+| object domain | `<Key>Config` message | `NatConfig`, `ManagementConfig` |
+| record (`z.record(name, X)`) | `map<string, X>` keyed exactly like the JSON | `interfaces`, `vrfs`, `objects.addresses`, `vpn.ipsec.tunnels` |
+| array | `repeated` | `routing.static`, `nat.pools` |
+| field name `fooBar` | `foo_bar` (protobuf JSON name is `fooBar` again) | `rxMode` ↔ `rx_mode` |
+| `z.enum([...])`, literals | `string` — allowed values in the field comment | `mode: "ed" \| "ei"` |
+| `.optional()` scalar | proto3 `optional` (presence) | `optional uint32 mtu` |
+| scalar with `.default()` | plain scalar (Zod fills the default before Apply) | `bool enabled` |
+| `z.discriminatedUnion(k, …)` | one message: discriminator + every variant's fields, non-active ones unset | `AddressObject{type, address?, prefix?, start?, end?, fqdn?}` |
+| numbers | `uint32` (ids, ports, counts), `uint64` (byte/packet lifetimes), `int32` only where negative is legal | `HostAttachment.priority` |
+
+Consequence (tested in `apps/agent/gen/vrx/v1/desiredstate_test.go` and `packages/proto/test/desired-state.test.ts`):
+**the protobuf JSON mapping of a parsed configuration document *is* a `DesiredState`.** The API converts with
+`DesiredState.fromJSON(RootConfig.parse(doc))`, the agent with `protojson.Unmarshal`; no hand-written mapper per domain.
+`Retrieve` comes back the same way, so `diff(running, actual)` from the schema package works on `DesiredState.toJSON()`.
+
+The two record-shaped domains (`interfaces`, `vrfs`) are maps directly on `DesiredState` (a wrapper message would break
+the projection). All other domains are `<Key>Config` messages, so per-domain renderers get one typed message.
+
+Domain models still in flight when this contract was written: `system`, `dataplane`, `interfaces`, `vrfs`, `routing`,
+`management` (P02a) carry the documented target shape with empty sub-messages where fields are not designed yet
+(`SystemNtp`, `BgpConfig`, `ManagementAaa`, …); `tunnels`, `services`, `ha` (P02c) likewise; `nat`, `objects`, `acl`
+(P02b) and `vpn` (P02c) mirror the committed WIP models (`task/P02b@ec0ccda`, `task/P02c@b815d15`). When those merge,
+the follow-up `contract(proto)` commit is a mechanical diff: add fields into the empty messages (numbering from 1 in
+Zod declaration order; agent-only annotations from 100), never rename.
+
+Secrets never travel in `DesiredState` (00-CONTEXT rule 10): `*_ref` fields reference the API's secret store; the agent
+resolves them through its own channel. `ManagementUser.password_hash` is write-only — the API strips it unless the agent
+needs it, the agent never logs or persists it, and `Retrieve` leaves it unset.
+
+## 2. Apply
+
+`Apply(ApplyRequest) → ApplyResponse` — one transaction:
+
+```
+validate (every selected KV has a descriptor; mandatory dependencies present)
+  → plan (diff desired vs Retrieve(): Create / Update / Recreate / Delete, topological order)
+  → apply (creates/updates in order, deletes in reverse order; daemons after VPP, risky backends last — AD-4)
+  → verify (re-Retrieve, compare)
+  → persist desired state (/var/lib/vrx/agent/desired.pb) → confirmed, or start the confirm timer
+```
+
+Request forms: **apply** (`txn_id` + `desired_state` [+ `subsystems`, `confirm_timeout_sec`]), **confirm**
+(`confirm_txn_id` only), **confirm-and-apply** (both: the pending transaction is confirmed first, then the new one is
+applied). Any other combination is `INVALID_ARGUMENT`.
+
+### Idempotency
+
+1. **Declarative idempotency.** The plan is `diff(desired, actual)`; applying the same desired state twice yields an
+   empty plan, status `APPLIED`, no `results`, `summary.unchanged = n`. The agent never performs an operation whose
+   effect is already present (P05 acceptance: "applying the same desired state twice produces an empty plan").
+2. **Retry idempotency.** `txn_id` is the idempotency key. The agent keeps the responses of the last ≥ 16 transactions
+   (and the last one persistently). A repeated `txn_id` with an identical `desired_state` + `subsystems` returns the
+   stored `ApplyResponse` without touching the data plane; a repeated `txn_id` with different content fails with
+   `ABORTED`. The API therefore retries a lost response safely with the same id.
+3. Transactions are serialised: one at a time per agent. A second `Apply` while one is running blocks until it finishes
+   (bounded by the caller's deadline), it is never interleaved.
+
+### Subsystems and authority
+
+`subsystems` selects top-level keys (`ROOT_KEYS`; empty = all). **A selected domain is authoritative**: whatever is
+absent from it is deleted (owned objects only — see §6). An unset domain message and an empty one are the same thing
+(maps have no presence), so the API always sends the whole parsed document and selects with `subsystems`. Unknown keys
+→ `INVALID_ARGUMENT`; keys not implemented by this agent build → `UNIMPLEMENTED` (`HealthResponse.subsystems` lists the
+implemented ones). Dotted sub-keys (`routing.bgp`) are not accepted in v1 (reserved for an additive extension).
+
+### Outcomes
+
+| `status` | data plane | gRPC status |
+|---|---|---|
+| `APPLIED` | converged and verified (unconfirmed if a timer runs) | OK |
+| `FAILED` | untouched — validation/planning failed; `validation` explains | OK |
+| `ROLLED_BACK` | back at the previous state; `results` lists what failed and what was reverted | OK |
+| `DEGRADED` | intermediate — an operation and its rollback both failed; `Health.degraded = true`, Event `DEGRADED` (AD-4) | OK |
+| `CONFIRMED` | unchanged — pure confirm | OK |
+| — | malformed request, owner mismatch, unknown subsystem | `INVALID_ARGUMENT` |
+| — | confirm of a txn that is not pending; new apply while another txn is pending confirmation (§4) | `FAILED_PRECONDITION` |
+| — | `txn_id` reused with different content | `ABORTED` |
+| — | VPP disconnected | `UNAVAILABLE` |
+
+`results` has one `ObjectResult` per object touched or failed: scheduler `key` (`<descriptor>/<id>`), `op`, `code`,
+`message` (never secrets), RFC 6901 `pointer` into the document (`/` in interface names escaped as `~1`) and
+`subsystem`. The API maps a `FAILED`/`ROLLED_BACK` response to RFC 9457 `problem+json` using `pointer`. Unchanged
+objects are not listed. `summary` carries counts; the same counts go out as Event `RECONCILE_DONE`.
+
+## 3. DryRun
+
+`DryRun(DryRunRequest) → ValidationReport`: validation + planning, **nothing is applied, nothing is persisted, no
+events are emitted**. Same `desired_state`/`subsystems`/`owner` rules as Apply; no confirm fields (a dry run is not a
+transaction). `errors` holds every finding (`SEVERITY_ERROR` first, then by `pointer`; `rule` is a stable id such as
+`interfaces.vrf-exists`), `ok` is true when none is an ERROR, `plan` lists the operations in execution order with
+`code` unset — converged objects are not listed, `summary.unchanged` counts them — and `summary` counts the rest. DryRun never fails with an application error; gRPC errors as for Apply. The commit engine runs DryRun as its
+tier-3 validation before it touches the datastore.
+
+## 4. Confirm timeout (self-revert)
+
+`confirm_timeout_sec > 0` on an apply makes the transaction **pending**:
+
+1. The agent applies as usual and answers `APPLIED` with `confirm_deadline` (= `applied_at` + timeout, agent clock).
+   `Health` shows `pending_confirm_txn_id` / `confirm_deadline`.
+2. Before the deadline the caller sends `Apply{confirm_txn_id}` → `CONFIRMED`; the timer is cancelled and the state
+   becomes the confirmed baseline. `Apply{txn_id: B, desired_state, confirm_txn_id: A}` confirms A and applies B in one
+   call.
+3. If the deadline passes unconfirmed, **the agent itself** re-applies the last *confirmed* desired state as a normal
+   transaction (rollback of the pending one), emits `CONFIRM_REVERTED` (`txn_id` = the reverted transaction), then
+   `RECONCILE_START`/`RECONCILE_DONE` for the revert. It does not need the API for this (the API may be the thing that
+   became unreachable — that is the point of the feature). A later `Apply{confirm_txn_id}` for that id fails with
+   `FAILED_PRECONDITION`.
+4. While a transaction is pending, a new apply **without** `confirm_txn_id` fails with `FAILED_PRECONDITION`: the
+   caller must confirm or let it revert; there is never more than one pending transaction.
+5. Persistence: the agent stores both the pending desired state and the confirmed baseline with the deadline. After an
+   agent restart it resumes the timer; if the deadline already passed it reverts immediately after its startup resync.
+   `kill -9` of the agent therefore never leaves an unconfirmed state confirmed by accident.
+6. A revert that fails leaves the agent `DEGRADED` exactly like a failed rollback (AD-4).
+
+The API layer implements `POST /config/commit?confirm=<sec>` as `Apply{confirm_timeout_sec}` and
+`POST /config/commit/confirm` as `Apply{confirm_txn_id}`; the revision is persisted in PostgreSQL only after a
+`CONFIRMED` (or after an `APPLIED` without timer).
+
+## 5. Retrieve — what it must include
+
+`Retrieve(RetrieveRequest) → RetrieveResponse{desired_state, subsystems, owner, retrieved_at}` dumps the **actual** state
+and is what makes drift detection and restart safety possible (AD-3). Rules the agent must satisfy:
+
+- **Everything owned, nothing else.** For each requested subsystem, the union of every descriptor's and renderer's
+  `Retrieve()`: all objects tagged with this agent's owner (§6), including owned objects that are *not* in the current
+  desired state (leftovers/drift — that is how they get deleted on the next Apply). Objects of other owners, VPP's own
+  objects (`local0`, default tables) and unmanaged daemon state are never returned.
+- **Same messages, canonical form.** Decoded into the `DesiredState` messages, canonicalised so that `proto.Equal` is a
+  correct diff: addresses through `net/netip` (lower-case, no leading zeros), `repeated` fields sorted (addresses,
+  next hops by address, rules by sequence), MACs lower-case, map keys = the object's document key (interface name,
+  VRF name).
+- **Configuration only.** No read-only status (link state, counters, sw_if_index, SA lifetimes) — those come from
+  `StreamStats`/`StreamEvents`/state RPCs. Runtime handles live in descriptor `Meta`, never in the value.
+- **No secrets.** `*_ref` fields are returned as stored (they are references); write-only fields are left unset.
+- **Partial coverage is explicit.** `subsystems` in the response lists what was actually dumped. With an empty request
+  list, subsystems this build does not implement are omitted; naming one explicitly fails with `UNIMPLEMENTED`.
+- **Consistency.** One Retrieve is a snapshot taken while no transaction is applying (it waits for a running Apply to
+  finish); it may be called concurrently with itself and with the streams.
+- **Never mutates.** Retrieve performs dumps only.
+
+The API exposes it as running-vs-actual diff (`diff(running, DesiredState.toJSON(actual))`) and uses it in the
+integration proof "after commit, `Retrieve()` equals desired".
+
+## 6. Ownership scoping
+
+An agent process serves **exactly one owner** (`VRX_OWNER`, product default `vrx`; tests use their slot's
+`VRX_TEST_PREFIX`, e.g. `w7`). Every object it creates is stamped — interface tag `<owner>:<id>` via
+`sw_interface_tag_add_del`, owner-prefixed names or the owner table in the state dir for objects without tags (D-030,
+`internal/vpp.OwnerTag`). Plan, rollback, resync and Retrieve act **only on owned objects**; two agents with different
+owners on one VPP never touch each other's objects.
+
+`owner` on `ApplyRequest`, `DryRunRequest` and `RetrieveRequest` is the caller's statement of which owner it expects to
+be talking to: empty = the agent's owner; a different non-empty value fails with `INVALID_ARGUMENT` before anything is
+planned. `HealthResponse.owner` reports the agent's owner. This makes a request that reaches the wrong agent socket on
+the shared host fail loudly instead of being applied under a foreign tag. (Multi-owner agents were considered and
+rejected: one desired state file, one confirm timer and one resync per process keep P05 simple.)
+
+## 7. Streams — ordering guarantees
+
+Common: each stream is independent (its own `seq` starting at 1, strictly increasing, no gaps unless stated); the agent
+never blocks the data plane on a slow consumer; a stream ends only when the client cancels, the agent shuts down
+(`UNAVAILABLE`) or an internal error occurs (`INTERNAL`). Reconnecting starts a fresh stream (`seq` restarts).
+
+**StreamStats** (`StreamStatsRequest` → `stream StatsBatch`): one batch per `interval_ms` (default 1000; 200–60000),
+read from the VPP stats segment without API round-trips (AD-5). Every batch is a **consistent snapshot** of all
+requested interfaces taken at `ts`; counters are **absolute** (monotonic since VPP start or the last clear) so a
+dropped batch loses nothing — the consumer derives rates from consecutive batches. `seq`/`ts` strictly increase; a gap
+in `seq` means batches were dropped for a slow consumer (the agent buffers at most a few batches, then drops the
+oldest). Interfaces that no longer exist are omitted; new ones appear in the next batch; entries are sorted by name.
+Designed for ≤ 1000 interfaces at 1 Hz (≈ 100 KB/s); `worker_cpu` is only present when requested.
+
+**StreamEvents** (`StreamEventsRequest` → `stream Event`): events are delivered in the order the agent observed them,
+`seq` strictly increasing, **no replay** — the stream starts with events after the subscription (Health gives the
+current snapshot: degraded, pending confirm, last reconcile). Ordering promises across kinds: `RECONCILE_START`
+precedes every `RECONCILE_DONE` with the same `txn_id`; `CONFIRM_REVERTED` precedes the `RECONCILE_START` of the revert;
+`VPP_DISCONNECTED`/`VPP_CONNECTED` alternate and a `VPP_CONNECTED` is followed by a resync `RECONCILE_START/DONE`
+(empty `txn_id`); `LINK_UP`/`LINK_DOWN` reflect `want_interface_events` and are filtered by `interfaces`. The event
+buffer is bounded; on overflow the agent drops the oldest events and emits one `ERROR` event `"dropped N events"` so
+the gap is visible. Filters (`kinds`, `interfaces`) are applied before buffering.
+
+**Action** (`ActionRequest` → `stream ActionOutput`): output chunks in production order; exactly one terminal `done`
+(also after a failure: `exit_code ≠ 0`, `summary` explains). `pcap_chunk` bytes concatenate to a valid pcap file (the
+first chunk starts with the global header). Cancelling the call stops the action within one interval. Actions run via
+the VPP API or fixed-argv allow-listed binaries (`internal/renderers` runner) — no user input reaches a shell
+(00-CONTEXT rule 9); the agent validates every argument (address literals, bounded counts, token-list filter).
+P05 returns `UNIMPLEMENTED` until P08/F-* implement the actions.
+
+## 8. Health
+
+`Health` is cheap (no VPP round-trip beyond the cached connection state) and polled by the API every few seconds. Beyond
+the original fields (`agent_version`, `vpp_connected`, `vpp_version`) it reports `owner`, implemented `subsystems`,
+`last_txn_id`, `pending_confirm_txn_id`/`confirm_deadline`, `degraded`, `last_reconcile_at`, `reconcile_in_progress`.
+The API's `/api/v1/state/system` and the UI's status bar derive "data plane OK / degraded / unconfirmed commit" from it.
+
+## 9. Compatibility rules for consumers
+
+- Treat unknown enum values as `UNSPECIFIED` (new kinds/codes may be added).
+- Never rely on message field order in JSON; rely on names.
+- `uint64` counters arrive as `number` in TypeScript (ts-proto `forceLong=number`): exact below 2^53 — fine for byte
+  counters for decades at 100 Gbit/s; if ever a problem, switch the option in a `contract(proto)` commit.
+- `google.protobuf.Timestamp` is a `Date` in TypeScript and `*timestamppb.Timestamp` in Go; all times are agent clock,
+  UTC.

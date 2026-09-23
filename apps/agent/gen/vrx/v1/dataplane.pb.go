@@ -115,7 +115,8 @@ const (
 	// Update that required delete + create (the descriptor returned ErrRecreate); dependents are
 	// recreated too.
 	Operation_OPERATION_RECREATE Operation = 4
-	// Desired equals actual; listed only in DryRun plans, never in ApplyResponse.results.
+	// Desired equals actual. Not listed in v1 plans or results (ApplySummary.unchanged counts these
+	// objects); reserved for a verbose plan option.
 	Operation_OPERATION_NOOP Operation = 5
 )
 
@@ -999,8 +1000,8 @@ type ValidationReport struct {
 	// All findings, ERROR first, then by pointer.
 	Errors []*ValidationIssue `protobuf:"bytes,3,rep,name=errors,proto3" json:"errors,omitempty"`
 	// The operations the reconciler would execute, in execution order (creates/updates in
-	// topological order, then deletes in reverse). `code` is unset in a plan. Empty when ok is
-	// false or the state is already converged.
+	// topological order, then deletes in reverse). `code` is unset in a plan; converged objects are
+	// not listed (summary.unchanged counts them). Empty when ok is false or nothing would change.
 	Plan []*ObjectResult `protobuf:"bytes,4,rep,name=plan,proto3" json:"plan,omitempty"`
 	// Counts over `plan`.
 	Summary       *ApplySummary `protobuf:"bytes,5,opt,name=summary,proto3" json:"summary,omitempty"`

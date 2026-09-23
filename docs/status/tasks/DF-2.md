@@ -9,12 +9,15 @@ Continued after a worker stall from the manager's salvage commit 800b936.
 |---|---|---|
 | ip_neighbor | `ip-neighbor.neighbor`, `ip-neighbor.config` | full |
 | arp | `arp.proxy-range`, `arp.proxy-interface` | full |
-| ip6_nd | `ip6-nd.ra-config`, `ip6-nd.ra-prefix`, `ip6-nd.proxy`, `ip6-nd.dad` | full |
+| ip6_nd | `ip6-nd.ra-config`, `ip6-nd.ra-prefix`, `ip6-nd.dad` | full |
+| ip6_nd | `ip6-nd.proxy` | full, but **opt-in** (`RegisterProxyNd`, D-064): unverified on the host |
 | urpf | `urpf.interface` | full |
-| adl | `adl.interface`, `adl.allowlist` | **partial — no dump in the API** |
+| adl | `adl.interface` | presence via `feature_is_enabled` (review H2) |
+| adl | `adl.allowlist` | **write-only** (D-063), `RegisterWriteOnly` only |
 | abf | `abf.policy`, `abf.attach` | full |
 | classify | `classify.table`, `classify.session`, `classify.input-acl` | full |
-| classify | `classify.interface-ip-table`, `classify.interface-l2-tables`, `classify.output-acl` | **partial — no dump in the API** |
+| classify | `classify.output-acl` | presence via `feature_is_enabled` + recorded tables (review H2) |
+| classify | `classify.interface-ip-table`, `classify.interface-l2-tables` | **write-only** (D-063), `RegisterWriteOnly` only |
 | ip_session_redirect | `ip-session-redirect.redirect` | full |
 
 Every type has KeyOf/Dependencies/Create/Update (or `ErrRecreate`)/Delete/Retrieve, fake-client unit tests and a
@@ -258,3 +261,91 @@ EXIT 0
 ## Open questions
 See `docs/status/tasks/DF-2-questions.md` (#1 proxy-ND crash, #2 write-only descriptors in P05, #3 normalisation contract,
 #4 foreign key strings, #5 classify Store path, #6 VPP aborts in gtpu during runs, #7 registry wiring).
+
+## Review fixes (review `docs/status/tasks/DF-2-review.md`, verdict BLOCK → fix round)
+
+`git merge main` first (f70aff1): go.mod/go.sum conflict resolved by taking main's version (identical to main after
+`go mod tidy`) — finding 7; DF-2 no longer changes go.mod/go.sum relative to main.
+
+| Finding | Fix | Commit |
+|---|---|---|
+| H1 classify store claims reused indices | Store bound to the VPP instance (`control_ping_reply.vpe_pid`; other pid → reset), mask stored per record, record trusted only if `classify_table_ids` lists it **and** `classify_table_info` geometry (skip/match/mask) matches; unit tests for both | f3d1833 |
+| H2 write-only types / output-acl A→B | `adl.interface` and `classify.output-acl` read presence via `feature_is_enabled` (device-input/adl-input, ip4-output/ip4-outacl, ip6-output/ip6-outacl); output-acl keeps bound indices in the Store, Create unbinds a recorded binding first, refuses when an unrecorded table is bound, Delete unbinds by recorded index; L2 output refused. `adl.allowlist`, `interface-ip-table`, `interface-l2-tables` moved to `RegisterWriteOnly` (D-063) | f3d1833, f5a5ab2 |
+| H3 untagged interfaces invisible | `df2.WithClaims` (DF-4's `acl.ClaimStore`, claim key = object key) + `df2.FileClaimStore`; Create on an untagged interface claims, Delete releases, Retrieve reports untagged-interface objects only when claimed; interfaces tagged by another owner and `local0` refused (`df2.ErrForeignInterface`). Applied to neighbor, proxy-arp interface, RA config/prefix, proxy-ND, uRPF, adl, abf attach, input/output ACL | f3d1833, f5a5ab2 |
+| H4 proxy-ND registered by default | out of `ip6nd.Register`, opt-in `RegisterProxyNd`; crash details (journal stack) in DF-2-questions.md #1 for vpp-code-track (D-064) | f3d1833, 88205a4 |
+| M5 ABF vs DF-4 duplicate tags | Create uses `acl.LookupIndex` (lowest index canonical); Retrieve names non-canonical duplicates `name#idx` (D-066); dependency `acl.KeyACL` | f5a5ab2 |
+| M6 Retrieve mutates the store | `LiveTables`/snapshot read-only (records read before the VPP dump); `Prune` only under the Store's transaction lock with a fresh snapshot; `TableDescriptor.Create` holds the same lock from its prune to its Put | f3d1833 |
+| L8 | table Create deletes the VPP table when the record cannot be stored; `classify.session` refuses a redirect's match; global-singleton note in docs + questions #8 | f3d1833, 88205a4 |
+| INFO | idempotency host test now has a restart pass (fresh descriptors, reopened classify FileStore + claim store → empty plan, Meta equal) and claimed objects on an untagged loopback (stand-in for a physical port); `arp.md` states the production nil-range semantics | f5a5ab2, 88205a4 |
+| lint | OutputRecord field names | 5ca42e4 |
+
+### Unit tests for the findings (`go test -v -run … ./internal/descriptors/{classify,abf,adl,ip6_nd}/`)
+```
+--- PASS: TestRegister (0.00s)
+--- PASS: TestStoreDropsRecordsOfAnotherVPPInstance (0.00s)
+--- PASS: TestStoreRejectsReusedIndexWithOtherGeometry (0.00s)
+--- PASS: TestPruneWaitsForCreate (0.00s)
+--- PASS: TestTableCreateRollsBackOnStoreError (0.00s)
+--- PASS: TestOutputACLSwitchesTables (0.00s)
+--- PASS: TestOutputACLUnknownBinding (0.00s)
+--- PASS: TestBindingsOnUntaggedInterfaces (0.00s)
+--- PASS: TestSessionRefusesRedirectMatch (0.00s)
+ok  	ngfw/agent/internal/descriptors/classify	0.025s
+--- PASS: TestRegister (0.00s)
+--- PASS: TestDuplicateACLTagsFollowDF4 (0.00s)
+ok  	ngfw/agent/internal/descriptors/abf	0.024s
+--- PASS: TestInterface (0.00s)
+--- PASS: TestRegister (0.00s)
+ok  	ngfw/agent/internal/descriptors/adl	0.025s
+--- PASS: TestRegister (0.00s)
+ok  	ngfw/agent/internal/descriptors/ip6_nd	0.020s
+```
+
+### Host run (`VRX_INTEGRATION=1 VRX_TEST_PREFIX=w3 VRX_SLOT=3 VRX_VPP_TABLE_BASE=3000 go test -p 1 -count=1 -v …`), NRestarts before/after
+```
+before: NRestarts=2
+ok  	ngfw/agent/internal/descriptors/ip_neighbor	0.047s
+ok  	ngfw/agent/internal/descriptors/arp	0.054s
+--- SKIP: TestProxyNdOnHost (0.00s)
+ok  	ngfw/agent/internal/descriptors/ip6_nd	0.048s
+ok  	ngfw/agent/internal/descriptors/urpf	0.058s
+    integration_test.go:44: adl.interface Retrieve = interface:"loop306" (meta {SwIfIndex:4})
+ok  	ngfw/agent/internal/descriptors/adl	0.044s
+ok  	ngfw/agent/internal/descriptors/abf	0.061s
+    integration_test.go:135: output-acl Retrieve = interface:"loop309" ip4_table:"w3-t1"
+    integration_test.go:156: output-acl after A→B = interface:"loop309" ip4_table:"w3-t2"
+ok  	ngfw/agent/internal/descriptors/classify	0.078s
+ok  	ngfw/agent/internal/descriptors/ip_session_redirect	0.046s
+ok  	ngfw/agent/internal/descriptors/df2	0.020s
+    idempotency_test.go:180: apply #1 plan: create=17 update=0 delete=0
+    idempotency_test.go:207: apply #2 (same desired state) plan: create=0 update=0 delete=0 empty=true
+    idempotency_test.go:219: apply #3 (fresh descriptors, reopened classify store + claim store) plan: create=0 update=0 delete=0 empty=true
+    idempotency_test.go:237: excluded (write-only, no VPP dump): classify.interface-ip-table
+    idempotency_test.go:237: excluded (write-only, no VPP dump): classify.interface-l2-tables
+    idempotency_test.go:237: excluded (write-only, no VPP dump): adl.allowlist
+ok  	ngfw/agent/internal/descriptors/df2/idempotency	0.125s
+exit=0
+after: NRestarts=2
+```
+(`loop352` is an **untagged** loopback in the slot range standing in for a physical port; its uRPF, neighbour and output ACL are
+found by fresh descriptors only through the reopened claim store.) After the run: `vppctl show interface | grep -cE "loop3[0-9]{2}"` → `0`,
+`vppctl show classify tables` → `No classifier tables configured`.
+
+### CI gate (`tools/ci.sh --base main`, after the last code commit)
+```
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   0m18s
+  forbidden patterns (+ gitleaks)                    0m03s
+  lint · typecheck · unit tests · build (turbo)   0m16s
+  apps/agent: make lint test build                   0m16s
+  test/ Go modules, unit mode (test/integration/smoke)   0m03s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      merge main into task/DF-2 (go.mod/go.sum: main's version; DF-4 acl, P02b, P02c)
+      review(DF-2): findings
+  mode quick · wall time 1m00s · logs /root/ngfw-wt/logs/ci/DF-2-20260924-005925-1086840
+CI GATE PASSED
+EXIT 0
+```
+The two warnings are commit subjects not written by this fix round's code commits (the merge commit and the manager's review commit).

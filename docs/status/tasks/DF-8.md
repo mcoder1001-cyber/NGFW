@@ -205,7 +205,19 @@ NRestarts stayed 2 for every run (D-064).
 
 ### CI
 ```
-CI_OUTPUT_PLACEHOLDER
+$ tools/ci.sh --base main          # on 5c61b1b
+== contract guard: HEAD vs main ==  no contract files changed
+== forbidden patterns (+ gitleaks) ==
+ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
+ok: gitleaks — scanned ~401623 bytes (401.62 KB) in 1.05s no leaks found
+== lint · typecheck · unit tests · build (turbo) ==
+Tasks:    30 successful, 30 total
+== apps/agent: make lint test build ==
+ok  ngfw/agent/internal/descriptors/dfkit · dfkit/restarttest · dhcp · dns · flowprobe · ipfix · lcp · pcap · prom · sflow · trace (+ all other agent packages)
+== summary (quick) ==
+  mode quick · wall time 1m04s · logs /root/ngfw-wt/logs/ci/DF-8-20260924-012547-1354318
+
+CI GATE PASSED
 ```
 
 ## Out of scope / left undone

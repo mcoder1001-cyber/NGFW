@@ -144,7 +144,56 @@ func (d *RouteDescriptor) addDel(ctx context.Context, v *Route, add bool) error 
 	return nil
 }
 
-// Create implements scheduler.Descriptor.
+// ErrRouteConflict: the prefix already has a FIB entry in that table that this owner did not
+// create (D-071: never overwrite, never claim).
+var ErrRouteConflict = errors.New("core: route prefix already present in the FIB and not owned by this agent")
+
+// lookup returns the dumped FIB entry of exactly v's prefix in v's table, if any.
+func (d *RouteDescriptor) lookup(ctx context.Context, v *Route) (*ip.IPRoute, error) {
+	dst, err := netip.ParsePrefix(v.GetPrefix())
+	if err != nil {
+		return nil, fmt.Errorf("%w %q: %v", ErrBadPrefix, v.GetPrefix(), err)
+	}
+	stream, err := ip.NewServiceClient(d.Client).IPRouteDump(ctx, &ip.IPRouteDump{Table: ip.IPTable{TableID: v.GetTableId(), IsIP6: dst.Addr().Is6()}})
+	if err != nil {
+		return nil, fmt.Errorf("ip_route_dump %d: %w", v.GetTableId(), err)
+	}
+	var found *ip.IPRoute
+	for {
+		det, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			return found, nil
+		}
+		if err != nil {
+			if isNoSuchTable(err) {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("ip_route_dump %d: %w", v.GetTableId(), err)
+		}
+		if p, err := CanonNetPrefix(det.Route.Prefix.String()); err == nil && p == dst.Masked().String() {
+			r := det.Route
+			found = &r
+		}
+	}
+}
+
+// defaultDrop reports VPP's own per-table default entry (0.0.0.0/0 or ::/0 with only drop paths),
+// which a configured default route legitimately overrides.
+func defaultDrop(r *ip.IPRoute) bool {
+	if r.Prefix.Len != 0 {
+		return false
+	}
+	for _, p := range r.Paths {
+		if p.Type != fib_types.FIB_API_PATH_TYPE_DROP {
+			return false
+		}
+	}
+	return true
+}
+
+// Create implements scheduler.Descriptor. Claim rule (D-071): a route not yet in the owner table is
+// claimed only when the FIB has no entry for the prefix in that table (VPP's default-drop /0 aside);
+// otherwise Create fails without sending anything and without recording ownership.
 func (d *RouteDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	v, ok := obj.(*Route)
 	if !ok {
@@ -152,6 +201,15 @@ func (d *RouteDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 	}
 	key := string(d.KeyOf(v))
 	existed := d.Owned.Has(key)
+	if !existed {
+		cur, err := d.lookup(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		if cur != nil && !defaultDrop(cur) {
+			return nil, fmt.Errorf("%w: table %d %s", ErrRouteConflict, v.GetTableId(), v.GetPrefix())
+		}
+	}
 	if err := d.Owned.Add(key); err != nil {
 		return nil, fmt.Errorf("owner table: %w", err)
 	}
@@ -164,7 +222,8 @@ func (d *RouteDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 	return nil, nil
 }
 
-// Update implements scheduler.Descriptor: replace the path set in place.
+// Update implements scheduler.Descriptor: replace the path set in place (only reached for routes
+// Retrieve reported, i.e. claimed ones).
 func (d *RouteDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	if d.KeyOf(oldObj) != d.KeyOf(newObj) {
 		return nil, scheduler.ErrRecreate
@@ -172,13 +231,31 @@ func (d *RouteDescriptor) Update(ctx context.Context, oldObj, newObj proto.Messa
 	return meta, d.addDel(ctx, asRoute(newObj), true)
 }
 
-// Delete implements scheduler.Descriptor.
+// Delete implements scheduler.Descriptor: only a route we still claim, and only when the FIB still
+// has an entry for it (checked right before the delete, D-071/D-074); the claim is dropped after.
 func (d *RouteDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	v := asRoute(obj)
-	if err := d.addDel(ctx, v, false); err != nil {
+	key := string(d.KeyOf(v))
+	if !d.Owned.Has(key) {
+		return nil // not ours: never touched
+	}
+	cur, err := d.lookup(ctx, v)
+	if err != nil {
 		return err
 	}
-	if err := d.Owned.Remove(string(d.KeyOf(v))); err != nil {
+	switch {
+	case cur == nil:
+		// already gone
+	case defaultDrop(cur):
+		// our own blackhole default route looks like VPP's default entry: remove our (API) source;
+		// VPP keeps its default-route source either way
+		_ = d.addDel(ctx, v, false)
+	default:
+		if err := d.addDel(ctx, v, false); err != nil {
+			return err
+		}
+	}
+	if err := d.Owned.Remove(key); err != nil {
 		return fmt.Errorf("owner table: %w", err)
 	}
 	return nil

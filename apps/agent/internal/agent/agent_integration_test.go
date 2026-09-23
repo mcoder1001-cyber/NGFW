@@ -182,6 +182,9 @@ func deleteOwned(t *testing.T, c vpp.Client, owner string) int {
 	}
 	for id := range tables {
 		for _, v6 := range []bool{false, true} {
+			// flush first: deleting a table that still holds API drop routes leaks them into the
+			// next table that reuses the FIB index (seen on VPP 26.06, P05 review round)
+			_, _ = ip.NewServiceClient(c).IPTableFlush(ctx, &ip.IPTableFlush{Table: ip.IPTable{TableID: id, IsIP6: v6}})
 			if _, err := ip.NewServiceClient(c).IPTableAddDel(ctx, &ip.IPTableAddDel{IsAdd: false, Table: ip.IPTable{TableID: id, IsIP6: v6}}); err != nil {
 				t.Errorf("delete table %d: %v", id, err)
 			}

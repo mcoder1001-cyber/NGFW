@@ -83,8 +83,13 @@ func (*InterfaceTableDescriptor) Update(context.Context, proto.Message, proto.Me
 }
 
 // Delete implements scheduler.Descriptor: back to table 0.
-func (d *InterfaceTableDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
-	_, err := d.set(ctx, asIfTable(obj).GetInterface(), meta, 0)
+// The interface is re-resolved by tag (identity re-verified, D-071); a vanished interface has no
+// binding left.
+func (d *InterfaceTableDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
+	_, err := d.set(ctx, asIfTable(obj).GetInterface(), nil, 0)
+	if errors.Is(err, ErrNotOwned) {
+		return nil
+	}
 	return err
 }
 
@@ -190,8 +195,13 @@ func (*InterfaceAddrDescriptor) Update(_ context.Context, oldObj, newObj proto.M
 }
 
 // Delete implements scheduler.Descriptor.
-func (d *InterfaceAddrDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
-	_, err := d.addDel(ctx, asIfAddr(obj), meta, false)
+// The interface is re-resolved by tag (identity re-verified, D-071); a vanished interface has no
+// address left.
+func (d *InterfaceAddrDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
+	_, err := d.addDel(ctx, asIfAddr(obj), nil, false)
+	if errors.Is(err, ErrNotOwned) {
+		return nil
+	}
 	return err
 }
 

@@ -78,23 +78,20 @@ func (*LoopbackDescriptor) Update(_ context.Context, oldObj, newObj proto.Messag
 	return meta, nil
 }
 
-// Delete implements scheduler.Descriptor.
-func (d *LoopbackDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
-	m, ok := meta.(IfMeta)
-	if !ok {
-		// Meta lost (should not happen: Retrieve fills it) — resolve by tag.
-		t, err := dumpInterfaces(ctx, d.Client, d.Owner)
-		if err != nil {
-			return err
-		}
-		in, err := t.owned(asLoopback(obj).GetName())
-		if err != nil {
-			return err
-		}
-		m = IfMeta{SwIfIndex: in.Index}
+// Delete implements scheduler.Descriptor. The sw_if_index is re-resolved from the owner tag right
+// before the delete (D-071: never delete by a possibly reused index); a loopback that is gone
+// already is not an error.
+func (d *LoopbackDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
+	t, err := dumpInterfaces(ctx, d.Client, d.Owner)
+	if err != nil {
+		return err
 	}
-	if _, err := interfaces.NewServiceClient(d.Client).DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: interface_types.InterfaceIndex(m.SwIfIndex)}); err != nil {
-		return fmt.Errorf("delete_loopback %d: %w", m.SwIfIndex, err)
+	in, err := t.owned(asLoopback(obj).GetName())
+	if err != nil {
+		return nil
+	}
+	if _, err := interfaces.NewServiceClient(d.Client).DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: interface_types.InterfaceIndex(in.Index)}); err != nil {
+		return fmt.Errorf("delete_loopback %d: %w", in.Index, err)
 	}
 	return nil
 }

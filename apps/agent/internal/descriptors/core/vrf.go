@@ -45,21 +45,92 @@ func (*VRFDescriptor) Dependencies(proto.Message) []scheduler.Dependency { retur
 // TableName is the VPP table name of an owned VRF: "<owner>:<vrf>".
 func TableName(owner, vrf string) (string, error) { return vpp.OwnerTag(owner, vrf) }
 
-func (d *VRFDescriptor) addDel(ctx context.Context, v *Table, add bool, families ...bool) error {
-	if v.GetId() == 0 {
-		return fmt.Errorf("%w: table 0 is VPP's default table and never managed", ErrBadValue)
+// ErrTableConflict: the table id exists in VPP under a name that is not this owner's (D-071:
+// foreign → never touched).
+var ErrTableConflict = errors.New("core: VRF table id is in use by another owner or by VPP")
+
+// families returns the VPP name of table id per family (false = IPv4, true = IPv6) for the
+// families that exist.
+func (d *VRFDescriptor) families(ctx context.Context, id uint32) (map[bool]string, error) {
+	stream, err := ip.NewServiceClient(d.Client).IPTableDump(ctx, &ip.IPTableDump{})
+	if err != nil {
+		return nil, fmt.Errorf("ip_table_dump: %w", err)
 	}
+	out := map[bool]string{}
+	for {
+		t, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			return out, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("ip_table_dump: %w", err)
+		}
+		if t.Table.TableID == id {
+			out[t.Table.IsIP6] = trimNul(t.Table.Name)
+		}
+	}
+}
+
+func (d *VRFDescriptor) send(ctx context.Context, id uint32, name string, v6, add bool) error {
+	if _, err := ip.NewServiceClient(d.Client).IPTableAddDel(ctx, &ip.IPTableAddDel{IsAdd: add, Table: ip.IPTable{TableID: id, IsIP6: v6, Name: name}}); err != nil {
+		return fmt.Errorf("ip_table_add_del %d ipv6=%v add=%v: %w", id, v6, add, err)
+	}
+	return nil
+}
+
+// ensure adds both families of v under the claim rule (D-071): a family that exists under our
+// name is (re-)asserted — ip_table_add_del(add) is idempotent and restores a lost API lock — a
+// missing one is created, a family under any other name fails the call before any message is
+// sent. It returns the families this call created.
+func (d *VRFDescriptor) ensure(ctx context.Context, v *Table) (created []bool, err error) {
+	if v.GetId() == 0 {
+		return nil, fmt.Errorf("%w: table 0 is VPP's default table and never managed", ErrBadValue)
+	}
+	name, err := TableName(d.Owner, v.GetVrf())
+	if err != nil {
+		return nil, err
+	}
+	have, err := d.families(ctx, v.GetId())
+	if err != nil {
+		return nil, err
+	}
+	for _, v6 := range []bool{false, true} {
+		if n, ok := have[v6]; ok && n != name {
+			return nil, fmt.Errorf("%w: table %d ipv6=%v is named %q, we are %q", ErrTableConflict, v.GetId(), v6, n, name)
+		}
+	}
+	for _, v6 := range []bool{false, true} {
+		if err := d.send(ctx, v.GetId(), name, v6, true); err != nil {
+			return created, err
+		}
+		if _, existed := have[v6]; !existed {
+			created = append(created, v6)
+		}
+	}
+	return created, nil
+}
+
+// remove deletes the families of v that still carry our name, re-verified right before the
+// delete (D-071); foreign or missing families are left alone.
+func (d *VRFDescriptor) remove(ctx context.Context, v *Table, only ...bool) error {
 	name, err := TableName(d.Owner, v.GetVrf())
 	if err != nil {
 		return err
 	}
-	if len(families) == 0 {
-		families = []bool{false, true}
+	have, err := d.families(ctx, v.GetId())
+	if err != nil {
+		return err
 	}
-	svc := ip.NewServiceClient(d.Client)
-	for _, v6 := range families {
-		if _, err := svc.IPTableAddDel(ctx, &ip.IPTableAddDel{IsAdd: add, Table: ip.IPTable{TableID: v.GetId(), IsIP6: v6, Name: name}}); err != nil {
-			return fmt.Errorf("ip_table_add_del %d ipv6=%v add=%v: %w", v.GetId(), v6, add, err)
+	fams := only
+	if len(fams) == 0 {
+		fams = []bool{false, true}
+	}
+	for _, v6 := range fams {
+		if n, ok := have[v6]; !ok || n != name {
+			continue
+		}
+		if err := d.send(ctx, v.GetId(), name, v6, false); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -71,37 +142,40 @@ func (d *VRFDescriptor) Create(ctx context.Context, obj proto.Message) (any, err
 	if !ok {
 		return nil, fmt.Errorf("%w %T", ErrBadValue, obj)
 	}
-	if err := d.addDel(ctx, v, true); err != nil {
-		// do not leave half a VRF behind
-		_ = d.addDel(context.WithoutCancel(ctx), v, false)
+	created, err := d.ensure(ctx, v)
+	if err != nil {
+		if len(created) > 0 {
+			// do not leave half a VRF behind — only what this call created
+			_ = d.remove(context.WithoutCancel(ctx), v, created...)
+		}
 		return nil, err
 	}
 	return nil, nil
 }
 
 // Update implements scheduler.Descriptor. A renamed VRF needs new VPP tables (VPP does not rename
-// an existing table); a VRF missing one address family is repaired in place by re-adding both
-// families — ip_table_add_del(add) is idempotent and also re-asserts the API lock of the family that
-// survived (VPP keeps a referenced table alive after its API lock is gone).
+// an existing table); a VRF missing one address family is repaired in place (ensure re-asserts
+// both families, which also restores a lost API lock on the surviving one).
 func (d *VRFDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	o, n := asTable(oldObj), asTable(newObj)
 	if o.GetVrf() != n.GetVrf() || o.GetId() != n.GetId() {
 		return nil, scheduler.ErrRecreate
 	}
-	return meta, d.addDel(ctx, n, true)
+	_, err := d.ensure(ctx, n)
+	return meta, err
 }
 
 // Reapply implements scheduler.Reapplier: VPP keeps a table alive while routes or interfaces
 // reference it even after its API lock is gone (seen in the P05 loss simulation), so Retrieve
-// cannot tell a lost lock from a healthy table. ip_table_add_del(add) is idempotent (VPP holds a
-// single API lock per table), so a resync re-asserts it.
+// cannot tell a lost lock from a healthy table; a resync re-asserts it (idempotent).
 func (d *VRFDescriptor) Reapply(ctx context.Context, obj proto.Message, _ any) error {
-	return d.addDel(ctx, asTable(obj), true)
+	_, err := d.ensure(ctx, asTable(obj))
+	return err
 }
 
-// Delete implements scheduler.Descriptor.
+// Delete implements scheduler.Descriptor: only families still named "<owner>:<vrf>".
 func (d *VRFDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
-	return d.addDel(ctx, asTable(obj), false)
+	return d.remove(ctx, asTable(obj))
 }
 
 // Retrieve implements scheduler.Descriptor: tables named "<owner>:<vrf>", both families merged.

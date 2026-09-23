@@ -329,3 +329,81 @@ func TestCanon(t *testing.T) {
 		t.Fatal(n)
 	}
 }
+
+// H1: a VRF table id that another owner already uses is never claimed, and neither our failed
+// Create nor its rollback nor a later Delete removes it.
+func TestVRFTableIDOfAnotherOwner(t *testing.T) {
+	v := coretest.New()
+	b := newRig(t, "w7rb", v)
+	a := newRig(t, "w7ra", v)
+	ctx := context.Background()
+	if res := b.s.Apply(ctx, []scheduler.KV{
+		{Key: "vrf/7050", Value: &core.Table{Id: 7050, Vrf: "blue"}},
+		{Key: "ip.route/7050/10.7.250.0/24", Value: &core.Route{TableId: 7050, Prefix: "10.7.250.0/24"}},
+	}, nil); res.Outcome != scheduler.OutcomeApplied {
+		t.Fatal(res.Err)
+	}
+	before := v.Snapshot()
+	v.Reset()
+	res := a.s.Apply(ctx, []scheduler.KV{
+		{Key: "interface.loopback/loop760", Value: &core.Loopback{Name: "loop760", Instance: 760}},
+		{Key: "vrf/7050", Value: &core.Table{Id: 7050, Vrf: "red"}},
+	}, nil)
+	if res.Outcome != scheduler.OutcomeRolledBack || !errors.Is(res.Err, core.ErrTableConflict) {
+		t.Fatalf("outcome %s err %v", res.Outcome, res.Err)
+	}
+	for _, c := range v.CallsNamed("ip_table_add_del") {
+		t.Fatalf("conflicting create sent %+v", c)
+	}
+	if v.Snapshot() != before {
+		t.Fatalf("other owner's table/route changed:\n%s\n%s", before, v.Snapshot())
+	}
+	// Delete re-verifies the name: a table we created and that is now named by someone else stays.
+	if res := a.s.Apply(ctx, []scheduler.KV{{Key: "vrf/7051", Value: &core.Table{Id: 7051, Vrf: "red"}}}, nil); res.Outcome != scheduler.OutcomeApplied {
+		t.Fatal(res.Err)
+	}
+	vrf, _ := a.reg.Get(core.VRFName)
+	v.SetTableName(7051, false, "w7rb:taken")
+	if err := vrf.Delete(ctx, &core.Table{Id: 7051, Vrf: "red"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !v.HasTable(7051, false) || v.HasTable(7051, true) {
+		t.Fatal("delete must remove only the family still named w7ra:red")
+	}
+}
+
+// H2: a route another owner (or any API client) already has is never claimed or overwritten, and
+// our authoritative-empty routing apply does not delete it.
+func TestRouteOfAnotherOwner(t *testing.T) {
+	v := coretest.New()
+	b := newRig(t, "w7rb", v)
+	a := newRig(t, "w7ra", v)
+	ctx := context.Background()
+	theirs := &core.Route{TableId: 0, Prefix: "10.7.99.0/24", Paths: []*core.RoutePath{{Address: "10.7.1.1", Weight: 1}}}
+	if res := b.s.Apply(ctx, []scheduler.KV{{Key: "ip.route/0/10.7.99.0/24", Value: theirs}}, nil); res.Outcome != scheduler.OutcomeApplied {
+		t.Fatal(res.Err)
+	}
+	before := v.Snapshot()
+	v.Reset()
+	res := a.s.Apply(ctx, []scheduler.KV{{Key: "ip.route/0/10.7.99.0/24", Value: &core.Route{TableId: 0, Prefix: "10.7.99.0/24"}}}, nil)
+	if res.Outcome != scheduler.OutcomeRolledBack || !errors.Is(res.Err, core.ErrRouteConflict) {
+		t.Fatalf("outcome %s err %v", res.Outcome, res.Err)
+	}
+	if len(v.CallsNamed("ip_route_add_del")) != 0 || a.owned.Has("ip.route/0/10.7.99.0/24") {
+		t.Fatalf("conflicting route claimed: calls %v owned %v", v.CallsNamed("ip_route_add_del"), a.owned.Keys(""))
+	}
+	if res := a.s.Apply(ctx, nil, scheduler.Only(core.RouteName)); res.Outcome != scheduler.OutcomeApplied || !res.Plan.Empty() {
+		t.Fatalf("empty routing apply: %s %+v", res.Outcome, res.Plan.Ops)
+	}
+	if v.Snapshot() != before {
+		t.Fatal("foreign route changed")
+	}
+	// A default route may override VPP's default-drop entry and is removed cleanly.
+	def := &core.Route{TableId: 0, Prefix: "0.0.0.0/0", Paths: []*core.RoutePath{{Address: "10.7.1.1", Weight: 1}}}
+	if res := a.s.Apply(ctx, []scheduler.KV{{Key: "ip.route/0/0.0.0.0/0", Value: def}}, scheduler.Only(core.RouteName)); res.Outcome != scheduler.OutcomeApplied {
+		t.Fatalf("default route over default-drop: %v", res.Err)
+	}
+	if res := a.s.Apply(ctx, nil, scheduler.Only(core.RouteName)); res.Outcome != scheduler.OutcomeApplied || v.HasRoute(0, "0.0.0.0/0") {
+		t.Fatalf("default route not removed: %s %v", res.Outcome, res.Err)
+	}
+}

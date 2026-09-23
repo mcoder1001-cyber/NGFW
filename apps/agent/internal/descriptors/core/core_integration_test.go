@@ -2,6 +2,7 @@ package core_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -205,5 +206,62 @@ func TestCoreOnHost(t *testing.T) {
 		if d.Table.TableID == table {
 			t.Fatalf("table %d still exists: %+v", table, d.Table)
 		}
+	}
+}
+
+// TestClaimRulesOnHost (review H1/H2, D-071): two owners collide on a table id and on a table-0
+// prefix; the second owner must fail without touching the first owner's objects.
+func TestClaimRulesOnHost(t *testing.T) {
+	vpptest.SkipUnlessIntegration(t)
+	vpptest.LockLab(t)
+	p := vpptest.Prefix(t)
+	ownerB, ownerA := p+"rb", p+"ra"
+	c := dialVPP(t)
+	t.Cleanup(func() { cleanupSlot(t, c, ownerA, ownerB) })
+	ctx := context.Background()
+	slot := vpptest.Slot(t)
+	table := vpptest.TableBase(t) + 50
+	blue := fmt.Sprintf("10.%d.250.0/24", slot)
+	shared := fmt.Sprintf("10.%d.99.0/24", slot)
+	sb := newScheduler(t, c, ownerB)
+	sa := newScheduler(t, c, ownerA)
+	theirs := []scheduler.KV{
+		{Key: core.VRFKey(table), Value: &core.Table{Id: table, Vrf: "blue"}},
+		{Key: core.RouteKey(table, blue), Value: &core.Route{TableId: table, Prefix: blue}},
+		{Key: core.RouteKey(0, shared), Value: &core.Route{TableId: 0, Prefix: shared}},
+	}
+	if r := sb.Apply(ctx, theirs, nil); r.Outcome != scheduler.OutcomeApplied {
+		t.Fatalf("owner %s: %s %v", ownerB, r.Outcome, r.Err)
+	}
+	// H1: same table id under another name.
+	r := sa.Apply(ctx, []scheduler.KV{{Key: core.VRFKey(table), Value: &core.Table{Id: table, Vrf: "red"}}}, nil)
+	if r.Outcome == scheduler.OutcomeApplied || !errors.Is(r.Err, core.ErrTableConflict) {
+		t.Fatalf("id collision: %s %v", r.Outcome, r.Err)
+	}
+	t.Logf("id collision: %s: %v", r.Outcome, r.Err)
+	// H2: same prefix in the shared table 0.
+	r = sa.Apply(ctx, []scheduler.KV{{Key: core.RouteKey(0, shared), Value: &core.Route{TableId: 0, Prefix: shared, Paths: []*core.RoutePath{{Address: fmt.Sprintf("10.%d.1.1", slot), Weight: 1}}}}}, nil)
+	if r.Outcome == scheduler.OutcomeApplied || !errors.Is(r.Err, core.ErrRouteConflict) {
+		t.Fatalf("prefix collision: %s %v", r.Outcome, r.Err)
+	}
+	t.Logf("prefix collision: %s: %v", r.Outcome, r.Err)
+	if r := sa.Apply(ctx, nil, nil); r.Outcome != scheduler.OutcomeApplied || !r.Plan.Empty() {
+		t.Fatalf("owner %s empty apply: %s %+v", ownerA, r.Outcome, r.Plan.Ops)
+	}
+	// Owner B still has everything, unchanged.
+	if p, err := sb.Plan(ctx, theirs, nil); err != nil || !p.Empty() {
+		t.Fatalf("owner %s lost objects: %v %+v", ownerB, err, p)
+	}
+	// A default route in our own VRF overrides VPP's default-drop entry and is removed cleanly.
+	own := vpptest.TableBase(t) + 52
+	def := []scheduler.KV{
+		{Key: core.VRFKey(own), Value: &core.Table{Id: own, Vrf: "def"}},
+		{Key: core.RouteKey(own, "0.0.0.0/0"), Value: &core.Route{TableId: own, Prefix: "0.0.0.0/0", Paths: []*core.RoutePath{{Address: fmt.Sprintf("10.%d.1.1", slot), Weight: 1}}}},
+	}
+	if r := sa.Apply(ctx, def, nil); r.Outcome != scheduler.OutcomeApplied {
+		t.Fatalf("default route: %s %v", r.Outcome, r.Err)
+	}
+	if r := sa.Apply(ctx, nil, nil); r.Outcome != scheduler.OutcomeApplied || r.Summary.Deleted != 2 {
+		t.Fatalf("default route delete: %s %+v %v", r.Outcome, r.Summary, r.Err)
 	}
 }

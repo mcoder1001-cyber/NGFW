@@ -443,3 +443,10 @@ func (v *VPP) Snapshot() string {
 	sort.Strings(lines)
 	return fmt.Sprint(lines)
 }
+
+// SetTableName renames a table (e.g. to model a table id taken over by someone else).
+func (v *VPP) SetTableName(id uint32, v6 bool, name string) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.Tables[tableKey{id, v6}] = name
+}

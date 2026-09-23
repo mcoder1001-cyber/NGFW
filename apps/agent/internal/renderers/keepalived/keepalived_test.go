@@ -192,20 +192,40 @@ var hostile = []string{
 
 func TestHostileStrings(t *testing.T) {
 	fields := map[string]func(v string) map[string]any{
-		"instance name":  func(v string) map[string]any { return ha(map[string]any{v: inst()}, nil) },
-		"interface":      func(v string) map[string]any { return ha(map[string]any{"vi": inst("interface", "w0-"+v)}, nil) },
-		"track iface":    func(v string) map[string]any { return ha(map[string]any{"vi": inst("track", []any{map[string]any{"interface": "w0-" + v}})}, nil) },
-		"address":        func(v string) map[string]any { return ha(map[string]any{"vi": inst("addresses", []any{v})}, nil) },
-		"peer":           func(v string) map[string]any { return ha(map[string]any{"vi": inst("unicast", map[string]any{"peers": []any{v}})}, nil) },
-		"router id":      func(v string) map[string]any { return ha(map[string]any{}, map[string]any{"routerId": v}) },
-		"script name":    func(v string) map[string]any { return ha(map[string]any{}, map[string]any{"scripts": map[string]any{v: map[string]any{"check": "vrx-check-ok"}}}) },
-		"script check":   func(v string) map[string]any { return ha(map[string]any{}, map[string]any{"scripts": map[string]any{"s": map[string]any{"check": v}}}) },
-		"sync group":     func(v string) map[string]any { return ha(map[string]any{"vi": inst()}, map[string]any{"syncGroups": map[string]any{v: []any{"vi"}}}) },
-		"sync member":    func(v string) map[string]any { return ha(map[string]any{"vi": inst()}, map[string]any{"syncGroups": map[string]any{"g": []any{v}}}) },
-		"route prefix":   func(v string) map[string]any { return ha(map[string]any{"vi": inst("keepalived", map[string]any{"virtualRoutes": []any{map[string]any{"prefix": v}}})}, nil) },
-		"track script":   func(v string) map[string]any { return ha(map[string]any{"vi": inst("keepalived", map[string]any{"trackScripts": []any{v}})}, nil) },
-		"unicast src ip": func(v string) map[string]any { return ha(map[string]any{"vi": inst("unicast", map[string]any{"peers": []any{"10.0.0.9"}}, "keepalived", map[string]any{"unicastSrcIp": v})}, nil) },
-		"authRef":        func(v string) map[string]any { return ha(map[string]any{"vi": inst("keepalived", map[string]any{"authRef": v})}, nil) },
+		"instance name": func(v string) map[string]any { return ha(map[string]any{v: inst()}, nil) },
+		"interface":     func(v string) map[string]any { return ha(map[string]any{"vi": inst("interface", "w0-"+v)}, nil) },
+		"track iface": func(v string) map[string]any {
+			return ha(map[string]any{"vi": inst("track", []any{map[string]any{"interface": "w0-" + v}})}, nil)
+		},
+		"address": func(v string) map[string]any { return ha(map[string]any{"vi": inst("addresses", []any{v})}, nil) },
+		"peer": func(v string) map[string]any {
+			return ha(map[string]any{"vi": inst("unicast", map[string]any{"peers": []any{v}})}, nil)
+		},
+		"router id": func(v string) map[string]any { return ha(map[string]any{}, map[string]any{"routerId": v}) },
+		"script name": func(v string) map[string]any {
+			return ha(map[string]any{}, map[string]any{"scripts": map[string]any{v: map[string]any{"check": "vrx-check-ok"}}})
+		},
+		"script check": func(v string) map[string]any {
+			return ha(map[string]any{}, map[string]any{"scripts": map[string]any{"s": map[string]any{"check": v}}})
+		},
+		"sync group": func(v string) map[string]any {
+			return ha(map[string]any{"vi": inst()}, map[string]any{"syncGroups": map[string]any{v: []any{"vi"}}})
+		},
+		"sync member": func(v string) map[string]any {
+			return ha(map[string]any{"vi": inst()}, map[string]any{"syncGroups": map[string]any{"g": []any{v}}})
+		},
+		"route prefix": func(v string) map[string]any {
+			return ha(map[string]any{"vi": inst("keepalived", map[string]any{"virtualRoutes": []any{map[string]any{"prefix": v}}})}, nil)
+		},
+		"track script": func(v string) map[string]any {
+			return ha(map[string]any{"vi": inst("keepalived", map[string]any{"trackScripts": []any{v}})}, nil)
+		},
+		"unicast src ip": func(v string) map[string]any {
+			return ha(map[string]any{"vi": inst("unicast", map[string]any{"peers": []any{"10.0.0.9"}}, "keepalived", map[string]any{"unicastSrcIp": v})}, nil)
+		},
+		"authRef": func(v string) map[string]any {
+			return ha(map[string]any{"vi": inst("keepalived", map[string]any{"authRef": v})}, nil)
+		},
 	}
 	for name, mk := range fields {
 		for _, h := range hostile {

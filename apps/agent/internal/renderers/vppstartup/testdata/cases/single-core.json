@@ -1,0 +1,8 @@
+{
+  "dataplane": {
+    "workers": 0,
+    "mainCore": 1,
+    "hugepagesGb": 2,
+    "managementPci": ["0000:0b:00.0"]
+  }
+}

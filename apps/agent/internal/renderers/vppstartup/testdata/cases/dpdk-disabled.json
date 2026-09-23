@@ -1,0 +1,5 @@
+{
+  "dataplane": {
+    "plugins": { "dpdk_plugin.so": false }
+  }
+}

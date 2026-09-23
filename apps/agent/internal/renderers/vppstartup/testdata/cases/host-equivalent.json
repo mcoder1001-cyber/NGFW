@@ -1,0 +1,10 @@
+{
+  "dataplane": {
+    "managementPci": ["0000:0b:00.0"],
+    "plugins": {
+      "linux_cp_plugin.so": true,
+      "linux_nl_plugin.so": true,
+      "npt66_plugin.so": true
+    }
+  }
+}

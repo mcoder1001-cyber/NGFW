@@ -300,12 +300,15 @@ func (r *Renderer) toolMessage(out renderers.Output, err error, stagingDir strin
 }
 
 // NormalizeDiff keeps the "Lines To Delete" / "Lines To Add" part of frr-reload.py --test
-// output (dropping log noise) and returns "" when both lists are empty.
+// output (dropping log noise) and returns "" when both lists are empty. `hostname` lines are
+// dropped: FRR 10.7 daemons always report the system hostname and ignore the command (the
+// system renderer owns the hostname), so frr-reload.py shows a hostname delta it can never
+// apply — it must neither fail the convergence check nor show up in DryRun.
 func NormalizeDiff(out string) string {
 	lines := strings.Split(strings.ReplaceAll(out, "\r", ""), "\n")
 	start := -1
 	for i, l := range lines {
-		if strings.TrimSpace(l) == "Lines To Delete" {
+		if t := strings.TrimSpace(l); t == "Lines To Delete" || t == "Lines To Add" {
 			start = i
 			break
 		}
@@ -317,7 +320,7 @@ func NormalizeDiff(out string) string {
 	content := false
 	for _, l := range lines[start:] {
 		t := strings.TrimSpace(l)
-		if t == "" {
+		if t == "" || strings.HasPrefix(t, "hostname ") || strings.HasPrefix(t, "no hostname ") {
 			continue
 		}
 		kept = append(kept, strings.TrimRight(l, " "))

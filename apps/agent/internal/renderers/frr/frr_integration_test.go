@@ -113,9 +113,11 @@ func TestFRRRendererIntegration(t *testing.T) {
 		}
 		if withRoutes {
 			d["routing"] = map[string]any{"static": []any{
-				map[string]any{"prefix": pfx200, "nextHops": []any{map[string]any{"address": gw}}},
-				map[string]any{"prefix": pfx201, "nextHops": []any{map[string]any{"blackhole": true}}, "tag": 100, "distance": 50},
-				map[string]any{"prefix": pfx210, "vrf": vrf, "nextHops": []any{map[string]any{"address": fmt.Sprintf("10.%d.2.1", slot)}}},
+				map[string]any{"frr": true, "prefix": pfx200, "nextHops": []any{map[string]any{"address": gw}}},
+				map[string]any{"frr": true, "prefix": pfx201, "blackhole": true, "tag": 100, "distance": 50},
+				map[string]any{"frr": true, "prefix": pfx210, "vrf": vrf, "nextHops": []any{map[string]any{"address": fmt.Sprintf("10.%d.2.1", slot)}}},
+				// D-072: unflagged → the agent programs it in VPP; FRR must not see it.
+				map[string]any{"prefix": fmt.Sprintf("10.%d.250.0/24", slot), "nextHops": []any{map[string]any{"address": gw}}},
 			}}
 		}
 		return mustDoc(t, d)
@@ -192,6 +194,9 @@ func TestFRRRendererIntegration(t *testing.T) {
 	}
 	if rt, ok := byPrefix["default "+pfx201]; !ok || !rt.Nexthops[0].Blackhole || rt.Distance != 50 || rt.Tag != 100 {
 		t.Errorf("step1: blackhole %s missing: %+v", pfx201, got)
+	}
+	if _, ok := byPrefix[fmt.Sprintf("default 10.%d.250.0/24", slot)]; ok {
+		t.Errorf("step1: unflagged route reached FRR (D-072: VPP only)")
 	}
 	if rt, ok := byPrefix[vrf+" "+pfx210]; !ok || !rt.Installed {
 		t.Errorf("step1: %s in vrf %s missing: %+v", pfx210, vrf, got)

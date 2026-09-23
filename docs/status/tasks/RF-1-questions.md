@@ -44,3 +44,14 @@ The task names `ns-w<N>-a`; `tools/lab rig` creates `ns-<prefix>-lan|wan` and pu
 harness creates its own `ns-<prefix>-frr` (no VPP dependency: FRR tests should not need VPP) and accepts
 `Options.NetNS` to reuse a rig namespace (P12 will, for the linux-cp path). `tools/lab rig gc` does not know
 `ns-<prefix>-frr`; the harness deletes it on Stop and on the next Start after a kill.
+
+## Status after the review fix round (2026-09-24)
+- Q1: `StaticRoute.blackhole` is now in the proto (main) and used; the next-hop blackhole stand-in is gone. Still
+  stand-ins: `routing.static[i].tag` and the D-072 flag `routing.static[i].frr` → ask P03b/P02a for both (additive);
+  whoever adds the flag registers `frr.RegisterStaticSelector` once.
+- Q4: decided by D-072 (one programmer per route, default VPP). Implemented: `frr.StaticOwnedByFRR`; P05's static-route
+  descriptor must call it and skip FRR-owned routes (please put that on P05's board entry).
+- Q5/Q6/Q7: accepted by the reviewer. Follow-up for P04/P09 (not RF-1): teach `tools/lab rig gc` / the nightly sweep
+  about `ns-<prefix>-frr`, `/run/frr/<prefix>` and `/run/vrx-test/<prefix>/frr.lock`.
+- New Q8: `Section.Render` now takes `*frr.RenderContext` (typed state, `MapInterface`, `Secret`) instead of
+  `proto.Message` — a framework API change before any consumer exists (review M2 + interface-mapper exposure).

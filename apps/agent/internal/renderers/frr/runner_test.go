@@ -130,8 +130,17 @@ func TestDryRunArgvAndDiff(t *testing.T) {
 	if !slices.Equal(a[:len(wantPrefix)], wantPrefix) || len(a) != len(wantPrefix)+1 || a[len(a)-1] == p.ConfFile() {
 		t.Fatalf("argv = %q (the file must be the staged copy)", a)
 	}
-	if got := NormalizeDiff("Lines To Delete\n===============\n\nLines To Add\n============\n"); got != "" {
-		t.Errorf("empty diff normalised to %q", got)
+	for _, empty := range []string{
+		"Lines To Delete\n===============\n\nLines To Add\n============\n",
+		"Lines To Delete\n===============\nno hostname ubuntu-26.04\n\nLines To Add\n============\nhostname vrx-a\n",
+		"INFO: x\nLines To Add\n============\n",
+	} {
+		if got := NormalizeDiff(empty); got != "" {
+			t.Errorf("NormalizeDiff(%q) = %q, want empty", empty, got)
+		}
+	}
+	if got := NormalizeDiff("log noise\nLines To Add\n============\nip route 10.0.0.0/8 blackhole\n"); got != "Lines To Add\n============\nip route 10.0.0.0/8 blackhole\n" {
+		t.Errorf("add-only diff = %q", got)
 	}
 }
 

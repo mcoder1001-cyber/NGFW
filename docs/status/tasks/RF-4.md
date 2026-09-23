@@ -295,3 +295,25 @@ disabled disabled enabled
 MainPID=1014
 $ stat diff /etc/snmp /etc/keepalived /etc/rsyslog.conf /etc/rsyslog.d vs the 01:33 baseline: identical
 ```
+
+### CI after the fixes
+`tools/ci.sh --base main` on `dfb8472` (log `/root/ngfw-wt/logs/RF-4-ci-4.log`):
+```
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m02s
+  generate + generated-output gate                   0m30s
+  forbidden patterns (+ gitleaks)                    0m05s
+  lint · typecheck · unit tests · build (turbo)   0m32s
+  apps/agent: make lint test build                   0m53s
+  test/ Go modules, unit mode (test/integration/smoke)   0m02s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      merge main into task/RF-4 (TD-1 bootid, RF-3 ALLOWLIST)
+      review(RF-4): findings
+  mode quick · wall time 2m07s · logs /root/ngfw-wt/logs/ci/RF-4-20260924-024342-2169231
+
+CI GATE PASSED
+```
+(The two warnings are the merge commit and the reviewer's commit subjects, not RF-4 code.)

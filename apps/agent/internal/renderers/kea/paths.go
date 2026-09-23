@@ -20,7 +20,9 @@ const (
 	CtrlAgentBin = "/usr/sbin/kea-ctrl-agent"
 	// IPBin runs the DHCP checkers inside Paths.Netns (`ip netns exec <ns> kea-dhcp4 -t
 	// <file>`): Kea checks that a subnet's "interface" exists, so the checker must see the
-	// namespace the server runs in. Used only when Paths.Netns is set (tests: the rig).
+	// namespace the server runs in. TEST-ONLY: `ip netns exec` can run any binary, so IPBin is
+	// never part of Binaries()/NewRunner (the product runs Kea in the agent's namespace and
+	// leaves Paths.Netns empty); the rig adds it to its own test runner.
 	IPBin = "/usr/bin/ip"
 )
 
@@ -32,7 +34,7 @@ const DefaultHooksDir = "/usr/lib/x86_64-linux-gnu/kea/hooks"
 const LeaseCmdsHook = "libdhcp_lease_cmds.so"
 
 // Binaries is the allowlist for the production SystemRunner of this renderer.
-func Binaries() []string { return []string{Dhcp4Bin, Dhcp6Bin, CtrlAgentBin, IPBin} }
+func Binaries() []string { return []string{Dhcp4Bin, Dhcp6Bin, CtrlAgentBin} }
 
 // NewRunner returns the production runner: allow-listed binaries and the Kea 3.0 path
 // environment (Env) so `kea-* -t` accepts the configured socket, lease and log directories.
@@ -84,8 +86,9 @@ type Paths struct {
 	InterfacePrefix string
 	// LFCInterval is the memfile lease-file cleanup interval in seconds.
 	LFCInterval uint32
-	// Netns is the network namespace the DHCP servers run in ("" = the agent's own). The
-	// DHCP checkers run there too (IPBin).
+	// Netns is the network namespace the DHCP servers run in ("" = the agent's own; always
+	// empty in the product). The DHCP checkers run there too, through IPBin, which only a test
+	// runner allows.
 	Netns string
 }
 

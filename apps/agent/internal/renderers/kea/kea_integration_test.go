@@ -57,6 +57,7 @@ func setupRig(t *testing.T) *rig {
 		}
 	}
 	rg.runner = NewRunner(rg.paths)
+	rg.runner.Allow = renderers.NewAllowlist(append(Binaries(), IPBin)...) // test-only trampoline
 
 	if err := exec.Command(ipBin, "netns", "exec", rg.ns, "true").Run(); err == nil { //nolint:gosec // fixed argv
 		t.Fatalf("namespace %s already exists (leftover of an earlier run?)", rg.ns)

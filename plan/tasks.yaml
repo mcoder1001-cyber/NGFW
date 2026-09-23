@@ -436,7 +436,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D6.1
@@ -444,10 +444,10 @@ tasks:
   - D6.5
   scope: ipsec, ikev2, wireguard
   files_owned: apps/agent/internal/descriptors/<plugins of DF-5>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-5
+  worktree: /root/ngfw-wt/DF-5
+  owner: desktop-agent slot4
+  started: 2026-09-23T15:28
   finished: ''
   notes: ''
 - id: DF-6
@@ -460,7 +460,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D6.6
@@ -469,10 +469,10 @@ tasks:
   - D2.8
   scope: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp
   files_owned: apps/agent/internal/descriptors/<plugins of DF-6>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-6
+  worktree: /root/ngfw-wt/DF-6
+  owner: desktop-agent slot11
+  started: 2026-09-23T15:28
   finished: ''
   notes: ''
 - id: DF-7

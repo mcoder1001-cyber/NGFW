@@ -1,0 +1,24 @@
+// Desired-state model of the tapv2 descriptor (task DF-1). Agent-internal, see interface/model.proto.
+syntax = "proto3";
+
+package vrx.agent.tapv2;
+
+option go_package = "ngfw/agent/internal/descriptors/tapv2;tapv2";
+
+// Tap is tap_create_v3. id is mandatory: VPP names the interface tap<id>. Fields the dump does not
+// return (queue counts, host gateways, VPP-side MAC) are not in the model.
+message Tap {
+  string name = 1;
+  uint32 id = 2;
+  string host_if_name = 3;
+  string host_namespace = 4;
+  string host_bridge = 5;
+  string host_mac = 6;         // lower-case, empty = kernel-assigned
+  string host_ip4_prefix = 7;  // "a.b.c.d/len", empty = none
+  string host_ip6_prefix = 8;
+  uint32 host_mtu = 9;         // 0 = not set
+  uint32 rx_ring_size = 10;    // VPP default 256 — always explicit
+  uint32 tx_ring_size = 11;
+  bool gso = 12;
+  bool csum_offload = 13;
+}

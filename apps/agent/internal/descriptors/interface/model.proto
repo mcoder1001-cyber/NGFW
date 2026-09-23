@@ -1,0 +1,74 @@
+// Desired-state model of the interface-attribute and sub-interface descriptors (task DF-1).
+// Agent-internal: these types are the Value of scheduler.KV for the interface.* descriptors.
+// P08 promotes them to packages/proto when the API starts sending desired state (contract PR).
+syntax = "proto3";
+
+package vrx.agent.iface;
+
+option go_package = "ngfw/agent/internal/descriptors/interface;iface";
+
+// AdminState marks an interface administratively UP. Presence of the object means "up";
+// deleting it sets the interface down (interface.admin-state).
+message AdminState {
+  // Full scheduler key of the interface, e.g. "interface.loopback/loop201".
+  string interface = 1;
+}
+
+// Mtu is the per-protocol MTU set (sw_interface_set_mtu). 0 = not set (VPP inherits the link MTU).
+message Mtu {
+  string interface = 1;
+  uint32 mtu = 2;  // L3 (default) MTU
+  uint32 ip4 = 3;
+  uint32 ip6 = 4;
+  uint32 mpls = 5;
+}
+
+// MacAddress sets the interface's L2 address (sw_interface_set_mac_address), lower-case "aa:bb:cc:dd:ee:ff".
+message MacAddress {
+  string interface = 1;
+  string mac = 2;
+}
+
+// Promisc enables promiscuous mode (sw_interface_set_promisc). Presence = on.
+message Promisc {
+  string interface = 1;
+}
+
+enum RxModeKind {
+  RX_MODE_KIND_UNSPECIFIED = 0;
+  RX_MODE_KIND_POLLING = 1;
+  RX_MODE_KIND_INTERRUPT = 2;
+  RX_MODE_KIND_ADAPTIVE = 3;
+}
+
+// RxMode sets the rx mode of every rx queue of an interface (sw_interface_set_rx_mode). The
+// object exists only for non-polling modes: polling is VPP's default and is what Delete restores.
+message RxMode {
+  string interface = 1;
+  RxModeKind mode = 2;
+}
+
+// RxPlacement pins one rx queue to a worker thread (sw_interface_set_rx_placement). worker is the
+// 0-based worker number (worker 0 = VPP thread 1). Queues on the main thread have no object.
+message RxPlacement {
+  string interface = 1;
+  uint32 queue = 2;
+  uint32 worker = 3;
+}
+
+// Subinterface is a create_subif sub-interface. Its id is "<parent id>.<sub_id>", which is also
+// how VPP names it. Tags: untagged/default_subif → 0 tags; inner_vlan or inner_vlan_any → 2 tags;
+// otherwise 1 tag.
+message Subinterface {
+  // Full scheduler key of the parent interface.
+  string parent = 1;
+  uint32 sub_id = 2;
+  uint32 outer_vlan = 3;
+  uint32 inner_vlan = 4;
+  bool dot1ad = 5;
+  bool exact_match = 6;
+  bool default_subif = 7;
+  bool untagged = 8;
+  bool outer_vlan_any = 9;
+  bool inner_vlan_any = 10;
+}

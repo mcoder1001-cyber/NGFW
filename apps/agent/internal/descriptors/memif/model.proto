@@ -1,0 +1,36 @@
+// Desired-state model of the memif.* descriptors (task DF-1). Agent-internal, see interface/model.proto.
+syntax = "proto3";
+
+package vrx.agent.memif;
+
+option go_package = "ngfw/agent/internal/descriptors/memif;memif";
+
+// Socket is memif_socket_filename_add_del_v2. Ownership: filename lives in the owner's socket dir.
+message Socket {
+  uint32 id = 1;
+  string filename = 2;
+}
+
+enum Role {
+  ROLE_MASTER = 0;
+  ROLE_SLAVE = 1;
+}
+
+enum Mode {
+  MODE_ETHERNET = 0;
+  MODE_IP = 1;
+  MODE_PUNT_INJECT = 2;
+}
+
+// Memif is memif_create_v2. rx/tx queue counts, the secret and the hw address are not part of the
+// model because memif_details does not return them (secret) or they are managed elsewhere (mac).
+message Memif {
+  string name = 1;
+  uint32 id = 2;
+  uint32 socket = 3;  // socket id; 0 = VPP's default socket (never owned)
+  Role role = 4;
+  Mode mode = 5;
+  uint32 ring_size = 6;    // power of two, VPP default 1024 — always explicit
+  uint32 buffer_size = 7;  // VPP default 2048 — always explicit
+  bool zero_copy = 8;
+}

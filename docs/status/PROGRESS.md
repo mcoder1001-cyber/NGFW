@@ -2,13 +2,13 @@
 
 Updated 2026-09-23 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 0.9% by hours (8/845 h), 2.6% by tasks (2/78)**
+**Overall: 1.4% by hours (12/845 h), 3.8% by tasks (3/78)**
 
 | state | tasks |
 |---|---|
-| merged | 2 |
+| merged | 3 |
 | review | 0 |
-| running | 8 |
+| running | 7 |
 | ready | 0 |
 | parked | 1 |
 | failed | 0 |
@@ -17,7 +17,7 @@ Updated 2026-09-23 from plan/tasks.yaml (estimated hours are the plan's, not act
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
-| S1 | 2 / 68 | 2.9% | 1/8 | 7 | 0 | 0 |
+| S1 | 6 / 68 | 8.8% | 2/8 | 6 | 0 | 0 |
 | S2 | 0 / 215 | 0.0% | 0/16 | 1 | 0 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
 | S4 | 0 / 372 | 0.0% | 0/36 | 0 | 0 | 1 |
@@ -30,7 +30,6 @@ Updated 2026-09-23 from plan/tasks.yaml (estimated hours are the plan's, not act
 - P02b — Schema group (b): nat, objects, acl (running, desktop-agent slot5)
 - P02c — Schema group (c): vpn, tunnels, services, ha (running, desktop-agent slot6)
 - P03 — gRPC contract agent↔api (messages for all domains, RPC semantics doc) (running, desktop-agent slot7)
-- P05a — Agent interfaces: scheduler Descriptor, fake VPP client, renderer interface, READMEs (running, desktop-agent slot2)
 - P04 — Lab tooling (local mode for vrx-a), veth/netns packet rig, binapi for all plugins, local postgres/valkey (running, desktop-agent slot3)
 - P09 — CI gate for local-only git (tools/ci.sh quick|full|--base, hooks, golangci-lint, gitleaks) (running, desktop-agent slot4)
 - P07a — UI shell: theme/RTL, i18n, SchemaForm, ServerDataGrid, WS hook, frame skeleton (running, desktop-agent slot8)

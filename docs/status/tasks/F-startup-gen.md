@@ -687,3 +687,105 @@ CI GATE PASSED
 ```
 Decision D-SG-11 is superseded by D-084 (present = authoritative, absent = overlay). Q6 answered, Q7 taken by the manager.
 
+## Fix round 2 (last, D-088) — re-review docs/status/tasks/F-startup-gen-rereview.md (afbe6ae)
+
+| item | done |
+|---|---|
+| split (D-088) | `git branch task/F-startup-apply` at afbe6ae (keeps `deploy/vpp/apply-startup.sh`, `vpp-iface-check.py`, `test-apply-startup.sh`); removed from this branch together with the committed `deploy/vpp/__pycache__/*.pyc`. `vppstartup.md` keeps the apply procedure as prose — "manual, manager-only; tooling in task F-startup-apply"; code comments / ALLOWLIST note no longer point at the script. N1/N2/N3/N6 belong to F-startup-apply |
+| N4 management NICs | `managementNICs` (hostfacts.go): every IPv4/IPv6 default-route interface **plus** the interface the longest-prefix route lookup picks for the peer of every ESTABLISHED control connection (`/proc/net/tcp{,6}`, local port in `ControlPorts`, default 22; CLI `--control-ports`), v4-mapped peers unmapped, loopback ignored; `--mgmt-if`/`--mgmt-pci` as before. A tun/tap without a device (linux-cp tap, VPP-owned) and `*` (unreachable/blackhole) defaults are **skipped with a note**, never an error; bonds/VLANs resolve through `lower_*` members (re-review N7); anything else unresolvable is an error unless `--mgmt-pci` names the NIC(s). All found NICs are blacklisted and refused as devices; the CLI prints each one and why. Tests: `TestManagementPaths` (ssh on a connected subnet → 0c protected and `devices{0c}` refused; IPv6 ssh → 13; default via linux-cp tap + blackhole default → notes, no error; extra control port; bond without/with members; `--mgmt-pci` fallback) and `TestManagementOnlyVPPOwned` (only a tap default, no session → `ErrHost`, never a guess) |
+| N5 generator side | the CLI always prints `rendered sha256 <hex>` of exactly the rendering (`-o` file, stdout or diff target); documented in the manual procedure (pin the live file's and the rendering's sha256, render once with an absolute generator path). `TestStdinAndOutputFile` checks the printed sum equals the written file |
+| D-084 omission | a plugin left out of a present `dataplane.plugins` is a warning only (`TestPluginSemantics`, CLI below: exit 0) |
+
+`contract/F-startup-gen` unchanged (b662ff8).
+
+### Evidence
+```
+$ cd apps/agent && go test -count=1 -v ./internal/renderers/vppstartup/ ./cmd/vrx-startupgen/ | grep -E '^(--- |ok|FAIL|PASS)'
+--- PASS: TestParseCanonical
+--- PASS: TestSemanticDiffIgnoresLayout
+--- PASS: TestUnifiedDiff
+--- PASS: TestReadHost
+--- PASS: TestHostCheckRequiresEveryFact
+--- PASS: TestPluginSwitches
+--- PASS: TestCPUPlacementExplicit
+--- PASS: TestManagementFromHost
+--- PASS: TestPluginSemantics
+--- PASS: TestManagementPaths
+--- PASS: TestManagementOnlyVPPOwned
+--- PASS: TestHostile
+--- PASS: TestTemplateBackstop
+--- PASS: TestLogicalNameAccepts
+--- PASS: TestGolden
+--- PASS: TestSixNICSample
+--- PASS: TestHostEquivalentSemantics
+--- PASS: TestRendererInterface
+--- PASS: TestTypedInputMatchesDocument
+--- PASS: TestPluginListMatchesHost
+--- PASS: TestWarnings
+--- PASS: TestCPUList
+PASS
+ok  	ngfw/agent/internal/renderers/vppstartup	0.259s
+--- PASS: TestRenderToStdoutMatchesGolden
+--- PASS: TestStdinAndOutputFile
+--- PASS: TestDiffAgainstHostFile
+--- PASS: TestCheckAndErrors
+--- PASS: TestHostFactsFromSysRoot
+PASS
+ok  	ngfw/agent/cmd/vrx-startupgen	0.166s
+$ go test -count=1 -v -run TestHostile ./internal/renderers/vppstartup/ | grep -c "    --- PASS"
+127
+$ echo {} | vrx-startupgen --check        # live host: ssh from 172.30.126.196 arrives on ens192, default route on ens192
+vrx-startupgen: host management NIC(s) 0000:0b:00.0 (always blacklisted)
+vrx-startupgen: management: ens192 → 0000:0b:00.0 (default route)
+vrx-startupgen: rendered sha256 28b2b3fddc7440630b8dcbb142f5462ce5a000321892eed39033a107ef0e0c88
+vrx-startupgen: warning: plugins: linux_cp_plugin.so { enable } kept from the current start-up file (dataplane.plugins absent)
+vrx-startupgen: warning: plugins: linux_nl_plugin.so { enable } kept from the current start-up file (dataplane.plugins absent)
+vrx-startupgen: warning: plugins: npt66_plugin.so { enable } kept from the current start-up file (dataplane.plugins absent)
+vrx-startupgen: warning: dataplane.mainCore not set: main-core 1 chosen (lowest online, non-isolated CPU)
+vrx-startupgen: ok (0 DPDK device(s), 3 plugin switch(es))
+exit=0
+$ vrx-startupgen -o /tmp/x.conf testdata/cases/six-nic-sample.json 2>&1 | grep sha256; sha256sum /tmp/x.conf
+vrx-startupgen: rendered sha256 e0b5945eb8b28b4032dc23f463a1c568bd9ee14f535773e32b896b0be1dcc2c7
+e0b5945eb8b28b4032dc23f463a1c568bd9ee14f535773e32b896b0be1dcc2c7  /tmp/x.conf
+$ echo '{"dataplane":{"mainCore":1,"plugins":{"switches":{"acl_plugin.so":true}}}}' | vrx-startupgen --check   # D-084 plugin left out = warning only
+vrx-startupgen: host management NIC(s) 0000:0b:00.0 (always blacklisted)
+vrx-startupgen: management: ens192 → 0000:0b:00.0 (default route)
+vrx-startupgen: rendered sha256 80c14942cb3e373a3b11d58a199498b5b3f12e5b5ece70e288fb8c30637ac8db
+vrx-startupgen: warning: dataplane.plugins.switches: linux_cp_plugin.so (D-060) is not listed and will not be enabled
+vrx-startupgen: warning: dataplane.plugins.switches: linux_nl_plugin.so (D-060) is not listed and will not be enabled
+vrx-startupgen: warning: dataplane.plugins.switches: npt66_plugin.so (D-060) is not listed and will not be enabled
+vrx-startupgen: warning: plugins: linux_cp_plugin.so { enable } in the current start-up file is removed (not in dataplane.plugins.switches)
+vrx-startupgen: warning: plugins: linux_nl_plugin.so { enable } in the current start-up file is removed (not in dataplane.plugins.switches)
+vrx-startupgen: warning: plugins: npt66_plugin.so { enable } in the current start-up file is removed (not in dataplane.plugins.switches)
+vrx-startupgen: ok (0 DPDK device(s), 1 plugin switch(es))
+exit=0
+```
+
+### CI gate — task branch (1689e32)
+```
+$ tools/ci.sh --base main
+== VRX CI gate: quick ==
+worktree  /root/ngfw-wt/F-startup-gen
+branch    task/F-startup-gen @ 1689e32   (base: main)
+tools     node v22.23.2 · pnpm 12.5.1 · go1.26.0 · buf 1.73.0 · golangci-lint 2.13.2 (pinned) · gitleaks 8.30.1 (pinned)
+caches    pnpm store /root/.local/share/pnpm/store/v11 · turbo /root/.cache/vrx-turbo · go /root/.cache/go-build
+logs      /root/ngfw-wt/logs/ci/F-startup-gen-20260924-024416-2174315
+...
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m01s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   0m32s
+  forbidden patterns (+ gitleaks)                    0m04s
+  lint · typecheck · unit tests · build (turbo)   0m33s
+  apps/agent: make lint test build                   0m20s
+  test/ Go modules, unit mode (test/integration/smoke)   0m03s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      review(F-startup-gen): re-review after fix round
+      review(F-startup-gen): findings
+  mode quick · wall time 1m37s · logs /root/ngfw-wt/logs/ci/F-startup-gen-20260924-024416-2174315
+
+CI GATE PASSED
+```
+

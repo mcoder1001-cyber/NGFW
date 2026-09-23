@@ -13,3 +13,8 @@ fix round 1 (review BLOCK e049b31), 2026-09-24 ~01:55–02:30
 - [x] merge main · contract/F-startup-gen (schema + proto + drift guard, CI green) merged
 - [x] F1 host mgmt NIC · F2 deploy/vpp/apply-startup.sh + fake-host tests · F3 plugins overlay · F4 explicit pinning · F5/F6 bounds · F7 host required · F8 comments · F9 no live file
 - [x] CI green on both branches; Review fixes section in F-startup-gen.md
+
+fix round 2 (re-review BLOCK afbe6ae, D-088), 2026-09-24 ~02:35–02:50
+- [x] branch task/F-startup-apply at afbe6ae; deploy/vpp removed here; manual procedure in vppstartup.md
+- [x] N4 management NICs (default routes + control connections, linux-cp taps skipped, bonds via lower_*), N5 rendered sha256
+- [x] CI green (1689e32); Fix round 2 section in F-startup-gen.md

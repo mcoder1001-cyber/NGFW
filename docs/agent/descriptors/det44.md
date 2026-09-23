@@ -6,7 +6,7 @@ det44 interface or map exists), as for nat64/nat66.
 
 | Descriptor | Key id | Create / Delete | Update | Retrieve | Dependencies | Notes / limitations |
 |---|---|---|---|---|---|---|
-| `det44.enable` | `global` | `det44_plugin_enable_disable` (`inside_vrf`, `outside_vrf`; retval 1 "already" tolerated) | `ErrRecreate` (refused with `ErrForeignObjects` when foreign objects exist) | cache ∪ heuristic | optional `vrf/<inside>`, `vrf/<outside>` | VRFs have no getter: after an agent restart the heuristic reports zeros; a non-zero desired value plans one disable/enable cycle. |
+| `det44.enable` | `global` | Create `det44_plugin_enable_disable(enable=1)` (`inside_vrf`, `outside_vrf`; retval 1 "already" tolerated). **Delete never disables** (see below) | `ErrVRFChangeUnsafe` (VRF change needs a disable) | cache ∪ heuristic | optional `vrf/<inside>`, `vrf/<outside>` | VRFs have no getter: after an agent restart the heuristic reports zeros. |
 | `det44.timeouts` | `global` | `det44_set_timeouts`; Delete restores 300/7440/240/60 | in place | `det44_get_timeouts` — object only when non-default | enable | Presence = non-default values. |
 | `det44.interface` | `<interface>/<inside\|outside>` | `det44_interface_add_del_feature` (`is_inside`) | recreate | `det44_interface_dump` (`is_inside` / `is_outside`) | enable, `interface/<name>` | |
 | `det44.map` | `<inside prefix>/<outside prefix>` | `det44_add_del_map` | recreate | `det44_map_dump` (sharing ratio / ports per host are derived, not part of the value) | enable | Ownership: inside or outside prefix inside the slot v4 block. |
@@ -16,5 +16,14 @@ Retrieve-only / actions: `Sessions(userIP, offset, limit)` over `det44_session_d
 `nat_det_*` aliases (`nat_det_add_del_map`, `nat_det_map_dump`, `nat_det_session_dump`, `nat_det_close_session_*`,
 `nat_det_forward`/`reverse`), `det44_forward` / `det44_reverse` (lookups, not state).
 
-Tests: `det44_test.go` (fake), `det44_integration_test.go` (loopbacks `loop920/921`, map `10.9.44.0/24 → 10.9.45.0/30`;
-plugin disabled again in Cleanup when this test enabled it).
+**VPP 26.06 bugs (DF-3-questions.md Q0).** `det44_plugin_disable` iterates `vec_dup(dm->interfaces)`, but that
+field is a pool, so freed slots are iterated too. The failed delete is then logged with `unformat_vnet_sw_interface`
+used as a format function, which causes a SIGSEGV. As a result, disabling det44 after any det44 interface was ever
+removed crashes VPP (this happened twice on vrx-a). `det44.enable` Delete therefore only releases the singleton in the
+agent: the plugin stays enabled but idle until the next VPP restart, and a later Create finds it "already enabled".
+A second bug: `det44_interface_add_del(is_del)` calls `vnet_feature_enable_disable(..., 1)`, so the
+`det44-in2out/out2in` node stays on the interface after the det44 interface is deleted. The dump is correct, but the
+feature node lingers until the interface is deleted.
+
+Tests: `det44_test.go` (fake), `det44_integration_test.go` (loopbacks `loop920/921`, map `10.9.44.0/24 → 10.9.45.0/30`).
+The integration test never disables det44, and it touches the det44 timeouts only when they are at VPP's defaults.

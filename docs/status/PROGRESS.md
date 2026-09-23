@@ -7,8 +7,8 @@ Updated 2026-09-23 from plan/tasks.yaml (estimated hours are the plan's, not act
 | state | tasks |
 |---|---|
 | merged | 4 |
-| review | 1 |
-| running | 9 |
+| review | 2 |
+| running | 8 |
 | ready | 4 |
 | parked | 1 |
 | failed | 0 |
@@ -17,7 +17,7 @@ Updated 2026-09-23 from plan/tasks.yaml (estimated hours are the plan's, not act
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
-| S1 | 18 / 71 | 25.4% | 3/9 | 4 | 0 | 0 |
+| S1 | 18 / 71 | 25.4% | 3/9 | 3 | 0 | 0 |
 | S2 | 0 / 215 | 0.0% | 0/16 | 5 | 4 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
 | S4 | 0 / 372 | 0.0% | 0/36 | 0 | 0 | 1 |
@@ -26,7 +26,7 @@ Updated 2026-09-23 from plan/tasks.yaml (estimated hours are the plan's, not act
 
 ## Running / review
 
-- P02a — Schema group (a): system, dataplane, interfaces, vrfs, routing, management + primitives/diff/merge-patch/gen (running, desktop-agent slot1)
+- P02a — Schema group (a): system, dataplane, interfaces, vrfs, routing, management + primitives/diff/merge-patch/gen (review, desktop-agent slot1)
 - P02b — Schema group (b): nat, objects, acl (running, desktop-agent slot5)
 - P02c — Schema group (c): vpn, tunnels, services, ha (running, desktop-agent slot6)
 - P03 — gRPC contract agent↔api (messages for all domains, RPC semantics doc) (review, desktop-agent slot7)

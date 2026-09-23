@@ -19,3 +19,8 @@
   natt_disabled are set-only; liveness is global (period, max_retries), no getter; profile add registers VPP-internal
   UDP 500/4500 (refcounted, VPP stack only — not a host socket); govpp decodes id.data (string[64]) up to the first NUL,
   so ip4/ip6 ids containing a zero byte are truncated in the dump.
+- 2026-09-24 ikev2 done: profile (composite, changed-setters-only Update, ErrRecreate on un-settable removals),
+  local-key / liveness (last-applied cache), sleep-interval (ikev2_get_sleep_interval), SA state helper
+  (ikev2_sa_v3_dump + ikev2_child_sa_v2_dump, derived keys zeroed), action helpers. Liveness added as its own
+  singleton (message has no profile name). Unit tests green (15), TestIkev2OnHost green on host (w4).
+  Next: wireguard.

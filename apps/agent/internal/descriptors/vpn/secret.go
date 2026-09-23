@@ -9,7 +9,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
+	"sync"
 )
 
 // Reference prefixes (see the package doc).
@@ -31,50 +33,83 @@ var (
 
 // Resolver returns the material behind a secret reference. The agent's secret store implements
 // it; descriptors call Resolve (below), which also verifies the material against the reference.
-// Implementations must never log ref → material.
+// Implementations must never log ref → material, and must be opaque to fmt/slog: descriptors keep
+// the Resolver in an unexported Config field, and fmt's %+v walks unexported fields by reflection
+// without calling String, so any material reachable by value (a map of []byte, a struct field)
+// would be printed. Keep it behind a pointer, as MapResolver does.
 type Resolver interface {
 	Resolve(ctx context.Context, ref string) ([]byte, error)
 }
 
 // MapResolver is an in-memory Resolver for tests and for callers that ship material next to the
-// desired state. Keys are references (Ref / X25519Ref).
-type MapResolver map[string][]byte
+// desired state. Keys are references (Ref / X25519Ref). The material sits behind a pointer, so
+// formatting a descriptor, its Config or the resolver prints an address or "vpn.MapResolver(n
+// secrets)", never bytes. Safe for concurrent use.
+type MapResolver struct{ s *mapStore }
+
+type mapStore struct {
+	mu sync.RWMutex
+	m  map[string][]byte
+}
 
 // NewMapResolver returns a resolver holding the given symmetric materials under their sha256
 // references.
-func NewMapResolver(materials ...[]byte) MapResolver {
-	m := MapResolver{}
+func NewMapResolver(materials ...[]byte) *MapResolver {
+	m := &MapResolver{s: &mapStore{m: map[string][]byte{}}}
 	for _, mat := range materials {
 		m.Add(mat)
 	}
 	return m
 }
 
+// Put stores material under ref as given, without checking that it matches (tests use it to
+// provoke ErrSecretMismatch).
+func (m *MapResolver) Put(ref string, material []byte) {
+	m.s.mu.Lock()
+	defer m.s.mu.Unlock()
+	m.s.m[ref] = append([]byte(nil), material...)
+}
+
 // Add stores symmetric material under its sha256 reference and returns the reference.
-func (m MapResolver) Add(material []byte) string {
+func (m *MapResolver) Add(material []byte) string {
 	ref := Ref(material)
-	m[ref] = append([]byte(nil), material...)
+	m.Put(ref, material)
 	return ref
 }
 
 // AddX25519 stores a 32-byte X25519 private key under its x25519 reference and returns it.
-func (m MapResolver) AddX25519(private []byte) (string, error) {
+func (m *MapResolver) AddX25519(private []byte) (string, error) {
 	ref, err := X25519Ref(private)
 	if err != nil {
 		return "", err
 	}
-	m[ref] = append([]byte(nil), private...)
+	m.Put(ref, private)
 	return ref, nil
 }
 
 // Resolve implements Resolver.
-func (m MapResolver) Resolve(_ context.Context, ref string) ([]byte, error) {
-	mat, ok := m[ref]
+func (m *MapResolver) Resolve(_ context.Context, ref string) ([]byte, error) {
+	m.s.mu.RLock()
+	mat, ok := m.s.m[ref]
+	m.s.mu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrSecretNotFound, Redact(ref))
 	}
 	return append([]byte(nil), mat...), nil
 }
+
+// String implements fmt.Stringer without revealing references or material.
+func (m *MapResolver) String() string {
+	m.s.mu.RLock()
+	defer m.s.mu.RUnlock()
+	return fmt.Sprintf("vpn.MapResolver(%d secrets)", len(m.s.m))
+}
+
+// GoString implements fmt.GoStringer (%#v) the same way.
+func (m *MapResolver) GoString() string { return m.String() }
+
+// LogValue implements slog.LogValuer.
+func (m *MapResolver) LogValue() slog.Value { return slog.StringValue(m.String()) }
 
 // Ref returns the sha256 reference of symmetric material.
 func Ref(material []byte) string {

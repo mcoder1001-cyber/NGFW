@@ -77,7 +77,8 @@ func TestResolve(t *testing.T) {
 		t.Fatalf("empty ref must resolve to no secret: %v %v", mat, err)
 	}
 	// a resolver that lies about the material is caught
-	bad := vpn.MapResolver{ref: []byte("not the key")}
+	bad := vpn.NewMapResolver()
+	bad.Put(ref, []byte("not the key"))
 	if _, err := vpn.Resolve(ctx, bad, ref); !errors.Is(err, vpn.ErrSecretMismatch) {
 		t.Fatalf("mismatch: %v", err)
 	}

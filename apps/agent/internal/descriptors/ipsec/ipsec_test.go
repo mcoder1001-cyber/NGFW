@@ -558,8 +558,10 @@ func TestNoMaterialInOutput(t *testing.T) {
 	fmt.Fprintf(&buf, "%v %+v %s %v %v %+v", tn, kvs, d.KeyOf(tn), meta, errDisc, errDup)
 	fmt.Fprintf(&buf, "%+v", d)
 	for _, secret := range [][]byte{cryptoKey, integKey} {
-		if bytes.Contains(buf.Bytes(), secret) {
-			t.Fatalf("key material leaked into formatted output:\n%s", buf.String())
+		for _, enc := range []string{string(secret), fmt.Sprint(secret), fmt.Sprintf("%x", secret)} {
+			if strings.Contains(buf.String(), enc) {
+				t.Fatalf("key material leaked into formatted output:\n%s", buf.String())
+			}
 		}
 	}
 	if !strings.Contains(buf.String(), "sha256:") {

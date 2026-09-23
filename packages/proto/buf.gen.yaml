@@ -8,8 +8,16 @@ plugins:
     opt: paths=source_relative
   - local: ./node_modules/.bin/protoc-gen-ts_proto
     out: gen/ts
+    # Well-known types (google.protobuf.Timestamp) are imported by the TS stubs, so they must be
+    # generated alongside them; Go uses the timestamppb module instead.
+    include_imports: true
+    include_wkt: true
     opt:
       - outputServices=grpc-js
       - esModuleInterop=true
       - importSuffix=.js
       - useExactTypes=false
+      # D-039: 64-bit integers (uint64 counters, IpsecRekey.esp_bytes/esp_packets) are `string` in TS.
+      # The default (`number`) throws above 2^53 — 9 PB of absolute byte counters, ~8 days at 100 Gbit/s.
+      # `string` is also the canonical protobuf JSON representation of 64-bit values.
+      - forceLong=string

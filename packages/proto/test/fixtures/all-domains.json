@@ -1,0 +1,381 @@
+{
+  "system": {
+    "hostname": "vrx-a",
+    "timezone": "Asia/Tehran",
+    "banner": { "login": "Authorised access only." },
+    "ntp": {},
+    "dns": {}
+  },
+  "dataplane": {
+    "workers": 4,
+    "corelist": [2, 3, 4, 8],
+    "mainCore": 1,
+    "rxQueues": 2,
+    "txQueues": 2,
+    "hugepagesGb": 4,
+    "pciWhitelist": ["0000:0b:00.0", "0000:13:00.0"]
+  },
+  "interfaces": {
+    "loop0": {
+      "enabled": true,
+      "description": "router id",
+      "ipv4": ["10.255.0.1/32"],
+      "vrf": "default",
+      "promiscuous": true
+    },
+    "TenGigabitEthernet0/0/0": {
+      "enabled": true,
+      "mtu": 9000,
+      "mac": "02:00:00:00:00:01",
+      "ipv4": ["10.0.0.1/24"],
+      "ipv6": ["2001:db8::1/64"],
+      "vrf": "default",
+      "rxMode": "adaptive",
+      "promiscuous": false
+    },
+    "TenGigabitEthernet0/0/1": {
+      "enabled": true,
+      "vrf": "customer-a",
+      "unnumbered": "loop0",
+      "subinterfaces": {
+        "200": {
+          "vlanId": 200,
+          "innerVlanId": 20,
+          "dot1ad": true,
+          "enabled": true,
+          "ipv4": ["192.168.200.1/24"],
+          "vrf": "customer-a"
+        }
+      }
+    }
+  },
+  "vrfs": {
+    "default": { "id": 0 },
+    "customer-a": { "id": 10, "description": "customer A" }
+  },
+  "routing": {
+    "static": [
+      {
+        "prefix": "0.0.0.0/0",
+        "vrf": "default",
+        "nextHops": [
+          { "address": "10.0.0.254", "weight": 1 },
+          { "address": "10.0.0.253", "interface": "TenGigabitEthernet0/0/0", "weight": 2 }
+        ],
+        "distance": 1,
+        "description": "default via upstream"
+      },
+      {
+        "prefix": "192.0.2.0/24",
+        "vrf": "customer-a",
+        "nextHops": [{ "interface": "loop0", "weight": 1 }],
+        "distance": 5
+      }
+    ],
+    "prefixLists": { "pl-default": {} },
+    "routeMaps": { "rm-in": {} },
+    "bgp": {},
+    "bfd": {}
+  },
+  "nat": {
+    "enabled": true,
+    "mode": "ed",
+    "inside": ["TenGigabitEthernet0/0/1"],
+    "outside": ["TenGigabitEthernet0/0/0"],
+    "outputFeature": ["TenGigabitEthernet0/0/0"],
+    "insideVrf": "customer-a",
+    "outsideVrf": "default",
+    "forwarding": false,
+    "staticMappingOnly": false,
+    "connectionTracking": true,
+    "sessionLimit": 100000,
+    "pools": [
+      { "name": "public", "description": "public pool", "range": "203.0.113.10-203.0.113.20", "vrf": "default", "twiceNat": false }
+    ],
+    "staticMappings": [
+      {
+        "name": "web",
+        "description": "port forward",
+        "protocol": "tcp",
+        "local": { "ip": "192.168.200.10", "port": 8080 },
+        "external": { "ip": "203.0.113.10", "port": 80 },
+        "vrf": "customer-a",
+        "twiceNat": false,
+        "selfTwiceNat": false,
+        "out2inOnly": true
+      },
+      {
+        "name": "one-to-one",
+        "local": { "ip": "192.168.200.11" },
+        "external": { "interface": "TenGigabitEthernet0/0/0" },
+        "twiceNat": true,
+        "selfTwiceNat": false,
+        "out2inOnly": false
+      }
+    ],
+    "identityMappings": [
+      { "description": "ssh to self", "interface": "TenGigabitEthernet0/0/0", "protocol": "tcp", "port": 22, "vrf": "default" }
+    ],
+    "loadBalancedMappings": [
+      {
+        "name": "lb-web",
+        "protocol": "tcp",
+        "external": { "ip": "203.0.113.11", "port": 443 },
+        "locals": [
+          { "ip": "192.168.200.20", "port": 8443, "probability": 50, "vrf": "customer-a" },
+          { "ip": "192.168.200.21", "port": 8443, "probability": 50 }
+        ],
+        "affinity": 0,
+        "twiceNat": false,
+        "selfTwiceNat": false,
+        "out2inOnly": false
+      }
+    ],
+    "timeouts": { "udp": 300, "tcpEstablished": 7440, "tcpTransitory": 240, "icmp": 60 },
+    "ipfix": { "enabled": true, "domainId": 1, "sourcePort": 4739 },
+    "nat64": {
+      "enabled": false,
+      "inside": ["TenGigabitEthernet0/0/1"],
+      "outside": ["TenGigabitEthernet0/0/0"],
+      "prefixes": [{ "prefix": "64:ff9b::/96", "vrf": "default" }],
+      "pools": [{ "range": "203.0.113.30-203.0.113.31" }],
+      "staticBibs": [
+        { "description": "bib", "protocol": "tcp", "inside": { "ip": "2001:db8::10", "port": 80 }, "outside": { "ip": "203.0.113.30", "port": 8080 } }
+      ],
+      "timeouts": { "udp": 300, "tcpEstablished": 7440, "tcpTransitory": 240, "icmp": 60 }
+    },
+    "nat66": {
+      "enabled": false,
+      "inside": ["TenGigabitEthernet0/0/1"],
+      "outside": ["TenGigabitEthernet0/0/0"],
+      "staticMappings": [{ "local": "2001:db8:1::10", "external": "2001:db8:2::10", "vrf": "default" }]
+    },
+    "nptv6": {
+      "bindings": [{ "description": "prefix translation", "interface": "TenGigabitEthernet0/0/0", "internal": "fd00::/64", "external": "2001:db8:3::/64" }]
+    },
+    "det44": {
+      "enabled": false,
+      "inside": ["TenGigabitEthernet0/0/1"],
+      "outside": ["TenGigabitEthernet0/0/0"],
+      "insideVrf": "customer-a",
+      "mappings": [{ "description": "det", "inside": "10.0.0.0/8", "outside": "203.0.113.64/26" }],
+      "timeouts": { "udp": 300, "tcpEstablished": 7440, "tcpTransitory": 240, "icmp": 60 }
+    },
+    "dslite": {
+      "enabled": false,
+      "aftr": { "ipv6": "2001:db8:aftr::1", "ipv4": "192.0.0.1" },
+      "b4": { "ipv6": "2001:db8:b4::1" },
+      "pools": [{ "range": "203.0.113.128-203.0.113.130" }]
+    },
+    "map": {
+      "domains": [
+        {
+          "name": "d1",
+          "description": "MAP-E domain",
+          "mode": "map-e",
+          "ipv4Prefix": "192.0.2.0/24",
+          "ipv6Prefix": "2001:db8:map::/48",
+          "ipv6Source": "2001:db8:br::1/128",
+          "eaBitsLength": 16,
+          "psidOffset": 6,
+          "psidLength": 8,
+          "mtu": 1280,
+          "rules": [{ "psid": 1, "ipv6Destination": "2001:db8:map:1::1" }]
+        }
+      ],
+      "parameters": {
+        "fragmentation": { "inner": false, "ignoreDf": false },
+        "icmpSourceAddress": "192.0.2.1",
+        "icmp6Unreachables": true,
+        "securityCheck": { "enabled": true, "fragments": false },
+        "tcpMss": 1360,
+        "trafficClass": { "copy": true },
+        "preResolve": { "ipv4": "10.0.0.254" }
+      }
+    },
+    "cnat": {
+      "translations": [
+        {
+          "name": "svc",
+          "protocol": "tcp",
+          "vip": { "ip": "203.0.113.200", "port": 443 },
+          "backends": [{ "ip": "192.168.200.30", "port": 8443 }],
+          "lbType": "default"
+        }
+      ],
+      "snat": {
+        "policy": "interface",
+        "addresses": { "ipv4": "203.0.113.201" },
+        "interfaces": [{ "interface": "TenGigabitEthernet0/0/0", "side": "outside" }],
+        "excludePrefixes": ["10.0.0.0/8"]
+      }
+    }
+  },
+  "objects": {
+    "addresses": {
+      "h1": { "type": "host", "address": "192.168.200.10", "description": "web server", "tags": ["prod"] },
+      "n1": { "type": "network", "prefix": "192.168.200.0/24" },
+      "r1": { "type": "range", "start": "192.168.200.100", "end": "192.168.200.199" },
+      "f1": { "type": "fqdn", "fqdn": "updates.example.net" }
+    },
+    "addressGroups": { "servers": { "description": "all servers", "members": ["h1", "n1"] } },
+    "services": {
+      "https": { "protocol": "tcp", "destinationPorts": ["443"], "tcpFlags": { "mask": 2, "value": 2 }, "description": "TLS" },
+      "ping": { "protocol": "icmp", "type": 8, "code": 0 },
+      "gre": { "protocol": "ip", "number": 47 }
+    },
+    "serviceGroups": { "web": { "members": ["https"], "tags": ["prod"] } },
+    "schedules": {
+      "office": { "type": "recurring", "days": ["mon", "tue", "wed", "thu", "fri"], "start": "08:00", "end": "18:00", "description": "office hours" }
+    },
+    "zones": { "lan": { "description": "inside", "interfaces": ["TenGigabitEthernet0/0/1"] } },
+    "tags": { "prod": { "description": "production", "color": "#ff0000" } }
+  },
+  "acl": {
+    "lists": {
+      "edge-in": {
+        "description": "edge inbound",
+        "tags": ["prod"],
+        "rules": [
+          {
+            "sequence": 10,
+            "description": "allow web",
+            "enabled": true,
+            "action": "permit",
+            "ipVersion": "ipv4",
+            "source": { "kind": "any" },
+            "destination": { "kind": "object", "name": "h1" },
+            "service": { "kind": "object", "name": "https" },
+            "schedule": "office",
+            "log": true
+          },
+          {
+            "sequence": 20,
+            "enabled": false,
+            "action": "deny",
+            "ipVersion": "any",
+            "source": { "kind": "prefix", "prefix": "0.0.0.0/0" },
+            "destination": { "kind": "any" },
+            "service": { "kind": "spec", "spec": { "protocol": "udp", "destinationPorts": ["53"] } },
+            "log": false
+          }
+        ]
+      }
+    },
+    "macip": {
+      "guest-macip": {
+        "rules": [{ "sequence": 1, "action": "permit", "sourceMac": "02:00:00:00:00:10", "sourceMacMask": "ff:ff:ff:ff:ff:ff", "sourcePrefix": "192.168.200.10/32" }]
+      }
+    },
+    "host": {
+      "mgmt-in": {
+        "rules": [
+          { "sequence": 1, "enabled": true, "action": "permit", "ipVersion": "ipv4", "source": { "kind": "object", "name": "n1" }, "destination": { "kind": "any" }, "service": { "kind": "spec", "spec": { "protocol": "tcp", "destinationPorts": ["22", "443"] } }, "interface": "TenGigabitEthernet0/0/0", "log": false }
+        ]
+      }
+    },
+    "attachments": [
+      { "list": "edge-in", "target": { "kind": "interface", "interface": "TenGigabitEthernet0/0/0" }, "direction": "in", "sequence": 1, "enabled": true },
+      { "list": "edge-in", "target": { "kind": "zone", "zone": "lan" }, "direction": "out", "sequence": 2, "vrf": "customer-a", "enabled": false, "description": "disabled" }
+    ],
+    "macipAttachments": [{ "list": "guest-macip", "interface": "TenGigabitEthernet0/0/1", "enabled": true }],
+    "hostAttachments": [{ "list": "mgmt-in", "chain": "input", "priority": -10, "enabled": true }]
+  },
+  "vpn": {
+    "ipsec": {
+      "settings": { "cryptoEngine": "native", "asyncCrypto": false },
+      "proposals": {
+        "default": { "description": "AES-GCM", "ike": { "encr": "aes256gcm16", "prf": "prfsha384", "dh": "ecp384" }, "esp": { "encr": "aes256gcm16", "dh": "ecp384" } }
+      },
+      "tunnels": {
+        "site-b": {
+          "enabled": true,
+          "description": "to site B",
+          "engine": "strongswan",
+          "ikeVersion": 2,
+          "mode": "tunnel",
+          "protocol": "esp",
+          "localAddr": "10.0.0.1",
+          "remoteAddr": "192.0.2.1",
+          "localId": "vrx-a",
+          "remoteId": "site-b",
+          "auth": { "method": "psk", "secretRef": "psk/site-b" },
+          "proposal": "default",
+          "localTs": ["192.168.200.0/24"],
+          "remoteTs": ["10.99.0.0/24"],
+          "dpd": { "enabled": true, "delaySec": 30, "timeoutSec": 120, "action": "restart" },
+          "natT": true,
+          "mobike": false,
+          "rekey": { "ikeSec": 14400, "espSec": 3600, "espBytes": "1073741824", "reauth": false },
+          "startAction": "start",
+          "closeAction": "restart",
+          "vrf": "default",
+          "routeBased": { "ipipInterface": "ipip0" },
+          "esn": true,
+          "antiReplay": true
+        }
+      }
+    },
+    "wireguard": {
+      "interfaces": {
+        "wg0": {
+          "enabled": true,
+          "instance": 0,
+          "vrf": "default",
+          "underlayVrf": "default",
+          "listenAddress": "10.0.0.1",
+          "listenPort": 51820,
+          "privateKeyRef": "wg/wg0",
+          "address": ["10.200.0.1/24"],
+          "mtu": 1420,
+          "peers": {
+            "laptop": {
+              "description": "road warrior",
+              "publicKey": "VRX_TEST_PUBKEY_wg0_laptop",
+              "presharedKeyRef": "wg/wg0/laptop",
+              "endpoint": { "address": "198.51.100.7", "port": 51820 },
+              "allowedIps": ["10.200.0.2/32"],
+              "persistentKeepaliveSec": 25
+            }
+          }
+        }
+      }
+    },
+    "pki": {
+      "cas": { "lab-ca": { "description": "lab CA", "certificateRef": "pki/ca/lab", "crl": { "url": "http://pki.example.net/lab.crl", "refreshIntervalSec": 86400 } } },
+      "certificates": {
+        "api": { "certificateRef": "pki/cert/api", "privateKeyRef": "pki/key/api", "ca": "lab-ca", "expiryAlertDays": 30 },
+        "acme-edge": { "privateKeyRef": "pki/key/edge", "acme": { "directoryUrl": "https://acme.example.net/directory", "domains": ["edge.example.net"], "challenge": "http-01" }, "expiryAlertDays": 14 }
+      },
+      "hsm": { "enabled": false, "module": "/usr/lib/softhsm/libsofthsm2.so" }
+    },
+    "remoteAccess": {
+      "employees": {
+        "enabled": true,
+        "localAddr": "10.0.0.1",
+        "vrf": "default",
+        "auth": "eap-mschapv2",
+        "certificate": "api",
+        "proposal": "default",
+        "pools": [{ "name": "ra-pool", "prefix": "10.201.0.0/24", "dns": ["10.255.0.1"] }],
+        "splitTunnel": ["192.168.200.0/24"],
+        "users": [{ "username": "alice", "passwordRef": "ra/alice" }],
+        "radius": { "servers": [{ "address": "10.255.0.5", "port": 1812, "secretRef": "aaa/radius/ra" }] },
+        "dpd": { "enabled": true, "delaySec": 30, "timeoutSec": 120, "action": "clear" },
+        "rekey": { "ikeSec": 14400, "espSec": 3600, "reauth": true }
+      }
+    }
+  },
+  "tunnels": { "gre": { "gre0": {} }, "vxlan": { "vx100": {} }, "ipip": { "ipip0": {} } },
+  "services": { "dhcp": {}, "dns": {}, "snmp": {}, "lldp": {}, "ipfix": {} },
+  "ha": { "vrrp": [{}] },
+  "management": {
+    "users": [
+      { "username": "admin", "role": "admin", "scope": "*", "sshKeys": ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyMaterialForTestsOnly0000000000 admin@lab"], "disabled": false },
+      { "username": "auditor", "role": "readonly", "scope": "*", "fullName": "Audit Account", "disabled": true }
+    ],
+    "aaa": {},
+    "tls": {},
+    "syslog": [{}]
+  }
+}

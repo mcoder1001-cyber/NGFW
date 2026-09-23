@@ -8,8 +8,8 @@ Updated 2026-09-23 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|
 | merged | 1 |
 | review | 0 |
-| running | 0 |
-| ready | 4 |
+| running | 4 |
+| ready | 0 |
 | parked | 1 |
 | failed | 0 |
 | todo | 72 |
@@ -17,7 +17,7 @@ Updated 2026-09-23 from plan/tasks.yaml (estimated hours are the plan's, not act
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
-| S1 | 0 / 68 | 0.0% | 0/8 | 0 | 4 | 0 |
+| S1 | 0 / 68 | 0.0% | 0/8 | 4 | 0 | 0 |
 | S2 | 0 / 215 | 0.0% | 0/16 | 0 | 0 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
 | S4 | 0 / 372 | 0.0% | 0/36 | 0 | 0 | 1 |
@@ -26,6 +26,10 @@ Updated 2026-09-23 from plan/tasks.yaml (estimated hours are the plan's, not act
 
 ## Running / review
 
+- P02s — Schema skeleton: 13 domain files, index, primitives/diff/merge-patch stubs, gen (running, unassigned)
+- P05a — Agent interfaces: scheduler Descriptor, fake VPP client, renderer interface, READMEs (running, unassigned)
+- P04 — Lab tooling (local mode for vrx-a), veth/netns packet rig, binapi for all plugins, local postgres/valkey (running, unassigned)
+- P09 — CI gate for local-only git (tools/ci.sh quick|full|--base, hooks, golangci-lint, gitleaks) (running, unassigned)
 
 ## Parked
 

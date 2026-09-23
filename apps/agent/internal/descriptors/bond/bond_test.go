@@ -27,9 +27,9 @@ var ctx = context.Background()
 
 type fakeBond struct {
 	*ifacetest.VPP
-	bonds   map[uint32]*bondapi.SwBondInterfaceDetails
-	members map[uint32]*bondapi.SwMemberInterfaceDetails // member sw_if_index → details
-	ofBond  map[uint32]uint32                             // member → bond
+	bonds            map[uint32]*bondapi.SwBondInterfaceDetails
+	members          map[uint32]*bondapi.SwMemberInterfaceDetails // member sw_if_index → details
+	ofBond           map[uint32]uint32                            // member → bond
 	tap, tap2, other uint32
 }
 

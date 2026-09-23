@@ -2,6 +2,7 @@ package l2_test
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -71,7 +72,7 @@ func (h *hostFixture) tap(td *tapv2.TapDescriptor, i int) string {
 	return string(td.KeyOf(desired))
 }
 
-func itoa(i int) string { return string(rune('0'+i/10)) + string(rune('0'+i%10)) }
+func itoa(i int) string { return strconv.Itoa(i) }
 
 func TestL2OnHost(t *testing.T) {
 	vpptest.SkipUnlessIntegration(t)

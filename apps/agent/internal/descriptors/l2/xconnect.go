@@ -22,17 +22,22 @@ import (
 type XconnectDescriptor struct{ base }
 
 // NewXconnect returns the descriptor for owner.
-func NewXconnect(c vpp.Client, owner string) *XconnectDescriptor { return &XconnectDescriptor{base{c, owner}} }
+func NewXconnect(c vpp.Client, owner string) *XconnectDescriptor {
+	return &XconnectDescriptor{base{c, owner}}
+}
 
 // XcMeta holds both indexes: Delete needs rx, Update replaces tx in place.
 type XcMeta struct{ Rx, Tx uint32 }
 
+// Name implements scheduler.Descriptor.
 func (*XconnectDescriptor) Name() string { return XconnectName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*XconnectDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(XconnectName, iface.RefID(obj.(*Xconnect).GetRx()))
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*XconnectDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	o := obj.(*Xconnect)
 	return []scheduler.Dependency{{Key: scheduler.Key(o.GetRx())}, {Key: scheduler.Key(o.GetTx())}}
@@ -48,6 +53,7 @@ func (d *XconnectDescriptor) set(ctx context.Context, rx, tx uint32, enable bool
 	return nil
 }
 
+// Create implements scheduler.Descriptor.
 func (d *XconnectDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*Xconnect)
 	if !ok {
@@ -88,6 +94,7 @@ func (d *XconnectDescriptor) Update(ctx context.Context, oldObj, newObj proto.Me
 	return XcMeta{m.Rx, tx}, nil
 }
 
+// Delete implements scheduler.Descriptor.
 func (d *XconnectDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
 	m, ok := meta.(XcMeta)
 	if !ok {
@@ -96,6 +103,7 @@ func (d *XconnectDescriptor) Delete(ctx context.Context, _ proto.Message, meta a
 	return d.set(ctx, m.Rx, m.Tx, false)
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *XconnectDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := iface.Dump(ctx, d.client, d.owner)
 	if err != nil {

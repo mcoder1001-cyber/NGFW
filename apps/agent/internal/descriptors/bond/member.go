@@ -19,23 +19,29 @@ import (
 type MemberDescriptor struct{ base }
 
 // NewMember returns the descriptor for owner.
-func NewMember(c vpp.Client, owner string) *MemberDescriptor { return &MemberDescriptor{base{c, owner}} }
+func NewMember(c vpp.Client, owner string) *MemberDescriptor {
+	return &MemberDescriptor{base{c, owner}}
+}
 
 // MemberMeta holds the member and bond indexes.
 type MemberMeta struct{ SwIfIndex, Bond uint32 }
 
+// Name implements scheduler.Descriptor.
 func (*MemberDescriptor) Name() string { return MemberName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*MemberDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	o := obj.(*Member)
 	return scheduler.Join(MemberName, iface.RefID(o.GetBond()), iface.RefID(o.GetInterface()))
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*MemberDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	o := obj.(*Member)
 	return []scheduler.Dependency{{Key: scheduler.Key(o.GetBond())}, {Key: scheduler.Key(o.GetInterface())}}
 }
 
+// Create implements scheduler.Descriptor.
 func (d *MemberDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*Member)
 	if !ok {
@@ -63,11 +69,12 @@ func (d *MemberDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	return MemberMeta{SwIfIndex: member, Bond: bond}, nil
 }
 
-// Update: passive / long-timeout are LACP negotiation parameters fixed at attach → recreate.
+// Update implements scheduler.Descriptor: passive / long-timeout are LACP negotiation parameters fixed at attach → recreate.
 func (*MemberDescriptor) Update(context.Context, proto.Message, proto.Message, any) (any, error) {
 	return nil, scheduler.ErrRecreate
 }
 
+// Delete implements scheduler.Descriptor.
 func (d *MemberDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
 	m, ok := meta.(MemberMeta)
 	if !ok {
@@ -79,6 +86,7 @@ func (d *MemberDescriptor) Delete(ctx context.Context, _ proto.Message, meta any
 	return nil
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *MemberDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := iface.Dump(ctx, d.client, d.owner)
 	if err != nil {

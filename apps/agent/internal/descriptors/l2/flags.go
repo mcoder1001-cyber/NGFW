@@ -27,12 +27,15 @@ type FlagsDescriptor struct{ base }
 // NewFlags returns the descriptor for owner.
 func NewFlags(c vpp.Client, owner string) *FlagsDescriptor { return &FlagsDescriptor{base{c, owner}} }
 
+// Name implements scheduler.Descriptor.
 func (*FlagsDescriptor) Name() string { return FlagsName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*FlagsDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(FlagsName, iface.RefID(obj.(*Flags).GetInterface()))
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*FlagsDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	return []scheduler.Dependency{{Key: scheduler.Key(obj.(*Flags).GetInterface())}}
 }
@@ -115,14 +118,15 @@ func (d *FlagsDescriptor) apply(ctx context.Context, idx uint32, want l2api.L2In
 			return fmt.Errorf("l2_interface_feat_flags_set: %w", err)
 		}
 	}
-	if clear := cur.Flags &^ want; clear != 0 {
-		if _, err := d.svc().L2InterfaceFeatFlagsSet(ctx, &l2api.L2InterfaceFeatFlagsSet{SwIfIndex: interface_types.InterfaceIndex(idx), IsSet: false, Flags: clear}); err != nil {
+	if clr := cur.Flags &^ want; clr != 0 {
+		if _, err := d.svc().L2InterfaceFeatFlagsSet(ctx, &l2api.L2InterfaceFeatFlagsSet{SwIfIndex: interface_types.InterfaceIndex(idx), IsSet: false, Flags: clr}); err != nil {
 			return fmt.Errorf("l2_interface_feat_flags_set: %w", err)
 		}
 	}
 	return nil
 }
 
+// Create implements scheduler.Descriptor.
 func (d *FlagsDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*Flags)
 	if !ok {
@@ -142,6 +146,7 @@ func (d *FlagsDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 	return iface.Meta{SwIfIndex: idx}, d.apply(ctx, idx, featOf(o))
 }
 
+// Update implements scheduler.Descriptor.
 func (d *FlagsDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	m, err := iface.MetaOf(meta)
 	if err != nil {
@@ -174,6 +179,7 @@ func (d *FlagsDescriptor) Delete(ctx context.Context, _ proto.Message, meta any)
 	return d.apply(ctx, m.SwIfIndex, memberDefault(bd, m.SwIfIndex))
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *FlagsDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	bds, err := d.bridgeDomains(ctx)
 	if err != nil {

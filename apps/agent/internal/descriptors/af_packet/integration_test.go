@@ -21,14 +21,14 @@ func veth(t *testing.T, name, peer string) {
 	t.Helper()
 	run := func(args ...string) {
 		t.Helper()
-		out, err := exec.Command("/usr/sbin/ip", args...).CombinedOutput() // ALLOW: fixed argv rig helper
+		out, err := exec.Command("/usr/sbin/ip", args...).CombinedOutput() //nolint:gosec // G204 ALLOW: fixed argv rig helper
 		if err != nil {
 			t.Fatalf("ip %v: %v: %s", args, err, out)
 		}
 	}
-	_ = exec.Command("/usr/sbin/ip", "link", "del", name).Run() // ALLOW: leftover from an aborted run
+	_ = exec.Command("/usr/sbin/ip", "link", "del", name).Run() //nolint:gosec // G204 ALLOW: leftover from an aborted run
 	run("link", "add", name, "type", "veth", "peer", "name", peer)
-	t.Cleanup(func() { _ = exec.Command("/usr/sbin/ip", "link", "del", name).Run() }) // ALLOW: cleanup
+	t.Cleanup(func() { _ = exec.Command("/usr/sbin/ip", "link", "del", name).Run() }) //nolint:gosec // G204 ALLOW: cleanup
 	run("link", "set", name, "up")
 	run("link", "set", peer, "up")
 }

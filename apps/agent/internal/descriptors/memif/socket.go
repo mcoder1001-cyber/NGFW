@@ -64,16 +64,22 @@ func SocketKey(id uint32) scheduler.Key {
 	return scheduler.Join(SocketName, strconv.FormatUint(uint64(id), 10))
 }
 
+// Name implements scheduler.Descriptor.
 func (*SocketDescriptor) Name() string { return SocketName }
 
-func (*SocketDescriptor) KeyOf(obj proto.Message) scheduler.Key { return SocketKey(obj.(*Socket).GetId()) }
+// KeyOf implements scheduler.Descriptor.
+func (*SocketDescriptor) KeyOf(obj proto.Message) scheduler.Key {
+	return SocketKey(obj.(*Socket).GetId())
+}
 
+// Dependencies implements scheduler.Descriptor.
 func (*SocketDescriptor) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 
 func (d *SocketDescriptor) owned(filename string) bool {
 	return filepath.Dir(filepath.Clean(filename)) == d.dir && filepath.Base(filename) != "."
 }
 
+// Create implements scheduler.Descriptor.
 func (d *SocketDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*Socket)
 	if !ok {
@@ -95,10 +101,12 @@ func (d *SocketDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	return SocketMeta{o.GetId()}, nil
 }
 
+// Update implements scheduler.Descriptor.
 func (*SocketDescriptor) Update(context.Context, proto.Message, proto.Message, any) (any, error) {
 	return nil, scheduler.ErrRecreate
 }
 
+// Delete implements scheduler.Descriptor.
 func (d *SocketDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	m, ok := meta.(SocketMeta)
 	if !ok {
@@ -115,6 +123,7 @@ func (d *SocketDescriptor) Delete(ctx context.Context, obj proto.Message, meta a
 	return nil
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *SocketDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	stream, err := d.svc().MemifSocketFilenameDump(ctx, &memifapi.MemifSocketFilenameDump{})
 	if err != nil {

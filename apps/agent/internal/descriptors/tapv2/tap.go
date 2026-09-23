@@ -35,12 +35,15 @@ func New(c vpp.Client, owner string) *TapDescriptor { return &TapDescriptor{c, o
 
 func (d *TapDescriptor) svc() tapapi.RPCService { return tapapi.NewServiceClient(d.client) }
 
+// Name implements scheduler.Descriptor.
 func (*TapDescriptor) Name() string { return TapName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*TapDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(TapName, obj.(*Tap).GetName())
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*TapDescriptor) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 
 func ip4Prefix(s string) (ip_types.IP4AddressWithPrefix, bool, error) {
@@ -79,6 +82,7 @@ func formatIP6Prefix(p ip_types.IP6AddressWithPrefix) string {
 	return netip.PrefixFrom(netip.AddrFrom16(p.Address), int(p.Len)).String()
 }
 
+// Create implements scheduler.Descriptor.
 func (d *TapDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*Tap)
 	if !ok {
@@ -137,10 +141,12 @@ func (d *TapDescriptor) Create(ctx context.Context, obj proto.Message) (any, err
 	return iface.Meta{SwIfIndex: uint32(rep.SwIfIndex)}, nil
 }
 
+// Update implements scheduler.Descriptor.
 func (*TapDescriptor) Update(context.Context, proto.Message, proto.Message, any) (any, error) {
 	return nil, scheduler.ErrRecreate
 }
 
+// Delete implements scheduler.Descriptor.
 func (d *TapDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
 	m, err := iface.MetaOf(meta)
 	if err != nil {
@@ -162,6 +168,7 @@ func Decode(name string, t *tapapi.SwInterfaceTapV2Details) *Tap {
 	}
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *TapDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := iface.Dump(ctx, d.client, d.owner)
 	if err != nil {

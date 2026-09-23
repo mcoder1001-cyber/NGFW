@@ -31,7 +31,7 @@ type key struct {
 
 type fakeL3xc struct {
 	*ifacetest.VPP
-	xcs             map[key]l3xcapi.L3xc
+	xcs              map[key]l3xcapi.L3xc
 	loop, tap, other uint32
 }
 

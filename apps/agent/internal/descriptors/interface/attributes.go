@@ -58,7 +58,7 @@ func dep(ref string) []scheduler.Dependency {
 
 // ---------------------------------------------------------------------------- admin-state
 
-// AdminState implements interface.admin-state (sw_interface_set_flags).
+// AdminStateDescriptor implements interface.admin-state (sw_interface_set_flags).
 type AdminStateDescriptor struct{ base }
 
 // NewAdminState returns the descriptor for owner.
@@ -66,12 +66,15 @@ func NewAdminState(c vpp.Client, owner string) *AdminStateDescriptor {
 	return &AdminStateDescriptor{base{c, owner}}
 }
 
+// Name implements scheduler.Descriptor.
 func (*AdminStateDescriptor) Name() string { return AdminStateName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*AdminStateDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(AdminStateName, RefID(obj.(*AdminState).GetInterface()))
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*AdminStateDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	return dep(obj.(*AdminState).GetInterface())
 }
@@ -87,6 +90,7 @@ func (d *AdminStateDescriptor) setFlags(ctx context.Context, idx uint32, up bool
 	return nil
 }
 
+// Create implements scheduler.Descriptor.
 func (d *AdminStateDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*AdminState)
 	if !ok {
@@ -104,6 +108,7 @@ func (d *AdminStateDescriptor) Update(_ context.Context, _, _ proto.Message, met
 	return MetaOf(meta)
 }
 
+// Delete implements scheduler.Descriptor.
 func (d *AdminStateDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
 	m, err := MetaOf(meta)
 	if err != nil {
@@ -112,6 +117,7 @@ func (d *AdminStateDescriptor) Delete(ctx context.Context, _ proto.Message, meta
 	return d.setFlags(ctx, m.SwIfIndex, false)
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *AdminStateDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := Dump(ctx, d.client, d.owner)
 	if err != nil {
@@ -167,12 +173,15 @@ func mtuOf(d *ifapi.SwInterfaceDetails) [4]uint32 {
 // NewMtu returns the descriptor for owner.
 func NewMtu(c vpp.Client, owner string) *MtuDescriptor { return &MtuDescriptor{base{c, owner}} }
 
+// Name implements scheduler.Descriptor.
 func (*MtuDescriptor) Name() string { return MtuName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*MtuDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(MtuName, RefID(obj.(*Mtu).GetInterface()))
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*MtuDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	return dep(obj.(*Mtu).GetInterface())
 }
@@ -185,6 +194,7 @@ func (d *MtuDescriptor) set(ctx context.Context, idx uint32, m [4]uint32) error 
 	return nil
 }
 
+// Create implements scheduler.Descriptor.
 func (d *MtuDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*Mtu)
 	if !ok {
@@ -202,6 +212,7 @@ func (d *MtuDescriptor) Create(ctx context.Context, obj proto.Message) (any, err
 
 func mtuArr(o *Mtu) [4]uint32 { return [4]uint32{o.GetMtu(), o.GetIp4(), o.GetIp6(), o.GetMpls()} }
 
+// Update implements scheduler.Descriptor.
 func (d *MtuDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	m, err := MetaOf(meta)
 	if err != nil {
@@ -233,6 +244,7 @@ func (d *MtuDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) e
 	return d.set(ctx, m.SwIfIndex, defaultMtu(det))
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *MtuDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := Dump(ctx, d.client, d.owner)
 	if err != nil {
@@ -278,12 +290,15 @@ func NewMacAddress(c vpp.Client, owner string) *MacAddressDescriptor {
 	return &MacAddressDescriptor{base: base{c, owner}, set: make(map[uint32]bool)}
 }
 
+// Name implements scheduler.Descriptor.
 func (*MacAddressDescriptor) Name() string { return MacAddressName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*MacAddressDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(MacAddressName, RefID(obj.(*MacAddress).GetInterface()))
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*MacAddressDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	return dep(obj.(*MacAddress).GetInterface())
 }
@@ -321,6 +336,7 @@ func (d *MacAddressDescriptor) apply(ctx context.Context, idx uint32, mac string
 	return nil
 }
 
+// Create implements scheduler.Descriptor.
 func (d *MacAddressDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*MacAddress)
 	if !ok {
@@ -333,6 +349,7 @@ func (d *MacAddressDescriptor) Create(ctx context.Context, obj proto.Message) (a
 	return Meta{idx}, d.apply(ctx, idx, o.GetMac())
 }
 
+// Update implements scheduler.Descriptor.
 func (d *MacAddressDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	m, err := MetaOf(meta)
 	if err != nil {
@@ -357,6 +374,7 @@ func (d *MacAddressDescriptor) Delete(_ context.Context, _ proto.Message, meta a
 	return nil
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *MacAddressDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := Dump(ctx, d.client, d.owner)
 	if err != nil {
@@ -405,12 +423,15 @@ func NewPromisc(c vpp.Client, owner string) *PromiscDescriptor {
 	return &PromiscDescriptor{base: base{c, owner}, on: make(map[uint32]bool)}
 }
 
+// Name implements scheduler.Descriptor.
 func (*PromiscDescriptor) Name() string { return PromiscName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*PromiscDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(PromiscName, RefID(obj.(*Promisc).GetInterface()))
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*PromiscDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	return dep(obj.(*Promisc).GetInterface())
 }
@@ -429,6 +450,7 @@ func (d *PromiscDescriptor) set(ctx context.Context, idx uint32, on bool) error 
 	return nil
 }
 
+// Create implements scheduler.Descriptor.
 func (d *PromiscDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*Promisc)
 	if !ok {
@@ -441,10 +463,12 @@ func (d *PromiscDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	return Meta{idx}, d.set(ctx, idx, true)
 }
 
+// Update implements scheduler.Descriptor.
 func (d *PromiscDescriptor) Update(_ context.Context, _, _ proto.Message, meta any) (any, error) {
 	return MetaOf(meta)
 }
 
+// Delete implements scheduler.Descriptor.
 func (d *PromiscDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
 	m, err := MetaOf(meta)
 	if err != nil {
@@ -453,6 +477,7 @@ func (d *PromiscDescriptor) Delete(ctx context.Context, _ proto.Message, meta an
 	return d.set(ctx, m.SwIfIndex, false)
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *PromiscDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := Dump(ctx, d.client, d.owner)
 	if err != nil {
@@ -519,14 +544,19 @@ func (b base) resolveDetails(ctx context.Context, ref string) (uint32, *ifapi.Sw
 }
 
 // NewRxMode returns the descriptor for owner.
-func NewRxMode(c vpp.Client, owner string) *RxModeDescriptor { return &RxModeDescriptor{base{c, owner}} }
+func NewRxMode(c vpp.Client, owner string) *RxModeDescriptor {
+	return &RxModeDescriptor{base{c, owner}}
+}
 
+// Name implements scheduler.Descriptor.
 func (*RxModeDescriptor) Name() string { return RxModeName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*RxModeDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(RxModeName, RefID(obj.(*RxMode).GetInterface()))
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*RxModeDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	return dep(obj.(*RxMode).GetInterface())
 }
@@ -560,6 +590,7 @@ func (d *RxModeDescriptor) set(ctx context.Context, idx uint32, mode interface_t
 	return nil
 }
 
+// Create implements scheduler.Descriptor.
 func (d *RxModeDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*RxMode)
 	if !ok {
@@ -579,6 +610,7 @@ func (d *RxModeDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	return Meta{idx}, d.set(ctx, idx, mode)
 }
 
+// Update implements scheduler.Descriptor.
 func (d *RxModeDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	m, err := MetaOf(meta)
 	if err != nil {
@@ -643,6 +675,7 @@ func placements(ctx context.Context, client vpp.Client) (map[uint32][]*ifapi.SwI
 	return out, nil
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *RxModeDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := Dump(ctx, d.client, d.owner)
 	if err != nil {
@@ -686,13 +719,16 @@ func NewRxPlacement(c vpp.Client, owner string) *RxPlacementDescriptor {
 	return &RxPlacementDescriptor{base{c, owner}}
 }
 
+// Name implements scheduler.Descriptor.
 func (*RxPlacementDescriptor) Name() string { return RxPlacementName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*RxPlacementDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	o := obj.(*RxPlacement)
 	return scheduler.Join(RxPlacementName, RefID(o.GetInterface()), strconv.FormatUint(uint64(o.GetQueue()), 10))
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*RxPlacementDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	return dep(obj.(*RxPlacement).GetInterface())
 }
@@ -705,6 +741,7 @@ func (d *RxPlacementDescriptor) set(ctx context.Context, idx uint32, o *RxPlacem
 	return nil
 }
 
+// Create implements scheduler.Descriptor.
 func (d *RxPlacementDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*RxPlacement)
 	if !ok {
@@ -717,6 +754,7 @@ func (d *RxPlacementDescriptor) Create(ctx context.Context, obj proto.Message) (
 	return Meta{idx}, d.set(ctx, idx, o, false)
 }
 
+// Update implements scheduler.Descriptor.
 func (d *RxPlacementDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	m, err := MetaOf(meta)
 	if err != nil {
@@ -729,6 +767,7 @@ func (d *RxPlacementDescriptor) Update(ctx context.Context, oldObj, newObj proto
 	return m, d.set(ctx, m.SwIfIndex, n, false)
 }
 
+// Delete implements scheduler.Descriptor.
 func (d *RxPlacementDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	m, err := MetaOf(meta)
 	if err != nil {
@@ -741,6 +780,7 @@ func (d *RxPlacementDescriptor) Delete(ctx context.Context, obj proto.Message, m
 	return d.set(ctx, m.SwIfIndex, o, true)
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *RxPlacementDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := Dump(ctx, d.client, d.owner)
 	if err != nil {

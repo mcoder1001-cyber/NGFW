@@ -23,12 +23,15 @@ func NewVlanTagRewrite(c vpp.Client, owner string) *VlanTagRewriteDescriptor {
 	return &VlanTagRewriteDescriptor{base{c, owner}}
 }
 
+// Name implements scheduler.Descriptor.
 func (*VlanTagRewriteDescriptor) Name() string { return VlanTagRewriteName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*VlanTagRewriteDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(VlanTagRewriteName, iface.RefID(obj.(*VlanTagRewrite).GetInterface()))
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*VlanTagRewriteDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	return []scheduler.Dependency{{Key: scheduler.Key(obj.(*VlanTagRewrite).GetInterface())}}
 }
@@ -50,6 +53,7 @@ func (d *VlanTagRewriteDescriptor) set(ctx context.Context, idx uint32, o *VlanT
 	return nil
 }
 
+// Create implements scheduler.Descriptor.
 func (d *VlanTagRewriteDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*VlanTagRewrite)
 	if !ok {
@@ -65,6 +69,7 @@ func (d *VlanTagRewriteDescriptor) Create(ctx context.Context, obj proto.Message
 	return iface.Meta{SwIfIndex: idx}, d.set(ctx, idx, o)
 }
 
+// Update implements scheduler.Descriptor.
 func (d *VlanTagRewriteDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	m, err := iface.MetaOf(meta)
 	if err != nil {
@@ -80,6 +85,7 @@ func (d *VlanTagRewriteDescriptor) Update(ctx context.Context, oldObj, newObj pr
 	return m, d.set(ctx, m.SwIfIndex, n)
 }
 
+// Delete implements scheduler.Descriptor.
 func (d *VlanTagRewriteDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
 	m, err := iface.MetaOf(meta)
 	if err != nil {
@@ -88,6 +94,7 @@ func (d *VlanTagRewriteDescriptor) Delete(ctx context.Context, _ proto.Message, 
 	return d.set(ctx, m.SwIfIndex, &VlanTagRewrite{Op: VtrOp_VTR_OP_DISABLED})
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *VlanTagRewriteDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := iface.Dump(ctx, d.client, d.owner)
 	if err != nil {

@@ -1,10 +1,11 @@
 package l2_test
 
 import (
-	"fmt"
 	"context"
 	"errors"
+	"fmt"
 	"sort"
+	"strconv"
 	"testing"
 
 	"go.fd.io/govpp/api"
@@ -31,13 +32,13 @@ var ctx = context.Background()
 // fakeL2 extends the interface fake with bridge domains, xconnects, the L2 FIB and feature flags.
 type fakeL2 struct {
 	*ifacetest.VPP
-	bds     map[uint32]*l2api.BridgeDomainDetails
-	members map[uint32]uint32 // sw_if_index → bd_id
-	shg     map[uint32]uint8
-	ptype   map[uint32]l2api.L2PortType
-	xc      map[uint32]uint32 // rx → tx
-	fib     map[string]*l2api.L2FibTableDetails
-	feat    map[uint32]l2api.L2IntfFeatFlags
+	bds                    map[uint32]*l2api.BridgeDomainDetails
+	members                map[uint32]uint32 // sw_if_index → bd_id
+	shg                    map[uint32]uint8
+	ptype                  map[uint32]l2api.L2PortType
+	xc                     map[uint32]uint32 // rx → tx
+	fib                    map[string]*l2api.L2FibTableDetails
+	feat                   map[uint32]l2api.L2IntfFeatFlags
 	loop, tap, tap2, other uint32
 }
 
@@ -188,7 +189,7 @@ func newFake() *fakeL2 {
 		if _, ok := f.bds[r.BdID]; !ok {
 			return []api.Message{&l2api.L2fibAddDelReply{Retval: -1}}, nil
 		}
-		k := r.Mac.String() + "@" + string(rune(r.BdID))
+		k := r.Mac.String() + "@" + strconv.FormatUint(uint64(r.BdID), 10)
 		if r.IsAdd {
 			f.fib[k] = &l2api.L2FibTableDetails{BdID: r.BdID, Mac: r.Mac, SwIfIndex: r.SwIfIndex, StaticMac: r.StaticMac || r.FilterMac, FilterMac: r.FilterMac, BviMac: r.BviMac} // VPP: filter ⇒ static
 		} else {

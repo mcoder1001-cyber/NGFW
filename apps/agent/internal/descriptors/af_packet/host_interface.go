@@ -31,19 +31,24 @@ type HostInterfaceDescriptor struct {
 }
 
 // New returns the descriptor for owner.
-func New(c vpp.Client, owner string) *HostInterfaceDescriptor { return &HostInterfaceDescriptor{c, owner} }
+func New(c vpp.Client, owner string) *HostInterfaceDescriptor {
+	return &HostInterfaceDescriptor{c, owner}
+}
 
 func (d *HostInterfaceDescriptor) svc() afpapi.RPCService { return afpapi.NewServiceClient(d.client) }
 
+// Name implements scheduler.Descriptor.
 func (*HostInterfaceDescriptor) Name() string { return HostInterfaceName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*HostInterfaceDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(HostInterfaceName, obj.(*HostInterface).GetName())
 }
 
-// Dependencies: none in VPP — the Linux netdev is a precondition (the veth rig or a data NIC).
+// Dependencies implements scheduler.Descriptor: none in VPP — the Linux netdev is a precondition (the veth rig or a data NIC).
 func (*HostInterfaceDescriptor) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 
+// Create implements scheduler.Descriptor.
 func (d *HostInterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*HostInterface)
 	if !ok {
@@ -69,10 +74,12 @@ func (d *HostInterfaceDescriptor) Create(ctx context.Context, obj proto.Message)
 	return iface.Meta{SwIfIndex: idx}, nil
 }
 
+// Update implements scheduler.Descriptor.
 func (*HostInterfaceDescriptor) Update(context.Context, proto.Message, proto.Message, any) (any, error) {
 	return nil, scheduler.ErrRecreate
 }
 
+// Delete implements scheduler.Descriptor.
 func (d *HostInterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	if _, err := iface.MetaOf(meta); err != nil {
 		return err
@@ -87,6 +94,7 @@ func (d *HostInterfaceDescriptor) Delete(ctx context.Context, obj proto.Message,
 	return nil
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *HostInterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := iface.Dump(ctx, d.client, d.owner)
 	if err != nil {

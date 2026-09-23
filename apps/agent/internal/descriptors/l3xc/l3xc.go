@@ -49,6 +49,7 @@ func New(c vpp.Client, owner string) *Descriptor { return &Descriptor{c, owner} 
 
 func (d *Descriptor) svc() l3xcapi.RPCService { return l3xcapi.NewServiceClient(d.client) }
 
+// Name implements scheduler.Descriptor.
 func (*Descriptor) Name() string { return L3xcName }
 
 func af(o *L3Xc) string {
@@ -58,11 +59,13 @@ func af(o *L3Xc) string {
 	return "ip4"
 }
 
+// KeyOf implements scheduler.Descriptor.
 func (*Descriptor) KeyOf(obj proto.Message) scheduler.Key {
 	o := obj.(*L3Xc)
 	return scheduler.Join(L3xcName, iface.RefID(o.GetInterface()), af(o))
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*Descriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	o := obj.(*L3Xc)
 	deps := []scheduler.Dependency{{Key: scheduler.Key(o.GetInterface())}}
@@ -189,6 +192,7 @@ func (d *Descriptor) update(ctx context.Context, o *L3Xc) (uint32, error) {
 	return idx, nil
 }
 
+// Create implements scheduler.Descriptor.
 func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*L3Xc)
 	if !ok {
@@ -201,6 +205,7 @@ func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error)
 	return iface.Meta{SwIfIndex: idx}, nil
 }
 
+// Update implements scheduler.Descriptor.
 func (d *Descriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	m, err := iface.MetaOf(meta)
 	if err != nil {
@@ -216,6 +221,7 @@ func (d *Descriptor) Update(ctx context.Context, oldObj, newObj proto.Message, m
 	return m, nil
 }
 
+// Delete implements scheduler.Descriptor.
 func (d *Descriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	m, err := iface.MetaOf(meta)
 	if err != nil {
@@ -231,6 +237,7 @@ func (d *Descriptor) Delete(ctx context.Context, obj proto.Message, meta any) er
 	return nil
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := iface.Dump(ctx, d.client, d.owner)
 	if err != nil {

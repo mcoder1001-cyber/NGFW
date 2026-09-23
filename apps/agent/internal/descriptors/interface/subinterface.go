@@ -29,12 +29,15 @@ func SubinterfaceID(o *Subinterface) string {
 	return RefID(o.GetParent()) + "." + strconv.FormatUint(uint64(o.GetSubId()), 10)
 }
 
+// Name implements scheduler.Descriptor.
 func (*SubinterfaceDescriptor) Name() string { return SubinterfaceName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*SubinterfaceDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(SubinterfaceName, SubinterfaceID(obj.(*Subinterface)))
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*SubinterfaceDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	return dep(obj.(*Subinterface).GetParent())
 }
@@ -92,6 +95,7 @@ func DecodeSubif(parent scheduler.Key, d *ifapi.SwInterfaceDetails) *Subinterfac
 	return o
 }
 
+// Create implements scheduler.Descriptor.
 func (d *SubinterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*Subinterface)
 	if !ok {
@@ -121,11 +125,12 @@ func (d *SubinterfaceDescriptor) Create(ctx context.Context, obj proto.Message) 
 	return Meta{idx}, nil
 }
 
-// Update: every field of a sub-interface is part of its classification → recreate.
+// Update implements scheduler.Descriptor: every field of a sub-interface is part of its classification → recreate.
 func (d *SubinterfaceDescriptor) Update(context.Context, proto.Message, proto.Message, any) (any, error) {
 	return nil, scheduler.ErrRecreate
 }
 
+// Delete implements scheduler.Descriptor.
 func (d *SubinterfaceDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
 	m, err := MetaOf(meta)
 	if err != nil {
@@ -137,6 +142,7 @@ func (d *SubinterfaceDescriptor) Delete(ctx context.Context, _ proto.Message, me
 	return nil
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *SubinterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := Dump(ctx, d.client, d.owner)
 	if err != nil {

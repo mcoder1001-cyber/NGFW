@@ -22,8 +22,11 @@ import (
 type FibEntryDescriptor struct{ base }
 
 // NewFibEntry returns the descriptor for owner.
-func NewFibEntry(c vpp.Client, owner string) *FibEntryDescriptor { return &FibEntryDescriptor{base{c, owner}} }
+func NewFibEntry(c vpp.Client, owner string) *FibEntryDescriptor {
+	return &FibEntryDescriptor{base{c, owner}}
+}
 
+// Name implements scheduler.Descriptor.
 func (*FibEntryDescriptor) Name() string { return FibEntryName }
 
 // FibEntryKey is "l2.fib-entry/<bd>/<mac>" with the MAC in canonical lower-case form.
@@ -34,11 +37,13 @@ func FibEntryKey(bd uint32, mac string) scheduler.Key {
 	return scheduler.Join(FibEntryName, bdID(bd), mac)
 }
 
+// KeyOf implements scheduler.Descriptor.
 func (*FibEntryDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	o := obj.(*FibEntry)
 	return FibEntryKey(o.GetBridgeDomain(), o.GetMac())
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*FibEntryDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	o := obj.(*FibEntry)
 	deps := []scheduler.Dependency{{Key: BridgeDomainKey(o.GetBridgeDomain())}}
@@ -63,6 +68,7 @@ func (d *FibEntryDescriptor) addDel(ctx context.Context, o *FibEntry, idx uint32
 	return nil
 }
 
+// Create implements scheduler.Descriptor.
 func (d *FibEntryDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*FibEntry)
 	if !ok {
@@ -86,10 +92,12 @@ func (d *FibEntryDescriptor) Create(ctx context.Context, obj proto.Message) (any
 	return iface.Meta{SwIfIndex: idx}, d.addDel(ctx, o, idx, true)
 }
 
+// Update implements scheduler.Descriptor.
 func (*FibEntryDescriptor) Update(context.Context, proto.Message, proto.Message, any) (any, error) {
 	return nil, scheduler.ErrRecreate
 }
 
+// Delete implements scheduler.Descriptor.
 func (d *FibEntryDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	m, err := iface.MetaOf(meta)
 	if err != nil {
@@ -102,6 +110,7 @@ func (d *FibEntryDescriptor) Delete(ctx context.Context, obj proto.Message, meta
 	return d.addDel(ctx, o, m.SwIfIndex, false)
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *FibEntryDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	bds, err := d.bridgeDomains(ctx)
 	if err != nil {
@@ -130,7 +139,7 @@ func (d *FibEntryDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 		if err != nil {
 			return nil, fmt.Errorf("l2_fib_table_dump: %w", err)
 		}
-		if !owned[e.BdID] || !(e.StaticMac || e.FilterMac || e.BviMac) {
+		if !owned[e.BdID] || (!e.StaticMac && !e.FilterMac && !e.BviMac) {
 			continue
 		}
 		if autoBviEntry(t, e, bvi[e.BdID]) {

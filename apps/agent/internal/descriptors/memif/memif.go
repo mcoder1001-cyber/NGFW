@@ -18,17 +18,22 @@ import (
 // MemifDescriptor implements memif.memif (memif_create_v2 / memif_delete). All fields are
 // creation parameters → Update is a recreate. Ring and buffer sizes are VPP's defaults: the API
 // only reports the values negotiated with the connected peer, so they cannot be reconciled.
-type MemifDescriptor struct{ base }
+type MemifDescriptor struct{ base } //nolint:revive // memif.MemifDescriptor sits next to memif.SocketDescriptor; "Descriptor" alone would be ambiguous
 
 // NewMemif returns the descriptor for owner.
-func NewMemif(c vpp.Client, owner string) *MemifDescriptor { return &MemifDescriptor{base{c, owner, ""}} }
+func NewMemif(c vpp.Client, owner string) *MemifDescriptor {
+	return &MemifDescriptor{base{c, owner, ""}}
+}
 
+// Name implements scheduler.Descriptor.
 func (*MemifDescriptor) Name() string { return MemifName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*MemifDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(MemifName, obj.(*Memif).GetName())
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*MemifDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	o := obj.(*Memif)
 	if o.GetSocket() == 0 {
@@ -37,6 +42,7 @@ func (*MemifDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	return []scheduler.Dependency{{Key: SocketKey(o.GetSocket())}}
 }
 
+// Create implements scheduler.Descriptor.
 func (d *MemifDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*Memif)
 	if !ok {
@@ -59,10 +65,12 @@ func (d *MemifDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 	return iface.Meta{SwIfIndex: idx}, nil
 }
 
+// Update implements scheduler.Descriptor.
 func (*MemifDescriptor) Update(context.Context, proto.Message, proto.Message, any) (any, error) {
 	return nil, scheduler.ErrRecreate
 }
 
+// Delete implements scheduler.Descriptor.
 func (d *MemifDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
 	m, err := iface.MetaOf(meta)
 	if err != nil {
@@ -74,6 +82,7 @@ func (d *MemifDescriptor) Delete(ctx context.Context, _ proto.Message, meta any)
 	return nil
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *MemifDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := iface.Dump(ctx, d.client, d.owner)
 	if err != nil {

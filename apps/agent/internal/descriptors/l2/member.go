@@ -18,15 +18,20 @@ import (
 type MemberDescriptor struct{ base }
 
 // NewMember returns the descriptor for owner.
-func NewMember(c vpp.Client, owner string) *MemberDescriptor { return &MemberDescriptor{base{c, owner}} }
+func NewMember(c vpp.Client, owner string) *MemberDescriptor {
+	return &MemberDescriptor{base{c, owner}}
+}
 
+// Name implements scheduler.Descriptor.
 func (*MemberDescriptor) Name() string { return MemberName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*MemberDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	o := obj.(*BridgeDomainMember)
 	return scheduler.Join(MemberName, bdID(o.GetBridgeDomain()), iface.RefID(o.GetInterface()))
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*MemberDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	o := obj.(*BridgeDomainMember)
 	return []scheduler.Dependency{{Key: BridgeDomainKey(o.GetBridgeDomain())}, {Key: scheduler.Key(o.GetInterface())}}
@@ -44,6 +49,7 @@ func portType(p PortType) (l2api.L2PortType, error) {
 	return 0, fmt.Errorf("l2: unknown port type %v", p)
 }
 
+// Create implements scheduler.Descriptor.
 func (d *MemberDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*BridgeDomainMember)
 	if !ok {
@@ -69,11 +75,12 @@ func (d *MemberDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	return iface.Meta{SwIfIndex: idx}, nil
 }
 
-// Update: shg / port type / bridge changes go through leave + join (recreate).
+// Update implements scheduler.Descriptor: shg / port type / bridge changes go through leave + join (recreate).
 func (*MemberDescriptor) Update(context.Context, proto.Message, proto.Message, any) (any, error) {
 	return nil, scheduler.ErrRecreate
 }
 
+// Delete implements scheduler.Descriptor.
 func (d *MemberDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	m, err := iface.MetaOf(meta)
 	if err != nil {
@@ -92,6 +99,7 @@ func (d *MemberDescriptor) Delete(ctx context.Context, obj proto.Message, meta a
 	return nil
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *MemberDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	bds, err := d.bridgeDomains(ctx)
 	if err != nil {

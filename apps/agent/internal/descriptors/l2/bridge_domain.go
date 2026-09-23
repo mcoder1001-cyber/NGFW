@@ -108,14 +108,18 @@ func NewBridgeDomain(c vpp.Client, owner string) *BridgeDomainDescriptor {
 // BDMeta is the runtime handle: the bridge-domain id (there is no separate index in the API).
 type BDMeta struct{ ID uint32 }
 
+// Name implements scheduler.Descriptor.
 func (*BridgeDomainDescriptor) Name() string { return BridgeDomainName }
 
+// KeyOf implements scheduler.Descriptor.
 func (*BridgeDomainDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return BridgeDomainKey(obj.(*BridgeDomain).GetId())
 }
 
+// Dependencies implements scheduler.Descriptor.
 func (*BridgeDomainDescriptor) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 
+// Create implements scheduler.Descriptor.
 func (d *BridgeDomainDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*BridgeDomain)
 	if !ok {
@@ -141,6 +145,7 @@ func (d *BridgeDomainDescriptor) Create(ctx context.Context, obj proto.Message) 
 	return BDMeta{o.GetId()}, nil
 }
 
+// Update implements scheduler.Descriptor.
 func (d *BridgeDomainDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	m, ok := meta.(BDMeta)
 	if !ok {
@@ -156,8 +161,8 @@ func (d *BridgeDomainDescriptor) Update(ctx context.Context, oldObj, newObj prot
 			return nil, fmt.Errorf("bridge_flags set: %w", err)
 		}
 	}
-	if clear := oldF &^ newF; clear != 0 {
-		if _, err := d.svc().BridgeFlags(ctx, &l2api.BridgeFlags{BdID: m.ID, IsSet: false, Flags: clear}); err != nil {
+	if clr := oldF &^ newF; clr != 0 {
+		if _, err := d.svc().BridgeFlags(ctx, &l2api.BridgeFlags{BdID: m.ID, IsSet: false, Flags: clr}); err != nil {
 			return nil, fmt.Errorf("bridge_flags clear: %w", err)
 		}
 	}
@@ -172,6 +177,7 @@ func (d *BridgeDomainDescriptor) Update(ctx context.Context, oldObj, newObj prot
 	return m, nil
 }
 
+// Delete implements scheduler.Descriptor.
 func (d *BridgeDomainDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
 	m, ok := meta.(BDMeta)
 	if !ok {
@@ -183,6 +189,7 @@ func (d *BridgeDomainDescriptor) Delete(ctx context.Context, _ proto.Message, me
 	return nil
 }
 
+// Retrieve implements scheduler.Descriptor.
 func (d *BridgeDomainDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	bds, err := d.bridgeDomains(ctx)
 	if err != nil {

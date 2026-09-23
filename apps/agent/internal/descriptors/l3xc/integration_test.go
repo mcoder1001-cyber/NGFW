@@ -2,6 +2,7 @@ package l3xc_test
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -32,7 +33,7 @@ func TestL3xcOnHost(t *testing.T) {
 	t.Cleanup(func() { _ = td.Delete(ctx, tap, tapMeta) })
 
 	d := l3xc.New(c, owner)
-	slot := string(rune('0' + vpptest.Slot(t)%10))
+	slot := strconv.Itoa(vpptest.Slot(t))
 	desired := &l3xc.L3Xc{Interface: string(td.KeyOf(tap)), Paths: []*l3xc.Path{{NextHop: "10." + slot + ".30.254", Interface: loopKey, Weight: 1}}}
 	key := string(d.KeyOf(desired))
 	meta, err := d.Create(ctx, desired)

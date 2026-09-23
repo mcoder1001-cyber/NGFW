@@ -2,6 +2,7 @@ package tapv2_test
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -22,7 +23,7 @@ func TestTapOnHost(t *testing.T) {
 	name := vpptest.Name(t, "tap40")
 	// host addresses are inside the slot's 10.<slot>.0.0/16 and a fd00:<slot>:: ULA: never management
 	desired := &tapv2.Tap{Name: name, Id: vpptest.LoopbackInstance(t, 40), HostIfName: name, HostMtu: 1400,
-		HostIp4Prefix: "10." + string(rune('0'+vpptest.Slot(t))) + ".40.1/24", HostIp6Prefix: "fd00:2:40::1/64", RxRingSize: 512, TxRingSize: 256, Gso: true}
+		HostIp4Prefix: "10." + strconv.Itoa(vpptest.Slot(t)) + ".40.1/24", HostIp6Prefix: "fd00:2:40::1/64", RxRingSize: 512, TxRingSize: 256, Gso: true}
 	if vpptest.Slot(t) > 9 {
 		desired.HostIp4Prefix = ""
 	}

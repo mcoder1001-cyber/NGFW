@@ -163,13 +163,13 @@ func plan(desired []scheduler.KV, actual map[scheduler.Key]scheduler.KV) []strin
 // pair, deleted in Cleanup even when the test fails. (ALLOW: rig helper, fixed argv, test-only.)
 func restartVeth(t *testing.T, name, peer string) {
 	t.Helper()
-	_ = exec.Command("/usr/sbin/ip", "link", "del", name).Run() // ALLOW: leftover of an aborted run
+	_ = exec.Command("/usr/sbin/ip", "link", "del", name).Run() //nolint:gosec // G204 ALLOW: leftover of an aborted run
 	for _, args := range [][]string{{"link", "add", name, "type", "veth", "peer", "name", peer}, {"link", "set", name, "up"}, {"link", "set", peer, "up"}} {
-		if out, err := exec.Command("/usr/sbin/ip", args...).CombinedOutput(); err != nil { // ALLOW: fixed argv rig helper
+		if out, err := exec.Command("/usr/sbin/ip", args...).CombinedOutput(); err != nil { //nolint:gosec // G204 ALLOW: fixed argv rig helper
 			t.Fatalf("ip %v: %v: %s", args, err, out)
 		}
 	}
-	t.Cleanup(func() { _ = exec.Command("/usr/sbin/ip", "link", "del", name).Run() }) // ALLOW: cleanup
+	t.Cleanup(func() { _ = exec.Command("/usr/sbin/ip", "link", "del", name).Run() }) //nolint:gosec // G204 ALLOW: cleanup
 }
 
 // TestRestartSimulationOnHost applies one desired state with every DF-1 object type through a
@@ -298,7 +298,7 @@ func TestRestartSimulationOnHost(t *testing.T) {
 	}
 	ops := plan(desired, actual)
 	notReadable := map[string]bool{
-		"create interface.promisc/" + vpptest.Name(t, "tap63"): true,
+		"create interface.promisc/" + vpptest.Name(t, "tap63"):                                   true,
 		"create interface.mac-address/loop" + strconv.Itoa(int(vpptest.LoopbackInstance(t, 60))): true,
 	}
 	for _, op := range ops {

@@ -2,6 +2,7 @@ package bond_test
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -60,7 +61,7 @@ func TestBondOnHost(t *testing.T) {
 	td := tapv2.New(c, owner)
 	var members []string
 	for _, i := range []int{20, 21} {
-		name := vpptest.Name(t, "tap"+string(rune('0'+i/10))+string(rune('0'+i%10)))
+		name := vpptest.Name(t, "tap"+strconv.Itoa(i))
 		tap := &tapv2.Tap{Name: name, Id: vpptest.LoopbackInstance(t, i), HostIfName: name, RxRingSize: 256, TxRingSize: 256}
 		create(t, td, tap)
 		members = append(members, string(td.KeyOf(tap)))

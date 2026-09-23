@@ -106,7 +106,7 @@ export interface Timestamp {
    * be between -62135596800 and 253402300799 inclusive (which corresponds to
    * 0001-01-01T00:00:00Z to 9999-12-31T23:59:59Z).
    */
-  seconds: number;
+  seconds: string;
   /**
    * Non-negative fractions of a second at nanosecond resolution. This field is
    * the nanosecond portion of the duration, not an alternative to seconds.
@@ -118,12 +118,12 @@ export interface Timestamp {
 }
 
 function createBaseTimestamp(): Timestamp {
-  return { seconds: 0, nanos: 0 };
+  return { seconds: "0", nanos: 0 };
 }
 
 export const Timestamp: MessageFns<Timestamp> = {
   encode(message: Timestamp, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.seconds !== 0) {
+    if (message.seconds !== "0") {
       writer.uint32(8).int64(message.seconds);
     }
     if (message.nanos !== 0) {
@@ -150,7 +150,7 @@ export const Timestamp: MessageFns<Timestamp> = {
               break;
             }
 
-            message.seconds = longToNumber(reader.int64());
+            message.seconds = reader.int64().toString();
             continue;
           }
           case 2: {
@@ -175,15 +175,15 @@ export const Timestamp: MessageFns<Timestamp> = {
 
   fromJSON(object: any): Timestamp {
     return {
-      seconds: isSet(object.seconds) ? globalThis.Number(object.seconds) : 0,
+      seconds: isSet(object.seconds) ? globalThis.String(object.seconds) : "0",
       nanos: isSet(object.nanos) ? globalThis.Number(object.nanos) : 0,
     };
   },
 
   toJSON(message: Timestamp): unknown {
     const obj: any = {};
-    if (message.seconds !== 0) {
-      obj.seconds = Math.round(message.seconds);
+    if (message.seconds !== "0") {
+      obj.seconds = message.seconds;
     }
     if (message.nanos !== 0) {
       obj.nanos = Math.round(message.nanos);
@@ -196,7 +196,7 @@ export const Timestamp: MessageFns<Timestamp> = {
   },
   fromPartial(object: DeepPartial<Timestamp>): Timestamp {
     const message = createBaseTimestamp();
-    message.seconds = object.seconds ?? 0;
+    message.seconds = object.seconds ?? "0";
     message.nanos = object.nanos ?? 0;
     return message;
   },
@@ -209,17 +209,6 @@ export type DeepPartial<T> = T extends Builtin ? T
   : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
   : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
-
-function longToNumber(int64: { toString(): string }): number {
-  const num = globalThis.Number(int64.toString());
-  if (num > globalThis.Number.MAX_SAFE_INTEGER) {
-    throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
-  }
-  if (num < globalThis.Number.MIN_SAFE_INTEGER) {
-    throw new globalThis.Error("Value is smaller than Number.MIN_SAFE_INTEGER");
-  }
-  return num;
-}
 
 function isSet(value: any): boolean {
   return value !== null && value !== undefined;

@@ -17,3 +17,7 @@ plugins:
       - esModuleInterop=true
       - importSuffix=.js
       - useExactTypes=false
+      # D-039: 64-bit integers (uint64 counters, IpsecRekey.esp_bytes/esp_packets) are `string` in TS.
+      # The default (`number`) throws above 2^53 — 9 PB of absolute byte counters, ~8 days at 100 Gbit/s.
+      # `string` is also the canonical protobuf JSON representation of 64-bit values.
+      - forceLong=string

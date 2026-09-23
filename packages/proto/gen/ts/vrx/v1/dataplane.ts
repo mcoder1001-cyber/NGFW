@@ -35,8 +35,22 @@ export const protobufPackage = "vrx.v1";
  * packages/schema): one field per top-level key, field names are the snake_case form of the Zod
  * field names, records become `map<string, …>`, arrays `repeated`, Zod enums stay strings (the
  * allowed values are listed in the comment), Zod discriminated unions are flattened (discriminator
- * plus every variant's fields), Zod `.optional()` scalars use proto3 `optional`. The protobuf JSON
- * mapping of a parsed document therefore *is* a DesiredState — see the compile-check tests.
+ * plus every variant's fields). The protobuf JSON mapping of a parsed document therefore *is* a
+ * DesiredState — see the compile-check tests (apps/agent/internal/contracttest, packages/proto/test).
+ *
+ * Presence policy (D-039): EVERY scalar field below DesiredState is proto3 `optional` (explicit
+ * presence), whether or not the Zod field has a default. Only what the document sets is on the
+ * wire, protojson/ts-proto `toJSON` emit exactly the keys that were set (`id: 0`, `enabled: false`
+ * included), and `Retrieve` results diff honestly against the running document. `repeated` and
+ * `map` fields have no presence in proto3: absent and empty are the same thing.
+ *
+ * Domain presence (D-041): a domain message that is UNSET in ApplyRequest.desired_state is "not
+ * managed by this transaction" and is skipped; an explicitly EMPTY domain (`{}`; for the two map
+ * domains an empty map) means "delete every owned object of that domain". `subsystems` narrows
+ * further. See ApplyRequest.desired_state and docs/contracts/proto.md §2.
+ *
+ * Secrets (D-040, 00-CONTEXT rule 10): schema leaves flagged `secret: true` (password hashes,
+ * keys, PSKs) have NO field here; only `*_ref` references cross this boundary.
  */
 
 /** ApplyStatus is the outcome of one transaction. */
@@ -115,193 +129,193 @@ export function applyStatusToJSON(object: ApplyStatus): string {
   }
 }
 
-/** Operation is what the reconciler did (or planned) for one object. */
-export enum Operation {
-  OPERATION_UNSPECIFIED = 0,
-  OPERATION_CREATE = 1,
-  OPERATION_UPDATE = 2,
-  OPERATION_DELETE = 3,
+/** ApplyOperation is what the reconciler did (or planned) for one object. */
+export enum ApplyOperation {
+  APPLY_OPERATION_UNSPECIFIED = 0,
+  APPLY_OPERATION_CREATE = 1,
+  APPLY_OPERATION_UPDATE = 2,
+  APPLY_OPERATION_DELETE = 3,
   /**
-   * OPERATION_RECREATE - Update that required delete + create (the descriptor returned ErrRecreate); dependents are
+   * APPLY_OPERATION_RECREATE - Update that required delete + create (the descriptor returned ErrRecreate); dependents are
    * recreated too.
    */
-  OPERATION_RECREATE = 4,
+  APPLY_OPERATION_RECREATE = 4,
   /**
-   * OPERATION_NOOP - Desired equals actual. Not listed in v1 plans or results (ApplySummary.unchanged counts these
+   * APPLY_OPERATION_NOOP - Desired equals actual. Not listed in v1 plans or results (ApplySummary.unchanged counts these
    * objects); reserved for a verbose plan option.
    */
-  OPERATION_NOOP = 5,
+  APPLY_OPERATION_NOOP = 5,
   UNRECOGNIZED = -1,
 }
 
-export function operationFromJSON(object: any): Operation {
+export function applyOperationFromJSON(object: any): ApplyOperation {
   switch (object) {
     case 0:
-    case "OPERATION_UNSPECIFIED":
-      return Operation.OPERATION_UNSPECIFIED;
+    case "APPLY_OPERATION_UNSPECIFIED":
+      return ApplyOperation.APPLY_OPERATION_UNSPECIFIED;
     case 1:
-    case "OPERATION_CREATE":
-      return Operation.OPERATION_CREATE;
+    case "APPLY_OPERATION_CREATE":
+      return ApplyOperation.APPLY_OPERATION_CREATE;
     case 2:
-    case "OPERATION_UPDATE":
-      return Operation.OPERATION_UPDATE;
+    case "APPLY_OPERATION_UPDATE":
+      return ApplyOperation.APPLY_OPERATION_UPDATE;
     case 3:
-    case "OPERATION_DELETE":
-      return Operation.OPERATION_DELETE;
+    case "APPLY_OPERATION_DELETE":
+      return ApplyOperation.APPLY_OPERATION_DELETE;
     case 4:
-    case "OPERATION_RECREATE":
-      return Operation.OPERATION_RECREATE;
+    case "APPLY_OPERATION_RECREATE":
+      return ApplyOperation.APPLY_OPERATION_RECREATE;
     case 5:
-    case "OPERATION_NOOP":
-      return Operation.OPERATION_NOOP;
+    case "APPLY_OPERATION_NOOP":
+      return ApplyOperation.APPLY_OPERATION_NOOP;
     case -1:
     case "UNRECOGNIZED":
     default:
-      return Operation.UNRECOGNIZED;
+      return ApplyOperation.UNRECOGNIZED;
   }
 }
 
-export function operationToJSON(object: Operation): string {
+export function applyOperationToJSON(object: ApplyOperation): string {
   switch (object) {
-    case Operation.OPERATION_UNSPECIFIED:
-      return "OPERATION_UNSPECIFIED";
-    case Operation.OPERATION_CREATE:
-      return "OPERATION_CREATE";
-    case Operation.OPERATION_UPDATE:
-      return "OPERATION_UPDATE";
-    case Operation.OPERATION_DELETE:
-      return "OPERATION_DELETE";
-    case Operation.OPERATION_RECREATE:
-      return "OPERATION_RECREATE";
-    case Operation.OPERATION_NOOP:
-      return "OPERATION_NOOP";
-    case Operation.UNRECOGNIZED:
+    case ApplyOperation.APPLY_OPERATION_UNSPECIFIED:
+      return "APPLY_OPERATION_UNSPECIFIED";
+    case ApplyOperation.APPLY_OPERATION_CREATE:
+      return "APPLY_OPERATION_CREATE";
+    case ApplyOperation.APPLY_OPERATION_UPDATE:
+      return "APPLY_OPERATION_UPDATE";
+    case ApplyOperation.APPLY_OPERATION_DELETE:
+      return "APPLY_OPERATION_DELETE";
+    case ApplyOperation.APPLY_OPERATION_RECREATE:
+      return "APPLY_OPERATION_RECREATE";
+    case ApplyOperation.APPLY_OPERATION_NOOP:
+      return "APPLY_OPERATION_NOOP";
+    case ApplyOperation.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
   }
 }
 
-/** ResultCode classifies the result of one operation. */
-export enum ResultCode {
-  RESULT_CODE_UNSPECIFIED = 0,
-  /** RESULT_CODE_OK - The operation was applied and verified. */
-  RESULT_CODE_OK = 1,
-  /** RESULT_CODE_FAILED - The operation itself failed (VPP API or daemon error in `message`). */
-  RESULT_CODE_FAILED = 2,
-  /** RESULT_CODE_SKIPPED - Not attempted because an earlier operation failed (the transaction was already rolling back). */
-  RESULT_CODE_SKIPPED = 3,
-  /** RESULT_CODE_REVERTED - The operation had succeeded and was undone by the rollback of this transaction. */
-  RESULT_CODE_REVERTED = 4,
-  /** RESULT_CODE_REVERT_FAILED - The operation had succeeded and its rollback failed (status DEGRADED). */
-  RESULT_CODE_REVERT_FAILED = 5,
-  /** RESULT_CODE_DEPENDENCY_MISSING - A mandatory dependency (scheduler.Dependency) is neither desired nor present. */
-  RESULT_CODE_DEPENDENCY_MISSING = 6,
-  /** RESULT_CODE_INVALID - The object is invalid for this agent/VPP (semantic check inside the descriptor). */
-  RESULT_CODE_INVALID = 7,
+/** ObjectResultCode classifies the result of one operation. */
+export enum ObjectResultCode {
+  OBJECT_RESULT_CODE_UNSPECIFIED = 0,
+  /** OBJECT_RESULT_CODE_OK - The operation was applied and verified. */
+  OBJECT_RESULT_CODE_OK = 1,
+  /** OBJECT_RESULT_CODE_FAILED - The operation itself failed (VPP API or daemon error in `message`). */
+  OBJECT_RESULT_CODE_FAILED = 2,
+  /** OBJECT_RESULT_CODE_SKIPPED - Not attempted because an earlier operation failed (the transaction was already rolling back). */
+  OBJECT_RESULT_CODE_SKIPPED = 3,
+  /** OBJECT_RESULT_CODE_REVERTED - The operation had succeeded and was undone by the rollback of this transaction. */
+  OBJECT_RESULT_CODE_REVERTED = 4,
+  /** OBJECT_RESULT_CODE_REVERT_FAILED - The operation had succeeded and its rollback failed (status DEGRADED). */
+  OBJECT_RESULT_CODE_REVERT_FAILED = 5,
+  /** OBJECT_RESULT_CODE_DEPENDENCY_MISSING - A mandatory dependency (scheduler.Dependency) is neither desired nor present. */
+  OBJECT_RESULT_CODE_DEPENDENCY_MISSING = 6,
+  /** OBJECT_RESULT_CODE_INVALID - The object is invalid for this agent/VPP (semantic check inside the descriptor). */
+  OBJECT_RESULT_CODE_INVALID = 7,
   UNRECOGNIZED = -1,
 }
 
-export function resultCodeFromJSON(object: any): ResultCode {
+export function objectResultCodeFromJSON(object: any): ObjectResultCode {
   switch (object) {
     case 0:
-    case "RESULT_CODE_UNSPECIFIED":
-      return ResultCode.RESULT_CODE_UNSPECIFIED;
+    case "OBJECT_RESULT_CODE_UNSPECIFIED":
+      return ObjectResultCode.OBJECT_RESULT_CODE_UNSPECIFIED;
     case 1:
-    case "RESULT_CODE_OK":
-      return ResultCode.RESULT_CODE_OK;
+    case "OBJECT_RESULT_CODE_OK":
+      return ObjectResultCode.OBJECT_RESULT_CODE_OK;
     case 2:
-    case "RESULT_CODE_FAILED":
-      return ResultCode.RESULT_CODE_FAILED;
+    case "OBJECT_RESULT_CODE_FAILED":
+      return ObjectResultCode.OBJECT_RESULT_CODE_FAILED;
     case 3:
-    case "RESULT_CODE_SKIPPED":
-      return ResultCode.RESULT_CODE_SKIPPED;
+    case "OBJECT_RESULT_CODE_SKIPPED":
+      return ObjectResultCode.OBJECT_RESULT_CODE_SKIPPED;
     case 4:
-    case "RESULT_CODE_REVERTED":
-      return ResultCode.RESULT_CODE_REVERTED;
+    case "OBJECT_RESULT_CODE_REVERTED":
+      return ObjectResultCode.OBJECT_RESULT_CODE_REVERTED;
     case 5:
-    case "RESULT_CODE_REVERT_FAILED":
-      return ResultCode.RESULT_CODE_REVERT_FAILED;
+    case "OBJECT_RESULT_CODE_REVERT_FAILED":
+      return ObjectResultCode.OBJECT_RESULT_CODE_REVERT_FAILED;
     case 6:
-    case "RESULT_CODE_DEPENDENCY_MISSING":
-      return ResultCode.RESULT_CODE_DEPENDENCY_MISSING;
+    case "OBJECT_RESULT_CODE_DEPENDENCY_MISSING":
+      return ObjectResultCode.OBJECT_RESULT_CODE_DEPENDENCY_MISSING;
     case 7:
-    case "RESULT_CODE_INVALID":
-      return ResultCode.RESULT_CODE_INVALID;
+    case "OBJECT_RESULT_CODE_INVALID":
+      return ObjectResultCode.OBJECT_RESULT_CODE_INVALID;
     case -1:
     case "UNRECOGNIZED":
     default:
-      return ResultCode.UNRECOGNIZED;
+      return ObjectResultCode.UNRECOGNIZED;
   }
 }
 
-export function resultCodeToJSON(object: ResultCode): string {
+export function objectResultCodeToJSON(object: ObjectResultCode): string {
   switch (object) {
-    case ResultCode.RESULT_CODE_UNSPECIFIED:
-      return "RESULT_CODE_UNSPECIFIED";
-    case ResultCode.RESULT_CODE_OK:
-      return "RESULT_CODE_OK";
-    case ResultCode.RESULT_CODE_FAILED:
-      return "RESULT_CODE_FAILED";
-    case ResultCode.RESULT_CODE_SKIPPED:
-      return "RESULT_CODE_SKIPPED";
-    case ResultCode.RESULT_CODE_REVERTED:
-      return "RESULT_CODE_REVERTED";
-    case ResultCode.RESULT_CODE_REVERT_FAILED:
-      return "RESULT_CODE_REVERT_FAILED";
-    case ResultCode.RESULT_CODE_DEPENDENCY_MISSING:
-      return "RESULT_CODE_DEPENDENCY_MISSING";
-    case ResultCode.RESULT_CODE_INVALID:
-      return "RESULT_CODE_INVALID";
-    case ResultCode.UNRECOGNIZED:
+    case ObjectResultCode.OBJECT_RESULT_CODE_UNSPECIFIED:
+      return "OBJECT_RESULT_CODE_UNSPECIFIED";
+    case ObjectResultCode.OBJECT_RESULT_CODE_OK:
+      return "OBJECT_RESULT_CODE_OK";
+    case ObjectResultCode.OBJECT_RESULT_CODE_FAILED:
+      return "OBJECT_RESULT_CODE_FAILED";
+    case ObjectResultCode.OBJECT_RESULT_CODE_SKIPPED:
+      return "OBJECT_RESULT_CODE_SKIPPED";
+    case ObjectResultCode.OBJECT_RESULT_CODE_REVERTED:
+      return "OBJECT_RESULT_CODE_REVERTED";
+    case ObjectResultCode.OBJECT_RESULT_CODE_REVERT_FAILED:
+      return "OBJECT_RESULT_CODE_REVERT_FAILED";
+    case ObjectResultCode.OBJECT_RESULT_CODE_DEPENDENCY_MISSING:
+      return "OBJECT_RESULT_CODE_DEPENDENCY_MISSING";
+    case ObjectResultCode.OBJECT_RESULT_CODE_INVALID:
+      return "OBJECT_RESULT_CODE_INVALID";
+    case ObjectResultCode.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
   }
 }
 
-/** Severity of a validation issue. */
-export enum Severity {
-  SEVERITY_UNSPECIFIED = 0,
-  /** SEVERITY_ERROR - Would be rejected by Apply. */
-  SEVERITY_ERROR = 1,
-  /** SEVERITY_WARNING - Applied, but probably not what the operator wants (e.g. interface without addresses in a VRF). */
-  SEVERITY_WARNING = 2,
-  /** SEVERITY_INFO - Informational (e.g. object will be recreated, traffic interruption expected). */
-  SEVERITY_INFO = 3,
+/** IssueSeverity of a validation issue. */
+export enum IssueSeverity {
+  ISSUE_SEVERITY_UNSPECIFIED = 0,
+  /** ISSUE_SEVERITY_ERROR - Would be rejected by Apply. */
+  ISSUE_SEVERITY_ERROR = 1,
+  /** ISSUE_SEVERITY_WARNING - Applied, but probably not what the operator wants (e.g. interface without addresses in a VRF). */
+  ISSUE_SEVERITY_WARNING = 2,
+  /** ISSUE_SEVERITY_INFO - Informational (e.g. object will be recreated, traffic interruption expected). */
+  ISSUE_SEVERITY_INFO = 3,
   UNRECOGNIZED = -1,
 }
 
-export function severityFromJSON(object: any): Severity {
+export function issueSeverityFromJSON(object: any): IssueSeverity {
   switch (object) {
     case 0:
-    case "SEVERITY_UNSPECIFIED":
-      return Severity.SEVERITY_UNSPECIFIED;
+    case "ISSUE_SEVERITY_UNSPECIFIED":
+      return IssueSeverity.ISSUE_SEVERITY_UNSPECIFIED;
     case 1:
-    case "SEVERITY_ERROR":
-      return Severity.SEVERITY_ERROR;
+    case "ISSUE_SEVERITY_ERROR":
+      return IssueSeverity.ISSUE_SEVERITY_ERROR;
     case 2:
-    case "SEVERITY_WARNING":
-      return Severity.SEVERITY_WARNING;
+    case "ISSUE_SEVERITY_WARNING":
+      return IssueSeverity.ISSUE_SEVERITY_WARNING;
     case 3:
-    case "SEVERITY_INFO":
-      return Severity.SEVERITY_INFO;
+    case "ISSUE_SEVERITY_INFO":
+      return IssueSeverity.ISSUE_SEVERITY_INFO;
     case -1:
     case "UNRECOGNIZED":
     default:
-      return Severity.UNRECOGNIZED;
+      return IssueSeverity.UNRECOGNIZED;
   }
 }
 
-export function severityToJSON(object: Severity): string {
+export function issueSeverityToJSON(object: IssueSeverity): string {
   switch (object) {
-    case Severity.SEVERITY_UNSPECIFIED:
-      return "SEVERITY_UNSPECIFIED";
-    case Severity.SEVERITY_ERROR:
-      return "SEVERITY_ERROR";
-    case Severity.SEVERITY_WARNING:
-      return "SEVERITY_WARNING";
-    case Severity.SEVERITY_INFO:
-      return "SEVERITY_INFO";
-    case Severity.UNRECOGNIZED:
+    case IssueSeverity.ISSUE_SEVERITY_UNSPECIFIED:
+      return "ISSUE_SEVERITY_UNSPECIFIED";
+    case IssueSeverity.ISSUE_SEVERITY_ERROR:
+      return "ISSUE_SEVERITY_ERROR";
+    case IssueSeverity.ISSUE_SEVERITY_WARNING:
+      return "ISSUE_SEVERITY_WARNING";
+    case IssueSeverity.ISSUE_SEVERITY_INFO:
+      return "ISSUE_SEVERITY_INFO";
+    case IssueSeverity.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
   }
@@ -468,10 +482,14 @@ export interface ApplyRequest {
    */
   txnId: string;
   /**
-   * The complete desired configuration (all domains). Only the domains listed in `subsystems`
-   * are applied; the selected domains are authoritative — an unset or empty domain means "no
-   * objects": every owned object of that domain is deleted. The API therefore always sends the
-   * whole parsed document.
+   * The desired configuration. Domain presence follows D-041: a domain that is UNSET (message not
+   * present; for `interfaces`/`vrfs`: the map is empty AND the key is not named in `subsystems`)
+   * is not managed by this transaction and is skipped; a domain that is present — even as an empty
+   * message `{}` — is authoritative: every owned object of that domain that is absent from it is
+   * deleted. `subsystems` narrows the set of domains considered further; naming a domain there
+   * makes it authoritative even when it is unset/empty (that is how a caller deletes everything in
+   * `interfaces` or `vrfs`). The API normally sends the whole parsed document with all 13 domains
+   * present; a partial document can therefore never wipe domains it does not mention.
    */
   desiredState:
     | DesiredState
@@ -479,7 +497,9 @@ export interface ApplyRequest {
   /**
    * Top-level keys of the configuration document to apply (`ROOT_KEYS` in packages/schema:
    * "system", "dataplane", "interfaces", "vrfs", "routing", "nat", "objects", "acl", "vpn",
-   * "tunnels", "services", "ha", "management"). Empty = all. Unknown keys fail with
+   * "tunnels", "services", "ha", "management"). Empty = every domain that is present in
+   * desired_state (D-041). A key listed here is authoritative even if its domain is unset or
+   * empty. Unknown keys fail with
    * INVALID_ARGUMENT; keys without an implementation in this agent fail with UNIMPLEMENTED
    * (HealthResponse.subsystems lists the implemented ones).
    */
@@ -551,9 +571,9 @@ export interface ObjectResult {
    */
   key: string;
   /** Operation performed (or planned). */
-  op: Operation;
+  op: ApplyOperation;
   /** Outcome. */
-  code: ResultCode;
+  code: ObjectResultCode;
   /** Human-readable detail (VPP retval text, daemon output). Never contains secrets. */
   message: string;
   /**
@@ -606,8 +626,8 @@ export interface ValidationIssue {
   pointer: string;
   /** Human-readable explanation; the API maps it to an RFC 9457 problem detail. */
   message: string;
-  /** Severity; Apply refuses when any issue has SEVERITY_ERROR. */
-  severity: Severity;
+  /** Severity; Apply refuses when any issue has ISSUE_SEVERITY_ERROR. */
+  severity: IssueSeverity;
   /** Machine-readable rule id, e.g. "interfaces.vrf-exists", "routing.static.next-hop-interface". */
   rule: string;
 }
@@ -616,7 +636,7 @@ export interface ValidationIssue {
 export interface ValidationReport {
   /** Echo of the request's txn_id. */
   txnId: string;
-  /** True when no issue has SEVERITY_ERROR (Apply would proceed). */
+  /** True when no issue has ISSUE_SEVERITY_ERROR (Apply would proceed). */
   ok: boolean;
   /** All findings, ERROR first, then by pointer. */
   errors: ValidationIssue[];
@@ -688,7 +708,7 @@ export interface StatsBatch {
     | Date
     | undefined;
   /** Per-stream sequence number starting at 1. */
-  seq: number;
+  seq: string;
   /** One entry per requested interface, sorted by name. Interfaces that disappeared are omitted. */
   interfaceCounters: InterfaceCounters[];
   /** Per-worker load; empty unless StreamStatsRequest.include_worker_cpu. */
@@ -704,21 +724,24 @@ export interface InterfaceCounters {
   /** VPP sw_if_index at sample time (runtime handle, may change after VPP restart). */
   swIfIndex: number;
   /** Packets received. */
-  rxPackets: number;
+  rxPackets: string;
   /** Bytes received. */
-  rxBytes: number;
+  rxBytes: string;
   /** Packets transmitted. */
-  txPackets: number;
+  txPackets: string;
   /** Bytes transmitted. */
-  txBytes: number;
+  txBytes: string;
   /** Packets dropped (/if/drops). */
-  drops: number;
+  drops: string;
   /** Receive errors + transmit errors (/if/rx-error + /if/tx-error). */
-  errors: number;
+  errors: string;
   /** Packets punted to the host (/if/punt). */
-  punts: number;
-  /** Packets received without a matching IP protocol (/if/rx-no-buf, /if/rx-miss summed). */
-  rxMisses: number;
+  punts: string;
+  /**
+   * Packets the interface could not receive: no RX buffer available (/if/rx-no-buf) plus RX
+   * misses reported by the driver (/if/rx-miss), summed.
+   */
+  rxMisses: string;
 }
 
 /** WorkerCpu is the load of one VPP thread derived from /sys/node/* between two samples. */
@@ -735,9 +758,9 @@ export interface WorkerCpu {
   /** Average vectors (packets) per graph-node call in the interval; VPP's primary load indicator. */
   vectorsPerCall: number;
   /** Graph-node calls in the interval. */
-  calls: number;
+  calls: string;
   /** Vectors processed in the interval. */
-  vectors: number;
+  vectors: string;
 }
 
 /**
@@ -761,11 +784,13 @@ export interface Event {
     | Date
     | undefined;
   /** Per-stream sequence number starting at 1. */
-  seq: number;
+  seq: string;
   /** What happened. */
   kind: EventKind;
-  /** VPP interface name for interface-scoped kinds; empty otherwise. */
-  interface: string;
+  /** VPP interface name for interface-scoped kinds (LINK_UP/LINK_DOWN); unset otherwise. */
+  interface?:
+    | string
+    | undefined;
   /** Human-readable detail. Never contains secrets. */
   message: string;
   /** Transaction id for reconcile/confirm kinds; empty for resync-triggered reconciles. */
@@ -977,11 +1002,17 @@ export interface DesiredState_VrfsEntry {
 /** SystemConfig mirrors `system`. */
 export interface SystemConfig {
   /** RFC 1123 hostname. */
-  hostname: string;
+  hostname?:
+    | string
+    | undefined;
   /** IANA timezone name, e.g. "UTC", "Asia/Tehran". */
-  timezone: string;
-  /** Login banner shown by the UI/CLI before authentication. */
-  banner: string;
+  timezone?:
+    | string
+    | undefined;
+  /** Login banners (pre-login + message of the day). */
+  banner:
+    | SystemBanner
+    | undefined;
   /** NTP client settings (chrony renderer). Fields land with the P02a model. */
   ntp:
     | SystemNtp
@@ -990,20 +1021,30 @@ export interface SystemConfig {
   dns: SystemDns | undefined;
 }
 
-/** SystemNtp is `system.ntp`; P02a fields (servers, …) are added here from 1. */
+/** SystemBanner mirrors `system.banner` (rendered into /etc/issue, /etc/motd and the web login page). */
+export interface SystemBanner {
+  /** Pre-login banner shown before authentication (SSH issue, web login page); up to 4096 chars. */
+  login?:
+    | string
+    | undefined;
+  /** Message of the day shown after a successful login; up to 4096 chars. */
+  motd?: string | undefined;
+}
+
+/** SystemNtp is `system.ntp`; P02a fields (enabled, servers[], vrf) are added here from 1 (P03b). */
 export interface SystemNtp {
 }
 
-/** SystemDns is `system.dns`; P02a fields (servers, search, …) are added here from 1. */
+/** SystemDns is `system.dns`; P02a fields (servers[], searchDomains[], vrf) are added here from 1 (P03b). */
 export interface SystemDns {
 }
 
 /**
  * DataplaneConfig mirrors `dataplane` — rendered into the VPP startup configuration by the agent;
- * changes need a data-plane restart, which the agent reports as SEVERITY_INFO in DryRun.
+ * changes need a data-plane restart, which the agent reports as ISSUE_SEVERITY_INFO in DryRun.
  */
 export interface DataplaneConfig {
-  /** Number of worker threads; unset = VPP default (main thread only). */
+  /** Number of worker threads, 0–255 (0 = graph on the main thread only); unset = VPP default. */
   workers?:
     | number
     | undefined;
@@ -1021,14 +1062,21 @@ export interface DataplaneConfig {
   mainCore?:
     | number
     | undefined;
-  /** Worker core list in VPP `corelist-workers` syntax, e.g. "2-5,8"; unset = VPP default. */
-  corelist?: string | undefined;
+  /**
+   * CPU ids pinned to worker threads (cpu corelist-workers); when set, `workers` must equal its
+   * length (semantic rule dataplane.workers-match-corelist). Empty = VPP default.
+   */
+  corelist: number[];
+  /** TX queues per interface (dpdk num-tx-queues); unset = driver default. */
+  txQueues?: number | undefined;
 }
 
 /** Interface mirrors one entry of the `interfaces` record. */
 export interface Interface {
   /** Administrative state (sw_interface_set_flags admin-up). */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** Free-text description; stored as the second half of the VPP tag where possible. */
   description?:
     | string
@@ -1046,13 +1094,21 @@ export interface Interface {
   /** IPv6 addresses in CIDR notation ("2001:db8::1/64"), sorted. */
   ipv6: string[];
   /** VRF name the interface is bound to; first-class, never implicit (vdom.md #1). */
-  vrf: string;
-  /** RX mode: "polling" | "interrupt" | "adaptive" (sw_interface_set_rx_mode). */
-  rxMode: string;
+  vrf?:
+    | string
+    | undefined;
+  /** RX mode: "polling" | "interrupt" | "adaptive" (sw_interface_set_rx_mode); unset = driver default. */
+  rxMode?:
+    | string
+    | undefined;
   /** Sub-interfaces keyed by the record key used in the document (usually the VLAN id as string). */
   subinterfaces: { [key: string]: Subinterface };
   /** IP-unnumbered: name of the interface whose addresses are borrowed; unset = numbered. */
-  unnumbered?: string | undefined;
+  unnumbered?:
+    | string
+    | undefined;
+  /** Accept frames for any destination MAC (sw_interface_set_promisc); Zod default false. */
+  promiscuous?: boolean | undefined;
 }
 
 export interface Interface_SubinterfacesEntry {
@@ -1063,13 +1119,17 @@ export interface Interface_SubinterfacesEntry {
 /** Subinterface mirrors one entry of `interfaces.<name>.subinterfaces` (dot1q / dot1ad). */
 export interface Subinterface {
   /** Outer VLAN id 1–4094 (create_vlan_subif / create_subif). */
-  vlanId: number;
+  vlanId?:
+    | number
+    | undefined;
   /** Inner VLAN id for QinQ; unset = single-tagged. */
   innerVlanId?:
     | number
     | undefined;
   /** Administrative state. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** Free-text description. */
   description?:
     | string
@@ -1083,15 +1143,23 @@ export interface Subinterface {
   /** IPv6 addresses in CIDR notation, sorted. */
   ipv6: string[];
   /** VRF name; may differ from the parent's. */
-  vrf: string;
+  vrf?:
+    | string
+    | undefined;
   /** IP-unnumbered source interface; unset = numbered. */
-  unnumbered?: string | undefined;
+  unnumbered?:
+    | string
+    | undefined;
+  /** Outer tag is 802.1ad (0x88a8) instead of 802.1Q (0x8100); Zod default false. */
+  dot1ad?: boolean | undefined;
 }
 
 /** Vrf mirrors one entry of the `vrfs` record (ip_table_add_del for IPv4 and IPv6). */
 export interface Vrf {
   /** VPP FIB table id, 0..2^32-1; 0 is the default table. */
-  id: number;
+  id?:
+    | number
+    | undefined;
   /** Free-text description (VPP table name carries "<owner>:<name>"). */
   description?: string | undefined;
 }
@@ -1137,23 +1205,38 @@ export interface RoutingConfig_RouteMapsEntry {
 /** StaticRoute mirrors one entry of `routing.static`. */
 export interface StaticRoute {
   /** Destination prefix in CIDR notation, IPv4 or IPv6 ("0.0.0.0/0", "2001:db8::/32"). */
-  prefix: string;
+  prefix?:
+    | string
+    | undefined;
   /** Next hops (ECMP when more than one), sorted by address. */
   nextHops: NextHop[];
-  /** VRF name the route is installed in; first-class (vdom.md #1). */
-  vrf: string;
+  /** VRF name the route is installed in; first-class (vdom.md #1). Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** Administrative distance 1–255; Zod default 1. */
+  distance?:
+    | number
+    | undefined;
+  /** Free-text description. */
+  description?: string | undefined;
 }
 
 /** NextHop is one path of a StaticRoute. */
 export interface NextHop {
-  /** Next-hop address; "" with `interface` set = directly attached / interface route. */
-  address: string;
+  /**
+   * Next-hop (gateway) address; unset with `interface` set = directly attached / interface route.
+   * At least one of address / interface is set (Zod refine).
+   */
+  address?:
+    | string
+    | undefined;
   /** Egress VPP interface name; unset = resolved via the FIB. */
   interface?:
     | string
     | undefined;
-  /** ECMP weight 1–255; 0 = 1. */
-  weight: number;
+  /** ECMP weight 1–255; Zod default 1 (always set in a parsed document). */
+  weight?: number | undefined;
 }
 
 /** PrefixList is `routing.prefixLists.<name>`; P02a fields are added from 1. */
@@ -1277,9 +1360,9 @@ export interface VrrpInstance {
 }
 
 /**
- * ManagementConfig mirrors `management`. Most of it is consumed by the API itself (users, TLS);
- * the agent needs only what it renders (syslog targets, host firewall); it never logs or persists
- * write-only fields.
+ * ManagementConfig mirrors `management` minus the schema's secret-flagged leaves (D-040). Most of
+ * it is consumed by the API itself (users, TLS); the agent needs only what it renders (syslog
+ * targets, local accounts' public keys, host firewall).
  */
 export interface ManagementConfig {
   /** Local users. */
@@ -1299,16 +1382,25 @@ export interface ManagementConfig {
 /** ManagementUser mirrors one entry of `management.users`. */
 export interface ManagementUser {
   /** Login name. */
-  username: string;
+  username?:
+    | string
+    | undefined;
   /** Role: "admin" | "operator" | "readonly". */
-  role: string;
+  role?:
+    | string
+    | undefined;
   /** Role scope; always "*" until multi-tenancy (vdom.md guardrail #3). */
-  scope: string;
-  /**
-   * Password hash — WRITE-ONLY (00-CONTEXT rule 10): the API strips it before Apply unless the
-   * agent needs it, the agent never logs it and Retrieve never returns it.
-   */
-  passwordHash?: string | undefined;
+  scope?:
+    | string
+    | undefined;
+  /** OpenSSH authorized_keys lines (public material, not a secret). */
+  sshKeys: string[];
+  /** Display name. */
+  fullName?:
+    | string
+    | undefined;
+  /** Account kept but logins refused; Zod default false. */
+  disabled?: boolean | undefined;
 }
 
 /** ManagementAaa is `management.aaa`; P02a fields are added from 1. */
@@ -1329,9 +1421,13 @@ export interface SyslogTarget {
  */
 export interface NatConfig {
   /** NAT44 enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** NAT44 flavour: "ed" (endpoint-dependent, nat44-ed) | "ei" (endpoint-independent, nat44-ei). */
-  mode: string;
+  mode?:
+    | string
+    | undefined;
   /** Inside (local side) VPP interface names. */
   inside: string[];
   /** Outside (public side) VPP interface names. */
@@ -1347,11 +1443,17 @@ export interface NatConfig {
     | string
     | undefined;
   /** Forward traffic that matches no NAT session. */
-  forwarding: boolean;
+  forwarding?:
+    | boolean
+    | undefined;
   /** Translate only via static mappings. */
-  staticMappingOnly: boolean;
+  staticMappingOnly?:
+    | boolean
+    | undefined;
   /** Connection tracking (nat44-ed). */
-  connectionTracking: boolean;
+  connectionTracking?:
+    | boolean
+    | undefined;
   /** Max sessions per worker thread; unset = VPP default. */
   sessionLimit?:
     | number
@@ -1403,37 +1505,49 @@ export interface NatConfig {
 /** NatTimeouts mirrors `nat.timeouts` (seconds). */
 export interface NatTimeouts {
   /** UDP session timeout. */
-  udp: number;
+  udp?:
+    | number
+    | undefined;
   /** Established TCP session timeout. */
-  tcpEstablished: number;
+  tcpEstablished?:
+    | number
+    | undefined;
   /** Transitory TCP session timeout. */
-  tcpTransitory: number;
+  tcpTransitory?:
+    | number
+    | undefined;
   /** ICMP session timeout. */
-  icmp: number;
+  icmp?: number | undefined;
 }
 
 /** NatPool mirrors one entry of `nat.pools`. */
 export interface NatPool {
   /** Pool name (unique within nat.pools). */
-  name: string;
+  name?:
+    | string
+    | undefined;
   /** Free-text description. */
   description?:
     | string
     | undefined;
   /** IPv4 address range "a.b.c.d-a.b.c.e" (a single address is "a.b.c.d"). */
-  range: string;
+  range?:
+    | string
+    | undefined;
   /** VRF name; unset = "default". */
   vrf?:
     | string
     | undefined;
   /** Addresses used for the source side of twice-NAT mappings. */
-  twiceNat: boolean;
+  twiceNat?: boolean | undefined;
 }
 
 /** NatStaticMapping mirrors one entry of `nat.staticMappings`. */
 export interface NatStaticMapping {
   /** Mapping name (unique within nat.staticMappings). */
-  name: string;
+  name?:
+    | string
+    | undefined;
   /** Free-text description. */
   description?:
     | string
@@ -1455,17 +1569,23 @@ export interface NatStaticMapping {
     | string
     | undefined;
   /** Twice-NAT. */
-  twiceNat: boolean;
+  twiceNat?:
+    | boolean
+    | undefined;
   /** Twice-NAT only when the source is the external address. */
-  selfTwiceNat: boolean;
+  selfTwiceNat?:
+    | boolean
+    | undefined;
   /** Out-to-in only. */
-  out2inOnly: boolean;
+  out2inOnly?: boolean | undefined;
 }
 
 /** Local endpoint. */
 export interface NatStaticMapping_Local {
   /** Local IPv4 address. */
-  ip: string;
+  ip?:
+    | string
+    | undefined;
   /** Local L4 port; unset = 1:1 address mapping. */
   port?: number | undefined;
 }
@@ -1513,45 +1633,63 @@ export interface NatIdentityMapping {
 /** NatLoadBalancedMapping mirrors one entry of `nat.loadBalancedMappings`. */
 export interface NatLoadBalancedMapping {
   /** Mapping name. */
-  name: string;
+  name?:
+    | string
+    | undefined;
   /** Free-text description. */
   description?:
     | string
     | undefined;
   /** "tcp" | "udp". */
-  protocol: string;
+  protocol?:
+    | string
+    | undefined;
   /** External side. */
   external:
     | NatLoadBalancedMapping_External
     | undefined;
   /** Backends (1–256). */
   locals: NatLoadBalancedMapping_Local[];
-  /** Client affinity in seconds; 0 = none. */
-  affinity: number;
+  /** Client affinity in seconds; 0 = none (Zod default). */
+  affinity?:
+    | number
+    | undefined;
   /** Twice-NAT. */
-  twiceNat: boolean;
+  twiceNat?:
+    | boolean
+    | undefined;
   /** Self twice-NAT. */
-  selfTwiceNat: boolean;
+  selfTwiceNat?:
+    | boolean
+    | undefined;
   /** Out-to-in only. */
-  out2inOnly: boolean;
+  out2inOnly?: boolean | undefined;
 }
 
 /** External endpoint. */
 export interface NatLoadBalancedMapping_External {
   /** External IPv4 address. */
-  ip: string;
+  ip?:
+    | string
+    | undefined;
   /** External L4 port. */
-  port: number;
+  port?: number | undefined;
 }
 
 /** One backend. */
 export interface NatLoadBalancedMapping_Local {
   /** Local IPv4 address. */
-  ip: string;
+  ip?:
+    | string
+    | undefined;
   /** Local L4 port. */
-  port: number;
+  port?:
+    | number
+    | undefined;
   /** Weight 1–255. */
-  probability: number;
+  probability?:
+    | number
+    | undefined;
   /** VRF name; unset = "default". */
   vrf?: string | undefined;
 }
@@ -1559,7 +1697,9 @@ export interface NatLoadBalancedMapping_Local {
 /** NatIpfix mirrors `nat.ipfix`. */
 export interface NatIpfix {
   /** Logging enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** IPFIX observation domain id. */
   domainId?:
     | number
@@ -1571,7 +1711,9 @@ export interface NatIpfix {
 /** Nat64Config mirrors `nat.nat64`. */
 export interface Nat64Config {
   /** Enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** Inside (IPv6-only side) interfaces. */
   inside: string[];
   /** Outside (IPv4 side) interfaces. */
@@ -1589,7 +1731,9 @@ export interface Nat64Config {
 /** One NAT64 prefix. */
 export interface Nat64Config_Prefix {
   /** RFC 6052 prefix (length 32/40/48/56/64/96), default 64:ff9b::/96. */
-  prefix: string;
+  prefix?:
+    | string
+    | undefined;
   /** VRF name; unset = "default". */
   vrf?: string | undefined;
 }
@@ -1597,7 +1741,9 @@ export interface Nat64Config_Prefix {
 /** One IPv4 pool. */
 export interface Nat64Config_Pool {
   /** IPv4 range "a.b.c.d-a.b.c.e". */
-  range: string;
+  range?:
+    | string
+    | undefined;
   /** VRF name; unset = "default". */
   vrf?: string | undefined;
 }
@@ -1609,7 +1755,9 @@ export interface Nat64Config_StaticBib {
     | string
     | undefined;
   /** "tcp" | "udp" | "icmp". */
-  protocol: string;
+  protocol?:
+    | string
+    | undefined;
   /** Inside (IPv6). */
   inside:
     | Nat64Config_StaticBib_Endpoint
@@ -1625,15 +1773,19 @@ export interface Nat64Config_StaticBib {
 /** One side of the entry. */
 export interface Nat64Config_StaticBib_Endpoint {
   /** Address (IPv6 inside, IPv4 outside). */
-  ip: string;
+  ip?:
+    | string
+    | undefined;
   /** L4 port. */
-  port: number;
+  port?: number | undefined;
 }
 
 /** Nat66Config mirrors `nat.nat66`. */
 export interface Nat66Config {
   /** Enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** Inside interfaces. */
   inside: string[];
   /** Outside interfaces. */
@@ -1649,9 +1801,13 @@ export interface Nat66Config_StaticMapping {
     | string
     | undefined;
   /** Local IPv6 address. */
-  local: string;
+  local?:
+    | string
+    | undefined;
   /** External IPv6 address. */
-  external: string;
+  external?:
+    | string
+    | undefined;
   /** VRF name; unset = "default". */
   vrf?: string | undefined;
 }
@@ -1669,17 +1825,23 @@ export interface Nptv6Config_Binding {
     | string
     | undefined;
   /** VPP interface name. */
-  interface: string;
+  interface?:
+    | string
+    | undefined;
   /** Internal IPv6 prefix. */
-  internal: string;
+  internal?:
+    | string
+    | undefined;
   /** External IPv6 prefix. */
-  external: string;
+  external?: string | undefined;
 }
 
 /** Det44Config mirrors `nat.det44`. */
 export interface Det44Config {
   /** Enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** Inside interfaces. */
   inside: string[];
   /** Outside interfaces. */
@@ -1705,15 +1867,19 @@ export interface Det44Config_Mapping {
     | string
     | undefined;
   /** Inside IPv4 prefix. */
-  inside: string;
+  inside?:
+    | string
+    | undefined;
   /** Outside IPv4 prefix (length ≥ inside length; ≤ 15 bits difference). */
-  outside: string;
+  outside?: string | undefined;
 }
 
 /** DsliteConfig mirrors `nat.dslite`. */
 export interface DsliteConfig {
   /** Enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** AFTR endpoint; unset = not an AFTR. */
   aftr:
     | DsliteConfig_Endpoint
@@ -1729,7 +1895,9 @@ export interface DsliteConfig {
 /** AFTR or B4 addresses. */
 export interface DsliteConfig_Endpoint {
   /** IPv6 address. */
-  ipv6: string;
+  ipv6?:
+    | string
+    | undefined;
   /** IPv4 address. */
   ipv4?: string | undefined;
 }
@@ -1737,31 +1905,47 @@ export interface DsliteConfig_Endpoint {
 /** One IPv4 pool. */
 export interface DsliteConfig_Pool {
   /** IPv4 range "a.b.c.d-a.b.c.e". */
-  range: string;
+  range?: string | undefined;
 }
 
 /** MapDomain mirrors one entry of `nat.map.domains`. */
 export interface MapDomain {
   /** Domain name. */
-  name: string;
+  name?:
+    | string
+    | undefined;
   /** Free-text description. */
   description?:
     | string
     | undefined;
   /** "map-e" | "map-t" | "lw4o6". */
-  mode: string;
+  mode?:
+    | string
+    | undefined;
   /** Rule IPv4 prefix. */
-  ipv4Prefix: string;
+  ipv4Prefix?:
+    | string
+    | undefined;
   /** Rule IPv6 prefix. */
-  ipv6Prefix: string;
+  ipv6Prefix?:
+    | string
+    | undefined;
   /** BR IPv6 source / DMR prefix. */
-  ipv6Source: string;
+  ipv6Source?:
+    | string
+    | undefined;
   /** EA bits length 0–64. */
-  eaBitsLength: number;
+  eaBitsLength?:
+    | number
+    | undefined;
   /** PSID offset 0–16. */
-  psidOffset: number;
+  psidOffset?:
+    | number
+    | undefined;
   /** PSID length 0–16. */
-  psidLength: number;
+  psidLength?:
+    | number
+    | undefined;
   /** MTU 1280–9216; unset = default. */
   mtu?:
     | number
@@ -1773,9 +1957,11 @@ export interface MapDomain {
 /** One per-PSID rule. */
 export interface MapDomain_Rule {
   /** PSID. */
-  psid: number;
+  psid?:
+    | number
+    | undefined;
   /** IPv6 destination. */
-  ipv6Destination: string;
+  ipv6Destination?: string | undefined;
 }
 
 /** MapParameters mirrors `nat.map.parameters`. */
@@ -1789,7 +1975,9 @@ export interface MapParameters {
     | string
     | undefined;
   /** Send ICMPv6 unreachables. */
-  icmp6Unreachables: boolean;
+  icmp6Unreachables?:
+    | boolean
+    | undefined;
   /** Security check. */
   securityCheck:
     | MapParameters_SecurityCheck
@@ -1809,23 +1997,29 @@ export interface MapParameters {
 /** Fragmentation behaviour. */
 export interface MapParameters_Fragmentation {
   /** Fragment the inner packet. */
-  inner: boolean;
+  inner?:
+    | boolean
+    | undefined;
   /** Ignore the DF bit. */
-  ignoreDf: boolean;
+  ignoreDf?: boolean | undefined;
 }
 
 /** Security check. */
 export interface MapParameters_SecurityCheck {
   /** Enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** Check fragments too. */
-  fragments: boolean;
+  fragments?: boolean | undefined;
 }
 
 /** Traffic class handling. */
 export interface MapParameters_TrafficClass {
   /** Copy the traffic class. */
-  copy: boolean;
+  copy?:
+    | boolean
+    | undefined;
   /** Fixed value 0–255. */
   value?: number | undefined;
 }
@@ -1851,21 +2045,27 @@ export interface MapConfig {
 /** CnatEndpoint is an address + port pair used by CNAT. */
 export interface CnatEndpoint {
   /** IPv4 or IPv6 address. */
-  ip: string;
+  ip?:
+    | string
+    | undefined;
   /** L4 port. */
-  port: number;
+  port?: number | undefined;
 }
 
 /** CnatTranslation mirrors one entry of `nat.cnat.translations`. */
 export interface CnatTranslation {
   /** Translation name. */
-  name: string;
+  name?:
+    | string
+    | undefined;
   /** Free-text description. */
   description?:
     | string
     | undefined;
   /** "tcp" | "udp". */
-  protocol: string;
+  protocol?:
+    | string
+    | undefined;
   /** Virtual endpoint. */
   vip:
     | CnatEndpoint
@@ -1873,7 +2073,7 @@ export interface CnatTranslation {
   /** Backends (1–1024). */
   backends: CnatEndpoint[];
   /** "default" | "maglev". */
-  lbType: string;
+  lbType?: string | undefined;
 }
 
 /** CnatConfig mirrors `nat.cnat`. */
@@ -1887,7 +2087,9 @@ export interface CnatConfig {
 /** SNAT policy. */
 export interface CnatConfig_Snat {
   /** "none" | "interface" | "k8s". */
-  policy: string;
+  policy?:
+    | string
+    | undefined;
   /** SNAT addresses. */
   addresses:
     | CnatConfig_Snat_Addresses
@@ -1911,9 +2113,11 @@ export interface CnatConfig_Snat_Addresses {
 /** One policy interface. */
 export interface CnatConfig_Snat_PolicyInterface {
   /** VPP interface name. */
-  interface: string;
+  interface?:
+    | string
+    | undefined;
   /** "inside" | "outside". */
-  side: string;
+  side?: string | undefined;
 }
 
 /**
@@ -1975,7 +2179,9 @@ export interface ObjectsConfig_TagsEntry {
 /** AddressObject mirrors `objects.addresses.<name>` — a Zod discriminated union on `type`, flattened. */
 export interface AddressObject {
   /** "host" | "network" | "range" | "fqdn". */
-  type: string;
+  type?:
+    | string
+    | undefined;
   /** type=host: IP address. */
   address?:
     | string
@@ -2019,15 +2225,19 @@ export interface AddressGroup {
 /** TcpFlags is a TCP flags match. */
 export interface TcpFlags {
   /** Bitmask over FIN…CWR (0–255). */
-  mask: number;
+  mask?:
+    | number
+    | undefined;
   /** Value compared under the mask (0–255). */
-  value: number;
+  value?: number | undefined;
 }
 
 /** ServiceSpec is an inline service match — a Zod discriminated union on `protocol`, flattened. */
 export interface ServiceSpec {
   /** "tcp" | "tcp-udp" | "udp" | "sctp" | "icmp" | "icmp6" | "any" | "other". */
-  protocol: string;
+  protocol?:
+    | string
+    | undefined;
   /** tcp/tcp-udp/udp/sctp: destination port ranges "443" or "8000-8080"; empty = any. */
   destinationPorts: string[];
   /** tcp/tcp-udp/udp/sctp: source port ranges; empty = any. */
@@ -2051,7 +2261,9 @@ export interface ServiceSpec {
 /** ServiceObject mirrors `objects.services.<name>` (ServiceSpec plus description/tags). */
 export interface ServiceObject {
   /** See ServiceSpec.protocol. */
-  protocol: string;
+  protocol?:
+    | string
+    | undefined;
   /** See ServiceSpec.destination_ports. */
   destinationPorts: string[];
   /** See ServiceSpec.source_ports. */
@@ -2095,13 +2307,19 @@ export interface ServiceGroup {
 /** Schedule mirrors `objects.schedules.<name>` — a Zod discriminated union on `type`, flattened. */
 export interface Schedule {
   /** "recurring" | "once". */
-  type: string;
+  type?:
+    | string
+    | undefined;
   /** recurring: weekdays "mon".."sun" (1–7 entries). */
   days: string[];
   /** recurring: time of day "HH:MM"; once: RFC 3339 date-time with offset. */
-  start: string;
+  start?:
+    | string
+    | undefined;
   /** recurring: time of day "HH:MM"; once: RFC 3339 date-time with offset. */
-  end: string;
+  end?:
+    | string
+    | undefined;
   /** Free-text description. */
   description?:
     | string
@@ -2166,7 +2384,9 @@ export interface AclConfig_HostEntry {
 /** AddressMatch is a rule's source/destination — a Zod discriminated union on `kind`, flattened. */
 export interface AddressMatch {
   /** "any" | "prefix" | "object". */
-  kind: string;
+  kind?:
+    | string
+    | undefined;
   /** kind=prefix: CIDR prefix. */
   prefix?:
     | string
@@ -2178,7 +2398,9 @@ export interface AddressMatch {
 /** ServiceMatch is a rule's service — a Zod discriminated union on `kind`, flattened. */
 export interface ServiceMatch {
   /** "any" | "object" | "inline". */
-  kind: string;
+  kind?:
+    | string
+    | undefined;
   /** kind=object: name from objects.services or objects.serviceGroups. */
   name?:
     | string
@@ -2190,17 +2412,25 @@ export interface ServiceMatch {
 /** AclRule mirrors one entry of `acl.lists.<name>.rules`. */
 export interface AclRule {
   /** Sequence number 1..2^31-1, unique within the list; rules are evaluated in this order. */
-  sequence: number;
+  sequence?:
+    | number
+    | undefined;
   /** Free-text description. */
   description?:
     | string
     | undefined;
   /** Rule enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** "permit" | "deny" | "reflect". */
-  action: string;
+  action?:
+    | string
+    | undefined;
   /** "ipv4" | "ipv6" | "any". */
-  ipVersion: string;
+  ipVersion?:
+    | string
+    | undefined;
   /** Source match; unset = any. */
   source:
     | AddressMatch
@@ -2218,7 +2448,7 @@ export interface AclRule {
     | string
     | undefined;
   /** Log matches. */
-  log: boolean;
+  log?: boolean | undefined;
 }
 
 /** AclList mirrors `acl.lists.<name>`. */
@@ -2236,17 +2466,25 @@ export interface AclList {
 /** MacipRule mirrors one entry of `acl.macip.<name>.rules`. */
 export interface MacipRule {
   /** Sequence number, unique within the list. */
-  sequence: number;
+  sequence?:
+    | number
+    | undefined;
   /** Free-text description. */
   description?:
     | string
     | undefined;
   /** "permit" | "deny". */
-  action: string;
+  action?:
+    | string
+    | undefined;
   /** Source MAC "aa:bb:cc:dd:ee:ff". */
-  sourceMac: string;
+  sourceMac?:
+    | string
+    | undefined;
   /** Source MAC mask; "ff:ff:ff:ff:ff:ff" = exact. */
-  sourceMacMask: string;
+  sourceMacMask?:
+    | string
+    | undefined;
   /** Source CIDR prefix; unset = any address. */
   sourcePrefix?: string | undefined;
 }
@@ -2266,17 +2504,25 @@ export interface MacipList {
 /** HostRule mirrors one entry of `acl.host.<name>.rules` (nftables on the management plane). */
 export interface HostRule {
   /** Sequence number, unique within the list. */
-  sequence: number;
+  sequence?:
+    | number
+    | undefined;
   /** Free-text description. */
   description?:
     | string
     | undefined;
   /** Rule enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** "accept" | "drop" | "reject". */
-  action: string;
+  action?:
+    | string
+    | undefined;
   /** "ipv4" | "ipv6" | "any". */
-  ipVersion: string;
+  ipVersion?:
+    | string
+    | undefined;
   /** Source match; unset = any. */
   source:
     | AddressMatch
@@ -2294,7 +2540,7 @@ export interface HostRule {
     | string
     | undefined;
   /** Log matches. */
-  log: boolean;
+  log?: boolean | undefined;
 }
 
 /** HostList mirrors `acl.host.<name>`. */
@@ -2312,7 +2558,9 @@ export interface HostList {
 /** AttachmentTarget is where an ACL attaches — a Zod discriminated union on `kind`, flattened. */
 export interface AttachmentTarget {
   /** "interface" | "zone". */
-  kind: string;
+  kind?:
+    | string
+    | undefined;
   /** kind=interface: VPP interface name. */
   interface?:
     | string
@@ -2324,21 +2572,29 @@ export interface AttachmentTarget {
 /** AclAttachment mirrors one entry of `acl.attachments`. */
 export interface AclAttachment {
   /** Name from acl.lists. */
-  list: string;
+  list?:
+    | string
+    | undefined;
   /** Interface or zone. */
   target:
     | AttachmentTarget
     | undefined;
   /** "in" | "out". */
-  direction: string;
+  direction?:
+    | string
+    | undefined;
   /** Order among several lists on the same interface and direction. */
-  sequence: number;
+  sequence?:
+    | number
+    | undefined;
   /** VRF name; must match the target interface's VRF; unset = "default". */
   vrf?:
     | string
     | undefined;
   /** Attachment enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** Free-text description. */
   description?: string | undefined;
 }
@@ -2346,15 +2602,21 @@ export interface AclAttachment {
 /** MacipAttachment mirrors one entry of `acl.macipAttachments`. */
 export interface MacipAttachment {
   /** Name from acl.macip. */
-  list: string;
+  list?:
+    | string
+    | undefined;
   /** VPP interface name. */
-  interface: string;
+  interface?:
+    | string
+    | undefined;
   /** VRF name; unset = "default". */
   vrf?:
     | string
     | undefined;
   /** Attachment enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** Free-text description. */
   description?: string | undefined;
 }
@@ -2362,13 +2624,21 @@ export interface MacipAttachment {
 /** HostAttachment mirrors one entry of `acl.hostAttachments`. */
 export interface HostAttachment {
   /** Name from acl.host. */
-  list: string;
+  list?:
+    | string
+    | undefined;
   /** "input" | "output" | "forward". */
-  chain: string;
+  chain?:
+    | string
+    | undefined;
   /** nftables chain priority -500..500; lower runs first. */
-  priority: number;
+  priority?:
+    | number
+    | undefined;
   /** Attachment enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** Free-text description. */
   description?: string | undefined;
 }
@@ -2399,7 +2669,9 @@ export interface VpnConfig_RemoteAccessEntry {
 /** IkeProposal mirrors `vpn.ipsec.proposals.<name>.ike`. */
 export interface IkeProposal {
   /** Encryption: aes128|aes192|aes256|aes128ctr|aes256ctr|aes128gcm8..aes256gcm16|chacha20poly1305|3des. */
-  encr: string;
+  encr?:
+    | string
+    | undefined;
   /** Integrity: sha1|sha256|sha384|sha512|md5|aesxcbc|aescmac; unset for AEAD ciphers. */
   integ?:
     | string
@@ -2409,13 +2681,15 @@ export interface IkeProposal {
     | string
     | undefined;
   /** DH group: modp768..modp8192|ecp192..ecp521|modp1024s160|modp2048s224|modp2048s256|curve25519|curve448. */
-  dh: string;
+  dh?: string | undefined;
 }
 
 /** EspProposal mirrors `vpn.ipsec.proposals.<name>.esp`. */
 export interface EspProposal {
   /** Encryption (IKE list plus "null"). */
-  encr: string;
+  encr?:
+    | string
+    | undefined;
   /** Integrity; unset for AEAD ciphers. */
   integ?:
     | string
@@ -2441,7 +2715,9 @@ export interface IpsecProposal {
 /** IpsecAuth mirrors `vpn.ipsec.tunnels.<name>.auth` — a Zod discriminated union on `method`, flattened. */
 export interface IpsecAuth {
   /** "psk" | "cert". */
-  method: string;
+  method?:
+    | string
+    | undefined;
   /** method=psk: reference to the pre-shared key (never the key). */
   secretRef?:
     | string
@@ -2457,53 +2733,77 @@ export interface IpsecAuth {
 /** IpsecDpd mirrors a dead-peer-detection block. */
 export interface IpsecDpd {
   /** Enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** DPD delay in seconds. */
-  delaySec: number;
+  delaySec?:
+    | number
+    | undefined;
   /** DPD timeout in seconds (IKEv1 only). */
-  timeoutSec: number;
+  timeoutSec?:
+    | number
+    | undefined;
   /** "clear" | "trap" | "restart". */
-  action: string;
+  action?: string | undefined;
 }
 
 /** IpsecRekey mirrors a rekeying block. */
 export interface IpsecRekey {
   /** IKE SA lifetime in seconds. */
-  ikeSec: number;
+  ikeSec?:
+    | number
+    | undefined;
   /** CHILD SA lifetime in seconds. */
-  espSec: number;
+  espSec?:
+    | number
+    | undefined;
   /** CHILD SA lifetime in bytes; unset = none. */
   espBytes?:
-    | number
+    | string
     | undefined;
   /** CHILD SA lifetime in packets; unset = none. */
   espPackets?:
-    | number
+    | string
     | undefined;
   /** Re-authenticate instead of rekeying the IKE SA. */
-  reauth: boolean;
+  reauth?: boolean | undefined;
 }
 
 /** IpsecTunnel mirrors `vpn.ipsec.tunnels.<name>`. */
 export interface IpsecTunnel {
   /** Enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** Free-text description. */
   description?:
     | string
     | undefined;
   /** "strongswan" | "vpp-ikev2". */
-  engine: string;
+  engine?:
+    | string
+    | undefined;
   /** IKE version 1 | 2. */
-  ikeVersion: number;
+  ikeVersion?:
+    | number
+    | undefined;
   /** "tunnel" | "transport". */
-  mode: string;
+  mode?:
+    | string
+    | undefined;
   /** "esp" | "ah". */
-  protocol: string;
+  protocol?:
+    | string
+    | undefined;
   /** Local address (configured on an interface in `vrf`). */
-  localAddr: string;
+  localAddr?:
+    | string
+    | undefined;
   /** Remote address: IP, hostname or "%any" (responder only). */
-  remoteAddr: string;
+  remoteAddr?:
+    | string
+    | undefined;
   /** Local IKE identity; unset = local address. */
   localId?:
     | string
@@ -2517,7 +2817,9 @@ export interface IpsecTunnel {
     | IpsecAuth
     | undefined;
   /** Name in vpn.ipsec.proposals. */
-  proposal: string;
+  proposal?:
+    | string
+    | undefined;
   /** Local traffic selectors (CIDR); policy-based tunnels need ≥ 1. */
   localTs: string[];
   /** Remote traffic selectors (CIDR). */
@@ -2527,7 +2829,9 @@ export interface IpsecTunnel {
     | IpsecDpd
     | undefined;
   /** NAT traversal (UDP encapsulation). */
-  natT: boolean;
+  natT?:
+    | boolean
+    | undefined;
   /** MOBIKE (IKEv2); unset = strongSwan default. */
   mobike?:
     | boolean
@@ -2541,19 +2845,27 @@ export interface IpsecTunnel {
     | IpsecRekey
     | undefined;
   /** "none" | "start" | "trap". */
-  startAction: string;
+  startAction?:
+    | string
+    | undefined;
   /** "none" | "start" | "trap". */
-  closeAction: string;
+  closeAction?:
+    | string
+    | undefined;
   /** VRF name (first-class, vdom.md #1). */
-  vrf: string;
+  vrf?:
+    | string
+    | undefined;
   /** Route-based settings; unset = policy-based. */
   routeBased:
     | IpsecTunnel_RouteBased
     | undefined;
   /** Extended sequence numbers. */
-  esn: boolean;
+  esn?:
+    | boolean
+    | undefined;
   /** Anti-replay. */
-  antiReplay: boolean;
+  antiReplay?: boolean | undefined;
 }
 
 /** Route-based (VTI) settings. */
@@ -2562,15 +2874,17 @@ export interface IpsecTunnel_RouteBased {
    * Name in tunnels.ipip; the tunnel is protected (ipsec_tunnel_protect) and traffic is steered
    * by routes.
    */
-  ipipInterface: string;
+  ipipInterface?: string | undefined;
 }
 
 /** IpsecSettings mirrors `vpn.ipsec.settings`. */
 export interface IpsecSettings {
   /** VPP crypto engine: "auto" | "native" | "ipsecmb" | "openssl". */
-  cryptoEngine: string;
+  cryptoEngine?:
+    | string
+    | undefined;
   /** Asynchronous crypto (dedicated crypto workers / QAT). */
-  asyncCrypto: boolean;
+  asyncCrypto?: boolean | undefined;
 }
 
 /** IpsecConfig mirrors `vpn.ipsec`. */
@@ -2602,7 +2916,9 @@ export interface WireguardPeer {
     | string
     | undefined;
   /** Base64 32-byte public key. */
-  publicKey: string;
+  publicKey?:
+    | string
+    | undefined;
   /** Reference to the pre-shared key; unset = none. */
   presharedKeyRef?:
     | string
@@ -2613,42 +2929,60 @@ export interface WireguardPeer {
     | undefined;
   /** Allowed IPs (CIDR, 1–256). */
   allowedIps: string[];
-  /** Persistent keepalive in seconds; 0 = disabled. */
-  persistentKeepaliveSec: number;
+  /** Persistent keepalive in seconds; 0 = disabled (Zod default). */
+  persistentKeepaliveSec?: number | undefined;
 }
 
 /** Remote endpoint. */
 export interface WireguardPeer_Endpoint {
   /** IP address or hostname. */
-  address: string;
+  address?:
+    | string
+    | undefined;
   /** UDP port. */
-  port: number;
+  port?: number | undefined;
 }
 
 /** WireguardInterface mirrors `vpn.wireguard.interfaces.<name>`. */
 export interface WireguardInterface {
   /** Enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** Free-text description. */
   description?:
     | string
     | undefined;
   /** VPP instance number; the interface is "wg<instance>". */
-  instance: number;
+  instance?:
+    | number
+    | undefined;
   /** VRF of the tunnel interface. */
-  vrf: string;
+  vrf?:
+    | string
+    | undefined;
   /** VRF of the listen address / peer endpoints. */
-  underlayVrf: string;
+  underlayVrf?:
+    | string
+    | undefined;
   /** Listen (source) address. */
-  listenAddress: string;
+  listenAddress?:
+    | string
+    | undefined;
   /** Listen UDP port. */
-  listenPort: number;
+  listenPort?:
+    | number
+    | undefined;
   /** Reference to the private key. */
-  privateKeyRef: string;
+  privateKeyRef?:
+    | string
+    | undefined;
   /** Interface addresses (CIDR). */
   address: string[];
   /** MTU. */
-  mtu: number;
+  mtu?:
+    | number
+    | undefined;
   /** Peers keyed by name. */
   peers: { [key: string]: WireguardPeer };
 }
@@ -2676,7 +3010,9 @@ export interface PkiCa {
     | string
     | undefined;
   /** Reference to the CA certificate (PEM in the secret store). */
-  certificateRef: string;
+  certificateRef?:
+    | string
+    | undefined;
   /** CRL; unset = none. */
   crl:
     | PkiCa_Crl
@@ -2692,7 +3028,7 @@ export interface PkiCa_Crl {
     | string
     | undefined;
   /** Refresh interval in seconds. */
-  refreshIntervalSec: number;
+  refreshIntervalSec?: number | undefined;
 }
 
 /** PkiCertificate mirrors `vpn.pki.certificates.<name>`. */
@@ -2706,7 +3042,9 @@ export interface PkiCertificate {
     | string
     | undefined;
   /** Reference to the private key. */
-  privateKeyRef: string;
+  privateKeyRef?:
+    | string
+    | undefined;
   /** Issuing CA name in vpn.pki.cas. */
   ca?:
     | string
@@ -2716,13 +3054,15 @@ export interface PkiCertificate {
     | PkiCertificate_Acme
     | undefined;
   /** Alert this many days before expiry. */
-  expiryAlertDays: number;
+  expiryAlertDays?: number | undefined;
 }
 
 /** ACME settings. */
 export interface PkiCertificate_Acme {
   /** ACME directory URL. */
-  directoryUrl: string;
+  directoryUrl?:
+    | string
+    | undefined;
   /** Domains (1–100). */
   domains: string[];
   /** Account e-mail. */
@@ -2730,7 +3070,7 @@ export interface PkiCertificate_Acme {
     | string
     | undefined;
   /** "http-01" | "dns-01". */
-  challenge: string;
+  challenge?: string | undefined;
 }
 
 /** PkiConfig mirrors `vpn.pki`. */
@@ -2746,9 +3086,13 @@ export interface PkiConfig {
 /** PKCS#11 / HSM. */
 export interface PkiConfig_Hsm {
   /** Enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** PKCS#11 module path. */
-  module: string;
+  module?:
+    | string
+    | undefined;
   /** Token label. */
   tokenLabel?:
     | string
@@ -2770,9 +3114,13 @@ export interface PkiConfig_CertificatesEntry {
 /** RemoteAccessPool mirrors one entry of `vpn.remoteAccess.<name>.pools`. */
 export interface RemoteAccessPool {
   /** Pool name. */
-  name: string;
+  name?:
+    | string
+    | undefined;
   /** Client pool prefix (CIDR). */
-  prefix: string;
+  prefix?:
+    | string
+    | undefined;
   /** DNS servers pushed to clients (≤ 4). */
   dns: string[];
 }
@@ -2780,37 +3128,51 @@ export interface RemoteAccessPool {
 /** RemoteAccessUser mirrors one entry of `vpn.remoteAccess.<name>.users`. */
 export interface RemoteAccessUser {
   /** Username. */
-  username: string;
+  username?:
+    | string
+    | undefined;
   /** Reference to the password (never the password). */
-  passwordRef: string;
+  passwordRef?: string | undefined;
 }
 
 /** RemoteAccessProfile mirrors `vpn.remoteAccess.<name>`. */
 export interface RemoteAccessProfile {
   /** Enabled. */
-  enabled: boolean;
+  enabled?:
+    | boolean
+    | undefined;
   /** Free-text description. */
   description?:
     | string
     | undefined;
   /** Local address. */
-  localAddr: string;
+  localAddr?:
+    | string
+    | undefined;
   /** Local IKE identity; unset = local address. */
   localId?:
     | string
     | undefined;
   /** VRF name. */
-  vrf: string;
+  vrf?:
+    | string
+    | undefined;
   /** "eap-mschapv2" | "eap-tls" | "eap-radius" | "pubkey". */
-  auth: string;
+  auth?:
+    | string
+    | undefined;
   /** Server certificate name in vpn.pki.certificates. */
-  certificate: string;
+  certificate?:
+    | string
+    | undefined;
   /** Client CA name in vpn.pki.cas (eap-tls / pubkey). */
   clientCa?:
     | string
     | undefined;
   /** Name in vpn.ipsec.proposals. */
-  proposal: string;
+  proposal?:
+    | string
+    | undefined;
   /** Client pools (1–16). */
   pools: RemoteAccessPool[];
   /** Split-tunnel prefixes (CIDR); empty = full tunnel. */
@@ -2838,11 +3200,15 @@ export interface RemoteAccessProfile_Radius {
 /** One RADIUS server. */
 export interface RemoteAccessProfile_Radius_Server {
   /** IP address or hostname. */
-  address: string;
+  address?:
+    | string
+    | undefined;
   /** UDP port. */
-  port: number;
+  port?:
+    | number
+    | undefined;
   /** Reference to the shared secret. */
-  secretRef: string;
+  secretRef?: string | undefined;
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -3325,8 +3691,8 @@ export const ObjectResult: MessageFns<ObjectResult> = {
   fromJSON(object: any): ObjectResult {
     return {
       key: isSet(object.key) ? globalThis.String(object.key) : "",
-      op: isSet(object.op) ? operationFromJSON(object.op) : 0,
-      code: isSet(object.code) ? resultCodeFromJSON(object.code) : 0,
+      op: isSet(object.op) ? applyOperationFromJSON(object.op) : 0,
+      code: isSet(object.code) ? objectResultCodeFromJSON(object.code) : 0,
       message: isSet(object.message) ? globalThis.String(object.message) : "",
       pointer: isSet(object.pointer) ? globalThis.String(object.pointer) : "",
       subsystem: isSet(object.subsystem) ? globalThis.String(object.subsystem) : "",
@@ -3339,10 +3705,10 @@ export const ObjectResult: MessageFns<ObjectResult> = {
       obj.key = message.key;
     }
     if (message.op !== 0) {
-      obj.op = operationToJSON(message.op);
+      obj.op = applyOperationToJSON(message.op);
     }
     if (message.code !== 0) {
-      obj.code = resultCodeToJSON(message.code);
+      obj.code = objectResultCodeToJSON(message.code);
     }
     if (message.message !== "") {
       obj.message = message.message;
@@ -3731,7 +4097,7 @@ export const ValidationIssue: MessageFns<ValidationIssue> = {
     return {
       pointer: isSet(object.pointer) ? globalThis.String(object.pointer) : "",
       message: isSet(object.message) ? globalThis.String(object.message) : "",
-      severity: isSet(object.severity) ? severityFromJSON(object.severity) : 0,
+      severity: isSet(object.severity) ? issueSeverityFromJSON(object.severity) : 0,
       rule: isSet(object.rule) ? globalThis.String(object.rule) : "",
     };
   },
@@ -3745,7 +4111,7 @@ export const ValidationIssue: MessageFns<ValidationIssue> = {
       obj.message = message.message;
     }
     if (message.severity !== 0) {
-      obj.severity = severityToJSON(message.severity);
+      obj.severity = issueSeverityToJSON(message.severity);
     }
     if (message.rule !== "") {
       obj.rule = message.rule;
@@ -4235,7 +4601,7 @@ export const StreamStatsRequest: MessageFns<StreamStatsRequest> = {
 };
 
 function createBaseStatsBatch(): StatsBatch {
-  return { ts: undefined, seq: 0, interfaceCounters: [], workerCpu: [], intervalMs: 0 };
+  return { ts: undefined, seq: "0", interfaceCounters: [], workerCpu: [], intervalMs: 0 };
 }
 
 export const StatsBatch: MessageFns<StatsBatch> = {
@@ -4243,7 +4609,7 @@ export const StatsBatch: MessageFns<StatsBatch> = {
     if (message.ts !== undefined) {
       Timestamp.encode(toTimestamp(message.ts), writer.uint32(10).fork()).join();
     }
-    if (message.seq !== 0) {
+    if (message.seq !== "0") {
       writer.uint32(16).uint64(message.seq);
     }
     for (const v of message.interfaceCounters) {
@@ -4284,7 +4650,7 @@ export const StatsBatch: MessageFns<StatsBatch> = {
               break;
             }
 
-            message.seq = longToNumber(reader.uint64());
+            message.seq = reader.uint64().toString();
             continue;
           }
           case 3: {
@@ -4326,7 +4692,7 @@ export const StatsBatch: MessageFns<StatsBatch> = {
   fromJSON(object: any): StatsBatch {
     return {
       ts: isSet(object.ts) ? fromJsonTimestamp(object.ts) : undefined,
-      seq: isSet(object.seq) ? globalThis.Number(object.seq) : 0,
+      seq: isSet(object.seq) ? globalThis.String(object.seq) : "0",
       interfaceCounters: globalThis.Array.isArray(object?.interfaceCounters)
         ? object.interfaceCounters.map((e: any) => InterfaceCounters.fromJSON(e))
         : globalThis.Array.isArray(object?.interface_counters)
@@ -4350,8 +4716,8 @@ export const StatsBatch: MessageFns<StatsBatch> = {
     if (message.ts !== undefined) {
       obj.ts = message.ts.toISOString();
     }
-    if (message.seq !== 0) {
-      obj.seq = Math.round(message.seq);
+    if (message.seq !== "0") {
+      obj.seq = message.seq;
     }
     if (message.interfaceCounters?.length) {
       obj.interfaceCounters = message.interfaceCounters.map((e) => InterfaceCounters.toJSON(e));
@@ -4371,7 +4737,7 @@ export const StatsBatch: MessageFns<StatsBatch> = {
   fromPartial(object: DeepPartial<StatsBatch>): StatsBatch {
     const message = createBaseStatsBatch();
     message.ts = object.ts ?? undefined;
-    message.seq = object.seq ?? 0;
+    message.seq = object.seq ?? "0";
     message.interfaceCounters = object.interfaceCounters?.map((e) => InterfaceCounters.fromPartial(e)) || [];
     message.workerCpu = object.workerCpu?.map((e) => WorkerCpu.fromPartial(e)) || [];
     message.intervalMs = object.intervalMs ?? 0;
@@ -4383,14 +4749,14 @@ function createBaseInterfaceCounters(): InterfaceCounters {
   return {
     name: "",
     swIfIndex: 0,
-    rxPackets: 0,
-    rxBytes: 0,
-    txPackets: 0,
-    txBytes: 0,
-    drops: 0,
-    errors: 0,
-    punts: 0,
-    rxMisses: 0,
+    rxPackets: "0",
+    rxBytes: "0",
+    txPackets: "0",
+    txBytes: "0",
+    drops: "0",
+    errors: "0",
+    punts: "0",
+    rxMisses: "0",
   };
 }
 
@@ -4402,28 +4768,28 @@ export const InterfaceCounters: MessageFns<InterfaceCounters> = {
     if (message.swIfIndex !== 0) {
       writer.uint32(16).uint32(message.swIfIndex);
     }
-    if (message.rxPackets !== 0) {
+    if (message.rxPackets !== "0") {
       writer.uint32(24).uint64(message.rxPackets);
     }
-    if (message.rxBytes !== 0) {
+    if (message.rxBytes !== "0") {
       writer.uint32(32).uint64(message.rxBytes);
     }
-    if (message.txPackets !== 0) {
+    if (message.txPackets !== "0") {
       writer.uint32(40).uint64(message.txPackets);
     }
-    if (message.txBytes !== 0) {
+    if (message.txBytes !== "0") {
       writer.uint32(48).uint64(message.txBytes);
     }
-    if (message.drops !== 0) {
+    if (message.drops !== "0") {
       writer.uint32(56).uint64(message.drops);
     }
-    if (message.errors !== 0) {
+    if (message.errors !== "0") {
       writer.uint32(64).uint64(message.errors);
     }
-    if (message.punts !== 0) {
+    if (message.punts !== "0") {
       writer.uint32(72).uint64(message.punts);
     }
-    if (message.rxMisses !== 0) {
+    if (message.rxMisses !== "0") {
       writer.uint32(80).uint64(message.rxMisses);
     }
     return writer;
@@ -4463,7 +4829,7 @@ export const InterfaceCounters: MessageFns<InterfaceCounters> = {
               break;
             }
 
-            message.rxPackets = longToNumber(reader.uint64());
+            message.rxPackets = reader.uint64().toString();
             continue;
           }
           case 4: {
@@ -4471,7 +4837,7 @@ export const InterfaceCounters: MessageFns<InterfaceCounters> = {
               break;
             }
 
-            message.rxBytes = longToNumber(reader.uint64());
+            message.rxBytes = reader.uint64().toString();
             continue;
           }
           case 5: {
@@ -4479,7 +4845,7 @@ export const InterfaceCounters: MessageFns<InterfaceCounters> = {
               break;
             }
 
-            message.txPackets = longToNumber(reader.uint64());
+            message.txPackets = reader.uint64().toString();
             continue;
           }
           case 6: {
@@ -4487,7 +4853,7 @@ export const InterfaceCounters: MessageFns<InterfaceCounters> = {
               break;
             }
 
-            message.txBytes = longToNumber(reader.uint64());
+            message.txBytes = reader.uint64().toString();
             continue;
           }
           case 7: {
@@ -4495,7 +4861,7 @@ export const InterfaceCounters: MessageFns<InterfaceCounters> = {
               break;
             }
 
-            message.drops = longToNumber(reader.uint64());
+            message.drops = reader.uint64().toString();
             continue;
           }
           case 8: {
@@ -4503,7 +4869,7 @@ export const InterfaceCounters: MessageFns<InterfaceCounters> = {
               break;
             }
 
-            message.errors = longToNumber(reader.uint64());
+            message.errors = reader.uint64().toString();
             continue;
           }
           case 9: {
@@ -4511,7 +4877,7 @@ export const InterfaceCounters: MessageFns<InterfaceCounters> = {
               break;
             }
 
-            message.punts = longToNumber(reader.uint64());
+            message.punts = reader.uint64().toString();
             continue;
           }
           case 10: {
@@ -4519,7 +4885,7 @@ export const InterfaceCounters: MessageFns<InterfaceCounters> = {
               break;
             }
 
-            message.rxMisses = longToNumber(reader.uint64());
+            message.rxMisses = reader.uint64().toString();
             continue;
           }
         }
@@ -4543,33 +4909,33 @@ export const InterfaceCounters: MessageFns<InterfaceCounters> = {
         ? globalThis.Number(object.sw_if_index)
         : 0,
       rxPackets: isSet(object.rxPackets)
-        ? globalThis.Number(object.rxPackets)
+        ? globalThis.String(object.rxPackets)
         : isSet(object.rx_packets)
-        ? globalThis.Number(object.rx_packets)
-        : 0,
+        ? globalThis.String(object.rx_packets)
+        : "0",
       rxBytes: isSet(object.rxBytes)
-        ? globalThis.Number(object.rxBytes)
+        ? globalThis.String(object.rxBytes)
         : isSet(object.rx_bytes)
-        ? globalThis.Number(object.rx_bytes)
-        : 0,
+        ? globalThis.String(object.rx_bytes)
+        : "0",
       txPackets: isSet(object.txPackets)
-        ? globalThis.Number(object.txPackets)
+        ? globalThis.String(object.txPackets)
         : isSet(object.tx_packets)
-        ? globalThis.Number(object.tx_packets)
-        : 0,
+        ? globalThis.String(object.tx_packets)
+        : "0",
       txBytes: isSet(object.txBytes)
-        ? globalThis.Number(object.txBytes)
+        ? globalThis.String(object.txBytes)
         : isSet(object.tx_bytes)
-        ? globalThis.Number(object.tx_bytes)
-        : 0,
-      drops: isSet(object.drops) ? globalThis.Number(object.drops) : 0,
-      errors: isSet(object.errors) ? globalThis.Number(object.errors) : 0,
-      punts: isSet(object.punts) ? globalThis.Number(object.punts) : 0,
+        ? globalThis.String(object.tx_bytes)
+        : "0",
+      drops: isSet(object.drops) ? globalThis.String(object.drops) : "0",
+      errors: isSet(object.errors) ? globalThis.String(object.errors) : "0",
+      punts: isSet(object.punts) ? globalThis.String(object.punts) : "0",
       rxMisses: isSet(object.rxMisses)
-        ? globalThis.Number(object.rxMisses)
+        ? globalThis.String(object.rxMisses)
         : isSet(object.rx_misses)
-        ? globalThis.Number(object.rx_misses)
-        : 0,
+        ? globalThis.String(object.rx_misses)
+        : "0",
     };
   },
 
@@ -4581,29 +4947,29 @@ export const InterfaceCounters: MessageFns<InterfaceCounters> = {
     if (message.swIfIndex !== 0) {
       obj.swIfIndex = Math.round(message.swIfIndex);
     }
-    if (message.rxPackets !== 0) {
-      obj.rxPackets = Math.round(message.rxPackets);
+    if (message.rxPackets !== "0") {
+      obj.rxPackets = message.rxPackets;
     }
-    if (message.rxBytes !== 0) {
-      obj.rxBytes = Math.round(message.rxBytes);
+    if (message.rxBytes !== "0") {
+      obj.rxBytes = message.rxBytes;
     }
-    if (message.txPackets !== 0) {
-      obj.txPackets = Math.round(message.txPackets);
+    if (message.txPackets !== "0") {
+      obj.txPackets = message.txPackets;
     }
-    if (message.txBytes !== 0) {
-      obj.txBytes = Math.round(message.txBytes);
+    if (message.txBytes !== "0") {
+      obj.txBytes = message.txBytes;
     }
-    if (message.drops !== 0) {
-      obj.drops = Math.round(message.drops);
+    if (message.drops !== "0") {
+      obj.drops = message.drops;
     }
-    if (message.errors !== 0) {
-      obj.errors = Math.round(message.errors);
+    if (message.errors !== "0") {
+      obj.errors = message.errors;
     }
-    if (message.punts !== 0) {
-      obj.punts = Math.round(message.punts);
+    if (message.punts !== "0") {
+      obj.punts = message.punts;
     }
-    if (message.rxMisses !== 0) {
-      obj.rxMisses = Math.round(message.rxMisses);
+    if (message.rxMisses !== "0") {
+      obj.rxMisses = message.rxMisses;
     }
     return obj;
   },
@@ -4615,20 +4981,20 @@ export const InterfaceCounters: MessageFns<InterfaceCounters> = {
     const message = createBaseInterfaceCounters();
     message.name = object.name ?? "";
     message.swIfIndex = object.swIfIndex ?? 0;
-    message.rxPackets = object.rxPackets ?? 0;
-    message.rxBytes = object.rxBytes ?? 0;
-    message.txPackets = object.txPackets ?? 0;
-    message.txBytes = object.txBytes ?? 0;
-    message.drops = object.drops ?? 0;
-    message.errors = object.errors ?? 0;
-    message.punts = object.punts ?? 0;
-    message.rxMisses = object.rxMisses ?? 0;
+    message.rxPackets = object.rxPackets ?? "0";
+    message.rxBytes = object.rxBytes ?? "0";
+    message.txPackets = object.txPackets ?? "0";
+    message.txBytes = object.txBytes ?? "0";
+    message.drops = object.drops ?? "0";
+    message.errors = object.errors ?? "0";
+    message.punts = object.punts ?? "0";
+    message.rxMisses = object.rxMisses ?? "0";
     return message;
   },
 };
 
 function createBaseWorkerCpu(): WorkerCpu {
-  return { worker: 0, name: "", utilizationPct: 0, vectorsPerCall: 0, calls: 0, vectors: 0 };
+  return { worker: 0, name: "", utilizationPct: 0, vectorsPerCall: 0, calls: "0", vectors: "0" };
 }
 
 export const WorkerCpu: MessageFns<WorkerCpu> = {
@@ -4645,10 +5011,10 @@ export const WorkerCpu: MessageFns<WorkerCpu> = {
     if (message.vectorsPerCall !== 0) {
       writer.uint32(33).double(message.vectorsPerCall);
     }
-    if (message.calls !== 0) {
+    if (message.calls !== "0") {
       writer.uint32(40).uint64(message.calls);
     }
-    if (message.vectors !== 0) {
+    if (message.vectors !== "0") {
       writer.uint32(48).uint64(message.vectors);
     }
     return writer;
@@ -4704,7 +5070,7 @@ export const WorkerCpu: MessageFns<WorkerCpu> = {
               break;
             }
 
-            message.calls = longToNumber(reader.uint64());
+            message.calls = reader.uint64().toString();
             continue;
           }
           case 6: {
@@ -4712,7 +5078,7 @@ export const WorkerCpu: MessageFns<WorkerCpu> = {
               break;
             }
 
-            message.vectors = longToNumber(reader.uint64());
+            message.vectors = reader.uint64().toString();
             continue;
           }
         }
@@ -4741,8 +5107,8 @@ export const WorkerCpu: MessageFns<WorkerCpu> = {
         : isSet(object.vectors_per_call)
         ? globalThis.Number(object.vectors_per_call)
         : 0,
-      calls: isSet(object.calls) ? globalThis.Number(object.calls) : 0,
-      vectors: isSet(object.vectors) ? globalThis.Number(object.vectors) : 0,
+      calls: isSet(object.calls) ? globalThis.String(object.calls) : "0",
+      vectors: isSet(object.vectors) ? globalThis.String(object.vectors) : "0",
     };
   },
 
@@ -4760,11 +5126,11 @@ export const WorkerCpu: MessageFns<WorkerCpu> = {
     if (message.vectorsPerCall !== 0) {
       obj.vectorsPerCall = message.vectorsPerCall;
     }
-    if (message.calls !== 0) {
-      obj.calls = Math.round(message.calls);
+    if (message.calls !== "0") {
+      obj.calls = message.calls;
     }
-    if (message.vectors !== 0) {
-      obj.vectors = Math.round(message.vectors);
+    if (message.vectors !== "0") {
+      obj.vectors = message.vectors;
     }
     return obj;
   },
@@ -4778,8 +5144,8 @@ export const WorkerCpu: MessageFns<WorkerCpu> = {
     message.name = object.name ?? "";
     message.utilizationPct = object.utilizationPct ?? 0;
     message.vectorsPerCall = object.vectorsPerCall ?? 0;
-    message.calls = object.calls ?? 0;
-    message.vectors = object.vectors ?? 0;
+    message.calls = object.calls ?? "0";
+    message.vectors = object.vectors ?? "0";
     return message;
   },
 };
@@ -4884,7 +5250,16 @@ export const StreamEventsRequest: MessageFns<StreamEventsRequest> = {
 };
 
 function createBaseEvent(): Event {
-  return { ts: undefined, seq: 0, kind: 0, interface: "", message: "", txnId: "", summary: undefined, attributes: {} };
+  return {
+    ts: undefined,
+    seq: "0",
+    kind: 0,
+    interface: undefined,
+    message: "",
+    txnId: "",
+    summary: undefined,
+    attributes: {},
+  };
 }
 
 export const Event: MessageFns<Event> = {
@@ -4892,13 +5267,13 @@ export const Event: MessageFns<Event> = {
     if (message.ts !== undefined) {
       Timestamp.encode(toTimestamp(message.ts), writer.uint32(10).fork()).join();
     }
-    if (message.seq !== 0) {
+    if (message.seq !== "0") {
       writer.uint32(16).uint64(message.seq);
     }
     if (message.kind !== 0) {
       writer.uint32(24).int32(message.kind);
     }
-    if (message.interface !== "") {
+    if (message.interface !== undefined) {
       writer.uint32(34).string(message.interface);
     }
     if (message.message !== "") {
@@ -4942,7 +5317,7 @@ export const Event: MessageFns<Event> = {
               break;
             }
 
-            message.seq = longToNumber(reader.uint64());
+            message.seq = reader.uint64().toString();
             continue;
           }
           case 3: {
@@ -5011,9 +5386,9 @@ export const Event: MessageFns<Event> = {
   fromJSON(object: any): Event {
     return {
       ts: isSet(object.ts) ? fromJsonTimestamp(object.ts) : undefined,
-      seq: isSet(object.seq) ? globalThis.Number(object.seq) : 0,
+      seq: isSet(object.seq) ? globalThis.String(object.seq) : "0",
       kind: isSet(object.kind) ? eventKindFromJSON(object.kind) : 0,
-      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
       message: isSet(object.message) ? globalThis.String(object.message) : "",
       txnId: isSet(object.txnId)
         ? globalThis.String(object.txnId)
@@ -5043,13 +5418,13 @@ export const Event: MessageFns<Event> = {
     if (message.ts !== undefined) {
       obj.ts = message.ts.toISOString();
     }
-    if (message.seq !== 0) {
-      obj.seq = Math.round(message.seq);
+    if (message.seq !== "0") {
+      obj.seq = message.seq;
     }
     if (message.kind !== 0) {
       obj.kind = eventKindToJSON(message.kind);
     }
-    if (message.interface !== "") {
+    if (message.interface !== undefined) {
       obj.interface = message.interface;
     }
     if (message.message !== "") {
@@ -5079,9 +5454,9 @@ export const Event: MessageFns<Event> = {
   fromPartial(object: DeepPartial<Event>): Event {
     const message = createBaseEvent();
     message.ts = object.ts ?? undefined;
-    message.seq = object.seq ?? 0;
+    message.seq = object.seq ?? "0";
     message.kind = object.kind ?? 0;
-    message.interface = object.interface ?? "";
+    message.interface = object.interface ?? undefined;
     message.message = object.message ?? "";
     message.txnId = object.txnId ?? "";
     message.summary = (object.summary !== undefined && object.summary !== null)
@@ -6951,19 +7326,19 @@ export const DesiredState_VrfsEntry: MessageFns<DesiredState_VrfsEntry> = {
 };
 
 function createBaseSystemConfig(): SystemConfig {
-  return { hostname: "", timezone: "", banner: "", ntp: undefined, dns: undefined };
+  return { hostname: undefined, timezone: undefined, banner: undefined, ntp: undefined, dns: undefined };
 }
 
 export const SystemConfig: MessageFns<SystemConfig> = {
   encode(message: SystemConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.hostname !== "") {
+    if (message.hostname !== undefined) {
       writer.uint32(10).string(message.hostname);
     }
-    if (message.timezone !== "") {
+    if (message.timezone !== undefined) {
       writer.uint32(18).string(message.timezone);
     }
-    if (message.banner !== "") {
-      writer.uint32(26).string(message.banner);
+    if (message.banner !== undefined) {
+      SystemBanner.encode(message.banner, writer.uint32(26).fork()).join();
     }
     if (message.ntp !== undefined) {
       SystemNtp.encode(message.ntp, writer.uint32(34).fork()).join();
@@ -7008,7 +7383,7 @@ export const SystemConfig: MessageFns<SystemConfig> = {
               break;
             }
 
-            message.banner = reader.string();
+            message.banner = SystemBanner.decode(reader, reader.uint32());
             continue;
           }
           case 4: {
@@ -7041,9 +7416,9 @@ export const SystemConfig: MessageFns<SystemConfig> = {
 
   fromJSON(object: any): SystemConfig {
     return {
-      hostname: isSet(object.hostname) ? globalThis.String(object.hostname) : "",
-      timezone: isSet(object.timezone) ? globalThis.String(object.timezone) : "",
-      banner: isSet(object.banner) ? globalThis.String(object.banner) : "",
+      hostname: isSet(object.hostname) ? globalThis.String(object.hostname) : undefined,
+      timezone: isSet(object.timezone) ? globalThis.String(object.timezone) : undefined,
+      banner: isSet(object.banner) ? SystemBanner.fromJSON(object.banner) : undefined,
       ntp: isSet(object.ntp) ? SystemNtp.fromJSON(object.ntp) : undefined,
       dns: isSet(object.dns) ? SystemDns.fromJSON(object.dns) : undefined,
     };
@@ -7051,14 +7426,14 @@ export const SystemConfig: MessageFns<SystemConfig> = {
 
   toJSON(message: SystemConfig): unknown {
     const obj: any = {};
-    if (message.hostname !== "") {
+    if (message.hostname !== undefined) {
       obj.hostname = message.hostname;
     }
-    if (message.timezone !== "") {
+    if (message.timezone !== undefined) {
       obj.timezone = message.timezone;
     }
-    if (message.banner !== "") {
-      obj.banner = message.banner;
+    if (message.banner !== undefined) {
+      obj.banner = SystemBanner.toJSON(message.banner);
     }
     if (message.ntp !== undefined) {
       obj.ntp = SystemNtp.toJSON(message.ntp);
@@ -7074,11 +7449,98 @@ export const SystemConfig: MessageFns<SystemConfig> = {
   },
   fromPartial(object: DeepPartial<SystemConfig>): SystemConfig {
     const message = createBaseSystemConfig();
-    message.hostname = object.hostname ?? "";
-    message.timezone = object.timezone ?? "";
-    message.banner = object.banner ?? "";
+    message.hostname = object.hostname ?? undefined;
+    message.timezone = object.timezone ?? undefined;
+    message.banner = (object.banner !== undefined && object.banner !== null)
+      ? SystemBanner.fromPartial(object.banner)
+      : undefined;
     message.ntp = (object.ntp !== undefined && object.ntp !== null) ? SystemNtp.fromPartial(object.ntp) : undefined;
     message.dns = (object.dns !== undefined && object.dns !== null) ? SystemDns.fromPartial(object.dns) : undefined;
+    return message;
+  },
+};
+
+function createBaseSystemBanner(): SystemBanner {
+  return { login: undefined, motd: undefined };
+}
+
+export const SystemBanner: MessageFns<SystemBanner> = {
+  encode(message: SystemBanner, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.login !== undefined) {
+      writer.uint32(10).string(message.login);
+    }
+    if (message.motd !== undefined) {
+      writer.uint32(18).string(message.motd);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SystemBanner {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSystemBanner();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.login = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.motd = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SystemBanner {
+    return {
+      login: isSet(object.login) ? globalThis.String(object.login) : undefined,
+      motd: isSet(object.motd) ? globalThis.String(object.motd) : undefined,
+    };
+  },
+
+  toJSON(message: SystemBanner): unknown {
+    const obj: any = {};
+    if (message.login !== undefined) {
+      obj.login = message.login;
+    }
+    if (message.motd !== undefined) {
+      obj.motd = message.motd;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SystemBanner>): SystemBanner {
+    return SystemBanner.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SystemBanner>): SystemBanner {
+    const message = createBaseSystemBanner();
+    message.login = object.login ?? undefined;
+    message.motd = object.motd ?? undefined;
     return message;
   },
 };
@@ -7194,7 +7656,8 @@ function createBaseDataplaneConfig(): DataplaneConfig {
     hugepagesGb: undefined,
     pciWhitelist: [],
     mainCore: undefined,
-    corelist: undefined,
+    corelist: [],
+    txQueues: undefined,
   };
 }
 
@@ -7215,8 +7678,13 @@ export const DataplaneConfig: MessageFns<DataplaneConfig> = {
     if (message.mainCore !== undefined) {
       writer.uint32(40).uint32(message.mainCore);
     }
-    if (message.corelist !== undefined) {
-      writer.uint32(50).string(message.corelist);
+    writer.uint32(50).fork();
+    for (const v of message.corelist) {
+      writer.uint32(v);
+    }
+    writer.join();
+    if (message.txQueues !== undefined) {
+      writer.uint32(56).uint32(message.txQueues);
     }
     return writer;
   },
@@ -7275,11 +7743,29 @@ export const DataplaneConfig: MessageFns<DataplaneConfig> = {
             continue;
           }
           case 6: {
-            if (tag !== 50) {
+            if (tag === 48) {
+              message.corelist.push(reader.uint32());
+
+              continue;
+            }
+
+            if (tag === 50) {
+              const end2 = reader.uint32() + reader.pos;
+              while (reader.pos < end2) {
+                message.corelist.push(reader.uint32());
+              }
+
+              continue;
+            }
+
+            break;
+          }
+          case 7: {
+            if (tag !== 56) {
               break;
             }
 
-            message.corelist = reader.string();
+            message.txQueues = reader.uint32();
             continue;
           }
         }
@@ -7317,7 +7803,14 @@ export const DataplaneConfig: MessageFns<DataplaneConfig> = {
         : isSet(object.main_core)
         ? globalThis.Number(object.main_core)
         : undefined,
-      corelist: isSet(object.corelist) ? globalThis.String(object.corelist) : undefined,
+      corelist: globalThis.Array.isArray(object?.corelist)
+        ? object.corelist.map((e: any) => globalThis.Number(e))
+        : [],
+      txQueues: isSet(object.txQueues)
+        ? globalThis.Number(object.txQueues)
+        : isSet(object.tx_queues)
+        ? globalThis.Number(object.tx_queues)
+        : undefined,
     };
   },
 
@@ -7338,8 +7831,11 @@ export const DataplaneConfig: MessageFns<DataplaneConfig> = {
     if (message.mainCore !== undefined) {
       obj.mainCore = Math.round(message.mainCore);
     }
-    if (message.corelist !== undefined) {
-      obj.corelist = message.corelist;
+    if (message.corelist?.length) {
+      obj.corelist = message.corelist.map((e) => Math.round(e));
+    }
+    if (message.txQueues !== undefined) {
+      obj.txQueues = Math.round(message.txQueues);
     }
     return obj;
   },
@@ -7354,29 +7850,31 @@ export const DataplaneConfig: MessageFns<DataplaneConfig> = {
     message.hugepagesGb = object.hugepagesGb ?? undefined;
     message.pciWhitelist = object.pciWhitelist?.map((e) => e) || [];
     message.mainCore = object.mainCore ?? undefined;
-    message.corelist = object.corelist ?? undefined;
+    message.corelist = object.corelist?.map((e) => e) || [];
+    message.txQueues = object.txQueues ?? undefined;
     return message;
   },
 };
 
 function createBaseInterface(): Interface {
   return {
-    enabled: false,
+    enabled: undefined,
     description: undefined,
     mtu: undefined,
     mac: undefined,
     ipv4: [],
     ipv6: [],
-    vrf: "",
-    rxMode: "",
+    vrf: undefined,
+    rxMode: undefined,
     subinterfaces: {},
     unnumbered: undefined,
+    promiscuous: undefined,
   };
 }
 
 export const Interface: MessageFns<Interface> = {
   encode(message: Interface, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(8).bool(message.enabled);
     }
     if (message.description !== undefined) {
@@ -7394,10 +7892,10 @@ export const Interface: MessageFns<Interface> = {
     for (const v of message.ipv6) {
       writer.uint32(50).string(v!);
     }
-    if (message.vrf !== "") {
+    if (message.vrf !== undefined) {
       writer.uint32(58).string(message.vrf);
     }
-    if (message.rxMode !== "") {
+    if (message.rxMode !== undefined) {
       writer.uint32(66).string(message.rxMode);
     }
     globalThis.Object.entries(message.subinterfaces).forEach(([key, value]: [string, Subinterface]) => {
@@ -7405,6 +7903,9 @@ export const Interface: MessageFns<Interface> = {
     });
     if (message.unnumbered !== undefined) {
       writer.uint32(82).string(message.unnumbered);
+    }
+    if (message.promiscuous !== undefined) {
+      writer.uint32(88).bool(message.promiscuous);
     }
     return writer;
   },
@@ -7505,6 +8006,14 @@ export const Interface: MessageFns<Interface> = {
             message.unnumbered = reader.string();
             continue;
           }
+          case 11: {
+            if (tag !== 88) {
+              break;
+            }
+
+            message.promiscuous = reader.bool();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -7519,18 +8028,18 @@ export const Interface: MessageFns<Interface> = {
 
   fromJSON(object: any): Interface {
     return {
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
       mtu: isSet(object.mtu) ? globalThis.Number(object.mtu) : undefined,
       mac: isSet(object.mac) ? globalThis.String(object.mac) : undefined,
       ipv4: globalThis.Array.isArray(object?.ipv4) ? object.ipv4.map((e: any) => globalThis.String(e)) : [],
       ipv6: globalThis.Array.isArray(object?.ipv6) ? object.ipv6.map((e: any) => globalThis.String(e)) : [],
-      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : "",
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
       rxMode: isSet(object.rxMode)
         ? globalThis.String(object.rxMode)
         : isSet(object.rx_mode)
         ? globalThis.String(object.rx_mode)
-        : "",
+        : undefined,
       subinterfaces: isObject(object.subinterfaces)
         ? (globalThis.Object.entries(object.subinterfaces) as [string, any][]).reduce(
           (acc: { [key: string]: Subinterface }, [key, value]: [string, any]) => {
@@ -7546,12 +8055,13 @@ export const Interface: MessageFns<Interface> = {
         )
         : {},
       unnumbered: isSet(object.unnumbered) ? globalThis.String(object.unnumbered) : undefined,
+      promiscuous: isSet(object.promiscuous) ? globalThis.Boolean(object.promiscuous) : undefined,
     };
   },
 
   toJSON(message: Interface): unknown {
     const obj: any = {};
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
     if (message.description !== undefined) {
@@ -7569,10 +8079,10 @@ export const Interface: MessageFns<Interface> = {
     if (message.ipv6?.length) {
       obj.ipv6 = message.ipv6;
     }
-    if (message.vrf !== "") {
+    if (message.vrf !== undefined) {
       obj.vrf = message.vrf;
     }
-    if (message.rxMode !== "") {
+    if (message.rxMode !== undefined) {
       obj.rxMode = message.rxMode;
     }
     if (message.subinterfaces) {
@@ -7587,6 +8097,9 @@ export const Interface: MessageFns<Interface> = {
     if (message.unnumbered !== undefined) {
       obj.unnumbered = message.unnumbered;
     }
+    if (message.promiscuous !== undefined) {
+      obj.promiscuous = message.promiscuous;
+    }
     return obj;
   },
 
@@ -7595,14 +8108,14 @@ export const Interface: MessageFns<Interface> = {
   },
   fromPartial(object: DeepPartial<Interface>): Interface {
     const message = createBaseInterface();
-    message.enabled = object.enabled ?? false;
+    message.enabled = object.enabled ?? undefined;
     message.description = object.description ?? undefined;
     message.mtu = object.mtu ?? undefined;
     message.mac = object.mac ?? undefined;
     message.ipv4 = object.ipv4?.map((e) => e) || [];
     message.ipv6 = object.ipv6?.map((e) => e) || [];
-    message.vrf = object.vrf ?? "";
-    message.rxMode = object.rxMode ?? "";
+    message.vrf = object.vrf ?? undefined;
+    message.rxMode = object.rxMode ?? undefined;
     message.subinterfaces = (globalThis.Object.entries(object.subinterfaces ?? {}) as [string, Subinterface][]).reduce(
       (acc: { [key: string]: Subinterface }, [key, value]: [string, Subinterface]) => {
         if (value !== undefined) {
@@ -7613,6 +8126,7 @@ export const Interface: MessageFns<Interface> = {
       {},
     );
     message.unnumbered = object.unnumbered ?? undefined;
+    message.promiscuous = object.promiscuous ?? undefined;
     return message;
   },
 };
@@ -7706,27 +8220,28 @@ export const Interface_SubinterfacesEntry: MessageFns<Interface_SubinterfacesEnt
 
 function createBaseSubinterface(): Subinterface {
   return {
-    vlanId: 0,
+    vlanId: undefined,
     innerVlanId: undefined,
-    enabled: false,
+    enabled: undefined,
     description: undefined,
     mtu: undefined,
     ipv4: [],
     ipv6: [],
-    vrf: "",
+    vrf: undefined,
     unnumbered: undefined,
+    dot1ad: undefined,
   };
 }
 
 export const Subinterface: MessageFns<Subinterface> = {
   encode(message: Subinterface, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.vlanId !== 0) {
+    if (message.vlanId !== undefined) {
       writer.uint32(8).uint32(message.vlanId);
     }
     if (message.innerVlanId !== undefined) {
       writer.uint32(16).uint32(message.innerVlanId);
     }
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(24).bool(message.enabled);
     }
     if (message.description !== undefined) {
@@ -7741,11 +8256,14 @@ export const Subinterface: MessageFns<Subinterface> = {
     for (const v of message.ipv6) {
       writer.uint32(58).string(v!);
     }
-    if (message.vrf !== "") {
+    if (message.vrf !== undefined) {
       writer.uint32(66).string(message.vrf);
     }
     if (message.unnumbered !== undefined) {
       writer.uint32(74).string(message.unnumbered);
+    }
+    if (message.dot1ad !== undefined) {
+      writer.uint32(80).bool(message.dot1ad);
     }
     return writer;
   },
@@ -7835,6 +8353,14 @@ export const Subinterface: MessageFns<Subinterface> = {
             message.unnumbered = reader.string();
             continue;
           }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.dot1ad = reader.bool();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -7853,31 +8379,32 @@ export const Subinterface: MessageFns<Subinterface> = {
         ? globalThis.Number(object.vlanId)
         : isSet(object.vlan_id)
         ? globalThis.Number(object.vlan_id)
-        : 0,
+        : undefined,
       innerVlanId: isSet(object.innerVlanId)
         ? globalThis.Number(object.innerVlanId)
         : isSet(object.inner_vlan_id)
         ? globalThis.Number(object.inner_vlan_id)
         : undefined,
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
       mtu: isSet(object.mtu) ? globalThis.Number(object.mtu) : undefined,
       ipv4: globalThis.Array.isArray(object?.ipv4) ? object.ipv4.map((e: any) => globalThis.String(e)) : [],
       ipv6: globalThis.Array.isArray(object?.ipv6) ? object.ipv6.map((e: any) => globalThis.String(e)) : [],
-      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : "",
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
       unnumbered: isSet(object.unnumbered) ? globalThis.String(object.unnumbered) : undefined,
+      dot1ad: isSet(object.dot1ad) ? globalThis.Boolean(object.dot1ad) : undefined,
     };
   },
 
   toJSON(message: Subinterface): unknown {
     const obj: any = {};
-    if (message.vlanId !== 0) {
+    if (message.vlanId !== undefined) {
       obj.vlanId = Math.round(message.vlanId);
     }
     if (message.innerVlanId !== undefined) {
       obj.innerVlanId = Math.round(message.innerVlanId);
     }
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
     if (message.description !== undefined) {
@@ -7892,11 +8419,14 @@ export const Subinterface: MessageFns<Subinterface> = {
     if (message.ipv6?.length) {
       obj.ipv6 = message.ipv6;
     }
-    if (message.vrf !== "") {
+    if (message.vrf !== undefined) {
       obj.vrf = message.vrf;
     }
     if (message.unnumbered !== undefined) {
       obj.unnumbered = message.unnumbered;
+    }
+    if (message.dot1ad !== undefined) {
+      obj.dot1ad = message.dot1ad;
     }
     return obj;
   },
@@ -7906,26 +8436,27 @@ export const Subinterface: MessageFns<Subinterface> = {
   },
   fromPartial(object: DeepPartial<Subinterface>): Subinterface {
     const message = createBaseSubinterface();
-    message.vlanId = object.vlanId ?? 0;
+    message.vlanId = object.vlanId ?? undefined;
     message.innerVlanId = object.innerVlanId ?? undefined;
-    message.enabled = object.enabled ?? false;
+    message.enabled = object.enabled ?? undefined;
     message.description = object.description ?? undefined;
     message.mtu = object.mtu ?? undefined;
     message.ipv4 = object.ipv4?.map((e) => e) || [];
     message.ipv6 = object.ipv6?.map((e) => e) || [];
-    message.vrf = object.vrf ?? "";
+    message.vrf = object.vrf ?? undefined;
     message.unnumbered = object.unnumbered ?? undefined;
+    message.dot1ad = object.dot1ad ?? undefined;
     return message;
   },
 };
 
 function createBaseVrf(): Vrf {
-  return { id: 0, description: undefined };
+  return { id: undefined, description: undefined };
 }
 
 export const Vrf: MessageFns<Vrf> = {
   encode(message: Vrf, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.id !== 0) {
+    if (message.id !== undefined) {
       writer.uint32(8).uint32(message.id);
     }
     if (message.description !== undefined) {
@@ -7977,14 +8508,14 @@ export const Vrf: MessageFns<Vrf> = {
 
   fromJSON(object: any): Vrf {
     return {
-      id: isSet(object.id) ? globalThis.Number(object.id) : 0,
+      id: isSet(object.id) ? globalThis.Number(object.id) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
     };
   },
 
   toJSON(message: Vrf): unknown {
     const obj: any = {};
-    if (message.id !== 0) {
+    if (message.id !== undefined) {
       obj.id = Math.round(message.id);
     }
     if (message.description !== undefined) {
@@ -7998,7 +8529,7 @@ export const Vrf: MessageFns<Vrf> = {
   },
   fromPartial(object: DeepPartial<Vrf>): Vrf {
     const message = createBaseVrf();
-    message.id = object.id ?? 0;
+    message.id = object.id ?? undefined;
     message.description = object.description ?? undefined;
     return message;
   },
@@ -8459,19 +8990,25 @@ export const RoutingConfig_RouteMapsEntry: MessageFns<RoutingConfig_RouteMapsEnt
 };
 
 function createBaseStaticRoute(): StaticRoute {
-  return { prefix: "", nextHops: [], vrf: "" };
+  return { prefix: undefined, nextHops: [], vrf: undefined, distance: undefined, description: undefined };
 }
 
 export const StaticRoute: MessageFns<StaticRoute> = {
   encode(message: StaticRoute, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.prefix !== "") {
+    if (message.prefix !== undefined) {
       writer.uint32(10).string(message.prefix);
     }
     for (const v of message.nextHops) {
       NextHop.encode(v!, writer.uint32(18).fork()).join();
     }
-    if (message.vrf !== "") {
+    if (message.vrf !== undefined) {
       writer.uint32(26).string(message.vrf);
+    }
+    if (message.distance !== undefined) {
+      writer.uint32(32).uint32(message.distance);
+    }
+    if (message.description !== undefined) {
+      writer.uint32(42).string(message.description);
     }
     return writer;
   },
@@ -8513,6 +9050,22 @@ export const StaticRoute: MessageFns<StaticRoute> = {
             message.vrf = reader.string();
             continue;
           }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.distance = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.description = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -8527,26 +9080,34 @@ export const StaticRoute: MessageFns<StaticRoute> = {
 
   fromJSON(object: any): StaticRoute {
     return {
-      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : "",
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
       nextHops: globalThis.Array.isArray(object?.nextHops)
         ? object.nextHops.map((e: any) => NextHop.fromJSON(e))
         : globalThis.Array.isArray(object?.next_hops)
         ? object.next_hops.map((e: any) => NextHop.fromJSON(e))
         : [],
-      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : "",
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      distance: isSet(object.distance) ? globalThis.Number(object.distance) : undefined,
+      description: isSet(object.description) ? globalThis.String(object.description) : undefined,
     };
   },
 
   toJSON(message: StaticRoute): unknown {
     const obj: any = {};
-    if (message.prefix !== "") {
+    if (message.prefix !== undefined) {
       obj.prefix = message.prefix;
     }
     if (message.nextHops?.length) {
       obj.nextHops = message.nextHops.map((e) => NextHop.toJSON(e));
     }
-    if (message.vrf !== "") {
+    if (message.vrf !== undefined) {
       obj.vrf = message.vrf;
+    }
+    if (message.distance !== undefined) {
+      obj.distance = Math.round(message.distance);
+    }
+    if (message.description !== undefined) {
+      obj.description = message.description;
     }
     return obj;
   },
@@ -8556,26 +9117,28 @@ export const StaticRoute: MessageFns<StaticRoute> = {
   },
   fromPartial(object: DeepPartial<StaticRoute>): StaticRoute {
     const message = createBaseStaticRoute();
-    message.prefix = object.prefix ?? "";
+    message.prefix = object.prefix ?? undefined;
     message.nextHops = object.nextHops?.map((e) => NextHop.fromPartial(e)) || [];
-    message.vrf = object.vrf ?? "";
+    message.vrf = object.vrf ?? undefined;
+    message.distance = object.distance ?? undefined;
+    message.description = object.description ?? undefined;
     return message;
   },
 };
 
 function createBaseNextHop(): NextHop {
-  return { address: "", interface: undefined, weight: 0 };
+  return { address: undefined, interface: undefined, weight: undefined };
 }
 
 export const NextHop: MessageFns<NextHop> = {
   encode(message: NextHop, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.address !== "") {
+    if (message.address !== undefined) {
       writer.uint32(10).string(message.address);
     }
     if (message.interface !== undefined) {
       writer.uint32(18).string(message.interface);
     }
-    if (message.weight !== 0) {
+    if (message.weight !== undefined) {
       writer.uint32(24).uint32(message.weight);
     }
     return writer;
@@ -8632,21 +9195,21 @@ export const NextHop: MessageFns<NextHop> = {
 
   fromJSON(object: any): NextHop {
     return {
-      address: isSet(object.address) ? globalThis.String(object.address) : "",
+      address: isSet(object.address) ? globalThis.String(object.address) : undefined,
       interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
-      weight: isSet(object.weight) ? globalThis.Number(object.weight) : 0,
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
     };
   },
 
   toJSON(message: NextHop): unknown {
     const obj: any = {};
-    if (message.address !== "") {
+    if (message.address !== undefined) {
       obj.address = message.address;
     }
     if (message.interface !== undefined) {
       obj.interface = message.interface;
     }
-    if (message.weight !== 0) {
+    if (message.weight !== undefined) {
       obj.weight = Math.round(message.weight);
     }
     return obj;
@@ -8657,9 +9220,9 @@ export const NextHop: MessageFns<NextHop> = {
   },
   fromPartial(object: DeepPartial<NextHop>): NextHop {
     const message = createBaseNextHop();
-    message.address = object.address ?? "";
+    message.address = object.address ?? undefined;
     message.interface = object.interface ?? undefined;
-    message.weight = object.weight ?? 0;
+    message.weight = object.weight ?? undefined;
     return message;
   },
 };
@@ -10276,22 +10839,35 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
 };
 
 function createBaseManagementUser(): ManagementUser {
-  return { username: "", role: "", scope: "", passwordHash: undefined };
+  return {
+    username: undefined,
+    role: undefined,
+    scope: undefined,
+    sshKeys: [],
+    fullName: undefined,
+    disabled: undefined,
+  };
 }
 
 export const ManagementUser: MessageFns<ManagementUser> = {
   encode(message: ManagementUser, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.username !== "") {
+    if (message.username !== undefined) {
       writer.uint32(10).string(message.username);
     }
-    if (message.role !== "") {
+    if (message.role !== undefined) {
       writer.uint32(18).string(message.role);
     }
-    if (message.scope !== "") {
+    if (message.scope !== undefined) {
       writer.uint32(26).string(message.scope);
     }
-    if (message.passwordHash !== undefined) {
-      writer.uint32(34).string(message.passwordHash);
+    for (const v of message.sshKeys) {
+      writer.uint32(42).string(v!);
+    }
+    if (message.fullName !== undefined) {
+      writer.uint32(50).string(message.fullName);
+    }
+    if (message.disabled !== undefined) {
+      writer.uint32(56).bool(message.disabled);
     }
     return writer;
   },
@@ -10333,12 +10909,28 @@ export const ManagementUser: MessageFns<ManagementUser> = {
             message.scope = reader.string();
             continue;
           }
-          case 4: {
-            if (tag !== 34) {
+          case 5: {
+            if (tag !== 42) {
               break;
             }
 
-            message.passwordHash = reader.string();
+            message.sshKeys.push(reader.string());
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.fullName = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.disabled = reader.bool();
             continue;
           }
         }
@@ -10355,30 +10947,42 @@ export const ManagementUser: MessageFns<ManagementUser> = {
 
   fromJSON(object: any): ManagementUser {
     return {
-      username: isSet(object.username) ? globalThis.String(object.username) : "",
-      role: isSet(object.role) ? globalThis.String(object.role) : "",
-      scope: isSet(object.scope) ? globalThis.String(object.scope) : "",
-      passwordHash: isSet(object.passwordHash)
-        ? globalThis.String(object.passwordHash)
-        : isSet(object.password_hash)
-        ? globalThis.String(object.password_hash)
+      username: isSet(object.username) ? globalThis.String(object.username) : undefined,
+      role: isSet(object.role) ? globalThis.String(object.role) : undefined,
+      scope: isSet(object.scope) ? globalThis.String(object.scope) : undefined,
+      sshKeys: globalThis.Array.isArray(object?.sshKeys)
+        ? object.sshKeys.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.ssh_keys)
+        ? object.ssh_keys.map((e: any) => globalThis.String(e))
+        : [],
+      fullName: isSet(object.fullName)
+        ? globalThis.String(object.fullName)
+        : isSet(object.full_name)
+        ? globalThis.String(object.full_name)
         : undefined,
+      disabled: isSet(object.disabled) ? globalThis.Boolean(object.disabled) : undefined,
     };
   },
 
   toJSON(message: ManagementUser): unknown {
     const obj: any = {};
-    if (message.username !== "") {
+    if (message.username !== undefined) {
       obj.username = message.username;
     }
-    if (message.role !== "") {
+    if (message.role !== undefined) {
       obj.role = message.role;
     }
-    if (message.scope !== "") {
+    if (message.scope !== undefined) {
       obj.scope = message.scope;
     }
-    if (message.passwordHash !== undefined) {
-      obj.passwordHash = message.passwordHash;
+    if (message.sshKeys?.length) {
+      obj.sshKeys = message.sshKeys;
+    }
+    if (message.fullName !== undefined) {
+      obj.fullName = message.fullName;
+    }
+    if (message.disabled !== undefined) {
+      obj.disabled = message.disabled;
     }
     return obj;
   },
@@ -10388,10 +10992,12 @@ export const ManagementUser: MessageFns<ManagementUser> = {
   },
   fromPartial(object: DeepPartial<ManagementUser>): ManagementUser {
     const message = createBaseManagementUser();
-    message.username = object.username ?? "";
-    message.role = object.role ?? "";
-    message.scope = object.scope ?? "";
-    message.passwordHash = object.passwordHash ?? undefined;
+    message.username = object.username ?? undefined;
+    message.role = object.role ?? undefined;
+    message.scope = object.scope ?? undefined;
+    message.sshKeys = object.sshKeys?.map((e) => e) || [];
+    message.fullName = object.fullName ?? undefined;
+    message.disabled = object.disabled ?? undefined;
     return message;
   },
 };
@@ -10554,16 +11160,16 @@ export const SyslogTarget: MessageFns<SyslogTarget> = {
 
 function createBaseNatConfig(): NatConfig {
   return {
-    enabled: false,
-    mode: "",
+    enabled: undefined,
+    mode: undefined,
     inside: [],
     outside: [],
     outputFeature: [],
     insideVrf: undefined,
     outsideVrf: undefined,
-    forwarding: false,
-    staticMappingOnly: false,
-    connectionTracking: false,
+    forwarding: undefined,
+    staticMappingOnly: undefined,
+    connectionTracking: undefined,
     sessionLimit: undefined,
     pools: [],
     staticMappings: [],
@@ -10583,10 +11189,10 @@ function createBaseNatConfig(): NatConfig {
 
 export const NatConfig: MessageFns<NatConfig> = {
   encode(message: NatConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(8).bool(message.enabled);
     }
-    if (message.mode !== "") {
+    if (message.mode !== undefined) {
       writer.uint32(18).string(message.mode);
     }
     for (const v of message.inside) {
@@ -10604,13 +11210,13 @@ export const NatConfig: MessageFns<NatConfig> = {
     if (message.outsideVrf !== undefined) {
       writer.uint32(58).string(message.outsideVrf);
     }
-    if (message.forwarding !== false) {
+    if (message.forwarding !== undefined) {
       writer.uint32(64).bool(message.forwarding);
     }
-    if (message.staticMappingOnly !== false) {
+    if (message.staticMappingOnly !== undefined) {
       writer.uint32(72).bool(message.staticMappingOnly);
     }
-    if (message.connectionTracking !== false) {
+    if (message.connectionTracking !== undefined) {
       writer.uint32(80).bool(message.connectionTracking);
     }
     if (message.sessionLimit !== undefined) {
@@ -10877,8 +11483,8 @@ export const NatConfig: MessageFns<NatConfig> = {
 
   fromJSON(object: any): NatConfig {
     return {
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
-      mode: isSet(object.mode) ? globalThis.String(object.mode) : "",
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      mode: isSet(object.mode) ? globalThis.String(object.mode) : undefined,
       inside: globalThis.Array.isArray(object?.inside) ? object.inside.map((e: any) => globalThis.String(e)) : [],
       outside: globalThis.Array.isArray(object?.outside) ? object.outside.map((e: any) => globalThis.String(e)) : [],
       outputFeature: globalThis.Array.isArray(object?.outputFeature)
@@ -10896,17 +11502,17 @@ export const NatConfig: MessageFns<NatConfig> = {
         : isSet(object.outside_vrf)
         ? globalThis.String(object.outside_vrf)
         : undefined,
-      forwarding: isSet(object.forwarding) ? globalThis.Boolean(object.forwarding) : false,
+      forwarding: isSet(object.forwarding) ? globalThis.Boolean(object.forwarding) : undefined,
       staticMappingOnly: isSet(object.staticMappingOnly)
         ? globalThis.Boolean(object.staticMappingOnly)
         : isSet(object.static_mapping_only)
         ? globalThis.Boolean(object.static_mapping_only)
-        : false,
+        : undefined,
       connectionTracking: isSet(object.connectionTracking)
         ? globalThis.Boolean(object.connectionTracking)
         : isSet(object.connection_tracking)
         ? globalThis.Boolean(object.connection_tracking)
-        : false,
+        : undefined,
       sessionLimit: isSet(object.sessionLimit)
         ? globalThis.Number(object.sessionLimit)
         : isSet(object.session_limit)
@@ -10944,10 +11550,10 @@ export const NatConfig: MessageFns<NatConfig> = {
 
   toJSON(message: NatConfig): unknown {
     const obj: any = {};
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
-    if (message.mode !== "") {
+    if (message.mode !== undefined) {
       obj.mode = message.mode;
     }
     if (message.inside?.length) {
@@ -10965,13 +11571,13 @@ export const NatConfig: MessageFns<NatConfig> = {
     if (message.outsideVrf !== undefined) {
       obj.outsideVrf = message.outsideVrf;
     }
-    if (message.forwarding !== false) {
+    if (message.forwarding !== undefined) {
       obj.forwarding = message.forwarding;
     }
-    if (message.staticMappingOnly !== false) {
+    if (message.staticMappingOnly !== undefined) {
       obj.staticMappingOnly = message.staticMappingOnly;
     }
-    if (message.connectionTracking !== false) {
+    if (message.connectionTracking !== undefined) {
       obj.connectionTracking = message.connectionTracking;
     }
     if (message.sessionLimit !== undefined) {
@@ -11024,16 +11630,16 @@ export const NatConfig: MessageFns<NatConfig> = {
   },
   fromPartial(object: DeepPartial<NatConfig>): NatConfig {
     const message = createBaseNatConfig();
-    message.enabled = object.enabled ?? false;
-    message.mode = object.mode ?? "";
+    message.enabled = object.enabled ?? undefined;
+    message.mode = object.mode ?? undefined;
     message.inside = object.inside?.map((e) => e) || [];
     message.outside = object.outside?.map((e) => e) || [];
     message.outputFeature = object.outputFeature?.map((e) => e) || [];
     message.insideVrf = object.insideVrf ?? undefined;
     message.outsideVrf = object.outsideVrf ?? undefined;
-    message.forwarding = object.forwarding ?? false;
-    message.staticMappingOnly = object.staticMappingOnly ?? false;
-    message.connectionTracking = object.connectionTracking ?? false;
+    message.forwarding = object.forwarding ?? undefined;
+    message.staticMappingOnly = object.staticMappingOnly ?? undefined;
+    message.connectionTracking = object.connectionTracking ?? undefined;
     message.sessionLimit = object.sessionLimit ?? undefined;
     message.pools = object.pools?.map((e) => NatPool.fromPartial(e)) || [];
     message.staticMappings = object.staticMappings?.map((e) => NatStaticMapping.fromPartial(e)) || [];
@@ -11069,21 +11675,21 @@ export const NatConfig: MessageFns<NatConfig> = {
 };
 
 function createBaseNatTimeouts(): NatTimeouts {
-  return { udp: 0, tcpEstablished: 0, tcpTransitory: 0, icmp: 0 };
+  return { udp: undefined, tcpEstablished: undefined, tcpTransitory: undefined, icmp: undefined };
 }
 
 export const NatTimeouts: MessageFns<NatTimeouts> = {
   encode(message: NatTimeouts, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.udp !== 0) {
+    if (message.udp !== undefined) {
       writer.uint32(8).uint32(message.udp);
     }
-    if (message.tcpEstablished !== 0) {
+    if (message.tcpEstablished !== undefined) {
       writer.uint32(16).uint32(message.tcpEstablished);
     }
-    if (message.tcpTransitory !== 0) {
+    if (message.tcpTransitory !== undefined) {
       writer.uint32(24).uint32(message.tcpTransitory);
     }
-    if (message.icmp !== 0) {
+    if (message.icmp !== undefined) {
       writer.uint32(32).uint32(message.icmp);
     }
     return writer;
@@ -11148,33 +11754,33 @@ export const NatTimeouts: MessageFns<NatTimeouts> = {
 
   fromJSON(object: any): NatTimeouts {
     return {
-      udp: isSet(object.udp) ? globalThis.Number(object.udp) : 0,
+      udp: isSet(object.udp) ? globalThis.Number(object.udp) : undefined,
       tcpEstablished: isSet(object.tcpEstablished)
         ? globalThis.Number(object.tcpEstablished)
         : isSet(object.tcp_established)
         ? globalThis.Number(object.tcp_established)
-        : 0,
+        : undefined,
       tcpTransitory: isSet(object.tcpTransitory)
         ? globalThis.Number(object.tcpTransitory)
         : isSet(object.tcp_transitory)
         ? globalThis.Number(object.tcp_transitory)
-        : 0,
-      icmp: isSet(object.icmp) ? globalThis.Number(object.icmp) : 0,
+        : undefined,
+      icmp: isSet(object.icmp) ? globalThis.Number(object.icmp) : undefined,
     };
   },
 
   toJSON(message: NatTimeouts): unknown {
     const obj: any = {};
-    if (message.udp !== 0) {
+    if (message.udp !== undefined) {
       obj.udp = Math.round(message.udp);
     }
-    if (message.tcpEstablished !== 0) {
+    if (message.tcpEstablished !== undefined) {
       obj.tcpEstablished = Math.round(message.tcpEstablished);
     }
-    if (message.tcpTransitory !== 0) {
+    if (message.tcpTransitory !== undefined) {
       obj.tcpTransitory = Math.round(message.tcpTransitory);
     }
-    if (message.icmp !== 0) {
+    if (message.icmp !== undefined) {
       obj.icmp = Math.round(message.icmp);
     }
     return obj;
@@ -11185,33 +11791,33 @@ export const NatTimeouts: MessageFns<NatTimeouts> = {
   },
   fromPartial(object: DeepPartial<NatTimeouts>): NatTimeouts {
     const message = createBaseNatTimeouts();
-    message.udp = object.udp ?? 0;
-    message.tcpEstablished = object.tcpEstablished ?? 0;
-    message.tcpTransitory = object.tcpTransitory ?? 0;
-    message.icmp = object.icmp ?? 0;
+    message.udp = object.udp ?? undefined;
+    message.tcpEstablished = object.tcpEstablished ?? undefined;
+    message.tcpTransitory = object.tcpTransitory ?? undefined;
+    message.icmp = object.icmp ?? undefined;
     return message;
   },
 };
 
 function createBaseNatPool(): NatPool {
-  return { name: "", description: undefined, range: "", vrf: undefined, twiceNat: false };
+  return { name: undefined, description: undefined, range: undefined, vrf: undefined, twiceNat: undefined };
 }
 
 export const NatPool: MessageFns<NatPool> = {
   encode(message: NatPool, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== undefined) {
       writer.uint32(10).string(message.name);
     }
     if (message.description !== undefined) {
       writer.uint32(18).string(message.description);
     }
-    if (message.range !== "") {
+    if (message.range !== undefined) {
       writer.uint32(26).string(message.range);
     }
     if (message.vrf !== undefined) {
       writer.uint32(34).string(message.vrf);
     }
-    if (message.twiceNat !== false) {
+    if (message.twiceNat !== undefined) {
       writer.uint32(40).bool(message.twiceNat);
     }
     return writer;
@@ -11284,33 +11890,33 @@ export const NatPool: MessageFns<NatPool> = {
 
   fromJSON(object: any): NatPool {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
-      range: isSet(object.range) ? globalThis.String(object.range) : "",
+      range: isSet(object.range) ? globalThis.String(object.range) : undefined,
       vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
       twiceNat: isSet(object.twiceNat)
         ? globalThis.Boolean(object.twiceNat)
         : isSet(object.twice_nat)
         ? globalThis.Boolean(object.twice_nat)
-        : false,
+        : undefined,
     };
   },
 
   toJSON(message: NatPool): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== undefined) {
       obj.name = message.name;
     }
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.range !== "") {
+    if (message.range !== undefined) {
       obj.range = message.range;
     }
     if (message.vrf !== undefined) {
       obj.vrf = message.vrf;
     }
-    if (message.twiceNat !== false) {
+    if (message.twiceNat !== undefined) {
       obj.twiceNat = message.twiceNat;
     }
     return obj;
@@ -11321,32 +11927,32 @@ export const NatPool: MessageFns<NatPool> = {
   },
   fromPartial(object: DeepPartial<NatPool>): NatPool {
     const message = createBaseNatPool();
-    message.name = object.name ?? "";
+    message.name = object.name ?? undefined;
     message.description = object.description ?? undefined;
-    message.range = object.range ?? "";
+    message.range = object.range ?? undefined;
     message.vrf = object.vrf ?? undefined;
-    message.twiceNat = object.twiceNat ?? false;
+    message.twiceNat = object.twiceNat ?? undefined;
     return message;
   },
 };
 
 function createBaseNatStaticMapping(): NatStaticMapping {
   return {
-    name: "",
+    name: undefined,
     description: undefined,
     protocol: undefined,
     local: undefined,
     external: undefined,
     vrf: undefined,
-    twiceNat: false,
-    selfTwiceNat: false,
-    out2inOnly: false,
+    twiceNat: undefined,
+    selfTwiceNat: undefined,
+    out2inOnly: undefined,
   };
 }
 
 export const NatStaticMapping: MessageFns<NatStaticMapping> = {
   encode(message: NatStaticMapping, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== undefined) {
       writer.uint32(10).string(message.name);
     }
     if (message.description !== undefined) {
@@ -11364,13 +11970,13 @@ export const NatStaticMapping: MessageFns<NatStaticMapping> = {
     if (message.vrf !== undefined) {
       writer.uint32(50).string(message.vrf);
     }
-    if (message.twiceNat !== false) {
+    if (message.twiceNat !== undefined) {
       writer.uint32(56).bool(message.twiceNat);
     }
-    if (message.selfTwiceNat !== false) {
+    if (message.selfTwiceNat !== undefined) {
       writer.uint32(64).bool(message.selfTwiceNat);
     }
-    if (message.out2inOnly !== false) {
+    if (message.out2inOnly !== undefined) {
       writer.uint32(72).bool(message.out2inOnly);
     }
     return writer;
@@ -11475,7 +12081,7 @@ export const NatStaticMapping: MessageFns<NatStaticMapping> = {
 
   fromJSON(object: any): NatStaticMapping {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
       protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : undefined,
       local: isSet(object.local) ? NatStaticMapping_Local.fromJSON(object.local) : undefined,
@@ -11485,23 +12091,23 @@ export const NatStaticMapping: MessageFns<NatStaticMapping> = {
         ? globalThis.Boolean(object.twiceNat)
         : isSet(object.twice_nat)
         ? globalThis.Boolean(object.twice_nat)
-        : false,
+        : undefined,
       selfTwiceNat: isSet(object.selfTwiceNat)
         ? globalThis.Boolean(object.selfTwiceNat)
         : isSet(object.self_twice_nat)
         ? globalThis.Boolean(object.self_twice_nat)
-        : false,
+        : undefined,
       out2inOnly: isSet(object.out2inOnly)
         ? globalThis.Boolean(object.out2inOnly)
         : isSet(object.out2in_only)
         ? globalThis.Boolean(object.out2in_only)
-        : false,
+        : undefined,
     };
   },
 
   toJSON(message: NatStaticMapping): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== undefined) {
       obj.name = message.name;
     }
     if (message.description !== undefined) {
@@ -11519,13 +12125,13 @@ export const NatStaticMapping: MessageFns<NatStaticMapping> = {
     if (message.vrf !== undefined) {
       obj.vrf = message.vrf;
     }
-    if (message.twiceNat !== false) {
+    if (message.twiceNat !== undefined) {
       obj.twiceNat = message.twiceNat;
     }
-    if (message.selfTwiceNat !== false) {
+    if (message.selfTwiceNat !== undefined) {
       obj.selfTwiceNat = message.selfTwiceNat;
     }
-    if (message.out2inOnly !== false) {
+    if (message.out2inOnly !== undefined) {
       obj.out2inOnly = message.out2inOnly;
     }
     return obj;
@@ -11536,7 +12142,7 @@ export const NatStaticMapping: MessageFns<NatStaticMapping> = {
   },
   fromPartial(object: DeepPartial<NatStaticMapping>): NatStaticMapping {
     const message = createBaseNatStaticMapping();
-    message.name = object.name ?? "";
+    message.name = object.name ?? undefined;
     message.description = object.description ?? undefined;
     message.protocol = object.protocol ?? undefined;
     message.local = (object.local !== undefined && object.local !== null)
@@ -11546,20 +12152,20 @@ export const NatStaticMapping: MessageFns<NatStaticMapping> = {
       ? NatStaticMapping_External.fromPartial(object.external)
       : undefined;
     message.vrf = object.vrf ?? undefined;
-    message.twiceNat = object.twiceNat ?? false;
-    message.selfTwiceNat = object.selfTwiceNat ?? false;
-    message.out2inOnly = object.out2inOnly ?? false;
+    message.twiceNat = object.twiceNat ?? undefined;
+    message.selfTwiceNat = object.selfTwiceNat ?? undefined;
+    message.out2inOnly = object.out2inOnly ?? undefined;
     return message;
   },
 };
 
 function createBaseNatStaticMapping_Local(): NatStaticMapping_Local {
-  return { ip: "", port: undefined };
+  return { ip: undefined, port: undefined };
 }
 
 export const NatStaticMapping_Local: MessageFns<NatStaticMapping_Local> = {
   encode(message: NatStaticMapping_Local, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.ip !== "") {
+    if (message.ip !== undefined) {
       writer.uint32(10).string(message.ip);
     }
     if (message.port !== undefined) {
@@ -11611,14 +12217,14 @@ export const NatStaticMapping_Local: MessageFns<NatStaticMapping_Local> = {
 
   fromJSON(object: any): NatStaticMapping_Local {
     return {
-      ip: isSet(object.ip) ? globalThis.String(object.ip) : "",
+      ip: isSet(object.ip) ? globalThis.String(object.ip) : undefined,
       port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
     };
   },
 
   toJSON(message: NatStaticMapping_Local): unknown {
     const obj: any = {};
-    if (message.ip !== "") {
+    if (message.ip !== undefined) {
       obj.ip = message.ip;
     }
     if (message.port !== undefined) {
@@ -11632,7 +12238,7 @@ export const NatStaticMapping_Local: MessageFns<NatStaticMapping_Local> = {
   },
   fromPartial(object: DeepPartial<NatStaticMapping_Local>): NatStaticMapping_Local {
     const message = createBaseNatStaticMapping_Local();
-    message.ip = object.ip ?? "";
+    message.ip = object.ip ?? undefined;
     message.port = object.port ?? undefined;
     return message;
   },
@@ -11897,27 +12503,27 @@ export const NatIdentityMapping: MessageFns<NatIdentityMapping> = {
 
 function createBaseNatLoadBalancedMapping(): NatLoadBalancedMapping {
   return {
-    name: "",
+    name: undefined,
     description: undefined,
-    protocol: "",
+    protocol: undefined,
     external: undefined,
     locals: [],
-    affinity: 0,
-    twiceNat: false,
-    selfTwiceNat: false,
-    out2inOnly: false,
+    affinity: undefined,
+    twiceNat: undefined,
+    selfTwiceNat: undefined,
+    out2inOnly: undefined,
   };
 }
 
 export const NatLoadBalancedMapping: MessageFns<NatLoadBalancedMapping> = {
   encode(message: NatLoadBalancedMapping, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== undefined) {
       writer.uint32(10).string(message.name);
     }
     if (message.description !== undefined) {
       writer.uint32(18).string(message.description);
     }
-    if (message.protocol !== "") {
+    if (message.protocol !== undefined) {
       writer.uint32(26).string(message.protocol);
     }
     if (message.external !== undefined) {
@@ -11926,16 +12532,16 @@ export const NatLoadBalancedMapping: MessageFns<NatLoadBalancedMapping> = {
     for (const v of message.locals) {
       NatLoadBalancedMapping_Local.encode(v!, writer.uint32(42).fork()).join();
     }
-    if (message.affinity !== 0) {
+    if (message.affinity !== undefined) {
       writer.uint32(48).uint32(message.affinity);
     }
-    if (message.twiceNat !== false) {
+    if (message.twiceNat !== undefined) {
       writer.uint32(56).bool(message.twiceNat);
     }
-    if (message.selfTwiceNat !== false) {
+    if (message.selfTwiceNat !== undefined) {
       writer.uint32(64).bool(message.selfTwiceNat);
     }
-    if (message.out2inOnly !== false) {
+    if (message.out2inOnly !== undefined) {
       writer.uint32(72).bool(message.out2inOnly);
     }
     return writer;
@@ -12040,41 +12646,41 @@ export const NatLoadBalancedMapping: MessageFns<NatLoadBalancedMapping> = {
 
   fromJSON(object: any): NatLoadBalancedMapping {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
-      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : "",
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : undefined,
       external: isSet(object.external) ? NatLoadBalancedMapping_External.fromJSON(object.external) : undefined,
       locals: globalThis.Array.isArray(object?.locals)
         ? object.locals.map((e: any) => NatLoadBalancedMapping_Local.fromJSON(e))
         : [],
-      affinity: isSet(object.affinity) ? globalThis.Number(object.affinity) : 0,
+      affinity: isSet(object.affinity) ? globalThis.Number(object.affinity) : undefined,
       twiceNat: isSet(object.twiceNat)
         ? globalThis.Boolean(object.twiceNat)
         : isSet(object.twice_nat)
         ? globalThis.Boolean(object.twice_nat)
-        : false,
+        : undefined,
       selfTwiceNat: isSet(object.selfTwiceNat)
         ? globalThis.Boolean(object.selfTwiceNat)
         : isSet(object.self_twice_nat)
         ? globalThis.Boolean(object.self_twice_nat)
-        : false,
+        : undefined,
       out2inOnly: isSet(object.out2inOnly)
         ? globalThis.Boolean(object.out2inOnly)
         : isSet(object.out2in_only)
         ? globalThis.Boolean(object.out2in_only)
-        : false,
+        : undefined,
     };
   },
 
   toJSON(message: NatLoadBalancedMapping): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== undefined) {
       obj.name = message.name;
     }
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.protocol !== "") {
+    if (message.protocol !== undefined) {
       obj.protocol = message.protocol;
     }
     if (message.external !== undefined) {
@@ -12083,16 +12689,16 @@ export const NatLoadBalancedMapping: MessageFns<NatLoadBalancedMapping> = {
     if (message.locals?.length) {
       obj.locals = message.locals.map((e) => NatLoadBalancedMapping_Local.toJSON(e));
     }
-    if (message.affinity !== 0) {
+    if (message.affinity !== undefined) {
       obj.affinity = Math.round(message.affinity);
     }
-    if (message.twiceNat !== false) {
+    if (message.twiceNat !== undefined) {
       obj.twiceNat = message.twiceNat;
     }
-    if (message.selfTwiceNat !== false) {
+    if (message.selfTwiceNat !== undefined) {
       obj.selfTwiceNat = message.selfTwiceNat;
     }
-    if (message.out2inOnly !== false) {
+    if (message.out2inOnly !== undefined) {
       obj.out2inOnly = message.out2inOnly;
     }
     return obj;
@@ -12103,31 +12709,31 @@ export const NatLoadBalancedMapping: MessageFns<NatLoadBalancedMapping> = {
   },
   fromPartial(object: DeepPartial<NatLoadBalancedMapping>): NatLoadBalancedMapping {
     const message = createBaseNatLoadBalancedMapping();
-    message.name = object.name ?? "";
+    message.name = object.name ?? undefined;
     message.description = object.description ?? undefined;
-    message.protocol = object.protocol ?? "";
+    message.protocol = object.protocol ?? undefined;
     message.external = (object.external !== undefined && object.external !== null)
       ? NatLoadBalancedMapping_External.fromPartial(object.external)
       : undefined;
     message.locals = object.locals?.map((e) => NatLoadBalancedMapping_Local.fromPartial(e)) || [];
-    message.affinity = object.affinity ?? 0;
-    message.twiceNat = object.twiceNat ?? false;
-    message.selfTwiceNat = object.selfTwiceNat ?? false;
-    message.out2inOnly = object.out2inOnly ?? false;
+    message.affinity = object.affinity ?? undefined;
+    message.twiceNat = object.twiceNat ?? undefined;
+    message.selfTwiceNat = object.selfTwiceNat ?? undefined;
+    message.out2inOnly = object.out2inOnly ?? undefined;
     return message;
   },
 };
 
 function createBaseNatLoadBalancedMapping_External(): NatLoadBalancedMapping_External {
-  return { ip: "", port: 0 };
+  return { ip: undefined, port: undefined };
 }
 
 export const NatLoadBalancedMapping_External: MessageFns<NatLoadBalancedMapping_External> = {
   encode(message: NatLoadBalancedMapping_External, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.ip !== "") {
+    if (message.ip !== undefined) {
       writer.uint32(10).string(message.ip);
     }
-    if (message.port !== 0) {
+    if (message.port !== undefined) {
       writer.uint32(16).uint32(message.port);
     }
     return writer;
@@ -12176,17 +12782,17 @@ export const NatLoadBalancedMapping_External: MessageFns<NatLoadBalancedMapping_
 
   fromJSON(object: any): NatLoadBalancedMapping_External {
     return {
-      ip: isSet(object.ip) ? globalThis.String(object.ip) : "",
-      port: isSet(object.port) ? globalThis.Number(object.port) : 0,
+      ip: isSet(object.ip) ? globalThis.String(object.ip) : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
     };
   },
 
   toJSON(message: NatLoadBalancedMapping_External): unknown {
     const obj: any = {};
-    if (message.ip !== "") {
+    if (message.ip !== undefined) {
       obj.ip = message.ip;
     }
-    if (message.port !== 0) {
+    if (message.port !== undefined) {
       obj.port = Math.round(message.port);
     }
     return obj;
@@ -12197,25 +12803,25 @@ export const NatLoadBalancedMapping_External: MessageFns<NatLoadBalancedMapping_
   },
   fromPartial(object: DeepPartial<NatLoadBalancedMapping_External>): NatLoadBalancedMapping_External {
     const message = createBaseNatLoadBalancedMapping_External();
-    message.ip = object.ip ?? "";
-    message.port = object.port ?? 0;
+    message.ip = object.ip ?? undefined;
+    message.port = object.port ?? undefined;
     return message;
   },
 };
 
 function createBaseNatLoadBalancedMapping_Local(): NatLoadBalancedMapping_Local {
-  return { ip: "", port: 0, probability: 0, vrf: undefined };
+  return { ip: undefined, port: undefined, probability: undefined, vrf: undefined };
 }
 
 export const NatLoadBalancedMapping_Local: MessageFns<NatLoadBalancedMapping_Local> = {
   encode(message: NatLoadBalancedMapping_Local, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.ip !== "") {
+    if (message.ip !== undefined) {
       writer.uint32(10).string(message.ip);
     }
-    if (message.port !== 0) {
+    if (message.port !== undefined) {
       writer.uint32(16).uint32(message.port);
     }
-    if (message.probability !== 0) {
+    if (message.probability !== undefined) {
       writer.uint32(24).uint32(message.probability);
     }
     if (message.vrf !== undefined) {
@@ -12283,22 +12889,22 @@ export const NatLoadBalancedMapping_Local: MessageFns<NatLoadBalancedMapping_Loc
 
   fromJSON(object: any): NatLoadBalancedMapping_Local {
     return {
-      ip: isSet(object.ip) ? globalThis.String(object.ip) : "",
-      port: isSet(object.port) ? globalThis.Number(object.port) : 0,
-      probability: isSet(object.probability) ? globalThis.Number(object.probability) : 0,
+      ip: isSet(object.ip) ? globalThis.String(object.ip) : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
+      probability: isSet(object.probability) ? globalThis.Number(object.probability) : undefined,
       vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
     };
   },
 
   toJSON(message: NatLoadBalancedMapping_Local): unknown {
     const obj: any = {};
-    if (message.ip !== "") {
+    if (message.ip !== undefined) {
       obj.ip = message.ip;
     }
-    if (message.port !== 0) {
+    if (message.port !== undefined) {
       obj.port = Math.round(message.port);
     }
-    if (message.probability !== 0) {
+    if (message.probability !== undefined) {
       obj.probability = Math.round(message.probability);
     }
     if (message.vrf !== undefined) {
@@ -12312,21 +12918,21 @@ export const NatLoadBalancedMapping_Local: MessageFns<NatLoadBalancedMapping_Loc
   },
   fromPartial(object: DeepPartial<NatLoadBalancedMapping_Local>): NatLoadBalancedMapping_Local {
     const message = createBaseNatLoadBalancedMapping_Local();
-    message.ip = object.ip ?? "";
-    message.port = object.port ?? 0;
-    message.probability = object.probability ?? 0;
+    message.ip = object.ip ?? undefined;
+    message.port = object.port ?? undefined;
+    message.probability = object.probability ?? undefined;
     message.vrf = object.vrf ?? undefined;
     return message;
   },
 };
 
 function createBaseNatIpfix(): NatIpfix {
-  return { enabled: false, domainId: undefined, sourcePort: undefined };
+  return { enabled: undefined, domainId: undefined, sourcePort: undefined };
 }
 
 export const NatIpfix: MessageFns<NatIpfix> = {
   encode(message: NatIpfix, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(8).bool(message.enabled);
     }
     if (message.domainId !== undefined) {
@@ -12389,7 +12995,7 @@ export const NatIpfix: MessageFns<NatIpfix> = {
 
   fromJSON(object: any): NatIpfix {
     return {
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
       domainId: isSet(object.domainId)
         ? globalThis.Number(object.domainId)
         : isSet(object.domain_id)
@@ -12405,7 +13011,7 @@ export const NatIpfix: MessageFns<NatIpfix> = {
 
   toJSON(message: NatIpfix): unknown {
     const obj: any = {};
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
     if (message.domainId !== undefined) {
@@ -12422,7 +13028,7 @@ export const NatIpfix: MessageFns<NatIpfix> = {
   },
   fromPartial(object: DeepPartial<NatIpfix>): NatIpfix {
     const message = createBaseNatIpfix();
-    message.enabled = object.enabled ?? false;
+    message.enabled = object.enabled ?? undefined;
     message.domainId = object.domainId ?? undefined;
     message.sourcePort = object.sourcePort ?? undefined;
     return message;
@@ -12430,12 +13036,12 @@ export const NatIpfix: MessageFns<NatIpfix> = {
 };
 
 function createBaseNat64Config(): Nat64Config {
-  return { enabled: false, inside: [], outside: [], prefixes: [], pools: [], staticBibs: [], timeouts: undefined };
+  return { enabled: undefined, inside: [], outside: [], prefixes: [], pools: [], staticBibs: [], timeouts: undefined };
 }
 
 export const Nat64Config: MessageFns<Nat64Config> = {
   encode(message: Nat64Config, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(8).bool(message.enabled);
     }
     for (const v of message.inside) {
@@ -12542,7 +13148,7 @@ export const Nat64Config: MessageFns<Nat64Config> = {
 
   fromJSON(object: any): Nat64Config {
     return {
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
       inside: globalThis.Array.isArray(object?.inside) ? object.inside.map((e: any) => globalThis.String(e)) : [],
       outside: globalThis.Array.isArray(object?.outside) ? object.outside.map((e: any) => globalThis.String(e)) : [],
       prefixes: globalThis.Array.isArray(object?.prefixes)
@@ -12560,7 +13166,7 @@ export const Nat64Config: MessageFns<Nat64Config> = {
 
   toJSON(message: Nat64Config): unknown {
     const obj: any = {};
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
     if (message.inside?.length) {
@@ -12589,7 +13195,7 @@ export const Nat64Config: MessageFns<Nat64Config> = {
   },
   fromPartial(object: DeepPartial<Nat64Config>): Nat64Config {
     const message = createBaseNat64Config();
-    message.enabled = object.enabled ?? false;
+    message.enabled = object.enabled ?? undefined;
     message.inside = object.inside?.map((e) => e) || [];
     message.outside = object.outside?.map((e) => e) || [];
     message.prefixes = object.prefixes?.map((e) => Nat64Config_Prefix.fromPartial(e)) || [];
@@ -12603,12 +13209,12 @@ export const Nat64Config: MessageFns<Nat64Config> = {
 };
 
 function createBaseNat64Config_Prefix(): Nat64Config_Prefix {
-  return { prefix: "", vrf: undefined };
+  return { prefix: undefined, vrf: undefined };
 }
 
 export const Nat64Config_Prefix: MessageFns<Nat64Config_Prefix> = {
   encode(message: Nat64Config_Prefix, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.prefix !== "") {
+    if (message.prefix !== undefined) {
       writer.uint32(10).string(message.prefix);
     }
     if (message.vrf !== undefined) {
@@ -12660,14 +13266,14 @@ export const Nat64Config_Prefix: MessageFns<Nat64Config_Prefix> = {
 
   fromJSON(object: any): Nat64Config_Prefix {
     return {
-      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : "",
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
       vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
     };
   },
 
   toJSON(message: Nat64Config_Prefix): unknown {
     const obj: any = {};
-    if (message.prefix !== "") {
+    if (message.prefix !== undefined) {
       obj.prefix = message.prefix;
     }
     if (message.vrf !== undefined) {
@@ -12681,19 +13287,19 @@ export const Nat64Config_Prefix: MessageFns<Nat64Config_Prefix> = {
   },
   fromPartial(object: DeepPartial<Nat64Config_Prefix>): Nat64Config_Prefix {
     const message = createBaseNat64Config_Prefix();
-    message.prefix = object.prefix ?? "";
+    message.prefix = object.prefix ?? undefined;
     message.vrf = object.vrf ?? undefined;
     return message;
   },
 };
 
 function createBaseNat64Config_Pool(): Nat64Config_Pool {
-  return { range: "", vrf: undefined };
+  return { range: undefined, vrf: undefined };
 }
 
 export const Nat64Config_Pool: MessageFns<Nat64Config_Pool> = {
   encode(message: Nat64Config_Pool, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.range !== "") {
+    if (message.range !== undefined) {
       writer.uint32(10).string(message.range);
     }
     if (message.vrf !== undefined) {
@@ -12745,14 +13351,14 @@ export const Nat64Config_Pool: MessageFns<Nat64Config_Pool> = {
 
   fromJSON(object: any): Nat64Config_Pool {
     return {
-      range: isSet(object.range) ? globalThis.String(object.range) : "",
+      range: isSet(object.range) ? globalThis.String(object.range) : undefined,
       vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
     };
   },
 
   toJSON(message: Nat64Config_Pool): unknown {
     const obj: any = {};
-    if (message.range !== "") {
+    if (message.range !== undefined) {
       obj.range = message.range;
     }
     if (message.vrf !== undefined) {
@@ -12766,14 +13372,14 @@ export const Nat64Config_Pool: MessageFns<Nat64Config_Pool> = {
   },
   fromPartial(object: DeepPartial<Nat64Config_Pool>): Nat64Config_Pool {
     const message = createBaseNat64Config_Pool();
-    message.range = object.range ?? "";
+    message.range = object.range ?? undefined;
     message.vrf = object.vrf ?? undefined;
     return message;
   },
 };
 
 function createBaseNat64Config_StaticBib(): Nat64Config_StaticBib {
-  return { description: undefined, protocol: "", inside: undefined, outside: undefined, vrf: undefined };
+  return { description: undefined, protocol: undefined, inside: undefined, outside: undefined, vrf: undefined };
 }
 
 export const Nat64Config_StaticBib: MessageFns<Nat64Config_StaticBib> = {
@@ -12781,7 +13387,7 @@ export const Nat64Config_StaticBib: MessageFns<Nat64Config_StaticBib> = {
     if (message.description !== undefined) {
       writer.uint32(10).string(message.description);
     }
-    if (message.protocol !== "") {
+    if (message.protocol !== undefined) {
       writer.uint32(18).string(message.protocol);
     }
     if (message.inside !== undefined) {
@@ -12864,7 +13470,7 @@ export const Nat64Config_StaticBib: MessageFns<Nat64Config_StaticBib> = {
   fromJSON(object: any): Nat64Config_StaticBib {
     return {
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
-      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : "",
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : undefined,
       inside: isSet(object.inside) ? Nat64Config_StaticBib_Endpoint.fromJSON(object.inside) : undefined,
       outside: isSet(object.outside) ? Nat64Config_StaticBib_Endpoint.fromJSON(object.outside) : undefined,
       vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
@@ -12876,7 +13482,7 @@ export const Nat64Config_StaticBib: MessageFns<Nat64Config_StaticBib> = {
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.protocol !== "") {
+    if (message.protocol !== undefined) {
       obj.protocol = message.protocol;
     }
     if (message.inside !== undefined) {
@@ -12897,7 +13503,7 @@ export const Nat64Config_StaticBib: MessageFns<Nat64Config_StaticBib> = {
   fromPartial(object: DeepPartial<Nat64Config_StaticBib>): Nat64Config_StaticBib {
     const message = createBaseNat64Config_StaticBib();
     message.description = object.description ?? undefined;
-    message.protocol = object.protocol ?? "";
+    message.protocol = object.protocol ?? undefined;
     message.inside = (object.inside !== undefined && object.inside !== null)
       ? Nat64Config_StaticBib_Endpoint.fromPartial(object.inside)
       : undefined;
@@ -12910,15 +13516,15 @@ export const Nat64Config_StaticBib: MessageFns<Nat64Config_StaticBib> = {
 };
 
 function createBaseNat64Config_StaticBib_Endpoint(): Nat64Config_StaticBib_Endpoint {
-  return { ip: "", port: 0 };
+  return { ip: undefined, port: undefined };
 }
 
 export const Nat64Config_StaticBib_Endpoint: MessageFns<Nat64Config_StaticBib_Endpoint> = {
   encode(message: Nat64Config_StaticBib_Endpoint, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.ip !== "") {
+    if (message.ip !== undefined) {
       writer.uint32(10).string(message.ip);
     }
-    if (message.port !== 0) {
+    if (message.port !== undefined) {
       writer.uint32(16).uint32(message.port);
     }
     return writer;
@@ -12967,17 +13573,17 @@ export const Nat64Config_StaticBib_Endpoint: MessageFns<Nat64Config_StaticBib_En
 
   fromJSON(object: any): Nat64Config_StaticBib_Endpoint {
     return {
-      ip: isSet(object.ip) ? globalThis.String(object.ip) : "",
-      port: isSet(object.port) ? globalThis.Number(object.port) : 0,
+      ip: isSet(object.ip) ? globalThis.String(object.ip) : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
     };
   },
 
   toJSON(message: Nat64Config_StaticBib_Endpoint): unknown {
     const obj: any = {};
-    if (message.ip !== "") {
+    if (message.ip !== undefined) {
       obj.ip = message.ip;
     }
-    if (message.port !== 0) {
+    if (message.port !== undefined) {
       obj.port = Math.round(message.port);
     }
     return obj;
@@ -12988,19 +13594,19 @@ export const Nat64Config_StaticBib_Endpoint: MessageFns<Nat64Config_StaticBib_En
   },
   fromPartial(object: DeepPartial<Nat64Config_StaticBib_Endpoint>): Nat64Config_StaticBib_Endpoint {
     const message = createBaseNat64Config_StaticBib_Endpoint();
-    message.ip = object.ip ?? "";
-    message.port = object.port ?? 0;
+    message.ip = object.ip ?? undefined;
+    message.port = object.port ?? undefined;
     return message;
   },
 };
 
 function createBaseNat66Config(): Nat66Config {
-  return { enabled: false, inside: [], outside: [], staticMappings: [] };
+  return { enabled: undefined, inside: [], outside: [], staticMappings: [] };
 }
 
 export const Nat66Config: MessageFns<Nat66Config> = {
   encode(message: Nat66Config, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(8).bool(message.enabled);
     }
     for (const v of message.inside) {
@@ -13074,7 +13680,7 @@ export const Nat66Config: MessageFns<Nat66Config> = {
 
   fromJSON(object: any): Nat66Config {
     return {
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
       inside: globalThis.Array.isArray(object?.inside) ? object.inside.map((e: any) => globalThis.String(e)) : [],
       outside: globalThis.Array.isArray(object?.outside) ? object.outside.map((e: any) => globalThis.String(e)) : [],
       staticMappings: globalThis.Array.isArray(object?.staticMappings)
@@ -13087,7 +13693,7 @@ export const Nat66Config: MessageFns<Nat66Config> = {
 
   toJSON(message: Nat66Config): unknown {
     const obj: any = {};
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
     if (message.inside?.length) {
@@ -13107,7 +13713,7 @@ export const Nat66Config: MessageFns<Nat66Config> = {
   },
   fromPartial(object: DeepPartial<Nat66Config>): Nat66Config {
     const message = createBaseNat66Config();
-    message.enabled = object.enabled ?? false;
+    message.enabled = object.enabled ?? undefined;
     message.inside = object.inside?.map((e) => e) || [];
     message.outside = object.outside?.map((e) => e) || [];
     message.staticMappings = object.staticMappings?.map((e) => Nat66Config_StaticMapping.fromPartial(e)) || [];
@@ -13116,7 +13722,7 @@ export const Nat66Config: MessageFns<Nat66Config> = {
 };
 
 function createBaseNat66Config_StaticMapping(): Nat66Config_StaticMapping {
-  return { description: undefined, local: "", external: "", vrf: undefined };
+  return { description: undefined, local: undefined, external: undefined, vrf: undefined };
 }
 
 export const Nat66Config_StaticMapping: MessageFns<Nat66Config_StaticMapping> = {
@@ -13124,10 +13730,10 @@ export const Nat66Config_StaticMapping: MessageFns<Nat66Config_StaticMapping> = 
     if (message.description !== undefined) {
       writer.uint32(10).string(message.description);
     }
-    if (message.local !== "") {
+    if (message.local !== undefined) {
       writer.uint32(18).string(message.local);
     }
-    if (message.external !== "") {
+    if (message.external !== undefined) {
       writer.uint32(26).string(message.external);
     }
     if (message.vrf !== undefined) {
@@ -13196,8 +13802,8 @@ export const Nat66Config_StaticMapping: MessageFns<Nat66Config_StaticMapping> = 
   fromJSON(object: any): Nat66Config_StaticMapping {
     return {
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
-      local: isSet(object.local) ? globalThis.String(object.local) : "",
-      external: isSet(object.external) ? globalThis.String(object.external) : "",
+      local: isSet(object.local) ? globalThis.String(object.local) : undefined,
+      external: isSet(object.external) ? globalThis.String(object.external) : undefined,
       vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
     };
   },
@@ -13207,10 +13813,10 @@ export const Nat66Config_StaticMapping: MessageFns<Nat66Config_StaticMapping> = 
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.local !== "") {
+    if (message.local !== undefined) {
       obj.local = message.local;
     }
-    if (message.external !== "") {
+    if (message.external !== undefined) {
       obj.external = message.external;
     }
     if (message.vrf !== undefined) {
@@ -13225,8 +13831,8 @@ export const Nat66Config_StaticMapping: MessageFns<Nat66Config_StaticMapping> = 
   fromPartial(object: DeepPartial<Nat66Config_StaticMapping>): Nat66Config_StaticMapping {
     const message = createBaseNat66Config_StaticMapping();
     message.description = object.description ?? undefined;
-    message.local = object.local ?? "";
-    message.external = object.external ?? "";
+    message.local = object.local ?? undefined;
+    message.external = object.external ?? undefined;
     message.vrf = object.vrf ?? undefined;
     return message;
   },
@@ -13304,7 +13910,7 @@ export const Nptv6Config: MessageFns<Nptv6Config> = {
 };
 
 function createBaseNptv6Config_Binding(): Nptv6Config_Binding {
-  return { description: undefined, interface: "", internal: "", external: "" };
+  return { description: undefined, interface: undefined, internal: undefined, external: undefined };
 }
 
 export const Nptv6Config_Binding: MessageFns<Nptv6Config_Binding> = {
@@ -13312,13 +13918,13 @@ export const Nptv6Config_Binding: MessageFns<Nptv6Config_Binding> = {
     if (message.description !== undefined) {
       writer.uint32(10).string(message.description);
     }
-    if (message.interface !== "") {
+    if (message.interface !== undefined) {
       writer.uint32(18).string(message.interface);
     }
-    if (message.internal !== "") {
+    if (message.internal !== undefined) {
       writer.uint32(26).string(message.internal);
     }
-    if (message.external !== "") {
+    if (message.external !== undefined) {
       writer.uint32(34).string(message.external);
     }
     return writer;
@@ -13384,9 +13990,9 @@ export const Nptv6Config_Binding: MessageFns<Nptv6Config_Binding> = {
   fromJSON(object: any): Nptv6Config_Binding {
     return {
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
-      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
-      internal: isSet(object.internal) ? globalThis.String(object.internal) : "",
-      external: isSet(object.external) ? globalThis.String(object.external) : "",
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      internal: isSet(object.internal) ? globalThis.String(object.internal) : undefined,
+      external: isSet(object.external) ? globalThis.String(object.external) : undefined,
     };
   },
 
@@ -13395,13 +14001,13 @@ export const Nptv6Config_Binding: MessageFns<Nptv6Config_Binding> = {
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.interface !== "") {
+    if (message.interface !== undefined) {
       obj.interface = message.interface;
     }
-    if (message.internal !== "") {
+    if (message.internal !== undefined) {
       obj.internal = message.internal;
     }
-    if (message.external !== "") {
+    if (message.external !== undefined) {
       obj.external = message.external;
     }
     return obj;
@@ -13413,16 +14019,16 @@ export const Nptv6Config_Binding: MessageFns<Nptv6Config_Binding> = {
   fromPartial(object: DeepPartial<Nptv6Config_Binding>): Nptv6Config_Binding {
     const message = createBaseNptv6Config_Binding();
     message.description = object.description ?? undefined;
-    message.interface = object.interface ?? "";
-    message.internal = object.internal ?? "";
-    message.external = object.external ?? "";
+    message.interface = object.interface ?? undefined;
+    message.internal = object.internal ?? undefined;
+    message.external = object.external ?? undefined;
     return message;
   },
 };
 
 function createBaseDet44Config(): Det44Config {
   return {
-    enabled: false,
+    enabled: undefined,
     inside: [],
     outside: [],
     insideVrf: undefined,
@@ -13434,7 +14040,7 @@ function createBaseDet44Config(): Det44Config {
 
 export const Det44Config: MessageFns<Det44Config> = {
   encode(message: Det44Config, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(8).bool(message.enabled);
     }
     for (const v of message.inside) {
@@ -13541,7 +14147,7 @@ export const Det44Config: MessageFns<Det44Config> = {
 
   fromJSON(object: any): Det44Config {
     return {
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
       inside: globalThis.Array.isArray(object?.inside) ? object.inside.map((e: any) => globalThis.String(e)) : [],
       outside: globalThis.Array.isArray(object?.outside) ? object.outside.map((e: any) => globalThis.String(e)) : [],
       insideVrf: isSet(object.insideVrf)
@@ -13563,7 +14169,7 @@ export const Det44Config: MessageFns<Det44Config> = {
 
   toJSON(message: Det44Config): unknown {
     const obj: any = {};
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
     if (message.inside?.length) {
@@ -13592,7 +14198,7 @@ export const Det44Config: MessageFns<Det44Config> = {
   },
   fromPartial(object: DeepPartial<Det44Config>): Det44Config {
     const message = createBaseDet44Config();
-    message.enabled = object.enabled ?? false;
+    message.enabled = object.enabled ?? undefined;
     message.inside = object.inside?.map((e) => e) || [];
     message.outside = object.outside?.map((e) => e) || [];
     message.insideVrf = object.insideVrf ?? undefined;
@@ -13606,7 +14212,7 @@ export const Det44Config: MessageFns<Det44Config> = {
 };
 
 function createBaseDet44Config_Mapping(): Det44Config_Mapping {
-  return { description: undefined, inside: "", outside: "" };
+  return { description: undefined, inside: undefined, outside: undefined };
 }
 
 export const Det44Config_Mapping: MessageFns<Det44Config_Mapping> = {
@@ -13614,10 +14220,10 @@ export const Det44Config_Mapping: MessageFns<Det44Config_Mapping> = {
     if (message.description !== undefined) {
       writer.uint32(10).string(message.description);
     }
-    if (message.inside !== "") {
+    if (message.inside !== undefined) {
       writer.uint32(18).string(message.inside);
     }
-    if (message.outside !== "") {
+    if (message.outside !== undefined) {
       writer.uint32(26).string(message.outside);
     }
     return writer;
@@ -13675,8 +14281,8 @@ export const Det44Config_Mapping: MessageFns<Det44Config_Mapping> = {
   fromJSON(object: any): Det44Config_Mapping {
     return {
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
-      inside: isSet(object.inside) ? globalThis.String(object.inside) : "",
-      outside: isSet(object.outside) ? globalThis.String(object.outside) : "",
+      inside: isSet(object.inside) ? globalThis.String(object.inside) : undefined,
+      outside: isSet(object.outside) ? globalThis.String(object.outside) : undefined,
     };
   },
 
@@ -13685,10 +14291,10 @@ export const Det44Config_Mapping: MessageFns<Det44Config_Mapping> = {
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.inside !== "") {
+    if (message.inside !== undefined) {
       obj.inside = message.inside;
     }
-    if (message.outside !== "") {
+    if (message.outside !== undefined) {
       obj.outside = message.outside;
     }
     return obj;
@@ -13700,19 +14306,19 @@ export const Det44Config_Mapping: MessageFns<Det44Config_Mapping> = {
   fromPartial(object: DeepPartial<Det44Config_Mapping>): Det44Config_Mapping {
     const message = createBaseDet44Config_Mapping();
     message.description = object.description ?? undefined;
-    message.inside = object.inside ?? "";
-    message.outside = object.outside ?? "";
+    message.inside = object.inside ?? undefined;
+    message.outside = object.outside ?? undefined;
     return message;
   },
 };
 
 function createBaseDsliteConfig(): DsliteConfig {
-  return { enabled: false, aftr: undefined, b4: undefined, pools: [] };
+  return { enabled: undefined, aftr: undefined, b4: undefined, pools: [] };
 }
 
 export const DsliteConfig: MessageFns<DsliteConfig> = {
   encode(message: DsliteConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(8).bool(message.enabled);
     }
     if (message.aftr !== undefined) {
@@ -13786,7 +14392,7 @@ export const DsliteConfig: MessageFns<DsliteConfig> = {
 
   fromJSON(object: any): DsliteConfig {
     return {
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
       aftr: isSet(object.aftr) ? DsliteConfig_Endpoint.fromJSON(object.aftr) : undefined,
       b4: isSet(object.b4) ? DsliteConfig_Endpoint.fromJSON(object.b4) : undefined,
       pools: globalThis.Array.isArray(object?.pools) ? object.pools.map((e: any) => DsliteConfig_Pool.fromJSON(e)) : [],
@@ -13795,7 +14401,7 @@ export const DsliteConfig: MessageFns<DsliteConfig> = {
 
   toJSON(message: DsliteConfig): unknown {
     const obj: any = {};
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
     if (message.aftr !== undefined) {
@@ -13815,7 +14421,7 @@ export const DsliteConfig: MessageFns<DsliteConfig> = {
   },
   fromPartial(object: DeepPartial<DsliteConfig>): DsliteConfig {
     const message = createBaseDsliteConfig();
-    message.enabled = object.enabled ?? false;
+    message.enabled = object.enabled ?? undefined;
     message.aftr = (object.aftr !== undefined && object.aftr !== null)
       ? DsliteConfig_Endpoint.fromPartial(object.aftr)
       : undefined;
@@ -13828,12 +14434,12 @@ export const DsliteConfig: MessageFns<DsliteConfig> = {
 };
 
 function createBaseDsliteConfig_Endpoint(): DsliteConfig_Endpoint {
-  return { ipv6: "", ipv4: undefined };
+  return { ipv6: undefined, ipv4: undefined };
 }
 
 export const DsliteConfig_Endpoint: MessageFns<DsliteConfig_Endpoint> = {
   encode(message: DsliteConfig_Endpoint, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.ipv6 !== "") {
+    if (message.ipv6 !== undefined) {
       writer.uint32(10).string(message.ipv6);
     }
     if (message.ipv4 !== undefined) {
@@ -13885,14 +14491,14 @@ export const DsliteConfig_Endpoint: MessageFns<DsliteConfig_Endpoint> = {
 
   fromJSON(object: any): DsliteConfig_Endpoint {
     return {
-      ipv6: isSet(object.ipv6) ? globalThis.String(object.ipv6) : "",
+      ipv6: isSet(object.ipv6) ? globalThis.String(object.ipv6) : undefined,
       ipv4: isSet(object.ipv4) ? globalThis.String(object.ipv4) : undefined,
     };
   },
 
   toJSON(message: DsliteConfig_Endpoint): unknown {
     const obj: any = {};
-    if (message.ipv6 !== "") {
+    if (message.ipv6 !== undefined) {
       obj.ipv6 = message.ipv6;
     }
     if (message.ipv4 !== undefined) {
@@ -13906,19 +14512,19 @@ export const DsliteConfig_Endpoint: MessageFns<DsliteConfig_Endpoint> = {
   },
   fromPartial(object: DeepPartial<DsliteConfig_Endpoint>): DsliteConfig_Endpoint {
     const message = createBaseDsliteConfig_Endpoint();
-    message.ipv6 = object.ipv6 ?? "";
+    message.ipv6 = object.ipv6 ?? undefined;
     message.ipv4 = object.ipv4 ?? undefined;
     return message;
   },
 };
 
 function createBaseDsliteConfig_Pool(): DsliteConfig_Pool {
-  return { range: "" };
+  return { range: undefined };
 }
 
 export const DsliteConfig_Pool: MessageFns<DsliteConfig_Pool> = {
   encode(message: DsliteConfig_Pool, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.range !== "") {
+    if (message.range !== undefined) {
       writer.uint32(10).string(message.range);
     }
     return writer;
@@ -13958,12 +14564,12 @@ export const DsliteConfig_Pool: MessageFns<DsliteConfig_Pool> = {
   },
 
   fromJSON(object: any): DsliteConfig_Pool {
-    return { range: isSet(object.range) ? globalThis.String(object.range) : "" };
+    return { range: isSet(object.range) ? globalThis.String(object.range) : undefined };
   },
 
   toJSON(message: DsliteConfig_Pool): unknown {
     const obj: any = {};
-    if (message.range !== "") {
+    if (message.range !== undefined) {
       obj.range = message.range;
     }
     return obj;
@@ -13974,22 +14580,22 @@ export const DsliteConfig_Pool: MessageFns<DsliteConfig_Pool> = {
   },
   fromPartial(object: DeepPartial<DsliteConfig_Pool>): DsliteConfig_Pool {
     const message = createBaseDsliteConfig_Pool();
-    message.range = object.range ?? "";
+    message.range = object.range ?? undefined;
     return message;
   },
 };
 
 function createBaseMapDomain(): MapDomain {
   return {
-    name: "",
+    name: undefined,
     description: undefined,
-    mode: "",
-    ipv4Prefix: "",
-    ipv6Prefix: "",
-    ipv6Source: "",
-    eaBitsLength: 0,
-    psidOffset: 0,
-    psidLength: 0,
+    mode: undefined,
+    ipv4Prefix: undefined,
+    ipv6Prefix: undefined,
+    ipv6Source: undefined,
+    eaBitsLength: undefined,
+    psidOffset: undefined,
+    psidLength: undefined,
     mtu: undefined,
     rules: [],
   };
@@ -13997,31 +14603,31 @@ function createBaseMapDomain(): MapDomain {
 
 export const MapDomain: MessageFns<MapDomain> = {
   encode(message: MapDomain, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== undefined) {
       writer.uint32(10).string(message.name);
     }
     if (message.description !== undefined) {
       writer.uint32(18).string(message.description);
     }
-    if (message.mode !== "") {
+    if (message.mode !== undefined) {
       writer.uint32(26).string(message.mode);
     }
-    if (message.ipv4Prefix !== "") {
+    if (message.ipv4Prefix !== undefined) {
       writer.uint32(34).string(message.ipv4Prefix);
     }
-    if (message.ipv6Prefix !== "") {
+    if (message.ipv6Prefix !== undefined) {
       writer.uint32(42).string(message.ipv6Prefix);
     }
-    if (message.ipv6Source !== "") {
+    if (message.ipv6Source !== undefined) {
       writer.uint32(50).string(message.ipv6Source);
     }
-    if (message.eaBitsLength !== 0) {
+    if (message.eaBitsLength !== undefined) {
       writer.uint32(56).uint32(message.eaBitsLength);
     }
-    if (message.psidOffset !== 0) {
+    if (message.psidOffset !== undefined) {
       writer.uint32(64).uint32(message.psidOffset);
     }
-    if (message.psidLength !== 0) {
+    if (message.psidLength !== undefined) {
       writer.uint32(72).uint32(message.psidLength);
     }
     if (message.mtu !== undefined) {
@@ -14148,39 +14754,39 @@ export const MapDomain: MessageFns<MapDomain> = {
 
   fromJSON(object: any): MapDomain {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
-      mode: isSet(object.mode) ? globalThis.String(object.mode) : "",
+      mode: isSet(object.mode) ? globalThis.String(object.mode) : undefined,
       ipv4Prefix: isSet(object.ipv4Prefix)
         ? globalThis.String(object.ipv4Prefix)
         : isSet(object.ipv4_prefix)
         ? globalThis.String(object.ipv4_prefix)
-        : "",
+        : undefined,
       ipv6Prefix: isSet(object.ipv6Prefix)
         ? globalThis.String(object.ipv6Prefix)
         : isSet(object.ipv6_prefix)
         ? globalThis.String(object.ipv6_prefix)
-        : "",
+        : undefined,
       ipv6Source: isSet(object.ipv6Source)
         ? globalThis.String(object.ipv6Source)
         : isSet(object.ipv6_source)
         ? globalThis.String(object.ipv6_source)
-        : "",
+        : undefined,
       eaBitsLength: isSet(object.eaBitsLength)
         ? globalThis.Number(object.eaBitsLength)
         : isSet(object.ea_bits_length)
         ? globalThis.Number(object.ea_bits_length)
-        : 0,
+        : undefined,
       psidOffset: isSet(object.psidOffset)
         ? globalThis.Number(object.psidOffset)
         : isSet(object.psid_offset)
         ? globalThis.Number(object.psid_offset)
-        : 0,
+        : undefined,
       psidLength: isSet(object.psidLength)
         ? globalThis.Number(object.psidLength)
         : isSet(object.psid_length)
         ? globalThis.Number(object.psid_length)
-        : 0,
+        : undefined,
       mtu: isSet(object.mtu) ? globalThis.Number(object.mtu) : undefined,
       rules: globalThis.Array.isArray(object?.rules)
         ? object.rules.map((e: any) => MapDomain_Rule.fromJSON(e))
@@ -14190,31 +14796,31 @@ export const MapDomain: MessageFns<MapDomain> = {
 
   toJSON(message: MapDomain): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== undefined) {
       obj.name = message.name;
     }
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.mode !== "") {
+    if (message.mode !== undefined) {
       obj.mode = message.mode;
     }
-    if (message.ipv4Prefix !== "") {
+    if (message.ipv4Prefix !== undefined) {
       obj.ipv4Prefix = message.ipv4Prefix;
     }
-    if (message.ipv6Prefix !== "") {
+    if (message.ipv6Prefix !== undefined) {
       obj.ipv6Prefix = message.ipv6Prefix;
     }
-    if (message.ipv6Source !== "") {
+    if (message.ipv6Source !== undefined) {
       obj.ipv6Source = message.ipv6Source;
     }
-    if (message.eaBitsLength !== 0) {
+    if (message.eaBitsLength !== undefined) {
       obj.eaBitsLength = Math.round(message.eaBitsLength);
     }
-    if (message.psidOffset !== 0) {
+    if (message.psidOffset !== undefined) {
       obj.psidOffset = Math.round(message.psidOffset);
     }
-    if (message.psidLength !== 0) {
+    if (message.psidLength !== undefined) {
       obj.psidLength = Math.round(message.psidLength);
     }
     if (message.mtu !== undefined) {
@@ -14231,15 +14837,15 @@ export const MapDomain: MessageFns<MapDomain> = {
   },
   fromPartial(object: DeepPartial<MapDomain>): MapDomain {
     const message = createBaseMapDomain();
-    message.name = object.name ?? "";
+    message.name = object.name ?? undefined;
     message.description = object.description ?? undefined;
-    message.mode = object.mode ?? "";
-    message.ipv4Prefix = object.ipv4Prefix ?? "";
-    message.ipv6Prefix = object.ipv6Prefix ?? "";
-    message.ipv6Source = object.ipv6Source ?? "";
-    message.eaBitsLength = object.eaBitsLength ?? 0;
-    message.psidOffset = object.psidOffset ?? 0;
-    message.psidLength = object.psidLength ?? 0;
+    message.mode = object.mode ?? undefined;
+    message.ipv4Prefix = object.ipv4Prefix ?? undefined;
+    message.ipv6Prefix = object.ipv6Prefix ?? undefined;
+    message.ipv6Source = object.ipv6Source ?? undefined;
+    message.eaBitsLength = object.eaBitsLength ?? undefined;
+    message.psidOffset = object.psidOffset ?? undefined;
+    message.psidLength = object.psidLength ?? undefined;
     message.mtu = object.mtu ?? undefined;
     message.rules = object.rules?.map((e) => MapDomain_Rule.fromPartial(e)) || [];
     return message;
@@ -14247,15 +14853,15 @@ export const MapDomain: MessageFns<MapDomain> = {
 };
 
 function createBaseMapDomain_Rule(): MapDomain_Rule {
-  return { psid: 0, ipv6Destination: "" };
+  return { psid: undefined, ipv6Destination: undefined };
 }
 
 export const MapDomain_Rule: MessageFns<MapDomain_Rule> = {
   encode(message: MapDomain_Rule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.psid !== 0) {
+    if (message.psid !== undefined) {
       writer.uint32(8).uint32(message.psid);
     }
-    if (message.ipv6Destination !== "") {
+    if (message.ipv6Destination !== undefined) {
       writer.uint32(18).string(message.ipv6Destination);
     }
     return writer;
@@ -14304,21 +14910,21 @@ export const MapDomain_Rule: MessageFns<MapDomain_Rule> = {
 
   fromJSON(object: any): MapDomain_Rule {
     return {
-      psid: isSet(object.psid) ? globalThis.Number(object.psid) : 0,
+      psid: isSet(object.psid) ? globalThis.Number(object.psid) : undefined,
       ipv6Destination: isSet(object.ipv6Destination)
         ? globalThis.String(object.ipv6Destination)
         : isSet(object.ipv6_destination)
         ? globalThis.String(object.ipv6_destination)
-        : "",
+        : undefined,
     };
   },
 
   toJSON(message: MapDomain_Rule): unknown {
     const obj: any = {};
-    if (message.psid !== 0) {
+    if (message.psid !== undefined) {
       obj.psid = Math.round(message.psid);
     }
-    if (message.ipv6Destination !== "") {
+    if (message.ipv6Destination !== undefined) {
       obj.ipv6Destination = message.ipv6Destination;
     }
     return obj;
@@ -14329,8 +14935,8 @@ export const MapDomain_Rule: MessageFns<MapDomain_Rule> = {
   },
   fromPartial(object: DeepPartial<MapDomain_Rule>): MapDomain_Rule {
     const message = createBaseMapDomain_Rule();
-    message.psid = object.psid ?? 0;
-    message.ipv6Destination = object.ipv6Destination ?? "";
+    message.psid = object.psid ?? undefined;
+    message.ipv6Destination = object.ipv6Destination ?? undefined;
     return message;
   },
 };
@@ -14339,7 +14945,7 @@ function createBaseMapParameters(): MapParameters {
   return {
     fragmentation: undefined,
     icmpSourceAddress: undefined,
-    icmp6Unreachables: false,
+    icmp6Unreachables: undefined,
     securityCheck: undefined,
     tcpMss: undefined,
     trafficClass: undefined,
@@ -14355,7 +14961,7 @@ export const MapParameters: MessageFns<MapParameters> = {
     if (message.icmpSourceAddress !== undefined) {
       writer.uint32(18).string(message.icmpSourceAddress);
     }
-    if (message.icmp6Unreachables !== false) {
+    if (message.icmp6Unreachables !== undefined) {
       writer.uint32(24).bool(message.icmp6Unreachables);
     }
     if (message.securityCheck !== undefined) {
@@ -14468,7 +15074,7 @@ export const MapParameters: MessageFns<MapParameters> = {
         ? globalThis.Boolean(object.icmp6Unreachables)
         : isSet(object.icmp6_unreachables)
         ? globalThis.Boolean(object.icmp6_unreachables)
-        : false,
+        : undefined,
       securityCheck: isSet(object.securityCheck)
         ? MapParameters_SecurityCheck.fromJSON(object.securityCheck)
         : isSet(object.security_check)
@@ -14500,7 +15106,7 @@ export const MapParameters: MessageFns<MapParameters> = {
     if (message.icmpSourceAddress !== undefined) {
       obj.icmpSourceAddress = message.icmpSourceAddress;
     }
-    if (message.icmp6Unreachables !== false) {
+    if (message.icmp6Unreachables !== undefined) {
       obj.icmp6Unreachables = message.icmp6Unreachables;
     }
     if (message.securityCheck !== undefined) {
@@ -14527,7 +15133,7 @@ export const MapParameters: MessageFns<MapParameters> = {
       ? MapParameters_Fragmentation.fromPartial(object.fragmentation)
       : undefined;
     message.icmpSourceAddress = object.icmpSourceAddress ?? undefined;
-    message.icmp6Unreachables = object.icmp6Unreachables ?? false;
+    message.icmp6Unreachables = object.icmp6Unreachables ?? undefined;
     message.securityCheck = (object.securityCheck !== undefined && object.securityCheck !== null)
       ? MapParameters_SecurityCheck.fromPartial(object.securityCheck)
       : undefined;
@@ -14543,15 +15149,15 @@ export const MapParameters: MessageFns<MapParameters> = {
 };
 
 function createBaseMapParameters_Fragmentation(): MapParameters_Fragmentation {
-  return { inner: false, ignoreDf: false };
+  return { inner: undefined, ignoreDf: undefined };
 }
 
 export const MapParameters_Fragmentation: MessageFns<MapParameters_Fragmentation> = {
   encode(message: MapParameters_Fragmentation, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.inner !== false) {
+    if (message.inner !== undefined) {
       writer.uint32(8).bool(message.inner);
     }
-    if (message.ignoreDf !== false) {
+    if (message.ignoreDf !== undefined) {
       writer.uint32(16).bool(message.ignoreDf);
     }
     return writer;
@@ -14600,21 +15206,21 @@ export const MapParameters_Fragmentation: MessageFns<MapParameters_Fragmentation
 
   fromJSON(object: any): MapParameters_Fragmentation {
     return {
-      inner: isSet(object.inner) ? globalThis.Boolean(object.inner) : false,
+      inner: isSet(object.inner) ? globalThis.Boolean(object.inner) : undefined,
       ignoreDf: isSet(object.ignoreDf)
         ? globalThis.Boolean(object.ignoreDf)
         : isSet(object.ignore_df)
         ? globalThis.Boolean(object.ignore_df)
-        : false,
+        : undefined,
     };
   },
 
   toJSON(message: MapParameters_Fragmentation): unknown {
     const obj: any = {};
-    if (message.inner !== false) {
+    if (message.inner !== undefined) {
       obj.inner = message.inner;
     }
-    if (message.ignoreDf !== false) {
+    if (message.ignoreDf !== undefined) {
       obj.ignoreDf = message.ignoreDf;
     }
     return obj;
@@ -14625,22 +15231,22 @@ export const MapParameters_Fragmentation: MessageFns<MapParameters_Fragmentation
   },
   fromPartial(object: DeepPartial<MapParameters_Fragmentation>): MapParameters_Fragmentation {
     const message = createBaseMapParameters_Fragmentation();
-    message.inner = object.inner ?? false;
-    message.ignoreDf = object.ignoreDf ?? false;
+    message.inner = object.inner ?? undefined;
+    message.ignoreDf = object.ignoreDf ?? undefined;
     return message;
   },
 };
 
 function createBaseMapParameters_SecurityCheck(): MapParameters_SecurityCheck {
-  return { enabled: false, fragments: false };
+  return { enabled: undefined, fragments: undefined };
 }
 
 export const MapParameters_SecurityCheck: MessageFns<MapParameters_SecurityCheck> = {
   encode(message: MapParameters_SecurityCheck, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(8).bool(message.enabled);
     }
-    if (message.fragments !== false) {
+    if (message.fragments !== undefined) {
       writer.uint32(16).bool(message.fragments);
     }
     return writer;
@@ -14689,17 +15295,17 @@ export const MapParameters_SecurityCheck: MessageFns<MapParameters_SecurityCheck
 
   fromJSON(object: any): MapParameters_SecurityCheck {
     return {
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
-      fragments: isSet(object.fragments) ? globalThis.Boolean(object.fragments) : false,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      fragments: isSet(object.fragments) ? globalThis.Boolean(object.fragments) : undefined,
     };
   },
 
   toJSON(message: MapParameters_SecurityCheck): unknown {
     const obj: any = {};
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
-    if (message.fragments !== false) {
+    if (message.fragments !== undefined) {
       obj.fragments = message.fragments;
     }
     return obj;
@@ -14710,19 +15316,19 @@ export const MapParameters_SecurityCheck: MessageFns<MapParameters_SecurityCheck
   },
   fromPartial(object: DeepPartial<MapParameters_SecurityCheck>): MapParameters_SecurityCheck {
     const message = createBaseMapParameters_SecurityCheck();
-    message.enabled = object.enabled ?? false;
-    message.fragments = object.fragments ?? false;
+    message.enabled = object.enabled ?? undefined;
+    message.fragments = object.fragments ?? undefined;
     return message;
   },
 };
 
 function createBaseMapParameters_TrafficClass(): MapParameters_TrafficClass {
-  return { copy: false, value: undefined };
+  return { copy: undefined, value: undefined };
 }
 
 export const MapParameters_TrafficClass: MessageFns<MapParameters_TrafficClass> = {
   encode(message: MapParameters_TrafficClass, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.copy !== false) {
+    if (message.copy !== undefined) {
       writer.uint32(8).bool(message.copy);
     }
     if (message.value !== undefined) {
@@ -14774,14 +15380,14 @@ export const MapParameters_TrafficClass: MessageFns<MapParameters_TrafficClass> 
 
   fromJSON(object: any): MapParameters_TrafficClass {
     return {
-      copy: isSet(object.copy) ? globalThis.Boolean(object.copy) : false,
+      copy: isSet(object.copy) ? globalThis.Boolean(object.copy) : undefined,
       value: isSet(object.value) ? globalThis.Number(object.value) : undefined,
     };
   },
 
   toJSON(message: MapParameters_TrafficClass): unknown {
     const obj: any = {};
-    if (message.copy !== false) {
+    if (message.copy !== undefined) {
       obj.copy = message.copy;
     }
     if (message.value !== undefined) {
@@ -14795,7 +15401,7 @@ export const MapParameters_TrafficClass: MessageFns<MapParameters_TrafficClass> 
   },
   fromPartial(object: DeepPartial<MapParameters_TrafficClass>): MapParameters_TrafficClass {
     const message = createBaseMapParameters_TrafficClass();
-    message.copy = object.copy ?? false;
+    message.copy = object.copy ?? undefined;
     message.value = object.value ?? undefined;
     return message;
   },
@@ -14974,15 +15580,15 @@ export const MapConfig: MessageFns<MapConfig> = {
 };
 
 function createBaseCnatEndpoint(): CnatEndpoint {
-  return { ip: "", port: 0 };
+  return { ip: undefined, port: undefined };
 }
 
 export const CnatEndpoint: MessageFns<CnatEndpoint> = {
   encode(message: CnatEndpoint, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.ip !== "") {
+    if (message.ip !== undefined) {
       writer.uint32(10).string(message.ip);
     }
-    if (message.port !== 0) {
+    if (message.port !== undefined) {
       writer.uint32(16).uint32(message.port);
     }
     return writer;
@@ -15031,17 +15637,17 @@ export const CnatEndpoint: MessageFns<CnatEndpoint> = {
 
   fromJSON(object: any): CnatEndpoint {
     return {
-      ip: isSet(object.ip) ? globalThis.String(object.ip) : "",
-      port: isSet(object.port) ? globalThis.Number(object.port) : 0,
+      ip: isSet(object.ip) ? globalThis.String(object.ip) : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
     };
   },
 
   toJSON(message: CnatEndpoint): unknown {
     const obj: any = {};
-    if (message.ip !== "") {
+    if (message.ip !== undefined) {
       obj.ip = message.ip;
     }
-    if (message.port !== 0) {
+    if (message.port !== undefined) {
       obj.port = Math.round(message.port);
     }
     return obj;
@@ -15052,25 +15658,32 @@ export const CnatEndpoint: MessageFns<CnatEndpoint> = {
   },
   fromPartial(object: DeepPartial<CnatEndpoint>): CnatEndpoint {
     const message = createBaseCnatEndpoint();
-    message.ip = object.ip ?? "";
-    message.port = object.port ?? 0;
+    message.ip = object.ip ?? undefined;
+    message.port = object.port ?? undefined;
     return message;
   },
 };
 
 function createBaseCnatTranslation(): CnatTranslation {
-  return { name: "", description: undefined, protocol: "", vip: undefined, backends: [], lbType: "" };
+  return {
+    name: undefined,
+    description: undefined,
+    protocol: undefined,
+    vip: undefined,
+    backends: [],
+    lbType: undefined,
+  };
 }
 
 export const CnatTranslation: MessageFns<CnatTranslation> = {
   encode(message: CnatTranslation, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== undefined) {
       writer.uint32(10).string(message.name);
     }
     if (message.description !== undefined) {
       writer.uint32(18).string(message.description);
     }
-    if (message.protocol !== "") {
+    if (message.protocol !== undefined) {
       writer.uint32(26).string(message.protocol);
     }
     if (message.vip !== undefined) {
@@ -15079,7 +15692,7 @@ export const CnatTranslation: MessageFns<CnatTranslation> = {
     for (const v of message.backends) {
       CnatEndpoint.encode(v!, writer.uint32(42).fork()).join();
     }
-    if (message.lbType !== "") {
+    if (message.lbType !== undefined) {
       writer.uint32(50).string(message.lbType);
     }
     return writer;
@@ -15160,9 +15773,9 @@ export const CnatTranslation: MessageFns<CnatTranslation> = {
 
   fromJSON(object: any): CnatTranslation {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
-      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : "",
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : undefined,
       vip: isSet(object.vip) ? CnatEndpoint.fromJSON(object.vip) : undefined,
       backends: globalThis.Array.isArray(object?.backends)
         ? object.backends.map((e: any) => CnatEndpoint.fromJSON(e))
@@ -15171,19 +15784,19 @@ export const CnatTranslation: MessageFns<CnatTranslation> = {
         ? globalThis.String(object.lbType)
         : isSet(object.lb_type)
         ? globalThis.String(object.lb_type)
-        : "",
+        : undefined,
     };
   },
 
   toJSON(message: CnatTranslation): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== undefined) {
       obj.name = message.name;
     }
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.protocol !== "") {
+    if (message.protocol !== undefined) {
       obj.protocol = message.protocol;
     }
     if (message.vip !== undefined) {
@@ -15192,7 +15805,7 @@ export const CnatTranslation: MessageFns<CnatTranslation> = {
     if (message.backends?.length) {
       obj.backends = message.backends.map((e) => CnatEndpoint.toJSON(e));
     }
-    if (message.lbType !== "") {
+    if (message.lbType !== undefined) {
       obj.lbType = message.lbType;
     }
     return obj;
@@ -15203,12 +15816,12 @@ export const CnatTranslation: MessageFns<CnatTranslation> = {
   },
   fromPartial(object: DeepPartial<CnatTranslation>): CnatTranslation {
     const message = createBaseCnatTranslation();
-    message.name = object.name ?? "";
+    message.name = object.name ?? undefined;
     message.description = object.description ?? undefined;
-    message.protocol = object.protocol ?? "";
+    message.protocol = object.protocol ?? undefined;
     message.vip = (object.vip !== undefined && object.vip !== null) ? CnatEndpoint.fromPartial(object.vip) : undefined;
     message.backends = object.backends?.map((e) => CnatEndpoint.fromPartial(e)) || [];
-    message.lbType = object.lbType ?? "";
+    message.lbType = object.lbType ?? undefined;
     return message;
   },
 };
@@ -15303,12 +15916,12 @@ export const CnatConfig: MessageFns<CnatConfig> = {
 };
 
 function createBaseCnatConfig_Snat(): CnatConfig_Snat {
-  return { policy: "", addresses: undefined, interfaces: [], excludePrefixes: [] };
+  return { policy: undefined, addresses: undefined, interfaces: [], excludePrefixes: [] };
 }
 
 export const CnatConfig_Snat: MessageFns<CnatConfig_Snat> = {
   encode(message: CnatConfig_Snat, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.policy !== "") {
+    if (message.policy !== undefined) {
       writer.uint32(10).string(message.policy);
     }
     if (message.addresses !== undefined) {
@@ -15382,7 +15995,7 @@ export const CnatConfig_Snat: MessageFns<CnatConfig_Snat> = {
 
   fromJSON(object: any): CnatConfig_Snat {
     return {
-      policy: isSet(object.policy) ? globalThis.String(object.policy) : "",
+      policy: isSet(object.policy) ? globalThis.String(object.policy) : undefined,
       addresses: isSet(object.addresses) ? CnatConfig_Snat_Addresses.fromJSON(object.addresses) : undefined,
       interfaces: globalThis.Array.isArray(object?.interfaces)
         ? object.interfaces.map((e: any) => CnatConfig_Snat_PolicyInterface.fromJSON(e))
@@ -15397,7 +16010,7 @@ export const CnatConfig_Snat: MessageFns<CnatConfig_Snat> = {
 
   toJSON(message: CnatConfig_Snat): unknown {
     const obj: any = {};
-    if (message.policy !== "") {
+    if (message.policy !== undefined) {
       obj.policy = message.policy;
     }
     if (message.addresses !== undefined) {
@@ -15417,7 +16030,7 @@ export const CnatConfig_Snat: MessageFns<CnatConfig_Snat> = {
   },
   fromPartial(object: DeepPartial<CnatConfig_Snat>): CnatConfig_Snat {
     const message = createBaseCnatConfig_Snat();
-    message.policy = object.policy ?? "";
+    message.policy = object.policy ?? undefined;
     message.addresses = (object.addresses !== undefined && object.addresses !== null)
       ? CnatConfig_Snat_Addresses.fromPartial(object.addresses)
       : undefined;
@@ -15513,15 +16126,15 @@ export const CnatConfig_Snat_Addresses: MessageFns<CnatConfig_Snat_Addresses> = 
 };
 
 function createBaseCnatConfig_Snat_PolicyInterface(): CnatConfig_Snat_PolicyInterface {
-  return { interface: "", side: "" };
+  return { interface: undefined, side: undefined };
 }
 
 export const CnatConfig_Snat_PolicyInterface: MessageFns<CnatConfig_Snat_PolicyInterface> = {
   encode(message: CnatConfig_Snat_PolicyInterface, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.interface !== "") {
+    if (message.interface !== undefined) {
       writer.uint32(10).string(message.interface);
     }
-    if (message.side !== "") {
+    if (message.side !== undefined) {
       writer.uint32(18).string(message.side);
     }
     return writer;
@@ -15570,17 +16183,17 @@ export const CnatConfig_Snat_PolicyInterface: MessageFns<CnatConfig_Snat_PolicyI
 
   fromJSON(object: any): CnatConfig_Snat_PolicyInterface {
     return {
-      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
-      side: isSet(object.side) ? globalThis.String(object.side) : "",
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      side: isSet(object.side) ? globalThis.String(object.side) : undefined,
     };
   },
 
   toJSON(message: CnatConfig_Snat_PolicyInterface): unknown {
     const obj: any = {};
-    if (message.interface !== "") {
+    if (message.interface !== undefined) {
       obj.interface = message.interface;
     }
-    if (message.side !== "") {
+    if (message.side !== undefined) {
       obj.side = message.side;
     }
     return obj;
@@ -15591,8 +16204,8 @@ export const CnatConfig_Snat_PolicyInterface: MessageFns<CnatConfig_Snat_PolicyI
   },
   fromPartial(object: DeepPartial<CnatConfig_Snat_PolicyInterface>): CnatConfig_Snat_PolicyInterface {
     const message = createBaseCnatConfig_Snat_PolicyInterface();
-    message.interface = object.interface ?? "";
-    message.side = object.side ?? "";
+    message.interface = object.interface ?? undefined;
+    message.side = object.side ?? undefined;
     return message;
   },
 };
@@ -16605,7 +17218,7 @@ export const ObjectsConfig_TagsEntry: MessageFns<ObjectsConfig_TagsEntry> = {
 
 function createBaseAddressObject(): AddressObject {
   return {
-    type: "",
+    type: undefined,
     address: undefined,
     prefix: undefined,
     start: undefined,
@@ -16618,7 +17231,7 @@ function createBaseAddressObject(): AddressObject {
 
 export const AddressObject: MessageFns<AddressObject> = {
   encode(message: AddressObject, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.type !== "") {
+    if (message.type !== undefined) {
       writer.uint32(10).string(message.type);
     }
     if (message.address !== undefined) {
@@ -16736,7 +17349,7 @@ export const AddressObject: MessageFns<AddressObject> = {
 
   fromJSON(object: any): AddressObject {
     return {
-      type: isSet(object.type) ? globalThis.String(object.type) : "",
+      type: isSet(object.type) ? globalThis.String(object.type) : undefined,
       address: isSet(object.address) ? globalThis.String(object.address) : undefined,
       prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
       start: isSet(object.start) ? globalThis.String(object.start) : undefined,
@@ -16749,7 +17362,7 @@ export const AddressObject: MessageFns<AddressObject> = {
 
   toJSON(message: AddressObject): unknown {
     const obj: any = {};
-    if (message.type !== "") {
+    if (message.type !== undefined) {
       obj.type = message.type;
     }
     if (message.address !== undefined) {
@@ -16781,7 +17394,7 @@ export const AddressObject: MessageFns<AddressObject> = {
   },
   fromPartial(object: DeepPartial<AddressObject>): AddressObject {
     const message = createBaseAddressObject();
-    message.type = object.type ?? "";
+    message.type = object.type ?? undefined;
     message.address = object.address ?? undefined;
     message.prefix = object.prefix ?? undefined;
     message.start = object.start ?? undefined;
@@ -16895,15 +17508,15 @@ export const AddressGroup: MessageFns<AddressGroup> = {
 };
 
 function createBaseTcpFlags(): TcpFlags {
-  return { mask: 0, value: 0 };
+  return { mask: undefined, value: undefined };
 }
 
 export const TcpFlags: MessageFns<TcpFlags> = {
   encode(message: TcpFlags, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.mask !== 0) {
+    if (message.mask !== undefined) {
       writer.uint32(8).uint32(message.mask);
     }
-    if (message.value !== 0) {
+    if (message.value !== undefined) {
       writer.uint32(16).uint32(message.value);
     }
     return writer;
@@ -16952,17 +17565,17 @@ export const TcpFlags: MessageFns<TcpFlags> = {
 
   fromJSON(object: any): TcpFlags {
     return {
-      mask: isSet(object.mask) ? globalThis.Number(object.mask) : 0,
-      value: isSet(object.value) ? globalThis.Number(object.value) : 0,
+      mask: isSet(object.mask) ? globalThis.Number(object.mask) : undefined,
+      value: isSet(object.value) ? globalThis.Number(object.value) : undefined,
     };
   },
 
   toJSON(message: TcpFlags): unknown {
     const obj: any = {};
-    if (message.mask !== 0) {
+    if (message.mask !== undefined) {
       obj.mask = Math.round(message.mask);
     }
-    if (message.value !== 0) {
+    if (message.value !== undefined) {
       obj.value = Math.round(message.value);
     }
     return obj;
@@ -16973,15 +17586,15 @@ export const TcpFlags: MessageFns<TcpFlags> = {
   },
   fromPartial(object: DeepPartial<TcpFlags>): TcpFlags {
     const message = createBaseTcpFlags();
-    message.mask = object.mask ?? 0;
-    message.value = object.value ?? 0;
+    message.mask = object.mask ?? undefined;
+    message.value = object.value ?? undefined;
     return message;
   },
 };
 
 function createBaseServiceSpec(): ServiceSpec {
   return {
-    protocol: "",
+    protocol: undefined,
     destinationPorts: [],
     sourcePorts: [],
     tcpFlags: undefined,
@@ -16993,7 +17606,7 @@ function createBaseServiceSpec(): ServiceSpec {
 
 export const ServiceSpec: MessageFns<ServiceSpec> = {
   encode(message: ServiceSpec, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.protocol !== "") {
+    if (message.protocol !== undefined) {
       writer.uint32(10).string(message.protocol);
     }
     for (const v of message.destinationPorts) {
@@ -17100,7 +17713,7 @@ export const ServiceSpec: MessageFns<ServiceSpec> = {
 
   fromJSON(object: any): ServiceSpec {
     return {
-      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : "",
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : undefined,
       destinationPorts: globalThis.Array.isArray(object?.destinationPorts)
         ? object.destinationPorts.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.destination_ports)
@@ -17124,7 +17737,7 @@ export const ServiceSpec: MessageFns<ServiceSpec> = {
 
   toJSON(message: ServiceSpec): unknown {
     const obj: any = {};
-    if (message.protocol !== "") {
+    if (message.protocol !== undefined) {
       obj.protocol = message.protocol;
     }
     if (message.destinationPorts?.length) {
@@ -17153,7 +17766,7 @@ export const ServiceSpec: MessageFns<ServiceSpec> = {
   },
   fromPartial(object: DeepPartial<ServiceSpec>): ServiceSpec {
     const message = createBaseServiceSpec();
-    message.protocol = object.protocol ?? "";
+    message.protocol = object.protocol ?? undefined;
     message.destinationPorts = object.destinationPorts?.map((e) => e) || [];
     message.sourcePorts = object.sourcePorts?.map((e) => e) || [];
     message.tcpFlags = (object.tcpFlags !== undefined && object.tcpFlags !== null)
@@ -17168,7 +17781,7 @@ export const ServiceSpec: MessageFns<ServiceSpec> = {
 
 function createBaseServiceObject(): ServiceObject {
   return {
-    protocol: "",
+    protocol: undefined,
     destinationPorts: [],
     sourcePorts: [],
     tcpFlags: undefined,
@@ -17182,7 +17795,7 @@ function createBaseServiceObject(): ServiceObject {
 
 export const ServiceObject: MessageFns<ServiceObject> = {
   encode(message: ServiceObject, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.protocol !== "") {
+    if (message.protocol !== undefined) {
       writer.uint32(10).string(message.protocol);
     }
     for (const v of message.destinationPorts) {
@@ -17311,7 +17924,7 @@ export const ServiceObject: MessageFns<ServiceObject> = {
 
   fromJSON(object: any): ServiceObject {
     return {
-      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : "",
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : undefined,
       destinationPorts: globalThis.Array.isArray(object?.destinationPorts)
         ? object.destinationPorts.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.destination_ports)
@@ -17337,7 +17950,7 @@ export const ServiceObject: MessageFns<ServiceObject> = {
 
   toJSON(message: ServiceObject): unknown {
     const obj: any = {};
-    if (message.protocol !== "") {
+    if (message.protocol !== undefined) {
       obj.protocol = message.protocol;
     }
     if (message.destinationPorts?.length) {
@@ -17372,7 +17985,7 @@ export const ServiceObject: MessageFns<ServiceObject> = {
   },
   fromPartial(object: DeepPartial<ServiceObject>): ServiceObject {
     const message = createBaseServiceObject();
-    message.protocol = object.protocol ?? "";
+    message.protocol = object.protocol ?? undefined;
     message.destinationPorts = object.destinationPorts?.map((e) => e) || [];
     message.sourcePorts = object.sourcePorts?.map((e) => e) || [];
     message.tcpFlags = (object.tcpFlags !== undefined && object.tcpFlags !== null)
@@ -17489,21 +18102,21 @@ export const ServiceGroup: MessageFns<ServiceGroup> = {
 };
 
 function createBaseSchedule(): Schedule {
-  return { type: "", days: [], start: "", end: "", description: undefined, tags: [] };
+  return { type: undefined, days: [], start: undefined, end: undefined, description: undefined, tags: [] };
 }
 
 export const Schedule: MessageFns<Schedule> = {
   encode(message: Schedule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.type !== "") {
+    if (message.type !== undefined) {
       writer.uint32(10).string(message.type);
     }
     for (const v of message.days) {
       writer.uint32(18).string(v!);
     }
-    if (message.start !== "") {
+    if (message.start !== undefined) {
       writer.uint32(26).string(message.start);
     }
-    if (message.end !== "") {
+    if (message.end !== undefined) {
       writer.uint32(34).string(message.end);
     }
     if (message.description !== undefined) {
@@ -17590,10 +18203,10 @@ export const Schedule: MessageFns<Schedule> = {
 
   fromJSON(object: any): Schedule {
     return {
-      type: isSet(object.type) ? globalThis.String(object.type) : "",
+      type: isSet(object.type) ? globalThis.String(object.type) : undefined,
       days: globalThis.Array.isArray(object?.days) ? object.days.map((e: any) => globalThis.String(e)) : [],
-      start: isSet(object.start) ? globalThis.String(object.start) : "",
-      end: isSet(object.end) ? globalThis.String(object.end) : "",
+      start: isSet(object.start) ? globalThis.String(object.start) : undefined,
+      end: isSet(object.end) ? globalThis.String(object.end) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
       tags: globalThis.Array.isArray(object?.tags) ? object.tags.map((e: any) => globalThis.String(e)) : [],
     };
@@ -17601,16 +18214,16 @@ export const Schedule: MessageFns<Schedule> = {
 
   toJSON(message: Schedule): unknown {
     const obj: any = {};
-    if (message.type !== "") {
+    if (message.type !== undefined) {
       obj.type = message.type;
     }
     if (message.days?.length) {
       obj.days = message.days;
     }
-    if (message.start !== "") {
+    if (message.start !== undefined) {
       obj.start = message.start;
     }
-    if (message.end !== "") {
+    if (message.end !== undefined) {
       obj.end = message.end;
     }
     if (message.description !== undefined) {
@@ -17627,10 +18240,10 @@ export const Schedule: MessageFns<Schedule> = {
   },
   fromPartial(object: DeepPartial<Schedule>): Schedule {
     const message = createBaseSchedule();
-    message.type = object.type ?? "";
+    message.type = object.type ?? undefined;
     message.days = object.days?.map((e) => e) || [];
-    message.start = object.start ?? "";
-    message.end = object.end ?? "";
+    message.start = object.start ?? undefined;
+    message.end = object.end ?? undefined;
     message.description = object.description ?? undefined;
     message.tags = object.tags?.map((e) => e) || [];
     return message;
@@ -18336,12 +18949,12 @@ export const AclConfig_HostEntry: MessageFns<AclConfig_HostEntry> = {
 };
 
 function createBaseAddressMatch(): AddressMatch {
-  return { kind: "", prefix: undefined, name: undefined };
+  return { kind: undefined, prefix: undefined, name: undefined };
 }
 
 export const AddressMatch: MessageFns<AddressMatch> = {
   encode(message: AddressMatch, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.kind !== "") {
+    if (message.kind !== undefined) {
       writer.uint32(10).string(message.kind);
     }
     if (message.prefix !== undefined) {
@@ -18404,7 +19017,7 @@ export const AddressMatch: MessageFns<AddressMatch> = {
 
   fromJSON(object: any): AddressMatch {
     return {
-      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : undefined,
       prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
       name: isSet(object.name) ? globalThis.String(object.name) : undefined,
     };
@@ -18412,7 +19025,7 @@ export const AddressMatch: MessageFns<AddressMatch> = {
 
   toJSON(message: AddressMatch): unknown {
     const obj: any = {};
-    if (message.kind !== "") {
+    if (message.kind !== undefined) {
       obj.kind = message.kind;
     }
     if (message.prefix !== undefined) {
@@ -18429,7 +19042,7 @@ export const AddressMatch: MessageFns<AddressMatch> = {
   },
   fromPartial(object: DeepPartial<AddressMatch>): AddressMatch {
     const message = createBaseAddressMatch();
-    message.kind = object.kind ?? "";
+    message.kind = object.kind ?? undefined;
     message.prefix = object.prefix ?? undefined;
     message.name = object.name ?? undefined;
     return message;
@@ -18437,12 +19050,12 @@ export const AddressMatch: MessageFns<AddressMatch> = {
 };
 
 function createBaseServiceMatch(): ServiceMatch {
-  return { kind: "", name: undefined, spec: undefined };
+  return { kind: undefined, name: undefined, spec: undefined };
 }
 
 export const ServiceMatch: MessageFns<ServiceMatch> = {
   encode(message: ServiceMatch, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.kind !== "") {
+    if (message.kind !== undefined) {
       writer.uint32(10).string(message.kind);
     }
     if (message.name !== undefined) {
@@ -18505,7 +19118,7 @@ export const ServiceMatch: MessageFns<ServiceMatch> = {
 
   fromJSON(object: any): ServiceMatch {
     return {
-      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : undefined,
       name: isSet(object.name) ? globalThis.String(object.name) : undefined,
       spec: isSet(object.spec) ? ServiceSpec.fromJSON(object.spec) : undefined,
     };
@@ -18513,7 +19126,7 @@ export const ServiceMatch: MessageFns<ServiceMatch> = {
 
   toJSON(message: ServiceMatch): unknown {
     const obj: any = {};
-    if (message.kind !== "") {
+    if (message.kind !== undefined) {
       obj.kind = message.kind;
     }
     if (message.name !== undefined) {
@@ -18530,7 +19143,7 @@ export const ServiceMatch: MessageFns<ServiceMatch> = {
   },
   fromPartial(object: DeepPartial<ServiceMatch>): ServiceMatch {
     const message = createBaseServiceMatch();
-    message.kind = object.kind ?? "";
+    message.kind = object.kind ?? undefined;
     message.name = object.name ?? undefined;
     message.spec = (object.spec !== undefined && object.spec !== null)
       ? ServiceSpec.fromPartial(object.spec)
@@ -18541,34 +19154,34 @@ export const ServiceMatch: MessageFns<ServiceMatch> = {
 
 function createBaseAclRule(): AclRule {
   return {
-    sequence: 0,
+    sequence: undefined,
     description: undefined,
-    enabled: false,
-    action: "",
-    ipVersion: "",
+    enabled: undefined,
+    action: undefined,
+    ipVersion: undefined,
     source: undefined,
     destination: undefined,
     service: undefined,
     schedule: undefined,
-    log: false,
+    log: undefined,
   };
 }
 
 export const AclRule: MessageFns<AclRule> = {
   encode(message: AclRule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.sequence !== 0) {
+    if (message.sequence !== undefined) {
       writer.uint32(8).uint32(message.sequence);
     }
     if (message.description !== undefined) {
       writer.uint32(18).string(message.description);
     }
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(24).bool(message.enabled);
     }
-    if (message.action !== "") {
+    if (message.action !== undefined) {
       writer.uint32(34).string(message.action);
     }
-    if (message.ipVersion !== "") {
+    if (message.ipVersion !== undefined) {
       writer.uint32(42).string(message.ipVersion);
     }
     if (message.source !== undefined) {
@@ -18583,7 +19196,7 @@ export const AclRule: MessageFns<AclRule> = {
     if (message.schedule !== undefined) {
       writer.uint32(74).string(message.schedule);
     }
-    if (message.log !== false) {
+    if (message.log !== undefined) {
       writer.uint32(80).bool(message.log);
     }
     return writer;
@@ -18696,38 +19309,38 @@ export const AclRule: MessageFns<AclRule> = {
 
   fromJSON(object: any): AclRule {
     return {
-      sequence: isSet(object.sequence) ? globalThis.Number(object.sequence) : 0,
+      sequence: isSet(object.sequence) ? globalThis.Number(object.sequence) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
-      action: isSet(object.action) ? globalThis.String(object.action) : "",
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      action: isSet(object.action) ? globalThis.String(object.action) : undefined,
       ipVersion: isSet(object.ipVersion)
         ? globalThis.String(object.ipVersion)
         : isSet(object.ip_version)
         ? globalThis.String(object.ip_version)
-        : "",
+        : undefined,
       source: isSet(object.source) ? AddressMatch.fromJSON(object.source) : undefined,
       destination: isSet(object.destination) ? AddressMatch.fromJSON(object.destination) : undefined,
       service: isSet(object.service) ? ServiceMatch.fromJSON(object.service) : undefined,
       schedule: isSet(object.schedule) ? globalThis.String(object.schedule) : undefined,
-      log: isSet(object.log) ? globalThis.Boolean(object.log) : false,
+      log: isSet(object.log) ? globalThis.Boolean(object.log) : undefined,
     };
   },
 
   toJSON(message: AclRule): unknown {
     const obj: any = {};
-    if (message.sequence !== 0) {
+    if (message.sequence !== undefined) {
       obj.sequence = Math.round(message.sequence);
     }
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
-    if (message.action !== "") {
+    if (message.action !== undefined) {
       obj.action = message.action;
     }
-    if (message.ipVersion !== "") {
+    if (message.ipVersion !== undefined) {
       obj.ipVersion = message.ipVersion;
     }
     if (message.source !== undefined) {
@@ -18742,7 +19355,7 @@ export const AclRule: MessageFns<AclRule> = {
     if (message.schedule !== undefined) {
       obj.schedule = message.schedule;
     }
-    if (message.log !== false) {
+    if (message.log !== undefined) {
       obj.log = message.log;
     }
     return obj;
@@ -18753,11 +19366,11 @@ export const AclRule: MessageFns<AclRule> = {
   },
   fromPartial(object: DeepPartial<AclRule>): AclRule {
     const message = createBaseAclRule();
-    message.sequence = object.sequence ?? 0;
+    message.sequence = object.sequence ?? undefined;
     message.description = object.description ?? undefined;
-    message.enabled = object.enabled ?? false;
-    message.action = object.action ?? "";
-    message.ipVersion = object.ipVersion ?? "";
+    message.enabled = object.enabled ?? undefined;
+    message.action = object.action ?? undefined;
+    message.ipVersion = object.ipVersion ?? undefined;
     message.source = (object.source !== undefined && object.source !== null)
       ? AddressMatch.fromPartial(object.source)
       : undefined;
@@ -18768,7 +19381,7 @@ export const AclRule: MessageFns<AclRule> = {
       ? ServiceMatch.fromPartial(object.service)
       : undefined;
     message.schedule = object.schedule ?? undefined;
-    message.log = object.log ?? false;
+    message.log = object.log ?? undefined;
     return message;
   },
 };
@@ -18875,24 +19488,31 @@ export const AclList: MessageFns<AclList> = {
 };
 
 function createBaseMacipRule(): MacipRule {
-  return { sequence: 0, description: undefined, action: "", sourceMac: "", sourceMacMask: "", sourcePrefix: undefined };
+  return {
+    sequence: undefined,
+    description: undefined,
+    action: undefined,
+    sourceMac: undefined,
+    sourceMacMask: undefined,
+    sourcePrefix: undefined,
+  };
 }
 
 export const MacipRule: MessageFns<MacipRule> = {
   encode(message: MacipRule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.sequence !== 0) {
+    if (message.sequence !== undefined) {
       writer.uint32(8).uint32(message.sequence);
     }
     if (message.description !== undefined) {
       writer.uint32(18).string(message.description);
     }
-    if (message.action !== "") {
+    if (message.action !== undefined) {
       writer.uint32(26).string(message.action);
     }
-    if (message.sourceMac !== "") {
+    if (message.sourceMac !== undefined) {
       writer.uint32(34).string(message.sourceMac);
     }
-    if (message.sourceMacMask !== "") {
+    if (message.sourceMacMask !== undefined) {
       writer.uint32(42).string(message.sourceMacMask);
     }
     if (message.sourcePrefix !== undefined) {
@@ -18976,19 +19596,19 @@ export const MacipRule: MessageFns<MacipRule> = {
 
   fromJSON(object: any): MacipRule {
     return {
-      sequence: isSet(object.sequence) ? globalThis.Number(object.sequence) : 0,
+      sequence: isSet(object.sequence) ? globalThis.Number(object.sequence) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
-      action: isSet(object.action) ? globalThis.String(object.action) : "",
+      action: isSet(object.action) ? globalThis.String(object.action) : undefined,
       sourceMac: isSet(object.sourceMac)
         ? globalThis.String(object.sourceMac)
         : isSet(object.source_mac)
         ? globalThis.String(object.source_mac)
-        : "",
+        : undefined,
       sourceMacMask: isSet(object.sourceMacMask)
         ? globalThis.String(object.sourceMacMask)
         : isSet(object.source_mac_mask)
         ? globalThis.String(object.source_mac_mask)
-        : "",
+        : undefined,
       sourcePrefix: isSet(object.sourcePrefix)
         ? globalThis.String(object.sourcePrefix)
         : isSet(object.source_prefix)
@@ -18999,19 +19619,19 @@ export const MacipRule: MessageFns<MacipRule> = {
 
   toJSON(message: MacipRule): unknown {
     const obj: any = {};
-    if (message.sequence !== 0) {
+    if (message.sequence !== undefined) {
       obj.sequence = Math.round(message.sequence);
     }
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.action !== "") {
+    if (message.action !== undefined) {
       obj.action = message.action;
     }
-    if (message.sourceMac !== "") {
+    if (message.sourceMac !== undefined) {
       obj.sourceMac = message.sourceMac;
     }
-    if (message.sourceMacMask !== "") {
+    if (message.sourceMacMask !== undefined) {
       obj.sourceMacMask = message.sourceMacMask;
     }
     if (message.sourcePrefix !== undefined) {
@@ -19025,11 +19645,11 @@ export const MacipRule: MessageFns<MacipRule> = {
   },
   fromPartial(object: DeepPartial<MacipRule>): MacipRule {
     const message = createBaseMacipRule();
-    message.sequence = object.sequence ?? 0;
+    message.sequence = object.sequence ?? undefined;
     message.description = object.description ?? undefined;
-    message.action = object.action ?? "";
-    message.sourceMac = object.sourceMac ?? "";
-    message.sourceMacMask = object.sourceMacMask ?? "";
+    message.action = object.action ?? undefined;
+    message.sourceMac = object.sourceMac ?? undefined;
+    message.sourceMacMask = object.sourceMacMask ?? undefined;
     message.sourcePrefix = object.sourcePrefix ?? undefined;
     return message;
   },
@@ -19138,34 +19758,34 @@ export const MacipList: MessageFns<MacipList> = {
 
 function createBaseHostRule(): HostRule {
   return {
-    sequence: 0,
+    sequence: undefined,
     description: undefined,
-    enabled: false,
-    action: "",
-    ipVersion: "",
+    enabled: undefined,
+    action: undefined,
+    ipVersion: undefined,
     source: undefined,
     destination: undefined,
     service: undefined,
     interface: undefined,
-    log: false,
+    log: undefined,
   };
 }
 
 export const HostRule: MessageFns<HostRule> = {
   encode(message: HostRule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.sequence !== 0) {
+    if (message.sequence !== undefined) {
       writer.uint32(8).uint32(message.sequence);
     }
     if (message.description !== undefined) {
       writer.uint32(18).string(message.description);
     }
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(24).bool(message.enabled);
     }
-    if (message.action !== "") {
+    if (message.action !== undefined) {
       writer.uint32(34).string(message.action);
     }
-    if (message.ipVersion !== "") {
+    if (message.ipVersion !== undefined) {
       writer.uint32(42).string(message.ipVersion);
     }
     if (message.source !== undefined) {
@@ -19180,7 +19800,7 @@ export const HostRule: MessageFns<HostRule> = {
     if (message.interface !== undefined) {
       writer.uint32(74).string(message.interface);
     }
-    if (message.log !== false) {
+    if (message.log !== undefined) {
       writer.uint32(80).bool(message.log);
     }
     return writer;
@@ -19293,38 +19913,38 @@ export const HostRule: MessageFns<HostRule> = {
 
   fromJSON(object: any): HostRule {
     return {
-      sequence: isSet(object.sequence) ? globalThis.Number(object.sequence) : 0,
+      sequence: isSet(object.sequence) ? globalThis.Number(object.sequence) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
-      action: isSet(object.action) ? globalThis.String(object.action) : "",
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      action: isSet(object.action) ? globalThis.String(object.action) : undefined,
       ipVersion: isSet(object.ipVersion)
         ? globalThis.String(object.ipVersion)
         : isSet(object.ip_version)
         ? globalThis.String(object.ip_version)
-        : "",
+        : undefined,
       source: isSet(object.source) ? AddressMatch.fromJSON(object.source) : undefined,
       destination: isSet(object.destination) ? AddressMatch.fromJSON(object.destination) : undefined,
       service: isSet(object.service) ? ServiceMatch.fromJSON(object.service) : undefined,
       interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
-      log: isSet(object.log) ? globalThis.Boolean(object.log) : false,
+      log: isSet(object.log) ? globalThis.Boolean(object.log) : undefined,
     };
   },
 
   toJSON(message: HostRule): unknown {
     const obj: any = {};
-    if (message.sequence !== 0) {
+    if (message.sequence !== undefined) {
       obj.sequence = Math.round(message.sequence);
     }
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
-    if (message.action !== "") {
+    if (message.action !== undefined) {
       obj.action = message.action;
     }
-    if (message.ipVersion !== "") {
+    if (message.ipVersion !== undefined) {
       obj.ipVersion = message.ipVersion;
     }
     if (message.source !== undefined) {
@@ -19339,7 +19959,7 @@ export const HostRule: MessageFns<HostRule> = {
     if (message.interface !== undefined) {
       obj.interface = message.interface;
     }
-    if (message.log !== false) {
+    if (message.log !== undefined) {
       obj.log = message.log;
     }
     return obj;
@@ -19350,11 +19970,11 @@ export const HostRule: MessageFns<HostRule> = {
   },
   fromPartial(object: DeepPartial<HostRule>): HostRule {
     const message = createBaseHostRule();
-    message.sequence = object.sequence ?? 0;
+    message.sequence = object.sequence ?? undefined;
     message.description = object.description ?? undefined;
-    message.enabled = object.enabled ?? false;
-    message.action = object.action ?? "";
-    message.ipVersion = object.ipVersion ?? "";
+    message.enabled = object.enabled ?? undefined;
+    message.action = object.action ?? undefined;
+    message.ipVersion = object.ipVersion ?? undefined;
     message.source = (object.source !== undefined && object.source !== null)
       ? AddressMatch.fromPartial(object.source)
       : undefined;
@@ -19365,7 +19985,7 @@ export const HostRule: MessageFns<HostRule> = {
       ? ServiceMatch.fromPartial(object.service)
       : undefined;
     message.interface = object.interface ?? undefined;
-    message.log = object.log ?? false;
+    message.log = object.log ?? undefined;
     return message;
   },
 };
@@ -19472,12 +20092,12 @@ export const HostList: MessageFns<HostList> = {
 };
 
 function createBaseAttachmentTarget(): AttachmentTarget {
-  return { kind: "", interface: undefined, zone: undefined };
+  return { kind: undefined, interface: undefined, zone: undefined };
 }
 
 export const AttachmentTarget: MessageFns<AttachmentTarget> = {
   encode(message: AttachmentTarget, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.kind !== "") {
+    if (message.kind !== undefined) {
       writer.uint32(10).string(message.kind);
     }
     if (message.interface !== undefined) {
@@ -19540,7 +20160,7 @@ export const AttachmentTarget: MessageFns<AttachmentTarget> = {
 
   fromJSON(object: any): AttachmentTarget {
     return {
-      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : undefined,
       interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
       zone: isSet(object.zone) ? globalThis.String(object.zone) : undefined,
     };
@@ -19548,7 +20168,7 @@ export const AttachmentTarget: MessageFns<AttachmentTarget> = {
 
   toJSON(message: AttachmentTarget): unknown {
     const obj: any = {};
-    if (message.kind !== "") {
+    if (message.kind !== undefined) {
       obj.kind = message.kind;
     }
     if (message.interface !== undefined) {
@@ -19565,7 +20185,7 @@ export const AttachmentTarget: MessageFns<AttachmentTarget> = {
   },
   fromPartial(object: DeepPartial<AttachmentTarget>): AttachmentTarget {
     const message = createBaseAttachmentTarget();
-    message.kind = object.kind ?? "";
+    message.kind = object.kind ?? undefined;
     message.interface = object.interface ?? undefined;
     message.zone = object.zone ?? undefined;
     return message;
@@ -19574,34 +20194,34 @@ export const AttachmentTarget: MessageFns<AttachmentTarget> = {
 
 function createBaseAclAttachment(): AclAttachment {
   return {
-    list: "",
+    list: undefined,
     target: undefined,
-    direction: "",
-    sequence: 0,
+    direction: undefined,
+    sequence: undefined,
     vrf: undefined,
-    enabled: false,
+    enabled: undefined,
     description: undefined,
   };
 }
 
 export const AclAttachment: MessageFns<AclAttachment> = {
   encode(message: AclAttachment, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.list !== "") {
+    if (message.list !== undefined) {
       writer.uint32(10).string(message.list);
     }
     if (message.target !== undefined) {
       AttachmentTarget.encode(message.target, writer.uint32(18).fork()).join();
     }
-    if (message.direction !== "") {
+    if (message.direction !== undefined) {
       writer.uint32(26).string(message.direction);
     }
-    if (message.sequence !== 0) {
+    if (message.sequence !== undefined) {
       writer.uint32(32).uint32(message.sequence);
     }
     if (message.vrf !== undefined) {
       writer.uint32(42).string(message.vrf);
     }
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(48).bool(message.enabled);
     }
     if (message.description !== undefined) {
@@ -19693,34 +20313,34 @@ export const AclAttachment: MessageFns<AclAttachment> = {
 
   fromJSON(object: any): AclAttachment {
     return {
-      list: isSet(object.list) ? globalThis.String(object.list) : "",
+      list: isSet(object.list) ? globalThis.String(object.list) : undefined,
       target: isSet(object.target) ? AttachmentTarget.fromJSON(object.target) : undefined,
-      direction: isSet(object.direction) ? globalThis.String(object.direction) : "",
-      sequence: isSet(object.sequence) ? globalThis.Number(object.sequence) : 0,
+      direction: isSet(object.direction) ? globalThis.String(object.direction) : undefined,
+      sequence: isSet(object.sequence) ? globalThis.Number(object.sequence) : undefined,
       vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
     };
   },
 
   toJSON(message: AclAttachment): unknown {
     const obj: any = {};
-    if (message.list !== "") {
+    if (message.list !== undefined) {
       obj.list = message.list;
     }
     if (message.target !== undefined) {
       obj.target = AttachmentTarget.toJSON(message.target);
     }
-    if (message.direction !== "") {
+    if (message.direction !== undefined) {
       obj.direction = message.direction;
     }
-    if (message.sequence !== 0) {
+    if (message.sequence !== undefined) {
       obj.sequence = Math.round(message.sequence);
     }
     if (message.vrf !== undefined) {
       obj.vrf = message.vrf;
     }
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
     if (message.description !== undefined) {
@@ -19734,35 +20354,35 @@ export const AclAttachment: MessageFns<AclAttachment> = {
   },
   fromPartial(object: DeepPartial<AclAttachment>): AclAttachment {
     const message = createBaseAclAttachment();
-    message.list = object.list ?? "";
+    message.list = object.list ?? undefined;
     message.target = (object.target !== undefined && object.target !== null)
       ? AttachmentTarget.fromPartial(object.target)
       : undefined;
-    message.direction = object.direction ?? "";
-    message.sequence = object.sequence ?? 0;
+    message.direction = object.direction ?? undefined;
+    message.sequence = object.sequence ?? undefined;
     message.vrf = object.vrf ?? undefined;
-    message.enabled = object.enabled ?? false;
+    message.enabled = object.enabled ?? undefined;
     message.description = object.description ?? undefined;
     return message;
   },
 };
 
 function createBaseMacipAttachment(): MacipAttachment {
-  return { list: "", interface: "", vrf: undefined, enabled: false, description: undefined };
+  return { list: undefined, interface: undefined, vrf: undefined, enabled: undefined, description: undefined };
 }
 
 export const MacipAttachment: MessageFns<MacipAttachment> = {
   encode(message: MacipAttachment, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.list !== "") {
+    if (message.list !== undefined) {
       writer.uint32(10).string(message.list);
     }
-    if (message.interface !== "") {
+    if (message.interface !== undefined) {
       writer.uint32(18).string(message.interface);
     }
     if (message.vrf !== undefined) {
       writer.uint32(26).string(message.vrf);
     }
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(32).bool(message.enabled);
     }
     if (message.description !== undefined) {
@@ -19838,26 +20458,26 @@ export const MacipAttachment: MessageFns<MacipAttachment> = {
 
   fromJSON(object: any): MacipAttachment {
     return {
-      list: isSet(object.list) ? globalThis.String(object.list) : "",
-      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      list: isSet(object.list) ? globalThis.String(object.list) : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
       vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
     };
   },
 
   toJSON(message: MacipAttachment): unknown {
     const obj: any = {};
-    if (message.list !== "") {
+    if (message.list !== undefined) {
       obj.list = message.list;
     }
-    if (message.interface !== "") {
+    if (message.interface !== undefined) {
       obj.interface = message.interface;
     }
     if (message.vrf !== undefined) {
       obj.vrf = message.vrf;
     }
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
     if (message.description !== undefined) {
@@ -19871,31 +20491,31 @@ export const MacipAttachment: MessageFns<MacipAttachment> = {
   },
   fromPartial(object: DeepPartial<MacipAttachment>): MacipAttachment {
     const message = createBaseMacipAttachment();
-    message.list = object.list ?? "";
-    message.interface = object.interface ?? "";
+    message.list = object.list ?? undefined;
+    message.interface = object.interface ?? undefined;
     message.vrf = object.vrf ?? undefined;
-    message.enabled = object.enabled ?? false;
+    message.enabled = object.enabled ?? undefined;
     message.description = object.description ?? undefined;
     return message;
   },
 };
 
 function createBaseHostAttachment(): HostAttachment {
-  return { list: "", chain: "", priority: 0, enabled: false, description: undefined };
+  return { list: undefined, chain: undefined, priority: undefined, enabled: undefined, description: undefined };
 }
 
 export const HostAttachment: MessageFns<HostAttachment> = {
   encode(message: HostAttachment, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.list !== "") {
+    if (message.list !== undefined) {
       writer.uint32(10).string(message.list);
     }
-    if (message.chain !== "") {
+    if (message.chain !== undefined) {
       writer.uint32(18).string(message.chain);
     }
-    if (message.priority !== 0) {
+    if (message.priority !== undefined) {
       writer.uint32(24).int32(message.priority);
     }
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(32).bool(message.enabled);
     }
     if (message.description !== undefined) {
@@ -19971,26 +20591,26 @@ export const HostAttachment: MessageFns<HostAttachment> = {
 
   fromJSON(object: any): HostAttachment {
     return {
-      list: isSet(object.list) ? globalThis.String(object.list) : "",
-      chain: isSet(object.chain) ? globalThis.String(object.chain) : "",
-      priority: isSet(object.priority) ? globalThis.Number(object.priority) : 0,
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      list: isSet(object.list) ? globalThis.String(object.list) : undefined,
+      chain: isSet(object.chain) ? globalThis.String(object.chain) : undefined,
+      priority: isSet(object.priority) ? globalThis.Number(object.priority) : undefined,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
     };
   },
 
   toJSON(message: HostAttachment): unknown {
     const obj: any = {};
-    if (message.list !== "") {
+    if (message.list !== undefined) {
       obj.list = message.list;
     }
-    if (message.chain !== "") {
+    if (message.chain !== undefined) {
       obj.chain = message.chain;
     }
-    if (message.priority !== 0) {
+    if (message.priority !== undefined) {
       obj.priority = Math.round(message.priority);
     }
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
     if (message.description !== undefined) {
@@ -20004,10 +20624,10 @@ export const HostAttachment: MessageFns<HostAttachment> = {
   },
   fromPartial(object: DeepPartial<HostAttachment>): HostAttachment {
     const message = createBaseHostAttachment();
-    message.list = object.list ?? "";
-    message.chain = object.chain ?? "";
-    message.priority = object.priority ?? 0;
-    message.enabled = object.enabled ?? false;
+    message.list = object.list ?? undefined;
+    message.chain = object.chain ?? undefined;
+    message.priority = object.priority ?? undefined;
+    message.enabled = object.enabled ?? undefined;
     message.description = object.description ?? undefined;
     return message;
   },
@@ -20263,12 +20883,12 @@ export const VpnConfig_RemoteAccessEntry: MessageFns<VpnConfig_RemoteAccessEntry
 };
 
 function createBaseIkeProposal(): IkeProposal {
-  return { encr: "", integ: undefined, prf: undefined, dh: "" };
+  return { encr: undefined, integ: undefined, prf: undefined, dh: undefined };
 }
 
 export const IkeProposal: MessageFns<IkeProposal> = {
   encode(message: IkeProposal, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.encr !== "") {
+    if (message.encr !== undefined) {
       writer.uint32(10).string(message.encr);
     }
     if (message.integ !== undefined) {
@@ -20277,7 +20897,7 @@ export const IkeProposal: MessageFns<IkeProposal> = {
     if (message.prf !== undefined) {
       writer.uint32(26).string(message.prf);
     }
-    if (message.dh !== "") {
+    if (message.dh !== undefined) {
       writer.uint32(34).string(message.dh);
     }
     return writer;
@@ -20342,16 +20962,16 @@ export const IkeProposal: MessageFns<IkeProposal> = {
 
   fromJSON(object: any): IkeProposal {
     return {
-      encr: isSet(object.encr) ? globalThis.String(object.encr) : "",
+      encr: isSet(object.encr) ? globalThis.String(object.encr) : undefined,
       integ: isSet(object.integ) ? globalThis.String(object.integ) : undefined,
       prf: isSet(object.prf) ? globalThis.String(object.prf) : undefined,
-      dh: isSet(object.dh) ? globalThis.String(object.dh) : "",
+      dh: isSet(object.dh) ? globalThis.String(object.dh) : undefined,
     };
   },
 
   toJSON(message: IkeProposal): unknown {
     const obj: any = {};
-    if (message.encr !== "") {
+    if (message.encr !== undefined) {
       obj.encr = message.encr;
     }
     if (message.integ !== undefined) {
@@ -20360,7 +20980,7 @@ export const IkeProposal: MessageFns<IkeProposal> = {
     if (message.prf !== undefined) {
       obj.prf = message.prf;
     }
-    if (message.dh !== "") {
+    if (message.dh !== undefined) {
       obj.dh = message.dh;
     }
     return obj;
@@ -20371,21 +20991,21 @@ export const IkeProposal: MessageFns<IkeProposal> = {
   },
   fromPartial(object: DeepPartial<IkeProposal>): IkeProposal {
     const message = createBaseIkeProposal();
-    message.encr = object.encr ?? "";
+    message.encr = object.encr ?? undefined;
     message.integ = object.integ ?? undefined;
     message.prf = object.prf ?? undefined;
-    message.dh = object.dh ?? "";
+    message.dh = object.dh ?? undefined;
     return message;
   },
 };
 
 function createBaseEspProposal(): EspProposal {
-  return { encr: "", integ: undefined, dh: undefined };
+  return { encr: undefined, integ: undefined, dh: undefined };
 }
 
 export const EspProposal: MessageFns<EspProposal> = {
   encode(message: EspProposal, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.encr !== "") {
+    if (message.encr !== undefined) {
       writer.uint32(10).string(message.encr);
     }
     if (message.integ !== undefined) {
@@ -20448,7 +21068,7 @@ export const EspProposal: MessageFns<EspProposal> = {
 
   fromJSON(object: any): EspProposal {
     return {
-      encr: isSet(object.encr) ? globalThis.String(object.encr) : "",
+      encr: isSet(object.encr) ? globalThis.String(object.encr) : undefined,
       integ: isSet(object.integ) ? globalThis.String(object.integ) : undefined,
       dh: isSet(object.dh) ? globalThis.String(object.dh) : undefined,
     };
@@ -20456,7 +21076,7 @@ export const EspProposal: MessageFns<EspProposal> = {
 
   toJSON(message: EspProposal): unknown {
     const obj: any = {};
-    if (message.encr !== "") {
+    if (message.encr !== undefined) {
       obj.encr = message.encr;
     }
     if (message.integ !== undefined) {
@@ -20473,7 +21093,7 @@ export const EspProposal: MessageFns<EspProposal> = {
   },
   fromPartial(object: DeepPartial<EspProposal>): EspProposal {
     const message = createBaseEspProposal();
-    message.encr = object.encr ?? "";
+    message.encr = object.encr ?? undefined;
     message.integ = object.integ ?? undefined;
     message.dh = object.dh ?? undefined;
     return message;
@@ -20582,12 +21202,12 @@ export const IpsecProposal: MessageFns<IpsecProposal> = {
 };
 
 function createBaseIpsecAuth(): IpsecAuth {
-  return { method: "", secretRef: undefined, certificate: undefined, remoteCa: undefined };
+  return { method: undefined, secretRef: undefined, certificate: undefined, remoteCa: undefined };
 }
 
 export const IpsecAuth: MessageFns<IpsecAuth> = {
   encode(message: IpsecAuth, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.method !== "") {
+    if (message.method !== undefined) {
       writer.uint32(10).string(message.method);
     }
     if (message.secretRef !== undefined) {
@@ -20661,7 +21281,7 @@ export const IpsecAuth: MessageFns<IpsecAuth> = {
 
   fromJSON(object: any): IpsecAuth {
     return {
-      method: isSet(object.method) ? globalThis.String(object.method) : "",
+      method: isSet(object.method) ? globalThis.String(object.method) : undefined,
       secretRef: isSet(object.secretRef)
         ? globalThis.String(object.secretRef)
         : isSet(object.secret_ref)
@@ -20678,7 +21298,7 @@ export const IpsecAuth: MessageFns<IpsecAuth> = {
 
   toJSON(message: IpsecAuth): unknown {
     const obj: any = {};
-    if (message.method !== "") {
+    if (message.method !== undefined) {
       obj.method = message.method;
     }
     if (message.secretRef !== undefined) {
@@ -20698,7 +21318,7 @@ export const IpsecAuth: MessageFns<IpsecAuth> = {
   },
   fromPartial(object: DeepPartial<IpsecAuth>): IpsecAuth {
     const message = createBaseIpsecAuth();
-    message.method = object.method ?? "";
+    message.method = object.method ?? undefined;
     message.secretRef = object.secretRef ?? undefined;
     message.certificate = object.certificate ?? undefined;
     message.remoteCa = object.remoteCa ?? undefined;
@@ -20707,21 +21327,21 @@ export const IpsecAuth: MessageFns<IpsecAuth> = {
 };
 
 function createBaseIpsecDpd(): IpsecDpd {
-  return { enabled: false, delaySec: 0, timeoutSec: 0, action: "" };
+  return { enabled: undefined, delaySec: undefined, timeoutSec: undefined, action: undefined };
 }
 
 export const IpsecDpd: MessageFns<IpsecDpd> = {
   encode(message: IpsecDpd, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(8).bool(message.enabled);
     }
-    if (message.delaySec !== 0) {
+    if (message.delaySec !== undefined) {
       writer.uint32(16).uint32(message.delaySec);
     }
-    if (message.timeoutSec !== 0) {
+    if (message.timeoutSec !== undefined) {
       writer.uint32(24).uint32(message.timeoutSec);
     }
-    if (message.action !== "") {
+    if (message.action !== undefined) {
       writer.uint32(34).string(message.action);
     }
     return writer;
@@ -20786,33 +21406,33 @@ export const IpsecDpd: MessageFns<IpsecDpd> = {
 
   fromJSON(object: any): IpsecDpd {
     return {
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
       delaySec: isSet(object.delaySec)
         ? globalThis.Number(object.delaySec)
         : isSet(object.delay_sec)
         ? globalThis.Number(object.delay_sec)
-        : 0,
+        : undefined,
       timeoutSec: isSet(object.timeoutSec)
         ? globalThis.Number(object.timeoutSec)
         : isSet(object.timeout_sec)
         ? globalThis.Number(object.timeout_sec)
-        : 0,
-      action: isSet(object.action) ? globalThis.String(object.action) : "",
+        : undefined,
+      action: isSet(object.action) ? globalThis.String(object.action) : undefined,
     };
   },
 
   toJSON(message: IpsecDpd): unknown {
     const obj: any = {};
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
-    if (message.delaySec !== 0) {
+    if (message.delaySec !== undefined) {
       obj.delaySec = Math.round(message.delaySec);
     }
-    if (message.timeoutSec !== 0) {
+    if (message.timeoutSec !== undefined) {
       obj.timeoutSec = Math.round(message.timeoutSec);
     }
-    if (message.action !== "") {
+    if (message.action !== undefined) {
       obj.action = message.action;
     }
     return obj;
@@ -20823,24 +21443,24 @@ export const IpsecDpd: MessageFns<IpsecDpd> = {
   },
   fromPartial(object: DeepPartial<IpsecDpd>): IpsecDpd {
     const message = createBaseIpsecDpd();
-    message.enabled = object.enabled ?? false;
-    message.delaySec = object.delaySec ?? 0;
-    message.timeoutSec = object.timeoutSec ?? 0;
-    message.action = object.action ?? "";
+    message.enabled = object.enabled ?? undefined;
+    message.delaySec = object.delaySec ?? undefined;
+    message.timeoutSec = object.timeoutSec ?? undefined;
+    message.action = object.action ?? undefined;
     return message;
   },
 };
 
 function createBaseIpsecRekey(): IpsecRekey {
-  return { ikeSec: 0, espSec: 0, espBytes: undefined, espPackets: undefined, reauth: false };
+  return { ikeSec: undefined, espSec: undefined, espBytes: undefined, espPackets: undefined, reauth: undefined };
 }
 
 export const IpsecRekey: MessageFns<IpsecRekey> = {
   encode(message: IpsecRekey, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.ikeSec !== 0) {
+    if (message.ikeSec !== undefined) {
       writer.uint32(8).uint32(message.ikeSec);
     }
-    if (message.espSec !== 0) {
+    if (message.espSec !== undefined) {
       writer.uint32(16).uint32(message.espSec);
     }
     if (message.espBytes !== undefined) {
@@ -20849,7 +21469,7 @@ export const IpsecRekey: MessageFns<IpsecRekey> = {
     if (message.espPackets !== undefined) {
       writer.uint32(32).uint64(message.espPackets);
     }
-    if (message.reauth !== false) {
+    if (message.reauth !== undefined) {
       writer.uint32(40).bool(message.reauth);
     }
     return writer;
@@ -20889,7 +21509,7 @@ export const IpsecRekey: MessageFns<IpsecRekey> = {
               break;
             }
 
-            message.espBytes = longToNumber(reader.uint64());
+            message.espBytes = reader.uint64().toString();
             continue;
           }
           case 4: {
@@ -20897,7 +21517,7 @@ export const IpsecRekey: MessageFns<IpsecRekey> = {
               break;
             }
 
-            message.espPackets = longToNumber(reader.uint64());
+            message.espPackets = reader.uint64().toString();
             continue;
           }
           case 5: {
@@ -20926,41 +21546,41 @@ export const IpsecRekey: MessageFns<IpsecRekey> = {
         ? globalThis.Number(object.ikeSec)
         : isSet(object.ike_sec)
         ? globalThis.Number(object.ike_sec)
-        : 0,
+        : undefined,
       espSec: isSet(object.espSec)
         ? globalThis.Number(object.espSec)
         : isSet(object.esp_sec)
         ? globalThis.Number(object.esp_sec)
-        : 0,
+        : undefined,
       espBytes: isSet(object.espBytes)
-        ? globalThis.Number(object.espBytes)
+        ? globalThis.String(object.espBytes)
         : isSet(object.esp_bytes)
-        ? globalThis.Number(object.esp_bytes)
+        ? globalThis.String(object.esp_bytes)
         : undefined,
       espPackets: isSet(object.espPackets)
-        ? globalThis.Number(object.espPackets)
+        ? globalThis.String(object.espPackets)
         : isSet(object.esp_packets)
-        ? globalThis.Number(object.esp_packets)
+        ? globalThis.String(object.esp_packets)
         : undefined,
-      reauth: isSet(object.reauth) ? globalThis.Boolean(object.reauth) : false,
+      reauth: isSet(object.reauth) ? globalThis.Boolean(object.reauth) : undefined,
     };
   },
 
   toJSON(message: IpsecRekey): unknown {
     const obj: any = {};
-    if (message.ikeSec !== 0) {
+    if (message.ikeSec !== undefined) {
       obj.ikeSec = Math.round(message.ikeSec);
     }
-    if (message.espSec !== 0) {
+    if (message.espSec !== undefined) {
       obj.espSec = Math.round(message.espSec);
     }
     if (message.espBytes !== undefined) {
-      obj.espBytes = Math.round(message.espBytes);
+      obj.espBytes = message.espBytes;
     }
     if (message.espPackets !== undefined) {
-      obj.espPackets = Math.round(message.espPackets);
+      obj.espPackets = message.espPackets;
     }
-    if (message.reauth !== false) {
+    if (message.reauth !== undefined) {
       obj.reauth = message.reauth;
     }
     return obj;
@@ -20971,69 +21591,69 @@ export const IpsecRekey: MessageFns<IpsecRekey> = {
   },
   fromPartial(object: DeepPartial<IpsecRekey>): IpsecRekey {
     const message = createBaseIpsecRekey();
-    message.ikeSec = object.ikeSec ?? 0;
-    message.espSec = object.espSec ?? 0;
+    message.ikeSec = object.ikeSec ?? undefined;
+    message.espSec = object.espSec ?? undefined;
     message.espBytes = object.espBytes ?? undefined;
     message.espPackets = object.espPackets ?? undefined;
-    message.reauth = object.reauth ?? false;
+    message.reauth = object.reauth ?? undefined;
     return message;
   },
 };
 
 function createBaseIpsecTunnel(): IpsecTunnel {
   return {
-    enabled: false,
+    enabled: undefined,
     description: undefined,
-    engine: "",
-    ikeVersion: 0,
-    mode: "",
-    protocol: "",
-    localAddr: "",
-    remoteAddr: "",
+    engine: undefined,
+    ikeVersion: undefined,
+    mode: undefined,
+    protocol: undefined,
+    localAddr: undefined,
+    remoteAddr: undefined,
     localId: undefined,
     remoteId: undefined,
     auth: undefined,
-    proposal: "",
+    proposal: undefined,
     localTs: [],
     remoteTs: [],
     dpd: undefined,
-    natT: false,
+    natT: undefined,
     mobike: undefined,
     fragmentation: undefined,
     rekey: undefined,
-    startAction: "",
-    closeAction: "",
-    vrf: "",
+    startAction: undefined,
+    closeAction: undefined,
+    vrf: undefined,
     routeBased: undefined,
-    esn: false,
-    antiReplay: false,
+    esn: undefined,
+    antiReplay: undefined,
   };
 }
 
 export const IpsecTunnel: MessageFns<IpsecTunnel> = {
   encode(message: IpsecTunnel, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(8).bool(message.enabled);
     }
     if (message.description !== undefined) {
       writer.uint32(18).string(message.description);
     }
-    if (message.engine !== "") {
+    if (message.engine !== undefined) {
       writer.uint32(26).string(message.engine);
     }
-    if (message.ikeVersion !== 0) {
+    if (message.ikeVersion !== undefined) {
       writer.uint32(32).uint32(message.ikeVersion);
     }
-    if (message.mode !== "") {
+    if (message.mode !== undefined) {
       writer.uint32(42).string(message.mode);
     }
-    if (message.protocol !== "") {
+    if (message.protocol !== undefined) {
       writer.uint32(50).string(message.protocol);
     }
-    if (message.localAddr !== "") {
+    if (message.localAddr !== undefined) {
       writer.uint32(58).string(message.localAddr);
     }
-    if (message.remoteAddr !== "") {
+    if (message.remoteAddr !== undefined) {
       writer.uint32(66).string(message.remoteAddr);
     }
     if (message.localId !== undefined) {
@@ -21045,7 +21665,7 @@ export const IpsecTunnel: MessageFns<IpsecTunnel> = {
     if (message.auth !== undefined) {
       IpsecAuth.encode(message.auth, writer.uint32(90).fork()).join();
     }
-    if (message.proposal !== "") {
+    if (message.proposal !== undefined) {
       writer.uint32(98).string(message.proposal);
     }
     for (const v of message.localTs) {
@@ -21057,7 +21677,7 @@ export const IpsecTunnel: MessageFns<IpsecTunnel> = {
     if (message.dpd !== undefined) {
       IpsecDpd.encode(message.dpd, writer.uint32(122).fork()).join();
     }
-    if (message.natT !== false) {
+    if (message.natT !== undefined) {
       writer.uint32(128).bool(message.natT);
     }
     if (message.mobike !== undefined) {
@@ -21069,22 +21689,22 @@ export const IpsecTunnel: MessageFns<IpsecTunnel> = {
     if (message.rekey !== undefined) {
       IpsecRekey.encode(message.rekey, writer.uint32(154).fork()).join();
     }
-    if (message.startAction !== "") {
+    if (message.startAction !== undefined) {
       writer.uint32(162).string(message.startAction);
     }
-    if (message.closeAction !== "") {
+    if (message.closeAction !== undefined) {
       writer.uint32(170).string(message.closeAction);
     }
-    if (message.vrf !== "") {
+    if (message.vrf !== undefined) {
       writer.uint32(178).string(message.vrf);
     }
     if (message.routeBased !== undefined) {
       IpsecTunnel_RouteBased.encode(message.routeBased, writer.uint32(186).fork()).join();
     }
-    if (message.esn !== false) {
+    if (message.esn !== undefined) {
       writer.uint32(192).bool(message.esn);
     }
-    if (message.antiReplay !== false) {
+    if (message.antiReplay !== undefined) {
       writer.uint32(200).bool(message.antiReplay);
     }
     return writer;
@@ -21317,26 +21937,26 @@ export const IpsecTunnel: MessageFns<IpsecTunnel> = {
 
   fromJSON(object: any): IpsecTunnel {
     return {
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
-      engine: isSet(object.engine) ? globalThis.String(object.engine) : "",
+      engine: isSet(object.engine) ? globalThis.String(object.engine) : undefined,
       ikeVersion: isSet(object.ikeVersion)
         ? globalThis.Number(object.ikeVersion)
         : isSet(object.ike_version)
         ? globalThis.Number(object.ike_version)
-        : 0,
-      mode: isSet(object.mode) ? globalThis.String(object.mode) : "",
-      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : "",
+        : undefined,
+      mode: isSet(object.mode) ? globalThis.String(object.mode) : undefined,
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : undefined,
       localAddr: isSet(object.localAddr)
         ? globalThis.String(object.localAddr)
         : isSet(object.local_addr)
         ? globalThis.String(object.local_addr)
-        : "",
+        : undefined,
       remoteAddr: isSet(object.remoteAddr)
         ? globalThis.String(object.remoteAddr)
         : isSet(object.remote_addr)
         ? globalThis.String(object.remote_addr)
-        : "",
+        : undefined,
       localId: isSet(object.localId)
         ? globalThis.String(object.localId)
         : isSet(object.local_id)
@@ -21348,7 +21968,7 @@ export const IpsecTunnel: MessageFns<IpsecTunnel> = {
         ? globalThis.String(object.remote_id)
         : undefined,
       auth: isSet(object.auth) ? IpsecAuth.fromJSON(object.auth) : undefined,
-      proposal: isSet(object.proposal) ? globalThis.String(object.proposal) : "",
+      proposal: isSet(object.proposal) ? globalThis.String(object.proposal) : undefined,
       localTs: globalThis.Array.isArray(object?.localTs)
         ? object.localTs.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.local_ts)
@@ -21364,7 +21984,7 @@ export const IpsecTunnel: MessageFns<IpsecTunnel> = {
         ? globalThis.Boolean(object.natT)
         : isSet(object.nat_t)
         ? globalThis.Boolean(object.nat_t)
-        : false,
+        : undefined,
       mobike: isSet(object.mobike) ? globalThis.Boolean(object.mobike) : undefined,
       fragmentation: isSet(object.fragmentation) ? globalThis.String(object.fragmentation) : undefined,
       rekey: isSet(object.rekey) ? IpsecRekey.fromJSON(object.rekey) : undefined,
@@ -21372,51 +21992,51 @@ export const IpsecTunnel: MessageFns<IpsecTunnel> = {
         ? globalThis.String(object.startAction)
         : isSet(object.start_action)
         ? globalThis.String(object.start_action)
-        : "",
+        : undefined,
       closeAction: isSet(object.closeAction)
         ? globalThis.String(object.closeAction)
         : isSet(object.close_action)
         ? globalThis.String(object.close_action)
-        : "",
-      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : "",
+        : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
       routeBased: isSet(object.routeBased)
         ? IpsecTunnel_RouteBased.fromJSON(object.routeBased)
         : isSet(object.route_based)
         ? IpsecTunnel_RouteBased.fromJSON(object.route_based)
         : undefined,
-      esn: isSet(object.esn) ? globalThis.Boolean(object.esn) : false,
+      esn: isSet(object.esn) ? globalThis.Boolean(object.esn) : undefined,
       antiReplay: isSet(object.antiReplay)
         ? globalThis.Boolean(object.antiReplay)
         : isSet(object.anti_replay)
         ? globalThis.Boolean(object.anti_replay)
-        : false,
+        : undefined,
     };
   },
 
   toJSON(message: IpsecTunnel): unknown {
     const obj: any = {};
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.engine !== "") {
+    if (message.engine !== undefined) {
       obj.engine = message.engine;
     }
-    if (message.ikeVersion !== 0) {
+    if (message.ikeVersion !== undefined) {
       obj.ikeVersion = Math.round(message.ikeVersion);
     }
-    if (message.mode !== "") {
+    if (message.mode !== undefined) {
       obj.mode = message.mode;
     }
-    if (message.protocol !== "") {
+    if (message.protocol !== undefined) {
       obj.protocol = message.protocol;
     }
-    if (message.localAddr !== "") {
+    if (message.localAddr !== undefined) {
       obj.localAddr = message.localAddr;
     }
-    if (message.remoteAddr !== "") {
+    if (message.remoteAddr !== undefined) {
       obj.remoteAddr = message.remoteAddr;
     }
     if (message.localId !== undefined) {
@@ -21428,7 +22048,7 @@ export const IpsecTunnel: MessageFns<IpsecTunnel> = {
     if (message.auth !== undefined) {
       obj.auth = IpsecAuth.toJSON(message.auth);
     }
-    if (message.proposal !== "") {
+    if (message.proposal !== undefined) {
       obj.proposal = message.proposal;
     }
     if (message.localTs?.length) {
@@ -21440,7 +22060,7 @@ export const IpsecTunnel: MessageFns<IpsecTunnel> = {
     if (message.dpd !== undefined) {
       obj.dpd = IpsecDpd.toJSON(message.dpd);
     }
-    if (message.natT !== false) {
+    if (message.natT !== undefined) {
       obj.natT = message.natT;
     }
     if (message.mobike !== undefined) {
@@ -21452,22 +22072,22 @@ export const IpsecTunnel: MessageFns<IpsecTunnel> = {
     if (message.rekey !== undefined) {
       obj.rekey = IpsecRekey.toJSON(message.rekey);
     }
-    if (message.startAction !== "") {
+    if (message.startAction !== undefined) {
       obj.startAction = message.startAction;
     }
-    if (message.closeAction !== "") {
+    if (message.closeAction !== undefined) {
       obj.closeAction = message.closeAction;
     }
-    if (message.vrf !== "") {
+    if (message.vrf !== undefined) {
       obj.vrf = message.vrf;
     }
     if (message.routeBased !== undefined) {
       obj.routeBased = IpsecTunnel_RouteBased.toJSON(message.routeBased);
     }
-    if (message.esn !== false) {
+    if (message.esn !== undefined) {
       obj.esn = message.esn;
     }
-    if (message.antiReplay !== false) {
+    if (message.antiReplay !== undefined) {
       obj.antiReplay = message.antiReplay;
     }
     return obj;
@@ -21478,46 +22098,46 @@ export const IpsecTunnel: MessageFns<IpsecTunnel> = {
   },
   fromPartial(object: DeepPartial<IpsecTunnel>): IpsecTunnel {
     const message = createBaseIpsecTunnel();
-    message.enabled = object.enabled ?? false;
+    message.enabled = object.enabled ?? undefined;
     message.description = object.description ?? undefined;
-    message.engine = object.engine ?? "";
-    message.ikeVersion = object.ikeVersion ?? 0;
-    message.mode = object.mode ?? "";
-    message.protocol = object.protocol ?? "";
-    message.localAddr = object.localAddr ?? "";
-    message.remoteAddr = object.remoteAddr ?? "";
+    message.engine = object.engine ?? undefined;
+    message.ikeVersion = object.ikeVersion ?? undefined;
+    message.mode = object.mode ?? undefined;
+    message.protocol = object.protocol ?? undefined;
+    message.localAddr = object.localAddr ?? undefined;
+    message.remoteAddr = object.remoteAddr ?? undefined;
     message.localId = object.localId ?? undefined;
     message.remoteId = object.remoteId ?? undefined;
     message.auth = (object.auth !== undefined && object.auth !== null) ? IpsecAuth.fromPartial(object.auth) : undefined;
-    message.proposal = object.proposal ?? "";
+    message.proposal = object.proposal ?? undefined;
     message.localTs = object.localTs?.map((e) => e) || [];
     message.remoteTs = object.remoteTs?.map((e) => e) || [];
     message.dpd = (object.dpd !== undefined && object.dpd !== null) ? IpsecDpd.fromPartial(object.dpd) : undefined;
-    message.natT = object.natT ?? false;
+    message.natT = object.natT ?? undefined;
     message.mobike = object.mobike ?? undefined;
     message.fragmentation = object.fragmentation ?? undefined;
     message.rekey = (object.rekey !== undefined && object.rekey !== null)
       ? IpsecRekey.fromPartial(object.rekey)
       : undefined;
-    message.startAction = object.startAction ?? "";
-    message.closeAction = object.closeAction ?? "";
-    message.vrf = object.vrf ?? "";
+    message.startAction = object.startAction ?? undefined;
+    message.closeAction = object.closeAction ?? undefined;
+    message.vrf = object.vrf ?? undefined;
     message.routeBased = (object.routeBased !== undefined && object.routeBased !== null)
       ? IpsecTunnel_RouteBased.fromPartial(object.routeBased)
       : undefined;
-    message.esn = object.esn ?? false;
-    message.antiReplay = object.antiReplay ?? false;
+    message.esn = object.esn ?? undefined;
+    message.antiReplay = object.antiReplay ?? undefined;
     return message;
   },
 };
 
 function createBaseIpsecTunnel_RouteBased(): IpsecTunnel_RouteBased {
-  return { ipipInterface: "" };
+  return { ipipInterface: undefined };
 }
 
 export const IpsecTunnel_RouteBased: MessageFns<IpsecTunnel_RouteBased> = {
   encode(message: IpsecTunnel_RouteBased, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.ipipInterface !== "") {
+    if (message.ipipInterface !== undefined) {
       writer.uint32(10).string(message.ipipInterface);
     }
     return writer;
@@ -21562,13 +22182,13 @@ export const IpsecTunnel_RouteBased: MessageFns<IpsecTunnel_RouteBased> = {
         ? globalThis.String(object.ipipInterface)
         : isSet(object.ipip_interface)
         ? globalThis.String(object.ipip_interface)
-        : "",
+        : undefined,
     };
   },
 
   toJSON(message: IpsecTunnel_RouteBased): unknown {
     const obj: any = {};
-    if (message.ipipInterface !== "") {
+    if (message.ipipInterface !== undefined) {
       obj.ipipInterface = message.ipipInterface;
     }
     return obj;
@@ -21579,21 +22199,21 @@ export const IpsecTunnel_RouteBased: MessageFns<IpsecTunnel_RouteBased> = {
   },
   fromPartial(object: DeepPartial<IpsecTunnel_RouteBased>): IpsecTunnel_RouteBased {
     const message = createBaseIpsecTunnel_RouteBased();
-    message.ipipInterface = object.ipipInterface ?? "";
+    message.ipipInterface = object.ipipInterface ?? undefined;
     return message;
   },
 };
 
 function createBaseIpsecSettings(): IpsecSettings {
-  return { cryptoEngine: "", asyncCrypto: false };
+  return { cryptoEngine: undefined, asyncCrypto: undefined };
 }
 
 export const IpsecSettings: MessageFns<IpsecSettings> = {
   encode(message: IpsecSettings, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.cryptoEngine !== "") {
+    if (message.cryptoEngine !== undefined) {
       writer.uint32(10).string(message.cryptoEngine);
     }
-    if (message.asyncCrypto !== false) {
+    if (message.asyncCrypto !== undefined) {
       writer.uint32(16).bool(message.asyncCrypto);
     }
     return writer;
@@ -21646,21 +22266,21 @@ export const IpsecSettings: MessageFns<IpsecSettings> = {
         ? globalThis.String(object.cryptoEngine)
         : isSet(object.crypto_engine)
         ? globalThis.String(object.crypto_engine)
-        : "",
+        : undefined,
       asyncCrypto: isSet(object.asyncCrypto)
         ? globalThis.Boolean(object.asyncCrypto)
         : isSet(object.async_crypto)
         ? globalThis.Boolean(object.async_crypto)
-        : false,
+        : undefined,
     };
   },
 
   toJSON(message: IpsecSettings): unknown {
     const obj: any = {};
-    if (message.cryptoEngine !== "") {
+    if (message.cryptoEngine !== undefined) {
       obj.cryptoEngine = message.cryptoEngine;
     }
-    if (message.asyncCrypto !== false) {
+    if (message.asyncCrypto !== undefined) {
       obj.asyncCrypto = message.asyncCrypto;
     }
     return obj;
@@ -21671,8 +22291,8 @@ export const IpsecSettings: MessageFns<IpsecSettings> = {
   },
   fromPartial(object: DeepPartial<IpsecSettings>): IpsecSettings {
     const message = createBaseIpsecSettings();
-    message.cryptoEngine = object.cryptoEngine ?? "";
-    message.asyncCrypto = object.asyncCrypto ?? false;
+    message.cryptoEngine = object.cryptoEngine ?? undefined;
+    message.asyncCrypto = object.asyncCrypto ?? undefined;
     return message;
   },
 };
@@ -22017,11 +22637,11 @@ export const IpsecConfig_TunnelsEntry: MessageFns<IpsecConfig_TunnelsEntry> = {
 function createBaseWireguardPeer(): WireguardPeer {
   return {
     description: undefined,
-    publicKey: "",
+    publicKey: undefined,
     presharedKeyRef: undefined,
     endpoint: undefined,
     allowedIps: [],
-    persistentKeepaliveSec: 0,
+    persistentKeepaliveSec: undefined,
   };
 }
 
@@ -22030,7 +22650,7 @@ export const WireguardPeer: MessageFns<WireguardPeer> = {
     if (message.description !== undefined) {
       writer.uint32(10).string(message.description);
     }
-    if (message.publicKey !== "") {
+    if (message.publicKey !== undefined) {
       writer.uint32(18).string(message.publicKey);
     }
     if (message.presharedKeyRef !== undefined) {
@@ -22042,7 +22662,7 @@ export const WireguardPeer: MessageFns<WireguardPeer> = {
     for (const v of message.allowedIps) {
       writer.uint32(42).string(v!);
     }
-    if (message.persistentKeepaliveSec !== 0) {
+    if (message.persistentKeepaliveSec !== undefined) {
       writer.uint32(48).uint32(message.persistentKeepaliveSec);
     }
     return writer;
@@ -22128,7 +22748,7 @@ export const WireguardPeer: MessageFns<WireguardPeer> = {
         ? globalThis.String(object.publicKey)
         : isSet(object.public_key)
         ? globalThis.String(object.public_key)
-        : "",
+        : undefined,
       presharedKeyRef: isSet(object.presharedKeyRef)
         ? globalThis.String(object.presharedKeyRef)
         : isSet(object.preshared_key_ref)
@@ -22144,7 +22764,7 @@ export const WireguardPeer: MessageFns<WireguardPeer> = {
         ? globalThis.Number(object.persistentKeepaliveSec)
         : isSet(object.persistent_keepalive_sec)
         ? globalThis.Number(object.persistent_keepalive_sec)
-        : 0,
+        : undefined,
     };
   },
 
@@ -22153,7 +22773,7 @@ export const WireguardPeer: MessageFns<WireguardPeer> = {
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.publicKey !== "") {
+    if (message.publicKey !== undefined) {
       obj.publicKey = message.publicKey;
     }
     if (message.presharedKeyRef !== undefined) {
@@ -22165,7 +22785,7 @@ export const WireguardPeer: MessageFns<WireguardPeer> = {
     if (message.allowedIps?.length) {
       obj.allowedIps = message.allowedIps;
     }
-    if (message.persistentKeepaliveSec !== 0) {
+    if (message.persistentKeepaliveSec !== undefined) {
       obj.persistentKeepaliveSec = Math.round(message.persistentKeepaliveSec);
     }
     return obj;
@@ -22177,27 +22797,27 @@ export const WireguardPeer: MessageFns<WireguardPeer> = {
   fromPartial(object: DeepPartial<WireguardPeer>): WireguardPeer {
     const message = createBaseWireguardPeer();
     message.description = object.description ?? undefined;
-    message.publicKey = object.publicKey ?? "";
+    message.publicKey = object.publicKey ?? undefined;
     message.presharedKeyRef = object.presharedKeyRef ?? undefined;
     message.endpoint = (object.endpoint !== undefined && object.endpoint !== null)
       ? WireguardPeer_Endpoint.fromPartial(object.endpoint)
       : undefined;
     message.allowedIps = object.allowedIps?.map((e) => e) || [];
-    message.persistentKeepaliveSec = object.persistentKeepaliveSec ?? 0;
+    message.persistentKeepaliveSec = object.persistentKeepaliveSec ?? undefined;
     return message;
   },
 };
 
 function createBaseWireguardPeer_Endpoint(): WireguardPeer_Endpoint {
-  return { address: "", port: 0 };
+  return { address: undefined, port: undefined };
 }
 
 export const WireguardPeer_Endpoint: MessageFns<WireguardPeer_Endpoint> = {
   encode(message: WireguardPeer_Endpoint, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.address !== "") {
+    if (message.address !== undefined) {
       writer.uint32(10).string(message.address);
     }
-    if (message.port !== 0) {
+    if (message.port !== undefined) {
       writer.uint32(16).uint32(message.port);
     }
     return writer;
@@ -22246,17 +22866,17 @@ export const WireguardPeer_Endpoint: MessageFns<WireguardPeer_Endpoint> = {
 
   fromJSON(object: any): WireguardPeer_Endpoint {
     return {
-      address: isSet(object.address) ? globalThis.String(object.address) : "",
-      port: isSet(object.port) ? globalThis.Number(object.port) : 0,
+      address: isSet(object.address) ? globalThis.String(object.address) : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
     };
   },
 
   toJSON(message: WireguardPeer_Endpoint): unknown {
     const obj: any = {};
-    if (message.address !== "") {
+    if (message.address !== undefined) {
       obj.address = message.address;
     }
-    if (message.port !== 0) {
+    if (message.port !== undefined) {
       obj.port = Math.round(message.port);
     }
     return obj;
@@ -22267,58 +22887,58 @@ export const WireguardPeer_Endpoint: MessageFns<WireguardPeer_Endpoint> = {
   },
   fromPartial(object: DeepPartial<WireguardPeer_Endpoint>): WireguardPeer_Endpoint {
     const message = createBaseWireguardPeer_Endpoint();
-    message.address = object.address ?? "";
-    message.port = object.port ?? 0;
+    message.address = object.address ?? undefined;
+    message.port = object.port ?? undefined;
     return message;
   },
 };
 
 function createBaseWireguardInterface(): WireguardInterface {
   return {
-    enabled: false,
+    enabled: undefined,
     description: undefined,
-    instance: 0,
-    vrf: "",
-    underlayVrf: "",
-    listenAddress: "",
-    listenPort: 0,
-    privateKeyRef: "",
+    instance: undefined,
+    vrf: undefined,
+    underlayVrf: undefined,
+    listenAddress: undefined,
+    listenPort: undefined,
+    privateKeyRef: undefined,
     address: [],
-    mtu: 0,
+    mtu: undefined,
     peers: {},
   };
 }
 
 export const WireguardInterface: MessageFns<WireguardInterface> = {
   encode(message: WireguardInterface, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(8).bool(message.enabled);
     }
     if (message.description !== undefined) {
       writer.uint32(18).string(message.description);
     }
-    if (message.instance !== 0) {
+    if (message.instance !== undefined) {
       writer.uint32(24).uint32(message.instance);
     }
-    if (message.vrf !== "") {
+    if (message.vrf !== undefined) {
       writer.uint32(34).string(message.vrf);
     }
-    if (message.underlayVrf !== "") {
+    if (message.underlayVrf !== undefined) {
       writer.uint32(42).string(message.underlayVrf);
     }
-    if (message.listenAddress !== "") {
+    if (message.listenAddress !== undefined) {
       writer.uint32(50).string(message.listenAddress);
     }
-    if (message.listenPort !== 0) {
+    if (message.listenPort !== undefined) {
       writer.uint32(56).uint32(message.listenPort);
     }
-    if (message.privateKeyRef !== "") {
+    if (message.privateKeyRef !== undefined) {
       writer.uint32(66).string(message.privateKeyRef);
     }
     for (const v of message.address) {
       writer.uint32(74).string(v!);
     }
-    if (message.mtu !== 0) {
+    if (message.mtu !== undefined) {
       writer.uint32(80).uint32(message.mtu);
     }
     globalThis.Object.entries(message.peers).forEach(([key, value]: [string, WireguardPeer]) => {
@@ -22445,34 +23065,34 @@ export const WireguardInterface: MessageFns<WireguardInterface> = {
 
   fromJSON(object: any): WireguardInterface {
     return {
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
-      instance: isSet(object.instance) ? globalThis.Number(object.instance) : 0,
-      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : "",
+      instance: isSet(object.instance) ? globalThis.Number(object.instance) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
       underlayVrf: isSet(object.underlayVrf)
         ? globalThis.String(object.underlayVrf)
         : isSet(object.underlay_vrf)
         ? globalThis.String(object.underlay_vrf)
-        : "",
+        : undefined,
       listenAddress: isSet(object.listenAddress)
         ? globalThis.String(object.listenAddress)
         : isSet(object.listen_address)
         ? globalThis.String(object.listen_address)
-        : "",
+        : undefined,
       listenPort: isSet(object.listenPort)
         ? globalThis.Number(object.listenPort)
         : isSet(object.listen_port)
         ? globalThis.Number(object.listen_port)
-        : 0,
+        : undefined,
       privateKeyRef: isSet(object.privateKeyRef)
         ? globalThis.String(object.privateKeyRef)
         : isSet(object.private_key_ref)
         ? globalThis.String(object.private_key_ref)
-        : "",
+        : undefined,
       address: globalThis.Array.isArray(object?.address)
         ? object.address.map((e: any) => globalThis.String(e))
         : [],
-      mtu: isSet(object.mtu) ? globalThis.Number(object.mtu) : 0,
+      mtu: isSet(object.mtu) ? globalThis.Number(object.mtu) : undefined,
       peers: isObject(object.peers)
         ? (globalThis.Object.entries(object.peers) as [string, any][]).reduce(
           (acc: { [key: string]: WireguardPeer }, [key, value]: [string, any]) => {
@@ -22492,34 +23112,34 @@ export const WireguardInterface: MessageFns<WireguardInterface> = {
 
   toJSON(message: WireguardInterface): unknown {
     const obj: any = {};
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.instance !== 0) {
+    if (message.instance !== undefined) {
       obj.instance = Math.round(message.instance);
     }
-    if (message.vrf !== "") {
+    if (message.vrf !== undefined) {
       obj.vrf = message.vrf;
     }
-    if (message.underlayVrf !== "") {
+    if (message.underlayVrf !== undefined) {
       obj.underlayVrf = message.underlayVrf;
     }
-    if (message.listenAddress !== "") {
+    if (message.listenAddress !== undefined) {
       obj.listenAddress = message.listenAddress;
     }
-    if (message.listenPort !== 0) {
+    if (message.listenPort !== undefined) {
       obj.listenPort = Math.round(message.listenPort);
     }
-    if (message.privateKeyRef !== "") {
+    if (message.privateKeyRef !== undefined) {
       obj.privateKeyRef = message.privateKeyRef;
     }
     if (message.address?.length) {
       obj.address = message.address;
     }
-    if (message.mtu !== 0) {
+    if (message.mtu !== undefined) {
       obj.mtu = Math.round(message.mtu);
     }
     if (message.peers) {
@@ -22539,16 +23159,16 @@ export const WireguardInterface: MessageFns<WireguardInterface> = {
   },
   fromPartial(object: DeepPartial<WireguardInterface>): WireguardInterface {
     const message = createBaseWireguardInterface();
-    message.enabled = object.enabled ?? false;
+    message.enabled = object.enabled ?? undefined;
     message.description = object.description ?? undefined;
-    message.instance = object.instance ?? 0;
-    message.vrf = object.vrf ?? "";
-    message.underlayVrf = object.underlayVrf ?? "";
-    message.listenAddress = object.listenAddress ?? "";
-    message.listenPort = object.listenPort ?? 0;
-    message.privateKeyRef = object.privateKeyRef ?? "";
+    message.instance = object.instance ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.underlayVrf = object.underlayVrf ?? undefined;
+    message.listenAddress = object.listenAddress ?? undefined;
+    message.listenPort = object.listenPort ?? undefined;
+    message.privateKeyRef = object.privateKeyRef ?? undefined;
     message.address = object.address?.map((e) => e) || [];
-    message.mtu = object.mtu ?? 0;
+    message.mtu = object.mtu ?? undefined;
     message.peers = (globalThis.Object.entries(object.peers ?? {}) as [string, WireguardPeer][]).reduce(
       (acc: { [key: string]: WireguardPeer }, [key, value]: [string, WireguardPeer]) => {
         if (value !== undefined) {
@@ -22836,7 +23456,7 @@ export const WireguardConfig_InterfacesEntry: MessageFns<WireguardConfig_Interfa
 };
 
 function createBasePkiCa(): PkiCa {
-  return { description: undefined, certificateRef: "", crl: undefined, ocspUrl: undefined };
+  return { description: undefined, certificateRef: undefined, crl: undefined, ocspUrl: undefined };
 }
 
 export const PkiCa: MessageFns<PkiCa> = {
@@ -22844,7 +23464,7 @@ export const PkiCa: MessageFns<PkiCa> = {
     if (message.description !== undefined) {
       writer.uint32(10).string(message.description);
     }
-    if (message.certificateRef !== "") {
+    if (message.certificateRef !== undefined) {
       writer.uint32(18).string(message.certificateRef);
     }
     if (message.crl !== undefined) {
@@ -22920,7 +23540,7 @@ export const PkiCa: MessageFns<PkiCa> = {
         ? globalThis.String(object.certificateRef)
         : isSet(object.certificate_ref)
         ? globalThis.String(object.certificate_ref)
-        : "",
+        : undefined,
       crl: isSet(object.crl) ? PkiCa_Crl.fromJSON(object.crl) : undefined,
       ocspUrl: isSet(object.ocspUrl)
         ? globalThis.String(object.ocspUrl)
@@ -22935,7 +23555,7 @@ export const PkiCa: MessageFns<PkiCa> = {
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.certificateRef !== "") {
+    if (message.certificateRef !== undefined) {
       obj.certificateRef = message.certificateRef;
     }
     if (message.crl !== undefined) {
@@ -22953,7 +23573,7 @@ export const PkiCa: MessageFns<PkiCa> = {
   fromPartial(object: DeepPartial<PkiCa>): PkiCa {
     const message = createBasePkiCa();
     message.description = object.description ?? undefined;
-    message.certificateRef = object.certificateRef ?? "";
+    message.certificateRef = object.certificateRef ?? undefined;
     message.crl = (object.crl !== undefined && object.crl !== null) ? PkiCa_Crl.fromPartial(object.crl) : undefined;
     message.ocspUrl = object.ocspUrl ?? undefined;
     return message;
@@ -22961,7 +23581,7 @@ export const PkiCa: MessageFns<PkiCa> = {
 };
 
 function createBasePkiCa_Crl(): PkiCa_Crl {
-  return { url: undefined, refreshIntervalSec: 0 };
+  return { url: undefined, refreshIntervalSec: undefined };
 }
 
 export const PkiCa_Crl: MessageFns<PkiCa_Crl> = {
@@ -22969,7 +23589,7 @@ export const PkiCa_Crl: MessageFns<PkiCa_Crl> = {
     if (message.url !== undefined) {
       writer.uint32(10).string(message.url);
     }
-    if (message.refreshIntervalSec !== 0) {
+    if (message.refreshIntervalSec !== undefined) {
       writer.uint32(16).uint32(message.refreshIntervalSec);
     }
     return writer;
@@ -23023,7 +23643,7 @@ export const PkiCa_Crl: MessageFns<PkiCa_Crl> = {
         ? globalThis.Number(object.refreshIntervalSec)
         : isSet(object.refresh_interval_sec)
         ? globalThis.Number(object.refresh_interval_sec)
-        : 0,
+        : undefined,
     };
   },
 
@@ -23032,7 +23652,7 @@ export const PkiCa_Crl: MessageFns<PkiCa_Crl> = {
     if (message.url !== undefined) {
       obj.url = message.url;
     }
-    if (message.refreshIntervalSec !== 0) {
+    if (message.refreshIntervalSec !== undefined) {
       obj.refreshIntervalSec = Math.round(message.refreshIntervalSec);
     }
     return obj;
@@ -23044,7 +23664,7 @@ export const PkiCa_Crl: MessageFns<PkiCa_Crl> = {
   fromPartial(object: DeepPartial<PkiCa_Crl>): PkiCa_Crl {
     const message = createBasePkiCa_Crl();
     message.url = object.url ?? undefined;
-    message.refreshIntervalSec = object.refreshIntervalSec ?? 0;
+    message.refreshIntervalSec = object.refreshIntervalSec ?? undefined;
     return message;
   },
 };
@@ -23053,10 +23673,10 @@ function createBasePkiCertificate(): PkiCertificate {
   return {
     description: undefined,
     certificateRef: undefined,
-    privateKeyRef: "",
+    privateKeyRef: undefined,
     ca: undefined,
     acme: undefined,
-    expiryAlertDays: 0,
+    expiryAlertDays: undefined,
   };
 }
 
@@ -23068,7 +23688,7 @@ export const PkiCertificate: MessageFns<PkiCertificate> = {
     if (message.certificateRef !== undefined) {
       writer.uint32(18).string(message.certificateRef);
     }
-    if (message.privateKeyRef !== "") {
+    if (message.privateKeyRef !== undefined) {
       writer.uint32(26).string(message.privateKeyRef);
     }
     if (message.ca !== undefined) {
@@ -23077,7 +23697,7 @@ export const PkiCertificate: MessageFns<PkiCertificate> = {
     if (message.acme !== undefined) {
       PkiCertificate_Acme.encode(message.acme, writer.uint32(42).fork()).join();
     }
-    if (message.expiryAlertDays !== 0) {
+    if (message.expiryAlertDays !== undefined) {
       writer.uint32(48).uint32(message.expiryAlertDays);
     }
     return writer;
@@ -23168,14 +23788,14 @@ export const PkiCertificate: MessageFns<PkiCertificate> = {
         ? globalThis.String(object.privateKeyRef)
         : isSet(object.private_key_ref)
         ? globalThis.String(object.private_key_ref)
-        : "",
+        : undefined,
       ca: isSet(object.ca) ? globalThis.String(object.ca) : undefined,
       acme: isSet(object.acme) ? PkiCertificate_Acme.fromJSON(object.acme) : undefined,
       expiryAlertDays: isSet(object.expiryAlertDays)
         ? globalThis.Number(object.expiryAlertDays)
         : isSet(object.expiry_alert_days)
         ? globalThis.Number(object.expiry_alert_days)
-        : 0,
+        : undefined,
     };
   },
 
@@ -23187,7 +23807,7 @@ export const PkiCertificate: MessageFns<PkiCertificate> = {
     if (message.certificateRef !== undefined) {
       obj.certificateRef = message.certificateRef;
     }
-    if (message.privateKeyRef !== "") {
+    if (message.privateKeyRef !== undefined) {
       obj.privateKeyRef = message.privateKeyRef;
     }
     if (message.ca !== undefined) {
@@ -23196,7 +23816,7 @@ export const PkiCertificate: MessageFns<PkiCertificate> = {
     if (message.acme !== undefined) {
       obj.acme = PkiCertificate_Acme.toJSON(message.acme);
     }
-    if (message.expiryAlertDays !== 0) {
+    if (message.expiryAlertDays !== undefined) {
       obj.expiryAlertDays = Math.round(message.expiryAlertDays);
     }
     return obj;
@@ -23209,23 +23829,23 @@ export const PkiCertificate: MessageFns<PkiCertificate> = {
     const message = createBasePkiCertificate();
     message.description = object.description ?? undefined;
     message.certificateRef = object.certificateRef ?? undefined;
-    message.privateKeyRef = object.privateKeyRef ?? "";
+    message.privateKeyRef = object.privateKeyRef ?? undefined;
     message.ca = object.ca ?? undefined;
     message.acme = (object.acme !== undefined && object.acme !== null)
       ? PkiCertificate_Acme.fromPartial(object.acme)
       : undefined;
-    message.expiryAlertDays = object.expiryAlertDays ?? 0;
+    message.expiryAlertDays = object.expiryAlertDays ?? undefined;
     return message;
   },
 };
 
 function createBasePkiCertificate_Acme(): PkiCertificate_Acme {
-  return { directoryUrl: "", domains: [], email: undefined, challenge: "" };
+  return { directoryUrl: undefined, domains: [], email: undefined, challenge: undefined };
 }
 
 export const PkiCertificate_Acme: MessageFns<PkiCertificate_Acme> = {
   encode(message: PkiCertificate_Acme, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.directoryUrl !== "") {
+    if (message.directoryUrl !== undefined) {
       writer.uint32(10).string(message.directoryUrl);
     }
     for (const v of message.domains) {
@@ -23234,7 +23854,7 @@ export const PkiCertificate_Acme: MessageFns<PkiCertificate_Acme> = {
     if (message.email !== undefined) {
       writer.uint32(26).string(message.email);
     }
-    if (message.challenge !== "") {
+    if (message.challenge !== undefined) {
       writer.uint32(34).string(message.challenge);
     }
     return writer;
@@ -23303,16 +23923,16 @@ export const PkiCertificate_Acme: MessageFns<PkiCertificate_Acme> = {
         ? globalThis.String(object.directoryUrl)
         : isSet(object.directory_url)
         ? globalThis.String(object.directory_url)
-        : "",
+        : undefined,
       domains: globalThis.Array.isArray(object?.domains) ? object.domains.map((e: any) => globalThis.String(e)) : [],
       email: isSet(object.email) ? globalThis.String(object.email) : undefined,
-      challenge: isSet(object.challenge) ? globalThis.String(object.challenge) : "",
+      challenge: isSet(object.challenge) ? globalThis.String(object.challenge) : undefined,
     };
   },
 
   toJSON(message: PkiCertificate_Acme): unknown {
     const obj: any = {};
-    if (message.directoryUrl !== "") {
+    if (message.directoryUrl !== undefined) {
       obj.directoryUrl = message.directoryUrl;
     }
     if (message.domains?.length) {
@@ -23321,7 +23941,7 @@ export const PkiCertificate_Acme: MessageFns<PkiCertificate_Acme> = {
     if (message.email !== undefined) {
       obj.email = message.email;
     }
-    if (message.challenge !== "") {
+    if (message.challenge !== undefined) {
       obj.challenge = message.challenge;
     }
     return obj;
@@ -23332,10 +23952,10 @@ export const PkiCertificate_Acme: MessageFns<PkiCertificate_Acme> = {
   },
   fromPartial(object: DeepPartial<PkiCertificate_Acme>): PkiCertificate_Acme {
     const message = createBasePkiCertificate_Acme();
-    message.directoryUrl = object.directoryUrl ?? "";
+    message.directoryUrl = object.directoryUrl ?? undefined;
     message.domains = object.domains?.map((e) => e) || [];
     message.email = object.email ?? undefined;
-    message.challenge = object.challenge ?? "";
+    message.challenge = object.challenge ?? undefined;
     return message;
   },
 };
@@ -23502,15 +24122,15 @@ export const PkiConfig: MessageFns<PkiConfig> = {
 };
 
 function createBasePkiConfig_Hsm(): PkiConfig_Hsm {
-  return { enabled: false, module: "", tokenLabel: undefined, pinRef: undefined };
+  return { enabled: undefined, module: undefined, tokenLabel: undefined, pinRef: undefined };
 }
 
 export const PkiConfig_Hsm: MessageFns<PkiConfig_Hsm> = {
   encode(message: PkiConfig_Hsm, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(8).bool(message.enabled);
     }
-    if (message.module !== "") {
+    if (message.module !== undefined) {
       writer.uint32(18).string(message.module);
     }
     if (message.tokenLabel !== undefined) {
@@ -23581,8 +24201,8 @@ export const PkiConfig_Hsm: MessageFns<PkiConfig_Hsm> = {
 
   fromJSON(object: any): PkiConfig_Hsm {
     return {
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
-      module: isSet(object.module) ? globalThis.String(object.module) : "",
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      module: isSet(object.module) ? globalThis.String(object.module) : undefined,
       tokenLabel: isSet(object.tokenLabel)
         ? globalThis.String(object.tokenLabel)
         : isSet(object.token_label)
@@ -23598,10 +24218,10 @@ export const PkiConfig_Hsm: MessageFns<PkiConfig_Hsm> = {
 
   toJSON(message: PkiConfig_Hsm): unknown {
     const obj: any = {};
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
-    if (message.module !== "") {
+    if (message.module !== undefined) {
       obj.module = message.module;
     }
     if (message.tokenLabel !== undefined) {
@@ -23618,8 +24238,8 @@ export const PkiConfig_Hsm: MessageFns<PkiConfig_Hsm> = {
   },
   fromPartial(object: DeepPartial<PkiConfig_Hsm>): PkiConfig_Hsm {
     const message = createBasePkiConfig_Hsm();
-    message.enabled = object.enabled ?? false;
-    message.module = object.module ?? "";
+    message.enabled = object.enabled ?? undefined;
+    message.module = object.module ?? undefined;
     message.tokenLabel = object.tokenLabel ?? undefined;
     message.pinRef = object.pinRef ?? undefined;
     return message;
@@ -23799,15 +24419,15 @@ export const PkiConfig_CertificatesEntry: MessageFns<PkiConfig_CertificatesEntry
 };
 
 function createBaseRemoteAccessPool(): RemoteAccessPool {
-  return { name: "", prefix: "", dns: [] };
+  return { name: undefined, prefix: undefined, dns: [] };
 }
 
 export const RemoteAccessPool: MessageFns<RemoteAccessPool> = {
   encode(message: RemoteAccessPool, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== undefined) {
       writer.uint32(10).string(message.name);
     }
-    if (message.prefix !== "") {
+    if (message.prefix !== undefined) {
       writer.uint32(18).string(message.prefix);
     }
     for (const v of message.dns) {
@@ -23867,18 +24487,18 @@ export const RemoteAccessPool: MessageFns<RemoteAccessPool> = {
 
   fromJSON(object: any): RemoteAccessPool {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
-      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : undefined,
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
       dns: globalThis.Array.isArray(object?.dns) ? object.dns.map((e: any) => globalThis.String(e)) : [],
     };
   },
 
   toJSON(message: RemoteAccessPool): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== undefined) {
       obj.name = message.name;
     }
-    if (message.prefix !== "") {
+    if (message.prefix !== undefined) {
       obj.prefix = message.prefix;
     }
     if (message.dns?.length) {
@@ -23892,23 +24512,23 @@ export const RemoteAccessPool: MessageFns<RemoteAccessPool> = {
   },
   fromPartial(object: DeepPartial<RemoteAccessPool>): RemoteAccessPool {
     const message = createBaseRemoteAccessPool();
-    message.name = object.name ?? "";
-    message.prefix = object.prefix ?? "";
+    message.name = object.name ?? undefined;
+    message.prefix = object.prefix ?? undefined;
     message.dns = object.dns?.map((e) => e) || [];
     return message;
   },
 };
 
 function createBaseRemoteAccessUser(): RemoteAccessUser {
-  return { username: "", passwordRef: "" };
+  return { username: undefined, passwordRef: undefined };
 }
 
 export const RemoteAccessUser: MessageFns<RemoteAccessUser> = {
   encode(message: RemoteAccessUser, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.username !== "") {
+    if (message.username !== undefined) {
       writer.uint32(10).string(message.username);
     }
-    if (message.passwordRef !== "") {
+    if (message.passwordRef !== undefined) {
       writer.uint32(18).string(message.passwordRef);
     }
     return writer;
@@ -23957,21 +24577,21 @@ export const RemoteAccessUser: MessageFns<RemoteAccessUser> = {
 
   fromJSON(object: any): RemoteAccessUser {
     return {
-      username: isSet(object.username) ? globalThis.String(object.username) : "",
+      username: isSet(object.username) ? globalThis.String(object.username) : undefined,
       passwordRef: isSet(object.passwordRef)
         ? globalThis.String(object.passwordRef)
         : isSet(object.password_ref)
         ? globalThis.String(object.password_ref)
-        : "",
+        : undefined,
     };
   },
 
   toJSON(message: RemoteAccessUser): unknown {
     const obj: any = {};
-    if (message.username !== "") {
+    if (message.username !== undefined) {
       obj.username = message.username;
     }
-    if (message.passwordRef !== "") {
+    if (message.passwordRef !== undefined) {
       obj.passwordRef = message.passwordRef;
     }
     return obj;
@@ -23982,23 +24602,23 @@ export const RemoteAccessUser: MessageFns<RemoteAccessUser> = {
   },
   fromPartial(object: DeepPartial<RemoteAccessUser>): RemoteAccessUser {
     const message = createBaseRemoteAccessUser();
-    message.username = object.username ?? "";
-    message.passwordRef = object.passwordRef ?? "";
+    message.username = object.username ?? undefined;
+    message.passwordRef = object.passwordRef ?? undefined;
     return message;
   },
 };
 
 function createBaseRemoteAccessProfile(): RemoteAccessProfile {
   return {
-    enabled: false,
+    enabled: undefined,
     description: undefined,
-    localAddr: "",
+    localAddr: undefined,
     localId: undefined,
-    vrf: "",
-    auth: "",
-    certificate: "",
+    vrf: undefined,
+    auth: undefined,
+    certificate: undefined,
     clientCa: undefined,
-    proposal: "",
+    proposal: undefined,
     pools: [],
     splitTunnel: [],
     users: [],
@@ -24010,31 +24630,31 @@ function createBaseRemoteAccessProfile(): RemoteAccessProfile {
 
 export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
   encode(message: RemoteAccessProfile, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       writer.uint32(8).bool(message.enabled);
     }
     if (message.description !== undefined) {
       writer.uint32(18).string(message.description);
     }
-    if (message.localAddr !== "") {
+    if (message.localAddr !== undefined) {
       writer.uint32(26).string(message.localAddr);
     }
     if (message.localId !== undefined) {
       writer.uint32(34).string(message.localId);
     }
-    if (message.vrf !== "") {
+    if (message.vrf !== undefined) {
       writer.uint32(42).string(message.vrf);
     }
-    if (message.auth !== "") {
+    if (message.auth !== undefined) {
       writer.uint32(50).string(message.auth);
     }
-    if (message.certificate !== "") {
+    if (message.certificate !== undefined) {
       writer.uint32(58).string(message.certificate);
     }
     if (message.clientCa !== undefined) {
       writer.uint32(66).string(message.clientCa);
     }
-    if (message.proposal !== "") {
+    if (message.proposal !== undefined) {
       writer.uint32(74).string(message.proposal);
     }
     for (const v of message.pools) {
@@ -24205,27 +24825,27 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
 
   fromJSON(object: any): RemoteAccessProfile {
     return {
-      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
       localAddr: isSet(object.localAddr)
         ? globalThis.String(object.localAddr)
         : isSet(object.local_addr)
         ? globalThis.String(object.local_addr)
-        : "",
+        : undefined,
       localId: isSet(object.localId)
         ? globalThis.String(object.localId)
         : isSet(object.local_id)
         ? globalThis.String(object.local_id)
         : undefined,
-      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : "",
-      auth: isSet(object.auth) ? globalThis.String(object.auth) : "",
-      certificate: isSet(object.certificate) ? globalThis.String(object.certificate) : "",
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      auth: isSet(object.auth) ? globalThis.String(object.auth) : undefined,
+      certificate: isSet(object.certificate) ? globalThis.String(object.certificate) : undefined,
       clientCa: isSet(object.clientCa)
         ? globalThis.String(object.clientCa)
         : isSet(object.client_ca)
         ? globalThis.String(object.client_ca)
         : undefined,
-      proposal: isSet(object.proposal) ? globalThis.String(object.proposal) : "",
+      proposal: isSet(object.proposal) ? globalThis.String(object.proposal) : undefined,
       pools: globalThis.Array.isArray(object?.pools) ? object.pools.map((e: any) => RemoteAccessPool.fromJSON(e)) : [],
       splitTunnel: globalThis.Array.isArray(object?.splitTunnel)
         ? object.splitTunnel.map((e: any) => globalThis.String(e))
@@ -24243,31 +24863,31 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
 
   toJSON(message: RemoteAccessProfile): unknown {
     const obj: any = {};
-    if (message.enabled !== false) {
+    if (message.enabled !== undefined) {
       obj.enabled = message.enabled;
     }
     if (message.description !== undefined) {
       obj.description = message.description;
     }
-    if (message.localAddr !== "") {
+    if (message.localAddr !== undefined) {
       obj.localAddr = message.localAddr;
     }
     if (message.localId !== undefined) {
       obj.localId = message.localId;
     }
-    if (message.vrf !== "") {
+    if (message.vrf !== undefined) {
       obj.vrf = message.vrf;
     }
-    if (message.auth !== "") {
+    if (message.auth !== undefined) {
       obj.auth = message.auth;
     }
-    if (message.certificate !== "") {
+    if (message.certificate !== undefined) {
       obj.certificate = message.certificate;
     }
     if (message.clientCa !== undefined) {
       obj.clientCa = message.clientCa;
     }
-    if (message.proposal !== "") {
+    if (message.proposal !== undefined) {
       obj.proposal = message.proposal;
     }
     if (message.pools?.length) {
@@ -24296,15 +24916,15 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
   },
   fromPartial(object: DeepPartial<RemoteAccessProfile>): RemoteAccessProfile {
     const message = createBaseRemoteAccessProfile();
-    message.enabled = object.enabled ?? false;
+    message.enabled = object.enabled ?? undefined;
     message.description = object.description ?? undefined;
-    message.localAddr = object.localAddr ?? "";
+    message.localAddr = object.localAddr ?? undefined;
     message.localId = object.localId ?? undefined;
-    message.vrf = object.vrf ?? "";
-    message.auth = object.auth ?? "";
-    message.certificate = object.certificate ?? "";
+    message.vrf = object.vrf ?? undefined;
+    message.auth = object.auth ?? undefined;
+    message.certificate = object.certificate ?? undefined;
     message.clientCa = object.clientCa ?? undefined;
-    message.proposal = object.proposal ?? "";
+    message.proposal = object.proposal ?? undefined;
     message.pools = object.pools?.map((e) => RemoteAccessPool.fromPartial(e)) || [];
     message.splitTunnel = object.splitTunnel?.map((e) => e) || [];
     message.users = object.users?.map((e) => RemoteAccessUser.fromPartial(e)) || [];
@@ -24391,18 +25011,18 @@ export const RemoteAccessProfile_Radius: MessageFns<RemoteAccessProfile_Radius> 
 };
 
 function createBaseRemoteAccessProfile_Radius_Server(): RemoteAccessProfile_Radius_Server {
-  return { address: "", port: 0, secretRef: "" };
+  return { address: undefined, port: undefined, secretRef: undefined };
 }
 
 export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_Radius_Server> = {
   encode(message: RemoteAccessProfile_Radius_Server, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.address !== "") {
+    if (message.address !== undefined) {
       writer.uint32(10).string(message.address);
     }
-    if (message.port !== 0) {
+    if (message.port !== undefined) {
       writer.uint32(16).uint32(message.port);
     }
-    if (message.secretRef !== "") {
+    if (message.secretRef !== undefined) {
       writer.uint32(26).string(message.secretRef);
     }
     return writer;
@@ -24459,25 +25079,25 @@ export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_R
 
   fromJSON(object: any): RemoteAccessProfile_Radius_Server {
     return {
-      address: isSet(object.address) ? globalThis.String(object.address) : "",
-      port: isSet(object.port) ? globalThis.Number(object.port) : 0,
+      address: isSet(object.address) ? globalThis.String(object.address) : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
       secretRef: isSet(object.secretRef)
         ? globalThis.String(object.secretRef)
         : isSet(object.secret_ref)
         ? globalThis.String(object.secret_ref)
-        : "",
+        : undefined,
     };
   },
 
   toJSON(message: RemoteAccessProfile_Radius_Server): unknown {
     const obj: any = {};
-    if (message.address !== "") {
+    if (message.address !== undefined) {
       obj.address = message.address;
     }
-    if (message.port !== 0) {
+    if (message.port !== undefined) {
       obj.port = Math.round(message.port);
     }
-    if (message.secretRef !== "") {
+    if (message.secretRef !== undefined) {
       obj.secretRef = message.secretRef;
     }
     return obj;
@@ -24488,9 +25108,9 @@ export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_R
   },
   fromPartial(object: DeepPartial<RemoteAccessProfile_Radius_Server>): RemoteAccessProfile_Radius_Server {
     const message = createBaseRemoteAccessProfile_Radius_Server();
-    message.address = object.address ?? "";
-    message.port = object.port ?? 0;
-    message.secretRef = object.secretRef ?? "";
+    message.address = object.address ?? undefined;
+    message.port = object.port ?? undefined;
+    message.secretRef = object.secretRef ?? undefined;
     return message;
   },
 };
@@ -24785,13 +25405,13 @@ export type DeepPartial<T> = T extends Builtin ? T
   : Partial<T>;
 
 function toTimestamp(date: Date): Timestamp {
-  const seconds = Math.trunc(date.getTime() / 1_000);
+  const seconds = Math.trunc(date.getTime() / 1_000).toString();
   const nanos = (date.getTime() % 1_000) * 1_000_000;
   return { seconds, nanos };
 }
 
 function fromTimestamp(t: Timestamp): Date {
-  let millis = (t.seconds || 0) * 1_000;
+  let millis = (globalThis.Number(t.seconds) || 0) * 1_000;
   millis += (t.nanos || 0) / 1_000_000;
   return new globalThis.Date(millis);
 }
@@ -24804,17 +25424,6 @@ function fromJsonTimestamp(o: any): Date {
   } else {
     return fromTimestamp(Timestamp.fromJSON(o));
   }
-}
-
-function longToNumber(int64: { toString(): string }): number {
-  const num = globalThis.Number(int64.toString());
-  if (num > globalThis.Number.MAX_SAFE_INTEGER) {
-    throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
-  }
-  if (num < globalThis.Number.MIN_SAFE_INTEGER) {
-    throw new globalThis.Error("Value is smaller than Number.MIN_SAFE_INTEGER");
-  }
-  return num;
 }
 
 function isObject(value: any): boolean {

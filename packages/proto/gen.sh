@@ -3,9 +3,9 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin"
-# Remove only generated files: the compile-check tests next to the Go stubs are hand-written.
-rm -rf gen/ts
-find ../../apps/agent/gen -type f -name '*.pb.go' -delete 2>/dev/null || true
+# Both output trees are 100% generated (the contract tests live in apps/agent/internal/contracttest
+# and packages/proto/test): wipe and regenerate.
+rm -rf gen/ts ../../apps/agent/gen
 mkdir -p gen/ts ../../apps/agent/gen
 buf generate
 # generated Go imports grpc/protobuf — keep go.mod in sync so the gate never fails on a fresh checkout

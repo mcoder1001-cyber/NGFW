@@ -583,16 +583,16 @@ tasks:
   - P03
   priority: 2
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D6.2
   scope: strongswan (swanctl/VICI path; vrx build lands in P11)
   files_owned: apps/agent/internal/renderers/<daemons of RF-2>/**
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/RF-2
+  worktree: /root/ngfw-wt/RF-2
+  owner: host-agent slot3
+  started: 2026-09-24T02:30
   finished: ''
   notes: test-scoped daemon processes only; system units untouched
 - id: RF-3
@@ -629,7 +629,7 @@ tasks:
   - P03
   priority: 2
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D7.5
@@ -637,10 +637,10 @@ tasks:
   - D7.7
   scope: snmpd, keepalived, rsyslog
   files_owned: apps/agent/internal/renderers/<daemons of RF-4>/**
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/RF-4
+  worktree: /root/ngfw-wt/RF-4
+  owner: host-agent slot8
+  started: 2026-09-24T02:30
   finished: ''
   notes: test-scoped daemon processes only; system units untouched
 - id: P08
@@ -2002,16 +2002,16 @@ tasks:
   - P02a
   priority: 3
   est_hours: 8
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.6
   scope: generator + golden tests; applying it to the live host is a manager step after handover (D-058); DPDK NICs named by logical name (D-069)
   files_owned: ''
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/F-startup-gen
+  worktree: /root/ngfw-wt/F-startup-gen
+  owner: host-agent slot12
+  started: 2026-09-24T02:30
   finished: ''
   notes: 'D-058: added — PENDING-handover option 1 relies on it'
 - id: F-vpp-debs

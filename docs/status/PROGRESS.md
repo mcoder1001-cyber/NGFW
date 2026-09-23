@@ -8,8 +8,8 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|
 | merged | 14 |
 | review | 4 |
-| running | 5 |
-| ready | 4 |
+| running | 8 |
+| ready | 1 |
 | parked | 0 |
 | failed | 0 |
 | todo | 55 |
@@ -18,7 +18,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S1 | 68 / 73 | 93.2% | 8/9 | 1 | 0 | 0 |
-| S2 | 62 / 223 | 27.8% | 5/17 | 4 | 3 | 0 |
+| S2 | 62 / 223 | 27.8% | 5/17 | 7 | 0 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
 | S4 | 0 / 384 | 0.0% | 0/37 | 0 | 0 | 0 |
 | S5 | 0 / 128 | 0.0% | 0/13 | 0 | 1 | 0 |
@@ -34,7 +34,10 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 - DF-6 — Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp (running, host-agent slot11)
 - DF-7 — Descriptors: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls (running, host-agent slot10)
 - DF-8 — Descriptors: dhcp, dns, flowprobe, sflow, prom, pcap/tracenode, lcp [skip-unless-loaded] (review, host-agent slot5)
+- RF-2 — Renderers: strongswan (swanctl/VICI path; vrx build lands in P11) (running, host-agent slot3)
 - RF-3 — Renderers: kea-dhcp4/6 + ctrl-agent, unbound, chrony (review, host-agent slot6)
+- RF-4 — Renderers: snmpd, keepalived, rsyslog (running, host-agent slot8)
+- F-startup-gen — startup.conf generator: hugepages, workers, RSS, NUMA, isolcpus, dpdk dev/name mapping, plugin enable list (running, host-agent slot12)
 
 ## Parked
 

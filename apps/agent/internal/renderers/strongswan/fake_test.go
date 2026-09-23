@@ -125,6 +125,8 @@ func (s *fakeSession) Close() error {
 }
 
 func (s *fakeSession) Subscribe(events ...string) error {
+	s.f.mu.Lock()
+	defer s.f.mu.Unlock()
 	if s.f.failOn["subscribe"] != "" {
 		return errors.New(s.f.failOn["subscribe"])
 	}

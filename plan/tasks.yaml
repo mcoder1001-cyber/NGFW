@@ -31,7 +31,7 @@ tasks:
   - P01
   priority: 1
   est_hours: 2
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D0.8
@@ -42,7 +42,7 @@ tasks:
   owner: desktop-agent slot1
   started: 2026-09-23T13:13
   finished: ''
-  notes: ''
+  notes: ' | merged 2026-09-23-1335'
 - id: P02a
   title: 'Schema group (a): system, dataplane, interfaces, vrfs, routing, management + primitives/diff/merge-patch/gen'
   prompt: prompts/P02-schema-package.md
@@ -52,7 +52,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 12
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.8
@@ -79,7 +79,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D4.1
@@ -106,7 +106,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D6.2
@@ -133,7 +133,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.7
@@ -269,7 +269,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 14
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.10

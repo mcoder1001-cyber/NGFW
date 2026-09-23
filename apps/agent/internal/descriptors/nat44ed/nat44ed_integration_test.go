@@ -2,9 +2,10 @@ package nat44ed_test
 
 import (
 	"context"
+	"errors"
 	"testing"
-	"time"
 
+	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/nat44_ed"
 	"ngfw/agent/binapi/nat44_ei"
 	"ngfw/agent/internal/descriptors/nat44ed"
@@ -13,25 +14,41 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
+// edFixture is the nat44-ed plugin as a test fixture (D-071): enabled by the test if off,
+// disabled again only if this test enabled it and nat44-ed is completely empty.
+func edFixture(c *nattest.Conn, p *nat44ed.Plugin) nattest.Plugin {
+	svc := nat44_ed.NewServiceClient(c)
+	return nattest.Plugin{
+		Name: "nat44-ed",
+		Enable: func(ctx context.Context) (bool, error) {
+			_, err := svc.Nat44EdPluginEnableDisable(ctx, &nat44_ed.Nat44EdPluginEnableDisable{Enable: true, Sessions: 1024})
+			if natcommon.IsAlreadyEnabled(err) {
+				return true, nil
+			}
+			return false, err
+		},
+		Empty: p.Empty,
+		Disable: func(ctx context.Context) error {
+			_, err := svc.Nat44EdPluginEnableDisable(ctx, &nat44_ed.Nat44EdPluginEnableDisable{Enable: false})
+			return err
+		},
+	}
+}
+
 // TestNat44EdOnHost is the one integration check per object type against the host VPP
-// (VRX_INTEGRATION=1, shared lab lock, slot prefix). The plugin enable is a global
-// singleton: it is read first, enabled only when nobody has, never disabled if foreign
-// objects exist, and restored in Cleanup. Every object carries the slot: loopbacks
-// loop<N>xx, pool 10.<N>.0.0/16, tables N000–N999, tags w<N>:*.
+// (VRX_INTEGRATION=1, shared lab lock, slot prefix). The slot is NOT the globals owner
+// (D-071): the plugin is a fixture (enabled if off, previous state restored), and the global
+// descriptors (enable, timeouts, forwarding) are exercised as requirements only — they never
+// set, reset or disable anything. Every object carries the slot: loopbacks loop<N>xx, pool
+// 10.<N>.0.0/16, tables N000–N999, tags w<N>:*.
 func TestNat44EdOnHost(t *testing.T) {
 	c := nattest.Connect(t)
 	nattest.SlotLock(t, "nat44") // ED and EI are mutually exclusive; serialise this slot's packages
 	ctx := nattest.Ctx(t)
 	owner := vpptest.Prefix(t)
-	p := nat44ed.New(c, owner)
+	p := nat44ed.New(c, owner) // default config: not the globals owner
 	svc := nat44_ed.NewServiceClient(c)
 
-	// --- global singleton: read first --------------------------------------------------------
-	rc, err := svc.Nat44ShowRunningConfig(ctx, &nat44_ed.Nat44ShowRunningConfig{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	foreignEnabled := rc.Sessions != 0
 	ei, err := nat44eiRunning(ctx, c)
 	if err != nil {
 		t.Fatal(err)
@@ -39,48 +56,40 @@ func TestNat44EdOnHost(t *testing.T) {
 	if ei {
 		t.Skip("nat44-ei is enabled on this VPP by another owner; ED and EI are mutually exclusive")
 	}
-	enable := natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 1024})
-	if foreignEnabled {
-		enable = natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: rc.Sessions, InsideVRF: rc.InsideVrf, OutsideVRF: rc.OutsideVrf, Out2InDPO: rc.Flags&nat44_ed.NAT44_IS_OUT2IN_DPO != 0})
-		t.Logf("nat44-ed already enabled by another owner (sessions=%d): treating as converged, will not disable", rc.Sessions)
-	} else {
-		t.Cleanup(func() {
-			cctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			if err := p.Enable.Delete(cctx, enable, nil); err != nil {
-				t.Errorf("restore: disable nat44-ed: %v", err)
-			}
-			if rc2, err := svc.Nat44ShowRunningConfig(cctx, &nat44_ed.Nat44ShowRunningConfig{}); err != nil || rc2.Sessions != 0 {
-				t.Errorf("restore: nat44-ed still enabled: %+v %v", rc2, err)
-			}
-		})
-	}
-	if _, err := p.Enable.Create(ctx, enable); err != nil {
-		t.Fatalf("enable: %v", err)
-	}
-	nattest.AssertPlan(t, p.Enable, enable)
-
-	// timeouts: remember and restore
-	oldTimeouts := natcommon.MustEncode(&nat44ed.TimeoutsSpec{UDP: rc.Timeouts.UDP, TCPEstablished: rc.Timeouts.TCPEstablished, TCPTransitory: rc.Timeouts.TCPTransitory, ICMP: rc.Timeouts.ICMP})
-	tmo := natcommon.MustEncode(&nat44ed.TimeoutsSpec{UDP: 299, TCPEstablished: 7439, TCPTransitory: 239, ICMP: 59})
-	if _, err := p.Timeouts.Create(ctx, tmo); err != nil {
+	wasOn := nattest.EnsurePlugin(t, edFixture(c, p))
+	rc, err := svc.Nat44ShowRunningConfig(ctx, &nat44_ed.Nat44ShowRunningConfig{})
+	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		if foreignEnabled {
-			_, _ = p.Timeouts.Update(context.Background(), tmo, oldTimeouts, nil)
-		}
-	})
-	nattest.AssertPlan(t, p.Timeouts, tmo)
 
-	fwd := natcommon.MustEncode(&nat44ed.ForwardingSpec{})
-	if !rc.ForwardingEnabled {
-		if _, err := p.Forwarding.Create(ctx, fwd); err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() { _ = p.Forwarding.Delete(context.Background(), fwd, nil) })
-		nattest.AssertPlan(t, p.Forwarding, fwd)
+	// --- globals as requirements (D-071): current values satisfy, others fail, nothing changes
+	cur := natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: rc.Sessions, InsideVRF: rc.InsideVrf, OutsideVRF: rc.OutsideVrf, Out2InDPO: rc.Flags&nat44_ed.NAT44_IS_OUT2IN_DPO != 0})
+	if _, err := p.Enable.Create(ctx, cur); err != nil {
+		t.Fatalf("enable requirement (current config): %v", err)
 	}
+	if _, err := p.Enable.Create(ctx, natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: rc.Sessions + 1})); !errors.Is(err, natcommon.ErrGlobalMismatch) {
+		t.Fatalf("enable requirement (other config) must fail: %v", err)
+	}
+	nattest.AssertWriteOnly(t, p.Enable)
+	curTmo := natcommon.MustEncode(&nat44ed.TimeoutsSpec{UDP: rc.Timeouts.UDP, TCPEstablished: rc.Timeouts.TCPEstablished, TCPTransitory: rc.Timeouts.TCPTransitory, ICMP: rc.Timeouts.ICMP})
+	if _, err := p.Timeouts.Create(ctx, curTmo); err != nil {
+		t.Fatalf("timeouts requirement (current): %v", err)
+	}
+	other := natcommon.MustEncode(&nat44ed.TimeoutsSpec{UDP: rc.Timeouts.UDP + 1, TCPEstablished: rc.Timeouts.TCPEstablished, TCPTransitory: rc.Timeouts.TCPTransitory, ICMP: rc.Timeouts.ICMP})
+	if _, err := p.Timeouts.Create(ctx, other); !errors.Is(err, natcommon.ErrGlobalMismatch) {
+		t.Fatalf("timeouts requirement (other) must fail: %v", err)
+	}
+	if err := p.Timeouts.Delete(ctx, curTmo, nil); err != nil {
+		t.Fatal(err)
+	}
+	fwd := natcommon.MustEncode(&nat44ed.ForwardingSpec{})
+	if _, err := p.Forwarding.Create(ctx, fwd); rc.ForwardingEnabled != (err == nil) {
+		t.Fatalf("forwarding requirement (on=%v): %v", rc.ForwardingEnabled, err)
+	}
+	if rc2, err := svc.Nat44ShowRunningConfig(ctx, &nat44_ed.Nat44ShowRunningConfig{}); err != nil || rc2.Timeouts != rc.Timeouts || rc2.ForwardingEnabled != rc.ForwardingEnabled || rc2.Sessions != rc.Sessions {
+		t.Fatalf("a non-owner changed a global: before %+v after %+v %v", rc, rc2, err)
+	}
+	t.Log("globals required only: timeouts/forwarding/enable unchanged (D-071)")
 
 	// --- prefixed interfaces and table ------------------------------------------------------
 	inside, inIdx := nattest.Loopback(t, c, 1)
@@ -163,6 +172,42 @@ func TestNat44EdOnHost(t *testing.T) {
 	nattest.DeleteAll(ctx, t, p.InterfaceAddress)
 	nattest.DeleteAll(ctx, t, p.OutputFeature)
 	nattest.DeleteAll(ctx, t, p.InterfaceFeature)
+
+	// --- review finding 1 regression (H1): w9 can never disable NAT under another owner's object
+	// a non-owner's Delete of the enable singleton is a no-op
+	if err := p.Enable.Delete(ctx, cur, nil); err != nil || !edEnabled(ctx, t, svc) {
+		t.Fatalf("non-owner Delete disabled nat44-ed: %v", err)
+	}
+	if wasOn {
+		t.Log("H1: nat44-ed was enabled by another owner; non-owner Delete left it enabled")
+		return
+	}
+	// only when THIS test enabled the plugin: a foreign owner's output-feature interface (the
+	// object kind the original check missed) must keep even the globals owner's Delete from
+	// disabling nat44-ed
+	foreignIf, foreignIdx := nattest.LoopbackOwnedBy(t, c, 7, owner+"b")
+	if _, err := svc.Nat44EdAddDelOutputInterface(ctx, &nat44_ed.Nat44EdAddDelOutputInterface{IsAdd: true, SwIfIndex: interface_types.InterfaceIndex(foreignIdx)}); err != nil {
+		t.Fatal(err)
+	}
+	removeForeign := func() {
+		_, _ = svc.Nat44EdAddDelOutputInterface(context.Background(), &nat44_ed.Nat44EdAddDelOutputInterface{IsAdd: false, SwIfIndex: interface_types.InterfaceIndex(foreignIdx)})
+	}
+	t.Cleanup(removeForeign)
+	globalsOwner := nat44ed.New(c, owner, natcommon.WithGlobalsOwner(true))
+	if err := globalsOwner.Enable.Delete(ctx, cur, nil); err != nil || !edEnabled(ctx, t, svc) {
+		t.Fatalf("H1: disable went through with %s's output interface %s present: %v", owner+"b", foreignIf, err)
+	}
+	t.Logf("H1: %s's output-feature interface %s present → globals-owner Delete skipped, nat44-ed still enabled", owner+"b", foreignIf)
+	removeForeign()
+}
+
+func edEnabled(ctx context.Context, t *testing.T, svc nat44_ed.RPCService) bool {
+	t.Helper()
+	rc, err := svc.Nat44ShowRunningConfig(ctx, &nat44_ed.Nat44ShowRunningConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rc.Sessions != 0
 }
 
 // nat44eiRunning reports whether the nat44-ei plugin is enabled (sessions != 0 in its

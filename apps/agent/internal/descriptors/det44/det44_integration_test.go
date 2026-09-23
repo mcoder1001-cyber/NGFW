@@ -2,6 +2,7 @@ package det44_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 
@@ -12,8 +13,8 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// TestDet44OnHost: one integration check per det44 object type. The plugin is enabled and
-// deliberately never disabled (VPP 26.06 crash, see det44.go Enable.Delete).
+// TestDet44OnHost: one integration check per det44 object type (opt-in, D-064). The slot is not
+// the globals owner (D-071); the plugin is a never-disabled fixture (D-068).
 func TestDet44OnHost(t *testing.T) {
 	// D-064: this test's first host run crashed the shared VPP (det44_plugin_enable_disable
 	// with enable=0, VPP 26.06 bug — fixed here by never disabling det44). It stays opt-in.
@@ -25,29 +26,36 @@ func TestDet44OnHost(t *testing.T) {
 	p := det44d.New(c, vpptest.Prefix(t))
 	svc := det44.NewServiceClient(c)
 
-	// det44 is enabled and never disabled here: det44_plugin_enable_disable(disable)
-	// crashes VPP 26.06 once any det44 interface was removed (det44.c, see det44.go).
-	// The plugin stays enabled and idle until the next VPP restart; that is harmless for
-	// other slots (det44 does nothing without interfaces and maps).
+	// det44 is a test fixture (D-071), enabled if off and NEVER disabled (D-068: the
+	// disable crashes VPP 26.06). It stays enabled and idle until the next VPP restart.
+	nattest.EnsurePlugin(t, nattest.Plugin{
+		Name: "det44",
+		Enable: func(ctx context.Context) (bool, error) {
+			_, err := svc.Det44PluginEnableDisable(ctx, &det44.Det44PluginEnableDisable{Enable: true})
+			if natcommon.IsAlreadyEnabled(err) {
+				return true, nil
+			}
+			return false, err
+		},
+	})
 	en := natcommon.MustEncode(&det44d.EnableSpec{})
 	if _, err := p.Enable.Create(ctx, en); err != nil {
 		t.Fatal(err)
 	}
 	nattest.AssertWriteOnly(t, p.Enable)
-	t.Cleanup(func() { _ = p.Enable.Delete(context.Background(), en, nil) }) // agent-side release only
 
-	// timeouts are a global singleton: only touch them when they are at VPP's defaults, and
-	// Delete (run by CreateAll's cleanup) restores exactly those defaults.
+	// timeouts: global, required at their current value only (never set by a slot)
 	cur, err := svc.Det44GetTimeouts(ctx, &det44.Det44GetTimeouts{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if (det44d.TimeoutsSpec{UDP: cur.UDP, TCPEstablished: cur.TCPEstablished, TCPTransitory: cur.TCPTransitory, ICMP: cur.ICMP}) != det44d.DefaultTimeouts {
-		t.Skipf("det44 timeouts already changed by another owner (%+v): not touching the global", cur)
+	curTmo := natcommon.MustEncode(&det44d.TimeoutsSpec{UDP: cur.UDP, TCPEstablished: cur.TCPEstablished, TCPTransitory: cur.TCPTransitory, ICMP: cur.ICMP})
+	if _, err := p.Timeouts.Create(ctx, curTmo); err != nil {
+		t.Fatalf("timeouts requirement: %v", err)
 	}
-	tmo := natcommon.MustEncode(&det44d.TimeoutsSpec{UDP: 299, TCPEstablished: 7439, TCPTransitory: 239, ICMP: 59})
-	nattest.CreateAll(ctx, t, p.Timeouts, tmo)
-	nattest.AssertPlan(t, p.Timeouts, tmo)
+	if _, err := p.Timeouts.Create(ctx, natcommon.MustEncode(&det44d.TimeoutsSpec{UDP: cur.UDP + 1})); !errors.Is(err, natcommon.ErrGlobalMismatch) {
+		t.Fatalf("timeouts requirement (other) must fail: %v", err)
+	}
 
 	inside, _ := nattest.Loopback(t, c, 20)
 	outside, _ := nattest.Loopback(t, c, 21)
@@ -70,5 +78,4 @@ func TestDet44OnHost(t *testing.T) {
 	nattest.Pause(t, "det44") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
 	nattest.DeleteAll(ctx, t, p.Map)
 	nattest.DeleteAll(ctx, t, p.Interface)
-	nattest.DeleteAll(ctx, t, p.Timeouts)
 }

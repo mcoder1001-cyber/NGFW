@@ -1,9 +1,8 @@
 package mapnat_test
 
 import (
-	"context"
+	"errors"
 	"testing"
-	"time"
 
 	maps "ngfw/agent/binapi/map"
 	"ngfw/agent/internal/descriptors/mapnat"
@@ -48,33 +47,31 @@ func TestMapOnHost(t *testing.T) {
 	nattest.CreateAll(ctx, t, p.Interface, ie, it)
 	nattest.AssertPlan(t, p.Interface, ie, it)
 
-	nattest.Pause(t, "map") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
-	// global parameters: only from defaults, restored in Cleanup
-	if kvs, err := p.Params.Retrieve(ctx); err != nil {
+	// global parameters (D-071): the slot is not the globals owner — the current values are
+	// required (satisfied), other values fail, and nothing is ever set
+	before, err := svc.MapParamGet(ctx, &maps.MapParamGet{})
+	if err != nil {
 		t.Fatal(err)
-	} else if len(kvs) != 0 {
-		t.Logf("map params already changed by another owner (%v): not touching the global", kvs[0].Value)
-	} else {
-		t.Cleanup(func() {
-			cctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			if err := p.Params.Delete(cctx, natcommon.MustEncode(&mapnat.DefaultParams), nil); err != nil {
-				t.Errorf("restore map params: %v", err)
-			}
-		})
-		want := natcommon.MustEncode(&mapnat.ParamsSpec{FragInner: true, SecurityCheck: true, TCCopy: false, TCClass: 8})
-		if n := nattest.Apply(t, p.Params, want); n != 1 {
-			t.Fatalf("params planned %d", n)
-		}
-		nattest.AssertPlan(t, p.Params, want)
-		nattest.DeleteAll(ctx, t, p.Params)
-		rep, err := svc.MapParamGet(ctx, &maps.MapParamGet{})
-		if err != nil || rep.FragInner != 0 || !rep.SecCheckEnable || !rep.TcCopy || rep.TcClass != 0 {
-			t.Fatalf("params not restored: %+v %v", rep, err)
-		}
-		t.Log("map params restored to VPP defaults")
 	}
+	cur := mapnat.ParamsSpec{FragInner: before.FragInner != 0, FragIgnoreDF: before.FragIgnoreDf != 0, ICMPRelaySrc: natcommon.IP4String(before.ICMPIP4ErrRelaySrc),
+		ICMP6Unreachable: before.ICMP6EnableUnreachable, SecurityCheck: before.SecCheckEnable, SecurityCheckFrags: before.SecCheckFragments, TCCopy: before.TcCopy, TCClass: uint32(before.TcClass)}
+	if _, err := p.Params.Create(ctx, natcommon.MustEncode(&cur)); err != nil {
+		t.Fatalf("params requirement (current): %v", err)
+	}
+	other := cur
+	other.TCClass++
+	if _, err := p.Params.Create(ctx, natcommon.MustEncode(&other)); !errors.Is(err, natcommon.ErrGlobalMismatch) {
+		t.Fatalf("params requirement (other) must fail: %v", err)
+	}
+	if err := p.Params.Delete(ctx, natcommon.MustEncode(&cur), nil); err != nil {
+		t.Fatal(err)
+	}
+	if after, err := svc.MapParamGet(ctx, &maps.MapParamGet{}); err != nil || *after != *before {
+		t.Fatalf("a non-owner changed MAP params: %+v → %+v %v", before, after, err)
+	}
+	t.Log("map params required only, unchanged (D-071)")
 
+	nattest.Pause(t, "map") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
 	nattest.DeleteAll(ctx, t, p.Interface)
 	nattest.DeleteAll(ctx, t, p.Rule)
 	nattest.DeleteAll(ctx, t, p.Domain)

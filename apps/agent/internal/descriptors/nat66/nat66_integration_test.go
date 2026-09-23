@@ -3,7 +3,6 @@ package nat66_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"ngfw/agent/binapi/nat66"
 	nat66d "ngfw/agent/internal/descriptors/nat66"
@@ -12,31 +11,30 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// TestNat66OnHost: one integration check per nat66 object type; enable is probed (retval on
-// an already enabled plugin) and disabled only when this test enabled it.
+// TestNat66OnHost: one integration check per nat66 object type. The slot is not the globals
+// owner (D-071): nat66 is a test fixture (enabled if off; disabled again only if this test
+// enabled it and nat66 is empty); the enable descriptor is exercised as a requirement.
 func TestNat66OnHost(t *testing.T) {
 	c := nattest.Connect(t)
 	ctx := nattest.Ctx(t)
 	p := nat66d.New(c, vpptest.Prefix(t))
 	svc := nat66.NewServiceClient(c)
-
-	en := natcommon.MustEncode(&nat66d.EnableSpec{})
-	_, err := svc.Nat66PluginEnableDisable(ctx, &nat66.Nat66PluginEnableDisable{Enable: true})
-	alreadyOn := natcommon.IsAlreadyEnabled(err)
-	if err != nil && !alreadyOn {
-		t.Fatalf("nat66 enable: %v", err)
-	}
-	if alreadyOn {
-		t.Log("nat66 already enabled by another owner: will not disable")
-	} else {
-		t.Cleanup(func() {
-			cctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			if err := p.Enable.Delete(cctx, en, nil); err != nil {
-				t.Errorf("restore: disable nat66: %v", err)
+	nattest.EnsurePlugin(t, nattest.Plugin{
+		Name: "nat66",
+		Enable: func(ctx context.Context) (bool, error) {
+			_, err := svc.Nat66PluginEnableDisable(ctx, &nat66.Nat66PluginEnableDisable{Enable: true})
+			if natcommon.IsAlreadyEnabled(err) {
+				return true, nil
 			}
-		})
-	}
+			return false, err
+		},
+		Empty: p.Empty,
+		Disable: func(ctx context.Context) error {
+			_, err := svc.Nat66PluginEnableDisable(ctx, &nat66.Nat66PluginEnableDisable{Enable: false})
+			return err
+		},
+	})
+	en := natcommon.MustEncode(&nat66d.EnableSpec{})
 	if _, err := p.Enable.Create(ctx, en); err != nil {
 		t.Fatal(err)
 	}

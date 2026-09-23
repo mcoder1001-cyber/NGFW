@@ -2,8 +2,8 @@ package nat44ei_test
 
 import (
 	"context"
+	"errors"
 	"testing"
-	"time"
 
 	"ngfw/agent/binapi/nat44_ed"
 	"ngfw/agent/binapi/nat44_ei"
@@ -13,9 +13,10 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// TestNat44EiOnHost: one integration check per nat44-ei object type. The plugin is a global
-// singleton and mutually exclusive with nat44-ed: skip when ED is enabled (by anyone), enable
-// EI only when nobody has, restore in Cleanup.
+// TestNat44EiOnHost: one integration check per nat44-ei object type. The slot is not the
+// globals owner (D-071): the plugin is a test fixture (enabled if off — skipped while nat44-ed
+// is on, the two are mutually exclusive — and disabled again only if this test enabled it and
+// nat44-ei is empty); enable / timeouts / forwarding / ipfix are required, never set.
 func TestNat44EiOnHost(t *testing.T) {
 	c := nattest.Connect(t)
 	nattest.SlotLock(t, "nat44")
@@ -30,38 +31,49 @@ func TestNat44EiOnHost(t *testing.T) {
 		t.Skip("nat44-ed is enabled on this VPP; ED and EI are mutually exclusive")
 	}
 	svc := nat44_ei.NewServiceClient(c)
+	nattest.EnsurePlugin(t, nattest.Plugin{
+		Name: "nat44-ei",
+		Enable: func(ctx context.Context) (bool, error) {
+			_, err := svc.Nat44EiPluginEnableDisable(ctx, &nat44_ei.Nat44EiPluginEnableDisable{Enable: true})
+			if natcommon.IsAlreadyEnabled(err) {
+				return true, nil
+			}
+			return false, err
+		},
+		Empty: p.Empty,
+		Disable: func(ctx context.Context) error {
+			_, err := svc.Nat44EiPluginEnableDisable(ctx, &nat44_ei.Nat44EiPluginEnableDisable{Enable: false})
+			return err
+		},
+	})
 	rc, err := svc.Nat44EiShowRunningConfig(ctx, &nat44_ei.Nat44EiShowRunningConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	enable := natcommon.MustEncode(&nat44ei.EnableSpec{})
-	if rc.Sessions != 0 {
-		enable = natcommon.MustEncode(&nat44ei.EnableSpec{InsideVRF: rc.InsideVrf, OutsideVRF: rc.OutsideVrf,
-			StaticMappingOnly: rc.Flags&nat44_ei.NAT44_EI_STATIC_MAPPING_ONLY != 0, ConnectionTracking: rc.Flags&nat44_ei.NAT44_EI_CONNECTION_TRACKING != 0, Out2InDPO: rc.Flags&nat44_ei.NAT44_EI_OUT2IN_DPO != 0})
-		t.Logf("nat44-ei already enabled by another owner: converged, will not disable")
-	} else {
-		t.Cleanup(func() {
-			cctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			if err := p.Enable.Delete(cctx, enable, nil); err != nil {
-				t.Errorf("restore: disable nat44-ei: %v", err)
-			}
-			if rc2, err := svc.Nat44EiShowRunningConfig(cctx, &nat44_ei.Nat44EiShowRunningConfig{}); err != nil || rc2.Sessions != 0 {
-				t.Errorf("restore: nat44-ei still enabled: %+v %v", rc2, err)
-			}
-		})
+	cur := natcommon.MustEncode(&nat44ei.EnableSpec{InsideVRF: rc.InsideVrf, OutsideVRF: rc.OutsideVrf,
+		StaticMappingOnly: rc.Flags&nat44_ei.NAT44_EI_STATIC_MAPPING_ONLY != 0, ConnectionTracking: rc.Flags&nat44_ei.NAT44_EI_CONNECTION_TRACKING != 0, Out2InDPO: rc.Flags&nat44_ei.NAT44_EI_OUT2IN_DPO != 0})
+	if _, err := p.Enable.Create(ctx, cur); err != nil {
+		t.Fatalf("enable requirement: %v", err)
 	}
-	if _, err := p.Enable.Create(ctx, enable); err != nil {
-		t.Fatalf("enable: %v", err)
+	curTmo := natcommon.MustEncode(&nat44ei.TimeoutsSpec{UDP: rc.Timeouts.UDP, TCPEstablished: rc.Timeouts.TCPEstablished, TCPTransitory: rc.Timeouts.TCPTransitory, ICMP: rc.Timeouts.ICMP})
+	if _, err := p.Timeouts.Create(ctx, curTmo); err != nil {
+		t.Fatalf("timeouts requirement: %v", err)
 	}
-	nattest.AssertPlan(t, p.Enable, enable)
-
-	tmo := natcommon.MustEncode(&nat44ei.TimeoutsSpec{UDP: 299, TCPEstablished: 7439, TCPTransitory: 239, ICMP: 59})
-	nattest.CreateAll(ctx, t, p.Timeouts, tmo)
-	nattest.AssertPlan(t, p.Timeouts, tmo)
-	fwd := natcommon.MustEncode(&nat44ei.ForwardingSpec{})
-	nattest.CreateAll(ctx, t, p.Forwarding, fwd)
-	nattest.AssertPlan(t, p.Forwarding, fwd)
+	if _, err := p.Timeouts.Create(ctx, natcommon.MustEncode(&nat44ei.TimeoutsSpec{UDP: rc.Timeouts.UDP + 1})); !errors.Is(err, natcommon.ErrGlobalMismatch) {
+		t.Fatalf("timeouts requirement (other) must fail: %v", err)
+	}
+	if _, err := p.Forwarding.Create(ctx, natcommon.MustEncode(&nat44ei.ForwardingSpec{})); rc.ForwardingEnabled != (err == nil) {
+		t.Fatalf("forwarding requirement (on=%v): %v", rc.ForwardingEnabled, err)
+	}
+	nattest.AssertWriteOnly(t, p.Enable)
+	defer func() {
+		rc2, err := svc.Nat44EiShowRunningConfig(ctx, &nat44_ei.Nat44EiShowRunningConfig{})
+		if err != nil || rc2.Timeouts != rc.Timeouts || rc2.ForwardingEnabled != rc.ForwardingEnabled || rc2.IpfixLoggingEnabled != rc.IpfixLoggingEnabled {
+			t.Errorf("a non-owner changed a nat44-ei global: before %+v after %+v %v", rc, rc2, err)
+		} else {
+			t.Log("globals required only: timeouts/forwarding/ipfix unchanged (D-071)")
+		}
+	}()
 
 	inside, inIdx := nattest.Loopback(t, c, 3)
 	outside, outIdx := nattest.Loopback(t, c, 4)
@@ -110,5 +122,4 @@ func TestNat44EiOnHost(t *testing.T) {
 	nattest.DeleteAll(ctx, t, p.AddressPool)
 	nattest.DeleteAll(ctx, t, p.InterfaceAddress)
 	nattest.DeleteAll(ctx, t, p.InterfaceFeature)
-	nattest.DeleteAll(ctx, t, p.Forwarding)
 }

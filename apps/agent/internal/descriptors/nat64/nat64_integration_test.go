@@ -2,8 +2,8 @@ package nat64_test
 
 import (
 	"context"
+	"errors"
 	"testing"
-	"time"
 
 	"ngfw/agent/binapi/nat64"
 	nat64d "ngfw/agent/internal/descriptors/nat64"
@@ -12,40 +12,48 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// TestNat64OnHost: one integration check per nat64 object type. VPP has no "enabled" getter:
-// the test probes with an enable and remembers whether it was already on (retval 1), so it
-// disables only what it enabled.
+// TestNat64OnHost: one integration check per nat64 object type. The slot is not the globals
+// owner (D-071): nat64 is a test fixture (enabled if off; disabled again only if this test
+// enabled it and nat64 is empty), timeouts are required at their current value, never set.
 func TestNat64OnHost(t *testing.T) {
 	c := nattest.Connect(t)
 	ctx := nattest.Ctx(t)
 	p := nat64d.New(c, vpptest.Prefix(t))
 	svc := nat64.NewServiceClient(c)
-
-	en := natcommon.MustEncode(&nat64d.EnableSpec{})
-	_, err := svc.Nat64PluginEnableDisable(ctx, &nat64.Nat64PluginEnableDisable{Enable: true})
-	alreadyOn := natcommon.IsAlreadyEnabled(err)
-	if err != nil && !alreadyOn {
-		t.Fatalf("nat64 enable: %v", err)
-	}
-	if alreadyOn {
-		t.Log("nat64 already enabled by another owner: will not disable")
-	} else {
-		t.Cleanup(func() {
-			cctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			if err := p.Enable.Delete(cctx, en, nil); err != nil {
-				t.Errorf("restore: disable nat64: %v", err)
+	nattest.EnsurePlugin(t, nattest.Plugin{
+		Name: "nat64",
+		Enable: func(ctx context.Context) (bool, error) {
+			_, err := svc.Nat64PluginEnableDisable(ctx, &nat64.Nat64PluginEnableDisable{Enable: true})
+			if natcommon.IsAlreadyEnabled(err) {
+				return true, nil
 			}
-		})
-	}
-	if _, err := p.Enable.Create(ctx, en); err != nil { // idempotent on an enabled plugin
+			return false, err
+		},
+		Empty: p.Empty,
+		Disable: func(ctx context.Context) error {
+			_, err := svc.Nat64PluginEnableDisable(ctx, &nat64.Nat64PluginEnableDisable{Enable: false})
+			return err
+		},
+	})
+	en := natcommon.MustEncode(&nat64d.EnableSpec{})
+	if _, err := p.Enable.Create(ctx, en); err != nil { // requirement: unobservable or satisfied
 		t.Fatal(err)
 	}
 	nattest.AssertWriteOnly(t, p.Enable)
-
-	tmo := natcommon.MustEncode(&nat64d.TimeoutsSpec{UDP: 299, TCPEstablished: 7439, TCPTransitory: 239, ICMP: 59})
-	nattest.CreateAll(ctx, t, p.Timeouts, tmo)
-	nattest.AssertPlan(t, p.Timeouts, tmo)
+	before, err := svc.Nat64GetTimeouts(ctx, &nat64.Nat64GetTimeouts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cur := natcommon.MustEncode(&nat64d.TimeoutsSpec{UDP: before.UDP, TCPEstablished: before.TCPEstablished, TCPTransitory: before.TCPTransitory, ICMP: before.ICMP})
+	if _, err := p.Timeouts.Create(ctx, cur); err != nil {
+		t.Fatalf("timeouts requirement: %v", err)
+	}
+	if _, err := p.Timeouts.Create(ctx, natcommon.MustEncode(&nat64d.TimeoutsSpec{UDP: before.UDP + 1})); !errors.Is(err, natcommon.ErrGlobalMismatch) {
+		t.Fatalf("timeouts requirement (other) must fail: %v", err)
+	}
+	if after, err := svc.Nat64GetTimeouts(ctx, &nat64.Nat64GetTimeouts{}); err != nil || *after != *before {
+		t.Fatalf("a non-owner changed nat64 timeouts: %+v → %+v %v", before, after, err)
+	}
 
 	inside, _ := nattest.Loopback(t, c, 10)
 	outside, _ := nattest.Loopback(t, c, 11)
@@ -80,5 +88,4 @@ func TestNat64OnHost(t *testing.T) {
 	nattest.DeleteAll(ctx, t, p.Interface)
 	nattest.DeleteAll(ctx, t, p.Pool)
 	nattest.DeleteAll(ctx, t, p.Prefix)
-	nattest.DeleteAll(ctx, t, p.Timeouts)
 }

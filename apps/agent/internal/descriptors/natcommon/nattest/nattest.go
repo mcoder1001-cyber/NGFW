@@ -225,7 +225,7 @@ func AddAddress(t testing.TB, c vpp.Client, swIfIndex uint32, prefix string) {
 
 // Pause is an evidence hook for the task report: when VRX_EVIDENCE_DIR is set it writes
 // <dir>/<label>.ready and waits (≤ 120 s) for <dir>/<label>.go, so an operator can run
-// read-only `vppctl show …` while the test's objects exist. Without the variable it is a
+// read-only VPP CLI show commands while the test's objects exist. Without the variable it is a
 // no-op; it never runs anything itself.
 func Pause(t testing.TB, label string) {
 	t.Helper()
@@ -233,13 +233,14 @@ func Pause(t testing.TB, label string) {
 	if dir == "" {
 		return
 	}
+	dir = filepath.Clean(dir)
 	ready, goFile := filepath.Join(dir, label+".ready"), filepath.Join(dir, label+".go")
-	if err := os.WriteFile(ready, nil, 0o600); err != nil {
+	if err := os.WriteFile(ready, nil, 0o600); err != nil { //nolint:gosec // test-only: operator-chosen evidence dir
 		t.Fatalf("evidence pause: %v", err)
 	}
 	deadline := time.Now().Add(120 * time.Second)
 	for time.Now().Before(deadline) {
-		if _, err := os.Stat(goFile); err == nil {
+		if _, err := os.Stat(goFile); err == nil { //nolint:gosec // test-only: operator-chosen evidence dir
 			return
 		}
 		time.Sleep(100 * time.Millisecond)

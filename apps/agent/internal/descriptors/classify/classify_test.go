@@ -8,10 +8,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"go.fd.io/govpp/adapter"
 	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
 
 	classifyapi "ngfw/agent/binapi/classify"
+	isr "ngfw/agent/binapi/ip_session_redirect"
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/internal/descriptors/df2"
@@ -31,6 +33,8 @@ type fakeVPP struct {
 	next     uint32
 	tables   map[uint32]*table
 	inputACL map[uint32]binding
+	// redirects: full matches of ip_session_redirect sessions per table index.
+	redirects map[uint32][][]byte
 }
 
 func newFakeVPP() *fakeVPP {
@@ -102,6 +106,14 @@ func newFakeVPP() *fakeVPP {
 		for _, s := range t.sessions {
 			d := s
 			out = append(out, &d)
+		}
+		return out, nil
+	})
+	v.On("ip_session_redirect_dump", func(req api.Message) ([]api.Message, error) {
+		idx := req.(*isr.IPSessionRedirectDump).TableIndex
+		var out []api.Message
+		for _, m := range v.redirects[idx] {
+			out = append(out, &isr.IPSessionRedirectDetails{TableIndex: idx, MatchLength: uint32(len(m)), Match: m})
 		}
 		return out, nil
 	})
@@ -289,6 +301,10 @@ func TestSessionLifecycle(t *testing.T) {
 		req.OpaqueIndex != 77 || req.Advance != 8 || req.Action != classifyapi.CLASSIFY_API_ACTION_SET_METADATA || req.Metadata != 5 {
 		t.Fatalf("request = %+v", req)
 	}
+	// A redirect session in the same table (created by ip-session-redirect) is not ours.
+	redir := append(make([]byte, 16), 10, 3, 0, 2)
+	v.tables[0].sessions[hex.EncodeToString(redir)] = classifyapi.ClassifySessionDetails{TableID: 0, HitNextIndex: 2, OpaqueIndex: NoIndex, MatchLength: 16, Match: redir[16:]}
+	v.redirects = map[uint32][][]byte{0: {append(append([]byte(nil), redir...), make([]byte, 12)...)}}
 	actual, err := d.Retrieve(ctx)
 	norm := NormalizeSession(desired)
 	if err != nil || len(actual) != 1 || actual[0].Key != d.KeyOf(desired) || !proto.Equal(actual[0].Value, norm) || actual[0].Meta != meta {
@@ -300,7 +316,12 @@ func TestSessionLifecycle(t *testing.T) {
 	if err := d.Delete(ctx, desired, meta); err != nil {
 		t.Fatal(err)
 	}
-	if actual, _ = d.Retrieve(ctx); len(actual) != 0 {
+	// Without the ip_session_redirect plugin VPP has no redirect sessions to exclude.
+	v.On("ip_session_redirect_dump", func(api.Message) ([]api.Message, error) {
+		return nil, &adapter.UnknownMsgError{MsgName: "ip_session_redirect_dump"}
+	})
+	delete(v.tables[0].sessions, hex.EncodeToString(redir))
+	if actual, err = d.Retrieve(ctx); err != nil || len(actual) != 0 {
 		t.Fatalf("after Delete = %+v", actual)
 	}
 	if rec, _ := store.Get("w3-t1"); len(rec.Sessions) != 0 {

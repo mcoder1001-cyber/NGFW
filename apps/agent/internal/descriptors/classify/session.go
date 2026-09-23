@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	"google.golang.org/protobuf/proto"
 
 	classifyapi "ngfw/agent/binapi/classify"
+	isr "ngfw/agent/binapi/ip_session_redirect"
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
@@ -160,9 +162,16 @@ func (d *SessionDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error
 		if err != nil {
 			return nil, fmt.Errorf("classify_session_dump %d: %w", rec.Index, err)
 		}
+		redirects, err := redirectMatches(ctx, d.client, rec.Index)
+		if err != nil {
+			return nil, err
+		}
 		for _, det := range details {
 			// VPP dumps the key after the skipped vectors; restore the full match layout.
 			match := TrimMatch(append(make([]byte, int(rec.SkipNVectors)*VectorSize), det.Match...))
+			if redirects[MatchID(match)] || redirects[MatchID(det.Match)] {
+				continue // an ip_session_redirect session: descriptor ip-session-redirect.redirect owns it
+			}
 			v := &Session{Table: rec.Name, Match: match, HitNextIndex: det.HitNextIndex, OpaqueIndex: det.OpaqueIndex, Advance: det.Advance}
 			if sr, ok := rec.Sessions[MatchID(match)]; ok {
 				v.Action, v.Metadata = Session_Action(sr.Action), sr.Metadata
@@ -171,4 +180,32 @@ func (d *SessionDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error
 		}
 	}
 	return out, nil
+}
+
+// redirectMatches returns the MatchIDs of the ip_session_redirect sessions in table index:
+// they are classify sessions too (classify_session_dump lists them) but belong to the
+// ip-session-redirect descriptor, so classify.session must not report them (the scheduler
+// would delete them as undesired). The set comes from VPP (ip_session_redirect_dump), not
+// from the Store, so it survives an agent restart. A VPP without the plugin has none.
+func redirectMatches(ctx context.Context, c vpp.Client, index uint32) (map[string]bool, error) {
+	stream, err := isr.NewServiceClient(c).IPSessionRedirectDump(ctx, &isr.IPSessionRedirectDump{TableIndex: index})
+	if err == nil {
+		var details []*isr.IPSessionRedirectDetails
+		details, err = df2.Collect(stream.Recv)
+		if err == nil {
+			out := map[string]bool{}
+			for _, det := range details {
+				if det.TableIndex != index {
+					continue
+				}
+				n := min(int(det.MatchLength), len(det.Match))
+				out[MatchID(det.Match[:n])] = true
+			}
+			return out, nil
+		}
+	}
+	if errors.Is(df2.PluginError("ip_session_redirect", err), df2.ErrPluginNotLoaded) {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("ip_session_redirect_dump %d: %w", index, err)
 }

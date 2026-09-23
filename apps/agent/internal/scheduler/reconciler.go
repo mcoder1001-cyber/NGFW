@@ -665,100 +665,96 @@ func (x *executor) addResult(k Key, op string, code ResultCode, err error) int {
 }
 
 func (x *executor) run(ctx context.Context, op PlannedOp) error {
-	d := x.descriptor(op.Key)
-	log := x.s.log.With("key", op.Key, "op", op.Op)
 	switch op.Op {
 	case OpCreate:
-		meta, err := d.Create(ctx, op.Value)
-		if err != nil {
-			x.addResult(op.Key, OpCreate, CodeFailed, err)
-			log.Warn("create failed", "err", err)
-			return fmt.Errorf("create %s: %w", op.Key, err)
-		}
 		idx := x.addResult(op.Key, OpCreate, CodeOK, nil)
-		x.journal = append(x.journal, journalEntry{key: op.Key, op: OpCreate, newValue: op.Value, newMeta: meta, result: idx})
-		x.live[op.Key] = KV{Key: op.Key, Value: op.Value, Meta: meta}
-		x.done[op.Key] = true
-		log.Info("created")
-		return nil
+		return x.around(ctx, op.Key, op.Value, func() error { return x.create(ctx, op.Key, op.Value, idx) })
 	case OpDelete:
-		cur := x.live[op.Key]
-		if err := d.Delete(ctx, cur.Value, cur.Meta); err != nil {
-			x.addResult(op.Key, OpDelete, CodeFailed, err)
-			log.Warn("delete failed", "err", err)
-			return fmt.Errorf("delete %s: %w", op.Key, err)
-		}
 		idx := x.addResult(op.Key, OpDelete, CodeOK, nil)
-		x.journal = append(x.journal, journalEntry{key: op.Key, op: OpDelete, oldValue: cur.Value, oldMeta: cur.Meta, result: idx})
-		delete(x.live, op.Key)
-		x.done[op.Key] = true
-		log.Info("deleted")
-		return nil
+		cur := x.live[op.Key]
+		return x.around(ctx, op.Key, cur.Value, func() error { return x.del(ctx, op.Key, idx) })
 	case OpUpdate:
 		cur := x.live[op.Key]
-		meta, err := d.Update(ctx, cur.Value, op.Value, cur.Meta)
+		meta, err := x.descriptor(op.Key).Update(ctx, cur.Value, op.Value, cur.Meta)
 		if errors.Is(err, ErrRecreate) {
-			return x.recreate(ctx, op.Key, op.Value)
+			idx := x.addResult(op.Key, OpRecreate, CodeOK, nil)
+			return x.around(ctx, op.Key, cur.Value, func() error {
+				if err := x.del(ctx, op.Key, idx); err != nil {
+					return err
+				}
+				return x.create(ctx, op.Key, op.Value, idx)
+			})
 		}
 		if err != nil {
 			x.addResult(op.Key, OpUpdate, CodeFailed, err)
-			log.Warn("update failed", "err", err)
+			x.s.log.Warn("update failed", "key", op.Key, "err", err)
 			return fmt.Errorf("update %s: %w", op.Key, err)
 		}
 		idx := x.addResult(op.Key, OpUpdate, CodeOK, nil)
 		x.journal = append(x.journal, journalEntry{key: op.Key, op: OpUpdate, oldValue: cur.Value, oldMeta: cur.Meta, newValue: op.Value, newMeta: meta, result: idx})
 		x.live[op.Key] = KV{Key: op.Key, Value: op.Value, Meta: meta}
 		x.done[op.Key] = true
-		log.Info("updated")
+		x.s.log.Info("updated", "key", op.Key)
 		return nil
 	}
 	return fmt.Errorf("unknown operation %q", op.Op)
 }
 
-// recreate deletes key and every live object that (transitively) depends on it, dependents
-// first, then creates key with value and re-creates the dependents with their desired value
-// (their live value when they are not desired), dependencies first.
-func (x *executor) recreate(ctx context.Context, key Key, value proto.Message) error {
-	dependents := x.dependents(key)
-	x.s.log.Info("recreate", "key", key, "dependents", len(dependents))
-	idx := x.addResult(key, OpRecreate, CodeOK, nil)
+func (x *executor) fail(k Key, idx int, op string, err error) error {
+	x.res.Results[idx].Code = CodeFailed
+	x.res.Results[idx].Err = err
+	x.s.log.Warn(op+" failed", "key", k, "err", err)
+	return fmt.Errorf("%s %s: %w", op, k, err)
+}
+
+// create creates k and journals it under result idx.
+func (x *executor) create(ctx context.Context, k Key, v proto.Message, idx int) error {
+	meta, err := x.descriptor(k).Create(ctx, v)
+	if err != nil {
+		return x.fail(k, idx, OpCreate, err)
+	}
+	x.journal = append(x.journal, journalEntry{key: k, op: OpCreate, newValue: v, newMeta: meta, result: idx})
+	x.live[k] = KV{Key: k, Value: v, Meta: meta}
+	x.done[k] = true
+	x.s.log.Info("created", "key", k)
+	return nil
+}
+
+// del deletes the live object k and journals it under result idx.
+func (x *executor) del(ctx context.Context, k Key, idx int) error {
+	cur := x.live[k]
+	if err := x.descriptor(k).Delete(ctx, cur.Value, cur.Meta); err != nil {
+		return x.fail(k, idx, OpDelete, err)
+	}
+	x.journal = append(x.journal, journalEntry{key: k, op: OpDelete, oldValue: cur.Value, oldMeta: cur.Meta, result: idx})
+	delete(x.live, k)
+	x.done[k] = true
+	x.s.log.Info("deleted", "key", k)
+	return nil
+}
+
+// around runs fn (a create, delete or recreate of key) with every live object that
+// (transitively, through optional dependencies too) depends on key removed first and re-created
+// afterwards with its desired value (its previous value when it is not desired). That is what
+// keeps handles valid (a dependent created against an old sw_if_index) and satisfies VPP's
+// ordering constraints (e.g. an interface cannot change its table while it has addresses).
+// value is key's value used to compute the aliases it provides.
+func (x *executor) around(ctx context.Context, key Key, value proto.Message, fn func() error) error {
+	dependents := x.dependents(key, value)
+	if len(dependents) == 0 {
+		return fn()
+	}
+	x.s.log.Info("re-creating dependents", "key", key, "dependents", len(dependents))
 	depIdx := make(map[Key]int, len(dependents))
 	for _, k := range dependents {
 		depIdx[k] = x.addResult(k, OpRecreate, CodeOK, nil)
 	}
-	fail := func(k Key, i int, err error) error {
-		x.res.Results[i].Code = CodeFailed
-		x.res.Results[i].Err = err
-		return fmt.Errorf("recreate %s: %w", k, err)
-	}
-	del := func(k Key, i int) error {
-		cur := x.live[k]
-		if err := x.descriptor(k).Delete(ctx, cur.Value, cur.Meta); err != nil {
-			return fail(k, i, err)
-		}
-		x.journal = append(x.journal, journalEntry{key: k, op: OpDelete, oldValue: cur.Value, oldMeta: cur.Meta, result: i})
-		delete(x.live, k)
-		return nil
-	}
-	create := func(k Key, v proto.Message, i int) error {
-		meta, err := x.descriptor(k).Create(ctx, v)
-		if err != nil {
-			return fail(k, i, err)
-		}
-		x.journal = append(x.journal, journalEntry{key: k, op: OpCreate, newValue: v, newMeta: meta, result: i})
-		x.live[k] = KV{Key: k, Value: v, Meta: meta}
-		x.done[k] = true
-		return nil
-	}
 	for i := len(dependents) - 1; i >= 0; i-- {
-		if err := del(dependents[i], depIdx[dependents[i]]); err != nil {
+		if err := x.del(ctx, dependents[i], depIdx[dependents[i]]); err != nil {
 			return err
 		}
 	}
-	if err := del(key, idx); err != nil {
-		return err
-	}
-	if err := create(key, value, idx); err != nil {
+	if err := fn(); err != nil {
 		return err
 	}
 	for _, k := range dependents {
@@ -766,7 +762,7 @@ func (x *executor) recreate(ctx context.Context, key Key, value proto.Message) e
 		if want, ok := x.desired[k]; ok {
 			v = want.Value
 		}
-		if err := create(k, v, depIdx[k]); err != nil {
+		if err := x.create(ctx, k, v, depIdx[k]); err != nil {
 			return err
 		}
 	}
@@ -783,24 +779,31 @@ func (x *executor) journalValue(k Key) proto.Message {
 	return nil
 }
 
-// dependents returns the live objects that transitively depend on key, in topological order
-// (dependencies first).
-func (x *executor) dependents(key Key) []Key {
+// dependents returns the live objects that transitively depend on key (whose value is value),
+// in topological order (dependencies first). Objects the plan deletes anyway are gone already
+// (deletes run first), so only objects that stay are returned.
+func (x *executor) dependents(key Key, value proto.Message) []Key {
 	users := make(map[Key]KV)
-	frontier := []Key{key}
-	for len(frontier) > 0 {
-		cur := frontier[0]
-		frontier = frontier[1:]
-		provided := map[Key]bool{cur: true}
-		if d := x.descriptor(cur); d != nil {
+	provides := func(k Key, v proto.Message) map[Key]bool {
+		out := map[Key]bool{k: true}
+		if d := x.descriptor(k); d != nil && v != nil {
 			if kp, ok := d.(KeyProvider); ok {
-				if kv, ok := x.live[cur]; ok {
-					for _, a := range kp.ProvidedKeys(kv.Value) {
-						provided[a] = true
-					}
+				for _, a := range kp.ProvidedKeys(v) {
+					out[a] = true
 				}
 			}
 		}
+		return out
+	}
+	type item struct {
+		k Key
+		v proto.Message
+	}
+	frontier := []item{{key, value}}
+	for len(frontier) > 0 {
+		cur := frontier[0]
+		frontier = frontier[1:]
+		provided := provides(cur.k, cur.v)
 		for _, k := range sortedKeys(x.live) {
 			if k == key {
 				continue
@@ -812,7 +815,7 @@ func (x *executor) dependents(key Key) []Key {
 			for _, dep := range x.descriptor(k).Dependencies(kv.Value) {
 				if provided[dep.Key] {
 					users[k] = kv
-					frontier = append(frontier, k)
+					frontier = append(frontier, item{k, kv.Value})
 					break
 				}
 			}

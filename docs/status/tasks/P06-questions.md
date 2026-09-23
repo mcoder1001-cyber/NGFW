@@ -46,3 +46,8 @@ None of these blocks P06; each has a default that is implemented. Numbered for t
    revert; overlap 400; readonly 403) and skips without `VRX_INTEGRATION=1` + an agent binary (`VRX_AGENT_BIN` or
    `apps/agent/bin/vrx-agent`). P05's CLI flags are unknown to P06: the test passes `VRX_OWNER`/`VRX_AGENT_SOCKET` in
    the environment and `VRX_AGENT_ARGS` verbatim. Please run it once P05 merges (or tell P05 which env names to honour).
+
+## After the review fix round
+- #4 (operators and secrets) is answered by D-P06-13: secret writes are admin-only now.
+- #6 (`notApplied`) is answered by D-P06-15 (explicit `not-applied` / `partially-applied` status).
+- #8 is done: the real-agent suite runs green on merged main (P06.md → Review fixes).

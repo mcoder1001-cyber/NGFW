@@ -457,3 +457,141 @@ func TestPlanDoesNotMutate(t *testing.T) {
 		t.Fatalf("summary %+v", sm)
 	}
 }
+
+// wo is a write-only descriptor (D-063): Retrieve has no dump; Create is idempotent.
+type wo struct{ mem }
+
+func (w *wo) Retrieve(context.Context) ([]KV, error) {
+	return nil, fmt.Errorf("%s: %w", w.name, ErrRetrieveUnsupported)
+}
+func (w *wo) Create(_ context.Context, o proto.Message) (any, error) {
+	w.st.mu.Lock()
+	defer w.st.mu.Unlock()
+	k := w.KeyOf(o)
+	if err := w.st.fail("create", k); err != nil {
+		return nil, err
+	}
+	w.st.objs[k] = proto.Clone(o).(*structpb.Struct) // idempotent overwrite
+	w.st.record("create", k)
+	return memMeta{Handle: 1}, nil
+}
+
+// woForeign wraps the sentinel of another package (df2.ErrRetrieveUnsupported has the same text).
+type woForeign struct{ mem }
+
+func (w *woForeign) Retrieve(context.Context) ([]KV, error) {
+	return nil, fmt.Errorf("x: %w", errors.New("vpp has no dump for this object type"))
+}
+
+func TestWriteOnlyDescriptor(t *testing.T) {
+	st := newStore()
+	reg := NewRegistry()
+	reg.Register(&mem{name: "a", st: st})
+	reg.Register(&wo{mem{name: "w", st: st}})
+	s := New(reg, nil)
+	ctx := context.Background()
+	desired := []KV{kv("a", obj("x", "1")), kv("w", obj("q", "1", "a/x"))}
+	r := s.Apply(ctx, desired, nil)
+	mustApplied(t, r) // verification skipped for w
+	if got := strings.Join(st.ops(), ","); got != "create a/x,create w/q" {
+		t.Fatalf("ops %s", got)
+	}
+	if d, n := s.WriteOnly(); len(d) != 1 || d[0] != "w" || n != 1 {
+		t.Fatalf("write-only %v %d", d, n)
+	}
+	// Same desired again: nothing (the cached value equals desired).
+	st.reset()
+	r = s.Apply(ctx, desired, nil)
+	mustApplied(t, r)
+	if !r.Plan.Empty() || len(st.ops()) != 0 {
+		t.Fatalf("second apply %+v %v", r.Plan.Ops, st.ops())
+	}
+	// Resync re-applies it (VPP may have lost it).
+	r = s.ApplyWith(ctx, desired, nil, ApplyOptions{Resync: true})
+	mustApplied(t, r)
+	if got := strings.Join(st.ops(), ","); got != "create w/q" {
+		t.Fatalf("resync ops %s", got)
+	}
+	// Changed value → update with the cached old value.
+	st.reset()
+	desired[1] = kv("w", obj("q", "2", "a/x"))
+	mustApplied(t, s.Apply(ctx, desired, nil))
+	if got := strings.Join(st.ops(), ","); got != "update w/q" {
+		t.Fatalf("update ops %s", got)
+	}
+	// A fresh scheduler (agent restart) never deletes what it cannot see.
+	s2 := New(reg, nil)
+	st.reset()
+	r = s2.Apply(ctx, []KV{kv("a", obj("x", "1"))}, nil)
+	mustApplied(t, r)
+	if len(st.ops()) != 0 {
+		t.Fatalf("restart deleted unseen write-only object: %v", st.ops())
+	}
+	// Removed from desired after this process applied it → deleted.
+	r = s.Apply(ctx, []KV{kv("a", obj("x", "1"))}, nil)
+	mustApplied(t, r)
+	if got := strings.Join(st.ops(), ","); got != "delete w/q" {
+		t.Fatalf("delete ops %s", got)
+	}
+	if _, n := s.WriteOnly(); n != 0 {
+		t.Fatalf("cache not emptied: %d", n)
+	}
+	// Rollback restores the cache too.
+	st.failOn["create:a/y"] = errors.New("boom")
+	r = s.Apply(ctx, []KV{kv("a", obj("x", "1")), kv("w", obj("q", "1")), kv("a", obj("y", "1", "w/q"))}, nil)
+	if r.Outcome != OutcomeRolledBack {
+		t.Fatalf("outcome %s", r.Outcome)
+	}
+	if _, n := s.WriteOnly(); n != 0 {
+		t.Fatalf("cache after rollback: %d", n)
+	}
+	// The foreign sentinel (same message) is recognised as well.
+	reg2 := NewRegistry()
+	reg2.Register(&woForeign{mem{name: "f", st: newStore()}})
+	mustApplied(t, New(reg2, nil).Apply(ctx, []KV{kv("f", obj("z", "1"))}, nil))
+}
+
+// norm canonicalises val to lower case.
+type norm struct{ mem }
+
+func (n *norm) Normalize(o proto.Message) proto.Message {
+	c := proto.Clone(o).(*structpb.Struct)
+	c.Fields["val"] = structpb.NewStringValue(strings.ToLower(str(o, "val")))
+	return c
+}
+
+func TestNormalizerAppliedBeforeDiff(t *testing.T) {
+	st := newStore()
+	reg := NewRegistry()
+	reg.Register(&norm{mem{name: "n", st: st}})
+	s := New(reg, nil)
+	ctx := context.Background()
+	mustApplied(t, s.Apply(ctx, []KV{kv("n", obj("x", "ABC"))}, nil))
+	if str(st.objs["n/x"], "val") != "abc" {
+		t.Fatalf("stored %v", st.objs["n/x"])
+	}
+	r := s.Apply(ctx, []KV{kv("n", obj("x", "AbC"))}, nil)
+	mustApplied(t, r)
+	if !r.Plan.Empty() {
+		t.Fatalf("normalised value planned an update: %+v", r.Plan.Ops)
+	}
+}
+
+func TestCreateRecreatesLiveOptionalDependents(t *testing.T) {
+	s, st := fixture(t)
+	ctx := context.Background()
+	// b/y exists and optionally depends on a/x, which does not exist yet.
+	mustApplied(t, s.Apply(ctx, []KV{kv("b", obj("y", "1", "?a/x"))}, nil))
+	st.reset()
+	r := s.Apply(ctx, []KV{kv("a", obj("x", "1")), kv("b", obj("y", "1", "?a/x"))}, nil)
+	mustApplied(t, r)
+	if got := strings.Join(st.ops(), ","); got != "delete b/y,create a/x,create b/y" {
+		t.Fatalf("ops %s", got)
+	}
+	// Deleting a/x again re-creates b/y around it.
+	st.reset()
+	mustApplied(t, s.Apply(ctx, []KV{kv("b", obj("y", "1", "?a/x"))}, nil))
+	if got := strings.Join(st.ops(), ","); got != "delete b/y,delete a/x,create b/y" {
+		t.Fatalf("ops %s", got)
+	}
+}

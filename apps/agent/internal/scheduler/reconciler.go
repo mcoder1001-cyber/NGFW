@@ -36,6 +36,37 @@ type KeyProvider interface {
 	ProvidedKeys(obj proto.Message) []Key
 }
 
+// Normalizer is an optional Descriptor extension: it returns obj in the canonical form Retrieve
+// produces (defaults filled, lists sorted, …). The scheduler normalises every desired value
+// before diffing, so descriptors whose Retrieve canonicalises do not cause perpetual updates.
+// Normalize must be a pure function and must not fail; an invalid value is returned unchanged and
+// fails in Create.
+type Normalizer interface {
+	Normalize(obj proto.Message) proto.Message
+}
+
+// ErrRetrieveUnsupported is returned (wrapped) by Descriptor.Retrieve when VPP has no dump for the
+// object type (D-063). Such a descriptor is WRITE-ONLY for the reconciler: its desired objects are
+// re-applied on every resync (Create must be idempotent) and whenever they differ from what this
+// process applied last; objects are never deleted because they are absent from a dump (only when
+// they leave the desired state after this process applied them); verification skips them. The
+// message matches descriptors/df2.ErrRetrieveUnsupported so that errors wrapping either sentinel
+// are recognised until DF-2 aliases this one.
+var ErrRetrieveUnsupported = errors.New("vpp has no dump for this object type")
+
+// IsRetrieveUnsupported reports whether err means "no dump for this object type".
+func IsRetrieveUnsupported(err error) bool {
+	return err != nil && (errors.Is(err, ErrRetrieveUnsupported) || strings.Contains(err.Error(), ErrRetrieveUnsupported.Error()))
+}
+
+// ApplyOptions tune one transaction.
+type ApplyOptions struct {
+	// Resync re-applies every desired object of write-only descriptors (ErrRetrieveUnsupported)
+	// even when this process applied the same value before — used on agent start and VPP
+	// reconnect, when VPP may have lost them.
+	Resync bool
+}
+
 // ResultCode classifies the outcome of one operation (mirrors vrx.v1.ObjectResultCode).
 type ResultCode int
 
@@ -130,6 +161,8 @@ type TxnPlan struct {
 	Issues    []Issue
 	// actual is the Retrieve() snapshot the plan was computed against (all descriptors).
 	actual map[Key]KV
+	// writeOnly are the descriptors that could not be retrieved (ErrRetrieveUnsupported).
+	writeOnly map[string]bool
 }
 
 // Empty reports whether nothing would change.
@@ -200,6 +233,11 @@ type Scheduler struct {
 	// mismatch counts as an error; 0 = verify once.
 	VerifyRetries int
 	VerifyDelay   time.Duration
+	// writeOnly caches the objects of write-only descriptors this process applied (their only
+	// "actual state"); guarded by mu.
+	writeOnly map[Key]KV
+	// woDescriptors are the descriptors that reported ErrRetrieveUnsupported; guarded by mu.
+	woDescriptors map[string]bool
 }
 
 // New returns a scheduler over reg. log may be nil.
@@ -207,7 +245,20 @@ func New(reg *MapRegistry, log *slog.Logger) *Scheduler {
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
 	}
-	return &Scheduler{reg: reg, log: log, VerifyRetries: 2, VerifyDelay: 50 * time.Millisecond}
+	return &Scheduler{reg: reg, log: log, VerifyRetries: 2, VerifyDelay: 50 * time.Millisecond,
+		writeOnly: map[Key]KV{}, woDescriptors: map[string]bool{}}
+}
+
+// WriteOnly reports the write-only descriptors seen so far (ErrRetrieveUnsupported) and the
+// number of their objects this process has applied (the retrieve_unsupported metric).
+func (s *Scheduler) WriteOnly() (descriptors []string, objects int) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for d := range s.woDescriptors {
+		descriptors = append(descriptors, d)
+	}
+	sort.Strings(descriptors)
+	return descriptors, len(s.writeOnly)
 }
 
 // Registry returns the scheduler's registry.
@@ -217,7 +268,7 @@ func (s *Scheduler) Registry() *MapRegistry { return s.reg }
 func (s *Scheduler) Retrieve(ctx context.Context, scope Scope) ([]KV, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	m, err := s.retrieve(ctx, scope, true)
+	m, _, err := s.retrieve(ctx, scope, true)
 	if err != nil {
 		return nil, err
 	}
@@ -226,36 +277,41 @@ func (s *Scheduler) Retrieve(ctx context.Context, scope Scope) ([]KV, error) {
 
 // retrieve dumps the descriptors in scope. With strict=false a failing out-of-scope descriptor
 // is logged and skipped (it only contributes dependency targets).
-func (s *Scheduler) retrieve(ctx context.Context, scope Scope, strict bool) (map[Key]KV, error) {
+func (s *Scheduler) retrieve(ctx context.Context, scope Scope, strict bool) (map[Key]KV, map[string]bool, error) {
 	if scope == nil {
 		scope = All
 	}
 	out := make(map[Key]KV)
+	wo := make(map[string]bool)
 	for _, d := range s.reg.Descriptors() {
 		in := scope(d.Name())
 		if strict && !in {
 			continue
 		}
 		kvs, err := d.Retrieve(ctx)
+		if IsRetrieveUnsupported(err) {
+			wo[d.Name()] = true
+			continue
+		}
 		if err != nil {
 			if !in {
 				s.log.Warn("retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies",
 					"descriptor", d.Name(), "err", err)
 				continue
 			}
-			return nil, fmt.Errorf("retrieve %s: %w", d.Name(), err)
+			return nil, nil, fmt.Errorf("retrieve %s: %w", d.Name(), err)
 		}
 		for _, kv := range kvs {
 			if kv.Key.Descriptor() != d.Name() {
-				return nil, fmt.Errorf("retrieve %s: returned foreign key %q", d.Name(), kv.Key)
+				return nil, nil, fmt.Errorf("retrieve %s: returned foreign key %q", d.Name(), kv.Key)
 			}
 			if _, dup := out[kv.Key]; dup {
-				return nil, fmt.Errorf("retrieve %s: duplicate key %q", d.Name(), kv.Key)
+				return nil, nil, fmt.Errorf("retrieve %s: duplicate key %q", d.Name(), kv.Key)
 			}
 			out[kv.Key] = kv
 		}
 	}
-	return out, nil
+	return out, wo, nil
 }
 
 // Plan validates desired against the actual state and returns what Apply would do. It never
@@ -263,16 +319,30 @@ func (s *Scheduler) retrieve(ctx context.Context, scope Scope, strict bool) (map
 func (s *Scheduler) Plan(ctx context.Context, desired []KV, scope Scope) (*TxnPlan, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.plan(ctx, desired, scope)
+	return s.plan(ctx, desired, scope, ApplyOptions{})
 }
 
-func (s *Scheduler) plan(ctx context.Context, desired []KV, scope Scope) (*TxnPlan, error) {
+// normalize returns desired with every value passed through its descriptor's Normalizer.
+func (s *Scheduler) normalize(desired []KV) []KV {
+	out := make([]KV, len(desired))
+	for i, kv := range desired {
+		out[i] = kv
+		if d, ok := s.reg.ForKey(kv.Key); ok && kv.Value != nil {
+			if n, ok := d.(Normalizer); ok {
+				out[i].Value = n.Normalize(kv.Value)
+			}
+		}
+	}
+	return out
+}
+
+func (s *Scheduler) plan(ctx context.Context, desired []KV, scope Scope, opts ApplyOptions) (*TxnPlan, error) {
 	if scope == nil {
 		scope = All
 	}
 	p := &TxnPlan{}
 	want := make(map[Key]KV, len(desired))
-	for _, kv := range desired {
+	for _, kv := range s.normalize(desired) {
 		d, ok := s.reg.ForKey(kv.Key)
 		switch {
 		case !ok:
@@ -295,9 +365,19 @@ func (s *Scheduler) plan(ctx context.Context, desired []KV, scope Scope) (*TxnPl
 		want[kv.Key] = kv
 	}
 
-	actual, err := s.retrieve(ctx, scope, false)
+	actual, wo, err := s.retrieve(ctx, scope, false)
 	if err != nil {
 		return nil, err
+	}
+	// Write-only descriptors: what this process applied is their actual state (D-063).
+	p.writeOnly = wo
+	for name := range wo {
+		s.woDescriptors[name] = true
+	}
+	for k, kv := range s.writeOnly {
+		if wo[k.Descriptor()] {
+			actual[k] = kv
+		}
 	}
 	p.actual = actual
 
@@ -372,6 +452,9 @@ func (s *Scheduler) plan(ctx context.Context, desired []KV, scope Scope) (*TxnPl
 		cur, exists := actual[k]
 		switch {
 		case !exists:
+			p.Ops = append(p.Ops, PlannedOp{Key: k, Op: OpCreate, Value: kv.Value})
+		case opts.Resync && wo[k.Descriptor()]:
+			// re-apply: VPP may have lost it and we cannot tell (Create is idempotent)
 			p.Ops = append(p.Ops, PlannedOp{Key: k, Op: OpCreate, Value: kv.Value})
 		case proto.Equal(cur.Value, kv.Value):
 			p.Unchanged++
@@ -493,13 +576,19 @@ type journalEntry struct {
 
 // Apply plans desired against the actual state and executes the plan as one transaction.
 func (s *Scheduler) Apply(ctx context.Context, desired []KV, scope Scope) *TxnResult {
+	return s.ApplyWith(ctx, desired, scope, ApplyOptions{})
+}
+
+// ApplyWith is Apply with options.
+func (s *Scheduler) ApplyWith(ctx context.Context, desired []KV, scope Scope, opts ApplyOptions) *TxnResult {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	start := time.Now()
 	res := &TxnResult{}
 	defer func() { res.Duration = time.Since(start) }()
 
-	p, err := s.plan(ctx, desired, scope)
+	desired = s.normalize(desired)
+	p, err := s.plan(ctx, desired, scope, opts)
 	if err != nil {
 		res.Outcome, res.Err = OutcomeFailed, err
 		return res
@@ -547,13 +636,14 @@ func (s *Scheduler) Apply(ctx context.Context, desired []KV, scope Scope) *TxnRe
 		}
 	}
 	if failed == nil {
-		failed = s.verify(ctx, desired, scope)
+		failed = s.verify(ctx, desired, scope, p.writeOnly)
 		if failed != nil {
 			res.Results = append(res.Results, OpResult{Key: "", Op: "verify", Code: CodeFailed, Err: failed})
 		}
 	}
 	if failed == nil {
 		res.Outcome = OutcomeApplied
+		x.syncWriteOnly(p.writeOnly)
 		for _, r := range res.Results {
 			switch r.Op {
 			case OpCreate:
@@ -592,11 +682,32 @@ func (s *Scheduler) Apply(ctx context.Context, desired []KV, scope Scope) *TxnRe
 	} else {
 		res.Outcome = OutcomeRolledBack
 	}
+	x.syncWriteOnly(p.writeOnly)
 	return res
 }
 
+// syncWriteOnly stores the live objects of write-only descriptors as their known actual state.
+func (x *executor) syncWriteOnly(wo map[string]bool) {
+	for k := range x.s.writeOnly {
+		if wo[k.Descriptor()] {
+			delete(x.s.writeOnly, k)
+		}
+	}
+	for k, kv := range x.live {
+		if wo[k.Descriptor()] {
+			x.s.writeOnly[k] = kv
+		}
+	}
+}
+
 // verify re-Retrieves the scope and compares it with desired.
-func (s *Scheduler) verify(ctx context.Context, desired []KV, scope Scope) error {
+func (s *Scheduler) verify(ctx context.Context, desired []KV, scope Scope, writeOnly map[string]bool) error {
+	var check []KV
+	for _, kv := range desired {
+		if !writeOnly[kv.Key.Descriptor()] {
+			check = append(check, kv)
+		}
+	}
 	var err error
 	for attempt := 0; attempt <= s.VerifyRetries; attempt++ {
 		if attempt > 0 {
@@ -607,11 +718,11 @@ func (s *Scheduler) verify(ctx context.Context, desired []KV, scope Scope) error
 			}
 		}
 		var actual map[Key]KV
-		actual, err = s.retrieve(ctx, scope, true)
+		actual, _, err = s.retrieve(ctx, scope, true)
 		if err != nil {
 			return fmt.Errorf("verify: %w", err)
 		}
-		err = diffErr(desired, actual)
+		err = diffErr(check, actual)
 		if err == nil {
 			return nil
 		}
@@ -830,19 +941,31 @@ func (x *executor) undo(ctx context.Context, j journalEntry) error {
 	d := x.descriptor(j.key)
 	switch j.op {
 	case OpCreate:
-		return d.Delete(ctx, j.newValue, j.newMeta)
+		if err := d.Delete(ctx, j.newValue, j.newMeta); err != nil {
+			return err
+		}
+		delete(x.live, j.key)
+		return nil
 	case OpDelete:
-		_, err := d.Create(ctx, j.oldValue)
-		return err
+		meta, err := d.Create(ctx, j.oldValue)
+		if err != nil {
+			return err
+		}
+		x.live[j.key] = KV{Key: j.key, Value: j.oldValue, Meta: meta}
+		return nil
 	case OpUpdate:
-		_, err := d.Update(ctx, j.newValue, j.oldValue, j.newMeta)
+		meta, err := d.Update(ctx, j.newValue, j.oldValue, j.newMeta)
 		if errors.Is(err, ErrRecreate) {
 			if err := d.Delete(ctx, j.newValue, j.newMeta); err != nil {
 				return err
 			}
-			_, err = d.Create(ctx, j.oldValue)
+			meta, err = d.Create(ctx, j.oldValue)
 		}
-		return err
+		if err != nil {
+			return err
+		}
+		x.live[j.key] = KV{Key: j.key, Value: j.oldValue, Meta: meta}
+		return nil
 	}
 	return fmt.Errorf("unknown journal op %q", j.op)
 }

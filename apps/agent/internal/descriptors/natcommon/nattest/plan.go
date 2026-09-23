@@ -25,6 +25,9 @@ func Apply(t testing.TB, d scheduler.Descriptor, desired ...proto.Message) int {
 	}
 	have := map[scheduler.Key]scheduler.KV{}
 	for _, kv := range actual {
+		if _, dup := have[kv.Key]; dup {
+			t.Fatalf("%s: Retrieve reported key %s twice (keys must be unique)", d.Name(), kv.Key)
+		}
 		have[kv.Key] = kv
 	}
 	ops := 0
@@ -89,9 +92,12 @@ func AssertPlan(t testing.TB, d scheduler.Descriptor, desired ...proto.Message) 
 	}
 	have := map[scheduler.Key]proto.Message{}
 	for _, kv := range kvs {
+		if _, dup := have[kv.Key]; dup {
+			t.Fatalf("%s: Retrieve reported key %s twice (keys must be unique): %v", d.Name(), kv.Key, kvs)
+		}
 		have[kv.Key] = kv.Value
 	}
-	if len(have) != len(desired) {
+	if len(kvs) != len(desired) {
 		t.Fatalf("%s: retrieved %d objects, desired %d: %v", d.Name(), len(have), len(desired), kvs)
 	}
 	for _, o := range desired {

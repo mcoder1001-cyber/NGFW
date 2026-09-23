@@ -92,19 +92,29 @@ func (s Scope) ParseTag(tag string) (id string, ok bool) {
 	return vpp.ParseOwnerTag(tag, s.Owner)
 }
 
-// OwnsInterface reports whether an interface is ours: every interface for production
-// owners, interfaces tagged "<owner>:…" for a test slot. local0 (sw_if_index 0) is never
-// a slot's.
-func (s Scope) OwnsInterface(i Iface) bool {
-	if s.All {
-		return true
-	}
+// InterfaceOwnership classifies an interface for interface-bound objects (D-071 claim
+// rule): tagged by this owner → ours; tagged by anyone else → never ours (ok=false); untagged
+// → ours only if claimed (needsClaim=true). local0 (sw_if_index 0) is never ours. Production
+// owners (All) follow the same rule — they no longer claim other owners' tagged interfaces
+// (review finding 5).
+func (s Scope) InterfaceOwnership(i Iface) (ok, needsClaim bool) {
 	if i.SwIfIndex == 0 {
-		return false
+		return false, false
 	}
-	_, ok := s.ParseTag(i.Tag)
-	return ok
+	if _, own := s.ParseTag(i.Tag); own {
+		return true, false
+	}
+	if i.Tag != "" {
+		return false, false
+	}
+	return true, true
 }
+
+// NeedsClaim reports whether an untagged object (pool, prefix, translation, binding, …) needs
+// a claim: a test slot owns the objects inside its range (the shared-host rules are the
+// slot's standing claim); everything else — including every untagged object of a production
+// owner — is ours only when claimed (D-071).
+func (s Scope) NeedsClaim(inSlotRange bool) bool { return s.All || !inSlotRange }
 
 // Dependency key builders. DF-1/DF-2 own the interface and table descriptors; until their
 // names are merged the keys follow the DF-3 task prompt ("interface/<name>", "vrf/<id>").

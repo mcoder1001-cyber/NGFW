@@ -43,6 +43,7 @@ func (p *Plugin) vrfRoute(ctx context.Context, table, vrf uint32, add bool) erro
 
 func (p *Plugin) newVRFTable() *natcommon.Descriptor[VRFTableSpec] {
 	return natcommon.New(natcommon.Ops[VRFTableSpec]{
+		Claims: p.claims(),
 		Name: NameVRFTable,
 		ID:   func(s VRFTableSpec) string { return fmt.Sprintf("%d", s.Table) },
 		Deps: func(s VRFTableSpec) []scheduler.Dependency {
@@ -94,45 +95,55 @@ func (p *Plugin) newVRFTable() *natcommon.Descriptor[VRFTableSpec] {
 			return nil
 		},
 		Retrieve: func(ctx context.Context) ([]natcommon.Item[VRFTableSpec], error) {
-			// VPP 26.06 answers nat44_ed_vrf_tables_v2_dump with v1 nat44_ed_vrf_tables_details
-			// messages (message-id mix-up in the plugin), which the generated v2 client rejects.
-			// Drive the dump on a raw stream and accept either details type (same fields).
-			stream, err := p.client.NewStream(ctx)
+			tables, err := p.vrfTables(ctx)
 			if err != nil {
 				return nil, err
 			}
-			defer func() { _ = stream.Close() }()
-			if err := stream.SendMsg(&nat44_ed.Nat44EdVrfTablesV2Dump{}); err != nil {
-				return nil, fmt.Errorf("nat44_ed_vrf_tables_v2_dump: %w", err)
+			out := make([]natcommon.Item[VRFTableSpec], 0, len(tables))
+			for _, t := range tables {
+				out = append(out, natcommon.Item[VRFTableSpec]{Spec: t, NeedsClaim: p.scope.NeedsClaim(p.scope.OwnsTable(t.Table))})
 			}
-			if err := stream.SendMsg(&memclnt.ControlPing{}); err != nil {
-				return nil, fmt.Errorf("control_ping: %w", err)
-			}
-			var out []natcommon.Item[VRFTableSpec]
-			add := func(table uint32, routes []uint32) {
-				if !p.scope.OwnsTable(table) {
-					return
-				}
-				s := VRFTableSpec{Table: table, Routes: append([]uint32{}, routes...)}
-				s.Normalize()
-				out = append(out, natcommon.Item[VRFTableSpec]{Spec: s})
-			}
-			for {
-				msg, err := stream.RecvMsg()
-				if err != nil {
-					return nil, fmt.Errorf("nat44_ed_vrf_tables_v2_dump: %w", err)
-				}
-				switch m := msg.(type) {
-				case *memclnt.ControlPingReply:
-					return out, nil
-				case *nat44_ed.Nat44EdVrfTablesV2Details:
-					add(m.TableVrfID, m.VrfIds)
-				case *nat44_ed.Nat44EdVrfTablesDetails:
-					add(m.TableVrfID, m.VrfIds)
-				default:
-					return nil, fmt.Errorf("nat44_ed_vrf_tables_v2_dump: unexpected message %T", msg)
-				}
-			}
+			return out, nil
 		},
 	})
+}
+
+// vrfTables dumps every nat44-ed VRF table (all owners). VPP 26.06 answers
+// nat44_ed_vrf_tables_v2_dump with v1 nat44_ed_vrf_tables_details messages (message-id
+// mix-up in the plugin), which the generated v2 client rejects: the dump is driven on a raw
+// stream accepting either details type (same fields).
+func (p *Plugin) vrfTables(ctx context.Context) ([]VRFTableSpec, error) {
+	stream, err := p.client.NewStream(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = stream.Close() }()
+	if err := stream.SendMsg(&nat44_ed.Nat44EdVrfTablesV2Dump{}); err != nil {
+		return nil, fmt.Errorf("nat44_ed_vrf_tables_v2_dump: %w", err)
+	}
+	if err := stream.SendMsg(&memclnt.ControlPing{}); err != nil {
+		return nil, fmt.Errorf("control_ping: %w", err)
+	}
+	var out []VRFTableSpec
+	add := func(table uint32, routes []uint32) {
+		s := VRFTableSpec{Table: table, Routes: append([]uint32{}, routes...)}
+		s.Normalize()
+		out = append(out, s)
+	}
+	for {
+		msg, err := stream.RecvMsg()
+		if err != nil {
+			return nil, fmt.Errorf("nat44_ed_vrf_tables_v2_dump: %w", err)
+		}
+		switch m := msg.(type) {
+		case *memclnt.ControlPingReply:
+			return out, nil
+		case *nat44_ed.Nat44EdVrfTablesV2Details:
+			add(m.TableVrfID, m.VrfIds)
+		case *nat44_ed.Nat44EdVrfTablesDetails:
+			add(m.TableVrfID, m.VrfIds)
+		default:
+			return nil, fmt.Errorf("nat44_ed_vrf_tables_v2_dump: unexpected message %T", msg)
+		}
+	}
 }

@@ -66,8 +66,23 @@ func TestScope(t *testing.T) {
 	if !s.OwnsAddrString("fd00:9::1") || s.OwnsAddrString("fd00:a::1") {
 		t.Fatalf("v6 slot scope wrong: %+v", s)
 	}
-	if !s.OwnsInterface(natcommon.Iface{SwIfIndex: 5, Tag: "w9:loop900"}) || s.OwnsInterface(natcommon.Iface{SwIfIndex: 5, Tag: "w3:loop300"}) || s.OwnsInterface(natcommon.Iface{SwIfIndex: 0}) {
-		t.Fatal("interface ownership by tag wrong")
+	// D-071 claim rule: own tag → ours; foreign tag → never; untagged → only if claimed
+	for _, c := range []struct {
+		i      natcommon.Iface
+		ok, nc bool
+	}{
+		{natcommon.Iface{SwIfIndex: 5, Tag: "w9:loop900"}, true, false},
+		{natcommon.Iface{SwIfIndex: 5, Tag: "w3:loop300"}, false, false},
+		{natcommon.Iface{SwIfIndex: 5, Tag: "uplink"}, false, false},
+		{natcommon.Iface{SwIfIndex: 5}, true, true},
+		{natcommon.Iface{SwIfIndex: 0}, false, false},
+	} {
+		if ok, nc := s.InterfaceOwnership(c.i); ok != c.ok || nc != c.nc {
+			t.Fatalf("slot ownership of %+v = %v/%v, want %v/%v", c.i, ok, nc, c.ok, c.nc)
+		}
+	}
+	if s.NeedsClaim(true) || !s.NeedsClaim(false) {
+		t.Fatal("slot: in-range objects are owned, others need a claim")
 	}
 	tag, err := s.Tag("pool1")
 	if err != nil || tag != "w9:pool1" {
@@ -77,8 +92,16 @@ func TestScope(t *testing.T) {
 		t.Fatal("parse tag")
 	}
 	for _, owner := range []string{"vrx", "", "w0", "wx", "w256"} {
-		if p := natcommon.ScopeFor(owner); !p.All || !p.OwnsAddrString("192.0.2.1") || !p.OwnsTable(0) || !p.OwnsInterface(natcommon.Iface{}) {
-			t.Fatalf("owner %q must own everything: %+v", owner, p)
+		p := natcommon.ScopeFor(owner)
+		if !p.All || !p.NeedsClaim(true) {
+			t.Fatalf("owner %q: production scope, every untagged object needs a claim: %+v", owner, p)
+		}
+		// review finding 5: production no longer claims other owners' tagged interfaces
+		if ok, _ := p.InterfaceOwnership(natcommon.Iface{SwIfIndex: 5, Tag: "w9:loop900"}); ok {
+			t.Fatalf("owner %q must not own a w9-tagged interface", owner)
+		}
+		if ok, nc := p.InterfaceOwnership(natcommon.Iface{SwIfIndex: 5}); !ok || !nc {
+			t.Fatalf("owner %q: untagged interface needs a claim", owner)
 		}
 	}
 	if d, ok := natcommon.VRFDep(0); ok || d.Key != "" {
@@ -262,4 +285,101 @@ func TestGenericDescriptor(t *testing.T) {
 		}()
 		natcommon.New(natcommon.Ops[spec]{Name: "Bad/Name"})
 	}()
+}
+
+type claimSpec struct {
+	ID string `json:"id"`
+}
+
+// TestClaimsAndDuplicates: the generic Descriptor drops NeedsClaim items without a claim,
+// claims on Create, releases on Delete, and rejects duplicate keys from Retrieve.
+func TestClaimsAndDuplicates(t *testing.T) {
+	ctx := context.Background()
+	var items []natcommon.Item[claimSpec]
+	d := natcommon.New(natcommon.Ops[claimSpec]{
+		Name:     "test.obj",
+		ID:       func(s claimSpec) string { return s.ID },
+		Create:   func(context.Context, claimSpec) (any, error) { return nil, nil },
+		Delete:   func(context.Context, claimSpec, any) error { return nil },
+		Retrieve: func(context.Context) ([]natcommon.Item[claimSpec], error) { return items, nil },
+	})
+	items = []natcommon.Item[claimSpec]{{Spec: claimSpec{ID: "a"}, NeedsClaim: true}, {Spec: claimSpec{ID: "b"}}}
+	if kvs, _ := d.Retrieve(ctx); len(kvs) != 1 || kvs[0].Key != "test.obj/b" {
+		t.Fatalf("unclaimed untagged object must be invisible: %v", kvs)
+	}
+	obj := natcommon.MustEncode(&claimSpec{ID: "a"})
+	if _, err := d.Create(ctx, obj); err != nil {
+		t.Fatal(err)
+	}
+	if kvs, _ := d.Retrieve(ctx); len(kvs) != 2 {
+		t.Fatalf("claimed after Create: %v", kvs)
+	}
+	if err := d.Delete(ctx, obj, nil); err != nil {
+		t.Fatal(err)
+	}
+	if kvs, _ := d.Retrieve(ctx); len(kvs) != 1 {
+		t.Fatalf("released after Delete: %v", kvs)
+	}
+	items = []natcommon.Item[claimSpec]{{Spec: claimSpec{ID: "b"}}, {Spec: claimSpec{ID: "b"}}}
+	if _, err := d.Retrieve(ctx); !errors.Is(err, natcommon.ErrDuplicateKey) {
+		t.Fatalf("duplicate keys must fail Retrieve: %v", err)
+	}
+}
+
+type gspec struct {
+	V uint32 `json:"v"`
+}
+
+// TestGlobalOwnership: D-071 — a non-owner never sets, resets or reports a global; it only
+// requires it. The owner sets, resets and retrieves it.
+func TestGlobalOwnership(t *testing.T) {
+	ctx := context.Background()
+	state := natcommon.GlobalState[gspec]{Value: gspec{V: 1}, Present: true, Observable: true}
+	var sets, resets int
+	ops := natcommon.GlobalOps[gspec]{
+		Name: "test.global", ID: "global",
+		Read:   func(context.Context) (natcommon.GlobalState[gspec], error) { return state, nil },
+		Set:    func(context.Context, gspec) error { sets++; return nil },
+		Reset:  func(context.Context, gspec) error { resets++; return nil },
+		Absent: func(v gspec) bool { return v.V == 0 },
+	}
+	non := natcommon.Global(natcommon.BuildConfig(nil), ops)
+	if _, err := non.Create(ctx, natcommon.MustEncode(&gspec{V: 1})); err != nil {
+		t.Fatalf("required and present: %v", err)
+	}
+	if _, err := non.Create(ctx, natcommon.MustEncode(&gspec{V: 2})); !errors.Is(err, natcommon.ErrGlobalMismatch) {
+		t.Fatalf("mismatch: %v", err)
+	}
+	state.Present = false
+	if _, err := non.Create(ctx, natcommon.MustEncode(&gspec{V: 1})); !errors.Is(err, natcommon.ErrGlobalNotSet) {
+		t.Fatalf("not set: %v", err)
+	}
+	state.Observable = false
+	if _, err := non.Create(ctx, natcommon.MustEncode(&gspec{V: 1})); err != nil {
+		t.Fatalf("unobservable: %v", err)
+	}
+	if err := non.Delete(ctx, natcommon.MustEncode(&gspec{V: 1}), nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := non.Retrieve(ctx); !errors.Is(err, natcommon.ErrRetrieveUnsupported) {
+		t.Fatalf("non-owner Retrieve: %v", err)
+	}
+	if sets != 0 || resets != 0 {
+		t.Fatalf("a non-owner must never set/reset a global (sets=%d resets=%d)", sets, resets)
+	}
+	own := natcommon.Global(natcommon.BuildConfig([]natcommon.Option{natcommon.WithGlobalsOwner(true)}), ops)
+	state = natcommon.GlobalState[gspec]{Value: gspec{V: 3}, Present: true, Observable: true}
+	if kvs, err := own.Retrieve(ctx); err != nil || len(kvs) != 1 {
+		t.Fatalf("owner Retrieve: %v %v", kvs, err)
+	}
+	state.Value.V = 0
+	if kvs, _ := own.Retrieve(ctx); len(kvs) != 0 {
+		t.Fatal("absent (default) value is no object")
+	}
+	if _, err := own.Create(ctx, natcommon.MustEncode(&gspec{V: 3})); err != nil || sets != 1 {
+		t.Fatal("owner sets")
+	}
+	if err := own.Delete(ctx, natcommon.MustEncode(&gspec{V: 3}), nil); err != nil || resets != 1 {
+		t.Fatal("owner resets")
+	}
 }

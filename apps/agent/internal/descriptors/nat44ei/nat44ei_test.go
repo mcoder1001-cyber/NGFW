@@ -10,6 +10,7 @@ import (
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/memclnt"
+	"ngfw/agent/binapi/nat44_ed"
 	"ngfw/agent/binapi/nat44_ei"
 	"ngfw/agent/binapi/nat_types"
 	"ngfw/agent/internal/descriptors/nat44ei"
@@ -32,7 +33,10 @@ type fakeEI struct {
 	addrs    []*nat44_ei.Nat44EiAddressDetails
 	statics  []*nat44_ei.Nat44EiStaticMappingDetails
 	idents   []*nat44_ei.Nat44EiIdentityMappingDetails
+	ed       bool // nat44-ed enabled (mutually exclusive)
 }
+
+var owner = natcommon.WithGlobalsOwner(true)
 
 func newFakeEI() *fakeEI {
 	f := &fakeEI{Client: fake.New(fake.WithControlPingReply(&memclnt.ControlPingReply{})),
@@ -53,6 +57,13 @@ func newFakeEI() *fakeEI {
 			}
 		}
 		return out, nil
+	})
+	f.On("nat44_show_running_config", func(api.Message) ([]api.Message, error) {
+		rep := &nat44_ed.Nat44ShowRunningConfigReply{}
+		if f.ed {
+			rep.Sessions = 1
+		}
+		return []api.Message{rep}, nil
 	})
 	f.On("nat44_ei_show_running_config", func(api.Message) ([]api.Message, error) {
 		rep := &nat44_ei.Nat44EiShowRunningConfigReply{}
@@ -192,11 +203,18 @@ func newFakeEI() *fakeEI {
 		return []api.Message{&nat44_ei.Nat44EiAddDelStaticMappingReply{}}, nil
 	})
 	f.On("nat44_ei_static_mapping_dump", func(api.Message) ([]api.Message, error) {
-		out := make([]api.Message, 0, len(f.statics))
+		// nat44_ei_api.c: resolved entries, then the to-resolve records (finding 2 twins)
+		var resolved, toResolve []api.Message
 		for _, m := range f.statics {
-			out = append(out, m)
+			if m.ExternalSwIfIndex != ^interface_types.InterfaceIndex(0) {
+				twin := *m
+				twin.ExternalSwIfIndex, twin.ExternalIPAddress = ^interface_types.InterfaceIndex(0), [4]uint8{10, 9, 40, 1}
+				resolved, toResolve = append(resolved, &twin), append(toResolve, m)
+				continue
+			}
+			resolved = append(resolved, m)
 		}
-		return out, nil
+		return append(resolved, toResolve...), nil
 	})
 	f.On("nat44_ei_add_del_identity_mapping", func(req api.Message) ([]api.Message, error) {
 		r := req.(*nat44_ei.Nat44EiAddDelIdentityMapping)
@@ -213,11 +231,17 @@ func newFakeEI() *fakeEI {
 		return []api.Message{&nat44_ei.Nat44EiAddDelIdentityMappingReply{}}, nil
 	})
 	f.On("nat44_ei_identity_mapping_dump", func(api.Message) ([]api.Message, error) {
-		out := make([]api.Message, 0, len(f.idents))
+		var resolved, toResolve []api.Message
 		for _, m := range f.idents {
-			out = append(out, m)
+			if m.SwIfIndex != ^interface_types.InterfaceIndex(0) {
+				twin := *m
+				twin.SwIfIndex, twin.IPAddress = ^interface_types.InterfaceIndex(0), [4]uint8{10, 9, 40, 1}
+				resolved, toResolve = append(resolved, &twin), append(toResolve, m)
+				continue
+			}
+			resolved = append(resolved, m)
 		}
-		return out, nil
+		return append(resolved, toResolve...), nil
 	})
 	f.Reply("nat44_ei_user_dump", &nat44_ei.Nat44EiUserDetails{IPAddress: [4]uint8{192, 168, 9, 2}, Nsessions: 1})
 	f.Reply("nat44_ei_user_session_v2_dump", &nat44_ei.Nat44EiUserSessionV2Details{InsideIPAddress: [4]uint8{192, 168, 9, 2}, InsidePort: 1000, Protocol: 6, Flags: nat44_ei.NAT44_EI_STATIC_MAPPING})
@@ -235,7 +259,7 @@ func TestRegister(t *testing.T) {
 
 func TestSingletons(t *testing.T) {
 	f := newFakeEI()
-	p := nat44ei.New(f, "w9")
+	p := nat44ei.New(f, "w9", owner)
 	ctx := context.Background()
 	en := natcommon.MustEncode(&nat44ei.EnableSpec{InsideVRF: 9001, StaticMappingOnly: true})
 	if len(nattest.Keys(t, p.Enable)) != 0 || nattest.Apply(t, p.Enable, en) != 1 || nattest.Apply(t, p.Enable, en) != 0 {
@@ -245,11 +269,32 @@ func TestSingletons(t *testing.T) {
 	if !req.Enable || req.InsideVrf != 9001 || req.Flags != nat44_ei.NAT44_EI_STATIC_MAPPING_ONLY {
 		t.Fatalf("enable request %+v", req)
 	}
-	if _, err := nat44ei.New(f, "w3").Enable.Create(ctx, natcommon.MustEncode(&nat44ei.EnableSpec{})); !errors.Is(err, nat44ei.ErrForeignObjects) {
-		t.Fatalf("foreign create: %v", err)
+	// non-owner (D-071): requires, never sets
+	w3 := nat44ei.New(f, "w3")
+	if _, err := w3.Enable.Create(ctx, natcommon.MustEncode(&nat44ei.EnableSpec{})); !errors.Is(err, natcommon.ErrGlobalMismatch) {
+		t.Fatalf("non-owner mismatch: %v", err)
 	}
-	if _, err := p.Enable.Update(ctx, en, natcommon.MustEncode(&nat44ei.EnableSpec{}), nil); !errors.Is(err, scheduler.ErrRecreate) {
+	if _, err := w3.Enable.Create(ctx, en); err != nil {
+		t.Fatalf("non-owner compatible: %v", err)
+	}
+	if err := w3.Enable.Delete(ctx, en, nil); err != nil || !f.enabled {
+		t.Fatalf("non-owner delete must not disable: %v", err)
+	}
+	if _, err := w3.Timeouts.Create(ctx, natcommon.MustEncode(&nat44ei.TimeoutsSpec{UDP: 1, TCPEstablished: 2, TCPTransitory: 3, ICMP: 4})); !errors.Is(err, natcommon.ErrGlobalMismatch) {
+		t.Fatalf("non-owner timeouts: %v", err)
+	}
+	if _, err := w3.Ipfix.Create(ctx, natcommon.MustEncode(&nat44ei.IpfixSpec{})); !errors.Is(err, natcommon.ErrGlobalNotSet) && err != nil {
+		t.Fatalf("non-owner ipfix: %v", err)
+	}
+	if n := len(f.CallsNamed("nat44_ei_plugin_enable_disable")) + len(f.CallsNamed("nat44_ei_set_timeouts")) + len(f.CallsNamed("nat44_ei_ipfix_enable_disable")); n != 1 {
+		t.Fatalf("non-owner sent global-changing messages (%d calls total, want the owner's 1 enable)", n)
+	}
+	// owner Update on an empty plugin: disable + enable
+	if _, err := p.Enable.Update(ctx, en, natcommon.MustEncode(&nat44ei.EnableSpec{InsideVRF: 9002}), nil); err != nil || f.cfg.InsideVrf != 9002 {
 		t.Fatalf("update: %v", err)
+	}
+	if _, err := p.Enable.Update(ctx, natcommon.MustEncode(&nat44ei.EnableSpec{InsideVRF: 9002}), en, nil); err != nil {
+		t.Fatalf("update back: %v", err)
 	}
 	tmo := natcommon.MustEncode(&nat44ei.TimeoutsSpec{UDP: 10, TCPEstablished: 20, TCPTransitory: 30, ICMP: 40})
 	if nattest.Apply(t, p.Timeouts, tmo) != 1 || nattest.Apply(t, p.Timeouts, tmo) != 0 || f.timeouts.ICMP != 40 {
@@ -278,19 +323,34 @@ func TestSingletons(t *testing.T) {
 	if deps := p.Ipfix.Dependencies(ipfix); len(deps) != 1 || deps[0].Key != nat44ei.EnableKey {
 		t.Fatalf("deps %+v", deps)
 	}
-	f.addrs = append(f.addrs, &nat44_ei.Nat44EiAddressDetails{IPAddress: [4]uint8{10, 3, 0, 1}})
-	if err := p.Enable.Delete(ctx, en, nil); !errors.Is(err, nat44ei.ErrForeignObjects) {
-		t.Fatalf("delete with foreign objects: %v", err)
+	// finding 1: any object of any owner and kind keeps the plugin enabled
+	for name, add := range map[string]func(){
+		"output interface": func() { f.outputs[3] = nat44_ei.NAT44_EI_IF_OUTSIDE },
+		"interface":        func() { f.features[3] = nat44_ei.NAT44_EI_IF_INSIDE },
+		"pool address":     func() { f.addrs = append(f.addrs, &nat44_ei.Nat44EiAddressDetails{IPAddress: [4]uint8{10, 3, 0, 1}}) },
+		"interface addr":   func() { f.ifAddrs[3] = true },
+		"static mapping":   func() { f.statics = append(f.statics, &nat44_ei.Nat44EiStaticMappingDetails{Tag: "w3:m", ExternalSwIfIndex: ^interface_types.InterfaceIndex(0)}) },
+		"identity mapping": func() { f.idents = append(f.idents, &nat44_ei.Nat44EiIdentityMappingDetails{Tag: "w3:i", SwIfIndex: ^interface_types.InterfaceIndex(0)}) },
+	} {
+		add()
+		if err := p.Enable.Delete(ctx, en, nil); err != nil || !f.enabled {
+			t.Fatalf("%s: plugin disabled although another object exists (%v)", name, err)
+		}
+		f.outputs, f.features, f.ifAddrs = map[uint32]nat44_ei.Nat44EiConfigFlags{}, map[uint32]nat44_ei.Nat44EiConfigFlags{}, map[uint32]bool{}
+		f.addrs, f.statics, f.idents = nil, nil, nil
 	}
-	f.addrs = nil
 	if err := p.Enable.Delete(ctx, en, nil); err != nil || f.enabled {
-		t.Fatal("delete")
+		t.Fatal("delete of an empty plugin disables")
+	}
+	f.ed = true
+	if _, err := p.Enable.Create(ctx, en); !errors.Is(err, nat44ei.ErrOtherVariant) {
+		t.Fatalf("ED enabled: %v", err)
 	}
 }
 
 func TestObjects(t *testing.T) {
 	f := newFakeEI()
-	p := nat44ei.New(f, "w9")
+	p := nat44ei.New(f, "w9", owner)
 	nattest.Apply(t, p.Enable, natcommon.MustEncode(&nat44ei.EnableSpec{}))
 	f.features[3], f.outputs[3], f.ifAddrs[3] = nat44_ei.NAT44_EI_IF_INSIDE, nat44_ei.NAT44_EI_IF_OUTSIDE, true
 	f.addrs = append(f.addrs, &nat44_ei.Nat44EiAddressDetails{IPAddress: [4]uint8{10, 3, 0, 1}})

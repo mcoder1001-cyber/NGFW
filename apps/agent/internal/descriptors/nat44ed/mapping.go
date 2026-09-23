@@ -182,7 +182,7 @@ func (p *Plugin) staticMappingRequest(ctx context.Context, s StaticMappingSpec, 
 		return nil, err
 	}
 	if s.External.Interface != "" && extIdx == noInterface {
-		extIdx, err = natcommon.ResolveInterface(ctx, p.client, s.External.Interface)
+		extIdx, err = natcommon.ResolveOwned(ctx, p.client, p.scope, s.External.Interface)
 		if err != nil {
 			return nil, err
 		}
@@ -201,6 +201,7 @@ type MappingMeta struct{ ExternalSwIfIndex uint32 }
 
 func (p *Plugin) newStaticMapping() *natcommon.Descriptor[StaticMappingSpec] {
 	return natcommon.New(natcommon.Ops[StaticMappingSpec]{
+		Claims: p.claims(),
 		Name: NameStaticMapping,
 		ID:   func(s StaticMappingSpec) string { return s.Name },
 		Deps: func(s StaticMappingSpec) []scheduler.Dependency {
@@ -247,7 +248,9 @@ func (p *Plugin) newStaticMapping() *natcommon.Descriptor[StaticMappingSpec] {
 			for {
 				d, err := stream.Recv()
 				if errors.Is(err, io.EOF) {
-					return out, nil
+					return dedupeByName(out, func(it natcommon.Item[StaticMappingSpec]) (string, bool) {
+						return it.Spec.Name, it.Meta.(MappingMeta).ExternalSwIfIndex != uint32(noInterface)
+					}), nil
 				}
 				if err != nil {
 					return nil, fmt.Errorf("nat44_static_mapping_dump: %w", err)
@@ -292,7 +295,7 @@ func (p *Plugin) identityRequest(ctx context.Context, s IdentityMappingSpec, add
 		return nil, err
 	}
 	if s.Interface != "" && idx == noInterface {
-		idx, err = natcommon.ResolveInterface(ctx, p.client, s.Interface)
+		idx, err = natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 		if err != nil {
 			return nil, err
 		}
@@ -308,6 +311,7 @@ func (p *Plugin) identityRequest(ctx context.Context, s IdentityMappingSpec, add
 
 func (p *Plugin) newIdentityMapping() *natcommon.Descriptor[IdentityMappingSpec] {
 	return natcommon.New(natcommon.Ops[IdentityMappingSpec]{
+		Claims: p.claims(),
 		Name: NameIdentityMapping,
 		ID:   func(s IdentityMappingSpec) string { return s.Name },
 		Deps: func(s IdentityMappingSpec) []scheduler.Dependency {
@@ -354,7 +358,9 @@ func (p *Plugin) newIdentityMapping() *natcommon.Descriptor[IdentityMappingSpec]
 			for {
 				d, err := stream.Recv()
 				if errors.Is(err, io.EOF) {
-					return out, nil
+					return dedupeByName(out, func(it natcommon.Item[IdentityMappingSpec]) (string, bool) {
+						return it.Spec.Name, it.Meta.(IfMeta).SwIfIndex != uint32(noInterface)
+					}), nil
 				}
 				if err != nil {
 					return nil, fmt.Errorf("nat44_identity_mapping_dump: %w", err)
@@ -423,6 +429,7 @@ func (p *Plugin) lbRequest(s LBStaticMappingSpec, add bool) (*nat44_ed.Nat44AddD
 
 func (p *Plugin) newLBStaticMapping() *natcommon.Descriptor[LBStaticMappingSpec] {
 	return natcommon.New(natcommon.Ops[LBStaticMappingSpec]{
+		Claims: p.claims(),
 		Name: NameLBStaticMapping,
 		ID:   func(s LBStaticMappingSpec) string { return s.Name },
 		Deps: func(s LBStaticMappingSpec) []scheduler.Dependency {
@@ -543,4 +550,28 @@ func (p *Plugin) updateLBLocals(ctx context.Context, o, n LBStaticMappingSpec) e
 		}
 	}
 	return nil
+}
+
+// dedupeByName collapses the several details VPP sends for one tagged mapping into one item
+// (review finding 2): for an interface-bound mapping nat44_static_mapping_dump /
+// nat44_identity_mapping_dump send the resolved entry (external = the interface's current
+// address, sw_if_index ~0) *and* the to-resolve record (external = the interface), both with
+// the same tag; an identity mapping additionally sends one detail per local/VRF. The
+// interface-bound record wins (it is what was desired and carries the sw_if_index Meta);
+// otherwise the first detail is kept.
+func dedupeByName[T any](items []natcommon.Item[T], key func(natcommon.Item[T]) (name string, ifBound bool)) []natcommon.Item[T] {
+	pos := map[string]int{}
+	out := items[:0]
+	for _, it := range items {
+		name, ifBound := key(it)
+		if i, seen := pos[name]; seen {
+			if _, curIf := key(out[i]); ifBound && !curIf {
+				out[i] = it
+			}
+			continue
+		}
+		pos[name] = len(out)
+		out = append(out, it)
+	}
+	return out
 }

@@ -13,6 +13,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/binapi/nat44_ed"
+	"ngfw/agent/binapi/nat44_ei"
 	"ngfw/agent/binapi/nat_types"
 	"ngfw/agent/internal/descriptors/nat44ed"
 	"ngfw/agent/internal/descriptors/natcommon"
@@ -36,7 +37,10 @@ type fakeNAT struct {
 	idents     []*nat44_ed.Nat44IdentityMappingDetails
 	lbs        []*nat44_ed.Nat44LbStaticMappingDetails
 	vrfTables  map[uint32][]uint32
+	ei         bool // nat44-ei enabled (mutually exclusive with ED)
 }
+
+var owner = natcommon.WithGlobalsOwner(true)
 
 func newFakeNAT() *fakeNAT {
 	f := &fakeNAT{
@@ -60,6 +64,13 @@ func newFakeNAT() *fakeNAT {
 			}
 		}
 		return out, nil
+	})
+	f.On("nat44_ei_show_running_config", func(api.Message) ([]api.Message, error) {
+		rep := &nat44_ei.Nat44EiShowRunningConfigReply{}
+		if f.ei {
+			rep.Sessions = 1
+		}
+		return []api.Message{rep}, nil
 	})
 	f.On("nat44_show_running_config", func(api.Message) ([]api.Message, error) {
 		rep := &nat44_ed.Nat44ShowRunningConfigReply{Flags: nat44_ed.NAT44_IS_ENDPOINT_DEPENDENT}
@@ -200,11 +211,20 @@ func newFakeNAT() *fakeNAT {
 		return []api.Message{&nat44_ed.Nat44AddDelStaticMappingV2Reply{}}, nil
 	})
 	f.On("nat44_static_mapping_dump", func(api.Message) ([]api.Message, error) {
-		out := make([]api.Message, 0, len(f.statics))
+		// like nat44_ed_api.c: resolved static_mappings first, then the to-resolve records;
+		// an interface-bound mapping therefore appears twice with the same tag (finding 2)
+		var resolved, toResolve []api.Message
 		for _, m := range f.statics {
-			out = append(out, m)
+			if m.ExternalSwIfIndex != ^interface_types.InterfaceIndex(0) {
+				twin := *m
+				twin.ExternalSwIfIndex, twin.ExternalIPAddress = ^interface_types.InterfaceIndex(0), [4]uint8{10, 9, 20, 1}
+				resolved = append(resolved, &twin)
+				toResolve = append(toResolve, m)
+				continue
+			}
+			resolved = append(resolved, m)
 		}
-		return out, nil
+		return append(resolved, toResolve...), nil
 	})
 	f.On("nat44_add_del_identity_mapping", func(req api.Message) ([]api.Message, error) {
 		r := req.(*nat44_ed.Nat44AddDelIdentityMapping)
@@ -221,11 +241,18 @@ func newFakeNAT() *fakeNAT {
 		return []api.Message{&nat44_ed.Nat44AddDelIdentityMappingReply{}}, nil
 	})
 	f.On("nat44_identity_mapping_dump", func(api.Message) ([]api.Message, error) {
-		out := make([]api.Message, 0, len(f.idents))
+		var resolved, toResolve []api.Message
 		for _, m := range f.idents {
-			out = append(out, m)
+			if m.SwIfIndex != ^interface_types.InterfaceIndex(0) {
+				twin := *m
+				twin.SwIfIndex, twin.IPAddress = ^interface_types.InterfaceIndex(0), [4]uint8{10, 9, 20, 1}
+				resolved = append(resolved, &twin)
+				toResolve = append(toResolve, m)
+				continue
+			}
+			resolved = append(resolved, m)
 		}
-		return out, nil
+		return append(resolved, toResolve...), nil
 	})
 	f.On("nat44_add_del_lb_static_mapping", func(req api.Message) ([]api.Message, error) {
 		r := req.(*nat44_ed.Nat44AddDelLbStaticMapping)
@@ -395,9 +422,9 @@ func TestRegisterAndNames(t *testing.T) {
 	}
 }
 
-func TestEnableSingletonSharedVPP(t *testing.T) {
+func TestEnableGlobalsOwner(t *testing.T) {
 	f := newFakeNAT()
-	p := nat44ed.New(f, "w9")
+	p := nat44ed.New(f, "w9", owner)
 	ctx := context.Background()
 	desired := natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 1024, InsideVRF: 9001})
 	if len(retrieveKeys(t, p.Enable)) != 0 {
@@ -409,38 +436,26 @@ func TestEnableSingletonSharedVPP(t *testing.T) {
 	if req := f.CallsNamed("nat44_ed_plugin_enable_disable"); len(req) != 1 || !req[0].(*nat44_ed.Nat44EdPluginEnableDisable).Enable || req[0].(*nat44_ed.Nat44EdPluginEnableDisable).Sessions != 1024 {
 		t.Fatalf("enable request %+v", req)
 	}
-	// foreign owner enabled it with another config → Create refuses instead of flipping it
-	other := nat44ed.New(f, "w3")
-	if _, err := other.Enable.Create(ctx, natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 4096})); !errors.Is(err, nat44ed.ErrForeignObjects) {
-		t.Fatalf("foreign create: %v", err)
-	}
-	// compatible desired state from another owner is converged, no VPP call
-	f.Reset()
-	if _, err := other.Enable.Create(ctx, desired); err != nil || len(f.CallsNamed("nat44_ed_plugin_enable_disable")) != 0 {
-		t.Fatalf("compatible create: %v", err)
-	}
 	if deps := p.Enable.Dependencies(desired); len(deps) != 1 || deps[0].Key != "vrf/9001" {
 		t.Fatalf("deps %+v", deps)
 	}
-	// Update → recreate (no foreign objects); Delete disables
-	if _, err := p.Enable.Update(ctx, desired, natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 2048}), nil); !errors.Is(err, scheduler.ErrRecreate) {
-		t.Fatalf("update: %v", err)
+	// Update on an empty plugin: disable + enable with the new configuration
+	if _, err := p.Enable.Update(ctx, desired, natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 2048}), nil); err != nil || f.cfg.Sessions != 2048 {
+		t.Fatalf("update: %v cfg=%+v", err, f.cfg)
 	}
-	// a foreign pool blocks disable
+	// Update while objects exist: refused, plugin untouched
 	f.addrs = append(f.addrs, &nat44_ed.Nat44AddressDetails{IPAddress: [4]uint8{10, 3, 0, 1}})
-	if err := p.Enable.Delete(ctx, desired, nil); !errors.Is(err, nat44ed.ErrForeignObjects) {
-		t.Fatalf("delete with foreign pool: %v", err)
+	if _, err := p.Enable.Update(ctx, desired, natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 4096}), nil); !errors.Is(err, natcommon.ErrNotEmpty) || !f.enabled || f.cfg.Sessions != 2048 {
+		t.Fatalf("update with objects: %v", err)
 	}
 	f.addrs = nil
 	if err := p.Enable.Delete(ctx, desired, nil); err != nil || f.enabled {
-		t.Fatalf("delete: %v enabled=%v", err, f.enabled)
+		t.Fatalf("empty plugin: delete disables: %v enabled=%v", err, f.enabled)
 	}
-	// production owner owns everything: the foreign check is skipped
-	prod := nat44ed.New(f, "vrx")
-	f.enabled = true
-	f.addrs = append(f.addrs, &nat44_ed.Nat44AddressDetails{IPAddress: [4]uint8{10, 3, 0, 1}})
-	if err := prod.Enable.Delete(ctx, desired, nil); err != nil {
-		t.Fatal(err)
+	// ED and EI are mutually exclusive
+	f.ei = true
+	if _, err := p.Enable.Create(ctx, desired); !errors.Is(err, nat44ed.ErrOtherVariant) || f.enabled {
+		t.Fatalf("EI enabled: %v", err)
 	}
 	f.SetConnected(false)
 	if _, err := p.Enable.Retrieve(ctx); err == nil {
@@ -448,9 +463,89 @@ func TestEnableSingletonSharedVPP(t *testing.T) {
 	}
 }
 
+// TestDisableNeedsCompleteEmptiness is review finding 1 as a unit test: the globals owner's
+// Delete must leave the plugin enabled while ANY owner's object of ANY kind exists — the
+// original check missed output-feature interfaces, identity / LB mappings, interface-address
+// pools and VRF tables.
+func TestDisableNeedsCompleteEmptiness(t *testing.T) {
+	desired := natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 1024})
+	for name, add := range map[string]func(f *fakeNAT){
+		"foreign output-feature interface": func(f *fakeNAT) { f.outputs[3] = true },
+		"foreign in/out interface":         func(f *fakeNAT) { f.features[3] = nat_types.NAT_IS_INSIDE },
+		"pool address":                     func(f *fakeNAT) { f.addrs = append(f.addrs, &nat44_ed.Nat44AddressDetails{IPAddress: [4]uint8{10, 3, 0, 1}}) },
+		"interface-address pool":           func(f *fakeNAT) { f.ifAddrs[3] = 0 },
+		"static mapping":                   func(f *fakeNAT) { f.statics = append(f.statics, &nat44_ed.Nat44StaticMappingDetails{Tag: "w3:m", ExternalSwIfIndex: ^interface_types.InterfaceIndex(0)}) },
+		"identity mapping":                 func(f *fakeNAT) { f.idents = append(f.idents, &nat44_ed.Nat44IdentityMappingDetails{Tag: "w3:i", SwIfIndex: ^interface_types.InterfaceIndex(0)}) },
+		"lb mapping":                       func(f *fakeNAT) { f.lbs = append(f.lbs, &nat44_ed.Nat44LbStaticMappingDetails{Tag: "w3:lb"}) },
+		"vrf table":                        func(f *fakeNAT) { f.vrfTables[3001] = nil },
+		"untagged object of nobody":        func(f *fakeNAT) { f.addrs = append(f.addrs, &nat44_ed.Nat44AddressDetails{IPAddress: [4]uint8{192, 0, 2, 1}}) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFakeNAT()
+			p := nat44ed.New(f, "w9", owner)
+			if apply(t, p.Enable, desired) != 1 {
+				t.Fatal("enable")
+			}
+			add(f)
+			f.Reset()
+			if err := p.Enable.Delete(context.Background(), desired, nil); err != nil {
+				t.Fatalf("delete: %v", err)
+			}
+			if !f.enabled || len(f.CallsNamed("nat44_ed_plugin_enable_disable")) != 0 {
+				t.Fatal("plugin disabled although another object exists")
+			}
+		})
+	}
+}
+
+// TestEnableNonOwner: D-071 — a non-owner only requires the plugin: no set, no reset, no
+// disable, no Retrieve.
+func TestEnableNonOwner(t *testing.T) {
+	f := newFakeNAT()
+	ctx := context.Background()
+	desired := natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 1024})
+	w3 := nat44ed.New(f, "w3")
+	if _, err := w3.Enable.Create(ctx, desired); !errors.Is(err, natcommon.ErrGlobalNotSet) {
+		t.Fatalf("plugin off: %v", err)
+	}
+	if apply(t, nat44ed.New(f, "w9", owner).Enable, desired) != 1 {
+		t.Fatal("owner enables")
+	}
+	f.Reset()
+	if _, err := w3.Enable.Create(ctx, desired); err != nil {
+		t.Fatalf("compatible: %v", err)
+	}
+	if _, err := w3.Enable.Create(ctx, natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 4096})); !errors.Is(err, natcommon.ErrGlobalMismatch) {
+		t.Fatalf("mismatch: %v", err)
+	}
+	if err := w3.Enable.Delete(ctx, desired, nil); err != nil || !f.enabled {
+		t.Fatalf("non-owner delete must be a no-op: %v", err)
+	}
+	if _, err := w3.Enable.Retrieve(ctx); !errors.Is(err, natcommon.ErrRetrieveUnsupported) {
+		t.Fatalf("non-owner retrieve: %v", err)
+	}
+	if err := w3.Timeouts.Delete(ctx, natcommon.MustEncode(&nat44ed.TimeoutsSpec{}), nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := w3.Forwarding.Delete(ctx, natcommon.MustEncode(&nat44ed.ForwardingSpec{}), nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w3.Timeouts.Create(ctx, natcommon.MustEncode(&nat44ed.TimeoutsSpec{UDP: 1, TCPEstablished: 2, TCPTransitory: 3, ICMP: 4})); !errors.Is(err, natcommon.ErrGlobalMismatch) {
+		t.Fatalf("timeouts mismatch: %v", err)
+	}
+	if _, err := w3.Forwarding.Create(ctx, natcommon.MustEncode(&nat44ed.ForwardingSpec{})); !errors.Is(err, natcommon.ErrGlobalNotSet) {
+		t.Fatalf("forwarding off: %v", err)
+	}
+	for _, n := range []string{"nat44_ed_plugin_enable_disable", "nat_set_timeouts", "nat44_forwarding_enable_disable"} {
+		if len(f.CallsNamed(n)) != 0 {
+			t.Fatalf("a non-owner sent %s", n)
+		}
+	}
+}
+
 func TestTimeoutsAndForwarding(t *testing.T) {
 	f := newFakeNAT()
-	p := nat44ed.New(f, "w9")
+	p := nat44ed.New(f, "w9", owner)
 	apply(t, p.Enable, natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 1024}))
 	tmo := natcommon.MustEncode(&nat44ed.TimeoutsSpec{UDP: 60, TCPEstablished: 600, TCPTransitory: 30, ICMP: 10})
 	if apply(t, p.Timeouts, tmo) != 1 || apply(t, p.Timeouts, tmo) != 0 {
@@ -480,7 +575,7 @@ func TestTimeoutsAndForwarding(t *testing.T) {
 
 func TestInterfaceObjects(t *testing.T) {
 	f := newFakeNAT()
-	p := nat44ed.New(f, "w9")
+	p := nat44ed.New(f, "w9", owner)
 	apply(t, p.Enable, natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 1024}))
 	// another owner's interface has everything: invisible to us
 	f.features[3] = nat_types.NAT_IS_INSIDE | nat_types.NAT_IS_OUTSIDE
@@ -541,7 +636,7 @@ func TestInterfaceObjects(t *testing.T) {
 
 func TestAddressPool(t *testing.T) {
 	f := newFakeNAT()
-	p := nat44ed.New(f, "w9")
+	p := nat44ed.New(f, "w9", owner)
 	apply(t, p.Enable, natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 1024}))
 	f.addrs = append(f.addrs, &nat44_ed.Nat44AddressDetails{IPAddress: [4]uint8{10, 3, 0, 1}})   // w3's pool
 	pool := natcommon.MustEncode(&nat44ed.AddressPoolSpec{First: "10.9.0.10", Last: "10.9.0.1"}) // reversed: normalised
@@ -573,7 +668,7 @@ func TestAddressPool(t *testing.T) {
 
 func TestMappings(t *testing.T) {
 	f := newFakeNAT()
-	p := nat44ed.New(f, "w9")
+	p := nat44ed.New(f, "w9", owner)
 	ctx := context.Background()
 	apply(t, p.Enable, natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 1024}))
 	f.statics = append(f.statics, &nat44_ed.Nat44StaticMappingDetails{Tag: "w3:theirs", ExternalSwIfIndex: ^interface_types.InterfaceIndex(0)})
@@ -593,7 +688,17 @@ func TestMappings(t *testing.T) {
 	}
 	keys := retrieveKeys(t, p.StaticMapping)
 	if len(keys) != 2 || keys[0] != "nat44-ed.static-mapping/web" || keys[1] != "nat44-ed.static-mapping/srv" {
-		t.Fatalf("keys %v (foreign filtered)", keys)
+		t.Fatalf("keys %v (foreign filtered, interface twin collapsed)", keys)
+	}
+	// review finding 2: the fake dumps the interface-bound mapping twice (resolved entry with
+	// 10.9.20.1 + to-resolve record); Retrieve keeps exactly the interface-bound one
+	kvs, _ := p.StaticMapping.Retrieve(ctx)
+	for _, kv := range kvs {
+		if kv.Key == "nat44-ed.static-mapping/srv" {
+			if m := kv.Meta.(nat44ed.MappingMeta); m.ExternalSwIfIndex != 2 || !proto.Equal(kv.Value, one2one) {
+				t.Fatalf("srv retrieved as %v meta %+v", kv.Value, m)
+			}
+		}
 	}
 	if deps := p.StaticMapping.Dependencies(one2one); len(deps) != 2 || deps[1].Key != "interface/loop901" {
 		t.Fatalf("deps %+v", deps)
@@ -610,6 +715,9 @@ func TestMappings(t *testing.T) {
 	id2 := natcommon.MustEncode(&nat44ed.IdentityMappingSpec{Name: "self2", IP: "10.9.2.1", AddrOnly: true, VRF: 9002})
 	if apply(t, p.IdentityMapping, id, id2) != 2 || apply(t, p.IdentityMapping, id, id2) != 0 {
 		t.Fatal("identity mappings")
+	}
+	if ks := retrieveKeys(t, p.IdentityMapping); len(ks) != 2 {
+		t.Fatalf("identity twin must collapse to one key: %v", ks)
 	}
 	if deps := p.IdentityMapping.Dependencies(id2); len(deps) != 2 || deps[1].Key != "vrf/9002" {
 		t.Fatalf("deps %+v", deps)
@@ -645,7 +753,7 @@ func TestMappings(t *testing.T) {
 
 func TestVRFTableAndSessions(t *testing.T) {
 	f := newFakeNAT()
-	p := nat44ed.New(f, "w9")
+	p := nat44ed.New(f, "w9", owner)
 	apply(t, p.Enable, natcommon.MustEncode(&nat44ed.EnableSpec{Sessions: 1024}))
 	f.vrfTables[3000] = []uint32{0} // w3's table: outside our range
 	tbl := natcommon.MustEncode(&nat44ed.VRFTableSpec{Table: 9001, Routes: []uint32{9003, 9002, 9002}})

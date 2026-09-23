@@ -10,9 +10,13 @@ import (
 )
 
 // Item is one retrieved object: its typed spec and the Meta Create would have returned.
+// NeedsClaim marks an object whose ownership is not proven by a tag or the slot range
+// (untagged object, untagged interface): the generic Descriptor reports it only when this
+// owner's ClaimStore holds its key (D-071 claim rule).
 type Item[T any] struct {
-	Spec T
-	Meta any
+	Spec       T
+	Meta       any
+	NeedsClaim bool
 }
 
 // Ops are the five operations of one object type, written against the typed spec T. Update
@@ -33,6 +37,10 @@ type Ops[T any] struct {
 	Delete func(ctx context.Context, spec T, meta any) error
 	// Retrieve dumps every owned object of this type.
 	Retrieve func(ctx context.Context) ([]Item[T], error)
+	// Claims is the claim store (nil: in-memory). Create claims the key, Delete releases it.
+	Claims ClaimStore
+	// Global marks a VPP-global singleton (built by Global); no claims are recorded.
+	Global bool
 }
 
 // Descriptor adapts Ops[T] to scheduler.Descriptor: it decodes the *structpb.Struct
@@ -51,6 +59,9 @@ func New[T any](ops Ops[T]) *Descriptor[T] {
 		panic(fmt.Sprintf("natcommon: invalid descriptor name %q", ops.Name))
 	case ops.ID == nil || ops.Create == nil || ops.Delete == nil || ops.Retrieve == nil:
 		panic(fmt.Sprintf("natcommon: descriptor %q: ID, Create, Delete and Retrieve are mandatory", ops.Name))
+	}
+	if ops.Claims == nil {
+		ops.Claims = NewMemoryClaimStore()
 	}
 	return &Descriptor[T]{ops: ops}
 }
@@ -94,7 +105,13 @@ func (d *Descriptor[T]) Create(ctx context.Context, obj proto.Message) (any, err
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", d.ops.Name, err)
 	}
-	return d.ops.Create(ctx, spec)
+	meta, err := d.ops.Create(ctx, spec)
+	if err == nil && !d.ops.Global {
+		if cerr := d.ops.Claims.Claim(string(d.Key(spec))); cerr != nil {
+			return meta, fmt.Errorf("%s: claim: %w", d.ops.Name, cerr)
+		}
+	}
+	return meta, err
 }
 
 // Update implements scheduler.Descriptor.
@@ -122,7 +139,13 @@ func (d *Descriptor[T]) Delete(ctx context.Context, obj proto.Message, meta any)
 	if err != nil {
 		return fmt.Errorf("%s: %w", d.ops.Name, err)
 	}
-	return d.ops.Delete(ctx, spec, meta)
+	if err := d.ops.Delete(ctx, spec, meta); err != nil {
+		return err
+	}
+	if !d.ops.Global {
+		return d.ops.Claims.Release(string(d.Key(spec)))
+	}
+	return nil
 }
 
 // Retrieve implements scheduler.Descriptor.
@@ -132,13 +155,22 @@ func (d *Descriptor[T]) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 		return nil, fmt.Errorf("%s: retrieve: %w", d.ops.Name, err)
 	}
 	out := make([]scheduler.KV, 0, len(items))
+	seen := map[scheduler.Key]bool{}
 	for i := range items {
 		spec := items[i].Spec
 		val, err := Encode(&spec)
 		if err != nil {
 			return nil, fmt.Errorf("%s: retrieve: %w", d.ops.Name, err)
 		}
-		out = append(out, scheduler.KV{Key: d.Key(spec), Value: val, Meta: items[i].Meta})
+		key := d.Key(spec)
+		if items[i].NeedsClaim && !d.ops.Claims.Claimed(string(key)) {
+			continue
+		}
+		if seen[key] {
+			return nil, fmt.Errorf("%s: retrieve: %w: %s", d.ops.Name, ErrDuplicateKey, key)
+		}
+		seen[key] = true
+		out = append(out, scheduler.KV{Key: key, Value: val, Meta: items[i].Meta})
 	}
 	return out, nil
 }

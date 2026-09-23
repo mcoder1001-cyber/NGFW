@@ -109,12 +109,14 @@ func newFakeDet() *fakeDet {
 	return f
 }
 
+var owner = natcommon.WithGlobalsOwner(true)
+
 func TestDet44(t *testing.T) {
 	f := newFakeDet()
-	p := det44d.New(f, "w9")
+	p := det44d.New(f, "w9", owner)
 	ctx := context.Background()
 	reg := scheduler.NewRegistry()
-	det44d.Register(reg, f, "w9")
+	det44d.Register(reg, f, "w9", owner)
 	if reg.Len() != 4 {
 		t.Fatalf("registered %d", reg.Len())
 	}
@@ -140,6 +142,20 @@ func TestDet44(t *testing.T) {
 	}
 	if len(f.CallsNamed("det44_plugin_enable_disable")) != before {
 		t.Fatal("update must not touch VPP")
+	}
+	// finding 6: the write-only enable never gets an Update; a Create with other VRFs than
+	// this process enabled with is refused instead of reported as applied
+	if _, err := p.Enable.Create(ctx, natcommon.MustEncode(&det44d.EnableSpec{InsideVRF: 9003})); !errors.Is(err, det44d.ErrVRFChangeUnsafe) {
+		t.Fatalf("vrf change via create: %v", err)
+	}
+	// non-owner (D-071): requires only (evidence: a det44 map exists), never sends
+	w3 := det44d.New(f, "w3")
+	before = len(f.CallsNamed("det44_plugin_enable_disable"))
+	if _, err := w3.Enable.Create(ctx, en); err != nil || w3.Enable.Delete(ctx, en, nil) != nil || len(f.CallsNamed("det44_plugin_enable_disable")) != before {
+		t.Fatalf("non-owner enable must not touch VPP: %v", err)
+	}
+	if _, err := w3.Timeouts.Create(ctx, natcommon.MustEncode(&det44d.TimeoutsSpec{UDP: 1, TCPEstablished: 2, TCPTransitory: 3, ICMP: 4})); !errors.Is(err, natcommon.ErrGlobalMismatch) {
+		t.Fatalf("non-owner timeouts: %v", err)
 	}
 
 	tmo := natcommon.MustEncode(&det44d.TimeoutsSpec{UDP: 10, TCPEstablished: 7440, TCPTransitory: 240, ICMP: 60})

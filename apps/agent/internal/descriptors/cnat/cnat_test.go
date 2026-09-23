@@ -172,9 +172,11 @@ func mustAddr(s string) ip_types.Address {
 	return a
 }
 
+var owner = natcommon.WithGlobalsOwner(true)
+
 func TestRegister(t *testing.T) {
 	reg := scheduler.NewRegistry()
-	cnat.Register(reg, newFakeCnat(t), "w9")
+	cnat.Register(reg, newFakeCnat(t), "w9", owner)
 	if reg.Len() != 6 {
 		t.Fatalf("registered %d", reg.Len())
 	}
@@ -182,7 +184,7 @@ func TestRegister(t *testing.T) {
 
 func TestTranslation(t *testing.T) {
 	f := newFakeCnat(t)
-	p := cnat.New(f, "w9")
+	p := cnat.New(f, "w9", owner, natcommon.WithLockDir(t.TempDir()))
 	ctx := context.Background()
 	// a foreign translation (w3's VIP) stays invisible
 	f.trs[50] = cnatapi.CnatTranslation{ID: 50, Vip: cnatapi.CnatEndpoint{Addr: mustAddr("10.3.47.1"), Port: 80}, IPProto: ip_types.IP_API_PROTO_TCP, NPaths: 1,
@@ -214,7 +216,7 @@ func TestTranslation(t *testing.T) {
 		t.Fatalf("updated %+v", f.trs[51])
 	}
 	// a fresh process (agent restart) converges without any cached state
-	if nattest.Apply(t, cnat.New(f, "w9").Translation, tr2) != 0 {
+	if nattest.Apply(t, cnat.New(f, "w9", owner, natcommon.WithLockDir(t.TempDir())).Translation, tr2) != 0 {
 		t.Fatal("restart: Retrieve alone must reproduce the desired value")
 	}
 	if _, err := p.Translation.Create(ctx, natcommon.MustEncode(&cnat.TranslationSpec{VIP: "10.9.47.9", Port: 1, Proto: "udp"})); !errors.Is(err, cnat.ErrNoPaths) {
@@ -223,6 +225,17 @@ func TestTranslation(t *testing.T) {
 	if _, err := p.Translation.Create(ctx, natcommon.MustEncode(&cnat.TranslationSpec{VIP: "10.9.47.9", Proto: "udp", LBType: "x", Paths: []cnat.PathSpec{{Dst: "10.9.48.1"}}})); err == nil {
 		t.Fatal("bad lb type")
 	}
+	// finding 3: delete by id re-verifies (vip, port, proto) at that id first
+	kvs, _ := p.Translation.Retrieve(ctx)
+	id := kvs[0].Meta.(cnat.TranslationMeta).ID
+	saved := f.trs[id]
+	reused := saved
+	reused.Vip.Addr = mustAddr("10.3.47.9") // id reused by another owner's translation
+	f.trs[id] = reused
+	if err := p.Translation.Delete(ctx, kvs[0].Value, kvs[0].Meta); err != nil || len(f.CallsNamed("cnat_translation_del")) != 0 {
+		t.Fatalf("delete of a reused id must not be sent: %v", err)
+	}
+	f.trs[id] = saved
 	if nattest.Apply(t, p.Translation) != 1 || len(f.trs) != 1 {
 		t.Fatal("delete, foreign kept")
 	}
@@ -230,7 +243,7 @@ func TestTranslation(t *testing.T) {
 
 func TestSnat(t *testing.T) {
 	f := newFakeCnat(t)
-	p := cnat.New(f, "w9")
+	p := cnat.New(f, "w9", owner, natcommon.WithLockDir(t.TempDir()))
 	ctx := context.Background()
 	pol := natcommon.MustEncode(&cnat.SnatPolicySpec{Policy: cnat.PolicyIfPfx})
 	ex := natcommon.MustEncode(&cnat.SnatExcludePrefixSpec{Prefix: "10.9.49.7/24"})
@@ -309,14 +322,24 @@ func TestSnat(t *testing.T) {
 		t.Fatal("snat delete")
 	}
 
-	// a foreign default entry (w3) is invisible and never deleted
+	// D-071: the default SNAT entry and the policy are globals; a non-owner requires the
+	// entry, never creates, replaces or deletes it, and cannot verify the policy
 	f.snat = &cnatapi.CnatGetSnatAddressesReply{SnatIP4: [4]uint8{10, 3, 0, 1}}
-	if len(nattest.Keys(t, p.SnatAddresses)) != 0 {
-		t.Fatal("foreign snat visible")
+	w3 := cnat.New(f, "w3", natcommon.WithLockDir(t.TempDir()))
+	sets := len(f.CallsNamed("cnat_set_snat_addresses"))
+	if _, err := w3.SnatAddresses.Create(ctx, natcommon.MustEncode(&cnat.SnatAddressesSpec{IP4: "10.3.0.1"})); err != nil {
+		t.Fatalf("non-owner requirement met: %v", err)
 	}
-	if err := p.SnatAddresses.Delete(ctx, addrs, nil); !errors.Is(err, cnat.ErrForeignSnat) || f.snat == nil {
-		t.Fatalf("foreign delete: %v", err)
+	if _, err := w3.SnatAddresses.Create(ctx, addrs); !errors.Is(err, natcommon.ErrGlobalMismatch) {
+		t.Fatalf("non-owner mismatch: %v", err)
 	}
+	if err := w3.SnatAddresses.Delete(ctx, addrs, nil); err != nil || f.snat == nil || len(f.CallsNamed("cnat_set_snat_addresses")) != sets {
+		t.Fatalf("non-owner must never delete the default entry: %v", err)
+	}
+	if err := w3.SnatPolicy.Delete(ctx, pol, nil); err != nil || len(f.CallsNamed("cnat_set_snat_policy")) != 3 {
+		t.Fatalf("non-owner must never reset the policy: %v", err)
+	}
+
 	// interface-based entry: addresses are derived, only the interface is reported
 	f.snat = nil
 	ifs := natcommon.MustEncode(&cnat.SnatAddressesSpec{Interface: "loop940"})
@@ -330,7 +353,7 @@ func TestSnat(t *testing.T) {
 
 func TestInterfaceFeatureAndState(t *testing.T) {
 	f := newFakeCnat(t)
-	p := cnat.New(f, "w9")
+	p := cnat.New(f, "w9", owner, natcommon.WithLockDir(t.TempDir()))
 	ctx := context.Background()
 	f.feat[3] = true // w3
 	in := natcommon.MustEncode(&cnat.InterfaceFeatureSpec{Interface: "loop941"})

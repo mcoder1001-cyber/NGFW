@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 
+	"go.fd.io/govpp/api"
+
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/nat44_ed"
 	"ngfw/agent/binapi/nat_types"
@@ -59,6 +61,7 @@ func ifDeps(name string) []scheduler.Dependency {
 
 func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceFeatureSpec]{
+		Claims: p.claims(),
 		Name: NameInterfaceFeature,
 		ID:   func(s InterfaceFeatureSpec) string { return s.Interface + "/" + s.Side },
 		Deps: func(s InterfaceFeatureSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
@@ -67,7 +70,7 @@ func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpe
 			if err != nil {
 				return nil, err
 			}
-			idx, err := natcommon.ResolveInterface(ctx, p.client, s.Interface)
+			idx, err := natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 			if err != nil {
 				return nil, err
 			}
@@ -109,15 +112,16 @@ func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpe
 					return nil, fmt.Errorf("nat44_interface_dump: %w", err)
 				}
 				i, _ := ifaces.ByIndex(uint32(d.SwIfIndex))
-				if !p.scope.OwnsInterface(i) {
+				ok, nc := p.scope.InterfaceOwnership(i)
+				if !ok {
 					continue
 				}
 				meta := IfMeta{SwIfIndex: uint32(d.SwIfIndex)}
 				if d.Flags&nat_types.NAT_IS_INSIDE != 0 {
-					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: i.Name, Side: SideInside}, Meta: meta})
+					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: i.Name, Side: SideInside}, Meta: meta, NeedsClaim: nc})
 				}
 				if d.Flags&nat_types.NAT_IS_OUTSIDE != 0 {
-					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: i.Name, Side: SideOutside}, Meta: meta})
+					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: i.Name, Side: SideOutside}, Meta: meta, NeedsClaim: nc})
 				}
 			}
 		},
@@ -126,11 +130,12 @@ func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpe
 
 func (p *Plugin) newOutputFeature() *natcommon.Descriptor[OutputFeatureSpec] {
 	return natcommon.New(natcommon.Ops[OutputFeatureSpec]{
+		Claims: p.claims(),
 		Name: NameOutputFeature,
 		ID:   func(s OutputFeatureSpec) string { return s.Interface },
 		Deps: func(s OutputFeatureSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
 		Create: func(ctx context.Context, s OutputFeatureSpec) (any, error) {
-			idx, err := natcommon.ResolveInterface(ctx, p.client, s.Interface)
+			idx, err := natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 			if err != nil {
 				return nil, err
 			}
@@ -154,39 +159,56 @@ func (p *Plugin) newOutputFeature() *natcommon.Descriptor[OutputFeatureSpec] {
 			if err != nil {
 				return nil, err
 			}
-			var out []natcommon.Item[OutputFeatureSpec]
-			// cursor-style get: one call returns everything from the cursor on; EAGAIN → continue.
-			cursor := uint32(0)
-			for {
-				stream, err := p.svc.Nat44EdOutputInterfaceGet(ctx, &nat44_ed.Nat44EdOutputInterfaceGet{Cursor: cursor})
-				if err != nil {
-					return nil, fmt.Errorf("nat44_ed_output_interface_get: %w", err)
-				}
-				again := false
-				for {
-					d, rep, err := stream.Recv()
-					if errors.Is(err, io.EOF) {
-						break
-					}
-					if err != nil {
-						if rv, ok := natcommon.Retval(err); ok && rv == -165 && rep != nil { // EAGAIN
-							cursor, again = rep.Cursor, true
-							break
-						}
-						return nil, fmt.Errorf("nat44_ed_output_interface_get: %w", err)
-					}
-					i, _ := ifaces.ByIndex(uint32(d.SwIfIndex))
-					if !p.scope.OwnsInterface(i) {
-						continue
-					}
-					out = append(out, natcommon.Item[OutputFeatureSpec]{Spec: OutputFeatureSpec{Interface: i.Name}, Meta: IfMeta{SwIfIndex: uint32(d.SwIfIndex)}})
-				}
-				if !again {
-					return out, nil
-				}
+			idxs, err := p.outputInterfaces(ctx)
+			if err != nil {
+				return nil, err
 			}
+			var out []natcommon.Item[OutputFeatureSpec]
+			for _, idx := range idxs {
+				i, _ := ifaces.ByIndex(idx)
+				ok, nc := p.scope.InterfaceOwnership(i)
+				if !ok {
+					continue
+				}
+				out = append(out, natcommon.Item[OutputFeatureSpec]{Spec: OutputFeatureSpec{Interface: i.Name}, Meta: IfMeta{SwIfIndex: idx}, NeedsClaim: nc})
+			}
+			return out, nil
 		},
 	})
+}
+
+// outputInterfaces lists the sw_if_index of every output-feature interface (all owners):
+// cursor-style get, one call returns everything from the cursor on; EAGAIN → continue.
+func (p *Plugin) outputInterfaces(ctx context.Context) ([]uint32, error) {
+	var out []uint32
+	cursor := uint32(0)
+	for {
+		stream, err := p.svc.Nat44EdOutputInterfaceGet(ctx, &nat44_ed.Nat44EdOutputInterfaceGet{Cursor: cursor})
+		if err != nil {
+			return nil, fmt.Errorf("nat44_ed_output_interface_get: %w", err)
+		}
+		again := false
+		for {
+			d, rep, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				if rv, ok := natcommon.Retval(err); ok && rv == api.EAGAIN && rep != nil {
+					cursor, again = rep.Cursor, true
+					break
+				}
+				if rv, ok := natcommon.Retval(err); ok && rv == api.INVALID_VALUE && rep != nil { // empty table
+					break
+				}
+				return nil, fmt.Errorf("nat44_ed_output_interface_get: %w", err)
+			}
+			out = append(out, uint32(d.SwIfIndex))
+		}
+		if !again {
+			return out, nil
+		}
+	}
 }
 
 func (p *Plugin) newInterfaceAddress() *natcommon.Descriptor[InterfaceAddressSpec] {
@@ -197,11 +219,12 @@ func (p *Plugin) newInterfaceAddress() *natcommon.Descriptor[InterfaceAddressSpe
 		return 0
 	}
 	return natcommon.New(natcommon.Ops[InterfaceAddressSpec]{
+		Claims: p.claims(),
 		Name: NameInterfaceAddress,
 		ID:   func(s InterfaceAddressSpec) string { return s.Interface },
 		Deps: func(s InterfaceAddressSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
 		Create: func(ctx context.Context, s InterfaceAddressSpec) (any, error) {
-			idx, err := natcommon.ResolveInterface(ctx, p.client, s.Interface)
+			idx, err := natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 			if err != nil {
 				return nil, err
 			}
@@ -239,12 +262,14 @@ func (p *Plugin) newInterfaceAddress() *natcommon.Descriptor[InterfaceAddressSpe
 					return nil, fmt.Errorf("nat44_interface_addr_dump: %w", err)
 				}
 				i, _ := ifaces.ByIndex(uint32(d.SwIfIndex))
-				if !p.scope.OwnsInterface(i) {
+				ok, nc := p.scope.InterfaceOwnership(i)
+				if !ok {
 					continue
 				}
 				out = append(out, natcommon.Item[InterfaceAddressSpec]{
-					Spec: InterfaceAddressSpec{Interface: i.Name, TwiceNAT: d.Flags&nat_types.NAT_IS_TWICE_NAT != 0},
-					Meta: IfMeta{SwIfIndex: uint32(d.SwIfIndex)},
+					Spec:       InterfaceAddressSpec{Interface: i.Name, TwiceNAT: d.Flags&nat_types.NAT_IS_TWICE_NAT != 0},
+					Meta:       IfMeta{SwIfIndex: uint32(d.SwIfIndex)},
+					NeedsClaim: nc,
 				})
 			}
 		},

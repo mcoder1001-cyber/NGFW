@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
 	"ngfw/agent/binapi/feature"
 	"ngfw/agent/binapi/interface_types"
@@ -106,6 +107,7 @@ type IfMeta struct{ SwIfIndex uint32 }
 type Plugin struct {
 	client vpp.Client
 	scope  natcommon.Scope
+	cfg    natcommon.Config
 	svc    maps.RPCService
 	feat   feature.RPCService
 
@@ -116,8 +118,8 @@ type Plugin struct {
 }
 
 // New constructs the family for client and owner.
-func New(client vpp.Client, owner string) *Plugin {
-	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), svc: maps.NewServiceClient(client), feat: feature.NewServiceClient(client)}
+func New(client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {
+	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), cfg: natcommon.BuildConfig(opts), svc: maps.NewServiceClient(client), feat: feature.NewServiceClient(client)}
 	p.Params = p.newParams()
 	p.Domain = p.newDomain()
 	p.Rule = p.newRule()
@@ -131,13 +133,15 @@ func (p *Plugin) Descriptors() []scheduler.Descriptor {
 }
 
 // Register constructs the family and registers every descriptor.
-func Register(r scheduler.Registry, client vpp.Client, owner string) *Plugin {
-	p := New(client, owner)
+func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {
+	p := New(client, owner, opts...)
 	for _, d := range p.Descriptors() {
 		r.Register(d)
 	}
 	return p
 }
+
+func (p *Plugin) claims() natcommon.ClaimStore { return p.cfg.Claims }
 
 // DomainKey is the key of the domain called name.
 func DomainKey(name string) scheduler.Key { return scheduler.Join(NameDomain, name) }
@@ -156,6 +160,7 @@ func (p *Plugin) domains(ctx context.Context) ([]domain, error) {
 		return nil, fmt.Errorf("map_domain_dump: %w", err)
 	}
 	var out []domain
+	seen := map[string]bool{}
 	for {
 		d, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
@@ -168,10 +173,30 @@ func (p *Plugin) domains(ctx context.Context) ([]domain, error) {
 		if !ok {
 			continue
 		}
+		// duplicate tags (a retried Create): the lowest index is canonical, extras surface
+		// as "<name>#<index>" so the scheduler deletes them (D-066 pattern).
+		if seen[name] {
+			name = fmt.Sprintf("%s#%d", name, d.DomainIndex)
+		}
+		seen[name] = true
 		s := DomainSpec{Name: name, IP4Prefix: natcommon.Prefix4String(d.IP4Prefix), IP6Prefix: natcommon.Prefix6String(d.IP6Prefix), IP6Src: natcommon.Prefix6String(d.IP6Src),
 			EABitsLen: uint32(d.EaBitsLen), PSIDOffset: uint32(d.PsidOffset), PSIDLength: uint32(d.PsidLength), MTU: uint32(d.Mtu)}
 		out = append(out, domain{spec: s, index: d.DomainIndex})
 	}
+}
+
+// domainAt reports whether VPP domain index idx is currently this owner's domain name.
+func (p *Plugin) domainAt(ctx context.Context, idx uint32, name string) (bool, error) {
+	ds, err := p.domains(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, d := range ds {
+		if d.index == idx {
+			return d.spec.Name == name, nil
+		}
+	}
+	return false, nil
 }
 
 func (p *Plugin) domainIndex(ctx context.Context, name string) (uint32, error) {
@@ -196,9 +221,13 @@ func u8(v uint32, what string) (uint8, error) {
 
 func (p *Plugin) newDomain() *natcommon.Descriptor[DomainSpec] {
 	return natcommon.New(natcommon.Ops[DomainSpec]{
+		Claims: p.claims(),
 		Name: NameDomain,
 		ID:   func(s DomainSpec) string { return s.Name },
 		Create: func(ctx context.Context, s DomainSpec) (any, error) {
+			if strings.Contains(s.Name, "#") {
+				return nil, fmt.Errorf("map: domain name %q must not contain '#'", s.Name)
+			}
 			tag, err := p.scope.Tag(s.Name)
 			if err != nil {
 				return nil, err
@@ -236,10 +265,17 @@ func (p *Plugin) newDomain() *natcommon.Descriptor[DomainSpec] {
 			}
 			return DomainMeta{Index: rep.Index}, nil
 		},
-		Delete: func(ctx context.Context, _ DomainSpec, meta any) error {
+		Delete: func(ctx context.Context, s DomainSpec, meta any) error {
 			m, ok := meta.(DomainMeta)
 			if !ok {
 				return fmt.Errorf("%s: unexpected meta %T", NameDomain, meta)
+			}
+			// D-071 / review finding 3: re-verify identity immediately before deleting by
+			// index — the index must still carry this owner's tag for this domain.
+			if ok, err := p.domainAt(ctx, m.Index, s.Name); err != nil {
+				return err
+			} else if !ok {
+				return nil // gone, or the index was reused by another domain: nothing of ours
 			}
 			if _, err := p.svc.MapDelDomain(ctx, &maps.MapDelDomain{Index: m.Index}); err != nil && !natcommon.IsNoSuchEntry(err) {
 				return fmt.Errorf("map_del_domain: %w", err)
@@ -264,6 +300,7 @@ func (p *Plugin) newDomain() *natcommon.Descriptor[DomainSpec] {
 
 func (p *Plugin) newRule() *natcommon.Descriptor[RuleSpec] {
 	return natcommon.New(natcommon.Ops[RuleSpec]{
+		Claims: p.claims(),
 		Name: NameRule,
 		ID:   func(s RuleSpec) string { return fmt.Sprintf("%s/%d", s.Domain, s.PSID) },
 		Deps: func(s RuleSpec) []scheduler.Dependency {
@@ -305,6 +342,11 @@ func (p *Plugin) newRule() *natcommon.Descriptor[RuleSpec] {
 			m, ok := meta.(DomainMeta)
 			if !ok {
 				return fmt.Errorf("%s: unexpected meta %T", NameRule, meta)
+			}
+			if ok, err := p.domainAt(ctx, m.Index, s.Domain); err != nil {
+				return err
+			} else if !ok {
+				return nil // domain gone (its rules with it) or index reused: not ours
 			}
 			dst, err := natcommon.IP6(s.IP6Dst)
 			if err != nil {
@@ -384,28 +426,24 @@ func ip4OrZero(s string) (a [4]uint8, err error) {
 	return natcommon.IP4(s)
 }
 
+// newParams: VPP-global (D-071). Owner: set / reset to VPP defaults, Retrieve reports
+// non-default values. Others: require the desired values (map_param_get).
 func (p *Plugin) newParams() *natcommon.Descriptor[ParamsSpec] {
-	return natcommon.New(natcommon.Ops[ParamsSpec]{
-		Name:   NameParams,
-		ID:     func(ParamsSpec) string { return Singleton },
-		Create: func(ctx context.Context, s ParamsSpec) (any, error) { return nil, p.setParams(ctx, s) },
-		Update: func(ctx context.Context, _, s ParamsSpec, _ any) (any, error) { return nil, p.setParams(ctx, s) },
-		Delete: func(ctx context.Context, _ ParamsSpec, _ any) error { return p.setParams(ctx, DefaultParams) },
-		// Presence = non-default values (a desired state without params must not reset them
-		// on every pass).
-		Retrieve: func(ctx context.Context) ([]natcommon.Item[ParamsSpec], error) {
+	return natcommon.Global(p.cfg, natcommon.GlobalOps[ParamsSpec]{
+		Name: NameParams, ID: Singleton,
+		Read: func(ctx context.Context) (natcommon.GlobalState[ParamsSpec], error) {
 			rep, err := p.svc.MapParamGet(ctx, &maps.MapParamGet{})
 			if err != nil {
-				return nil, fmt.Errorf("map_param_get: %w", err)
+				return natcommon.GlobalState[ParamsSpec]{}, fmt.Errorf("map_param_get: %w", err)
 			}
 			s := ParamsSpec{FragInner: rep.FragInner != 0, FragIgnoreDF: rep.FragIgnoreDf != 0, ICMPRelaySrc: natcommon.IP4String(rep.ICMPIP4ErrRelaySrc),
 				ICMP6Unreachable: rep.ICMP6EnableUnreachable, SecurityCheck: rep.SecCheckEnable, SecurityCheckFrags: rep.SecCheckFragments, TCCopy: rep.TcCopy, TCClass: uint32(rep.TcClass)}
 			s.Normalize()
-			if s == DefaultParams {
-				return nil, nil
-			}
-			return []natcommon.Item[ParamsSpec]{{Spec: s}}, nil
+			return natcommon.GlobalState[ParamsSpec]{Value: s, Present: true, Observable: true}, nil
 		},
+		Absent: func(s ParamsSpec) bool { return s == DefaultParams },
+		Set:    p.setParams,
+		Reset:  func(ctx context.Context, _ ParamsSpec) error { return p.setParams(ctx, DefaultParams) },
 	})
 }
 
@@ -444,13 +482,14 @@ func (p *Plugin) mapFeature(ctx context.Context, idx uint32, name string) (bool,
 
 func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceSpec]{
+		Claims: p.claims(),
 		Name: NameInterface,
 		ID:   func(s InterfaceSpec) string { return s.Interface + "/" + mode(s.Translation) },
 		Deps: func(s InterfaceSpec) []scheduler.Dependency {
 			return []scheduler.Dependency{natcommon.InterfaceDep(s.Interface)}
 		},
 		Create: func(ctx context.Context, s InterfaceSpec) (any, error) {
-			idx, err := natcommon.ResolveInterface(ctx, p.client, s.Interface)
+			idx, err := natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 			if err != nil {
 				return nil, err
 			}
@@ -476,7 +515,8 @@ func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 			}
 			var out []natcommon.Item[InterfaceSpec]
 			for _, i := range ifaces.All() {
-				if !p.scope.OwnsInterface(i) {
+				owned, nc := p.scope.InterfaceOwnership(i)
+				if !owned {
 					continue
 				}
 				meta := IfMeta{SwIfIndex: i.SwIfIndex}
@@ -489,7 +529,7 @@ func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 						return nil, err
 					}
 					if on {
-						out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Translation: m.translation}, Meta: meta})
+						out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Translation: m.translation}, Meta: meta, NeedsClaim: nc})
 					}
 				}
 			}

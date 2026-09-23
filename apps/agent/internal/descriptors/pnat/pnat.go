@@ -23,6 +23,7 @@ import (
 	"io"
 	"sort"
 	"strconv"
+	"strings"
 
 	"go.fd.io/govpp/api"
 
@@ -79,9 +80,22 @@ type RewriteSpec struct {
 }
 
 // BindingSpec is one pnat binding (pnat_binding_add_v2). Its id is the canonical match tuple.
+// VPP does not reject a second binding with the same match tuple (a retried Create): Retrieve
+// reports the lowest index as the binding and every further one with Extra = its index
+// (key "<id>#<index>") so the scheduler deletes it (D-066 pattern, review finding 3). Desired
+// state always leaves Extra 0.
 type BindingSpec struct {
 	Match   MatchSpec   `json:"match"`
 	Rewrite RewriteSpec `json:"rewrite"`
+	Extra   uint32      `json:"extra"`
+}
+
+// BindingID is the key id of a binding.
+func BindingID(s BindingSpec) string {
+	if s.Extra != 0 {
+		return fmt.Sprintf("%s#%d", s.Match.ID(), s.Extra)
+	}
+	return s.Match.ID()
 }
 
 // Normalize canonicalises addresses and protocol.
@@ -141,6 +155,7 @@ func BindingKey(id string) scheduler.Key { return scheduler.Join(NameBinding, id
 type Plugin struct {
 	client vpp.Client
 	scope  natcommon.Scope
+	cfg    natcommon.Config
 	svc    pnatapi.RPCService
 
 	Binding    *natcommon.Descriptor[BindingSpec]
@@ -148,8 +163,8 @@ type Plugin struct {
 }
 
 // New constructs the family for client and owner.
-func New(client vpp.Client, owner string) *Plugin {
-	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), svc: pnatapi.NewServiceClient(client)}
+func New(client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {
+	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), cfg: natcommon.BuildConfig(opts), svc: pnatapi.NewServiceClient(client)}
 	p.Binding = p.newBinding()
 	p.Attachment = p.newAttachment()
 	return p
@@ -161,8 +176,8 @@ func (p *Plugin) Descriptors() []scheduler.Descriptor {
 }
 
 // Register constructs the family and registers every descriptor.
-func Register(r scheduler.Registry, client vpp.Client, owner string) *Plugin {
-	p := New(client, owner)
+func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {
+	p := New(client, owner, opts...)
 	for _, d := range p.Descriptors() {
 		r.Register(d)
 	}
@@ -322,13 +337,18 @@ func decode(d *pnatapi.PnatBindingsDetails) BindingSpec {
 	return s
 }
 
-func (p *Plugin) owns(s BindingSpec) bool {
+// inSlotRange reports whether a binding lies in this slot's address block (untagged object:
+// slots own their block, anything else needs a claim, D-071).
+func (p *Plugin) inSlotRange(s BindingSpec) bool {
+	if p.scope.All {
+		return false
+	}
 	for _, a := range []string{s.Match.Src, s.Match.Dst, s.Rewrite.Src, s.Rewrite.Dst} {
 		if a != "" && p.scope.OwnsAddrString(a) {
 			return true
 		}
 	}
-	return p.scope.All
+	return false
 }
 
 // ---- binding enumeration (index recovery) -------------------------------------------------
@@ -375,12 +395,68 @@ type binding struct {
 	index uint32
 }
 
-// bindings dumps every binding with its recovered pool index (unfiltered).
+// ErrUnstable is returned when the binding table keeps changing during index recovery.
+var ErrUnstable = errors.New("pnat: binding table changed during index recovery; retry")
+
+// bindings dumps every binding with its recovered pool index (unfiltered). The recovery takes
+// several pnat_bindings_get calls; it is accepted only when a snapshot taken before and one
+// taken after are identical, otherwise retried (review finding 3). Deletes and attaches
+// additionally re-verify the index right before acting (bindingAt).
 func (p *Plugin) bindings(ctx context.Context) ([]binding, error) {
-	all, err := p.getFrom(ctx, 0)
-	if err != nil || len(all) == 0 {
-		return nil, err
+	for attempt := 0; attempt < 5; attempt++ {
+		before, err := p.getFrom(ctx, 0)
+		if err != nil || len(before) == 0 {
+			return nil, err
+		}
+		res, err := p.recoverIndices(ctx, before)
+		if err != nil {
+			return nil, err
+		}
+		after, err := p.getFrom(ctx, 0)
+		if err != nil {
+			return nil, err
+		}
+		if sameDetails(before, after) {
+			return res, nil
+		}
 	}
+	return nil, ErrUnstable
+}
+
+func sameDetails(a, b []*pnatapi.PnatBindingsDetails) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Match != b[i].Match || a[i].Rewrite != b[i].Rewrite {
+			return false
+		}
+	}
+	return true
+}
+
+// bindingAt re-verifies, immediately before an index-based call, that pool index idx is live
+// and holds exactly spec's match and rewrite (D-071: deletes by index re-verify identity).
+func (p *Plugin) bindingAt(ctx context.Context, idx uint32, spec BindingSpec) (bool, error) {
+	from, err := p.getFrom(ctx, idx)
+	if err != nil || len(from) == 0 {
+		return false, err
+	}
+	next, err := p.getFrom(ctx, idx+1)
+	if err != nil {
+		return false, err
+	}
+	if len(from)-len(next) != 1 {
+		return false, nil // idx itself is free
+	}
+	got := decode(from[0])
+	spec.Extra = 0
+	spec.Normalize()
+	return got.Match == spec.Match && got.Rewrite == spec.Rewrite, nil
+}
+
+// recoverIndices assigns pool indices to the details of one get(0) snapshot.
+func (p *Plugin) recoverIndices(ctx context.Context, all []*pnatapi.PnatBindingsDetails) ([]binding, error) {
 	n := uint32(len(all)) //nolint:gosec // bounded by VPP's pool
 	count := func(k uint32) (uint32, error) {
 		d, err := p.getFrom(ctx, k)
@@ -436,27 +512,66 @@ func (p *Plugin) bindings(ctx context.Context) ([]binding, error) {
 	return out, nil
 }
 
-func (p *Plugin) ownedBindings(ctx context.Context) ([]binding, error) {
-	all, err := p.bindings(ctx)
+// ourBindings returns the bindings this owner's Retrieve reports (range / claims applied).
+func (p *Plugin) ourBindings(ctx context.Context) ([]binding, error) {
+	kvs, err := p.Binding.Retrieve(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := all[:0]
-	for _, b := range all {
-		if p.owns(b.spec) {
-			out = append(out, b)
+	out := make([]binding, 0, len(kvs))
+	for _, kv := range kvs {
+		spec, err := natcommon.Decode[BindingSpec](kv.Value)
+		if err != nil {
+			return nil, err
 		}
+		out = append(out, binding{spec: spec, index: kv.Meta.(BindingMeta).Index})
 	}
 	return out, nil
+}
+
+// ErrAttached is returned when deleting a binding that is still attached: VPP would leave a
+// flow entry pointing at the freed index, which a later binding reusing it inherits.
+var ErrAttached = errors.New("pnat: binding is still attached to an interface; detach it first")
+
+// attachedAnywhere reports whether binding idx is attached on any pnat interface (flow lookup
+// on both points; only while a pnat interface exists — the flow hash is initialised then).
+func (p *Plugin) attachedAnywhere(ctx context.Context, idx uint32, spec BindingSpec) (bool, error) {
+	ifs, err := p.pnatInterfaces(ctx)
+	if err != nil || len(ifs) == 0 {
+		return false, err
+	}
+	m, err := encodeMatch(spec.Match)
+	if err != nil {
+		return false, err
+	}
+	for _, sw := range ifs {
+		for _, pt := range []pnatapi.PnatAttachmentPoint{pnatapi.PNAT_IP4_INPUT, pnatapi.PNAT_IP4_OUTPUT} {
+			rep, err := p.svc.PnatFlowLookup(ctx, &pnatapi.PnatFlowLookup{SwIfIndex: interface_types.InterfaceIndex(sw), Attachment: pt, Match: m})
+			if err != nil {
+				if rv, ok := natcommon.Retval(err); ok && rv == -1 {
+					continue
+				}
+				return false, fmt.Errorf("pnat_flow_lookup: %w", err)
+			}
+			if rep.BindingIndex == idx {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 // ---- binding descriptor -------------------------------------------------------------------
 
 func (p *Plugin) newBinding() *natcommon.Descriptor[BindingSpec] {
 	return natcommon.New(natcommon.Ops[BindingSpec]{
+		Claims: p.cfg.Claims,
 		Name: NameBinding,
-		ID:   func(s BindingSpec) string { return s.Match.ID() },
+		ID:   BindingID,
 		Create: func(ctx context.Context, s BindingSpec) (any, error) {
+			if s.Extra != 0 {
+				return nil, fmt.Errorf("pnat: extra must be 0 in desired state")
+			}
 			m, err := encodeMatch(s.Match)
 			if err != nil {
 				return nil, err
@@ -471,10 +586,20 @@ func (p *Plugin) newBinding() *natcommon.Descriptor[BindingSpec] {
 			}
 			return BindingMeta{Index: rep.BindingIndex}, nil
 		},
-		Delete: func(ctx context.Context, _ BindingSpec, meta any) error {
+		Delete: func(ctx context.Context, s BindingSpec, meta any) error {
 			m, ok := meta.(BindingMeta)
 			if !ok {
 				return fmt.Errorf("%s: unexpected meta %T", NameBinding, meta)
+			}
+			if same, err := p.bindingAt(ctx, m.Index, s); err != nil {
+				return err
+			} else if !same {
+				return nil // gone, or the index now holds another binding: never delete it
+			}
+			if att, err := p.attachedAnywhere(ctx, m.Index, s); err != nil {
+				return err
+			} else if att {
+				return fmt.Errorf("%s %s: %w", NameBinding, BindingID(s), ErrAttached)
 			}
 			if _, err := p.svc.PnatBindingDel(ctx, &pnatapi.PnatBindingDel{BindingIndex: m.Index}); err != nil {
 				if rv, ok := natcommon.Retval(err); ok && rv == -1 { // already gone
@@ -485,13 +610,20 @@ func (p *Plugin) newBinding() *natcommon.Descriptor[BindingSpec] {
 			return nil
 		},
 		Retrieve: func(ctx context.Context) ([]natcommon.Item[BindingSpec], error) {
-			bs, err := p.ownedBindings(ctx)
+			bs, err := p.bindings(ctx)
 			if err != nil {
 				return nil, err
 			}
 			out := make([]natcommon.Item[BindingSpec], 0, len(bs))
-			for _, b := range bs {
-				out = append(out, natcommon.Item[BindingSpec]{Spec: b.spec, Meta: BindingMeta{Index: b.index}})
+			seen := map[string]bool{}
+			for _, b := range bs { // index order: the lowest index of a tuple is canonical
+				spec := b.spec
+				if id := spec.Match.ID(); seen[id] {
+					spec.Extra = b.index
+				} else {
+					seen[id] = true
+				}
+				out = append(out, natcommon.Item[BindingSpec]{Spec: spec, Meta: BindingMeta{Index: b.index}, NeedsClaim: p.scope.NeedsClaim(p.inSlotRange(spec))})
 			}
 			return out, nil
 		},
@@ -511,32 +643,57 @@ func pointValue(s string) (pnatapi.PnatAttachmentPoint, error) {
 }
 
 // pnatInterfaces returns the sw_if_indexes pnat_interfaces_get lists; a non-empty result
-// proves the flow hash is initialised.
+// pnatInterfaces returns the sw_if_indexes pnat_interfaces_get lists (following EAGAIN
+// continuations, review finding 7); a non-empty result proves the flow hash is initialised.
 func (p *Plugin) pnatInterfaces(ctx context.Context) ([]uint32, error) {
-	stream, err := p.svc.PnatInterfacesGet(ctx, &pnatapi.PnatInterfacesGet{})
-	if err != nil {
-		return nil, fmt.Errorf("pnat_interfaces_get: %w", err)
-	}
 	var out []uint32
+	cursor := uint32(0)
 	for {
-		d, rep, err := stream.Recv()
-		switch {
-		case d != nil:
-			out = append(out, uint32(d.SwIfIndex))
-		case errors.Is(err, io.EOF), rep != nil && isRetval(err, api.INVALID_VALUE):
-			return out, nil
-		case rep != nil && isRetval(err, api.EAGAIN):
-			return nil, fmt.Errorf("pnat_interfaces_get: more than one reply batch of interfaces is not supported")
-		case err != nil:
+		stream, err := p.svc.PnatInterfacesGet(ctx, &pnatapi.PnatInterfacesGet{Cursor: cursor})
+		if err != nil {
 			return nil, fmt.Errorf("pnat_interfaces_get: %w", err)
 		}
+		next := ^uint32(0)
+	recv:
+		for {
+			d, rep, err := stream.Recv()
+			switch {
+			case d != nil:
+				out = append(out, uint32(d.SwIfIndex))
+			case errors.Is(err, io.EOF), rep != nil && isRetval(err, api.INVALID_VALUE):
+				break recv
+			case rep != nil && isRetval(err, api.EAGAIN):
+				next = rep.Cursor
+				break recv
+			case err != nil:
+				return nil, fmt.Errorf("pnat_interfaces_get: %w", err)
+			}
+		}
+		if next == ^uint32(0) {
+			return out, nil
+		}
+		cursor = next
 	}
+}
+
+// bindingIDAt reports whether pool index idx is live and its match tuple has id.
+func (p *Plugin) bindingIDAt(ctx context.Context, idx uint32, id string) (bool, error) {
+	from, err := p.getFrom(ctx, idx)
+	if err != nil || len(from) == 0 {
+		return false, err
+	}
+	next, err := p.getFrom(ctx, idx+1)
+	if err != nil {
+		return false, err
+	}
+	return len(from)-len(next) == 1 && decode(from[0]).Match.ID() == strings.SplitN(id, "#", 2)[0], nil
 }
 
 func attachID(s AttachmentSpec) string { return s.Interface + "/" + s.Point + "/" + s.Binding }
 
 func (p *Plugin) newAttachment() *natcommon.Descriptor[AttachmentSpec] {
 	return natcommon.New(natcommon.Ops[AttachmentSpec]{
+		Claims: p.cfg.Claims,
 		Name: NameAttachment,
 		ID:   attachID,
 		Deps: func(s AttachmentSpec) []scheduler.Dependency {
@@ -547,17 +704,23 @@ func (p *Plugin) newAttachment() *natcommon.Descriptor[AttachmentSpec] {
 			if err != nil {
 				return nil, err
 			}
-			idx, err := natcommon.ResolveInterface(ctx, p.client, s.Interface)
+			idx, err := natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 			if err != nil {
 				return nil, err
 			}
-			bs, err := p.ownedBindings(ctx)
+			bs, err := p.ourBindings(ctx)
 			if err != nil {
 				return nil, err
 			}
 			for _, b := range bs {
-				if b.spec.Match.ID() != s.Binding {
+				if BindingID(b.spec) != s.Binding {
 					continue
+				}
+				// re-verify the recovered index right before attaching (D-071)
+				if same, err := p.bindingAt(ctx, b.index, b.spec); err != nil {
+					return nil, err
+				} else if !same {
+					return nil, ErrUnstable
 				}
 				if _, err := p.svc.PnatBindingAttach(ctx, &pnatapi.PnatBindingAttach{SwIfIndex: idx, Attachment: pt, BindingIndex: b.index}); err != nil {
 					return nil, fmt.Errorf("pnat_binding_attach: %w", err)
@@ -578,7 +741,14 @@ func (p *Plugin) newAttachment() *natcommon.Descriptor[AttachmentSpec] {
 			if ifs, err := p.pnatInterfaces(ctx); err != nil {
 				return err
 			} else if len(ifs) == 0 {
-				return ErrFlowHashUninitialised // nothing can be attached; detach would crash VPP
+				// nothing is attached anywhere: already detached (the detach message itself
+				// would crash VPP with an uninitialised flow hash, so it is never sent)
+				return nil
+			}
+			if same, err := p.bindingIDAt(ctx, m.BindingIndex, s.Binding); err != nil {
+				return err
+			} else if !same {
+				return nil // binding gone (its flows went with the detach) or index reused
 			}
 			if _, err := p.svc.PnatBindingDetach(ctx, &pnatapi.PnatBindingDetach{SwIfIndex: interface_types.InterfaceIndex(m.SwIfIndex), Attachment: pt, BindingIndex: m.BindingIndex}); err != nil {
 				if rv, ok := natcommon.Retval(err); ok && (rv == -1 || rv == -2) { // binding / flow already gone
@@ -597,14 +767,15 @@ func (p *Plugin) newAttachment() *natcommon.Descriptor[AttachmentSpec] {
 			if err != nil {
 				return nil, err
 			}
-			bs, err := p.ownedBindings(ctx)
+			bs, err := p.ourBindings(ctx)
 			if err != nil {
 				return nil, err
 			}
 			var out []natcommon.Item[AttachmentSpec]
 			for _, sw := range ifs {
-				i, ok := table.ByIndex(sw)
-				if !ok || !p.scope.OwnsInterface(i) {
+				i, _ := table.ByIndex(sw)
+				owned, nc := p.scope.InterfaceOwnership(i)
+				if !owned {
 					continue
 				}
 				for _, pt := range []string{PointInput, PointOutput} {
@@ -624,8 +795,8 @@ func (p *Plugin) newAttachment() *natcommon.Descriptor[AttachmentSpec] {
 						if rep.BindingIndex != b.index {
 							continue
 						}
-						out = append(out, natcommon.Item[AttachmentSpec]{Spec: AttachmentSpec{Interface: i.Name, Point: pt, Binding: b.spec.Match.ID()},
-							Meta: AttachMeta{SwIfIndex: sw, BindingIndex: b.index}})
+						out = append(out, natcommon.Item[AttachmentSpec]{Spec: AttachmentSpec{Interface: i.Name, Point: pt, Binding: BindingID(b.spec)},
+							Meta: AttachMeta{SwIfIndex: sw, BindingIndex: b.index}, NeedsClaim: nc})
 					}
 				}
 			}

@@ -43,8 +43,6 @@ const (
 	SideOutside = "outside"
 )
 
-// ErrForeignObjects is returned when disabling would destroy another owner's nat64 objects.
-var ErrForeignObjects = errors.New("nat64: plugin holds objects of another owner")
 
 // EnableKey is the key every other nat64 object depends on.
 var EnableKey = scheduler.Join(NameEnable, Singleton)
@@ -126,6 +124,7 @@ type IfMeta struct{ SwIfIndex uint32 }
 type Plugin struct {
 	client vpp.Client
 	scope  natcommon.Scope
+	cfg    natcommon.Config
 	svc    nat64.RPCService
 
 	Enable    *natcommon.Descriptor[EnableSpec]
@@ -137,8 +136,8 @@ type Plugin struct {
 }
 
 // New constructs the family for client and owner.
-func New(client vpp.Client, owner string) *Plugin {
-	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), svc: nat64.NewServiceClient(client)}
+func New(client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {
+	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), cfg: natcommon.BuildConfig(opts), svc: nat64.NewServiceClient(client)}
 	p.Enable = p.newEnable()
 	p.Timeouts = p.newTimeouts()
 	p.Prefix = p.newPrefix()
@@ -154,8 +153,8 @@ func (p *Plugin) Descriptors() []scheduler.Descriptor {
 }
 
 // Register constructs the family and registers every descriptor.
-func Register(r scheduler.Registry, client vpp.Client, owner string) *Plugin {
-	p := New(client, owner)
+func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {
+	p := New(client, owner, opts...)
 	for _, d := range p.Descriptors() {
 		r.Register(d)
 	}
@@ -171,84 +170,65 @@ func port(v uint32) (uint16, error) {
 	return uint16(v), nil
 }
 
-// inventory dumps every nat64 object once and reports whether any exists and whether any
-// is foreign to this owner's scope.
-func (p *Plugin) inventory(ctx context.Context) (found bool, foreign bool, err error) {
-	ifaces, err := natcommon.DumpInterfaces(ctx, p.client)
-	if err != nil {
-		return false, false, err
+func (p *Plugin) claims() natcommon.ClaimStore { return p.cfg.Claims }
+
+// Empty reports whether nat64 holds no configuration object of ANY owner: interfaces,
+// prefixes, pool addresses, static BIB entries (the D-071 precondition for a disable, which
+// destroys all of them). It is also the only evidence of "enabled": VPP keeps no nat64
+// object while the plugin is disabled.
+func (p *Plugin) Empty(ctx context.Context) (bool, error) {
+	counts := []func() (int, error){
+		func() (int, error) {
+			s, err := p.svc.Nat64InterfaceDump(ctx, &nat64.Nat64InterfaceDump{})
+			if err != nil {
+				return 0, err
+			}
+			return natcommon.Count(s.Recv)
+		},
+		func() (int, error) {
+			s, err := p.svc.Nat64PrefixDump(ctx, &nat64.Nat64PrefixDump{})
+			if err != nil {
+				return 0, err
+			}
+			return natcommon.Count(s.Recv)
+		},
+		func() (int, error) {
+			s, err := p.svc.Nat64PoolAddrDump(ctx, &nat64.Nat64PoolAddrDump{})
+			if err != nil {
+				return 0, err
+			}
+			return natcommon.Count(s.Recv)
+		},
+		func() (int, error) {
+			s, err := p.svc.Nat64BibDump(ctx, &nat64.Nat64BibDump{Proto: 255})
+			if err != nil {
+				return 0, err
+			}
+			n := 0
+			for {
+				d, err := s.Recv()
+				if errors.Is(err, io.EOF) {
+					return n, nil
+				}
+				if err != nil {
+					return 0, err
+				}
+				if d.Flags&nat_types.NAT_IS_STATIC != 0 {
+					n++
+				}
+			}
+		},
 	}
-	is, err := p.svc.Nat64InterfaceDump(ctx, &nat64.Nat64InterfaceDump{})
-	if err != nil {
-		return false, false, fmt.Errorf("nat64_interface_dump: %w", err)
-	}
-	for {
-		d, err := is.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
+	for _, c := range counts {
+		n, err := c()
 		if err != nil {
-			return false, false, err
+			return false, fmt.Errorf("nat64 emptiness check: %w", err)
 		}
-		found = true
-		if i, _ := ifaces.ByIndex(uint32(d.SwIfIndex)); !p.scope.OwnsInterface(i) {
-			foreign = true
-		}
-	}
-	ps, err := p.svc.Nat64PrefixDump(ctx, &nat64.Nat64PrefixDump{})
-	if err != nil {
-		return false, false, fmt.Errorf("nat64_prefix_dump: %w", err)
-	}
-	for {
-		d, err := ps.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return false, false, err
-		}
-		found = true
-		if !p.ownsPrefix(d.Prefix, d.VrfID) {
-			foreign = true
+		if n > 0 {
+			return false, nil
 		}
 	}
-	as, err := p.svc.Nat64PoolAddrDump(ctx, &nat64.Nat64PoolAddrDump{})
-	if err != nil {
-		return false, false, fmt.Errorf("nat64_pool_addr_dump: %w", err)
-	}
-	for {
-		d, err := as.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return false, false, err
-		}
-		found = true
-		if !p.scope.OwnsAddr(netip.AddrFrom4(d.Address)) {
-			foreign = true
-		}
-	}
-	bs, err := p.svc.Nat64BibDump(ctx, &nat64.Nat64BibDump{Proto: 255})
-	if err != nil {
-		return false, false, fmt.Errorf("nat64_bib_dump: %w", err)
-	}
-	for {
-		d, err := bs.Recv()
-		if errors.Is(err, io.EOF) {
-			return found, foreign, nil
-		}
-		if err != nil {
-			return false, false, err
-		}
-		if d.Flags&nat_types.NAT_IS_STATIC == 0 {
-			continue
-		}
-		found = true
-		if !p.scope.OwnsAddr(netip.AddrFrom4(d.OAddr)) && !p.scope.OwnsTable(d.VrfID) {
-			foreign = true
-		}
-	}
+	return true, nil
 }
 
 func (p *Plugin) ownsPrefix(pfx interface{ String() string }, vrf uint32) bool {
@@ -256,35 +236,38 @@ func (p *Plugin) ownsPrefix(pfx interface{ String() string }, vrf uint32) bool {
 	return err == nil && (p.scope.OwnsPrefix(np) || p.scope.OwnsTable(vrf))
 }
 
+// newEnable: VPP-global (D-071). VPP has no "is nat64 enabled" getter: the only evidence is
+// an existing nat64 object (enabled for sure); otherwise the state is unobservable and a
+// non-owner's requirement cannot be verified (Create succeeds without touching VPP,
+// documented). Owner: enable (idempotent, write-only for Retrieve, D-063); Delete disables
+// only when the plugin holds no object of any owner, else skips.
 func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
-	return natcommon.New(natcommon.Ops[EnableSpec]{
-		Name: NameEnable,
-		ID:   func(EnableSpec) string { return Singleton },
-		Create: func(ctx context.Context, _ EnableSpec) (any, error) {
-			if _, err := p.svc.Nat64PluginEnableDisable(ctx, &nat64.Nat64PluginEnableDisable{Enable: true}); err != nil && !natcommon.IsAlreadyEnabled(err) {
-				return nil, fmt.Errorf("nat64_plugin_enable_disable: %w", err)
+	return natcommon.Global(p.cfg, natcommon.GlobalOps[EnableSpec]{
+		Name: NameEnable, ID: Singleton,
+		Read: func(ctx context.Context) (natcommon.GlobalState[EnableSpec], error) {
+			empty, err := p.Empty(ctx)
+			if err != nil {
+				return natcommon.GlobalState[EnableSpec]{}, err
 			}
-			return nil, nil
+			return natcommon.GlobalState[EnableSpec]{Present: !empty, Observable: !empty}, nil
 		},
-		Delete: func(ctx context.Context, _ EnableSpec, _ any) error {
-			if !p.scope.All {
-				_, foreign, err := p.inventory(ctx)
-				if err != nil {
-					return err
-				}
-				if foreign {
-					return ErrForeignObjects
-				}
+		Match:     natcommon.AnyValue[EnableSpec],
+		WriteOnly: true,
+		Set: func(ctx context.Context, _ EnableSpec) error {
+			if _, err := p.svc.Nat64PluginEnableDisable(ctx, &nat64.Nat64PluginEnableDisable{Enable: true}); err != nil && !natcommon.IsAlreadyEnabled(err) {
+				return fmt.Errorf("nat64_plugin_enable_disable: %w", err)
+			}
+			return nil
+		},
+		Reset: func(ctx context.Context, _ EnableSpec) error {
+			empty, err := p.Empty(ctx)
+			if err != nil || !empty {
+				return err // not empty: skip, never disable under another owner's objects
 			}
 			if _, err := p.svc.Nat64PluginEnableDisable(ctx, &nat64.Nat64PluginEnableDisable{Enable: false}); err != nil && !natcommon.IsAlreadyDisabled(err) {
 				return fmt.Errorf("nat64_plugin_enable_disable: %w", err)
 			}
 			return nil
-		},
-		// No "is nat64 enabled" getter (D-063): write-only; the reconciler re-applies the
-		// (idempotent) enable on every resync and never disables on absence.
-		Retrieve: func(context.Context) ([]natcommon.Item[EnableSpec], error) {
-			return nil, natcommon.ErrRetrieveUnsupported
 		},
 	})
 }
@@ -296,27 +279,22 @@ func (p *Plugin) setTimeouts(ctx context.Context, s TimeoutsSpec) error {
 	return nil
 }
 
+// newTimeouts: VPP-global (D-071).
 func (p *Plugin) newTimeouts() *natcommon.Descriptor[TimeoutsSpec] {
-	return natcommon.New(natcommon.Ops[TimeoutsSpec]{
-		Name:   NameTimeouts,
-		ID:     func(TimeoutsSpec) string { return Singleton },
-		Deps:   func(TimeoutsSpec) []scheduler.Dependency { return enableDep() },
-		Create: func(ctx context.Context, s TimeoutsSpec) (any, error) { return nil, p.setTimeouts(ctx, s) },
-		Update: func(ctx context.Context, _, s TimeoutsSpec, _ any) (any, error) {
-			return nil, p.setTimeouts(ctx, s)
-		},
-		Delete: func(ctx context.Context, _ TimeoutsSpec, _ any) error { return p.setTimeouts(ctx, DefaultTimeouts) },
-		Retrieve: func(ctx context.Context) ([]natcommon.Item[TimeoutsSpec], error) {
+	return natcommon.Global(p.cfg, natcommon.GlobalOps[TimeoutsSpec]{
+		Name: NameTimeouts, ID: Singleton,
+		Deps: func(TimeoutsSpec) []scheduler.Dependency { return enableDep() },
+		Read: func(ctx context.Context) (natcommon.GlobalState[TimeoutsSpec], error) {
 			rep, err := p.svc.Nat64GetTimeouts(ctx, &nat64.Nat64GetTimeouts{})
 			if err != nil {
-				return nil, fmt.Errorf("nat64_get_timeouts: %w", err)
+				return natcommon.GlobalState[TimeoutsSpec]{}, fmt.Errorf("nat64_get_timeouts: %w", err)
 			}
 			t := TimeoutsSpec{UDP: rep.UDP, TCPEstablished: rep.TCPEstablished, TCPTransitory: rep.TCPTransitory, ICMP: rep.ICMP}
-			if t == DefaultTimeouts {
-				return nil, nil
-			}
-			return []natcommon.Item[TimeoutsSpec]{{Spec: t}}, nil
+			return natcommon.GlobalState[TimeoutsSpec]{Value: t, Present: true, Observable: true}, nil
 		},
+		Absent: func(t TimeoutsSpec) bool { return t == DefaultTimeouts },
+		Set:    p.setTimeouts,
+		Reset:  func(ctx context.Context, _ TimeoutsSpec) error { return p.setTimeouts(ctx, DefaultTimeouts) },
 	})
 }
 
@@ -336,6 +314,7 @@ func (p *Plugin) addDelPrefix(ctx context.Context, s PrefixSpec, add bool) error
 
 func (p *Plugin) newPrefix() *natcommon.Descriptor[PrefixSpec] {
 	return natcommon.New(natcommon.Ops[PrefixSpec]{
+		Claims: p.claims(),
 		Name:   NamePrefix,
 		ID:     func(s PrefixSpec) string { return fmt.Sprintf("%s/%d", s.Prefix, s.VRF) },
 		Deps:   func(s PrefixSpec) []scheduler.Dependency { return natcommon.WithVRF(enableDep(), s.VRF) },
@@ -355,10 +334,8 @@ func (p *Plugin) newPrefix() *natcommon.Descriptor[PrefixSpec] {
 				if err != nil {
 					return nil, fmt.Errorf("nat64_prefix_dump: %w", err)
 				}
-				if !p.ownsPrefix(d.Prefix, d.VrfID) {
-					continue
-				}
-				out = append(out, natcommon.Item[PrefixSpec]{Spec: PrefixSpec{Prefix: natcommon.Prefix6String(d.Prefix), VRF: d.VrfID}})
+				out = append(out, natcommon.Item[PrefixSpec]{Spec: PrefixSpec{Prefix: natcommon.Prefix6String(d.Prefix), VRF: d.VrfID},
+					NeedsClaim: p.scope.NeedsClaim(p.ownsPrefix(d.Prefix, d.VrfID))})
 			}
 		},
 	})
@@ -408,6 +385,7 @@ func mergeRanges(addrs []poolAddr) []PoolSpec {
 
 func (p *Plugin) newPool() *natcommon.Descriptor[PoolSpec] {
 	return natcommon.New(natcommon.Ops[PoolSpec]{
+		Claims: p.claims(),
 		Name: NamePool,
 		ID:   func(s PoolSpec) string { return fmt.Sprintf("%s-%s/%d", s.First, s.Last, s.VRF) },
 		Deps: func(s PoolSpec) []scheduler.Dependency {
@@ -433,13 +411,14 @@ func (p *Plugin) newPool() *natcommon.Descriptor[PoolSpec] {
 				if err != nil {
 					return nil, fmt.Errorf("nat64_pool_addr_dump: %w", err)
 				}
-				if a := netip.AddrFrom4(d.Address); p.scope.OwnsAddr(a) {
+				if a := netip.AddrFrom4(d.Address); p.scope.All || p.scope.OwnsAddr(a) {
 					addrs = append(addrs, poolAddr{addr: a, vrf: d.VrfID})
 				}
 			}
 			var out []natcommon.Item[PoolSpec]
 			for _, s := range mergeRanges(addrs) {
-				out = append(out, natcommon.Item[PoolSpec]{Spec: s})
+				in := p.scope.OwnsAddrString(s.First) && p.scope.OwnsAddrString(s.Last)
+				out = append(out, natcommon.Item[PoolSpec]{Spec: s, NeedsClaim: p.scope.NeedsClaim(in)})
 			}
 			return out, nil
 		},
@@ -458,6 +437,7 @@ func sideFlag(side string) (nat_types.NatConfigFlags, error) {
 
 func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceSpec]{
+		Claims: p.claims(),
 		Name: NameInterface,
 		ID:   func(s InterfaceSpec) string { return s.Interface + "/" + s.Side },
 		Deps: func(s InterfaceSpec) []scheduler.Dependency {
@@ -468,7 +448,7 @@ func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 			if err != nil {
 				return nil, err
 			}
-			idx, err := natcommon.ResolveInterface(ctx, p.client, s.Interface)
+			idx, err := natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 			if err != nil {
 				return nil, err
 			}
@@ -510,15 +490,16 @@ func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 					return nil, fmt.Errorf("nat64_interface_dump: %w", err)
 				}
 				i, _ := ifaces.ByIndex(uint32(d.SwIfIndex))
-				if !p.scope.OwnsInterface(i) {
+				ok, nc := p.scope.InterfaceOwnership(i)
+				if !ok {
 					continue
 				}
 				meta := IfMeta{SwIfIndex: uint32(d.SwIfIndex)}
 				if d.Flags&nat_types.NAT_IS_INSIDE != 0 {
-					out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Side: SideInside}, Meta: meta})
+					out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Side: SideInside}, Meta: meta, NeedsClaim: nc})
 				}
 				if d.Flags&nat_types.NAT_IS_OUTSIDE != 0 {
-					out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Side: SideOutside}, Meta: meta})
+					out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Side: SideOutside}, Meta: meta, NeedsClaim: nc})
 				}
 			}
 		},
@@ -551,6 +532,7 @@ func (p *Plugin) bibRequest(s StaticBIBSpec, add bool) (*nat64.Nat64AddDelStatic
 
 func (p *Plugin) newStaticBIB() *natcommon.Descriptor[StaticBIBSpec] {
 	return natcommon.New(natcommon.Ops[StaticBIBSpec]{
+		Claims: p.claims(),
 		Name: NameStaticBIB,
 		ID: func(s StaticBIBSpec) string {
 			return fmt.Sprintf("%s/%s/%d/%d", s.Protocol, s.InsideIP, s.InsidePort, s.VRF)
@@ -593,11 +575,9 @@ func (p *Plugin) newStaticBIB() *natcommon.Descriptor[StaticBIBSpec] {
 				if d.Flags&nat_types.NAT_IS_STATIC == 0 {
 					continue // dynamic BIB entries are session state
 				}
-				if !p.scope.OwnsAddr(netip.AddrFrom4(d.OAddr)) && !p.scope.OwnsTable(d.VrfID) {
-					continue
-				}
+				in := p.scope.OwnsAddr(netip.AddrFrom4(d.OAddr)) || p.scope.OwnsTable(d.VrfID)
 				s := StaticBIBSpec{InsideIP: natcommon.IP6String(d.IAddr), InsidePort: uint32(d.IPort), OutsideIP: natcommon.IP4String(d.OAddr), OutsidePort: uint32(d.OPort), Protocol: natcommon.ProtoName(d.Proto), VRF: d.VrfID}
-				out = append(out, natcommon.Item[StaticBIBSpec]{Spec: s})
+				out = append(out, natcommon.Item[StaticBIBSpec]{Spec: s, NeedsClaim: p.scope.NeedsClaim(in)})
 			}
 		},
 	})

@@ -74,6 +74,7 @@ func (p *Plugin) addDelAddressRange(ctx context.Context, s AddressPoolSpec, add 
 
 func (p *Plugin) newAddressPool() *natcommon.Descriptor[AddressPoolSpec] {
 	return natcommon.New(natcommon.Ops[AddressPoolSpec]{
+		Claims: p.claims(),
 		Name: NameAddressPool,
 		ID:   PoolID,
 		Deps: func(s AddressPoolSpec) []scheduler.Dependency {
@@ -105,8 +106,8 @@ func (p *Plugin) newAddressPool() *natcommon.Descriptor[AddressPoolSpec] {
 					return nil, fmt.Errorf("nat44_address_dump: %w", err)
 				}
 				a := netip.AddrFrom4(d.IPAddress)
-				if !p.scope.OwnsAddr(a) {
-					continue
+				if !p.scope.All && !p.scope.OwnsAddr(a) {
+					continue // a slot never merges its ranges with other slots' addresses
 				}
 				if ifAddrs == nil {
 					if ifAddrs, err = p.interfacePoolAddresses(ctx); err != nil {
@@ -120,7 +121,10 @@ func (p *Plugin) newAddressPool() *natcommon.Descriptor[AddressPoolSpec] {
 			}
 			var out []natcommon.Item[AddressPoolSpec]
 			for _, s := range mergeRanges(addrs) {
-				out = append(out, natcommon.Item[AddressPoolSpec]{Spec: s})
+				// untagged: a slot owns ranges inside its block, anything else needs a claim;
+				// a range straddling another owner's addresses never matches a claimed key.
+				in := p.scope.OwnsAddrString(s.First) && p.scope.OwnsAddrString(s.Last)
+				out = append(out, natcommon.Item[AddressPoolSpec]{Spec: s, NeedsClaim: p.scope.NeedsClaim(in)})
 			}
 			return out, nil
 		},

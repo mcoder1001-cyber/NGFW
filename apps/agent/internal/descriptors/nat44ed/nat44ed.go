@@ -15,7 +15,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 
 	"ngfw/agent/binapi/nat44_ed"
 	"ngfw/agent/internal/descriptors/natcommon"
@@ -41,14 +40,15 @@ const (
 // Singleton is the object id of the global singletons (enable, timeouts, forwarding).
 const Singleton = "global"
 
-// ErrForeignObjects is returned when disabling or re-enabling the plugin would destroy NAT
-// objects that belong to another owner on this (shared) VPP.
-var ErrForeignObjects = errors.New("nat44-ed: plugin holds objects of another owner")
+// ErrOtherVariant is returned when nat44-ed is to be enabled while nat44-ei is enabled (the
+// two are mutually exclusive in VPP).
+var ErrOtherVariant = errors.New("nat44-ed: nat44-ei is enabled on this VPP (ED and EI are mutually exclusive)")
 
 // Plugin bundles the client, the owner scope and the descriptors of the nat44-ed family.
 type Plugin struct {
 	client vpp.Client
 	scope  natcommon.Scope
+	cfg    natcommon.Config
 	svc    nat44_ed.RPCService
 
 	Enable           *natcommon.Descriptor[EnableSpec]
@@ -65,8 +65,10 @@ type Plugin struct {
 }
 
 // New constructs the family for client and owner (VRX_OWNER or a test's VRX_TEST_PREFIX).
-func New(client vpp.Client, owner string) *Plugin {
-	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), svc: nat44_ed.NewServiceClient(client)}
+// Globals (enable, timeouts, forwarding) are managed only with natcommon.WithGlobalsOwner
+// (D-071); otherwise they are required, never set.
+func New(client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {
+	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), cfg: natcommon.BuildConfig(opts), svc: nat44_ed.NewServiceClient(client)}
 	p.Enable = p.newEnable()
 	p.InterfaceFeature = p.newInterfaceFeature()
 	p.OutputFeature = p.newOutputFeature()
@@ -93,8 +95,8 @@ func (p *Plugin) Descriptors() []scheduler.Descriptor {
 }
 
 // Register constructs the family and registers every descriptor (the entry point P05 wires).
-func Register(r scheduler.Registry, client vpp.Client, owner string) *Plugin {
-	p := New(client, owner)
+func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {
+	p := New(client, owner, opts...)
 	for _, d := range p.Descriptors() {
 		r.Register(d)
 	}
@@ -116,65 +118,75 @@ func (p *Plugin) runningConfig(ctx context.Context) (*nat44_ed.Nat44ShowRunningC
 	return rc, rc.Sessions != 0, nil
 }
 
-// hasForeignObjects reports whether the VPP holds nat44-ed objects outside this owner's
-// scope: interfaces not tagged by us, pool addresses outside our block, mappings with a
-// foreign tag. Production scope (All) never has foreign objects.
-func (p *Plugin) hasForeignObjects(ctx context.Context) (bool, error) {
-	if p.scope.All {
-		return false, nil
+// ops is the common Ops prologue: name and the family's claim store.
+func (p *Plugin) claims() natcommon.ClaimStore { return p.cfg.Claims }
+
+// Empty reports whether the plugin holds no configuration object of ANY owner — the D-071
+// precondition for a disable (nat44_ed_plugin_disable destroys all of them). It covers every
+// kind VPP wipes: in/out interfaces, output-feature interfaces, pool and twice-NAT addresses,
+// interface-address pools, static / identity / load-balanced mappings and VRF tables (review
+// finding 1). Sessions are state, not configuration.
+func (p *Plugin) Empty(ctx context.Context) (bool, error) {
+	counts := []func() (int, error){
+		func() (int, error) {
+			s, err := p.svc.Nat44InterfaceDump(ctx, &nat44_ed.Nat44InterfaceDump{})
+			if err != nil {
+				return 0, err
+			}
+			return natcommon.Count(s.Recv)
+		},
+		func() (int, error) {
+			items, err := p.outputInterfaces(ctx)
+			return len(items), err
+		},
+		func() (int, error) {
+			s, err := p.svc.Nat44AddressDump(ctx, &nat44_ed.Nat44AddressDump{})
+			if err != nil {
+				return 0, err
+			}
+			return natcommon.Count(s.Recv)
+		},
+		func() (int, error) {
+			s, err := p.svc.Nat44InterfaceAddrDump(ctx, &nat44_ed.Nat44InterfaceAddrDump{})
+			if err != nil {
+				return 0, err
+			}
+			return natcommon.Count(s.Recv)
+		},
+		func() (int, error) {
+			s, err := p.svc.Nat44StaticMappingDump(ctx, &nat44_ed.Nat44StaticMappingDump{})
+			if err != nil {
+				return 0, err
+			}
+			return natcommon.Count(s.Recv)
+		},
+		func() (int, error) {
+			s, err := p.svc.Nat44IdentityMappingDump(ctx, &nat44_ed.Nat44IdentityMappingDump{})
+			if err != nil {
+				return 0, err
+			}
+			return natcommon.Count(s.Recv)
+		},
+		func() (int, error) {
+			s, err := p.svc.Nat44LbStaticMappingDump(ctx, &nat44_ed.Nat44LbStaticMappingDump{})
+			if err != nil {
+				return 0, err
+			}
+			return natcommon.Count(s.Recv)
+		},
+		func() (int, error) {
+			t, err := p.vrfTables(ctx)
+			return len(t), err
+		},
 	}
-	ifaces, err := natcommon.DumpInterfaces(ctx, p.client)
-	if err != nil {
-		return false, err
-	}
-	is, err := p.svc.Nat44InterfaceDump(ctx, &nat44_ed.Nat44InterfaceDump{})
-	if err != nil {
-		return false, fmt.Errorf("nat44_interface_dump: %w", err)
-	}
-	for {
-		d, err := is.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
+	for _, c := range counts {
+		n, err := c()
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("nat44-ed emptiness check: %w", err)
 		}
-		i, _ := ifaces.ByIndex(uint32(d.SwIfIndex))
-		if !p.scope.OwnsInterface(i) {
-			return true, nil
-		}
-	}
-	as, err := p.svc.Nat44AddressDump(ctx, &nat44_ed.Nat44AddressDump{})
-	if err != nil {
-		return false, fmt.Errorf("nat44_address_dump: %w", err)
-	}
-	for {
-		d, err := as.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return false, err
-		}
-		if !p.scope.OwnsAddrString(natcommon.IP4String(d.IPAddress)) {
-			return true, nil
+		if n > 0 {
+			return false, nil
 		}
 	}
-	ms, err := p.svc.Nat44StaticMappingDump(ctx, &nat44_ed.Nat44StaticMappingDump{})
-	if err != nil {
-		return false, fmt.Errorf("nat44_static_mapping_dump: %w", err)
-	}
-	for {
-		d, err := ms.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return false, err
-		}
-		if _, ok := p.scope.ParseTag(d.Tag); !ok {
-			return true, nil
-		}
-	}
-	return false, nil
+	return true, nil
 }

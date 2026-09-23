@@ -148,6 +148,8 @@ func b2u(b bool) uint8 {
 	return 0
 }
 
+var owner = natcommon.WithGlobalsOwner(true)
+
 func TestRegister(t *testing.T) {
 	reg := scheduler.NewRegistry()
 	mapnat.Register(reg, newFakeMap(), "w9")
@@ -158,7 +160,7 @@ func TestRegister(t *testing.T) {
 
 func TestDomainAndRules(t *testing.T) {
 	f := newFakeMap()
-	p := mapnat.New(f, "w9")
+	p := mapnat.New(f, "w9", owner)
 	ctx := context.Background()
 
 	// a foreign (w3) and an untagged domain must stay invisible
@@ -224,7 +226,7 @@ func TestDomainAndRules(t *testing.T) {
 
 func TestParams(t *testing.T) {
 	f := newFakeMap()
-	p := mapnat.New(f, "w9")
+	p := mapnat.New(f, "w9", owner)
 	if len(nattest.Keys(t, p.Params)) != 0 {
 		t.Fatal("defaults = no object")
 	}
@@ -246,7 +248,7 @@ func TestParams(t *testing.T) {
 
 func TestInterface(t *testing.T) {
 	f := newFakeMap()
-	p := mapnat.New(f, "w9")
+	p := mapnat.New(f, "w9", owner)
 	f.encap[3] = true // w3's interface: invisible
 	e := natcommon.MustEncode(&mapnat.InterfaceSpec{Interface: "loop930"})
 	tr := natcommon.MustEncode(&mapnat.InterfaceSpec{Interface: "loop930", Translation: true})
@@ -272,5 +274,67 @@ func TestInterface(t *testing.T) {
 	}
 	if _, err := p.Interface.Create(context.Background(), natcommon.MustEncode(&mapnat.InterfaceSpec{Interface: "loop999"})); !errors.Is(err, natcommon.ErrNoSuchInterface) {
 		t.Fatalf("missing interface: %v", err)
+	}
+}
+
+// TestDeleteReverifies is review finding 3 for MAP: a delete by index re-verifies the tag at
+// that index right before map_del_domain / map_add_del_rule and never deletes another
+// owner's domain that reused the index; duplicate tags surface as "<name>#<index>" extras.
+func TestDeleteReverifies(t *testing.T) {
+	f := newFakeMap()
+	p := mapnat.New(f, "w9", owner)
+	ctx := context.Background()
+	dom := natcommon.MustEncode(&mapnat.DomainSpec{Name: "d", IP4Prefix: "10.9.46.0/24", IP6Prefix: "fd00:9:46::/48", IP6Src: "fd00:9::1/128", PSIDLength: 4})
+	meta, err := p.Domain.Create(ctx, dom)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// index 0 is now another owner's domain (VPP restart + re-creation by w3)
+	f.domains[0] = &maps.MapDomainDetails{DomainIndex: 0, Tag: "w3:theirs"}
+	if err := p.Domain.Delete(ctx, dom, meta); err != nil || f.domains[0] == nil || len(f.CallsNamed("map_del_domain")) != 0 {
+		t.Fatalf("stale delete must not touch the reused index: %v", err)
+	}
+	if err := p.Rule.Delete(ctx, natcommon.MustEncode(&mapnat.RuleSpec{Domain: "d", PSID: 1, IP6Dst: "fd00:9::5"}), meta); err != nil || len(f.CallsNamed("map_add_del_rule")) != 0 {
+		t.Fatalf("stale rule delete must not touch the reused index: %v", err)
+	}
+	// duplicate tags (retried create): lowest index canonical, the extra is reported and deleted
+	f.domains = map[uint32]*maps.MapDomainDetails{}
+	f.next = 0
+	if _, err := p.Domain.Create(ctx, dom); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Domain.Create(ctx, dom); err != nil {
+		t.Fatal(err)
+	}
+	if keys := nattest.Keys(t, p.Domain); len(keys) != 2 || keys[0] != "map.domain/d" || keys[1] != "map.domain/d#1" {
+		t.Fatalf("keys %v", keys)
+	}
+	if nattest.Apply(t, p.Domain, dom) != 1 || len(f.domains) != 1 || f.domains[0] == nil {
+		t.Fatal("extra deleted, canonical kept")
+	}
+	if _, err := p.Domain.Create(ctx, natcommon.MustEncode(&mapnat.DomainSpec{Name: "x#1", IP4Prefix: "10.9.47.0/24", IP6Prefix: "fd00:9:47::/48", IP6Src: "fd00:9::1/128"})); err == nil {
+		t.Fatal("'#' in a domain name must be rejected")
+	}
+}
+
+// TestParamsNonOwner: MAP params are a VPP global (D-071); a non-owner requires, never sets.
+func TestParamsNonOwner(t *testing.T) {
+	f := newFakeMap()
+	p := mapnat.New(f, "w9")
+	ctx := context.Background()
+	if _, err := p.Params.Create(ctx, natcommon.MustEncode(&mapnat.DefaultParams)); err != nil {
+		t.Fatalf("defaults required and present: %v", err)
+	}
+	if _, err := p.Params.Create(ctx, natcommon.MustEncode(&mapnat.ParamsSpec{FragInner: true})); !errors.Is(err, natcommon.ErrGlobalMismatch) {
+		t.Fatalf("mismatch: %v", err)
+	}
+	if err := p.Params.Delete(ctx, natcommon.MustEncode(&mapnat.DefaultParams), nil); err != nil {
+		t.Fatal(err)
+	}
+	nattest.AssertWriteOnly(t, p.Params)
+	for _, c := range f.Calls() {
+		if n := c.GetMessageName(); len(n) > 14 && n[:14] == "map_param_set_" {
+			t.Fatalf("non-owner sent %s", n)
+		}
 	}
 }

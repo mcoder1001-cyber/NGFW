@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io"
 
+	"go.fd.io/govpp/api"
+
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/nat44_ei"
 	"ngfw/agent/internal/descriptors/natcommon"
@@ -41,9 +43,9 @@ const (
 	SideOutside = "outside"
 )
 
-// ErrForeignObjects is returned when disabling or re-enabling the plugin would destroy NAT
-// objects that belong to another owner on this (shared) VPP.
-var ErrForeignObjects = errors.New("nat44-ei: plugin holds objects of another owner")
+// ErrOtherVariant is returned when nat44-ei is to be enabled while nat44-ed is enabled (the
+// two are mutually exclusive in VPP).
+var ErrOtherVariant = errors.New("nat44-ei: nat44-ed is enabled on this VPP (ED and EI are mutually exclusive)")
 
 // EnableKey is the key every other nat44-ei object depends on.
 var EnableKey = scheduler.Join(NameEnable, Singleton)
@@ -54,6 +56,7 @@ const noInterface = ^interface_types.InterfaceIndex(0)
 type Plugin struct {
 	client vpp.Client
 	scope  natcommon.Scope
+	cfg    natcommon.Config
 	svc    nat44_ei.RPCService
 
 	Enable           *natcommon.Descriptor[EnableSpec]
@@ -68,9 +71,10 @@ type Plugin struct {
 	Ipfix            *natcommon.Descriptor[IpfixSpec]
 }
 
-// New constructs the family for client and owner.
-func New(client vpp.Client, owner string) *Plugin {
-	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), svc: nat44_ei.NewServiceClient(client)}
+// New constructs the family for client and owner; globals only with
+// natcommon.WithGlobalsOwner (D-071).
+func New(client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {
+	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), cfg: natcommon.BuildConfig(opts), svc: nat44_ei.NewServiceClient(client)}
 	p.Enable = p.newEnable()
 	p.Timeouts = p.newTimeouts()
 	p.Forwarding = p.newForwarding()
@@ -94,8 +98,8 @@ func (p *Plugin) Descriptors() []scheduler.Descriptor {
 }
 
 // Register constructs the family and registers every descriptor.
-func Register(r scheduler.Registry, client vpp.Client, owner string) *Plugin {
-	p := New(client, owner)
+func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {
+	p := New(client, owner, opts...)
 	for _, d := range p.Descriptors() {
 		r.Register(d)
 	}
@@ -119,60 +123,94 @@ func (p *Plugin) runningConfig(ctx context.Context) (*nat44_ei.Nat44EiShowRunnin
 	return rc, rc.Sessions != 0, nil
 }
 
-func (p *Plugin) hasForeignObjects(ctx context.Context) (bool, error) {
-	if p.scope.All {
-		return false, nil
+func (p *Plugin) claims() natcommon.ClaimStore { return p.cfg.Claims }
+
+// Empty reports whether nat44-ei holds no configuration object of ANY owner (the D-071
+// precondition for a disable): in/out interfaces, output interfaces, pool addresses,
+// interface-address pools, static and identity mappings (review finding 1).
+func (p *Plugin) Empty(ctx context.Context) (bool, error) {
+	counts := []func() (int, error){
+		func() (int, error) {
+			s, err := p.svc.Nat44EiInterfaceDump(ctx, &nat44_ei.Nat44EiInterfaceDump{})
+			if err != nil {
+				return 0, err
+			}
+			return natcommon.Count(s.Recv)
+		},
+		func() (int, error) {
+			idxs, err := p.outputInterfaces(ctx)
+			return len(idxs), err
+		},
+		func() (int, error) {
+			s, err := p.svc.Nat44EiAddressDump(ctx, &nat44_ei.Nat44EiAddressDump{})
+			if err != nil {
+				return 0, err
+			}
+			return natcommon.Count(s.Recv)
+		},
+		func() (int, error) {
+			s, err := p.svc.Nat44EiInterfaceAddrDump(ctx, &nat44_ei.Nat44EiInterfaceAddrDump{})
+			if err != nil {
+				return 0, err
+			}
+			return natcommon.Count(s.Recv)
+		},
+		func() (int, error) {
+			s, err := p.svc.Nat44EiStaticMappingDump(ctx, &nat44_ei.Nat44EiStaticMappingDump{})
+			if err != nil {
+				return 0, err
+			}
+			return natcommon.Count(s.Recv)
+		},
+		func() (int, error) {
+			s, err := p.svc.Nat44EiIdentityMappingDump(ctx, &nat44_ei.Nat44EiIdentityMappingDump{})
+			if err != nil {
+				return 0, err
+			}
+			return natcommon.Count(s.Recv)
+		},
 	}
-	ifaces, err := natcommon.DumpInterfaces(ctx, p.client)
-	if err != nil {
-		return false, err
-	}
-	is, err := p.svc.Nat44EiInterfaceDump(ctx, &nat44_ei.Nat44EiInterfaceDump{})
-	if err != nil {
-		return false, fmt.Errorf("nat44_ei_interface_dump: %w", err)
-	}
-	for {
-		d, err := is.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
+	for _, c := range counts {
+		n, err := c()
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("nat44-ei emptiness check: %w", err)
 		}
-		if i, _ := ifaces.ByIndex(uint32(d.SwIfIndex)); !p.scope.OwnsInterface(i) {
-			return true, nil
-		}
-	}
-	as, err := p.svc.Nat44EiAddressDump(ctx, &nat44_ei.Nat44EiAddressDump{})
-	if err != nil {
-		return false, fmt.Errorf("nat44_ei_address_dump: %w", err)
-	}
-	for {
-		d, err := as.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return false, err
-		}
-		if !p.scope.OwnsAddrString(natcommon.IP4String(d.IPAddress)) {
-			return true, nil
-		}
-	}
-	ms, err := p.svc.Nat44EiStaticMappingDump(ctx, &nat44_ei.Nat44EiStaticMappingDump{})
-	if err != nil {
-		return false, fmt.Errorf("nat44_ei_static_mapping_dump: %w", err)
-	}
-	for {
-		d, err := ms.Recv()
-		if errors.Is(err, io.EOF) {
+		if n > 0 {
 			return false, nil
 		}
+	}
+	return true, nil
+}
+
+// outputInterfaces lists every output-feature interface (all owners), following the cursor.
+func (p *Plugin) outputInterfaces(ctx context.Context) ([]uint32, error) {
+	var out []uint32
+	cursor := uint32(0)
+	for {
+		stream, err := p.svc.Nat44EiOutputInterfaceGet(ctx, &nat44_ei.Nat44EiOutputInterfaceGet{Cursor: cursor})
 		if err != nil {
-			return false, err
+			return nil, fmt.Errorf("nat44_ei_output_interface_get: %w", err)
 		}
-		if _, ok := p.scope.ParseTag(d.Tag); !ok {
-			return true, nil
+		again := false
+		for {
+			d, rep, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				if rv, ok := natcommon.Retval(err); ok && rv == api.EAGAIN && rep != nil {
+					cursor, again = rep.Cursor, true
+					break
+				}
+				if rv, ok := natcommon.Retval(err); ok && rv == api.INVALID_VALUE && rep != nil {
+					break
+				}
+				return nil, fmt.Errorf("nat44_ei_output_interface_get: %w", err)
+			}
+			out = append(out, uint32(d.SwIfIndex))
+		}
+		if !again {
+			return out, nil
 		}
 	}
 }

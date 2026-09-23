@@ -115,6 +115,24 @@ func ResolveInterface(ctx context.Context, c vpp.Client, name string) (interface
 	return idx, nil
 }
 
+// ResolveOwned is ResolveInterface for Create paths: it refuses an interface tagged by
+// another owner (ErrForeignInterface). Untagged interfaces are allowed; the created object is
+// then recorded in the ClaimStore by the generic Descriptor.
+func ResolveOwned(ctx context.Context, c vpp.Client, s Scope, name string) (interface_types.InterfaceIndex, error) {
+	t, err := DumpInterfaces(ctx, c)
+	if err != nil {
+		return 0, err
+	}
+	i, ok := t.ByName(name)
+	if !ok {
+		return 0, fmt.Errorf("%w: %q", ErrNoSuchInterface, name)
+	}
+	if own, _ := s.InterfaceOwnership(i); !own {
+		return 0, fmt.Errorf("%w: %q (tag %q)", ErrForeignInterface, name, i.Tag)
+	}
+	return interface_types.InterfaceIndex(i.SwIfIndex), nil
+}
+
 // InterfaceAddresses returns the IPv4 addresses configured on the given interfaces
 // (ip_address_dump). The NAT44 plugins add an interface's addresses to the pool when the
 // interface is registered with *_add_del_interface_addr; pool Retrieve uses this set to tell

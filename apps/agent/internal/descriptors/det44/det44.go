@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"sync"
 
 	"ngfw/agent/binapi/det44"
 	"ngfw/agent/binapi/interface_types"
@@ -83,7 +84,11 @@ type IfMeta struct{ SwIfIndex uint32 }
 type Plugin struct {
 	client vpp.Client
 	scope  natcommon.Scope
+	cfg    natcommon.Config
 	svc    det44.RPCService
+
+	mu      sync.Mutex
+	lastVRF *EnableSpec // VRFs this process enabled det44 with (review finding 6)
 
 	Enable    *natcommon.Descriptor[EnableSpec]
 	Interface *natcommon.Descriptor[InterfaceSpec]
@@ -92,8 +97,8 @@ type Plugin struct {
 }
 
 // New constructs the family for client and owner.
-func New(client vpp.Client, owner string) *Plugin {
-	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), svc: det44.NewServiceClient(client)}
+func New(client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {
+	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), cfg: natcommon.BuildConfig(opts), svc: det44.NewServiceClient(client)}
 	p.Enable = p.newEnable()
 	p.Timeouts = p.newTimeouts()
 	p.Interface = p.newInterface()
@@ -107,8 +112,8 @@ func (p *Plugin) Descriptors() []scheduler.Descriptor {
 }
 
 // Register constructs the family and registers every descriptor.
-func Register(r scheduler.Registry, client vpp.Client, owner string) *Plugin {
-	p := New(client, owner)
+func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {
+	p := New(client, owner, opts...)
 	for _, d := range p.Descriptors() {
 		r.Register(d)
 	}
@@ -130,34 +135,65 @@ func mapPrefixes(d *det44.Det44MapDetails) (netip.Prefix, netip.Prefix) {
 // 26.06 (see Enable.Delete). The operator changes det44 VRFs with a VPP restart.
 var ErrVRFChangeUnsafe = errors.New("det44: changing the det44 VRFs needs a plugin disable, which crashes VPP 26.06; restart VPP instead")
 
+func (p *Plugin) claims() natcommon.ClaimStore { return p.cfg.Claims }
+
+// hasObjects reports whether det44 holds any interface or map (all owners): det44 keeps no
+// object while disabled, so this is the only evidence of "enabled".
+func (p *Plugin) hasObjects(ctx context.Context) (bool, error) {
+	is, err := p.svc.Det44InterfaceDump(ctx, &det44.Det44InterfaceDump{})
+	if err != nil {
+		return false, fmt.Errorf("det44_interface_dump: %w", err)
+	}
+	if n, err := natcommon.Count(is.Recv); err != nil || n > 0 {
+		return n > 0, err
+	}
+	ms, err := p.svc.Det44MapDump(ctx, &det44.Det44MapDump{})
+	if err != nil {
+		return false, fmt.Errorf("det44_map_dump: %w", err)
+	}
+	n, err := natcommon.Count(ms.Recv)
+	return n > 0, err
+}
+
+func (p *Plugin) enable(ctx context.Context, s EnableSpec) error {
+	_, err := p.svc.Det44PluginEnableDisable(ctx, &det44.Det44PluginEnableDisable{Enable: true, InsideVrf: s.InsideVRF, OutsideVrf: s.OutsideVRF})
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	switch {
+	case err == nil:
+		v := s
+		p.lastVRF = &v
+		return nil
+	case natcommon.IsAlreadyEnabled(err):
+		if p.lastVRF != nil && *p.lastVRF != s {
+			return fmt.Errorf("%w (enabled with %+v, desired %+v)", ErrVRFChangeUnsafe, *p.lastVRF, s)
+		}
+		return nil // enabled before this process: VRFs unverifiable (documented, det44.md)
+	}
+	return fmt.Errorf("det44_plugin_enable_disable: %w", err)
+}
+
+// newEnable: VPP-global (D-071, D-068). Owner: enable; a VRF change is refused
+// (ErrVRFChangeUnsafe) because it needs det44_plugin_enable_disable(disable), which crashes
+// VPP 26.06 (det44_plugin_disable iterates the interface *pool* as a vector and formats the
+// failed delete with unformat_vnet_sw_interface → SIGSEGV; V9). Delete therefore NEVER
+// disables — not even for the globals owner: the plugin stays enabled and idle until the next
+// VPP restart. Non-owners require it (presence observable only through det44 objects).
 func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
-	return natcommon.New(natcommon.Ops[EnableSpec]{
-		Name: NameEnable,
-		ID:   func(EnableSpec) string { return Singleton },
+	return natcommon.Global(p.cfg, natcommon.GlobalOps[EnableSpec]{
+		Name: NameEnable, ID: Singleton,
 		Deps: func(s EnableSpec) []scheduler.Dependency {
 			return natcommon.WithVRF(natcommon.WithVRF(nil, s.InsideVRF), s.OutsideVRF)
 		},
-		Create: func(ctx context.Context, s EnableSpec) (any, error) {
-			if _, err := p.svc.Det44PluginEnableDisable(ctx, &det44.Det44PluginEnableDisable{Enable: true, InsideVrf: s.InsideVRF, OutsideVrf: s.OutsideVRF}); err != nil && !natcommon.IsAlreadyEnabled(err) {
-				return nil, fmt.Errorf("det44_plugin_enable_disable: %w", err)
-			}
-			return nil, nil
+		Read: func(ctx context.Context) (natcommon.GlobalState[EnableSpec], error) {
+			found, err := p.hasObjects(ctx)
+			return natcommon.GlobalState[EnableSpec]{Present: found, Observable: found}, err
 		},
-		Update: func(context.Context, EnableSpec, EnableSpec, any) (any, error) {
-			return nil, ErrVRFChangeUnsafe
-		},
-		// Delete never disables the plugin. VPP 26.06 bug (det44.c det44_plugin_disable):
-		// it iterates vec_dup(dm->interfaces) — a *pool*, so freed slots too — the delete of
-		// a stale slot fails, and the error log formats with unformat_vnet_sw_interface →
-		// SIGSEGV. Any det44 interface ever removed makes the next disable crash VPP (seen
-		// twice on vrx-a, 2026-09-23 16:03 and 2026-09-24 00:19). The singleton is released
-		// in the agent only (a no-op): the plugin stays enabled (idle, no interfaces, no
-		// maps) until the next VPP restart, and a later Create finds it "already enabled".
-		Delete: func(context.Context, EnableSpec, any) error { return nil },
-		// No getter for "enabled" / the VRFs (D-063): write-only.
-		Retrieve: func(context.Context) ([]natcommon.Item[EnableSpec], error) {
-			return nil, natcommon.ErrRetrieveUnsupported
-		},
+		Match:     natcommon.AnyValue[EnableSpec],
+		WriteOnly: true,
+		Set:       p.enable,
+		SetUpdate: func(context.Context, EnableSpec, EnableSpec) error { return ErrVRFChangeUnsafe },
+		Reset:     func(context.Context, EnableSpec) error { return nil },
 	})
 }
 
@@ -168,27 +204,22 @@ func (p *Plugin) setTimeouts(ctx context.Context, s TimeoutsSpec) error {
 	return nil
 }
 
+// newTimeouts: VPP-global (D-071).
 func (p *Plugin) newTimeouts() *natcommon.Descriptor[TimeoutsSpec] {
-	return natcommon.New(natcommon.Ops[TimeoutsSpec]{
-		Name:   NameTimeouts,
-		ID:     func(TimeoutsSpec) string { return Singleton },
-		Deps:   func(TimeoutsSpec) []scheduler.Dependency { return enableDep() },
-		Create: func(ctx context.Context, s TimeoutsSpec) (any, error) { return nil, p.setTimeouts(ctx, s) },
-		Update: func(ctx context.Context, _, s TimeoutsSpec, _ any) (any, error) {
-			return nil, p.setTimeouts(ctx, s)
-		},
-		Delete: func(ctx context.Context, _ TimeoutsSpec, _ any) error { return p.setTimeouts(ctx, DefaultTimeouts) },
-		Retrieve: func(ctx context.Context) ([]natcommon.Item[TimeoutsSpec], error) {
+	return natcommon.Global(p.cfg, natcommon.GlobalOps[TimeoutsSpec]{
+		Name: NameTimeouts, ID: Singleton,
+		Deps: func(TimeoutsSpec) []scheduler.Dependency { return enableDep() },
+		Read: func(ctx context.Context) (natcommon.GlobalState[TimeoutsSpec], error) {
 			rep, err := p.svc.Det44GetTimeouts(ctx, &det44.Det44GetTimeouts{})
 			if err != nil {
-				return nil, fmt.Errorf("det44_get_timeouts: %w", err)
+				return natcommon.GlobalState[TimeoutsSpec]{}, fmt.Errorf("det44_get_timeouts: %w", err)
 			}
 			t := TimeoutsSpec{UDP: rep.UDP, TCPEstablished: rep.TCPEstablished, TCPTransitory: rep.TCPTransitory, ICMP: rep.ICMP}
-			if t == DefaultTimeouts {
-				return nil, nil
-			}
-			return []natcommon.Item[TimeoutsSpec]{{Spec: t}}, nil
+			return natcommon.GlobalState[TimeoutsSpec]{Value: t, Present: true, Observable: true}, nil
 		},
+		Absent: func(t TimeoutsSpec) bool { return t == DefaultTimeouts },
+		Set:    p.setTimeouts,
+		Reset:  func(ctx context.Context, _ TimeoutsSpec) error { return p.setTimeouts(ctx, DefaultTimeouts) },
 	})
 }
 
@@ -204,6 +235,7 @@ func isInside(side string) (bool, error) {
 
 func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceSpec]{
+		Claims: p.claims(),
 		Name: NameInterface,
 		ID:   func(s InterfaceSpec) string { return s.Interface + "/" + s.Side },
 		Deps: func(s InterfaceSpec) []scheduler.Dependency {
@@ -214,7 +246,7 @@ func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 			if err != nil {
 				return nil, err
 			}
-			idx, err := natcommon.ResolveInterface(ctx, p.client, s.Interface)
+			idx, err := natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 			if err != nil {
 				return nil, err
 			}
@@ -256,15 +288,16 @@ func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 					return nil, fmt.Errorf("det44_interface_dump: %w", err)
 				}
 				i, _ := ifaces.ByIndex(uint32(d.SwIfIndex))
-				if !p.scope.OwnsInterface(i) {
+				ok, nc := p.scope.InterfaceOwnership(i)
+				if !ok {
 					continue
 				}
 				meta := IfMeta{SwIfIndex: uint32(d.SwIfIndex)}
 				if d.IsInside {
-					out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Side: SideInside}, Meta: meta})
+					out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Side: SideInside}, Meta: meta, NeedsClaim: nc})
 				}
 				if d.IsOutside {
-					out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Side: SideOutside}, Meta: meta})
+					out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Side: SideOutside}, Meta: meta, NeedsClaim: nc})
 				}
 			}
 		},
@@ -291,6 +324,7 @@ func (p *Plugin) addDelMap(ctx context.Context, s MapSpec, add bool) error {
 
 func (p *Plugin) newMap() *natcommon.Descriptor[MapSpec] {
 	return natcommon.New(natcommon.Ops[MapSpec]{
+		Claims: p.claims(),
 		Name:   NameMap,
 		ID:     func(s MapSpec) string { return s.Inside + "/" + s.Outside },
 		Deps:   func(MapSpec) []scheduler.Dependency { return enableDep() },
@@ -311,10 +345,7 @@ func (p *Plugin) newMap() *natcommon.Descriptor[MapSpec] {
 					return nil, fmt.Errorf("det44_map_dump: %w", err)
 				}
 				in, o := mapPrefixes(d)
-				if !p.ownsMap(in, o) {
-					continue
-				}
-				out = append(out, natcommon.Item[MapSpec]{Spec: MapSpec{Inside: in.String(), Outside: o.String()}})
+				out = append(out, natcommon.Item[MapSpec]{Spec: MapSpec{Inside: in.String(), Outside: o.String()}, NeedsClaim: p.scope.NeedsClaim(p.ownsMap(in, o))})
 			}
 		},
 	})

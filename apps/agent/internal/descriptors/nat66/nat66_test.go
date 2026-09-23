@@ -84,12 +84,14 @@ func newFake66() *fake66 {
 	return f
 }
 
+var owner = natcommon.WithGlobalsOwner(true)
+
 func TestNat66(t *testing.T) {
 	f := newFake66()
-	p := nat66d.New(f, "w9")
+	p := nat66d.New(f, "w9", owner)
 	ctx := context.Background()
 	reg := scheduler.NewRegistry()
-	nat66d.Register(reg, f, "w9")
+	nat66d.Register(reg, f, "w9", owner)
 	if reg.Len() != 3 {
 		t.Fatalf("registered %d", reg.Len())
 	}
@@ -106,14 +108,24 @@ func TestNat66(t *testing.T) {
 	if deps := p.Enable.Dependencies(en); len(deps) != 1 || deps[0].Key != "vrf/9001" {
 		t.Fatalf("deps %+v", deps)
 	}
-	// foreign mapping outside our scope: disable refused
-	f.mappings = append(f.mappings, &nat66.Nat66StaticMappingDetails{LocalIPAddress: ip_types.IP6Address{0xfd, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, ExternalIPAddress: ip_types.IP6Address{0x20, 0x01, 0x0d, 0xb8}, VrfID: 3001})
-	fresh := nat66d.New(f, "w9")
-	if err := fresh.Enable.Delete(ctx, en, nil); !errors.Is(err, nat66d.ErrForeignObjects) {
-		t.Fatalf("foreign delete: %v", err)
+	// finding 6: a VRF change is not silently "applied" by a repeated enable
+	if _, err := p.Enable.Create(ctx, natcommon.MustEncode(&nat66d.EnableSpec{OutsideVRF: 9002})); !errors.Is(err, nat66d.ErrVRFChange) {
+		t.Fatalf("vrf change: %v", err)
 	}
-	if _, err := p.Enable.Update(ctx, en, natcommon.MustEncode(&nat66d.EnableSpec{}), nil); !errors.Is(err, nat66d.ErrForeignObjects) {
+	// foreign mapping: disable skipped (D-071), VRF change refused (needs the plugin empty)
+	f.mappings = append(f.mappings, &nat66.Nat66StaticMappingDetails{LocalIPAddress: ip_types.IP6Address{0xfd, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, ExternalIPAddress: ip_types.IP6Address{0x20, 0x01, 0x0d, 0xb8}, VrfID: 3001})
+	fresh := nat66d.New(f, "w9", owner)
+	if err := fresh.Enable.Delete(ctx, en, nil); err != nil || !f.enabled {
+		t.Fatalf("foreign delete must be skipped: %v", err)
+	}
+	if _, err := p.Enable.Update(ctx, en, natcommon.MustEncode(&nat66d.EnableSpec{}), nil); !errors.Is(err, natcommon.ErrNotEmpty) {
 		t.Fatalf("foreign update: %v", err)
+	}
+	// non-owner: requires only (evidence: a mapping exists), never sends
+	calls := len(f.CallsNamed("nat66_plugin_enable_disable"))
+	w3 := nat66d.New(f, "w3")
+	if _, err := w3.Enable.Create(ctx, en); err != nil || w3.Enable.Delete(ctx, en, nil) != nil || len(f.CallsNamed("nat66_plugin_enable_disable")) != calls {
+		t.Fatalf("non-owner enable must not touch VPP: %v", err)
 	}
 	f.ifaces[3] = 0 // w3's outside interface (flags 0 = outside in nat66)
 	in := natcommon.MustEncode(&nat66d.InterfaceSpec{Interface: "loop900", Side: "inside"})

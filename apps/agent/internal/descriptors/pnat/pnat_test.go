@@ -32,6 +32,7 @@ type fakePnat struct {
 	flows    map[flowKey]uint32
 	ifaces   map[uint32]int // sw_if_index → refcount
 	eagainAt int            // split a get reply after this many details (0 = never)
+	onGet    func()         // called before every pnat_bindings_get (concurrency injection)
 }
 
 func newFakePnat(t *testing.T) *fakePnat {
@@ -61,6 +62,9 @@ func newFakePnat(t *testing.T) *fakePnat {
 		return []api.Message{&pnatapi.PnatBindingDelReply{}}, nil
 	})
 	f.On("pnat_bindings_get", func(req api.Message) ([]api.Message, error) {
+		if f.onGet != nil {
+			f.onGet()
+		}
 		c := int(req.(*pnatapi.PnatBindingsGet).Cursor)
 		var out []api.Message
 		n := 0
@@ -231,13 +235,79 @@ func TestBindingAndAttachment(t *testing.T) {
 	if nattest.Apply(t, p.Attachment, a1) != 1 || nattest.Apply(t, p.Attachment) != 1 || len(f.flows) != 1 {
 		t.Fatalf("attachment deletes, foreign kept: %v", f.flows)
 	}
-	if nattest.Apply(t, p.Binding) != 2 {
-		t.Fatal("binding deletes")
+	// finding 3: a binding still attached (here through w3's flow) is never deleted — VPP
+	// would leave a flow pointing at the freed index
+	kvs, _ := p.Binding.Retrieve(ctx)
+	for _, kv := range kvs {
+		if kv.Meta.(pnat.BindingMeta).Index == 0 {
+			if err := p.Binding.Delete(ctx, kv.Value, kv.Meta); !errors.Is(err, pnat.ErrAttached) || f.pool[0] == nil {
+				t.Fatalf("attached binding delete: %v", err)
+			}
+		}
 	}
-	// detach refused (not sent) when the flow hash can't exist
 	delete(f.ifaces, 3)
 	f.flows = map[flowKey]uint32{}
-	if err := p.Attachment.Delete(ctx, a1, pnat.AttachMeta{SwIfIndex: 1}); !errors.Is(err, pnat.ErrFlowHashUninitialised) {
-		t.Fatalf("detach guard: %v", err)
+	if nattest.Apply(t, p.Binding) != 2 || f.pool[0] != nil || f.pool[1] != nil {
+		t.Fatal("binding deletes")
+	}
+	// finding 7: nothing attached anywhere → the detach is done (nil), and the message that
+	// would crash VPP with an uninitialised flow hash is not sent (the fake fails if it is)
+	if err := p.Attachment.Delete(ctx, a1, pnat.AttachMeta{SwIfIndex: 1}); err != nil {
+		t.Fatalf("detach with no pnat interface: %v", err)
+	}
+}
+
+// TestRecoveryConcurrentDelete is finding 3's scenario: a binding below the others is deleted
+// between the snapshots of the index recovery. The before/after snapshot check retries, and a
+// delete by a stale index re-verifies the tuple and never removes the binding now there.
+func TestRecoveryConcurrentDelete(t *testing.T) {
+	f := newFakePnat(t)
+	p := pnat.New(f, "w9")
+	ctx := context.Background()
+	var specs []*pnat.BindingSpec
+	for i := 0; i < 4; i++ {
+		b := binding("10.9.51.1", "10.9.52.1", uint32(2000+i), "10.9.53.1")
+		specs = append(specs, b)
+		if _, err := p.Binding.Create(ctx, natcommon.MustEncode(b)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// delete index 1 behind the recovery's back after its first snapshot
+	gets := 0
+	f.onGet = func() {
+		if gets++; gets == 2 {
+			f.pool[1] = nil
+		}
+	}
+	kvs, err := p.Binding.Retrieve(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]uint32{"udp/10.9.51.1/any/10.9.52.1/2000": 0, "udp/10.9.51.1/any/10.9.52.1/2002": 2, "udp/10.9.51.1/any/10.9.52.1/2003": 3}
+	if len(kvs) != 3 {
+		t.Fatalf("retrieved %v", kvs)
+	}
+	for _, kv := range kvs {
+		if idx := kv.Meta.(pnat.BindingMeta).Index; idx != want[string(kv.Key)[len("pnat.binding/"):]] {
+			t.Fatalf("%s at %d (stale snapshot used)", kv.Key, idx)
+		}
+	}
+	f.onGet = nil
+	// a stale Meta: index 2 now holds another binding (index reuse) → delete not sent
+	f.pool[2] = &pnatapi.PnatBindingsDetails{Match: pnatapi.PnatMatchTuple{Dst: [4]uint8{10, 3, 0, 1}, Mask: pnatapi.PNAT_DA}, Rewrite: pnatapi.PnatRewriteTuple{Dst: [4]uint8{10, 3, 0, 2}, Mask: pnatapi.PNAT_DA}}
+	if err := p.Binding.Delete(ctx, natcommon.MustEncode(specs[2]), pnat.BindingMeta{Index: 2}); err != nil || f.pool[2] == nil || len(f.CallsNamed("pnat_binding_del")) != 0 {
+		t.Fatalf("stale delete must not remove the reused index: %v", err)
+	}
+	// duplicate match tuples (retried Create): the extra is reported as "<id>#<index>" and deleted
+	f.pool[2] = nil
+	if _, err := p.Binding.Create(ctx, natcommon.MustEncode(specs[0])); err != nil {
+		t.Fatal(err)
+	}
+	keys := nattest.Keys(t, p.Binding)
+	if len(keys) != 3 || keys[1] != "pnat.binding/udp/10.9.51.1/any/10.9.52.1/2000#1" { // index order
+		t.Fatalf("keys %v", keys)
+	}
+	if nattest.Apply(t, p.Binding, natcommon.MustEncode(specs[0]), natcommon.MustEncode(specs[3])) != 1 || f.pool[1] != nil || f.pool[0] == nil {
+		t.Fatal("extra deleted, canonical kept")
 	}
 }

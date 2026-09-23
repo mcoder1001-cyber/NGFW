@@ -20,6 +20,15 @@ var ErrPluginNotLoaded = errors.New("natcommon: plugin not loaded on this VPP")
 // an alias of that variable (one line, DF-3-questions.md Q9).
 var ErrRetrieveUnsupported = errors.New("vpp has no dump for this object type")
 
+// ErrDuplicateKey is returned by Retrieve when two retrieved objects map to one key — the
+// scheduler contract requires unique keys (review finding 2). Descriptors that can meet
+// VPP-side duplicates (pnat bindings) report the extras under distinct "<id>#<index>" keys.
+var ErrDuplicateKey = errors.New("natcommon: duplicate key")
+
+// ErrForeignInterface is returned (wrapped) by Create when the named interface is tagged by
+// another owner (D-071: foreign tag → never touched).
+var ErrForeignInterface = errors.New("natcommon: interface belongs to another owner")
+
 // Retval extracts the VPP api error carried by err (the generated clients wrap Retval with
 // api.RetvalToVPPApiError).
 func Retval(err error) (api.VPPApiError, bool) {

@@ -147,12 +147,14 @@ func newFake64() *fake64 {
 	return f
 }
 
+var owner = natcommon.WithGlobalsOwner(true)
+
 func TestNat64(t *testing.T) {
 	f := newFake64()
-	p := nat64d.New(f, "w9")
+	p := nat64d.New(f, "w9", owner)
 	ctx := context.Background()
 	reg := scheduler.NewRegistry()
-	nat64d.Register(reg, f, "w9")
+	nat64d.Register(reg, f, "w9", owner)
 	if reg.Len() != 6 {
 		t.Fatalf("registered %d", reg.Len())
 	}
@@ -165,11 +167,20 @@ func TestNat64(t *testing.T) {
 			t.Fatalf("enable #%d: %v", i, err)
 		}
 	}
-	// disable refused while another owner's objects exist
+	// D-071: disable skipped while any object of any owner exists (plugin stays enabled)
 	f.bibs = append(f.bibs, &nat64.Nat64BibDetails{OAddr: [4]uint8{10, 3, 0, 1}, Flags: nat_types.NAT_IS_STATIC}) // w3's static bib
-	fresh := nat64d.New(f, "w9")
-	if err := fresh.Enable.Delete(ctx, en, nil); !errors.Is(err, nat64d.ErrForeignObjects) {
-		t.Fatalf("disable with foreign bib: %v", err)
+	fresh := nat64d.New(f, "w9", owner)
+	if err := fresh.Enable.Delete(ctx, en, nil); err != nil || !f.enabled {
+		t.Fatalf("disable with foreign bib must be skipped: %v enabled=%v", err, f.enabled)
+	}
+	// a non-owner requires only: satisfied by evidence (an object exists), never sends
+	w3 := nat64d.New(f, "w3")
+	calls := len(f.CallsNamed("nat64_plugin_enable_disable"))
+	if _, err := w3.Enable.Create(ctx, en); err != nil || w3.Enable.Delete(ctx, en, nil) != nil || len(f.CallsNamed("nat64_plugin_enable_disable")) != calls {
+		t.Fatalf("non-owner enable must not touch VPP: %v", err)
+	}
+	if _, err := w3.Timeouts.Create(ctx, natcommon.MustEncode(&nat64d.TimeoutsSpec{UDP: 1, TCPEstablished: 2, TCPTransitory: 3, ICMP: 4})); !errors.Is(err, natcommon.ErrGlobalMismatch) {
+		t.Fatalf("non-owner timeouts: %v", err)
 	}
 	f.bibs = nil
 
@@ -243,8 +254,8 @@ func TestNat64(t *testing.T) {
 	if len(f.pool) != 1 || len(f.prefixes) != 1 || f.ifaces[3] == 0 {
 		t.Fatal("foreign objects touched")
 	}
-	if err := p.Enable.Delete(ctx, en, nil); !errors.Is(err, nat64d.ErrForeignObjects) {
-		t.Fatalf("disable with foreign objects: %v", err)
+	if err := p.Enable.Delete(ctx, en, nil); err != nil || !f.enabled {
+		t.Fatalf("disable with foreign objects must be skipped: %v", err)
 	}
 	f.pool, f.prefixes = nil, nil
 	delete(f.ifaces, 3)

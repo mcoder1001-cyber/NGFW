@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"sync"
 
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/nat66"
@@ -35,8 +36,6 @@ const (
 	SideOutside = "outside"
 )
 
-// ErrForeignObjects is returned when disabling would destroy another owner's nat66 objects.
-var ErrForeignObjects = errors.New("nat66: plugin holds objects of another owner")
 
 // EnableKey is the key every other nat66 object depends on.
 var EnableKey = scheduler.Join(NameEnable, Singleton)
@@ -76,7 +75,11 @@ type IfMeta struct{ SwIfIndex uint32 }
 type Plugin struct {
 	client vpp.Client
 	scope  natcommon.Scope
+	cfg    natcommon.Config
 	svc    nat66.RPCService
+
+	mu      sync.Mutex
+	lastVRF *uint32 // outside VRF this process enabled nat66 with (review finding 6)
 
 	Enable        *natcommon.Descriptor[EnableSpec]
 	Interface     *natcommon.Descriptor[InterfaceSpec]
@@ -84,8 +87,8 @@ type Plugin struct {
 }
 
 // New constructs the family for client and owner.
-func New(client vpp.Client, owner string) *Plugin {
-	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), svc: nat66.NewServiceClient(client)}
+func New(client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {
+	p := &Plugin{client: client, scope: natcommon.ScopeFor(owner), cfg: natcommon.BuildConfig(opts), svc: nat66.NewServiceClient(client)}
 	p.Enable = p.newEnable()
 	p.Interface = p.newInterface()
 	p.StaticMapping = p.newStaticMapping()
@@ -98,8 +101,8 @@ func (p *Plugin) Descriptors() []scheduler.Descriptor {
 }
 
 // Register constructs the family and registers every descriptor.
-func Register(r scheduler.Registry, client vpp.Client, owner string) *Plugin {
-	p := New(client, owner)
+func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {
+	p := New(client, owner, opts...)
 	for _, d := range p.Descriptors() {
 		r.Register(d)
 	}
@@ -112,85 +115,93 @@ func (p *Plugin) ownsMapping(local, external string, vrf uint32) bool {
 	return p.scope.OwnsAddrString(local) || p.scope.OwnsAddrString(external) || p.scope.OwnsTable(vrf)
 }
 
-// inventory reports whether any nat66 object exists and whether any is foreign.
-func (p *Plugin) inventory(ctx context.Context) (found bool, foreign bool, err error) {
-	ifaces, err := natcommon.DumpInterfaces(ctx, p.client)
-	if err != nil {
-		return false, false, err
-	}
+func (p *Plugin) claims() natcommon.ClaimStore { return p.cfg.Claims }
+
+// Empty reports whether nat66 holds no interface and no static mapping of ANY owner (the
+// D-071 precondition for a disable). nat66 dumps return nothing while the plugin is
+// disabled, so a non-empty result also proves "enabled".
+func (p *Plugin) Empty(ctx context.Context) (bool, error) {
 	is, err := p.svc.Nat66InterfaceDump(ctx, &nat66.Nat66InterfaceDump{})
 	if err != nil {
-		return false, false, fmt.Errorf("nat66_interface_dump: %w", err)
+		return false, fmt.Errorf("nat66_interface_dump: %w", err)
 	}
-	for {
-		d, err := is.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return false, false, err
-		}
-		found = true
-		if i, _ := ifaces.ByIndex(uint32(d.SwIfIndex)); !p.scope.OwnsInterface(i) {
-			foreign = true
-		}
+	if n, err := natcommon.Count(is.Recv); err != nil || n > 0 {
+		return false, err
 	}
 	ms, err := p.svc.Nat66StaticMappingDump(ctx, &nat66.Nat66StaticMappingDump{})
 	if err != nil {
-		return false, false, fmt.Errorf("nat66_static_mapping_dump: %w", err)
+		return false, fmt.Errorf("nat66_static_mapping_dump: %w", err)
 	}
-	for {
-		d, err := ms.Recv()
-		if errors.Is(err, io.EOF) {
-			return found, foreign, nil
-		}
-		if err != nil {
-			return false, false, err
-		}
-		found = true
-		if !p.ownsMapping(natcommon.IP6String(d.LocalIPAddress), natcommon.IP6String(d.ExternalIPAddress), d.VrfID) {
-			foreign = true
-		}
-	}
+	n, err := natcommon.Count(ms.Recv)
+	return n == 0, err
 }
 
+// ErrVRFChange is returned when nat66 is already enabled with another outside VRF than
+// desired (known from this process's own enable): VPP ignores the VRF of a repeated enable,
+// so the change would otherwise be reported as applied without taking effect (finding 6).
+var ErrVRFChange = errors.New("nat66: already enabled with another outside VRF; the change needs the plugin empty and re-enabled")
+
+func (p *Plugin) disable(ctx context.Context) (bool, error) {
+	empty, err := p.Empty(ctx)
+	if err != nil || !empty {
+		return false, err
+	}
+	if _, err := p.svc.Nat66PluginEnableDisable(ctx, &nat66.Nat66PluginEnableDisable{Enable: false}); err != nil && !natcommon.IsAlreadyDisabled(err) {
+		return false, fmt.Errorf("nat66_plugin_enable_disable: %w", err)
+	}
+	p.mu.Lock()
+	p.lastVRF = nil
+	p.mu.Unlock()
+	return true, nil
+}
+
+func (p *Plugin) enable(ctx context.Context, s EnableSpec) error {
+	_, err := p.svc.Nat66PluginEnableDisable(ctx, &nat66.Nat66PluginEnableDisable{Enable: true, OutsideVrf: s.OutsideVRF})
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	switch {
+	case err == nil:
+		v := s.OutsideVRF
+		p.lastVRF = &v
+		return nil
+	case natcommon.IsAlreadyEnabled(err):
+		if p.lastVRF != nil && *p.lastVRF != s.OutsideVRF {
+			return fmt.Errorf("%w (enabled with %d, desired %d)", ErrVRFChange, *p.lastVRF, s.OutsideVRF)
+		}
+		return nil // enabled before this process: VRF unverifiable (documented, nat66.md)
+	}
+	return fmt.Errorf("nat66_plugin_enable_disable: %w", err)
+}
+
+// newEnable: VPP-global (D-071). No getter for "enabled" / outside_vrf: presence is
+// observable only through existing nat66 objects; owner Retrieve is write-only (D-063).
 func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
-	return natcommon.New(natcommon.Ops[EnableSpec]{
-		Name: NameEnable,
-		ID:   func(EnableSpec) string { return Singleton },
+	return natcommon.Global(p.cfg, natcommon.GlobalOps[EnableSpec]{
+		Name: NameEnable, ID: Singleton,
 		Deps: func(s EnableSpec) []scheduler.Dependency { return natcommon.WithVRF(nil, s.OutsideVRF) },
-		Create: func(ctx context.Context, s EnableSpec) (any, error) {
-			if _, err := p.svc.Nat66PluginEnableDisable(ctx, &nat66.Nat66PluginEnableDisable{Enable: true, OutsideVrf: s.OutsideVRF}); err != nil && !natcommon.IsAlreadyEnabled(err) {
-				return nil, fmt.Errorf("nat66_plugin_enable_disable: %w", err)
-			}
-			return nil, nil
-		},
-		Update: func(ctx context.Context, _, _ EnableSpec, _ any) (any, error) {
-			_, foreign, err := p.inventory(ctx)
+		Read: func(ctx context.Context) (natcommon.GlobalState[EnableSpec], error) {
+			empty, err := p.Empty(ctx)
 			if err != nil {
-				return nil, err
+				return natcommon.GlobalState[EnableSpec]{}, err
 			}
-			if foreign {
-				return nil, ErrForeignObjects
-			}
-			return nil, scheduler.ErrRecreate
+			return natcommon.GlobalState[EnableSpec]{Present: !empty, Observable: !empty}, nil
 		},
-		Delete: func(ctx context.Context, _ EnableSpec, _ any) error {
-			_, foreign, err := p.inventory(ctx)
+		Match:     natcommon.AnyValue[EnableSpec],
+		WriteOnly: true,
+		Set:       p.enable,
+		SetUpdate: func(ctx context.Context, _, n EnableSpec) error {
+			done, err := p.disable(ctx)
 			if err != nil {
 				return err
 			}
-			if foreign {
-				return ErrForeignObjects
+			if !done {
+				return fmt.Errorf("%s: %w", NameEnable, natcommon.ErrNotEmpty)
 			}
-			if _, err := p.svc.Nat66PluginEnableDisable(ctx, &nat66.Nat66PluginEnableDisable{Enable: false}); err != nil && !natcommon.IsAlreadyDisabled(err) {
-				return fmt.Errorf("nat66_plugin_enable_disable: %w", err)
-			}
-			return nil
+			return p.enable(ctx, n)
 		},
-		// No getter for "enabled" / outside_vrf (D-063): write-only.
-		Retrieve: func(context.Context) ([]natcommon.Item[EnableSpec], error) {
-			return nil, natcommon.ErrRetrieveUnsupported
+		Reset: func(ctx context.Context, _ EnableSpec) error {
+			_, err := p.disable(ctx)
+			return err
 		},
 	})
 }
@@ -207,6 +218,7 @@ func sideFlag(side string) (nat_types.NatConfigFlags, error) {
 
 func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceSpec]{
+		Claims: p.claims(),
 		Name: NameInterface,
 		ID:   func(s InterfaceSpec) string { return s.Interface },
 		Deps: func(s InterfaceSpec) []scheduler.Dependency {
@@ -217,7 +229,7 @@ func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 			if err != nil {
 				return nil, err
 			}
-			idx, err := natcommon.ResolveInterface(ctx, p.client, s.Interface)
+			idx, err := natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 			if err != nil {
 				return nil, err
 			}
@@ -281,7 +293,8 @@ func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 					return nil, fmt.Errorf("nat66_interface_dump: %w", err)
 				}
 				i, _ := ifaces.ByIndex(uint32(d.SwIfIndex))
-				if !p.scope.OwnsInterface(i) {
+				ok, nc := p.scope.InterfaceOwnership(i)
+				if !ok {
 					continue
 				}
 				// nat66_interface_details carries only NAT_IS_INSIDE; an outside interface has
@@ -290,7 +303,7 @@ func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 				if d.Flags&nat_types.NAT_IS_INSIDE != 0 {
 					side = SideInside
 				}
-				out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Side: side}, Meta: IfMeta{SwIfIndex: uint32(d.SwIfIndex)}})
+				out = append(out, natcommon.Item[InterfaceSpec]{Spec: InterfaceSpec{Interface: i.Name, Side: side}, Meta: IfMeta{SwIfIndex: uint32(d.SwIfIndex)}, NeedsClaim: nc})
 			}
 		},
 	})
@@ -316,6 +329,7 @@ func (p *Plugin) addDelMapping(ctx context.Context, s StaticMappingSpec, add boo
 
 func (p *Plugin) newStaticMapping() *natcommon.Descriptor[StaticMappingSpec] {
 	return natcommon.New(natcommon.Ops[StaticMappingSpec]{
+		Claims: p.claims(),
 		Name:   NameStaticMapping,
 		ID:     func(s StaticMappingSpec) string { return fmt.Sprintf("%s/%d", s.Local, s.VRF) },
 		Deps:   func(s StaticMappingSpec) []scheduler.Dependency { return natcommon.WithVRF(enableDep(), s.VRF) },
@@ -336,10 +350,8 @@ func (p *Plugin) newStaticMapping() *natcommon.Descriptor[StaticMappingSpec] {
 					return nil, fmt.Errorf("nat66_static_mapping_dump: %w", err)
 				}
 				local, ext := netip.AddrFrom16(d.LocalIPAddress).String(), netip.AddrFrom16(d.ExternalIPAddress).String()
-				if !p.ownsMapping(local, ext, d.VrfID) {
-					continue
-				}
-				out = append(out, natcommon.Item[StaticMappingSpec]{Spec: StaticMappingSpec{Local: local, External: ext, VRF: d.VrfID}})
+				out = append(out, natcommon.Item[StaticMappingSpec]{Spec: StaticMappingSpec{Local: local, External: ext, VRF: d.VrfID},
+					NeedsClaim: p.scope.NeedsClaim(p.ownsMapping(local, ext, d.VrfID))})
 			}
 		},
 	})

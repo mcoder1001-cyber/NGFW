@@ -10,6 +10,7 @@ import (
 
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip_types"
+	"ngfw/agent/binapi/nat44_ed"
 	"ngfw/agent/binapi/nat44_ei"
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/scheduler"
@@ -177,70 +178,91 @@ func sideFlag(side string) (nat44_ei.Nat44EiConfigFlags, error) {
 
 // ---- singletons ---------------------------------------------------------------------------
 
+func (p *Plugin) edEnabled(ctx context.Context) (bool, error) {
+	rc, err := nat44_ed.NewServiceClient(p.client).Nat44ShowRunningConfig(ctx, &nat44_ed.Nat44ShowRunningConfig{})
+	if err != nil {
+		return false, fmt.Errorf("nat44_show_running_config: %w", err)
+	}
+	return rc.Sessions != 0, nil
+}
+
+func (p *Plugin) enablePlugin(ctx context.Context, s EnableSpec) error {
+	if ed, err := p.edEnabled(ctx); err != nil {
+		return err
+	} else if ed {
+		return ErrOtherVariant
+	}
+	req := &nat44_ei.Nat44EiPluginEnableDisable{Enable: true, InsideVrf: s.InsideVRF, OutsideVrf: s.OutsideVRF}
+	// sessions/user_sessions are startup-conf/CLI settings in nat44_ei; the API enable
+	// carries only VRFs and flags — the defaults are reported back by the running config.
+	if s.StaticMappingOnly {
+		req.Flags |= nat44_ei.NAT44_EI_STATIC_MAPPING_ONLY
+	}
+	if s.ConnectionTracking {
+		req.Flags |= nat44_ei.NAT44_EI_CONNECTION_TRACKING
+	}
+	if s.Out2InDPO {
+		req.Flags |= nat44_ei.NAT44_EI_OUT2IN_DPO
+	}
+	if _, err := p.svc.Nat44EiPluginEnableDisable(ctx, req); err != nil && !natcommon.IsAlreadyEnabled(err) {
+		return fmt.Errorf("nat44_ei_plugin_enable_disable: %w", err)
+	}
+	return nil
+}
+
+// disablePlugin disables nat44-ei only when it holds no object of any owner (D-071);
+// otherwise it is skipped (plugin left enabled).
+func (p *Plugin) disablePlugin(ctx context.Context) (bool, error) {
+	empty, err := p.Empty(ctx)
+	if err != nil || !empty {
+		return false, err
+	}
+	if _, err := p.svc.Nat44EiPluginEnableDisable(ctx, &nat44_ei.Nat44EiPluginEnableDisable{Enable: false}); err != nil && !natcommon.IsAlreadyDisabled(err) {
+		return false, fmt.Errorf("nat44_ei_plugin_enable_disable: %w", err)
+	}
+	return true, nil
+}
+
+// newEnable: VPP-global singleton (D-071), see nat44-ed.
 func (p *Plugin) newEnable() *natcommon.Descriptor[EnableSpec] {
-	return natcommon.New(natcommon.Ops[EnableSpec]{
-		Name: NameEnable,
-		ID:   func(EnableSpec) string { return Singleton },
+	return natcommon.Global(p.cfg, natcommon.GlobalOps[EnableSpec]{
+		Name: NameEnable, ID: Singleton,
 		Deps: func(s EnableSpec) []scheduler.Dependency {
 			return natcommon.WithVRF(natcommon.WithVRF(nil, s.InsideVRF), s.OutsideVRF)
 		},
-		Create: func(ctx context.Context, s EnableSpec) (any, error) {
+		Read: func(ctx context.Context) (natcommon.GlobalState[EnableSpec], error) {
 			rc, enabled, err := p.runningConfig(ctx)
 			if err != nil {
-				return nil, err
+				return natcommon.GlobalState[EnableSpec]{}, err
 			}
-			if enabled {
-				if enableFromRunning(rc) == s {
-					return nil, nil
-				}
-				return nil, fmt.Errorf("%w: plugin already enabled with %+v", ErrForeignObjects, enableFromRunning(rc))
-			}
-			req := &nat44_ei.Nat44EiPluginEnableDisable{Enable: true, InsideVrf: s.InsideVRF, OutsideVrf: s.OutsideVRF}
-			// sessions/user_sessions are startup-conf/CLI settings in nat44_ei; the API enable
-			// carries only VRFs and flags — the defaults are reported back by the running config.
-			if s.StaticMappingOnly {
-				req.Flags |= nat44_ei.NAT44_EI_STATIC_MAPPING_ONLY
-			}
-			if s.ConnectionTracking {
-				req.Flags |= nat44_ei.NAT44_EI_CONNECTION_TRACKING
-			}
-			if s.Out2InDPO {
-				req.Flags |= nat44_ei.NAT44_EI_OUT2IN_DPO
-			}
-			if _, err := p.svc.Nat44EiPluginEnableDisable(ctx, req); err != nil && !natcommon.IsAlreadyEnabled(err) {
-				return nil, fmt.Errorf("nat44_ei_plugin_enable_disable: %w", err)
-			}
-			return nil, nil
+			return natcommon.GlobalState[EnableSpec]{Value: enableFromRunning(rc), Present: enabled, Observable: true}, nil
 		},
-		Update: func(ctx context.Context, _, _ EnableSpec, _ any) (any, error) {
-			foreign, err := p.hasForeignObjects(ctx)
-			if err != nil {
-				return nil, err
-			}
-			if foreign {
-				return nil, ErrForeignObjects
-			}
-			return nil, scheduler.ErrRecreate
-		},
-		Delete: func(ctx context.Context, _ EnableSpec, _ any) error {
-			foreign, err := p.hasForeignObjects(ctx)
+		Set: func(ctx context.Context, s EnableSpec) error {
+			rc, enabled, err := p.runningConfig(ctx)
 			if err != nil {
 				return err
 			}
-			if foreign {
-				return ErrForeignObjects
+			if enabled {
+				if enableFromRunning(rc) == s {
+					return nil
+				}
+				return fmt.Errorf("%s: already enabled with %+v (desired %+v); a change needs the plugin empty", NameEnable, enableFromRunning(rc), s)
 			}
-			if _, err := p.svc.Nat44EiPluginEnableDisable(ctx, &nat44_ei.Nat44EiPluginEnableDisable{Enable: false}); err != nil && !natcommon.IsAlreadyDisabled(err) {
-				return fmt.Errorf("nat44_ei_plugin_enable_disable: %w", err)
-			}
-			return nil
+			return p.enablePlugin(ctx, s)
 		},
-		Retrieve: func(ctx context.Context) ([]natcommon.Item[EnableSpec], error) {
-			rc, enabled, err := p.runningConfig(ctx)
-			if err != nil || !enabled {
-				return nil, err
+		SetUpdate: func(ctx context.Context, _, n EnableSpec) error {
+			done, err := p.disablePlugin(ctx)
+			if err != nil {
+				return err
 			}
-			return []natcommon.Item[EnableSpec]{{Spec: enableFromRunning(rc)}}, nil
+			if !done {
+				return fmt.Errorf("%s: changing the enable configuration needs a disable: %w", NameEnable, natcommon.ErrNotEmpty)
+			}
+			return p.enablePlugin(ctx, n)
+		},
+		Reset: func(ctx context.Context, _ EnableSpec) error {
+			_, err := p.disablePlugin(ctx)
+			return err
 		},
 	})
 }
@@ -252,27 +274,22 @@ func (p *Plugin) setTimeouts(ctx context.Context, s TimeoutsSpec) error {
 	return nil
 }
 
+// newTimeouts: VPP-global (D-071).
 func (p *Plugin) newTimeouts() *natcommon.Descriptor[TimeoutsSpec] {
-	return natcommon.New(natcommon.Ops[TimeoutsSpec]{
-		Name:   NameTimeouts,
-		ID:     func(TimeoutsSpec) string { return Singleton },
-		Deps:   func(TimeoutsSpec) []scheduler.Dependency { return enableDep() },
-		Create: func(ctx context.Context, s TimeoutsSpec) (any, error) { return nil, p.setTimeouts(ctx, s) },
-		Update: func(ctx context.Context, _, s TimeoutsSpec, _ any) (any, error) {
-			return nil, p.setTimeouts(ctx, s)
-		},
-		Delete: func(ctx context.Context, _ TimeoutsSpec, _ any) error { return p.setTimeouts(ctx, DefaultTimeouts) },
-		Retrieve: func(ctx context.Context) ([]natcommon.Item[TimeoutsSpec], error) {
+	return natcommon.Global(p.cfg, natcommon.GlobalOps[TimeoutsSpec]{
+		Name: NameTimeouts, ID: Singleton,
+		Deps: func(TimeoutsSpec) []scheduler.Dependency { return enableDep() },
+		Read: func(ctx context.Context) (natcommon.GlobalState[TimeoutsSpec], error) {
 			rc, enabled, err := p.runningConfig(ctx)
-			if err != nil || !enabled {
-				return nil, err
+			if err != nil {
+				return natcommon.GlobalState[TimeoutsSpec]{}, err
 			}
 			t := TimeoutsSpec{UDP: rc.Timeouts.UDP, TCPEstablished: rc.Timeouts.TCPEstablished, TCPTransitory: rc.Timeouts.TCPTransitory, ICMP: rc.Timeouts.ICMP}
-			if t == DefaultTimeouts {
-				return nil, nil
-			}
-			return []natcommon.Item[TimeoutsSpec]{{Spec: t}}, nil
+			return natcommon.GlobalState[TimeoutsSpec]{Value: t, Present: enabled, Observable: true}, nil
 		},
+		Absent: func(t TimeoutsSpec) bool { return t == DefaultTimeouts },
+		Set:    p.setTimeouts,
+		Reset:  func(ctx context.Context, _ TimeoutsSpec) error { return p.setTimeouts(ctx, DefaultTimeouts) },
 	})
 }
 
@@ -283,20 +300,20 @@ func (p *Plugin) setForwarding(ctx context.Context, enabled bool) error {
 	return nil
 }
 
+// newForwarding: VPP-global (D-071); presence = forwarding on.
 func (p *Plugin) newForwarding() *natcommon.Descriptor[ForwardingSpec] {
-	return natcommon.New(natcommon.Ops[ForwardingSpec]{
-		Name:   NameForwarding,
-		ID:     func(ForwardingSpec) string { return Singleton },
-		Deps:   func(ForwardingSpec) []scheduler.Dependency { return enableDep() },
-		Create: func(ctx context.Context, _ ForwardingSpec) (any, error) { return nil, p.setForwarding(ctx, true) },
-		Delete: func(ctx context.Context, _ ForwardingSpec, _ any) error { return p.setForwarding(ctx, false) },
-		Retrieve: func(ctx context.Context) ([]natcommon.Item[ForwardingSpec], error) {
+	return natcommon.Global(p.cfg, natcommon.GlobalOps[ForwardingSpec]{
+		Name: NameForwarding, ID: Singleton,
+		Deps: func(ForwardingSpec) []scheduler.Dependency { return enableDep() },
+		Read: func(ctx context.Context) (natcommon.GlobalState[ForwardingSpec], error) {
 			rc, enabled, err := p.runningConfig(ctx)
-			if err != nil || !enabled || !rc.ForwardingEnabled {
-				return nil, err
+			if err != nil {
+				return natcommon.GlobalState[ForwardingSpec]{}, err
 			}
-			return []natcommon.Item[ForwardingSpec]{{Spec: ForwardingSpec{}}}, nil
+			return natcommon.GlobalState[ForwardingSpec]{Present: enabled && rc.ForwardingEnabled, Observable: true}, nil
 		},
+		Set:   func(ctx context.Context, _ ForwardingSpec) error { return p.setForwarding(ctx, true) },
+		Reset: func(ctx context.Context, _ ForwardingSpec) error { return p.setForwarding(ctx, false) },
 	})
 }
 
@@ -311,22 +328,26 @@ func (p *Plugin) setIpfix(ctx context.Context, s IpfixSpec, enable bool) error {
 	return nil
 }
 
-// IPFIX: VPP reports only the on/off state (show_running_config); domain id and source port
-// are write-only, so the descriptor is write-only (ErrRetrieveUnsupported, D-063). The enable
-// is idempotent in VPP (nat_ipfix_logging_enable_disable returns 0 when already in state),
-// so the reconciler's re-apply on every resync is safe; note that a changed domain id / port
-// is not applied while logging is already on (VPP keeps the first one).
+// IPFIX: VPP-global (D-071). VPP reports only the on/off state (show_running_config); domain
+// id and source port are write-only, so for the owner the descriptor is write-only
+// (ErrRetrieveUnsupported, D-063; the enable is idempotent in VPP, a changed domain id / port
+// is not applied while logging is already on). A non-owner requires logging to be on.
 func (p *Plugin) newIpfix() *natcommon.Descriptor[IpfixSpec] {
-	return natcommon.New(natcommon.Ops[IpfixSpec]{
-		Name:   NameIpfix,
-		ID:     func(IpfixSpec) string { return Singleton },
-		Deps:   func(IpfixSpec) []scheduler.Dependency { return enableDep() },
-		Create: func(ctx context.Context, s IpfixSpec) (any, error) { return nil, p.setIpfix(ctx, s, true) },
-		Update: func(ctx context.Context, _, s IpfixSpec, _ any) (any, error) { return nil, p.setIpfix(ctx, s, true) },
-		Delete: func(ctx context.Context, s IpfixSpec, _ any) error { return p.setIpfix(ctx, s, false) },
-		Retrieve: func(context.Context) ([]natcommon.Item[IpfixSpec], error) {
-			return nil, natcommon.ErrRetrieveUnsupported
+	return natcommon.Global(p.cfg, natcommon.GlobalOps[IpfixSpec]{
+		Name: NameIpfix, ID: Singleton,
+		Deps: func(IpfixSpec) []scheduler.Dependency { return enableDep() },
+		Read: func(ctx context.Context) (natcommon.GlobalState[IpfixSpec], error) {
+			rc, enabled, err := p.runningConfig(ctx)
+			if err != nil {
+				return natcommon.GlobalState[IpfixSpec]{}, err
+			}
+			// only on/off is observable: a non-owner's requirement is "logging on"
+			return natcommon.GlobalState[IpfixSpec]{Present: enabled && rc.IpfixLoggingEnabled, Observable: enabled && rc.IpfixLoggingEnabled}, nil
 		},
+		Match:     natcommon.AnyValue[IpfixSpec],
+		WriteOnly: true,
+		Set:       func(ctx context.Context, s IpfixSpec) error { return p.setIpfix(ctx, s, true) },
+		Reset:     func(ctx context.Context, s IpfixSpec) error { return p.setIpfix(ctx, s, false) },
 	})
 }
 
@@ -334,6 +355,7 @@ func (p *Plugin) newIpfix() *natcommon.Descriptor[IpfixSpec] {
 
 func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceFeatureSpec]{
+		Claims: p.claims(),
 		Name: NameInterfaceFeature,
 		ID:   func(s InterfaceFeatureSpec) string { return s.Interface + "/" + s.Side },
 		Deps: func(s InterfaceFeatureSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
@@ -342,7 +364,7 @@ func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpe
 			if err != nil {
 				return nil, err
 			}
-			idx, err := natcommon.ResolveInterface(ctx, p.client, s.Interface)
+			idx, err := natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 			if err != nil {
 				return nil, err
 			}
@@ -384,15 +406,16 @@ func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpe
 					return nil, fmt.Errorf("nat44_ei_interface_dump: %w", err)
 				}
 				i, _ := ifaces.ByIndex(uint32(d.SwIfIndex))
-				if !p.scope.OwnsInterface(i) {
+				ok, nc := p.scope.InterfaceOwnership(i)
+				if !ok {
 					continue
 				}
 				meta := IfMeta{SwIfIndex: uint32(d.SwIfIndex)}
 				if d.Flags&nat44_ei.NAT44_EI_IF_INSIDE != 0 {
-					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: i.Name, Side: SideInside}, Meta: meta})
+					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: i.Name, Side: SideInside}, Meta: meta, NeedsClaim: nc})
 				}
 				if d.Flags&nat44_ei.NAT44_EI_IF_OUTSIDE != 0 {
-					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: i.Name, Side: SideOutside}, Meta: meta})
+					out = append(out, natcommon.Item[InterfaceFeatureSpec]{Spec: InterfaceFeatureSpec{Interface: i.Name, Side: SideOutside}, Meta: meta, NeedsClaim: nc})
 				}
 			}
 		},
@@ -401,11 +424,12 @@ func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpe
 
 func (p *Plugin) newOutputFeature() *natcommon.Descriptor[OutputFeatureSpec] {
 	return natcommon.New(natcommon.Ops[OutputFeatureSpec]{
+		Claims: p.claims(),
 		Name: NameOutputFeature,
 		ID:   func(s OutputFeatureSpec) string { return s.Interface },
 		Deps: func(s OutputFeatureSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
 		Create: func(ctx context.Context, s OutputFeatureSpec) (any, error) {
-			idx, err := natcommon.ResolveInterface(ctx, p.client, s.Interface)
+			idx, err := natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 			if err != nil {
 				return nil, err
 			}
@@ -429,47 +453,32 @@ func (p *Plugin) newOutputFeature() *natcommon.Descriptor[OutputFeatureSpec] {
 			if err != nil {
 				return nil, err
 			}
-			var out []natcommon.Item[OutputFeatureSpec]
-			cursor := uint32(0)
-			for {
-				stream, err := p.svc.Nat44EiOutputInterfaceGet(ctx, &nat44_ei.Nat44EiOutputInterfaceGet{Cursor: cursor})
-				if err != nil {
-					return nil, fmt.Errorf("nat44_ei_output_interface_get: %w", err)
-				}
-				again := false
-				for {
-					d, rep, err := stream.Recv()
-					if errors.Is(err, io.EOF) {
-						break
-					}
-					if err != nil {
-						if rv, ok := natcommon.Retval(err); ok && rv == -165 && rep != nil { // EAGAIN: continue from cursor
-							cursor, again = rep.Cursor, true
-							break
-						}
-						return nil, fmt.Errorf("nat44_ei_output_interface_get: %w", err)
-					}
-					i, _ := ifaces.ByIndex(uint32(d.SwIfIndex))
-					if !p.scope.OwnsInterface(i) {
-						continue
-					}
-					out = append(out, natcommon.Item[OutputFeatureSpec]{Spec: OutputFeatureSpec{Interface: i.Name}, Meta: IfMeta{SwIfIndex: uint32(d.SwIfIndex)}})
-				}
-				if !again {
-					return out, nil
-				}
+			idxs, err := p.outputInterfaces(ctx)
+			if err != nil {
+				return nil, err
 			}
+			var out []natcommon.Item[OutputFeatureSpec]
+			for _, idx := range idxs {
+				i, _ := ifaces.ByIndex(idx)
+				ok, nc := p.scope.InterfaceOwnership(i)
+				if !ok {
+					continue
+				}
+				out = append(out, natcommon.Item[OutputFeatureSpec]{Spec: OutputFeatureSpec{Interface: i.Name}, Meta: IfMeta{SwIfIndex: idx}, NeedsClaim: nc})
+			}
+			return out, nil
 		},
 	})
 }
 
 func (p *Plugin) newInterfaceAddress() *natcommon.Descriptor[InterfaceAddressSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceAddressSpec]{
+		Claims: p.claims(),
 		Name: NameInterfaceAddress,
 		ID:   func(s InterfaceAddressSpec) string { return s.Interface },
 		Deps: func(s InterfaceAddressSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
 		Create: func(ctx context.Context, s InterfaceAddressSpec) (any, error) {
-			idx, err := natcommon.ResolveInterface(ctx, p.client, s.Interface)
+			idx, err := natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 			if err != nil {
 				return nil, err
 			}
@@ -507,10 +516,11 @@ func (p *Plugin) newInterfaceAddress() *natcommon.Descriptor[InterfaceAddressSpe
 					return nil, fmt.Errorf("nat44_ei_interface_addr_dump: %w", err)
 				}
 				i, _ := ifaces.ByIndex(uint32(d.SwIfIndex))
-				if !p.scope.OwnsInterface(i) {
+				ok, nc := p.scope.InterfaceOwnership(i)
+				if !ok {
 					continue
 				}
-				out = append(out, natcommon.Item[InterfaceAddressSpec]{Spec: InterfaceAddressSpec{Interface: i.Name}, Meta: IfMeta{SwIfIndex: uint32(d.SwIfIndex)}})
+				out = append(out, natcommon.Item[InterfaceAddressSpec]{Spec: InterfaceAddressSpec{Interface: i.Name}, Meta: IfMeta{SwIfIndex: uint32(d.SwIfIndex)}, NeedsClaim: nc})
 			}
 		},
 	})
@@ -562,6 +572,7 @@ func mergeRanges(addrs []poolAddr) []AddressPoolSpec {
 
 func (p *Plugin) newAddressPool() *natcommon.Descriptor[AddressPoolSpec] {
 	return natcommon.New(natcommon.Ops[AddressPoolSpec]{
+		Claims: p.claims(),
 		Name: NameAddressPool,
 		ID:   func(s AddressPoolSpec) string { return fmt.Sprintf("%s-%s/%d", s.First, s.Last, s.VRF) },
 		Deps: func(s AddressPoolSpec) []scheduler.Dependency {
@@ -589,8 +600,8 @@ func (p *Plugin) newAddressPool() *natcommon.Descriptor[AddressPoolSpec] {
 					return nil, fmt.Errorf("nat44_ei_address_dump: %w", err)
 				}
 				a := netip.AddrFrom4(d.IPAddress)
-				if !p.scope.OwnsAddr(a) {
-					continue
+				if !p.scope.All && !p.scope.OwnsAddr(a) {
+					continue // a slot never merges its ranges with other slots' addresses
 				}
 				if ifAddrs == nil {
 					if ifAddrs, err = p.interfacePoolAddresses(ctx); err != nil {
@@ -603,7 +614,8 @@ func (p *Plugin) newAddressPool() *natcommon.Descriptor[AddressPoolSpec] {
 			}
 			var out []natcommon.Item[AddressPoolSpec]
 			for _, s := range mergeRanges(addrs) {
-				out = append(out, natcommon.Item[AddressPoolSpec]{Spec: s})
+				in := p.scope.OwnsAddrString(s.First) && p.scope.OwnsAddrString(s.Last)
+				out = append(out, natcommon.Item[AddressPoolSpec]{Spec: s, NeedsClaim: p.scope.NeedsClaim(in)})
 			}
 			return out, nil
 		},
@@ -669,7 +681,7 @@ func (p *Plugin) staticRequest(ctx context.Context, s StaticMappingSpec, add boo
 		return nil, err
 	}
 	if s.External.Interface != "" && extIdx == noInterface {
-		if extIdx, err = natcommon.ResolveInterface(ctx, p.client, s.External.Interface); err != nil {
+		if extIdx, err = natcommon.ResolveOwned(ctx, p.client, p.scope, s.External.Interface); err != nil {
 			return nil, err
 		}
 	} else if s.External.Interface == "" {
@@ -684,6 +696,7 @@ func (p *Plugin) staticRequest(ctx context.Context, s StaticMappingSpec, add boo
 
 func (p *Plugin) newStaticMapping() *natcommon.Descriptor[StaticMappingSpec] {
 	return natcommon.New(natcommon.Ops[StaticMappingSpec]{
+		Claims: p.claims(),
 		Name: NameStaticMapping,
 		ID:   func(s StaticMappingSpec) string { return s.Name },
 		Deps: func(s StaticMappingSpec) []scheduler.Dependency {
@@ -730,7 +743,9 @@ func (p *Plugin) newStaticMapping() *natcommon.Descriptor[StaticMappingSpec] {
 			for {
 				d, err := stream.Recv()
 				if errors.Is(err, io.EOF) {
-					return out, nil
+					return dedupeByName(out, func(it natcommon.Item[StaticMappingSpec]) (string, bool) {
+						return it.Spec.Name, it.Meta.(MappingMeta).ExternalSwIfIndex != uint32(noInterface)
+					}), nil
 				}
 				if err != nil {
 					return nil, fmt.Errorf("nat44_ei_static_mapping_dump: %w", err)
@@ -770,7 +785,7 @@ func (p *Plugin) identityRequest(ctx context.Context, s IdentityMappingSpec, add
 		return nil, err
 	}
 	if s.Interface != "" && idx == noInterface {
-		if idx, err = natcommon.ResolveInterface(ctx, p.client, s.Interface); err != nil {
+		if idx, err = natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface); err != nil {
 			return nil, err
 		}
 	} else if s.Interface == "" {
@@ -785,6 +800,7 @@ func (p *Plugin) identityRequest(ctx context.Context, s IdentityMappingSpec, add
 
 func (p *Plugin) newIdentityMapping() *natcommon.Descriptor[IdentityMappingSpec] {
 	return natcommon.New(natcommon.Ops[IdentityMappingSpec]{
+		Claims: p.claims(),
 		Name: NameIdentityMapping,
 		ID:   func(s IdentityMappingSpec) string { return s.Name },
 		Deps: func(s IdentityMappingSpec) []scheduler.Dependency {
@@ -831,7 +847,9 @@ func (p *Plugin) newIdentityMapping() *natcommon.Descriptor[IdentityMappingSpec]
 			for {
 				d, err := stream.Recv()
 				if errors.Is(err, io.EOF) {
-					return out, nil
+					return dedupeByName(out, func(it natcommon.Item[IdentityMappingSpec]) (string, bool) {
+						return it.Spec.Name, it.Meta.(IfMeta).SwIfIndex != uint32(noInterface)
+					}), nil
 				}
 				if err != nil {
 					return nil, fmt.Errorf("nat44_ei_identity_mapping_dump: %w", err)
@@ -954,4 +972,25 @@ func (p *Plugin) DeleteSession(ctx context.Context, inside Endpoint, protocol st
 		return fmt.Errorf("nat44_ei_del_session: %w", err)
 	}
 	return nil
+}
+
+// dedupeByName collapses the several details VPP sends for one tagged mapping into one item
+// (review finding 2): an interface-bound mapping is dumped as the resolved entry and as the
+// to-resolve record (nat44_ei_api.c), both with the same tag; an identity mapping sends one
+// detail per local/VRF. The interface-bound record wins; otherwise the first is kept.
+func dedupeByName[T any](items []natcommon.Item[T], key func(natcommon.Item[T]) (name string, ifBound bool)) []natcommon.Item[T] {
+	pos := map[string]int{}
+	out := items[:0]
+	for _, it := range items {
+		name, ifBound := key(it)
+		if i, seen := pos[name]; seen {
+			if _, curIf := key(out[i]); ifBound && !curIf {
+				out[i] = it
+			}
+			continue
+		}
+		pos[name] = len(out)
+		out = append(out, it)
+	}
+	return out
 }

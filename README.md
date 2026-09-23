@@ -1,92 +1,45 @@
-# NGFW
+# VRX — an open-source TNSR-class secure router platform
 
+> `VRX` is a placeholder codename. Replace it everywhere before starting.
+> Alternatives: ParsRouter, NovaEdge, Hyperion, TerraNode, SepehrGate.
 
+## What this is
 
-## Getting started
+A complete 0→100 development package for building a product equivalent to
+**Netgate TNSR**: a high-performance (10–100+ Gbps) software router / secure
+gateway running on COTS x86 hardware, built on VPP + DPDK, managed by a
+Node.js control plane with a React + MUI web UI.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Read in this order
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+| File | Purpose |
+|---|---|
+| [docs/00-MASTER-PROMPT.md](docs/00-MASTER-PROMPT.md) | **The main deliverable.** A self-contained prompt/spec to hand to an AI coding agent or a dev team. |
+| [docs/01-architecture.md](docs/01-architecture.md) | Process/layer architecture, why Node.js must NOT touch VPP directly, reconciler design |
+| [docs/02-oss-stack.md](docs/02-oss-stack.md) | Every open-source component, its role, its license, and the legal rules |
+| [docs/03-roadmap.md](docs/03-roadmap.md) | 10 phases, milestones, acceptance criteria, team, timeline, cost |
+| [docs/04-api-datamodel.md](docs/04-api-datamodel.md) | Config semantics (candidate/running/commit/rollback), REST conventions, core schema |
+| [docs/05-ui-spec.md](docs/05-ui-spec.md) | React + MUI screen inventory, schema-driven forms, RTL/Persian, design rules |
+| [docs/06-repo-skeleton.md](docs/06-repo-skeleton.md) | Monorepo layout, tooling, CI, dev environment, build/packaging |
+| [docs/07-risks.md](docs/07-risks.md) | Honest list of what will hurt, and how to de-risk it |
+| [docs/08-master-schedule-fa.md](docs/08-master-schedule-fa.md) | **زمان‌بندی جامع (فارسی)** — WBS کامل با برآورد نفر-روز برای همهٔ قابلیت‌های TNSR + همهٔ پلاگین‌های VPP 26.06، تیم، قطار انتشار، برنامهٔ سه‌ماهه و اسپرینتی، گیت‌های پذیرش |
+| [docs/08-master-schedule-en.md](docs/08-master-schedule-en.md) | **Master schedule (English)** — effort, team, release train, critical path, capacity finding, CapEx, scenarios, gate criteria |
+| [wbs/VRX-WBS.xlsx](wbs/VRX-WBS.xlsx) | **Editable WBS workbook** — 102 work items, 620 live formulas, 10 sheets: Legend, Assumptions, WBS, Quarter Plan, Summary, Releases, Sprints, Team, CapEx, Scenarios |
+| [wbs/VRX-WBS-jira.csv](wbs/VRX-WBS-jira.csv) | Jira import: 13 epics + 102 stories with estimates, labels and due dates |
+| [wbs/VRX-WBS-msproject.csv](wbs/VRX-WBS-msproject.csv) | MS Project / generic CSV: work, duration, start, finish, resources, dependencies |
+| [docs/09-os-packages.md](docs/09-os-packages.md) | **بسته‌های سیستم‌عامل (فارسی)** — سه پروفایل Runtime/Build/Lab، مخازن APT، تنظیم کرنل و hugepage، آنچه نباید نصب شود |
+| [scripts/](scripts/) | Runnable installers: `00-add-repos.sh`, `10-install-runtime.sh`, `20-install-build.sh`, `25-build-strongswan-vpp.sh`, `30-tune-dataplane.sh`, `40-install-lab.sh` |
+| [docs/10-30-day-agent-plan-fa.md](docs/10-30-day-agent-plan-fa.md) | **برنامهٔ ۳۰ روزهٔ ایجنت‌محور (فارسی)** — چه چیزی شدنی است و چه نه، مدل اجرا با ایجنت‌های موازی، ۱۶ موج، گیت‌های انسانی |
+| [prompts/](prompts/) | **Agent prompts** — `00-CONTEXT.md` shared preamble, P01–P14 task prompts, `FEATURE-TEMPLATE.md`, `REVIEW-PROMPT.md`, `INTEGRATOR-PROMPT.md`, filled examples in `features/` |
+| [docs/11-compressed-plan-fa.md](docs/11-compressed-plan-fa.md) | **طرح فشردهٔ ۲۱ روزه (فارسی)** — جای طرح ۳۰ روزه؛ VM به‌جای Docker، وضعیت دقیق هر ۱۰۲ قلم (✅/🟡/🔧/⏳/❌)، ترک جدای کد VPP (V1–V6)، سیاست تست فشرده |
 
-## Add your files
+## The 60-second summary
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://git.amnafzar.ir/eshaghi/ngfw.git
-git branch -M main
-git push -uf origin main
-```
-
-## Integrate with your tools
-
-- [ ] [Set up project integrations](https://git.amnafzar.ir/eshaghi/ngfw/-/settings/integrations)
-
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- **Data plane:** FD.io VPP + DPDK (Apache-2.0). This is 70% of the product's value and 70% of the risk.
+- **Dataplane agent:** Go, using `go.fd.io/govpp` (binary API + stats API) — **not** Node.js.
+- **Routing:** FRRouting (BGP/OSPF/IS-IS/RIP/BFD) on the Linux stack, bridged to VPP via the `linux-cp` plugin.
+- **IPsec:** strongSwan with the `kernel-vpp`/`socket-vpp` plugins (VPP-SSwan), or VPP's native IKEv2 plugin.
+- **Services:** Kea (DHCP), Unbound (DNS), chrony (NTP), net-snmp, keepalived (VRRP).
+- **Control plane:** Node.js 22 + NestJS + TypeScript + PostgreSQL + Redis, gRPC to the Go agent.
+- **UI:** React 19 + Vite + TypeScript + MUI v7 + TanStack Query + react-hook-form/Zod + i18next (en/fa, RTL).
+- **Config model:** copy TNSR's YANG/clixon semantics — candidate datastore, `commit`, `rollback`, confirmed commit — but implement it with JSON Schema + a declarative reconciler instead of clixon.

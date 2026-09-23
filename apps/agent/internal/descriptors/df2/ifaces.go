@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 
-	"ngfw/agent/binapi/interface_types"
 	interfaces "ngfw/agent/binapi/interface"
+	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/vpp"
 )
 
@@ -78,4 +79,16 @@ func (s *Interfaces) OwnedName(idx uint32) (string, bool) {
 		return "", false
 	}
 	return s.Name(idx)
+}
+
+// OwnedIndices returns the sw_if_index of every interface tagged by this owner, ascending.
+func (s *Interfaces) OwnedIndices() []uint32 {
+	var out []uint32
+	for idx := range s.byIndex {
+		if s.Owned(idx) {
+			out = append(out, idx)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
 }

@@ -9,8 +9,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/ethernet_types"
-	"ngfw/agent/binapi/interface_types"
 	interfaces "ngfw/agent/binapi/interface"
+	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip_neighbor"
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/memclnt"

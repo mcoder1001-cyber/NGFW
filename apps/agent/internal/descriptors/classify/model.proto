@@ -1,5 +1,5 @@
 // Desired state of the classify descriptors (agent-internal until moved to packages/proto).
-// Mask and match are opaque bytes: (skip_n_vectors + match_n_vectors) * 16 bytes.
+// Mask (match_n_vectors * 16 bytes) and match ((skip + match) * 16 bytes) are opaque bytes.
 syntax = "proto3";
 
 package ngfw.agent.descriptors.classify;
@@ -18,7 +18,7 @@ message Table {
   uint32 skip_n_vectors = 4;
   // Default 1.
   uint32 match_n_vectors = 5;
-  // (skip_n_vectors + match_n_vectors) * 16 bytes; shorter masks are zero-padded.
+  // match_n_vectors * 16 bytes (the vectors after the skipped ones); shorter masks are zero-padded.
   bytes mask = 6;
   // Name of the next table in the chain; empty = none.
   string next_table = 7;
@@ -39,7 +39,7 @@ message Session {
     SET_METADATA = 3;
   }
   string table = 1;
-  // (skip_n_vectors + match_n_vectors) * 16 bytes; the skipped bytes are normalised to zero.
+  // (skip_n_vectors + match_n_vectors) * 16 bytes, skipped bytes zero; trailing zeros are trimmed (canonical form).
   bytes match = 2;
   // 4294967295 = table default.
   uint32 hit_next_index = 3;

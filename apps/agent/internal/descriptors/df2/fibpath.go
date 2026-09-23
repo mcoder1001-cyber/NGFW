@@ -69,7 +69,9 @@ func pathLess(a, b *FibPath) bool {
 	}
 }
 
-func sortPaths(paths []*FibPath) { sort.SliceStable(paths, func(i, j int) bool { return pathLess(paths[i], paths[j]) }) }
+func sortPaths(paths []*FibPath) {
+	sort.SliceStable(paths, func(i, j int) bool { return pathLess(paths[i], paths[j]) })
+}
 
 // EncodePaths converts normalised desired paths to fib_types paths, resolving interface names.
 func EncodePaths(paths []*FibPath, ifs *Interfaces) ([]fib_types.FibPath, error) {

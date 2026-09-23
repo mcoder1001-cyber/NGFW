@@ -74,7 +74,9 @@ func WithSecretResolver(sr rfkit.SecretResolver) Option { return func(r *Rendere
 func WithQuerier(q Querier) Option { return func(r *Renderer) { r.querier = q } }
 
 // WithListeners replaces the /proc socket reader (unit tests).
-func WithListeners(f func(pid int) ([]string, error)) Option { return func(r *Renderer) { r.listeners = f } }
+func WithListeners(f func(pid int) ([]string, error)) Option {
+	return func(r *Renderer) { r.listeners = f }
+}
 
 // WithVerifyTimeout bounds the post-reload convergence check (default 5 s).
 func WithVerifyTimeout(d time.Duration) Option { return func(r *Renderer) { r.verifyTimeout = d } }

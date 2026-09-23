@@ -1,0 +1,11 @@
+{
+  "nat": {
+    "staticMappings": [
+      {
+        "name": "web",
+        "local": { "ip": "192.168.1.80", "port": 80 },
+        "external": { "ip": "203.0.113.3", "port": 8080 }
+      }
+    ]
+  }
+}

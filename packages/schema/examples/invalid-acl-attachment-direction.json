@@ -1,0 +1,12 @@
+{
+  "acl": {
+    "attachments": [
+      {
+        "list": "l",
+        "target": { "kind": "interface", "interface": "Gig0/0/0" },
+        "direction": "inbound",
+        "sequence": 1
+      }
+    ]
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "vrfs": {
+    "default": { "id": 0, "description": "global routing table" },
+    "customer-a": { "id": 10, "description": "customer A" }
+  },
+  "interfaces": {
+    "TenGigabitEthernet0/0/0": {
+      "enabled": true,
+      "description": "uplink",
+      "mtu": 1500,
+      "ipv4": ["198.51.100.2/30"],
+      "ipv6": ["2001:db8:0:1::2/64"],
+      "vrf": "default",
+      "rxMode": "polling"
+    },
+    "TenGigabitEthernet0/0/1": {
+      "enabled": true,
+      "description": "lan",
+      "mtu": 1500,
+      "ipv4": ["192.168.10.1/24"],
+      "ipv6": ["2001:db8:10::1/64"],
+      "vrf": "default",
+      "rxMode": "polling"
+    },
+    "TenGigabitEthernet0/0/2": {
+      "enabled": true,
+      "description": "customer A access",
+      "mtu": 1500,
+      "ipv4": ["10.20.0.1/24"],
+      "vrf": "customer-a",
+      "rxMode": "polling"
+    }
+  },
+  "services": {
+    "dhcp": {
+      "servers": {
+        "lan": {
+          "vrf": "default",
+          "interfaces": ["TenGigabitEthernet0/0/1"],
+          "leaseTimeSec": 86400,
+          "renewTimerSec": 43200,
+          "rebindTimerSec": 75600,
+          "subnets": {
+            "lan": {
+              "subnet": "192.168.10.0/24",
+              "pools": [{ "start": "192.168.10.100", "end": "192.168.10.199" }],
+              "gateway": "192.168.10.1",
+              "dnsServers": ["192.168.10.1"],
+              "domainName": "lab.example",
+              "options": [{ "code": 42, "data": "192.168.10.7" }],
+              "reservations": {
+                "printer": {
+                  "mac": "aa:bb:cc:dd:ee:01",
+                  "ip": "192.168.10.20",
+                  "hostname": "printer"
+                }
+              }
+            }
+          }
+        },
+        "lan-v6": {
+          "family": "ipv6",
+          "vrf": "default",
+          "interfaces": ["TenGigabitEthernet0/0/1"],
+          "subnets": {
+            "lan6": {
+              "subnet": "2001:db8:10::/64",
+              "pools": [{ "start": "2001:db8:10::1000", "end": "2001:db8:10::1fff" }],
+              "dnsServers": ["2001:db8:10::1"],
+              "reservations": {
+                "nas": {
+                  "duid": "00:01:00:01:2a:3b:4c:5d:aa:bb:cc:dd:ee:02",
+                  "ip": "2001:db8:10::20"
+                }
+              }
+            }
+          }
+        },
+        "customer-a": {
+          "vrf": "customer-a",
+          "interfaces": ["TenGigabitEthernet0/0/2"],
+          "subnets": {
+            "a": {
+              "subnet": "10.20.0.0/24",
+              "pools": [{ "start": "10.20.0.10", "end": "10.20.0.250" }],
+              "gateway": "10.20.0.1"
+            }
+          }
+        }
+      }
+    },
+    "dns": {
+      "resolvers": {
+        "lan": {
+          "vrf": "default",
+          "listen": [{ "address": "192.168.10.1" }, { "address": "2001:db8:10::1" }],
+          "accessControl": [
+            { "prefix": "192.168.10.0/24", "action": "allow" },
+            { "prefix": "2001:db8:10::/64" }
+          ],
+          "forwarders": [
+            { "address": "9.9.9.9", "port": 853, "tls": true, "tlsServerName": "dns.quad9.net" }
+          ],
+          "forwardZones": [{ "zone": "corp.example", "forwarders": [{ "address": "10.99.0.53" }] }],
+          "localZones": [
+            {
+              "zone": "lab.example",
+              "records": [
+                { "name": "printer.lab.example", "type": "A", "data": "192.168.10.20" },
+                { "name": "printer.lab.example", "type": "AAAA", "data": "2001:db8:10::20" },
+                { "name": "lab.example", "type": "MX", "data": "10 mail.lab.example" }
+              ]
+            }
+          ],
+          "cache": { "prefetch": true }
+        },
+        "customer-a": {
+          "vrf": "customer-a",
+          "listen": [{ "address": "10.20.0.1" }],
+          "dnssec": { "enabled": false }
+        }
+      },
+      "vppCache": { "enabled": true, "upstreams": ["192.168.10.1"] }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "nat": {
+    "cnat": {
+      "snat": {
+        "policy": "interface",
+        "interfaces": [
+          {
+            "interface": "TenGigabitEthernet0/0/0",
+            "side": "outside"
+          }
+        ]
+      }
+    }
+  }
+}

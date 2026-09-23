@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/descriptors/df6/df6test"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/vxlan"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // TestBypassInterfaceRecreated (fix round 2, N1): the interface under a write-only bypass is
@@ -53,9 +53,7 @@ func TestBypassInterfaceRecreated(t *testing.T) {
 func TestBootIDTriple(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
-	saved := df6.ProcRoot
-	df6.ProcRoot = root
-	t.Cleanup(func() { df6.ProcRoot = saved })
+	t.Cleanup(bootid.SetProcRoot(root))
 	write := func(bootID, start string) {
 		if err := os.MkdirAll(filepath.Join(root, "sys/kernel/random"), 0o700); err != nil {
 			t.Fatal(err)
@@ -70,18 +68,18 @@ func TestBootIDTriple(t *testing.T) {
 	f := df6test.NewFakeVPP()
 	f.SetBoot(4242)
 	write("aaaa", "1000")
-	a, err := df6.BootID(ctx, f)
+	a, err := bootid.Current(ctx, f)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a != "aaaa/4242/1000" {
+	if a.String() != "aaaa/4242/1000" {
 		t.Fatalf("BootID = %q", a)
 	}
 	write("bbbb", "1000") // host reboot, VPP got the same PID and start tick
-	b, _ := df6.BootID(ctx, f)
+	b, _ := bootid.Current(ctx, f)
 	write("aaaa", "2000") // VPP restart with a recycled PID
-	c, _ := df6.BootID(ctx, f)
-	if a == b || a == c || b == c {
+	c, _ := bootid.Current(ctx, f)
+	if a.Equal(b) || a.Equal(c) || b.Equal(c) {
 		t.Fatalf("identities must differ: %q %q %q", a, b, c)
 	}
 }

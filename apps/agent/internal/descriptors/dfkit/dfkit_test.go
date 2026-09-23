@@ -16,6 +16,7 @@ import (
 
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dfkit/dfkittest"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 type spec struct {
@@ -121,17 +122,45 @@ func TestBootIdentity(t *testing.T) {
 	// comm with blanks and ')' — fields are counted after the last ')'
 	stat := "1000 (vpp main) x) S 1 1000 1000 0 -1 4194560 1 0 0 0 5 6 0 0 20 0 3 0 424242 1000 10 18446744073709551615"
 	must(os.WriteFile(filepath.Join(root, "1000/stat"), []byte(stat), 0o600))
-	old := dfkit.ProcRoot
-	dfkit.ProcRoot = root
-	t.Cleanup(func() { dfkit.ProcRoot = old })
+	t.Cleanup(bootid.SetProcRoot(root))
 	f := dfkittest.NewFake()
 	id, err := dfkit.BootIdentity(context.Background(), f)
-	if err != nil || id != "b7712a53-c1e7/1000/424242" {
+	if err != nil || id.String() != "b7712a53-c1e7/1000/424242" {
 		t.Fatalf("identity %q %v", id, err)
 	}
 	f.RestartVPP() // PID 1001: no /proc entry → error, never a guessed identity
 	if _, err := dfkit.BootIdentity(context.Background(), f); err == nil {
 		t.Fatal("missing /proc/<pid>/stat must be an error")
+	}
+}
+
+// TD-1: a BootRecord written in the pre-D-080 PID-only format (or any other non-triple) never
+// matches the current identity: the object is re-added once, then recorded in the new format.
+func TestBootRecordLegacyFormat(t *testing.T) {
+	f := dfkittest.NewFake()
+	ctx := context.Background()
+	store := dfkit.NewMemoryBootStore()
+	for _, legacy := range []string{"1000", "fake/1000", ""} {
+		if err := store.Put(dfkit.BootRecord{Key: "k/1", Identity: legacy, Value: "{}"}); err != nil {
+			t.Fatal(err)
+		}
+		applied, id, err := dfkit.AppliedThisBoot(ctx, f, store, "k/1", "{}")
+		if err != nil || applied {
+			t.Fatalf("legacy %q: applied=%v err=%v", legacy, applied, err)
+		}
+		if started, err := dfkit.StartedThisBoot(ctx, f, store, "k/1"); err != nil || started {
+			t.Fatalf("legacy %q: started=%v err=%v", legacy, started, err)
+		}
+		if err := store.Put(dfkit.BootRecord{Key: "k/1", Identity: id, Value: "{}"}); err != nil {
+			t.Fatal(err)
+		}
+		if applied, _, _ := dfkit.AppliedThisBoot(ctx, f, store, "k/1", "{}"); !applied {
+			t.Fatalf("record %q in the new format not matched", id)
+		}
+	}
+	f.RestartVPP()
+	if applied, _, _ := dfkit.AppliedThisBoot(ctx, f, store, "k/1", "{}"); applied {
+		t.Fatal("record of the previous VPP instance matched")
 	}
 }
 

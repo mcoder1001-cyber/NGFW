@@ -15,6 +15,7 @@ import (
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dfkit/dfkittest"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // newFake models the exporter pool (index 0 = default exporter) the way flow_api.c does:
@@ -192,7 +193,12 @@ func classifyFake(t *testing.T, f *dfkittest.FakeVPP) classify.Store {
 	f.Reply("classify_table_ids", &classifyapi.ClassifyTableIdsReply{Ids: []uint32{3}, Count: 1})
 	f.Reply("classify_table_info", &classifyapi.ClassifyTableInfoReply{TableID: 3, MatchNVectors: 1, Mask: mask, MaskLength: 16})
 	st := classify.NewMemStore()
-	if err := st.Reset(0); err != nil { // the fake's control_ping has vpe_pid 0
+	t.Cleanup(bootid.SetProcRoot(t.TempDir()))          // the fake PID is no real process: empty /proc
+	cur, err := bootid.Current(context.Background(), f) // the running (fake) VPP
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Reset(cur); err != nil {
 		t.Fatal(err)
 	}
 	if err := st.Put(classify.TableRecord{Name: "w5-t", Index: 3, MatchNVectors: 1, Mask: mask}); err != nil {

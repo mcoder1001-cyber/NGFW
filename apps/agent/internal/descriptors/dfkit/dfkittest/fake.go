@@ -5,7 +5,7 @@ package dfkittest
 
 import (
 	"context"
-	"fmt"
+	"os"
 	"sync"
 
 	"go.fd.io/govpp/api"
@@ -13,10 +13,9 @@ import (
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/memclnt"
-	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/internal/descriptors/dfkit"
-	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 	"ngfw/agent/internal/vpp/fake"
 )
 
@@ -27,9 +26,9 @@ type Iface struct {
 	Tag   string
 }
 
-// FakeVPP is fake.Client plus the handlers every DF-8 descriptor needs: control_ping (dumps),
-// show_threads (VPP identity, PID settable to simulate a VPP restart) and sw_interface_dump
-// (from Ifaces).
+// FakeVPP is fake.Client plus the handlers every DF-8 descriptor needs: control_ping (dumps and
+// the VPP boot identity: vpe_pid settable to simulate a VPP restart) and sw_interface_dump (from
+// Ifaces).
 type FakeVPP struct {
 	*fake.Client
 	mu     sync.Mutex
@@ -39,11 +38,11 @@ type FakeVPP struct {
 
 // NewFake returns a connected FakeVPP with the given interfaces.
 func NewFake(ifaces ...Iface) *FakeVPP {
-	f := &FakeVPP{Client: fake.New(fake.WithControlPingReply(&memclnt.ControlPingReply{})), pid: 1000, ifaces: ifaces}
-	f.On("show_threads", func(api.Message) ([]api.Message, error) {
+	f := &FakeVPP{Client: fake.New(), pid: 1000, ifaces: ifaces}
+	f.On("control_ping", func(api.Message) ([]api.Message, error) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
-		return []api.Message{&vlib.ShowThreadsReply{Count: 1, ThreadData: []vlib.ThreadData{{ID: 0, Name: "vpp_main", PID: f.pid}}}}, nil
+		return []api.Message{&memclnt.ControlPingReply{VpePID: f.pid}}, nil
 	})
 	f.On("sw_interface_dump", func(api.Message) ([]api.Message, error) {
 		f.mu.Lock()
@@ -57,10 +56,16 @@ func NewFake(ifaces ...Iface) *FakeVPP {
 		}
 		return out, nil
 	})
-	// The fake PID is not a real process: derive the D-080 identity from it alone.
-	dfkit.IdentitySource = func(ctx context.Context, c vpp.Client) (string, error) {
-		pid, err := iface.VPPIdentity(ctx, c)
-		return fmt.Sprintf("fake/%d", pid), err
+	// The fake PID is not a real process: never read the host's /proc for it (a real process
+	// with that PID could come and go); the D-080 identity is a fixed boot id and start time plus
+	// the fake's vpe_pid.
+	dfkit.IdentitySource = func(ctx context.Context, c vpp.Client) (bootid.Identity, error) {
+		id, err := bootid.Reader{ProcRoot: os.DevNull}.Current(ctx, c)
+		if err != nil {
+			return bootid.Identity{}, err
+		}
+		id.BootID, id.StartTime = "fake", 1
+		return id, nil
 	}
 	return f
 }

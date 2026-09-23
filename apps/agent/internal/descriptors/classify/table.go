@@ -12,10 +12,10 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	classifyapi "ngfw/agent/binapi/classify"
-	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // TableName is the descriptor name; keys are "classify.table/<name>".
@@ -213,16 +213,6 @@ func deleteTable(ctx context.Context, c vpp.Client, index uint32) error {
 	return nil
 }
 
-// vppInstance identifies the running VPP: control_ping_reply.vpe_pid changes on every VPP
-// (re)start, and table indices are only meaningful within one instance.
-func vppInstance(ctx context.Context, c vpp.Client) (uint32, error) {
-	rep, err := memclnt.NewServiceClient(c).ControlPing(ctx, &memclnt.ControlPing{})
-	if err != nil {
-		return 0, fmt.Errorf("control_ping: %w", err)
-	}
-	return rep.VpePID, nil
-}
-
 type liveTable struct {
 	rec  TableRecord
 	info *classifyapi.ClassifyTableInfoReply
@@ -233,21 +223,24 @@ type liveTable struct {
 // and classify_table_info shows its geometry (skip/match vectors, mask). Everything else is
 // stale — in particular an index VPP has reused for another owner's table is never claimed.
 // sameInstance is false when the whole store predates the running VPP.
-func snapshot(ctx context.Context, c vpp.Client, st Store) (live []liveTable, stale []string, pid uint32, sameInstance bool, err error) {
-	if pid, err = vppInstance(ctx, c); err != nil {
-		return nil, nil, 0, false, err
+//
+// The instance is the D-080 boot identity (bootid.Current): table indices are only meaningful
+// within one VPP process, and the PID alone repeats across host reboots.
+func snapshot(ctx context.Context, c vpp.Client, st Store) (live []liveTable, stale []string, inst bootid.Identity, sameInstance bool, err error) {
+	if inst, err = bootid.Current(ctx, c); err != nil {
+		return nil, nil, bootid.Identity{}, false, err
 	}
 	recs := st.All() // before the VPP reads: a record added later is not judged on an old snapshot
-	if have, known := st.Instance(); !known || have != pid {
+	if have, known := st.Instance(); !known || !have.Equal(inst) {
 		for _, r := range recs {
 			stale = append(stale, r.Name)
 		}
-		return nil, stale, pid, false, nil
+		return nil, stale, inst, false, nil
 	}
 	svc := classifyapi.NewServiceClient(c)
 	rep, err := svc.ClassifyTableIds(ctx, &classifyapi.ClassifyTableIds{})
 	if err != nil {
-		return nil, nil, 0, false, fmt.Errorf("classify_table_ids: %w", err)
+		return nil, nil, bootid.Identity{}, false, fmt.Errorf("classify_table_ids: %w", err)
 	}
 	ids := map[uint32]bool{}
 	for _, id := range rep.Ids {
@@ -265,7 +258,7 @@ func snapshot(ctx context.Context, c vpp.Client, st Store) (live []liveTable, st
 			continue
 		}
 		if err != nil {
-			return nil, nil, 0, false, fmt.Errorf("classify_table_info %d: %w", rec.Index, err)
+			return nil, nil, bootid.Identity{}, false, fmt.Errorf("classify_table_info %d: %w", rec.Index, err)
 		}
 		if !sameGeometry(rec, info) {
 			stale = append(stale, rec.Name)
@@ -273,7 +266,7 @@ func snapshot(ctx context.Context, c vpp.Client, st Store) (live []liveTable, st
 		}
 		live = append(live, liveTable{rec: rec, info: info})
 	}
-	return live, stale, pid, true, nil
+	return live, stale, inst, true, nil
 }
 
 // sameGeometry reports whether VPP's table has the geometry the record was created with.
@@ -308,12 +301,12 @@ func Prune(ctx context.Context, c vpp.Client, st Store) error {
 }
 
 func pruneLocked(ctx context.Context, c vpp.Client, st Store) error {
-	_, stale, pid, same, err := snapshot(ctx, c, st)
+	_, stale, inst, same, err := snapshot(ctx, c, st)
 	if err != nil {
 		return err
 	}
 	if !same {
-		return st.Reset(pid)
+		return st.Reset(inst)
 	}
 	for _, name := range stale {
 		if err := st.Delete(name); err != nil {

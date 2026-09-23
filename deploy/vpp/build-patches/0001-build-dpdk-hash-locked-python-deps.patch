@@ -1,0 +1,25 @@
+Subject: [PATCH] build/external: install DPDK's meson/pyelftools from the hash-locked pydeps.lock only
+Track: build (F-vpp-debs review H1) — build infrastructure only, never product code; does not change the package version
+Status: build
+Upstream: not submitted
+
+Upstream dpdk.mk runs `pip3 download` (unpinned setuptools/wheel/pyelftools, -f $HOME/Downloads) when no meson*
+file is cached and then `pip3 install --no-index --find-links=downloads/` without any hash check, so whatever
+wheels sit in the download directory run during the DPDK configure. With this change the DPDK meson venv
+(under the build tree, never system-wide) is populated exclusively by
+`pip3 install --require-hashes --no-index --find-links=$(VRX_PYDEPS_DIR) -r $(VRX_PYDEPS_LOCK)`;
+there is no download step, and the configure fails closed when build.sh did not pass both variables.
+
+--- a/build/external/packages/dpdk.mk
++++ b/build/external/packages/dpdk.mk
+@@ -202,8 +202,8 @@
+ 	mkdir -p ../dpdk-meson-venv && \
+ 	python3 -m venv ../dpdk-meson-venv && \
+ 	source ../dpdk-meson-venv/bin/activate && \
+-	(if ! ls $(PIP_DOWNLOAD_DIR)meson* ; then pip3 download -d $(PIP_DOWNLOAD_DIR) -f $(DL_CACHE_DIR) meson==0.57.2 setuptools wheel pyelftools; fi) && \
+-	pip3 install --no-index --find-links=$(PIP_DOWNLOAD_DIR) meson==0.57.2 pyelftools && \
++	test -n "$(VRX_PYDEPS_LOCK)" -a -n "$(VRX_PYDEPS_DIR)" && \
++	pip3 install --require-hashes --no-index --find-links=$(VRX_PYDEPS_DIR) -r $(VRX_PYDEPS_LOCK) && \
+ 	PKG_CONFIG_PATH=$(dpdk_install_dir)/lib/pkgconfig meson setup $(dpdk_src_dir) \
+ 		$(dpdk_build_dir) \
+ 		$(DPDK_MESON_ARGS) \

@@ -682,11 +682,15 @@ export const CnatSchema = withUi(
 
 export const NatSchema = withUi(
   z.strictObject({
-    enabled: withUi(z.boolean().default(false), {
+    // Review L6: optional, no default. Absent = on exactly when NAT44 is configured (a document written verbatim to
+    // the F-nat44 contract, which has no `enabled`, works); explicit `false` keeps the configuration but renders
+    // nothing (staging / maintenance). Renderers read `isNat44Enabled()`, never the raw field.
+    enabled: withUi(z.boolean(), {
       title: 'NAT44 enabled',
       group: 'General',
       order: 1,
-    }),
+      help: 'Omit = on when interfaces, pools or mappings are configured; false = keep the configuration but disable NAT44',
+    }).optional(),
     mode: withUi(z.enum(['ed', 'ei']).default('ed'), {
       title: 'Mode',
       group: 'General',
@@ -764,6 +768,24 @@ export const NatSchema = withUi(
 );
 
 export type NatConfig = z.infer<typeof NatSchema>;
+
+/**
+ * Effective NAT44 on/off (review L6): the explicit `enabled` when set, otherwise true exactly when any NAT44 object
+ * (inside/outside/output-feature interface, pool, static/identity/load-balanced mapping) is configured.
+ */
+export function isNat44Enabled(nat: NatConfig): boolean {
+  if (nat.enabled !== undefined) return nat.enabled;
+  return (
+    nat.inside.length +
+      nat.outside.length +
+      nat.outputFeature.length +
+      nat.pools.length +
+      nat.staticMappings.length +
+      nat.identityMappings.length +
+      nat.loadBalancedMappings.length >
+    0
+  );
+}
 export type NatPool = z.infer<typeof NatPoolSchema>;
 export type NatRangePool = z.infer<typeof NatRangePoolSchema>;
 export type NatInterfacePool = z.infer<typeof NatInterfacePoolSchema>;

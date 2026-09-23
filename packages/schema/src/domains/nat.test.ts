@@ -17,6 +17,7 @@ import {
   NatSchema,
   NatStaticMappingSchema,
   NatTimeoutsSchema,
+  isNat44Enabled,
   Nptv6Schema,
   splitIpv4Range,
 } from './nat.js';
@@ -29,8 +30,8 @@ const bad = (schema: z.ZodType, value: unknown): void =>
 describe('NatSchema', () => {
   it('accepts {} and fills NAT44 defaults (F-nat44 contract shape)', () => {
     const nat = NatSchema.parse({});
+    expect(nat.enabled).toBeUndefined();
     expect(nat).toMatchObject({
-      enabled: false,
       mode: 'ed',
       inside: [],
       outside: [],
@@ -501,5 +502,24 @@ describe('nat leaf UI hints survive re-wrapping (review H1)', () => {
 
   it('every address/prefix leaf with UI hints has a widget', () => {
     expect(leavesWithoutWidget(js)).toEqual([]);
+  });
+});
+
+describe('isNat44Enabled (review L6)', () => {
+  it('infers on/off from configured NAT44 objects unless enabled is explicit', () => {
+    expect(isNat44Enabled(NatSchema.parse({}))).toBe(false);
+    // a document written verbatim to the F-nat44 contract (no `enabled`) is on
+    const f = {
+      mode: 'ed',
+      inside: ['Gig0/0/1'],
+      outside: ['Gig0/0/0'],
+      pools: [{ name: 'p', range: '203.0.113.1-203.0.113.1' }],
+    };
+    expect(isNat44Enabled(NatSchema.parse(f))).toBe(true);
+    expect(isNat44Enabled(NatSchema.parse({ outputFeature: ['Gig0/0/0'] }))).toBe(true);
+    expect(isNat44Enabled(NatSchema.parse({ ...f, enabled: false }))).toBe(false);
+    expect(isNat44Enabled(NatSchema.parse({ enabled: true }))).toBe(true);
+    // configuring only a sibling translator does not switch NAT44 on
+    expect(isNat44Enabled(NatSchema.parse({ nat64: { enabled: true } }))).toBe(false);
   });
 });

@@ -813,8 +813,15 @@ export interface Event_AttributesEntry {
  * input reaches a shell: actions run through the VPP API or fixed-argv allow-listed binaries).
  */
 export interface ActionRequest {
-  ping?: PingAction | undefined;
-  traceroute?: TracerouteAction | undefined;
+  /** ICMP echo from the data plane. */
+  ping?:
+    | PingAction
+    | undefined;
+  /** Traceroute from the data plane. */
+  traceroute?:
+    | TracerouteAction
+    | undefined;
+  /** Packet capture on one interface (pcap output). */
   capture?: CaptureAction | undefined;
 }
 
@@ -903,9 +910,11 @@ export interface ActionDone_StatsEntry {
   value: string;
 }
 
+/** HealthRequest has no parameters. */
 export interface HealthRequest {
 }
 
+/** HealthResponse is the agent's cheap status snapshot (docs/contracts/proto.md §8). */
 export interface HealthResponse {
   /** Agent build version. */
   agentVersion: string;
@@ -1419,23 +1428,54 @@ export interface RedistributeOptions {
 /**
  * Redistribute mirrors `routing.<protocol>.redistribute` (a record keyed by source protocol; the
  * schema rejects a protocol redistributing into itself).
+ *
+ * One message serves every protocol, so each protocol's own key exists here but can never be set
+ * (the drift guard accepts exactly these four supersets, apps/agent/internal/contracttest).
  */
 export interface Redistribute {
-  connected: RedistributeOptions | undefined;
-  static: RedistributeOptions | undefined;
-  bgp: RedistributeOptions | undefined;
-  ospf: RedistributeOptions | undefined;
-  isis: RedistributeOptions | undefined;
+  /** Connected routes. */
+  connected:
+    | RedistributeOptions
+    | undefined;
+  /** Static routes. */
+  static:
+    | RedistributeOptions
+    | undefined;
+  /** BGP routes (not under routing.bgp). */
+  bgp:
+    | RedistributeOptions
+    | undefined;
+  /** OSPF routes (not under routing.ospf). */
+  ospf:
+    | RedistributeOptions
+    | undefined;
+  /** IS-IS routes (not under routing.isis). */
+  isis:
+    | RedistributeOptions
+    | undefined;
+  /** RIP routes (not under routing.rip). */
   rip: RedistributeOptions | undefined;
 }
 
 /** BgpAddressFamily mirrors `…afi.ipv4Unicast` / `…afi.ipv6Unicast` of a neighbour or peer group. */
 export interface BgpAddressFamily {
   /** `activate`; Zod default true. */
-  enabled?: boolean | undefined;
-  routeMapIn?: string | undefined;
-  routeMapOut?: string | undefined;
-  prefixListIn?: string | undefined;
+  enabled?:
+    | boolean
+    | undefined;
+  /** Inbound route map (name under routing.policy.routeMaps). */
+  routeMapIn?:
+    | string
+    | undefined;
+  /** Outbound route map. */
+  routeMapOut?:
+    | string
+    | undefined;
+  /** Inbound prefix list (name under routing.policy.prefixLists). */
+  prefixListIn?:
+    | string
+    | undefined;
+  /** Outbound prefix list. */
   prefixListOut?:
     | string
     | undefined;
@@ -1457,45 +1497,87 @@ export interface BgpAddressFamily {
 
 /** BgpAfi mirrors `…afi`; an unset family is not activated. */
 export interface BgpAfi {
-  ipv4Unicast: BgpAddressFamily | undefined;
+  /** `address-family ipv4 unicast`. */
+  ipv4Unicast:
+    | BgpAddressFamily
+    | undefined;
+  /** `address-family ipv6 unicast`. */
   ipv6Unicast: BgpAddressFamily | undefined;
 }
 
 /** BgpPeerGroup mirrors `routing.bgp.peerGroups.<name>`. */
 export interface BgpPeerGroup {
-  remoteAs?: number | undefined;
+  /** Remote AS (asplain). */
+  remoteAs?:
+    | number
+    | undefined;
+  /** Free text. */
   description?:
     | string
     | undefined;
   /** Local address or interface name. */
-  updateSource?: string | undefined;
+  updateSource?:
+    | string
+    | undefined;
+  /** eBGP multihop TTL, 1–255. */
   ebgpMultihop?:
     | number
     | undefined;
   /** TCP MD5 password: a secret-store reference "password/<name>" (D-051), never the password. */
-  passwordRef?: string | undefined;
-  keepaliveSec?: number | undefined;
+  passwordRef?:
+    | string
+    | undefined;
+  /** Keepalive timer, seconds. */
+  keepaliveSec?:
+    | number
+    | undefined;
+  /** Hold timer, seconds (≥ 3). */
   holdTimeSec?:
     | number
     | undefined;
   /** Zod default false. */
-  bfd?: boolean | undefined;
+  bfd?:
+    | boolean
+    | undefined;
+  /** Address families. */
   afi: BgpAfi | undefined;
 }
 
 /** BgpNeighbor mirrors `routing.bgp.neighbors.<address>` (map key = neighbour address). */
 export interface BgpNeighbor {
-  remoteAs?: number | undefined;
-  description?: string | undefined;
-  updateSource?: string | undefined;
+  /** Remote AS (asplain); may come from the peer group instead. */
+  remoteAs?:
+    | number
+    | undefined;
+  /** Free text. */
+  description?:
+    | string
+    | undefined;
+  /** Local address or interface name. */
+  updateSource?:
+    | string
+    | undefined;
+  /** eBGP multihop TTL, 1–255. */
   ebgpMultihop?:
     | number
     | undefined;
   /** Secret-store reference "password/<name>" (D-051). */
-  passwordRef?: string | undefined;
-  keepaliveSec?: number | undefined;
-  holdTimeSec?: number | undefined;
-  bfd?: boolean | undefined;
+  passwordRef?:
+    | string
+    | undefined;
+  /** Keepalive timer, seconds. */
+  keepaliveSec?:
+    | number
+    | undefined;
+  /** Hold timer, seconds (≥ 3). */
+  holdTimeSec?:
+    | number
+    | undefined;
+  /** BFD for this session; Zod default false. */
+  bfd?:
+    | boolean
+    | undefined;
+  /** Address families. */
   afi:
     | BgpAfi
     | undefined;
@@ -1509,23 +1591,35 @@ export interface BgpNeighbor {
 
 /** BgpNetwork mirrors one entry of `routing.bgp.networks`. */
 export interface BgpNetwork {
-  prefix?: string | undefined;
+  /** Announced prefix (CIDR). */
+  prefix?:
+    | string
+    | undefined;
+  /** Route map applied to the announcement. */
   routeMap?: string | undefined;
 }
 
 /** BgpConfig mirrors `routing.bgp`. */
 export interface BgpConfig {
   /** Local AS (asplain). */
-  asn?: number | undefined;
+  asn?:
+    | number
+    | undefined;
+  /** Router id (dotted quad). */
   routerId?:
     | string
     | undefined;
   /** Zod default "default". */
-  vrf?: string | undefined;
+  vrf?:
+    | string
+    | undefined;
+  /** Peer groups keyed by name. */
   peerGroups: { [key: string]: BgpPeerGroup };
   /** Keyed by neighbour address. */
   neighbors: { [key: string]: BgpNeighbor };
+  /** `network` statements. */
   networks: BgpNetwork[];
+  /** Redistribution into BGP (the `bgp` key is never set). */
   redistribute:
     | Redistribute
     | undefined;
@@ -1560,7 +1654,10 @@ export interface OspfArea {
 /** OspfInterface mirrors `routing.ospf.interfaces.<name>`. */
 export interface OspfInterface {
   /** Area id (decimal or dotted quad string), must exist under `areas`. */
-  area?: string | undefined;
+  area?:
+    | string
+    | undefined;
+  /** Interface cost, 1–65535. */
   cost?:
     | number
     | undefined;
@@ -1569,9 +1666,18 @@ export interface OspfInterface {
     | boolean
     | undefined;
   /** "broadcast" | "point-to-point" | "non-broadcast" | "point-to-multipoint". */
-  networkType?: string | undefined;
-  helloIntervalSec?: number | undefined;
-  deadIntervalSec?: number | undefined;
+  networkType?:
+    | string
+    | undefined;
+  /** Hello interval, seconds. */
+  helloIntervalSec?:
+    | number
+    | undefined;
+  /** Dead interval, seconds. */
+  deadIntervalSec?:
+    | number
+    | undefined;
+  /** DR priority, 0–255. */
   priority?:
     | number
     | undefined;
@@ -1581,10 +1687,19 @@ export interface OspfInterface {
 
 /** OspfConfig mirrors `routing.ospf`. */
 export interface OspfConfig {
-  routerId?: string | undefined;
-  vrf?: string | undefined;
+  /** Router id (dotted quad). */
+  routerId?:
+    | string
+    | undefined;
+  /** Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** Areas keyed by area id. */
   areas: { [key: string]: OspfArea };
+  /** Interfaces keyed by interface name. */
   interfaces: { [key: string]: OspfInterface };
+  /** Redistribution into OSPF (the `ospf` key is never set). */
   redistribute:
     | Redistribute
     | undefined;
@@ -1604,7 +1719,11 @@ export interface OspfConfig_InterfacesEntry {
 
 /** IsisInterface mirrors `routing.isis.interfaces.<name>`. */
 export interface IsisInterface {
-  passive?: boolean | undefined;
+  /** Zod default false. */
+  passive?:
+    | boolean
+    | undefined;
+  /** Wide metric, 1–16777215. */
   metric?:
     | number
     | undefined;
@@ -1613,7 +1732,10 @@ export interface IsisInterface {
     | string
     | undefined;
   /** "broadcast" | "point-to-point". */
-  networkType?: string | undefined;
+  networkType?:
+    | string
+    | undefined;
+  /** Zod default false. */
   bfd?: boolean | undefined;
 }
 
@@ -1624,9 +1746,16 @@ export interface IsisConfig {
     | string
     | undefined;
   /** IS type; Zod default "level-1-2". */
-  level?: string | undefined;
-  vrf?: string | undefined;
+  level?:
+    | string
+    | undefined;
+  /** Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** Interfaces keyed by interface name. */
   interfaces: { [key: string]: IsisInterface };
+  /** Redistribution into IS-IS (the `isis` key is never set). */
   redistribute: Redistribute | undefined;
 }
 
@@ -1637,17 +1766,21 @@ export interface IsisConfig_InterfacesEntry {
 
 /** RipInterface mirrors `routing.rip.interfaces.<name>`. */
 export interface RipInterface {
+  /** Zod default false. */
   passive?: boolean | undefined;
 }
 
 /** RipConfig mirrors `routing.rip`. */
 export interface RipConfig {
+  /** Zod default "default". */
   vrf?:
     | string
     | undefined;
   /** IPv4 network prefixes RIP runs on. */
   networks: string[];
+  /** Interfaces keyed by interface name. */
   interfaces: { [key: string]: RipInterface };
+  /** Redistribution into RIP (the `rip` key is never set). */
   redistribute:
     | Redistribute
     | undefined;
@@ -1662,8 +1795,15 @@ export interface RipConfig_InterfacesEntry {
 
 /** BfdSession mirrors one entry of `routing.bfd.sessions` (bfd_udp_add). */
 export interface BfdSession {
-  interface?: string | undefined;
-  localAddress?: string | undefined;
+  /** Interface name the session runs on. */
+  interface?:
+    | string
+    | undefined;
+  /** Local IP address. */
+  localAddress?:
+    | string
+    | undefined;
+  /** Peer IP address. */
   peerAddress?:
     | string
     | undefined;
@@ -1685,6 +1825,7 @@ export interface BfdSession {
 
 /** BfdConfig mirrors `routing.bfd`. */
 export interface BfdConfig {
+  /** Static BFD sessions. */
   sessions: BfdSession[];
 }
 
@@ -3074,12 +3215,17 @@ export interface ManagementUser {
 export interface ManagementAaa {
   /** Authentication methods in order: "local" | "radius" | "tacacs"; Zod default ["local"]. */
   order: string[];
-  radius: AaaRadius | undefined;
+  /** RADIUS servers. */
+  radius:
+    | AaaRadius
+    | undefined;
+  /** TACACS+ servers. */
   tacacs: AaaTacacs | undefined;
 }
 
 /** AaaRadius mirrors `management.aaa.radius`. */
 export interface AaaRadius {
+  /** Up to 8 servers, tried in order. */
   servers: RadiusServer[];
 }
 
@@ -3102,17 +3248,22 @@ export interface RadiusServer {
     | string
     | undefined;
   /** Zod default 5. */
-  timeoutSec?: number | undefined;
+  timeoutSec?:
+    | number
+    | undefined;
+  /** VRF the server is reached through; Zod default "default". */
   vrf?: string | undefined;
 }
 
 /** AaaTacacs mirrors `management.aaa.tacacs`. */
 export interface AaaTacacs {
+  /** Up to 8 servers, tried in order. */
   servers: TacacsServer[];
 }
 
 /** TacacsServer mirrors one entry of `management.aaa.tacacs.servers`. */
 export interface TacacsServer {
+  /** IP address or hostname. */
   address?:
     | string
     | undefined;
@@ -3121,8 +3272,14 @@ export interface TacacsServer {
     | number
     | undefined;
   /** Secret-store reference "psk/<name>" (D-051). */
-  secretRef?: string | undefined;
-  timeoutSec?: number | undefined;
+  secretRef?:
+    | string
+    | undefined;
+  /** Seconds; Zod default 5. */
+  timeoutSec?:
+    | number
+    | undefined;
+  /** VRF the server is reached through; Zod default "default". */
   vrf?: string | undefined;
 }
 
@@ -3142,6 +3299,7 @@ export interface ManagementTls {
 
 /** SyslogTarget mirrors one entry of `management.syslog`. */
 export interface SyslogTarget {
+  /** Collector IP address or hostname. */
   address?:
     | string
     | undefined;
@@ -3154,7 +3312,10 @@ export interface SyslogTarget {
     | string
     | undefined;
   /** Minimum severity forwarded; Zod default "info". */
-  severity?: string | undefined;
+  severity?:
+    | string
+    | undefined;
+  /** VRF the collector is reached through; Zod default "default". */
   vrf?: string | undefined;
 }
 

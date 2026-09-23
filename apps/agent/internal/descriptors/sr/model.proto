@@ -1,0 +1,101 @@
+// Desired state of the SRv6 descriptors (agent-internal until moved to packages/proto).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.sr;
+
+option go_package = "ngfw/agent/internal/descriptors/sr;sr";
+
+// Behavior mirrors sr_types.sr_behavior (the classic, non-uSID behaviours).
+enum Behavior {
+  BEHAVIOR_UNSPECIFIED = 0;
+  END = 1;
+  END_X = 2;
+  END_T = 3;
+  END_DX2 = 5;
+  END_DX6 = 6;
+  END_DX4 = 7;
+  END_DT6 = 8;
+  END_DT4 = 9;
+}
+
+// LocalSid is one SRv6 local SID (sr_localsid_add_del / sr_localsids_dump). Id = sid.
+// Everything recreates on change.
+message LocalSid {
+  // The /128 local SID (IPv6 address).
+  string sid = 1;
+  Behavior behavior = 2;
+  // Penultimate segment pop (END, END_X, END_T).
+  bool end_psp = 3;
+  // IPv6 table the SID is installed in (dependency vrf/<id> unless 0).
+  uint32 fib_table = 4;
+  // Cross-connect interface: END_X, END_DX2, END_DX4, END_DX6 (dependency interface/<name>).
+  string interface = 5;
+  // Next hop: END_X and END_DX6 (IPv6), END_DX4 (IPv4).
+  string next_hop = 6;
+  // Lookup table: END_T and END_DT6 (IPv6 table), END_DT4 (IPv4 table) (dependency vrf/<id>).
+  uint32 lookup_table = 7;
+}
+
+// PolicyType mirrors sr.sr_policy_type.
+enum PolicyType {
+  DEFAULT = 0;
+  SPRAY = 1;
+  TEF = 2;
+}
+
+// SidList is one segment list of a policy (at most 16 SIDs).
+message SidList {
+  repeated string sids = 1;
+  uint32 weight = 2;
+}
+
+// Policy is one SRv6 policy (sr_policy_add_v2 + sr_policy_mod_v2 for the 2nd… sid lists /
+// sr_policy_del / sr_policies_v2_dump). Id = bsid. Everything recreates on change.
+message Policy {
+  // Binding SID (IPv6 address).
+  string bsid = 1;
+  PolicyType type = 2;
+  // true = encapsulation (H.Encaps), false = SRH insertion (H.Insert).
+  bool encap = 3;
+  // IPv6 table of the BSID FIB entry (dependency vrf/<id> unless 0).
+  uint32 fib_table = 4;
+  // Segment lists in order; at least one.
+  repeated SidList sid_lists = 5;
+  // Outer source address for encap policies (mandatory when encap; must be empty for insert
+  // policies — VPP would substitute the global encap source, which cannot be read back).
+  string encap_src = 6;
+}
+
+// SteerType mirrors sr_types.sr_steer.
+enum SteerType {
+  STEER_UNSPECIFIED = 0;
+  L2 = 2;
+  IPV4 = 4;
+  IPV6 = 6;
+}
+
+// Steering steers traffic into a policy (sr_steering_add_del / sr_steering_pol_dump).
+// Id = "<l2>/<interface>" or "<ipv4|ipv6>/<table>/<prefix>". Only the policy (bsid) changes
+// in place (VPP re-points an existing steering entry).
+message Steering {
+  SteerType traffic_type = 1;
+  // L3 steering: prefix and table (dependency vrf/<id> unless 0).
+  string prefix = 2;
+  uint32 table_id = 3;
+  // L2 steering: the incoming interface (dependency interface/<name>).
+  string interface = 4;
+  // The policy to steer into (dependency sr.policy/<bsid>).
+  string bsid = 5;
+}
+
+// EncapSource is the global SRv6 encapsulation source (sr_set_encap_source). Write-only
+// singleton: VPP has no getter. Delete resets it to ::.
+message EncapSource {
+  string address = 1;
+}
+
+// EncapHopLimit is the global hop limit of the outer IPv6 header (sr_set_encap_hop_limit).
+// Write-only singleton; Delete resets it to VPP's default 64.
+message EncapHopLimit {
+  uint32 hop_limit = 1;
+}

@@ -1848,14 +1848,17 @@ type isActionRequest_Action interface {
 }
 
 type ActionRequest_Ping struct {
+	// ICMP echo from the data plane.
 	Ping *PingAction `protobuf:"bytes,1,opt,name=ping,proto3,oneof"`
 }
 
 type ActionRequest_Traceroute struct {
+	// Traceroute from the data plane.
 	Traceroute *TracerouteAction `protobuf:"bytes,2,opt,name=traceroute,proto3,oneof"`
 }
 
 type ActionRequest_Capture struct {
+	// Packet capture on one interface (pcap output).
 	Capture *CaptureAction `protobuf:"bytes,3,opt,name=capture,proto3,oneof"`
 }
 
@@ -2317,6 +2320,7 @@ func (x *ActionDone) GetStats() map[string]string {
 	return nil
 }
 
+// HealthRequest has no parameters.
 type HealthRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -2353,6 +2357,7 @@ func (*HealthRequest) Descriptor() ([]byte, []int) {
 	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{21}
 }
 
+// HealthResponse is the agent's cheap status snapshot (docs/contracts/proto.md §8).
 type HealthResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Agent build version.
@@ -4201,14 +4206,23 @@ func (x *RedistributeOptions) GetRouteMap() string {
 
 // Redistribute mirrors `routing.<protocol>.redistribute` (a record keyed by source protocol; the
 // schema rejects a protocol redistributing into itself).
+//
+// One message serves every protocol, so each protocol's own key exists here but can never be set
+// (the drift guard accepts exactly these four supersets, apps/agent/internal/contracttest).
 type Redistribute struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Connected     *RedistributeOptions   `protobuf:"bytes,1,opt,name=connected,proto3" json:"connected,omitempty"`
-	Static        *RedistributeOptions   `protobuf:"bytes,2,opt,name=static,proto3" json:"static,omitempty"`
-	Bgp           *RedistributeOptions   `protobuf:"bytes,3,opt,name=bgp,proto3" json:"bgp,omitempty"`
-	Ospf          *RedistributeOptions   `protobuf:"bytes,4,opt,name=ospf,proto3" json:"ospf,omitempty"`
-	Isis          *RedistributeOptions   `protobuf:"bytes,5,opt,name=isis,proto3" json:"isis,omitempty"`
-	Rip           *RedistributeOptions   `protobuf:"bytes,6,opt,name=rip,proto3" json:"rip,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Connected routes.
+	Connected *RedistributeOptions `protobuf:"bytes,1,opt,name=connected,proto3" json:"connected,omitempty"`
+	// Static routes.
+	Static *RedistributeOptions `protobuf:"bytes,2,opt,name=static,proto3" json:"static,omitempty"`
+	// BGP routes (not under routing.bgp).
+	Bgp *RedistributeOptions `protobuf:"bytes,3,opt,name=bgp,proto3" json:"bgp,omitempty"`
+	// OSPF routes (not under routing.ospf).
+	Ospf *RedistributeOptions `protobuf:"bytes,4,opt,name=ospf,proto3" json:"ospf,omitempty"`
+	// IS-IS routes (not under routing.isis).
+	Isis *RedistributeOptions `protobuf:"bytes,5,opt,name=isis,proto3" json:"isis,omitempty"`
+	// RIP routes (not under routing.rip).
+	Rip           *RedistributeOptions `protobuf:"bytes,6,opt,name=rip,proto3" json:"rip,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4289,10 +4303,14 @@ func (x *Redistribute) GetRip() *RedistributeOptions {
 type BgpAddressFamily struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// `activate`; Zod default true.
-	Enabled       *bool   `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
-	RouteMapIn    *string `protobuf:"bytes,2,opt,name=route_map_in,json=routeMapIn,proto3,oneof" json:"route_map_in,omitempty"`
-	RouteMapOut   *string `protobuf:"bytes,3,opt,name=route_map_out,json=routeMapOut,proto3,oneof" json:"route_map_out,omitempty"`
-	PrefixListIn  *string `protobuf:"bytes,4,opt,name=prefix_list_in,json=prefixListIn,proto3,oneof" json:"prefix_list_in,omitempty"`
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// Inbound route map (name under routing.policy.routeMaps).
+	RouteMapIn *string `protobuf:"bytes,2,opt,name=route_map_in,json=routeMapIn,proto3,oneof" json:"route_map_in,omitempty"`
+	// Outbound route map.
+	RouteMapOut *string `protobuf:"bytes,3,opt,name=route_map_out,json=routeMapOut,proto3,oneof" json:"route_map_out,omitempty"`
+	// Inbound prefix list (name under routing.policy.prefixLists).
+	PrefixListIn *string `protobuf:"bytes,4,opt,name=prefix_list_in,json=prefixListIn,proto3,oneof" json:"prefix_list_in,omitempty"`
+	// Outbound prefix list.
 	PrefixListOut *string `protobuf:"bytes,5,opt,name=prefix_list_out,json=prefixListOut,proto3,oneof" json:"prefix_list_out,omitempty"`
 	// Zod default false.
 	NextHopSelf *bool `protobuf:"varint,6,opt,name=next_hop_self,json=nextHopSelf,proto3,oneof" json:"next_hop_self,omitempty"`
@@ -4401,9 +4419,11 @@ func (x *BgpAddressFamily) GetDefaultOriginate() bool {
 
 // BgpAfi mirrors `…afi`; an unset family is not activated.
 type BgpAfi struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ipv4Unicast   *BgpAddressFamily      `protobuf:"bytes,1,opt,name=ipv4_unicast,json=ipv4Unicast,proto3" json:"ipv4_unicast,omitempty"`
-	Ipv6Unicast   *BgpAddressFamily      `protobuf:"bytes,2,opt,name=ipv6_unicast,json=ipv6Unicast,proto3" json:"ipv6_unicast,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// `address-family ipv4 unicast`.
+	Ipv4Unicast *BgpAddressFamily `protobuf:"bytes,1,opt,name=ipv4_unicast,json=ipv4Unicast,proto3" json:"ipv4_unicast,omitempty"`
+	// `address-family ipv6 unicast`.
+	Ipv6Unicast   *BgpAddressFamily `protobuf:"bytes,2,opt,name=ipv6_unicast,json=ipv6Unicast,proto3" json:"ipv6_unicast,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4454,18 +4474,24 @@ func (x *BgpAfi) GetIpv6Unicast() *BgpAddressFamily {
 
 // BgpPeerGroup mirrors `routing.bgp.peerGroups.<name>`.
 type BgpPeerGroup struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	RemoteAs    *uint32                `protobuf:"varint,1,opt,name=remote_as,json=remoteAs,proto3,oneof" json:"remote_as,omitempty"`
-	Description *string                `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Remote AS (asplain).
+	RemoteAs *uint32 `protobuf:"varint,1,opt,name=remote_as,json=remoteAs,proto3,oneof" json:"remote_as,omitempty"`
+	// Free text.
+	Description *string `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	// Local address or interface name.
 	UpdateSource *string `protobuf:"bytes,3,opt,name=update_source,json=updateSource,proto3,oneof" json:"update_source,omitempty"`
+	// eBGP multihop TTL, 1–255.
 	EbgpMultihop *uint32 `protobuf:"varint,4,opt,name=ebgp_multihop,json=ebgpMultihop,proto3,oneof" json:"ebgp_multihop,omitempty"`
 	// TCP MD5 password: a secret-store reference "password/<name>" (D-051), never the password.
-	PasswordRef  *string `protobuf:"bytes,5,opt,name=password_ref,json=passwordRef,proto3,oneof" json:"password_ref,omitempty"`
+	PasswordRef *string `protobuf:"bytes,5,opt,name=password_ref,json=passwordRef,proto3,oneof" json:"password_ref,omitempty"`
+	// Keepalive timer, seconds.
 	KeepaliveSec *uint32 `protobuf:"varint,6,opt,name=keepalive_sec,json=keepaliveSec,proto3,oneof" json:"keepalive_sec,omitempty"`
-	HoldTimeSec  *uint32 `protobuf:"varint,7,opt,name=hold_time_sec,json=holdTimeSec,proto3,oneof" json:"hold_time_sec,omitempty"`
+	// Hold timer, seconds (≥ 3).
+	HoldTimeSec *uint32 `protobuf:"varint,7,opt,name=hold_time_sec,json=holdTimeSec,proto3,oneof" json:"hold_time_sec,omitempty"`
 	// Zod default false.
-	Bfd           *bool   `protobuf:"varint,8,opt,name=bfd,proto3,oneof" json:"bfd,omitempty"`
+	Bfd *bool `protobuf:"varint,8,opt,name=bfd,proto3,oneof" json:"bfd,omitempty"`
+	// Address families.
 	Afi           *BgpAfi `protobuf:"bytes,9,opt,name=afi,proto3" json:"afi,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4566,17 +4592,25 @@ func (x *BgpPeerGroup) GetAfi() *BgpAfi {
 
 // BgpNeighbor mirrors `routing.bgp.neighbors.<address>` (map key = neighbour address).
 type BgpNeighbor struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	RemoteAs     *uint32                `protobuf:"varint,1,opt,name=remote_as,json=remoteAs,proto3,oneof" json:"remote_as,omitempty"`
-	Description  *string                `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	UpdateSource *string                `protobuf:"bytes,3,opt,name=update_source,json=updateSource,proto3,oneof" json:"update_source,omitempty"`
-	EbgpMultihop *uint32                `protobuf:"varint,4,opt,name=ebgp_multihop,json=ebgpMultihop,proto3,oneof" json:"ebgp_multihop,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Remote AS (asplain); may come from the peer group instead.
+	RemoteAs *uint32 `protobuf:"varint,1,opt,name=remote_as,json=remoteAs,proto3,oneof" json:"remote_as,omitempty"`
+	// Free text.
+	Description *string `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// Local address or interface name.
+	UpdateSource *string `protobuf:"bytes,3,opt,name=update_source,json=updateSource,proto3,oneof" json:"update_source,omitempty"`
+	// eBGP multihop TTL, 1–255.
+	EbgpMultihop *uint32 `protobuf:"varint,4,opt,name=ebgp_multihop,json=ebgpMultihop,proto3,oneof" json:"ebgp_multihop,omitempty"`
 	// Secret-store reference "password/<name>" (D-051).
-	PasswordRef  *string `protobuf:"bytes,5,opt,name=password_ref,json=passwordRef,proto3,oneof" json:"password_ref,omitempty"`
+	PasswordRef *string `protobuf:"bytes,5,opt,name=password_ref,json=passwordRef,proto3,oneof" json:"password_ref,omitempty"`
+	// Keepalive timer, seconds.
 	KeepaliveSec *uint32 `protobuf:"varint,6,opt,name=keepalive_sec,json=keepaliveSec,proto3,oneof" json:"keepalive_sec,omitempty"`
-	HoldTimeSec  *uint32 `protobuf:"varint,7,opt,name=hold_time_sec,json=holdTimeSec,proto3,oneof" json:"hold_time_sec,omitempty"`
-	Bfd          *bool   `protobuf:"varint,8,opt,name=bfd,proto3,oneof" json:"bfd,omitempty"`
-	Afi          *BgpAfi `protobuf:"bytes,9,opt,name=afi,proto3" json:"afi,omitempty"`
+	// Hold timer, seconds (≥ 3).
+	HoldTimeSec *uint32 `protobuf:"varint,7,opt,name=hold_time_sec,json=holdTimeSec,proto3,oneof" json:"hold_time_sec,omitempty"`
+	// BFD for this session; Zod default false.
+	Bfd *bool `protobuf:"varint,8,opt,name=bfd,proto3,oneof" json:"bfd,omitempty"`
+	// Address families.
+	Afi *BgpAfi `protobuf:"bytes,9,opt,name=afi,proto3" json:"afi,omitempty"`
 	// Inherit settings from this peer group.
 	PeerGroup *string `protobuf:"bytes,10,opt,name=peer_group,json=peerGroup,proto3,oneof" json:"peer_group,omitempty"`
 	// Keep the configuration, do not bring the session up; Zod default false.
@@ -4694,9 +4728,11 @@ func (x *BgpNeighbor) GetShutdown() bool {
 
 // BgpNetwork mirrors one entry of `routing.bgp.networks`.
 type BgpNetwork struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Prefix        *string                `protobuf:"bytes,1,opt,name=prefix,proto3,oneof" json:"prefix,omitempty"`
-	RouteMap      *string                `protobuf:"bytes,2,opt,name=route_map,json=routeMap,proto3,oneof" json:"route_map,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Announced prefix (CIDR).
+	Prefix *string `protobuf:"bytes,1,opt,name=prefix,proto3,oneof" json:"prefix,omitempty"`
+	// Route map applied to the announcement.
+	RouteMap      *string `protobuf:"bytes,2,opt,name=route_map,json=routeMap,proto3,oneof" json:"route_map,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4749,15 +4785,19 @@ func (x *BgpNetwork) GetRouteMap() string {
 type BgpConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Local AS (asplain).
-	Asn      *uint32 `protobuf:"varint,1,opt,name=asn,proto3,oneof" json:"asn,omitempty"`
+	Asn *uint32 `protobuf:"varint,1,opt,name=asn,proto3,oneof" json:"asn,omitempty"`
+	// Router id (dotted quad).
 	RouterId *string `protobuf:"bytes,2,opt,name=router_id,json=routerId,proto3,oneof" json:"router_id,omitempty"`
 	// Zod default "default".
-	Vrf        *string                  `protobuf:"bytes,3,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	Vrf *string `protobuf:"bytes,3,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// Peer groups keyed by name.
 	PeerGroups map[string]*BgpPeerGroup `protobuf:"bytes,4,rep,name=peer_groups,json=peerGroups,proto3" json:"peer_groups,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Keyed by neighbour address.
-	Neighbors    map[string]*BgpNeighbor `protobuf:"bytes,5,rep,name=neighbors,proto3" json:"neighbors,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Networks     []*BgpNetwork           `protobuf:"bytes,6,rep,name=networks,proto3" json:"networks,omitempty"`
-	Redistribute *Redistribute           `protobuf:"bytes,7,opt,name=redistribute,proto3" json:"redistribute,omitempty"`
+	Neighbors map[string]*BgpNeighbor `protobuf:"bytes,5,rep,name=neighbors,proto3" json:"neighbors,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// `network` statements.
+	Networks []*BgpNetwork `protobuf:"bytes,6,rep,name=networks,proto3" json:"networks,omitempty"`
+	// Redistribution into BGP (the `bgp` key is never set).
+	Redistribute *Redistribute `protobuf:"bytes,7,opt,name=redistribute,proto3" json:"redistribute,omitempty"`
 	// Zod default false.
 	GracefulRestart *bool `protobuf:"varint,8,opt,name=graceful_restart,json=gracefulRestart,proto3,oneof" json:"graceful_restart,omitempty"`
 	// RFC 8212; Zod default true.
@@ -4919,14 +4959,18 @@ type OspfInterface struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Area id (decimal or dotted quad string), must exist under `areas`.
 	Area *string `protobuf:"bytes,1,opt,name=area,proto3,oneof" json:"area,omitempty"`
+	// Interface cost, 1–65535.
 	Cost *uint32 `protobuf:"varint,2,opt,name=cost,proto3,oneof" json:"cost,omitempty"`
 	// Zod default false.
 	Passive *bool `protobuf:"varint,3,opt,name=passive,proto3,oneof" json:"passive,omitempty"`
 	// "broadcast" | "point-to-point" | "non-broadcast" | "point-to-multipoint".
-	NetworkType      *string `protobuf:"bytes,4,opt,name=network_type,json=networkType,proto3,oneof" json:"network_type,omitempty"`
+	NetworkType *string `protobuf:"bytes,4,opt,name=network_type,json=networkType,proto3,oneof" json:"network_type,omitempty"`
+	// Hello interval, seconds.
 	HelloIntervalSec *uint32 `protobuf:"varint,5,opt,name=hello_interval_sec,json=helloIntervalSec,proto3,oneof" json:"hello_interval_sec,omitempty"`
-	DeadIntervalSec  *uint32 `protobuf:"varint,6,opt,name=dead_interval_sec,json=deadIntervalSec,proto3,oneof" json:"dead_interval_sec,omitempty"`
-	Priority         *uint32 `protobuf:"varint,7,opt,name=priority,proto3,oneof" json:"priority,omitempty"`
+	// Dead interval, seconds.
+	DeadIntervalSec *uint32 `protobuf:"varint,6,opt,name=dead_interval_sec,json=deadIntervalSec,proto3,oneof" json:"dead_interval_sec,omitempty"`
+	// DR priority, 0–255.
+	Priority *uint32 `protobuf:"varint,7,opt,name=priority,proto3,oneof" json:"priority,omitempty"`
 	// Zod default false.
 	Bfd           *bool `protobuf:"varint,8,opt,name=bfd,proto3,oneof" json:"bfd,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -5021,12 +5065,17 @@ func (x *OspfInterface) GetBfd() bool {
 
 // OspfConfig mirrors `routing.ospf`.
 type OspfConfig struct {
-	state        protoimpl.MessageState    `protogen:"open.v1"`
-	RouterId     *string                   `protobuf:"bytes,1,opt,name=router_id,json=routerId,proto3,oneof" json:"router_id,omitempty"`
-	Vrf          *string                   `protobuf:"bytes,2,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
-	Areas        map[string]*OspfArea      `protobuf:"bytes,3,rep,name=areas,proto3" json:"areas,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Interfaces   map[string]*OspfInterface `protobuf:"bytes,4,rep,name=interfaces,proto3" json:"interfaces,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Redistribute *Redistribute             `protobuf:"bytes,5,opt,name=redistribute,proto3" json:"redistribute,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Router id (dotted quad).
+	RouterId *string `protobuf:"bytes,1,opt,name=router_id,json=routerId,proto3,oneof" json:"router_id,omitempty"`
+	// Zod default "default".
+	Vrf *string `protobuf:"bytes,2,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// Areas keyed by area id.
+	Areas map[string]*OspfArea `protobuf:"bytes,3,rep,name=areas,proto3" json:"areas,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Interfaces keyed by interface name.
+	Interfaces map[string]*OspfInterface `protobuf:"bytes,4,rep,name=interfaces,proto3" json:"interfaces,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Redistribution into OSPF (the `ospf` key is never set).
+	Redistribute *Redistribute `protobuf:"bytes,5,opt,name=redistribute,proto3" json:"redistribute,omitempty"`
 	// "off" | "on" | "always"; Zod default "off".
 	DefaultInformationOriginate *string `protobuf:"bytes,6,opt,name=default_information_originate,json=defaultInformationOriginate,proto3,oneof" json:"default_information_originate,omitempty"`
 	unknownFields               protoimpl.UnknownFields
@@ -5107,14 +5156,17 @@ func (x *OspfConfig) GetDefaultInformationOriginate() string {
 
 // IsisInterface mirrors `routing.isis.interfaces.<name>`.
 type IsisInterface struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Passive *bool                  `protobuf:"varint,1,opt,name=passive,proto3,oneof" json:"passive,omitempty"`
-	Metric  *uint32                `protobuf:"varint,2,opt,name=metric,proto3,oneof" json:"metric,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zod default false.
+	Passive *bool `protobuf:"varint,1,opt,name=passive,proto3,oneof" json:"passive,omitempty"`
+	// Wide metric, 1–16777215.
+	Metric *uint32 `protobuf:"varint,2,opt,name=metric,proto3,oneof" json:"metric,omitempty"`
 	// "level-1" | "level-2" | "level-1-2".
 	CircuitType *string `protobuf:"bytes,3,opt,name=circuit_type,json=circuitType,proto3,oneof" json:"circuit_type,omitempty"`
 	// "broadcast" | "point-to-point".
-	NetworkType   *string `protobuf:"bytes,4,opt,name=network_type,json=networkType,proto3,oneof" json:"network_type,omitempty"`
-	Bfd           *bool   `protobuf:"varint,5,opt,name=bfd,proto3,oneof" json:"bfd,omitempty"`
+	NetworkType *string `protobuf:"bytes,4,opt,name=network_type,json=networkType,proto3,oneof" json:"network_type,omitempty"`
+	// Zod default false.
+	Bfd           *bool `protobuf:"varint,5,opt,name=bfd,proto3,oneof" json:"bfd,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5190,10 +5242,13 @@ type IsisConfig struct {
 	// Network entity title, e.g. "49.0001.1921.6800.1001.00".
 	Net *string `protobuf:"bytes,1,opt,name=net,proto3,oneof" json:"net,omitempty"`
 	// IS type; Zod default "level-1-2".
-	Level         *string                   `protobuf:"bytes,2,opt,name=level,proto3,oneof" json:"level,omitempty"`
-	Vrf           *string                   `protobuf:"bytes,3,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
-	Interfaces    map[string]*IsisInterface `protobuf:"bytes,4,rep,name=interfaces,proto3" json:"interfaces,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Redistribute  *Redistribute             `protobuf:"bytes,5,opt,name=redistribute,proto3" json:"redistribute,omitempty"`
+	Level *string `protobuf:"bytes,2,opt,name=level,proto3,oneof" json:"level,omitempty"`
+	// Zod default "default".
+	Vrf *string `protobuf:"bytes,3,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// Interfaces keyed by interface name.
+	Interfaces map[string]*IsisInterface `protobuf:"bytes,4,rep,name=interfaces,proto3" json:"interfaces,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Redistribution into IS-IS (the `isis` key is never set).
+	Redistribute  *Redistribute `protobuf:"bytes,5,opt,name=redistribute,proto3" json:"redistribute,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5265,8 +5320,9 @@ func (x *IsisConfig) GetRedistribute() *Redistribute {
 
 // RipInterface mirrors `routing.rip.interfaces.<name>`.
 type RipInterface struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Passive       *bool                  `protobuf:"varint,1,opt,name=passive,proto3,oneof" json:"passive,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zod default false.
+	Passive       *bool `protobuf:"varint,1,opt,name=passive,proto3,oneof" json:"passive,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5311,11 +5367,14 @@ func (x *RipInterface) GetPassive() bool {
 // RipConfig mirrors `routing.rip`.
 type RipConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Vrf   *string                `protobuf:"bytes,1,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// Zod default "default".
+	Vrf *string `protobuf:"bytes,1,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
 	// IPv4 network prefixes RIP runs on.
-	Networks     []string                 `protobuf:"bytes,2,rep,name=networks,proto3" json:"networks,omitempty"`
-	Interfaces   map[string]*RipInterface `protobuf:"bytes,3,rep,name=interfaces,proto3" json:"interfaces,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Redistribute *Redistribute            `protobuf:"bytes,4,opt,name=redistribute,proto3" json:"redistribute,omitempty"`
+	Networks []string `protobuf:"bytes,2,rep,name=networks,proto3" json:"networks,omitempty"`
+	// Interfaces keyed by interface name.
+	Interfaces map[string]*RipInterface `protobuf:"bytes,3,rep,name=interfaces,proto3" json:"interfaces,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Redistribution into RIP (the `rip` key is never set).
+	Redistribute *Redistribute `protobuf:"bytes,4,opt,name=redistribute,proto3" json:"redistribute,omitempty"`
 	// Zod default 1.
 	DefaultMetric *uint32 `protobuf:"varint,5,opt,name=default_metric,json=defaultMetric,proto3,oneof" json:"default_metric,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -5389,10 +5448,13 @@ func (x *RipConfig) GetDefaultMetric() uint32 {
 
 // BfdSession mirrors one entry of `routing.bfd.sessions` (bfd_udp_add).
 type BfdSession struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	Interface    *string                `protobuf:"bytes,1,opt,name=interface,proto3,oneof" json:"interface,omitempty"`
-	LocalAddress *string                `protobuf:"bytes,2,opt,name=local_address,json=localAddress,proto3,oneof" json:"local_address,omitempty"`
-	PeerAddress  *string                `protobuf:"bytes,3,opt,name=peer_address,json=peerAddress,proto3,oneof" json:"peer_address,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Interface name the session runs on.
+	Interface *string `protobuf:"bytes,1,opt,name=interface,proto3,oneof" json:"interface,omitempty"`
+	// Local IP address.
+	LocalAddress *string `protobuf:"bytes,2,opt,name=local_address,json=localAddress,proto3,oneof" json:"local_address,omitempty"`
+	// Peer IP address.
+	PeerAddress *string `protobuf:"bytes,3,opt,name=peer_address,json=peerAddress,proto3,oneof" json:"peer_address,omitempty"`
 	// Microseconds; Zod default 300000.
 	DesiredMinTxUs *uint32 `protobuf:"varint,4,opt,name=desired_min_tx_us,json=desiredMinTxUs,proto3,oneof" json:"desired_min_tx_us,omitempty"`
 	// Microseconds; Zod default 300000.
@@ -5486,8 +5548,9 @@ func (x *BfdSession) GetEnabled() bool {
 
 // BfdConfig mirrors `routing.bfd`.
 type BfdConfig struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Sessions      []*BfdSession          `protobuf:"bytes,1,rep,name=sessions,proto3" json:"sessions,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Static BFD sessions.
+	Sessions      []*BfdSession `protobuf:"bytes,1,rep,name=sessions,proto3" json:"sessions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8928,8 +8991,10 @@ func (x *ManagementUser) GetDisabled() bool {
 type ManagementAaa struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Authentication methods in order: "local" | "radius" | "tacacs"; Zod default ["local"].
-	Order         []string   `protobuf:"bytes,1,rep,name=order,proto3" json:"order,omitempty"`
-	Radius        *AaaRadius `protobuf:"bytes,2,opt,name=radius,proto3" json:"radius,omitempty"`
+	Order []string `protobuf:"bytes,1,rep,name=order,proto3" json:"order,omitempty"`
+	// RADIUS servers.
+	Radius *AaaRadius `protobuf:"bytes,2,opt,name=radius,proto3" json:"radius,omitempty"`
+	// TACACS+ servers.
 	Tacacs        *AaaTacacs `protobuf:"bytes,3,opt,name=tacacs,proto3" json:"tacacs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -8988,8 +9053,9 @@ func (x *ManagementAaa) GetTacacs() *AaaTacacs {
 
 // AaaRadius mirrors `management.aaa.radius`.
 type AaaRadius struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Servers       []*RadiusServer        `protobuf:"bytes,1,rep,name=servers,proto3" json:"servers,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Up to 8 servers, tried in order.
+	Servers       []*RadiusServer `protobuf:"bytes,1,rep,name=servers,proto3" json:"servers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -9043,7 +9109,8 @@ type RadiusServer struct {
 	// Shared secret: secret-store reference "psk/<name>" (D-051), never the secret.
 	SecretRef *string `protobuf:"bytes,4,opt,name=secret_ref,json=secretRef,proto3,oneof" json:"secret_ref,omitempty"`
 	// Zod default 5.
-	TimeoutSec    *uint32 `protobuf:"varint,5,opt,name=timeout_sec,json=timeoutSec,proto3,oneof" json:"timeout_sec,omitempty"`
+	TimeoutSec *uint32 `protobuf:"varint,5,opt,name=timeout_sec,json=timeoutSec,proto3,oneof" json:"timeout_sec,omitempty"`
+	// VRF the server is reached through; Zod default "default".
 	Vrf           *string `protobuf:"bytes,6,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -9123,8 +9190,9 @@ func (x *RadiusServer) GetVrf() string {
 
 // AaaTacacs mirrors `management.aaa.tacacs`.
 type AaaTacacs struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Servers       []*TacacsServer        `protobuf:"bytes,1,rep,name=servers,proto3" json:"servers,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Up to 8 servers, tried in order.
+	Servers       []*TacacsServer `protobuf:"bytes,1,rep,name=servers,proto3" json:"servers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -9168,13 +9236,16 @@ func (x *AaaTacacs) GetServers() []*TacacsServer {
 
 // TacacsServer mirrors one entry of `management.aaa.tacacs.servers`.
 type TacacsServer struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Address *string                `protobuf:"bytes,1,opt,name=address,proto3,oneof" json:"address,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// IP address or hostname.
+	Address *string `protobuf:"bytes,1,opt,name=address,proto3,oneof" json:"address,omitempty"`
 	// Zod default 49.
 	Port *uint32 `protobuf:"varint,2,opt,name=port,proto3,oneof" json:"port,omitempty"`
 	// Secret-store reference "psk/<name>" (D-051).
-	SecretRef     *string `protobuf:"bytes,3,opt,name=secret_ref,json=secretRef,proto3,oneof" json:"secret_ref,omitempty"`
-	TimeoutSec    *uint32 `protobuf:"varint,4,opt,name=timeout_sec,json=timeoutSec,proto3,oneof" json:"timeout_sec,omitempty"`
+	SecretRef *string `protobuf:"bytes,3,opt,name=secret_ref,json=secretRef,proto3,oneof" json:"secret_ref,omitempty"`
+	// Seconds; Zod default 5.
+	TimeoutSec *uint32 `protobuf:"varint,4,opt,name=timeout_sec,json=timeoutSec,proto3,oneof" json:"timeout_sec,omitempty"`
+	// VRF the server is reached through; Zod default "default".
 	Vrf           *string `protobuf:"bytes,5,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -9311,14 +9382,16 @@ func (x *ManagementTls) GetMinVersion() string {
 
 // SyslogTarget mirrors one entry of `management.syslog`.
 type SyslogTarget struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Address *string                `protobuf:"bytes,1,opt,name=address,proto3,oneof" json:"address,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Collector IP address or hostname.
+	Address *string `protobuf:"bytes,1,opt,name=address,proto3,oneof" json:"address,omitempty"`
 	// Zod default 514.
 	Port *uint32 `protobuf:"varint,2,opt,name=port,proto3,oneof" json:"port,omitempty"`
 	// "udp" | "tcp" | "tls"; Zod default "udp".
 	Protocol *string `protobuf:"bytes,3,opt,name=protocol,proto3,oneof" json:"protocol,omitempty"`
 	// Minimum severity forwarded; Zod default "info".
-	Severity      *string `protobuf:"bytes,4,opt,name=severity,proto3,oneof" json:"severity,omitempty"`
+	Severity *string `protobuf:"bytes,4,opt,name=severity,proto3,oneof" json:"severity,omitempty"`
+	// VRF the collector is reached through; Zod default "default".
 	Vrf           *string `protobuf:"bytes,5,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

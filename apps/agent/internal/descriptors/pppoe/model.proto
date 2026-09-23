@@ -1,0 +1,25 @@
+// Desired state of the pppoe descriptors (agent-internal until moved to packages/proto).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.pppoe;
+
+option go_package = "ngfw/agent/internal/descriptors/pppoe;pppoe";
+
+// Session is one PPPoE session interface (pppoe_add_del_session / pppoe_session_dump). The
+// object id is "<client_mac>/<session_id>", which is also the owner tag.
+message Session {
+  // PPPoE session id (1–65535).
+  uint32 session_id = 1;
+  // Client IP address (IPv4 or IPv6).
+  string client_ip = 2;
+  // Client MAC address (canonical lower-case colon form).
+  string client_mac = 3;
+  // Decap FIB table id (dependency vrf/<id> unless 0).
+  uint32 decap_vrf_id = 4;
+}
+
+// Cp punts PPPoE control-plane packets (discovery, LCP, …) to an interface
+// (pppoe_add_del_cp). Write-only: VPP has no dump for it.
+message Cp {
+  string interface = 1;
+}

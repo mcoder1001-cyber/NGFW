@@ -1,6 +1,15 @@
 // Command vrx-agent is the privileged dataplane agent: it owns the VPP binary API and the
 // GPL daemons' configuration, and serves the vrx.v1.Dataplane gRPC API on a unix socket.
-// Task P05 fills in the reconciler; this is the process skeleton.
+// Configuration comes from the environment (internal/agent.ConfigFromEnv):
+//
+//	VRX_AGENT_SOCKET            gRPC unix socket            (/run/vrx/agent.sock)
+//	VRX_SOCKET_GROUP            socket group                (vrx; primary group if missing)
+//	VRX_OWNER                   owner tag of every object   (vrx; tests: their VRX_TEST_PREFIX)
+//	VRX_AGENT_STATE_DIR         desired.pb, owner table     (/var/lib/vrx/agent)
+//	VRX_AGENT_VPP_API_SOCKET    VPP binary API              (/run/vpp/api.sock)
+//	VRX_AGENT_VPP_STATS_SOCKET  VPP stats segment           (/run/vpp/stats.sock)
+//	VRX_METRICS_ADDR / _PORT    Prometheus                  (127.0.0.1:9101; "off" disables)
+//	VRX_LOG_LEVEL               debug|info|warn|error       (info)
 package main
 
 import (
@@ -16,18 +25,18 @@ import (
 var version = "dev"
 
 func main() {
-	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	cfg := agent.ConfigFromEnv()
+	level := slog.LevelInfo
+	_ = level.UnmarshalText([]byte(cfg.LogLevel))
+	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 	slog.SetDefault(log)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	cfg := agent.ConfigFromEnv()
-	log.Info("vrx-agent starting", "version", version, "socket", cfg.Socket, "vpp_api", cfg.VPPAPISocket)
-
+	log.Info("vrx-agent starting", "version", version, "pid", os.Getpid(), "owner", cfg.Owner, "socket", cfg.Socket, "vpp_api", cfg.VPPAPISocket)
 	if err := agent.Run(ctx, cfg, version); err != nil {
 		log.Error("vrx-agent exited with error", "err", err)
 		os.Exit(1)
 	}
-	log.Info("vrx-agent stopped")
 }

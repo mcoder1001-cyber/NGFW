@@ -42,3 +42,8 @@ Exactly **one** worker at a time owns a daemon (the manager declares it in the e
 
 ## 6. Git
 - Only your branch, only your worktree. No `git push`/`pull` (no remote). No history rewriting anywhere. Commit often; the manager merges.
+
+## 7. VPP-global settings in tests (D-071, D-082)
+Test slots are never the globals owner. A test that must read a VPP-wide setting holds `flock -s /run/lock/vrx-globals.lock`; a test that
+changes one (only behind its opt-in env var, e.g. `VRX_DF7_GLOBALS=1`, `VRX_DF8_GLOBALS=1`) holds `flock -x` on it, saves the previous
+value and restores exactly that value (never VPP defaults). The lab lock (`/run/lock/vrx-lab.lock`) stays the VPP-instance lock.

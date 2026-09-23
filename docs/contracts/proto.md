@@ -2,7 +2,9 @@
 
 Source: `packages/proto/vrx/v1/dataplane.proto`. Generated stubs: Go `apps/agent/gen/vrx/v1` (module path
 `ngfw/agent/gen/vrx/v1`, package `vrxv1`), TypeScript `packages/proto/gen/ts` (`@ngfw/proto`, ts-proto v2 with
-`@grpc/grpc-js` service stubs — D-005). Regenerate with `pnpm gen`; CI fails on dirty output.
+`@grpc/grpc-js` service stubs — D-005). Regenerate with `pnpm gen`; CI fails on dirty output. The same module also
+holds the agent-internal reconciler object model `vrx.model.*.v1` (§10), generated for Go only
+(`buf.gen.model.yaml`); `buf.gen.yaml` is restricted to `vrx/v1`.
 
 **Changing this contract requires a `contract(proto): …` commit** (`tools/ci.sh --base main` contract guard) and
 `buf breaking --against "../../.git#branch=main,subdir=packages/proto"` (run from `packages/proto`; in a worktree `.git`
@@ -68,18 +70,34 @@ disappear (D-040), unknown keys are rejected — so the two sides are comparable
 Retrieve result (it would re-fill defaults the agent deliberately left unset). The tests pin
 `toJSON(fromJSON(doc)) deep-equals doc` for every corpus document (none carries a 64-bit number).
 
-Domain models still in flight when this contract was written (D-042): `system`, `dataplane`, `interfaces`, `vrfs`,
-`routing.static` and `management.users` mirror **`task/P02a` HEAD (`df554dc`)** in types and presence — `system.banner`
-is a `{login?, motd?}` message, `dataplane.corelist` a `repeated uint32`, `Interface.rx_mode` and `NextHop.address`
-are optional, plus the flat P02a additions (`promiscuous`, `dot1ad`, `tx_queues`, `distance`/`description`,
-`ssh_keys`/`full_name`/`disabled`). The remaining P02a sub-messages (`SystemNtp`, `SystemDns`, `PrefixList`, `RouteMap`,
-`BgpConfig`…`BfdConfig`, `ManagementAaa`, `ManagementTls`, `SyslogTarget`) and `tunnels`, `services`, `ha` (P02c) are
-empty shells with the documented container shape; `nat`, `objects`, `acl` (P02b) and `vpn` (P02c) mirror the committed
-WIP models (`task/P02b@ec0ccda`, `task/P02c@b815d15`; verified 2026-09-23: no renames since, only additions such as
-`NatStaticMapping.External.pool` and `ha.cluster`). **P03b** (after the P02x merges) fills the shells and adds the new
-leaves — additive only, `buf breaking` stays green — and adds the drift guard (`RootConfig.parse()` of every example →
-JSON Schema keys ⊆ proto fields → strict protojson). Numbering is append-only: a new field takes the next free number
-regardless of its position in the Zod declaration; removed fields are `reserved` (`ManagementUser` 4).
+### Sync state and the drift guard (P03b)
+
+Every domain mirrors the **merged** schema leaf for leaf: `system`, `dataplane`, `interfaces`, `vrfs`, `routing` and
+`management` were synced on `task/P02a`, `nat`/`objects`/`acl` on `task/P02b`, `vpn`/`tunnels`/`services`/`ha` on
+`task/P02c` (D-061); P03b cross-checked the result (no leaf missing, no type or presence mismatch, every field
+commented). Numbering is append-only: a new field takes the next free number regardless of its position in the Zod
+declaration; removed fields are `reserved` by number **and** name (`SystemConfig` 4 `ntp`, `RoutingConfig` 2/3
+`prefix_lists`/`route_maps`, `ManagementUser` 4 `password_hash`, `CnatConfig.Snat.PolicyInterface` 2 `side`) — except
+where the name was re-used on a new number (`HaConfig` 1, `vrrp` moved to field 2 as a map, D-053).
+
+Two tests keep it that way; both run in `tools/ci.sh` and fail the gate on drift:
+
+| guard | what it compares | catches |
+|---|---|---|
+| `apps/agent/internal/contracttest/drift_test.go` `TestSchemaProtoDrift` (Go) | the JSON Schema `pnpm gen` writes from `RootConfig` (`packages/schema/dist/json-schema/root.json`, `io: 'input'`) walked alongside the `DesiredState` descriptor, **both directions** | schema leaf without a proto field (same JSON name); proto field without a schema leaf; record ↔ `map<string,…>`, array ↔ `repeated`, object ↔ message mismatches; scalar type and width (string, bool, `uint32` for non-negative ranges ≤ 2³²−1, `uint64` above, `int32`/`int64` when the minimum is negative, `double` for non-integers); a scalar without explicit presence (D-039); a `secret: true` leaf that has a proto field (D-040); unions of different kinds |
+| `packages/proto/test/parsed-documents.test.ts` (TS) | `DesiredState.toJSON(fromJSON(redactSecrets(RootConfig.parse(doc))))` against the parsed document, for `{}` (every default, all 13 domains prefaulted) and every valid example and fixture | keys the TS stubs drop or invent once Zod has filled defaults; value changes; secret leaves reaching `fromJSON` |
+
+Known, accepted differences are listed in `acceptedDrift` in `drift_test.go`, each with its reason, and a stale entry
+fails the test. Today there are four, all proto→schema supersets: the one shared `Redistribute` message has a key for
+every protocol, while `routing.<p>.redistribute` rejects the protocol's own key (`bgp.redistribute.bgp`, …). A
+schema→proto gap is never accepted. `TestSchemaProtoDriftDetectsBreakage` feeds the guard a deliberately broken schema
+(extra leaf, removed leaf, retyped leaf, widened integer, secret leaf with a field, array → object) and requires every
+finding, so a guard that passes everything cannot go unnoticed. Outside CI, a missing generated schema skips the Go
+guard with the command to run (`pnpm --filter @ngfw/schema gen`); under `CI` it fails. `VRX_DRIFT_SCHEMA=<file>`
+points the guard at another schema (used to demonstrate a failure, `docs/status/tasks/P03b.md`).
+
+**Adding a schema leaf** therefore means, in the same branch: the Zod change, the proto field (next free number,
+`optional` for scalars, a comment with the allowed values / Zod default), `pnpm gen`, and a `contract(proto):` commit.
 
 Secrets never travel in `DesiredState` (00-CONTEXT rule 10, **D-040**): schema leaves flagged `secret: true` in their
 `withUi()` meta (password hashes, private keys, PSKs, PINs) have **no proto field** — the API strips them generically
@@ -282,3 +300,34 @@ The API's `/api/v1/state/system` and the UI's status bar derive "data plane OK /
 - Explicit presence everywhere under `DesiredState` (§1): check `!== undefined` / `!= nil`, never `!== 0` / `!== ""`.
 - `google.protobuf.Timestamp` is a `Date` in TypeScript and `*timestamppb.Timestamp` in Go; all times are agent clock,
   UTC.
+
+## 10. Reconciler object model (`vrx.model.*.v1`, agent-internal, D-055)
+
+`packages/proto/vrx/model/**` holds the **Value types of the scheduler's descriptors** — one message per VPP object
+kind, in VPP terms (table ids, address ranges, protocol numbers, logical interface names), i.e. what the desired-state
+builder (P08) produces from `DesiredState` and what `Retrieve()` decodes VPP dumps into. They are not part of the
+API↔agent wire contract: `dataplane.proto` does not import them (pinned by `TestModelStaysAgentInternal`) and no
+TypeScript is generated for them. They live here so that the contract owner versions them, `buf lint`/`buf breaking`
+cover them and the factories stop carrying `*structpb.Struct` stand-ins.
+
+| package (Go import) | mirrors | messages |
+|---|---|---|
+| `vrx.model.acl.v1` (`ngfw/agent/gen/vrx/model/acl/v1`, `aclv1`) | DF-4 typed specs, `apps/agent/internal/descriptors/acl/spec.go` (structpb field names) | `Acl`, `AclRule`, `MacipAcl`, `MacipRule`, `InterfaceBinding`, `EtypeWhitelist`, `MacipBinding`, `StatsEnable` |
+| `vrx.model.nat.v1` (`…/model/nat/v1`, `natv1`) | DF-3 typed specs (`task/DF-3@08d0af4`, json tags) of nat44-ed, nat44-ei, nat64, nat66, det44, map, cnat, pnat | shared `Endpoint`, `Timeouts`, `InterfaceFeature`, `OutputFeature`, `Forwarding`, `IdentityMapping`; per plugin `Nat44Ed*`, `Nat44Ei*`, `Nat64*`, `Nat66*`, `Det44*`, `Map*`, `Cnat*`, `Pnat*` |
+| `vrx.model.iface.v1` (`…/model/iface/v1`, `ifacev1`) | DF-1's descriptor-local `iface_model.proto` (identical names, numbers, types, enum values) | `AdminState`, `Mtu`, `MacAddress`, `Promisc`, `RxMode` (+`RxModeKind`), `RxPlacement`, `Subinterface`, `InterfaceAlias` |
+
+Rules that differ from `DesiredState` on purpose:
+
+- **Implicit presence.** The scheduler diffs values with `proto.Equal`; the typed specs always carry every field and
+  the zero value is each field's canonical "not set / any" (documented per field). Explicit presence (D-039) exists
+  for the JSON running-vs-actual diff, which these messages never take part in.
+- **Field names = the spec's structpb/json names** (snake_case), so the factory's adaptation is mechanical: replace
+  `Encode`/`Decode` or `Proto()`/`FromProto()` with the typed message. Strings with documented values stay strings
+  (`side: "inside" | "outside"`, `action`, `protocol`), as in the specs and in `DesiredState`.
+- **Canonical form is the descriptor's**, unchanged (netip addresses, sorted repeated fields, `CanonProto`).
+
+Adaptation (not done here — descriptor code belongs to the factories): each factory switches its Value type in a
+small follow-up commit on its next task (D-055); DF-1 then deletes its local `iface_model.proto`. Until then both
+copies exist; the P03b evidence shows them field-for-field identical. New descriptor families add their messages here
+under `vrx/model/<family>/v1` with a `contract(proto):` commit.
+

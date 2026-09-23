@@ -474,7 +474,7 @@ func TestDadLifecycle(t *testing.T) {
 func TestRegister(t *testing.T) {
 	reg := scheduler.NewRegistry()
 	Register(reg, fake.New(), "w3")
-	want := []string{RaConfigName, RaPrefixName, ProxyNdName, DadName}
+	want := []string{RaConfigName, RaPrefixName, DadName} // proxy-ND is opt-in (D-064)
 	got := reg.Names()
 	if len(got) != len(want) {
 		t.Fatalf("Names = %v", got)
@@ -483,5 +483,12 @@ func TestRegister(t *testing.T) {
 		if got[i] != want[i] {
 			t.Fatalf("Names = %v", got)
 		}
+	}
+	if _, ok := reg.Get(ProxyNdName); ok {
+		t.Fatal("ip6-nd.proxy must not be in the default Register")
+	}
+	RegisterProxyNd(reg, fake.New(), "w3")
+	if _, ok := reg.Get(ProxyNdName); !ok {
+		t.Fatal("RegisterProxyNd did not register ip6-nd.proxy")
 	}
 }

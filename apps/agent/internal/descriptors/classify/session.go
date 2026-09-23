@@ -105,9 +105,20 @@ func (d *SessionDescriptor) addDel(ctx context.Context, s *Session, rec TableRec
 // Create implements scheduler.Descriptor.
 func (d *SessionDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	s := NormalizeSession(obj.(*Session))
+	d.store.Lock()
+	defer d.store.Unlock()
 	rec, ok := d.store.Get(s.GetTable())
 	if !ok {
 		return nil, fmt.Errorf("%w: %q", ErrNoSuchTable, s.GetTable())
+	}
+	// A session with the match of an ip_session_redirect in the same table would silently
+	// overwrite the redirect (and be hidden from Retrieve): refuse it.
+	redirects, err := redirectMatches(ctx, d.client, rec.Index)
+	if err != nil {
+		return nil, err
+	}
+	if redirects[MatchID(s.GetMatch())] {
+		return nil, fmt.Errorf("%s: match %s in table %q is an ip-session-redirect session", SessionName, MatchID(s.GetMatch()), s.GetTable())
 	}
 	if err := d.addDel(ctx, s, rec, true); err != nil {
 		return nil, err
@@ -130,6 +141,8 @@ func (*SessionDescriptor) Update(context.Context, proto.Message, proto.Message, 
 // Delete implements scheduler.Descriptor.
 func (d *SessionDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	s := obj.(*Session)
+	d.store.Lock()
+	defer d.store.Unlock()
 	rec, ok := d.store.Get(s.GetTable())
 	if !ok {
 		return fmt.Errorf("%w: %q", ErrNoSuchTable, s.GetTable())

@@ -25,11 +25,13 @@ const NeighborName = "ip-neighbor.neighbor"
 type NeighborDescriptor struct {
 	client vpp.Client
 	owner  string
+	opts   df2.Options
 }
 
-// NewNeighbor returns the descriptor for the given owner.
-func NewNeighbor(c vpp.Client, owner string) *NeighborDescriptor {
-	return &NeighborDescriptor{client: c, owner: owner}
+// NewNeighbor returns the descriptor for the given owner; df2.WithClaims sets the store that
+// attributes neighbours on untagged (physical) interfaces.
+func NewNeighbor(c vpp.Client, owner string, opts ...df2.Option) *NeighborDescriptor {
+	return &NeighborDescriptor{client: c, owner: owner, opts: df2.BuildOptions(opts...)}
 }
 
 // NeighborMeta is the runtime handle: the sw_if_index the entry lives on.
@@ -87,14 +89,17 @@ func (d *NeighborDescriptor) Create(ctx context.Context, obj proto.Message) (any
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ifs.Index(n.GetInterface())
+	idx, untagged, err := ifs.Resolve(n.GetInterface())
 	if err != nil {
 		return nil, err
 	}
-	if err := d.addDel(ctx, n, idx, true); err != nil {
+	if err := d.addDel(ctx, n, interface_types.InterfaceIndex(idx), true); err != nil {
 		return nil, err
 	}
-	return NeighborMeta{SwIfIndex: uint32(idx)}, nil
+	if err := df2.Claim(d.opts.Claims, untagged, d.KeyOf(n)); err != nil {
+		return nil, err
+	}
+	return NeighborMeta{SwIfIndex: idx}, nil
 }
 
 // Update changes the MAC in place (VPP replaces the entry for the same interface + address);
@@ -120,11 +125,14 @@ func (d *NeighborDescriptor) Delete(ctx context.Context, obj proto.Message, meta
 	if !ok {
 		return fmt.Errorf("%s: %w %T", NeighborName, df2.ErrBadMeta, meta)
 	}
-	return d.addDel(ctx, obj.(*Neighbor), interface_types.InterfaceIndex(m.SwIfIndex), false)
+	if err := d.addDel(ctx, obj.(*Neighbor), interface_types.InterfaceIndex(m.SwIfIndex), false); err != nil {
+		return err
+	}
+	return df2.Release(d.opts.Claims, d.KeyOf(obj))
 }
 
 // Retrieve dumps both address families and keeps the static entries on interfaces tagged by
-// this owner.
+// this owner and claimed entries on untagged interfaces.
 func (d *NeighborDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	ifs, err := df2.DumpInterfaces(ctx, d.client, d.owner)
 	if err != nil {
@@ -146,7 +154,7 @@ func (d *NeighborDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 			if nb.Flags&ip_neighbor.IP_API_NEIGHBOR_FLAG_STATIC == 0 {
 				continue // learned entry: never desired state
 			}
-			name, ok := ifs.OwnedName(uint32(nb.SwIfIndex))
+			name, ok := ifs.Name(uint32(nb.SwIfIndex))
 			if !ok {
 				continue
 			}
@@ -155,6 +163,9 @@ func (d *NeighborDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 				IpAddress:  df2.FromAddress(nb.IPAddress).String(),
 				MacAddress: df2.MACString(nb.MacAddress),
 				NoFibEntry: nb.Flags&ip_neighbor.IP_API_NEIGHBOR_FLAG_NO_FIB_ENTRY != 0,
+			}
+			if !ifs.OwnsObject(uint32(nb.SwIfIndex), d.KeyOf(v), d.opts.Claims) {
+				continue // another owner's interface, or an untagged one we did not configure
 			}
 			out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: NeighborMeta{SwIfIndex: uint32(nb.SwIfIndex)}})
 		}

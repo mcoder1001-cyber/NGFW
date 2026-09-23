@@ -20,11 +20,12 @@ const InterfaceName = "arp.proxy-interface"
 type InterfaceDescriptor struct {
 	client vpp.Client
 	owner  string
+	opts   df2.Options
 }
 
 // NewInterface returns the descriptor for the given owner.
-func NewInterface(c vpp.Client, owner string) *InterfaceDescriptor {
-	return &InterfaceDescriptor{client: c, owner: owner}
+func NewInterface(c vpp.Client, owner string, opts ...df2.Option) *InterfaceDescriptor {
+	return &InterfaceDescriptor{client: c, owner: owner, opts: df2.BuildOptions(opts...)}
 }
 
 // InterfaceMeta is the runtime handle.
@@ -56,14 +57,17 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ifs.Index(obj.(*ProxyInterface).GetInterface())
+	idx, untagged, err := ifs.Resolve(obj.(*ProxyInterface).GetInterface())
 	if err != nil {
 		return nil, err
 	}
-	if err := d.set(ctx, idx, true); err != nil {
+	if err := d.set(ctx, interface_types.InterfaceIndex(idx), true); err != nil {
 		return nil, err
 	}
-	return InterfaceMeta{SwIfIndex: uint32(idx)}, nil
+	if err := df2.Claim(d.opts.Claims, untagged, d.KeyOf(obj)); err != nil {
+		return nil, err
+	}
+	return InterfaceMeta{SwIfIndex: idx}, nil
 }
 
 // Update implements scheduler.Descriptor: the interface is the key, nothing else to change.
@@ -72,12 +76,15 @@ func (*InterfaceDescriptor) Update(context.Context, proto.Message, proto.Message
 }
 
 // Delete implements scheduler.Descriptor.
-func (d *InterfaceDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
+func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	m, ok := meta.(InterfaceMeta)
 	if !ok {
 		return fmt.Errorf("%s: %w %T", InterfaceName, df2.ErrBadMeta, meta)
 	}
-	return d.set(ctx, interface_types.InterfaceIndex(m.SwIfIndex), false)
+	if err := d.set(ctx, interface_types.InterfaceIndex(m.SwIfIndex), false); err != nil {
+		return err
+	}
+	return df2.Release(d.opts.Claims, d.KeyOf(obj))
 }
 
 // Retrieve lists the enabled interfaces (proxy_arp_intfc_dump) owned by this agent.
@@ -96,11 +103,14 @@ func (d *InterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 	}
 	var out []scheduler.KV
 	for _, det := range details {
-		name, ok := ifs.OwnedName(det.SwIfIndex)
+		name, ok := ifs.Name(det.SwIfIndex)
 		if !ok {
 			continue
 		}
 		v := &ProxyInterface{Interface: name}
+		if !ifs.OwnsObject(det.SwIfIndex, d.KeyOf(v), d.opts.Claims) {
+			continue
+		}
 		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: InterfaceMeta{SwIfIndex: det.SwIfIndex}})
 	}
 	return out, nil

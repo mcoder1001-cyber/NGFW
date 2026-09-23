@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	classifyapi "ngfw/agent/binapi/classify"
+	featureapi "ngfw/agent/binapi/feature"
 	interfaces "ngfw/agent/binapi/interface"
 	isr "ngfw/agent/binapi/ip_session_redirect"
 	"ngfw/agent/binapi/memclnt"
@@ -35,14 +36,17 @@ type fakeVPP struct {
 	inputACL map[uint32]binding
 	// redirects: full matches of ip_session_redirect sessions per table index.
 	redirects map[uint32][][]byte
+	// output: the output-ACL tables bound per sw_if_index ([0] ip4, [1] ip6), VPP semantics.
+	output map[uint32]*[2]uint32
 }
 
 func newFakeVPP() *fakeVPP {
-	v := &fakeVPP{Client: fake.New(fake.WithControlPingReply(&memclnt.ControlPingReply{})), tables: map[uint32]*table{}, inputACL: map[uint32]binding{}}
+	v := &fakeVPP{Client: fake.New(fake.WithControlPingReply(&memclnt.ControlPingReply{})), tables: map[uint32]*table{}, inputACL: map[uint32]binding{}, output: map[uint32]*[2]uint32{}}
 	v.Reply("sw_interface_dump",
 		&interfaces.SwInterfaceDetails{SwIfIndex: 0, InterfaceName: "local0"},
 		&interfaces.SwInterfaceDetails{SwIfIndex: 5, InterfaceName: "loop300", Tag: "w3:loop300"},
 		&interfaces.SwInterfaceDetails{SwIfIndex: 7, InterfaceName: "loop200", Tag: "w2:loop200"},
+		&interfaces.SwInterfaceDetails{SwIfIndex: 9, InterfaceName: "GigabitEthernet0/0/0"}, // physical port: no tag
 	)
 	v.On("classify_add_del_table", func(req api.Message) ([]api.Message, error) {
 		r := req.(*classifyapi.ClassifyAddDelTable)
@@ -119,7 +123,44 @@ func newFakeVPP() *fakeVPP {
 	})
 	v.Reply("classify_set_interface_ip_table", &classifyapi.ClassifySetInterfaceIPTableReply{})
 	v.Reply("classify_set_interface_l2_tables", &classifyapi.ClassifySetInterfaceL2TablesReply{})
-	v.Reply("output_acl_set_interface", &classifyapi.OutputACLSetInterfaceReply{})
+	// output_acl_set_interface as vnet_set_in_out_acl_intfc: an add while a table is bound
+	// returns 0 WITHOUT switching; a delete must name the bound table (NO_SUCH_TABLE otherwise).
+	v.On("output_acl_set_interface", func(req api.Message) ([]api.Message, error) {
+		r := req.(*classifyapi.OutputACLSetInterface)
+		b, ok := v.output[uint32(r.SwIfIndex)]
+		if !ok {
+			b = &[2]uint32{NoIndex, NoIndex}
+			v.output[uint32(r.SwIfIndex)] = b
+		}
+		for i, want := range []uint32{r.IP4TableIndex, r.IP6TableIndex} {
+			if want == NoIndex {
+				continue
+			}
+			switch {
+			case r.IsAdd && b[i] == NoIndex:
+				b[i] = want
+			case r.IsAdd: // already enabled: silently kept
+			case b[i] != want:
+				return []api.Message{&classifyapi.OutputACLSetInterfaceReply{Retval: int32(api.NO_SUCH_TABLE)}}, nil
+			default:
+				b[i] = NoIndex
+			}
+		}
+		return []api.Message{&classifyapi.OutputACLSetInterfaceReply{}}, nil
+	})
+	v.On("feature_is_enabled", func(req api.Message) ([]api.Message, error) {
+		r := req.(*featureapi.FeatureIsEnabled)
+		b, ok := v.output[uint32(r.SwIfIndex)]
+		on := false
+		switch {
+		case !ok:
+		case r.ArcName == "ip4-output" && r.FeatureName == "ip4-outacl":
+			on = b[0] != NoIndex
+		case r.ArcName == "ip6-output" && r.FeatureName == "ip6-outacl":
+			on = b[1] != NoIndex
+		}
+		return []api.Message{&featureapi.FeatureIsEnabledReply{IsEnabled: on}}, nil
+	})
 	v.On("input_acl_set_interface", func(req api.Message) ([]api.Message, error) {
 		r := req.(*classifyapi.InputACLSetInterface)
 		if r.IsAdd {
@@ -448,34 +489,41 @@ func TestBindings(t *testing.T) {
 		t.Fatalf("after Delete = %+v", actual)
 	}
 
-	// output acl (write-only)
+	// output acl: presence readback (feature_is_enabled) + recorded tables.
 	outd := NewOutputACL(v, "w3", store)
 	out := &OutputAcl{Interface: "loop300", Ip6Table: "w3-ip6"}
 	if k := outd.KeyOf(out); k != "classify.output-acl/loop300" || len(outd.Dependencies(out)) != 2 {
 		t.Fatalf("KeyOf = %s", k)
 	}
-	if _, err := outd.Create(ctx, out); err != nil {
+	ometa, err := outd.Create(ctx, out)
+	if err != nil {
 		t.Fatal(err)
 	}
 	outreq := v.CallsNamed("output_acl_set_interface")[0].(*classifyapi.OutputACLSetInterface)
 	if !outreq.IsAdd || outreq.IP6TableIndex != 1 || outreq.IP4TableIndex != NoIndex {
 		t.Fatalf("request = %+v", outreq)
 	}
-	if err := outd.Delete(ctx, out, BindingMeta{SwIfIndex: 5}); err != nil {
+	if actual, err := outd.Retrieve(ctx); err != nil || len(actual) != 1 || !proto.Equal(actual[0].Value, out) || actual[0].Meta != ometa {
+		t.Fatalf("Retrieve = %+v, %v", actual, err)
+	}
+	if err := outd.Delete(ctx, out, ometa); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := outd.Retrieve(ctx); !errors.Is(err, df2.ErrRetrieveUnsupported) {
-		t.Fatalf("Retrieve: %v", err)
+	if actual, err := outd.Retrieve(ctx); err != nil || len(actual) != 0 {
+		t.Fatalf("after Delete = %+v, %v", actual, err)
 	}
 	if err := outd.Delete(ctx, out, nil); !errors.Is(err, df2.ErrBadMeta) {
 		t.Fatalf("bad meta: %v", err)
+	}
+	if _, err := outd.Create(ctx, &OutputAcl{Interface: "loop300", L2Table: "w3-l2"}); err == nil {
+		t.Fatal("l2 output table accepted")
 	}
 }
 
 func TestRegister(t *testing.T) {
 	reg := scheduler.NewRegistry()
 	Register(reg, fake.New(), "w3", nil)
-	want := []string{TableName, SessionName, InterfaceIPTableName, InterfaceL2TablesName, InputACLName, OutputACLName}
+	want := []string{TableName, SessionName, InputACLName, OutputACLName}
 	got := reg.Names()
 	if len(got) != len(want) {
 		t.Fatalf("Names = %v", got)
@@ -483,6 +531,12 @@ func TestRegister(t *testing.T) {
 	for i := range want {
 		if got[i] != want[i] {
 			t.Fatalf("Names = %v", got)
+		}
+	}
+	RegisterWriteOnly(reg, fake.New(), "w3", nil)
+	for _, n := range []string{InterfaceIPTableName, InterfaceL2TablesName} {
+		if _, ok := reg.Get(n); !ok {
+			t.Fatalf("RegisterWriteOnly: %s missing", n)
 		}
 	}
 }

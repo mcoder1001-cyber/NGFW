@@ -22,11 +22,12 @@ type AttachDescriptor struct {
 	client vpp.Client
 	owner  string
 	ids    *df2.IDRange
+	opts   df2.Options
 }
 
 // NewAttach returns the descriptor; ids scopes the policy ids this agent owns.
-func NewAttach(c vpp.Client, owner string, ids *df2.IDRange) *AttachDescriptor {
-	return &AttachDescriptor{client: c, owner: owner, ids: ids}
+func NewAttach(c vpp.Client, owner string, ids *df2.IDRange, opts ...df2.Option) *AttachDescriptor {
+	return &AttachDescriptor{client: c, owner: owner, ids: ids, opts: df2.BuildOptions(opts...)}
 }
 
 // AttachMeta is the runtime handle.
@@ -75,14 +76,17 @@ func (d *AttachDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ifs.Index(a.GetInterface())
+	idx, untagged, err := ifs.Resolve(a.GetInterface())
 	if err != nil {
 		return nil, err
 	}
-	if err := d.addDel(ctx, a, idx, true); err != nil {
+	if err := d.addDel(ctx, a, interface_types.InterfaceIndex(idx), true); err != nil {
 		return nil, err
 	}
-	return AttachMeta{SwIfIndex: uint32(idx)}, nil
+	if err := df2.Claim(d.opts.Claims, untagged, d.KeyOf(a)); err != nil {
+		return nil, err
+	}
+	return AttachMeta{SwIfIndex: idx}, nil
 }
 
 // Update implements scheduler.Descriptor: an attachment is immutable (priority included).
@@ -96,7 +100,10 @@ func (d *AttachDescriptor) Delete(ctx context.Context, obj proto.Message, meta a
 	if !ok {
 		return fmt.Errorf("%s: %w %T", AttachName, df2.ErrBadMeta, meta)
 	}
-	return d.addDel(ctx, obj.(*Attach), interface_types.InterfaceIndex(m.SwIfIndex), false)
+	if err := d.addDel(ctx, obj.(*Attach), interface_types.InterfaceIndex(m.SwIfIndex), false); err != nil {
+		return err
+	}
+	return df2.Release(d.opts.Claims, d.KeyOf(obj))
 }
 
 // Retrieve dumps every attachment (abf_itf_attach_dump) on owned interfaces with owned
@@ -120,19 +127,23 @@ func (d *AttachDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 		if !d.ids.Owns(at.PolicyID) {
 			continue
 		}
-		name, ok := ifs.OwnedName(uint32(at.SwIfIndex))
+		name, ok := ifs.Name(uint32(at.SwIfIndex))
 		if !ok {
 			continue
 		}
 		v := &Attach{PolicyId: at.PolicyID, Interface: name, Priority: at.Priority, Ipv6: at.IsIPv6}
+		if !ifs.OwnsObject(uint32(at.SwIfIndex), d.KeyOf(v), d.opts.Claims) {
+			continue
+		}
 		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: AttachMeta{SwIfIndex: uint32(at.SwIfIndex)}})
 	}
 	return out, nil
 }
 
 // Register registers the abf descriptors (policy, attach) with r. ids scopes the policy ids
-// this agent owns on a shared VPP (nil = all).
-func Register(r scheduler.Registry, c vpp.Client, owner string, ids *df2.IDRange) {
+// this agent owns on a shared VPP (nil = all); opts (df2.WithClaims) attribute attachments on
+// untagged interfaces.
+func Register(r scheduler.Registry, c vpp.Client, owner string, ids *df2.IDRange, opts ...df2.Option) {
 	r.Register(NewPolicy(c, owner, ids))
-	r.Register(NewAttach(c, owner, ids))
+	r.Register(NewAttach(c, owner, ids, opts...))
 }

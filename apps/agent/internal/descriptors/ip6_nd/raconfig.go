@@ -76,11 +76,12 @@ func isDefaultRa(c *RaConfig) bool {
 type RaConfigDescriptor struct {
 	client vpp.Client
 	owner  string
+	opts   df2.Options
 }
 
 // NewRaConfig returns the descriptor for the given owner.
-func NewRaConfig(c vpp.Client, owner string) *RaConfigDescriptor {
-	return &RaConfigDescriptor{client: c, owner: owner}
+func NewRaConfig(c vpp.Client, owner string, opts ...df2.Option) *RaConfigDescriptor {
+	return &RaConfigDescriptor{client: c, owner: owner, opts: df2.BuildOptions(opts...)}
 }
 
 // RaMeta is the runtime handle of ra-config and ra-prefix.
@@ -166,14 +167,18 @@ func (d *RaConfigDescriptor) Create(ctx context.Context, obj proto.Message) (any
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ifs.Index(c.GetInterface())
+	idx32, untagged, err := ifs.Resolve(c.GetInterface())
 	if err != nil {
 		return nil, err
 	}
+	idx := interface_types.InterfaceIndex(idx32)
 	if err := d.apply(ctx, c, idx); err != nil {
 		return nil, err
 	}
-	return RaMeta{SwIfIndex: uint32(idx)}, nil
+	if err := df2.Claim(d.opts.Claims, untagged, d.KeyOf(obj)); err != nil {
+		return nil, err
+	}
+	return RaMeta{SwIfIndex: idx32}, nil
 }
 
 // Update re-applies in place; a different interface is a different object.
@@ -192,12 +197,15 @@ func (d *RaConfigDescriptor) Update(ctx context.Context, oldObj, newObj proto.Me
 }
 
 // Delete restores the VPP defaults.
-func (d *RaConfigDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
+func (d *RaConfigDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	m, ok := meta.(RaMeta)
 	if !ok {
 		return fmt.Errorf("%s: %w %T", RaConfigName, df2.ErrBadMeta, meta)
 	}
-	return d.resetRa(ctx, interface_types.InterfaceIndex(m.SwIfIndex))
+	if err := d.resetRa(ctx, interface_types.InterfaceIndex(m.SwIfIndex)); err != nil {
+		return err
+	}
+	return df2.Release(d.opts.Claims, d.KeyOf(obj))
 }
 
 // dumpRa dumps the RA state of every interface.
@@ -250,12 +258,15 @@ func (d *RaConfigDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 	}
 	var out []scheduler.KV
 	for _, det := range details {
-		name, ok := ifs.OwnedName(uint32(det.SwIfIndex))
+		name, ok := ifs.Name(uint32(det.SwIfIndex))
 		if !ok {
 			continue
 		}
 		v := decodeRa(name, det)
 		if isDefaultRa(v) {
+			continue
+		}
+		if !ifs.OwnsObject(uint32(det.SwIfIndex), d.KeyOf(v), d.opts.Claims) {
 			continue
 		}
 		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: RaMeta{SwIfIndex: uint32(det.SwIfIndex)}})

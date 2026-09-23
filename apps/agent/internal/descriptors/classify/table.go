@@ -1,13 +1,18 @@
 package classify
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/bits"
+
+	"go.fd.io/govpp/api"
 
 	"google.golang.org/protobuf/proto"
 
 	classifyapi "ngfw/agent/binapi/classify"
+	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
@@ -95,11 +100,20 @@ func (d *TableDescriptor) indexOf(name string) (TableRecord, error) {
 	return rec, nil
 }
 
-// Create implements scheduler.Descriptor.
+// Create implements scheduler.Descriptor. It holds the Store's transaction lock from the
+// stale-record prune to the Put, so a concurrent Retrieve's prune cannot drop the new record.
 func (d *TableDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	t := NormalizeTable(obj.(*Table))
 	if t.GetName() == "" {
 		return nil, fmt.Errorf("%s: name is required", TableName)
+	}
+	if t.GetCurrentDataOffset() < -32768 || t.GetCurrentDataOffset() > 32767 {
+		return nil, fmt.Errorf("%s: current_data_offset %d out of int16 range", TableName, t.GetCurrentDataOffset())
+	}
+	d.store.Lock()
+	defer d.store.Unlock()
+	if err := pruneLocked(ctx, d.client, d.store); err != nil {
+		return nil, err
 	}
 	if _, exists := d.store.Get(t.GetName()); exists {
 		return nil, fmt.Errorf("%s: table %q already exists in the store", TableName, t.GetName())
@@ -111,9 +125,6 @@ func (d *TableDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 			return nil, err
 		}
 		next = rec.Index
-	}
-	if t.GetCurrentDataOffset() < -32768 || t.GetCurrentDataOffset() > 32767 {
-		return nil, fmt.Errorf("%s: current_data_offset %d out of int16 range", TableName, t.GetCurrentDataOffset())
 	}
 	req := &classifyapi.ClassifyAddDelTable{
 		IsAdd:             true,
@@ -135,10 +146,14 @@ func (d *TableDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 	}
 	rec := TableRecord{
 		Name: t.GetName(), Index: rep.NewTableIndex, SkipNVectors: rep.SkipNVectors, MatchNVectors: rep.MatchNVectors,
-		MemorySize: t.GetMemorySize(), CurrentDataFlag: t.GetCurrentDataFlag(), CurrentDataOffset: t.GetCurrentDataOffset(),
+		Mask: t.GetMask(), MemorySize: t.GetMemorySize(), CurrentDataFlag: t.GetCurrentDataFlag(), CurrentDataOffset: t.GetCurrentDataOffset(),
 	}
 	if err := d.store.Put(rec); err != nil {
-		return nil, err
+		// Never leave a table in VPP that no record attributes to us.
+		if derr := deleteTable(ctx, d.client, rep.NewTableIndex); derr != nil {
+			return nil, fmt.Errorf("%s: store: %w (and removing table %d failed: %v)", TableName, err, rep.NewTableIndex, derr)
+		}
+		return nil, fmt.Errorf("%s: store: %w", TableName, err)
 	}
 	return TableMeta{Index: rep.NewTableIndex}, nil
 }
@@ -158,6 +173,8 @@ func (*TableDescriptor) Update(context.Context, proto.Message, proto.Message, an
 // Delete implements scheduler.Descriptor.
 func (d *TableDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	name := obj.(*Table).GetName()
+	d.store.Lock()
+	defer d.store.Unlock()
 	m, ok := meta.(TableMeta)
 	if !ok {
 		rec, err := d.indexOf(name)
@@ -166,55 +183,147 @@ func (d *TableDescriptor) Delete(ctx context.Context, obj proto.Message, meta an
 		}
 		m = TableMeta{Index: rec.Index}
 	}
-	// The handler validates mask_len == match_n_vectors × 16 on delete too (-7 otherwise,
-	// verified on vrx-a), so a consistent dummy geometry is sent along with the index.
-	req := &classifyapi.ClassifyAddDelTable{IsAdd: false, TableIndex: m.Index, Nbuckets: DefaultNbuckets, MemorySize: DefaultMemorySize,
-		MatchNVectors: DefaultMatchNVectors, MaskLen: VectorSize, Mask: make([]byte, VectorSize), NextTableIndex: NoIndex, MissNextIndex: NoIndex}
-	if _, err := classifyapi.NewServiceClient(d.client).ClassifyAddDelTable(ctx, req); err != nil {
-		return fmt.Errorf("classify_add_del_table: %w", err)
+	if err := deleteTable(ctx, d.client, m.Index); err != nil {
+		return err
 	}
 	return d.store.Delete(name)
 }
 
-// LiveTables returns the store records whose index VPP still lists (classify_table_ids);
-// records of vanished tables are dropped from the store.
-func LiveTables(ctx context.Context, c vpp.Client, store Store) ([]TableRecord, error) {
-	rep, err := classifyapi.NewServiceClient(c).ClassifyTableIds(ctx, &classifyapi.ClassifyTableIds{})
+// deleteTable removes table index. The handler validates mask_len == match_n_vectors × 16 on
+// delete too (-7 otherwise, verified on vrx-a), so a consistent dummy geometry is sent along.
+func deleteTable(ctx context.Context, c vpp.Client, index uint32) error {
+	req := &classifyapi.ClassifyAddDelTable{IsAdd: false, TableIndex: index, Nbuckets: DefaultNbuckets, MemorySize: DefaultMemorySize,
+		MatchNVectors: DefaultMatchNVectors, MaskLen: VectorSize, Mask: make([]byte, VectorSize), NextTableIndex: NoIndex, MissNextIndex: NoIndex}
+	if _, err := classifyapi.NewServiceClient(c).ClassifyAddDelTable(ctx, req); err != nil {
+		return fmt.Errorf("classify_add_del_table: %w", err)
+	}
+	return nil
+}
+
+// vppInstance identifies the running VPP: control_ping_reply.vpe_pid changes on every VPP
+// (re)start, and table indices are only meaningful within one instance.
+func vppInstance(ctx context.Context, c vpp.Client) (uint32, error) {
+	rep, err := memclnt.NewServiceClient(c).ControlPing(ctx, &memclnt.ControlPing{})
 	if err != nil {
-		return nil, fmt.Errorf("classify_table_ids: %w", err)
+		return 0, fmt.Errorf("control_ping: %w", err)
 	}
-	live := map[uint32]bool{}
+	return rep.VpePID, nil
+}
+
+type liveTable struct {
+	rec  TableRecord
+	info *classifyapi.ClassifyTableInfoReply
+}
+
+// snapshot classifies the Store's records against VPP without changing anything: a record is
+// live when the store belongs to the running VPP instance, classify_table_ids lists its index
+// and classify_table_info shows its geometry (skip/match vectors, mask). Everything else is
+// stale — in particular an index VPP has reused for another owner's table is never claimed.
+// sameInstance is false when the whole store predates the running VPP.
+func snapshot(ctx context.Context, c vpp.Client, st Store) (live []liveTable, stale []string, pid uint32, sameInstance bool, err error) {
+	if pid, err = vppInstance(ctx, c); err != nil {
+		return nil, nil, 0, false, err
+	}
+	recs := st.All() // before the VPP reads: a record added later is not judged on an old snapshot
+	if have, known := st.Instance(); !known || have != pid {
+		for _, r := range recs {
+			stale = append(stale, r.Name)
+		}
+		return nil, stale, pid, false, nil
+	}
+	svc := classifyapi.NewServiceClient(c)
+	rep, err := svc.ClassifyTableIds(ctx, &classifyapi.ClassifyTableIds{})
+	if err != nil {
+		return nil, nil, 0, false, fmt.Errorf("classify_table_ids: %w", err)
+	}
+	ids := map[uint32]bool{}
 	for _, id := range rep.Ids {
-		live[id] = true
+		ids[id] = true
 	}
-	var out []TableRecord
-	for _, rec := range store.All() {
-		if !live[rec.Index] {
-			_ = store.Delete(rec.Name)
+	for _, rec := range recs {
+		if !ids[rec.Index] {
+			stale = append(stale, rec.Name)
 			continue
 		}
-		out = append(out, rec)
+		info, err := svc.ClassifyTableInfo(ctx, &classifyapi.ClassifyTableInfo{TableID: rec.Index})
+		var apiErr api.VPPApiError
+		if errors.As(err, &apiErr) {
+			stale = append(stale, rec.Name) // deleted since classify_table_ids
+			continue
+		}
+		if err != nil {
+			return nil, nil, 0, false, fmt.Errorf("classify_table_info %d: %w", rec.Index, err)
+		}
+		if !sameGeometry(rec, info) {
+			stale = append(stale, rec.Name)
+			continue
+		}
+		live = append(live, liveTable{rec: rec, info: info})
+	}
+	return live, stale, pid, true, nil
+}
+
+// sameGeometry reports whether VPP's table has the geometry the record was created with.
+func sameGeometry(rec TableRecord, info *classifyapi.ClassifyTableInfoReply) bool {
+	if len(rec.Mask) == 0 || info.SkipNVectors != rec.SkipNVectors || info.MatchNVectors != rec.MatchNVectors {
+		return false
+	}
+	n := int(rec.MatchNVectors) * VectorSize
+	return bytes.Equal(fit(info.Mask, n), fit(rec.Mask, n))
+}
+
+// LiveTables returns the Store records that are live in VPP (see snapshot). It never changes
+// the Store.
+func LiveTables(ctx context.Context, c vpp.Client, st Store) ([]TableRecord, error) {
+	live, _, _, _, err := snapshot(ctx, c, st)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]TableRecord, 0, len(live))
+	for _, l := range live {
+		out = append(out, l.rec)
 	}
 	return out, nil
 }
 
-// Retrieve reads every owned, still existing table with classify_table_info.
+// Prune drops stale records (see snapshot) under the Store's transaction lock, on a fresh
+// snapshot taken inside the lock; a store of an earlier VPP instance is reset.
+func Prune(ctx context.Context, c vpp.Client, st Store) error {
+	st.Lock()
+	defer st.Unlock()
+	return pruneLocked(ctx, c, st)
+}
+
+func pruneLocked(ctx context.Context, c vpp.Client, st Store) error {
+	_, stale, pid, same, err := snapshot(ctx, c, st)
+	if err != nil {
+		return err
+	}
+	if !same {
+		return st.Reset(pid)
+	}
+	for _, name := range stale {
+		if err := st.Delete(name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Retrieve reports every live owned table (see snapshot) from classify_table_info, then
+// prunes stale records under the transaction lock (collect first, prune after).
 func (d *TableDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
-	recs, err := LiveTables(ctx, d.client, d.store)
+	live, _, _, _, err := snapshot(ctx, d.client, d.store)
 	if err != nil {
 		return nil, err
 	}
 	byIndex := map[uint32]string{}
-	for _, r := range recs {
-		byIndex[r.Index] = r.Name
+	for _, l := range live {
+		byIndex[l.rec.Index] = l.rec.Name
 	}
-	svc := classifyapi.NewServiceClient(d.client)
-	var out []scheduler.KV
-	for _, rec := range recs {
-		info, err := svc.ClassifyTableInfo(ctx, &classifyapi.ClassifyTableInfo{TableID: rec.Index})
-		if err != nil {
-			return nil, fmt.Errorf("classify_table_info %d: %w", rec.Index, err)
-		}
+	out := make([]scheduler.KV, 0, len(live))
+	for _, l := range live {
+		rec, info := l.rec, l.info
 		v := &Table{
 			Name:              rec.Name,
 			Nbuckets:          info.Nbuckets,
@@ -234,6 +343,9 @@ func (d *TableDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 			}
 		}
 		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: TableMeta{Index: rec.Index}})
+	}
+	if err := Prune(ctx, d.client, d.store); err != nil {
+		return nil, err
 	}
 	return out, nil
 }

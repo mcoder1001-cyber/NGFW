@@ -7,8 +7,9 @@ import (
 )
 
 // Register registers the arp descriptors (proxy-range, proxy-interface) with r. tables scopes
-// the ranges this agent owns on a shared VPP (nil = all).
-func Register(r scheduler.Registry, c vpp.Client, owner string, tables *df2.IDRange) {
+// the ranges this agent owns on a shared VPP (nil = all, the single production agent); opts
+// (df2.WithClaims) attribute proxy-ARP on untagged interfaces.
+func Register(r scheduler.Registry, c vpp.Client, owner string, tables *df2.IDRange, opts ...df2.Option) {
 	r.Register(NewRange(c, tables))
-	r.Register(NewInterface(c, owner))
+	r.Register(NewInterface(c, owner, opts...))
 }

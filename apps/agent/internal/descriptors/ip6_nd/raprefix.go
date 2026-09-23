@@ -42,11 +42,12 @@ func NormalizeRaPrefix(p *RaPrefix) *RaPrefix {
 type RaPrefixDescriptor struct {
 	client vpp.Client
 	owner  string
+	opts   df2.Options
 }
 
 // NewRaPrefix returns the descriptor for the given owner.
-func NewRaPrefix(c vpp.Client, owner string) *RaPrefixDescriptor {
-	return &RaPrefixDescriptor{client: c, owner: owner}
+func NewRaPrefix(c vpp.Client, owner string, opts ...df2.Option) *RaPrefixDescriptor {
+	return &RaPrefixDescriptor{client: c, owner: owner, opts: df2.BuildOptions(opts...)}
 }
 
 // Name implements scheduler.Descriptor.
@@ -107,14 +108,18 @@ func (d *RaPrefixDescriptor) Create(ctx context.Context, obj proto.Message) (any
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ifs.Index(p.GetInterface())
+	idx32, untagged, err := ifs.Resolve(p.GetInterface())
 	if err != nil {
 		return nil, err
 	}
+	idx := interface_types.InterfaceIndex(idx32)
 	if err := d.set(ctx, p, idx, false); err != nil {
 		return nil, err
 	}
-	return RaMeta{SwIfIndex: uint32(idx)}, nil
+	if err := df2.Claim(d.opts.Claims, untagged, d.KeyOf(obj)); err != nil {
+		return nil, err
+	}
+	return RaMeta{SwIfIndex: idx32}, nil
 }
 
 // Update changes lifetimes and flags in place (VPP updates an existing prefix entry).
@@ -138,7 +143,10 @@ func (d *RaPrefixDescriptor) Delete(ctx context.Context, obj proto.Message, meta
 	if !ok {
 		return fmt.Errorf("%s: %w %T", RaPrefixName, df2.ErrBadMeta, meta)
 	}
-	return d.set(ctx, NormalizeRaPrefix(obj.(*RaPrefix)), interface_types.InterfaceIndex(m.SwIfIndex), true)
+	if err := d.set(ctx, NormalizeRaPrefix(obj.(*RaPrefix)), interface_types.InterfaceIndex(m.SwIfIndex), true); err != nil {
+		return err
+	}
+	return df2.Release(d.opts.Claims, d.KeyOf(obj))
 }
 
 // Retrieve decodes the prefix list of every owned interface from sw_interface_ip6nd_ra_dump.
@@ -153,7 +161,7 @@ func (d *RaPrefixDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 	}
 	var out []scheduler.KV
 	for _, det := range details {
-		name, ok := ifs.OwnedName(uint32(det.SwIfIndex))
+		name, ok := ifs.Name(uint32(det.SwIfIndex))
 		if !ok {
 			continue
 		}
@@ -166,6 +174,9 @@ func (d *RaPrefixDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 				NoAdvertise:       p.NoAdvertise,
 				OffLink:           !p.OnlinkFlag,
 				NoAutoconfig:      !p.AutonomousFlag,
+			}
+			if !ifs.OwnsObject(uint32(det.SwIfIndex), d.KeyOf(v), d.opts.Claims) {
+				continue
 			}
 			out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: RaMeta{SwIfIndex: uint32(det.SwIfIndex)}})
 		}

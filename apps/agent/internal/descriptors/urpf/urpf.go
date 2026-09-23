@@ -23,10 +23,13 @@ const Name = "urpf.interface"
 type Descriptor struct {
 	client vpp.Client
 	owner  string
+	opts   df2.Options
 }
 
 // New returns the descriptor for the given owner.
-func New(c vpp.Client, owner string) *Descriptor { return &Descriptor{client: c, owner: owner} }
+func New(c vpp.Client, owner string, opts ...df2.Option) *Descriptor {
+	return &Descriptor{client: c, owner: owner, opts: df2.BuildOptions(opts...)}
+}
 
 // Meta is the runtime handle.
 type Meta struct{ SwIfIndex uint32 }
@@ -85,14 +88,18 @@ func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error)
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ifs.Index(u.GetInterface())
+	idx32, untagged, err := ifs.Resolve(u.GetInterface())
 	if err != nil {
 		return nil, err
 	}
+	idx := interface_types.InterfaceIndex(idx32)
 	if err := d.update(ctx, u, idx, urpfapi.UrpfMode(u.GetMode())); err != nil { //nolint:gosec // enum 0..2
 		return nil, err
 	}
-	return Meta{SwIfIndex: uint32(idx)}, nil
+	if err := df2.Claim(d.opts.Claims, untagged, d.KeyOf(obj)); err != nil {
+		return nil, err
+	}
+	return Meta{SwIfIndex: idx32}, nil
 }
 
 // Update changes mode and table in place (urpf_update_v2 replaces the check); a different
@@ -121,7 +128,10 @@ func (d *Descriptor) Delete(ctx context.Context, obj proto.Message, meta any) er
 	if !ok {
 		return fmt.Errorf("%s: %w %T", Name, df2.ErrBadMeta, meta)
 	}
-	return d.update(ctx, obj.(*Interface), interface_types.InterfaceIndex(m.SwIfIndex), urpfapi.URPF_API_MODE_OFF)
+	if err := d.update(ctx, obj.(*Interface), interface_types.InterfaceIndex(m.SwIfIndex), urpfapi.URPF_API_MODE_OFF); err != nil {
+		return err
+	}
+	return df2.Release(d.opts.Claims, d.KeyOf(obj))
 }
 
 // Retrieve dumps every configured check (urpf_interface_dump) on owned interfaces.
@@ -143,7 +153,7 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 		if det.Mode == urpfapi.URPF_API_MODE_OFF {
 			continue
 		}
-		name, ok := ifs.OwnedName(uint32(det.SwIfIndex))
+		name, ok := ifs.Name(uint32(det.SwIfIndex))
 		if !ok {
 			continue
 		}
@@ -151,10 +161,16 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 		if !det.IsInput {
 			v.Direction = Interface_TX
 		}
+		if !ifs.OwnsObject(uint32(det.SwIfIndex), d.KeyOf(v), d.opts.Claims) {
+			continue
+		}
 		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: Meta{SwIfIndex: uint32(det.SwIfIndex)}})
 	}
 	return out, nil
 }
 
-// Register registers the urpf descriptor with r.
-func Register(r scheduler.Registry, c vpp.Client, owner string) { r.Register(New(c, owner)) }
+// Register registers the urpf descriptor with r; opts (df2.WithClaims) attribute checks on
+// untagged interfaces.
+func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df2.Option) {
+	r.Register(New(c, owner, opts...))
+}

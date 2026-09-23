@@ -22,11 +22,12 @@ const ProxyNdName = "ip6-nd.proxy"
 type ProxyNdDescriptor struct {
 	client vpp.Client
 	owner  string
+	opts   df2.Options
 }
 
 // NewProxyNd returns the descriptor for the given owner.
-func NewProxyNd(c vpp.Client, owner string) *ProxyNdDescriptor {
-	return &ProxyNdDescriptor{client: c, owner: owner}
+func NewProxyNd(c vpp.Client, owner string, opts ...df2.Option) *ProxyNdDescriptor {
+	return &ProxyNdDescriptor{client: c, owner: owner, opts: df2.BuildOptions(opts...)}
 }
 
 // ProxyNdMeta is the runtime handle.
@@ -104,14 +105,18 @@ func (d *ProxyNdDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ifs.Index(p.GetInterface())
+	idx32, untagged, err := ifs.Resolve(p.GetInterface())
 	if err != nil {
 		return nil, err
 	}
+	idx := interface_types.InterfaceIndex(idx32)
 	if err := d.addDel(ctx, p, idx, true); err != nil {
 		return nil, err
 	}
-	return ProxyNdMeta{SwIfIndex: uint32(idx)}, nil
+	if err := df2.Claim(d.opts.Claims, untagged, d.KeyOf(obj)); err != nil {
+		return nil, err
+	}
+	return ProxyNdMeta{SwIfIndex: idx32}, nil
 }
 
 // Update implements scheduler.Descriptor: both fields are the key.
@@ -125,7 +130,10 @@ func (d *ProxyNdDescriptor) Delete(ctx context.Context, obj proto.Message, meta 
 	if !ok {
 		return fmt.Errorf("%s: %w %T", ProxyNdName, df2.ErrBadMeta, meta)
 	}
-	return d.addDel(ctx, obj.(*ProxyNd), interface_types.InterfaceIndex(m.SwIfIndex), false)
+	if err := d.addDel(ctx, obj.(*ProxyNd), interface_types.InterfaceIndex(m.SwIfIndex), false); err != nil {
+		return err
+	}
+	return df2.Release(d.opts.Claims, d.KeyOf(obj))
 }
 
 // Retrieve lists proxied addresses (ip6nd_proxy_dump) on owned interfaces.
@@ -140,11 +148,14 @@ func (d *ProxyNdDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error
 	}
 	var out []scheduler.KV
 	for _, det := range details {
-		name, ok := ifs.OwnedName(uint32(det.SwIfIndex))
+		name, ok := ifs.Name(uint32(det.SwIfIndex))
 		if !ok {
 			continue
 		}
 		v := &ProxyNd{Interface: name, Address: det.IP.ToIP().String()}
+		if !ifs.OwnsObject(uint32(det.SwIfIndex), d.KeyOf(v), d.opts.Claims) {
+			continue
+		}
 		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: ProxyNdMeta{SwIfIndex: uint32(det.SwIfIndex)}})
 	}
 	return out, nil

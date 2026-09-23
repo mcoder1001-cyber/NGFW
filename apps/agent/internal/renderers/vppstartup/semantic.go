@@ -7,7 +7,8 @@ import (
 )
 
 // Semantic comparison of startup.conf files. VPP's parser (unformat) is whitespace-agnostic and
-// ignores the order of sections and of most entries inside a section, and '#' starts a comment.
+// ignores the order of sections and of most entries inside a section, and '#' starts a comment
+// anywhere on a line.
 // Parse reduces a file to its sections and entries; Canonical flattens that to sorted lines such
 // as "dpdk > blacklist 0000:0b:00.0" or "plugins > plugin npt66_plugin.so > enable", so two files
 // that VPP reads the same way compare equal regardless of comments, indentation and ordering.
@@ -65,12 +66,11 @@ func Parse(b []byte) (*Section, error) {
 	return root, nil
 }
 
-// stripComment drops everything from a '#' that starts a token.
+// stripComment drops everything from any '#' to the end of the line, as VPP does when it reads
+// the file (vpp/vnet/main.c).
 func stripComment(line string) string {
-	for i := 0; i < len(line); i++ {
-		if line[i] == '#' && (i == 0 || line[i-1] == ' ' || line[i-1] == '\t' || line[i-1] == '{' || line[i-1] == '}') {
-			return line[:i]
-		}
+	if i := strings.IndexByte(line, '#'); i >= 0 {
+		return line[:i]
 	}
 	return line
 }

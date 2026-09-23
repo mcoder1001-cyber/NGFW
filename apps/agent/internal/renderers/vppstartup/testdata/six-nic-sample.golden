@@ -57,7 +57,7 @@ dpdk {
     num-rx-desc 512
     num-tx-desc 512
   }
-  # management NIC(s): never handed to DPDK
+  # host management NIC(s): never handed to DPDK
   blacklist 0000:0b:00.0
 }
 

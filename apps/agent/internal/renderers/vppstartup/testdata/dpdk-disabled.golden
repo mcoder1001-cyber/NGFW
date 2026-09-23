@@ -27,8 +27,12 @@ statseg {
 }
 
 cpu {
+  main-core 1
 }
 
 plugins {
   plugin dpdk_plugin.so { disable }
+  plugin linux_cp_plugin.so { enable }
+  plugin linux_nl_plugin.so { enable }
+  plugin npt66_plugin.so { enable }
 }

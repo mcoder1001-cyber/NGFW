@@ -27,10 +27,11 @@ statseg {
 }
 
 cpu {
+  main-core 1
 }
 
 dpdk {
-  # management NIC(s): never handed to DPDK
+  # host management NIC(s): never handed to DPDK
   blacklist 0000:0b:00.0
   # no DPDK devices configured: probe no PCI device at all
   no-pci

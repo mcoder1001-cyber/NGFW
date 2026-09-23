@@ -32,13 +32,9 @@ statseg {
 }
 
 cpu {
-{{- with .M.MainCore}}
-  main-core {{.}}
-{{- end}}
+  main-core {{.M.MainCore}}
 {{- if .M.Corelist}}
   corelist-workers {{.M.Corelist}}
-{{- else if .M.Workers}}
-  workers {{.M.Workers}}
 {{- end}}
 }
 {{- if .M.BuffersPerNuma}}
@@ -84,7 +80,7 @@ dpdk {
 {{- end}}
 {{- end}}
 {{- if .M.Blacklist}}
-  # management NIC(s): never handed to DPDK
+  # host management NIC(s): never handed to DPDK
 {{- end}}
 {{- range .M.Blacklist}}
   blacklist {{ident .}}

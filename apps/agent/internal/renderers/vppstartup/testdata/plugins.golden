@@ -27,10 +27,11 @@ statseg {
 }
 
 cpu {
+  main-core 1
 }
 
 dpdk {
-  # management NIC(s): never handed to DPDK
+  # host management NIC(s): never handed to DPDK
   blacklist 0000:0b:00.0
   # no DPDK devices configured: probe no PCI device at all
   no-pci
@@ -41,5 +42,7 @@ plugins {
   plugin gtpu_plugin.so { disable }
   plugin ikev2_plugin.so { disable }
   plugin linux_cp_plugin.so { enable }
+  plugin linux_nl_plugin.so { enable }
+  plugin npt66_plugin.so { enable }
   plugin vxlan-gpe_plugin.so { disable }
 }

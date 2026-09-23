@@ -8,12 +8,15 @@
 //	--semantic           with --diff: compare sections/entries instead of text (comments, order and
 //	                     indentation ignored)
 //	--check              validate only; print warnings; exit 0/2
-//	--plugin-dir, --cpus, --isolcpus, --numa-nodes, --hugepages-mb, --no-host
-//	                     host facts the document is validated against (default: read from this host)
+//	--current <file>     current start-up file whose plugin switches are kept ("none" = no file)
+//	--mgmt-if, --mgmt-pci  extra management NICs besides the default-route interface(s)
+//	--plugin-dir, --online-cpus, --isolcpus, --numa-nodes, --hugepages-mb
+//	                     host fact overrides; --no-host reads nothing from /sys and /proc, so every
+//	                     fact must then come from a flag (the management NIC via --mgmt-pci)
 //
 // Exit status: 0 = ok / no difference, 1 = --diff found differences, 2 = invalid input or error.
 // It never restarts VPP and never touches the running data plane; applying the file is the
-// manager procedure in docs/agent/renderers/vppstartup.md.
+// manager script deploy/vpp/apply-startup.sh.
 package main
 
 import (
@@ -38,12 +41,14 @@ func main() {
 }
 
 type options struct {
-	out, diff                    string
-	semantic, check, noHost      bool
-	pluginDir, isolcpus          string
-	cpus, numaNodes, hugepagesMB int
-	input                        string
-	sysRoot                      string // "" = "/", tests point it at a fake tree
+	out, diff               string
+	semantic, check, noHost bool
+	pluginDir, current      string
+	mgmtIfs, mgmtPCIs       string
+	onlineCPUs, isolcpus    string
+	numaNodes, hugepagesMB  int
+	input                   string
+	sysRoot                 string // "" = "/", tests point it at a fake tree
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
@@ -54,12 +59,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs.StringVar(&o.diff, "diff", "", "compare with the `existing` file; exit 1 when different")
 	fs.BoolVar(&o.semantic, "semantic", false, "with --diff: compare sections/entries, ignore comments/order/indentation")
 	fs.BoolVar(&o.check, "check", false, "validate only")
-	fs.BoolVar(&o.noHost, "no-host", false, "do not read host facts; only the flags below are used")
-	fs.StringVar(&o.pluginDir, "plugin-dir", "/usr/lib/x86_64-linux-gnu/vpp_plugins", "VPP plugin `dir` (names are validated against its *.so files)")
-	fs.IntVar(&o.cpus, "cpus", -1, "number of host CPUs (default: /sys/devices/system/cpu/online)")
+	fs.BoolVar(&o.noHost, "no-host", false, "read nothing from /sys and /proc; every host fact comes from the flags")
+	fs.StringVar(&o.pluginDir, "plugin-dir", vppstartup.DefaultPluginDir, "VPP plugin `dir` (names are validated against its *.so files)")
+	fs.StringVar(&o.current, "current", vppstartup.DefaultConfPath, "current start-up `file` whose plugin switches are kept; \"none\" = there is none")
+	fs.StringVar(&o.mgmtIfs, "mgmt-if", "", "extra management `interfaces` (comma separated) besides the default-route interface(s)")
+	fs.StringVar(&o.mgmtPCIs, "mgmt-pci", "", "extra management NIC PCI `addresses` (comma separated); required with --no-host")
+	fs.StringVar(&o.onlineCPUs, "online-cpus", "", "online CPU `list` (default: /sys/devices/system/cpu/online)")
 	fs.StringVar(&o.isolcpus, "isolcpus", "", "isolated CPU `list` (default: /sys/devices/system/cpu/isolated)")
-	fs.IntVar(&o.numaNodes, "numa-nodes", -1, "number of NUMA nodes (default: /sys/devices/system/node)")
-	fs.IntVar(&o.hugepagesMB, "hugepages-mb", -1, "hugepage memory reserved by the host in MiB (default: /proc/meminfo)")
+	fs.IntVar(&o.numaNodes, "numa-nodes", 0, "number of NUMA nodes (default: /sys/devices/system/node)")
+	fs.IntVar(&o.hugepagesMB, "hugepages-mb", 0, "hugepage memory reserved by the host in MiB (default: /proc/meminfo)")
 	fs.Usage = func() {
 		_, _ = fmt.Fprintln(stderr, "usage: vrx-startupgen [flags] [document.json|-]")
 		fs.PrintDefaults()
@@ -114,6 +122,7 @@ func generate(o options, visited map[string]bool, stdin io.Reader, stdout, stder
 	if err != nil {
 		return 2, err
 	}
+	_, _ = fmt.Fprintf(stderr, "vrx-startupgen: host management NIC(s) %s (always blacklisted)\n", strings.Join(host.ManagementPCI, ","))
 	for _, w := range model.Warnings {
 		_, _ = fmt.Fprintf(stderr, "vrx-startupgen: warning: %s\n", w)
 	}
@@ -156,8 +165,7 @@ func generate(o options, visited map[string]bool, stdin io.Reader, stdout, stder
 	case o.out != "":
 		return 0, writeAtomic(o.out, out)
 	default:
-		_, err := stdout.Write(out)
-		if err != nil {
+		if _, err := stdout.Write(out); err != nil {
 			return 2, err
 		}
 		return 0, nil
@@ -211,51 +219,72 @@ func writeAtomic(path string, b []byte) error {
 	return os.Rename(name, path)
 }
 
-// hostFacts reads the facts of this host (unless --no-host); explicit flags always win.
-func hostFacts(o options, visited map[string]bool) (vppstartup.Host, error) {
-	var h vppstartup.Host
-	root := o.sysRoot
-	if root == "" {
-		root = "/"
+func splitList(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
 	}
-	sys := func(p string) string { return filepath.Join(root, p) }
+	return out
+}
 
-	if !o.noHost {
-		if b, err := os.ReadFile(sys("sys/devices/system/cpu/online")); err == nil { //nolint:gosec // fixed sysfs path
-			if cpus, err := vppstartup.ParseCPUList(string(b)); err == nil && len(cpus) > 0 {
-				h.CPUs = int(cpus[len(cpus)-1]) + 1
-			}
-		}
-		if b, err := os.ReadFile(sys("sys/devices/system/cpu/isolated")); err == nil { //nolint:gosec // fixed sysfs path
-			if isol, err := vppstartup.ParseCPUList(string(b)); err == nil {
-				h.IsolCPUs = isol
-			}
-		}
-		if nodes, _ := filepath.Glob(sys("sys/devices/system/node/node[0-9]*")); len(nodes) > 0 {
-			h.NUMANodes = len(nodes)
-		}
-		if b, err := os.ReadFile(sys("proc/meminfo")); err == nil { //nolint:gosec // fixed procfs path
-			h.HugepageBytes = hugepagesFromMeminfo(string(b))
-		}
+// hostFacts reads this host's facts (vppstartup.ReadHost) unless --no-host, applies the flag
+// overrides and checks that every fact is present (Host.Check).
+func hostFacts(o options, visited map[string]bool) (vppstartup.Host, error) {
+	current := o.current
+	if current == "none" {
+		current = ""
 	}
-	if !o.noHost || visited["plugin-dir"] {
-		plugins, err := filepath.Glob(filepath.Join(o.pluginDir, "*.so"))
+	var h vppstartup.Host
+	if !o.noHost {
+		var err error
+		h, err = vppstartup.ReadHost(vppstartup.HostSources{
+			Root: o.sysRoot, PluginDir: o.pluginDir, CurrentConf: current,
+			MgmtIfaces: splitList(o.mgmtIfs), MgmtPCI: splitList(o.mgmtPCIs),
+		})
 		if err != nil {
 			return h, err
 		}
-		if len(plugins) == 0 {
-			return h, fmt.Errorf("no plugins found in %s (use --plugin-dir)", o.pluginDir)
+	} else {
+		if visited["mgmt-if"] {
+			return h, fmt.Errorf("--mgmt-if needs the host's /sys (drop --no-host or use --mgmt-pci)")
 		}
-		h.Plugins = make([]string, 0, len(plugins))
-		for _, p := range plugins {
-			h.Plugins = append(h.Plugins, filepath.Base(p))
+		for _, p := range splitList(o.mgmtPCIs) {
+			pci, err := vppstartup.PCIAddress(p)
+			if err != nil {
+				return h, fmt.Errorf("--mgmt-pci: %w", err)
+			}
+			h.ManagementPCI = append(h.ManagementPCI, pci)
+		}
+		if visited["plugin-dir"] {
+			plugins, _ := filepath.Glob(filepath.Join(o.pluginDir, "*.so"))
+			for _, p := range plugins {
+				h.Plugins = append(h.Plugins, filepath.Base(p))
+			}
+			if len(h.Plugins) == 0 {
+				return h, fmt.Errorf("no plugins found in %s (use --plugin-dir)", o.pluginDir)
+			}
+		}
+		if visited["current"] {
+			h.CurrentPlugins = map[string]bool{}
+			if current != "" {
+				b, err := os.ReadFile(current) //nolint:gosec // operator-supplied current start-up file, read only
+				if err != nil {
+					return h, err
+				}
+				if h.CurrentPlugins, err = vppstartup.PluginSwitches(b); err != nil {
+					return h, fmt.Errorf("--current %s: %w", current, err)
+				}
+			}
 		}
 	}
-	if visited["cpus"] {
-		if o.cpus < 0 {
-			return h, fmt.Errorf("--cpus must be ≥ 0")
+	if visited["online-cpus"] {
+		cpus, err := vppstartup.ParseCPUList(o.onlineCPUs)
+		if err != nil {
+			return h, fmt.Errorf("--online-cpus: %w", err)
 		}
-		h.CPUs = o.cpus
+		h.OnlineCPUs = cpus
 	}
 	if visited["isolcpus"] {
 		isol, err := vppstartup.ParseCPUList(o.isolcpus)
@@ -265,9 +294,6 @@ func hostFacts(o options, visited map[string]bool) (vppstartup.Host, error) {
 		h.IsolCPUs = isol
 	}
 	if visited["numa-nodes"] {
-		if o.numaNodes < 0 {
-			return h, fmt.Errorf("--numa-nodes must be ≥ 0")
-		}
 		h.NUMANodes = o.numaNodes
 	}
 	if visited["hugepages-mb"] {
@@ -276,23 +302,5 @@ func hostFacts(o options, visited map[string]bool) (vppstartup.Host, error) {
 		}
 		h.HugepageBytes = uint64(o.hugepagesMB) << 20
 	}
-	return h, nil
-}
-
-// hugepagesFromMeminfo returns HugePages_Total × Hugepagesize (bytes), 0 if unknown.
-func hugepagesFromMeminfo(s string) uint64 {
-	var total, sizeKB uint64
-	for _, line := range strings.Split(s, "\n") {
-		f := strings.Fields(line)
-		if len(f) < 2 {
-			continue
-		}
-		switch f[0] {
-		case "HugePages_Total:":
-			_, _ = fmt.Sscanf(f[1], "%d", &total)
-		case "Hugepagesize:":
-			_, _ = fmt.Sscanf(f[1], "%d", &sizeKB)
-		}
-	}
-	return total * sizeKB << 10
+	return h, h.Check()
 }

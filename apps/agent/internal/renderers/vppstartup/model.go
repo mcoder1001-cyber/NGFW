@@ -1,19 +1,21 @@
 // Package vppstartup renders VPP's start-up configuration (/etc/vpp/startup.conf) from the
 // `dataplane` domain of the configuration document (WBS D0.6, task F-startup-gen).
 //
-// The generator is a pure function: BuildModel validates the domain against the host facts it
-// is given and returns a Model; Render turns the Model into the file. Nothing here writes the
-// live file or restarts VPP — applying a rendering is a manager step (docs/agent/renderers/
-// vppstartup.md), so Renderer.Apply always refuses.
+// The generator is a pure function: BuildModel validates the domain against the facts of the host
+// the file is for (Host — required, never defaulted) and returns a Model; RenderModel turns the
+// Model into the file. Nothing here writes the live file or restarts VPP — applying a rendering
+// is the manager script deploy/vpp/apply-startup.sh, so Renderer.Apply always refuses.
 package vppstartup
 
 import (
 	"cmp"
 	"errors"
 	"fmt"
-	"math"
+	"maps"
 	"slices"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -22,10 +24,32 @@ import (
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 )
 
-// ErrInput is wrapped by every error about the desired state or the host facts it is checked
-// against (as opposed to I/O errors), so callers can report it as a validation issue. Messages
-// name the JSON path of the offending field.
+// ErrInput is wrapped by every error about the desired state (as opposed to host facts or I/O),
+// so callers can report it as a validation issue. Messages name the JSON path of the field and
+// are always one line.
 var ErrInput = errors.New("vppstartup: invalid dataplane configuration")
+
+// ErrHost is wrapped when the host facts are missing or inconsistent: the generator never renders
+// without knowing the host (management NIC, CPUs, hugepages, plugins, current plugin switches).
+var ErrHost = errors.New("vppstartup: host facts")
+
+// Schema bounds (packages/schema/src/domains/dataplane.ts), re-checked here because typed input
+// and hand-made documents never pass the Zod schema (D-049).
+const (
+	MaxWorkers        = 255
+	MaxCorelist       = 256
+	MaxCPUID          = 1023
+	MaxQueues         = 256
+	MaxHugepagesGB    = 1024
+	MinBuffersPerNuma = 1024
+	MaxBuffersPerNuma = 4194304
+	MaxPCIWhitelist   = 64
+	MaxManagementPCI  = 4
+	MaxDevices        = 64
+	MaxPlugins        = 128
+	MinDesc           = 64
+	MaxDesc           = 16384
+)
 
 // DefaultBuffersPerNuma is VPP's default `buffers { buffers-per-numa }` (used for the hugepage
 // budget when the document does not set it).
@@ -40,37 +64,16 @@ const DPDKPlugin = "dpdk_plugin.so"
 
 const gib = uint64(1) << 30
 
-// Extensions carries dataplane fields the desired-state proto does not have yet (D-055
-// stand-in, docs/status/tasks/F-startup-gen-questions.md Q1). They are read from a
-// *structpb.Struct document at the JSON paths the schema is expected to use:
-//
-//	dataplane.managementPci   []string                     NICs never handed to DPDK; always blacklisted
-//	dataplane.devices         {<pci>: {name, rxQueues, txQueues, rxDesc, txDesc}}   DPDK devices with logical names (D-069)
-//	dataplane.buffersPerNuma  uint32                       buffers { buffers-per-numa }
-//	dataplane.plugins         {<file>.so: bool}            plugins { plugin <file> { enable|disable } } (D-060)
-type Extensions struct {
-	ManagementPCI  []string
-	Devices        map[string]DeviceSpec
-	BuffersPerNuma uint32
-	Plugins        map[string]bool
-}
-
-// DeviceSpec is one `dataplane.devices.<pci>` entry. Zero numbers mean "not set".
-type DeviceSpec struct {
-	Name     string
-	RxQueues uint32
-	TxQueues uint32
-	RxDesc   uint32
-	TxDesc   uint32
-}
-
-// Host holds the facts of the machine the file is rendered for. Zero values mean "unknown" and
-// switch the corresponding check off — except Plugins: a document that names plugins cannot be
-// validated without the on-disk list and is rejected.
+// Host holds the facts of the machine the file is rendered for. All of them are required
+// (Check); ReadHost collects them from a running system.
 type Host struct {
-	// CPUs is the number of logical CPUs (ids 0..CPUs-1).
-	CPUs int
-	// IsolCPUs is the kernel's isolated CPU set (isolcpus=, /sys/devices/system/cpu/isolated).
+	// ManagementPCI are the PCI addresses of the NIC(s) the host is managed through (default route
+	// / the address the agent is reached on). They are always blacklisted and can never be a DPDK
+	// device, whatever the document says.
+	ManagementPCI []string
+	// OnlineCPUs is the set of online logical CPUs (/sys/devices/system/cpu/online).
+	OnlineCPUs []uint32
+	// IsolCPUs is the kernel's isolated CPU set (/sys/devices/system/cpu/isolated); empty = none.
 	IsolCPUs []uint32
 	// NUMANodes is the number of NUMA nodes (buffers are allocated per node).
 	NUMANodes int
@@ -78,6 +81,33 @@ type Host struct {
 	HugepageBytes uint64
 	// Plugins are the plugin file names on disk (/usr/lib/x86_64-linux-gnu/vpp_plugins/*.so).
 	Plugins []string
+	// CurrentPlugins are the `plugins { plugin X { enable|disable } }` switches of the current
+	// start-up file; non-nil (empty map = none). Switches the document does not mention are kept.
+	CurrentPlugins map[string]bool
+}
+
+// Check reports missing or malformed host facts (wrapping ErrHost).
+func (h Host) Check() error {
+	switch {
+	case len(h.ManagementPCI) == 0:
+		return fmt.Errorf("%w: the management NIC is unknown (detect it from the default route or pass --mgmt-pci)", ErrHost)
+	case len(h.OnlineCPUs) == 0:
+		return fmt.Errorf("%w: the online CPU set is unknown", ErrHost)
+	case h.NUMANodes < 1:
+		return fmt.Errorf("%w: the NUMA node count is unknown", ErrHost)
+	case h.HugepageBytes == 0:
+		return fmt.Errorf("%w: the host reserves no hugepages (HugePages_Total = 0)", ErrHost)
+	case len(h.Plugins) == 0:
+		return fmt.Errorf("%w: the on-disk plugin list is unknown", ErrHost)
+	case h.CurrentPlugins == nil:
+		return fmt.Errorf("%w: the plugin switches of the current start-up file are unknown", ErrHost)
+	}
+	for _, p := range h.ManagementPCI {
+		if _, err := PCIAddress(p); err != nil {
+			return fmt.Errorf("%w: management NIC: %v", ErrHost, err)
+		}
+	}
+	return nil
 }
 
 // Model is the validated, sorted view of the dataplane domain that the template renders.
@@ -85,11 +115,11 @@ type Model struct {
 	// HugepagesGB is dataplane.hugepagesGb (0 = unset); rendered as a comment only — the
 	// hugepages themselves are reserved by the host (vm.nr_hugepages), not by this file.
 	HugepagesGB uint32
-	MainCore    *uint32
-	// Corelist is the corelist-workers value in VPP range syntax ("2-3,6"); "" = not set.
-	Corelist string
-	// Workers is `cpu { workers N }` when no corelist is given (0 = not rendered).
-	Workers        uint32
+	// MainCore is always rendered (explicit pinning, never VPP's start-CPU default).
+	MainCore uint32
+	// Corelist is the corelist-workers value in VPP range syntax ("2-3,6"); "" = no workers.
+	// Always explicit: a document `workers: N` is turned into concrete CPUs here.
+	Corelist       string
 	BuffersPerNuma uint32
 	// DPDK is false when dpdk_plugin.so is disabled: the whole dpdk section is omitted.
 	DPDK bool
@@ -98,9 +128,9 @@ type Model struct {
 	TxQueues uint32
 	// Devices are the DPDK devices sorted by PCI address.
 	Devices []Device
-	// Blacklist are the management (and other excluded) PCI addresses, sorted.
+	// Blacklist are the host's management PCI addresses, sorted.
 	Blacklist []string
-	// Plugins are the explicit plugin switches sorted by file name.
+	// Plugins are the effective plugin switches (current file overlaid by the document), sorted.
 	Plugins []Plugin
 	// Warnings are non-fatal findings (printed by the CLI, reported as info by DryRun).
 	Warnings []string
@@ -130,139 +160,53 @@ type Plugin struct {
 	Enable bool
 }
 
-// Desired normalises the renderer input to the dataplane message plus the stand-in extensions:
-// a *vrxv1.DesiredState or *vrxv1.DataplaneConfig is used as is (no extensions); a
-// *structpb.Struct holding the JSON configuration document is decoded — only its `dataplane`
-// member is read, other domains are ignored; nil is the empty domain.
-func Desired(msg proto.Message) (*vrxv1.DataplaneConfig, *Extensions, error) {
-	ext := &Extensions{}
+// Desired normalises the renderer input to the dataplane message: a *vrxv1.DesiredState or
+// *vrxv1.DataplaneConfig is used as is; a *structpb.Struct holding the JSON configuration
+// document is decoded strictly — only its `dataplane` member is read (other domains are ignored),
+// and unknown keys inside it are an error (the schema is a strictObject); nil is the empty domain.
+func Desired(msg proto.Message) (*vrxv1.DataplaneConfig, error) {
 	switch m := msg.(type) {
 	case nil:
-		return &vrxv1.DataplaneConfig{}, ext, nil
+		return &vrxv1.DataplaneConfig{}, nil
 	case *vrxv1.DesiredState:
 		if m.GetDataplane() == nil {
-			return &vrxv1.DataplaneConfig{}, ext, nil
+			return &vrxv1.DataplaneConfig{}, nil
 		}
-		return m.GetDataplane(), ext, nil
+		return m.GetDataplane(), nil
 	case *vrxv1.DataplaneConfig:
 		if m == nil {
-			return &vrxv1.DataplaneConfig{}, ext, nil
+			return &vrxv1.DataplaneConfig{}, nil
 		}
-		return m, ext, nil
+		return m, nil
 	case *structpb.Struct:
 		dpv, ok := m.GetFields()["dataplane"]
 		if !ok || dpv == nil {
-			return &vrxv1.DataplaneConfig{}, ext, nil
+			return &vrxv1.DataplaneConfig{}, nil
 		}
 		dp := dpv.GetStructValue()
 		if dp == nil {
-			return nil, nil, fmt.Errorf("%w: dataplane must be an object", ErrInput)
+			return nil, fmt.Errorf("%w: dataplane must be an object", ErrInput)
 		}
 		raw, err := protojson.Marshal(dp)
 		if err != nil {
-			return nil, nil, fmt.Errorf("%w: encode dataplane: %v", ErrInput, err)
+			return nil, fmt.Errorf("%w: encode dataplane: %s", ErrInput, oneLine(err.Error()))
 		}
 		cfg := &vrxv1.DataplaneConfig{}
-		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, cfg); err != nil {
-			return nil, nil, fmt.Errorf("%w: decode dataplane: %v", ErrInput, err)
+		if err := protojson.Unmarshal(raw, cfg); err != nil {
+			return nil, fmt.Errorf("%w: dataplane: %s", ErrInput, oneLine(err.Error()))
 		}
-		if err := readExtensions(dp, ext); err != nil {
-			return nil, nil, err
-		}
-		return cfg, ext, nil
+		return cfg, nil
 	default:
-		return nil, nil, fmt.Errorf("%w: unsupported input type %T (want *vrxv1.DesiredState, *vrxv1.DataplaneConfig or *structpb.Struct)", ErrInput, msg)
+		return nil, fmt.Errorf("%w: unsupported input type %T (want *vrxv1.DesiredState, *vrxv1.DataplaneConfig or *structpb.Struct)", ErrInput, msg)
 	}
 }
 
-func readExtensions(dp *structpb.Struct, ext *Extensions) error {
-	f := dp.GetFields()
-	if v, ok := f["managementPci"]; ok {
-		list := v.GetListValue()
-		if list == nil {
-			return fmt.Errorf("%w: dataplane.managementPci must be an array of PCI addresses", ErrInput)
-		}
-		for i, e := range list.GetValues() {
-			s, isStr := e.GetKind().(*structpb.Value_StringValue)
-			if !isStr {
-				return fmt.Errorf("%w: dataplane.managementPci[%d] must be a string", ErrInput, i)
-			}
-			ext.ManagementPCI = append(ext.ManagementPCI, s.StringValue)
-		}
+// oneLine keeps a library error message on one printable line.
+func oneLine(s string) string {
+	if strings.IndexFunc(s, func(r rune) bool { return unicode.IsControl(r) || r == ' ' || r == ' ' }) < 0 {
+		return s
 	}
-	if v, ok := f["buffersPerNuma"]; ok {
-		n, err := uintValue(v, "dataplane.buffersPerNuma")
-		if err != nil {
-			return err
-		}
-		ext.BuffersPerNuma = n
-	}
-	if v, ok := f["devices"]; ok {
-		devs := v.GetStructValue()
-		if devs == nil {
-			return fmt.Errorf("%w: dataplane.devices must be an object keyed by PCI address", ErrInput)
-		}
-		ext.Devices = map[string]DeviceSpec{}
-		for pci, dv := range devs.GetFields() {
-			path := "dataplane.devices." + jsonKey(pci)
-			d := dv.GetStructValue()
-			if d == nil {
-				return fmt.Errorf("%w: %s must be an object", ErrInput, path)
-			}
-			var spec DeviceSpec
-			for k, fv := range d.GetFields() {
-				var err error
-				switch k {
-				case "name":
-					s, isStr := fv.GetKind().(*structpb.Value_StringValue)
-					if !isStr {
-						return fmt.Errorf("%w: %s.name must be a string", ErrInput, path)
-					}
-					if s.StringValue == "" {
-						return fmt.Errorf("%w: %s.name must not be empty (omit it for a VPP-named device)", ErrInput, path)
-					}
-					spec.Name = s.StringValue
-				case "rxQueues":
-					spec.RxQueues, err = uintValue(fv, path+".rxQueues")
-				case "txQueues":
-					spec.TxQueues, err = uintValue(fv, path+".txQueues")
-				case "rxDesc":
-					spec.RxDesc, err = uintValue(fv, path+".rxDesc")
-				case "txDesc":
-					spec.TxDesc, err = uintValue(fv, path+".txDesc")
-				default:
-					return fmt.Errorf("%w: %s: unknown field %s", ErrInput, path, jsonKey(k))
-				}
-				if err != nil {
-					return err
-				}
-			}
-			ext.Devices[pci] = spec
-		}
-	}
-	if v, ok := f["plugins"]; ok {
-		pl := v.GetStructValue()
-		if pl == nil {
-			return fmt.Errorf("%w: dataplane.plugins must be an object {\"<file>.so\": true|false}", ErrInput)
-		}
-		ext.Plugins = map[string]bool{}
-		for name, pv := range pl.GetFields() {
-			b, isBool := pv.GetKind().(*structpb.Value_BoolValue)
-			if !isBool {
-				return fmt.Errorf("%w: dataplane.plugins.%s must be a boolean (true = enable)", ErrInput, jsonKey(name))
-			}
-			ext.Plugins[name] = b.BoolValue
-		}
-	}
-	return nil
-}
-
-func uintValue(v *structpb.Value, path string) (uint32, error) {
-	n, ok := v.GetKind().(*structpb.Value_NumberValue)
-	if !ok || n.NumberValue < 0 || n.NumberValue > math.MaxUint32 || n.NumberValue != math.Trunc(n.NumberValue) {
-		return 0, fmt.Errorf("%w: %s must be an integer 0..4294967295", ErrInput, path)
-	}
-	return uint32(n.NumberValue), nil
+	return strconv.QuoteToASCII(s)
 }
 
 // jsonKey quotes a record key for an error path when it is not a plain token, so hostile keys
@@ -272,7 +216,7 @@ func jsonKey(k string) string {
 		c := k[i]
 		plain := c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || strings.IndexByte("_.:-", c) >= 0
 		if !plain {
-			return fmt.Sprintf("%q", k)
+			return strconv.QuoteToASCII(k)
 		}
 	}
 	if k == "" {
@@ -282,183 +226,295 @@ func jsonKey(k string) string {
 }
 
 func inputErr(path string, format string, args ...any) error {
-	return fmt.Errorf("%w: %s: %s", ErrInput, path, fmt.Sprintf(format, args...))
+	return fmt.Errorf("%w: %s: %s", ErrInput, path, oneLine(fmt.Sprintf(format, args...)))
 }
 
-// BuildModel validates the dataplane domain (+ stand-in extensions) against host and returns
-// the model to render. Every error wraps ErrInput and names the JSON path.
-func BuildModel(dp *vrxv1.DataplaneConfig, ext *Extensions, host Host) (*Model, error) {
+// BuildModel validates the dataplane domain against host and returns the model to render. Every
+// error wraps ErrInput (document) or ErrHost (host facts).
+func BuildModel(dp *vrxv1.DataplaneConfig, host Host) (*Model, error) {
+	if err := host.Check(); err != nil {
+		return nil, err
+	}
 	if dp == nil {
 		dp = &vrxv1.DataplaneConfig{}
 	}
-	if ext == nil {
-		ext = &Extensions{}
+	if err := checkBounds(dp); err != nil {
+		return nil, err
 	}
-	m := &Model{HugepagesGB: dp.GetHugepagesGb(), BuffersPerNuma: ext.BuffersPerNuma, DPDK: true}
-
-	// ---- plugins (D-060): names from the on-disk list only
-	if len(ext.Plugins) > 0 && host.Plugins == nil {
-		return nil, inputErr("dataplane.plugins", "the on-disk plugin list is unknown; cannot validate plugin names")
+	m := &Model{HugepagesGB: dp.GetHugepagesGb(), BuffersPerNuma: dp.GetBuffersPerNuma(), DPDK: true}
+	if err := buildPlugins(dp, host, m); err != nil {
+		return nil, err
 	}
-	onDisk := map[string]bool{}
-	for _, p := range host.Plugins {
-		onDisk[p] = true
-	}
-	for name, enable := range ext.Plugins {
-		path := "dataplane.plugins." + jsonKey(name)
-		if err := PluginName(name); err != nil {
-			return nil, inputErr(path, "%v", err)
-		}
-		if !onDisk[name] {
-			return nil, inputErr(path, "plugin %s is not installed (not in the on-disk plugin directory)", name)
-		}
-		m.Plugins = append(m.Plugins, Plugin{File: name, Enable: enable})
-		if name == DPDKPlugin && !enable {
-			m.DPDK = false
-		}
-	}
-	slices.SortFunc(m.Plugins, func(a, b Plugin) int { return cmp.Compare(a.File, b.File) })
-
-	// ---- CPU placement
 	if err := buildCPU(dp, host, m); err != nil {
 		return nil, err
 	}
-
-	// ---- DPDK devices, management NIC
-	if err := buildDevices(dp, ext, m); err != nil {
+	if err := buildDevices(dp, host, m); err != nil {
 		return nil, err
 	}
 	if !m.DPDK && len(m.Devices) > 0 {
 		return nil, inputErr("dataplane.plugins."+DPDKPlugin, "dpdk_plugin.so cannot be disabled while DPDK devices are listed (%d)", len(m.Devices))
 	}
 
-	// ---- RSS: queues vs workers
-	workers := effectiveWorkers(dp)
-	maxQ := max(workers, 1)
-	if q := dp.GetRxQueues(); q > 0 {
-		if q > maxQ {
-			return nil, inputErr("dataplane.rxQueues", "%d RX queues exceed the %d worker thread(s) that can poll them", q, maxQ)
-		}
-		m.RxQueues = q
+	// RSS: queues vs the worker threads that poll them
+	maxQ := max(uint32(len(corelistOf(m))), 1) //nolint:gosec // ≤ 256
+	if q := dp.GetRxQueues(); q > maxQ {
+		return nil, inputErr("dataplane.rxQueues", "%d RX queues exceed the %d worker thread(s) that can poll them", q, maxQ)
 	}
-	if q := dp.GetTxQueues(); q > 0 {
-		m.TxQueues = q
-	}
+	m.RxQueues, m.TxQueues = dp.GetRxQueues(), dp.GetTxQueues()
 	for _, d := range m.Devices {
 		if d.RxQueues > maxQ {
 			return nil, inputErr("dataplane.devices."+d.PCI+".rxQueues", "%d RX queues exceed the %d worker thread(s) that can poll them", d.RxQueues, maxQ)
 		}
 	}
 
-	// ---- hugepage budget
-	if err := checkHugepages(dp, ext, host, m); err != nil {
+	if err := checkHugepages(dp, host, m); err != nil {
 		return nil, err
 	}
 	return m, nil
 }
 
-// effectiveWorkers is the number of worker threads VPP will start.
-func effectiveWorkers(dp *vrxv1.DataplaneConfig) uint32 {
-	if n := len(dp.GetCorelist()); n > 0 {
-		return uint32(n) //nolint:gosec // bounded by the schema (≤ 256)
-	}
-	return dp.GetWorkers()
+func corelistOf(m *Model) []uint32 {
+	l, _ := ParseCPUList(m.Corelist)
+	return l
 }
 
+// checkBounds re-applies the schema's numeric and size bounds (and so rejects VPP's ~0 sentinel).
+func checkBounds(dp *vrxv1.DataplaneConfig) error {
+	rng := func(path string, v, lo, hi uint32) error {
+		if v < lo || v > hi {
+			return inputErr(path, "%d not in %d..%d", v, lo, hi)
+		}
+		return nil
+	}
+	type chk struct {
+		set       bool
+		path      string
+		v, lo, hi uint32
+	}
+	for _, c := range []chk{
+		{dp.Workers != nil, "dataplane.workers", dp.GetWorkers(), 0, MaxWorkers},
+		{dp.MainCore != nil, "dataplane.mainCore", dp.GetMainCore(), 0, MaxCPUID},
+		{dp.RxQueues != nil, "dataplane.rxQueues", dp.GetRxQueues(), 1, MaxQueues},
+		{dp.TxQueues != nil, "dataplane.txQueues", dp.GetTxQueues(), 1, MaxQueues},
+		{dp.HugepagesGb != nil, "dataplane.hugepagesGb", dp.GetHugepagesGb(), 1, MaxHugepagesGB},
+		{dp.BuffersPerNuma != nil, "dataplane.buffersPerNuma", dp.GetBuffersPerNuma(), MinBuffersPerNuma, MaxBuffersPerNuma},
+	} {
+		if c.set {
+			if err := rng(c.path, c.v, c.lo, c.hi); err != nil {
+				return err
+			}
+		}
+	}
+	for i, c := range dp.GetCorelist() {
+		if err := rng(fmt.Sprintf("dataplane.corelist[%d]", i), c, 0, MaxCPUID); err != nil {
+			return err
+		}
+	}
+	for _, c := range []struct {
+		path   string
+		n, max int
+	}{
+		{"dataplane.corelist", len(dp.GetCorelist()), MaxCorelist},
+		{"dataplane.pciWhitelist", len(dp.GetPciWhitelist()), MaxPCIWhitelist},
+		{"dataplane.managementPci", len(dp.GetManagementPci()), MaxManagementPCI},
+		{"dataplane.devices", len(dp.GetDevices()), MaxDevices},
+		{"dataplane.plugins", len(dp.GetPlugins()), MaxPlugins},
+	} {
+		if c.n > c.max {
+			return inputErr(c.path, "%d entries, at most %d", c.n, c.max)
+		}
+	}
+	return nil
+}
+
+// buildPlugins overlays the document's switches on the current file's switches (D-060: a document
+// that does not mention a plugin never silently drops its switch). Every effective name must be
+// a plugin file on disk.
+func buildPlugins(dp *vrxv1.DataplaneConfig, host Host, m *Model) error {
+	onDisk := map[string]bool{}
+	for _, p := range host.Plugins {
+		onDisk[p] = true
+	}
+	check := func(path, name string) error {
+		if err := PluginName(name); err != nil {
+			return inputErr(path, "%v", err)
+		}
+		if !onDisk[name] {
+			return inputErr(path, "plugin %s is not installed (not in the on-disk plugin directory)", name)
+		}
+		return nil
+	}
+	eff := map[string]bool{}
+	for name, enable := range host.CurrentPlugins {
+		if _, inDoc := dp.GetPlugins()[name]; inDoc {
+			continue
+		}
+		if err := check("current start-up file: plugins."+jsonKey(name), name); err != nil {
+			return err
+		}
+		eff[name] = enable
+		m.Warnings = append(m.Warnings, fmt.Sprintf("plugins: %s { %s } kept from the current start-up file (not in dataplane.plugins)", name, enableWord(enable)))
+	}
+	for name, enable := range dp.GetPlugins() {
+		if err := check("dataplane.plugins."+jsonKey(name), name); err != nil {
+			return err
+		}
+		eff[name] = enable
+	}
+	for name, enable := range eff {
+		m.Plugins = append(m.Plugins, Plugin{File: name, Enable: enable})
+		if name == DPDKPlugin && !enable {
+			m.DPDK = false
+		}
+	}
+	slices.SortFunc(m.Plugins, func(a, b Plugin) int { return cmp.Compare(a.File, b.File) })
+	slices.Sort(m.Warnings)
+	return nil
+}
+
+func enableWord(b bool) string {
+	if b {
+		return "enable"
+	}
+	return "disable"
+}
+
+// buildCPU turns the document into explicit `main-core` + `corelist-workers`, so VPP's pinning is
+// exactly the validated one (VPP would otherwise use the CPU it happened to start on as main core
+// and pick worker CPUs itself — vlib/threads.c).
 func buildCPU(dp *vrxv1.DataplaneConfig, host Host, m *Model) error {
+	online := map[uint32]bool{}
+	for _, c := range host.OnlineCPUs {
+		online[c] = true
+	}
+	isol := map[uint32]bool{}
+	for _, c := range host.IsolCPUs {
+		isol[c] = true
+	}
+	onlineList := slices.Sorted(maps.Keys(online))
+	hostDesc := fmt.Sprintf("online CPUs %s", FormatCPUList(onlineList))
+
 	corelist := slices.Clone(dp.GetCorelist())
 	if dp.Workers != nil && len(corelist) > 0 && int(dp.GetWorkers()) != len(corelist) {
 		return inputErr("dataplane.workers", "workers=%d but corelist names %d cores", dp.GetWorkers(), len(corelist))
 	}
 	seen := map[uint32]bool{}
 	for i, c := range corelist {
+		path := fmt.Sprintf("dataplane.corelist[%d]", i)
 		if seen[c] {
-			return inputErr(fmt.Sprintf("dataplane.corelist[%d]", i), "core %d listed twice", c)
+			return inputErr(path, "core %d listed twice", c)
 		}
 		seen[c] = true
-	}
-	if dp.MainCore != nil {
-		mc := dp.GetMainCore()
-		m.MainCore = &mc
-		if seen[mc] {
-			return inputErr("dataplane.mainCore", "main core %d is also a worker core", mc)
+		if !online[c] {
+			return inputErr(path, "worker core %d is not an online CPU (%s)", c, hostDesc)
 		}
 	}
-	if len(corelist) > 0 && dp.MainCore == nil {
-		// VPP: "main-core must be specified when using corelist-* or coremask-* attribute"
-		return inputErr("dataplane.mainCore", "must be set when corelist is given (VPP requires main-core with corelist-workers)")
+	nWorkers := uint32(len(corelist)) //nolint:gosec // ≤ 256
+	if len(corelist) == 0 {
+		nWorkers = dp.GetWorkers()
 	}
 
-	// the cores VPP will actually use: main core (default 1) + workers (corelist, or the next N
-	// consecutive cores after the main core when only a count is given)
-	mainCore := uint32(1)
-	if m.MainCore != nil {
-		mainCore = *m.MainCore
-	}
-	workerCores := slices.Clone(corelist)
-	if len(corelist) == 0 && dp.GetWorkers() > 0 {
-		for c := mainCore + 1; uint32(len(workerCores)) < dp.GetWorkers(); c++ { //nolint:gosec // ≤ 255
-			workerCores = append(workerCores, c)
+	// main core: explicit, or the lowest online non-isolated CPU other than 0 that is no worker
+	var main uint32
+	if dp.MainCore != nil {
+		main = dp.GetMainCore()
+		if !online[main] {
+			return inputErr("dataplane.mainCore", "core %d is not an online CPU (%s)", main, hostDesc)
 		}
-	}
-	if host.CPUs > 0 {
-		if dp.MainCore != nil && int(mainCore) >= host.CPUs {
-			return inputErr("dataplane.mainCore", "core %d does not exist (host has %d CPUs: 0-%d)", mainCore, host.CPUs, host.CPUs-1)
+		if seen[main] {
+			return inputErr("dataplane.mainCore", "main core %d is also a worker core", main)
 		}
-		if need := len(workerCores) + 1; need > host.CPUs {
-			return inputErr("dataplane.workers", "%d worker(s) + main thread need %d CPUs, host has %d", len(workerCores), need, host.CPUs)
-		}
-		for i, c := range workerCores {
-			if int(c) >= host.CPUs {
-				path := fmt.Sprintf("dataplane.corelist[%d]", i)
-				if len(corelist) == 0 {
-					path = "dataplane.workers"
-				}
-				return inputErr(path, "worker core %d does not exist (host has %d CPUs: 0-%d)", c, host.CPUs, host.CPUs-1)
-			}
-		}
-	}
-	if len(host.IsolCPUs) > 0 && len(workerCores) > 0 {
-		isol := map[uint32]bool{}
-		for _, c := range host.IsolCPUs {
-			isol[c] = true
-		}
-		if isol[mainCore] {
-			return inputErr("dataplane.mainCore", "main core %d is an isolated CPU (isolcpus=%s); keep the main thread on a housekeeping CPU", mainCore, FormatCPUList(host.IsolCPUs))
-		}
-		for i, c := range workerCores {
-			if !isol[c] {
-				path := fmt.Sprintf("dataplane.corelist[%d]", i)
-				if len(corelist) == 0 {
-					path = "dataplane.workers"
-				}
-				return inputErr(path, "worker core %d is not in the isolated CPU set (isolcpus=%s)", c, FormatCPUList(host.IsolCPUs))
-			}
-		}
-	}
-	if len(corelist) > 0 {
-		m.Corelist = FormatCPUList(corelist)
 	} else {
-		m.Workers = dp.GetWorkers()
+		found := false
+		for _, want0 := range []bool{false, true} { // CPU 0 only as a last resort
+			for _, c := range onlineList {
+				if (c == 0) != want0 || seen[c] || isol[c] {
+					continue
+				}
+				main, found = c, true
+				break
+			}
+			if found {
+				break
+			}
+		}
+		if !found {
+			return inputErr("dataplane.mainCore", "no online, non-isolated CPU left for the main thread (%s); set mainCore", hostDesc)
+		}
+		m.Warnings = append(m.Warnings, fmt.Sprintf("dataplane.mainCore not set: main-core %d chosen (lowest online, non-isolated CPU)", main))
+	}
+
+	workers := corelist
+	if len(corelist) == 0 && nWorkers > 0 {
+		// same rule as VPP's automatic placement, made explicit: lowest free CPUs, CPU 0 last; with
+		// isolated CPUs only those
+		var cand []uint32
+		for _, want0 := range []bool{false, true} {
+			for _, c := range onlineList {
+				if (c == 0) != want0 || c == main || (len(isol) > 0 && !isol[c]) {
+					continue
+				}
+				cand = append(cand, c)
+			}
+		}
+		if uint32(len(cand)) < nWorkers { //nolint:gosec // ≤ 4096
+			pool := "online CPUs other than the main core"
+			if len(isol) > 0 {
+				pool = "isolated CPUs " + FormatCPUList(host.IsolCPUs)
+			}
+			return inputErr("dataplane.workers", "%d worker(s) need %d CPUs, only %d %s available (%s)", nWorkers, nWorkers, len(cand), pool, hostDesc)
+		}
+		workers = cand[:nWorkers]
+		m.Warnings = append(m.Warnings, fmt.Sprintf("dataplane.workers=%d without corelist: corelist-workers %s chosen", nWorkers, FormatCPUList(workers)))
+	}
+
+	if len(isol) > 0 && len(workers) > 0 {
+		if isol[main] {
+			return inputErr("dataplane.mainCore", "main core %d is an isolated CPU (isolcpus=%s); keep the main thread on a housekeeping CPU", main, FormatCPUList(host.IsolCPUs))
+		}
+		for i, c := range workers {
+			if !isol[c] {
+				return inputErr(fmt.Sprintf("dataplane.corelist[%d]", i), "worker core %d is not in the isolated CPU set (isolcpus=%s)", c, FormatCPUList(host.IsolCPUs))
+			}
+		}
+	}
+	m.MainCore = main
+	if len(workers) > 0 {
+		m.Corelist = FormatCPUList(workers)
 	}
 	return nil
 }
 
-func buildDevices(dp *vrxv1.DataplaneConfig, ext *Extensions, m *Model) error {
-	mgmt := map[string]bool{}
-	for i, raw := range ext.ManagementPCI {
+func buildDevices(dp *vrxv1.DataplaneConfig, host Host, m *Model) error {
+	hostMgmt := map[string]bool{}
+	for _, p := range host.ManagementPCI {
+		pci, _ := PCIAddress(p) // checked by Host.Check
+		hostMgmt[pci] = true
+	}
+	m.Blacklist = slices.Sorted(maps.Keys(hostMgmt))
+
+	docMgmt := map[string]bool{}
+	for i, raw := range dp.GetManagementPci() {
 		path := fmt.Sprintf("dataplane.managementPci[%d]", i)
 		pci, err := PCIAddress(raw)
 		if err != nil {
 			return inputErr(path, "%v", err)
 		}
-		if mgmt[pci] {
+		if docMgmt[pci] {
 			return inputErr(path, "PCI address %s listed twice", pci)
 		}
-		mgmt[pci] = true
-		m.Blacklist = append(m.Blacklist, pci)
+		docMgmt[pci] = true
 	}
-	slices.Sort(m.Blacklist)
+	if len(docMgmt) > 0 {
+		same := len(docMgmt) == len(hostMgmt)
+		for p := range docMgmt {
+			same = same && hostMgmt[p]
+		}
+		if !same {
+			doc := slices.Sorted(maps.Keys(docMgmt))
+			return inputErr("dataplane.managementPci", "%s does not match the host's management NIC(s) %s", strings.Join(doc, ","), strings.Join(m.Blacklist, ","))
+		}
+	}
 
 	devs := map[string]*Device{}
 	for i, raw := range dp.GetPciWhitelist() {
@@ -472,15 +528,10 @@ func buildDevices(dp *vrxv1.DataplaneConfig, ext *Extensions, m *Model) error {
 		}
 		devs[pci] = &Device{PCI: pci}
 	}
-	// devices are keyed by PCI; two keys may spell the same address differently (case)
-	keys := make([]string, 0, len(ext.Devices))
-	for k := range ext.Devices {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
+	keys := slices.Sorted(maps.Keys(dp.GetDevices()))
 	fromDevices := map[string]string{}
 	for _, raw := range keys {
-		spec := ext.Devices[raw]
+		spec := dp.GetDevices()[raw]
 		path := "dataplane.devices." + jsonKey(raw)
 		pci, err := PCIAddress(raw)
 		if err != nil {
@@ -495,49 +546,46 @@ func buildDevices(dp *vrxv1.DataplaneConfig, ext *Extensions, m *Model) error {
 			d = &Device{PCI: pci}
 			devs[pci] = d
 		}
-		if spec.Name != "" {
-			if err := LogicalName(spec.Name); err != nil {
+		if spec.Name != nil {
+			if err := LogicalName(spec.GetName()); err != nil {
 				return inputErr(path+".name", "%v", err)
 			}
 		}
 		for _, q := range []struct {
+			set  bool
 			v    uint32
 			name string
-			max  uint32
-		}{{spec.RxQueues, "rxQueues", 256}, {spec.TxQueues, "txQueues", 256}} {
-			if q.v > q.max {
-				return inputErr(path+"."+q.name, "%d not in 1..%d", q.v, q.max)
+		}{{spec.RxQueues != nil, spec.GetRxQueues(), "rxQueues"}, {spec.TxQueues != nil, spec.GetTxQueues(), "txQueues"}} {
+			if q.set && (q.v < 1 || q.v > MaxQueues) {
+				return inputErr(path+"."+q.name, "%d not in 1..%d", q.v, MaxQueues)
 			}
 		}
 		for _, q := range []struct {
+			set  bool
 			v    uint32
 			name string
-		}{{spec.RxDesc, "rxDesc"}, {spec.TxDesc, "txDesc"}} {
-			if q.v != 0 && (q.v < 64 || q.v > 16384 || q.v&(q.v-1) != 0) {
-				return inputErr(path+"."+q.name, "%d must be a power of two in 64..16384", q.v)
+		}{{spec.RxDesc != nil, spec.GetRxDesc(), "rxDesc"}, {spec.TxDesc != nil, spec.GetTxDesc(), "txDesc"}} {
+			if q.set && (q.v < MinDesc || q.v > MaxDesc || q.v&(q.v-1) != 0) {
+				return inputErr(path+"."+q.name, "%d must be a power of two in %d..%d", q.v, MinDesc, MaxDesc)
 			}
 		}
-		d.Name, d.RxQueues, d.TxQueues, d.RxDesc, d.TxDesc = spec.Name, spec.RxQueues, spec.TxQueues, spec.RxDesc, spec.TxDesc
+		d.Name, d.RxQueues, d.TxQueues, d.RxDesc, d.TxDesc = spec.GetName(), spec.GetRxQueues(), spec.GetTxQueues(), spec.GetRxDesc(), spec.GetTxDesc()
 	}
 
 	names := map[string]string{}
 	for pci, d := range devs {
-		if mgmt[pci] {
-			return inputErr("dataplane", "management NIC %s must never be a DPDK device (it is blacklisted; remove it from pciWhitelist/devices)", pci)
+		if hostMgmt[pci] {
+			return inputErr("dataplane", "%s is the host's management NIC and must never be a DPDK device (remove it from pciWhitelist/devices)", pci)
 		}
 		if d.Name != "" {
 			if prev, dup := names[d.Name]; dup {
-				a, b := min(prev, pci), max(prev, pci)
-				return inputErr("dataplane.devices", "logical name %q used by both %s and %s", d.Name, a, b)
+				return inputErr("dataplane.devices", "logical name %q used by both %s and %s", d.Name, min(prev, pci), max(prev, pci))
 			}
 			names[d.Name] = pci
 		}
 		m.Devices = append(m.Devices, *d)
 	}
 	slices.SortFunc(m.Devices, func(a, b Device) int { return cmp.Compare(a.PCI, b.PCI) })
-	if len(m.Devices) > 0 && len(m.Blacklist) == 0 {
-		return inputErr("dataplane.managementPci", "must name the management NIC(s) when DPDK devices are listed, so they are blacklisted explicitly")
-	}
 	for _, d := range m.Devices {
 		if d.Name == "" {
 			m.Warnings = append(m.Warnings, fmt.Sprintf("dataplane: DPDK device %s has no logical name; VPP will name it after its PCI slot (D-069 expects a logical name)", d.PCI))
@@ -546,32 +594,31 @@ func buildDevices(dp *vrxv1.DataplaneConfig, ext *Extensions, m *Model) error {
 	return nil
 }
 
-func checkHugepages(dp *vrxv1.DataplaneConfig, ext *Extensions, host Host, m *Model) error {
-	perNuma := uint64(ext.BuffersPerNuma)
+// checkHugepages: the buffer memory must fit in what the host actually reserves, and in
+// hugepagesGb when the document sets it (the smaller of the two).
+func checkHugepages(dp *vrxv1.DataplaneConfig, host Host, m *Model) error {
+	perNuma := uint64(dp.GetBuffersPerNuma())
 	if perNuma == 0 {
 		perNuma = DefaultBuffersPerNuma
 	}
-	nodes := uint64(max(host.NUMANodes, 1)) //nolint:gosec // positive
+	nodes := uint64(host.NUMANodes) //nolint:gosec // ≥ 1 (Host.Check)
 	budget := perNuma * nodes * BufferFootprint
 
-	configured := host.HugepageBytes
-	source := "host reservation"
+	limit, source := host.HugepageBytes, "the host's hugepage reservation"
 	if dp.HugepagesGb != nil {
-		configured = uint64(dp.GetHugepagesGb()) * gib
-		source = "dataplane.hugepagesGb"
-		if host.HugepageBytes > 0 && configured > host.HugepageBytes {
+		configured := uint64(dp.GetHugepagesGb()) * gib
+		if configured > host.HugepageBytes {
 			m.Warnings = append(m.Warnings, fmt.Sprintf("dataplane.hugepagesGb: %d GiB configured but the host reserves only %s; raise vm.nr_hugepages before applying", dp.GetHugepagesGb(), humanBytes(host.HugepageBytes)))
+		} else {
+			limit, source = configured, "dataplane.hugepagesGb"
 		}
 	}
-	if configured == 0 {
-		return nil // unknown: nothing to check against
-	}
-	if budget > configured {
+	if budget > limit {
 		path := "dataplane.hugepagesGb"
-		if ext.BuffersPerNuma > 0 {
+		if dp.BuffersPerNuma != nil {
 			path = "dataplane.buffersPerNuma"
 		}
-		return inputErr(path, "buffer memory %s (%d buffers × %d NUMA node(s) × %d B) exceeds the %s from %s", humanBytes(budget), perNuma, nodes, BufferFootprint, humanBytes(configured), source)
+		return inputErr(path, "buffer memory %s (%d buffers × %d NUMA node(s) × %d B) exceeds the %s of %s", humanBytes(budget), perNuma, nodes, BufferFootprint, humanBytes(limit), source)
 	}
 	return nil
 }

@@ -35,7 +35,12 @@ api-trace on
 	if got := p.Canonical(); !slices.Equal(got, want) {
 		t.Fatalf("canonical =\n%q\nwant\n%q", got, want)
 	}
-	for _, bad := range []string{"unix {\n", "}\n", "{ x }\n", "a { b { c }\n"} {
+	// VPP drops everything from any '#' (also mid-token) to the end of the line (F8)
+	q, err := Parse([]byte("dpdk {\n  no-pci#x\n}\n"))
+	if err != nil || !slices.Equal(q.Canonical(), []string{"dpdk > no-pci", "dpdk {}"}) {
+		t.Fatalf("%v %v", q, err)
+	}
+	for _, bad := range []string{"unix {\n", "}\n", "{ x }\n", "a { b { c }\n", "dpdk { # }\n}\n}\n"} {
 		if _, err := Parse([]byte(bad)); err == nil {
 			t.Errorf("Parse(%q) accepted", bad)
 		}

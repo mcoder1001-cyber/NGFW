@@ -29,7 +29,8 @@ Rules for an entry:
 | `/usr/lib/frr/bgpd` `/usr/lib/frr/ospfd` `/usr/lib/frr/ospf6d` `/usr/lib/frr/bfdd` `/usr/lib/frr/pimd` `/usr/lib/frr/isisd` `/usr/lib/frr/ripd` `/usr/lib/frr/ldpd` | frr (test harness only, for P12/F-*) | protocol daemons started only when a test names them in `frrtest.Options.Daemons` — **unused until P12 (bgpd), F-ospf (ospfd/ospf6d), F-bfd-redistribution (bfdd), F-igmp-mfib (pimd), F-isis-rip (isisd/ripd), F-mpls-srmpls (ldpd)** | same as staticd | RF-1 (ahead of P12/F-*) |
 
 `vppstartup` (F-startup-gen) runs no process: `Validate` is structural and `Apply` refuses (VPP restart = manager step,
-`docs/agent/renderers/vppstartup.md`); the `vrx-startupgen` CLI only reads files.
+`deploy/vpp/apply-startup.sh`); the `vrx-startupgen` CLI only reads files. `/usr/lib/x86_64-linux-gnu/vpp_plugins` in its
+source is the plugin **directory** it lists (host facts), not a binary.
 
 ## Planned (documented ahead of use; move a row to *Active* when the renderer lands)
 

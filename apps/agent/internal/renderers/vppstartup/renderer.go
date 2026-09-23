@@ -25,9 +25,9 @@ var startupTmpl = template.Must(renderers.NewTemplate("startup.conf.tmpl").
 const DefaultConfPath = "/etc/vpp/startup.conf"
 
 // ErrManagerStep is returned by Apply: writing the live file and restarting VPP is a manager
-// step under `flock -x /run/lock/vrx-lab.lock` (docs/agent/renderers/vppstartup.md), never
+// step (deploy/vpp/apply-startup.sh under `flock -x /run/lock/vrx-lab.lock`), never
 // something the agent or a commit does.
-var ErrManagerStep = errors.New("vppstartup: applying startup.conf restarts VPP and is a manager step (vrx-startupgen + docs/agent/renderers/vppstartup.md)")
+var ErrManagerStep = errors.New("vppstartup: applying startup.conf restarts VPP and is a manager step (deploy/vpp/apply-startup.sh)")
 
 // ErrRetrieveUnsupported is returned by Retrieve: VPP has no API that returns its start-up
 // configuration; compare files with vrx-startupgen --diff instead.
@@ -79,11 +79,11 @@ func PathToken(p string) (string, error) {
 // Generate is the pure generator: document → validated model → file content. msg is anything
 // Desired accepts. It performs no I/O.
 func Generate(msg proto.Message, host Host, s Settings) ([]byte, *Model, error) {
-	dp, ext, err := Desired(msg)
+	dp, err := Desired(msg)
 	if err != nil {
 		return nil, nil, err
 	}
-	m, err := BuildModel(dp, ext, host)
+	m, err := BuildModel(dp, host)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -118,15 +118,13 @@ var _ renderers.Renderer = (*Renderer)(nil)
 // Option configures a Renderer.
 type Option func(*Renderer)
 
-// WithHost sets the host facts validation runs against (default: all unknown).
-func WithHost(h Host) Option { return func(r *Renderer) { r.host = h } }
-
 // WithSettings replaces the product constants (tests point ConfPath at a temp dir).
 func WithSettings(s Settings) Option { return func(r *Renderer) { r.settings = s } }
 
-// New returns a Renderer with DefaultSettings.
-func New(opts ...Option) *Renderer {
-	r := &Renderer{settings: DefaultSettings()}
+// New returns a Renderer for the host described by host (required: Render fails with ErrHost
+// while any fact is missing — ReadHost collects them) with DefaultSettings.
+func New(host Host, opts ...Option) *Renderer {
+	r := &Renderer{host: host, settings: DefaultSettings()}
 	for _, o := range opts {
 		o(r)
 	}

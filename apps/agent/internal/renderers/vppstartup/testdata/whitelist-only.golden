@@ -27,6 +27,7 @@ statseg {
 }
 
 cpu {
+  main-core 1
 }
 
 dpdk {
@@ -34,6 +35,12 @@ dpdk {
   dev 0000:0c:00.0 {
     name lan
   }
-  # management NIC(s): never handed to DPDK
+  # host management NIC(s): never handed to DPDK
   blacklist 0000:0b:00.0
+}
+
+plugins {
+  plugin linux_cp_plugin.so { enable }
+  plugin linux_nl_plugin.so { enable }
+  plugin npt66_plugin.so { enable }
 }

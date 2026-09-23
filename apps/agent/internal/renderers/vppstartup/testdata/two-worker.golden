@@ -41,8 +41,14 @@ dpdk {
     num-rx-queues 2
     num-tx-queues 3
   }
-  # management NIC(s): never handed to DPDK
+  # host management NIC(s): never handed to DPDK
   blacklist 0000:0b:00.0
   # no DPDK devices configured: probe no PCI device at all
   no-pci
+}
+
+plugins {
+  plugin linux_cp_plugin.so { enable }
+  plugin linux_nl_plugin.so { enable }
+  plugin npt66_plugin.so { enable }
 }

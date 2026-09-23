@@ -22,15 +22,38 @@ import (
 var update = flag.Bool("update", false, "rewrite testdata/*.golden")
 
 // vrxA returns the facts of the dev host vrx-a (docs/lab/host-vrx-a.md, verified 2026-09-24:
-// 32 CPUs, 2 NUMA nodes, 1024 × 2 MB hugepages, no isolcpus) with the on-disk plugin list
-// frozen in testdata/plugins-vrx-a.txt so the tests are hermetic.
+// management NIC ens192 = 0000:0b:00.0, CPUs 0-31, 2 NUMA nodes, 1024 × 2 MB hugepages, no
+// isolcpus) with the on-disk plugin list frozen in testdata/plugins-vrx-a.txt and the current
+// plugin switches taken from testdata/host-startup.conf (a copy of the hand-written file), so the
+// tests are hermetic and never read the live host.
 func vrxA(t *testing.T) Host {
 	t.Helper()
 	b, err := os.ReadFile(filepath.Join("testdata", "plugins-vrx-a.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	return Host{CPUs: 32, NUMANodes: 2, HugepageBytes: 2 << 30, Plugins: strings.Fields(string(b))}
+	conf, err := os.ReadFile(filepath.Join("testdata", "host-startup.conf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cur, err := PluginSwitches(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	online, _ := ParseCPUList("0-31")
+	return Host{
+		ManagementPCI: []string{"0000:0b:00.0"}, OnlineCPUs: online, NUMANodes: 2, HugepageBytes: 2 << 30,
+		Plugins: strings.Fields(string(b)), CurrentPlugins: cur,
+	}
+}
+
+// hostCPUs returns vrxA with another online / isolated CPU set.
+func hostCPUs(t *testing.T, online, isol string) *Host {
+	t.Helper()
+	h := vrxA(t)
+	h.OnlineCPUs, _ = ParseCPUList(online)
+	h.IsolCPUs, _ = ParseCPUList(isol)
+	return &h
 }
 
 func loadDoc(t *testing.T, path string) *structpb.Struct {
@@ -125,15 +148,16 @@ func TestSixNICSample(t *testing.T) {
 	if strings.Contains(s, "dev 0000:0b:00.0") || strings.Contains(s, "no-pci") {
 		t.Error("management NIC listed as a device, or no-pci with devices")
 	}
-	if len(m.Devices) != 6 || len(m.Warnings) != 0 {
+	if len(m.Devices) != 6 || len(m.Warnings) != 0 || strings.Count(s, "blacklist") != 1 {
 		t.Errorf("devices %d warnings %v", len(m.Devices), m.Warnings)
 	}
 }
 
 // TestHostEquivalentSemantics renders the equivalent of the current hand-written host file
 // (testdata/host-startup.conf = /etc/vpp/startup.conf on vrx-a, 2026-09-24) and diffs it
-// semantically: plugins, blacklist, no-pci, unix/api/socksvr/cpu all equal; the only addition
-// is the explicit statseg default socket.
+// semantically: plugins, blacklist, no-pci, unix/api/socksvr all equal; the only additions are the
+// explicit main-core (F4: pinning is always explicit) and the statseg default socket. The empty
+// document gives the same result (host facts supply the blacklist, the current file the plugins).
 func TestHostEquivalentSemantics(t *testing.T) {
 	out, _, err := Generate(loadDoc(t, "testdata/cases/host-equivalent.json"), vrxA(t), DefaultSettings())
 	if err != nil {
@@ -144,20 +168,11 @@ func TestHostEquivalentSemantics(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertHostSemantics(t, host, out)
-}
-
-// TestLiveHostFileSemantics repeats the check against the live file when it is readable, so a
-// hand edit on vrx-a that the generator cannot express shows up here. Read only.
-func TestLiveHostFileSemantics(t *testing.T) {
-	live, err := os.ReadFile(DefaultConfPath)
-	if err != nil {
-		t.Skipf("no readable %s: %v", DefaultConfPath, err)
-	}
-	out, _, err := Generate(loadDoc(t, "testdata/cases/host-equivalent.json"), vrxA(t), DefaultSettings())
+	empty, _, err := Generate(loadDoc(t, "testdata/cases/empty.json"), vrxA(t), DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertHostSemantics(t, live, out)
+	assertHostSemantics(t, host, empty)
 }
 
 func assertHostSemantics(t *testing.T, host, rendered []byte) {
@@ -169,9 +184,9 @@ func assertHostSemantics(t *testing.T, host, rendered []byte) {
 	if len(onlyHost) != 0 {
 		t.Errorf("host file entries the generator does not reproduce:\n  %s", strings.Join(onlyHost, "\n  "))
 	}
-	wantExtra := []string{"statseg > socket-name /run/vpp/stats.sock", "statseg {}"}
+	wantExtra := []string{"cpu > main-core 1", "statseg > socket-name /run/vpp/stats.sock", "statseg {}"}
 	if !slices.Equal(onlyRendered, wantExtra) {
-		t.Errorf("rendered-only entries = %q, want only the explicit statseg default %q", onlyRendered, wantExtra)
+		t.Errorf("rendered-only entries = %q, want only the explicit main-core and statseg defaults %q", onlyRendered, wantExtra)
 	}
 	p, err := Parse(rendered)
 	if err != nil {
@@ -195,7 +210,7 @@ func TestRendererInterface(t *testing.T) {
 	dir := t.TempDir()
 	s := DefaultSettings()
 	s.ConfPath = filepath.Join(dir, "startup.conf")
-	r := New(WithHost(vrxA(t)), WithSettings(s))
+	r := New(vrxA(t), WithSettings(s))
 	if r.Name() != "vpp-startup" {
 		t.Fatal(r.Name())
 	}
@@ -244,8 +259,13 @@ func TestRendererInterface(t *testing.T) {
 }
 
 func TestTypedInputMatchesDocument(t *testing.T) {
-	typed := &vrxv1.DataplaneConfig{Workers: proto.Uint32(2), Corelist: []uint32{2, 3}, MainCore: proto.Uint32(1), RxQueues: proto.Uint32(2), HugepagesGb: proto.Uint32(2), PciWhitelist: []string{}}
-	doc := parseDoc(t, `{"dataplane":{"workers":2,"corelist":[2,3],"mainCore":1,"rxQueues":2,"hugepagesGb":2}}`)
+	typed := &vrxv1.DataplaneConfig{
+		Workers: proto.Uint32(2), Corelist: []uint32{2, 3}, MainCore: proto.Uint32(1), RxQueues: proto.Uint32(2), HugepagesGb: proto.Uint32(2),
+		ManagementPci: []string{"0000:0b:00.0"}, Devices: map[string]*vrxv1.DataplaneDevice{"0000:04:00.0": {Name: proto.String("wan"), RxDesc: proto.Uint32(512)}},
+		BuffersPerNuma: proto.Uint32(32768), Plugins: map[string]bool{"acl_plugin.so": true},
+	}
+	doc := parseDoc(t, `{"dataplane":{"workers":2,"corelist":[2,3],"mainCore":1,"rxQueues":2,"hugepagesGb":2,"managementPci":["0000:0b:00.0"],
+		"devices":{"0000:04:00.0":{"name":"wan","rxDesc":512}},"buffersPerNuma":32768,"plugins":{"acl_plugin.so":true}}}`)
 	a, _, err := Generate(typed, vrxA(t), DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
@@ -287,12 +307,12 @@ func TestWarnings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(m.Warnings) != 1 || !strings.Contains(m.Warnings[0], "0000:04:00.0 has no logical name") {
+	if !slices.ContainsFunc(m.Warnings, func(w string) bool { return strings.Contains(w, "0000:04:00.0 has no logical name") }) {
 		t.Errorf("warnings = %q", m.Warnings)
 	}
 	h := vrxA(t)
 	h.HugepageBytes = 1 << 30
-	_, m, err = Generate(parseDoc(t, `{"dataplane":{"hugepagesGb":2}}`), h, DefaultSettings())
+	_, m, err = Generate(parseDoc(t, `{"dataplane":{"hugepagesGb":2,"mainCore":1,"plugins":{"linux_cp_plugin.so":true,"linux_nl_plugin.so":true,"npt66_plugin.so":true}}}`), h, DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -133,6 +133,10 @@ func TestWireguardOnHost(t *testing.T) {
 	// ---- wireguard.async-mode: skipped on this host ----
 	t.Logf("%s: skip — no worker threads on this host (docs/lab/host-vrx-a.md), wg_set_async_mode not exercised", async.Name())
 
+	// ---- the same desired state again → empty plan (keys compared by reference) ----
+	vpntest.MustEmptyPlan(t, []scheduler.Descriptor{itf, peer, async},
+		[]proto.Message{itfV, p1, p2, &vpnpb.WireguardAsyncMode{}})
+
 	pauseForEvidence(t)
 
 	for i, p := range []*vpnpb.WireguardPeer{p1, p2} {

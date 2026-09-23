@@ -205,6 +205,10 @@ func TestIkev2OnHost(t *testing.T) {
 	}
 	t.Logf("ikev2 SA state helper: %d SAs for owner %s (no peer)", len(sas), owner)
 
+	// ---- the same desired state again → empty plan (PSK compared by reference; write-only skipped) ----
+	vpntest.MustEmptyPlan(t, []scheduler.Descriptor{profile, localKey, liveness, hostname},
+		[]proto.Message{psk2, rsaP, lk, live, hn})
+
 	pauseForEvidence(t)
 
 	for _, p := range []struct {

@@ -193,6 +193,10 @@ func TestIpsecOnHost(t *testing.T) {
 	// ---- ipsec.async-mode: skipped on this host ----
 	t.Logf("%s: skip — no worker threads on this host (docs/lab/host-vrx-a.md), ipsec_set_async_mode not exercised", async.Name())
 
+	// ---- the same desired state again → empty plan (SA keys compared by reference) ----
+	vpntest.MustEmptyPlan(t, []scheduler.Descriptor{spd, spdIf, spdEntry, sa, tp, itf, async},
+		[]proto.Message{spdV, bindV, entryV, saT, saU, saOut, saIn, tpV2, itfV, &vpnpb.IpsecAsyncMode{}})
+
 	pauseForEvidence(t)
 
 	// ---- delete in reverse and verify Retrieve shows nothing of ours ----

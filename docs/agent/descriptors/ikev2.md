@@ -12,19 +12,20 @@ name ↔ number tables in `ikev2.go` are the IANA numbers exactly as VPP 26.06 d
 
 | Descriptor (`Name()`) | Key | Create / Update / Delete | Retrieve | Dependencies | Notes |
 |---|---|---|---|---|---|
-| `ikev2.profile` | `ikev2.profile/<name>` | `ikev2_profile_add_del` + setters (below); Update re-issues only the changed setters; Delete `ikev2_profile_add_del` is_add=0 | `ikev2_profile_dump` | responder interface, tunnel interface (both Optional); `ikev2.local-key/global` (Optional) for rsa-sig | VPP name `<owner>-<name>` (≤ 63 bytes) |
-| `ikev2.local-key` | `ikev2.local-key/global` | `ikev2_set_local_key` (path of a PEM key on the VPP host); Delete forgets the cached value | last path applied by this process (no getter) | — | plugin-wide; the file is the secret, the agent never reads it |
+| `ikev2.profile` | `ikev2.profile/<name>` | `ikev2_profile_add_del` + setters (below); Update re-issues only the changed setters; Delete `ikev2_profile_add_del` is_add=0 | `ikev2_profile_dump` | `interface/<responder if>`, `interface/<tunnel if>` (both Optional); `ikev2.local-key/global` (Optional) for rsa-sig | VPP name `<owner>-<name>` (≤ 63 bytes) |
+| `ikev2.responder-hostname` | `ikev2.responder-hostname/<profile>` | `ikev2_set_responder_hostname` (idempotent); Delete = no-op (VPP cannot unset; goes with the profile) | **write-only**: `ErrRetrieveUnsupported` — VPP does not dump the hostname (D-063) | `ikev2.profile/<profile>`, `interface/<name>` (Optional) | alternative to `Ikev2Profile.responder` (address) |
+| `ikev2.local-key` | `ikev2.local-key/global` | `ikev2_set_local_key` (path of a PEM key on the VPP host, idempotent); Delete = no-op | **write-only**: `ErrRetrieveUnsupported` (no getter, D-063) | — | plugin-wide; the file is the secret, the agent never reads it |
 | `ikev2.sleep-interval` | `ikev2.sleep-interval/global` | `ikev2_plugin_set_sleep_interval`; Delete = no-op | `ikev2_get_sleep_interval` | — | plugin-wide; read-only in tests |
-| `ikev2.liveness` | `ikev2.liveness/global` | `ikev2_profile_set_liveness` (period, max_retries > 0); Delete forgets | last value applied by this process (no getter) | — | plugin-wide: the message has no profile name (VPP stores it in `ikev2_main`); VPP defaults 30 s / 3 |
+| `ikev2.liveness` | `ikev2.liveness/global` | `ikev2_profile_set_liveness` (period, max_retries > 0, idempotent); Delete = no-op | **write-only**: `ErrRetrieveUnsupported` (no getter, D-063) | — | plugin-wide: the message has no profile name (VPP stores it in `ikev2_main`); VPP defaults 30 s / 3 |
 
 Profile setters, one per desired-state part (Create issues those that are set, Update those that changed):
 
 | Desired field | Message | In place? |
 |---|---|---|
 | `auth` (psk → `shared-key-mic`=2 with the resolved PSK; rsa-sig=1 with `cert_file`) | `ikev2_profile_set_auth` (is_hex=0) | change yes; removal → ErrRecreate |
-| `local_id` / `remote_id` (`ip4`=1 4 bytes, `ip6`=5 16 bytes, `fqdn`=2, `rfc822`=3 text) | `ikev2_profile_set_id` | change yes; removal → ErrRecreate |
+| `local_id` / `remote_id` (`ip4`=1 4 bytes, `ip6`=5 16 bytes, `fqdn`=2, `rfc822`=3 text; ambiguous ip ids refused, below) | `ikev2_profile_set_id` | change yes; removal → ErrRecreate |
 | `local_ts` / `remote_ts` | `ikev2_profile_set_ts` (is_local) | change yes; removal → ErrRecreate |
-| `responder` {interface, address} / {interface, hostname} | `ikev2_set_responder` / `ikev2_set_responder_hostname` | change yes; removal → ErrRecreate |
+| `responder` {interface, address} (a hostname is `ikev2.responder-hostname`) | `ikev2_set_responder` | change yes; removal → ErrRecreate |
 | `ike` {crypto_alg, crypto_key_size, integ_alg, prf_alg, dh_group} | `ikev2_set_ike_transforms` | change yes; removal → ErrRecreate |
 | `esp` {crypto_alg, crypto_key_size, integ_alg} | `ikev2_set_esp_transforms` | change yes; removal → ErrRecreate |
 | `lifetime` {seconds, jitter, handover, max_data} | `ikev2_set_sa_lifetime` | change yes; removal → ErrRecreate |
@@ -33,8 +34,10 @@ Profile setters, one per desired-state part (Create issues those that are set, U
 | `tunnel_interface` | `ikev2_set_tunnel_interface` | change yes; removal → ErrRecreate |
 | `natt_disabled` | `ikev2_profile_disable_natt` | on yes; off → ErrRecreate (set-only) |
 
-A failing setter during Create deletes the half-built profile. Interface dependencies use
-`vpn.InterfaceDependency` (`ipsec.itf/ipsec<N>`, `wireguard.interface/wg<N>`, else `interface/<name>`).
+A failing setter during Create deletes the half-built profile. Interface dependencies are the
+alias `interface/<name>` (D-065). Write-only descriptors (D-063) return (wrapped)
+`vpn.ErrRetrieveUnsupported`, whose message equals P05's `scheduler.ErrRetrieveUnsupported`; they
+never echo cached desired state and their Create is idempotent (re-applied on resync).
 
 State and actions (not descriptors — nothing retrieves them into desired state):
 
@@ -54,21 +57,24 @@ State and actions (not descriptors — nothing retrieves them into desired state
   the buffer (also for other owners' profiles, which are then dropped). Retrieve == desired, the
   second apply plans nothing, and this survives an agent restart. A PSK change is a different
   reference → Update → one `ikev2_profile_set_auth` in place.
-* The per-process cache (below) stores the desired profile **without** the PSK reference.
 * `rsa-sig`: `cert_file` and the local key path are paths on the VPP host; the files are
   provisioned outside the agent (certificates/PKI are out of scope for DF-5).
 
 ## VPP limitations and how they are handled
 
-* **Responder hostname is not dumped** (`ikev2_responder` has only sw_if_index + addr). Retrieve
-  takes it from a per-process cache of what this descriptor applied. After an agent restart the
-  profile is retrieved with the responder interface but no hostname → diff → Update re-issues
-  `ikev2_set_responder_hostname` (idempotent).
+* **Responder hostname is not dumped** (`ikev2_responder` has only sw_if_index + addr), so it is the
+  separate write-only descriptor `ikev2.responder-hostname` (D-063 forbids echoing it from a
+  cache). The profile reports a responder only when VPP has an address for it; the sw_if_index a
+  hostname setter leaves behind does not change the profile's value. Caveat: when an initiator flow
+  (F-*, out of scope) resolves the hostname, VPP fills the address and the profile would show a
+  responder its desired value lacks — the F-* task must model that.
 * **id data is cut at the first NUL** — `ikev2_id.data` is `string[64]` and govpp's decoder stops at
-  the first zero byte, so an ip4/ip6 id with a zero octet (10.4.0.1) arrives short (`data_len` is
-  still 4). Retrieve completes it from the cache; after a restart it zero-fills (10.4.0.0), which
-  shows as drift and is repaired by one in-place `ikev2_profile_set_id`. Avoid zero octets in ip ids
-  where the extra apply after restart matters.
+  the first zero byte, so an ip4/ip6 id like 10.4.0.1 arrives as "10.4" (`data_len` still 4) and
+  could never be retrieved exactly; after-apply verification would fail forever. Create therefore
+  **refuses** ip ids with a zero byte followed by a non-zero byte (10.4.0.1, 10.0.4.4, fd00::1) with
+  that reason; ids whose tail after the first zero is all zero (10.4.0.0, fd00::) and all ids
+  without a zero byte round-trip exactly. Use an fqdn id otherwise. Proper fix = VPP `u8 data[64]`
+  or a length-aware govpp decode (question filed).
 * **key-id ids** are rejected by VPP 26.06 (`ikev2_is_id_supported`: ip4, ip6, fqdn, rfc822 only);
   Create refuses them with that reason.
 * **Unset profile parts** — VPP zero-initialises a profile; Retrieve decodes all-zero selectors,
@@ -85,9 +91,10 @@ State and actions (not descriptors — nothing retrieves them into desired state
 
 * Unit: stateful fake (set-only flags, port unset-before-set, PSK in the dump, NUL-truncated ids,
   derived keys in SA dumps). Create/idempotent re-apply/changed-setters-only Update/ErrRecreate
-  cases/rollback on setter failure/validation/ownership (`w4` vs `w3`, `w4` vs `w42`)/hostname
-  cache/zero-octet ids/SA state/actions/no PSK in `%v`, `%+v`, slog.
+  cases/rollback on setter failure/validation/ownership (`w4` vs `w3`, `w4` vs `w42`)/write-only
+  responder hostname and singletons/zero-octet ids/SA state/actions/no PSK in `%v`, `%+v`, slog.
 * Integration: `TestIkev2OnHost` — psk profile with every part set, in-place Update, ErrRecreate
-  on removal, rsa-sig profile with a hostname responder (throwaway cert + key generated at test
-  time under `/run/vrx-test/<prefix>/`, removed in Cleanup), singletons, SA helper (0 SAs, no
-  peer), delete → gone. `VRX_DF5_PAUSE=<s>` holds the objects for `vppctl show ikev2 profile`.
+  on removal, rsa-sig profile + write-only responder hostname (throwaway cert + key generated at
+  test time under `/run/vrx-test/<prefix>/`, removed in Cleanup), singletons, SA helper (0 SAs, no
+  peer), second plan empty, delete → gone. `VRX_DF5_PAUSE=<s>` holds the objects for
+  `vppctl show ikev2 profile` (which prints the PSK: evidence goes through a redaction filter).

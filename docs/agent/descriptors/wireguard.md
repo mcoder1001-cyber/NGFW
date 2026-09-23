@@ -9,9 +9,9 @@ the plugin's event source. Message names come from `apps/agent/binapi/wireguard`
 
 | Descriptor (`Name()`) | Key | Create / Update / Delete | Retrieve | Dependencies | Notes |
 |---|---|---|---|---|---|
-| `wireguard.interface` | `wireguard.interface/wg<instance>` | `wireguard_interface_create` (explicit private key, `generate_key`=false) + `sw_interface_tag_add_del`; Update = ErrRecreate; `wireguard_interface_delete` | `wireguard_interface_dump` with `show_private_key=false` (never true) + `sw_interface_dump` (owner tag) | — (see src_ip below) | VPP names it `wg<user_instance>` |
-| `wireguard.peer` | `wireguard.peer/<interface>/<public key, std base64>` | `wireguard_peer_add_v2`; Update = ErrRecreate (VPP has no peer update); `wireguard_peer_remove` (peer_index from Meta) | `wireguard_peers_v2_dump` | `wireguard.interface/wg<N>` (via `vpn.InterfaceDependency`), `vrf/<table_id>` (Optional) when ≠ 0 | public keys are unique **VPP-wide** |
-| `wireguard.async-mode` | `wireguard.async-mode/global` | `wg_set_async_mode`; Delete forgets the cached value | last value applied by this process (no getter) | — | plugin-wide; not exercised on the host (no workers) |
+| `wireguard.interface` | `wireguard.interface/wg<instance>` | `wireguard_interface_create` (explicit private key, `generate_key`=false) + `sw_interface_tag_add_del`; Update = ErrRecreate; `wireguard_interface_delete` | `wireguard_interface_dump` with `show_private_key=false` (never true) + `sw_interface_dump` (owner tag) | — (see src_ip below) | VPP names it `wg<user_instance>`; provides the alias `interface/wg<instance>` (`ProvidedKeys`) |
+| `wireguard.peer` | `wireguard.peer/<interface>/<public key, std base64>` | `wireguard_peer_add_v2`; Update = ErrRecreate (VPP has no peer update); `wireguard_peer_remove` (peer_index from Meta) | `wireguard_peers_v2_dump` | `interface/wg<N>` (D-065 alias), `vrf/<table_id>` (Optional) when ≠ 0 | public keys are unique **VPP-wide** |
+| `wireguard.async-mode` | `wireguard.async-mode/global` | `wg_set_async_mode` (idempotent); Delete = no-op | **write-only**: `ErrRetrieveUnsupported` (no getter, D-063) | — | plugin-wide; not exercised on the host (no workers) |
 
 Meta: `InterfaceMeta{SwIfIndex}`, `PeerMeta{PeerIndex, SwIfIndex}` — Retrieve fills both exactly as
 Create does. The key's id contains `/` when the base64 public key does; `Key.ID()` is everything
@@ -75,5 +75,6 @@ after the descriptor name.
   a v2 dump), async mode, no private/preshared key in `%v`, `%+v`, slog (raw, decimal and hex).
 * Integration: `TestWireguardOnHost` — events subscription, `wg<base+1>` with slot keys (test
   vectors = SHA-256 of `VRX_TEST_PSK_DF5_wg_<label>_<slot>`), two peers (with/without PSK), fresh
-  descriptors retrieve equal values, delete → gone. `VRX_DF5_PAUSE=<s>` holds the objects for
-  `vppctl show wireguard interface` / `show wireguard peer`.
+  descriptors retrieve equal values, second plan empty, delete → gone. `VRX_DF5_PAUSE=<s>` holds
+  the objects for `vppctl show wireguard interface` / `show wireguard peer` — the former prints the
+  private key in base64 **and** hex plus the mac-key: evidence goes through a redaction filter.

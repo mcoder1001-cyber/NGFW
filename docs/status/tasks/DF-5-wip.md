@@ -24,3 +24,13 @@
   (ikev2_sa_v3_dump + ikev2_child_sa_v2_dump, derived keys zeroed), action helpers. Liveness added as its own
   singleton (message has no profile name). Unit tests green (15), TestIkev2OnHost green on host (w4).
   Next: wireguard.
+- 2026-09-24 wireguard done (interface, peer, async-mode, peer events). Found + fixed: %+v of a descriptor printed
+  MapResolver material (now pointer-opaque); wg interface accepted a sha256 ref as private key (now x25519 only).
+- gitleaks false positive in own commit f15ea5f → own unmerged commits recreated (Q1). Lint fixes (salvaged ipsec code).
+- Manager rules D-063/D-064/D-065 applied: write-only singletons + new ikev2.responder-hostname (no cached desired
+  state), ambiguous ip ids refused, interface refs = interface/<name> + ProvidedKeys; NRestarts checked before/after
+  every host run (2 → 2, the two restarts are DF-6 gtpu at 00:25/00:26).
+- Found + fixed on the host: ipsec_spd_entry_add_del_v2 does not map protocol 0 → any (v1 does); "any" now sent as 255.
+- Host evidence: redacted vppctl capture (show wireguard interface prints private key hex + mac-key; show ikev2 profile
+  prints the PSK) with a leak guard; empty second plan proven per plugin (vpntest.MustEmptyPlan).
+- Next: CI gate, DF-5.md.

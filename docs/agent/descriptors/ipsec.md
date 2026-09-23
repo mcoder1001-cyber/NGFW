@@ -12,15 +12,21 @@ ipsec.WithSecrets(resolver), ipsec.WithIDRange(lo, hi))`. All message names come
 |---|---|---|---|---|---|
 | `ipsec.spd` | `ipsec.spd/<spd_id>` | `ipsec_spd_add_del` (is_add 1/0); Update = ErrRecreate | `ipsec_spds_dump` | — | owned by id range |
 | `ipsec.spd-interface` | `ipsec.spd-interface/<interface>` | `ipsec_interface_add_del_spd`; Update = ErrRecreate | `ipsec_spd_interface_dump` + `sw_interface_dump` | `ipsec.spd/<id>`, interface (see below) | pool-index limitation below |
-| `ipsec.spd-entry` | `ipsec.spd-entry/<spd>/<dir>/<prio>/<action>/<sa>/<proto>/<l-range>/<l-ports>/<r-range>/<r-ports>` | `ipsec_spd_entry_add_del_v2`; Update = ErrRecreate (every field is identity in VPP) | `ipsec_spd_dump` per owned SPD | `ipsec.spd/<id>`; `ipsec.sa/<sa_id>` for action `protect` | protocol 0 = any (VPP stores 255) |
+| `ipsec.spd-entry` | `ipsec.spd-entry/<spd>/<dir>/<prio>/<action>/<sa>/<proto>/<l-range>/<l-ports>/<r-range>/<r-ports>` | `ipsec_spd_entry_add_del_v2`; Update = ErrRecreate (every field is identity in VPP) | `ipsec_spd_dump` per owned SPD | `ipsec.spd/<id>`; `ipsec.sa/<sa_id>` for action `protect` | desired protocol 0 = any, **sent as 255** (see below) |
 | `ipsec.sa` | `ipsec.sa/<sad_id>` | `ipsec_sad_entry_add_v2` / `ipsec_sad_entry_del`; Update = ErrRecreate | `ipsec_sa_v5_dump` | `vrf/<table_id>` (Optional) for a tunnel SA in a non-zero table | keys are secret references; salt byte-swap below |
 | `ipsec.tunnel-protect` | `ipsec.tunnel-protect/<interface>[/<nh>]` | `ipsec_tunnel_protect_update` (Create and in-place Update: swap `sa_out` / `sa_in`) / `ipsec_tunnel_protect_del`; other interface or nh = ErrRecreate | `ipsec_tunnel_protect_dump` | interface, `ipsec.sa/<sa_out>`, every `ipsec.sa/<sa_in>` | nh only for p2mp |
-| `ipsec.itf` | `ipsec.itf/ipsec<instance>` | `ipsec_itf_create` (+ `sw_interface_tag_add_del`) / `ipsec_itf_delete`; Update = ErrRecreate | `ipsec_itf_dump` + `sw_interface_dump` (owner tag) | — | mode `p2p` / `p2mp` |
+| `ipsec.itf` | `ipsec.itf/ipsec<instance>` | `ipsec_itf_create` (+ `sw_interface_tag_add_del`) / `ipsec_itf_delete`; Update = ErrRecreate | `ipsec_itf_dump` + `sw_interface_dump` (owner tag) | — | mode `p2p` / `p2mp`; provides the alias `interface/ipsec<instance>` (`ProvidedKeys`) |
 | `ipsec.backend` | `ipsec.backend/<esp\|ah>` | `ipsec_select_backend` (by name → index from the dump); Delete = no-op | `ipsec_backend_dump` (active backend per protocol) | — | global singleton; VPP 26.06 on the host reports **no** backends |
-| `ipsec.async-mode` | `ipsec.async-mode/global` | `ipsec_set_async_mode`; Delete forgets the cached value | last value applied by this process (no getter) | — | global; not exercised on the host (no workers) |
+| `ipsec.async-mode` | `ipsec.async-mode/global` | `ipsec_set_async_mode` (idempotent); Delete = no-op | **write-only**: `ErrRetrieveUnsupported` (no getter, D-063) | — | global; not exercised on the host (no workers) |
 
-Interface dependency: `vpn.InterfaceDependency(name)` → `ipsec.itf/ipsec<N>` for interfaces this
-package creates, `interface/<name>` for everything else (loopbacks, DF-6 `ipip`/`gre`, physical).
+Interface dependency (D-065): always the alias `interface/<name>` — DF-1's alias descriptor for
+loopbacks / DF-6 tunnels / NICs; `ipsec.itf` provides `interface/ipsec<N>` itself through P05's
+optional `KeyProvider.ProvidedKeys`, so tunnel-protect on an ipsec interface orders after it.
+
+Write-only (D-063): a descriptor whose VPP object has no dump returns (wrapped)
+`vpn.ErrRetrieveUnsupported` — the same message as P05's `scheduler.ErrRetrieveUnsupported`, so
+`scheduler.IsRetrieveUnsupported` recognises it. It never echoes cached desired state; the
+reconciler re-applies it on resync, so Create is idempotent.
 
 ## Ownership on a shared VPP
 
@@ -64,9 +70,14 @@ package creates, `interface/<name>` for everything else (loopbacks, DF-6 `ipip`/
   rule forbids 500/4500/51820), must be 0 otherwise.
 * **`ipsec_sad_entry_update`** (tunnel / UDP ports in place) is not used: all SA changes recreate,
   which keeps the SA ↔ key reference strictly immutable.
+* **SPD protocol "any"** — `ipsec_spd_entry_add_del_v2` stores `protocol` exactly as sent; only the
+  old v1 handler maps 0 to `IPSEC_POLICY_PROTOCOL_ANY` (255). Sending 0 installs a policy for IP
+  protocol 0 (HOPOPT) — found on the host (`show ipsec spd` printed `protocol
+  IP6_HOP_BY_HOP_OPTIONS`) and fixed: desired 0 = any is sent as 255, Retrieve maps 255 back to 0,
+  a desired 255 is refused, literal protocol 0 cannot be expressed.
 * **Backends** — VPP 26.06 on the dev host returns an empty `ipsec_backend_dump`; the integration
   test is read-only and re-selects the active backend only if there is one.
-* **Async mode** — no getter; skipped on the host (no worker threads).
+* **Async mode** — no getter → write-only; skipped on the host (no worker threads).
 
 ## Port scheme (tests)
 
@@ -80,4 +91,6 @@ listen/peer ports. Never 500 / 4500 / 51820.
   filtering, VPP errors, disconnected client, no material in output.
 * Integration (`VRX_INTEGRATION=1`, shared lab lock, slot prefix): `TestIpsecOnHost` — loopback and
   ipip fixtures (ipip via `binapi/ipip` until DF-6 merges), every object type created → Retrieve ==
-  desired → deleted → gone. `VRX_DF5_PAUSE=<s>` holds the objects for `vppctl show` evidence.
+  desired → second plan empty (`vpntest.MustEmptyPlan`) → deleted → gone. `VRX_DF5_PAUSE=<s>`
+  holds the objects for `vppctl show` evidence (VPP prints SA keys in `show ipsec sa <id>` detail —
+  evidence is captured through a redaction filter).

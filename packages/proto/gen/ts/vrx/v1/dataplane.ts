@@ -1530,16 +1530,20 @@ export interface NatPool {
   description?:
     | string
     | undefined;
-  /** IPv4 address range "a.b.c.d-a.b.c.e" (a single address is "a.b.c.d"). */
+  /** IPv4 address range "a.b.c.d-a.b.c.e" (a single address is "a.b.c.d"); exactly one of range / interface. */
   range?:
     | string
     | undefined;
-  /** VRF name; unset = "default". */
+  /** VRF name; unset = "default". Range pools only. */
   vrf?:
     | string
     | undefined;
   /** Addresses used for the source side of twice-NAT mappings. */
-  twiceNat?: boolean | undefined;
+  twiceNat?:
+    | boolean
+    | undefined;
+  /** Use the address configured on this VPP interface (nat44_add_del_interface_addr); exactly one of range / interface. */
+  interface?: string | undefined;
 }
 
 /** NatStaticMapping mirrors one entry of `nat.staticMappings`. */
@@ -1590,7 +1594,7 @@ export interface NatStaticMapping_Local {
   port?: number | undefined;
 }
 
-/** External endpoint; exactly one of ip / interface. */
+/** External endpoint; exactly one of ip / pool / interface. */
 export interface NatStaticMapping_External {
   /** External IPv4 address. */
   ip?:
@@ -1601,7 +1605,11 @@ export interface NatStaticMapping_External {
     | string
     | undefined;
   /** External L4 port; requires `protocol`. */
-  port?: number | undefined;
+  port?:
+    | number
+    | undefined;
+  /** Name of an entry in nat.pools; its start address (range pool) or interface address is used. */
+  pool?: string | undefined;
 }
 
 /** NatIdentityMapping mirrors one entry of `nat.identityMappings`. */
@@ -2034,12 +2042,26 @@ export interface MapParameters_PreResolve {
   ipv6?: string | undefined;
 }
 
+/** MapInterface mirrors one entry of `nat.map.interfaces` (map_if_enable_disable). */
+export interface MapInterface {
+  /** VPP interface name. */
+  interface?:
+    | string
+    | undefined;
+  /** "map-e" (encapsulation; MAP-E and lw4o6 domains) | "map-t" (translation, is_translation). */
+  mode?: string | undefined;
+}
+
 /** MapConfig mirrors `nat.map`. */
 export interface MapConfig {
   /** Domains. */
   domains: MapDomain[];
   /** Plugin-wide parameters. */
-  parameters: MapParameters | undefined;
+  parameters:
+    | MapParameters
+    | undefined;
+  /** Interfaces MAP runs on. */
+  interfaces: MapInterface[];
 }
 
 /** CnatEndpoint is an address + port pair used by CNAT. */
@@ -2107,7 +2129,11 @@ export interface CnatConfig_Snat_Addresses {
     | string
     | undefined;
   /** IPv6 SNAT address. */
-  ipv6?: string | undefined;
+  ipv6?:
+    | string
+    | undefined;
+  /** Take the SNAT addresses from this VPP interface (cnat_set_snat_addresses.sw_if_index). */
+  interface?: string | undefined;
 }
 
 /** One policy interface. */
@@ -2116,8 +2142,8 @@ export interface CnatConfig_Snat_PolicyInterface {
   interface?:
     | string
     | undefined;
-  /** "inside" | "outside". */
-  side?: string | undefined;
+  /** cnat_snat_policy_table: "include-v4" | "include-v6" | "pod" | "host". */
+  table?: string | undefined;
 }
 
 /**
@@ -11800,7 +11826,14 @@ export const NatTimeouts: MessageFns<NatTimeouts> = {
 };
 
 function createBaseNatPool(): NatPool {
-  return { name: undefined, description: undefined, range: undefined, vrf: undefined, twiceNat: undefined };
+  return {
+    name: undefined,
+    description: undefined,
+    range: undefined,
+    vrf: undefined,
+    twiceNat: undefined,
+    interface: undefined,
+  };
 }
 
 export const NatPool: MessageFns<NatPool> = {
@@ -11819,6 +11852,9 @@ export const NatPool: MessageFns<NatPool> = {
     }
     if (message.twiceNat !== undefined) {
       writer.uint32(40).bool(message.twiceNat);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(50).string(message.interface);
     }
     return writer;
   },
@@ -11876,6 +11912,14 @@ export const NatPool: MessageFns<NatPool> = {
             message.twiceNat = reader.bool();
             continue;
           }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -11899,6 +11943,7 @@ export const NatPool: MessageFns<NatPool> = {
         : isSet(object.twice_nat)
         ? globalThis.Boolean(object.twice_nat)
         : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
     };
   },
 
@@ -11919,6 +11964,9 @@ export const NatPool: MessageFns<NatPool> = {
     if (message.twiceNat !== undefined) {
       obj.twiceNat = message.twiceNat;
     }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
     return obj;
   },
 
@@ -11932,6 +11980,7 @@ export const NatPool: MessageFns<NatPool> = {
     message.range = object.range ?? undefined;
     message.vrf = object.vrf ?? undefined;
     message.twiceNat = object.twiceNat ?? undefined;
+    message.interface = object.interface ?? undefined;
     return message;
   },
 };
@@ -12245,7 +12294,7 @@ export const NatStaticMapping_Local: MessageFns<NatStaticMapping_Local> = {
 };
 
 function createBaseNatStaticMapping_External(): NatStaticMapping_External {
-  return { ip: undefined, interface: undefined, port: undefined };
+  return { ip: undefined, interface: undefined, port: undefined, pool: undefined };
 }
 
 export const NatStaticMapping_External: MessageFns<NatStaticMapping_External> = {
@@ -12258,6 +12307,9 @@ export const NatStaticMapping_External: MessageFns<NatStaticMapping_External> = 
     }
     if (message.port !== undefined) {
       writer.uint32(24).uint32(message.port);
+    }
+    if (message.pool !== undefined) {
+      writer.uint32(34).string(message.pool);
     }
     return writer;
   },
@@ -12299,6 +12351,14 @@ export const NatStaticMapping_External: MessageFns<NatStaticMapping_External> = 
             message.port = reader.uint32();
             continue;
           }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.pool = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -12316,6 +12376,7 @@ export const NatStaticMapping_External: MessageFns<NatStaticMapping_External> = 
       ip: isSet(object.ip) ? globalThis.String(object.ip) : undefined,
       interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
       port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
+      pool: isSet(object.pool) ? globalThis.String(object.pool) : undefined,
     };
   },
 
@@ -12330,6 +12391,9 @@ export const NatStaticMapping_External: MessageFns<NatStaticMapping_External> = 
     if (message.port !== undefined) {
       obj.port = Math.round(message.port);
     }
+    if (message.pool !== undefined) {
+      obj.pool = message.pool;
+    }
     return obj;
   },
 
@@ -12341,6 +12405,7 @@ export const NatStaticMapping_External: MessageFns<NatStaticMapping_External> = 
     message.ip = object.ip ?? undefined;
     message.interface = object.interface ?? undefined;
     message.port = object.port ?? undefined;
+    message.pool = object.pool ?? undefined;
     return message;
   },
 };
@@ -15492,8 +15557,93 @@ export const MapParameters_PreResolve: MessageFns<MapParameters_PreResolve> = {
   },
 };
 
+function createBaseMapInterface(): MapInterface {
+  return { interface: undefined, mode: undefined };
+}
+
+export const MapInterface: MessageFns<MapInterface> = {
+  encode(message: MapInterface, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== undefined) {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.mode !== undefined) {
+      writer.uint32(18).string(message.mode);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MapInterface {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMapInterface();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.mode = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MapInterface {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      mode: isSet(object.mode) ? globalThis.String(object.mode) : undefined,
+    };
+  },
+
+  toJSON(message: MapInterface): unknown {
+    const obj: any = {};
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.mode !== undefined) {
+      obj.mode = message.mode;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MapInterface>): MapInterface {
+    return MapInterface.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MapInterface>): MapInterface {
+    const message = createBaseMapInterface();
+    message.interface = object.interface ?? undefined;
+    message.mode = object.mode ?? undefined;
+    return message;
+  },
+};
+
 function createBaseMapConfig(): MapConfig {
-  return { domains: [], parameters: undefined };
+  return { domains: [], parameters: undefined, interfaces: [] };
 }
 
 export const MapConfig: MessageFns<MapConfig> = {
@@ -15503,6 +15653,9 @@ export const MapConfig: MessageFns<MapConfig> = {
     }
     if (message.parameters !== undefined) {
       MapParameters.encode(message.parameters, writer.uint32(18).fork()).join();
+    }
+    for (const v of message.interfaces) {
+      MapInterface.encode(v!, writer.uint32(26).fork()).join();
     }
     return writer;
   },
@@ -15536,6 +15689,14 @@ export const MapConfig: MessageFns<MapConfig> = {
             message.parameters = MapParameters.decode(reader, reader.uint32());
             continue;
           }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.interfaces.push(MapInterface.decode(reader, reader.uint32()));
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -15552,6 +15713,9 @@ export const MapConfig: MessageFns<MapConfig> = {
     return {
       domains: globalThis.Array.isArray(object?.domains) ? object.domains.map((e: any) => MapDomain.fromJSON(e)) : [],
       parameters: isSet(object.parameters) ? MapParameters.fromJSON(object.parameters) : undefined,
+      interfaces: globalThis.Array.isArray(object?.interfaces)
+        ? object.interfaces.map((e: any) => MapInterface.fromJSON(e))
+        : [],
     };
   },
 
@@ -15562,6 +15726,9 @@ export const MapConfig: MessageFns<MapConfig> = {
     }
     if (message.parameters !== undefined) {
       obj.parameters = MapParameters.toJSON(message.parameters);
+    }
+    if (message.interfaces?.length) {
+      obj.interfaces = message.interfaces.map((e) => MapInterface.toJSON(e));
     }
     return obj;
   },
@@ -15575,6 +15742,7 @@ export const MapConfig: MessageFns<MapConfig> = {
     message.parameters = (object.parameters !== undefined && object.parameters !== null)
       ? MapParameters.fromPartial(object.parameters)
       : undefined;
+    message.interfaces = object.interfaces?.map((e) => MapInterface.fromPartial(e)) || [];
     return message;
   },
 };
@@ -16041,7 +16209,7 @@ export const CnatConfig_Snat: MessageFns<CnatConfig_Snat> = {
 };
 
 function createBaseCnatConfig_Snat_Addresses(): CnatConfig_Snat_Addresses {
-  return { ipv4: undefined, ipv6: undefined };
+  return { ipv4: undefined, ipv6: undefined, interface: undefined };
 }
 
 export const CnatConfig_Snat_Addresses: MessageFns<CnatConfig_Snat_Addresses> = {
@@ -16051,6 +16219,9 @@ export const CnatConfig_Snat_Addresses: MessageFns<CnatConfig_Snat_Addresses> = 
     }
     if (message.ipv6 !== undefined) {
       writer.uint32(18).string(message.ipv6);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(26).string(message.interface);
     }
     return writer;
   },
@@ -16084,6 +16255,14 @@ export const CnatConfig_Snat_Addresses: MessageFns<CnatConfig_Snat_Addresses> = 
             message.ipv6 = reader.string();
             continue;
           }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -16100,6 +16279,7 @@ export const CnatConfig_Snat_Addresses: MessageFns<CnatConfig_Snat_Addresses> = 
     return {
       ipv4: isSet(object.ipv4) ? globalThis.String(object.ipv4) : undefined,
       ipv6: isSet(object.ipv6) ? globalThis.String(object.ipv6) : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
     };
   },
 
@@ -16111,6 +16291,9 @@ export const CnatConfig_Snat_Addresses: MessageFns<CnatConfig_Snat_Addresses> = 
     if (message.ipv6 !== undefined) {
       obj.ipv6 = message.ipv6;
     }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
     return obj;
   },
 
@@ -16121,12 +16304,13 @@ export const CnatConfig_Snat_Addresses: MessageFns<CnatConfig_Snat_Addresses> = 
     const message = createBaseCnatConfig_Snat_Addresses();
     message.ipv4 = object.ipv4 ?? undefined;
     message.ipv6 = object.ipv6 ?? undefined;
+    message.interface = object.interface ?? undefined;
     return message;
   },
 };
 
 function createBaseCnatConfig_Snat_PolicyInterface(): CnatConfig_Snat_PolicyInterface {
-  return { interface: undefined, side: undefined };
+  return { interface: undefined, table: undefined };
 }
 
 export const CnatConfig_Snat_PolicyInterface: MessageFns<CnatConfig_Snat_PolicyInterface> = {
@@ -16134,8 +16318,8 @@ export const CnatConfig_Snat_PolicyInterface: MessageFns<CnatConfig_Snat_PolicyI
     if (message.interface !== undefined) {
       writer.uint32(10).string(message.interface);
     }
-    if (message.side !== undefined) {
-      writer.uint32(18).string(message.side);
+    if (message.table !== undefined) {
+      writer.uint32(26).string(message.table);
     }
     return writer;
   },
@@ -16161,12 +16345,12 @@ export const CnatConfig_Snat_PolicyInterface: MessageFns<CnatConfig_Snat_PolicyI
             message.interface = reader.string();
             continue;
           }
-          case 2: {
-            if (tag !== 18) {
+          case 3: {
+            if (tag !== 26) {
               break;
             }
 
-            message.side = reader.string();
+            message.table = reader.string();
             continue;
           }
         }
@@ -16184,7 +16368,7 @@ export const CnatConfig_Snat_PolicyInterface: MessageFns<CnatConfig_Snat_PolicyI
   fromJSON(object: any): CnatConfig_Snat_PolicyInterface {
     return {
       interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
-      side: isSet(object.side) ? globalThis.String(object.side) : undefined,
+      table: isSet(object.table) ? globalThis.String(object.table) : undefined,
     };
   },
 
@@ -16193,8 +16377,8 @@ export const CnatConfig_Snat_PolicyInterface: MessageFns<CnatConfig_Snat_PolicyI
     if (message.interface !== undefined) {
       obj.interface = message.interface;
     }
-    if (message.side !== undefined) {
-      obj.side = message.side;
+    if (message.table !== undefined) {
+      obj.table = message.table;
     }
     return obj;
   },
@@ -16205,7 +16389,7 @@ export const CnatConfig_Snat_PolicyInterface: MessageFns<CnatConfig_Snat_PolicyI
   fromPartial(object: DeepPartial<CnatConfig_Snat_PolicyInterface>): CnatConfig_Snat_PolicyInterface {
     const message = createBaseCnatConfig_Snat_PolicyInterface();
     message.interface = object.interface ?? undefined;
-    message.side = object.side ?? undefined;
+    message.table = object.table ?? undefined;
     return message;
   },
 };

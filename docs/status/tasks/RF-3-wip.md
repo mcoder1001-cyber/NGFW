@@ -10,3 +10,6 @@
   Kea re-encodes non-ASCII bytes (descriptions → ASCII escapes), pools reported as CIDR, hex option data without 0x.
 - 22:05 UTC — unbound renderer + integration green (127.0.0.1:3653; list_forwards, net.Resolver A + hostile TXT round trip, reload, rollback).
 - Next: chrony (server + client chronyd -x), ALLOWLIST, docs, questions, CI.
+- 22:20 UTC — chrony renderer + integration green (server + client chronyd -x). Stale-socket fix (unbound/chrony).
+  ALLOWLIST section, READMEs, docs/agent/renderers/*.md, questions (Q1–Q7), RF-3.md written. CI GATE PASSED @ 940e51e.
+- Closed: all test daemons stopped, ns-w6-a removed, /etc/{kea,unbound,chrony} unchanged. Final CI on the docs commit follows.

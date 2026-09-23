@@ -74,3 +74,129 @@ describe('dataplane.pci-unique', () => {
     ]);
   });
 });
+
+describe('dataplane devices / management / plugins (F-startup-gen)', () => {
+  it('parses the new fields with defaults', () => {
+    const cfg = RootConfig.parse({});
+    expect(cfg.dataplane.managementPci).toEqual([]);
+    expect(cfg.dataplane.devices).toEqual({});
+    expect(cfg.dataplane.plugins).toEqual({});
+    const full = RootConfig.parse({
+      dataplane: {
+        managementPci: ['0000:0b:00.0'],
+        devices: { '0000:04:00.0': { name: 'wan', rxQueues: 2, rxDesc: 512 } },
+        buffersPerNuma: 32768,
+        plugins: { 'linux_cp_plugin.so': true, 'vxlan-gpe_plugin.so': false },
+      },
+    });
+    expect(full.dataplane.devices['0000:04:00.0']?.name).toBe('wan');
+  });
+  it('rejects bad shapes at the schema level', () => {
+    for (const dataplane of [
+      { devices: { '0000:04:00.0': { name: 'LAN' } } },
+      { devices: { '0000:04:00.0': { name: 'lan-' } } },
+      { devices: { '0000:04:00.0': { name: 'abcdefghijklmnop' } } },
+      { devices: { '0000:04:00.0': { name: 'lan\n}' } } },
+      { devices: { '04:00.0': { name: 'lan' } } },
+      { devices: { '0000:04:00.0': { nam: 'lan' } } },
+      { devices: { '0000:04:00.0': { rxQueues: 0 } } },
+      { devices: { '0000:04:00.0': { rxDesc: 32 } } },
+      { managementPci: ['0000:0b:00.0 '] },
+      { buffersPerNuma: 10 },
+      { plugins: { '../x_plugin.so': true } },
+      { plugins: { 'acl_plugin.so': 'enable' } },
+    ]) {
+      expect(RootConfig.safeParse({ dataplane }).success, JSON.stringify(dataplane)).toBe(false);
+    }
+  });
+  it('dataplane.devices-pci-unique', () => {
+    expect(
+      run('dataplane.devices-pci-unique', {
+        dataplane: { devices: { '0000:0c:00.0': {}, '0000:04:00.0': {} } },
+      }),
+    ).toEqual([]);
+    expect(
+      run('dataplane.devices-pci-unique', {
+        dataplane: { devices: { '0000:0c:00.0': {}, '0000:0C:00.0': {} } },
+      }),
+    ).toEqual([
+      {
+        pointer: '/dataplane/devices/0000:0C:00.0',
+        message: 'PCI device 0000:0C:00.0 is the same device as 0000:0c:00.0',
+      },
+    ]);
+  });
+  it('dataplane.management-not-dpdk', () => {
+    expect(
+      run('dataplane.management-not-dpdk', {
+        dataplane: { managementPci: ['0000:0b:00.0'], devices: { '0000:04:00.0': {} } },
+      }),
+    ).toEqual([]);
+    expect(
+      run('dataplane.management-not-dpdk', {
+        dataplane: {
+          managementPci: ['0000:0B:00.0', '0000:0b:00.0', '0000:1c:00.0'],
+          devices: { '0000:0b:00.0': { name: 'lan' } },
+          pciWhitelist: ['0000:1C:00.0'],
+        },
+      }),
+    ).toEqual([
+      {
+        pointer: '/dataplane/managementPci/0',
+        message:
+          'management NIC 0000:0B:00.0 must never be a DPDK device (remove it from pciWhitelist/devices)',
+      },
+      {
+        pointer: '/dataplane/managementPci/1',
+        message: 'management NIC 0000:0b:00.0 is listed more than once',
+      },
+      {
+        pointer: '/dataplane/managementPci/2',
+        message:
+          'management NIC 0000:1c:00.0 must never be a DPDK device (remove it from pciWhitelist/devices)',
+      },
+    ]);
+  });
+  it('dataplane.logical-name-unique', () => {
+    expect(
+      run('dataplane.logical-name-unique', {
+        dataplane: { devices: { '0000:04:00.0': { name: 'wan' }, '0000:0c:00.0': {} } },
+      }),
+    ).toEqual([]);
+    expect(
+      run('dataplane.logical-name-unique', {
+        dataplane: {
+          devices: { '0000:04:00.0': { name: 'lan' }, '0000:0c:00.0': { name: 'lan' } },
+        },
+      }),
+    ).toEqual([
+      {
+        pointer: '/dataplane/devices/0000:0c:00.0/name',
+        message: 'logical name lan is already used by 0000:04:00.0',
+      },
+    ]);
+  });
+  it('dataplane.descriptors-power-of-two', () => {
+    expect(
+      run('dataplane.descriptors-power-of-two', {
+        dataplane: {
+          devices: { '0000:04:00.0': { rxDesc: 512, txDesc: 1024 }, '0000:0c:00.0': {} },
+        },
+      }),
+    ).toEqual([]);
+    expect(
+      run('dataplane.descriptors-power-of-two', {
+        dataplane: { devices: { '0000:04:00.0': { rxDesc: 1000, txDesc: 600 } } },
+      }),
+    ).toEqual([
+      {
+        pointer: '/dataplane/devices/0000:04:00.0/rxDesc',
+        message: 'rxDesc 1000 must be a power of two',
+      },
+      {
+        pointer: '/dataplane/devices/0000:04:00.0/txDesc',
+        message: 'txDesc 600 must be a power of two',
+      },
+    ]);
+  });
+});

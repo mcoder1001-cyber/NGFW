@@ -12,6 +12,48 @@ import { withUi } from '../ui.js';
  * when both are given they must agree (`dataplane.workers-match-corelist`), `mainCore` must not be a worker core
  * (`dataplane.main-core-not-worker`) and PCI addresses must be unique (`dataplane.pci-unique`).
  */
+/**
+ * Logical interface name of a DPDK NIC (D-069: the name VPP gives the interface and the `interface/<name>` key):
+ * 1–15 lower-case letters, digits, `_`, `-`; starts with a letter, does not end with `_`/`-` (15 = Linux IFNAMSIZ−1,
+ * linux-cp mirrors the name). VPP-reserved names and VPP-created stems are rejected by the generator (F-startup-gen).
+ */
+export const logicalIfName = withUi(
+  z
+    .string()
+    .regex(
+      /^[a-z](?:[a-z0-9_-]{0,13}[a-z0-9])?$/,
+      'expected 1–15 characters [a-z0-9_-], starting with a letter, not ending with _ or -',
+    ),
+  { title: 'Logical name', help: 'e.g. lan, wan, dmz' },
+);
+
+/** VPP plugin file name as installed in the plugin directory, e.g. `linux_cp_plugin.so`. */
+export const vppPluginFile = z
+  .string()
+  .max(64)
+  .regex(/^[a-z0-9][a-z0-9_-]*_plugin\.so$/, 'expected a plugin file name like linux_cp_plugin.so');
+
+/** One DPDK device (`dataplane.devices.<pci>`). */
+export const DataplaneDeviceSchema = z.strictObject({
+  name: withUi(logicalIfName.optional(), {
+    title: 'Logical name',
+    help: 'dpdk { dev <pci> { name <logical> } } — the interface name used everywhere else in the configuration',
+    order: 1,
+  }),
+  rxQueues: withUi(z.number().int().min(1).max(256).optional(), { title: 'RX queues', order: 2 }),
+  txQueues: withUi(z.number().int().min(1).max(256).optional(), { title: 'TX queues', order: 3 }),
+  rxDesc: withUi(z.number().int().min(64).max(16384).optional(), {
+    title: 'RX descriptors',
+    help: 'power of two',
+    order: 4,
+  }),
+  txDesc: withUi(z.number().int().min(64).max(16384).optional(), {
+    title: 'TX descriptors',
+    help: 'power of two',
+    order: 5,
+  }),
+});
+
 export const DataplaneSchema = withUi(
   z.strictObject({
     workers: withUi(z.number().int().min(0).max(255).optional(), {
@@ -55,6 +97,30 @@ export const DataplaneSchema = withUi(
       help: 'NICs handed to DPDK (dpdk { dev 0000:0b:00.0 }); empty = no DPDK devices',
       group: 'dpdk',
       order: 7,
+    }),
+    managementPci: withUi(z.array(pciAddress).max(4).default([]), {
+      title: 'Management NICs',
+      help: 'PCI addresses of the management NIC(s): always blacklisted, never handed to DPDK (the generator also protects the NIC it detects on the host)',
+      group: 'dpdk',
+      order: 8,
+    }),
+    devices: withUi(z.record(pciAddress, DataplaneDeviceSchema).default({}), {
+      title: 'DPDK devices',
+      help: 'NICs handed to DPDK keyed by PCI address, each with its logical interface name (dpdk { dev <pci> { name lan } })',
+      group: 'dpdk',
+      order: 9,
+    }),
+    buffersPerNuma: withUi(z.number().int().min(1024).max(4194304).optional(), {
+      title: 'Buffers per NUMA node',
+      help: 'buffers { buffers-per-numa N }; must fit in the hugepage reservation',
+      group: 'memory',
+      order: 10,
+    }),
+    plugins: withUi(z.record(vppPluginFile, z.boolean()).default({}), {
+      title: 'Plugins',
+      help: 'plugins { plugin <file> { enable|disable } }: true = enable, false = disable; switches not listed keep the value of the current start-up configuration',
+      group: 'plugins',
+      order: 11,
     }),
   }),
   {

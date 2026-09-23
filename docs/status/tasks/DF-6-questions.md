@@ -14,6 +14,25 @@
   validation also rejects src == dst and decap_next > 3 before sending. The fake models "would crash" and a unit test
   (`TestV8Guard`) asserts zero such requests. Residual risk: a race with another client creating the same key between
   dump and add (none on this host).
+- **Exact crashing request** (the salvaged test's `t.Cleanup` re-deleting a tunnel the test body had already deleted):
+  `gtpu_add_del_tunnel_v2 {is_add: false, src_address: 10.11.4.1, dst_address: 10.11.4.2, mcast_sw_if_index: 4294967295,
+  encap_vrf_id: 0, decap_next_index: 1 (L2), teid: 11300, tteid: 11401, pdu_extension: false, qfi: 0}` →
+  `vnet_gtpu_add_mod_del_tunnel` returns NO_SUCH_ENTRY (key (dst, teid) not found), `sw_if_index` stays `~0`, then
+  `get_combined_counters (~0, …)` indexes the interface counter vector with 0xffffffff × 16 bytes. Our encoding was
+  valid; the bug is VPP's (no `rv == 0` check). A duplicate add (same dst + teid) takes the same path (TUNNEL_EXIST).
+- Backtrace (`journalctl -u vpp --since 00:25`, identical for 00:19:53, 00:25:16 and 00:26:0x):
+  ```
+  received signal SIGSEGV, PC 0x722d577de514, faulting address 0x723d53fa92b0   # fault = base + 0x10_0000_0000 ≈ ~0 × 16
+  #0  0x0000722d577de514            (gtpu_plugin.so, vl_api_gtpu_add_del_tunnel_v2_t_handler → get_combined_counters)
+  #1  0x0000722d577e1862            (gtpu_plugin.so)
+  #2  0x0000722d9b309965 vl_msg_api_socket_handler + 0x245
+  #3  0x0000722d9b32386d vl_socket_process_api_msg + 0x1d
+  ```
+  The 00:26:0x crash is most likely govpp re-sending after reconnect from the same hung test process (it was bound to
+  the old VPP; nothing of DF-6 was started at that time). NRestarts=2 since then; no crash after the guard (the one
+  guarded host run at ~00:30 left VPP up, `ActiveEnterTimestamp` unchanged).
+- Per the manager's rule the gtpu host test is now **opt-in** (`VRX_DF6_GTPU_HOST=1`, default skip); unit tests on
+  the fake model the crash (`crashes` counter) and assert the descriptor never sends such a request.
 - Ask: record as **V8** in `docs/vpp-code-track.md` (I do not own that file): upstream patch = only read counters when
   `rv == 0`.
 

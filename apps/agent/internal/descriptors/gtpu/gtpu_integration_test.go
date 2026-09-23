@@ -1,6 +1,7 @@
 package gtpu_test
 
 import (
+	"os"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -9,7 +10,15 @@ import (
 	"ngfw/agent/internal/descriptors/gtpu"
 )
 
+// EnvGTPUHost opts in to the gtpu host test. VPP 26.06 segfaults on any failed
+// gtpu_add_del_tunnel_v2 (V8, DF-6-questions.md Q1); the descriptor guards against it, but on
+// the shared host this test only runs deliberately (manager rule after the 2026-09-24 crashes).
+const EnvGTPUHost = "VRX_DF6_GTPU_HOST"
+
 func TestTunnelOnHost(t *testing.T) {
+	if os.Getenv(EnvGTPUHost) != "1" {
+		t.Skipf("gtpu host test is opt-in (%s=1): VPP 26.06 crashes on a failed gtpu_add_del_tunnel_v2 (V8)", EnvGTPUHost)
+	}
 	h := df6test.Connect(t)
 	loop, _ := h.Loopback(4, h.IP4(4, 1)+"/24")
 	vrf := h.Table(4)

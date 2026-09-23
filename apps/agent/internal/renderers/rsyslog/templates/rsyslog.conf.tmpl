@@ -1,0 +1,39 @@
+{{- /* RainerScript export config — rendered by the vrx-agent rsyslog renderer (RF-4). Every
+       value inside a string passes q (RainerScript quoting: \ and " escaped, control
+       characters rejected) after its own validation; numbers are rendered from integers.
+       Only omfwd actions are emitted; never omprog/omshell/omusrmsg, $IncludeConfig or
+       include() — this file is included by the host's rsyslog in the product. */ -}}
+# Rendered by vrx-agent (rsyslog renderer). Do not edit: every commit overwrites this file.
+{{- with .Standalone}}
+global(workDirectory={{q .WorkDir}})
+module(load="imuxsock" SysSock.Use="off")
+input(type="imuxsock" Socket={{q .Socket}} CreatePath="off")
+{{- if .TCPPort}}
+module(load="imtcp")
+input(type="imtcp" address="127.0.0.1" port={{q (port .TCPPort)}})
+{{- end}}
+{{- end}}
+{{- if .Targets}}
+module(load="impstats" interval="1" format="json" log.file={{q .StatsFile}} log.syslog="off" resetCounters="off")
+template(name="vrx_rfc5424" type="string" string="<%PRI%>1 %TIMESTAMP:::date-rfc3339% %HOSTNAME% %APP-NAME% %PROCID% %MSGID% %STRUCTURED-DATA% %msg%\n")
+{{- range .Targets}}
+
+ruleset(name={{q .Name}}) {
+    action(type="omfwd" name={{q .Name}} target={{q (host .Host)}} port={{q (port .Port)}} protocol={{q .Protocol}}
+{{- if eq .Protocol "tcp"}} TCP_Framing={{q .Framing}}{{end}}
+{{- with .TLS}}
+           StreamDriver="ossl" StreamDriverMode="1" StreamDriverAuthMode={{q .AuthMode}}
+{{- with .Peers}} StreamDriverPermittedPeers={{q (join .)}}{{end}}
+{{- with .CAFile}} StreamDriver.CAFile={{q .}}{{end}}
+{{- with .CertFile}} StreamDriver.CertFile={{q .}}{{end}}
+{{- with .KeyFile}} StreamDriver.KeyFile={{q .}}{{end}}
+{{- end}}
+           template={{q (tmpl .Template)}} queue.type="LinkedList" queue.size={{q (num .QueueSize)}} action.resumeRetryCount="-1")
+}
+if prifilt({{q (filter .Filter)}}) then {
+    call {{ruleset .Name}}
+}
+{{- end}}
+{{- else}}
+# management.syslog is empty: nothing is exported.
+{{- end}}

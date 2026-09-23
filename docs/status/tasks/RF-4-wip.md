@@ -1,6 +1,6 @@
 # RF-4 — WIP (renderers: snmpd, keepalived, rsyslog) — slot 8 (w8)
 
-Updated: 2026-09-24 01:45 (+03:30)
+Updated: 2026-09-24 02:10 (+03:30)
 
 ## Host facts established by experiment (01:33–01:40)
 - Baseline before any test: snmpd inactive/disabled, keepalived inactive/disabled, rsyslog active/enabled MainPID 1014;
@@ -25,10 +25,11 @@ Updated: 2026-09-24 01:45 (+03:30)
 ## Plan / status
 - [x] experiments, go.mod: github.com/gosnmp/gosnmp v1.43.1 (task-mandated; secrets never in argv)
 - [x] keepalived notify helper `internal/renderers/keepalived/cmd/vrx-keepalived-notify`
-- [ ] rfkit shared helpers (Controller systemd/process, secrets+redactor, apply/rollback, bounded read, poller)
-- [ ] snmpd renderer + goldens + hostile + integration
-- [ ] keepalived renderer + goldens + hostile + integration (netns ns-w8-a, veth w8-a/w8-b)
-- [ ] rsyslog renderer + goldens + hostile + integration
+- [x] rfkit shared helpers (Controller systemd/process, secrets+redactor, apply/rollback, bounded read, poller)
+- [x] snmpd renderer + goldens + hostile + integration (parse-run Validate, gosnmp Retrieve, SIGHUP same PID)
+- [x] keepalived renderer + goldens + hostile + integration (netns ns-w8-a, veth w8-a/w8-b; MASTER in 1.8 s)
+- [x] rsyslog renderer + integration (UDP+TCP collectors, impstats, restart convergence by timestamped impstats)
+- [ ] rsyslog unit tests (goldens, hostile, TLS secret files)
 - [ ] ALLOWLIST.md rows, docs/agent/renderers/*.md, questions file, RF-4.md, CI gate
 
 Slot ports: snmpd 127.0.0.1:3861, rsyslog imtcp 127.0.0.1:3814, test collector 127.0.0.1:3815; VRIDs 81–89; VIP 10.8.240.1/24.

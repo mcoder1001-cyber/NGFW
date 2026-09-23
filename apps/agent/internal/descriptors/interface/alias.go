@@ -3,11 +3,9 @@ package iface
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"google.golang.org/protobuf/proto"
 
-	ifapi "ngfw/agent/binapi/interface"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
@@ -28,11 +26,10 @@ func AliasKey(name string) scheduler.Key { return scheduler.Join(AliasName, name
 //     as Meta; fail with ErrNotFound otherwise;
 //   - Delete: no-op — deleting an alias never touches VPP, so a foreign interface can never be
 //     removed through it;
-//   - Retrieve: every VPP interface except local0. The name is the owner-tag id for this owner's
-//     interfaces (their stable name) and VPP's interface name for everything else; creator is the
-//     full creator key for our interfaces of a known device class, empty otherwise.
+//   - Retrieve: every interface with a logical name for this owner (ours + untagged, never another
+//     owner's, never local0); observe-only for the reconciler (DeleteOnAbsence() == false).
 //
-// Name resolution (Create without creator): this owner's tag id first, then VPP's interface name.
+// Names are logical names (D-069, names.go): our tag id, else an untagged interface's VPP name.
 type AliasDescriptor struct{ base }
 
 // NewAlias returns the descriptor for owner.
@@ -54,9 +51,9 @@ func (*AliasDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	return nil
 }
 
-func vppName(d *ifapi.SwInterfaceDetails) string { return strings.TrimRight(d.InterfaceName, "\x00") }
-
-// find resolves the alias against one dump.
+// find resolves the alias against one dump: by creator key (owner tag) when set, else by logical
+// name (IndexByName: our tag id, else an untagged interface's VPP name; another owner's
+// interface is refused with ErrForeignInterface — review M1).
 func (d *AliasDescriptor) find(t *Table, o *InterfaceAlias) (uint32, error) {
 	if o.GetName() == "" {
 		return 0, fmt.Errorf("%w: empty interface name", ErrEmptyValue)
@@ -66,22 +63,12 @@ func (d *AliasDescriptor) find(t *Table, o *InterfaceAlias) (uint32, error) {
 		if err != nil {
 			return 0, err
 		}
-		if k.ID() != o.GetName() {
-			return 0, fmt.Errorf("%w: alias %q names creator %q with another id", ErrBadRef, o.GetName(), c)
+		if k.ID() != o.GetName() || k.Descriptor() == AliasName {
+			return 0, fmt.Errorf("%w: alias %q names creator %q", ErrBadRef, o.GetName(), c)
 		}
 		return t.Index(c)
 	}
-	for _, idx := range t.order {
-		if id, ok := t.OwnedID(idx); ok && id == o.GetName() {
-			return idx, nil
-		}
-	}
-	for _, idx := range t.order {
-		if n := vppName(t.byIndex[idx]); n == o.GetName() && n != "local0" {
-			return idx, nil
-		}
-	}
-	return 0, fmt.Errorf("%w: interface %q", ErrNotFound, o.GetName())
+	return t.IndexByName(o.GetName())
 }
 
 func (d *AliasDescriptor) verify(ctx context.Context, obj proto.Message) (any, error) {
@@ -113,8 +100,15 @@ func (d *AliasDescriptor) Update(ctx context.Context, _, newObj proto.Message, _
 // Delete implements scheduler.Descriptor: a no-op, never touches VPP (D-065).
 func (*AliasDescriptor) Delete(context.Context, proto.Message, any) error { return nil }
 
-// Retrieve implements scheduler.Descriptor: one alias per VPP interface except local0 (see the
-// type documentation for naming). On a name clash this owner's interface wins.
+// DeleteOnAbsence implements P05's scheduler.AbsenceDeleter (review H1): the alias is
+// observe-only — retrieved aliases that are not desired (physical NICs, interfaces other
+// descriptors or agents manage) are never planned for Delete and never fail verification.
+func (*AliasDescriptor) DeleteOnAbsence() bool { return false }
+
+// Retrieve implements scheduler.Descriptor: one alias per interface that has a logical name for
+// this owner — our tagged interfaces (name = tag id, creator = creator key when the device class
+// is known) and untagged ones (name = VPP name, no creator). Interfaces tagged by another owner and
+// local0 are never reported (review H1).
 func (d *AliasDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := Dump(ctx, d.client, d.owner)
 	if err != nil {
@@ -122,29 +116,30 @@ func (d *AliasDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 	}
 	seen := map[string]bool{}
 	var out []scheduler.KV
-	add := func(idx uint32, v *InterfaceAlias) {
-		if v.GetName() == "" || seen[v.GetName()] {
-			return
-		}
-		seen[v.GetName()] = true
-		out = append(out, scheduler.KV{Key: AliasKey(v.GetName()), Value: v, Meta: Meta{idx}})
-	}
-	for _, idx := range t.order { // ours first: stable name + creator
-		if id, ok := t.OwnedID(idx); ok {
-			v := &InterfaceAlias{Name: id}
-			if k, ok := t.KeyFor(idx); ok {
-				v.Creator = string(k)
-			}
-			add(idx, v)
+	idxs := make([]uint32, 0, len(t.order)) // ours first: on a name clash our interface wins
+	for _, idx := range t.order {
+		if _, ours := t.OwnedID(idx); ours {
+			idxs = append(idxs, idx)
 		}
 	}
 	for _, idx := range t.order {
-		if _, ok := t.OwnedID(idx); ok {
-			continue
+		if _, ours := t.OwnedID(idx); !ours {
+			idxs = append(idxs, idx)
 		}
-		if n := vppName(t.byIndex[idx]); n != "local0" {
-			add(idx, &InterfaceAlias{Name: n})
+	}
+	for _, idx := range idxs {
+		name, ok := t.Logical(idx)
+		if !ok || seen[name] {
+			continue // another owner's interface / local0, or an untagged duplicate of our name
 		}
+		seen[name] = true
+		v := &InterfaceAlias{Name: name}
+		if _, ours := t.OwnedID(idx); ours {
+			if k, ok := t.KeyFor(idx); ok {
+				v.Creator = string(k)
+			}
+		}
+		out = append(out, scheduler.KV{Key: AliasKey(name), Value: v, Meta: Meta{idx}})
 	}
 	return out, nil
 }

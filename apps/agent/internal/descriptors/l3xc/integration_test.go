@@ -53,7 +53,7 @@ func TestL3xcOnHost(t *testing.T) {
 			t.Fatal(err)
 		}
 		got := ifacetest.Find(t, kvs, key, keyOf)
-		if !proto.Equal(got.Value, want) || got.Meta != meta {
+		if !proto.Equal(got.Value, d.Normalize(want)) || got.Meta != meta {
 			t.Fatalf("Retrieve = %v %+v, want %v %+v", got.Value, got.Meta, want, meta)
 		}
 		t.Logf("l3xc.l3xc: Retrieve == desired: %s %v", key, got.Value)

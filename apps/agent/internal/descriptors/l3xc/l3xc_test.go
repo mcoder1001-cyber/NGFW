@@ -46,7 +46,14 @@ func newFake() *fakeL3xc {
 		if _, ok := f.Ifs[uint32(r.L3xc.SwIfIndex)]; !ok {
 			return []api.Message{&l3xcapi.L3xcUpdateReply{Retval: -2}}, nil
 		}
-		f.xcs[key{uint32(r.L3xc.SwIfIndex), r.L3xc.IsIP6}] = r.L3xc
+		x := r.L3xc
+		x.Paths = append([]fib_types.FibPath(nil), x.Paths...)
+		for i := range x.Paths {
+			if x.Paths[i].Weight == 0 {
+				x.Paths[i].Weight = 1 // VPP: fib_api.c fib_api_path_decode stores weight 0 as 1
+			}
+		}
+		f.xcs[key{uint32(r.L3xc.SwIfIndex), r.L3xc.IsIP6}] = x
 		return []api.Message{&l3xcapi.L3xcUpdateReply{StatsIndex: 7}}, nil
 	})
 	f.On("l3xc_del", func(req api.Message) ([]api.Message, error) {
@@ -113,7 +120,7 @@ func TestL3xc(t *testing.T) {
 		t.Fatalf("l3xc_update = %+v", x)
 	}
 	kvs, err := d.Retrieve(ctx)
-	if err != nil || len(kvs) != 1 || kvs[0].Key != "l3xc.l3xc/w2-tap0/ip4" || !proto.Equal(kvs[0].Value, desired) || kvs[0].Meta != meta {
+	if err != nil || len(kvs) != 1 || kvs[0].Key != "l3xc.l3xc/w2-tap0/ip4" || !proto.Equal(kvs[0].Value, d.Normalize(desired)) || kvs[0].Meta != meta {
 		t.Fatalf("Retrieve = %+v (%v)", kvs, err)
 	}
 	// Update replaces paths in place; a reversed desired order still decodes sorted
@@ -121,7 +128,7 @@ func TestL3xc(t *testing.T) {
 	if m, err := d.Update(ctx, desired, updated, meta); err != nil || m != meta {
 		t.Fatalf("Update: %v", err)
 	}
-	if kvs, _ = d.Retrieve(ctx); !proto.Equal(kvs[0].Value, updated) {
+	if kvs, _ = d.Retrieve(ctx); !proto.Equal(kvs[0].Value, d.Normalize(updated)) {
 		t.Fatalf("after Update: %v", kvs[0].Value)
 	}
 	if _, err := d.Update(ctx, updated, &l3xc.L3Xc{Interface: tapKey, Ipv6: true, Paths: updated.Paths}, meta); !errors.Is(err, scheduler.ErrRecreate) {
@@ -137,10 +144,36 @@ func TestL3xc(t *testing.T) {
 	if err := d.Delete(ctx, updated, meta); err != nil {
 		t.Fatal(err)
 	}
-	if kvs, _ = d.Retrieve(ctx); len(kvs) != 1 || kvs[0].Key != "l3xc.l3xc/loop201/ip6" || !proto.Equal(kvs[0].Value, v6) {
+	if kvs, _ = d.Retrieve(ctx); len(kvs) != 1 || kvs[0].Key != "l3xc.l3xc/loop201/ip6" || !proto.Equal(kvs[0].Value, d.Normalize(v6)) {
 		t.Fatalf("after Delete: %+v", kvs)
 	}
 	if _, ok := f.xcs[key{f.other, false}]; !ok {
 		t.Fatal("the other owner's l3xc was touched")
 	}
+}
+
+// TestL3xcNormalize (review M4): weight 0 (stored as 1 by VPP), unsorted paths, a non-canonical
+// next hop and creator-key references settle — Retrieve equals Normalize(desired).
+func TestL3xcNormalize(t *testing.T) {
+	f := newFake()
+	d := l3xc.New(f, owner)
+	desired := &l3xc.L3Xc{Interface: tapKey, Paths: []*l3xc.Path{
+		{NextHop: "10.2.2.254", Table: 2001},
+		{NextHop: "10.2.1.254", Interface: loopKey},
+	}}
+	if _, err := d.Create(ctx, desired); err != nil {
+		t.Fatal(err)
+	}
+	kvs, err := d.Retrieve(ctx)
+	if err != nil || len(kvs) != 1 {
+		t.Fatalf("Retrieve = %+v, %v", kvs, err)
+	}
+	norm := d.Normalize(desired)
+	if !proto.Equal(kvs[0].Value, norm) {
+		t.Fatalf("Retrieve %v != Normalize(desired) %v: the plan would never settle", kvs[0].Value, norm)
+	}
+	if desired.Paths[0].GetWeight() != 0 || desired.GetInterface() != tapKey {
+		t.Fatal("Normalize modified its input")
+	}
+	t.Logf("normalised: %v", norm)
 }

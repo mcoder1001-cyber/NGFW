@@ -69,7 +69,11 @@ func (d *HostInterfaceDescriptor) Create(ctx context.Context, obj proto.Message)
 	}
 	idx := uint32(rep.SwIfIndex)
 	if err := iface.Tag(ctx, d.client, d.owner, o.GetName(), idx); err != nil {
-		return iface.Meta{SwIfIndex: idx}, err
+		// an untagged host-interface is invisible to Retrieve and blocks every retry: remove it (review M3)
+		if _, derr := d.svc().AfPacketDelete(ctx, &afpapi.AfPacketDelete{HostIfName: o.GetHostIfName()}); derr != nil {
+			return nil, fmt.Errorf("%w (and af_packet_delete of the untagged orphan %d: %v)", err, idx, derr)
+		}
+		return nil, err
 	}
 	return iface.Meta{SwIfIndex: idx}, nil
 }

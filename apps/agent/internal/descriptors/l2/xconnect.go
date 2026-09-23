@@ -71,7 +71,10 @@ func (d *XconnectDescriptor) Create(ctx context.Context, obj proto.Message) (any
 	if err != nil {
 		return nil, err
 	}
-	return XcMeta{rx, tx}, d.set(ctx, rx, tx, true)
+	if err := d.set(ctx, rx, tx, true); err != nil {
+		return nil, err
+	}
+	return XcMeta{rx, tx}, t.ClaimIfUntagged(rx, XconnectName)
 }
 
 // Update replaces the tx side in place when rx is unchanged.
@@ -95,13 +98,27 @@ func (d *XconnectDescriptor) Update(ctx context.Context, oldObj, newObj proto.Me
 }
 
 // Delete implements scheduler.Descriptor.
-func (d *XconnectDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
+func (d *XconnectDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	m, ok := meta.(XcMeta)
 	if !ok {
 		return fmt.Errorf("l2: unexpected meta %T", meta)
 	}
-	return d.set(ctx, m.Rx, m.Tx, false)
+	if err := d.set(ctx, m.Rx, m.Tx, false); err != nil {
+		return err
+	}
+	if o, ok := obj.(*Xconnect); ok {
+		_ = iface.ReleaseRef(d.owner, o.GetRx(), XconnectName)
+	}
+	return nil
 }
+
+// Normalize implements scheduler.Normalizer: rx / tx references in canonical alias form.
+func (*XconnectDescriptor) Normalize(obj proto.Message) proto.Message {
+	return iface.NormalizeRefs(obj, "rx", "tx")
+}
+
+// XconnectKey is the key of the cross-connect whose rx is ref.
+func XconnectKey(ref string) scheduler.Key { return scheduler.Join(XconnectName, iface.RefID(ref)) }
 
 // Retrieve implements scheduler.Descriptor.
 func (d *XconnectDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
@@ -122,11 +139,11 @@ func (d *XconnectDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 		if err != nil {
 			return nil, fmt.Errorf("l2_xconnect_dump: %w", err)
 		}
-		rxKey, ok := t.KeyFor(uint32(x.RxSwIfIndex))
+		rxKey, ok := t.OwnedRef(uint32(x.RxSwIfIndex), XconnectName)
 		if !ok {
 			continue
 		}
-		txKey, ok := t.KeyFor(uint32(x.TxSwIfIndex))
+		txKey, ok := t.Ref(uint32(x.TxSwIfIndex))
 		if !ok {
 			continue
 		}

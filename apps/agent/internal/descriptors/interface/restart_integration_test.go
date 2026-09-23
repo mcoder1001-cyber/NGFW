@@ -6,11 +6,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
+
+	"ngfw/agent/binapi/interface_types"
+	l3xcapi "ngfw/agent/binapi/l3xc"
+	memifapi "ngfw/agent/binapi/memif"
+	tapapi "ngfw/agent/binapi/tapv2"
 
 	afpacket "ngfw/agent/internal/descriptors/af_packet"
 	"ngfw/agent/internal/descriptors/bond"
@@ -138,8 +145,12 @@ func retrieveAll(t *testing.T, r *scheduler.MapRegistry) map[scheduler.Key]sched
 	return out
 }
 
-// plan is the scheduler's diff (descriptor.go "Transaction semantics" 3) as strings.
-func plan(desired []scheduler.KV, actual map[scheduler.Key]scheduler.KV) []string {
+// observeOnly mirrors P05's scheduler.AbsenceDeleter (review H1).
+type observeOnly interface{ DeleteOnAbsence() bool }
+
+// plan is the scheduler's diff (descriptor.go "Transaction semantics" 3, plus P05's
+// DeleteOnAbsence opt-out) as strings; desired values must already be normalised.
+func plan(r *scheduler.MapRegistry, desired []scheduler.KV, actual map[scheduler.Key]scheduler.KV) []string {
 	var ops []string
 	want := map[scheduler.Key]bool{}
 	for _, kv := range desired {
@@ -153,20 +164,17 @@ func plan(desired []scheduler.KV, actual map[scheduler.Key]scheduler.KV) []strin
 		}
 	}
 	for k, kv := range actual {
-		if !want[k] && !foreignAlias(kv) {
+		if d, ok := r.ForKey(k); ok {
+			if o, ok := d.(observeOnly); ok && !o.DeleteOnAbsence() {
+				continue
+			}
+		}
+		if !want[k] {
 			ops = append(ops, fmt.Sprintf("delete %s: actual %v meta %+v", k, kv.Value, kv.Meta))
 		}
 	}
 	sort.Strings(ops)
 	return ops
-}
-
-// foreignAlias: the "interface" alias Retrieve lists every VPP interface (D-065), incl. other
-// workers' and P05's loopback; an undesired alias would be a no-op Delete, so the test ignores the
-// aliases of interfaces without a creator of ours (see DF-1-questions.md Q4 for the reconciler).
-func foreignAlias(kv scheduler.KV) bool {
-	a, ok := kv.Value.(*iface.InterfaceAlias)
-	return ok && a.GetCreator() == ""
 }
 
 // restartVeth is the fixed-argv Linux rig helper (same as af_packet's test): slot-prefixed veth
@@ -244,8 +252,8 @@ func TestRestartSimulationOnHost(t *testing.T) {
 		&l2.BridgeDomainMember{BridgeDomain: bdID, Interface: subKey, Shg: 1},
 		&l2.BridgeDomainMember{BridgeDomain: bdID, Interface: loopKey, PortType: l2.PortType_PORT_TYPE_BVI},
 		&l2.FibEntry{BridgeDomain: bdID, Mac: "02:0" + slot + ":00:00:3c:02", Interface: subKey, Static: true},
-		&l2.Flags{Interface: subKey, Learn: false, Forward: true, Flood: true, UuFlood: true},
-		&l2.VlanTagRewrite{Interface: subKey, Op: l2.VtrOp_VTR_OP_POP_1},
+		&l2.Flags{BridgeDomain: bdID, Interface: subKey, Learn: false, Forward: true, Flood: true, UuFlood: true},
+		&l2.VlanTagRewrite{Interface: subKey, Op: l2.VtrOp_VTR_OP_POP_1, BridgeDomain: bdID},
 		&l2.Xconnect{Rx: tapKey(64), Tx: afKey},
 		&l2.Xconnect{Rx: afKey, Tx: tapKey(64)},
 		// generic interface aliases consumers depend on (D-065): the desired-state builder emits one per interface
@@ -268,7 +276,8 @@ func TestRestartSimulationOnHost(t *testing.T) {
 		if !ok {
 			t.Fatalf("no descriptor for %T", o)
 		}
-		desired = append(desired, scheduler.KV{Key: d.KeyOf(o), Value: o})
+		// normalised as the P05 scheduler does before planning (canonical interface/<name> refs, …)
+		desired = append(desired, scheduler.KV{Key: d.KeyOf(o), Value: iface.Normalize(d, o)})
 	}
 	desired = topo(t, r1, desired)
 
@@ -300,7 +309,7 @@ func TestRestartSimulationOnHost(t *testing.T) {
 	}
 
 	// idempotent re-apply by the same agent: empty plan
-	if ops := plan(desired, retrieveAll(t, r1)); len(ops) != 0 {
+	if ops := plan(r1, desired, retrieveAll(t, r1)); len(ops) != 0 {
 		t.Fatalf("second apply by the same agent is not empty: %q", ops)
 	}
 	t.Logf("same agent, same desired state: plan is empty (%d objects)", len(desired))
@@ -317,7 +326,7 @@ func TestRestartSimulationOnHost(t *testing.T) {
 			t.Errorf("after restart %s Meta = %+v, Create returned %+v", kv.Key, got.Meta, metas[kv.Key])
 		}
 	}
-	ops := plan(desired, actual)
+	ops := plan(r2, desired, actual)
 	notReadable := map[string]bool{
 		"create interface.promisc/" + vpptest.Name(t, "tap63"):                                   true,
 		"create interface.mac-address/loop" + strconv.Itoa(int(vpptest.LoopbackInstance(t, 60))): true,
@@ -338,10 +347,43 @@ func TestRestartSimulationOnHost(t *testing.T) {
 			}
 		}
 	}
-	if ops := plan(desired, retrieveAll(t, r2)); len(ops) != 0 {
+	if ops := plan(r2, desired, retrieveAll(t, r2)); len(ops) != 0 {
 		t.Fatalf("restarted agent, second apply is not empty: %q", ops)
 	}
 	t.Log("restarted agent, second apply: plan is empty")
+
+	// simulated loss (review M2): prefixed objects vanish behind the agent's back (deleted via the
+	// binary API, as a VPP-side accident would) → Retrieve → the plan is exactly the creates of
+	// what is gone → apply in dependency order → plan empty again, new Meta.
+	actual = retrieveAll(t, r2)
+	lost := lose(t, c2, actual, tapKey(62), "memif.memif/"+vpptest.Name(t, "memif60"), sock.Filename, sock.Id, tapKey(63))
+	ops = plan(r2, desired, retrieveAll(t, r2))
+	if len(ops) == 0 {
+		t.Fatal("plan after the loss is empty")
+	}
+	for _, op := range ops {
+		if !strings.HasPrefix(op, "create ") {
+			t.Errorf("after the loss the plan must only re-create, got %s", op)
+		}
+	}
+	t.Logf("lost %q; plan = %d creates: %q", lost, len(ops), ops)
+	var recreated []string
+	for _, kv := range desired { // dependency order
+		if !slices.Contains(ops, "create "+string(kv.Key)) {
+			continue
+		}
+		d, _ := r2.ForKey(kv.Key)
+		meta, err := d.Create(ctx, kv.Value)
+		if err != nil {
+			t.Fatalf("re-create %s: %v", kv.Key, err)
+		}
+		metas[kv.Key] = meta
+		recreated = append(recreated, string(kv.Key))
+	}
+	if ops := plan(r2, desired, retrieveAll(t, r2)); len(ops) != 0 {
+		t.Fatalf("after re-creating the lost objects the plan is not empty: %q", ops)
+	}
+	t.Logf("reconcile re-created %d objects in dependency order %q; plan is empty again", len(recreated), recreated)
 
 	// delete everything with the restarted agent (reverse order, Meta from Retrieve)
 	actual = retrieveAll(t, r2)
@@ -355,8 +397,8 @@ func TestRestartSimulationOnHost(t *testing.T) {
 	}
 	left := retrieveAll(t, r2)
 	for k, kv := range left {
-		if a, ok := kv.Value.(*iface.InterfaceAlias); ok && (foreignAlias(kv) || a.GetCreator() == loopKey) {
-			delete(left, k) // the loopback is P05's, created by the test and deleted in Cleanup
+		if a, ok := kv.Value.(*iface.InterfaceAlias); ok && (a.GetCreator() == "" || a.GetCreator() == loopKey) {
+			delete(left, k) // untagged interfaces of others (observe-only) and P05's loopback (deleted in Cleanup)
 		}
 	}
 	if len(left) != 0 {
@@ -368,4 +410,33 @@ func TestRestartSimulationOnHost(t *testing.T) {
 		t.Fatalf("owner %s still has objects after delete: %q", owner, keys)
 	}
 	t.Logf("restarted agent deleted %d objects; Retrieve for owner %s is empty", len(desired), owner)
+}
+
+// lose deletes objects via the binary API behind the agent's back: the tap (VPP removes its
+// sub-interface and with it the bridge membership, flags, rewrite, fib entry), the memif and its
+// socket, and the l3xc on another tap. It returns what it deleted.
+func lose(t *testing.T, c vpp.Client, actual map[scheduler.Key]scheduler.KV, tapRef, memifRef, sockFile string, sockID uint32, l3xcTap string) []string {
+	t.Helper()
+	ctx := context.Background()
+	idx := func(k string) interface_types.InterfaceIndex {
+		kv, ok := actual[scheduler.Key(k)]
+		if !ok {
+			t.Fatalf("%s not retrieved before the loss", k)
+		}
+		return interface_types.InterfaceIndex(kv.Meta.(iface.Meta).SwIfIndex)
+	}
+	if _, err := tapapi.NewServiceClient(c).TapDeleteV2(ctx, &tapapi.TapDeleteV2{SwIfIndex: idx(tapRef)}); err != nil {
+		t.Fatalf("tap_delete_v2: %v", err)
+	}
+	if _, err := l3xcapi.NewServiceClient(c).L3xcDel(ctx, &l3xcapi.L3xcDel{SwIfIndex: idx(l3xcTap)}); err != nil {
+		t.Fatalf("l3xc_del: %v", err)
+	}
+	ms := memifapi.NewServiceClient(c)
+	if _, err := ms.MemifDelete(ctx, &memifapi.MemifDelete{SwIfIndex: idx(memifRef)}); err != nil {
+		t.Fatalf("memif_delete: %v", err)
+	}
+	if _, err := ms.MemifSocketFilenameAddDelV2(ctx, &memifapi.MemifSocketFilenameAddDelV2{IsAdd: false, SocketID: sockID, SocketFilename: sockFile}); err != nil {
+		t.Fatalf("memif_socket_filename_add_del_v2 (del): %v", err)
+	}
+	return []string{tapRef, "l3xc on " + l3xcTap, memifRef, "memif.socket/" + strconv.FormatUint(uint64(sockID), 10)}
 }

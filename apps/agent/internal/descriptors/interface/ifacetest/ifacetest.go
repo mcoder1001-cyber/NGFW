@@ -43,6 +43,8 @@ type VPP struct {
 	Promisc map[uint32]bool
 	Queues  map[uint32][]Queue
 	Workers uint32
+	// FailTag makes the next FailTag sw_interface_tag_add_del calls fail (retval -9).
+	FailTag int
 }
 
 // New returns a fake with local0 (index 0) and handlers for the interface.api messages the
@@ -75,6 +77,10 @@ func New() *VPP {
 		r := req.(*ifapi.SwInterfaceTagAddDel)
 		v.Mu.Lock()
 		defer v.Mu.Unlock()
+		if v.FailTag > 0 { // injected failure (review M3 tests)
+			v.FailTag--
+			return []api.Message{&ifapi.SwInterfaceTagAddDelReply{Retval: RetvalInvalidValue}}, nil
+		}
 		i, ok := v.Ifs[uint32(r.SwIfIndex)]
 		if !ok {
 			return []api.Message{&ifapi.SwInterfaceTagAddDelReply{Retval: RetvalInvalidSwIfIndex}}, nil

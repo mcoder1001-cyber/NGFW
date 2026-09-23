@@ -28,12 +28,15 @@ func TestAlias(t *testing.T) {
 		t.Fatalf("physical interface has no dependency: %+v", deps)
 	}
 
-	// Retrieve: every interface but local0; ours by stable name + creator, others by VPP name
+	if d.DeleteOnAbsence() {
+		t.Fatal("the alias must be observe-only (DeleteOnAbsence false, review H1)")
+	}
+	// Retrieve: ours by stable name + creator, untagged by VPP name; never local0, never another
+	// owner's interface (loop300 is tagged w3)
 	assertOnly(t, d, map[scheduler.Key]proto.Message{
 		"interface/loop201": &iface.InterfaceAlias{Name: "loop201", Creator: loopKey},
 		"interface/w2-tap0": ours,
 		"interface/gre0":    &iface.InterfaceAlias{Name: "gre0"}, // ours, device class nobody claimed
-		"interface/loop300": &iface.InterfaceAlias{Name: "loop300"},
 		"interface/ens161":  nic,
 	}, map[scheduler.Key]any{"interface/w2-tap0": iface.Meta{SwIfIndex: w.tap}, "interface/ens161": iface.Meta{SwIfIndex: w.untagged}})
 
@@ -66,6 +69,9 @@ func TestAlias(t *testing.T) {
 		if _, err := d.Create(ctx, bad); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+	if _, err := d.Create(ctx, &iface.InterfaceAlias{Name: "loop300"}); !errors.Is(err, iface.ErrForeignInterface) {
+		t.Fatalf("another owner's interface by VPP name must be refused (review M1): %v", err)
 	}
 	if _, err := d.Create(ctx, &iface.InterfaceAlias{Name: "ens999"}); !errors.Is(err, iface.ErrNotFound) {
 		t.Fatalf("missing: %v", err)

@@ -84,5 +84,54 @@ func TestAliasOnHost(t *testing.T) {
 			t.Fatal("local0 retrieved")
 		}
 	}
-	t.Logf("alias Delete left both interfaces in place; missing interface rejected; %d aliases retrieved (all VPP interfaces but local0)", len(kvs))
+	t.Logf("alias Delete left both interfaces in place; missing interface rejected; %d aliases retrieved (ours + untagged, never another owner's)", len(kvs))
+
+	// review H2: configure the pre-existing (untagged, "physical") interface through its alias
+	// reference — admin-up, MTU, rx-mode, a VLAN sub-interface — then remove the configuration; the
+	// interface itself is never deleted.
+	iface.SetClaimStore(owner, nil)
+	nicRef := string(d.KeyOf(pre))
+	type step struct {
+		d   scheduler.Descriptor
+		obj proto.Message
+	}
+	steps := []step{
+		{iface.NewAdminState(c, owner), &iface.AdminState{Interface: nicRef}},
+		{iface.NewMtu(c, owner), &iface.Mtu{Interface: nicRef, Mtu: 1500, Ip4: 1400}},
+		{iface.NewRxMode(c, owner), &iface.RxMode{Interface: nicRef, Mode: iface.RxModeKind_RX_MODE_KIND_INTERRUPT}},
+		{iface.NewSubinterface(c, owner), &iface.Subinterface{Parent: nicRef, SubId: 100, OuterVlan: 100, ExactMatch: true}},
+	}
+	metas := make([]any, len(steps))
+	for i, st := range steps {
+		m, err := st.d.Create(ctx, st.obj)
+		if err != nil {
+			t.Fatalf("%s on %s: %v", st.d.Name(), nicRef, err)
+		}
+		metas[i] = m
+		kvs, err := st.d.Retrieve(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := ifacetest.Find(t, kvs, string(st.d.KeyOf(st.obj)), func(kv scheduler.KV) string { return string(kv.Key) })
+		if !proto.Equal(got.Value, iface.Normalize(st.d, st.obj)) {
+			t.Fatalf("%s Retrieve = %v, want %v", st.d.Name(), got.Value, st.obj)
+		}
+		t.Logf("untagged interface: %s Retrieve == desired: %s %v", st.d.Name(), got.Key, got.Value)
+	}
+	ifacetest.Hold(t)
+	for i := len(steps) - 1; i >= 0; i-- {
+		if err := steps[i].d.Delete(ctx, steps[i].obj, metas[i]); err != nil {
+			t.Fatalf("%s Delete: %v", steps[i].d.Name(), err)
+		}
+		kvs, _ := steps[i].d.Retrieve(ctx)
+		for _, kv := range kvs {
+			if kv.Key == steps[i].d.KeyOf(steps[i].obj) {
+				t.Fatalf("%s still retrieved after Delete", kv.Key)
+			}
+		}
+	}
+	if _, err := d.Create(ctx, pre); err != nil {
+		t.Fatalf("the untagged interface is gone: %v", err)
+	}
+	t.Logf("untagged interface %s: 4 objects configured via %s and removed; the interface itself is still there", pre.Name, nicRef)
 }

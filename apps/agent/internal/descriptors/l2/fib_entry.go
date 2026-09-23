@@ -148,7 +148,7 @@ func (d *FibEntryDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 		v := &FibEntry{BridgeDomain: e.BdID, Mac: iface.FormatMAC(e.Mac), Static: e.StaticMac && !e.FilterMac, Filter: e.FilterMac, Bvi: e.BviMac}
 		idx := uint32(e.SwIfIndex)
 		if idx != iface.AllInterfaces && !e.FilterMac {
-			key, ok := t.KeyFor(idx)
+			key, ok := t.Ref(idx)
 			if !ok {
 				continue
 			}
@@ -170,4 +170,13 @@ func autoBviEntry(t *iface.Table, e *l2api.L2FibTableDetails, bviIdx uint32) boo
 	}
 	d, ok := t.Details(bviIdx)
 	return ok && [6]uint8(d.L2Address) == [6]uint8(e.Mac)
+}
+
+// Normalize implements scheduler.Normalizer: the interface reference in canonical alias form.
+func (*FibEntryDescriptor) Normalize(obj proto.Message) proto.Message {
+	out := iface.NormalizeRefs(obj, "interface").(*FibEntry)
+	if m, err := iface.ParseMAC(out.GetMac()); err == nil {
+		out.Mac = iface.FormatMAC(m) // lower-case, as Retrieve reports it
+	}
+	return out
 }

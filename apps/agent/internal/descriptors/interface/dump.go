@@ -17,8 +17,9 @@ import (
 // Interface references
 //
 // Every descriptor that decorates or consumes an interface (interface.* attributes, l2.*,
-// bond.member, l3xc, …) names it by its FULL scheduler key, e.g. "interface.loopback/loop201"
-// or "tapv2.tap/w2-tap0". The key's ID() is the interface's stable name; the interface-creating
+// bond.member, l3xc, …) names it by a reference: the alias "interface/<logical name>" (canonical,
+// see names.go) or the creator's full key, e.g. "interface.loopback/loop201" or
+// "tapv2.tap/w2-tap0". The key's ID() is the interface's stable name; the interface-creating
 // descriptor stamps it into the VPP interface tag as vpp.OwnerTag(owner, ID) ("w2:loop201",
 // D-030). Resolution therefore never depends on VPP's own interface names (tap0, BondEthernet3,
 // memif1/0 …), which are index-based and not stable across restarts:
@@ -170,12 +171,16 @@ func (t *Table) KeyFor(idx uint32) (scheduler.Key, bool) {
 	return scheduler.Join(kind, id), true
 }
 
-// Index resolves an interface reference to its sw_if_index by owner tag. When the interface's
-// device class is known it must match the reference's descriptor (ErrWrongKind).
+// Index resolves an interface reference to its sw_if_index. An alias reference
+// ("interface/<name>") resolves by logical name (IndexByName); a creator key by owner tag, and
+// when the interface's device class is known it must match the key's descriptor (ErrWrongKind).
 func (t *Table) Index(ref string) (uint32, error) {
 	k, err := ParseRef(ref)
 	if err != nil {
 		return 0, err
+	}
+	if k.Descriptor() == AliasName { // "interface/<logical name>" (D-065, D-069)
+		return t.IndexByName(k.ID())
 	}
 	for _, idx := range t.order {
 		id, ok := t.OwnedID(idx)

@@ -99,7 +99,11 @@ func (d *BondDescriptor) Create(ctx context.Context, obj proto.Message) (any, er
 	}
 	idx := uint32(rep.SwIfIndex)
 	if err := iface.Tag(ctx, d.client, d.owner, o.GetName(), idx); err != nil {
-		return iface.Meta{SwIfIndex: idx}, err
+		// an untagged bond is invisible to Retrieve and blocks every retry (id in use): remove it (review M3)
+		if _, derr := d.svc().BondDelete(ctx, &bondapi.BondDelete{SwIfIndex: rep.SwIfIndex}); derr != nil {
+			return nil, fmt.Errorf("%w (and bond_delete of the untagged orphan %d: %v)", err, idx, derr)
+		}
+		return nil, err
 	}
 	return iface.Meta{SwIfIndex: idx}, nil
 }

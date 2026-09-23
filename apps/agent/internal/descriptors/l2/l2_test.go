@@ -140,6 +140,10 @@ func newFake() *fakeL2 {
 		}
 		if !r.Enable {
 			delete(f.fib, bviFibKey(sw, f.members[sw])) // VPP removes the automatic BVI entry
+			// leaving L2 mode clears the output VTR (l2_input.c set_int_l2_mode memsets the output config)
+			if i, ok := f.Ifs[sw]; ok {
+				i.VtrOp, i.VtrPushDot1q, i.VtrTag1, i.VtrTag2 = 0, 0, 0, 0
+			}
 			delete(f.members, sw)
 			delete(f.feat, sw)
 			for _, bd := range f.bds {
@@ -261,6 +265,7 @@ func assertOnly(t *testing.T, d scheduler.Descriptor, want map[scheduler.Key]pro
 		if !ok {
 			t.Fatalf("%s Retrieve unexpected key %s", d.Name(), kv.Key)
 		}
+		w = iface.Normalize(d, w) // canonical alias references, as the scheduler normalises desired state
 		if !proto.Equal(kv.Value, w) {
 			t.Fatalf("%s Retrieve %s = %v, want %v", d.Name(), kv.Key, kv.Value, w)
 		}
@@ -448,26 +453,26 @@ func TestFlags(t *testing.T) {
 	if kvs := retrieve(t, d); len(kvs) != 0 {
 		t.Fatalf("member with bridge defaults has no flags object: %+v", kvs)
 	}
-	noLearn := &l2.Flags{Interface: tapKey, Learn: false, Forward: true, Flood: true, UuFlood: true, ArpTerm: true, ArpUfwd: true}
+	noLearn := &l2.Flags{BridgeDomain: 2001, Interface: tapKey, Learn: false, Forward: true, Flood: true, UuFlood: true, ArpTerm: true, ArpUfwd: true}
 	meta := mustCreate(t, d, noLearn)
 	sets := f.CallsNamed("l2_interface_feat_flags_set")
 	if len(sets) != 1 || sets[0].(*l2api.L2InterfaceFeatFlagsSet).IsSet || sets[0].(*l2api.L2InterfaceFeatFlagsSet).Flags != l2api.L2_INTF_FEAT_LEARN {
 		t.Fatalf("feat_flags_set = %+v", sets)
 	}
 	assertOnly(t, d, map[scheduler.Key]proto.Message{"l2.flags/w2-tap0": noLearn})
-	if _, err := d.Create(ctx, &l2.Flags{Interface: tapKey, Learn: true, Forward: true, Flood: true, UuFlood: true, ArpTerm: true, ArpUfwd: true}); !errors.Is(err, l2.ErrEqualsBridgeDefault) {
+	if _, err := d.Create(ctx, &l2.Flags{BridgeDomain: 2001, Interface: tapKey, Learn: true, Forward: true, Flood: true, UuFlood: true, ArpTerm: true, ArpUfwd: true}); !errors.Is(err, l2.ErrEqualsBridgeDefault) {
 		t.Fatalf("defaults: %v", err)
 	}
 	// a BVI joins with learning off: that is its default, not an l2.flags object
 	mustCreate(t, l2.NewMember(f, owner), &l2.BridgeDomainMember{BridgeDomain: 2001, Interface: loopKey, PortType: l2.PortType_PORT_TYPE_BVI})
 	assertOnly(t, d, map[scheduler.Key]proto.Message{"l2.flags/w2-tap0": noLearn})
-	if _, err := d.Create(ctx, &l2.Flags{Interface: loopKey, Forward: true, Flood: true, UuFlood: true, ArpTerm: true, ArpUfwd: true}); !errors.Is(err, l2.ErrEqualsBridgeDefault) {
+	if _, err := d.Create(ctx, &l2.Flags{BridgeDomain: 2001, Interface: loopKey, Forward: true, Flood: true, UuFlood: true, ArpTerm: true, ArpUfwd: true}); !errors.Is(err, l2.ErrEqualsBridgeDefault) {
 		t.Fatalf("BVI defaults: %v", err)
 	}
 	if _, err := d.Create(ctx, &l2.Flags{Interface: tap2Key}); err == nil {
 		t.Fatal("non-member accepted")
 	}
-	arp := &l2.Flags{Interface: tapKey, Learn: true, Forward: true, Flood: true, UuFlood: true, ArpTerm: true}
+	arp := &l2.Flags{BridgeDomain: 2001, Interface: tapKey, Learn: true, Forward: true, Flood: true, UuFlood: true, ArpTerm: true}
 	if _, err := d.Update(ctx, noLearn, arp, meta); err != nil {
 		t.Fatal(err)
 	}
@@ -508,5 +513,82 @@ func TestVlanTagRewrite(t *testing.T) {
 	}
 	if kvs := retrieve(t, d); len(kvs) != 0 || f.Ifs[f.tap].VtrOp != 0 {
 		t.Fatalf("after Delete: %+v", kvs)
+	}
+}
+
+// TestL2ModeDependents (review M5): l2.flags and l2.vlan-tag-rewrite declare the bridge membership
+// as a dependency, because re-creating the member (leave + join) resets both in VPP — the
+// scheduler then re-creates them with it.
+func TestL2ModeDependents(t *testing.T) {
+	f := newFake()
+	mustCreate(t, l2.NewBridgeDomain(f, owner), &l2.BridgeDomain{Id: 2001, Flood: true, UuFlood: true, Forward: true, Learn: true})
+	md := l2.NewMember(f, owner)
+	member := &l2.BridgeDomainMember{BridgeDomain: 2001, Interface: tapKey}
+	mm := mustCreate(t, md, member)
+	fd, vd := l2.NewFlags(f, owner), l2.NewVlanTagRewrite(f, owner)
+	flags := &l2.Flags{BridgeDomain: 2001, Interface: tapKey, Forward: true, Flood: true, UuFlood: true}
+	vtr := &l2.VlanTagRewrite{Interface: tapKey, Op: l2.VtrOp_VTR_OP_POP_1, BridgeDomain: 2001}
+	memberKey := md.KeyOf(member)
+	for _, c := range []struct {
+		d   scheduler.Descriptor
+		obj proto.Message
+	}{{fd, flags}, {vd, vtr}} {
+		found := false
+		for _, dep := range c.d.Dependencies(c.obj) {
+			found = found || (dep.Key == memberKey && !dep.Optional)
+		}
+		if !found {
+			t.Fatalf("%s must depend on %s: %+v", c.d.Name(), memberKey, c.d.Dependencies(c.obj))
+		}
+		mustCreate(t, c.d, c.obj)
+	}
+	if _, err := vd.Create(ctx, &l2.VlanTagRewrite{Interface: tapKey, Op: l2.VtrOp_VTR_OP_POP_1}); err == nil {
+		t.Fatal("vtr with an L2 mode that differs from the interface's must be refused")
+	}
+	if _, err := fd.Create(ctx, &l2.Flags{BridgeDomain: 2002, Interface: tapKey}); err == nil {
+		t.Fatal("flags naming another bridge domain must be refused")
+	}
+	assertOnly(t, fd, map[scheduler.Key]proto.Message{"l2.flags/w2-tap0": flags})
+	assertOnly(t, vd, map[scheduler.Key]proto.Message{"l2.vlan-tag-rewrite/w2-tap0": vtr})
+	// member recreate (e.g. a shg change → ErrRecreate): leave + join resets flags and rewrite …
+	if err := md.Delete(ctx, member, mm); err != nil {
+		t.Fatal(err)
+	}
+	mustCreate(t, md, member)
+	assertOnly(t, fd, map[scheduler.Key]proto.Message{})
+	assertOnly(t, vd, map[scheduler.Key]proto.Message{})
+	// … and the declared dependents are what the scheduler re-creates
+	mustCreate(t, fd, flags)
+	mustCreate(t, vd, vtr)
+	assertOnly(t, fd, map[scheduler.Key]proto.Message{"l2.flags/w2-tap0": flags})
+	assertOnly(t, vd, map[scheduler.Key]proto.Message{"l2.vlan-tag-rewrite/w2-tap0": vtr})
+}
+
+// TestBridgePhysicalMember (review H2): an untagged NIC in our bridge domain via its alias
+// reference; the member (ours through the bridge) and its l2.flags are retrieved in alias form.
+func TestBridgePhysicalMember(t *testing.T) {
+	iface.SetClaimStore(owner, nil)
+	f := newFake()
+	nic := f.Add("ens224", "dpdk", "")
+	mustCreate(t, l2.NewBridgeDomain(f, owner), &l2.BridgeDomain{Id: 2001, Flood: true, UuFlood: true, Forward: true, Learn: true})
+	md := l2.NewMember(f, owner)
+	m := &l2.BridgeDomainMember{BridgeDomain: 2001, Interface: "interface/ens224", Shg: 1}
+	meta := mustCreate(t, md, m)
+	if meta != (iface.Meta{SwIfIndex: nic}) {
+		t.Fatalf("meta = %+v", meta)
+	}
+	assertOnly(t, md, map[scheduler.Key]proto.Message{"l2.bridge-domain-member/2001/ens224": m})
+	fd := l2.NewFlags(f, owner)
+	fl := &l2.Flags{BridgeDomain: 2001, Interface: "interface/ens224", Forward: true, Flood: true, UuFlood: true}
+	mustCreate(t, fd, fl)
+	assertOnly(t, fd, map[scheduler.Key]proto.Message{"l2.flags/ens224": fl})
+	if err := md.Delete(ctx, m, meta); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := f.Get(nic); !ok {
+		t.Fatal("NIC removed")
+	}
+	if _, err := md.Create(ctx, &l2.BridgeDomainMember{BridgeDomain: 2001, Interface: "interface/tap2"}); !errors.Is(err, iface.ErrForeignInterface) {
+		t.Fatalf("another owner's interface: %v", err)
 	}
 }

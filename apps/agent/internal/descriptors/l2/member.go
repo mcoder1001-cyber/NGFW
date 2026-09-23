@@ -113,7 +113,7 @@ func (d *MemberDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 	for _, bd := range bds {
 		for _, sw := range bd.SwIfDetails {
 			idx := uint32(sw.SwIfIndex)
-			key, ok := t.KeyFor(idx)
+			key, ok := t.Ref(idx) // ours or untagged (a physical NIC in our bridge); never another owner's
 			if !ok {
 				continue
 			}
@@ -132,4 +132,14 @@ func (d *MemberDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 		}
 	}
 	return out, nil
+}
+
+// Normalize implements scheduler.Normalizer: the interface reference in canonical alias form.
+func (*MemberDescriptor) Normalize(obj proto.Message) proto.Message {
+	return iface.NormalizeRefs(obj, "interface")
+}
+
+// MemberKey is the key of interface ref's membership in bridge domain bd.
+func MemberKey(bd uint32, ref string) scheduler.Key {
+	return scheduler.Join(MemberName, bdID(bd), iface.RefID(ref))
 }

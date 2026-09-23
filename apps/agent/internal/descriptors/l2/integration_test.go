@@ -58,7 +58,7 @@ func (h *hostFixture) create(d scheduler.Descriptor, desired proto.Message) any 
 		h.t.Fatalf("%s Retrieve: %v", d.Name(), err)
 	}
 	got := ifacetest.Find(h.t, kvs, key, keyOf)
-	if !proto.Equal(got.Value, desired) {
+	if !proto.Equal(got.Value, iface.Normalize(d, desired)) {
 		h.t.Fatalf("%s Retrieve %s = %v, want %v", d.Name(), key, got.Value, desired)
 	}
 	h.t.Logf("%s: Retrieve == desired: %s %v", d.Name(), key, got.Value)
@@ -110,7 +110,7 @@ func TestL2OnHost(t *testing.T) {
 	h.create(fd, &l2.FibEntry{BridgeDomain: bdID, Mac: "02:02:00:00:0a:02", Filter: true})
 
 	// per-interface feature override: no learning on tap10
-	h.create(l2.NewFlags(c, owner), &l2.Flags{Interface: tap10, Learn: false, Forward: true, Flood: true, UuFlood: true, ArpTerm: true})
+	h.create(l2.NewFlags(c, owner), &l2.Flags{BridgeDomain: bdID, Interface: tap10, Learn: false, Forward: true, Flood: true, UuFlood: true, ArpTerm: true})
 
 	// cross-connect tap12 <-> tap13 (two objects)
 	xd := l2.NewXconnect(c, owner)
@@ -122,7 +122,7 @@ func TestL2OnHost(t *testing.T) {
 	sub := &iface.Subinterface{Parent: tap11, SubId: 100, OuterVlan: 100, InnerVlan: 200, Dot1Ad: true, ExactMatch: true}
 	h.create(sd, sub)
 	h.create(md, &l2.BridgeDomainMember{BridgeDomain: bdID, Interface: string(sd.KeyOf(sub))})
-	h.create(l2.NewVlanTagRewrite(c, owner), &l2.VlanTagRewrite{Interface: string(sd.KeyOf(sub)), Op: l2.VtrOp_VTR_OP_POP_2})
+	h.create(l2.NewVlanTagRewrite(c, owner), &l2.VlanTagRewrite{Interface: string(sd.KeyOf(sub)), Op: l2.VtrOp_VTR_OP_POP_2, BridgeDomain: bdID})
 
 	t.Logf("bridge-domain %d with %s, %s, %s(BVI) and %s.100 configured; vppctl show bridge-domain %d detail", bdID, tap10, tap11, loopKey, tap11, bdID)
 	ifacetest.Hold(t)

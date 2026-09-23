@@ -47,6 +47,7 @@ func assertOnly(t *testing.T, d scheduler.Descriptor, want map[scheduler.Key]pro
 		if !ok {
 			t.Fatalf("%s Retrieve unexpected key %s", d.Name(), kv.Key)
 		}
+		w = iface.Normalize(d, w) // references in canonical alias form, as the scheduler normalises desired state
 		if !proto.Equal(kv.Value, w) {
 			t.Fatalf("%s Retrieve %s = %v, want %v", d.Name(), kv.Key, kv.Value, w)
 		}
@@ -134,6 +135,12 @@ func TestMtu(t *testing.T) {
 	}
 	if _, err := d.Update(ctx, desired, &iface.Mtu{Interface: loopKey, Ip4: 1400}, meta); !errors.Is(err, iface.ErrZeroMtu) {
 		t.Fatalf("zero L3 mtu update: %v", err)
+	}
+	if _, err := d.Create(ctx, &iface.Mtu{Interface: tapKey, Mtu: 9000}); !errors.Is(err, iface.ErrMtuDefault) {
+		t.Fatalf("the creation default {link_mtu,0,0,0} is not an object (review M4): %v", err)
+	}
+	if _, err := d.Update(ctx, desired, &iface.Mtu{Interface: loopKey, Mtu: 9000}, meta); !errors.Is(err, iface.ErrMtuDefault) {
+		t.Fatalf("update to the default: %v", err)
 	}
 	if _, err := d.Create(ctx, &iface.Mtu{Interface: tapKey, Ip4: 1400}); !errors.Is(err, iface.ErrZeroMtu) {
 		t.Fatalf("zero L3 mtu create: %v", err)

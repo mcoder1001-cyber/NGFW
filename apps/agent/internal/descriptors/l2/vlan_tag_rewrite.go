@@ -2,7 +2,9 @@ package l2
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 
 	"google.golang.org/protobuf/proto"
 
@@ -33,7 +35,67 @@ func (*VlanTagRewriteDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 
 // Dependencies implements scheduler.Descriptor.
 func (*VlanTagRewriteDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
-	return []scheduler.Dependency{{Key: scheduler.Key(obj.(*VlanTagRewrite).GetInterface())}}
+	o := obj.(*VlanTagRewrite)
+	deps := []scheduler.Dependency{{Key: scheduler.Key(o.GetInterface())}}
+	// leaving/re-joining a bridge or an xconnect clears the rewrite in VPP (l2_input.c
+	// set_int_l2_mode): depend on the L2 membership so it is re-created with it (review M5)
+	if o.GetBridgeDomain() != 0 {
+		deps = append(deps, scheduler.Dependency{Key: MemberKey(o.GetBridgeDomain(), o.GetInterface())})
+	}
+	if o.GetXconnect() {
+		deps = append(deps, scheduler.Dependency{Key: XconnectKey(o.GetInterface())})
+	}
+	return deps
+}
+
+// Normalize implements scheduler.Normalizer: the interface reference in canonical alias form.
+func (*VlanTagRewriteDescriptor) Normalize(obj proto.Message) proto.Message {
+	return iface.NormalizeRefs(obj, "interface")
+}
+
+// l2Mode returns idx's bridge domain (0 = none; only owned bridge domains count) and whether it
+// is the rx side of a cross-connect.
+func (d *VlanTagRewriteDescriptor) l2Mode(ctx context.Context) (map[uint32]uint32, map[uint32]bool, error) {
+	bds, err := d.bridgeDomains(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	bdOf := map[uint32]uint32{}
+	for _, bd := range bds {
+		for _, sw := range bd.SwIfDetails {
+			bdOf[uint32(sw.SwIfIndex)] = bd.BdID
+		}
+	}
+	stream, err := d.svc().L2XconnectDump(ctx, &l2api.L2XconnectDump{})
+	if err != nil {
+		return nil, nil, fmt.Errorf("l2_xconnect_dump: %w", err)
+	}
+	xc := map[uint32]bool{}
+	for {
+		x, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, nil, fmt.Errorf("l2_xconnect_dump: %w", err)
+		}
+		xc[uint32(x.RxSwIfIndex)] = true
+	}
+	return bdOf, xc, nil
+}
+
+// checkMode rejects a desired L2 mode that differs from the interface's actual one (the object
+// would never compare equal to Retrieve).
+func (d *VlanTagRewriteDescriptor) checkMode(ctx context.Context, idx uint32, o *VlanTagRewrite) error {
+	bdOf, xc, err := d.l2Mode(ctx)
+	if err != nil {
+		return err
+	}
+	if bdOf[idx] != o.GetBridgeDomain() || xc[idx] != o.GetXconnect() {
+		return fmt.Errorf("l2.vlan-tag-rewrite: %s is in bridge domain %d / xconnect %v, desired says %d / %v",
+			o.GetInterface(), bdOf[idx], xc[idx], o.GetBridgeDomain(), o.GetXconnect())
+	}
+	return nil
 }
 
 func (d *VlanTagRewriteDescriptor) set(ctx context.Context, idx uint32, o *VlanTagRewrite) error {
@@ -62,11 +124,21 @@ func (d *VlanTagRewriteDescriptor) Create(ctx context.Context, obj proto.Message
 	if o.GetOp() == VtrOp_VTR_OP_DISABLED || o.GetOp() > VtrOp_VTR_OP_TRANSLATE_2_2 {
 		return nil, fmt.Errorf("l2.vlan-tag-rewrite: op %v is not a rewrite operation", o.GetOp())
 	}
-	idx, err := iface.Resolve(ctx, d.client, d.owner, o.GetInterface())
+	t, err := iface.Dump(ctx, d.client, d.owner)
 	if err != nil {
 		return nil, err
 	}
-	return iface.Meta{SwIfIndex: idx}, d.set(ctx, idx, o)
+	idx, err := t.Index(o.GetInterface())
+	if err != nil {
+		return nil, err
+	}
+	if err := d.checkMode(ctx, idx, o); err != nil {
+		return nil, err
+	}
+	if err := d.set(ctx, idx, o); err != nil {
+		return nil, err
+	}
+	return iface.Meta{SwIfIndex: idx}, t.ClaimIfUntagged(idx, VlanTagRewriteName)
 }
 
 // Update implements scheduler.Descriptor.
@@ -76,7 +148,7 @@ func (d *VlanTagRewriteDescriptor) Update(ctx context.Context, oldObj, newObj pr
 		return nil, err
 	}
 	o, n := oldObj.(*VlanTagRewrite), newObj.(*VlanTagRewrite)
-	if o.GetInterface() != n.GetInterface() {
+	if o.GetInterface() != n.GetInterface() || o.GetBridgeDomain() != n.GetBridgeDomain() || o.GetXconnect() != n.GetXconnect() {
 		return nil, scheduler.ErrRecreate
 	}
 	if n.GetOp() == VtrOp_VTR_OP_DISABLED {
@@ -86,12 +158,18 @@ func (d *VlanTagRewriteDescriptor) Update(ctx context.Context, oldObj, newObj pr
 }
 
 // Delete implements scheduler.Descriptor.
-func (d *VlanTagRewriteDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
+func (d *VlanTagRewriteDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	m, err := iface.MetaOf(meta)
 	if err != nil {
 		return err
 	}
-	return d.set(ctx, m.SwIfIndex, &VlanTagRewrite{Op: VtrOp_VTR_OP_DISABLED})
+	if err := d.set(ctx, m.SwIfIndex, &VlanTagRewrite{Op: VtrOp_VTR_OP_DISABLED}); err != nil {
+		return err
+	}
+	if o, ok := obj.(*VlanTagRewrite); ok {
+		_ = iface.ReleaseRef(d.owner, o.GetInterface(), VlanTagRewriteName)
+	}
+	return nil
 }
 
 // Retrieve implements scheduler.Descriptor.
@@ -100,9 +178,13 @@ func (d *VlanTagRewriteDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV
 	if err != nil {
 		return nil, err
 	}
+	bdOf, xc, err := d.l2Mode(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var out []scheduler.KV
 	for _, idx := range t.Indexes() {
-		key, ok := t.KeyFor(idx)
+		key, ok := t.OwnedRef(idx, VlanTagRewriteName)
 		if !ok {
 			continue
 		}
@@ -112,7 +194,7 @@ func (d *VlanTagRewriteDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV
 		}
 		out = append(out, scheduler.KV{
 			Key:   scheduler.Join(VlanTagRewriteName, key.ID()),
-			Value: &VlanTagRewrite{Interface: string(key), Op: VtrOp(row.VtrOp), PushDot1Q: row.VtrPushDot1q != 0, Tag1: row.VtrTag1, Tag2: row.VtrTag2}, //nolint:gosec // range-checked
+			Value: &VlanTagRewrite{Interface: string(key), Op: VtrOp(row.VtrOp), PushDot1Q: row.VtrPushDot1q != 0, Tag1: row.VtrTag1, Tag2: row.VtrTag2, BridgeDomain: bdOf[idx], Xconnect: xc[idx]}, //nolint:gosec // range-checked
 			Meta:  iface.Meta{SwIfIndex: idx},
 		})
 	}

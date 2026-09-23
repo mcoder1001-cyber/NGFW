@@ -61,7 +61,7 @@ func TestAttributesOnHost(t *testing.T) {
 			t.Fatalf("%s Retrieve: %v", d.Name(), err)
 		}
 		got := ifacetest.Find(t, kvs, key, keyOf)
-		if !proto.Equal(got.Value, desired) {
+		if !proto.Equal(got.Value, iface.Normalize(d, desired)) {
 			t.Fatalf("%s Retrieve %s = %v, want %v", d.Name(), key, got.Value, desired)
 		}
 		if got.Meta != meta {

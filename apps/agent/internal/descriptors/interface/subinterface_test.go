@@ -69,7 +69,7 @@ func TestSubinterface(t *testing.T) {
 	mustCreate(t, iface.NewMtu(w.v, owner), subMtu)
 	found := false
 	for _, kv := range retrieve(t, iface.NewMtu(w.v, owner)) {
-		found = found || (kv.Key == "interface.mtu/loop201.100" && proto.Equal(kv.Value, subMtu))
+		found = found || (kv.Key == "interface.mtu/loop201.100" && proto.Equal(kv.Value, iface.Normalize(iface.NewMtu(w.v, owner), subMtu)))
 	}
 	if !found {
 		t.Fatal("the sub-interface must be decorated by the attribute descriptors")
@@ -88,5 +88,24 @@ func TestSubinterface(t *testing.T) {
 	}
 	if _, ok := w.v.Get(idx); ok {
 		t.Fatal("sub-interface still exists")
+	}
+}
+
+// TestSubinterfaceTagFailure (review M3): when tagging fails after create_subif, the untagged
+// orphan is deleted, so the scheduler's retry succeeds instead of failing with "already exists".
+func TestSubinterfaceTagFailure(t *testing.T) {
+	w := newWorld()
+	d := iface.NewSubinterface(w.v, owner)
+	sub := &iface.Subinterface{Parent: loopKey, SubId: 7, OuterVlan: 7}
+	before := len(w.v.Ifs)
+	w.v.FailTag = 1
+	if _, err := d.Create(ctx, sub); err == nil {
+		t.Fatal("tag failure not reported")
+	}
+	if len(w.v.Ifs) != before || len(w.v.CallsNamed("delete_subif")) != 1 {
+		t.Fatalf("orphan left behind: %d interfaces (want %d), delete_subif calls %d", len(w.v.Ifs), before, len(w.v.CallsNamed("delete_subif")))
+	}
+	if _, err := d.Create(ctx, sub); err != nil {
+		t.Fatalf("retry after the orphan was removed: %v", err)
 	}
 }

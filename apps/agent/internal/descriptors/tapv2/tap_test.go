@@ -100,7 +100,8 @@ func TestTap(t *testing.T) {
 		t.Fatalf("the other owner's tap is visible: %+v", kvs)
 	}
 	for _, bad := range []*tapv2.Tap{{Name: "x", Id: 1}, {Name: "x", Id: 1, RxRingSize: 256, TxRingSize: 256, HostIp4Prefix: "nope"}, {Id: 1, RxRingSize: 256, TxRingSize: 256},
-		{Name: "x", Id: 1, RxRingSize: 256, TxRingSize: 256, HostIfName: "a-very-long-host-name"}} {
+		{Name: "x", Id: 1, RxRingSize: 256, TxRingSize: 256, HostIfName: "a-very-long-host-name"},
+		{Name: "x", Id: 1, RxRingSize: 256, TxRingSize: 256}} { // no host_if_name: VPP would pick one → perpetual recreate (review M4)
 		if _, err := d.Create(ctx, bad); err == nil {
 			t.Fatalf("accepted %v", bad)
 		}

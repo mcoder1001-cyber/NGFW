@@ -103,12 +103,15 @@ func (d *TapDescriptor) Create(ctx context.Context, obj proto.Message) (any, err
 		RxRingSz: uint16(o.GetRxRingSize()), TxRingSz: uint16(o.GetTxRingSize()), //nolint:gosec // range-checked
 		Tag: tag,
 	}
-	if o.GetHostIfName() != "" {
-		if len(o.GetHostIfName()) > 15 {
-			return nil, fmt.Errorf("tapv2: host_if_name %q exceeds IFNAMSIZ", o.GetHostIfName())
-		}
-		req.HostIfNameSet, req.HostIfName = true, o.GetHostIfName()
+	if o.GetHostIfName() == "" {
+		// VPP/kernel would pick "tap<id>", Retrieve would report it and every resync would plan a
+		// recreate (review M4): the host name is part of the desired state
+		return nil, errors.New("tapv2: host_if_name is mandatory")
 	}
+	if len(o.GetHostIfName()) > 15 {
+		return nil, fmt.Errorf("tapv2: host_if_name %q exceeds IFNAMSIZ", o.GetHostIfName())
+	}
+	req.HostIfNameSet, req.HostIfName = true, o.GetHostIfName()
 	if o.GetHostNamespace() != "" {
 		req.HostNamespaceSet, req.HostNamespace = true, o.GetHostNamespace()
 	}
@@ -198,3 +201,19 @@ func (d *TapDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 
 // Register registers the tap descriptor with r.
 func Register(r scheduler.Registry, c vpp.Client, owner string) { r.Register(New(c, owner)) }
+
+// Normalize implements scheduler.Normalizer: host prefixes in canonical netip form (Retrieve's).
+func (*TapDescriptor) Normalize(obj proto.Message) proto.Message {
+	o, ok := obj.(*Tap)
+	if !ok || o == nil {
+		return obj
+	}
+	out := proto.Clone(o).(*Tap)
+	if p, err := netip.ParsePrefix(out.GetHostIp4Prefix()); err == nil {
+		out.HostIp4Prefix = p.String()
+	}
+	if p, err := netip.ParsePrefix(out.GetHostIp6Prefix()); err == nil {
+		out.HostIp6Prefix = p.String()
+	}
+	return out
+}

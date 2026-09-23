@@ -52,6 +52,37 @@ func (b base) resolve(ctx context.Context, ref string) (uint32, error) {
 	return Resolve(ctx, b.client, b.owner, ref)
 }
 
+// claim records holder's claim on idx after a successful apply when idx is an untagged
+// (physical / pre-existing) interface, so Retrieve reports the object as ours (names.go).
+func (b base) claim(ctx context.Context, idx uint32, holder string) error {
+	t, err := Dump(ctx, b.client, b.owner)
+	if err != nil {
+		return err
+	}
+	return t.ClaimIfUntagged(idx, holder)
+}
+
+// release drops holder's claim on the interface obj names (no-op for tagged interfaces).
+func (b base) release(obj proto.Message, holder string) {
+	if o, ok := obj.(interface{ GetInterface() string }); ok {
+		_ = ReleaseRef(b.owner, o.GetInterface(), holder)
+	}
+}
+
+// ownedDetails returns idx's dump row when a per-interface object of holder on it is ours; false
+// for a vanished interface or stale Meta pointing at someone else's interface (review L2).
+func (b base) ownedDetails(ctx context.Context, idx uint32, holder string) (*ifapi.SwInterfaceDetails, bool, error) {
+	t, err := Dump(ctx, b.client, b.owner)
+	if err != nil {
+		return nil, false, err
+	}
+	det, ok := t.Details(idx)
+	if !ok || !t.Owns(idx, holder) {
+		return nil, false, nil
+	}
+	return det, true, nil
+}
+
 func dep(ref string) []scheduler.Dependency {
 	return []scheduler.Dependency{{Key: scheduler.Key(ref)}}
 }
@@ -100,7 +131,10 @@ func (d *AdminStateDescriptor) Create(ctx context.Context, obj proto.Message) (a
 	if err != nil {
 		return nil, err
 	}
-	return Meta{idx}, d.setFlags(ctx, idx, true)
+	if err := d.setFlags(ctx, idx, true); err != nil {
+		return nil, err
+	}
+	return Meta{idx}, d.claim(ctx, idx, AdminStateName)
 }
 
 // Update has nothing to change in place: the object has no mutable field.
@@ -109,11 +143,16 @@ func (d *AdminStateDescriptor) Update(_ context.Context, _, _ proto.Message, met
 }
 
 // Delete implements scheduler.Descriptor.
-func (d *AdminStateDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
+func (d *AdminStateDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) (err error) {
 	m, err := MetaOf(meta)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err == nil {
+			d.release(obj, AdminStateName)
+		}
+	}()
 	return d.setFlags(ctx, m.SwIfIndex, false)
 }
 
@@ -125,7 +164,7 @@ func (d *AdminStateDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, er
 	}
 	var out []scheduler.KV
 	for _, idx := range t.order {
-		key, ok := t.KeyFor(idx)
+		key, ok := t.OwnedRef(idx, AdminStateName)
 		if !ok || t.byIndex[idx].Flags&interface_types.IF_STATUS_API_FLAG_ADMIN_UP == 0 {
 			continue
 		}
@@ -155,6 +194,11 @@ type MtuDescriptor struct{ base }
 
 // ErrZeroMtu is returned for a desired interface.mtu whose L3 MTU is 0.
 var ErrZeroMtu = errors.New("iface: interface.mtu needs a non-zero L3 mtu")
+
+// ErrMtuDefault is returned for a desired interface.mtu equal to the interface's creation default
+// ({link_mtu,0,0,0}): such an object is invisible to Retrieve and would be re-created on every
+// resync (review M4) — remove it from the desired state instead.
+var ErrMtuDefault = errors.New("iface: interface.mtu equals the interface's default; remove the object instead")
 
 // defaultMtu is VPP's creation default for d: {link_mtu, 0, 0, 0}, {0, 0, 0, 0} for a sub-interface.
 func defaultMtu(d *ifapi.SwInterfaceDetails) [4]uint32 {
@@ -203,11 +247,17 @@ func (d *MtuDescriptor) Create(ctx context.Context, obj proto.Message) (any, err
 	if o.GetMtu() == 0 {
 		return nil, ErrZeroMtu
 	}
-	idx, err := d.resolve(ctx, o.GetInterface())
+	idx, det, err := d.resolveDetails(ctx, o.GetInterface())
 	if err != nil {
 		return nil, err
 	}
-	return Meta{idx}, d.set(ctx, idx, mtuArr(o))
+	if mtuArr(o) == defaultMtu(det) {
+		return nil, ErrMtuDefault
+	}
+	if err := d.set(ctx, idx, mtuArr(o)); err != nil {
+		return nil, err
+	}
+	return Meta{idx}, d.claim(ctx, idx, MtuName)
 }
 
 func mtuArr(o *Mtu) [4]uint32 { return [4]uint32{o.GetMtu(), o.GetIp4(), o.GetIp6(), o.GetMpls()} }
@@ -224,22 +274,30 @@ func (d *MtuDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message
 	if newObj.(*Mtu).GetMtu() == 0 {
 		return nil, ErrZeroMtu
 	}
+	_, det, err := d.resolveDetails(ctx, newObj.(*Mtu).GetInterface())
+	if err != nil {
+		return nil, err
+	}
+	if mtuArr(newObj.(*Mtu)) == defaultMtu(det) {
+		return nil, ErrMtuDefault
+	}
 	return m, d.set(ctx, m.SwIfIndex, mtuArr(newObj.(*Mtu)))
 }
 
 // Delete restores VPP's creation default {link_mtu, 0, 0, 0}; a vanished interface is a no-op.
-func (d *MtuDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
+func (d *MtuDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) (err error) {
 	m, err := MetaOf(meta)
 	if err != nil {
 		return err
 	}
-	t, err := Dump(ctx, d.client, d.owner)
-	if err != nil {
+	defer func() {
+		if err == nil {
+			d.release(obj, MtuName)
+		}
+	}()
+	det, ok, err := d.ownedDetails(ctx, m.SwIfIndex, MtuName)
+	if err != nil || !ok {
 		return err
-	}
-	det, ok := t.Details(m.SwIfIndex)
-	if !ok {
-		return nil
 	}
 	return d.set(ctx, m.SwIfIndex, defaultMtu(det))
 }
@@ -252,7 +310,7 @@ func (d *MtuDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	}
 	var out []scheduler.KV
 	for _, idx := range t.order {
-		key, ok := t.KeyFor(idx)
+		key, ok := t.OwnedRef(idx, MtuName)
 		if !ok {
 			continue
 		}
@@ -346,7 +404,10 @@ func (d *MacAddressDescriptor) Create(ctx context.Context, obj proto.Message) (a
 	if err != nil {
 		return nil, err
 	}
-	return Meta{idx}, d.apply(ctx, idx, o.GetMac())
+	if err := d.apply(ctx, idx, o.GetMac()); err != nil {
+		return nil, err
+	}
+	return Meta{idx}, d.claim(ctx, idx, MacAddressName)
 }
 
 // Update implements scheduler.Descriptor.
@@ -363,11 +424,16 @@ func (d *MacAddressDescriptor) Update(ctx context.Context, oldObj, newObj proto.
 
 // Delete keeps the current address (VPP has no notion of an unset MAC) and stops reporting it.
 // The interface's own descriptor deleting the interface is what removes it.
-func (d *MacAddressDescriptor) Delete(_ context.Context, _ proto.Message, meta any) error {
+func (d *MacAddressDescriptor) Delete(_ context.Context, obj proto.Message, meta any) (err error) {
 	m, err := MetaOf(meta)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err == nil {
+			d.release(obj, MacAddressName)
+		}
+	}()
 	d.mu.Lock()
 	delete(d.set, m.SwIfIndex)
 	d.mu.Unlock()
@@ -384,8 +450,8 @@ func (d *MacAddressDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, er
 	defer d.mu.Unlock()
 	var out []scheduler.KV
 	for _, idx := range t.order {
-		key, ok := t.KeyFor(idx)
-		if !ok || key.Descriptor() == SubinterfaceName {
+		key, ok := t.OwnedRef(idx, MacAddressName)
+		if !ok || Kind(t.byIndex[idx]) == SubinterfaceName {
 			continue // sub-interfaces share the parent's address
 		}
 		mac := FormatMAC(t.byIndex[idx].L2Address)
@@ -460,7 +526,10 @@ func (d *PromiscDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	if err != nil {
 		return nil, err
 	}
-	return Meta{idx}, d.set(ctx, idx, true)
+	if err := d.set(ctx, idx, true); err != nil {
+		return nil, err
+	}
+	return Meta{idx}, d.claim(ctx, idx, PromiscName)
 }
 
 // Update implements scheduler.Descriptor.
@@ -469,11 +538,16 @@ func (d *PromiscDescriptor) Update(_ context.Context, _, _ proto.Message, meta a
 }
 
 // Delete implements scheduler.Descriptor.
-func (d *PromiscDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
+func (d *PromiscDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) (err error) {
 	m, err := MetaOf(meta)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err == nil {
+			d.release(obj, PromiscName)
+		}
+	}()
 	return d.set(ctx, m.SwIfIndex, false)
 }
 
@@ -487,7 +561,7 @@ func (d *PromiscDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error
 	defer d.mu.Unlock()
 	var out []scheduler.KV
 	for _, idx := range t.order {
-		key, ok := t.KeyFor(idx)
+		key, ok := t.OwnedRef(idx, PromiscName)
 		if !ok || !d.on[idx] {
 			continue
 		}
@@ -607,7 +681,10 @@ func (d *RxModeDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	if o.GetMode() == defaultRxMode(det) {
 		return nil, ErrRxModeDefault
 	}
-	return Meta{idx}, d.set(ctx, idx, mode)
+	if err := d.set(ctx, idx, mode); err != nil {
+		return nil, err
+	}
+	return Meta{idx}, d.claim(ctx, idx, RxModeName)
 }
 
 // Update implements scheduler.Descriptor.
@@ -634,18 +711,19 @@ func (d *RxModeDescriptor) Update(ctx context.Context, oldObj, newObj proto.Mess
 }
 
 // Delete restores the device class default; a vanished interface is a no-op.
-func (d *RxModeDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
+func (d *RxModeDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) (err error) {
 	m, err := MetaOf(meta)
 	if err != nil {
 		return err
 	}
-	t, err := Dump(ctx, d.client, d.owner)
-	if err != nil {
+	defer func() {
+		if err == nil {
+			d.release(obj, RxModeName)
+		}
+	}()
+	det, ok, err := d.ownedDetails(ctx, m.SwIfIndex, RxModeName)
+	if err != nil || !ok {
 		return err
-	}
-	det, ok := t.Details(m.SwIfIndex)
-	if !ok {
-		return nil
 	}
 	mode, _ := rxModeToVPP(defaultRxMode(det))
 	return d.set(ctx, m.SwIfIndex, mode)
@@ -687,7 +765,7 @@ func (d *RxModeDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 	}
 	var out []scheduler.KV
 	for _, idx := range t.order {
-		key, ok := t.KeyFor(idx)
+		key, ok := t.OwnedRef(idx, RxModeName)
 		if !ok {
 			continue
 		}
@@ -751,7 +829,10 @@ func (d *RxPlacementDescriptor) Create(ctx context.Context, obj proto.Message) (
 	if err != nil {
 		return nil, err
 	}
-	return Meta{idx}, d.set(ctx, idx, o, false)
+	if err := d.set(ctx, idx, o, false); err != nil {
+		return nil, err
+	}
+	return Meta{idx}, d.claim(ctx, idx, RxPlacementName)
 }
 
 // Update implements scheduler.Descriptor.
@@ -768,11 +849,16 @@ func (d *RxPlacementDescriptor) Update(ctx context.Context, oldObj, newObj proto
 }
 
 // Delete implements scheduler.Descriptor.
-func (d *RxPlacementDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+func (d *RxPlacementDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) (err error) {
 	m, err := MetaOf(meta)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err == nil {
+			d.release(obj, RxPlacementName)
+		}
+	}()
 	o, ok := obj.(*RxPlacement)
 	if !ok {
 		return ErrEmptyValue
@@ -792,7 +878,7 @@ func (d *RxPlacementDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, e
 	}
 	var out []scheduler.KV
 	for _, idx := range t.order {
-		key, ok := t.KeyFor(idx)
+		key, ok := t.OwnedRef(idx, RxPlacementName)
 		if !ok {
 			continue
 		}
@@ -808,4 +894,34 @@ func (d *RxPlacementDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, e
 		}
 	}
 	return out, nil
+}
+
+// Normalize implements scheduler.Normalizer: the interface reference in canonical alias form.
+func (*AdminStateDescriptor) Normalize(obj proto.Message) proto.Message {
+	return NormalizeRefs(obj, "interface")
+}
+
+// Normalize implements scheduler.Normalizer: the interface reference in canonical alias form.
+func (*MtuDescriptor) Normalize(obj proto.Message) proto.Message {
+	return NormalizeRefs(obj, "interface")
+}
+
+// Normalize implements scheduler.Normalizer: the interface reference in canonical alias form.
+func (*MacAddressDescriptor) Normalize(obj proto.Message) proto.Message {
+	return NormalizeRefs(obj, "interface")
+}
+
+// Normalize implements scheduler.Normalizer: the interface reference in canonical alias form.
+func (*PromiscDescriptor) Normalize(obj proto.Message) proto.Message {
+	return NormalizeRefs(obj, "interface")
+}
+
+// Normalize implements scheduler.Normalizer: the interface reference in canonical alias form.
+func (*RxModeDescriptor) Normalize(obj proto.Message) proto.Message {
+	return NormalizeRefs(obj, "interface")
+}
+
+// Normalize implements scheduler.Normalizer: the interface reference in canonical alias form.
+func (*RxPlacementDescriptor) Normalize(obj proto.Message) proto.Message {
+	return NormalizeRefs(obj, "interface")
 }

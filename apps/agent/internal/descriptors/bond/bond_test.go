@@ -12,6 +12,7 @@ import (
 	bondapi "ngfw/agent/binapi/bond"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/descriptors/bond"
+	"ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/interface/ifacetest"
 	"ngfw/agent/internal/scheduler"
 )
@@ -209,7 +210,7 @@ func TestBondAndMember(t *testing.T) {
 		if kv.Key == "bond.member/w2-bond0/w2-tap1" {
 			want = m2
 		}
-		if !proto.Equal(kv.Value, want) {
+		if !proto.Equal(kv.Value, iface.Normalize(md, want)) {
 			t.Fatalf("member %s = %v", kv.Key, kv.Value)
 		}
 	}
@@ -230,5 +231,74 @@ func TestBondAndMember(t *testing.T) {
 	}
 	if _, ok := f.bonds[f.other]; !ok {
 		t.Fatal("the other owner's bond was touched")
+	}
+}
+
+// TestBondPhysicalMembers (review H2): two untagged NICs join a bond through their alias
+// references; the memberships are ours through the ClaimStore, never the NICs themselves.
+func TestBondPhysicalMembers(t *testing.T) {
+	iface.SetClaimStore(owner, nil)
+	f := newFake()
+	nic1, nic2 := f.Add("ens224", "dpdk", ""), f.Add("ens256", "dpdk", "")
+	bd := bond.NewBond(f, owner)
+	b := &bond.Bond{Name: "w2-bond0", Id: 200, Mode: bond.Mode_MODE_LACP, Lb: bond.LoadBalance_LOAD_BALANCE_L34}
+	if _, err := bd.Create(ctx, b); err != nil {
+		t.Fatal(err)
+	}
+	md := bond.NewMember(f, owner)
+	m1 := &bond.Member{Bond: "interface/w2-bond0", Interface: "interface/ens224"}
+	m2 := &bond.Member{Bond: bondKey, Interface: "interface/ens256", Passive: true}
+	meta1, err := md.Create(ctx, m1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta1.(bond.MemberMeta).SwIfIndex != nic1 {
+		t.Fatalf("meta = %+v", meta1)
+	}
+	if _, err := md.Create(ctx, m2); err != nil {
+		t.Fatal(err)
+	}
+	kvs := retrieve(t, md)
+	if len(kvs) != 2 {
+		t.Fatalf("members = %+v", kvs)
+	}
+	for _, kv := range kvs {
+		want := proto.Message(m1)
+		if kv.Key == "bond.member/w2-bond0/ens256" {
+			want = m2
+		}
+		if !proto.Equal(kv.Value, iface.Normalize(md, want)) {
+			t.Fatalf("%s = %v", kv.Key, kv.Value)
+		}
+	}
+	if err := md.Delete(ctx, m1, meta1); err != nil {
+		t.Fatal(err)
+	}
+	if iface.Claims(owner).Claimed("ens224", bond.MemberName) {
+		t.Fatal("claim not released")
+	}
+	if _, ok := f.Get(nic2); !ok {
+		t.Fatal("NIC removed")
+	}
+	// a foreign-tagged member is refused
+	if _, err := md.Create(ctx, &bond.Member{Bond: bondKey, Interface: "interface/BondEthernet9"}); !errors.Is(err, iface.ErrForeignInterface) {
+		t.Fatal("foreign member accepted")
+	}
+}
+
+// TestBondTagFailure (review M3): an untagged bond is deleted when tagging fails; the retry works.
+func TestBondTagFailure(t *testing.T) {
+	f := newFake()
+	d := bond.NewBond(f, owner)
+	b := &bond.Bond{Name: "w2-bond5", Id: 205, Mode: bond.Mode_MODE_XOR, Lb: bond.LoadBalance_LOAD_BALANCE_L2}
+	f.FailTag = 1
+	if _, err := d.Create(ctx, b); err == nil {
+		t.Fatal("tag failure not reported")
+	}
+	if len(f.CallsNamed("bond_delete")) != 1 {
+		t.Fatal("untagged orphan bond not deleted")
+	}
+	if _, err := d.Create(ctx, b); err != nil {
+		t.Fatalf("retry: %v", err)
 	}
 }

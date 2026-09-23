@@ -453,14 +453,18 @@ func (x *FibEntry) GetBvi() bool {
 // Flags overrides the L2 input feature flags of a bridge member (l2_interface_feat_flags_set).
 // The object exists only while the flags differ from the bridge domain's own flags.
 type Flags struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Interface     string                 `protobuf:"bytes,1,opt,name=interface,proto3" json:"interface,omitempty"`
-	Learn         bool                   `protobuf:"varint,2,opt,name=learn,proto3" json:"learn,omitempty"`
-	Forward       bool                   `protobuf:"varint,3,opt,name=forward,proto3" json:"forward,omitempty"`
-	Flood         bool                   `protobuf:"varint,4,opt,name=flood,proto3" json:"flood,omitempty"`
-	UuFlood       bool                   `protobuf:"varint,5,opt,name=uu_flood,json=uuFlood,proto3" json:"uu_flood,omitempty"`
-	ArpTerm       bool                   `protobuf:"varint,6,opt,name=arp_term,json=arpTerm,proto3" json:"arp_term,omitempty"`
-	ArpUfwd       bool                   `protobuf:"varint,7,opt,name=arp_ufwd,json=arpUfwd,proto3" json:"arp_ufwd,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Interface string                 `protobuf:"bytes,1,opt,name=interface,proto3" json:"interface,omitempty"`
+	Learn     bool                   `protobuf:"varint,2,opt,name=learn,proto3" json:"learn,omitempty"`
+	Forward   bool                   `protobuf:"varint,3,opt,name=forward,proto3" json:"forward,omitempty"`
+	Flood     bool                   `protobuf:"varint,4,opt,name=flood,proto3" json:"flood,omitempty"`
+	UuFlood   bool                   `protobuf:"varint,5,opt,name=uu_flood,json=uuFlood,proto3" json:"uu_flood,omitempty"`
+	ArpTerm   bool                   `protobuf:"varint,6,opt,name=arp_term,json=arpTerm,proto3" json:"arp_term,omitempty"`
+	ArpUfwd   bool                   `protobuf:"varint,7,opt,name=arp_ufwd,json=arpUfwd,proto3" json:"arp_ufwd,omitempty"`
+	// Bridge domain the interface is a member of. Mandatory: the flags only exist while the interface
+	// is a member, so the object depends on l2.bridge-domain-member/<bridge_domain>/<interface id> and
+	// is re-created with it (review M5).
+	BridgeDomain  uint32 `protobuf:"varint,8,opt,name=bridge_domain,json=bridgeDomain,proto3" json:"bridge_domain,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -544,14 +548,26 @@ func (x *Flags) GetArpUfwd() bool {
 	return false
 }
 
+func (x *Flags) GetBridgeDomain() uint32 {
+	if x != nil {
+		return x.BridgeDomain
+	}
+	return 0
+}
+
 // VlanTagRewrite is l2_interface_vlan_tag_rewrite on a (sub-)interface.
 type VlanTagRewrite struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Interface     string                 `protobuf:"bytes,1,opt,name=interface,proto3" json:"interface,omitempty"`
-	Op            VtrOp                  `protobuf:"varint,2,opt,name=op,proto3,enum=vrx.agent.l2.VtrOp" json:"op,omitempty"`
-	PushDot1Q     bool                   `protobuf:"varint,3,opt,name=push_dot1q,json=pushDot1q,proto3" json:"push_dot1q,omitempty"` // pushed tags are 802.1q (true) or 802.1ad (false)
-	Tag1          uint32                 `protobuf:"varint,4,opt,name=tag1,proto3" json:"tag1,omitempty"`
-	Tag2          uint32                 `protobuf:"varint,5,opt,name=tag2,proto3" json:"tag2,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Interface string                 `protobuf:"bytes,1,opt,name=interface,proto3" json:"interface,omitempty"`
+	Op        VtrOp                  `protobuf:"varint,2,opt,name=op,proto3,enum=vrx.agent.l2.VtrOp" json:"op,omitempty"`
+	PushDot1Q bool                   `protobuf:"varint,3,opt,name=push_dot1q,json=pushDot1q,proto3" json:"push_dot1q,omitempty"` // pushed tags are 802.1q (true) or 802.1ad (false)
+	Tag1      uint32                 `protobuf:"varint,4,opt,name=tag1,proto3" json:"tag1,omitempty"`
+	Tag2      uint32                 `protobuf:"varint,5,opt,name=tag2,proto3" json:"tag2,omitempty"`
+	// L2 mode of the interface (review M5): leaving/re-joining a bridge or an xconnect resets the
+	// rewrite in VPP, so the object depends on that membership and is re-created with it. Both must
+	// match the interface's actual mode (0/false = not in a bridge / not an xconnect rx).
+	BridgeDomain  uint32 `protobuf:"varint,6,opt,name=bridge_domain,json=bridgeDomain,proto3" json:"bridge_domain,omitempty"`
+	Xconnect      bool   `protobuf:"varint,7,opt,name=xconnect,proto3" json:"xconnect,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -621,6 +637,20 @@ func (x *VlanTagRewrite) GetTag2() uint32 {
 	return 0
 }
 
+func (x *VlanTagRewrite) GetBridgeDomain() uint32 {
+	if x != nil {
+		return x.BridgeDomain
+	}
+	return 0
+}
+
+func (x *VlanTagRewrite) GetXconnect() bool {
+	if x != nil {
+		return x.Xconnect
+	}
+	return false
+}
+
 var File_l2_model_proto protoreflect.FileDescriptor
 
 const file_l2_model_proto_rawDesc = "" +
@@ -649,7 +679,7 @@ const file_l2_model_proto_rawDesc = "" +
 	"\tinterface\x18\x03 \x01(\tR\tinterface\x12\x16\n" +
 	"\x06static\x18\x04 \x01(\bR\x06static\x12\x16\n" +
 	"\x06filter\x18\x05 \x01(\bR\x06filter\x12\x10\n" +
-	"\x03bvi\x18\x06 \x01(\bR\x03bvi\"\xbc\x01\n" +
+	"\x03bvi\x18\x06 \x01(\bR\x03bvi\"\xe1\x01\n" +
 	"\x05Flags\x12\x1c\n" +
 	"\tinterface\x18\x01 \x01(\tR\tinterface\x12\x14\n" +
 	"\x05learn\x18\x02 \x01(\bR\x05learn\x12\x18\n" +
@@ -657,14 +687,17 @@ const file_l2_model_proto_rawDesc = "" +
 	"\x05flood\x18\x04 \x01(\bR\x05flood\x12\x19\n" +
 	"\buu_flood\x18\x05 \x01(\bR\auuFlood\x12\x19\n" +
 	"\barp_term\x18\x06 \x01(\bR\aarpTerm\x12\x19\n" +
-	"\barp_ufwd\x18\a \x01(\bR\aarpUfwd\"\x9a\x01\n" +
+	"\barp_ufwd\x18\a \x01(\bR\aarpUfwd\x12#\n" +
+	"\rbridge_domain\x18\b \x01(\rR\fbridgeDomain\"\xdb\x01\n" +
 	"\x0eVlanTagRewrite\x12\x1c\n" +
 	"\tinterface\x18\x01 \x01(\tR\tinterface\x12#\n" +
 	"\x02op\x18\x02 \x01(\x0e2\x13.vrx.agent.l2.VtrOpR\x02op\x12\x1d\n" +
 	"\n" +
 	"push_dot1q\x18\x03 \x01(\bR\tpushDot1q\x12\x12\n" +
 	"\x04tag1\x18\x04 \x01(\rR\x04tag1\x12\x12\n" +
-	"\x04tag2\x18\x05 \x01(\rR\x04tag2*I\n" +
+	"\x04tag2\x18\x05 \x01(\rR\x04tag2\x12#\n" +
+	"\rbridge_domain\x18\x06 \x01(\rR\fbridgeDomain\x12\x1a\n" +
+	"\bxconnect\x18\a \x01(\bR\bxconnect*I\n" +
 	"\bPortType\x12\x14\n" +
 	"\x10PORT_TYPE_NORMAL\x10\x00\x12\x11\n" +
 	"\rPORT_TYPE_BVI\x10\x01\x12\x14\n" +

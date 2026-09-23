@@ -120,7 +120,12 @@ func (d *SubinterfaceDescriptor) Create(ctx context.Context, obj proto.Message) 
 	}
 	idx := uint32(rep.SwIfIndex)
 	if err := Tag(ctx, d.client, d.owner, SubinterfaceID(o), idx); err != nil {
-		return Meta{idx}, err
+		// an untagged sub-interface is invisible to Retrieve and would block every retry with
+		// "sub-interface already exists": remove it (review M3)
+		if _, derr := d.svc().DeleteSubif(ctx, &ifapi.DeleteSubif{SwIfIndex: rep.SwIfIndex}); derr != nil {
+			return nil, fmt.Errorf("%w (and delete_subif of the untagged orphan %d: %v)", err, idx, derr)
+		}
+		return nil, err
 	}
 	return Meta{idx}, nil
 }
@@ -155,11 +160,16 @@ func (d *SubinterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, 
 			continue
 		}
 		row := t.byIndex[idx]
-		parent, ok := t.KeyFor(row.SupSwIfIndex)
+		parent, ok := t.Ref(row.SupSwIfIndex)
 		if !ok {
-			continue // parent is not an owned interface of a known type: not something we can express
+			continue // parent tagged by another owner: not something we can express
 		}
 		out = append(out, scheduler.KV{Key: key, Value: DecodeSubif(parent, row), Meta: Meta{idx}})
 	}
 	return out, nil
+}
+
+// Normalize implements scheduler.Normalizer: the parent reference in canonical alias form.
+func (*SubinterfaceDescriptor) Normalize(obj proto.Message) proto.Message {
+	return NormalizeRefs(obj, "parent")
 }

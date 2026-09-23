@@ -146,7 +146,7 @@ func decodePaths(x *l3xcapi.L3xc, t *iface.Table) ([]*Path, bool) {
 	for _, fp := range x.Paths {
 		p := &Path{Table: fp.TableID, Weight: uint32(fp.Weight), Preference: uint32(fp.Preference)}
 		if fp.SwIfIndex != iface.AllInterfaces {
-			key, ok := t.KeyFor(fp.SwIfIndex)
+			key, ok := t.Ref(fp.SwIfIndex) // ours or untagged; never another owner's
 			if !ok {
 				return nil, false
 			}
@@ -202,7 +202,42 @@ func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error)
 	if err != nil {
 		return nil, err
 	}
-	return iface.Meta{SwIfIndex: idx}, nil
+	t, err := iface.Dump(ctx, d.client, d.owner)
+	if err != nil {
+		return nil, err
+	}
+	return iface.Meta{SwIfIndex: idx}, t.ClaimIfUntagged(idx, claimHolder(o.GetIpv6()))
+}
+
+// claimHolder is the ClaimStore holder of an l3xc on an untagged interface (one per family).
+func claimHolder(ipv6 bool) string {
+	if ipv6 {
+		return L3xcName + "/ip6"
+	}
+	return L3xcName + "/ip4"
+}
+
+// Normalize implements scheduler.Normalizer (review M4): references in canonical alias form,
+// next hops via netip, weight 0 → 1 (VPP stores 0 as 1, fib_api.c) and paths sorted (SortPaths),
+// exactly as Retrieve reports them.
+func (*Descriptor) Normalize(obj proto.Message) proto.Message {
+	o, ok := obj.(*L3Xc)
+	if !ok || o == nil {
+		return obj
+	}
+	out := iface.NormalizeRefs(o, "interface").(*L3Xc)
+	for i, p := range out.GetPaths() {
+		np := iface.NormalizeRefs(p, "interface").(*Path)
+		if np.GetWeight() == 0 {
+			np.Weight = 1
+		}
+		if a, err := netip.ParseAddr(np.GetNextHop()); err == nil {
+			np.NextHop = a.String()
+		}
+		out.Paths[i] = np
+	}
+	SortPaths(out.Paths)
+	return out
 }
 
 // Update implements scheduler.Descriptor.
@@ -234,6 +269,7 @@ func (d *Descriptor) Delete(ctx context.Context, obj proto.Message, meta any) er
 	if _, err := d.svc().L3xcDel(ctx, &l3xcapi.L3xcDel{SwIfIndex: interface_types.InterfaceIndex(m.SwIfIndex), IsIP6: o.GetIpv6()}); err != nil {
 		return fmt.Errorf("l3xc_del: %w", err)
 	}
+	_ = iface.ReleaseRef(d.owner, o.GetInterface(), claimHolder(o.GetIpv6()))
 	return nil
 }
 
@@ -257,7 +293,7 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 			return nil, fmt.Errorf("l3xc_dump: %w", err)
 		}
 		idx := uint32(row.L3xc.SwIfIndex)
-		key, ok := t.KeyFor(idx)
+		key, ok := t.OwnedRef(idx, claimHolder(row.L3xc.IsIP6))
 		if !ok {
 			continue
 		}

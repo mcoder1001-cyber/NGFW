@@ -66,7 +66,8 @@ func (d *MemberDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	if err != nil {
 		return nil, fmt.Errorf("bond_add_member: %w", err)
 	}
-	return MemberMeta{SwIfIndex: member, Bond: bond}, nil
+	// a physical (untagged) member is ours only through the claim (review H2)
+	return MemberMeta{SwIfIndex: member, Bond: bond}, t.ClaimIfUntagged(member, MemberName)
 }
 
 // Update implements scheduler.Descriptor: passive / long-timeout are LACP negotiation parameters fixed at attach → recreate.
@@ -75,7 +76,7 @@ func (*MemberDescriptor) Update(context.Context, proto.Message, proto.Message, a
 }
 
 // Delete implements scheduler.Descriptor.
-func (d *MemberDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
+func (d *MemberDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	m, ok := meta.(MemberMeta)
 	if !ok {
 		return fmt.Errorf("bond: unexpected meta %T", meta)
@@ -83,7 +84,15 @@ func (d *MemberDescriptor) Delete(ctx context.Context, _ proto.Message, meta any
 	if _, err := d.svc().BondDetachMember(ctx, &bondapi.BondDetachMember{SwIfIndex: interface_types.InterfaceIndex(m.SwIfIndex)}); err != nil {
 		return fmt.Errorf("bond_detach_member: %w", err)
 	}
+	if o, ok := obj.(*Member); ok {
+		_ = iface.ReleaseRef(d.owner, o.GetInterface(), MemberName)
+	}
 	return nil
+}
+
+// Normalize implements scheduler.Normalizer: bond and member references in canonical alias form.
+func (*MemberDescriptor) Normalize(obj proto.Message) proto.Message {
+	return iface.NormalizeRefs(obj, "bond", "interface")
 }
 
 // Retrieve implements scheduler.Descriptor.
@@ -110,13 +119,13 @@ func (d *MemberDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 			if err != nil {
 				return nil, fmt.Errorf("sw_member_interface_dump: %w", err)
 			}
-			mk, ok := t.KeyFor(uint32(m.SwIfIndex))
+			mk, ok := t.OwnedRef(uint32(m.SwIfIndex), MemberName)
 			if !ok {
 				continue
 			}
 			out = append(out, scheduler.KV{
 				Key:   scheduler.Join(MemberName, keys[i].ID(), mk.ID()),
-				Value: &Member{Bond: string(keys[i]), Interface: string(mk), Passive: m.IsPassive, LongTimeout: m.IsLongTimeout},
+				Value: &Member{Bond: iface.CanonicalRef(string(keys[i])), Interface: string(mk), Passive: m.IsPassive, LongTimeout: m.IsLongTimeout},
 				Meta:  MemberMeta{SwIfIndex: uint32(m.SwIfIndex), Bond: uint32(bd.SwIfIndex)},
 			})
 		}

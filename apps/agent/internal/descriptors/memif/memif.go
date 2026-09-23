@@ -51,6 +51,10 @@ func (d *MemifDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 	if o.GetName() == "" {
 		return nil, errors.New("memif: name is mandatory")
 	}
+	if o.GetSocket() == 0 {
+		// socket 0 is VPP's shared /run/vpp/memif.sock, owned by nobody (review L4)
+		return nil, errors.New("memif: an owned memif.socket is mandatory (socket 0 is VPP's shared default)")
+	}
 	rep, err := d.svc().MemifCreateV2(ctx, &memifapi.MemifCreateV2{
 		Role: memifapi.MemifRole(o.GetRole()), Mode: memifapi.MemifMode(o.GetMode()), ID: o.GetId(), SocketID: o.GetSocket(), //nolint:gosec // enum values 0-2
 		NoZeroCopy: !o.GetZeroCopy(), // ring_size / buffer_size 0 → VPP defaults (1024 / 2048)
@@ -60,7 +64,11 @@ func (d *MemifDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 	}
 	idx := uint32(rep.SwIfIndex)
 	if err := iface.Tag(ctx, d.client, d.owner, o.GetName(), idx); err != nil {
-		return iface.Meta{SwIfIndex: idx}, err
+		// an untagged memif is invisible to Retrieve and blocks every retry (id in use): remove it (review M3)
+		if _, derr := d.svc().MemifDelete(ctx, &memifapi.MemifDelete{SwIfIndex: rep.SwIfIndex}); derr != nil {
+			return nil, fmt.Errorf("%w (and memif_delete of the untagged orphan %d: %v)", err, idx, derr)
+		}
+		return nil, err
 	}
 	return iface.Meta{SwIfIndex: idx}, nil
 }

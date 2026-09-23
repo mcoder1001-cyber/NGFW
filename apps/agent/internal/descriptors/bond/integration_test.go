@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/internal/descriptors/bond"
+	"ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/interface/ifacetest"
 	"ngfw/agent/internal/descriptors/tapv2"
 	"ngfw/agent/internal/scheduler"
@@ -46,7 +47,7 @@ func create(t *testing.T, d scheduler.Descriptor, desired proto.Message) any {
 	if err != nil {
 		t.Fatalf("%s Retrieve: %v", d.Name(), err)
 	}
-	if got := ifacetest.Find(t, kvs, key, keyOf); !proto.Equal(got.Value, desired) {
+	if got := ifacetest.Find(t, kvs, key, keyOf); !proto.Equal(got.Value, iface.Normalize(d, desired)) {
 		t.Fatalf("%s Retrieve %s = %v, want %v", d.Name(), key, got.Value, desired)
 	}
 	t.Logf("%s: Retrieve == desired: %s", d.Name(), key)

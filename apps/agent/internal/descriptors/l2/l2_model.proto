@@ -59,6 +59,10 @@ message Flags {
   bool uu_flood = 5;
   bool arp_term = 6;
   bool arp_ufwd = 7;
+  // Bridge domain the interface is a member of. Mandatory: the flags only exist while the interface
+  // is a member, so the object depends on l2.bridge-domain-member/<bridge_domain>/<interface id> and
+  // is re-created with it (review M5).
+  uint32 bridge_domain = 8;
 }
 
 // VtrOp values are VPP's l2_vtr_op_t (src/vnet/l2/l2_vtr.h); 0 is "disabled" and has no object.
@@ -81,4 +85,9 @@ message VlanTagRewrite {
   bool push_dot1q = 3;  // pushed tags are 802.1q (true) or 802.1ad (false)
   uint32 tag1 = 4;
   uint32 tag2 = 5;
+  // L2 mode of the interface (review M5): leaving/re-joining a bridge or an xconnect resets the
+  // rewrite in VPP, so the object depends on that membership and is re-created with it. Both must
+  // match the interface's actual mode (0/false = not in a bridge / not an xconnect rx).
+  uint32 bridge_domain = 6;
+  bool xconnect = 7;
 }

@@ -37,7 +37,15 @@ func (*FlagsDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 
 // Dependencies implements scheduler.Descriptor.
 func (*FlagsDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
-	return []scheduler.Dependency{{Key: scheduler.Key(obj.(*Flags).GetInterface())}}
+	o := obj.(*Flags)
+	// the membership: leaving/re-joining the bridge resets the feature bitmap, so the scheduler must
+	// re-create the flags whenever it re-creates the member (review M5)
+	return []scheduler.Dependency{{Key: scheduler.Key(o.GetInterface())}, {Key: MemberKey(o.GetBridgeDomain(), o.GetInterface())}}
+}
+
+// Normalize implements scheduler.Normalizer: the interface reference in canonical alias form.
+func (*FlagsDescriptor) Normalize(obj proto.Message) proto.Message {
+	return iface.NormalizeRefs(obj, "interface")
 }
 
 func featOf(o *Flags) l2api.L2IntfFeatFlags {
@@ -140,6 +148,9 @@ func (d *FlagsDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 	if err != nil {
 		return nil, err
 	}
+	if bd.BdID != o.GetBridgeDomain() {
+		return nil, fmt.Errorf("l2.flags: %s is a member of bridge domain %d, not %d", o.GetInterface(), bd.BdID, o.GetBridgeDomain())
+	}
 	if featOf(o) == memberDefault(bd, idx) {
 		return nil, ErrEqualsBridgeDefault
 	}
@@ -153,7 +164,7 @@ func (d *FlagsDescriptor) Update(ctx context.Context, oldObj, newObj proto.Messa
 		return nil, err
 	}
 	o, n := oldObj.(*Flags), newObj.(*Flags)
-	if o.GetInterface() != n.GetInterface() {
+	if o.GetInterface() != n.GetInterface() || o.GetBridgeDomain() != n.GetBridgeDomain() {
 		return nil, scheduler.ErrRecreate
 	}
 	bd, err := d.bridgeOf(ctx, m.SwIfIndex)
@@ -193,7 +204,7 @@ func (d *FlagsDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 	for _, bd := range bds {
 		for _, sw := range bd.SwIfDetails {
 			idx := uint32(sw.SwIfIndex)
-			key, ok := t.KeyFor(idx)
+			key, ok := t.Ref(idx) // ours or untagged; the bridge (ours) makes the object ours
 			if !ok {
 				continue
 			}
@@ -204,8 +215,13 @@ func (d *FlagsDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 			if cur.Flags == memberDefault(bd, idx) {
 				continue
 			}
-			out = append(out, scheduler.KV{Key: scheduler.Join(FlagsName, key.ID()), Value: decodeFeat(string(key), cur.Flags), Meta: iface.Meta{SwIfIndex: idx}})
+			out = append(out, scheduler.KV{Key: scheduler.Join(FlagsName, key.ID()), Value: withBD(decodeFeat(string(key), cur.Flags), bd.BdID), Meta: iface.Meta{SwIfIndex: idx}})
 		}
 	}
 	return out, nil
+}
+
+func withBD(f *Flags, bd uint32) *Flags {
+	f.BridgeDomain = bd
+	return f
 }

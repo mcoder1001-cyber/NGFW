@@ -1,0 +1,5 @@
+# Rendered by vrx-agent (rsyslog renderer). Do not edit: every commit overwrites this file.
+global(workDirectory="/run/vrx-test/w0/rsyslog/work")
+module(load="imuxsock" SysSock.Use="off")
+input(type="imuxsock" Socket="/run/vrx-test/w0/rsyslog/log.sock" CreatePath="off")
+# management.syslog is empty: nothing is exported.

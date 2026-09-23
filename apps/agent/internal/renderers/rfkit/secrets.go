@@ -118,7 +118,12 @@ type Redactor struct {
 	values map[string]bool
 }
 
-// Add remembers values (empty strings are ignored).
+// minLineSecret is the shortest line of a multi-line secret that is masked on its own.
+const minLineSecret = 12
+
+// Add remembers values (empty strings are ignored). For a multi-line value (a PEM key) every
+// line of at least minLineSecret characters that is not PEM armour ("-----BEGIN …") is also
+// remembered on its own, so the secret stays masked when a tool's output is re-wrapped.
 func (r *Redactor) Add(values ...string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -126,8 +131,18 @@ func (r *Redactor) Add(values ...string) {
 		r.values = map[string]bool{}
 	}
 	for _, v := range values {
-		if v != "" {
-			r.values[v] = true
+		if v == "" {
+			continue
+		}
+		r.values[v] = true
+		if !strings.Contains(v, "\n") {
+			continue
+		}
+		for _, l := range strings.Split(v, "\n") {
+			l = strings.TrimSpace(l)
+			if len(l) >= minLineSecret && !strings.HasPrefix(l, "-----") {
+				r.values[l] = true
+			}
 		}
 	}
 }

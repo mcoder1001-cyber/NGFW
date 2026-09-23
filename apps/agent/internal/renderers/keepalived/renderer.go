@@ -207,6 +207,7 @@ func (r *Renderer) Validate(ctx context.Context, files renderers.Files) error {
 	}
 	out, err := r.runner.Run(ctx, renderers.Command{Path: KeepalivedBin, Args: args, Timeout: checkTimeout})
 	if err != nil {
+		out.Stdout, out.Stderr = []byte(r.red.Redact(string(out.Stdout))), []byte(r.red.Redact(string(out.Stderr)))
 		return r.red.Error(fmt.Errorf("%w: keepalived -t rejected keepalived.conf: %s", ErrDaemon, toolMessage(out, err, st.Dir)))
 	}
 	return nil

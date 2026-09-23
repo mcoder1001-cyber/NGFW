@@ -251,6 +251,7 @@ func (r *Renderer) Validate(ctx context.Context, files renderers.Files) error {
 	defer func() { _ = st.Close() }()
 	out, err := r.runner.Run(ctx, renderers.Command{Path: RsyslogdBin, Args: []string{"-N1", "-f", st.Path(r.paths.ConfFile)}, Timeout: checkTimeout})
 	if err != nil {
+		out.Stdout, out.Stderr = []byte(r.red.Redact(string(out.Stdout))), []byte(r.red.Redact(string(out.Stderr)))
 		return r.red.Error(fmt.Errorf("%w: rsyslogd -N1 rejected the export config: %s", ErrDaemon, toolMessage(out, err, st.Dir)))
 	}
 	return nil

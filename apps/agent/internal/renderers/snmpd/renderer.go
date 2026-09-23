@@ -249,7 +249,7 @@ func (r *Renderer) Validate(ctx context.Context, files renderers.Files) error {
 	_, runErr := r.runner.Run(ctx, renderers.Command{Path: SnmpdBin, Args: args, Timeout: parseRunTimeout})
 	stopErr := stopCheckInstance(ctx, pidFile, dir)
 	logText, _ := rfkit.ReadFileLimit(logFile, maxLogSize)
-	msg := strings.ReplaceAll(string(bytes.ToValidUTF8(logText, []byte("?"))), st.Dir, "<staging>")
+	msg := strings.ReplaceAll(r.red.Redact(string(bytes.ToValidUTF8(logText, []byte("?")))), st.Dir, "<staging>")
 	if runErr != nil {
 		return r.red.Error(fmt.Errorf("%w: snmpd parse run failed: %v: %s", ErrDaemon, runErr, oneLine(msg)))
 	}

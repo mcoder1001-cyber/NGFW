@@ -262,7 +262,7 @@ func TestInvalidUTF8Typed(t *testing.T) {
 }
 
 func TestHostileSecretValues(t *testing.T) {
-	for _, h := range []string{"not a pem", "-----BEGIN PRIVATE KEY-----\nabc\x00\n-----END PRIVATE KEY-----\n",
+	for _, h := range []string{"not a pem", strings.Replace(keyPEM, keyMark, "abc\x00", 1),
 		"-----BEGIN X-----\n" + strings.Repeat("A\n", 40000) + "-----END X-----\n", rfkit.Redacted} {
 		r := New(renderers.NewRecordingRunner(), WithPaths(productLike()), WithSecretResolver(resolver(map[string]string{"key/syslog-client": h})))
 		_, err := r.Render(context.Background(), doc(t, []any{tlsTarget}))

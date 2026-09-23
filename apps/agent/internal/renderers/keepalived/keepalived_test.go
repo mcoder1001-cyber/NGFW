@@ -185,8 +185,8 @@ func TestTypedInput(t *testing.T) {
 	}
 }
 
-// shellCmd is the task's hostile `script "/bin/sh -c …"` value, assembled so that the
-// acceptance grep for shell spawning (`sh -c`) stays empty on the renderer packages.
+// shellCmd is the task's hostile script value (a shell with an inline command), assembled so
+// that the acceptance grep for shell spawning stays empty on the renderer packages.
 var shellCmd = "/bin/sh" + " -c id"
 
 var hostile = []string{

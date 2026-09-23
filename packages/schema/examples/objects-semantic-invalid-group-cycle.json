@@ -1,0 +1,5 @@
+{
+  "objects": {
+    "addressGroups": { "a": { "members": ["b"] }, "b": { "members": ["a"] } }
+  }
+}

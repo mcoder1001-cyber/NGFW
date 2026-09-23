@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import {
   defaultValueFor,
+  dependencyMet,
+  dependsOnOf,
+  getIn,
+  hintsOf,
   isRecordSchema,
   mergeAllOf,
   parsePointer,
@@ -81,19 +85,34 @@ function augmentFormats(node: unknown): unknown {
   return changed ? copy : out;
 }
 
-/** JSON Schema → Zod (Zod 4 `fromJSONSchema`); memoised per schema object. Falls back to `unknown`. */
+const compileErrors = new WeakMap<JsonSchema, Error>();
+
+/**
+ * JSON Schema → Zod (Zod 4 `fromJSONSchema`); memoised per schema object. A schema Zod cannot convert (e.g.
+ * `if/then/else`, an unresolvable `$ref`) **fails closed** (review P07a M4): the result rejects every value, the error
+ * is logged, and `compileError()` reports it so `<SchemaForm>` can show it and refuse to submit.
+ */
 export function compile(schema: JsonSchema, root: JsonSchema): z.ZodType {
   let zs = compiled.get(schema);
   if (!zs) {
     try {
       const prepared = augmentFormats(withDefs(schema, root)) as z.core.JSONSchema.JSONSchema;
       zs = z.fromJSONSchema(prepared);
-    } catch {
-      zs = z.unknown();
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      compileErrors.set(schema, err);
+      console.error('SchemaForm: JSON Schema could not be compiled for client-side validation', err);
+      zs = z.never();
     }
     compiled.set(schema, zs);
   }
   return zs;
+}
+
+/** The error that made `compile(schema, root)` fail closed, or `undefined` when the schema compiled. */
+export function compileError(schema: JsonSchema, root: JsonSchema): Error | undefined {
+  compile(schema, root);
+  return compileErrors.get(schema);
 }
 
 /** Index of the first variant that accepts `value` (JSON shape), or -1. */
@@ -149,13 +168,39 @@ export function toFormValue(raw: JsonSchema, value: unknown, root: JsonSchema): 
   return value;
 }
 
-export function fromFormValue(raw: JsonSchema, formValue: unknown, root: JsonSchema): unknown {
+/**
+ * Is the property hidden by its `x-vrx-ui.dependsOn`? Evaluated exactly like the UI gate: a sibling in the enclosing
+ * object's form value, or an absolute `/path` located in the whole form value.
+ */
+export function hiddenByDependsOn(
+  propSchema: JsonSchema,
+  siblings: Record<string, unknown>,
+  formRoot: unknown,
+  root: JsonSchema,
+): boolean {
+  const dep = dependsOnOf(hintsOf(mergeAllOf(resolveRef(propSchema, root), root)));
+  if (!dep) return false;
+  let actual: unknown;
+  if (dep.field.startsWith('/')) {
+    const p = formPathFor(root, formRoot, parsePointer(dep.field), root);
+    actual = p === null ? undefined : p === '' ? formRoot : getIn(formRoot, p);
+  } else {
+    actual = siblings[dep.field];
+  }
+  return !dependencyMet(dep, actual);
+}
+
+/**
+ * Form layout → JSON. When `formRoot` (the whole form value) is given, properties hidden by `dependsOn` are dropped,
+ * so they are neither validated nor submitted (review P07a M3).
+ */
+export function fromFormValue(raw: JsonSchema, formValue: unknown, root: JsonSchema, formRoot?: unknown): unknown {
   const schema = mergeAllOf(resolveRef(raw, root), root);
   const variants = variantsOf(schema);
   if (variants && typeOf(schema) === undefined) {
     for (const rawVariant of variants) {
       const v = resolveRef(rawVariant, root);
-      const candidate = fromFormValue(v, formValue, root);
+      const candidate = fromFormValue(v, formValue, root, formRoot);
       if (compile(v, root).safeParse(candidate).success) return candidate;
     }
     // Nothing validates yet (user still typing): convert with the structurally closest variant.
@@ -163,7 +208,7 @@ export function fromFormValue(raw: JsonSchema, formValue: unknown, root: JsonSch
       const rv = resolveRef(v, root);
       return typeOf(rv) === 'object' && (isRecordSchema(rv) ? Array.isArray(formValue) : isPlainObject(formValue));
     });
-    return structural ? fromFormValue(structural, formValue, root) : formValue;
+    return structural ? fromFormValue(structural, formValue, root, formRoot) : formValue;
   }
   const t = typeOf(schema);
   if (t === 'object') {
@@ -173,15 +218,19 @@ export function fromFormValue(raw: JsonSchema, formValue: unknown, root: JsonSch
       const out: Record<string, unknown> = {};
       for (const entry of formValue as RecordEntry[]) {
         if (!isPlainObject(entry)) continue;
-        out[String(entry.key ?? '')] = fromFormValue(vs, entry.value, root);
+        out[String(entry.key ?? '')] = fromFormValue(vs, entry.value, root, formRoot);
       }
       return out;
     }
     if (!isPlainObject(formValue)) return formValue;
     const out: Record<string, unknown> = { ...formValue };
     for (const [k, ps] of Object.entries(schema.properties ?? {})) {
+      if (formRoot !== undefined && k in out && hiddenByDependsOn(ps, formValue, formRoot, root)) {
+        delete out[k];
+        continue;
+      }
       if (k in out) {
-        const v = fromFormValue(ps, out[k], root);
+        const v = fromFormValue(ps, out[k], root, formRoot);
         if (v === undefined) delete out[k];
         else out[k] = v;
       }
@@ -190,7 +239,7 @@ export function fromFormValue(raw: JsonSchema, formValue: unknown, root: JsonSch
   }
   if (t === 'array' && Array.isArray(formValue) && schema.items) {
     const items = schema.items;
-    return formValue.map((v) => fromFormValue(items, v, root));
+    return formValue.map((v) => fromFormValue(items, v, root, formRoot));
   }
   return formValue;
 }
@@ -256,12 +305,13 @@ export interface RecordKeyIssue {
   type: 'duplicate' | 'empty';
 }
 
-/** Empty or duplicate record keys — invisible to the JSON validator once entries collapse into an object. */
+/** Empty or duplicate record keys — invisible to the JSON validator once entries collapse into an object. Skips `dependsOn`-hidden fields. */
 export function findRecordKeyIssues(
   raw: JsonSchema,
   formValue: unknown,
   root: JsonSchema,
   base = '',
+  formRoot: unknown = formValue,
 ): RecordKeyIssue[] {
   const schema = mergeAllOf(resolveRef(raw, root), root);
   const out: RecordKeyIssue[] = [];
@@ -269,7 +319,7 @@ export function findRecordKeyIssues(
   if (variants && typeOf(schema) === undefined) {
     const i = matchVariantForm(variants, formValue, root);
     const pick = i < 0 ? variants.find((v) => typeOf(resolveRef(v, root)) === 'object') : variants[i];
-    return pick ? findRecordKeyIssues(pick, formValue, root, base) : out;
+    return pick ? findRecordKeyIssues(pick, formValue, root, base, formRoot) : out;
   }
   const t = typeOf(schema);
   const join = (child: string | number) => (base === '' ? String(child) : `${base}.${child}`);
@@ -290,19 +340,21 @@ export function findRecordKeyIssues(
           }
         } else seen.set(key, i);
       }
-      out.push(...findRecordKeyIssues(vs, entry.value, root, join(`${i}.value`)));
+      out.push(...findRecordKeyIssues(vs, entry.value, root, join(`${i}.value`), formRoot));
     });
     return out;
   }
   if (t === 'object' && isPlainObject(formValue)) {
     for (const [k, ps] of Object.entries(schema.properties ?? {})) {
-      if (k in formValue) out.push(...findRecordKeyIssues(ps, formValue[k], root, join(k)));
+      if (k in formValue && !hiddenByDependsOn(ps, formValue, formRoot, root)) {
+        out.push(...findRecordKeyIssues(ps, formValue[k], root, join(k), formRoot));
+      }
     }
     return out;
   }
   if (t === 'array' && Array.isArray(formValue) && schema.items) {
     const items = schema.items;
-    formValue.forEach((v, i) => out.push(...findRecordKeyIssues(items, v, root, join(i))));
+    formValue.forEach((v, i) => out.push(...findRecordKeyIssues(items, v, root, join(i), formRoot)));
   }
   return out;
 }

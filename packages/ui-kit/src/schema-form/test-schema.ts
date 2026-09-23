@@ -66,7 +66,7 @@ export const WIDGET_SCHEMA: JsonSchema = {
       ],
     },
     extra: { title: 'Extra', 'x-vrx-ui': { widget: 'json' } },
-    vrf: { type: 'string', title: 'VRF', 'x-vrx-ui': { dependsOn: { field: 'enabled', value: true } } },
+    vrf: { type: 'string', title: 'VRF', pattern: '^[a-z][a-z0-9-]*$', 'x-vrx-ui': { dependsOn: { field: 'enabled', value: true } } },
     internal: { type: 'string', 'x-vrx-ui': { widget: 'hidden' } },
   },
   required: ['name', 'mtu'],

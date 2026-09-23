@@ -26,6 +26,7 @@ export const en = {
     invalidJson: 'Not valid JSON',
     jsonValue: 'JSON value',
     schemaError: 'The value does not match the schema',
+    validationUnavailable: 'Client-side validation is unavailable for this form because its schema could not be compiled. Saving is disabled; please report this as a bug.',
   },
   validation: {
     required: 'Required',

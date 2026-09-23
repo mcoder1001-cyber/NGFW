@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { compile, findRecordKeyIssues, formPathFor, formatForPattern, fromFormValue, pointerToFormPath, toFormValue } from './form-value.js';
+import { describe, expect, it, vi } from 'vitest';
+import { compile, compileError, findRecordKeyIssues, formPathFor, formatForPattern, fromFormValue, pointerToFormPath, toFormValue } from './form-value.js';
 import { issueMessage } from './messages.js';
 import { createSchemaResolver, ROOT_FIELD } from './resolver.js';
 import { defaultValueFor, parsePointer } from './schema-utils.js';
 import { WIDGET_SCHEMA, WIDGET_VALUE } from './test-schema.js';
-import type { Translate } from './types.js';
+import type { JsonSchema, Translate } from './types.js';
 
 const S = WIDGET_SCHEMA;
 const t: Translate = (key, o) => `${key}${o ? ' ' + JSON.stringify(o) : ''}`;
@@ -89,3 +89,53 @@ describe('createSchemaResolver', () => {
     expect(subs[2]!.key!.message).toBe('form.duplicateKey');
   });
 });
+
+describe('dependsOn pruning and compile failures (review M3, M4)', () => {
+  const GATED: JsonSchema = {
+    type: 'object',
+    properties: {
+      mode: { type: 'string', enum: ['static', 'dhcp'] },
+      nested: {
+        type: 'object',
+        properties: {
+          on: { type: 'boolean' },
+          sibling: { type: 'string', minLength: 3, 'x-vrx-ui': { dependsOn: 'on' } },
+          absolute: { type: 'string', minLength: 3, 'x-vrx-ui': { dependsOn: { field: '/mode', value: 'static' } } },
+        },
+      },
+    },
+  };
+
+  it('drops fields whose sibling or absolute dependsOn is not met, keeps them when it is', () => {
+    const hidden = { mode: 'dhcp', nested: { on: false, sibling: 'x', absolute: 'y' } };
+    expect(fromFormValue(GATED, hidden, GATED, hidden)).toEqual({ mode: 'dhcp', nested: { on: false } });
+    const shown = { mode: 'static', nested: { on: true, sibling: 'abc', absolute: 'def' } };
+    expect(fromFormValue(GATED, shown, GATED, shown)).toEqual(shown);
+    // without formRoot (variant matching helpers) nothing is pruned
+    expect(fromFormValue(GATED, hidden, GATED)).toEqual(hidden);
+  });
+
+  it('the resolver accepts a form whose only invalid values are hidden, and returns them stripped', async () => {
+    const resolve = createSchemaResolver(GATED, t);
+    const form = { mode: 'dhcp', nested: { on: false, sibling: 'x', absolute: 'y' } };
+    const r = await resolve({ [ROOT_FIELD]: form }, undefined, { fields: {}, shouldUseNativeValidation: false });
+    expect(r.errors).toEqual({});
+    expect(r.values).toEqual({ [ROOT_FIELD]: { mode: 'dhcp', nested: { on: false } } });
+    const shown = { mode: 'static', nested: { on: true, sibling: 'x', absolute: 'y' } };
+    const r2 = await resolve({ [ROOT_FIELD]: shown }, undefined, { fields: {}, shouldUseNativeValidation: false });
+    expect(Object.keys((r2.errors as Record<string, Record<string, unknown>>)[ROOT_FIELD]!.nested as object).sort()).toEqual(['absolute', 'sibling']);
+  });
+
+  it('a schema Zod cannot compile rejects everything and reports why', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const bad: JsonSchema = { type: 'object', properties: { a: { $ref: '#/$defs/missing' } } };
+    expect(compileError(bad, bad)?.message).toMatch(/Reference not found/);
+    expect(compile(bad, bad).safeParse({}).success).toBe(false);
+    const r = await createSchemaResolver(bad, t)({ [ROOT_FIELD]: {} }, undefined, { fields: {}, shouldUseNativeValidation: false });
+    expect(r.values).toEqual({});
+    expect(JSON.stringify(r.errors)).toContain('form.validationUnavailable');
+    expect(compileError(S, S)).toBeUndefined();
+    error.mockRestore();
+  });
+});
+

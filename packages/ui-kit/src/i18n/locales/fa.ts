@@ -28,6 +28,7 @@ export const fa: UiKitResource = {
     invalidJson: 'JSON معتبر نیست',
     jsonValue: 'مقدار JSON',
     schemaError: 'مقدار با شِما مطابقت ندارد',
+    validationUnavailable: 'اعتبارسنجی سمت کاربر برای این فرم در دسترس نیست، چون شِمای آن کامپایل نشد. ذخیره غیرفعال است؛ لطفاً این را به‌عنوان خطا گزارش کنید.',
   },
   validation: {
     required: 'الزامی',

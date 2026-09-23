@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { UI_KIT_NS } from '../i18n/index.js';
 import { SchemaFormContextProvider, type SchemaFormContextValue, type WidgetComponent } from './context.js';
 import { SchemaField } from './fields/SchemaField.js';
-import { pointerToFormPath, toFormValue, withDefaults } from './form-value.js';
+import { compileError, pointerToFormPath, toFormValue, withDefaults } from './form-value.js';
 import { createSchemaResolver, ROOT_FIELD } from './resolver.js';
 import { getIn } from './schema-utils.js';
 import type { JsonSchema, ProblemDetails, ProblemFieldError, Translate } from './types.js';
@@ -85,6 +85,8 @@ export function SchemaForm({
     [schema, value],
   );
   const resolver = useMemo(() => createSchemaResolver(schema, translate), [schema, translate]);
+  /** Schema Zod cannot compile → validation unavailable: shown up front and submitting is refused (review M4). */
+  const compileFailed = useMemo(() => compileError(schema, schema) !== undefined, [schema]);
   const methods = useForm<FieldValues>({ defaultValues: initial, resolver, mode, reValidateMode: 'onChange' });
   const { reset, setError, getValues, handleSubmit, formState } = methods;
 
@@ -150,7 +152,12 @@ export function SchemaForm({
               )}
             </Alert>
           )}
-          {rootMessage && (
+          {compileFailed && (
+            <Alert severity="error" role="alert">
+              {t('form.validationUnavailable')}
+            </Alert>
+          )}
+          {rootMessage && !compileFailed && (
             <Alert severity="error" role="alert" sx={{ whiteSpace: 'pre-line' }}>
               <AlertTitle>{t('form.schemaError')}</AlertTitle>
               {rootMessage}
@@ -163,7 +170,7 @@ export function SchemaForm({
               <Button type="button" variant="text" onClick={() => reset(initial)} disabled={!formState.isDirty || formState.isSubmitting}>
                 {resetLabel ?? t('form.reset')}
               </Button>
-              <Button type="submit" variant="contained" disabled={readOnly || formState.isSubmitting}>
+              <Button type="submit" variant="contained" disabled={readOnly || compileFailed || formState.isSubmitting}>
                 {submitLabel ?? t('form.submit')}
               </Button>
             </Stack>

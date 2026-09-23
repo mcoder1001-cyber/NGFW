@@ -1,6 +1,6 @@
 import { toNestErrors } from '@hookform/resolvers';
 import type { FieldError, FieldValues, Resolver } from 'react-hook-form';
-import { compile, findRecordKeyIssues, formPathFor, fromFormValue } from './form-value.js';
+import { compile, compileError, findRecordKeyIssues, formPathFor, fromFormValue } from './form-value.js';
 import { issueMessage } from './messages.js';
 import type { JsonPath, JsonSchema, Translate } from './types.js';
 
@@ -16,9 +16,15 @@ export const ROOT_ERROR = 'root.schema';
  */
 export function createSchemaResolver(schema: JsonSchema, t: Translate): Resolver<FieldValues> {
   const zodSchema = compile(schema, schema);
+  const broken = compileError(schema, schema);
   return async (formValues, _context, options) => {
+    if (broken) {
+      // Fail closed (review M4): without client-side validation nothing is submitted.
+      return { values: {}, errors: toNestErrors({ [ROOT_ERROR]: { type: 'compile', message: t('form.validationUnavailable') } }, options) };
+    }
     const formRoot = formValues[ROOT_FIELD];
-    const value = fromFormValue(schema, formRoot, schema);
+    // Fields hidden by `dependsOn` are dropped here: neither validated nor submitted (review M3).
+    const value = fromFormValue(schema, formRoot, schema, formRoot);
     const flat = new Map<string, FieldError>();
     const prefixed = (p: string) => (p === '' ? ROOT_FIELD : `${ROOT_FIELD}.${p}`);
 

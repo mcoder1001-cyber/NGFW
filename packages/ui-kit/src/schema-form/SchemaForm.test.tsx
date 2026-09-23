@@ -79,6 +79,41 @@ describe('<SchemaForm>', () => {
     expect(screen.getByLabelText('VRF', { exact: false })).toBeInTheDocument();
   });
 
+  it('neither validates nor submits a field hidden by dependsOn (review M3)', async () => {
+    const onSubmit = vi.fn();
+    renderWithProviders(<SchemaForm schema={WIDGET_SCHEMA} value={WIDGET_VALUE} onSubmit={onSubmit} />);
+    const vrf = screen.getByLabelText('VRF', { exact: false });
+    await userEvent.type(vrf, 'NOT VALID');
+    await userEvent.tab();
+    expect(await screen.findByText('Does not match the required format')).toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText('Enabled')); // hides VRF, value stays in form state
+    expect(screen.queryByLabelText('VRF', { exact: false })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const payload = onSubmit.mock.calls[0]![0] as Record<string, unknown>;
+    expect(payload.enabled).toBe(false);
+    expect(payload).not.toHaveProperty('vrf');
+  });
+
+  it('fails closed when the schema cannot be compiled (review M4)', async () => {
+    const onSubmit = vi.fn();
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const schema = {
+      type: 'object',
+      properties: { a: { type: 'string', title: 'A' }, b: { type: 'string', title: 'B' } },
+      if: { properties: { a: { const: 'x' } } },
+      then: { required: ['b'] },
+    } as const;
+    renderWithProviders(<SchemaForm schema={schema} value={{ a: 'y' }} onSubmit={onSubmit} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Client-side validation is unavailable');
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    fireEvent.submit(screen.getByRole('button', { name: 'Save' }).closest('form')!);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('could not be compiled'), expect.any(Error));
+    error.mockRestore();
+  });
+
   it('switches oneOf variants and submits the new shape', async () => {
     const onSubmit = vi.fn();
     renderWithProviders(<SchemaForm schema={WIDGET_SCHEMA} value={WIDGET_VALUE} onSubmit={onSubmit} />);

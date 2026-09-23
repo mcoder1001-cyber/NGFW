@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Public } from '../auth/decorators.js';
 
 export interface HealthDto {
   status: 'ok';
@@ -11,7 +12,10 @@ export interface HealthDto {
 @ApiTags('system')
 @Controller('api/v1/health')
 export class HealthController {
+  /** Liveness only — public so service checks need no credentials; it reveals nothing about the device. */
   @Get()
+  @Public()
+  @ApiOperation({ summary: 'Liveness of the API process' })
   @ApiOkResponse({ description: 'Liveness of the API process (not of VPP).' })
   health(): HealthDto {
     return {

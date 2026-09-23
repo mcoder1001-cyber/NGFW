@@ -1,0 +1,7 @@
+# `pnpm lint` in packages/api-client: the generated OpenAPI document must pass Redocly's recommended ruleset.
+extends:
+  - recommended
+rules:
+  # Liveness (GET /health) and logout have no client-error outcome; every other operation declares its 4xx
+  # problem+json responses through the Protected()/PublicDoc() decorators.
+  operation-4xx-response: off

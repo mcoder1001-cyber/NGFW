@@ -1,9 +1,52 @@
 {
   "appName": "VRX",
-  "theme.toggle": "Toggle theme",
-  "lang.toggle": "\u0641\u0627\u0631\u0633\u06cc",
-  "health.title": "API health",
-  "health.loading": "Checking\u2026",
-  "health.ok": "API is up ({{version}})",
-  "health.error": "API unreachable"
+  "skipToContent": "Skip to main content",
+  "menu": {
+    "open": "Open navigation",
+    "settings": "Settings",
+    "navigation": "Main navigation"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "Follow system"
+  },
+  "lang": {
+    "label": "Language"
+  },
+  "digits": {
+    "persian": "Persian digits"
+  },
+  "density": {
+    "dense": "Dense layout"
+  },
+  "notAvailable": {
+    "title": "Not yet available",
+    "body": "This screen is planned but not built yet. Nothing here is simulated; it appears once its API and screen ship.",
+    "domain": "Configuration domain: {{title}}"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "widgetsNotAvailable": "Dashboard widgets (throughput, CPU, sessions, alarms, tunnel health) are not yet available."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "There is nothing at {{path}}.",
+    "home": "Go to the dashboard"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "reload": "Reload"
+  },
+  "health": {
+    "title": "API health",
+    "loading": "Checking…",
+    "ok": "API is up ({{version}})",
+    "error": "API unreachable"
+  },
+  "stream": {
+    "label": "Live stream"
+  },
+  "loading": "Loading…"
 }

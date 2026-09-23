@@ -12,6 +12,10 @@ const EXPECTED_POINTERS: Record<string, string[]> = {
   'nat-semantic-invalid-overlapping-pools.json': ['/nat/pools/1/range'],
   'nat-semantic-invalid-port-without-protocol.json': ['/nat/staticMappings/0/protocol'],
   'nat-semantic-invalid-inside-outside.json': ['/nat/outside/0', '/nat/outside/1'],
+  'nat-semantic-invalid-host-bits.json': [
+    '/nat/det44/mappings/0/inside',
+    '/nat/nat64/prefixes/0/prefix',
+  ],
   'acl-semantic-invalid-unknown-object.json': ['/acl/lists/lan-in/rules/0/source/name'],
   'acl-semantic-invalid-vrf-mismatch.json': ['/acl/attachments/0/vrf'],
   'objects-semantic-invalid-group-cycle.json': ['/objects/addressGroups/b/members/0'],

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RootConfig } from '../index.js';
-import { duplicates, natValidators, poolRange } from './nat.js';
+import { duplicates, isNetworkPrefix, natValidators, networkOf, poolRange } from './nat.js';
 import { sortIssues, type SemanticIssue } from './registry.js';
 
 const interfaces = {
@@ -48,6 +48,26 @@ describe('helpers', () => {
     ]);
     expect(duplicates([1, 1, 2], (n) => (n === 1 ? undefined : String(n)))).toEqual([]);
   });
+
+  it('isNetworkPrefix / networkOf detect and clear host bits (IPv6 compressed per RFC 5952)', () => {
+    expect(isNetworkPrefix('10.0.0.0/24')).toBe(true);
+    expect(isNetworkPrefix('10.0.0.1/24')).toBe(false);
+    expect(isNetworkPrefix('10.0.0.1/32')).toBe(true);
+    expect(isNetworkPrefix('0.0.0.0/0')).toBe(true);
+    expect(isNetworkPrefix('64:ff9b::/96')).toBe(true);
+    expect(isNetworkPrefix('64:ff9b::1/96')).toBe(false);
+    expect(isNetworkPrefix('2001:db8::1/128')).toBe(true);
+    expect(networkOf('10.0.0.1/24')).toBe('10.0.0.0/24');
+    expect(networkOf('100.64.255.255/10')).toBe('100.64.0.0/10');
+    expect(networkOf('255.255.255.255/0')).toBe('0.0.0.0/0');
+    expect(networkOf('64:ff9b::1/96')).toBe('64:ff9b::/96');
+    expect(networkOf('2001:db8:0:1::5/64')).toBe('2001:db8:0:1::/64');
+    expect(networkOf('1:0:0:2:0:0:0:3/128')).toBe('1:0:0:2::3/128');
+    expect(networkOf('1:2:3:4:5:6:7:8/128')).toBe('1:2:3:4:5:6:7:8/128');
+    expect(networkOf('1:0:2:0:3:0:4:0/128')).toBe('1:0:2:0:3:0:4:0/128');
+    expect(networkOf('::1/128')).toBe('::1/128');
+    expect(networkOf('ffff::1/0')).toBe('::/0');
+  });
 });
 
 describe('nat.interfaces-exist', () => {
@@ -64,18 +84,37 @@ describe('nat.interfaces-exist', () => {
       nptv6: {
         bindings: [{ interface: 'nope', internal: 'fd00::/48', external: '2001:db8::/48' }],
       },
-      cnat: { snat: { interfaces: [{ interface: 'nope', side: 'outside' }] } },
+      pools: [
+        { name: 'ok', range: '203.0.113.1' },
+        { name: 'wan', interface: 'nope' },
+        { name: 'wan2', interface: 'Gig0/0/1' },
+      ],
+      map: {
+        interfaces: [
+          { interface: 'nope', mode: 'map-e' },
+          { interface: 'Gig0/0/1', mode: 'map-t' },
+        ],
+      },
+      cnat: {
+        snat: {
+          addresses: { interface: 'nope' },
+          interfaces: [{ interface: 'nope', table: 'include-v4' }],
+        },
+      },
     });
     expect(pointers(issues)).toEqual([
+      '/nat/cnat/snat/addresses/interface',
       '/nat/cnat/snat/interfaces/0/interface',
       '/nat/det44/inside/0',
       '/nat/identityMappings/0/interface',
       '/nat/inside/1',
+      '/nat/map/interfaces/0/interface',
       '/nat/nat64/inside/0',
       '/nat/nat66/outside/0',
       '/nat/nptv6/bindings/0/interface',
       '/nat/outputFeature/0',
       '/nat/outside/0',
+      '/nat/pools/1/interface',
       '/nat/staticMappings/0/external/interface',
     ]);
     expect(issues[0]?.message).toBe("interface 'nope' does not exist");
@@ -158,6 +197,28 @@ describe('nat.pools-valid', () => {
         ],
       }),
     ).toEqual([]);
+  });
+
+  it('checks overlap per twice-NAT class (separate VPP lists) and interface pools per interface', () => {
+    expect(
+      run('nat.pools-valid', {
+        pools: [
+          { name: 'a', range: '203.0.113.10-203.0.113.20' },
+          { name: 'tn', range: '203.0.113.10-203.0.113.20', twiceNat: true },
+          { name: 'tn2', range: '203.0.113.15', twiceNat: true },
+          { name: 'wan', interface: 'Gig0/0/0' },
+          { name: 'wan2', interface: 'Gig0/0/0' },
+          { name: 'wan-tn', interface: 'Gig0/0/0', twiceNat: true },
+          { name: 'lan', interface: 'Gig0/0/1' },
+        ],
+      }),
+    ).toEqual([
+      { pointer: '/nat/pools/2/range', message: "range '203.0.113.15' overlaps pool 'tn'" },
+      {
+        pointer: '/nat/pools/4/interface',
+        message: "interface 'Gig0/0/0' is already used by pool 'wan'",
+      },
+    ]);
   });
 });
 
@@ -293,6 +354,47 @@ describe('nat.static-mappings', () => {
       {
         pointer: '/nat/staticMappings/7/external',
         message: expect.stringMatching(/as mapping 'pool'/),
+      },
+    ]);
+  });
+
+  it('compares external.pool by its start address / interface, so ip and pool collide (L1)', () => {
+    expect(
+      run('nat.static-mappings', {
+        pools: [
+          { name: 'p', range: '203.0.113.1-203.0.113.5' },
+          { name: 'wan', interface: 'Gig0/0/1' },
+        ],
+        staticMappings: [
+          mapping('lit', { ip: '203.0.113.1' }),
+          mapping('via-pool', { pool: 'p' }),
+          mapping('via-if', { interface: 'Gig0/0/1' }),
+          mapping('via-if-pool', { pool: 'wan' }),
+          mapping('other', { ip: '203.0.113.2' }),
+          mapping('unknown-a', { pool: 'nope' }),
+          mapping('unknown-b', { pool: 'nope' }),
+        ],
+      }),
+    ).toEqual([
+      {
+        pointer: '/nat/staticMappings/1/external',
+        message: expect.stringMatching(/as mapping 'lit'/),
+      },
+      {
+        pointer: '/nat/staticMappings/3/external',
+        message: expect.stringMatching(/as mapping 'via-if'/),
+      },
+      {
+        pointer: '/nat/staticMappings/5/external/pool',
+        message: "pool 'nope' does not exist in nat.pools",
+      },
+      {
+        pointer: '/nat/staticMappings/6/external',
+        message: expect.stringMatching(/as mapping 'unknown-a'/),
+      },
+      {
+        pointer: '/nat/staticMappings/6/external/pool',
+        message: "pool 'nope' does not exist in nat.pools",
       },
     ]);
   });
@@ -563,8 +665,52 @@ describe('nat.map-valid', () => {
     mode: 'map-e',
     ipv4Prefix: '192.0.2.0/24',
     ipv6Prefix: '2001:db8::/40',
-    ipv6Source: '2001:db8:ffff::/64',
+    ipv6Source: '2001:db8:ffff::1/128',
     ...extra,
+  });
+
+  it('ties mode to the ipv6Source length and binds each interface once (M2)', () => {
+    expect(
+      run('nat.map-valid', {
+        map: {
+          interfaces: [
+            { interface: 'Gig0/0/0', mode: 'map-e' },
+            { interface: 'Gig0/0/0', mode: 'map-t' },
+            { interface: 'Gig0/0/1', mode: 'map-t' },
+          ],
+          domains: [
+            domain('e-ok', {}),
+            domain('e-bad', { ipv6Source: '2001:db8:ffff::/64' }),
+            domain('lw-bad', { mode: 'lw4o6', ipv6Source: '2001:db8:ffff::/96' }),
+            domain('t-64', { mode: 'map-t', ipv6Source: '2001:db8:ffff::/64' }),
+            domain('t-96', { mode: 'map-t', ipv6Source: '64:ff9b::/96' }),
+            domain('t-bad', { mode: 'map-t', ipv6Source: '2001:db8:ffff::1/128' }),
+            domain('t-bad2', { mode: 'map-t', ipv6Source: '2001:db8::/48' }),
+          ],
+        },
+      }),
+    ).toEqual([
+      {
+        pointer: '/nat/map/domains/1/ipv6Source',
+        message: expect.stringMatching(/^MAP-E needs the BR address as ipv6Source/),
+      },
+      {
+        pointer: '/nat/map/domains/2/ipv6Source',
+        message: expect.stringMatching(/^lw4o6 needs the BR address as ipv6Source/),
+      },
+      {
+        pointer: '/nat/map/domains/5/ipv6Source',
+        message: expect.stringMatching(/^MAP-T needs the DMR prefix/),
+      },
+      {
+        pointer: '/nat/map/domains/6/ipv6Source',
+        message: expect.stringMatching(/^MAP-T needs the DMR prefix/),
+      },
+      {
+        pointer: '/nat/map/interfaces/1/interface',
+        message: "interface 'Gig0/0/0' is already bound to MAP",
+      },
+    ]);
   });
 
   it('rejects duplicate names, EA bits past /64, PSID overflow and rules with EA bits', () => {
@@ -660,6 +806,151 @@ describe('nat.cnat-valid', () => {
         message: 'VIP 203.0.113.1:80/tcp is translated twice',
       },
     ]);
+  });
+
+  it('rejects an interface twice in one SNAT table and tables the policy never consults (M3)', () => {
+    expect(
+      run('nat.cnat-valid', {
+        cnat: {
+          snat: {
+            policy: 'interface',
+            interfaces: [
+              { interface: 'Gig0/0/0', table: 'include-v4' },
+              { interface: 'Gig0/0/0', table: 'include-v6' },
+              { interface: 'Gig0/0/0', table: 'include-v4' },
+              { interface: 'Gig0/0/1', table: 'pod' },
+            ],
+          },
+        },
+      }),
+    ).toEqual([
+      {
+        pointer: '/nat/cnat/snat/interfaces/2',
+        message: "interface 'Gig0/0/0' is already in SNAT table 'include-v4'",
+      },
+      {
+        pointer: '/nat/cnat/snat/interfaces/3/table',
+        message: expect.stringMatching(/policy 'interface' never consults table 'pod'/),
+      },
+    ]);
+    expect(
+      run('nat.cnat-valid', {
+        cnat: {
+          snat: {
+            policy: 'k8s',
+            interfaces: [
+              { interface: 'Gig0/0/0', table: 'pod' },
+              { interface: 'Gig0/0/1', table: 'host' },
+              { interface: 'Gig0/0/2', table: 'include-v4' },
+            ],
+          },
+        },
+      }),
+    ).toEqual([
+      {
+        pointer: '/nat/cnat/snat/interfaces/2/table',
+        message: expect.stringMatching(/policy 'k8s' never consults table 'include-v4'/),
+      },
+    ]);
+    expect(
+      run('nat.cnat-valid', {
+        cnat: {
+          snat: {
+            policy: 'none',
+            interfaces: [
+              { interface: 'Gig0/0/0', table: 'pod' },
+              { interface: 'Gig0/0/0', table: 'include-v6' },
+            ],
+          },
+        },
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe('nat.prefixes-are-networks', () => {
+  it('rejects host bits in every network-prefix field and names the network (M4)', () => {
+    expect(
+      run('nat.prefixes-are-networks', {
+        nat64: { prefixes: [{ prefix: '64:ff9b::1/96' }, { prefix: '64:ff9b::/96', vrf: 'cust' }] },
+        nptv6: {
+          bindings: [
+            { interface: 'Gig0/0/0', internal: 'fd00::1/48', external: '2001:db8:0:1::/48' },
+          ],
+        },
+        det44: { mappings: [{ inside: '100.64.0.1/16', outside: '203.0.113.0/28' }] },
+        map: {
+          domains: [
+            {
+              name: 'd',
+              mode: 'map-t',
+              ipv4Prefix: '192.0.2.1/24',
+              ipv6Prefix: '2001:db8::1/40',
+              ipv6Source: '64:ff9b::1/96',
+            },
+          ],
+        },
+        cnat: { snat: { excludePrefixes: ['10.0.0.1/8', '10.0.0.0/8'] } },
+      }),
+    ).toEqual([
+      {
+        pointer: '/nat/cnat/snat/excludePrefixes/0',
+        message: "'10.0.0.1/8' has host bits set; the network is 10.0.0.0/8",
+      },
+      {
+        pointer: '/nat/det44/mappings/0/inside',
+        message: "'100.64.0.1/16' has host bits set; the network is 100.64.0.0/16",
+      },
+      {
+        pointer: '/nat/map/domains/0/ipv4Prefix',
+        message: "'192.0.2.1/24' has host bits set; the network is 192.0.2.0/24",
+      },
+      {
+        pointer: '/nat/map/domains/0/ipv6Prefix',
+        message: "'2001:db8::1/40' has host bits set; the network is 2001:db8::/40",
+      },
+      {
+        pointer: '/nat/map/domains/0/ipv6Source',
+        message: "'64:ff9b::1/96' has host bits set; the network is 64:ff9b::/96",
+      },
+      {
+        pointer: '/nat/nat64/prefixes/0/prefix',
+        message: "'64:ff9b::1/96' has host bits set; the network is 64:ff9b::/96",
+      },
+      {
+        pointer: '/nat/nptv6/bindings/0/external',
+        message: "'2001:db8:0:1::/48' has host bits set; the network is 2001:db8::/48",
+      },
+      {
+        pointer: '/nat/nptv6/bindings/0/internal',
+        message: "'fd00::1/48' has host bits set; the network is fd00::/48",
+      },
+    ]);
+  });
+
+  it('accepts real networks and single-address prefixes (/32, /128)', () => {
+    expect(
+      run('nat.prefixes-are-networks', {
+        nat64: { prefixes: [{ prefix: '64:ff9b::/96' }] },
+        nptv6: {
+          bindings: [{ interface: 'Gig0/0/0', internal: 'fd00::/48', external: '2001:db8::/48' }],
+        },
+        det44: { mappings: [{ inside: '100.64.0.0/16', outside: '203.0.113.0/28' }] },
+        map: {
+          domains: [
+            {
+              name: 'd',
+              mode: 'map-e',
+              ipv4Prefix: '192.0.2.0/24',
+              ipv6Prefix: '2001:db8::/40',
+              ipv6Source: '2001:db8:ffff::1/128',
+            },
+          ],
+        },
+        cnat: { snat: { excludePrefixes: ['10.0.0.0/8', '192.0.2.1/32', '2001:db8::1/128'] } },
+      }),
+    ).toEqual([]);
+    expect(run('nat.prefixes-are-networks', {})).toEqual([]);
   });
 });
 

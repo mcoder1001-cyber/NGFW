@@ -274,9 +274,10 @@ describe('acl.attachments', () => {
   });
 
   it('requires vrf to match the target interface(s) when they declare one', () => {
+    // distinct lists per attachment: zone 'wan' contains Gig0/0/1 and 'lan' contains Gig0/0/0 (see L7 below)
     expect(
       run('acl.attachments', {
-        lists,
+        lists: { ...lists, viaZoneWan: { rules: [] }, viaZoneLan: { rules: [] } },
         attachments: [
           att({ vrf: 'default', sequence: 1 }),
           att({
@@ -284,9 +285,14 @@ describe('acl.attachments', () => {
             vrf: 'default',
             sequence: 2,
           }),
-          att({ target: { kind: 'zone', zone: 'wan' }, vrf: 'default', sequence: 3 }),
+          att({
+            list: 'viaZoneWan',
+            target: { kind: 'zone', zone: 'wan' },
+            vrf: 'default',
+            sequence: 3,
+          }),
           att({ target: { kind: 'interface', interface: 'Gig0/0/2' }, vrf: 'cust', sequence: 4 }),
-          att({ target: { kind: 'zone', zone: 'lan' }, sequence: 5 }),
+          att({ list: 'viaZoneLan', target: { kind: 'zone', zone: 'lan' }, sequence: 5 }),
         ],
       }),
     ).toEqual([
@@ -310,6 +316,7 @@ describe('acl.attachments', () => {
           att({ sequence: 2 }),
           att({ list: 'other', sequence: 1 }),
           att({ direction: 'out', sequence: 1 }),
+          // zone 'lan' = [Gig0/0/0]: the same list + sequence reach Gig0/0/0 a second time through the zone
           att({ target: { kind: 'zone', zone: 'lan' }, sequence: 1 }),
         ],
       }),
@@ -322,6 +329,78 @@ describe('acl.attachments', () => {
         pointer: '/acl/attachments/2/sequence',
         message: 'sequence 1 is already used by attachment 0 on the same target and direction',
       },
+      {
+        pointer: '/acl/attachments/4/list',
+        message:
+          "access list 'fw' is already attached to interface 'Gig0/0/0' (attachment 0) in direction 'in'",
+      },
+      {
+        pointer: '/acl/attachments/4/sequence',
+        message:
+          "sequence 1 is already used by attachment 0 on interface 'Gig0/0/0' in direction 'in'",
+      },
+    ]);
+  });
+
+  it('expands zones before the duplicate checks, in either order and only for the same direction (L7)', () => {
+    // zone first, member interface second → reported at the interface attachment
+    expect(
+      run('acl.attachments', {
+        lists: { ...lists, other: { rules: [] } },
+        attachments: [
+          att({ target: { kind: 'zone', zone: 'lan' }, sequence: 10 }),
+          att({ sequence: 20 }),
+          att({ list: 'other', sequence: 10 }),
+          att({
+            list: 'other',
+            target: { kind: 'zone', zone: 'lan' },
+            direction: 'out',
+            sequence: 10,
+          }),
+          att({ target: { kind: 'zone', zone: 'wan' }, sequence: 10 }),
+          att({ target: { kind: 'zone', zone: 'nope' }, sequence: 10 }),
+          att({ target: { kind: 'zone', zone: 'nope' }, sequence: 10 }),
+        ],
+      }),
+    ).toEqual([
+      {
+        pointer: '/acl/attachments/1/list',
+        message:
+          "access list 'fw' is already attached to interface 'Gig0/0/0' (attachment 0) in direction 'in'",
+      },
+      {
+        pointer: '/acl/attachments/2/sequence',
+        message:
+          "sequence 10 is already used by attachment 0 on interface 'Gig0/0/0' in direction 'in'",
+      },
+      { pointer: '/acl/attachments/5/target/zone', message: "zone 'nope' does not exist" },
+      {
+        pointer: '/acl/attachments/6/list',
+        message: "access list 'fw' is already attached to this target in direction 'in'",
+      },
+      {
+        pointer: '/acl/attachments/6/sequence',
+        message: 'sequence 10 is already used by attachment 5 on the same target and direction',
+      },
+      { pointer: '/acl/attachments/6/target/zone', message: "zone 'nope' does not exist" },
+    ]);
+    // one issue per attachment and check, even when the literal target and a member both collide
+    expect(
+      pointers(
+        run('acl.attachments', {
+          lists,
+          attachments: [
+            att({ target: { kind: 'zone', zone: 'lan' }, sequence: 1 }),
+            att({ sequence: 1 }),
+            att({ target: { kind: 'zone', zone: 'lan' }, sequence: 1 }),
+          ],
+        }),
+      ),
+    ).toEqual([
+      '/acl/attachments/1/list',
+      '/acl/attachments/1/sequence',
+      '/acl/attachments/2/list',
+      '/acl/attachments/2/sequence',
     ]);
   });
 });

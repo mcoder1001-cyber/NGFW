@@ -13,7 +13,12 @@
       "vrf": "default"
     }
   },
-  "vrfs": { "default": { "id": 0, "description": "global routing table" } },
+  "vrfs": {
+    "default": {
+      "id": 0,
+      "description": "global routing table"
+    }
+  },
   "nat": {
     "enabled": true,
     "mode": "ed",
@@ -26,32 +31,59 @@
         "description": "public addresses for outbound PAT",
         "range": "203.0.113.10-203.0.113.20",
         "vrf": "default"
+      },
+      {
+        "name": "wan-if",
+        "description": "the WAN interface address itself (follows DHCP; nat44_add_del_interface_addr)",
+        "interface": "TenGigabitEthernet0/0/0"
       }
     ],
     "staticMappings": [
       {
         "name": "mail-1to1",
         "description": "1:1 for the mail server",
-        "local": { "ip": "192.168.1.25" },
-        "external": { "ip": "203.0.113.25" }
+        "local": {
+          "ip": "192.168.1.25"
+        },
+        "external": {
+          "ip": "203.0.113.25"
+        }
       },
       {
         "name": "web-forward",
         "protocol": "tcp",
-        "local": { "ip": "192.168.1.80", "port": 80 },
-        "external": { "ip": "203.0.113.3", "port": 8080 }
+        "local": {
+          "ip": "192.168.1.80",
+          "port": 80
+        },
+        "external": {
+          "ip": "203.0.113.3",
+          "port": 8080
+        }
       },
       {
         "name": "ssh-via-pool",
         "protocol": "tcp",
-        "local": { "ip": "192.168.1.22", "port": 22 },
-        "external": { "pool": "wan-pool", "port": 2222 }
+        "local": {
+          "ip": "192.168.1.22",
+          "port": 22
+        },
+        "external": {
+          "pool": "wan-pool",
+          "port": 2222
+        }
       },
       {
         "name": "dns-via-wan-if",
         "protocol": "udp",
-        "local": { "ip": "192.168.1.53", "port": 53 },
-        "external": { "interface": "TenGigabitEthernet0/0/0", "port": 53 }
+        "local": {
+          "ip": "192.168.1.53",
+          "port": 53
+        },
+        "external": {
+          "interface": "TenGigabitEthernet0/0/0",
+          "port": 53
+        }
       }
     ],
     "identityMappings": [
@@ -60,6 +92,11 @@
         "interface": "TenGigabitEthernet0/0/0"
       }
     ],
-    "timeouts": { "udp": 300, "tcpEstablished": 7440, "tcpTransitory": 240, "icmp": 60 }
+    "timeouts": {
+      "udp": 300,
+      "tcpEstablished": 7440,
+      "tcpTransitory": 240,
+      "icmp": 60
+    }
   }
 }

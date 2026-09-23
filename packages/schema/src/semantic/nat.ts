@@ -1,6 +1,7 @@
 import { jsonPointer } from '../pointer.js';
 import { splitIpv4Range, type NatConfig } from '../domains/nat.js';
 import {
+  addressToBigInt,
   ipFamily,
   ipv4ToNumber,
   interfaceExists,
@@ -16,12 +17,15 @@ import type { SemanticIssue, ValidatorDefinition } from './registry.js';
  * Semantic validators for `nat` (tier b). Pure functions of the schema-valid document, `{ pointer, message }[]`.
  *
  * Rules (name → what it rejects):
- *   nat.interfaces-exist        an inside/outside/output-feature/binding interface that is not in `interfaces`
+ *   nat.interfaces-exist        an inside/outside/output-feature/binding/pool/MAP/CNAT interface not in `interfaces`
  *   nat.inside-outside-disjoint an interface listed twice, or on both the inside and the outside of one translator
- *   nat.pools-valid             a pool range that ends before it starts, pools that overlap, duplicate pool names
+ *   nat.pools-valid             a pool range that ends before it starts, range pools of the same twice-NAT class
+ *                               that overlap (VPP keeps normal and twice-NAT addresses in separate lists), the same
+ *                               interface twice as an interface pool of one class, duplicate pool names
  *   nat.static-mappings         external side not exactly one of ip/pool/interface, unknown pool, one-sided ports,
  *                               ports without protocol (F-nat44 rule), ports on ICMP, twiceNat+selfTwiceNat,
- *                               duplicate names, two mappings claiming the same external tuple
+ *                               duplicate names, two mappings claiming the same external tuple (a `pool` is
+ *                               resolved to its start address / interface first, so `ip` and `pool` collide)
  *   nat.identity-mappings       not exactly one of ip/interface, port without protocol, port on ICMP
  *   nat.load-balanced-mappings  duplicate names, duplicate external tuples, duplicate local endpoints
  *   nat.mode-ed-features        twice-NAT pools/mappings, out2in-only and load balancing while `mode` is `ei`
@@ -30,9 +34,13 @@ import type { SemanticIssue, ValidatorDefinition } from './registry.js';
  *   nat.nptv6-valid             internal/external prefix lengths differ, two bindings on one interface
  *   nat.det44-valid             outside prefix shorter than inside, sharing ratio > 2^15, overlapping prefixes
  *   nat.map-valid               duplicate domain names, EA bits past /64, PSID offset+length > 16, PSID that does
- *                               not fit, duplicate PSIDs, per-PSID rules with EA bits
- *   nat.cnat-valid              duplicate names/VIPs, backend family ≠ VIP family, duplicate backends
+ *                               not fit, duplicate PSIDs, per-PSID rules with EA bits, `mode` vs `ipv6Source`
+ *                               length (map-e/lw4o6 ⇒ /128 BR address; map-t ⇒ /64 or /96 DMR — VPP
+ *                               ip4_map_t_embedded_address), an interface bound to MAP twice
+ *   nat.cnat-valid              duplicate names/VIPs, backend family ≠ VIP family, duplicate backends, an interface
+ *                               twice in one SNAT table, a table the selected SNAT policy never consults
  *   nat.dslite-valid            AFTR and B4 both configured, or enabled with neither
+ *   nat.prefixes-are-networks   a NAT64 / NPTv6 / DET44 / MAP / CNAT-exclude prefix whose address has host bits set
  *
  * Only P02b edits this file.
  */
@@ -44,6 +52,40 @@ export function poolRange(text: string): AddressRange {
   const r = splitIpv4Range(text);
   if (r === undefined) throw new Error(`invalid IPv4 range '${text}'`);
   return { family: 4, start: BigInt(ipv4ToNumber(r.start)), end: BigInt(ipv4ToNumber(r.end)) };
+}
+
+/** True when the address part of `cidr` is the first address of its prefix (no host bits set). */
+export function isNetworkPrefix(cidr: string): boolean {
+  return prefixToRange(cidr).start === addressToBigInt(cidr.slice(0, cidr.indexOf('/')));
+}
+
+/** `cidr` with its host bits cleared: `10.0.0.1/24` → `10.0.0.0/24`, `64:ff9b::1/96` → `64:ff9b::/96` (RFC 5952). */
+export function networkOf(cidr: string): string {
+  const { family, start } = prefixToRange(cidr);
+  const length = cidr.slice(cidr.indexOf('/'));
+  if (family === 4) {
+    return (
+      [24, 16, 8, 0].map((shift) => String((start >> BigInt(shift)) & 255n)).join('.') + length
+    );
+  }
+  const groups = Array.from({ length: 8 }, (_, i) =>
+    Number((start >> BigInt((7 - i) * 16)) & 0xffffn),
+  );
+  let best = { at: -1, length: 0 };
+  let i = 0;
+  while (i < 8) {
+    if (groups[i] !== 0) {
+      i += 1;
+      continue;
+    }
+    let j = i;
+    while (j < 8 && groups[j] === 0) j += 1;
+    if (j - i > best.length) best = { at: i, length: j - i };
+    i = j;
+  }
+  const hex = groups.map((g) => g.toString(16));
+  if (best.length < 2) return hex.join(':') + length;
+  return `${hex.slice(0, best.at).join(':')}::${hex.slice(best.at + best.length).join(':')}${length}`;
 }
 
 /** Indices of items whose key repeats an earlier item's key (`undefined` keys are skipped). */
@@ -85,26 +127,33 @@ function listDuplicates(names: readonly string[], segments: readonly Segment[]):
   );
 }
 
-/** Ordered, non-overlapping ranges within one pool list; `label(i)` names a pool for messages. */
+/**
+ * Ordered, non-overlapping ranges within one pool list; `label(i)` names a pool for messages. Interface-address
+ * pools (no `range`) are skipped — VPP resolves them at run time. Overlap is checked within one twice-NAT class
+ * only: VPP keeps `addresses` and `twice_nat_addresses` as separate lists, so a twice-NAT pool may repeat a normal
+ * pool's address.
+ */
 function poolListIssues(
-  pools: readonly { range: string }[],
+  pools: readonly { range?: string | undefined; twiceNat?: boolean | undefined }[],
   segments: readonly Segment[],
   label: (index: number) => string,
 ): SemanticIssue[] {
   const issues: SemanticIssue[] = [];
-  const seen: (AddressRange & { index: number })[] = [];
+  const seen: (AddressRange & { index: number; twiceNat: boolean })[] = [];
   pools.forEach((pool, i) => {
+    if (pool.range === undefined) return;
     const pointer = jsonPointer('nat', ...segments, i, 'range');
     const r = poolRange(pool.range);
     if (r.start > r.end) {
       issues.push({ pointer, message: `range '${pool.range}' ends before it starts` });
       return;
     }
-    const hit = seen.find((other) => rangesOverlap(other, r));
+    const twiceNat = pool.twiceNat ?? false;
+    const hit = seen.find((other) => other.twiceNat === twiceNat && rangesOverlap(other, r));
     if (hit !== undefined) {
       issues.push({ pointer, message: `range '${pool.range}' overlaps ${label(hit.index)}` });
     }
-    seen.push({ ...r, index: i });
+    seen.push({ ...r, index: i, twiceNat });
   });
   return issues;
 }
@@ -126,12 +175,35 @@ function prefixOverlapIssues(
   return issues;
 }
 
+/**
+ * What `external.pool` stands for when comparing external tuples: a range pool's start address (the address the
+ * renderer uses) or `if:<interface>` for an interface pool — so `{ ip: X }` and `{ pool: p }` with `p` starting at
+ * `X` are the same external side. Unknown pools resolve to `pool:<name>` (reported separately).
+ */
+function poolResolver(pools: NatConfig['pools']): (name: string) => string {
+  const byName = new Map<string, string>();
+  for (const p of pools) {
+    if (byName.has(p.name)) continue; // duplicate names are reported by nat.pools-valid; first one wins here
+    byName.set(
+      p.name,
+      'range' in p ? (splitIpv4Range(p.range)?.start ?? p.range) : `if:${p.interface}`,
+    );
+  }
+  return (name) => byName.get(name) ?? `pool:${name}`;
+}
+
 /** The external side of a static mapping as a comparable key (`undefined` when it is not exactly one thing). */
-function externalKey(m: NatConfig['staticMappings'][number]): string | undefined {
+function externalKey(
+  m: NatConfig['staticMappings'][number],
+  resolvePool: (name: string) => string,
+): string | undefined {
   const { ip, pool, interface: iface, port } = m.external;
-  const chosen = [ip, pool, iface].filter((v) => v !== undefined);
-  if (chosen.length !== 1) return undefined;
-  const where = ip ?? (pool !== undefined ? `pool:${pool}` : `if:${iface}`);
+  if ([ip, pool, iface].filter((v) => v !== undefined).length !== 1) return undefined;
+  let where: string;
+  if (ip !== undefined) where = ip;
+  else if (iface !== undefined) where = `if:${iface}`;
+  else if (pool !== undefined) where = resolvePool(pool);
+  else return undefined;
   return [m.protocol ?? '*', where, port ?? '*', m.vrf ?? 'default'].join('|');
 }
 
@@ -163,6 +235,9 @@ export const natValidators: readonly ValidatorDefinition[] = [
           refs.push([jsonPointer('nat', 'identityMappings', i, 'interface'), m.interface]);
         }
       });
+      nat.pools.forEach((p, i) => {
+        if ('interface' in p) refs.push([jsonPointer('nat', 'pools', i, 'interface'), p.interface]);
+      });
       for (const key of ['nat64', 'nat66', 'det44'] as const) {
         list([key, 'inside'], nat[key].inside);
         list([key, 'outside'], nat[key].outside);
@@ -170,9 +245,18 @@ export const natValidators: readonly ValidatorDefinition[] = [
       nat.nptv6.bindings.forEach((b, i) => {
         refs.push([jsonPointer('nat', 'nptv6', 'bindings', i, 'interface'), b.interface]);
       });
+      nat.map.interfaces.forEach((b, i) => {
+        refs.push([jsonPointer('nat', 'map', 'interfaces', i, 'interface'), b.interface]);
+      });
       nat.cnat.snat.interfaces.forEach((b, i) => {
         refs.push([jsonPointer('nat', 'cnat', 'snat', 'interfaces', i, 'interface'), b.interface]);
       });
+      if (nat.cnat.snat.addresses.interface !== undefined) {
+        refs.push([
+          jsonPointer('nat', 'cnat', 'snat', 'addresses', 'interface'),
+          nat.cnat.snat.addresses.interface,
+        ]);
+      }
       return refs
         .filter(([, name]) => !interfaceExists(config, name))
         .map(([pointer, name]) => ({ pointer, message: `interface '${name}' does not exist` }));
@@ -218,6 +302,13 @@ export const natValidators: readonly ValidatorDefinition[] = [
         (i) => jsonPointer('nat', 'pools', i, 'name'),
         (p) => `pool name '${p.name}' is used twice`,
       ),
+      ...duplicateIssues(
+        nat.pools,
+        (p) => ('interface' in p ? `${p.interface}|${p.twiceNat}` : undefined),
+        (i) => jsonPointer('nat', 'pools', i, 'interface'),
+        (p, first) =>
+          `interface ${'interface' in p ? `'${p.interface}'` : ''} is already used by pool '${nat.pools[first]?.name}'`,
+      ),
       ...poolListIssues(nat.pools, ['pools'], (i) => `pool '${nat.pools[i]?.name}'`),
       ...poolListIssues(nat.nat64.pools, ['nat64', 'pools'], (i) => `nat64 pool ${i}`),
       ...poolListIssues(nat.dslite.pools, ['dslite', 'pools'], (i) => `ds-lite pool ${i}`),
@@ -229,6 +320,7 @@ export const natValidators: readonly ValidatorDefinition[] = [
     validate: ({ nat }) => {
       const issues: SemanticIssue[] = [];
       const poolNames = new Set(nat.pools.map((p) => p.name));
+      const resolvePool = poolResolver(nat.pools);
       nat.staticMappings.forEach((m, i) => {
         const at = (...s: Segment[]): string => jsonPointer('nat', 'staticMappings', i, ...s);
         const ext = m.external;
@@ -279,7 +371,7 @@ export const natValidators: readonly ValidatorDefinition[] = [
         ),
         ...duplicateIssues(
           nat.staticMappings,
-          externalKey,
+          (m) => externalKey(m, resolvePool),
           (i) => jsonPointer('nat', 'staticMappings', i, 'external'),
           (_m, first) =>
             `same external address, port, protocol and VRF as mapping '${nat.staticMappings[first]?.name}'`,
@@ -386,7 +478,10 @@ export const natValidators: readonly ValidatorDefinition[] = [
           refs.push([jsonPointer('nat', ...segments, i, 'vrf'), item.vrf]),
         );
       };
-      list(['pools'], nat.pools);
+      list(
+        ['pools'],
+        nat.pools.map((p) => ({ vrf: 'vrf' in p ? p.vrf : undefined })), // interface pools carry no vrf
+      );
       list(['staticMappings'], nat.staticMappings);
       list(['identityMappings'], nat.identityMappings);
       nat.loadBalancedMappings.forEach((m, i) =>
@@ -510,8 +605,31 @@ export const natValidators: readonly ValidatorDefinition[] = [
         (i) => jsonPointer('nat', 'map', 'domains', i, 'name'),
         (d) => `domain name '${d.name}' is used twice`,
       );
+      issues.push(
+        ...duplicateIssues(
+          map.interfaces,
+          (b) => b.interface,
+          (i) => jsonPointer('nat', 'map', 'interfaces', i, 'interface'),
+          (b) => `interface '${b.interface}' is already bound to MAP`,
+        ),
+      );
       map.domains.forEach((d, i) => {
         const at = (...s: Segment[]): string => jsonPointer('nat', 'map', 'domains', i, ...s);
+        const sourceLength = prefixLength(d.ipv6Source);
+        if (d.mode === 'map-t') {
+          if (sourceLength !== 64 && sourceLength !== 96) {
+            issues.push({
+              pointer: at('ipv6Source'),
+              message:
+                'MAP-T needs the DMR prefix as ipv6Source, length 64 or 96 (VPP ip4_map_t_embedded_address)',
+            });
+          }
+        } else if (sourceLength !== 128) {
+          issues.push({
+            pointer: at('ipv6Source'),
+            message: `${d.mode === 'lw4o6' ? 'lw4o6' : 'MAP-E'} needs the BR address as ipv6Source (/128, the encapsulation source)`,
+          });
+        }
         if (prefixLength(d.ipv6Prefix) + d.eaBitsLength > 64) {
           issues.push({
             pointer: at('eaBitsLength'),
@@ -569,6 +687,24 @@ export const natValidators: readonly ValidatorDefinition[] = [
           (t) => `VIP ${t.vip.ip}:${t.vip.port}/${t.protocol} is translated twice`,
         ),
       ];
+      const { snat } = cnat;
+      issues.push(
+        ...duplicateIssues(
+          snat.interfaces,
+          (b) => `${b.interface}|${b.table}`,
+          (i) => jsonPointer('nat', 'cnat', 'snat', 'interfaces', i),
+          (b) => `interface '${b.interface}' is already in SNAT table '${b.table}'`,
+        ),
+      );
+      snat.interfaces.forEach((b, i) => {
+        const perFamily = b.table === 'include-v4' || b.table === 'include-v6';
+        if ((snat.policy === 'interface' && !perFamily) || (snat.policy === 'k8s' && perFamily)) {
+          issues.push({
+            pointer: jsonPointer('nat', 'cnat', 'snat', 'interfaces', i, 'table'),
+            message: `SNAT policy '${snat.policy}' never consults table '${b.table}' (interface → include-v4/include-v6, k8s → pod/host)`,
+          });
+        }
+      });
       cnat.translations.forEach((t, i) => {
         const at = (...s: Segment[]): string => jsonPointer('nat', 'cnat', 'translations', i, ...s);
         const family = ipFamily(t.vip.ip);
@@ -613,6 +749,47 @@ export const natValidators: readonly ValidatorDefinition[] = [
         ];
       }
       return [];
+    },
+  },
+  {
+    // `ipv4Cidr`/`ipv6Cidr` allow host bits (interface addresses need them); these fields are *networks* handed to
+    // nat64_add_del_prefix / npt66_binding_add_del / det44_add_del_map / map_add_domain / cnat_snat_policy_add_del_pfx,
+    // where stray host bits silently change the arithmetic.
+    name: 'nat.prefixes-are-networks',
+    domains: ['nat'],
+    validate: ({ nat }) => {
+      const refs: [string, string][] = [];
+      nat.nat64.prefixes.forEach((p, i) => {
+        refs.push([jsonPointer('nat', 'nat64', 'prefixes', i, 'prefix'), p.prefix]);
+      });
+      nat.nptv6.bindings.forEach((b, i) => {
+        refs.push(
+          [jsonPointer('nat', 'nptv6', 'bindings', i, 'internal'), b.internal],
+          [jsonPointer('nat', 'nptv6', 'bindings', i, 'external'), b.external],
+        );
+      });
+      nat.det44.mappings.forEach((m, i) => {
+        refs.push(
+          [jsonPointer('nat', 'det44', 'mappings', i, 'inside'), m.inside],
+          [jsonPointer('nat', 'det44', 'mappings', i, 'outside'), m.outside],
+        );
+      });
+      nat.map.domains.forEach((d, i) => {
+        refs.push(
+          [jsonPointer('nat', 'map', 'domains', i, 'ipv4Prefix'), d.ipv4Prefix],
+          [jsonPointer('nat', 'map', 'domains', i, 'ipv6Prefix'), d.ipv6Prefix],
+          [jsonPointer('nat', 'map', 'domains', i, 'ipv6Source'), d.ipv6Source],
+        );
+      });
+      nat.cnat.snat.excludePrefixes.forEach((p, i) => {
+        refs.push([jsonPointer('nat', 'cnat', 'snat', 'excludePrefixes', i), p]);
+      });
+      return refs
+        .filter(([, prefix]) => !isNetworkPrefix(prefix))
+        .map(([pointer, prefix]) => ({
+          pointer,
+          message: `'${prefix}' has host bits set; the network is ${networkOf(prefix)}`,
+        }));
     },
   },
 ];

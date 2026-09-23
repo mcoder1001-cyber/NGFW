@@ -26,7 +26,8 @@ import type { SemanticIssue, ValidatorDefinition } from './registry.js';
  *   acl.macip-rules            a source MAC with bits outside its mask
  *   acl.attachments            unknown list / interface / zone / VRF, a VRF that differs from the target
  *                              interface's VRF, the same list attached twice to one target+direction, two
- *                              attachments sharing a sequence on one target+direction
+ *                              attachments sharing a sequence on one target+direction — zones are expanded to
+ *                              their member interfaces first, so zone-vs-member duplicates are caught too
  *   acl.macip-attachments      unknown list / interface / VRF, VRF mismatch, more than one MACIP ACL per interface
  *   acl.host-attachments       unknown list, the same list attached twice to one chain
  *
@@ -274,24 +275,59 @@ export const aclValidators: readonly ValidatorDefinition[] = [
         }
         issues.push(...vrfIssues(config, a.vrf, targetInterfaces, at('vrf')));
       });
-      for (const { index, item } of duplicates(
-        acl.attachments,
-        (a) => `${a.list}|${targetKey(a.target)}|${a.direction}`,
-      )) {
-        issues.push({
-          pointer: jsonPointer('acl', 'attachments', index, 'list'),
-          message: `access list '${item.list}' is already attached to this target in direction '${item.direction}'`,
-        });
-      }
-      for (const { index, first, item } of duplicates(
-        acl.attachments,
-        (a) => `${targetKey(a.target)}|${a.direction}|${a.sequence}`,
-      )) {
-        issues.push({
-          pointer: jsonPointer('acl', 'attachments', index, 'sequence'),
-          message: `sequence ${item.sequence} is already used by attachment ${first} on the same target and direction`,
-        });
-      }
+      // Duplicate checks run over the literal target *and* the interfaces a zone expands to, so "list L via zone Z"
+      // plus "list L via member interface I" (or two lists sharing a sequence that way) is reported here instead of
+      // surfacing as a VPP apply error / ordering ambiguity. The literal key keeps unknown targets comparable.
+      // `member` is set when the key is a zone member reached by expansion (on either side of a collision), so the
+      // message can name the interface instead of "this target".
+      type Seen = { index: number; member: string | undefined };
+      type Hit = { first: number; via: string | undefined };
+      const firstList = new Map<string, Seen>();
+      const firstSequence = new Map<string, Seen>();
+      const hit = (seen: Seen, member: string | undefined): Hit => ({
+        first: seen.index,
+        via: member ?? seen.member,
+      });
+      acl.attachments.forEach((a, i) => {
+        const keys: [target: string, member: string | undefined][] = [
+          [targetKey(a.target), undefined],
+        ];
+        if (a.target.kind === 'zone') {
+          for (const name of own(objects.zones, a.target.zone)?.interfaces ?? []) {
+            keys.push([`if:${name}`, name]);
+          }
+        }
+        let listHit: Hit | undefined;
+        let sequenceHit: Hit | undefined;
+        for (const [target, member] of keys) {
+          const listKey = `${a.list}|${target}|${a.direction}`;
+          const sequenceKey = `${target}|${a.direction}|${a.sequence}`;
+          const l = firstList.get(listKey);
+          if (l === undefined) firstList.set(listKey, { index: i, member });
+          else listHit ??= hit(l, member);
+          const q = firstSequence.get(sequenceKey);
+          if (q === undefined) firstSequence.set(sequenceKey, { index: i, member });
+          else sequenceHit ??= hit(q, member);
+        }
+        if (listHit !== undefined) {
+          issues.push({
+            pointer: jsonPointer('acl', 'attachments', i, 'list'),
+            message:
+              listHit.via === undefined
+                ? `access list '${a.list}' is already attached to this target in direction '${a.direction}'`
+                : `access list '${a.list}' is already attached to interface '${listHit.via}' (attachment ${listHit.first}) in direction '${a.direction}'`,
+          });
+        }
+        if (sequenceHit !== undefined) {
+          issues.push({
+            pointer: jsonPointer('acl', 'attachments', i, 'sequence'),
+            message:
+              sequenceHit.via === undefined
+                ? `sequence ${a.sequence} is already used by attachment ${sequenceHit.first} on the same target and direction`
+                : `sequence ${a.sequence} is already used by attachment ${sequenceHit.first} on interface '${sequenceHit.via}' in direction '${a.direction}'`,
+          });
+        }
+      });
       return issues;
     },
   },

@@ -11,8 +11,9 @@ import { ipPrefix, l4PortNumber } from './objects.js';
  * siblings so the API path stays `/config/nat/<translator>/…`:
  *
  *   nat44 (top level)  enabled, mode ed|ei, inside[], outside[], outputFeature[], insideVrf?, outsideVrf?,
- *                      forwarding, staticMappingOnly, connectionTracking, sessionLimit?, pools[], staticMappings[]
- *                      (1:1 when no ports, port-forward with ports), identityMappings[], loadBalancedMappings[],
+ *                      forwarding, staticMappingOnly, connectionTracking, sessionLimit?, pools[] (an address
+ *                      range or an interface whose address is used), staticMappings[] (1:1 when no ports,
+ *                      port-forward with ports), identityMappings[], loadBalancedMappings[],
  *                      timeouts { udp, tcpEstablished, tcpTransitory, icmp }
  *   ipfix              NAT logging (CGNAT logging, D4.4) — plugin-wide
  *   nat64              prefixes[], pools[], staticBibs[], inside/outside, timeouts
@@ -20,12 +21,14 @@ import { ipPrefix, l4PortNumber } from './objects.js';
  *   nptv6              bindings[] { interface, internal, external }
  *   det44              deterministic CGNAT: mappings[] { inside, outside }, inside/outside, timeouts
  *   dslite             AFTR/B4 addresses, pools[]
- *   map                MAP-E / MAP-T / LW4o6 domains[] + rules, parameters
- *   cnat               translations[] (1:1 or load-balanced) + snat policy (D4.6)
+ *   map                MAP-E / MAP-T / LW4o6 interfaces[] (per-interface encapsulate|translate), domains[] + rules,
+ *                      parameters
+ *   cnat               translations[] (1:1 or load-balanced) + snat policy with its VPP interface tables (D4.6)
  *
- * Addresses in NAT are literal (a pool is an IPv4 range string `a.b.c.d-a.b.c.e`, F-nat44 shape). Cross-field
- * and cross-item rules — interfaces exist and inside/outside are disjoint, pools ordered and non-overlapping,
- * external port requires protocol, VRFs exist … — live in `../semantic/nat.ts`. 464XLAT = a `nat64` PLAT here plus
+ * Addresses in NAT are literal (a range pool is an IPv4 range string `a.b.c.d-a.b.c.e`, F-nat44 shape; an
+ * interface pool names the interface whose address VPP tracks). Cross-field and cross-item rules — interfaces
+ * exist and inside/outside are disjoint, pools ordered and non-overlapping, external port requires protocol, VRFs
+ * exist, network prefixes carry no host bits … — live in `../semantic/nat.ts`. 464XLAT = a `nat64` PLAT here plus
  * a `map` MAP-T domain on the CLAT side; nothing extra to model.
  *
  * Guardrail (vdom.md #1): every binding that VPP scopes by FIB carries `vrf` (a name from `vrfs`; `default`
@@ -113,23 +116,53 @@ const natProtocol = withUi(z.enum(['tcp', 'udp', 'icmp']), { title: 'Protocol' }
 // NAT44 (top level)
 // ---------------------------------------------------------------------------------------------------------------
 
-export const NatPoolSchema = withUi(
-  z.strictObject({
-    name: withUi(objectName, { title: 'Name' }),
-    description: description.optional(),
-    range: ipv4AddressRange,
-    vrf,
-    twiceNat: flag('Twice-NAT pool', 'Addresses used for the source side of twice-NAT mappings'),
-  }),
-  { title: 'Address pool' },
+/** Fields both pool variants share. */
+const poolCommon = {
+  name: withUi(objectName, { title: 'Name' }),
+  description: description.optional(),
+  twiceNat: flag('Twice-NAT pool', 'Addresses used for the source side of twice-NAT mappings'),
+};
+
+/** Pool variant 1 — a literal IPv4 range, optionally scoped to a VRF (VPP `nat44_add_del_address_range`). */
+export const NatRangePoolSchema = withUi(
+  z.strictObject({ ...poolCommon, range: ipv4AddressRange, vrf }),
+  { title: 'Address pool (range)' },
 );
+
+/**
+ * Pool variant 2 — the address VPP finds on an interface, followed as it changes (VPP
+ * `nat44_add_del_interface_addr {sw_if_index, flags}`; the DHCP-assigned WAN case, TNSR's default outbound NAT).
+ * No `vrf`: the message has none — the interface's own FIB applies.
+ */
+export const NatInterfacePoolSchema = withUi(
+  z.strictObject({
+    ...poolCommon,
+    interface: withUi(vppInterfaceName, {
+      title: 'Interface',
+      widget: 'interface-picker',
+      help: 'Use the address configured on this interface (follows DHCP changes)',
+    }),
+  }),
+  { title: 'Address pool (interface address)' },
+);
+
+/**
+ * A NAT44 pool is **either** an address `range` **or** an `interface` whose address is used — discriminated by
+ * which of the two keys is present (both variants are strict objects, so `{ range, interface }` matches neither).
+ * Deliberately no `kind` tag: the F-nat44 shape `{ name, range, vrf? }` must stay valid verbatim.
+ */
+export const NatPoolSchema = withUi(z.union([NatRangePoolSchema, NatInterfacePoolSchema]), {
+  title: 'Address pool',
+  help: 'Either an IPv4 range (with optional VRF) or an interface whose address is used',
+});
 
 /**
  * Static mapping (F-nat44-ed-sessions §Contract: `{ name, local{ip,port?}, external{ip|pool, port?}, protocol?,
  * vrf?, twiceNat? }`). No ports = 1:1 NAT for the whole address; `local.port` + `external.port` + `protocol` =
- * port forward. `external` names exactly one of: a literal `ip`, a `pool` from `nat.pools` (the renderer uses the
- * pool's first address — VPP mappings take one address) or an `interface` whose address is used (VPP external
- * sw_if_index; e.g. a DHCP-assigned WAN). Cross-field rules are in `../semantic/nat.ts` (`nat.static-mappings`).
+ * port forward. `external` names exactly one of: a literal `ip`, a `pool` from `nat.pools` (a range pool's **start**
+ * address — VPP mappings take one address; an interface pool means that interface's address) or an `interface`
+ * whose address is used (VPP `external_sw_if_index`; e.g. a DHCP-assigned WAN). Cross-field rules are in
+ * `../semantic/nat.ts` (`nat.static-mappings`).
  */
 export const NatStaticMappingSchema = withUi(
   z.strictObject({
@@ -152,7 +185,7 @@ export const NatStaticMappingSchema = withUi(
         pool: withUi(objectName, {
           title: 'External pool',
           widget: 'object-picker',
-          help: 'Name of an entry in nat.pools; its first address is used',
+          help: 'Name of an entry in nat.pools; a range pool contributes its start address, an interface pool its interface address',
         }).optional(),
         interface: withUi(vppInterfaceName, {
           title: 'External interface',
@@ -414,10 +447,17 @@ export const MapDomainSchema = withUi(
   z.strictObject({
     name: withUi(objectName, { title: 'Name' }),
     description: description.optional(),
-    mode: withUi(z.enum(['map-e', 'map-t', 'lw4o6']), { title: 'Mode' }),
-    ipv4Prefix: withUi(ipv4Cidr, { title: 'Rule IPv4 prefix' }),
-    ipv6Prefix: withUi(ipv6Cidr, { title: 'Rule IPv6 prefix' }),
-    ipv6Source: withUi(ipv6Cidr, { title: 'BR IPv6 source / DMR prefix' }),
+    mode: withUi(z.enum(['map-e', 'map-t', 'lw4o6']), {
+      title: 'Mode',
+      help: 'map-e / lw4o6: ipv6Source is the BR address (/128); map-t: ipv6Source is the DMR prefix (/64 or /96). Interfaces pick encapsulation vs translation in map.interfaces',
+    }),
+    ipv4Prefix: withUi(ipv4Cidr, { title: 'Rule IPv4 prefix', widget: 'cidr' }),
+    ipv6Prefix: withUi(ipv6Cidr, { title: 'Rule IPv6 prefix', widget: 'cidr' }),
+    ipv6Source: withUi(ipv6Cidr, {
+      title: 'BR IPv6 source / DMR prefix',
+      widget: 'cidr',
+      help: 'VPP map_add_domain.ip6_src: /128 for MAP-E and lw4o6, /64 or /96 for MAP-T',
+    }),
     eaBitsLength: withUi(z.number().int().min(0).max(64).default(0), {
       title: 'EA bits length',
       help: 'ipv6Prefix length + EA bits ≤ 64',
@@ -489,8 +529,28 @@ export const MapParametersSchema = withUi(
   { title: 'MAP parameters' },
 );
 
+/**
+ * Per-interface MAP binding (VPP `map_if_enable_disable {sw_if_index, is_enable, is_translation}`). Domains are
+ * shared by every interface; each interface either encapsulates (`map-e`, which also serves lw4o6 domains) or
+ * translates (`map-t`). Without a binding no packet is ever processed by MAP.
+ */
+export const MapInterfaceSchema = withUi(
+  z.strictObject({
+    interface: withUi(vppInterfaceName, { title: 'Interface', widget: 'interface-picker' }),
+    mode: withUi(z.enum(['map-e', 'map-t']), {
+      title: 'Mode',
+      help: 'map-e = encapsulation (MAP-E and lw4o6 domains); map-t = translation (VPP is_translation)',
+    }),
+  }),
+  { title: 'MAP interface' },
+);
+
 export const MapSchema = withUi(
   z.strictObject({
+    interfaces: withUi(z.array(MapInterfaceSchema).max(1024).default([]), {
+      title: 'Interfaces',
+      help: 'MAP runs only on these interfaces (map_if_enable_disable)',
+    }),
     domains: withUi(z.array(MapDomainSchema).max(4096).default([]), { title: 'Domains' }),
     parameters: MapParametersSchema.prefault({}),
   }),
@@ -523,6 +583,15 @@ export const CnatTranslationSchema = withUi(
   { title: 'CNAT translation' },
 );
 
+/**
+ * VPP `cnat_snat_policy_table` — the interface set an interface joins (`cnat_snat_policy_add_del_if.table`).
+ * Policy `interface` consults `include-v4` / `include-v6`; policy `k8s` consults `pod` / `host`.
+ */
+export const cnatSnatTable = withUi(z.enum(['include-v4', 'include-v6', 'pod', 'host']), {
+  title: 'Policy table',
+  help: 'include-v4 / include-v6: interfaces whose IPv4 / IPv6 traffic is SNATed (policy "interface"); pod / host: Kubernetes pod-facing / host interfaces (policy "k8s")',
+});
+
 export const CnatSchema = withUi(
   z.strictObject({
     translations: withUi(z.array(CnatTranslationSchema).max(65536).default([]), {
@@ -540,6 +609,11 @@ export const CnatSchema = withUi(
               .strictObject({
                 ipv4: withUi(ipv4Address, { title: 'IPv4 SNAT address' }).optional(),
                 ipv6: withUi(ipv6Address, { title: 'IPv6 SNAT address' }).optional(),
+                interface: withUi(vppInterfaceName, {
+                  title: 'SNAT address interface',
+                  widget: 'interface-picker',
+                  help: 'Take the SNAT addresses from this interface (cnat_set_snat_addresses.sw_if_index)',
+                }).optional(),
               })
               .prefault({}),
             { title: 'SNAT addresses' },
@@ -548,13 +622,16 @@ export const CnatSchema = withUi(
             z
               .array(
                 z.strictObject({
-                  interface: vppInterfaceName,
-                  side: withUi(z.enum(['inside', 'outside']), { title: 'Side' }),
+                  interface: withUi(vppInterfaceName, {
+                    title: 'Interface',
+                    widget: 'interface-picker',
+                  }),
+                  table: cnatSnatTable,
                 }),
               )
               .max(1024)
               .default([]),
-            { title: 'Policy interfaces' },
+            { title: 'Policy interfaces', help: 'One entry per (interface, table)' },
           ),
           excludePrefixes: withUi(z.array(ipPrefix).max(1024).default([]), {
             title: 'Excluded prefixes',
@@ -656,6 +733,8 @@ export const NatSchema = withUi(
 
 export type NatConfig = z.infer<typeof NatSchema>;
 export type NatPool = z.infer<typeof NatPoolSchema>;
+export type NatRangePool = z.infer<typeof NatRangePoolSchema>;
+export type NatInterfacePool = z.infer<typeof NatInterfacePoolSchema>;
 export type NatStaticMapping = z.infer<typeof NatStaticMappingSchema>;
 export type NatIdentityMapping = z.infer<typeof NatIdentityMappingSchema>;
 export type NatLoadBalancedMapping = z.infer<typeof NatLoadBalancedMappingSchema>;
@@ -666,6 +745,7 @@ export type Nptv6Config = z.infer<typeof Nptv6Schema>;
 export type Det44Config = z.infer<typeof Det44Schema>;
 export type DsliteConfig = z.infer<typeof DsliteSchema>;
 export type MapDomain = z.infer<typeof MapDomainSchema>;
+export type MapInterface = z.infer<typeof MapInterfaceSchema>;
 export type MapConfig = z.infer<typeof MapSchema>;
 export type CnatTranslation = z.infer<typeof CnatTranslationSchema>;
 export type CnatConfig = z.infer<typeof CnatSchema>;

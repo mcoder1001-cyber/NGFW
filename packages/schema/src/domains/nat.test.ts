@@ -6,10 +6,14 @@ import {
   DsliteSchema,
   ipv4AddressRange,
   MapDomainSchema,
+  MapInterfaceSchema,
+  MapSchema,
   Nat64Schema,
   NatIdentityMappingSchema,
+  NatInterfacePoolSchema,
   NatLoadBalancedMappingSchema,
   NatPoolSchema,
+  NatRangePoolSchema,
   NatSchema,
   NatStaticMappingSchema,
   NatTimeoutsSchema,
@@ -45,8 +49,15 @@ describe('NatSchema', () => {
       nptv6: { bindings: [] },
       det44: { enabled: false, mappings: [] },
       dslite: { enabled: false, pools: [] },
-      map: { domains: [], parameters: { fragmentation: { inner: false, ignoreDf: false } } },
-      cnat: { translations: [], snat: { policy: 'none', interfaces: [], excludePrefixes: [] } },
+      map: {
+        interfaces: [],
+        domains: [],
+        parameters: { fragmentation: { inner: false, ignoreDf: false } },
+      },
+      cnat: {
+        translations: [],
+        snat: { policy: 'none', addresses: {}, interfaces: [], excludePrefixes: [] },
+      },
     });
     expect(nat.sessionLimit).toBeUndefined();
     expect(nat.insideVrf).toBeUndefined();
@@ -81,6 +92,9 @@ describe('NatSchema', () => {
     const props = js.properties as Record<string, Record<string, unknown>>;
     expect(props.pools?.['x-vrx-ui']).toMatchObject({ group: 'Pools' });
     expect(props.sessionLimit).toMatchObject({ minimum: 1024 });
+    // a pool is a two-way union (range | interface) in the generated JSON Schema
+    const poolItems = props.pools?.items as { anyOf?: unknown[] } | undefined;
+    expect(poolItems?.anyOf).toHaveLength(2);
   });
 });
 
@@ -116,23 +130,38 @@ describe('ipv4AddressRange / splitIpv4Range', () => {
 });
 
 describe('pools and mappings', () => {
-  it('NatPoolSchema', () => {
+  it('NatPoolSchema — a range pool or an interface pool, never both, never neither', () => {
     expect(NatPoolSchema.parse({ name: 'p', range: '203.0.113.1' })).toEqual({
       name: 'p',
       range: '203.0.113.1',
       twiceNat: false,
     });
-    bad(NatPoolSchema, { range: '203.0.113.1' });
-    bad(NatPoolSchema, { name: 'p q', range: '203.0.113.1' });
-    bad(NatPoolSchema, { name: 'p', range: '203.0.113.0/24' });
-    bad(NatPoolSchema, { name: 'p', range: '203.0.113.1', extra: true });
-    bad(NatPoolSchema, { name: 'p', range: '203.0.113.1', description: 'x'.repeat(256) });
+    expect(NatPoolSchema.parse({ name: 'wan', interface: 'Gig0/0/0' })).toEqual({
+      name: 'wan',
+      interface: 'Gig0/0/0',
+      twiceNat: false,
+    });
     ok(NatPoolSchema, {
       name: 'p',
       range: '203.0.113.1',
       description: 'x'.repeat(255),
       vrf: 'default',
     });
+    ok(NatPoolSchema, { name: 'wan', interface: 'Gig0/0/0', twiceNat: true, description: 'dhcp' });
+    // the F-nat44 contract shape stays valid verbatim
+    ok(NatSchema, { pools: [{ name: 'wan', range: '203.0.113.10-203.0.113.20', vrf: 'default' }] });
+    bad(NatPoolSchema, { name: 'p' });
+    bad(NatPoolSchema, { name: 'p', range: '203.0.113.1', interface: 'Gig0/0/0' });
+    bad(NatPoolSchema, { name: 'wan', interface: 'Gig0/0/0', vrf: 'default' }); // vrf: range pools only
+    bad(NatPoolSchema, { name: 'wan', interface: 'eth 0' });
+    bad(NatPoolSchema, { name: 'wan', interface: '' });
+    bad(NatPoolSchema, { range: '203.0.113.1' });
+    bad(NatPoolSchema, { name: 'p q', range: '203.0.113.1' });
+    bad(NatPoolSchema, { name: 'p', range: '203.0.113.0/24' });
+    bad(NatPoolSchema, { name: 'p', range: '203.0.113.1', extra: true });
+    bad(NatPoolSchema, { name: 'p', range: '203.0.113.1', description: 'x'.repeat(256) });
+    bad(NatRangePoolSchema, { name: 'wan', interface: 'Gig0/0/0' });
+    bad(NatInterfacePoolSchema, { name: 'p', range: '203.0.113.1' });
   });
 
   it('NatStaticMappingSchema — 1:1, port forward, pool, interface', () => {
@@ -339,6 +368,18 @@ describe('other translators', () => {
     bad(MapDomainSchema, { ...d, ipv4Prefix: '2001:db8::/32' });
   });
 
+  it('MapSchema.interfaces — per-interface encapsulate / translate', () => {
+    expect(MapSchema.parse({}).interfaces).toEqual([]);
+    ok(MapInterfaceSchema, { interface: 'Gig0/0/0', mode: 'map-e' });
+    ok(MapInterfaceSchema, { interface: 'Gig0/0/0.100', mode: 'map-t' });
+    bad(MapInterfaceSchema, { interface: 'Gig0/0/0' });
+    bad(MapInterfaceSchema, { interface: 'Gig0/0/0', mode: 'lw4o6' });
+    bad(MapInterfaceSchema, { interface: 'Gig0/0/0', mode: 'map-e', translation: true });
+    bad(MapInterfaceSchema, { interface: 'Gig 0', mode: 'map-e' });
+    bad(MapSchema, { interfaces: [{ mode: 'map-e' }] });
+    ok(MapSchema, { interfaces: [{ interface: 'Gig0/0/0', mode: 'map-t' }] });
+  });
+
   it('CnatSchema', () => {
     const t = {
       name: 't',
@@ -359,12 +400,30 @@ describe('other translators', () => {
     ok(CnatSchema, {
       snat: {
         policy: 'k8s',
-        interfaces: [{ interface: 'Gig0/0/0', side: 'inside' }],
+        interfaces: [
+          { interface: 'Gig0/0/0', table: 'pod' },
+          { interface: 'Gig0/0/1', table: 'host' },
+        ],
         excludePrefixes: ['10.0.0.0/8', 'fd00::/8'],
       },
     });
+    ok(CnatSchema, {
+      snat: {
+        policy: 'interface',
+        addresses: { interface: 'Gig0/0/0' },
+        interfaces: [
+          { interface: 'Gig0/0/0', table: 'include-v4' },
+          { interface: 'Gig0/0/0', table: 'include-v6' },
+        ],
+      },
+    });
     bad(CnatSchema, { snat: { policy: 'bar' } });
-    bad(CnatSchema, { snat: { interfaces: [{ interface: 'Gig0/0/0', side: 'both' }] } });
+    bad(CnatSchema, { snat: { interfaces: [{ interface: 'Gig0/0/0', side: 'outside' }] } }); // pre-M3 shape
+    bad(CnatSchema, { snat: { interfaces: [{ interface: 'Gig0/0/0', table: 'inside' }] } });
+    bad(CnatSchema, { snat: { interfaces: [{ interface: 'Gig0/0/0', table: 'INCLUDE_V4' }] } });
+    bad(CnatSchema, { snat: { interfaces: [{ interface: 'Gig0/0/0' }] } });
+    bad(CnatSchema, { snat: { interfaces: [{ table: 'pod' }] } });
+    bad(CnatSchema, { snat: { addresses: { interface: 'eth 0' } } });
     bad(CnatSchema, { snat: { excludePrefixes: ['10.0.0.1'] } });
     bad(CnatSchema, { snat: { addresses: { ipv4: '2001:db8::1' } } });
   });

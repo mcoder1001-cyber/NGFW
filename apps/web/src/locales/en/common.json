@@ -1,0 +1,9 @@
+{
+  "appName": "VRX",
+  "theme.toggle": "Toggle theme",
+  "lang.toggle": "\u0641\u0627\u0631\u0633\u06cc",
+  "health.title": "API health",
+  "health.loading": "Checking\u2026",
+  "health.ok": "API is up ({{version}})",
+  "health.error": "API unreachable"
+}

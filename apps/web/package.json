@@ -1,0 +1,40 @@
+{
+  "name": "@ngfw/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "gen": "echo 'web: nothing to generate'",
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19",
+    "react-dom": "^19",
+    "react-router": "^7",
+    "@mui/material": "^7",
+    "@mui/icons-material": "^7",
+    "@emotion/react": "^11",
+    "@emotion/styled": "^11",
+    "@tanstack/react-query": "^5",
+    "i18next": "^25",
+    "react-i18next": "^15",
+    "@ngfw/ui-kit": "workspace:*",
+    "@ngfw/api-client": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^7",
+    "@vitejs/plugin-react": "^5",
+    "typescript": "^5.6",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "vitest": "^3",
+    "jsdom": "^26",
+    "@testing-library/react": "^16",
+    "@testing-library/jest-dom": "^6"
+  }
+}

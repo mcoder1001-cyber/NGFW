@@ -1,0 +1,29 @@
+{
+  "name": "ngfw",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@12.5.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "gen": "turbo run gen",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "gen:check": "pnpm gen && git diff --quiet -- . ':!pnpm-lock.yaml' || (echo 'generated output is dirty \u2014 run pnpm gen and commit' && git status --short && exit 1)",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "turbo": "^2",
+    "prettier": "^3",
+    "eslint": "^9",
+    "typescript": "^5.6",
+    "typescript-eslint": "^8",
+    "@eslint/js": "^9",
+    "globals": "^16"
+  }
+}

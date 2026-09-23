@@ -1,0 +1,37 @@
+{
+  "name": "@ngfw/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "gen": "echo 'api: nothing to generate'",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "openapi": "tsc -p tsconfig.build.json && node dist/openapi.js ../../packages/api-client/openapi.json"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11",
+    "@nestjs/core": "^11",
+    "@nestjs/platform-fastify": "^11",
+    "@nestjs/swagger": "^11",
+    "fastify": "^5",
+    "reflect-metadata": "^0.2",
+    "rxjs": "^7",
+    "zod": "^4",
+    "@ngfw/schema": "workspace:*",
+    "@ngfw/proto": "workspace:*"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^11",
+    "vitest": "^3",
+    "unplugin-swc": "^1",
+    "@swc/core": "^1",
+    "tsx": "^4",
+    "typescript": "^5.6",
+    "@types/node": "^22"
+  }
+}

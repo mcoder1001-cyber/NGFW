@@ -1,0 +1,24 @@
+// Contract between vrx-api (Node.js) and vrx-agent (Go). Frozen after task P03 is approved;
+// changes require a PR labelled `contract`. Field numbers are never reused.
+syntax = "proto3";
+
+package vrx.v1;
+
+option go_package = "ngfw/agent/gen/vrx/v1;vrxv1";
+
+// Dataplane is the privileged agent's northbound API, served on a unix socket.
+service Dataplane {
+  // Health reports agent and VPP connectivity. Cheap; polled by the API.
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  // Agent build version.
+  string agent_version = 1;
+  // True when the VPP binary API is connected.
+  bool vpp_connected = 2;
+  // VPP version string as reported by show_version, empty when disconnected.
+  string vpp_version = 3;
+}

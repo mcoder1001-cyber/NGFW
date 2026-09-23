@@ -477,7 +477,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D6.6
@@ -492,7 +492,7 @@ tasks:
   started: 2026-09-23T15:28
   finished: ''
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done 82d0e65 (35 types, CI green); V8/V13/V14 recorded; review
-    spawned (slot 11) | review BLOCK fb83447 (H1 globals, H2 range claims, H3 non-idempotent write-only → D-076, H4 logical names, M1–M5); fix round 1'
+    spawned (slot 11) | review BLOCK fb83447 (H1 globals, H2 range claims, H3 non-idempotent write-only → D-076, H4 logical names, M1–M5); fix round 1 | fix round a9b6005 CI green; re-review spawned'
 - id: DF-7
   title: 'Descriptors: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls'
   prompt: prompts/factories/DF-7.md

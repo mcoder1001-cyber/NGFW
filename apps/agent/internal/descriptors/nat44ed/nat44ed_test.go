@@ -295,7 +295,7 @@ func newFakeNAT() *fakeNAT {
 		}
 		return []api.Message{&nat44_ed.Nat44EdAddDelVrfRouteReply{}}, nil
 	})
-	f.On("nat44_ed_vrf_tables_dump", func(api.Message) ([]api.Message, error) {
+	f.On("nat44_ed_vrf_tables_v2_dump", func(api.Message) ([]api.Message, error) {
 		var out []api.Message
 		for id, routes := range f.vrfTables {
 			out = append(out, &nat44_ed.Nat44EdVrfTablesDetails{TableVrfID: id, NVrfIds: uint32(len(routes)), VrfIds: routes}) //nolint:gosec // test data

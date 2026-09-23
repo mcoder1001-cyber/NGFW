@@ -50,7 +50,9 @@ type EnableSpec struct {
 	OutsideVRF uint32 `json:"outside_vrf"`
 }
 
-// InterfaceSpec puts an interface on the inside or outside of NAT66.
+// InterfaceSpec puts an interface on the inside or outside of NAT66. VPP keeps one entry per
+// interface (deleting with either side removes it), so the key is the interface and a side
+// change is an in-place Update (delete old side, add new side).
 type InterfaceSpec struct {
 	Interface string `json:"interface"`
 	Side      string `json:"side"`
@@ -223,7 +225,7 @@ func sideFlag(side string) (nat_types.NatConfigFlags, error) {
 func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceSpec]{
 		Name: NameInterface,
-		ID:   func(s InterfaceSpec) string { return s.Interface + "/" + s.Side },
+		ID:   func(s InterfaceSpec) string { return s.Interface },
 		Deps: func(s InterfaceSpec) []scheduler.Dependency {
 			return append(enableDep(), natcommon.InterfaceDep(s.Interface))
 		},
@@ -240,6 +242,28 @@ func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 				return nil, fmt.Errorf("nat66_add_del_interface: %w", err)
 			}
 			return IfMeta{SwIfIndex: uint32(idx)}, nil
+		},
+		Update: func(ctx context.Context, o, n InterfaceSpec, meta any) (any, error) {
+			m, ok := meta.(IfMeta)
+			if !ok {
+				return nil, fmt.Errorf("%s: unexpected meta %T", NameInterface, meta)
+			}
+			oldFlag, err := sideFlag(o.Side)
+			if err != nil {
+				return nil, err
+			}
+			newFlag, err := sideFlag(n.Side)
+			if err != nil {
+				return nil, err
+			}
+			idx := interface_types.InterfaceIndex(m.SwIfIndex)
+			if _, err := p.svc.Nat66AddDelInterface(ctx, &nat66.Nat66AddDelInterface{IsAdd: false, Flags: oldFlag, SwIfIndex: idx}); err != nil && !natcommon.IsNoSuchEntry(err) {
+				return nil, fmt.Errorf("nat66_add_del_interface: %w", err)
+			}
+			if _, err := p.svc.Nat66AddDelInterface(ctx, &nat66.Nat66AddDelInterface{IsAdd: true, Flags: newFlag, SwIfIndex: idx}); err != nil {
+				return nil, fmt.Errorf("nat66_add_del_interface: %w", err)
+			}
+			return m, nil
 		},
 		Delete: func(ctx context.Context, s InterfaceSpec, meta any) error {
 			flag, err := sideFlag(s.Side)

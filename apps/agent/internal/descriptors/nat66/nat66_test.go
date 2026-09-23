@@ -120,17 +120,18 @@ func TestNat66(t *testing.T) {
 	if nattest.Apply(t, p.Interface, in) != 1 || nattest.Apply(t, p.Interface, in) != 0 || f.ifaces[1] != nat_types.NAT_IS_INSIDE {
 		t.Fatal("interface")
 	}
-	if keys := nattest.Keys(t, p.Interface); len(keys) != 1 || keys[0] != "nat66.interface/loop900/inside" {
+	if keys := nattest.Keys(t, p.Interface); len(keys) != 1 || keys[0] != "nat66.interface/loop900" {
 		t.Fatalf("keys %v", keys)
 	}
+	// side change = in-place Update (delete old side, add new); outside is flags 0 in the dump
 	out := natcommon.MustEncode(&nat66d.InterfaceSpec{Interface: "loop900", Side: "outside"})
-	if nattest.Apply(t, p.Interface, out) != 1 || nattest.Apply(t, p.Interface, out) != 0 {
+	if nattest.Apply(t, p.Interface, out) != 1 || nattest.Apply(t, p.Interface, out) != 0 || f.ifaces[1] != 0 {
 		t.Fatal("outside interface (flags 0) must round-trip")
 	}
-	if keys := nattest.Keys(t, p.Interface); len(keys) != 1 || keys[0] != "nat66.interface/loop900/outside" {
-		t.Fatalf("outside keys %v", keys)
+	if calls := f.CallsNamed("nat66_add_del_interface"); len(calls) != 3 || calls[1].(*nat66.Nat66AddDelInterface).IsAdd || !calls[2].(*nat66.Nat66AddDelInterface).IsAdd {
+		t.Fatalf("side change must be delete+add: %+v", calls)
 	}
-	if nattest.Apply(t, p.Interface, in) != 1 {
+	if nattest.Apply(t, p.Interface, in) != 1 || f.ifaces[1] != nat_types.NAT_IS_INSIDE {
 		t.Fatal("back to inside")
 	}
 	m := natcommon.MustEncode(&nat66d.StaticMappingSpec{Local: "fd00:9::0001", External: "fd00:9::0100", VRF: 0})

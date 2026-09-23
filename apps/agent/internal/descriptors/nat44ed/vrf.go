@@ -2,11 +2,10 @@ package nat44ed
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"sort"
 
+	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/binapi/nat44_ed"
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/scheduler"
@@ -95,27 +94,44 @@ func (p *Plugin) newVRFTable() *natcommon.Descriptor[VRFTableSpec] {
 			return nil
 		},
 		Retrieve: func(ctx context.Context) ([]natcommon.Item[VRFTableSpec], error) {
-			// VPP 26.06 answers nat44_ed_vrf_tables_v2_dump with nat44_ed_vrf_tables_details (v1)
-			// messages, which the generated v2 client rejects; the v1 dump carries the same fields.
-			stream, err := p.svc.Nat44EdVrfTablesDump(ctx, &nat44_ed.Nat44EdVrfTablesDump{})
+			// VPP 26.06 answers nat44_ed_vrf_tables_v2_dump with v1 nat44_ed_vrf_tables_details
+			// messages (message-id mix-up in the plugin), which the generated v2 client rejects.
+			// Drive the dump on a raw stream and accept either details type (same fields).
+			stream, err := p.client.NewStream(ctx)
 			if err != nil {
-				return nil, fmt.Errorf("nat44_ed_vrf_tables_dump: %w", err)
+				return nil, err
+			}
+			defer func() { _ = stream.Close() }()
+			if err := stream.SendMsg(&nat44_ed.Nat44EdVrfTablesV2Dump{}); err != nil {
+				return nil, fmt.Errorf("nat44_ed_vrf_tables_v2_dump: %w", err)
+			}
+			if err := stream.SendMsg(&memclnt.ControlPing{}); err != nil {
+				return nil, fmt.Errorf("control_ping: %w", err)
 			}
 			var out []natcommon.Item[VRFTableSpec]
-			for {
-				d, err := stream.Recv()
-				if errors.Is(err, io.EOF) {
-					return out, nil
+			add := func(table uint32, routes []uint32) {
+				if !p.scope.OwnsTable(table) {
+					return
 				}
-				if err != nil {
-					return nil, fmt.Errorf("nat44_ed_vrf_tables_dump: %w", err)
-				}
-				if !p.scope.OwnsTable(d.TableVrfID) {
-					continue
-				}
-				s := VRFTableSpec{Table: d.TableVrfID, Routes: append([]uint32{}, d.VrfIds...)}
+				s := VRFTableSpec{Table: table, Routes: append([]uint32{}, routes...)}
 				s.Normalize()
 				out = append(out, natcommon.Item[VRFTableSpec]{Spec: s})
+			}
+			for {
+				msg, err := stream.RecvMsg()
+				if err != nil {
+					return nil, fmt.Errorf("nat44_ed_vrf_tables_v2_dump: %w", err)
+				}
+				switch m := msg.(type) {
+				case *memclnt.ControlPingReply:
+					return out, nil
+				case *nat44_ed.Nat44EdVrfTablesV2Details:
+					add(m.TableVrfID, m.VrfIds)
+				case *nat44_ed.Nat44EdVrfTablesDetails:
+					add(m.TableVrfID, m.VrfIds)
+				default:
+					return nil, fmt.Errorf("nat44_ed_vrf_tables_v2_dump: unexpected message %T", msg)
+				}
 			}
 		},
 	})

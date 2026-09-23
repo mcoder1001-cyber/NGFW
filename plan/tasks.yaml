@@ -176,7 +176,7 @@ tasks:
   - P01
   priority: 2
   est_hours: 12
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D0.13
@@ -188,7 +188,7 @@ tasks:
   owner: desktop-agent slot3
   started: 2026-09-23T13:13
   finished: ''
-  notes: 'host facts in docs/lab/host-vrx-a.md; no data NICs (D-010) | review: BLOCK (F1-F4); worker respawned to fix'
+  notes: 'host facts in docs/lab/host-vrx-a.md; no data NICs (D-010) | review: BLOCK (F1-F4); worker respawned to fix | merged 2026-09-23-1510 after review fixes'
 - id: P09
   title: CI gate for local-only git (tools/ci.sh quick|full|--base, hooks, golangci-lint, gitleaks)
   prompt: prompts/P09-ci-pipeline.md
@@ -313,7 +313,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D1.2
@@ -338,7 +338,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D2.3
@@ -362,7 +362,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D4.1
@@ -389,7 +389,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D5.2
@@ -411,7 +411,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D6.1
@@ -435,7 +435,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D6.6
@@ -460,7 +460,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.8
@@ -489,7 +489,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.2

@@ -111,13 +111,6 @@ func (d *TapDescriptor) Create(ctx context.Context, obj proto.Message) (any, err
 	if o.GetHostBridge() != "" {
 		req.HostBridgeSet, req.HostBridge = true, o.GetHostBridge()
 	}
-	if o.GetHostMac() != "" {
-		mac, err := iface.ParseMAC(o.GetHostMac())
-		if err != nil {
-			return nil, err
-		}
-		req.HostMacAddrSet, req.HostMacAddr = true, mac
-	}
 	if p, set, err := ip4Prefix(o.GetHostIp4Prefix()); err != nil {
 		return nil, err
 	} else if set {
@@ -163,7 +156,7 @@ func (d *TapDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) e
 func Decode(name string, t *tapapi.SwInterfaceTapV2Details) *Tap {
 	return &Tap{
 		Name: name, Id: t.ID, HostIfName: t.HostIfName, HostNamespace: t.HostNamespace, HostBridge: t.HostBridge,
-		HostMac: iface.FormatMAC(t.HostMacAddr), HostIp4Prefix: formatIP4Prefix(t.HostIP4Prefix), HostIp6Prefix: formatIP6Prefix(t.HostIP6Prefix),
+		HostIp4Prefix: formatIP4Prefix(t.HostIP4Prefix), HostIp6Prefix: formatIP6Prefix(t.HostIP6Prefix),
 		HostMtu: t.HostMtuSize, RxRingSize: uint32(t.RxRingSz), TxRingSize: uint32(t.TxRingSz),
 		Gso: t.TapFlags&tapapi.TAP_API_FLAG_GSO != 0, CsumOffload: t.TapFlags&tapapi.TAP_API_FLAG_CSUM_OFFLOAD != 0,
 	}

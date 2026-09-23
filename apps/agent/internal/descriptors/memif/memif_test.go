@@ -54,7 +54,7 @@ func newFake() *fakeMemif {
 			return []api.Message{&memifapi.MemifCreateV2Reply{Retval: -1}}, nil
 		}
 		idx := f.Add(fmt.Sprintf("memif%d/%d", r.SocketID, r.ID), "memif", "")
-		f.memifs[idx] = &memifapi.MemifDetails{SwIfIndex: interface_types.InterfaceIndex(idx), ID: r.ID, Role: r.Role, Mode: r.Mode, ZeroCopy: !r.NoZeroCopy, SocketID: r.SocketID, RingSize: r.RingSize, BufferSize: r.BufferSize}
+		f.memifs[idx] = &memifapi.MemifDetails{SwIfIndex: interface_types.InterfaceIndex(idx), ID: r.ID, Role: r.Role, Mode: r.Mode, ZeroCopy: !r.NoZeroCopy, SocketID: r.SocketID, RingSize: 1} // run-time values before a peer connects
 		return []api.Message{&memifapi.MemifCreateV2Reply{SwIfIndex: interface_types.InterfaceIndex(idx)}}, nil
 	})
 	f.On("memif_delete", func(req api.Message) ([]api.Message, error) {
@@ -107,7 +107,7 @@ func TestSocketAndMemif(t *testing.T) {
 	}
 
 	md := memif.NewMemif(f, owner)
-	desired := &memif.Memif{Name: "w2-memif1", Id: 1, Socket: 2001, Role: memif.Role_ROLE_MASTER, Mode: memif.Mode_MODE_ETHERNET, RingSize: 1024, BufferSize: 2048}
+	desired := &memif.Memif{Name: "w2-memif1", Id: 1, Socket: 2001, Role: memif.Role_ROLE_MASTER, Mode: memif.Mode_MODE_ETHERNET}
 	if md.KeyOf(desired) != "memif.memif/w2-memif1" {
 		t.Fatal(md.KeyOf(desired))
 	}
@@ -117,15 +117,12 @@ func TestSocketAndMemif(t *testing.T) {
 	if deps := md.Dependencies(&memif.Memif{Name: "x"}); deps != nil {
 		t.Fatalf("socket 0 has no dependency: %+v", deps)
 	}
-	if _, err := md.Create(ctx, &memif.Memif{Name: "x", Socket: 2001, RingSize: 1000, BufferSize: 2048}); err == nil {
-		t.Fatal("non power-of-two ring accepted")
-	}
 	meta, err := md.Create(ctx, desired)
 	if err != nil {
 		t.Fatal(err)
 	}
 	req := f.CallsNamed("memif_create_v2")[0].(*memifapi.MemifCreateV2)
-	if req.Role != memifapi.MEMIF_ROLE_API_MASTER || req.SocketID != 2001 || req.RingSize != 1024 || req.BufferSize != 2048 || !req.NoZeroCopy || req.Secret != "" {
+	if req.Role != memifapi.MEMIF_ROLE_API_MASTER || req.SocketID != 2001 || req.RingSize != 0 || req.BufferSize != 0 || !req.NoZeroCopy || req.Secret != "" {
 		t.Fatalf("memif_create_v2 = %+v", req)
 	}
 	// the other owner's memif on the default socket is invisible

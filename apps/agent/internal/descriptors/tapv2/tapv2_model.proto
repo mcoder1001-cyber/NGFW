@@ -5,15 +5,17 @@ package vrx.agent.tapv2;
 
 option go_package = "ngfw/agent/internal/descriptors/tapv2;tapv2";
 
-// Tap is tap_create_v3. id is mandatory: VPP names the interface tap<id>. Fields the dump does not
-// return (queue counts, host gateways, VPP-side MAC) are not in the model.
+// Tap is tap_create_v3. id is mandatory: VPP names the interface tap<id>. Not in the model: fields
+// the dump does not return (queue counts, host gateways), the VPP-side MAC (interface.mac-address)
+// and the host-side MAC (VPP always generates and reports one — 02:fe:xx:xx:xx:xx — so an unset
+// value could never round-trip; it is readable as state).
 message Tap {
   string name = 1;
   uint32 id = 2;
   string host_if_name = 3;
   string host_namespace = 4;
   string host_bridge = 5;
-  string host_mac = 6;         // lower-case, empty = kernel-assigned
+  reserved 6;                  // host_mac: VPP-generated, not reconcilable (see above)
   string host_ip4_prefix = 7;  // "a.b.c.d/len", empty = none
   string host_ip6_prefix = 8;
   uint32 host_mtu = 9;         // 0 = not set

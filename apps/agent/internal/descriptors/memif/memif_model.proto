@@ -22,15 +22,16 @@ enum Mode {
   MODE_PUNT_INJECT = 2;
 }
 
-// Memif is memif_create_v2. rx/tx queue counts, the secret and the hw address are not part of the
-// model because memif_details does not return them (secret) or they are managed elsewhere (mac).
+// Memif is memif_create_v2 with VPP's defaults for everything the API cannot read back:
+// ring_size / buffer_size (memif_details reports the values negotiated with the peer, 0 before it
+// connects — src/plugins/memif/memif_api.c send_memif_details uses mif->run.*), rx/tx queue
+// counts, the secret and the hw address (interface.mac-address).
 message Memif {
   string name = 1;
   uint32 id = 2;
   uint32 socket = 3;  // socket id; 0 = VPP's default socket (never owned)
   Role role = 4;
   Mode mode = 5;
-  uint32 ring_size = 6;    // power of two, VPP default 1024 — always explicit
-  uint32 buffer_size = 7;  // VPP default 2048 — always explicit
+  reserved 6, 7;  // ring_size, buffer_size: not retrievable (see above)
   bool zero_copy = 8;
 }

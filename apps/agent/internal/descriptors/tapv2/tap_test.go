@@ -27,7 +27,7 @@ type fakeTap struct {
 
 func newFake() *fakeTap {
 	f := &fakeTap{VPP: ifacetest.New(), taps: map[uint32]*tapapi.SwInterfaceTapV2Details{}}
-	o := f.Add("tap9", "virtio", "w3:w3-tap0")
+	o := f.Add("tap9", "tap", "w3:w3-tap0")
 	f.taps[o] = &tapapi.SwInterfaceTapV2Details{SwIfIndex: o, ID: 9, HostIfName: "w3-tap0", RxRingSz: 256, TxRingSz: 256}
 	f.On("tap_create_v3", func(req api.Message) ([]api.Message, error) {
 		r := req.(*tapapi.TapCreateV3)
@@ -36,7 +36,7 @@ func newFake() *fakeTap {
 				return []api.Message{&tapapi.TapCreateV3Reply{Retval: -100}}, nil
 			}
 		}
-		idx := f.Add(fmt.Sprintf("tap%d", r.ID), "virtio", r.Tag)
+		idx := f.Add(fmt.Sprintf("tap%d", r.ID), "tap", r.Tag)
 		d := &tapapi.SwInterfaceTapV2Details{SwIfIndex: idx, ID: r.ID, TxRingSz: r.TxRingSz, RxRingSz: r.RxRingSz, TapFlags: r.TapFlags, DevName: fmt.Sprintf("tap%d", r.ID)}
 		if r.HostIfNameSet {
 			d.HostIfName = r.HostIfName
@@ -91,7 +91,7 @@ func TestTap(t *testing.T) {
 		t.Fatal(r.Names())
 	}
 	d := tapv2.New(f, owner)
-	desired := &tapv2.Tap{Name: "w2-tap0", Id: 200, HostIfName: "w2-tap0", HostMac: "02:aa:bb:cc:dd:ee", HostIp4Prefix: "10.2.0.1/24", HostIp6Prefix: "fd00:2::1/64",
+	desired := &tapv2.Tap{Name: "w2-tap0", Id: 200, HostIfName: "w2-tap0", HostIp4Prefix: "10.2.0.1/24", HostIp6Prefix: "fd00:2::1/64",
 		HostMtu: 1400, RxRingSize: 512, TxRingSize: 256, Gso: true}
 	if d.KeyOf(desired) != "tapv2.tap/w2-tap0" || d.Dependencies(desired) != nil {
 		t.Fatal("key/deps")
@@ -110,7 +110,7 @@ func TestTap(t *testing.T) {
 		t.Fatal(err)
 	}
 	req := f.CallsNamed("tap_create_v3")[0].(*tapapi.TapCreateV3)
-	if req.ID != 200 || !req.UseRandomMac || req.Tag != "w2:w2-tap0" || !req.HostIfNameSet || req.HostIfName != "w2-tap0" || !req.HostMacAddrSet ||
+	if req.ID != 200 || !req.UseRandomMac || req.Tag != "w2:w2-tap0" || !req.HostIfNameSet || req.HostIfName != "w2-tap0" || req.HostMacAddrSet ||
 		!req.HostIP4PrefixSet || req.HostIP4Prefix.Len != 24 || !req.HostIP6PrefixSet || req.HostIP6Prefix.Len != 64 || !req.HostMtuSet || req.HostMtuSize != 1400 ||
 		req.RxRingSz != 512 || req.TxRingSz != 256 || req.TapFlags != tapapi.TAP_API_FLAG_GSO || req.HostNamespaceSet || req.HostBridgeSet {
 		t.Fatalf("tap_create_v3 = %+v", req)

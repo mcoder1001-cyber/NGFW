@@ -47,8 +47,11 @@ func (*BondDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 
 func (*BondDescriptor) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 
-// lbFor validates the mode/lb combination the way VPP resolves it (vnet/bonding/cli.c): only
-// XOR and LACP choose an algorithm; the other modes carry their own value.
+// lbFor validates the mode/lb combination the way VPP resolves it (vnet/bonding/cli.c
+// bond_create_if): only XOR and LACP choose an algorithm; round-robin, active-backup and
+// broadcast get their own value forced and reported by sw_bond_interface_dump, so the model must
+// carry that value — while the request may only send L2/L23/L34 (anything else is
+// VNET_API_ERROR_INVALID_ARGUMENT, verified on the host), hence the L2 placeholder for those modes.
 func lbFor(o *Bond) (bondapi.BondMode, bondapi.BondLbAlgo, error) {
 	mode := bondapi.BondMode(o.GetMode())
 	lb := bondapi.BondLbAlgo(o.GetLb())
@@ -71,7 +74,7 @@ func lbFor(o *Bond) (bondapi.BondMode, bondapi.BondLbAlgo, error) {
 	if lb != forced {
 		return 0, 0, fmt.Errorf("bond: mode %v requires lb %v (VPP forces it), got %v", o.GetMode(), LoadBalance(forced), o.GetLb())
 	}
-	return mode, lb, nil
+	return mode, bondapi.BOND_API_LB_ALGO_L2, nil
 }
 
 func (d *BondDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {

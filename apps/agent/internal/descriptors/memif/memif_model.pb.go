@@ -171,8 +171,10 @@ func (x *Socket) GetFilename() string {
 	return ""
 }
 
-// Memif is memif_create_v2. rx/tx queue counts, the secret and the hw address are not part of the
-// model because memif_details does not return them (secret) or they are managed elsewhere (mac).
+// Memif is memif_create_v2 with VPP's defaults for everything the API cannot read back:
+// ring_size / buffer_size (memif_details reports the values negotiated with the peer, 0 before it
+// connects — src/plugins/memif/memif_api.c send_memif_details uses mif->run.*), rx/tx queue
+// counts, the secret and the hw address (interface.mac-address).
 type Memif struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -180,8 +182,6 @@ type Memif struct {
 	Socket        uint32                 `protobuf:"varint,3,opt,name=socket,proto3" json:"socket,omitempty"` // socket id; 0 = VPP's default socket (never owned)
 	Role          Role                   `protobuf:"varint,4,opt,name=role,proto3,enum=vrx.agent.memif.Role" json:"role,omitempty"`
 	Mode          Mode                   `protobuf:"varint,5,opt,name=mode,proto3,enum=vrx.agent.memif.Mode" json:"mode,omitempty"`
-	RingSize      uint32                 `protobuf:"varint,6,opt,name=ring_size,json=ringSize,proto3" json:"ring_size,omitempty"`       // power of two, VPP default 1024 — always explicit
-	BufferSize    uint32                 `protobuf:"varint,7,opt,name=buffer_size,json=bufferSize,proto3" json:"buffer_size,omitempty"` // VPP default 2048 — always explicit
 	ZeroCopy      bool                   `protobuf:"varint,8,opt,name=zero_copy,json=zeroCopy,proto3" json:"zero_copy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -252,20 +252,6 @@ func (x *Memif) GetMode() Mode {
 	return Mode_MODE_ETHERNET
 }
 
-func (x *Memif) GetRingSize() uint32 {
-	if x != nil {
-		return x.RingSize
-	}
-	return 0
-}
-
-func (x *Memif) GetBufferSize() uint32 {
-	if x != nil {
-		return x.BufferSize
-	}
-	return 0
-}
-
 func (x *Memif) GetZeroCopy() bool {
 	if x != nil {
 		return x.ZeroCopy
@@ -280,17 +266,14 @@ const file_memif_model_proto_rawDesc = "" +
 	"\x11memif_model.proto\x12\x0fvrx.agent.memif\"4\n" +
 	"\x06Socket\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1a\n" +
-	"\bfilename\x18\x02 \x01(\tR\bfilename\"\xf4\x01\n" +
+	"\bfilename\x18\x02 \x01(\tR\bfilename\"\xc2\x01\n" +
 	"\x05Memif\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\rR\x02id\x12\x16\n" +
 	"\x06socket\x18\x03 \x01(\rR\x06socket\x12)\n" +
 	"\x04role\x18\x04 \x01(\x0e2\x15.vrx.agent.memif.RoleR\x04role\x12)\n" +
 	"\x04mode\x18\x05 \x01(\x0e2\x15.vrx.agent.memif.ModeR\x04mode\x12\x1b\n" +
-	"\tring_size\x18\x06 \x01(\rR\bringSize\x12\x1f\n" +
-	"\vbuffer_size\x18\a \x01(\rR\n" +
-	"bufferSize\x12\x1b\n" +
-	"\tzero_copy\x18\b \x01(\bR\bzeroCopy*'\n" +
+	"\tzero_copy\x18\b \x01(\bR\bzeroCopyJ\x04\b\x06\x10\aJ\x04\b\a\x10\b*'\n" +
 	"\x04Role\x12\x0f\n" +
 	"\vROLE_MASTER\x10\x00\x12\x0e\n" +
 	"\n" +

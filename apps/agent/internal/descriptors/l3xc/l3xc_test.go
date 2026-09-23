@@ -38,8 +38,8 @@ type fakeL3xc struct {
 func newFake() *fakeL3xc {
 	f := &fakeL3xc{VPP: ifacetest.New(), xcs: map[key]l3xcapi.L3xc{}}
 	f.loop = f.Add("loop201", "Loopback", "w2:loop201")
-	f.tap = f.Add("tap0", "virtio", "w2:w2-tap0")
-	f.other = f.Add("tap1", "virtio", "w3:w3-tap0")
+	f.tap = f.Add("tap0", "tap", "w2:w2-tap0")
+	f.other = f.Add("tap1", "tap", "w3:w3-tap0")
 	f.xcs[key{f.other, false}] = l3xcapi.L3xc{SwIfIndex: interface_types.InterfaceIndex(f.other), NPaths: 1, Paths: []fib_types.FibPath{{SwIfIndex: ^uint32(0), TableID: 3001}}}
 	f.On("l3xc_update", func(req api.Message) ([]api.Message, error) {
 		r := req.(*l3xcapi.L3xcUpdate)

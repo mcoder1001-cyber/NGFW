@@ -23,8 +23,10 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Tap is tap_create_v3. id is mandatory: VPP names the interface tap<id>. Fields the dump does not
-// return (queue counts, host gateways, VPP-side MAC) are not in the model.
+// Tap is tap_create_v3. id is mandatory: VPP names the interface tap<id>. Not in the model: fields
+// the dump does not return (queue counts, host gateways), the VPP-side MAC (interface.mac-address)
+// and the host-side MAC (VPP always generates and reports one — 02:fe:xx:xx:xx:xx — so an unset
+// value could never round-trip; it is readable as state).
 type Tap struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -32,7 +34,6 @@ type Tap struct {
 	HostIfName    string                 `protobuf:"bytes,3,opt,name=host_if_name,json=hostIfName,proto3" json:"host_if_name,omitempty"`
 	HostNamespace string                 `protobuf:"bytes,4,opt,name=host_namespace,json=hostNamespace,proto3" json:"host_namespace,omitempty"`
 	HostBridge    string                 `protobuf:"bytes,5,opt,name=host_bridge,json=hostBridge,proto3" json:"host_bridge,omitempty"`
-	HostMac       string                 `protobuf:"bytes,6,opt,name=host_mac,json=hostMac,proto3" json:"host_mac,omitempty"`                     // lower-case, empty = kernel-assigned
 	HostIp4Prefix string                 `protobuf:"bytes,7,opt,name=host_ip4_prefix,json=hostIp4Prefix,proto3" json:"host_ip4_prefix,omitempty"` // "a.b.c.d/len", empty = none
 	HostIp6Prefix string                 `protobuf:"bytes,8,opt,name=host_ip6_prefix,json=hostIp6Prefix,proto3" json:"host_ip6_prefix,omitempty"`
 	HostMtu       uint32                 `protobuf:"varint,9,opt,name=host_mtu,json=hostMtu,proto3" json:"host_mtu,omitempty"`             // 0 = not set
@@ -109,13 +110,6 @@ func (x *Tap) GetHostBridge() string {
 	return ""
 }
 
-func (x *Tap) GetHostMac() string {
-	if x != nil {
-		return x.HostMac
-	}
-	return ""
-}
-
 func (x *Tap) GetHostIp4Prefix() string {
 	if x != nil {
 		return x.HostIp4Prefix
@@ -169,7 +163,7 @@ var File_tapv2_model_proto protoreflect.FileDescriptor
 
 const file_tapv2_model_proto_rawDesc = "" +
 	"\n" +
-	"\x11tapv2_model.proto\x12\x0fvrx.agent.tapv2\"\x92\x03\n" +
+	"\x11tapv2_model.proto\x12\x0fvrx.agent.tapv2\"\xfd\x02\n" +
 	"\x03Tap\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\rR\x02id\x12 \n" +
@@ -177,8 +171,7 @@ const file_tapv2_model_proto_rawDesc = "" +
 	"hostIfName\x12%\n" +
 	"\x0ehost_namespace\x18\x04 \x01(\tR\rhostNamespace\x12\x1f\n" +
 	"\vhost_bridge\x18\x05 \x01(\tR\n" +
-	"hostBridge\x12\x19\n" +
-	"\bhost_mac\x18\x06 \x01(\tR\ahostMac\x12&\n" +
+	"hostBridge\x12&\n" +
 	"\x0fhost_ip4_prefix\x18\a \x01(\tR\rhostIp4Prefix\x12&\n" +
 	"\x0fhost_ip6_prefix\x18\b \x01(\tR\rhostIp6Prefix\x12\x19\n" +
 	"\bhost_mtu\x18\t \x01(\rR\ahostMtu\x12 \n" +
@@ -188,7 +181,7 @@ const file_tapv2_model_proto_rawDesc = "" +
 	"\ftx_ring_size\x18\v \x01(\rR\n" +
 	"txRingSize\x12\x10\n" +
 	"\x03gso\x18\f \x01(\bR\x03gso\x12!\n" +
-	"\fcsum_offload\x18\r \x01(\bR\vcsumOffloadB-Z+ngfw/agent/internal/descriptors/tapv2;tapv2b\x06proto3"
+	"\fcsum_offload\x18\r \x01(\bR\vcsumOffloadJ\x04\b\x06\x10\aB-Z+ngfw/agent/internal/descriptors/tapv2;tapv2b\x06proto3"
 
 var (
 	file_tapv2_model_proto_rawDescOnce sync.Once

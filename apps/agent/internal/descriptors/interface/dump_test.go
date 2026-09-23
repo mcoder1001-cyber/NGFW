@@ -29,8 +29,8 @@ func newWorld() *world {
 	w := &world{v: ifacetest.New()}
 	w.loop = w.v.Add("loop201", "Loopback", "w2:loop201")
 	w.other = w.v.Add("loop300", "Loopback", "w3:loop300")
-	w.tap = w.v.Add("tap0", "virtio", "w2:w2-tap0")
-	w.untagged = w.v.Add("tap1", "virtio", "")
+	w.tap = w.v.Add("tap0", "tap", "w2:w2-tap0")
+	w.untagged = w.v.Add("tap1", "tap", "")
 	w.unknown = w.v.Add("gre0", "gre", "w2:gre0")
 	return w
 }

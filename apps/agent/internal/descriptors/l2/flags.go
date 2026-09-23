@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 
 	"google.golang.org/protobuf/proto"
 
@@ -78,31 +77,22 @@ func bdFeat(bd *l2api.BridgeDomainDetails) l2api.L2IntfFeatFlags {
 	return featOf(&Flags{Learn: bd.Learn, Forward: bd.Forward, Flood: bd.Flood, UuFlood: bd.UuFlood, ArpTerm: bd.ArpTerm, ArpUfwd: bd.ArpUfwd})
 }
 
-// bridgeOf returns the bridge domain idx is a member of (bridge_domain_dump filtered by sw_if_index).
+// bridgeOf returns the owned bridge domain idx is a member of. It scans the full owned dump: on
+// VPP 26.06 bridge_domain_dump's sw_if_index filter returned nothing for a member (host test),
+// and a member of another owner's bridge is not ours to override anyway.
 func (d *FlagsDescriptor) bridgeOf(ctx context.Context, idx uint32) (*l2api.BridgeDomainDetails, error) {
-	stream, err := d.svc().BridgeDomainDump(ctx, &l2api.BridgeDomainDump{BdID: ^uint32(0), SwIfIndex: interface_types.InterfaceIndex(idx)})
+	bds, err := d.bridgeDomains(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("bridge_domain_dump: %w", err)
+		return nil, err
 	}
-	var found *l2api.BridgeDomainDetails
-	for {
-		bd, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("bridge_domain_dump: %w", err)
-		}
+	for _, bd := range bds {
 		for _, sw := range bd.SwIfDetails {
 			if uint32(sw.SwIfIndex) == idx {
-				found = bd
+				return bd, nil
 			}
 		}
 	}
-	if found == nil {
-		return nil, fmt.Errorf("l2.flags: interface %d is not a bridge member", idx)
-	}
-	return found, nil
+	return nil, fmt.Errorf("l2.flags: interface %d is not a member of an owned bridge domain", idx)
 }
 
 func (d *FlagsDescriptor) apply(ctx context.Context, idx uint32, want l2api.L2IntfFeatFlags) error {

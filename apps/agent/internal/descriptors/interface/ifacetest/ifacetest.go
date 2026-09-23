@@ -255,7 +255,7 @@ func (v *VPP) addLocked(name, devType string) uint32 {
 	return idx
 }
 
-// Add creates a hardware interface of the given VPP device class ("Loopback", "virtio",
+// Add creates a hardware interface of the given VPP device class ("Loopback", "tap",
 // "af-packet", "bond", "memif", …) with an optional tag and one rx queue in polling mode on
 // the main thread. It returns the sw_if_index.
 func (v *VPP) Add(name, devType, tag string) uint32 {

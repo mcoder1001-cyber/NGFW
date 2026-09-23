@@ -40,12 +40,13 @@ const (
 )
 
 // kindByDevType maps sw_interface_details.interface_dev_type (vnet_device_class_t.name in VPP
-// 26.06: src/vnet/ethernet/interface.c, src/vnet/devices/virtio/device.c,
-// src/plugins/af_packet/device.c, src/vnet/bonding/device.c, src/plugins/memif/device.c) to
-// the descriptor that creates such interfaces. Sub-interfaces are recognised by IF_API_TYPE_SUB.
+// 26.06: src/vnet/ethernet/interface.c "Loopback", src/plugins/tap/tap.c "tap",
+// src/plugins/af_packet/device.c "af-packet", src/vnet/bonding/device.c "bond",
+// src/plugins/memif/device.c "memif"; verified on the host, see docs/agent/descriptors/interface.md)
+// to the descriptor that creates such interfaces. Sub-interfaces are recognised by IF_API_TYPE_SUB.
 var kindByDevType = map[string]string{
 	"Loopback":  LoopbackName,
-	"virtio":    TapName,
+	"tap":       TapName,
 	"af-packet": HostInterfaceName,
 	"bond":      BondName,
 	"memif":     MemifName,

@@ -35,8 +35,8 @@ type fakeBond struct {
 
 func newFake() *fakeBond {
 	f := &fakeBond{VPP: ifacetest.New(), bonds: map[uint32]*bondapi.SwBondInterfaceDetails{}, members: map[uint32]*bondapi.SwMemberInterfaceDetails{}, ofBond: map[uint32]uint32{}}
-	f.tap = f.Add("tap0", "virtio", "w2:w2-tap0")
-	f.tap2 = f.Add("tap1", "virtio", "w2:w2-tap1")
+	f.tap = f.Add("tap0", "tap", "w2:w2-tap0")
+	f.tap2 = f.Add("tap1", "tap", "w2:w2-tap1")
 	f.other = f.Add("BondEthernet9", "bond", "w3:w3-bond0")
 	f.bonds[f.other] = &bondapi.SwBondInterfaceDetails{SwIfIndex: interface_types.InterfaceIndex(f.other), ID: 9, Mode: bondapi.BOND_API_MODE_LACP, InterfaceName: "BondEthernet9"}
 	f.On("bond_create2", func(req api.Message) ([]api.Message, error) {
@@ -46,8 +46,20 @@ func newFake() *fakeBond {
 				return []api.Message{&bondapi.BondCreate2Reply{Retval: -100}}, nil
 			}
 		}
+		lb := r.Lb
+		if lb > bondapi.BOND_API_LB_ALGO_L23 { // the API accepts l2/l34/l23 only (vnet/bonding/cli.c)
+			return []api.Message{&bondapi.BondCreate2Reply{Retval: -73}}, nil
+		}
+		switch r.Mode { // … and forces the algorithm for these modes
+		case bondapi.BOND_API_MODE_ROUND_ROBIN:
+			lb = bondapi.BOND_API_LB_ALGO_RR
+		case bondapi.BOND_API_MODE_ACTIVE_BACKUP:
+			lb = bondapi.BOND_API_LB_ALGO_AB
+		case bondapi.BOND_API_MODE_BROADCAST:
+			lb = bondapi.BOND_API_LB_ALGO_BC
+		}
 		idx := f.Add(fmt.Sprintf("BondEthernet%d", r.ID), "bond", "")
-		f.bonds[idx] = &bondapi.SwBondInterfaceDetails{SwIfIndex: interface_types.InterfaceIndex(idx), ID: r.ID, Mode: r.Mode, Lb: r.Lb, NumaOnly: r.NumaOnly, InterfaceName: fmt.Sprintf("BondEthernet%d", r.ID)}
+		f.bonds[idx] = &bondapi.SwBondInterfaceDetails{SwIfIndex: interface_types.InterfaceIndex(idx), ID: r.ID, Mode: r.Mode, Lb: lb, NumaOnly: r.NumaOnly, InterfaceName: fmt.Sprintf("BondEthernet%d", r.ID)}
 		return []api.Message{&bondapi.BondCreate2Reply{SwIfIndex: interface_types.InterfaceIndex(idx)}}, nil
 	})
 	f.On("bond_delete", func(req api.Message) ([]api.Message, error) {
@@ -154,6 +166,14 @@ func TestBondAndMember(t *testing.T) {
 	rr := &bond.Bond{Name: "w2-bond1", Id: 201, Mode: bond.Mode_MODE_ROUND_ROBIN, Lb: bond.LoadBalance_LOAD_BALANCE_ROUND_ROBIN}
 	if _, err := d.Create(ctx, rr); err != nil {
 		t.Fatal(err)
+	}
+	if req := f.CallsNamed("bond_create2")[1].(*bondapi.BondCreate2); req.Lb != bondapi.BOND_API_LB_ALGO_L2 {
+		t.Fatalf("round-robin must be requested with the L2 placeholder, got %v", req.Lb)
+	}
+	for _, kv := range retrieve(t, d) {
+		if kv.Key == "bond.bond/w2-bond1" && !proto.Equal(kv.Value, rr) {
+			t.Fatalf("round-robin Retrieve = %v, want the forced lb %v", kv.Value, rr)
+		}
 	}
 	if _, err := d.Update(ctx, desired, &bond.Bond{Name: "w2-bond0", Id: 200, Mode: bond.Mode_MODE_XOR, Lb: bond.LoadBalance_LOAD_BALANCE_L34}, meta); !errors.Is(err, scheduler.ErrRecreate) {
 		t.Fatalf("mode change: %v", err)

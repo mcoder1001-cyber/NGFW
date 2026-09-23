@@ -67,9 +67,9 @@ func newFake() *fakeL2 {
 	f := &fakeL2{VPP: ifacetest.New(), bds: map[uint32]*l2api.BridgeDomainDetails{}, members: map[uint32]uint32{}, shg: map[uint32]uint8{},
 		ptype: map[uint32]l2api.L2PortType{}, xc: map[uint32]uint32{}, fib: map[string]*l2api.L2FibTableDetails{}, feat: map[uint32]l2api.L2IntfFeatFlags{}}
 	f.loop = f.Add("loop201", "Loopback", "w2:loop201")
-	f.tap = f.Add("tap0", "virtio", "w2:w2-tap0")
-	f.tap2 = f.Add("tap1", "virtio", "w2:w2-tap1")
-	f.other = f.Add("tap2", "virtio", "w3:w3-tap0")
+	f.tap = f.Add("tap0", "tap", "w2:w2-tap0")
+	f.tap2 = f.Add("tap1", "tap", "w2:w2-tap1")
+	f.other = f.Add("tap2", "tap", "w3:w3-tap0")
 	// another owner's bridge domain with the other owner's member
 	f.bds[3001] = &l2api.BridgeDomainDetails{BdID: 3001, Flood: true, UuFlood: true, Forward: true, Learn: true, BdTag: "w3:3001", BviSwIfIndex: ^interface_types.InterfaceIndex(0), UuFwdSwIfIndex: ^interface_types.InterfaceIndex(0)}
 	f.members[f.other] = 3001
@@ -196,7 +196,7 @@ func newFake() *fakeL2 {
 		}
 		k := r.Mac.String() + "@" + string(rune(r.BdID))
 		if r.IsAdd {
-			f.fib[k] = &l2api.L2FibTableDetails{BdID: r.BdID, Mac: r.Mac, SwIfIndex: r.SwIfIndex, StaticMac: r.StaticMac, FilterMac: r.FilterMac, BviMac: r.BviMac}
+			f.fib[k] = &l2api.L2FibTableDetails{BdID: r.BdID, Mac: r.Mac, SwIfIndex: r.SwIfIndex, StaticMac: r.StaticMac || r.FilterMac, FilterMac: r.FilterMac, BviMac: r.BviMac} // VPP: filter ⇒ static
 		} else {
 			delete(f.fib, k)
 		}
@@ -415,6 +415,9 @@ func TestFibEntry(t *testing.T) {
 	assertOnly(t, d, map[scheduler.Key]proto.Message{"l2.fib-entry/2001/02:aa:bb:cc:dd:01": static, "l2.fib-entry/2001/02:aa:bb:cc:dd:02": filter})
 	if _, err := d.Create(ctx, &l2.FibEntry{BridgeDomain: 2001, Mac: "02:aa:bb:cc:dd:04", Interface: tapKey}); err == nil {
 		t.Fatal("learned-type entry accepted")
+	}
+	if _, err := d.Create(ctx, &l2.FibEntry{BridgeDomain: 2001, Mac: "02:aa:bb:cc:dd:05", Filter: true, Static: true}); err == nil {
+		t.Fatal("filter+static accepted (static is implied)")
 	}
 	if _, err := d.Update(ctx, static, filter, meta); !errors.Is(err, scheduler.ErrRecreate) {
 		t.Fatalf("Update: %v", err)

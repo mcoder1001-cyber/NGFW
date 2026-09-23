@@ -16,7 +16,9 @@ import (
 )
 
 // FibEntryDescriptor implements l2.fib-entry (l2fib_add_del). Only static, filter and BVI
-// entries are configuration; learned entries are runtime state and are never retrieved.
+// entries are configuration; learned entries are runtime state and are never retrieved. VPP
+// stores filter entries with the static flag set (l2fib_add_filter_entry), so the model keeps
+// `static` false for filter entries and Retrieve masks the implied flag.
 type FibEntryDescriptor struct{ base }
 
 // NewFibEntry returns the descriptor for owner.
@@ -68,6 +70,9 @@ func (d *FibEntryDescriptor) Create(ctx context.Context, obj proto.Message) (any
 	}
 	if !o.GetStatic() && !o.GetFilter() && !o.GetBvi() {
 		return nil, errors.New("l2: fib-entry must be static, filter or bvi (learned entries are not configuration)")
+	}
+	if o.GetFilter() && (o.GetStatic() || o.GetBvi() || o.GetInterface() != "") {
+		return nil, errors.New("l2: a filter entry is implicitly static and has no interface or bvi flag")
 	}
 	idx := iface.AllInterfaces
 	if o.GetInterface() != "" {
@@ -126,9 +131,9 @@ func (d *FibEntryDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 		if !owned[e.BdID] || !(e.StaticMac || e.FilterMac || e.BviMac) {
 			continue
 		}
-		v := &FibEntry{BridgeDomain: e.BdID, Mac: iface.FormatMAC(e.Mac), Static: e.StaticMac, Filter: e.FilterMac, Bvi: e.BviMac}
+		v := &FibEntry{BridgeDomain: e.BdID, Mac: iface.FormatMAC(e.Mac), Static: e.StaticMac && !e.FilterMac, Filter: e.FilterMac, Bvi: e.BviMac}
 		idx := uint32(e.SwIfIndex)
-		if idx != iface.AllInterfaces {
+		if idx != iface.AllInterfaces && !e.FilterMac {
 			key, ok := t.KeyFor(idx)
 			if !ok {
 				continue

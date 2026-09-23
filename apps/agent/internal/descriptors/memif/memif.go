@@ -16,7 +16,8 @@ import (
 )
 
 // MemifDescriptor implements memif.memif (memif_create_v2 / memif_delete). All fields are
-// creation parameters → Update is a recreate.
+// creation parameters → Update is a recreate. Ring and buffer sizes are VPP's defaults: the API
+// only reports the values negotiated with the connected peer, so they cannot be reconciled.
 type MemifDescriptor struct{ base }
 
 // NewMemif returns the descriptor for owner.
@@ -44,12 +45,9 @@ func (d *MemifDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 	if o.GetName() == "" {
 		return nil, errors.New("memif: name is mandatory")
 	}
-	if o.GetRingSize() == 0 || o.GetRingSize()&(o.GetRingSize()-1) != 0 || o.GetBufferSize() == 0 || o.GetBufferSize() > 0xffff {
-		return nil, fmt.Errorf("memif: ring_size must be a power of two and buffer_size 1..65535 (got %d/%d)", o.GetRingSize(), o.GetBufferSize())
-	}
 	rep, err := d.svc().MemifCreateV2(ctx, &memifapi.MemifCreateV2{
 		Role: memifapi.MemifRole(o.GetRole()), Mode: memifapi.MemifMode(o.GetMode()), ID: o.GetId(), SocketID: o.GetSocket(), //nolint:gosec // enum values 0-2
-		RingSize: o.GetRingSize(), BufferSize: uint16(o.GetBufferSize()), NoZeroCopy: !o.GetZeroCopy(), //nolint:gosec // range-checked
+		NoZeroCopy: !o.GetZeroCopy(), // ring_size / buffer_size 0 → VPP defaults (1024 / 2048)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("memif_create_v2: %w", err)
@@ -102,7 +100,7 @@ func (d *MemifDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 			Key: key,
 			Value: &Memif{
 				Name: key.ID(), Id: m.ID, Socket: m.SocketID, Role: Role(m.Role), Mode: Mode(m.Mode), //nolint:gosec // enum values 0-2
-				RingSize: m.RingSize, BufferSize: uint32(m.BufferSize), ZeroCopy: m.ZeroCopy,
+				ZeroCopy: m.ZeroCopy,
 			},
 			Meta: iface.Meta{SwIfIndex: uint32(m.SwIfIndex)},
 		})

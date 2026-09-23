@@ -65,9 +65,11 @@ func TestSubinterface(t *testing.T) {
 	}
 	assertOnly(t, d, map[scheduler.Key]proto.Message{"interface.subinterface/loop201.100": desired}, map[scheduler.Key]any{"interface.subinterface/loop201.100": meta})
 	// attributes see the sub-interface as an interface in its own right
+	subMtu := &iface.Mtu{Interface: "interface.subinterface/loop201.100", Mtu: 1496}
+	mustCreate(t, iface.NewMtu(w.v, owner), subMtu)
 	found := false
 	for _, kv := range retrieve(t, iface.NewMtu(w.v, owner)) {
-		found = found || kv.Key == "interface.mtu/loop201.100"
+		found = found || (kv.Key == "interface.mtu/loop201.100" && proto.Equal(kv.Value, subMtu))
 	}
 	if !found {
 		t.Fatal("the sub-interface must be decorated by the attribute descriptors")

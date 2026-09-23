@@ -195,6 +195,7 @@ func New() *VPP {
 		i.SubIfFlags = r.SubIfFlags
 		i.SubOuterVlanID, i.SubInnerVlanID = r.OuterVlanID, r.InnerVlanID
 		i.L2Address = p.L2Address
+		i.Mtu = []uint32{0, 0, 0, 0} // VPP 26.06: sub-interfaces start without MTUs (host-verified)
 		switch {
 		case r.SubIfFlags&interface_types.SUB_IF_API_FLAG_TWO_TAGS != 0:
 			i.SubNumberOfTags = 2
@@ -251,20 +252,25 @@ func (v *VPP) addLocked(name, devType string) uint32 {
 		InterfaceDevType: devType,
 		L2Address:        [6]uint8{0x02, 0xfe, 0, 0, 0, uint8(idx)}, //nolint:gosec // fake
 		Mtu:              []uint32{9000, 0, 0, 0},
+		LinkMtu:          9000,
 	}
 	return idx
 }
 
 // Add creates a hardware interface of the given VPP device class ("Loopback", "tap",
-// "af-packet", "bond", "memif", …) with an optional tag and one rx queue in polling mode on
-// the main thread. It returns the sw_if_index.
+// "af-packet", "bond", "memif", …) with an optional tag and one rx queue on the main thread in
+// the class's default mode (polling; interrupt for af-packet). It returns the sw_if_index.
 func (v *VPP) Add(name, devType, tag string) uint32 {
 	v.Mu.Lock()
 	defer v.Mu.Unlock()
 	idx := v.addLocked(name, devType)
 	v.Ifs[idx].Tag = tag
 	if devType != "Loopback" && devType != "bond" {
-		v.Queues[idx] = []Queue{{ID: 0, Thread: 0, Mode: interface_types.RX_MODE_API_POLLING}}
+		mode := interface_types.RX_MODE_API_POLLING
+		if devType == "af-packet" { // af_packet.c forces interrupt mode on creation
+			mode = interface_types.RX_MODE_API_INTERRUPT
+		}
+		v.Queues[idx] = []Queue{{ID: 0, Thread: 0, Mode: mode}}
 	}
 	return idx
 }

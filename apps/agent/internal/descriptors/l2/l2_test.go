@@ -1,6 +1,7 @@
 package l2_test
 
 import (
+	"fmt"
 	"context"
 	"errors"
 	"sort"
@@ -40,28 +41,18 @@ type fakeL2 struct {
 	loop, tap, tap2, other uint32
 }
 
-func bdFeat(bd *l2api.BridgeDomainDetails) l2api.L2IntfFeatFlags {
-	var f l2api.L2IntfFeatFlags
-	if bd.Learn {
-		f |= l2api.L2_INTF_FEAT_LEARN
-	}
-	if bd.Forward {
-		f |= l2api.L2_INTF_FEAT_FWD
-	}
-	if bd.Flood {
-		f |= l2api.L2_INTF_FEAT_FLOOD
-	}
-	if bd.UuFlood {
-		f |= l2api.L2_INTF_FEAT_UU_FLOOD
-	}
-	if bd.ArpTerm {
-		f |= l2api.L2_INTF_FEAT_ARP_TERM
-	}
-	if bd.ArpUfwd {
-		f |= l2api.L2_INTF_FEAT_ARP_UFWD
+// joinFeat is the interface feature bitmap VPP sets when an interface joins a bridge
+// (l2_input.c set_int_l2_mode): everything on, learning off for a BVI.
+func joinFeat(bvi bool) l2api.L2IntfFeatFlags {
+	f := l2api.L2_INTF_FEAT_LEARN | l2api.L2_INTF_FEAT_FWD | l2api.L2_INTF_FEAT_FLOOD | l2api.L2_INTF_FEAT_UU_FLOOD |
+		l2api.L2_INTF_FEAT_ARP_TERM | l2api.L2_INTF_FEAT_ARP_UFWD
+	if bvi {
+		f &^= l2api.L2_INTF_FEAT_LEARN
 	}
 	return f
 }
+
+func bviFibKey(sw, bd uint32) string { return fmt.Sprintf("bvi:%d@%d", sw, bd) }
 
 func newFake() *fakeL2 {
 	f := &fakeL2{VPP: ifacetest.New(), bds: map[uint32]*l2api.BridgeDomainDetails{}, members: map[uint32]uint32{}, shg: map[uint32]uint8{},
@@ -73,7 +64,7 @@ func newFake() *fakeL2 {
 	// another owner's bridge domain with the other owner's member
 	f.bds[3001] = &l2api.BridgeDomainDetails{BdID: 3001, Flood: true, UuFlood: true, Forward: true, Learn: true, BdTag: "w3:3001", BviSwIfIndex: ^interface_types.InterfaceIndex(0), UuFwdSwIfIndex: ^interface_types.InterfaceIndex(0)}
 	f.members[f.other] = 3001
-	f.feat[f.other] = bdFeat(f.bds[3001])
+	f.feat[f.other] = joinFeat(false)
 
 	f.On("bridge_domain_add_del_v2", func(req api.Message) ([]api.Message, error) {
 		r := req.(*l2api.BridgeDomainAddDelV2)
@@ -147,6 +138,7 @@ func newFake() *fakeL2 {
 			return []api.Message{&l2api.SwInterfaceSetL2BridgeReply{Retval: -2}}, nil
 		}
 		if !r.Enable {
+			delete(f.fib, bviFibKey(sw, f.members[sw])) // VPP removes the automatic BVI entry
 			delete(f.members, sw)
 			delete(f.feat, sw)
 			for _, bd := range f.bds {
@@ -164,10 +156,12 @@ func newFake() *fakeL2 {
 			return []api.Message{&l2api.SwInterfaceSetL2BridgeReply{Retval: -1}}, nil
 		}
 		f.members[sw], f.shg[sw], f.ptype[sw] = r.BdID, r.Shg, r.PortType
-		f.feat[sw] = bdFeat(bd)
+		f.feat[sw] = joinFeat(r.PortType == l2api.L2_API_PORT_TYPE_BVI)
 		switch r.PortType {
 		case l2api.L2_API_PORT_TYPE_BVI:
 			bd.BviSwIfIndex = r.RxSwIfIndex
+			// VPP installs a static BVI entry for the interface's own address
+			f.fib[bviFibKey(sw, r.BdID)] = &l2api.L2FibTableDetails{BdID: r.BdID, Mac: f.Ifs[sw].L2Address, SwIfIndex: r.RxSwIfIndex, StaticMac: true, BviMac: true}
 		case l2api.L2_API_PORT_TYPE_UU_FWD:
 			bd.UuFwdSwIfIndex = r.RxSwIfIndex
 		}
@@ -412,6 +406,19 @@ func TestFibEntry(t *testing.T) {
 	mac, _ := ethernet_types.ParseMacAddress("02:aa:bb:cc:dd:03")
 	f.fib["learned"] = &l2api.L2FibTableDetails{BdID: 2001, Mac: mac, SwIfIndex: interface_types.InterfaceIndex(f.tap)}
 	f.fib["foreign"] = &l2api.L2FibTableDetails{BdID: 3001, Mac: mac, SwIfIndex: interface_types.InterfaceIndex(f.other), StaticMac: true}
+	// the entry VPP installs for a BVI's own address belongs to the member object: invisible
+	mustCreate(t, l2.NewMember(f, owner), &l2.BridgeDomainMember{BridgeDomain: 2001, Interface: loopKey, PortType: l2.PortType_PORT_TYPE_BVI})
+	if len(f.fib) != 5 {
+		t.Fatalf("fake did not install the BVI entry: %d entries", len(f.fib))
+	}
+	assertOnly(t, d, map[scheduler.Key]proto.Message{"l2.fib-entry/2001/02:aa:bb:cc:dd:01": static, "l2.fib-entry/2001/02:aa:bb:cc:dd:02": filter})
+	// a configured BVI entry for another address is an object
+	bviOther := &l2.FibEntry{BridgeDomain: 2001, Mac: "02:aa:bb:cc:dd:06", Interface: loopKey, Static: true, Bvi: true}
+	bviMeta := mustCreate(t, d, bviOther)
+	assertOnly(t, d, map[scheduler.Key]proto.Message{"l2.fib-entry/2001/02:aa:bb:cc:dd:01": static, "l2.fib-entry/2001/02:aa:bb:cc:dd:02": filter, "l2.fib-entry/2001/02:aa:bb:cc:dd:06": bviOther})
+	if err := d.Delete(ctx, bviOther, bviMeta); err != nil {
+		t.Fatal(err)
+	}
 	assertOnly(t, d, map[scheduler.Key]proto.Message{"l2.fib-entry/2001/02:aa:bb:cc:dd:01": static, "l2.fib-entry/2001/02:aa:bb:cc:dd:02": filter})
 	if _, err := d.Create(ctx, &l2.FibEntry{BridgeDomain: 2001, Mac: "02:aa:bb:cc:dd:04", Interface: tapKey}); err == nil {
 		t.Fatal("learned-type entry accepted")
@@ -440,17 +447,23 @@ func TestFlags(t *testing.T) {
 	if kvs := retrieve(t, d); len(kvs) != 0 {
 		t.Fatalf("member with bridge defaults has no flags object: %+v", kvs)
 	}
-	noLearn := &l2.Flags{Interface: tapKey, Learn: false, Forward: true, Flood: true, UuFlood: true}
+	noLearn := &l2.Flags{Interface: tapKey, Learn: false, Forward: true, Flood: true, UuFlood: true, ArpTerm: true, ArpUfwd: true}
 	meta := mustCreate(t, d, noLearn)
 	sets := f.CallsNamed("l2_interface_feat_flags_set")
 	if len(sets) != 1 || sets[0].(*l2api.L2InterfaceFeatFlagsSet).IsSet || sets[0].(*l2api.L2InterfaceFeatFlagsSet).Flags != l2api.L2_INTF_FEAT_LEARN {
 		t.Fatalf("feat_flags_set = %+v", sets)
 	}
 	assertOnly(t, d, map[scheduler.Key]proto.Message{"l2.flags/w2-tap0": noLearn})
-	if _, err := d.Create(ctx, &l2.Flags{Interface: tapKey, Learn: true, Forward: true, Flood: true, UuFlood: true}); !errors.Is(err, l2.ErrEqualsBridgeDefault) {
+	if _, err := d.Create(ctx, &l2.Flags{Interface: tapKey, Learn: true, Forward: true, Flood: true, UuFlood: true, ArpTerm: true, ArpUfwd: true}); !errors.Is(err, l2.ErrEqualsBridgeDefault) {
 		t.Fatalf("defaults: %v", err)
 	}
-	if _, err := d.Create(ctx, &l2.Flags{Interface: loopKey}); err == nil {
+	// a BVI joins with learning off: that is its default, not an l2.flags object
+	mustCreate(t, l2.NewMember(f, owner), &l2.BridgeDomainMember{BridgeDomain: 2001, Interface: loopKey, PortType: l2.PortType_PORT_TYPE_BVI})
+	assertOnly(t, d, map[scheduler.Key]proto.Message{"l2.flags/w2-tap0": noLearn})
+	if _, err := d.Create(ctx, &l2.Flags{Interface: loopKey, Forward: true, Flood: true, UuFlood: true, ArpTerm: true, ArpUfwd: true}); !errors.Is(err, l2.ErrEqualsBridgeDefault) {
+		t.Fatalf("BVI defaults: %v", err)
+	}
+	if _, err := d.Create(ctx, &l2.Flags{Interface: tap2Key}); err == nil {
 		t.Fatal("non-member accepted")
 	}
 	arp := &l2.Flags{Interface: tapKey, Learn: true, Forward: true, Flood: true, UuFlood: true, ArpTerm: true}
@@ -461,7 +474,7 @@ func TestFlags(t *testing.T) {
 	if err := d.Delete(ctx, arp, meta); err != nil {
 		t.Fatal(err)
 	}
-	if kvs := retrieve(t, d); len(kvs) != 0 || f.feat[f.tap] != bdFeat(f.bds[2001]) {
+	if kvs := retrieve(t, d); len(kvs) != 0 || f.feat[f.tap] != joinFeat(false) {
 		t.Fatalf("after Delete: %+v feat=%v", kvs, f.feat[f.tap])
 	}
 }

@@ -111,9 +111,8 @@ func TestAdminState(t *testing.T) {
 func TestMtu(t *testing.T) {
 	w := newWorld()
 	d := iface.NewMtu(w.v, owner)
-	// VPP gives hardware interfaces an L3 MTU at creation, so both of ours are visible already
-	kvs := retrieve(t, d)
-	if len(kvs) != 2 {
+	// VPP creates interfaces with {link_mtu,0,0,0}: that default is "no object"
+	if kvs := retrieve(t, d); len(kvs) != 0 {
 		t.Fatalf("initial Retrieve = %+v", kvs)
 	}
 	desired := &iface.Mtu{Interface: loopKey, Mtu: 1500, Ip4: 1400}
@@ -122,20 +121,31 @@ func TestMtu(t *testing.T) {
 	if uint32(req.SwIfIndex) != w.loop || len(req.Mtu) != 4 || req.Mtu[0] != 1500 || req.Mtu[1] != 1400 || req.Mtu[2] != 0 || req.Mtu[3] != 0 {
 		t.Fatalf("set_mtu = %+v", req)
 	}
-	tapMtu := &iface.Mtu{Interface: tapKey, Mtu: 9000}
-	assertOnly(t, d, map[scheduler.Key]proto.Message{"interface.mtu/loop201": desired, "interface.mtu/w2-tap0": tapMtu}, map[scheduler.Key]any{"interface.mtu/loop201": meta})
-	updated := &iface.Mtu{Interface: loopKey, Mtu: 9000}
+	assertOnly(t, d, map[scheduler.Key]proto.Message{"interface.mtu/loop201": desired}, map[scheduler.Key]any{"interface.mtu/loop201": meta})
+	// idempotent re-apply: a fresh descriptor (agent restart) retrieves the same object and Meta
+	assertOnly(t, iface.NewMtu(w.v, owner), map[scheduler.Key]proto.Message{"interface.mtu/loop201": desired}, map[scheduler.Key]any{"interface.mtu/loop201": meta})
+	updated := &iface.Mtu{Interface: loopKey, Mtu: 9000, Ip6: 1280}
 	if _, err := d.Update(ctx, desired, updated, meta); err != nil {
 		t.Fatal(err)
 	}
-	assertOnly(t, d, map[scheduler.Key]proto.Message{"interface.mtu/loop201": updated, "interface.mtu/w2-tap0": tapMtu}, nil)
+	assertOnly(t, d, map[scheduler.Key]proto.Message{"interface.mtu/loop201": updated}, nil)
 	if _, err := d.Update(ctx, desired, &iface.Mtu{Interface: tapKey, Mtu: 1}, meta); !errors.Is(err, scheduler.ErrRecreate) {
 		t.Fatalf("interface change must recreate: %v", err)
+	}
+	if _, err := d.Update(ctx, desired, &iface.Mtu{Interface: loopKey, Ip4: 1400}, meta); !errors.Is(err, iface.ErrZeroMtu) {
+		t.Fatalf("zero L3 mtu update: %v", err)
+	}
+	if _, err := d.Create(ctx, &iface.Mtu{Interface: tapKey, Ip4: 1400}); !errors.Is(err, iface.ErrZeroMtu) {
+		t.Fatalf("zero L3 mtu create: %v", err)
 	}
 	if err := d.Delete(ctx, updated, meta); err != nil {
 		t.Fatal(err)
 	}
-	assertOnly(t, d, map[scheduler.Key]proto.Message{"interface.mtu/w2-tap0": tapMtu}, nil)
+	// Delete restores the creation default, never {0,0,0,0}
+	if got, _ := w.v.Get(w.loop); len(got.Mtu) != 4 || got.Mtu[0] != 9000 || got.Mtu[1]|got.Mtu[2]|got.Mtu[3] != 0 {
+		t.Fatalf("mtu after Delete = %v", got.Mtu)
+	}
+	assertOnly(t, d, map[scheduler.Key]proto.Message{}, nil)
 }
 
 func TestMacAddress(t *testing.T) {
@@ -145,7 +155,8 @@ func TestMacAddress(t *testing.T) {
 	w.v.Ifs[sub].Type = interface_types.IF_API_TYPE_SUB
 	w.v.Ifs[sub].SupSwIfIndex = w.loop
 	w.v.Ifs[sub].SubID = 10
-	if kvs := retrieve(t, d); len(kvs) != 2 { // loop201 and w2-tap0, never the sub-interface
+	// every interface has a MAC, but nothing was configured: no object (else perpetual Deletes)
+	if kvs := retrieve(t, d); len(kvs) != 0 {
 		t.Fatalf("initial Retrieve = %+v", kvs)
 	}
 	desired := &iface.MacAddress{Interface: loopKey, Mac: "02:AA:bb:cc:dd:01"}
@@ -153,17 +164,20 @@ func TestMacAddress(t *testing.T) {
 	if got, _ := w.v.Get(w.loop); iface.FormatMAC(got.L2Address) != "02:aa:bb:cc:dd:01" {
 		t.Fatalf("mac = %v", got.L2Address)
 	}
-	kvs := retrieve(t, d)
-	for _, kv := range kvs {
-		if kv.Key == "interface.mac-address/loop201" && kv.Value.(*iface.MacAddress).GetMac() != "02:aa:bb:cc:dd:01" {
-			t.Fatalf("Retrieve mac not canonical lower-case: %v", kv.Value)
-		}
-	}
+	canonical := &iface.MacAddress{Interface: loopKey, Mac: "02:aa:bb:cc:dd:01"}
+	assertOnly(t, d, map[scheduler.Key]proto.Message{"interface.mac-address/loop201": canonical}, map[scheduler.Key]any{"interface.mac-address/loop201": meta})
+	// drift is visible: someone else changes the address
+	w.v.Ifs[w.loop].L2Address = [6]uint8{0x02, 0, 0, 0, 0, 9}
+	assertOnly(t, d, map[scheduler.Key]proto.Message{"interface.mac-address/loop201": &iface.MacAddress{Interface: loopKey, Mac: "02:00:00:00:00:09"}}, nil)
 	if _, err := d.Update(ctx, desired, &iface.MacAddress{Interface: loopKey, Mac: "02:aa:bb:cc:dd:02"}, meta); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := d.Create(ctx, &iface.MacAddress{Interface: loopKey, Mac: "nope"}); err == nil {
 		t.Fatal("invalid mac accepted")
+	}
+	// a fresh descriptor (agent restart) cannot tell a configured MAC from the default: re-apply
+	if kvs := retrieve(t, iface.NewMacAddress(w.v, owner)); len(kvs) != 0 {
+		t.Fatalf("fresh descriptor Retrieve = %+v", kvs)
 	}
 	if err := d.Delete(ctx, desired, meta); err != nil {
 		t.Fatal(err)
@@ -171,6 +185,7 @@ func TestMacAddress(t *testing.T) {
 	if len(w.v.CallsNamed("sw_interface_set_mac_address")) != 2 {
 		t.Fatal("Delete must not touch the MAC")
 	}
+	assertOnly(t, d, map[scheduler.Key]proto.Message{}, nil)
 }
 
 func TestPromisc(t *testing.T) {
@@ -228,6 +243,27 @@ func TestRxMode(t *testing.T) {
 	}
 	if _, err := d.Create(ctx, &iface.RxMode{Interface: tapKey}); err == nil {
 		t.Fatal("unspecified mode accepted")
+	}
+	if _, err := d.Create(ctx, &iface.RxMode{Interface: tapKey, Mode: iface.RxModeKind_RX_MODE_KIND_POLLING}); !errors.Is(err, iface.ErrRxModeDefault) {
+		t.Fatalf("polling on a tap is the default: %v", err)
+	}
+	// af-packet starts in interrupt mode: that is its default, polling is the object
+	af := w.v.Add("host-w2-af0", "af-packet", "w2:w2-af0")
+	afKey := "af-packet.host-interface/w2-af0"
+	if kvs := retrieve(t, d); len(kvs) != 0 {
+		t.Fatalf("af-packet in interrupt mode is not an object: %+v", kvs)
+	}
+	if _, err := d.Create(ctx, &iface.RxMode{Interface: afKey, Mode: iface.RxModeKind_RX_MODE_KIND_INTERRUPT}); !errors.Is(err, iface.ErrRxModeDefault) {
+		t.Fatalf("interrupt on af-packet is the default: %v", err)
+	}
+	polling := &iface.RxMode{Interface: afKey, Mode: iface.RxModeKind_RX_MODE_KIND_POLLING}
+	afMeta := mustCreate(t, d, polling)
+	assertOnly(t, d, map[scheduler.Key]proto.Message{"interface.rx-mode/w2-af0": polling}, map[scheduler.Key]any{"interface.rx-mode/w2-af0": afMeta})
+	if err := d.Delete(ctx, polling, afMeta); err != nil {
+		t.Fatal(err)
+	}
+	if kvs := retrieve(t, d); len(kvs) != 0 || w.v.Queues[af][0].Mode != interface_types.RX_MODE_API_INTERRUPT {
+		t.Fatalf("af-packet after Delete: %+v %+v", kvs, w.v.Queues[af])
 	}
 }
 

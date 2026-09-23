@@ -108,8 +108,10 @@ func (d *FibEntryDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 		return nil, err
 	}
 	owned := make(map[uint32]bool, len(bds))
+	bvi := make(map[uint32]uint32, len(bds)) // bd id → BVI sw_if_index (~0 = none)
 	for _, bd := range bds {
 		owned[bd.BdID] = true
+		bvi[bd.BdID] = uint32(bd.BviSwIfIndex)
 	}
 	t, err := iface.Dump(ctx, d.client, d.owner)
 	if err != nil {
@@ -131,6 +133,9 @@ func (d *FibEntryDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 		if !owned[e.BdID] || !(e.StaticMac || e.FilterMac || e.BviMac) {
 			continue
 		}
+		if autoBviEntry(t, e, bvi[e.BdID]) {
+			continue
+		}
 		v := &FibEntry{BridgeDomain: e.BdID, Mac: iface.FormatMAC(e.Mac), Static: e.StaticMac && !e.FilterMac, Filter: e.FilterMac, Bvi: e.BviMac}
 		idx := uint32(e.SwIfIndex)
 		if idx != iface.AllInterfaces && !e.FilterMac {
@@ -143,4 +148,17 @@ func (d *FibEntryDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 		out = append(out, scheduler.KV{Key: FibEntryKey(e.BdID, v.Mac), Value: v, Meta: iface.Meta{SwIfIndex: idx}})
 	}
 	return out, nil
+}
+
+// autoBviEntry reports the static BVI entry VPP installs by itself when an interface joins a
+// bridge domain as BVI (l2_input.c: l2fib_add_entry(hi->hw_address, …, BVI|STATIC)) and removes
+// when it leaves. It belongs to the l2.bridge-domain-member object, not to l2.fib-entry, so
+// Retrieve skips it (else every BVI would produce a Delete in every plan). A desired bvi entry
+// for the BVI's own address is therefore redundant and must not be configured.
+func autoBviEntry(t *iface.Table, e *l2api.L2FibTableDetails, bviIdx uint32) bool {
+	if !e.BviMac || uint32(e.SwIfIndex) != bviIdx {
+		return false
+	}
+	d, ok := t.Details(bviIdx)
+	return ok && [6]uint8(d.L2Address) == [6]uint8(e.Mac)
 }

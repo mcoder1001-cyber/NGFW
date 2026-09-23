@@ -15,13 +15,13 @@ import (
 )
 
 // ErrEqualsBridgeDefault is returned by l2.flags Create/Update when the requested flags equal the
-// bridge domain's own flags: such an object would vanish from Retrieve, so it must be removed
-// from the desired state instead.
-var ErrEqualsBridgeDefault = errors.New("l2.flags: flags equal the bridge-domain defaults; remove the object instead")
+// member default (memberDefault: everything on, learning off for the BVI): such an object would
+// vanish from Retrieve, so it must be removed from the desired state instead.
+var ErrEqualsBridgeDefault = errors.New("l2.flags: flags equal the bridge member defaults; remove the object instead")
 
-// FlagsDescriptor implements l2.flags with l2_interface_feat_flags_set / _get. A bridge member
-// inherits the bridge domain's learn/forward/flood/uu-flood/arp-term/arp-ufwd features; this
-// object overrides them per interface and exists only while they differ from the bridge's.
+// FlagsDescriptor implements l2.flags with l2_interface_feat_flags_set / _get: the per-interface
+// learn/forward/flood/uu-flood/arp-term/arp-ufwd mask of a bridge member (ANDed with the bridge
+// domain's flags by VPP). The object exists only while the mask differs from memberDefault.
 type FlagsDescriptor struct{ base }
 
 // NewFlags returns the descriptor for owner.
@@ -72,9 +72,19 @@ func decodeFeat(ref string, f l2api.L2IntfFeatFlags) *Flags {
 	}
 }
 
-// bdFeat is the bridge domain's flags expressed as interface feature flags.
-func bdFeat(bd *l2api.BridgeDomainDetails) l2api.L2IntfFeatFlags {
-	return featOf(&Flags{Learn: bd.Learn, Forward: bd.Forward, Flood: bd.Flood, UuFlood: bd.UuFlood, ArpTerm: bd.ArpTerm, ArpUfwd: bd.ArpUfwd})
+// memberDefault is what a member's interface feature bitmap is without an l2.flags object. VPP
+// 26.06 sets it when the interface joins the bridge, independent of the bridge domain's own
+// flags (l2_input.c set_int_l2_mode: FWD|UU_FLOOD|UU_FWD|FLOOD|LEARN|ARP_UFWD|ARP_TERM, and for a
+// BVI LEARN cleared again — "no use since l2fib entry is static"); the data path ANDs it with
+// the bridge domain's bitmap, so the per-interface flags are a mask. Verified on the host with
+// l2_interface_feat_flags_get (docs/agent/descriptors/l2.md).
+func memberDefault(bd *l2api.BridgeDomainDetails, idx uint32) l2api.L2IntfFeatFlags {
+	f := l2api.L2_INTF_FEAT_LEARN | l2api.L2_INTF_FEAT_FWD | l2api.L2_INTF_FEAT_FLOOD | l2api.L2_INTF_FEAT_UU_FLOOD |
+		l2api.L2_INTF_FEAT_ARP_TERM | l2api.L2_INTF_FEAT_ARP_UFWD
+	if uint32(bd.BviSwIfIndex) == idx {
+		f &^= l2api.L2_INTF_FEAT_LEARN
+	}
+	return f
 }
 
 // bridgeOf returns the owned bridge domain idx is a member of. It scans the full owned dump: on
@@ -126,7 +136,7 @@ func (d *FlagsDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 	if err != nil {
 		return nil, err
 	}
-	if featOf(o) == bdFeat(bd) {
+	if featOf(o) == memberDefault(bd, idx) {
 		return nil, ErrEqualsBridgeDefault
 	}
 	return iface.Meta{SwIfIndex: idx}, d.apply(ctx, idx, featOf(o))
@@ -145,13 +155,13 @@ func (d *FlagsDescriptor) Update(ctx context.Context, oldObj, newObj proto.Messa
 	if err != nil {
 		return nil, err
 	}
-	if featOf(n) == bdFeat(bd) {
+	if featOf(n) == memberDefault(bd, m.SwIfIndex) {
 		return nil, ErrEqualsBridgeDefault
 	}
 	return m, d.apply(ctx, m.SwIfIndex, featOf(n))
 }
 
-// Delete restores the bridge domain's flags on the interface (no-op if it left the bridge).
+// Delete restores the member default (memberDefault) on the interface (no-op if it left the bridge).
 func (d *FlagsDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
 	m, err := iface.MetaOf(meta)
 	if err != nil {
@@ -161,7 +171,7 @@ func (d *FlagsDescriptor) Delete(ctx context.Context, _ proto.Message, meta any)
 	if err != nil {
 		return nil //nolint:nilerr // not a bridge member any more: nothing to restore
 	}
-	return d.apply(ctx, m.SwIfIndex, bdFeat(bd))
+	return d.apply(ctx, m.SwIfIndex, memberDefault(bd, m.SwIfIndex))
 }
 
 func (d *FlagsDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
@@ -185,7 +195,7 @@ func (d *FlagsDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 			if err != nil {
 				return nil, fmt.Errorf("l2_interface_feat_flags_get: %w", err)
 			}
-			if cur.Flags == bdFeat(bd) {
+			if cur.Flags == memberDefault(bd, idx) {
 				continue
 			}
 			out = append(out, scheduler.KV{Key: scheduler.Join(FlagsName, key.ID()), Value: decodeFeat(string(key), cur.Flags), Meta: iface.Meta{SwIfIndex: idx}})

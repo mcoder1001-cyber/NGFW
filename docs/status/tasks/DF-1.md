@@ -292,6 +292,124 @@ ok  	ngfw/agent/internal/agent	1.149s; ok  	ngfw/agent/internal/contracttest	1.4
 CI GATE PASSED
 ```
 
+## Review fixes (review docs/status/tasks/DF-1-review.md @ 705c6ca, decision D-069)
+
+Main merged first (`44bcc86`: go.mod/go.sum taken from main + `go mod tidy`, review L6).
+
+| Finding | Fix | Commit | Evidence |
+|---|---|---|---|
+| H1 alias fails every P05 transaction | `AliasDescriptor.DeleteOnAbsence() false` (P05 `scheduler.AbsenceDeleter`, duck-typed); Retrieve = ours + untagged only, never another owner's, never local0; reconciler requirement documented in interface.md | 53866d3 | `TestAlias` (asserts DeleteOnAbsence false, loop300 of w3 absent); host `TestAliasOnHost` "4 aliases retrieved (ours + untagged, never another owner's)" |
+| H2 physical / untagged NICs not configurable | every DF-1 interface field accepts `interface/<name>`; `Table.Index` resolves alias refs by logical name; `iface.ClaimStore` (DF-4 pattern, per owner, `SetClaimStore` for P05's persisted store) for per-interface objects on untagged interfaces; Retrieve reports claimed ones; physical NICs are never deleted | 53866d3 | unit `TestPhysicalNIC` (admin-up / MTU / rx-mode / VLAN sub-if on `interface/ens224`, fresh descriptor, release, foreign refused), `TestBondPhysicalMembers`, `TestBridgePhysicalMember`; host `TestAliasOnHost` configures untagged `tap271` (below) |
+| H3 / D-069 alias name space | `interface/<name>` = logical name: tag id for ours, VPP name for untagged. One exported resolver `iface.ResolveName` / `Table.IndexByName` (+ `Logical`, `Ref`); VPP's name of *our* interface does not resolve | 53866d3, d95a0d1 | `TestAlias`, `TestPhysicalNIC`, acl `TestBindingLogicalNames` |
+| D-069 DF-4 acl | acl resolves / reports interfaces with DF-1's resolver; etype whitelist refuses foreign interfaces, ACL bindings keep DF-4's shared-list semantics (finding 6) | **522a8c0** `fix(acl): resolve interfaces by logical name (D-069)` | acl unit incl. `TestBindingLogicalNames`; host `TestACLPluginOnHost` all 10 subtests PASS (below) |
+| M1 alias hands out foreign interfaces | name fallback only for untagged interfaces; another owner's → `ErrForeignInterface` | 53866d3 | `TestAlias`: `loop300` (w3) refused |
+| M2 restart simulation lacks the loss leg | after the restart: tap (+ sub-if and L2 dependents), memif + socket and an l3xc deleted via binapi → plan = exactly the creates → re-created in dependency order → plan empty | 53866d3 | host log below |
+| M3 tag failure leaves an orphan | sub-interface / bond / memif / af_packet: delete the just-created object and return `nil, err` (tap tags inside create) | 53866d3 | `TestSubinterfaceTagFailure`, `TestBondTagFailure` (fake `FailTag`) |
+| M4 perpetual plans from VPP canonicalisation | tap `host_if_name` mandatory; `interface.mtu` equal to the creation default → `ErrMtuDefault`; `Normalize` on every descriptor with references (creator key → `interface/<id>`), l3xc (weight 0→1, netip next hop, sorted paths), fib MAC lower-case, tap host prefixes | 53866d3 | `TestL3xcNormalize` (fake now stores weight 0 as 1 like fib_api.c), `TestMtu` default cases, tap invalid list; restart simulation "plan is empty" with normalised desired state |
+| M5 l2 mode dependents undeclared | `l2.flags.bridge_domain` (mandatory, checked) → depends on `l2.bridge-domain-member/<bd>/<if>`; `l2.vlan-tag-rewrite.bridge_domain` / `.xconnect` → depends on the member / `l2.xconnect/<if>`, must match the actual L2 mode (Retrieve fills them) | 53866d3 | `TestL2ModeDependents` (fake: leaving L2 clears flags + VTR like l2_input.c; dependents re-created) ; restart loss leg re-creates flags + vtr after the member |
+| L1 promisc/MAC memory survives VPP restart | memory tied to VPP identity (main-thread PID, `iface.VPPIdentity`), dropped on change | b0a026e | `TestProcessMemoryDroppedOnVPPRestart` |
+| L2 stale Meta in Deletes | mtu / rx-mode Delete check `Table.Owns` first (no-op when gone / not ours); claims released only on successful Delete | 53866d3 | — (l2 member Delete unchanged, noted) |
+| L3 host-side inputs | not changed: documented as schema / F-* validation (af_packet.md) | — | — |
+| L4 memif socket 0 | an owned socket is mandatory | 53866d3 | memif docs |
+| L5 corrupted docs table | interface.md rewritten | 26b620a | — |
+| L6 go.mod conflict | merged main | 44bcc86 | CI below |
+| L7 / L8 | documented (memif hw_addr could round-trip; pb.go regenerated with the pinned protoc-gen-go for the model changes) | 26b620a | — |
+
+VPP health around the host runs: `systemctl show vpp -p NRestarts` → `NRestarts=2` before and
+`NRestarts=2` after all eight packages (no crash); afterwards `vppctl show interface` shows no `w2`
+object (only local0 and other slots' `lisp_gpe*`), `ip -br link | grep -c '^w2'` → `0`.
+
+Host runs (`VRX_INTEGRATION=1 VRX_TEST_PREFIX=w2 VRX_SLOT=2 VRX_VPP_TABLE_BASE=2000 go test -count=1 -v ./internal/descriptors/<pkg>/`, one package at a time):
+```
+interface rc=0 ok  	ngfw/agent/internal/descriptors/interface	1.557s
+tapv2 rc=0 ok  	ngfw/agent/internal/descriptors/tapv2	0.103s
+af_packet rc=0 ok  	ngfw/agent/internal/descriptors/af_packet	0.588s
+bond rc=0 ok  	ngfw/agent/internal/descriptors/bond	0.236s
+l2 rc=0 ok  	ngfw/agent/internal/descriptors/l2	0.434s
+l3xc rc=0 ok  	ngfw/agent/internal/descriptors/l3xc	0.107s
+memif rc=0 ok  	ngfw/agent/internal/descriptors/memif	0.032s
+acl rc=0 ok  	ngfw/agent/internal/descriptors/acl	0.174s
+```
+interface package (excerpt):
+```
+alias_integration_test.go:69: interface alias: Retrieve == desired: interface/loop270 name:"loop270"  creator:"interface.loopback/loop270" deps=[{interface.loopback/loop270 false}] meta={SwIfIndex:14}
+alias_integration_test.go:69: interface alias: Retrieve == desired: interface/tap271 name:"tap271" deps=[] meta={SwIfIndex:5}
+alias_integration_test.go:87: alias Delete left both interfaces in place; missing interface rejected; 4 aliases retrieved (ours + untagged, never another owner's)
+alias_integration_test.go:119: untagged interface: interface.admin-state Retrieve == desired: interface.admin-state/tap271 interface:"interface/tap271"
+alias_integration_test.go:119: untagged interface: interface.mtu Retrieve == desired: interface.mtu/tap271 interface:"interface/tap271"  mtu:1500  ip4:1400
+alias_integration_test.go:119: untagged interface: interface.rx-mode Retrieve == desired: interface.rx-mode/tap271 interface:"interface/tap271"  mode:RX_MODE_KIND_INTERRUPT
+alias_integration_test.go:119: untagged interface: interface.subinterface Retrieve == desired: interface.subinterface/tap271.100 parent:"interface/tap271"  sub_id:100  outer_vlan:100  exact_match:true
+alias_integration_test.go:136: untagged interface tap271: 4 objects configured via interface/tap271 and removed; the interface itself is still there
+--- PASS: TestAliasOnHost (0.11s)
+integration_test.go:113: skip: no workers on host (startup.conf cpu { } runs the main core only; sw_interface_set_rx_placement needs a worker)
+--- PASS: TestAttributesOnHost (0.14s)
+restart_integration_test.go:315: same agent, same desired state: plan is empty (38 objects)
+restart_integration_test.go:339: restarted agent: Retrieve rebuilt 38 objects with equal Meta; plan = ["create interface.mac-address/loop260" "create interface.promisc/w2-tap63"] (VPP cannot report promisc / a configured MAC: re-applied idempotently)
+restart_integration_test.go:353: restarted agent, second apply: plan is empty
+restart_integration_test.go:369: lost ["tapv2.tap/w2-tap62" "l3xc on tapv2.tap/w2-tap63" "memif.memif/w2-memif60" "memif.socket/2060"]; plan = 14 creates: ["create interface.admin-state/w2-tap62" "create interface.admin-state/w2-tap62.100" "create interface.subinterface/w2-tap62.100" "create interface/w2-memif60" "create interface/w2-tap62" "create interface/w2-tap62.100" "create l2.bridge-domain-member/2060/w2-tap62.100" "create l2.fib-entry/2060/02:02:00:00:3c:02" "create l2.flags/w2-tap62.100" "create l2.vlan-tag-rewrite/w2-tap62.100" "create l3xc.l3xc/w2-tap63/ip4" "create memif.memif/w2-memif60" "create memif.socket/2060" "create tapv2.tap/w2-tap62"]
+restart_integration_test.go:386: reconcile re-created 14 objects in dependency order ["tapv2.tap/w2-tap62" "memif.socket/2060" "memif.memif/w2-memif60" "interface/w2-tap62" "interface/w2-memif60" "l3xc.l3xc/w2-tap63/ip4" "interface.subinterface/w2-tap62.100" "interface.admin-state/w2-tap62" "interface/w2-tap62.100" "interface.admin-state/w2-tap62.100" "l2.bridge-domain-member/2060/w2-tap62.100" "l2.fib-entry/2060/02:02:00:00:3c:02" "l2.flags/w2-tap62.100" "l2.vlan-tag-rewrite/w2-tap62.100"]; plan is empty again
+restart_integration_test.go:412: restarted agent deleted 38 objects; Retrieve for owner w2r is empty
+--- PASS: TestRestartSimulationOnHost (1.27s)
+```
+l2 (references now in canonical alias form, flags / vtr carry the bridge domain):
+```
+l2.bridge-domain-member: Retrieve == desired: l2.bridge-domain-member/2010/loop210 bridge_domain:2010 interface:"interface/loop210" port_type:PORT_TYPE_BVI
+l2.flags: Retrieve == desired: l2.flags/w2-tap10 interface:"interface/w2-tap10" forward:true flood:true uu_flood:true arp_term:true bridge_domain:2010
+l2.xconnect: Retrieve == desired: l2.xconnect/w2-tap12 rx:"interface/w2-tap12" tx:"interface/w2-tap13"
+l2.vlan-tag-rewrite: Retrieve == desired: l2.vlan-tag-rewrite/w2-tap11.100 interface:"interface/w2-tap11.100" op:VTR_OP_POP_2 bridge_domain:2010
+--- PASS: TestL2OnHost (0.41s)
+--- PASS: TestL2ModeDependents (0.00s)
+--- PASS: TestBridgePhysicalMember (0.00s)
+```
+acl after the D-069 change (host):
+```
+--- PASS: TestACLPluginOnHost (0.14s)
+    --- PASS: TestACLPluginOnHost/acl (0.01s)
+    --- PASS: TestACLPluginOnHost/acl-50-rules (0.01s)
+    --- PASS: TestACLPluginOnHost/interface-binding (0.02s)
+    --- PASS: TestACLPluginOnHost/etype-whitelist (0.01s)
+    --- PASS: TestACLPluginOnHost/etype-whitelist-untagged (0.00s)
+    --- PASS: TestACLPluginOnHost/foreign-acl-preserved (0.01s)
+    --- PASS: TestACLPluginOnHost/macip (0.01s)
+    --- PASS: TestACLPluginOnHost/stats (0.01s)
+    --- PASS: TestACLPluginOnHost/delete (0.01s)
+    --- PASS: TestACLPluginOnHost/macip-del-unbinds (0.01s)
+ok  	ngfw/agent/internal/descriptors/acl	0.166s
+```
+(One earlier full parallel run hit `stats list: stats data busy` in DF-4's stats subtest — stats-segment
+contention with concurrent packages; the package run alone passes, above.)
+
+`tools/ci.sh --base main` at the fix-round head:
+```
+== apps/agent: make lint test build ==
+ok  	ngfw/agent/internal/agent	1.136s; ok  	ngfw/agent/internal/contracttest	1.775s; ok  	ngfw/agent/internal/descriptors/acl	1.193s; ok  	ngfw/agent/internal/descriptors/af_packet	1.104s; ok  	ngfw/agent/internal/descriptors/bond	1.112s; ok  	ngfw/agent/internal/descriptors/interface	1.151s; ok  	ngfw/agent/internal/descriptors/l2	1.135s; ok  	ngfw/agent/internal/descriptors/l3xc	1.106s; ok  	ngfw/agent/internal/descriptors/memif	1.101s; ok  	ngfw/agent/internal/descriptors/tapv2	1.094s; ok  	ngfw/agent/internal/renderers	1.427s; ok  	ngfw/agent/internal/scheduler	1.093s;
+
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m00s
+  generate + generated-output gate                   0m16s
+  forbidden patterns (+ gitleaks)                    0m03s
+  lint · typecheck · unit tests · build (turbo)   0m14s
+  apps/agent: make lint test build                   0m16s
+  test/ Go modules, unit mode (test/integration/smoke)   0m02s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      review(DF-1): findings
+  mode quick · wall time 0m54s · logs /root/ngfw-wt/logs/ci/DF-1-20260924-010812-1154411
+
+CI GATE PASSED
+```
+(The warning is the reviewer's commit on main, not a DF-1 commit.)
+
+Decisions in this round (for the LOG): D-069 applied as specified; references canonicalised to
+`interface/<name>` via Normalize (option: keep creator keys in Retrieve — rejected, physical NICs have
+none); claims per `(interface, descriptor)` in a per-owner store (option: one store per descriptor as in
+DF-4 — rejected, DF-1 has 10 claiming descriptors); ACL bindings may still name another owner's
+interface (shared ACL lists, DF-4 finding 6) while etype whitelists refuse; default-equal MTU and
+empty tap host name are rejected rather than normalised (Normalize is pure and cannot know the link MTU
+or the name VPP would pick).
+
 ## Acceptance checklist
 - [x] unit + integration green for all seven packages (above)
 - [x] no `vppctl` / `exec.Command` except the fixed-argv test rig helper

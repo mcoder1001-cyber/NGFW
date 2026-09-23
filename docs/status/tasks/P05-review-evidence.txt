@@ -1,0 +1,116 @@
+$ systemctl show vpp -p NRestarts
+NRestarts=2
+
+$ vrx-agentctl apply doc.json -txn w7-r1 | grep status/summary
+  "status": "APPLY_STATUS_APPLIED",
+  "results": [
+    {
+--
+  "summary": {
+    "created": 10
+  },
+$ vrx-agentctl retrieve | vrfs/vrf/blackhole lines
+        "vrf": "w7-red"
+        "vrf": "w7-red"
+        "id": 7001
+          "vrf": "w7-red",
+          "blackhole": false
+          "vrf": "w7-red",
+          "blackhole": false
+
+$ vppctl show interface address
+lisp_gpe0 (dn):
+lisp_gpe11100 (dn):
+local0 (dn):
+loop701 (dn):
+  L3 10.7.1.1/24 ip4 table-id 7001 fib-idx 2
+  L3 2001:db8:7::1/64 ip6 table-id 7001 fib-idx 5
+loop702 (dn):
+  L3 10.7.2.1/24 ip4 table-id 7001 fib-idx 2
+
+$ kill -9 1270301
+
+$ python3 delete_owned.py w7
+delete_loopback loop702 16 0
+delete_loopback loop701 18 0
+ip_table_add_del del 7001 ip4 0
+ip_table_add_del del 7001 ip6 0
+
+$ vppctl show interface address
+lisp_gpe0 (dn):
+lisp_gpe11100 (dn):
+local0 (dn):
+
+$ grep 'reconcile done' r2.log
+{"time":"2026-09-24T01:20:40.63113704+03:30","level":"INFO","msg":"reconcile done","owner":"w7","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing"],"status":"APPLY_STATUS_APPLIED","summary":"created:10","reapplied":0,"duration":24859579,"err":""}
+
+$ vppctl show interface address
+lisp_gpe0 (dn):
+lisp_gpe11100 (dn):
+local0 (dn):
+loop701 (dn):
+  L3 10.7.1.1/24 ip4 table-id 7001 fib-idx 2
+  L3 2001:db8:7::1/64 ip6 table-id 7001 fib-idx 5
+loop702 (dn):
+  L3 10.7.2.1/24 ip4 table-id 7001 fib-idx 2
+
+$ vppctl show ip fib table 7001 10.7.100.0/24
+w7:w7-red, fib_index:2, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[interface:2, API:1, recursive-resolution:1, ]
+10.7.100.0/24 fib:2 index:40 locks:2
+  API refs:1 src-flags:added,contributing,active,
+    path-list:[56] locks:2 flags:shared, uPRF-list:63 len:0 itfs:[]
+      path:[65] pl-index:56 ip4 weight=1 pref=1 recursive: 
+        via 10.7.1.254 in fib:2 via-fib:49 via-dpo:[dpo-load-balance:75]
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:52 buckets:1 uRPF:63 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+
+$ kill -9 1270668
+
+$ grep 'reconcile done' r3.log   (converged agent killed -9 and restarted)
+{"time":"2026-09-24T01:20:42.541539527+03:30","level":"INFO","msg":"reconcile done","owner":"w7","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:10","reapplied":1,"duration":11004555,"err":""}
+
+$ vppctl show interface loop701
+              Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+loop701                           18    down         9000/0/0/0     
+
+=== M1/H3: pending apply, agent killed, restarted after the deadline ===
+$ vrx-agentctl apply doc-pending.json -txn w7-r-pending -confirm 3 | grep status
+  "status": "APPLY_STATUS_APPLIED",
+$ kill -9 1270833
+
+$ /root/ngfw-wt/P05/apps/agent/bin/vrx-agentctl confirm w7-r-pending
+vrx-agentctl: rpc error: code = FailedPrecondition desc = transaction "w7-r-pending" is not pending confirmation
+
+$ grep -E 'reverting|reconcile done' r4.log
+{"time":"2026-09-24T01:20:48.192786589+03:30","level":"WARN","msg":"confirm timeout: reverting to the last confirmed state","owner":"w7","txn_id":"w7-r-pending"}
+{"time":"2026-09-24T01:20:48.219251266+03:30","level":"INFO","msg":"reconcile done","owner":"w7","txn_id":"","mode":"revert","domains":["interfaces","vrfs","routing"],"status":"APPLY_STATUS_APPLIED","summary":"deleted:3 unchanged:10","reapplied":1,"duration":26127847,"err":""}
+
+$ vppctl show interface address
+lisp_gpe0 (dn):
+lisp_gpe11100 (dn):
+local0 (dn):
+loop701 (dn):
+  L3 10.7.1.1/24 ip4 table-id 7001 fib-idx 2
+  L3 2001:db8:7::1/64 ip6 table-id 7001 fib-idx 5
+loop702 (dn):
+  L3 10.7.2.1/24 ip4 table-id 7001 fib-idx 2
+
+=== cleanup ===
+$ vrx-agentctl apply empty.json -subsystems interfaces,vrfs,routing | grep summary
+  "summary": {
+    "deleted": 10
+  },
+$ vppctl show interface address
+lisp_gpe0 (dn):
+lisp_gpe11100 (dn):
+local0 (dn):
+
+$ vppctl show ip table
+[0] table_id:0 ipv4-VRF:0
+[1] table_id:11013 w11-t11013
+
+$ systemctl show vpp -p NRestarts
+NRestarts=2
+

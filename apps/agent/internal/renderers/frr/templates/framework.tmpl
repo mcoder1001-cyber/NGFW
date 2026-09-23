@@ -1,0 +1,60 @@
+{{- /*
+  FRR framework sections (RF-1). Every user string passes exactly one helper:
+  hostname / vrfname / ifname / desc (frr/escape.go), network / addr (renderers).
+  Numbers (tag, distance) are typed. Each section's output is split into lines by the
+  renderer, blank lines dropped, and every line checked again (checkLine).
+*/ -}}
+
+{{- define "globals" -}}
+frr version {{.Version}}
+frr defaults traditional
+{{- if .Model.Hostname}}
+hostname {{hostname .Model.Hostname}}
+{{- end}}
+log syslog informational
+service integrated-vtysh-config
+{{end}}
+
+{{- define "route" -}}
+{{.AFI}} route {{network .PrefixText}}
+{{- if .Blackhole}} blackhole
+{{- else}}{{with .GatewayText}} {{addr .}}{{end}}{{with .Interface}} {{rtifname .}}{{end}}
+{{- end}}
+{{- if .Tag}} tag {{.Tag}}{{end}}
+{{- if .ShowDistance}} {{.Distance}}{{end}}
+{{- end}}
+
+{{- define "vrfs" -}}
+{{- range $i, $v := .Model.VRFs}}
+{{- if $i}}
+!
+{{- end}}
+vrf {{vrfname $v.Name}}
+{{- range $v.Static}}
+ {{template "route" .}}
+{{- end}}
+exit-vrf
+{{end}}
+{{- end}}
+
+{{- define "interfaces" -}}
+{{- range $i, $itf := .Model.Interfaces}}
+{{- if $i}}
+!
+{{- end}}
+interface {{ifname $itf.Name}}
+ description {{desc $itf.Description}}
+exit
+{{end}}
+{{- end}}
+
+{{- define "static" -}}
+{{- range .Model.Static}}
+{{template "route" .}}
+{{end}}
+{{- end}}
+
+{{- define "vtysh.conf" -}}
+! vtysh.conf — rendered by vrx-agent (RF-1); frr-reload.py requires the integrated config.
+service integrated-vtysh-config
+{{end}}

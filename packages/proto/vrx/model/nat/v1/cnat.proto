@@ -1,0 +1,76 @@
+// CNat (cnat plugin) objects of the DF-3 descriptors; see common.proto for the conventions.
+// cnat default-SNAT mutations are VPP-global and serialised by a host-wide lock (D-071, V10).
+syntax = "proto3";
+
+package vrx.model.nat.v1;
+
+option go_package = "ngfw/agent/gen/vrx/model/nat/v1;natv1";
+
+// CnatPath is one backend of a translation: the rewritten destination (and optional source).
+// Empty addresses / zero ports mean "unchanged".
+message CnatPath {
+  // Rewritten source address; empty = unchanged.
+  string src = 1;
+  // Rewritten source port; 0 = unchanged.
+  uint32 src_port = 2;
+  // Rewritten destination (backend) address.
+  string dst = 3;
+  // Rewritten destination port; 0 = unchanged.
+  uint32 dst_port = 4;
+  // Do not NAT this path.
+  bool no_nat = 5;
+}
+
+// CnatTranslation is one translation (cnat_translation_update): a VIP load-balanced over paths.
+// Flags, is_real_ip and flow_hash_config are not returned by the dump and not modelled.
+message CnatTranslation {
+  // VIP address, canonical.
+  string vip = 1;
+  // VIP port.
+  uint32 port = 2;
+  // Protocol name ("tcp" | "udp" | "icmp").
+  string proto = 3;
+  // "default" | "maglev" (canonical form: never empty).
+  string lb_type = 4;
+  // Backends in canonical order.
+  repeated CnatPath paths = 5;
+}
+
+// CnatSnatAddresses is the default SNAT entry (cnat_set_snat_addresses): IPv4 and/or IPv6
+// addresses, or an interface whose addresses are used.
+message CnatSnatAddresses {
+  // IPv4 SNAT address; empty = none.
+  string ip4 = 1;
+  // IPv6 SNAT address; empty = none.
+  string ip6 = 2;
+  // Logical interface name whose addresses are used; empty = none.
+  string interface = 3;
+}
+
+// CnatSnatPolicy selects the SNAT policy of the default entry (cnat_set_snat_policy).
+message CnatSnatPolicy {
+  // "none" | "if-pfx" | "k8s" | "dnat".
+  string policy = 1;
+}
+
+// CnatSnatInterface adds an interface to one policy table of the default entry
+// (cnat_snat_policy_add_del_if).
+message CnatSnatInterface {
+  // Logical interface name (D-069).
+  string interface = 1;
+  // "include-v4" | "include-v6" | "pod" | "host".
+  string table = 2;
+}
+
+// CnatSnatExcludePrefix excludes a destination prefix from source NAT
+// (cnat_snat_policy_add_del_exclude_pfx).
+message CnatSnatExcludePrefix {
+  // Prefix, canonical CIDR.
+  string prefix = 1;
+}
+
+// CnatInterfaceFeature enables the cnat feature nodes on an interface (feature_cnat_enable_disable).
+message CnatInterfaceFeature {
+  // Logical interface name (D-069).
+  string interface = 1;
+}

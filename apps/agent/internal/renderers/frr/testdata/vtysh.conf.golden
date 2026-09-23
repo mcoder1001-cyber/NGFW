@@ -1,0 +1,2 @@
+! vtysh.conf — rendered by vrx-agent (RF-1); frr-reload.py requires the integrated config.
+service integrated-vtysh-config

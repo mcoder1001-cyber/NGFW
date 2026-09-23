@@ -1,0 +1,24 @@
+// Desired state of the adl (allow/deny list) descriptors (agent-internal until moved to
+// packages/proto). VPP has no dump for either object: see docs/agent/descriptors/adl.md.
+syntax = "proto3";
+
+package ngfw.agent.descriptors.adl;
+
+option go_package = "ngfw/agent/internal/descriptors/adl;adl";
+
+// Interface enables the ADL input feature on an interface (adl_interface_enable_disable).
+message Interface {
+  string interface = 1;
+}
+
+// Allowlist points an interface's ADL check at a FIB table of allowed prefixes
+// (adl_allowlist_enable_disable).
+message Allowlist {
+  string interface = 1;
+  // FIB table holding the allow-listed prefixes (dependency vrf/<id> unless 0).
+  uint32 fib_id = 2;
+  bool ip4 = 3;
+  bool ip6 = 4;
+  // Apply the default ADL policy ("default-cop").
+  bool default_adl = 5;
+}

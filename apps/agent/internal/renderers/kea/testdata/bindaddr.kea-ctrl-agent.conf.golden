@@ -1,0 +1,29 @@
+{
+  "Control-agent": {
+    "http-host": "127.0.0.1",
+    "http-port": 3680,
+    "control-sockets": {
+      "dhcp4": {
+        "socket-type": "unix",
+        "socket-name": "/run/vrx-test/w0/kea/run/kea4.sock"
+      },
+      "dhcp6": {
+        "socket-type": "unix",
+        "socket-name": "/run/vrx-test/w0/kea/run/kea6.sock"
+      }
+    },
+    "loggers": [
+      {
+        "name": "kea-ctrl-agent",
+        "output-options": [
+          {
+            "output": "/run/vrx-test/w0/kea/log/kea-ctrl-agent.log",
+            "maxsize": 10485760,
+            "maxver": 4
+          }
+        ],
+        "severity": "INFO"
+      }
+    ]
+  }
+}

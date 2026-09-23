@@ -1,0 +1,40 @@
+{
+  "Dhcp4": {
+    "interfaces-config": {
+      "interfaces": [],
+      "dhcp-socket-type": "raw",
+      "re-detect": true
+    },
+    "control-sockets": [
+      {
+        "socket-type": "unix",
+        "socket-name": "/run/vrx-test/w0/kea/run/kea4.sock"
+      }
+    ],
+    "lease-database": {
+      "type": "memfile",
+      "persist": true,
+      "name": "/run/vrx-test/w0/kea/lib/leases4.csv",
+      "lfc-interval": 3600
+    },
+    "hooks-libraries": [
+      {
+        "library": "/usr/lib/x86_64-linux-gnu/kea/hooks/libdhcp_lease_cmds.so"
+      }
+    ],
+    "subnet4": [],
+    "loggers": [
+      {
+        "name": "kea-dhcp4",
+        "output-options": [
+          {
+            "output": "/run/vrx-test/w0/kea/log/kea-dhcp4.log",
+            "maxsize": 10485760,
+            "maxver": 4
+          }
+        ],
+        "severity": "INFO"
+      }
+    ]
+  }
+}

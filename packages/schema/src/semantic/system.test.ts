@@ -22,7 +22,9 @@ describe('system.vrf-exists', () => {
 describe('system.dns-server-unique', () => {
   it('accepts distinct servers and reports duplicates in any spelling', () => {
     expect(
-      run('system.dns-server-unique', { system: { dns: { servers: ['10.0.0.1', '2001:db8::1'] } } }),
+      run('system.dns-server-unique', {
+        system: { dns: { servers: ['10.0.0.1', '2001:db8::1'] } },
+      }),
     ).toEqual([]);
     expect(
       run('system.dns-server-unique', {
@@ -31,7 +33,8 @@ describe('system.dns-server-unique', () => {
     ).toEqual([
       {
         pointer: '/system/dns/servers/2',
-        message: 'name server 2001:DB8:0:0::53 is listed more than once (first defined at /system/dns/servers/0)',
+        message:
+          'name server 2001:DB8:0:0::53 is listed more than once (first defined at /system/dns/servers/0)',
       },
     ]);
   });

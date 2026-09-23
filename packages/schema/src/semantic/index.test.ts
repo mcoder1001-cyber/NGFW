@@ -70,13 +70,8 @@ describe('validateSemantics (process-wide registry)', () => {
     expect(semanticRegistry.list()).toHaveLength(SEMANTIC_VALIDATORS.length);
   });
 
-  it('reports only the bootstrap issue (no admin user) for the empty document', () => {
-    expect(validateSemantics(RootConfig.parse({}))).toEqual([
-      {
-        pointer: '/management/users',
-        message: 'at least one enabled admin user with a password or an SSH key is required',
-      },
-    ]);
+  it('reports nothing for the empty document (D-048: the API seeds the first admin)', () => {
+    expect(validateSemantics(RootConfig.parse({}))).toEqual([]);
   });
 
   it('reports no issues for the minimal committable document', () => {

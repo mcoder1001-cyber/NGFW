@@ -16,7 +16,12 @@ export const systemValidators: readonly ValidatorDefinition[] = [
       const vrf = config.system.dns.vrf;
       return vrfExists(config.vrfs, vrf)
         ? []
-        : [{ pointer: jsonPointer('system', 'dns', 'vrf'), message: `VRF '${vrf}' does not exist` }];
+        : [
+            {
+              pointer: jsonPointer('system', 'dns', 'vrf'),
+              message: `VRF '${vrf}' does not exist`,
+            },
+          ];
     },
   },
   {

@@ -280,7 +280,10 @@ export const bgpAsPathRegex = withUi(
     .string()
     .min(1)
     .max(255)
-    .regex(/^[0-9_.*+?^$()|[\]{}, -]+$/, 'digits and ^ $ _ . * + ? ( ) [ ] { } | , - and space only'),
+    .regex(
+      /^[0-9_.*+?^$()|[\]{}, -]+$/,
+      'digits and ^ $ _ . * + ? ( ) [ ] { } | , - and space only',
+    ),
   { title: 'AS path regex', help: 'FRR as-path regular expression, e.g. ^65000_' },
 );
 
@@ -482,9 +485,7 @@ export const BgpSchema = z.strictObject({
     order: 4,
   }),
   neighbors: withUi(
-    z
-      .record(withUi(ipAddress, { title: 'Neighbour address' }), BgpNeighborSchema)
-      .default({}),
+    z.record(withUi(ipAddress, { title: 'Neighbour address' }), BgpNeighborSchema).default({}),
     {
       title: 'Neighbours',
       help: 'keyed by neighbour address, e.g. 10.0.0.1 or 2001:db8::1',

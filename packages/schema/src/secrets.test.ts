@@ -96,4 +96,23 @@ describe('secretPointers / redactSecrets (D-046, review M4)', () => {
       ),
     ).toEqual(['/t/key', '/t/children/0/key']);
   });
+
+  it('resolves # and $defs references, ignores unknown ones and survives self-referencing unions', () => {
+    const secret = withUi(z.string(), { secret: true });
+    type Node = { key?: string | undefined; next?: Node | undefined };
+    const node: z.ZodType<Node> = z.lazy(() =>
+      z.object({ key: secret.optional(), next: node.optional() }),
+    );
+    expect(secretPointers({ key: 'a', next: { key: 'b' } }, node)).toEqual(['/key', '/next/key']);
+    const odd = z.object({
+      viaNowhere: z.object({ key: secret }).meta({ $ref: '#/properties/elsewhere' }),
+      viaMissingDefs: z.object({ key: secret }).meta({ $ref: '#/$defs/missing' }),
+    });
+    expect(
+      secretPointers({ viaNowhere: { key: 'x' }, viaMissingDefs: { key: 'y' } }, odd),
+    ).toEqual([]);
+    type Loop = string | Loop[];
+    const loop: z.ZodType<Loop> = z.lazy(() => z.union([z.string(), z.array(loop)]));
+    expect(secretPointers(['a', ['b']], loop)).toEqual([]);
+  });
 });

@@ -503,7 +503,15 @@ describe('multilineText (D-049)', () => {
       expect(banner.safeParse(ok).success).toBe(true);
   });
   it('rejects CR, ESC, BEL, NUL, DEL, C1 controls and overlong text', () => {
-    for (const bad of ['a\r\nb', `x${cp(0x1b)}[2J`, `${cp(7)}`, NUL, cp(0x7f), cp(0x9b), 'x'.repeat(21)])
+    for (const bad of [
+      'a\r\nb',
+      `x${cp(0x1b)}[2J`,
+      `${cp(7)}`,
+      NUL,
+      cp(0x7f),
+      cp(0x9b),
+      'x'.repeat(21),
+    ])
       expect(banner.safeParse(bad).success).toBe(false);
   });
 });

@@ -227,7 +227,10 @@ describe('interfaces.subinterface-mtu (review L8)', () => {
     expect(
       run('interfaces.subinterface-mtu', {
         interfaces: {
-          'TenGigabitEthernet0/0/0': { mtu: 1500, subinterfaces: { '7': { vlanId: 7, mtu: 9000 } } },
+          'TenGigabitEthernet0/0/0': {
+            mtu: 1500,
+            subinterfaces: { '7': { vlanId: 7, mtu: 9000 } },
+          },
         },
       }),
     ).toEqual([

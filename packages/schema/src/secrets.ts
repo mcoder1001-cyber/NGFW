@@ -34,21 +34,26 @@ function jsonSchemaOf(schema: z.ZodType): Node {
   return js;
 }
 
-/** `schema` with `$ref` resolved and composition keywords flattened into a list of alternatives. */
-function alternatives(schema: unknown, root: Node, depth = 0): Node[] {
-  if (!isPlainObject(schema) || depth > 32) return [];
+/** The target of a `$ref` as `z.toJSONSchema` writes them: `#` (the root) or `#/$defs/<name>`. */
+function resolveRef(ref: string, root: Node): unknown {
+  if (ref === '#') return root;
+  const defs = root['$defs'];
+  return ref.startsWith('#/$defs/') && isPlainObject(defs) ? defs[ref.slice(8)] : undefined;
+}
+
+/**
+ * `schema` with `$ref` resolved and composition keywords flattened into a list of alternatives. `seen` stops
+ * self-referencing unions (`z.lazy(() => z.union([x, self]))`).
+ */
+function alternatives(schema: unknown, root: Node, seen = new Set<unknown>()): Node[] {
+  if (!isPlainObject(schema) || seen.has(schema)) return [];
+  seen.add(schema);
   const ref = schema['$ref'];
-  if (typeof ref === 'string' && ref.startsWith('#/')) {
-    const target = ref
-      .slice(2)
-      .split('/')
-      .reduce<unknown>((node, key) => (isPlainObject(node) ? node[key] : undefined), root);
-    return alternatives(target, root, depth + 1);
-  }
+  if (typeof ref === 'string') return alternatives(resolveRef(ref, root), root, seen);
   const out: Node[] = [schema];
   for (const keyword of ['anyOf', 'oneOf', 'allOf'] as const) {
     const list = schema[keyword];
-    if (Array.isArray(list)) for (const item of list) out.push(...alternatives(item, root, depth + 1));
+    if (Array.isArray(list)) for (const item of list) out.push(...alternatives(item, root, seen));
   }
   return out;
 }
@@ -76,7 +81,8 @@ function itemSchemas(schemas: readonly Node[], index: number, root: Node): Node[
   const out: Node[] = [];
   for (const s of schemas) {
     const prefix = s['prefixItems'];
-    if (Array.isArray(prefix) && index < prefix.length) out.push(...alternatives(prefix[index], root));
+    if (Array.isArray(prefix) && index < prefix.length)
+      out.push(...alternatives(prefix[index], root));
     else out.push(...alternatives(s['items'], root));
   }
   return out;
@@ -91,7 +97,9 @@ function visit(
   found: (path: Path, parent: Record<string, unknown>, key: string) => void,
 ): void {
   if (Array.isArray(value)) {
-    value.forEach((item, i) => visit(item, itemSchemas(schemas, i, root), root, [...path, i], found));
+    value.forEach((item, i) =>
+      visit(item, itemSchemas(schemas, i, root), root, [...path, i], found),
+    );
   } else if (isPlainObject(value)) {
     for (const [key, member] of Object.entries(value)) {
       const sub = memberSchemas(schemas, key, root);
@@ -105,7 +113,9 @@ function visit(
 export function secretPointers(document: unknown, schema: z.ZodType = RootConfig): string[] {
   const root = jsonSchemaOf(schema);
   const pointers: string[] = [];
-  visit(document, alternatives(root, root), root, [], (path) => pointers.push(jsonPointer(...path)));
+  visit(document, alternatives(root, root), root, [], (path) =>
+    pointers.push(jsonPointer(...path)),
+  );
   return pointers;
 }
 

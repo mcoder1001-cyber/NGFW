@@ -26,18 +26,17 @@ import { DEFAULT_VRF } from './vrfs.js';
 export const UserRole = z.enum(['admin', 'operator', 'readonly']);
 export type UserRole = z.infer<typeof UserRole>;
 
-// eslint-disable-next-line no-control-regex -- the comment part must not contain control characters (D-049)
-const SSH_KEY_LINE = /^(?:ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com) [A-Za-z0-9+/]+={0,3}(?: [^\u0000-\u001f\u007f-\u009f]{1,255})?$/;
+// the comment part must not contain control characters (D-049)
+const SSH_KEY_LINE =
+  // eslint-disable-next-line no-control-regex -- matching control characters is the purpose of this pattern
+  /^(?:ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com) [A-Za-z0-9+/]+={0,3}(?: [^\u0000-\u001f\u007f-\u009f]{1,255})?$/;
 
 /** OpenSSH `authorized_keys` line: `<type> <base64> [comment]` (public material — not a secret). */
 export const sshPublicKey = withUi(
   z
     .string()
     .max(4096)
-    .regex(
-      SSH_KEY_LINE,
-      'expected an OpenSSH public key line like "ssh-ed25519 AAAA… comment"',
-    ),
+    .regex(SSH_KEY_LINE, 'expected an OpenSSH public key line like "ssh-ed25519 AAAA… comment"'),
   { title: 'SSH public key', widget: 'textarea' },
 );
 

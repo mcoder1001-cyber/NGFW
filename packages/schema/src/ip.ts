@@ -124,7 +124,7 @@ export function formatIpv6(value: bigint): string {
   const groups = Array.from({ length: 8 }, (_, i) => (value >> BigInt(112 - 16 * i)) & 0xffffn);
   let bestStart = -1;
   let bestLength = 1; // a single zero group is never compressed
-  for (let i = 0; i < 8; ) {
+  for (let i = 0; i < 8;) {
     if (groups[i] !== 0n) {
       i += 1;
       continue;

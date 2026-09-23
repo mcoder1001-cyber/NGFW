@@ -13,23 +13,31 @@ import {
 } from './interfaces.js';
 import { AaaSchema, sshPublicKey, TlsSchema, UserSchema } from './management.js';
 import {
+  bgpAsPathRegex,
   bgpCommunity,
   BgpNeighborSchema,
   BgpPeerGroupSchema,
+  BgpSchema,
   BfdSessionSchema,
+  IsisSchema,
   isisNet,
   NextHopSchema,
+  ospfAreaId,
   ospfAreaNumber,
   OspfSchema,
   PrefixListRuleSchema,
   PrefixListSchema,
+  RipSchema,
   RouteMapSchema,
+  RoutingSchema,
   StaticRouteSchema,
 } from './routing.js';
 import { SystemSchema } from './system.js';
 import { VrfSchema, vrfExists } from './vrfs.js';
 
 /** First failing path of a parse, as a plain array — the assertion target for refinements. */
+const NET = '49.0001.1921.6800.1001.00';
+
 const failPath = (schema: z.ZodType, value: unknown): unknown[] | undefined =>
   schema.safeParse(value).error?.issues[0]?.path.map(String);
 
@@ -39,23 +47,28 @@ describe('system', () => {
       hostname: 'vrx',
       timezone: 'UTC',
       banner: {},
-      ntp: { enabled: true, servers: [], vrf: 'default' },
       dns: { servers: [], searchDomains: [], vrf: 'default' },
     });
   });
   it('rejects unknown keys and bad values with the offending path', () => {
     expect(failPath(SystemSchema, { hostnme: 'x' })).toEqual([]);
     expect(failPath(SystemSchema, { timezone: 'Mars/Olympus' })).toEqual(['timezone']);
-    expect(failPath(SystemSchema, { ntp: { servers: [{ address: 'bad host!' }] } })).toEqual([
-      'ntp',
+    expect(failPath(SystemSchema, { ntp: {} })).toEqual([]); // D-050: NTP lives in services.ntp
+    expect(failPath(SystemSchema, { dns: { servers: ['dns.example'] } })).toEqual([
+      'dns',
       'servers',
       '0',
-      'address',
     ]);
     expect(failPath(SystemSchema, { banner: { login: 'x'.repeat(4097) } })).toEqual([
       'banner',
       'login',
     ]);
+  });
+
+  it('banners are multi-line but reject terminal control sequences (review M1)', () => {
+    expect(SystemSchema.safeParse({ banner: { login: 'Authorised\n\tonly' } }).success).toBe(true);
+    for (const bad of ['a\r\nb', 'x\u001b[2J', 'bell\u0007', 'c1\u009b'])
+      expect(failPath(SystemSchema, { banner: { motd: bad } })).toEqual(['banner', 'motd']);
   });
 });
 
@@ -131,6 +144,26 @@ describe('interfaces', () => {
     expect(failPath(SubinterfaceSchema, { vlanId: 4095 })).toEqual(['vlanId']);
   });
 
+  it('dhcpClient: present = enabled, defaults, exclusive with unnumbered (D-050)', () => {
+    expect(InterfaceSchema.parse({ dhcpClient: {} }).dhcpClient).toEqual({
+      setBroadcastFlag: false,
+    });
+    expect(
+      SubinterfaceSchema.safeParse({
+        vlanId: 1,
+        dhcpClient: { hostname: 'vrx-a', clientId: 'vrx-a-wan', setBroadcastFlag: true },
+      }).success,
+    ).toBe(true);
+    expect(failPath(InterfaceSchema, { dhcpClient: { clientId: 'has space' } })).toEqual([
+      'dhcpClient',
+      'clientId',
+    ]);
+    expect(failPath(InterfaceSchema, { dhcpClient: { bogus: 1 } })).toEqual(['dhcpClient']);
+    expect(failPath(InterfaceSchema, { unnumbered: 'loop0', dhcpClient: {} })).toEqual([
+      'unnumbered',
+    ]);
+  });
+
   it('forbids own addresses on unnumbered (sub-)interfaces', () => {
     expect(InterfaceSchema.safeParse({ unnumbered: 'loop0' }).success).toBe(true);
     expect(failPath(InterfaceSchema, { unnumbered: 'loop0', ipv4: ['10.0.0.1/24'] })).toEqual([
@@ -182,34 +215,61 @@ describe('routing', () => {
     expect(
       failPath(StaticRouteSchema, { prefix: '10.0.0.1/8', nextHops: [{ address: '10.1.1.1' }] }),
     ).toEqual(['prefix']);
+  });
+
+  it('blackhole routes have no next hops; every other route has at least one (review M7, D-045)', () => {
+    expect(StaticRouteSchema.parse({ prefix: '192.0.2.0/24', blackhole: true })).toEqual({
+      prefix: '192.0.2.0/24',
+      vrf: 'default',
+      nextHops: [],
+      blackhole: true,
+      distance: 1,
+    });
     expect(failPath(StaticRouteSchema, { prefix: '10.0.0.0/8', nextHops: [] })).toEqual([
       'nextHops',
     ]);
+    expect(failPath(StaticRouteSchema, { prefix: '10.0.0.0/8' })).toEqual(['nextHops']);
+    expect(
+      failPath(StaticRouteSchema, {
+        prefix: '10.0.0.0/8',
+        blackhole: true,
+        nextHops: [{ address: '10.0.0.1' }],
+      }),
+    ).toEqual(['nextHops']);
   });
 
-  it('prefix lists: unique sequences, family-consistent prefixes, ge ≤ le', () => {
-    expect(PrefixListSchema.parse({})).toEqual({ family: 'ipv4', rules: [] });
+  it('prefix-list rules follow FRR length rules: len < ge ≤ le ≤ max (review L5)', () => {
+    const rule = (extra: object) =>
+      PrefixListRuleSchema.safeParse({ seq: 1, action: 'permit', prefix: '10.0.0.0/8', ...extra });
+    expect(rule({ ge: 16, le: 24 }).success).toBe(true);
+    expect(rule({ le: 8 }).success).toBe(true);
+    expect(rule({ ge: 9 }).success).toBe(true);
+    expect(rule({ ge: 32, le: 32 }).success).toBe(true);
+    const path = (extra: object) => rule(extra).error?.issues.map((i) => i.path.join('.'));
+    expect(path({ ge: 8 })).toEqual(['ge']); // ge must exceed the prefix length
+    expect(path({ ge: 33 })).toEqual(['ge']); // IPv4 max is 32
+    expect(path({ le: 7 })).toEqual(['le']);
+    expect(path({ le: 33 })).toEqual(['le']);
+    expect(path({ ge: 24, le: 16 })).toEqual(['le']);
     expect(
       PrefixListRuleSchema.safeParse({
         seq: 1,
-        action: 'permit',
-        prefix: '10.0.0.0/8',
-        ge: 16,
-        le: 24,
+        action: 'deny',
+        prefix: '2001:db8::/32',
+        ge: 48,
+        le: 128,
       }).success,
     ).toBe(true);
     expect(
-      failPath(PrefixListRuleSchema, {
-        seq: 1,
-        action: 'permit',
-        prefix: '10.0.0.0/8',
-        ge: 24,
-        le: 16,
-      }),
-    ).toEqual(['le']);
+      PrefixListRuleSchema.safeParse({ seq: 1, action: 'deny', prefix: '10.0.0.1/8' }).success,
+    ).toBe(false);
     expect(
       failPath(PrefixListRuleSchema, { seq: 0, action: 'permit', prefix: '10.0.0.0/8' }),
     ).toEqual(['seq']);
+  });
+
+  it('prefix lists: unique sequences, family-consistent prefixes', () => {
+    expect(PrefixListSchema.parse({})).toEqual({ family: 'ipv4', rules: [] });
     expect(
       failPath(PrefixListSchema, {
         rules: [
@@ -232,10 +292,20 @@ describe('routing', () => {
     ).toBe(true);
   });
 
-  it('route maps: unique sequences, empty match/set allowed', () => {
+  it('route maps: unique sequences, empty match/set allowed, P12 set names', () => {
     expect(RouteMapSchema.parse({ entries: [{ seq: 10, action: 'permit' }] })).toEqual({
       entries: [{ seq: 10, action: 'permit', match: {}, set: { communityAdditive: false } }],
     });
+    expect(
+      RouteMapSchema.safeParse({
+        entries: [{ seq: 10, action: 'permit', set: { localPref: 200, med: 10 } }],
+      }).success,
+    ).toBe(true);
+    expect(
+      failPath(RouteMapSchema, {
+        entries: [{ seq: 10, action: 'permit', set: { localPreference: 200 } }],
+      }),
+    ).toEqual(['entries', '0', 'set']);
     expect(
       failPath(RouteMapSchema, {
         entries: [
@@ -255,43 +325,144 @@ describe('routing', () => {
       expect(bgpCommunity.safeParse(bad).success).toBe(false);
   });
 
-  it('bgp: hold time above keepalive, remoteAs or peer group', () => {
+  it('as-path regexes cannot inject FRR configuration lines (review M1)', () => {
+    for (const ok of ['^65000_', '_65001$', '^(65000|65001)_[0-9]+$', '_6500[0-9]{1,2}_', '.*'])
+      expect(bgpAsPathRegex.safeParse(ok).success).toBe(true);
+    for (const bad of [
+      '^65000_\nno router bgp\r!',
+      '^65000_\n',
+      'x',
+      '65000; exit',
+      '\\',
+      '',
+      '1'.repeat(256),
+    ])
+      expect(bgpAsPathRegex.safeParse(bad).success).toBe(false);
     expect(
-      BgpNeighborSchema.safeParse({
-        address: '10.0.0.1',
-        remoteAs: 65001,
-        keepaliveSec: 30,
-        holdTimeSec: 90,
-      }).success,
-    ).toBe(true);
-    expect(
-      failPath(BgpNeighborSchema, {
-        address: '10.0.0.1',
-        remoteAs: 65001,
-        keepaliveSec: 90,
-        holdTimeSec: 90,
+      failPath(RouteMapSchema, {
+        entries: [{ seq: 1, action: 'permit', match: { asPath: '^1_\nline vty' } }],
       }),
+    ).toEqual(['entries', '0', 'match', 'asPath']);
+  });
+
+  it('bgp: neighbours keyed by address, afi per P12, hold time above keepalive, remoteAs or peer group', () => {
+    expect(BgpNeighborSchema.parse({ remoteAs: 65001 })).toEqual({
+      remoteAs: 65001,
+      shutdown: false,
+      bfd: false,
+      afi: {},
+    });
+    expect(
+      BgpNeighborSchema.parse({ remoteAs: 1, afi: { ipv4Unicast: {} } }).afi.ipv4Unicast,
+    ).toEqual({
+      enabled: true,
+      nextHopSelf: false,
+      softReconfig: false,
+      defaultOriginate: false,
+    });
+    expect(
+      failPath(BgpNeighborSchema, { remoteAs: 65001, keepaliveSec: 90, holdTimeSec: 90 }),
     ).toEqual(['holdTimeSec']);
-    expect(failPath(BgpNeighborSchema, { address: '10.0.0.1' })).toEqual(['remoteAs']);
-    expect(BgpNeighborSchema.safeParse({ address: '10.0.0.1', peerGroup: 'g' }).success).toBe(true);
+    expect(failPath(BgpNeighborSchema, {})).toEqual(['remoteAs']);
+    expect(failPath(BgpNeighborSchema, { remoteAs: 1, address: '10.0.0.1' })).toEqual([]);
+    expect(failPath(BgpNeighborSchema, { remoteAs: 1, ipv4Unicast: {} })).toEqual([]);
+    expect(BgpNeighborSchema.safeParse({ peerGroup: 'g' }).success).toBe(true);
     expect(BgpPeerGroupSchema.safeParse({ keepaliveSec: 10, holdTimeSec: 30 }).success).toBe(true);
     expect(failPath(BgpPeerGroupSchema, { keepaliveSec: 30, holdTimeSec: 10 })).toEqual([
       'holdTimeSec',
     ]);
-    expect(failPath(BgpNeighborSchema, { address: '10.0.0.1', remoteAs: 0 })).toEqual(['remoteAs']);
+    expect(failPath(BgpNeighborSchema, { remoteAs: 0 })).toEqual(['remoteAs']);
+    expect(failPath(BgpNeighborSchema, { remoteAs: 1, passwordRef: 'psk/x' })).toEqual([
+      'passwordRef',
+    ]);
+    expect(BgpNeighborSchema.safeParse({ remoteAs: 1, passwordRef: 'password/x' }).success).toBe(
+      true,
+    );
+    const bgp = BgpSchema.parse({
+      asn: 65000,
+      neighbors: { '10.0.0.1': { remoteAs: 1 }, '2001:db8::1': { remoteAs: 2 } },
+    });
+    expect(Object.keys(bgp.neighbors)).toEqual(['10.0.0.1', '2001:db8::1']);
+    expect(bgp.redistribute).toEqual({});
+    expect(failPath(BgpSchema, { asn: 1, neighbors: { 'not-an-ip': { remoteAs: 1 } } })).toEqual([
+      'neighbors',
+      'not-an-ip',
+    ]);
   });
 
-  it('ospf: area ids normalise and must be unique; isis NET format', () => {
-    expect(ospfAreaNumber(51)).toBe(51);
+  it('redistribute is keyed by source protocol and excludes the protocol itself (review M2)', () => {
+    expect(
+      BgpSchema.parse({ asn: 1, redistribute: { connected: {}, static: { metric: 5 } } })
+        .redistribute,
+    ).toEqual({ connected: {}, static: { metric: 5 } });
+    expect(failPath(BgpSchema, { asn: 1, redistribute: { bgp: {} } })).toEqual(['redistribute']);
+    expect(failPath(OspfSchema, { redistribute: { ospf: {} } })).toEqual(['redistribute']);
+    expect(failPath(IsisSchema, { net: NET, redistribute: { isis: {} } })).toEqual([
+      'redistribute',
+    ]);
+    expect(failPath(RipSchema, { redistribute: { rip: {} } })).toEqual(['redistribute']);
+    expect(RipSchema.safeParse({ redistribute: { bgp: { routeMap: 'rm' } } }).success).toBe(true);
+    expect(failPath(OspfSchema, { redistribute: { static: { bogus: 1 } } })).toEqual([
+      'redistribute',
+      'static',
+    ]);
+  });
+
+  it('ospf: areas and interfaces are records; area ids are strings that normalise', () => {
+    expect(ospfAreaNumber('51')).toBe(51);
     expect(ospfAreaNumber('0.0.0.51')).toBe(51);
     expect(ospfAreaNumber('1.0.0.0')).toBe(16777216);
-    expect(OspfSchema.safeParse({ areas: [{ id: 0 }, { id: '0.0.0.1' }] }).success).toBe(true);
-    expect(failPath(OspfSchema, { areas: [{ id: 0 }, { id: '0.0.0.0' }] })).toEqual(['areas']);
-    expect(failPath(OspfSchema, { areas: [{ id: 'x' }] })).toEqual(['areas', '0', 'id']);
+    for (const ok of ['0', '51', '4294967295', '0.0.0.0', '10.1.2.3'])
+      expect(ospfAreaId.safeParse(ok).success).toBe(true);
+    for (const bad of ['01', '-1', '4294967296', '1.2.3', 'x', 0])
+      expect(ospfAreaId.safeParse(bad).success).toBe(false);
+    expect(
+      OspfSchema.safeParse({
+        areas: { '0': {}, '0.0.0.1': { type: 'nssa' } },
+        interfaces: { loop0: { area: '0', passive: true } },
+      }).success,
+    ).toBe(true);
+    expect(failPath(OspfSchema, { areas: { '0': {}, '0.0.0.0': {} } })).toEqual(['areas']);
+    expect(failPath(OspfSchema, { areas: { x: {} } })).toEqual(['areas', 'x']);
+    expect(failPath(OspfSchema, { interfaces: { loop0: { area: 0 } } })).toEqual([
+      'interfaces',
+      'loop0',
+      'area',
+    ]);
+    expect(failPath(OspfSchema, { interfaces: { 'bad name': { area: '0' } } })).toEqual([
+      'interfaces',
+      'bad name',
+    ]);
+  });
+
+  it('isis / rip: NET format, interfaces keyed by name', () => {
     for (const ok of ['49.0001.1921.6800.1001.00', '49.0001.0000.0000.0001.00'])
       expect(isisNet.safeParse(ok).success).toBe(true);
     for (const bad of ['49.0001.1921.6800.1001', '49.1.2.3.00', '', 'gg.0001.1921.6800.1001.00'])
       expect(isisNet.safeParse(bad).success).toBe(false);
+    expect(IsisSchema.parse({ net: NET, interfaces: { loop0: {} } }).interfaces).toEqual({
+      loop0: { passive: false, bfd: false },
+    });
+    expect(RipSchema.parse({ interfaces: { loop0: { passive: true } } })).toEqual({
+      vrf: 'default',
+      networks: [],
+      interfaces: { loop0: { passive: true } },
+      redistribute: {},
+      defaultMetric: 1,
+    });
+  });
+
+  it('routing.policy nests prefix lists and route maps (D-045); the old top-level keys are rejected', () => {
+    expect(RoutingSchema.parse({})).toEqual({
+      static: [],
+      policy: { prefixLists: {}, routeMaps: {} },
+    });
+    expect(failPath(RoutingSchema, { prefixLists: {} })).toEqual([]);
+    expect(
+      RoutingSchema.safeParse({
+        policy: { prefixLists: { pl: {} }, routeMaps: { rm: { entries: [] } } },
+      }).success,
+    ).toBe(true);
   });
 
   it('bfd: local and peer address in one family, VPP-scale intervals', () => {
@@ -365,8 +536,8 @@ describe('management', () => {
     expect(
       AaaSchema.safeParse({
         order: ['tacacs', 'radius', 'local'],
-        radius: { servers: [{ address: '10.0.0.1', secretRef: 'aaa/radius/1' }] },
-        tacacs: { servers: [{ address: '10.0.0.2', secretRef: 'aaa/tacacs/1', port: 4949 }] },
+        radius: { servers: [{ address: '10.0.0.1', secretRef: 'psk/radius-1' }] },
+        tacacs: { servers: [{ address: '10.0.0.2', secretRef: 'psk/tacacs-1', port: 4949 }] },
       }).success,
     ).toBe(true);
   });
@@ -375,13 +546,16 @@ describe('management', () => {
     expect(TlsSchema.parse({})).toEqual({ minVersion: '1.2' });
     expect(
       TlsSchema.safeParse({
-        certificateRef: 'tls/api/cert',
-        privateKeyRef: 'tls/api/key',
+        certificateRef: 'cert/api',
+        privateKeyRef: 'key/api',
         minVersion: '1.3',
       }).success,
     ).toBe(true);
-    expect(failPath(TlsSchema, { certificateRef: 'tls/api/cert' })).toEqual(['privateKeyRef']);
-    expect(failPath(TlsSchema, { privateKeyRef: 'tls/api/key' })).toEqual(['privateKeyRef']);
+    expect(failPath(TlsSchema, { certificateRef: 'cert/api' })).toEqual(['privateKeyRef']);
+    expect(failPath(TlsSchema, { certificateRef: 'key/api', privateKeyRef: 'key/api' })).toEqual([
+      'certificateRef',
+    ]);
+    expect(failPath(TlsSchema, { privateKeyRef: 'key/api' })).toEqual(['privateKeyRef']);
     expect(failPath(TlsSchema, { minVersion: '1.1' })).toEqual(['minVersion']);
   });
 });

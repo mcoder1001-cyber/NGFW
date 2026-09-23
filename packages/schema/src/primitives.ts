@@ -83,6 +83,21 @@ export const macAddress = withUi(
 );
 
 /**
+ * Any 48-bit MAC value `aa:bb:cc:dd:ee:ff` (same syntax as {@link macAddress}, no unicast / non-zero rule) — MAC
+ * *match patterns and masks* (MACIP ACL `sourceMac` / `sourceMacMask`), where `00:00:00:00:00:00` (wildcard) and
+ * `ff:ff:ff:00:00:00` (OUI mask) are meaningful.
+ */
+export const macPattern = withUi(
+  z
+    .string()
+    .regex(
+      /^[0-9a-fA-F]{2}([:-])(?:[0-9a-fA-F]{2}\1){4}[0-9a-fA-F]{2}$/,
+      'expected a MAC value like aa:bb:cc:dd:ee:ff',
+    ),
+  { title: 'MAC value', widget: 'mac' },
+);
+
+/**
  * VPP interface name as shown by `show interface`: `TenGigabitEthernet0/0/0`, `GigabitEthernet0/8/0.100`,
  * `vmxnet3-0/b/0/0` (PCI parts are hex), `loop0`, `BondEthernet0`, `host-w1-eth0`, `memif0/0`, `vxlan_tunnel0`,
  * `ipsec0`. VPP limits names to 63 bytes. Names contain `/` — always escape them with `jsonPointer()`.
@@ -192,10 +207,7 @@ const PRINTABLE_MULTILINE = /^[^\u0000-\u0008\u000b-\u001f\u007f-\u009f]*$/;
  * sequences could hide or forge lines (D-049).
  */
 export function multilineText(max: number) {
-  return z
-    .string()
-    .max(max)
-    .regex(PRINTABLE_MULTILINE, 'printable text, LF and TAB only');
+  return z.string().max(max).regex(PRINTABLE_MULTILINE, 'printable text, LF and TAB only');
 }
 
 /** Free-text description shown in lists (single line, ≤ 255 characters). */

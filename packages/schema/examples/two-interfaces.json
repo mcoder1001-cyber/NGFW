@@ -1,16 +1,5 @@
 {
-  "system": {
-    "hostname": "vrx-a",
-    "timezone": "UTC",
-    "ntp": { "servers": [{ "address": "pool.ntp.org" }] },
-    "dns": { "servers": ["10.0.0.53"], "searchDomains": ["lab.example"] }
-  },
-  "dataplane": {
-    "workers": 2,
-    "corelist": [2, 3],
-    "mainCore": 1,
-    "pciWhitelist": ["0000:0b:00.0", "0000:13:00.0"]
-  },
+  "system": { "hostname": "vrx-a", "timezone": "UTC" },
   "vrfs": {
     "default": { "id": 0, "description": "global routing table" },
     "customer-a": { "id": 10, "description": "customer A" }
@@ -32,16 +21,9 @@
       "ipv4": ["192.168.10.1/24"],
       "vrf": "customer-a",
       "subinterfaces": {
-        "100": {
-          "enabled": true,
-          "vlanId": 100,
-          "ipv4": ["192.168.100.1/24"],
-          "vrf": "customer-a"
-        },
-        "200": { "enabled": true, "vlanId": 200, "innerVlanId": 20, "unnumbered": "loop0" }
+        "100": { "vlanId": 100, "ipv4": ["192.168.100.1/24"], "vrf": "customer-a" }
       }
-    },
-    "loop0": { "enabled": true, "ipv4": ["10.255.0.1/32"] }
+    }
   },
   "routing": {
     "static": [
@@ -49,89 +31,7 @@
         "prefix": "0.0.0.0/0",
         "nextHops": [{ "address": "10.0.0.254", "weight": 1 }],
         "vrf": "default"
-      },
-      {
-        "prefix": "0.0.0.0/0",
-        "nextHops": [{ "address": "192.168.10.254", "interface": "TenGigabitEthernet0/0/1" }],
-        "vrf": "customer-a",
-        "description": "customer A default via CE"
-      },
-      {
-        "prefix": "2001:db8:1::/48",
-        "nextHops": [{ "address": "2001:db8::fe" }]
       }
-    ],
-    "prefixLists": {
-      "customer-a-in": {
-        "family": "ipv4",
-        "rules": [
-          { "seq": 10, "action": "permit", "prefix": "192.168.0.0/16", "ge": 24, "le": 24 },
-          { "seq": 20, "action": "deny", "prefix": "0.0.0.0/0", "le": 32 }
-        ]
-      }
-    },
-    "routeMaps": {
-      "rm-customer-a-in": {
-        "entries": [
-          {
-            "seq": 10,
-            "action": "permit",
-            "match": { "prefixList": "customer-a-in" },
-            "set": { "localPreference": 200 }
-          }
-        ]
-      }
-    },
-    "bgp": {
-      "asn": 65000,
-      "routerId": "10.255.0.1",
-      "peerGroups": {
-        "customers": { "remoteAs": 65010, "ipv4Unicast": { "routeMapIn": "rm-customer-a-in" } }
-      },
-      "neighbors": [
-        {
-          "address": "10.0.0.254",
-          "remoteAs": 65001,
-          "description": "upstream",
-          "ipv4Unicast": { "prefixListIn": "customer-a-in" }
-        },
-        { "address": "192.168.10.254", "peerGroup": "customers" }
-      ],
-      "networks": [{ "prefix": "10.255.0.0/24" }]
-    },
-    "ospf": {
-      "routerId": "10.255.0.1",
-      "areas": [{ "id": 0 }, { "id": "0.0.0.51", "type": "stub" }],
-      "interfaces": [
-        { "name": "loop0", "area": 0, "passive": true },
-        { "name": "TenGigabitEthernet0/0/1.100", "area": 51, "cost": 10 }
-      ]
-    },
-    "bfd": {
-      "sessions": [
-        {
-          "interface": "TenGigabitEthernet0/0/0",
-          "localAddress": "10.0.0.1",
-          "peerAddress": "10.0.0.254"
-        }
-      ]
-    }
-  },
-  "management": {
-    "users": [
-      { "username": "admin", "role": "admin", "passwordHash": "$vrx-test$VRX_TEST_HASH_admin" },
-      {
-        "username": "noc",
-        "role": "readonly",
-        "sshKeys": [
-          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeKeyForFixturesOnly0000000000000000000000 noc@lab"
-        ]
-      }
-    ],
-    "aaa": {
-      "order": ["radius", "local"],
-      "radius": { "servers": [{ "address": "10.0.0.10", "secretRef": "aaa/radius/primary" }] }
-    },
-    "syslog": [{ "address": "10.0.0.20", "protocol": "tcp", "severity": "notice" }]
+    ]
   }
 }

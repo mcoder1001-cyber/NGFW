@@ -14,7 +14,6 @@ import (
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/memclnt"
-	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/internal/vpp/fake"
 )
 
@@ -54,12 +53,12 @@ type fakeVPP struct {
 	countersEnabled  bool
 	countersCalls    int
 	properStatsReply bool   // false = mirror VPP 26.06 (replies with acl_del_reply)
-	vppPID           uint32 // main-thread PID reported by show_threads (the VPP identity)
+	vppPID           uint32 // vpe_pid reported by control_ping (the PID part of the VPP boot identity)
 }
 
 func newFakeVPP() *fakeVPP {
 	v := &fakeVPP{
-		Client:    fake.New(fake.WithControlPingReply(&memclnt.ControlPingReply{})),
+		Client:    fake.New(),
 		ifaces:    map[uint32]*interfaces.SwInterfaceDetails{},
 		acls:      map[uint32]*vppacl.ACLDetails{},
 		bindings:  map[uint32]*vppacl.ACLInterfaceListDetails{},
@@ -308,13 +307,10 @@ func newFakeVPP() *fakeVPP {
 		}
 		return reply(&vppacl.ACLDelReply{}) // what VPP 26.06 really sends (acl.c REPLY_MACRO (VL_API_ACL_DEL_REPLY))
 	})
-	v.On("show_threads", func(api.Message) ([]api.Message, error) {
+	v.On("control_ping", func(api.Message) ([]api.Message, error) { // dumps + VPP boot identity
 		v.mu.Lock()
 		defer v.mu.Unlock()
-		return reply(&vlib.ShowThreadsReply{Count: 2, ThreadData: []vlib.ThreadData{
-			{ID: 0, Name: "vpp_main", PID: v.vppPID},
-			{ID: 1, Name: "vpp_wk_0", PID: v.vppPID + 1},
-		}})
+		return reply(&memclnt.ControlPingReply{VpePID: v.vppPID})
 	})
 	v.Reply("acl_plugin_get_version", &vppacl.ACLPluginGetVersionReply{Major: 1, Minor: 0})
 	v.Reply("acl_plugin_get_conn_table_max_entries", &vppacl.ACLPluginGetConnTableMaxEntriesReply{ConnTableMaxEntries: 1 << 20})
@@ -365,7 +361,7 @@ func (v *fakeVPP) bind(swif uint32, nInput uint8, acls ...uint32) {
 	v.bindings[swif] = &vppacl.ACLInterfaceListDetails{SwIfIndex: interface_types.InterfaceIndex(swif), NInput: nInput, Acls: acls}
 }
 
-// restartVPP simulates a VPP restart for the global state the tests look at: a new main-thread
+// restartVPP simulates a VPP restart for the global state the tests look at: a new VPP
 // PID and the counters flag back to its default (off).
 func (v *fakeVPP) restartVPP() {
 	v.mu.Lock()

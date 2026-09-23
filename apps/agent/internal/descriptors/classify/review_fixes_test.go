@@ -3,7 +3,9 @@ package classify
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -13,7 +15,19 @@ import (
 	"ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp/bootid"
 )
+
+// fakeBoot points the D-080 /proc reads at a fake tree: boot_id "boot-a"; the fake VPP's vpe_pid
+// 0 has no stat, PID 4242 has start time 777 (TD-1).
+func fakeBoot(t *testing.T) {
+	t.Helper()
+	root := t.TempDir()
+	if err := bootid.WriteFakeProc(root, "boot-a", map[int]uint64{4242: 777}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(bootid.SetProcRoot(root))
+}
 
 func ip4Mask() []byte {
 	m := make([]byte, 16)
@@ -24,6 +38,7 @@ func ip4Mask() []byte {
 // H1: a store written against an earlier VPP instance claims nothing, and is reset.
 func TestStoreDropsRecordsOfAnotherVPPInstance(t *testing.T) {
 	ctx := context.Background()
+	fakeBoot(t)
 	v := newFakeVPP()
 	st, err := OpenFileStore(filepath.Join(t.TempDir(), "classify.json"))
 	if err != nil {
@@ -34,8 +49,8 @@ func TestStoreDropsRecordsOfAnotherVPPInstance(t *testing.T) {
 	if _, err := td.Create(ctx, desired); err != nil {
 		t.Fatal(err)
 	}
-	if pid, known := st.Instance(); !known || pid != 0 {
-		t.Fatalf("instance = %d %v", pid, known)
+	if id, known := st.Instance(); !known || !id.Equal(bootid.Identity{BootID: "boot-a"}) {
+		t.Fatalf("instance = %v %v", id, known)
 	}
 	// VPP restarts (new vpe_pid); another owner's table gets index 0 with the same geometry.
 	v.Reply("control_ping", &memclnt.ControlPingReply{VpePID: 4242})
@@ -46,12 +61,55 @@ func TestStoreDropsRecordsOfAnotherVPPInstance(t *testing.T) {
 	if recs := st.All(); len(recs) != 0 {
 		t.Fatalf("records of the old instance kept: %+v", recs)
 	}
-	if pid, _ := st.Instance(); pid != 4242 {
-		t.Fatalf("instance not updated: %d", pid)
+	want := bootid.Identity{BootID: "boot-a", PID: 4242, StartTime: 777}
+	if id, _ := st.Instance(); !id.Equal(want) {
+		t.Fatalf("instance not updated: %v", id)
 	}
 	reopened, _ := OpenFileStore(st.path)
-	if pid, known := reopened.Instance(); !known || pid != 4242 || len(reopened.All()) != 0 {
-		t.Fatalf("persisted instance = %d %v %+v", pid, known, reopened.All())
+	if id, known := reopened.Instance(); !known || !id.Equal(want) || len(reopened.All()) != 0 {
+		t.Fatalf("persisted instance = %v %v %+v", id, known, reopened.All())
+	}
+}
+
+// TD-1: a store file of the pre-D-080 format ("vpp_instance": vpe_pid) loads with an unknown
+// instance even when that PID is the running VPP's: its records claim nothing and the first
+// Retrieve resets the store to the full boot identity.
+func TestStoreLegacyPIDOnlyFormat(t *testing.T) {
+	ctx := context.Background()
+	fakeBoot(t)
+	v := newFakeVPP()
+	v.Reply("control_ping", &memclnt.ControlPingReply{VpePID: 4242})
+	path := filepath.Join(t.TempDir(), "classify.json")
+	legacy := `{"vpp_instance": 4242, "tables": [{"name": "w3-old", "index": 0, "skip_n_vectors": 0, "match_n_vectors": 1, "mask": null, "memory_size": 0}]}`
+	if err := os.WriteFile(path, []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	st, err := OpenFileStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id, known := st.Instance(); known {
+		t.Fatalf("legacy instance trusted: %v", id)
+	}
+	actual, err := NewTable(v, st).Retrieve(ctx)
+	if err != nil || len(actual) != 0 {
+		t.Fatalf("Retrieve = %+v, %v (legacy records must claim nothing)", actual, err)
+	}
+	if recs := st.All(); len(recs) != 0 {
+		t.Fatalf("legacy records kept: %+v", recs)
+	}
+	raw, _ := os.ReadFile(path) //nolint:gosec // test file
+	if !strings.Contains(string(raw), `"vpp_boot": "boot-a/4242/777"`) || strings.Contains(string(raw), "vpp_instance") {
+		t.Fatalf("store not rewritten in the new format: %s", raw)
+	}
+	// a corrupt identity is treated like a legacy one
+	if err := os.WriteFile(path, []byte(`{"vpp_boot": "4242", "tables": []}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if st2, err := OpenFileStore(path); err != nil {
+		t.Fatal(err)
+	} else if _, known := st2.Instance(); known {
+		t.Fatal("pid-only vpp_boot trusted")
 	}
 }
 
@@ -61,7 +119,11 @@ func TestStoreRejectsReusedIndexWithOtherGeometry(t *testing.T) {
 	ctx := context.Background()
 	v := newFakeVPP()
 	st := NewMemStore()
-	if err := st.Reset(0); err != nil {
+	cur, err := bootid.Current(ctx, v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Reset(cur); err != nil {
 		t.Fatal(err)
 	}
 	// "someone else's" table at index 0: skip 1, match 1, other mask.

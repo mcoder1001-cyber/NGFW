@@ -1,0 +1,67 @@
+// Values of the P05 core descriptors (scheduler.KV.Value). Agent-internal: the agent projects
+// vrx.v1.DesiredState (packages/proto) onto these objects and back (internal/agent/projection.go).
+// Canonical form (what Retrieve returns and what the projection produces) is documented per field;
+// proto.Equal on these messages is the scheduler's diff.
+syntax = "proto3";
+
+package vrx.agent.core;
+
+option go_package = "ngfw/agent/internal/descriptors/core;core";
+
+// Loopback is one loopback interface (create_loopback_instance with a fixed user instance).
+// Key: "interface.loopback/<name>" (consumers depend on DF-1's alias "interface/<name>", D-065).
+message Loopback {
+  // VPP interface name "loop<instance>", e.g. "loop701". The owner tag is "<owner>:<name>".
+  string name = 1;
+  // User instance parsed from the name (701).
+  uint32 instance = 2;
+}
+
+// InterfaceAddress is one address on an owned interface (sw_interface_add_del_address).
+// Key: "interface-ip/<interface>/<prefix>".
+message InterfaceAddress {
+  // Interface name (its owner-tag id; for loopbacks the VPP name).
+  string interface = 1;
+  // Address with prefix length, canonical netip form ("10.7.1.1/24", "2001:db8::1/64").
+  string prefix = 2;
+}
+
+// InterfaceTable binds an owned interface to a FIB table for IPv4 and IPv6 (sw_interface_set_table).
+// Absence of the object = table 0. Key: "interface-ip.table/<interface>".
+message InterfaceTable {
+  string interface = 1;
+  // FIB table id (> 0).
+  uint32 table_id = 2;
+}
+
+// Table is one VRF: an IPv4 and an IPv6 FIB table with the same id (ip_table_add_del), named
+// "<owner>:<vrf>" in VPP. Key: "vrf/<id>".
+message Table {
+  uint32 id = 1;
+  // VRF name from the configuration document (the `vrfs` record key).
+  string vrf = 2;
+  // Set by Retrieve only: the IPv4 / IPv6 table of this VRF does not exist in VPP (partial loss);
+  // never set in desired state, so the diff re-adds the missing family.
+  bool missing_ip4 = 3;
+  bool missing_ip6 = 4;
+}
+
+// Route is one static route (ip_route_add_del). Key: "ip.route/<table id>/<prefix>".
+message Route {
+  uint32 table_id = 1;
+  // Destination prefix, canonical netip form with host bits cleared ("10.7.100.0/24").
+  string prefix = 2;
+  // Paths sorted by (address, interface); empty = blackhole (drop).
+  repeated RoutePath paths = 3;
+  // FIB path preference = administrative distance (0 when unset).
+  uint32 preference = 4;
+}
+
+message RoutePath {
+  // Next-hop address, canonical; empty for an interface route.
+  string address = 1;
+  // Egress interface name; empty = resolved through the FIB.
+  string interface = 2;
+  // ECMP weight (>= 1).
+  uint32 weight = 3;
+}

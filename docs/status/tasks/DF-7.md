@@ -446,14 +446,13 @@ $ vppctl show interface | grep -c 'loop10[0-9][0-9]'; vppctl show ip fib | grep 
 ### CI gate
 
 ```
-$ tools/ci.sh --base main
-  forbidden patterns (+ gitleaks)                    0m03s
-  lint · typecheck · unit tests · build (turbo)   0m29s
-  apps/agent: make lint test build                   0m45s
+$ tools/ci.sh --base main        (clean tree at 0ccb946)
+  forbidden patterns (+ gitleaks)                    0m04s
+  lint · typecheck · unit tests · build (turbo)   0m27s
+  apps/agent: make lint test build                   0m28s
   test/ Go modules, unit mode (test/integration/smoke)   0m02s
-  mode quick · wall time 1m51s · logs /root/ngfw-wt/logs/ci/DF-7-20260924-023755-2114398
+  mode quick · wall time 1m34s · logs /root/ngfw-wt/logs/ci/DF-7-20260924-024045-2138322
 
 CI GATE PASSED
 ```
-(warnings: uncommitted changes at run time — committed right after; non-conventional merge/review subjects of
-earlier commits.)
+(warning only: non-conventional subjects of earlier merge/review commits.)

@@ -313,7 +313,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D1.2
@@ -322,10 +322,10 @@ tasks:
   - D1.6
   scope: bond, l2 (bridge, xconnect), memif, tap, host-interface/af_packet, subinterface, admin-state, mtu, rx-mode
   files_owned: apps/agent/internal/descriptors/<plugins of DF-1>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-1
+  worktree: /root/ngfw-wt/DF-1
+  owner: desktop-agent slot2
+  started: 2026-09-23T15:10
   finished: ''
   notes: ''
 - id: DF-2
@@ -338,7 +338,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D2.3
@@ -346,10 +346,10 @@ tasks:
   - D2.7
   scope: ip_neighbor, ip6_nd (RA, DAD), urpf, abf, classify (ip tables/routes are P05 core)
   files_owned: apps/agent/internal/descriptors/<plugins of DF-2>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-2
+  worktree: /root/ngfw-wt/DF-2
+  owner: desktop-agent slot3
+  started: 2026-09-23T15:10
   finished: ''
   notes: ''
 - id: DF-3
@@ -362,7 +362,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D4.1
@@ -373,10 +373,10 @@ tasks:
   - D4.6
   scope: nat44_ed (nat), nat44_ei, nat64, nat66, det44, map, cnat, pnat
   files_owned: apps/agent/internal/descriptors/<plugins of DF-3>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-3
+  worktree: /root/ngfw-wt/DF-3
+  owner: desktop-agent slot9
+  started: 2026-09-23T15:10
   finished: ''
   notes: ''
 - id: DF-4
@@ -389,16 +389,16 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D5.2
   scope: acl (incl. macip), acl stats
   files_owned: apps/agent/internal/descriptors/<plugins of DF-4>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-4
+  worktree: /root/ngfw-wt/DF-4
+  owner: desktop-agent slot10
+  started: 2026-09-23T15:10
   finished: ''
   notes: ''
 - id: DF-5

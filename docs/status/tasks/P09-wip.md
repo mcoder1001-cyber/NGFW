@@ -18,11 +18,15 @@ branch `task/P09` · worktree `/root/ngfw-wt/P09` · slot 4 · started 2026-09-2
 - `slot_env` fallback = `tools/lab env` arithmetic (D-025: metrics 9100+10N+1; adds VRX_VALKEY_DB).
 - docs/contributing.md updated (step 8, `full` lock behaviour, D-031 note, slot 12 values). shellcheck clean.
 
-## In progress / left
-- Evidence runs in the throwaway clone `/tmp/vrx-p09-evidence` (host): hook-guarded merge of task/P09 into main; warm quick wall time;
-  hand-edited generated client fails; proto change without `contract(` fails; red merge blocked by the hook; `full` without tools/lab
-  (WARNING) and with P04's tools/lab on slot 12.
-- `docs/status/tasks/P09.md` with the pasted output; final `tools/ci.sh --base main`; commit.
+## Done later in the respawn (~15:20)
+- Dirty gate compares working tree vs index (a staged merge inside the hook is not "dirty"); contract guard runs first (git-only).
+- Hook: git writes MERGE_HEAD only after pre-merge-commit → the merged ref comes from GIT_REFLOG_ACTION; hook runs
+  `quick --base HEAD` with `VRX_CI_HEAD_REF=<ref>` (contract guard + gitleaks on the branch being merged). Verified: contract-less
+  proto branch stopped in 1.2 s, contract branch passes in 44 s.
+- `full`: P04's fix round made `tools/lab rig up` refuse under an exclusive holder → exclusive barrier, then shared for rig up →
+  suites → rig down. Evidence run F (main+P04, slot 12) in progress.
+
+## Closed 2026-09-23 ~15:25 — everything is in docs/status/tasks/P09.md (evidence §1–§10). Nothing left.
 
 ## Decisions taken so far (to be copied to the LOG by the manager)
 - pnpm store: kept root's default store (already shared by all worktrees) instead of moving it to `/root/.pnpm-store`.

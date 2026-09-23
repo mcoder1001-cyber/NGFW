@@ -329,8 +329,12 @@ func TestSingletons(t *testing.T) {
 		"interface":        func() { f.features[3] = nat44_ei.NAT44_EI_IF_INSIDE },
 		"pool address":     func() { f.addrs = append(f.addrs, &nat44_ei.Nat44EiAddressDetails{IPAddress: [4]uint8{10, 3, 0, 1}}) },
 		"interface addr":   func() { f.ifAddrs[3] = true },
-		"static mapping":   func() { f.statics = append(f.statics, &nat44_ei.Nat44EiStaticMappingDetails{Tag: "w3:m", ExternalSwIfIndex: ^interface_types.InterfaceIndex(0)}) },
-		"identity mapping": func() { f.idents = append(f.idents, &nat44_ei.Nat44EiIdentityMappingDetails{Tag: "w3:i", SwIfIndex: ^interface_types.InterfaceIndex(0)}) },
+		"static mapping": func() {
+			f.statics = append(f.statics, &nat44_ei.Nat44EiStaticMappingDetails{Tag: "w3:m", ExternalSwIfIndex: ^interface_types.InterfaceIndex(0)})
+		},
+		"identity mapping": func() {
+			f.idents = append(f.idents, &nat44_ei.Nat44EiIdentityMappingDetails{Tag: "w3:i", SwIfIndex: ^interface_types.InterfaceIndex(0)})
+		},
 	} {
 		add()
 		if err := p.Enable.Delete(ctx, en, nil); err != nil || !f.enabled {

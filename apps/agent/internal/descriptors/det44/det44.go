@@ -236,8 +236,8 @@ func isInside(side string) (bool, error) {
 func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceSpec]{
 		Claims: p.claims(),
-		Name: NameInterface,
-		ID:   func(s InterfaceSpec) string { return s.Interface + "/" + s.Side },
+		Name:   NameInterface,
+		ID:     func(s InterfaceSpec) string { return s.Interface + "/" + s.Side },
 		Deps: func(s InterfaceSpec) []scheduler.Dependency {
 			return append(enableDep(), natcommon.InterfaceDep(s.Interface))
 		},

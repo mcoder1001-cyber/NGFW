@@ -43,7 +43,6 @@ const (
 	SideOutside = "outside"
 )
 
-
 // EnableKey is the key every other nat64 object depends on.
 var EnableKey = scheduler.Join(NameEnable, Singleton)
 
@@ -386,8 +385,8 @@ func mergeRanges(addrs []poolAddr) []PoolSpec {
 func (p *Plugin) newPool() *natcommon.Descriptor[PoolSpec] {
 	return natcommon.New(natcommon.Ops[PoolSpec]{
 		Claims: p.claims(),
-		Name: NamePool,
-		ID:   func(s PoolSpec) string { return fmt.Sprintf("%s-%s/%d", s.First, s.Last, s.VRF) },
+		Name:   NamePool,
+		ID:     func(s PoolSpec) string { return fmt.Sprintf("%s-%s/%d", s.First, s.Last, s.VRF) },
 		Deps: func(s PoolSpec) []scheduler.Dependency {
 			deps := enableDep()
 			if s.VRF != ^uint32(0) {
@@ -438,8 +437,8 @@ func sideFlag(side string) (nat_types.NatConfigFlags, error) {
 func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceSpec]{
 		Claims: p.claims(),
-		Name: NameInterface,
-		ID:   func(s InterfaceSpec) string { return s.Interface + "/" + s.Side },
+		Name:   NameInterface,
+		ID:     func(s InterfaceSpec) string { return s.Interface + "/" + s.Side },
 		Deps: func(s InterfaceSpec) []scheduler.Dependency {
 			return append(enableDep(), natcommon.InterfaceDep(s.Interface))
 		},
@@ -533,7 +532,7 @@ func (p *Plugin) bibRequest(s StaticBIBSpec, add bool) (*nat64.Nat64AddDelStatic
 func (p *Plugin) newStaticBIB() *natcommon.Descriptor[StaticBIBSpec] {
 	return natcommon.New(natcommon.Ops[StaticBIBSpec]{
 		Claims: p.claims(),
-		Name: NameStaticBIB,
+		Name:   NameStaticBIB,
 		ID: func(s StaticBIBSpec) string {
 			return fmt.Sprintf("%s/%s/%d/%d", s.Protocol, s.InsideIP, s.InsidePort, s.VRF)
 		},

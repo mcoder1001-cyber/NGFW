@@ -356,9 +356,9 @@ func (p *Plugin) newIpfix() *natcommon.Descriptor[IpfixSpec] {
 func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceFeatureSpec]{
 		Claims: p.claims(),
-		Name: NameInterfaceFeature,
-		ID:   func(s InterfaceFeatureSpec) string { return s.Interface + "/" + s.Side },
-		Deps: func(s InterfaceFeatureSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
+		Name:   NameInterfaceFeature,
+		ID:     func(s InterfaceFeatureSpec) string { return s.Interface + "/" + s.Side },
+		Deps:   func(s InterfaceFeatureSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
 		Create: func(ctx context.Context, s InterfaceFeatureSpec) (any, error) {
 			flag, err := sideFlag(s.Side)
 			if err != nil {
@@ -425,9 +425,9 @@ func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpe
 func (p *Plugin) newOutputFeature() *natcommon.Descriptor[OutputFeatureSpec] {
 	return natcommon.New(natcommon.Ops[OutputFeatureSpec]{
 		Claims: p.claims(),
-		Name: NameOutputFeature,
-		ID:   func(s OutputFeatureSpec) string { return s.Interface },
-		Deps: func(s OutputFeatureSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
+		Name:   NameOutputFeature,
+		ID:     func(s OutputFeatureSpec) string { return s.Interface },
+		Deps:   func(s OutputFeatureSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
 		Create: func(ctx context.Context, s OutputFeatureSpec) (any, error) {
 			idx, err := natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 			if err != nil {
@@ -474,9 +474,9 @@ func (p *Plugin) newOutputFeature() *natcommon.Descriptor[OutputFeatureSpec] {
 func (p *Plugin) newInterfaceAddress() *natcommon.Descriptor[InterfaceAddressSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceAddressSpec]{
 		Claims: p.claims(),
-		Name: NameInterfaceAddress,
-		ID:   func(s InterfaceAddressSpec) string { return s.Interface },
-		Deps: func(s InterfaceAddressSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
+		Name:   NameInterfaceAddress,
+		ID:     func(s InterfaceAddressSpec) string { return s.Interface },
+		Deps:   func(s InterfaceAddressSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
 		Create: func(ctx context.Context, s InterfaceAddressSpec) (any, error) {
 			idx, err := natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 			if err != nil {
@@ -573,8 +573,8 @@ func mergeRanges(addrs []poolAddr) []AddressPoolSpec {
 func (p *Plugin) newAddressPool() *natcommon.Descriptor[AddressPoolSpec] {
 	return natcommon.New(natcommon.Ops[AddressPoolSpec]{
 		Claims: p.claims(),
-		Name: NameAddressPool,
-		ID:   func(s AddressPoolSpec) string { return fmt.Sprintf("%s-%s/%d", s.First, s.Last, s.VRF) },
+		Name:   NameAddressPool,
+		ID:     func(s AddressPoolSpec) string { return fmt.Sprintf("%s-%s/%d", s.First, s.Last, s.VRF) },
 		Deps: func(s AddressPoolSpec) []scheduler.Dependency {
 			deps := enableDep()
 			if s.VRF != ^uint32(0) {
@@ -697,8 +697,8 @@ func (p *Plugin) staticRequest(ctx context.Context, s StaticMappingSpec, add boo
 func (p *Plugin) newStaticMapping() *natcommon.Descriptor[StaticMappingSpec] {
 	return natcommon.New(natcommon.Ops[StaticMappingSpec]{
 		Claims: p.claims(),
-		Name: NameStaticMapping,
-		ID:   func(s StaticMappingSpec) string { return s.Name },
+		Name:   NameStaticMapping,
+		ID:     func(s StaticMappingSpec) string { return s.Name },
 		Deps: func(s StaticMappingSpec) []scheduler.Dependency {
 			deps := natcommon.WithVRF(enableDep(), s.VRF)
 			if s.External.Interface != "" {
@@ -801,8 +801,8 @@ func (p *Plugin) identityRequest(ctx context.Context, s IdentityMappingSpec, add
 func (p *Plugin) newIdentityMapping() *natcommon.Descriptor[IdentityMappingSpec] {
 	return natcommon.New(natcommon.Ops[IdentityMappingSpec]{
 		Claims: p.claims(),
-		Name: NameIdentityMapping,
-		ID:   func(s IdentityMappingSpec) string { return s.Name },
+		Name:   NameIdentityMapping,
+		ID:     func(s IdentityMappingSpec) string { return s.Name },
 		Deps: func(s IdentityMappingSpec) []scheduler.Dependency {
 			deps := natcommon.WithVRF(enableDep(), s.VRF)
 			if s.Interface != "" {

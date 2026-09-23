@@ -202,8 +202,8 @@ type MappingMeta struct{ ExternalSwIfIndex uint32 }
 func (p *Plugin) newStaticMapping() *natcommon.Descriptor[StaticMappingSpec] {
 	return natcommon.New(natcommon.Ops[StaticMappingSpec]{
 		Claims: p.claims(),
-		Name: NameStaticMapping,
-		ID:   func(s StaticMappingSpec) string { return s.Name },
+		Name:   NameStaticMapping,
+		ID:     func(s StaticMappingSpec) string { return s.Name },
 		Deps: func(s StaticMappingSpec) []scheduler.Dependency {
 			deps := natcommon.WithVRF(enableDep(), s.VRF)
 			if s.External.Interface != "" {
@@ -312,8 +312,8 @@ func (p *Plugin) identityRequest(ctx context.Context, s IdentityMappingSpec, add
 func (p *Plugin) newIdentityMapping() *natcommon.Descriptor[IdentityMappingSpec] {
 	return natcommon.New(natcommon.Ops[IdentityMappingSpec]{
 		Claims: p.claims(),
-		Name: NameIdentityMapping,
-		ID:   func(s IdentityMappingSpec) string { return s.Name },
+		Name:   NameIdentityMapping,
+		ID:     func(s IdentityMappingSpec) string { return s.Name },
 		Deps: func(s IdentityMappingSpec) []scheduler.Dependency {
 			deps := natcommon.WithVRF(enableDep(), s.VRF)
 			if s.Interface != "" {
@@ -430,8 +430,8 @@ func (p *Plugin) lbRequest(s LBStaticMappingSpec, add bool) (*nat44_ed.Nat44AddD
 func (p *Plugin) newLBStaticMapping() *natcommon.Descriptor[LBStaticMappingSpec] {
 	return natcommon.New(natcommon.Ops[LBStaticMappingSpec]{
 		Claims: p.claims(),
-		Name: NameLBStaticMapping,
-		ID:   func(s LBStaticMappingSpec) string { return s.Name },
+		Name:   NameLBStaticMapping,
+		ID:     func(s LBStaticMappingSpec) string { return s.Name },
 		Deps: func(s LBStaticMappingSpec) []scheduler.Dependency {
 			deps := enableDep()
 			for _, l := range s.Locals {

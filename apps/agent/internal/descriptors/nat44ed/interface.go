@@ -62,9 +62,9 @@ func ifDeps(name string) []scheduler.Dependency {
 func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceFeatureSpec]{
 		Claims: p.claims(),
-		Name: NameInterfaceFeature,
-		ID:   func(s InterfaceFeatureSpec) string { return s.Interface + "/" + s.Side },
-		Deps: func(s InterfaceFeatureSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
+		Name:   NameInterfaceFeature,
+		ID:     func(s InterfaceFeatureSpec) string { return s.Interface + "/" + s.Side },
+		Deps:   func(s InterfaceFeatureSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
 		Create: func(ctx context.Context, s InterfaceFeatureSpec) (any, error) {
 			flag, err := sideFlag(s.Side)
 			if err != nil {
@@ -131,9 +131,9 @@ func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpe
 func (p *Plugin) newOutputFeature() *natcommon.Descriptor[OutputFeatureSpec] {
 	return natcommon.New(natcommon.Ops[OutputFeatureSpec]{
 		Claims: p.claims(),
-		Name: NameOutputFeature,
-		ID:   func(s OutputFeatureSpec) string { return s.Interface },
-		Deps: func(s OutputFeatureSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
+		Name:   NameOutputFeature,
+		ID:     func(s OutputFeatureSpec) string { return s.Interface },
+		Deps:   func(s OutputFeatureSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
 		Create: func(ctx context.Context, s OutputFeatureSpec) (any, error) {
 			idx, err := natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 			if err != nil {
@@ -220,9 +220,9 @@ func (p *Plugin) newInterfaceAddress() *natcommon.Descriptor[InterfaceAddressSpe
 	}
 	return natcommon.New(natcommon.Ops[InterfaceAddressSpec]{
 		Claims: p.claims(),
-		Name: NameInterfaceAddress,
-		ID:   func(s InterfaceAddressSpec) string { return s.Interface },
-		Deps: func(s InterfaceAddressSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
+		Name:   NameInterfaceAddress,
+		ID:     func(s InterfaceAddressSpec) string { return s.Interface },
+		Deps:   func(s InterfaceAddressSpec) []scheduler.Dependency { return ifDeps(s.Interface) },
 		Create: func(ctx context.Context, s InterfaceAddressSpec) (any, error) {
 			idx, err := natcommon.ResolveOwned(ctx, p.client, p.scope, s.Interface)
 			if err != nil {

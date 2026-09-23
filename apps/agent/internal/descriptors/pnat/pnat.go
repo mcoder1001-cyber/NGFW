@@ -566,8 +566,8 @@ func (p *Plugin) attachedAnywhere(ctx context.Context, idx uint32, spec BindingS
 func (p *Plugin) newBinding() *natcommon.Descriptor[BindingSpec] {
 	return natcommon.New(natcommon.Ops[BindingSpec]{
 		Claims: p.cfg.Claims,
-		Name: NameBinding,
-		ID:   BindingID,
+		Name:   NameBinding,
+		ID:     BindingID,
 		Create: func(ctx context.Context, s BindingSpec) (any, error) {
 			if s.Extra != 0 {
 				return nil, fmt.Errorf("pnat: extra must be 0 in desired state")
@@ -694,8 +694,8 @@ func attachID(s AttachmentSpec) string { return s.Interface + "/" + s.Point + "/
 func (p *Plugin) newAttachment() *natcommon.Descriptor[AttachmentSpec] {
 	return natcommon.New(natcommon.Ops[AttachmentSpec]{
 		Claims: p.cfg.Claims,
-		Name: NameAttachment,
-		ID:   attachID,
+		Name:   NameAttachment,
+		ID:     attachID,
 		Deps: func(s AttachmentSpec) []scheduler.Dependency {
 			return []scheduler.Dependency{natcommon.Dep(BindingKey(s.Binding)), natcommon.InterfaceDep(s.Interface)}
 		},

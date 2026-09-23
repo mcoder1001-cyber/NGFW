@@ -472,13 +472,21 @@ func TestDisableNeedsCompleteEmptiness(t *testing.T) {
 	for name, add := range map[string]func(f *fakeNAT){
 		"foreign output-feature interface": func(f *fakeNAT) { f.outputs[3] = true },
 		"foreign in/out interface":         func(f *fakeNAT) { f.features[3] = nat_types.NAT_IS_INSIDE },
-		"pool address":                     func(f *fakeNAT) { f.addrs = append(f.addrs, &nat44_ed.Nat44AddressDetails{IPAddress: [4]uint8{10, 3, 0, 1}}) },
-		"interface-address pool":           func(f *fakeNAT) { f.ifAddrs[3] = 0 },
-		"static mapping":                   func(f *fakeNAT) { f.statics = append(f.statics, &nat44_ed.Nat44StaticMappingDetails{Tag: "w3:m", ExternalSwIfIndex: ^interface_types.InterfaceIndex(0)}) },
-		"identity mapping":                 func(f *fakeNAT) { f.idents = append(f.idents, &nat44_ed.Nat44IdentityMappingDetails{Tag: "w3:i", SwIfIndex: ^interface_types.InterfaceIndex(0)}) },
-		"lb mapping":                       func(f *fakeNAT) { f.lbs = append(f.lbs, &nat44_ed.Nat44LbStaticMappingDetails{Tag: "w3:lb"}) },
-		"vrf table":                        func(f *fakeNAT) { f.vrfTables[3001] = nil },
-		"untagged object of nobody":        func(f *fakeNAT) { f.addrs = append(f.addrs, &nat44_ed.Nat44AddressDetails{IPAddress: [4]uint8{192, 0, 2, 1}}) },
+		"pool address": func(f *fakeNAT) {
+			f.addrs = append(f.addrs, &nat44_ed.Nat44AddressDetails{IPAddress: [4]uint8{10, 3, 0, 1}})
+		},
+		"interface-address pool": func(f *fakeNAT) { f.ifAddrs[3] = 0 },
+		"static mapping": func(f *fakeNAT) {
+			f.statics = append(f.statics, &nat44_ed.Nat44StaticMappingDetails{Tag: "w3:m", ExternalSwIfIndex: ^interface_types.InterfaceIndex(0)})
+		},
+		"identity mapping": func(f *fakeNAT) {
+			f.idents = append(f.idents, &nat44_ed.Nat44IdentityMappingDetails{Tag: "w3:i", SwIfIndex: ^interface_types.InterfaceIndex(0)})
+		},
+		"lb mapping": func(f *fakeNAT) { f.lbs = append(f.lbs, &nat44_ed.Nat44LbStaticMappingDetails{Tag: "w3:lb"}) },
+		"vrf table":  func(f *fakeNAT) { f.vrfTables[3001] = nil },
+		"untagged object of nobody": func(f *fakeNAT) {
+			f.addrs = append(f.addrs, &nat44_ed.Nat44AddressDetails{IPAddress: [4]uint8{192, 0, 2, 1}})
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			f := newFakeNAT()

@@ -222,8 +222,8 @@ func u8(v uint32, what string) (uint8, error) {
 func (p *Plugin) newDomain() *natcommon.Descriptor[DomainSpec] {
 	return natcommon.New(natcommon.Ops[DomainSpec]{
 		Claims: p.claims(),
-		Name: NameDomain,
-		ID:   func(s DomainSpec) string { return s.Name },
+		Name:   NameDomain,
+		ID:     func(s DomainSpec) string { return s.Name },
 		Create: func(ctx context.Context, s DomainSpec) (any, error) {
 			if strings.Contains(s.Name, "#") {
 				return nil, fmt.Errorf("map: domain name %q must not contain '#'", s.Name)
@@ -301,8 +301,8 @@ func (p *Plugin) newDomain() *natcommon.Descriptor[DomainSpec] {
 func (p *Plugin) newRule() *natcommon.Descriptor[RuleSpec] {
 	return natcommon.New(natcommon.Ops[RuleSpec]{
 		Claims: p.claims(),
-		Name: NameRule,
-		ID:   func(s RuleSpec) string { return fmt.Sprintf("%s/%d", s.Domain, s.PSID) },
+		Name:   NameRule,
+		ID:     func(s RuleSpec) string { return fmt.Sprintf("%s/%d", s.Domain, s.PSID) },
 		Deps: func(s RuleSpec) []scheduler.Dependency {
 			return []scheduler.Dependency{natcommon.Dep(DomainKey(s.Domain))}
 		},
@@ -483,8 +483,8 @@ func (p *Plugin) mapFeature(ctx context.Context, idx uint32, name string) (bool,
 func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceSpec]{
 		Claims: p.claims(),
-		Name: NameInterface,
-		ID:   func(s InterfaceSpec) string { return s.Interface + "/" + mode(s.Translation) },
+		Name:   NameInterface,
+		ID:     func(s InterfaceSpec) string { return s.Interface + "/" + mode(s.Translation) },
 		Deps: func(s InterfaceSpec) []scheduler.Dependency {
 			return []scheduler.Dependency{natcommon.InterfaceDep(s.Interface)}
 		},

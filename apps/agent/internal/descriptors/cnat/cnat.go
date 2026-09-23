@@ -341,7 +341,7 @@ func (p *Plugin) updateTranslation(ctx context.Context, s TranslationSpec) (any,
 func (p *Plugin) newTranslation() *natcommon.Descriptor[TranslationSpec] {
 	return natcommon.New(natcommon.Ops[TranslationSpec]{
 		Claims: p.cfg.Claims,
-		Name: NameTranslation,
+		Name:   NameTranslation,
 		ID: func(s TranslationSpec) string {
 			return s.VIP + "/" + s.Proto + "/" + strconv.FormatUint(uint64(s.Port), 10)
 		},
@@ -630,8 +630,8 @@ func (p *Plugin) addDelSnatIf(ctx context.Context, s SnatInterfaceSpec, idx inte
 func (p *Plugin) newSnatInterface() *natcommon.Descriptor[SnatInterfaceSpec] {
 	return natcommon.New(natcommon.Ops[SnatInterfaceSpec]{
 		Claims: p.cfg.Claims,
-		Name: NameSnatInterface,
-		ID:   func(s SnatInterfaceSpec) string { return s.Interface + "/" + s.Table },
+		Name:   NameSnatInterface,
+		ID:     func(s SnatInterfaceSpec) string { return s.Interface + "/" + s.Table },
 		Deps: func(s SnatInterfaceSpec) []scheduler.Dependency {
 			return append(snatDep(), natcommon.InterfaceDep(s.Interface))
 		},
@@ -699,9 +699,9 @@ func (p *Plugin) addDelExclude(ctx context.Context, s SnatExcludePrefixSpec, add
 func (p *Plugin) newSnatExcludePfx() *natcommon.Descriptor[SnatExcludePrefixSpec] {
 	return natcommon.New(natcommon.Ops[SnatExcludePrefixSpec]{
 		Claims: p.cfg.Claims,
-		Name: NameSnatExcludePfx,
-		ID:   func(s SnatExcludePrefixSpec) string { return s.Prefix },
-		Deps: func(SnatExcludePrefixSpec) []scheduler.Dependency { return snatDep() },
+		Name:   NameSnatExcludePfx,
+		ID:     func(s SnatExcludePrefixSpec) string { return s.Prefix },
+		Deps:   func(SnatExcludePrefixSpec) []scheduler.Dependency { return snatDep() },
 		// Re-adding is idempotent for the lookup (bihash add); VPP bumps a per-length
 		// refcount that only affects the search order (doc).
 		Create: func(ctx context.Context, s SnatExcludePrefixSpec) (any, error) {
@@ -722,8 +722,8 @@ const (
 func (p *Plugin) newInterfaceFeature() *natcommon.Descriptor[InterfaceFeatureSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceFeatureSpec]{
 		Claims: p.cfg.Claims,
-		Name: NameInterfaceFeature,
-		ID:   func(s InterfaceFeatureSpec) string { return s.Interface },
+		Name:   NameInterfaceFeature,
+		ID:     func(s InterfaceFeatureSpec) string { return s.Interface },
 		Deps: func(s InterfaceFeatureSpec) []scheduler.Dependency {
 			return []scheduler.Dependency{natcommon.InterfaceDep(s.Interface)}
 		},

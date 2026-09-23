@@ -36,7 +36,6 @@ const (
 	SideOutside = "outside"
 )
 
-
 // EnableKey is the key every other nat66 object depends on.
 var EnableKey = scheduler.Join(NameEnable, Singleton)
 
@@ -219,8 +218,8 @@ func sideFlag(side string) (nat_types.NatConfigFlags, error) {
 func (p *Plugin) newInterface() *natcommon.Descriptor[InterfaceSpec] {
 	return natcommon.New(natcommon.Ops[InterfaceSpec]{
 		Claims: p.claims(),
-		Name: NameInterface,
-		ID:   func(s InterfaceSpec) string { return s.Interface },
+		Name:   NameInterface,
+		ID:     func(s InterfaceSpec) string { return s.Interface },
 		Deps: func(s InterfaceSpec) []scheduler.Dependency {
 			return append(enableDep(), natcommon.InterfaceDep(s.Interface))
 		},

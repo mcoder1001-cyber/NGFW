@@ -44,8 +44,8 @@ func (p *Plugin) vrfRoute(ctx context.Context, table, vrf uint32, add bool) erro
 func (p *Plugin) newVRFTable() *natcommon.Descriptor[VRFTableSpec] {
 	return natcommon.New(natcommon.Ops[VRFTableSpec]{
 		Claims: p.claims(),
-		Name: NameVRFTable,
-		ID:   func(s VRFTableSpec) string { return fmt.Sprintf("%d", s.Table) },
+		Name:   NameVRFTable,
+		ID:     func(s VRFTableSpec) string { return fmt.Sprintf("%d", s.Table) },
 		Deps: func(s VRFTableSpec) []scheduler.Dependency {
 			deps := natcommon.WithVRF(enableDep(), s.Table)
 			for _, r := range s.Routes {

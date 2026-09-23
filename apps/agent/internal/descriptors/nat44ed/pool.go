@@ -75,8 +75,8 @@ func (p *Plugin) addDelAddressRange(ctx context.Context, s AddressPoolSpec, add 
 func (p *Plugin) newAddressPool() *natcommon.Descriptor[AddressPoolSpec] {
 	return natcommon.New(natcommon.Ops[AddressPoolSpec]{
 		Claims: p.claims(),
-		Name: NameAddressPool,
-		ID:   PoolID,
+		Name:   NameAddressPool,
+		ID:     PoolID,
 		Deps: func(s AddressPoolSpec) []scheduler.Dependency {
 			deps := enableDep()
 			if s.VRF != AnyVRF {

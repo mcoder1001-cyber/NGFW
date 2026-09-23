@@ -106,7 +106,7 @@ docs/           design docs
 
 We are running the compressed 21-day plan (`docs/11-compressed-plan-fa.md`). Rules:
 
-- **Environment is VMware VMs, never Docker, never nested KVM.** `tools/lab` drives them over
+- **Environment is VMware VMs (Ubuntu 26.04, VPP 26.06 built from source in /root/vpp), never Docker, never nested KVM.** The dev host is also vrx-a; do NOT modify /root/vpp, /etc/vpp or the vpp service — another agent owns VPP bring-up. `tools/lab` drives them over
   SSH (govc optional); VPP 26.06 runs with DPDK on vmxnet3 — the hardware code path. The dev/CI
   host is `172.30.126.195`, repo `/root/ngfw`, user root. Do not add Dockerfiles or compose files.
 - **No C code in VPP. Ever, in this plan.** If your task seems to need a VPP plugin change or

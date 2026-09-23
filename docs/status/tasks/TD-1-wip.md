@@ -11,3 +11,4 @@
   Host run (slot 12) classify+acl: first run TestClassifyOnHost failed once with "loop1209 already has an output ACL
   (ip4-outacl) bound outside this agent's records" (transient host state; the base commit passed right after, and 3 reruns of
   the TD-1 code passed); final host run green. NRestarts 3 → 3. Docs updated. Next: CI, TD-1.md.
+- done: TD-1.md written, CI GATE PASSED @ a9cde22.

@@ -1,0 +1,24 @@
+# gitleaks configuration used by tools/ci.sh (forbidden patterns → gitleaks over the commit history).
+# Extends the default rule set; the allowlist encodes this programme's conventions only:
+#   - test fixtures use the literal VRX_TEST_PSK_<id> instead of a real pre-shared key
+#   - redacted values in docs/status are written as <redacted>
+# Anything else that gitleaks flags is a finding. Do not widen this file to make a branch pass.
+title = "VRX gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "programme conventions: placeholder PSKs and redaction markers"
+regexes = [
+  '''VRX_TEST_PSK_[A-Za-z0-9_]+''',
+  '''<redacted>''',
+]
+
+[[allowlists]]
+description = "files that are lockfiles, binaries or translated UI strings (no secrets by construction)"
+paths = [
+  '''pnpm-lock\.yaml$''',
+  '''wbs/.*\.(xlsx|csv)$''',
+  '''apps/web/src/locales/.*\.json$''',
+]

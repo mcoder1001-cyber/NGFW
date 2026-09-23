@@ -2169,7 +2169,7 @@ tasks:
   - P05
   priority: 2
   est_hours: 4
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.12
@@ -2180,4 +2180,4 @@ tasks:
   owner: host-agent slot12
   started: 2026-09-24T04:30
   finished: ''
-  notes: D-080 consolidation pulled forward from P08 to use idle capacity
+  notes: D-080 consolidation pulled forward from P08 to use idle capacity | worker done f1282a0 CI green; NOTE ran on slot 12 concurrently with ci.sh full (D-087)

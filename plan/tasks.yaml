@@ -299,7 +299,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 14
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D0.10
@@ -311,7 +311,8 @@ tasks:
   started: 2026-09-23T13:35
   finished: ''
   notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | worker done 22febb3; review agent spawned | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged;
-    review agent by host manager (Agent tool, same slot)'
+    review agent by host manager (Agent tool, same slot) | review APPROVE WITH CHANGES (M1 dev routes in prod, M2 no screenshot, M3 hidden fields validated, M4 silent schema fallback, L1-L7) eebff13; fix
+    round 1 spawned'
 - id: P07b
   title: 'UI flows: login, pending-change bar + commit dialog, revisions, users, Playwright login→commit→rollback'
   prompt: prompts/P07-ui-shell.md

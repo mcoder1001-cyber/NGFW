@@ -259,8 +259,9 @@ func startupDirectives(conf []byte) []string {
 	return out
 }
 
-func (r *Renderer) restart(reason string) error {
-	if err := setPending(r.paths.PendingFile, "restart", reason); err != nil {
+func (r *Renderer) restart(ctx context.Context, reason string) error {
+	pid, _ := r.daemonPid(ctx)
+	if err := setPending(r.paths.PendingFile, "restart", reason, pid); err != nil {
 		return fmt.Errorf("unbound: record pending restart: %w", err)
 	}
 	return &ActionRequired{Daemon: "unbound", Unit: "unbound", Action: "restart", Reason: reason}
@@ -329,7 +330,7 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 		return nil
 	}
 	if prevErr != nil || !slices.Equal(startupDirectives(previous), startupDirectives(conf)) {
-		return r.restart("listen addresses, port, views, paths or remote-control changed (unbound applies them only at startup)")
+		return r.restart(ctx, "listen addresses, port, views, paths or remote-control changed (unbound applies them only at startup)")
 	}
 	if rec := getPending(r.paths.PendingFile); rec != nil {
 		pid, err := r.daemonPid(ctx)

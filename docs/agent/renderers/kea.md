@@ -1,7 +1,7 @@
 # Kea renderer — desired state ↔ rendered config
 
 Package `apps/agent/internal/renderers/kea` (RF-3). Kea 3.0.3. Files: `/etc/kea/kea-dhcp4.conf`,
-`/etc/kea/kea-dhcp6.conf`, `/etc/kea/kea-ctrl-agent.conf` (JSON, `encoding/json`). Details and
+`/etc/kea/kea-dhcp6.conf` (JSON, `encoding/json`); no kea-ctrl-agent (D-079). Details and
 decisions: the package README.
 
 | `services.dhcp` (document) | Kea (`Dhcp4` / `Dhcp6`) |
@@ -14,7 +14,7 @@ decisions: the package README.
 | `servers.<name>.authoritative` | `subnet4[].authoritative` |
 | `servers.<name>.options[]` | appended to each subnet's `option-data` unless the subnet sets the code |
 | `servers.<name>.description` | `subnetN[].user-context.vrx.server-description` (ASCII-escaped) |
-| `servers.<name>.subnets.<sub>` | `subnetN[]` with `id` = FNV-32a(`server/sub`), `user-context.vrx.{server,subnet,description}` |
+| `servers.<name>.subnets.<sub>` | `subnetN[]` with `id` = the id Kea already runs for `server/sub` (read back from the applied file), else FNV-32a(`server/sub`) salted `#1`, `#2`… on collision; `user-context.vrx.{server,subnet,description}` |
 | `…subnet`, `pools[]` | `subnet` (masked), `pools[].pool` = `first-last` |
 | `…gateway` (v4) | option `routers` (3) |
 | `…dnsServers[]` | v4 `domain-name-servers` (6), v6 `dns-servers` (23) |
@@ -25,7 +25,6 @@ decisions: the package README.
 | `…options[]` `{code, data, alwaysSend}` | `option-data {code, space, data, always-send}`; unknown code + `0x…` → `csv-format: false`; unknown code + text → `option-def {vrx-<code>, string}` |
 | `…reservations.<r>` `{mac\|duid, ip, hostname, options}` | `reservations[] {hw-address\|duid, ip-address (v4) / ip-addresses (v6), hostname, option-data, user-context.vrx.reservation}` |
 | — (agent) | `control-sockets` unix `<run>/kea4.sock` / `kea6.sock`; `lease-database` memfile `<lib>/leases4.csv` + `lfc-interval`; `hooks-libraries` `libdhcp_lease_cmds.so` (found under the hooks dir); `loggers` to `<log>/kea-dhcpN.log` |
-| — (agent) | `Control-agent`: `http-host` 127.0.0.1, `http-port` (product 8000, tests 3<slot>80), `control-sockets.dhcp4/dhcp6` |
 | `servers.<name>` relay, client classes, shared networks | not rendered (relay is VPP, DF-8) |
 
 Apply: `config-set` per running server (no restart). Retrieve: `status-get`, `config-get`,

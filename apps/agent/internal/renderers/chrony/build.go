@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"net/netip"
 	"regexp"
 	"slices"
@@ -35,6 +36,13 @@ var (
 	// secretRefOf('key') in packages/schema (D-051).
 	keyRefRe = regexp.MustCompile(`^key/[A-Za-z0-9][A-Za-z0-9_.-]{0,122}$`)
 )
+
+// keyID derives the chrony key id of a reference.
+func keyID(ref string) uint32 {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(ref))
+	return h.Sum32()%4294967295 + 1
+}
 
 // MaxKeyBytes bounds one symmetric key.
 const MaxKeyBytes = 128
@@ -293,10 +301,16 @@ func (r *Renderer) build(in input) (*rendered, error) {
 	if len(out.sources) == 0 && c.LocalStratum == 0 {
 		return nil, invalid("servers", "an enabled NTP service needs a server, a pool or a local stratum")
 	}
-	// Key ids 1..n in reference order: stable for a given set of references.
+	// Key ids are a function of the reference alone (FNV-32a, 1..2^32-1), so adding or
+	// removing another key never renumbers this one (review L6); a collision is refused.
 	slices.Sort(refs)
-	for i, ref := range refs {
-		keyIDs[ref] = uint32(i + 1) //nolint:gosec // ≤ 16 servers
+	byID := map[uint32]string{}
+	for _, ref := range refs {
+		id := keyID(ref)
+		if other, dup := byID[id]; dup {
+			return nil, invalid("servers", "key references %s and %s map to the same chrony key id %d; rename one", other, ref, id)
+		}
+		byID[id], keyIDs[ref] = ref, id
 	}
 	for i, s := range n.GetServers() {
 		if s.KeyRef != nil {

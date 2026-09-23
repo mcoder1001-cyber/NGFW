@@ -16,6 +16,7 @@ import (
 	"net/netip"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -244,14 +245,36 @@ func (r *Renderer) Chronyc(ctx context.Context, args ...string) ([]byte, error) 
 	if err != nil {
 		return nil, fmt.Errorf("%w: chronyc %s: %s", ErrDaemon, strings.Join(args, " "), toolMessage(out, err, ""))
 	}
+	if len(out.Stdout) >= renderers.DefaultMaxOutput {
+		return nil, fmt.Errorf("%w: chronyc %s: output exceeds the capture limit", ErrDaemon, strings.Join(args, " "))
+	}
 	return out.Stdout, nil
+}
+
+func (r *Renderer) restart(reason string) error {
+	pid, _ := r.daemonPid()
+	if err := setPending(r.paths.PendingFile, "restart", reason, pid); err != nil {
+		return fmt.Errorf("chrony: record pending restart: %w", err)
+	}
+	return &ActionRequired{Daemon: "chronyd", Unit: r.paths.Unit, Action: "restart", Reason: reason}
+}
+
+// daemonPid reads chronyd's pidfile.
+func (r *Renderer) daemonPid() (int, error) {
+	b, err := os.ReadFile(r.paths.PidFile())
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(strings.TrimSpace(string(b)))
 }
 
 // Apply implements renderers.Renderer: snapshot → atomic write → if chronyd runs:
 // chrony.conf unchanged → `chronyc rekey` when the keys changed and `chronyc reload sources`
 // when the sources changed; chrony.conf changed → *ActionRequired{Action: "restart"}. If
 // chronyd does not run and the service is enabled → *ActionRequired{Action: "start"}. A
-// failing chronyc restores the snapshot and repeats the reload with the old files.
+// failing chronyc restores the snapshot and repeats the reload with the old files. A restart
+// request is persisted (Paths.PendingFile) and returned by every later Apply until chronyd's
+// process (pidfile) started after the request (D-079, review M2).
 func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 	if err := r.check(); err != nil {
 		return err
@@ -273,13 +296,22 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 	}
 	enabled := !bytes.Contains(files[r.paths.Conf()].Content, []byte("\n# services.ntp is disabled"))
 	if !r.running() {
+		clearPending(r.paths.PendingFile) // the next start reads the new files
 		if enabled {
 			return &ActionRequired{Daemon: "chronyd", Unit: r.paths.Unit, Action: "start", Reason: "services.ntp is enabled but chronyd is not running"}
 		}
 		return nil
 	}
 	if changed[r.paths.Conf()] {
-		return &ActionRequired{Daemon: "chronyd", Unit: r.paths.Unit, Action: "restart", Reason: "chrony.conf changed (only sources and keys reload at run time)"}
+		return r.restart("chrony.conf changed (only sources and keys reload at run time)")
+	}
+	if rec := getPending(r.paths.PendingFile); rec != nil {
+		pid, err := r.daemonPid()
+		if err == nil && rec.startedAfter(pid) {
+			clearPending(r.paths.PendingFile)
+		} else {
+			return &ActionRequired{Daemon: "chronyd", Unit: r.paths.Unit, Action: rec.Action, Reason: rec.Reason + " (still pending: chronyd has not restarted since)"}
+		}
 	}
 	var cmds [][]string
 	if changed[r.paths.Keys()] {
@@ -290,6 +322,8 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 	}
 	for _, c := range cmds {
 		if _, err := r.Chronyc(ctx, c...); err != nil {
+			ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), controlTimeout) // review L2
+			defer cancel()
 			restoreErr := snap.Restore()
 			var again []error
 			for _, c2 := range cmds {

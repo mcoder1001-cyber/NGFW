@@ -623,7 +623,7 @@ func TestSocketPrivacy(t *testing.T) {
 	if _, err := (Client{Socket: sock}).Command(context.Background(), "status-get", nil); !errors.Is(err, ErrInsecure) {
 		t.Fatalf("world-writable dir: want ErrInsecure, got %v", err)
 	}
-	if err := os.Chmod(dir, 0o700); err != nil {
+	if err := os.Chmod(dir, 0o700); err != nil { //nolint:gosec // directory
 		t.Fatal(err)
 	}
 	if err := os.Chmod(sock, 0o666); err != nil { //nolint:gosec // the insecure case under test

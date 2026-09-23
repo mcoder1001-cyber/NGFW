@@ -15,7 +15,7 @@ Files: `/etc/chrony/chrony.conf`, `/etc/chrony/sources.d/vrx.sources`, `/etc/chr
 | `rtcSync` | `rtcsync` (product only; never on test instances) |
 | `makestep {thresholdSec, limit}` | `makestep <threshold> <limit>` |
 | `servers[] {address, iburst, prefer, minPoll, maxPoll, nts, keyRef}` | `vrx.sources`: `server <host> [iburst] [prefer] [minpoll n] [maxpoll n] [key <id>] [nts]` |
-| `servers[].keyRef` (`key/<name>`) | `chrony.keys`: `<id> SHA256 HEX:<hex of secret>` (ids 1..n by sorted reference) |
+| `servers[].keyRef` (`key/<name>`) | `chrony.keys`: `<id> SHA256 HEX:<hex of secret>` (id = FNV-32a of the reference, stable) |
 | `pools[]` | `vrx.sources`: `pool <host> iburst` |
 | `ntsServer` | refused (NTS-KE server certificates are F-ntp) |
 | — (agent) | `bindcmdaddress <run>/chronyd.sock`, `cmdport 0`, `driftfile`, `pidfile`, `keyfile`, `ntsdumpdir` (with NTS sources), `sourcedir`, `logdir`, `log tracking` |

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -398,6 +399,7 @@ func resolverOn(ports ...uint32) *vrxv1.DnsService {
 // before, so it stands in for a restarted unbound.
 func startChild(t *testing.T) int {
 	t.Helper()
+	time.Sleep(30 * time.Millisecond) // process start times have 10 ms resolution (USER_HZ)
 	cmd := exec.Command("/usr/bin/sleep", "30")
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)

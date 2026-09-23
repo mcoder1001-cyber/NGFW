@@ -56,6 +56,9 @@ type Paths struct {
 	SourcePort uint16
 	// Unit is the systemd unit a restart is requested for ("chrony").
 	Unit string
+	// PendingFile persists a restart request until chronyd runs the new chrony.conf (D-079,
+	// review M2); in /run so that a reboot, which restarts chronyd, clears it.
+	PendingFile string
 }
 
 // ProductPaths are the paths of the packaged chrony 4.8 on Ubuntu 26.04.
@@ -71,6 +74,7 @@ func ProductPaths() Paths {
 		KeyMode:      0o600,
 		ClockControl: true,
 		Unit:         "chrony",
+		PendingFile:  "/run/vrx/renderers/chrony.pending",
 	}
 }
 
@@ -93,6 +97,7 @@ func TestPaths(prefix, instance string) Paths {
 		ClockControl: false,
 		LoopbackOnly: true,
 		Unit:         "chrony",
+		PendingFile:  filepath.Join(base, "vrx.pending"),
 	}
 }
 
@@ -104,7 +109,7 @@ var (
 // Validate checks the paths (absolute, clean, safe characters: chrony directives take
 // unquoted tokens) and the modes.
 func (p Paths) Validate() error {
-	for name, v := range map[string]string{"ConfDir": p.ConfDir, "RunDir": p.RunDir, "StateDir": p.StateDir, "LogDir": p.LogDir} {
+	for name, v := range map[string]string{"ConfDir": p.ConfDir, "RunDir": p.RunDir, "StateDir": p.StateDir, "LogDir": p.LogDir, "PendingFile": p.PendingFile} {
 		if !filepath.IsAbs(v) || filepath.Clean(v) != v || !safePathRe.MatchString(v) {
 			return fmt.Errorf("chrony: Paths.%s %q must be an absolute, clean path of [A-Za-z0-9_./-]", name, v)
 		}

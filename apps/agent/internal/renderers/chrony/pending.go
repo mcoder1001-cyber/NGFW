@@ -20,6 +20,8 @@ type pendingRecord struct {
 	Action     string `json:"action"`
 	Reason     string `json:"reason"`
 	SinceTicks uint64 `json:"sinceTicks"`
+	// PID is the daemon process that was running when the request was made (0 = unknown).
+	PID int `json:"pid"`
 }
 
 // clockTicks is USER_HZ, 100 on every Linux architecture the product targets.
@@ -58,12 +60,12 @@ func procStartTicks(pid int) (uint64, error) {
 	return strconv.ParseUint(f[19], 10, 64) // fields after ")" start at field 3
 }
 
-func setPending(path, action, reason string) error {
+func setPending(path, action, reason string, pid int) error {
 	now, err := uptimeTicks()
 	if err != nil {
 		return err
 	}
-	b, _ := json.Marshal(pendingRecord{Action: action, Reason: reason, SinceTicks: now})
+	b, _ := json.Marshal(pendingRecord{Action: action, Reason: reason, SinceTicks: now, PID: pid})
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
@@ -84,8 +86,13 @@ func getPending(path string) *pendingRecord {
 
 func clearPending(path string) { _ = os.Remove(path) }
 
-// startedAfter reports whether process pid started after the request was recorded.
+// startedAfter reports whether process pid started after the request was recorded: a later
+// start tick, or — within the same 10 ms tick — a different process than the one running when
+// the request was made.
 func (rec *pendingRecord) startedAfter(pid int) bool {
 	st, err := procStartTicks(pid)
-	return err == nil && st > rec.SinceTicks
+	if err != nil {
+		return false
+	}
+	return st > rec.SinceTicks || (st == rec.SinceTicks && rec.PID != 0 && pid != rec.PID)
 }

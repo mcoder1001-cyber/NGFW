@@ -278,8 +278,18 @@ func TestChronyIntegration(t *testing.T) {
 		t.Fatalf("conf change: want restart, got %v", err)
 	}
 	t.Logf("conf change: %v", ar)
+	if err := srv.r.Apply(ctx, sf2); !errors.As(err, &ar) || ar.Action != "restart" {
+		t.Fatalf("second Apply before the restart: want restart again (M2), got %v", err)
+	}
+	t.Logf("second Apply, same files, chronyd not restarted: %v", ar)
 	stop(t, srv.cmd)
 	srv.start(t)
+	if err := srv.r.Apply(ctx, sf2); err != nil {
+		pid, perr := srv.r.daemonPid()
+		st, serr := procStartTicks(pid)
+		t.Fatalf("Apply after the restart: %v (pid %d %v, start %d %v, pending %+v)", err, pid, perr, st, serr, getPending(srv.paths.PendingFile))
+	}
+	t.Log("Apply after the restart: nil (pending request cleared: chronyd started after it)")
 	deadline = time.Now().Add(30 * time.Second)
 	for {
 		st, err = cli.r.State(ctx)

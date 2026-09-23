@@ -6,7 +6,7 @@ Installed: **Unbound 1.24.2**, trust anchor from `dns-root-data` (`/usr/share/dn
 |---|---|
 | Render | `services.dns.resolvers` → `templates/unbound.conf.tmpl` (`text/template` + strict helpers) → one `unbound.conf` (0640, `root:unbound` in the product). |
 | Validate | `unbound-checkconf <staged unbound.conf>` — parses every directive, local-data RR, view and forward block; requires the trust-anchor file to exist. |
-| Apply | snapshot → atomic write → `unbound-control -c <conf> reload_keep_cache` over the unix control socket (`control-use-cert: no`). Failure → restore + reload the old file. Not running: idle config → nothing; resolvers present → `*ActionRequired{Unit: unbound, Action: start}`. |
+| Apply | snapshot → atomic write → not running: idle → nothing, resolvers → `*ActionRequired{start}`; a **startup-only directive changed** (`interface`, `port`, `interface-view`, `username`, `chroot`, `directory`, `pidfile`, `do-daemonize`, `control-*`) → `*ActionRequired{restart}` persisted in `Paths.PendingFile` (reload does not reopen sockets — review H1, verified live); a pending restart whose request is newer than unbound's process → the same request again (M2); otherwise `unbound-control reload_keep_cache` + **convergence check** (rendered forward zones in `list_forwards`, global local zones with their type in `list_local_zones`, every `interface` accepts TCP). Reload or check failure → restore + reload the old file (on a detached context). |
 | Retrieve | `unbound-control status`, `stats_noreset`, `list_forwards`, `list_stubs`, `list_local_zones`, `list_local_data` → typed `State` → `structpb.Struct`. |
 | Events | poll `stats_noreset` at 1 Hz: running, `total.num.queries`, cache hits/misses, request list. |
 
@@ -47,3 +47,16 @@ Goldens (`testdata/*.golden`, `-update`), hostile strings in every user field, a
 a recording runner. Integration (`VRX_INTEGRATION=1`): `unbound -d -c <cfg>` on
 127.0.0.1:3<slot>53 under /run/vrx-test/<prefix>/unbound; `list_forwards`, `net.Resolver`
 lookups (A and a hostile TXT that must round-trip verbatim), change + reload + rollback.
+
+## Paths (review M4, L5)
+
+Product: `/etc/unbound/unbound.conf`, control socket `/run/unbound.ctl` and pidfile
+`/run/unbound.pid` directly in `/run` (the packaged `unbound.service` has no `RuntimeDirectory`, so
+`/run/unbound` does not exist; `Apply` also creates missing parent directories),
+`/var/lib/unbound/root.key`, pending requests `/run/vrx/renderers/unbound.pending` (cleared by a
+reboot, which restarts unbound anyway). `TestProductPaths` pins them and the integration test runs
+`unbound-checkconf` on the staged product render. An idle instance binds `127.0.0.1@IdlePort`
+(product 53, tests 3<slot>53 — never :53 on the shared host).
+
+`unbound-control` output at the runner's capture limit is an error (`ErrOutputTruncated`);
+`State` reports `localDataTruncated` instead of a silently partial `list_local_data` (review L1).

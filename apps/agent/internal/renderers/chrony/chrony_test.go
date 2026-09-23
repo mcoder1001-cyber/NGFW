@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -143,16 +145,17 @@ func TestKeys(t *testing.T) {
 	files := render(t, newUnit(unitPaths()), clientNTP())
 	keys := string(files[unitPaths().Keys()].Content)
 	lines := strings.Split(strings.TrimSpace(keys), "\n")
-	// comment + two keys, ids by sorted reference: key/backup=1, key/upstream=2
+	// comment + two keys in sorted reference order, ids = keyID(ref) (review L6)
+	idB, idU := keyID("key/backup"), keyID("key/upstream")
 	if len(lines) != 3 || !keyLineRe.MatchString(lines[1]) || !keyLineRe.MatchString(lines[2]) {
 		t.Fatalf("keys file lines: %d", len(lines))
 	}
-	if !strings.HasPrefix(lines[1], "1 SHA256 HEX:"+strings.ToUpper(hex.EncodeToString(fixtureSecrets["key/backup"]))) ||
-		!strings.HasPrefix(lines[2], "2 SHA256 HEX:"+strings.ToUpper(hex.EncodeToString(fixtureSecrets["key/upstream"]))) {
+	if !strings.HasPrefix(lines[1], fmt.Sprintf("%d SHA256 HEX:", idB)+strings.ToUpper(hex.EncodeToString(fixtureSecrets["key/backup"]))) ||
+		!strings.HasPrefix(lines[2], fmt.Sprintf("%d SHA256 HEX:", idU)+strings.ToUpper(hex.EncodeToString(fixtureSecrets["key/upstream"]))) {
 		t.Fatal("key ids/values not as expected")
 	}
 	src := string(files[unitPaths().Sources()].Content)
-	if !strings.Contains(src, "server 192.0.2.123 iburst prefer minpoll 4 maxpoll 6 key 2") || !strings.Contains(src, "server ntp.example.test key 1") {
+	if !strings.Contains(src, fmt.Sprintf("server 192.0.2.123 iburst prefer minpoll 4 maxpoll 6 key %d", idU)) || !strings.Contains(src, fmt.Sprintf("server ntp.example.test key %d", idB)) {
 		t.Fatalf("sources do not reference the key ids:\n%s", src)
 	}
 	// no secret material outside chrony.keys, in any encoding
@@ -303,10 +306,45 @@ func tmpPaths(t *testing.T) Paths {
 	d := t.TempDir()
 	p.ConfDir, p.RunDir, p.StateDir, p.LogDir = d, d, d, d
 	p.FileOwner, p.KeyOwner = "", ""
+	p.PendingFile = filepath.Join(d, "state", "vrx.pending")
 	if err := os.MkdirAll(p.SourceDir(), 0o750); err != nil {
 		t.Fatal(err)
 	}
 	return p
+}
+
+func writePid(t *testing.T, p Paths, pid int) {
+	t.Helper()
+	if err := os.WriteFile(p.PidFile(), []byte(fmt.Sprintf("%d\n", pid)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// startChild starts a process that stands in for a restarted chronyd (it starts after any
+// request recorded before).
+func startChild(t *testing.T) int {
+	t.Helper()
+	time.Sleep(30 * time.Millisecond) // process start times have 10 ms resolution (USER_HZ)
+	cmd := exec.Command("/usr/bin/sleep", "30")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
+	return cmd.Process.Pid
+}
+
+func TestKeyIDsStable(t *testing.T) {
+	a := render(t, newUnit(unitPaths()), clientNTP())
+	n := clientNTP()
+	n.Servers = append(n.Servers, &vrxv1.NtpService_Server{Address: proto.String("192.0.2.200"), KeyRef: proto.String("key/aaa")})
+	fixtureSecrets["key/aaa"] = []byte("VRX_TEST_PSK_RF3_aaa")
+	defer delete(fixtureSecrets, "key/aaa")
+	b := render(t, newUnit(unitPaths()), n)
+	for _, l := range strings.Split(string(a[unitPaths().Sources()].Content), "\n") {
+		if strings.HasPrefix(l, "server ") && !strings.Contains(string(b[unitPaths().Sources()].Content), l) {
+			t.Fatalf("adding key/aaa changed %q", l)
+		}
+	}
 }
 
 func TestApply(t *testing.T) {
@@ -351,6 +389,15 @@ func TestApply(t *testing.T) {
 		if err := r.Apply(ctx, first); !errors.As(err, &ar) || ar.Action != "restart" {
 			t.Fatalf("first write changes chrony.conf: want restart, got %v", err)
 		}
+		// M2: the unchanged file must still ask for the restart until chronyd restarted, also
+		// from a new Renderer (agent restart).
+		writePid(t, p, os.Getpid()) // a daemon that started before the request
+		for _, rx := range []*Renderer{r, New(rr, WithPaths(p), WithSecrets(resolver))} {
+			if err := rx.Apply(ctx, first); !errors.As(err, &ar) || ar.Action != "restart" || !strings.Contains(ar.Reason, "still pending") {
+				t.Fatalf("second Apply: want pending restart, got %v", err)
+			}
+		}
+		writePid(t, p, startChild(t)) // chronyd restarted after the request
 		rr.Reset()
 		if err := r.Apply(ctx, first); err != nil || len(rr.Calls()) != 0 {
 			t.Fatalf("idempotent re-apply: %v %v", err, rr.Calls())
@@ -383,6 +430,7 @@ func TestApply(t *testing.T) {
 		r := New(ok, WithPaths(p), WithSecrets(resolver))
 		first := render(t, r, clientNTP())
 		_ = r.Apply(ctx, first) // restart request (conf written)
+		writePid(t, p, startChild(t))
 		rr := renderers.NewRecordingRunner().FailWith(ChronycBin, 1, "501 Not authorised")
 		r = New(rr, WithPaths(p), WithSecrets(resolver))
 		changed := clientNTP()

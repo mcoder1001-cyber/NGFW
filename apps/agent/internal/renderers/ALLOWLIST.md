@@ -41,14 +41,13 @@ Rules for an entry:
 
 Production allowlists are `kea.Binaries()`, `unbound.Binaries()`, `chrony.Binaries()`; each package's
 `TestProductAllowlistHasNoTrampoline` keeps `ip`, `env`, shells and `systemctl` out of them. Restarts are
-never executed by these renderers: `Apply` returns a typed `*ActionRequired{Unit, Action}` and the commit
+never executed by these renderers (unit tests also spawn `/usr/bin/sleep` as a stand-in "restarted daemon" process): `Apply` returns a typed `*ActionRequired{Unit, Action}` and the commit
 engine (product: systemd) acts on it.
 
 | binary | renderer | purpose | argv shape | added by |
 |---|---|---|---|---|
 | `/usr/sbin/kea-dhcp4` | kea | validate a staged kea-dhcp4.conf (Kea 3.0.3; env `KEA_CONTROL_SOCKET_DIR`/`KEA_DHCP_DATA_DIR`/`KEA_LOG_FILE_DIR`) | `kea-dhcp4 -t <staged kea-dhcp4.conf>` | RF-3 |
 | `/usr/sbin/kea-dhcp6` | kea | validate a staged kea-dhcp6.conf | `kea-dhcp6 -t <staged kea-dhcp6.conf>` | RF-3 |
-| `/usr/sbin/kea-ctrl-agent` | kea | validate a staged kea-ctrl-agent.conf | `kea-ctrl-agent -t <staged kea-ctrl-agent.conf>` | RF-3 |
 | `/usr/bin/ip` | kea (**test-only**, never in `kea.Binaries()`) | run the DHCP checkers inside the rig namespace (`Paths.Netns`, tests only); create/delete `ns-<prefix>-a` and its veths; start the test servers in it | `ip netns exec ns-<prefix>-a /usr/sbin/kea-dhcp4\|kea-dhcp6 -t <staged file>`; test harness: `ip netns add\|del ns-<prefix>-a`, `ip -n <ns> link\|addr …`, `ip netns exec <ns> kea-dhcp4\|kea-dhcp6 -c <cfg>` | RF-3 |
 | `/usr/sbin/unbound-checkconf` | unbound | validate a staged unbound.conf | `unbound-checkconf <staged unbound.conf>` | RF-3 |
 | `/usr/sbin/unbound-control` | unbound | apply and read state over the unix control socket | `unbound-control -c <unbound.conf> reload_keep_cache\|status\|stats_noreset\|list_forwards\|list_stubs\|list_local_zones\|list_local_data` | RF-3 |
@@ -56,7 +55,7 @@ engine (product: systemd) acts on it.
 | `/usr/bin/chronyc` | chrony | reload sources / keys, read state over the unix command socket | `chronyc -h <chronyd.sock> reload sources\|rekey` / `chronyc -h <chronyd.sock> -c sources\|sourcestats\|tracking\|serverstats` | RF-3 |
 
 Test-only children started by the RF-3 integration tests (killed by PID in `t.Cleanup`): `/usr/sbin/kea-dhcp4`,
-`/usr/sbin/kea-dhcp6` (`-c <cfg>`, inside `ip netns exec ns-<prefix>-a`), `/usr/sbin/kea-ctrl-agent -c <cfg>`,
+`/usr/sbin/kea-dhcp6` (`-c <cfg>`, inside `ip netns exec ns-<prefix>-a`) — no kea-ctrl-agent (D-079),
 `/usr/sbin/unbound -d -c <cfg>`, `/usr/sbin/chronyd -f <cfg> -n -x -l <log>` (`-x` mandatory: never touch the host clock).
 
 Not a binary: `kea.DefaultHooksDir` = `/usr/lib/x86_64-linux-gnu/kea/hooks` is only searched for

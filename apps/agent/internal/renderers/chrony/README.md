@@ -7,14 +7,14 @@ control).
 |---|---|
 | Render | `services.ntp` → `templates/{chrony.conf,vrx.sources,chrony.keys}.tmpl`. `chrony.conf` holds the instance directives and `sourcedir <conf>/sources.d`; `sources.d/vrx.sources` the `server`/`pool` lines; `chrony.keys` the symmetric keys (`Secret: true`, 0600 `_chrony:_chrony`). |
 | Validate | `chronyd -p -f <staged chrony.conf>` and `chronyd -p -f <staged vrx.sources>` (server/pool lines are valid chrony.conf directives). `chrony.keys` has no checker: structural check (`<id> SHA256 HEX:<hex>`), and its content never reaches an error message. |
-| Apply | snapshot → atomic write → chronyd not running: disabled → nothing, enabled → `*ActionRequired{Action: start}`; chrony.conf changed → `*ActionRequired{Action: restart}` (chrony reloads nothing else at run time); otherwise `chronyc -h <sock> rekey` (keys changed) and `chronyc -h <sock> reload sources` (sources changed). chronyc failure → restore + repeat with the old files. |
+| Apply | snapshot → atomic write → chronyd not running: disabled → nothing, enabled → `*ActionRequired{Action: start}`; chrony.conf changed → `*ActionRequired{Action: restart}` (chrony reloads nothing else at run time), persisted in `Paths.PendingFile` and returned by every later Apply until chronyd's process (pidfile → `/proc/<pid>/stat` start time, or a new pid in the same tick) started after the request (D-079, review M2); otherwise `chronyc -h <sock> rekey` (keys changed) and `chronyc -h <sock> reload sources` (sources changed). chronyc failure → restore + repeat with the old files. |
 | Retrieve | `chronyc -h <sock> -c tracking | sources | sourcestats | serverstats` (CSV → typed `Tracking`, `Source`, `SourceStats`, serverstats map) → `structpb.Struct`. |
 | Events | poll `tracking` + `sources` at 1 Hz: running, stratum, leap, reference, per-source state. |
 
 ## Secrets (00-CONTEXT rule 10, D-051)
 
 `servers[].keyRef` (`key/<name>`) is resolved through `WithSecrets(SecretResolver)`; key ids are
-1..n in sorted reference order; the value is written hex-encoded (`HEX:`), so no escaping issue
+FNV-32a of the reference (1..2³²−1; stable when other keys are added — review L6; a collision is refused); the value is written hex-encoded (`HEX:`), so no escaping issue
 exists. Errors name the reference only (a resolver error is not wrapped, it could quote the
 value); `Files.Redacted()` hides the keys file; tests assert that no encoding of a key appears in
 `chrony.conf` or `vrx.sources`. chrony.keys is not stored as a golden file.

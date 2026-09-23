@@ -119,7 +119,7 @@ func TestTemplateStrictRendering(t *testing.T) {
 		}
 	}
 	// A typo in a field name fails instead of rendering an empty value.
-	typo, _ := NewTemplate("typo").Parse("x {{.Nmae}}")
+	typo, _ := NewTemplate("typo").Parse("x {{.Missing}}")
 	if _, err := Execute(typo, map[string]string{"Name": "a"}); err == nil {
 		t.Fatal("missingkey=error not in effect")
 	}

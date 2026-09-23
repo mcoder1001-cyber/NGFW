@@ -70,7 +70,7 @@ func WriteFiles(files Files) error {
 
 // syncDir fsyncs a directory so a rename is durable.
 func syncDir(dir string) error {
-	d, err := os.Open(dir)
+	d, err := os.Open(dir) //nolint:gosec // parent of a validated absolute target path
 	if err != nil {
 		return fmt.Errorf("renderers: open dir %s: %w", dir, err)
 	}

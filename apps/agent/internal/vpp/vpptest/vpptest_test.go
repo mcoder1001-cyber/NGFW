@@ -59,7 +59,7 @@ func TestLockLabSharedAndReleased(t *testing.T) {
 	t.Run("hold", func(t *testing.T) {
 		LockLab(t)
 		// A second shared lock must succeed while the first is held.
-		f, err := os.Open(lock)
+		f, err := os.Open(lock) //nolint:gosec // temp lock file created by this test
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -70,7 +70,7 @@ func TestLockLabSharedAndReleased(t *testing.T) {
 		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
 	})
 	// After the subtest's Cleanup the exclusive lock must be obtainable.
-	f, err := os.Open(lock)
+	f, err := os.Open(lock) //nolint:gosec // temp lock file created by this test
 	if err != nil {
 		t.Fatal(err)
 	}

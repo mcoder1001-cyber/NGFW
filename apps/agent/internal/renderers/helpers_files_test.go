@@ -54,13 +54,13 @@ func TestFilesPathsAndRedacted(t *testing.T) {
 func TestWriteFileAtomicReplacesAndSetsMode(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "frr.conf")
-	if err := os.WriteFile(path, []byte("old"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("old"), 0o644); err != nil { //nolint:gosec // test fixture: mode is under test
 		t.Fatal(err)
 	}
 	if err := WriteFileAtomic(path, File{Mode: 0o600, Content: []byte("new")}); err != nil {
 		t.Fatal(err)
 	}
-	got, _ := os.ReadFile(path)
+	got, _ := os.ReadFile(path) //nolint:gosec // test-controlled path
 	if string(got) != "new" {
 		t.Fatalf("content = %q", got)
 	}
@@ -81,7 +81,7 @@ func TestWriteFileAtomicReplacesAndSetsMode(t *testing.T) {
 	if err := WriteFileAtomic(path, File{Mode: 0o644, Owner: "no-such-user-vrx"}); err == nil {
 		t.Fatal("unknown owner must fail")
 	}
-	if got, _ := os.ReadFile(path); string(got) != "new" {
+	if got, _ := os.ReadFile(path); string(got) != "new" { //nolint:gosec // test-controlled path
 		t.Fatal("failed write must leave the old file intact")
 	}
 }
@@ -90,7 +90,7 @@ func TestWriteFilesAndSnapshotRestore(t *testing.T) {
 	dir := t.TempDir()
 	existing := filepath.Join(dir, "existing.conf")
 	fresh := filepath.Join(dir, "fresh.conf")
-	if err := os.WriteFile(existing, []byte("v1"), 0o640); err != nil {
+	if err := os.WriteFile(existing, []byte("v1"), 0o640); err != nil { //nolint:gosec // test fixture: mode is under test
 		t.Fatal(err)
 	}
 	snap, err := TakeSnapshot(existing, fresh)
@@ -107,13 +107,13 @@ func TestWriteFilesAndSnapshotRestore(t *testing.T) {
 	if err := WriteFiles(files); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := os.ReadFile(fresh); string(got) != "brand new" {
+	if got, _ := os.ReadFile(fresh); string(got) != "brand new" { //nolint:gosec // test-controlled path
 		t.Fatalf("fresh = %q", got)
 	}
 	if err := snap.Restore(); err != nil {
 		t.Fatal(err)
 	}
-	got, err := os.ReadFile(existing)
+	got, err := os.ReadFile(existing) //nolint:gosec // test-controlled path
 	if err != nil || string(got) != "v1" {
 		t.Fatalf("restored content = %q, %v", got, err)
 	}
@@ -157,7 +157,7 @@ func TestStage(t *testing.T) {
 	if p != filepath.Join(st.Dir, "etc", "frr", "frr.conf") {
 		t.Fatalf("Path = %q", p)
 	}
-	got, err := os.ReadFile(p)
+	got, err := os.ReadFile(p) //nolint:gosec // test-controlled path
 	if err != nil || string(got) != "frr" {
 		t.Fatalf("staged content = %q, %v (owner must be ignored when staging)", got, err)
 	}

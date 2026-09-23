@@ -236,8 +236,8 @@ func TestWatchEventAndEmit(t *testing.T) {
 		t.Fatalf("event = %+v", ev)
 	}
 	cancel()
-	for range w.Events() {
-		// drain until closed by the context
+	if _, open := <-w.Events(); open {
+		t.Fatal("events channel must be closed once the context is cancelled")
 	}
 	if n := f.Emit(&linkEvent{}); n != 0 {
 		t.Fatalf("closed watcher still received: %d", n)

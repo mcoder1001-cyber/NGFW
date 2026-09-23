@@ -177,7 +177,7 @@ func TestAllowlistDocumented(t *testing.T) {
 		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
-		src, err := os.ReadFile(path)
+		src, err := os.ReadFile(path) //nolint:gosec // test-controlled path
 		if err != nil {
 			return err
 		}

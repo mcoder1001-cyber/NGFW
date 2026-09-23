@@ -545,3 +545,132 @@ integration tests inside these modules skip here (VRX_INTEGRATION unset); 'tools
 == summary (quick) ==
 CI GATE PASSED
 ```
+
+## Fix round 2 (re-review `docs/status/tasks/DF-6-rereview.md`, APPROVE WITH CHANGES)
+
+`git merge main` first (`4502c5c`), then D-080. Fixes in `0981d0d`.
+
+| Finding | Fix |
+|---|---|
+| N1 toggle records keyed by logical name only | records key on `<name>@<sw_if_index>/<family>`; every toggle with a known feature node reads VPP's actual state (`feature_is_enabled`, `df6.FeatureProbe`: vxlan / vxlan-gpe / gtpu bypass, l2tp `l2tp-decap`, pppoe `pppoe-input`) and enables exactly once when it is off. Found on the host: vxlan keeps a per-index bypass bitmap that VPP does not clear on interface delete, so an enable on a **reused** index was ignored — `ResetBeforeEnable` (vxlan only; bitmap-guarded, so the disable is a no-op when clear). SR-MPLS endpoint/color: a policy (re-)add releases its applied-once record. Fake + host regressions |
+| N2 PID-only identity | `df6.BootID` = D-080 triple `<kernel boot_id>/<VPP PID>/<VPP start time (stat field 22)>` |
+| N3 keyed claims never expire | keyed claims held by `<name>@vpp-<BootID>`: after a VPP/host restart a foreign object reusing the id is never reported, adopted, updated or deleted (fake regression with an SR policy) |
+| N5 pppoe.cp move | `SingletonSpec.Change`: moving the CP interface disables pppoe-input on the old one first |
+| N4, N6, N7 | not fixed in this round — logged as tech-debt on main by the manager (write-only parameter drift / fingerprint; cross-type adopt; stale-Meta delete, claim-store split/pruning/write-failure, keyed add→claim window, SafeToDisable coverage) |
+
+### Unit regressions (fakes)
+```
+$ go test -count=1 -v ./internal/descriptors/{df6,vxlan,sr,sr_mpls,pppoe}/ -run '…round-2 tests…' | grep -E '^(--- |ok|FAIL)'
+--- PASS: TestBypassIdempotentAcrossResyncs (0.00s)
+--- PASS: TestBypassInterfaceRecreated (0.00s)
+--- PASS: TestBootIDTriple (0.00s)
+ok  	ngfw/agent/internal/descriptors/df6	0.033s
+--- PASS: TestBypassDescriptor (0.00s)
+ok  	ngfw/agent/internal/descriptors/vxlan	0.024s
+--- PASS: TestStaleClaimAfterVPPRestart (0.00s)
+ok  	ngfw/agent/internal/descriptors/sr	0.036s
+--- PASS: TestResync (0.01s)
+ok  	ngfw/agent/internal/descriptors/sr_mpls	0.039s
+--- PASS: TestSessionDescriptor (0.00s)
+ok  	ngfw/agent/internal/descriptors/pppoe	0.025s
+$ go test -count=1 ./internal/descriptors/...   (DF-6 packages)
+ok  	ngfw/agent/internal/descriptors/df6	0.064s
+ok  	ngfw/agent/internal/descriptors/gre	0.033s
+ok  	ngfw/agent/internal/descriptors/gtpu	0.033s
+ok  	ngfw/agent/internal/descriptors/ipip	0.033s
+ok  	ngfw/agent/internal/descriptors/l2tp	0.063s
+ok  	ngfw/agent/internal/descriptors/lisp	0.059s
+ok  	ngfw/agent/internal/descriptors/pppoe	0.029s
+ok  	ngfw/agent/internal/descriptors/sr	0.046s
+ok  	ngfw/agent/internal/descriptors/sr_mpls	0.060s
+ok  	ngfw/agent/internal/descriptors/vxlan	0.029s
+ok  	ngfw/agent/internal/descriptors/vxlan_gpe	0.028s
+```
+`TestBypassInterfaceRecreated` (new and reused sw_if_index, two resyncs → 1 instance), `TestBootIDTriple` (same PID
+after a host reboot / recycled PID → different identity), `TestStaleClaimAfterVPPRestart` (foreign policy at our old
+BSID: not retrieved, `ErrNotOurs` on re-apply, not deleted), `TestResync` (SR-MPLS: VPP restart → re-added once;
+policy lost on the same boot → endpoint/color re-assigned once), pppoe `TestSessionDescriptor` (cp move: old=0 new=1).
+
+### Host regression for N1 (mirrors the reviewer's probe), slot 11
+```
+$ systemctl show vpp -p NRestarts   # NRestarts=2
+$ go test -count=1 -v -run TestBypassInterfaceRecreatedOnHost ./internal/descriptors/vxlan
+    bypass_recreate_integration_test.go:82: round 0: loop1130 old sw_if_index 23, recreated as 23 (same VPP boot, index reused=true)
+    bypass_recreate_integration_test.go:91: round 0: ip4-unicast/ip4-vxlan-bypass enabled on sw_if_index 23: true
+    bypass_recreate_integration_test.go:82: round 1: loop1130 old sw_if_index 23, recreated as 15 (same VPP boot, index reused=false)
+    bypass_recreate_integration_test.go:91: round 1: ip4-unicast/ip4-vxlan-bypass enabled on sw_if_index 15: true
+--- PASS: TestBypassInterfaceRecreatedOnHost (0.03s)
+ok  	ngfw/agent/internal/descriptors/vxlan	0.060s
+$ systemctl show vpp -p NRestarts   # NRestarts=2
+```
+
+### Host: all non-opt-in DF-6 host tests after round 2 (one package at a time; gtpu / LISP / pppoe-cp opt-ins not set)
+```
+== df6
+--- PASS: TestAgentRestartOnHost (0.09s)
+ok  	ngfw/agent/internal/descriptors/df6	0.106s
+== gre
+--- PASS: TestTunnelOnHost (0.05s)
+ok  	ngfw/agent/internal/descriptors/gre	0.067s
+== ipip
+--- PASS: TestTunnelOnHost (0.03s)
+ok  	ngfw/agent/internal/descriptors/ipip	0.054s
+== vxlan
+--- PASS: TestBypassInterfaceRecreatedOnHost (0.03s)
+--- PASS: TestTunnelOnHost (0.04s)
+ok  	ngfw/agent/internal/descriptors/vxlan	0.091s
+== vxlan_gpe
+--- PASS: TestTunnelOnHost (0.03s)
+ok  	ngfw/agent/internal/descriptors/vxlan_gpe	0.054s
+== sr
+--- PASS: TestLocalSidOnHost (0.05s)
+--- PASS: TestPolicyOnHost (0.02s)
+--- PASS: TestSteeringOnHost (0.04s)
+ok  	ngfw/agent/internal/descriptors/sr	0.145s
+== sr_mpls
+--- PASS: TestPolicySteeringOnHost (0.05s)
+--- SKIP: TestEndpointColorOnHost (0.00s)
+ok  	ngfw/agent/internal/descriptors/sr_mpls	0.072s
+== l2tp
+--- PASS: TestL2tpOnHost (0.02s)
+--- SKIP: TestL2tpTunnelOnHost (0.01s)
+ok  	ngfw/agent/internal/descriptors/l2tp	0.051s
+== pppoe
+--- SKIP: TestCpOnHost (0.00s)
+--- SKIP: TestSessionOnHost (0.01s)
+ok  	ngfw/agent/internal/descriptors/pppoe	0.031s
+NRestarts before / after: 2 / 2; no loop11* left
+```
+
+### CI gate — `tools/ci.sh --base main` on `0981d0d`
+```
+== VRX CI gate: quick ==
+== contract guard: HEAD vs main ==
+== tools (golangci-lint, gitleaks) ==
+== install (pnpm --frozen-lockfile --prefer-offline) ==
+== generate + generated-output gate ==
+== forbidden patterns (+ gitleaks) ==
+ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
+ok: no Dockerfile/compose files
+ok: no kill-by-pattern in scripts
+ok: no secret-shaped strings
+ok: gitleaks — scanned ~685646 bytes (685.65 KB) in 874ms no leaks found 
+== lint · typecheck · unit tests · build (turbo) ==
+== apps/agent: make lint test build ==
+ok  	ngfw/agent/internal/agent	1.150s
+ok  	ngfw/agent/internal/contracttest	2.409s
+ok  	ngfw/agent/internal/descriptors/abf	1.182s
+ok  	ngfw/agent/internal/descriptors/acl	1.291s
+ok  	ngfw/agent/internal/descriptors/adl	1.207s
+ok  	ngfw/agent/internal/descriptors/af_packet	1.087s
+ok  	ngfw/agent/internal/descriptors/arp	1.154s
+ok  	ngfw/agent/internal/descriptors/bond	1.131s
+ok  	ngfw/agent/internal/descriptors/classify	1.219s
+ok  	ngfw/agent/internal/descriptors/df2	1.202s
+ok  	ngfw/agent/internal/descriptors/df2/idempotency	1.163s
+ok  	ngfw/agent/internal/descriptors/df6	1.180s; 
+== test/ Go modules, unit mode (test/integration/smoke) ==
+integration tests inside these modules skip here (VRX_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
+== summary (quick) ==
+CI GATE PASSED
+```

@@ -440,7 +440,7 @@ func TestAllDomainsFixtureValues(t *testing.T) {
 func TestTypedConstruction(t *testing.T) {
 	ds := &vrxv1.DesiredState{
 		System: &vrxv1.SystemConfig{Hostname: proto.String("vrx-a"), Timezone: proto.String("UTC"),
-			Banner: &vrxv1.SystemBanner{Login: proto.String("authorised access only")}, Ntp: &vrxv1.SystemNtp{}, Dns: &vrxv1.SystemDns{}},
+			Banner: &vrxv1.SystemBanner{Login: proto.String("authorised access only")}, Dns: &vrxv1.SystemDns{}},
 		Dataplane: &vrxv1.DataplaneConfig{Workers: proto.Uint32(2), Corelist: []uint32{2, 3}, PciWhitelist: []string{"0000:0b:00.0"}},
 		Interfaces: map[string]*vrxv1.Interface{
 			"loop700": {Enabled: proto.Bool(true), Description: proto.String("loopback for tests"), Mtu: proto.Uint32(1500), Ipv4: []string{"10.7.0.1/24"},
@@ -469,7 +469,7 @@ func TestTypedConstruction(t *testing.T) {
 			Proposal: proto.String("default"), Vrf: proto.String("default"), Rekey: &vrxv1.IpsecRekey{EspBytes: proto.Uint64(1 << 40)}}}}},
 		Tunnels:    &vrxv1.TunnelsConfig{Gre: map[string]*vrxv1.GreTunnel{"gre0": {}}},
 		Services:   &vrxv1.ServicesConfig{Dhcp: &vrxv1.DhcpService{}},
-		Ha:         &vrxv1.HaConfig{Vrrp: []*vrxv1.VrrpInstance{{}}},
+		Ha:         &vrxv1.HaConfig{Vrrp: map[string]*vrxv1.VrrpInstance{"lan": {}}},
 		Management: &vrxv1.ManagementConfig{Users: []*vrxv1.ManagementUser{{Username: proto.String("admin"), Role: proto.String("admin"), Scope: proto.String("*"), SshKeys: []string{"ssh-ed25519 AAAAC3 test"}}}},
 	}
 	// Every root key is populated in this literal.

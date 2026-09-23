@@ -1,0 +1,11 @@
+{
+  "ha": {
+    "vrrp": {
+      "lan": {
+        "interface": "TenGigabitEthernet0/0/1",
+        "vrId": 256,
+        "addresses": ["192.168.10.254"]
+      }
+    }
+  }
+}

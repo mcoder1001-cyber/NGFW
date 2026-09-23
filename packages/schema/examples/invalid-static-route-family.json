@@ -1,0 +1,8 @@
+{
+  "routing": { "static": [{ "prefix": "10.0.0.0/8", "nextHops": [{ "address": "2001:db8::1" }] }] },
+  "management": {
+    "users": [
+      { "username": "admin", "role": "admin", "passwordHash": "$vrx-test$VRX_TEST_HASH_admin" }
+    ]
+  }
+}

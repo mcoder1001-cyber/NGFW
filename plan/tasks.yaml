@@ -2067,3 +2067,28 @@ tasks:
   started: ''
   finished: ''
   notes: 'D-058: added'
+- id: TD-1
+  title: 'Tech-debt: one VPP boot-identity helper (D-080) in the agent vpp package; retrofit DF-2 classify store + DF-4 acl stats flag + dfkit/df6/df7 callers on main'
+  prompt: ''
+  template: ''
+  stage: S2
+  deps:
+  - DF-2
+  - DF-4
+  - DF-6
+  - DF-8
+  - P05
+  priority: 2
+  est_hours: 4
+  state: running
+  parked_on: ''
+  wbs:
+  - D0.12
+  scope: helper + retrofit of merged code only; DF-7/DF-5 adopt it at their merge
+  files_owned: apps/agent/internal/vpp/bootid/** + minimal call-site edits in merged descriptor packages
+  branch: task/TD-1
+  worktree: /root/ngfw-wt/TD-1
+  owner: host-agent slot12
+  started: 2026-09-24T04:30
+  finished: ''
+  notes: D-080 consolidation pulled forward from P08 to use idle capacity

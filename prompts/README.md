@@ -1,5 +1,7 @@
 # VRX agent prompts
 
+**Start here if you are the human:** `cd /root/ngfw && cat prompts/00-CONTEXT.md prompts/MANAGER-PROMPT.md | claude` — the manager agent runs everything else (see `docs/13-handoff-fa.md`).
+
 Every task prompt is **self-contained** once you prepend `00-CONTEXT.md`. Run each in
 its own git worktree with Claude Code from the repo root:
 

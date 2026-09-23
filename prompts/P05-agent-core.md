@@ -9,6 +9,9 @@ Reference design: Ligato vpp-agent's KVScheduler (read `docs/01-architecture.md`
 ## Read first
 `apps/agent/gen/vrx/v1` (P03 stubs), `apps/agent/binapi/` (P04 bindings), `docs/01-architecture.md`.
 
+## P05a — first, within the first hours (merged alone to `main`)
+Publish `internal/scheduler/descriptor.go` (the `Descriptor` interface, `KV`, `Dependency`, `ErrRecreate`, plan/result types) plus `internal/vpp/fake` (a fake VPP client for descriptor unit tests) and `internal/descriptors/README.md` (how to write one). Commit, tell the manager: the DF-*/RF-* factories start from this. Keep the interface stable afterwards; changes are contract tasks.
+
 ## Build exactly this
 1. `internal/vpp`: govpp connection manager with reconnect/backoff, health, and an
    interface so tests can inject a fake. Stats-segment reader at 1 Hz.
@@ -31,7 +34,7 @@ Reference design: Ligato vpp-agent's KVScheduler (read `docs/01-architecture.md`
    generic for others later), `interface-ip`, `interface-admin-state`, `interface-mtu`,
    `subinterface (vlan/qinq)`, `vrf` (ip_table_add_del), `static-route` (ip_route_add_del),
    `neighbor` (read-only Retrieve for state). Every one implements `Retrieve`.
-4. gRPC server on `/run/vrx/agent.sock` (0660, group `vrx`): `Apply`, `DryRun`
+4. gRPC server on `/run/vrx/agent.sock` (0660, group `vrx`); the agent itself runs as root (VPP sockets are root:vpp 775 — see `docs/lab/host-vrx-a.md`): `Apply`, `DryRun`
    (plan only, no apply), `Retrieve`, `StreamStats`, `StreamEvents` (link up/down from
    `want_interface_events`, reconcile start/done), `Health`. `Action` returns
    UNIMPLEMENTED for now.

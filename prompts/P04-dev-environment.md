@@ -6,7 +6,10 @@ plugin driving vmxnet3 NICs inside VMware VMs**. No Docker, no nested KVM, no li
 Moving to physical hardware later means changing the PCI whitelist and driver in the
 generated `startup.conf`, nothing else.
 
-## Facts about the environment (verified)
+## Facts about the environment (verified — full detail in `docs/lab/host-vrx-a.md`)
+- **VPP v26.06 is already running on this host** (`/run/vpp/{api,cli,stats}.sock`, root:vpp 775, 84 plugins loaded, `dpdk { no-pci }`, only `local0`). API JSON is local: `/usr/share/vpp/api` (143 files). `tools/lab` therefore needs a **local mode** for `vrx-a` (no SSH), and `tools/binapi-gen.sh` reads the local directory.
+- **No data-plane NICs yet** on this host: build the veth+netns rig (`tools/lab rig up|down`: two veths, peers in `ns-lan`/`ns-wan`, VPP `create host-interface` on the host ends) so P08 and the waves can pass packets through real VPP today; record `path: af_packet` in test output. Switch to the DPDK path when NICs arrive.
+- `linux_cp`, `linux_nl`, `npt66` plugins are on disk but not loaded; enabling them is a startup.conf change gated by the handover flag.
 - The dev/CI host `172.30.126.195` is itself a VMware VM (Ubuntu 26.04, 30 vCPU, 39 GB,
   197 GB disk, vmxnet3) **without** nested virtualization. It builds, runs CI, and drives
   the lab over SSH. It does not host VMs.

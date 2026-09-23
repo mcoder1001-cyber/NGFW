@@ -106,7 +106,10 @@ docs/           design docs
 
 We are running the compressed 21-day plan (`docs/11-compressed-plan-fa.md`). Rules:
 
-- **Environment is VMware VMs (Ubuntu 26.04, VPP 26.06 built from source in /root/vpp), never Docker, never nested KVM.** The dev host is also vrx-a; do NOT modify /root/vpp, /etc/vpp or the vpp service — another agent owns VPP bring-up. `tools/lab` drives them over
+- **Environment is VMware VMs (Ubuntu 26.04, VPP 26.06 built from source in /root/vpp), never Docker, never nested KVM.** The dev host **is** `vrx-a`: VPP v26.06 is running (`/run/vpp/api.sock`, group `vpp`; facts in `docs/lab/host-vrx-a.md`). Use VPP freely via API/vppctl; do NOT modify `/etc/vpp/startup.conf`, packages or `vpp.service` while that file says `handover: pending`.
+- **Multi-tenancy (VDOM) is deferred** — follow the five guardrails in `docs/decisions/vdom.md`.
+- **Decisions:** you decide and log (`docs/decisions/LOG.md`) unless the 2× rule or the always-ask list in `docs/decisions/decision-policy.md` applies — then write `PENDING-<slug>.md`, park only what depends on it, keep going.
+- **Board and status:** `plan/tasks.yaml` is task state; every task ends with `docs/status/tasks/<id>.md` containing pasted real output. Workers do not edit the board; the manager does. `tools/lab` drives them over
   SSH (govc optional); VPP 26.06 runs with DPDK on vmxnet3 — the hardware code path. The dev/CI
   host is `172.30.126.195`, repo `/root/ngfw`, user root. Do not add Dockerfiles or compose files.
 - **No C code in VPP. Ever, in this plan.** If your task seems to need a VPP plugin change or

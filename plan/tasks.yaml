@@ -1,0 +1,1043 @@
+# NGFW/VRX task board — single source of truth for task state. The manager agent updates it.
+# states: todo | ready | running | review | merged | parked | failed
+# parked tasks carry `parked_on: PENDING-<slug> | handover`
+version: 1
+max_workers: 6
+updated: 2026-09-23
+tasks:
+  - id: P01
+    title: "Monorepo scaffold"
+    prompt: prompts/P01-monorepo-scaffold.md
+    stage: S0
+    deps: []
+    priority: 1
+    est_hours: 6
+    state: merged
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "commits effc4de, 1707421; docs/status/2026-09-23-P01.md"
+  - id: P02
+    title: "Configuration schema (contract) — split into 3 workers by domain group"
+    prompt: prompts/P02-schema-package.md
+    stage: S1
+    deps: [P01]
+    priority: 3
+    est_hours: 16
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "workers: (a) system/dataplane/interfaces/vrfs/routing (b) nat/objects/acl (c) vpn/tunnels/services/ha/management; each owns its files"
+  - id: P03
+    title: "gRPC contract agent↔api — 2 workers (messages / RPC semantics doc)"
+    prompt: prompts/P03-proto-contract.md
+    stage: S1
+    deps: [P01]
+    priority: 3
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: P04
+    title: "Lab tooling: tools/lab (local mode for vrx-a), binapi-gen from /usr/share/vpp/api, veth/netns test rig"
+    prompt: prompts/P04-dev-environment.md
+    stage: S1
+    deps: [P01]
+    priority: 2
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "host facts in docs/lab/host-vrx-a.md; no data NICs yet (D-010)"
+  - id: P09
+    title: "CI-lite pipeline (gen-dirty gate, lint, typecheck, test, contract guard, grep gates)"
+    prompt: prompts/P09-ci-pipeline.md
+    stage: S1
+    deps: [P01]
+    priority: 2
+    est_hours: 8
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "local git only: implement as tools/ci.sh + pre-merge hook the manager runs; GitHub Actions file kept for later"
+  - id: P05a
+    title: "Publish scheduler Descriptor interface + fake client helpers (first hours of P05)"
+    prompt: prompts/P05-agent-core.md
+    stage: S2
+    deps: [P03, P04]
+    priority: 1
+    est_hours: 3
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "merge alone to main so DF/RF factories can start"
+  - id: P05
+    title: "Agent core: govpp, reconciler, gRPC server, resync, confirm timer"
+    prompt: prompts/P05-agent-core.md
+    stage: S2
+    deps: [P05a]
+    priority: 1
+    est_hours: 24
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: P06
+    title: "API core: datastore, commit engine, auth/RBAC/audit, telemetry relay"
+    prompt: prompts/P06-api-core.md
+    stage: S2
+    deps: [P02, P03]
+    priority: 1
+    est_hours: 24
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "needs postgres+valkey on host (plain services, no containers)"
+  - id: P07
+    title: "UI shell: frame, theme/RTL, SchemaForm, ServerDataGrid, WS client, pending-change bar"
+    prompt: prompts/P07-ui-shell.md
+    stage: S2
+    deps: [P02]
+    priority: 1
+    est_hours: 24
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "login/revisions/users screens integrate once P06 is merged"
+  - id: DF-1
+    title: "Descriptors: interface, bond, l2 (bridge, xconnect), af_packet, memif, tap, loopback"
+    prompt: prompts/factories/DF-1.md (generate from DESCRIPTOR-FACTORY-TEMPLATE.md)
+    stage: S2
+    deps: [P05a, P04]
+    priority: 2
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "exclusive ownership of apps/agent/internal/descriptors/<plugins>"
+  - id: DF-2
+    title: "Descriptors: ip, ip_neighbor, ip6_nd, urpf, abf, classify"
+    prompt: prompts/factories/DF-2.md (generate from DESCRIPTOR-FACTORY-TEMPLATE.md)
+    stage: S2
+    deps: [P05a, P04]
+    priority: 2
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "exclusive ownership of apps/agent/internal/descriptors/<plugins>"
+  - id: DF-3
+    title: "Descriptors: nat44_ed (nat), nat44_ei, nat64, nat66, det44, map, cnat, pnat"
+    prompt: prompts/factories/DF-3.md (generate from DESCRIPTOR-FACTORY-TEMPLATE.md)
+    stage: S2
+    deps: [P05a, P04]
+    priority: 2
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "exclusive ownership of apps/agent/internal/descriptors/<plugins>"
+  - id: DF-4
+    title: "Descriptors: acl (incl. macip), acl stats"
+    prompt: prompts/factories/DF-4.md (generate from DESCRIPTOR-FACTORY-TEMPLATE.md)
+    stage: S2
+    deps: [P05a, P04]
+    priority: 2
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "exclusive ownership of apps/agent/internal/descriptors/<plugins>"
+  - id: DF-5
+    title: "Descriptors: ipsec, ikev2, wireguard"
+    prompt: prompts/factories/DF-5.md (generate from DESCRIPTOR-FACTORY-TEMPLATE.md)
+    stage: S2
+    deps: [P05a, P04]
+    priority: 2
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "exclusive ownership of apps/agent/internal/descriptors/<plugins>"
+  - id: DF-6
+    title: "Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp"
+    prompt: prompts/factories/DF-6.md (generate from DESCRIPTOR-FACTORY-TEMPLATE.md)
+    stage: S2
+    deps: [P05a, P04]
+    priority: 2
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "exclusive ownership of apps/agent/internal/descriptors/<plugins>"
+  - id: DF-7
+    title: "Descriptors: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls"
+    prompt: prompts/factories/DF-7.md (generate from DESCRIPTOR-FACTORY-TEMPLATE.md)
+    stage: S2
+    deps: [P05a, P04]
+    priority: 2
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "exclusive ownership of apps/agent/internal/descriptors/<plugins>"
+  - id: DF-8
+    title: "Descriptors: dhcp, dns, flowprobe, sflow, prom, pcap/tracenode, lcp (linux_cp) [skip-unless-loaded]"
+    prompt: prompts/factories/DF-8.md (generate from DESCRIPTOR-FACTORY-TEMPLATE.md)
+    stage: S2
+    deps: [P05a, P04]
+    priority: 2
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "exclusive ownership of apps/agent/internal/descriptors/<plugins>"
+  - id: RF-1
+    title: "Renderers: frr (renderer framework only; protocol semantics in P12/F-*)"
+    prompt: prompts/factories/RF-1.md (generate from RENDERER-FACTORY-TEMPLATE.md)
+    stage: S2
+    deps: [P05a, P03]
+    priority: 2
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "exclusive ownership of the daemons for test-scoped start/stop"
+  - id: RF-2
+    title: "Renderers: strongswan (stock swanctl path; vrx build lands in P11)"
+    prompt: prompts/factories/RF-2.md (generate from RENDERER-FACTORY-TEMPLATE.md)
+    stage: S2
+    deps: [P05a, P03]
+    priority: 2
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "exclusive ownership of the daemons for test-scoped start/stop"
+  - id: RF-3
+    title: "Renderers: kea-dhcp4/6 + ctrl-agent, unbound, chrony"
+    prompt: prompts/factories/RF-3.md (generate from RENDERER-FACTORY-TEMPLATE.md)
+    stage: S2
+    deps: [P05a, P03]
+    priority: 2
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "exclusive ownership of the daemons for test-scoped start/stop"
+  - id: RF-4
+    title: "Renderers: snmpd, keepalived, rsyslog"
+    prompt: prompts/factories/RF-4.md (generate from RENDERER-FACTORY-TEMPLATE.md)
+    stage: S2
+    deps: [P05a, P03]
+    priority: 2
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "exclusive ownership of the daemons for test-scoped start/stop"
+  - id: P08
+    title: "Vertical slice: interfaces end to end"
+    prompt: prompts/P08-vertical-slice-interfaces.md
+    stage: S3
+    deps: [P05, P06, P07, DF-1, DF-2]
+    priority: 1
+    est_hours: 16
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "packet path = af_packet/veth until data NICs exist (D-010)"
+  - id: F-vlan-qinq
+    title: "Wave A (day 7-9): vlan-qinq"
+    prompt: prompts/features/F-vlan-qinq.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08]
+    priority: 3
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "prompt exists: prompts/features/F-vlan-qinq.md"
+  - id: F-bonding
+    title: "Wave A (day 7-9): bonding"
+    prompt: prompts/features/F-bonding.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08]
+    priority: 3
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-bridge-l2
+    title: "Wave A (day 7-9): bridge-l2"
+    prompt: prompts/features/F-bridge-l2.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08]
+    priority: 3
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-loopback-bvi-gso-lldp-span
+    title: "Wave A (day 7-9): loopback-bvi-gso-lldp-span"
+    prompt: prompts/features/F-loopback-bvi-gso-lldp-span.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08]
+    priority: 3
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-vrf-static-ecmp
+    title: "Wave A (day 7-9): vrf-static-ecmp"
+    prompt: prompts/features/F-vrf-static-ecmp.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08]
+    priority: 3
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-neighbors-ra
+    title: "Wave A (day 7-9): neighbors-ra"
+    prompt: prompts/features/F-neighbors-ra.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08]
+    priority: 3
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-rpf-adl-pbr
+    title: "Wave A (day 7-9): rpf-adl-pbr"
+    prompt: prompts/features/F-rpf-adl-pbr.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08]
+    priority: 3
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-object-model
+    title: "Wave A (day 7-9): object-model"
+    prompt: prompts/features/F-object-model.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08]
+    priority: 3
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-acl
+    title: "Wave A (day 7-9): acl"
+    prompt: prompts/features/F-acl.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-4, F-object-model]
+    priority: 3
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-host-acl-nftables
+    title: "Wave A (day 7-9): host-acl-nftables"
+    prompt: prompts/features/F-host-acl-nftables.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-4]
+    priority: 3
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-nat44-ed-sessions
+    title: "Wave A (day 7-9): nat44-ed-sessions"
+    prompt: prompts/features/F-nat44-ed-sessions.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-3]
+    priority: 3
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "prompt exists: prompts/features/F-nat44-ed.md"
+  - id: F-nat44-ei-64-66-nptv6
+    title: "Wave A (day 7-9): nat44-ei-64-66-nptv6"
+    prompt: prompts/features/F-nat44-ei-64-66-nptv6.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-3]
+    priority: 3
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "NPTv6 part needs npt66 plugin enabled (handover) — build the rest, skip-unless-loaded"
+  - id: F-det44-map-dslite-cnat
+    title: "Wave B (day 10-12): det44-map-dslite-cnat"
+    prompt: prompts/features/F-det44-map-dslite-cnat.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-3]
+    priority: 4
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: P11
+    title: "Wave B (day 10-12): P11"
+    prompt: prompts/P11-strongswan-vpp.md
+    stage: S4
+    deps: [P08, RF-2, DF-5]
+    priority: 4
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-ikev2-native
+    title: "Wave B (day 10-12): ikev2-native"
+    prompt: prompts/features/F-ikev2-native.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-5]
+    priority: 4
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-wireguard
+    title: "Wave B (day 10-12): wireguard"
+    prompt: prompts/features/F-wireguard.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-5]
+    priority: 4
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-tunnels
+    title: "Wave B (day 10-12): tunnels"
+    prompt: prompts/features/F-tunnels.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-6]
+    priority: 4
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-pki
+    title: "Wave B (day 10-12): pki"
+    prompt: prompts/features/F-pki.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, P11]
+    priority: 4
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: P12
+    title: "Wave B (day 10-12): P12"
+    prompt: prompts/P12-frr-linuxcp.md
+    stage: S4
+    deps: [P08, RF-1, DF-8]
+    priority: 4
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: "parked_on handover: needs linux_cp/linux_nl enabled in startup.conf"
+  - id: F-ospf
+    title: "Wave B (day 10-12): ospf"
+    prompt: prompts/features/F-ospf.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, P12]
+    priority: 4
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-isis-rip
+    title: "Wave B (day 10-12): isis-rip"
+    prompt: prompts/features/F-isis-rip.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, P12]
+    priority: 4
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-bfd-redistribution
+    title: "Wave B (day 10-12): bfd-redistribution"
+    prompt: prompts/features/F-bfd-redistribution.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, P12, DF-7]
+    priority: 4
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-kea-dhcp-relay
+    title: "Wave B (day 10-12): kea-dhcp-relay"
+    prompt: prompts/features/F-kea-dhcp-relay.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, RF-3, DF-8]
+    priority: 4
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-unbound-chrony-syslog
+    title: "Wave B (day 10-12): unbound-chrony-syslog"
+    prompt: prompts/features/F-unbound-chrony-syslog.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, RF-3, RF-4]
+    priority: 4
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-mpls-srmpls
+    title: "Wave C (day 13-15): mpls-srmpls"
+    prompt: prompts/features/F-mpls-srmpls.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-7, DF-6]
+    priority: 5
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-igmp-mfib
+    title: "Wave C (day 13-15): igmp-mfib"
+    prompt: prompts/features/F-igmp-mfib.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-7]
+    priority: 5
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-srv6
+    title: "Wave C (day 13-15): srv6"
+    prompt: prompts/features/F-srv6.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-6]
+    priority: 5
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-lisp
+    title: "Wave C (day 13-15): lisp"
+    prompt: prompts/features/F-lisp.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-6]
+    priority: 5
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-host-stack
+    title: "Wave C (day 13-15): host-stack"
+    prompt: prompts/features/F-host-stack.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-1]
+    priority: 5
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-lb
+    title: "Wave C (day 13-15): lb"
+    prompt: prompts/features/F-lb.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-7]
+    priority: 5
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-qos-flat
+    title: "Wave C (day 13-15): qos-flat"
+    prompt: prompts/features/F-qos-flat.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-7]
+    priority: 5
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-snmp
+    title: "Wave C (day 13-15): snmp"
+    prompt: prompts/features/F-snmp.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, RF-4]
+    priority: 5
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-ipfix-sflow
+    title: "Wave C (day 13-15): ipfix-sflow"
+    prompt: prompts/features/F-ipfix-sflow.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-8]
+    priority: 5
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-dashboard-prom-alarms
+    title: "Wave C (day 13-15): dashboard-prom-alarms"
+    prompt: prompts/features/F-dashboard-prom-alarms.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-8]
+    priority: 5
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-capture-trace
+    title: "Wave C (day 13-15): capture-trace"
+    prompt: prompts/features/F-capture-trace.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-8]
+    priority: 5
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-vrrp-config-sync
+    title: "Wave C (day 13-15): vrrp-config-sync"
+    prompt: prompts/features/F-vrrp-config-sync.md (generate from FEATURE-TEMPLATE.md if missing)
+    stage: S4
+    deps: [P08, DF-7]
+    priority: 5
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: P13
+    title: "CLI basic"
+    prompt: prompts/P13-cli-basic.md
+    stage: S5
+    deps: [P06]
+    priority: 6
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-restconf-yang
+    title: "RESTCONF/NETCONF + YANG from schema"
+    prompt: prompts/features/F-restconf-yang.md (generate)
+    stage: S5
+    deps: [P06]
+    priority: 6
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-sdk-terraform-ansible
+    title: "Terraform provider, Ansible collection, Python SDK"
+    prompt: prompts/features/F-sdk-terraform-ansible.md (generate)
+    stage: S5
+    deps: [P06]
+    priority: 6
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-aaa
+    title: "RADIUS/TACACS+/LDAP/SAML/OIDC + MFA"
+    prompt: prompts/features/F-aaa.md (generate)
+    stage: S5
+    deps: [P06]
+    priority: 6
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-backup-restore
+    title: "Backup/restore, scheduled export, templates"
+    prompt: prompts/features/F-backup-restore.md (generate)
+    stage: S5
+    deps: [P06, P07]
+    priority: 6
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-ra-vpn
+    title: "Remote-access VPN IKEv2+EAP"
+    prompt: prompts/features/F-ra-vpn.md (generate)
+    stage: S5
+    deps: [P11, F-pki]
+    priority: 6
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: P10
+    title: "Debian packaging + systemd + install"
+    prompt: prompts/P10-packaging-deb.md
+    stage: S5
+    deps: [P08]
+    priority: 6
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: P14
+    title: "Unattended installer ISO (26.04)"
+    prompt: prompts/P14-iso-installer.md
+    stage: S5
+    deps: [P10]
+    priority: 6
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-ab-upgrade
+    title: "A/B image upgrade with rollback"
+    prompt: prompts/features/F-ab-upgrade.md (generate)
+    stage: S5
+    deps: [P10]
+    priority: 6
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-images
+    title: "VM/cloud image builds"
+    prompt: prompts/features/F-images.md (generate)
+    stage: S5
+    deps: [P10]
+    priority: 6
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-hardening-lite
+    title: "nftables host policy, systemd hardening, package signing"
+    prompt: prompts/features/F-hardening-lite.md (generate)
+    stage: S5
+    deps: [P10]
+    priority: 6
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: F-licensing
+    title: "Simple licence/entitlement"
+    prompt: prompts/features/F-licensing.md (generate)
+    stage: S5
+    deps: [P06]
+    priority: 6
+    est_hours: 10
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: INTEGRATE-E2E
+    title: "Freeze: integration + E2E on available topology"
+    prompt: prompts/INTEGRATOR-PROMPT.md + task-specific envelope
+    stage: S6
+    deps: [P08]
+    priority: 7
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: SECURITY-REVIEW
+    title: "Freeze: adversarial security review of the whole tree"
+    prompt: prompts/INTEGRATOR-PROMPT.md + task-specific envelope
+    stage: S6
+    deps: [P08]
+    priority: 7
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: DOCS-GEN
+    title: "Freeze: generate user docs from code and status files"
+    prompt: prompts/INTEGRATOR-PROMPT.md + task-specific envelope
+    stage: S6
+    deps: [P08]
+    priority: 7
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""
+  - id: STATUS-FINAL
+    title: "Freeze: have/have-not report for the product owner"
+    prompt: prompts/INTEGRATOR-PROMPT.md + task-specific envelope
+    stage: S6
+    deps: [INTEGRATE-E2E, SECURITY-REVIEW]
+    priority: 7
+    est_hours: 12
+    state: todo
+    branch: ""
+    worktree: ""
+    owner: ""
+    started: ""
+    finished: ""
+    notes: ""

@@ -19,12 +19,13 @@ import (
 // skipped when another slot holds them, reset to "unset" in Cleanup.
 func TestIPFIXOnHost(t *testing.T) {
 	h := dfkittest.ConnectHost(t)
+	h.LockGlobals(t)
 	h.SkipUnlessCompatible(t, "ipfix_export", &ipfix_export.SetIpfixExporter{}, &ipfix_export.IpfixExporterCreateDelete{},
 		&ipfix_export.IpfixAllExporterGet{}, &ipfix_export.SetIpfixClassifyStream{}, &ipfix_export.IpfixClassifyTableAddDel{})
 	c := h.Client()
 	ctx := context.Background()
 	slot := vpptest.Slot(t)
-	pool := netip.MustParsePrefix(vpptest.NATPool(t))
+	pool := netip.MustParsePrefix(fmt.Sprintf("10.%d.90.0/23", slot)) // restarttest uses 10.<N>.96.0/24
 	scope := WithCollectorScope(pool.Contains)
 	ip := func(x, y int) string { return fmt.Sprintf("10.%d.%d.%d", slot, x, y) }
 

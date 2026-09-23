@@ -14,6 +14,7 @@ import (
 // only on this slot's tagged loopbacks.
 func TestSflowOnHost(t *testing.T) {
 	h := dfkittest.ConnectHost(t)
+	h.LockGlobals(t)
 	h.SkipUnlessCompatible(t, "sflow", &sflow.SflowEnableDisable{}, &sflow.SflowInterfaceDump{}, &sflow.SflowSamplingRateSet{},
 		&sflow.SflowSamplingRateGet{}, &sflow.SflowDirectionGet{}, &sflow.SflowDropMonitoringGet{})
 	c := h.Client()

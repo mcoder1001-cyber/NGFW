@@ -15,6 +15,7 @@ import (
 // a VPP-global: read first, skipped when set by someone else, unset again in Cleanup.
 func TestLCPOnHost(t *testing.T) {
 	h := dfkittest.ConnectHost(t)
+	h.LockGlobals(t)
 	h.SkipUnlessCompatible(t, Plugin, &lcp.LcpItfPairAddDelV3{}, &lcp.LcpItfPairGet{}, &lcp.LcpDefaultNsSet{}, &lcp.LcpDefaultNsGet{})
 	c := h.Client()
 	ctx := context.Background()

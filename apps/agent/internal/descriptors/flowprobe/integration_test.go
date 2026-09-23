@@ -14,6 +14,7 @@ import (
 // this slot's tagged loopback.
 func TestFlowprobeOnHost(t *testing.T) {
 	h := dfkittest.ConnectHost(t)
+	h.LockGlobals(t)
 	h.SkipUnlessCompatible(t, "flowprobe", &flowprobe.FlowprobeSetParams{}, &flowprobe.FlowprobeGetParams{},
 		&flowprobe.FlowprobeInterfaceAddDel{}, &flowprobe.FlowprobeInterfaceDump{})
 	c := h.Client()

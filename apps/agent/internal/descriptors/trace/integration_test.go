@@ -17,6 +17,7 @@ import (
 // test removes it in Cleanup.
 func TestBPFFilterOnHost(t *testing.T) {
 	h := dfkittest.ConnectHost(t)
+	h.LockGlobals(t)
 	h.SkipUnlessCompatible(t, Plugin, &bpf_trace_filter.BpfTraceFilterSetV2{})
 	c := h.Client()
 	ctx := context.Background()

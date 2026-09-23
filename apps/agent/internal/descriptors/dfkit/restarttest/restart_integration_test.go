@@ -44,9 +44,9 @@ func agent(t *testing.T, c vpp.Client, owner string, ifs [3]string) []step {
 	t.Helper()
 	slot := vpptest.Slot(t)
 	base := vpptest.TableBase(t)
-	pool := netip.MustParsePrefix(vpptest.NATPool(t))
+	pool := netip.MustParsePrefix(fmt.Sprintf("10.%d.96.0/24", slot)) // disjoint from the ipfix test's collectors
 	ip := func(x, y int) string { return fmt.Sprintf("10.%d.%d.%d", slot, x, y) }
-	vrfScope := dhcp.WithVRFScope(func(v uint32) bool { return v >= base && v < base+1000 })
+	vrfScope := dhcp.WithVRFScope(func(v uint32) bool { return v >= base+900 && v < base+1000 }) // disjoint from the dhcp test
 	return []step{
 		{dhcp.NewProxy(c, vrfScope), []proto.Message{
 			dhcp.Proxy{RxVRF: base + 901, Server: ip(95, 1), Src: ip(95, 2)}.Proto(),
@@ -135,6 +135,8 @@ func deleteAll(ctx context.Context, t *testing.T, steps []step) {
 
 func TestRestartSimulationOnHost(t *testing.T) {
 	h1 := dfkittest.ConnectHost(t)
+	h1.LockGlobals(t)
+	h1.Owner += "r" // its own owner: the per-package tests of the same slot run in parallel
 	ctx := context.Background()
 	if kvs := dfkittest.MustRetrieve(t, flowprobe.NewParams(h1.Client(), flowprobe.WithGlobals(dfkit.GlobalsOwner(true)))); len(kvs) != 0 {
 		t.Skipf("flowprobe params are held by someone else (%v)", kvs[0].Value)
@@ -159,6 +161,7 @@ func TestRestartSimulationOnHost(t *testing.T) {
 
 	t.Log("== agent restart: fresh connection, fresh descriptors → empty plan")
 	h2 := dfkittest.ConnectHost(t)
+	h2.Owner = h1.Owner
 	a2 := agent(t, h2.Client(), h2.Owner, ifs)
 	if n := reconcile(t, ctx, a2); n != 0 {
 		t.Fatalf("fresh agent planned %d op(s) against unchanged VPP state", n)

@@ -21,6 +21,7 @@ import (
 // /run/vrx-test/<prefix>/. By default the test only checks that VPP knows the message.
 func TestHTTPStaticOnHost(t *testing.T) {
 	h := dfkittest.ConnectHost(t)
+	h.LockGlobals(t)
 	h.SkipUnlessCompatible(t, Plugin, &http_static.HTTPStaticEnableV5{})
 	c := h.Client()
 	d := NewHTTPStaticServer(c, h.Owner, dfkit.GlobalsOwner(true))

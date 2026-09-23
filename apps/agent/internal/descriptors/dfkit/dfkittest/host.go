@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -116,4 +118,29 @@ func HoldForEvidence(t *testing.T, what string) {
 
 func interfaceIndex(i uint32) interface_types.InterfaceIndex {
 	return interface_types.InterfaceIndex(i)
+}
+
+// LockGlobals serialises this slot's tests that touch VPP-global singletons (flowprobe params,
+// sflow globals, IPFIX exporter 0, lcp default netns, DNS, BPF/pcap filters): `go test ./...`
+// runs packages in parallel, and two of them setting one global would fight. It takes an
+// exclusive flock on /run/vrx-test/<prefix>/df8-globals.lock until the test ends. Other slots are
+// protected by the read-first/skip rule of each test, not by this lock.
+func (h *Host) LockGlobals(t *testing.T) {
+	t.Helper()
+	dir := filepath.Join("/run/vrx-test", h.Owner)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatalf("lock dir: %v", err)
+	}
+	f, err := os.OpenFile(filepath.Join(dir, "df8-globals.lock"), os.O_RDONLY|os.O_CREATE, 0o600) //nolint:gosec // our own lock file
+	if err != nil {
+		t.Fatalf("globals lock: %v", err)
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		_ = f.Close()
+		t.Fatalf("flock -x globals lock: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		_ = f.Close()
+	})
 }

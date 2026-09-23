@@ -22,6 +22,7 @@ import (
 // check runs only with VRX_DF8_DUID=1.
 func TestDHCPOnHost(t *testing.T) {
 	h := dfkittest.ConnectHost(t)
+	h.LockGlobals(t)
 	h.SkipUnlessCompatible(t, "dhcp", &dhcp.DHCPProxyConfig{}, &dhcp.DHCPProxyDump{}, &dhcp.DHCPClientConfig{},
 		&dhcp.DHCPClientDump{}, &dhcp.DHCPProxySetVss{}, &dhcp6_ia_na_client_cp.DHCP6ClientEnableDisable{},
 		&dhcp6_pd_client_cp.DHCP6PdClientEnableDisable{}, &dhcp6_pd_client_cp.IP6AddDelAddressUsingPrefix{})
@@ -29,7 +30,7 @@ func TestDHCPOnHost(t *testing.T) {
 	ctx := context.Background()
 	base := vpptest.TableBase(t)
 	slot := vpptest.Slot(t)
-	scope := WithVRFScope(func(v uint32) bool { return v >= base && v < base+1000 })
+	scope := WithVRFScope(func(v uint32) bool { return v >= base+800 && v < base+900 }) // restarttest uses +900..999
 	rx := base + 801
 
 	t.Run("proxy+vss", func(t *testing.T) {

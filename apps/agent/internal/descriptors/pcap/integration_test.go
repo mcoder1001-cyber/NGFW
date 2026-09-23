@@ -18,6 +18,7 @@ import (
 // The filter function is a getter-less global, restored to VPP's default in Cleanup.
 func TestPcapOnHost(t *testing.T) {
 	h := dfkittest.ConnectHost(t)
+	h.LockGlobals(t)
 	h.SkipUnlessCompatible(t, "vnet interface (pcap)", &interfaces.PcapTraceOn{}, &interfaces.PcapTraceOff{}, &interfaces.PcapSetFilterFunction{})
 	c := h.Client()
 	ctx := context.Background()

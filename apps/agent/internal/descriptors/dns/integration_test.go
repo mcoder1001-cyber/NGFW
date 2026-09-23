@@ -21,6 +21,7 @@ import (
 // name servers and disables it again in Cleanup.
 func TestDNSOnHost(t *testing.T) {
 	h := dfkittest.ConnectHost(t)
+	h.LockGlobals(t)
 	h.SkipUnlessCompatible(t, "dns", &dns.DNSEnableDisable{}, &dns.DNSNameServerAddDel{}, &dns.DNSResolveName{})
 	c := h.Client()
 	ctx := context.Background()

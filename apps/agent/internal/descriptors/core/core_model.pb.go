@@ -27,7 +27,7 @@ const (
 )
 
 // Loopback is one loopback interface (create_loopback_instance with a fixed user instance).
-// Key: "interface.loopback/<name>"; also provides "interface/<name>".
+// Key: "interface.loopback/<name>" (consumers depend on DF-1's alias "interface/<name>", D-065).
 type Loopback struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// VPP interface name "loop<instance>", e.g. "loop701". The owner tag is "<owner>:<name>".
@@ -194,7 +194,7 @@ func (x *InterfaceTable) GetTableId() uint32 {
 }
 
 // Table is one VRF: an IPv4 and an IPv6 FIB table with the same id (ip_table_add_del), named
-// "<owner>:<vrf>" in VPP. Key: "vrf/<id>"; also provides "ip.table/<id>".
+// "<owner>:<vrf>" in VPP. Key: "vrf/<id>".
 type Table struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Id    uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`

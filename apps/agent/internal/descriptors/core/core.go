@@ -8,8 +8,10 @@
 //	vrf                   vrf/<table id>                       ip_table_add_del, ip_table_dump
 //	ip.route              ip.route/<table id>/<prefix>         ip_route_add_del, ip_route_dump
 //
-// Cross-plugin keys (the DF-* conventions): a loopback also provides "interface/<name>" and every
-// interface reference in this package depends on "interface/<name>"; a VRF is "vrf/<id>".
+// Cross-plugin keys (D-065): consumers reference an interface through the generic alias
+// "interface/<name>" owned by DF-1 (its Dependencies point at the creator key). Until that alias
+// descriptor is registered, Env.IfRef defaults to DirectInterfaceRef: the creator key
+// "interface.loopback/<name>" for loopbacks, "interface/<name>" otherwise. A VRF is "vrf/<id>".
 //
 // Ownership (docs/contracts/proto.md §6): loopbacks carry the interface tag "<owner>:<name>";
 // addresses and table bindings belong to us when their interface does; VRF tables are named
@@ -57,6 +59,28 @@ type Env struct {
 	Client vpp.Client
 	Owner  string
 	Owned  ownertable.Set
+	// IfRef maps an interface name to the key core objects depend on (nil = DirectInterfaceRef;
+	// AliasInterfaceRef once DF-1's "interface" alias descriptor is registered, D-065).
+	IfRef func(name string) scheduler.Key
+}
+
+// DirectInterfaceRef references loopbacks by their creator key and every other interface by the
+// generic alias key.
+func DirectInterfaceRef(name string) scheduler.Key {
+	if _, ok := LoopbackInstance(name); ok {
+		return LoopbackKey(name)
+	}
+	return InterfaceKey(name)
+}
+
+// AliasInterfaceRef references every interface by the generic alias "interface/<name>" (D-065).
+func AliasInterfaceRef(name string) scheduler.Key { return InterfaceKey(name) }
+
+func (e Env) ifRef(name string) scheduler.Key {
+	if e.IfRef != nil {
+		return e.IfRef(name)
+	}
+	return DirectInterfaceRef(name)
 }
 
 // Register registers the core descriptors in dependency-friendly order (the scheduler's tie

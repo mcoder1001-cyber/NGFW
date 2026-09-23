@@ -44,7 +44,7 @@ func (*RouteDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 
 // Dependencies implements scheduler.Descriptor: the VRF table (unless table 0) and, optionally,
 // every egress interface (ordering only — physical interfaces are not objects of this agent).
-func (*RouteDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
+func (d *RouteDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	v := asRoute(obj)
 	var deps []scheduler.Dependency
 	if v.GetTableId() != 0 {
@@ -54,7 +54,7 @@ func (*RouteDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	for _, p := range v.GetPaths() {
 		if p.GetInterface() != "" && !seen[p.GetInterface()] {
 			seen[p.GetInterface()] = true
-			deps = append(deps, scheduler.Dependency{Key: InterfaceKey(p.GetInterface()), Optional: true})
+			deps = append(deps, scheduler.Dependency{Key: d.ifRef(p.GetInterface()), Optional: true})
 		}
 	}
 	return deps

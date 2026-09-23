@@ -68,21 +68,28 @@ func TestKeysAndDependencies(t *testing.T) {
 			t.Errorf("KeyOf = %s, want %s", got, kv.Key)
 		}
 	}
-	lb := r.desc(core.LoopbackName).(scheduler.KeyProvider)
-	if k := lb.ProvidedKeys(&core.Loopback{Name: "loop701"}); len(k) != 1 || k[0] != "interface/loop701" {
-		t.Fatalf("loopback alias %v", k)
+	if _, ok := r.desc(core.LoopbackName).(scheduler.KeyProvider); ok {
+		t.Fatal("loopback must not provide the interface/<name> alias (D-065: DF-1 owns it)")
 	}
 	deps := r.desc(core.InterfaceAddrName).Dependencies(&core.InterfaceAddress{Interface: "loop701", Prefix: "10.7.1.1/24"})
-	if len(deps) != 2 || deps[0] != (scheduler.Dependency{Key: "interface/loop701"}) || deps[1] != (scheduler.Dependency{Key: "interface-ip.table/loop701", Optional: true}) {
+	if len(deps) != 2 || deps[0] != (scheduler.Dependency{Key: "interface.loopback/loop701"}) || deps[1] != (scheduler.Dependency{Key: "interface-ip.table/loop701", Optional: true}) {
 		t.Fatalf("interface-ip deps %v", deps)
 	}
 	deps = r.desc(core.InterfaceTableName).Dependencies(&core.InterfaceTable{Interface: "loop701", TableId: 7001})
-	if len(deps) != 2 || deps[0].Key != "interface/loop701" || deps[1].Key != "vrf/7001" || deps[1].Optional {
+	if len(deps) != 2 || deps[0].Key != "interface.loopback/loop701" || deps[1].Key != "vrf/7001" || deps[1].Optional {
 		t.Fatalf("interface-ip.table deps %v", deps)
 	}
 	deps = r.desc(core.RouteName).Dependencies(&core.Route{TableId: 7001, Paths: []*core.RoutePath{{Interface: "loop701"}, {Interface: "loop701"}}})
-	if len(deps) != 2 || deps[0] != (scheduler.Dependency{Key: "vrf/7001"}) || deps[1] != (scheduler.Dependency{Key: "interface/loop701", Optional: true}) {
+	if len(deps) != 2 || deps[0] != (scheduler.Dependency{Key: "vrf/7001"}) || deps[1] != (scheduler.Dependency{Key: "interface.loopback/loop701", Optional: true}) {
 		t.Fatalf("route deps %v", deps)
+	}
+	// With DF-1's alias descriptor wired (D-065) every reference is interface/<name>.
+	alias := core.Env{IfRef: core.AliasInterfaceRef}
+	if d := (&core.InterfaceAddrDescriptor{Env: alias}).Dependencies(&core.InterfaceAddress{Interface: "loop701"}); d[0].Key != "interface/loop701" {
+		t.Fatalf("alias ref %v", d)
+	}
+	if k := core.DirectInterfaceRef("tap0"); k != "interface/tap0" {
+		t.Fatalf("non-loopback ref %s", k)
 	}
 	if deps = r.desc(core.RouteName).Dependencies(&core.Route{TableId: 0}); len(deps) != 0 {
 		t.Fatalf("table-0 route deps %v", deps)

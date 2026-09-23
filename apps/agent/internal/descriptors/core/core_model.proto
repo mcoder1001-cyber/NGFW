@@ -9,7 +9,7 @@ package vrx.agent.core;
 option go_package = "ngfw/agent/internal/descriptors/core;core";
 
 // Loopback is one loopback interface (create_loopback_instance with a fixed user instance).
-// Key: "interface.loopback/<name>"; also provides "interface/<name>".
+// Key: "interface.loopback/<name>" (consumers depend on DF-1's alias "interface/<name>", D-065).
 message Loopback {
   // VPP interface name "loop<instance>", e.g. "loop701". The owner tag is "<owner>:<name>".
   string name = 1;
@@ -35,7 +35,7 @@ message InterfaceTable {
 }
 
 // Table is one VRF: an IPv4 and an IPv6 FIB table with the same id (ip_table_add_del), named
-// "<owner>:<vrf>" in VPP. Key: "vrf/<id>"; also provides "ip.table/<id>".
+// "<owner>:<vrf>" in VPP. Key: "vrf/<id>".
 message Table {
   uint32 id = 1;
   // VRF name from the configuration document (the `vrfs` record key).

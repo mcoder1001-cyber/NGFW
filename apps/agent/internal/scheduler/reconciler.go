@@ -45,6 +45,23 @@ type Normalizer interface {
 	Normalize(obj proto.Message) proto.Message
 }
 
+// AbsenceDeleter is an optional Descriptor extension (D-065). DeleteOnAbsence() == false marks an
+// observe-only descriptor (e.g. DF-1's generic "interface/<name>" alias, whose Retrieve reports
+// every VPP interface including foreign ones): objects it retrieves that are not desired are
+// never planned for Delete and never fail verification. Desired objects are created/updated and
+// verified as usual.
+type AbsenceDeleter interface {
+	DeleteOnAbsence() bool
+}
+
+// deletesOnAbsence reports whether undesired actual objects of d may be deleted.
+func deletesOnAbsence(d Descriptor) bool {
+	if a, ok := d.(AbsenceDeleter); ok {
+		return a.DeleteOnAbsence()
+	}
+	return true
+}
+
 // ErrRetrieveUnsupported is returned (wrapped) by Descriptor.Retrieve when VPP has no dump for the
 // object type (D-063). Such a descriptor is WRITE-ONLY for the reconciler: its desired objects are
 // re-applied on every resync (Create must be idempotent) and whenever they differ from what this
@@ -163,6 +180,8 @@ type TxnPlan struct {
 	actual map[Key]KV
 	// writeOnly are the descriptors that could not be retrieved (ErrRetrieveUnsupported).
 	writeOnly map[string]bool
+	// observed are undesired objects of observe-only descriptors (DeleteOnAbsence() == false).
+	observed map[Key]bool
 }
 
 // Empty reports whether nothing would change.
@@ -388,7 +407,14 @@ func (s *Scheduler) plan(ctx context.Context, desired []KV, scope Scope, opts Ap
 		if _, keep := want[k]; keep {
 			continue
 		}
-		if scope(k.Descriptor()) {
+		d, ok := s.reg.ForKey(k)
+		if ok && !deletesOnAbsence(d) {
+			// observe-only (D-065): satisfies dependencies, never constrains or gets deleted
+			if p.observed == nil {
+				p.observed = map[Key]bool{}
+			}
+			p.observed[k] = true
+		} else if ok && scope(k.Descriptor()) {
 			deletes[k] = kv
 			continue
 		}
@@ -402,6 +428,9 @@ func (s *Scheduler) plan(ctx context.Context, desired []KV, scope Scope, opts Ap
 	// Mandatory dependencies must exist after the transaction — for desired objects and for the
 	// out-of-scope objects that stay.
 	for _, k := range sortedKeys(after) {
+		if p.observed[k] {
+			continue
+		}
 		kv := after[k]
 		d, _ := s.reg.ForKey(k)
 		for _, dep := range d.Dependencies(kv.Value) {
@@ -611,7 +640,9 @@ func (s *Scheduler) ApplyWith(ctx context.Context, desired []KV, scope Scope, op
 
 	x := &executor{s: s, res: res, live: make(map[Key]KV, len(p.actual)), desired: make(map[Key]KV, len(desired)), done: map[Key]bool{}}
 	for k, kv := range p.actual {
-		x.live[k] = kv
+		if !p.observed[k] {
+			x.live[k] = kv
+		}
 	}
 	for _, kv := range desired {
 		x.desired[kv.Key] = kv
@@ -703,7 +734,9 @@ func (x *executor) syncWriteOnly(wo map[string]bool) {
 // verify re-Retrieves the scope and compares it with desired.
 func (s *Scheduler) verify(ctx context.Context, desired []KV, scope Scope, writeOnly map[string]bool) error {
 	var check []KV
+	wanted := make(map[Key]bool, len(desired))
 	for _, kv := range desired {
+		wanted[kv.Key] = true
 		if !writeOnly[kv.Key.Descriptor()] {
 			check = append(check, kv)
 		}
@@ -721,6 +754,13 @@ func (s *Scheduler) verify(ctx context.Context, desired []KV, scope Scope, write
 		actual, _, err = s.retrieve(ctx, scope, true)
 		if err != nil {
 			return fmt.Errorf("verify: %w", err)
+		}
+		for k := range actual {
+			if d, ok := s.reg.ForKey(k); ok && !deletesOnAbsence(d) {
+				if _, want := wanted[k]; !want {
+					delete(actual, k)
+				}
+			}
 		}
 		err = diffErr(check, actual)
 		if err == nil {

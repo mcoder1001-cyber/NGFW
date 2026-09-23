@@ -298,7 +298,7 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver) *pro
 			p.add(core.RouteKey(table, pfx), v, pt)
 		}
 		rt := ds.GetRouting()
-		if len(rt.GetPrefixLists()) > 0 || len(rt.GetRouteMaps()) > 0 || rt.Bgp != nil || rt.Ospf != nil || rt.Isis != nil || rt.Rip != nil || rt.Bfd != nil {
+		if len(rt.GetPrefixLists()) > 0 || len(rt.GetRouteMaps()) > 0 || rt.GetBgp() != nil || rt.GetOspf() != nil || rt.GetIsis() != nil || rt.GetRip() != nil || rt.GetBfd() != nil {
 			p.warnf(ptr("routing"), "agent.unsupported-field", "routing protocols and policy are rendered by RF-1 (FRR), not by this agent build")
 		}
 	}

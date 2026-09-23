@@ -595,3 +595,35 @@ func TestCreateRecreatesLiveOptionalDependents(t *testing.T) {
 		t.Fatalf("ops %s", got)
 	}
 }
+
+// observe is an observe-only descriptor (D-065): Retrieve reports foreign objects too.
+type observe struct{ mem }
+
+func (*observe) DeleteOnAbsence() bool { return false }
+
+func TestObserveOnlyNeverDeletesOnAbsence(t *testing.T) {
+	st := newStore()
+	reg := NewRegistry()
+	reg.Register(&mem{name: "a", st: st})
+	reg.Register(&observe{mem{name: "interface", st: st}})
+	s := New(reg, nil)
+	ctx := context.Background()
+	// Foreign objects visible through the observe-only descriptor.
+	st.objs["interface/eth0"] = obj("eth0", "1")
+	st.objs["interface/w3-tap"] = obj("w3-tap", "1")
+	r := s.Apply(ctx, []KV{kv("a", obj("x", "1")), kv("interface", obj("x", "1", "a/x"))}, nil)
+	mustApplied(t, r)
+	if got := strings.Join(st.ops(), ","); got != "create a/x,create interface/x" {
+		t.Fatalf("ops %s", got)
+	}
+	// Removing the desired alias: a/x is deleted, the undesired aliases (ours or foreign) are not.
+	st.reset()
+	r = s.Apply(ctx, nil, nil)
+	mustApplied(t, r)
+	if got := strings.Join(st.ops(), ","); got != "delete a/x" {
+		t.Fatalf("ops %s", got)
+	}
+	if st.objs["interface/eth0"] == nil || st.objs["interface/w3-tap"] == nil {
+		t.Fatal("foreign objects deleted")
+	}
+}

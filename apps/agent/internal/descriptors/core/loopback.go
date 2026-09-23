@@ -20,10 +20,7 @@ const LoopbackDevType = "Loopback"
 // so that the VPP name equals the document name, and tagged "<owner>:<name>".
 type LoopbackDescriptor struct{ Env }
 
-var (
-	_ scheduler.Descriptor  = (*LoopbackDescriptor)(nil)
-	_ scheduler.KeyProvider = (*LoopbackDescriptor)(nil)
-)
+var _ scheduler.Descriptor = (*LoopbackDescriptor)(nil)
 
 // Name implements scheduler.Descriptor.
 func (*LoopbackDescriptor) Name() string { return LoopbackName }
@@ -39,11 +36,6 @@ func asLoopback(obj proto.Message) *Loopback {
 // KeyOf implements scheduler.Descriptor.
 func (*LoopbackDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return LoopbackKey(asLoopback(obj).GetName())
-}
-
-// ProvidedKeys implements scheduler.KeyProvider: "interface/<name>".
-func (*LoopbackDescriptor) ProvidedKeys(obj proto.Message) []scheduler.Key {
-	return []scheduler.Key{InterfaceKey(asLoopback(obj).GetName())}
 }
 
 // Dependencies implements scheduler.Descriptor.

@@ -41,9 +41,9 @@ func (*InterfaceTableDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 }
 
 // Dependencies implements scheduler.Descriptor: the interface and the VRF table.
-func (*InterfaceTableDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
+func (d *InterfaceTableDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	v := asIfTable(obj)
-	return []scheduler.Dependency{{Key: InterfaceKey(v.GetInterface())}, {Key: VRFKey(v.GetTableId())}}
+	return []scheduler.Dependency{{Key: d.ifRef(v.GetInterface())}, {Key: VRFKey(v.GetTableId())}}
 }
 
 func (d *InterfaceTableDescriptor) set(ctx context.Context, ifName string, meta any, table uint32) (IfMeta, error) {
@@ -138,10 +138,10 @@ func (*InterfaceAddrDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 
 // Dependencies implements scheduler.Descriptor: the interface; the table binding (optional —
 // ordering only, and it makes a rebind recreate the addresses).
-func (*InterfaceAddrDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
+func (d *InterfaceAddrDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	v := asIfAddr(obj)
 	return []scheduler.Dependency{
-		{Key: InterfaceKey(v.GetInterface())},
+		{Key: d.ifRef(v.GetInterface())},
 		{Key: InterfaceTableKey(v.GetInterface()), Optional: true},
 	}
 }

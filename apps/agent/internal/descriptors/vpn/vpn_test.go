@@ -127,14 +127,6 @@ func TestKeysAndRanges(t *testing.T) {
 	if k := vpn.InterfaceKey("loop400"); k != "interface/loop400" || k.Descriptor() != "interface" {
 		t.Fatalf("InterfaceKey = %s", k)
 	}
-	for name, want := range map[string]string{
-		"loop400": "interface/loop400", "ipip4001": "interface/ipip4001", "ipsec4001": "ipsec.itf/ipsec4001",
-		"wg4001": "wireguard.interface/wg4001", "ipsec": "interface/ipsec", "wgx": "interface/wgx",
-	} {
-		if k := vpn.InterfaceDependency(name); string(k) != want {
-			t.Fatalf("InterfaceDependency(%s) = %s, want %s", name, k, want)
-		}
-	}
 	if k := vpn.VRFKey(4001); k != "vrf/4001" {
 		t.Fatalf("VRFKey = %s", k)
 	}

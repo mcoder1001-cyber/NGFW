@@ -1,16 +1,18 @@
 package vpn
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"ngfw/agent/internal/scheduler"
 )
 
 // Cross-plugin key conventions used by every DF-* prompt: an interface is "interface/<name>" and a
 // FIB table is "vrf/<id>" (both provided by P05 core / DF-1). The DF-5 descriptors depend on them
-// by these keys and never construct another plugin's descriptor-specific key.
+// by these keys and never construct another plugin's descriptor-specific key. D-065: every
+// interface reference — including ipsec<N> / wg<N> interfaces created by DF-5 itself — uses the
+// alias key interface/<name>; the DF-5 interface descriptors provide that alias (ProvidedKeys).
 const (
 	InterfaceDescriptor = "interface"
 	VRFDescriptor       = "vrf"
@@ -19,38 +21,12 @@ const (
 // InterfaceKey returns the dependency key of a VPP interface by name.
 func InterfaceKey(name string) scheduler.Key { return scheduler.Join(InterfaceDescriptor, name) }
 
-// Descriptor names of the interfaces the DF-5 packages create themselves (ipsec.itf names its
-// interfaces ipsec<instance>, wireguard.interface wg<instance>). They are spelled here, not
-// imported, so vpn stays a leaf package; the ipsec and wireguard tests assert they match.
-const (
-	IpsecItfDescriptor     = "ipsec.itf"
-	WireguardItfDescriptor = "wireguard.interface"
-)
-
-// InterfaceDependency returns the key an object attached to interface name depends on: the DF-5
-// descriptor that creates it for ipsec<N> / wg<N> (those are never produced under interface/…),
-// interface/<name> for everything else (loopbacks, ipip/gre from DF-6, physical interfaces).
-func InterfaceDependency(name string) scheduler.Key {
-	if n, ok := strings.CutPrefix(name, "ipsec"); ok && isDigits(n) {
-		return scheduler.Join(IpsecItfDescriptor, name)
-	}
-	if n, ok := strings.CutPrefix(name, "wg"); ok && isDigits(n) {
-		return scheduler.Join(WireguardItfDescriptor, name)
-	}
-	return InterfaceKey(name)
-}
-
-func isDigits(s string) bool {
-	if s == "" {
-		return false
-	}
-	for _, r := range s {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return true
-}
+// ErrRetrieveUnsupported is returned (wrapped) by Retrieve when VPP has no dump or getter for the
+// object type (D-063: async mode, IKEv2 local key / liveness / responder hostname). The reconciler
+// treats such descriptors as write-only; they never echo cached desired state. The message is the
+// one P05's scheduler.ErrRetrieveUnsupported uses, so scheduler.IsRetrieveUnsupported recognises
+// it until DF-5 switches to the scheduler sentinel after P05 merges.
+var ErrRetrieveUnsupported = errors.New("vpp has no dump for this object type")
 
 // VRFKey returns the dependency key of a FIB table.
 func VRFKey(id uint32) scheduler.Key {

@@ -7,8 +7,9 @@ package ipsec_test
 
 import (
 	"fmt"
+	"maps"
 	"math/bits"
-	"sort"
+	"slices"
 
 	"go.fd.io/govpp/api"
 
@@ -63,14 +64,9 @@ func newFakeVPP() *fakeVPP {
 		},
 	}
 	v.On("sw_interface_dump", func(api.Message) ([]api.Message, error) {
-		idx := make([]int, 0, len(v.ifaces))
-		for i := range v.ifaces {
-			idx = append(idx, int(i))
-		}
-		sort.Ints(idx)
-		out := make([]api.Message, 0, len(idx))
-		for _, i := range idx {
-			out = append(out, v.ifaces[uint32(i)])
+		out := make([]api.Message, 0, len(v.ifaces))
+		for _, i := range slices.Sorted(maps.Keys(v.ifaces)) {
+			out = append(out, v.ifaces[i])
 		}
 		return out, nil
 	})
@@ -101,7 +97,7 @@ func newFakeVPP() *fakeVPP {
 	v.On("ipsec_spds_dump", func(api.Message) ([]api.Message, error) {
 		var out []api.Message
 		for id := range v.spds {
-			out = append(out, &ipsec.IpsecSpdsDetails{SpdID: id, Npolicies: uint32(len(v.policies[id]))})
+			out = append(out, &ipsec.IpsecSpdsDetails{SpdID: id, Npolicies: uint32(len(v.policies[id]))}) //nolint:gosec // test sizes
 		}
 		return out, nil
 	})

@@ -79,8 +79,8 @@ func TestIpsecOnHost(t *testing.T) {
 
 	// fixtures: a loopback for the SPD binding, an ipip tunnel for tunnel-protect (DF-6 owns the
 	// ipip descriptor; here it is created directly via binapi and deleted in Cleanup)
-	loop, _ := vpntest.Loopback(t, ctx, c, owner, 1)
-	ipipName, _ := vpntest.Ipip(t, ctx, c, owner, base+1, vpntest.SlotAddr(t, 2, 1), vpntest.SlotAddr(t, 2, 2))
+	loop, _ := vpntest.Loopback(ctx, t, c, owner, 1)
+	ipipName, _ := vpntest.Ipip(ctx, t, c, owner, base+1, vpntest.SlotAddr(t, 2, 1), vpntest.SlotAddr(t, 2, 2))
 
 	spd, spdIf, spdEntry := ipsecd.NewSpd(cfg), ipsecd.NewSpdInterface(cfg), ipsecd.NewSpdEntry(cfg)
 	sa, tp, itf := ipsecd.NewSa(cfg), ipsecd.NewTunnelProtect(cfg), ipsecd.NewItf(cfg)

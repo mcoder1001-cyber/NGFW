@@ -44,7 +44,7 @@ func (d *Backend) Create(ctx context.Context, obj proto.Message) (any, error) {
 	if !ok {
 		return nil, typeErr(BackendName, obj)
 	}
-	return d.select_(ctx, o)
+	return d.selectBackend(ctx, o)
 }
 
 // Update implements scheduler.Descriptor.
@@ -55,7 +55,7 @@ func (d *Backend) Update(ctx context.Context, _, newObj proto.Message, _ any) (a
 // Delete implements scheduler.Descriptor: a singleton cannot be absent; VPP keeps its selection.
 func (*Backend) Delete(context.Context, proto.Message, any) error { return nil }
 
-func (d *Backend) select_(ctx context.Context, o *vpnpb.IpsecBackend) (any, error) {
+func (d *Backend) selectBackend(ctx context.Context, o *vpnpb.IpsecBackend) (any, error) {
 	protoV, err := protocols.value("protocol", o.GetProtocol())
 	if err != nil {
 		return nil, err

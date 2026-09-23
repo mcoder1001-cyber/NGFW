@@ -62,11 +62,12 @@ func (*Peer) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(PeerName, o.GetInterface(), o.GetPublicKey())
 }
 
-// Dependencies implements scheduler.Descriptor: the WireGuard interface and the FIB table
-// (Optional) when table_id != 0.
+// Dependencies implements scheduler.Descriptor: the WireGuard interface by its alias
+// interface/wg<N> (D-065; wireguard.interface provides it) and the FIB table (Optional) when
+// table_id != 0.
 func (*Peer) Dependencies(obj proto.Message) []scheduler.Dependency {
 	o, _ := obj.(*vpnpb.WireguardPeer)
-	deps := []scheduler.Dependency{{Key: vpn.InterfaceDependency(o.GetInterface())}}
+	deps := []scheduler.Dependency{{Key: vpn.InterfaceKey(o.GetInterface())}}
 	if o.GetTableId() != 0 {
 		deps = append(deps, scheduler.Dependency{Key: vpn.VRFKey(o.GetTableId()), Optional: true})
 	}

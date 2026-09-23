@@ -9,6 +9,8 @@ import (
 	"bytes"
 	"crypto/ecdh"
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 
 	"go.fd.io/govpp/api"
@@ -47,14 +49,9 @@ func newFakeVPP() *fakeVPP {
 		registered: map[uint32]bool{},
 	}
 	v.On("sw_interface_dump", func(api.Message) ([]api.Message, error) {
-		idx := make([]int, 0, len(v.ifaces))
-		for i := range v.ifaces {
-			idx = append(idx, int(i))
-		}
-		sort.Ints(idx)
-		out := make([]api.Message, 0, len(idx))
-		for _, i := range idx {
-			out = append(out, v.ifaces[uint32(i)])
+		out := make([]api.Message, 0, len(v.ifaces))
+		for _, i := range slices.Sorted(maps.Keys(v.ifaces)) {
+			out = append(out, v.ifaces[i])
 		}
 		return out, nil
 	})

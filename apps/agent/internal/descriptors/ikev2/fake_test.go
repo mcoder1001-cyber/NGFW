@@ -8,7 +8,8 @@ package ikev2_test
 
 import (
 	"bytes"
-	"sort"
+	"maps"
+	"slices"
 
 	"go.fd.io/govpp/api"
 
@@ -60,14 +61,9 @@ func newFakeVPP() *fakeVPP {
 	}
 	get := func(name string) (*fakeProfile, bool) { p, ok := v.profiles[name]; return p, ok }
 	v.On("sw_interface_dump", func(api.Message) ([]api.Message, error) {
-		idx := make([]int, 0, len(v.ifaces))
-		for i := range v.ifaces {
-			idx = append(idx, int(i))
-		}
-		sort.Ints(idx)
-		out := make([]api.Message, 0, len(idx))
-		for _, i := range idx {
-			out = append(out, v.ifaces[uint32(i)])
+		out := make([]api.Message, 0, len(v.ifaces))
+		for _, i := range slices.Sorted(maps.Keys(v.ifaces)) {
+			out = append(out, v.ifaces[i])
 		}
 		return out, nil
 	})
@@ -98,7 +94,7 @@ func newFakeVPP() *fakeVPP {
 		if r.AuthMethod == 1 {
 			data = append(data, 0) // rsa-sig: vec_add1 (p->auth.data, 0)
 		}
-		p.p.Auth = ikev2_types.Ikev2Auth{Method: r.AuthMethod, DataLen: uint32(len(data)), Data: data}
+		p.p.Auth = ikev2_types.Ikev2Auth{Method: r.AuthMethod, DataLen: uint32(len(data)), Data: data} //nolint:gosec // ≤ 1025
 		return []api.Message{&ikev2.Ikev2ProfileSetAuthReply{}}, nil
 	})
 	v.On("ikev2_profile_set_id", func(req api.Message) ([]api.Message, error) {
@@ -107,7 +103,7 @@ func newFakeVPP() *fakeVPP {
 		if !ok || (r.IDType != 1 && r.IDType != 2 && r.IDType != 3 && r.IDType != 5) {
 			return []api.Message{&ikev2.Ikev2ProfileSetIDReply{Retval: rvUnspecified}}, nil
 		}
-		id := ikev2_types.Ikev2ID{Type: r.IDType, DataLen: uint8(len(r.Data))}
+		id := ikev2_types.Ikev2ID{Type: r.IDType, DataLen: uint8(len(r.Data))} //nolint:gosec // ≤ 63, checked by the descriptor
 		if r.IsLocal {
 			p.p.LocID, p.locData = id, append([]byte(nil), r.Data...)
 		} else {

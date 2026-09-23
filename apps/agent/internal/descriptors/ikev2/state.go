@@ -130,7 +130,7 @@ func zeroKeys(k *ikev2_types.Ikev2Keys) {
 }
 
 func idState(id ikev2_types.Ikev2ID) *IDState {
-	v := decodeID(id, nil)
+	v := decodeID(id)
 	if v == nil {
 		return nil
 	}

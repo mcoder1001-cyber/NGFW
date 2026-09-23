@@ -1,7 +1,7 @@
 // Package ikev2 holds the reconciler descriptors for VPP's native IKEv2 plugin (ikev2.api): the
-// composite responder/initiator profile, the plugin-wide local key, sleep interval and liveness
-// singletons, plus a read-only SA state helper (sa.go) and thin action helpers (actions.go) that
-// the VPN F-* tasks call. Desired-state types are in internal/descriptors/vpn/pb; the secret
+// composite responder/initiator profile and its write-only responder hostname, the plugin-wide
+// local key, sleep interval and liveness singletons, plus a read-only SA state helper (state.go)
+// and thin action helpers (actions.go) that the VPN F-* tasks call. Desired-state types are in internal/descriptors/vpn/pb; the secret
 // contract (PSK references) is in internal/descriptors/vpn. Object ↔ message table:
 // docs/agent/descriptors/ikev2.md.
 //
@@ -28,6 +28,8 @@ const (
 	LocalKeyName      = "ikev2.local-key"
 	SleepIntervalName = "ikev2.sleep-interval"
 	LivenessName      = "ikev2.liveness"
+	// ResponderHostnameName is the write-only responder-by-hostname part of a profile.
+	ResponderHostnameName = "ikev2.responder-hostname"
 )
 
 // Config is what every descriptor of the package is constructed with.
@@ -55,9 +57,9 @@ func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...Option) 
 }
 
 // All returns the package's descriptors in registration order (singletons first: a profile with
-// rsa-sig auth depends on the local key).
+// rsa-sig auth depends on the local key; the responder hostname depends on its profile).
 func All(cfg Config) []scheduler.Descriptor {
-	return []scheduler.Descriptor{NewLocalKey(cfg), NewSleepInterval(cfg), NewLiveness(cfg), NewProfile(cfg)}
+	return []scheduler.Descriptor{NewLocalKey(cfg), NewSleepInterval(cfg), NewLiveness(cfg), NewProfile(cfg), NewResponderHostname(cfg)}
 }
 
 // ---- value tables ---------------------------------------------------------------------------

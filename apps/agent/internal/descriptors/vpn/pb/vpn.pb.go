@@ -379,8 +379,8 @@ func (x *IpsecTunnel) GetEncapDecapFlags() []string {
 }
 
 // IpsecSa is a security association (ipsec_sad_entry_add_v2 / ipsec_sad_entry_del, dump
-// ipsec_sa_v5_dump). Key: ipsec.sa/<sad_id>. Only the tunnel and the UDP ports can change in place
-// (ipsec_sad_entry_update); every other change is ErrRecreate.
+// ipsec_sa_v5_dump). Key: ipsec.sa/<sad_id>. Immutable: every change (including a new key
+// reference) is ErrRecreate; ipsec_sad_entry_update is not used.
 type IpsecSa struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	SadId     uint32                 `protobuf:"varint,1,opt,name=sad_id,json=sadId,proto3" json:"sad_id,omitempty"`
@@ -734,7 +734,7 @@ func (x *IpsecBackend) GetName() string {
 }
 
 // IpsecAsyncMode toggles asynchronous crypto (ipsec_set_async_mode). Global singleton without a
-// getter: key ipsec.async-mode/global; Retrieve reports the last value this process applied.
+// getter: key ipsec.async-mode/global; write-only (D-063, Retrieve returns ErrRetrieveUnsupported).
 type IpsecAsyncMode struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
@@ -967,11 +967,12 @@ func (x *Ikev2Ts) GetEndAddr() string {
 	return ""
 }
 
+// Ikev2Responder is the responder address (ikev2_set_responder). A responder given by hostname is
+// the separate write-only Ikev2ResponderHostname: VPP does not dump the hostname (D-063).
 type Ikev2Responder struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Interface     string                 `protobuf:"bytes,1,opt,name=interface,proto3" json:"interface,omitempty"` // interface the responder address is on (interface/<name>, Optional)
-	Address       string                 `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`     // responder IP (ikev2_set_responder) ...
-	Hostname      string                 `protobuf:"bytes,3,opt,name=hostname,proto3" json:"hostname,omitempty"`   // ... or a hostname (ikev2_set_responder_hostname); one of the two
+	Address       string                 `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`     // responder IP
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1016,13 +1017,6 @@ func (x *Ikev2Responder) GetInterface() string {
 func (x *Ikev2Responder) GetAddress() string {
 	if x != nil {
 		return x.Address
-	}
-	return ""
-}
-
-func (x *Ikev2Responder) GetHostname() string {
-	if x != nil {
-		return x.Hostname
 	}
 	return ""
 }
@@ -1382,8 +1376,71 @@ func (x *Ikev2Profile) GetNattDisabled() bool {
 	return false
 }
 
+// Ikev2ResponderHostname points a profile's responder at a hostname (ikev2_set_responder_hostname).
+// VPP does not dump the hostname, so this is write-only (D-063): Retrieve returns
+// ErrRetrieveUnsupported. Key: ikev2.responder-hostname/<profile>.
+type Ikev2ResponderHostname struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Profile       string                 `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`     // desired profile name (ikev2.profile/<profile> dependency)
+	Interface     string                 `protobuf:"bytes,2,opt,name=interface,proto3" json:"interface,omitempty"` // interface to resolve / send from (interface/<name>, Optional); "" = none
+	Hostname      string                 `protobuf:"bytes,3,opt,name=hostname,proto3" json:"hostname,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Ikev2ResponderHostname) Reset() {
+	*x = Ikev2ResponderHostname{}
+	mi := &file_vpn_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Ikev2ResponderHostname) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Ikev2ResponderHostname) ProtoMessage() {}
+
+func (x *Ikev2ResponderHostname) ProtoReflect() protoreflect.Message {
+	mi := &file_vpn_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Ikev2ResponderHostname.ProtoReflect.Descriptor instead.
+func (*Ikev2ResponderHostname) Descriptor() ([]byte, []int) {
+	return file_vpn_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *Ikev2ResponderHostname) GetProfile() string {
+	if x != nil {
+		return x.Profile
+	}
+	return ""
+}
+
+func (x *Ikev2ResponderHostname) GetInterface() string {
+	if x != nil {
+		return x.Interface
+	}
+	return ""
+}
+
+func (x *Ikev2ResponderHostname) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
 // Ikev2LocalKey is the responder's private key file (ikev2_set_local_key). Global singleton without
-// a getter: key ikev2.local-key/global; Retrieve reports the last value this process applied.
+// a getter: key ikev2.local-key/global; write-only (D-063, Retrieve returns ErrRetrieveUnsupported).
 type Ikev2LocalKey struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	KeyFile       string                 `protobuf:"bytes,1,opt,name=key_file,json=keyFile,proto3" json:"key_file,omitempty"` // path on the VPP host; the file itself is the secret, never read by the agent
@@ -1393,7 +1450,7 @@ type Ikev2LocalKey struct {
 
 func (x *Ikev2LocalKey) Reset() {
 	*x = Ikev2LocalKey{}
-	mi := &file_vpn_proto_msgTypes[17]
+	mi := &file_vpn_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1405,7 +1462,7 @@ func (x *Ikev2LocalKey) String() string {
 func (*Ikev2LocalKey) ProtoMessage() {}
 
 func (x *Ikev2LocalKey) ProtoReflect() protoreflect.Message {
-	mi := &file_vpn_proto_msgTypes[17]
+	mi := &file_vpn_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1418,7 +1475,7 @@ func (x *Ikev2LocalKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ikev2LocalKey.ProtoReflect.Descriptor instead.
 func (*Ikev2LocalKey) Descriptor() ([]byte, []int) {
-	return file_vpn_proto_rawDescGZIP(), []int{17}
+	return file_vpn_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Ikev2LocalKey) GetKeyFile() string {
@@ -1439,7 +1496,7 @@ type Ikev2SleepInterval struct {
 
 func (x *Ikev2SleepInterval) Reset() {
 	*x = Ikev2SleepInterval{}
-	mi := &file_vpn_proto_msgTypes[18]
+	mi := &file_vpn_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1451,7 +1508,7 @@ func (x *Ikev2SleepInterval) String() string {
 func (*Ikev2SleepInterval) ProtoMessage() {}
 
 func (x *Ikev2SleepInterval) ProtoReflect() protoreflect.Message {
-	mi := &file_vpn_proto_msgTypes[18]
+	mi := &file_vpn_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1464,7 +1521,7 @@ func (x *Ikev2SleepInterval) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ikev2SleepInterval.ProtoReflect.Descriptor instead.
 func (*Ikev2SleepInterval) Descriptor() ([]byte, []int) {
-	return file_vpn_proto_rawDescGZIP(), []int{18}
+	return file_vpn_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Ikev2SleepInterval) GetSeconds() float64 {
@@ -1476,8 +1533,8 @@ func (x *Ikev2SleepInterval) GetSeconds() float64 {
 
 // Ikev2Liveness is the plugin-wide dead-peer-detection setting (ikev2_profile_set_liveness: despite
 // the name the message carries no profile, VPP stores it in ikev2_main). Global singleton without a
-// getter: key ikev2.liveness/global; Retrieve reports the last value this process applied; Delete
-// leaves VPP as it is.
+// getter: key ikev2.liveness/global; write-only (D-063, Retrieve returns ErrRetrieveUnsupported);
+// Delete leaves VPP as it is.
 type Ikev2Liveness struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Period        uint32                 `protobuf:"varint,1,opt,name=period,proto3" json:"period,omitempty"`                           // seconds, > 0
@@ -1488,7 +1545,7 @@ type Ikev2Liveness struct {
 
 func (x *Ikev2Liveness) Reset() {
 	*x = Ikev2Liveness{}
-	mi := &file_vpn_proto_msgTypes[19]
+	mi := &file_vpn_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1500,7 +1557,7 @@ func (x *Ikev2Liveness) String() string {
 func (*Ikev2Liveness) ProtoMessage() {}
 
 func (x *Ikev2Liveness) ProtoReflect() protoreflect.Message {
-	mi := &file_vpn_proto_msgTypes[19]
+	mi := &file_vpn_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1513,7 +1570,7 @@ func (x *Ikev2Liveness) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ikev2Liveness.ProtoReflect.Descriptor instead.
 func (*Ikev2Liveness) Descriptor() ([]byte, []int) {
-	return file_vpn_proto_rawDescGZIP(), []int{19}
+	return file_vpn_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *Ikev2Liveness) GetPeriod() uint32 {
@@ -1545,7 +1602,7 @@ type WireguardInterface struct {
 
 func (x *WireguardInterface) Reset() {
 	*x = WireguardInterface{}
-	mi := &file_vpn_proto_msgTypes[20]
+	mi := &file_vpn_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1557,7 +1614,7 @@ func (x *WireguardInterface) String() string {
 func (*WireguardInterface) ProtoMessage() {}
 
 func (x *WireguardInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_vpn_proto_msgTypes[20]
+	mi := &file_vpn_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1570,7 +1627,7 @@ func (x *WireguardInterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireguardInterface.ProtoReflect.Descriptor instead.
 func (*WireguardInterface) Descriptor() ([]byte, []int) {
-	return file_vpn_proto_rawDescGZIP(), []int{20}
+	return file_vpn_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *WireguardInterface) GetInstance() uint32 {
@@ -1619,7 +1676,7 @@ type WireguardPeer struct {
 
 func (x *WireguardPeer) Reset() {
 	*x = WireguardPeer{}
-	mi := &file_vpn_proto_msgTypes[21]
+	mi := &file_vpn_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1631,7 +1688,7 @@ func (x *WireguardPeer) String() string {
 func (*WireguardPeer) ProtoMessage() {}
 
 func (x *WireguardPeer) ProtoReflect() protoreflect.Message {
-	mi := &file_vpn_proto_msgTypes[21]
+	mi := &file_vpn_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1644,7 +1701,7 @@ func (x *WireguardPeer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireguardPeer.ProtoReflect.Descriptor instead.
 func (*WireguardPeer) Descriptor() ([]byte, []int) {
-	return file_vpn_proto_rawDescGZIP(), []int{21}
+	return file_vpn_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *WireguardPeer) GetInterface() string {
@@ -1704,8 +1761,8 @@ func (x *WireguardPeer) GetPresharedKey() string {
 }
 
 // WireguardAsyncMode toggles asynchronous WireGuard crypto (wg_set_async_mode). Global singleton
-// without a getter: key wireguard.async-mode/global; Retrieve reports the last value this process
-// applied.
+// without a getter: key wireguard.async-mode/global; write-only (D-063, Retrieve returns
+// ErrRetrieveUnsupported).
 type WireguardAsyncMode struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
@@ -1715,7 +1772,7 @@ type WireguardAsyncMode struct {
 
 func (x *WireguardAsyncMode) Reset() {
 	*x = WireguardAsyncMode{}
-	mi := &file_vpn_proto_msgTypes[22]
+	mi := &file_vpn_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1727,7 +1784,7 @@ func (x *WireguardAsyncMode) String() string {
 func (*WireguardAsyncMode) ProtoMessage() {}
 
 func (x *WireguardAsyncMode) ProtoReflect() protoreflect.Message {
-	mi := &file_vpn_proto_msgTypes[22]
+	mi := &file_vpn_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1740,7 +1797,7 @@ func (x *WireguardAsyncMode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireguardAsyncMode.ProtoReflect.Descriptor instead.
 func (*WireguardAsyncMode) Descriptor() ([]byte, []int) {
-	return file_vpn_proto_rawDescGZIP(), []int{22}
+	return file_vpn_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *WireguardAsyncMode) GetEnabled() bool {
@@ -1836,11 +1893,10 @@ const file_vpn_proto_rawDesc = "" +
 	"\bend_port\x18\x03 \x01(\rR\aendPort\x12\x1d\n" +
 	"\n" +
 	"start_addr\x18\x04 \x01(\tR\tstartAddr\x12\x19\n" +
-	"\bend_addr\x18\x05 \x01(\tR\aendAddr\"d\n" +
+	"\bend_addr\x18\x05 \x01(\tR\aendAddr\"N\n" +
 	"\x0eIkev2Responder\x12\x1c\n" +
 	"\tinterface\x18\x01 \x01(\tR\tinterface\x12\x18\n" +
-	"\aaddress\x18\x02 \x01(\tR\aaddress\x12\x1a\n" +
-	"\bhostname\x18\x03 \x01(\tR\bhostname\"\xac\x01\n" +
+	"\aaddress\x18\x02 \x01(\tR\aaddressJ\x04\b\x03\x10\x04\"\xac\x01\n" +
 	"\x12Ikev2IkeTransforms\x12\x1d\n" +
 	"\n" +
 	"crypto_alg\x18\x01 \x01(\tR\tcryptoAlg\x12&\n" +
@@ -1873,7 +1929,11 @@ const file_vpn_proto_rawDesc = "" +
 	"\tudp_encap\x18\v \x01(\bR\budpEncap\x12-\n" +
 	"\x13ipsec_over_udp_port\x18\f \x01(\rR\x10ipsecOverUdpPort\x12)\n" +
 	"\x10tunnel_interface\x18\r \x01(\tR\x0ftunnelInterface\x12#\n" +
-	"\rnatt_disabled\x18\x0e \x01(\bR\fnattDisabled\"*\n" +
+	"\rnatt_disabled\x18\x0e \x01(\bR\fnattDisabled\"l\n" +
+	"\x16Ikev2ResponderHostname\x12\x18\n" +
+	"\aprofile\x18\x01 \x01(\tR\aprofile\x12\x1c\n" +
+	"\tinterface\x18\x02 \x01(\tR\tinterface\x12\x1a\n" +
+	"\bhostname\x18\x03 \x01(\tR\bhostname\"*\n" +
 	"\rIkev2LocalKey\x12\x19\n" +
 	"\bkey_file\x18\x01 \x01(\tR\akeyFile\".\n" +
 	"\x12Ikev2SleepInterval\x12\x18\n" +
@@ -1914,31 +1974,32 @@ func file_vpn_proto_rawDescGZIP() []byte {
 	return file_vpn_proto_rawDescData
 }
 
-var file_vpn_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_vpn_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_vpn_proto_goTypes = []any{
-	(*IpsecSpd)(nil),           // 0: vrx.agent.vpn.v1.IpsecSpd
-	(*IpsecSpdInterface)(nil),  // 1: vrx.agent.vpn.v1.IpsecSpdInterface
-	(*IpsecSpdEntry)(nil),      // 2: vrx.agent.vpn.v1.IpsecSpdEntry
-	(*IpsecTunnel)(nil),        // 3: vrx.agent.vpn.v1.IpsecTunnel
-	(*IpsecSa)(nil),            // 4: vrx.agent.vpn.v1.IpsecSa
-	(*IpsecTunnelProtect)(nil), // 5: vrx.agent.vpn.v1.IpsecTunnelProtect
-	(*IpsecItf)(nil),           // 6: vrx.agent.vpn.v1.IpsecItf
-	(*IpsecBackend)(nil),       // 7: vrx.agent.vpn.v1.IpsecBackend
-	(*IpsecAsyncMode)(nil),     // 8: vrx.agent.vpn.v1.IpsecAsyncMode
-	(*Ikev2Auth)(nil),          // 9: vrx.agent.vpn.v1.Ikev2Auth
-	(*Ikev2Id)(nil),            // 10: vrx.agent.vpn.v1.Ikev2Id
-	(*Ikev2Ts)(nil),            // 11: vrx.agent.vpn.v1.Ikev2Ts
-	(*Ikev2Responder)(nil),     // 12: vrx.agent.vpn.v1.Ikev2Responder
-	(*Ikev2IkeTransforms)(nil), // 13: vrx.agent.vpn.v1.Ikev2IkeTransforms
-	(*Ikev2EspTransforms)(nil), // 14: vrx.agent.vpn.v1.Ikev2EspTransforms
-	(*Ikev2Lifetime)(nil),      // 15: vrx.agent.vpn.v1.Ikev2Lifetime
-	(*Ikev2Profile)(nil),       // 16: vrx.agent.vpn.v1.Ikev2Profile
-	(*Ikev2LocalKey)(nil),      // 17: vrx.agent.vpn.v1.Ikev2LocalKey
-	(*Ikev2SleepInterval)(nil), // 18: vrx.agent.vpn.v1.Ikev2SleepInterval
-	(*Ikev2Liveness)(nil),      // 19: vrx.agent.vpn.v1.Ikev2Liveness
-	(*WireguardInterface)(nil), // 20: vrx.agent.vpn.v1.WireguardInterface
-	(*WireguardPeer)(nil),      // 21: vrx.agent.vpn.v1.WireguardPeer
-	(*WireguardAsyncMode)(nil), // 22: vrx.agent.vpn.v1.WireguardAsyncMode
+	(*IpsecSpd)(nil),               // 0: vrx.agent.vpn.v1.IpsecSpd
+	(*IpsecSpdInterface)(nil),      // 1: vrx.agent.vpn.v1.IpsecSpdInterface
+	(*IpsecSpdEntry)(nil),          // 2: vrx.agent.vpn.v1.IpsecSpdEntry
+	(*IpsecTunnel)(nil),            // 3: vrx.agent.vpn.v1.IpsecTunnel
+	(*IpsecSa)(nil),                // 4: vrx.agent.vpn.v1.IpsecSa
+	(*IpsecTunnelProtect)(nil),     // 5: vrx.agent.vpn.v1.IpsecTunnelProtect
+	(*IpsecItf)(nil),               // 6: vrx.agent.vpn.v1.IpsecItf
+	(*IpsecBackend)(nil),           // 7: vrx.agent.vpn.v1.IpsecBackend
+	(*IpsecAsyncMode)(nil),         // 8: vrx.agent.vpn.v1.IpsecAsyncMode
+	(*Ikev2Auth)(nil),              // 9: vrx.agent.vpn.v1.Ikev2Auth
+	(*Ikev2Id)(nil),                // 10: vrx.agent.vpn.v1.Ikev2Id
+	(*Ikev2Ts)(nil),                // 11: vrx.agent.vpn.v1.Ikev2Ts
+	(*Ikev2Responder)(nil),         // 12: vrx.agent.vpn.v1.Ikev2Responder
+	(*Ikev2IkeTransforms)(nil),     // 13: vrx.agent.vpn.v1.Ikev2IkeTransforms
+	(*Ikev2EspTransforms)(nil),     // 14: vrx.agent.vpn.v1.Ikev2EspTransforms
+	(*Ikev2Lifetime)(nil),          // 15: vrx.agent.vpn.v1.Ikev2Lifetime
+	(*Ikev2Profile)(nil),           // 16: vrx.agent.vpn.v1.Ikev2Profile
+	(*Ikev2ResponderHostname)(nil), // 17: vrx.agent.vpn.v1.Ikev2ResponderHostname
+	(*Ikev2LocalKey)(nil),          // 18: vrx.agent.vpn.v1.Ikev2LocalKey
+	(*Ikev2SleepInterval)(nil),     // 19: vrx.agent.vpn.v1.Ikev2SleepInterval
+	(*Ikev2Liveness)(nil),          // 20: vrx.agent.vpn.v1.Ikev2Liveness
+	(*WireguardInterface)(nil),     // 21: vrx.agent.vpn.v1.WireguardInterface
+	(*WireguardPeer)(nil),          // 22: vrx.agent.vpn.v1.WireguardPeer
+	(*WireguardAsyncMode)(nil),     // 23: vrx.agent.vpn.v1.WireguardAsyncMode
 }
 var file_vpn_proto_depIdxs = []int32{
 	3,  // 0: vrx.agent.vpn.v1.IpsecSa.tunnel:type_name -> vrx.agent.vpn.v1.IpsecTunnel
@@ -1969,7 +2030,7 @@ func file_vpn_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vpn_proto_rawDesc), len(file_vpn_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

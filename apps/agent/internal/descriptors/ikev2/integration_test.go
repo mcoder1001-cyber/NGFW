@@ -14,6 +14,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -25,6 +26,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	ikev2d "ngfw/agent/internal/descriptors/ikev2"
+	"ngfw/agent/internal/descriptors/vpn"
 	vpnpb "ngfw/agent/internal/descriptors/vpn/pb"
 	"ngfw/agent/internal/descriptors/vpn/vpntest"
 	"ngfw/agent/internal/scheduler"
@@ -107,8 +109,8 @@ func TestIkev2OnHost(t *testing.T) {
 	}
 	certFile, keyFile := throwawayRSA(t, dir)
 
-	respIf, _ := vpntest.Loopback(t, ctx, c, owner, 2)
-	tunIf, _ := vpntest.Loopback(t, ctx, c, owner, 3)
+	respIf, _ := vpntest.Loopback(ctx, t, c, owner, 2)
+	tunIf, _ := vpntest.Loopback(ctx, t, c, owner, 3)
 
 	profile, localKey := ikev2d.NewProfile(cfg), ikev2d.NewLocalKey(cfg)
 	sleep, liveness := ikev2d.NewSleepInterval(cfg), ikev2d.NewLiveness(cfg)
@@ -125,14 +127,14 @@ func TestIkev2OnHost(t *testing.T) {
 	if _, err := liveness.Create(ctx, live); err != nil {
 		t.Fatal(err)
 	}
-	mustRetrieveEqual(t, liveness, live)
+	mustBeWriteOnly(t, liveness)
 
 	// ---- ikev2.local-key: throwaway key under /run/vrx-test/<prefix>/ ----
 	lk := &vpnpb.Ikev2LocalKey{KeyFile: keyFile}
 	if _, err := localKey.Create(ctx, lk); err != nil {
 		t.Fatal(err)
 	}
-	mustRetrieveEqual(t, localKey, lk)
+	mustBeWriteOnly(t, localKey)
 
 	// ---- ikev2.profile: psk, every part set ----
 	psk := &vpnpb.Ikev2Profile{
@@ -155,7 +157,7 @@ func TestIkev2OnHost(t *testing.T) {
 	t.Cleanup(func() { _ = profile.Delete(vpntest.Context(t), psk, meta) })
 	t.Logf("profile meta: %+v", meta)
 	mustRetrieveEqual(t, profile, psk)
-	// a fresh descriptor (≈ agent restart: no cache) retrieves the same value
+	// a fresh descriptor (≈ agent restart) retrieves the same value: nothing is cached
 	mustRetrieveEqual(t, ikev2d.NewProfile(cfg), psk)
 
 	// update in place: new remote id, new ESP transforms, new port
@@ -171,12 +173,11 @@ func TestIkev2OnHost(t *testing.T) {
 		t.Fatalf("removing parts must be ErrRecreate, got %v", err)
 	}
 
-	// ---- ikev2.profile: rsa-sig with a hostname responder (hostname bridged by the cache) ----
+	// ---- ikev2.profile: rsa-sig; ikev2.responder-hostname on it (write-only, D-063) ----
 	rsaP := &vpnpb.Ikev2Profile{
-		Name:      "df5-rsa",
-		Auth:      &vpnpb.Ikev2Auth{Method: "rsa-sig", CertFile: certFile},
-		LocalId:   &vpnpb.Ikev2Id{Type: "ip4", Value: vpntest.SlotAddr(t, 5, 1)},
-		Responder: &vpnpb.Ikev2Responder{Interface: respIf, Hostname: "peer." + owner + ".vrx.test"},
+		Name:    "df5-rsa",
+		Auth:    &vpnpb.Ikev2Auth{Method: "rsa-sig", CertFile: certFile},
+		LocalId: &vpnpb.Ikev2Id{Type: "ip4", Value: vpntest.SlotAddr(t, 5, 1)},
 	}
 	rsaMeta, err := profile.Create(ctx, rsaP)
 	if err != nil {
@@ -184,6 +185,15 @@ func TestIkev2OnHost(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = profile.Delete(vpntest.Context(t), rsaP, rsaMeta) })
 	mustRetrieveEqual(t, profile, rsaP)
+	hostname := ikev2d.NewResponderHostname(cfg)
+	hn := &vpnpb.Ikev2ResponderHostname{Profile: rsaP.Name, Interface: respIf, Hostname: "peer." + owner + ".vrx.test"}
+	for i := 0; i < 2; i++ { // idempotent: the reconciler re-applies write-only objects on resync
+		if _, err := hostname.Create(ctx, hn); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mustBeWriteOnly(t, hostname)
+	mustRetrieveEqual(t, profile, rsaP) // the hostname does not change the profile's value
 
 	// ---- SA state helper: no peer, so no SA of ours ----
 	sas, err := ikev2d.SAs(ctx, c, owner)
@@ -209,13 +219,18 @@ func TestIkev2OnHost(t *testing.T) {
 		}
 		t.Logf("%s: %s gone after Delete", profile.Name(), profile.KeyOf(p.v))
 	}
-	for _, d := range []scheduler.Descriptor{localKey, liveness} {
+	for _, d := range []scheduler.Descriptor{localKey, liveness, hostname} {
 		if err := d.Delete(ctx, nil, nil); err != nil {
 			t.Fatal(err)
 		}
-		if kvs, _ := d.Retrieve(ctx); len(kvs) != 0 {
-			t.Fatalf("%s: still retrieved after Delete", d.Name())
-		}
-		t.Logf("%s: forgotten after Delete (plugin-wide, VPP keeps the value)", d.Name())
+		t.Logf("%s: Delete is a no-op (write-only; plugin-wide or gone with its profile)", d.Name())
 	}
+}
+
+func mustBeWriteOnly(t *testing.T, d scheduler.Descriptor) {
+	t.Helper()
+	if kvs, err := d.Retrieve(vpntest.Context(t)); !errors.Is(err, vpn.ErrRetrieveUnsupported) || kvs != nil {
+		t.Fatalf("%s: Retrieve must be unsupported (D-063), got %v %v", d.Name(), kvs, err)
+	}
+	t.Logf("%s: applied; write-only (Retrieve: %s)", d.Name(), vpn.ErrRetrieveUnsupported)
 }

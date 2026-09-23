@@ -57,7 +57,7 @@ func Context(t testing.TB) context.Context {
 
 // Loopback creates loop<slot><ii> (vpptest.LoopbackInstance(t, i)) tagged "<owner>:<name>" and
 // deletes it in Cleanup. It returns the VPP name and sw_if_index.
-func Loopback(t testing.TB, ctx context.Context, c vpp.Client, owner string, i int) (string, interface_types.InterfaceIndex) {
+func Loopback(ctx context.Context, t testing.TB, c vpp.Client, owner string, i int) (string, interface_types.InterfaceIndex) {
 	t.Helper()
 	inst := vpptest.LoopbackInstance(t, i)
 	svc := interfaces.NewServiceClient(c)
@@ -78,7 +78,7 @@ func Loopback(t testing.TB, ctx context.Context, c vpp.Client, owner string, i i
 // Ipip creates a p2p ipip tunnel (instance in the slot's numeric range, endpoints in the slot's
 // 10.<slot>.0.0/16) tagged "<owner>:ipip<instance>" and deletes it in Cleanup. It is the fixture
 // tunnel-protect attaches to until DF-6's ipip descriptor is merged.
-func Ipip(t testing.TB, ctx context.Context, c vpp.Client, owner string, instance uint32, src, dst string) (string, interface_types.InterfaceIndex) {
+func Ipip(ctx context.Context, t testing.TB, c vpp.Client, owner string, instance uint32, src, dst string) (string, interface_types.InterfaceIndex) {
 	t.Helper()
 	s, err := vpn.ParseAddress(src)
 	if err != nil {

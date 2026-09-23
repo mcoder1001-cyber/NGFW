@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/netip"
 	"strings"
-	"sync"
 
 	"google.golang.org/protobuf/proto"
 
@@ -31,26 +30,25 @@ import (
 // interface, or switching udp_encap or natt_disabled back off, returns ErrRecreate.
 //
 // Secrets: the PSK is a reference; ikev2_profile_dump returns the PSK in clear, Retrieve hashes it
-// into the reference and zeroes the buffer. Two VPP gaps are bridged with a per-process cache of
-// what this descriptor applied (see docs/agent/descriptors/ikev2.md): the responder hostname is not
-// dumped, and govpp decodes id data (string[64]) only up to the first NUL byte, so an ip4/ip6 id
-// with a zero octet comes back truncated.
-type Profile struct {
-	cfg   Config
-	mu    sync.Mutex
-	cache map[string]*vpnpb.Ikev2Profile // VPP profile name → last applied desired value
-}
+// into the reference and zeroes the buffer.
+//
+// Retrieve reports only what VPP dumps (D-063: no cached desired state). Two consequences, see
+// docs/agent/descriptors/ikev2.md: a responder given by hostname is the separate write-only
+// descriptor ikev2.responder-hostname (VPP does not dump the hostname), and ip4/ip6 ids whose
+// bytes contain a zero followed by a non-zero byte (10.4.0.1) are refused, because govpp decodes
+// id.data (string[64]) only up to the first NUL and such an id could never be retrieved exactly.
+type Profile struct{ cfg Config }
 
 // ProfileMeta is the runtime handle of a profile: its VPP name.
 type ProfileMeta struct{ VPPName string }
 
 // NewProfile returns the descriptor.
-func NewProfile(cfg Config) *Profile {
-	return &Profile{cfg: cfg, cache: map[string]*vpnpb.Ikev2Profile{}}
-}
+func NewProfile(cfg Config) *Profile { return &Profile{cfg: cfg} }
 
 // VPPName is the VPP profile name of the desired profile name: "<owner>-<name>".
-func (d *Profile) VPPName(name string) string { return d.cfg.Owner + "-" + name }
+func (d *Profile) VPPName(name string) string { return vppName(d.cfg.Owner, name) }
+
+func vppName(owner, name string) string { return owner + "-" + name }
 
 // Name implements scheduler.Descriptor.
 func (*Profile) Name() string { return ProfileName }
@@ -67,10 +65,10 @@ func (*Profile) Dependencies(obj proto.Message) []scheduler.Dependency {
 	o, _ := obj.(*vpnpb.Ikev2Profile)
 	var deps []scheduler.Dependency
 	if i := o.GetResponder().GetInterface(); i != "" {
-		deps = append(deps, scheduler.Dependency{Key: vpn.InterfaceDependency(i), Optional: true})
+		deps = append(deps, scheduler.Dependency{Key: vpn.InterfaceKey(i), Optional: true})
 	}
 	if i := o.GetTunnelInterface(); i != "" {
-		deps = append(deps, scheduler.Dependency{Key: vpn.InterfaceDependency(i), Optional: true})
+		deps = append(deps, scheduler.Dependency{Key: vpn.InterfaceKey(i), Optional: true})
 	}
 	if o.GetAuth().GetMethod() == AuthRSASig {
 		deps = append(deps, scheduler.Dependency{Key: LocalKeyKey, Optional: true})
@@ -99,7 +97,6 @@ func (d *Profile) Create(ctx context.Context, obj proto.Message) (any, error) {
 		_, _ = svc.Ikev2ProfileAddDel(ctx, &ikev2.Ikev2ProfileAddDel{Name: name, IsAdd: false})
 		return nil, err
 	}
-	d.remember(name, o)
 	return ProfileMeta{VPPName: name}, nil
 }
 
@@ -126,7 +123,6 @@ func (d *Profile) Update(ctx context.Context, oldObj, newObj proto.Message, meta
 	if err := d.apply(ctx, name, o, n); err != nil {
 		return nil, err
 	}
-	d.remember(name, n)
 	return ProfileMeta{VPPName: name}, nil
 }
 
@@ -143,9 +139,6 @@ func (d *Profile) Delete(ctx context.Context, obj proto.Message, meta any) error
 	if _, err := ikev2.NewServiceClient(d.cfg.Client).Ikev2ProfileAddDel(ctx, &ikev2.Ikev2ProfileAddDel{Name: name, IsAdd: false}); err != nil {
 		return fmt.Errorf("ikev2_profile_add_del (%s, del): %w", name, err)
 	}
-	d.mu.Lock()
-	delete(d.cache, name)
-	d.mu.Unlock()
 	return nil
 }
 
@@ -185,10 +178,7 @@ func (d *Profile) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	}
 	out := make([]scheduler.KV, 0, len(dumped))
 	for i := range dumped {
-		d.mu.Lock()
-		cached := d.cache[dumped[i].Name]
-		d.mu.Unlock()
-		v := decodeProfile(&dumped[i], strings.TrimPrefix(dumped[i].Name, d.cfg.Owner+"-"), tbl, cached)
+		v := decodeProfile(&dumped[i], strings.TrimPrefix(dumped[i].Name, d.cfg.Owner+"-"), tbl)
 		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: ProfileMeta{VPPName: dumped[i].Name}})
 	}
 	sortKVs(out)
@@ -204,16 +194,6 @@ func (d *Profile) checkName(n string) (string, error) {
 		return "", fmt.Errorf("ikev2: profile name %q is longer than 63 bytes", name)
 	}
 	return name, nil
-}
-
-func (d *Profile) remember(name string, o *vpnpb.Ikev2Profile) {
-	c := proto.Clone(o).(*vpnpb.Ikev2Profile)
-	if c.Auth != nil {
-		c.Auth.Psk = "" // the cache only bridges the hostname and truncated ids
-	}
-	d.mu.Lock()
-	d.cache[name] = c
-	d.mu.Unlock()
 }
 
 // validate checks everything that can be checked without VPP.
@@ -249,16 +229,12 @@ func validate(o *vpnpb.Ikev2Profile) error {
 		}
 	}
 	if r := o.GetResponder(); r != nil {
-		if (r.GetAddress() == "") == (r.GetHostname() == "") {
-			return errors.New("ikev2: responder needs exactly one of address and hostname")
+		a, err := vpn.ParseAddress(r.GetAddress())
+		if err != nil {
+			return fmt.Errorf("ikev2: responder needs an address (a hostname is ikev2.responder-hostname): %w", err)
 		}
-		if r.GetAddress() != "" {
-			if _, err := vpn.ParseAddress(r.GetAddress()); err != nil {
-				return err
-			}
-		}
-		if len(r.GetHostname()) > 63 {
-			return errors.New("ikev2: responder hostname longer than 63 bytes")
+		if vpn.IsUnspecified(a) {
+			return errors.New("ikev2: responder address must not be unspecified")
 		}
 	}
 	if t := o.GetIke(); t != nil {
@@ -353,15 +329,9 @@ func (d *Profile) apply(ctx context.Context, name string, o, n *vpnpb.Ikev2Profi
 		if err != nil {
 			return err
 		}
-		if r.GetHostname() != "" {
-			if _, err := svc.Ikev2SetResponderHostname(ctx, &ikev2.Ikev2SetResponderHostname{Name: name, Hostname: r.GetHostname(), SwIfIndex: idx}); err != nil {
-				return fmt.Errorf("ikev2_set_responder_hostname (%s): %w", name, err)
-			}
-		} else {
-			addr, _ := vpn.ParseAddress(r.GetAddress()) // validated
-			if _, err := svc.Ikev2SetResponder(ctx, &ikev2.Ikev2SetResponder{Name: name, Responder: ikev2_types.Ikev2Responder{SwIfIndex: idx, Addr: addr}}); err != nil {
-				return fmt.Errorf("ikev2_set_responder (%s): %w", name, err)
-			}
+		addr, _ := vpn.ParseAddress(r.GetAddress()) // validated
+		if _, err := svc.Ikev2SetResponder(ctx, &ikev2.Ikev2SetResponder{Name: name, Responder: ikev2_types.Ikev2Responder{SwIfIndex: idx, Addr: addr}}); err != nil {
+			return fmt.Errorf("ikev2_set_responder (%s): %w", name, err)
 		}
 	}
 	if t := n.GetIke(); changed(o.GetIke(), t, t != nil) {
@@ -467,6 +437,11 @@ func encodeID(id *vpnpb.Ikev2Id) ([]byte, error) {
 			return nil, fmt.Errorf("ikev2: id %s %q: wrong address family", id.GetType(), id.GetValue())
 		}
 		data = a.AsSlice()
+		if z := bytes.IndexByte(data, 0); z >= 0 && strings.Trim(string(data[z:]), "\x00") != "" {
+			return nil, fmt.Errorf("ikev2: id %s %q cannot be retrieved exactly: VPP dumps id data as string[64] and the "+
+				"decoder stops at the first zero byte (10.4.0.1 → 10.4); use an address without a zero byte "+
+				"followed by a non-zero byte, or an fqdn id", id.GetType(), id.GetValue())
+		}
 	case idKeyID:
 		return nil, errors.New("ikev2: id type key-id is not supported by VPP 26.06 (ikev2_profile_set_id accepts ip4, ip6, fqdn, rfc822)")
 	default:
@@ -478,11 +453,9 @@ func encodeID(id *vpnpb.Ikev2Id) ([]byte, error) {
 	return data, nil
 }
 
-// decodeID is the inverse of encodeID. govpp cuts id.data at the first NUL, so an address whose
-// bytes contain zero arrives short: the missing tail is taken from the cached desired id when its
-// encoding extends what VPP returned, otherwise zero-filled (which then shows as drift and is
-// repaired by an idempotent Update).
-func decodeID(id ikev2_types.Ikev2ID, cached *vpnpb.Ikev2Id) *vpnpb.Ikev2Id {
+// decodeID is the inverse of encodeID. govpp cuts id.data at the first NUL; encodeID admits only
+// addresses whose bytes after the first zero are all zero, so zero-filling to data_len is exact.
+func decodeID(id ikev2_types.Ikev2ID) *vpnpb.Ikev2Id {
 	if id.Type == 0 {
 		return nil
 	}
@@ -497,17 +470,9 @@ func decodeID(id ikev2_types.Ikev2ID, cached *vpnpb.Ikev2Id) *vpnpb.Ikev2Id {
 		if id.Type == idIP6 {
 			want = 16
 		}
-		if len(data) < want {
-			full := make([]byte, want)
-			copy(full, data)
-			if cached != nil && cached.GetType() == out.Type {
-				if enc, err := encodeID(cached); err == nil && len(enc) == want && bytes.HasPrefix(enc, data) {
-					full = enc
-				}
-			}
-			data = full
-		}
-		a, _ := netip.AddrFromSlice(data[:want])
+		full := make([]byte, want)
+		copy(full, data)
+		a, _ := netip.AddrFromSlice(full)
 		out.Value = a.String()
 	default:
 		out.Value = string(data)
@@ -600,12 +565,12 @@ func decodeEsp(t ikev2_types.Ikev2EspTransforms) *vpnpb.Ikev2EspTransforms {
 
 // decodeProfile turns a dumped profile into the desired shape. The PSK is hashed into its
 // reference and the dump buffer zeroed before this function returns.
-func decodeProfile(p *ikev2_types.Ikev2Profile, name string, tbl *vpn.Interfaces, cached *vpnpb.Ikev2Profile) *vpnpb.Ikev2Profile {
+func decodeProfile(p *ikev2_types.Ikev2Profile, name string, tbl *vpn.Interfaces) *vpnpb.Ikev2Profile {
 	defer vpn.Zero(p.Auth.Data)
 	v := &vpnpb.Ikev2Profile{
 		Name:         name,
-		LocalId:      decodeID(p.LocID, cached.GetLocalId()),
-		RemoteId:     decodeID(p.RemID, cached.GetRemoteId()),
+		LocalId:      decodeID(p.LocID),
+		RemoteId:     decodeID(p.RemID),
 		LocalTs:      decodeTs(p.LocTs),
 		RemoteTs:     decodeTs(p.RemTs),
 		Ike:          decodeIke(p.IkeTs),
@@ -632,18 +597,14 @@ func decodeProfile(p *ikev2_types.Ikev2Profile, name string, tbl *vpn.Interfaces
 	if p.TunItf != noInterface && tbl != nil {
 		v.TunnelInterface = tbl.Name(p.TunItf)
 	}
-	respIf := ""
-	if idx := uint32(p.Responder.SwIfIndex); idx != noInterface && tbl != nil {
-		respIf = tbl.Name(idx)
-	}
-	switch {
-	case cached.GetResponder().GetHostname() != "":
-		// not dumped by VPP: trust what this process applied (the interface is dumped)
-		v.Responder = &vpnpb.Ikev2Responder{Interface: respIf, Hostname: cached.GetResponder().GetHostname()}
-	case !vpn.IsUnspecified(p.Responder.Addr):
-		v.Responder = &vpnpb.Ikev2Responder{Interface: respIf, Address: vpn.AddressString(p.Responder.Addr)}
-	case respIf != "":
-		v.Responder = &vpnpb.Ikev2Responder{Interface: respIf} // hostname set by an earlier process
+	// the responder is reported when VPP has an address for it; a hostname responder (address
+	// unspecified, only the interface set by ikev2_set_responder_hostname) belongs to the write-only
+	// ikev2.responder-hostname descriptor and is not part of the profile's value
+	if !vpn.IsUnspecified(p.Responder.Addr) {
+		v.Responder = &vpnpb.Ikev2Responder{Address: vpn.AddressString(p.Responder.Addr)}
+		if idx := uint32(p.Responder.SwIfIndex); idx != noInterface && tbl != nil {
+			v.Responder.Interface = tbl.Name(idx)
+		}
 	}
 	return v
 }

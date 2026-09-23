@@ -72,8 +72,8 @@ message IpsecTunnel {
 }
 
 // IpsecSa is a security association (ipsec_sad_entry_add_v2 / ipsec_sad_entry_del, dump
-// ipsec_sa_v5_dump). Key: ipsec.sa/<sad_id>. Only the tunnel and the UDP ports can change in place
-// (ipsec_sad_entry_update); every other change is ErrRecreate.
+// ipsec_sa_v5_dump). Key: ipsec.sa/<sad_id>. Immutable: every change (including a new key
+// reference) is ErrRecreate; ipsec_sad_entry_update is not used.
 message IpsecSa {
   uint32 sad_id = 1;
   uint32 spi = 2;
@@ -120,7 +120,7 @@ message IpsecBackend {
 }
 
 // IpsecAsyncMode toggles asynchronous crypto (ipsec_set_async_mode). Global singleton without a
-// getter: key ipsec.async-mode/global; Retrieve reports the last value this process applied.
+// getter: key ipsec.async-mode/global; write-only (D-063, Retrieve returns ErrRetrieveUnsupported).
 message IpsecAsyncMode {
   bool enabled = 1;
 }
@@ -146,10 +146,12 @@ message Ikev2Ts {
   string end_addr = 5;
 }
 
+// Ikev2Responder is the responder address (ikev2_set_responder). A responder given by hostname is
+// the separate write-only Ikev2ResponderHostname: VPP does not dump the hostname (D-063).
 message Ikev2Responder {
   string interface = 1;  // interface the responder address is on (interface/<name>, Optional)
-  string address = 2;    // responder IP (ikev2_set_responder) ...
-  string hostname = 3;   // ... or a hostname (ikev2_set_responder_hostname); one of the two
+  string address = 2;    // responder IP
+  reserved 3;            // was hostname
 }
 
 message Ikev2IkeTransforms {
@@ -193,8 +195,17 @@ message Ikev2Profile {
   bool natt_disabled = 14;          // can only be switched on in place; off = ErrRecreate
 }
 
+// Ikev2ResponderHostname points a profile's responder at a hostname (ikev2_set_responder_hostname).
+// VPP does not dump the hostname, so this is write-only (D-063): Retrieve returns
+// ErrRetrieveUnsupported. Key: ikev2.responder-hostname/<profile>.
+message Ikev2ResponderHostname {
+  string profile = 1;    // desired profile name (ikev2.profile/<profile> dependency)
+  string interface = 2;  // interface to resolve / send from (interface/<name>, Optional); "" = none
+  string hostname = 3;
+}
+
 // Ikev2LocalKey is the responder's private key file (ikev2_set_local_key). Global singleton without
-// a getter: key ikev2.local-key/global; Retrieve reports the last value this process applied.
+// a getter: key ikev2.local-key/global; write-only (D-063, Retrieve returns ErrRetrieveUnsupported).
 message Ikev2LocalKey {
   string key_file = 1;  // path on the VPP host; the file itself is the secret, never read by the agent
 }
@@ -207,8 +218,8 @@ message Ikev2SleepInterval {
 
 // Ikev2Liveness is the plugin-wide dead-peer-detection setting (ikev2_profile_set_liveness: despite
 // the name the message carries no profile, VPP stores it in ikev2_main). Global singleton without a
-// getter: key ikev2.liveness/global; Retrieve reports the last value this process applied; Delete
-// leaves VPP as it is.
+// getter: key ikev2.liveness/global; write-only (D-063, Retrieve returns ErrRetrieveUnsupported);
+// Delete leaves VPP as it is.
 message Ikev2Liveness {
   uint32 period = 1;       // seconds, > 0
   uint32 max_retries = 2;  // > 0
@@ -240,8 +251,8 @@ message WireguardPeer {
 }
 
 // WireguardAsyncMode toggles asynchronous WireGuard crypto (wg_set_async_mode). Global singleton
-// without a getter: key wireguard.async-mode/global; Retrieve reports the last value this process
-// applied.
+// without a getter: key wireguard.async-mode/global; write-only (D-063, Retrieve returns
+// ErrRetrieveUnsupported).
 message WireguardAsyncMode {
   bool enabled = 1;
 }

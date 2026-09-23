@@ -71,7 +71,7 @@ func TestRegister(t *testing.T) {
 	reg := scheduler.NewRegistry()
 	ikev2d.Register(reg, newFakeVPP(), owner, ikev2d.WithSecrets(secrets))
 	// singletons first (an rsa-sig profile depends on the local key), the profile last
-	want := []string{ikev2d.LocalKeyName, ikev2d.SleepIntervalName, ikev2d.LivenessName, ikev2d.ProfileName}
+	want := []string{ikev2d.LocalKeyName, ikev2d.SleepIntervalName, ikev2d.LivenessName, ikev2d.ProfileName, ikev2d.ResponderHostnameName}
 	if got := reg.Names(); strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Fatalf("registered %v, want %v", got, want)
 	}
@@ -249,7 +249,7 @@ func TestProfileValidation(t *testing.T) {
 		"bad method":      {Name: "p", Auth: &vpnpb.Ikev2Auth{Method: "eap"}},
 		"psk w/o ref":     {Name: "p", Auth: &vpnpb.Ikev2Auth{Method: "psk"}},
 		"rsa w/o cert":    {Name: "p", Auth: &vpnpb.Ikev2Auth{Method: "rsa-sig"}},
-		"responder both":  {Name: "p", Responder: &vpnpb.Ikev2Responder{Address: "10.4.0.1", Hostname: "h"}},
+		"responder any":   {Name: "p", Responder: &vpnpb.Ikev2Responder{Address: "0.0.0.0"}},
 		"responder none":  {Name: "p", Responder: &vpnpb.Ikev2Responder{Interface: "loop401"}},
 		"ts mixed af":     {Name: "p", LocalTs: &vpnpb.Ikev2Ts{StartAddr: "10.4.0.0", EndAddr: "fd00::"}},
 		"bad ike alg":     {Name: "p", Ike: &vpnpb.Ikev2IkeTransforms{CryptoAlg: "rot13", IntegAlg: "none", PrfAlg: "hmac-sha1", DhGroup: "none"}},
@@ -281,45 +281,72 @@ func TestProfileOwnershipAndSecretsInDump(t *testing.T) {
 	mustRetrieve(t, d, &vpnpb.Ikev2Profile{Name: "mine"})
 }
 
-// TestIDWithZeroOctet covers govpp cutting id.data at the first NUL: 10.4.0.1 arrives as 10.4.
+// TestIDWithZeroOctet covers govpp cutting id.data at the first NUL: an address whose bytes after
+// the first zero are all zero round-trips exactly; one with a non-zero byte after a zero (10.4.0.1)
+// could never be retrieved exactly and is refused (D-063: no cached desired state to paper over it).
 func TestIDWithZeroOctet(t *testing.T) {
 	v := newFakeVPP()
 	d := ikev2d.NewProfile(newCfg(v))
-	p := &vpnpb.Ikev2Profile{Name: "zero", LocalId: &vpnpb.Ikev2Id{Type: "ip4", Value: "10.4.0.1"},
-		RemoteId: &vpnpb.Ikev2Id{Type: "ip6", Value: "fd00::1"}}
-	if _, err := d.Create(ctx, p); err != nil {
+	for _, bad := range []*vpnpb.Ikev2Id{{Type: "ip4", Value: "10.4.0.1"}, {Type: "ip4", Value: "10.0.4.4"}, {Type: "ip6", Value: "fd00::1"}} {
+		_, err := d.Create(ctx, &vpnpb.Ikev2Profile{Name: "zero", LocalId: bad})
+		if err == nil || !strings.Contains(err.Error(), "first zero byte") {
+			t.Fatalf("%s must be refused with the reason, got %v", bad.GetValue(), err)
+		}
+	}
+	if len(v.profiles) != 0 {
+		t.Fatal("refused before anything reached VPP")
+	}
+	ok := &vpnpb.Ikev2Profile{Name: "zero", LocalId: &vpnpb.Ikev2Id{Type: "ip4", Value: "10.4.0.0"},
+		RemoteId: &vpnpb.Ikev2Id{Type: "ip6", Value: "fd00::"}}
+	if _, err := d.Create(ctx, ok); err != nil {
 		t.Fatal(err)
 	}
-	mustRetrieve(t, d, p) // bridged by this process' cache
-	// after a restart the tail is unknown: zero-filled, shows as drift, Update re-applies in place
-	fresh := ikev2d.NewProfile(newCfg(v))
-	kvs, _ := fresh.Retrieve(ctx)
-	got := kvs[0].Value.(*vpnpb.Ikev2Profile)
-	if got.GetLocalId().GetValue() != "10.4.0.0" || got.GetRemoteId().GetValue() != "fd00::" {
-		t.Fatalf("zero-filled ids: %v", got)
-	}
-	if _, err := fresh.Update(ctx, got, p, kvs[0].Meta); err != nil {
-		t.Fatal(err)
-	}
-	mustRetrieve(t, fresh, p)
+	mustRetrieve(t, d, ok) // zero-filled to data_len: exact
 }
 
-func TestProfileHostnameResponder(t *testing.T) {
+func TestResponderHostname(t *testing.T) {
 	v := newFakeVPP()
-	d := ikev2d.NewProfile(newCfg(v))
-	p := &vpnpb.Ikev2Profile{Name: "h", Responder: &vpnpb.Ikev2Responder{Interface: "loop401", Hostname: "peer.vrx.test"}}
+	cfg := newCfg(v)
+	d, h := ikev2d.NewProfile(cfg), ikev2d.NewResponderHostname(cfg)
+	p := &vpnpb.Ikev2Profile{Name: "h"}
 	if _, err := d.Create(ctx, p); err != nil {
 		t.Fatal(err)
 	}
+	hn := &vpnpb.Ikev2ResponderHostname{Profile: "h", Interface: "loop401", Hostname: "peer.vrx.test"}
+	if h.KeyOf(hn) != "ikev2.responder-hostname/h" {
+		t.Fatalf("key %s", h.KeyOf(hn))
+	}
+	want := []scheduler.Dependency{{Key: "ikev2.profile/h"}, {Key: "interface/loop401", Optional: true}}
+	if fmt.Sprint(h.Dependencies(hn)) != fmt.Sprint(want) {
+		t.Fatalf("deps %v", h.Dependencies(hn))
+	}
+	for i := 0; i < 2; i++ { // idempotent: re-applied on every resync
+		if _, err := h.Create(ctx, hn); err != nil {
+			t.Fatal(err)
+		}
+	}
 	r := v.CallsNamed("ikev2_set_responder_hostname")[0].(*ikev2.Ikev2SetResponderHostname)
-	if r.Hostname != "peer.vrx.test" || r.SwIfIndex != 1 {
+	if r.Name != "w4-h" || r.Hostname != "peer.vrx.test" || r.SwIfIndex != 1 {
 		t.Fatalf("set_responder_hostname %+v", r)
 	}
+	// D-063: write-only — the hostname is not dumped and never echoed
+	if kvs, err := h.Retrieve(ctx); !errors.Is(err, vpn.ErrRetrieveUnsupported) || kvs != nil {
+		t.Fatalf("Retrieve: %v %v", kvs, err)
+	}
+	// the profile's value is unaffected (sw_if_index set, address unspecified → no responder)
 	mustRetrieve(t, d, p)
-	// restart: the hostname is not dumped; the interface is
-	kvs, _ := ikev2d.NewProfile(newCfg(v)).Retrieve(ctx)
-	if got := kvs[0].Value.(*vpnpb.Ikev2Profile).GetResponder(); got.GetInterface() != "loop401" || got.GetHostname() != "" {
-		t.Fatalf("responder after restart %v", got)
+	if err := h.Delete(ctx, hn, nil); err != nil {
+		t.Fatal(err)
+	}
+	for name, bad := range map[string]*vpnpb.Ikev2ResponderHostname{
+		"no profile":   {Hostname: "x"},
+		"no hostname":  {Profile: "h"},
+		"too long":     {Profile: "h", Hostname: strings.Repeat("h", 64)},
+		"no interface": {Profile: "h", Hostname: "x", Interface: "loop999"},
+	} {
+		if _, err := h.Create(ctx, bad); err == nil {
+			t.Fatalf("%s: Create must fail", name)
+		}
 	}
 }
 
@@ -335,7 +362,7 @@ func TestProfileRSASigAndDependencies(t *testing.T) {
 	deps := d.Dependencies(p)
 	want := []scheduler.Dependency{
 		{Key: "interface/loop401", Optional: true},
-		{Key: "ipsec.itf/ipsec4001", Optional: true},
+		{Key: "interface/ipsec4001", Optional: true}, // D-065 alias, provided by ipsec.itf
 		{Key: ikev2d.LocalKeyKey, Optional: true},
 	}
 	if fmt.Sprint(deps) != fmt.Sprint(want) {
@@ -380,26 +407,35 @@ func TestSingletons(t *testing.T) {
 		t.Fatal("0 s must be refused")
 	}
 
-	mustRetrieve(t, live) // nothing applied by this process yet
+	// D-063: liveness and the local key have no getter → write-only, never an echo
+	for _, d := range []scheduler.Descriptor{live, lk} {
+		if kvs, err := d.Retrieve(ctx); !errors.Is(err, vpn.ErrRetrieveUnsupported) || kvs != nil {
+			t.Fatalf("%s Retrieve: %v %v", d.Name(), kvs, err)
+		}
+	}
 	if _, err := live.Create(ctx, &vpnpb.Ikev2Liveness{Period: 10, MaxRetries: 5}); err != nil {
 		t.Fatal(err)
 	}
 	if v.liveness != [2]uint32{10, 5} {
 		t.Fatalf("liveness %v", v.liveness)
 	}
-	mustRetrieve(t, live, &vpnpb.Ikev2Liveness{Period: 10, MaxRetries: 5})
 	if _, err := live.Create(ctx, &vpnpb.Ikev2Liveness{Period: 10}); err == nil {
 		t.Fatal("max_retries 0 must be refused")
 	}
-	_ = live.Delete(ctx, nil, nil)
-	mustRetrieve(t, live)
-
 	if _, err := lk.Create(ctx, &vpnpb.Ikev2LocalKey{KeyFile: "/run/vrx-test/w4/k.pem"}); err != nil {
 		t.Fatal(err)
 	}
-	mustRetrieve(t, lk, &vpnpb.Ikev2LocalKey{KeyFile: "/run/vrx-test/w4/k.pem"})
+	if v.localKey != "/run/vrx-test/w4/k.pem" {
+		t.Fatalf("local key %q", v.localKey)
+	}
 	if _, err := lk.Create(ctx, &vpnpb.Ikev2LocalKey{}); err == nil {
 		t.Fatal("empty path must be refused")
+	}
+	if _, err := live.Retrieve(ctx); !errors.Is(err, vpn.ErrRetrieveUnsupported) {
+		t.Fatal("still write-only after Create")
+	}
+	if live.Delete(ctx, nil, nil) != nil || lk.Delete(ctx, nil, nil) != nil || v.liveness != [2]uint32{10, 5} {
+		t.Fatal("Delete leaves VPP alone")
 	}
 	for _, d := range []scheduler.Descriptor{sleep, live, lk} {
 		if d.KeyOf(nil) != scheduler.Join(d.Name(), "global") || d.Dependencies(nil) != nil {
@@ -484,7 +520,7 @@ func TestNoMaterialInOutput(t *testing.T) {
 	log := slog.New(slog.NewJSONHandler(&buf, nil))
 	log.Info("profile", "desired", p, "key", d.KeyOf(p), "meta", meta, "retrieved", kvs, "err", errDup, "err2", errAuth)
 	fmt.Fprintf(&buf, "%v %+v %s %v %v %+v %+v", p, kvs, d.KeyOf(p), meta, errDup, errAuth, d)
-	for _, enc := range []string{string(psk), fmt.Sprint(psk), fmt.Sprintf("%x", psk)} {
+	for _, enc := range []string{string(psk), fmt.Sprintf("%d", psk), fmt.Sprintf("%x", psk)} {
 		if strings.Contains(buf.String(), enc) {
 			t.Fatalf("PSK leaked into formatted output:\n%s", buf.String())
 		}

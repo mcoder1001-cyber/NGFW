@@ -40,6 +40,14 @@ func (*Itf) KeyOf(obj proto.Message) scheduler.Key {
 // Dependencies implements scheduler.Descriptor (none).
 func (*Itf) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 
+// ProvidedKeys lets the ipsec interface satisfy the cross-plugin alias interface/ipsec<instance>
+// (D-065; P05's optional KeyProvider extension), so tunnel-protect, SPD bindings and IKEv2 profiles
+// that reference it by name order after it.
+func (*Itf) ProvidedKeys(obj proto.Message) []scheduler.Key {
+	o, _ := obj.(*vpnpb.IpsecItf)
+	return []scheduler.Key{vpn.InterfaceKey(ItfInterfaceName(o.GetInstance()))}
+}
+
 // Create implements scheduler.Descriptor.
 func (d *Itf) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*vpnpb.IpsecItf)

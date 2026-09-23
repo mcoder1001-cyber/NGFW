@@ -44,7 +44,7 @@ func (*TunnelProtect) KeyOf(obj proto.Message) scheduler.Key {
 func (*TunnelProtect) Dependencies(obj proto.Message) []scheduler.Dependency {
 	o, _ := obj.(*vpnpb.IpsecTunnelProtect)
 	deps := []scheduler.Dependency{
-		{Key: vpn.InterfaceDependency(o.GetInterface())},
+		{Key: vpn.InterfaceKey(o.GetInterface())},
 		{Key: scheduler.Join(SaName, vpn.Uint(o.GetSaOut()))},
 	}
 	for _, in := range o.GetSaIn() {

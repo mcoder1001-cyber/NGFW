@@ -45,6 +45,14 @@ func (*Interface) KeyOf(obj proto.Message) scheduler.Key {
 // docs/agent/descriptors/wireguard.md); VPP accepts a src_ip that is not (yet) configured.
 func (*Interface) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 
+// ProvidedKeys lets the WireGuard interface satisfy the cross-plugin alias interface/wg<instance>
+// (D-065; P05's optional KeyProvider extension), so peers and anything else referencing it by
+// name order after it.
+func (*Interface) ProvidedKeys(obj proto.Message) []scheduler.Key {
+	o, _ := obj.(*vpnpb.WireguardInterface)
+	return []scheduler.Key{vpn.InterfaceKey(ItfName(o.GetInstance()))}
+}
+
 // Create implements scheduler.Descriptor.
 func (d *Interface) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*vpnpb.WireguardInterface)

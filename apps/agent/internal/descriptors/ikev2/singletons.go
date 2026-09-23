@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/ikev2"
+	"ngfw/agent/internal/descriptors/vpn"
 	vpnpb "ngfw/agent/internal/descriptors/vpn/pb"
 	"ngfw/agent/internal/scheduler"
 )
@@ -21,47 +21,13 @@ var (
 	LivenessKey      = scheduler.Join(LivenessName, "global")
 )
 
-// lastApplied is the "Retrieve reports what this process applied" cache of a singleton VPP
-// offers no getter for. After an agent restart it is empty, so the scheduler re-applies the
-// desired value once — the setters are idempotent.
-type lastApplied[T proto.Message] struct {
-	mu sync.Mutex
-	v  T
-	ok bool
-}
-
-func (l *lastApplied[T]) set(v T) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.v, l.ok = proto.Clone(v).(T), true
-}
-
-func (l *lastApplied[T]) forget() {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	var zero T
-	l.v, l.ok = zero, false
-}
-
-func (l *lastApplied[T]) kvs(key scheduler.Key) []scheduler.KV {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if !l.ok {
-		return nil
-	}
-	return []scheduler.KV{{Key: key, Value: proto.Clone(l.v)}}
-}
-
 // ---- ikev2.local-key ------------------------------------------------------------------------
 
 // LocalKey sets the responder's private key file (ikev2_set_local_key), needed by profiles with
 // rsa-sig auth. The file is the secret: the agent passes its path and never reads it. VPP has no
-// getter; Retrieve reports the last path this process applied, Delete forgets it (VPP keeps the
-// loaded key — there is no "unset").
-type LocalKey struct {
-	cfg  Config
-	last lastApplied[*vpnpb.Ikev2LocalKey]
-}
+// getter, so the descriptor is write-only (D-063): Retrieve returns vpn.ErrRetrieveUnsupported and
+// the reconciler re-applies the path on resync. Delete leaves VPP's loaded key (there is no unset).
+type LocalKey struct{ cfg Config }
 
 // NewLocalKey returns the descriptor.
 func NewLocalKey(cfg Config) *LocalKey { return &LocalKey{cfg: cfg} }
@@ -87,7 +53,6 @@ func (d *LocalKey) Create(ctx context.Context, obj proto.Message) (any, error) {
 	if _, err := ikev2.NewServiceClient(d.cfg.Client).Ikev2SetLocalKey(ctx, &ikev2.Ikev2SetLocalKey{KeyFile: o.GetKeyFile()}); err != nil {
 		return nil, fmt.Errorf("ikev2_set_local_key (%s): %w", o.GetKeyFile(), err)
 	}
-	d.last.set(o)
 	return nil, nil
 }
 
@@ -96,15 +61,12 @@ func (d *LocalKey) Update(ctx context.Context, _, newObj proto.Message, _ any) (
 	return d.Create(ctx, newObj)
 }
 
-// Delete implements scheduler.Descriptor (forgets the cached value only).
-func (d *LocalKey) Delete(context.Context, proto.Message, any) error {
-	d.last.forget()
-	return nil
-}
+// Delete implements scheduler.Descriptor: a no-op (see the type doc).
+func (*LocalKey) Delete(context.Context, proto.Message, any) error { return nil }
 
-// Retrieve implements scheduler.Descriptor.
-func (d *LocalKey) Retrieve(context.Context) ([]scheduler.KV, error) {
-	return d.last.kvs(LocalKeyKey), nil
+// Retrieve implements scheduler.Descriptor: VPP has no getter (D-063, write-only).
+func (*LocalKey) Retrieve(context.Context) ([]scheduler.KV, error) {
+	return nil, fmt.Errorf("%s: %w", LocalKeyName, vpn.ErrRetrieveUnsupported)
 }
 
 // ---- ikev2.sleep-interval -------------------------------------------------------------------
@@ -160,12 +122,9 @@ func (d *SleepInterval) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 // ---- ikev2.liveness -------------------------------------------------------------------------
 
 // Liveness sets the plugin-wide dead-peer detection (ikev2_profile_set_liveness — the message has
-// no profile name, VPP keeps the values in ikev2_main). No getter: Retrieve reports the last value
-// this process applied, Delete forgets it.
-type Liveness struct {
-	cfg  Config
-	last lastApplied[*vpnpb.Ikev2Liveness]
-}
+// no profile name, VPP keeps the values in ikev2_main). No getter: write-only (D-063), Retrieve
+// returns vpn.ErrRetrieveUnsupported; Delete leaves VPP as it is.
+type Liveness struct{ cfg Config }
 
 // NewLiveness returns the descriptor.
 func NewLiveness(cfg Config) *Liveness { return &Liveness{cfg: cfg} }
@@ -193,7 +152,6 @@ func (d *Liveness) Create(ctx context.Context, obj proto.Message) (any, error) {
 	}); err != nil {
 		return nil, fmt.Errorf("ikev2_profile_set_liveness: %w", err)
 	}
-	d.last.set(o)
 	return nil, nil
 }
 
@@ -202,13 +160,10 @@ func (d *Liveness) Update(ctx context.Context, _, newObj proto.Message, _ any) (
 	return d.Create(ctx, newObj)
 }
 
-// Delete implements scheduler.Descriptor (forgets the cached value only).
-func (d *Liveness) Delete(context.Context, proto.Message, any) error {
-	d.last.forget()
-	return nil
-}
+// Delete implements scheduler.Descriptor: a no-op (see the type doc).
+func (*Liveness) Delete(context.Context, proto.Message, any) error { return nil }
 
-// Retrieve implements scheduler.Descriptor.
-func (d *Liveness) Retrieve(context.Context) ([]scheduler.KV, error) {
-	return d.last.kvs(LivenessKey), nil
+// Retrieve implements scheduler.Descriptor: VPP has no getter (D-063, write-only).
+func (*Liveness) Retrieve(context.Context) ([]scheduler.KV, error) {
+	return nil, fmt.Errorf("%s: %w", LivenessName, vpn.ErrRetrieveUnsupported)
 }

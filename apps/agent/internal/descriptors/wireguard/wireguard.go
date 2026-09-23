@@ -20,7 +20,7 @@ import (
 
 // Descriptor names.
 const (
-	InterfaceName = vpn.WireguardItfDescriptor // "wireguard.interface"
+	InterfaceName = "wireguard.interface"
 	PeerName      = "wireguard.peer"
 	AsyncModeName = "wireguard.async-mode"
 )

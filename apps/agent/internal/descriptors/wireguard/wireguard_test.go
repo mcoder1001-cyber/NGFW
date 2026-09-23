@@ -73,7 +73,7 @@ func TestRegister(t *testing.T) {
 	if got := strings.Join(reg.Names(), ","); got != "wireguard.interface,wireguard.peer,wireguard.async-mode" {
 		t.Fatalf("registered %s", got)
 	}
-	if p == nil || p.Name() != wgd.PeerName || wgd.InterfaceName != vpn.WireguardItfDescriptor {
+	if p == nil || p.Name() != wgd.PeerName || wgd.InterfaceName != "wireguard.interface" {
 		t.Fatal("Register returns the peer descriptor (event source)")
 	}
 }
@@ -83,6 +83,10 @@ func TestInterface(t *testing.T) {
 	want := e.itfV()
 	if e.itf.KeyOf(want) != "wireguard.interface/wg4001" || e.itf.Dependencies(want) != nil {
 		t.Fatalf("key/deps %s", e.itf.KeyOf(want))
+	}
+	// D-065: peers reference the interface by its alias, which the interface provides
+	if pk := e.itf.ProvidedKeys(want); len(pk) != 1 || pk[0] != e.peer.Dependencies(e.peerV())[0].Key {
+		t.Fatalf("provided %v", pk)
 	}
 	meta, err := e.itf.Create(ctx, want)
 	if err != nil {
@@ -151,7 +155,7 @@ func TestPeer(t *testing.T) {
 		t.Fatalf("key %s", got)
 	}
 	deps := e.peer.Dependencies(want)
-	if fmt.Sprint(deps) != fmt.Sprint([]scheduler.Dependency{{Key: "wireguard.interface/wg4001"}, {Key: "vrf/4001", Optional: true}}) {
+	if fmt.Sprint(deps) != fmt.Sprint([]scheduler.Dependency{{Key: "interface/wg4001"}, {Key: "vrf/4001", Optional: true}}) {
 		t.Fatalf("deps %v", deps)
 	}
 	meta, err := e.peer.Create(ctx, want)
@@ -315,21 +319,24 @@ func TestPeerEvents(t *testing.T) {
 func TestAsyncMode(t *testing.T) {
 	v := newFakeVPP()
 	d := wgd.NewAsyncMode(wgd.Config{Client: v, Owner: owner})
-	mustRetrieve(t, d)
+	// D-063: no getter → write-only, never an echo of what was applied
+	if kvs, err := d.Retrieve(ctx); !errors.Is(err, vpn.ErrRetrieveUnsupported) || kvs != nil {
+		t.Fatalf("Retrieve: %v %v", kvs, err)
+	}
 	if _, err := d.Create(ctx, &vpnpb.WireguardAsyncMode{Enabled: true}); err != nil {
 		t.Fatal(err)
 	}
-	mustRetrieve(t, d, &vpnpb.WireguardAsyncMode{Enabled: true})
+	if _, err := d.Retrieve(ctx); !errors.Is(err, vpn.ErrRetrieveUnsupported) {
+		t.Fatal("still write-only after Create")
+	}
 	if _, err := d.Update(ctx, nil, &vpnpb.WireguardAsyncMode{}, nil); err != nil {
 		t.Fatal(err)
 	}
 	if fmt.Sprint(v.async) != "[true false]" || d.KeyOf(nil) != "wireguard.async-mode/global" {
 		t.Fatalf("calls %v", v.async)
 	}
-	_ = d.Delete(ctx, nil, nil)
-	mustRetrieve(t, d)
-	if len(v.async) != 2 {
-		t.Fatal("Delete must only forget the cached value")
+	if err := d.Delete(ctx, nil, nil); err != nil || len(v.async) != 2 {
+		t.Fatal("Delete leaves VPP alone")
 	}
 }
 
@@ -354,7 +361,7 @@ func TestNoMaterialInOutput(t *testing.T) {
 	log.Info("wg", "itf", e.itfV(), "peer", e.peerV(), "metas", []any{im, pm}, "retrieved", append(ikvs, pkvs...), "err", errDup, "err2", errItf)
 	fmt.Fprintf(&buf, "%v %+v %+v %v %v %+v %+v", e.peerV(), ikvs, pkvs, errDup, errItf, e.itf, e.peer)
 	for _, secret := range [][]byte{e.vec.itfPriv, e.vec.psk} {
-		for _, enc := range []string{string(secret), fmt.Sprint(secret), fmt.Sprintf("%x", secret)} {
+		for _, enc := range []string{string(secret), fmt.Sprintf("%d", secret), fmt.Sprintf("%x", secret)} {
 			if strings.Contains(buf.String(), enc) {
 				t.Fatalf("key material leaked into formatted output:\n%s", buf.String())
 			}

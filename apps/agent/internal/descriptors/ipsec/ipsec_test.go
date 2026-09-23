@@ -181,7 +181,7 @@ func spdEntry(prio int32, dir, action string, sa uint32) *vpnpb.IpsecSpdEntry {
 func TestSpdEntry(t *testing.T) {
 	v := newFakeVPP()
 	v.spds[4001], v.spds[3001] = 1, 2
-	v.policies[3001] = []ipsec_typesSpdEntryV2{{SpdID: 3001, Priority: 1, Protocol: 255}}
+	v.policies[3001] = []ipsecSpdEntryV2Alias{{SpdID: 3001, Priority: 1, Protocol: 255}}
 	d := ipsecd.NewSpdEntry(newCfg(v))
 	bypass := spdEntry(10, "outbound", "bypass", 0)
 	protect := spdEntry(20, "inbound", "protect", 4001)
@@ -242,8 +242,6 @@ func TestSpdEntry(t *testing.T) {
 		t.Fatal("foreign policy touched")
 	}
 }
-
-type ipsec_typesSpdEntryV2 = ipsecSpdEntryV2Alias
 
 func transportSA() *vpnpb.IpsecSa {
 	return &vpnpb.IpsecSa{
@@ -389,11 +387,11 @@ func TestTunnelProtect(t *testing.T) {
 	if len(deps) != 3 || deps[0].Key != "interface/ipip4001" || deps[1].Key != "ipsec.sa/4001" || deps[2].Key != "ipsec.sa/4002" {
 		t.Fatalf("deps %+v", deps)
 	}
-	// an ipsec interface created by ipsec.itf is depended on by that descriptor's key
+	// D-065: an ipsec interface is referenced by the alias interface/ipsec<N>, which ipsec.itf provides
 	itf := ipsecd.NewItf(newCfg(v))
 	onItf := &vpnpb.IpsecTunnelProtect{Interface: ipsecd.ItfInterfaceName(4001), SaOut: 4001, SaIn: []uint32{4002}}
-	if deps := d.Dependencies(onItf); deps[0].Key != itf.KeyOf(&vpnpb.IpsecItf{Instance: 4001}) || vpn.IpsecItfDescriptor != itf.Name() {
-		t.Fatalf("deps on ipsec itf %+v", deps)
+	if deps, provided := d.Dependencies(onItf), itf.ProvidedKeys(&vpnpb.IpsecItf{Instance: 4001}); deps[0].Key != "interface/ipsec4001" || len(provided) != 1 || provided[0] != deps[0].Key {
+		t.Fatalf("deps on ipsec itf %+v, provided %v", deps, provided)
 	}
 	if _, err := d.Create(ctx, &vpnpb.IpsecTunnelProtect{Interface: "ipip4001", SaOut: 4001}); err == nil {
 		t.Fatal("no sa_in must be refused")
@@ -511,8 +509,9 @@ func TestBackend(t *testing.T) {
 func TestAsyncMode(t *testing.T) {
 	v := newFakeVPP()
 	d := ipsecd.NewAsyncMode(newCfg(v))
-	if kvs, err := d.Retrieve(ctx); err != nil || len(kvs) != 0 {
-		t.Fatalf("unknown state must retrieve nothing: %+v %v", kvs, err)
+	// D-063: no getter → write-only, never an echo of what was applied
+	if kvs, err := d.Retrieve(ctx); !errors.Is(err, vpn.ErrRetrieveUnsupported) || len(kvs) != 0 {
+		t.Fatalf("Retrieve must be unsupported: %+v %v", kvs, err)
 	}
 	on := &vpnpb.IpsecAsyncMode{Enabled: true}
 	if d.KeyOf(on) != "ipsec.async-mode/global" {
@@ -521,19 +520,20 @@ func TestAsyncMode(t *testing.T) {
 	if _, err := d.Create(ctx, on); err != nil {
 		t.Fatal(err)
 	}
-	kvs, _ := d.Retrieve(ctx)
-	mustEqual(t, kvs, on)
+	if _, err := d.Create(ctx, on); err != nil {
+		t.Fatal("Create must be idempotent (re-applied on every resync)")
+	}
+	if _, err := d.Retrieve(ctx); !errors.Is(err, vpn.ErrRetrieveUnsupported) {
+		t.Fatal("still unsupported after Create")
+	}
 	if _, err := d.Update(ctx, on, &vpnpb.IpsecAsyncMode{}, nil); err != nil {
 		t.Fatal(err)
 	}
-	if len(v.async) != 2 || v.async[0] != true || v.async[1] != false {
+	if fmt.Sprint(v.async) != "[true true false]" {
 		t.Fatalf("calls %v", v.async)
 	}
-	if err := d.Delete(ctx, on, nil); err != nil {
-		t.Fatal(err)
-	}
-	if kvs, _ = d.Retrieve(ctx); len(kvs) != 0 || len(v.async) != 2 {
-		t.Fatal("Delete must only forget the cached value")
+	if err := d.Delete(ctx, on, nil); err != nil || len(v.async) != 3 {
+		t.Fatal("Delete leaves VPP alone")
 	}
 }
 
@@ -558,7 +558,7 @@ func TestNoMaterialInOutput(t *testing.T) {
 	fmt.Fprintf(&buf, "%v %+v %s %v %v %+v", tn, kvs, d.KeyOf(tn), meta, errDisc, errDup)
 	fmt.Fprintf(&buf, "%+v", d)
 	for _, secret := range [][]byte{cryptoKey, integKey} {
-		for _, enc := range []string{string(secret), fmt.Sprint(secret), fmt.Sprintf("%x", secret)} {
+		for _, enc := range []string{string(secret), fmt.Sprintf("%d", secret), fmt.Sprintf("%x", secret)} {
 			if strings.Contains(buf.String(), enc) {
 				t.Fatalf("key material leaked into formatted output:\n%s", buf.String())
 			}

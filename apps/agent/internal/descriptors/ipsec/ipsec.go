@@ -137,9 +137,9 @@ func tunnelModeName(m tunnel_types.TunnelMode) string {
 // encapFlagNames decodes a flag set into sorted names; encodeEncapFlags is the inverse.
 func encapFlagNames(f tunnel_types.TunnelEncapDecapFlags) []string {
 	var out []string
-	for bit := uint32(1); bit != 0; bit <<= 1 {
-		if uint32(f)&bit != 0 {
-			out = append(out, encapFlags.name(tunnel_types.TunnelEncapDecapFlags(bit)))
+	for i := range 8 {
+		if bit := tunnel_types.TunnelEncapDecapFlags(1) << i; f&bit != 0 {
+			out = append(out, encapFlags.name(bit))
 		}
 	}
 	sort.Strings(out)

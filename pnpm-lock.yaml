@@ -350,6 +350,9 @@ importers:
         specifier: ^1.12
         version: 1.14.5
     devDependencies:
+      '@ngfw/schema':
+        specifier: workspace:*
+        version: link:../schema
       ts-proto:
         specifier: ^2
         version: 2.12.4

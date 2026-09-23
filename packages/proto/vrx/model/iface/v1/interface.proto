@@ -1,0 +1,123 @@
+// Reconciler object model of the interface-attribute, sub-interface and alias descriptors
+// (apps/agent/internal/descriptors/interface, DF-1).
+//
+// Agent-internal: these messages are the Value of scheduler.KV for the interface.* descriptors and
+// never cross the API↔agent boundary. D-055: promoted from the descriptor-local
+// `iface_model.proto` (package vrx.agent.iface) into packages/proto with identical message names,
+// field names, field numbers, types and enum values, so the factory adapts by switching its
+// import; the local copy is deleted in that follow-up commit (not here — descriptor code is not
+// this task's file set).
+//
+// Presence: proto3 implicit presence on purpose (unlike DesiredState, D-039): values are diffed
+// with proto.Equal and the zero value is each field's canonical "not set" (documented per field).
+syntax = "proto3";
+
+package vrx.model.iface.v1;
+
+option go_package = "ngfw/agent/gen/vrx/model/iface/v1;ifacev1";
+
+// AdminState marks an interface administratively UP (interface.admin-state,
+// sw_interface_set_flags). Presence of the object means "up"; deleting it sets the interface down.
+message AdminState {
+  // Full scheduler key of the interface, e.g. "interface.loopback/loop201" or "interface/lan".
+  string interface = 1;
+}
+
+// Mtu is the per-protocol MTU set (interface.mtu, sw_interface_set_mtu). 0 = not set (the
+// protocol MTU inherits the L3 MTU). An object equal to the creation default is rejected (D-075).
+message Mtu {
+  // Full scheduler key of the interface.
+  string interface = 1;
+  // L3 (default) MTU; must be non-zero.
+  uint32 mtu = 2;
+  // IPv4 MTU; 0 = inherit.
+  uint32 ip4 = 3;
+  // IPv6 MTU; 0 = inherit.
+  uint32 ip6 = 4;
+  // MPLS MTU; 0 = inherit.
+  uint32 mpls = 5;
+}
+
+// MacAddress sets the interface's L2 address (interface.mac-address, sw_interface_set_mac_address).
+message MacAddress {
+  // Full scheduler key of the interface.
+  string interface = 1;
+  // Lower-case "aa:bb:cc:dd:ee:ff".
+  string mac = 2;
+}
+
+// Promisc enables promiscuous mode (interface.promisc, sw_interface_set_promisc). Presence = on.
+message Promisc {
+  // Full scheduler key of the interface.
+  string interface = 1;
+}
+
+// RxModeKind is the rx mode of an interface's queues (values as in the DF-1 local model).
+enum RxModeKind {
+  // Not set.
+  RX_MODE_KIND_UNSPECIFIED = 0;
+  // Poll-mode (VPP's default; never an object).
+  RX_MODE_KIND_POLLING = 1;
+  // Interrupt mode.
+  RX_MODE_KIND_INTERRUPT = 2;
+  // Adaptive (interrupt ↔ polling by load).
+  RX_MODE_KIND_ADAPTIVE = 3;
+}
+
+// RxMode sets the rx mode of every rx queue of an interface (interface.rx-mode,
+// sw_interface_set_rx_mode). The object exists only for non-default modes; Delete restores the
+// device class default.
+message RxMode {
+  // Full scheduler key of the interface.
+  string interface = 1;
+  // Desired mode.
+  RxModeKind mode = 2;
+}
+
+// RxPlacement pins one rx queue to a worker thread (interface.rx-placement,
+// sw_interface_set_rx_placement). Queues on the main thread have no object.
+message RxPlacement {
+  // Full scheduler key of the interface.
+  string interface = 1;
+  // Rx queue id.
+  uint32 queue = 2;
+  // 0-based worker number (worker 0 = VPP thread 1).
+  uint32 worker = 3;
+}
+
+// Subinterface is a create_subif sub-interface (interface.subinterface). Its id is
+// "<parent id>.<sub_id>", which is also how VPP names it. Tags: untagged/default_subif → 0 tags;
+// inner_vlan or inner_vlan_any → 2 tags; otherwise 1 tag.
+message Subinterface {
+  // Full scheduler key of the parent interface.
+  string parent = 1;
+  // Sub-interface id (the suffix after the dot).
+  uint32 sub_id = 2;
+  // Outer VLAN id; 0 with untagged/default_subif/outer_vlan_any.
+  uint32 outer_vlan = 3;
+  // Inner VLAN id (QinQ); 0 = none.
+  uint32 inner_vlan = 4;
+  // Outer tag is 802.1ad (0x88a8) instead of 802.1Q.
+  bool dot1ad = 5;
+  // Match exactly the configured number of tags.
+  bool exact_match = 6;
+  // Default sub-interface (catches frames no other sub-interface matches).
+  bool default_subif = 7;
+  // Matches untagged frames.
+  bool untagged = 8;
+  // Any outer VLAN.
+  bool outer_vlan_any = 9;
+  // Any inner VLAN.
+  bool inner_vlan_any = 10;
+}
+
+// InterfaceAlias is the generic interface reference "interface/<name>" every consumer depends on
+// (D-065, D-069). It creates nothing in VPP: it names an interface and, when this agent created
+// it, the creating descriptor's full key, which becomes its mandatory dependency.
+message InterfaceAlias {
+  // Logical name: the id of the creator key for our interfaces, the (startup.conf) name otherwise.
+  string name = 1;
+  // Full scheduler key of the creating descriptor's object (e.g. "tapv2.tap/w2-tap10"); empty for
+  // physical / pre-existing interfaces.
+  string creator = 2;
+}

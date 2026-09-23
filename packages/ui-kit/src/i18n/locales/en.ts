@@ -22,6 +22,10 @@ export const en = {
     ungrouped: 'General',
     itemTitle: 'Item {{index}}',
     duplicateKey: 'Duplicate name',
+    none: 'None',
+    invalidJson: 'Not valid JSON',
+    jsonValue: 'JSON value',
+    schemaError: 'The value does not match the schema',
   },
   validation: {
     required: 'Required',
@@ -69,4 +73,6 @@ export const en = {
   },
 } as const;
 
-export type UiKitResource = typeof en;
+/** Same key tree as `en`, any string values — what every other language must provide. */
+type DeepStrings<T> = { readonly [K in keyof T]: T[K] extends string ? string : DeepStrings<T[K]> };
+export type UiKitResource = DeepStrings<typeof en>;

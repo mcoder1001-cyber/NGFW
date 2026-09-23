@@ -139,16 +139,10 @@ export class VrxWsClient {
       return;
     }
     this.socket = ws;
-    ws.onopen = () => {
-      this.attempt = 0;
-      this.setStatus('open');
-      const topics = this.topics;
-      if (topics.length > 0) this.send({ subscribe: topics });
-      this.startFlush();
-    };
-    ws.onmessage = (ev) => this.handleMessage(ev.data);
-    ws.onerror = (ev) => this.onError?.(ev);
-    ws.onclose = () => {
+    let dead = false;
+    const onDead = () => {
+      if (dead || this.socket !== ws) return;
+      dead = true;
       this.socket = null;
       this.stopFlush();
       if (this.closedByUser || this.handlers.size === 0) {
@@ -157,6 +151,20 @@ export class VrxWsClient {
       }
       this.scheduleReconnect();
     };
+    ws.onopen = () => {
+      this.attempt = 0;
+      this.setStatus('open');
+      const topics = this.topics;
+      if (topics.length > 0) this.send({ subscribe: topics });
+      this.startFlush();
+    };
+    ws.onmessage = (ev) => this.handleMessage(ev.data);
+    ws.onerror = (ev) => {
+      this.onError?.(ev);
+      // A failed connection attempt fires `error` and, in some runtimes (Node's WebSocket), no `close`.
+      if (ws.readyState !== OPEN) onDead();
+    };
+    ws.onclose = onDead;
   }
 
   /** Close intentionally; no reconnect until `subscribe()`/`connect()` is called again. */
@@ -215,7 +223,8 @@ export class VrxWsClient {
   private handleMessage(raw: unknown): void {
     let msg: unknown;
     try {
-      msg = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      const text = typeof raw === 'string' ? raw : raw instanceof Uint8Array ? new TextDecoder().decode(raw) : null;
+      msg = text === null ? raw : JSON.parse(text);
     } catch (err) {
       this.onError?.(err);
       return;

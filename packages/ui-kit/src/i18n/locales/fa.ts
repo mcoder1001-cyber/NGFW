@@ -24,6 +24,10 @@ export const fa: UiKitResource = {
     ungrouped: 'عمومی',
     itemTitle: 'مورد {{index}}',
     duplicateKey: 'نام تکراری',
+    none: 'هیچ',
+    invalidJson: 'JSON معتبر نیست',
+    jsonValue: 'مقدار JSON',
+    schemaError: 'مقدار با شِما مطابقت ندارد',
   },
   validation: {
     required: 'الزامی',

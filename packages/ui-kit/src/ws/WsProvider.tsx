@@ -17,7 +17,11 @@ export function WsProvider({ client, options, children }: WsProviderProps) {
     if (!options) throw new Error('WsProvider needs `client` or `options`');
     return new VrxWsClient(options);
   }, [client, options]);
-  useEffect(() => () => value.close(), [value]);
+  // An injected client belongs to its creator; only a client built here is closed on unmount.
+  useEffect(() => {
+    if (client) return undefined;
+    return () => value.close();
+  }, [client, value]);
   return <WsContext.Provider value={value}>{children}</WsContext.Provider>;
 }
 

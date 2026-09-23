@@ -5804,6 +5804,7 @@ export interface operations {
             pointer: string;
             before: unknown;
             after: unknown;
+            discardedStaleCandidateOf?: string;
           };
         };
       };
@@ -6159,7 +6160,13 @@ export interface operations {
         content: {
           'application/json': {
             /** @enum {string} */
-            status: 'applied' | 'pending' | 'unchanged' | 'confirmed';
+            status:
+              | 'applied'
+              | 'partially-applied'
+              | 'not-applied'
+              | 'pending'
+              | 'unchanged'
+              | 'confirmed';
             txnId?: string;
             revision?: {
               id: number;
@@ -6190,6 +6197,13 @@ export interface operations {
               rule?: string;
             }[];
             notApplied: string[];
+            sync?: {
+              /** @enum {string} */
+              state: 'in-sync' | 'unknown' | 'degraded';
+              reason: string;
+              txnId: string | null;
+              since: string;
+            };
           };
         };
       };
@@ -6274,7 +6288,13 @@ export interface operations {
         content: {
           'application/json': {
             /** @enum {string} */
-            status: 'applied' | 'pending' | 'unchanged' | 'confirmed';
+            status:
+              | 'applied'
+              | 'partially-applied'
+              | 'not-applied'
+              | 'pending'
+              | 'unchanged'
+              | 'confirmed';
             txnId?: string;
             revision?: {
               id: number;
@@ -6305,6 +6325,13 @@ export interface operations {
               rule?: string;
             }[];
             notApplied: string[];
+            sync?: {
+              /** @enum {string} */
+              state: 'in-sync' | 'unknown' | 'degraded';
+              reason: string;
+              txnId: string | null;
+              since: string;
+            };
           };
         };
       };
@@ -6584,7 +6611,13 @@ export interface operations {
         content: {
           'application/json': {
             /** @enum {string} */
-            status: 'applied' | 'pending' | 'unchanged' | 'confirmed';
+            status:
+              | 'applied'
+              | 'partially-applied'
+              | 'not-applied'
+              | 'pending'
+              | 'unchanged'
+              | 'confirmed';
             txnId?: string;
             revision?: {
               id: number;
@@ -6615,6 +6648,13 @@ export interface operations {
               rule?: string;
             }[];
             notApplied: string[];
+            sync?: {
+              /** @enum {string} */
+              state: 'in-sync' | 'unknown' | 'degraded';
+              reason: string;
+              txnId: string | null;
+              since: string;
+            };
           };
         };
       };
@@ -6751,6 +6791,7 @@ export interface operations {
             pointer: string;
             before: unknown;
             after: unknown;
+            discardedStaleCandidateOf?: string;
           };
         };
       };
@@ -6867,6 +6908,7 @@ export interface operations {
             pointer: string;
             before: unknown;
             after: unknown;
+            discardedStaleCandidateOf?: string;
           };
         };
       };
@@ -6933,6 +6975,7 @@ export interface operations {
             pointer: string;
             before: unknown;
             after: unknown;
+            discardedStaleCandidateOf?: string;
           };
         };
       };
@@ -7012,6 +7055,7 @@ export interface operations {
             pointer: string;
             before: unknown;
             after: unknown;
+            discardedStaleCandidateOf?: string;
           };
         };
       };
@@ -7085,6 +7129,12 @@ export interface operations {
             pendingCommit: {
               [key: string]: unknown;
             } | null;
+            sync: {
+              state: string;
+              reason: string;
+              txnId: string | null;
+              since: string;
+            };
           };
         };
       };
@@ -7316,6 +7366,10 @@ export interface operations {
               from?: unknown;
               to?: unknown;
             }[];
+            ignored: {
+              pointer: string;
+              rule: string;
+            }[];
           };
         };
       };
@@ -7510,7 +7564,9 @@ export interface operations {
   };
   Secrets_put: {
     parameters: {
-      query?: never;
+      query?: {
+        replace?: 'true' | 'false';
+      };
       header?: never;
       path?: never;
       cookie?: never;
@@ -7535,6 +7591,7 @@ export interface operations {
           'application/json': {
             ref: string;
             created: boolean;
+            version: number;
           };
         };
       };
@@ -7558,6 +7615,15 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
         headers: {
           [name: string]: unknown;
         };

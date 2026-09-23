@@ -80,7 +80,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D4.1
@@ -94,11 +94,12 @@ tasks:
   files_owned: packages/schema/src/domains/{nat,objects,acl}.ts packages/schema/src/semantic/{nat,objects,acl}*.ts
   branch: task/P02b
   worktree: /root/ngfw-wt/P02b
-  owner: host-agent slot5
+  owner: manager
   started: 2026-09-23T13:35
-  finished: ''
+  finished: 2026-09-24T00:32
   notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | review APPROVE WITH CHANGES (M1-M5 before tag) → fix round | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted
-    work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
+    work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | fix round 2 done 3e7f8a3; proto sync applied by manager (D-061); manager CI gate running before merge | merged 73e9662; main
+    CI quick green'
 - id: P02c
   title: 'Schema group (c): vpn, tunnels, services, ha'
   prompt: prompts/P02-schema-package.md
@@ -359,7 +360,8 @@ tasks:
   owner: host-agent slot2
   started: 2026-09-23T15:10
   finished: ''
-  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done bf364c6 (CI green, restart sim 28 objects); D-065 alias
+    follow-up requested, then review'
 - id: DF-2
   title: 'Descriptors: ip_neighbor, ip6_nd (RA, DAD), urpf, abf, classify (ip tables/routes are P05 core)'
   prompt: prompts/factories/DF-2.md
@@ -370,7 +372,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D2.3
@@ -383,7 +385,7 @@ tasks:
   owner: host-agent slot3
   started: 2026-09-23T15:10
   finished: ''
-  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done 45c3da6, CI green; review agent spawned (slot 3)'
 - id: DF-3
   title: 'Descriptors: nat44_ed (nat), nat44_ei, nat64, nat66, det44, map, cnat, pnat'
   prompt: prompts/factories/DF-3.md
@@ -421,7 +423,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D5.2
@@ -431,9 +433,9 @@ tasks:
   worktree: /root/ngfw-wt/DF-4
   owner: host-agent slot10
   started: 2026-09-23T15:10
-  finished: ''
+  finished: 2026-09-24T00:37
   notes: ' | worker done 14defa2; review agent spawned | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; review agent by host manager (Agent tool, same slot) | review APPROVE WITH CHANGES
-    (M1 stats Retrieve, M2 etype untagged, L3-L6, I7) d75fed1; fix round 1 spawned 00:50'
+    (M1 stats Retrieve, M2 etype untagged, L3-L6, I7) d75fed1; fix round 1 spawned 00:50 | fix round 1 c36662d; merged 3a2cf8e; main CI quick green'
 - id: DF-5
   title: 'Descriptors: ipsec, ikev2, wireguard'
   prompt: prompts/factories/DF-5.md
@@ -493,7 +495,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D7.8
@@ -506,10 +508,10 @@ tasks:
   - D2.8
   scope: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls
   files_owned: apps/agent/internal/descriptors/<plugins of DF-7>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-7
+  worktree: /root/ngfw-wt/DF-7
+  owner: host-agent slot10
+  started: 2026-09-24T00:40
   finished: ''
   notes: ''
 - id: DF-8
@@ -522,7 +524,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D7.2
@@ -533,12 +535,12 @@ tasks:
   - D3.1
   scope: dhcp, dns, flowprobe, sflow, prom, pcap/tracenode, lcp [skip-unless-loaded]
   files_owned: apps/agent/internal/descriptors/<plugins of DF-8>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-8
+  worktree: /root/ngfw-wt/DF-8
+  owner: host-agent slot5
+  started: 2026-09-24T00:35
   finished: ''
-  notes: ''
+  notes: ' | spawned on host slot 5 (freed by P02b); lcp testable since D-060'
 - id: RF-1
   title: 'Renderers: frr (renderer framework: files, vtysh -C, frr-reload.py, JSON state; protocol semantics in P12/F-*)'
   prompt: prompts/factories/RF-1.md

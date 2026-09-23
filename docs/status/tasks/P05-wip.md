@@ -13,4 +13,13 @@ Slot 7 · prefix `w7` · tables 7000–7999 · loopbacks loop700–loop799 · ad
 - Agent `internal/agent`: projection DesiredState ⇄ KVs, persistence (desired.pb + confirmed.pb + agent-state.json), confirm timer,
   resync on start/reconnect, events bus, gRPC server, metrics (hand-written exposition).
 
+- 00:50 scheduler (plan/apply/verify/rollback, scope, recreate + dependent re-creation, write-only D-063, Normalizer,
+  observe-only DeleteOnAbsence D-065), core descriptors + host integration test (green on VPP), fake VPP model,
+  agent service/persistence/confirm/resync/events/stats/gRPC/metrics with unit tests — all green; main merged (0d1e33d).
+- D-065 applied: loopback no longer provides `interface/<name>`; core refs via Env.IfRef (creator key for loopbacks
+  until DF-1's alias descriptor is wired, then AliasInterfaceRef).
+
 ## Next
+- agent-level host integration test (apply doc → Retrieve == desired, vppctl evidence, two owners, confirm revert)
+- process restart simulation (binary, kill -9 by PID, delete prefixed objects via binapi, restart → recreated)
+- dev client cmd/vrx-agentctl for evidence; core README table; tools/ci.sh --base main; P05.md

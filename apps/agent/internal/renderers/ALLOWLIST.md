@@ -23,6 +23,9 @@ Rules for an entry:
 | `/usr/bin/vtysh` | frr | validate a staged frr.conf; read state | `vtysh --config_dir <dir> --vty_socket <rundir> [-N <ns>] -C -f <staged frr.conf>` / `… -c "<constant show command>"` | RF-1 |
 | `/usr/lib/frr/frr-reload.py` | frr | apply (diff, no restart) / dry-run diff | `frr-reload.py --reload\|--test --log-level critical --logfile <log> --bindir /usr/bin --confdir <dir> --rundir <rundir> --vty_socket <rundir> [--pathspace <ns>] <frr.conf>` | RF-1 |
 | `/usr/bin/ip` | frr (test harness `frr/frrtest` only — **test-only; never in a production allowlist**: `ip netns exec` runs any binary; `frr.Binaries()` excludes it, `TestProductAllowlistHasNoTrampoline`) | create/delete the slot netns + dummy/vrf links; start the test daemons inside it | `ip netns add\|delete ns-<prefix>-frr`, `ip -n <ns> link\|addr …`, `ip netns exec <ns> <daemon> <fixed daemon argv>` | RF-1 |
+| `/usr/bin/ip` | strongswan (test harness `strongswan/swantest` only — **test-only**; never `ip netns exec`: daemons enter the netns by `setns` on a locked thread) | create/delete `ns-<prefix>-{a,b,v}`, the veth pair `<prefix>-a`↔`<prefix>-b`; read xfrm state/policy (keys stripped); flush it in its own namespaces after a (simulated) charon crash | `ip netns add\|delete <ns>`, `ip link add <prefix>-a netns <ns> type veth peer name <prefix>-b netns <ns>`, `ip -n <ns> addr add\|link set …`, `ip -n <ns> xfrm state\|policy [flush]` | RF-2 |
+| `/usr/sbin/charon-systemd` | strongswan (test harness only) | test-scoped IKE daemon (no pid file, unlike `/usr/lib/ipsec/charon`); started via the per-instance symlink `/run/vrx-test/<prefix>/swan/<x>/charon-systemd` so `pgrep -f` finds exactly the test daemons; stopped by SIGTERM to that PID | no arguments; `STRONGSWAN_CONF=<instance>/strongswan.conf` in the environment | RF-2 |
+| `/usr/sbin/swanctl` | strongswan | Validate's optional integration checker only (`WithChecker`): load a staged copy into a **scratch** charon, never the live one; apply/retrieve/events use VICI (govici), not this binary | `swanctl --load-all --noprompt --file <staged swanctl.conf> --uri unix://<scratch socket>` | RF-2 |
 | `/usr/lib/frr/mgmtd` | frr (test harness only) | test-scoped daemon, child of `ip netns exec` | `mgmtd -d -N <prefix> --vty_socket <dir> -i <pid> -A 127.0.0.1 -P 0 --log file:<log> --log-level warn` | RF-1 |
 | `/usr/lib/frr/zebra` | frr (test harness only) | test-scoped daemon | same as mgmtd + `-z <dir>/zserv.api -f <empty cfg>` | RF-1 |
 | `/usr/lib/frr/staticd` | frr (test harness only) | test-scoped daemon | same as mgmtd + `-z <dir>/zserv.api` | RF-1 |
@@ -32,7 +35,6 @@ Rules for an entry:
 
 | binary | renderer | purpose | argv shape | task |
 |---|---|---|---|---|
-| `/usr/sbin/swanctl` | strongswan | load / list SAs when VICI is unavailable | `swanctl --load-all --noprompt`, `swanctl --list-sas --raw` | P11 |
 | `/usr/bin/systemctl` | keepalived, snmpd, rsyslog | reload the unit **owned by this task's envelope** | `systemctl reload <unit>` / `systemctl restart <unit>` | RF |
 | `/usr/sbin/keepalived` | keepalived | config check | `keepalived -t -f <file>` | RF |
 | `/usr/sbin/snmpd` | snmpd | integration test child process only | `snmpd -f -c <cfg> -p <pid> 127.0.0.1:<slot port>` | RF |

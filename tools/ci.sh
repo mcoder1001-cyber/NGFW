@@ -324,7 +324,7 @@ do_forbidden() {
 
   # 1. control plane: no shell execution, no direct VPP access, no FFI (rules 1 and 9). Escape hatch: a line comment `ALLOW: <why>`.
   pat='child_process|execSync|execFileSync|spawnSync|exec\.Command|\bsh -c\b|\bbash -c\b|vppctl|/run/vpp/|govpp|ffi-napi|node-ffi|\bkoffi\b'
-  hits=$(git grep -nIE --untracked "$pat" -- "${CONTROL_PLANE_PATHS[@]}" 2>/dev/null || true)
+  hits=$(git grep -nIE --untracked -e "$pat" -- "${CONTROL_PLANE_PATHS[@]}" 2>/dev/null || true)
   allowed=$(grep 'ALLOW:' <<<"$hits" || true); hits=$(grep -v 'ALLOW:' <<<"$hits" || true)
   [[ -z $allowed ]] || warn "control-plane lines exempted with 'ALLOW:' — reviewer, check each justification:\n$(sed 's/^/      /' <<<"$allowed")"
   [[ -z $hits ]] || fail "shell execution / direct VPP access in the control plane (Node never talks to VPP; no user input reaches a shell — go through vrx-agent gRPC):\n$(sed 's/^/    /' <<<"$hits")"
@@ -335,24 +335,26 @@ do_forbidden() {
   [[ -z $hits ]] || fail "Docker/compose files are not allowed in this repository (D-002):\n$(sed 's/^/    /' <<<"$hits")"
   say "ok: no Dockerfile/compose files"
 
-  # 3. no kill-by-pattern in any script (shared host: kill only PIDs you spawned). Prose (docs, prompts, *.md) is exempt.
-  pat='\bp[k]ill\b|\bkilla[l]l\b'
-  hits=$(git grep -nIE --untracked "$pat" -- . ':(exclude)docs' ':(exclude)prompts' ':(exclude)wbs' ':(exclude)*.md' 2>/dev/null || true)
+  # 3. no kill-by-pattern in any script (shared host: kill only PIDs you spawned). Matches invocations — at the start of a
+  #    command (`p*kill …`, `sudo p*kill`, `; p*kill`, `$(p*kill`) or as a quoted program name (`["p*kill", …]`, `os.system("p*kill …`) —
+  #    not prose mentions; docs, prompts and *.md are exempt anyway.
+  pat='(^|[;&|(`]|\$\()[[:space:]]*(sudo[[:space:]]+)?(p[k]ill|killa[l]l)\b|["'"'"'](p[k]ill|killa[l]l)\b'
+  hits=$(git grep -nIE --untracked -e "$pat" -- . ':(exclude)docs' ':(exclude)prompts' ':(exclude)wbs' ':(exclude)*.md' 2>/dev/null || true)
   [[ -z $hits ]] || fail "kill-by-pattern found (p*kill / kill*all) — on the shared host you kill only PIDs you spawned (docs/lab/shared-host-rules.md §5):\n$(sed 's/^/    /' <<<"$hits")"
   say "ok: no kill-by-pattern in scripts"
 
   # 4. secrets, built-in high-confidence shapes (gitleaks below does the broad scan). Fixtures use VRX_TEST_PSK_<id>; docs use <redacted>.
   pat='-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36,}|xox[baprs]-[0-9A-Za-z-]{10,}|sk_(live|test)_[0-9A-Za-z]{10,}|eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}|(postgres(ql)?|redis|valkey|mysql|amqp|mongodb(\+srv)?)://[^:/@$<[:space:]]+:[^@$<[:space:]]+@'
-  hits=$(git grep -nIE --untracked "$pat" -- . ':(exclude)pnpm-lock.yaml' 2>/dev/null | grep -vE 'VRX_TEST_PSK_|<redacted>' || true)
+  hits=$(git grep -nIE --untracked -e "$pat" -- . ':(exclude)pnpm-lock.yaml' 2>/dev/null | grep -vE 'VRX_TEST_PSK_|<redacted>' || true)
   [[ -z $hits ]] || fail "secret-shaped content in committed/working files (private key block, cloud/API token, JWT, URL with embedded password). Secrets never go into the repository — redact as <redacted>, fixtures use VRX_TEST_PSK_<id>:\n$(sed 's/^/    /' <<<"$hits")"
   say "ok: no secret-shaped strings"
 
-  # 5. gitleaks over the commit history (the branch's commits with --base, otherwise the last 500 commits)
+  # 5. gitleaks over the commit history: the branch's commits with --base, otherwise HEAD's history (last 500 commits).
+  #    Scoped explicitly — gitleaks' default is every ref, and a leak on some unmerged branch must not fail main.
   if command -v gitleaks >/dev/null 2>&1; then
     local opts=(git . --no-banner --redact --exit-code 1 --report-format json --report-path "$LOG_DIR/gitleaks-report.json")
     [[ -f .github/gitleaks.toml ]] && opts+=(--config .github/gitleaks.toml)
-    if [[ -n $MERGE_BASE ]]; then opts+=(--log-opts="$MERGE_BASE..HEAD")
-    elif (( $(git rev-list --count HEAD) > 500 )); then opts+=(--log-opts="-n 500"); fi
+    if [[ -n $MERGE_BASE ]]; then opts+=(--log-opts="$MERGE_BASE..HEAD"); else opts+=(--log-opts="-n 500 HEAD"); fi
     run gitleaks gitleaks "${opts[@]}" \
       || fail "gitleaks found secrets in the commit history (report: $LOG_DIR/gitleaks-report.json). A secret in history stays there: the manager must not merge this branch; recreate the commits without it."
     say "ok: gitleaks — $(sed 's/\x1b\[[0-9;]*m//g' "$CUR_LOG" | grep -oE '(no leaks found|leaks found: [0-9]+|scanned ~?[0-9]+ bytes \([^)]*\) in [0-9.a-z]+)' | head -n 2 | tr '\n' ' ')"

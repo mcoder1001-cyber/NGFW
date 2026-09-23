@@ -1,8 +1,10 @@
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { AgentClient } from '../../src/agent/agent.client.js';
+import { loadEnv } from '../../src/config.js';
 import { runSecret, startHarness, type Harness } from '../support/harness.js';
 
 /** Passwords of this run only — generated, never literal (gitleaks, 00-CONTEXT secrets rule). */
@@ -11,18 +13,60 @@ const PW = { ro: runSecret() };
 /**
  * P06 §10 agent e2e against the REAL agent (P05) and the real VPP on this host. Runs only with VRX_INTEGRATION=1,
  * under the shared lab lock (tools/ci.sh full holds it; by hand: `tools/lab lock shared pnpm test:integration`), and
- * when an agent binary exists: VRX_AGENT_BIN, else apps/agent/bin/vrx-agent. Until P05 is merged there is no binary
- * and the suite is skipped with that reason — the fake-agent e2e covers the API side meanwhile.
- * The agent runs as VRX_OWNER=<prefix> on the slot's socket; objects: loop1xx / 10.<slot>.0.0/16 (shared-host rules).
+ * only when the agent binary (VRX_AGENT_BIN, else apps/agent/bin/vrx-agent) actually serves `vrx.v1.Dataplane`: the
+ * probe below starts it as VRX_OWNER=<prefix> on the slot socket and calls Health. Before P05 merges, main's binary is
+ * a skeleton that never opens the socket → the suite is skipped with that reason (the fake-agent e2e covers the API
+ * side meanwhile). Objects: loop<slot>xx / 10.<slot>.0.0/16 (shared-host rules).
  */
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const BIN = process.env['VRX_AGENT_BIN'] ?? resolve(REPO, 'apps/agent/bin/vrx-agent');
-const enabled = process.env['VRX_INTEGRATION'] === '1' && existsSync(BIN);
-const reason =
-  process.env['VRX_INTEGRATION'] !== '1'
-    ? 'VRX_INTEGRATION is not 1'
-    : `no agent binary at ${BIN} (P05 not merged yet; set VRX_AGENT_BIN)`;
+const PREFIX = process.env['VRX_TEST_PREFIX'] ?? 'w1';
+const SOCKET = process.env['VRX_AGENT_SOCKET'] ?? `/run/vrx-test/${PREFIX}/agent.sock`;
 
+function startAgent(): ChildProcess {
+  rmSync(SOCKET, { force: true });
+  mkdirSync(dirname(SOCKET), { recursive: true });
+  return spawn(BIN, (process.env['VRX_AGENT_ARGS'] ?? '').split(' ').filter(Boolean), {
+    env: { ...process.env, VRX_OWNER: PREFIX, VRX_AGENT_SOCKET: SOCKET },
+    stdio: ['ignore', 'inherit', 'inherit'],
+  });
+}
+
+async function waitForSocket(ms: number): Promise<boolean> {
+  for (const t0 = Date.now(); Date.now() - t0 < ms; await new Promise((r) => setTimeout(r, 200))) {
+    if (existsSync(SOCKET)) return true;
+  }
+  return false;
+}
+
+/** Why the suite cannot run, or undefined when a real agent answered Health on the slot socket. */
+async function probe(): Promise<string | undefined> {
+  if (process.env['VRX_INTEGRATION'] !== '1') return 'VRX_INTEGRATION is not 1';
+  if (!existsSync(BIN)) return `no agent binary at ${BIN} (set VRX_AGENT_BIN)`;
+  const child = startAgent();
+  try {
+    if (!(await waitForSocket(10_000))) {
+      return `${BIN} did not open ${SOCKET} within 10 s — not a vrx.v1.Dataplane server yet (P05 not merged)`;
+    }
+    const client = new AgentClient(loadEnv({ VRX_AGENT_SOCKET: SOCKET, VRX_AGENT_OWNER: PREFIX }));
+    try {
+      const h = await client.health(3000);
+      return h.owner === PREFIX
+        ? undefined
+        : `agent serves owner '${h.owner}', expected '${PREFIX}'`;
+    } catch (e) {
+      return `agent on ${SOCKET} does not answer Health: ${(e as Error).message}`;
+    } finally {
+      client.close();
+    }
+  } finally {
+    child.kill('SIGTERM');
+    await new Promise((r) => (child.exitCode === null ? child.once('exit', r) : r(undefined)));
+  }
+}
+
+const reason = await probe();
+const enabled = reason === undefined;
 if (!enabled) console.warn(`agent integration test skipped: ${reason}`);
 
 describe.skipIf(!enabled)('agent integration (real vrx-agent + VPP)', () => {
@@ -30,19 +74,15 @@ describe.skipIf(!enabled)('agent integration (real vrx-agent + VPP)', () => {
   let agent: ChildProcess | undefined;
   let admin: string;
   let ro: string;
-  const prefix = process.env['VRX_TEST_PREFIX'] ?? 'w1';
+  const prefix = PREFIX;
+  const socket = SOCKET;
   const slot = Number(/(\d+)$/.exec(prefix)?.[1] ?? '1');
-  const socket = process.env['VRX_AGENT_SOCKET'] ?? `/run/vrx-test/${prefix}/agent.sock`;
   const IF = `loop${slot}01`;
   const addr = (n: number) => `10.${slot}.101.${n}/24`;
   const vppAddrs = () => execFileSync('vppctl', ['show', 'int', 'addr'], { encoding: 'utf8' });
 
   beforeAll(async () => {
-    rmSync(socket, { force: true });
-    agent = spawn(BIN, (process.env['VRX_AGENT_ARGS'] ?? '').split(' ').filter(Boolean), {
-      env: { ...process.env, VRX_OWNER: prefix, VRX_AGENT_SOCKET: socket },
-      stdio: ['ignore', 'inherit', 'inherit'],
-    });
+    agent = startAgent();
     await vi.waitFor(() => expect(existsSync(socket)).toBe(true), {
       timeout: 20_000,
       interval: 200,

@@ -754,6 +754,7 @@ tasks:
   - P08
   - DF-1
   - DF-7
+  - F-bridge-l2
   priority: 3
   est_hours: 10
   state: todo
@@ -904,6 +905,7 @@ tasks:
   deps:
   - P08
   - DF-4
+  - F-object-model
   priority: 3
   est_hours: 10
   state: todo
@@ -950,6 +952,7 @@ tasks:
   deps:
   - P08
   - DF-3
+  - F-nat44-ed-sessions
   priority: 3
   est_hours: 10
   state: todo
@@ -975,8 +978,9 @@ tasks:
   deps:
   - P08
   - DF-3
+  - F-nat44-ed-sessions
   priority: 4
-  est_hours: 10
+  est_hours: 16
   state: todo
   parked_on: ''
   wbs:
@@ -1071,6 +1075,7 @@ tasks:
   deps:
   - P08
   - DF-6
+  - F-bridge-l2
   priority: 4
   est_hours: 10
   state: todo
@@ -1191,6 +1196,7 @@ tasks:
   - P08
   - P12
   - DF-7
+  - F-ospf
   priority: 4
   est_hours: 10
   state: todo
@@ -1277,7 +1283,7 @@ tasks:
   parked_on: ''
   wbs:
   - D2.8
-  scope: static MPLS, SR-MPLS (LDP via agent-side FRR sync, V5 fallback)
+  scope: static MPLS, SR-MPLS (LDP via agent-side FRR sync, V5 fallback) — LDP agent-side sync split out to F-mpls-ldp (D-085)
   files_owned: apps/agent/internal/descriptors/{mpls,sr_mpls}/** apps/agent/internal/renderers/frr/ldp/** apps/agent/internal/frrsync/ldp/** docs/agent/descriptors/{mpls,sr_mpls}.md docs/agent/renderers/frr-ldp.md
     apps/agent/internal/agent/project_mpls_srmpls*.go apps/api/src/features/mpls-srmpls/** apps/web/src/domains/routing/mpls-srmpls/** apps/web/src/locales/*/mpls-srmpls.json docs/user/routing/mpls-srmpls.md
     test/topology/mpls-srmpls/** docs/status/tasks/F-mpls-srmpls*.md
@@ -1287,6 +1293,29 @@ tasks:
   started: ''
   finished: ''
   notes: 'D-056: FRR-side part (LDP/PIM via V5 agent-side sync) needs RF-1; no linux-cp needed | prompts-s4: suggested deps consider splitting: static MPLS/SR-MPLS vs LDP sync (V5) — docs/status/tasks/prompts-s4.md'
+- branch: ''
+  deps:
+  - F-mpls-srmpls
+  - RF-1
+  - P12
+  est_hours: 10
+  files_owned: ''
+  finished: ''
+  id: F-mpls-ldp
+  notes: D-085 split
+  owner: ''
+  parked_on: ''
+  priority: 5
+  prompt: prompts/features/F-mpls-ldp.md
+  scope: LDP only; split from F-mpls-srmpls (D-085); prompt generated from F-mpls-srmpls.md LDP part when it becomes ready
+  stage: S4
+  started: ''
+  state: todo
+  template: prompts/FEATURE-TEMPLATE.md
+  title: 'Wave C: LDP via FRR ldpd + agent-side FRR→VPP label sync (V5 fallback)'
+  wbs:
+  - D2.8
+  worktree: ''
 - id: F-igmp-mfib
   title: 'Wave C (day 13-15): IGMPv3, static mfib, BIER (PIM via agent-side sync, V5 fallback)'
   prompt: prompts/features/F-igmp-mfib.md
@@ -1507,6 +1536,7 @@ tasks:
   deps:
   - P08
   - DF-8
+  - F-vpp-debs
   priority: 5
   est_hours: 10
   state: todo
@@ -1532,8 +1562,9 @@ tasks:
   - P08
   - DF-7
   - RF-4
+  - P12
   priority: 5
-  est_hours: 10
+  est_hours: 16
   state: todo
   parked_on: ''
   wbs:
@@ -1578,6 +1609,7 @@ tasks:
   stage: S5
   deps:
   - P06
+  - P08
   priority: 6
   est_hours: 10
   state: todo
@@ -1621,6 +1653,7 @@ tasks:
   stage: S5
   deps:
   - P06
+  - P08
   priority: 6
   est_hours: 10
   state: todo
@@ -1643,6 +1676,7 @@ tasks:
   deps:
   - P06
   - P07b
+  - P08
   priority: 6
   est_hours: 10
   state: todo
@@ -1733,6 +1767,7 @@ tasks:
   stage: S5
   deps:
   - P10
+  - P14
   priority: 6
   est_hours: 10
   state: todo
@@ -1754,6 +1789,7 @@ tasks:
   stage: S5
   deps:
   - P10
+  - P14
   priority: 6
   est_hours: 10
   state: todo
@@ -1798,6 +1834,7 @@ tasks:
   stage: S5
   deps:
   - P06
+  - P08
   priority: 6
   est_hours: 10
   state: todo
@@ -1870,6 +1907,7 @@ tasks:
   - F-startup-gen
   - F-vpp-debs
   - F-ha-state-sync
+  - F-mpls-ldp
   priority: 7
   est_hours: 12
   state: todo
@@ -1940,6 +1978,7 @@ tasks:
   - F-startup-gen
   - F-vpp-debs
   - F-ha-state-sync
+  - F-mpls-ldp
   priority: 7
   est_hours: 12
   state: todo
@@ -2010,6 +2049,7 @@ tasks:
   - F-startup-gen
   - F-vpp-debs
   - F-ha-state-sync
+  - F-mpls-ldp
   priority: 7
   est_hours: 12
   state: todo
@@ -2098,6 +2138,7 @@ tasks:
   - P08
   - F-vrrp-config-sync
   - F-nat44-ed-sessions
+  - F-nat44-ei-64-66-nptv6
   priority: 6
   est_hours: 12
   state: todo

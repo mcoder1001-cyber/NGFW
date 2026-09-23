@@ -373,7 +373,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D2.3
@@ -387,7 +387,7 @@ tasks:
   started: 2026-09-23T15:10
   finished: ''
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done 45c3da6, CI green; review agent spawned (slot 3) | review
-    BLOCK 69ceb3d (H1 classify index reuse, H2 no-dump types, H3 untagged ifaces, H4 proxy-ND default, M5 abf dup tags, M6 race, L7 rebase); fix round 1'
+    BLOCK 69ceb3d (H1 classify index reuse, H2 no-dump types, H3 untagged ifaces, H4 proxy-ND default, M5 abf dup tags, M6 race, L7 rebase); fix round 1 | fix round 1 eed9066 CI green; re-review spawned'
 - id: DF-3
   title: 'Descriptors: nat44_ed (nat), nat44_ei, nat64, nat66, det44, map, cnat, pnat'
   prompt: prompts/factories/DF-3.md

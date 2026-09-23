@@ -1,0 +1,19 @@
+# Rendered by vrx-agent (snmpd renderer). Do not edit: every commit overwrites this file.
+# Holds SNMP communities and USM passphrases: mode 0600.
+agentaddress udp:0.0.0.0:161,udp6:[::]:161
+dontLogTCPWrappersConnects yes
+sysName vrx-w8
+sysLocation Rack 4, Hall B
+sysContact noc@example.net
+
+# views
+view vrx_all included .1
+
+# SNMPv1/v2c communities
+rocommunity VRX_TEST_PSK_RF4_ro default -V vrx_all
+rocommunity6 VRX_TEST_PSK_RF4_ro default -V vrx_all
+
+# AgentX master for the private-MIB subagent (F-snmp)
+master agentx
+agentXSocket unix:/run/vrx-test/w0/snmpd/agentx.sock
+agentXPerms 0600 0700

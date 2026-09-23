@@ -1,0 +1,87 @@
+{{- /* snmpd.conf — rendered by the vrx-agent snmpd renderer (RF-4). Every user string passes
+       exactly one helper: tok (one word), text (rest of line), oid, community, pass (quoted
+       passphrase), transport, host, path. Values were validated by BuildModel already; the
+       helpers re-check them (defence in depth). */ -}}
+# Rendered by vrx-agent (snmpd renderer). Do not edit: every commit overwrites this file.
+# Holds SNMP communities and USM passphrases: mode 0600.
+{{- if not .Enabled}}
+# services.snmp is disabled: the agent listens on a private unix socket only and grants no access.
+agentaddress unix:{{path .AgentX}}.disabled
+{{- else}}
+agentaddress {{range $i, $t := .Listen}}{{if $i}},{{end}}{{transport $t}}{{end}}
+dontLogTCPWrappersConnects yes
+{{- with .EngineID}}
+exactEngineID 0x{{hex .}}
+{{- end}}
+{{- with .SysName}}
+sysName {{text .}}
+{{- end}}
+{{- with .SysLoc}}
+sysLocation {{text .}}
+{{- end}}
+{{- with .SysContact}}
+sysContact {{text .}}
+{{- end}}
+{{- with .SysServices}}
+sysServices {{.}}
+{{- end}}
+
+# views
+{{- range .Views}}
+{{- $v := .}}
+{{- range .Include}}
+view {{tok $v.Name}} included {{oid .}}
+{{- end}}
+{{- range .Exclude}}
+view {{tok $v.Name}} excluded {{oid .}}
+{{- end}}
+{{- end}}
+{{- with .Communities}}
+
+# SNMPv1/v2c communities
+{{- range .}}
+{{if .RW}}rw{{else}}ro{{end}}community{{if .IPv6}}6{{end}} {{community .Secret}} {{source .Source}} -V {{tok .View}}
+{{- end}}
+{{- end}}
+{{- with .Users}}
+
+# SNMPv3 USM users
+{{- range .}}
+{{- if eq .Level "noauth"}}
+createUser {{tok .Name}}
+{{- else if eq .Level "auth"}}
+createUser {{tok .Name}} {{.AuthProto}} {{pass .Auth}}
+{{- else}}
+createUser {{tok .Name}} {{.AuthProto}} {{pass .Auth}} {{.PrivProto}} {{pass .Priv}}
+{{- end}}
+{{if .RW}}rw{{else}}ro{{end}}user {{tok .Name}} {{.Level}} -V {{tok .View}}
+{{- end}}
+{{- end}}
+{{- with .Traps}}
+
+# notification receivers
+{{- range .}}
+{{- if eq .Version "v2c"}}
+{{if .Inform}}informsink{{else}}trap2sink{{end}} {{host .Host}} {{community .Community}} {{.Port}}
+{{- else}}
+{{- $u := .User}}
+trapsess {{if .Inform}}-Ci {{end}}-v 3 -u {{tok $u.Name}} -l {{if eq $u.Level "priv"}}authPriv{{else if eq $u.Level "auth"}}authNoPriv{{else}}noAuthNoPriv{{end}}{{if ne $u.Level "noauth"}} -a {{$u.AuthProto}} -A {{pass $u.Auth}}{{end}}{{if eq $u.Level "priv"}} -x {{$u.PrivProto}} -X {{pass $u.Priv}}{{end}} udp:{{host .Host}}:{{.Port}}
+{{- end}}
+{{- end}}
+{{- end}}
+
+# AgentX master for the private-MIB subagent (F-snmp)
+master agentx
+agentXSocket unix:{{path .AgentX}}
+agentXPerms 0600 0700
+{{- with .Disks}}
+
+# monitors
+{{- range .}}
+disk {{diskpath .Path}} {{.MinPercent}}%
+{{- end}}
+{{- end}}
+{{- with .Load}}
+load {{.Max1}} {{.Max5}} {{.Max15}}
+{{- end}}
+{{- end}}

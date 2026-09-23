@@ -3,6 +3,7 @@ module ngfw/agent
 go 1.26
 
 require (
+	github.com/gosnmp/gosnmp v1.43.1
 	go.fd.io/govpp v0.13.0
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
@@ -11,7 +12,6 @@ require (
 require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/ftrvxmtrx/fd v0.0.0-20150925145434-c6d800382fff // indirect
-	github.com/gosnmp/gosnmp v1.43.1 // indirect
 	github.com/lunixbochs/struc v0.0.0-20200521075829-a4cb8d33dbbe // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	golang.org/x/net v0.57.0 // indirect

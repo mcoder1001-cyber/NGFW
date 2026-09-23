@@ -14,7 +14,7 @@ Verified read-only on 2026-09-23 12:16 +0330. Re-verify before relying on anythi
 | Hugepages | 1024 × 2 MB = 2 GB via `/etc/sysctl.d/80-vpp.conf` (no kernel-cmdline hugepages, no isolcpus) |
 | Plugins | 94 on disk, 84 loaded. **Not loaded (disabled by default):** `linux_cp_plugin.so`, `linux_nl_plugin.so` (needed by P12/FRR), `npt66_plugin.so` (needed for NPTv6, D4.3), `ip6_dad_autoremove`, `idpf`, `fateshare`, unittest plugins. Enabling them = a `plugins { plugin X { enable } }` block in startup.conf → requires the handover below |
 | Data-plane NICs | **Six vmxnet3 NICs added by the product owner (seen 2026-09-23 13:17):** `ens161` 0000:04:00.0, `ens193` 0000:0c:00.0, `ens224` 0000:13:00.0, `ens225` 0000:14:00.0, `ens256` 0000:1b:00.0, `ens257` 0000:1c:00.0 — all DOWN, kernel `vmxnet3` driver, **port-group mapping unknown** (ask the product owner). Management stays `ens192` 0000:0b:00.0 (blacklisted from DPDK). VPP lists all seven in `show pci`; none is bound to DPDK yet — that needs `dpdk { dev 0000:xx:00.0 }` in startup.conf → handover-gated (D-012). Inventory: `test/topology/vrx-a.yml` (P04) |
-| Known log noise |  on every  — af_packet quirk of this VPP build, harmless (found by the P04 review) |
+| Known log noise | `vlib_file_update: epoll_ctl() failed ... host-<p>l0 queue 0 errno 9` on every `delete host-interface` — af_packet quirk of this VPP build, harmless (found by the P04 review) |
 | libvirt | installed by mistake earlier (`virbr0` 192.168.122.1) — unused, harmless; may be purged |
 
 ## Consequences for the plan

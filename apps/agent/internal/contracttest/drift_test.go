@@ -564,3 +564,15 @@ func TestSchemaProtoDriftDetectsImplicitPresence(t *testing.T) {
 		t.Fatalf("want one implicit-presence finding, got %v", c.findings)
 	}
 }
+
+// TestModelStaysAgentInternal: the reconciler object model (packages/proto/vrx/model, D-055) is
+// agent-internal — the API↔agent contract file must not import it, so it can never leak onto the
+// wire or into the TS stubs.
+func TestModelStaysAgentInternal(t *testing.T) {
+	imports := vrxv1.File_vrx_v1_dataplane_proto.Imports()
+	for i := 0; i < imports.Len(); i++ {
+		if p := imports.Get(i).Path(); strings.HasPrefix(p, "vrx/model/") {
+			t.Errorf("vrx/v1/dataplane.proto imports %s — the object model must stay agent-internal", p)
+		}
+	}
+}

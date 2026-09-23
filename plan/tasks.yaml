@@ -2022,7 +2022,7 @@ tasks:
   started: 2026-09-24T02:30
   finished: ''
   notes: 'D-058: added — PENDING-handover option 1 relies on it | worker done 2888b94 CI green; review spawned; D-081 | review BLOCK e049b31 (F1 mgmt NIC from document not host, F2 unsound rollback, F3
-    stand-in fields → contract branch, F4 CPU pinning, F5/F6 validation); fix round 1'
+    stand-in fields → contract branch, F4 CPU pinning, F5/F6 validation); fix round 1 | fix round 1 0ba5a37 + contract/F-startup-gen 9cd24eb, CI green; D-084 plugins wrap requested, then re-review'
 - id: F-vpp-debs
   title: 'VPP package build pipeline: pinned 26.06 source, patch series, reproducible .deb build script'
   prompt: prompts/features/F-vpp-debs.md

@@ -45,6 +45,7 @@ func newSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
 	if err != nil {
 		t.Fatal(err)
 	}
+	svc.retryMin, svc.retryMax = time.Hour, time.Hour // tests drive retries explicitly
 	t.Cleanup(svc.Close)
 	return svc
 }
@@ -842,9 +843,6 @@ func TestRevertOwedWhenVPPDownAtDeadline(t *testing.T) {
 	if _, err := s.Apply(context.Background(), &vrxv1.ApplyRequest{ConfirmTxnId: "p1"}); grpcCode(err) != codes.FailedPrecondition {
 		t.Fatalf("confirm of an owed revert: %v", err)
 	}
-	if _, err := s.Apply(context.Background(), &vrxv1.ApplyRequest{TxnId: "n1", DesiredState: doc(t, sampleDoc)}); grpcCode(err) != codes.FailedPrecondition {
-		t.Fatalf("new apply while the revert is owed: %v", err)
-	}
 	// The owed revert survives an agent restart too.
 	s.Close()
 	s2 := newSvc(t, v, dir)
@@ -940,5 +938,87 @@ func TestStateMigratesOldLayout(t *testing.T) {
 	st, err := loadState(dir, "w7")
 	if err != nil || !proto.Equal(st.desired, old) || !proto.Equal(st.confirm, old) {
 		t.Fatalf("migration: %v %v", err, st)
+	}
+}
+
+// revertObstacle builds the re-review N2 scenario: the confirmed baseline has route 10.7.99.0/24,
+// pending txn p1 removes it, another owner (w7x) takes the prefix before the deadline, so the
+// revert fails deterministically (claim rule) while VPP stays connected.
+func revertObstacle(t *testing.T, v *coretest.VPP, s *Service) *scheduler.Scheduler {
+	t.Helper()
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "base", DesiredState: doc(t, `{"routing":{"static":[{"prefix":"10.7.99.0/24","blackhole":true}]}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, `{"routing":{}}`), ConfirmTimeoutSec: 1}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	reg := scheduler.NewRegistry()
+	core.Register(reg, core.Env{Client: v, Owner: "w7x", Owned: ownertable.NewMemory()})
+	other := scheduler.New(reg, nil)
+	if r := other.Apply(context.Background(), []scheduler.KV{{Key: "ip.route/0/10.7.99.0/24", Value: &core.Route{Prefix: "10.7.99.0/24"}}}, nil); r.Outcome != scheduler.OutcomeApplied {
+		t.Fatal(r.Err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for !s.Health().GetDegraded() && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if h := s.Health(); !h.GetDegraded() || h.GetPendingConfirmTxnId() != "p1" {
+		t.Fatalf("revert did not fail as staged: %v", h)
+	}
+	return other
+}
+
+// N2: an unrevertable owed revert does not block Apply: a new Apply supersedes it and converges.
+func TestNewApplySupersedesOwedRevert(t *testing.T) {
+	v := coretest.New()
+	s := newSvc(t, v, t.TempDir())
+	revertObstacle(t, v, s)
+	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "fix1", DesiredState: doc(t, `{"routing":{}}`)})
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if h := s.Health(); h.GetPendingConfirmTxnId() != "" || h.GetDegraded() || h.GetLastTxnId() != "fix1" {
+		t.Fatalf("health after superseding apply: %v", h)
+	}
+	if s.st.meta.Reverting || s.st.meta.PendingTxnID != "" {
+		t.Fatal("owed revert not dropped")
+	}
+	// A later apply converges normally.
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "fix2", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}},"routing":{}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if !v.HasTable(7001, false) {
+		t.Fatal("later apply not applied")
+	}
+}
+
+// N2: the owed revert is retried on a backoff timer (no VPP reconnect) and converges once the
+// obstacle is gone.
+func TestOwedRevertRetriedByTimer(t *testing.T) {
+	v := coretest.New()
+	s := newSvc(t, v, t.TempDir())
+	_ = s.lock(context.Background())
+	s.retryMin, s.retryMax = 50*time.Millisecond, 200*time.Millisecond
+	s.unlock()
+	other := revertObstacle(t, v, s)
+	if r := other.Apply(context.Background(), nil, nil); r.Outcome != scheduler.OutcomeApplied { // obstacle removed
+		t.Fatal(r.Err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for s.Health().GetPendingConfirmTxnId() != "" && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if h := s.Health(); h.GetPendingConfirmTxnId() != "" || h.GetDegraded() {
+		t.Fatalf("timer retry did not converge: %v", h)
+	}
+	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"routing"}})
+	if err != nil || len(got.GetDesiredState().GetRouting().GetStatic()) != 1 {
+		t.Fatalf("baseline route not restored: %v %v", err, got)
+	}
+}
+
+// L-a: a VRF with id 0 under another name is table 0 by id: unbound interfaces and table-0
+// routes Retrieve with that name, no drift.
+func TestTableZeroNamedByID(t *testing.T) {
+	v := coretest.New()
+	s := newSvc(t, v, t.TempDir())
+	d := `{"vrfs":{"main":{"id":0}},"interfaces":{"loop705":{"vrf":"main"}},"routing":{"static":[{"prefix":"10.7.66.0/24","vrf":"main","distance":1,"blackhole":true}]}}`
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "z1", DesiredState: doc(t, d)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces", "routing"}})
+	want := doc(t, `{"interfaces":{"loop705":{"vrf":"main"}},"routing":{"static":[{"prefix":"10.7.66.0/24","vrf":"main","distance":1,"blackhole":true}]}}`)
+	if err != nil || !proto.Equal(got.GetDesiredState(), want) {
+		t.Fatalf("retrieve %v %s", err, protojson.Format(got.GetDesiredState()))
 	}
 }

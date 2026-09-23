@@ -29,10 +29,22 @@ route's administrative distance (0 when unset). Table 0 (`default`) is VPP's own
   Create with `ErrTableConflict` before any message is sent (VPP would silently keep the foreign table and a later
   rollback would delete it). Create's cleanup removes only families this call created. Delete re-dumps and removes a
   family only while it is still named `<owner>:<vrf>`.
-- **Routes:** a route is claimed (owner-table record) only when the FIB has no entry for exactly that prefix in that
-  table — VPP's own default-drop `/0` aside — otherwise Create fails with `ErrRouteConflict`, sends nothing and records
-  nothing. Delete acts only on claimed routes and re-checks the FIB entry right before the delete. Table 0 is shared;
-  ownership is per prefix.
+- **Routes:** decided by the FIB entry's **best source** (`ip_route_v2_dump` `src`, re-review N1). A route is claimed
+  (owner-table record) unless the prefix already has a client-programmed entry in that table (API, CLI, DHCP, SR, 6RD,
+  LISP, MAP, or any plugin-allocated source such as lcp-rt/nat) → `ErrRouteConflict`, nothing sent, nothing recorded.
+  VPP-generated entries (recursive-resolution next-hop /32s, connected/interface, adjacency, default-route, special)
+  never block: VPP stacks our API source next to them. Retrieve reports a claimed prefix only while its best source is
+  API; Delete sends the delete only when an API source can be present (best source API, or a higher-priority source
+  such as interface that may hide it) and never removes VPP-generated entries. Table 0 is shared; ownership is per prefix.
+  Residuals: a foreign API route on a prefix whose best source is `interface` (a static route over a connected prefix)
+  is invisible to the check; a stale claim (crash between recording and programming, or a route lost with VPP while the
+  owner table survived) can adopt another client's later route on that prefix (re-review N3) — single-agent
+  production is unaffected; on the shared host slot ranges keep prefixes apart.
+- **D-072 (FRR-owned static routes):** the projection skips every `routing.static[i]` for which
+  `frr.StaticOwnedByFRR(i, route, nil)` is true (wired; the default selector marks none for proto input). The schema
+  flag and its `RegisterStaticSelector` belong to P08/P12 (+ contract change). A linux-nl route that FRR installs for a
+  prefix the agent also programs makes our Create fail with `ErrRouteConflict` (plugin source `lcp-rt`) — the intended
+  "never both" outcome.
 
 ## Owner table recovery (L2)
 

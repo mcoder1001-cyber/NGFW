@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"google.golang.org/protobuf/proto"
@@ -87,8 +88,11 @@ func (d *LoopbackDescriptor) Delete(ctx context.Context, obj proto.Message, _ an
 		return err
 	}
 	in, err := t.owned(asLoopback(obj).GetName())
+	if errors.Is(err, ErrNotOwned) {
+		return nil // already gone
+	}
 	if err != nil {
-		return nil
+		return err
 	}
 	if _, err := interfaces.NewServiceClient(d.Client).DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: interface_types.InterfaceIndex(in.Index)}); err != nil {
 		return fmt.Errorf("delete_loopback %d: %w", in.Index, err)

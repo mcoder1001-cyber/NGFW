@@ -33,6 +33,7 @@ import (
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/descriptors/core"
+	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -259,6 +260,9 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver) *pro
 	if in["routing"] {
 		for i, r := range ds.GetRouting().GetStatic() {
 			pt := ptr("routing", "static", strconv.Itoa(i))
+			if frr.StaticOwnedByFRR(i, r, nil) {
+				continue // D-072: FRR (staticd) programs this route; the agent never does both
+			}
 			pfx, err := core.CanonNetPrefix(r.GetPrefix())
 			if err != nil {
 				p.errorf(ptr("routing", "static", strconv.Itoa(i), "prefix"), "routing.static.prefix", "%v", err)
@@ -361,7 +365,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	for _, d := range domains {
 		in[d] = true
 	}
-	tableName := map[uint32]string{0: "default"}
+	tableName := map[uint32]string{}
 	for _, kv := range kvs {
 		if t, ok := kv.Value.(*core.Table); ok {
 			tableName[t.GetId()] = t.GetVrf()
@@ -375,6 +379,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 			if n, ok := names(id); ok {
 				return n
 			}
+		}
+		if id == 0 {
+			return "default" // L-a: table 0 by id; the name of a desired VRF with id 0 wins above
 		}
 		return strconv.FormatUint(uint64(id), 10)
 	}
@@ -428,7 +435,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 		// M4: every VPP interface is in exactly one table; without a binding it is the default VRF
 		// (the Zod default is "default", so an unset value here would be permanent drift).
 		if i.Vrf == nil {
-			i.Vrf = proto.String("default")
+			i.Vrf = proto.String(nameOf(0))
 		}
 	}
 	if in["routing"] {

@@ -50,6 +50,10 @@ type Service struct {
 	txn      chan struct{}
 	timer    *time.Timer
 	lastResp *vrxv1.ApplyResponse // last applyLocked result (guarded by txn)
+	// owed-revert retry (guarded by txn)
+	retryTimer         *time.Timer
+	retryDelay         time.Duration
+	retryMin, retryMax time.Duration
 
 	mu              sync.Mutex // guards the fields below (Health snapshot)
 	degraded        bool
@@ -95,6 +99,7 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 	s := &Service{
 		owner: cfg.Owner, version: cfg.Version, log: cfg.Logger, vpp: cfg.VPP, sched: cfg.Scheduler,
 		st: st, bus: newBus(), metrics: cfg.Metrics, now: cfg.Now, txn: make(chan struct{}, 1),
+		retryMin: revertRetryMin, retryMax: revertRetryMax,
 	}
 	s.refreshSnapshotLocked()
 	return s, nil
@@ -260,7 +265,18 @@ func (s *Service) Apply(ctx context.Context, req *vrxv1.ApplyRequest) (*vrxv1.Ap
 			return &vrxv1.ApplyResponse{TxnId: req.GetConfirmTxnId(), Status: vrxv1.ApplyStatus_APPLY_STATUS_CONFIRMED, AppliedAt: timestamppb.New(s.now())}, nil
 		}
 	} else if s.st.meta.PendingTxnID != "" {
-		return nil, status.Errorf(codes.FailedPrecondition, "transaction %q is pending confirmation: confirm it (confirm_txn_id) or let it revert", s.st.meta.PendingTxnID)
+		if !s.st.meta.Reverting {
+			return nil, status.Errorf(codes.FailedPrecondition, "transaction %q is pending confirmation: confirm it (confirm_txn_id) or let it revert", s.st.meta.PendingTxnID)
+		}
+		// N2: an owed revert (deadline passed, revert not yet successful) is superseded by a new
+		// apply: the stored desired state already is the confirmed baseline, the new document
+		// becomes the target, and the owed revert is dropped.
+		s.log.Warn("new transaction supersedes the owed confirm revert", "reverted_txn_id", s.st.meta.PendingTxnID, "txn_id", req.GetTxnId())
+		s.stopRetryLocked()
+		s.st.meta.PendingTxnID = ""
+		s.st.meta.ConfirmDeadline = nil
+		s.st.meta.Reverting = false
+		s.refreshSnapshotLocked()
 	}
 	if !s.vpp.Connected() {
 		return nil, status.Error(codes.Unavailable, "VPP binary API is not connected")
@@ -453,12 +469,44 @@ func (s *Service) revertLocked(txnID string) {
 	}
 	resp := s.applyLocked(context.Background(), modeRevert, "", s.st.desired, domains, 0)
 	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
-		s.setDegraded(true, "confirm revert failed (retried on the next resync): "+resp.GetMessage())
+		d := s.scheduleRetryLocked(txnID)
+		s.setDegraded(true, fmt.Sprintf("confirm revert of %s failed, retrying in %v (and on every resync; a new Apply supersedes it): %s", txnID, d, resp.GetMessage()))
+	} else {
+		s.stopRetryLocked()
 	}
 	s.refreshSnapshotLocked()
 	if err := s.st.save(); err != nil {
 		s.log.Error("persist state", "err", err)
 	}
+}
+
+// Revert retry backoff (N2): independent of VPP reconnects.
+const (
+	revertRetryMin = 5 * time.Second
+	revertRetryMax = 60 * time.Second
+)
+
+// scheduleRetryLocked arms the owed-revert retry timer with exponential backoff and returns the delay.
+func (s *Service) scheduleRetryLocked(txnID string) time.Duration {
+	if s.retryDelay == 0 {
+		s.retryDelay = s.retryMin
+	} else if s.retryDelay *= 2; s.retryDelay > s.retryMax {
+		s.retryDelay = s.retryMax
+	}
+	if s.retryTimer != nil {
+		s.retryTimer.Stop()
+	}
+	d := s.retryDelay
+	s.retryTimer = time.AfterFunc(d, func() { s.revert(txnID) })
+	return d
+}
+
+func (s *Service) stopRetryLocked() {
+	if s.retryTimer != nil {
+		s.retryTimer.Stop()
+		s.retryTimer = nil
+	}
+	s.retryDelay = 0
 }
 
 // Resync re-applies the stored desired state of every managed domain (agent start, VPP
@@ -613,6 +661,7 @@ func (s *Service) Close() {
 		s.timer.Stop()
 		s.timer = nil
 	}
+	s.stopRetryLocked()
 }
 
 // ---- response building ------------------------------------------------------------------------

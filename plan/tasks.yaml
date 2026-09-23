@@ -495,7 +495,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D7.8
@@ -508,10 +508,10 @@ tasks:
   - D2.8
   scope: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls
   files_owned: apps/agent/internal/descriptors/<plugins of DF-7>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-7
+  worktree: /root/ngfw-wt/DF-7
+  owner: host-agent slot10
+  started: 2026-09-24T00:40
   finished: ''
   notes: ''
 - id: DF-8

@@ -306,7 +306,27 @@ the LLDP enable/disable on `loop1050` is shown by the test log above via `lldp_d
 
 ### CI gate
 
-See the end of this file (pasted after the final commit's run).
+```
+$ tools/ci.sh --base main
+…
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   0m22s
+  forbidden patterns (+ gitleaks)                    0m03s
+  lint · typecheck · unit tests · build (turbo)   0m21s
+  apps/agent: make lint test build                   0m12s
+  test/ Go modules, unit mode (test/integration/smoke)   0m02s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      merge main into task/DF-7 (D-069 resolver, D-071, D-076)
+  mode quick · wall time 1m04s · logs /root/ngfw-wt/logs/ci/DF-7-20260924-014809-1576264
+
+CI GATE PASSED
+```
+
+(The only warning is the subject of the `git merge main` commit; history is not rewritten.)
 
 ## FIB entries installed by DF-7 objects (P05 / V15 request)
 

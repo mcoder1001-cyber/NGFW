@@ -123,7 +123,10 @@ func (c *ProcessController) pid() (int, error) {
 		return 0, fmt.Errorf("%w: pid %d: %v", ErrNotRunning, pid, err)
 	}
 	if c.Binary != "" && exe != c.Binary {
-		return 0, fmt.Errorf("%w: pid %d runs %s, not %s", ErrNotRunning, pid, exe, c.Binary)
+		// The binary may be a symlink (coreutils multicall, alternatives).
+		if real, err := filepath.EvalSymlinks(c.Binary); err != nil || real != exe {
+			return 0, fmt.Errorf("%w: pid %d runs %s, not %s", ErrNotRunning, pid, exe, c.Binary)
+		}
 	}
 	return pid, nil
 }

@@ -60,7 +60,11 @@ const commonFields = {
     group: 'general',
     order: 1,
   }),
-  description: withUi(descriptionText.optional(), { title: 'Description', group: 'general', order: 2 }),
+  description: withUi(descriptionText.optional(), {
+    title: 'Description',
+    group: 'general',
+    order: 2,
+  }),
   mtu: withUi(mtu.optional(), {
     title: 'MTU',
     help: 'L3 MTU in bytes (68–9216); absent = keep the driver default',

@@ -27,7 +27,10 @@ describe('validateConfig', () => {
   });
 
   it('reports semantic failures after a successful parse', () => {
-    const result = validateConfig({ interfaces: { loop0: { vrf: 'nope' } }, management: { users: [ADMIN] } });
+    const result = validateConfig({
+      interfaces: { loop0: { vrf: 'nope' } },
+      management: { users: [ADMIN] },
+    });
     expect(result).toEqual({
       ok: false,
       tier: 'semantic',
@@ -44,7 +47,9 @@ describe('validateConfig', () => {
 
 describe('pointerIssues', () => {
   it('maps array indices and record keys', () => {
-    const error = RootConfig.safeParse({ routing: { static: [{ prefix: '10.0.0.1/24', nextHops: [{}] }] } }).error!;
+    const error = RootConfig.safeParse({
+      routing: { static: [{ prefix: '10.0.0.1/24', nextHops: [{}] }] },
+    }).error!;
     expect(pointerIssues(error).map((i) => i.pointer)).toEqual([
       '/routing/static/0/nextHops/0/address',
       '/routing/static/0/prefix',

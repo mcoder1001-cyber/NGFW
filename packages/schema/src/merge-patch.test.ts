@@ -67,7 +67,9 @@ describe('mergePatchAt (PATCH /api/v1/config/{path})', () => {
   it('patches into arrays by index and appends at the length', () => {
     expect(mergePatchAt(doc, '/routing/static/0/nextHops/0', { weight: 5 })).toEqual({
       ...doc,
-      routing: { static: [{ prefix: '0.0.0.0/0', nextHops: [{ address: '10.0.0.1', weight: 5 }] }] },
+      routing: {
+        static: [{ prefix: '0.0.0.0/0', nextHops: [{ address: '10.0.0.1', weight: 5 }] }],
+      },
     });
     expect(mergePatchAt({ l: [1] }, '/l/1', 2)).toEqual({ l: [1, 2] });
     expect(() => mergePatchAt({ l: [1] }, '/l/x', 2)).toThrow(/invalid array index 'x'/);

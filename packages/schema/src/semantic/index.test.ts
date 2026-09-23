@@ -81,7 +81,11 @@ describe('validateSemantics (process-wide registry)', () => {
 
   it('reports no issues for the minimal committable document', () => {
     const minimal = RootConfig.parse({
-      management: { users: [{ username: 'admin', role: 'admin', passwordHash: '$vrx-test$VRX_TEST_HASH_admin' }] },
+      management: {
+        users: [
+          { username: 'admin', role: 'admin', passwordHash: '$vrx-test$VRX_TEST_HASH_admin' },
+        ],
+      },
     });
     expect(validateSemantics(minimal)).toEqual([]);
     expect(validateSemantics(minimal, ['interfaces'])).toEqual([]);

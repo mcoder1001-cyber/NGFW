@@ -13,7 +13,10 @@ export const managementValidators: readonly ValidatorDefinition[] = [
     domains: ['management'],
     validate: (config) => {
       const usable = config.management.users.some(
-        (u) => u.role === 'admin' && !u.disabled && (u.passwordHash !== undefined || u.sshKeys.length > 0),
+        (u) =>
+          u.role === 'admin' &&
+          !u.disabled &&
+          (u.passwordHash !== undefined || u.sshKeys.length > 0),
       );
       return usable
         ? []
@@ -50,12 +53,17 @@ export const managementValidators: readonly ValidatorDefinition[] = [
       const issues: SemanticIssue[] = [];
       const check = (vrf: string, ...path: (string | number)[]): void => {
         if (!vrfExists(config.vrfs, vrf)) {
-          issues.push({ pointer: jsonPointer(...path, 'vrf'), message: `VRF '${vrf}' does not exist` });
+          issues.push({
+            pointer: jsonPointer(...path, 'vrf'),
+            message: `VRF '${vrf}' does not exist`,
+          });
         }
       };
       const { aaa, syslog } = config.management;
-      for (const [i, s] of aaa.radius.servers.entries()) check(s.vrf, 'management', 'aaa', 'radius', 'servers', i);
-      for (const [i, s] of aaa.tacacs.servers.entries()) check(s.vrf, 'management', 'aaa', 'tacacs', 'servers', i);
+      for (const [i, s] of aaa.radius.servers.entries())
+        check(s.vrf, 'management', 'aaa', 'radius', 'servers', i);
+      for (const [i, s] of aaa.tacacs.servers.entries())
+        check(s.vrf, 'management', 'aaa', 'tacacs', 'servers', i);
       for (const [i, s] of syslog.entries()) check(s.vrf, 'management', 'syslog', i);
       return issues;
     },

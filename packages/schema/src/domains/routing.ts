@@ -140,9 +140,14 @@ export const StaticRouteSchema = z
   .refine(
     (route) => {
       const family = parseCidr(route.prefix)?.family;
-      return route.nextHops.every((hop) => hop.address === undefined || ipFamily(hop.address) === family);
+      return route.nextHops.every(
+        (hop) => hop.address === undefined || ipFamily(hop.address) === family,
+      );
     },
-    { message: 'next-hop addresses must be in the same address family as the prefix', path: ['nextHops'] },
+    {
+      message: 'next-hop addresses must be in the same address family as the prefix',
+      path: ['nextHops'],
+    },
   );
 export type StaticRouteConfig = z.infer<typeof StaticRouteSchema>;
 
@@ -174,7 +179,11 @@ export const PrefixListRuleSchema = z
 export const PrefixListSchema = z
   .strictObject({
     description: withUi(descriptionText.optional(), { title: 'Description', order: 1 }),
-    family: withUi(PrefixFamily.default('ipv4'), { title: 'Address family', widget: 'select', order: 2 }),
+    family: withUi(PrefixFamily.default('ipv4'), {
+      title: 'Address family',
+      widget: 'select',
+      order: 2,
+    }),
     rules: withUi(z.array(PrefixListRuleSchema).max(1024).default([]), {
       title: 'Rules',
       itemKey: ['seq'],
@@ -184,7 +193,9 @@ export const PrefixListSchema = z
   .refine((list) => uniqueSequences(list.rules), { message: SEQ_UNIQUE, path: ['rules'] })
   .refine(
     (list) =>
-      list.rules.every((rule) => parseCidr(rule.prefix)?.family === (list.family === 'ipv4' ? 4 : 6)),
+      list.rules.every(
+        (rule) => parseCidr(rule.prefix)?.family === (list.family === 'ipv4' ? 4 : 6),
+      ),
     { message: 'every rule prefix must match the address family of the list', path: ['rules'] },
   );
 export type PrefixListConfig = z.infer<typeof PrefixListSchema>;
@@ -222,7 +233,10 @@ export const RouteMapSetSchema = z.strictObject({
     help: 'append the communities instead of replacing them',
     order: 6,
   }),
-  asPathPrepend: withUi(z.array(asNumber).max(16).optional(), { title: 'AS path prepend', order: 7 }),
+  asPathPrepend: withUi(z.array(asNumber).max(16).optional(), {
+    title: 'AS path prepend',
+    order: 7,
+  }),
   tag: withUi(uint32.optional(), { title: 'Tag', order: 8 }),
 });
 
@@ -286,15 +300,30 @@ const bgpPeerFields = {
     help: 'TCP MD5 session password in the secret store',
     order: 6,
   }),
-  keepaliveSec: withUi(z.number().int().min(1).max(65535).optional(), { title: 'Keepalive (s)', order: 7 }),
-  holdTimeSec: withUi(z.number().int().min(3).max(65535).optional(), { title: 'Hold time (s)', order: 8 }),
-  bfd: withUi(z.boolean().default(false), { title: 'BFD', help: 'fast failure detection', order: 9 }),
+  keepaliveSec: withUi(z.number().int().min(1).max(65535).optional(), {
+    title: 'Keepalive (s)',
+    order: 7,
+  }),
+  holdTimeSec: withUi(z.number().int().min(3).max(65535).optional(), {
+    title: 'Hold time (s)',
+    order: 8,
+  }),
+  bfd: withUi(z.boolean().default(false), {
+    title: 'BFD',
+    help: 'fast failure detection',
+    order: 9,
+  }),
   ipv4Unicast: withUi(BgpAddressFamilySchema.optional(), { title: 'IPv4 unicast', order: 10 }),
   ipv6Unicast: withUi(BgpAddressFamilySchema.optional(), { title: 'IPv6 unicast', order: 11 }),
 } as const;
 
-const holdAboveKeepalive = (peer: { keepaliveSec?: number | undefined; holdTimeSec?: number | undefined }) =>
-  peer.keepaliveSec === undefined || peer.holdTimeSec === undefined || peer.holdTimeSec > peer.keepaliveSec;
+const holdAboveKeepalive = (peer: {
+  keepaliveSec?: number | undefined;
+  holdTimeSec?: number | undefined;
+}) =>
+  peer.keepaliveSec === undefined ||
+  peer.holdTimeSec === undefined ||
+  peer.holdTimeSec > peer.keepaliveSec;
 const HOLD_ABOVE_KEEPALIVE = 'hold time must be greater than the keepalive interval';
 
 export const BgpPeerGroupSchema = z
@@ -391,8 +420,14 @@ export const OspfInterfaceSchema = z.strictObject({
     z.enum(['broadcast', 'point-to-point', 'non-broadcast', 'point-to-multipoint']).optional(),
     { title: 'Network type', widget: 'select', order: 5 },
   ),
-  helloIntervalSec: withUi(z.number().int().min(1).max(65535).optional(), { title: 'Hello interval (s)', order: 6 }),
-  deadIntervalSec: withUi(z.number().int().min(1).max(65535).optional(), { title: 'Dead interval (s)', order: 7 }),
+  helloIntervalSec: withUi(z.number().int().min(1).max(65535).optional(), {
+    title: 'Hello interval (s)',
+    order: 6,
+  }),
+  deadIntervalSec: withUi(z.number().int().min(1).max(65535).optional(), {
+    title: 'Dead interval (s)',
+    order: 7,
+  }),
   priority: withUi(z.number().int().min(0).max(255).optional(), { title: 'DR priority', order: 8 }),
   bfd: withUi(z.boolean().default(false), { title: 'BFD', order: 9 }),
 });
@@ -401,7 +436,11 @@ export const OspfSchema = z
   .strictObject({
     routerId: withUi(routerId.optional(), { title: 'Router ID', order: 1 }),
     vrf: withUi(vrfName.default(DEFAULT_VRF), { title: 'VRF', order: 2 }),
-    areas: withUi(z.array(OspfAreaSchema).max(64).default([]), { title: 'Areas', itemKey: ['id'], order: 3 }),
+    areas: withUi(z.array(OspfAreaSchema).max(64).default([]), {
+      title: 'Areas',
+      itemKey: ['id'],
+      order: 3,
+    }),
     interfaces: withUi(z.array(OspfInterfaceSchema).max(256).default([]), {
       title: 'Interfaces',
       itemKey: ['name'],
@@ -418,10 +457,13 @@ export const OspfSchema = z
       order: 6,
     }),
   })
-  .refine((ospf) => new Set(ospf.areas.map((a) => ospfAreaNumber(a.id))).size === ospf.areas.length, {
-    message: 'area ids must be unique (0 and 0.0.0.0 are the same area)',
-    path: ['areas'],
-  });
+  .refine(
+    (ospf) => new Set(ospf.areas.map((a) => ospfAreaNumber(a.id))).size === ospf.areas.length,
+    {
+      message: 'area ids must be unique (0 and 0.0.0.0 are the same area)',
+      path: ['areas'],
+    },
+  );
 export type OspfConfig = z.infer<typeof OspfSchema>;
 
 /* ------------------------------------------------------------------------------------------------- IS-IS */
@@ -482,7 +524,10 @@ export const RipSchema = z.strictObject({
     itemKey: ['protocol'],
     order: 4,
   }),
-  defaultMetric: withUi(z.number().int().min(1).max(16).default(1), { title: 'Default metric', order: 5 }),
+  defaultMetric: withUi(z.number().int().min(1).max(16).default(1), {
+    title: 'Default metric',
+    order: 5,
+  }),
 });
 export type RipConfig = z.infer<typeof RipSchema>;
 
@@ -499,8 +544,14 @@ export const BfdSessionSchema = z
     interface: withUi(vppInterfaceName, { title: 'Interface', order: 1 }),
     localAddress: withUi(ipAddress, { title: 'Local address', order: 2 }),
     peerAddress: withUi(ipAddress, { title: 'Peer address', order: 3 }),
-    desiredMinTxUs: withUi(bfdIntervalUs.default(300000), { title: 'Desired min TX (µs)', order: 4 }),
-    requiredMinRxUs: withUi(bfdIntervalUs.default(300000), { title: 'Required min RX (µs)', order: 5 }),
+    desiredMinTxUs: withUi(bfdIntervalUs.default(300000), {
+      title: 'Desired min TX (µs)',
+      order: 4,
+    }),
+    requiredMinRxUs: withUi(bfdIntervalUs.default(300000), {
+      title: 'Required min RX (µs)',
+      order: 5,
+    }),
     detectMultiplier: withUi(z.number().int().min(1).max(255).default(3), {
       title: 'Detect multiplier',
       order: 6,

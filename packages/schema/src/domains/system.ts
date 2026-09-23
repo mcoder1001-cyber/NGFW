@@ -54,7 +54,10 @@ export const DnsSchema = z.strictObject({
     help: 'upstream resolvers for the system itself',
     order: 1,
   }),
-  searchDomains: withUi(z.array(hostname).max(6).default([]), { title: 'Search domains', order: 2 }),
+  searchDomains: withUi(z.array(hostname).max(6).default([]), {
+    title: 'Search domains',
+    order: 2,
+  }),
   vrf: withUi(vrfName.default(DEFAULT_VRF), {
     title: 'VRF',
     help: 'VRF used to reach the name servers',
@@ -78,7 +81,11 @@ export const SystemSchema = withUi(
     }),
     banner: withUi(BannerSchema.prefault({}), { title: 'Banners', group: 'identity', order: 3 }),
     ntp: withUi(NtpSchema.prefault({}), { title: 'NTP', group: 'time', order: 4 }),
-    dns: withUi(DnsSchema.prefault({}), { title: 'DNS client', group: 'name-resolution', order: 5 }),
+    dns: withUi(DnsSchema.prefault({}), {
+      title: 'DNS client',
+      group: 'name-resolution',
+      order: 5,
+    }),
   }),
   {
     title: 'System',

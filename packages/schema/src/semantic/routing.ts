@@ -1,5 +1,9 @@
 import { interfaceNames } from '../domains/interfaces.js';
-import { ospfAreaNumber, type BgpNeighborConfig, type BgpPeerGroupConfig } from '../domains/routing.js';
+import {
+  ospfAreaNumber,
+  type BgpNeighborConfig,
+  type BgpPeerGroupConfig,
+} from '../domains/routing.js';
 import { vrfExists } from '../domains/vrfs.js';
 import { ipFamily } from '../ip.js';
 import { jsonPointer } from '../pointer.js';
@@ -25,7 +29,10 @@ class Refs {
   ) {}
   check(name: string | undefined, ...path: Path): void {
     if (name !== undefined && !this.exists(name)) {
-      this.issues.push({ pointer: jsonPointer(...path), message: `${this.kind} '${name}' does not exist` });
+      this.issues.push({
+        pointer: jsonPointer(...path),
+        message: `${this.kind} '${name}' does not exist`,
+      });
     }
   }
 }
@@ -47,8 +54,10 @@ export const routingValidators: readonly ValidatorDefinition[] = [
     domains: ['routing', 'vrfs'],
     validate: (config) => {
       const refs = new Refs('VRF', (name) => vrfExists(config.vrfs, name));
-      for (const [i, route] of config.routing.static.entries()) refs.check(route.vrf, 'routing', 'static', i, 'vrf');
-      for (const protocol of PROTOCOLS) refs.check(config.routing[protocol]?.vrf, 'routing', protocol, 'vrf');
+      for (const [i, route] of config.routing.static.entries())
+        refs.check(route.vrf, 'routing', 'static', i, 'vrf');
+      for (const protocol of PROTOCOLS)
+        refs.check(config.routing[protocol]?.vrf, 'routing', protocol, 'vrf');
       return refs.issues;
     },
   },
@@ -94,8 +103,26 @@ export const routingValidators: readonly ValidatorDefinition[] = [
       const refs = new Refs('prefix list', (name) => Object.hasOwn(prefixLists, name));
       for (const [name, map] of Object.entries(routeMaps)) {
         for (const [i, entry] of map.entries.entries()) {
-          refs.check(entry.match.prefixList, 'routing', 'routeMaps', name, 'entries', i, 'match', 'prefixList');
-          refs.check(entry.match.nextHopPrefixList, 'routing', 'routeMaps', name, 'entries', i, 'match', 'nextHopPrefixList');
+          refs.check(
+            entry.match.prefixList,
+            'routing',
+            'routeMaps',
+            name,
+            'entries',
+            i,
+            'match',
+            'prefixList',
+          );
+          refs.check(
+            entry.match.nextHopPrefixList,
+            'routing',
+            'routeMaps',
+            name,
+            'entries',
+            i,
+            'match',
+            'nextHopPrefixList',
+          );
         }
       }
       for (const [path, peer] of bgpPeers(config)) {
@@ -133,7 +160,8 @@ export const routingValidators: readonly ValidatorDefinition[] = [
       const bgp = config.routing.bgp;
       if (bgp === undefined) return [];
       const refs = new Refs('peer group', (name) => Object.hasOwn(bgp.peerGroups, name));
-      for (const [i, n] of bgp.neighbors.entries()) refs.check(n.peerGroup, 'routing', 'bgp', 'neighbors', i, 'peerGroup');
+      for (const [i, n] of bgp.neighbors.entries())
+        refs.check(n.peerGroup, 'routing', 'bgp', 'neighbors', i, 'peerGroup');
       return refs.issues;
     },
   },
@@ -146,18 +174,32 @@ export const routingValidators: readonly ValidatorDefinition[] = [
       const { routeMaps, ospf, isis, rip, bfd } = config.routing;
       for (const [name, map] of Object.entries(routeMaps)) {
         for (const [i, entry] of map.entries.entries()) {
-          refs.check(entry.match.interface, 'routing', 'routeMaps', name, 'entries', i, 'match', 'interface');
+          refs.check(
+            entry.match.interface,
+            'routing',
+            'routeMaps',
+            name,
+            'entries',
+            i,
+            'match',
+            'interface',
+          );
         }
       }
       for (const [path, peer] of bgpPeers(config)) {
         // updateSource is an address or an interface name; only names are checked
         const source = peer.updateSource;
-        if (source !== undefined && ipFamily(source) === undefined) refs.check(source, ...path, 'updateSource');
+        if (source !== undefined && ipFamily(source) === undefined)
+          refs.check(source, ...path, 'updateSource');
       }
-      for (const [i, iface] of (ospf?.interfaces ?? []).entries()) refs.check(iface.name, 'routing', 'ospf', 'interfaces', i, 'name');
-      for (const [i, iface] of (isis?.interfaces ?? []).entries()) refs.check(iface.name, 'routing', 'isis', 'interfaces', i, 'name');
-      for (const [i, iface] of (rip?.interfaces ?? []).entries()) refs.check(iface.name, 'routing', 'rip', 'interfaces', i, 'name');
-      for (const [i, s] of (bfd?.sessions ?? []).entries()) refs.check(s.interface, 'routing', 'bfd', 'sessions', i, 'interface');
+      for (const [i, iface] of (ospf?.interfaces ?? []).entries())
+        refs.check(iface.name, 'routing', 'ospf', 'interfaces', i, 'name');
+      for (const [i, iface] of (isis?.interfaces ?? []).entries())
+        refs.check(iface.name, 'routing', 'isis', 'interfaces', i, 'name');
+      for (const [i, iface] of (rip?.interfaces ?? []).entries())
+        refs.check(iface.name, 'routing', 'rip', 'interfaces', i, 'name');
+      for (const [i, s] of (bfd?.sessions ?? []).entries())
+        refs.check(s.interface, 'routing', 'bfd', 'sessions', i, 'interface');
       return refs.issues;
     },
   },
@@ -186,7 +228,9 @@ function bgpPeers(config: RootConfig): [Path, BgpPeer][] {
   const bgp = config.routing.bgp;
   if (bgp === undefined) return [];
   const out: [Path, BgpPeer][] = [];
-  for (const [name, group] of Object.entries(bgp.peerGroups)) out.push([['routing', 'bgp', 'peerGroups', name], group]);
-  for (const [i, neighbor] of bgp.neighbors.entries()) out.push([['routing', 'bgp', 'neighbors', i], neighbor]);
+  for (const [name, group] of Object.entries(bgp.peerGroups))
+    out.push([['routing', 'bgp', 'peerGroups', name], group]);
+  for (const [i, neighbor] of bgp.neighbors.entries())
+    out.push([['routing', 'bgp', 'neighbors', i], neighbor]);
   return out;
 }

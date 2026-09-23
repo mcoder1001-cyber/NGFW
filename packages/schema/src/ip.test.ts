@@ -18,10 +18,17 @@ describe('parseIpv4', () => {
     ['192.168.100.200', 0xc0a864c8n],
   ])('%s → %s', (text, value) => expect(parseIpv4(text)).toBe(value));
 
-  it.each(['', '1.2.3', '1.2.3.4.5', '256.0.0.1', '01.2.3.4', '1.2.3.-4', 'a.b.c.d', '1..2.3', ' 1.2.3.4'])(
-    'rejects %j',
-    (text) => expect(parseIpv4(text)).toBeUndefined(),
-  );
+  it.each([
+    '',
+    '1.2.3',
+    '1.2.3.4.5',
+    '256.0.0.1',
+    '01.2.3.4',
+    '1.2.3.-4',
+    'a.b.c.d',
+    '1..2.3',
+    ' 1.2.3.4',
+  ])('rejects %j', (text) => expect(parseIpv4(text)).toBeUndefined());
 });
 
 describe('parseIpv6', () => {
@@ -82,10 +89,18 @@ describe('parseCidr / networkAddress / isNetworkAddress', () => {
     expect(parseCidr('::/128')).toEqual({ family: 6, address: 0n, length: 128 });
   });
 
-  it.each(['10.0.0.1', '10.0.0.1/33', '10.0.0.1/-1', '10.0.0.1/08', '10.0.0.1/1.5', '::1/129', 'x/24', '/24', '10.0.0.1/', '10.0.0.1/24/'])(
-    'rejects %j',
-    (text) => expect(parseCidr(text)).toBeUndefined(),
-  );
+  it.each([
+    '10.0.0.1',
+    '10.0.0.1/33',
+    '10.0.0.1/-1',
+    '10.0.0.1/08',
+    '10.0.0.1/1.5',
+    '::1/129',
+    'x/24',
+    '/24',
+    '10.0.0.1/',
+    '10.0.0.1/24/',
+  ])('rejects %j', (text) => expect(parseCidr(text)).toBeUndefined());
 
   it('clears host bits', () => {
     expect(networkAddress({ family: 4, address: 0x0a0000ffn, length: 24 })).toBe(0x0a000000n);
@@ -104,7 +119,9 @@ describe('parseCidr / networkAddress / isNetworkAddress', () => {
     ['2001:db8::1/64', false],
     ['::/0', true],
     ['not-a-prefix', false],
-  ])('isNetworkAddress(%s) = %s', (text, expected) => expect(isNetworkAddress(text)).toBe(expected));
+  ])('isNetworkAddress(%s) = %s', (text, expected) =>
+    expect(isNetworkAddress(text)).toBe(expected),
+  );
 });
 
 describe('prefixesOverlap / prefixContains', () => {

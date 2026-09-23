@@ -18,7 +18,8 @@ const files = readdirSync(dir)
 const SEMANTIC_POINTERS: Record<string, string> = {
   'invalid-semantic-vrf-missing.json': '/interfaces/TenGigabitEthernet0~10~10/vrf',
   'invalid-semantic-ipv4-overlap.json': '/interfaces/TenGigabitEthernet0~10~11/ipv4/0',
-  'invalid-semantic-vlan-duplicate.json': '/interfaces/TenGigabitEthernet0~10~10/subinterfaces/101/vlanId',
+  'invalid-semantic-vlan-duplicate.json':
+    '/interfaces/TenGigabitEthernet0~10~10/subinterfaces/101/vlanId',
   'invalid-semantic-nexthop-interface.json': '/routing/static/0/nextHops/0/interface',
   'invalid-semantic-no-admin.json': '/management/users',
 };
@@ -28,7 +29,11 @@ const load = (file: string): unknown => JSON.parse(readFileSync(new URL(file, di
 describe('examples', () => {
   it('include minimal.json, two-interfaces.json and every listed semantic fixture', () => {
     expect(files).toEqual(
-      expect.arrayContaining(['minimal.json', 'two-interfaces.json', ...Object.keys(SEMANTIC_POINTERS)]),
+      expect.arrayContaining([
+        'minimal.json',
+        'two-interfaces.json',
+        ...Object.keys(SEMANTIC_POINTERS),
+      ]),
     );
   });
 

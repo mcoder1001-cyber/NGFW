@@ -38,7 +38,9 @@ function patchAt(target: unknown, segments: readonly string[], patch: unknown): 
   if (Array.isArray(target)) {
     const index = Number(head);
     if (!/^(?:0|[1-9][0-9]*)$/.test(head) || index > target.length) {
-      throw new Error(`invalid array index '${head}' in JSON pointer (array has ${target.length} items)`);
+      throw new Error(
+        `invalid array index '${head}' in JSON pointer (array has ${target.length} items)`,
+      );
     }
     const copy: unknown[] = [...target];
     copy[index] = patchAt(target[index], rest, patch);

@@ -1,4 +1,8 @@
 {
   "system": { "hostname": "vrx-a", "hostnme": "typo" },
-  "management": { "users": [{ "username": "admin", "role": "admin", "passwordHash": "$vrx-test$VRX_TEST_HASH_admin" }] }
+  "management": {
+    "users": [
+      { "username": "admin", "role": "admin", "passwordHash": "$vrx-test$VRX_TEST_HASH_admin" }
+    ]
+  }
 }

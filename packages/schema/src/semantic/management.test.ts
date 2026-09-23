@@ -14,25 +14,61 @@ const NO_ADMIN = {
 
 describe('management.admin-exists', () => {
   it('is satisfied by an enabled admin with a password or an SSH key', () => {
-    expect(run('management.admin-exists', { management: { users: [{ username: 'a', role: 'admin', passwordHash: HASH }] } })).toEqual([]);
-    expect(run('management.admin-exists', { management: { users: [{ username: 'a', role: 'admin', sshKeys: [KEY] }] } })).toEqual([]);
+    expect(
+      run('management.admin-exists', {
+        management: { users: [{ username: 'a', role: 'admin', passwordHash: HASH }] },
+      }),
+    ).toEqual([]);
+    expect(
+      run('management.admin-exists', {
+        management: { users: [{ username: 'a', role: 'admin', sshKeys: [KEY] }] },
+      }),
+    ).toEqual([]);
   });
   it('is not satisfied by no users, non-admins, disabled admins or admins that cannot log in', () => {
     expect(run('management.admin-exists', {})).toEqual([NO_ADMIN]);
-    expect(run('management.admin-exists', { management: { users: [{ username: 'o', role: 'operator', passwordHash: HASH }] } })).toEqual([NO_ADMIN]);
-    expect(run('management.admin-exists', { management: { users: [{ username: 'a', role: 'admin', passwordHash: HASH, disabled: true }] } })).toEqual([NO_ADMIN]);
-    expect(run('management.admin-exists', { management: { users: [{ username: 'a', role: 'admin' }] } })).toEqual([NO_ADMIN]);
+    expect(
+      run('management.admin-exists', {
+        management: { users: [{ username: 'o', role: 'operator', passwordHash: HASH }] },
+      }),
+    ).toEqual([NO_ADMIN]);
+    expect(
+      run('management.admin-exists', {
+        management: {
+          users: [{ username: 'a', role: 'admin', passwordHash: HASH, disabled: true }],
+        },
+      }),
+    ).toEqual([NO_ADMIN]);
+    expect(
+      run('management.admin-exists', { management: { users: [{ username: 'a', role: 'admin' }] } }),
+    ).toEqual([NO_ADMIN]);
   });
 });
 
 describe('management.username-unique', () => {
   it('reports repeated usernames at the later entries', () => {
-    expect(run('management.username-unique', { management: { users: [{ username: 'a', role: 'admin' }, { username: 'b', role: 'admin' }] } })).toEqual([]);
     expect(
       run('management.username-unique', {
-        management: { users: [{ username: 'a', role: 'admin' }, { username: 'a', role: 'readonly' }] },
+        management: {
+          users: [
+            { username: 'a', role: 'admin' },
+            { username: 'b', role: 'admin' },
+          ],
+        },
       }),
-    ).toEqual([{ pointer: '/management/users/1/username', message: "username 'a' is already taken" }]);
+    ).toEqual([]);
+    expect(
+      run('management.username-unique', {
+        management: {
+          users: [
+            { username: 'a', role: 'admin' },
+            { username: 'a', role: 'readonly' },
+          ],
+        },
+      }),
+    ).toEqual([
+      { pointer: '/management/users/1/username', message: "username 'a' is already taken" },
+    ]);
   });
 });
 

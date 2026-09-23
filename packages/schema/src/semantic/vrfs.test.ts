@@ -17,13 +17,23 @@ describe('vrfs.id-unique', () => {
 
 describe('vrfs.default-is-table-zero', () => {
   it('lets default be declared with id 0 and others with any other id', () => {
-    expect(run('vrfs.default-is-table-zero', { vrfs: { default: { id: 0 }, a: { id: 10 } } })).toEqual([]);
+    expect(
+      run('vrfs.default-is-table-zero', { vrfs: { default: { id: 0 }, a: { id: 10 } } }),
+    ).toEqual([]);
     expect(run('vrfs.default-is-table-zero', {})).toEqual([]);
   });
   it('rejects default with a non-zero id and any other VRF with id 0', () => {
-    expect(run('vrfs.default-is-table-zero', { vrfs: { default: { id: 5 }, a: { id: 0 } } })).toEqual([
-      { pointer: '/vrfs/default/id', message: "the 'default' VRF is VPP table 0 and cannot use id 5" },
-      { pointer: '/vrfs/a/id', message: "table id 0 is the 'default' VRF; choose another id for 'a'" },
+    expect(
+      run('vrfs.default-is-table-zero', { vrfs: { default: { id: 5 }, a: { id: 0 } } }),
+    ).toEqual([
+      {
+        pointer: '/vrfs/default/id',
+        message: "the 'default' VRF is VPP table 0 and cannot use id 5",
+      },
+      {
+        pointer: '/vrfs/a/id',
+        message: "table id 0 is the 'default' VRF; choose another id for 'a'",
+      },
     ]);
   });
 });

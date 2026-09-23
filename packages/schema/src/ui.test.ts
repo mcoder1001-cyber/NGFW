@@ -37,7 +37,10 @@ describe('withUi', () => {
     const base = withUi(z.string().min(1), { title: 'Name' });
     const derived = withUi(base, { title: 'VRF', widget: 'vrf-picker' });
     expect(z.toJSONSchema(base).title).toBe('Name');
-    expect(z.toJSONSchema(derived)).toMatchObject({ title: 'VRF', [X_VRX_UI]: { widget: 'vrf-picker' } });
+    expect(z.toJSONSchema(derived)).toMatchObject({
+      title: 'VRF',
+      [X_VRX_UI]: { widget: 'vrf-picker' },
+    });
     expect(derived.safeParse('').success).toBe(false);
   });
 });

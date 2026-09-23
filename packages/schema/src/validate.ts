@@ -30,5 +30,7 @@ export function validateConfig(document: unknown): ValidationResult {
   const parsed = RootConfig.safeParse(document);
   if (!parsed.success) return { ok: false, tier: 'schema', issues: pointerIssues(parsed.error) };
   const issues = validateSemantics(parsed.data);
-  return issues.length === 0 ? { ok: true, config: parsed.data } : { ok: false, tier: 'semantic', issues };
+  return issues.length === 0
+    ? { ok: true, config: parsed.data }
+    : { ok: false, tier: 'semantic', issues };
 }

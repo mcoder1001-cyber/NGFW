@@ -1,4 +1,8 @@
-import { interfaceNames, type SubinterfaceConfig, type InterfaceConfig } from '../domains/interfaces.js';
+import {
+  interfaceNames,
+  type SubinterfaceConfig,
+  type InterfaceConfig,
+} from '../domains/interfaces.js';
 import { vrfExists } from '../domains/vrfs.js';
 import { parseCidr, prefixesOverlap, type IpPrefix } from '../ip.js';
 import { jsonPointer } from '../pointer.js';
@@ -24,7 +28,11 @@ function nodes(config: RootConfig): Node[] {
   for (const [parent, iface] of Object.entries(config.interfaces)) {
     out.push({ name: parent, path: ['interfaces', parent], value: iface });
     for (const [id, sub] of Object.entries(iface.subinterfaces)) {
-      out.push({ name: `${parent}.${id}`, path: ['interfaces', parent, 'subinterfaces', id], value: sub });
+      out.push({
+        name: `${parent}.${id}`,
+        path: ['interfaces', parent, 'subinterfaces', id],
+        value: sub,
+      });
     }
   }
   return out;

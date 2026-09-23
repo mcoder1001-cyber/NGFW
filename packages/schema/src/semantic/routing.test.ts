@@ -51,7 +51,14 @@ describe('routing.static-nexthop-interface-exists', () => {
         interfaces: IFACES,
         routing: {
           static: [
-            { prefix: '0.0.0.0/0', nextHops: [{ address: '10.0.0.1' }, { interface: 'loop0' }, { interface: 'TenGigabitEthernet0/0/0.100' }] },
+            {
+              prefix: '0.0.0.0/0',
+              nextHops: [
+                { address: '10.0.0.1' },
+                { interface: 'loop0' },
+                { interface: 'TenGigabitEthernet0/0/0.100' },
+              ],
+            },
           ],
         },
       }),
@@ -60,9 +67,21 @@ describe('routing.static-nexthop-interface-exists', () => {
   it('reports an unknown egress interface', () => {
     expect(
       run('routing.static-nexthop-interface-exists', {
-        routing: { static: [{ prefix: '0.0.0.0/0', nextHops: [{ address: '10.0.0.1' }, { address: '10.0.0.2', interface: 'loop9' }] }] },
+        routing: {
+          static: [
+            {
+              prefix: '0.0.0.0/0',
+              nextHops: [{ address: '10.0.0.1' }, { address: '10.0.0.2', interface: 'loop9' }],
+            },
+          ],
+        },
       }),
-    ).toEqual([{ pointer: '/routing/static/0/nextHops/1/interface', message: "interface 'loop9' does not exist" }]);
+    ).toEqual([
+      {
+        pointer: '/routing/static/0/nextHops/1/interface',
+        message: "interface 'loop9' does not exist",
+      },
+    ]);
   });
 });
 
@@ -83,7 +102,8 @@ describe('routing.static-unique', () => {
     ).toEqual([
       {
         pointer: '/routing/static/3/prefix',
-        message: "route 2001:db8::/32 in VRF 'default' is already defined at /routing/static/2; add next hops there instead",
+        message:
+          "route 2001:db8::/32 in VRF 'default' is already defined at /routing/static/2; add next hops there instead",
       },
     ]);
   });
@@ -96,7 +116,14 @@ describe('routing.prefix-list-exists', () => {
       run('routing.prefix-list-exists', {
         routing: {
           prefixLists: { pl: {} },
-          routeMaps: { rm: { entries: [{ seq: 10, action: 'permit', match: { prefixList: 'pl', nextHopPrefixList: 'pl' } }, { seq: 20, action: 'deny' }] } },
+          routeMaps: {
+            rm: {
+              entries: [
+                { seq: 10, action: 'permit', match: { prefixList: 'pl', nextHopPrefixList: 'pl' } },
+                { seq: 20, action: 'deny' },
+              ],
+            },
+          },
           bgp: {
             asn: 1,
             peerGroups: { g: { ipv4Unicast: { prefixListIn: 'pl', prefixListOut: 'pl' } } },
@@ -110,7 +137,13 @@ describe('routing.prefix-list-exists', () => {
     expect(
       run('routing.prefix-list-exists', {
         routing: {
-          routeMaps: { rm: { entries: [{ seq: 10, action: 'permit', match: { prefixList: 'a', nextHopPrefixList: 'b' } }] } },
+          routeMaps: {
+            rm: {
+              entries: [
+                { seq: 10, action: 'permit', match: { prefixList: 'a', nextHopPrefixList: 'b' } },
+              ],
+            },
+          },
           bgp: {
             asn: 1,
             peerGroups: { g: { ipv4Unicast: { prefixListIn: 'c' } } },
@@ -119,10 +152,22 @@ describe('routing.prefix-list-exists', () => {
         },
       }),
     ).toEqual([
-      { pointer: '/routing/routeMaps/rm/entries/0/match/prefixList', message: "prefix list 'a' does not exist" },
-      { pointer: '/routing/routeMaps/rm/entries/0/match/nextHopPrefixList', message: "prefix list 'b' does not exist" },
-      { pointer: '/routing/bgp/peerGroups/g/ipv4Unicast/prefixListIn', message: "prefix list 'c' does not exist" },
-      { pointer: '/routing/bgp/neighbors/0/ipv6Unicast/prefixListOut', message: "prefix list 'd' does not exist" },
+      {
+        pointer: '/routing/routeMaps/rm/entries/0/match/prefixList',
+        message: "prefix list 'a' does not exist",
+      },
+      {
+        pointer: '/routing/routeMaps/rm/entries/0/match/nextHopPrefixList',
+        message: "prefix list 'b' does not exist",
+      },
+      {
+        pointer: '/routing/bgp/peerGroups/g/ipv4Unicast/prefixListIn',
+        message: "prefix list 'c' does not exist",
+      },
+      {
+        pointer: '/routing/bgp/neighbors/0/ipv6Unicast/prefixListOut',
+        message: "prefix list 'd' does not exist",
+      },
     ]);
   });
 });
@@ -136,7 +181,13 @@ describe('routing.route-map-exists', () => {
           routeMaps: { rm: {} },
           bgp: {
             asn: 1,
-            neighbors: [{ address: '10.0.0.1', remoteAs: 2, ipv4Unicast: { routeMapIn: 'rm', routeMapOut: 'rm' } }],
+            neighbors: [
+              {
+                address: '10.0.0.1',
+                remoteAs: 2,
+                ipv4Unicast: { routeMapIn: 'rm', routeMapOut: 'rm' },
+              },
+            ],
             networks: [{ prefix: '10.0.0.0/8', routeMap: 'rm' }, { prefix: '10.1.0.0/16' }],
             redistribute: [{ protocol: 'connected', routeMap: 'rm' }, { protocol: 'static' }],
           },
@@ -157,13 +208,22 @@ describe('routing.route-map-exists', () => {
             redistribute: [{ protocol: 'connected', routeMap: 'd' }],
           },
           ospf: { redistribute: [{ protocol: 'bgp', routeMap: 'e' }] },
-          isis: { net: '49.0001.1921.6800.1001.00', redistribute: [{ protocol: 'static', routeMap: 'f' }] },
+          isis: {
+            net: '49.0001.1921.6800.1001.00',
+            redistribute: [{ protocol: 'static', routeMap: 'f' }],
+          },
           rip: { redistribute: [{ protocol: 'ospf', routeMap: 'g' }] },
         },
       }),
     ).toEqual([
-      { pointer: '/routing/bgp/peerGroups/g/ipv6Unicast/routeMapOut', message: "route map 'a' does not exist" },
-      { pointer: '/routing/bgp/neighbors/0/ipv4Unicast/routeMapIn', message: "route map 'b' does not exist" },
+      {
+        pointer: '/routing/bgp/peerGroups/g/ipv6Unicast/routeMapOut',
+        message: "route map 'a' does not exist",
+      },
+      {
+        pointer: '/routing/bgp/neighbors/0/ipv4Unicast/routeMapIn',
+        message: "route map 'b' does not exist",
+      },
       { pointer: '/routing/bgp/networks/0/routeMap', message: "route map 'c' does not exist" },
       { pointer: '/routing/bgp/redistribute/0/routeMap', message: "route map 'd' does not exist" },
       { pointer: '/routing/ospf/redistribute/0/routeMap', message: "route map 'e' does not exist" },
@@ -178,13 +238,29 @@ describe('routing.bgp-peer-group-exists', () => {
     expect(run('routing.bgp-peer-group-exists', {})).toEqual([]);
     expect(
       run('routing.bgp-peer-group-exists', {
-        routing: { bgp: { asn: 1, peerGroups: { g: { remoteAs: 2 } }, neighbors: [{ address: '10.0.0.1', peerGroup: 'g' }, { address: '10.0.0.2', remoteAs: 3 }] } },
+        routing: {
+          bgp: {
+            asn: 1,
+            peerGroups: { g: { remoteAs: 2 } },
+            neighbors: [
+              { address: '10.0.0.1', peerGroup: 'g' },
+              { address: '10.0.0.2', remoteAs: 3 },
+            ],
+          },
+        },
       }),
     ).toEqual([]);
   });
   it('reports an unknown peer group', () => {
-    expect(run('routing.bgp-peer-group-exists', { routing: { bgp: { asn: 1, neighbors: [{ address: '10.0.0.1', peerGroup: 'nope' }] } } })).toEqual([
-      { pointer: '/routing/bgp/neighbors/0/peerGroup', message: "peer group 'nope' does not exist" },
+    expect(
+      run('routing.bgp-peer-group-exists', {
+        routing: { bgp: { asn: 1, neighbors: [{ address: '10.0.0.1', peerGroup: 'nope' }] } },
+      }),
+    ).toEqual([
+      {
+        pointer: '/routing/bgp/neighbors/0/peerGroup',
+        message: "peer group 'nope' does not exist",
+      },
     ]);
   });
 });
@@ -196,16 +272,31 @@ describe('routing.interface-exists', () => {
       run('routing.interface-exists', {
         interfaces: IFACES,
         routing: {
-          routeMaps: { rm: { entries: [{ seq: 1, action: 'permit', match: { interface: 'loop0' } }, { seq: 2, action: 'permit' }] } },
+          routeMaps: {
+            rm: {
+              entries: [
+                { seq: 1, action: 'permit', match: { interface: 'loop0' } },
+                { seq: 2, action: 'permit' },
+              ],
+            },
+          },
           bgp: {
             asn: 1,
             peerGroups: { g: { updateSource: 'loop0' } },
-            neighbors: [{ address: '10.0.0.1', remoteAs: 2, updateSource: '10.255.0.1' }, { address: '10.0.0.2', remoteAs: 2 }],
+            neighbors: [
+              { address: '10.0.0.1', remoteAs: 2, updateSource: '10.255.0.1' },
+              { address: '10.0.0.2', remoteAs: 2 },
+            ],
           },
-          ospf: { areas: [{ id: 0 }], interfaces: [{ name: 'TenGigabitEthernet0/0/0.100', area: 0 }] },
+          ospf: {
+            areas: [{ id: 0 }],
+            interfaces: [{ name: 'TenGigabitEthernet0/0/0.100', area: 0 }],
+          },
           isis: { net: '49.0001.1921.6800.1001.00', interfaces: [{ name: 'loop0' }] },
           rip: { interfaces: [{ name: 'loop0' }] },
-          bfd: { sessions: [{ interface: 'loop0', localAddress: '10.0.0.1', peerAddress: '10.0.0.2' }] },
+          bfd: {
+            sessions: [{ interface: 'loop0', localAddress: '10.0.0.1', peerAddress: '10.0.0.2' }],
+          },
         },
       }),
     ).toEqual([]);
@@ -219,11 +310,16 @@ describe('routing.interface-exists', () => {
           ospf: { interfaces: [{ name: 'c', area: 0 }] },
           isis: { net: '49.0001.1921.6800.1001.00', interfaces: [{ name: 'd' }] },
           rip: { interfaces: [{ name: 'e' }] },
-          bfd: { sessions: [{ interface: 'f', localAddress: '10.0.0.1', peerAddress: '10.0.0.2' }] },
+          bfd: {
+            sessions: [{ interface: 'f', localAddress: '10.0.0.1', peerAddress: '10.0.0.2' }],
+          },
         },
       }),
     ).toEqual([
-      { pointer: '/routing/routeMaps/rm/entries/0/match/interface', message: "interface 'a' does not exist" },
+      {
+        pointer: '/routing/routeMaps/rm/entries/0/match/interface',
+        message: "interface 'a' does not exist",
+      },
       { pointer: '/routing/bgp/neighbors/0/updateSource', message: "interface 'b' does not exist" },
       { pointer: '/routing/ospf/interfaces/0/name', message: "interface 'c' does not exist" },
       { pointer: '/routing/isis/interfaces/0/name', message: "interface 'd' does not exist" },
@@ -238,13 +334,28 @@ describe('routing.ospf-area-exists', () => {
     expect(run('routing.ospf-area-exists', {})).toEqual([]);
     expect(
       run('routing.ospf-area-exists', {
-        routing: { ospf: { areas: [{ id: '0.0.0.0' }, { id: 51 }], interfaces: [{ name: 'loop0', area: 0 }, { name: 'loop1', area: '0.0.0.51' }] } },
+        routing: {
+          ospf: {
+            areas: [{ id: '0.0.0.0' }, { id: 51 }],
+            interfaces: [
+              { name: 'loop0', area: 0 },
+              { name: 'loop1', area: '0.0.0.51' },
+            ],
+          },
+        },
       }),
     ).toEqual([]);
   });
   it('reports an interface in an undefined area', () => {
-    expect(run('routing.ospf-area-exists', { routing: { ospf: { areas: [{ id: 0 }], interfaces: [{ name: 'loop0', area: '0.0.0.1' }] } } })).toEqual([
-      { pointer: '/routing/ospf/interfaces/0/area', message: 'OSPF area 0.0.0.1 is not defined under /routing/ospf/areas' },
+    expect(
+      run('routing.ospf-area-exists', {
+        routing: { ospf: { areas: [{ id: 0 }], interfaces: [{ name: 'loop0', area: '0.0.0.1' }] } },
+      }),
+    ).toEqual([
+      {
+        pointer: '/routing/ospf/interfaces/0/area',
+        message: 'OSPF area 0.0.0.1 is not defined under /routing/ospf/areas',
+      },
     ]);
   });
 });

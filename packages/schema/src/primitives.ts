@@ -74,7 +74,10 @@ export const macAddress = withUi(
       /^[0-9a-fA-F]{2}([:-])(?:[0-9a-fA-F]{2}\1){4}[0-9a-fA-F]{2}$/,
       'expected a MAC address like aa:bb:cc:dd:ee:ff',
     )
-    .refine((mac) => (Number.parseInt(mac.slice(0, 2), 16) & 1) === 0, 'multicast MAC addresses are not allowed')
+    .refine(
+      (mac) => (Number.parseInt(mac.slice(0, 2), 16) & 1) === 0,
+      'multicast MAC addresses are not allowed',
+    )
     .refine((mac) => !/^00([:-]00){5}$/.test(mac), 'the all-zero MAC address is not allowed'),
   { title: 'MAC address', widget: 'mac' },
 );
@@ -97,7 +100,10 @@ export const vppInterfaceName = withUi(
 );
 
 /** 802.1Q VLAN identifier (1–4094; 0 and 4095 are reserved). */
-export const vlanId = withUi(z.number().int().min(1).max(4094), { title: 'VLAN ID', widget: 'number' });
+export const vlanId = withUi(z.number().int().min(1).max(4094), {
+  title: 'VLAN ID',
+  widget: 'number',
+});
 
 /** Interface MTU in bytes (68 = IPv4 minimum, 9216 = jumbo). */
 export const mtu = withUi(z.number().int().min(68).max(9216), {
@@ -108,7 +114,12 @@ export const mtu = withUi(z.number().int().min(68).max(9216), {
 
 /** PCI address `DDDD:BB:DD.F` as used by `dpdk { dev 0000:0b:00.0 }`. */
 export const pciAddress = withUi(
-  z.string().regex(/^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]$/, 'expected a PCI address like 0000:0b:00.0'),
+  z
+    .string()
+    .regex(
+      /^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]$/,
+      'expected a PCI address like 0000:0b:00.0',
+    ),
   { title: 'PCI address', help: 'domain:bus:device.function, e.g. 0000:0b:00.0' },
 );
 
@@ -160,7 +171,12 @@ export const vrfName = withUi(objectName, {
 
 /** Local login name: POSIX portable, lower-case, 1–32 characters. */
 export const username = withUi(
-  z.string().regex(/^[a-z_][a-z0-9_-]{0,31}$/, 'lower-case letters, digits, `_` and `-`; must not start with a digit'),
+  z
+    .string()
+    .regex(
+      /^[a-z_][a-z0-9_-]{0,31}$/,
+      'lower-case letters, digits, `_` and `-`; must not start with a digit',
+    ),
   { title: 'Username' },
 );
 
@@ -170,20 +186,33 @@ export const descriptionText = withUi(
     .string()
     .max(255)
     // single line, no C0/C1 control characters (TAB allowed) — descriptions end up in CLI output and log lines
-    .regex(/^[^\u0000-\u0008\u000a-\u001f\u007f-\u009f]*$/, 'single line without control characters'),
+    // eslint-disable-next-line no-control-regex -- matching control characters is the purpose of this pattern
+    .regex(
+      /^[^\u0000-\u0008\u000a-\u001f\u007f-\u009f]*$/,
+      'single line without control characters',
+    ),
   { title: 'Description' },
 );
 
 /* ---------------------------------------------------------------------------------------------- numbers */
 
 /** Unsigned 32-bit integer (VRF / FIB table ids, sequence numbers, sub-interface ids, tags). */
-export const uint32 = withUi(z.number().int().min(0).max(4294967295), { title: 'Number', widget: 'number' });
+export const uint32 = withUi(z.number().int().min(0).max(4294967295), {
+  title: 'Number',
+  widget: 'number',
+});
 
 /** CPU core index as used by `cpu { main-core N corelist-workers … }`. */
-export const cpuCore = withUi(z.number().int().min(0).max(1023), { title: 'CPU core', widget: 'number' });
+export const cpuCore = withUi(z.number().int().min(0).max(1023), {
+  title: 'CPU core',
+  widget: 'number',
+});
 
 /** TCP/UDP port number. */
-export const portNumber = withUi(z.number().int().min(1).max(65535), { title: 'Port', widget: 'number' });
+export const portNumber = withUi(z.number().int().min(1).max(65535), {
+  title: 'Port',
+  widget: 'number',
+});
 
 /** BGP autonomous system number (asplain, 1–4294967295). */
 export const asNumber = withUi(z.number().int().min(1).max(4294967295), {
@@ -193,7 +222,10 @@ export const asNumber = withUi(z.number().int().min(1).max(4294967295), {
 });
 
 /** Router ID in dotted-quad form (BGP / OSPF). */
-export const routerId = withUi(z.ipv4(), { title: 'Router ID', help: 'dotted quad, e.g. 10.255.0.1' });
+export const routerId = withUi(z.ipv4(), {
+  title: 'Router ID',
+  help: 'dotted quad, e.g. 10.255.0.1',
+});
 
 /* ------------------------------------------------------------------------------------------------- secrets */
 
@@ -204,7 +236,10 @@ export const routerId = withUi(z.ipv4(), { title: 'Router ID', help: 'dotted qua
 export const secretRef = withUi(
   z
     .string()
-    .regex(/^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$/, 'expected a secret reference like ipsec/psk/site-a'),
+    .regex(
+      /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$/,
+      'expected a secret reference like ipsec/psk/site-a',
+    ),
   { title: 'Secret reference', widget: 'secret-ref' },
 );
 
@@ -216,7 +251,10 @@ export const passwordHash = withUi(
   z
     .string()
     .max(512)
-    .regex(/^\$[A-Za-z0-9-]{1,32}\$[A-Za-z0-9./+=$,_-]+$/, 'expected a crypt/PHC hash like $argon2id$…'),
+    .regex(
+      /^\$[A-Za-z0-9-]{1,32}\$[A-Za-z0-9./+=$,_-]+$/,
+      'expected a crypt/PHC hash like $argon2id$…',
+    ),
   { title: 'Password hash', widget: 'password', secret: true },
 );
 
@@ -230,7 +268,10 @@ export const timezone = withUi(
   z
     .string()
     .max(64)
-    .regex(/^[A-Z][A-Za-z0-9_+-]*(?:\/[A-Z0-9][A-Za-z0-9_+-]*)*$/, 'expected an IANA time zone like Asia/Tehran')
+    .regex(
+      /^[A-Z][A-Za-z0-9_+-]*(?:\/[A-Z0-9][A-Za-z0-9_+-]*)*$/,
+      'expected an IANA time zone like Asia/Tehran',
+    )
     .refine(isKnownTimeZone, 'unknown IANA time zone'),
   { title: 'Time zone', widget: 'timezone-picker' },
 );

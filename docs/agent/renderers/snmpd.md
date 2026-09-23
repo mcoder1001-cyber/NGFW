@@ -12,7 +12,7 @@ not in `packages/schema` yet (RF-4-questions.md Q2).
 |---|---|---|
 | `services.snmp.enabled` false/unset | `agentaddress unix:<agentx>.disabled`, nothing else (no access, no network) | — |
 | `services.snmp.vrf` | — | only `default` (F-snmp binds VRFs) |
-| `services.snmp.listen[i].{address,port}` | `agentaddress udp:<ip>:<port>[,udp6:[<ip6>]:<port>…]` (empty: `udp:0.0.0.0:161,udp6:[::]:161`) | `netip`, no zone, port 1–65535 (default 161), no duplicates |
+| `services.snmp.listen[i].{address,port}` | `agentaddress udp:<ip>:<port>[,udp6:[<ip6>]:<port>…]` (empty: **loopback only** `udp:127.0.0.1:161,udp6:[::1]:161` + `# WARNING:`; an explicit `0.0.0.0`/`::` also gets a warning) | `netip`, no zone, port 1–65535 (default 161), no duplicates; a change needs a snmpd **restart** (Apply returns a persisted restart request) |
 | — | `dontLogTCPWrappersConnects yes` | fixed |
 | `services.snmp.engineId` | `exactEngineID 0x<hex>` | 5–32 hex bytes |
 | `services.snmp.sysName` | `sysName <h>` | hostname, ≤ 253 |
@@ -20,7 +20,7 @@ not in `packages/schema` yet (RF-4-questions.md Q2).
 | `services.snmp.sysServices` *(stand-in)* | `sysServices <n>` | 0–127 |
 | `services.snmp.views.<name>.{include,exclude}[]` *(stand-in)* | `view <name> included\|excluded <numeric OID>` | name `[A-Za-z0-9_.-]{1,64}` ≠ `vrx_all`; OID numeric or from the fixed symbolic list (`system`, `interfaces`, `ifMIB`, `mib-2`, …) → numeric; ≤ 32 each |
 | — | `view vrx_all included .1` (default view) | fixed |
-| `services.snmp.communities.<name>` `secretRef` (password/…) | `rocommunity[6] <community> <source> -V <view>` (`rw…` for `access: rw`), one line per source; no sources → `default` for IPv4 and IPv6 | D-051 ref of kind `password`; value `[A-Za-z0-9_.-]{1,64}`; sources CIDR (masked) |
+| `services.snmp.communities.<name>` `secretRef` (password/…) | `rocommunity[6] <community> <source> -V <view>` (`rw…` for `access: rw`), one line per source; no sources → `default` for IPv4 and IPv6 | D-051 ref of kind `password`; value `[A-Za-z0-9_.-]{8,64}`; sources CIDR (masked) |
 | `….communities.<name>.view` *(stand-in)* | `-V <view>` | must be a defined view |
 | `services.snmp.v3Users.<name>` | `createUser <name> <AUTH> "<auth>" [<PRIV> "<priv>"]` + `rouser\|rwuser <name> noauth\|auth\|priv -V <view>` | name token; `securityLevel` noAuthNoPriv/authNoPriv/authPriv with matching refs; auth md5/sha/sha256/sha512 → MD5/SHA/SHA-256/SHA-512; priv aes/des → AES/DES (**aes256 rejected**: not in this net-snmp build); passphrases kind `password`, `[A-Za-z0-9_.,:;@%+=/~^*!?-]{8,64}` |
 | `….v3Users.<name>.view` *(stand-in)* | `-V <view>` | defined view |

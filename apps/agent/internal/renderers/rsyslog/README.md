@@ -44,6 +44,9 @@ before that:
 
 ## Apply / Retrieve / events
 
+**No restart for an unchanged rendering (review M2, D-076):** when every rendered file is already on disk with
+the same SHA-256 and mode, Apply returns without touching rsyslog — a re-commit never costs the host its logs.
+
 Apply: TLS dir → snapshot → atomic write → restart → **convergence**: impstats records stamped in a later second
 than the moment the restart returned must name exactly the rendered actions (10 s). The old process writes a
 last batch while stopping — seen live on the first attempt — which is why records are filtered by their own
@@ -58,6 +61,24 @@ Retrieve: per rendered action `reported`, `processed`, `failed`, `suspended`, `s
 queue `size`/`enqueued`/`full`/`discarded*`/`maxqsize`; `inputs` (`submitted` per input); `error`.
 `Poller()`: per action `reported`, `failed`, `suspended`, `discarded` and `queue` = `empty|backlog` — a collector
 that stops accepting shows up as a backlog (rsyslog keeps retrying, `suspended` stays 0 for a while; seen live).
+
+## A host that already loads impstats (review M3)
+
+rsyslog refuses a second `module(load="impstats")` ("module 'impstats' already in this config") and then the
+**whole** configuration fails — in the product the host's logger would not come back after the restart. `New`
+scans `Paths.HostConfigs` (product `/etc/rsyslog.conf`, `/etc/rsyslog.d/*.conf`, our own file excluded, `#`
+comments ignored) for `module(load="impstats" …)` or `$ModLoad impstats`:
+
+- not loaded → the export file loads impstats itself (JSON, `Paths.StatsFile`);
+- loaded with `format="json"` and an absolute `log.file` → **no** load is rendered; convergence and Retrieve read
+  the host's file (it is never truncated by the agent);
+- loaded otherwise (legacy, syslog output) → Validate refuses an export with targets (it could not be verified).
+
+Validate re-scans and refuses a rendering made against a host config that has changed since. Verified live
+(`TestRsyslogHostImpstatsIntegration`): a host main config with impstats + our include passes `rsyslogd -N1` and
+forwards; the pre-fix rendering (own load) makes `rsyslogd -N1` fail. **P10:** either ship no impstats in the base
+config (the export owns it), or configure the base impstats with `format="json"` and a `log.file` the agent
+can read — never a legacy/syslog-only impstats together with the export.
 
 ## Secrets
 

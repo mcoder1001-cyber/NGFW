@@ -9,7 +9,7 @@ Stand-ins (D-055) on `management.syslog[i]`: `facilities`, `format`, `queueSize`
 
 | desired state (JSON path) | rendered | validation |
 |---|---|---|
-| any target present | `module(load="impstats" interval="1" format="json" log.file="<stats>" log.syslog="off" resetCounters="off")` + `template(name="vrx_rfc5424" …)` | fixed |
+| any target present | `module(load="impstats" interval="1" format="json" log.file="<stats>" log.syslog="off" resetCounters="off")` — **omitted** when the host rsyslog already loads impstats (then its JSON `log.file` is read) — + `template(name="vrx_rfc5424" …)` | fixed |
 | `management.syslog` empty | a comment only (nothing exported; no impstats) | — |
 | `management.syslog[i]` | `ruleset(name="vrx_export_<i>_<hash>") { action(type="omfwd" name=… …) }` + `if prifilt("<sel>") then { call vrx_export_<i>_<hash> }` | ≤ 16 targets, unique (host, port, protocol) |
 | `.address` | `target="<ip or hostname>"` | `netip` (not unspecified/multicast) or hostname (lower-cased) |

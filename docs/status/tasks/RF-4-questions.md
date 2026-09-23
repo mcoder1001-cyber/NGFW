@@ -59,6 +59,11 @@ passphrases (verified). Cost ≈ 0.2 s per commit and a short-lived root snmpd p
 Options: (a) parse run — **chosen**; (b) structural only; (c) `snmpd -H` token list only.
 
 ## Q8 — P10 packaging items found here
+(review M3) The host rsyslog base config must not load a non-JSON impstats: either no impstats in
+`/etc/rsyslog.conf`/`rsyslog.d` (the export file loads it) or `format="json"` + an absolute `log.file` readable by the
+agent; the renderer detects both and refuses the legacy form. snmpd is restarted by the engine on a restart request
+(listen changes): the unit's ExecReload (SIGHUP) is not enough for those.
+
 `/usr/libexec/vrx/vrx-keepalived-notify` (+ `checks/`), `TMPDIR` for keepalived.service (dump files hold
 `auth_data`), dirs `/run/vrx/keepalived`, `/run/vrx/snmpd`, `/etc/vrx/rsyslog-tls`, logrotate (or the agent's
 truncation) for `/var/spool/rsyslog/vrx-impstats.json`, package `rsyslog-openssl`. The Ubuntu snmpd unit reads the

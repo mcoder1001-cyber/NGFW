@@ -66,7 +66,8 @@ the rendered instances with the rendered interface, VRID and base priority (10 s
 State files of instances that no longer exist are removed after success. With no instance at all the check is
 skipped (keepalived has no VRRP child to report).
 
-Retrieve: per rendered instance the notify state (`state`, `since`) and keepalived's view (`state`, `interface`,
+Retrieve reuses a keepalived dump taken in the last 5 s instead of signalling keepalived on every call
+(review L3); Apply always takes a fresh one. Retrieve: per rendered instance the notify state (`state`, `since`) and keepalived's view (`state`, `interface`,
 `vrid`, `version`, `basePriority`, `effectivePriority`, `vipsSet`, `vips`, advert/master/auth-failure counters);
 `dumpError` when the daemon is down. `Poller()` reads only the state files (never signals keepalived): key =
 instance, value = MASTER/BACKUP/FAULT/STOP.

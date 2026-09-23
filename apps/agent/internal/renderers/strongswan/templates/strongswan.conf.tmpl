@@ -1,0 +1,41 @@
+{{- /* strongswan.conf(5) for charon (charon-systemd falls back to the charon section). */ -}}
+# strongswan.conf: rendered by vrx-agent (strongswan renderer); every change is overwritten.
+charon {
+	load_modular = no
+	load = {{q (words .Plugins)}}
+	install_routes = {{yesno .InstallRoutes}}
+{{- if .Port}}
+	port = {{.Port}}
+{{- end}}
+{{- if .PortNATT}}
+	port_nat_t = {{.PortNATT}}
+{{- end}}
+	plugins {
+		vici {
+			socket = {{tok .ViciURI}}
+		}
+	}
+{{- with .LogFile}}
+	filelog {
+		vrx {
+			path = {{tok .}}
+			default = {{$.LogLevel}}
+			append = yes
+			flush_line = yes
+		}
+	}
+{{- end}}
+{{- if .QuietJournal}}
+	journal {
+		default = -1
+	}
+	syslog {
+		daemon {
+			default = -1
+		}
+	}
+{{- end}}
+}
+swanctl {
+	socket = {{tok .ViciURI}}
+}

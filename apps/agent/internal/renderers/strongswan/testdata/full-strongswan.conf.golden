@@ -1,0 +1,30 @@
+# strongswan.conf: rendered by vrx-agent (strongswan renderer); every change is overwritten.
+charon {
+	load_modular = no
+	load = "random nonce openssl pem pkcs1 pkcs8 x509 pubkey revocation constraints kernel-netlink socket-default vici"
+	install_routes = no
+	plugins {
+		vici {
+			socket = unix:///run/vrx-test/w3/swan/a/charon.vici
+		}
+	}
+	filelog {
+		vrx {
+			path = /run/vrx-test/w3/swan/a/charon.log
+			default = 1
+			append = yes
+			flush_line = yes
+		}
+	}
+	journal {
+		default = -1
+	}
+	syslog {
+		daemon {
+			default = -1
+		}
+	}
+}
+swanctl {
+	socket = unix:///run/vrx-test/w3/swan/a/charon.vici
+}

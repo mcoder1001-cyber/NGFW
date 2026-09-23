@@ -29,7 +29,11 @@ func TestL2tpOnHost(t *testing.T) {
 	if err := e.Delete(h.Ctx, en, meta); err != nil {
 		t.Fatalf("interface disable: %v", err)
 	}
+}
 
+// TestL2tpTunnelOnHost: Retrieve always; create only on opt-in (no delete in VPP).
+func TestL2tpTunnelOnHost(t *testing.T) {
+	h := df6test.Connect(t)
 	d := l2tp.NewTunnel(h.Client, h.Owner)
 	before, err := d.Retrieve(h.Ctx)
 	if err != nil {

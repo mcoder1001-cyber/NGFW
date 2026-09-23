@@ -2,7 +2,10 @@ package pppoe
 
 import (
 	"context"
+	"errors"
 	"fmt"
+
+	"go.fd.io/govpp/api"
 
 	"ngfw/agent/binapi/interface_types"
 	pppoeapi "ngfw/agent/binapi/pppoe"
@@ -72,6 +75,10 @@ var sessionSpec = df6.IfSpec[*Session, *pppoeapi.PppoeSessionDetails]{
 		}
 		rep, err := pppoeapi.NewServiceClient(c).PppoeAddDelSession(ctx, req)
 		if err != nil {
+			var vErr api.VPPApiError
+			if errors.As(err, &vErr) && vErr == retvalInvalidSwIfIndex {
+				return 0, fmt.Errorf("pppoe_add_del_session: %w: %s (%w)", ErrClientNotLearned, s.GetClientMac(), err)
+			}
 			return 0, fmt.Errorf("pppoe_add_del_session: %w", err)
 		}
 		return rep.SwIfIndex, nil
@@ -102,3 +109,12 @@ var sessionSpec = df6.IfSpec[*Session, *pppoeapi.PppoeSessionDetails]{
 		}, uint32(d.SwIfIndex), true
 	},
 }
+
+// retvalInvalidSwIfIndex is VNET_API_ERROR_INVALID_SW_IF_INDEX.
+const retvalInvalidSwIfIndex = -2
+
+// ErrClientNotLearned: VPP creates a PPPoE session only for a client MAC its pppoe-input node
+// has already learned from discovery (PADI/PADR) packets on some interface; for an unknown MAC
+// pppoe_add_del_session fails with INVALID_SW_IF_INDEX. The scheduler retries on the next
+// reconcile, after the control plane has seen the client.
+var ErrClientNotLearned = errors.New("pppoe client mac not learned by vpp (no discovery seen)")

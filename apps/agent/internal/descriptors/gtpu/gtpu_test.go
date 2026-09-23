@@ -22,6 +22,9 @@ type fakeGTPU struct {
 	tunnels  map[uint32]*gtpuapi.GtpuTunnelV2Details
 	bypass   map[uint32][2]bool
 	tteidUpd int
+	// crashes counts add/del requests VPP 26.06 would reject — each one segfaults the real
+	// VPP (V8), so the descriptor must never send one.
+	crashes int
 }
 
 func newFakeGTPU() *fakeGTPU {
@@ -30,6 +33,12 @@ func newFakeGTPU() *fakeGTPU {
 	f.On("gtpu_add_del_tunnel_v2", func(req api.Message) ([]api.Message, error) {
 		r := req.(*gtpuapi.GtpuAddDelTunnelV2)
 		if r.IsAdd {
+			for _, t := range f.tunnels {
+				if !t.IsForwarding && t.DstAddress == r.DstAddress && t.Teid == r.Teid {
+					f.crashes++
+					return []api.Message{&gtpuapi.GtpuAddDelTunnelV2Reply{Retval: -126}}, nil // TUNNEL_EXIST
+				}
+			}
 			idx := f.AddInterface(fmt.Sprintf("gtpu_tunnel%d", n), "")
 			n++
 			tteid := r.Tteid
@@ -47,6 +56,7 @@ func newFakeGTPU() *fakeGTPU {
 				return []api.Message{&gtpuapi.GtpuAddDelTunnelV2Reply{SwIfIndex: interface_types.InterfaceIndex(idx)}}, nil
 			}
 		}
+		f.crashes++
 		return []api.Message{&gtpuapi.GtpuAddDelTunnelV2Reply{Retval: -6}}, nil
 	})
 	f.On("gtpu_add_del_forward", func(req api.Message) ([]api.Message, error) {
@@ -207,6 +217,9 @@ func TestTunnelAndForward(t *testing.T) {
 	if !f.Has(other) {
 		t.Fatal("other owner's tunnel touched")
 	}
+	if f.crashes != 0 {
+		t.Fatalf("%d requests would have crashed VPP", f.crashes)
+	}
 	bad := []*gtpu.Tunnel{
 		{Src: "10.11.1.1", Dst: "10.11.1.2"},
 		{Name: "x", Src: "10.11.1.1", Dst: "fd11::1"},
@@ -238,5 +251,40 @@ func TestTunnelAndForward(t *testing.T) {
 	}
 	if err := bp.Delete(ctx, &gtpu.Bypass{Interface: "loop1101", Ipv4: true, Ipv6: true}, bmeta); err != nil || f.bypass[mcastIf] != [2]bool{} {
 		t.Fatalf("bypass delete: %v %v", err, f.bypass[mcastIf])
+	}
+}
+
+// TestV8Guard: the descriptor never sends a gtpu_add_del_tunnel_v2 VPP would reject (a
+// duplicate add or the delete of a missing tunnel), because VPP 26.06 segfaults on those.
+func TestV8Guard(t *testing.T) {
+	ctx := context.Background()
+	f := newFakeGTPU()
+	d := gtpu.NewTunnel(f, "w11")
+	a := &gtpu.Tunnel{Name: "w11-a", Src: "10.11.1.1", Dst: "10.11.1.2", DecapNext: gtpu.DecapNext_L2, Teid: 11100}
+	meta, err := d.Create(ctx, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dup := &gtpu.Tunnel{Name: "w11-b", Src: "10.11.1.3", Dst: "10.11.1.2", DecapNext: gtpu.DecapNext_IP4, Teid: 11100}
+	if _, err := d.Create(ctx, dup); !errors.Is(err, gtpu.ErrTunnelExists) {
+		t.Fatalf("duplicate create = %v, want ErrTunnelExists", err)
+	}
+	if err := d.Delete(ctx, a, meta); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Delete(ctx, a, meta); err != nil {
+		t.Fatalf("second delete = %v, want nil (already gone)", err)
+	}
+	if _, err := d.Create(ctx, &gtpu.Tunnel{Name: "x", Src: "10.11.1.1", Dst: "10.11.1.1"}); !errors.Is(err, df6.ErrBadValue) {
+		t.Fatalf("src == dst: %v", err)
+	}
+	if _, err := d.Create(ctx, &gtpu.Tunnel{Name: "x", Src: "10.11.1.1", Dst: "10.11.1.2", DecapNext: 9}); !errors.Is(err, df6.ErrBadValue) {
+		t.Fatalf("decap_next 9: %v", err)
+	}
+	if f.crashes != 0 {
+		t.Fatalf("%d requests would have crashed VPP", f.crashes)
+	}
+	if n := len(f.CallsNamed("gtpu_add_del_tunnel_v2")); n != 2 {
+		t.Fatalf("sent %d add/del, want 2", n)
 	}
 }

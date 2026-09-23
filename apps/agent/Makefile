@@ -7,7 +7,7 @@ build:
 	go build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o $(BIN) ./cmd/vrx-agent
 lint:
 	go vet ./...
-	@command -v golangci-lint >/dev/null && golangci-lint run ./... || echo "golangci-lint not installed — go vet only"
+	@if command -v golangci-lint >/dev/null 2>&1; then golangci-lint run ./...; else echo "golangci-lint not installed — go vet only"; fi
 test:
 	go test -race -count=1 ./...
 tidy:

@@ -13,7 +13,7 @@
     "test": "turbo run test",
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
-    "gen:check": "pnpm gen && git diff --quiet -- . ':!pnpm-lock.yaml' || (echo 'generated output is dirty \u2014 run pnpm gen and commit' && git status --short && exit 1)",
+    "gen:check": "bash tools/ci.sh gen-check",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

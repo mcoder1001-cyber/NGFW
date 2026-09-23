@@ -1,0 +1,32 @@
+# vrx-a = the dev/CI host 172.30.126.195 itself (local mode: no SSH). Facts: docs/lab/host-vrx-a.md (2026-09-23).
+name: vrx-a
+role: vrx
+mgmt: local
+state: active
+os: ubuntu-26.04
+vcpu: 30
+ram_gb: 39
+vpp:
+  version: 26.06-release
+  source: /root/vpp/build-root          # our source-built .debs (D-001); never the FD.io repo
+  api_socket: /run/vpp/api.sock
+  cli_socket: /run/vpp/cli.sock
+  stats_socket: /run/vpp/stats.sock
+  startup_conf: /etc/vpp/startup.conf   # read-only for everyone while handover is pending (D-012)
+  # `handover: pending|done` is NOT configurable here: tools/lab reads docs/lab/host-vrx-a.md from the canonical main checkout
+  # (/root/ngfw) AND from the calling worktree; both must say `done` before restart-vpp/kill-vpp run (review F3).
+  unit: vpp.service
+data_path: af_packet                    # veth/netns rig (D-010); DPDK only after NICs are bound (needs startup.conf → handover)
+nics:
+  # 7× VMXNET3 [15ad:07b0] seen on 2026-09-23 13:17. Only ens192 is configured; the six others are DOWN, kernel driver,
+  # not mentioned in startup.conf (`dpdk { no-pci; blacklist 0000:0b:00.0 }`) — see docs/status/tasks/P04-questions.md.
+  - { name: ens192, pci: "0000:0b:00.0", model: vmxnet3, segment: mgmt, driver: kernel, address: 172.30.126.195/24 }
+  - { name: ens161, pci: "0000:04:00.0", model: vmxnet3, segment: unassigned, driver: kernel }
+  - { name: ens193, pci: "0000:0c:00.0", model: vmxnet3, segment: unassigned, driver: kernel }
+  - { name: ens224, pci: "0000:13:00.0", model: vmxnet3, segment: unassigned, driver: kernel }
+  - { name: ens225, pci: "0000:14:00.0", model: vmxnet3, segment: unassigned, driver: kernel }
+  - { name: ens256, pci: "0000:1b:00.0", model: vmxnet3, segment: unassigned, driver: kernel }
+  - { name: ens257, pci: "0000:1c:00.0", model: vmxnet3, segment: unassigned, driver: kernel }
+services:
+  postgresql: { host: 127.0.0.1, port: 5432, min_version: 16 }
+  valkey: { host: 127.0.0.1, port: 6379 }

@@ -52,7 +52,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.8
@@ -64,12 +64,13 @@ tasks:
   - D3.3
   scope: group (a) domains fully modelled per docs/04
   files_owned: packages/schema/src/{index,primitives,diff,merge-patch,gen}.ts packages/schema/src/domains/{system,dataplane,interfaces,vrfs,routing,management}.ts packages/schema/src/semantic/{system,interfaces,routing}*.ts
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P02a
+  worktree: /root/ngfw-wt/P02a
+  owner: desktop-agent slot1
+  started: 2026-09-23T13:35
   finished: ''
-  notes: ''
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | worker done df554dc; review agent spawned | review APPROVE WITH CHANGES (H1-H4, M1-M7 + withUi H1 from P02b review)
+    → fix round'
 - id: P02b
   title: 'Schema group (b): nat, objects, acl'
   prompt: prompts/P02-schema-package.md
@@ -79,7 +80,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D4.1
@@ -91,12 +92,12 @@ tasks:
   - D5.2
   scope: group (b) domains fully modelled per docs/04 + WBS D4/D5
   files_owned: packages/schema/src/domains/{nat,objects,acl}.ts packages/schema/src/semantic/{nat,objects,acl}*.ts
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P02b
+  worktree: /root/ngfw-wt/P02b
+  owner: desktop-agent slot5
+  started: 2026-09-23T13:35
   finished: ''
-  notes: ''
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | review APPROVE WITH CHANGES (M1-M5 before tag) → fix round'
 - id: P02c
   title: 'Schema group (c): vpn, tunnels, services, ha'
   prompt: prompts/P02-schema-package.md
@@ -106,7 +107,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D6.2
@@ -118,12 +119,12 @@ tasks:
   - D9.1
   scope: group (c) domains fully modelled per docs/04 + WBS D6/D7/D9
   files_owned: packages/schema/src/domains/{vpn,tunnels,services,ha}.ts packages/schema/src/semantic/{vpn,tunnels,services,ha}*.ts
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P02c
+  worktree: /root/ngfw-wt/P02c
+  owner: desktop-agent slot6
+  started: 2026-09-23T13:35
   finished: ''
-  notes: ''
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | worker done 2e0d449; review agent spawned | review BLOCK (F1-F9) → fix round'
 - id: P03
   title: gRPC contract agent↔api (messages for all domains, RPC semantics doc)
   prompt: prompts/P03-proto-contract.md
@@ -133,19 +134,44 @@ tasks:
   - P02s
   priority: 1
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.7
   - D0.8
   scope: mirror schema domain keys; reserve field numbers
   files_owned: packages/proto/** apps/agent/gen/** docs/contracts/proto.md
+  branch: task/P03
+  worktree: /root/ngfw-wt/P03
+  owner: desktop-agent slot7
+  started: 2026-09-23T13:35
+  finished: ''
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | worker done d1ba8ab; review agent spawned | review APPROVE WITH CHANGES (F1-F7) → fix round before merge'
+- id: P03b
+  title: 'Proto sync after schema groups merge: mirror final P02a/b/c field names into DesiredState, buf breaking check, regen, drift-guard test'
+  prompt: prompts/P03-proto-contract.md
+  template: ''
+  stage: S1
+  deps:
+  - P02a
+  - P02b
+  - P02c
+  - P03
+  priority: 1
+  est_hours: 3
+  state: todo
+  parked_on: ''
+  wbs:
+  - D0.7
+  - D0.8
+  scope: contract(proto) sync only; add schema⊆proto drift test
+  files_owned: packages/proto/** apps/agent/gen/** docs/contracts/proto.md
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: raised by P03 Q4; run before tagging contracts-v1
 - id: P05a
   title: 'Agent interfaces: scheduler Descriptor, fake VPP client, renderer interface, READMEs'
   prompt: prompts/P05a-interfaces.md
@@ -155,7 +181,7 @@ tasks:
   - P01
   priority: 1
   est_hours: 4
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D0.7
@@ -166,7 +192,7 @@ tasks:
   owner: desktop-agent slot2
   started: 2026-09-23T13:13
   finished: ''
-  notes: ''
+  notes: ' | merged 2026-09-23-1346'
 - id: P04
   title: Lab tooling (local mode for vrx-a), veth/netns packet rig, binapi for all plugins, local postgres/valkey
   prompt: prompts/P04-dev-environment.md
@@ -176,7 +202,7 @@ tasks:
   - P01
   priority: 2
   est_hours: 12
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D0.13
@@ -188,7 +214,7 @@ tasks:
   owner: desktop-agent slot3
   started: 2026-09-23T13:13
   finished: ''
-  notes: host facts in docs/lab/host-vrx-a.md; no data NICs (D-010)
+  notes: 'host facts in docs/lab/host-vrx-a.md; no data NICs (D-010) | review: BLOCK (F1-F4); worker respawned to fix | merged 2026-09-23-1510 after review fixes'
 - id: P09
   title: CI gate for local-only git (tools/ci.sh quick|full|--base, hooks, golangci-lint, gitleaks)
   prompt: prompts/P09-ci-pipeline.md
@@ -198,7 +224,7 @@ tasks:
   - P01
   priority: 4
   est_hours: 8
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D0.1
@@ -209,7 +235,7 @@ tasks:
   owner: desktop-agent slot4
   started: 2026-09-23T13:13
   finished: ''
-  notes: ''
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | merged 2026-09-23-1527'
 - id: P05
   title: 'Agent core: govpp, reconciler, ownership scoping, gRPC server, resync, confirm timer'
   prompt: prompts/P05-agent-core.md
@@ -269,18 +295,18 @@ tasks:
   - P02s
   priority: 1
   est_hours: 14
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.10
   scope: ''
   files_owned: apps/web/** packages/ui-kit/**
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P07a
+  worktree: /root/ngfw-wt/P07a
+  owner: desktop-agent slot8
+  started: 2026-09-23T13:35
   finished: ''
-  notes: ''
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1'
 - id: P07b
   title: 'UI flows: login, pending-change bar + commit dialog, revisions, users, Playwright login→commit→rollback'
   prompt: prompts/P07-ui-shell.md
@@ -313,7 +339,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D1.2
@@ -322,10 +348,10 @@ tasks:
   - D1.6
   scope: bond, l2 (bridge, xconnect), memif, tap, host-interface/af_packet, subinterface, admin-state, mtu, rx-mode
   files_owned: apps/agent/internal/descriptors/<plugins of DF-1>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-1
+  worktree: /root/ngfw-wt/DF-1
+  owner: desktop-agent slot2
+  started: 2026-09-23T15:10
   finished: ''
   notes: ''
 - id: DF-2
@@ -338,7 +364,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D2.3
@@ -346,10 +372,10 @@ tasks:
   - D2.7
   scope: ip_neighbor, ip6_nd (RA, DAD), urpf, abf, classify (ip tables/routes are P05 core)
   files_owned: apps/agent/internal/descriptors/<plugins of DF-2>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-2
+  worktree: /root/ngfw-wt/DF-2
+  owner: desktop-agent slot3
+  started: 2026-09-23T15:10
   finished: ''
   notes: ''
 - id: DF-3
@@ -362,7 +388,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D4.1
@@ -373,10 +399,10 @@ tasks:
   - D4.6
   scope: nat44_ed (nat), nat44_ei, nat64, nat66, det44, map, cnat, pnat
   files_owned: apps/agent/internal/descriptors/<plugins of DF-3>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-3
+  worktree: /root/ngfw-wt/DF-3
+  owner: desktop-agent slot9
+  started: 2026-09-23T15:10
   finished: ''
   notes: ''
 - id: DF-4
@@ -389,16 +415,16 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D5.2
   scope: acl (incl. macip), acl stats
   files_owned: apps/agent/internal/descriptors/<plugins of DF-4>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-4
+  worktree: /root/ngfw-wt/DF-4
+  owner: desktop-agent slot10
+  started: 2026-09-23T15:10
   finished: ''
   notes: ''
 - id: DF-5
@@ -411,7 +437,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D6.1
@@ -419,10 +445,10 @@ tasks:
   - D6.5
   scope: ipsec, ikev2, wireguard
   files_owned: apps/agent/internal/descriptors/<plugins of DF-5>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-5
+  worktree: /root/ngfw-wt/DF-5
+  owner: desktop-agent slot4
+  started: 2026-09-23T15:28
   finished: ''
   notes: ''
 - id: DF-6
@@ -435,7 +461,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D6.6
@@ -444,10 +470,10 @@ tasks:
   - D2.8
   scope: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp
   files_owned: apps/agent/internal/descriptors/<plugins of DF-6>/** docs/agent/descriptors/<plugins>.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/DF-6
+  worktree: /root/ngfw-wt/DF-6
+  owner: desktop-agent slot11
+  started: 2026-09-23T15:28
   finished: ''
   notes: ''
 - id: DF-7
@@ -460,7 +486,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.8
@@ -489,7 +515,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.2

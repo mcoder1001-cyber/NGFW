@@ -355,3 +355,193 @@ integration tests inside these modules skip here (VRX_INTEGRATION unset); 'tools
 == summary (quick) ==
 CI GATE PASSED
 ```
+
+## Review fixes (review `docs/status/tasks/DF-6-review.md`, verdict BLOCK → fix round)
+
+Merged main first (`407e074`: main's go.mod/go.sum, `go mod tidy`), then applied D-071 / D-076 and DF-1's resolver.
+
+| Finding | Fix | Commit |
+|---|---|---|
+| L1 go.mod conflict | `git merge main`, take main's go.mod/go.sum, tidy; CI against current main | `407e074` |
+| H1 globals for every agent | `df6.Global`: setters only with `df6.WithGlobalsOwner(true)`; everyone else gets `df6.RequireDescriptor` (checks, never sets/resets, Delete no-op, `DeleteOnAbsence()==false`). Covers `lisp.enable`, `lisp-gpe.enable`, `lisp.pitr`, `sr.encap-source`, `sr.encap-hop-limit`, `l2tp.lookup-key`, `pppoe.cp`. Owner's LISP/GPE switches: `KeepOnAbsence` + `lisp.SafeToDisable` (no LISP object of any owner) before disabling | `d29fd4d` |
+| H2 range claims | `df6.KeyedDescriptor` owns untagged objects only via ClaimStore records (DF-1 `iface.Claims(owner)`, persisted store via `iface.SetClaimStore` / `df6.OpenFileClaimStore`); `df6.Scope` removed. SR localsid/policy/steering, SR-MPLS, all LISP objects | `d29fd4d` |
+| H3 write-only not idempotent | tunnels adopt the interface tagged `<owner>:<id>` (6RD: no second add, deletable after agent restart by tag); keyed write-only (SR-MPLS policy/steering, GPE entries): exact presence probe + claim → re-apply is a no-op; toggles (gtpu/vxlan-gpe/vxlan bypass, l2tp enable, pppoe cp) and SR-MPLS endpoint-color: claim `<name>@vpp-<boot>` (`df6.BootID` = VPP PID from control_ping), enable once per VPP instance. Fakes model duplicate adds / stacked features; tests assert one instance after repeated resyncs | `d29fd4d`, `c39500c` |
+| H4 VPP names / foreign interfaces | `df6.Interfaces` wraps DF-1's `iface.Table`: resolution by logical name (`IndexByName`, refuses foreign tags with `iface.ErrForeignInterface`), Retrieve reports logical names (`Logical`) — toggles, SRv6 End.X/DX, L2 steering, LISP locators, vxlan/gpe/gtpu mcast | `d29fd4d` |
+| M1 deletes by index | `IfDescriptor.verify`: tag `<owner>:<id>` + dump record at that index decoding to the same id, delete with VPP's key fields; stale Meta ignored in favour of the tag. Toggles re-resolve by logical name, compare with Meta, check ownership (tag or claim) and only disable what this agent enabled on the running VPP. l2tp cookie update verified the same way | `d29fd4d` |
+| M2 pppoe.cp global | singleton `pppoe.cp/global` under the globals-owner rule; host test opt-in (`VRX_DF6_PPPOE_CP_HOST`), never run on the shared VPP; `gtpu.forward` one-per-type documented | `d29fd4d`, `0236ff1` |
+| M3 presence ≠ identity | SR steering: `Identity` = BSID (Delete refuses an entry re-pointed elsewhere, Create never takes over an existing key); SR-MPLS: BSID = EOS entry whose paths are all recursive MPLS paths; steering = FIB_SOURCE_SR route (`fib_source_dump` "SR") with an MPLS path, VPN label as identity | `d29fd4d` |
+| M4 endpoint-color blocks policy delete | Delete is a documented no-op (VPP clears it in `sr_mpls_policy_del`); Create requires our claimed policy | `d29fd4d` |
+| M5 restart evidence | `df6/restart_integration_test.go` (host) + fake resync/restart tests per write-only type | `0236ff1` |
+| L3 duplicate keys | Keyed Retrieve dedupes ids; L2 steering on an unresolved / foreign interface is skipped | `d29fd4d` |
+| L2/L4/L5/L6 | documented in df6.md (naming namespace, add→tag crash window, sentinel alias to P05, delete wording) and Q10 | `0236ff1` |
+
+### Unit tests (fakes), fix round
+```
+$ go test -count=1 -v ./internal/descriptors/{df6,gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe,sr,sr_mpls,lisp}/... | grep -E '^(--- |ok|FAIL)'
+--- PASS: TestBypassIdempotentAcrossResyncs (0.00s)
+--- SKIP: TestAgentRestartOnHost (0.00s)
+ok  	ngfw/agent/internal/descriptors/df6	0.026s
+--- SKIP: TestTunnelOnHost (0.00s)
+--- PASS: TestTunnelDescriptor (0.00s)
+--- PASS: TestTunnelVariants (0.00s)
+--- PASS: TestTunnelErrors (0.00s)
+ok  	ngfw/agent/internal/descriptors/gre	0.024s
+--- SKIP: TestTunnelOnHost (0.00s)
+--- PASS: TestTunnelDescriptor (0.00s)
+--- PASS: TestTunnelVariantsAndErrors (0.00s)
+--- PASS: TestSixrdResyncAndRestart (0.00s)
+ok  	ngfw/agent/internal/descriptors/ipip	0.026s
+--- SKIP: TestTunnelOnHost (0.00s)
+--- PASS: TestTunnelDescriptor (0.00s)
+--- PASS: TestBypassDescriptor (0.00s)
+ok  	ngfw/agent/internal/descriptors/vxlan	0.028s
+--- SKIP: TestTunnelOnHost (0.00s)
+--- PASS: TestTunnelDescriptor (0.00s)
+--- PASS: TestBypassResync (0.00s)
+ok  	ngfw/agent/internal/descriptors/vxlan_gpe	0.027s
+--- SKIP: TestTunnelOnHost (0.00s)
+--- PASS: TestTunnelAndForward (0.00s)
+--- PASS: TestV8Guard (0.00s)
+--- PASS: TestBypassResync (0.00s)
+ok  	ngfw/agent/internal/descriptors/gtpu	0.026s
+--- SKIP: TestL2tpOnHost (0.00s)
+--- SKIP: TestL2tpTunnelOnHost (0.00s)
+--- PASS: TestTunnelDescriptor (0.00s)
+--- PASS: TestGlobals (0.00s)
+--- PASS: TestInterfaceEnableResync (0.00s)
+ok  	ngfw/agent/internal/descriptors/l2tp	0.028s
+--- SKIP: TestCpOnHost (0.00s)
+--- SKIP: TestSessionOnHost (0.00s)
+--- PASS: TestSessionDescriptor (0.00s)
+ok  	ngfw/agent/internal/descriptors/pppoe	0.016s
+--- SKIP: TestLocalSidOnHost (0.00s)
+--- SKIP: TestPolicyOnHost (0.00s)
+--- SKIP: TestSteeringOnHost (0.00s)
+--- PASS: TestLocalSid (0.00s)
+--- PASS: TestPolicyAndSteering (0.00s)
+--- PASS: TestGlobals (0.00s)
+--- PASS: TestClaims (0.00s)
+ok  	ngfw/agent/internal/descriptors/sr	0.026s
+--- SKIP: TestPolicySteeringOnHost (0.00s)
+--- SKIP: TestEndpointColorOnHost (0.00s)
+--- PASS: TestPolicySteeringEndpointColor (0.00s)
+--- PASS: TestResync (0.00s)
+ok  	ngfw/agent/internal/descriptors/sr_mpls	0.026s
+--- SKIP: TestLISPOnHost (0.00s)
+--- PASS: TestLISP (0.00s)
+ok  	ngfw/agent/internal/descriptors/lisp	0.028s
+```
+New tests: `df6 TestBypassIdempotentAcrossResyncs` (3 applies → 1 instance per family; agent restart → no re-add;
+VPP restart → exactly one re-add; stale Meta refused; foreign interface refused; untagged interface claimed),
+`ipip TestSixrdResyncAndRestart`, `gtpu|vxlan_gpe TestBypassResync`, `l2tp TestInterfaceEnableResync`,
+`pppoe` cp (two resyncs → 1, VPP restart → 1, foreign refused, require variant never sets/resets),
+`sr TestClaims`, `sr_mpls TestResync`, `lisp TestLISP` (resync without GPE re-add, require variants, emptiness check).
+
+### Host: agent-restart simulation (M5), `VRX_INTEGRATION=1 VRX_TEST_PREFIX=w11 VRX_SLOT=11 VRX_VPP_TABLE_BASE=11000`
+Agent 1 applies a gre tunnel, an SRv6 local SID, an SRv6 policy and a vxlan bypass; agent 2 = new API connection +
+new descriptors + claim store reopened from its file; then the gre tunnel and the local SID are deleted behind its
+back via binapi (simulated loss).
+```
+$ systemctl show vpp -p NRestarts        # before: NRestarts=2
+$ go test -count=1 -v -run TestAgentRestartOnHost ./internal/descriptors/df6/
+    restart_integration_test.go:99: agent 1: applied gre.tunnel/gre1120
+    restart_integration_test.go:99: agent 1: applied sr.localsid/fd11:5a::1
+    restart_integration_test.go:99: agent 1: applied sr.policy/fd11:ba::1
+    restart_integration_test.go:99: agent 1: applied vxlan.bypass/loop1120
+    restart_integration_test.go:100: agent 1 re-apply: plan gre.tunnel: create=0 update=0 delete=0
+    restart_integration_test.go:100: agent 1 re-apply: plan sr.localsid: create=0 update=0 delete=0
+    restart_integration_test.go:100: agent 1 re-apply: plan sr.policy: create=0 update=0 delete=0
+    restart_integration_test.go:100: agent 1 re-apply: plan vxlan.bypass: vxlan.bypass: vpp has no dump for this object type (write-only: re-applied on resync)
+    restart_integration_test.go:112: agent 2 after restart: plan gre.tunnel: create=0 update=0 delete=0
+    restart_integration_test.go:112: agent 2 after restart: plan sr.localsid: create=0 update=0 delete=0
+    restart_integration_test.go:112: agent 2 after restart: plan sr.policy: create=0 update=0 delete=0
+    restart_integration_test.go:112: agent 2 after restart: plan vxlan.bypass: vxlan.bypass: vpp has no dump for this object type (write-only: re-applied on resync)
+    restart_integration_test.go:130: agent 2 after loss: plan gre.tunnel: create=1 update=0 delete=0
+    restart_integration_test.go:130: agent 2 after loss: plan sr.localsid: create=1 update=0 delete=0
+    restart_integration_test.go:130: agent 2 after loss: plan sr.policy: create=0 update=0 delete=0
+    restart_integration_test.go:130: agent 2 after loss: plan vxlan.bypass: vxlan.bypass: vpp has no dump for this object type (write-only: re-applied on resync)
+    restart_integration_test.go:133: agent 2 reconcile: applied gre.tunnel/gre1120
+    restart_integration_test.go:133: agent 2 reconcile: applied sr.localsid/fd11:5a::1
+    restart_integration_test.go:133: agent 2 reconcile: applied vxlan.bypass/loop1120
+    restart_integration_test.go:135: agent 2 after reconcile: plan gre.tunnel: create=0 update=0 delete=0
+    restart_integration_test.go:135: agent 2 after reconcile: plan sr.localsid: create=0 update=0 delete=0
+    restart_integration_test.go:135: agent 2 after reconcile: plan sr.policy: create=0 update=0 delete=0
+    restart_integration_test.go:135: agent 2 after reconcile: plan vxlan.bypass: vxlan.bypass: vpp has no dump for this object type (write-only: re-applied on resync)
+--- PASS: TestAgentRestartOnHost (0.05s)
+ok  	ngfw/agent/internal/descriptors/df6	0.067s
+$ systemctl show vpp -p NRestarts        # after: NRestarts=2
+```
+
+### Host: package tests after the fix round (one package at a time; gtpu / LISP / pppoe-cp opt-ins NOT set)
+```
+== gre
+    tunnel_integration_test.go:36: re-apply plan gre.tunnel: create=0 update=0 delete=0 (empty=true)
+--- PASS: TestTunnelOnHost (0.04s)
+ok  	ngfw/agent/internal/descriptors/gre	0.058s
+== ipip
+    ipip_integration_test.go:42: re-apply plan ipip.tunnel: create=0 update=0 delete=0 (empty=true)
+--- PASS: TestTunnelOnHost (0.03s)
+ok  	ngfw/agent/internal/descriptors/ipip	0.051s
+== vxlan
+    vxlan_integration_test.go:43: re-apply plan vxlan.tunnel: create=0 update=0 delete=0 (empty=true)
+--- PASS: TestTunnelOnHost (0.04s)
+ok  	ngfw/agent/internal/descriptors/vxlan	0.064s
+== vxlan_gpe
+    vxlan_gpe_integration_test.go:40: re-apply plan vxlan-gpe.tunnel: create=0 update=0 delete=0 (empty=true)
+--- PASS: TestTunnelOnHost (0.03s)
+ok  	ngfw/agent/internal/descriptors/vxlan_gpe	0.054s
+== sr
+    sr_integration_test.go:72: re-apply plan sr.localsid: create=0 update=0 delete=0 (empty=true)
+--- PASS: TestLocalSidOnHost (0.03s)
+    sr_integration_test.go:87: re-apply plan sr.policy: create=0 update=0 delete=0 (empty=true)
+--- PASS: TestPolicyOnHost (0.01s)
+    sr_integration_test.go:105: re-apply plan sr.steering: create=0 update=0 delete=0 (empty=true)
+--- PASS: TestSteeringOnHost (0.03s)
+ok  	ngfw/agent/internal/descriptors/sr	0.102s
+== sr_mpls
+--- PASS: TestPolicySteeringOnHost (0.04s)
+--- SKIP: TestEndpointColorOnHost (0.00s)
+ok  	ngfw/agent/internal/descriptors/sr_mpls	0.066s
+== l2tp
+--- PASS: TestL2tpOnHost (0.01s)
+--- SKIP: TestL2tpTunnelOnHost (0.01s)
+ok  	ngfw/agent/internal/descriptors/l2tp	0.045s
+== pppoe
+--- SKIP: TestCpOnHost (0.00s)
+--- SKIP: TestSessionOnHost (0.02s)
+ok  	ngfw/agent/internal/descriptors/pppoe	0.044s
+NRestarts before the first and after the last package: 2 / 2
+```
+
+### CI gate — `tools/ci.sh --base main` (fix round, on `c39500c`)
+```
+== VRX CI gate: quick ==
+== contract guard: HEAD vs main ==
+== tools (golangci-lint, gitleaks) ==
+== install (pnpm --frozen-lockfile --prefer-offline) ==
+== generate + generated-output gate ==
+== forbidden patterns (+ gitleaks) ==
+ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
+ok: no Dockerfile/compose files
+ok: no kill-by-pattern in scripts
+ok: no secret-shaped strings
+ok: gitleaks — scanned ~630241 bytes (630.24 KB) in 924ms no leaks found 
+== lint · typecheck · unit tests · build (turbo) ==
+== apps/agent: make lint test build ==
+ok  	ngfw/agent/internal/agent	1.143s
+ok  	ngfw/agent/internal/contracttest	1.854s
+ok  	ngfw/agent/internal/descriptors/acl	1.246s
+ok  	ngfw/agent/internal/descriptors/af_packet	1.130s
+ok  	ngfw/agent/internal/descriptors/bond	1.126s
+ok  	ngfw/agent/internal/descriptors/df6	1.140s
+ok  	ngfw/agent/internal/descriptors/gre	1.149s
+ok  	ngfw/agent/internal/descriptors/gtpu	1.119s
+ok  	ngfw/agent/internal/descriptors/interface	1.154s
+ok  	ngfw/agent/internal/descriptors/ipip	1.131s
+ok  	ngfw/agent/internal/descriptors/l2	1.153s
+ok  	ngfw/agent/internal/descriptors/l2tp	1.141s; 
+== test/ Go modules, unit mode (test/integration/smoke) ==
+integration tests inside these modules skip here (VRX_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
+== summary (quick) ==
+CI GATE PASSED
+```

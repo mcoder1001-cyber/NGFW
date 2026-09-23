@@ -194,7 +194,7 @@ vrx_pydeps_verify "$HERE/pydeps.lock" "$PYDEPS_DIR" || die "wheelhouse verificat
 CHECK_VENV="$BUILD_DIR/pydeps/check-venv"
 vrx_rm_rf "$CHECK_VENV" "$BUILD_DIR" || die "cannot reset $CHECK_VENV"
 python3 -m venv "$CHECK_VENV"
-"$CHECK_VENV/bin/pip" install -q --disable-pip-version-check --require-hashes --no-index --find-links "$PYDEPS_DIR" \
+PIP_NO_CACHE_DIR=1 "$CHECK_VENV/bin/pip" install -q --disable-pip-version-check --require-hashes --no-index --find-links "$PYDEPS_DIR" \
   -r "$HERE/pydeps.lock" || die "pip --require-hashes install of pydeps.lock failed"
 log "pydeps: pip install --require-hashes --no-index --find-links $PYDEPS_DIR OK: $("$CHECK_VENV/bin/pip" list --format=freeze --disable-pip-version-check 2>/dev/null | grep -Ev '^pip==' | tr '\n' ' ')"
 # External source tarballs may be seeded from the reference tree (upstream re-verifies their sha256); wheels/sdists never.
@@ -226,7 +226,10 @@ ncpu=$(nproc --all)
 cpus="$((ncpu - JOBS))-$((ncpu - 1))"; ((ncpu > JOBS)) || cpus="0-$((ncpu - 1))"
 SOURCE_DATE_EPOCH=$(git -C "$SRC" log -1 --format=%ct "$VPP_COMMIT")
 export SOURCE_DATE_EPOCH
-export VRX_PYDEPS_LOCK="$HERE/pydeps.lock" VRX_PYDEPS_DIR="$PYDEPS_DIR" PIP_NO_INDEX=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+# Every pip the upstream build runs (DPDK meson venv via build-patches/0001; python3-vpp-api's PEP 517 build isolation,
+# which needs setuptools>=61) resolves only from the verified wheelhouse: no index, no ~/.cache/pip, no ~/Downloads.
+export VRX_PYDEPS_LOCK="$HERE/pydeps.lock" VRX_PYDEPS_DIR="$PYDEPS_DIR"
+export PIP_NO_INDEX=1 PIP_FIND_LINKS="$PYDEPS_DIR" PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 unset MAKEFLAGS MFLAGS
 MAKE_ARGS=(pkg-deb MAKE_PARALLEL_JOBS="$JOBS" JOBS="$JOBS" DL_CACHE_DIR="$DL_CACHE"
            VRX_PYDEPS_LOCK="$VRX_PYDEPS_LOCK" VRX_PYDEPS_DIR="$VRX_PYDEPS_DIR")

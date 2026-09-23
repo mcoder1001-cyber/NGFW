@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mergePatch } from './merge-patch.js';
+import { FORBIDDEN_KEYS, MergePatchError, mergePatch, mergePatchAt } from './merge-patch.js';
 
 // RFC 7386 Appendix A test cases (original, patch, result).
 const rfc7386: [unknown, unknown, unknown][] = [
@@ -40,5 +40,80 @@ describe('mergePatch (RFC 7386)', () => {
     expect(result).toEqual({ system: { hostname: 'a', timezone: 'UTC' } });
     expect(target).toEqual({ system: { hostname: 'a', banner: 'x' } });
     expect(patch).toEqual({ system: { banner: null, timezone: 'UTC' } });
+  });
+});
+
+describe('mergePatchAt (PATCH /api/v1/config/{path})', () => {
+  const doc = {
+    system: { hostname: 'a', banner: { motd: 'hi' } },
+    routing: { static: [{ prefix: '0.0.0.0/0', nextHops: [{ address: '10.0.0.1' }] }] },
+  };
+
+  it('applies the patch at the pointer and leaves the rest untouched', () => {
+    expect(mergePatchAt(doc, '/system', { hostname: 'b', banner: null })).toEqual({
+      system: { hostname: 'b' },
+      routing: doc.routing,
+    });
+    expect(mergePatchAt(doc, '', { system: null })).toEqual({ routing: doc.routing });
+  });
+
+  it('creates missing objects along the path and escapes interface names', () => {
+    expect(mergePatchAt({}, '/interfaces/TenGigabitEthernet0~10~10', { mtu: 9000 })).toEqual({
+      interfaces: { 'TenGigabitEthernet0/0/0': { mtu: 9000 } },
+    });
+    expect(mergePatchAt({ a: 1 }, '/a/b', { c: 2 })).toEqual({ a: { b: { c: 2 } } });
+  });
+
+  it('patches into arrays by index and appends at the length', () => {
+    expect(mergePatchAt(doc, '/routing/static/0/nextHops/0', { weight: 5 })).toEqual({
+      ...doc,
+      routing: {
+        static: [{ prefix: '0.0.0.0/0', nextHops: [{ address: '10.0.0.1', weight: 5 }] }],
+      },
+    });
+    expect(mergePatchAt({ l: [1] }, '/l/1', 2)).toEqual({ l: [1, 2] });
+    expect(() => mergePatchAt({ l: [1] }, '/l/x', 2)).toThrow(/invalid array index 'x'/);
+    expect(() => mergePatchAt({ l: [1] }, '/l/2', 2)).toThrow(/invalid array index '2'/);
+    expect(() => mergePatchAt({}, 'nope', 1)).toThrow(/invalid JSON pointer/);
+  });
+
+  it('does not mutate the document', () => {
+    const before = JSON.stringify(doc);
+    mergePatchAt(doc, '/system/banner', { motd: null });
+    mergePatchAt(doc, '/routing/static/0', { distance: 5 });
+    expect(JSON.stringify(doc)).toBe(before);
+  });
+});
+
+describe('prototype keys are rejected (review M6, D-049)', () => {
+  const hostile = (key: string) => JSON.parse(`{"a":{"${key}":{"pwn":1}}}`) as unknown;
+
+  it.each(FORBIDDEN_KEYS)('mergePatch throws MergePatchError on a %s member', (key) => {
+    let error: unknown;
+    try {
+      mergePatch({ a: {} }, hostile(key));
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(MergePatchError);
+    expect((error as MergePatchError).pointer).toBe(`/a/${key}`);
+    expect((error as MergePatchError).message).toBe(`the key '${key}' is not allowed`);
+    expect(({} as Record<string, unknown>)['pwn']).toBeUndefined();
+  });
+
+  it.each(FORBIDDEN_KEYS)('mergePatchAt throws on %s in the pointer or the patch', (key) => {
+    expect(() => mergePatchAt({}, `/${key}/pwn`, true)).toThrow(MergePatchError);
+    expect(() => mergePatchAt({ x: {} }, '/x', hostile(key))).toThrow(MergePatchError);
+  });
+
+  it('reports the array path of a bad index', () => {
+    try {
+      mergePatchAt({ l: [1] }, '/l/9', 2);
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(MergePatchError);
+      expect((e as MergePatchError).pointer).toBe('/l/9');
+      expect((e as MergePatchError).name).toBe('MergePatchError');
+    }
   });
 });

@@ -1,0 +1,68 @@
+// MAP-E / MAP-T / LW4o6 (map plugin) objects of the DF-3 descriptors (package mapnat); see
+// common.proto for the conventions.
+syntax = "proto3";
+
+package vrx.model.nat.v1;
+
+option go_package = "ngfw/agent/gen/vrx/model/nat/v1;natv1";
+
+// MapDomain is one MAP domain (map_add_domain), tagged "<owner>:<name>". MAP-E vs MAP-T is chosen
+// per interface (MapInterface.translation) in VPP 26.06.
+message MapDomain {
+  // Stable id; VPP tag "<owner>:<name>".
+  string name = 1;
+  // IPv4 prefix, canonical CIDR.
+  string ip4_prefix = 2;
+  // IPv6 prefix, canonical CIDR.
+  string ip6_prefix = 3;
+  // IPv6 source prefix of the BR (map_add_domain.ip6_src), canonical CIDR.
+  string ip6_src = 4;
+  // Embedded-address bits length.
+  uint32 ea_bits_len = 5;
+  // PSID offset.
+  uint32 psid_offset = 6;
+  // PSID length.
+  uint32 psid_length = 7;
+  // Domain MTU, 0–65535 (sent as map_add_domain.mtu).
+  uint32 mtu = 8;
+}
+
+// MapRule is one PSID → IPv6 destination rule of a domain (map_add_del_rule); LW4o6 is a MAP-E
+// domain with rules.
+message MapRule {
+  // MapDomain name.
+  string domain = 1;
+  // Port-set id.
+  uint32 psid = 2;
+  // IPv6 destination (B4 address), canonical.
+  string ip6_dst = 3;
+}
+
+// MapParams is the global MAP parameter singleton (map_param_set_* / map_param_get). TCP MSS is
+// write-only in 26.06 and not modelled. VPP-global (D-071).
+message MapParams {
+  // Reassemble inner fragments.
+  bool frag_inner = 1;
+  // Fragment ignoring the DF bit.
+  bool frag_ignore_df = 2;
+  // ICMP relay source address; empty = none.
+  string icmp_relay_src = 3;
+  // Send ICMPv6 unreachables.
+  bool icmp6_unreachable = 4;
+  // Security check (source address/port validation).
+  bool security_check = 5;
+  // Security check on fragments.
+  bool security_check_frags = 6;
+  // Copy the traffic class from the inner header.
+  bool tc_copy = 7;
+  // Traffic class when not copied.
+  uint32 tc_class = 8;
+}
+
+// MapInterface enables MAP on an interface (map_if_enable_disable).
+message MapInterface {
+  // Logical interface name (D-069).
+  string interface = 1;
+  // MAP-T (translation) instead of MAP-E (encapsulation).
+  bool translation = 2;
+}

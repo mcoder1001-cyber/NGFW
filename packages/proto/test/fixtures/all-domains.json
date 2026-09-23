@@ -3,8 +3,7 @@
     "hostname": "vrx-a",
     "timezone": "Asia/Tehran",
     "banner": { "login": "Authorised access only." },
-    "ntp": {},
-    "dns": {}
+    "dns": { "servers": ["10.0.0.53", "2001:db8::53"], "searchDomains": ["lab.example"], "vrf": "default" }
   },
   "dataplane": {
     "workers": 4,
@@ -31,7 +30,8 @@
       "ipv6": ["2001:db8::1/64"],
       "vrf": "default",
       "rxMode": "adaptive",
-      "promiscuous": false
+      "promiscuous": false,
+      "dhcpClient": { "hostname": "vrx-a", "setBroadcastFlag": true }
     },
     "TenGigabitEthernet0/0/1": {
       "enabled": true,
@@ -70,12 +70,70 @@
         "vrf": "customer-a",
         "nextHops": [{ "interface": "loop0", "weight": 1 }],
         "distance": 5
-      }
+      },
+      { "prefix": "198.51.100.0/24", "vrf": "default", "blackhole": true, "distance": 250 }
     ],
-    "prefixLists": { "pl-default": {} },
-    "routeMaps": { "rm-in": {} },
-    "bgp": {},
-    "bfd": {}
+    "policy": {
+      "prefixLists": {
+        "pl-default": {
+          "description": "default only",
+          "family": "ipv4",
+          "rules": [
+            { "seq": 10, "action": "permit", "prefix": "0.0.0.0/0" },
+            { "seq": 20, "action": "permit", "prefix": "10.0.0.0/8", "ge": 16, "le": 24 }
+          ]
+        },
+        "pl-v6": { "family": "ipv6", "rules": [{ "seq": 5, "action": "deny", "prefix": "::/0" }] }
+      },
+      "routeMaps": {
+        "rm-in": {
+          "description": "upstream import",
+          "entries": [
+            {
+              "seq": 10,
+              "action": "permit",
+              "match": { "prefixList": "pl-default", "asPath": "^65001_" },
+              "set": { "localPref": 200, "med": 50, "community": ["65000:100"], "communityAdditive": true, "asPathPrepend": [65000, 65000] }
+            }
+          ]
+        }
+      }
+    },
+    "bgp": {
+      "asn": 65000,
+      "routerId": "10.255.0.1",
+      "vrf": "default",
+      "peerGroups": {
+        "upstreams": {
+          "remoteAs": 65001,
+          "passwordRef": "password/bgp-upstream",
+          "afi": { "ipv4Unicast": { "routeMapIn": "rm-in", "softReconfig": true } }
+        }
+      },
+      "neighbors": {
+        "10.0.0.254": { "peerGroup": "upstreams", "description": "upstream", "bfd": true },
+        "2001:db8::fe": { "remoteAs": 65002, "shutdown": true, "afi": { "ipv6Unicast": { "enabled": true, "prefixListOut": "pl-v6" } } }
+      },
+      "networks": [{ "prefix": "10.255.0.0/24" }],
+      "redistribute": { "connected": {}, "static": { "metric": 10, "routeMap": "rm-in" } },
+      "gracefulRestart": true,
+      "ebgpRequiresPolicy": true
+    },
+    "ospf": {
+      "routerId": "10.255.0.1",
+      "areas": { "0": {}, "0.0.0.51": { "type": "stub", "noSummary": true } },
+      "interfaces": {
+        "loop0": { "area": "0", "passive": true },
+        "TenGigabitEthernet0/0/0": { "area": "0.0.0.51", "cost": 10, "networkType": "point-to-point" }
+      },
+      "redistribute": { "bgp": { "routeMap": "rm-in" } },
+      "defaultInformationOriginate": "on"
+    },
+    "bfd": {
+      "sessions": [
+        { "interface": "TenGigabitEthernet0/0/0", "localAddress": "10.0.0.1", "peerAddress": "10.0.0.254", "desiredMinTxUs": 100000, "detectMultiplier": 3 }
+      ]
+    }
   },
   "nat": {
     "enabled": true,
@@ -163,7 +221,7 @@
     },
     "dslite": {
       "enabled": false,
-      "aftr": { "ipv6": "2001:db8:aftr::1", "ipv4": "192.0.0.1" },
+      "aftr": { "ipv6": "2001:db8:af::1", "ipv4": "192.0.0.1" },
       "b4": { "ipv6": "2001:db8:b4::1" },
       "pools": [{ "range": "203.0.113.128-203.0.113.130" }]
     },
@@ -174,13 +232,13 @@
           "description": "MAP-E domain",
           "mode": "map-e",
           "ipv4Prefix": "192.0.2.0/24",
-          "ipv6Prefix": "2001:db8:map::/48",
-          "ipv6Source": "2001:db8:br::1/128",
+          "ipv6Prefix": "2001:db8:100::/48",
+          "ipv6Source": "2001:db8:bb::1/128",
           "eaBitsLength": 16,
           "psidOffset": 6,
           "psidLength": 8,
           "mtu": 1280,
-          "rules": [{ "psid": 1, "ipv6Destination": "2001:db8:map:1::1" }]
+          "rules": [{ "psid": 1, "ipv6Destination": "2001:db8:100:1::1" }]
         }
       ],
       "parameters": {
@@ -222,7 +280,7 @@
     "services": {
       "https": { "protocol": "tcp", "destinationPorts": ["443"], "tcpFlags": { "mask": 2, "value": 2 }, "description": "TLS" },
       "ping": { "protocol": "icmp", "type": 8, "code": 0 },
-      "gre": { "protocol": "ip", "number": 47 }
+      "gre": { "protocol": "other", "number": 47 }
     },
     "serviceGroups": { "web": { "members": ["https"], "tags": ["prod"] } },
     "schedules": {
@@ -256,7 +314,7 @@
             "ipVersion": "any",
             "source": { "kind": "prefix", "prefix": "0.0.0.0/0" },
             "destination": { "kind": "any" },
-            "service": { "kind": "spec", "spec": { "protocol": "udp", "destinationPorts": ["53"] } },
+            "service": { "kind": "inline", "spec": { "protocol": "udp", "destinationPorts": ["53"] } },
             "log": false
           }
         ]
@@ -270,7 +328,7 @@
     "host": {
       "mgmt-in": {
         "rules": [
-          { "sequence": 1, "enabled": true, "action": "permit", "ipVersion": "ipv4", "source": { "kind": "object", "name": "n1" }, "destination": { "kind": "any" }, "service": { "kind": "spec", "spec": { "protocol": "tcp", "destinationPorts": ["22", "443"] } }, "interface": "TenGigabitEthernet0/0/0", "log": false }
+          { "sequence": 1, "enabled": true, "action": "accept", "ipVersion": "ipv4", "source": { "kind": "object", "name": "n1" }, "destination": { "kind": "any" }, "service": { "kind": "inline", "spec": { "protocol": "tcp", "destinationPorts": ["22", "443"] } }, "interface": "eth0", "log": false }
         ]
       }
     },
@@ -332,7 +390,7 @@
           "peers": {
             "laptop": {
               "description": "road warrior",
-              "publicKey": "VRX_TEST_PUBKEY_wg0_laptop",
+              "publicKey": "VlJYX1RFU1RfUFVCS0VZX3dnMF9sYXB0b3BfX19fX18=",
               "presharedKeyRef": "psk/wg0-laptop",
               "endpoint": { "address": "198.51.100.7", "port": 51820 },
               "allowedIps": ["10.200.0.2/32"],
@@ -519,8 +577,11 @@
       { "username": "admin", "role": "admin", "scope": "*", "sshKeys": ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyMaterialForTestsOnly0000000000 admin@lab"], "disabled": false },
       { "username": "auditor", "role": "readonly", "scope": "*", "fullName": "Audit Account", "disabled": true }
     ],
-    "aaa": {},
-    "tls": {},
-    "syslog": [{}]
+    "aaa": {
+      "order": ["radius", "local"],
+      "radius": { "servers": [{ "address": "10.0.0.10", "secretRef": "psk/radius-primary", "timeoutSec": 3 }] }
+    },
+    "tls": { "certificateRef": "cert/api", "privateKeyRef": "key/api", "minVersion": "1.3" },
+    "syslog": [{ "address": "10.0.0.20", "port": 514, "protocol": "tcp", "severity": "notice", "vrf": "default" }]
   }
 }

@@ -9,7 +9,7 @@ const base = {
     'Gig0/0/1': { vrf: 'cust' },
     'Gig0/0/2': {},
   },
-  vrfs: { cust: {} },
+  vrfs: { cust: { id: 10 } }, // group (a) VrfSchema requires the table id (P02a merge)
   objects: {
     addresses: { srv: { type: 'host', address: '10.0.0.1' } },
     addressGroups: { grp: { members: ['srv'] } },
@@ -358,6 +358,11 @@ describe('acl.attachments', () => {
       {
         pointer: '/acl/attachments/2/vrf',
         message: "interface 'Gig0/0/1' is in VRF 'cust', not 'default'",
+      },
+      // Gig0/0/2 declares no vrf, but the group (a) schema defaults it to 'default' (P02a merge)
+      {
+        pointer: '/acl/attachments/3/vrf',
+        message: "interface 'Gig0/0/2' is in VRF 'default', not 'cust'",
       },
     ]);
   });

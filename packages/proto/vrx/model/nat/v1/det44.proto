@@ -1,0 +1,24 @@
+// Deterministic NAT44 (det44 plugin) objects of the DF-3 descriptors; see common.proto for the
+// conventions. Shared: InterfaceFeature, Timeouts. det44 is never disabled once enabled (D-068).
+syntax = "proto3";
+
+package vrx.model.nat.v1;
+
+option go_package = "ngfw/agent/gen/vrx/model/nat/v1;natv1";
+
+// Det44Enable is the plugin singleton (det44_plugin_enable_disable), write-only in VPP: an enable
+// on an enabled plugin keeps its VRFs. VPP-global (D-071).
+message Det44Enable {
+  // Inside FIB table id.
+  uint32 inside_vrf = 1;
+  // Outside FIB table id.
+  uint32 outside_vrf = 2;
+}
+
+// Det44Map is one deterministic mapping inside prefix → outside prefix (det44_add_del_map).
+message Det44Map {
+  // Inside IPv4 prefix, canonical CIDR.
+  string inside = 1;
+  // Outside IPv4 prefix, canonical CIDR.
+  string outside = 2;
+}

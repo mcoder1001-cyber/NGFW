@@ -813,8 +813,15 @@ export interface Event_AttributesEntry {
  * input reaches a shell: actions run through the VPP API or fixed-argv allow-listed binaries).
  */
 export interface ActionRequest {
-  ping?: PingAction | undefined;
-  traceroute?: TracerouteAction | undefined;
+  /** ICMP echo from the data plane. */
+  ping?:
+    | PingAction
+    | undefined;
+  /** Traceroute from the data plane. */
+  traceroute?:
+    | TracerouteAction
+    | undefined;
+  /** Packet capture on one interface (pcap output). */
   capture?: CaptureAction | undefined;
 }
 
@@ -903,9 +910,11 @@ export interface ActionDone_StatsEntry {
   value: string;
 }
 
+/** HealthRequest has no parameters. */
 export interface HealthRequest {
 }
 
+/** HealthResponse is the agent's cheap status snapshot (docs/contracts/proto.md §8). */
 export interface HealthResponse {
   /** Agent build version. */
   agentVersion: string;
@@ -941,7 +950,7 @@ export interface HealthResponse {
  * (`interfaces`, `vrfs`) are maps keyed exactly like the JSON records.
  */
 export interface DesiredState {
-  /** `system` — hostname, timezone, banner, NTP/DNS client. */
+  /** `system` — hostname, timezone, banner, DNS client. */
   system:
     | SystemConfig
     | undefined;
@@ -1013,30 +1022,31 @@ export interface SystemConfig {
   banner:
     | SystemBanner
     | undefined;
-  /** NTP client settings (chrony renderer). Fields land with the P02a model. */
-  ntp:
-    | SystemNtp
-    | undefined;
-  /** DNS client settings (resolv.conf / Unbound forwarders). Fields land with the P02a model. */
+  /** DNS client of the router itself (resolv.conf). */
   dns: SystemDns | undefined;
 }
 
 /** SystemBanner mirrors `system.banner` (rendered into /etc/issue, /etc/motd and the web login page). */
 export interface SystemBanner {
-  /** Pre-login banner shown before authentication (SSH issue, web login page); up to 4096 chars. */
+  /**
+   * Pre-login banner shown before authentication (SSH issue, web login page); up to 4096 chars,
+   * printable + LF/TAB only (D-049).
+   */
   login?:
     | string
     | undefined;
-  /** Message of the day shown after a successful login; up to 4096 chars. */
+  /** Message of the day shown after a successful login; same alphabet. */
   motd?: string | undefined;
 }
 
-/** SystemNtp is `system.ntp`; P02a fields (enabled, servers[], vrf) are added here from 1 (P03b). */
-export interface SystemNtp {
-}
-
-/** SystemDns is `system.dns`; P02a fields (servers[], searchDomains[], vrf) are added here from 1 (P03b). */
+/** SystemDns mirrors `system.dns`. */
 export interface SystemDns {
+  /** Upstream resolvers of the system itself (IP addresses), in order. */
+  servers: string[];
+  /** Search domains (RFC 1123 names). */
+  searchDomains: string[];
+  /** VRF used to reach the name servers; Zod default "default". */
+  vrf?: string | undefined;
 }
 
 /**
@@ -1108,12 +1118,30 @@ export interface Interface {
     | string
     | undefined;
   /** Accept frames for any destination MAC (sw_interface_set_promisc); Zod default false. */
-  promiscuous?: boolean | undefined;
+  promiscuous?:
+    | boolean
+    | undefined;
+  /** DHCPv4 client (dhcp_client_config); present = enabled (D-050). */
+  dhcpClient: DhcpClient | undefined;
 }
 
 export interface Interface_SubinterfacesEntry {
   key: string;
   value: Subinterface | undefined;
+}
+
+/** DhcpClient mirrors `interfaces.<name>.dhcpClient` / `….subinterfaces.<id>.dhcpClient`. */
+export interface DhcpClient {
+  /** Hostname sent in option 12; unset = the system hostname. */
+  hostname?:
+    | string
+    | undefined;
+  /** Client identifier (option 61); unset = the interface MAC address. */
+  clientId?:
+    | string
+    | undefined;
+  /** Ask the server to broadcast its replies; Zod default false. */
+  setBroadcastFlag?: boolean | undefined;
 }
 
 /** Subinterface mirrors one entry of `interfaces.<name>.subinterfaces` (dot1q / dot1ad). */
@@ -1151,7 +1179,11 @@ export interface Subinterface {
     | string
     | undefined;
   /** Outer tag is 802.1ad (0x88a8) instead of 802.1Q (0x8100); Zod default false. */
-  dot1ad?: boolean | undefined;
+  dot1ad?:
+    | boolean
+    | undefined;
+  /** DHCPv4 client; present = enabled (D-050). */
+  dhcpClient: DhcpClient | undefined;
 }
 
 /** Vrf mirrors one entry of the `vrfs` record (ip_table_add_del for IPv4 and IPv6). */
@@ -1164,42 +1196,36 @@ export interface Vrf {
   description?: string | undefined;
 }
 
-/** RoutingConfig mirrors `routing`. */
+/**
+ * RoutingConfig mirrors `routing`. Shapes follow the FRR renderer contract of P12 §2 (D-045):
+ * collections with a natural key are maps (neighbours by address, IGP interfaces by name, OSPF
+ * areas by id); ordered lists stay repeated.
+ */
 export interface RoutingConfig {
   /** Static routes (ip_route_add_del). */
   static: StaticRoute[];
-  /** Prefix lists keyed by name (FRR policy skeleton). Fields land with the P02a model. */
-  prefixLists: { [key: string]: PrefixList };
-  /** Route maps keyed by name (FRR policy skeleton). Fields land with the P02a model. */
-  routeMaps: { [key: string]: RouteMap };
-  /** BGP (FRR bgpd). Fields land with the P02a model. */
+  /** BGP (FRR bgpd); unset = BGP not configured. */
   bgp:
     | BgpConfig
     | undefined;
-  /** OSPFv2/v3 (FRR ospfd/ospf6d). Fields land with the P02a model. */
+  /** OSPFv2 (FRR ospfd); unset = not configured. */
   ospf:
     | OspfConfig
     | undefined;
-  /** IS-IS (FRR isisd). Fields land with the P02a model. */
+  /** IS-IS (FRR isisd); unset = not configured. */
   isis:
     | IsisConfig
     | undefined;
-  /** RIP (FRR ripd). Fields land with the P02a model. */
+  /** RIP (FRR ripd); unset = not configured. */
   rip:
     | RipConfig
     | undefined;
-  /** BFD (VPP bfd plugin + FRR bfdd). Fields land with the P02a model. */
-  bfd: BfdConfig | undefined;
-}
-
-export interface RoutingConfig_PrefixListsEntry {
-  key: string;
-  value: PrefixList | undefined;
-}
-
-export interface RoutingConfig_RouteMapsEntry {
-  key: string;
-  value: RouteMap | undefined;
+  /** BFD sessions (VPP bfd plugin); unset = none. */
+  bfd:
+    | BfdConfig
+    | undefined;
+  /** Routing policy: prefix lists and route maps (FRR). */
+  policy: RoutingPolicy | undefined;
 }
 
 /** StaticRoute mirrors one entry of `routing.static`. */
@@ -1208,7 +1234,7 @@ export interface StaticRoute {
   prefix?:
     | string
     | undefined;
-  /** Next hops (ECMP when more than one), sorted by address. */
+  /** Next hops (ECMP when more than one); empty only for a blackhole route. */
   nextHops: NextHop[];
   /** VRF name the route is installed in; first-class (vdom.md #1). Zod default "default". */
   vrf?:
@@ -1219,7 +1245,11 @@ export interface StaticRoute {
     | number
     | undefined;
   /** Free-text description. */
-  description?: string | undefined;
+  description?:
+    | string
+    | undefined;
+  /** Drop matching traffic (null route, FIB_PATH_TYPE drop); requires empty next_hops. Zod default false. */
+  blackhole?: boolean | undefined;
 }
 
 /** NextHop is one path of a StaticRoute. */
@@ -1239,32 +1269,564 @@ export interface NextHop {
   weight?: number | undefined;
 }
 
-/** PrefixList is `routing.prefixLists.<name>`; P02a fields are added from 1. */
+/** RoutingPolicy mirrors `routing.policy`. */
+export interface RoutingPolicy {
+  /** Prefix lists keyed by name. */
+  prefixLists: { [key: string]: PrefixList };
+  /** Route maps keyed by name. */
+  routeMaps: { [key: string]: RouteMap };
+}
+
+export interface RoutingPolicy_PrefixListsEntry {
+  key: string;
+  value: PrefixList | undefined;
+}
+
+export interface RoutingPolicy_RouteMapsEntry {
+  key: string;
+  value: RouteMap | undefined;
+}
+
+/** PrefixList mirrors `routing.policy.prefixLists.<name>` (FRR `ip|ipv6 prefix-list`). */
 export interface PrefixList {
+  /** Free-text description. */
+  description?:
+    | string
+    | undefined;
+  /** "ipv4" | "ipv6"; Zod default "ipv4". */
+  family?:
+    | string
+    | undefined;
+  /** Rules in document order; `seq` unique. */
+  rules: PrefixListRule[];
 }
 
-/** RouteMap is `routing.routeMaps.<name>`; P02a fields are added from 1. */
+/** PrefixListRule is one `seq N permit|deny <prefix> [ge G] [le L]`. */
+export interface PrefixListRule {
+  /** Sequence number 1..2^32-1. */
+  seq?:
+    | number
+    | undefined;
+  /** "permit" | "deny". */
+  action?:
+    | string
+    | undefined;
+  /** Network prefix (host bits zero). */
+  prefix?:
+    | string
+    | undefined;
+  /** Minimum matched length (len < ge ≤ max). */
+  ge?:
+    | number
+    | undefined;
+  /** Maximum matched length (len ≤ le ≤ max, ge ≤ le). */
+  le?: number | undefined;
+}
+
+/** RouteMap mirrors `routing.policy.routeMaps.<name>`. */
 export interface RouteMap {
+  /** Free-text description. */
+  description?:
+    | string
+    | undefined;
+  /** Entries in document order; `seq` unique. */
+  entries: RouteMapEntry[];
 }
 
-/** BgpConfig is `routing.bgp`; P02a fields are added from 1. */
+/** RouteMapEntry is one `route-map NAME permit|deny SEQ` block. */
+export interface RouteMapEntry {
+  /** Sequence number 1..2^32-1. */
+  seq?:
+    | number
+    | undefined;
+  /** "permit" | "deny". */
+  action?:
+    | string
+    | undefined;
+  /** Free-text description. */
+  description?:
+    | string
+    | undefined;
+  /** Match clauses (all must match; empty = everything). */
+  match:
+    | RouteMapMatch
+    | undefined;
+  /** Set clauses. */
+  set: RouteMapSet | undefined;
+}
+
+/** RouteMapMatch mirrors `…entries[].match`. */
+export interface RouteMapMatch {
+  /** `match ip[v6] address prefix-list`. */
+  prefixList?:
+    | string
+    | undefined;
+  /** `match ip[v6] next-hop prefix-list`. */
+  nextHopPrefixList?:
+    | string
+    | undefined;
+  /** `match interface`. */
+  interface?:
+    | string
+    | undefined;
+  /** `match community` (standard community or well-known name). */
+  community?:
+    | string
+    | undefined;
+  /** `match as-path` regex (FRR alphabet only, D-049). */
+  asPath?:
+    | string
+    | undefined;
+  /** `match metric`. */
+  metric?:
+    | number
+    | undefined;
+  /** `match tag`. */
+  tag?: number | undefined;
+}
+
+/** RouteMapSet mirrors `…entries[].set`; names follow P12 §2. */
+export interface RouteMapSet {
+  /** `set local-preference`. */
+  localPref?:
+    | number
+    | undefined;
+  /** `set metric` (BGP MED). */
+  med?:
+    | number
+    | undefined;
+  /** `set weight` 0–65535. */
+  weight?:
+    | number
+    | undefined;
+  /** `set ip[v6] next-hop`. */
+  nextHop?:
+    | string
+    | undefined;
+  /** `set community …`. */
+  community: string[];
+  /** Append instead of replace (`additive`); Zod default false. */
+  communityAdditive?:
+    | boolean
+    | undefined;
+  /** `set as-path prepend …`. */
+  asPathPrepend: number[];
+  /** `set tag`. */
+  tag?: number | undefined;
+}
+
+/** RedistributeOptions is one redistributed source; the field being set means "redistribute it". */
+export interface RedistributeOptions {
+  /** `metric N`. */
+  metric?:
+    | number
+    | undefined;
+  /** `route-map NAME`. */
+  routeMap?: string | undefined;
+}
+
+/**
+ * Redistribute mirrors `routing.<protocol>.redistribute` (a record keyed by source protocol; the
+ * schema rejects a protocol redistributing into itself).
+ *
+ * One message serves every protocol, so each protocol's own key exists here but can never be set
+ * (the drift guard accepts exactly these four supersets, apps/agent/internal/contracttest).
+ */
+export interface Redistribute {
+  /** Connected routes. */
+  connected:
+    | RedistributeOptions
+    | undefined;
+  /** Static routes. */
+  static:
+    | RedistributeOptions
+    | undefined;
+  /** BGP routes (not under routing.bgp). */
+  bgp:
+    | RedistributeOptions
+    | undefined;
+  /** OSPF routes (not under routing.ospf). */
+  ospf:
+    | RedistributeOptions
+    | undefined;
+  /** IS-IS routes (not under routing.isis). */
+  isis:
+    | RedistributeOptions
+    | undefined;
+  /** RIP routes (not under routing.rip). */
+  rip: RedistributeOptions | undefined;
+}
+
+/** BgpAddressFamily mirrors `…afi.ipv4Unicast` / `…afi.ipv6Unicast` of a neighbour or peer group. */
+export interface BgpAddressFamily {
+  /** `activate`; Zod default true. */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Inbound route map (name under routing.policy.routeMaps). */
+  routeMapIn?:
+    | string
+    | undefined;
+  /** Outbound route map. */
+  routeMapOut?:
+    | string
+    | undefined;
+  /** Inbound prefix list (name under routing.policy.prefixLists). */
+  prefixListIn?:
+    | string
+    | undefined;
+  /** Outbound prefix list. */
+  prefixListOut?:
+    | string
+    | undefined;
+  /** Zod default false. */
+  nextHopSelf?:
+    | boolean
+    | undefined;
+  /** `soft-reconfiguration inbound`; Zod default false. */
+  softReconfig?:
+    | boolean
+    | undefined;
+  /** `maximum-prefix N`. */
+  maximumPrefixes?:
+    | number
+    | undefined;
+  /** `default-originate`; Zod default false. */
+  defaultOriginate?: boolean | undefined;
+}
+
+/** BgpAfi mirrors `…afi`; an unset family is not activated. */
+export interface BgpAfi {
+  /** `address-family ipv4 unicast`. */
+  ipv4Unicast:
+    | BgpAddressFamily
+    | undefined;
+  /** `address-family ipv6 unicast`. */
+  ipv6Unicast: BgpAddressFamily | undefined;
+}
+
+/** BgpPeerGroup mirrors `routing.bgp.peerGroups.<name>`. */
+export interface BgpPeerGroup {
+  /** Remote AS (asplain). */
+  remoteAs?:
+    | number
+    | undefined;
+  /** Free text. */
+  description?:
+    | string
+    | undefined;
+  /** Local address or interface name. */
+  updateSource?:
+    | string
+    | undefined;
+  /** eBGP multihop TTL, 1–255. */
+  ebgpMultihop?:
+    | number
+    | undefined;
+  /** TCP MD5 password: a secret-store reference "password/<name>" (D-051), never the password. */
+  passwordRef?:
+    | string
+    | undefined;
+  /** Keepalive timer, seconds. */
+  keepaliveSec?:
+    | number
+    | undefined;
+  /** Hold timer, seconds (≥ 3). */
+  holdTimeSec?:
+    | number
+    | undefined;
+  /** Zod default false. */
+  bfd?:
+    | boolean
+    | undefined;
+  /** Address families. */
+  afi: BgpAfi | undefined;
+}
+
+/** BgpNeighbor mirrors `routing.bgp.neighbors.<address>` (map key = neighbour address). */
+export interface BgpNeighbor {
+  /** Remote AS (asplain); may come from the peer group instead. */
+  remoteAs?:
+    | number
+    | undefined;
+  /** Free text. */
+  description?:
+    | string
+    | undefined;
+  /** Local address or interface name. */
+  updateSource?:
+    | string
+    | undefined;
+  /** eBGP multihop TTL, 1–255. */
+  ebgpMultihop?:
+    | number
+    | undefined;
+  /** Secret-store reference "password/<name>" (D-051). */
+  passwordRef?:
+    | string
+    | undefined;
+  /** Keepalive timer, seconds. */
+  keepaliveSec?:
+    | number
+    | undefined;
+  /** Hold timer, seconds (≥ 3). */
+  holdTimeSec?:
+    | number
+    | undefined;
+  /** BFD for this session; Zod default false. */
+  bfd?:
+    | boolean
+    | undefined;
+  /** Address families. */
+  afi:
+    | BgpAfi
+    | undefined;
+  /** Inherit settings from this peer group. */
+  peerGroup?:
+    | string
+    | undefined;
+  /** Keep the configuration, do not bring the session up; Zod default false. */
+  shutdown?: boolean | undefined;
+}
+
+/** BgpNetwork mirrors one entry of `routing.bgp.networks`. */
+export interface BgpNetwork {
+  /** Announced prefix (CIDR). */
+  prefix?:
+    | string
+    | undefined;
+  /** Route map applied to the announcement. */
+  routeMap?: string | undefined;
+}
+
+/** BgpConfig mirrors `routing.bgp`. */
 export interface BgpConfig {
+  /** Local AS (asplain). */
+  asn?:
+    | number
+    | undefined;
+  /** Router id (dotted quad). */
+  routerId?:
+    | string
+    | undefined;
+  /** Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** Peer groups keyed by name. */
+  peerGroups: { [key: string]: BgpPeerGroup };
+  /** Keyed by neighbour address. */
+  neighbors: { [key: string]: BgpNeighbor };
+  /** `network` statements. */
+  networks: BgpNetwork[];
+  /** Redistribution into BGP (the `bgp` key is never set). */
+  redistribute:
+    | Redistribute
+    | undefined;
+  /** Zod default false. */
+  gracefulRestart?:
+    | boolean
+    | undefined;
+  /** RFC 8212; Zod default true. */
+  ebgpRequiresPolicy?: boolean | undefined;
 }
 
-/** OspfConfig is `routing.ospf`; P02a fields are added from 1. */
+export interface BgpConfig_PeerGroupsEntry {
+  key: string;
+  value: BgpPeerGroup | undefined;
+}
+
+export interface BgpConfig_NeighborsEntry {
+  key: string;
+  value: BgpNeighbor | undefined;
+}
+
+/** OspfArea mirrors `routing.ospf.areas.<id>` (map key = area id, decimal or dotted quad). */
+export interface OspfArea {
+  /** "normal" | "stub" | "nssa"; Zod default "normal". */
+  type?:
+    | string
+    | undefined;
+  /** Totally stubby / totally NSSA; Zod default false. */
+  noSummary?: boolean | undefined;
+}
+
+/** OspfInterface mirrors `routing.ospf.interfaces.<name>`. */
+export interface OspfInterface {
+  /** Area id (decimal or dotted quad string), must exist under `areas`. */
+  area?:
+    | string
+    | undefined;
+  /** Interface cost, 1–65535. */
+  cost?:
+    | number
+    | undefined;
+  /** Zod default false. */
+  passive?:
+    | boolean
+    | undefined;
+  /** "broadcast" | "point-to-point" | "non-broadcast" | "point-to-multipoint". */
+  networkType?:
+    | string
+    | undefined;
+  /** Hello interval, seconds. */
+  helloIntervalSec?:
+    | number
+    | undefined;
+  /** Dead interval, seconds. */
+  deadIntervalSec?:
+    | number
+    | undefined;
+  /** DR priority, 0–255. */
+  priority?:
+    | number
+    | undefined;
+  /** Zod default false. */
+  bfd?: boolean | undefined;
+}
+
+/** OspfConfig mirrors `routing.ospf`. */
 export interface OspfConfig {
+  /** Router id (dotted quad). */
+  routerId?:
+    | string
+    | undefined;
+  /** Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** Areas keyed by area id. */
+  areas: { [key: string]: OspfArea };
+  /** Interfaces keyed by interface name. */
+  interfaces: { [key: string]: OspfInterface };
+  /** Redistribution into OSPF (the `ospf` key is never set). */
+  redistribute:
+    | Redistribute
+    | undefined;
+  /** "off" | "on" | "always"; Zod default "off". */
+  defaultInformationOriginate?: string | undefined;
 }
 
-/** IsisConfig is `routing.isis`; P02a fields are added from 1. */
+export interface OspfConfig_AreasEntry {
+  key: string;
+  value: OspfArea | undefined;
+}
+
+export interface OspfConfig_InterfacesEntry {
+  key: string;
+  value: OspfInterface | undefined;
+}
+
+/** IsisInterface mirrors `routing.isis.interfaces.<name>`. */
+export interface IsisInterface {
+  /** Zod default false. */
+  passive?:
+    | boolean
+    | undefined;
+  /** Wide metric, 1–16777215. */
+  metric?:
+    | number
+    | undefined;
+  /** "level-1" | "level-2" | "level-1-2". */
+  circuitType?:
+    | string
+    | undefined;
+  /** "broadcast" | "point-to-point". */
+  networkType?:
+    | string
+    | undefined;
+  /** Zod default false. */
+  bfd?: boolean | undefined;
+}
+
+/** IsisConfig mirrors `routing.isis`. */
 export interface IsisConfig {
+  /** Network entity title, e.g. "49.0001.1921.6800.1001.00". */
+  net?:
+    | string
+    | undefined;
+  /** IS type; Zod default "level-1-2". */
+  level?:
+    | string
+    | undefined;
+  /** Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** Interfaces keyed by interface name. */
+  interfaces: { [key: string]: IsisInterface };
+  /** Redistribution into IS-IS (the `isis` key is never set). */
+  redistribute: Redistribute | undefined;
 }
 
-/** RipConfig is `routing.rip`; P02a fields are added from 1. */
+export interface IsisConfig_InterfacesEntry {
+  key: string;
+  value: IsisInterface | undefined;
+}
+
+/** RipInterface mirrors `routing.rip.interfaces.<name>`. */
+export interface RipInterface {
+  /** Zod default false. */
+  passive?: boolean | undefined;
+}
+
+/** RipConfig mirrors `routing.rip`. */
 export interface RipConfig {
+  /** Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** IPv4 network prefixes RIP runs on. */
+  networks: string[];
+  /** Interfaces keyed by interface name. */
+  interfaces: { [key: string]: RipInterface };
+  /** Redistribution into RIP (the `rip` key is never set). */
+  redistribute:
+    | Redistribute
+    | undefined;
+  /** Zod default 1. */
+  defaultMetric?: number | undefined;
 }
 
-/** BfdConfig is `routing.bfd`; P02a fields are added from 1. */
+export interface RipConfig_InterfacesEntry {
+  key: string;
+  value: RipInterface | undefined;
+}
+
+/** BfdSession mirrors one entry of `routing.bfd.sessions` (bfd_udp_add). */
+export interface BfdSession {
+  /** Interface name the session runs on. */
+  interface?:
+    | string
+    | undefined;
+  /** Local IP address. */
+  localAddress?:
+    | string
+    | undefined;
+  /** Peer IP address. */
+  peerAddress?:
+    | string
+    | undefined;
+  /** Microseconds; Zod default 300000. */
+  desiredMinTxUs?:
+    | number
+    | undefined;
+  /** Microseconds; Zod default 300000. */
+  requiredMinRxUs?:
+    | number
+    | undefined;
+  /** Zod default 3. */
+  detectMultiplier?:
+    | number
+    | undefined;
+  /** Zod default true. */
+  enabled?: boolean | undefined;
+}
+
+/** BfdConfig mirrors `routing.bfd`. */
 export interface BfdConfig {
+  /** Static BFD sessions. */
+  sessions: BfdSession[];
 }
 
 /** TunnelsConfig mirrors `tunnels`; the records are keyed by tunnel name (unique across kinds). */
@@ -2613,15 +3175,15 @@ export interface HaCluster_StateSync {
 export interface ManagementConfig {
   /** Local users. */
   users: ManagementUser[];
-  /** AAA (RADIUS/TACACS+/LDAP). Fields land with the P02a model. */
+  /** AAA (RADIUS / TACACS+). */
   aaa:
     | ManagementAaa
     | undefined;
-  /** TLS settings of the management endpoint. Fields land with the P02a model. */
+  /** TLS settings of the management endpoint. */
   tls:
     | ManagementTls
     | undefined;
-  /** Remote syslog targets (rsyslog renderer). Fields land with the P02a model. */
+  /** Remote syslog targets (rsyslog renderer). */
   syslog: SyslogTarget[];
 }
 
@@ -2649,16 +3211,112 @@ export interface ManagementUser {
   disabled?: boolean | undefined;
 }
 
-/** ManagementAaa is `management.aaa`; P02a fields are added from 1. */
+/** ManagementAaa mirrors `management.aaa`. */
 export interface ManagementAaa {
+  /** Authentication methods in order: "local" | "radius" | "tacacs"; Zod default ["local"]. */
+  order: string[];
+  /** RADIUS servers. */
+  radius:
+    | AaaRadius
+    | undefined;
+  /** TACACS+ servers. */
+  tacacs: AaaTacacs | undefined;
 }
 
-/** ManagementTls is `management.tls`; P02a fields are added from 1. */
+/** AaaRadius mirrors `management.aaa.radius`. */
+export interface AaaRadius {
+  /** Up to 8 servers, tried in order. */
+  servers: RadiusServer[];
+}
+
+/** RadiusServer mirrors one entry of `management.aaa.radius.servers`. */
+export interface RadiusServer {
+  /** IP address or hostname. */
+  address?:
+    | string
+    | undefined;
+  /** Zod default 1812. */
+  authPort?:
+    | number
+    | undefined;
+  /** Zod default 1813. */
+  acctPort?:
+    | number
+    | undefined;
+  /** Shared secret: secret-store reference "psk/<name>" (D-051), never the secret. */
+  secretRef?:
+    | string
+    | undefined;
+  /** Zod default 5. */
+  timeoutSec?:
+    | number
+    | undefined;
+  /** VRF the server is reached through; Zod default "default". */
+  vrf?: string | undefined;
+}
+
+/** AaaTacacs mirrors `management.aaa.tacacs`. */
+export interface AaaTacacs {
+  /** Up to 8 servers, tried in order. */
+  servers: TacacsServer[];
+}
+
+/** TacacsServer mirrors one entry of `management.aaa.tacacs.servers`. */
+export interface TacacsServer {
+  /** IP address or hostname. */
+  address?:
+    | string
+    | undefined;
+  /** Zod default 49. */
+  port?:
+    | number
+    | undefined;
+  /** Secret-store reference "psk/<name>" (D-051). */
+  secretRef?:
+    | string
+    | undefined;
+  /** Seconds; Zod default 5. */
+  timeoutSec?:
+    | number
+    | undefined;
+  /** VRF the server is reached through; Zod default "default". */
+  vrf?: string | undefined;
+}
+
+/** ManagementTls mirrors `management.tls` (both refs or neither; unset = self-signed). */
 export interface ManagementTls {
+  /** Secret-store reference "cert/<name>". */
+  certificateRef?:
+    | string
+    | undefined;
+  /** Secret-store reference "key/<name>". */
+  privateKeyRef?:
+    | string
+    | undefined;
+  /** "1.2" | "1.3"; Zod default "1.2". */
+  minVersion?: string | undefined;
 }
 
-/** SyslogTarget is one entry of `management.syslog`; P02a fields are added from 1. */
+/** SyslogTarget mirrors one entry of `management.syslog`. */
 export interface SyslogTarget {
+  /** Collector IP address or hostname. */
+  address?:
+    | string
+    | undefined;
+  /** Zod default 514. */
+  port?:
+    | number
+    | undefined;
+  /** "udp" | "tcp" | "tls"; Zod default "udp". */
+  protocol?:
+    | string
+    | undefined;
+  /** Minimum severity forwarded; Zod default "info". */
+  severity?:
+    | string
+    | undefined;
+  /** VRF the collector is reached through; Zod default "default". */
+  vrf?: string | undefined;
 }
 
 /**
@@ -8606,7 +9264,7 @@ export const DesiredState_VrfsEntry: MessageFns<DesiredState_VrfsEntry> = {
 };
 
 function createBaseSystemConfig(): SystemConfig {
-  return { hostname: undefined, timezone: undefined, banner: undefined, ntp: undefined, dns: undefined };
+  return { hostname: undefined, timezone: undefined, banner: undefined, dns: undefined };
 }
 
 export const SystemConfig: MessageFns<SystemConfig> = {
@@ -8619,9 +9277,6 @@ export const SystemConfig: MessageFns<SystemConfig> = {
     }
     if (message.banner !== undefined) {
       SystemBanner.encode(message.banner, writer.uint32(26).fork()).join();
-    }
-    if (message.ntp !== undefined) {
-      SystemNtp.encode(message.ntp, writer.uint32(34).fork()).join();
     }
     if (message.dns !== undefined) {
       SystemDns.encode(message.dns, writer.uint32(42).fork()).join();
@@ -8666,14 +9321,6 @@ export const SystemConfig: MessageFns<SystemConfig> = {
             message.banner = SystemBanner.decode(reader, reader.uint32());
             continue;
           }
-          case 4: {
-            if (tag !== 34) {
-              break;
-            }
-
-            message.ntp = SystemNtp.decode(reader, reader.uint32());
-            continue;
-          }
           case 5: {
             if (tag !== 42) {
               break;
@@ -8699,7 +9346,6 @@ export const SystemConfig: MessageFns<SystemConfig> = {
       hostname: isSet(object.hostname) ? globalThis.String(object.hostname) : undefined,
       timezone: isSet(object.timezone) ? globalThis.String(object.timezone) : undefined,
       banner: isSet(object.banner) ? SystemBanner.fromJSON(object.banner) : undefined,
-      ntp: isSet(object.ntp) ? SystemNtp.fromJSON(object.ntp) : undefined,
       dns: isSet(object.dns) ? SystemDns.fromJSON(object.dns) : undefined,
     };
   },
@@ -8714,9 +9360,6 @@ export const SystemConfig: MessageFns<SystemConfig> = {
     }
     if (message.banner !== undefined) {
       obj.banner = SystemBanner.toJSON(message.banner);
-    }
-    if (message.ntp !== undefined) {
-      obj.ntp = SystemNtp.toJSON(message.ntp);
     }
     if (message.dns !== undefined) {
       obj.dns = SystemDns.toJSON(message.dns);
@@ -8734,7 +9377,6 @@ export const SystemConfig: MessageFns<SystemConfig> = {
     message.banner = (object.banner !== undefined && object.banner !== null)
       ? SystemBanner.fromPartial(object.banner)
       : undefined;
-    message.ntp = (object.ntp !== undefined && object.ntp !== null) ? SystemNtp.fromPartial(object.ntp) : undefined;
     message.dns = (object.dns !== undefined && object.dns !== null) ? SystemDns.fromPartial(object.dns) : undefined;
     return message;
   },
@@ -8825,64 +9467,21 @@ export const SystemBanner: MessageFns<SystemBanner> = {
   },
 };
 
-function createBaseSystemNtp(): SystemNtp {
-  return {};
-}
-
-export const SystemNtp: MessageFns<SystemNtp> = {
-  encode(_: SystemNtp, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): SystemNtp {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
-    if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
-    }
-    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
-    try {
-      const end = length === undefined ? reader.len : reader.pos + length;
-      const message = createBaseSystemNtp();
-      while (reader.pos < end) {
-        const tag = reader.uint32();
-        switch (tag >>> 3) {
-        }
-        if ((tag & 7) === 4 || tag === 0) {
-          break;
-        }
-        reader.skip(tag & 7);
-      }
-      return message;
-    } finally {
-      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
-    }
-  },
-
-  fromJSON(_: any): SystemNtp {
-    return {};
-  },
-
-  toJSON(_: SystemNtp): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<SystemNtp>): SystemNtp {
-    return SystemNtp.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<SystemNtp>): SystemNtp {
-    const message = createBaseSystemNtp();
-    return message;
-  },
-};
-
 function createBaseSystemDns(): SystemDns {
-  return {};
+  return { servers: [], searchDomains: [], vrf: undefined };
 }
 
 export const SystemDns: MessageFns<SystemDns> = {
-  encode(_: SystemDns, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: SystemDns, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.servers) {
+      writer.uint32(10).string(v!);
+    }
+    for (const v of message.searchDomains) {
+      writer.uint32(18).string(v!);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(26).string(message.vrf);
+    }
     return writer;
   },
 
@@ -8899,6 +9498,30 @@ export const SystemDns: MessageFns<SystemDns> = {
       while (reader.pos < end) {
         const tag = reader.uint32();
         switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.servers.push(reader.string());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.searchDomains.push(reader.string());
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -8911,20 +9534,40 @@ export const SystemDns: MessageFns<SystemDns> = {
     }
   },
 
-  fromJSON(_: any): SystemDns {
-    return {};
+  fromJSON(object: any): SystemDns {
+    return {
+      servers: globalThis.Array.isArray(object?.servers) ? object.servers.map((e: any) => globalThis.String(e)) : [],
+      searchDomains: globalThis.Array.isArray(object?.searchDomains)
+        ? object.searchDomains.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.search_domains)
+        ? object.search_domains.map((e: any) => globalThis.String(e))
+        : [],
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+    };
   },
 
-  toJSON(_: SystemDns): unknown {
+  toJSON(message: SystemDns): unknown {
     const obj: any = {};
+    if (message.servers?.length) {
+      obj.servers = message.servers;
+    }
+    if (message.searchDomains?.length) {
+      obj.searchDomains = message.searchDomains;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
     return obj;
   },
 
   create(base?: DeepPartial<SystemDns>): SystemDns {
     return SystemDns.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<SystemDns>): SystemDns {
+  fromPartial(object: DeepPartial<SystemDns>): SystemDns {
     const message = createBaseSystemDns();
+    message.servers = object.servers?.map((e) => e) || [];
+    message.searchDomains = object.searchDomains?.map((e) => e) || [];
+    message.vrf = object.vrf ?? undefined;
     return message;
   },
 };
@@ -9149,6 +9792,7 @@ function createBaseInterface(): Interface {
     subinterfaces: {},
     unnumbered: undefined,
     promiscuous: undefined,
+    dhcpClient: undefined,
   };
 }
 
@@ -9186,6 +9830,9 @@ export const Interface: MessageFns<Interface> = {
     }
     if (message.promiscuous !== undefined) {
       writer.uint32(88).bool(message.promiscuous);
+    }
+    if (message.dhcpClient !== undefined) {
+      DhcpClient.encode(message.dhcpClient, writer.uint32(98).fork()).join();
     }
     return writer;
   },
@@ -9294,6 +9941,14 @@ export const Interface: MessageFns<Interface> = {
             message.promiscuous = reader.bool();
             continue;
           }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.dhcpClient = DhcpClient.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -9336,6 +9991,11 @@ export const Interface: MessageFns<Interface> = {
         : {},
       unnumbered: isSet(object.unnumbered) ? globalThis.String(object.unnumbered) : undefined,
       promiscuous: isSet(object.promiscuous) ? globalThis.Boolean(object.promiscuous) : undefined,
+      dhcpClient: isSet(object.dhcpClient)
+        ? DhcpClient.fromJSON(object.dhcpClient)
+        : isSet(object.dhcp_client)
+        ? DhcpClient.fromJSON(object.dhcp_client)
+        : undefined,
     };
   },
 
@@ -9380,6 +10040,9 @@ export const Interface: MessageFns<Interface> = {
     if (message.promiscuous !== undefined) {
       obj.promiscuous = message.promiscuous;
     }
+    if (message.dhcpClient !== undefined) {
+      obj.dhcpClient = DhcpClient.toJSON(message.dhcpClient);
+    }
     return obj;
   },
 
@@ -9407,6 +10070,9 @@ export const Interface: MessageFns<Interface> = {
     );
     message.unnumbered = object.unnumbered ?? undefined;
     message.promiscuous = object.promiscuous ?? undefined;
+    message.dhcpClient = (object.dhcpClient !== undefined && object.dhcpClient !== null)
+      ? DhcpClient.fromPartial(object.dhcpClient)
+      : undefined;
     return message;
   },
 };
@@ -9498,6 +10164,115 @@ export const Interface_SubinterfacesEntry: MessageFns<Interface_SubinterfacesEnt
   },
 };
 
+function createBaseDhcpClient(): DhcpClient {
+  return { hostname: undefined, clientId: undefined, setBroadcastFlag: undefined };
+}
+
+export const DhcpClient: MessageFns<DhcpClient> = {
+  encode(message: DhcpClient, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.hostname !== undefined) {
+      writer.uint32(10).string(message.hostname);
+    }
+    if (message.clientId !== undefined) {
+      writer.uint32(18).string(message.clientId);
+    }
+    if (message.setBroadcastFlag !== undefined) {
+      writer.uint32(24).bool(message.setBroadcastFlag);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DhcpClient {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDhcpClient();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.hostname = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.clientId = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.setBroadcastFlag = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DhcpClient {
+    return {
+      hostname: isSet(object.hostname) ? globalThis.String(object.hostname) : undefined,
+      clientId: isSet(object.clientId)
+        ? globalThis.String(object.clientId)
+        : isSet(object.client_id)
+        ? globalThis.String(object.client_id)
+        : undefined,
+      setBroadcastFlag: isSet(object.setBroadcastFlag)
+        ? globalThis.Boolean(object.setBroadcastFlag)
+        : isSet(object.set_broadcast_flag)
+        ? globalThis.Boolean(object.set_broadcast_flag)
+        : undefined,
+    };
+  },
+
+  toJSON(message: DhcpClient): unknown {
+    const obj: any = {};
+    if (message.hostname !== undefined) {
+      obj.hostname = message.hostname;
+    }
+    if (message.clientId !== undefined) {
+      obj.clientId = message.clientId;
+    }
+    if (message.setBroadcastFlag !== undefined) {
+      obj.setBroadcastFlag = message.setBroadcastFlag;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DhcpClient>): DhcpClient {
+    return DhcpClient.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DhcpClient>): DhcpClient {
+    const message = createBaseDhcpClient();
+    message.hostname = object.hostname ?? undefined;
+    message.clientId = object.clientId ?? undefined;
+    message.setBroadcastFlag = object.setBroadcastFlag ?? undefined;
+    return message;
+  },
+};
+
 function createBaseSubinterface(): Subinterface {
   return {
     vlanId: undefined,
@@ -9510,6 +10285,7 @@ function createBaseSubinterface(): Subinterface {
     vrf: undefined,
     unnumbered: undefined,
     dot1ad: undefined,
+    dhcpClient: undefined,
   };
 }
 
@@ -9544,6 +10320,9 @@ export const Subinterface: MessageFns<Subinterface> = {
     }
     if (message.dot1ad !== undefined) {
       writer.uint32(80).bool(message.dot1ad);
+    }
+    if (message.dhcpClient !== undefined) {
+      DhcpClient.encode(message.dhcpClient, writer.uint32(90).fork()).join();
     }
     return writer;
   },
@@ -9641,6 +10420,14 @@ export const Subinterface: MessageFns<Subinterface> = {
             message.dot1ad = reader.bool();
             continue;
           }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.dhcpClient = DhcpClient.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -9673,6 +10460,11 @@ export const Subinterface: MessageFns<Subinterface> = {
       vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
       unnumbered: isSet(object.unnumbered) ? globalThis.String(object.unnumbered) : undefined,
       dot1ad: isSet(object.dot1ad) ? globalThis.Boolean(object.dot1ad) : undefined,
+      dhcpClient: isSet(object.dhcpClient)
+        ? DhcpClient.fromJSON(object.dhcpClient)
+        : isSet(object.dhcp_client)
+        ? DhcpClient.fromJSON(object.dhcp_client)
+        : undefined,
     };
   },
 
@@ -9708,6 +10500,9 @@ export const Subinterface: MessageFns<Subinterface> = {
     if (message.dot1ad !== undefined) {
       obj.dot1ad = message.dot1ad;
     }
+    if (message.dhcpClient !== undefined) {
+      obj.dhcpClient = DhcpClient.toJSON(message.dhcpClient);
+    }
     return obj;
   },
 
@@ -9726,6 +10521,9 @@ export const Subinterface: MessageFns<Subinterface> = {
     message.vrf = object.vrf ?? undefined;
     message.unnumbered = object.unnumbered ?? undefined;
     message.dot1ad = object.dot1ad ?? undefined;
+    message.dhcpClient = (object.dhcpClient !== undefined && object.dhcpClient !== null)
+      ? DhcpClient.fromPartial(object.dhcpClient)
+      : undefined;
     return message;
   },
 };
@@ -9818,13 +10616,12 @@ export const Vrf: MessageFns<Vrf> = {
 function createBaseRoutingConfig(): RoutingConfig {
   return {
     static: [],
-    prefixLists: {},
-    routeMaps: {},
     bgp: undefined,
     ospf: undefined,
     isis: undefined,
     rip: undefined,
     bfd: undefined,
+    policy: undefined,
   };
 }
 
@@ -9833,12 +10630,6 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     for (const v of message.static) {
       StaticRoute.encode(v!, writer.uint32(10).fork()).join();
     }
-    globalThis.Object.entries(message.prefixLists).forEach(([key, value]: [string, PrefixList]) => {
-      RoutingConfig_PrefixListsEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
-    });
-    globalThis.Object.entries(message.routeMaps).forEach(([key, value]: [string, RouteMap]) => {
-      RoutingConfig_RouteMapsEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
-    });
     if (message.bgp !== undefined) {
       BgpConfig.encode(message.bgp, writer.uint32(34).fork()).join();
     }
@@ -9853,6 +10644,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     }
     if (message.bfd !== undefined) {
       BfdConfig.encode(message.bfd, writer.uint32(66).fork()).join();
+    }
+    if (message.policy !== undefined) {
+      RoutingPolicy.encode(message.policy, writer.uint32(74).fork()).join();
     }
     return writer;
   },
@@ -9876,28 +10670,6 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
             }
 
             message.static.push(StaticRoute.decode(reader, reader.uint32()));
-            continue;
-          }
-          case 2: {
-            if (tag !== 18) {
-              break;
-            }
-
-            const entry2 = RoutingConfig_PrefixListsEntry.decode(reader, reader.uint32());
-            if (entry2.value !== undefined) {
-              message.prefixLists[entry2.key] = entry2.value;
-            }
-            continue;
-          }
-          case 3: {
-            if (tag !== 26) {
-              break;
-            }
-
-            const entry3 = RoutingConfig_RouteMapsEntry.decode(reader, reader.uint32());
-            if (entry3.value !== undefined) {
-              message.routeMaps[entry3.key] = entry3.value;
-            }
             continue;
           }
           case 4: {
@@ -9940,6 +10712,14 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
             message.bfd = BfdConfig.decode(reader, reader.uint32());
             continue;
           }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.policy = RoutingPolicy.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -9955,65 +10735,12 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
   fromJSON(object: any): RoutingConfig {
     return {
       static: globalThis.Array.isArray(object?.static) ? object.static.map((e: any) => StaticRoute.fromJSON(e)) : [],
-      prefixLists: isObject(object.prefixLists)
-        ? (globalThis.Object.entries(object.prefixLists) as [string, any][]).reduce(
-          (acc: { [key: string]: PrefixList }, [key, value]: [string, any]) => {
-            globalThis.Object.defineProperty(acc, key, {
-              value: PrefixList.fromJSON(value),
-              enumerable: true,
-              configurable: true,
-              writable: true,
-            });
-            return acc;
-          },
-          {},
-        )
-        : isObject(object.prefix_lists)
-        ? (globalThis.Object.entries(object.prefix_lists) as [string, any][]).reduce(
-          (acc: { [key: string]: PrefixList }, [key, value]: [string, any]) => {
-            globalThis.Object.defineProperty(acc, key, {
-              value: PrefixList.fromJSON(value),
-              enumerable: true,
-              configurable: true,
-              writable: true,
-            });
-            return acc;
-          },
-          {},
-        )
-        : {},
-      routeMaps: isObject(object.routeMaps)
-        ? (globalThis.Object.entries(object.routeMaps) as [string, any][]).reduce(
-          (acc: { [key: string]: RouteMap }, [key, value]: [string, any]) => {
-            globalThis.Object.defineProperty(acc, key, {
-              value: RouteMap.fromJSON(value),
-              enumerable: true,
-              configurable: true,
-              writable: true,
-            });
-            return acc;
-          },
-          {},
-        )
-        : isObject(object.route_maps)
-        ? (globalThis.Object.entries(object.route_maps) as [string, any][]).reduce(
-          (acc: { [key: string]: RouteMap }, [key, value]: [string, any]) => {
-            globalThis.Object.defineProperty(acc, key, {
-              value: RouteMap.fromJSON(value),
-              enumerable: true,
-              configurable: true,
-              writable: true,
-            });
-            return acc;
-          },
-          {},
-        )
-        : {},
       bgp: isSet(object.bgp) ? BgpConfig.fromJSON(object.bgp) : undefined,
       ospf: isSet(object.ospf) ? OspfConfig.fromJSON(object.ospf) : undefined,
       isis: isSet(object.isis) ? IsisConfig.fromJSON(object.isis) : undefined,
       rip: isSet(object.rip) ? RipConfig.fromJSON(object.rip) : undefined,
       bfd: isSet(object.bfd) ? BfdConfig.fromJSON(object.bfd) : undefined,
+      policy: isSet(object.policy) ? RoutingPolicy.fromJSON(object.policy) : undefined,
     };
   },
 
@@ -10021,24 +10748,6 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     const obj: any = {};
     if (message.static?.length) {
       obj.static = message.static.map((e) => StaticRoute.toJSON(e));
-    }
-    if (message.prefixLists) {
-      const entries = globalThis.Object.entries(message.prefixLists) as [string, PrefixList][];
-      if (entries.length > 0) {
-        obj.prefixLists = {};
-        entries.forEach(([k, v]) => {
-          obj.prefixLists[k] = PrefixList.toJSON(v);
-        });
-      }
-    }
-    if (message.routeMaps) {
-      const entries = globalThis.Object.entries(message.routeMaps) as [string, RouteMap][];
-      if (entries.length > 0) {
-        obj.routeMaps = {};
-        entries.forEach(([k, v]) => {
-          obj.routeMaps[k] = RouteMap.toJSON(v);
-        });
-      }
     }
     if (message.bgp !== undefined) {
       obj.bgp = BgpConfig.toJSON(message.bgp);
@@ -10055,6 +10764,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     if (message.bfd !== undefined) {
       obj.bfd = BfdConfig.toJSON(message.bfd);
     }
+    if (message.policy !== undefined) {
+      obj.policy = RoutingPolicy.toJSON(message.policy);
+    }
     return obj;
   },
 
@@ -10064,24 +10776,6 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
   fromPartial(object: DeepPartial<RoutingConfig>): RoutingConfig {
     const message = createBaseRoutingConfig();
     message.static = object.static?.map((e) => StaticRoute.fromPartial(e)) || [];
-    message.prefixLists = (globalThis.Object.entries(object.prefixLists ?? {}) as [string, PrefixList][]).reduce(
-      (acc: { [key: string]: PrefixList }, [key, value]: [string, PrefixList]) => {
-        if (value !== undefined) {
-          acc[key] = PrefixList.fromPartial(value);
-        }
-        return acc;
-      },
-      {},
-    );
-    message.routeMaps = (globalThis.Object.entries(object.routeMaps ?? {}) as [string, RouteMap][]).reduce(
-      (acc: { [key: string]: RouteMap }, [key, value]: [string, RouteMap]) => {
-        if (value !== undefined) {
-          acc[key] = RouteMap.fromPartial(value);
-        }
-        return acc;
-      },
-      {},
-    );
     message.bgp = (object.bgp !== undefined && object.bgp !== null) ? BgpConfig.fromPartial(object.bgp) : undefined;
     message.ospf = (object.ospf !== undefined && object.ospf !== null)
       ? OspfConfig.fromPartial(object.ospf)
@@ -10091,186 +10785,22 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       : undefined;
     message.rip = (object.rip !== undefined && object.rip !== null) ? RipConfig.fromPartial(object.rip) : undefined;
     message.bfd = (object.bfd !== undefined && object.bfd !== null) ? BfdConfig.fromPartial(object.bfd) : undefined;
-    return message;
-  },
-};
-
-function createBaseRoutingConfig_PrefixListsEntry(): RoutingConfig_PrefixListsEntry {
-  return { key: "", value: undefined };
-}
-
-export const RoutingConfig_PrefixListsEntry: MessageFns<RoutingConfig_PrefixListsEntry> = {
-  encode(message: RoutingConfig_PrefixListsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
-      writer.uint32(10).string(message.key);
-    }
-    if (message.value !== undefined) {
-      PrefixList.encode(message.value, writer.uint32(18).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): RoutingConfig_PrefixListsEntry {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
-    if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
-    }
-    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
-    try {
-      const end = length === undefined ? reader.len : reader.pos + length;
-      const message = createBaseRoutingConfig_PrefixListsEntry();
-      while (reader.pos < end) {
-        const tag = reader.uint32();
-        switch (tag >>> 3) {
-          case 1: {
-            if (tag !== 10) {
-              break;
-            }
-
-            message.key = reader.string();
-            continue;
-          }
-          case 2: {
-            if (tag !== 18) {
-              break;
-            }
-
-            message.value = PrefixList.decode(reader, reader.uint32());
-            continue;
-          }
-        }
-        if ((tag & 7) === 4 || tag === 0) {
-          break;
-        }
-        reader.skip(tag & 7);
-      }
-      return message;
-    } finally {
-      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
-    }
-  },
-
-  fromJSON(object: any): RoutingConfig_PrefixListsEntry {
-    return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      value: isSet(object.value) ? PrefixList.fromJSON(object.value) : undefined,
-    };
-  },
-
-  toJSON(message: RoutingConfig_PrefixListsEntry): unknown {
-    const obj: any = {};
-    if (message.key !== "") {
-      obj.key = message.key;
-    }
-    if (message.value !== undefined) {
-      obj.value = PrefixList.toJSON(message.value);
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<RoutingConfig_PrefixListsEntry>): RoutingConfig_PrefixListsEntry {
-    return RoutingConfig_PrefixListsEntry.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<RoutingConfig_PrefixListsEntry>): RoutingConfig_PrefixListsEntry {
-    const message = createBaseRoutingConfig_PrefixListsEntry();
-    message.key = object.key ?? "";
-    message.value = (object.value !== undefined && object.value !== null)
-      ? PrefixList.fromPartial(object.value)
-      : undefined;
-    return message;
-  },
-};
-
-function createBaseRoutingConfig_RouteMapsEntry(): RoutingConfig_RouteMapsEntry {
-  return { key: "", value: undefined };
-}
-
-export const RoutingConfig_RouteMapsEntry: MessageFns<RoutingConfig_RouteMapsEntry> = {
-  encode(message: RoutingConfig_RouteMapsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
-      writer.uint32(10).string(message.key);
-    }
-    if (message.value !== undefined) {
-      RouteMap.encode(message.value, writer.uint32(18).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): RoutingConfig_RouteMapsEntry {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
-    if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
-    }
-    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
-    try {
-      const end = length === undefined ? reader.len : reader.pos + length;
-      const message = createBaseRoutingConfig_RouteMapsEntry();
-      while (reader.pos < end) {
-        const tag = reader.uint32();
-        switch (tag >>> 3) {
-          case 1: {
-            if (tag !== 10) {
-              break;
-            }
-
-            message.key = reader.string();
-            continue;
-          }
-          case 2: {
-            if (tag !== 18) {
-              break;
-            }
-
-            message.value = RouteMap.decode(reader, reader.uint32());
-            continue;
-          }
-        }
-        if ((tag & 7) === 4 || tag === 0) {
-          break;
-        }
-        reader.skip(tag & 7);
-      }
-      return message;
-    } finally {
-      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
-    }
-  },
-
-  fromJSON(object: any): RoutingConfig_RouteMapsEntry {
-    return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      value: isSet(object.value) ? RouteMap.fromJSON(object.value) : undefined,
-    };
-  },
-
-  toJSON(message: RoutingConfig_RouteMapsEntry): unknown {
-    const obj: any = {};
-    if (message.key !== "") {
-      obj.key = message.key;
-    }
-    if (message.value !== undefined) {
-      obj.value = RouteMap.toJSON(message.value);
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<RoutingConfig_RouteMapsEntry>): RoutingConfig_RouteMapsEntry {
-    return RoutingConfig_RouteMapsEntry.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<RoutingConfig_RouteMapsEntry>): RoutingConfig_RouteMapsEntry {
-    const message = createBaseRoutingConfig_RouteMapsEntry();
-    message.key = object.key ?? "";
-    message.value = (object.value !== undefined && object.value !== null)
-      ? RouteMap.fromPartial(object.value)
+    message.policy = (object.policy !== undefined && object.policy !== null)
+      ? RoutingPolicy.fromPartial(object.policy)
       : undefined;
     return message;
   },
 };
 
 function createBaseStaticRoute(): StaticRoute {
-  return { prefix: undefined, nextHops: [], vrf: undefined, distance: undefined, description: undefined };
+  return {
+    prefix: undefined,
+    nextHops: [],
+    vrf: undefined,
+    distance: undefined,
+    description: undefined,
+    blackhole: undefined,
+  };
 }
 
 export const StaticRoute: MessageFns<StaticRoute> = {
@@ -10289,6 +10819,9 @@ export const StaticRoute: MessageFns<StaticRoute> = {
     }
     if (message.description !== undefined) {
       writer.uint32(42).string(message.description);
+    }
+    if (message.blackhole !== undefined) {
+      writer.uint32(48).bool(message.blackhole);
     }
     return writer;
   },
@@ -10346,6 +10879,14 @@ export const StaticRoute: MessageFns<StaticRoute> = {
             message.description = reader.string();
             continue;
           }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.blackhole = reader.bool();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -10369,6 +10910,7 @@ export const StaticRoute: MessageFns<StaticRoute> = {
       vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
       distance: isSet(object.distance) ? globalThis.Number(object.distance) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
+      blackhole: isSet(object.blackhole) ? globalThis.Boolean(object.blackhole) : undefined,
     };
   },
 
@@ -10389,6 +10931,9 @@ export const StaticRoute: MessageFns<StaticRoute> = {
     if (message.description !== undefined) {
       obj.description = message.description;
     }
+    if (message.blackhole !== undefined) {
+      obj.blackhole = message.blackhole;
+    }
     return obj;
   },
 
@@ -10402,6 +10947,7 @@ export const StaticRoute: MessageFns<StaticRoute> = {
     message.vrf = object.vrf ?? undefined;
     message.distance = object.distance ?? undefined;
     message.description = object.description ?? undefined;
+    message.blackhole = object.blackhole ?? undefined;
     return message;
   },
 };
@@ -10507,12 +11053,366 @@ export const NextHop: MessageFns<NextHop> = {
   },
 };
 
+function createBaseRoutingPolicy(): RoutingPolicy {
+  return { prefixLists: {}, routeMaps: {} };
+}
+
+export const RoutingPolicy: MessageFns<RoutingPolicy> = {
+  encode(message: RoutingPolicy, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    globalThis.Object.entries(message.prefixLists).forEach(([key, value]: [string, PrefixList]) => {
+      RoutingPolicy_PrefixListsEntry.encode({ key: key as any, value }, writer.uint32(10).fork()).join();
+    });
+    globalThis.Object.entries(message.routeMaps).forEach(([key, value]: [string, RouteMap]) => {
+      RoutingPolicy_RouteMapsEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
+    });
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RoutingPolicy {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRoutingPolicy();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            const entry1 = RoutingPolicy_PrefixListsEntry.decode(reader, reader.uint32());
+            if (entry1.value !== undefined) {
+              message.prefixLists[entry1.key] = entry1.value;
+            }
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            const entry2 = RoutingPolicy_RouteMapsEntry.decode(reader, reader.uint32());
+            if (entry2.value !== undefined) {
+              message.routeMaps[entry2.key] = entry2.value;
+            }
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RoutingPolicy {
+    return {
+      prefixLists: isObject(object.prefixLists)
+        ? (globalThis.Object.entries(object.prefixLists) as [string, any][]).reduce(
+          (acc: { [key: string]: PrefixList }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: PrefixList.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : isObject(object.prefix_lists)
+        ? (globalThis.Object.entries(object.prefix_lists) as [string, any][]).reduce(
+          (acc: { [key: string]: PrefixList }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: PrefixList.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      routeMaps: isObject(object.routeMaps)
+        ? (globalThis.Object.entries(object.routeMaps) as [string, any][]).reduce(
+          (acc: { [key: string]: RouteMap }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: RouteMap.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : isObject(object.route_maps)
+        ? (globalThis.Object.entries(object.route_maps) as [string, any][]).reduce(
+          (acc: { [key: string]: RouteMap }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: RouteMap.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+    };
+  },
+
+  toJSON(message: RoutingPolicy): unknown {
+    const obj: any = {};
+    if (message.prefixLists) {
+      const entries = globalThis.Object.entries(message.prefixLists) as [string, PrefixList][];
+      if (entries.length > 0) {
+        obj.prefixLists = {};
+        entries.forEach(([k, v]) => {
+          obj.prefixLists[k] = PrefixList.toJSON(v);
+        });
+      }
+    }
+    if (message.routeMaps) {
+      const entries = globalThis.Object.entries(message.routeMaps) as [string, RouteMap][];
+      if (entries.length > 0) {
+        obj.routeMaps = {};
+        entries.forEach(([k, v]) => {
+          obj.routeMaps[k] = RouteMap.toJSON(v);
+        });
+      }
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RoutingPolicy>): RoutingPolicy {
+    return RoutingPolicy.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RoutingPolicy>): RoutingPolicy {
+    const message = createBaseRoutingPolicy();
+    message.prefixLists = (globalThis.Object.entries(object.prefixLists ?? {}) as [string, PrefixList][]).reduce(
+      (acc: { [key: string]: PrefixList }, [key, value]: [string, PrefixList]) => {
+        if (value !== undefined) {
+          acc[key] = PrefixList.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.routeMaps = (globalThis.Object.entries(object.routeMaps ?? {}) as [string, RouteMap][]).reduce(
+      (acc: { [key: string]: RouteMap }, [key, value]: [string, RouteMap]) => {
+        if (value !== undefined) {
+          acc[key] = RouteMap.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    return message;
+  },
+};
+
+function createBaseRoutingPolicy_PrefixListsEntry(): RoutingPolicy_PrefixListsEntry {
+  return { key: "", value: undefined };
+}
+
+export const RoutingPolicy_PrefixListsEntry: MessageFns<RoutingPolicy_PrefixListsEntry> = {
+  encode(message: RoutingPolicy_PrefixListsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      PrefixList.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RoutingPolicy_PrefixListsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRoutingPolicy_PrefixListsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = PrefixList.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RoutingPolicy_PrefixListsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? PrefixList.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: RoutingPolicy_PrefixListsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = PrefixList.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RoutingPolicy_PrefixListsEntry>): RoutingPolicy_PrefixListsEntry {
+    return RoutingPolicy_PrefixListsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RoutingPolicy_PrefixListsEntry>): RoutingPolicy_PrefixListsEntry {
+    const message = createBaseRoutingPolicy_PrefixListsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? PrefixList.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseRoutingPolicy_RouteMapsEntry(): RoutingPolicy_RouteMapsEntry {
+  return { key: "", value: undefined };
+}
+
+export const RoutingPolicy_RouteMapsEntry: MessageFns<RoutingPolicy_RouteMapsEntry> = {
+  encode(message: RoutingPolicy_RouteMapsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      RouteMap.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RoutingPolicy_RouteMapsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRoutingPolicy_RouteMapsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = RouteMap.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RoutingPolicy_RouteMapsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? RouteMap.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: RoutingPolicy_RouteMapsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = RouteMap.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RoutingPolicy_RouteMapsEntry>): RoutingPolicy_RouteMapsEntry {
+    return RoutingPolicy_RouteMapsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RoutingPolicy_RouteMapsEntry>): RoutingPolicy_RouteMapsEntry {
+    const message = createBaseRoutingPolicy_RouteMapsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? RouteMap.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
 function createBasePrefixList(): PrefixList {
-  return {};
+  return { description: undefined, family: undefined, rules: [] };
 }
 
 export const PrefixList: MessageFns<PrefixList> = {
-  encode(_: PrefixList, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: PrefixList, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.description !== undefined) {
+      writer.uint32(10).string(message.description);
+    }
+    if (message.family !== undefined) {
+      writer.uint32(18).string(message.family);
+    }
+    for (const v of message.rules) {
+      PrefixListRule.encode(v!, writer.uint32(26).fork()).join();
+    }
     return writer;
   },
 
@@ -10529,6 +11429,30 @@ export const PrefixList: MessageFns<PrefixList> = {
       while (reader.pos < end) {
         const tag = reader.uint32();
         switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.description = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.family = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.rules.push(PrefixListRule.decode(reader, reader.uint32()));
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -10541,30 +11465,185 @@ export const PrefixList: MessageFns<PrefixList> = {
     }
   },
 
-  fromJSON(_: any): PrefixList {
-    return {};
+  fromJSON(object: any): PrefixList {
+    return {
+      description: isSet(object.description) ? globalThis.String(object.description) : undefined,
+      family: isSet(object.family) ? globalThis.String(object.family) : undefined,
+      rules: globalThis.Array.isArray(object?.rules) ? object.rules.map((e: any) => PrefixListRule.fromJSON(e)) : [],
+    };
   },
 
-  toJSON(_: PrefixList): unknown {
+  toJSON(message: PrefixList): unknown {
     const obj: any = {};
+    if (message.description !== undefined) {
+      obj.description = message.description;
+    }
+    if (message.family !== undefined) {
+      obj.family = message.family;
+    }
+    if (message.rules?.length) {
+      obj.rules = message.rules.map((e) => PrefixListRule.toJSON(e));
+    }
     return obj;
   },
 
   create(base?: DeepPartial<PrefixList>): PrefixList {
     return PrefixList.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<PrefixList>): PrefixList {
+  fromPartial(object: DeepPartial<PrefixList>): PrefixList {
     const message = createBasePrefixList();
+    message.description = object.description ?? undefined;
+    message.family = object.family ?? undefined;
+    message.rules = object.rules?.map((e) => PrefixListRule.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBasePrefixListRule(): PrefixListRule {
+  return { seq: undefined, action: undefined, prefix: undefined, ge: undefined, le: undefined };
+}
+
+export const PrefixListRule: MessageFns<PrefixListRule> = {
+  encode(message: PrefixListRule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.seq !== undefined) {
+      writer.uint32(8).uint32(message.seq);
+    }
+    if (message.action !== undefined) {
+      writer.uint32(18).string(message.action);
+    }
+    if (message.prefix !== undefined) {
+      writer.uint32(26).string(message.prefix);
+    }
+    if (message.ge !== undefined) {
+      writer.uint32(32).uint32(message.ge);
+    }
+    if (message.le !== undefined) {
+      writer.uint32(40).uint32(message.le);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PrefixListRule {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePrefixListRule();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.seq = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.action = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.ge = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.le = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PrefixListRule {
+    return {
+      seq: isSet(object.seq) ? globalThis.Number(object.seq) : undefined,
+      action: isSet(object.action) ? globalThis.String(object.action) : undefined,
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
+      ge: isSet(object.ge) ? globalThis.Number(object.ge) : undefined,
+      le: isSet(object.le) ? globalThis.Number(object.le) : undefined,
+    };
+  },
+
+  toJSON(message: PrefixListRule): unknown {
+    const obj: any = {};
+    if (message.seq !== undefined) {
+      obj.seq = Math.round(message.seq);
+    }
+    if (message.action !== undefined) {
+      obj.action = message.action;
+    }
+    if (message.prefix !== undefined) {
+      obj.prefix = message.prefix;
+    }
+    if (message.ge !== undefined) {
+      obj.ge = Math.round(message.ge);
+    }
+    if (message.le !== undefined) {
+      obj.le = Math.round(message.le);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PrefixListRule>): PrefixListRule {
+    return PrefixListRule.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PrefixListRule>): PrefixListRule {
+    const message = createBasePrefixListRule();
+    message.seq = object.seq ?? undefined;
+    message.action = object.action ?? undefined;
+    message.prefix = object.prefix ?? undefined;
+    message.ge = object.ge ?? undefined;
+    message.le = object.le ?? undefined;
     return message;
   },
 };
 
 function createBaseRouteMap(): RouteMap {
-  return {};
+  return { description: undefined, entries: [] };
 }
 
 export const RouteMap: MessageFns<RouteMap> = {
-  encode(_: RouteMap, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: RouteMap, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.description !== undefined) {
+      writer.uint32(10).string(message.description);
+    }
+    for (const v of message.entries) {
+      RouteMapEntry.encode(v!, writer.uint32(18).fork()).join();
+    }
     return writer;
   },
 
@@ -10581,6 +11660,22 @@ export const RouteMap: MessageFns<RouteMap> = {
       while (reader.pos < end) {
         const tag = reader.uint32();
         switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.description = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.entries.push(RouteMapEntry.decode(reader, reader.uint32()));
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -10593,30 +11688,1795 @@ export const RouteMap: MessageFns<RouteMap> = {
     }
   },
 
-  fromJSON(_: any): RouteMap {
-    return {};
+  fromJSON(object: any): RouteMap {
+    return {
+      description: isSet(object.description) ? globalThis.String(object.description) : undefined,
+      entries: globalThis.Array.isArray(object?.entries)
+        ? object.entries.map((e: any) => RouteMapEntry.fromJSON(e))
+        : [],
+    };
   },
 
-  toJSON(_: RouteMap): unknown {
+  toJSON(message: RouteMap): unknown {
     const obj: any = {};
+    if (message.description !== undefined) {
+      obj.description = message.description;
+    }
+    if (message.entries?.length) {
+      obj.entries = message.entries.map((e) => RouteMapEntry.toJSON(e));
+    }
     return obj;
   },
 
   create(base?: DeepPartial<RouteMap>): RouteMap {
     return RouteMap.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<RouteMap>): RouteMap {
+  fromPartial(object: DeepPartial<RouteMap>): RouteMap {
     const message = createBaseRouteMap();
+    message.description = object.description ?? undefined;
+    message.entries = object.entries?.map((e) => RouteMapEntry.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseRouteMapEntry(): RouteMapEntry {
+  return { seq: undefined, action: undefined, description: undefined, match: undefined, set: undefined };
+}
+
+export const RouteMapEntry: MessageFns<RouteMapEntry> = {
+  encode(message: RouteMapEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.seq !== undefined) {
+      writer.uint32(8).uint32(message.seq);
+    }
+    if (message.action !== undefined) {
+      writer.uint32(18).string(message.action);
+    }
+    if (message.description !== undefined) {
+      writer.uint32(26).string(message.description);
+    }
+    if (message.match !== undefined) {
+      RouteMapMatch.encode(message.match, writer.uint32(34).fork()).join();
+    }
+    if (message.set !== undefined) {
+      RouteMapSet.encode(message.set, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RouteMapEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRouteMapEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.seq = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.action = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.description = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.match = RouteMapMatch.decode(reader, reader.uint32());
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.set = RouteMapSet.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RouteMapEntry {
+    return {
+      seq: isSet(object.seq) ? globalThis.Number(object.seq) : undefined,
+      action: isSet(object.action) ? globalThis.String(object.action) : undefined,
+      description: isSet(object.description) ? globalThis.String(object.description) : undefined,
+      match: isSet(object.match) ? RouteMapMatch.fromJSON(object.match) : undefined,
+      set: isSet(object.set) ? RouteMapSet.fromJSON(object.set) : undefined,
+    };
+  },
+
+  toJSON(message: RouteMapEntry): unknown {
+    const obj: any = {};
+    if (message.seq !== undefined) {
+      obj.seq = Math.round(message.seq);
+    }
+    if (message.action !== undefined) {
+      obj.action = message.action;
+    }
+    if (message.description !== undefined) {
+      obj.description = message.description;
+    }
+    if (message.match !== undefined) {
+      obj.match = RouteMapMatch.toJSON(message.match);
+    }
+    if (message.set !== undefined) {
+      obj.set = RouteMapSet.toJSON(message.set);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RouteMapEntry>): RouteMapEntry {
+    return RouteMapEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RouteMapEntry>): RouteMapEntry {
+    const message = createBaseRouteMapEntry();
+    message.seq = object.seq ?? undefined;
+    message.action = object.action ?? undefined;
+    message.description = object.description ?? undefined;
+    message.match = (object.match !== undefined && object.match !== null)
+      ? RouteMapMatch.fromPartial(object.match)
+      : undefined;
+    message.set = (object.set !== undefined && object.set !== null) ? RouteMapSet.fromPartial(object.set) : undefined;
+    return message;
+  },
+};
+
+function createBaseRouteMapMatch(): RouteMapMatch {
+  return {
+    prefixList: undefined,
+    nextHopPrefixList: undefined,
+    interface: undefined,
+    community: undefined,
+    asPath: undefined,
+    metric: undefined,
+    tag: undefined,
+  };
+}
+
+export const RouteMapMatch: MessageFns<RouteMapMatch> = {
+  encode(message: RouteMapMatch, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.prefixList !== undefined) {
+      writer.uint32(10).string(message.prefixList);
+    }
+    if (message.nextHopPrefixList !== undefined) {
+      writer.uint32(18).string(message.nextHopPrefixList);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(26).string(message.interface);
+    }
+    if (message.community !== undefined) {
+      writer.uint32(34).string(message.community);
+    }
+    if (message.asPath !== undefined) {
+      writer.uint32(42).string(message.asPath);
+    }
+    if (message.metric !== undefined) {
+      writer.uint32(48).uint32(message.metric);
+    }
+    if (message.tag !== undefined) {
+      writer.uint32(56).uint32(message.tag);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RouteMapMatch {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRouteMapMatch();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.prefixList = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.nextHopPrefixList = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.community = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.asPath = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.metric = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.tag = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RouteMapMatch {
+    return {
+      prefixList: isSet(object.prefixList)
+        ? globalThis.String(object.prefixList)
+        : isSet(object.prefix_list)
+        ? globalThis.String(object.prefix_list)
+        : undefined,
+      nextHopPrefixList: isSet(object.nextHopPrefixList)
+        ? globalThis.String(object.nextHopPrefixList)
+        : isSet(object.next_hop_prefix_list)
+        ? globalThis.String(object.next_hop_prefix_list)
+        : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      community: isSet(object.community) ? globalThis.String(object.community) : undefined,
+      asPath: isSet(object.asPath)
+        ? globalThis.String(object.asPath)
+        : isSet(object.as_path)
+        ? globalThis.String(object.as_path)
+        : undefined,
+      metric: isSet(object.metric) ? globalThis.Number(object.metric) : undefined,
+      tag: isSet(object.tag) ? globalThis.Number(object.tag) : undefined,
+    };
+  },
+
+  toJSON(message: RouteMapMatch): unknown {
+    const obj: any = {};
+    if (message.prefixList !== undefined) {
+      obj.prefixList = message.prefixList;
+    }
+    if (message.nextHopPrefixList !== undefined) {
+      obj.nextHopPrefixList = message.nextHopPrefixList;
+    }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.community !== undefined) {
+      obj.community = message.community;
+    }
+    if (message.asPath !== undefined) {
+      obj.asPath = message.asPath;
+    }
+    if (message.metric !== undefined) {
+      obj.metric = Math.round(message.metric);
+    }
+    if (message.tag !== undefined) {
+      obj.tag = Math.round(message.tag);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RouteMapMatch>): RouteMapMatch {
+    return RouteMapMatch.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RouteMapMatch>): RouteMapMatch {
+    const message = createBaseRouteMapMatch();
+    message.prefixList = object.prefixList ?? undefined;
+    message.nextHopPrefixList = object.nextHopPrefixList ?? undefined;
+    message.interface = object.interface ?? undefined;
+    message.community = object.community ?? undefined;
+    message.asPath = object.asPath ?? undefined;
+    message.metric = object.metric ?? undefined;
+    message.tag = object.tag ?? undefined;
+    return message;
+  },
+};
+
+function createBaseRouteMapSet(): RouteMapSet {
+  return {
+    localPref: undefined,
+    med: undefined,
+    weight: undefined,
+    nextHop: undefined,
+    community: [],
+    communityAdditive: undefined,
+    asPathPrepend: [],
+    tag: undefined,
+  };
+}
+
+export const RouteMapSet: MessageFns<RouteMapSet> = {
+  encode(message: RouteMapSet, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.localPref !== undefined) {
+      writer.uint32(8).uint32(message.localPref);
+    }
+    if (message.med !== undefined) {
+      writer.uint32(16).uint32(message.med);
+    }
+    if (message.weight !== undefined) {
+      writer.uint32(24).uint32(message.weight);
+    }
+    if (message.nextHop !== undefined) {
+      writer.uint32(34).string(message.nextHop);
+    }
+    for (const v of message.community) {
+      writer.uint32(42).string(v!);
+    }
+    if (message.communityAdditive !== undefined) {
+      writer.uint32(48).bool(message.communityAdditive);
+    }
+    writer.uint32(58).fork();
+    for (const v of message.asPathPrepend) {
+      writer.uint32(v);
+    }
+    writer.join();
+    if (message.tag !== undefined) {
+      writer.uint32(64).uint32(message.tag);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RouteMapSet {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRouteMapSet();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.localPref = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.med = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.nextHop = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.community.push(reader.string());
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.communityAdditive = reader.bool();
+            continue;
+          }
+          case 7: {
+            if (tag === 56) {
+              message.asPathPrepend.push(reader.uint32());
+
+              continue;
+            }
+
+            if (tag === 58) {
+              const end2 = reader.uint32() + reader.pos;
+              while (reader.pos < end2) {
+                message.asPathPrepend.push(reader.uint32());
+              }
+
+              continue;
+            }
+
+            break;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.tag = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RouteMapSet {
+    return {
+      localPref: isSet(object.localPref)
+        ? globalThis.Number(object.localPref)
+        : isSet(object.local_pref)
+        ? globalThis.Number(object.local_pref)
+        : undefined,
+      med: isSet(object.med) ? globalThis.Number(object.med) : undefined,
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
+      nextHop: isSet(object.nextHop)
+        ? globalThis.String(object.nextHop)
+        : isSet(object.next_hop)
+        ? globalThis.String(object.next_hop)
+        : undefined,
+      community: globalThis.Array.isArray(object?.community)
+        ? object.community.map((e: any) => globalThis.String(e))
+        : [],
+      communityAdditive: isSet(object.communityAdditive)
+        ? globalThis.Boolean(object.communityAdditive)
+        : isSet(object.community_additive)
+        ? globalThis.Boolean(object.community_additive)
+        : undefined,
+      asPathPrepend: globalThis.Array.isArray(object?.asPathPrepend)
+        ? object.asPathPrepend.map((e: any) => globalThis.Number(e))
+        : globalThis.Array.isArray(object?.as_path_prepend)
+        ? object.as_path_prepend.map((e: any) => globalThis.Number(e))
+        : [],
+      tag: isSet(object.tag) ? globalThis.Number(object.tag) : undefined,
+    };
+  },
+
+  toJSON(message: RouteMapSet): unknown {
+    const obj: any = {};
+    if (message.localPref !== undefined) {
+      obj.localPref = Math.round(message.localPref);
+    }
+    if (message.med !== undefined) {
+      obj.med = Math.round(message.med);
+    }
+    if (message.weight !== undefined) {
+      obj.weight = Math.round(message.weight);
+    }
+    if (message.nextHop !== undefined) {
+      obj.nextHop = message.nextHop;
+    }
+    if (message.community?.length) {
+      obj.community = message.community;
+    }
+    if (message.communityAdditive !== undefined) {
+      obj.communityAdditive = message.communityAdditive;
+    }
+    if (message.asPathPrepend?.length) {
+      obj.asPathPrepend = message.asPathPrepend.map((e) => Math.round(e));
+    }
+    if (message.tag !== undefined) {
+      obj.tag = Math.round(message.tag);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RouteMapSet>): RouteMapSet {
+    return RouteMapSet.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RouteMapSet>): RouteMapSet {
+    const message = createBaseRouteMapSet();
+    message.localPref = object.localPref ?? undefined;
+    message.med = object.med ?? undefined;
+    message.weight = object.weight ?? undefined;
+    message.nextHop = object.nextHop ?? undefined;
+    message.community = object.community?.map((e) => e) || [];
+    message.communityAdditive = object.communityAdditive ?? undefined;
+    message.asPathPrepend = object.asPathPrepend?.map((e) => e) || [];
+    message.tag = object.tag ?? undefined;
+    return message;
+  },
+};
+
+function createBaseRedistributeOptions(): RedistributeOptions {
+  return { metric: undefined, routeMap: undefined };
+}
+
+export const RedistributeOptions: MessageFns<RedistributeOptions> = {
+  encode(message: RedistributeOptions, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.metric !== undefined) {
+      writer.uint32(8).uint32(message.metric);
+    }
+    if (message.routeMap !== undefined) {
+      writer.uint32(18).string(message.routeMap);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RedistributeOptions {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRedistributeOptions();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.metric = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.routeMap = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RedistributeOptions {
+    return {
+      metric: isSet(object.metric) ? globalThis.Number(object.metric) : undefined,
+      routeMap: isSet(object.routeMap)
+        ? globalThis.String(object.routeMap)
+        : isSet(object.route_map)
+        ? globalThis.String(object.route_map)
+        : undefined,
+    };
+  },
+
+  toJSON(message: RedistributeOptions): unknown {
+    const obj: any = {};
+    if (message.metric !== undefined) {
+      obj.metric = Math.round(message.metric);
+    }
+    if (message.routeMap !== undefined) {
+      obj.routeMap = message.routeMap;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RedistributeOptions>): RedistributeOptions {
+    return RedistributeOptions.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RedistributeOptions>): RedistributeOptions {
+    const message = createBaseRedistributeOptions();
+    message.metric = object.metric ?? undefined;
+    message.routeMap = object.routeMap ?? undefined;
+    return message;
+  },
+};
+
+function createBaseRedistribute(): Redistribute {
+  return { connected: undefined, static: undefined, bgp: undefined, ospf: undefined, isis: undefined, rip: undefined };
+}
+
+export const Redistribute: MessageFns<Redistribute> = {
+  encode(message: Redistribute, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.connected !== undefined) {
+      RedistributeOptions.encode(message.connected, writer.uint32(10).fork()).join();
+    }
+    if (message.static !== undefined) {
+      RedistributeOptions.encode(message.static, writer.uint32(18).fork()).join();
+    }
+    if (message.bgp !== undefined) {
+      RedistributeOptions.encode(message.bgp, writer.uint32(26).fork()).join();
+    }
+    if (message.ospf !== undefined) {
+      RedistributeOptions.encode(message.ospf, writer.uint32(34).fork()).join();
+    }
+    if (message.isis !== undefined) {
+      RedistributeOptions.encode(message.isis, writer.uint32(42).fork()).join();
+    }
+    if (message.rip !== undefined) {
+      RedistributeOptions.encode(message.rip, writer.uint32(50).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Redistribute {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRedistribute();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.connected = RedistributeOptions.decode(reader, reader.uint32());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.static = RedistributeOptions.decode(reader, reader.uint32());
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.bgp = RedistributeOptions.decode(reader, reader.uint32());
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.ospf = RedistributeOptions.decode(reader, reader.uint32());
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.isis = RedistributeOptions.decode(reader, reader.uint32());
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.rip = RedistributeOptions.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Redistribute {
+    return {
+      connected: isSet(object.connected) ? RedistributeOptions.fromJSON(object.connected) : undefined,
+      static: isSet(object.static) ? RedistributeOptions.fromJSON(object.static) : undefined,
+      bgp: isSet(object.bgp) ? RedistributeOptions.fromJSON(object.bgp) : undefined,
+      ospf: isSet(object.ospf) ? RedistributeOptions.fromJSON(object.ospf) : undefined,
+      isis: isSet(object.isis) ? RedistributeOptions.fromJSON(object.isis) : undefined,
+      rip: isSet(object.rip) ? RedistributeOptions.fromJSON(object.rip) : undefined,
+    };
+  },
+
+  toJSON(message: Redistribute): unknown {
+    const obj: any = {};
+    if (message.connected !== undefined) {
+      obj.connected = RedistributeOptions.toJSON(message.connected);
+    }
+    if (message.static !== undefined) {
+      obj.static = RedistributeOptions.toJSON(message.static);
+    }
+    if (message.bgp !== undefined) {
+      obj.bgp = RedistributeOptions.toJSON(message.bgp);
+    }
+    if (message.ospf !== undefined) {
+      obj.ospf = RedistributeOptions.toJSON(message.ospf);
+    }
+    if (message.isis !== undefined) {
+      obj.isis = RedistributeOptions.toJSON(message.isis);
+    }
+    if (message.rip !== undefined) {
+      obj.rip = RedistributeOptions.toJSON(message.rip);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Redistribute>): Redistribute {
+    return Redistribute.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Redistribute>): Redistribute {
+    const message = createBaseRedistribute();
+    message.connected = (object.connected !== undefined && object.connected !== null)
+      ? RedistributeOptions.fromPartial(object.connected)
+      : undefined;
+    message.static = (object.static !== undefined && object.static !== null)
+      ? RedistributeOptions.fromPartial(object.static)
+      : undefined;
+    message.bgp = (object.bgp !== undefined && object.bgp !== null)
+      ? RedistributeOptions.fromPartial(object.bgp)
+      : undefined;
+    message.ospf = (object.ospf !== undefined && object.ospf !== null)
+      ? RedistributeOptions.fromPartial(object.ospf)
+      : undefined;
+    message.isis = (object.isis !== undefined && object.isis !== null)
+      ? RedistributeOptions.fromPartial(object.isis)
+      : undefined;
+    message.rip = (object.rip !== undefined && object.rip !== null)
+      ? RedistributeOptions.fromPartial(object.rip)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseBgpAddressFamily(): BgpAddressFamily {
+  return {
+    enabled: undefined,
+    routeMapIn: undefined,
+    routeMapOut: undefined,
+    prefixListIn: undefined,
+    prefixListOut: undefined,
+    nextHopSelf: undefined,
+    softReconfig: undefined,
+    maximumPrefixes: undefined,
+    defaultOriginate: undefined,
+  };
+}
+
+export const BgpAddressFamily: MessageFns<BgpAddressFamily> = {
+  encode(message: BgpAddressFamily, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    if (message.routeMapIn !== undefined) {
+      writer.uint32(18).string(message.routeMapIn);
+    }
+    if (message.routeMapOut !== undefined) {
+      writer.uint32(26).string(message.routeMapOut);
+    }
+    if (message.prefixListIn !== undefined) {
+      writer.uint32(34).string(message.prefixListIn);
+    }
+    if (message.prefixListOut !== undefined) {
+      writer.uint32(42).string(message.prefixListOut);
+    }
+    if (message.nextHopSelf !== undefined) {
+      writer.uint32(48).bool(message.nextHopSelf);
+    }
+    if (message.softReconfig !== undefined) {
+      writer.uint32(56).bool(message.softReconfig);
+    }
+    if (message.maximumPrefixes !== undefined) {
+      writer.uint32(64).uint32(message.maximumPrefixes);
+    }
+    if (message.defaultOriginate !== undefined) {
+      writer.uint32(72).bool(message.defaultOriginate);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BgpAddressFamily {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBgpAddressFamily();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.routeMapIn = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.routeMapOut = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.prefixListIn = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.prefixListOut = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.nextHopSelf = reader.bool();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.softReconfig = reader.bool();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.maximumPrefixes = reader.uint32();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.defaultOriginate = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BgpAddressFamily {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      routeMapIn: isSet(object.routeMapIn)
+        ? globalThis.String(object.routeMapIn)
+        : isSet(object.route_map_in)
+        ? globalThis.String(object.route_map_in)
+        : undefined,
+      routeMapOut: isSet(object.routeMapOut)
+        ? globalThis.String(object.routeMapOut)
+        : isSet(object.route_map_out)
+        ? globalThis.String(object.route_map_out)
+        : undefined,
+      prefixListIn: isSet(object.prefixListIn)
+        ? globalThis.String(object.prefixListIn)
+        : isSet(object.prefix_list_in)
+        ? globalThis.String(object.prefix_list_in)
+        : undefined,
+      prefixListOut: isSet(object.prefixListOut)
+        ? globalThis.String(object.prefixListOut)
+        : isSet(object.prefix_list_out)
+        ? globalThis.String(object.prefix_list_out)
+        : undefined,
+      nextHopSelf: isSet(object.nextHopSelf)
+        ? globalThis.Boolean(object.nextHopSelf)
+        : isSet(object.next_hop_self)
+        ? globalThis.Boolean(object.next_hop_self)
+        : undefined,
+      softReconfig: isSet(object.softReconfig)
+        ? globalThis.Boolean(object.softReconfig)
+        : isSet(object.soft_reconfig)
+        ? globalThis.Boolean(object.soft_reconfig)
+        : undefined,
+      maximumPrefixes: isSet(object.maximumPrefixes)
+        ? globalThis.Number(object.maximumPrefixes)
+        : isSet(object.maximum_prefixes)
+        ? globalThis.Number(object.maximum_prefixes)
+        : undefined,
+      defaultOriginate: isSet(object.defaultOriginate)
+        ? globalThis.Boolean(object.defaultOriginate)
+        : isSet(object.default_originate)
+        ? globalThis.Boolean(object.default_originate)
+        : undefined,
+    };
+  },
+
+  toJSON(message: BgpAddressFamily): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.routeMapIn !== undefined) {
+      obj.routeMapIn = message.routeMapIn;
+    }
+    if (message.routeMapOut !== undefined) {
+      obj.routeMapOut = message.routeMapOut;
+    }
+    if (message.prefixListIn !== undefined) {
+      obj.prefixListIn = message.prefixListIn;
+    }
+    if (message.prefixListOut !== undefined) {
+      obj.prefixListOut = message.prefixListOut;
+    }
+    if (message.nextHopSelf !== undefined) {
+      obj.nextHopSelf = message.nextHopSelf;
+    }
+    if (message.softReconfig !== undefined) {
+      obj.softReconfig = message.softReconfig;
+    }
+    if (message.maximumPrefixes !== undefined) {
+      obj.maximumPrefixes = Math.round(message.maximumPrefixes);
+    }
+    if (message.defaultOriginate !== undefined) {
+      obj.defaultOriginate = message.defaultOriginate;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BgpAddressFamily>): BgpAddressFamily {
+    return BgpAddressFamily.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BgpAddressFamily>): BgpAddressFamily {
+    const message = createBaseBgpAddressFamily();
+    message.enabled = object.enabled ?? undefined;
+    message.routeMapIn = object.routeMapIn ?? undefined;
+    message.routeMapOut = object.routeMapOut ?? undefined;
+    message.prefixListIn = object.prefixListIn ?? undefined;
+    message.prefixListOut = object.prefixListOut ?? undefined;
+    message.nextHopSelf = object.nextHopSelf ?? undefined;
+    message.softReconfig = object.softReconfig ?? undefined;
+    message.maximumPrefixes = object.maximumPrefixes ?? undefined;
+    message.defaultOriginate = object.defaultOriginate ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBgpAfi(): BgpAfi {
+  return { ipv4Unicast: undefined, ipv6Unicast: undefined };
+}
+
+export const BgpAfi: MessageFns<BgpAfi> = {
+  encode(message: BgpAfi, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ipv4Unicast !== undefined) {
+      BgpAddressFamily.encode(message.ipv4Unicast, writer.uint32(10).fork()).join();
+    }
+    if (message.ipv6Unicast !== undefined) {
+      BgpAddressFamily.encode(message.ipv6Unicast, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BgpAfi {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBgpAfi();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.ipv4Unicast = BgpAddressFamily.decode(reader, reader.uint32());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.ipv6Unicast = BgpAddressFamily.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BgpAfi {
+    return {
+      ipv4Unicast: isSet(object.ipv4Unicast)
+        ? BgpAddressFamily.fromJSON(object.ipv4Unicast)
+        : isSet(object.ipv4_unicast)
+        ? BgpAddressFamily.fromJSON(object.ipv4_unicast)
+        : undefined,
+      ipv6Unicast: isSet(object.ipv6Unicast)
+        ? BgpAddressFamily.fromJSON(object.ipv6Unicast)
+        : isSet(object.ipv6_unicast)
+        ? BgpAddressFamily.fromJSON(object.ipv6_unicast)
+        : undefined,
+    };
+  },
+
+  toJSON(message: BgpAfi): unknown {
+    const obj: any = {};
+    if (message.ipv4Unicast !== undefined) {
+      obj.ipv4Unicast = BgpAddressFamily.toJSON(message.ipv4Unicast);
+    }
+    if (message.ipv6Unicast !== undefined) {
+      obj.ipv6Unicast = BgpAddressFamily.toJSON(message.ipv6Unicast);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BgpAfi>): BgpAfi {
+    return BgpAfi.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BgpAfi>): BgpAfi {
+    const message = createBaseBgpAfi();
+    message.ipv4Unicast = (object.ipv4Unicast !== undefined && object.ipv4Unicast !== null)
+      ? BgpAddressFamily.fromPartial(object.ipv4Unicast)
+      : undefined;
+    message.ipv6Unicast = (object.ipv6Unicast !== undefined && object.ipv6Unicast !== null)
+      ? BgpAddressFamily.fromPartial(object.ipv6Unicast)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseBgpPeerGroup(): BgpPeerGroup {
+  return {
+    remoteAs: undefined,
+    description: undefined,
+    updateSource: undefined,
+    ebgpMultihop: undefined,
+    passwordRef: undefined,
+    keepaliveSec: undefined,
+    holdTimeSec: undefined,
+    bfd: undefined,
+    afi: undefined,
+  };
+}
+
+export const BgpPeerGroup: MessageFns<BgpPeerGroup> = {
+  encode(message: BgpPeerGroup, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.remoteAs !== undefined) {
+      writer.uint32(8).uint32(message.remoteAs);
+    }
+    if (message.description !== undefined) {
+      writer.uint32(18).string(message.description);
+    }
+    if (message.updateSource !== undefined) {
+      writer.uint32(26).string(message.updateSource);
+    }
+    if (message.ebgpMultihop !== undefined) {
+      writer.uint32(32).uint32(message.ebgpMultihop);
+    }
+    if (message.passwordRef !== undefined) {
+      writer.uint32(42).string(message.passwordRef);
+    }
+    if (message.keepaliveSec !== undefined) {
+      writer.uint32(48).uint32(message.keepaliveSec);
+    }
+    if (message.holdTimeSec !== undefined) {
+      writer.uint32(56).uint32(message.holdTimeSec);
+    }
+    if (message.bfd !== undefined) {
+      writer.uint32(64).bool(message.bfd);
+    }
+    if (message.afi !== undefined) {
+      BgpAfi.encode(message.afi, writer.uint32(74).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BgpPeerGroup {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBgpPeerGroup();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.remoteAs = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.description = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.updateSource = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.ebgpMultihop = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.passwordRef = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.keepaliveSec = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.holdTimeSec = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.bfd = reader.bool();
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.afi = BgpAfi.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BgpPeerGroup {
+    return {
+      remoteAs: isSet(object.remoteAs)
+        ? globalThis.Number(object.remoteAs)
+        : isSet(object.remote_as)
+        ? globalThis.Number(object.remote_as)
+        : undefined,
+      description: isSet(object.description) ? globalThis.String(object.description) : undefined,
+      updateSource: isSet(object.updateSource)
+        ? globalThis.String(object.updateSource)
+        : isSet(object.update_source)
+        ? globalThis.String(object.update_source)
+        : undefined,
+      ebgpMultihop: isSet(object.ebgpMultihop)
+        ? globalThis.Number(object.ebgpMultihop)
+        : isSet(object.ebgp_multihop)
+        ? globalThis.Number(object.ebgp_multihop)
+        : undefined,
+      passwordRef: isSet(object.passwordRef)
+        ? globalThis.String(object.passwordRef)
+        : isSet(object.password_ref)
+        ? globalThis.String(object.password_ref)
+        : undefined,
+      keepaliveSec: isSet(object.keepaliveSec)
+        ? globalThis.Number(object.keepaliveSec)
+        : isSet(object.keepalive_sec)
+        ? globalThis.Number(object.keepalive_sec)
+        : undefined,
+      holdTimeSec: isSet(object.holdTimeSec)
+        ? globalThis.Number(object.holdTimeSec)
+        : isSet(object.hold_time_sec)
+        ? globalThis.Number(object.hold_time_sec)
+        : undefined,
+      bfd: isSet(object.bfd) ? globalThis.Boolean(object.bfd) : undefined,
+      afi: isSet(object.afi) ? BgpAfi.fromJSON(object.afi) : undefined,
+    };
+  },
+
+  toJSON(message: BgpPeerGroup): unknown {
+    const obj: any = {};
+    if (message.remoteAs !== undefined) {
+      obj.remoteAs = Math.round(message.remoteAs);
+    }
+    if (message.description !== undefined) {
+      obj.description = message.description;
+    }
+    if (message.updateSource !== undefined) {
+      obj.updateSource = message.updateSource;
+    }
+    if (message.ebgpMultihop !== undefined) {
+      obj.ebgpMultihop = Math.round(message.ebgpMultihop);
+    }
+    if (message.passwordRef !== undefined) {
+      obj.passwordRef = message.passwordRef;
+    }
+    if (message.keepaliveSec !== undefined) {
+      obj.keepaliveSec = Math.round(message.keepaliveSec);
+    }
+    if (message.holdTimeSec !== undefined) {
+      obj.holdTimeSec = Math.round(message.holdTimeSec);
+    }
+    if (message.bfd !== undefined) {
+      obj.bfd = message.bfd;
+    }
+    if (message.afi !== undefined) {
+      obj.afi = BgpAfi.toJSON(message.afi);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BgpPeerGroup>): BgpPeerGroup {
+    return BgpPeerGroup.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BgpPeerGroup>): BgpPeerGroup {
+    const message = createBaseBgpPeerGroup();
+    message.remoteAs = object.remoteAs ?? undefined;
+    message.description = object.description ?? undefined;
+    message.updateSource = object.updateSource ?? undefined;
+    message.ebgpMultihop = object.ebgpMultihop ?? undefined;
+    message.passwordRef = object.passwordRef ?? undefined;
+    message.keepaliveSec = object.keepaliveSec ?? undefined;
+    message.holdTimeSec = object.holdTimeSec ?? undefined;
+    message.bfd = object.bfd ?? undefined;
+    message.afi = (object.afi !== undefined && object.afi !== null) ? BgpAfi.fromPartial(object.afi) : undefined;
+    return message;
+  },
+};
+
+function createBaseBgpNeighbor(): BgpNeighbor {
+  return {
+    remoteAs: undefined,
+    description: undefined,
+    updateSource: undefined,
+    ebgpMultihop: undefined,
+    passwordRef: undefined,
+    keepaliveSec: undefined,
+    holdTimeSec: undefined,
+    bfd: undefined,
+    afi: undefined,
+    peerGroup: undefined,
+    shutdown: undefined,
+  };
+}
+
+export const BgpNeighbor: MessageFns<BgpNeighbor> = {
+  encode(message: BgpNeighbor, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.remoteAs !== undefined) {
+      writer.uint32(8).uint32(message.remoteAs);
+    }
+    if (message.description !== undefined) {
+      writer.uint32(18).string(message.description);
+    }
+    if (message.updateSource !== undefined) {
+      writer.uint32(26).string(message.updateSource);
+    }
+    if (message.ebgpMultihop !== undefined) {
+      writer.uint32(32).uint32(message.ebgpMultihop);
+    }
+    if (message.passwordRef !== undefined) {
+      writer.uint32(42).string(message.passwordRef);
+    }
+    if (message.keepaliveSec !== undefined) {
+      writer.uint32(48).uint32(message.keepaliveSec);
+    }
+    if (message.holdTimeSec !== undefined) {
+      writer.uint32(56).uint32(message.holdTimeSec);
+    }
+    if (message.bfd !== undefined) {
+      writer.uint32(64).bool(message.bfd);
+    }
+    if (message.afi !== undefined) {
+      BgpAfi.encode(message.afi, writer.uint32(74).fork()).join();
+    }
+    if (message.peerGroup !== undefined) {
+      writer.uint32(82).string(message.peerGroup);
+    }
+    if (message.shutdown !== undefined) {
+      writer.uint32(88).bool(message.shutdown);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BgpNeighbor {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBgpNeighbor();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.remoteAs = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.description = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.updateSource = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.ebgpMultihop = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.passwordRef = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.keepaliveSec = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.holdTimeSec = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.bfd = reader.bool();
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.afi = BgpAfi.decode(reader, reader.uint32());
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.peerGroup = reader.string();
+            continue;
+          }
+          case 11: {
+            if (tag !== 88) {
+              break;
+            }
+
+            message.shutdown = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BgpNeighbor {
+    return {
+      remoteAs: isSet(object.remoteAs)
+        ? globalThis.Number(object.remoteAs)
+        : isSet(object.remote_as)
+        ? globalThis.Number(object.remote_as)
+        : undefined,
+      description: isSet(object.description) ? globalThis.String(object.description) : undefined,
+      updateSource: isSet(object.updateSource)
+        ? globalThis.String(object.updateSource)
+        : isSet(object.update_source)
+        ? globalThis.String(object.update_source)
+        : undefined,
+      ebgpMultihop: isSet(object.ebgpMultihop)
+        ? globalThis.Number(object.ebgpMultihop)
+        : isSet(object.ebgp_multihop)
+        ? globalThis.Number(object.ebgp_multihop)
+        : undefined,
+      passwordRef: isSet(object.passwordRef)
+        ? globalThis.String(object.passwordRef)
+        : isSet(object.password_ref)
+        ? globalThis.String(object.password_ref)
+        : undefined,
+      keepaliveSec: isSet(object.keepaliveSec)
+        ? globalThis.Number(object.keepaliveSec)
+        : isSet(object.keepalive_sec)
+        ? globalThis.Number(object.keepalive_sec)
+        : undefined,
+      holdTimeSec: isSet(object.holdTimeSec)
+        ? globalThis.Number(object.holdTimeSec)
+        : isSet(object.hold_time_sec)
+        ? globalThis.Number(object.hold_time_sec)
+        : undefined,
+      bfd: isSet(object.bfd) ? globalThis.Boolean(object.bfd) : undefined,
+      afi: isSet(object.afi) ? BgpAfi.fromJSON(object.afi) : undefined,
+      peerGroup: isSet(object.peerGroup)
+        ? globalThis.String(object.peerGroup)
+        : isSet(object.peer_group)
+        ? globalThis.String(object.peer_group)
+        : undefined,
+      shutdown: isSet(object.shutdown) ? globalThis.Boolean(object.shutdown) : undefined,
+    };
+  },
+
+  toJSON(message: BgpNeighbor): unknown {
+    const obj: any = {};
+    if (message.remoteAs !== undefined) {
+      obj.remoteAs = Math.round(message.remoteAs);
+    }
+    if (message.description !== undefined) {
+      obj.description = message.description;
+    }
+    if (message.updateSource !== undefined) {
+      obj.updateSource = message.updateSource;
+    }
+    if (message.ebgpMultihop !== undefined) {
+      obj.ebgpMultihop = Math.round(message.ebgpMultihop);
+    }
+    if (message.passwordRef !== undefined) {
+      obj.passwordRef = message.passwordRef;
+    }
+    if (message.keepaliveSec !== undefined) {
+      obj.keepaliveSec = Math.round(message.keepaliveSec);
+    }
+    if (message.holdTimeSec !== undefined) {
+      obj.holdTimeSec = Math.round(message.holdTimeSec);
+    }
+    if (message.bfd !== undefined) {
+      obj.bfd = message.bfd;
+    }
+    if (message.afi !== undefined) {
+      obj.afi = BgpAfi.toJSON(message.afi);
+    }
+    if (message.peerGroup !== undefined) {
+      obj.peerGroup = message.peerGroup;
+    }
+    if (message.shutdown !== undefined) {
+      obj.shutdown = message.shutdown;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BgpNeighbor>): BgpNeighbor {
+    return BgpNeighbor.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BgpNeighbor>): BgpNeighbor {
+    const message = createBaseBgpNeighbor();
+    message.remoteAs = object.remoteAs ?? undefined;
+    message.description = object.description ?? undefined;
+    message.updateSource = object.updateSource ?? undefined;
+    message.ebgpMultihop = object.ebgpMultihop ?? undefined;
+    message.passwordRef = object.passwordRef ?? undefined;
+    message.keepaliveSec = object.keepaliveSec ?? undefined;
+    message.holdTimeSec = object.holdTimeSec ?? undefined;
+    message.bfd = object.bfd ?? undefined;
+    message.afi = (object.afi !== undefined && object.afi !== null) ? BgpAfi.fromPartial(object.afi) : undefined;
+    message.peerGroup = object.peerGroup ?? undefined;
+    message.shutdown = object.shutdown ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBgpNetwork(): BgpNetwork {
+  return { prefix: undefined, routeMap: undefined };
+}
+
+export const BgpNetwork: MessageFns<BgpNetwork> = {
+  encode(message: BgpNetwork, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.prefix !== undefined) {
+      writer.uint32(10).string(message.prefix);
+    }
+    if (message.routeMap !== undefined) {
+      writer.uint32(18).string(message.routeMap);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BgpNetwork {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBgpNetwork();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.routeMap = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BgpNetwork {
+    return {
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
+      routeMap: isSet(object.routeMap)
+        ? globalThis.String(object.routeMap)
+        : isSet(object.route_map)
+        ? globalThis.String(object.route_map)
+        : undefined,
+    };
+  },
+
+  toJSON(message: BgpNetwork): unknown {
+    const obj: any = {};
+    if (message.prefix !== undefined) {
+      obj.prefix = message.prefix;
+    }
+    if (message.routeMap !== undefined) {
+      obj.routeMap = message.routeMap;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BgpNetwork>): BgpNetwork {
+    return BgpNetwork.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BgpNetwork>): BgpNetwork {
+    const message = createBaseBgpNetwork();
+    message.prefix = object.prefix ?? undefined;
+    message.routeMap = object.routeMap ?? undefined;
     return message;
   },
 };
 
 function createBaseBgpConfig(): BgpConfig {
-  return {};
+  return {
+    asn: undefined,
+    routerId: undefined,
+    vrf: undefined,
+    peerGroups: {},
+    neighbors: {},
+    networks: [],
+    redistribute: undefined,
+    gracefulRestart: undefined,
+    ebgpRequiresPolicy: undefined,
+  };
 }
 
 export const BgpConfig: MessageFns<BgpConfig> = {
-  encode(_: BgpConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: BgpConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.asn !== undefined) {
+      writer.uint32(8).uint32(message.asn);
+    }
+    if (message.routerId !== undefined) {
+      writer.uint32(18).string(message.routerId);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(26).string(message.vrf);
+    }
+    globalThis.Object.entries(message.peerGroups).forEach(([key, value]: [string, BgpPeerGroup]) => {
+      BgpConfig_PeerGroupsEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
+    });
+    globalThis.Object.entries(message.neighbors).forEach(([key, value]: [string, BgpNeighbor]) => {
+      BgpConfig_NeighborsEntry.encode({ key: key as any, value }, writer.uint32(42).fork()).join();
+    });
+    for (const v of message.networks) {
+      BgpNetwork.encode(v!, writer.uint32(50).fork()).join();
+    }
+    if (message.redistribute !== undefined) {
+      Redistribute.encode(message.redistribute, writer.uint32(58).fork()).join();
+    }
+    if (message.gracefulRestart !== undefined) {
+      writer.uint32(64).bool(message.gracefulRestart);
+    }
+    if (message.ebgpRequiresPolicy !== undefined) {
+      writer.uint32(72).bool(message.ebgpRequiresPolicy);
+    }
     return writer;
   },
 
@@ -10633,6 +13493,84 @@ export const BgpConfig: MessageFns<BgpConfig> = {
       while (reader.pos < end) {
         const tag = reader.uint32();
         switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.asn = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.routerId = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            const entry4 = BgpConfig_PeerGroupsEntry.decode(reader, reader.uint32());
+            if (entry4.value !== undefined) {
+              message.peerGroups[entry4.key] = entry4.value;
+            }
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            const entry5 = BgpConfig_NeighborsEntry.decode(reader, reader.uint32());
+            if (entry5.value !== undefined) {
+              message.neighbors[entry5.key] = entry5.value;
+            }
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.networks.push(BgpNetwork.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.redistribute = Redistribute.decode(reader, reader.uint32());
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.gracefulRestart = reader.bool();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.ebgpRequiresPolicy = reader.bool();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -10645,30 +13583,649 @@ export const BgpConfig: MessageFns<BgpConfig> = {
     }
   },
 
-  fromJSON(_: any): BgpConfig {
-    return {};
+  fromJSON(object: any): BgpConfig {
+    return {
+      asn: isSet(object.asn) ? globalThis.Number(object.asn) : undefined,
+      routerId: isSet(object.routerId)
+        ? globalThis.String(object.routerId)
+        : isSet(object.router_id)
+        ? globalThis.String(object.router_id)
+        : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      peerGroups: isObject(object.peerGroups)
+        ? (globalThis.Object.entries(object.peerGroups) as [string, any][]).reduce(
+          (acc: { [key: string]: BgpPeerGroup }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: BgpPeerGroup.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : isObject(object.peer_groups)
+        ? (globalThis.Object.entries(object.peer_groups) as [string, any][]).reduce(
+          (acc: { [key: string]: BgpPeerGroup }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: BgpPeerGroup.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      neighbors: isObject(object.neighbors)
+        ? (globalThis.Object.entries(object.neighbors) as [string, any][]).reduce(
+          (acc: { [key: string]: BgpNeighbor }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: BgpNeighbor.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      networks: globalThis.Array.isArray(object?.networks)
+        ? object.networks.map((e: any) => BgpNetwork.fromJSON(e))
+        : [],
+      redistribute: isSet(object.redistribute) ? Redistribute.fromJSON(object.redistribute) : undefined,
+      gracefulRestart: isSet(object.gracefulRestart)
+        ? globalThis.Boolean(object.gracefulRestart)
+        : isSet(object.graceful_restart)
+        ? globalThis.Boolean(object.graceful_restart)
+        : undefined,
+      ebgpRequiresPolicy: isSet(object.ebgpRequiresPolicy)
+        ? globalThis.Boolean(object.ebgpRequiresPolicy)
+        : isSet(object.ebgp_requires_policy)
+        ? globalThis.Boolean(object.ebgp_requires_policy)
+        : undefined,
+    };
   },
 
-  toJSON(_: BgpConfig): unknown {
+  toJSON(message: BgpConfig): unknown {
     const obj: any = {};
+    if (message.asn !== undefined) {
+      obj.asn = Math.round(message.asn);
+    }
+    if (message.routerId !== undefined) {
+      obj.routerId = message.routerId;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.peerGroups) {
+      const entries = globalThis.Object.entries(message.peerGroups) as [string, BgpPeerGroup][];
+      if (entries.length > 0) {
+        obj.peerGroups = {};
+        entries.forEach(([k, v]) => {
+          obj.peerGroups[k] = BgpPeerGroup.toJSON(v);
+        });
+      }
+    }
+    if (message.neighbors) {
+      const entries = globalThis.Object.entries(message.neighbors) as [string, BgpNeighbor][];
+      if (entries.length > 0) {
+        obj.neighbors = {};
+        entries.forEach(([k, v]) => {
+          obj.neighbors[k] = BgpNeighbor.toJSON(v);
+        });
+      }
+    }
+    if (message.networks?.length) {
+      obj.networks = message.networks.map((e) => BgpNetwork.toJSON(e));
+    }
+    if (message.redistribute !== undefined) {
+      obj.redistribute = Redistribute.toJSON(message.redistribute);
+    }
+    if (message.gracefulRestart !== undefined) {
+      obj.gracefulRestart = message.gracefulRestart;
+    }
+    if (message.ebgpRequiresPolicy !== undefined) {
+      obj.ebgpRequiresPolicy = message.ebgpRequiresPolicy;
+    }
     return obj;
   },
 
   create(base?: DeepPartial<BgpConfig>): BgpConfig {
     return BgpConfig.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<BgpConfig>): BgpConfig {
+  fromPartial(object: DeepPartial<BgpConfig>): BgpConfig {
     const message = createBaseBgpConfig();
+    message.asn = object.asn ?? undefined;
+    message.routerId = object.routerId ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.peerGroups = (globalThis.Object.entries(object.peerGroups ?? {}) as [string, BgpPeerGroup][]).reduce(
+      (acc: { [key: string]: BgpPeerGroup }, [key, value]: [string, BgpPeerGroup]) => {
+        if (value !== undefined) {
+          acc[key] = BgpPeerGroup.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.neighbors = (globalThis.Object.entries(object.neighbors ?? {}) as [string, BgpNeighbor][]).reduce(
+      (acc: { [key: string]: BgpNeighbor }, [key, value]: [string, BgpNeighbor]) => {
+        if (value !== undefined) {
+          acc[key] = BgpNeighbor.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.networks = object.networks?.map((e) => BgpNetwork.fromPartial(e)) || [];
+    message.redistribute = (object.redistribute !== undefined && object.redistribute !== null)
+      ? Redistribute.fromPartial(object.redistribute)
+      : undefined;
+    message.gracefulRestart = object.gracefulRestart ?? undefined;
+    message.ebgpRequiresPolicy = object.ebgpRequiresPolicy ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBgpConfig_PeerGroupsEntry(): BgpConfig_PeerGroupsEntry {
+  return { key: "", value: undefined };
+}
+
+export const BgpConfig_PeerGroupsEntry: MessageFns<BgpConfig_PeerGroupsEntry> = {
+  encode(message: BgpConfig_PeerGroupsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      BgpPeerGroup.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BgpConfig_PeerGroupsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBgpConfig_PeerGroupsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = BgpPeerGroup.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BgpConfig_PeerGroupsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? BgpPeerGroup.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: BgpConfig_PeerGroupsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = BgpPeerGroup.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BgpConfig_PeerGroupsEntry>): BgpConfig_PeerGroupsEntry {
+    return BgpConfig_PeerGroupsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BgpConfig_PeerGroupsEntry>): BgpConfig_PeerGroupsEntry {
+    const message = createBaseBgpConfig_PeerGroupsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? BgpPeerGroup.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseBgpConfig_NeighborsEntry(): BgpConfig_NeighborsEntry {
+  return { key: "", value: undefined };
+}
+
+export const BgpConfig_NeighborsEntry: MessageFns<BgpConfig_NeighborsEntry> = {
+  encode(message: BgpConfig_NeighborsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      BgpNeighbor.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BgpConfig_NeighborsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBgpConfig_NeighborsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = BgpNeighbor.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BgpConfig_NeighborsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? BgpNeighbor.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: BgpConfig_NeighborsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = BgpNeighbor.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BgpConfig_NeighborsEntry>): BgpConfig_NeighborsEntry {
+    return BgpConfig_NeighborsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BgpConfig_NeighborsEntry>): BgpConfig_NeighborsEntry {
+    const message = createBaseBgpConfig_NeighborsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? BgpNeighbor.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseOspfArea(): OspfArea {
+  return { type: undefined, noSummary: undefined };
+}
+
+export const OspfArea: MessageFns<OspfArea> = {
+  encode(message: OspfArea, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.type !== undefined) {
+      writer.uint32(10).string(message.type);
+    }
+    if (message.noSummary !== undefined) {
+      writer.uint32(16).bool(message.noSummary);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): OspfArea {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseOspfArea();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.noSummary = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): OspfArea {
+    return {
+      type: isSet(object.type) ? globalThis.String(object.type) : undefined,
+      noSummary: isSet(object.noSummary)
+        ? globalThis.Boolean(object.noSummary)
+        : isSet(object.no_summary)
+        ? globalThis.Boolean(object.no_summary)
+        : undefined,
+    };
+  },
+
+  toJSON(message: OspfArea): unknown {
+    const obj: any = {};
+    if (message.type !== undefined) {
+      obj.type = message.type;
+    }
+    if (message.noSummary !== undefined) {
+      obj.noSummary = message.noSummary;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<OspfArea>): OspfArea {
+    return OspfArea.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<OspfArea>): OspfArea {
+    const message = createBaseOspfArea();
+    message.type = object.type ?? undefined;
+    message.noSummary = object.noSummary ?? undefined;
+    return message;
+  },
+};
+
+function createBaseOspfInterface(): OspfInterface {
+  return {
+    area: undefined,
+    cost: undefined,
+    passive: undefined,
+    networkType: undefined,
+    helloIntervalSec: undefined,
+    deadIntervalSec: undefined,
+    priority: undefined,
+    bfd: undefined,
+  };
+}
+
+export const OspfInterface: MessageFns<OspfInterface> = {
+  encode(message: OspfInterface, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.area !== undefined) {
+      writer.uint32(10).string(message.area);
+    }
+    if (message.cost !== undefined) {
+      writer.uint32(16).uint32(message.cost);
+    }
+    if (message.passive !== undefined) {
+      writer.uint32(24).bool(message.passive);
+    }
+    if (message.networkType !== undefined) {
+      writer.uint32(34).string(message.networkType);
+    }
+    if (message.helloIntervalSec !== undefined) {
+      writer.uint32(40).uint32(message.helloIntervalSec);
+    }
+    if (message.deadIntervalSec !== undefined) {
+      writer.uint32(48).uint32(message.deadIntervalSec);
+    }
+    if (message.priority !== undefined) {
+      writer.uint32(56).uint32(message.priority);
+    }
+    if (message.bfd !== undefined) {
+      writer.uint32(64).bool(message.bfd);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): OspfInterface {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseOspfInterface();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.area = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.cost = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.passive = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.networkType = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.helloIntervalSec = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.deadIntervalSec = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.priority = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.bfd = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): OspfInterface {
+    return {
+      area: isSet(object.area) ? globalThis.String(object.area) : undefined,
+      cost: isSet(object.cost) ? globalThis.Number(object.cost) : undefined,
+      passive: isSet(object.passive) ? globalThis.Boolean(object.passive) : undefined,
+      networkType: isSet(object.networkType)
+        ? globalThis.String(object.networkType)
+        : isSet(object.network_type)
+        ? globalThis.String(object.network_type)
+        : undefined,
+      helloIntervalSec: isSet(object.helloIntervalSec)
+        ? globalThis.Number(object.helloIntervalSec)
+        : isSet(object.hello_interval_sec)
+        ? globalThis.Number(object.hello_interval_sec)
+        : undefined,
+      deadIntervalSec: isSet(object.deadIntervalSec)
+        ? globalThis.Number(object.deadIntervalSec)
+        : isSet(object.dead_interval_sec)
+        ? globalThis.Number(object.dead_interval_sec)
+        : undefined,
+      priority: isSet(object.priority) ? globalThis.Number(object.priority) : undefined,
+      bfd: isSet(object.bfd) ? globalThis.Boolean(object.bfd) : undefined,
+    };
+  },
+
+  toJSON(message: OspfInterface): unknown {
+    const obj: any = {};
+    if (message.area !== undefined) {
+      obj.area = message.area;
+    }
+    if (message.cost !== undefined) {
+      obj.cost = Math.round(message.cost);
+    }
+    if (message.passive !== undefined) {
+      obj.passive = message.passive;
+    }
+    if (message.networkType !== undefined) {
+      obj.networkType = message.networkType;
+    }
+    if (message.helloIntervalSec !== undefined) {
+      obj.helloIntervalSec = Math.round(message.helloIntervalSec);
+    }
+    if (message.deadIntervalSec !== undefined) {
+      obj.deadIntervalSec = Math.round(message.deadIntervalSec);
+    }
+    if (message.priority !== undefined) {
+      obj.priority = Math.round(message.priority);
+    }
+    if (message.bfd !== undefined) {
+      obj.bfd = message.bfd;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<OspfInterface>): OspfInterface {
+    return OspfInterface.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<OspfInterface>): OspfInterface {
+    const message = createBaseOspfInterface();
+    message.area = object.area ?? undefined;
+    message.cost = object.cost ?? undefined;
+    message.passive = object.passive ?? undefined;
+    message.networkType = object.networkType ?? undefined;
+    message.helloIntervalSec = object.helloIntervalSec ?? undefined;
+    message.deadIntervalSec = object.deadIntervalSec ?? undefined;
+    message.priority = object.priority ?? undefined;
+    message.bfd = object.bfd ?? undefined;
     return message;
   },
 };
 
 function createBaseOspfConfig(): OspfConfig {
-  return {};
+  return {
+    routerId: undefined,
+    vrf: undefined,
+    areas: {},
+    interfaces: {},
+    redistribute: undefined,
+    defaultInformationOriginate: undefined,
+  };
 }
 
 export const OspfConfig: MessageFns<OspfConfig> = {
-  encode(_: OspfConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: OspfConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.routerId !== undefined) {
+      writer.uint32(10).string(message.routerId);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(18).string(message.vrf);
+    }
+    globalThis.Object.entries(message.areas).forEach(([key, value]: [string, OspfArea]) => {
+      OspfConfig_AreasEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
+    });
+    globalThis.Object.entries(message.interfaces).forEach(([key, value]: [string, OspfInterface]) => {
+      OspfConfig_InterfacesEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
+    });
+    if (message.redistribute !== undefined) {
+      Redistribute.encode(message.redistribute, writer.uint32(42).fork()).join();
+    }
+    if (message.defaultInformationOriginate !== undefined) {
+      writer.uint32(50).string(message.defaultInformationOriginate);
+    }
     return writer;
   },
 
@@ -10685,6 +14242,60 @@ export const OspfConfig: MessageFns<OspfConfig> = {
       while (reader.pos < end) {
         const tag = reader.uint32();
         switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.routerId = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            const entry3 = OspfConfig_AreasEntry.decode(reader, reader.uint32());
+            if (entry3.value !== undefined) {
+              message.areas[entry3.key] = entry3.value;
+            }
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            const entry4 = OspfConfig_InterfacesEntry.decode(reader, reader.uint32());
+            if (entry4.value !== undefined) {
+              message.interfaces[entry4.key] = entry4.value;
+            }
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.redistribute = Redistribute.decode(reader, reader.uint32());
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.defaultInformationOriginate = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -10697,30 +14308,455 @@ export const OspfConfig: MessageFns<OspfConfig> = {
     }
   },
 
-  fromJSON(_: any): OspfConfig {
-    return {};
+  fromJSON(object: any): OspfConfig {
+    return {
+      routerId: isSet(object.routerId)
+        ? globalThis.String(object.routerId)
+        : isSet(object.router_id)
+        ? globalThis.String(object.router_id)
+        : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      areas: isObject(object.areas)
+        ? (globalThis.Object.entries(object.areas) as [string, any][]).reduce(
+          (acc: { [key: string]: OspfArea }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: OspfArea.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      interfaces: isObject(object.interfaces)
+        ? (globalThis.Object.entries(object.interfaces) as [string, any][]).reduce(
+          (acc: { [key: string]: OspfInterface }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: OspfInterface.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      redistribute: isSet(object.redistribute) ? Redistribute.fromJSON(object.redistribute) : undefined,
+      defaultInformationOriginate: isSet(object.defaultInformationOriginate)
+        ? globalThis.String(object.defaultInformationOriginate)
+        : isSet(object.default_information_originate)
+        ? globalThis.String(object.default_information_originate)
+        : undefined,
+    };
   },
 
-  toJSON(_: OspfConfig): unknown {
+  toJSON(message: OspfConfig): unknown {
     const obj: any = {};
+    if (message.routerId !== undefined) {
+      obj.routerId = message.routerId;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.areas) {
+      const entries = globalThis.Object.entries(message.areas) as [string, OspfArea][];
+      if (entries.length > 0) {
+        obj.areas = {};
+        entries.forEach(([k, v]) => {
+          obj.areas[k] = OspfArea.toJSON(v);
+        });
+      }
+    }
+    if (message.interfaces) {
+      const entries = globalThis.Object.entries(message.interfaces) as [string, OspfInterface][];
+      if (entries.length > 0) {
+        obj.interfaces = {};
+        entries.forEach(([k, v]) => {
+          obj.interfaces[k] = OspfInterface.toJSON(v);
+        });
+      }
+    }
+    if (message.redistribute !== undefined) {
+      obj.redistribute = Redistribute.toJSON(message.redistribute);
+    }
+    if (message.defaultInformationOriginate !== undefined) {
+      obj.defaultInformationOriginate = message.defaultInformationOriginate;
+    }
     return obj;
   },
 
   create(base?: DeepPartial<OspfConfig>): OspfConfig {
     return OspfConfig.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<OspfConfig>): OspfConfig {
+  fromPartial(object: DeepPartial<OspfConfig>): OspfConfig {
     const message = createBaseOspfConfig();
+    message.routerId = object.routerId ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.areas = (globalThis.Object.entries(object.areas ?? {}) as [string, OspfArea][]).reduce(
+      (acc: { [key: string]: OspfArea }, [key, value]: [string, OspfArea]) => {
+        if (value !== undefined) {
+          acc[key] = OspfArea.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.interfaces = (globalThis.Object.entries(object.interfaces ?? {}) as [string, OspfInterface][]).reduce(
+      (acc: { [key: string]: OspfInterface }, [key, value]: [string, OspfInterface]) => {
+        if (value !== undefined) {
+          acc[key] = OspfInterface.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.redistribute = (object.redistribute !== undefined && object.redistribute !== null)
+      ? Redistribute.fromPartial(object.redistribute)
+      : undefined;
+    message.defaultInformationOriginate = object.defaultInformationOriginate ?? undefined;
+    return message;
+  },
+};
+
+function createBaseOspfConfig_AreasEntry(): OspfConfig_AreasEntry {
+  return { key: "", value: undefined };
+}
+
+export const OspfConfig_AreasEntry: MessageFns<OspfConfig_AreasEntry> = {
+  encode(message: OspfConfig_AreasEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      OspfArea.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): OspfConfig_AreasEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseOspfConfig_AreasEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = OspfArea.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): OspfConfig_AreasEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? OspfArea.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: OspfConfig_AreasEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = OspfArea.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<OspfConfig_AreasEntry>): OspfConfig_AreasEntry {
+    return OspfConfig_AreasEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<OspfConfig_AreasEntry>): OspfConfig_AreasEntry {
+    const message = createBaseOspfConfig_AreasEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? OspfArea.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseOspfConfig_InterfacesEntry(): OspfConfig_InterfacesEntry {
+  return { key: "", value: undefined };
+}
+
+export const OspfConfig_InterfacesEntry: MessageFns<OspfConfig_InterfacesEntry> = {
+  encode(message: OspfConfig_InterfacesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      OspfInterface.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): OspfConfig_InterfacesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseOspfConfig_InterfacesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = OspfInterface.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): OspfConfig_InterfacesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? OspfInterface.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: OspfConfig_InterfacesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = OspfInterface.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<OspfConfig_InterfacesEntry>): OspfConfig_InterfacesEntry {
+    return OspfConfig_InterfacesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<OspfConfig_InterfacesEntry>): OspfConfig_InterfacesEntry {
+    const message = createBaseOspfConfig_InterfacesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? OspfInterface.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseIsisInterface(): IsisInterface {
+  return { passive: undefined, metric: undefined, circuitType: undefined, networkType: undefined, bfd: undefined };
+}
+
+export const IsisInterface: MessageFns<IsisInterface> = {
+  encode(message: IsisInterface, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.passive !== undefined) {
+      writer.uint32(8).bool(message.passive);
+    }
+    if (message.metric !== undefined) {
+      writer.uint32(16).uint32(message.metric);
+    }
+    if (message.circuitType !== undefined) {
+      writer.uint32(26).string(message.circuitType);
+    }
+    if (message.networkType !== undefined) {
+      writer.uint32(34).string(message.networkType);
+    }
+    if (message.bfd !== undefined) {
+      writer.uint32(40).bool(message.bfd);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IsisInterface {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIsisInterface();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.passive = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.metric = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.circuitType = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.networkType = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.bfd = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IsisInterface {
+    return {
+      passive: isSet(object.passive) ? globalThis.Boolean(object.passive) : undefined,
+      metric: isSet(object.metric) ? globalThis.Number(object.metric) : undefined,
+      circuitType: isSet(object.circuitType)
+        ? globalThis.String(object.circuitType)
+        : isSet(object.circuit_type)
+        ? globalThis.String(object.circuit_type)
+        : undefined,
+      networkType: isSet(object.networkType)
+        ? globalThis.String(object.networkType)
+        : isSet(object.network_type)
+        ? globalThis.String(object.network_type)
+        : undefined,
+      bfd: isSet(object.bfd) ? globalThis.Boolean(object.bfd) : undefined,
+    };
+  },
+
+  toJSON(message: IsisInterface): unknown {
+    const obj: any = {};
+    if (message.passive !== undefined) {
+      obj.passive = message.passive;
+    }
+    if (message.metric !== undefined) {
+      obj.metric = Math.round(message.metric);
+    }
+    if (message.circuitType !== undefined) {
+      obj.circuitType = message.circuitType;
+    }
+    if (message.networkType !== undefined) {
+      obj.networkType = message.networkType;
+    }
+    if (message.bfd !== undefined) {
+      obj.bfd = message.bfd;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IsisInterface>): IsisInterface {
+    return IsisInterface.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IsisInterface>): IsisInterface {
+    const message = createBaseIsisInterface();
+    message.passive = object.passive ?? undefined;
+    message.metric = object.metric ?? undefined;
+    message.circuitType = object.circuitType ?? undefined;
+    message.networkType = object.networkType ?? undefined;
+    message.bfd = object.bfd ?? undefined;
     return message;
   },
 };
 
 function createBaseIsisConfig(): IsisConfig {
-  return {};
+  return { net: undefined, level: undefined, vrf: undefined, interfaces: {}, redistribute: undefined };
 }
 
 export const IsisConfig: MessageFns<IsisConfig> = {
-  encode(_: IsisConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: IsisConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.net !== undefined) {
+      writer.uint32(10).string(message.net);
+    }
+    if (message.level !== undefined) {
+      writer.uint32(18).string(message.level);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(26).string(message.vrf);
+    }
+    globalThis.Object.entries(message.interfaces).forEach(([key, value]: [string, IsisInterface]) => {
+      IsisConfig_InterfacesEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
+    });
+    if (message.redistribute !== undefined) {
+      Redistribute.encode(message.redistribute, writer.uint32(42).fork()).join();
+    }
     return writer;
   },
 
@@ -10737,6 +14773,49 @@ export const IsisConfig: MessageFns<IsisConfig> = {
       while (reader.pos < end) {
         const tag = reader.uint32();
         switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.net = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.level = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            const entry4 = IsisConfig_InterfacesEntry.decode(reader, reader.uint32());
+            if (entry4.value !== undefined) {
+              message.interfaces[entry4.key] = entry4.value;
+            }
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.redistribute = Redistribute.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -10749,30 +14828,254 @@ export const IsisConfig: MessageFns<IsisConfig> = {
     }
   },
 
-  fromJSON(_: any): IsisConfig {
-    return {};
+  fromJSON(object: any): IsisConfig {
+    return {
+      net: isSet(object.net) ? globalThis.String(object.net) : undefined,
+      level: isSet(object.level) ? globalThis.String(object.level) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      interfaces: isObject(object.interfaces)
+        ? (globalThis.Object.entries(object.interfaces) as [string, any][]).reduce(
+          (acc: { [key: string]: IsisInterface }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: IsisInterface.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      redistribute: isSet(object.redistribute) ? Redistribute.fromJSON(object.redistribute) : undefined,
+    };
   },
 
-  toJSON(_: IsisConfig): unknown {
+  toJSON(message: IsisConfig): unknown {
     const obj: any = {};
+    if (message.net !== undefined) {
+      obj.net = message.net;
+    }
+    if (message.level !== undefined) {
+      obj.level = message.level;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.interfaces) {
+      const entries = globalThis.Object.entries(message.interfaces) as [string, IsisInterface][];
+      if (entries.length > 0) {
+        obj.interfaces = {};
+        entries.forEach(([k, v]) => {
+          obj.interfaces[k] = IsisInterface.toJSON(v);
+        });
+      }
+    }
+    if (message.redistribute !== undefined) {
+      obj.redistribute = Redistribute.toJSON(message.redistribute);
+    }
     return obj;
   },
 
   create(base?: DeepPartial<IsisConfig>): IsisConfig {
     return IsisConfig.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<IsisConfig>): IsisConfig {
+  fromPartial(object: DeepPartial<IsisConfig>): IsisConfig {
     const message = createBaseIsisConfig();
+    message.net = object.net ?? undefined;
+    message.level = object.level ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.interfaces = (globalThis.Object.entries(object.interfaces ?? {}) as [string, IsisInterface][]).reduce(
+      (acc: { [key: string]: IsisInterface }, [key, value]: [string, IsisInterface]) => {
+        if (value !== undefined) {
+          acc[key] = IsisInterface.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.redistribute = (object.redistribute !== undefined && object.redistribute !== null)
+      ? Redistribute.fromPartial(object.redistribute)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseIsisConfig_InterfacesEntry(): IsisConfig_InterfacesEntry {
+  return { key: "", value: undefined };
+}
+
+export const IsisConfig_InterfacesEntry: MessageFns<IsisConfig_InterfacesEntry> = {
+  encode(message: IsisConfig_InterfacesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      IsisInterface.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IsisConfig_InterfacesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIsisConfig_InterfacesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = IsisInterface.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IsisConfig_InterfacesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? IsisInterface.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: IsisConfig_InterfacesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = IsisInterface.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IsisConfig_InterfacesEntry>): IsisConfig_InterfacesEntry {
+    return IsisConfig_InterfacesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IsisConfig_InterfacesEntry>): IsisConfig_InterfacesEntry {
+    const message = createBaseIsisConfig_InterfacesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? IsisInterface.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseRipInterface(): RipInterface {
+  return { passive: undefined };
+}
+
+export const RipInterface: MessageFns<RipInterface> = {
+  encode(message: RipInterface, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.passive !== undefined) {
+      writer.uint32(8).bool(message.passive);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RipInterface {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRipInterface();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.passive = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RipInterface {
+    return { passive: isSet(object.passive) ? globalThis.Boolean(object.passive) : undefined };
+  },
+
+  toJSON(message: RipInterface): unknown {
+    const obj: any = {};
+    if (message.passive !== undefined) {
+      obj.passive = message.passive;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RipInterface>): RipInterface {
+    return RipInterface.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RipInterface>): RipInterface {
+    const message = createBaseRipInterface();
+    message.passive = object.passive ?? undefined;
     return message;
   },
 };
 
 function createBaseRipConfig(): RipConfig {
-  return {};
+  return { vrf: undefined, networks: [], interfaces: {}, redistribute: undefined, defaultMetric: undefined };
 }
 
 export const RipConfig: MessageFns<RipConfig> = {
-  encode(_: RipConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: RipConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vrf !== undefined) {
+      writer.uint32(10).string(message.vrf);
+    }
+    for (const v of message.networks) {
+      writer.uint32(18).string(v!);
+    }
+    globalThis.Object.entries(message.interfaces).forEach(([key, value]: [string, RipInterface]) => {
+      RipConfig_InterfacesEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
+    });
+    if (message.redistribute !== undefined) {
+      Redistribute.encode(message.redistribute, writer.uint32(34).fork()).join();
+    }
+    if (message.defaultMetric !== undefined) {
+      writer.uint32(40).uint32(message.defaultMetric);
+    }
     return writer;
   },
 
@@ -10789,6 +15092,49 @@ export const RipConfig: MessageFns<RipConfig> = {
       while (reader.pos < end) {
         const tag = reader.uint32();
         switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.networks.push(reader.string());
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            const entry3 = RipConfig_InterfacesEntry.decode(reader, reader.uint32());
+            if (entry3.value !== undefined) {
+              message.interfaces[entry3.key] = entry3.value;
+            }
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.redistribute = Redistribute.decode(reader, reader.uint32());
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.defaultMetric = reader.uint32();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -10801,30 +15147,372 @@ export const RipConfig: MessageFns<RipConfig> = {
     }
   },
 
-  fromJSON(_: any): RipConfig {
-    return {};
+  fromJSON(object: any): RipConfig {
+    return {
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      networks: globalThis.Array.isArray(object?.networks) ? object.networks.map((e: any) => globalThis.String(e)) : [],
+      interfaces: isObject(object.interfaces)
+        ? (globalThis.Object.entries(object.interfaces) as [string, any][]).reduce(
+          (acc: { [key: string]: RipInterface }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: RipInterface.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      redistribute: isSet(object.redistribute) ? Redistribute.fromJSON(object.redistribute) : undefined,
+      defaultMetric: isSet(object.defaultMetric)
+        ? globalThis.Number(object.defaultMetric)
+        : isSet(object.default_metric)
+        ? globalThis.Number(object.default_metric)
+        : undefined,
+    };
   },
 
-  toJSON(_: RipConfig): unknown {
+  toJSON(message: RipConfig): unknown {
     const obj: any = {};
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.networks?.length) {
+      obj.networks = message.networks;
+    }
+    if (message.interfaces) {
+      const entries = globalThis.Object.entries(message.interfaces) as [string, RipInterface][];
+      if (entries.length > 0) {
+        obj.interfaces = {};
+        entries.forEach(([k, v]) => {
+          obj.interfaces[k] = RipInterface.toJSON(v);
+        });
+      }
+    }
+    if (message.redistribute !== undefined) {
+      obj.redistribute = Redistribute.toJSON(message.redistribute);
+    }
+    if (message.defaultMetric !== undefined) {
+      obj.defaultMetric = Math.round(message.defaultMetric);
+    }
     return obj;
   },
 
   create(base?: DeepPartial<RipConfig>): RipConfig {
     return RipConfig.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<RipConfig>): RipConfig {
+  fromPartial(object: DeepPartial<RipConfig>): RipConfig {
     const message = createBaseRipConfig();
+    message.vrf = object.vrf ?? undefined;
+    message.networks = object.networks?.map((e) => e) || [];
+    message.interfaces = (globalThis.Object.entries(object.interfaces ?? {}) as [string, RipInterface][]).reduce(
+      (acc: { [key: string]: RipInterface }, [key, value]: [string, RipInterface]) => {
+        if (value !== undefined) {
+          acc[key] = RipInterface.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.redistribute = (object.redistribute !== undefined && object.redistribute !== null)
+      ? Redistribute.fromPartial(object.redistribute)
+      : undefined;
+    message.defaultMetric = object.defaultMetric ?? undefined;
+    return message;
+  },
+};
+
+function createBaseRipConfig_InterfacesEntry(): RipConfig_InterfacesEntry {
+  return { key: "", value: undefined };
+}
+
+export const RipConfig_InterfacesEntry: MessageFns<RipConfig_InterfacesEntry> = {
+  encode(message: RipConfig_InterfacesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      RipInterface.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RipConfig_InterfacesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRipConfig_InterfacesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = RipInterface.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RipConfig_InterfacesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? RipInterface.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: RipConfig_InterfacesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = RipInterface.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RipConfig_InterfacesEntry>): RipConfig_InterfacesEntry {
+    return RipConfig_InterfacesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RipConfig_InterfacesEntry>): RipConfig_InterfacesEntry {
+    const message = createBaseRipConfig_InterfacesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? RipInterface.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseBfdSession(): BfdSession {
+  return {
+    interface: undefined,
+    localAddress: undefined,
+    peerAddress: undefined,
+    desiredMinTxUs: undefined,
+    requiredMinRxUs: undefined,
+    detectMultiplier: undefined,
+    enabled: undefined,
+  };
+}
+
+export const BfdSession: MessageFns<BfdSession> = {
+  encode(message: BfdSession, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== undefined) {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.localAddress !== undefined) {
+      writer.uint32(18).string(message.localAddress);
+    }
+    if (message.peerAddress !== undefined) {
+      writer.uint32(26).string(message.peerAddress);
+    }
+    if (message.desiredMinTxUs !== undefined) {
+      writer.uint32(32).uint32(message.desiredMinTxUs);
+    }
+    if (message.requiredMinRxUs !== undefined) {
+      writer.uint32(40).uint32(message.requiredMinRxUs);
+    }
+    if (message.detectMultiplier !== undefined) {
+      writer.uint32(48).uint32(message.detectMultiplier);
+    }
+    if (message.enabled !== undefined) {
+      writer.uint32(56).bool(message.enabled);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BfdSession {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBfdSession();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.localAddress = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.peerAddress = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.desiredMinTxUs = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.requiredMinRxUs = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.detectMultiplier = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BfdSession {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      localAddress: isSet(object.localAddress)
+        ? globalThis.String(object.localAddress)
+        : isSet(object.local_address)
+        ? globalThis.String(object.local_address)
+        : undefined,
+      peerAddress: isSet(object.peerAddress)
+        ? globalThis.String(object.peerAddress)
+        : isSet(object.peer_address)
+        ? globalThis.String(object.peer_address)
+        : undefined,
+      desiredMinTxUs: isSet(object.desiredMinTxUs)
+        ? globalThis.Number(object.desiredMinTxUs)
+        : isSet(object.desired_min_tx_us)
+        ? globalThis.Number(object.desired_min_tx_us)
+        : undefined,
+      requiredMinRxUs: isSet(object.requiredMinRxUs)
+        ? globalThis.Number(object.requiredMinRxUs)
+        : isSet(object.required_min_rx_us)
+        ? globalThis.Number(object.required_min_rx_us)
+        : undefined,
+      detectMultiplier: isSet(object.detectMultiplier)
+        ? globalThis.Number(object.detectMultiplier)
+        : isSet(object.detect_multiplier)
+        ? globalThis.Number(object.detect_multiplier)
+        : undefined,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+    };
+  },
+
+  toJSON(message: BfdSession): unknown {
+    const obj: any = {};
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.localAddress !== undefined) {
+      obj.localAddress = message.localAddress;
+    }
+    if (message.peerAddress !== undefined) {
+      obj.peerAddress = message.peerAddress;
+    }
+    if (message.desiredMinTxUs !== undefined) {
+      obj.desiredMinTxUs = Math.round(message.desiredMinTxUs);
+    }
+    if (message.requiredMinRxUs !== undefined) {
+      obj.requiredMinRxUs = Math.round(message.requiredMinRxUs);
+    }
+    if (message.detectMultiplier !== undefined) {
+      obj.detectMultiplier = Math.round(message.detectMultiplier);
+    }
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BfdSession>): BfdSession {
+    return BfdSession.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BfdSession>): BfdSession {
+    const message = createBaseBfdSession();
+    message.interface = object.interface ?? undefined;
+    message.localAddress = object.localAddress ?? undefined;
+    message.peerAddress = object.peerAddress ?? undefined;
+    message.desiredMinTxUs = object.desiredMinTxUs ?? undefined;
+    message.requiredMinRxUs = object.requiredMinRxUs ?? undefined;
+    message.detectMultiplier = object.detectMultiplier ?? undefined;
+    message.enabled = object.enabled ?? undefined;
     return message;
   },
 };
 
 function createBaseBfdConfig(): BfdConfig {
-  return {};
+  return { sessions: [] };
 }
 
 export const BfdConfig: MessageFns<BfdConfig> = {
-  encode(_: BfdConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: BfdConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.sessions) {
+      BfdSession.encode(v!, writer.uint32(10).fork()).join();
+    }
     return writer;
   },
 
@@ -10841,6 +15529,14 @@ export const BfdConfig: MessageFns<BfdConfig> = {
       while (reader.pos < end) {
         const tag = reader.uint32();
         switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.sessions.push(BfdSession.decode(reader, reader.uint32()));
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -10853,20 +15549,28 @@ export const BfdConfig: MessageFns<BfdConfig> = {
     }
   },
 
-  fromJSON(_: any): BfdConfig {
-    return {};
+  fromJSON(object: any): BfdConfig {
+    return {
+      sessions: globalThis.Array.isArray(object?.sessions)
+        ? object.sessions.map((e: any) => BfdSession.fromJSON(e))
+        : [],
+    };
   },
 
-  toJSON(_: BfdConfig): unknown {
+  toJSON(message: BfdConfig): unknown {
     const obj: any = {};
+    if (message.sessions?.length) {
+      obj.sessions = message.sessions.map((e) => BfdSession.toJSON(e));
+    }
     return obj;
   },
 
   create(base?: DeepPartial<BfdConfig>): BfdConfig {
     return BfdConfig.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<BfdConfig>): BfdConfig {
+  fromPartial(object: DeepPartial<BfdConfig>): BfdConfig {
     const message = createBaseBfdConfig();
+    message.sessions = object.sessions?.map((e) => BfdSession.fromPartial(e)) || [];
     return message;
   },
 };
@@ -21666,11 +26370,20 @@ export const ManagementUser: MessageFns<ManagementUser> = {
 };
 
 function createBaseManagementAaa(): ManagementAaa {
-  return {};
+  return { order: [], radius: undefined, tacacs: undefined };
 }
 
 export const ManagementAaa: MessageFns<ManagementAaa> = {
-  encode(_: ManagementAaa, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: ManagementAaa, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.order) {
+      writer.uint32(10).string(v!);
+    }
+    if (message.radius !== undefined) {
+      AaaRadius.encode(message.radius, writer.uint32(18).fork()).join();
+    }
+    if (message.tacacs !== undefined) {
+      AaaTacacs.encode(message.tacacs, writer.uint32(26).fork()).join();
+    }
     return writer;
   },
 
@@ -21687,6 +26400,30 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
       while (reader.pos < end) {
         const tag = reader.uint32();
         switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.order.push(reader.string());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.radius = AaaRadius.decode(reader, reader.uint32());
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.tacacs = AaaTacacs.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -21699,30 +26436,514 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
     }
   },
 
-  fromJSON(_: any): ManagementAaa {
-    return {};
+  fromJSON(object: any): ManagementAaa {
+    return {
+      order: globalThis.Array.isArray(object?.order) ? object.order.map((e: any) => globalThis.String(e)) : [],
+      radius: isSet(object.radius) ? AaaRadius.fromJSON(object.radius) : undefined,
+      tacacs: isSet(object.tacacs) ? AaaTacacs.fromJSON(object.tacacs) : undefined,
+    };
   },
 
-  toJSON(_: ManagementAaa): unknown {
+  toJSON(message: ManagementAaa): unknown {
     const obj: any = {};
+    if (message.order?.length) {
+      obj.order = message.order;
+    }
+    if (message.radius !== undefined) {
+      obj.radius = AaaRadius.toJSON(message.radius);
+    }
+    if (message.tacacs !== undefined) {
+      obj.tacacs = AaaTacacs.toJSON(message.tacacs);
+    }
     return obj;
   },
 
   create(base?: DeepPartial<ManagementAaa>): ManagementAaa {
     return ManagementAaa.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<ManagementAaa>): ManagementAaa {
+  fromPartial(object: DeepPartial<ManagementAaa>): ManagementAaa {
     const message = createBaseManagementAaa();
+    message.order = object.order?.map((e) => e) || [];
+    message.radius = (object.radius !== undefined && object.radius !== null)
+      ? AaaRadius.fromPartial(object.radius)
+      : undefined;
+    message.tacacs = (object.tacacs !== undefined && object.tacacs !== null)
+      ? AaaTacacs.fromPartial(object.tacacs)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseAaaRadius(): AaaRadius {
+  return { servers: [] };
+}
+
+export const AaaRadius: MessageFns<AaaRadius> = {
+  encode(message: AaaRadius, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.servers) {
+      RadiusServer.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AaaRadius {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAaaRadius();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.servers.push(RadiusServer.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AaaRadius {
+    return {
+      servers: globalThis.Array.isArray(object?.servers)
+        ? object.servers.map((e: any) => RadiusServer.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: AaaRadius): unknown {
+    const obj: any = {};
+    if (message.servers?.length) {
+      obj.servers = message.servers.map((e) => RadiusServer.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AaaRadius>): AaaRadius {
+    return AaaRadius.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AaaRadius>): AaaRadius {
+    const message = createBaseAaaRadius();
+    message.servers = object.servers?.map((e) => RadiusServer.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseRadiusServer(): RadiusServer {
+  return {
+    address: undefined,
+    authPort: undefined,
+    acctPort: undefined,
+    secretRef: undefined,
+    timeoutSec: undefined,
+    vrf: undefined,
+  };
+}
+
+export const RadiusServer: MessageFns<RadiusServer> = {
+  encode(message: RadiusServer, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== undefined) {
+      writer.uint32(10).string(message.address);
+    }
+    if (message.authPort !== undefined) {
+      writer.uint32(16).uint32(message.authPort);
+    }
+    if (message.acctPort !== undefined) {
+      writer.uint32(24).uint32(message.acctPort);
+    }
+    if (message.secretRef !== undefined) {
+      writer.uint32(34).string(message.secretRef);
+    }
+    if (message.timeoutSec !== undefined) {
+      writer.uint32(40).uint32(message.timeoutSec);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(50).string(message.vrf);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RadiusServer {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRadiusServer();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.authPort = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.acctPort = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.secretRef = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.timeoutSec = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RadiusServer {
+    return {
+      address: isSet(object.address) ? globalThis.String(object.address) : undefined,
+      authPort: isSet(object.authPort)
+        ? globalThis.Number(object.authPort)
+        : isSet(object.auth_port)
+        ? globalThis.Number(object.auth_port)
+        : undefined,
+      acctPort: isSet(object.acctPort)
+        ? globalThis.Number(object.acctPort)
+        : isSet(object.acct_port)
+        ? globalThis.Number(object.acct_port)
+        : undefined,
+      secretRef: isSet(object.secretRef)
+        ? globalThis.String(object.secretRef)
+        : isSet(object.secret_ref)
+        ? globalThis.String(object.secret_ref)
+        : undefined,
+      timeoutSec: isSet(object.timeoutSec)
+        ? globalThis.Number(object.timeoutSec)
+        : isSet(object.timeout_sec)
+        ? globalThis.Number(object.timeout_sec)
+        : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+    };
+  },
+
+  toJSON(message: RadiusServer): unknown {
+    const obj: any = {};
+    if (message.address !== undefined) {
+      obj.address = message.address;
+    }
+    if (message.authPort !== undefined) {
+      obj.authPort = Math.round(message.authPort);
+    }
+    if (message.acctPort !== undefined) {
+      obj.acctPort = Math.round(message.acctPort);
+    }
+    if (message.secretRef !== undefined) {
+      obj.secretRef = message.secretRef;
+    }
+    if (message.timeoutSec !== undefined) {
+      obj.timeoutSec = Math.round(message.timeoutSec);
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RadiusServer>): RadiusServer {
+    return RadiusServer.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RadiusServer>): RadiusServer {
+    const message = createBaseRadiusServer();
+    message.address = object.address ?? undefined;
+    message.authPort = object.authPort ?? undefined;
+    message.acctPort = object.acctPort ?? undefined;
+    message.secretRef = object.secretRef ?? undefined;
+    message.timeoutSec = object.timeoutSec ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    return message;
+  },
+};
+
+function createBaseAaaTacacs(): AaaTacacs {
+  return { servers: [] };
+}
+
+export const AaaTacacs: MessageFns<AaaTacacs> = {
+  encode(message: AaaTacacs, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.servers) {
+      TacacsServer.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AaaTacacs {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAaaTacacs();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.servers.push(TacacsServer.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AaaTacacs {
+    return {
+      servers: globalThis.Array.isArray(object?.servers)
+        ? object.servers.map((e: any) => TacacsServer.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: AaaTacacs): unknown {
+    const obj: any = {};
+    if (message.servers?.length) {
+      obj.servers = message.servers.map((e) => TacacsServer.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AaaTacacs>): AaaTacacs {
+    return AaaTacacs.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AaaTacacs>): AaaTacacs {
+    const message = createBaseAaaTacacs();
+    message.servers = object.servers?.map((e) => TacacsServer.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseTacacsServer(): TacacsServer {
+  return { address: undefined, port: undefined, secretRef: undefined, timeoutSec: undefined, vrf: undefined };
+}
+
+export const TacacsServer: MessageFns<TacacsServer> = {
+  encode(message: TacacsServer, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== undefined) {
+      writer.uint32(10).string(message.address);
+    }
+    if (message.port !== undefined) {
+      writer.uint32(16).uint32(message.port);
+    }
+    if (message.secretRef !== undefined) {
+      writer.uint32(26).string(message.secretRef);
+    }
+    if (message.timeoutSec !== undefined) {
+      writer.uint32(32).uint32(message.timeoutSec);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(42).string(message.vrf);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): TacacsServer {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseTacacsServer();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.port = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.secretRef = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.timeoutSec = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): TacacsServer {
+    return {
+      address: isSet(object.address) ? globalThis.String(object.address) : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
+      secretRef: isSet(object.secretRef)
+        ? globalThis.String(object.secretRef)
+        : isSet(object.secret_ref)
+        ? globalThis.String(object.secret_ref)
+        : undefined,
+      timeoutSec: isSet(object.timeoutSec)
+        ? globalThis.Number(object.timeoutSec)
+        : isSet(object.timeout_sec)
+        ? globalThis.Number(object.timeout_sec)
+        : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+    };
+  },
+
+  toJSON(message: TacacsServer): unknown {
+    const obj: any = {};
+    if (message.address !== undefined) {
+      obj.address = message.address;
+    }
+    if (message.port !== undefined) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.secretRef !== undefined) {
+      obj.secretRef = message.secretRef;
+    }
+    if (message.timeoutSec !== undefined) {
+      obj.timeoutSec = Math.round(message.timeoutSec);
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<TacacsServer>): TacacsServer {
+    return TacacsServer.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<TacacsServer>): TacacsServer {
+    const message = createBaseTacacsServer();
+    message.address = object.address ?? undefined;
+    message.port = object.port ?? undefined;
+    message.secretRef = object.secretRef ?? undefined;
+    message.timeoutSec = object.timeoutSec ?? undefined;
+    message.vrf = object.vrf ?? undefined;
     return message;
   },
 };
 
 function createBaseManagementTls(): ManagementTls {
-  return {};
+  return { certificateRef: undefined, privateKeyRef: undefined, minVersion: undefined };
 }
 
 export const ManagementTls: MessageFns<ManagementTls> = {
-  encode(_: ManagementTls, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: ManagementTls, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.certificateRef !== undefined) {
+      writer.uint32(10).string(message.certificateRef);
+    }
+    if (message.privateKeyRef !== undefined) {
+      writer.uint32(18).string(message.privateKeyRef);
+    }
+    if (message.minVersion !== undefined) {
+      writer.uint32(26).string(message.minVersion);
+    }
     return writer;
   },
 
@@ -21739,6 +26960,30 @@ export const ManagementTls: MessageFns<ManagementTls> = {
       while (reader.pos < end) {
         const tag = reader.uint32();
         switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.certificateRef = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.privateKeyRef = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.minVersion = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -21751,30 +26996,73 @@ export const ManagementTls: MessageFns<ManagementTls> = {
     }
   },
 
-  fromJSON(_: any): ManagementTls {
-    return {};
+  fromJSON(object: any): ManagementTls {
+    return {
+      certificateRef: isSet(object.certificateRef)
+        ? globalThis.String(object.certificateRef)
+        : isSet(object.certificate_ref)
+        ? globalThis.String(object.certificate_ref)
+        : undefined,
+      privateKeyRef: isSet(object.privateKeyRef)
+        ? globalThis.String(object.privateKeyRef)
+        : isSet(object.private_key_ref)
+        ? globalThis.String(object.private_key_ref)
+        : undefined,
+      minVersion: isSet(object.minVersion)
+        ? globalThis.String(object.minVersion)
+        : isSet(object.min_version)
+        ? globalThis.String(object.min_version)
+        : undefined,
+    };
   },
 
-  toJSON(_: ManagementTls): unknown {
+  toJSON(message: ManagementTls): unknown {
     const obj: any = {};
+    if (message.certificateRef !== undefined) {
+      obj.certificateRef = message.certificateRef;
+    }
+    if (message.privateKeyRef !== undefined) {
+      obj.privateKeyRef = message.privateKeyRef;
+    }
+    if (message.minVersion !== undefined) {
+      obj.minVersion = message.minVersion;
+    }
     return obj;
   },
 
   create(base?: DeepPartial<ManagementTls>): ManagementTls {
     return ManagementTls.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<ManagementTls>): ManagementTls {
+  fromPartial(object: DeepPartial<ManagementTls>): ManagementTls {
     const message = createBaseManagementTls();
+    message.certificateRef = object.certificateRef ?? undefined;
+    message.privateKeyRef = object.privateKeyRef ?? undefined;
+    message.minVersion = object.minVersion ?? undefined;
     return message;
   },
 };
 
 function createBaseSyslogTarget(): SyslogTarget {
-  return {};
+  return { address: undefined, port: undefined, protocol: undefined, severity: undefined, vrf: undefined };
 }
 
 export const SyslogTarget: MessageFns<SyslogTarget> = {
-  encode(_: SyslogTarget, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: SyslogTarget, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== undefined) {
+      writer.uint32(10).string(message.address);
+    }
+    if (message.port !== undefined) {
+      writer.uint32(16).uint32(message.port);
+    }
+    if (message.protocol !== undefined) {
+      writer.uint32(26).string(message.protocol);
+    }
+    if (message.severity !== undefined) {
+      writer.uint32(34).string(message.severity);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(42).string(message.vrf);
+    }
     return writer;
   },
 
@@ -21791,6 +27079,46 @@ export const SyslogTarget: MessageFns<SyslogTarget> = {
       while (reader.pos < end) {
         const tag = reader.uint32();
         switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.port = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.protocol = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.severity = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -21803,20 +27131,46 @@ export const SyslogTarget: MessageFns<SyslogTarget> = {
     }
   },
 
-  fromJSON(_: any): SyslogTarget {
-    return {};
+  fromJSON(object: any): SyslogTarget {
+    return {
+      address: isSet(object.address) ? globalThis.String(object.address) : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : undefined,
+      severity: isSet(object.severity) ? globalThis.String(object.severity) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+    };
   },
 
-  toJSON(_: SyslogTarget): unknown {
+  toJSON(message: SyslogTarget): unknown {
     const obj: any = {};
+    if (message.address !== undefined) {
+      obj.address = message.address;
+    }
+    if (message.port !== undefined) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.protocol !== undefined) {
+      obj.protocol = message.protocol;
+    }
+    if (message.severity !== undefined) {
+      obj.severity = message.severity;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
     return obj;
   },
 
   create(base?: DeepPartial<SyslogTarget>): SyslogTarget {
     return SyslogTarget.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<SyslogTarget>): SyslogTarget {
+  fromPartial(object: DeepPartial<SyslogTarget>): SyslogTarget {
     const message = createBaseSyslogTarget();
+    message.address = object.address ?? undefined;
+    message.port = object.port ?? undefined;
+    message.protocol = object.protocol ?? undefined;
+    message.severity = object.severity ?? undefined;
+    message.vrf = object.vrf ?? undefined;
     return message;
   },
 };

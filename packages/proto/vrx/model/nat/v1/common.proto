@@ -1,0 +1,86 @@
+// Reconciler object model of the NAT-family descriptors (DF-3: apps/agent/internal/descriptors/
+// {nat44ed,nat44ei,nat64,nat66,det44,mapnat,cnat,pnat}, branch task/DF-3 at 08d0af4).
+//
+// Agent-internal: these messages are the Value of scheduler.KV for the NAT descriptors, i.e. one
+// VPP object after the desired-state builder (P08) has resolved vrx.v1.NatConfig into VPP terms
+// (VRF names → table ids, pools → address ranges, interfaces → logical names, D-069). They never
+// cross the API↔agent boundary. D-055: they replace the *structpb.Struct carrier of the DF-3 typed
+// specs (natcommon.Encode/Decode) field for field — every field name equals the spec's json tag,
+// so the factory adapts by swapping the carrier; semantics and canonical form (natcommon
+// Normalize: addresses through net/netip, protocol names via CanonProto) are unchanged.
+//
+// Presence: proto3 implicit presence on purpose (unlike DesiredState, D-039): specs always carry
+// every field and the zero value is each field's canonical "not set" (documented per field), so
+// proto.Equal is the same diff as on the structpb form. Enumerations are strings with the allowed
+// values in the comment (D-P03-1). Messages whose fields are identical across plugins are shared
+// (this file); everything else is prefixed with its plugin.
+syntax = "proto3";
+
+package vrx.model.nat.v1;
+
+option go_package = "ngfw/agent/gen/vrx/model/nat/v1;natv1";
+
+// Endpoint is an ip:port pair of a nat44-ed / nat44-ei static mapping (spec Endpoint). External
+// endpoints may name an interface instead of an address (VPP resolves its first address).
+message Endpoint {
+  // IPv4 address, canonical; empty when interface is set.
+  string ip = 1;
+  // L4 port; 0 with addr_only mappings.
+  uint32 port = 2;
+  // Logical interface name (D-069) instead of ip; empty = none.
+  string interface = 3;
+}
+
+// Timeouts is a session-timeout singleton (nat44-ed, nat44-ei, nat64, det44 TimeoutsSpec), in
+// seconds. Presence = non-default values (VPP defaults are "no object"). VPP-global: globals
+// owner only (D-071).
+message Timeouts {
+  // UDP session timeout.
+  uint32 udp = 1;
+  // Established TCP session timeout.
+  uint32 tcp_established = 2;
+  // Transitory TCP session timeout.
+  uint32 tcp_transitory = 3;
+  // ICMP session timeout.
+  uint32 icmp = 4;
+}
+
+// InterfaceFeature puts an interface on one side of a translator (nat44-ed, nat44-ei, nat64,
+// nat66, det44 InterfaceFeatureSpec/InterfaceSpec). nat44: an interface that is both inside and
+// outside is two objects; nat66: one object per interface, a side change is an in-place update.
+message InterfaceFeature {
+  // Logical interface name (D-069).
+  string interface = 1;
+  // "inside" | "outside" (nat64: inside = IPv6, outside = IPv4).
+  string side = 2;
+}
+
+// OutputFeature puts an interface on the output-feature (post-routing) NAT path
+// (nat44_ed_add_del_output_interface, nat44_ei_add_del_output_interface).
+message OutputFeature {
+  // Logical interface name (D-069).
+  string interface = 1;
+}
+
+// Forwarding is the nat44-ed / nat44-ei forwarding singleton (*_forwarding_enable_disable).
+// Presence means enabled; VPP's default (off) is "no object". VPP-global (D-071).
+message Forwarding {}
+
+// IdentityMapping maps an address (or an interface's address) to itself (nat44-ed / nat44-ei
+// IdentityMappingSpec, nat44_add_del_identity_mapping / nat44_ei_add_del_identity_mapping).
+message IdentityMapping {
+  // Stable id; VPP tag "<owner>:<name>".
+  string name = 1;
+  // IPv4 address; empty when interface is set.
+  string ip = 2;
+  // Logical interface name whose address is used; empty = none.
+  string interface = 3;
+  // Protocol name ("tcp" | "udp" | "icmp") or "" with addr_only.
+  string protocol = 4;
+  // L4 port; 0 with addr_only.
+  uint32 port = 5;
+  // FIB table id.
+  uint32 vrf = 6;
+  // Address-only mapping (no protocol/port).
+  bool addr_only = 7;
+}

@@ -9,8 +9,8 @@
 // snake_case aliases are accepted. Strictness is therefore asserted structurally here
 // (`toJSON(fromJSON(doc))` must deep-equal `doc`, which fails the moment a key is unknown) and
 // natively on the Go side (`protojson.Unmarshal`, `DiscardUnknown=false`,
-// apps/agent/internal/contracttest). The full Zod→proto drift guard (JSON Schema keys ⊆ proto fields,
-// documents run through `RootConfig.parse()` first) is P03b's.
+// apps/agent/internal/contracttest). The Zod→proto drift guard is P03b's: JSON Schema ⊆ proto fields
+// in Go (contracttest drift_test.go) and `RootConfig.parse()`d documents in parsed-documents.test.ts.
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
@@ -219,7 +219,7 @@ describe('DesiredState mirrors RootConfig', () => {
 
   it('typed construction compiles for every domain and the envelopes', () => {
     const ds = DesiredState.fromPartial({
-      system: { hostname: 'vrx-a', timezone: 'UTC', banner: { login: 'hi' }, ntp: {}, dns: {} },
+      system: { hostname: 'vrx-a', timezone: 'UTC', banner: { login: 'hi' }, dns: {} },
       dataplane: { workers: 2, corelist: [2, 3], pciWhitelist: [] },
       interfaces: { loop700: { enabled: true, mtu: 1500, ipv4: ['10.7.0.1/24'], vrf: 'default', rxMode: 'polling', promiscuous: false } },
       vrfs: { default: { id: 0 }, 'w7-a': { id: 7001, description: 'slot 7' } },

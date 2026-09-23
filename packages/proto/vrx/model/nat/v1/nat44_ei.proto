@@ -1,0 +1,66 @@
+// NAT44 endpoint-independent (nat44-ei plugin) objects of the DF-3 descriptors; see common.proto
+// for the conventions. Shared: Endpoint, Timeouts, InterfaceFeature, OutputFeature, Forwarding,
+// IdentityMapping.
+syntax = "proto3";
+
+package vrx.model.nat.v1;
+
+option go_package = "ngfw/agent/gen/vrx/model/nat/v1;natv1";
+
+import "vrx/model/nat/v1/common.proto";
+
+// Nat44EiEnable is the plugin singleton (nat44_ei_plugin_enable_disable). Session limits are
+// startup.conf/CLI settings in nat44-ei and not modelled. VPP-global (D-071).
+message Nat44EiEnable {
+  // Inside FIB table id.
+  uint32 inside_vrf = 1;
+  // Outside FIB table id.
+  uint32 outside_vrf = 2;
+  // Static-mapping-only mode.
+  bool static_mapping_only = 3;
+  // Connection tracking (with static_mapping_only).
+  bool connection_tracking = 4;
+  // Out-to-in DPO.
+  bool out2in_dpo = 5;
+}
+
+// Nat44EiIpfix is the IPFIX logging singleton (nat44_ei_ipfix_enable_disable); the exporter is a
+// separate object. VPP-global (D-071).
+message Nat44EiIpfix {
+  // IPFIX observation domain id.
+  uint32 domain_id = 1;
+  // IPFIX source port.
+  uint32 src_port = 2;
+}
+
+// Nat44EiInterfaceAddress uses the interface's address as pool address (nat44_ei_add_del_interface_addr).
+message Nat44EiInterfaceAddress {
+  // Logical interface name (D-069).
+  string interface = 1;
+}
+
+// Nat44EiAddressPool is a contiguous pool range (nat44_ei_add_del_address_range), inclusive.
+message Nat44EiAddressPool {
+  // First IPv4 address.
+  string first = 1;
+  // Last IPv4 address (≥ first).
+  string last = 2;
+  // FIB table id.
+  uint32 vrf = 3;
+}
+
+// Nat44EiStaticMapping is one static mapping (nat44_ei_add_del_static_mapping), tagged "<owner>:<name>".
+message Nat44EiStaticMapping {
+  // Stable id; VPP tag "<owner>:<name>".
+  string name = 1;
+  // Inside endpoint.
+  Endpoint local = 2;
+  // Outside endpoint (may name an interface).
+  Endpoint external = 3;
+  // Protocol name ("tcp" | "udp" | "icmp") or "" with addr_only.
+  string protocol = 4;
+  // FIB table id.
+  uint32 vrf = 5;
+  // Address-only mapping.
+  bool addr_only = 6;
+}

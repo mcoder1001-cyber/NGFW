@@ -15,12 +15,16 @@ Renaming or reshaping an existing field is always a PENDING decision (`docs/deci
 | `src/domains/<key>.ts` | `<Key>Schema` + `<Key>Config` type for one top-level key | see below |
 | `src/semantic/<key>.ts` | `<key>Validators: ValidatorDefinition[]` for that domain | same as the domain |
 | `src/semantic/registry.ts`, `semantic/index.ts` | `SemanticRegistry`, `validateSemantics()` → `{ pointer, message }[]` | P02a |
-| `src/primitives.ts` | `ipv4Cidr`, `ipv6Cidr`, `ipAddress`, `macAddress`, `vppInterfaceName`, `hostname`, `objectName` | P02a |
-| `src/ui.ts` | `withUi(schema, { title, description, widget, group, order, help })` → `x-vrx-ui` hints | P02a |
+| `src/semantic/unique.ts` | `duplicateIssues()` — uniqueness of list item keys (use `ipKey`/`prefixKey` for addresses) | P02a |
+| `src/secrets.ts` | `redactSecrets(doc)`, `secretPointers(doc)` driven by `x-vrx-ui.secret` (D-046) | P02a |
+| `src/primitives.ts`, `src/ip.ts` | shared field primitives (addresses, prefixes, names, numbers, secrets, time zone) and pure IP arithmetic (`parseCidr`, `prefixesOverlap`, …) | P02a |
+| `src/ui.ts` | `withUi(schema, { title, description, widget, group, order, help, secret, itemKey })` → `x-vrx-ui` hints, merged with the wrapped schema's hints | P02a |
 | `src/pointer.ts`, `src/json.ts` | RFC 6901 pointers (escape `/` in VPP interface names!), JSON helpers | P02a |
-| `src/diff.ts`, `src/merge-patch.ts` | structured `diff(a, b)` → `{ op, pointer, from, to }[]`; RFC 7386 `mergePatch` | P02a |
+| `src/diff.ts`, `src/merge-patch.ts` | structured `diff(a, b)` → `{ op, pointer, from, to }[]`; RFC 7386 `mergePatch`, `mergePatchAt(doc, pointer, patch)` (`MergePatchError` on `__proto__`/`constructor`/`prototype`) | P02a |
+| `src/validate.ts` | `validateConfig(doc)` = tier (a) schema + tier (b) semantic → `{ ok, config }` / `{ ok: false, tier, issues }`; `pointerIssues()` | P02a |
 | `src/generate.ts`, `src/gen.ts` | pure generator + CLI writing `dist/json-schema/*.json`, `dist/openapi-components.json` | P02a |
-| `examples/*.json` | fixtures parsed by `examples.test.ts`; `invalid-*` must fail | all |
+| `vitest.config.ts` | coverage thresholds, per group (D-048): 100 % on group (a)'s semantic files and the shared helpers; groups (b)/(c) add their own entries | P02a |
+| `examples/*.json` | fixtures, each group tests its own (`examples.test.ts` = group (a)); valid ones carry no secret leaf (proto drift corpus) | all |
 
 Domain groups: **P02a** system, dataplane, interfaces, vrfs, routing, management · **P02b** nat, objects, acl ·
 **P02c** vpn, tunnels, services, ha. A group edits only its own `domains/<key>.ts`, `semantic/<key>.ts` and
@@ -29,7 +33,11 @@ fixtures. Need a shared primitive that is not here? Add it in your domain file a
 ## Conventions
 
 - Every field goes through `withUi()` so the form renderer gets `title` + `x-vrx-ui`; use the primitives.
+- Every modelled object is `z.strictObject` (unknown keys are rejected with a pointer); records validate their keys.
 - Every domain schema must accept `{}` (root `prefault`); model "required" settings as defaults or semantic rules.
+- Protocol / feature blocks that can be off are `.optional()` objects (absent = disabled), not `enabled: false` shells.
+- Single-object consistency (families match, sequence numbers unique …) is a `.refine()` with a `path`; anything that
+  looks at another object or domain is a semantic validator.
 - Semantic validators are pure functions of the whole document returning `{ pointer, message }[]`, named
   `<domain>.<rule>`, pointers built with `jsonPointer()`.
 - Guardrails from `docs/decisions/vdom.md`: VRF first-class on interfaces/routes/NAT/ACL attachments/IPsec; names
@@ -38,4 +46,5 @@ fixtures. Need a shared primitive that is not here? Add it in your domain file a
 
 ## Commands
 
-`pnpm gen` · `pnpm typecheck` · `pnpm lint` · `pnpm test` (Vitest, unit) — all run by `tools/ci.sh`.
+`pnpm gen` · `pnpm typecheck` · `pnpm lint` · `pnpm test` (Vitest, unit) — all run by `tools/ci.sh` ·
+`pnpm test:coverage` (v8, thresholds in `vitest.config.ts`). Field-level documentation: `docs/contracts/schema.md`.

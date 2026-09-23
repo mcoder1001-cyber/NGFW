@@ -10,3 +10,12 @@
   show_private_key (never used). These drive the secret-reference design.
 - Plan: shared `descriptors/vpn` (proto types, secret refs + resolver, address/interface helpers), then ipsec (7 objects),
   ikev2 (3 + state helper), wireguard (3 + events), unit tests on the fake, one integration check per object type, docs.
+- 2026-09-24 CONTINUE (respawned on host): salvaged ipsec/ (cc002dc) checked — builds, vet clean, unit tests green,
+  TestIpsecOnHost green against host VPP with prefix w4 (all 8 descriptors; backend dump empty on 26.06, async skipped).
+  ipsec = done. Next: ikev2 (profile, local-key, sleep-interval, + liveness singleton, SA state helper), wireguard.
+- ikev2 VPP findings (read-only /root/vpp/src/plugins/ikev2): transform/id/auth fields are raw u8 in binapi, value
+  tables come from ikev2.h foreach_* macros (IANA numbers); ikev2_profile_dump returns the PSK (auth.data) and the
+  rsa-sig cert path (+NUL); responder hostname is not dumped; ipsec_udp_port can only be set when unset; udp_encap /
+  natt_disabled are set-only; liveness is global (period, max_retries), no getter; profile add registers VPP-internal
+  UDP 500/4500 (refcounted, VPP stack only — not a host socket); govpp decodes id.data (string[64]) up to the first NUL,
+  so ip4/ip6 ids containing a zero byte are truncated in the dump.

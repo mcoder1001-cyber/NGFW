@@ -18,13 +18,13 @@ For each object type in <plugin list> (enumerate them in `docs/status/tasks/DF-<
 1. Descriptor in `apps/agent/internal/descriptors/<plugin>/<object>.go`: `KeyOf`, `Dependencies`, `Create`, `Update` (or `ErrRecreate`), `Delete`, `Retrieve` (full dump, decoded into the same proto type used for desired state, including metadata such as sw_if_index).
 2. Registration in the plugin's `Register(scheduler)` function; add to the descriptor registry list.
 3. Unit tests with the fake VPP client (table-driven: create, idempotent re-apply, update, delete, dependency ordering, Retrieve decoding).
-4. Integration test against the host VPP (`/run/vpp/api.sock`): create → Retrieve shows it → delete → Retrieve shows nothing. Use loopbacks/tables/dummy objects; never touch `local0` or interfaces you did not create; clean up in `t.Cleanup`.
+4. Integration test against the host VPP (`/run/vpp/api.sock`, `VRX_INTEGRATION=1`, `flock -s /run/lock/vrx-lab.lock`): create → Retrieve shows it → delete → Retrieve shows nothing. **Every object name/tag/table id carries your `VRX_TEST_PREFIX` / slot range** (`docs/lab/shared-host-rules.md`); Retrieve-based assertions filter by your prefix (other workers' objects exist on the same VPP). Use loopbacks/tables/dummy objects; never touch `local0` or anything unprefixed; clean up in `t.Cleanup`.
 5. `docs/agent/descriptors/<plugin>.md`: table object type ↔ VPP messages ↔ notes/limitations.
 
 ## Rules
-- Message names come from binapi; if a message you need is missing from `apps/agent/binapi/`, add the plugin to `tools/binapi-gen.sh`, regenerate, commit the generated code in the same branch.
+- Message names come from binapi. `apps/agent/binapi/` is **manager-owned** (generated for all plugins by P04): if a message is missing, write `docs/status/tasks/DF-<n>-questions.md` naming the plugin and continue with the rest; never edit `tools/binapi-gen.sh` or `apps/agent/binapi/` in your branch.
 - Retrieve must decode *everything* the diff needs; a descriptor without Retrieve is not done.
-- No shelling out to `vppctl`. No C. No changes to `startup.conf`.
+- No shelling out to `vppctl`. No C. No changes to `startup.conf`. No VPP restarts (D-012).
 
 ## Acceptance (paste the evidence)
 - [ ] `go test ./internal/descriptors/<plugin>/...` green (unit + integration on the host)

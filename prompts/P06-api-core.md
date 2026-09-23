@@ -8,7 +8,7 @@ the agent, revisions/rollback, confirmed commit, auth/RBAC/audit, live telemetry
 `docs/04-api-datamodel.md`, `packages/schema` (P02), `packages/proto/gen/ts` (P03).
 
 ## Build exactly this
-1. **Persistence** (Prisma or Drizzle — pick one, justify): tables from docs/04
+1. **Persistence** (Prisma or Drizzle — pick one, justify; connection from `VRX_DATABASE_URL`): tables from docs/04
    (`config_revision`, `config_candidate`, `audit_log`, `app_user`, `api_key`, `secret`,
    `system_event`). Migrations committed. Seed: one admin user from `VRX_BOOTSTRAP_ADMIN_PASSWORD`.
 2. **Datastore service**: `getRunning()`, `getCandidate(user)`, `patchCandidate(pointer,
@@ -34,10 +34,12 @@ the agent, revisions/rollback, confirmed commit, auth/RBAC/audit, live telemetry
 8. **Telemetry relay**: subscribe to agent `StreamStats`/`StreamEvents`; fan out on
    `WS /api/v1/stream` with `{subscribe:[topics]}`; per-connection topic filter; heartbeat.
 9. **OpenAPI** generated from Nest decorators + Zod → `pnpm gen` updates `packages/api-client`.
-10. Tests: unit for datastore/diff/lock; e2e with real Postgres (testcontainers) and the
-    lab VM's agent: patch MTU → diff shows it → commit → `vppctl show int` reflects it →
-    rollback → reverted; commit with `confirm=5` and no confirm → reverted after 5 s;
-    invalid overlapping IPs → 400 with pointer; readonly user PATCH → 403.
+10. Tests: unit for datastore/diff/lock; e2e against the **host PostgreSQL** (Ubuntu 26.04's version, ≥ 16 — no testcontainers,
+    no Docker): the test bootstrap runs `deploy/dev/pg-test.sh create vrx_${VRX_TEST_PREFIX}` and drops only that database at the
+    end; Valkey = host `valkey-server` with logical db `VRX_VALKEY_DB` or key prefix `vrx:${VRX_TEST_PREFIX}:` — never `FLUSHALL`.
+    Agent e2e (`VRX_INTEGRATION=1`, shared lab lock, your slot's agent socket) with a P05 agent started by the test under your
+    `VRX_OWNER`: patch a prefixed loopback's IP → diff shows it → commit → `Retrieve` + `vppctl show int addr` reflect it → rollback →
+    reverted; commit with `confirm=5` and no confirm → reverted after 5 s; overlapping IPs → 400 with pointer; readonly PATCH → 403.
 
 ## Acceptance
 - [ ] All tests green; OpenAPI valid (`redocly lint`); `packages/api-client` regenerated

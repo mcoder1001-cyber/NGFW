@@ -1,20 +1,12 @@
-# Task: Daily integration   (prepend 00-CONTEXT.md)
+# Task: Integration check   (prepend 00-CONTEXT.md)
 
-You are the integration agent. Run this once per day, end of day.
+You verify `main` after the manager's merges. You do **not** merge, revert, or touch worktrees. Git is local-only; VPP on this host is shared
+and must not be restarted while handover is pending.
 
-1. List open PRs approved by the review agent. Merge them into `main` in dependency
-   order (contracts first, agent, api, web). Resolve trivial conflicts; for anything
-   non-trivial, stop and report which two PRs conflict and why.
-2. On `main`: `pnpm install && pnpm gen` — generated output must be clean
-   (`git status` empty). If not, a PR hand-edited generated code: find it, revert, report.
-3. `tools/lab down && tools/lab up tri`.
-4. Run the full suite: lint, typecheck, unit, integration, then the topology E2E in
-   `test/topology/` (three VRX nodes + traffic hosts). Paste the summary.
-5. Chaos pass: `tools/lab kill-vpp vrx-a`; verify every
-   configured object is back within 30 s by comparing `Retrieve` output before/after.
-6. Tag `main` as `nightly-YYYYMMDD`. Write `docs/status/YYYY-MM-DD.md`: what merged,
-   what is red, what is blocked, what the humans must verify tomorrow (see
-   docs/10 §5 human gates).
-7. If anything is red, open an issue per failure with the reproduction and assign the
-   originating PR's branch name. Do not attempt large fixes yourself — your job is to
-   keep `main` honest, not to write features.
+1. `git -C /root/ngfw log --since=24h --oneline` — list what the manager merged. `git status --porcelain` must be empty; if not, report it.
+2. On `main`: `pnpm install --frozen-lockfile && pnpm gen` — generated paths must be clean (`git status --porcelain -- packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated`). If not, a merge brought hand-edited generated code: report the commit.
+3. `tools/ci.sh quick`, then `tools/ci.sh full` (it takes the exclusive lab lock and uses slot 12 and the veth rig; never `tools/lab down` in local mode — `vrx-a` is this host). If `test/topology/tri.yml` lists reachable VMs run the `tri` suite; otherwise record `tri: not available`.
+4. Leftover check: `tools/lab rig gc` for every slot prefix; `vppctl show interface` must list no `host-w*` interfaces after; report offenders by prefix (the board says which slot belongs to which task).
+5. Chaos: **only if `docs/lab/host-vrx-a.md` says `handover: done`**, and only under `flock -x /run/lock/vrx-vpp.lock`: `systemctl kill -s KILL vpp`; verify the main agent reconciles every object within 30 s by comparing `Retrieve` before/after. Otherwise write `chaos: skipped (handover pending)`.
+6. Write `docs/status/integration-<YYYY-MM-DD>.md`: what merged, what is red (with the exact failing command and log tail), leftovers, chaos result, and for each failure a row appended to `docs/tech-debt.md` plus `docs/status/tasks/<id>-fail.md` naming the originating branch. Commit on `main` **only these status files** (`git add docs/status docs/tech-debt.md && git commit`), nothing else.
+7. Do not attempt fixes — your job is to keep `main` honest, not to write features.

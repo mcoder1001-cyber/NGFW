@@ -1,7 +1,9 @@
 # VRX — shared context for every agent task
 
 > Paste this file at the top of every task prompt. It is the contract between agents.
-> If anything in your task conflicts with this file, this file wins — stop and report.
+> Precedence: your TASK ENVELOPE wins for branch, worktree, slot, time box and process; this file wins for
+> architecture and security rules; the task prompt fills in the rest. **Never stop on a conflict** — write it in
+> `docs/status/tasks/<id>-questions.md` (the manager: `docs/decisions/LOG.md`) and continue with the higher-precedence rule.
 
 ## What we are building
 
@@ -54,16 +56,20 @@ packages/proto  .proto + generated Go/TS stubs
 packages/api-client  GENERATED TS client — never hand-edit
 packages/ui-kit MUI theme, SchemaForm, DataGrid wrapper, charts
 deploy/         dev helpers, debian/, systemd units, image build   tools/lab   VMware lab driver (SSH/govc)
-test/           integration (testcontainers+VPP), topology (containerlab), e2e (playwright)
+test/           integration (host VPP + veth/netns rig), topology (VM inventories), e2e (playwright)
 docs/           design docs
 ```
 
 ## Conventions
 
 - TypeScript `strict`, ESLint flat config + Prettier; Go: `gofmt`, `go vet`, `golangci-lint`. Zero warnings.
-- Conventional Commits. One PR per task. Branch `feat/<task-id>-<slug>` in your own git worktree.
-- Tests: Vitest (TS), `go test` (Go). Integration tests run against **real VPP** in the
-  lab VM — a test that only exercises mocks does not count as an integration test.
+- Conventional Commits. **Git is local-only on the host (no remote, no PRs, no CI service).** One task = one branch `task/<id>` in
+  worktree `/root/ngfw-wt/<id>`, both created by the manager — never create your own. A "PR" in any prompt means: your branch +
+  `docs/status/tasks/<id>.md` (what / how verified with pasted output / out of scope / questions). "Labelled `contract`" means:
+  commit subject `contract(<pkg>): …` on branch `contract/<id>` plus `docs/status/tasks/<id>-contract.md` — the manager reviews it.
+- Tests: Vitest (TS), `go test` (Go). `pnpm test` / `make test` are **unit-only**. Integration tests (VPP, daemons, DB) run only
+  when `VRX_INTEGRATION=1` (Go: `t.Skip` otherwise; TS: `test:integration` script) and are executed by `tools/ci.sh full`
+  under the shared lab lock. They run against the **real VPP on this host** (`/run/vpp/api.sock`) — mocks never count as integration.
 - Errors: RFC 9457 `application/problem+json` with `pointer` to the offending JSON path.
 - i18n: every UI string through `t()`, keys in `apps/web/src/locales/{en,fa}/*.json`.
   Use logical CSS properties (`margin-inline-start`), never `margin-left`.
@@ -85,7 +91,9 @@ docs/           design docs
 
 1. Read this file, then `docs/00-MASTER-PROMPT.md`, `docs/01-architecture.md`,
    `docs/04-api-datamodel.md` and the contracts in `packages/schema` and `packages/proto`.
-2. `tools/lab up single` provisions the pre-created VMware VMs: a router (VPP 26.06 + DPDK on vmxnet3, FRR/Kea/Unbound installed) plus host-lan/host-wan; postgres and valkey run on the dev host or in the router VM (see P04).
+2. VPP 26.06 is **already running on this host** (`/run/vpp/api.sock`; facts in `docs/lab/host-vrx-a.md`). `tools/lab` and the
+   veth/netns packet rig exist once P04 is merged; PostgreSQL and Valkey are localhost systemd services (`deploy/dev/README.md`).
+   Never testcontainers, containerlab or Docker.
 3. Work only inside your task's scope. If you find you need a contract change, stop and
    open a separate PR labelled `contract` with the reasoning — do not silently change it.
 4. Run the full check before declaring done: `pnpm lint && pnpm typecheck && pnpm test`
@@ -98,6 +106,10 @@ docs/           design docs
 - Invent VPP API message names or fields · write to `main` · hand-edit generated code ·
   ship a UI screen whose backend is stubbed · mark a test "passing" that skips VPP ·
   add features not in your task · put secrets in code, logs or fixtures ·
+  paste environment variables, connection strings, PSKs, tokens or password hashes into any committed file
+  (redact as `<redacted>`; test fixtures use the literal `VRX_TEST_PSK_<id>`) ·
+  `pkill`/`killall`/kill-by-pattern (kill only PIDs you spawned) · edit `tools/binapi-gen.sh` or
+  `apps/agent/binapi/` outside P04 (ask the manager via a questions file) ·
   use XLOOKUP-style "it probably exists" library APIs — check the installed version.
 
 ---
@@ -119,11 +131,21 @@ We are running the compressed 21-day plan (`docs/11-compressed-plan-fa.md`). Rul
 - **Reduced definition of done** for a feature: (1) schema + descriptor/renderer + API + UI
   screen + en/fa strings; (2) ONE verification: after commit `Retrieve()` == desired and
   `vppctl show <x>` (or the daemon's own show command) reflects it; after rollback, nothing
-  remains; (3) survives `tools/lab restart-vpp vrx-a`. Packet-level tests only when the task
-  explicitly lists one. Unit tests only in `packages/schema`, the scheduler and the commit engine.
+  remains; (3) **restart-safety without restarting VPP**: stop your own agent process, delete your
+  prefixed objects via binapi (simulated loss), start your agent → it recreates them (log + Retrieve).
+  Nobody restarts or kills VPP while `docs/lab/host-vrx-a.md` says `handover: pending`; afterwards only
+  the manager does, under `flock /run/lock/vrx-vpp.lock`. Packet-level tests only when the task explicitly
+  lists one (path recorded: `af_packet` rig or DPDK). Unit tests are required in `packages/schema`, the
+  scheduler, the commit engine, descriptors (fake VPP client) and renderers (golden files); optional elsewhere.
+- **Shared host:** `docs/lab/shared-host-rules.md` is mandatory — your slot's `VRX_TEST_PREFIX`, ports, table
+  range, database; daemon ownership; no `pkill`/`killall` by pattern, kill only PIDs you spawned; leave
+  daemons stopped. Integration tests create only prefixed objects and clean up in `t.Cleanup`.
 - **No performance work.** Do not tune, benchmark, or claim throughput. Week 4, humans, hardware.
-- **Contracts freeze at the end of day 2.** After that, schema/proto changes need a separate
-  PR labelled `contract` and a human approval. Work around gaps in your own package meanwhile.
+- **Contracts v1 are tagged by the manager** when P02*/P03 pass acceptance (the human reviews afterwards,
+  asynchronously). After that, *additive* schema/proto changes that follow `docs/04-api-datamodel.md` are
+  ordinary `contract/<id>` branches the manager reviews and merges — no human wait, do not stall on them:
+  commit the contract change first, tell the manager via `docs/status/tasks/<id>-questions.md`, and keep
+  building against your branch. Only renaming/reshaping existing fields is always-PENDING (decision-policy #1).
 - **Prefer breadth over polish**: a working screen with a plain SchemaForm beats a beautiful
   half-wired one. Polish is week 4+.
 - Everything else in this file (architecture rules, provenance of VPP API names, no shell with

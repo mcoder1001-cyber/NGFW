@@ -24,9 +24,9 @@ Reference: TNSR "VLAN 802.1q / QinQ 802.1ad", VPP `create sub-interfaces` / `sw_
 5. **Docs**: `docs/user/interfaces/vlan-qinq.md`.
 
 ## Acceptance (paste the evidence)
-- [ ] host-lan VM sends tagged frames (scapy `Dot1Q(vlan=100)` and `Dot1AD(vlan=200)/Dot1Q(vlan=100)`);
-      `vppctl trace` shows `ethernet-input → ip4-input` on the right sub-interface; untagged and wrong-tag frames dropped
-- [ ] `tools/lab restart-vpp vrx-a` → sub-interfaces recreated with addresses within 30 s
+- [ ] After commit: `Retrieve()` == desired and `vppctl show interface <parent>.<sub>` shows dot1q 100 / dot1ad 200 dot1q 100 with the addresses;
+      after rollback no sub-interfaces remain (Retrieve empty). Optional, not required: scapy tagged frames from `ip netns exec ns-<p>-lan`
+- [ ] Agent-restart simulation → sub-interfaces recreated with addresses within 30 s
 - [ ] Rollback deletes the sub-interfaces (Retrieve shows none)
 - [ ] Duplicate (vlanId, innerVlanId) → 400 with pointer to the second entry
 

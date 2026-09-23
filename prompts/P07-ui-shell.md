@@ -1,5 +1,9 @@
 # Task P07 — Web UI shell + SchemaForm + pending-change bar   (prepend 00-CONTEXT.md)
 
+This prompt is executed as **two board tasks**; your envelope says which:
+- **P07a** (deps: P02s) — items 2, 3, 4, 5, 6 below plus the frame skeleton of item 1 (routes, nav, placeholders); no login, no server calls.
+- **P07b** (deps: P07a, P06) — items 1 (login, protected routes), 7, 8, 9, 10 against the real P06 endpoints.
+
 ## Goal
 The React/MUI application frame every feature screen will plug into: auth, layout, theme,
 RTL/i18n, the schema-driven form renderer, the server-side DataGrid wrapper, the WebSocket

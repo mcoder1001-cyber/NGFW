@@ -1,29 +1,29 @@
-# Task: Review PR <number/branch>   (prepend 00-CONTEXT.md)
+# Task: Review branch task/<id>   (prepend 00-CONTEXT.md)
 
-You are the reviewing agent. You did not write this code. Be adversarial and specific.
+You are the reviewing agent. You did not write this code. Be adversarial and specific. Git is local-only: the "PR" is the branch
+`task/<id>` plus `docs/status/tasks/<id>.md`.
 
 ## Check, in this order
-1. **Contract compliance** — did the PR change anything in `packages/schema`,
-   `packages/proto`, or generated code? If yes and the PR is not labelled `contract`, block it.
-2. **Real data-plane proof** — open the integration tests. Do they run against the VPP
-   container and assert on VPP state (`Retrieve`, counters, `trace`)? A test that asserts
-   on the agent's own in-memory map is not proof. Block if the only proof is mocks.
-3. **Restart safety** — is there a test (or pasted evidence) of reconcile after
-   `tools/lab restart-vpp vrx-a`? If the feature adds a new VPP object type and has no
-   `Retrieve`, block.
-4. **VPP API provenance** — every VPP message used must exist in `apps/agent/binapi/`.
-   Grep for it. Anything hand-typed is a hallucination until proven otherwise.
-5. **Security** — grep for `exec.Command`, `child_process`, template rendering with
-   user input, secrets in logs/fixtures/GET responses, missing authz guards on new routes.
-6. **Transaction semantics** — does rollback actually undo the VPP objects? Does a
-   renderer failure leave partial state?
-7. **UI honesty** — every new screen must call a real endpoint. Grep for TODO/mock/stub.
-8. **Scope creep** — anything built that the task did not ask for? List it; ask for removal
-   or a separate PR.
-9. **i18n** — hardcoded strings in JSX; `margin-left/right` instead of logical properties.
-10. **Tests actually run** — check CI logs, not the PR text.
+1. **Contract compliance** — `git diff --name-only main...task/<id> -- packages/schema packages/proto apps/agent/gen packages/proto/gen packages/api-client/src/generated`.
+   Any hit needs a commit whose subject starts with `contract(` **and** `docs/status/tasks/<id>-contract.md`; reshaping/renaming existing
+   fields is always a BLOCK (decision-policy #1); additive changes following docs/04 are fine.
+2. **Real verification** — open the integration tests: do they run against the host VPP (`/run/vpp/api.sock`) or the veth/netns rig and
+   assert on VPP state (`Retrieve`, `vppctl show`, counters)? A test asserting only on the agent's in-memory map is not proof. Block if the
+   only proof is mocks. Packet-level tests are required only for: vertical slice, NAT, IPsec, BGP→FIB, VRRP.
+3. **Restart safety** — evidence (pasted) of the agent-restart simulation (stop agent, delete prefixed objects, start → recreated).
+   A new VPP object type without `Retrieve` → BLOCK. Any VPP restart/kill while handover is pending → BLOCK.
+4. **VPP API provenance** — every VPP message used exists in `apps/agent/binapi/`; the branch does not modify `binapi/` or `tools/binapi-gen.sh`.
+5. **Shared-host rules** — objects/ports/databases carry the slot prefix; no `pkill`/`killall`; no system daemon units started; daemons bound
+   only to 127.0.0.1 or rig namespaces; cleanup in `t.Cleanup`.
+6. **Security** — grep for `exec.Command`, `child_process`, template rendering with user input, secrets in logs/fixtures/GET responses/status
+   files, missing authz guards on new routes.
+7. **Transaction semantics** — does rollback actually undo the VPP objects? Does a renderer failure leave partial state?
+8. **UI honesty** — every new screen calls a real endpoint; grep for TODO/mock/stub; screenshot present in the status file.
+9. **Scope creep** — anything built that the task did not ask for? List it; ask for removal or a separate task.
+10. **i18n** — hardcoded strings in JSX; `margin-left/right` instead of logical properties.
+11. **Tests actually run** — run `tools/ci.sh --base main` yourself in `/root/ngfw-wt/<id>` and compare with the output pasted in
+    `docs/status/tasks/<id>.md`; pasted output without a matching run is a BLOCK.
 
 ## Output
-A findings list ranked by severity, each with file:line, the failure scenario, and the
-fix. Then a one-line verdict: **BLOCK** / **APPROVE WITH CHANGES** / **APPROVE**.
-Do not fix the code yourself unless the task explicitly says `--fix`.
+Write `docs/status/tasks/<id>-review.md` in the worktree: findings ranked by severity, each with file:line, the failure scenario, and the
+fix; then one line: **BLOCK** / **APPROVE WITH CHANGES** / **APPROVE**. Do not fix the code yourself unless the envelope says `--fix`.

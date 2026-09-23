@@ -42,6 +42,12 @@ cd /root/ngfw && cat prompts/00-CONTEXT.md prompts/MANAGER-PROMPT.md | claude
 | تصمیم‌های گرفته‌شده | `docs/decisions/LOG.md` |
 | شواهد هر کار | `docs/status/tasks/<id>.md` |
 
+## پایش شما
+- درصد پیشرفت (بر اساس نفر-ساعت برآوردی و تعداد کار، به تفکیک مرحله) در `docs/status/PROGRESS.md` — هر تغییر بورد آن را بازمی‌سازد.
+- هر تصمیم با **گزینه‌های بررسی‌شده** در `docs/decisions/LOG.md`؛ برای برگرداندن: `OVERTURNED → …`.
+- اولین چرخه، فایل `docs/decisions/PENDING-handover.md` ساخته می‌شود (P12 و NPTv6 روی آن parked اند؛ بقیه ادامه دارند).
+- تا وقتی Claude روی سرور login نشده، مدیر همان نشست Claude روی دسکتاپ اپراتور است (تصمیم D-015)؛ همهٔ git روی سرور است.
+
 ## دو چیز که فقط شما می‌توانید بدهید (کار را متوقف نمی‌کند، ولی مسیر DPDK و FRR را باز می‌کند)
 1. **کارت شبکهٔ دیتاپلین برای همین VM**: ۲ تا ۳ vmxnet3 روی port group های جدا. تا آن موقع تست‌ها روی `af_packet`/veth انجام می‌شود (تصمیم D-010).
 2. **پرچم تحویل VPP**: وقتی راه‌اندازی VPP تمام شد، در `docs/lab/host-vrx-a.md` مقدار `handover: pending` را به `done` تغییر دهید (یا در چت بگویید). P12 (FRR/linux-cp) و NPTv6 به فعال‌شدن پلاگین در `startup.conf` نیاز دارند و تا آن موقع `parked` هستند.

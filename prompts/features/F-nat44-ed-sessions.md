@@ -1,14 +1,14 @@
-# Task: F-nat44-ed — NAT44 endpoint-dependent   (prepend 00-CONTEXT.md)
+# Task: F-nat44-ed-sessions — NAT44 endpoint-dependent + session browser   (prepend 00-CONTEXT.md)
 
 ## Goal
 Outbound NAT (source NAT / PAT), static 1:1 mappings and port forwards using VPP's `nat44-ed` plugin,
 with a live session browser. Reference: TNSR "NAT: outbound, 1:1, port forwards"; VPP plugin `nat44_ed`.
 
 ## Inputs to read first
-- Contract PR first (label `contract`): `nat{ mode: "ed", inside: [ifaceName], outside: [ifaceName],
+- Contract change first (branch `contract/<id>`, commit `contract(schema): nat`, do not wait — see FEATURE-TEMPLATE): `nat{ mode: "ed", inside: [ifaceName], outside: [ifaceName],
   pools: [{name, range: "a.b.c.d-a.b.c.e", vrf?}], staticMappings: [{name, local{ip,port?}, external{ip|pool, port?},
   protocol?, vrf?, twiceNat?}], timeouts{udp,tcpEstablished,tcpTransitory,icmp}, sessionLimit }`
-  + matching proto message. Get it approved before touching the agent.
+  + matching proto message. Tell the manager via a questions file and continue on the agent against your branch.
 - `apps/agent/binapi/nat44_ed/` — verify every message name there (`nat44_ed_plugin_enable_disable`,
   `nat44_interface_add_del_feature`, `nat44_add_del_address_range`, `nat44_add_del_static_mapping_v2`,
   `nat44_ed_set_timeouts`? — confirm in binapi, do not assume)
@@ -28,7 +28,7 @@ with a live session browser. Reference: TNSR "NAT: outbound, 1:1, port forwards"
 5. **Docs**: `docs/user/nat/nat44.md` with the three classic scenarios.
 
 ## Acceptance (paste the evidence)
-- [ ] host-lan → host-wan TCP via iperf3: `tcpdump` on wan shows the pool address, not the lan address;
+- [ ] `ip netns exec ns-<p>-lan iperf3 -c <ns-wan addr>`: `tcpdump` inside ns-wan shows the pool address, not the lan address (path: af_packet rig);
       `vppctl show nat44 sessions` shows the session; UI session browser shows the same 5-tuple
 - [ ] Port forward: connection from wan to external:8080 reaches lan host:80 (`trace` shows `nat44-ed-out2in`)
 - [ ] 1:1 mapping works both directions

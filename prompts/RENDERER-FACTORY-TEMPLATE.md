@@ -6,7 +6,7 @@ config files → applied through the daemon's own control channel → `Retrieve`
 JSON/show output → events. Same pattern for every GPL daemon; P11 (strongSwan) is the reference.
 
 ## Inputs to read first
-- `apps/agent/internal/renderers/README.md` and the `strongswan/` renderer if merged
+- `apps/agent/internal/renderers/renderer.go` + `README.md` + `ALLOWLIST.md` (P05a) — the interface and helpers you implement
 - Daemon docs: <links>. Installed on this host (disabled): frr, strongswan (stock; vrx build comes from P11), kea-dhcp4/6 + kea-ctrl-agent, unbound, chrony, snmpd, keepalived, rsyslog
 - `packages/proto` messages for the domain (P03) — the input type
 
@@ -17,13 +17,17 @@ JSON/show output → events. Same pattern for every GPL daemon; P11 (strongSwan)
 4. `Retrieve()` — daemon state as structured data (`vtysh -c "... json"`, Kea `lease4-get-all`/`config-get`, `unbound-control stats_noreset`, `chronyc -c sources`).
 5. Events where the daemon exposes them (poll at 1 Hz otherwise).
 6. Unit tests with golden files (`testdata/*.golden`) — every template path covered, including hostile strings.
-7. Integration test on this host: enable the daemon in a **test-scoped** way (start it, apply, Retrieve, stop) — you have exclusive ownership of <daemon list> for this task; nobody else starts them.
+7. Integration test on this host, **never through the system units or `/etc` paths**: start the daemon as a child process with a test-scoped
+   config dir and pidfile (`zebra/bgpd -N <ns> -f <cfg>` or `--config_file`; `charon`/`swanctl --file`; `kea-dhcp4 -c <cfg>`; `unbound -c <cfg>`;
+   `chronyd -f <cfg> -x` (no clock changes); `snmpd -c <cfg> -p <pid> 127.0.0.1:<port>`; `keepalived -f <cfg>` inside a rig namespace),
+   bound **only to `127.0.0.1:<slot port>` or to rig veths inside `ns-<prefix>-*`** — assert the rendered interface/listen list before starting;
+   never `ens192`. You own <daemon list> for this task; kill by the PID you spawned; the system units stay stopped and disabled.
 
 ## Acceptance (paste the evidence)
 - [ ] `go test ./internal/renderers/<daemon>/...` green, integration included
 - [ ] `grep -rn "sh -c\|bash -c" internal/renderers/<daemon>` is empty; `ALLOWLIST.md` updated
 - [ ] A rendered config with `"; rm -rf /` in a description field is rejected or escaped (test present)
-- [ ] Daemon left **stopped and disabled** after tests
+- [ ] No child daemon left running after tests (`pgrep -f <your cfg dir>` empty); system units untouched
 
 ## Out of scope (do not build)
 API/UI, schema changes, FRR routing-protocol semantics (that is P12/F-*), strongSwan build (P11).

@@ -1,31 +1,28 @@
-# Task P09 — CI pipeline   (prepend 00-CONTEXT.md)
+# Task P09 — CI gate for a local-only repository   (prepend 00-CONTEXT.md)
 
 ## Goal
-GitHub Actions (or GitLab CI — match the repo host) that makes CI the arbiter for every PR
-produced by every agent.
+Git on this host has no remote, no PRs and no CI service. `tools/ci.sh` (already exists, minimal) **is** the CI: the manager runs it in
+every worker's worktree before merge and on `main` after merge. Make it complete, fast, and impossible to bypass silently.
 
 ## Build exactly this
-1. `pr.yml` on pull_request: `pnpm install --frozen-lockfile` → `pnpm gen` → **fail if
-   `git status --porcelain` is non-empty** → lint → typecheck → unit (TS + Go) → build →
-   integration (`tools/lab up single`, wait for VPP health, run Go + TS integration
-   suites) → Playwright E2E against the same stack → upload traces/videos on failure.
-2. Contract guard: if `packages/schema/**`, `packages/proto/**` or `**/gen/**` changed and the
-   PR lacks label `contract`, fail with a clear message.
-3. Security: `pnpm audit --audit-level=high`, `govulncheck ./...`, gitleaks secret scan,
-   Trivy on the built packages/images; a grep gate that fails on `child_process`, `execSync`,
-   `exec.Command` outside an allow-listed file.
-4. `nightly.yml`: full topology suite + chaos (`kill vpp`) + 1-hour soak with iperf3 through
-   VPP; publish a status badge and `docs/status/nightly-latest.md`.
-5. Caching: pnpm store, Go build/module cache, the base qcow2 image (rebuild weekly or when scripts/ change; store as a CI artefact).
-6. Concurrency: cancel superseded runs per branch. Target wall time for `pr.yml` < 15 min.
-7. `CODEOWNERS`: `packages/schema`, `packages/proto`, `deploy/**` require a human reviewer.
-8. Branch protection documented in `docs/contributing.md`: no direct push to `main`,
-   required checks, squash merge, Conventional Commit title lint.
+1. `tools/ci.sh quick` (default, unit-only, < 6 min): `pnpm install --frozen-lockfile --prefer-offline` → `pnpm gen` → **fail if generated
+   paths are dirty** (`packages/proto/gen`, `apps/agent/gen`, `packages/schema/dist`, `packages/api-client/src/generated` — not the whole tree)
+   → lint → typecheck → unit tests (TS + Go, `VRX_INTEGRATION` unset) → build → `make lint test build` in `apps/agent`.
+2. `tools/ci.sh full`: quick + integration: takes `flock -x /run/lock/vrx-lab.lock`, exports the slot from `tools/lab env 12` (the CI slot),
+   `tools/lab rig up w12`, runs Go/TS integration suites with `VRX_INTEGRATION=1`, `rig down`, releases the lock. Never restarts VPP.
+3. `tools/ci.sh --base <ref>`: contract guard (contract files changed ⇒ a `contract(` commit subject on the branch, else fail) and
+   forbidden-pattern grep (shell exec in control plane, Dockerfiles/compose, `pkill`/`killall` in scripts, secrets patterns).
+4. `golangci-lint` installed (binary from GitHub releases to `/usr/local/bin`; `make lint` uses it) and `gitleaks` if downloadable;
+   both wired into quick. Record versions in `docs/contributing.md`.
+5. Pre-merge hook the manager can install: `tools/ci.sh install-hooks` → `.git/hooks/pre-merge-commit` on `/root/ngfw` running `quick`.
+6. Speed: pnpm store shared (`/root/.pnpm-store`), Go build cache, turbo cache; quick on an unchanged tree < 2 min.
+7. `.github/workflows/ci.yml` that just calls `tools/ci.sh quick` — kept for the day a remote exists; not required to run now.
+8. `docs/contributing.md`: the gate, the contract rule, the shared-host rules, how the manager merges.
 
-## Acceptance
-- [ ] A PR that hand-edits `packages/api-client` fails at the gen-dirty gate
-- [ ] A PR touching `packages/proto` without the label fails the contract guard
-- [ ] Green run recorded on the P01 scaffold; total time reported
+## Acceptance (paste the evidence)
+- [ ] A branch that hand-edits `packages/api-client/src/generated` fails the dirty gate with a clear message
+- [ ] A branch touching `packages/proto` without a `contract(` commit fails `--base main`
+- [ ] `tools/ci.sh quick` on `main`: `CI GATE PASSED`, wall time reported; `tools/ci.sh full` green with the rig (evidence pasted)
 
 ## Out of scope
-Release/publish pipelines (P10), performance CI (needs hardware).
+GitHub Actions runners, release/publish pipelines (P10), performance CI, any change to `/etc/vpp`.

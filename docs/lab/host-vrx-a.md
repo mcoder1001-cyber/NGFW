@@ -9,7 +9,7 @@ Verified read-only on 2026-09-23 12:16 +0330. Re-verify before relying on anythi
 | Installed packages | vpp, vpp-plugin-core, vpp-plugin-dpdk, vpp-drivers, vpp-crypto-engines, libvppinfra, python3-vpp-api (all 26.06-release). Also built but not installed: vpp-dev, libvppinfra-dev, vpp-dbg, vpp-plugin-devtools |
 | Service | `vpp.service` active + enabled, `/usr/bin/vpp -c /etc/vpp/startup.conf` (volatile) |
 | startup.conf | `unix { nodaemon, log /var/log/vpp/vpp.log, cli-listen /run/vpp/cli.sock, gid vpp }`, `api-trace on`, `api-segment { gid vpp }`, `socksvr { default }`, `cpu { }` (main core only, no workers), `dpdk { blacklist 0000:0b:00.0, no-pci }` |
-| Sockets | `/run/vpp/api.sock`, `/run/vpp/cli.sock`, `/run/vpp/stats.sock` — owner root:vpp, mode 775 → **vrx-agent runs as root (or in group `vpp`)** |
+| Sockets | `/run/vpp/api.sock`, `/run/vpp/cli.sock`, `/run/vpp/stats.sock` — owner root:vpp, mode 775 → **vrx-agent runs as root** (decided: P05 step 4; the `vrx` socket group is created by packaging, never by tests) |
 | API definitions | `/usr/share/vpp/api/{core,plugins}` — 143 `*.api.json` files → `binapi-generator` runs **locally**, no copying from another VM |
 | Hugepages | 1024 × 2 MB = 2 GB via `/etc/sysctl.d/80-vpp.conf` (no kernel-cmdline hugepages, no isolcpus) |
 | Plugins | 94 on disk, 84 loaded. **Not loaded (disabled by default):** `linux_cp_plugin.so`, `linux_nl_plugin.so` (needed by P12/FRR), `npt66_plugin.so` (needed for NPTv6, D4.3), `ip6_dad_autoremove`, `idpf`, `fateshare`, unittest plugins. Enabling them = a `plugins { plugin X { enable } }` block in startup.conf → requires the handover below |
@@ -23,5 +23,6 @@ Verified read-only on 2026-09-23 12:16 +0330. Re-verify before relying on anythi
 
 ## Handover
 `handover: pending` — owner of `/root/vpp`, `/etc/vpp/startup.conf`, packages and `vpp.service` is the VPP bring-up agent.
-Until `handover: done`: everyone may **use** VPP (API, vppctl, create interfaces/tables/routes), nobody changes startup.conf, packages or the unit.
+Until `handover: done`: everyone may **use** VPP (API, vppctl, create *prefixed* interfaces/tables/routes per `shared-host-rules.md`); **nobody restarts or kills the VPP process** and nobody changes startup.conf, packages or the unit (D-012). Restart-safety is proven by the agent-restart simulation in FAST MODE DoD (3).
+**Shared instance:** integration tests run under `flock -s /run/lock/vrx-lab.lock`; the manager's `tools/ci.sh full` and (after handover) any VPP restart take `flock -x`; nobody touches `local0` or objects without their prefix.
 When the product owner flips this to `done`, the manager agent owns it; startup.conf changes then go through the generator (D0.6) or an explicit task, and are recorded in `docs/decisions/LOG.md`.

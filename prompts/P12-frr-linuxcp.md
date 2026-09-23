@@ -10,9 +10,14 @@ separate F-tasks that reuse this framework.
 VPP 26.06 `linux-cp` and `linux-nl` plugin docs; FRR 10 docs (`frr-reload.py`, JSON
 show commands); `docs/01-architecture.md` AD-2; P11's renderer pattern (copy it).
 
+## Precondition (checked first)
+`vppctl show plugins` must list `linux_cp_plugin.so` and `linux_nl_plugin.so`. On this host they are **on disk but not loaded**
+(`docs/lab/host-vrx-a.md`). Do **not** edit `/etc/vpp/startup.conf` yourself: this task is `parked_on: handover`; when the manager
+unparks it the plugins are enabled via the D0.6 generator. If you are spawned and they are still missing, write
+`docs/status/tasks/P12-questions.md` and do everything below that does not need them (renderer, schema, API, UI, tests with `t.Skip`).
+
 ## Build exactly this
-1. **Lab**: FRR already runs inside the router VM next to VPP (same kernel, no namespace tricks); VPP starts with
-   `linux-cp` + `linux-nl` plugins; agent creates LCP pairs (`lcp_itf_pair_add_del_v2`) for
+1. **Lab**: FRR is installed on this host next to VPP (same kernel); VPP runs with `linux-cp` + `linux-nl` plugins enabled; agent creates LCP pairs (`lcp_itf_pair_add_del_v2`) for
    every routed VPP interface (tap named `vpp<idx>`/or the interface name), syncs MTU/state
    both ways, handles the netns.
 2. **Contract PR first** (`contract` label): `routing.bgp{asn, routerId, neighbors{ip →
@@ -32,10 +37,11 @@ show commands); `docs/01-architecture.md` AD-2; P11's renderer pattern (copy it)
    `GET /api/v1/state/routes?vrf=&proto=bgp` reads VPP FIB and annotates with FRR source.
 5. **API/UI**: BGP global + neighbours (state, uptime, prefixes rx/tx, flaps), prefix-list and
    route-map editors (SchemaForm with array widgets), redistribution toggles; en+fa.
-6. **Topology test**: VRX ↔ `peer-frr` VM plus a second FRR peer VM (eBGP), each announcing 100 prefixes; after
+6. **Topology test** (single host): VRX ↔ two FRR instances running in network namespaces on the veth rig (`zebra/bgpd -N <ns>` with their own
+   config dirs — never the system FRR unit), eBGP, each announcing 100 prefixes; after
    commit: `vppctl show ip fib` contains all 200; withdraw on peer → gone from VPP within 5 s;
-   apply route-map denying half → 100 remain; kill vpp → LCP pairs + BGP sessions recover and
-   FIB is repopulated without API involvement; rollback of the whole BGP config → sessions torn
+   apply route-map denying half → 100 remain; agent-restart simulation (and, after handover, the manager's `kill -9 vpp`) → LCP pairs +
+   BGP sessions recover and FIB is repopulated without API involvement; rollback of the whole BGP config → sessions torn
    down cleanly, FIB empty of BGP routes.
 
 ## Acceptance

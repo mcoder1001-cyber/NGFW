@@ -2,12 +2,12 @@
 
 Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 4.8% by hours (42/876 h), 7.3% by tasks (6/82)**
+**Overall: 5.9% by hours (52/876 h), 8.5% by tasks (7/82)**
 
 | state | tasks |
 |---|---|
-| merged | 6 |
-| review | 1 |
+| merged | 7 |
+| review | 0 |
 | running | 12 |
 | ready | 5 |
 | parked | 0 |
@@ -17,7 +17,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
-| S1 | 36 / 71 | 50.7% | 5/9 | 2 | 0 | 0 |
+| S1 | 46 / 71 | 64.8% | 6/9 | 2 | 0 | 0 |
 | S2 | 0 / 223 | 0.0% | 0/17 | 10 | 4 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
 | S4 | 0 / 384 | 0.0% | 0/37 | 0 | 0 | 0 |
@@ -27,7 +27,6 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 ## Running / review
 
 - P02a — Schema group (a): system, dataplane, interfaces, vrfs, routing, management + primitives/diff/merge-patch/gen (running, host-agent slot1)
-- P02b — Schema group (b): nat, objects, acl (review, manager)
 - P02c — Schema group (c): vpn, tunnels, services, ha (running, host-agent slot6)
 - P05 — Agent core: govpp, reconciler, ownership scoping, gRPC server, resync, confirm timer (running, host-agent slot7)
 - P07a — UI shell: theme/RTL, i18n, SchemaForm, ServerDataGrid, WS hook, frame skeleton (running, host-agent slot8)

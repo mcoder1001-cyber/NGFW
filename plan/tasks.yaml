@@ -80,7 +80,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 10
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D4.1
@@ -96,9 +96,10 @@ tasks:
   worktree: /root/ngfw-wt/P02b
   owner: manager
   started: 2026-09-23T13:35
-  finished: ''
+  finished: 2026-09-24T00:32
   notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | review APPROVE WITH CHANGES (M1-M5 before tag) → fix round | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted
-    work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | fix round 2 done 3e7f8a3; proto sync applied by manager (D-061); manager CI gate running before merge'
+    work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | fix round 2 done 3e7f8a3; proto sync applied by manager (D-061); manager CI gate running before merge | merged 73e9662; main
+    CI quick green'
 - id: P02c
   title: 'Schema group (c): vpn, tunnels, services, ha'
   prompt: prompts/P02-schema-package.md

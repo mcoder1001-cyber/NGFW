@@ -37,10 +37,10 @@ tasks:
   - D0.8
   scope: skeleton only; P02a/b/c branch from it
   files_owned: packages/schema/**
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P02s
+  worktree: /root/ngfw-wt/P02s
+  owner: desktop-agent slot1
+  started: 2026-09-23T13:13
   finished: ''
   notes: ''
 - id: P02a
@@ -161,10 +161,10 @@ tasks:
   - D0.7
   scope: interfaces only; gates DF-*/RF-*
   files_owned: apps/agent/internal/scheduler/** apps/agent/internal/vpp/** apps/agent/internal/renderers/{renderer.go,README.md,ALLOWLIST.md} apps/agent/internal/descriptors/README.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P05a
+  worktree: /root/ngfw-wt/P05a
+  owner: desktop-agent slot2
+  started: 2026-09-23T13:13
   finished: ''
   notes: ''
 - id: P04
@@ -183,10 +183,10 @@ tasks:
   - D1.1
   scope: no changes to /etc/vpp; provision vrx-a = verify only
   files_owned: tools/lab tools/binapi-gen.sh apps/agent/binapi/** test/topology/** test/integration/smoke/** deploy/dev/** docs/lab/vmware.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P04
+  worktree: /root/ngfw-wt/P04
+  owner: desktop-agent slot3
+  started: 2026-09-23T13:13
   finished: ''
   notes: host facts in docs/lab/host-vrx-a.md; no data NICs (D-010)
 - id: P09
@@ -204,10 +204,10 @@ tasks:
   - D0.1
   scope: tools/ci.sh is the CI
   files_owned: tools/ci.sh .github/** docs/contributing.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P09
+  worktree: /root/ngfw-wt/P09
+  owner: desktop-agent slot4
+  started: 2026-09-23T13:13
   finished: ''
   notes: ''
 - id: P05

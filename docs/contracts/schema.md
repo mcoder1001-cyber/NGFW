@@ -108,7 +108,7 @@ All optional (absent = platform default); applied at VPP start-up, not live.
 | `managementPci[]` | `pciAddress` | default `[]`, ≤ 4; always `dpdk { blacklist }`, never a DPDK device (F-startup-gen, D-081) |
 | `devices` | record `pciAddress` → `{ name?, rxQueues?, txQueues?, rxDesc?, txDesc? }` | default `{}`; `name` = logical interface name `[a-z][a-z0-9_-]{0,14}` (D-069); queues 1–256; descriptors power of two 64–16384 |
 | `buffersPerNuma` | int 1024–4194304 | `buffers { buffers-per-numa }` |
-| `plugins` | record `<name>_plugin.so` → boolean | default `{}`; `true` = enable, `false` = disable; unlisted files keep the switch of the current start-up file (D-060, D-081) |
+| `plugins` | optional `{ switches: record <name>_plugin.so → boolean }` | present = authoritative (exactly these switches; `true` = enable, `false` = disable); absent = the current start-up file's switches are kept (D-060, D-081, D-084) |
 
 Semantic: `dataplane.workers-match-corelist`, `dataplane.corelist-unique`, `dataplane.main-core-not-worker`, `dataplane.pci-unique`,
 `dataplane.devices-pci-unique`, `dataplane.management-not-dpdk`, `dataplane.logical-name-unique`, `dataplane.descriptors-power-of-two`.

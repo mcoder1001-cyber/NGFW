@@ -80,13 +80,16 @@ describe('dataplane devices / management / plugins (F-startup-gen)', () => {
     const cfg = RootConfig.parse({});
     expect(cfg.dataplane.managementPci).toEqual([]);
     expect(cfg.dataplane.devices).toEqual({});
-    expect(cfg.dataplane.plugins).toEqual({});
+    expect(cfg.dataplane.plugins).toBeUndefined();
+    expect(RootConfig.parse({ dataplane: { plugins: {} } }).dataplane.plugins).toEqual({
+      switches: {},
+    });
     const full = RootConfig.parse({
       dataplane: {
         managementPci: ['0000:0b:00.0'],
         devices: { '0000:04:00.0': { name: 'wan', rxQueues: 2, rxDesc: 512 } },
         buffersPerNuma: 32768,
-        plugins: { 'linux_cp_plugin.so': true, 'vxlan-gpe_plugin.so': false },
+        plugins: { switches: { 'linux_cp_plugin.so': true, 'vxlan-gpe_plugin.so': false } },
       },
     });
     expect(full.dataplane.devices['0000:04:00.0']?.name).toBe('wan');
@@ -103,8 +106,10 @@ describe('dataplane devices / management / plugins (F-startup-gen)', () => {
       { devices: { '0000:04:00.0': { rxDesc: 32 } } },
       { managementPci: ['0000:0b:00.0 '] },
       { buffersPerNuma: 10 },
-      { plugins: { '../x_plugin.so': true } },
-      { plugins: { 'acl_plugin.so': 'enable' } },
+      { plugins: { switches: { '../x_plugin.so': true } } },
+      { plugins: { switches: { 'acl_plugin.so': 'enable' } } },
+      { plugins: { 'acl_plugin.so': true } },
+      { plugins: { switches: {}, extra: 1 } },
     ]) {
       expect(RootConfig.safeParse({ dataplane }).success, JSON.stringify(dataplane)).toBe(false);
     }

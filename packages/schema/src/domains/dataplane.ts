@@ -33,6 +33,16 @@ export const vppPluginFile = z
   .max(64)
   .regex(/^[a-z0-9][a-z0-9_-]*_plugin\.so$/, 'expected a plugin file name like linux_cp_plugin.so');
 
+/** `dataplane.plugins` (D-084): a wrapper so "absent" (keep the current file's switches) and "present, empty"
+ * (no plugin switches at all) stay distinguishable in the proto as well. */
+export const DataplanePluginSetSchema = z.strictObject({
+  switches: withUi(z.record(vppPluginFile, z.boolean()).default({}), {
+    title: 'Plugin switches',
+    help: 'plugin file → true (enable) / false (disable)',
+    order: 1,
+  }),
+});
+
 /** One DPDK device (`dataplane.devices.<pci>`). */
 export const DataplaneDeviceSchema = z.strictObject({
   name: withUi(logicalIfName.optional(), {
@@ -116,9 +126,9 @@ export const DataplaneSchema = withUi(
       group: 'memory',
       order: 10,
     }),
-    plugins: withUi(z.record(vppPluginFile, z.boolean()).default({}), {
+    plugins: withUi(DataplanePluginSetSchema.optional(), {
       title: 'Plugins',
-      help: 'plugins { plugin <file> { enable|disable } }: true = enable, false = disable; switches not listed keep the value of the current start-up configuration',
+      help: 'plugins { plugin <file> { enable|disable } }. Present = authoritative: exactly these switches are rendered (true = enable, false = disable). Absent = the switches of the current start-up configuration are kept (D-084)',
       group: 'plugins',
       order: 11,
     }),

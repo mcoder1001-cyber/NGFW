@@ -15,8 +15,11 @@ import (
 // DadName is the descriptor name; the single key is "ip6-nd.dad/global".
 const DadName = "ip6-nd.dad"
 
-// DadPlugin is the VPP plugin that implements the ip6_dad API. It is not loaded on the lab
-// host (docs/lab/host-vrx-a.md); every method then returns df2.ErrPluginNotLoaded.
+// DadPlugin names the plugin the task prompt associated with DAD. On VPP 26.06 the ip6_dad
+// API (ip6_dad_enable_disable / ip6_dad_dump) is served by vnet itself and works on vrx-a
+// although ip6_dad_autoremove is not loaded (docs/lab/host-vrx-a.md); should a build lack
+// the messages, every method returns df2.ErrPluginNotLoaded and the integration test skips
+// (skip-unless-plugin-loaded).
 const DadPlugin = "ip6_dad_autoremove"
 
 // Defaults of ip6_dad_enable_disable.

@@ -113,7 +113,7 @@ func newFakeVPP() *fakeVPP {
 		idx := req.(*isr.IPSessionRedirectDump).TableIndex
 		var out []api.Message
 		for _, m := range v.redirects[idx] {
-			out = append(out, &isr.IPSessionRedirectDetails{TableIndex: idx, MatchLength: uint32(len(m)), Match: m})
+			out = append(out, &isr.IPSessionRedirectDetails{TableIndex: idx, MatchLength: uint32(len(m)), Match: m}) //nolint:gosec // test sizes
 		}
 		return out, nil
 	})

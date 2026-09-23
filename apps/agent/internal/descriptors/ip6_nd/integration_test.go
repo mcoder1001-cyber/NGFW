@@ -139,7 +139,8 @@ func TestProxyNdOnHost(t *testing.T) {
 	}
 }
 
-// TestDadOnHost is skip-unless-plugin-loaded: ip6_dad_autoremove is not loaded on vrx-a.
+// TestDadOnHost is skip-unless-plugin-loaded: it skips when VPP does not know the ip6_dad
+// messages (df2.ErrPluginNotLoaded); on vrx-a they are core API and the test runs.
 func TestDadOnHost(t *testing.T) {
 	c := df2test.Connect(t)
 	ctx := df2test.Ctx(t)

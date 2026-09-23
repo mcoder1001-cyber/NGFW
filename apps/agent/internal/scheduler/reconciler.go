@@ -62,6 +62,16 @@ func deletesOnAbsence(d Descriptor) bool {
 	return true
 }
 
+// Reapplier is an optional Descriptor extension for objects whose existence Retrieve can see but
+// whose ownership lock it cannot (a VPP FIB table survives the loss of its API lock while routes or
+// interfaces still reference it). On a resync (ApplyOptions.Resync) the scheduler calls Reapply
+// for every desired object of such a descriptor that the plan left unchanged; Reapply must be
+// idempotent and must not change anything that is already in place. Failures are logged and
+// counted in TxnResult.ReapplyErrors, they do not fail the transaction.
+type Reapplier interface {
+	Reapply(ctx context.Context, obj proto.Message, meta any) error
+}
+
 // ErrRetrieveUnsupported is returned (wrapped) by Descriptor.Retrieve when VPP has no dump for the
 // object type (D-063). Such a descriptor is WRITE-ONLY for the reconciler: its desired objects are
 // re-applied on every resync (Create must be idempotent) and whenever they differ from what this
@@ -224,6 +234,8 @@ type TxnResult struct {
 	Summary  Summary
 	Err      error // first error (operation, verification or planning)
 	Duration time.Duration
+	// Reapplied / ReapplyErrors count Reapplier calls of a resync.
+	Reapplied, ReapplyErrors int
 }
 
 // Scope selects the descriptors a transaction manages. A nil Scope means every registered
@@ -633,11 +645,6 @@ func (s *Scheduler) ApplyWith(ctx context.Context, desired []KV, scope Scope, op
 		return res
 	}
 	res.Summary.Unchanged = p.Unchanged
-	if p.Empty() {
-		res.Outcome = OutcomeApplied
-		return res
-	}
-
 	x := &executor{s: s, res: res, live: make(map[Key]KV, len(p.actual)), desired: make(map[Key]KV, len(desired)), done: map[Key]bool{}}
 	for k, kv := range p.actual {
 		if !p.observed[k] {
@@ -646,6 +653,13 @@ func (s *Scheduler) ApplyWith(ctx context.Context, desired []KV, scope Scope, op
 	}
 	for _, kv := range desired {
 		x.desired[kv.Key] = kv
+	}
+	if p.Empty() {
+		if opts.Resync {
+			s.reapply(ctx, x, res)
+		}
+		res.Outcome = OutcomeApplied
+		return res
 	}
 	var failed error
 	for i, op := range p.Ops {
@@ -665,6 +679,9 @@ func (s *Scheduler) ApplyWith(ctx context.Context, desired []KV, scope Scope, op
 			}
 			break
 		}
+	}
+	if failed == nil && opts.Resync {
+		s.reapply(ctx, x, res)
 	}
 	if failed == nil {
 		failed = s.verify(ctx, desired, scope, p.writeOnly)
@@ -715,6 +732,29 @@ func (s *Scheduler) ApplyWith(ctx context.Context, desired []KV, scope Scope, op
 	}
 	x.syncWriteOnly(p.writeOnly)
 	return res
+}
+
+// reapply calls Reapplier.Reapply for the desired objects the transaction did not touch.
+func (s *Scheduler) reapply(ctx context.Context, x *executor, res *TxnResult) {
+	for _, k := range sortedKeys(x.desired) {
+		if x.done[k] {
+			continue
+		}
+		d, ok := s.reg.ForKey(k)
+		if !ok {
+			continue
+		}
+		r, ok := d.(Reapplier)
+		if !ok {
+			continue
+		}
+		if err := r.Reapply(ctx, x.desired[k].Value, x.live[k].Meta); err != nil {
+			res.ReapplyErrors++
+			s.log.Warn("reapply failed", "key", k, "err", err)
+			continue
+		}
+		res.Reapplied++
+	}
 }
 
 // syncWriteOnly stores the live objects of write-only descriptors as their known actual state.

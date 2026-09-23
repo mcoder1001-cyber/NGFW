@@ -20,7 +20,10 @@ import (
 // one delete) and ignores add/delete of table 0, so table 0 ("default") is never an object here.
 type VRFDescriptor struct{ Env }
 
-var _ scheduler.Descriptor = (*VRFDescriptor)(nil)
+var (
+	_ scheduler.Descriptor = (*VRFDescriptor)(nil)
+	_ scheduler.Reapplier  = (*VRFDescriptor)(nil)
+)
 
 // Name implements scheduler.Descriptor.
 func (*VRFDescriptor) Name() string { return VRFName }
@@ -94,6 +97,14 @@ func (d *VRFDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message
 		return meta, nil
 	}
 	return meta, d.addDel(ctx, n, true, fams...)
+}
+
+// Reapply implements scheduler.Reapplier: VPP keeps a table alive while routes or interfaces
+// reference it even after its API lock is gone (seen in the P05 loss simulation), so Retrieve
+// cannot tell a lost lock from a healthy table. ip_table_add_del(add) is idempotent (VPP holds a
+// single API lock per table), so a resync re-asserts it.
+func (d *VRFDescriptor) Reapply(ctx context.Context, obj proto.Message, _ any) error {
+	return d.addDel(ctx, asTable(obj), true)
 }
 
 // Delete implements scheduler.Descriptor.

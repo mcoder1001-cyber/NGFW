@@ -629,3 +629,34 @@ func TestObserveOnlyNeverDeletesOnAbsence(t *testing.T) {
 		t.Fatal("foreign objects deleted")
 	}
 }
+
+// re records Reapply calls.
+type re struct {
+	mem
+	calls []Key
+}
+
+func (r *re) Reapply(_ context.Context, o proto.Message, _ any) error {
+	r.calls = append(r.calls, r.KeyOf(o))
+	return nil
+}
+
+func TestReapplyOnResyncOnly(t *testing.T) {
+	st := newStore()
+	reg := NewRegistry()
+	d := &re{mem: mem{name: "t", st: st}}
+	reg.Register(d)
+	s := New(reg, nil)
+	ctx := context.Background()
+	desired := []KV{kv("t", obj("x", "1"))}
+	mustApplied(t, s.Apply(ctx, desired, nil)) // created, not reapplied
+	mustApplied(t, s.Apply(ctx, desired, nil)) // unchanged, no resync → no reapply
+	if len(d.calls) != 0 {
+		t.Fatalf("reapply outside resync: %v", d.calls)
+	}
+	r := s.ApplyWith(ctx, desired, nil, ApplyOptions{Resync: true})
+	mustApplied(t, r)
+	if len(d.calls) != 1 || r.Reapplied != 1 || !r.Plan.Empty() {
+		t.Fatalf("resync reapply: calls %v result %+v", d.calls, r)
+	}
+}

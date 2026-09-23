@@ -330,7 +330,11 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	s.lastReconcileAt = s.now()
 	s.mu.Unlock()
 	s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE, TxnId: txnID, Summary: resp.GetSummary(), Message: resp.GetStatus().String()})
-	log.Info("reconcile done", "status", resp.GetStatus().String(), "summary", resp.GetSummary().String(), "duration", d, "err", resp.GetMessage())
+	var reapplied int
+	if res != nil {
+		reapplied = res.Reapplied
+	}
+	log.Info("reconcile done", "status", resp.GetStatus().String(), "summary", resp.GetSummary().String(), "reapplied", reapplied, "duration", d, "err", resp.GetMessage())
 	return resp
 }
 

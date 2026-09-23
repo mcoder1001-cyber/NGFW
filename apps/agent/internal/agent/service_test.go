@@ -16,6 +16,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	"ngfw/agent/binapi/ip"
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/core/coretest"
@@ -432,7 +433,11 @@ func TestResyncRecreatesAfterLoss(t *testing.T) {
 		t.Fatalf("converged resync changed something: %v", resp.GetSummary())
 	}
 	for _, c := range v.Calls() {
-		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" {
+		n := c.GetMessageName()
+		if t4, ok := c.(*ip.IPTableAddDel); ok && t4.IsAdd {
+			continue // resync re-asserts the VRF's API lock (idempotent, scheduler.Reapplier)
+		}
+		if !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" {
 			t.Fatalf("converged resync sent %s", n)
 		}
 	}

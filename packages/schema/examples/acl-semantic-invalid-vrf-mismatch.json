@@ -2,7 +2,7 @@
   "interfaces": { "Gig0/0/2": { "vrf": "customer-a" } },
   "vrfs": { "customer-a": { "id": 10 } },
   "acl": {
-    "lists": { "l": { "rules": [] } },
+    "lists": { "l": {} },
     "attachments": [
       {
         "list": "l",

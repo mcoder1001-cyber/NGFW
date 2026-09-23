@@ -47,6 +47,22 @@
 10. **P03b proto sync**: `nat.enabled` is now optional without default (D-P02b-10) — `optional bool enabled`
     (explicit presence, D-039) already matches; the renderer must call `isNat44Enabled()` rather than read the field.
 
+11. **BLOCKING THE GATE — proto lags the schema (not fixable inside my allowlist).** Main now carries P03's strict
+    drift test `apps/agent/internal/contracttest TestStrictDecodeOfEveryDocument`, which decodes every valid
+    `packages/schema/examples/*.json` with strict protojson. `vrx/v1/dataplane.proto` mirrors `task/P02b@ec0ccda`
+    (the first draft), so the fields added since — by the D-043 review round (M1 `nat.pools[].interface`,
+    M2 `nat.map.interfaces[]`, M3 `nat.cnat.snat.interfaces[].table` replacing `side`, `cnat.snat.addresses.interface`)
+    and the original `staticMappings[].external.pool` (F-nat44) — are unknown fields, and `nat-basic.json` /
+    `nat-cgnat.json` fail. `packages/proto` and `apps/agent` are outside my envelope.
+    **Ready-made fix:** `docs/status/tasks/P02b-proto-sync.patch` (proto source + `test/fixtures/all-domains.json`
+    `side`→`table`). Apply on this branch (or as P03b's first commit), then `packages/proto/gen.sh`:
+    `git apply docs/status/tasks/P02b-proto-sync.patch && packages/proto/gen.sh`. Verified in a scratch copy
+    (Go stubs regenerated with buf; `go vet` clean, `go test ./...` in apps/agent all `ok`, incl. contracttest).
+    `buf breaking` reports exactly one item, the intended removal of `PolicyInterface.side` (field 2 reserved,
+    `table` = 3) — fine before `contracts-v1` (D-042 pattern). TS stubs were not regenerated in the scratch copy
+    (pnpm symlinks), `gen.sh` does both. Alternative (rejected): strip the new shapes from the examples — that would
+    only blind the drift guard; the drift itself would remain.
+
 ## Decisions taken (to be copied to docs/decisions/LOG.md by the manager)
 
 | date | id | decision | options considered | why | reversal cost | tasks |

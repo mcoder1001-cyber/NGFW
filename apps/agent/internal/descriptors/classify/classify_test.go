@@ -13,8 +13,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	classifyapi "ngfw/agent/binapi/classify"
-	isr "ngfw/agent/binapi/ip_session_redirect"
 	interfaces "ngfw/agent/binapi/interface"
+	isr "ngfw/agent/binapi/ip_session_redirect"
 	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/scheduler"

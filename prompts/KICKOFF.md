@@ -1,4 +1,16 @@
-# Kickoff text — paste this into a NEW Claude Code session started in /root/ngfw (as root)
+# Kickoff — two ways to start the manager
+
+## A. Unattended, survives the 5-hour usage limit (recommended)
+```bash
+# once: Claude Code CLI on the host (already installed by npm) and login as root
+claude            # log in interactively once, then /exit
+# run the supervisor as a service: retries every 15 min while the limit is in force, resumes the session, restarts on crash
+cp /root/ngfw/deploy/systemd/ngfw-manager.service /etc/systemd/system/ && systemctl daemon-reload && systemctl enable --now ngfw-manager
+journalctl -fu ngfw-manager        # or: tail -f /root/.ngfw-manager/supervisor.log
+```
+The supervisor feeds the text below as the first prompt and `--resume`s the same session afterwards; all state is in the repo.
+
+## B. Interactive — paste the text below into a NEW Claude Code session started in /root/ngfw (as root)
 
 ---
 

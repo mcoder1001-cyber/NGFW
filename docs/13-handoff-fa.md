@@ -11,6 +11,15 @@ cd /root/ngfw && cat prompts/00-CONTEXT.md prompts/MANAGER-PROMPT.md | claude
 آماده را می‌بیند، برای هر کار یک ایجنت کارگر در worktree جدا می‌سازد، بازبینی و merge می‌کند
 و هرگز منتظر شما نمی‌ماند مگر در موارد قاعدهٔ ۲×.
 
+## قطع‌شدن به‌خاطر لیمیت ۵ ساعته — خودکار ادامه می‌دهد
+`tools/manager-supervisor.sh` (سرویس `ngfw-manager`) ایجنت مدیر را اجرا می‌کند و اگر به لیمیت مصرف خورد،
+هر **۱۵ دقیقه** دوباره تلاش می‌کند تا وقتی پنجرهٔ ۵ ساعته باز شود؛ همان session را با `--resume` ادامه می‌دهد،
+و اگر session از دست رفته باشد از روی مخزن (بورد + وضعیت + پاکت هر کار) از نو بلند می‌شود. کارگرهایی که
+وسط کار کشته شده‌اند با پاکت CONTINUE از همان شاخه ادامه می‌دهند — چون هر ۴۵ دقیقه WIP کامیت می‌کنند.
+پیش‌نیاز یک‌باره: `claude` روی سرور نصب شده؛ **شما یک بار به‌عنوان root `claude` را اجرا و login کنید.**
+راه‌اندازی: `cp deploy/systemd/ngfw-manager.service /etc/systemd/system/ && systemctl enable --now ngfw-manager`.
+لاگ: `journalctl -fu ngfw-manager` یا `/root/.ngfw-manager/supervisor.log`.
+
 ## چه چیزهایی الان آماده است
 - `plan/tasks.yaml` — ۷۴ کار در ۷ مرحله با وابستگی، اولویت و برآورد؛ P01 انجام شده
 - `docs/12-execution-stages.md` — نمودار مراحل و گیت‌ها

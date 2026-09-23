@@ -29,7 +29,9 @@ that happened is written in the repo.** The product owner reads `docs/status/` a
   TASK ENVELOPE
   id: <id>   branch: task/<id>   worktree: /root/ngfw-wt/<id>
   merged deps you can rely on: <ids>
+  slot: <N 1-12>  → exports from docs/lab/shared-host-rules.md (VRX_TEST_PREFIX=w<N>, ports 3<N>00/5<N>00/91<N>1, tables <N>000-<N>999, own DB); daemon-owner: <none|frr|kea|…>
   files you own exclusively: <globs>   files you must not touch: <globs>
+  commit WIP at least every 45 min and keep docs/status/tasks/<id>-wip.md current — you may be killed by a usage limit at any time and respawned with a CONTINUE envelope
   time box: <hours>  — when exceeded, stop, commit WIP, write docs/status/tasks/<id>.md with what is left
   finish by: committing on your branch, writing docs/status/tasks/<id>.md (what, how verified — paste real output — out of scope, open questions), all checks green in your worktree
   questions: write them in docs/status/tasks/<id>-questions.md and keep going on everything not blocked by them
@@ -38,7 +40,7 @@ that happened is written in the repo.** The product owner reads `docs/status/` a
   `tmux new -d -s <id> "cd /root/ngfw-wt/<id> && cat /root/ngfw/prompts/00-CONTEXT.md /root/ngfw/prompts/<file> /tmp/<id>.envelope | claude -p"` — keep the exact command in the board entry.
 - **Concurrency:** start with 6 workers; raise to 10–12 while `uptime` load < 20 and free RAM > 10 GB (`free -g`). Never more than one worker per package when they would edit the same files; declare file ownership in envelopes.
 - **Review:** on `review`, spawn a fresh agent with `REVIEW-PROMPT.md` on the branch. BLOCK → hand findings to the worker (max 2 rounds; then you decide and log). APPROVE → merge.
-- **Merge:** `git -C /root/ngfw merge --no-ff task/<id>`; then on `main`: `pnpm install --frozen-lockfile && pnpm gen:check && pnpm typecheck && pnpm lint && pnpm test && (cd apps/agent && make lint test)`. Red → `git revert -m 1 <merge>` and reopen the task with the log attached. Green → `git worktree remove /root/ngfw-wt/<id>`, `git branch -d task/<id>`, board → merged, status entry.
+- **Merge:** in the worker's worktree first `tools/ci.sh --base main` (this script *is* the CI — git is local-only); then `git -C /root/ngfw merge --no-ff task/<id>` and `tools/ci.sh` again on `main`. Red → `git revert -m 1 <merge>` and reopen the task with the log attached. Green → `git worktree remove /root/ngfw-wt/<id>`, `git branch -d task/<id>`, board → merged, status entry.
 - **Status:** `docs/status/<YYYY-MM-DD>-<HHMM>.md` every cycle, ≤ 25 lines: Persian 5-line summary first, then merged / running / parked (with PENDING id) / decisions taken / risks / next. Commit.
 
 ## 3. Priorities
@@ -78,5 +80,11 @@ FAST MODE DoD · no C code in VPP (park to docs/vpp-code-track.md) · VPP API na
 ## 10. Report to the human
 Every status file starts with a 5-line Persian summary. When the human asks "وضعیت؟", answer from the latest status file plus the board counts — do not narrate your process.
 
-## 11. Never
+## 11. Interruptions, usage limits and resume
+- You will be killed and restarted: the Claude usage limit (5-hour window), the supervisor's cycle cap (`tools/manager-supervisor.sh`, default 240 min), crashes. **Nothing you know may live only in your context** — board, envelopes (`docs/status/tasks/<id>.envelope.md`), tmux session names, slot assignments all go in the repo and are committed.
+- **Every start, before anything else — reconcile:** `git -C /root/ngfw status` (a half-finished merge → `git merge --abort`, reopen the task); `git worktree list`; `tmux ls`; for each board task in `running`: is its worker alive? If not → respawn with a **CONTINUE envelope** ("branch task/<id> already has commits; read docs/status/tasks/<id>-wip.md; continue from there, do not restart"). Tasks in `review` → rerun review. Then resume the loop.
+- **Usage limit during a run:** when spawning or a worker fails with limit/429/overloaded text, do not mark the task failed — set `note: quota-wait`, write status, and exit cleanly (rc 0). The supervisor retries every 15 minutes; on resume you respawn. Do not `sleep` for hours yourself.
+- Prefer many small commits and frequent status files: a restart after a usage limit must cost minutes, not hours.
+
+## 12. Never
 Stop because a decision is pending · merge red · rewrite history on `main` · delete a worktree with uncommitted work · let two workers edit the same package without declared ownership · claim a test passed without the output in the status file.

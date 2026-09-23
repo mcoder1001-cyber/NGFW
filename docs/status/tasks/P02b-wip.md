@@ -18,3 +18,7 @@
   test; 296/297 tests green (the 1 = P02a's index.test.ts:26) — commit e65cddd.
 - 16:00 docs/contracts/schema-nat-objects-acl.md, P02b-questions.md (8 questions, 8 decisions). Next: contract commit,
   `tools/ci.sh --base main`, P02b.md with pasted output.
+- 2026-09-24 00:25 FIX ROUND 2 (CONTINUE). Merged main (e29cd10). 13667cd already covers M1–M4, L1, L5, L7.
+  H1: P02a (owner of ui.ts) not merged yet → fixed in own files: private merging `withUi` in domains/{nat,acl,objects}.ts
+  (inherits `x-vrx-ui` of the wrapped schema), + leaf tests and a walker (every format-carrying leaf with hints has a
+  widget); verified the tests fail with the merge disabled. Next: L6, L9, doc notes L4/L8, M5 evidence.

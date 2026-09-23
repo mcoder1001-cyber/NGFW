@@ -1,6 +1,23 @@
 import { z } from 'zod';
 import { ipAddress, ipv4Cidr, ipv6Cidr, objectName, vppInterfaceName } from '../primitives.js';
-import { withUi } from '../ui.js';
+import { type UiHints, type UiMeta, withUi as setUi, X_VRX_UI } from '../ui.js';
+
+/**
+ * `withUi` that MERGES `x-vrx-ui` with the hints already on `schema` (review H1): Zod 4 merges registry meta
+ * shallowly, so re-wrapping a hinted primitive (`withUi(ipAddress, { title })`) with `ui.ts`'s `withUi` would drop
+ * its `widget`/`help`. Private on purpose (not re-exported; D-054 pattern) — becomes a plain alias once `ui.ts`
+ * merges itself (D-043).
+ */
+function withUi<T extends z.ZodType>(schema: T, meta: UiMeta): T {
+  const inherited = (schema.meta()?.[X_VRX_UI] ?? {}) as UiHints;
+  const { title, description, ...hints } = meta;
+  return setUi(schema, {
+    ...(title !== undefined ? { title } : {}),
+    ...(description !== undefined ? { description } : {}),
+    ...inherited,
+    ...hints,
+  });
+}
 import { ipPrefix, l4PortNumber } from './objects.js';
 
 /**
@@ -289,7 +306,7 @@ export const Nat64Schema = withUi(
           z.strictObject({
             prefix: withUi(ipv6Cidr, {
               title: 'NAT64 prefix',
-              help: 'RFC 6052 length 32/40/48/56/64/96; default 64:ff9b::/96',
+              help: 'Network prefix, RFC 6052 length 32/40/48/56/64/96; default 64:ff9b::/96',
             }),
             vrf,
           }),
@@ -367,8 +384,14 @@ export const Nptv6Schema = withUi(
           z.strictObject({
             description: description.optional(),
             interface: vppInterfaceName,
-            internal: withUi(ipv6Cidr, { title: 'Internal prefix' }),
-            external: withUi(ipv6Cidr, { title: 'External prefix' }),
+            internal: withUi(ipv6Cidr, {
+              title: 'Internal prefix',
+              help: 'Network prefix — host bits must be zero',
+            }),
+            external: withUi(ipv6Cidr, {
+              title: 'External prefix',
+              help: 'Network prefix — host bits must be zero',
+            }),
           }),
         )
         .max(1024)
@@ -396,10 +419,13 @@ export const Det44Schema = withUi(
         .array(
           z.strictObject({
             description: description.optional(),
-            inside: withUi(ipv4Cidr, { title: 'Inside prefix' }),
+            inside: withUi(ipv4Cidr, {
+              title: 'Inside prefix',
+              help: 'Network prefix — host bits must be zero',
+            }),
             outside: withUi(ipv4Cidr, {
               title: 'Outside prefix',
-              help: 'Length ≥ inside length; ≤ 15 bits difference',
+              help: 'Network prefix (no host bits); length ≥ inside length; ≤ 15 bits difference',
             }),
           }),
         )
@@ -451,8 +477,14 @@ export const MapDomainSchema = withUi(
       title: 'Mode',
       help: 'map-e / lw4o6: ipv6Source is the BR address (/128); map-t: ipv6Source is the DMR prefix (/64 or /96). Interfaces pick encapsulation vs translation in map.interfaces',
     }),
-    ipv4Prefix: withUi(ipv4Cidr, { title: 'Rule IPv4 prefix', widget: 'cidr' }),
-    ipv6Prefix: withUi(ipv6Cidr, { title: 'Rule IPv6 prefix', widget: 'cidr' }),
+    ipv4Prefix: withUi(ipv4Cidr, {
+      title: 'Rule IPv4 prefix',
+      help: 'Network prefix — host bits must be zero',
+    }),
+    ipv6Prefix: withUi(ipv6Cidr, {
+      title: 'Rule IPv6 prefix',
+      help: 'Network prefix — host bits must be zero',
+    }),
     ipv6Source: withUi(ipv6Cidr, {
       title: 'BR IPv6 source / DMR prefix',
       widget: 'cidr',

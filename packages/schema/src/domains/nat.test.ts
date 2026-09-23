@@ -435,3 +435,71 @@ describe('other translators', () => {
     bad(NatSchema, { ipfix: { sourcePort: 0 } });
   });
 });
+
+type JsonNode = Record<string, unknown>;
+
+/** JSON pointers of every node that carries `x-vrx-ui` and an address/prefix `format` but no `widget` (review H1). */
+function leavesWithoutWidget(root: unknown): string[] {
+  const out: string[] = [];
+  const walk = (n: unknown, path: string): void => {
+    if (n === null || typeof n !== 'object') return;
+    if (Array.isArray(n)) {
+      n.forEach((x, i) => walk(x, `${path}/${String(i)}`));
+      return;
+    }
+    const node = n as JsonNode;
+    const ui = node['x-vrx-ui'] as { widget?: string } | undefined;
+    const anyOf = node.anyOf as JsonNode[] | undefined;
+    const formatted =
+      typeof node.format === 'string' ||
+      (Array.isArray(anyOf) && anyOf.every((x) => typeof x.format === 'string'));
+    if (ui !== undefined && formatted && ui.widget === undefined) out.push(path);
+    for (const [k, v] of Object.entries(node)) walk(v, `${path}/${k}`);
+  };
+  walk(root, '');
+  return out;
+}
+
+const at = (root: unknown, pointer: string): JsonNode =>
+  pointer
+    .split('/')
+    .slice(1)
+    .reduce<unknown>((n, k) => (n as JsonNode)[k], root) as JsonNode;
+
+describe('nat leaf UI hints survive re-wrapping (review H1)', () => {
+  const js = z.toJSONSchema(NatSchema, { target: 'draft-2020-12', io: 'input' });
+
+  it('keeps widget/help of re-wrapped primitives on leaf fields', () => {
+    expect(at(js, '/properties/inside')['x-vrx-ui'], '/properties/inside').toMatchObject({
+      widget: 'interface-picker',
+      group: 'General',
+      order: 3,
+    });
+    expect(
+      at(js, '/properties/outputFeature')['x-vrx-ui'],
+      '/properties/outputFeature',
+    ).toMatchObject({ widget: 'interface-picker' });
+    expect(
+      at(js, '/properties/staticMappings/items/properties/local/properties/ip')['x-vrx-ui'],
+      '/properties/staticMappings/items/properties/local/properties/ip',
+    ).toMatchObject({ widget: 'ip' });
+    expect(
+      at(js, '/properties/staticMappings/items/properties/external/properties/interface')[
+        'x-vrx-ui'
+      ],
+      '/properties/staticMappings/items/properties/external/properties/interface',
+    ).toMatchObject({ widget: 'interface-picker', help: expect.any(String) });
+    expect(
+      at(js, '/properties/det44/properties/mappings/items/properties/inside')['x-vrx-ui'],
+      '/properties/det44/properties/mappings/items/properties/inside',
+    ).toMatchObject({ widget: 'cidr', help: 'Network prefix — host bits must be zero' });
+    expect(at(js, '/properties/forwarding')['x-vrx-ui'], '/properties/forwarding').toMatchObject({
+      group: 'General',
+      help: expect.any(String),
+    });
+  });
+
+  it('every address/prefix leaf with UI hints has a widget', () => {
+    expect(leavesWithoutWidget(js)).toEqual([]);
+  });
+});

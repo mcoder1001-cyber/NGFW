@@ -1,6 +1,23 @@
 import { z } from 'zod';
 import { macAddress, objectName, vppInterfaceName } from '../primitives.js';
-import { withUi } from '../ui.js';
+import { type UiHints, type UiMeta, withUi as setUi, X_VRX_UI } from '../ui.js';
+
+/**
+ * `withUi` that MERGES `x-vrx-ui` with the hints already on `schema` (review H1): Zod 4 merges registry meta
+ * shallowly, so re-wrapping a hinted primitive (`withUi(ipAddress, { title })`) with `ui.ts`'s `withUi` would drop
+ * its `widget`/`help`. Private on purpose (not re-exported; D-054 pattern) — becomes a plain alias once `ui.ts`
+ * merges itself (D-043).
+ */
+function withUi<T extends z.ZodType>(schema: T, meta: UiMeta): T {
+  const inherited = (schema.meta()?.[X_VRX_UI] ?? {}) as UiHints;
+  const { title, description, ...hints } = meta;
+  return setUi(schema, {
+    ...(title !== undefined ? { title } : {}),
+    ...(description !== undefined ? { description } : {}),
+    ...inherited,
+    ...hints,
+  });
+}
 import { ipPrefix, ServiceSpecSchema } from './objects.js';
 
 /**
@@ -39,7 +56,7 @@ export const ruleSequence = withUi(z.number().int().min(1).max(2_147_483_647), {
 /** Linux interface name (IFNAMSIZ 15) for host ACL rules. */
 export const linuxInterfaceName = withUi(
   z.string().regex(/^[A-Za-z0-9_.-]{1,15}$/, 'expected a Linux interface name (max 15 chars)'),
-  { title: 'Host interface' },
+  { title: 'Host interface', widget: 'host-interface-picker' },
 );
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -135,6 +152,7 @@ export const MacipRuleSchema = withUi(
     sourceMac: withUi(macAddress, { title: 'Source MAC' }),
     sourceMacMask: withUi(macAddress.default('ff:ff:ff:ff:ff:ff'), {
       title: 'Source MAC mask',
+      widget: 'mac',
       help: 'ff:ff:ff:ff:ff:ff = exact match',
     }),
     sourcePrefix: withUi(ipPrefix, {

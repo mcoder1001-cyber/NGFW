@@ -248,3 +248,56 @@ describe('ScheduleSchema / ZoneSchema / TagSchema', () => {
     bad(TagSchema, { tags: [] });
   });
 });
+
+type JsonNode = Record<string, unknown>;
+
+/** JSON pointers of every node that carries `x-vrx-ui` and an address/prefix `format` but no `widget` (review H1). */
+function leavesWithoutWidget(root: unknown): string[] {
+  const out: string[] = [];
+  const walk = (n: unknown, path: string): void => {
+    if (n === null || typeof n !== 'object') return;
+    if (Array.isArray(n)) {
+      n.forEach((x, i) => walk(x, `${path}/${String(i)}`));
+      return;
+    }
+    const node = n as JsonNode;
+    const ui = node['x-vrx-ui'] as { widget?: string } | undefined;
+    const anyOf = node.anyOf as JsonNode[] | undefined;
+    const formatted =
+      typeof node.format === 'string' ||
+      (Array.isArray(anyOf) && anyOf.every((x) => typeof x.format === 'string'));
+    if (ui !== undefined && formatted && ui.widget === undefined) out.push(path);
+    for (const [k, v] of Object.entries(node)) walk(v, `${path}/${k}`);
+  };
+  walk(root, '');
+  return out;
+}
+
+const at = (root: unknown, pointer: string): JsonNode =>
+  pointer
+    .split('/')
+    .slice(1)
+    .reduce<unknown>((n, k) => (n as JsonNode)[k], root) as JsonNode;
+
+describe('objects leaf UI hints survive re-wrapping (review H1)', () => {
+  const js = z.toJSONSchema(ObjectsSchema, { target: 'draft-2020-12', io: 'input' });
+
+  it('keeps widget/help of re-wrapped primitives on leaf fields', () => {
+    expect(
+      at(js, '/properties/addresses/additionalProperties/oneOf/0/properties/address')['x-vrx-ui'],
+      '/properties/addresses/additionalProperties/oneOf/0/properties/address',
+    ).toMatchObject({ widget: 'ip' });
+    expect(
+      at(js, '/properties/addresses/additionalProperties/oneOf/1/properties/prefix')['x-vrx-ui'],
+      '/properties/addresses/additionalProperties/oneOf/1/properties/prefix',
+    ).toMatchObject({ widget: 'cidr', help: expect.any(String) });
+    expect(
+      at(js, '/properties/addresses/additionalProperties/oneOf/2/properties/start')['x-vrx-ui'],
+      '/properties/addresses/additionalProperties/oneOf/2/properties/start',
+    ).toMatchObject({ widget: 'ip' });
+  });
+
+  it('every address/prefix leaf with UI hints has a widget', () => {
+    expect(leavesWithoutWidget(js)).toEqual([]);
+  });
+});

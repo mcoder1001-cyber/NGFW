@@ -7,7 +7,24 @@ import {
   objectName,
   vppInterfaceName,
 } from '../primitives.js';
-import { withUi } from '../ui.js';
+import { type UiHints, type UiMeta, withUi as setUi, X_VRX_UI } from '../ui.js';
+
+/**
+ * `withUi` that MERGES `x-vrx-ui` with the hints already on `schema` (review H1): Zod 4 merges registry meta
+ * shallowly, so re-wrapping a hinted primitive (`withUi(ipAddress, { title })`) with `ui.ts`'s `withUi` would drop
+ * its `widget`/`help`. Private on purpose (not re-exported; D-054 pattern) — becomes a plain alias once `ui.ts`
+ * merges itself (D-043).
+ */
+function withUi<T extends z.ZodType>(schema: T, meta: UiMeta): T {
+  const inherited = (schema.meta()?.[X_VRX_UI] ?? {}) as UiHints;
+  const { title, description, ...hints } = meta;
+  return setUi(schema, {
+    ...(title !== undefined ? { title } : {}),
+    ...(description !== undefined ? { description } : {}),
+    ...inherited,
+    ...hints,
+  });
+}
 
 /**
  * `objects` — reusable firewall objects referenced by `acl` (and, later, NAT policies): addresses, address groups,

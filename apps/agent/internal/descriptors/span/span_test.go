@@ -48,19 +48,19 @@ func TestMirror(t *testing.T) {
 	f, st := fakeSpan()
 	ctx := t.Context()
 	d := New(f, df7test.Owner)
-	v := df7test.Desired(d, df7.Encode(Mirror{Source: "loop0", Destination: "loop9", State: StateBoth}))
-	if v.Key != "span.mirror/loop0/loop9/device" {
+	v := df7test.Desired(d, df7.Encode(Mirror{Source: "loop0", Destination: "eth0", State: StateBoth}))
+	if v.Key != "span.mirror/loop0/eth0/device" {
 		t.Fatal(v.Key)
 	}
 	deps := d.Dependencies(v.Value)
-	if len(deps) != 2 || deps[0].Key != "interface/loop0" || deps[1].Key != "interface/loop9" {
+	if len(deps) != 2 || deps[0].Key != "interface/loop0" || deps[1].Key != "interface/eth0" {
 		t.Fatalf("deps %v", deps)
 	}
-	meta, err := d.Create(ctx, v.Value) // destination may belong to anyone (e.g. a shared tunnel)
+	meta, err := d.Create(ctx, v.Value) // an untagged destination (e.g. a physical port) is fine
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r := df7test.Last[*span.SwInterfaceSpanEnableDisable](t, f, "sw_interface_span_enable_disable"); r.SwIfIndexFrom != 1 || r.SwIfIndexTo != 3 || r.State != span.SPAN_STATE_API_RX_TX || r.IsL2 {
+	if r := df7test.Last[*span.SwInterfaceSpanEnableDisable](t, f, "sw_interface_span_enable_disable"); r.SwIfIndexFrom != 1 || r.SwIfIndexTo != 4 || r.State != span.SPAN_STATE_API_RX_TX || r.IsL2 {
 		t.Fatalf("%+v", r)
 	}
 	l2 := df7test.Desired(d, df7.Encode(Mirror{Source: "loop1", Destination: "loop0", State: StateRx, L2: true}))
@@ -70,12 +70,12 @@ func TestMirror(t *testing.T) {
 	st[mk{3, 1, false}] = span.SPAN_STATE_API_TX // another owner's mirror
 	df7test.AssertEmptyPlan(t, d, v, l2)
 
-	n := df7.Encode(Mirror{Source: "loop0", Destination: "loop9", State: StateTx})
+	n := df7.Encode(Mirror{Source: "loop0", Destination: "eth0", State: StateTx})
 	if _, err := d.Update(ctx, v.Value, n, meta); err != nil {
 		t.Fatal(err)
 	}
 	df7test.AssertEmptyPlan(t, d, df7test.Desired(d, n), l2)
-	if _, err := d.Update(ctx, n, df7.Encode(Mirror{Source: "loop0", Destination: "loop9", State: StateTx, L2: true}), meta); !errors.Is(err, scheduler.ErrRecreate) {
+	if _, err := d.Update(ctx, n, df7.Encode(Mirror{Source: "loop0", Destination: "eth0", State: StateTx, L2: true}), meta); !errors.Is(err, scheduler.ErrRecreate) {
 		t.Fatal(err)
 	}
 	if err := d.Delete(ctx, n, meta); err != nil {
@@ -93,8 +93,11 @@ func TestMirror(t *testing.T) {
 	if _, err := d.Create(ctx, df7.Encode(Mirror{Source: "loop9", Destination: "loop0", State: StateRx})); !errors.Is(err, df7.ErrForeignInterface) {
 		t.Fatalf("foreign source: %v", err)
 	}
-	if err := d.Delete(ctx, n, nil); !errors.Is(err, df7.ErrBadMeta) {
-		t.Fatal(err)
+	if _, err := d.Create(ctx, df7.Encode(Mirror{Source: "loop0", Destination: "loop9", State: StateRx})); !errors.Is(err, df7.ErrForeignInterface) {
+		t.Fatalf("foreign destination: %v", err)
+	}
+	if err := d.Delete(ctx, df7.Encode(Mirror{Source: "gone0", Destination: "eth0", State: StateRx}), nil); err != nil {
+		t.Fatalf("delete on a vanished interface: %v", err)
 	}
 	r := scheduler.NewRegistry()
 	Register(r, f, df7test.Owner)

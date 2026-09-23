@@ -154,7 +154,17 @@ func TestASAndNat(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f.Reply("lb_add_del_intf_nat4", &lb.LbAddDelIntfNat4Reply{})
+	// VPP stacks the in2out feature on every enable: model it (D-076)
+	stack := map[uint32]int{}
+	f.On("lb_add_del_intf_nat4", func(m api.Message) ([]api.Message, error) {
+		r := m.(*lb.LbAddDelIntfNat4)
+		if r.IsAdd {
+			stack[uint32(r.SwIfIndex)]++
+		} else if stack[uint32(r.SwIfIndex)] > 0 {
+			stack[uint32(r.SwIfIndex)]--
+		}
+		return []api.Message{&lb.LbAddDelIntfNat4Reply{}}, nil
+	})
 	f.Reply("lb_add_del_intf_nat6", &lb.LbAddDelIntfNat6Reply{})
 	nd := NewIntfNat(f, df7test.Owner)
 	n4 := df7.Encode(IntfNat{Interface: "loop0", Family: FamilyIP4})
@@ -168,8 +178,26 @@ func TestASAndNat(t *testing.T) {
 	if r := df7test.Last[*lb.LbAddDelIntfNat4](t, f, "lb_add_del_intf_nat4"); !r.IsAdd || r.SwIfIndex != 1 {
 		t.Fatalf("%+v", r)
 	}
-	if err := nd.Delete(ctx, n4, meta); err != nil || df7test.Last[*lb.LbAddDelIntfNat4](t, f, "lb_add_del_intf_nat4").IsAdd {
+	for i := 0; i < 3; i++ { // write-only resyncs
+		if _, err := nd.Create(ctx, n4); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if stack[1] != 1 {
+		t.Fatalf("feature stacked %d times", stack[1])
+	}
+	if err := nd.Delete(ctx, n4, meta); err != nil || stack[1] != 0 {
+		t.Fatal(err, stack)
+	}
+	// after a VPP restart the feature is gone: re-enabled once, a stale delete sends nothing
+	if _, err := nd.Create(ctx, n4); err != nil {
 		t.Fatal(err)
+	}
+	f.Reboot()
+	stack[1] = 0
+	f.Reset()
+	if err := nd.Delete(ctx, n4, nil); err != nil || len(f.CallsNamed("lb_add_del_intf_nat4")) != 0 {
+		t.Fatal(err, f.CallsNamed("lb_add_del_intf_nat4"))
 	}
 	n6 := df7.Encode(IntfNat{Interface: "loop1", Family: FamilyIP6})
 	if _, err := nd.Create(ctx, n6); err != nil || len(f.CallsNamed("lb_add_del_intf_nat6")) != 1 {
@@ -181,8 +209,15 @@ func TestASAndNat(t *testing.T) {
 	if _, err := nd.Retrieve(ctx); !errors.Is(err, df7.ErrRetrieveUnsupported) {
 		t.Fatal(err)
 	}
+	if _, err := nd.Create(ctx, df7.Encode(IntfNat{Interface: "loop9", Family: FamilyIP4})); !errors.Is(err, df7.ErrForeignInterface) {
+		t.Fatal(err)
+	}
 	r := scheduler.NewRegistry()
 	Register(r, f, df7test.Owner)
+	if r.Len() != 3 {
+		t.Fatal("non-owners register no globals (D-071):", r.Names())
+	}
+	RegisterGlobals(r, f, df7test.Owner)
 	if r.Len() != 4 {
 		t.Fatal(r.Names())
 	}

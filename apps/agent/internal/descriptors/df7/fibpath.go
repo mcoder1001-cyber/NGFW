@@ -164,7 +164,7 @@ func EncodePaths(paths []Path, ifs *Interfaces) ([]fib_types.FibPath, error) {
 			e.Flags |= fib_types.FIB_API_PATH_FLAG_RESOLVE_VIA_HOST
 		}
 		if p.Interface != "" {
-			idx, err := ifs.Index(p.Interface)
+			idx, err := ifs.Resolve(p.Interface)
 			if err != nil {
 				return nil, fmt.Errorf("fib path: %w", err)
 			}
@@ -216,7 +216,7 @@ func DecodePaths(paths []fib_types.FibPath, ifs *Interfaces) []Path {
 			d.Weight = 1
 		}
 		if p.SwIfIndex != NoIndex {
-			d.Interface = ifs.NameOrIndex(p.SwIfIndex)
+			d.Interface = ifs.Name(p.SwIfIndex)
 		} else if d.Proto == ProtoIP4 || d.Proto == ProtoIP6 {
 			d.TableID = p.TableID
 		}

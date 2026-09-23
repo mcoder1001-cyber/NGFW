@@ -6,6 +6,8 @@ import (
 
 	"go.fd.io/govpp/adapter"
 	"go.fd.io/govpp/api"
+
+	iface "ngfw/agent/internal/descriptors/interface"
 )
 
 // Typed errors the DF-7 descriptors return and the integration tests recognise.
@@ -18,11 +20,11 @@ var (
 	ErrRetrieveUnsupported = errors.New("vpp has no dump for this object type")
 	// ErrSpec is wrapped by every validation / decoding error of a desired value.
 	ErrSpec = errors.New("invalid spec")
-	// ErrNoSuchInterface: the named interface does not exist in VPP.
-	ErrNoSuchInterface = errors.New("no such interface")
+	// ErrNoSuchInterface: no interface has this logical name (DF-1's iface.ErrNotFound).
+	ErrNoSuchInterface = iface.ErrNotFound
 	// ErrForeignInterface: the interface is tagged by another owner; DF-7 objects are never put
-	// on another owner's interface.
-	ErrForeignInterface = errors.New("interface belongs to another owner")
+	// on, nor reference, another owner's interface (DF-1's iface.ErrForeignInterface, D-069).
+	ErrForeignInterface = iface.ErrForeignInterface
 	// ErrBadMeta: Update/Delete received a Meta of the wrong type.
 	ErrBadMeta = errors.New("unexpected meta type")
 	// ErrPluginNotLoaded: the VPP on this host does not know the plugin's messages.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/classify"
@@ -20,9 +21,7 @@ type AttachMeta struct{ SwIfIndex uint32 }
 // ---- policer.interface ------------------------------------------------------------------------
 
 // KeyInterface is "policer.interface/<interface>/<input|output>".
-func KeyInterface(ifName, dir string) scheduler.Key {
-	return scheduler.Join(NameInterface, ifName, dir)
-}
+func KeyInterface(ifName, dir string) scheduler.Key { return scheduler.Join(NameInterface, ifName, dir) }
 
 // InterfaceDescriptor manages policer.interface objects with policer_input / policer_output,
 // the name-based messages: they need no pool index, which VPP's policer dump does not report
@@ -64,30 +63,33 @@ func (d *InterfaceDescriptor) apply(ctx context.Context, swIfIndex uint32, a Att
 	return d.Wrap(fmt.Sprintf("policer_input %s %s apply=%v", name, a.Interface, apply), err)
 }
 
-// Create implements scheduler.Descriptor: apply. Idempotent (re-applying the same policer is
-// a no-op in VPP), as the write-only rule requires.
+// Create implements scheduler.Descriptor: apply once per VPP lifetime (D-076). VPP's apply is
+// not idempotent — every policer_input(apply=1) enables the policer-input feature again, which
+// stacks a second instance of the node — so a re-application while the boot identity is
+// unchanged is skipped (df7.ApplyOnce).
 func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	a, err := df7.DecodeValid[Attachment](obj)
 	if err != nil {
 		return nil, err
 	}
+	key := string(KeyInterface(a.Interface, a.Direction))
 	ifs, err := d.Ifaces(ctx)
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ifs.OwnedIndex(a.Interface)
+	idx, err := ifs.Attach(a.Interface, key)
 	if err != nil {
 		return nil, err
 	}
-	if err := d.apply(ctx, idx, a, true); err != nil {
+	if _, err := d.ApplyOnce(ctx, key, func() error { return d.apply(ctx, idx, a, true) }); err != nil {
 		return nil, err
 	}
 	return AttachMeta{SwIfIndex: idx}, nil
 }
 
-// Update implements scheduler.Descriptor: another policer on the same interface/direction is
-// applied in place (VPP overwrites the per-interface slot).
-func (d *InterfaceDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
+// Update implements scheduler.Descriptor: another policer on the same interface/direction —
+// un-apply the old one, apply the new one (applying on top would stack the feature).
+func (d *InterfaceDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, _ any) (any, error) {
 	oldA, err := df7.Decode[Attachment](oldObj)
 	if err != nil {
 		return nil, err
@@ -99,30 +101,44 @@ func (d *InterfaceDescriptor) Update(ctx context.Context, oldObj, newObj proto.M
 	if oldA.Interface != newA.Interface || oldA.Direction != newA.Direction {
 		return nil, scheduler.ErrRecreate
 	}
-	m, ok := meta.(AttachMeta)
-	if !ok {
-		return nil, df7.BadMeta(NameInterface, meta)
+	if err := d.Delete(ctx, oldObj, nil); err != nil {
+		return nil, err
 	}
-	return m, d.apply(ctx, m.SwIfIndex, newA, true)
+	return d.Create(ctx, newObj)
 }
 
-// Delete implements scheduler.Descriptor. VPP 26.06's policer_input(apply=0) writes the
-// per-interface slot without growing the vector first (policer_op.c policer_input), so
-// un-applying on an interface that never had a policer since VPP started would write out of
-// bounds; Delete therefore applies once (which validates the vector) and then un-applies.
-func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor: re-resolve the interface (indexes are reused after a
+// VPP restart, D-071) and un-apply — only when the attachment was applied in this VPP lifetime:
+// after a VPP restart there is nothing to remove, and VPP 26.06's policer_input(apply=0) writes
+// the per-interface slot without growing the vector first (policer_op.c), i.e. out of bounds on
+// an interface that never had a policer since VPP started.
+func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	a, err := df7.Decode[Attachment](obj)
 	if err != nil {
 		return err
 	}
-	m, ok := meta.(AttachMeta)
-	if !ok {
-		return df7.BadMeta(NameInterface, meta)
-	}
-	if err := d.apply(ctx, m.SwIfIndex, a, true); err != nil {
+	key := string(KeyInterface(a.Interface, a.Direction))
+	ifs, err := d.Ifaces(ctx)
+	if err != nil {
 		return err
 	}
-	return d.apply(ctx, m.SwIfIndex, a, false)
+	idx, found, err := ifs.Reresolve(a.Interface, key)
+	if err != nil {
+		return err
+	}
+	applied, err := d.AppliedNow(ctx, key)
+	if err != nil {
+		return err
+	}
+	if found && applied {
+		if err := d.apply(ctx, idx, a, false); err != nil {
+			return err
+		}
+	}
+	if err := d.ForgetApplied(key); err != nil {
+		return err
+	}
+	return df7.Release(d.Owner, a.Interface, key)
 }
 
 // Retrieve implements scheduler.Descriptor: write-only (D-063).
@@ -136,8 +152,9 @@ func (d *InterfaceDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) 
 func KeyBind(policerName string) scheduler.Key { return scheduler.Join(NameBind, policerName) }
 
 // BindDescriptor manages policer.bind objects with policer_bind (by name). Write-only (D-063):
-// policer_details does not report the bound thread. The host has no worker threads, so a bind
-// fails there with INVALID_WORKER (the integration test records the skip reason).
+// policer_details does not report the bound thread. Idempotent (it sets the policer's thread
+// index). The host has no worker threads, so a bind fails there with INVALID_WORKER (the
+// integration test records the skip reason).
 type BindDescriptor struct{ df7.Base }
 
 var _ scheduler.Descriptor = (*BindDescriptor)(nil)
@@ -187,6 +204,7 @@ func (d *BindDescriptor) Update(ctx context.Context, _, newObj proto.Message, _ 
 }
 
 // Delete implements scheduler.Descriptor: unbind (any thread may handle the policer again).
+// The policer is addressed by its owner-tagged name, never by index.
 func (d *BindDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	b, err := df7.Decode[Bind](obj)
 	if err != nil {
@@ -209,7 +227,8 @@ func KeyClassify(ifName string) scheduler.Key { return scheduler.Join(NameClassi
 // (binapi/classify). Write-only (D-063): VPP 26.06's policer_classify_dump returns nothing for
 // sw_if_index ~0 (the handler compares ~0 against the vector length and returns) and reads out
 // of bounds for a single interface (vec_len on a pointer into the vector), so it is never
-// called.
+// called. Create is idempotent: VPP returns success without re-enabling when a table of that
+// kind is already set on the interface.
 type ClassifyDescriptor struct{ df7.Base }
 
 var _ scheduler.Descriptor = (*ClassifyDescriptor)(nil)
@@ -272,8 +291,7 @@ func (d *ClassifyDescriptor) set(ctx context.Context, swIfIndex uint32, c Classi
 	return d.Wrap(fmt.Sprintf("policer_classify_set_interface %s add=%v", c.Interface, add), err)
 }
 
-// Create implements scheduler.Descriptor (idempotent: VPP returns success when the feature is
-// already enabled on the interface).
+// Create implements scheduler.Descriptor (idempotent, see the type doc).
 func (d *ClassifyDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	c, err := df7.DecodeValid[Classify](obj)
 	if err != nil {
@@ -283,7 +301,7 @@ func (d *ClassifyDescriptor) Create(ctx context.Context, obj proto.Message) (any
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ifs.OwnedIndex(c.Interface)
+	idx, err := ifs.Attach(c.Interface, string(KeyClassify(c.Interface)))
 	if err != nil {
 		return nil, err
 	}
@@ -299,17 +317,29 @@ func (d *ClassifyDescriptor) Update(context.Context, proto.Message, proto.Messag
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor: is_add=0 with the same tables.
-func (d *ClassifyDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor: re-resolve the interface, then is_add=0 with the same
+// tables (VPP checks the table matches before removing). A vanished interface is success.
+func (d *ClassifyDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	c, err := df7.Decode[Classify](obj)
 	if err != nil {
 		return err
 	}
-	m, ok := meta.(AttachMeta)
-	if !ok {
-		return df7.BadMeta(NameClassify, meta)
+	key := string(KeyClassify(c.Interface))
+	ifs, err := d.Ifaces(ctx)
+	if err != nil {
+		return err
 	}
-	return d.set(ctx, m.SwIfIndex, c, false)
+	idx, found, err := ifs.Reresolve(c.Interface, key)
+	if err != nil {
+		return err
+	}
+	if found {
+		// NO_SUCH_TABLE: not bound with these tables (e.g. after a VPP restart) — nothing to remove
+		if err := d.set(ctx, idx, c, false); err != nil && !df7.IsVPPError(err, api.NO_SUCH_TABLE) {
+			return err
+		}
+	}
+	return df7.Release(d.Owner, c.Interface, key)
 }
 
 // Retrieve implements scheduler.Descriptor: write-only (D-063).

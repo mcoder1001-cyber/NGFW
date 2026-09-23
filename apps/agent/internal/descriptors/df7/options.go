@@ -44,9 +44,6 @@ func (r *IDRange) Owns(id uint32) bool { return r == nil || (id >= r.Lo && id <=
 type Options struct {
 	// InterfaceKey maps an interface name to its dependency key (default InterfaceKey).
 	InterfaceKey func(name string) scheduler.Key
-	// ClaimUntagged attributes untagged interfaces (physical NICs; never local0) to this owner.
-	// Production sets it (one agent per VPP); on the shared lab host it stays false.
-	ClaimUntagged bool
 	// IDs is the numeric id range of untagged objects this owner may create and retrieve.
 	IDs *IDRange
 	// ClassifyIndex resolves a DF-2 classify table name to its VPP table index (P05 wires
@@ -76,9 +73,6 @@ func WithInterfaceKey(f func(name string) scheduler.Key) Option {
 		}
 	}
 }
-
-// WithClaimUntagged makes untagged interfaces (except local0) count as this owner's.
-func WithClaimUntagged(claim bool) Option { return func(o *Options) { o.ClaimUntagged = claim } }
 
 // WithIDRange restricts the numeric ids of untagged objects to lo..hi.
 func WithIDRange(lo, hi uint32) Option {

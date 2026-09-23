@@ -243,6 +243,45 @@ func (h *Host) ExpectRetrieved(d scheduler.Descriptor, desired ...scheduler.KV) 
 	return AssertEmptyPlan(h.T, d, desired...)
 }
 
+// RestartSimulation is the FAST-MODE restart-safety check without restarting VPP: a fresh
+// connection and fresh descriptors (no Meta, no process memory) retrieve the state and must
+// plan nothing for desired; then the objects are deleted behind the agent's back (simulated
+// loss, through the fresh descriptor's Delete — i.e. plain binapi), the plan must be exactly
+// one Create per desired object, applying it recreates them, and the plan is empty again. The
+// returned KVs carry the Meta of the recreated objects (for the test's own cleanup).
+func (h *Host) RestartSimulation(newDesc func(c vpp.Client) scheduler.Descriptor, desired ...scheduler.KV) []scheduler.KV {
+	t := h.T
+	t.Helper()
+	d := newDesc(Connect(t))
+	t.Logf("restart simulation (%s): fresh connection, fresh descriptor", d.Name())
+	actual := AssertEmptyPlan(t, d, desired...)
+	for i := len(actual) - 1; i >= 0; i-- {
+		if err := d.Delete(h.Ctx, actual[i].Value, actual[i].Meta); err != nil {
+			t.Fatalf("simulated loss: delete %s: %v", actual[i].Key, err)
+		}
+	}
+	after, err := d.Retrieve(h.Ctx)
+	if err != nil {
+		t.Fatalf("%s Retrieve: %v", d.Name(), err)
+	}
+	p := DiffPlan(desired, after)
+	t.Logf("%s: plan after simulated loss of %d object(s):\n%s", d.Name(), len(actual), PlanString(p))
+	if len(p.Create) != len(desired) || len(p.Update)+len(p.Delete) != 0 {
+		t.Fatalf("%s: after the loss the plan must recreate every desired object, got %d op(s)", d.Name(), p.Len())
+	}
+	out := make([]scheduler.KV, 0, len(p.Create))
+	for _, kv := range p.Create {
+		meta, err := d.Create(h.Ctx, kv.Value)
+		if err != nil {
+			t.Fatalf("%s: recreate %s: %v", d.Name(), kv.Key, err)
+		}
+		out = append(out, scheduler.KV{Key: kv.Key, Value: kv.Value, Meta: meta})
+	}
+	t.Logf("%s: recreated %d object(s)", d.Name(), len(out))
+	AssertEmptyPlan(t, d, desired...)
+	return out
+}
+
 // ExpectNone asserts d reports nothing of ours.
 func (h *Host) ExpectNone(d scheduler.Descriptor) {
 	h.T.Helper()

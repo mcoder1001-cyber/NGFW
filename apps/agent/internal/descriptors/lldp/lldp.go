@@ -211,7 +211,7 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ifs.OwnedIndex(i.Interface)
+	idx, err := ifs.Attach(i.Interface, string(KeyInterface(i.Interface)))
 	if err != nil {
 		return nil, err
 	}
@@ -253,27 +253,37 @@ func (d *InterfaceDescriptor) Update(ctx context.Context, oldObj, newObj proto.M
 	if o.Interface != n.Interface {
 		return nil, scheduler.ErrRecreate
 	}
-	m, ok := meta.(Meta)
-	if !ok {
-		return nil, df7.BadMeta(NameInterface, meta)
-	}
-	if err := d.set(ctx, m.SwIfIndex, o, false); err != nil {
+	idx, found, err := d.Detach(ctx, n.Interface, string(KeyInterface(n.Interface)))
+	if err != nil {
 		return nil, err
 	}
-	return m, d.set(ctx, m.SwIfIndex, n, true)
+	if !found {
+		return nil, fmt.Errorf("%s: %w: %q", NameInterface, df7.ErrNoSuchInterface, n.Interface)
+	}
+	if err := d.set(ctx, idx, o, false); err != nil {
+		return nil, err
+	}
+	return Meta{SwIfIndex: idx}, d.set(ctx, idx, n, true)
 }
 
-// Delete implements scheduler.Descriptor: disable.
-func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor: re-resolve the interface (D-071) and disable (VPP
+// ignores a disable of an interface without LLDP); a vanished interface is success.
+func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	i, err := df7.Decode[Interface](obj)
 	if err != nil {
 		return err
 	}
-	m, ok := meta.(Meta)
-	if !ok {
-		return df7.BadMeta(NameInterface, meta)
+	key := string(KeyInterface(i.Interface))
+	idx, found, err := d.Detach(ctx, i.Interface, key)
+	if err != nil {
+		return err
 	}
-	return d.set(ctx, m.SwIfIndex, i, false)
+	if found {
+		if err := d.set(ctx, idx, i, false); err != nil {
+			return err
+		}
+	}
+	return d.Release(i.Interface, key)
 }
 
 // Retrieve implements scheduler.Descriptor: write-only (D-063).
@@ -335,8 +345,14 @@ func Neighbours(ctx context.Context, c vpp.Client) (map[uint32]Neighbour, error)
 	return out, nil
 }
 
-// Register constructs both lldp descriptors.
+// Register constructs the per-interface lldp descriptor. lldp.interface depends on lldp.global
+// only optionally, so it works whether or not this agent is the globals owner.
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
-	r.Register(NewGlobal(c, owner, opts...))
 	r.Register(NewInterface(c, owner, opts...))
+}
+
+// RegisterGlobals constructs the VPP-global lldp.global descriptor. Only the globals owner
+// (agent config globalsOwner: true, never a test slot on the shared host) calls it (D-071).
+func RegisterGlobals(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
+	r.Register(NewGlobal(c, owner, opts...))
 }

@@ -82,15 +82,41 @@ func (d *Descriptor) Update(ctx context.Context, oldObj, newObj proto.Message, m
 	return m, nil
 }
 
-// Delete implements scheduler.Descriptor: policer_del by index. Attachments depend on the
-// policer, so the scheduler detaches first.
-func (d *Descriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor: policer_del by index, after re-verifying right
+// before the delete that the index still holds this owner's policer of that name (indexes are
+// reused after a VPP restart, D-071); when it does not, the policer is looked up by name, and a
+// policer that no longer exists is success. Attachments depend on the policer, so the scheduler
+// detaches first.
+func (d *Descriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+	p, err := df7.Decode[Policer](obj)
+	if err != nil {
+		return err
+	}
 	m, ok := meta.(Meta)
 	if !ok {
 		return df7.BadMeta(NamePolicer, meta)
 	}
-	if _, err := policer.NewServiceClient(d.Client).PolicerDel(ctx, &policer.PolicerDel{PolicerIndex: m.Index}); err != nil {
-		return d.Wrap(fmt.Sprintf("policer_del %d", m.Index), err)
+	want, err := vppName(d.Owner, p.Name)
+	if err != nil {
+		return err
+	}
+	dets, err := dumpV2(ctx, d.Client, m.Index)
+	if err != nil {
+		return d.Wrap("policer_dump_v2", err)
+	}
+	index := m.Index
+	if len(dets) == 0 || dets[0].Name != want {
+		idx, found, err := LookupIndex(ctx, d.Client, d.Owner, p.Name)
+		if err != nil {
+			return d.Wrap("policer lookup", err)
+		}
+		if !found {
+			return nil
+		}
+		index = idx
+	}
+	if _, err := policer.NewServiceClient(d.Client).PolicerDel(ctx, &policer.PolicerDel{PolicerIndex: index}); err != nil {
+		return d.Wrap(fmt.Sprintf("policer_del %d (%s)", index, want), err)
 	}
 	return nil
 }

@@ -12,6 +12,7 @@ package span
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -116,16 +117,36 @@ func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error)
 	if err != nil {
 		return nil, err
 	}
-	from, err := ifs.OwnedIndex(m.Source)
+	from, err := ifs.Attach(m.Source, string(Key(m.Source, m.Destination, m.L2)))
 	if err != nil {
 		return nil, err
 	}
-	to, err := ifs.Index(m.Destination)
+	to, err := ifs.Resolve(m.Destination)
 	if err != nil {
 		return nil, err
 	}
 	meta := Meta{From: from, To: to}
 	return meta, d.set(ctx, meta, states[m.State], m.L2)
+}
+
+// reresolve finds both interfaces again by logical name (D-071: never trust a stored index).
+func (d *Descriptor) reresolve(ctx context.Context, m Mirror) (Meta, bool, error) {
+	ifs, err := d.Ifaces(ctx)
+	if err != nil {
+		return Meta{}, false, err
+	}
+	from, found, err := ifs.Reresolve(m.Source, string(Key(m.Source, m.Destination, m.L2)))
+	if err != nil || !found {
+		return Meta{}, false, err
+	}
+	to, err := ifs.Resolve(m.Destination)
+	if errors.Is(err, df7.ErrNoSuchInterface) {
+		return Meta{}, false, nil
+	}
+	if err != nil {
+		return Meta{}, false, err
+	}
+	return Meta{From: from, To: to}, true, nil
 }
 
 // Update implements scheduler.Descriptor: a new direction set is applied in place.
@@ -141,24 +162,33 @@ func (d *Descriptor) Update(ctx context.Context, oldObj, newObj proto.Message, m
 	if o.Source != n.Source || o.Destination != n.Destination || o.L2 != n.L2 {
 		return nil, scheduler.ErrRecreate
 	}
-	m, ok := meta.(Meta)
-	if !ok {
-		return nil, df7.BadMeta(NameMirror, meta)
+	m, found, err := d.reresolve(ctx, n)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, fmt.Errorf("%s: %w: %s or %s", NameMirror, df7.ErrNoSuchInterface, n.Source, n.Destination)
 	}
 	return m, d.set(ctx, m, states[n.State], n.L2)
 }
 
-// Delete implements scheduler.Descriptor: state disabled.
-func (d *Descriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor: re-resolve both interfaces and set state disabled;
+// a vanished interface is success.
+func (d *Descriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	o, err := df7.Decode[Mirror](obj)
 	if err != nil {
 		return err
 	}
-	m, ok := meta.(Meta)
-	if !ok {
-		return df7.BadMeta(NameMirror, meta)
+	m, found, err := d.reresolve(ctx, o)
+	if err != nil {
+		return err
 	}
-	return d.set(ctx, m, span.SPAN_STATE_API_DISABLED, o.L2)
+	if found {
+		if err := d.set(ctx, m, span.SPAN_STATE_API_DISABLED, o.L2); err != nil {
+			return err
+		}
+	}
+	return d.Release(o.Source, string(Key(o.Source, o.Destination, o.L2)))
 }
 
 // Retrieve implements scheduler.Descriptor: sw_interface_span_dump for the device and the L2
@@ -179,7 +209,8 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 			return nil, d.Wrap("sw_interface_span_dump", err)
 		}
 		for _, det := range dets {
-			src, ok := ifs.OwnedName(uint32(det.SwIfIndexFrom))
+			dst := ifs.Name(uint32(det.SwIfIndexTo))
+			src, ok := ifs.Owned(uint32(det.SwIfIndexFrom), func(n string) string { return string(Key(n, dst, l2)) })
 			if !ok {
 				continue
 			}
@@ -189,7 +220,7 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 					state = n
 				}
 			}
-			m := Mirror{Source: src, Destination: ifs.NameOrIndex(uint32(det.SwIfIndexTo)), State: state, L2: l2}
+			m := Mirror{Source: src, Destination: dst, State: state, L2: l2}
 			out = append(out, df7.KV(Key(m.Source, m.Destination, l2), m, Meta{From: uint32(det.SwIfIndexFrom), To: uint32(det.SwIfIndexTo)}))
 		}
 	}

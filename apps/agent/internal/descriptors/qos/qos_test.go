@@ -182,9 +182,28 @@ func TestRecordStore(t *testing.T) {
 	if _, err := rd.Create(ctx, df7.Encode(Record{Interface: "loop0", Source: "pcp"})); !errors.Is(err, df7.ErrSpec) {
 		t.Fatalf("bad source: %v", err)
 	}
-	if err := rd.Delete(ctx, r.Value, "x"); !errors.Is(err, df7.ErrBadMeta) {
+	// deleting what is already gone is success; Delete never trusts the Meta index (D-071)
+	if err := rd.Delete(ctx, r.Value, Meta{SwIfIndex: 3}); err != nil {
 		t.Fatal(err)
 	}
+	for _, c := range f.CallsNamed("qos_record_enable_disable") {
+		if c.(*qos.QosRecordEnableDisable).Record.SwIfIndex == 3 {
+			t.Fatal("a stale Meta index reached VPP")
+		}
+	}
+	// untagged interface: owned only through the claim of this object's key
+	eth := df7test.Desired(rd, df7.Encode(Record{Interface: "eth0", Source: SourceMPLS}))
+	em, err := rd.Create(ctx, eth.Value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recs[key{4, qos.QOS_API_SOURCE_VLAN}] = 1 // on eth0 but not claimed by us
+	df7test.AssertEmptyPlan(t, rd, eth)
+	delete(recs, key{4, qos.QOS_API_SOURCE_VLAN})
+	if err := rd.Delete(ctx, eth.Value, em); err != nil {
+		t.Fatal(err)
+	}
+	df7test.AssertEmptyPlan(t, rd)
 }
 
 func TestEgressMapAndMark(t *testing.T) {

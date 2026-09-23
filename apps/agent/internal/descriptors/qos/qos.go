@@ -215,9 +215,6 @@ func KeyMark(ifName, source string) scheduler.Key { return scheduler.Join(NameMa
 // record/store enables per interface and source, and one scheduler object must leave nothing
 // behind even when an earlier run enabled twice.
 func disableAll(ctx context.Context, disable func(context.Context) error) error {
-	if err := disable(ctx); err != nil {
-		return err
-	}
 	for i := 0; i < 64; i++ {
 		if err := disable(ctx); err != nil {
 			if df7.IsVPPError(err, api.VALUE_EXIST, api.NO_MATCHING_INTERFACE) {
@@ -229,20 +226,19 @@ func disableAll(ctx context.Context, disable func(context.Context) error) error 
 	return nil
 }
 
-func ownedIndex(ctx context.Context, b df7.Base, name string) (uint32, error) {
-	ifs, err := b.Ifaces(ctx)
+// detach re-resolves the interface of an object about to be deleted, runs del on it when it
+// still exists, and releases the claim.
+func detach(ctx context.Context, b df7.Base, ifName, holder string, del func(ctx context.Context, idx uint32) error) error {
+	idx, found, err := b.Detach(ctx, ifName, holder)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	return ifs.OwnedIndex(name)
-}
-
-func metaOf(name string, meta any) (Meta, error) {
-	m, ok := meta.(Meta)
-	if !ok {
-		return Meta{}, df7.BadMeta(name, meta)
+	if found {
+		if err := del(ctx, idx); err != nil {
+			return err
+		}
 	}
-	return m, nil
+	return b.Release(ifName, holder)
 }
 
 func sortKVs(kvs []scheduler.KV) {
@@ -285,7 +281,7 @@ func (d *RecordDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ownedIndex(ctx, d.Base, r.Interface)
+	idx, err := d.Attach(ctx, r.Interface, string(KeyRecord(r.Interface, r.Source)))
 	if err != nil {
 		return nil, err
 	}
@@ -297,17 +293,16 @@ func (*RecordDescriptor) Update(context.Context, proto.Message, proto.Message, a
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor: disable until VPP's reference count is zero.
-func (d *RecordDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor: re-resolve the interface (D-071) and disable until
+// VPP's reference count is zero.
+func (d *RecordDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	r, err := df7.Decode[Record](obj)
 	if err != nil {
 		return err
 	}
-	m, err := metaOf(NameRecord, meta)
-	if err != nil {
-		return err
-	}
-	return disableAll(ctx, func(ctx context.Context) error { return d.set(ctx, m.SwIfIndex, r.Source, false) })
+	return detach(ctx, d.Base, r.Interface, string(KeyRecord(r.Interface, r.Source)), func(ctx context.Context, idx uint32) error {
+		return disableAll(ctx, func(ctx context.Context) error { return d.set(ctx, idx, r.Source, false) })
+	})
 }
 
 // Retrieve implements scheduler.Descriptor: qos_record_dump, owned interfaces only.
@@ -326,11 +321,12 @@ func (d *RecordDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 	}
 	var out []scheduler.KV
 	for _, det := range dets {
-		name, ok := ifs.OwnedName(uint32(det.Record.SwIfIndex))
+		src := sourceName(det.Record.InputSource)
+		name, ok := ifs.Owned(uint32(det.Record.SwIfIndex), func(n string) string { return string(KeyRecord(n, src)) })
 		if !ok {
 			continue
 		}
-		r := Record{Interface: name, Source: sourceName(det.Record.InputSource)}
+		r := Record{Interface: name, Source: src}
 		out = append(out, df7.KV(KeyRecord(r.Interface, r.Source), r, Meta{SwIfIndex: uint32(det.Record.SwIfIndex)}))
 	}
 	sortKVs(out)
@@ -373,7 +369,7 @@ func (d *StoreDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ownedIndex(ctx, d.Base, s.Interface)
+	idx, err := d.Attach(ctx, s.Interface, string(KeyStore(s.Interface, s.Source)))
 	if err != nil {
 		return nil, err
 	}
@@ -386,17 +382,16 @@ func (*StoreDescriptor) Update(context.Context, proto.Message, proto.Message, an
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor: disable until VPP's reference count is zero.
-func (d *StoreDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor: re-resolve the interface (D-071) and disable until
+// VPP's reference count is zero.
+func (d *StoreDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	s, err := df7.Decode[Store](obj)
 	if err != nil {
 		return err
 	}
-	m, err := metaOf(NameStore, meta)
-	if err != nil {
-		return err
-	}
-	return disableAll(ctx, func(ctx context.Context) error { return d.set(ctx, m.SwIfIndex, s, false) })
+	return detach(ctx, d.Base, s.Interface, string(KeyStore(s.Interface, s.Source)), func(ctx context.Context, idx uint32) error {
+		return disableAll(ctx, func(ctx context.Context) error { return d.set(ctx, idx, s, false) })
+	})
 }
 
 // Retrieve implements scheduler.Descriptor: qos_store_dump, owned interfaces only.
@@ -415,11 +410,12 @@ func (d *StoreDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 	}
 	var out []scheduler.KV
 	for _, det := range dets {
-		name, ok := ifs.OwnedName(uint32(det.Store.SwIfIndex))
+		src := sourceName(det.Store.InputSource)
+		name, ok := ifs.Owned(uint32(det.Store.SwIfIndex), func(n string) string { return string(KeyStore(n, src)) })
 		if !ok {
 			continue
 		}
-		s := Store{Interface: name, Source: sourceName(det.Store.InputSource), Value: det.Store.Value}
+		s := Store{Interface: name, Source: src, Value: det.Store.Value}
 		out = append(out, df7.KV(KeyStore(s.Interface, s.Source), s, Meta{SwIfIndex: uint32(det.Store.SwIfIndex)}))
 	}
 	sortKVs(out)
@@ -539,7 +535,7 @@ func (d *MarkDescriptor) Create(ctx context.Context, obj proto.Message) (any, er
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ownedIndex(ctx, d.Base, m.Interface)
+	idx, err := d.Attach(ctx, m.Interface, string(KeyMark(m.Interface, m.Source)))
 	if err != nil {
 		return nil, err
 	}
@@ -547,8 +543,8 @@ func (d *MarkDescriptor) Create(ctx context.Context, obj proto.Message) (any, er
 }
 
 // Update implements scheduler.Descriptor: another map is applied in place (VPP replaces the
-// interface's map for the source).
-func (d *MarkDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
+// interface's map for the source; the interface is re-resolved, D-071).
+func (d *MarkDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, _ any) (any, error) {
 	oldM, err := df7.Decode[Mark](oldObj)
 	if err != nil {
 		return nil, err
@@ -560,24 +556,29 @@ func (d *MarkDescriptor) Update(ctx context.Context, oldObj, newObj proto.Messag
 	if oldM.Interface != newM.Interface || oldM.Source != newM.Source {
 		return nil, scheduler.ErrRecreate
 	}
-	m, err := metaOf(NameMark, meta)
+	idx, found, err := d.Detach(ctx, newM.Interface, string(KeyMark(newM.Interface, newM.Source)))
 	if err != nil {
 		return nil, err
 	}
-	return m, d.set(ctx, m.SwIfIndex, newM, true)
+	if !found {
+		return nil, fmt.Errorf("%s: %w: %q", NameMark, df7.ErrNoSuchInterface, newM.Interface)
+	}
+	return Meta{SwIfIndex: idx}, d.set(ctx, idx, newM, true)
 }
 
-// Delete implements scheduler.Descriptor.
-func (d *MarkDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor: re-resolve the interface (D-071) and disable.
+func (d *MarkDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	mk, err := df7.Decode[Mark](obj)
 	if err != nil {
 		return err
 	}
-	m, err := metaOf(NameMark, meta)
-	if err != nil {
-		return err
-	}
-	return d.set(ctx, m.SwIfIndex, mk, false)
+	return detach(ctx, d.Base, mk.Interface, string(KeyMark(mk.Interface, mk.Source)), func(ctx context.Context, idx uint32) error {
+		// VALUE_EXIST: not marking (nothing left to remove)
+		if err := d.set(ctx, idx, mk, false); err != nil && !df7.IsVPPError(err, api.VALUE_EXIST, api.NO_MATCHING_INTERFACE) {
+			return err
+		}
+		return nil
+	})
 }
 
 // Retrieve implements scheduler.Descriptor: qos_mark_dump, owned interfaces only.
@@ -596,11 +597,12 @@ func (d *MarkDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	}
 	var out []scheduler.KV
 	for _, det := range dets {
-		name, ok := ifs.OwnedName(det.Mark.SwIfIndex)
+		src := sourceName(det.Mark.OutputSource)
+		name, ok := ifs.Owned(det.Mark.SwIfIndex, func(n string) string { return string(KeyMark(n, src)) })
 		if !ok {
 			continue
 		}
-		m := Mark{Interface: name, Source: sourceName(det.Mark.OutputSource), Map: det.Mark.MapID}
+		m := Mark{Interface: name, Source: src, Map: det.Mark.MapID}
 		out = append(out, df7.KV(KeyMark(m.Interface, m.Source), m, Meta{SwIfIndex: det.Mark.SwIfIndex}))
 	}
 	sortKVs(out)

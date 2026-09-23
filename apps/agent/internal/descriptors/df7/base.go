@@ -35,6 +35,29 @@ func (b Base) Ifaces(ctx context.Context) (*Interfaces, error) {
 	return DumpInterfaces(ctx, b.Client, b.Owner, b.Opts)
 }
 
+// Attach resolves the interface an object (holder = its key) is put on, claiming it when
+// untagged (Interfaces.Attach).
+func (b Base) Attach(ctx context.Context, name, holder string) (uint32, error) {
+	ifs, err := b.Ifaces(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return ifs.Attach(name, holder)
+}
+
+// Detach re-resolves the interface of an object about to be deleted (Interfaces.Reresolve);
+// found is false when the interface is gone.
+func (b Base) Detach(ctx context.Context, name, holder string) (uint32, bool, error) {
+	ifs, err := b.Ifaces(ctx)
+	if err != nil {
+		return 0, false, err
+	}
+	return ifs.Reresolve(name, holder)
+}
+
+// Release drops holder's claim on the interface (after a successful Delete).
+func (b Base) Release(name, holder string) error { return Release(b.Owner, name, holder) }
+
 // Wrap prefixes err with the descriptor name and the VPP message.
 func (b Base) Wrap(msg string, err error) error {
 	if err == nil {

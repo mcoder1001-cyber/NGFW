@@ -145,6 +145,10 @@ func TestNeighbours(t *testing.T) {
 	}
 	r := scheduler.NewRegistry()
 	Register(r, f, df7test.Owner)
+	if r.Len() != 1 || r.Names()[0] != NameInterface {
+		t.Fatal("non-owners register no globals (D-071):", r.Names())
+	}
+	RegisterGlobals(r, f, df7test.Owner)
 	if r.Len() != 2 {
 		t.Fatal(r.Names())
 	}

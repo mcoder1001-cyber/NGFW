@@ -2,16 +2,19 @@ package policer
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"testing"
 
 	"go.fd.io/govpp/api"
 
 	"ngfw/agent/binapi/classify"
+	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/policer"
 	"ngfw/agent/binapi/policer_types"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/df7/df7test"
+	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -156,9 +159,23 @@ func TestPolicerLifecycle(t *testing.T) {
 	if kvs, _ := d.Retrieve(ctx); len(kvs) != 0 {
 		t.Fatalf("left: %v", df7test.Keys(kvs))
 	}
-	// VPP error surfaces
-	if err := d.Delete(ctx, df7.Encode(s), ms); err == nil {
-		t.Fatal("delete of a missing policer must fail")
+	// a policer that is gone is deleted already; nothing is sent
+	f.Reset()
+	if err := d.Delete(ctx, df7.Encode(s), ms); err != nil || len(f.CallsNamed("policer_del")) != 0 {
+		t.Fatalf("delete of a missing policer: %v %v", err, f.CallsNamed("policer_del"))
+	}
+	// index reuse (VPP restart): Meta says 0, but pool index 0 now holds another owner's
+	// policer and ours sits at 7 — Delete re-verifies and removes 7, never 0
+	pool[0] = &policer.PolicerDetails{Name: df7test.Other + ":x", Cir: 1}
+	pool[7] = &policer.PolicerDetails{Name: "w0:silver", Cir: 1}
+	if err := d.Delete(ctx, df7.Encode(s), Meta{Index: 0}); err != nil {
+		t.Fatal(err)
+	}
+	if r := df7test.Last[*policer.PolicerDel](t, f, "policer_del"); r.PolicerIndex != 7 {
+		t.Fatalf("deleted index %d", r.PolicerIndex)
+	}
+	if _, ok := pool[0]; !ok {
+		t.Fatal("another owner's policer was deleted")
 	}
 	f.Reply("policer_reset", &policer.PolicerResetReply{})
 	if err := Reset(ctx, f, 0); err != nil {
@@ -195,8 +212,26 @@ func TestPolicerValidate(t *testing.T) {
 func TestAttachments(t *testing.T) {
 	f := df7test.NewFake()
 	ctx := t.Context()
-	f.Reply("policer_input", &policer.PolicerInputReply{})
-	f.Reply("policer_output", &policer.PolicerOutputReply{})
+	// VPP stacks the feature on every apply: model it with a counter per interface/direction
+	stack := map[string]int{}
+	count := func(name string, idx interface_types.InterfaceIndex, apply bool) {
+		k := fmt.Sprintf("%s/%d", name, idx)
+		if apply {
+			stack[k]++
+		} else if stack[k] > 0 {
+			stack[k]--
+		}
+	}
+	f.On("policer_input", func(m api.Message) ([]api.Message, error) {
+		r := m.(*policer.PolicerInput)
+		count("in", r.SwIfIndex, r.Apply)
+		return []api.Message{&policer.PolicerInputReply{}}, nil
+	})
+	f.On("policer_output", func(m api.Message) ([]api.Message, error) {
+		r := m.(*policer.PolicerOutput)
+		count("out", r.SwIfIndex, r.Apply)
+		return []api.Message{&policer.PolicerOutputReply{}}, nil
+	})
 	d := NewInterface(f, df7test.Owner)
 	in := df7.Encode(Attachment{Interface: "loop0", Direction: DirInput, Policer: "gold"})
 	if k := d.KeyOf(in); k != "policer.interface/loop0/input" {
@@ -213,45 +248,65 @@ func TestAttachments(t *testing.T) {
 	if r := df7test.Last[*policer.PolicerInput](t, f, "policer_input"); r.Name != "w0:gold" || r.SwIfIndex != 1 || !r.Apply {
 		t.Fatalf("policer_input %+v", r)
 	}
+	// write-only resync re-applies: the feature must not stack (D-076)
+	for i := 0; i < 3; i++ {
+		if _, err := d.Create(ctx, in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if stack["in/1"] != 1 {
+		t.Fatalf("feature stacked %d times", stack["in/1"])
+	}
 	out := df7.Encode(Attachment{Interface: "loop0", Direction: DirOutput, Policer: "gold"})
-	if _, err := d.Create(ctx, out); err != nil {
+	if _, err := d.Create(ctx, out); err != nil || stack["out/1"] != 1 {
+		t.Fatal(err, stack)
+	}
+	silver := df7.Encode(Attachment{Interface: "loop0", Direction: DirInput, Policer: "silver"})
+	if _, err := d.Update(ctx, in, silver, meta); err != nil {
 		t.Fatal(err)
 	}
-	if r := df7test.Last[*policer.PolicerOutput](t, f, "policer_output"); !r.Apply {
-		t.Fatalf("policer_output %+v", r)
-	}
-	if _, err := d.Update(ctx, in, df7.Encode(Attachment{Interface: "loop0", Direction: DirInput, Policer: "silver"}), meta); err != nil {
-		t.Fatal(err)
-	}
-	if r := df7test.Last[*policer.PolicerInput](t, f, "policer_input"); r.Name != "w0:silver" {
-		t.Fatalf("update %+v", r)
+	if r := df7test.Last[*policer.PolicerInput](t, f, "policer_input"); r.Name != "w0:silver" || stack["in/1"] != 1 {
+		t.Fatalf("update %+v stack %v", r, stack)
 	}
 	if _, err := d.Update(ctx, in, out, meta); !errors.Is(err, scheduler.ErrRecreate) {
 		t.Fatalf("direction change: %v", err)
 	}
-	f.Reset()
-	if err := d.Delete(ctx, in, meta); err != nil {
-		t.Fatal(err)
+	if err := d.Delete(ctx, silver, meta); err != nil || stack["in/1"] != 0 {
+		t.Fatal(err, stack)
 	}
-	calls := f.CallsNamed("policer_input")
-	if len(calls) != 2 || !calls[0].(*policer.PolicerInput).Apply || calls[1].(*policer.PolicerInput).Apply {
-		t.Fatalf("delete = apply then un-apply, got %v", calls)
+	// a VPP restart: the attachment is gone; Create re-applies once, a Delete of an attachment
+	// applied before the restart sends nothing (un-apply would write out of bounds in VPP)
+	f.Reboot()
+	stack["out/1"] = 0
+	f.Reset()
+	if err := d.Delete(ctx, out, nil); err != nil || len(f.CallsNamed("policer_output")) != 0 {
+		t.Fatalf("delete after restart must not un-apply: %v %v", err, f.CallsNamed("policer_output"))
+	}
+	if _, err := d.Create(ctx, out); err != nil || stack["out/1"] != 1 {
+		t.Fatal(err, stack)
 	}
 	if _, err := d.Retrieve(ctx); !errors.Is(err, df7.ErrRetrieveUnsupported) {
 		t.Fatalf("retrieve: %v", err)
 	}
-	// foreign and unknown interfaces are refused
+	// foreign and unknown interfaces are refused; an untagged one is claimed (D-071)
 	if _, err := d.Create(ctx, df7.Encode(Attachment{Interface: "loop9", Direction: DirInput, Policer: "gold"})); !errors.Is(err, df7.ErrForeignInterface) {
 		t.Fatalf("foreign: %v", err)
 	}
-	if _, err := d.Create(ctx, df7.Encode(Attachment{Interface: "eth0", Direction: DirInput, Policer: "gold"})); !errors.Is(err, df7.ErrForeignInterface) {
-		t.Fatalf("untagged without claim: %v", err)
+	eth := df7.Encode(Attachment{Interface: "eth0", Direction: DirInput, Policer: "gold"})
+	if _, err := d.Create(ctx, eth); err != nil {
+		t.Fatalf("untagged: %v", err)
 	}
-	if _, err := NewInterface(f, df7test.Owner, df7.WithClaimUntagged(true)).Create(ctx, df7.Encode(Attachment{Interface: "eth0", Direction: DirInput, Policer: "gold"})); err != nil {
-		t.Fatalf("untagged with claim: %v", err)
+	if !iface.Claims(df7test.Owner).Claimed("eth0", "policer.interface/eth0/input") {
+		t.Fatal("untagged interface not claimed")
+	}
+	if err := d.Delete(ctx, eth, nil); err != nil || iface.Claims(df7test.Owner).Claimed("eth0", "policer.interface/eth0/input") {
+		t.Fatal("claim not released", err)
 	}
 	if _, err := d.Create(ctx, df7.Encode(Attachment{Interface: "nope", Direction: DirInput, Policer: "gold"})); !errors.Is(err, df7.ErrNoSuchInterface) {
 		t.Fatalf("missing: %v", err)
+	}
+	if err := d.Delete(ctx, df7.Encode(Attachment{Interface: "nope", Direction: DirInput, Policer: "gold"}), nil); err != nil {
+		t.Fatalf("delete on a vanished interface is success: %v", err)
 	}
 }
 

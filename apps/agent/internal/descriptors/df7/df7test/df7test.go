@@ -18,6 +18,7 @@ import (
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/memclnt"
+	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp/fake"
 )
@@ -38,8 +39,9 @@ type FakeIf struct {
 // Fake is a fake VPP client with a mutable interface table (served on sw_interface_dump).
 type Fake struct {
 	*fake.Client
-	mu  sync.Mutex
-	ifs map[uint32]FakeIf
+	mu   sync.Mutex
+	ifs  map[uint32]FakeIf
+	boot uint32
 }
 
 // NewFake returns a fake with the control ping reply registered and the interfaces given.
@@ -54,10 +56,15 @@ func NewFake(ifs ...FakeIf) *Fake {
 			{Index: 4, Name: "eth0"},
 		}
 	}
-	f := &Fake{Client: fake.New(fake.WithControlPingReply(&memclnt.ControlPingReply{})), ifs: map[uint32]FakeIf{}}
+	f := &Fake{Client: fake.New(fake.WithControlPingReply(&memclnt.ControlPingReply{})), ifs: map[uint32]FakeIf{}, boot: 4242}
 	for _, i := range ifs {
 		f.ifs[i.Index] = i
 	}
+	f.On("show_threads", func(api.Message) ([]api.Message, error) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return []api.Message{&vlib.ShowThreadsReply{Count: 1, ThreadData: []vlib.ThreadData{{ID: 0, Name: "vpp_main", PID: f.boot}}}}, nil
+	})
 	f.On("sw_interface_dump", func(api.Message) ([]api.Message, error) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
@@ -74,6 +81,14 @@ func NewFake(ifs ...FakeIf) *Fake {
 		return out, nil
 	})
 	return f
+}
+
+// Reboot simulates a VPP restart for the boot-identity records (D-076): show_threads reports
+// a new main-thread PID.
+func (f *Fake) Reboot() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.boot++
 }
 
 // AddIf adds an interface to the fake's table.

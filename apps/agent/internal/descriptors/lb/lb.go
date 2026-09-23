@@ -593,21 +593,23 @@ func (d *IntfNatDescriptor) set(ctx context.Context, idx uint32, family string, 
 	return d.Wrap(fmt.Sprintf("lb_add_del_intf_nat %s %d add=%v", family, idx, add), df7.PluginError("lb", err))
 }
 
-// Create implements scheduler.Descriptor (idempotent: enabling an enabled feature is a no-op).
+// Create implements scheduler.Descriptor: enable once per VPP lifetime (D-076) — every
+// lb_add_del_intf_nat4 enables the lb-nat4-in2out feature again, which stacks a second instance
+// of the node, so a re-application with an unchanged boot identity is skipped.
 func (d *IntfNatDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	n, err := df7.DecodeValid[IntfNat](obj)
 	if err != nil {
 		return nil, err
 	}
-	ifs, err := d.Ifaces(ctx)
+	key := string(KeyIntfNat(n.Interface, n.Family))
+	idx, err := d.Attach(ctx, n.Interface, key)
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ifs.OwnedIndex(n.Interface)
-	if err != nil {
+	if _, err := d.ApplyOnce(ctx, key, func() error { return d.set(ctx, idx, n.Family, true) }); err != nil {
 		return nil, err
 	}
-	return NatMeta{SwIfIndex: idx}, d.set(ctx, idx, n.Family, true)
+	return NatMeta{SwIfIndex: idx}, nil
 }
 
 // Update implements scheduler.Descriptor: every field is in the key.
@@ -615,17 +617,31 @@ func (*IntfNatDescriptor) Update(context.Context, proto.Message, proto.Message, 
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor.
-func (d *IntfNatDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor: re-resolve the interface (D-071) and disable — only
+// when enabled in this VPP lifetime (after a VPP restart the feature is gone).
+func (d *IntfNatDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	n, err := df7.Decode[IntfNat](obj)
 	if err != nil {
 		return err
 	}
-	m, ok := meta.(NatMeta)
-	if !ok {
-		return df7.BadMeta(NameIntfNat, meta)
+	key := string(KeyIntfNat(n.Interface, n.Family))
+	idx, found, err := d.Detach(ctx, n.Interface, key)
+	if err != nil {
+		return err
 	}
-	return d.set(ctx, m.SwIfIndex, n.Family, false)
+	applied, err := d.AppliedNow(ctx, key)
+	if err != nil {
+		return err
+	}
+	if found && applied {
+		if err := d.set(ctx, idx, n.Family, false); err != nil {
+			return err
+		}
+	}
+	if err := d.ForgetApplied(key); err != nil {
+		return err
+	}
+	return d.Release(n.Interface, key)
 }
 
 // Retrieve implements scheduler.Descriptor: write-only (D-063).
@@ -633,10 +649,17 @@ func (d *IntfNatDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
 	return nil, df7.Unsupported(NameIntfNat, "VPP 26.06 has no dump of the lb nat in2out feature")
 }
 
-// Register constructs every descriptor of the lb plugin (conf, VIPs, ASes, NAT interfaces).
+// Register constructs the per-object lb descriptors (VIPs, ASes, NAT interfaces). lb.vip
+// depends on lb.conf only optionally, so it works whether or not this agent is the globals
+// owner.
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
-	r.Register(NewConf(c, owner, opts...))
 	r.Register(NewVIP(c, owner, opts...))
 	r.Register(NewAS(c, owner, opts...))
 	r.Register(NewIntfNat(c, owner, opts...))
+}
+
+// RegisterGlobals constructs the VPP-global lb.conf descriptor. Only the globals owner calls
+// it (D-071).
+func RegisterGlobals(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
+	r.Register(NewConf(c, owner, opts...))
 }

@@ -249,17 +249,17 @@ tasks:
   - P04
   priority: 1
   est_hours: 21
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.7
   - D0.12
   scope: core descriptors only (loopback, interface-ip, vrf, static-route)
   files_owned: apps/agent/** except internal/descriptors/{non-core} and binapi
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P05
+  worktree: /root/ngfw-wt/P05
+  owner: desktop-agent slot7
+  started: 2026-09-23T16:01
   finished: ''
   notes: ''
 - id: P06
@@ -297,7 +297,7 @@ tasks:
   - P02s
   priority: 1
   est_hours: 14
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.10
@@ -308,7 +308,7 @@ tasks:
   owner: desktop-agent slot8
   started: 2026-09-23T13:35
   finished: ''
-  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1'
+  notes: ' | usage-limit interruption 14:xx; unpushed edits salvaged; CONTINUE respawn #1 | worker done 22febb3; review agent spawned'
 - id: P07b
   title: 'UI flows: login, pending-change bar + commit dialog, revisions, users, Playwright login→commit→rollback'
   prompt: prompts/P07-ui-shell.md

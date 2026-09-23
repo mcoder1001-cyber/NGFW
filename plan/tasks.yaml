@@ -252,7 +252,7 @@ tasks:
   - P04
   priority: 1
   est_hours: 21
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D0.7
@@ -263,11 +263,11 @@ tasks:
   worktree: /root/ngfw-wt/P05
   owner: host-agent slot7
   started: 2026-09-23T16:01
-  finished: ''
+  finished: '2026-09-24'
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done 5062933 (CI green, kill -9 restart sim, confirm timer);
     review spawned (slot 7) | review BLOCK b7d8533 (H1 foreign VRF delete, H2 foreign route overwrite, H3 lost revert, M1–M4); fix round 1 | fix round e83cbc6 CI green; re-review spawned | D-072: static-route
     descriptor must skip routes where frr.StaticOwnedByFRR (RF-1 hook) — P08 wiring | re-review BLOCK 40c1b43 (N1 route ownership ignores FIB source, N2 owed revert blocks all Apply forever); fix round
-    2 (last) | fix round 2 24e4cd7 CI green; targeted verify (N1/N2) spawned'
+    2 (last) | fix round 2 24e4cd7 CI green; targeted verify (N1/N2) spawned | verify APPROVE a0e06dd; merged ea03567; main CI green'
 - id: P06
   title: 'API core: datastore, commit engine, auth/RBAC/audit, telemetry relay'
   prompt: prompts/P06-api-core.md
@@ -280,7 +280,7 @@ tasks:
   - P03
   priority: 1
   est_hours: 24
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.8
@@ -293,7 +293,7 @@ tasks:
   owner: host-agent slot1
   started: 2026-09-24T01:12
   finished: ''
-  notes: host postgres/valkey from P04; per-slot database
+  notes: host postgres/valkey from P04; per-slot database | worker done 20e2a78 CI green (39 unit, 23 e2e); review spawned — agent e2e now runnable (P05 merged)
 - id: P07a
   title: 'UI shell: theme/RTL, i18n, SchemaForm, ServerDataGrid, WS hook, frame skeleton'
   prompt: prompts/P07-ui-shell.md
@@ -478,7 +478,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D6.6
@@ -491,10 +491,11 @@ tasks:
   worktree: /root/ngfw-wt/DF-6
   owner: host-agent slot11
   started: 2026-09-23T15:28
-  finished: ''
+  finished: '2026-09-24'
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | worker done 82d0e65 (35 types, CI green); V8/V13/V14 recorded; review
     spawned (slot 11) | review BLOCK fb83447 (H1 globals, H2 range claims, H3 non-idempotent write-only → D-076, H4 logical names, M1–M5); fix round 1 | fix round a9b6005 CI green; re-review spawned | re-review
-    APPROVE WITH CHANGES 910426f (N1 per-iface record by name, N2 PID identity → D-080, N3 claims survive VPP restart, N5 pppoe.cp move); fix round 2 (last); N4/N6/N7 → tech-debt'
+    APPROVE WITH CHANGES 910426f (N1 per-iface record by name, N2 PID identity → D-080, N3 claims survive VPP restart, N5 pppoe.cp move); fix round 2 (last); N4/N6/N7 → tech-debt | fix round 2 d69296c;
+    merged 7057be4; main CI green'
 - id: DF-7
   title: 'Descriptors: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls'
   prompt: prompts/factories/DF-7.md
@@ -505,7 +506,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D7.8
@@ -523,7 +524,8 @@ tasks:
   owner: host-agent slot10
   started: 2026-09-24T00:40
   finished: ''
-  notes: ' | worker done 27a742a (32 types, CI green); V19/V20 recorded; review spawned'
+  notes: ' | worker done 27a742a (32 types, CI green); V19/V20 recorded; review spawned | review APPROVE WITH CHANGES 09b4a16 (H1 D-080 + sw_if_index, H2 mpls table-0 ownership, M1 claim before add, M2
+    lb byte-swap check, M3/M4 lb leftovers+adoption, M5, M6); fix round 1'
 - id: DF-8
   title: 'Descriptors: dhcp, dns, flowprobe, sflow, prom, pcap/tracenode, lcp [skip-unless-loaded]'
   prompt: prompts/factories/DF-8.md
@@ -534,7 +536,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D7.2
@@ -549,9 +551,9 @@ tasks:
   worktree: /root/ngfw-wt/DF-8
   owner: host-agent slot5
   started: 2026-09-24T00:35
-  finished: ''
+  finished: '2026-09-24'
   notes: ' | spawned on host slot 5 (freed by P02b); lcp testable since D-060 | worker done a1a34be CI green (23 descriptors, dfkit); review spawned | review APPROVE WITH CHANGES 463dc8a (H1 claim-before-add,
-    H2 ipfix raw table idx, M1–M6); fix round 1'
+    H2 ipfix raw table idx, M1–M6); fix round 1 | fix round 13c4b1a; merged 75a2a3a; main CI green'
 - id: RF-1
   title: 'Renderers: frr (renderer framework: files, vtysh -C, frr-reload.py, JSON state; protocol semantics in P12/F-*)'
   prompt: prompts/factories/RF-1.md
@@ -608,7 +610,7 @@ tasks:
   - P03
   priority: 2
   est_hours: 12
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D7.1
@@ -620,9 +622,9 @@ tasks:
   worktree: /root/ngfw-wt/RF-3
   owner: host-agent slot6
   started: 2026-09-24T00:58
-  finished: ''
+  finished: '2026-09-24'
   notes: test-scoped daemon processes only; system units untouched | worker done 30be7d6 CI green; review spawned | review APPROVE WITH CHANGES dca5640 (H1 unbound listen change, M1 kea subnet-id shift,
-    M2 chrony lost restart, M3 ctrl-agent → D-079, M4 /run/unbound); fix round 1
+    M2 chrony lost restart, M3 ctrl-agent → D-079, M4 /run/unbound); fix round 1 | fix round 06360d4; merged 313ce50; main CI green
 - id: RF-4
   title: 'Renderers: snmpd, keepalived, rsyslog'
   prompt: prompts/factories/RF-4.md

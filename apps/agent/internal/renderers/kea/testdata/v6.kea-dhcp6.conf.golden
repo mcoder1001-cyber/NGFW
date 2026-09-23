@@ -1,0 +1,119 @@
+{
+  "Dhcp6": {
+    "interfaces-config": {
+      "interfaces": [
+        "w0-a",
+        "w0-b"
+      ],
+      "re-detect": true
+    },
+    "control-sockets": [
+      {
+        "socket-type": "unix",
+        "socket-name": "/run/vrx-test/w0/kea/run/kea6.sock"
+      }
+    ],
+    "lease-database": {
+      "type": "memfile",
+      "persist": true,
+      "name": "/run/vrx-test/w0/kea/lib/leases6.csv",
+      "lfc-interval": 3600
+    },
+    "hooks-libraries": [
+      {
+        "library": "/usr/lib/x86_64-linux-gnu/kea/hooks/libdhcp_lease_cmds.so"
+      }
+    ],
+    "option-def": [
+      {
+        "name": "vrx-1000",
+        "code": 1000,
+        "type": "string",
+        "space": "dhcp6"
+      }
+    ],
+    "subnet6": [
+      {
+        "id": 1887809253,
+        "subnet": "fd00:6:10::/64",
+        "pools": [
+          {
+            "pool": "fd00:6:10::1000-fd00:6:10::1fff"
+          }
+        ],
+        "option-data": [
+          {
+            "name": "dns-servers",
+            "code": 23,
+            "space": "dhcp6",
+            "data": "fd00:6:10::1"
+          },
+          {
+            "name": "domain-search",
+            "code": 24,
+            "space": "dhcp6",
+            "data": "lan.example.test, example.test"
+          },
+          {
+            "name": "sntp-servers",
+            "code": 31,
+            "space": "dhcp6",
+            "data": "fd00:6:10::1"
+          },
+          {
+            "name": "vrx-1000",
+            "code": 1000,
+            "space": "dhcp6",
+            "data": "hello v6"
+          }
+        ],
+        "reservations": [
+          {
+            "hw-address": "aa:bb:cc:00:11:33",
+            "ip-addresses": [
+              "fd00:6:10::21"
+            ],
+            "user-context": {
+              "vrx": {
+                "reservation": "cam"
+              }
+            }
+          },
+          {
+            "duid": "00:01:00:01:aa:bb:cc:dd:ee:ff",
+            "ip-addresses": [
+              "fd00:6:10::20"
+            ],
+            "hostname": "nas",
+            "user-context": {
+              "vrx": {
+                "reservation": "nas"
+              }
+            }
+          }
+        ],
+        "valid-lifetime": 3600,
+        "preferred-lifetime": 3600,
+        "user-context": {
+          "vrx": {
+            "server": "lan6",
+            "subnet": "lan6"
+          }
+        }
+      }
+    ],
+    "loggers": [
+      {
+        "name": "kea-dhcp6",
+        "output-options": [
+          {
+            "output": "/run/vrx-test/w0/kea/log/kea-dhcp6.log",
+            "maxsize": 10485760,
+            "maxver": 4
+          }
+        ],
+        "severity": "INFO"
+      }
+    ]
+  }
+}

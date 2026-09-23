@@ -1,0 +1,170 @@
+{
+  "Dhcp4": {
+    "interfaces-config": {
+      "interfaces": [
+        "w0-a"
+      ],
+      "re-detect": true
+    },
+    "control-sockets": [
+      {
+        "socket-type": "unix",
+        "socket-name": "/run/vrx-test/w0/kea/run/kea4.sock"
+      }
+    ],
+    "lease-database": {
+      "type": "memfile",
+      "persist": true,
+      "name": "/run/vrx-test/w0/kea/lib/leases4.csv",
+      "lfc-interval": 3600
+    },
+    "hooks-libraries": [
+      {
+        "library": "/usr/lib/x86_64-linux-gnu/kea/hooks/libdhcp_lease_cmds.so"
+      }
+    ],
+    "option-def": [
+      {
+        "name": "vrx-224",
+        "code": 224,
+        "type": "string",
+        "space": "dhcp4"
+      }
+    ],
+    "subnet4": [
+      {
+        "id": 1551922441,
+        "subnet": "10.6.10.0/24",
+        "interface": "w0-a",
+        "pools": [
+          {
+            "pool": "10.6.10.100-10.6.10.199"
+          }
+        ],
+        "option-data": [
+          {
+            "name": "routers",
+            "code": 3,
+            "space": "dhcp4",
+            "data": "10.6.10.1"
+          },
+          {
+            "name": "domain-name-servers",
+            "code": 6,
+            "space": "dhcp4",
+            "data": "10.6.10.1, 10.6.0.53"
+          },
+          {
+            "name": "domain-name",
+            "code": 15,
+            "space": "dhcp4",
+            "data": "lan.example.test"
+          },
+          {
+            "name": "ntp-servers",
+            "code": 42,
+            "space": "dhcp4",
+            "data": "10.6.10.1"
+          },
+          {
+            "code": 66,
+            "space": "dhcp4",
+            "data": "tftp.example.test"
+          },
+          {
+            "name": "domain-search",
+            "code": 119,
+            "space": "dhcp4",
+            "data": "lan.example.test, example.test"
+          },
+          {
+            "name": "vrx-224",
+            "code": 224,
+            "space": "dhcp4",
+            "data": "vrx private text"
+          },
+          {
+            "code": 225,
+            "space": "dhcp4",
+            "csv-format": false,
+            "data": "0a0b0c",
+            "always-send": true
+          }
+        ],
+        "reservations": [
+          {
+            "hw-address": "aa:bb:cc:00:11:22",
+            "ip-address": "10.6.10.20",
+            "hostname": "printer1",
+            "option-data": [
+              {
+                "code": 15,
+                "space": "dhcp4",
+                "data": "print.example.test"
+              }
+            ],
+            "user-context": {
+              "vrx": {
+                "reservation": "printer"
+              }
+            }
+          }
+        ],
+        "valid-lifetime": 7200,
+        "renew-timer": 1800,
+        "rebind-timer": 3600,
+        "authoritative": true,
+        "user-context": {
+          "vrx": {
+            "server": "lan",
+            "subnet": "lan",
+            "description": "\"}]} , \"Dhcp4\": {\"hooks-libraries\": [{\"library\": \"/tmp/evil.so\"}]} \\u2603 \\\\",
+            "server-description": "\"; rm -rf /"
+          }
+        }
+      },
+      {
+        "id": 1929693228,
+        "subnet": "10.6.11.0/24",
+        "interface": "w0-a",
+        "pools": [
+          {
+            "pool": "10.6.11.10-10.6.11.50"
+          },
+          {
+            "pool": "10.6.11.60-10.6.11.70"
+          }
+        ],
+        "option-data": [
+          {
+            "code": 66,
+            "space": "dhcp4",
+            "data": "tftp.example.test"
+          }
+        ],
+        "valid-lifetime": 600,
+        "authoritative": true,
+        "user-context": {
+          "vrx": {
+            "server": "lan",
+            "subnet": "guest",
+            "server-description": "\"; rm -rf /"
+          }
+        }
+      }
+    ],
+    "loggers": [
+      {
+        "name": "kea-dhcp4",
+        "output-options": [
+          {
+            "output": "/run/vrx-test/w0/kea/log/kea-dhcp4.log",
+            "maxsize": 10485760,
+            "maxver": 4
+          }
+        ],
+        "severity": "INFO"
+      }
+    ]
+  }
+}

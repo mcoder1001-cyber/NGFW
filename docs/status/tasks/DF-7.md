@@ -359,12 +359,15 @@ CI GATE PASSED
    the D-071 claim keyed by the object key for per-interface objects, id range for QoS egress maps and BFD conf keys.
 4. Globals (D-071): `lb.conf`, `lldp.global`, `bfd.echo-source`, `igmp.group-prefix` only via `RegisterGlobals` /
    `registry.Config.GlobalsOwner`; host tests opt-in (`VRX_DF7_GLOBALS=1`). MPLS table 0 treated as global (Q5).
-5. D-076: `policer.interface` and `lb.intf-nat` (feature stacking) apply once per VPP boot identity
-   (`df7.ApplyOnce`, store `df7.SetAppliedStore` for P05); all other write-only adds are idempotent in VPP.
+5. D-076/D-080: `policer.interface` and `lb.intf-nat` (feature stacking) apply once per D-080 boot identity and
+   `<sw_if_index>/<name>` (`df7.ApplyOnce`, `dfkit.BootStore`, `df7.SetBootStore` for P05); reference-counted
+   enables (qos record/store, mpls-interface) enable only when the dump does not list them; lb VIPs/ASes and MPLS
+   table-0 labels carry ownership records written after our own add (fix round).
 6. lb enum byte-swap workaround for VPP's missing `ntohl` (little-endian only) — (a) only gre4/clusterip VIPs,
    (b) workaround + V-item → (b).
 7. VRRP Update after an agent restart walks the pool index (VPP's key check makes wrong indexes harmless) — (a)
-   ErrRecreate (VR flap), (b) walk → (b). VRRP peers Delete is a no-op (VPP cannot clear peers; they go with the VR).
+   ErrRecreate (VR flap), (b) walk → (b); review L3 (cache) not done: Meta carries the index, the walk only runs
+   without Meta. VRRP peers Delete is a no-op (VPP cannot clear peers; they go with the VR).
 8. BFD key secrets only through a `Secrets` resolver, never in a Value; rotation = new conf-key id.
 9. MPLS descriptor names hyphenated (`mpls-table`, …) to match DF-6's `mpls-table/<id>` contract.
 10. Test-only `cli_inband` reads (`show hardware-interfaces` for the LLDP index guard, `show ip fib` diagnostics in
@@ -372,5 +375,85 @@ CI GATE PASSED
 
 ## Open questions
 
-`docs/status/tasks/DF-7-questions.md` (Q1 lb GC/leftovers, Q2 classify key, Q3 stale ip-classify binding, Q4
-interface-ip deps, Q5 MPLS table 0, Q6 V-item candidates, Q7 P05/P08 wiring).
+`docs/status/tasks/DF-7-questions.md` (Q1 lb GC/leftovers — numbers corrected, Q2 classify key, Q3 stale
+ip-classify binding, Q4 interface-ip deps, Q5 MPLS table 0, Q6 V-item candidates, Q7 P05/P08 wiring —
+`SetBootStore`, Q8 LLDP mismatch cannot be undone via the API, Q9 VPP crash 02:23 during my parallel host run).
+
+## Review fixes (DF-7-review.md, fix round after `git merge main` incl. TD-1 `bootid`)
+
+| Finding | Change | Evidence |
+|---|---|---|
+| H1 applied-once records | `df7/applied.go` on `dfkit.BootStore` + `dfkit.IdentitySource` (= `bootid.Current`, D-080 triple boot_id/PID/start time); per-interface value `<sw_if_index>/<name>` (`df7.IfaceValue`); `ApplyOnce` records only after success; policer Delete sends `apply=0` only with a matching record | `TestApplyOnce` (new PID, same PID + new start time, re-created interface, failed apply), `TestAttachments` (no `policer_input` un-apply after `RestartSamePID`, after loop1 re-created at index 12, after a failed apply) |
+| H2 mpls table 0 | `mpls-route` in table 0: Create refuses an existing label without our record (`ErrNotOurs`), records after its add; Update/Delete/Retrieve only for recorded labels | `TestRouteSharedTable0`: SR-MPLS BSID, mpls-ip-bind, FRR/linux-cp, reserved entries neither reported nor deleted; Create/Update refused; failed add unrecorded; record expires with the VPP instance |
+| M1 claim after add, no adoption | claims via `dfkit.Target.Claim` only after VPP accepted (policer, qos, span, lldp, bfd, vrrp, igmp, mpls, lb.intf-nat); "already exists" paths use `Target.Adopt` (ours only when tagged/claimed) | `TestInterfacesAndClaims`, `TestRecordStore`, `TestInterface` (mpls), `TestMirrorNoAdopt`, `TestInterfaceMismatchUndo` (lldp), `TestSessionFailedAddNoClaim` (bfd EEXIST), `TestVRExistsNoClaim` (vrrp ENTRY_ALREADY_EXISTS), `TestInterfaceNoAdopt` (igmp -1) |
+| M2 lb enum order | after each add `lb_vip_dump` must show the requested type; otherwise delete, switch byte order, retry once, else `ErrEnumOrder` | `TestVIPEnumOrder` (fake with ntohl → adapts; wrong type in both orders → `ErrEnumOrder`, VIP removed, unrecorded) |
+| M3 lb leftovers | lb host test opt-in `VRX_DF7_LB=1`; Q1 numbers corrected (26 removed VIPs, `#vips: 27 #ass: 24`, `10.10.31.1` refs:8 — wiped by the 02:23 restart); per-update leak in `lb.md` | host run below: `SKIP: TestLBOnHost` |
+| M4 lb adoption / delete | VIP/AS `VALUE_EXIST` = success only with our record, else `ErrNotOurs`; Delete only of recorded objects; `NO_SUCH_ENTRY` = success | `TestVIP`, `TestASAndNat` |
+| M5 policer index | Update re-verifies the stored index by name (`currentIndex`); `Reset(ctx, c, owner, name)` looks the index up | `TestPolicerLifecycle` (Meta index 0 reused by another owner → update goes to 7; gone → error) |
+| M6 LLDP mismatch | **investigated, not undoable**: VPP's disable looks up `hw(arg)->sw_if_index`, so a disable with our index removes another interface's entry; Create now sends no disable, claims nothing, fails loudly (`ErrIndexMismatch … NOT undone`) — the first version of this fix sent that disable and was removed | `TestInterfaceMismatchUndo`; DF-7-questions Q8 |
+| L1 counters | qos record/store, mpls-interface: one disable (mpls only while the dump lists it); Create never adds a second reference | `TestRecordStore`, `TestInterface` (mpls) |
+| L2 / L4 / L3 | documented (`vrrp.md` accept-mode addresses + IGMP join, `igmp.md` mode drift; VRRP walk kept) | docs |
+| L5 / L6 | not changed in this round: L5 proof gaps remain where host tests are opt-in (globals, lb, vrrp, igmp); L6 key ambiguity with `/` in names is open — no validation of `/` in interface / policer names added (needs a rule for all factories; proposal: reject `/` in spec validation) | — |
+| Manager: D-082 | `df7test.GlobalsOptIn` holds `/run/lock/vrx-globals.lock` exclusively for the (sub)test | `df7/df7test/host.go` |
+| Manager: VPP crash (D-087) | host tests one package at a time; `TestVRRPOnHost` / `TestIGMPOnHost` opt-in (`VRX_DF7_VRRP_HOST`, `VRX_DF7_IGMP_HOST`); trigger + backtrace in Q9 | below |
+| Manager: TD-1 | fake answers `control_ping` (vpe_pid) and sets `dfkit.IdentitySource` to a `bootid.Identity`; no `iface.VPPIdentity` | build + tests |
+
+### Unit tests
+
+```
+$ go test -count=1 ./internal/descriptors/{df7,policer,qos,lb,span,lldp,bfd,vrrp,igmp,mpls}/...
+ok  	ngfw/agent/internal/descriptors/df7	0.027s
+ok  	ngfw/agent/internal/descriptors/df7/registry	0.023s
+ok  	ngfw/agent/internal/descriptors/policer	0.045s
+ok  	ngfw/agent/internal/descriptors/qos	0.035s
+ok  	ngfw/agent/internal/descriptors/lb	0.022s
+ok  	ngfw/agent/internal/descriptors/span	0.029s
+ok  	ngfw/agent/internal/descriptors/lldp	0.025s
+ok  	ngfw/agent/internal/descriptors/bfd	0.027s
+ok  	ngfw/agent/internal/descriptors/vrrp	0.030s
+ok  	ngfw/agent/internal/descriptors/igmp	0.026s
+ok  	ngfw/agent/internal/descriptors/mpls	0.032s
+$ go test -count=1 -v -run '<fix-round tests>' …   (excerpt)
+--- PASS: TestInterfacesAndClaims   --- PASS: TestApplyOnce        --- PASS: TestPolicerLifecycle
+--- PASS: TestAttachments           --- PASS: TestRouteSharedTable0 --- PASS: TestVIP
+--- PASS: TestVIPEnumOrder          --- PASS: TestASAndNat          --- PASS: TestRecordStore
+--- PASS: TestInterfaceMismatchUndo --- PASS: TestMirrorNoAdopt     --- PASS: TestSessionFailedAddNoClaim
+--- PASS: TestVRExistsNoClaim       --- PASS: TestInterfaceNoAdopt
+```
+
+### Host runs
+
+First attempt (02:23, all nine packages in one `go test`, i.e. in parallel): VPP crashed (NRestarts 3 → 4) —
+see Q9; I ran it that way, the crash came during my run. Re-run one package at a time, NRestarts checked around each:
+
+```
+$ for p in policer qos span lldp bfd mpls lb vrrp igmp; do NRestarts before; VRX_INTEGRATION=1 go test -count=1 -p 1 -v -run OnHost ./internal/descriptors/$p/; NRestarts after; done
+== policer NRestarts before=4 … rc=0 NRestarts after=4   --- PASS: TestPolicerOnHost (0.05s)  (bind: skip, no workers)
+== qos     NRestarts before=4 … rc=0 NRestarts after=4   --- PASS: TestQoSOnHost (0.13s)
+== span    NRestarts before=4 … rc=0 NRestarts after=4   --- PASS: TestSpanOnHost (0.07s)
+== lldp    NRestarts before=4 … rc=0 NRestarts after=4   --- PASS: TestLLDPOnHost (0.02s)   (global: opt-in skip)
+== bfd     NRestarts before=4 … rc=0 NRestarts after=4   --- PASS: TestBFDOnHost (0.07s)    (echo-source: opt-in skip)
+== mpls    NRestarts before=4 … rc=0 NRestarts after=4   --- PASS: TestMPLSOnHost (0.20s)   (table 0: opt-in skip)
+== lb      NRestarts before=4 … rc=0 NRestarts after=4   --- SKIP: TestLBOnHost  (VRX_DF7_LB=1 to opt in)
+== vrrp    NRestarts before=4 … rc=0 NRestarts after=4   --- SKIP: TestVRRPOnHost (VRX_DF7_VRRP_HOST=1, D-087)
+== igmp    NRestarts before=4 … rc=0 NRestarts after=4   --- SKIP: TestIGMPOnHost (VRX_DF7_IGMP_HOST=1, D-087)
+$ vppctl show interface | grep -c 'loop10[0-9][0-9]'; vppctl show ip fib | grep -c '10\.10\.'; vppctl show lb vips
+0
+0
+(empty)
+```
+
+### CI gate
+
+```
+$ tools/ci.sh --base main
+  forbidden patterns (+ gitleaks)                    0m03s
+  lint · typecheck · unit tests · build (turbo)   0m29s
+  apps/agent: make lint test build                   0m45s
+  test/ Go modules, unit mode (test/integration/smoke)   0m02s
+  mode quick · wall time 1m51s · logs /root/ngfw-wt/logs/ci/DF-7-20260924-023755-2114398
+
+CI GATE PASSED
+```
+(warnings: uncommitted changes at run time — committed right after; non-conventional merge/review subjects of
+earlier commits.)

@@ -28,6 +28,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/mpls"
 	"ngfw/agent/internal/descriptors/df7"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
@@ -367,11 +368,23 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	if err != nil {
 		return nil, err
 	}
-	idx, err := d.Attach(ctx, i.Interface, string(KeyInterface(i.Interface)))
+	tg, err := d.Target(ctx, i.Interface, string(KeyInterface(i.Interface)))
 	if err != nil {
 		return nil, err
 	}
-	return Meta{SwIfIndex: idx}, d.set(ctx, idx, true)
+	// the enable is a u8 counter: never a second reference for the same object (D-076); an
+	// already enabled interface is ours only when tagged or claimed by us (review M1)
+	on, err := d.enabled(ctx, tg.Index)
+	if err != nil {
+		return nil, err
+	}
+	if on {
+		return Meta{SwIfIndex: tg.Index}, tg.Adopt()
+	}
+	if err := d.set(ctx, tg.Index, true); err != nil {
+		return nil, err
+	}
+	return Meta{SwIfIndex: tg.Index}, tg.Claim() // claim only after VPP accepted (review M1)
 }
 
 // Update implements scheduler.Descriptor: the interface is the key.
@@ -379,33 +392,29 @@ func (*InterfaceDescriptor) Update(_ context.Context, _, _ proto.Message, meta a
 	return meta, nil
 }
 
-// Delete implements scheduler.Descriptor: re-resolve the interface (D-071) and disable while
-// mpls_interface_dump still reports it. VPP counts enables per interface and decrements a u8
-// without checking (mpls.c: a disable of a disabled interface wraps the counter and breaks the
-// next enable), so a disable is only ever sent for an interface the dump shows enabled.
+// Delete implements scheduler.Descriptor: re-resolve the interface (D-071) and send ONE disable
+// — our one reference (review L1: further references belong to other consumers) — and only while
+// mpls_interface_dump shows the interface enabled: VPP decrements a u8 counter without checking
+// (mpls.c: a disable of a disabled interface wraps it and breaks the next enable).
 func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	i, err := df7.Decode[Interface](obj)
 	if err != nil {
 		return err
 	}
-	key := string(KeyInterface(i.Interface))
-	idx, found, err := d.Detach(ctx, i.Interface, key)
+	tg, found, err := d.Detach(ctx, i.Interface, string(KeyInterface(i.Interface)))
+	if err != nil || !found {
+		return err
+	}
+	on, err := d.enabled(ctx, tg.Index)
 	if err != nil {
 		return err
 	}
-	for n := 0; found && n < 64; n++ {
-		on, err := d.enabled(ctx, idx)
-		if err != nil {
-			return err
-		}
-		if !on {
-			break
-		}
-		if err := d.set(ctx, idx, false); err != nil {
+	if on {
+		if err := d.set(ctx, tg.Index, false); err != nil {
 			return err
 		}
 	}
-	return d.Release(i.Interface, key)
+	return tg.Release()
 }
 
 // Retrieve implements scheduler.Descriptor: mpls_interface_dump, owned interfaces.
@@ -483,18 +492,65 @@ func (d *RouteDescriptor) addDel(ctx context.Context, r Route, add bool) error {
 	return d.Wrap(fmt.Sprintf("mpls_route_add_del %s add=%v", KeyRoute(r.Table, r.Label, r.EOS), add), err)
 }
 
+// SharedTable is the MPLS table other features program too (SR-MPLS BSIDs of DF-6, the local
+// labels of mpls-ip-bind, FRR/linux-cp labels): mpls_route_details carries no FIB source, so in
+// this table only labels this owner recorded after its own successful add are ours (review H2).
+const SharedTable = 0
+
+func (d *RouteDescriptor) shared(r Route) bool { return r.Table == SharedTable }
+
+// exists reports whether (label, eos) has an entry in table r.Table.
+func (d *RouteDescriptor) exists(ctx context.Context, r Route) (bool, error) {
+	stream, err := mpls.NewServiceClient(d.Client).MplsRouteDump(ctx, &mpls.MplsRouteDump{Table: mpls.MplsTable{MtTableID: r.Table}})
+	if err != nil {
+		return false, d.Wrap("mpls_route_dump", err)
+	}
+	dets, err := df7.Collect(stream.Recv)
+	if err != nil {
+		return false, d.Wrap("mpls_route_dump", err)
+	}
+	for _, det := range dets {
+		if det.MrRoute.MrLabel == r.Label && (det.MrRoute.MrEos != 0) == r.EOS {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // Create implements scheduler.Descriptor: mpls_route_add_del (not multipath: the path set is
-// replaced as a whole).
+// replaced as a whole). In the shared table 0 an existing entry for the label is never taken
+// over (another feature's label, ErrNotOurs), and the route is recorded (D-080 identity) after
+// the add so Retrieve/Delete recognise it.
 func (d *RouteDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	r, err := df7.DecodeValid[Route](obj)
 	if err != nil {
 		return nil, err
 	}
-	return nil, d.addDel(ctx, r, true)
+	key := string(KeyRoute(r.Table, r.Label, r.EOS))
+	if d.shared(r) {
+		ours, err := d.Recorded(ctx, key)
+		if err != nil {
+			return nil, err
+		}
+		taken, err := d.exists(ctx, r)
+		if err != nil {
+			return nil, err
+		}
+		if taken && !ours {
+			return nil, fmt.Errorf("%s: %w: label %d/%s in MPLS table 0 belongs to another feature", NameRoute, dfkit.ErrNotOurs, r.Label, eosID(r.EOS))
+		}
+	}
+	if err := d.addDel(ctx, r, true); err != nil {
+		return nil, err
+	}
+	if d.shared(r) {
+		return nil, d.RecordNow(ctx, key, "route")
+	}
+	return nil, nil
 }
 
 // Update implements scheduler.Descriptor: the same add replaces the paths in place; a change of
-// the multicast flag or the EOS payload is ErrRecreate.
+// the multicast flag or the EOS payload is ErrRecreate. In table 0 only a recorded route.
 func (d *RouteDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, _ any) (any, error) {
 	o, err := df7.Decode[Route](oldObj)
 	if err != nil {
@@ -507,31 +563,48 @@ func (d *RouteDescriptor) Update(ctx context.Context, oldObj, newObj proto.Messa
 	if o.Multicast != n.Multicast || o.EOSProto != n.EOSProto {
 		return nil, scheduler.ErrRecreate
 	}
+	if d.shared(n) {
+		ours, err := d.Recorded(ctx, string(KeyRoute(n.Table, n.Label, n.EOS)))
+		if err != nil {
+			return nil, err
+		}
+		if !ours {
+			return nil, fmt.Errorf("%s: %w: label %d in MPLS table 0", NameRoute, dfkit.ErrNotOurs, n.Label)
+		}
+	}
 	return nil, d.addDel(ctx, n, true)
 }
 
-// Delete implements scheduler.Descriptor: removes the API-sourced entry (only in a table this
-// owner owns, re-verified, D-071).
+// Delete implements scheduler.Descriptor: removes the API-sourced entry — only in a table this
+// owner owns (re-verified, D-071) and, in table 0, only a route this owner recorded.
 func (d *RouteDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	r, err := df7.Decode[Route](obj)
 	if err != nil {
 		return err
 	}
+	key := string(KeyRoute(r.Table, r.Label, r.EOS))
 	owned, err := ownedTables(ctx, d.Client, d.Owner)
 	if err != nil {
 		return d.Wrap("retrieve", err)
 	}
 	if !owned[r.Table] {
-		return nil // the table (and every route in it) is gone
+		return d.ForgetApplied(key) // the table (and every route in it) is gone
+	}
+	if d.shared(r) {
+		ours, err := d.Recorded(ctx, key)
+		if err != nil || !ours {
+			return err
+		}
 	}
 	if err := d.addDel(ctx, r, false); err != nil && !df7.IsVPPError(err, api.NO_SUCH_ENTRY) {
 		return err
 	}
-	return nil
+	return d.ForgetApplied(key)
 }
 
 // Retrieve implements scheduler.Descriptor: mpls_route_dump for every table of this owner,
-// unreserved labels only (VPP's special entries use 0–15).
+// unreserved labels only (VPP's special entries use 0–15); in the shared table 0 only the labels
+// this owner recorded on this VPP instance.
 func (d *RouteDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	owned, err := ownedTables(ctx, d.Client, d.Owner)
 	if err != nil {
@@ -567,6 +640,15 @@ func (d *RouteDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 				}
 			}
 			k := KeyRoute(r.Table, r.Label, r.EOS)
+			if id == SharedTable {
+				ours, err := d.Recorded(ctx, string(k))
+				if err != nil {
+					return nil, err
+				}
+				if !ours {
+					continue // another feature's label in the shared table (review H2)
+				}
+			}
 			if seen[k] {
 				continue // one entry per (label, eos) in a table; never report a key twice
 			}

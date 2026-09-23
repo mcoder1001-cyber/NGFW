@@ -206,16 +206,14 @@ func (r *Modes) get(ifName string) string {
 // detach re-resolves an object's interface right before a delete (D-071), runs del when it
 // still exists and releases the claim of holder.
 func detach(ctx context.Context, b df7.Base, ifName, holder string, del func(idx uint32) error) error {
-	idx, found, err := b.Detach(ctx, ifName, holder)
-	if err != nil {
+	tg, found, err := b.Detach(ctx, ifName, holder)
+	if err != nil || !found {
 		return err
 	}
-	if found {
-		if err := del(idx); err != nil {
-			return err
-		}
+	if err := del(tg.Index); err != nil {
+		return err
 	}
-	return b.Release(ifName, holder)
+	return tg.Release()
 }
 
 // ---- igmp.interface ---------------------------------------------------------------------------
@@ -261,12 +259,26 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	if err != nil {
 		return nil, err
 	}
-	idx, err := d.Attach(ctx, i.Interface, string(KeyInterface(i.Interface)))
+	tg, err := d.Target(ctx, i.Interface, string(KeyInterface(i.Interface)))
 	if err != nil {
 		return nil, err
 	}
-	if err := d.set(ctx, idx, i, true); err != nil && !df7.IsVPPError(err, api.UNSPECIFIED) {
+	idx := tg.Index
+	err = d.set(ctx, idx, i, true)
+	switch {
+	case df7.IsVPPError(err, api.UNSPECIFIED):
+		// -1: IGMP is already on — success only when it is ours (a resync of our own object);
+		// another owner's / an operator's config is never adopted (review M1). The mode cannot
+		// be read back, so a mode drift is not detected (igmp.md, review L4).
+		if err := tg.Adopt(); err != nil {
+			return nil, fmt.Errorf("%s: %w", NameInterface, err)
+		}
+	case err != nil:
 		return nil, err
+	default:
+		if err := tg.Claim(); err != nil {
+			return nil, err
+		}
 	}
 	if d.modes != nil {
 		d.modes.set(i.Interface, i.Mode)
@@ -351,11 +363,14 @@ func (d *ListenDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	if err != nil {
 		return nil, err
 	}
-	idx, err := d.Attach(ctx, l.Interface, string(KeyListen(l.Interface, l.Group)))
+	tg, err := d.Target(ctx, l.Interface, string(KeyListen(l.Interface, l.Group)))
 	if err != nil {
 		return nil, err
 	}
-	return Meta{SwIfIndex: idx}, d.listen(ctx, idx, l, l.Sources)
+	if err := d.listen(ctx, tg.Index, l, l.Sources); err != nil {
+		return nil, err
+	}
+	return Meta{SwIfIndex: tg.Index}, tg.Claim()
 }
 
 // Update implements scheduler.Descriptor: a new source list replaces the old one in place
@@ -372,14 +387,14 @@ func (d *ListenDescriptor) Update(ctx context.Context, oldObj, newObj proto.Mess
 	if o.Interface != n.Interface || o.Group != n.Group {
 		return nil, scheduler.ErrRecreate
 	}
-	idx, found, err := d.Detach(ctx, n.Interface, string(KeyListen(n.Interface, n.Group)))
+	tg, found, err := d.Detach(ctx, n.Interface, string(KeyListen(n.Interface, n.Group)))
 	if err != nil {
 		return nil, err
 	}
 	if !found {
 		return nil, fmt.Errorf("%s: %w: %q", NameListen, df7.ErrNoSuchInterface, n.Interface)
 	}
-	return Meta{SwIfIndex: idx}, d.listen(ctx, idx, n, n.Sources)
+	return Meta{SwIfIndex: tg.Index}, d.listen(ctx, tg.Index, n, n.Sources)
 }
 
 // Delete implements scheduler.Descriptor: an INCLUDE listen with no sources (leave), on the
@@ -537,11 +552,14 @@ func (d *ProxyDeviceDescriptor) Create(ctx context.Context, obj proto.Message) (
 	if err != nil {
 		return nil, err
 	}
-	idx, err := d.Attach(ctx, p.Upstream, string(KeyProxyDevice(p.VRF)))
+	tg, err := d.Target(ctx, p.Upstream, string(KeyProxyDevice(p.VRF)))
 	if err != nil {
 		return nil, err
 	}
-	return Meta{SwIfIndex: idx}, d.set(ctx, idx, p, true)
+	if err := d.set(ctx, tg.Index, p, true); err != nil {
+		return nil, err
+	}
+	return Meta{SwIfIndex: tg.Index}, tg.Claim()
 }
 
 // Update implements scheduler.Descriptor: another upstream is a new device (ErrRecreate).
@@ -608,14 +626,24 @@ func (d *DownstreamDescriptor) Create(ctx context.Context, obj proto.Message) (a
 	if err != nil {
 		return nil, err
 	}
-	idx, err := d.Attach(ctx, s.Interface, string(KeyDownstream(s.VRF, s.Interface)))
+	tg, err := d.Target(ctx, s.Interface, string(KeyDownstream(s.VRF, s.Interface)))
 	if err != nil {
 		return nil, err
 	}
-	if err := d.set(ctx, idx, s, true); err != nil && !df7.IsVPPError(err, api.UNSPECIFIED) {
+	err = d.set(ctx, tg.Index, s, true)
+	switch {
+	case df7.IsVPPError(err, api.UNSPECIFIED): // -1: already a downstream — only ours is accepted
+		if err := tg.Adopt(); err != nil {
+			return nil, fmt.Errorf("%s: %w", NameDownstream, err)
+		}
+	case err != nil:
 		return nil, err
+	default:
+		if err := tg.Claim(); err != nil {
+			return nil, err
+		}
 	}
-	return Meta{SwIfIndex: idx}, nil
+	return Meta{SwIfIndex: tg.Index}, nil
 }
 
 // Update implements scheduler.Descriptor: everything is in the key.

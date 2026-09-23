@@ -199,25 +199,30 @@ func (d *InterfaceDescriptor) set(ctx context.Context, idx uint32, i Interface, 
 	return d.Wrap(fmt.Sprintf("sw_interface_set_lldp %s (%d) enable=%v", i.Interface, idx, enable), df7.PluginError("lldp", err))
 }
 
-// Create implements scheduler.Descriptor: enable, then verify with lldp_dump. Idempotent: VPP
-// ignores an enable of an interface that already has LLDP (configuration changes go through
-// Update).
+// Create implements scheduler.Descriptor: enable, then verify with lldp_dump. An interface that
+// already has LLDP is adopted only if it is ours (tagged, or this instance's claim — review M1);
+// VPP would ignore our parameters anyway (configuration changes go through Update). If VPP
+// enabled LLDP on another interface (sw_if_index used as hw_if_index), Create fails loudly with
+// ErrIndexMismatch; the stray enable cannot be undone through the API (see below, review M6).
 func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	i, err := df7.DecodeValid[Interface](obj)
 	if err != nil {
 		return nil, err
 	}
-	ifs, err := d.Ifaces(ctx)
+	tg, err := d.Target(ctx, i.Interface, string(KeyInterface(i.Interface)))
 	if err != nil {
 		return nil, err
 	}
-	idx, err := ifs.Attach(i.Interface, string(KeyInterface(i.Interface)))
-	if err != nil {
-		return nil, err
-	}
+	idx := tg.Index
 	before, err := Neighbours(ctx, d.Client)
 	if err != nil {
 		return nil, err
+	}
+	if _, on := before[idx]; on {
+		if err := tg.Adopt(); err != nil {
+			return nil, fmt.Errorf("%s: %w", NameInterface, err)
+		}
+		return Meta{SwIfIndex: idx}, nil
 	}
 	if err := d.set(ctx, idx, i, true); err != nil {
 		return nil, err
@@ -226,17 +231,29 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := after[idx]; !ok {
-		var others []uint32
-		for k := range after {
-			if _, was := before[k]; !was {
-				others = append(others, k)
-			}
-		}
-		return nil, fmt.Errorf("%s: %w: asked for %s (sw_if_index %d), newly enabled sw_if_index %v — disable it by hand",
-			NameInterface, ErrIndexMismatch, i.Interface, idx, others)
+	if _, ok := after[idx]; ok {
+		return Meta{SwIfIndex: idx}, tg.Claim()
 	}
-	return Meta{SwIfIndex: idx}, nil
+	// Not undone, on purpose (review M6 investigated): the enable created the entry of hw
+	// interface idx, which lldp_dump reports as that hw interface's sw_if_index (stray); VPP's
+	// disable (lldp_cli.c lldp_cfg_intf_set) looks the entry up by hw(arg).sw_if_index, so a
+	// disable with idx would remove the entry keyed <stray> — another interface's LLDP, never
+	// the stray one — and the argument that would hit the stray entry (the hw index of our
+	// interface) is not available through the API. Nothing is claimed; the error is loud.
+	return nil, fmt.Errorf("%s: %w: asked for %s (sw_if_index %d), VPP enabled LLDP on sw_if_index %v — NOT undone: "+
+		"VPP 26.06 cannot address that entry through the API (DF-7-questions Q8); it stays until a VPP restart",
+		NameInterface, ErrIndexMismatch, i.Interface, idx, newEntries(before, after))
+}
+
+// newEntries lists the interfaces present in after but not in before.
+func newEntries(before, after map[uint32]Neighbour) []uint32 {
+	var out []uint32
+	for k := range after {
+		if _, was := before[k]; !was {
+			out = append(out, k)
+		}
+	}
+	return out
 }
 
 // Update implements scheduler.Descriptor: VPP ignores new parameters on an enabled interface,
@@ -253,17 +270,17 @@ func (d *InterfaceDescriptor) Update(ctx context.Context, oldObj, newObj proto.M
 	if o.Interface != n.Interface {
 		return nil, scheduler.ErrRecreate
 	}
-	idx, found, err := d.Detach(ctx, n.Interface, string(KeyInterface(n.Interface)))
+	tg, found, err := d.Detach(ctx, n.Interface, string(KeyInterface(n.Interface)))
 	if err != nil {
 		return nil, err
 	}
 	if !found {
 		return nil, fmt.Errorf("%s: %w: %q", NameInterface, df7.ErrNoSuchInterface, n.Interface)
 	}
-	if err := d.set(ctx, idx, o, false); err != nil {
+	if err := d.set(ctx, tg.Index, o, false); err != nil {
 		return nil, err
 	}
-	return Meta{SwIfIndex: idx}, d.set(ctx, idx, n, true)
+	return Meta{SwIfIndex: tg.Index}, d.set(ctx, tg.Index, n, true)
 }
 
 // Delete implements scheduler.Descriptor: re-resolve the interface (D-071) and disable (VPP
@@ -273,17 +290,14 @@ func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, _ a
 	if err != nil {
 		return err
 	}
-	key := string(KeyInterface(i.Interface))
-	idx, found, err := d.Detach(ctx, i.Interface, key)
-	if err != nil {
+	tg, found, err := d.Detach(ctx, i.Interface, string(KeyInterface(i.Interface)))
+	if err != nil || !found {
 		return err
 	}
-	if found {
-		if err := d.set(ctx, idx, i, false); err != nil {
-			return err
-		}
+	if err := d.set(ctx, tg.Index, i, false); err != nil {
+		return err
 	}
-	return d.Release(i.Interface, key)
+	return tg.Release()
 }
 
 // Retrieve implements scheduler.Descriptor: write-only (D-063).

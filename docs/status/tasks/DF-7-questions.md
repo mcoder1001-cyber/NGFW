@@ -13,12 +13,16 @@ file — please copy the ones you accept).
   enums are byte-swapped before sending (`lb.rawEnum`, documented, little-endian VPP only).
 - Deleted VIPs/ASes are only marked "removed"; the API runs garbage collection only for a VIP still in use (≥ 60 s
   apart), so removed VIPs and the ASes' recursive-resolution FIB entries stay until the `lb vip|as|conf` CLI runs a
-  global GC or VPP restarts. **Leftovers of my slot now on the host**: table 0 `10.10.31.1/32`, `10.10.31.2/32`,
-  `10.10.31.3/32` (RR-sourced drop entries of AS addresses; not API routes, cannot be removed via the API) and
-  "removed" VIPs `10.10.30.1-3/32` (+ one `10.10.30.6/32` from a probe) in `show lb vips`. Table 0 is never deleted,
-  so V15 does not apply. Options: (a) the globals owner runs `vppctl lb conf` once (global GC, keeps the current
-  conf values) — I did not, it is a global CLI action (D-071); (b) leave until the next VPP restart; (c) VPP patch
-  (V-item: ntohl in the two handlers + details encoding + GC on delete). Recommendation (a) now, (c) as a V-item.
+  global GC or VPP restarts. **Leftovers of my slot (corrected, review M3)**: before the 02:23 VPP restart the
+  reviewer counted 26 "removed" VIPs of slot 10 (`show lb vips`: `#vips: 27 #ass: 24`) and table 0 `10.10.31.1/32`
+  with `refs:8` (plus `10.10.31.2/32`, `10.10.31.3/32`, RR-sourced drop entries of AS addresses — not API routes,
+  not removable via the API). Every host run added three removed VIPs; each VIP delete or change (ErrRecreate)
+  leaks one. The VPP crash-restart of 2026-09-24 02:23 (D-087, Q9) wiped them: after it `show lb vips` is empty and
+  `show ip fib` has no `10.10.*` entry. **Now**: the lb host test is opt-in (`VRX_DF7_LB=1`) so CI adds no new
+  leftovers; the per-update leak is documented in `lb.md`. Table 0 is never deleted, so V15 does not apply.
+  Options: (a) the globals owner runs `vppctl lb conf` once after lb churn (global GC, keeps the conf values) — I do
+  not, it is a global CLI action (D-071); (b) leave until the next VPP restart; (c) VPP patch (V-item: ntohl in the
+  two handlers + details encoding + GC on delete). Recommendation (a) as the product answer, (c) as a V-item.
 
 ## Q2 — classify table key
 
@@ -76,11 +80,62 @@ the last run (D-064).
 ## Q7 — for P05 / P08 wiring
 
 - Install persisted stores: `iface.SetClaimStore(owner, …)` (claims of objects on untagged NICs, DF-1's store) and
-  `df7.SetAppliedStore(owner, …)` (D-076 boot-identity records of `policer.interface` and `lb.intf-nat`, the two
-  write-only types whose VPP add stacks a feature). With the default in-memory stores an agent restart without a VPP
-  restart would re-add those two once.
+  `df7.SetBootStore(owner, dfkit.NewFileBootStore(…))` (D-080 boot records: applied-once records of
+  `policer.interface` and `lb.intf-nat` — value `<sw_if_index>/<name>` — and ownership records of lb VIPs/ASes and
+  of MPLS label routes in table 0). With the default in-memory stores an agent restart without a VPP restart would
+  re-add the two feature enables once and would no longer recognise its own VIPs/ASes/table-0 labels (Create →
+  `ErrNotOurs`, Delete → no-op), i.e. they need the persisted store.
 - `registry.Register(r, client, registry.Config{Owner, GlobalsOwner, BFDSecrets, Options})` registers all 28 (32
   with globals) DF-7 descriptors; `BFDSecrets` is the encrypted-store lookup by conf-key id.
 - StreamEvents: `bfd.WatchEvents`, `vrrp.WatchEvents`, `igmp.WatchEvents` return channels of typed events keyed by
   the object key.
 - Values are `*structpb.Struct` of the typed specs (D-055); P03b swaps them for leaf messages.
+
+## Q8 — LLDP sw/hw index mismatch cannot be undone through the API (review M6)
+
+`lldp_api.c` passes the API's sw_if_index to `lldp_cfg_intf_set(hw_if_index=…)`. Enable keys the new entry by hw
+index X; `lldp_dump` reports it as `hw(X)->sw_if_index` = Y; disable looks the entry up by `hw(arg)->sw_if_index`
+(`lldp_cli.c`, the `else` branch). A disable with X therefore removes the entry keyed Y (another interface's LLDP,
+if any) and never the stray one; the argument that reaches key X is the hw index of our interface, which no API
+message exposes (`sw_interface_details` has none). **Done**: Create detects the mismatch (dump diff), sends no
+disable, claims nothing and fails loudly (`ErrIndexMismatch … NOT undone`); unit test asserts no disable is sent.
+The stray entry stays until a VPP restart. Options: (a) accept + V-item (`lldp_cfg_intf_set` should map sw→hw with
+`vnet_get_sup_hw_interface`) — recommended; (b) allow a test-only / operator CLI with the right hw name; (c) disable
+`lldp.interface` on hosts where hw and sw indexes diverge (only NICs created at start-up are safe).
+
+## Q9 — VPP crash 2026-09-24 02:23:03 during my parallel host run (D-064, D-087)
+
+What happened: I ran the DF-7 host tests with one `go test` over nine packages, which runs packages in parallel;
+`TestVRRPOnHost` (VRs 10/11 on loop1070, sw_if_index 5) and `TestIGMPOnHost` (IGMP host/router mode on
+loop1080-1082, a host-mode listen on loop1082) ran at the same time. One second later VPP died (NRestarts 3 → 4);
+every slot's objects were wiped. Journal (`journalctl -u vpp --since 02:22:55 --until 02:23:05`):
+
+```
+vrrp_vr_transition:386: VR [1] sw_if_index 5 VR ID 11 IPv4 transitioning to Backup
+vrrp_vr_transition_vmac:226: Deleting virtual MAC address 00:00:5e:00:01:0b on hardware interface 5
+vrrp_vr_start_stop:1025: 2 VRs configured, 2 VRs running
+received signal SIGSEGV, PC 0x792cf7a0c3f8, faulting address 0x0
+Code:  89 08 89 d3 48 39 dd 75 2a 49 83 c6 04 49 ff cd 49 8d 58 ff
+#0  0x0000792cf7a0c3f8 ip4_options_node_fn + 0x158   (libvnet.so.26.06)
+#1  0x0000792cf767d68e                               (libvlib.so.26.06)
+#2  0x0000792cf767bb1e vlib_main + 0x1f3e
+systemd: vpp.service: Main process exited, code=killed, status=6/ABRT; restart counter is at 4
+```
+
+Trigger (analysis, read-only `/root/vpp`; not reproduced — reproducing needs a crash): both tests make VPP send IPv4
+packets with the Router Alert option on loopbacks. VRRP: a VR entering Backup calls `vrrp_vr_multicast_group_join`
+→ `vrrp_igmp_pkt_build` (IGMPv3 report for 224.0.0.18, header length 6, option 0x94 04 00 00, sent via
+`ip4-rewrite-mcast` on the VR interface, `sw_if_index[VLIB_RX] = 0`). IGMP: host-mode listens and router-mode
+queries also carry Router Alert. A loopback echoes its TX into its own `ethernet-input`, so these packets re-enter
+`ip4-input` → `ip4-options` (header length > 5). In `ip4_options_node_fn` a Router-Alert IGMP packet takes
+`ip_lookup_set_buffer_fib_index(ip4_main.fib_index_by_sw_if_index, b)` and moves from the punt to the local
+next; the faulting instruction is a 32-bit store (`mov %ecx,(%rax)`) through a NULL pointer, which fits the node's
+enqueue/next-frame path or that write, not a read of the packet. The same pair of tests ran in parallel in phase 1
+without a crash, so it is timing- or state-dependent (e.g. both a VRRP join and an IGMP packet in one frame). The
+exact line needs the debug build / core (no core on the host).
+
+Done: (1) host tests only one package at a time (`go test -p 1`, one package per run, NRestarts before/after each;
+evidence in DF-7.md); (2) `TestVRRPOnHost` and `TestIGMPOnHost` are opt-in (`VRX_DF7_VRRP_HOST=1`,
+`VRX_DF7_IGMP_HOST=1`, `df7test.CrashOptIn`) — run them alone in a manager window; unit tests stay on the fake.
+For `docs/vpp-code-track.md`: V-item candidate "ip4-options SIGSEGV on looped-back Router-Alert IGMP (VRRP join /
+IGMP host) on loopbacks, VPP 26.06".

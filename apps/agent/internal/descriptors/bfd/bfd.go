@@ -307,10 +307,11 @@ func (d *SessionDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	if err != nil {
 		return nil, err
 	}
-	idx, err := d.Attach(ctx, s.Interface, string(KeySession(s.Interface, s.Local, s.Peer)))
+	tg, err := d.Target(ctx, s.Interface, string(KeySession(s.Interface, s.Local, s.Peer)))
 	if err != nil {
 		return nil, err
 	}
+	idx := tg.Index
 	req := &bfd.BfdUDPAdd{SwIfIndex: interface_types.InterfaceIndex(idx), DesiredMinTx: s.DesiredMinTx, RequiredMinRx: s.RequiredMinRx,
 		LocalAddr: mustAddr(s.Local), PeerAddr: mustAddr(s.Peer), DetectMult: s.DetectMult}
 	if s.Auth != nil {
@@ -318,6 +319,11 @@ func (d *SessionDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	}
 	if _, err := bfd.NewServiceClient(d.Client).BfdUDPAdd(ctx, req); err != nil {
 		return nil, d.Wrap(fmt.Sprintf("bfd_udp_add %s %s→%s", s.Interface, s.Local, s.Peer), err)
+	}
+	// the session exists now: claim it before anything else can fail (BFD_EEXIST above leaves
+	// no claim — an existing session is never adopted, review M1)
+	if err := tg.Claim(); err != nil {
+		return nil, err
 	}
 	if s.AdminDown {
 		if err := d.setFlags(ctx, idx, s); err != nil {
@@ -342,13 +348,14 @@ func (d *SessionDescriptor) Update(ctx context.Context, oldObj, newObj proto.Mes
 	if o.Interface != n.Interface || o.Local != n.Local || o.Peer != n.Peer {
 		return nil, scheduler.ErrRecreate
 	}
-	sw, found, err := d.Detach(ctx, n.Interface, string(KeySession(n.Interface, n.Local, n.Peer)))
+	tg, found, err := d.Detach(ctx, n.Interface, string(KeySession(n.Interface, n.Local, n.Peer)))
 	if err != nil {
 		return nil, err
 	}
 	if !found {
 		return nil, fmt.Errorf("%s: %w: %q", NameSession, df7.ErrNoSuchInterface, n.Interface)
 	}
+	sw := tg.Index
 	m := SessionMeta{SwIfIndex: sw}
 	svc := bfd.NewServiceClient(d.Client)
 	idx := interface_types.InterfaceIndex(sw)
@@ -386,19 +393,16 @@ func (d *SessionDescriptor) Delete(ctx context.Context, obj proto.Message, _ any
 	if err != nil {
 		return err
 	}
-	key := string(KeySession(s.Interface, s.Local, s.Peer))
-	idx, found, err := d.Detach(ctx, s.Interface, key)
-	if err != nil {
+	tg, found, err := d.Detach(ctx, s.Interface, string(KeySession(s.Interface, s.Local, s.Peer)))
+	if err != nil || !found {
 		return err
 	}
-	if found {
-		_, err = bfd.NewServiceClient(d.Client).BfdUDPDel(ctx, &bfd.BfdUDPDel{SwIfIndex: interface_types.InterfaceIndex(idx),
-			LocalAddr: mustAddr(s.Local), PeerAddr: mustAddr(s.Peer)})
-		if err != nil && !df7.IsVPPError(err, api.BFD_ENOENT) {
-			return d.Wrap(fmt.Sprintf("bfd_udp_del %s %s→%s", s.Interface, s.Local, s.Peer), err)
-		}
+	_, err = bfd.NewServiceClient(d.Client).BfdUDPDel(ctx, &bfd.BfdUDPDel{SwIfIndex: interface_types.InterfaceIndex(tg.Index),
+		LocalAddr: mustAddr(s.Local), PeerAddr: mustAddr(s.Peer)})
+	if err != nil && !df7.IsVPPError(err, api.BFD_ENOENT) {
+		return d.Wrap(fmt.Sprintf("bfd_udp_del %s %s→%s", s.Interface, s.Local, s.Peer), err)
 	}
-	return d.Release(s.Interface, key)
+	return tg.Release()
 }
 
 // Retrieve implements scheduler.Descriptor: bfd_udp_session_dump, single-hop sessions on owned
@@ -473,15 +477,15 @@ func (d *EchoSourceDescriptor) Create(ctx context.Context, obj proto.Message) (a
 	if err != nil {
 		return nil, err
 	}
-	idx, err := d.Attach(ctx, e.Interface, string(KeyEchoSource()))
+	tg, err := d.Target(ctx, e.Interface, string(KeyEchoSource()))
 	if err != nil {
 		return nil, err
 	}
-	_, err = bfd.NewServiceClient(d.Client).BfdUDPSetEchoSource(ctx, &bfd.BfdUDPSetEchoSource{SwIfIndex: interface_types.InterfaceIndex(idx)})
+	_, err = bfd.NewServiceClient(d.Client).BfdUDPSetEchoSource(ctx, &bfd.BfdUDPSetEchoSource{SwIfIndex: interface_types.InterfaceIndex(tg.Index)})
 	if err != nil {
 		return nil, d.Wrap("bfd_udp_set_echo_source "+e.Interface, err)
 	}
-	return EchoMeta{SwIfIndex: idx}, nil
+	return EchoMeta{SwIfIndex: tg.Index}, tg.Claim()
 }
 
 // Update implements scheduler.Descriptor: set the new interface in place.
@@ -500,12 +504,17 @@ func (d *EchoSourceDescriptor) Delete(ctx context.Context, obj proto.Message, _ 
 	if err != nil {
 		return err
 	}
-	if len(cur) == 1 {
-		if _, err := bfd.NewServiceClient(d.Client).BfdUDPDelEchoSource(ctx, &bfd.BfdUDPDelEchoSource{}); err != nil {
-			return d.Wrap("bfd_udp_del_echo_source", err)
-		}
+	if len(cur) != 1 {
+		return nil
 	}
-	return d.Release(e.Interface, string(KeyEchoSource()))
+	if _, err := bfd.NewServiceClient(d.Client).BfdUDPDelEchoSource(ctx, &bfd.BfdUDPDelEchoSource{}); err != nil {
+		return d.Wrap("bfd_udp_del_echo_source", err)
+	}
+	tg, found, err := d.Detach(ctx, e.Interface, string(KeyEchoSource()))
+	if err != nil || !found {
+		return err
+	}
+	return tg.Release()
 }
 
 // Retrieve implements scheduler.Descriptor: bfd_udp_get_echo_source; reported when set on an

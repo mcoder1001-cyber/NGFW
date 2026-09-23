@@ -6,7 +6,9 @@
 package df7test
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -18,8 +20,10 @@ import (
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/memclnt"
-	"ngfw/agent/binapi/vlib"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 	"ngfw/agent/internal/vpp/fake"
 )
 
@@ -39,9 +43,10 @@ type FakeIf struct {
 // Fake is a fake VPP client with a mutable interface table (served on sw_interface_dump).
 type Fake struct {
 	*fake.Client
-	mu   sync.Mutex
-	ifs  map[uint32]FakeIf
-	boot uint32
+	mu    sync.Mutex
+	ifs   map[uint32]FakeIf
+	boot  uint32 // VPP main PID
+	start uint32 // VPP start time (D-080 identity part)
 }
 
 // NewFake returns a fake with the control ping reply registered and the interfaces given.
@@ -56,14 +61,15 @@ func NewFake(ifs ...FakeIf) *Fake {
 			{Index: 4, Name: "eth0"},
 		}
 	}
-	f := &Fake{Client: fake.New(fake.WithControlPingReply(&memclnt.ControlPingReply{})), ifs: map[uint32]FakeIf{}, boot: 4242}
+	f := &Fake{Client: fake.New(), ifs: map[uint32]FakeIf{}, boot: 4242}
 	for _, i := range ifs {
 		f.ifs[i.Index] = i
 	}
-	f.On("show_threads", func(api.Message) ([]api.Message, error) {
+	// the VPP main PID travels in control_ping's vpe_pid (D-080, bootid.Current)
+	f.On("control_ping", func(api.Message) ([]api.Message, error) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
-		return []api.Message{&vlib.ShowThreadsReply{Count: 1, ThreadData: []vlib.ThreadData{{ID: 0, Name: "vpp_main", PID: f.boot}}}}, nil
+		return []api.Message{&memclnt.ControlPingReply{VpePID: f.boot}}, nil
 	})
 	f.On("sw_interface_dump", func(api.Message) ([]api.Message, error) {
 		f.mu.Lock()
@@ -80,11 +86,31 @@ func NewFake(ifs ...FakeIf) *Fake {
 		}
 		return out, nil
 	})
+	// the fake PID is not a real process: never read the host's /proc for it; the D-080 identity
+	// is a fixed boot id, the fake's vpe_pid and the fake's start time (RestartSamePID)
+	dfkit.IdentitySource = func(ctx context.Context, c vpp.Client) (bootid.Identity, error) {
+		id, err := bootid.Reader{ProcRoot: os.DevNull}.Current(ctx, c)
+		if err != nil {
+			return bootid.Identity{}, err
+		}
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		id.BootID, id.StartTime = "fake-boot", uint64(f.start)+1
+		return id, nil
+	}
 	return f
 }
 
-// Reboot simulates a VPP restart for the boot-identity records (D-076): show_threads reports
-// a new main-thread PID.
+// RestartSamePID simulates a reboot in which VPP gets the same main PID again (early-boot PIDs
+// repeat): only the start time / boot id part of the D-080 identity changes.
+func (f *Fake) RestartSamePID() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.start++
+}
+
+// Reboot simulates a VPP restart for the boot-identity records (D-076): control_ping reports
+// a new vpe_pid.
 func (f *Fake) Reboot() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -96,6 +122,20 @@ func (f *Fake) AddIf(i FakeIf) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.ifs[i.Index] = i
+}
+
+// Claimed reports whether owner holds a live claim (D-080: this VPP instance, the interface's
+// current sw_if_index) of the object holder on interface name.
+func Claimed(ctx context.Context, c vpp.Client, owner, name, holder string) bool {
+	tg, err := dfkit.ResolveTarget(ctx, c, name, owner, holder)
+	return err == nil && tg.Untagged && tg.Claimed()
+}
+
+// RemoveIf removes interface idx from the fake's table.
+func (f *Fake) RemoveIf(idx uint32) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.ifs, idx)
 }
 
 // OK registers a zero-retval reply of type reply for request name.

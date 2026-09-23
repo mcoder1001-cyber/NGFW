@@ -6,6 +6,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
@@ -35,28 +36,18 @@ func (b Base) Ifaces(ctx context.Context) (*Interfaces, error) {
 	return DumpInterfaces(ctx, b.Client, b.Owner, b.Opts)
 }
 
-// Attach resolves the interface an object (holder = its key) is put on, claiming it when
-// untagged (Interfaces.Attach).
-func (b Base) Attach(ctx context.Context, name, holder string) (uint32, error) {
-	ifs, err := b.Ifaces(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return ifs.Attach(name, holder)
+// Target resolves the interface an object (holder = its key) is about to be put on, without
+// claiming it; the caller claims with Target.Claim only after VPP accepted the add (review M1).
+func (b Base) Target(ctx context.Context, name, holder string) (dfkit.Target, error) {
+	return Target(ctx, b.Client, b.Owner, name, holder)
 }
 
-// Detach re-resolves the interface of an object about to be deleted (Interfaces.Reresolve);
-// found is false when the interface is gone.
-func (b Base) Detach(ctx context.Context, name, holder string) (uint32, bool, error) {
-	ifs, err := b.Ifaces(ctx)
-	if err != nil {
-		return 0, false, err
-	}
-	return ifs.Reresolve(name, holder)
+// Detach re-resolves the interface of an object about to be updated or deleted (Reresolve);
+// found is false when the interface is gone or the object cannot be ours on this VPP instance.
+// After a successful delete the caller releases the claim with Target.Release.
+func (b Base) Detach(ctx context.Context, name, holder string) (dfkit.Target, bool, error) {
+	return Reresolve(ctx, b.Client, b.Owner, name, holder)
 }
-
-// Release drops holder's claim on the interface (after a successful Delete).
-func (b Base) Release(name, holder string) error { return Release(b.Owner, name, holder) }
 
 // Wrap prefixes err with the descriptor name and the VPP message.
 func (b Base) Wrap(msg string, err error) error {

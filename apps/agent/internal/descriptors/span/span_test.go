@@ -10,6 +10,7 @@ import (
 	"ngfw/agent/binapi/span"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/df7/df7test"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -103,5 +104,31 @@ func TestMirror(t *testing.T) {
 	Register(r, f, df7test.Owner)
 	if r.Len() != 1 {
 		t.Fatal(r.Names())
+	}
+}
+
+// Review M1: an existing mirror from an untagged source is never adopted; our own add claims.
+func TestMirrorNoAdopt(t *testing.T) {
+	f, st := fakeSpan()
+	ctx := t.Context()
+	d := New(f, df7test.Owner)
+	v := df7.Encode(Mirror{Source: "eth0", Destination: "loop0", State: StateBoth})
+	st[mk{4, 1, false}] = span.SPAN_STATE_API_RX_TX
+	if _, err := d.Create(ctx, v); !errors.Is(err, dfkit.ErrNotOurs) {
+		t.Fatalf("adopted: %v", err)
+	}
+	if kvs, _ := d.Retrieve(ctx); len(kvs) != 0 {
+		t.Fatalf("a foreign mirror is reported: %v", df7test.Keys(kvs))
+	}
+	if err := d.Delete(ctx, v, nil); err != nil || len(st) != 1 {
+		t.Fatal("a foreign mirror must not be removed", err)
+	}
+	delete(st, mk{4, 1, false})
+	if _, err := d.Create(ctx, v); err != nil || !df7test.Claimed(ctx, f, df7test.Owner, "eth0", string(d.KeyOf(v))) {
+		t.Fatal(err)
+	}
+	df7test.AssertEmptyPlan(t, d, df7test.Desired(d, v))
+	if err := d.Delete(ctx, v, nil); err != nil || len(st) != 0 || df7test.Claimed(ctx, f, df7test.Owner, "eth0", string(d.KeyOf(v))) {
+		t.Fatal(err, st)
 	}
 }

@@ -43,3 +43,11 @@ gives the pool index to other plugins.
 ## FIB entries
 
 None.
+
+## Review fixes
+
+- `policer.interface`: the applied-once record holds the D-080 boot identity (kernel boot_id, VPP PID, start time)
+  and `<sw_if_index>/<name>`; Delete sends `apply=0` only with a matching record — never on an interface that was
+  re-created, after a VPP restart (also with a repeated PID) or after a failed apply (review H1).
+- `policer.policer` Update re-verifies the stored pool index by name before `policer_update` (review M5); `Reset`
+  takes the policer name and looks the index up.

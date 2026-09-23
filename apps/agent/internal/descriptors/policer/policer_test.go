@@ -14,7 +14,6 @@ import (
 	"ngfw/agent/binapi/policer_types"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/df7/df7test"
-	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -177,9 +176,29 @@ func TestPolicerLifecycle(t *testing.T) {
 	if _, ok := pool[0]; !ok {
 		t.Fatal("another owner's policer was deleted")
 	}
+	// review M5: Update re-verifies the stored index as well — Meta says 0 (another owner's now)
+	pool[7] = &policer.PolicerDetails{Name: "w0:gold", Cir: 1}
+	if m, err := d.Update(ctx, df7.Encode(gold), df7.Encode(g2), Meta{Index: 0}); err != nil || m != (Meta{Index: 7}) {
+		t.Fatalf("update after index reuse: %v %v", m, err)
+	}
+	if up := df7test.Last[*policer.PolicerUpdate](t, f, "policer_update"); up.PolicerIndex != 7 {
+		t.Fatalf("updated index %d, not our policer's", up.PolicerIndex)
+	}
+	delete(pool, 7)
+	if _, err := d.Update(ctx, df7.Encode(gold), df7.Encode(g2), Meta{Index: 7}); err == nil {
+		t.Fatal("update of a policer that is gone must fail, not hit a reused index")
+	}
+	// Reset addresses the policer by name, never by a stored index
 	f.Reply("policer_reset", &policer.PolicerResetReply{})
-	if err := Reset(ctx, f, 0); err != nil {
+	if err := Reset(ctx, f, df7test.Owner, "gold"); err == nil {
+		t.Fatal("reset of a missing policer")
+	}
+	pool[8] = &policer.PolicerDetails{Name: "w0:bronze", Cir: 1}
+	if err := Reset(ctx, f, df7test.Owner, "bronze"); err != nil {
 		t.Fatal(err)
+	}
+	if r := df7test.Last[*policer.PolicerReset](t, f, "policer_reset"); r.PolicerIndex != 8 {
+		t.Fatalf("reset index %d", r.PolicerIndex)
 	}
 }
 
@@ -296,11 +315,53 @@ func TestAttachments(t *testing.T) {
 	if _, err := d.Create(ctx, eth); err != nil {
 		t.Fatalf("untagged: %v", err)
 	}
-	if !iface.Claims(df7test.Owner).Claimed("eth0", "policer.interface/eth0/input") {
+	if !df7test.Claimed(ctx, f, df7test.Owner, "eth0", "policer.interface/eth0/input") {
 		t.Fatal("untagged interface not claimed")
 	}
-	if err := d.Delete(ctx, eth, nil); err != nil || iface.Claims(df7test.Owner).Claimed("eth0", "policer.interface/eth0/input") {
+	if err := d.Delete(ctx, eth, nil); err != nil || df7test.Claimed(ctx, f, df7test.Owner, "eth0", "policer.interface/eth0/input") {
 		t.Fatal("claim not released", err)
+	}
+	// review H1: the applied-once record is bound to the D-080 triple and to sw_if_index+name
+	stack["in/1"], stack["out/1"] = 0, 0
+	gold1 := df7.Encode(Attachment{Interface: "loop1", Direction: DirInput, Policer: "gold"})
+	if _, err := d.Create(ctx, gold1); err != nil || stack["in/2"] != 1 {
+		t.Fatal(err, stack)
+	}
+	f.RestartSamePID() // same PID, new VPP start time: an earlier instance's record never matches
+	stack["in/2"] = 0
+	f.Reset()
+	if err := d.Delete(ctx, gold1, nil); err != nil || len(f.CallsNamed("policer_input")) != 0 {
+		t.Fatal("no un-apply for a record of an earlier VPP instance", err)
+	}
+	if _, err := d.Create(ctx, gold1); err != nil || stack["in/2"] != 1 {
+		t.Fatal("re-applied after a restart with a repeated PID", err, stack)
+	}
+	// loop1 re-created at another sw_if_index: the record of index 2 does not cover index 12
+	f.RemoveIf(2)
+	f.AddIf(df7test.FakeIf{Index: 12, Name: "loop1", Tag: df7test.Owner + ":loop1"})
+	f.Reset()
+	if err := d.Delete(ctx, gold1, nil); err != nil || len(f.CallsNamed("policer_input")) != 0 {
+		t.Fatal("never un-apply (apply=0) on an interface without a matching record", err)
+	}
+	if _, err := d.Create(ctx, gold1); err != nil || stack["in/12"] != 1 {
+		t.Fatal("applied once on the re-created interface", err, stack)
+	}
+	if err := d.Delete(ctx, gold1, nil); err != nil || stack["in/12"] != 0 {
+		t.Fatal("recorded attachment is un-applied", err, stack)
+	}
+	// a failed apply leaves neither a record nor a claim (review M1)
+	f.On("policer_input", func(api.Message) ([]api.Message, error) {
+		return []api.Message{&policer.PolicerInputReply{Retval: -1}}, nil
+	})
+	if _, err := d.Create(ctx, eth); err == nil {
+		t.Fatal("failed apply must surface")
+	}
+	if df7test.Claimed(ctx, f, df7test.Owner, "eth0", "policer.interface/eth0/input") {
+		t.Fatal("a failed add must not claim")
+	}
+	f.Reset()
+	if err := d.Delete(ctx, eth, nil); err != nil || len(f.CallsNamed("policer_input")) != 0 {
+		t.Fatal("a failed apply must not be un-applied later", err)
 	}
 	if _, err := d.Create(ctx, df7.Encode(Attachment{Interface: "nope", Direction: DirInput, Policer: "gold"})); !errors.Is(err, df7.ErrNoSuchInterface) {
 		t.Fatalf("missing: %v", err)

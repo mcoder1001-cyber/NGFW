@@ -13,6 +13,7 @@ import (
 	"ngfw/agent/binapi/mpls"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/df7/df7test"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -186,17 +187,34 @@ func TestInterface(t *testing.T) {
 	}
 	enabled[3] = 1 // another owner's interface
 	df7test.AssertEmptyPlan(t, d, v)
-	enabled[1] = 2 // enabled twice by an earlier run
-	if err := d.Delete(ctx, v.Value, nil); err != nil {
-		t.Fatal(err)
+	if _, err := d.Create(ctx, v.Value); err != nil || enabled[1] != 1 {
+		t.Fatal("a repeated Create never adds a second reference (D-076)", err, enabled[1])
 	}
-	if enabled[1] != 0 {
-		t.Fatalf("counter %d (disable must stop at 0, never wrap)", enabled[1])
+	enabled[1] = 2 // plus another consumer's reference (review L1: it survives our delete)
+	if err := d.Delete(ctx, v.Value, nil); err != nil || enabled[1] != 1 {
+		t.Fatalf("one disable: %v counter %d", err, enabled[1])
 	}
+	enabled[1] = 0
 	if err := d.Delete(ctx, v.Value, nil); err != nil || enabled[1] != 0 {
-		t.Fatalf("second delete must not disable a disabled interface: %v %d", err, enabled[1])
+		t.Fatalf("delete must not disable a disabled interface (u8 wrap): %v %d", err, enabled[1])
 	}
 	df7test.AssertEmptyPlan(t, d)
+	// review M1: an enabled untagged interface is never adopted; our own enable claims it
+	e := df7.Encode(Interface{Interface: "eth0"})
+	enabled[4] = 1
+	if _, err := d.Create(ctx, e); !errors.Is(err, dfkit.ErrNotOurs) {
+		t.Fatalf("adopted: %v", err)
+	}
+	if err := d.Delete(ctx, e, nil); err != nil || enabled[4] != 1 {
+		t.Fatal("never disable what is not ours", err)
+	}
+	enabled[4] = 0
+	if _, err := d.Create(ctx, e); err != nil || enabled[4] != 1 || !df7test.Claimed(ctx, f, df7test.Owner, "eth0", "mpls-interface/eth0") {
+		t.Fatal(err, enabled)
+	}
+	if err := d.Delete(ctx, e, nil); err != nil || enabled[4] != 0 || df7test.Claimed(ctx, f, df7test.Owner, "eth0", "mpls-interface/eth0") {
+		t.Fatal(err, enabled)
+	}
 }
 
 func TestRoute(t *testing.T) {
@@ -260,6 +278,99 @@ func TestRoute(t *testing.T) {
 		if err := bad.Validate(); !errors.Is(err, df7.ErrSpec) {
 			t.Errorf("case %d: %v", i, err)
 		}
+	}
+}
+
+// Review H2: in the shared table 0 (owned by the globals owner, D-071) only labels this owner
+// added itself are reported, updated or deleted — never SR-MPLS BSIDs, mpls-ip-bind local labels
+// or FRR / linux-cp labels of other features.
+func TestRouteSharedTable0(t *testing.T) {
+	f, tables, _, routes, _ := fakeMPLS()
+	ctx := t.Context()
+	df7.SetBootStore(df7test.Owner, nil)
+	tables[0] = df7test.Owner + ":0" // this owner is the globals owner of table 0
+	foreign := map[string]rkey{
+		"sr-mpls bsid": {0, 20001, 1},
+		"mpls-ip-bind": {0, 24001, 1},
+		"frr/linux-cp": {0, 30001, 0},
+		"reserved":     {0, 0, 1},
+	}
+	for _, k := range foreign {
+		routes[k] = mpls.MplsRoute{MrTableID: 0, MrLabel: k.label, MrEos: k.eos}
+	}
+	d := NewRoute(f, df7test.Owner)
+	if kvs, err := d.Retrieve(ctx); err != nil || len(kvs) != 0 {
+		t.Fatalf("foreign labels in table 0 reported: %v %v", df7test.Keys(kvs), err)
+	}
+	drop := paths(t, df7.Path{Type: df7.PathDrop})
+	for what, k := range foreign {
+		if k.label < 16 {
+			continue
+		}
+		r := Route{Table: 0, Label: k.label, EOS: k.eos == 1, Paths: drop}
+		if k.eos == 1 {
+			r.EOSProto = PayloadIP4
+		}
+		if _, err := d.Create(ctx, df7.Encode(r)); !errors.Is(err, dfkit.ErrNotOurs) {
+			t.Fatalf("%s: Create must refuse an existing label: %v", what, err)
+		}
+		if _, err := d.Update(ctx, df7.Encode(r), df7.Encode(r), nil); !errors.Is(err, dfkit.ErrNotOurs) {
+			t.Fatalf("%s: Update must refuse: %v", what, err)
+		}
+		if err := d.Delete(ctx, df7.Encode(r), nil); err != nil {
+			t.Fatalf("%s: %v", what, err)
+		}
+	}
+	for what, k := range foreign {
+		if _, ok := routes[k]; !ok {
+			t.Fatalf("%s entry in table 0 was deleted", what)
+		}
+	}
+	ours := Route{Table: 0, Label: 1600, EOS: true, EOSProto: PayloadIP4, Paths: drop}
+	v := df7test.Desired(d, df7.Encode(ours))
+	if _, err := d.Create(ctx, v.Value); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.Create(ctx, v.Value); err != nil {
+		t.Fatal("re-create of our own recorded label", err)
+	}
+	df7test.AssertEmptyPlan(t, d, v)
+	if _, err := d.Update(ctx, v.Value, v.Value, nil); err != nil {
+		t.Fatal(err)
+	}
+	gone := Route{Table: 0, Label: 1602, EOS: true, EOSProto: PayloadIP4, Paths: drop}
+	if _, err := d.Create(ctx, df7.Encode(gone)); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Delete(ctx, df7.Encode(gone), nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := routes[rkey{0, 1602, 1}]; ok {
+		t.Fatal("our own recorded label must be deleted")
+	}
+	routes[rkey{0, 1602, 1}] = mpls.MplsRoute{MrTableID: 0, MrLabel: 1602, MrEos: 1} // re-used by another feature
+	if err := d.Delete(ctx, df7.Encode(gone), nil); err != nil || len(routes) == 0 {
+		t.Fatal(err)
+	}
+	if _, ok := routes[rkey{0, 1602, 1}]; !ok {
+		t.Fatal("the record is dropped with our delete: the label is not ours any more")
+	}
+	// a failed add records nothing
+	f.On("mpls_route_add_del", func(api.Message) ([]api.Message, error) {
+		return []api.Message{&mpls.MplsRouteAddDelReply{Retval: -1}}, nil
+	})
+	failed := Route{Table: 0, Label: 1601, EOS: true, EOSProto: PayloadIP4, Paths: drop}
+	if _, err := d.Create(ctx, df7.Encode(failed)); err == nil {
+		t.Fatal("failed add must surface")
+	}
+	routes[rkey{0, 1601, 1}] = mpls.MplsRoute{MrTableID: 0, MrLabel: 1601, MrEos: 1} // someone else's, later
+	if kvs, _ := d.Retrieve(ctx); len(kvs) != 1 || kvs[0].Key != v.Key {             // not 1601, not 1602
+		t.Fatalf("only our label: %v", df7test.Keys(kvs))
+	}
+	// a VPP restart (same PID, new start time): the record is of an earlier instance
+	f.RestartSamePID()
+	if kvs, _ := d.Retrieve(ctx); len(kvs) != 0 {
+		t.Fatalf("a record of an earlier VPP instance must not match: %v", df7test.Keys(kvs))
 	}
 }
 

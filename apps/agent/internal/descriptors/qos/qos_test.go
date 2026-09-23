@@ -11,6 +11,7 @@ import (
 	"ngfw/agent/binapi/qos"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/df7/df7test"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -151,14 +152,42 @@ func TestRecordStore(t *testing.T) {
 	if _, err := rd.Update(ctx, r.Value, r.Value, meta); !errors.Is(err, scheduler.ErrRecreate) {
 		t.Fatal(err)
 	}
-	// an earlier run enabled twice: Delete still leaves nothing
-	if _, err := rd.Create(ctx, r.Value); err != nil {
-		t.Fatal(err)
+	// a repeated Create never stacks a second reference (D-076); Delete sends one disable (L1)
+	if _, err := rd.Create(ctx, r.Value); err != nil || recs[key{1, qos.QOS_API_SOURCE_IP}] != 1 {
+		t.Fatal(err, recs)
 	}
 	if err := rd.Delete(ctx, r.Value, meta); err != nil {
 		t.Fatal(err)
 	}
 	df7test.AssertEmptyPlan(t, rd)
+	// review L1: a reference of another consumer survives our delete
+	recs[key{2, qos.QOS_API_SOURCE_IP}] = 1 // someone else's reference on loop1
+	r1 := df7.Encode(Record{Interface: "loop1", Source: SourceIP})
+	if _, err := rd.Create(ctx, r1); err != nil || recs[key{2, qos.QOS_API_SOURCE_IP}] != 1 {
+		t.Fatal("existing record on our tagged interface is taken as is", err, recs)
+	}
+	recs[key{2, qos.QOS_API_SOURCE_IP}] = 2
+	if err := rd.Delete(ctx, r1, nil); err != nil || recs[key{2, qos.QOS_API_SOURCE_IP}] != 1 {
+		t.Fatal("one disable only", err, recs)
+	}
+	delete(recs, key{2, qos.QOS_API_SOURCE_IP})
+	// review M1: an existing record on an untagged interface is never adopted; a failed enable
+	// leaves no claim
+	recs[key{4, qos.QOS_API_SOURCE_IP}] = 1
+	re := df7.Encode(Record{Interface: "eth0", Source: SourceIP})
+	if _, err := rd.Create(ctx, re); !errors.Is(err, dfkit.ErrNotOurs) {
+		t.Fatalf("adopted a foreign record: %v", err)
+	}
+	if df7test.Claimed(ctx, f, df7test.Owner, "eth0", "qos.record/eth0/ip") {
+		t.Fatal("claimed")
+	}
+	delete(recs, key{4, qos.QOS_API_SOURCE_IP})
+	if _, err := rd.Create(ctx, re); err != nil || !df7test.Claimed(ctx, f, df7test.Owner, "eth0", "qos.record/eth0/ip") {
+		t.Fatal("claim after our own enable", err)
+	}
+	if err := rd.Delete(ctx, re, nil); err != nil || recs[key{4, qos.QOS_API_SOURCE_IP}] != 0 || df7test.Claimed(ctx, f, df7test.Owner, "eth0", "qos.record/eth0/ip") {
+		t.Fatal(err, recs)
+	}
 
 	s := df7test.Desired(sd, df7.Encode(Store{Interface: "loop1", Source: SourceIP, Value: 46}))
 	sm, err := sd.Create(ctx, s.Value)

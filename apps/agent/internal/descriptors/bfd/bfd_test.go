@@ -316,3 +316,27 @@ func TestEvents(t *testing.T) {
 		}
 	}
 }
+
+// Review M1: a failed add (EEXIST: someone else's session) leaves no claim and nothing reported.
+func TestSessionFailedAddNoClaim(t *testing.T) {
+	f, _, sess := fakeBFD()
+	ctx := t.Context()
+	d := NewSession(f, df7test.Owner)
+	s := Session{Interface: "eth0", Local: "10.0.0.1", Peer: "10.0.0.2", DesiredMinTx: 100000, RequiredMinRx: 100000, DetectMult: 3}
+	v := df7.Encode(s)
+	sess["foreign"] = &bfd.BfdUDPSessionDetails{SwIfIndex: 4, LocalAddr: mustAddr("10.0.0.1"), PeerAddr: mustAddr("10.0.0.2")}
+	f.Reply("bfd_udp_add", &bfd.BfdUDPAddReply{Retval: int32(api.BFD_EEXIST)})
+	if _, err := d.Create(ctx, v); !df7.IsVPPError(err, api.BFD_EEXIST) {
+		t.Fatalf("%v", err)
+	}
+	if df7test.Claimed(ctx, f, df7test.Owner, "eth0", string(d.KeyOf(v))) {
+		t.Fatal("a failed add must not claim")
+	}
+	if kvs, _ := d.Retrieve(ctx); len(kvs) != 0 {
+		t.Fatalf("someone else's session reported: %v", df7test.Keys(kvs))
+	}
+	f.Reset()
+	if err := d.Delete(ctx, v, nil); err != nil || len(f.CallsNamed("bfd_udp_del")) != 0 {
+		t.Fatal("never delete a session that is not ours", err)
+	}
+}

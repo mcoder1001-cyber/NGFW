@@ -21,6 +21,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/span"
 	"ngfw/agent/internal/descriptors/df7"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
@@ -117,7 +118,7 @@ func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error)
 	if err != nil {
 		return nil, err
 	}
-	from, err := ifs.Attach(m.Source, string(Key(m.Source, m.Destination, m.L2)))
+	tg, err := d.Target(ctx, m.Source, string(Key(m.Source, m.Destination, m.L2)))
 	if err != nil {
 		return nil, err
 	}
@@ -125,28 +126,62 @@ func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error)
 	if err != nil {
 		return nil, err
 	}
-	meta := Meta{From: from, To: to}
-	return meta, d.set(ctx, meta, states[m.State], m.L2)
+	meta := Meta{From: tg.Index, To: to}
+	if tg.Untagged {
+		// an existing mirror on an untagged source is never adopted (review M1)
+		exists, err := d.exists(ctx, meta, m.L2)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			if err := tg.Adopt(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if err := d.set(ctx, meta, states[m.State], m.L2); err != nil {
+		return nil, err
+	}
+	return meta, tg.Claim()
 }
 
-// reresolve finds both interfaces again by logical name (D-071: never trust a stored index).
-func (d *Descriptor) reresolve(ctx context.Context, m Mirror) (Meta, bool, error) {
+// exists reports whether VPP mirrors meta.From to meta.To at the level.
+func (d *Descriptor) exists(ctx context.Context, meta Meta, l2 bool) (bool, error) {
+	stream, err := span.NewServiceClient(d.Client).SwInterfaceSpanDump(ctx, &span.SwInterfaceSpanDump{IsL2: l2})
+	if err != nil {
+		return false, d.Wrap("sw_interface_span_dump", err)
+	}
+	dets, err := df7.Collect(stream.Recv)
+	if err != nil {
+		return false, d.Wrap("sw_interface_span_dump", err)
+	}
+	for _, det := range dets {
+		if uint32(det.SwIfIndexFrom) == meta.From && uint32(det.SwIfIndexTo) == meta.To {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// reresolve finds both interfaces again by logical name (D-071: never trust a stored index) and
+// checks the mirror is ours on this VPP instance.
+func (d *Descriptor) reresolve(ctx context.Context, m Mirror) (Meta, dfkit.Target, bool, error) {
+	tg, found, err := d.Detach(ctx, m.Source, string(Key(m.Source, m.Destination, m.L2)))
+	if err != nil || !found {
+		return Meta{}, tg, false, err
+	}
 	ifs, err := d.Ifaces(ctx)
 	if err != nil {
-		return Meta{}, false, err
-	}
-	from, found, err := ifs.Reresolve(m.Source, string(Key(m.Source, m.Destination, m.L2)))
-	if err != nil || !found {
-		return Meta{}, false, err
+		return Meta{}, tg, false, err
 	}
 	to, err := ifs.Resolve(m.Destination)
 	if errors.Is(err, df7.ErrNoSuchInterface) {
-		return Meta{}, false, nil
+		return Meta{}, tg, false, nil
 	}
 	if err != nil {
-		return Meta{}, false, err
+		return Meta{}, tg, false, err
 	}
-	return Meta{From: from, To: to}, true, nil
+	return Meta{From: tg.Index, To: to}, tg, true, nil
 }
 
 // Update implements scheduler.Descriptor: a new direction set is applied in place.
@@ -162,7 +197,7 @@ func (d *Descriptor) Update(ctx context.Context, oldObj, newObj proto.Message, _
 	if o.Source != n.Source || o.Destination != n.Destination || o.L2 != n.L2 {
 		return nil, scheduler.ErrRecreate
 	}
-	m, found, err := d.reresolve(ctx, n)
+	m, _, found, err := d.reresolve(ctx, n)
 	if err != nil {
 		return nil, err
 	}
@@ -179,16 +214,14 @@ func (d *Descriptor) Delete(ctx context.Context, obj proto.Message, _ any) error
 	if err != nil {
 		return err
 	}
-	m, found, err := d.reresolve(ctx, o)
-	if err != nil {
+	m, tg, found, err := d.reresolve(ctx, o)
+	if err != nil || !found {
 		return err
 	}
-	if found {
-		if err := d.set(ctx, m, span.SPAN_STATE_API_DISABLED, o.L2); err != nil {
-			return err
-		}
+	if err := d.set(ctx, m, span.SPAN_STATE_API_DISABLED, o.L2); err != nil {
+		return err
 	}
-	return d.Release(o.Source, string(Key(o.Source, o.Destination, o.L2)))
+	return tg.Release()
 }
 
 // Retrieve implements scheduler.Descriptor: sw_interface_span_dump for the device and the L2

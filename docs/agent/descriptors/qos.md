@@ -16,3 +16,7 @@ frees a map still referenced by a mark, so the scheduler removes marks first).
 
 Ownership: record/store/mark belong to the owner of the interface (claim rule for untagged interfaces); egress
 maps by id range. FIB entries: none.
+
+Reference counts (review L1): `qos.record` / `qos.store` enables are counted by VPP. Create enables only when the dump
+does not list the interface/source (an existing one is accepted only when tagged or claimed by us); Delete sends one
+disable — our one reference — and leaves other consumers' references alone.

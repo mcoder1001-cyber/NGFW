@@ -8,6 +8,7 @@ import (
 	"go.fd.io/govpp/api"
 
 	iface "ngfw/agent/internal/descriptors/interface"
+	"ngfw/agent/internal/scheduler"
 )
 
 // Typed errors the DF-7 descriptors return and the integration tests recognise.
@@ -17,7 +18,7 @@ var (
 	// desired state on every resync (Create is idempotent), never deletes on absence and skips it
 	// in post-apply verification. The text equals scheduler.ErrRetrieveUnsupported (P05) and
 	// df2.ErrRetrieveUnsupported so errors wrapping either match IsRetrieveUnsupported.
-	ErrRetrieveUnsupported = errors.New("vpp has no dump for this object type")
+	ErrRetrieveUnsupported = scheduler.ErrRetrieveUnsupported
 	// ErrSpec is wrapped by every validation / decoding error of a desired value.
 	ErrSpec = errors.New("invalid spec")
 	// ErrNoSuchInterface: no interface has this logical name (DF-1's iface.ErrNotFound).

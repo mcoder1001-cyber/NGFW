@@ -43,3 +43,17 @@ binding only with `VRX_DF7_GLOBALS=1`.
 entries to it (removed before the table — the scheduler deletes routes first; test cleanup does the same, V15);
 `mpls-ip-bind` adds an MPLS-sourced local label to the IP prefix and entries in MPLS table 0; `mpls-tunnel` adds no
 FIB entry of its own (its paths resolve through the FIB).
+
+## Shared table 0 (review H2)
+
+`mpls_route_details` carries no FIB source, and table 0 also holds SR-MPLS BSIDs (DF-6), `mpls-ip-bind` local labels
+and FRR / linux-cp labels. In table 0 an `mpls-route` is therefore reported, updated and deleted only when this owner
+recorded it (D-080 boot record written after its own successful add); Create refuses a label that exists without
+our record (`dfkit.ErrNotOurs`). Other tables are owned by name (`<owner>:<id>`) and report every label ≥ 16.
+
+## mpls-interface enable counter (review L1)
+
+`sw_interface_set_mpls_enable` is a u8 reference counter. Create enables only when `mpls_interface_dump` does not list
+the interface (an enabled interface is accepted only when tagged or claimed by us — never adopted); Delete sends one
+disable, and only while the dump lists it (a disable at 0 wraps the counter). References of other consumers are left
+alone.

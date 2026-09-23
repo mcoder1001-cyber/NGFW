@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"os"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -253,6 +254,48 @@ func GlobalsOptIn(t *testing.T, what string) {
 	t.Helper()
 	if os.Getenv("VRX_DF7_GLOBALS") != "1" {
 		t.Skipf("skip: %s is VPP-global — only the globals owner sets it (D-071); VRX_DF7_GLOBALS=1 to opt in", what)
+	}
+	LockGlobals(t)
+}
+
+// GlobalsLock is the lab-wide lock of tests that set VPP-global singletons (D-082).
+const GlobalsLock = "/run/lock/vrx-globals.lock"
+
+// LockGlobals holds GlobalsLock exclusively until the (sub)test ends (D-082).
+func LockGlobals(t *testing.T) {
+	t.Helper()
+	f, err := os.OpenFile(GlobalsLock, os.O_RDONLY|os.O_CREATE, 0o644) //nolint:gosec // shared lock file, no content
+	if err != nil {
+		t.Fatalf("globals lock: %v", err)
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		_ = f.Close()
+		t.Fatalf("flock -x %s: %v", GlobalsLock, err)
+	}
+	t.Logf("holding %s exclusively (D-082)", GlobalsLock)
+	t.Cleanup(func() {
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		_ = f.Close()
+	})
+}
+
+// CrashOptIn skips a host test that crashed the shared VPP (D-064/D-087) unless env=1: VPP
+// 26.06 SIGSEGV in ip4_options_node_fn when IGMP router-alert packets (VRRP's IGMPv3 join of
+// 224.0.0.18 on VR start, igmp host-mode reports) loop back through a loopback (DF-7-questions Q9).
+// Run it only alone, in a manager window, with NRestarts checked before and after.
+func CrashOptIn(t *testing.T, env string) {
+	t.Helper()
+	if os.Getenv(env) != "1" {
+		t.Skipf("skip: this host test crashed VPP (ip4-options SIGSEGV, D-087, DF-7 Q9); %s=1 to opt in (alone, manager window)", env)
+	}
+}
+
+// LBOptIn skips the lb host test unless VRX_DF7_LB=1: every run leaves removed-but-not-collected
+// VIPs in VPP (lb GC runs only from the CLI; review M3, DF-7-questions Q1).
+func LBOptIn(t *testing.T) {
+	t.Helper()
+	if os.Getenv("VRX_DF7_LB") != "1" {
+		t.Skip("skip: lb host test leaves removed VIPs in VPP until `lb gc`/restart (DF-7 Q1); VRX_DF7_LB=1 to opt in")
 	}
 }
 

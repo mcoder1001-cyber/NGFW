@@ -14,6 +14,7 @@ import (
 // its previous value cannot be restored: the subtest runs only for the globals owner
 // (VRX_DF7_GLOBALS=1, D-071). VIPs work without it (the GRE source only matters for traffic).
 func TestLBOnHost(t *testing.T) {
+	df7test.LBOptIn(t)
 	h := df7test.StartHost(t)
 	cd, vd, ad, nd := NewConf(h.C, h.Owner), NewVIP(h.C, h.Owner), NewAS(h.C, h.Owner), NewIntfNat(h.C, h.Owner)
 	ifA, _ := h.Loopback(30, true, true)

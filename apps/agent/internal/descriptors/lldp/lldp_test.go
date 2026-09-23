@@ -2,6 +2,7 @@ package lldp
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"go.fd.io/govpp/api"
@@ -10,6 +11,7 @@ import (
 	"ngfw/agent/binapi/lldp"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/df7/df7test"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -151,5 +153,52 @@ func TestNeighbours(t *testing.T) {
 	RegisterGlobals(r, f, df7test.Owner)
 	if r.Len() != 2 {
 		t.Fatal(r.Names())
+	}
+}
+
+// Review M6/M1: an enable that lands on another interface (VPP's sw/hw index mix-up) fails
+// loudly, claims nothing and sends no disable: VPP's disable would resolve to yet another
+// interface's entry (lldp_cli.c lldp_cfg_intf_set). An interface already enabled but not ours is
+// not adopted.
+func TestInterfaceMismatchUndo(t *testing.T) {
+	ctx := t.Context()
+	f, on := fakeLLDP(map[uint32]uint32{4: 7})
+	d := NewInterface(f, df7test.Owner)
+	v := df7.Encode(Interface{Interface: "eth0"})
+	on[9] = true // another consumer's LLDP, reachable by a wrongly keyed disable
+	_, err := d.Create(ctx, v)
+	if !errors.Is(err, ErrIndexMismatch) || !strings.Contains(err.Error(), "NOT undone") {
+		t.Fatalf("mismatch: %v", err)
+	}
+	for _, c := range f.CallsNamed("sw_interface_set_lldp") {
+		if !c.(*lldp.SwInterfaceSetLldp).Enable {
+			t.Fatal("no disable may be sent after a mismatch")
+		}
+	}
+	if !on[9] || !on[7] {
+		t.Fatalf("state %v", on)
+	}
+	if df7test.Claimed(ctx, f, df7test.Owner, "eth0", string(d.KeyOf(v))) {
+		t.Fatal("a failed enable must not claim")
+	}
+	f.Reset()
+	if err := d.Delete(ctx, v, nil); err != nil || len(f.CallsNamed("sw_interface_set_lldp")) != 0 {
+		t.Fatal("Delete of an unclaimed interface sends nothing", err)
+	}
+	g, gon := fakeLLDP(nil)
+	gd := NewInterface(g, df7test.Owner)
+	gon[4] = true // enabled by someone else
+	if _, err := gd.Create(ctx, v); !errors.Is(err, dfkit.ErrNotOurs) {
+		t.Fatalf("adopted: %v", err)
+	}
+	if err := gd.Delete(ctx, v, nil); err != nil || !gon[4] {
+		t.Fatal("a foreign LLDP enable must not be disabled", err)
+	}
+	delete(gon, 4)
+	if _, err := gd.Create(ctx, v); err != nil || !gon[4] || !df7test.Claimed(ctx, g, df7test.Owner, "eth0", string(gd.KeyOf(v))) {
+		t.Fatal(err, gon)
+	}
+	if err := gd.Delete(ctx, v, nil); err != nil || gon[4] {
+		t.Fatal(err, gon)
 	}
 }

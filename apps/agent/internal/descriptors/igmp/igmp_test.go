@@ -14,6 +14,7 @@ import (
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/df7/df7test"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -271,5 +272,33 @@ func TestEvents(t *testing.T) {
 	}
 	if r := df7test.Last[*igmp.WantIgmpEvents](t, f, "want_igmp_events"); r.Enable != 0 {
 		t.Fatal("events must be disabled when the watch ends")
+	}
+}
+
+// Review M1: IGMP already enabled on an untagged interface (VPP's -1) is not adopted.
+func TestInterfaceNoAdopt(t *testing.T) {
+	f, modes, _ := fakeIGMP()
+	ctx := t.Context()
+	id := NewInterface(f, df7test.Owner, NewModes())
+	v := df7.Encode(Interface{Interface: "eth0", Mode: ModeHost})
+	modes[4] = 1
+	if _, err := id.Create(ctx, v); !errors.Is(err, dfkit.ErrNotOurs) {
+		t.Fatalf("adopted: %v", err)
+	}
+	if err := id.Delete(ctx, v, nil); err != nil || modes[4] != 1 {
+		t.Fatal("a foreign IGMP enable must survive", err)
+	}
+	delete(modes, 4)
+	if _, err := id.Create(ctx, v); err != nil || !df7test.Claimed(ctx, f, df7test.Owner, "eth0", string(id.KeyOf(v))) {
+		t.Fatal(err)
+	}
+	if _, err := id.Create(ctx, v); err != nil {
+		t.Fatal("our own claimed enable is idempotent", err)
+	}
+	if err := id.Delete(ctx, v, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := modes[4]; ok {
+		t.Fatal("not disabled")
 	}
 }

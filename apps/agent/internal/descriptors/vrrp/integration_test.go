@@ -14,6 +14,7 @@ import (
 // slot+1, tracking loop<slot>71. VRs are started on the loopback: adverts never leave the host.
 // Assertions cover configuration and state shape, not protocol behaviour.
 func TestVRRPOnHost(t *testing.T) {
+	df7test.CrashOptIn(t, "VRX_DF7_VRRP_HOST") // D-087: VPP ip4-options SIGSEGV
 	h := df7test.StartHost(t)
 	vd, pd, td, sd := NewVR(h.C, h.Owner), NewPeers(h.C, h.Owner), NewTrack(h.C, h.Owner), NewState(h.C, h.Owner)
 	ifA, idxA := h.Loopback(70, true, true)

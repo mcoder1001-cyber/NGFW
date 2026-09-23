@@ -327,3 +327,27 @@ func TestEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// Review M1: ENTRY_ALREADY_EXISTS (a VR with this key that is not ours) leaves no claim and the
+// VR is neither reported nor deleted.
+func TestVRExistsNoClaim(t *testing.T) {
+	f, pool := fakeVRRP()
+	ctx := t.Context()
+	d := NewVR(f, df7test.Owner)
+	spec := VRSpec{VR: VR{Interface: "eth0", VRID: 9}, Priority: 100, Interval: 100, Addresses: []string{"10.0.0.254"}}
+	v := df7.Encode(spec)
+	pool[50] = &vr{det: &vrrp.VrrpVrDetails{Config: vrrp.VrrpVrConf{SwIfIndex: 4, VrID: 9, Priority: 100, Interval: 100}}}
+	f.Reply("vrrp_vr_update", &vrrp.VrrpVrUpdateReply{Retval: int32(api.ENTRY_ALREADY_EXISTS)})
+	if _, err := d.Create(ctx, v); !df7.IsVPPError(err, api.ENTRY_ALREADY_EXISTS) {
+		t.Fatalf("%v", err)
+	}
+	if df7test.Claimed(ctx, f, df7test.Owner, "eth0", string(d.KeyOf(v))) {
+		t.Fatal("a failed add must not claim")
+	}
+	if kvs, _ := d.Retrieve(ctx); len(kvs) != 0 {
+		t.Fatalf("reported: %v", df7test.Keys(kvs))
+	}
+	if err := d.Delete(ctx, v, nil); err != nil || pool[50] == nil {
+		t.Fatal("never delete a VR that is not ours", err)
+	}
+}

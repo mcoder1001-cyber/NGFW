@@ -27,3 +27,16 @@ Dependencies: listen → `igmp.interface/<if>` + `interface/<if>`; proxy-device 
 
 `igmp.interface` adds mFIB entries (general query / report) in the interface's multicast table and removes them on
 disable. No unicast FIB entries.
+
+## Mode drift (review L4)
+
+`igmp_enable_disable` answers `-1` both for "already enabled" and "enabled in the other mode"; there is no getter
+for the mode. Create treats `-1` as "exists": accepted only on our tagged interface or with our live claim
+(otherwise `ErrNotOurs`, review M1), but a mode changed underneath (host ↔ router) is not detected. Mode changes
+through the descriptor are ErrRecreate (disable + enable), so drift only comes from outside the agent.
+
+## Host test gated (D-087)
+
+The host test ran together with the VRRP host test when VPP crashed (SIGSEGV in `ip4_options_node_fn`, IGMP
+router-alert packets looped back on loopbacks; DF-7-questions Q9). It runs only with `VRX_DF7_IGMP_HOST=1`, alone,
+in a manager window.

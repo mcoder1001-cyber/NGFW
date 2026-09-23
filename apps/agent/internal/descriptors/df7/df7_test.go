@@ -10,7 +10,7 @@ import (
 	"ngfw/agent/binapi/fib_types"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/df7/df7test"
-	iface "ngfw/agent/internal/descriptors/interface"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -160,19 +160,54 @@ func TestInterfacesAndClaims(t *testing.T) {
 	if _, ok := ifs.Owned(4, holder); ok {
 		t.Fatal("untagged without a claim is not ours")
 	}
-	if _, err := ifs.Attach("eth0", "x/eth0"); err != nil {
+	b := df7.NewBase("x", f, df7test.Owner, nil)
+	tg, err := b.Target(ctx, "eth0", "x/eth0")
+	if err != nil || tg.Index != 4 || !tg.Untagged {
+		t.Fatal(tg, err)
+	}
+	// resolving claims nothing (review M1): the claim follows the successful add
+	if _, found, _ := b.Detach(ctx, "eth0", "x/eth0"); found {
+		t.Fatal("Target must not claim")
+	}
+	if err := tg.Adopt(); !errors.Is(err, dfkit.ErrNotOurs) {
+		t.Fatal("an unclaimed existing object is never adopted", err)
+	}
+	if err := tg.Claim(); err != nil {
 		t.Fatal(err)
 	}
 	if n, ok := ifs.Owned(4, holder); !ok || n != "eth0" {
 		t.Fatal("claimed untagged interface")
 	}
-	if _, found, err := ifs.Reresolve("eth0", "y/eth0"); !errors.Is(err, df7.ErrForeignInterface) || found {
+	if _, found, err := b.Detach(ctx, "eth0", "y/eth0"); err != nil || found {
 		t.Fatal("a claim is per object key", err)
 	}
-	if _, found, err := ifs.Reresolve("gone", "x/gone"); err != nil || found {
+	if _, found, err := b.Detach(ctx, "gone", "x/gone"); err != nil || found {
 		t.Fatal(found, err)
 	}
-	if err := df7.Release(df7test.Owner, "eth0", "x/eth0"); err != nil || iface.Claims(df7test.Owner).Claimed("eth0", "x/eth0") {
+	// D-080: the claim expires with the VPP instance, also when the PID repeats
+	f.RestartSamePID()
+	if _, found, _ := b.Detach(ctx, "eth0", "x/eth0"); found {
+		t.Fatal("a claim of an earlier VPP instance (same PID, new start time) is not ours")
+	}
+	f.Reboot()
+	tg2, _ := b.Target(ctx, "eth0", "x/eth0")
+	_ = tg2.Claim()
+	// ... and with the interface: eth0 re-created at another sw_if_index
+	f.AddIf(df7test.FakeIf{Index: 4, Name: "eth0-old"})
+	f.AddIf(df7test.FakeIf{Index: 9, Name: "eth0"})
+	if _, found, _ := b.Detach(ctx, "eth0", "x/eth0"); found {
+		t.Fatal("a claim of sw_if_index 4 does not cover eth0 at 9")
+	}
+	f.AddIf(df7test.FakeIf{Index: 4, Name: "eth0"})
+	f.RemoveIf(9)
+	tg3, found, err := b.Detach(ctx, "eth0", "x/eth0")
+	if err != nil || !found {
+		t.Fatal(found, err)
+	}
+	if err := tg3.Release(); err != nil {
+		t.Fatal(err)
+	}
+	if _, found, _ := b.Detach(ctx, "eth0", "x/eth0"); found {
 		t.Fatal("release")
 	}
 	if ifs.Name(77) != "#77" || ifs.Name(1) != "loop0" {
@@ -186,40 +221,72 @@ func TestInterfacesAndClaims(t *testing.T) {
 func TestApplyOnce(t *testing.T) {
 	f := df7test.NewFake()
 	ctx := t.Context()
+	df7.SetBootStore("w-apply", nil)
 	b := df7.NewBase("x.y", f, "w-apply", nil)
 	n := 0
 	apply := func() error { n++; return nil }
+	v := df7.IfaceValue(4, "eth0")
 	for i := 0; i < 3; i++ {
-		if _, err := b.ApplyOnce(ctx, "k", apply); err != nil {
+		if _, err := b.ApplyOnce(ctx, "k", v, apply); err != nil {
 			t.Fatal(err)
 		}
 	}
 	if n != 1 {
 		t.Fatalf("applied %d times in one VPP lifetime", n)
 	}
-	if on, _ := b.AppliedNow(ctx, "k"); !on {
+	if on, _ := b.AppliedNow(ctx, "k", v); !on {
 		t.Fatal("applied now")
 	}
-	f.Reboot()
-	if on, _ := b.AppliedNow(ctx, "k"); on {
+	// review H1: every part of the D-080 triple and the interface expire the record
+	f.Reboot() // new PID
+	if on, _ := b.AppliedNow(ctx, "k", v); on {
 		t.Fatal("a VPP restart forgets the application")
 	}
-	if skipped, _ := b.ApplyOnce(ctx, "k", apply); skipped || n != 2 {
+	if skipped, _ := b.ApplyOnce(ctx, "k", v, apply); skipped || n != 2 {
 		t.Fatal("re-applied once after a restart")
+	}
+	f.RestartSamePID() // same PID, new start time (or boot id)
+	if on, _ := b.AppliedNow(ctx, "k", v); on {
+		t.Fatal("a repeated PID must not match an earlier VPP instance")
+	}
+	if skipped, _ := b.ApplyOnce(ctx, "k", v, apply); skipped || n != 3 {
+		t.Fatal("re-applied after a restart with the same PID")
+	}
+	moved := df7.IfaceValue(9, "eth0") // eth0 re-created at another sw_if_index
+	if on, _ := b.AppliedNow(ctx, "k", moved); on {
+		t.Fatal("a record of sw_if_index 4 does not cover the interface at 9")
+	}
+	if skipped, _ := b.ApplyOnce(ctx, "k", moved, apply); skipped || n != 4 {
+		t.Fatal("re-applied on the re-created interface")
+	}
+	if on, _ := b.AppliedNow(ctx, "k", v); on {
+		t.Fatal("the old interface's record was replaced")
 	}
 	if err := b.ForgetApplied("k"); err != nil {
 		t.Fatal(err)
 	}
-	df7.SetAppliedStore("w-apply", nil)
-	if _, ok := df7.AppliedFor("w-apply").Applied("k"); ok {
-		t.Fatal("fresh store")
+	if on, _ := b.Recorded(ctx, "k"); on {
+		t.Fatal("forgotten")
 	}
 	failing := func() error { return errors.New("vpp said no") }
-	if _, err := b.ApplyOnce(ctx, "k2", failing); err == nil {
+	if _, err := b.ApplyOnce(ctx, "k2", v, failing); err == nil {
 		t.Fatal("error must surface")
 	}
-	if _, ok := df7.AppliedFor("w-apply").Applied("k2"); ok {
+	if on, _ := b.Recorded(ctx, "k2"); on {
 		t.Fatal("a failed apply is not recorded")
+	}
+	if err := b.RecordNow(ctx, "k3", "vip"); err != nil {
+		t.Fatal(err)
+	}
+	if on, _ := b.Recorded(ctx, "k3"); !on {
+		t.Fatal("recorded")
+	}
+	f.RestartSamePID()
+	if on, _ := b.Recorded(ctx, "k3"); on {
+		t.Fatal("an ownership record expires with the VPP instance")
+	}
+	if df7.BootStoreFor("w-apply") == nil {
+		t.Fatal("store")
 	}
 }
 

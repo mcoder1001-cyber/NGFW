@@ -17,6 +17,7 @@ import (
 // static joins); groups in 232.<slot>.0.0/16, sources in 10.<slot>.80.0/24; the SSM range test
 // uses 239.<slot>.0.0/16 and removes it again.
 func TestIGMPOnHost(t *testing.T) {
+	df7test.CrashOptIn(t, "VRX_DF7_IGMP_HOST") // D-087: VPP ip4-options SIGSEGV
 	h := df7test.StartHost(t)
 	vrf := h.TableB + 80
 	h.IPTable(vrf)

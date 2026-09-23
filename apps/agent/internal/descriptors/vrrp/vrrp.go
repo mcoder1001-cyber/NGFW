@@ -296,7 +296,8 @@ func running(d *vrrp.VrrpVrDetails) bool { return d.Runtime.State != vrrp.VRRP_A
 // vrIndex re-resolves the interface of a VR by logical name and checks the VR is ours (its
 // interface is ours, or untagged and claimed by the VR's key) — D-071: never a stored index.
 func vrIndex(ctx context.Context, b df7.Base, v VR) (uint32, bool, error) {
-	return b.Detach(ctx, v.Interface, string(KeyVR(v)))
+	tg, found, err := b.Detach(ctx, v.Interface, string(KeyVR(v)))
+	return tg.Index, found, err
 }
 
 // mustVRIndex is vrIndex for operations on a VR that must exist.
@@ -354,15 +355,18 @@ func (d *VRDescriptor) Create(ctx context.Context, obj proto.Message) (any, erro
 	if err != nil {
 		return nil, err
 	}
-	idx, err := d.Attach(ctx, v.Interface, string(KeyVR(v.VR)))
+	tg, err := d.Target(ctx, v.Interface, string(KeyVR(v.VR)))
 	if err != nil {
 		return nil, err
 	}
+	idx := tg.Index
 	index, err := d.update(ctx, df7.NoIndex, idx, v)
 	if err != nil {
+		// ENTRY_ALREADY_EXISTS: a VR with this key exists and is not ours (Retrieve would have
+		// reported ours) — never adopted, nothing claimed (review M1)
 		return nil, d.Wrap("vrrp_vr_update (create) "+string(KeyVR(v.VR)), df7.PluginError("vrrp", err))
 	}
-	return Meta{SwIfIndex: idx, Index: index, HasIndex: true}, nil
+	return Meta{SwIfIndex: idx, Index: index, HasIndex: true}, tg.Claim()
 }
 
 // maxProbe bounds the pool-index search of Update after a restart.
@@ -425,19 +429,17 @@ func (d *VRDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) err
 	if err != nil {
 		return err
 	}
-	sw, found, err := vrIndex(ctx, d.Base, v.VR)
-	if err != nil {
+	tg, found, err := d.Detach(ctx, v.Interface, string(KeyVR(v.VR)))
+	if err != nil || !found {
 		return err
 	}
-	if found {
-		// the handler validates priority/interval/vr_id before it looks at is_add
-		_, err = vrrp.NewServiceClient(d.Client).VrrpVrAddDel(ctx, &vrrp.VrrpVrAddDel{IsAdd: 0, SwIfIndex: interface_types.InterfaceIndex(sw),
-			VrID: v.VRID, Priority: max(v.Priority, 1), Interval: max(v.Interval, 1), Flags: flags(v)})
-		if err != nil && !df7.IsVPPError(err, api.NO_SUCH_ENTRY) {
-			return d.Wrap("vrrp_vr_add_del (del) "+string(KeyVR(v.VR)), err)
-		}
+	// the handler validates priority/interval/vr_id before it looks at is_add
+	_, err = vrrp.NewServiceClient(d.Client).VrrpVrAddDel(ctx, &vrrp.VrrpVrAddDel{IsAdd: 0, SwIfIndex: interface_types.InterfaceIndex(tg.Index),
+		VrID: v.VRID, Priority: max(v.Priority, 1), Interval: max(v.Interval, 1), Flags: flags(v)})
+	if err != nil && !df7.IsVPPError(err, api.NO_SUCH_ENTRY) {
+		return d.Wrap("vrrp_vr_add_del (del) "+string(KeyVR(v.VR)), err)
 	}
-	return d.Release(v.Interface, string(KeyVR(v.VR)))
+	return tg.Release()
 }
 
 // Retrieve implements scheduler.Descriptor: vrrp_vr_dump, VRs on owned interfaces.
@@ -639,12 +641,12 @@ func (d *TrackDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 // resolve finds the VR's interface (ours via the VR, D-071) and the tracked interface (not
 // another owner's, D-069) by logical name.
 func (d *TrackDescriptor) resolve(ctx context.Context, t Track) (TrackMeta, bool, error) {
-	ifs, err := d.Ifaces(ctx)
-	if err != nil {
+	idx, found, err := vrIndex(ctx, d.Base, t.VR)
+	if err != nil || !found {
 		return TrackMeta{}, false, err
 	}
-	idx, found, err := ifs.Reresolve(t.Interface, string(KeyVR(t.VR)))
-	if err != nil || !found {
+	ifs, err := d.Ifaces(ctx)
+	if err != nil {
 		return TrackMeta{}, false, err
 	}
 	tr, err := ifs.Resolve(t.Tracked)

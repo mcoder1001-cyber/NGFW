@@ -18,10 +18,12 @@ package lb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/bits"
 	"net/netip"
 	"strconv"
+	"sync/atomic"
 
 	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
@@ -31,6 +33,7 @@ import (
 	"ngfw/agent/binapi/lb"
 	"ngfw/agent/binapi/lb_types"
 	"ngfw/agent/internal/descriptors/df7"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
@@ -344,7 +347,20 @@ func (d *VIPDescriptor) Dependencies(proto.Message) []scheduler.Dependency {
 // clusterip) would be misread and the VIP rejected (INVALID_ADDRESS_FAMILY). Byte-swapping
 // here makes the wire bytes equal the host-order value VPP expects on a little-endian host
 // (x86_64/arm64, the only VRX targets). docs/agent/descriptors/lb.md, DF-7-questions.md.
-func rawEnum(v uint32) uint32 { return bits.ReverseBytes32(v) }
+func rawEnum(v uint32) uint32 {
+	if enumNative.Load() {
+		return v // VPP converts with ntohl (V20 fixed): send the plain value
+	}
+	return bits.ReverseBytes32(v)
+}
+
+// enumNative is set when a runtime check found that the VPP in use converts the enums itself
+// (review M2): the first non-zero encap whose VIP VPP rejects or reports with another type
+// flips it and the add is retried once.
+var enumNative atomic.Bool
+
+// ErrEnumOrder is returned when neither byte order of the lb enums gives the requested VIP type.
+var ErrEnumOrder = errors.New("lb: VPP did not create the requested VIP type in either enum byte order — lb API changed? (V20)")
 
 // vipPrefix encodes a VIP prefix the way the lb plugin expects: ip46 prefix lengths, i.e. an
 // IPv4 /n is sent as /(96+n) (util.h ip46_prefix_is_ip4 needs len ≥ 96).
@@ -378,27 +394,68 @@ func (d *VIPDescriptor) addDel(ctx context.Context, v VIPSpec, del bool) error {
 	return d.Wrap(fmt.Sprintf("lb_add_del_vip_v2 %s/%s/%d del=%v", v.Prefix, v.Protocol, v.Port, del), df7.PluginError("lb", err))
 }
 
-// Create implements scheduler.Descriptor. Idempotent: VALUE_EXIST is success when lb_vip_dump
-// lists a VIP with the same prefix, port and encapsulation (the fields it reports correctly).
+// Create implements scheduler.Descriptor. VIPs are untagged global objects: an existing VIP
+// (VALUE_EXIST) is ours only with this owner's record, written after our own successful add on
+// this VPP instance (review M4) — never adopted. After the add, lb_vip_dump must report the
+// requested encapsulation (it reports the VIP type correctly); if VPP rejected the type or made
+// another one, the byte order of the enums is switched once (VPP with the V20 ntohl fix) and the
+// add retried; if that fails too the VIP is removed and ErrEnumOrder returned (review M2).
 func (d *VIPDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	v, err := df7.DecodeValid[VIPSpec](obj)
 	if err != nil {
 		return nil, err
 	}
-	err = d.addDel(ctx, v, false)
-	if err == nil || !df7.IsVPPError(err, api.VALUE_EXIST) {
-		return nil, err
-	}
-	vips, derr := DumpVIPs(ctx, d.Client)
-	if derr != nil {
-		return nil, derr
-	}
-	for _, s := range vips {
-		if s.Prefix == v.Prefix && s.Port == v.Port && s.Encap == v.Encap {
+	key := string(KeyVIP(v.VIP))
+	for attempt := 0; attempt < 2; attempt++ {
+		err = d.addDel(ctx, v, false)
+		switch {
+		case df7.IsVPPError(err, api.VALUE_EXIST):
+			ours, rerr := d.Recorded(ctx, key)
+			if rerr != nil {
+				return nil, rerr
+			}
+			if !ours {
+				return nil, fmt.Errorf("%s: %w: VIP %s exists and was not created by %s", NameVIP, dfkit.ErrNotOurs, key, d.Owner)
+			}
 			return nil, nil
+		case df7.IsVPPError(err, api.INVALID_ADDRESS_FAMILY) && encaps[v.Encap] != 0:
+			enumNative.Store(!enumNative.Load()) // VPP misread the encap: other byte order
+			continue
+		case err != nil:
+			return nil, err
+		}
+		ok, cerr := d.typeMatches(ctx, v)
+		if cerr != nil {
+			return nil, cerr
+		}
+		if ok {
+			return nil, d.RecordNow(ctx, key, "vip")
+		}
+		if derr := d.addDel(ctx, v, true); derr != nil {
+			return nil, fmt.Errorf("%w; removing the wrong VIP failed: %v", ErrEnumOrder, derr)
+		}
+		enumNative.Store(!enumNative.Load())
+	}
+	return nil, fmt.Errorf("%s %s: %w (last error: %v)", NameVIP, key, ErrEnumOrder, err)
+}
+
+// typeMatches checks with lb_vip_dump that VPP created v with the requested encapsulation (the
+// last entry of that prefix/port: VPP lists deleted-but-not-collected VIPs too).
+func (d *VIPDescriptor) typeMatches(ctx context.Context, v VIPSpec) (bool, error) {
+	if encaps[v.Encap] == 0 {
+		return true, nil // 0 reads the same in both byte orders
+	}
+	vips, err := DumpVIPs(ctx, d.Client)
+	if err != nil {
+		return false, err
+	}
+	enc := ""
+	for _, s := range vips {
+		if s.Prefix == v.Prefix && s.Port == v.Port {
+			enc = s.Encap
 		}
 	}
-	return nil, fmt.Errorf("%w (a different VIP holds %s port %d)", err, v.Prefix, v.Port)
+	return enc == v.Encap, nil
 }
 
 // Update implements scheduler.Descriptor: VPP cannot modify a VIP.
@@ -407,12 +464,24 @@ func (*VIPDescriptor) Update(context.Context, proto.Message, proto.Message, any)
 }
 
 // Delete implements scheduler.Descriptor (ASes depend on the VIP and are removed first).
+// Only a VIP this owner recorded on this VPP instance is deleted; NO_SUCH_ENTRY (already gone,
+// e.g. after a VPP restart) is success (D-074, review M4).
 func (d *VIPDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	v, err := df7.Decode[VIPSpec](obj)
 	if err != nil {
 		return err
 	}
-	return d.addDel(ctx, v, true)
+	key := string(KeyVIP(v.VIP))
+	ours, err := d.Recorded(ctx, key)
+	if err != nil {
+		return err
+	}
+	if ours {
+		if err := d.addDel(ctx, v, true); err != nil && !df7.IsVPPError(err, api.NO_SUCH_ENTRY) {
+			return err
+		}
+	}
+	return d.ForgetApplied(key)
 }
 
 // Retrieve implements scheduler.Descriptor: write-only (D-063).
@@ -517,10 +586,22 @@ func (d *ASDescriptor) Create(ctx context.Context, obj proto.Message) (any, erro
 	if err != nil {
 		return nil, err
 	}
-	if err := d.addDel(ctx, a, false); err != nil && !df7.IsVPPError(err, api.VALUE_EXIST) {
+	key := string(KeyAS(a.VIP, a.Address))
+	err = d.addDel(ctx, a, false)
+	switch {
+	case df7.IsVPPError(err, api.VALUE_EXIST): // ours only with our record (review M4)
+		ours, rerr := d.Recorded(ctx, key)
+		if rerr != nil {
+			return nil, rerr
+		}
+		if !ours {
+			return nil, fmt.Errorf("%s: %w: AS %s exists and was not created by %s", NameAS, dfkit.ErrNotOurs, key, d.Owner)
+		}
+		return nil, nil
+	case err != nil:
 		return nil, err
 	}
-	return nil, nil
+	return nil, d.RecordNow(ctx, key, "as")
 }
 
 // Update implements scheduler.Descriptor: only FlushOnDelete can change, which VPP does not
@@ -541,12 +622,23 @@ func (d *ASDescriptor) Update(_ context.Context, oldObj, newObj proto.Message, m
 }
 
 // Delete implements scheduler.Descriptor.
+// Only an AS this owner recorded is removed; NO_SUCH_ENTRY (VIP or AS already gone) is success.
 func (d *ASDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	a, err := df7.Decode[AS](obj)
 	if err != nil {
 		return err
 	}
-	return d.addDel(ctx, a, true)
+	key := string(KeyAS(a.VIP, a.Address))
+	ours, err := d.Recorded(ctx, key)
+	if err != nil {
+		return err
+	}
+	if ours {
+		if err := d.addDel(ctx, a, true); err != nil && !df7.IsVPPError(err, api.NO_SUCH_ENTRY) {
+			return err
+		}
+	}
+	return d.ForgetApplied(key)
 }
 
 // Retrieve implements scheduler.Descriptor: write-only (D-063).
@@ -602,14 +694,20 @@ func (d *IntfNatDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 		return nil, err
 	}
 	key := string(KeyIntfNat(n.Interface, n.Family))
-	idx, err := d.Attach(ctx, n.Interface, key)
+	tg, err := d.Target(ctx, n.Interface, key)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := d.ApplyOnce(ctx, key, func() error { return d.set(ctx, idx, n.Family, true) }); err != nil {
+	skipped, err := d.ApplyOnce(ctx, key, df7.IfaceValue(tg.Index, n.Interface), func() error { return d.set(ctx, tg.Index, n.Family, true) })
+	if err != nil {
 		return nil, err
 	}
-	return NatMeta{SwIfIndex: idx}, nil
+	if !skipped {
+		if err := tg.Claim(); err != nil {
+			return nil, err
+		}
+	}
+	return NatMeta{SwIfIndex: tg.Index}, nil
 }
 
 // Update implements scheduler.Descriptor: every field is in the key.
@@ -625,23 +723,25 @@ func (d *IntfNatDescriptor) Delete(ctx context.Context, obj proto.Message, _ any
 		return err
 	}
 	key := string(KeyIntfNat(n.Interface, n.Family))
-	idx, found, err := d.Detach(ctx, n.Interface, key)
+	tg, found, err := d.Detach(ctx, n.Interface, key)
 	if err != nil {
 		return err
 	}
-	applied, err := d.AppliedNow(ctx, key)
-	if err != nil {
-		return err
-	}
-	if found && applied {
-		if err := d.set(ctx, idx, n.Family, false); err != nil {
+	if found {
+		applied, err := d.AppliedNow(ctx, key, df7.IfaceValue(tg.Index, n.Interface))
+		if err != nil {
+			return err
+		}
+		if applied {
+			if err := d.set(ctx, tg.Index, n.Family, false); err != nil {
+				return err
+			}
+		}
+		if err := tg.Release(); err != nil {
 			return err
 		}
 	}
-	if err := d.ForgetApplied(key); err != nil {
-		return err
-	}
-	return d.Release(n.Interface, key)
+	return d.ForgetApplied(key)
 }
 
 // Retrieve implements scheduler.Descriptor: write-only (D-063).

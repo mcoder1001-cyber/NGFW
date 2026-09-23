@@ -76,10 +76,38 @@ func (d *Descriptor) Update(ctx context.Context, oldObj, newObj proto.Message, m
 	if !ok {
 		return nil, df7.BadMeta(NamePolicer, meta)
 	}
-	if _, err := policer.NewServiceClient(d.Client).PolicerUpdate(ctx, &policer.PolicerUpdate{PolicerIndex: m.Index, Infos: newP.config()}); err != nil {
-		return nil, d.Wrap(fmt.Sprintf("policer_update %d", m.Index), err)
+	idx, found, err := d.currentIndex(ctx, newP.Name, m.Index)
+	if err != nil {
+		return nil, err
 	}
-	return m, nil
+	if !found {
+		return nil, fmt.Errorf("%s: policer %q no longer exists", NamePolicer, newP.Name)
+	}
+	if _, err := policer.NewServiceClient(d.Client).PolicerUpdate(ctx, &policer.PolicerUpdate{PolicerIndex: idx, Infos: newP.config()}); err != nil {
+		return nil, d.Wrap(fmt.Sprintf("policer_update %d", idx), err)
+	}
+	return Meta{Index: idx}, nil
+}
+
+// currentIndex re-verifies, right before an index-addressed call (D-071, review M5), that pool
+// index hint still holds this owner's policer name; otherwise it looks the policer up by name.
+func (d *Descriptor) currentIndex(ctx context.Context, name string, hint uint32) (uint32, bool, error) {
+	want, err := vppName(d.Owner, name)
+	if err != nil {
+		return 0, false, err
+	}
+	dets, err := dumpV2(ctx, d.Client, hint)
+	if err != nil {
+		return 0, false, d.Wrap("policer_dump_v2", err)
+	}
+	if len(dets) > 0 && dets[0].Name == want {
+		return hint, true, nil
+	}
+	idx, found, err := LookupIndex(ctx, d.Client, d.Owner, name)
+	if err != nil {
+		return 0, false, d.Wrap("policer lookup", err)
+	}
+	return idx, found, nil
 }
 
 // Delete implements scheduler.Descriptor: policer_del by index, after re-verifying right
@@ -96,27 +124,12 @@ func (d *Descriptor) Delete(ctx context.Context, obj proto.Message, meta any) er
 	if !ok {
 		return df7.BadMeta(NamePolicer, meta)
 	}
-	want, err := vppName(d.Owner, p.Name)
-	if err != nil {
+	index, found, err := d.currentIndex(ctx, p.Name, m.Index)
+	if err != nil || !found {
 		return err
 	}
-	dets, err := dumpV2(ctx, d.Client, m.Index)
-	if err != nil {
-		return d.Wrap("policer_dump_v2", err)
-	}
-	index := m.Index
-	if len(dets) == 0 || dets[0].Name != want {
-		idx, found, err := LookupIndex(ctx, d.Client, d.Owner, p.Name)
-		if err != nil {
-			return d.Wrap("policer lookup", err)
-		}
-		if !found {
-			return nil
-		}
-		index = idx
-	}
 	if _, err := policer.NewServiceClient(d.Client).PolicerDel(ctx, &policer.PolicerDel{PolicerIndex: index}); err != nil {
-		return d.Wrap(fmt.Sprintf("policer_del %d (%s)", index, want), err)
+		return d.Wrap(fmt.Sprintf("policer_del %d (%s)", index, p.Name), err)
 	}
 	return nil
 }
@@ -216,8 +229,16 @@ func LookupIndex(ctx context.Context, c vpp.Client, owner, name string) (uint32,
 	return 0, false, nil
 }
 
-// Reset is the policer_reset action helper: refill the policer's token buckets.
-func Reset(ctx context.Context, c vpp.Client, index uint32) error {
-	_, err := policer.NewServiceClient(c).PolicerReset(ctx, &policer.PolicerReset{PolicerIndex: index})
+// Reset is the policer_reset action helper: refill the token buckets of this owner's policer
+// called name (looked up by name right before the call — never a stored index, review M5).
+func Reset(ctx context.Context, c vpp.Client, owner, name string) error {
+	idx, found, err := LookupIndex(ctx, c, owner, name)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("%s: no policer %q of owner %q", NamePolicer, name, owner)
+	}
+	_, err = policer.NewServiceClient(c).PolicerReset(ctx, &policer.PolicerReset{PolicerIndex: idx})
 	return err
 }

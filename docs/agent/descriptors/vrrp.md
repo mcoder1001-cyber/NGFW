@@ -24,3 +24,20 @@ is not part of the VR (DF-7-questions.md). Ownership: the VR's interface (claim 
 - `vrrp_vr_add_del` validates priority/interval/vr_id before looking at `is_add` → the delete sends them too.
 - A VR on a deleted interface stays in the pool (seen once in development, removed by index; the test cleanup now
   deletes VRs before their loopback). FIB entries: none (VR addresses are added only in accept mode as master).
+
+## Side effects (review L2, L3)
+
+- Addresses: VPP checks nothing about the VR addresses (no subnet check against the interface). With accept mode
+  a VR that becomes master adds its virtual addresses to the interface (connected + local FIB entries) and removes
+  them on leaving master — those addresses are VPP's, not an `interface-address` object of ours; do not also
+  configure them as interface addresses.
+- VR start sends an IGMPv3 join of 224.0.0.18 with the router-alert option (`vrrp_igmp_pkt_build`) — on a loopback it
+  loops back into `ip4-options`; see "Host test gated".
+- Update after an agent restart walks the pool index (VPP's key check makes wrong indexes harmless, bounded by
+  `maxProbe`); Meta carries the index found at Create, so the walk only runs without Meta (L3: accepted).
+
+## Host test gated (D-087)
+
+VPP crashed (SIGSEGV in `ip4_options_node_fn`) one second after this host test started VRs on its loopback while the
+IGMP host test ran in parallel (DF-7-questions Q9). It runs only with `VRX_DF7_VRRP_HOST=1`, alone, in a manager
+window, with `NRestarts` checked before and after.

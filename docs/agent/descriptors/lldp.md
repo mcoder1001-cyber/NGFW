@@ -19,6 +19,12 @@ Dependencies: interface → `lldp.global/global` (optional) + `interface/<if>`.
 `sw_interface_set_lldp` passes the **sw_if_index** to `lldp_cfg_intf_set`, which treats it as a **hw_if_index**
 (and the disable path looks the interface up by `hi->sw_if_index` as a hw index). Correct only where both indexes
 coincide (NICs created at start-up); on the shared host a mismatch would enable LLDP on another interface. The
-descriptor detects it (`ErrIndexMismatch`, nothing is rolled back — that would hit yet another index); the host test
+descriptor detects it by diffing `lldp_dump` and fails loudly with `ErrIndexMismatch` "… NOT undone"; nothing is
+claimed. An automatic undo is not possible (review M6, investigated in `lldp_cli.c`): the enable keys the entry by
+hw index X (the API's sw_if_index), `lldp_dump` reports it as hw(X).sw_if_index = Y, and the disable looks entries up
+by hw(arg).sw_if_index — a disable with X removes the entry keyed Y (another interface's LLDP), and the argument that
+reaches key X (the hw index of our interface) is not exposed by any API message. So no disable is sent; the stray
+entry stays until a VPP restart (DF-7-questions Q8, V-item candidate). Delete is safe: a claim exists only after the
+dump showed our own sw_if_index, i.e. hw(X).sw_if_index = X; the host test
 finds an aligned loopback via `df7test.AlignedLoopback` (test-only `show hardware-interfaces` read through
 `cli_inband`) or skips. FIB entries: none.

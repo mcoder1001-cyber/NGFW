@@ -211,17 +211,12 @@ func KeyMark(ifName, source string) scheduler.Key { return scheduler.Join(NameMa
 
 // ---- helpers ----------------------------------------------------------------------------------
 
-// disableAll calls a reference-counted disable until VPP reports nothing is left: VPP counts
-// record/store enables per interface and source, and one scheduler object must leave nothing
-// behind even when an earlier run enabled twice.
-func disableAll(ctx context.Context, disable func(context.Context) error) error {
-	for i := 0; i < 64; i++ {
-		if err := disable(ctx); err != nil {
-			if df7.IsVPPError(err, api.VALUE_EXIST, api.NO_MATCHING_INTERFACE) {
-				return nil
-			}
-			return err
-		}
+// disableOnce sends one disable of a reference-counted record/store enable (review L1: one
+// object = one reference; further references belong to other consumers of the same counter and
+// are left alone). VALUE_EXIST / NO_MATCHING_INTERFACE mean nothing is enabled: success.
+func disableOnce(ctx context.Context, disable func(context.Context) error) error {
+	if err := disable(ctx); err != nil && !df7.IsVPPError(err, api.VALUE_EXIST, api.NO_MATCHING_INTERFACE) {
+		return err
 	}
 	return nil
 }
@@ -229,16 +224,14 @@ func disableAll(ctx context.Context, disable func(context.Context) error) error 
 // detach re-resolves the interface of an object about to be deleted, runs del on it when it
 // still exists, and releases the claim.
 func detach(ctx context.Context, b df7.Base, ifName, holder string, del func(ctx context.Context, idx uint32) error) error {
-	idx, found, err := b.Detach(ctx, ifName, holder)
-	if err != nil {
+	tg, found, err := b.Detach(ctx, ifName, holder)
+	if err != nil || !found {
 		return err
 	}
-	if found {
-		if err := del(ctx, idx); err != nil {
-			return err
-		}
+	if err := del(ctx, tg.Index); err != nil {
+		return err
 	}
-	return b.Release(ifName, holder)
+	return tg.Release()
 }
 
 func sortKVs(kvs []scheduler.KV) {
@@ -281,11 +274,41 @@ func (d *RecordDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	if err != nil {
 		return nil, err
 	}
-	idx, err := d.Attach(ctx, r.Interface, string(KeyRecord(r.Interface, r.Source)))
+	tg, err := d.Target(ctx, r.Interface, string(KeyRecord(r.Interface, r.Source)))
 	if err != nil {
 		return nil, err
 	}
-	return Meta{SwIfIndex: idx}, d.set(ctx, idx, r.Source, true)
+	idx := tg.Index
+	// the enable is reference-counted in VPP: an existing record is never enabled a second time
+	// (D-076) — it is ours only on our tagged interface or with our live claim (review M1)
+	on, err := d.enabled(ctx, idx, r.Source)
+	if err != nil {
+		return nil, err
+	}
+	if on {
+		return Meta{SwIfIndex: idx}, tg.Adopt()
+	}
+	if err := d.set(ctx, idx, r.Source, true); err != nil {
+		return nil, err
+	}
+	return Meta{SwIfIndex: idx}, tg.Claim() // claim only after VPP accepted the add (M1)
+}
+
+func (d *RecordDescriptor) enabled(ctx context.Context, idx uint32, source string) (bool, error) {
+	stream, err := qos.NewServiceClient(d.Client).QosRecordDump(ctx, &qos.QosRecordDump{})
+	if err != nil {
+		return false, d.Wrap("qos_record_dump", err)
+	}
+	dets, err := df7.Collect(stream.Recv)
+	if err != nil {
+		return false, d.Wrap("qos_record_dump", err)
+	}
+	for _, det := range dets {
+		if uint32(det.Record.SwIfIndex) == idx && det.Record.InputSource == sources[source] {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // Update implements scheduler.Descriptor: every field is part of the key.
@@ -293,15 +316,14 @@ func (*RecordDescriptor) Update(context.Context, proto.Message, proto.Message, a
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor: re-resolve the interface (D-071) and disable until
-// VPP's reference count is zero.
+// Delete implements scheduler.Descriptor: re-resolve the interface (D-071) and send one disable.
 func (d *RecordDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	r, err := df7.Decode[Record](obj)
 	if err != nil {
 		return err
 	}
 	return detach(ctx, d.Base, r.Interface, string(KeyRecord(r.Interface, r.Source)), func(ctx context.Context, idx uint32) error {
-		return disableAll(ctx, func(ctx context.Context) error { return d.set(ctx, idx, r.Source, false) })
+		return disableOnce(ctx, func(ctx context.Context) error { return d.set(ctx, idx, r.Source, false) })
 	})
 }
 
@@ -369,11 +391,39 @@ func (d *StoreDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 	if err != nil {
 		return nil, err
 	}
-	idx, err := d.Attach(ctx, s.Interface, string(KeyStore(s.Interface, s.Source)))
+	tg, err := d.Target(ctx, s.Interface, string(KeyStore(s.Interface, s.Source)))
 	if err != nil {
 		return nil, err
 	}
-	return Meta{SwIfIndex: idx}, d.set(ctx, idx, s, true)
+	idx := tg.Index
+	on, err := d.enabled(ctx, idx, s.Source)
+	if err != nil {
+		return nil, err
+	}
+	if on { // reference-counted: never a second enable (D-076); adopt only our own (M1)
+		return Meta{SwIfIndex: idx}, tg.Adopt()
+	}
+	if err := d.set(ctx, idx, s, true); err != nil {
+		return nil, err
+	}
+	return Meta{SwIfIndex: idx}, tg.Claim() // claim only after VPP accepted the add (M1)
+}
+
+func (d *StoreDescriptor) enabled(ctx context.Context, idx uint32, source string) (bool, error) {
+	stream, err := qos.NewServiceClient(d.Client).QosStoreDump(ctx, &qos.QosStoreDump{})
+	if err != nil {
+		return false, d.Wrap("qos_store_dump", err)
+	}
+	dets, err := df7.Collect(stream.Recv)
+	if err != nil {
+		return false, d.Wrap("qos_store_dump", err)
+	}
+	for _, det := range dets {
+		if uint32(det.Store.SwIfIndex) == idx && det.Store.InputSource == sources[source] {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // Update implements scheduler.Descriptor: VPP keeps the first value while the store is
@@ -382,15 +432,14 @@ func (*StoreDescriptor) Update(context.Context, proto.Message, proto.Message, an
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor: re-resolve the interface (D-071) and disable until
-// VPP's reference count is zero.
+// Delete implements scheduler.Descriptor: re-resolve the interface (D-071) and send one disable.
 func (d *StoreDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	s, err := df7.Decode[Store](obj)
 	if err != nil {
 		return err
 	}
 	return detach(ctx, d.Base, s.Interface, string(KeyStore(s.Interface, s.Source)), func(ctx context.Context, idx uint32) error {
-		return disableAll(ctx, func(ctx context.Context) error { return d.set(ctx, idx, s, false) })
+		return disableOnce(ctx, func(ctx context.Context) error { return d.set(ctx, idx, s, false) })
 	})
 }
 
@@ -535,11 +584,15 @@ func (d *MarkDescriptor) Create(ctx context.Context, obj proto.Message) (any, er
 	if err != nil {
 		return nil, err
 	}
-	idx, err := d.Attach(ctx, m.Interface, string(KeyMark(m.Interface, m.Source)))
+	tg, err := d.Target(ctx, m.Interface, string(KeyMark(m.Interface, m.Source)))
 	if err != nil {
 		return nil, err
 	}
-	return Meta{SwIfIndex: idx}, d.set(ctx, idx, m, true)
+	idx := tg.Index
+	if err := d.set(ctx, idx, m, true); err != nil {
+		return nil, err
+	}
+	return Meta{SwIfIndex: idx}, tg.Claim() // claim only after VPP accepted the add (M1)
 }
 
 // Update implements scheduler.Descriptor: another map is applied in place (VPP replaces the
@@ -556,14 +609,14 @@ func (d *MarkDescriptor) Update(ctx context.Context, oldObj, newObj proto.Messag
 	if oldM.Interface != newM.Interface || oldM.Source != newM.Source {
 		return nil, scheduler.ErrRecreate
 	}
-	idx, found, err := d.Detach(ctx, newM.Interface, string(KeyMark(newM.Interface, newM.Source)))
+	tg, found, err := d.Detach(ctx, newM.Interface, string(KeyMark(newM.Interface, newM.Source)))
 	if err != nil {
 		return nil, err
 	}
 	if !found {
 		return nil, fmt.Errorf("%s: %w: %q", NameMark, df7.ErrNoSuchInterface, newM.Interface)
 	}
-	return Meta{SwIfIndex: idx}, d.set(ctx, idx, newM, true)
+	return Meta{SwIfIndex: tg.Index}, d.set(ctx, tg.Index, newM, true)
 }
 
 // Delete implements scheduler.Descriptor: re-resolve the interface (D-071) and disable.

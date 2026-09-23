@@ -51,3 +51,7 @@ value and restores exactly that value (never VPP defaults). The lab lock (`/run/
 ## 8. Slot 12 is reserved for the manager's `tools/ci.sh full` (D-087)
 `tools/ci.sh full` runs the integration suite on main as CI slot 12. Workers are assigned slots 1–11 only; a worker never uses slot 12.
 Host tests run one Go package at a time against the shared VPP (never `go test ./...` with VRX_INTEGRATION=1 in a worker).
+
+## 9. Shared daemons: owner-prefix scoping (D-089)
+When several slots' tests share one daemon instance (e.g. a charon), renderers operate only on objects carrying their owner prefix
+(`WithOwnerPrefix`); a renderer never unloads, flushes or restarts what another prefix loaded.

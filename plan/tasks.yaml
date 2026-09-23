@@ -589,7 +589,7 @@ tasks:
   - P03
   priority: 2
   est_hours: 12
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D6.2
@@ -599,9 +599,10 @@ tasks:
   worktree: /root/ngfw-wt/RF-2
   owner: host-agent slot3
   started: 2026-09-24T02:30
-  finished: ''
+  finished: '2026-09-24'
   notes: test-scoped daemon processes only; system units untouched | worker done 8d980d7 CI green (IKEv2 SA between 2 test charons); review spawned; D-083 | review APPROVE WITH CHANGES 709e08e (H1 live
-    SAs not converged, M1 needless SA teardown, M2 shared-charon ownership, M3 charon crash detection, M4 event drops, L1 name length, L2 redaction); fix round 1
+    SAs not converged, M1 needless SA teardown, M2 shared-charon ownership, M3 charon crash detection, M4 event drops, L1 name length, L2 redaction); fix round 1 | fix round fae694f; merged 45789bf; main
+    CI green
 - id: RF-3
   title: 'Renderers: kea-dhcp4/6 + ctrl-agent, unbound, chrony'
   prompt: prompts/factories/RF-3.md
@@ -2096,7 +2097,7 @@ tasks:
   - P02a
   priority: 3
   est_hours: 8
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D0.6
@@ -2109,7 +2110,28 @@ tasks:
   finished: ''
   notes: 'D-058: added — PENDING-handover option 1 relies on it | worker done 2888b94 CI green; review spawned; D-081 | review BLOCK e049b31 (F1 mgmt NIC from document not host, F2 unsound rollback, F3
     stand-in fields → contract branch, F4 CPU pinning, F5/F6 validation); fix round 1 | fix round 1 0ba5a37 + contract/F-startup-gen 9cd24eb, CI green; D-084 plugins wrap requested, then re-review | D-084
-    amendment 130cc33 + contract b662ff8, CI green; re-review spawned'
+    amendment 130cc33 + contract b662ff8, CI green; re-review spawned | re-review BLOCK afbe6ae (all blockers in apply-startup.sh) → D-088 split; fix round 2 (last) generator-only'
+- branch: task/F-startup-apply
+  deps:
+  - F-startup-gen
+  est_hours: 6
+  files_owned: deploy/vpp/apply-startup.sh deploy/vpp/vpp-iface-check* deploy/vpp/test-apply-startup.sh
+  finished: ''
+  id: F-startup-apply
+  notes: D-088 split from F-startup-gen
+  owner: ''
+  parked_on: ''
+  priority: 4
+  prompt: prompts/features/F-startup-gen.md
+  scope: apply-startup.sh from branch task/F-startup-apply; fix re-review N1 N2 N3 N6 + lows (D-088)
+  stage: S2
+  started: ''
+  state: todo
+  template: FEATURE-TEMPLATE.md
+  title: Robust startup.conf apply tooling (detached, watchdog, hung-VPP, ifupdown restore, Go API checks, handover gate)
+  wbs:
+  - D0.6
+  worktree: ''
 - id: F-vpp-debs
   title: 'VPP package build pipeline: pinned 26.06 source, patch series, reproducible .deb build script'
   prompt: prompts/features/F-vpp-debs.md
@@ -2119,7 +2141,7 @@ tasks:
   - P01
   priority: 5
   est_hours: 8
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.2
@@ -2130,7 +2152,7 @@ tasks:
   owner: host-agent slot2
   started: 2026-09-24T03:20
   finished: ''
-  notes: 'D-058: added; P10 consumes its output'
+  notes: 'D-058: added; P10 consumes its output | worker done 90dbb81 (45 min build, 11 debs = host set); review spawned; D-089'
 - id: F-ha-state-sync
   title: 'HA state sync (T2, partial ok): NAT/ACL session sync, IPsec SA sync, failover test automation'
   prompt: prompts/features/F-ha-state-sync.md

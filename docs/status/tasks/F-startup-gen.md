@@ -583,3 +583,107 @@ CI GATE PASSED
 | D-SG-13 | Unset main core → lowest online non-isolated CPU ≠ 0 | (a) require mainCore (b) default | (b) keeps `{}` renderable (the current host file has no main-core) |
 | D-SG-14 | Apply script: `--expect-sha256` mandatory; locks in tools/lab order (vpp, then lab) | (a) lab lock only (b) both, tools/lab order | (b) avoids a lock-order deadlock with `tools/lab restart-vpp` |
 | D-SG-15 | Interface check in Python (`vpp_papi`, python3-vpp-api from our debs) | (a) Go helper in apps/agent (b) papi script | (b) stays inside the task's file set; API, not vppctl exit codes |
+
+### D-084 amendment — `plugins` wrapped, present = authoritative (2026-09-24)
+
+Contract branch: `contract(schema)` 95908fe + `contract(proto)` b662ff8 — schema `plugins?: { switches: Record<file, boolean> }`
+(strict object, `switches` default `{}`), proto `optional PluginSet plugins = 11` + `message PluginSet { map<string,bool>
+switches = 1; }` (field not on main, no consumer — D-084). Merged into the task branch (bb85aeb); generator in 020b95f:
+`plugins` **present** → exactly `switches` rendered, warning per D-060 plugin (`linux_cp`, `linux_nl`, `npt66`) not listed and
+per current-file switch that disappears; **absent** → current file's switches kept (as before). Golden `plugins` /
+`dpdk-disabled` now render only their listed switches; `TestPluginSemantics` replaces `TestPluginOverlay`.
+Drift guard on the contract branch: `876 scalar leaves and 193 messages compared, 4 accepted difference(s), 0 finding(s)`;
+schema vitest --coverage 1214/1214 (exit 0); proto vitest 68/68; `buf lint` ok. Apply-script fake-host tests: 36 passed, 0 failed.
+
+```
+--- PASS: TestPluginSemantics
+--- PASS: TestGolden
+    --- PASS: TestGolden/dpdk-disabled
+    --- PASS: TestGolden/empty
+    --- PASS: TestGolden/host-equivalent
+    --- PASS: TestGolden/plugins
+    --- PASS: TestGolden/single-core
+    --- PASS: TestGolden/six-nic-sample
+    --- PASS: TestGolden/two-worker-auto
+    --- PASS: TestGolden/two-worker
+    --- PASS: TestGolden/whitelist-only
+ok  	ngfw/agent/internal/renderers/vppstartup	0.051s
+$ echo '{"dataplane":{"mainCore":1}}' | vrx-startupgen | sed -n '/^plugins/,$p'
+vrx-startupgen: host management NIC(s) 0000:0b:00.0 (always blacklisted)
+vrx-startupgen: warning: plugins: linux_cp_plugin.so { enable } kept from the current start-up file (dataplane.plugins absent)
+vrx-startupgen: warning: plugins: linux_nl_plugin.so { enable } kept from the current start-up file (dataplane.plugins absent)
+vrx-startupgen: warning: plugins: npt66_plugin.so { enable } kept from the current start-up file (dataplane.plugins absent)
+plugins {
+  plugin linux_cp_plugin.so { enable }
+  plugin linux_nl_plugin.so { enable }
+  plugin npt66_plugin.so { enable }
+}
+exit=0
+$ echo '{"dataplane":{"mainCore":1,"plugins":{"switches":{"acl_plugin.so":true}}}}' | vrx-startupgen | sed -n '/^plugins/,$p'
+vrx-startupgen: host management NIC(s) 0000:0b:00.0 (always blacklisted)
+vrx-startupgen: warning: dataplane.plugins.switches: linux_cp_plugin.so (D-060) is not listed and will not be enabled
+vrx-startupgen: warning: dataplane.plugins.switches: linux_nl_plugin.so (D-060) is not listed and will not be enabled
+vrx-startupgen: warning: dataplane.plugins.switches: npt66_plugin.so (D-060) is not listed and will not be enabled
+vrx-startupgen: warning: plugins: linux_cp_plugin.so { enable } in the current start-up file is removed (not in dataplane.plugins.switches)
+vrx-startupgen: warning: plugins: linux_nl_plugin.so { enable } in the current start-up file is removed (not in dataplane.plugins.switches)
+vrx-startupgen: warning: plugins: npt66_plugin.so { enable } in the current start-up file is removed (not in dataplane.plugins.switches)
+plugins {
+  plugin acl_plugin.so { enable }
+}
+exit=0
+$ echo '{"dataplane":{"mainCore":1,"plugins":{"acl_plugin.so":true}}}' | vrx-startupgen | sed -n '/^plugins/,$p'
+vrx-startupgen: vppstartup: invalid dataplane configuration: dataplane: proto: (line 1:26): unknown field "acl_plugin.so"
+exit=2
+```
+
+CI — contract branch (b662ff8):
+```
+$ tools/ci.sh --base main
+== VRX CI gate: quick ==
+worktree  /tmp/claude-0/-root-ngfw/7d2208cf-6822-4d52-a974-bcfd33679c79/scratchpad/contract-wt
+branch    contract/F-startup-gen @ b662ff8   (base: main)
+tools     node v22.23.2 · pnpm 12.5.1 · go1.26.0 · buf 1.73.0 · golangci-lint 2.13.2 (pinned) · gitleaks 8.30.1 (pinned)
+caches    pnpm store /tmp/.pnpm-store/v11 · turbo /root/.cache/vrx-turbo · go /root/.cache/go-build
+logs      /root/ngfw-wt/logs/ci/contract-wt-20260924-021957-1940195
+...
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m01s
+  tools (golangci-lint, gitleaks)                    0m01s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m03s
+  generate + generated-output gate                   0m27s
+  forbidden patterns (+ gitleaks)                    0m04s
+  lint · typecheck · unit tests · build (turbo)   1m20s
+  apps/agent: make lint test build                   0m43s
+  test/ Go modules, unit mode (test/integration/smoke)   0m01s
+  mode quick · wall time 2m41s · logs /root/ngfw-wt/logs/ci/contract-wt-20260924-021957-1940195
+
+CI GATE PASSED
+```
+CI — task branch (020b95f):
+```
+$ tools/ci.sh --base main
+== VRX CI gate: quick ==
+worktree  /root/ngfw-wt/F-startup-gen
+branch    task/F-startup-gen @ 020b95f   (base: main)
+tools     node v22.23.2 · pnpm 12.5.1 · go1.26.0 · buf 1.73.0 · golangci-lint 2.13.2 (pinned) · gitleaks 8.30.1 (pinned)
+caches    pnpm store /root/.local/share/pnpm/store/v11 · turbo /root/.cache/vrx-turbo · go /root/.cache/go-build
+logs      /root/ngfw-wt/logs/ci/F-startup-gen-20260924-022235-1990802
+...
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m00s
+  generate + generated-output gate                   0m28s
+  forbidden patterns (+ gitleaks)                    0m03s
+  lint · typecheck · unit tests · build (turbo)   0m28s
+  apps/agent: make lint test build                   0m27s
+  test/ Go modules, unit mode (test/integration/smoke)   0m02s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      review(F-startup-gen): findings
+  mode quick · wall time 1m31s · logs /root/ngfw-wt/logs/ci/F-startup-gen-20260924-022235-1990802
+
+CI GATE PASSED
+```
+Decision D-SG-11 is superseded by D-084 (present = authoritative, absent = overlay). Q6 answered, Q7 taken by the manager.
+

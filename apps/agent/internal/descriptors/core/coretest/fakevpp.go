@@ -93,6 +93,7 @@ func New() *VPP {
 	}
 	v.install()
 	v.installIfExt()             // P08: DF-1 attributes, af_packet, sub-interfaces, DHCP client dump
+	v.installACL()               // F-acl: the acl plugin, its counters flag and stats vectors (acl.go)
 	sanitizetest.Clean(v.Client) // interface creators sanitize the new sw_if_index (D-095)
 	return v
 }

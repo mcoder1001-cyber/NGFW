@@ -231,14 +231,14 @@ func TestInterfacesVerticalSlice(t *testing.T) {
 	t.Run("topology", func(t *testing.T) {
 		a.t = t
 		// ---- D-105 (review F4): af_packet may take only a veth. The management NIC is refused at validation
-		// (422 with the interface's pointer, running untouched) — it never reaches VPP (no af_packet churn).
+		// (the API's validation problem, 400, with the interface's pointer; running untouched) — it never reaches VPP.
 		if mgmt := defaultRouteDev(t); mgmt != "" {
 			bad := "host-" + mgmt
 			a.patch("/interfaces", map[string]any{bad: map[string]any{"enabled": true}})
 			rsp := a.call("POST", "/api/v1/config/commit?comment=p08-f4-mgmt-nic", nil)
-			t.Logf("commit of %s (management NIC %s) → %d %s", bad, mgmt, rsp.status, trunc(rsp.raw, 700))
-			if rsp.status != 422 || !strings.Contains(rsp.raw, `"/interfaces/`+bad+`"`) || !strings.Contains(rsp.raw, "veth") {
-				t.Fatalf("committing af_packet on the management NIC %s: want 422 with pointer /interfaces/%s", mgmt, bad)
+			t.Logf("commit of %s (management NIC %s) → %d %v tier=%v errors=%s", bad, mgmt, rsp.status, rsp.body["title"], rsp.body["tier"], js(rsp.body["errors"]))
+			if rsp.status != 400 || !strings.Contains(js(rsp.body["errors"]), `"/interfaces/`+bad+`"`) || !strings.Contains(js(rsp.body["errors"]), "interfaces.af-packet-veth") {
+				t.Fatalf("committing af_packet on the management NIC %s: want a 400 validation problem with pointer /interfaces/%s (rule interfaces.af-packet-veth)", mgmt, bad)
 			}
 			a.must(200, "POST", "/api/v1/config/discard", nil)
 		}

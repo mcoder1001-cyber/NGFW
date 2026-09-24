@@ -2,6 +2,7 @@ package cpath
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -93,10 +94,17 @@ func TestTokenize(t *testing.T) {
 }
 
 func TestQuoteSurvivesTokenize(t *testing.T) {
-	for _, s := range []string{"plain", "two words", "", `a"b`, `back\slash`, "{json-looking", "/slash-first", "tab\there", "#hash", "line\nbreak", "TenGigabitEthernet0/0/0"} {
+	for _, s := range []string{"plain", "two words", "", `a"b`, `back\slash`, "{json-looking", "/slash-first", "tab\there", "#hash", "line\nbreak", "TenGigabitEthernet0/0/0", "esc\x1b]0;T\x07\x1b[2K\rx", "c1\u009b", "rtl\u202e", "bad\xff", "\x7f"} {
 		toks, err := Tokenize("x " + Quote(s))
 		if err != nil || len(toks) != 2 || toks[1].Text != s {
 			t.Errorf("Quote(%q) = %s does not round-trip: %+v %v", s, Quote(s), toks, err)
 		}
+	}
+}
+
+func TestQuoteMakesControlsVisible(t *testing.T) {
+	q := Quote("x\x1b]52;c;AAAA\x07\u202e")
+	if strings.ContainsAny(q, "\x1b\x07\u202e") || q != `"x\x1b]52;c;AAAA\x07\u202e"` {
+		t.Errorf("Quote = %q", q)
 	}
 }

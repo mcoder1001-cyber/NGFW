@@ -34,3 +34,16 @@
    build (DF-1/P08)"). The e2e therefore proves the confirmed-commit revert with MTU at the API level (running MTU back to
    1500, no pending commit) and in the data plane with the interface address the agent does apply (.9 → .1 in the
    agent's Retrieve). When DF-1/P08 lands, the same test can assert the MTU in `show interfaces`.
+
+## Review round (P13-review.md)
+
+8. **API: reject control characters in commit comments and descriptions (D-049) — for P06 / the schema owner.** The CLI
+   now renders them visibly (H1), but `POST /config/commit?comment=` accepts ESC/OSC/CSI/BEL (`z.string().max(1024)`),
+   and 26 `description` fields plus the keys of `routing/bgp/neighbors` and `routing/ospf/areas` have no control-character
+   pattern. The web UI and any other client would still receive them. Proposal: the `interfaces.*.description` pattern
+   for all of them, and the same check on `comment` (commit, rollback). I did not edit apps/api.
+9. **Follow-ups, not done in this round (tech-debt, owner P13/CLI):** M5 line editor — display width (CJK, Persian
+   combining marks), wrapped long lines, SIGWINCH, bracketed paste, unit tests of `edit()` (done in this round: full CSI/SS3
+   parsing, so Ctrl-→ and F-keys no longer insert text); L1 `ping`/`traceroute` send no target (the actions API has no request
+   schema yet, it answers 501); L3 the OpenAPI drift test skips without `pnpm gen` (needs the ci.sh step, #1); L8
+   quoted `".."` still climbs a level.

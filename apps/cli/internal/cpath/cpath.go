@@ -10,7 +10,11 @@ package cpath
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+	"unicode/utf8"
+
+	"ngfw/cli/internal/safe"
 )
 
 // EscapeSegment escapes one pointer token (RFC 6901 §3): "~" → "~0", "/" → "~1".
@@ -113,7 +117,10 @@ func NeedsQuote(s string) bool {
 	case '{', '[', '"', '\'', '#', '/':
 		return true
 	}
-	return strings.ContainsAny(s, " \t\r\n\"'\\")
+	if strings.ContainsAny(s, " \t\r\n\"'\\") {
+		return true
+	}
+	return safe.String(s) != s // control characters, bidi overrides, invalid UTF-8
 }
 
 // Quote returns s as a token: unchanged when safe, else double-quoted with \-escapes.
@@ -123,7 +130,13 @@ func Quote(s string) string {
 	}
 	var b strings.Builder
 	b.WriteByte('"')
-	for _, r := range s {
+	for i, r := range s {
+		if r == utf8.RuneError {
+			if _, n := utf8.DecodeRuneInString(s[i:]); n == 1 {
+				fmt.Fprintf(&b, `\x%02x`, s[i])
+				continue
+			}
+		}
 		switch r {
 		case '"', '\\':
 			b.WriteByte('\\')
@@ -135,7 +148,12 @@ func Quote(s string) string {
 		case '\r':
 			b.WriteString(`\r`)
 		default:
-			b.WriteRune(r)
+			switch {
+			case r >= 0x80 && r <= 0x9f: // C1 rune: \u so that Tokenize gives the rune back, not a byte
+				fmt.Fprintf(&b, `\u%04x`, r)
+			default:
+				b.WriteString(safe.String(string(r))) // \xNN (C0, DEL) / \uNNNN (bidi) — Tokenize reads them back
+			}
 		}
 	}
 	b.WriteByte('"')
@@ -182,6 +200,20 @@ func Tokenize(line string) ([]Token, error) {
 						b.WriteByte('\t')
 					case 'r':
 						b.WriteByte('\r')
+					case 'x':
+						if v, err := strconv.ParseUint(safeSlice(line, i+2, 2), 16, 8); err == nil {
+							b.WriteByte(byte(v))
+							i += 4
+							continue
+						}
+						b.WriteByte('x')
+					case 'u':
+						if v, err := strconv.ParseUint(safeSlice(line, i+2, 4), 16, 16); err == nil {
+							b.WriteRune(rune(uint16(v))) //nolint:gosec // 4 hex digits: fits
+							i += 6
+							continue
+						}
+						b.WriteByte('u')
 					default:
 						b.WriteByte(line[i+1])
 					}
@@ -222,6 +254,13 @@ func Tokenize(line string) ([]Token, error) {
 			toks = append(toks, Token{Text: line[start:i], Start: start})
 		}
 	}
+}
+
+func safeSlice(s string, from, n int) string {
+	if from+n > len(s) {
+		return ""
+	}
+	return s[from : from+n]
 }
 
 // jsonEnd finds the end (exclusive) of the bracketed JSON value starting at line[i].

@@ -5,7 +5,8 @@
 #
 #   eval "$(tools/lab env 3)"; deploy/dev/pg-test.sh create w3
 #   apps/cli/test/devstack.sh start [--no-agent]   # prints nothing secret; admin password → $RUN/admin.pw (0600)
-#   apps/cli/test/devstack.sh stop                  # stops exactly the PIDs it started
+#   apps/cli/test/devstack.sh stop [--keep]         # stops exactly the PIDs it started; removes the slot secrets and logs
+#                                                   # it created (admin.pw, jwt.key, secret.key, api.log, agent.log) unless --keep
 #
 # Secrets (DB password, JWT key, bootstrap admin password) live only in /run/vrx-test/<prefix>/ (tmpfs, 0600) and
 # in the processes' environment — never on the command line, never in the repository.
@@ -62,10 +63,14 @@ stop() {
     fi
   done
   rm -rf "$RUN/agent-state" "$VRX_AGENT_SOCKET"
+  if [[ ${1:-} != --keep ]]; then
+    rm -f "$RUN/admin.pw" "$RUN/jwt.key" "$RUN/secret.key" "$LOGDIR/api.log" "$LOGDIR/agent.log"
+    echo "removed slot secrets and logs from $RUN (use stop --keep to keep them)"
+  fi
 }
 
 case ${1:-} in
   start) shift; start "$@" ;;
-  stop) stop ;;
-  *) echo "usage: $0 start [--no-agent] | stop" >&2; exit 2 ;;
+  stop) shift; stop "$@" ;;
+  *) echo "usage: $0 start [--no-agent] | stop [--keep]" >&2; exit 2 ;;
 esac

@@ -37,9 +37,10 @@ below lists the REST operations it calls (from the OpenAPI document), and the CL
 | ` + "`--api-key-file <path>`" + ` | ` + "`VRX_API_KEY_FILE`" + ` | API key from a file that only its owner can read (0600); ` + "`VRX_API_KEY`" + ` carries the key itself |
 | ` + "`--user <name>`" + ` | | log in for this invocation; the password is prompted without echo (or ` + "`--password-file <path>`" + `, 0600) |
 | ` + "`--no-session`" + ` | | neither read nor write the session file |
+| ` + "`--insecure-http`" + ` | | allow ` + "`http://`" + ` to a non-loopback host (refused otherwise: credentials would travel in cleartext); for the product's self-signed certificate use ` + "`https://`" + ` with ` + "`SSL_CERT_FILE`" + ` |
 | ` + "`--json`" + ` | | machine mode (see above) |
 | ` + "`--debug`" + ` | | method, path, status and duration of every API call on stderr — never headers, bodies or credentials |
-| | ` + "`VRX_SESSION_FILE`" + ` | session file, default ` + "`$XDG_RUNTIME_DIR/vrx/session.json`" + ` |
+| | ` + "`VRX_SESSION_FILE`" + ` | session file, default ` + "`$XDG_RUNTIME_DIR/vrx/session.json`" + ` (else ` + "`/run/user/<uid>/vrx/`" + ` if it is yours; never a shared temp directory — without either, one-shot ` + "`login`" + ` is refused) |
 | | ` + "`VRX_HISTORY_FILE`" + ` | REPL history, default ` + "`~/.local/state/vrx/history`" + ` (0600; lines mentioning password/secret/psk/keys are not saved) |
 
 ### Credentials
@@ -47,7 +48,22 @@ below lists the REST operations it calls (from the OpenAPI document), and the CL
 Order: ` + "`--api-key-file`" + ` → ` + "`VRX_API_KEY`" + ` → ` + "`--user`" + ` → session file → (interactive shell) login prompt.
 ` + "`vrx login`" + ` stores only the 15-minute access token in the 0600 session file; the interactive shell keeps the refresh
 token in memory and renews the access token on a 401. Passwords and keys are never echoed, logged or written to
-history. ` + "`api-key create … file <path>`" + ` writes a new key to a new 0600 file instead of printing it.
+history. ` + "`api-key create … file <path>`" + ` writes a new key to a new 0600 file instead of printing it. Session, history
+and credential files must be regular files (no symlinks) owned by you with mode 0600 in a 0700 directory you own; the
+CLI writes them through a new temp file + rename and refuses anything else.
+
+### Terminal safety, interrupts, confirmed commits
+
+- Everything the server sends (names, descriptions, comments, error messages, diff lines, table cells, completion
+  candidates) is shown with control characters made visible: ESC/CSI/OSC, BEL, CR, DEL, C1 controls, invalid UTF-8 and
+  bidi overrides appear as ` + "`\\x1b`" + `, ` + "`\\x9b`" + `, ` + "`\\u202e`" + ` … and cannot move the cursor, erase lines, set the title or write the
+  clipboard. ` + "`--json`" + ` output is the API's JSON unchanged.
+- In the shell, Ctrl-C (or SIGTERM) cancels only the running command (exit status 130 for it); the shell stays usable.
+  SIGTERM then ends the shell.
+- After ` + "`commit confirm <sec>`" + ` the prompt carries the countdown (` + "`admin@vrx[!42s]#`" + `) and a reminder line says when the
+  change reverts; ` + "`exit`" + `/` + "`quit`" + `/Ctrl-D warn once and stay; the shell reports when the commit was confirmed or reverted.
+- When a command fails, input typed or pasted after it is discarded: a pasted block stops at its first failing line (a
+  trailing ` + "`commit`" + ` does not run).
 
 ## Paths and values
 

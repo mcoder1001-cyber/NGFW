@@ -14,6 +14,8 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/sys/unix"
+
+	"ngfw/cli/internal/safe"
 )
 
 // ErrInterrupt is returned on Ctrl-C (the caller discards the line and continues).
@@ -43,6 +45,30 @@ type Editor struct {
 	MaxHist  int
 
 	reader *bufio.Reader
+	saved  *unix.Termios // terminal state to restore while in raw mode
+}
+
+// RestoreTerminal puts the terminal back into the state ReadLine found it in (signal handlers call it).
+func (e *Editor) RestoreTerminal() {
+	if e.saved != nil {
+		_ = unix.IoctlSetTermios(int(e.In.Fd()), unix.TCSETS, e.saved)
+	}
+}
+
+// DiscardTypeahead drops input that arrived ahead of the next prompt — buffered here and still queued in the tty —
+// and returns how many bytes were dropped.
+func (e *Editor) DiscardTypeahead() int {
+	n := 0
+	if e.reader != nil {
+		n = e.reader.Buffered()
+		_, _ = e.reader.Discard(n)
+	}
+	fd := int(e.In.Fd())
+	if q, err := unix.IoctlGetInt(fd, unix.TIOCINQ); err == nil && q > 0 {
+		n += q
+	}
+	_ = unix.IoctlSetInt(fd, unix.TCFLSH, unix.TCIFLUSH)
+	return n
 }
 
 // IsTerminal reports whether f is a terminal.
@@ -88,7 +114,8 @@ func (e *Editor) ReadLine(prompt string) (string, error) {
 	if err := unix.IoctlSetTermios(fd, unix.TCSETS, &raw); err != nil {
 		return e.readPlain()
 	}
-	defer func() { _ = unix.IoctlSetTermios(fd, unix.TCSETS, old) }()
+	e.saved = old
+	defer func() { _ = unix.IoctlSetTermios(fd, unix.TCSETS, old); e.saved = nil }()
 	return e.edit(prompt)
 }
 
@@ -260,19 +287,44 @@ func (s *state) history(dir int) {
 	s.pos = len(s.buf)
 }
 
+// escape reads a complete escape sequence: CSI (ESC [ params final 0x40–0x7E) and SS3 (ESC O x). Known keys move
+// the cursor/history; everything else (Ctrl-→ `ESC[1;5C`, F5 `ESC[15~`, …) is consumed without inserting text.
 func (s *state) escape() {
 	b, err := s.in.ReadByte()
 	if err != nil {
 		return
 	}
-	if b != '[' && b != 'O' {
-		return
+	var params []byte
+	var final byte
+	switch b {
+	case '[':
+		for {
+			c, err := s.in.ReadByte()
+			if err != nil {
+				return
+			}
+			if c >= 0x40 && c <= 0x7e {
+				final = c
+				break
+			}
+			params = append(params, c)
+			if len(params) > 16 {
+				return
+			}
+		}
+	case 'O':
+		c, err := s.in.ReadByte()
+		if err != nil {
+			return
+		}
+		final = c
+	default:
+		return // Alt-<key>: ignored
 	}
-	c, err := s.in.ReadByte()
-	if err != nil {
-		return
+	if len(params) > 0 && final != '~' {
+		return // modified arrows etc.: not bound
 	}
-	switch c {
+	switch final {
 	case 'A':
 		s.history(-1)
 	case 'B':
@@ -289,20 +341,14 @@ func (s *state) escape() {
 		s.pos = 0
 	case 'F':
 		s.pos = len(s.buf)
-	default:
-		if c >= '0' && c <= '9' {
-			t, _ := s.in.ReadByte()
-			if t != '~' {
-				return
-			}
-			switch c {
-			case '1', '7':
-				s.pos = 0
-			case '4', '8':
-				s.pos = len(s.buf)
-			case '3':
-				s.deleteAt()
-			}
+	case '~':
+		switch string(params) {
+		case "1", "7":
+			s.pos = 0
+		case "4", "8":
+			s.pos = len(s.buf)
+		case "3":
+			s.deleteAt()
 		}
 	}
 }
@@ -372,6 +418,7 @@ func List(cands []Candidate, width int) string {
 	}
 	var b strings.Builder
 	for _, c := range cands {
+		c.Text, c.Help = safe.String(c.Text), safe.String(c.Help) // candidates can carry server-supplied map keys
 		if c.Help == "" {
 			fmt.Fprintf(&b, "  %s\n", c.Text)
 			continue

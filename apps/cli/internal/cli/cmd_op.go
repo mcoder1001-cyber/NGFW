@@ -632,7 +632,7 @@ func showRevision(ctx context.Context, a *App, args []cpath.Token) error {
 	if out.Author != nil {
 		author = *out.Author
 	}
-	fmt.Fprintf(a.Stdout, "# revision %d · %s · %s · %s · %s\n# comment: %s\n", out.ID, shortTime(out.CreatedAt), author, out.Kind, short(out.Hash, 12), out.Comment)
+	fmt.Fprintf(a.Stdout, "# revision %d · %s · %s · %s · %s\n# comment: %s\n", out.ID, shortTime(out.CreatedAt), one(author), one(out.Kind), short(out.Hash, 12), one(out.Comment))
 	return a.printConfig(nil, out.Payload, format)
 }
 
@@ -649,7 +649,15 @@ func showPending(ctx context.Context, a *App, _ []cpath.Token) error {
 			fmt.Fprintln(w, "no commit is waiting for confirmation")
 			return
 		}
-		fmt.Fprintf(w, "commit %v (%v) waiting for `confirm` until %v — comment: %v\n", out.Pending["txnId"], out.Pending["kind"], out.Pending["deadline"], out.Pending["comment"])
+		when := fmt.Sprint(out.Pending["deadline"])
+		if d, err := time.Parse(time.RFC3339Nano, when); err == nil {
+			when = whenLocal(d)
+		}
+		fmt.Fprintf(w, "commit %s (%s) waiting for `confirm` until %s", one(out.Pending["txnId"]), one(out.Pending["kind"]), when)
+		if c, _ := out.Pending["comment"].(string); c != "" {
+			fmt.Fprintf(w, " — comment: %s", one(c))
+		}
+		fmt.Fprintln(w)
 	})
 }
 
@@ -736,6 +744,9 @@ func loginCmd(ctx context.Context, a *App, args []cpath.Token) error {
 			return usagef("password file: %v", err)
 		}
 	}
+	if !a.interactive && !a.noSession && a.sessionPath() == "" {
+		return usagef("no private place for the session: $XDG_RUNTIME_DIR is unset — set VRX_SESSION_FILE (in a 0700 directory you own) or use an API key")
+	}
 	a.client.Cred = nil
 	if err := a.login(ctx, user, pw, !a.interactive); err != nil {
 		return err
@@ -764,6 +775,11 @@ func logoutCmd(ctx context.Context, a *App, _ []cpath.Token) error {
 		a.client.Cred = nil
 	}
 	return a.emit(map[string]any{"loggedOut": true, "sessionFileRemoved": removed}, func(w io.Writer) {
+		if !a.sessionExp.IsZero() {
+			// review L4: one-shot login keeps no refresh token to revoke; the access token dies on its own
+			fmt.Fprintf(w, "session file removed; its access token stays valid until %s\n", a.sessionExp.Local().Format("15:04:05 -0700"))
+			return
+		}
 		fmt.Fprintln(w, "logged out")
 	})
 }

@@ -10,6 +10,7 @@ import (
 
 	"ngfw/cli/internal/api"
 	"ngfw/cli/internal/cpath"
+	"ngfw/cli/internal/safe"
 )
 
 // execute runs one command line. oneShot: `vrx <command>` from the shell (configuration verbs are allowed without
@@ -93,7 +94,11 @@ func table(w io.Writer, header []string, rows [][]string) {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, strings.Join(header, "\t"))
 	for _, r := range rows {
-		fmt.Fprintln(tw, strings.Join(r, "\t"))
+		cells := make([]string, len(r))
+		for i, c := range r {
+			cells[i] = safe.String(c) // one line per row: no newline/tab/control from the server
+		}
+		fmt.Fprintln(tw, strings.Join(cells, "\t"))
 	}
 	_ = tw.Flush()
 }

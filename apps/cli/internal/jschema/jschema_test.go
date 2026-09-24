@@ -28,7 +28,7 @@ func TestWalkPropertiesMapsAndArrays(t *testing.T) {
 	for _, p := range root.Properties() {
 		top = append(top, p.Name)
 	}
-	if !reflect.DeepEqual(top, []string{"system", "interfaces"}) { // x-vrx-ui order of the domain components
+	if !reflect.DeepEqual(top, []string{"system", "dataplane", "interfaces"}) { // x-vrx-ui order of the domain components
 		t.Errorf("root properties %q", top)
 	}
 	ifs, err := root.Walk([]string{"interfaces"})

@@ -10,10 +10,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -21,6 +23,7 @@ import (
 	"ngfw/cli/internal/cpath"
 	"ngfw/cli/internal/jschema"
 	"ngfw/cli/internal/lineedit"
+	"ngfw/cli/internal/safe"
 )
 
 // Version is set at build time (-ldflags "-X ngfw/cli/internal/cli.Version=…").
@@ -44,6 +47,10 @@ type App struct {
 	Stdout, Stderr io.Writer
 	Getenv         func(string) string
 
+	// term is the unfiltered terminal (the line editor draws on it); Stdout/Stderr are wrapped in safe.Writer in
+	// human mode so server-supplied text cannot inject terminal control sequences (review H1).
+	term io.Writer
+
 	apiURL       string
 	jsonOut      bool
 	debug        bool
@@ -51,6 +58,8 @@ type App struct {
 	user         string
 	passwordFile string
 	noSession    bool
+	insecureHTTP bool
+	sessionExp   time.Time
 
 	client        *api.Client
 	credSource    string // "api-key-file", "env", "session", "login"
@@ -65,6 +74,9 @@ type App struct {
 
 	candCache   any
 	candCacheAt time.Time
+
+	pending    *pendingCommit // the applied-but-unconfirmed commit, if any (review M3)
+	exitWarned bool
 }
 
 // New returns an App bound to the process's stdio and environment.
@@ -83,6 +95,7 @@ func (a *App) Main(args []string) int {
 	fs.StringVar(&a.user, "user", "", "log in as this user for this invocation (password prompted without echo)")
 	fs.StringVar(&a.passwordFile, "password-file", "", "with --user: read the password from this file (mode 0600) instead of prompting")
 	fs.BoolVar(&a.noSession, "no-session", false, "do not read or write the login session file")
+	fs.BoolVar(&a.insecureHTTP, "insecure-http", false, "allow http:// to a host that is not loopback (credentials travel in cleartext)")
 	showVersion := fs.Bool("version", false, "print the version and exit")
 	fs.Usage = func() {
 		_, _ = fmt.Fprintf(a.Stderr, "usage: vrx [flags] [command …]   (no command: interactive shell)\n\nflags:\n")
@@ -94,6 +107,12 @@ func (a *App) Main(args []string) int {
 			return ExitOK
 		}
 		return ExitUsage
+	}
+	a.term = a.Stdout
+	if !a.jsonOut {
+		so, se := &safe.Writer{W: a.Stdout}, &safe.Writer{W: a.Stderr}
+		a.Stdout, a.Stderr = so, se
+		defer func() { _ = so.Flush(); _ = se.Flush() }()
 	}
 	if *showVersion {
 		fmt.Fprintf(a.Stdout, "vrx %s (API spec %s)\n", Version, api.SpecVersion)
@@ -109,25 +128,29 @@ func (a *App) Main(args []string) int {
 	if err != nil {
 		return report(a.Stderr, usagef("%v", err), a.jsonOut)
 	}
+	if c.Base.Scheme == "http" && !isLoopback(c.Base.Hostname()) && !a.insecureHTTP {
+		// review M4: passwords and tokens must not cross the network in cleartext
+		return report(a.Stderr, usagef("refusing http:// to %s: credentials would travel in cleartext — use https:// (trust a self-signed certificate with SSL_CERT_FILE) or --insecure-http", c.Base.Host), a.jsonOut)
+	}
 	if a.debug {
 		c.Debug = a.Stderr
 	}
 	a.client = c
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
 	rest := fs.Args()
 	if len(rest) == 0 {
 		if !lineedit.IsTerminal(a.Stdin) && !a.jsonOut {
 			// commands on stdin, one per line (scripts): same as the REPL without prompts
-			return a.repl(ctx, false)
+			return a.repl(context.Background(), false)
 		}
 		if a.jsonOut {
 			return report(a.Stderr, usagef("--json needs a command (machine mode is one-shot)"), true)
 		}
-		return a.repl(ctx, true)
+		return a.repl(context.Background(), true)
 	}
+	// one-shot: the process is the command, so a signal cancels the process context
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	toks := make([]cpath.Token, len(rest))
 	for i, r := range rest {
 		// shell arguments are already unquoted: a word is a JSON literal only if it looks like one
@@ -144,6 +167,14 @@ func (a *App) env(key, def string) string {
 		return v
 	}
 	return def
+}
+
+func isLoopback(host string) bool {
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // ---- credentials ----
@@ -178,7 +209,7 @@ func (a *App) ensureAuth(ctx context.Context) error {
 	}
 	if !a.noSession {
 		if s, err := loadSession(a.sessionPath(), a.client.Base.String()); err == nil && s != nil {
-			a.client.Cred, a.credSource, a.username = api.Bearer(s.Token), "session", s.User
+			a.client.Cred, a.credSource, a.username, a.sessionExp = api.Bearer(s.Token), "session", s.User, s.ExpiresAt
 			return nil
 		}
 	}
@@ -191,14 +222,7 @@ func (a *App) ensureAuth(ctx context.Context) error {
 
 // readSecretFile reads a credential file that must not be readable by group or others.
 func readSecretFile(path string) (string, error) {
-	st, err := os.Stat(path)
-	if err != nil {
-		return "", err
-	}
-	if st.Mode().Perm()&0o077 != 0 {
-		return "", fmt.Errorf("%s is accessible by group/others (mode %04o); chmod 600 it", path, st.Mode().Perm())
-	}
-	b, err := os.ReadFile(path) //nolint:gosec // the user names the file on purpose
+	b, err := readPrivate(path)
 	if err != nil {
 		return "", err
 	}
@@ -255,6 +279,9 @@ func (a *App) login(ctx context.Context, user, password string, save bool) error
 	if save && !a.noSession {
 		exp := time.Now().Add(time.Duration(out.ExpiresIn) * time.Second)
 		if err := saveSession(a.sessionPath(), session{API: a.client.Base.String(), User: out.User.Username, Role: out.User.Role, Token: out.AccessToken, ExpiresAt: exp}); err != nil {
+			if !a.interactive {
+				return usagef("logged in, but the session was not saved: %v", err)
+			}
 			fmt.Fprintf(a.Stderr, "warning: session not saved: %v\n", err)
 		}
 	}
@@ -280,7 +307,7 @@ func (a *App) readLine(prompt string) (string, error) {
 	if a.editor != nil {
 		return a.editor.ReadLine(prompt)
 	}
-	e := &lineedit.Editor{In: a.Stdin, Out: a.Stdout}
+	e := &lineedit.Editor{In: a.Stdin, Out: a.term}
 	return e.ReadLine(prompt)
 }
 
@@ -288,7 +315,7 @@ func (a *App) readSecret(prompt string) (string, error) {
 	if a.editor != nil {
 		return a.editor.ReadSecret(prompt)
 	}
-	e := &lineedit.Editor{In: a.Stdin, Out: a.Stdout}
+	e := &lineedit.Editor{In: a.Stdin, Out: a.term}
 	return e.ReadSecret(prompt)
 }
 
@@ -302,30 +329,28 @@ type session struct {
 	ExpiresAt time.Time `json:"expiresAt"`
 }
 
+// sessionPath is $VRX_SESSION_FILE, else $XDG_RUNTIME_DIR/vrx/session.json, else /run/user/<uid>/vrx/session.json
+// when that directory is ours; "" = no session persistence (never a shared temp directory — review M1).
 func (a *App) sessionPath() string {
 	if p := a.Getenv("VRX_SESSION_FILE"); p != "" {
 		return p
 	}
 	dir := a.Getenv("XDG_RUNTIME_DIR")
 	if dir == "" {
-		if d, err := os.UserCacheDir(); err == nil {
-			dir = d
-		} else {
-			dir = os.TempDir()
+		d := fmt.Sprintf("/run/user/%d", os.Getuid())
+		if privateDir(d, false) != nil {
+			return ""
 		}
+		dir = d
 	}
 	return filepath.Join(dir, "vrx", "session.json")
 }
 
 func loadSession(path, apiURL string) (*session, error) {
-	st, err := os.Stat(path)
-	if err != nil {
-		return nil, err
+	if path == "" {
+		return nil, nil
 	}
-	if st.Mode().Perm()&0o077 != 0 {
-		return nil, fmt.Errorf("%s has mode %04o; ignored", path, st.Mode().Perm())
-	}
-	b, err := os.ReadFile(path) //nolint:gosec // our own session file
+	b, err := readPrivate(path)
 	if err != nil {
 		return nil, err
 	}
@@ -340,18 +365,14 @@ func loadSession(path, apiURL string) (*session, error) {
 }
 
 func saveSession(path string, s session) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
+	if path == "" {
+		return errors.New("no private runtime directory ($XDG_RUNTIME_DIR unset) — set VRX_SESSION_FILE to a file in a 0700 directory you own, or use an API key")
 	}
 	b, err := json.Marshal(s)
 	if err != nil {
 		return err
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
+	return writePrivate(path, b)
 }
 
 // ---- schema (live, from the API's OpenAPI document) ----
@@ -390,30 +411,110 @@ func (a *App) prompt() string {
 	if user == "" {
 		user = "vrx"
 	}
+	host, user = safe.String(host), safe.String(user)
+	if a.pending != nil { // review M3: countdown of the unconfirmed commit in the prompt
+		left := int(time.Until(a.pending.Deadline).Round(time.Second).Seconds())
+		if left < 0 {
+			left = 0
+		}
+		host += fmt.Sprintf("[!%ds]", left)
+	}
 	if a.mode == ModeConfig {
 		return user + "@" + host + "# "
 	}
 	return user + "@" + host + "> "
 }
 
-func (a *App) repl(ctx context.Context, tty bool) int {
+func (a *App) repl(base context.Context, tty bool) int {
 	a.interactive = tty
-	a.editor = &lineedit.Editor{In: a.Stdin, Out: a.Stdout, Complete: a.complete, Help: a.help}
+	a.editor = &lineedit.Editor{In: a.Stdin, Out: a.term, Complete: a.complete, Help: a.help}
 	histPath := a.historyPath()
+
+	// review H2: Ctrl-C / SIGTERM cancel only the command that is running (each command gets its own context);
+	// SIGTERM then ends the shell. Idle, the terminal is in raw mode (Ctrl-C is a key, not a signal); a SIGTERM
+	// while idle restores the terminal and exits.
+	var (
+		mu        sync.Mutex
+		cancelCur context.CancelFunc
+		terminate bool
+	)
+	sigs := make(chan os.Signal, 4)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+	defer func() { signal.Stop(sigs); close(sigs) }()
+	go func() {
+		for sig := range sigs {
+			mu.Lock()
+			if cancelCur != nil {
+				cancelCur()
+				if sig == syscall.SIGTERM {
+					terminate = true
+				}
+			} else if sig == syscall.SIGTERM || !tty {
+				a.editor.RestoreTerminal()
+				code := 130
+				if sig == syscall.SIGTERM {
+					code = 143
+				}
+				os.Exit(code) //nolint:gocritic // idle shell: nothing to clean up but the terminal
+			}
+			mu.Unlock()
+		}
+	}()
+	run := func(f func(ctx context.Context) error) error {
+		ctx, cancel := context.WithCancel(base)
+		mu.Lock()
+		cancelCur = cancel
+		mu.Unlock()
+		err := f(ctx)
+		mu.Lock()
+		cancelCur = nil
+		mu.Unlock()
+		cancel()
+		return err
+	}
+
 	if tty {
 		a.editor.History = loadHistory(histPath)
-		if err := a.ensureAuth(ctx); err != nil {
+		if err := run(a.ensureAuth); err != nil {
 			return report(a.Stderr, err, false)
 		}
-		a.greet(ctx)
+		_ = run(func(ctx context.Context) error { a.greet(ctx); return nil })
 	}
 	last := ExitOK
+	leaving := func() bool {
+		// review M3: never leave silently while a confirmed commit is waiting to be confirmed
+		if tty {
+			_ = run(func(ctx context.Context) error { a.refreshPending(ctx); return nil })
+		}
+		if a.pending != nil && !a.exitWarned {
+			a.exitWarned = true
+			fmt.Fprintf(a.Stdout, "warning: %s\nThe shell stays open: type `confirm`, or `exit` again to leave and let it revert.\n", a.pendingNote())
+			return false
+		}
+		if tty {
+			saveHistory(histPath, a.editor.History)
+		}
+		return true
+	}
 	for {
-		if tty && a.mode == ModeConfig {
-			fmt.Fprintf(a.Stdout, "\n[edit%s]\n", editSuffix(a.edit))
+		mu.Lock()
+		stop := terminate
+		mu.Unlock()
+		if stop {
+			if tty {
+				saveHistory(histPath, a.editor.History)
+			}
+			return 143
 		}
 		p := ""
 		if tty {
+			_ = run(func(ctx context.Context) error { a.refreshPending(ctx); return nil })
+			if a.mode == ModeConfig {
+				fmt.Fprintf(a.Stdout, "\n[edit%s]\n", safe.String(editSuffix(a.edit)))
+			}
+			if a.pending != nil {
+				fmt.Fprintf(a.Stdout, "! %s\n", a.pendingNote())
+			}
 			p = a.prompt()
 		}
 		line, err := a.editor.ReadLine(p)
@@ -421,8 +522,8 @@ func (a *App) repl(ctx context.Context, tty bool) int {
 			continue
 		}
 		if err != nil {
-			if tty {
-				saveHistory(histPath, a.editor.History)
+			if tty && !leaving() {
+				continue
 			}
 			return last
 		}
@@ -434,22 +535,39 @@ func (a *App) repl(ctx context.Context, tty bool) int {
 		toks, terr := cpath.Tokenize(line)
 		if terr != nil {
 			last = report(a.Stderr, usagef("%v", terr), false)
+			a.discardTypeahead(tty)
+			if !tty {
+				return last
+			}
 			continue
 		}
 		if len(toks) == 1 && !toks[0].Quoted && (toks[0].Text == "quit" || (toks[0].Text == "exit" && a.mode == ModeOperational)) {
-			if tty {
-				saveHistory(histPath, a.editor.History)
+			if leaving() {
+				return last
 			}
-			return last
+			continue
 		}
-		if err := a.execute(ctx, toks, false); err != nil {
+		a.exitWarned = false
+		if err := run(func(ctx context.Context) error { return a.execute(ctx, toks, false) }); err != nil {
 			last = report(a.Stderr, err, false)
 			if !tty {
 				return last // scripts stop at the first failure
 			}
+			a.discardTypeahead(tty)
 			continue
 		}
 		last = ExitOK
+	}
+}
+
+// discardTypeahead drops input typed or pasted ahead of a failed command (review M6: a pasted block stops at its
+// first failing line; a trailing `commit` is not run).
+func (a *App) discardTypeahead(tty bool) {
+	if !tty {
+		return
+	}
+	if n := a.editor.DiscardTypeahead(); n > 0 {
+		fmt.Fprintf(a.Stderr, "(stopped: %d byte(s) of pasted/typed-ahead input after the failing line were discarded)\n", n)
 	}
 }
 
@@ -495,7 +613,7 @@ func loadHistory(path string) []string {
 	if path == "" {
 		return nil
 	}
-	b, err := os.ReadFile(path) //nolint:gosec // our own history file
+	b, err := readPrivate(path)
 	if err != nil {
 		return nil
 	}
@@ -524,8 +642,5 @@ func saveHistory(path string, h []string) {
 	if len(keep) > 1000 {
 		keep = keep[len(keep)-1000:]
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return
-	}
-	_ = os.WriteFile(path, []byte(strings.Join(keep, "\n")+"\n"), 0o600)
+	_ = writePrivate(path, []byte(strings.Join(keep, "\n")+"\n"))
 }

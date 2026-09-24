@@ -44,6 +44,10 @@ func setup(t *testing.T) *stack {
 	if _, err := os.Stat(s.pwFile); err != nil {
 		t.Skipf("e2e: no admin password file %s (start the dev stack first)", s.pwFile)
 	}
+	// session and history must live in a 0700 directory (review M1); t.TempDir() is 0755
+	if err := os.Mkdir(filepath.Join(s.dir, "private"), 0o700); err != nil {
+		t.Fatal(err)
+	}
 	s.bin = filepath.Join(s.dir, "vrx")
 	build := exec.Command("go", "build", "-o", s.bin, "../../cmd/vrx")
 	if out, err := build.CombinedOutput(); err != nil {
@@ -63,8 +67,8 @@ func (s *stack) env() []string {
 	return []string{
 		"PATH=" + os.Getenv("PATH"), "HOME=" + s.dir, "TERM=xterm",
 		"VRX_API_URL=" + s.api,
-		"VRX_SESSION_FILE=" + filepath.Join(s.dir, "session.json"),
-		"VRX_HISTORY_FILE=" + filepath.Join(s.dir, "history"),
+		"VRX_SESSION_FILE=" + filepath.Join(s.dir, "private", "session.json"),
+		"VRX_HISTORY_FILE=" + filepath.Join(s.dir, "private", "history"),
 	}
 }
 

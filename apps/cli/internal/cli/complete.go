@@ -18,7 +18,9 @@ import (
 // complete is the REPL's Tab handler: command words, then the command's own argument completion (config paths and
 // enum values from the live JSON Schema, map keys from the candidate).
 func (a *App) complete(line string) ([]lineedit.Candidate, int) {
-	all, start := a.candidates(context.Background(), line)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second) // review L5: a hung API cannot freeze the editor
+	defer cancel()
+	all, start := a.candidates(ctx, line)
 	out := make([]lineedit.Candidate, 0, len(all))
 	for _, c := range all {
 		if !strings.HasPrefix(c.Text, "<") { // <placeholders> are help, not text to insert
@@ -30,7 +32,9 @@ func (a *App) complete(line string) ([]lineedit.Candidate, int) {
 
 // help is the REPL's `?` handler.
 func (a *App) help(line string) string {
-	cands, _ := a.candidates(context.Background(), line)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	cands, _ := a.candidates(ctx, line)
 	if len(cands) == 0 {
 		return "  <Enter>  (nothing more expected)"
 	}
@@ -299,6 +303,7 @@ func completeDelete(ctx context.Context, a *App, args []string, _ string) []line
 				out = append(out, lineedit.Candidate{Text: cpath.Quote(fmt.Sprint(x)), Help: "(existing item)"})
 			}
 		}
+		out = append(out, lineedit.Candidate{Text: "index", Help: "remove by position: index <N>"})
 		return append(out, lineedit.Candidate{Text: "<Enter>", Help: "delete the whole list"})
 	}
 	if !node.IsContainer() {

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"ngfw/cli/internal/api"
 	"ngfw/cli/internal/cpath"
@@ -30,8 +31,8 @@ func init() {
 		Example: `merge interfaces loop301 {"enabled":true,"description":"lab"}`,
 	})
 	register(&Command{
-		Words: []string{"delete"}, Args: "<path> [<list-value>]", Where: inBoth,
-		Summary: "Remove the node at a path from the candidate (with a value: remove that item of a list of scalars)",
+		Words: []string{"delete"}, Args: "<path> [<list-value> | index <N>]", Where: inBoth,
+		Summary: "Remove the node at a path from the candidate; on a list of scalars the last word is a value to remove (`index <N>` removes by position)",
 		Ops:     []string{"Config_deleteAt", "Config_candidateAt"}, Run: deleteCmd, Complete: completeDelete,
 		Example: "delete interfaces loop301 ipv4 10.3.1.1/24",
 	})
@@ -101,7 +102,7 @@ func init() {
 	register(&Command{
 		Words: []string{"exit"}, Where: inConfig,
 		Summary: "Leave configuration mode (the candidate stays until commit/discard)",
-		Ops:     []string{"Config_diff"}, Run: exitConfig,
+		Ops:     []string{"Config_diff", "Config_pending", "Config_revisions"}, Run: exitConfig,
 	})
 }
 
@@ -289,48 +290,63 @@ func pathLabel(segs []string) string {
 }
 
 func deleteCmd(ctx context.Context, a *App, args []cpath.Token) error {
-	if len(args) < 1 && len(a.edit) == 0 {
-		return usagef("delete <path> [<list-value>]")
+	if len(args) < 1 {
+		// review L2: a bare `delete` at an edit level would remove everything below it
+		return usagef("delete needs a path (at an edit level too); to remove this level use `delete %s` from one level up", cpath.Words(a.edit))
 	}
-	segs, _, err := a.target(ctx, args)
-	if err == nil {
-		if len(segs) == 0 {
-			return usagef("cannot delete the whole configuration")
-		}
-		raw, err := a.call(ctx, api.Call{Op: "Config_deleteAt", Params: pathParam(segs)}, nil)
-		if err != nil {
-			return err
-		}
-		return a.edited(raw)
-	}
-	// `delete <leaf-list path> <value>`: remove that item
-	if len(args) < 2 {
-		return err
-	}
-	lsegs, lnode, lerr := a.target(ctx, args[:len(args)-1])
-	if lerr != nil || !lnode.IsLeafList() {
-		return err
-	}
-	val := args[len(args)-1]
-	item, cerr := lnode.Items().Coerce(val.Text, val.Quoted)
-	if cerr != nil {
-		item = val.Text
-	}
-	cur, _, gerr := a.candidateAt(ctx, lsegs)
-	if gerr != nil {
-		return gerr
-	}
-	list, _ := cur.([]any)
-	for i, x := range list {
-		if fmt.Sprint(x) == fmt.Sprint(item) {
-			raw, err := a.call(ctx, api.Call{Op: "Config_deleteAt", Params: pathParam(append(lsegs, strconv.Itoa(i)))}, nil)
+	n := len(args)
+	// `delete <list> index <N>`: an item of a list of scalars by position
+	if n >= 3 && !args[n-2].Quoted && args[n-2].Text == "index" {
+		if lsegs, lnode, err := a.target(ctx, args[:n-2]); err == nil && lnode.IsLeafList() {
+			idx, err := strconv.Atoi(args[n-1].Text)
+			if err != nil || idx < 0 {
+				return usagef("index must be 0, 1, …; got %q", args[n-1].Text)
+			}
+			raw, err := a.call(ctx, api.Call{Op: "Config_deleteAt", Params: pathParam(append(lsegs, strconv.Itoa(idx)))}, nil)
 			if err != nil {
 				return err
 			}
 			return a.edited(raw)
 		}
 	}
-	return &ExitErr{Code: ExitNotFound, Err: fmt.Errorf("%s does not contain %v", cpath.Words(lsegs), item)}
+	// `delete <list> <value>`: the last word is a VALUE of a list of scalars, never an index (review M2:
+	// `delete dataplane corelist 1` removes core 1, not the second item); a /pointer still addresses by index
+	if n >= 2 && !strings.HasPrefix(args[n-1].Text, "/") {
+		if lsegs, lnode, err := a.target(ctx, args[:n-1]); err == nil && lnode.IsLeafList() {
+			val := args[n-1]
+			item, cerr := lnode.Items().Coerce(val.Text, val.Quoted)
+			if cerr != nil {
+				item = val.Text
+			}
+			cur, _, gerr := a.candidateAt(ctx, lsegs)
+			if gerr != nil {
+				return gerr
+			}
+			list, _ := cur.([]any)
+			for i, x := range list {
+				if fmt.Sprint(x) == fmt.Sprint(item) {
+					raw, err := a.call(ctx, api.Call{Op: "Config_deleteAt", Params: pathParam(append(lsegs, strconv.Itoa(i)))}, nil)
+					if err != nil {
+						return err
+					}
+					return a.edited(raw)
+				}
+			}
+			return &ExitErr{Code: ExitNotFound, Err: fmt.Errorf("%s does not contain %v (to remove by position: delete %s index <N>)", cpath.Words(lsegs), item, cpath.Words(lsegs))}
+		}
+	}
+	segs, _, err := a.target(ctx, args)
+	if err != nil {
+		return err
+	}
+	if len(segs) == 0 {
+		return usagef("cannot delete the whole configuration")
+	}
+	raw, err := a.call(ctx, api.Call{Op: "Config_deleteAt", Params: pathParam(segs)}, nil)
+	if err != nil {
+		return err
+	}
+	return a.edited(raw)
 }
 
 func editCmd(ctx context.Context, a *App, args []cpath.Token) error {
@@ -437,13 +453,23 @@ func (a *App) commitLike(ctx context.Context, c api.Call) error {
 		return err
 	}
 	a.candCache = nil
+	comment := ""
+	if out.Revision != nil {
+		comment = out.Revision.Comment
+	}
+	a.setPending(out.Status, out.TxnID, out.ConfirmDeadline, comment)
 	return a.emit(raw, func(w io.Writer) { printCommit(w, &out) })
 }
 
 func printCommit(w io.Writer, out *commitOut) {
 	switch out.Status {
 	case "pending":
-		fmt.Fprintf(w, "commit %s applied, NOT confirmed: it reverts automatically at %s unless you run `confirm`\n", out.TxnID, out.ConfirmDeadline)
+		d, err := time.Parse(time.RFC3339Nano, out.ConfirmDeadline)
+		when := out.ConfirmDeadline
+		if err == nil {
+			when = whenLocal(d)
+		}
+		fmt.Fprintf(w, "commit %s applied, NOT confirmed: it reverts automatically at %s unless you run `confirm`\n", out.TxnID, when)
 	case "unchanged":
 		_, _ = fmt.Fprintln(w, "nothing to commit: the candidate equals running")
 	case "confirmed":
@@ -454,7 +480,7 @@ func printCommit(w io.Writer, out *commitOut) {
 	if out.Revision != nil {
 		fmt.Fprintf(w, " — revision %d", out.Revision.ID)
 		if out.Revision.Comment != "" {
-			fmt.Fprintf(w, " (%s)", out.Revision.Comment)
+			fmt.Fprintf(w, " (%s)", one(out.Revision.Comment))
 		}
 	}
 	if out.Status != "pending" && out.Status != "unchanged" {
@@ -573,6 +599,12 @@ func exitConfig(ctx context.Context, a *App, _ []cpath.Token) error {
 		return nil
 	}
 	a.mode = ModeOperational
+	a.refreshPending(ctx)
+	if a.pending != nil {
+		// review M3: the unconfirmed change is also still "in the candidate"; commit/discard are the wrong hint
+		fmt.Fprintf(a.Stdout, "note: %s\n", a.pendingNote())
+		return nil
+	}
 	var d diffOut
 	if _, err := a.call(ctx, api.Call{Op: "Config_diff"}, &d); err == nil && len(d.Changes) > 0 {
 		fmt.Fprintf(a.Stdout, "note: the candidate keeps %d uncommitted change(s) — `commit` or `discard` them\n", len(d.Changes))

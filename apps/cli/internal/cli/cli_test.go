@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"ngfw/cli/internal/api"
 )
@@ -442,5 +443,144 @@ func TestInteractiveRefreshOn401(t *testing.T) {
 	}
 	if me != 2 || len(cookies) != 1 || cookies[0] != "vrx_refresh=r1" || a.refreshCookie != "vrx_refresh=r2" {
 		t.Errorf("me calls %d, refresh cookies %q, kept %q", me, cookies, a.refreshCookie)
+	}
+}
+
+// review H1: nothing the server sends can put a control sequence on the terminal.
+func TestServerStringsCannotDriveTheTerminal(t *testing.T) {
+	f := newFake(t)
+	evil := "cli review\x1b]0;PWNED\x07\x1b[2K\rinnocuous\x9b31m" + string(rune(0x202e)) + "x"
+	f.candidate["interfaces"] = map[string]any{"eth0": map[string]any{"description": evil}}
+	f.override["GET /api/v1/config/revisions"] = func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"total": 1, "items": []any{map[string]any{"id": 1, "createdAt": "x", "authorId": 1, "author": evil, "comment": evil, "parentId": nil, "hash": "abc", "txnId": "t", "kind": "commit"}}})
+	}
+	f.override["POST /api/v1/config/validate"] = func(w http.ResponseWriter, _ *http.Request) { problem(w, 400, evil) }
+	check := func(name string, r run) {
+		t.Helper()
+		out := r.stdout + r.stderr
+		for _, bad := range []string{"\x1b", "\x07", "\r", "\xc2\x9b", string(rune(0x202e))} {
+			if strings.Contains(out, bad) {
+				t.Errorf("%s: raw %q reached the terminal:\n%q", name, bad, out)
+			}
+		}
+		if !strings.Contains(out, `\x1b]0;PWNED\x07\x1b[2K`) {
+			t.Errorf("%s: the sequence is not shown visibly: %q", name, out)
+		}
+	}
+	check("show revisions", f.vrx(t, nil, "", "show", "revisions"))
+	check("show configuration candidate", f.vrx(t, nil, "", "show", "configuration", "candidate"))
+	check("show configuration candidate set", f.vrx(t, nil, "", "show", "configuration", "candidate", "set"))
+	check("problem detail", f.vrx(t, nil, "", "validate"))
+	// --json passes the API document through (JSON escapes controls itself)
+	if r := f.vrx(t, nil, "", "--json", "show", "revisions"); strings.Contains(r.stdout, "\x1b") {
+		t.Errorf("--json: raw ESC %q", r.stdout)
+	}
+}
+
+// review M2: on a list of integers the last word of `delete` is a value, never a position.
+func TestDeleteIntegerListByValue(t *testing.T) {
+	f := newFake(t)
+	f.candidate["dataplane"] = map[string]any{"corelist": []any{5.0, 7.0, 1.0}}
+	if r := f.vrx(t, nil, "", "delete", "dataplane", "corelist", "1"); r.code != 0 {
+		t.Fatal(r.stderr)
+	}
+	if r := f.vrx(t, nil, "", "delete", "dataplane", "corelist", "index", "0"); r.code != 0 {
+		t.Fatal(r.stderr)
+	}
+	if r := f.vrx(t, nil, "", "delete", "dataplane", "corelist", "9"); r.code != ExitNotFound {
+		t.Errorf("absent value: exit %d", r.code)
+	}
+	want := []string{"DELETE /api/v1/config/dataplane/corelist/2", "DELETE /api/v1/config/dataplane/corelist/0"}
+	if got := f.mutations(); strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("requests %q, want %q (value 1 is at index 2)", got, want)
+	}
+	if r := f.vrx(t, nil, "", "delete"); r.code != ExitUsage {
+		t.Errorf("bare delete: exit %d", r.code)
+	}
+}
+
+// review M1: the session file never follows a symlink, never keeps a loose mode, never lands in a shared directory.
+func TestSessionFileIsPrivate(t *testing.T) {
+	f := newFake(t)
+	dir := t.TempDir()
+	pw := filepath.Join(dir, "pw")
+	_ = os.WriteFile(pw, []byte("pw-for-test\n"), 0o600)
+	sessDir := filepath.Join(dir, "s")
+	_ = os.Mkdir(sessDir, 0o700)
+	sess := filepath.Join(sessDir, "session.json")
+	victim := filepath.Join(dir, "victim")
+	_ = os.WriteFile(victim, []byte("keep"), 0o644)
+	_ = os.Symlink(victim, sess) // planted symlink at the final name
+	env := map[string]string{"VRX_API_KEY": "", "VRX_SESSION_FILE": sess}
+	if r := f.vrx(t, env, "", "--password-file", pw, "login", "admin"); r.code != 0 {
+		t.Fatalf("login: %s", r.stderr)
+	}
+	if b, _ := os.ReadFile(victim); string(b) != "keep" {
+		t.Fatal("the symlink target was overwritten")
+	}
+	fi, err := os.Lstat(sess)
+	if err != nil || fi.Mode()&os.ModeSymlink != 0 || fi.Mode().Perm() != 0o600 {
+		t.Fatalf("session file: %v %v", fi.Mode(), err)
+	}
+	// a session file with a loose mode, or a symlink, is not used
+	_ = os.Chmod(sess, 0o644)
+	if r := f.vrx(t, env, "", "show", "system"); r.code != ExitAuth {
+		t.Errorf("0644 session used: exit %d", r.code)
+	}
+	// a shared (group/other-writable) directory is refused
+	shared := filepath.Join(dir, "shared")
+	_ = os.Mkdir(shared, 0o777)
+	_ = os.Chmod(shared, 0o777)
+	env["VRX_SESSION_FILE"] = filepath.Join(shared, "session.json")
+	r := f.vrx(t, env, "", "--password-file", pw, "login", "admin")
+	if !strings.Contains(r.stderr, "must be 0700") {
+		t.Errorf("shared dir: %q", r.stderr)
+	}
+	// no XDG_RUNTIME_DIR and no /run/user/<uid>: nothing is persisted, the login is refused up front
+	a := &App{Getenv: func(string) string { return "" }}
+	if p := a.sessionPath(); p != "" && !strings.HasPrefix(p, "/run/user/") {
+		t.Errorf("fallback session path %q", p)
+	}
+}
+
+// review M4: no cleartext credentials to a remote host.
+func TestPlainHTTPOnlyToLoopback(t *testing.T) {
+	f := newFake(t)
+	if r := f.vrx(t, map[string]string{"VRX_API_URL": "http://10.0.0.1:3000"}, "", "show", "system"); r.code != ExitUsage || !strings.Contains(r.stderr, "cleartext") {
+		t.Errorf("remote http: %d %s", r.code, r.stderr)
+	}
+	if r := f.vrx(t, map[string]string{"VRX_API_URL": "http://127.0.0.1:1"}, "", "--insecure-http", "show", "system"); r.code != ExitUnavailable {
+		t.Errorf("loopback: %d", r.code)
+	}
+	for h, want := range map[string]bool{"localhost": true, "127.0.0.9": true, "::1": true, "10.0.0.1": false, "vrx.example": false} {
+		if isLoopback(h) != want {
+			t.Errorf("isLoopback(%s) != %v", h, want)
+		}
+	}
+}
+
+// review M3: a pending commit is tracked, shown in the prompt and reported when it stops being pending.
+func TestPendingCommitIsTracked(t *testing.T) {
+	f := newFake(t)
+	var so bytes.Buffer
+	a := &App{Stdin: os.Stdin, Stdout: &so, Stderr: io.Discard, Getenv: func(string) string { return "" }, username: "adm"}
+	a.client, _ = api.New(f.srv.URL)
+	a.client.Cred = api.Key("vrxk_test")
+	deadline := time.Now().Add(42 * time.Second).UTC().Format(time.RFC3339Nano)
+	a.setPending("pending", "d97486aa-1", deadline, "")
+	if p := a.prompt(); !strings.Contains(p, "[!4") || !strings.HasSuffix(p, "> ") {
+		t.Errorf("prompt %q", p)
+	}
+	if n := a.pendingNote(); !strings.Contains(n, "commit d97486aa") || !strings.Contains(n, "(in 4") || !strings.Contains(n, "`confirm`") {
+		t.Errorf("note %q", n)
+	}
+	// the API says nothing is pending any more and the newest revision is another txn → reverted
+	f.override["GET /api/v1/config/commit/pending"] = func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{"pending":null}`)) }
+	f.override["GET /api/v1/config/revisions"] = func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"total":1,"items":[{"id":3,"createdAt":"x","authorId":1,"author":"a","comment":"","parentId":null,"hash":"h","txnId":"other","kind":"commit"}]}`))
+	}
+	a.refreshPending(context.Background())
+	if a.pending != nil || !strings.Contains(so.String(), "NOT confirmed and has been reverted automatically") {
+		t.Errorf("revert not reported: %q", so.String())
 	}
 }

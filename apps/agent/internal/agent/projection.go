@@ -270,6 +270,17 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 					}
 					rp.Address = a
 				}
+				if nh.Vrf != nil { // F-vrf-static-ecmp: the next hop is resolved in another VRF
+					nt, ok := vrfID(nh.GetVrf())
+					if !ok || rp.Address == "" || rp.Interface != "" {
+						p.errorf(ptr("routing", "static", strconv.Itoa(i), "nextHops", strconv.Itoa(j), "vrf"), "routing.static.next-hop-vrf", "next-hop VRF %q: it must exist and needs a next-hop address without an egress interface", nh.GetVrf())
+						bad = true
+						continue
+					}
+					if nt != table {
+						rp.NextHopTable = proto.Uint32(nt)
+					}
+				}
 				if rp.Address == "" && rp.Interface == "" {
 					p.errorf(ptr("routing", "static", strconv.Itoa(i), "nextHops", strconv.Itoa(j)), "routing.static.next-hop", "next hop needs an address or an interface")
 					bad = true
@@ -298,6 +309,7 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-A: F-bridge-l2
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-vrf-static-ecmp
+	desired.VrfStaticEcmp(p, ds, in, vrfID, subsystems.SvsRange())
 	// wave-A: F-neighbors-ra
 	// wave-A: F-rpf-adl-pbr
 	// wave-A: F-object-model
@@ -400,6 +412,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 				if p.GetInterface() != "" {
 					nh.Interface = proto.String(p.GetInterface())
 				}
+				if p.NextHopTable != nil { // F-vrf-static-ecmp
+					nh.Vrf = proto.String(nameOf(p.GetNextHopTable()))
+				}
 				sr.NextHops = append(sr.NextHops, nh)
 			}
 			ds.Routing.Static = append(ds.Routing.Static, sr)
@@ -411,6 +426,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-A: F-bridge-l2
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-vrf-static-ecmp
+	if in["vrfs"] {
+		desired.AssembleVrfStaticEcmp(ds, kvs, nameOf)
+	}
 	// wave-A: F-neighbors-ra
 	// wave-A: F-rpf-adl-pbr
 	// wave-A: F-object-model

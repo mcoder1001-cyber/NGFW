@@ -143,10 +143,14 @@ PASS
 ok  	ngfw/test/topology/bridge-l2	16.533s
 ```
 
-Notes: `GET /state/drift` answered `"changes":[]` after apply, after the restart and after the rollback, but it ignores the
-whole `/routing` domain (`agent.unsupported-field`: routing protocols are unimplemented), so the test also calls the agent's
-Retrieve directly over its socket and compares `routing.l2` and every `l2` leaf with the running configuration (lines
-"Retrieve == desired"). The rollback check also asserts (binapi dumps): no w7 bridge domain, no cross-connect on the rig
+Notes: `GET /state/drift` answered `"changes":[]` after apply, after the restart and after the rollback. That is a real
+running-vs-Retrieve comparison of `routing.l2` and the `l2` leaves: P08's `driftOf` skips only field-level pointers
+(depth ≥ 2) and `agent.unimplemented-domain`, so the domain-level `/routing` note in `ignored` hides nothing (review #4
+proved it with a `/routing/l2/…` change; corrected in fix round 1 — this note earlier claimed the opposite). Body after apply:
+```
+{"subsystems":["interfaces","vrfs","routing"],"changes":[],"ignored":[{"pointer":"/management","rule":"agent.unimplemented-domain"},{"pointer":"/nat","rule":"agent.unimplemented-domain"},{"pointer":"/routing","rule":"agent.unsupported-field"},{"pointer":"/services","rule":"agent.unimplemented-domain"},{"pointer":"/system","rule":"agent.unimplemented-domain"},{"pointer":"/vpn","rule":"agent.unimplemented-domain"}]}
+```
+The test also compares the agent's Retrieve directly with the running configuration (lines "Retrieve == desired"). The rollback check also asserts (binapi dumps): no w7 bridge domain, no cross-connect on the rig
 interfaces, no l3xc on loop721, no w7 mactime device, the mactime feature off on host-w7l0, vtr_op 0 on both
 sub-interfaces. `show mactime` "dynamic drop" is the current status in VPP's mactime clock (UTC−5 default: outside the
 16:00–20:00 allow window at that moment).
@@ -263,8 +267,9 @@ files); fixed in `93f7934`.
 - [x] `vppctl show bridge-domain 7001 detail` shows members, shg 1, BVI loop720 and mac-age 5 as committed; Retrieve == desired (pasted)
 - [x] Agent-restart simulation → BD, members, xconnects, l3xc, tag rewrites and MAC filter back in 0.20 s; reconcile 0.100 s (agent log)
 - [x] Rollback returns the members to L3 (`show mode`: l3) and deletes the BD (Retrieve `routing.l2` = null, dumps empty)
-- [x] Second membership → 400 problem+json with the pointer `/routing/l2/xconnects/host-w7l0` (host run + e2e). "Two bridge
-      domains" cannot be expressed with D-109 (c)'s single-valued leaf — Q2
+- [x] An interface in a second membership — a bridge member that is also an L2 cross-connect rx — → 400 problem+json with the
+      pointer `/routing/l2/xconnects/host-w7l0` (host run + e2e; bridge + l3xc and xconnect + l3xc are unit-tested too).
+      This replaces "interface in two bridge domains", which D-109 (c)'s single-valued `l2.bridgeDomain` cannot express (Q2, accepted by the review)
 - [x] UI screenshot against the real endpoint (above)
 - [x] `tools/ci.sh --base main` green at `93f7934` (with main's D-127 guard fix, see the CI section)
 
@@ -299,3 +304,23 @@ $ psql … "select datname from pg_database where datname='vrx_w7'"
 (empty = dropped)
 NRestarts=1   (1 since the 18:41 crash of another slot — Q8; unchanged by every F-bridge-l2 run)
 ```
+
+## Fix round 1 (review `F-bridge-l2-review.md` @ fc4b6bd, APPROVE WITH CHANGES)
+
+No rebase, no merge of main (manager: the merger rebases with `--onto main df67a8e` and regenerates the two generated
+files). No host runs this round: unit tests and the API e2e with the fake agent only; no trace commands anywhere.
+
+| finding | done |
+|---|---|
+| #2 MEDIUM member removal turned the MAC filter off | `leaveBridgeL2()` (bridge-l2/model.ts): a port with `macFilter` gets `l2: {bridgeDomain, shg, bvi, uuFwd, tagRewrite: null}` and keeps the filter; others still get `l2: null`. Decided on the fresh candidate (`useFreshCandidate`), not the drawer's snapshot. Test: BridgingPage "removing a member …" now also removes `host-w7l0` (`macFilter: true`) and asserts the membership-only patch |
+| #3 Q10 test | `bridge-l2/drawer-l2.test.tsx`: P08's interface drawer on a bridged interface (`l2` with bridgeDomain, shg 2, macFilter) → MTU edit → the PATCH body is exactly `{"host-w7l0":{"mtu":1400}}`, no `l2` key. (#3's sub-interface dialog defect is P08's `saveSub`, not changed here) |
+| #4 drift note | corrected above ("Notes:" under the host check): drift does compare `/routing/l2`; the `changes:[]` body is pasted |
+| #11 Q2 acceptance line | reworded to the bridge member + cross-connect rx case (Acceptance) |
+| #9 Q7 rename | user guide: renaming a record (or changing its id) deletes and re-creates the bridge domain — members re-join, learned MACs lost, brief outage |
+| #5 LOW FIB dump per poll | done (< 15 min): `BridgeDomainState` counts while streaming (`fibCounts`, no buffered table); the list polls every 10 s instead of 3 s (the open drawer's MAC table keeps its own 5 s page poll) |
+| #6 LOW learned-entry takeover | done: only with `WithGlobalsOwner(true)` (`mactime.Register(…, w.env.GlobalsOwner)`); a test slot gets `ErrNotOurs`. Unit test covers both; `mactime.md` updated |
+| #8 LOW UI leaves the candidate invalid | partly: removing an L2 cross-connect also drops its rx's `tagRewrite` (whole leaf when nothing else is set) — test "removing an L2 cross-connect …"; the stale `patchRouting.isError` read after `removeDomain` is now a try/catch. BD removal was already blocked while members exist (button disabled with a hint). **Left for later:** a tag-rewrite editor in the cross-connect dialog |
+| #10 LOW 404 string match | done: keyed on `e.extra['grpcCode'] === 'NOT_FOUND'` (e2e "7999/macs → 404" still green) |
+| #11 INFO | stale "Manager to confirm" in the contract note fixed (D-122); lost-record mactime enable documented as a known limit in `mactime.md` |
+| #7 LOW scope coupling (`routing.l2` built under the `interfaces` scope) | **left for later**: a guard needs a decision on when an interfaces-only or routing-only transaction is an error (P08 tests apply `interfaces` alone); not live — the API always sends every implemented domain and resync uses all |
+| #1 HIGH rebase | not done by instruction (merger: `--onto main df67a8e`, regenerate `apps/cli/internal/api/operations_gen.go` and `packages/api-client/src/generated/schema.d.ts`) |

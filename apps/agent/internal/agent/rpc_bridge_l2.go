@@ -80,6 +80,30 @@ func (s *Service) fibOf(ctx context.Context, bd uint32) ([]*l2api.L2FibTableDeta
 	}
 }
 
+// fibCounts streams one bridge domain's L2 FIB and counts static/filter/BVI vs learned entries without buffering it.
+func (s *Service) fibCounts(ctx context.Context, bd uint32) (static, learned uint32, err error) {
+	stream, err := l2api.NewServiceClient(s.vpp).L2FibTableDump(ctx, &l2api.L2FibTableDump{BdID: bd})
+	if err != nil {
+		return 0, 0, err
+	}
+	for {
+		e, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			return static, learned, nil
+		}
+		if err != nil {
+			return 0, 0, err
+		}
+		switch {
+		case e.BdID != bd:
+		case e.StaticMac || e.FilterMac || e.BviMac:
+			static++
+		default:
+			learned++
+		}
+	}
+}
+
 // BridgeDomainState implements the RPC.
 func (s *Service) BridgeDomainState(ctx context.Context, req *vrxv1.BridgeDomainStateRequest) (*vrxv1.BridgeDomainStateResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
@@ -128,16 +152,9 @@ func (s *Service) BridgeDomainState(ctx context.Context, req *vrxv1.BridgeDomain
 			st.Members = append(st.Members, m)
 		}
 		sort.Slice(st.Members, func(i, j int) bool { return st.Members[i].GetInterface() < st.Members[j].GetInterface() })
-		fib, err := s.fibOf(ctx, bd.BdID)
-		if err != nil {
+		// counted while streaming: the list only needs the two counters, never the table (review #5)
+		if st.StaticMacs, st.LearnedMacs, err = s.fibCounts(ctx, bd.BdID); err != nil {
 			return nil, grpcVPPError(err, "l2_fib_table_dump")
-		}
-		for _, e := range fib {
-			if e.StaticMac || e.FilterMac || e.BviMac {
-				st.StaticMacs++
-			} else {
-				st.LearnedMacs++
-			}
 		}
 		resp.BridgeDomains = append(resp.BridgeDomains, st)
 	}

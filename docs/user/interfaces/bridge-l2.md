@@ -14,7 +14,7 @@ ports (`l2_interface_vlan_tag_rewrite`) and the `mactime` time-range source-MAC 
 | where | what |
 |---|---|
 | `interfaces.<if>.l2`, `interfaces.<if>.subinterfaces.<id>.l2` | the L2 role of that (sub-)interface: `bridgeDomain` (name), `shg` (split-horizon group 0–255), `bvi`, `uuFwd`, `tagRewrite`, `macFilter` |
-| `routing.l2.bridgeDomains.<name>` | a bridge domain: `id` (VPP id 1–16777215 — tunnels attach by this number), `flood`, `uuFlood`, `forward`, `learn` (all default on), `arpTerm` (off), `macAgeMin` (0 = no aging), `staticMacs[]` |
+| `routing.l2.bridgeDomains.<name>` | a bridge domain: `id` (VPP id 1–16777215 — tunnels attach by this number), `flood`, `uuFlood`, `forward`, `learn` (all default on), `arpTerm` (off), `macAgeMin` (0 = no aging), `staticMacs[]`. **Renaming a record (or changing its `id`) deletes the bridge domain in VPP and creates it again:** the members re-join, learned MACs are lost and traffic through it stops for a moment (the name is stored in the VPP bridge-domain tag, which VPP cannot change in place) |
 | `routing.l2.xconnects.<rx>` | one direction of an L2 cross-connect: every frame received on `<rx>` goes out of `tx` (a bidirectional cross-connect is two records) |
 | `routing.l2.l3xc.<rx>` | an L3 cross-connect: every IPv4 / IPv6 packet received on `<rx>` is forwarded via `ipv4Paths` / `ipv6Paths` (next hop, interface, VRF, weight, preference), bypassing the FIB |
 | `routing.l2.macFilters.<name>` | a device of the time-range MAC filter: `mac`, `action` (`allow` / `drop`), weekly `ranges` (`days`, `start`, `end`) |
@@ -100,7 +100,8 @@ Tag-rewrite operations: `push-1`/`push-2` add tags (`tag1`, `tag2`; `dot1ad: tru
 }
 ```
 
-On an interface with `macFilter: true`, a device with ranges and `allow` is admitted only inside its ranges; with `drop`
+Removing a port from its bridge domain on the Bridging page keeps its `macFilter` (the filter works on routed ports too);
+removing an L2 cross-connect also removes the tag rewrite of its receive side. On an interface with `macFilter: true`, a device with ranges and `allow` is admitted only inside its ranges; with `drop`
 it is blocked only inside them; without ranges the action is permanent. Unknown MACs pass (VPP learns them as `mac-<mac>`
 entries; a configured device replaces such an entry). **Clock:** VPP's mactime plugin evaluates ranges in its own clock,
 set by the VPP start-up option `mactime { timezone_offset }` (default −5 hours with US daylight saving) — this release does

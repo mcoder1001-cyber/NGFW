@@ -25,11 +25,13 @@ import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { problemFor } from '../InterfaceDrawer';
 import { createMergePatch, dropPhantomOptionals, localizeSchema } from '../model';
+import { useFreshCandidate } from '../queries';
 import {
   END_CELL,
   formSchemas,
   L2_TABLES,
   l2Patch,
+  leaveBridgeL2,
   localizeDeep,
   macKind,
   presence,
@@ -84,6 +86,7 @@ function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => 
   const ifs = useCandidatePorts();
   const patchRouting = usePatchRouting();
   const patchPorts = usePatchPorts();
+  const freshInterfaces = useFreshCandidate();
   const [memberEdit, setMemberEdit] = useState<{ port: Port | null } | null>(null);
   const name = item.name;
   const record = l2.data?.bridgeDomains?.[name];
@@ -106,10 +109,12 @@ function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => 
       .catch(() => undefined);
   };
   const removeDomain = async () => {
-    await patchRouting
-      .mutateAsync(l2Patch(L2_TABLES.bridgeDomains, name, null))
-      .catch(() => undefined);
-    if (!patchRouting.isError) onClose();
+    try {
+      await patchRouting.mutateAsync(l2Patch(L2_TABLES.bridgeDomains, name, null));
+      onClose();
+    } catch {
+      /* shown from patchRouting.error */
+    }
   };
   const saveMember = async (portName: string, value: unknown) => {
     const port = ports.find((p) => p.name === portName);
@@ -124,7 +129,9 @@ function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => 
     }
   };
   const removeMember = async (port: Port) => {
-    await patchPorts.mutateAsync(portPatch(port, null)).catch(() => undefined);
+    // only the membership: a MAC filter on the port stays on (review #2); decided on the candidate as it is now
+    const now = portsOf(await freshInterfaces()).find((p) => p.name === port.name) ?? port;
+    await patchPorts.mutateAsync(portPatch(now, leaveBridgeL2(now.l2))).catch(() => undefined);
   };
 
   const fetchPage = useCallback(

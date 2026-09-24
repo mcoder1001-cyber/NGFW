@@ -183,7 +183,11 @@ func TestDevice(t *testing.T) {
 	if _, err := d.Create(ctx, dev("cam", "02:00:00:00:03:01", false).Proto()); !errors.Is(err, dfkit.ErrNotOurs) {
 		t.Fatalf("foreign MAC: %v", err)
 	}
-	if _, err := d.Create(ctx, dev("tv", "02:00:00:00:07:02", true).Proto()); err != nil {
+	// VPP's learned entry: a test slot (not the D-071 globals owner) never touches it; the globals owner replaces it
+	if _, err := d.Create(ctx, dev("tv", "02:00:00:00:07:02", true).Proto()); !errors.Is(err, dfkit.ErrNotOurs) {
+		t.Fatalf("learned entry taken by a non-owner: %v", err)
+	}
+	if _, err := mactime.NewDevice(f, owner, mactime.WithGlobalsOwner(true)).Create(ctx, dev("tv", "02:00:00:00:07:02", true).Proto()); err != nil {
 		t.Fatal(err)
 	}
 	if got := retrieve(t, d); len(got) != 2 {

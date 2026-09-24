@@ -96,6 +96,30 @@ export function portPatch(
     : { [port.parent]: { subinterfaces: { [port.sub]: { l2 } } } };
 }
 
+/**
+ * The `l2` value that takes a port out of its bridge domain (review F-bridge-l2 #2): only the membership fields go
+ * (`bridgeDomain`, `shg`, `bvi`, `uuFwd` and the membership's `tagRewrite`). The time-range MAC filter runs on
+ * device-input whether the port is bridged or routed, so a port with `macFilter` keeps its leaf and its filter; any other
+ * port loses the whole leaf.
+ */
+export function leaveBridgeL2(l2: BridgeL2PortConfig | undefined): Record<string, null> | null {
+  if (l2?.macFilter !== true) return null;
+  return { bridgeDomain: null, shg: null, bvi: null, uuFwd: null, tagRewrite: null };
+}
+
+/**
+ * When an L2 cross-connect is removed, the tag rewrite on its rx has no L2 port left (`…tag-rewrite-l2-only` would fail
+ * the next commit, review #8): the `l2` value that drops it — the whole leaf when nothing else is set, else only
+ * `tagRewrite`. `undefined` = nothing to change (no rewrite, or the port is also a bridge member).
+ */
+export function dropXconnectRewrite(
+  l2: BridgeL2PortConfig | undefined,
+): Record<string, null> | null | undefined {
+  if (l2?.tagRewrite === undefined || l2.bridgeDomain !== undefined) return undefined;
+  const other = l2.macFilter || l2.shg !== 0 || l2.bvi || l2.uuFwd;
+  return other ? { tagRewrite: null } : null;
+}
+
 /** Merge patch (for PATCH /config/routing) that sets `routing.l2.<table>.<key>` (null removes it). */
 export function l2Patch(
   table: keyof BridgeL2Config,

@@ -104,6 +104,7 @@ function withBridging(api: FakeApi) {
         ipv6: [],
         vrf: 'default',
         promiscuous: false,
+        l2: { bridgeDomain: 'lan', shg: 0, bvi: false, uuFwd: false, macFilter: true },
         subinterfaces: {
           '100': {
             vlanId: 100,
@@ -121,6 +122,30 @@ function withBridging(api: FakeApi) {
               tagRewrite: { op: 'pop-1', dot1ad: false },
             },
           },
+        },
+      },
+      'host-w7w0': {
+        enabled: true,
+        ipv4: [],
+        ipv6: [],
+        vrf: 'default',
+        promiscuous: false,
+        subinterfaces: {
+          '200': {
+            vlanId: 200,
+            enabled: true,
+            ipv4: [],
+            ipv6: [],
+            vrf: 'default',
+            dot1ad: false,
+          },
+        },
+        l2: {
+          shg: 0,
+          bvi: false,
+          uuFwd: false,
+          macFilter: false,
+          tagRewrite: { op: 'translate-1-1', tag1: 300, dot1ad: false },
         },
       },
     },
@@ -265,6 +290,44 @@ describe('Bridging page', () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Remove host-w7l0.100' }));
       await waitFor(() =>
         expect(patched).toEqual({ 'host-w7l0': { subinterfaces: { '100': { l2: null } } } }),
+      );
+      // review #2: a member with the time-range MAC filter leaves the bridge domain but keeps its filter
+      patched = undefined;
+      fireEvent.click(screen.getByRole('button', { name: 'Remove host-w7l0' }));
+      await waitFor(() =>
+        expect(patched).toEqual({
+          'host-w7l0': {
+            l2: { bridgeDomain: null, shg: null, bvi: null, uuFwd: null, tagRewrite: null },
+          },
+        }),
+      );
+    },
+  );
+
+  it(
+    'removing an L2 cross-connect also drops the tag rewrite of its receive side (review #8)',
+    { timeout: 30_000 },
+    async () => {
+      const api = installFakeApi('operator');
+      withBridging(api);
+      const patches: { path: string; body: unknown }[] = [];
+      for (const path of ['routing', 'interfaces']) {
+        api.on(`PATCH /api/v1/config/${path}`, (_r, body) => {
+          patches.push({ path, body });
+          return { body: {} };
+        });
+      }
+      await signIn();
+      render(app('/interfaces/bridging'));
+      fireEvent.click(
+        await screen.findByRole('tab', { name: 'Cross-connects' }, { timeout: 15_000 }),
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Remove host-w7w0' }));
+      await waitFor(() =>
+        expect(patches).toEqual([
+          { path: 'routing', body: { l2: { xconnects: { 'host-w7w0': null } } } },
+          { path: 'interfaces', body: { 'host-w7w0': { l2: null } } },
+        ]),
       );
     },
   );

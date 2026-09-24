@@ -27,14 +27,17 @@ import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { PageHeader } from '../../../shell/PageHeader';
 import { createMergePatch } from '../model';
+import { useFreshCandidate } from '../queries';
 import { BridgeDomainDrawer } from './BridgeDomainDrawer';
 import {
+  dropXconnectRewrite,
   END_CELL,
   formSchemas,
   L2_TABLES,
   l2Patch,
   presence,
   NAME_RE,
+  portPatch,
   portsOf,
   rangesText,
   type BridgeDomainItem,
@@ -47,6 +50,7 @@ import {
   useBridgeDomains,
   useCandidateL2,
   useCandidatePorts,
+  usePatchPorts,
   usePatchRouting,
 } from './queries';
 import { RecordDialog } from './RecordDialog';
@@ -278,9 +282,24 @@ function XconnectsTab() {
   const l2 = useCandidateL2();
   const ifs = useCandidatePorts();
   const patch = usePatchRouting();
+  const patchPorts = usePatchPorts();
+  const freshInterfaces = useFreshCandidate();
   const [editing, setEditing] = useState<Editing>(null);
   const cfg: Partial<BridgeL2Config> = l2.data ?? {};
-  const names = portsOf(ifs.data).map((p) => p.name);
+  const ports = portsOf(ifs.data);
+  const names = ports.map((p) => p.name);
+  // removing an L2 cross-connect also drops the rx's tag rewrite, which needs an L2 port (review #8)
+  const removeCrossConnect = async (table: Table, rx: string) => {
+    try {
+      await patch.mutateAsync(l2Patch(table, rx, null));
+      // the candidate's interfaces right now (never a snapshot that may not have loaded yet)
+      const port = portsOf(await freshInterfaces()).find((p) => p.name === rx);
+      const l2v = table === L2_TABLES.xconnects && port ? dropXconnectRewrite(port.l2) : undefined;
+      if (port && l2v !== undefined) await patchPorts.mutateAsync(portPatch(port, l2v));
+    } catch {
+      /* shown from patch.error */
+    }
+  };
   const rows = [
     ...Object.entries(cfg.xconnects ?? {}).map(([rx, x]) => ({
       table: L2_TABLES.xconnects,
@@ -352,9 +371,7 @@ function XconnectsTab() {
                       size="small"
                       aria-label={`${t('remove')} ${r.rx}`}
                       disabled={!perms.editConfig || patch.isPending}
-                      onClick={() =>
-                        void patch.mutateAsync(l2Patch(r.table, r.rx, null)).catch(() => undefined)
-                      }
+                      onClick={() => void removeCrossConnect(r.table, r.rx)}
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>

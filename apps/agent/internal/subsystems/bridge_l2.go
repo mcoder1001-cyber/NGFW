@@ -34,5 +34,5 @@ func (w *Wiring) registerBridgeL2(r scheduler.Registry) {
 	c, owner := w.env.Client, w.env.Owner
 	l2.Register(r, c, owner)
 	l3xc.Register(r, c, owner)
-	mactime.Register(r, c, owner, w.BootStore())
+	mactime.Register(r, c, owner, w.BootStore(), w.env.GlobalsOwner) // D-071: learned-entry takeover by the globals owner only
 }

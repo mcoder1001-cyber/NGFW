@@ -34,7 +34,7 @@ Shape (defaults as Zod fills them):
 |---|---|---|
 | `Interface` (anchor) | `BridgeL2Port l2` | **14** (wave-A §2) |
 | `Subinterface` (anchor) | `BridgeL2Port l2` | **12** (wave-A §2) |
-| `RoutingConfig` (own anchor) | `BridgeL2Config l2` | **20** — not allocated by D-109 (c); 20 is "next free" in wave-BC-numbers.md (13–17 routing pack, 18–19 spare, 12 P12). Manager to confirm or renumber (Q1) |
+| `RoutingConfig` (own anchor) | `BridgeL2Config l2` | **20** — not allocated by D-109 (c); 20 is "next free" in wave-BC-numbers.md (13–17 routing pack, 18–19 spare, 12 P12). **confirmed by D-122** (the manager moved RoutingConfig's next free number to 21) |
 | `service Dataplane` (anchor) | `rpc BridgeDomainState`, `rpc BridgeDomainMacs` | — |
 | `// ----- F-bridge-l2 -----` | `BridgeL2Port`, `BridgeL2TagRewrite`, `BridgeL2Config`, `BridgeL2Domain`, `BridgeL2StaticMac`, `BridgeL2Xconnect`, `BridgeL2L3xc`, `BridgeL2L3xcPath`, `BridgeL2MacFilter`, `BridgeL2MacFilterRange`; `BridgeDomainStateRequest/Response`, `BridgeDomainStatus`, `BridgeDomainMember`, `BridgeDomainMacsRequest/Response`, `BridgeDomainMac` | from 1 |
 

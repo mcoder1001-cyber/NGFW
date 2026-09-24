@@ -10,8 +10,11 @@ export const bridgeKeys = {
   macs: (id: number) => ['state', 'l2', 'bridge-domains', id, 'macs'] as const,
 };
 
-/** Live table refresh (the API merges running + candidate on every answer). */
-export const BRIDGE_POLL_MS = 3_000;
+/**
+ * Live list refresh (the API merges running + candidate on every answer). 10 s, not 3 s: each answer makes the agent walk
+ * every bridge domain's L2 FIB on VPP's main thread to count it (review #5); the open drawer's MAC table polls on its own.
+ */
+export const BRIDGE_POLL_MS = 10_000;
 
 export async function fetchBridgeDomains(signal?: AbortSignal) {
   return (await call(api.GET('/api/v1/state/l2/bridge-domains', signal ? { signal } : {}))).data;

@@ -187,8 +187,8 @@ export class BridgeL2Controller {
         })),
       };
     } catch (e) {
-      // the agent answers NOT_FOUND for a bridge domain that is not its own
-      if (e instanceof ProblemError && e.getStatus() === 502 && /not this agent/.test(e.message)) {
+      // the agent answers NOT_FOUND for a bridge domain that is not its own (keyed on the gRPC code, review #10)
+      if (e instanceof ProblemError && e.extra['grpcCode'] === 'NOT_FOUND') {
         throw problems.notFound(`bridge domain ${id} does not exist on the data plane`);
       }
       throw e;

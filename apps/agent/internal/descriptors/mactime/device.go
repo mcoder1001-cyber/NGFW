@@ -21,18 +21,32 @@ import (
 // VPP keys the table by MAC and an add for a MAC that exists APPENDS its ranges (mactime.c
 // add_del_range: "add more ranges"), so an add is never repeated: Update is delete + add, and
 // Create adopts nothing but VPP's own auto-entry for the MAC ("mac-<mac>", static allow, created
-// by the data path for an unknown source MAC on a filtered interface), which it replaces. A MAC
-// held by any other device name is another owner's and fails with dfkit.ErrNotOurs (D-071).
+// by the data path for an unknown source MAC on a filtered interface), which it replaces — and only
+// as the D-071 globals owner (WithGlobalsOwner). A MAC held by any other device name, or that entry
+// on a non-owner, fails with dfkit.ErrNotOurs.
 type DeviceDescriptor struct {
 	client vpp.Client
 	owner  string
+	// adopt: replace VPP's own learned `mac-<mac>` entry for the MAC. Only the D-071 globals owner (the product
+	// agent on a real box) may: on the shared host that entry is not this slot's (review #6).
+	adopt bool
 }
+
+// DeviceOption configures NewDevice.
+type DeviceOption func(*DeviceDescriptor)
+
+// WithGlobalsOwner lets the descriptor replace VPP's own learned entry for a configured MAC (D-071: globals owner only).
+func WithGlobalsOwner(owner bool) DeviceOption { return func(d *DeviceDescriptor) { d.adopt = owner } }
 
 var _ scheduler.Descriptor = (*DeviceDescriptor)(nil)
 
 // NewDevice returns the mactime.range descriptor.
-func NewDevice(c vpp.Client, owner string) *DeviceDescriptor {
-	return &DeviceDescriptor{client: c, owner: owner}
+func NewDevice(c vpp.Client, owner string, opts ...DeviceOption) *DeviceDescriptor {
+	d := &DeviceDescriptor{client: c, owner: owner}
+	for _, o := range opts {
+		o(d)
+	}
+	return d
 }
 
 // DeviceMeta is the runtime handle: the MAC (the table key).
@@ -182,8 +196,8 @@ func (d *DeviceDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 			if proto.Equal(decodeDetails(cur, dev.Name), dev.Proto()) {
 				return DeviceMeta{mac}, nil // ours already (a Retrieve raced the add)
 			}
-		case name == autoName(mac) && cur.Flags == flagStaticAllow && cur.Nranges == 0:
-			// VPP's own learned entry: replaced by the configured device
+		case d.adopt && name == autoName(mac) && cur.Flags == flagStaticAllow && cur.Nranges == 0:
+			// VPP's own learned entry: replaced by the configured device (globals owner only, D-071)
 		default:
 			return nil, fmt.Errorf("%w: mactime device for %s is %q", dfkit.ErrNotOurs, dev.MAC, name)
 		}

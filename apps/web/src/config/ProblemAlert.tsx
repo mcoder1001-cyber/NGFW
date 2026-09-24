@@ -59,12 +59,16 @@ export function ProblemAlert({ error, sx }: { error: unknown; sx?: SxProps<Theme
         {slugKey ? t(slugKey) : (b.title ?? t('problem.httpStatus', { status: error.status }))}
         {` (${error.status})`}
       </AlertTitle>
-      {b.detail && <Box sx={{ mb: 0.5 }}>{b.detail}</Box>}
+      {b.detail && (
+        <Box sx={{ mb: 0.5 }} dir="auto">
+          {b.detail}
+        </Box>
+      )}
       {lock?.owner && <Box>{t('problem.lockOwner', { owner: lock.owner })}</Box>}
       {b.errors && b.errors.length > 0 && (
         <Box component="ul" sx={{ m: 0, paddingInlineStart: 2.5 }}>
           {b.errors.map((e, i) => (
-            <li key={`${e.pointer}:${i}`}>
+            <li key={`${e.pointer}:${i}`} dir="auto">
               <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
                 {e.pointer || '/'}
               </Box>
@@ -77,7 +81,7 @@ export function ProblemAlert({ error, sx }: { error: unknown; sx?: SxProps<Theme
       {results.length > 0 && (
         <Box component="ul" sx={{ m: 0, paddingInlineStart: 2.5 }} aria-label={t('problem.results')}>
           {results.map((r, i) => (
-            <li key={`${r.key ?? ''}:${i}`}>
+            <li key={`${r.key ?? ''}:${i}`} dir="auto">
               <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
                 {r.key ?? r.pointer}
               </Box>

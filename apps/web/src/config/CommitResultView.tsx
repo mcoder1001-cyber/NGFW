@@ -47,7 +47,7 @@ export function CommitResultView({ result }: { result: CommitResult }) {
       {result.warnings.length > 0 && (
         <Box component="ul" sx={{ m: 0, mt: 0.5, paddingInlineStart: 2.5 }} aria-label={t('result.warnings')}>
           {result.warnings.map((w, i) => (
-            <li key={`${w.pointer}:${i}`}>
+            <li key={`${w.pointer}:${i}`} dir="auto">
               <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
                 {w.pointer || '/'}
               </Box>

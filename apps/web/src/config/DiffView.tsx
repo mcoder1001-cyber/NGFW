@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 import { parsePointer } from '@ngfw/schema';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { refineChanges } from './refine';
 
 export interface DiffChange {
   op: 'add' | 'remove' | 'replace';
@@ -66,11 +67,13 @@ function Value({ value, label }: { value: unknown; label: string }) {
 }
 
 /**
- * Structured diff (added / removed / changed, each with its RFC 6901 pointer) grouped by configuration domain. Values
+ * Structured diff (added / removed / changed, each with its RFC 6901 pointer) grouped by configuration domain. Whole-list
+ * replacements are refined into per-item changes on the schema's item key (`refineChanges`). Values
  * come from the API already redacted (D-070): write-only members such as password hashes never appear.
  */
-export function DiffView({ changes, dense = false }: { changes: readonly DiffChange[]; dense?: boolean }) {
+export function DiffView({ changes: raw, dense = false }: { changes: readonly DiffChange[]; dense?: boolean }) {
   const { t } = useTranslation(['config', 'nav']);
+  const changes = useMemo(() => refineChanges(raw), [raw]);
   const groups = useMemo(() => {
     const m = new Map<string, DiffChange[]>();
     for (const c of changes) {

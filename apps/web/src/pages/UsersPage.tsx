@@ -59,10 +59,13 @@ export function localizeUserSchema(schema: JsonSchema, t: Translate): JsonSchema
   for (const [name, prop] of Object.entries(props)) {
     const hints = (prop['x-vrx-ui'] ?? {}) as Record<string, unknown>;
     const help = t(`field.${name}.help`, { defaultValue: '' });
+    const enumLabels = Array.isArray(prop.enum)
+      ? Object.fromEntries(prop.enum.map((v) => [String(v), t(`field.${name}.enum.${String(v)}`, { defaultValue: String(v) })]))
+      : undefined;
     localized[name] = {
       ...prop,
       title: t(`field.${name}.title`, { defaultValue: prop.title ?? name }),
-      'x-vrx-ui': { ...hints, ...(help ? { help } : {}) },
+      'x-vrx-ui': { ...hints, ...(help ? { help } : {}), ...(enumLabels ? { enumLabels } : {}) },
     } as JsonSchema;
   }
   return { ...schema, properties: localized } as JsonSchema;

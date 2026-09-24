@@ -46,6 +46,11 @@ const REFRESH_LOCK = 'vrx-auth-refresh';
 
 type Fetch = (input: Request) => Promise<Response>;
 
+/** Absolute URL of an auth route (a relative `Request` URL throws outside a browser document). */
+function authUrl(name: string): string {
+  return new URL(`${AUTH_PREFIX}${name}`, globalThis.location?.href ?? 'http://localhost/').href;
+}
+
 /** Fetch resolved at call time, so tests can stub `globalThis.fetch` after this module loaded. */
 const defaultFetch: Fetch = (r) => globalThis.fetch(r);
 
@@ -108,7 +113,7 @@ export class Session {
     let res: Response;
     try {
       res = await this.fetchImpl(
-        new Request(`${AUTH_PREFIX}login`, {
+        new Request(authUrl('login'), {
           method: 'POST',
           credentials: 'include',
           headers: { 'content-type': 'application/json' },
@@ -127,7 +132,7 @@ export class Session {
 
   async logout(): Promise<void> {
     try {
-      await this.fetchImpl(new Request(`${AUTH_PREFIX}logout`, { method: 'POST', credentials: 'include' }));
+      await this.fetchImpl(new Request(authUrl('logout'), { method: 'POST', credentials: 'include' }));
     } catch {
       // the cookie is revoked server-side on the next successful call anyway; locally we forget the token
     }
@@ -142,7 +147,7 @@ export class Session {
     this.refreshing ??= withCrossTabLock(async () => {
       let res: Response;
       try {
-        res = await this.fetchImpl(new Request(`${AUTH_PREFIX}refresh`, { method: 'POST', credentials: 'include' }));
+        res = await this.fetchImpl(new Request(authUrl('refresh'), { method: 'POST', credentials: 'include' }));
       } catch {
         // server unreachable: keep the session (the token may still be valid when it comes back), retry later
         if (this.stateValue.status === 'authenticated') this.schedule(15_000);

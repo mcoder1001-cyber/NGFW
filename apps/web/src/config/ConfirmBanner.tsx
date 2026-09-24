@@ -34,9 +34,12 @@ export function ConfirmBanner() {
   const { tracked, outcome } = useConfirmState();
   const confirm = useConfirm();
   const resolving = useRef<string | null>(null);
+  /** txn this session is confirming right now: its own answer decides the outcome, not the poll. */
+  const confirming = useRef<string | null>(null);
 
   const answered = pendingQ.isSuccess && !pendingQ.isError;
-  const serverPending = answered ? pendingQ.data.pending : null;
+  // the last answer stays authoritative while the device does not answer (TanStack keeps `data` on a failed refetch)
+  const serverPending = pendingQ.data?.pending ?? null;
   const unreachable = pendingQ.isError && isUnreachable(pendingQ.error);
   const active = serverPending !== null || (tracked !== null && (!answered || pendingQ.dataUpdatedAt < tracked.trackedAt));
   const now = useNow(active ? 1000 : null);
@@ -58,7 +61,7 @@ export function ConfirmBanner() {
   // The server answered "nothing pending" after we started tracking: find out what happened.
   useEffect(() => {
     if (!tracked || !answered || pendingQ.data.pending !== null || pendingQ.dataUpdatedAt < tracked.trackedAt) return;
-    if (resolving.current === tracked.txnId) return;
+    if (resolving.current === tracked.txnId || confirming.current === tracked.txnId) return;
     resolving.current = tracked.txnId;
     void revisionOf(tracked.txnId).then(
       (rev) => confirmStore.resolve(rev === undefined ? 'reverted' : 'confirmedElsewhere', tracked.txnId, rev),
@@ -70,11 +73,13 @@ export function ConfirmBanner() {
 
   const onConfirm = () => {
     const txnId = serverPending?.txnId ?? tracked?.txnId;
+    confirming.current = txnId ?? null;
     confirm.mutate(undefined, {
       onSuccess: (r) => {
         if (txnId) confirmStore.resolve('confirmed', txnId, r.revision?.id);
       },
       onError: (e) => {
+        confirming.current = null;
         if (txnId && e instanceof ApiError && e.slug === 'commit-reverted') confirmStore.resolve('reverted', txnId);
       },
     });

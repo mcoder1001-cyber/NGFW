@@ -23,6 +23,7 @@ import { useAuth, usePermissions } from '../auth/AuthProvider';
 import { CommitDialog } from './CommitDialog';
 import { DiffView } from './DiffView';
 import { ProblemAlert } from './ProblemAlert';
+import { refineChanges } from './refine';
 import { invalidateConfig, useBreakLock, useDiff, useDiscard, useLock, usePending, useSystemState } from './queries';
 
 /** A disabled button still explains itself (tooltip on a wrapper, since disabled elements get no pointer events). */
@@ -65,6 +66,7 @@ export function PendingChangeBar() {
   useCommitEvents();
 
   const changes = diff.data?.changes ?? [];
+  const shown = refineChanges(changes).length;
   const reconnecting = diff.isError && isUnreachable(diff.error);
   if (changes.length === 0 && !committing) {
     return reconnecting ? (
@@ -107,7 +109,7 @@ export function PendingChangeBar() {
         <Stack direction="row" alignItems="center" gap={1.5} flexWrap="wrap">
           <WarningAmberIcon color="warning" aria-hidden />
           <Typography sx={{ fontWeight: 600 }} data-testid="pending-count">
-            {t('bar.count', { count: changes.length, n: fmt.integer(changes.length) })}
+            {t('bar.count', { count: shown, n: fmt.integer(shown) })}
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
           <Button size="small" variant="outlined" onClick={() => setReview(true)}>
@@ -168,7 +170,7 @@ export function PendingChangeBar() {
       <Dialog open={discarding} onClose={() => setDiscarding(false)} aria-labelledby="discard-title">
         <DialogTitle id="discard-title">{t('discard.title')}</DialogTitle>
         <DialogContent>
-          <DialogContentText>{t('discard.body', { count: changes.length, n: fmt.integer(changes.length) })}</DialogContentText>
+          <DialogContentText>{t('discard.body', { count: shown, n: fmt.integer(shown) })}</DialogContentText>
           {discard.isError && <ProblemAlert error={discard.error} sx={{ mt: 1 }} />}
         </DialogContent>
         <DialogActions>

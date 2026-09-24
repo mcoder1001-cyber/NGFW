@@ -143,7 +143,7 @@ export function CommitDialog({ open, onClose, changes }: { open: boolean; onClos
                     <Box sx={{ mt: 0.5 }}>{t('commit.notAppliedWarning', { count: validate.data.notApplied.length, domains: domainList(validate.data.notApplied) })}</Box>
                   )}
                   {validate.data.warnings.map((w, i) => (
-                    <Box key={`${w.pointer}:${i}`} sx={{ mt: 0.5 }}>
+                    <Box key={`${w.pointer}:${i}`} sx={{ mt: 0.5 }} dir="auto">
                       <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
                         {w.pointer || '/'}
                       </Box>

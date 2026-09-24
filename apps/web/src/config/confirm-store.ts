@@ -68,6 +68,8 @@ export const confirmStore = {
     if (t && t.txnId === txnId && deadlineMs < t.deadlineMs - 1000) set({ ...state, tracked: { ...t, deadlineMs } });
   },
   resolve(kind: CommitOutcomeKind, txnId: string, revision?: number): void {
+    // first answer wins: a late poll-based resolution must not overwrite this session's own confirm (or vice versa)
+    if (state.tracked?.txnId !== txnId && state.outcome?.txnId === txnId) return;
     set({ tracked: state.tracked?.txnId === txnId ? null : state.tracked, outcome: { kind, txnId, revision } });
   },
   dismiss(): void {

@@ -40,12 +40,38 @@
     "removed": "to be removed"
   },
   "field": {
-    "username": { "title": "Username", "help": "Lower-case letters, digits, _ and -; starts with a letter or _." },
-    "role": { "title": "Role", "help": "Administrator: everything. Operator: edit and commit configuration, no users or AAA. Read-only: view only." },
-    "scope": { "title": "Scope", "help": "* = the whole device (tenant scopes come later)." },
-    "passwordHash": { "title": "Password hash", "help": "Write-only: never shown again. Empty = keep the current password." },
-    "sshKeys": { "title": "SSH public keys", "help": "OpenSSH lines such as ssh-ed25519 AAAA… comment." },
-    "fullName": { "title": "Full name", "help": "Optional." },
-    "disabled": { "title": "Disabled", "help": "Keep the account but refuse sign-ins." }
+    "username": {
+      "title": "Username",
+      "help": "Lower-case letters, digits, _ and -; starts with a letter or _."
+    },
+    "role": {
+      "title": "Role",
+      "help": "Administrator: everything. Operator: edit and commit configuration, no users or AAA. Read-only: view only.",
+      "enum": {
+        "admin": "Administrator",
+        "operator": "Operator",
+        "readonly": "Read-only"
+      }
+    },
+    "scope": {
+      "title": "Scope",
+      "help": "* = the whole device (tenant scopes come later)."
+    },
+    "passwordHash": {
+      "title": "Password hash",
+      "help": "Write-only: never shown again. Empty = keep the current password."
+    },
+    "sshKeys": {
+      "title": "SSH public keys",
+      "help": "OpenSSH lines such as ssh-ed25519 AAAA… comment."
+    },
+    "fullName": {
+      "title": "Full name",
+      "help": "Optional."
+    },
+    "disabled": {
+      "title": "Disabled",
+      "help": "Keep the account but refuse sign-ins."
+    }
   }
 }

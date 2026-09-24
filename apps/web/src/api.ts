@@ -32,7 +32,8 @@ export function authMiddleware(session: Session, fetchImpl: Fetch = (r) => globa
 }
 
 export function createAppApi(session: Session = appSession) {
-  const client = createApiClient('');
+  // same origin; absolute so `new Request()` also works outside a browser document (unit tests)
+  const client = createApiClient(globalThis.location?.origin ?? '');
   client.use(authMiddleware(session));
   return client;
 }

@@ -196,6 +196,16 @@ func (d *TableDescriptor) Delete(ctx context.Context, obj proto.Message, meta an
 	if rec == nil || (hasMeta && m.Index != rec.Index) {
 		return d.store.Delete(name)
 	}
+	// D-095 (b): never free a table something is still bound to — the binding would point at a
+	// freed index and the first packet through it crashes VPP (V19). Re-verified from VPP right
+	// before the delete; the scheduler deletes known bindings first (their Dependencies).
+	users, err := TableUsers(ctx, d.client, d.store, rec.Index)
+	if err != nil {
+		return err
+	}
+	if len(users) > 0 {
+		return fmt.Errorf("%s: %w: %q (index %d) is still referenced by %v", TableName, ErrTableInUse, name, rec.Index, users)
+	}
 	if err := deleteTable(ctx, d.client, rec.Index); err != nil {
 		return err
 	}

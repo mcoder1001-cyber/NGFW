@@ -19,6 +19,7 @@ import (
 	"ngfw/agent/binapi/mpls"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
@@ -118,6 +119,7 @@ func (h *Host) Loopback(i int, prefix string) (string, uint32) {
 	}
 	idx := rep.SwIfIndex
 	h.T.Cleanup(func() {
+		_ = ifsanitize.BeforeDelete(context.Background(), h.Client, uint32(idx), "test cleanup") // D-095 c: bindings go before the interface (V19)
 		if _, err := svc.DeleteLoopback(context.Background(), &interfaces.DeleteLoopback{SwIfIndex: idx}); err != nil {
 			h.T.Errorf("cleanup delete_loopback %s: %v", name, err)
 		}

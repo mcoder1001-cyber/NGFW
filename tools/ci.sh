@@ -455,6 +455,51 @@ slot_env() {
   say "slot $n exports: $(env | grep '^VRX_' | sort | tr '\n' ' ')"
 }
 
+# D-095 (d) / VPP V19: before any integration test (under the exclusive lock, so no other harness changes VPP while it
+# reads), again after the rig is up, and after the suites (before rig down: pollution this run made is found by this run,
+# not the next one) dump the interfaces and their classify / IPsec SPD bindings on the shared VPP and fail, naming the
+# interface, when a binding, a chained table or a classify DPO points at a classify table that no longer exists — the first
+# packet through it crashes VPP (vnet_classify_find_entry, 2026-09-24 04:50:27). Read-only (apps/agent/cmd/vrx-vpp-preflight);
+# warnings (dormant bindings of deleted interfaces, quarantined indices, stale SPD bindings) are printed, not fatal.
+# Returns 0 ok / 1 crash vector / 2 VPP unreachable or API error; v19_preflight_or_fail turns that into the gate's message.
+V19_PREFLIGHT_BIN=""
+v19_preflight() {
+  local when=$1 rc=0
+  if [[ -z $V19_PREFLIGHT_BIN ]]; then
+    V19_PREFLIGHT_BIN="$LOG_DIR/vrx-vpp-preflight"
+    run v19-preflight-build go -C apps/agent build -o "$V19_PREFLIGHT_BIN" ./cmd/vrx-vpp-preflight \
+      || fail "could not build apps/agent/cmd/vrx-vpp-preflight"
+  fi
+  say "V19 pre-flight ($when): interfaces + classify/SPD bindings on the shared VPP"
+  run "v19-preflight-$when" "$V19_PREFLIGHT_BIN" || rc=$?
+  # every FAIL line (the interface the gate message refers to), then the tail of the rest (TD-3 re-review L5)
+  { grep '^FAIL' "$CUR_LOG" || true; } | sed 's/^/  /'
+  { grep -v '^FAIL' "$CUR_LOG" || true; } | sed 's/^/  /' | tail -n 20
+  return $rc
+}
+v19_message() {
+  local when=$1 rc=$2
+  case $rc in
+    1) printf '%s' "V19 pre-flight ($when): a classify binding on the shared VPP points at a deleted classify table — a crash vector for the next packet (VPP V19). The offending interface is named in the log above. Do NOT send traffic through that interface — remove the binding or the interface first (or report it to the manager)" ;;
+    *) printf '%s' "V19 pre-flight ($when) could not inspect VPP (exit $rc: VPP API not reachable or an API call failed — see the log above); this is not a crash-vector finding, but the gate cannot vouch for the shared VPP" ;;
+  esac
+}
+v19_preflight_or_fail() {
+  local rc=0
+  v19_preflight "$1" || rc=$?
+  ((rc == 0)) || fail "$(v19_message "$1" "$rc")"
+}
+# suite_failed <message>: a failing suite still gets the after-tests pre-flight (report only) before the gate fails, so the
+# pollution a failing run leaves behind is found by that run (TD-3 re-review L5); fail shows the suite's log, rig down
+# follows in cleanup()
+suite_failed() {
+  local msg=$1 log=$CUR_LOG rc=0
+  v19_preflight after-failed-tests || rc=$?
+  ((rc == 0)) || msg+="; ALSO $(v19_message after-failed-tests "$rc")"
+  CUR_LOG=$log
+  fail "$msg"
+}
+
 do_integration() {
   step "integration (slot $CI_SLOT, exclusive lab lock)"
   if [[ ! -x tools/lab ]]; then
@@ -471,6 +516,8 @@ do_integration() {
   slot_env "$CI_SLOT"
   unset VRX_INTEGRATION
   RIG_PREFIX=$VRX_TEST_PREFIX
+  # while the lock is still exclusive: no harness can create/bind/delete tables underneath the reads (TD-3 review M3)
+  v19_preflight_or_fail before-tests
   # From here on the gate holds the lock SHARED, like every integration harness (00-CONTEXT, shared-host-rules §1b), because
   #  - `tools/lab rig up` refuses to touch VPP while the lock is held exclusively (it reads that as "VPP restart / CI in progress"),
   #  - the suites take their own `flock -s` on a fresh file description (P04's smoke_test.go does) — against our exclusive lock
@@ -490,20 +537,25 @@ do_integration() {
     if [[ $mod != apps/agent && $RIG_UP == 0 ]]; then
       run rig-up tools/lab rig up "$RIG_PREFIX" || fail "tools/lab rig up $RIG_PREFIX failed"
       RIG_UP=1
+      v19_preflight_or_fail after-rig-up   # the rig's af_packet interfaces may reuse an index with inherited bindings
     fi
     say "go integration: $mod"
     # -p 1: one package at a time — packages share the CI slot's prefix/instance ranges on one VPP (D-087)
     run "go-integration-${mod//\//_}" env VRX_INTEGRATION=1 go -C "$mod" test -p 1 -race -count=1 -timeout 30m ./... \
-      || fail "Go integration tests failed in $mod"
+      || suite_failed "Go integration tests failed in $mod"
     grep -E '^(ok|FAIL)\s' "$CUR_LOG" | sed 's/^/  /' || true
   done < <(find apps/agent test -name go.mod -not -path '*/node_modules/*' 2>/dev/null | sort)
   say "ts integration: pnpm -r run test:integration (packages that define it)"
   run ts-integration env VRX_INTEGRATION=1 pnpm -r --workspace-concurrency=1 --if-present run test:integration \
-    || fail "TS integration tests failed"
+    || suite_failed "TS integration tests failed"
+  # after the suites, before rig down: what this run left behind is found now (review M3); rig down runs either way
+  local v19_after=0
+  v19_preflight after-tests || v19_after=$?
   if [[ $RIG_UP == 1 ]]; then
     run rig-down tools/lab rig down "$RIG_PREFIX" || fail "tools/lab rig down $RIG_PREFIX failed — objects with prefix $RIG_PREFIX may be left on VPP; run 'tools/lab rig gc $RIG_PREFIX'"
     RIG_UP=0
   fi
+  ((v19_after == 0)) || fail "$(v19_message after-tests "$v19_after")"
   unset VRX_LAB_LOCK_HELD VRX_CI_FULL
   exec 9>&-
   INTEGRATION_STATUS="ran on slot $CI_SLOT (prefix $RIG_PREFIX): rig up → Go + TS suites with VRX_INTEGRATION=1 → rig down"

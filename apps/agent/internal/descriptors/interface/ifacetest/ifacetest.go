@@ -16,6 +16,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/internal/vpp/fake"
+	"ngfw/agent/internal/vpp/ifsanitize/sanitizetest"
 )
 
 // VPP retval codes used by the fake (vnet/api_errno.h).
@@ -245,6 +246,7 @@ func New() *VPP {
 		delete(v.Ifs, uint32(r.SwIfIndex))
 		return []api.Message{&ifapi.DeleteLoopbackReply{}}, nil
 	})
+	sanitizetest.Clean(v.Client) // interface creators sanitize the new sw_if_index (D-095)
 	return v
 }
 

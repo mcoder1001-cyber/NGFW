@@ -178,6 +178,8 @@ func newFakeVPP() *fakeVPP {
 		}
 		return []api.Message{&classifyapi.ClassifyTableByInterfaceReply{SwIfIndex: idx, IP4TableID: b.ip4, IP6TableID: b.ip6, L2TableID: b.l2}}, nil
 	})
+	v.Reply("punt_acl_get", &classifyapi.PuntACLGetReply{IP4TableIndex: NoIndex, IP6TableIndex: NoIndex})
+	v.Reply("ipfix_classify_table_dump")
 	return v
 }
 

@@ -57,7 +57,17 @@ func TestClassifyOnHost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = td.Delete(df2test.Ctx(t), table, tmeta) })
+	// D-095 c: the tables' cleanup is registered before every binding's, so on a failure the
+	// bindings (registered later, run first) are gone before either table is deleted — and
+	// TableDescriptor.Delete refuses a table that is still bound anyway
+	var tableB *Table
+	var tbmeta any
+	t.Cleanup(func() {
+		if tableB != nil {
+			_ = td.Delete(df2test.Ctx(t), tableB, tbmeta)
+		}
+		_ = td.Delete(df2test.Ctx(t), table, tmeta)
+	})
 	actual, err := td.Retrieve(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -137,12 +147,12 @@ func TestClassifyOnHost(t *testing.T) {
 	t.Logf("output-acl Retrieve = %+v", find(oactual, outd.KeyOf(out)).Value)
 	// A→B: Delete(A) + Create(B) as the scheduler does on ErrRecreate; the successful unbind
 	// of B below proves VPP holds B (an unbind naming the wrong table fails with NO_SUCH_TABLE).
-	tableB := &Table{Name: owner + "-t2", MatchNVectors: 1, Mask: ip4SrcMask(), MissNextIndex: NoIndex, Nbuckets: 8}
-	tbmeta, err := td.Create(ctx, tableB)
+	tb := &Table{Name: owner + "-t2", MatchNVectors: 1, Mask: ip4SrcMask(), MissNextIndex: NoIndex, Nbuckets: 8}
+	tbmeta, err = td.Create(ctx, tb)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = td.Delete(df2test.Ctx(t), tableB, tbmeta) })
+	tableB = tb
 	if err := outd.Delete(ctx, out, ometa); err != nil {
 		t.Fatal(err)
 	}
@@ -166,6 +176,15 @@ func TestClassifyOnHost(t *testing.T) {
 	t.Logf("bindings applied on %s: input-acl, output-acl, ip-table, l2-tables (table index %d)", loop, tmeta.(TableMeta).Index)
 
 	df2test.Hold(t)
+	// D-095 b: the table is refused while bindings exist — re-read from VPP (input ACL) and from
+	// the records of the bindings VPP cannot report (ip-table, l2-tables; output ACL is on tableB)
+	if err := td.Delete(ctx, table, tmeta); !errors.Is(err, ErrTableInUse) {
+		t.Fatalf("Delete of a bound table: %v, want ErrTableInUse", err)
+	} else if ids, _ := tableIDs(ctx, c); !ids[tmeta.(TableMeta).Index] {
+		t.Fatal("bound table freed")
+	} else {
+		t.Logf("Delete of bound table refused: %v", err)
+	}
 	for _, del := range []func() error{
 		func() error { return l2d.Delete(ctx, l2, l2meta) },
 		func() error { return outd.Delete(ctx, out, ometa) },

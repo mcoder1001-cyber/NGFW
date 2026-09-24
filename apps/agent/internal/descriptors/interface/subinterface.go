@@ -11,6 +11,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
 // SubinterfaceDescriptor implements interface.subinterface with create_subif / delete_subif.
@@ -108,23 +109,24 @@ func (d *SubinterfaceDescriptor) Create(ctx context.Context, obj proto.Message) 
 	if err != nil {
 		return nil, err
 	}
-	rep, err := d.svc().CreateSubif(ctx, &ifapi.CreateSubif{
-		SwIfIndex:   interface_types.InterfaceIndex(parent),
-		SubID:       o.GetSubId(),
-		SubIfFlags:  SubifFlags(o),
-		OuterVlanID: uint16(o.GetOuterVlan()), //nolint:gosec // range-checked above
-		InnerVlanID: uint16(o.GetInnerVlan()), //nolint:gosec // range-checked above
+	// an untagged or unclean sub-interface is removed again (review M3, D-095)
+	idx, err := AcquireAndTag(ctx, d.client, d.owner, SubinterfaceID(o), func() (uint32, error) {
+		rep, err := d.svc().CreateSubif(ctx, &ifapi.CreateSubif{
+			SwIfIndex:   interface_types.InterfaceIndex(parent),
+			SubID:       o.GetSubId(),
+			SubIfFlags:  SubifFlags(o),
+			OuterVlanID: uint16(o.GetOuterVlan()), //nolint:gosec // range-checked above
+			InnerVlanID: uint16(o.GetInnerVlan()), //nolint:gosec // range-checked above
+		})
+		if err != nil {
+			return 0, fmt.Errorf("create_subif: %w", err)
+		}
+		return uint32(rep.SwIfIndex), nil
+	}, func(i uint32) error {
+		_, err := d.svc().DeleteSubif(ctx, &ifapi.DeleteSubif{SwIfIndex: interface_types.InterfaceIndex(i)})
+		return err
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create_subif: %w", err)
-	}
-	idx := uint32(rep.SwIfIndex)
-	if err := Tag(ctx, d.client, d.owner, SubinterfaceID(o), idx); err != nil {
-		// an untagged sub-interface is invisible to Retrieve and would block every retry with
-		// "sub-interface already exists": remove it (review M3)
-		if _, derr := d.svc().DeleteSubif(ctx, &ifapi.DeleteSubif{SwIfIndex: rep.SwIfIndex}); derr != nil {
-			return nil, fmt.Errorf("%w (and delete_subif of the untagged orphan %d: %v)", err, idx, derr)
-		}
 		return nil, err
 	}
 	return Meta{idx}, nil
@@ -139,6 +141,10 @@ func (d *SubinterfaceDescriptor) Update(context.Context, proto.Message, proto.Me
 func (d *SubinterfaceDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
 	m, err := MetaOf(meta)
 	if err != nil {
+		return err
+	}
+	// D-095 / review H3: clear every binding while its tables still exist
+	if err := ifsanitize.BeforeDelete(ctx, d.client, m.SwIfIndex, "sub-interface"); err != nil {
 		return err
 	}
 	if _, err := d.svc().DeleteSubif(ctx, &ifapi.DeleteSubif{SwIfIndex: interface_types.InterfaceIndex(m.SwIfIndex)}); err != nil {

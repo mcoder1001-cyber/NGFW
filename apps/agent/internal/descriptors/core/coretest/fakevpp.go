@@ -20,6 +20,7 @@ import (
 	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/binapi/vpe"
 	"ngfw/agent/internal/vpp/fake"
+	"ngfw/agent/internal/vpp/ifsanitize/sanitizetest"
 )
 
 // VPP retvals used by the model (vnet/api_errno.h).
@@ -76,6 +77,7 @@ func New() *VPP {
 		Internal: map[routeKey]uint8{},
 	}
 	v.install()
+	sanitizetest.Clean(v.Client) // interface creators sanitize the new sw_if_index (D-095)
 	return v
 }
 

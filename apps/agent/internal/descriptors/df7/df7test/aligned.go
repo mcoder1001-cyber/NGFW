@@ -8,6 +8,7 @@ import (
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/vlib"
+	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
 // HwIndex returns the hardware interface index of name. The binary API exposes no
@@ -58,6 +59,7 @@ func (h *Host) AlignedLoopback(first, tries int) (name string, swIfIndex uint32,
 		}
 		sub := rep.SwIfIndex
 		h.T.Cleanup(func() {
+			_ = ifsanitize.BeforeDelete(context.Background(), h.C, uint32(sub), "test cleanup") // D-095 c: bindings go before the interface (V19)
 			if _, err := svc.DeleteSubif(context.Background(), &interfaces.DeleteSubif{SwIfIndex: sub}); err != nil {
 				h.T.Errorf("cleanup delete_subif %d: %v", sub, err)
 			}

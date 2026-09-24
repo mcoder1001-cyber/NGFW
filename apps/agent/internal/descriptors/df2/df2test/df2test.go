@@ -24,6 +24,7 @@ import (
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
@@ -87,6 +88,7 @@ func loopback(t testing.TB, c vpp.Client, i int, tagged bool) (name string, swIf
 				t.Fatalf("%s exists and is not provably ours: refusing to touch it", name)
 			}
 			t.Logf("removing leftover %s (sw_if_index %d)", name, idx)
+			_ = ifsanitize.BeforeDelete(ctx, c, uint32(idx), "test cleanup") // D-095 c: bindings go before the interface (V19)
 			_, _ = svc.DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: idx})
 		}
 	}
@@ -98,6 +100,7 @@ func loopback(t testing.TB, c vpp.Client, i int, tagged bool) (name string, swIf
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), Timeout)
 		defer cancel()
+		_ = ifsanitize.BeforeDelete(ctx, c, uint32(rep.SwIfIndex), "test cleanup") // D-095 c: bindings go before the interface (V19)
 		if _, err := svc.DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: rep.SwIfIndex}); err != nil {
 			t.Errorf("cleanup delete_loopback %s: %v", name, err)
 		}

@@ -43,3 +43,26 @@ Registration: `classify.Register` = table, session, input-acl, output-acl (all r
   otherwise just drops the record, so a vanished table cannot wedge Create/Delete.
 - Residual (follow-up N3): a table of another owner with **identical geometry** on a reused index within one VPP instance is
   indistinguishable from ours.
+
+## A table is never freed while bound (TD-3, D-095 b)
+
+`classify.table` Delete re-verifies, right before `classify_add_del_table(is_add=0)`, that nothing refers to the
+index (`TableUsers`): another table chaining to it (`classify_table_info.next_table_index`), an input ACL on any
+interface (`classify_table_by_interface` over `sw_interface_dump`), the punt ACL (`punt_acl_get`), the ipfix classify
+tables (`ipfix_classify_table_dump`) and ip-session-redirect sessions (`ip_session_redirect_dump`). Bindings VPP cannot
+report come from the Store: the output-ACL records and — new — `bindings`, the write-only `interface-ip-table` /
+`interface-l2-tables` bindings this owner applied (persisted in the FileStore; a record whose sw_if_index no longer
+exists is ignored: its index is cleared by the next creator's `ifsanitize.Sanitize`). While anything is found the
+Delete fails with `ErrTableInUse` naming the users; the scheduler normally never gets there because every binding
+descriptor depends on `classify.table/<name>` and on `interface/<name>`, so bindings are deleted first. Policer and
+flow classify bindings have no usable readback (VPP 26.06 dumps read out of bounds); their descriptors' dependency on
+the table orders them. Why: a binding to a freed table crashes VPP on the first packet (V19, 2026-09-24 04:50:27).
+
+What this check cannot see (TD-3 review M1) and why it is acceptable now: an input ACL left on an index whose interface
+was deleted behind the agent's back (VPP answers every call on a deleted index with INVALID_SW_IF_INDEX, so it can
+neither be read nor unbound), and write-only records of deleted interfaces. Since fix round 1 every interface Delete
+clears the bindings first (`ifsanitize.BeforeDelete`), and a creator that gets such an index resurrects the deleted table
+and unbinds it (input ACL exactly, the write-only kinds through the pool's free list) or quarantines the index — so a
+table deleted in that state is no longer a crash vector for our interfaces. Output-ACL records keep refusing the Delete
+even when their interface is gone. Concurrency: the scheduler is sequential, so the `TableUsers` → delete window is only
+open to other owners on the shared VPP (a table bound by another slot between the check and the delete); accepted.

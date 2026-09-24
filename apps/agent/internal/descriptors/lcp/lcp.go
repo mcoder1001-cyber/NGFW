@@ -29,6 +29,7 @@ import (
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
 // Descriptor names.
@@ -317,9 +318,22 @@ func (d *ItfPairDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	if err != nil {
 		return nil, err
 	}
-	rep, err := lcp.NewServiceClient(d.client).LcpItfPairAddDelV3(ctx, &lcp.LcpItfPairAddDelV3{
-		IsAdd: true, SwIfIndex: interface_types.InterfaceIndex(tg.Index), HostIfName: s.HostIfName,
-		HostIfType: hostTypeToAPI[s.HostIfType], Netns: s.Netns,
+	// D-095 / TD-3 review M5: the pair's VPP-side host tap is a new sw_if_index — cleaned of
+	// what its previous holder left behind, or quarantined and the pair made again
+	var rep *lcp.LcpItfPairAddDelV3Reply
+	_, err = ifsanitize.Acquire(ctx, d.client, d.owner, s.HostIfName, func() (uint32, error) {
+		r, err := lcp.NewServiceClient(d.client).LcpItfPairAddDelV3(ctx, &lcp.LcpItfPairAddDelV3{
+			IsAdd: true, SwIfIndex: interface_types.InterfaceIndex(tg.Index), HostIfName: s.HostIfName,
+			HostIfType: hostTypeToAPI[s.HostIfType], Netns: s.Netns,
+		})
+		if err != nil {
+			return 0, err
+		}
+		rep = r
+		return uint32(r.HostSwIfIndex), nil
+	}, func(uint32) error {
+		_, err := lcp.NewServiceClient(d.client).LcpItfPairAddDelV3(ctx, &lcp.LcpItfPairAddDelV3{IsAdd: false, SwIfIndex: interface_types.InterfaceIndex(tg.Index)})
+		return err
 	})
 	if dfkit.IsVPPError(err, api.VALUE_EXIST) {
 		// a pair exists: ours only if we made it (tagged interface, or our claim survived an
@@ -370,11 +384,17 @@ func (d *ItfPairDescriptor) Delete(ctx context.Context, obj proto.Message, meta 
 	if err != nil {
 		return err
 	}
-	exists := false
+	exists, host := false, uint32(0)
 	for _, p := range pairs {
-		exists = exists || uint32(p.PhySwIfIndex) == idx
+		if uint32(p.PhySwIfIndex) == idx {
+			exists, host = true, uint32(p.HostSwIfIndex)
+		}
 	}
 	if exists {
+		// D-095 / review H3: the host tap's bindings go while their tables still exist
+		if err := ifsanitize.BeforeDelete(ctx, d.client, host, s.HostIfName); err != nil {
+			return err
+		}
 		_, err = lcp.NewServiceClient(d.client).LcpItfPairAddDelV3(ctx, &lcp.LcpItfPairAddDelV3{
 			IsAdd: false, SwIfIndex: interface_types.InterfaceIndex(idx),
 		})

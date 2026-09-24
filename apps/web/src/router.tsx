@@ -79,6 +79,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         { path: domainPath('objects').slice(1), lazy: async () => ({ Component: (await import('./domains/firewall/object-model/ObjectsPage')).ObjectsPage }) },
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables
+        { path: 'firewall/host-acl', lazy: async () => ({ Component: (await import('./domains/firewall/host-acl-nftables/HostAclPage')).HostAclPage }) },
         // wave-A: F-nat44-ed-sessions
         // wave-A: P11
         // wave-A: F-wireguard

@@ -105,6 +105,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-host-acl-nftables
+  groups.get('firewall')!.push({ id: 'host-acl', path: '/firewall/host-acl', labelKey: 'host-acl-nftables:nav', fallbackLabel: 'Host ACL', available: true });
   // wave-A: P12
   groups.get('system')!.push(
     { id: 'users', path: '/system/users', labelKey: 'nav:users', fallbackLabel: 'Users', available: true },

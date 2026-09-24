@@ -35,6 +35,8 @@ import enObjectModel from './locales/en/object-model.json';
 import faObjectModel from './locales/fa/object-model.json';
 // wave-A: F-acl
 // wave-A: F-host-acl-nftables
+import enHostAclNftables from './locales/en/host-acl-nftables.json';
+import faHostAclNftables from './locales/fa/host-acl-nftables.json';
 // wave-A: F-nat44-ed-sessions
 // wave-A: F-nat44-ei-64-66-nptv6
 // wave-A: P11
@@ -66,6 +68,7 @@ export const NAMESPACES = [
   'object-model',
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables
+  'host-acl-nftables',
   // wave-A: F-nat44-ed-sessions
   // wave-A: F-nat44-ei-64-66-nptv6
   // wave-A: P11
@@ -99,6 +102,7 @@ const en = {
   'object-model': enObjectModel,
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables
+  'host-acl-nftables': enHostAclNftables,
   // wave-A: F-nat44-ed-sessions
   // wave-A: F-nat44-ei-64-66-nptv6
   // wave-A: P11
@@ -129,6 +133,7 @@ const fa = {
   'object-model': faObjectModel,
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables
+  'host-acl-nftables': faHostAclNftables,
   // wave-A: F-nat44-ed-sessions
   // wave-A: F-nat44-ei-64-66-nptv6
   // wave-A: P11

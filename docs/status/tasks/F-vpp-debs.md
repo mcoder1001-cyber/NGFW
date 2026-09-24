@@ -690,3 +690,37 @@ CI GATE PASSED
 - F-vpp-debs-7: all Python used at build time (DPDK meson venv *and* python3-vpp-api's PEP 517 build isolation) comes
   from one hash-locked wheelhouse; the make runs with `PIP_NO_INDEX=1`, `PIP_NO_CACHE_DIR=1`.
 - F-vpp-debs-8: `--build-dir`/`--out` are confined to `deploy/vpp/.build`; build.sh never deletes outside a marked root.
+
+### D-092 follow-up (2026-09-24 03:33) — every build-patched tree is `+vrx<N>`
+Manager decision D-092 on Q6: any change to the source tree, including `build-patches/0001` (dpdk.mk), gets the suffix;
+only a byte-identical upstream tree may be `26.06-release`. Changes: `build.sh` counts every applied patch
+(`n_version_patches=${#PLAN_FILES[@]}`), so **every build.sh output is now `26.06-release+vrx<N>`** (default:
+`.build/out/26.06-release+vrx1/`); `verify.sh --require-files` requires `+vrx<N>` whenever `patches[]` *or*
+`build.build_patches[]` is non-empty; `--install-gate` refuses any unsuffixed version (plus demo/dirty as before);
+README version table/install text, VERSION and `build-patches/series` comments updated; Q6 marked answered. The
+existing `26.06-release+vrx1-demo` output still passes `--require-files`. No rebuild (per D-092).
+
+Unit tests (66 now; new/changed ones):
+```
+ok 55 - default build (build-patches only) as +vrx passes --require-files (D-092)
+ok 56 - ... and passes the install gate
+ok 57 - build-patches applied but unsuffixed version rejected (D-092)
+ok 58 - unsuffixed build fails the install gate
+66 passed, 0 failed
+```
+
+Dry run — default build, computed version (`build.sh --prepare-only`, log /root/ngfw-wt/logs/F-vpp-debs-d092-prepare.log):
+```
+[build.sh 03:32:18] expect: version 26.06-release+vrx1 (1 version-relevant patch(es)); packages: libvppinfra libvppinfra-dev python3-vpp-api vpp vpp-crypto-engines vpp-dbg vpp-dev vpp-drivers vpp-plugin-core vpp-plugin-d
+[build.sh 03:32:18] skipped demo patch(es) (use --demo): 0001-DEMO-ipfix-export-classify-dump-reply-msg-id-base-V16.patch
+[build.sh 03:32:18] build dir: /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build  out: /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build/out/26.06-release+vrx1  jobs: 8  trace-plugins: devtools  reference: /root/vpp  offline: 0
+[build.sh 03:32:27] applied build-patches/0001-build-dpdk-hash-locked-python-deps.patch (build)
+     M build/external/packages/dpdk.mk
+     M src/scripts/version
+[build.sh 03:32:28] tree version: 26.06-release+vrx1
+```
+
+CI gate (D-092 follow-up):
+```
+@@CI92@@
+```

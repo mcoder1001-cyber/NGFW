@@ -6,7 +6,8 @@ VPP_TAG=v26.06
 # annotated tag object and the commit it points to (git rev-parse v26.06 / v26.06^{commit}); both are verified before building
 VPP_TAG_OBJECT=29c51fb8b95a92d0d325cff2e502549e652aad9f
 VPP_COMMIT=c3200b88dc46bd380f00a49ca3392a102cc1980b
-# Debian version of an UNPATCHED build (src/scripts/version on the exact tag → "<tag>-release"; same as vrx-a today)
+# upstream Debian version (src/scripts/version on the exact tag → "<tag>-release"; = vrx-a today). D-092: our builds always
+# apply build-patches, so they are never this version — only a byte-identical upstream tree may carry it
 VPP_DEB_VERSION=26.06-release
 # D-089: any build with a non-empty applied patch series (product, --demo or optional patches) is versioned
 # "<VPP_DEB_VERSION>+vrx<VPP_LOCAL_REV>". Bump VPP_LOCAL_REV whenever the product series changes.

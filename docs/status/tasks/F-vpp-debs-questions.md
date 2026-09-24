@@ -39,6 +39,8 @@ P09 and outside this task's files, so it is documented as a manual gate. Suggest
 `do_forbidden` or a new step: `[[ ! -x deploy/vpp/verify.sh ]] || run vpp-verify deploy/vpp/verify.sh || fail "deploy/vpp/verify.sh"`.
 Note: `verify.sh` now also runs `tests/run.sh` (~30 s); `verify.sh --no-tests` is the < 5 s variant for a CI hook.
 
+ANSWERED (D-092): any change to the source tree, build-patches included, gets `+vrx<N>`; implemented (build.sh counts every applied patch).
+
 Q6 — **Build-infrastructure patch (H1 fix).** Upstream `dpdk.mk` hard-codes an unhashed `pip3 download`/`pip3 install`
 in the DPDK meson venv; pip cannot be forced into hash mode from outside for requirements given on the command line
 (tested: `PIP_CONSTRAINT`/`PIP_REQUIREMENT` + `PIP_REQUIRE_HASHES` fail with "hashes are required… missing").

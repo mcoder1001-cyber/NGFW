@@ -6,7 +6,7 @@
 # Steps: verify.sh (static) → parse VERSION as data → clone/fetch into deploy/vpp/.build (never builds inside /root/vpp)
 # → verify tag object + commit → pristine checkout → build-patches/series (build infrastructure only, always) →
 # patches/series (product; "Status: demo" patches only with --demo) + optional patches → D-089 local version
-# "<VPP_DEB_VERSION>+vrx<VPP_LOCAL_REV>" when any such patch was applied → build-dependency check (report, never
+# "<VPP_DEB_VERSION>+vrx<VPP_LOCAL_REV>" when any patch at all was applied (D-092) → build-dependency check (report, never
 # installs; an apt failure is fatal) → hash-locked Python deps (pydeps.lock) in a verified wheelhouse + a
 # --require-hashes install check in a scratch venv → free-disk check → `make pkg-deb` (upstream flags, capped
 # parallelism) → .deb + SHA256SUMS + manifest.json → verify.sh --require-files on the output.
@@ -101,7 +101,8 @@ while read -r name popt; do
 done < <(vrx_series "$HERE/patches/series")
 if [[ $TRACE_PLUGINS == core ]]; then PLAN_FILES+=(patches/optional/trace-plugins-core.patch); PLAN_P+=(-p1); PLAN_KIND+=(optional); fi
 n_version_patches=0
-for k in "${PLAN_KIND[@]}"; do if [[ $k != build ]]; then n_version_patches=$((n_version_patches + 1)); fi; done
+# D-092: ANY change to the upstream tree (build-patches included) → +vrx<N>; only a byte-identical tree is <tag>-release
+n_version_patches=${#PLAN_FILES[@]}
 EXPECT_VERSION=$(vrx_local_version "$VPP_DEB_VERSION" "$VPP_LOCAL_REV" "$n_version_patches")
 VARIANT=""
 if [[ " ${PLAN_KIND[*]} " == *" demo "* ]]; then VARIANT+="-demo"; fi

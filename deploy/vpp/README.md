@@ -9,7 +9,7 @@ one build script and a manifest that the packaging (P10) and the installer ISO (
 | `VERSION` | data (parsed, never sourced): upstream URL, branch, tag, **tag object + commit hash**, upstream Debian version, `VPP_LOCAL_REV`, the package set, what vrx-a runs, what the product ships |
 | `patches/series`, `patches/*.patch` | product patch series (`Status: product`) — plus `Status: demo` patches that are applied only with `--demo` |
 | `patches/optional/*.patch` | applied only by a build option (`--trace-plugins core`) |
-| `build-patches/series`, `build-patches/*.patch` | build-infrastructure patches, always applied; may only touch `build/` (never product code), do not change the version |
+| `build-patches/series`, `build-patches/*.patch` | build-infrastructure patches, always applied; may only touch `build/` (never product code); like any patch they force the `+vrx<N>` suffix (D-092) |
 | `pydeps.lock` | the Python packages the build runs (DPDK's meson venv): exact versions + PyPI sha256 + file + URL |
 | `lib.sh` | shared helpers (VERSION parser, path guards, strict patch apply, apt check, pydeps) |
 | `build.sh` | the build (below) |
@@ -21,12 +21,15 @@ one build script and a manifest that the packaging (P10) and the installer ISO (
 
 | build | patches applied | Debian version | output dir |
 |---|---|---|---|
-| `build.sh` | build-patches only (the product series is empty today) | `26.06-release` (= upstream, = vrx-a today) | `.build/out/26.06-release/` |
+| `build.sh` | build-patches only (the product series is empty today) | `26.06-release+vrx<N>` (D-092: the tree differs from upstream) | `.build/out/26.06-release+vrx<N>/` |
+| — | none (byte-identical upstream tree) | `26.06-release` — only the upstream/host build; `build.sh` never produces it | — |
 | `build.sh --demo` | + `Status: demo` patches | `26.06-release+vrx<N>` | `.build/out/26.06-release+vrx<N>-demo/` |
 | `build.sh --trace-plugins core` | + optional V18 patch | `26.06-release+vrx<N>` | `.build/out/26.06-release+vrx<N>-trace-core/` |
 | once `patches/series` holds a product patch | product patches | `26.06-release+vrx<N>` | `.build/out/26.06-release+vrx<N>/` |
 
-`N` is `VPP_LOCAL_REV` in `VERSION`: **bump it whenever the product series changes**, so each patched build set has a
+D-092: **any** change to the upstream source tree — build-patches included, because a different meson/pyelftools can
+change binaries — gets the suffix; a package claiming the host's `26.06-release` must be the host's (upstream) build.
+`N` is `VPP_LOCAL_REV` in `VERSION`: **bump it whenever any series (product or build) changes**, so each patched build set has a
 distinct, higher version (`dpkg --compare-versions 26.06-release+vrx1 gt 26.06-release` is true). Mechanism: after
 patching, `build.sh` replaces `src/scripts/version` (upstream derives the version from `git describe`) with a script
 that prints the local version; the library soname prefix (`26.06`) is unchanged. A demo build and a product build with
@@ -146,12 +149,12 @@ components to `vpp-plugin-core`) is used when F-capture-trace starts.
 
 ## Installing on vrx-a (manager only, only after `handover: done`)
 
-Only a **patched product build** is ever installed: the unpatched `26.06-release` build is what vrx-a already runs, and a
-demo build is never installed. `verify.sh --install-gate` enforces both (and refuses a build from an uncommitted builder).
+Only a suffixed `+vrx<N>` build without demo patches is ever installed (every `build.sh` output is suffixed, D-092;
+an unsuffixed `26.06-release` package is by definition the upstream/host build), and a demo build is never installed. `verify.sh --install-gate` enforces both (and refuses a build from an uncommitted builder).
 
 ```bash
 exec 9>/run/lock/vrx-lab.lock; flock -x 9                               # barrier: no integration test is running
-OUT=/srv/vrx-artifacts/vpp/26.06-release+vrx<N>                          # a product build, never "-demo", never unsuffixed
+OUT=/srv/vrx-artifacts/vpp/26.06-release+vrx<N>                          # never "-demo", never unsuffixed
 deploy/vpp/verify.sh --require-files "$OUT" --install-gate || exit 1
 (cd "$OUT" && sha256sum -c SHA256SUMS) || exit 1
 B=/var/backups/vrx-vpp-$(date +%Y%m%d-%H%M%S); mkdir -p "$B"

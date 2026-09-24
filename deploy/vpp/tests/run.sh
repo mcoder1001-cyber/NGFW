@@ -162,14 +162,18 @@ PY
 V="$HERE/verify.sh"
 DEMO_NAME=$(vrx_series "$HERE/patches/series" | awk 'NR==1{print $1}')
 DEMO_JSON="[{\"name\":\"patches/$DEMO_NAME\",\"sha256\":\"$(vrx_sha256 "$HERE/patches/$DEMO_NAME")\",\"kind\":\"demo\"}]"
+BV="$VPP_DEB_VERSION+vrx$VPP_LOCAL_REV"
+mkout "$BV" '[]' default false
+check "default build (build-patches only) as +vrx passes --require-files (D-092)" "$V" --no-tests --require-files "$O"
+check "... and passes the install gate" "$V" --no-tests --require-files "$O" --install-gate
 mkout "$VPP_DEB_VERSION" '[]' default false
-check "unpatched output passes --require-files" "$V" --no-tests --require-files "$O"
-check "unpatched output fails the install gate" refuses "$V" --no-tests --require-files "$O" --install-gate
-rm "$O/vpp-dbg_${VPP_DEB_VERSION}_amd64.deb"
+check "build-patches applied but unsuffixed version rejected (D-092)" refuses "$V" --no-tests --require-files "$O"
+check "unsuffixed build fails the install gate" refuses "$V" --no-tests --require-files "$O" --install-gate
+mkout "$BV" '[]' default false; rm "$O/vpp-dbg_${BV}_amd64.deb"
 check "missing .deb detected" refuses "$V" --no-tests --require-files "$O"
-mkout "$VPP_DEB_VERSION" '[]' default false; mkdeb vpp-extra "$VPP_DEB_VERSION" "vpp-extra_${VPP_DEB_VERSION}_amd64.deb"
+mkout "$BV" '[]' default false; mkdeb vpp-extra "$BV" "vpp-extra_${BV}_amd64.deb"
 check "extra .deb detected" refuses "$V" --no-tests --require-files "$O"
-mkout "$VPP_DEB_VERSION" '[]' default false
+mkout "$BV" '[]' default false
 python3 - "$O/manifest.json" <<'PY'
 import json, sys
 m = json.load(open(sys.argv[1]))
@@ -185,7 +189,7 @@ check "demo-patched build with +vrx passes --require-files" "$V" --no-tests --re
 check "... but never passes the install gate" refuses "$V" --no-tests --require-files "$O" --install-gate
 mkout "$VPP_DEB_VERSION+vrx$VPP_LOCAL_REV" "$DEMO_JSON" default true
 check "demo patch without demo variant rejected" refuses "$V" --no-tests --require-files "$O"
-mkout "$VPP_DEB_VERSION" '[]' default false; echo "0000  vpp_x.deb" >>"$O/SHA256SUMS"
+mkout "$BV" '[]' default false; echo "0000  vpp_x.deb" >>"$O/SHA256SUMS"
 check "SHA256SUMS with an extra entry rejected" refuses "$V" --no-tests --require-files "$O"
 
 echo "$PASS passed, $FAILN failed"

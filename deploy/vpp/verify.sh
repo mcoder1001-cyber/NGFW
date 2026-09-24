@@ -6,7 +6,7 @@
 #   deploy/vpp/verify.sh --require-files <out>   + a produced output dir: manifest.json vs VERSION/series/lock, SHA256SUMS,
 #                                                  every .deb present (no missing, no extra), each .deb's Package/Version/
 #                                                  Architecture fields and sha256 equal to its manifest entry
-#   ... --require-files <out> --install-gate     + only an installable product build: version <base>+vrx<N>, no demo patch
+#   ... --require-files <out> --install-gate     + only an installable build: version <base>+vrx<N>, no demo patch, clean builder
 #   --no-tests                                   skip tests/run.sh (the tests call verify.sh themselves)
 #
 # Exit 0 = OK, 1 = findings (printed as FAIL lines).
@@ -166,9 +166,11 @@ if got_build != want_build:
 if any(p.get("kind") == "build" for p in patches):
     fail("a build patch is listed under patches[]")
 base, rev = e["VPP_DEB_VERSION"], e["VPP_LOCAL_REV"]
-want_version = f"{base}+vrx{rev}" if patches else base
+# D-092: any applied patch (build-patches included) → +vrx<N>; only an untouched upstream tree is <tag>-release
+changed = bool(patches or build.get("build_patches"))
+want_version = f"{base}+vrx{rev}" if changed else base
 if m.get("version") != want_version:
-    fail(f"version {m.get('version')!r}, but D-089 requires {want_version!r} for {len(patches)} applied patch(es)")
+    fail(f"version {m.get('version')!r}, but D-089/D-092 require {want_version!r} ({len(patches)} patch(es) + {len(build.get("build_patches", []))} build patch(es))")
 kinds = [p.get("kind") for p in patches]
 if "demo" in kinds and not m.get("options", {}).get("demo"):
     fail("demo patch applied without options.demo")
@@ -220,8 +222,8 @@ except OSError as x:
 if sums != {f: p.get("sha256") for f, p in files.items()}:
     fail("SHA256SUMS and manifest.json disagree (file set or hashes)")
 if e["VRX_GATE"] == "1":
-    if not patches:
-        fail("install gate: unpatched build (version == upstream) — never an install target (D-089)")
+    if m.get("version") == base:
+        fail("install gate: unsuffixed build (version == upstream) — never an install target (D-089/D-092)")
     if "demo" in kinds or "demo" in str(m.get("variant", "")):
         fail("install gate: demo patch in this build — never install it")
     if build.get("builder_dirty"):

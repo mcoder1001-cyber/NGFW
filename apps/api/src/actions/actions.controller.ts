@@ -2,6 +2,7 @@ import { Controller, HttpCode, Param, Post } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { problems } from '../common/problem.js';
 import { Protected } from '../common/responses.js';
+import { SafeParamPipe } from '../common/zod.js';
 
 export const ACTIONS = [
   'ping',
@@ -22,13 +23,13 @@ export const ACTIONS = [
 export class ActionsController {
   @Post(':action')
   @HttpCode(501)
-  @Protected(404, 501)
+  @Protected(400, 404, 501)
   @ApiParam({ name: 'action', schema: { type: 'string', enum: [...ACTIONS] } })
   @ApiOperation({ summary: 'Run an action (all 501 until the agent implements Action)' })
   @ApiOkResponse({
     description: 'Action output (reserved: every action answers 501 in this release)',
   })
-  run(@Param('action') action: string): never {
+  run(@Param('action', new SafeParamPipe('action', 64)) action: string): never {
     if (!(ACTIONS as readonly string[]).includes(action))
       throw problems.notFound(`unknown action '${action}'`);
     throw problems.notImplemented(

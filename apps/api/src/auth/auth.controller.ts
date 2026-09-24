@@ -23,16 +23,18 @@ import { z } from 'zod';
 import { ENV, type Env } from '../config.js';
 import { Protected, PublicDoc } from '../common/responses.js';
 import { sourceIp, type VrxRequest } from '../common/principal.js';
-import { openapi, ZodPipe } from '../common/zod.js';
+import { openapi, SafeParamPipe, ZodPipe } from '../common/zod.js';
+import { safeText } from '../common/text.js';
 import { ROLES } from '../db/schema.js';
 import { AuthService, type LoginResult } from './auth.service.js';
+import { UsersService } from '../users/users.service.js';
 import { MinRole, NoAudit, Public } from './decorators.js';
 
 export const REFRESH_COOKIE = 'vrx_refresh';
 const COOKIE_PATH = '/api/v1/auth';
 
 const LoginBody = z.strictObject({
-  username: z.string().min(1).max(64),
+  username: safeText(64).min(1),
   password: z.string().min(1).max(1024),
 });
 const PasswordBody = z.strictObject({
@@ -40,7 +42,7 @@ const PasswordBody = z.strictObject({
   password: z.string().min(12).max(1024),
 });
 const ApiKeyBody = z.strictObject({
-  name: z.string().min(1).max(64),
+  name: safeText(64).min(1),
   /** Role cap; the effective role is never above the owner's. */
   role: z.enum(ROLES).optional(),
   expiresInDays: z.number().int().min(1).max(3650).optional(),
@@ -86,6 +88,7 @@ const ApiKeyCreated = z.object({
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
+    private readonly users: UsersService,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
@@ -166,16 +169,27 @@ export class AuthController {
   @Post('password')
   @MinRole('readonly')
   @HttpCode(204)
-  @Protected(400)
-  @ApiOperation({ summary: 'Change the own password (argon2id)' })
+  @Protected(400, 429)
+  @ApiOperation({
+    summary:
+      'Change the own password (argon2id); same as POST /api/v1/users/{name}/password for yourself',
+  })
   @ApiNoContentResponse({ description: 'Password changed' })
   @ApiBody({ schema: openapi(PasswordBody) })
   async password(
     @Body(new ZodPipe(PasswordBody)) body: z.output<typeof PasswordBody>,
     @Req() req: VrxRequest,
   ) {
+    // TD-2 #1: one implementation with POST /api/v1/users/{name}/password (serialised with commits, stored
+    // candidate/pending hashes replaced, the other sessions end — this one survives)
+    req.audit = { resource: `user/${req.principal!.username}` };
+    await this.users.setPassword(
+      req.principal!,
+      req.principal!.username,
+      { password: body.password, current: body.current },
+      req,
+    );
     req.audit = { resource: `user/${req.principal!.username}`, after: { passwordChanged: true } };
-    await this.auth.changePassword(req.principal!, body.current, body.password);
   }
 
   @Get('api-keys')
@@ -212,10 +226,13 @@ export class AuthController {
 
   @Delete('api-keys/:id')
   @HttpCode(204)
-  @Protected(404)
+  @Protected(400, 404)
   @ApiOperation({ summary: 'Delete an API key (own; admin: any)' })
   @ApiNoContentResponse({ description: 'Deleted' })
-  async deleteApiKey(@Param('id') id: string, @Req() req: VrxRequest): Promise<void> {
+  async deleteApiKey(
+    @Param('id', new SafeParamPipe('id', 64)) id: string,
+    @Req() req: VrxRequest,
+  ): Promise<void> {
     req.audit = { resource: `api-key/${id}` };
     await this.auth.deleteApiKey(req.principal!, id);
   }

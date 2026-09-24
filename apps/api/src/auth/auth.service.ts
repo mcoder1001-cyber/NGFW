@@ -7,6 +7,7 @@ import { problems } from '../common/problem.js';
 import { lowerRole, type Principal } from '../common/principal.js';
 import { DB, type Db } from '../db/db.js';
 import { apiKey, appUser, ROLES, type Role } from '../db/schema.js';
+import { releaseKeyLocks } from '../datastore/pg-repo.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { apiKeyHash, newApiKeyToken, TokensService } from './tokens.service.js';
 
@@ -77,40 +78,43 @@ export class AuthService {
     if ((await this.tokens.hit(`login:${ip}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
       throw await fail('rate-limited', null, 429);
     }
+    // D-097 (review H2, verify V1): hash and credential generation come from ONE row read, so the session below is
+    // issued under the generation that goes with the password that was checked
     const [u] = await this.db.select().from(appUser).where(eq(appUser.username, username));
     const ok = await verifyPassword(u?.passwordHash, password);
     if (u === undefined) throw await fail('unknown-user', null);
     const now = new Date();
     if (u.lockedUntil !== null && u.lockedUntil > now) throw await fail('locked', u.id);
     if (!ok) {
-      // ONE atomic statement (review H1): concurrent failures each add 1 — no read-modify-write race. PostgreSQL
-      // evaluates every SET expression against the old row, so both CASEs see the same pre-increment value.
-      const max = this.env.VRX_LOGIN_MAX_FAILURES;
-      const hit = sql`${appUser.failedLogins} + 1 >= ${max}`;
-      const [row] = await this.db
-        .update(appUser)
-        .set({
-          failedLogins: sql`case when ${hit} then 0 else ${appUser.failedLogins} + 1 end`,
-          lockedUntil: sql`case when ${hit} then now() + make_interval(secs => ${this.env.VRX_LOGIN_LOCKOUT_SEC}) else ${appUser.lockedUntil} end`,
-        })
-        .where(eq(appUser.id, u.id))
-        .returning({ lockedUntil: appUser.lockedUntil });
-      const lockedNow = row?.lockedUntil != null && row.lockedUntil > now;
+      const lockedNow = await this.registerFailure(u.id);
       throw await fail(lockedNow ? 'bad-password-locked' : 'bad-password', u.id);
     }
     if (u.disabled) throw await fail('disabled', u.id);
-    // success only if the account is not locked at THIS moment (a parallel failure may have just locked it)
+    // success only if the account is not locked at THIS moment (a parallel failure may have just locked it) and the
+    // password was not reset since the row was read (the reset's UPDATE bumps credential_gen; this one waits for it)
     const unlocked = await this.db
       .update(appUser)
       .set({ failedLogins: 0, lockedUntil: null, lastLogin: now })
       .where(
         and(
           eq(appUser.id, u.id),
+          eq(appUser.credentialGen, u.credentialGen),
           or(isNull(appUser.lockedUntil), lte(appUser.lockedUntil, sql`now()`)),
         ),
       )
       .returning({ id: appUser.id });
-    if (unlocked.length === 0) throw await fail('locked', u.id);
+    if (unlocked.length === 0) {
+      const [again] = await this.db
+        .select({ gen: appUser.credentialGen })
+        .from(appUser)
+        .where(eq(appUser.id, u.id));
+      throw await fail(
+        again?.gen === u.credentialGen ? 'locked' : 'credentials-changed-during-login',
+        u.id,
+      );
+    }
+    const s = await this.session({ id: u.id, username: u.username, role: u.role }, u.credentialGen);
+    if (s === null) throw await fail('credentials-changed-during-login', u.id);
     await this.audit.write({
       userId: u.id,
       username: u.username,
@@ -120,16 +124,42 @@ export class AuthService {
       result: 'success',
       status: 200,
     });
-    return this.session({ id: u.id, username: u.username, role: u.role });
+    return s;
   }
 
+  /**
+   * One failed password check for `userId` (login, or a wrong `current` on a password change — D-097, review M2).
+   * ONE atomic statement (P06 review H1): concurrent failures each add 1 — no read-modify-write race. PostgreSQL
+   * evaluates every SET expression against the old row, so both CASEs see the same pre-increment value. Returns
+   * whether the account is locked now.
+   */
+  async registerFailure(userId: number): Promise<boolean> {
+    const max = this.env.VRX_LOGIN_MAX_FAILURES;
+    const hit = sql`${appUser.failedLogins} + 1 >= ${max}`;
+    const [row] = await this.db
+      .update(appUser)
+      .set({
+        failedLogins: sql`case when ${hit} then 0 else ${appUser.failedLogins} + 1 end`,
+        lockedUntil: sql`case when ${hit} then now() + make_interval(secs => ${this.env.VRX_LOGIN_LOCKOUT_SEC}) else ${appUser.lockedUntil} end`,
+      })
+      .where(eq(appUser.id, userId))
+      .returning({ lockedUntil: appUser.lockedUntil });
+    return row?.lockedUntil != null && row.lockedUntil > new Date();
+  }
+
+  /**
+   * Refresh chain + access token under credential generation `gen` (from app_user), or null when the chain was
+   * revoked meanwhile (D-097). `family` continues a chain (refresh); without it a new one starts (login).
+   */
   private async session(
     user: { id: number; username: string; role: Role },
+    gen: number,
     family?: string,
-  ): Promise<LoginResult> {
-    const refresh = await this.tokens.issueRefresh(user.id, family);
+  ): Promise<LoginResult | null> {
+    const refresh = await this.tokens.issueRefresh(user.id, gen, family);
+    if (refresh === null) return null;
     return {
-      accessToken: await this.tokens.signAccess({ ...user, sid: refresh.family }),
+      accessToken: await this.tokens.signAccess({ ...user, sid: refresh.family, gen: refresh.gen }),
       tokenType: 'Bearer',
       expiresIn: this.tokens.accessTtl,
       refreshToken: refresh.token,
@@ -159,7 +189,14 @@ export class AuthService {
     if (u === undefined || u.disabled || (u.lockedUntil !== null && u.lockedUntil > new Date())) {
       throw problems.unauthorized('invalid refresh token');
     }
-    return this.session({ id: u.id, username: u.username, role: u.role }, r.family);
+    // verify V1/V3: the chain continues only under the generation PostgreSQL holds NOW (a reset commits it first)
+    const s = await this.session(
+      { id: u.id, username: u.username, role: u.role },
+      u.credentialGen,
+      r.family,
+    );
+    if (s === null) throw problems.unauthorized('invalid refresh token');
+    return s;
   }
 
   async logout(token: string | undefined): Promise<void> {
@@ -203,10 +240,19 @@ export class AuthService {
       username: row.user.username,
       role: cap === undefined ? row.user.role : lowerRole(row.user.role, cap),
       via: 'apikey',
+      keyId: row.key.id,
+      keyName: row.key.name,
       ...(row.key.expiresAt ? { exp: Math.floor(row.key.expiresAt.getTime() / 1000) } : {}),
     };
   }
 
+  /**
+   * TD-2 verify V1 (D-102): key creation conflicts with a password reset in PostgreSQL. The caller's app_user row is
+   * read `FOR SHARE`, which waits for a reset in progress (its UPDATE holds the row), and the caller is re-checked
+   * against the committed state: a JWT must carry the current credential generation (or be the session a self-service
+   * change kept), an API key must still exist. Only then is the key inserted, in the same transaction — so a reset
+   * either sees the new key (and deletes it) or the request is refused.
+   */
   async createApiKey(
     user: Principal,
     name: string,
@@ -215,18 +261,36 @@ export class AuthService {
   ) {
     const token = newApiKeyToken();
     const scope = role === undefined ? user.role : lowerRole(user.role, role);
-    const [row] = await this.db
-      .insert(apiKey)
-      .values({
-        userId: user.id,
-        name,
-        hash: apiKeyHash(token),
-        scopes: [scope],
-        expiresAt:
-          expiresInDays === undefined ? null : new Date(Date.now() + expiresInDays * 86400_000),
-      })
-      .returning();
-    return { id: row!.id, name, role: scope, expiresAt: row!.expiresAt, key: token };
+    const row = await this.db.transaction(async (tx) => {
+      const [u] = await tx
+        .select({ gen: appUser.credentialGen })
+        .from(appUser)
+        .where(eq(appUser.id, user.id))
+        .for('share');
+      if (u === undefined) throw problems.unauthorized('user no longer exists');
+      if (user.via === 'apikey') {
+        const [k] =
+          user.keyId === undefined
+            ? []
+            : await tx.select({ id: apiKey.id }).from(apiKey).where(eq(apiKey.id, user.keyId));
+        if (k === undefined) throw problems.unauthorized('the API key was revoked');
+      } else if (!this.tokens.sessionCurrent(user, u.gen)) {
+        throw problems.unauthorized('the password was changed; log in again');
+      }
+      const [r] = await tx
+        .insert(apiKey)
+        .values({
+          userId: user.id,
+          name,
+          hash: apiKeyHash(token),
+          scopes: [scope],
+          expiresAt:
+            expiresInDays === undefined ? null : new Date(Date.now() + expiresInDays * 86400_000),
+        })
+        .returning();
+      return r!;
+    });
+    return { id: row.id, name, role: scope, expiresAt: row.expiresAt, key: token };
   }
 
   async listApiKeys(user: Principal) {
@@ -250,22 +314,16 @@ export class AuthService {
       user.role === 'admin'
         ? eq(apiKey.id, id)
         : and(eq(apiKey.id, id), eq(apiKey.userId, user.id));
-    const deleted = await this.db.delete(apiKey).where(cond).returning({ id: apiKey.id });
+    const deleted = await this.db.transaction(async (tx) => {
+      const rows = await tx.delete(apiKey).where(cond).returning({ id: apiKey.id });
+      // review L4: a deleted key's candidate lock goes with it (candidate discarded, never handed to its user)
+      await releaseKeyLocks(
+        tx,
+        rows.map((r) => r.id),
+      );
+      return rows;
+    });
     if (deleted.length === 0) throw problems.notFound(`API key ${id} does not exist`);
-  }
-
-  async changePassword(user: Principal, current: string, next: string): Promise<void> {
-    const [u] = await this.db.select().from(appUser).where(eq(appUser.id, user.id));
-    if (u === undefined || !(await verifyPassword(u.passwordHash, current))) {
-      throw problems.forbidden('the current password is wrong');
-    }
-    await this.db
-      .update(appUser)
-      .set({ passwordHash: await hashPassword(next), failedLogins: 0, lockedUntil: sql`null` })
-      .where(eq(appUser.id, user.id));
-    // review L3: other sessions of this user end (refresh families revoked, WebSockets closed)
-    await this.tokens.revokeUser(user.id);
-    this.bus.sessions({ userId: user.id });
   }
 
   async me(user: Principal) {

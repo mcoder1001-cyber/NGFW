@@ -83,8 +83,8 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
     });
   }
   groups.get('system')!.push(
-    { id: 'users', path: '/system/users', labelKey: 'nav:users', fallbackLabel: 'Users', available: false },
-    { id: 'revisions', path: '/system/revisions', labelKey: 'nav:revisions', fallbackLabel: 'Revisions', available: false },
+    { id: 'users', path: '/system/users', labelKey: 'nav:users', fallbackLabel: 'Users', available: true },
+    { id: 'revisions', path: '/system/revisions', labelKey: 'nav:revisions', fallbackLabel: 'Revisions', available: true },
   );
   groups.get('tools')!.push({ id: 'tools', path: '/tools', labelKey: 'nav:tools', fallbackLabel: 'Tools', available: false });
   if (devRoutes) groups.get('dev')!.push(...DEV_NAV_ITEMS);

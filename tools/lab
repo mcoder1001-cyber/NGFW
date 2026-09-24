@@ -343,7 +343,11 @@ rig_side_up() {  # <ns> <host-veth> <ns-veth> <vpp-if> <gw> <ip>
 }
 rig_side_down() {  # <ns> <host-veth> <vpp-if>
   local ns="$1" h="$2" vif="$3"
-  if vpp_if_exists "$vif"; then vpp_cli_ok delete host-interface name "$h" >/dev/null && echo "  delete vpp $vif" || warn "rig: VPP could not delete $vif"; fi
+  if vpp_if_exists "$vif"; then
+    # V24/D-101: quiesce the socket first — af_packet_delete_if closes the fds before clib_file_del, so the epoll DEL fails
+    # (EBADF) and a packet arriving during/after the delete can call a freed file handler (SIGSEGV PC 0x0, 2026-09-24 07:27)
+    ip link set "$h" down 2>/dev/null || true; sleep 0.2
+    vpp_cli_ok delete host-interface name "$h" >/dev/null && echo "  delete vpp $vif" || warn "rig: VPP could not delete $vif"; fi
   if ip netns list | awk '{print $1}' | grep -qx "$ns"; then ip netns del "$ns" && echo "  delete netns $ns (and its veth peer)"; fi
   if ip link show "$h" >/dev/null 2>&1; then ip link del "$h" && echo "  delete veth $h"; fi
 }
@@ -395,6 +399,7 @@ cmd_rig() {
       hdr "rig gc $P (exactly: ns-$P-lan|wan, ${P}[lw]<n>, host-${P}[lw]<n> — nothing of any other prefix)"
       local n
       for n in $(rig_own_vpp); do
+        ip link set "${n#host-}" down 2>/dev/null || true; sleep 0.2   # V24/D-101: quiesce before af_packet delete
         vpp_cli_ok delete host-interface name "${n#host-}" >/dev/null && echo "  delete vpp $n" || warn "could not delete $n"; done
       for n in $(rig_own_netns); do ip netns del "$n" && echo "  delete netns $n"; done
       for n in $(rig_own_links); do ip link del "$n" 2>/dev/null && echo "  delete veth $n" || true; done

@@ -44,4 +44,4 @@ strongSwan `kernel-vpp` plugin README (in the VPP repo under `extras/strongswan/
 - [ ] PSK never appears in logs, API responses, or the rendered file's world-readable parts
 
 ## Out of scope
-Certificates/PKI UI (F-pki-basic), remote-access/EAP, IKEv1 (allowed in schema, not tested), QAT.
+Certificates/PKI UI (F-pki), remote-access/EAP, IKEv1 (allowed in schema, not tested), QAT.

@@ -2,21 +2,27 @@ import { ROOT_KEYS } from '@ngfw/schema';
 import { QueryClient } from '@tanstack/react-query';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import i18n from './i18n';
 import { App } from './App';
 import { buildRoutes, createTestRouter, type RouteOptions } from './router';
+import { installFakeApi, resetSession, signIn } from './test-api';
 
 const STREAM = 'ws://127.0.0.1:1/api/v1/stream';
 
-/** No network in unit tests: queries stay disabled (the health card then shows its loading state). */
+/** Signed in through the scripted fake API; queries stay disabled (the health card then shows its loading state). */
 function app(path: string, options?: RouteOptions) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { enabled: false, retry: false } } });
   return <App router={createTestRouter([path], options)} streamUrl={STREAM} queryClient={queryClient} />;
 }
 
 describe('App frame', () => {
+  beforeEach(async () => {
+    installFakeApi();
+    await signIn();
+  });
   afterEach(async () => {
+    await resetSession();
     localStorage.clear();
     await i18n.changeLanguage('en');
   });
@@ -83,12 +89,12 @@ describe('App frame', () => {
   });
 
   it('placeholder titles follow a language switch without navigating (review L3)', async () => {
-    render(app('/system/users'));
-    expect(await screen.findByRole('heading', { level: 2, name: 'Users' })).toBeInTheDocument();
+    render(app('/tools'));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Tools' })).toBeInTheDocument();
     await act(async () => {
       await i18n.changeLanguage('fa');
     });
-    expect(await screen.findByRole('heading', { level: 2, name: i18n.t('nav:users', { lng: 'fa' }) })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: i18n.t('nav:tools', { lng: 'fa' }) })).toBeInTheDocument();
   });
 
   it('renders a not-found page for unknown paths', async () => {

@@ -329,7 +329,7 @@ tasks:
   - P06
   priority: 1
   est_hours: 12
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D0.10
@@ -340,7 +340,8 @@ tasks:
   owner: host-agent slot1
   started: 2026-09-24T03:10
   finished: ''
-  notes: ' | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094) | worker done c4513b2 (real-stack E2E 50/50 en+fa, server-loss countdown); review spawned'
+  notes: ' | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094) | worker done c4513b2 (real-stack E2E 50/50 en+fa, server-loss countdown); review spawned | review APPROVE WITH CHANGES 403092c
+    (H1 hash-only change invisible → TD-2 item 6 + UI, M1 apply result hidden, M2 outage reload → login, M3 no timeouts, M4 cross-tab auth, M5 break-lock confirm); fix round 1'
 - id: DF-1
   title: 'Descriptors: bond, l2 (bridge, xconnect), memif, tap, host-interface/af_packet, subinterface, admin-state, mtu, rx-mode'
   prompt: prompts/factories/DF-1.md
@@ -1593,7 +1594,7 @@ tasks:
   - P06
   priority: 6
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D0.11
@@ -1603,9 +1604,10 @@ tasks:
   worktree: /root/ngfw-wt/P13
   owner: host-agent slot3
   started: 2026-09-24T03:10
-  finished: ''
+  finished: '2026-09-24'
   notes: ' | worker done a84258c (live CLI session vs real API/agent/VPP; make -C apps/cli all green — not yet in ci.sh); review spawned | review APPROVE WITH CHANGES 68605c2 (H1 terminal escape injection,
-    H2 Ctrl-C breaks REPL, M1 session file symlink/perms, M2 list delete by index, M3 confirm UX); fix round 1 | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)'
+    H2 Ctrl-C breaks REPL, M1 session file symlink/perms, M2 list delete by index, M3 confirm UX); fix round 1 | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094) | fix round 7e515ce; merged
+    58fe694; main CI green'
 - id: F-restconf-yang
   title: RESTCONF/NETCONF + YANG generated from schema
   prompt: prompts/features/F-restconf-yang.md
@@ -1638,7 +1640,7 @@ tasks:
   - P06
   priority: 6
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D8.9
@@ -1648,9 +1650,9 @@ tasks:
   worktree: /root/ngfw-wt/F-sdk-terraform-ansible
   owner: host-agent slot5
   started: 2026-09-24T03:10
-  finished: ''
+  finished: '2026-09-24'
   notes: ' | worker done 20c9bca CI green (live SDK + TF vs real API/agent/VPP); review spawned; D-093 | review APPROVE WITH CHANGES a2b2ad1 (H1 planned value rewrite, H2 hash in state, M1 notApplied dropped,
-    M2 sync state, M3 discard race, M4 drift, L1 codegen injection); fix round 1 | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)'
+    M2 sync state, M3 discard race, M4 drift, L1 codegen injection); fix round 1 | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094) | fix round 8338112; merged 43a3e66; main CI green'
 - id: F-aaa
   title: RADIUS/TACACS+/LDAP/SAML/OIDC + MFA
   prompt: prompts/features/F-aaa.md
@@ -2234,3 +2236,27 @@ tasks:
   started: 2026-09-24T04:40
   finished: ''
   notes: from P07b Q1-Q3, P13 review H1, D-093
+- id: TD-3
+  title: 'V19 guard: sanitize inherited per-interface state on interface create; unbind classify before table/interface delete; restart simulations delete dependents; ci.sh full pre-flight'
+  prompt: ''
+  template: ''
+  stage: S2
+  deps:
+  - DF-1
+  - DF-2
+  - DF-7
+  - DF-8
+  priority: 2
+  est_hours: 6
+  state: ready
+  parked_on: ''
+  wbs:
+  - D1.2
+  scope: D-095 (a)-(d)
+  files_owned: apps/agent/internal/descriptors/{interface,classify,policer,ipfix,adl}/** + their tests
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: D-095; V19 crash 04:50:27

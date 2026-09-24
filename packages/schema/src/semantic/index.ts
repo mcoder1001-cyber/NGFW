@@ -14,6 +14,21 @@ import { servicesValidators } from './services.js';
 import { haValidators } from './ha.js';
 import { managementValidators } from './management.js';
 // Feature rule files (semantic/<slug>.ts exporting `<slug>Validators`): one import under the feature's anchor.
+// wave-BC: F-det44-map-dslite-cnat
+// wave-BC: F-tunnels
+// wave-BC: F-vrrp-config-sync
+// wave-BC: F-pki
+// wave-BC: F-ikev2-native
+// wave-BC: F-ospf
+// wave-BC: F-isis-rip
+// wave-BC: F-mpls-srmpls
+// wave-BC: F-srv6
+// wave-BC: F-lisp
+// wave-BC: F-bfd-redistribution
+// wave-BC: F-ra-vpn
+// wave-BC: F-mpls-ldp
+// wave-BC: F-igmp-mfib
+// wave-BC: F-ha-state-sync
 // wave-A: F-bonding
 // wave-A: F-bridge-l2
 // wave-A: F-loopback-bvi-gso-lldp-span
@@ -50,6 +65,21 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...haValidators,
   ...managementValidators,
   // Feature rules: one spread line under the feature's anchor (wave-A-hotspots C2).
+  // wave-BC: F-det44-map-dslite-cnat
+  // wave-BC: F-tunnels
+  // wave-BC: F-vrrp-config-sync
+  // wave-BC: F-pki
+  // wave-BC: F-ikev2-native
+  // wave-BC: F-ospf
+  // wave-BC: F-isis-rip
+  // wave-BC: F-mpls-srmpls
+  // wave-BC: F-srv6
+  // wave-BC: F-lisp
+  // wave-BC: F-bfd-redistribution
+  // wave-BC: F-ra-vpn
+  // wave-BC: F-mpls-ldp
+  // wave-BC: F-igmp-mfib
+  // wave-BC: F-ha-state-sync
   // wave-A: F-bonding
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span

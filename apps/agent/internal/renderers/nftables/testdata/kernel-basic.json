@@ -1,0 +1,463 @@
+{
+ "nftables": [
+  {
+   "metainfo": {
+    "version": "1.1.6",
+    "release_name": "Commodore Bullmoose #7",
+    "json_schema_version": 1
+   }
+  },
+  {
+   "table": {
+    "family": "inet",
+    "name": "vrx_w9",
+    "handle": 3,
+    "comment": "vrx-agent host firewall"
+   }
+  },
+  {
+   "chain": {
+    "family": "inet",
+    "table": "vrx_w9",
+    "name": "in_mgmt-in",
+    "handle": 1,
+    "type": "filter",
+    "hook": "input",
+    "prio": 0,
+    "policy": "accept"
+   }
+  },
+  {
+   "set": {
+    "family": "inet",
+    "name": "a4_admins",
+    "table": "vrx_w9",
+    "type": "ipv4_addr",
+    "handle": 2,
+    "flags": [
+     "interval"
+    ],
+    "elem": [
+     {
+      "prefix": {
+       "addr": "10.0.0.0",
+       "len": 24
+      }
+     }
+    ]
+   }
+  },
+  {
+   "set": {
+    "family": "inet",
+    "name": "a6_admins",
+    "table": "vrx_w9",
+    "type": "ipv6_addr",
+    "handle": 3,
+    "flags": [
+     "interval"
+    ],
+    "elem": [
+     "2001:db8:100::10"
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "vrx_w9",
+    "chain": "in_mgmt-in",
+    "handle": 4,
+    "comment": "vrx:@established/0:c77fde03",
+    "expr": [
+     {
+      "match": {
+       "op": "in",
+       "left": {
+        "ct": {
+         "key": "state"
+        }
+       },
+       "right": [
+        "established",
+        "related"
+       ]
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "vrx_w9",
+    "chain": "in_mgmt-in",
+    "handle": 5,
+    "comment": "vrx:@loopback/0:ad72b3be",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "iif"
+        }
+       },
+       "right": "lo"
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "vrx_w9",
+    "chain": "in_mgmt-in",
+    "handle": 6,
+    "comment": "vrx:@icmp/0:36418210",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "l4proto"
+        }
+       },
+       "right": "icmp"
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "vrx_w9",
+    "chain": "in_mgmt-in",
+    "handle": 7,
+    "comment": "vrx:@icmp/1:455fde78",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "l4proto"
+        }
+       },
+       "right": "ipv6-icmp"
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "vrx_w9",
+    "chain": "in_mgmt-in",
+    "handle": 9,
+    "comment": "vrx:@anti-lockout/0:0de959a4",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "iifname"
+        }
+       },
+       "right": "ens192"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "saddr"
+        }
+       },
+       "right": {
+        "prefix": {
+         "addr": "10.0.0.0",
+         "len": 24
+        }
+       }
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "tcp",
+         "field": "dport"
+        }
+       },
+       "right": {
+        "set": [
+         22,
+         443
+        ]
+       }
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "vrx_w9",
+    "chain": "in_mgmt-in",
+    "handle": 11,
+    "comment": "vrx:mgmt-in:10/0:fd241224",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "saddr"
+        }
+       },
+       "right": "@a4_admins"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "tcp",
+         "field": "dport"
+        }
+       },
+       "right": {
+        "set": [
+         22,
+         443
+        ]
+       }
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "log": {
+       "prefix": "vrx:mgmt-in:10 "
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "vrx_w9",
+    "chain": "in_mgmt-in",
+    "handle": 13,
+    "comment": "vrx:mgmt-in:10/1:63540fb8",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip6",
+         "field": "saddr"
+        }
+       },
+       "right": "@a6_admins"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "tcp",
+         "field": "dport"
+        }
+       },
+       "right": {
+        "set": [
+         22,
+         443
+        ]
+       }
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "log": {
+       "prefix": "vrx:mgmt-in:10 "
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "vrx_w9",
+    "chain": "in_mgmt-in",
+    "handle": 14,
+    "comment": "vrx:mgmt-in:20/0:3aaa2fab",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "meta": {
+         "key": "iifname"
+        }
+       },
+       "right": "ens192"
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "ip",
+         "field": "saddr"
+        }
+       },
+       "right": {
+        "prefix": {
+         "addr": "10.0.0.0",
+         "len": 24
+        }
+       }
+      }
+     },
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "udp",
+         "field": "dport"
+        }
+       },
+       "right": 161
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "accept": null
+     }
+    ]
+   }
+  },
+  {
+   "rule": {
+    "family": "inet",
+    "table": "vrx_w9",
+    "chain": "in_mgmt-in",
+    "handle": 16,
+    "comment": "vrx:mgmt-in:30/0:a21d161b",
+    "expr": [
+     {
+      "match": {
+       "op": "==",
+       "left": {
+        "payload": {
+         "protocol": "tcp",
+         "field": "dport"
+        }
+       },
+       "right": {
+        "set": [
+         22,
+         443
+        ]
+       }
+      }
+     },
+     {
+      "counter": {
+       "packets": 0,
+       "bytes": 0
+      }
+     },
+     {
+      "drop": null
+     }
+    ]
+   }
+  }
+ ]
+}

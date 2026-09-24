@@ -95,6 +95,8 @@ func New() *VPP {
 	v.installIfExt()             // P08: DF-1 attributes, af_packet, sub-interfaces, DHCP client dump
 	v.installBridgeL2()          // F-bridge-l2 (coretest/bridge_l2.go): l2, l3xc, mactime, feature_is_enabled
 	sanitizetest.Clean(v.Client) // interface creators sanitize the new sw_if_index (D-095)
+	// F-loopback-bvi-gso-lldp-span (coretest/loopback_bvi_gso_lldp_span.go): gso, span, lldp, nsim; feature_is_enabled
+	v.installLoopbackBviGsoLldpSpan()
 	return v
 }
 

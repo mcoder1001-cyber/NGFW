@@ -300,6 +300,7 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 		desired.BridgeL2(p, ds, vrfID) // interfaces.<if>.l2 + routing.l2 (D-109 c); descriptors in the interfaces domain
 	}
 	// wave-A: F-loopback-bvi-gso-lldp-span
+	desired.LoopbackBviGsoLldpSpan(p, ds, in, subsystems.LoopbackBviGsoLldpSpanEnv()) // interfaces.<if>.gso/.mirror, services.lldp/.nsim
 	// wave-A: F-vrf-static-ecmp
 	// wave-A: F-neighbors-ra
 	// wave-A: F-rpf-adl-pbr
@@ -416,6 +417,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 		desired.AssembleBridgeL2(ds, kvs, stored, nameOf)
 	}
 	// wave-A: F-loopback-bvi-gso-lldp-span
+	desired.AssembleLoopbackBviGsoLldpSpan(ds, kvs, in, stored)
 	// wave-A: F-vrf-static-ecmp
 	// wave-A: F-neighbors-ra
 	// wave-A: F-rpf-adl-pbr

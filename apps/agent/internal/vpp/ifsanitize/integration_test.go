@@ -17,7 +17,6 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip_types"
 	ipsecapi "ngfw/agent/binapi/ipsec"
-	l2api "ngfw/agent/binapi/l2"
 	"ngfw/agent/binapi/vlib"
 	vxlanapi "ngfw/agent/binapi/vxlan"
 	"ngfw/agent/internal/descriptors/core"
@@ -298,20 +297,20 @@ func TestV19InheritanceClearedOnHost(t *testing.T) {
 	t.Logf("%s (reused sw_if_index %d of %s) created clean by the loopback descriptor; metric inherited %d→%d, cleared %v", dName, idx, cName, before.Inherited["create"], after.Inherited["create"], after.Cleared)
 }
 
-// l2Bits reads the raw l2 feature bitmaps of idx (l2_flags_get).
-func (h *host) l2Bits(idx uint32) (in, out uint32) {
+// l2Features returns the l2-input and l2-output feature lists of idx as `show interface <idx>
+// feat` prints them (VPP has no binary-API readback of the l2 bitmaps of an L3-mode interface:
+// l2_flags_get answers INVALID_SW_IF_INDEX unless the interface is bridged/xconnected).
+func (h *host) l2Features(idx uint32) (in, out string) {
 	h.t.Helper()
-	rep, err := l2api.NewServiceClient(h.c).L2FlagsGet(h.ctx, &l2api.L2FlagsGet{SwIfIndex: interface_types.InterfaceIndex(idx)})
-	h.must("l2_flags_get", err)
-	return rep.InputFeatureBitmap, rep.OutputFeatureBitmap
+	rep, err := vlib.NewServiceClient(h.c).CliInband(h.ctx, &vlib.CliInband{Cmd: fmt.Sprintf("show interface %d feat", idx)})
+	h.must("cli_inband show interface feat", err)
+	text := rep.Reply
+	i, o := strings.Index(text, "l2-input:"), strings.Index(text, "l2-output:")
+	if i < 0 || o < i {
+		h.t.Fatalf("unexpected show interface feat output:\n%s", text)
+	}
+	return text[i:o], text[o:]
 }
-
-// l2 feature bit positions (vnet/l2/l2_input.h, l2_output.h foreach_l2*_feat order)
-const (
-	l2inACL         = 1 << 14 // L2INPUT_FEAT_ACL ("l2-input-acl")
-	l2inPolicerClas = 1 << 16 // L2INPUT_FEAT_POLICER_CLAS ("l2-policer-classify")
-	l2outACL        = 1 << 4  // L2OUTPUT_FEAT_ACL ("l2-output-acl")
-)
 
 func (h *host) newTable() uint32 {
 	h.t.Helper()
@@ -347,19 +346,32 @@ func (h *host) plantFreed(i int) (uint32, uint32) {
 	a, aName := h.loopback(i)
 	x := interface_types.InterfaceIndex(a)
 	cl := classifyapi.NewServiceClient(h.c)
+	planted := false
+	h.t.Cleanup(func() { // a failure while planting: unbind (the table is alive), delete loopback and table
+		if planted {
+			return
+		}
+		if err := ifsanitize.BeforeDelete(context.Background(), h.c, a, aName); err != nil {
+			h.t.Errorf("cleanup: %v — LEFT %s and table %d in VPP", err, aName, table)
+			return
+		}
+		_, _ = interfaces.NewServiceClient(h.c).DeleteLoopback(context.Background(), &interfaces.DeleteLoopback{SwIfIndex: x})
+		h.delTable(table)
+	})
 	_, err := cl.InputACLSetInterface(h.ctx, &classifyapi.InputACLSetInterface{SwIfIndex: x, IP4TableIndex: ifsanitize.NoIndex, IP6TableIndex: ifsanitize.NoIndex, L2TableIndex: table, IsAdd: true})
 	h.must("input_acl_set_interface l2", err)
 	_, err = cl.OutputACLSetInterface(h.ctx, &classifyapi.OutputACLSetInterface{SwIfIndex: x, IP4TableIndex: table, IP6TableIndex: ifsanitize.NoIndex, L2TableIndex: table, IsAdd: true})
 	h.must("output_acl_set_interface ip4+l2", err)
 	_, err = cl.PolicerClassifySetInterface(h.ctx, &classifyapi.PolicerClassifySetInterface{SwIfIndex: x, IP4TableIndex: ifsanitize.NoIndex, IP6TableIndex: ifsanitize.NoIndex, L2TableIndex: table, IsAdd: true})
 	h.must("policer_classify_set_interface l2", err)
-	in, out := h.l2Bits(a)
-	if in&l2inACL == 0 || in&l2inPolicerClas == 0 || out&l2outACL == 0 {
-		h.t.Fatalf("VPP did not set the l2 feature bits: in %#x out %#x", in, out)
+	in, out := h.l2Features(a)
+	if !strings.Contains(in, "(l2-input-acl)") || !strings.Contains(in, "(l2-policer-classify)") || !strings.Contains(out, "(l2-output-acl)") {
+		h.t.Fatalf("VPP did not set the l2 feature bits:\n%s%s", in, out)
 	}
-	h.t.Logf("%s sw_if_index %d (L3 mode): L2 input ACL, L2 output ACL, L2 policer classify, ip4 output ACL → table %d; l2 bitmaps in %#x out %#x", aName, a, table, in, out)
+	h.t.Logf("%s sw_if_index %d (L3 mode): L2 input ACL, L2 output ACL, L2 policer classify, ip4 output ACL → table %d; show interface feat:\n%s%s", aName, a, table, in, out)
 	_, err = interfaces.NewServiceClient(h.c).DeleteLoopback(h.ctx, &interfaces.DeleteLoopback{SwIfIndex: x}) // raw: leave everything behind
 	h.must("delete_loopback "+aName, err)
+	planted = true
 	h.delTable(table)
 	return a, table
 }
@@ -428,10 +440,10 @@ func TestV19FreedTableOnHost(t *testing.T) {
 		clean = false
 		t.Fatalf("input ACL left on %d: %+v", idx, cur)
 	}
-	in, out := h.l2Bits(idx)
-	if in&(l2inACL|l2inPolicerClas) != 0 || out&l2outACL != 0 {
+	in, out := h.l2Features(idx)
+	if strings.Contains(in, "(l2-input-acl)") || strings.Contains(in, "(l2-policer-classify)") || strings.Contains(out, "(l2-output-acl)") {
 		clean = false
-		t.Fatalf("l2 feature bits left on %d: in %#x out %#x", idx, in, out)
+		t.Fatalf("l2 feature bits left on %d:\n%s%s", idx, in, out)
 	}
 	for _, cmd := range []string{"show inacl type l2", "show outacl type ip4", "show outacl type l2", "show classify policer type l2"} {
 		rep, err := vlib.NewServiceClient(h.c).CliInband(h.ctx, &vlib.CliInband{Cmd: cmd})
@@ -447,7 +459,7 @@ func TestV19FreedTableOnHost(t *testing.T) {
 		t.Errorf("classify tables %v after Create, want the baseline %v (placeholders left?)", got, baseline)
 	}
 	after := ifsanitize.Snapshot()
-	t.Logf("%s created on the planted sw_if_index %d: input ACL none, l2 bitmaps in %#x out %#x, no row in show inacl/outacl/classify policer; classify tables back to %v; freed %v → %v",
+	t.Logf("%s created on the planted sw_if_index %d: input ACL none, l2 features %q %q, no row in show inacl/outacl/classify policer; classify tables back to %v; freed %v → %v",
 		obj.Name, idx, in, out, baseline, before.Freed, after.Freed)
 	if after.Freed["create/input-acl"] != before.Freed["create/input-acl"]+1 || after.Freed["create/output-acl"] < before.Freed["create/output-acl"]+2 ||
 		after.Freed["create/policer-classify"] != before.Freed["create/policer-classify"]+1 {

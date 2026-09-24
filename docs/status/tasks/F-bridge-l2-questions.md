@@ -53,3 +53,25 @@ Retrieve must name a bridge domain again, and nothing else in VPP stores the nam
 an optional `name`; the tag becomes `<owner>:<id>/<name>` (was `<owner>:<id>`; the old form still parses, name = "").
 A rename is a recreate (VPP has no tag update). This is an extension of a descriptor I own for this task, not a second
 descriptor (D-104).
+
+## Q8 — VPP crash 18:41:08 (manager incident note): not F-bridge-l2
+Answer to the manager's incident message: no F-bridge-l2 code or test touched VPP before 19:14. Until then this slot ran
+only fake-VPP unit tests (`go test ./...` without `VRX_INTEGRATION`, all host tests skip), the API e2e with the in-process
+fake agent and web unit tests. The first host run was `TestMactimeOnHost` at 19:14 (NRestarts 1 before and after, i.e.
+already 1 from the 18:41 crash). F-bridge-l2 has no classify code; its only interface cleanup is `ifacetest.Loopback`'s
+`ifsanitize.BeforeDelete` on its own loopback (recorded bindings only). D-126 noted: no sweeps; the topology test sends
+no packets at all (veth peers stay down) and configures no 802.1ad push on the rig.
+
+## Q9 — coretest/fakevpp.go: one line outside the owned files
+`coretest.New()` must install the F-bridge-l2 handlers, otherwise every agent unit test fails once the l2 / l3xc /
+mactime descriptors are registered (their Retrieve runs on every plan). `fakevpp.go` has no extension hook, so I added one
+line after P08's `v.installIfExt()`: `v.installBridgeL2() // F-bridge-l2 (coretest/bridge_l2.go)`. The handlers live in my
+own `coretest/bridge_l2.go` (A6). Please keep it at merge (or seed a hook list for the other A6 features).
+
+## Q10 — `interfaces/model.ts` (P08): `l2` is an opaque JSON field in the interface drawer
+The drawer broke exactly as the prompt anticipated: SchemaForm materialises the absent optional `l2` object and its
+nested `tagRewrite` (required `op`), so every drawer save was blocked (3 P08 web tests failed). Excluding the field is
+not safe (the drawer's merge patch would then send `l2: null` and silently remove a membership on any MTU edit), so the
+one named hunk makes it opaque instead: `interfaceItemSchema()` returns `drawerSafeL2(...)` (bridge-l2/model.ts) —
+`l2` becomes a JSON-widget field (absent stays absent, set round-trips unchanged; the server validates it). Two lines:
+the import and the return, both marked `wave-A: F-bridge-l2`.

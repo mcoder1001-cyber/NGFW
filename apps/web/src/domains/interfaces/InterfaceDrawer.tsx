@@ -57,6 +57,12 @@ const SUB_ID_RE = /^[0-9]{1,10}$/;
 const BPS = 'bps' as const;
 const SUB_ID_INPUT = { dir: 'ltr', inputMode: 'numeric' } as const;
 
+/** Two configuration values are equal when the merge patch from one to the other is empty. */
+function sameValue(a: unknown, b: unknown): boolean {
+  const p = createMergePatch(a ?? {}, b ?? {});
+  return typeof p === 'object' && p !== null && Object.keys(p).length === 0;
+}
+
 /** The interface without its `subinterfaces` member (edited in their own table). */
 function withoutSubs(c: InterfaceConfig | undefined): Partial<InterfaceConfig> | undefined {
   if (!c) return undefined;
@@ -95,15 +101,27 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
   const rate = rates.get(live?.vppName ?? name);
   const readOnly = !perms.editConfig;
 
-  const formValue = useMemo(() => withoutSubs(config), [config]);
+  // The form edits the value it opened with (review N4): a refetch of the candidate never remounts it (unsaved edits
+  // stay), and Save sends only what changed against that value — a field another session changed meanwhile is not
+  // written back with a stale value. "Reload" opens the form again on the current candidate.
+  const [reload, setReload] = useState(0);
+  const [opened, setOpened] = useState<{ reload: number; value: Partial<InterfaceConfig> | undefined } | null>(null);
+  const [changedElsewhere, setChangedElsewhere] = useState(false);
+  if (candidate.isSuccess && (opened === null || opened.reload !== reload)) {
+    setOpened({ reload, value: withoutSubs(config) });
+  }
+  const formValue = opened?.value;
 
   const saveInterface = async (value: unknown) => {
     setSaved(false);
-    const current = (await fresh())[name];
-    const cleaned = dropPhantomOptionals(formSchema, withoutSubs(current), value);
-    const body = current === undefined ? cleaned : createMergePatch(withoutSubs(current), cleaned);
+    const base = opened?.value;
+    const current = withoutSubs((await fresh())[name]);
+    setChangedElsewhere(!sameValue(base, current));
+    const cleaned = dropPhantomOptionals(formSchema, base, value);
+    const body = base === undefined ? cleaned : createMergePatch(base, cleaned);
     try {
       await patch.mutateAsync({ [name]: body });
+      setOpened({ reload, value: cleaned as Partial<InterfaceConfig> }); // the next save diffs against what is saved now
       setSaved(true);
     } catch {
       // rendered from patch.error (pointers mapped onto the fields)
@@ -215,9 +233,22 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
               {t('drawer.saved')}
             </Alert>
           )}
-          {candidate.isSuccess && (
+          {changedElsewhere && (
+            <Alert
+              severity="warning"
+              sx={{ mb: 1 }}
+              action={
+                <Button color="inherit" size="small" onClick={() => { setChangedElsewhere(false); setSaved(false); setReload((r) => r + 1); }}>
+                  {t('drawer.reload')}
+                </Button>
+              }
+            >
+              {t('drawer.changedElsewhere')}
+            </Alert>
+          )}
+          {candidate.isSuccess && opened !== null && (
             <SchemaForm
-              key={JSON.stringify(formValue ?? null)}
+              key={`${name}:${reload}`}
               schema={formSchema}
               value={formValue}
               readOnly={readOnly}
@@ -301,9 +332,10 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
               key={subDialog.id || 'new'}
               initialId={subDialog.id}
               editing={subDialog.value !== undefined}
+              existingIds={subs.map(([id]) => id)}
               value={subDialog.value}
               schema={subSchema}
-              problem={problemFor(subError, `/interfaces/${esc(parentName)}/subinterfaces/${subDialog.id}`)}
+              pointerPrefix={(id) => `/interfaces/${esc(parentName)}/subinterfaces/${esc(id)}`}
               error={subError}
               pending={patch.isPending}
               onCancel={() => setSubDialog(null)}
@@ -319,9 +351,10 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
 function SubForm({
   initialId,
   editing,
+  existingIds,
   value,
   schema,
-  problem,
+  pointerPrefix,
   error,
   pending,
   onCancel,
@@ -329,9 +362,10 @@ function SubForm({
 }: {
   initialId: string;
   editing: boolean;
+  existingIds: string[];
   value: SubinterfaceConfig | undefined;
   schema: ReturnType<typeof subinterfaceSchema>;
-  problem: ProblemDetails | null;
+  pointerPrefix: (id: string) => string;
   error: unknown;
   pending: boolean;
   onCancel: () => void;
@@ -339,7 +373,11 @@ function SubForm({
 }) {
   const { t } = useTranslation('interfaces');
   const [id, setId] = useState(initialId);
-  const idOk = SUB_ID_RE.test(id);
+  // review N5: server pointers are mapped with the id typed here (not the empty id of "add"), and "add" never
+  // silently merges over an existing sub-interface
+  const taken = !editing && existingIds.includes(id);
+  const idOk = SUB_ID_RE.test(id) && !taken;
+  const problem = problemFor(error, pointerPrefix(id));
   return (
     <Stack gap={2} sx={{ pt: 1 }}>
       <TextField
@@ -348,7 +386,7 @@ function SubForm({
         disabled={editing}
         onChange={(e) => setId(e.target.value)}
         error={id !== '' && !idOk}
-        helperText={t('sub.idHelp')}
+        helperText={taken ? t('sub.idExists', { id }) : t('sub.idHelp')}
         slotProps={{ htmlInput: SUB_ID_INPUT }}
       />
       {error !== null && problem === null && <ProblemAlert error={error} />}

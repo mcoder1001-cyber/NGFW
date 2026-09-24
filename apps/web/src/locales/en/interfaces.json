@@ -43,7 +43,9 @@
     "reset": "Reset",
     "saved": "Saved to the candidate. Commit to apply it.",
     "remove": "Remove from configuration",
-    "subHint": "A sub-interface is edited from its parent {{parent}}."
+    "subHint": "A sub-interface is edited from its parent {{parent}}.",
+    "changedElsewhere": "This interface changed in the candidate since you opened the form (another session). Only your own edits were saved; reload to see the combined result.",
+    "reload": "Reload"
   },
   "sub": {
     "title": "Sub-interfaces (802.1Q)",
@@ -55,7 +57,8 @@
     "vlan": "VLAN",
     "none": "No sub-interfaces.",
     "actions": "Actions",
-    "remove": "Remove sub-interface {{id}}"
+    "remove": "Remove sub-interface {{id}}",
+    "idExists": "Sub-interface {{id}} already exists: edit it from the table"
   },
   "field": {
     "enabled": {

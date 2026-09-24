@@ -98,6 +98,38 @@ describe('interfaces screen', () => {
     await waitFor(() => expect(patched).toEqual({ 'host-w1l0': { subinterfaces: { '100': null } } }));
   });
 
+  it('saves only the edits against the value the form opened with; a new sub-interface cannot reuse an id (review N4/N5)', { timeout: 60_000 }, async () => {
+    const api = installFakeApi();
+    withInterfaces(api);
+    const patches: unknown[] = [];
+    api.on('PATCH /api/v1/config/interfaces', (_r, body) => {
+      patches.push(body);
+      return { body: { pointer: '/interfaces', before: null, after: null } };
+    });
+    await signIn();
+    render(app('/interfaces'));
+    const grid = await screen.findByRole('grid', {}, { timeout: 15_000 });
+    fireEvent.click(await within(grid).findByText('host-w1l0'));
+    const drawer = await screen.findByRole('region', { name: 'Interface host-w1l0' });
+    const mtu = await within(drawer).findByLabelText(/^MTU/);
+    // another session changes the description after the form opened
+    api.on('GET /api/v1/config/candidate/interfaces', { body: { 'host-w1l0': { ...lanCfg, description: 'set elsewhere' } } });
+    fireEvent.change(mtu, { target: { value: '1400' } });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Save to candidate' }));
+    // only the MTU: the stale form value 'lan' is not written over the other session's description
+    await waitFor(() => expect(patches).toEqual([{ 'host-w1l0': { mtu: 1400 } }]));
+    expect(await within(drawer).findByText(/changed in the candidate since you opened the form/)).toBeInTheDocument();
+
+    // "add" with the id of an existing sub-interface is refused before anything is sent
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Add sub-interface' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText(/^Sub-interface id/), { target: { value: '100' } });
+    expect(await within(dialog).findByText('Sub-interface 100 already exists: edit it from the table')).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save to candidate' }));
+    await new Promise((r) => setTimeout(r, 300));
+    expect(patches).toHaveLength(1);
+  });
+
   it('renders in Persian', { timeout: 30_000 }, async () => {
     const api = installFakeApi();
     withInterfaces(api);

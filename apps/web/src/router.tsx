@@ -74,6 +74,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-A: F-loopback-bvi-gso-lldp-span
         // wave-A: F-vrf-static-ecmp
         // wave-A: F-neighbors-ra
+        { path: 'routing/neighbors', lazy: async () => ({ Component: (await import('./domains/routing/neighbors-ra/NeighborsPage')).NeighborsPage }) },
         // wave-A: F-rpf-adl-pbr
         // wave-A: F-object-model
         // wave-A: F-acl

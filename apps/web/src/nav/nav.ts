@@ -102,6 +102,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-neighbors-ra
+  groups.get('routing')!.push({ id: 'neighbors', path: '/routing/neighbors', labelKey: 'neighbors-ra:nav', fallbackLabel: 'Neighbours', available: true });
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-host-acl-nftables
   // wave-A: P12

@@ -79,3 +79,8 @@ not safe (the drawer's merge patch would then send `l2: null` and silently remov
 one named hunk makes it opaque instead: `interfaceItemSchema()` returns `drawerSafeL2(...)` (bridge-l2/model.ts) —
 `l2` becomes a JSON-widget field (absent stays absent, set round-trips unchanged; the server validates it). Two lines:
 the import and the return, both marked `wave-A: F-bridge-l2`.
+
+## Q8a — D-128 (`show trace` crash): nothing to remove here
+`grep -rn 'show trace\|trace add\|"trace"'` over `test/topology/bridge-l2`, `descriptors/mactime`, `desired/l2*.go` and
+`agent/rpc_bridge_l2*.go` finds nothing: the F-bridge-l2 tests never trace (they send no packets; the evidence is
+bridge-domain / l2fib / mode / l3xc / mactime dumps and vppctl `show` of those tables only).

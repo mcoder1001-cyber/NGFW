@@ -12,6 +12,7 @@ export const TOPICS = [
   'agent.events',
   // Feature topics: one line under the feature's anchor (wave-A-hotspots P6).
   // wave-A: F-neighbors-ra
+  'neighbor.events',
   // wave-A: F-object-model
   // wave-A: F-acl
   // wave-A: P11

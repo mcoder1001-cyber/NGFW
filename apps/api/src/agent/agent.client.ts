@@ -20,6 +20,11 @@ import {
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
+  type ActionDone as NeighborsRaActionDone,
+  type ActionOutput as NeighborsRaActionOutput,
+  type ArpFlushAction,
+  type ListNeighborsRequest,
+  type ListNeighborsResponse,
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model
   // wave-A: F-acl
@@ -126,6 +131,30 @@ export class AgentClient implements OnModuleDestroy {
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
+  /** F-neighbors-ra: one page of the live ARP/ND table (ListNeighbors, proto.md §11). */
+  listNeighbors(req: Omit<ListNeighborsRequest, 'owner'>): Promise<ListNeighborsResponse> {
+    return this.unary(this.c.listNeighbors, { ...req, owner: this.owner });
+  }
+
+  /** F-neighbors-ra: run the arp_flush action (ActionRequest 4) and collect its lines and `done`. */
+  arpFlush(
+    req: ArpFlushAction,
+    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+  ): Promise<{ lines: string[]; done: NeighborsRaActionDone | undefined }> {
+    return new Promise((resolve, reject) => {
+      const call = this.c.action({ arpFlush: req }, new Metadata(), {
+        deadline: new Date(Date.now() + timeoutMs),
+      });
+      const lines: string[] = [];
+      let done: NeighborsRaActionDone | undefined;
+      call.on('data', (o: NeighborsRaActionOutput) => {
+        if (o.line !== undefined) lines.push(o.line);
+        if (o.done !== undefined) done = o.done;
+      });
+      call.on('error', (err: ServiceError) => reject(agentProblem(err)));
+      call.on('end', () => resolve({ lines, done }));
+    });
+  }
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model
   // wave-A: F-acl

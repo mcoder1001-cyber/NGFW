@@ -361,18 +361,6 @@ export class StateController {
     };
   }
 
-  @Get('neighbors')
-  @Protected(501)
-  @ApiOperation({
-    summary: 'IP neighbours — needs an agent state RPC that the v1 contract does not have (501)',
-  })
-  @ApiOkResponse({ description: 'Neighbour table (reserved: answers 501 in this release)' })
-  neighbors() {
-    throw problems.notImplemented(
-      'the agent contract (vrx.v1.Dataplane) has no neighbour dump yet; an additive state RPC is requested in P06-questions',
-    );
-  }
-
   @Get('drift')
   @Protected(502, 503)
   @ApiOperation({ summary: 'Running configuration vs what the agent retrieves (proto.md §5)' })

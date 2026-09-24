@@ -38,6 +38,7 @@ import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { neighborsRaFake } from '../features/neighbors-ra/fake.js';
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -628,8 +629,7 @@ export class FakeAgent {
       // wave-A: F-loopback-bvi-gso-lldp-span
       // wave-A: F-vrf-static-ecmp
       // wave-A: F-neighbors-ra
-      listNeighbors: (_call, cb) =>
-        cb({ code: status.UNIMPLEMENTED, details: 'ListNeighbors (F-neighbors-ra)' }),
+      listNeighbors: neighborsRaFake(this).listNeighbors,
       // wave-A: F-rpf-adl-pbr
       // wave-A: F-object-model
       // wave-A: F-acl

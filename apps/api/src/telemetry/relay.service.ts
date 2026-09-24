@@ -26,6 +26,8 @@ export function eventTopic(kind: EventKind): Topic {
       return 'commit.events';
     // Feature event kinds: one `case …: return '<topic>';` under the feature's anchor (wave-A-hotspots P6).
     // wave-A: F-neighbors-ra
+    case EventKind.EVENT_KIND_NEIGHBOR_CHANGED:
+      return 'neighbor.events';
     // wave-A: F-object-model
     // wave-A: F-acl
     // wave-A: P11

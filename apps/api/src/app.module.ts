@@ -31,6 +31,7 @@ import { RelayService } from './telemetry/relay.service.js';
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
 // wave-A: F-neighbors-ra
+import { neighborsRaFeature } from './features/neighbors-ra/index.js';
 // wave-A: F-rpf-adl-pbr
 // wave-A: F-object-model
 // wave-A: F-acl
@@ -82,6 +83,7 @@ export class AppModule {
         // wave-A: F-loopback-bvi-gso-lldp-span
         // wave-A: F-vrf-static-ecmp
         // wave-A: F-neighbors-ra
+        ...neighborsRaFeature.controllers,
         // wave-A: F-rpf-adl-pbr
         // wave-A: F-object-model
         // wave-A: F-acl
@@ -118,6 +120,7 @@ export class AppModule {
         // wave-A: F-loopback-bvi-gso-lldp-span
         // wave-A: F-vrf-static-ecmp
         // wave-A: F-neighbors-ra
+        ...neighborsRaFeature.providers,
         // wave-A: F-rpf-adl-pbr
         // wave-A: F-object-model
         // wave-A: F-acl

@@ -71,3 +71,10 @@ Items above that are not ticked keep their text; this table gives each one an ow
   `ifsanitize.Release` but never sets `vrx_agent_iface_quarantined` from the holders it found; after an agent restart the gauge reads 0
   while this owner's still-dirty quarantine holders are in VPP (TD-3 re-review L6). Fix: `Release` returns the number of holders left
   (holders − released) and the wiring sets `Stats.Quarantined` to that absolute number after every Release (not deltas).
+
+## From the wave-A reviews (D-129, 2026-09-24)
+- (F-nat44-ed Q3 d) the agent should return a canonical form of the running config so /state/drift stops flagging NAT pool names/descriptions and owner-mode `enabled`/timeouts
+- (TD-8 R5) metrics collectors run serially with a per-collector 5 s deadline that only a cooperative collector honours; bound the whole scrape before the first collector merges
+- (F-object-model Q2) FQDN refresh uses a fixed interval; DNS TTLs need golang.org/x/net promoted in go.mod
+- (WEB-2 M3) the config kit keeps writeOnly members (passwordHash) in mutation variables/React state — fix before any secret-leaf kit screen
+- (F-vrf-static-ecmp Q8) govpp drops dump replies on a loaded host — all descriptors exposed; (Q9) CLI `vrx ping` sends no body (400 since ping is implemented)

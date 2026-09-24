@@ -61,6 +61,28 @@ describe('state/interfaces e2e (PostgreSQL + fake agent)', () => {
       hasPendingChange: false,
     });
     expect(by.get(L)).not.toHaveProperty('actual'); // dropped in fix round 1: it duplicated `config`
+
+    // Retrieve drifts from running (VPP changed behind the API): `config` is the Retrieve view and `running` the
+    // running configuration (D-105). The fake's Retrieve echoes the applied document, so without the drift the two
+    // fields are equal and swapping them in the controller would pass (re-review T2/R2).
+    const retrieved = h.fake.current['interfaces'] as Record<string, Record<string, unknown>>;
+    const before = retrieved[L];
+    retrieved[L] = { ...before, mtu: 9000 };
+    try {
+      const drift = await h.call(ro, 'GET', '/api/v1/state/interfaces');
+      expect(drift.status).toBe(200);
+      const d = (drift.body.items as { name: string }[]).find((i) => i.name === L) as {
+        config: { mtu?: number };
+        running: { mtu?: number };
+        hasPendingChange: boolean;
+      };
+      expect(d.config.mtu).toBe(9000);
+      expect(d.running.mtu).toBe(1400);
+      expect(d.hasPendingChange).toBe(false); // running vs candidate, not vs the data plane
+    } finally {
+      retrieved[L] = before;
+    }
+
     expect(by.get(W)).toMatchObject({ config: { subinterfaces: { '100': { vlanId: 100 } } } });
     expect(by.get(`${W}.100`)).toMatchObject({
       kind: 'subinterface',

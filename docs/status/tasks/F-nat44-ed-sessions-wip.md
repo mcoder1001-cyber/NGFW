@@ -9,3 +9,6 @@
 | 18:50 | UI delegated to a fork sub-worker (apps/web only) |
 | 19:00–19:15 | topology runs 1–3 on slot 4: config/validation/Retrieve/vppctl OK; found the rig's netns tx-checksum-offload vs NAT issue (V-new, Q7) and the fixture's 1024-session limit; fixed test side |
 | 19:25 | topology run 4 (full) running |
+| 19:17 | topology run 5 PASS (all five steps, NRestarts 1 → 1); screenshots (en + fa, 2 101 sessions) PASS |
+| 19:37 | quick gate green; `--base main` blocked by the ci.sh guard bug (Q9); D-128: trace removed, run 6 PASS |
+| 19:46 | status file with evidence, cleanup verified; done |

@@ -2,7 +2,11 @@
 
 Written while working; none blocks the task (each has the default I took). Newest last.
 
-## Q1 — container name and number for the bridge-domain records (D-109 c left both open)
+## Q1 — container name and number for the bridge-domain records (D-109 c left both open) — ANSWERED (D-122)
+**Answer (manager, D-122):** `RoutingConfig.l2 = 20` is confirmed as F-bridge-l2's (Interface.l2 14, Subinterface.l2 12
+unchanged); the manager moves RoutingConfig's next-free number to 21. The self-seeded anchors stay and are listed in
+`F-bridge-l2.md` (shared hunks).
+
 D-109 (c) says "a named container inside an existing domain object" but names neither; the envelope's fallback is "take
 variant (b) with the least-reshaping container, write the question, keep going".
 - **Taken: `routing.l2` (`RoutingConfig.l2 = 20`, message `BridgeL2Config`).** `routing` is the forwarding domain that

@@ -21,8 +21,16 @@ export class LockBusyError extends Error {
   }
 }
 
-/** Releases a held cross-process lock; never throws. */
-export type Release = () => Promise<void>;
+/** A held cross-process lock. */
+export interface Held {
+  /** Release it; never throws. */
+  release(): Promise<void>;
+  /**
+   * Set when the lock was lost while held (TD-10a review H1: the PostgreSQL session behind it ended) — the section ran
+   * (partly) without cross-process exclusion.
+   */
+  lost(): Error | undefined;
+}
 
 /**
  * The cross-process half of `CommitLock` (TD-10a, review 2.4b, D-111 follow-up): the product implementation is a
@@ -30,10 +38,13 @@ export type Release = () => Promise<void>;
  */
 export interface ProcessLock {
   /** Wait until held. */
-  acquire(): Promise<Release>;
-  /** Try for up to `waitMs`; null when another process still holds it. */
-  tryAcquire(waitMs: number): Promise<Release | null>;
+  acquire(): Promise<Held>;
+  /** Try for up to `waitMs`; null when another process still holds it (or no connection came in time). */
+  tryAcquire(waitMs: number): Promise<Held | null>;
 }
+
+/** Shortest wait for the cross-process lock of a `tryRun`, even when the in-process wait used up the budget. */
+const MIN_CROSS_WAIT_MS = 250;
 
 /**
  * The commit-engine lock: FIFO inside this process, plus (when given) a lock that other API processes on the same
@@ -45,7 +56,11 @@ export class CommitLock {
   private held = false;
   private readonly waiters: (() => void)[] = [];
 
-  constructor(private readonly cross?: ProcessLock) {}
+  /** `onLost`: called after a section whose cross-process lock was lost while it ran (review H1). */
+  constructor(
+    private readonly cross?: ProcessLock,
+    private readonly opts: { onLost?: (e: Error) => void } = {},
+  ) {}
 
   /** True while a section runs (or is being handed to the next waiter). */
   get busy(): boolean {
@@ -63,15 +78,15 @@ export class CommitLock {
   private async section<T>(fn: () => Promise<T>, waitMs: number | undefined): Promise<T> {
     const t0 = Date.now();
     if (!(await this.acquireLocal(waitMs))) throw new LockBusyError('process');
-    let release: Release | undefined;
+    let held: Held | undefined;
     try {
       if (this.cross) {
         const r =
           waitMs === undefined
             ? await this.cross.acquire()
-            : await this.cross.tryAcquire(Math.max(0, waitMs - (Date.now() - t0)));
+            : await this.cross.tryAcquire(Math.max(MIN_CROSS_WAIT_MS, waitMs - (Date.now() - t0)));
         if (r === null) throw new LockBusyError('other-process');
-        release = r;
+        held = r;
       }
     } catch (e) {
       this.releaseLocal();
@@ -80,8 +95,10 @@ export class CommitLock {
     try {
       return await fn();
     } finally {
-      await release?.();
+      await held?.release();
       this.releaseLocal();
+      const lost = held?.lost();
+      if (lost) this.opts.onLost?.(lost);
     }
   }
 

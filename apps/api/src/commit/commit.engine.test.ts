@@ -6,6 +6,7 @@ import {
   type ApplyRequest,
   type Event,
 } from '@ngfw/proto';
+import { status as grpcStatus } from '@grpc/grpc-js';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -16,6 +17,8 @@ import type { SystemEventsService } from '../audit/system-events.service.js';
 import type { TokensService } from '../auth/tokens.service.js';
 import type { Env } from '../config.js';
 import { ProblemError } from '../common/problem.js';
+import type { Db } from '../db/db.js';
+import { SecretsService } from '../secrets/secrets.service.js';
 import { DatastoreService } from '../datastore/datastore.service.js';
 import { emptyDocument } from '../datastore/documents.js';
 import { Bus } from '../infra/bus.js';
@@ -426,6 +429,79 @@ describe('TD-10a commit engine (fake agent over gRPC)', { timeout: 20_000 }, () 
         timeout: 15_000,
         interval: 200,
       });
+    });
+  });
+
+  // ------------------------------------------------------------------------------------------------ fix round 1
+
+  describe('fix round 1 (TD-10a-review.md)', () => {
+    it('M2: a secret delete during a commit is 409 commit-busy after the lock wait, not queued', async () => {
+      const slow = service(shortEnv('9000'), true);
+      const tx = vi.fn(async () => undefined);
+      const secrets = new SecretsService(
+        { transaction: tx } as unknown as Db,
+        env,
+        events as unknown as SystemEventsService,
+        slow,
+      );
+      fake.applyDelayMs = 4000;
+      await ds.patchCandidate(ADMIN, '/system', { hostname: 'busy' });
+      const first = slow.commit(ADMIN, {});
+      await vi.waitFor(() => expect(applies(fake)).toHaveLength(1), {
+        timeout: 3000,
+        interval: 20,
+      });
+      const t0 = Date.now();
+      const p = await problem(secrets.delete('psk', 'x'));
+      expect(p.status).toBe(409);
+      expect(p.body['type']).toBe('https://vrx.dev/problems/commit-busy');
+      expect(Date.now() - t0).toBeLessThan(2500);
+      expect(tx).not.toHaveBeenCalled();
+      expect((await first).status).toBe('applied');
+    });
+
+    it('L1: a second API process does not undo the first one’s lost-answer recovery (sync re-read from the DB)', async () => {
+      const a = service(shortEnv('300'), true);
+      const b = service(); // another API process on the same database
+      await ds.patchCandidate(ADMIN, '/interfaces/loop1', { ipv4: ['10.1.0.1/24'] });
+      expect((await a.commit(ADMIN, {})).status).toBe('applied');
+      await ds.patchCandidate(ADMIN, '/interfaces/loop2', { ipv4: ['10.2.0.1/24'] });
+      fake.applyDelayMs = 800; // C is applied, its answer is lost: A marks sync UNKNOWN in the database
+      const p = await problem(a.commit(ADMIN, {}));
+      expect(p.body['type']).toBe('https://vrx.dev/problems/running-unknown');
+      const lostTxn = fake.lastTxnId;
+      fake.applyDelayMs = 0;
+      const n = applies(fake).length;
+      await b.checkAgentTxn('agent reconcile'); // B saw C's RECONCILE_DONE — not its own transaction
+      expect((await b.syncStatus()).state).toBe('in-sync');
+      await vi.waitFor(async () => expect((await a.syncStatus()).state).toBe('in-sync'), {
+        timeout: 6000,
+        interval: 100,
+      });
+      expect(repo.state.revisions.at(-1)?.txnId).toBe(lostTxn); // A's recovery saved C
+      expect(applies(fake)).toHaveLength(n); // nobody re-applied an older running
+    });
+
+    it('L4: confirm with no answer and no Health → running-unknown; the reconcile finds it confirmed and saves it', async () => {
+      const c2 = service(shortEnv('300'), true);
+      await ds.patchCandidate(ADMIN, '/interfaces/loop1', { ipv4: ['10.1.0.1/24'] });
+      const r = await c2.commit(ADMIN, { confirmSec: 30 });
+      fake.confirmDelayMs = 600;
+      const confirming = problem(c2.confirm(ADMIN));
+      await vi.waitFor(() => expect(fake.lastTxnId).toBe(r.txnId), { timeout: 2000, interval: 10 });
+      fake.failAllWith = grpcStatus.UNAVAILABLE; // Health unreachable while the confirm answer is lost
+      const p = await confirming;
+      expect(p.body['type']).toBe('https://vrx.dev/problems/running-unknown');
+      expect(p.body['sync']).toMatchObject({ state: 'unknown' });
+      expect(repo.state.revisions).toEqual([]);
+      fake.failAllWith = undefined;
+      await vi.waitFor(async () => expect((await c2.syncStatus()).state).toBe('in-sync'), {
+        timeout: 8000,
+        interval: 100,
+      });
+      expect(repo.state.revisions.map((x) => x.txnId)).toEqual([r.txnId]);
+      expect(await c2.pendingInfo()).toBeNull();
+      expect(codes()).toContain('COMMIT_CONFIRMED');
     });
   });
 });

@@ -213,7 +213,9 @@ export class CommitService implements OnApplicationShutdown {
     @Optional() @Inject(DB) db?: Db,
   ) {
     const pool = poolOf(db);
-    this.lock = new CommitLock(pool ? new PgAdvisoryLock(pool) : undefined);
+    this.lock = new CommitLock(pool ? new PgAdvisoryLock(pool) : undefined, {
+      onLost: (e) => void this.lockLost(e),
+    });
     this.budget = commitBudget(env);
     this.unsubscribe = this.bus.onAgentEvent((e) => {
       if (e.kind === EventKind.EVENT_KIND_CONFIRM_REVERTED && e.txnId)
@@ -272,6 +274,29 @@ export class CommitService implements OnApplicationShutdown {
     else this.scheduleTxnCheck('boot', 0);
     this.stopReadyWatch?.();
     this.stopReadyWatch = this.agent.watchReady(() => this.scheduleTxnCheck('agent reconnect', 0));
+  }
+
+  /**
+   * Review H1: the PostgreSQL session that held the commit lock ended while a section ran (PostgreSQL restart, dropped
+   * connection). The section finished without cross-process exclusion: record it and treat running as UNKNOWN — the
+   * reconcile checks the agent again (an in-flight lost answer, if any, stays in `inflight` for it).
+   */
+  private async lockLost(e: Error): Promise<void> {
+    try {
+      this.log.error(`commit lock connection lost during a section: ${e.message}`);
+      await this.events.record(
+        'error',
+        'commit',
+        'COMMIT_LOCK_LOST',
+        `the PostgreSQL session holding the commit lock ended during a commit-engine section (${e.message}); running is re-checked`,
+      );
+      if (this.sync.state !== 'in-sync') return; // a reconcile is owed already
+      this.reconcileAttempt = 0;
+      await this.setSync('unknown', `commit lock lost during a section: ${e.message}`, null);
+      this.scheduleReconcile(250);
+    } catch (err) {
+      this.log.error(`lock-loss handling failed: ${(err as Error).message}`);
+    }
   }
 
   private remember(txnId: string): void {
@@ -443,6 +468,14 @@ export class CommitService implements OnApplicationShutdown {
         { retryAfterSec: 2 },
       );
     });
+  }
+
+  /**
+   * A user action that must not interleave with commits (review M2: secret delete) under the same no-queue rule as a
+   * commit — 409 `commit-busy` after the lock wait.
+   */
+  userExclusive<T>(fn: () => Promise<T>): Promise<T> {
+    return this.userSection(fn);
   }
 
   /**
@@ -1074,6 +1107,9 @@ export class CommitService implements OnApplicationShutdown {
       if ((await this.txnVerdict()).kind === 'match') return;
       await this.lock.run(async () => {
         if (this.sync.state !== 'in-sync') return;
+        // review L1: another API process may have lost track (its in-flight answer, its reconcile): its state is only
+        // in the database — never undo its recovery from here
+        if ((await this.repo.getSync()).state !== 'in-sync') return;
         const v = await this.txnVerdict();
         if (v.kind === 'confirmed') await this.promotePending(v.pending, null, reason, true);
         else if (v.kind === 'mismatch')

@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import * as net from '../net';
 import { App } from '../App';
 import i18n from '../i18n';
 import { createTestRouter } from '../router';
@@ -38,6 +39,15 @@ const meta = (id: number, kind = 'commit') => ({
   secretChanges: [],
 });
 
+/** Shorten the outcome follow-up (net.OUTCOME_WAIT) for a test; returns the restore function. */
+function shortWait(untilMs: number, everyMs: number): () => void {
+  const wait = (net as { OUTCOME_WAIT?: { untilMs: number; everyMs: number } }).OUTCOME_WAIT;
+  if (!wait) return () => undefined;
+  const saved = { ...wait };
+  Object.assign(wait, { untilMs, everyMs });
+  return () => Object.assign(wait, saved);
+}
+
 afterEach(async () => {
   await resetSession();
   localStorage.clear();
@@ -48,9 +58,12 @@ function revisionsApi(after: {
   newest?: ReturnType<typeof meta>;
   pending?: unknown;
   sync?: { state: string; reason: string };
+  /** The server finishes the rollback this long after the request (review M1). */
+  landsAfterMs?: number;
 }): FakeApi {
   const api = installFakeApi();
-  let sent = false;
+  let sentAt = 0;
+  const landed = () => sentAt > 0 && Date.now() - sentAt >= (after.landsAfterMs ?? 0);
   api.on('GET /api/v1/config/diff', { body: { baseRevision: 2, changes: [] } });
   api.on('GET /api/v1/config', { body: { system: { hostname: 'two' } } });
   api.on('GET /api/v1/config/revisions/1', {
@@ -58,7 +71,7 @@ function revisionsApi(after: {
   });
   api.on('GET /api/v1/config/revisions', () => ({
     body:
-      sent && after.newest
+      landed() && after.newest
         ? { items: [after.newest, meta(2), meta(1)], total: 3 }
         : { items: [meta(2), meta(1)], total: 2 },
   }));
@@ -66,17 +79,20 @@ function revisionsApi(after: {
     body: {
       api: { version: 't', startedAt: '', wsClients: 0 },
       agent: { reachable: true },
-      runningRevision: sent && after.newest ? after.newest.id : 2,
-      pendingCommit: sent ? (after.pending ?? null) : null,
+      runningRevision: landed() && after.newest ? after.newest.id : 2,
+      pendingCommit:
+        landed() && after.pending
+          ? { ...(after.pending as object), createdAt: new Date(sentAt).toISOString() } // created by this request
+          : null,
       sync: {
         txnId: null,
         since: '',
-        ...(sent && after.sync ? after.sync : { state: 'in-sync', reason: '' }),
+        ...(landed() && after.sync ? after.sync : { state: 'in-sync', reason: '' }),
       },
     },
   }));
   api.on('POST /api/v1/config/rollback/1', () => {
-    sent = true; // the server goes on and finishes; the answer never arrives
+    sentAt = Date.now(); // the server goes on and finishes; the answer never arrives
     return 'network-error';
   });
   return api;
@@ -120,9 +136,37 @@ describe('RevisionsPage: rollback without an answer (TD-10a)', () => {
     ).toBeInTheDocument();
   });
 
-  it('reports "not applied" when nothing changed', async () => {
-    revisionsApi({});
-    const dialog = await rollBackToOne();
-    expect(await within(dialog).findByText(/the rollback was not applied/i)).toBeInTheDocument();
+  it('reports "not applied" when nothing changed — only after the server budget has passed', async () => {
+    const restore = shortWait(2_500, 200);
+    try {
+      revisionsApi({});
+      const dialog = await rollBackToOne();
+      expect(
+        await within(dialog).findByText(/following up what became of the rollback/i),
+      ).toBeInTheDocument();
+      expect(within(dialog).queryByText(/the rollback was not applied/i)).toBeNull();
+      expect(
+        await within(dialog).findByText(/the rollback was not applied/i, {}, { timeout: 6_000 }),
+      ).toBeInTheDocument();
+    } finally {
+      restore();
+    }
+  });
+
+  it('M1: an early network error while the rollback still runs → never "not applied"; the late revision is reported', async () => {
+    const restore = shortWait(8_000, 200);
+    try {
+      revisionsApi({ newest: meta(3, 'rollback'), landsAfterMs: 1_500 });
+      const dialog = await rollBackToOne();
+      const applied = await within(dialog).findByText(
+        /revision 3 was created: the rollback was applied/i,
+        {},
+        { timeout: 6_000 },
+      );
+      expect(applied).toBeInTheDocument();
+      expect(within(dialog).queryByText(/the rollback was not applied/i)).toBeNull();
+    } finally {
+      restore();
+    }
   });
 });

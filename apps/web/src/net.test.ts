@@ -25,6 +25,8 @@ describe('applyOutcome: what became of a commit-like request that got no answer 
   const sentAt = Date.parse('2026-09-24T20:00:00.000Z');
   const base: Record<string, unknown> = {
     sentAt,
+    now: sentAt + 200_000,
+    waitUntil: sentAt + 116_000,
     beforeRevision: 4,
     pending: null,
     sync: { state: 'in-sync', reason: '' },
@@ -59,7 +61,26 @@ describe('applyOutcome: what became of a commit-like request that got no answer 
       reason: 'no answer to Apply',
     });
   });
-  it('nothing new, in sync: not applied', () => {
+  it('nothing new, in sync, after the server budget: not applied', () => {
     expect(outcome({})).toEqual({ kind: 'not-applied' });
+  });
+  it('M1: nothing new while the server may still be working (early network error, proxy 504): running, never not-applied', () => {
+    expect(outcome({ now: sentAt + 2_000 })).toEqual({ kind: 'running' });
+    expect(outcome({ now: sentAt + 115_000 })).toEqual({ kind: 'running' });
+  });
+  it('L3: a pending commit older than the request is someone else’s, not this one', () => {
+    const older = {
+      txnId: 'other',
+      deadline: '2026-09-24T20:05:00.000Z',
+      createdAt: '2026-09-24T19:50:00.000Z',
+    };
+    expect(outcome({ pending: older })).toEqual({ kind: 'not-applied' });
+    expect(outcome({ pending: older, now: sentAt + 1_000 })).toEqual({ kind: 'running' });
+  });
+  it('the budget constant matches the server (apps/api/src/commit/budget.ts)', () => {
+    expect((net as unknown as { COMMIT_BUDGET_MS: number }).COMMIT_BUDGET_MS).toBe(
+      SERVER_BUDGET_MS,
+    );
+    expect(net.TIMEOUTS.apply).toBeGreaterThan(SERVER_BUDGET_MS);
   });
 });

@@ -18,7 +18,7 @@ import Typography from '@mui/material/Typography';
 import { diff } from '@ngfw/schema';
 import { useFormatters } from '@ngfw/ui-kit';
 import { ServerDataGrid, type FetchPage, type GridColDef } from '@ngfw/ui-kit/data-grid';
-import { useMemo, useState, type ReactElement } from 'react';
+import { useMemo, useRef, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { call, isUnreachable } from '../api-problem';
@@ -30,7 +30,7 @@ import { DiffView } from '../config/DiffView';
 import { ProblemAlert } from '../config/ProblemAlert';
 import { useEffectiveChanges } from '../config/effective';
 import { qk, usePending, useRevision, useRollback, useRunning, type CommitResult, type RevisionMeta } from '../config/queries';
-import { applyOutcome, type ApplyOutcome } from '../net';
+import { applyOutcome, OUTCOME_WAIT, type ApplyOutcome } from '../net';
 import { PageHeader } from '../shell/PageHeader';
 
 const REV_INPUT = { min: 1, dir: 'ltr' } as const;
@@ -73,7 +73,7 @@ type LostAnswer = ApplyOutcome | 'looking' | 'lookup-failed';
  * TD-10a (review 2.4a): what became of a rollback whose answer never arrived (deadline passed, route cut) — from the
  * API's own state: pending commit and sync (GET /state/system), newest revision.
  */
-async function lookupOutcome(sentAt: number, beforeRevision: number | null): Promise<ApplyOutcome | 'lookup-failed'> {
+async function lookupOutcome(sentAt: number, beforeRevision: number | null, waitUntil: number): Promise<ApplyOutcome | 'lookup-failed'> {
   try {
     const [sys, revs] = await Promise.all([
       call(api.GET('/api/v1/state/system')),
@@ -81,8 +81,10 @@ async function lookupOutcome(sentAt: number, beforeRevision: number | null): Pro
     ]);
     return applyOutcome({
       sentAt,
+      now: Date.now(),
+      waitUntil,
       beforeRevision,
-      pending: sys.data.pendingCommit as { txnId?: unknown; deadline?: unknown } | null,
+      pending: sys.data.pendingCommit as { txnId?: unknown; deadline?: unknown; createdAt?: unknown } | null,
       sync: sys.data.sync,
       newest: revs.data.items[0] ?? null,
     });
@@ -91,9 +93,25 @@ async function lookupOutcome(sentAt: number, beforeRevision: number | null): Pro
   }
 }
 
+/**
+ * Review M1: follow a lost answer up until the server's budget has surely passed — an early network error or a proxy
+ * 502/504 arrives while the rollback may still be applying, and "not applied, try again" then would invite a second
+ * rollback. Resolves with the first decisive outcome, or after the budget; null when `alive()` turned false.
+ */
+async function followOutcome(sentAt: number, beforeRevision: number | null, alive: () => boolean): Promise<ApplyOutcome | 'lookup-failed' | null> {
+  const waitUntil = sentAt + OUTCOME_WAIT.untilMs;
+  for (;;) {
+    const o = await lookupOutcome(sentAt, beforeRevision, waitUntil);
+    if (!alive()) return null;
+    if (o === 'lookup-failed' ? Date.now() >= waitUntil : o.kind !== 'running') return o;
+    await new Promise((r) => setTimeout(r, OUTCOME_WAIT.everyMs));
+    if (!alive()) return null;
+  }
+}
+
 function LostAnswerAlert({ lost }: { lost: LostAnswer }) {
   const { t } = useTranslation('revisions');
-  if (lost === 'looking') return <Alert severity="info">{t('rollback.outcome.looking')}</Alert>;
+  if (lost === 'looking' || (lost !== 'lookup-failed' && lost.kind === 'running')) return <Alert severity="info">{t('rollback.outcome.looking')}</Alert>;
   if (lost === 'lookup-failed') return <Alert severity="error">{t('rollback.outcome.lookupFailed')}</Alert>;
   switch (lost.kind) {
     case 'applied':
@@ -116,8 +134,10 @@ function RollbackDialog({ target, runningRev, onClose }: { target: RevisionMeta 
   const [revert, setRevert] = useState<ConfirmWindow>({ enabled: true, minutes: DEFAULT_CONFIRM_MINUTES });
   const [result, setResult] = useState<CommitResult | null>(null);
   const [lost, setLost] = useState<LostAnswer | null>(null);
+  const follow = useRef(0); // generation of the current outcome follow-up; closing or resubmitting ends it
   const changes = useMemo(() => (running.data !== undefined && rev.data ? diff(running.data, rev.data.payload) : null), [running.data, rev.data]);
   const close = () => {
+    follow.current += 1;
     rollback.reset();
     setResult(null);
     setLost(null);
@@ -142,7 +162,9 @@ function RollbackDialog({ target, runningRev, onClose }: { target: RevisionMeta 
           // no answer is not "failed": the server may have finished it (TD-10a, review 2.4a)
           if (!isUnreachable(e)) return;
           setLost('looking');
-          void lookupOutcome(sentAt, runningRev).then((o) => {
+          const gen = ++follow.current;
+          void followOutcome(sentAt, runningRev, () => follow.current === gen).then((o) => {
+            if (o === null) return;
             setLost(o);
             if (o !== 'lookup-failed' && o.kind === 'pending') {
               const deadlineMs = win.enabled ? Math.min(o.deadlineMs, sentAt + win.minutes * 60_000) : o.deadlineMs;

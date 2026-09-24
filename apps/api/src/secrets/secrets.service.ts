@@ -145,13 +145,14 @@ export class SecretsService {
 
   /**
    * Delete a secret unless running, the candidate or a pending commit still references it (409). TD-10a (review
-   * 2.3f): the reference check and the delete are ONE transaction inside the commit lock (`commits.exclusive`: no
-   * promote can land between the reads and the delete, in this or another API process), with the candidate and
-   * pending singleton rows locked FOR UPDATE (no candidate edit slips in either); secret and versions go together.
+   * 2.3f): the reference check and the delete are ONE transaction inside the commit lock (no promote can land between
+   * the reads and the delete, in this or another API process), with the candidate and pending singleton rows locked
+   * FOR UPDATE (no candidate edit slips in either); secret and versions go together. Review M2: like a commit, it
+   * does not queue behind one — 409 `commit-busy` after the lock wait (`commits.userExclusive`).
    */
   async delete(kind: string, name: string): Promise<void> {
     const ref = `${kind}/${name}`;
-    await this.commits.exclusive(() =>
+    await this.commits.userExclusive(() =>
       this.db.transaction(async (tx) => {
         const [cand] = await tx
           .select({ payload: configCandidate.payload })

@@ -33,11 +33,7 @@ export function timeoutFor(req: Request): number {
  * `fetchImpl(req)` with a deadline. The request is aborted when the deadline passes or the caller's signal aborts
  * (when the runtime allows re-signalling the Request); the returned promise rejects with `RequestTimeoutError` either way.
  */
-export async function fetchWithTimeout(
-  fetchImpl: Fetch,
-  req: Request,
-  ms: number = timeoutFor(req),
-): Promise<Response> {
+export async function fetchWithTimeout(fetchImpl: Fetch, req: Request, ms: number = timeoutFor(req)): Promise<Response> {
   const ctrl = new AbortController();
   let r = req;
   try {
@@ -93,10 +89,7 @@ export function applyOutcome(f: ApplyFacts): ApplyOutcome {
     return { kind: 'pending', txnId: p.txnId, deadlineMs: Date.parse(p.deadline) };
   }
   if (f.newest) {
-    const newer =
-      f.beforeRevision !== null
-        ? f.newest.id > f.beforeRevision
-        : Date.parse(f.newest.createdAt) >= f.sentAt - SKEW_MS;
+    const newer = f.beforeRevision !== null ? f.newest.id > f.beforeRevision : Date.parse(f.newest.createdAt) >= f.sentAt - SKEW_MS;
     if (newer) return { kind: 'applied', revision: f.newest.id };
   }
   if (f.sync && f.sync.state !== 'in-sync') return { kind: 'unknown', reason: f.sync.reason };

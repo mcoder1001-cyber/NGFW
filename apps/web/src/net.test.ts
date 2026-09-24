@@ -23,14 +23,14 @@ describe('net deadlines (TD-10a, review 2.4a)', () => {
 
 describe('applyOutcome: what became of a commit-like request that got no answer (TD-10a, review 2.4a)', () => {
   const sentAt = Date.parse('2026-09-24T20:00:00.000Z');
-  const base = {
+  const base: Record<string, unknown> = {
     sentAt,
     beforeRevision: 4,
     pending: null,
     sync: { state: 'in-sync', reason: '' },
     newest: { id: 4, kind: 'commit', createdAt: '2026-09-24T19:00:00.000Z' },
   };
-  const outcome = (f: Partial<typeof base> & Record<string, unknown>) =>
+  const outcome = (f: Record<string, unknown>) =>
     (net as unknown as { applyOutcome: (x: unknown) => unknown }).applyOutcome({ ...base, ...f });
 
   it('a pending commit: applied, waiting for confirmation', () => {

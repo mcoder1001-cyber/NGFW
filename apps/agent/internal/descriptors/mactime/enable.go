@@ -70,7 +70,9 @@ func (*EnableDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency 
 	return []scheduler.Dependency{{Key: dfkit.DefaultInterfaceKey(e.Interface)}}
 }
 
-func recordValue(idx uint32, name string) string { return strconv.FormatUint(uint64(idx), 10) + "/" + name }
+func recordValue(idx uint32, name string) string {
+	return strconv.FormatUint(uint64(idx), 10) + "/" + name
+}
 
 // IsEnabled reads feature_is_enabled for the mactime node on idx's device-input arc (see the type
 // comment for the out-of-range caveat).

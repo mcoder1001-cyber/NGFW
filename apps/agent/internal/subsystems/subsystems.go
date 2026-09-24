@@ -79,6 +79,15 @@ var Domains = map[string][]string{
 		dhcp.NameClient,
 		// wave-A: F-bonding
 		// wave-A: F-bridge-l2
+		bridgeL2Domain,
+		bridgeL2Member,
+		bridgeL2Xconnect,
+		bridgeL2FibEntry,
+		bridgeL2Flags,
+		bridgeL2TagRewrite,
+		bridgeL2L3xc,
+		bridgeL2MacRange,
+		bridgeL2MacEnable,
 		// wave-A: F-loopback-bvi-gso-lldp-span
 		// wave-A: F-neighbors-ra
 		// wave-A: F-rpf-adl-pbr
@@ -211,6 +220,7 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// options only through the Wiring methods (wave-A-hotspots A1).
 	// wave-A: F-bonding
 	// wave-A: F-bridge-l2
+	w.registerBridgeL2(r)
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-vrf-static-ecmp
 	// wave-A: F-neighbors-ra

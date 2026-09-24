@@ -27,7 +27,13 @@ so saving an unrelated field would enable a DHCP client. P08 drops such phantom 
 (`dropPhantomOptionals`, unit-tested); the proper fix is in `packages/ui-kit/src/schema-form/form-value.ts` (not P08's file):
 optional object members should stay absent until the user opts in (a presence toggle).
 
-## Q3 — BLOCKER (environment, fix round 1, 14:25): every interface create on this VPP fails closed in TD-3's sanitizer (placeholder cap 16)
+## Q3 — every interface create on this VPP failed closed in TD-3's sanitizer (placeholder cap 16) — RESOLVED by TD-5 (D-105 M1, D-110, D-113)
+
+**Resolution (manager, re-review T5 / D-118):** TD-5 (merged 3048991, in P08 since f2ac0e2) sets the cap to holes + 2×FreshRun ≤ 64
+and counts proven-freed pops as holes (D-110 D1, D-113 M1); TD-5.md shows a host create with 26 placeholders on this VPP. P08
+merged TD-5 in fix round 2 and runs without any scratch override (evidence in P08.md "Fix round 2"). Merge order: TD-5 before
+P08 (done). The original report is kept below.
+
 - Symptom (P08 and **main** alike): `interface.loopback/loop101: sanitize loop101 (sw_if_index 3, create): no clean sw_if_index
   obtained (VPP V19 quarantine): placeholder cap reached before every freed classify table index was resurrected (16 placeholders)`;
   sanitizer log `placeholders=16 holes_left=2 fresh_run=0 rereads=4`. VPP had no live classify table (`show classify tables` empty),
@@ -51,7 +57,13 @@ optional object members should stay absent until the user opts in (a presence to
   NRestarts 0 → 0. So TD-5's cap change is enough to unblock this VPP instance. TD-3 predicted this trade-off itself
   (TD-3-questions "Liveness trade-off"). Until TD-5 merges, `tools/ci.sh full` on main fails in `internal/agent` here.
 
-## Q4 — `tools/lab rig down` aborts half-way after an agent-created orphan (fix round 1, 15:42; not P08's file)
+## Q4 — `tools/lab rig down` aborts half-way after an agent-created orphan (fix round 1, 15:42; not P08's file) — FIXED on main (63178d2)
+
+**Resolution (manager, re-review T6 / D-118):** a tools/lab bug on main: deleting the netns tears the veth down asynchronously,
+so `ip link del` of the host veth could fail after the existence check and `set -e` aborted `rig down` before the WAN side.
+`rig down`/`gc` now tolerate that race (63178d2 "lab: rig down/gc tolerate the netns→veth teardown race"); P08 merged it in fix
+round 2 (f2ac0e2). The original report is kept below.
+
 In topology run 2 the agent's `af_packet_create_v3 host-w1l0` reply was lost in the I6 stall (the interface existed, untagged —
 review I2). `rig down w1` printed `delete vpp host-w1l0`, `delete netns ns-w1-lan (and its veth peer)`, then `Cannot find device
 "w1l0"` and exited 1, leaving `w1w0` and `ns-w1-wan`. A second `tools/lab rig down w1` (15:43) removed them. The veth delete after

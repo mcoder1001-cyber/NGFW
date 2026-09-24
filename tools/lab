@@ -329,9 +329,10 @@ rig_side_up() {  # <ns> <host-veth> <ns-veth> <vpp-if> <gw> <ip>
   ip -n "$ns" link set "$v" up
   ip -n "$ns" route replace default via "$gw"
   if vpp_if_exists "$vif"; then echo "  reuse  vpp $vif"; else
-    # small rings (TX 2048 × 256 = 0.5 MiB instead of 66 KiB × 1024 = 66 MiB; RX 2.5 MiB instead of 10 MiB): rings are set up on
-    # VPP's only thread and, under ESXi memory reclaim, stalled every API client for 40 s–5 min (P08 review I6, D-108); rig MTU 1500
-    local out; out="$(vpp_cli_ok create host-interface name "$h" tx-size 2048 tx-per-block 256 rx-size 2048 rx-per-block 8)" || die "rig: VPP refused 'create host-interface name $h': $out"
+    # small rings (TX 16 × 66 KiB = 1 MiB instead of 1024 × 66 KiB = 66 MiB; RX 2.5 MiB instead of 10 MiB): rings are set up on
+    # VPP's only thread and, under ESXi memory reclaim, stalled every API client for 40 s–5 min (P08 review I6, D-108). The TX FRAME
+    # stays 66 KiB: VPP's af_packet TX copy has no length check (device.c:561-573), a GSO/jumbo frame would overrun a smaller slot (TD-5 review H1, D-113)
+    local out; out="$(vpp_cli_ok create host-interface name "$h" tx-size 67584 tx-per-block 16 rx-size 2048 rx-per-block 8)" || die "rig: VPP refused 'create host-interface name $h': $out"
     [[ "$out" == *"$vif"* ]] || die "rig: expected VPP to create $vif, got: $out"
     echo "  create vpp $vif (af_packet on $h)"; fi
   vpp_cli_ok set interface state "$vif" up >/dev/null || die "rig: set interface state $vif up failed"
@@ -350,8 +351,10 @@ rig_side_down() {  # <ns> <host-veth> <vpp-if>
     # (EBADF) and a packet arriving during/after the delete can call a freed file handler (SIGSEGV PC 0x0, 2026-09-24 07:27)
     ip link set "$h" down 2>/dev/null || true; sleep 0.2
     vpp_cli_ok delete host-interface name "$h" >/dev/null && echo "  delete vpp $vif" || warn "rig: VPP could not delete $vif"; fi
-  if ip netns list | awk '{print $1}' | grep -qx "$ns"; then ip netns del "$ns" && echo "  delete netns $ns (and its veth peer)"; fi
-  if ip link show "$h" >/dev/null 2>&1; then ip link del "$h" && echo "  delete veth $h"; fi
+  # netns deletion tears the veth pair down asynchronously, so the host end can vanish between a check and a delete:
+  # never fail on that race (P08 Q4 / re-review T6) — rig_leftovers decides whether anything is really left
+  if ip netns list | awk '{print $1}' | grep -qx "$ns"; then ip netns del "$ns" 2>/dev/null && echo "  delete netns $ns (and its veth peer)" || true; fi
+  if ip link show "$h" >/dev/null 2>&1; then ip link del "$h" 2>/dev/null && echo "  delete veth $h" || true; fi
 }
 # Exact, anchored rig-object matchers (review F1): prefix w1 must never match w11's ns-w11-lan / w11l0 / host-w11l0.
 rig_own_netns() { ip netns list 2>/dev/null | awk '{print $1}' | grep -E "^ns-${P}-(lan|wan)$" || true; }
@@ -403,7 +406,7 @@ cmd_rig() {
       for n in $(rig_own_vpp); do
         ip link set "${n#host-}" down 2>/dev/null || true; sleep 0.2   # V24/D-101: quiesce before af_packet delete
         vpp_cli_ok delete host-interface name "${n#host-}" >/dev/null && echo "  delete vpp $n" || warn "could not delete $n"; done
-      for n in $(rig_own_netns); do ip netns del "$n" && echo "  delete netns $n"; done
+      for n in $(rig_own_netns); do ip netns del "$n" 2>/dev/null && echo "  delete netns $n" || true; done
       for n in $(rig_own_links); do ip link del "$n" 2>/dev/null && echo "  delete veth $n" || true; done
       local left; left="$(rig_leftovers)"
       [[ -z "$left" ]] || { echo "$left" | sed 's/^/  LEFTOVER /'; die "rig gc $P could not remove everything"; }

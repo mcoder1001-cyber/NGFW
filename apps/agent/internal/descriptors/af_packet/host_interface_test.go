@@ -22,16 +22,19 @@ var ctx = context.Background()
 type fakeAfp struct {
 	*ifacetest.VPP
 	hosts map[string]uint32 // host_if_name → sw_if_index
+	links *fakeLinks        // the Linux netdevs (quiesce_test.go)
 }
 
 func newFake() *fakeAfp {
 	f := &fakeAfp{VPP: ifacetest.New(), hosts: map[string]uint32{}}
+	f.links = newFakeLinks(f.Client)
 	f.hosts["w3-l0"] = f.Add("host-w3-l0", "af-packet", "w3:w3-l0")
 	f.On("af_packet_create_v3", func(req api.Message) ([]api.Message, error) {
 		r := req.(*afpapi.AfPacketCreateV3)
 		if _, dup := f.hosts[r.HostIfName]; dup || r.HostIfName == "missing" {
 			return []api.Message{&afpapi.AfPacketCreateV3Reply{Retval: -1}}, nil
 		}
+		f.links.setUp(r.HostIfName) // af_packet_create_if sets IFF_UP itself (af_packet.c:683-692)
 		idx := f.Add("host-"+r.HostIfName, "af-packet", "")
 		if r.Mode == afpapi.AF_PACKET_API_MODE_IP {
 			f.Ifs[idx].L2Address = [6]uint8{}
@@ -59,14 +62,19 @@ func newFake() *fakeAfp {
 	return f
 }
 
+// desc is the descriptor on the fake VPP with the fake link controller and a recorded, sleepless settle.
+func (f *fakeAfp) desc() *afpacket.HostInterfaceDescriptor {
+	return afpacket.New(f, owner, f.links.options()...)
+}
+
 func TestHostInterface(t *testing.T) {
 	f := newFake()
 	r := scheduler.NewRegistry()
-	afpacket.Register(r, f, owner)
+	afpacket.Register(r, f, owner, f.links.options()...)
 	if r.Len() != 1 || r.Names()[0] != "af-packet.host-interface" {
 		t.Fatal(r.Names())
 	}
-	d := afpacket.New(f, owner)
+	d := f.desc()
 	eth := &afpacket.HostInterface{Name: "w2-l0", HostIfName: "w2-l0"}
 	ip := &afpacket.HostInterface{Name: "w2-w0", HostIfName: "w2-w0", Mode: afpacket.Mode_MODE_IP}
 	if d.KeyOf(eth) != "af-packet.host-interface/w2-l0" || d.Dependencies(eth) != nil {
@@ -91,6 +99,18 @@ func TestHostInterface(t *testing.T) {
 	req := f.CallsNamed("af_packet_create_v3")[1].(*afpapi.AfPacketCreateV3)
 	if req.Mode != afpapi.AF_PACKET_API_MODE_ETHERNET || !req.UseRandomHwAddr || req.HostIfName != "w2-l0" {
 		t.Fatalf("af_packet_create_v3 = %+v", req)
+	}
+	// D-108 amended by D-113: rings shrunk by frame COUNT (TX 67584 × 16 ≈ 1 MiB, RX 2048 × 8 per block ≈ 2.5 MiB, instead of
+	// VPP's ≈ 76 MiB defaults, I6 stalls); the TX frame stays VPP's 2048 × 33, because the TX copy (device.c:561-573) has no
+	// length check and a GSO/jumbo frame would overrun a smaller slot. The TX block must be a page multiple (the kernel's rule).
+	for _, c := range f.CallsNamed("af_packet_create_v3") {
+		r := c.(*afpapi.AfPacketCreateV3)
+		if r.TxFrameSize != 2048*33 || r.TxFramesPerBlock != 16 || r.RxFrameSize != 2048 || r.RxFramesPerBlock != 8 || r.NumRxQueues != 1 || r.NumTxQueues != 1 {
+			t.Fatalf("af_packet_create_v3 ring: tx %d × %d, rx %d × %d, queues %d/%d", r.TxFrameSize, r.TxFramesPerBlock, r.RxFrameSize, r.RxFramesPerBlock, r.NumRxQueues, r.NumTxQueues)
+		}
+		if block := r.TxFrameSize * r.TxFramesPerBlock; block%4096 != 0 || block > 1<<21 {
+			t.Fatalf("TX block %d B: not a page multiple or over 2 MiB", block)
+		}
 	}
 	if row, _ := f.Get(f.hosts["w2-l0"]); row.Tag != "w2:w2-l0" {
 		t.Fatalf("tag = %q", row.Tag)

@@ -6,6 +6,7 @@
 //	vrx-vppcheck [--socket PATH] [--timeout DUR] version          print "vpp <version>" (show_version)
 //	vrx-vppcheck [--socket PATH] [--timeout DUR] plugins          loaded plugins, one per line (content of `show plugins`)
 //	vrx-vppcheck [--socket PATH] [--timeout DUR] ifaces NAME...   every NAME is a VPP interface (sw_interface_dump by name, exact match)
+//	vrx-vppcheck [--socket PATH] [--timeout DUR] bootid           D-080 boot identity "<boot_id>/<vpe pid>/<start time>" (control_ping + /proc)
 //
 // The socket defaults to $VRX_VPP_API_SOCKET, then /run/vpp/api.sock; the timeout (default 10s)
 // bounds the whole run: connect plus every request. A VPP that accepts the socket but does not
@@ -30,11 +31,12 @@ import (
 	"strings"
 	"time"
 
-	"ngfw/agent/binapi/interface_types"
 	interfaces "ngfw/agent/binapi/interface"
+	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/binapi/vpe"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // Exit codes.
@@ -82,7 +84,7 @@ func run(args []string, stdout, stderr io.Writer, dial dialer, afterFunc func(ti
 	fs.StringVar(&sock, "socket", sock, "VPP binary API socket")
 	limit := fs.Duration("timeout", defaultLimit, "deadline for the whole run (connect + requests)")
 	fs.Usage = func() {
-		_, _ = fmt.Fprintln(stderr, "usage: vrx-vppcheck [--socket PATH] [--timeout DUR] version | plugins | ifaces NAME...")
+		_, _ = fmt.Fprintln(stderr, "usage: vrx-vppcheck [--socket PATH] [--timeout DUR] version | plugins | bootid | ifaces NAME...")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -95,7 +97,7 @@ func run(args []string, stdout, stderr io.Writer, dial dialer, afterFunc func(ti
 	}
 	cmd, names := rest[0], rest[1:]
 	switch cmd {
-	case "version", "plugins":
+	case "version", "plugins", "bootid":
 		if len(names) != 0 {
 			fs.Usage()
 			return exitUsage
@@ -143,6 +145,13 @@ func run(args []string, stdout, stderr io.Writer, dial dialer, afterFunc func(ti
 		for _, p := range ps {
 			_, _ = fmt.Fprintln(stdout, p)
 		}
+	case "bootid":
+		id, err := bootid.Current(ctx, client)
+		if err != nil {
+			_, _ = fmt.Fprintf(stderr, "vrx-vppcheck: %v\n", err)
+			return exitVPP
+		}
+		_, _ = fmt.Fprintln(stdout, id.String())
 	case "ifaces":
 		missing, err := missingIfaces(ctx, client, names)
 		if err != nil {

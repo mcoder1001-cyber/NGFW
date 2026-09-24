@@ -95,41 +95,53 @@ The CLI never restarts VPP, never talks to VPP and runs no other process. Build:
 ## Manager apply procedure — `deploy/vpp/apply-startup.sh` (F-startup-apply, manager-only)
 
 Only the manager applies a start-up file, and only when a VPP restart is allowed: the script refuses `--apply` unless
-`docs/lab/host-<vm>.md` says `handover: done` in the canonical `/root/ngfw` copy **and** the script's own tree (same rule as
-`tools/lab`, D-012), or the product owner approved this change: `--i-have-product-owner-approval <PENDING-slug|D-nnn>`
-(recorded in the run log, `<work>/gate` and syslog tag `vrx-startup-apply`). Workers and tests never touch
-`/etc/vpp/startup.conf`; the script is tested only against a fake host (`deploy/vpp/test-apply-startup.sh`).
+`docs/lab/host-<vm>.md` says `handover: done` in the canonical `/root/ngfw` copy **and** the planner's tree (same rule as
+`tools/lab`, D-012), or the product owner approved this change: `--i-have-product-owner-approval PENDING-<slug>`, which
+must name `docs/decisions/PENDING-<slug>.md` **on main** and a `LOG.md` D-row on main that references it (both are
+resolved and recorded: file blob + D ids, in the run log, `<work>/gate` and syslog tag `vrx-startup-apply`). Workers and
+tests never touch `/etc/vpp/startup.conf`; the script is tested only against a fake host (`deploy/vpp/test-apply-startup.sh`).
 
 1. Build both tools from a known tree: `cd apps/agent && go build -o bin/vrx-startupgen ./cmd/vrx-startupgen &&
    go build -o bin/vrx-vppcheck ./cmd/vrx-vppcheck` (or point `VRX_STARTUPGEN` / `VRX_VPPCHECK` at absolute paths).
-2. Dry run (changes nothing): `deploy/vpp/apply-startup.sh --doc running.json [-- <generator flags>]`. Review the unified
-   and semantic diff, the drivers of every PCI device involved, the **protected management interfaces** (every default
-   route v4/v6, the path to `$SSH_CONNECTION`'s client, `--mgmt-if`) with their network manager (ifupdown / netplan /
-   networkd / none) and the exact `ip … replace` restore plan, the read-only VPP preflight (`vrx-vppcheck ifaces local0`)
-   and the gate. Exit 3 = `--apply` would refuse.
-3. Apply with both sums the dry run printed:
+2. Dry run (changes nothing): `deploy/vpp/apply-startup.sh --doc running.json [-- <generator flags>]`. Review the diffs,
+   the drivers of every PCI device involved, the **protected management interfaces** (every default route v4/v6, the path
+   to the SSH peer — shown —, `--mgmt-if`) with their network manager and exact `ip … replace` restore plan, the
+   **management reachability check** that will be used, the VPP preflight + boot identity and the gate. Exit 3 = `--apply`
+   would refuse (e.g. no viable reachability check on this host).
+3. Reachability check (`--mgmt-probe`, review H2): `auto` = `ssh-peer` (the manager's TCP session from `$SSH_CONNECTION` /
+   `--mgmt-peer` is ESTABLISHED in `ss`) when available, else `gateway-ping` only when the gateway answers ICMP **now**,
+   else refuse; or explicitly `tcp:HOST:PORT` (a TCP connect through the management path). On vrx-a the gateway drops
+   ICMP, so apply from an SSH session (and keep it open for the window) or pass `--mgmt-probe tcp:…`. In every mode the
+   management interface must also keep its addresses and routes exactly as snapshotted.
+4. Apply with both sums the dry run printed:
    `apply-startup.sh --doc running.json --apply --expect-sha256 <live> --expect-new-sha256 <rendered> [-- <same flags>]`.
-   The document, both binaries and the script are copied into `/var/lib/vrx/startup-apply/<stamp>/`, every setting is
-   written to `<work>/settings` and passed to `systemd-run` as `--setenv` (fallback `setsid`); the caller returns at
-   once — follow `journalctl -fu vrx-startup-apply-<stamp>` or `<work>/log`. The SSH session may die at any point.
-4. The detached run: locks (`vrx-vpp.lock` then `vrx-lab.lock`, bounded) → both sha256 re-checked inside the lock → VPP
-   preflight → snapshot (`ip -j addr` / `ip -j route` per management interface, drivers, loaded plugins, NRestarts) →
-   backup → dead-man timer → install → `systemctl restart vpp` → watch `--window` s: unit active and not crash-restarting,
-   API answers, plugins by `show plugins` content, logical names by `sw_interface_dump`, every management interface up
-   with all recorded addresses, same driver, default gateway(s) answering.
-5. Any failure → rollback: stop VPP (SIGKILL if the stop hangs), restore the backup, rebind changed NICs (driverctl
-   `unset-override`, sysfs unbind / `driver_override` / bind), re-apply the recorded addresses and routes verbatim, and
-   only if the interface is still broken the manager's own re-apply (`ifup --force`, `networkctl reconfigure`,
-   `netplan apply`), `reset-failed` + start VPP, verify. An incomplete rollback leaves the dead-man armed; it retries.
-6. **Timeouts everywhere (re-review N1):** every VPP/kernel/systemd call runs under `timeout` (`--cmd-timeout` 10 s,
-   `--svc-timeout` 120 s) with the lock fds closed; `vrx-vppcheck` has its own deadline plus a hard exit. The run has a
-   time budget; the dead-man fires after it, **kills the run** (its process group or unit), takes the locks with a bounded
-   wait (`--deadman-lock-timeout` 60 s) and rolls back **even if they stay busy** (logged as FORCED).
-7. Record the result in `docs/decisions/LOG.md` (what changed, backup name) and update `docs/lab/host-<vm>.md`.
+   The planner copies the document, both binaries and the script into `/var/lib/vrx/startup-apply/<stamp>/`, records every
+   setting in `<work>/settings`, seals the plan (`plan.sha256` over settings, document, binaries and the gate record) and
+   starts the run detached (`systemd-run`, settings also as `--setenv`; fallback `setsid`); the caller returns at once —
+   follow `journalctl -fu vrx-startup-apply-<stamp>` or `<work>/log`. `--foreground` is refused over SSH (`--console`).
+5. The detached run: verifies the seal and re-evaluates the gate (must equal the sealed record) → a **lock holder** (own
+   unit/session) takes `vrx-vpp.lock` then `vrx-lab.lock` and keeps them until commit or the end of the rollback →
+   both sha256 re-checked → VPP preflight → reachability baseline → snapshot (addresses/routes, drivers, plugins, D-080
+   boot identity) → backup → dead-man timer → install → `systemctl restart vpp` → a **new** boot identity whose PID is
+   vpp.service's MainPID → watch `--window` s: unit active, MainPID + ActiveEnterTimestampMonotonic and the boot identity
+   unchanged (no crash since the restart; `NRestarts` is not used — systemd resets it on a manual restart), plugins,
+   logical names, management state + reachability.
+6. Any failure → rollback (one attempt inside the run): stop VPP (SIGKILL if the stop hangs), restore the backup, rebind
+   changed NICs, re-apply the recorded addresses/routes verbatim, then only if still broken `ifup --force` /
+   `networkctl reconfigure` / `netplan apply`, `reset-failed` + start VPP, verify the same way. Healthy → locks released.
+   Incomplete → the locks stay held and the dead-man retries.
+7. **Timeouts and the dead-man:** every VPP/kernel/systemd call runs under `timeout` (`--cmd-timeout` 10 s,
+   `--svc-timeout` 120 s); the dead-man fires after the run budget plus a worst-case rollback (both printed in the log).
+   It kills the run's process tree (never the lock holder), rolls back with `--rollback-retries` (3) attempts and
+   exponential backoff from `--retry-backoff` (10 s), then releases the locks. If the holder is gone it takes the locks
+   itself, exclusively and bounded, before touching the run; only a foreign holder makes it roll back without them
+   (FORCED, holder from `lslocks` logged).
+8. Record the result in `docs/decisions/LOG.md` (what changed, backup name) and update `docs/lab/host-<vm>.md`.
 
 Exit codes: 0 committed / nothing to do · 1 failed and rolled back · 2 usage · 3 refused before any change.
-Needs `jq`, `flock`, `timeout` (coreutils) on the target host. Plugins the old file enabled and the new document no
-longer mentions (D-084 omission) may disappear after the restart without failing the apply.
+Needs `jq`, `flock`, `timeout`, `ss`, `git` (approval check) on the target host. Not restored automatically: multipath
+routes, policy-routing tables, address lifetimes. Plugins the old file enabled and the new document no longer mentions
+(D-084 omission) may disappear after the restart without failing the apply.
 
 A `dataplane.plugins` that leaves out a plugin the current file enables (D-084 "present = authoritative") is accepted by
 the generator with a warning; if the plugin is `default_disabled` in VPP (linux_cp, linux_nl, npt66) it will not load after

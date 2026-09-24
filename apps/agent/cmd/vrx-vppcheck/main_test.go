@@ -16,6 +16,7 @@ import (
 	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/binapi/vpe"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 	"ngfw/agent/internal/vpp/fake"
 )
 
@@ -63,6 +64,20 @@ func TestVersion(t *testing.T) {
 	rc, out, _ := runWith(t, withFake(fakeVPP()), "version")
 	if rc != exitOK || out != "vpp 26.06-release\n" {
 		t.Fatalf("rc=%d out=%q", rc, out)
+	}
+}
+
+func TestBootID(t *testing.T) {
+	root := t.TempDir()
+	if err := bootid.WriteFakeProc(root, "b-1", map[int]uint64{4242: 777}); err != nil {
+		t.Fatal(err)
+	}
+	defer bootid.SetProcRoot(root)()
+	f := fakeVPP()
+	f.Reply("control_ping", &memclnt.ControlPingReply{VpePID: 4242})
+	rc, out, e := runWith(t, withFake(f), "bootid")
+	if rc != exitOK || out != "b-1/4242/777\n" {
+		t.Fatalf("rc=%d out=%q err=%q", rc, out, e)
 	}
 }
 

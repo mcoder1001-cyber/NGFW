@@ -2400,7 +2400,7 @@ tasks:
   - F-startup-apply
   priority: 3
   est_hours: 3
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.6
@@ -2413,4 +2413,5 @@ tasks:
   finished: ''
   notes: 'D-103: must merge before any real --apply on vrx-a | spawned 07:58 slot 6 (Agent tool), envelope /root/ngfw-wt/TD-6.envelope.md | 13:18 manager restart: CONTINUE respawned, envelope /root/ngfw-wt/TD-6.continue.md
     | 13:51 stopped for handover: WIP 59fb54e; L1 ci step + doc done; sharded harness 102 pass / 24 fail under load 35–45 (likely timing, unverified); next: serial rerun of failed scenarios on quiet host
-    (cmd in TD-6-wip.md), then tools/ci.sh --base main, TD-6.md | 14:00 ngfw-46: CONTINUE (Agent tool), envelope /root/ngfw-wt/TD-6.continue46.md — serial rerun of the 24 load failures, CI, TD-6.md'
+    (cmd in TD-6-wip.md), then tools/ci.sh --base main, TD-6.md | 14:00 ngfw-46: CONTINUE (Agent tool), envelope /root/ngfw-wt/TD-6.continue46.md — serial rerun of the 24 load failures, CI, TD-6.md | worker
+    done b388ca7 (code 85a6ed5), CI green, harness 128/128; review spawned by ngfw-46, envelope /root/ngfw-wt/TD-6.review.md'

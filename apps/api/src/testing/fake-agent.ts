@@ -624,6 +624,9 @@ export class FakeAgent {
       // Feature RPCs: one handler line under the feature's anchor (the contract commit's UNIMPLEMENTED stub;
       // real fake behaviour lives in features/<slug>/fake.ts, wired by the same line — wave-A-hotspots P5).
       // wave-A: F-bonding
+      bondState: (call, cb) =>
+        this.checkCommon('BondState', call.request, cb) &&
+        cb({ code: status.UNIMPLEMENTED, details: 'unknown method BondState' }),
       // wave-A: F-bridge-l2
       // wave-A: F-loopback-bvi-gso-lldp-span
       // wave-A: F-vrf-static-ecmp

@@ -1249,7 +1249,11 @@ export interface Interface {
     | boolean
     | undefined;
   /** DHCPv4 client (dhcp_client_config); present = enabled (D-050). */
-  dhcpClient: DhcpClient | undefined;
+  dhcpClient:
+    | DhcpClient
+    | undefined;
+  /** Link aggregation (F-bonding): the interface (named BondEthernet<id>) is a VPP bond of the member interfaces; unset = not a bond. */
+  bond: Bond | undefined;
 }
 
 export interface Interface_SubinterfacesEntry {
@@ -5274,6 +5278,135 @@ export interface RemoteAccessProfile_Radius_Server {
     | undefined;
   /** Reference to the shared secret. */
   secretRef?: string | undefined;
+}
+
+/**
+ * Bond mirrors `interfaces.<BondEthernet<id>>.bond` (packages/schema/src/domains/ext/bonding.ts): bond_create2 +
+ * bond_add_member + sw_interface_set_bond_weight.
+ */
+export interface Bond {
+  /** "lacp" | "xor" | "round-robin" | "active-backup" | "broadcast". */
+  mode?:
+    | string
+    | undefined;
+  /** Transmit hash of xor / lacp bonds: "l2" | "l23" | "l34"; unset = l2 (VPP forces the algorithm of the other modes). */
+  loadBalance?:
+    | string
+    | undefined;
+  /** Member interfaces keyed by their logical name (D-069). */
+  members: { [key: string]: BondMember };
+  /** Transmit only on members attached to the bond's NUMA node; Zod default false. */
+  numaOnly?:
+    | boolean
+    | undefined;
+  /** VPP bond id (the interface is BondEthernet<id>); unset = the number in the interface name. */
+  id?: number | undefined;
+}
+
+export interface Bond_MembersEntry {
+  key: string;
+  value: BondMember | undefined;
+}
+
+/** BondMember mirrors `….bond.members.<ifName>`. */
+export interface BondMember {
+  /** LACP only: do not initiate LACP (is_passive); Zod default false. */
+  passive?:
+    | boolean
+    | undefined;
+  /** LACP only: 90 s partner timeout instead of 3 s (is_long_timeout); Zod default false. */
+  longTimeout?:
+    | boolean
+    | undefined;
+  /** active-backup only: member weight 1–255 (sw_interface_set_bond_weight); unset = VPP default. */
+  weight?: number | undefined;
+}
+
+/** BondStateRequest selects bonds by logical name; empty = every bond of this agent. */
+export interface BondStateRequest {
+  names: string[];
+  /** Expected agent owner (as ApplyRequest.owner); empty = the agent's owner. */
+  owner: string;
+}
+
+/** BondStateResponse is the live bond table of this agent (bonds whose interface carries its owner tag). */
+export interface BondStateResponse {
+  /** One entry per bond, sorted by name. */
+  bonds: BondStatus[];
+  owner: string;
+  retrievedAt: Date | undefined;
+}
+
+/** BondStatus is one bond as VPP reports it (sw_bond_interface_dump + sw_interface_dump). */
+export interface BondStatus {
+  /** Logical name (the configuration key, BondEthernet<id>). */
+  name: string;
+  /** VPP's interface name. */
+  vppName: string;
+  swIfIndex: number;
+  /** VPP bond id. */
+  id: number;
+  /** "lacp" | "xor" | "round-robin" | "active-backup" | "broadcast". */
+  mode: string;
+  /** "l2" | "l23" | "l34" | "round-robin" | "active-backup" | "broadcast" (the value VPP reports; forced for rr/ab/broadcast). */
+  loadBalance: string;
+  numaOnly: boolean;
+  /** Administrative and link state of the bond interface. */
+  adminUp: boolean;
+  linkUp: boolean;
+  /** Number of members, and of members in the active (transmitting) set. */
+  memberCount: number;
+  activeMemberCount: number;
+  /** One entry per member, sorted by interface name. */
+  members: BondMemberStatus[];
+}
+
+/** BondMemberStatus is one member of a bond (sw_member_interface_dump, sw_interface_dump, sw_interface_lacp_dump). */
+export interface BondMemberStatus {
+  /** Logical interface name (D-069); VPP's name for a member this agent cannot name. */
+  interface: string;
+  swIfIndex: number;
+  passive: boolean;
+  longTimeout: boolean;
+  /** Weight as VPP reports it (0 = never set). */
+  weight: number;
+  isLocalNuma: boolean;
+  adminUp: boolean;
+  linkUp: boolean;
+  /** LACP state of the member; unset for bonds in other modes (or when the lacp plugin reports nothing). */
+  lacp: BondLacpState | undefined;
+}
+
+/**
+ * BondLacpState is one member's LACP state (sw_interface_lacp_details). State machine values are decoded to the
+ * lacp plugin's names (rx: initialize|port-disabled|expired|lacp-disabled|defaulted|current; tx: transmit;
+ * mux: detached|waiting|attached|collecting-distributing; ptx: no-periodic|fast-periodic|slow-periodic|periodic-tx),
+ * or the number in decimal for a value the plugin does not define.
+ */
+export interface BondLacpState {
+  rxState: string;
+  txState: string;
+  muxState: string;
+  ptxState: string;
+  actor: BondLacpPort | undefined;
+  partner: BondLacpPort | undefined;
+}
+
+/** BondLacpPort is the actor or partner half of an LACP port. */
+export interface BondLacpPort {
+  systemPriority: number;
+  /** System id MAC "aa:bb:cc:dd:ee:ff" (all zero while no partner has been seen). */
+  system: string;
+  key: number;
+  portPriority: number;
+  portNumber: number;
+  /** LACP state octet (802.1AX): bit 0 activity … bit 7 expired. */
+  state: number;
+  /**
+   * The set bits of `state` by name: activity, timeout, aggregation, synchronization, collecting, distributing,
+   * defaulted, expired.
+   */
+  stateFlags: string[];
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -11078,6 +11211,7 @@ function createBaseInterface(): Interface {
     unnumbered: undefined,
     promiscuous: undefined,
     dhcpClient: undefined,
+    bond: undefined,
   };
 }
 
@@ -11118,6 +11252,9 @@ export const Interface: MessageFns<Interface> = {
     }
     if (message.dhcpClient !== undefined) {
       DhcpClient.encode(message.dhcpClient, writer.uint32(98).fork()).join();
+    }
+    if (message.bond !== undefined) {
+      Bond.encode(message.bond, writer.uint32(106).fork()).join();
     }
     return writer;
   },
@@ -11234,6 +11371,14 @@ export const Interface: MessageFns<Interface> = {
             message.dhcpClient = DhcpClient.decode(reader, reader.uint32());
             continue;
           }
+          case 13: {
+            if (tag !== 106) {
+              break;
+            }
+
+            message.bond = Bond.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -11281,6 +11426,7 @@ export const Interface: MessageFns<Interface> = {
         : isSet(object.dhcp_client)
         ? DhcpClient.fromJSON(object.dhcp_client)
         : undefined,
+      bond: isSet(object.bond) ? Bond.fromJSON(object.bond) : undefined,
     };
   },
 
@@ -11328,6 +11474,9 @@ export const Interface: MessageFns<Interface> = {
     if (message.dhcpClient !== undefined) {
       obj.dhcpClient = DhcpClient.toJSON(message.dhcpClient);
     }
+    if (message.bond !== undefined) {
+      obj.bond = Bond.toJSON(message.bond);
+    }
     return obj;
   },
 
@@ -11358,6 +11507,7 @@ export const Interface: MessageFns<Interface> = {
     message.dhcpClient = (object.dhcpClient !== undefined && object.dhcpClient !== null)
       ? DhcpClient.fromPartial(object.dhcpClient)
       : undefined;
+    message.bond = (object.bond !== undefined && object.bond !== null) ? Bond.fromPartial(object.bond) : undefined;
     return message;
   },
 };
@@ -42617,6 +42767,1430 @@ export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_R
   },
 };
 
+function createBaseBond(): Bond {
+  return { mode: undefined, loadBalance: undefined, members: {}, numaOnly: undefined, id: undefined };
+}
+
+export const Bond: MessageFns<Bond> = {
+  encode(message: Bond, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.mode !== undefined) {
+      writer.uint32(10).string(message.mode);
+    }
+    if (message.loadBalance !== undefined) {
+      writer.uint32(18).string(message.loadBalance);
+    }
+    globalThis.Object.entries(message.members).forEach(([key, value]: [string, BondMember]) => {
+      Bond_MembersEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
+    });
+    if (message.numaOnly !== undefined) {
+      writer.uint32(32).bool(message.numaOnly);
+    }
+    if (message.id !== undefined) {
+      writer.uint32(40).uint32(message.id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Bond {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBond();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.mode = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.loadBalance = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            const entry3 = Bond_MembersEntry.decode(reader, reader.uint32());
+            if (entry3.value !== undefined) {
+              message.members[entry3.key] = entry3.value;
+            }
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.numaOnly = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.id = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Bond {
+    return {
+      mode: isSet(object.mode) ? globalThis.String(object.mode) : undefined,
+      loadBalance: isSet(object.loadBalance)
+        ? globalThis.String(object.loadBalance)
+        : isSet(object.load_balance)
+        ? globalThis.String(object.load_balance)
+        : undefined,
+      members: isObject(object.members)
+        ? (globalThis.Object.entries(object.members) as [string, any][]).reduce(
+          (acc: { [key: string]: BondMember }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: BondMember.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      numaOnly: isSet(object.numaOnly)
+        ? globalThis.Boolean(object.numaOnly)
+        : isSet(object.numa_only)
+        ? globalThis.Boolean(object.numa_only)
+        : undefined,
+      id: isSet(object.id) ? globalThis.Number(object.id) : undefined,
+    };
+  },
+
+  toJSON(message: Bond): unknown {
+    const obj: any = {};
+    if (message.mode !== undefined) {
+      obj.mode = message.mode;
+    }
+    if (message.loadBalance !== undefined) {
+      obj.loadBalance = message.loadBalance;
+    }
+    if (message.members) {
+      const entries = globalThis.Object.entries(message.members) as [string, BondMember][];
+      if (entries.length > 0) {
+        obj.members = {};
+        entries.forEach(([k, v]) => {
+          obj.members[k] = BondMember.toJSON(v);
+        });
+      }
+    }
+    if (message.numaOnly !== undefined) {
+      obj.numaOnly = message.numaOnly;
+    }
+    if (message.id !== undefined) {
+      obj.id = Math.round(message.id);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Bond>): Bond {
+    return Bond.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Bond>): Bond {
+    const message = createBaseBond();
+    message.mode = object.mode ?? undefined;
+    message.loadBalance = object.loadBalance ?? undefined;
+    message.members = (globalThis.Object.entries(object.members ?? {}) as [string, BondMember][]).reduce(
+      (acc: { [key: string]: BondMember }, [key, value]: [string, BondMember]) => {
+        if (value !== undefined) {
+          acc[key] = BondMember.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.numaOnly = object.numaOnly ?? undefined;
+    message.id = object.id ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBond_MembersEntry(): Bond_MembersEntry {
+  return { key: "", value: undefined };
+}
+
+export const Bond_MembersEntry: MessageFns<Bond_MembersEntry> = {
+  encode(message: Bond_MembersEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      BondMember.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Bond_MembersEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBond_MembersEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = BondMember.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Bond_MembersEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? BondMember.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: Bond_MembersEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = BondMember.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Bond_MembersEntry>): Bond_MembersEntry {
+    return Bond_MembersEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Bond_MembersEntry>): Bond_MembersEntry {
+    const message = createBaseBond_MembersEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? BondMember.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseBondMember(): BondMember {
+  return { passive: undefined, longTimeout: undefined, weight: undefined };
+}
+
+export const BondMember: MessageFns<BondMember> = {
+  encode(message: BondMember, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.passive !== undefined) {
+      writer.uint32(8).bool(message.passive);
+    }
+    if (message.longTimeout !== undefined) {
+      writer.uint32(16).bool(message.longTimeout);
+    }
+    if (message.weight !== undefined) {
+      writer.uint32(24).uint32(message.weight);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BondMember {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBondMember();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.passive = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.longTimeout = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BondMember {
+    return {
+      passive: isSet(object.passive) ? globalThis.Boolean(object.passive) : undefined,
+      longTimeout: isSet(object.longTimeout)
+        ? globalThis.Boolean(object.longTimeout)
+        : isSet(object.long_timeout)
+        ? globalThis.Boolean(object.long_timeout)
+        : undefined,
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
+    };
+  },
+
+  toJSON(message: BondMember): unknown {
+    const obj: any = {};
+    if (message.passive !== undefined) {
+      obj.passive = message.passive;
+    }
+    if (message.longTimeout !== undefined) {
+      obj.longTimeout = message.longTimeout;
+    }
+    if (message.weight !== undefined) {
+      obj.weight = Math.round(message.weight);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BondMember>): BondMember {
+    return BondMember.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BondMember>): BondMember {
+    const message = createBaseBondMember();
+    message.passive = object.passive ?? undefined;
+    message.longTimeout = object.longTimeout ?? undefined;
+    message.weight = object.weight ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBondStateRequest(): BondStateRequest {
+  return { names: [], owner: "" };
+}
+
+export const BondStateRequest: MessageFns<BondStateRequest> = {
+  encode(message: BondStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.names) {
+      writer.uint32(10).string(v!);
+    }
+    if (message.owner !== "") {
+      writer.uint32(18).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BondStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBondStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.names.push(reader.string());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BondStateRequest {
+    return {
+      names: globalThis.Array.isArray(object?.names) ? object.names.map((e: any) => globalThis.String(e)) : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+    };
+  },
+
+  toJSON(message: BondStateRequest): unknown {
+    const obj: any = {};
+    if (message.names?.length) {
+      obj.names = message.names;
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BondStateRequest>): BondStateRequest {
+    return BondStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BondStateRequest>): BondStateRequest {
+    const message = createBaseBondStateRequest();
+    message.names = object.names?.map((e) => e) || [];
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseBondStateResponse(): BondStateResponse {
+  return { bonds: [], owner: "", retrievedAt: undefined };
+}
+
+export const BondStateResponse: MessageFns<BondStateResponse> = {
+  encode(message: BondStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.bonds) {
+      BondStatus.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.owner !== "") {
+      writer.uint32(18).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BondStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBondStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.bonds.push(BondStatus.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BondStateResponse {
+    return {
+      bonds: globalThis.Array.isArray(object?.bonds) ? object.bonds.map((e: any) => BondStatus.fromJSON(e)) : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: BondStateResponse): unknown {
+    const obj: any = {};
+    if (message.bonds?.length) {
+      obj.bonds = message.bonds.map((e) => BondStatus.toJSON(e));
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BondStateResponse>): BondStateResponse {
+    return BondStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BondStateResponse>): BondStateResponse {
+    const message = createBaseBondStateResponse();
+    message.bonds = object.bonds?.map((e) => BondStatus.fromPartial(e)) || [];
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBondStatus(): BondStatus {
+  return {
+    name: "",
+    vppName: "",
+    swIfIndex: 0,
+    id: 0,
+    mode: "",
+    loadBalance: "",
+    numaOnly: false,
+    adminUp: false,
+    linkUp: false,
+    memberCount: 0,
+    activeMemberCount: 0,
+    members: [],
+  };
+}
+
+export const BondStatus: MessageFns<BondStatus> = {
+  encode(message: BondStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.vppName !== "") {
+      writer.uint32(18).string(message.vppName);
+    }
+    if (message.swIfIndex !== 0) {
+      writer.uint32(24).uint32(message.swIfIndex);
+    }
+    if (message.id !== 0) {
+      writer.uint32(32).uint32(message.id);
+    }
+    if (message.mode !== "") {
+      writer.uint32(42).string(message.mode);
+    }
+    if (message.loadBalance !== "") {
+      writer.uint32(50).string(message.loadBalance);
+    }
+    if (message.numaOnly !== false) {
+      writer.uint32(56).bool(message.numaOnly);
+    }
+    if (message.adminUp !== false) {
+      writer.uint32(64).bool(message.adminUp);
+    }
+    if (message.linkUp !== false) {
+      writer.uint32(72).bool(message.linkUp);
+    }
+    if (message.memberCount !== 0) {
+      writer.uint32(80).uint32(message.memberCount);
+    }
+    if (message.activeMemberCount !== 0) {
+      writer.uint32(88).uint32(message.activeMemberCount);
+    }
+    for (const v of message.members) {
+      BondMemberStatus.encode(v!, writer.uint32(98).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BondStatus {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBondStatus();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.vppName = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.swIfIndex = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.id = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.mode = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.loadBalance = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.numaOnly = reader.bool();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.adminUp = reader.bool();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.linkUp = reader.bool();
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.memberCount = reader.uint32();
+            continue;
+          }
+          case 11: {
+            if (tag !== 88) {
+              break;
+            }
+
+            message.activeMemberCount = reader.uint32();
+            continue;
+          }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.members.push(BondMemberStatus.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BondStatus {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      vppName: isSet(object.vppName)
+        ? globalThis.String(object.vppName)
+        : isSet(object.vpp_name)
+        ? globalThis.String(object.vpp_name)
+        : "",
+      swIfIndex: isSet(object.swIfIndex)
+        ? globalThis.Number(object.swIfIndex)
+        : isSet(object.sw_if_index)
+        ? globalThis.Number(object.sw_if_index)
+        : 0,
+      id: isSet(object.id) ? globalThis.Number(object.id) : 0,
+      mode: isSet(object.mode) ? globalThis.String(object.mode) : "",
+      loadBalance: isSet(object.loadBalance)
+        ? globalThis.String(object.loadBalance)
+        : isSet(object.load_balance)
+        ? globalThis.String(object.load_balance)
+        : "",
+      numaOnly: isSet(object.numaOnly)
+        ? globalThis.Boolean(object.numaOnly)
+        : isSet(object.numa_only)
+        ? globalThis.Boolean(object.numa_only)
+        : false,
+      adminUp: isSet(object.adminUp)
+        ? globalThis.Boolean(object.adminUp)
+        : isSet(object.admin_up)
+        ? globalThis.Boolean(object.admin_up)
+        : false,
+      linkUp: isSet(object.linkUp)
+        ? globalThis.Boolean(object.linkUp)
+        : isSet(object.link_up)
+        ? globalThis.Boolean(object.link_up)
+        : false,
+      memberCount: isSet(object.memberCount)
+        ? globalThis.Number(object.memberCount)
+        : isSet(object.member_count)
+        ? globalThis.Number(object.member_count)
+        : 0,
+      activeMemberCount: isSet(object.activeMemberCount)
+        ? globalThis.Number(object.activeMemberCount)
+        : isSet(object.active_member_count)
+        ? globalThis.Number(object.active_member_count)
+        : 0,
+      members: globalThis.Array.isArray(object?.members)
+        ? object.members.map((e: any) => BondMemberStatus.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: BondStatus): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.vppName !== "") {
+      obj.vppName = message.vppName;
+    }
+    if (message.swIfIndex !== 0) {
+      obj.swIfIndex = Math.round(message.swIfIndex);
+    }
+    if (message.id !== 0) {
+      obj.id = Math.round(message.id);
+    }
+    if (message.mode !== "") {
+      obj.mode = message.mode;
+    }
+    if (message.loadBalance !== "") {
+      obj.loadBalance = message.loadBalance;
+    }
+    if (message.numaOnly !== false) {
+      obj.numaOnly = message.numaOnly;
+    }
+    if (message.adminUp !== false) {
+      obj.adminUp = message.adminUp;
+    }
+    if (message.linkUp !== false) {
+      obj.linkUp = message.linkUp;
+    }
+    if (message.memberCount !== 0) {
+      obj.memberCount = Math.round(message.memberCount);
+    }
+    if (message.activeMemberCount !== 0) {
+      obj.activeMemberCount = Math.round(message.activeMemberCount);
+    }
+    if (message.members?.length) {
+      obj.members = message.members.map((e) => BondMemberStatus.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BondStatus>): BondStatus {
+    return BondStatus.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BondStatus>): BondStatus {
+    const message = createBaseBondStatus();
+    message.name = object.name ?? "";
+    message.vppName = object.vppName ?? "";
+    message.swIfIndex = object.swIfIndex ?? 0;
+    message.id = object.id ?? 0;
+    message.mode = object.mode ?? "";
+    message.loadBalance = object.loadBalance ?? "";
+    message.numaOnly = object.numaOnly ?? false;
+    message.adminUp = object.adminUp ?? false;
+    message.linkUp = object.linkUp ?? false;
+    message.memberCount = object.memberCount ?? 0;
+    message.activeMemberCount = object.activeMemberCount ?? 0;
+    message.members = object.members?.map((e) => BondMemberStatus.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseBondMemberStatus(): BondMemberStatus {
+  return {
+    interface: "",
+    swIfIndex: 0,
+    passive: false,
+    longTimeout: false,
+    weight: 0,
+    isLocalNuma: false,
+    adminUp: false,
+    linkUp: false,
+    lacp: undefined,
+  };
+}
+
+export const BondMemberStatus: MessageFns<BondMemberStatus> = {
+  encode(message: BondMemberStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== "") {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.swIfIndex !== 0) {
+      writer.uint32(16).uint32(message.swIfIndex);
+    }
+    if (message.passive !== false) {
+      writer.uint32(24).bool(message.passive);
+    }
+    if (message.longTimeout !== false) {
+      writer.uint32(32).bool(message.longTimeout);
+    }
+    if (message.weight !== 0) {
+      writer.uint32(40).uint32(message.weight);
+    }
+    if (message.isLocalNuma !== false) {
+      writer.uint32(48).bool(message.isLocalNuma);
+    }
+    if (message.adminUp !== false) {
+      writer.uint32(56).bool(message.adminUp);
+    }
+    if (message.linkUp !== false) {
+      writer.uint32(64).bool(message.linkUp);
+    }
+    if (message.lacp !== undefined) {
+      BondLacpState.encode(message.lacp, writer.uint32(74).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BondMemberStatus {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBondMemberStatus();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.swIfIndex = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.passive = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.longTimeout = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.isLocalNuma = reader.bool();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.adminUp = reader.bool();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.linkUp = reader.bool();
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.lacp = BondLacpState.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BondMemberStatus {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      swIfIndex: isSet(object.swIfIndex)
+        ? globalThis.Number(object.swIfIndex)
+        : isSet(object.sw_if_index)
+        ? globalThis.Number(object.sw_if_index)
+        : 0,
+      passive: isSet(object.passive) ? globalThis.Boolean(object.passive) : false,
+      longTimeout: isSet(object.longTimeout)
+        ? globalThis.Boolean(object.longTimeout)
+        : isSet(object.long_timeout)
+        ? globalThis.Boolean(object.long_timeout)
+        : false,
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : 0,
+      isLocalNuma: isSet(object.isLocalNuma)
+        ? globalThis.Boolean(object.isLocalNuma)
+        : isSet(object.is_local_numa)
+        ? globalThis.Boolean(object.is_local_numa)
+        : false,
+      adminUp: isSet(object.adminUp)
+        ? globalThis.Boolean(object.adminUp)
+        : isSet(object.admin_up)
+        ? globalThis.Boolean(object.admin_up)
+        : false,
+      linkUp: isSet(object.linkUp)
+        ? globalThis.Boolean(object.linkUp)
+        : isSet(object.link_up)
+        ? globalThis.Boolean(object.link_up)
+        : false,
+      lacp: isSet(object.lacp) ? BondLacpState.fromJSON(object.lacp) : undefined,
+    };
+  },
+
+  toJSON(message: BondMemberStatus): unknown {
+    const obj: any = {};
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.swIfIndex !== 0) {
+      obj.swIfIndex = Math.round(message.swIfIndex);
+    }
+    if (message.passive !== false) {
+      obj.passive = message.passive;
+    }
+    if (message.longTimeout !== false) {
+      obj.longTimeout = message.longTimeout;
+    }
+    if (message.weight !== 0) {
+      obj.weight = Math.round(message.weight);
+    }
+    if (message.isLocalNuma !== false) {
+      obj.isLocalNuma = message.isLocalNuma;
+    }
+    if (message.adminUp !== false) {
+      obj.adminUp = message.adminUp;
+    }
+    if (message.linkUp !== false) {
+      obj.linkUp = message.linkUp;
+    }
+    if (message.lacp !== undefined) {
+      obj.lacp = BondLacpState.toJSON(message.lacp);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BondMemberStatus>): BondMemberStatus {
+    return BondMemberStatus.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BondMemberStatus>): BondMemberStatus {
+    const message = createBaseBondMemberStatus();
+    message.interface = object.interface ?? "";
+    message.swIfIndex = object.swIfIndex ?? 0;
+    message.passive = object.passive ?? false;
+    message.longTimeout = object.longTimeout ?? false;
+    message.weight = object.weight ?? 0;
+    message.isLocalNuma = object.isLocalNuma ?? false;
+    message.adminUp = object.adminUp ?? false;
+    message.linkUp = object.linkUp ?? false;
+    message.lacp = (object.lacp !== undefined && object.lacp !== null)
+      ? BondLacpState.fromPartial(object.lacp)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseBondLacpState(): BondLacpState {
+  return { rxState: "", txState: "", muxState: "", ptxState: "", actor: undefined, partner: undefined };
+}
+
+export const BondLacpState: MessageFns<BondLacpState> = {
+  encode(message: BondLacpState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.rxState !== "") {
+      writer.uint32(10).string(message.rxState);
+    }
+    if (message.txState !== "") {
+      writer.uint32(18).string(message.txState);
+    }
+    if (message.muxState !== "") {
+      writer.uint32(26).string(message.muxState);
+    }
+    if (message.ptxState !== "") {
+      writer.uint32(34).string(message.ptxState);
+    }
+    if (message.actor !== undefined) {
+      BondLacpPort.encode(message.actor, writer.uint32(42).fork()).join();
+    }
+    if (message.partner !== undefined) {
+      BondLacpPort.encode(message.partner, writer.uint32(50).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BondLacpState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBondLacpState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.rxState = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.txState = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.muxState = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.ptxState = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.actor = BondLacpPort.decode(reader, reader.uint32());
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.partner = BondLacpPort.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BondLacpState {
+    return {
+      rxState: isSet(object.rxState)
+        ? globalThis.String(object.rxState)
+        : isSet(object.rx_state)
+        ? globalThis.String(object.rx_state)
+        : "",
+      txState: isSet(object.txState)
+        ? globalThis.String(object.txState)
+        : isSet(object.tx_state)
+        ? globalThis.String(object.tx_state)
+        : "",
+      muxState: isSet(object.muxState)
+        ? globalThis.String(object.muxState)
+        : isSet(object.mux_state)
+        ? globalThis.String(object.mux_state)
+        : "",
+      ptxState: isSet(object.ptxState)
+        ? globalThis.String(object.ptxState)
+        : isSet(object.ptx_state)
+        ? globalThis.String(object.ptx_state)
+        : "",
+      actor: isSet(object.actor) ? BondLacpPort.fromJSON(object.actor) : undefined,
+      partner: isSet(object.partner) ? BondLacpPort.fromJSON(object.partner) : undefined,
+    };
+  },
+
+  toJSON(message: BondLacpState): unknown {
+    const obj: any = {};
+    if (message.rxState !== "") {
+      obj.rxState = message.rxState;
+    }
+    if (message.txState !== "") {
+      obj.txState = message.txState;
+    }
+    if (message.muxState !== "") {
+      obj.muxState = message.muxState;
+    }
+    if (message.ptxState !== "") {
+      obj.ptxState = message.ptxState;
+    }
+    if (message.actor !== undefined) {
+      obj.actor = BondLacpPort.toJSON(message.actor);
+    }
+    if (message.partner !== undefined) {
+      obj.partner = BondLacpPort.toJSON(message.partner);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BondLacpState>): BondLacpState {
+    return BondLacpState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BondLacpState>): BondLacpState {
+    const message = createBaseBondLacpState();
+    message.rxState = object.rxState ?? "";
+    message.txState = object.txState ?? "";
+    message.muxState = object.muxState ?? "";
+    message.ptxState = object.ptxState ?? "";
+    message.actor = (object.actor !== undefined && object.actor !== null)
+      ? BondLacpPort.fromPartial(object.actor)
+      : undefined;
+    message.partner = (object.partner !== undefined && object.partner !== null)
+      ? BondLacpPort.fromPartial(object.partner)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseBondLacpPort(): BondLacpPort {
+  return { systemPriority: 0, system: "", key: 0, portPriority: 0, portNumber: 0, state: 0, stateFlags: [] };
+}
+
+export const BondLacpPort: MessageFns<BondLacpPort> = {
+  encode(message: BondLacpPort, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.systemPriority !== 0) {
+      writer.uint32(8).uint32(message.systemPriority);
+    }
+    if (message.system !== "") {
+      writer.uint32(18).string(message.system);
+    }
+    if (message.key !== 0) {
+      writer.uint32(24).uint32(message.key);
+    }
+    if (message.portPriority !== 0) {
+      writer.uint32(32).uint32(message.portPriority);
+    }
+    if (message.portNumber !== 0) {
+      writer.uint32(40).uint32(message.portNumber);
+    }
+    if (message.state !== 0) {
+      writer.uint32(48).uint32(message.state);
+    }
+    for (const v of message.stateFlags) {
+      writer.uint32(58).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BondLacpPort {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBondLacpPort();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.systemPriority = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.system = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.key = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.portPriority = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.portNumber = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.state = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.stateFlags.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BondLacpPort {
+    return {
+      systemPriority: isSet(object.systemPriority)
+        ? globalThis.Number(object.systemPriority)
+        : isSet(object.system_priority)
+        ? globalThis.Number(object.system_priority)
+        : 0,
+      system: isSet(object.system) ? globalThis.String(object.system) : "",
+      key: isSet(object.key) ? globalThis.Number(object.key) : 0,
+      portPriority: isSet(object.portPriority)
+        ? globalThis.Number(object.portPriority)
+        : isSet(object.port_priority)
+        ? globalThis.Number(object.port_priority)
+        : 0,
+      portNumber: isSet(object.portNumber)
+        ? globalThis.Number(object.portNumber)
+        : isSet(object.port_number)
+        ? globalThis.Number(object.port_number)
+        : 0,
+      state: isSet(object.state) ? globalThis.Number(object.state) : 0,
+      stateFlags: globalThis.Array.isArray(object?.stateFlags)
+        ? object.stateFlags.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.state_flags)
+        ? object.state_flags.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: BondLacpPort): unknown {
+    const obj: any = {};
+    if (message.systemPriority !== 0) {
+      obj.systemPriority = Math.round(message.systemPriority);
+    }
+    if (message.system !== "") {
+      obj.system = message.system;
+    }
+    if (message.key !== 0) {
+      obj.key = Math.round(message.key);
+    }
+    if (message.portPriority !== 0) {
+      obj.portPriority = Math.round(message.portPriority);
+    }
+    if (message.portNumber !== 0) {
+      obj.portNumber = Math.round(message.portNumber);
+    }
+    if (message.state !== 0) {
+      obj.state = Math.round(message.state);
+    }
+    if (message.stateFlags?.length) {
+      obj.stateFlags = message.stateFlags;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BondLacpPort>): BondLacpPort {
+    return BondLacpPort.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BondLacpPort>): BondLacpPort {
+    const message = createBaseBondLacpPort();
+    message.systemPriority = object.systemPriority ?? 0;
+    message.system = object.system ?? "";
+    message.key = object.key ?? 0;
+    message.portPriority = object.portPriority ?? 0;
+    message.portNumber = object.portNumber ?? 0;
+    message.state = object.state ?? 0;
+    message.stateFlags = object.stateFlags?.map((e) => e) || [];
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
@@ -42732,6 +44306,21 @@ export const DataplaneService = {
       Buffer.from(InterfaceStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
   },
+  /**
+   * BondState dumps the live state of this agent's bond interfaces (sw_bond_interface_dump): mode, load-balance
+   * algorithm, member and active-member counts, and per member the weight, link state and, for LACP bonds, the
+   * actor/partner LACP state (sw_member_interface_dump, sw_interface_lacp_dump; docs/contracts/proto.md "F-bonding").
+   * Read-only; bounded (bonds and their members are few, one message).
+   */
+  bondState: {
+    path: "/vrx.v1.Dataplane/BondState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: BondStateRequest): Buffer => Buffer.from(BondStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): BondStateRequest => BondStateRequest.decode(value),
+    responseSerialize: (value: BondStateResponse): Buffer => Buffer.from(BondStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): BondStateResponse => BondStateResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -42777,6 +44366,13 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
    */
   interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
+  /**
+   * BondState dumps the live state of this agent's bond interfaces (sw_bond_interface_dump): mode, load-balance
+   * algorithm, member and active-member counts, and per member the weight, link state and, for LACP bonds, the
+   * actor/partner LACP state (sw_member_interface_dump, sw_interface_lacp_dump; docs/contracts/proto.md "F-bonding").
+   * Read-only; bounded (bonds and their members are few, one message).
+   */
+  bondState: handleUnaryCall<BondStateRequest, BondStateResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -42906,6 +44502,27 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * BondState dumps the live state of this agent's bond interfaces (sw_bond_interface_dump): mode, load-balance
+   * algorithm, member and active-member counts, and per member the weight, link state and, for LACP bonds, the
+   * actor/partner LACP state (sw_member_interface_dump, sw_interface_lacp_dump; docs/contracts/proto.md "F-bonding").
+   * Read-only; bounded (bonds and their members are few, one message).
+   */
+  bondState(
+    request: BondStateRequest,
+    callback: (error: ServiceError | null, response: BondStateResponse) => void,
+  ): ClientUnaryCall;
+  bondState(
+    request: BondStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: BondStateResponse) => void,
+  ): ClientUnaryCall;
+  bondState(
+    request: BondStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: BondStateResponse) => void,
   ): ClientUnaryCall;
 }
 

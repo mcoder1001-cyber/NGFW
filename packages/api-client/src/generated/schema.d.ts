@@ -829,6 +829,46 @@ export interface components {
             };
           };
         };
+        /** Bond */
+        bond?: {
+          /**
+           * Mode
+           * @enum {string}
+           */
+          mode: 'lacp' | 'xor' | 'round-robin' | 'active-backup' | 'broadcast';
+          /**
+           * Load balance
+           * @enum {string}
+           */
+          loadBalance?: 'l2' | 'l23' | 'l34';
+          /**
+           * Members
+           * @default {}
+           */
+          members: {
+            [key: string]: {
+              /**
+               * Passive
+               * @default false
+               */
+              passive: boolean;
+              /**
+               * Long timeout
+               * @default false
+               */
+              longTimeout: boolean;
+              /** Weight */
+              weight?: number;
+            };
+          };
+          /**
+           * NUMA-local members only
+           * @default false
+           */
+          numaOnly: boolean;
+          /** Bond ID */
+          id?: number;
+        };
       };
     };
     /**

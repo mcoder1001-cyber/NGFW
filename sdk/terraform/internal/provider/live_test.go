@@ -173,7 +173,8 @@ func TestLive(t *testing.T) {
 	usersCfg := map[string]any{"pointer": "/management/users",
 		// the API's semantic rule: at least one enabled admin with a password must remain in management.users
 		"value":                   fmt.Sprintf(`[{"username":"admin","role":"admin"},{"username":%q,"role":"operator"}]`, user),
-		"sensitive_value":         fmt.Sprintf(`[{"passwordHash":%q},{"passwordHash":%q}]`, hashAdmin, hash),
+		// matched by username (keyed array), never by position
+		"sensitive_value":         fmt.Sprintf(`[{"username":%q,"passwordHash":%q},{"username":"admin","passwordHash":%q}]`, user, hash, hashAdmin),
 		"sensitive_value_version": 1}
 	users = step("vrx_config", users, usersCfg)
 	cfgNoHash, _ := h.Config("vrx_config", map[string]any{"pointer": "/management/users", "value": fmt.Sprintf(`[{"username":%q,"role":"operator","passwordHash":%q}]`, user, hash)})

@@ -116,3 +116,8 @@ Suggested RPC names (keep the prefix): `NatSessions` (+`NatSummary`), `ListNeigh
    other features' branches and do not pre-resolve them.
 4. **Without step 2**, A1–A4, C1, C5, P1, P4, P5, W1–W3 and W5 conflict on nearly every merge. The conflicts are trivial unions,
    but budget about 10 minutes of manager time per merge and merge vlan-qinq, then vrf-static-ecmp, first (the W5 and A4 first-touchers).
+5. **Merge order and review checklist (D-125).** A wave-A branch merges only after TD-11a has merged; the escape hatch is an APPROVE'd
+   branch that has waited more than 2 h, which merges anyway and goes on TD-11a's retro list. F-nat44-ed-sessions and F-nat44-ei-64-66-nptv6
+   also wait for TD-11b, with no escape hatch. F-bonding and F-bridge-l2 also wait for TD-11c, unless their envelope carries a KeyProvider
+   obligation. The row notes in `plan/tasks.yaml` say "merge after <ids>".
+   Review checklist line: **every Register in the A1 hunk passes a Wiring store** (no in-memory claim or boot store in product wiring, review 3.2).

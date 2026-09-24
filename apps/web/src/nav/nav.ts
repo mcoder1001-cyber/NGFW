@@ -46,6 +46,20 @@ export interface NavGroup {
   items: NavItem[];
 }
 
+/** Domains whose screen is built (the rest render "not yet available"); P08 adds interfaces. */
+export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
+  'interfaces',
+  // Feature domains: one line under the feature's anchor (wave-A-hotspots W2).
+  // wave-A: F-vrf-static-ecmp
+  // wave-A: F-object-model
+  // wave-A: F-acl
+  // wave-A: F-nat44-ed-sessions
+  // wave-A: P11
+  // wave-A: F-wireguard
+  // wave-A: F-kea-dhcp-relay
+  // wave-A: F-unbound-chrony-syslog
+]);
+
 export function domainPath(key: RootKey): string {
   const group = DOMAIN_GROUP[key] ?? 'system';
   return group === key ? `/${key}` : `/${group}/${key}`;
@@ -79,9 +93,18 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
       labelKey: `nav:domains.${d.key}`,
       fallbackLabel: d.title,
       domain: d.key,
-      available: false,
+      available: BUILT_DOMAINS.has(d.key),
     });
   }
+  // Feature screens that are not a schema domain: one `groups.get('<group>')!.push({…})` line under the feature's anchor, labelKey in
+  // the feature's namespace (wave-A-hotspots W2).
+  // wave-A: F-bonding
+  // wave-A: F-bridge-l2
+  // wave-A: F-loopback-bvi-gso-lldp-span
+  // wave-A: F-neighbors-ra
+  // wave-A: F-rpf-adl-pbr
+  // wave-A: F-host-acl-nftables
+  // wave-A: P12
   groups.get('system')!.push(
     { id: 'users', path: '/system/users', labelKey: 'nav:users', fallbackLabel: 'Users', available: true },
     { id: 'revisions', path: '/system/revisions', labelKey: 'nav:revisions', fallbackLabel: 'Revisions', available: true },

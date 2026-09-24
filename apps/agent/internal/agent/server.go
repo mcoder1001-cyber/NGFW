@@ -44,6 +44,10 @@ func (g *server) Health(context.Context, *vrxv1.HealthRequest) (*vrxv1.HealthRes
 	return g.svc.Health(), nil
 }
 
+func (g *server) InterfaceState(ctx context.Context, req *vrxv1.InterfaceStateRequest) (*vrxv1.InterfaceStateResponse, error) {
+	return g.svc.InterfaceState(ctx, req)
+}
+
 func (g *server) StreamStats(req *vrxv1.StreamStatsRequest, stream grpc.ServerStreamingServer[vrxv1.StatsBatch]) error {
 	if iv := req.GetIntervalMs(); iv != 0 && (iv < 200 || iv > 60000) {
 		return status.Errorf(codes.InvalidArgument, "interval_ms %d outside 200–60000", iv)
@@ -74,8 +78,18 @@ func (g *server) StreamEvents(req *vrxv1.StreamEventsRequest, stream grpc.Server
 	}
 }
 
-func (g *server) Action(*vrxv1.ActionRequest, grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
-	return status.Error(codes.Unimplemented, "actions (ping, traceroute, capture) are implemented by P08/F-*")
+// Action dispatches on the requested action. Each feature adds its `case *vrxv1.ActionRequest_<Member>:`
+// under its anchor and implements it in its own internal/agent/rpc_<slug>.go; every other action is
+// Unimplemented (wave-A-hotspots A4).
+func (g *server) Action(req *vrxv1.ActionRequest, _ grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
+	switch req.GetAction().(type) {
+	// wave-A: F-vrf-static-ecmp
+	// wave-A: F-neighbors-ra
+	// wave-A: F-nat44-ed-sessions
+	// wave-A: F-unbound-chrony-syslog
+	default:
+		return status.Error(codes.Unimplemented, "actions (ping, traceroute, capture) are implemented by P08/F-*")
+	}
 }
 
 // listenUnix creates the agent socket: parent dir 0750, stale socket removed, socket 0660 with

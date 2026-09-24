@@ -2253,7 +2253,7 @@ tasks:
   - DF-8
   priority: 2
   est_hours: 6
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D1.2
@@ -2264,4 +2264,4 @@ tasks:
   owner: host-agent slot2
   started: 2026-09-24T05:00
   finished: ''
-  notes: D-095; V19 crash 04:50:27
+  notes: 'D-095; V19 crash 04:50:27 | worker done d001e5f CI green; review spawned (focus: unremovable binding to deleted table); V23 feature_is_enabled lies → fix folded into TD-3 fix round if confirmed'

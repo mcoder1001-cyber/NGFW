@@ -404,7 +404,7 @@ func (h *host) rescue(idx uint32, clean *bool) {
 // crashes l2-input-acl once the index is bridged, and makes a later ACL bind a silent no-op) is
 // (1) cleaned by the loopback descriptor's Create — L3 mode clears the l2 bits, the table index is
 // resurrected by placeholders, the bindings unbound, the placeholders deleted — and (2) when
-// resurrection is impossible (MaxPlaceholders 0), quarantined: an admin-down "quarantine:<owner>"
+// resurrection is impossible (DisableResurrect), quarantined: an admin-down "quarantine:<owner>"
 // holder takes the index, the pre-flight reports it as WARN, the interface is created on a fresh
 // index, and Release frees the holder once the index can be cleaned.
 func TestV19FreedTableOnHost(t *testing.T) {
@@ -470,21 +470,26 @@ func TestV19FreedTableOnHost(t *testing.T) {
 	c, table2 := h.plantFreed(87)
 	cleanC := false
 	defer h.rescue(c, &cleanC)
-	defer func(n int) { ifsanitize.MaxPlaceholders = n }(ifsanitize.MaxPlaceholders)
-	ifsanitize.MaxPlaceholders = 0
+	enableResurrect := ifsanitize.DisableResurrect()
+	defer enableResurrect()
 	inst2 := vpptest.LoopbackInstance(t, 88)
 	obj2 := &core.Loopback{Name: fmt.Sprintf("loop%d", inst2), Instance: inst2}
 	meta2, err := d.Create(h.ctx, obj2)
 	h.must("LoopbackDescriptor.Create (quarantine path)", err)
 	defer func() { h.must("LoopbackDescriptor.Delete", d.Delete(context.Background(), obj2, meta2)) }()
 	idx2 := meta2.(core.IfMeta).SwIfIndex
-	ifsanitize.MaxPlaceholders = 256
+	enableResurrect()
 	if idx2 == c {
 		t.Fatalf("%s was reported created on the dirty index %d", obj2.Name, c)
 	}
 	holder := h.ifDetails(c)
 	if holder == nil || holder.Tag != ifsanitize.QuarantineTagPrefix+h.owner || holder.Flags&interface_types.IF_STATUS_API_FLAG_ADMIN_UP != 0 {
 		t.Fatalf("no admin-down quarantine holder on %d: %+v", c, holder)
+	}
+	// TD-3 re-review M2: the holder's instance is in the reserved range, never loop0
+	var hinst uint32
+	if _, err := fmt.Sscanf(holder.InterfaceName, "loop%d", &hinst); err != nil || hinst < ifsanitize.QuarantineInstanceMin || hinst > ifsanitize.QuarantineInstanceMax {
+		t.Errorf("quarantine holder %q is not in the reserved range loop%d–loop%d", holder.InterfaceName, ifsanitize.QuarantineInstanceMin, ifsanitize.QuarantineInstanceMax)
 	}
 	t.Logf("quarantine: %s created on fresh sw_if_index %d; dirty %d held by %s (tag %q, admin-down); gauge vrx_agent_iface_quarantined=%d",
 		obj2.Name, idx2, c, holder.InterfaceName, holder.Tag, ifsanitize.Snapshot().Quarantined)

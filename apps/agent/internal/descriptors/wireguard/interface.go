@@ -15,6 +15,7 @@ import (
 	"ngfw/agent/internal/descriptors/vpn"
 	vpnpb "ngfw/agent/internal/descriptors/vpn/pb"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
 // Interface manages WireGuard interfaces (wireguard_interface_create / _delete; dump
@@ -86,15 +87,30 @@ func (d *Interface) Create(ctx context.Context, obj proto.Message) (any, error) 
 		UserInstance: o.GetInstance(), PrivateKey: priv, Port: uint16(o.GetPort()), SrcIP: src, //nolint:gosec // checked
 	}}
 	svc := wireguard.NewServiceClient(d.cfg.Client)
-	rep, err := svc.WireguardInterfaceCreate(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("wireguard_interface_create (%s): %w", ItfName(o.GetInstance()), err)
+	name := ItfName(o.GetInstance())
+	del := func(i uint32) error {
+		_, err := svc.WireguardInterfaceDelete(ctx, &wireguard.WireguardInterfaceDelete{SwIfIndex: interface_types.InterfaceIndex(i)})
+		return err
 	}
-	if err := vpn.TagInterface(ctx, d.cfg.Client, rep.SwIfIndex, d.cfg.Owner, ItfName(o.GetInstance())); err != nil {
-		_, _ = svc.WireguardInterfaceDelete(ctx, &wireguard.WireguardInterfaceDelete{SwIfIndex: rep.SwIfIndex})
+	// D-095 / VPP V19 (TD-3 re-review H1): the new sw_if_index is cleaned of what its previous
+	// holder left behind (or quarantined and a fresh one taken) before it is tagged and reported
+	// created — an addressed wg interface on an index with a stale ip classify binding is the
+	// 04:50 crash path
+	idx, err := ifsanitize.Acquire(ctx, d.cfg.Client, d.cfg.Owner, name, func() (uint32, error) {
+		rep, err := svc.WireguardInterfaceCreate(ctx, req)
+		if err != nil {
+			return 0, fmt.Errorf("wireguard_interface_create (%s): %w", name, err)
+		}
+		return uint32(rep.SwIfIndex), nil
+	}, del)
+	if err != nil {
 		return nil, err
 	}
-	return InterfaceMeta{SwIfIndex: uint32(rep.SwIfIndex)}, nil
+	if err := vpn.TagInterface(ctx, d.cfg.Client, interface_types.InterfaceIndex(idx), d.cfg.Owner, name); err != nil {
+		_ = del(idx)
+		return nil, err
+	}
+	return InterfaceMeta{SwIfIndex: idx}, nil
 }
 
 // Update implements scheduler.Descriptor: nothing can change in place.
@@ -116,6 +132,11 @@ func (d *Interface) Delete(ctx context.Context, obj proto.Message, meta any) err
 	}
 	present, err := vpn.OwnedAt(ctx, d.cfg.Client, d.cfg.Owner, m.SwIfIndex, ItfName(o.GetInstance()))
 	if err != nil || !present {
+		return err
+	}
+	// D-095 c / TD-3 re-review H1: bindings go while their tables still exist (VPP keeps them on the
+	// freed index, V19)
+	if err := ifsanitize.BeforeDelete(ctx, d.cfg.Client, m.SwIfIndex, ItfName(o.GetInstance())); err != nil {
 		return err
 	}
 	if _, err := wireguard.NewServiceClient(d.cfg.Client).WireguardInterfaceDelete(ctx, &wireguard.WireguardInterfaceDelete{

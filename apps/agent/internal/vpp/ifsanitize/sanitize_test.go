@@ -9,7 +9,9 @@ import (
 	"testing"
 
 	"go.fd.io/govpp/adapter"
+	"go.fd.io/govpp/api"
 
+	classifyapi "ngfw/agent/binapi/classify"
 	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/internal/vpp/fake"
 	"ngfw/agent/internal/vpp/ifsanitize"
@@ -176,8 +178,7 @@ func TestUnclearableIsAnError(t *testing.T) {
 	m.Tables[3] = true
 	m.If(4).InACL = [3]uint32{9, none, none}
 	m.DeleteTable(9)
-	defer func(n int) { ifsanitize.MaxPlaceholders = n }(ifsanitize.MaxPlaceholders)
-	ifsanitize.MaxPlaceholders = 0
+	defer ifsanitize.DisableResurrect()()
 	before := ifsanitize.Snapshot()
 	rep, err := ifsanitize.Sanitize(context.Background(), f, 4, "loop206")
 	if !errors.Is(err, ifsanitize.ErrUnclearable) || len(rep.Unclearable) != 1 {
@@ -242,5 +243,90 @@ func TestMetrics(t *testing.T) {
 		if !strings.Contains(b.String(), want) {
 			t.Errorf("metrics lack %q:\n%s", want, b.String())
 		}
+	}
+}
+
+// TestHoleTakenBySomeoneElse is TD-3 re-review M1: a hole popped by another client between the
+// snapshot and the loop used to run resurrect to MaxPlaceholders (256, ~2850 API calls). Now the
+// run re-reads the table list, drops the hole, stays within 3 holes + FreshRun placeholders, and
+// the input ACL binding that names the stolen index is removed through the foreign table instead
+// of being reported unclearable.
+func TestHoleTakenBySomeoneElse(t *testing.T) {
+	f, m := setup()
+	for id := uint32(0); id < 6; id++ {
+		m.Tables[id] = true
+	}
+	m.If(4).InACL = [3]uint32{3, none, none}
+	m.If(4).OutACL = [3]uint32{none, 2, none}
+	for _, id := range []uint32{1, 2, 3} { // free list [1 2 3]: 3 pops first
+		m.DeleteTable(id)
+	}
+	hs := m.Handlers()
+	var stolen []uint32
+	f.On("classify_table_ids", func(req api.Message) ([]api.Message, error) {
+		rep, err := hs["classify_table_ids"](req)
+		if len(stolen) == 0 { // after the first snapshot: another slot creates a table
+			r, aerr := hs["classify_add_del_table"](&classifyapi.ClassifyAddDelTable{IsAdd: true, TableIndex: none, Nbuckets: 2, MemorySize: 64 << 10,
+				MatchNVectors: 1, NextTableIndex: none, MissNextIndex: none, MaskLen: 16, Mask: []byte("foreign-table-00")})
+			if aerr != nil {
+				t.Fatal(aerr)
+			}
+			stolen = append(stolen, r[0].(*classifyapi.ClassifyAddDelTableReply).NewTableIndex)
+		}
+		return rep, err
+	})
+	before := ifsanitize.Snapshot()
+	rep, err := ifsanitize.Sanitize(context.Background(), f, 4, "loop207")
+	if err != nil {
+		t.Fatalf("sanitize: %v (report %+v)", err, rep)
+	}
+	if len(stolen) != 1 || stolen[0] != 3 {
+		t.Fatalf("stolen %v", stolen)
+	}
+	if d := m.Dirty(4); d != "" {
+		t.Fatalf("still inherited: %s (report %+v)", d, rep)
+	}
+	if rep.Capped || rep.Rereads < 1 || rep.Placeholders > 2+ifsanitize.FreshRun {
+		t.Fatalf("capped %v rereads %d placeholders %d", rep.Capped, rep.Rereads, rep.Placeholders)
+	}
+	if !slices.ContainsFunc(rep.Freed, func(e string) bool {
+		return strings.HasPrefix(e, "input-acl ip4 table 3 (deleted table; its index was taken by another client")
+	}) ||
+		!slices.ContainsFunc(rep.Freed, func(e string) bool { return strings.HasPrefix(e, "output-acl ip6 table 2") }) || len(rep.Unclearable) != 0 {
+		t.Fatalf("freed %v unclearable %v", rep.Freed, rep.Unclearable)
+	}
+	if !m.Tables[3] || len(m.Tables) != 4 { // the foreign table stays, every placeholder is gone
+		t.Fatalf("tables %v", m.Tables)
+	}
+	calls := len(f.Calls()) // before the fix: 256 placeholders, ~2850 calls
+	if calls > 200 {
+		t.Fatalf("%d API calls for one create", calls)
+	}
+	if after := ifsanitize.Snapshot(); after.Capped["create"] != before.Capped["create"] {
+		t.Fatalf("capped counter moved: %v → %v", before.Capped, after.Capped)
+	}
+	t.Logf("placeholders %d, rereads %d, API calls %d, freed %v", rep.Placeholders, rep.Rereads, calls, rep.Freed)
+}
+
+// TestCappedFailsClosed: a free list longer than the cap allows (tables deleted in creation order,
+// never ascending) is ErrCapped — ErrNoCleanIndex — and every placeholder is deleted again.
+func TestCappedFailsClosed(t *testing.T) {
+	f, m := setup()
+	for id := uint32(0); id < 12; id++ {
+		m.Tables[id] = true
+	}
+	for id := uint32(0); id < 12; id++ {
+		m.DeleteTable(id)
+	}
+	rep, err := ifsanitize.Sanitize(context.Background(), f, 3, "loop208")
+	if !errors.Is(err, ifsanitize.ErrCapped) || !errors.Is(err, ifsanitize.ErrNoCleanIndex) || !rep.Capped {
+		t.Fatalf("err %v report %+v", err, rep)
+	}
+	if rep.Placeholders != ifsanitize.MaxPlaceholders || len(m.Tables) != 0 {
+		t.Fatalf("placeholders %d, tables left %v", rep.Placeholders, m.Tables)
+	}
+	// the delete phase never resurrects, so it is never capped
+	if err := ifsanitize.BeforeDelete(context.Background(), f, 3, "loop208"); err != nil {
+		t.Fatal(err)
 	}
 }

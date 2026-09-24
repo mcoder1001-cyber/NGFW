@@ -89,8 +89,20 @@ const (
 	PhaseDelete = "delete" // right before an interface is deleted, while its tables still exist
 )
 
-// MaxPlaceholders bounds the placeholder tables one run creates to resurrect freed indices.
-var MaxPlaceholders = 256
+// MaxPlaceholders bounds the placeholder tables one create-phase run makes to resurrect freed
+// indices (TD-3 re-review M1: at most 16 per create). A run that reaches it before it has proven
+// the classify pool's free list empty fails closed with ErrCapped (counted as
+// vrx_agent_iface_sanitize_capped_total): Acquire deletes the interface and fails the create.
+var MaxPlaceholders = 16
+
+// ErrCapped means the placeholder cap was reached before every freed classify table index was
+// resurrected: the new interface may still carry a binding to one of them, so it is not reported
+// created (fail closed). It wraps ErrNoCleanIndex.
+var ErrCapped = fmt.Errorf("%w: placeholder cap reached before every freed classify table index was resurrected", ErrNoCleanIndex)
+
+// noResurrect turns resurrection off (tests of the quarantine path only: a binding to a freed
+// table is then unclearable without the run being capped; see export_test.go).
+var noResurrect bool
 
 // placeholderMask is the signature of Sanitize's own throwaway classify tables.
 var placeholderMask = []byte("vrx-td3-v19-hold")
@@ -116,6 +128,11 @@ type Report struct {
 	Phase     string
 	// Placeholders is how many throwaway tables were created to resurrect freed indices.
 	Placeholders int
+	// Capped reports that MaxPlaceholders was reached with freed indices possibly left (create
+	// phase: the run fails with ErrCapped).
+	Capped bool
+	// Rereads counts classify_table_ids re-reads for holes another client took meanwhile.
+	Rereads int
 	// Freed lists removed bindings that named a deleted table (removed through a placeholder).
 	Freed []string
 	// Reset lists the states reset blindly (no readback in VPP; the call is a no-op when unset).
@@ -139,7 +156,8 @@ type sanitizer struct {
 	idx   interface_types.InterfaceIndex
 	phase string
 	live  map[uint32]bool // classify tables that existed before the run
-	ids   []uint32        // live + placeholder table indices (every index a binding can name)
+	taken map[uint32]bool // tables another client created during the run (possibly on a freed index)
+	ids   []uint32        // live + placeholder + taken table indices (every index a binding can name)
 	holds []uint32        // placeholder tables of this run
 	rep   *Report
 }
@@ -170,20 +188,28 @@ func run(ctx context.Context, c vpp.Client, idx uint32, name, phase string) (Rep
 	if derr := s.dropPlaceholders(); derr != nil && err == nil {
 		err = derr
 	}
-	if err == nil && phase == PhaseCreate && len(rep.Unclearable) > 0 {
-		err = fmt.Errorf("%w: %v", ErrUnclearable, rep.Unclearable)
+	if err == nil && phase == PhaseCreate {
+		switch {
+		case len(rep.Unclearable) > 0 && rep.Capped:
+			err = fmt.Errorf("%w: %v; %w", ErrUnclearable, rep.Unclearable, ErrCapped)
+		case len(rep.Unclearable) > 0:
+			err = fmt.Errorf("%w: %v", ErrUnclearable, rep.Unclearable)
+		case rep.Capped:
+			err = fmt.Errorf("%w (%d placeholders)", ErrCapped, rep.Placeholders)
+		}
 	}
 	record(rep, err)
 	log := slog.Default().With("interface", name, "sw_if_index", idx, "phase", phase)
 	switch {
 	case err != nil:
-		log.Error("interface sanitize failed (VPP V19)", "err", err, "cleared", rep.Cleared, "freed", rep.Freed, "unclearable", rep.Unclearable)
+		log.Error("interface sanitize failed (VPP V19)", "err", err, "cleared", rep.Cleared, "freed", rep.Freed, "unclearable", rep.Unclearable,
+			"placeholders", rep.Placeholders, "capped", rep.Capped, "rereads", rep.Rereads)
 	case len(rep.Unclearable) > 0:
 		log.Warn("interface sanitized: bindings to deleted classify tables remain (VPP V19)",
 			"cleared", rep.Cleared, "freed", rep.Freed, "unclearable", rep.Unclearable, "reset", rep.Reset, "skipped", rep.Skipped)
 	default:
 		log.Info("interface sanitized (VPP V19/V21 inherited state)", "cleared", rep.Cleared, "freed", rep.Freed,
-			"placeholders", rep.Placeholders, "reset", rep.Reset, "skipped", rep.Skipped)
+			"placeholders", rep.Placeholders, "rereads", rep.Rereads, "reset", rep.Reset, "skipped", rep.Skipped)
 	}
 	if err != nil {
 		return rep, fmt.Errorf("sanitize %s (sw_if_index %d, %s): %w", name, idx, phase, err)
@@ -199,12 +225,12 @@ func (s *sanitizer) run() error {
 	if err != nil {
 		return fmt.Errorf("classify_table_ids: %w", err)
 	}
-	s.live = map[uint32]bool{}
+	s.live, s.taken = map[uint32]bool{}, map[uint32]bool{}
 	for _, id := range ids.Ids {
 		s.live[id] = true
 	}
 	s.ids = append([]uint32(nil), ids.Ids...)
-	if s.phase == PhaseCreate {
+	if s.phase == PhaseCreate && !noResurrect {
 		if err := s.resurrect(); err != nil {
 			return err
 		}
@@ -239,10 +265,16 @@ func (s *sanitizer) l3Mode() error {
 var FreshRun = 8
 
 // resurrect fills the classify table pool's free indices with placeholder tables so every index a
-// stale binding can name exists during the run. It stops once no index below the highest live
-// table is free, every table an input ACL binding of the interface names exists, and FreshRun
+// stale binding can name exists during the run. It stops once no index below the highest index
+// seen is free, every table an input ACL binding of the interface names exists, and FreshRun
 // consecutive creates returned consecutive fresh indices above everything seen (the pool's free
-// list is then empty: VPP grows the vector); MaxPlaceholders bounds it.
+// list is then empty: VPP grows the vector).
+//
+// A hole another client takes between the classify_table_ids snapshot and the pop never comes
+// back from the pool (TD-3 re-review M1): once the run looks fresh with holes left, the table list
+// is read again, holes that are live now are dropped and every table that appeared meanwhile is
+// probed like a live one. MaxPlaceholders bounds the run; reaching it with holes left or without
+// FreshRun sets Report.Capped (the create fails closed, ErrCapped).
 func (s *sanitizer) resurrect() error {
 	maxSeen := int64(-1)
 	for id := range s.live {
@@ -267,8 +299,19 @@ func (s *sanitizer) resurrect() error {
 		}
 	}
 	consec := 0
-	for len(s.holds) < MaxPlaceholders {
+	for {
+		if len(holes) > 0 && (consec >= FreshRun || len(s.holds) >= MaxPlaceholders) {
+			if err := s.reread(holes); err != nil {
+				return err
+			}
+		}
 		if len(holes) == 0 && consec >= FreshRun {
+			return nil
+		}
+		if len(s.holds) >= MaxPlaceholders {
+			s.rep.Capped = true
+			slog.Default().Warn("interface sanitize: placeholder cap reached (VPP V19); the create fails closed",
+				"sw_if_index", uint32(s.idx), "placeholders", len(s.holds), "holes_left", len(holes), "fresh_run", consec)
 			return nil
 		}
 		idx, err := s.createPlaceholder()
@@ -281,13 +324,49 @@ func (s *sanitizer) resurrect() error {
 			consec++
 			maxSeen = int64(idx)
 		case int64(idx) > maxSeen:
+			// the indices skipped were not live at the snapshot and not popped by us: freed (or
+			// taken by another client meanwhile — the re-read drops those)
+			for i := maxSeen + 1; i < int64(idx); i++ {
+				if !s.live[uint32(i)] {
+					holes[uint32(i)] = true
+				}
+			}
 			consec = 1
 			maxSeen = int64(idx)
 		default:
 			consec = 0
 		}
 	}
-	return nil // capped: whatever is still free stays unclearable; the verification decides
+}
+
+// reread reads classify_table_ids again: a hole that is a live table now was taken by another
+// client after the snapshot (it will never come back from the pool) and is dropped; every table
+// that appeared during the run can carry an inherited binding (its index may have been freed) and
+// is probed like a live table.
+func (s *sanitizer) reread(holes map[uint32]bool) error {
+	ids, err := classifyapi.NewServiceClient(s.c).ClassifyTableIds(s.ctx, &classifyapi.ClassifyTableIds{})
+	if err != nil {
+		return fmt.Errorf("classify_table_ids (re-read): %w", err)
+	}
+	s.rep.Rereads++
+	for _, id := range ids.Ids {
+		delete(holes, id)
+		if s.live[id] || s.taken[id] || s.held(id) {
+			continue
+		}
+		s.taken[id] = true
+		s.ids = append(s.ids, id)
+	}
+	return nil
+}
+
+func (s *sanitizer) held(table uint32) bool {
+	for _, h := range s.holds {
+		if h == table {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *sanitizer) createPlaceholder() (uint32, error) {
@@ -328,6 +407,10 @@ func (s *sanitizer) dropPlaceholders() error {
 func (s *sanitizer) freed(table uint32) bool { return !s.live[table] }
 
 func (s *sanitizer) cleared(what string, table uint32) {
+	if s.taken[table] {
+		s.rep.Freed = append(s.rep.Freed, what+" (deleted table; its index was taken by another client during the run, removed through that table)")
+		return
+	}
 	if s.freed(table) {
 		s.rep.Freed = append(s.rep.Freed, what+" (deleted table, removed through a placeholder)")
 		return

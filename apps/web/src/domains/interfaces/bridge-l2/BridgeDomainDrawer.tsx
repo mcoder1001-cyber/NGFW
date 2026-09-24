@@ -2,6 +2,7 @@ import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
@@ -19,6 +20,7 @@ import Typography from '@mui/material/Typography';
 import { StatusChip } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
@@ -87,6 +89,7 @@ function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => 
   const patchRouting = usePatchRouting();
   const patchPorts = usePatchPorts();
   const freshInterfaces = useFreshCandidate();
+  const qc = useQueryClient();
   const [memberEdit, setMemberEdit] = useState<{ port: Port | null } | null>(null);
   const name = item.name;
   const record = l2.data?.bridgeDomains?.[name];
@@ -321,16 +324,25 @@ function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => 
       <Typography component="h4" variant="subtitle1">
         {t('domain.macs')}
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        {t('domain.macsHelp')}
-      </Typography>
+      <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+          {t('domain.macsHelp')}
+        </Typography>
+        <Button
+          size="small"
+          startIcon={<RefreshIcon />}
+          onClick={() => void qc.invalidateQueries({ queryKey: bridgeKeys.macs(item.id ?? 0) })}
+        >
+          {t('refresh')}
+        </Button>
+      </Stack>
       <Paper variant="outlined" sx={{ blockSize: 320 }}>
         <ServerDataGrid<MacRow & { id: string }>
           aria-label={t('domain.macs')}
           columns={macColumns}
           queryKey={[...bridgeKeys.macs(item.id ?? 0), 'grid']}
           fetchPage={fetchPage}
-          refetchInterval={5_000}
+          refetchInterval={false} // D-132: the L2 FIB walk runs on demand only (Refresh)
           initialPageSize={25}
         />
       </Paper>

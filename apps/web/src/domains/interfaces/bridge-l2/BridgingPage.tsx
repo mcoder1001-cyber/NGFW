@@ -1,6 +1,7 @@
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -223,6 +224,12 @@ function DomainsTab() {
             </Button>
           </span>
         </Tooltip>
+        <Button
+          startIcon={<RefreshIcon />}
+          onClick={() => void qc.invalidateQueries({ queryKey: bridgeKeys.state })}
+        >
+          {t('refresh')}
+        </Button>
       </Stack>
       {unavailable && (
         <Alert severity="info" sx={{ mb: 1 }}>

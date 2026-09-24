@@ -232,5 +232,6 @@
       "title": "End",
       "help": "HH:MM after start; 24:00 = midnight"
     }
-  }
+  },
+  "refresh": "Refresh"
 }

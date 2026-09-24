@@ -11,10 +11,10 @@ export const bridgeKeys = {
 };
 
 /**
- * Live list refresh (the API merges running + candidate on every answer). 10 s, not 3 s: each answer makes the agent walk
- * every bridge domain's L2 FIB on VPP's main thread to count it (review #5); the open drawer's MAC table polls on its own.
+ * D-132: a list/state view never auto-polls a full VPP table walk faster than 30 s (each answer makes the agent walk every
+ * bridge domain's L2 FIB). The list grid is the ONE timer, at 60 s; everything else refreshes on demand (Refresh buttons).
  */
-export const BRIDGE_POLL_MS = 10_000;
+export const BRIDGE_POLL_MS = 60_000;
 
 export async function fetchBridgeDomains(signal?: AbortSignal) {
   return (await call(api.GET('/api/v1/state/l2/bridge-domains', signal ? { signal } : {}))).data;
@@ -24,8 +24,7 @@ export function useBridgeDomains() {
   return useQuery({
     queryKey: bridgeKeys.state,
     queryFn: ({ signal }) => fetchBridgeDomains(signal),
-    refetchInterval: BRIDGE_POLL_MS,
-    retry: false,
+    retry: false, // no timer of its own (D-132): the list grid's fetches update this cache entry
   });
 }
 

@@ -6,6 +6,7 @@ import i18n from '../../../i18n';
 import { createTestRouter } from '../../../router';
 import { installFakeApi, resetSession, signIn, type FakeApi } from '../../../test-api';
 import { pageOfDomains, toDomainRow } from './BridgingPage';
+import { BRIDGE_POLL_MS } from './queries';
 import {
   l2Patch,
   portPatch,
@@ -176,6 +177,10 @@ afterEach(async () => {
 });
 
 describe('bridge-l2 model', () => {
+  it('D-132: the only list timer is at least 30 s', () => {
+    expect(BRIDGE_POLL_MS).toBeGreaterThanOrEqual(30_000);
+  });
+
   it('rows, paging and patches', () => {
     const rows = [item(), item({ name: 'dmz', id: 7002, state: null })].map(toDomainRow);
     expect(rows[0]).toMatchObject({
@@ -241,7 +246,7 @@ describe('bridge-l2 model', () => {
 describe('Bridging page', () => {
   it(
     'lists bridge domains with live status, opens the drawer with members and the MAC table; nav entry in the interfaces group',
-    { timeout: 30_000 },
+    { timeout: 45_000 },
     async () => {
       const api = installFakeApi('operator');
       withBridging(api);
@@ -268,6 +273,19 @@ describe('Bridging page', () => {
             c.search.includes('pageSize=25'),
         ),
       ).toBe(true);
+      // D-132: the L2 FIB walk is not polled — it runs again only on Refresh
+      const macCalls = () =>
+        api.calls.filter((c) => c.path === '/api/v1/state/l2/bridge-domains/7001/macs').length;
+      const listCalls = () =>
+        api.calls.filter((c) => c.path === '/api/v1/state/l2/bridge-domains').length;
+      const before = macCalls();
+      const listBefore = listCalls();
+      await new Promise((r) => setTimeout(r, 6_000)); // longer than the old 5 s MAC-grid poll
+      expect(macCalls()).toBe(before);
+      expect(listCalls()).toBe(listBefore); // the list's one timer is 60 s
+      const drawer = screen.getByRole('grid', { name: 'MAC table' }).closest('.MuiDrawer-paper');
+      fireEvent.click(within(drawer as HTMLElement).getByRole('button', { name: 'Refresh' }));
+      await waitFor(() => expect(macCalls()).toBe(before + 1));
     },
   );
 

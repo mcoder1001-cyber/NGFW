@@ -73,6 +73,11 @@ service Dataplane {
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
+
+  // ListRoutes pages the live FIB of one VRF (ip_route_v2_dump read once, filtered and paged in the agent; only the
+  // page crosses this boundary). Read-only state (docs/contracts/proto.md §11 F-vrf-static-ecmp: ListRoutes).
+  rpc ListRoutes(ListRoutesRequest) returns (ListRoutesResponse);
+
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model
@@ -3460,6 +3465,70 @@ message VrfSourceSelect {
   optional string prefix = 1;
   // Ingress VPP interface name (configuration key).
   optional string interface = 2;
+}
+
+// ListRoutesRequest selects one page of one FIB table.
+message ListRoutesRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // VRF name: a `vrfs` key of the agent's stored desired state, or "" / "default" for table 0. Unknown → NOT_FOUND.
+  string vrf = 2;
+  // "ipv4", "ipv6" or "" (both, IPv4 first).
+  string family = 3;
+  // Only routes equal to or more specific than this prefix (CIDR); "" = all.
+  string prefix = 4;
+  // Only routes that carry this FIB source (VPP's name as fib_source_dump reports it, e.g. "API", "interface",
+  // "adjacency", "svs"); "" = all. Filtered by VPP (ip_route_v2_dump src). Unknown → INVALID_ARGUMENT.
+  string source = 5;
+  // Index of the first route of the page in the sorted, filtered list (0-based).
+  uint32 offset = 6;
+  // Page size; 0 = 100; max 1000.
+  uint32 limit = 7;
+}
+
+// ListRoutesResponse is one page of the FIB.
+message ListRoutesResponse {
+  // The page, sorted by family (IPv4 first), then prefix address, then prefix length.
+  repeated ListRoutesEntry routes = 1;
+  // Routes that matched the filter (the whole table is read by the agent, only this page is returned).
+  uint32 total = 2;
+  // The owner whose view was returned.
+  string owner = 3;
+  // VRF name and FIB table id that were read.
+  string vrf = 4;
+  uint32 table_id = 5;
+  // When the dump was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 6;
+}
+
+// ListRoutesEntry is one FIB entry (live state, not configuration).
+message ListRoutesEntry {
+  // Destination prefix, canonical CIDR.
+  string prefix = 1;
+  // Best FIB source (VPP name, e.g. "API", "interface", "adjacency", "recursive-resolution", "default-route").
+  string source = 2;
+  // The entry's paths (load-balance members).
+  repeated ListRoutesPath paths = 3;
+  // VPP stats index of the entry (combined counters in the stats segment).
+  uint32 stats_index = 4;
+}
+
+// ListRoutesPath is one path of a FIB entry and what it resolves to (the DPO kind).
+message ListRoutesPath {
+  // "normal", "local", "drop", "udp-encap", "bier-imp", "icmp-unreach", "icmp-prohibit", "source-lookup", "dvr",
+  // "interface-rx" or "classify" (fib_api_path_type).
+  string type = 1;
+  // Next-hop address; "" when the path has none.
+  string next_hop = 2;
+  // Egress interface: its logical name (D-069), else VPP's name; "" when none.
+  string interface = 3;
+  // FIB table the next hop is resolved in (recursive and lookup paths).
+  uint32 table_id = 4;
+  // Load-balance weight and path preference.
+  uint32 weight = 5;
+  uint32 preference = 6;
+  // Path flags ("resolve-via-host", "resolve-via-attached", "pop-pw-cw").
+  repeated string flags = 7;
 }
 
 // ----- F-neighbors-ra -----

@@ -5304,6 +5304,74 @@ export interface VrfSourceSelect {
   interface?: string | undefined;
 }
 
+/** ListRoutesRequest selects one page of one FIB table. */
+export interface ListRoutesRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+  /** VRF name: a `vrfs` key of the agent's stored desired state, or "" / "default" for table 0. Unknown → NOT_FOUND. */
+  vrf: string;
+  /** "ipv4", "ipv6" or "" (both, IPv4 first). */
+  family: string;
+  /** Only routes equal to or more specific than this prefix (CIDR); "" = all. */
+  prefix: string;
+  /**
+   * Only routes that carry this FIB source (VPP's name as fib_source_dump reports it, e.g. "API", "interface",
+   * "adjacency", "svs"); "" = all. Filtered by VPP (ip_route_v2_dump src). Unknown → INVALID_ARGUMENT.
+   */
+  source: string;
+  /** Index of the first route of the page in the sorted, filtered list (0-based). */
+  offset: number;
+  /** Page size; 0 = 100; max 1000. */
+  limit: number;
+}
+
+/** ListRoutesResponse is one page of the FIB. */
+export interface ListRoutesResponse {
+  /** The page, sorted by family (IPv4 first), then prefix address, then prefix length. */
+  routes: ListRoutesEntry[];
+  /** Routes that matched the filter (the whole table is read by the agent, only this page is returned). */
+  total: number;
+  /** The owner whose view was returned. */
+  owner: string;
+  /** VRF name and FIB table id that were read. */
+  vrf: string;
+  tableId: number;
+  /** When the dump was taken (agent clock). */
+  retrievedAt: Date | undefined;
+}
+
+/** ListRoutesEntry is one FIB entry (live state, not configuration). */
+export interface ListRoutesEntry {
+  /** Destination prefix, canonical CIDR. */
+  prefix: string;
+  /** Best FIB source (VPP name, e.g. "API", "interface", "adjacency", "recursive-resolution", "default-route"). */
+  source: string;
+  /** The entry's paths (load-balance members). */
+  paths: ListRoutesPath[];
+  /** VPP stats index of the entry (combined counters in the stats segment). */
+  statsIndex: number;
+}
+
+/** ListRoutesPath is one path of a FIB entry and what it resolves to (the DPO kind). */
+export interface ListRoutesPath {
+  /**
+   * "normal", "local", "drop", "udp-encap", "bier-imp", "icmp-unreach", "icmp-prohibit", "source-lookup", "dvr",
+   * "interface-rx" or "classify" (fib_api_path_type).
+   */
+  type: string;
+  /** Next-hop address; "" when the path has none. */
+  nextHop: string;
+  /** Egress interface: its logical name (D-069), else VPP's name; "" when none. */
+  interface: string;
+  /** FIB table the next hop is resolved in (recursive and lookup paths). */
+  tableId: number;
+  /** Load-balance weight and path preference. */
+  weight: number;
+  preference: number;
+  /** Path flags ("resolve-via-host", "resolve-via-attached", "pop-pw-cw"). */
+  flags: string[];
+}
+
 function createBaseApplyRequest(): ApplyRequest {
   return { txnId: "", desiredState: undefined, subsystems: [], confirmTimeoutSec: 0, confirmTxnId: "", owner: "" };
 }
@@ -42787,6 +42855,624 @@ export const VrfSourceSelect: MessageFns<VrfSourceSelect> = {
   },
 };
 
+function createBaseListRoutesRequest(): ListRoutesRequest {
+  return { owner: "", vrf: "", family: "", prefix: "", source: "", offset: 0, limit: 0 };
+}
+
+export const ListRoutesRequest: MessageFns<ListRoutesRequest> = {
+  encode(message: ListRoutesRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.vrf !== "") {
+      writer.uint32(18).string(message.vrf);
+    }
+    if (message.family !== "") {
+      writer.uint32(26).string(message.family);
+    }
+    if (message.prefix !== "") {
+      writer.uint32(34).string(message.prefix);
+    }
+    if (message.source !== "") {
+      writer.uint32(42).string(message.source);
+    }
+    if (message.offset !== 0) {
+      writer.uint32(48).uint32(message.offset);
+    }
+    if (message.limit !== 0) {
+      writer.uint32(56).uint32(message.limit);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListRoutesRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseListRoutesRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.family = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.source = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.offset = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.limit = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ListRoutesRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : "",
+      family: isSet(object.family) ? globalThis.String(object.family) : "",
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : "",
+      source: isSet(object.source) ? globalThis.String(object.source) : "",
+      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
+      limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
+    };
+  },
+
+  toJSON(message: ListRoutesRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.vrf !== "") {
+      obj.vrf = message.vrf;
+    }
+    if (message.family !== "") {
+      obj.family = message.family;
+    }
+    if (message.prefix !== "") {
+      obj.prefix = message.prefix;
+    }
+    if (message.source !== "") {
+      obj.source = message.source;
+    }
+    if (message.offset !== 0) {
+      obj.offset = Math.round(message.offset);
+    }
+    if (message.limit !== 0) {
+      obj.limit = Math.round(message.limit);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ListRoutesRequest>): ListRoutesRequest {
+    return ListRoutesRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ListRoutesRequest>): ListRoutesRequest {
+    const message = createBaseListRoutesRequest();
+    message.owner = object.owner ?? "";
+    message.vrf = object.vrf ?? "";
+    message.family = object.family ?? "";
+    message.prefix = object.prefix ?? "";
+    message.source = object.source ?? "";
+    message.offset = object.offset ?? 0;
+    message.limit = object.limit ?? 0;
+    return message;
+  },
+};
+
+function createBaseListRoutesResponse(): ListRoutesResponse {
+  return { routes: [], total: 0, owner: "", vrf: "", tableId: 0, retrievedAt: undefined };
+}
+
+export const ListRoutesResponse: MessageFns<ListRoutesResponse> = {
+  encode(message: ListRoutesResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.routes) {
+      ListRoutesEntry.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.total !== 0) {
+      writer.uint32(16).uint32(message.total);
+    }
+    if (message.owner !== "") {
+      writer.uint32(26).string(message.owner);
+    }
+    if (message.vrf !== "") {
+      writer.uint32(34).string(message.vrf);
+    }
+    if (message.tableId !== 0) {
+      writer.uint32(40).uint32(message.tableId);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(50).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListRoutesResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseListRoutesResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.routes.push(ListRoutesEntry.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.total = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.tableId = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ListRoutesResponse {
+    return {
+      routes: globalThis.Array.isArray(object?.routes)
+        ? object.routes.map((e: any) => ListRoutesEntry.fromJSON(e))
+        : [],
+      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : "",
+      tableId: isSet(object.tableId)
+        ? globalThis.Number(object.tableId)
+        : isSet(object.table_id)
+        ? globalThis.Number(object.table_id)
+        : 0,
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: ListRoutesResponse): unknown {
+    const obj: any = {};
+    if (message.routes?.length) {
+      obj.routes = message.routes.map((e) => ListRoutesEntry.toJSON(e));
+    }
+    if (message.total !== 0) {
+      obj.total = Math.round(message.total);
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.vrf !== "") {
+      obj.vrf = message.vrf;
+    }
+    if (message.tableId !== 0) {
+      obj.tableId = Math.round(message.tableId);
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ListRoutesResponse>): ListRoutesResponse {
+    return ListRoutesResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ListRoutesResponse>): ListRoutesResponse {
+    const message = createBaseListRoutesResponse();
+    message.routes = object.routes?.map((e) => ListRoutesEntry.fromPartial(e)) || [];
+    message.total = object.total ?? 0;
+    message.owner = object.owner ?? "";
+    message.vrf = object.vrf ?? "";
+    message.tableId = object.tableId ?? 0;
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseListRoutesEntry(): ListRoutesEntry {
+  return { prefix: "", source: "", paths: [], statsIndex: 0 };
+}
+
+export const ListRoutesEntry: MessageFns<ListRoutesEntry> = {
+  encode(message: ListRoutesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.prefix !== "") {
+      writer.uint32(10).string(message.prefix);
+    }
+    if (message.source !== "") {
+      writer.uint32(18).string(message.source);
+    }
+    for (const v of message.paths) {
+      ListRoutesPath.encode(v!, writer.uint32(26).fork()).join();
+    }
+    if (message.statsIndex !== 0) {
+      writer.uint32(32).uint32(message.statsIndex);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListRoutesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseListRoutesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.source = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.paths.push(ListRoutesPath.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.statsIndex = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ListRoutesEntry {
+    return {
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : "",
+      source: isSet(object.source) ? globalThis.String(object.source) : "",
+      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => ListRoutesPath.fromJSON(e)) : [],
+      statsIndex: isSet(object.statsIndex)
+        ? globalThis.Number(object.statsIndex)
+        : isSet(object.stats_index)
+        ? globalThis.Number(object.stats_index)
+        : 0,
+    };
+  },
+
+  toJSON(message: ListRoutesEntry): unknown {
+    const obj: any = {};
+    if (message.prefix !== "") {
+      obj.prefix = message.prefix;
+    }
+    if (message.source !== "") {
+      obj.source = message.source;
+    }
+    if (message.paths?.length) {
+      obj.paths = message.paths.map((e) => ListRoutesPath.toJSON(e));
+    }
+    if (message.statsIndex !== 0) {
+      obj.statsIndex = Math.round(message.statsIndex);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ListRoutesEntry>): ListRoutesEntry {
+    return ListRoutesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ListRoutesEntry>): ListRoutesEntry {
+    const message = createBaseListRoutesEntry();
+    message.prefix = object.prefix ?? "";
+    message.source = object.source ?? "";
+    message.paths = object.paths?.map((e) => ListRoutesPath.fromPartial(e)) || [];
+    message.statsIndex = object.statsIndex ?? 0;
+    return message;
+  },
+};
+
+function createBaseListRoutesPath(): ListRoutesPath {
+  return { type: "", nextHop: "", interface: "", tableId: 0, weight: 0, preference: 0, flags: [] };
+}
+
+export const ListRoutesPath: MessageFns<ListRoutesPath> = {
+  encode(message: ListRoutesPath, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.type !== "") {
+      writer.uint32(10).string(message.type);
+    }
+    if (message.nextHop !== "") {
+      writer.uint32(18).string(message.nextHop);
+    }
+    if (message.interface !== "") {
+      writer.uint32(26).string(message.interface);
+    }
+    if (message.tableId !== 0) {
+      writer.uint32(32).uint32(message.tableId);
+    }
+    if (message.weight !== 0) {
+      writer.uint32(40).uint32(message.weight);
+    }
+    if (message.preference !== 0) {
+      writer.uint32(48).uint32(message.preference);
+    }
+    for (const v of message.flags) {
+      writer.uint32(58).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListRoutesPath {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseListRoutesPath();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.nextHop = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.tableId = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.preference = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.flags.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ListRoutesPath {
+    return {
+      type: isSet(object.type) ? globalThis.String(object.type) : "",
+      nextHop: isSet(object.nextHop)
+        ? globalThis.String(object.nextHop)
+        : isSet(object.next_hop)
+        ? globalThis.String(object.next_hop)
+        : "",
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      tableId: isSet(object.tableId)
+        ? globalThis.Number(object.tableId)
+        : isSet(object.table_id)
+        ? globalThis.Number(object.table_id)
+        : 0,
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : 0,
+      preference: isSet(object.preference) ? globalThis.Number(object.preference) : 0,
+      flags: globalThis.Array.isArray(object?.flags) ? object.flags.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: ListRoutesPath): unknown {
+    const obj: any = {};
+    if (message.type !== "") {
+      obj.type = message.type;
+    }
+    if (message.nextHop !== "") {
+      obj.nextHop = message.nextHop;
+    }
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.tableId !== 0) {
+      obj.tableId = Math.round(message.tableId);
+    }
+    if (message.weight !== 0) {
+      obj.weight = Math.round(message.weight);
+    }
+    if (message.preference !== 0) {
+      obj.preference = Math.round(message.preference);
+    }
+    if (message.flags?.length) {
+      obj.flags = message.flags;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ListRoutesPath>): ListRoutesPath {
+    return ListRoutesPath.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ListRoutesPath>): ListRoutesPath {
+    const message = createBaseListRoutesPath();
+    message.type = object.type ?? "";
+    message.nextHop = object.nextHop ?? "";
+    message.interface = object.interface ?? "";
+    message.tableId = object.tableId ?? 0;
+    message.weight = object.weight ?? 0;
+    message.preference = object.preference ?? 0;
+    message.flags = object.flags?.map((e) => e) || [];
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
@@ -42902,6 +43588,19 @@ export const DataplaneService = {
       Buffer.from(InterfaceStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
   },
+  /**
+   * ListRoutes pages the live FIB of one VRF (ip_route_v2_dump read once, filtered and paged in the agent; only the
+   * page crosses this boundary). Read-only state (docs/contracts/proto.md §11 F-vrf-static-ecmp: ListRoutes).
+   */
+  listRoutes: {
+    path: "/vrx.v1.Dataplane/ListRoutes" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: ListRoutesRequest): Buffer => Buffer.from(ListRoutesRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): ListRoutesRequest => ListRoutesRequest.decode(value),
+    responseSerialize: (value: ListRoutesResponse): Buffer => Buffer.from(ListRoutesResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): ListRoutesResponse => ListRoutesResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -42947,6 +43646,11 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
    */
   interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
+  /**
+   * ListRoutes pages the live FIB of one VRF (ip_route_v2_dump read once, filtered and paged in the agent; only the
+   * page crosses this boundary). Read-only state (docs/contracts/proto.md §11 F-vrf-static-ecmp: ListRoutes).
+   */
+  listRoutes: handleUnaryCall<ListRoutesRequest, ListRoutesResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -43076,6 +43780,25 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * ListRoutes pages the live FIB of one VRF (ip_route_v2_dump read once, filtered and paged in the agent; only the
+   * page crosses this boundary). Read-only state (docs/contracts/proto.md §11 F-vrf-static-ecmp: ListRoutes).
+   */
+  listRoutes(
+    request: ListRoutesRequest,
+    callback: (error: ServiceError | null, response: ListRoutesResponse) => void,
+  ): ClientUnaryCall;
+  listRoutes(
+    request: ListRoutesRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: ListRoutesResponse) => void,
+  ): ClientUnaryCall;
+  listRoutes(
+    request: ListRoutesRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: ListRoutesResponse) => void,
   ): ClientUnaryCall;
 }
 

@@ -627,6 +627,10 @@ export class FakeAgent {
       // wave-A: F-bridge-l2
       // wave-A: F-loopback-bvi-gso-lldp-span
       // wave-A: F-vrf-static-ecmp
+      listRoutes: (call, cb) => {
+        this.record('ListRoutes', call.request);
+        cb({ code: status.UNIMPLEMENTED, details: 'fake agent: ListRoutes (F-vrf-static-ecmp)' });
+      },
       // wave-A: F-neighbors-ra
       // wave-A: F-rpf-adl-pbr
       // wave-A: F-object-model

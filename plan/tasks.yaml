@@ -672,7 +672,7 @@ tasks:
   - DF-2
   priority: 1
   est_hours: 16
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D1.2
@@ -689,7 +689,7 @@ tasks:
     provisional APPROVE WITH CHANGES (F1 /state/interfaces config meaning + CLI, F2 CLI operations_gen missing counters route); its ci full run (slot 1) log /root/ngfw-wt/logs/ci/P08-20260924-131914-10894;
     review items 2,3,6,7,11 open uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/P08.continue.md | 08:17 worker done ffecf13 CI green; topology
     + restart-safety on slot 1 (NRestarts 6→6); its 07:27 run caused the V24 crash (confirmed); review spawned | 14:00 ngfw-46: review CONTINUE (Agent tool), envelope /root/ngfw-wt/P08.review2.md; fix round
-    follows after ci full (PID 10894) ends; F1/F4 decided D-105'
+    follows after ci full (PID 10894) ends; F1/F4 decided D-105 | review BLOCK 6022f0d (N1 hostDoc, F1/F2, N2, F5 …); fix round 1 spawned by ngfw-46, envelope /root/ngfw-wt/P08.fix1.md (D-107)'
 - id: F-vlan-qinq
   title: 'Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking'
   prompt: prompts/features/F-vlan-qinq.md

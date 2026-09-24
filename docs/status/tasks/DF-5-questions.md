@@ -67,7 +67,7 @@ When an initiator flow resolves a hostname responder, VPP fills `responder.addr`
 then report a responder address its desired value lacks → ErrRecreate. Out of DF-5's scope (no
 initiator flows); flagged for the F-* task that adds them.
 
-## Q10 — Charon SPDs/ids after a restart (P11)
+## Q10 — Charon SPDs/ids after a restart (P11) — ANSWERED by D-096, implemented in the fix round (`ipsec.CharonSweeper`)
 The D-089 sweep (`ipsec.SweepAndAck`) removes orphaned charon SAs and their protect policies, then
 acknowledges the restart. It does **not** remove charon's SPDs or bypass policies: a fresh charon's
 SPD holds only bypass policies until its first CHILD_SA and cannot be told apart from a stale one.
@@ -79,7 +79,7 @@ charon; (b) the sweep also deletes every unrecorded SPD in the charon range whil
 stopped (P11 would have to sequence stop → sweep → start); (c) leave as is. I recommend (a) + the
 sequencing of (b).
 
-## Q11 — Secret reference format vs D-051 (decide before P11 wires the contract)
+## Q11 — Secret reference format vs D-051 — ANSWERED by D-096 (keyed HMAC), implemented in the fix round
 DF-5 references secrets by a digest of the material (`sha256:<hex>`, WireGuard private keys by
 `x25519:<public key>`) so Retrieve can compare VPP's dumped material without a cache. D-051 names
 secrets `<kind>/<name>` (RF-2 uses `psk/site-a`). An unsalted SHA-256 of a low-entropy PSK in
@@ -90,9 +90,16 @@ guessable offline — small change in `vpn.Ref`/`Resolve` and P08; (c) D-051 nam
 + Retrieve reverse-looks-up the name by material in the secret store. I recommend (b); not changed
 in DF-5 because it is a contract decision.
 
-## Q12 — Persisted record store for P05/P08
+## Q12 — Persisted record store for P05/P08 — ANSWERED by D-096 (P08 wiring); the charon sweeper now refuses an in-memory store
 SPDs, SAs, SPD bindings (ownership) and the responder hostname (D-076 applied-once) live in a
 `dfkit.BootStore` passed with `ipsec.WithBootStore` / `ikev2.WithBootStore`. P05/P08 must pass the
 owner's persisted `dfkit.NewFileBootStore(<state dir>/…)` — one store per owner can be shared with
 DF-8's/DF-7's records (keys are prefixed by descriptor name). With the in-memory default a
 restarted agent recognises none of its SPDs/SAs and fails to re-create them (never adopts/deletes).
+
+## Q13 — RF-2 AckRestart window (fix round, for RF-2/P11)
+`CharonSweeper.AckRestart` acks only after a completed `Sweep` for the same restart token, but
+RF-2's `Renderer.AckRestart` records charon's start time *at ack time*. A charon restart between our
+"start charon" and the ack would be acknowledged unswept. Options: (a) RF-2 adds
+`AckRestart(ctx, since string)` that acks only the start time P11 observed right after starting
+charon; (b) accept the window (P11 starts charon itself immediately before the ack). I recommend (a).

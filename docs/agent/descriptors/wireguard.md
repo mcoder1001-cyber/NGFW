@@ -2,7 +2,7 @@
 
 Package `apps/agent/internal/descriptors/wireguard`, desired-state types in
 `apps/agent/internal/descriptors/vpn/pb/vpn.proto`. Entry point: `peer := wireguard.Register(registry,
-client, owner, wireguard.WithSecrets(resolver), wireguard.WithGlobalsOwner(globalsOwner))` — it returns the peer descriptor, which is also
+client, owner, wireguard.WithSecrets(resolver), wireguard.WithKeyer(keys), wireguard.WithGlobalsOwner(globalsOwner))` — it returns the peer descriptor, which is also
 the plugin's event source. Message names come from `apps/agent/binapi/wireguard` (VPP 26.06).
 
 ## Object ↔ message table
@@ -57,7 +57,7 @@ after the descriptor name.
   reference from the public key in `wireguard_interface_dump` — the private key is never read back
   (`show_private_key` is never set; the field is zeroed regardless). Retrieve == desired and survives
   an agent restart; a different key is a different reference → ErrRecreate.
-* `WireguardPeer.preshared_key` is a `sha256:<hex>` reference or "" (none). `wireguard_peers_v2_dump`
+* `WireguardPeer.preshared_key` is an `hmac:<hex>` reference (keyed, D-096) or "" (none). `wireguard_peers_v2_dump`
   returns the preshared key in clear; Retrieve hashes it into the reference and zeroes the buffer,
   also for other owners' peers (then dropped). `preshared_key_set=false` → "".
 * `generate_key` is not supported: a key VPP generates could not be referenced by desired state

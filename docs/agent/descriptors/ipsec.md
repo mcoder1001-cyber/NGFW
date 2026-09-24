@@ -7,6 +7,7 @@ messages into `packages/proto`, D-055). Entry point:
 ```go
 ipsec.Register(registry, client, owner,
     ipsec.WithSecrets(resolver),          // the agent's secret store (vpn.Resolver)
+    ipsec.WithKeyer(keys),                // fingerprint key: vpn.LoadOrCreateKeyFile(<state dir>/…), D-096
     ipsec.WithBootStore(store),           // persisted ownership records (dfkit.NewFileBootStore in the state dir)
     ipsec.WithGlobalsOwner(globalsOwner), // agent config globalsOwner (D-071)
     ipsec.WithIDRange(lo, hi))            // tests only: the slot's id range
@@ -70,30 +71,67 @@ Dependencies always use the alias `interface/<name>` (D-065); `ipsec.itf` provid
   of absence (`DeleteOnAbsence() == false`).
 * Retrieve never reports one key twice (`dfkit.Dedupe`).
 
-## Orphaned SAs after a charon restart (D-089)
+## Orphaned charon state after a charon restart (D-089, D-096)
 
-With the kernel-vpp plugin (P11) charon installs its CHILD_SAs into VPP itself. When charon
-restarts, the SAs of the previous charon stay in VPP. RF-2 reports the restart
-(`strongswan.State.Restarted`); P11 then calls
+With the kernel-vpp plugin (P11) charon installs its SPDs, policies and CHILD_SAs into VPP itself;
+after a charon restart the previous instance's objects stay, and stock kernel-vpp allocates ids
+from 1 again. The procedure (D-096), run by P11 when RF-2 reports `State.Restarted`:
 
 ```go
-res, err := ipsec.SweepAndAck(ctx, cfg, ipsec.CharonSweep{IDs: charonRange, Live: liveSPI}, renderer)
+sw, err := ipsec.NewCharonSweeper(cfg, charonRange) // at startup: validated, refused on any misconfiguration
+// stop charon →
+res, err := sw.Sweep(ctx, restart, nil)             // charon stopped: charon SPDs, then unrecorded charon SAs
+// start charon →
+err = sw.AckRestart(ctx, restart, renderer)         // refused unless Sweep(restart) completed on this VPP instance
 ```
 
-* orphan = an SA inside the charon id range (`IDs`, mandatory — the zero range is refused), without
-  an ownership record of `ipsec.sa`, whose SPI is not live (`Live`: the SPIs of the CHILD_SAs the
-  running charon has installed, from RF-2's state);
-* the sweep deletes the `protect` policies that use an orphan (only in charon-range SPDs without our
-  record), then the SA — each re-read right before its delete; SAs still referenced by a tunnel
-  protection are reported in `InUse` and left alone (P11 decides about the tunnel);
-* `SweepAndAck` calls `renderer.AckRestart` only when the sweep finished without error.
-* Not swept: charon's SPDs and bypass policies — a fresh charon's SPD holds only bypass policies
-  until its first CHILD_SA and cannot be told apart from a stale one (DF-5-questions Q10).
+* **Ranges (H2):** charon gets its own id range. `NewCharonSweeper` refuses a zero range, a range
+  reaching bit 31 (the ikev2 plugin's SA ids ≥ 0x80000000), descriptors that own every id
+  (`Config.IDs` unset) and any overlap with `Config.IDs`.
+* **Store (H2):** the owner's persisted record store is required (`*dfkit.FileBootStore` or a store
+  reporting `Persistent()`); the in-memory default is refused. Nothing with an ownership record —
+  valid, pending or of an earlier VPP instance — is touched; nothing tagged is deleted.
+* **Lock-safe order (H3):** `ipsec_sad_entry_del` is an unlock; every protect policy and tunnel
+  protection holds its own lock. Per orphan SA: a tunnel protection using it → `InUse`, left; the
+  protect policies using it are deleted in **all** SPDs (except SPDs with our record → `InUse`); a
+  fresh dump of all SPDs must show no reference; the SA is re-read (same SPI, unrecorded, not live)
+  and unlocked once. Any failure stops the sweep **for that SA** (never an unlock of a referenced
+  SA); the sweep then returns an error and writes no completion marker. `ipsec.sa` Delete applies
+  the same "no remaining reference" check before its unlock.
+* **Ack gate (M2):** `Sweep` persists a completion marker `(restart token, VPP boot identity)`;
+  `AckRestart` calls RF-2's `Renderer.AckRestart` only with a matching marker, then drops it.
+  `restart` is RF-2's `State.DaemonStartedAt` of the instance that went away. A second charon
+  restart between our start and the ack is RF-2's residual window (question to RF-2/P11: an
+  `AckRestart(ctx, since)` that acks only the observed start time).
+* While charon runs, `Sweep(ctx, token, live)` with its live SPIs sweeps SAs only (never SPDs).
+
+## Write-ahead ownership records (review M4)
+
+SPD, SA and SPD-binding Creates check existence first (existing + our record = a retry after a
+lost reply → adopted; existing without record = `ErrNotOurs`), then write a *pending* record, then
+add, then confirm the record. A failed add drops the pending record only when a dump shows the
+object does not exist; otherwise the object stays recorded as ours, so the next Retrieve reports it
+(adopted or cleaned up) instead of it being stuck as "exists, not ours".
+
+## Known limitation → TD-3 (review M3)
+
+VPP has no interface-delete hook for SPD bindings: if a bound interface is deleted before its
+binding (e.g. a fixture cleanup after a failed test, or an interface deleted outside the agent), the
+binding row stays on the sw_if_index and the next interface that reuses the index inherits it (a
+new bind fails with "SPD already assigned", and a later SPD delete runs feature-disable on the
+reused index). `SpdInterface.Delete` only drops its record in that case. The sanitising of
+inherited per-interface state on interface Create belongs to TD-3 (D-095) — "stale SPD binding
+row on a reused sw_if_index" is on its list; ipsec.itf and wireguard.interface also create
+interfaces at reused indexes.
 
 ## Secrets (contract for P11)
 
-* `IpsecSa.crypto_key` / `integ_key` are **references**, never material: `sha256:<hex sha256 of
-  the key bytes>`. Create resolves them through `vpn.Resolver` (the agent's secret store; tests use
+* `IpsecSa.crypto_key` / `integ_key` are **references**, never material: `hmac:<hex>` =
+  HMAC-SHA256 of the key bytes under the agent-local fingerprint key (D-096: a 0600 file of 32
+  random bytes in the state dir, created on first use, never logged). A plain sha256 would let a
+  weak PSK be guessed offline from desired state, plans or logs. Legacy `sha256:` references still
+  resolve (one re-apply, then the keyed form). A value that is not a well-formed reference
+  (pasted plaintext) is refused before anything else and never echoed (`vpn.CheckRef`, `Redact`). Create resolves them through `vpn.Resolver` (the agent's secret store; tests use
   `vpn.MapResolver`), verifies material ↔ reference, sends `ipsec_sad_entry_add_v2`, then zeroes
   the request buffer.
 * `ipsec_sa_v5_dump` returns the key material in clear. Retrieve hashes it into the same reference
@@ -106,7 +144,10 @@ res, err := ipsec.SweepAndAck(ctx, cfg, ipsec.CharonSweep{IDs: charonRange, Live
   `MapResolver` keeps material behind a pointer; any production resolver must do the same.
   `TestNoMaterialInOutput` checks raw, decimal and hex encodings of every test key in `%v`, `%+v`
   and slog JSON of values, keys, metas, errors and the descriptor itself.
-* The reference format vs D-051 (`psk/<name>`) is open (DF-5-questions Q11).
+* Reference format decided by D-096 (Q11 closed): keyed HMAC; P08 derives the reference from the
+  D-051 secret name's material with the same Keyer.
+* P05's verification errors print keys and changed field names only, never values (review H1;
+  `scheduler.DiffSummary`).
 
 ## VPP limitations and how they are handled
 
@@ -143,7 +184,10 @@ listen/peer ports. Never 500 / 4500 / 51820. Ids: `VRX_VPP_TABLE_BASE + 1…499`
   Create, idempotent re-apply, update/ErrRecreate, delete, second delete = no VPP call, stale
   index / reused id refused, records expire on VPP restart, agent restart with the same store,
   stranger store adopts nothing, D-069 name resolution (foreign / VPP name / untagged), globals
-  roles, charon sweep (orphan, live, in-use, own SA, failing delete → no ack), no material in output.
+  roles, charon sweeper (range/store validation, stopped and live sweeps, policies in foreign SPDs,
+  in-use via protection or our SPD, failing policy delete → SA never unlocked across two sweeps on a
+  fake that models VPP's SA lock counting, ack gate), write-ahead records, legacy references, pasted
+  plaintext never echoed, no material in output.
 * Host (`VRX_INTEGRATION=1`, shared lab lock, slot prefix, one package at a time): `TestIpsecOnHost`
   runs through **P05's reconciler** (`vpntest.Agent` = scheduler + DF-1 alias + these descriptors,
   persisted record store): apply → Retrieve == desired per object type (tagged and untagged

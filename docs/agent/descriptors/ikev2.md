@@ -2,7 +2,7 @@
 
 Package `apps/agent/internal/descriptors/ikev2` (VPP's native IKEv2 plugin), desired-state types in
 `apps/agent/internal/descriptors/vpn/pb/vpn.proto`. Entry point: `ikev2.Register(registry, client,
-owner, ikev2.WithSecrets(resolver), ikev2.WithBootStore(store), ikev2.WithGlobalsOwner(globalsOwner))`
+owner, ikev2.WithSecrets(resolver), ikev2.WithKeyer(keys), ikev2.WithBootStore(store), ikev2.WithGlobalsOwner(globalsOwner))`
 (store = the owner's persisted `dfkit.BootStore`, shared by the DF-5 packages). Message names come from `apps/agent/binapi/ikev2`; the
 transform / id-type / auth-method **values** are plain `u8` in ikev2.api (no binapi enum), so the
 name ↔ number tables in `ikev2.go` are the IANA numbers exactly as VPP 26.06 defines them in
@@ -69,7 +69,7 @@ State and actions (not descriptors — nothing retrieves them into desired state
 
 ## Secrets
 
-* `auth.psk` is a `sha256:<hex>` reference. Create resolves it (`vpn.Resolve` verifies material ↔
+* `auth.psk` is an `hmac:<hex>` reference (HMAC-SHA256 under the agent-local fingerprint key, D-096; see `vpn/doc.go`). Create resolves it (`vpn.Resolve` verifies material ↔
   reference), sends `ikev2_profile_set_auth`, zeroes the request buffer.
 * `ikev2_profile_dump` returns the PSK in clear. Retrieve hashes it into the reference and zeroes
   the buffer (also for other owners' profiles, which are then dropped). Retrieve == desired, the

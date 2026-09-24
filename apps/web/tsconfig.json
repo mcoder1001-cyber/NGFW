@@ -4,7 +4,11 @@
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "noEmit": true,
-    "types": ["vite/client", "@testing-library/jest-dom"]
+    "types": ["vite/client", "@testing-library/jest-dom"],
+    // Type-check against the api-client SOURCE: its built dist/index.d.ts imports ./generated/schema.js, which the
+    // package build does not emit (tsc never copies .d.ts inputs), so every response type degraded to `any`.
+    // Runtime resolution (vite) still uses the package build. See docs/status/tasks/P07b-questions.md #1.
+    "paths": { "@ngfw/api-client": ["../../packages/api-client/src/index.ts"] }
   },
   "include": ["src"]
 }

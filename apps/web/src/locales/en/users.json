@@ -1,0 +1,51 @@
+{
+  "title": "Users",
+  "intro": "Local accounts in the configuration (management.users). Changes go into the candidate and take effect after a commit.",
+  "adminOnly": "Signed in as {{role}}: only administrators can add, change or remove users.",
+  "add": "Add user",
+  "addTitle": "Add user",
+  "editTitle": "Edit user {{user}}",
+  "edit": "Edit {{user}}",
+  "delete": "Remove {{user}}",
+  "deleteTitle": "Remove user {{user}}?",
+  "deleteBody": "The user is removed from the candidate. The account keeps working until the change is committed.",
+  "deleteSelf": "This is your own account. After the commit you can no longer sign in with it.",
+  "deleteConfirm": "Remove from candidate",
+  "saveToCandidate": "Save to candidate",
+  "none": "No users in the configuration.",
+  "you": "you",
+  "passwordNote": "Leave the password hash empty to keep the current password. Sign-in to the web UI and API needs an argon2id hash ($argon2id$…); this screen cannot compute one from a plain password yet.",
+  "bootstrapNote": "The first administrator created at installation is not part of the configuration until it is added here; it is never removed by a commit.",
+  "empty": {
+    "title": "No users configured yet",
+    "body": "You are signed in as {{user}}, the account created at installation. When you add the first user, also add an administrator — for example your own account, whose password is kept.",
+    "addMe": "Add my account ({{user}}) as administrator"
+  },
+  "col": {
+    "username": "Username",
+    "fullName": "Full name",
+    "role": "Role",
+    "status": "Status",
+    "sshKeys": "SSH keys",
+    "pending": "Uncommitted",
+    "actions": "Actions"
+  },
+  "status": {
+    "enabled": "Active",
+    "disabled": "Disabled"
+  },
+  "pending": {
+    "new": "new",
+    "changed": "changed",
+    "removed": "to be removed"
+  },
+  "field": {
+    "username": { "title": "Username", "help": "Lower-case letters, digits, _ and -; starts with a letter or _." },
+    "role": { "title": "Role", "help": "Administrator: everything. Operator: edit and commit configuration, no users or AAA. Read-only: view only." },
+    "scope": { "title": "Scope", "help": "* = the whole device (tenant scopes come later)." },
+    "passwordHash": { "title": "Password hash", "help": "Write-only: never shown again. Empty = keep the current password." },
+    "sshKeys": { "title": "SSH public keys", "help": "OpenSSH lines such as ssh-ed25519 AAAA… comment." },
+    "fullName": { "title": "Full name", "help": "Optional." },
+    "disabled": { "title": "Disabled", "help": "Keep the account but refuse sign-ins." }
+  }
+}

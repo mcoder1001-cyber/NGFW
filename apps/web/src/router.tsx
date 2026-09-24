@@ -3,6 +3,8 @@ import { createBrowserRouter, createMemoryRouter, type RouteObject } from 'react
 import { DEV_ROUTES } from './build-flags';
 import { domainPath } from './nav/nav';
 import { domains } from './schema/registry';
+import { RequireAuth } from './auth/RequireAuth';
+import { LoginPage } from './pages/LoginPage';
 import { AppShell } from './shell/AppShell';
 import { NotAvailablePage } from './shell/NotAvailablePage';
 import { NotFoundPage } from './shell/NotFoundPage';
@@ -34,9 +36,14 @@ export interface RouteOptions {
 /** Route table: domain routes come from the schema's root keys; dev demos exist only in dev builds. */
 export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): RouteObject[] {
   return [
+    { path: '/login', element: <LoginPage />, errorElement: <RouteErrorPage /> },
     {
       path: '/',
-      element: <AppShell devRoutes={devRoutes} />,
+      element: (
+        <RequireAuth>
+          <AppShell devRoutes={devRoutes} />
+        </RequireAuth>
+      ),
       errorElement: <RouteErrorPage />,
       children: [
         // Screens are code-split per route; feature screens (P08+) plug in the same way.
@@ -48,8 +55,8 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
             return { element: <DomainPlaceholderPage domainKey={d.key} /> };
           },
         })),
-        { path: 'system/users', element: <NotAvailableByKey labelKey="nav:users" /> },
-        { path: 'system/revisions', element: <NotAvailableByKey labelKey="nav:revisions" /> },
+        { path: 'system/users', lazy: async () => ({ Component: (await import('./pages/UsersPage')).UsersPage }) },
+        { path: 'system/revisions', lazy: async () => ({ Component: (await import('./pages/RevisionsPage')).RevisionsPage }) },
         { path: 'tools', element: <NotAvailableByKey labelKey="nav:tools" /> },
         ...(devRoutes ? DEV_ROUTE_OBJECTS : []),
         { path: '*', element: <NotFoundPage /> },

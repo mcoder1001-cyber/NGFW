@@ -1,0 +1,138 @@
+{
+  "close": "Close",
+  "cancel": "Cancel",
+  "loading": "Loading…",
+  "bar": {
+    "label": "Uncommitted changes",
+    "count_one": "{{n}} uncommitted change",
+    "count_other": "{{n}} uncommitted changes",
+    "review": "Review diff",
+    "commit": "Commit…",
+    "discard": "Discard",
+    "lockedBy": "Locked by: {{owner}}",
+    "lockedByYou": "Locked by: you",
+    "lockedByOther": "The candidate is locked by {{owner}}. Wait until they commit or discard, or until the lock expires.",
+    "pendingBlocks": "A commit is waiting for confirmation. Confirm it or let it revert first.",
+    "breakLock": "Break lock",
+    "reconnecting": "Reconnecting…"
+  },
+  "perm": {
+    "commit": "Your role cannot commit or roll back configuration.",
+    "edit": "Your role cannot change the configuration."
+  },
+  "review": {
+    "title": "Uncommitted changes (candidate ↔ running)"
+  },
+  "discard": {
+    "title": "Discard all changes?",
+    "body_one": "{{n}} uncommitted change will be dropped and the lock released. Running configuration is not affected.",
+    "body_other": "{{n}} uncommitted changes will be dropped and the lock released. Running configuration is not affected.",
+    "confirm": "Discard changes"
+  },
+  "diff": {
+    "empty": "No differences.",
+    "summary": "Change summary",
+    "from": "from",
+    "to": "to",
+    "count": {
+      "add_one": "{{count}} added",
+      "add_other": "{{count}} added",
+      "remove_one": "{{count}} removed",
+      "remove_other": "{{count}} removed",
+      "replace_one": "{{count}} changed",
+      "replace_other": "{{count}} changed"
+    },
+    "op": {
+      "add": "Added",
+      "remove": "Removed",
+      "replace": "Changed"
+    }
+  },
+  "commit": {
+    "title": "Commit changes",
+    "doneTitle": "Commit result",
+    "validating": "Validating the candidate (schema, semantic rules, data-plane dry run)…",
+    "valid": "Validation passed.",
+    "notAppliedWarning_one": "Not enforced yet: the data-plane agent does not implement {{domains}}. It is stored in the running configuration only.",
+    "notAppliedWarning_other": "Not enforced yet: the data-plane agent does not implement {{domains}}. They are stored in the running configuration only.",
+    "comment": "Comment",
+    "autoRevertBefore": "Revert automatically in",
+    "autoRevertAfter": "minutes unless I confirm",
+    "minutesLabel": "Minutes until automatic revert",
+    "minutesRange": "1 to {{max}} minutes",
+    "submit": "Commit",
+    "submitConfirm": "Commit with auto-revert",
+    "committing": "Committing…"
+  },
+  "result": {
+    "applied": "Committed and applied.",
+    "confirmed": "Confirmed.",
+    "partially-applied": "Committed, but only partially applied.",
+    "not-applied": "Committed, but not applied to the data plane.",
+    "pending": "Applied, waiting for confirmation.",
+    "unchanged": "Nothing to commit.",
+    "revision": "Revision {{id}}",
+    "notApplied_one": "Not enforced: the data-plane agent does not implement {{domains}} yet. The change is stored in the running configuration and will be applied when support lands.",
+    "notApplied_other": "Not enforced: the data-plane agent does not implement {{domains}} yet. The changes are stored in the running configuration and will be applied when support lands.",
+    "warnings": "Warnings"
+  },
+  "confirm": {
+    "titleMine": "Your commit is waiting for confirmation",
+    "titleOther": "A commit is waiting for confirmation",
+    "countdown": "Your changes will auto-revert in {{time}}",
+    "expected": "— this is expected if you cut your own access.",
+    "expiredChecking": "The confirmation window has closed. Checking what the device did…",
+    "expiredWaiting": "The confirmation window has closed; the device reverts to the previous configuration. Waiting for it to answer…",
+    "reconnecting": "Reconnecting to the device…",
+    "comment": "Comment: {{comment}}",
+    "button": "Confirm",
+    "confirming": "Confirming…",
+    "outcome": {
+      "confirmed": {
+        "title": "Commit confirmed",
+        "body": "The changes are kept and saved as revision {{revision}}."
+      },
+      "confirmedElsewhere": {
+        "title": "Commit confirmed",
+        "body": "The commit was confirmed from another session and saved as revision {{revision}}."
+      },
+      "reverted": {
+        "title": "Commit reverted",
+        "body": "It was not confirmed in time, so the device went back to the previous configuration. Your changes are still in the candidate."
+      }
+    }
+  },
+  "sync": {
+    "state": {
+      "in-sync": "in sync",
+      "unknown": "unknown",
+      "degraded": "degraded"
+    },
+    "inline": "Data-plane state: {{state}} ({{reason}})",
+    "title": {
+      "unknown": "Data-plane state unknown",
+      "degraded": "Data plane partially changed"
+    },
+    "body": "The running configuration and the data plane may disagree. The device is reconciling: {{reason}}",
+    "agentDownTitle": "Data-plane agent unreachable",
+    "agentDown": "Validation and commits fail until the agent answers again. Editing the candidate still works."
+  },
+  "problem": {
+    "locked": "The candidate is locked by another user",
+    "stale": "The candidate is out of date",
+    "dirty": "There are uncommitted changes",
+    "pending": "A commit is waiting for confirmation",
+    "reverted": "The commit was already reverted",
+    "noPending": "Nothing is waiting for confirmation",
+    "agentUnavailable": "Data-plane agent unavailable",
+    "runningUnknown": "Outcome unknown",
+    "validation": "Validation failed",
+    "forbidden": "Not allowed for your role",
+    "httpStatus": "Request failed",
+    "lockOwner": "Lock owner: {{owner}}",
+    "results": "Per-object results",
+    "unexpected": "Unexpected error.",
+    "unreachableTitle": "No answer from the device",
+    "unreachable": "The request did not reach the API. It will be retried when the connection is back."
+  }
+}

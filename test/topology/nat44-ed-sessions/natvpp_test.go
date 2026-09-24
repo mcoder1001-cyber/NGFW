@@ -285,6 +285,29 @@ func natLoss(t *testing.T, conn vppapi.Connection, prefix string, slotNet netip.
 		}
 		ev = append(ev, fmt.Sprintf("nat44_add_del_static_mapping_v2 is_add=0 tag=%s → ok", tag))
 	}
+	for _, m := range o.idents {
+		tag := strings.TrimRight(m.Tag, "\x00")
+		if !strings.HasPrefix(tag, prefix+":") {
+			continue
+		}
+		req := &nat44_ed.Nat44AddDelIdentityMapping{IsAdd: false, Flags: m.Flags, IPAddress: m.IPAddress, Protocol: m.Protocol, Port: m.Port, SwIfIndex: m.SwIfIndex, VrfID: m.VrfID, Tag: tag}
+		if _, err := svc.Nat44AddDelIdentityMapping(ctx, req); err != nil {
+			t.Fatalf("loss: delete identity mapping %s: %v", tag, err)
+		}
+		ev = append(ev, fmt.Sprintf("nat44_add_del_identity_mapping is_add=0 tag=%s → ok", tag))
+	}
+	for _, m := range o.lbs {
+		tag := strings.TrimRight(m.Tag, "\x00")
+		if !strings.HasPrefix(tag, prefix+":") {
+			continue
+		}
+		req := &nat44_ed.Nat44AddDelLbStaticMapping{IsAdd: false, Flags: m.Flags, ExternalAddr: m.ExternalAddr, ExternalPort: m.ExternalPort, Protocol: m.Protocol, Affinity: m.Affinity, Tag: tag,
+			LocalNum: m.LocalNum, Locals: m.Locals}
+		if _, err := svc.Nat44AddDelLbStaticMapping(ctx, req); err != nil {
+			t.Fatalf("loss: delete lb mapping %s: %v", tag, err)
+		}
+		ev = append(ev, fmt.Sprintf("nat44_add_del_lb_static_mapping is_add=0 tag=%s → ok", tag))
+	}
 	for _, a := range o.addrs {
 		if !slotNet.Contains(netip.AddrFrom4(a.IPAddress)) {
 			continue

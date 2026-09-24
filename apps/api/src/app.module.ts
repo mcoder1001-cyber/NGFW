@@ -36,6 +36,7 @@ import { RelayService } from './telemetry/relay.service.js';
 import { objectModelFeature } from './features/object-model/index.js';
 // wave-A: F-acl
 // wave-A: F-host-acl-nftables
+import { hostAclNftablesFeature } from './features/host-acl-nftables/index.js';
 // wave-A: F-nat44-ed-sessions
 // wave-A: F-nat44-ei-64-66-nptv6
 // wave-A: P11
@@ -88,6 +89,7 @@ export class AppModule {
         ...objectModelFeature.controllers,
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables
+        ...hostAclNftablesFeature.controllers,
         // wave-A: F-nat44-ed-sessions
         // wave-A: F-nat44-ei-64-66-nptv6
         // wave-A: P11
@@ -125,6 +127,7 @@ export class AppModule {
         ...objectModelFeature.providers,
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables
+        ...hostAclNftablesFeature.providers,
         // wave-A: F-nat44-ed-sessions
         // wave-A: F-nat44-ei-64-66-nptv6
         // wave-A: P11

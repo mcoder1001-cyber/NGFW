@@ -633,7 +633,7 @@ export class FakeAgent {
       fqdnObjectState: (call, cb) => void import('../features/object-model/fake.js').then((m) => m.fqdnObjectState(this)(call, cb)),
       // wave-A: F-acl
       // wave-A: F-host-acl-nftables
-      hostAclState: (_call, cb) => cb({ code: status.UNIMPLEMENTED, details: 'fake agent: HostAclState' }),
+      hostAclState: (call, cb) => void import('../features/host-acl-nftables/fake.js').then((m) => m.hostAclState(this)(call, cb)),
       // wave-A: F-nat44-ed-sessions
       // wave-A: F-nat44-ei-64-66-nptv6
       // wave-A: P11

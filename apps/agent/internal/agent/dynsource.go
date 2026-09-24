@@ -407,6 +407,8 @@ func (s *Service) syncLocked(ctx context.Context, ds *dynSource) error {
 	if s.beforeTxn != nil {
 		s.beforeTxn()
 	}
+	flushClaims, endClaims := s.claimsBatch() // TD-11c (review F5): a source's transaction is one claim batch too
+	defer endClaims()
 	resp := &vrxv1.ApplyResponse{}
 	mg := s.mergeSources(nil, s.st.desired, []*dynSource{ds})
 	reason := srcRejected
@@ -418,6 +420,11 @@ func (s *Service) syncLocked(ctx context.Context, ds *dynSource) error {
 	} else {
 		res := s.sched.ApplyWith(ctx, mg.kvs, scheduler.Only(mg.names...), scheduler.ApplyOptions{})
 		fillResponse(resp, res, &projected{pointers: map[scheduler.Key]string{}})
+	}
+	if err := flushClaims(); err != nil { // TD-11c: as applyLocked (review F2)
+		log.Error("persist claim stores", "err", err)
+		claimsNotPersisted(resp, err)
+		s.setDegraded(true, "dynamic source "+ds.Name+": "+resp.GetMessage())
 	}
 	applied := resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED
 	if resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED {

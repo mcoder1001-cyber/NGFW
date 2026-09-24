@@ -70,3 +70,33 @@ func TestClaimStoresBracketEveryTransaction(t *testing.T) {
 		t.Fatalf("panicking transaction: begins %d flushes %d, want 6 and 6", begins, flushes)
 	}
 }
+
+// F5: a dynamic source's sync (TD-8 syncLocked, the second transaction boundary) is one claim batch
+// too; a failed end leaves the source out of sync and the agent DEGRADED.
+func TestClaimStoresBracketSourceSync(t *testing.T) {
+	v := coretest.New()
+	s, md, src := newSrcSvc(t, v, nil)
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	var begins, flushes int
+	var failWith error
+	s.claimsTxn = func() func() error {
+		begins++
+		return func() error { flushes++; return failWith }
+	}
+	sync := s.sourceSync("test-sync")
+	src.set("loop701")
+	if err := sync(context.Background()); err != nil || md.list() != "loop701" {
+		t.Fatalf("sync %v %q", err, md.list())
+	}
+	if begins != 1 || flushes != 1 {
+		t.Fatalf("sync: begins %d flushes %d, want 1 and 1", begins, flushes)
+	}
+	failWith = errors.New("disk full")
+	src.set("loop701", "loop702")
+	if err := sync(context.Background()); err == nil {
+		t.Fatal("a sync whose claims were not persisted reported success")
+	}
+	if !s.Health().GetDegraded() || begins != 2 || flushes != 2 {
+		t.Fatalf("failed claim write in a sync: degraded %v, begins %d flushes %d", s.Health().GetDegraded(), begins, flushes)
+	}
+}

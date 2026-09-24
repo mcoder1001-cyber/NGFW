@@ -27,3 +27,9 @@ The manager pulls from here when nothing on the board is ready. Add items with a
 
 ## From the TD-6 review (D-116, 2026-09-24) — deploy/vpp/apply-startup.sh harness
 - F3 harness cache key misses the test fixtures; F4 `VRX_TEST_ROOT` guard does not cover driverctl/ifup/networkctl/netplan; F5 own rollback goes FORCED after 60 s when only the holder died; F6 no harness timeout in CI; F7 SIGTERM trap path untested (systemd kills the run unit after 90 s); F8 a flaky pass is warned once then cached; F9 minor rollback edge cases (details: TD-6-review.md in refs/archive/TD-6)
+- (pre-existing, TD-6 review) rollback verification never checks that VPP's boot identity changed (`apply-startup.sh` ~:753); `kill_recorded` may SIGKILL already-reaped PIDs (PID reuse)
+
+## From the P08 re-review (D-118, 2026-09-24)
+- R2-stores: DF-1 attribute Create on an untagged interface can fail with ErrClaimUnbound after VPP was written (claim store re-dump bounded at 5 s < API 60 s); an attribute Create should claim before writing
+- R3-gauge: `vrx_agent_iface_quarantined` is not re-set from the holders `ifsanitize.Release` finds after an agent restart (set the absolute count after every Release)
+- (TD-7 finding) `check_health` (`deploy/vpp/apply-startup.sh:568`) reads `systemctl show` once without retry: a timed-out/partial D-Bus read counts as "vpp.service restarted" → needless rollback (never a false commit); harness scenarios 5/28/29 start with an unguarded apply so a very loaded host kills a whole shard instead of getting a rerun

@@ -672,7 +672,7 @@ tasks:
   - DF-2
   priority: 1
   est_hours: 16
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D1.2
@@ -690,7 +690,8 @@ tasks:
     review items 2,3,6,7,11 open uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/P08.continue.md | 08:17 worker done ffecf13 CI green; topology
     + restart-safety on slot 1 (NRestarts 6→6); its 07:27 run caused the V24 crash (confirmed); review spawned | 14:00 ngfw-46: review CONTINUE (Agent tool), envelope /root/ngfw-wt/P08.review2.md; fix round
     follows after ci full (PID 10894) ends; F1/F4 decided D-105 | review BLOCK 6022f0d (N1 hostDoc, F1/F2, N2, F5 …); fix round 1 spawned by ngfw-46, envelope /root/ngfw-wt/P08.fix1.md (D-107) | re-review
-    APPROVE WITH CHANGES (T1 guard vs coretest, R1 tolerant/CLI, e2e discrimination) → fix round 2 (last), envelope /root/ngfw-wt/P08.fix2.md (D-118)'
+    APPROVE WITH CHANGES (T1 guard vs coretest, R1 tolerant/CLI, e2e discrimination) → fix round 2 (last), envelope /root/ngfw-wt/P08.fix2.md (D-118) | fix round 2 done abb6950 (code 1a90988), CI green,
+    topology PASSED first run (resync 0.4 s, NRestarts 0→0); focused verify of round 2'
 - id: W-seed
   title: 'Wave-A seed commit: hotspot anchors (A1,A2,A4,C1-C3,C5,P1,P4-P6,W1-W3), one-entry-per-line lists, Env event-publish + Resync hooks (A5), subsystems.SlotIDRange(), vpn/services page shells, proto.md
     "Feature RPCs" heading — no behaviour change'
@@ -715,7 +716,7 @@ tasks:
   finished: ''
   notes: 'D-109: seeded by one worker right after P08+TD-2 merge so 17 parallel features merge without union conflicts | SPECULATIVE from task/P08@74ec04e (D-114), envelope /root/ngfw-wt/W-seed.envelope.md
     | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118) | done 8b7558e (425 anchors, CI green); main merge blocked by the TD-5 guard × old P08 coretest (resolved by P08 round 2, D-118) → rebase
-    after P08 lands; focused verify (sonnet)'
+    after P08 lands; focused verify (sonnet) | verify APPROVE ff18d0b (no behaviour change, 425 anchors); merge right after P08'
 - template: ''
   parked_on: ''
   branch: ''
@@ -739,12 +740,12 @@ tasks:
   notes: D-119 M1
 - template: ''
   parked_on: ''
-  branch: ''
-  worktree: ''
-  owner: ''
+  branch: task/TD-8
+  worktree: /root/ngfw-wt/TD-8
+  owner: ngfw-46 (no slot, unit only)
   started: ''
   finished: ''
-  state: todo
+  state: running
   id: TD-8
   title: 'Agent seams: Env.Publish/Resync wiring (W-seed Q1), S1 dynamic desired source, metrics collector hook'
   prompt: docs/status/wave-BC-launch-queue.md
@@ -753,12 +754,12 @@ tasks:
   - P08
   - W-seed
   priority: 4
-  est_hours: 4
+  est_hours: 6
   wbs:
   - D1.2
   scope: A5 hunks in apps/agent/internal/agent/{agent,service,metrics}.go + subsystems/seams*.go (D-119 M2)
   files_owned: apps/agent/internal/agent/{agent,service,metrics}.go (seam hunks only) apps/agent/internal/subsystems/seams*.go docs/status/tasks/TD-8*
-  notes: D-119 M2
+  notes: D-119 M2 | SPECULATIVE from task/W-seed@df67a8e; scope +fail-closed SlotIDRange +ARCH-1 coverage table (audit A3/A4, D-123)
 - id: F-vlan-qinq
   title: 'Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking'
   prompt: prompts/features/F-vlan-qinq.md
@@ -893,6 +894,7 @@ tasks:
   - P08
   - DF-2
   - W-seed
+  - TD-8
   priority: 3
   est_hours: 10
   state: running
@@ -967,6 +969,7 @@ tasks:
   - DF-4
   - F-object-model
   - W-seed
+  - TD-8
   priority: 3
   est_hours: 10
   state: todo
@@ -1096,6 +1099,7 @@ tasks:
   - RF-2
   - DF-5
   - W-seed
+  - TD-8
   priority: 4
   est_hours: 16
   state: todo
@@ -1151,6 +1155,7 @@ tasks:
   - P08
   - DF-5
   - W-seed
+  - TD-8
   priority: 4
   est_hours: 10
   state: todo
@@ -1226,6 +1231,7 @@ tasks:
   - DF-8
   - F-vrf-static-ecmp
   - W-seed
+  - TD-8
   priority: 3
   est_hours: 16
   state: todo
@@ -2438,7 +2444,7 @@ tasks:
   - TD-2
   priority: 3
   est_hours: 3
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.9
@@ -2453,7 +2459,7 @@ tasks:
   started: 2026-09-24T15:36
   finished: ''
   notes: 'D-100: from TD-2-questions.md Q1–Q3 | envelope draft docs/status/tasks/TD-4.envelope.md (prep-waveA, D-109) | SPECULATIVE from task/TD-2@4391a44 (D-114), envelope /root/ngfw-wt/TD-4.envelope.md
-    | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118)'
+    | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118) | done 2e66f40 (code e16b0f0, main merged after TD-2), CI green, api e2e 71/3; review spawned (security focus)'
 - id: TD-5
   title: 'V24 + V19 follow-ups: af_packet Delete quiesces the Linux netdev (netlink link down) before af_packet_delete, also in Create rollback; restart-simulation fixtures do the same; ifsanitize placeholder
     cap = holes + 2×FreshRun, max 64 (TD-3 M1 option b)'
@@ -2515,7 +2521,7 @@ tasks:
   - TD-6
   priority: 4
   est_hours: 2
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.6
@@ -2526,4 +2532,127 @@ tasks:
   owner: ngfw-46 slot6
   started: 2026-09-24T16:09
   finished: ''
-  notes: 'D-116: from TD-6-review.md F1/F2; F3–F9 in docs/tech-debt.md | SPECULATIVE from task/TD-6 (D-114) | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118)'
+  notes: 'D-116: from TD-6-review.md F1/F2; F3–F9 in docs/tech-debt.md | SPECULATIVE from task/TD-6 (D-114) | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118) | done 902a935, CI green (fresh
+    cache), harness 138/138; focused verify (sonnet); check_health retry → tech-debt'
+- id: TD-12
+  title: De-flake load-sensitive tests that break merge gates (TestGRPCRoundTrip, TestPendingSurvives…, strongswan TestWatchResync, api vitest fetch timeout)
+  prompt: /root/ngfw-wt/TD-12.envelope.md
+  template: ''
+  stage: S2
+  deps: []
+  priority: 1
+  est_hours: 2
+  state: running
+  parked_on: ''
+  wbs:
+  - D0.4
+  scope: test code + vitest configs only (D-121)
+  files_owned: the named *_test.go files, apps/{api,web}/vitest.config.*, docs/status/tasks/TD-12*
+  branch: task/TD-12
+  worktree: /root/ngfw-wt/TD-12
+  owner: ngfw-46 slot6
+  started: ''
+  finished: ''
+  notes: 'D-121: merger request after the TD-6 gate failed on TestGRPCRoundTrip at load ~34'
+- template: ''
+  parked_on: ''
+  finished: ''
+  wbs: &id001
+  - D1.1
+  id: WEB-1
+  title: 'ui-kit SchemaForm gaps: presence toggle, port/ip-range, datetime/time/timezone/color widgets, LTR identifiers in RTL, per-path i18n, itemKey summaries + rule-editor table view'
+  prompt: /root/ngfw-wt/WEB-1.envelope.md
+  stage: S4
+  deps: []
+  priority: 2
+  est_hours: 7
+  state: running
+  scope: web-ahead (D-123)
+  files_owned: packages/ui-kit/src/schema-form/** packages/ui-kit i18n/locales/{en,fa}.ts apps/web/src/pages/dev/{SchemaFormDemoPage.tsx,demoSchema.ts} docs/status/tasks/WEB-1*
+  branch: task/WEB-1
+  worktree: /root/ngfw-wt/WEB-1
+  owner: ngfw-46 slot11
+  started: ''
+  notes: D-123 web-ahead
+- template: ''
+  parked_on: ''
+  finished: ''
+  wbs: *id001
+  id: WEB-2
+  title: Config screen kit (generic list+drawer+live-status over any candidate path) + data widgets + Secrets page
+  prompt: /root/ngfw-wt/WEB-2.envelope.md
+  stage: S4
+  deps:
+  - P08
+  priority: 2
+  est_hours: 9
+  state: running
+  scope: web-ahead (D-123); SPECULATIVE on task/P08
+  files_owned: apps/web/src/config/{collection,widgets}/** apps/web/src/pages/SecretsPage{,.test}.tsx apps/web/src/pages/dev/previews.ts apps/web/src/locales/{en,fa}/config.json (kit.*) docs/status/tasks/WEB-2*
+  branch: task/WEB-2
+  worktree: /root/ngfw-wt/WEB-2
+  owner: ngfw-46 slot1
+  started: ''
+  notes: D-123 web-ahead
+- template: ''
+  parked_on: ''
+  finished: ''
+  wbs: *id001
+  id: WEB-3
+  title: 'Committed browser harness: e2e lib, shots.mjs, screens/_example.mjs (P08 screenshot script was lost, F6)'
+  prompt: ''
+  stage: S4
+  deps:
+  - ui-nav-collapse
+  priority: 3
+  est_hours: 4
+  state: todo
+  scope: web-ahead (D-123)
+  files_owned: apps/web/test/e2e/{lib/**,shots.mjs,README.md,screens/_example.mjs,flow.e2e.mjs}
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  notes: D-123
+- template: ''
+  parked_on: ''
+  finished: ''
+  wbs: *id001
+  id: WEB-4a
+  title: Pre-built routing screens (OSPF, IS-IS/RIP, BFD+redistribution) merged UNROUTED; features add routes + status
+  prompt: ''
+  stage: S4
+  deps:
+  - WEB-1
+  - WEB-2
+  priority: 4
+  est_hours: 5
+  state: todo
+  scope: web-ahead (D-123); dropped per screen if its feature spawns first
+  files_owned: apps/web/src/domains/routing/{ospf,isis-rip,bfd}/** (unrouted)
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  notes: D-123
+- template: ''
+  parked_on: ''
+  finished: ''
+  wbs: *id001
+  id: WEB-4b
+  title: Pre-built HA/VRRP + cluster screens merged UNROUTED
+  prompt: ''
+  stage: S4
+  deps:
+  - WEB-1
+  - WEB-2
+  priority: 4
+  est_hours: 3
+  state: todo
+  scope: web-ahead (D-123)
+  files_owned: apps/web/src/domains/system/ha/** (unrouted)
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  notes: D-123

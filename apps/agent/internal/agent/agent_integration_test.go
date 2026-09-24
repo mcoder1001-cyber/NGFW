@@ -240,7 +240,8 @@ func TestAgentOnHost(t *testing.T) {
 	t.Logf("apply: %s", protojson.Format(resp.GetSummary()))
 	waitConverged(t, c, canonical, time.Now())
 	resp, err = c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-it-2", DesiredState: desired})
-	if err != nil || len(resp.GetResults()) != 0 || resp.GetSummary().GetUnchanged() != 10 {
+	// 12 = VRF + 2 loopbacks + 2 interface/<name> aliases (P08, D-065) + 2 table bindings + 3 addresses + 2 routes
+	if err != nil || len(resp.GetResults()) != 0 || resp.GetSummary().GetUnchanged() != 12 {
 		t.Fatalf("idempotent apply: %v %v", err, resp)
 	}
 	ifsBefore, _ := ownedOnHost(t, raw, owner)

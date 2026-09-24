@@ -287,6 +287,17 @@ the original fields (`agent_version`, `vpp_connected`, `vpp_version`) it reports
 `last_txn_id`, `pending_confirm_txn_id`/`confirm_deadline`, `degraded`, `last_reconcile_at`, `reconcile_in_progress`.
 The API's `/api/v1/state/system` and the UI's status bar derive "data plane OK / degraded / unconfirmed commit" from it.
 
+### 8a. InterfaceState (P08, additive)
+
+`InterfaceState(InterfaceStateRequest{names, owner}) → InterfaceStateResponse{interfaces[], owner, retrieved_at}` is the
+**state RPC** §5 points to for interfaces: the live table the API's `GET /api/v1/state/interfaces` merges with the
+configuration. One entry per interface this agent can name (its own tagged/created ones and untagged ones such as
+DPDK NICs — never another owner's, never `local0`), sorted by logical name: `name` (D-069 logical name = config key),
+`vpp_name`, `sw_if_index`, `type`, `admin_up`, `link_up`, `mtu` (L3), `link_mtu`, `mac`, `ipv4[]`/`ipv6[]`, `vrf`
+(+ `table_id`), sub-interface `parent`/`vlan_id`/`inner_vlan_id`, `managed`, `link_speed_kbps`, `rx_mode`,
+`description` (from the stored desired state, D-073b). Dumps only; `UNAVAILABLE` without VPP. Counters stay in
+`StreamStats` (keyed by `vpp_name`).
+
 ## 9. Compatibility rules for consumers
 
 - Treat unknown enum values as `UNSPECIFIED` (new kinds/codes may be added).

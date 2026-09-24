@@ -44,6 +44,10 @@ func (g *server) Health(context.Context, *vrxv1.HealthRequest) (*vrxv1.HealthRes
 	return g.svc.Health(), nil
 }
 
+func (g *server) InterfaceState(ctx context.Context, req *vrxv1.InterfaceStateRequest) (*vrxv1.InterfaceStateResponse, error) {
+	return g.svc.InterfaceState(ctx, req)
+}
+
 func (g *server) StreamStats(req *vrxv1.StreamStatsRequest, stream grpc.ServerStreamingServer[vrxv1.StatsBatch]) error {
 	if iv := req.GetIntervalMs(); iv != 0 && (iv < 200 || iv > 60000) {
 		return status.Errorf(codes.InvalidArgument, "interval_ms %d outside 200–60000", iv)

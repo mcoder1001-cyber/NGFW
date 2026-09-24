@@ -1,11 +1,25 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { DesiredState, IssueSeverity, type StatsBatch, type ValidationIssue } from '@ngfw/proto';
-import { canonicalPrefix, diff, isPlainObject, parsePointer, type Change } from '@ngfw/schema';
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  DesiredState,
+  type InterfaceCounters,
+  type InterfaceState,
+  IssueSeverity,
+  type StatsBatch,
+  type ValidationIssue,
+} from '@ngfw/proto';
+import {
+  canonicalPrefix,
+  deepEqual,
+  diff,
+  isPlainObject,
+  parsePointer,
+  type Change,
+} from '@ngfw/schema';
 import { z } from 'zod';
 import { AgentClient } from '../agent/agent.client.js';
 import { SystemEventsService } from '../audit/system-events.service.js';
-import { problems } from '../common/problem.js';
+import { ProblemError, problems } from '../common/problem.js';
 import { Protected } from '../common/responses.js';
 import { openapi, ZodPipe } from '../common/zod.js';
 import { safeText } from '../common/text.js';
@@ -49,17 +63,74 @@ const SystemOut = z.object({
     since: z.string(),
   }),
 });
+const CountersOut = z.object({
+  name: z.string(),
+  swIfIndex: z.number().int(),
+  rxPackets: z.string(),
+  rxBytes: z.string(),
+  txPackets: z.string(),
+  txBytes: z.string(),
+  drops: z.string(),
+  errors: z.string(),
+  punts: z.string(),
+  rxMisses: z.string(),
+});
+const LiveStateOut = z
+  .object({
+    name: z.string(),
+    vppName: z.string(),
+    swIfIndex: z.number().int(),
+    type: z.string(),
+    adminUp: z.boolean(),
+    linkUp: z.boolean(),
+    mtu: z.number().int(),
+    linkMtu: z.number().int(),
+    mac: z.string(),
+    ipv4: z.array(z.string()),
+    ipv6: z.array(z.string()),
+    vrf: z.string(),
+    tableId: z.number().int(),
+    parent: z.string(),
+    vlanId: z.number().int(),
+    innerVlanId: z.number().int(),
+    managed: z.boolean(),
+    linkSpeedKbps: z.string(),
+    rxMode: z.string(),
+    description: z.string(),
+  })
+  .describe('live state from the agent (InterfaceState RPC, dumped from VPP)');
+const InterfaceItemOut = z.object({
+  name: z.string().describe('logical name; sub-interfaces are "<parent>.<id>"'),
+  kind: z.enum(['interface', 'subinterface']),
+  parent: z.string().nullable(),
+  state: LiveStateOut.nullable().describe(
+    'null when VPP has no such interface (or the agent is older than P08)',
+  ),
+  config: z
+    .record(z.string(), z.unknown())
+    .nullable()
+    .describe(
+      'what the agent retrieved as configured on the data plane (Retrieve), as before P08; null only on the rows P08 added (a live interface the agent does not manage, a configured one the data plane does not have yet, or one only in the candidate)',
+    ),
+  running: z
+    .record(z.string(), z.unknown())
+    .nullable()
+    .describe('the running configuration of this (sub-)interface; null when it is not configured'),
+  counters: CountersOut.nullable(),
+  hasPendingChange: z
+    .boolean()
+    .describe('the candidate differs from running for this (sub-)interface'),
+});
 const InterfacesOut = z.object({
   retrievedAt: z.string().optional(),
   countersAt: z.string().optional(),
-  items: z.array(
-    z.object({
-      name: z.string(),
-      config: z.record(z.string(), z.unknown()),
-      counters: z.record(z.string(), z.unknown()).nullable(),
-    }),
-  ),
+  items: z.array(InterfaceItemOut),
 });
+const InterfaceNameParam = z
+  .string()
+  .min(1)
+  .max(80)
+  .regex(/^[A-Za-z][A-Za-z0-9_./-]*$/, 'expected an interface name');
 const DriftOut = z.object({
   subsystems: z.array(z.string()),
   changes: z.array(
@@ -158,24 +229,101 @@ export class StateController {
   @Get('interfaces')
   @Protected(502, 503)
   @ApiOperation({
-    summary: 'Interfaces as retrieved from VPP by the agent, with the latest counters',
+    summary:
+      'Interfaces: live state from VPP (agent InterfaceState), what the agent retrieved (config), the running configuration, the latest counters and pending candidate changes',
   })
   @ApiOkResponse({ schema: openapi(InterfacesOut, 'output') })
   async interfaces() {
-    const [r, stats] = await Promise.all([
+    // P08: merged view — live state (InterfaceState, dumped from VPP by the agent), what the agent retrieved as
+    // configured (Retrieve → `config`, its pre-P08 meaning, D-105), the running configuration (`running`), the
+    // latest counters and whether the candidate changes it.
+    const [r, live, stats, running, candidate] = await Promise.all([
       this.agent.retrieve(['interfaces']),
+      this.liveState(),
       this.statsSnapshot(),
+      this.ds.getRunning(),
+      this.ds.getCandidate(),
     ]);
     const actual = DesiredState.toJSON(r.desiredState ?? DesiredState.fromPartial({})) as Json;
-    const ifaces = (actual['interfaces'] ?? {}) as Json;
     const counters = new Map((stats?.interfaceCounters ?? []).map((c) => [c.name, c]));
+    const runIfs = flattenInterfaces(running.doc['interfaces']);
+    const candIfs = flattenInterfaces(candidate['interfaces']);
+    const actIfs = flattenInterfaces(actual['interfaces']);
+    const liveBy = new Map((live ?? []).map((s) => [s.name, s]));
+    const names = new Set<string>([
+      ...runIfs.keys(),
+      ...candIfs.keys(),
+      ...actIfs.keys(),
+      ...liveBy.keys(),
+    ]);
+    const items = [...names].sort().map((name) => {
+      const st = liveBy.get(name);
+      const cfg = runIfs.get(name) ?? candIfs.get(name) ?? actIfs.get(name);
+      const parent = cfg?.parent ?? (st?.parent ? st.parent : null);
+      const c = counters.get(st?.vppName ?? name);
+      return {
+        name,
+        kind: parent ? ('subinterface' as const) : ('interface' as const),
+        parent,
+        state: st ? liveJson(st) : null,
+        config: actIfs.get(name)?.value ?? null,
+        running: runIfs.get(name)?.value ?? null,
+        counters: c ? countersJson(c) : null,
+        hasPendingChange: !deepEqual(
+          runIfs.get(name)?.value ?? null,
+          candIfs.get(name)?.value ?? null,
+        ),
+      };
+    });
     return {
       retrievedAt: r.retrievedAt?.toISOString(),
       countersAt: stats?.ts?.toISOString(),
-      items: Object.keys(ifaces)
-        .sort()
-        .map((name) => ({ name, config: ifaces[name], counters: counters.get(name) ?? null })),
+      items,
     };
+  }
+
+  /** The agent's live interface table; undefined when the agent predates the InterfaceState RPC (501). */
+  private async liveState(): Promise<InterfaceState[] | undefined> {
+    try {
+      return (await this.agent.interfaceState()).interfaces;
+    } catch (e) {
+      if (e instanceof ProblemError && e.getStatus() === 501) return undefined;
+      throw e;
+    }
+  }
+
+  @Get('interfaces/:name/counters')
+  @Protected(404, 502, 503)
+  @ApiParam({
+    name: 'name',
+    schema: { type: 'string' },
+    description: 'logical interface name (sub-interfaces "<parent>.<id>")',
+  })
+  @ApiOperation({
+    summary:
+      'Latest counters of one interface (absolute; rates come from consecutive samples or the WS iface.counters topic)',
+  })
+  @ApiOkResponse({
+    schema: openapi(
+      z.object({
+        name: z.string(),
+        vppName: z.string(),
+        ts: z.string().optional(),
+        counters: CountersOut,
+      }),
+      'output',
+    ),
+  })
+  async counters(@Param('name', new ZodPipe(InterfaceNameParam)) name: string) {
+    const live = await this.liveState();
+    const vppName = live?.find((s) => s.name === name)?.vppName ?? name;
+    if (live && !live.some((s) => s.name === name)) {
+      throw problems.notFound(`no interface '${name}' on the data plane`);
+    }
+    const stats = await this.statsSnapshot();
+    const c = stats?.interfaceCounters.find((x) => x.name === vppName);
+    if (!c) throw problems.notFound(`no counters for '${name}' (VPP name '${vppName}')`);
+    return { name, vppName, ts: stats?.ts?.toISOString(), counters: countersJson(c) };
   }
 
   @Get('routes')
@@ -329,4 +477,29 @@ export function routesOf(doc: Json): z.infer<typeof RouteOut>[] {
     });
   }
   return out.sort((a, b) => a.vrf.localeCompare(b.vrf) || a.prefix.localeCompare(b.prefix));
+}
+
+/** `interfaces` of a document → one entry per interface and per sub-interface ("<parent>.<id>"). */
+function flattenInterfaces(v: unknown): Map<string, { value: Json; parent: string | null }> {
+  const out = new Map<string, { value: Json; parent: string | null }>();
+  if (!isPlainObject(v)) return out;
+  for (const [name, itf] of Object.entries(v)) {
+    if (!isPlainObject(itf)) continue;
+    out.set(name, { value: itf, parent: null });
+    const subs = itf['subinterfaces'];
+    if (!isPlainObject(subs)) continue;
+    for (const [id, sub] of Object.entries(subs)) {
+      if (isPlainObject(sub)) out.set(`${name}.${id}`, { value: sub, parent: name });
+    }
+  }
+  return out;
+}
+
+/** InterfaceState as JSON with every field present (ts-proto's toJSON drops defaults such as false/0). */
+function liveJson(s: InterfaceState): Json {
+  return { ...s, linkSpeedKbps: String(s.linkSpeedKbps) };
+}
+
+function countersJson(c: InterfaceCounters): Json {
+  return { ...c };
 }

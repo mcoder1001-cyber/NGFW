@@ -6,6 +6,7 @@ import enAuth from './locales/en/auth.json';
 import enCommon from './locales/en/common.json';
 import enConfig from './locales/en/config.json';
 import enDev from './locales/en/dev.json';
+import enInterfaces from './locales/en/interfaces.json';
 import enNav from './locales/en/nav.json';
 import enRevisions from './locales/en/revisions.json';
 import enUsers from './locales/en/users.json';
@@ -13,15 +14,16 @@ import faAuth from './locales/fa/auth.json';
 import faCommon from './locales/fa/common.json';
 import faConfig from './locales/fa/config.json';
 import faDev from './locales/fa/dev.json';
+import faInterfaces from './locales/fa/interfaces.json';
 import faNav from './locales/fa/nav.json';
 import faRevisions from './locales/fa/revisions.json';
 import faUsers from './locales/fa/users.json';
 import { loadSettings } from './settings/storage';
 
-export const NAMESPACES = ['common', 'nav', 'auth', 'config', 'revisions', 'users', 'dev', UI_KIT_NS] as const;
+export const NAMESPACES = ['common', 'nav', 'auth', 'config', 'revisions', 'users', 'interfaces', 'dev', UI_KIT_NS] as const;
 
-const en = { common: enCommon, nav: enNav, auth: enAuth, config: enConfig, revisions: enRevisions, users: enUsers };
-const fa = { common: faCommon, nav: faNav, auth: faAuth, config: faConfig, revisions: faRevisions, users: faUsers };
+const en = { common: enCommon, nav: enNav, auth: enAuth, config: enConfig, revisions: enRevisions, users: enUsers, interfaces: enInterfaces };
+const fa = { common: faCommon, nav: faNav, auth: faAuth, config: faConfig, revisions: faRevisions, users: faUsers, interfaces: faInterfaces };
 
 /** The `dev` namespace (developer demo pages) is loaded only when the demo routes are built in (review P07a M1). */
 export const resources = DEV_ROUTES

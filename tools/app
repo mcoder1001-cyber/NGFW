@@ -92,8 +92,12 @@ cmd_up() {
 
   say "database vrx_app"
   deploy/dev/pg-test.sh create app >/dev/null
-  # shellcheck disable=SC1090,SC1091
-  set -a; . /run/vrx-test/app/pg.env; . "$SECRETS"; set +a
+  set -a
+  # shellcheck disable=SC1091
+  . /run/vrx-test/app/pg.env
+  # shellcheck disable=SC1090
+  . "$SECRETS"
+  set +a
 
   if (( agent )); then
     [[ -S /run/vpp/api.sock ]] || die "VPP API socket /run/vpp/api.sock missing (is vpp.service up?) — or use --no-agent"

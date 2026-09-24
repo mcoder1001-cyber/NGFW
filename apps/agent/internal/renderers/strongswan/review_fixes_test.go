@@ -244,18 +244,29 @@ func TestWatchResync(t *testing.T) {
 	if err := r.Apply(context.Background(), renderApply(t, r, onlySiteA(t))); err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	// Bounds below are host-load-tolerant (TD-12): a starved Watch goroutine that hasn't even
+	// subscribed yet before the flood below runs would otherwise miss it entirely (fake charon's
+	// push is non-blocking and drops events with no subscriber), so the wait for subscription and
+	// the overall deadline both need real margin under a busy shared host.
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	out := make(chan Event) // unbuffered: a stalled consumer
 	go func() { _ = r.Watch(ctx, out) }()
-	for i := 0; i < 200; i++ {
+	subDeadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(subDeadline) {
 		f.mu.Lock()
 		n := len(f.subscribers)
 		f.mu.Unlock()
 		if n > 0 {
 			break
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
+	}
+	f.mu.Lock()
+	subscribed := len(f.subscribers) > 0
+	f.mu.Unlock()
+	if !subscribed {
+		t.Fatal("Watch never subscribed")
 	}
 	// Stalled consumer: flood more events than the buffer holds.
 	for i := 0; i < 400; i++ {

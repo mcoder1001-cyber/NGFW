@@ -135,6 +135,9 @@ export const AaaSchema = z
         .prefault({}),
       { title: 'TACACS+', order: 3 },
     ),
+    // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
+    // F-aaa also widens AuthMethod and order.max(3) in place (SY4).
+    // wave-BC: F-aaa
   })
   .refine((aaa) => new Set(aaa.order).size === aaa.order.length, {
     message: 'each authentication method may appear only once',
@@ -216,6 +219,9 @@ export const ManagementSchema = withUi(
       group: 'logging',
       order: 4,
     }),
+    // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
+    // wave-BC: F-dashboard-prom-alarms
+    // wave-BC: F-backup-restore
   }),
   {
     title: 'Management',

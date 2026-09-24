@@ -3,6 +3,7 @@ import { pointerIssues } from '@ngfw/schema';
 import type { SchemaObject } from '@nestjs/swagger';
 import { z } from 'zod';
 import { problems } from './problem.js';
+import { safeText } from './text.js';
 
 /**
  * Request DTOs are Zod schemas (one definition for validation and OpenAPI — 00-CONTEXT rule 5). `ZodPipe` validates a
@@ -38,4 +39,27 @@ export function openapi(schema: z.ZodType, io: 'input' | 'output' = 'input'): Sc
 /** `$ref` to a component registered in buildOpenApi (the config document schemas from packages/schema). */
 export function ref(name: string): SchemaObject {
   return { $ref: `#/components/schemas/${name}` } as SchemaObject;
+}
+
+/**
+ * A path parameter as single-line safe text (TD-2 #4): 400 problem+json whose pointer names the parameter
+ * (`/name`), instead of an empty pointer for a bare string.
+ */
+@Injectable()
+export class SafeParamPipe implements PipeTransform<unknown, string> {
+  private readonly schema: z.ZodType<Record<string, string>>;
+
+  constructor(
+    private readonly name: string,
+    max = 128,
+  ) {
+    this.schema = z.object({ [name]: safeText(max).min(1) }) as z.ZodType<Record<string, string>>;
+  }
+
+  transform(value: unknown): string {
+    const r = this.schema.safeParse({ [this.name]: value });
+    if (!r.success)
+      throw problems.badRequest(`invalid path parameter '${this.name}'`, pointerIssues(r.error));
+    return r.data[this.name]!;
+  }
 }

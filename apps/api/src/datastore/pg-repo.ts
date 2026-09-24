@@ -3,6 +3,7 @@ import type { UserConfig } from '@ngfw/schema';
 import { and, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { DB, type Db, type DbTx } from '../db/db.js';
 import {
+  apiKey,
   appUser,
   configCandidate,
   configPending,
@@ -18,6 +19,7 @@ import type {
   ConfigTx,
   Doc,
   NewRevision,
+  PasswordReset,
   PendingCommit,
   Revision,
   RevisionMeta,
@@ -25,6 +27,21 @@ import type {
 } from './repo.js';
 
 const CANDIDATE_ID = 1;
+
+/**
+ * TD-2 review L4: when API keys are deleted, a candidate lock one of them holds is released at once. The candidate
+ * is discarded with it (as a lock break does) — it must never become the user's interactive lock, and nobody else may
+ * inherit staged edits of a revoked credential. Returns whether a lock was released.
+ */
+export async function releaseKeyLocks(db: Db | DbTx, keyIds: readonly string[]): Promise<boolean> {
+  if (keyIds.length === 0) return false;
+  const rows = await db
+    .update(configCandidate)
+    .set({ ownerId: null, ownerKeyId: null, lockedAt: null, payload: null, baseRevisionId: null })
+    .where(inArray(configCandidate.ownerKeyId, [...keyIds]))
+    .returning({ id: configCandidate.id });
+  return rows.length > 0;
+}
 const PENDING_ID = 1;
 
 type Exec = Db | DbTx;
@@ -39,6 +56,7 @@ const revisionMetaColumns = {
   hash: configRevision.hash,
   txnId: configRevision.txnId,
   kind: configRevision.kind,
+  secretChanges: configRevision.secretChanges,
 };
 
 async function readRevision(db: Exec, id?: number): Promise<Revision | null> {
@@ -63,6 +81,7 @@ async function readCandidate(db: Exec, forUpdate: boolean): Promise<CandidateSta
   const base = db
     .select({
       ownerId: configCandidate.ownerId,
+      ownerKeyId: configCandidate.ownerKeyId,
       lockedAt: configCandidate.lockedAt,
       payload: configCandidate.payload,
       baseRevisionId: configCandidate.baseRevisionId,
@@ -81,7 +100,15 @@ async function readCandidate(db: Exec, forUpdate: boolean): Promise<CandidateSta
       .where(eq(appUser.id, row.ownerId));
     owner = u[0]?.username ?? null;
   }
-  return { ...row, payload: (row.payload as Doc | null) ?? null, owner };
+  let ownerKey: string | null = null;
+  if (row.ownerKeyId !== null) {
+    const k = await db
+      .select({ name: apiKey.name })
+      .from(apiKey)
+      .where(eq(apiKey.id, row.ownerKeyId));
+    ownerKey = k[0]?.name ?? null;
+  }
+  return { ...row, payload: (row.payload as Doc | null) ?? null, owner, ownerKey };
 }
 
 async function readSync(db: Exec): Promise<SyncStatus> {
@@ -135,11 +162,12 @@ class PgConfigTx implements ConfigTx {
     return readPending(this.t);
   }
 
-  async saveCandidate(c: Omit<CandidateState, 'owner' | 'updatedAt'>): Promise<void> {
+  async saveCandidate(c: Omit<CandidateState, 'owner' | 'ownerKey' | 'updatedAt'>): Promise<void> {
     await this.t
       .update(configCandidate)
       .set({
         ownerId: c.ownerId,
+        ownerKeyId: c.ownerKeyId,
         lockedAt: c.lockedAt,
         payload: c.payload,
         baseRevisionId: c.baseRevisionId,
@@ -184,7 +212,7 @@ class PgConfigTx implements ConfigTx {
     return restored;
   }
 
-  async syncUsers(users: readonly UserConfig[]): Promise<void> {
+  async syncUsers(users: readonly UserConfig[]): Promise<PasswordReset[]> {
     const names = users.map((u) => u.username);
     // users that came from the configuration and are gone from it are deleted; the bootstrap admin stays (D-048)
     await this.t
@@ -194,17 +222,61 @@ class PgConfigTx implements ConfigTx {
           ? and(eq(appUser.source, 'config'), notInArray(appUser.username, names))
           : eq(appUser.source, 'config'),
       );
+    // D-102: the hashes before this promote (the commit mutex serialises every hash writer of this process)
+    const before = new Map(
+      names.length === 0
+        ? []
+        : (
+            await this.t
+              .select({ username: appUser.username, hash: appUser.passwordHash })
+              .from(appUser)
+              .where(inArray(appUser.username, names))
+          ).map((r) => [r.username, r.hash]),
+    );
+    const resets: PasswordReset[] = [];
     for (const u of users) {
       const set: { role: Role; disabled: boolean; passwordHash?: string } = {
         role: u.role,
         disabled: u.disabled,
       };
       if (u.passwordHash !== undefined) set.passwordHash = u.passwordHash;
-      await this.t
+      const [row] = await this.t
         .insert(appUser)
         .values({ username: u.username, source: 'config', ...set })
-        .onConflictDoUpdate({ target: appUser.username, set });
+        .onConflictDoUpdate({ target: appUser.username, set })
+        .returning({ id: appUser.id });
+      const prev = before.get(u.username);
+      if (row === undefined || prev === undefined || u.passwordHash === undefined) continue;
+      if (prev === u.passwordHash) continue;
+      // D-102: an existing user's hash changed through the config API → admin-reset semantics, same transaction:
+      // generation bumped (refresh and key creation check it), lockout cleared, every API key deleted (no
+      // keepApiKeys on this path) with any candidate lock it held — keys before the candidate (verify V4 lock order)
+      const [g] = await this.t
+        .update(appUser)
+        .set({
+          credentialGen: sql`${appUser.credentialGen} + 1`,
+          failedLogins: 0,
+          lockedUntil: null,
+        })
+        .where(eq(appUser.id, row.id))
+        .returning({ gen: appUser.credentialGen });
+      const keys = await this.t
+        .delete(apiKey)
+        .where(eq(apiKey.userId, row.id))
+        .returning({ id: apiKey.id, name: apiKey.name });
+      const discardedCandidate = await releaseKeyLocks(
+        this.t,
+        keys.map((k) => k.id),
+      );
+      resets.push({
+        userId: row.id,
+        username: u.username,
+        gen: g!.gen,
+        apiKeysRevoked: keys,
+        discardedCandidate,
+      });
     }
+    return resets;
   }
 }
 

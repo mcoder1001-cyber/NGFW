@@ -83,6 +83,13 @@ func (g *server) StreamEvents(req *vrxv1.StreamEventsRequest, stream grpc.Server
 // Unimplemented (wave-A-hotspots A4).
 func (g *server) Action(req *vrxv1.ActionRequest, stream grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
 	switch req.GetAction().(type) {
+	// wave-BC: F-det44-map-dslite-cnat
+	// wave-BC: F-det44-map-dslite-cnat
+	// wave-BC: F-ikev2-native
+	// wave-BC: F-ra-vpn
+	// wave-BC: F-ha-state-sync
+	// wave-BC: F-capture-trace
+	// wave-BC: F-backup-restore
 	// wave-A: F-vrf-static-ecmp
 	case *vrxv1.ActionRequest_Ping:
 		return g.actionPing(req.GetPing(), stream)

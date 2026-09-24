@@ -6,7 +6,8 @@ import { z } from 'zod';
 import { AgentClient } from '../agent/agent.client.js';
 import { ProblemError, problems } from '../common/problem.js';
 import { Protected } from '../common/responses.js';
-import { openapi } from '../common/zod.js';
+import { safeText } from '../common/text.js';
+import { openapi, SafeParamPipe } from '../common/zod.js';
 
 export const ACTIONS = [
   'ping',
@@ -21,12 +22,7 @@ export const ACTIONS = [
 /** `POST /api/v1/actions/ping` body (vrx.v1.PingAction; the agent enforces what VPP's ping API can do). */
 export const PingBody = z.strictObject({
   target: ipAddress.describe('IPv4 or IPv6 address (no name resolution)'),
-  vrf: z
-    .string()
-    .min(1)
-    .max(63)
-    .optional()
-    .describe('VRF; the data plane pings from `default` only'),
+  vrf: safeText(63).min(1).optional().describe('VRF; the data plane pings from `default` only'),
   count: z.number().int().min(1).max(100).optional().describe('echo requests (default 5)'),
   intervalMs: z.number().int().min(100).max(60_000).optional().describe('default 1000'),
   timeoutMs: z.number().int().min(100).max(60_000).optional(),
@@ -37,7 +33,7 @@ export const PingBody = z.strictObject({
 /** `POST /api/v1/actions/traceroute` body (vrx.v1.TracerouteAction). */
 export const TracerouteBody = z.strictObject({
   target: ipAddress,
-  vrf: z.string().min(1).max(63).optional(),
+  vrf: safeText(63).min(1).optional(),
   maxHops: z.number().int().min(1).max(64).optional(),
   probes: z.number().int().min(1).max(10).optional(),
   timeoutMs: z.number().int().min(100).max(60_000).optional(),
@@ -105,7 +101,10 @@ export class ActionsController {
       'Run an action in the data plane (ping; traceroute and the others answer 501) and return its output',
   })
   @ApiOkResponse({ schema: openapi(ActionOut, 'output') })
-  async run(@Param('action') action: string, @Body() body: unknown) {
+  async run(
+    @Param('action', new SafeParamPipe('action', 64)) action: string,
+    @Body() body: unknown,
+  ) {
     if (!(ACTIONS as readonly string[]).includes(action))
       throw problems.notFound(`unknown action '${action}'`);
     let req: ActionRequest;

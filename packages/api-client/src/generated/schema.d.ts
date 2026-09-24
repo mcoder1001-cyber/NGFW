@@ -98,7 +98,7 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Change the own password (argon2id) */
+    /** Change the own password (argon2id); same as POST /api/v1/users/{name}/password for yourself */
     post: operations['Auth_password'];
     delete?: never;
     options?: never;
@@ -347,6 +347,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/config/revisions/{rev}/diff': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** What revision {rev} changed against its parent (redacted; secret leaves as `redacted: true` entries) */
+    get: operations['Config_revisionDiff'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/config/rollback/{rev}': {
     parameters: {
       query?: never;
@@ -583,6 +600,23 @@ export interface paths {
     get: operations['Audit_list'];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/users/{name}/password': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Set a user's password (admin: any user; everyone: their own, with `current`). TLS only; argon2id server-side; ends the user's other sessions; an admin reset also revokes the user's API keys unless keepApiKeys */
+    post: operations['Users_setPassword'];
     delete?: never;
     options?: never;
     head?: never;
@@ -5428,7 +5462,17 @@ export interface operations {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': {
+            /** @constant */
+            status: 'ok';
+            /** @constant */
+            service: 'vrx-api';
+            version: string;
+            /** @description RFC 3339 timestamp of the answer */
+            time: string;
+          };
+        };
       };
     };
   };
@@ -5652,6 +5696,15 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem'];
         };
       };
+      /** @description Rate limited */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
     };
   };
   Auth_apiKeys: {
@@ -5779,6 +5832,15 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
       /** @description Not authenticated */
       401: {
         headers: {
@@ -5868,6 +5930,15 @@ export interface operations {
             before: unknown;
             after: unknown;
             discardedStaleCandidateOf?: string;
+            secretChanges?: {
+              /** @enum {string} */
+              op: 'add' | 'remove' | 'replace';
+              pointer: string;
+              /** @constant */
+              redacted: true;
+            }[];
+            /** @description import: password hashes in the document that were ignored (D-097) */
+            ignoredSecrets?: string[];
           };
         };
       };
@@ -6022,6 +6093,11 @@ export interface operations {
               pointer: string;
               from?: unknown;
               to?: unknown;
+              /**
+               * @description a write-only (secret) leaf changed; no from/to — the value is never shown (TD-2 #6)
+               * @constant
+               */
+              redacted?: true;
             }[];
           };
         };
@@ -6064,6 +6140,10 @@ export interface operations {
             locked: boolean;
             owner: string | null;
             ownerId: number | null;
+            /** @description API key holding the lock (each key is its own owner); null = interactive sessions */
+            ownerKeyId: string | null;
+            /** @description name of that API key */
+            ownerKey: string | null;
             lockedAt: string | null;
             lastActivity: string | null;
             expiresAt: string | null;
@@ -6108,6 +6188,10 @@ export interface operations {
             locked: boolean;
             owner: string | null;
             ownerId: number | null;
+            /** @description API key holding the lock (each key is its own owner); null = interactive sessions */
+            ownerKeyId: string | null;
+            /** @description name of that API key */
+            ownerKey: string | null;
             lockedAt: string | null;
             lastActivity: string | null;
             expiresAt: string | null;
@@ -6241,6 +6325,14 @@ export interface operations {
               hash: string;
               txnId: string | null;
               kind: string;
+              /** @description secret leaves this revision changed against its parent, without values (TD-2 #6) */
+              secretChanges: {
+                /** @enum {string} */
+                op: 'add' | 'remove' | 'replace';
+                pointer: string;
+                /** @constant */
+                redacted: true;
+              }[];
             };
             confirmDeadline?: string;
             results: {
@@ -6369,6 +6461,14 @@ export interface operations {
               hash: string;
               txnId: string | null;
               kind: string;
+              /** @description secret leaves this revision changed against its parent, without values (TD-2 #6) */
+              secretChanges: {
+                /** @enum {string} */
+                op: 'add' | 'remove' | 'replace';
+                pointer: string;
+                /** @constant */
+                redacted: true;
+              }[];
             };
             confirmDeadline?: string;
             results: {
@@ -6567,6 +6667,14 @@ export interface operations {
               hash: string;
               txnId: string | null;
               kind: string;
+              /** @description secret leaves this revision changed against its parent, without values (TD-2 #6) */
+              secretChanges: {
+                /** @enum {string} */
+                op: 'add' | 'remove' | 'replace';
+                pointer: string;
+                /** @constant */
+                redacted: true;
+              }[];
             }[];
             total: number;
           };
@@ -6618,9 +6726,80 @@ export interface operations {
             hash: string;
             txnId: string | null;
             kind: string;
+            /** @description secret leaves this revision changed against its parent, without values (TD-2 #6) */
+            secretChanges: {
+              /** @enum {string} */
+              op: 'add' | 'remove' | 'replace';
+              pointer: string;
+              /** @constant */
+              redacted: true;
+            }[];
             payload: {
               [key: string]: unknown;
             };
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Config_revisionDiff: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        rev: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            revision: number;
+            parent: number | null;
+            changes: {
+              /** @enum {string} */
+              op: 'add' | 'remove' | 'replace';
+              pointer: string;
+              from?: unknown;
+              to?: unknown;
+              /**
+               * @description a write-only (secret) leaf changed; no from/to — the value is never shown (TD-2 #6)
+               * @constant
+               */
+              redacted?: true;
+            }[];
           };
         };
       };
@@ -6692,6 +6871,14 @@ export interface operations {
               hash: string;
               txnId: string | null;
               kind: string;
+              /** @description secret leaves this revision changed against its parent, without values (TD-2 #6) */
+              secretChanges: {
+                /** @enum {string} */
+                op: 'add' | 'remove' | 'replace';
+                pointer: string;
+                /** @constant */
+                redacted: true;
+              }[];
             };
             confirmDeadline?: string;
             results: {
@@ -6855,6 +7042,15 @@ export interface operations {
             before: unknown;
             after: unknown;
             discardedStaleCandidateOf?: string;
+            secretChanges?: {
+              /** @enum {string} */
+              op: 'add' | 'remove' | 'replace';
+              pointer: string;
+              /** @constant */
+              redacted: true;
+            }[];
+            /** @description import: password hashes in the document that were ignored (D-097) */
+            ignoredSecrets?: string[];
           };
         };
       };
@@ -6972,6 +7168,15 @@ export interface operations {
             before: unknown;
             after: unknown;
             discardedStaleCandidateOf?: string;
+            secretChanges?: {
+              /** @enum {string} */
+              op: 'add' | 'remove' | 'replace';
+              pointer: string;
+              /** @constant */
+              redacted: true;
+            }[];
+            /** @description import: password hashes in the document that were ignored (D-097) */
+            ignoredSecrets?: string[];
           };
         };
       };
@@ -7039,6 +7244,15 @@ export interface operations {
             before: unknown;
             after: unknown;
             discardedStaleCandidateOf?: string;
+            secretChanges?: {
+              /** @enum {string} */
+              op: 'add' | 'remove' | 'replace';
+              pointer: string;
+              /** @constant */
+              redacted: true;
+            }[];
+            /** @description import: password hashes in the document that were ignored (D-097) */
+            ignoredSecrets?: string[];
           };
         };
       };
@@ -7119,6 +7333,15 @@ export interface operations {
             before: unknown;
             after: unknown;
             discardedStaleCandidateOf?: string;
+            secretChanges?: {
+              /** @enum {string} */
+              op: 'add' | 'remove' | 'replace';
+              pointer: string;
+              /** @constant */
+              redacted: true;
+            }[];
+            /** @description import: password hashes in the document that were ignored (D-097) */
+            ignoredSecrets?: string[];
           };
         };
       };
@@ -7845,6 +8068,15 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
       /** @description Not authenticated */
       401: {
         headers: {
@@ -7930,6 +8162,93 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Users_setPassword: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description username */
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description the new password (write-only; hashed with argon2id) */
+          password: string;
+          /** @description the caller’s current password — required when setting one’s own password */
+          current?: string;
+          /** @description admin reset only: keep the target’s API keys (service users); by default an admin reset revokes them (D-097) */
+          keepApiKeys?: boolean;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            self: boolean;
+            /** @description API keys of the target revoked by an admin reset */
+            apiKeysRevoked: {
+              id: string;
+              name: string;
+            }[];
+            /** @description true when one of the revoked keys held the candidate lock: its staged (uncommitted) edits were discarded */
+            discardedCandidate: boolean;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Rate limited */
+      429: {
         headers: {
           [name: string]: unknown;
         };

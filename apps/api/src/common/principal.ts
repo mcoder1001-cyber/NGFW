@@ -11,6 +11,11 @@ export interface Principal {
   exp?: number;
   /** Login session (refresh-token family) of a JWT: logout closes its WebSockets. */
   sid?: string;
+  /** Credential generation a JWT was issued under (D-097; API-key creation re-checks it, TD-2 verify V1). */
+  gen?: number;
+  /** API key id/name when `via` is `apikey`: the key is its own candidate-lock owner (D-093, TD-2 #5). */
+  keyId?: string;
+  keyName?: string;
 }
 
 /** What a handler records for the audit interceptor (before/after are already redacted). */

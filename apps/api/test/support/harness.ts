@@ -5,6 +5,7 @@ import { rmSync } from 'node:fs';
 import { inject } from 'vitest';
 import { createApp } from '../../src/app.js';
 import { AuthService } from '../../src/auth/auth.service.js';
+import { TokensService } from '../../src/auth/tokens.service.js';
 import { hashPassword } from '../../src/auth/password.js';
 import { CommitService } from '../../src/commit/commit.service.js';
 import { loadEnv, type Env } from '../../src/config.js';
@@ -76,6 +77,7 @@ export async function startHarness(overrides: Record<string, string> = {}): Prom
   await db.execute(sql`create schema public`);
   await runMigrations(db);
   await app.get(AuthService).seedBootstrapAdmin();
+  await app.get(TokensService).loadRevocations();
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
   await app.get(CommitService).resumePending();

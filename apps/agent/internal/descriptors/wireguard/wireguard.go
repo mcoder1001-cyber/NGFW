@@ -34,6 +34,9 @@ type Config struct {
 	Client  vpp.Client
 	Owner   string       // VRX_OWNER; tests pass their VRX_TEST_PREFIX
 	Secrets vpn.Resolver // resolves private/preshared key references; nil = every reference fails
+	// Keys computes the keyed secret fingerprints (D-096; vpn.LoadOrCreateKeyFile in the agent
+	// state dir). Required: without it every secret reference fails with vpn.ErrNoKeyer.
+	Keys *vpn.Keyer
 	// GlobalsOwner registers the setter of the async-mode global (D-071).
 	GlobalsOwner bool
 }
@@ -43,6 +46,9 @@ func WithGlobalsOwner(on bool) Option { return func(c *Config) { c.GlobalsOwner 
 
 // Option tunes Register.
 type Option func(*Config)
+
+// WithKeyer sets the agent-local fingerprint key (D-096).
+func WithKeyer(k *vpn.Keyer) Option { return func(c *Config) { c.Keys = k } }
 
 // WithSecrets sets the secret resolver.
 func WithSecrets(r vpn.Resolver) Option { return func(c *Config) { c.Secrets = r } }

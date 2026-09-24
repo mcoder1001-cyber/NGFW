@@ -179,6 +179,9 @@ func (d *Profile) exists(ctx context.Context, name string) (bool, error) {
 
 // Retrieve implements scheduler.Descriptor: every profile whose VPP name carries the owner prefix.
 func (d *Profile) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+	if d.cfg.Keys == nil {
+		return nil, fmt.Errorf("%s: %w", ProfileName, vpn.ErrNoKeyer)
+	}
 	stream, err := ikev2.NewServiceClient(d.cfg.Client).Ikev2ProfileDump(ctx, &ikev2.Ikev2ProfileDump{})
 	if err != nil {
 		return nil, fmt.Errorf("ikev2_profile_dump: %w", err)
@@ -213,7 +216,7 @@ func (d *Profile) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	}
 	out := make([]scheduler.KV, 0, len(dumped))
 	for i := range dumped {
-		v := decodeProfile(&dumped[i], strings.TrimPrefix(dumped[i].Name, d.cfg.Owner+"-"), tbl)
+		v := decodeProfile(d.cfg.Keys, &dumped[i], strings.TrimPrefix(dumped[i].Name, d.cfg.Owner+"-"), tbl)
 		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: ProfileMeta{VPPName: dumped[i].Name}})
 	}
 	return sortKVs(out), nil
@@ -237,6 +240,9 @@ func validate(o *vpnpb.Ikev2Profile) error {
 		case AuthPSK:
 			if a.GetPsk() == "" || a.GetCertFile() != "" {
 				return errors.New("ikev2: auth psk needs psk (a secret reference) and no cert_file")
+			}
+			if err := vpn.CheckRef(a.GetPsk()); err != nil {
+				return fmt.Errorf("ikev2: auth psk: %w", err) // never echoes the value (review M1)
 			}
 		case AuthRSASig:
 			if a.GetCertFile() == "" || a.GetPsk() != "" || len(a.GetCertFile()) > 1023 {
@@ -434,7 +440,7 @@ func (d *Profile) setAuth(ctx context.Context, name string, a *vpnpb.Ikev2Auth) 
 	switch a.GetMethod() {
 	case AuthPSK:
 		method = authSharedKey
-		mat, err := vpn.Resolve(ctx, d.cfg.Secrets, a.GetPsk())
+		mat, err := vpn.Resolve(ctx, d.cfg.Secrets, d.cfg.Keys, a.GetPsk())
 		if err != nil {
 			return fmt.Errorf("ikev2: profile %s psk: %w", name, err)
 		}
@@ -604,7 +610,7 @@ func decodeEsp(t ikev2_types.Ikev2EspTransforms) *vpnpb.Ikev2EspTransforms {
 
 // decodeProfile turns a dumped profile into the desired shape. The PSK is hashed into its
 // reference and the dump buffer zeroed before this function returns.
-func decodeProfile(p *ikev2_types.Ikev2Profile, name string, tbl *vpn.Interfaces) *vpnpb.Ikev2Profile {
+func decodeProfile(k *vpn.Keyer, p *ikev2_types.Ikev2Profile, name string, tbl *vpn.Interfaces) *vpnpb.Ikev2Profile {
 	defer vpn.Zero(p.Auth.Data)
 	v := &vpnpb.Ikev2Profile{
 		Name:         name,
@@ -623,7 +629,7 @@ func decodeProfile(p *ikev2_types.Ikev2Profile, name string, tbl *vpn.Interfaces
 	}
 	switch p.Auth.Method {
 	case authSharedKey:
-		v.Auth = &vpnpb.Ikev2Auth{Method: AuthPSK, Psk: vpn.Ref(data)}
+		v.Auth = &vpnpb.Ikev2Auth{Method: AuthPSK, Psk: k.Ref(data)}
 	case authRSASig:
 		v.Auth = &vpnpb.Ikev2Auth{Method: AuthRSASig, CertFile: string(bytes.TrimRight(data, "\x00"))}
 	}

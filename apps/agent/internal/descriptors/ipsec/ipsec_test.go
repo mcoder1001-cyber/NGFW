@@ -25,14 +25,14 @@ import (
 var (
 	cryptoKey = []byte("VRX_TEST_PSK_DF5")     // 16 bytes → aes-gcm-128 / aes-cbc-128
 	integKey  = []byte("VRX_TEST_PSK_DF5_int") // 20 bytes → sha1-96
-	secrets   = vpn.NewMapResolver(cryptoKey, integKey)
+	secrets   = vpn.NewMapResolver(keys, cryptoKey, integKey)
 	owner     = "w4"
 	ctx       = context.Background()
 	boot      = vpntest.NewFakeBoot()
 )
 
 func newCfg(v *fakeVPP) ipsecd.Config {
-	return ipsecd.Config{Client: v, Owner: owner, Secrets: secrets, IDs: vpn.IDRange{Lo: 4000, Hi: 4999}, Boot: dfkit.NewMemoryBootStore()}
+	return ipsecd.Config{Keys: keys, Client: v, Owner: owner, Secrets: secrets, IDs: vpn.IDRange{Lo: 4000, Hi: 4999}, Boot: dfkit.NewMemoryBootStore()}
 }
 
 func mustEqual(t *testing.T, kvs []scheduler.KV, want ...proto.Message) {
@@ -375,15 +375,15 @@ func TestSpdEntry(t *testing.T) {
 
 func transportSA() *vpnpb.IpsecSa {
 	return &vpnpb.IpsecSa{
-		SadId: 4001, Spi: 1001, Protocol: "esp", CryptoAlg: "aes-gcm-128", CryptoKey: vpn.Ref(cryptoKey),
+		SadId: 4001, Spi: 1001, Protocol: "esp", CryptoAlg: "aes-gcm-128", CryptoKey: keys.Ref(cryptoKey),
 		IntegAlg: "none", Salt: 0x1234, Inbound: true,
 	}
 }
 
 func tunnelSA() *vpnpb.IpsecSa {
 	return &vpnpb.IpsecSa{
-		SadId: 4002, Spi: 1002, Protocol: "esp", CryptoAlg: "aes-cbc-128", CryptoKey: vpn.Ref(cryptoKey),
-		IntegAlg: "sha1-96", IntegKey: vpn.Ref(integKey), UseEsn: true, UseAntiReplay: true, AntiReplayWindowSize: 128,
+		SadId: 4002, Spi: 1002, Protocol: "esp", CryptoAlg: "aes-cbc-128", CryptoKey: keys.Ref(cryptoKey),
+		IntegAlg: "sha1-96", IntegKey: keys.Ref(integKey), UseEsn: true, UseAntiReplay: true, AntiReplayWindowSize: 128,
 		UdpEncap: true, UdpSrcPort: 20400, UdpDstPort: 20400,
 		Tunnel: &vpnpb.IpsecTunnel{Src: "10.4.0.1", Dst: "10.4.0.2", TableId: 4001, Dscp: 46, HopLimit: 64, EncapDecapFlags: []string{"encap-copy-df", "encap-copy-dscp"}},
 	}
@@ -403,7 +403,7 @@ func TestSa(t *testing.T) {
 		"protocol":     func(s *vpnpb.IpsecSa) { s.Protocol = "gre" },
 		"crypto alg":   func(s *vpnpb.IpsecSa) { s.CryptoAlg = "rot13" },
 		"missing key":  func(s *vpnpb.IpsecSa) { s.CryptoKey = "" },
-		"stray key":    func(s *vpnpb.IpsecSa) { s.IntegKey = vpn.Ref(integKey) },
+		"stray key":    func(s *vpnpb.IpsecSa) { s.IntegKey = keys.Ref(integKey) },
 		"udp ports":    func(s *vpnpb.IpsecSa) { s.UdpEncap = true },
 		"ports no udp": func(s *vpnpb.IpsecSa) { s.UdpDstPort = 20400 },
 		"window":       func(s *vpnpb.IpsecSa) { s.UseAntiReplay = true; s.AntiReplayWindowSize = 100 },
@@ -465,7 +465,7 @@ func TestSa(t *testing.T) {
 	mustEqual(t, again, ts, tn)
 
 	rekeyed := tunnelSA()
-	rekeyed.CryptoKey = vpn.Ref(integKey)
+	rekeyed.CryptoKey = keys.Ref(integKey)
 	if _, err := d.Update(ctx, tn, rekeyed, metaTN); !errors.Is(err, scheduler.ErrRecreate) {
 		t.Fatalf("key change: %v, want ErrRecreate", err)
 	}
@@ -775,7 +775,7 @@ func TestNoMaterialInOutput(t *testing.T) {
 			}
 		}
 	}
-	if !strings.Contains(buf.String(), "sha256:") {
+	if !strings.Contains(buf.String(), "hmac:") || strings.Contains(buf.String(), "sha256:") {
 		t.Fatal("references should be visible (they are not secret)")
 	}
 }

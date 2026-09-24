@@ -185,6 +185,9 @@ func (d *Sa) dumpDetails(ctx context.Context, id uint32) ([]dumpedSa, error) {
 }
 
 func dumpSAs(ctx context.Context, cfg Config, id uint32) ([]dumpedSa, error) {
+	if cfg.Keys == nil {
+		return nil, fmt.Errorf("%s: %w", SaName, vpn.ErrNoKeyer)
+	}
 	stream, err := ipsec.NewServiceClient(cfg.Client).IpsecSaV5Dump(ctx, &ipsec.IpsecSaV5Dump{SaID: id})
 	if err != nil {
 		return nil, fmt.Errorf("ipsec_sa_v5_dump: %w", err)
@@ -198,7 +201,7 @@ func dumpSAs(ctx context.Context, cfg Config, id uint32) ([]dumpedSa, error) {
 		if err != nil {
 			return nil, fmt.Errorf("ipsec_sa_v5_dump: %w", err)
 		}
-		out = append(out, dumpedSa{value: decodeSa(&det.Entry), statIndex: det.StatIndex}) // hashes and zeroes the key material
+		out = append(out, dumpedSa{value: decodeSa(cfg.Keys, &det.Entry), statIndex: det.StatIndex}) // hashes and zeroes the key material
 	}
 }
 
@@ -223,6 +226,14 @@ func (d *Sa) encodeSa(ctx context.Context, o *vpnpb.IpsecSa) (ipsec_types.IpsecS
 	}
 	if (integ == ipsec_types.IPSEC_API_INTEG_ALG_NONE) != (o.GetIntegKey() == "") {
 		return e, fmt.Errorf("ipsec: sa %d: integ_key must be set exactly when integ_alg is not none", o.GetSadId())
+	}
+	for _, ref := range []string{o.GetCryptoKey(), o.GetIntegKey()} {
+		if ref == "" {
+			continue
+		}
+		if err := vpn.CheckRef(ref); err != nil {
+			return e, fmt.Errorf("ipsec: sa %d: key: %w", o.GetSadId(), err) // never echoes the value (review M1)
+		}
 	}
 	if o.GetUdpEncap() {
 		if o.GetUdpSrcPort() == 0 || o.GetUdpDstPort() == 0 || o.GetUdpSrcPort() > 65535 || o.GetUdpDstPort() > 65535 {
@@ -279,7 +290,7 @@ func (d *Sa) encodeSa(ctx context.Context, o *vpnpb.IpsecSa) (ipsec_types.IpsecS
 
 // key resolves a reference into a binapi Key (≤ 128 bytes).
 func (d *Sa) key(ctx context.Context, ref string) (ipsec_types.Key, error) {
-	mat, err := vpn.Resolve(ctx, d.cfg.Secrets, ref)
+	mat, err := vpn.Resolve(ctx, d.cfg.Secrets, d.cfg.Keys, ref)
 	if err != nil {
 		return ipsec_types.Key{}, err
 	}
@@ -325,7 +336,7 @@ func encodeTunnel(t *vpnpb.IpsecTunnel) (tunnel_types.Tunnel, bool, error) {
 
 // decodeSa turns a dumped entry into the desired shape. Key material is hashed into references
 // and zeroed in place before this function returns.
-func decodeSa(e *ipsec_types.IpsecSadEntryV4) *vpnpb.IpsecSa {
+func decodeSa(k *vpn.Keyer, e *ipsec_types.IpsecSadEntryV4) *vpnpb.IpsecSa {
 	defer vpn.Zero(e.CryptoKey.Data)
 	defer vpn.Zero(e.IntegrityKey.Data)
 	has := func(f ipsec_types.IpsecSadFlags) bool { return e.Flags&f != 0 }
@@ -342,10 +353,10 @@ func decodeSa(e *ipsec_types.IpsecSadEntryV4) *vpnpb.IpsecSa {
 		Salt: bits.ReverseBytes32(e.Salt),
 	}
 	if e.CryptoAlgorithm != ipsec_types.IPSEC_API_CRYPTO_ALG_NONE {
-		v.CryptoKey = keyRef(e.CryptoKey)
+		v.CryptoKey = keyRef(k, e.CryptoKey)
 	}
 	if e.IntegrityAlgorithm != ipsec_types.IPSEC_API_INTEG_ALG_NONE {
-		v.IntegKey = keyRef(e.IntegrityKey)
+		v.IntegKey = keyRef(k, e.IntegrityKey)
 	}
 	if v.UdpEncap {
 		v.UdpSrcPort, v.UdpDstPort = uint32(e.UDPSrcPort), uint32(e.UDPDstPort)
@@ -363,10 +374,10 @@ func decodeSa(e *ipsec_types.IpsecSadEntryV4) *vpnpb.IpsecSa {
 	return v
 }
 
-func keyRef(k ipsec_types.Key) string {
+func keyRef(keys *vpn.Keyer, k ipsec_types.Key) string {
 	n := int(k.Length)
 	if n > len(k.Data) {
 		n = len(k.Data)
 	}
-	return vpn.Ref(k.Data[:n])
+	return keys.Ref(k.Data[:n])
 }

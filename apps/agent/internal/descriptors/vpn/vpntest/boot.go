@@ -35,3 +35,13 @@ func (b *FakeBoot) RestartVPP() {
 	defer b.mu.Unlock()
 	b.pid++
 }
+
+// Keys is the fixed fingerprint key of the DF-5 tests (a test vector, never an agent key; the
+// agent's key is a random 0600 file in its state dir, vpn.LoadOrCreateKeyFile).
+var Keys = func() *vpn.Keyer {
+	k, err := vpn.NewKeyer([]byte("VRX_TEST_PSK_DF5_fingerprint_key"))
+	if err != nil {
+		panic(err)
+	}
+	return k
+}()

@@ -29,7 +29,7 @@ func vector(label string) []byte {
 
 func slotVectors(t testing.TB, slot int) (vectors, string) {
 	t.Helper()
-	v := vectors{itfPriv: vector(fmt.Sprintf("itf_%d", slot)), psk: vector(fmt.Sprintf("psk_%d", slot)), resolver: vpn.NewMapResolver()}
+	v := vectors{itfPriv: vector(fmt.Sprintf("itf_%d", slot)), psk: vector(fmt.Sprintf("psk_%d", slot)), resolver: vpn.NewMapResolver(keys)}
 	for i := range 2 {
 		priv, err := ecdh.X25519().NewPrivateKey(vector(fmt.Sprintf("peer_%d_%d", slot, i)))
 		if err != nil {

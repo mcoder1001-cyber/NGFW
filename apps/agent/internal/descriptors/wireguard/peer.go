@@ -99,7 +99,10 @@ func (d *Peer) Create(ctx context.Context, obj proto.Message) (any, error) {
 	}
 	peer.SwIfIndex = idx
 	if ref := o.GetPresharedKey(); ref != "" {
-		mat, err := vpn.Resolve(ctx, d.cfg.Secrets, ref)
+		if err := vpn.CheckRef(ref); err != nil {
+			return nil, fmt.Errorf("wireguard: peer preshared_key: %w", err) // never echoes the value (review M1)
+		}
+		mat, err := vpn.Resolve(ctx, d.cfg.Secrets, d.cfg.Keys, ref)
 		if err != nil {
 			return nil, fmt.Errorf("wireguard: peer %s preshared_key: %w", d.KeyOf(o), err)
 		}
@@ -163,6 +166,9 @@ func (d *Peer) Delete(ctx context.Context, obj proto.Message, meta any) error {
 
 // Retrieve implements scheduler.Descriptor: peers of WireGuard interfaces tagged by this owner.
 func (d *Peer) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+	if d.cfg.Keys == nil {
+		return nil, fmt.Errorf("%s: %w", PeerName, vpn.ErrNoKeyer)
+	}
 	tbl, err := vpn.DumpInterfaces(ctx, d.cfg.Client, d.cfg.Owner)
 	if err != nil {
 		return nil, err
@@ -187,7 +193,7 @@ func (d *Peer) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 			vpn.Zero(p.PresharedKey) // another owner's key: never keep it
 			continue
 		}
-		v := decodePeer(&p, name) // hashes and zeroes the preshared key
+		v := decodePeer(d.cfg.Keys, &p, name) // hashes and zeroes the preshared key
 		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: PeerMeta{PeerIndex: p.PeerIndex, SwIfIndex: sw}})
 	}
 	return sortKVs(out), nil
@@ -264,7 +270,7 @@ func encodePeer(o *vpnpb.WireguardPeer) (wireguard.WireguardPeerV2, error) {
 }
 
 // decodePeer turns a dumped peer into the desired shape; the preshared key buffer is zeroed.
-func decodePeer(p *wireguard.WireguardPeerV2, iface string) *vpnpb.WireguardPeer {
+func decodePeer(k *vpn.Keyer, p *wireguard.WireguardPeerV2, iface string) *vpnpb.WireguardPeer {
 	defer vpn.Zero(p.PresharedKey)
 	v := &vpnpb.WireguardPeer{
 		Interface: iface, PublicKey: base64.StdEncoding.EncodeToString(p.PublicKey),
@@ -280,7 +286,7 @@ func decodePeer(p *wireguard.WireguardPeerV2, iface string) *vpnpb.WireguardPeer
 	v.AllowedIps = slices.Compact(v.AllowedIps)
 	if p.PresharedKeySet {
 		n := min(len(p.PresharedKey), vpn.X25519KeyLen)
-		v.PresharedKey = vpn.Ref(p.PresharedKey[:n])
+		v.PresharedKey = k.Ref(p.PresharedKey[:n])
 	}
 	return v
 }

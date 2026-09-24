@@ -26,15 +26,15 @@ import (
 // Test vector: the documented placeholder, never real material (00-CONTEXT "Never do these").
 var (
 	psk     = []byte("VRX_TEST_PSK_DF5_ikev2")
-	secrets = vpn.NewMapResolver(psk)
-	pskRef  = vpn.Ref(psk)
+	secrets = vpn.NewMapResolver(keys, psk)
+	pskRef  = keys.Ref(psk)
 	owner   = "w4"
 	ctx     = context.Background()
 	boot    = vpntest.NewFakeBoot()
 )
 
 func newCfg(v *fakeVPP) ikev2d.Config {
-	return ikev2d.Config{Client: v, Owner: owner, Secrets: secrets, Boot: dfkit.NewMemoryBootStore()}
+	return ikev2d.Config{Keys: keys, Client: v, Owner: owner, Secrets: secrets, Boot: dfkit.NewMemoryBootStore()}
 }
 
 func fullProfile() *vpnpb.Ikev2Profile {
@@ -175,7 +175,7 @@ func TestProfileUpdate(t *testing.T) {
 	other := []byte("VRX_TEST_PSK_DF5_ikev2_b")
 	secrets.Add(other)
 	n2 := proto.Clone(n).(*vpnpb.Ikev2Profile)
-	n2.Auth.Psk = vpn.Ref(other)
+	n2.Auth.Psk = keys.Ref(other)
 	v.Reset()
 	if _, err := d.Update(ctx, n, n2, meta); err != nil {
 		t.Fatal(err)
@@ -225,7 +225,7 @@ func TestProfileCreateRollsBack(t *testing.T) {
 	// unknown secret, unknown interface: same
 	v.failAuth = false
 	p := fullProfile()
-	p.Auth.Psk = vpn.Ref([]byte("VRX_TEST_PSK_unknown"))
+	p.Auth.Psk = keys.Ref([]byte("VRX_TEST_PSK_unknown"))
 	if _, err := d.Create(ctx, p); !errors.Is(err, vpn.ErrSecretNotFound) || len(v.profiles) != 0 {
 		t.Fatalf("unknown psk: %v", err)
 	}
@@ -268,7 +268,7 @@ func TestProfileValidation(t *testing.T) {
 func TestProfileOwnershipAndSecretsInDump(t *testing.T) {
 	v := newFakeVPP()
 	d := ikev2d.NewProfile(newCfg(v))
-	foreign := ikev2d.NewProfile(ikev2d.Config{Client: v, Owner: "w3", Secrets: secrets})
+	foreign := ikev2d.NewProfile(ikev2d.Config{Keys: keys, Client: v, Owner: "w3", Secrets: secrets})
 	fp := fullProfile()
 	if _, err := foreign.Create(ctx, fp); !errors.Is(err, vpn.ErrForeignInterface) {
 		t.Fatalf("w3 must not use w4's interfaces (D-069): %v", err)
@@ -282,7 +282,7 @@ func TestProfileOwnershipAndSecretsInDump(t *testing.T) {
 	}
 	mustRetrieve(t, d, &vpnpb.Ikev2Profile{Name: "mine"})
 	// "w4" must not match "w42-…"
-	w42 := ikev2d.NewProfile(ikev2d.Config{Client: v, Owner: "w42"})
+	w42 := ikev2d.NewProfile(ikev2d.Config{Keys: keys, Client: v, Owner: "w42"})
 	if _, err := w42.Create(ctx, &vpnpb.Ikev2Profile{Name: "x"}); err != nil {
 		t.Fatal(err)
 	}
@@ -609,7 +609,7 @@ func TestNoMaterialInOutput(t *testing.T) {
 			t.Fatalf("PSK leaked into formatted output:\n%s", buf.String())
 		}
 	}
-	if !strings.Contains(buf.String(), "sha256:") {
+	if !strings.Contains(buf.String(), "hmac:") || strings.Contains(buf.String(), "sha256:") {
 		t.Fatal("references should be visible (they are not secret)")
 	}
 }

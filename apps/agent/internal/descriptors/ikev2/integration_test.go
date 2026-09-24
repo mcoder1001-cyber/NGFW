@@ -120,7 +120,7 @@ func TestIkev2OnHost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := ikev2d.Config{Client: c, Owner: owner, Secrets: secrets, Boot: store}
+	cfg := ikev2d.Config{Keys: keys, Client: c, Owner: owner, Secrets: secrets, Boot: store}
 	dir := filepath.Join("/run/vrx-test", owner)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
@@ -264,7 +264,7 @@ func TestIkev2GlobalsOwnerOnHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, keyFile := throwawayRSA(t, dir)
-	cfg := ikev2d.Config{Client: c, Owner: owner, Secrets: secrets, Boot: dfkit.NewMemoryBootStore(), GlobalsOwner: true}
+	cfg := ikev2d.Config{Keys: keys, Client: c, Owner: owner, Secrets: secrets, Boot: dfkit.NewMemoryBootStore(), GlobalsOwner: true}
 	ds := ikev2d.All(cfg)
 	live := &vpnpb.Ikev2Liveness{Period: 30, MaxRetries: 3} // VPP's built-in defaults
 	if _, err := byName(ds, ikev2d.LivenessName).Create(ctx, live); err != nil {

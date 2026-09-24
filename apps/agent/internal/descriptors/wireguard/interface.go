@@ -74,7 +74,7 @@ func (d *Interface) Create(ctx context.Context, obj proto.Message) (any, error) 
 	if err != nil {
 		return nil, err
 	}
-	priv, err := vpn.Resolve(ctx, d.cfg.Secrets, o.GetPrivateKey())
+	priv, err := vpn.Resolve(ctx, d.cfg.Secrets, d.cfg.Keys, o.GetPrivateKey())
 	if err != nil {
 		return nil, fmt.Errorf("wireguard: %s private_key: %w", ItfName(o.GetInstance()), err)
 	}

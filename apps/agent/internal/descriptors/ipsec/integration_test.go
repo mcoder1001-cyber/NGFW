@@ -114,7 +114,7 @@ func TestIpsecOnHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	ids := vpn.IDRange{Lo: base, Hi: base + 499}
-	cfg := ipsecd.Config{Client: c, Owner: owner, Secrets: secrets, IDs: ids, Boot: store}
+	cfg := ipsecd.Config{Keys: keys, Client: c, Owner: owner, Secrets: secrets, IDs: ids, Boot: store}
 
 	// fixtures: a tagged loopback and an untagged one (the stand-in for a physical NIC, D-069) for
 	// the SPD bindings, an ipip tunnel for tunnel-protect (DF-6 owns ipip; created via binapi)
@@ -137,14 +137,14 @@ func TestIpsecOnHost(t *testing.T) {
 		LocalPortStop: 65535, RemotePortStop: 65535,
 	}
 	saT := &vpnpb.IpsecSa{SadId: base + 1, Spi: 1000 + base, Protocol: "esp", CryptoAlg: "aes-gcm-128",
-		CryptoKey: vpn.Ref(cryptoKey), IntegAlg: "none", Salt: 0x1234, Inbound: true}
+		CryptoKey: keys.Ref(cryptoKey), IntegAlg: "none", Salt: 0x1234, Inbound: true}
 	saU := &vpnpb.IpsecSa{SadId: base + 2, Spi: 1001 + base, Protocol: "esp", CryptoAlg: "aes-cbc-128",
-		CryptoKey: vpn.Ref(cryptoKey), IntegAlg: "sha1-96", IntegKey: vpn.Ref(integKey),
+		CryptoKey: keys.Ref(cryptoKey), IntegAlg: "sha1-96", IntegKey: keys.Ref(integKey),
 		UseEsn: true, UseAntiReplay: true, AntiReplayWindowSize: 128, UdpEncap: true, UdpSrcPort: udpPort, UdpDstPort: udpPort,
 		Tunnel: &vpnpb.IpsecTunnel{Src: vpntest.SlotAddr(t, 0, 1), Dst: vpntest.SlotAddr(t, 0, 2), Dscp: 46, HopLimit: 64,
 			EncapDecapFlags: []string{"encap-copy-df", "encap-copy-dscp"}}}
-	saOut := &vpnpb.IpsecSa{SadId: base + 3, Spi: 1002 + base, Protocol: "esp", CryptoAlg: "aes-gcm-128", CryptoKey: vpn.Ref(cryptoKey), IntegAlg: "none"}
-	saIn := &vpnpb.IpsecSa{SadId: base + 4, Spi: 1003 + base, Protocol: "esp", CryptoAlg: "aes-gcm-128", CryptoKey: vpn.Ref(cryptoKey), IntegAlg: "none", Inbound: true}
+	saOut := &vpnpb.IpsecSa{SadId: base + 3, Spi: 1002 + base, Protocol: "esp", CryptoAlg: "aes-gcm-128", CryptoKey: keys.Ref(cryptoKey), IntegAlg: "none"}
+	saIn := &vpnpb.IpsecSa{SadId: base + 4, Spi: 1003 + base, Protocol: "esp", CryptoAlg: "aes-gcm-128", CryptoKey: keys.Ref(cryptoKey), IntegAlg: "none", Inbound: true}
 	tpV := &vpnpb.IpsecTunnelProtect{Interface: ipipName, SaOut: base + 3, SaIn: []uint32{base + 4}}
 	itfV := &vpnpb.IpsecItf{Instance: base + 1, Mode: "p2p"}
 	desired := []proto.Message{spdV, bindV, bindNic, entryV, saT, saU, saOut, saIn, tpV, itfV}

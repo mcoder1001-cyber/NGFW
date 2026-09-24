@@ -73,9 +73,9 @@ func TestWireguardOnHost(t *testing.T) {
 	port := uint32(20000 + 100*slot + 10) //nolint:gosec // slots are 1–11
 
 	res, itfRef := slotVectors(t, slot)
-	cfg := wgd.Config{Client: c, Owner: owner, Secrets: res.resolver}
+	cfg := wgd.Config{Keys: keys, Client: c, Owner: owner, Secrets: res.resolver}
 	reg := scheduler.NewRegistry()
-	peer := wgd.Register(reg, c, owner, wgd.WithSecrets(res.resolver)) // a test slot is never the globals owner
+	peer := wgd.Register(reg, c, owner, wgd.WithSecrets(res.resolver), wgd.WithKeyer(keys)) // a test slot is never the globals owner
 	itf, _ := reg.Get(wgd.InterfaceName)
 	async, _ := reg.Get(wgd.AsyncModeName)
 

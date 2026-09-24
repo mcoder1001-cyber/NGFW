@@ -37,7 +37,7 @@ func newEnv(t *testing.T) env {
 	t.Helper()
 	v := newFakeVPP()
 	vec, ref := slotVectors(t, 4)
-	cfg := wgd.Config{Client: v, Owner: owner, Secrets: vec.resolver}
+	cfg := wgd.Config{Keys: keys, Client: v, Owner: owner, Secrets: vec.resolver}
 	return env{v: v, vec: vec, ref: ref, cfg: cfg, itf: wgd.NewInterface(cfg), peer: wgd.NewPeer(cfg)}
 }
 
@@ -120,7 +120,7 @@ func TestInterface(t *testing.T) {
 	mustRetrieve(t, e.itf, want)
 	mustRetrieve(t, wgd.NewInterface(e.cfg), want)
 	// another owner's interface is invisible
-	foreign := wgd.NewInterface(wgd.Config{Client: e.v, Owner: "w3", Secrets: e.vec.resolver})
+	foreign := wgd.NewInterface(wgd.Config{Keys: keys, Client: e.v, Owner: "w3", Secrets: e.vec.resolver})
 	if _, err := foreign.Create(ctx, &vpnpb.WireguardInterface{Instance: 3001, PrivateKey: e.ref, Port: 20310, SrcIp: "10.3.8.1"}); err != nil {
 		t.Fatal(err)
 	}
@@ -241,7 +241,7 @@ func TestPeer(t *testing.T) {
 
 func TestPeerOwnershipAndValidation(t *testing.T) {
 	e := newEnv(t)
-	foreign := wgd.Config{Client: e.v, Owner: "w3", Secrets: e.vec.resolver}
+	foreign := wgd.Config{Keys: keys, Client: e.v, Owner: "w3", Secrets: e.vec.resolver}
 	if _, err := wgd.NewInterface(foreign).Create(ctx, &vpnpb.WireguardInterface{Instance: 3001, PrivateKey: e.ref, Port: 20310, SrcIp: "10.3.8.1"}); err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +271,7 @@ func TestPeerOwnershipAndValidation(t *testing.T) {
 		"not canonical":   {Interface: "wg4001", PublicKey: e.vec.peerPub[1], AllowedIps: []string{"fd00:0004::/64"}},
 		"bad endpoint":    {Interface: "wg4001", PublicKey: e.vec.peerPub[1], Endpoint: "x", AllowedIps: []string{"10.4.0.0/16"}},
 		"no interface":    {Interface: "wg4999", PublicKey: e.vec.peerPub[1], AllowedIps: []string{"10.4.0.0/16"}},
-		"unknown psk":     {Interface: "wg4001", PublicKey: e.vec.peerPub[1], AllowedIps: []string{"10.4.0.0/16"}, PresharedKey: vpn.Ref([]byte("x"))},
+		"unknown psk":     {Interface: "wg4001", PublicKey: e.vec.peerPub[1], AllowedIps: []string{"10.4.0.0/16"}, PresharedKey: keys.Ref([]byte("x"))},
 		"keepalive range": {Interface: "wg4001", PublicKey: e.vec.peerPub[1], AllowedIps: []string{"10.4.0.0/16"}, PersistentKeepalive: 70000},
 	} {
 		if _, err := e.peer.Create(ctx, p); err == nil {
@@ -292,7 +292,7 @@ func TestPeerEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	// a peer another owner has on its own interface: its events must not surface
-	foreign := wgd.Config{Client: e.v, Owner: "w3", Secrets: e.vec.resolver}
+	foreign := wgd.Config{Keys: keys, Client: e.v, Owner: "w3", Secrets: e.vec.resolver}
 	if _, err := wgd.NewInterface(foreign).Create(ctx, &vpnpb.WireguardInterface{Instance: 3001, PrivateKey: e.ref, Port: 20310, SrcIp: "10.3.8.1"}); err != nil {
 		t.Fatal(err)
 	}
@@ -370,7 +370,7 @@ func TestPeerEvents(t *testing.T) {
 
 func TestAsyncMode(t *testing.T) {
 	v := newFakeVPP()
-	d := wgd.NewAsyncMode(wgd.Config{Client: v, Owner: owner})
+	d := wgd.NewAsyncMode(wgd.Config{Keys: keys, Client: v, Owner: owner})
 	// D-063: no getter → write-only, never an echo of what was applied
 	if kvs, err := d.Retrieve(ctx); !errors.Is(err, vpn.ErrRetrieveUnsupported) || kvs != nil {
 		t.Fatalf("Retrieve: %v %v", kvs, err)

@@ -2587,7 +2587,7 @@ tasks:
   deps: []
   priority: 1
   est_hours: 2
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D0.4
@@ -2598,7 +2598,7 @@ tasks:
   owner: ngfw-46 slot6
   started: ''
   finished: ''
-  notes: 'D-121: merger request after the TD-6 gate failed on TestGRPCRoundTrip at load ~34 | done fed09a5, verify APPROVE 4bf176f; merging (merger)'
+  notes: 'D-121: merger request after the TD-6 gate failed on TestGRPCRoundTrip at load ~34 | done fed09a5, verify APPROVE 4bf176f; merging (merger) | merged b5b9ed6 (squash 3060e22, D-112), main gate green'
 - template: ''
   parked_on: ''
   finished: ''

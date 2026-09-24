@@ -2,12 +2,12 @@
 
 Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 31.7% by hours (360/1135.0 h), 31.1% by tasks (37/119)**
+**Overall: 31.9% by hours (362/1135.0 h), 31.9% by tasks (38/119)**
 
 | state | tasks |
 |---|---|
-| merged | 37 |
-| review | 6 |
+| merged | 38 |
+| review | 5 |
 | running | 12 |
 | ready | 2 |
 | parked | 1 |
@@ -18,7 +18,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
-| S2 | 251 / 268 | 93.7% | 23/27 | 0 | 0 | 1 |
+| S2 | 253 / 268 | 94.4% | 24/27 | 0 | 0 | 1 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
 | S4 | 2 / 576.5 | 0.3% | 1/62 | 12 | 2 | 0 |
 | S5 | 28 / 147.5 | 19.0% | 3/15 | 0 | 0 | 0 |
@@ -40,7 +40,6 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 - F-nat44-ed-sessions — Wave A (day 7-9): NAT44-ED outbound/1:1/port-forward + session browser/kill (running, ngfw-46 slot4)
 - TD-4 — Auth hardening follow-ups from TD-2 (D-100): account disable bumps the credential generation; API-key creation from a JWT session requires the current password; login gets the same transport check as password set (review, ngfw-46 slot8)
 - TD-7 — apply-startup.sh follow-ups from the TD-6 review: F1 concurrent manual rollback of one apply (per-apply lock + cancel the dead-man), F2 scenario 40 bound independent of load (count ip neigh calls) (review, ngfw-46 slot6)
-- TD-12 — De-flake load-sensitive tests that break merge gates (TestGRPCRoundTrip, TestPendingSurvives…, strongswan TestWatchResync, api vitest fetch timeout) (review, ngfw-46 slot6)
 - WEB-1 — ui-kit SchemaForm gaps: presence toggle, port/ip-range, datetime/time/timezone/color widgets, LTR identifiers in RTL, per-path i18n, itemKey summaries + rule-editor table view (running, ngfw-46 slot11)
 - WEB-2 — Config screen kit (generic list+drawer+live-status over any candidate path) + data widgets + Secrets page (running, ngfw-46 slot1)
 - TD-10a — API commit engine correctness (+ running vs Health.last_txn_id check on boot/reconnect) (running, ngfw-46 slot5)

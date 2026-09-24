@@ -1,9 +1,11 @@
 # F-sdk-terraform-ansible — WIP
 
-- [x] live env script `test/topology/sdk-terraform-ansible/live.sh` (slot 5: pg vrx_w5, real vrx-agent owner w5, API :3500, API key in /run)
-- [x] Python SDK `sdk/python` (stdlib generator `tools/gen.py` → `vrx/_generated`, `VrxSession`, typed errors, redaction), 27 unit tests, live test green
-- [ ] Terraform provider `sdk/terraform` (vrx_config, vrx_interface generated, data vrx_state) + protocol-level harness (no terraform CLI on the host)
-- [ ] `sdk/gen.sh` (+ `--check`)
-- [ ] docs/user/system/sdk-terraform-ansible.md
-- [ ] Ansible — cut (D-085), listed as left over
-- [ ] CI gate, status file, env down, vrx_w5 dropped
+Finished — see `F-sdk-terraform-ansible.md` (status + evidence) and `F-sdk-terraform-ansible-questions.md`.
+
+- [x] live env script `test/topology/sdk-terraform-ansible/live.sh`
+- [x] Python SDK `sdk/python` — unit + live green
+- [x] Terraform provider `sdk/terraform` (vrx_config, generated vrx_interface, data vrx_state) — unit + live (protocol harness) green
+- [x] `sdk/gen.sh --check`, `sdk/test.sh`
+- [x] docs/user/system/sdk-terraform-ansible.md
+- [ ] Ansible — cut (D-085), left over
+- [x] CI gate PASSED, env down, vrx_w5 dropped

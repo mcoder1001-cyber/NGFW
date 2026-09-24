@@ -29,7 +29,7 @@ const (
 	MaxLimit     = 1000
 	// MaxWindow bounds offset + limit: the lister keeps that many (slim) entries while it streams the table — about
 	// 110 B each with one path, so ≤ ~12 MB per walk. Deeper pages need a narrower filter (prefix, family, source) until
-	// a keyset cursor exists (docs/tech-debt.md, V-new (d)).
+	// a keyset cursor exists (tech debt, questions Q14; V-new (d)).
 	MaxWindow = 100_000
 	// WalkWait is how long a ListRoutes waits for the FIB walk in progress before it answers ErrFIBBusy.
 	WalkWait = 3 * time.Second

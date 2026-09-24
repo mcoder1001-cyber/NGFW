@@ -11,7 +11,7 @@ import { DatastoreService } from '../../datastore/datastore.service.js';
 
 /**
  * The agent's ListRoutes window (apps/agent/internal/actions/vrf-static-ecmp MaxWindow): offset + limit of one listing.
- * Deeper pages need a narrower filter until a keyset cursor exists (docs/tech-debt.md).
+ * Deeper pages need a narrower filter until a keyset cursor exists (tech debt, F-vrf-static-ecmp questions Q14).
  */
 export const ROUTES_WINDOW = 100_000;
 

@@ -79,3 +79,25 @@ branch (3 `tools/ci.sh check --base main` probes: fail / pass / fail). I re-ran 
 ## Q13 D-128 (`show trace` crash) — nothing to remove here
 No test or code of this task runs `show trace` or `trace add` (grep of the owned files and the topology module: none). Host
 evidence uses `vppctl show ip fib …`, `show svs`, FIB dumps and ping replies only.
+
+## Fix round 1 (review 4435fcf) — items for the manager
+
+## Q14 Tech debt left by fix round 1 (nothing blocks the merge)
+- **FIB keyset cursor** (review M2/H1, V-new (d)): an additive `ListRoutesRequest.after` (prefix) so a deep page costs
+  O(limit) in the agent; today offset + limit ≤ 100 000 (the agent answers INVALID_ARGUMENT, the API 400 at `/page`).
+  Every page still costs a full walk in VPP — only a VPP-side cursor (V-new (d)) fixes that.
+- **CLI `vrx show ip route`** (review H1 f, not owned): it pages 500 at a time through every VRF, i.e. one full walk per
+  page per VRF, and stops at the 100 000-entry window. It should require `<vrf>` (or cap the pages) and say "narrow with
+  a prefix". Same file as L5.
+- **CLI `vrx ping`** (review L5 = Q9, not owned): send `{"target": args[0]}` in `apps/cli/internal/cli/cmd_op.go`, and
+  refresh the ping/traceroute/`show ip route` descriptions there ("answers 501 until …", "(connected + static)"), then
+  `make -C apps/cli docs` — a regeneration alone does not change `docs/user/cli/reference.md`.
+- **svs record pruning** (review L6, optional): dropping applied-once records whose entry vanished with an old VPP
+  instance needs a listing on `dfkit.BootStore` (Get/Put/Delete only today; dfkit is not owned). Harmless meanwhile: a
+  stale record never matches the running VPP's identity.
+
+## Q15 For P12 (review L3)
+The D-072 selector is now installed by `internal/subsystems` package init (`subsystems.ViaFrr`, `sync.Once` kept).
+P12 and every other package must **not** call `frr.RegisterStaticSelector` (it panics on a second call). A test outside
+`subsystems` that needs `viaFrr` semantics links the package (`import _ "ngfw/agent/internal/subsystems"`); the
+`renderers/frr` package itself cannot (import cycle) and keeps RF-1's stand-in selector in its own tests.

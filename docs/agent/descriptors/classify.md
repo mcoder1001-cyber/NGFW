@@ -57,3 +57,12 @@ Delete fails with `ErrTableInUse` naming the users; the scheduler normally never
 descriptor depends on `classify.table/<name>` and on `interface/<name>`, so bindings are deleted first. Policer and
 flow classify bindings have no usable readback (VPP 26.06 dumps read out of bounds); their descriptors' dependency on
 the table orders them. Why: a binding to a freed table crashes VPP on the first packet (V19, 2026-09-24 04:50:27).
+
+What this check cannot see (TD-3 review M1) and why it is acceptable now: an input ACL left on an index whose interface
+was deleted behind the agent's back (VPP answers every call on a deleted index with INVALID_SW_IF_INDEX, so it can
+neither be read nor unbound), and write-only records of deleted interfaces. Since fix round 1 every interface Delete
+clears the bindings first (`ifsanitize.BeforeDelete`), and a creator that gets such an index resurrects the deleted table
+and unbinds it (input ACL exactly, the write-only kinds through the pool's free list) or quarantines the index — so a
+table deleted in that state is no longer a crash vector for our interfaces. Output-ACL records keep refusing the Delete
+even when their interface is gone. Concurrency: the scheduler is sequential, so the `TableUsers` → delete window is only
+open to other owners on the shared VPP (a table bound by another slot between the check and the delete); accepted.

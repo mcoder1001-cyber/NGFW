@@ -74,7 +74,11 @@ func (i ifInfo) String() string {
 // FIB — are read from VPP's own show commands through cli_inband: this is a read-only CI
 // diagnostic, never used by the agent.
 //
-// Fatal: a binding on an existing interface, or a classify DPO in the FIB, to a missing table.
+// Fatal: a binding on an existing interface, a classify DPO in the FIB, or a live table chaining
+// (next_table_index), to a missing table. A table is missing only when it is absent from two
+// classify_table_ids snapshots, one before and one after the reads (another slot may create and
+// bind a table meanwhile). A quarantine holder (admin-down, tag "quarantine:<owner>", Acquire) is
+// reported, not fatal: the agent never uses it — the same rule as the agent's.
 // Reported: bindings of deleted interfaces to missing tables (dormant until the index is
 // reused; the agent's creators clear them, others may not), SPD bindings on deleted interfaces
 // (they block the next interface on that index) and on untagged (foreign) interfaces.

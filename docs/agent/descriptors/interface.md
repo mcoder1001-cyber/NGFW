@@ -107,17 +107,42 @@ dependency order → plan empty → delete all → Retrieve empty. `TestAliasOnH
 untagged tap (admin-up, MTU, rx-mode, VLAN sub-interface) through `interface/tap271`. Output in
 `docs/status/tasks/DF-1.md`.
 
-## New interfaces are sanitized before they are reported created (TD-3, D-095 a)
+## New interfaces are sanitized before they are reported created (TD-3, D-095 a; fix round 1)
 
 VPP reuses a deleted interface's sw_if_index and keeps per-index state across the delete (V19, V21, V23): the ip
-classify table, l2/in/out ACL, policer/flow classify tables, vxlan bypass, ADL and the IPsec SPD binding. Every
-interface creator — `interface.loopback` (core), `tapv2.tap`, `af-packet.host-interface`, `memif.memif`, `bond.bond`,
-`interface.subinterface` (via `iface.SanitizeAndTag`), all DF-6 interface types (`df6.IfDescriptor`: gre, ipip, 6rd,
-vxlan, vxlan-gpe, gtpu, l2tp, pppoe) and `mpls.tunnel` — calls `internal/vpp/ifsanitize.Sanitize` on the new index
-before tagging it and before Create returns; if VPP refuses the clean-up the interface is removed and Create fails.
-Only binapi messages are used; the ip classify, l2 classify, ADL and vxlan bypass settings are reset blindly (no
-readback), input ACL is read with `classify_table_by_interface`, output ACL / policer / flow classify are probed with an
-unbind per live classify table (NO_SUCH_TABLE = not bound), the SPD binding is read with `ipsec_spd_interface_dump`.
-A binding to an already freed table cannot be removed by any API call; it is dormant (VPP clears every feature arc on
-interface delete), logged at warn and counted as `unclearable`. Every run is logged at info and counted in
-`vrx_agent_iface_sanitize_{total,errors_total,inherited_total,cleared_total{state},unclearable_total{state}}`.
+classify table, l2/in/out ACL, policer/flow classify tables, the l2-input/l2-output feature bits (L2 ACL, L2 policer
+classify — not feature arcs, reset on delete only for bridged/xconnected interfaces), vxlan bypass, ADL and the IPsec
+SPD binding. Every interface creator — `interface.loopback` (core), `tapv2.tap`, `af-packet.host-interface`,
+`memif.memif`, `bond.bond`, `interface.subinterface` (via `iface.AcquireAndTag`), all DF-6 interface types
+(`df6.IfDescriptor`: gre, ipip, 6rd, vxlan, vxlan-gpe, gtpu, l2tp, pppoe), `mpls.tunnel` and the VPP-side host tap of
+`lcp.itf-pair` — creates the interface through `internal/vpp/ifsanitize.Acquire`, which sanitizes the new index before
+it is tagged and before Create returns:
+
+1. **L3 mode** (`sw_interface_set_l2_bridge enable=0` → `set_int_l2_mode(MODE_L3)`): zeroes the l2 feature bitmaps,
+   whatever tables they name — removes the `l2-input-acl` crash path (a stale L2 ACL bit on a later bridged port reads a
+   freed table on the first frame).
+2. **Resurrect**: placeholder classify tables (16-byte signature mask, 2 buckets) are created until the pool's free indices
+   are filled — the pool hands out the most recently freed index first — including every table an input ACL binding names
+   (read back exactly), then until `FreshRun` (8) consecutive fresh indices came back; `MaxPlaceholders` (256) bounds it.
+3. **Clear**: ip classify, l2 classify, ADL, vxlan bypass reset blindly; input ACL read with `classify_table_by_interface`
+   and unbound; output ACL / policer / flow classify probed with an unbind per table (live and placeholder; NO_SUCH_TABLE =
+   not bound) — so bindings to deleted tables are no longer invisible; SPD read with `ipsec_spd_interface_dump`.
+4. The placeholders are deleted again (identity re-checked with `classify_table_info` first).
+5. **Quarantine**: anything still bound (a binding to a deleted table that could not be resurrected) is `ErrUnclearable`:
+   the interface is deleted, an admin-down loopback tagged `quarantine:<owner>` takes the dirty index (the sw_interface
+   pool is LIFO too) and the interface is created again on a fresh index (at most `MaxAcquireAttempts`, then Create fails
+   with `ErrNoCleanIndex`). `ifsanitize.Release` re-sanitizes the owner's holders and deletes the clean ones.
+   Any other sanitize failure removes the interface and fails Create.
+
+Every interface Delete (loopback, tap, memif, bond, af_packet, sub-interface, DF-6 types, mpls tunnel, lcp pair host tap)
+calls `ifsanitize.BeforeDelete` right before the VPP delete — the only moment every table the interface is bound to still
+exists (review H3); an unclearable binding there is logged and counted, the delete goes on.
+
+Handled by VPP itself (no action): ACL plugin in/out lists (`acl.c` resets them on interface delete), NAT44-ED/EI interface
+flags, ADL per-index config (re-initialised on interface add). Known, not handled (no crash path found; recorded in
+`docs/vpp-code-track.md` V23 b): ABF attachments, NAT64/NAT66/DET44 interface flags, cnat snat-if, flowprobe.
+
+Only binapi messages are used. Every run is logged at info and counted per phase (`create` for a new index, `delete`
+before a delete): `vrx_agent_iface_sanitize_{total,errors_total,inherited_total}{phase}`,
+`vrx_agent_iface_sanitize_{cleared_total,freed_table_total,unclearable_total}{phase,state}`, plus the gauge
+`vrx_agent_iface_quarantined` and the counter `vrx_agent_iface_quarantine_total`.

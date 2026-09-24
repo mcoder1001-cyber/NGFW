@@ -8,12 +8,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/netip"
 	"strings"
 
+	"go.fd.io/govpp/core"
+
 	"ngfw/agent/binapi/fib_types"
 	"ngfw/agent/binapi/ip"
+	"ngfw/agent/binapi/memclnt"
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/svs"
@@ -134,25 +136,14 @@ func ListRoutes(ctx context.Context, c vpp.Client, owner string, q Query) (*Page
 	w := &window{}
 	var total uint32
 	for _, v6 := range fams {
-		stream, err := ip.NewServiceClient(c).IPRouteV2Dump(ctx, &ip.IPRouteV2Dump{Src: src, Table: ip.IPTable{TableID: q.Table, IsIP6: v6}})
-		if err != nil {
-			return nil, fmt.Errorf("ip_route_v2_dump %d: %w", q.Table, err)
-		}
-		for {
-			det, err := stream.Recv()
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			if err != nil {
-				return nil, fmt.Errorf("ip_route_v2_dump %d: %w", q.Table, err)
-			}
+		err := DumpRoutes(ctx, c, &ip.IPRouteV2Dump{Src: src, Table: ip.IPTable{TableID: q.Table, IsIP6: v6}}, func(det *ip.IPRouteV2Details) {
 			p, err := netip.ParsePrefix(det.Route.Prefix.String())
 			if err != nil {
-				continue
+				return
 			}
 			p = p.Masked()
 			if within.IsValid() && !(within.Contains(p.Addr()) && p.Bits() >= within.Bits()) {
-				continue
+				return
 			}
 			total++
 			if w.Len() < keep {
@@ -161,6 +152,9 @@ func ListRoutes(ctx context.Context, c vpp.Client, owner string, q Query) (*Page
 				(*w)[0] = entry{p, det.Route}
 				heap.Fix(w, 0)
 			}
+		})
+		if err != nil {
+			return nil, fmt.Errorf("ip_route_v2_dump %d: %w", q.Table, err)
 		}
 	}
 	// the window holds the smallest `keep` entries: sorted ascending, the page is after the offset
@@ -185,6 +179,41 @@ func ListRoutes(ctx context.Context, c vpp.Client, owner string, q Query) (*Page
 		page.Routes = append(page.Routes, convert(e, names, ifs))
 	}
 	return page, nil
+}
+
+// dumpReplyBuffer is the reply buffer of the lister's dump stream. govpp drops a reply its consumer does not take within
+// 100 ms once the stream's buffer (default 100) is full — on a loaded host a 100k-entry dump lost ~0.01 % of its entries
+// that way (host run 2026-09-24) — so the lister's stream buffers up to this many replies instead.
+const dumpReplyBuffer = 1 << 16
+
+// DumpRoutes runs one ip_route_v2_dump (the generated message types, a stream with a large reply buffer) and calls fn for
+// every entry until VPP's control-ping reply ends the dump.
+func DumpRoutes(ctx context.Context, c vpp.Client, req *ip.IPRouteV2Dump, fn func(*ip.IPRouteV2Details)) error {
+	stream, err := c.NewStream(ctx, core.WithReplySize(dumpReplyBuffer))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = stream.Close() }()
+	if err := stream.SendMsg(req); err != nil {
+		return err
+	}
+	if err := stream.SendMsg(&memclnt.ControlPing{}); err != nil {
+		return err
+	}
+	for {
+		msg, err := stream.RecvMsg()
+		if err != nil {
+			return err
+		}
+		switch m := msg.(type) {
+		case *ip.IPRouteV2Details:
+			fn(m)
+		case *memclnt.ControlPingReply:
+			return nil
+		default:
+			return fmt.Errorf("unexpected reply %T", msg)
+		}
+	}
 }
 
 var pathTypes = map[fib_types.FibPathType]string{

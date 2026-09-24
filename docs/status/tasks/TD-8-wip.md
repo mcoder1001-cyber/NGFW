@@ -5,3 +5,5 @@
   Env.IDs (ResolveIDScope, fail closed; Wiring.IDRange), S1 dynamic sources (merged into every txn + DryRun, own scoped
   sync, Run loops after the first resync), metrics collectors on /metrics.
 - next: docs/agent/README.md coverage table, §11 text, TD-8.md + questions, full agent test/lint, ci.sh.
+- 19:30 done: CI GATE PASSED on d4c9701 (contract guard flaky → F1; two earlier gates failed only in base web tests under load);
+  mutations caught; TD-8.md + questions committed; dist/ and bin/ removed.

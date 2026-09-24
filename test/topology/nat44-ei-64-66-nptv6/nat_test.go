@@ -294,11 +294,11 @@ func TestNatEI6466Nptv6(t *testing.T) {
 			}
 		}
 		r.peers(t, true)
-		r.up6(t, a6)
 	})
 	if t.Failed() {
 		return
 	}
+	r.up6(t, a6) // the test's own Cleanup (not the subtest's): IPv6 stays for the NPTv6 and NAT64 steps
 	t.Run("ei-packets", func(t *testing.T) { a.t = t; f.eiPackets(t) })
 	if t.Failed() {
 		return

@@ -264,7 +264,27 @@ interface's **public** key (the `x25519:` reference form) — no material.
 
 ### CI gate
 
-See the end of this file (pasted after the final commit).
+`tools/ci.sh --base main` on `ba1c6a0` (the commit after it only pastes this output). Excerpt of
+`/root/ngfw-wt/logs/DF-5-ci-final.log`:
+
+```
+== contract guard: HEAD vs main ==
+no contract files changed in the 18 commit(s) of HEAD since main (58fe694)
+== forbidden patterns (+ gitleaks) ==
+ok: gitleaks — no leaks found
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   1m28s
+  forbidden patterns (+ gitleaks)                    0m03s
+  lint · typecheck · unit tests · build (turbo)   1m29s
+  apps/agent: make lint test build                   0m27s
+  test/ Go modules, unit mode (test/integration/smoke)   0m01s
+  mode quick · wall time 3m32s · logs /root/ngfw-wt/logs/ci/DF-5-20260924-044958-2805165
+
+CI GATE PASSED
+```
 
 ## Out of scope / left undone
 

@@ -2141,7 +2141,8 @@ tasks:
     resumed (D-094) | review BLOCK edd93a5 (H1 NRestarts reset by manual restart, H2 gateway ICMP, M1 dead-man lock race, M2 approval flag, M3 rollback budget); fix round 1 | fix round 7d81982 (91/91 fake-host
     checks) CI green; re-review spawned | re-review APPROVE WITH CHANGES 3c0bafc (N1 SSH-session probe → rollback loop, N2 no systemd-run fallback, N3 early crash, N4 approval binding); fix round 2 (last)
     | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/F-startup-apply.continue.md
-    | 07:5x fix round 2 done 5e0d8fe (101/101 fake-host, CI green); verify review spawned (last round → manager decides on verify); L1 ci.sh wiring = manager after merge'
+    | 07:5x fix round 2 done 5e0d8fe (101/101 fake-host, CI green); verify review spawned (last round → manager decides on verify); L1 ci.sh wiring = manager after merge | 08:3x verify APPROVE WITH CHANGES
+    0ff06fd; merged per D-103 (V1–V4 → TD-6 before first real apply); pre-merge CI green (3m44s)'
   owner: host-agent slot6
   parked_on: ''
   priority: 4
@@ -2149,7 +2150,7 @@ tasks:
   scope: apply-startup.sh from branch task/F-startup-apply; fix re-review N1 N2 N3 N6 + lows (D-088)
   stage: S2
   started: 2026-09-24T03:10
-  state: review
+  state: merged
   template: FEATURE-TEMPLATE.md
   title: Robust startup.conf apply tooling (detached, watchdog, hung-VPP, ifupdown restore, Go API checks, handover gate)
   wbs:
@@ -2325,3 +2326,25 @@ tasks:
   started: ''
   finished: ''
   notes: D-101 V24 crash 07:27:32
+- id: TD-6
+  title: 'apply-startup.sh hardening before the first real --apply (D-103): stale dead-man vs newer commit, rollback write failure, systemctl-show failure, NRestarts compare; lows V5–V9; fake-host harness
+    + shellcheck wired into tools/ci.sh'
+  prompt: ''
+  template: ''
+  stage: S2
+  deps:
+  - F-startup-apply
+  priority: 3
+  est_hours: 3
+  state: ready
+  parked_on: ''
+  wbs:
+  - D0.6
+  scope: D-103; F-startup-apply-verify.md V1–V9 + L1
+  files_owned: deploy/vpp/apply-startup.sh deploy/vpp/test-apply-startup.sh apps/agent/cmd/vrx-vppcheck/** tools/ci.sh (harness hunk only) docs/agent/renderers/vppstartup.md docs/status/tasks/TD-6*
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: 'D-103: must merge before any real --apply on vrx-a'

@@ -49,6 +49,7 @@ type Service struct {
 	bus        *bus
 	metrics    *metrics
 	now        func() time.Time
+	claimsTxn  func() (flush func() error) // TD-11c: Wiring.ClaimsTxn, set by Start (nil = none)
 
 	// txn serialises transactions (Apply, resync, revert) and guards st and timer.
 	txn      chan struct{}
@@ -69,7 +70,6 @@ type Service struct {
 	routeDesc       map[string]string           // "<vrf>|<prefix>" → description (D-073b)
 	storedIfs       map[string]*vrxv1.Interface // stored desired `interfaces` (P08: descriptions, named NICs)
 	beforeTxn       func()
-	claimsTxn       func() (flush func() error) // TD-11c: Wiring.ClaimsTxn, set by Start (nil = none)
 	pendingTxn      string
 	deadline        time.Time
 	lastTxn         string
@@ -335,14 +335,14 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_RECONCILE_START, TxnId: txnID, Message: fmt.Sprintf("%s %v", modeName(m), domains)})
 	log := s.log.With("txn_id", txnID, "mode", modeName(m), "domains", domains)
 	log.Info("reconcile start")
+	flushClaims := func() error { return nil }
+	if s.claimsTxn != nil {
+		flushClaims = s.claimsTxn() // TD-11c: the keyed claim stores write once, at the end of the transaction
+	}
 
 	resp := &vrxv1.ApplyResponse{TxnId: txnID}
 	if s.beforeTxn != nil {
 		s.beforeTxn()
-	}
-	flushClaims := func() error { return nil }
-	if s.claimsTxn != nil {
-		flushClaims = s.claimsTxn() // TD-11c: the keyed claim stores write once, at the end of the transaction
 	}
 	pj := project(ds, domains, s.resolveVRF, s.netdevKind)
 	var res *scheduler.TxnResult

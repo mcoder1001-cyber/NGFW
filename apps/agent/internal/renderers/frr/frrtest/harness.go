@@ -93,6 +93,11 @@ type Options struct {
 	Daemons []string
 	// Links to create in a harness-owned namespace (ignored with NetNS).
 	Links []Link
+	// Instance names one more FRR instance of the same slot ("p1", "p2": 1–3 of [a-z0-9]; "" = the slot's main
+	// instance). It gets its own pathspace <Prefix><Instance>, base /run/vrx-test/<Prefix>/frr-<Instance>, lock
+	// /run/vrx-test/<Prefix>/frr-<Instance>.lock and default namespace ns-<Prefix>-<Instance>, so a topology test can
+	// run the VRX-side FRR and its peers in one slot (P12). Object names still carry the slot prefix.
+	Instance string
 }
 
 // Harness is a running test-scoped FRR.
@@ -104,6 +109,7 @@ type Harness struct {
 	Base string
 
 	prefix   string
+	instance string
 	daemons  []string
 	pids     map[string]int
 	ownNetNS bool
@@ -115,8 +121,16 @@ type Harness struct {
 // LockFile is the slot-scoped harness lock (flock LOCK_EX for the harness lifetime).
 func LockFile(prefix string) string { return filepath.Join("/run/vrx-test", prefix, "frr.lock") }
 
+// InstanceLockFile is the lock of one named instance of a slot ("" = LockFile).
+func InstanceLockFile(prefix, instance string) string {
+	if instance == "" {
+		return LockFile(prefix)
+	}
+	return filepath.Join("/run/vrx-test", prefix, "frr-"+instance+".lock")
+}
+
 func (h *Harness) lockSlot() error {
-	path := LockFile(h.prefix)
+	path := InstanceLockFile(h.prefix, h.instance)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { //nolint:gosec // /run/vrx-test/<prefix>, shared-host layout
 		return err
 	}
@@ -132,7 +146,10 @@ func (h *Harness) lockSlot() error {
 	return nil
 }
 
-var prefixRe = regexp.MustCompile(`^[a-z][a-z0-9]{1,5}$`)
+var (
+	prefixRe   = regexp.MustCompile(`^[a-z][a-z0-9]{1,5}$`)
+	instanceRe = regexp.MustCompile(`^[a-z0-9]{1,3}$`)
+)
 
 const startTimeout = 30 * time.Second
 
@@ -167,15 +184,19 @@ func start(ctx context.Context, opts Options) (*Harness, error) {
 			return nil, fmt.Errorf("unknown daemon %q", d)
 		}
 	}
-	paths := frr.TestPaths(opts.Prefix)
+	if opts.Instance != "" && (!instanceRe.MatchString(opts.Instance) || len(opts.Prefix)+len(opts.Instance) > 6) {
+		return nil, fmt.Errorf("instance %q must match %s and fit the 6-character pathspace with the prefix", opts.Instance, instanceRe)
+	}
+	paths := frr.TestInstancePaths(opts.Prefix, opts.Instance)
 	h := &Harness{
-		Paths:   paths,
-		Runner:  &renderers.SystemRunner{Allow: renderers.NewAllowlist(Binaries()...), MaxOutput: frr.MaxShowOutput},
-		Base:    filepath.Dir(paths.ConfDir),
-		prefix:  opts.Prefix,
-		daemons: slices.Clone(daemons),
-		pids:    map[string]int{},
-		symlink: filepath.Join("/run/frr", opts.Prefix),
+		Paths:    paths,
+		Runner:   &renderers.SystemRunner{Allow: renderers.NewAllowlist(Binaries()...), MaxOutput: frr.MaxShowOutput},
+		Base:     filepath.Dir(paths.ConfDir),
+		prefix:   opts.Prefix,
+		instance: opts.Instance,
+		daemons:  slices.Clone(daemons),
+		pids:     map[string]int{},
+		symlink:  filepath.Join("/run/frr", paths.Namespace),
 	}
 	if !strings.HasPrefix(h.Base, "/run/vrx-test/"+opts.Prefix+"/") {
 		return nil, fmt.Errorf("base %s is not under /run/vrx-test/%s", h.Base, opts.Prefix)
@@ -271,6 +292,9 @@ func (h *Harness) prepareNetNS(ctx context.Context, opts Options) error {
 		h.NetNS = opts.NetNS
 	} else {
 		h.NetNS = "ns-" + h.prefix + "-frr"
+		if h.instance != "" {
+			h.NetNS = "ns-" + h.prefix + "-" + h.instance
+		}
 		list, err := h.ip(ctx, "netns", "list")
 		if err != nil {
 			return err
@@ -340,7 +364,7 @@ func (h *Harness) addLink(ctx context.Context, l Link) error {
 // can assert what is bound before anything starts.
 func (h *Harness) DaemonArgs(d string) []string {
 	sock := h.Paths.SocketDir()
-	args := []string{daemonBins[d], "-d", "-N", h.prefix, "--vty_socket", sock,
+	args := []string{daemonBins[d], "-d", "-N", h.Paths.Namespace, "--vty_socket", sock,
 		"-i", h.pidFile(d), "-A", "127.0.0.1", "-P", "0",
 		"--log", "file:" + filepath.Join(sock, d+".log"), "--log-level", "warn"}
 	if d != "mgmtd" {

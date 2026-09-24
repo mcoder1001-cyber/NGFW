@@ -43,7 +43,12 @@ exit-vrf
 !
 {{- end}}
 interface {{ifname $itf.Name}}
- description {{desc $itf.Description}}
+{{- with $itf.Description}}
+ description {{desc .}}
+{{- end}}
+{{- range $itf.Lines}}
+{{.}}
+{{- end}}
 exit
 {{end}}
 {{- end}}

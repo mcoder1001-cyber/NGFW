@@ -68,6 +68,24 @@ func TestPaths(prefix string) Paths {
 	}
 }
 
+// TestInstancePaths are the paths of one more test-scoped FRR instance of slot prefix ("w12") named instance ("p1"):
+// everything under /run/vrx-test/<prefix>/frr-<instance>, pathspace <prefix><instance> (P12: the peers of a topology
+// test next to the VRX-side instance of TestPaths). instance "" is TestPaths.
+func TestInstancePaths(prefix, instance string) Paths {
+	if instance == "" {
+		return TestPaths(prefix)
+	}
+	base := filepath.Join("/run/vrx-test", prefix, "frr-"+instance)
+	return Paths{
+		ConfDir:   filepath.Join(base, "etc"),
+		RunDir:    filepath.Join(base, "run"),
+		Namespace: prefix + instance,
+		BinDir:    "/usr/bin",
+		ReloadLog: filepath.Join(base, "frr-reload.log"),
+		FileMode:  0o640,
+	}
+}
+
 var namespaceRe = regexp.MustCompile(`^[a-z][a-z0-9]{0,5}$`)
 
 // Validate checks that every path is absolute and clean and the namespace is a slot prefix.

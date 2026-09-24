@@ -354,7 +354,7 @@ func TestModelErrors(t *testing.T) {
 		"unmapped next-hop interface": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
 			{Prefix: ptr("10.0.0.0/8"), NextHops: []*vrxv1.NextHop{{Interface: ptr("TenGigabitEthernet0/0/0")}}}}}}, "has no Linux interface"},
 		"bad tag": {doc(t, map[string]any{"routing": map[string]any{"static": []any{
-			map[string]any{"prefix": "10.0.0.0/8", "tag": -1, "nextHops": []any{map[string]any{"address": "10.0.0.1"}}}}}}), "tag must be an integer"},
+			map[string]any{"prefix": "10.0.0.0/8", "tag": -1, "nextHops": []any{map[string]any{"address": "10.0.0.1"}}}}}}), "field tag"}, // StaticRoute.tag (8, P12) is decoded by protojson now
 		"bad frr flag": {doc(t, map[string]any{"routing": map[string]any{"static": []any{
 			map[string]any{"prefix": "10.0.0.0/8", "frr": "yes", "nextHops": []any{map[string]any{"address": "10.0.0.1"}}}}}}), "frr must be a boolean"},
 		"wrong type": {&vrxv1.Vrf{}, "unsupported input type"},

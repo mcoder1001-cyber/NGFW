@@ -45,10 +45,13 @@ type VRF struct {
 	Static []Route
 }
 
-// Interface is one `interface <name>` block (description only in the framework).
+// Interface is one `interface <name>` block: the description (framework) and the lines registered producers add
+// (RegisterInterfaceLines, seam S2).
 type Interface struct {
 	Name        string
 	Description string
+	// Lines are complete indented commands from the registered interface-line producers, in producer-name order.
+	Lines []string
 }
 
 // Route is one staticd line: `ip[v6] route <prefix> <nexthop> [tag T] [distance]`.
@@ -332,7 +335,11 @@ func buildRoutes(sr *vrxv1.StaticRoute, idx int, path string, ext *Extensions, m
 	case distance > 255:
 		return nil, fmt.Errorf("%w: %s.distance %d not in 1..255", ErrInput, path, distance)
 	}
-	base := Route{AFI: afi, Prefix: pfx, Tag: ext.Tag[idx], Distance: distance}
+	tag := sr.GetTag() // StaticRoute.tag (8, P12); the D-055 stand-in only for documents without it
+	if tag == 0 {
+		tag = ext.Tag[idx]
+	}
+	base := Route{AFI: afi, Prefix: pfx, Tag: tag, Distance: distance}
 	if sr.GetBlackhole() {
 		if len(sr.GetNextHops()) != 0 {
 			return nil, fmt.Errorf("%w: %s: a blackhole route has no next hops", ErrInput, path)

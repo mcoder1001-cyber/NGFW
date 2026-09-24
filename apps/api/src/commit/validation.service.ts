@@ -72,7 +72,12 @@ export class ValidationService {
     };
   }
 
-  async validate(doc: Doc, txnId: string): Promise<ValidationOutcome> {
+  /** `opts.dryRunMs`: the DryRun deadline of the commit budget (TD-10a, commit/budget.ts). */
+  async validate(
+    doc: Doc,
+    txnId: string,
+    opts: { dryRunMs?: number } = {},
+  ): Promise<ValidationOutcome> {
     const base = {
       warnings: [] as ProblemIssue[],
       subsystems: [] as string[],
@@ -97,7 +102,10 @@ export class ValidationService {
     const subsystems = ROOT_KEYS.filter((k) => implemented.has(k));
     const notApplied = ROOT_KEYS.filter((k) => !implemented.has(k));
     const desired = ValidationService.desiredState(config);
-    const report = await this.agent.dryRun({ txnId, desiredState: desired, subsystems });
+    const report = await this.agent.dryRun(
+      { txnId, desiredState: desired, subsystems },
+      opts.dryRunMs,
+    );
     const errors = report.errors
       .filter((i) => i.severity === IssueSeverity.ISSUE_SEVERITY_ERROR)
       .map(issue);

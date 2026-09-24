@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, type OnApplicationShutdown } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional, type OnApplicationShutdown } from '@nestjs/common';
 import { ApplyStatus, EventKind, type ApplyResponse, type ObjectResult } from '@ngfw/proto';
 import { deepEqual, diff, parsePointer, type UserConfig } from '@ngfw/schema';
 import { randomUUID } from 'node:crypto';
@@ -8,7 +8,7 @@ import { SystemEventsService } from '../audit/system-events.service.js';
 import { TokensService } from '../auth/tokens.service.js';
 import { ENV, type Env } from '../config.js';
 import { documentHash } from '../common/json.js';
-import { Mutex } from '../common/mutex.js';
+import { CommitLock, LockBusyError } from '../common/mutex.js';
 import { ProblemError, problems, type ProblemIssue } from '../common/problem.js';
 import type { Principal } from '../common/principal.js';
 import { CONFIG_REPO } from '../datastore/datastore.service.js';
@@ -31,7 +31,10 @@ import type {
   RevisionMeta,
   SyncStatus,
 } from '../datastore/repo.js';
+import { DB, type Db } from '../db/db.js';
 import { Bus } from '../infra/bus.js';
+import { commitBudget, type CommitBudget } from './budget.js';
+import { PgAdvisoryLock, poolOf } from './pg-lock.js';
 import { planEntry, ValidationService, type PlanEntry } from './validation.service.js';
 
 export interface CommitOptions {
@@ -151,8 +154,20 @@ function outcomeUnknown(e: unknown): boolean {
 interface InFlight {
   txnId: string;
   config: Doc;
-  meta: { authorId: number | null; comment: string; kind: string; clearPending: boolean };
+  meta: {
+    authorId: number | null;
+    comment: string;
+    kind: string;
+    clearPending: boolean;
+    restoreSecrets?: Record<string, number>;
+  };
 }
+
+/** What Health says about a pending (confirm-window) transaction (TD-10a, review 2.1). */
+type PendingFate = 'confirmed' | 'pending' | 'reverted';
+
+/** How many of the API's own txn ids are remembered, to tell its RECONCILE_DONE events from the agent's (ARCH-01). */
+const OWN_TXNS = 32;
 
 /**
  * The commit engine (P06 §4): validate (3 tiers) → admin check of the whole change (review M1) → agent Apply(txn) →
@@ -161,13 +176,25 @@ interface InFlight {
  * the data plane in an unknown state (DEGRADED, agent timeout/lost answer, revision not saved) marks sync `unknown`/
  * `degraded` and starts a reconcile: if the agent applied the transaction (Health.last_txn_id) the revision is saved,
  * otherwise running is re-applied (review M3). Confirmed commits wait in `config_pending` until CONFIRMED.
+ *
+ * TD-10a: whether a pending commit was confirmed or reverted is read from Health.last_txn_id (2.1) — a lost confirm
+ * answer never turns into "reverted"; a rollback's secret versions and the agent's warnings live in `config_pending`
+ * (2.2, 2.5); every section runs under `CommitLock` — in-process FIFO plus a PostgreSQL advisory lock across API
+ * processes (2.4b) — and user sections answer 409 `commit-busy` instead of queueing, inside an explicit time budget
+ * (2.4a, budget.ts); at boot, on agent reconnect and on RECONCILE_DONE of an agent resync/revert the agent's
+ * last_txn_id is compared with running and a mismatch is reconciled (ARCH-01).
  */
 @Injectable()
 export class CommitService implements OnApplicationShutdown {
   private readonly log = new Logger('Commit');
-  private readonly mutex = new Mutex();
+  private readonly lock: CommitLock;
+  private readonly budget: CommitBudget;
   private watchTimer: NodeJS.Timeout | undefined;
   private reconcileTimer: NodeJS.Timeout | undefined;
+  private txnCheckTimer: NodeJS.Timeout | undefined;
+  private stopReadyWatch: (() => void) | undefined;
+  /** Txn ids the API itself sent to the agent, newest last (ARCH-01: their RECONCILE_DONE needs no check). */
+  private readonly ownTxns: string[] = [];
   private reconcileAttempt = 0;
   private inflight: InFlight | undefined;
   /** In-memory copy: authoritative in this process even when the database write of the sync state fails. */
@@ -183,17 +210,27 @@ export class CommitService implements OnApplicationShutdown {
     @Inject(ENV) private readonly env: Env,
     private readonly tokens: TokensService,
     private readonly audit: AuditService,
+    @Optional() @Inject(DB) db?: Db,
   ) {
+    const pool = poolOf(db);
+    this.lock = new CommitLock(pool ? new PgAdvisoryLock(pool) : undefined);
+    this.budget = commitBudget(env);
     this.unsubscribe = this.bus.onAgentEvent((e) => {
       if (e.kind === EventKind.EVENT_KIND_CONFIRM_REVERTED && e.txnId)
         void this.onReverted(e.txnId, 'event');
+      // ARCH-01: a resync (agent start, VPP reconnect) or revert — txn '' — or a transaction this API did not send
+      if (e.kind === EventKind.EVENT_KIND_RECONCILE_DONE && !this.ownTxns.includes(e.txnId))
+        this.scheduleTxnCheck('agent reconcile');
     });
   }
 
   onApplicationShutdown(): void {
     this.unsubscribe();
+    this.stopReadyWatch?.();
+    this.stopReadyWatch = undefined;
     if (this.watchTimer) clearTimeout(this.watchTimer);
     if (this.reconcileTimer) clearTimeout(this.reconcileTimer);
+    if (this.txnCheckTimer) clearTimeout(this.txnCheckTimer);
   }
 
   // ------------------------------------------------------------------------------------------------ sync state
@@ -224,11 +261,22 @@ export class CommitService implements OnApplicationShutdown {
     }
   }
 
-  /** After an API restart: a persisted unknown/degraded state is reconciled again. */
+  /**
+   * After an API restart: a persisted unknown/degraded state is reconciled again; otherwise the agent's
+   * Health.last_txn_id is compared with running (ARCH-01) now and after every agent reconnect.
+   */
   async resumeSync(): Promise<void> {
     const s = await this.repo.getSync();
     this.sync = s;
     if (s.state !== 'in-sync') this.scheduleReconcile(0);
+    else this.scheduleTxnCheck('boot', 0);
+    this.stopReadyWatch?.();
+    this.stopReadyWatch = this.agent.watchReady(() => this.scheduleTxnCheck('agent reconnect', 0));
+  }
+
+  private remember(txnId: string): void {
+    this.ownTxns.push(txnId);
+    if (this.ownTxns.length > OWN_TXNS) this.ownTxns.shift();
   }
 
   private scheduleReconcile(delayMs?: number): void {
@@ -247,59 +295,86 @@ export class CommitService implements OnApplicationShutdown {
    * the agent is unreachable or still degraded.
    */
   reconcile(): Promise<SyncJson> {
-    return this.mutex.run(async () => {
-      this.reconcileTimer = undefined;
-      if (this.sync.state === 'in-sync') return syncJson(this.sync);
-      try {
-        const h = await this.agent.health();
-        const f = this.inflight;
-        if (f !== undefined && h.lastTxnId === f.txnId) {
-          // the agent applied the transaction whose answer (or revision save) we lost: keep it
+    return this.lock
+      .run(() => this.reconcileLocked())
+      .catch((e: unknown) => {
+        // the lock itself failed (database unreachable): try again later
+        this.log.warn(`reconcile failed, retrying: ${(e as Error).message}`);
+        this.scheduleReconcile();
+        return syncJson(this.sync);
+      });
+  }
+
+  private async reconcileLocked(): Promise<SyncJson> {
+    this.reconcileTimer = undefined;
+    if (this.sync.state === 'in-sync') return syncJson(this.sync);
+    try {
+      const h = await this.agent.health();
+      const f = this.inflight;
+      const p = await this.repo.pending();
+      if (f !== undefined && h.lastTxnId === f.txnId) {
+        // the agent applied the transaction whose answer (or revision save) we lost: keep it (once — the
+        // confirm watcher may have saved a confirmed one meanwhile)
+        if ((await this.repo.latestRevision())?.txnId !== f.txnId)
           await this.promote(f.config, { ...f.meta, txnId: f.txnId });
-          this.inflight = undefined;
-          await this.setSync(
-            'in-sync',
-            `transaction ${f.txnId} was applied; revision saved`,
-            f.txnId,
-          );
-        } else if (h.pendingConfirmTxnId) {
-          // a confirm window is open on the agent: wait for it to close (confirm or self-revert)
-          this.scheduleReconcile();
-          return syncJson(this.sync);
-        } else {
-          // put the data plane back on running
-          const running = await this.repo.latestRevision();
-          const doc = hydrateHashes(
-            running?.payload ?? emptyDocument(),
-            await this.repo.userHashes(),
-          );
-          const txnId = randomUUID();
-          const res = await this.agent.apply({
+        this.inflight = undefined;
+        await this.setSync(
+          'in-sync',
+          `transaction ${f.txnId} was applied; revision saved`,
+          f.txnId,
+        );
+      } else if (p !== null && h.lastTxnId === p.txnId) {
+        // TD-10a 2.1: the agent confirmed the pending commit (a confirm answer that was lost, an API restart)
+        await this.promotePending(p, null, 'reconcile', false);
+        this.inflight = undefined;
+        await this.setSync(
+          'in-sync',
+          `transaction ${p.txnId} was confirmed; revision saved`,
+          p.txnId,
+        );
+      } else if (h.pendingConfirmTxnId) {
+        // a confirm window is open on the agent: wait for it to close (confirm or self-revert)
+        this.scheduleReconcile();
+        return syncJson(this.sync);
+      } else {
+        // neither applied nor pending on the agent: a pending commit was reverted
+        if (p !== null) await this.resolveReverted(p.txnId, 'reconcile');
+        // put the data plane back on running
+        const running = await this.repo.latestRevision();
+        const doc = hydrateHashes(
+          running?.payload ?? emptyDocument(),
+          await this.repo.userHashes(),
+        );
+        const txnId = randomUUID();
+        this.remember(txnId);
+        const res = await this.agent.apply(
+          {
             txnId,
             desiredState: ValidationService.desiredState(doc),
             subsystems: (await this.validation.implemented()).subsystems,
             confirmTimeoutSec: 0,
             confirmTxnId: '',
-          });
-          if (res.status !== ApplyStatus.APPLY_STATUS_APPLIED) {
-            await this.setSync(
-              res.status === ApplyStatus.APPLY_STATUS_DEGRADED ? 'degraded' : 'unknown',
-              `reconcile apply of running answered ${statusName(res.status)}`,
-              txnId,
-            );
-            this.scheduleReconcile();
-            return syncJson(this.sync);
-          }
-          this.inflight = undefined;
-          await this.setSync('in-sync', `running re-applied (${txnId})`, txnId);
+          },
+          this.budget.applyMs,
+        );
+        if (res.status !== ApplyStatus.APPLY_STATUS_APPLIED) {
+          await this.setSync(
+            res.status === ApplyStatus.APPLY_STATUS_DEGRADED ? 'degraded' : 'unknown',
+            `reconcile apply of running answered ${statusName(res.status)}`,
+            txnId,
+          );
+          this.scheduleReconcile();
+          return syncJson(this.sync);
         }
-        this.reconcileAttempt = 0;
-      } catch (e) {
-        this.log.warn(`reconcile failed, retrying: ${(e as Error).message}`);
-        this.scheduleReconcile();
+        this.inflight = undefined;
+        await this.setSync('in-sync', `running re-applied (${txnId})`, txnId);
       }
-      return syncJson(this.sync);
-    });
+      this.reconcileAttempt = 0;
+    } catch (e) {
+      this.log.warn(`reconcile failed, retrying: ${(e as Error).message}`);
+      this.scheduleReconcile();
+    }
+    return syncJson(this.sync);
   }
 
   /** Mark running as not matching the data plane and start reconciling (review M3). */
@@ -329,7 +404,9 @@ export class CommitService implements OnApplicationShutdown {
     const doc = c.payload ?? running?.payload;
     if (doc === undefined) return { ok: true, warnings: [], plan: [], notApplied: [] };
     await this.assertMayApply(user, running?.payload ?? emptyDocument(), doc);
-    const v = await this.validation.validate(doc, `validate-${randomUUID()}`);
+    const v = await this.validation.validate(doc, `validate-${randomUUID()}`, {
+      dryRunMs: this.budget.dryRunMs,
+    });
     if (!v.ok)
       throw problems.validation(v.errors, `${v.tier} validation failed`, {
         tier: v.tier,
@@ -348,7 +425,24 @@ export class CommitService implements OnApplicationShutdown {
    * that validated against the old hash and would write it back to app_user when it promotes).
    */
   exclusive<T>(fn: () => Promise<T>): Promise<T> {
-    return this.mutex.run(fn);
+    return this.lock.run(fn);
+  }
+
+  /**
+   * A user's commit / rollback / confirm (TD-10a, review 2.4a): no queue behind another section — after the budget's
+   * lock wait the answer is 409 `commit-busy`, so no client deadline is spent waiting for someone else's commit.
+   */
+  private userSection<T>(fn: () => Promise<T>): Promise<T> {
+    return this.lock.tryRun(fn, this.budget.lockWaitMs).catch((e: unknown) => {
+      if (!(e instanceof LockBusyError)) throw e;
+      throw problems.conflict(
+        'commit-busy',
+        e.holder === 'other-process'
+          ? 'another API process is committing, rolling back or confirming; retry in a moment'
+          : 'another commit, rollback, confirm or reconcile is in progress; retry in a moment',
+        { retryAfterSec: 2 },
+      );
+    });
   }
 
   /**
@@ -362,7 +456,7 @@ export class CommitService implements OnApplicationShutdown {
   }
 
   commit(user: Principal, opts: CommitOptions): Promise<CommitResult> {
-    return this.mutex.run(async () => {
+    return this.userSection(async () => {
       await this.assertNoPending();
       const c = await this.repo.candidate();
       checkLock(c, user, new Date(), this.env.VRX_LOCK_TTL_SEC);
@@ -391,7 +485,7 @@ export class CommitService implements OnApplicationShutdown {
 
   /** New revision whose payload is revision `rev`'s, applied through the agent (P06 §4). */
   rollback(user: Principal, rev: number, opts: CommitOptions): Promise<CommitResult> {
-    return this.mutex.run(async () => {
+    return this.userSection(async () => {
       await this.assertNoPending();
       const target = await this.repo.revision(rev);
       if (target === null) throw problems.notFound(`revision ${rev} does not exist`);
@@ -419,30 +513,58 @@ export class CommitService implements OnApplicationShutdown {
     return p === null ? null : pendingJson(p);
   }
 
-  /** `POST /config/commit/confirm`: confirm the pending transaction, persist its revision. */
+  /**
+   * `POST /config/commit/confirm`: confirm the pending transaction, persist its revision. TD-10a (review 2.1): when the
+   * agent says "not pending" or does not answer, Health.last_txn_id decides — a transaction the agent confirmed (a
+   * confirm answer lost earlier, this one's answer lost now) is saved and answered 200, only a reverted one is 409.
+   */
   confirm(user: Principal): Promise<CommitResult> {
-    return this.mutex.run(async () => {
+    return this.userSection(async () => {
       const p = await this.repo.pending();
       if (p === null)
         throw problems.conflict('no-pending-commit', 'there is no commit waiting for confirmation');
       let res: ApplyResponse;
       try {
-        res = await this.agent.apply({
-          txnId: '',
-          confirmTxnId: p.txnId,
-          subsystems: [],
-          confirmTimeoutSec: 0,
-          desiredState: undefined,
-        });
+        res = await this.agent.apply(
+          {
+            txnId: '',
+            confirmTxnId: p.txnId,
+            subsystems: [],
+            confirmTimeoutSec: 0,
+            desiredState: undefined,
+          },
+          this.budget.applyMs,
+        );
       } catch (e) {
-        if (e instanceof ProblemError && e.extra['grpcCode'] === 'FAILED_PRECONDITION') {
+        const precondition =
+          e instanceof ProblemError && e.extra['grpcCode'] === 'FAILED_PRECONDITION';
+        if (!precondition && !outcomeUnknown(e)) throw e;
+        const fate = await this.pendingFate(p).catch(() => undefined);
+        if (fate === 'confirmed') return this.confirmedResult(p, user.username, 'health');
+        if (fate === 'reverted' || (precondition && fate === 'pending')) {
+          // "pending" with a refused confirm: the deadline passed and the agent owes (is running) the revert
           await this.resolveReverted(p.txnId, 'confirm');
           throw problems.conflict(
             'commit-reverted',
             `transaction ${p.txnId} is no longer pending (it was reverted)`,
           );
         }
-        throw e;
+        if (fate === 'pending') throw e; // the confirm never reached the agent: still pending, retry
+        // no answer and no Health: the agent may have confirmed — running is UNKNOWN until the reconcile knows
+        const p2 = e as ProblemError;
+        const sync = await this.lostTrack(
+          'unknown',
+          `no answer to the confirm of ${p.txnId}: ${p2.detail ?? String(e)}`,
+          undefined,
+        );
+        throw new ProblemError(
+          p2 instanceof ProblemError ? p2.getStatus() : 502,
+          'running-unknown',
+          'Outcome unknown',
+          `the agent did not answer the confirm of ${p.txnId}; it may have been confirmed. Running is marked UNKNOWN and a reconcile has started (GET /api/v1/state/system)`,
+          undefined,
+          { txnId: p.txnId, sync, warnings: p.warnings ?? [] },
+        );
       }
       if (res.status !== ApplyStatus.APPLY_STATUS_CONFIRMED) {
         throw new ProblemError(
@@ -452,39 +574,73 @@ export class CommitService implements OnApplicationShutdown {
           `confirm returned ${statusName(res.status)}`,
         );
       }
-      const meta = {
-        authorId: p.authorId,
-        comment: p.comment,
-        kind: p.kind,
-        clearPending: true,
-      };
-      const revision = await this.promoteOrLoseTrack(p.txnId, p.payload, meta);
-      this.bus.publish('commit.events', {
-        type: 'confirmed',
-        txnId: p.txnId,
-        revision: revision.id,
-        by: user.username,
-      });
-      await this.events.record(
-        'info',
-        'commit',
-        'COMMIT_CONFIRMED',
-        `revision ${revision.id} confirmed`,
-        {
-          txnId: p.txnId,
-          revision: revision.id,
-        },
-      );
-      return {
-        status: 'confirmed',
-        txnId: p.txnId,
-        revision,
-        results: [],
-        warnings: [],
-        notApplied: [],
-        sync: syncJson(this.sync),
-      };
+      return this.confirmedResult(p, user.username, 'confirm');
     });
+  }
+
+  /** Health.last_txn_id / pending_confirm_txn_id about pending transaction `p` (TD-10a, review 2.1). */
+  private async pendingFate(p: PendingCommit): Promise<PendingFate> {
+    const h = await this.agent.health();
+    if (h.lastTxnId === p.txnId) return 'confirmed';
+    if (h.pendingConfirmTxnId === p.txnId) return 'pending';
+    return 'reverted';
+  }
+
+  private async confirmedResult(
+    p: PendingCommit,
+    by: string | null,
+    via: string,
+  ): Promise<CommitResult> {
+    const revision = await this.promotePending(p, by, via, true);
+    return {
+      status: 'confirmed',
+      txnId: p.txnId,
+      revision,
+      results: [],
+      warnings: p.warnings ?? [],
+      notApplied: [],
+      sync: syncJson(this.sync),
+    };
+  }
+
+  /**
+   * Persist the revision of a pending commit the agent confirmed — through the API's confirm or found through Health
+   * (`via`) — with the rollback's secret versions it carries (TD-10a, review 2.2). `orLoseTrack`: a failed save marks
+   * running UNKNOWN (the reconcile saves it); without it the error goes to the caller (the reconcile itself).
+   */
+  private async promotePending(
+    p: PendingCommit,
+    by: string | null,
+    via: string,
+    orLoseTrack: boolean,
+  ): Promise<RevisionMeta> {
+    const meta = {
+      authorId: p.authorId,
+      comment: p.comment,
+      kind: p.kind,
+      clearPending: true,
+      ...(p.restoreSecrets ? { restoreSecrets: p.restoreSecrets } : {}),
+    };
+    const revision = orLoseTrack
+      ? await this.promoteOrLoseTrack(p.txnId, p.payload, meta)
+      : await this.promote(p.payload, { ...meta, txnId: p.txnId });
+    this.bus.publish('commit.events', {
+      type: 'confirmed',
+      txnId: p.txnId,
+      revision: revision.id,
+      by,
+      ...(via === 'confirm' ? {} : { via }),
+    });
+    await this.events.record(
+      'info',
+      'commit',
+      'COMMIT_CONFIRMED',
+      via === 'confirm'
+        ? `revision ${revision.id} confirmed`
+        : `revision ${revision.id} confirmed (the agent had confirmed ${p.txnId}; found through ${via})`,
+      { txnId: p.txnId, revision: revision.id, ...(via === 'confirm' ? {} : { via }) },
+    );
+    return revision;
   }
 
   private async assertNoPending(): Promise<void> {
@@ -527,7 +683,7 @@ export class CommitService implements OnApplicationShutdown {
     const runningDoc = running?.payload ?? emptyDocument();
     await this.assertMayApply(user, runningDoc, doc);
     const txnId = randomUUID();
-    const v = await this.validation.validate(doc, txnId);
+    const v = await this.validation.validate(doc, txnId, { dryRunMs: this.budget.dryRunMs });
     if (!v.ok || v.config === undefined || v.desired === undefined) {
       throw problems.validation(v.errors, `${v.tier} validation failed`, {
         tier: v.tier,
@@ -546,14 +702,18 @@ export class CommitService implements OnApplicationShutdown {
       ...(opts.restoreSecrets ? { restoreSecrets: opts.restoreSecrets } : {}),
     };
     let res: ApplyResponse;
+    this.remember(txnId);
     try {
-      res = await this.agent.apply({
-        txnId,
-        desiredState: v.desired,
-        subsystems: v.subsystems,
-        confirmTimeoutSec: confirmSec,
-        confirmTxnId: '',
-      });
+      res = await this.agent.apply(
+        {
+          txnId,
+          desiredState: v.desired,
+          subsystems: v.subsystems,
+          confirmTimeoutSec: confirmSec,
+          confirmTxnId: '',
+        },
+        this.budget.applyMs,
+      );
     } catch (e) {
       if (!outcomeUnknown(e)) throw e;
       const p = e as ProblemError;
@@ -568,7 +728,7 @@ export class CommitService implements OnApplicationShutdown {
         'Outcome unknown',
         `the agent did not answer Apply ${txnId}; it may have been applied. Running is marked UNKNOWN and a reconcile has started (GET /api/v1/state/system)`,
         undefined,
-        { txnId, sync },
+        { txnId, sync, warnings: v.warnings },
       );
     }
     const results = res.results.map(resultJson);
@@ -611,7 +771,14 @@ export class CommitService implements OnApplicationShutdown {
           ? `the agent answered degraded${res.message ? `: ${res.message}` : ''}; the data plane is partially changed, running is marked DEGRADED and a reconcile (re-apply of running) has started`
           : `the agent answered ${statusName(res.status)}${res.message ? `: ${res.message}` : ''}; the data plane was rolled back, running is unchanged`,
         errors,
-        { txnId, applyStatus: statusName(res.status), results, summary, sync },
+        {
+          txnId,
+          applyStatus: statusName(res.status),
+          results,
+          summary,
+          sync,
+          warnings: v.warnings,
+        },
       );
     }
     const base = {
@@ -633,6 +800,8 @@ export class CommitService implements OnApplicationShutdown {
           parentId: opts.parentId,
           kind: opts.kind,
           deadline,
+          restoreSecrets: opts.restoreSecrets ?? null,
+          warnings: v.warnings,
         }),
       );
       this.watch(deadline);
@@ -848,23 +1017,105 @@ export class CommitService implements OnApplicationShutdown {
     this.watchTimer.unref();
   }
 
-  /** After the deadline: ask the agent whether the pending transaction is still pending; if not, it was reverted. */
+  /**
+   * After the deadline: ask the agent about the pending transaction. TD-10a (review 2.1): Health.last_txn_id says
+   * whether it was CONFIRMED (a confirm answer that never reached the API) — then its revision is saved — or reverted.
+   */
   private async checkPending(): Promise<void> {
     this.watchTimer = undefined;
     const p = await this.repo.pending().catch(() => null);
     if (p === null) return;
     try {
-      const h = await this.agent.health();
-      if (h.pendingConfirmTxnId !== p.txnId) await this.onReverted(p.txnId, 'health');
-      else this.watch(new Date(Date.now() + 1000));
+      const fate = await this.pendingFate(p);
+      if (fate === 'pending') {
+        this.watch(new Date(Date.now() + 1000));
+        return;
+      }
+      await this.lock.run(async () => {
+        const cur = await this.repo.pending();
+        if (cur === null || cur.txnId !== p.txnId) return; // settled meanwhile
+        if (fate === 'confirmed') await this.promotePending(cur, null, 'health', true);
+        else await this.resolveReverted(p.txnId, 'health');
+      });
     } catch {
-      // agent unreachable: keep watching; the agent reverts on its own and we learn it when it is back
+      // agent unreachable (or the save failed and a reconcile owns it): keep watching; the agent reverts on its own
       this.watch(new Date(Date.now() + 5000));
     }
   }
 
   private onReverted(txnId: string, via: string): Promise<void> {
-    return this.mutex.run(() => this.resolveReverted(txnId, via));
+    return this.lock
+      .run(() => this.resolveReverted(txnId, via))
+      .catch((e: unknown) => {
+        this.log.warn(`could not drop reverted commit ${txnId}: ${(e as Error).message}`);
+      });
+  }
+
+  // ------------------------------------------------------------------------------------------------ ARCH-01
+
+  /** Coalesce the triggers (boot, agent reconnect, RECONCILE_DONE bursts) into one check. */
+  private scheduleTxnCheck(reason: string, delayMs = 300): void {
+    if (this.txnCheckTimer) clearTimeout(this.txnCheckTimer);
+    this.txnCheckTimer = setTimeout(() => void this.checkAgentTxn(reason), delayMs);
+    this.txnCheckTimer.unref();
+  }
+
+  /**
+   * ARCH-01 (API half): the agent's Health.last_txn_id must be the last transaction running was applied with — the
+   * running revision's txn, or a reconcile's re-apply txn in config_sync, whichever came last. An agent that answered
+   * APPLIED but lost its state (failed save, restore) resyncs to something older; running is then re-applied through
+   * the reconcile. A pending commit the agent confirmed meanwhile is saved. The common case costs one Health call
+   * outside the lock; only a suspected mismatch takes the lock and looks again.
+   */
+  async checkAgentTxn(reason: string): Promise<void> {
+    this.txnCheckTimer = undefined;
+    if (this.sync.state !== 'in-sync') return; // a reconcile is owed already
+    try {
+      if ((await this.txnVerdict()).kind === 'match') return;
+      await this.lock.run(async () => {
+        if (this.sync.state !== 'in-sync') return;
+        const v = await this.txnVerdict();
+        if (v.kind === 'confirmed') await this.promotePending(v.pending, null, reason, true);
+        else if (v.kind === 'mismatch')
+          await this.lostTrack(
+            'unknown',
+            `${reason}: the agent's last transaction is ${v.agent || 'none'}, running was applied as ${v.expected || 'none'}; running is re-applied`,
+            undefined,
+          );
+      });
+    } catch (e) {
+      this.log.warn(`last_txn_id check (${reason}) failed: ${(e as Error).message}`);
+    }
+  }
+
+  private async txnVerdict(): Promise<
+    | { kind: 'match' }
+    | { kind: 'confirmed'; pending: PendingCommit }
+    | { kind: 'mismatch'; agent: string; expected: string }
+  > {
+    const h = await this.agent.health();
+    const p = await this.repo.pending();
+    if (p !== null && h.lastTxnId === p.txnId) return { kind: 'confirmed', pending: p };
+    const expected = await this.expectedTxn();
+    if (expected === undefined || h.lastTxnId === expected) return { kind: 'match' };
+    return { kind: 'mismatch', agent: h.lastTxnId, expected };
+  }
+
+  /**
+   * The txn the agent must report as last applied: config_sync's (a reconcile re-apply) when it is newer than the
+   * running revision, else the revision's ('' for a revision saved without one — never equal to a real txn, so the
+   * first check re-applies once). undefined: nothing was ever applied from this database — nothing to compare.
+   */
+  private async expectedTxn(): Promise<string | undefined> {
+    const running = await this.repo.latestRevision();
+    const s = await this.repo.getSync();
+    if (
+      s.state === 'in-sync' &&
+      s.txnId &&
+      (running === null || s.since.getTime() >= running.createdAt.getTime())
+    )
+      return s.txnId;
+    return running === null ? undefined : (running.txnId ?? '');
   }
 
   /** The agent reverted the pending transaction: drop it; running and the candidate stay as they were. */

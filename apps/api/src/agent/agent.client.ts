@@ -1,4 +1,10 @@
-import { credentials, Metadata, status as GrpcStatus, type ServiceError } from '@grpc/grpc-js';
+import {
+  connectivityState,
+  credentials,
+  Metadata,
+  status as GrpcStatus,
+  type ServiceError,
+} from '@grpc/grpc-js';
 import { Inject, Injectable, type OnModuleDestroy } from '@nestjs/common';
 import {
   type ApplyRequest,
@@ -51,6 +57,33 @@ export class AgentClient implements OnModuleDestroy {
     return this.client;
   }
 
+  /**
+   * TD-10a (ARCH-01): call `onReady` whenever the channel to the agent becomes READY after it was not — at the first
+   * connect and after every agent restart — so the commit engine can compare Health.last_txn_id with running. While
+   * the agent is away the channel keeps reconnecting (backoff ≤ 5 s). Returns the stop function.
+   */
+  watchReady(onReady: () => void): () => void {
+    let stopped = false;
+    const client = this.c;
+    const ch = client.getChannel();
+    let last = ch.getConnectivityState(true);
+    const loop = (): void => {
+      if (stopped || this.client !== client) return;
+      ch.watchConnectivityState(last, Date.now() + 30_000, () => {
+        if (stopped || this.client !== client) return;
+        const now = ch.getConnectivityState(true);
+        if (now === connectivityState.READY && last !== connectivityState.READY) onReady();
+        last = now;
+        loop();
+      });
+    };
+    if (last === connectivityState.READY) onReady();
+    loop();
+    return () => {
+      stopped = true;
+    };
+  }
+
   private unary<Req, Res>(
     call: (
       req: Req,
@@ -72,12 +105,19 @@ export class AgentClient implements OnModuleDestroy {
     });
   }
 
-  apply(req: Omit<ApplyRequest, 'owner'>): Promise<ApplyResponse> {
-    return this.unary(this.c.apply, { ...req, owner: this.owner });
+  /** `timeoutMs`: the commit engine's budget for this call (TD-10a, commit/budget.ts). */
+  apply(
+    req: Omit<ApplyRequest, 'owner'>,
+    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+  ): Promise<ApplyResponse> {
+    return this.unary(this.c.apply, { ...req, owner: this.owner }, timeoutMs);
   }
 
-  dryRun(req: Omit<DryRunRequest, 'owner'>): Promise<ValidationReport> {
-    return this.unary(this.c.dryRun, { ...req, owner: this.owner });
+  dryRun(
+    req: Omit<DryRunRequest, 'owner'>,
+    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+  ): Promise<ValidationReport> {
+    return this.unary(this.c.dryRun, { ...req, owner: this.owner }, timeoutMs);
   }
 
   retrieve(subsystems: string[] = []): Promise<RetrieveResponse> {

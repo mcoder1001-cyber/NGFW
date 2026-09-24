@@ -136,6 +136,10 @@ export const configPending = pgTable('config_pending', {
   kind: text('kind').notNull(),
   deadline: ts('deadline').notNull(),
   createdAt: ts('created_at').notNull().defaultNow(),
+  /** A rollback's secret versions, re-activated when the commit is confirmed (TD-10a, review 2.2). */
+  restoreSecrets: jsonb('restore_secrets').$type<Record<string, number>>(),
+  /** The agent's warnings of this commit, returned again by confirm (TD-10a, review 2.5). */
+  warnings: jsonb('warnings').$type<{ pointer: string; message: string; rule?: string }[]>(),
 });
 
 export const auditLog = pgTable(

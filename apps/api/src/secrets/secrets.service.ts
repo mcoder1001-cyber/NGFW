@@ -15,6 +15,7 @@ import {
   secretVersion,
 } from '../db/schema.js';
 import { SystemEventsService } from '../audit/system-events.service.js';
+import { CommitService } from '../commit/commit.service.js';
 import { secretRefs } from '../datastore/documents.js';
 import { desc } from 'drizzle-orm';
 
@@ -40,6 +41,7 @@ export class SecretsService {
     @Inject(DB) private readonly db: Db,
     @Inject(ENV) private readonly env: Env,
     private readonly events: SystemEventsService,
+    private readonly commits: CommitService,
   ) {}
 
   private masterKey(): Buffer {
@@ -141,36 +143,51 @@ export class SecretsService {
     return out;
   }
 
-  /** Delete a secret unless running, the candidate or a pending commit still references it (409). */
+  /**
+   * Delete a secret unless running, the candidate or a pending commit still references it (409). TD-10a (review
+   * 2.3f): the reference check and the delete are ONE transaction inside the commit lock (`commits.exclusive`: no
+   * promote can land between the reads and the delete, in this or another API process), with the candidate and
+   * pending singleton rows locked FOR UPDATE (no candidate edit slips in either); secret and versions go together.
+   */
   async delete(kind: string, name: string): Promise<void> {
     const ref = `${kind}/${name}`;
-    const [running] = await this.db
-      .select({ payload: configRevision.payload })
-      .from(configRevision)
-      .orderBy(desc(configRevision.id))
-      .limit(1);
-    const [cand] = await this.db.select({ payload: configCandidate.payload }).from(configCandidate);
-    const [pend] = await this.db.select({ payload: configPending.payload }).from(configPending);
-    const users = [
-      ...secretRefs(running?.payload ?? {}),
-      ...secretRefs(cand?.payload ?? {}),
-      ...secretRefs(pend?.payload ?? {}),
-    ].filter((r) => r.ref === ref);
-    if (users.length > 0) {
-      throw problems.conflict(
-        'secret-in-use',
-        `secret '${ref}' is referenced by the configuration`,
-        {
-          errors: users.map((u) => ({ pointer: u.pointer, message: `references ${ref}` })),
-        },
-      );
-    }
-    const deleted = await this.db
-      .delete(secret)
-      .where(eq(secret.ref, ref))
-      .returning({ id: secret.id });
-    if (deleted.length === 0) throw problems.notFound(`secret '${ref}' does not exist`);
-    await this.db.delete(secretVersion).where(eq(secretVersion.ref, ref));
+    await this.commits.exclusive(() =>
+      this.db.transaction(async (tx) => {
+        const [cand] = await tx
+          .select({ payload: configCandidate.payload })
+          .from(configCandidate)
+          .for('update');
+        const [pend] = await tx
+          .select({ payload: configPending.payload })
+          .from(configPending)
+          .for('update');
+        const [running] = await tx
+          .select({ payload: configRevision.payload })
+          .from(configRevision)
+          .orderBy(desc(configRevision.id))
+          .limit(1);
+        const users = [
+          ...secretRefs(running?.payload ?? {}),
+          ...secretRefs(cand?.payload ?? {}),
+          ...secretRefs(pend?.payload ?? {}),
+        ].filter((r) => r.ref === ref);
+        if (users.length > 0) {
+          throw problems.conflict(
+            'secret-in-use',
+            `secret '${ref}' is referenced by the configuration`,
+            {
+              errors: users.map((u) => ({ pointer: u.pointer, message: `references ${ref}` })),
+            },
+          );
+        }
+        const deleted = await tx
+          .delete(secret)
+          .where(eq(secret.ref, ref))
+          .returning({ id: secret.id });
+        if (deleted.length === 0) throw problems.notFound(`secret '${ref}' does not exist`);
+        await tx.delete(secretVersion).where(eq(secretVersion.ref, ref));
+      }),
+    );
     await this.events.record('info', 'secrets', 'SECRET_DELETED', ref, { ref });
   }
 }

@@ -112,8 +112,23 @@ async function signOut(page, lang) {
   await page.waitForURL(/\/login/);
 }
 
+/** Nav group of each entry the flow visits: groups start collapsed, so the owning group is opened first (D-117). */
+const NAV_GROUP_OF = { users: 'system', revisions: 'system' };
+
 async function nav(page, lang, key) {
-  await page.getByRole('navigation').getByRole('link', { name: tr(lang, `nav:${key}`) }).click();
+  const menu = page.getByRole('navigation', { name: tr(lang, 'common:menu.navigation') });
+  const group = NAV_GROUP_OF[key];
+  if (group) {
+    const header = menu.getByRole('button', { name: tr(lang, `nav:groups.${group}`) });
+    if ((await header.getAttribute('aria-expanded')) === 'false') {
+      await header.click();
+      check((await header.getAttribute('aria-expanded')) === 'true', `[${lang}] nav: opened the collapsed "${tr(lang, `nav:groups.${group}`)}" group to reach ${key}`);
+    }
+  }
+  const link = menu.getByRole('link', { name: tr(lang, `nav:${key}`) });
+  await link.click();
+  // the router navigates asynchronously: return only once this entry is the current page
+  await link.and(page.locator('[aria-current="page"]')).waitFor();
 }
 
 /** Commit through the bar's dialog; `confirmMinutes` null = without auto-revert. Returns after the dialog closed or showed its result. */
@@ -240,7 +255,11 @@ async function adminPass(browser, lang, index) {
   await login(page, lang, RO_USER, RO_PW);
   await page.waitForURL((u) => !u.pathname.startsWith('/login'));
   ok(`[${lang}] signed in as readonly ${RO_USER} (argon2id hash set through the Users form)`);
-  await page.goto(`${BASE}/system/users`);
+  // through the menu from the dashboard, not a URL: sign-in returns to /system/users (`next`), so start at '/', where System
+  // is collapsed — this walks the collapsed-group path of nav()
+  await page.goto(`${BASE}/`);
+  await page.getByRole('heading', { level: 2, name: tr(lang, 'nav:dashboard') }).waitFor();
+  await nav(page, lang, 'users');
   await page.getByTestId('users-readonly').waitFor();
   check(await page.getByRole('button', { name: tr(lang, 'users:add') }).isDisabled(), `[${lang}] readonly: "Add user" disabled`);
   check(await page.getByRole('button', { name: tr(lang, 'users:edit', { user: RO_USER }) }).isDisabled(), `[${lang}] readonly: edit disabled`);

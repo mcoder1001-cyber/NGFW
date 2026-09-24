@@ -4,7 +4,7 @@ import type { NeighborEntry } from '@ngfw/proto';
 import { z } from 'zod';
 import { AgentClient } from '../../agent/agent.client.js';
 import type { VrxRequest } from '../../common/principal.js';
-import { ProblemError } from '../../common/problem.js';
+import { ProblemError, problems } from '../../common/problem.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
 
@@ -160,7 +160,15 @@ export class NeighborsRaController {
   ) {
     const target = { interface: body.interface ?? '', family: body.family ?? '' };
     req.audit = { resource: `arp-flush/${target.interface || '*'}`, before: target };
-    const r = await this.agent.arpFlush(target);
+    const r = await this.agent.arpFlush(target).catch((e: unknown) => {
+      // the agent refuses an interface it cannot name (another owner's, local0, unknown): the caller's input → 400
+      if (e instanceof ProblemError && e.extra['grpcCode'] === 'INVALID_ARGUMENT') {
+        throw problems.badRequest(e.detail ?? e.title, [
+          { pointer: target.interface ? '/interface' : '/family', message: e.detail ?? e.title },
+        ]);
+      }
+      throw e;
+    });
     if (!r.done || r.done.exitCode !== 0) {
       req.audit = { ...req.audit, after: { exitCode: r.done?.exitCode ?? null, lines: r.lines } };
       throw new ProblemError(

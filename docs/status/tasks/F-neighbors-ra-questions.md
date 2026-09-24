@@ -34,3 +34,9 @@ documents inline. Option for the manager: widen `SIBLING` to wave-A slugs.
 `packages/proto/test/desired-state.test.ts` asserts the exact `Vrf` object of `two-interfaces.json`; ts-proto fills an
 absent repeated field with `[]`, so any new repeated `Vrf` field breaks it. One-line fix in the contract commit
 (`proxyArpRanges: []` added to the expectation), listed under Shared hunks.
+
+## Q7. VPP crash 18:41:08 (manager incident, D-126) — not this task
+F-neighbors-ra had sent nothing to the host VPP before 18:41: until then only fake-backed unit tests (agent coretest
+model, API fake agent) and the API e2e (host PostgreSQL + Valkey + in-process fake agent) ran. This feature has no
+classify/policer code at all; its only binding-like objects (RA config, proxy-ARP interface, static neighbours) are
+per-key and deleted only by key (never swept by index). Noted D-126 for every later host run.

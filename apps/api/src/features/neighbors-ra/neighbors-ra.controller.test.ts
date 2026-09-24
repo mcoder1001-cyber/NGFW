@@ -130,6 +130,31 @@ describe('NeighborsRaController', () => {
     }
   });
 
+  it("an interface the agent refuses (INVALID_ARGUMENT) is the caller's 400 with a pointer", async () => {
+    const agent = {
+      arpFlush: () =>
+        Promise.reject(
+          new ProblemError(
+            502,
+            'agent-rejected',
+            'Agent rejected the request',
+            'agent: invalid request: interface "loop301": tagged w3',
+            undefined,
+            {
+              grpcCode: 'INVALID_ARGUMENT',
+            },
+          ),
+        ),
+    } as unknown as AgentClient;
+    const err = (await new NeighborsRaController(agent)
+      .arpFlush({} as VrxRequest, ArpFlushBody.parse({ interface: 'loop301' }))
+      .catch((e: unknown) => e)) as ProblemError;
+    expect(err.getStatus()).toBe(400);
+    expect(err.errors).toEqual([
+      { pointer: '/interface', message: 'agent: invalid request: interface "loop301": tagged w3' },
+    ]);
+  });
+
   it('rejects unknown body members and families', () => {
     expect(ArpFlushBody.safeParse({ family: 'ipx' }).success).toBe(false);
     expect(ArpFlushBody.safeParse({ interfaces: 'x' }).success).toBe(false);

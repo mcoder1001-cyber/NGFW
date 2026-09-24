@@ -689,7 +689,8 @@ tasks:
     provisional APPROVE WITH CHANGES (F1 /state/interfaces config meaning + CLI, F2 CLI operations_gen missing counters route); its ci full run (slot 1) log /root/ngfw-wt/logs/ci/P08-20260924-131914-10894;
     review items 2,3,6,7,11 open uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/P08.continue.md | 08:17 worker done ffecf13 CI green; topology
     + restart-safety on slot 1 (NRestarts 6→6); its 07:27 run caused the V24 crash (confirmed); review spawned | 14:00 ngfw-46: review CONTINUE (Agent tool), envelope /root/ngfw-wt/P08.review2.md; fix round
-    follows after ci full (PID 10894) ends; F1/F4 decided D-105 | review BLOCK 6022f0d (N1 hostDoc, F1/F2, N2, F5 …); fix round 1 spawned by ngfw-46, envelope /root/ngfw-wt/P08.fix1.md (D-107)'
+    follows after ci full (PID 10894) ends; F1/F4 decided D-105 | review BLOCK 6022f0d (N1 hostDoc, F1/F2, N2, F5 …); fix round 1 spawned by ngfw-46, envelope /root/ngfw-wt/P08.fix1.md (D-107) | re-review
+    APPROVE WITH CHANGES (T1 guard vs coretest, R1 tolerant/CLI, e2e discrimination) → fix round 2 (last), envelope /root/ngfw-wt/P08.fix2.md (D-118)'
 - id: W-seed
   title: 'Wave-A seed commit: hotspot anchors (A1,A2,A4,C1-C3,C5,P1,P4-P6,W1-W3), one-entry-per-line lists, Env event-publish + Resync hooks (A5), subsystems.SlotIDRange(), vpn/services page shells, proto.md
     "Feature RPCs" heading — no behaviour change'
@@ -712,7 +713,8 @@ tasks:
   owner: ngfw-46 slot3
   started: 2026-09-24T15:36
   finished: ''
-  notes: 'D-109: seeded by one worker right after P08+TD-2 merge so 17 parallel features merge without union conflicts | SPECULATIVE from task/P08@74ec04e (D-114), envelope /root/ngfw-wt/W-seed.envelope.md'
+  notes: 'D-109: seeded by one worker right after P08+TD-2 merge so 17 parallel features merge without union conflicts | SPECULATIVE from task/P08@74ec04e (D-114), envelope /root/ngfw-wt/W-seed.envelope.md
+    | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118)'
 - id: F-vlan-qinq
   title: 'Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking'
   prompt: prompts/features/F-vlan-qinq.md
@@ -2365,7 +2367,8 @@ tasks:
   owner: ngfw-46 slot8
   started: 2026-09-24T15:36
   finished: ''
-  notes: 'D-100: from TD-2-questions.md Q1–Q3 | envelope draft docs/status/tasks/TD-4.envelope.md (prep-waveA, D-109) | SPECULATIVE from task/TD-2@4391a44 (D-114), envelope /root/ngfw-wt/TD-4.envelope.md'
+  notes: 'D-100: from TD-2-questions.md Q1–Q3 | envelope draft docs/status/tasks/TD-4.envelope.md (prep-waveA, D-109) | SPECULATIVE from task/TD-2@4391a44 (D-114), envelope /root/ngfw-wt/TD-4.envelope.md
+    | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118)'
 - id: TD-5
   title: 'V24 + V19 follow-ups: af_packet Delete quiesces the Linux netdev (netlink link down) before af_packet_delete, also in Create rollback; restart-simulation fixtures do the same; ifsanitize placeholder
     cap = holes + 2×FreshRun, max 64 (TD-3 M1 option b)'
@@ -2438,4 +2441,4 @@ tasks:
   owner: ngfw-46 slot6
   started: 2026-09-24T16:09
   finished: ''
-  notes: 'D-116: from TD-6-review.md F1/F2; F3–F9 in docs/tech-debt.md | SPECULATIVE from task/TD-6 (D-114)'
+  notes: 'D-116: from TD-6-review.md F1/F2; F3–F9 in docs/tech-debt.md | SPECULATIVE from task/TD-6 (D-114) | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118)'

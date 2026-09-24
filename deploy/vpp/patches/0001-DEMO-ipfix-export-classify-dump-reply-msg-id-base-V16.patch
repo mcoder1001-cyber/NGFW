@@ -1,0 +1,31 @@
+Subject: [PATCH] ipfix-export: add REPLY_MSG_ID_BASE to classify stream/table details (DEMO)
+Track: V16 (docs/vpp-code-track.md)
+Status: demo — F-vpp-debs demonstration of the patch series; not applied to the vrx-a host packages
+Upstream: not submitted
+
+ipfix_classify_stream_details and ipfix_classify_table_details are sent with the
+bare message enum instead of msg_id_base + enum, so a binary-API client never
+matches the reply and the dump comes back empty (found by DF-8, Q2.1).
+
+--- a/src/vnet/ipfix-export/flow_api.c
++++ b/src/vnet/ipfix-export/flow_api.c
+@@ -332,7 +332,8 @@
+ 
+   rmp = vl_msg_api_alloc (sizeof (*rmp));
+   clib_memset (rmp, 0, sizeof (*rmp));
+-  rmp->_vl_msg_id = ntohs (VL_API_IPFIX_CLASSIFY_STREAM_DETAILS);
++  rmp->_vl_msg_id = ntohs (flow_report_main.msg_id_base +
++			    VL_API_IPFIX_CLASSIFY_STREAM_DETAILS);
+   rmp->context = mp->context;
+   rmp->domain_id = htonl (fcm->domain_id);
+   rmp->src_port = htons (fcm->src_port);
+@@ -435,7 +436,8 @@
+ 
+   mp = vl_msg_api_alloc (sizeof (*mp));
+   clib_memset (mp, 0, sizeof (*mp));
+-  mp->_vl_msg_id = ntohs (VL_API_IPFIX_CLASSIFY_TABLE_DETAILS);
++  mp->_vl_msg_id = ntohs (flow_report_main.msg_id_base +
++			   VL_API_IPFIX_CLASSIFY_TABLE_DETAILS);
+   mp->context = context;
+   mp->table_id = htonl (table->classify_table_index);
+   mp->ip_version = (table->ip_version == 4) ? ADDRESS_IP4 : ADDRESS_IP6;

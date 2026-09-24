@@ -640,6 +640,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/lldp/neighbors': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** LLDP table: every LLDP-enabled interface the agent can name with the peer heard on it (agent LldpNeighbors, server-side paged, ordered by interface), marked with the running configuration */
+    get: operations['LoopbackBviGsoLldpSpan_neighbors'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -8430,6 +8447,112 @@ export interface operations {
       };
       /** @description Not found */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  LoopbackBviGsoLldpSpan_neighbors: {
+    parameters: {
+      query?: {
+        pageSize?: number;
+        page?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt?: string;
+            page: number;
+            pageSize: number;
+            total: number;
+            items: {
+              /** @description logical name of the LLDP-enabled interface */
+              interface: string;
+              swIfIndex: number;
+              /** @description a peer was heard since LLDP was enabled */
+              heard: boolean;
+              /** @description peer chassis id (MAC, address, text or hex); "" = none heard */
+              chassisId: string;
+              /** @description mac-address, network-address, interface-name, local, …; "" = none */
+              chassisIdSubtype: string;
+              /** @description peer port id; "" = none heard */
+              portId: string;
+              /** @description interface-name, mac-address, local, …; "" = none */
+              portIdSubtype: string;
+              /** @description time to live the peer advertised (s) */
+              ttl: number;
+              /** @description seconds since the peer was last heard (VPP clock, estimated); 0 = never */
+              lastHeardSecAgo: number;
+              /** @description seconds since this interface last sent an LLDPDU; 0 = never */
+              lastSentSecAgo: number;
+              /** @description the running configuration enables LLDP on this interface */
+              configured: boolean;
+              /** @description the running port description; null when not configured */
+              portDescription: string | null;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
         headers: {
           [name: string]: unknown;
         };

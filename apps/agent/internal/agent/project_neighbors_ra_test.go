@@ -230,7 +230,10 @@ func TestNeighborsRaGlobalsOnlyForTheOwner(t *testing.T) {
 	mustStatus(t, apply(t, g, &vrxv1.ApplyRequest{TxnId: "g3", DesiredState: doc(t, `{"routing": {}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	got, _ = g.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"routing"}})
 	sameDoc(t, "after removal", got.GetDesiredState(), `{"routing": {}}`)
-	subsystems.Register(scheduler.NewRegistry(), subsystems.Env{Client: v, Owner: testOwner, StateDir: t.TempDir()}) //nolint:errcheck // reset the process-wide projection options for the next test
+	// leave the process-wide projection options at the slot default for the next test
+	if _, err := subsystems.Register(scheduler.NewRegistry(), subsystems.Env{Client: v, Owner: testOwner, StateDir: t.TempDir()}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestNeighborsRaProxyNdOptIn(t *testing.T) {

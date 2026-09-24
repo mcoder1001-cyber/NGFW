@@ -56,8 +56,8 @@ func DecodeEvent(m api.Message) (Change, bool) {
 	}, true
 }
 
-// MaxInterfacesPerEvent: above this many changed interfaces in one flush period the coalescer publishes one event
-// without `interface` instead of one per interface.
+// MaxInterfacesPerEvent is the number of changed interfaces per flush period above which the coalescer publishes one
+// event without `interface` instead of one per interface.
 const MaxInterfacesPerEvent = 16
 
 // Coalescer accumulates neighbour changes between two flushes (1 Hz in the watcher): the event stream carries at most

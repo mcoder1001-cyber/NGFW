@@ -457,7 +457,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D6.1
@@ -471,7 +471,8 @@ tasks:
   started: 2026-09-23T15:28
   finished: ''
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)
-    | CONTINUE worker done e553199 CI green; review spawned; D-096'
+    | CONTINUE worker done e553199 CI green; review spawned; D-096 | review BLOCK ac84fb7 (H1 D-096 not done + scheduler prints values, H2 sweep may delete others SAs, H3 sweep may free referenced SA →
+    crash, M1–M4); fix round 1 (authorised minimal scheduler redaction edit)'
 - id: DF-6
   title: 'Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp'
   prompt: prompts/factories/DF-6.md

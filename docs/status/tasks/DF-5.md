@@ -1,0 +1,439 @@
+# DF-5 — Descriptors: ipsec, ikev2, wireguard (WBS D6.1, D6.3, D6.5)
+
+Branch `task/DF-5`, worktree `/root/ngfw-wt/DF-5`, slot 4 (`w4`, ids 4000–4999, ports 204xx).
+Worked in three passes: first pass (ipsec, ikev2, wireguard, D-063/D-065), a stall, and this
+continue pass, which merged main and brought every descriptor up to the rules decided since
+(D-069, D-071, D-074, D-076, D-080, D-082, D-087, D-089) and moved the host checks onto P05's real
+reconciler with a restart simulation.
+
+## What was built
+
+Object types (16 descriptors + helpers), all under `apps/agent/internal/descriptors/`:
+
+| Plugin | Descriptor | Retrieve | Ownership |
+|---|---|---|---|
+| ipsec | `ipsec.spd` | `ipsec_spds_dump` | ownership record (boot identity) + id range |
+| ipsec | `ipsec.spd-interface` | `ipsec_spd_interface_dump` | record `<sw_if_index>/<spd_id>/<pool index>` |
+| ipsec | `ipsec.spd-entry` | `ipsec_spd_dump` | through its SPD |
+| ipsec | `ipsec.sa` | `ipsec_sa_v5_dump` (keys → references) | record `<spi>/<protocol>` + id range |
+| ipsec | `ipsec.tunnel-protect` | `ipsec_tunnel_protect_dump` | tag of the tunnel interface |
+| ipsec | `ipsec.itf` | `ipsec_itf_dump` | tag `<owner>:ipsec<N>` |
+| ipsec | `ipsec.backend` | `ipsec_backend_dump` | VPP-global (D-071: owner setter / Require) |
+| ipsec | `ipsec.async-mode` | write-only (`ErrRetrieveUnsupported`, D-063) | VPP-global |
+| ikev2 | `ikev2.profile` (composite, 12 setters) | `ikev2_profile_dump` (PSK → reference) | name `<owner>-<name>` |
+| ikev2 | `ikev2.responder-hostname` | write-only (not dumped) | applied-once record (D-076) |
+| ikev2 | `ikev2.local-key` | write-only | VPP-global |
+| ikev2 | `ikev2.sleep-interval` | `ikev2_get_sleep_interval` | VPP-global |
+| ikev2 | `ikev2.liveness` | write-only | VPP-global |
+| wireguard | `wireguard.interface` | `wireguard_interface_dump` (show_private_key never set) | tag `<owner>:wg<N>` |
+| wireguard | `wireguard.peer` (+ `Events` → PeerEvent for StreamEvents) | `wireguard_peers_v2_dump` (PSK → reference) | tag of its wg interface |
+| wireguard | `wireguard.async-mode` | write-only | VPP-global |
+
+Helpers: `ikev2.SAs` (SA state, derived keys zeroed) + action helpers; `ipsec.SweepCharonOrphans` /
+`ipsec.SweepAndAck` (D-089); `vpn` package (desired-state proto, secret references + Resolver,
+D-069 interface resolution over DF-1's `iface.Table`, ownership records over `dfkit.BootStore`
+bound to `vpp/bootid`, `vpn.Global` / `vpn.Require` for D-071); `vpn/vpntest` (host fixtures,
+P05-based `Agent` for plans/applies, fake boot identity, globals lock).
+
+Docs: `docs/agent/descriptors/{ipsec,ikev2,wireguard}.md` (object ↔ message tables, ownership,
+secret contract for P11, VPP limitations, tests).
+
+### This pass, rule by rule
+
+* **D-069** logical interface names: every interface reference is resolved with DF-1's resolver
+  (`vpn.DumpInterfaces` → `iface.Table.IndexByName`): our tag id, else an untagged interface's VPP
+  name; another owner's interface → `ErrForeignInterface`; VPP's name of our own interface →
+  `ErrNoInterface`. Retrieve reports logical names. Tunnel-protect and WireGuard peers require our
+  own (tagged) interface (`ErrNotOurs` for untagged).
+* **D-071** globals only in a globals-owner registration: `vpn.Global(owner, setter, getter)` —
+  owner: setter with `DeleteOnAbsence()==false`; non-owner: `vpn.Require` (check via VPP's getter,
+  never set; getter-less globals always `ErrNotGlobalsOwner`; Retrieve write-only). Packages take
+  `WithGlobalsOwner`. **Claim rule:** tags for tagged objects; untagged objects (SPD, SA, SPD
+  binding) only through an ownership record written after OUR successful add, never before it,
+  existing objects never adopted (VPP refuses existing ids; Create fails). **Deletes by id/index
+  re-verify identity** in the same call sequence (SA: id + SPI + record; SPD: record; policy: still
+  in our SPD; binding: name still resolves to the recorded index + record; itf / wg interface / tunnel
+  protect: index still carries our tag and id; wg peer: index still holds the same public key on
+  the same interface).
+* **D-074** a delete first checks the object exists (vanished → nil, no VPP call).
+* **D-076** write-only Creates idempotent: async modes, local key, liveness verified idempotent in
+  VPP's source; `ikev2_set_responder_hostname` is NOT (vec_dup leak + resets resolution per call)
+  → applied-once record keyed by the boot identity; dropped when the profile is re-added.
+* **D-080** boot identity via `apps/agent/internal/vpp/bootid` (through `dfkit.BootIdentity`); a
+  VPP restart expires every record (unit tests simulate it with `vpntest.NewFakeBoot`).
+* **D-089** charon orphan sweep + `AckRestart` only after a clean sweep.
+* Dedupe keys from dumps (`dfkit.Dedupe` in every Retrieve); `vpn.ErrRetrieveUnsupported` is now
+  P05's sentinel.
+* **Restart simulation** on the host through P05 (below).
+
+## How it was verified
+
+All host runs on slot 4, one package at a time (D-087), `systemctl show vpp -p NRestarts` before
+and after every run: 4 → 4 each time (the earlier restarts are the incidents of D-064/D-087).
+**Note for the manager:** NRestarts rose to 5 at 04:50:26 (SIGSEGV, PC 0x7b4f1a3c92bb, faulting
+address 0x58, no backtrace in the journal) while no DF-5 process was talking to VPP — the last
+DF-5 host run ended at ~04:47 with NRestarts 4; at 04:50 only the unit-only CI gate (no
+VRX_INTEGRATION) was running in this worktree. No DF-5 host test was run after it.
+
+### Unit tests (fake VPP)
+
+```
+$ go test -count=1 ./internal/descriptors/vpn/... ./internal/descriptors/ipsec/... ./internal/descriptors/ikev2/... ./internal/descriptors/wireguard/...
+ok  	ngfw/agent/internal/descriptors/vpn	0.029s
+?   	ngfw/agent/internal/descriptors/vpn/pb	[no test files]
+?   	ngfw/agent/internal/descriptors/vpn/vpntest	[no test files]
+ok  	ngfw/agent/internal/descriptors/ipsec	0.034s
+ok  	ngfw/agent/internal/descriptors/ikev2	0.031s
+ok  	ngfw/agent/internal/descriptors/wireguard	0.037s
+$ golangci-lint run ./internal/descriptors/vpn/... ./internal/descriptors/ipsec/... ./internal/descriptors/ikev2/... ./internal/descriptors/wireguard/...
+0 issues.
+```
+
+### Host checks through P05 (VRX_INTEGRATION=1, `eval "$(tools/lab env 4)"`)
+
+`TestIpsecOnHost` (excerpt, prototext bodies elided):
+
+```
+apply: APPLIED {Created:10 Updated:0 Deleted:0 Unchanged:0 Failed:0 Reverted:0}
+ipsec.spd: Retrieve == desired: spd_id: 4001
+ipsec.spd-interface: Retrieve == desired: interface: "loop401"        (tagged loopback)
+ipsec.spd-interface: Retrieve == desired: interface: "loop402"        (untagged loopback = physical NIC stand-in)
+ipsec.spd-entry: Retrieve == desired: spd_id: 4001
+ipsec.sa: Retrieve == desired: sad_id: 4001 … 4004
+ipsec.tunnel-protect: Retrieve == desired: interface: "ipip4001"
+ipsec.itf: Retrieve == desired: instance: 4001
+SA swap plan: update ipsec.tunnel-protect/ipip4001
+apply: APPLIED {Created:0 Updated:1 Deleted:0 Unchanged:9 Failed:0 Reverted:0}
+agent 1, second apply: P05 plan of the same desired state (10 objects): 0 create, 0 update, 0 delete, 10 unchanged; write-only re-apply: []
+agent restart (fresh agent, persisted records): P05 plan of the same desired state (10 objects): 0 create, 0 update, 0 delete, 10 unchanged; write-only re-apply: []
+ipsec.spd: nothing retrieved (agent without our ownership records)
+ipsec.sa: nothing retrieved (agent without our ownership records)
+ipsec.spd-interface: nothing retrieved (agent without our ownership records)
+ipsec.spd-entry: nothing retrieved (agent without our ownership records)
+after loss (SA + NIC binding deleted via the API): plan create ipsec.spd-interface/loop402; create ipsec.sa/4002
+apply: APPLIED {Created:2 Updated:0 Deleted:0 Unchanged:8 Failed:0 Reverted:0}
+after re-creation: P05 plan of the same desired state (10 objects): 0 create, 0 update, 0 delete, 10 unchanged; write-only re-apply: []
+ipsec.backend: ipsec_backend_dump returned no backend on VPP 26.06 — nothing to require
+ipsec.async-mode (non-owner): ipsec.async-mode: not the globals owner: VPP-global settings are managed by the globals owner only (D-071); VPP has no getter, configure it on the globals owner
+charon sweep: deleted SAs [4501], policies 1, in use []; AckRestart calls 1
+after the charon sweep (our SAs untouched): P05 plan of the same desired state (10 objects): 0 create, 0 update, 0 delete, 10 unchanged; write-only re-apply: []
+apply: APPLIED {Created:0 Updated:0 Deleted:10 Unchanged:0 Failed:0 Reverted:0}
+ipsec.spd / spd-interface / spd-entry / sa / tunnel-protect / itf: nothing retrieved (after applying the empty desired state)
+--- PASS: TestIpsecOnHost (0.17s)
+```
+
+`TestIkev2OnHost`:
+
+```
+ikev2.sleep-interval: VPP reports seconds: 2
+ikev2.sleep-interval (non-owner): requirement satisfied without setting
+ikev2.liveness (non-owner): refused … not the globals owner …
+ikev2.local-key (non-owner): refused … not the globals owner …
+apply: APPLIED {Created:3 Updated:0 Deleted:0 Unchanged:0 Failed:0 Reverted:0}
+ikev2.profile: Retrieve == desired: name: "df5-psk"
+ikev2.profile: Retrieve == desired: name: "df5-rsa"
+ikev2.responder-hostname: applied; write-only (Retrieve: vpp has no dump for this object type)
+update plan: update ikev2.profile/df5-psk
+apply: APPLIED {Created:0 Updated:1 Deleted:0 Unchanged:2 Failed:0 Reverted:0}
+agent 1, second apply: P05 plan of the same desired state (3 objects): 0 create, 0 update, 0 delete, 3 unchanged; write-only re-apply: []
+agent restart (fresh agent, persisted records): P05 plan of the same desired state (3 objects): 0 create, 0 update, 0 delete, 2 unchanged; write-only re-apply: [create ikev2.responder-hostname/df5-rsa]
+apply: APPLIED {Created:1 Updated:0 Deleted:0 Unchanged:2 Failed:0 Reverted:0}      (hostname: skipped in VPP by its applied-once record)
+after loss (profile deleted via the API): plan create ikev2.profile/df5-psk
+apply: APPLIED {Created:1 Updated:0 Deleted:0 Unchanged:2 Failed:0 Reverted:0}
+after re-creation: P05 plan of the same desired state (3 objects): 0 create, 0 update, 0 delete, 3 unchanged; write-only re-apply: []
+ikev2 SA state helper: 0 SAs for owner w4 (no peer)
+apply: APPLIED {Created:0 Updated:0 Deleted:3 Unchanged:0 Failed:0 Reverted:0}
+ikev2.profile: ikev2.profile/df5-psk gone
+ikev2.profile: ikev2.profile/df5-rsa gone
+--- PASS: TestIkev2OnHost (0.52s)
+--- SKIP: TestIkev2GlobalsOwnerOnHost (VRX_DF5_GLOBALS=1 only: getter-less globals cannot be restored)
+```
+
+`TestWireguardOnHost`:
+
+```
+apply: APPLIED {Created:3 Updated:0 Deleted:0 Unchanged:0 Failed:0 Reverted:0}
+wireguard.interface: Retrieve == desired: instance: 4001
+wireguard.peer: Retrieve == desired: interface: "wg4001"   (×2, with and without PSK)
+agent 1, second apply: P05 plan … 0 create, 0 update, 0 delete, 3 unchanged
+wireguard peer events: subscribed (want_wireguard_peer_events ok), no status change without a real peer
+agent restart (fresh agent): P05 plan of the same desired state (3 objects): 0 create, 0 update, 0 delete, 3 unchanged
+after loss (peer removed via the API): plan create wireguard.peer/wg4001/kNb/3zQk6wVr9jYVwTZg+Qy5xtyxIV119TzJgOREvHM=
+apply: APPLIED {Created:1 Updated:0 Deleted:0 Unchanged:2 Failed:0 Reverted:0}
+after re-creation: P05 plan … 0 create, 0 update, 0 delete, 3 unchanged
+wireguard.async-mode (non-owner): … not the globals owner … VPP has no getter …
+apply: APPLIED {Created:0 Updated:0 Deleted:3 Unchanged:0 Failed:0 Reverted:0}
+wireguard.interface / wireguard.peer: nothing retrieved after the empty desired state
+--- PASS: TestWireguardOnHost (0.55s)
+```
+
+(the peer key id is the peer's **public** key, a test vector.)
+
+### CLI evidence (read-only `vppctl show`, redacted, leak guard)
+
+Captured with `VRX_DF5_PAUSE=10` while each test held its objects, then after the empty desired
+state. Every line from a key / auth-data word onward is replaced by `<redacted>`; a leak guard
+greps the capture for the raw and hex test vectors and for any 32-byte key in base64 / hex. Full
+file: `/root/ngfw-wt/logs/DF-5-vppctl-evidence.txt`.
+
+```
+NRestarts before: 4
+===== ipsec: objects held by TestIpsecOnHost =====
+$ vppctl show ipsec sa | grep " sa 4[0-9][0-9][0-9] "
+[0] sa 4003 (0xfa3) spi 5002 (0x0000138a) protocol:esp flags:[]
+[1] sa 4004 (0xfa4) spi 5003 (0x0000138b) protocol:esp flags:[inbound ]
+[3] sa 4502 (0x1196) spi 6502 (0x00001966) protocol:esp flags:[]            ← live "charon" SA, kept by the sweep
+[4] sa 4001 (0xfa1) spi 5000 (0x00001388) protocol:esp flags:[inbound ]
+[5] sa 4002 (0xfa2) spi 5001 (0x00001389) protocol:esp flags:[esn anti-replay tunnel udp-encap ]
+$ vppctl show ipsec spd (blocks of spd 4001/4501)
+spd 4001
+ ip4-outbound:
+   [0] priority 10 action bypass type ip4-outbound protocol any
+     local addr range 10.4.1.0 - 10.4.1.255 port range 0 - 65535
+     remote addr range 10.4.3.0 - 10.4.3.255 port range 0 - 65535
+     packets 0 bytes 0
+ (other sections empty)
+spd 4501
+ (all sections empty — the orphan's protect policy was swept)
+$ vppctl show ipsec protect | ipip4001 block
+ipip4001 flags:[none]
+ output-sa:
+  [0] sa 4003 (0xfa3) spi 5002 (0x0000138a) protocol:esp flags:[]
+ input-sa:
+  [4] sa 4001 (0xfa1) spi 5000 (0x00001388) protocol:esp flags:[inbound ]
+  [1] sa 4004 (0xfa4) spi 5003 (0x0000138b) protocol:esp flags:[inbound ]
+$ vppctl show interface | grep -E "ipsec4001|ipip4001|loop4"
+ipip4001                          3     down         9000/0/0/0
+ipsec4001                         26    down         9000/0/0/0
+loop401                           24    down         9000/0/0/0
+loop402                           4     down         9000/0/0/0
+===== ipsec: after the empty desired state =====
+(all four commands: no lines)
+===== ikev2: objects held by TestIkev2OnHost =====
+$ vppctl show ikev2 profile | profiles w4-*
+profile w4-df5-psk
+  auth-method shared-key <redacted>
+  local id-type fqdn data w4-local.vrx.test
+  remote id-type rfc822 data peer@w4.vrx.test
+  local traffic-selector addr 10.4.6.0 - 10.4.6.255 port 0 - 65535 protocol 0
+  remote traffic-selector addr 10.4.7.0 - 10.4.7.255 port 1000 - 2000 protocol 17
+  protected tunnel loop403
+  responder loop402 10.4.5.2
+  udp-encap
+  NAT-T disabled
+  ipsec-over-udp port 20402
+  ike-crypto-alg aes-cbc 256 ike-integ-alg hmac-sha2-256-128 ike-dh modp-2048
+  esp-crypto-alg aes-cbc 128 esp-integ-alg sha1-96
+  lifetime 3600 jitter 10 handover 5 maxdata 1073741824
+profile w4-df5-rsa
+  auth-method rsa-sig auth data <redacted>
+  local id-type ip4-addr data 10.4.5.1
+  responder loop402 0.0.0.0 peer.w4.vrx.test
+  lifetime 0 jitter 0 handover 0 maxdata 0
+===== ikev2: after the empty desired state =====
+(no lines)
+===== wireguard: objects held by TestWireguardOnHost =====
+$ vppctl show wireguard interface | wg4001
+[0] wg4001 src:10.4.8.1 port:20410 private-key <redacted>
+$ vppctl show wireguard peer | peers on wg4001
+[0] endpoint:[10.4.8.1:20410->10.4.8.2:20411] wg4001 keep-alive:25 flags: 0, api-clients count: 0
+  adj:
+  pre-shared key <redacted>
+  public key <redacted>
+  allowed-ips: 10.4.10.0/24 10.4.9.0/24
+[1] endpoint:[10.4.8.1:20410->0.0.0.0:0] wg4001 keep-alive:0 flags: 0, api-clients count: 0
+  adj:
+  public key <redacted>
+  allowed-ips: 10.4.11.0/24
+===== wireguard: after the empty desired state =====
+(no lines)
+NRestarts after: 4
+leak guard: clean
+--- PASS: TestIpsecOnHost (10.16s)
+--- PASS: TestIkev2OnHost (10.45s)
+--- PASS: TestWireguardOnHost (10.56s)
+```
+
+### Acceptance greps
+
+```
+$ grep -rn "vppctl\|exec.Command" internal/descriptors/{ipsec,ikev2,wireguard,vpn}
+(no output)
+$ grep -rniE "VRX_TEST_PSK|private_key" <the three host test logs>
+ev-wireguard.log:4:        private_key:  "x25519:bJoxz03VtfsctmGeCV0KWoQdMXg/9MJy1BL/zwYc0xM="
+```
+
+The one hit is the field name of the WireGuard interface's reference, whose value is the
+interface's **public** key (the `x25519:` reference form) — no material.
+
+### CI gate
+
+`tools/ci.sh --base main` on `ba1c6a0` (the commit after it only pastes this output). Excerpt of
+`/root/ngfw-wt/logs/DF-5-ci-final.log`:
+
+```
+== contract guard: HEAD vs main ==
+no contract files changed in the 18 commit(s) of HEAD since main (58fe694)
+== forbidden patterns (+ gitleaks) ==
+ok: gitleaks — no leaks found
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   1m28s
+  forbidden patterns (+ gitleaks)                    0m03s
+  lint · typecheck · unit tests · build (turbo)   1m29s
+  apps/agent: make lint test build                   0m27s
+  test/ Go modules, unit mode (test/integration/smoke)   0m01s
+  mode quick · wall time 3m32s · logs /root/ngfw-wt/logs/ci/DF-5-20260924-044958-2805165
+
+CI GATE PASSED
+```
+
+## Out of scope / left undone
+
+* Globals-owner setters of getter-less globals on the host (ikev2 liveness/local key, async modes):
+  unit-tested on the fake; `TestIkev2GlobalsOwnerOnHost` runs only with `VRX_DF5_GLOBALS=1` in a
+  manager window (their previous values cannot be read back and restored, §7). Async modes: no
+  worker threads on the host.
+* Charon SPD / bypass-policy cleanup and charon id allocation (Q10, P11).
+* Packet-level ESP / IKE negotiation / WireGuard handshakes (P11, F-*), wiring of `Register` and the
+  persisted record store into the agent (P05/P08, Q12), PeerEvents → StreamEvents (Q8).
+
+## Open questions (docs/status/tasks/DF-5-questions.md)
+
+Q1 (gitleaks false positive, own commit recreated again per D-067), Q2 (IKEv2 id truncated by govpp
+— V-track), Q3 (WireGuard src_ip dependency key), Q5 (two providers of `interface/ipsec<N>` /
+`interface/wg<N>`), Q6 (proto placement, P03b), Q8 (PeerEvents wiring), Q9 (hostname responder after
+resolution, F-*), **Q10** (charon SPDs/ids, P11), **Q11** (secret reference format vs D-051 —
+recommend keyed digest), **Q12** (persisted record store for P05/P08). Q4 and Q7 closed.
+
+## Decisions taken (with options)
+
+| # | Decision | Options | Why |
+|---|---|---|---|
+| D-DF5-1 | Untagged VPN objects (SPD, SA, SPD binding) are owned through records in the owner's `dfkit.BootStore`, written after our own add, bound to the D-080 boot identity; SA record includes SPI/protocol, binding record includes sw_if_index + spd_id + SPD pool index | (a) id range only (first pass) (b) iface ClaimStore (c) BootStore records | (a) adopts foreign/stale objects after a VPP restart (D-071); (b) is keyed by interface name only; (c) also fixes the SPD pool-index restart limitation (Q7) |
+| D-DF5-2 | SPD bindings are ours only with a record, also on our tagged interfaces | (a) tagged interface → binding ours (b) record always | charon's kernel-vpp may bind its own SPD to any interface; (b) never deletes it |
+| D-DF5-3 | Tunnel-protect and WireGuard peers only on our tagged interfaces (`ErrNotOurs` for untagged) | (a) allow untagged with claims (b) tagged only | tunnel / wg interfaces are always created by some owner; an untagged one is not a NIC |
+| D-DF5-4 | VPP-globals via `vpn.Global`: owner setter (never deleted on absence) / `vpn.Require` (getter check, write-only) | (a) df6-style generic singleton (b) small wrapper over the existing setters | (b) keeps the existing descriptors and their tests; same semantics as DF-6/DF-8 |
+| D-DF5-5 | Responder hostname applied once per boot identity + value (D-076); the profile drops the record on add/delete | (a) re-apply every resync (b) applied-once record | VPP's setter leaks and resets resolution on every call |
+| D-DF5-6 | Charon orphan sweep deletes SAs + their protect policies only; SAs used by a tunnel protection are reported; ack only after a clean sweep | (a) also delete charon SPDs (b) SAs/policies only | a fresh charon SPD cannot be told from a stale one (Q10) |
+| D-DF5-7 | Host checks use P05's scheduler (`vpntest.Agent` + DF-1 alias) instead of a local diff helper | (a) keep the local helper (b) P05 | P05 is on main; the restart simulation must use the real reconciler |
+| D-DF5-8 | Own commit `8fecca0` recreated (`f7154a9`) to remove a gitleaks false positive | (a) rewrite own unmerged commit (b) `.gitleaksignore` (c) red gate | D-067 precedent; (b) not my file |
+
+## Review fixes (fix round for DF-5-review.md, BLOCK @ e553199)
+
+`git merge main` first (clean). Every finding, what changed, where:
+
+| Finding | Fix |
+|---|---|
+| **H1** (D-096) | `vpn.Keyer`: references are `hmac:<hex>` = HMAC-SHA256 under an agent-local key. `vpn.LoadOrCreateKeyFile(<state dir>/…)` creates 32 random bytes with mode 0600 (dir 0700) on first use. It refuses an existing file that is readable by group or other, or that has the wrong size, and never logs the key. The Keyer formats as `vpn.Keyer(hmac-sha256)`. It is injected with `WithKeyer` in ipsec, ikev2 and wireguard (no package global). `Verify`/`Resolve` take the keyer; `MapResolver` keys with it. `x25519:<public key>` stays. **Migration:** old `sha256:` references still resolve (legacy verify), and Retrieve always reports `hmac:`. So an old desired value is a mismatch, re-applied once, and converges once the desired state carries the keyed ref (`TestLegacyReferenceMigration`). Ownership and applied-once records never held fingerprints, so none needed migrating. **Scheduler (authorised):** `reconciler.go` `diffErr` now prints `<key> differs: <type> fields [<names>] (values redacted)` via the new `scheduler.DiffSummary`. That was the only place in the scheduler that formatted values. `TestErrorsAndLogsNeverPrintValues` plants `VRX_TEST_PSK_…` in a desired value, forces a verification failure and asserts that neither the txn error, nor any op result, nor any slog line contains it. |
+| **M1** | `vpn.CheckRef` checks the reference grammar (`hmac:`64 hex, `x25519:`base64-32, legacy `sha256:`64 hex) first, in every validate/encode path (SA keys, IKEv2 psk, WG preshared key) and in `Resolve`. A malformed value fails with a bare `ErrBadRef`. `Redact` returns `<redacted>` for anything that is not a well-formed reference (a D-051 `<kind>/<name>` passes as is; a legacy sha256 shows only its prefix). Tests: `TestPastedPlaintextNeverEchoed`, `TestPastedPlaintextKey` (VPP is not called). |
+| **H2** | `ipsec.NewCharonSweeper(cfg, charonRange)` validates at startup and refuses in each of these cases: zero range; range ≥ 0x80000000 (ikev2 plugin SA ids); `cfg.IDs` unset (the descriptors would own all ids); any overlap; a non-persisted record store (only `*dfkit.FileBootStore` or `Persistent()`); no keyer. Anything with a record (valid, pending or stale) is never touched. `TestCharonSweeperValidation`. |
+| **H3** | Per orphan SA: if a tunnel protection uses it → `InUse`. Otherwise its protect policies are deleted in **all** SPDs (an SPD with our record → `InUse`), then a fresh dump must show no reference, then the SA is re-read and unlocked once. Any failure stops the sweep for that SA and writes no completion marker. `ipsec.sa` Delete refuses to unlock while any policy or protection references the SA. The fake now models VPP's lock counting (add = 1 lock, +1 per protect policy and per protection, `ipsec_sad_entry_del` = unlock, free at 0, use-after-free recorded). `TestCharonSweepNeverFreesReferencedSA`: a failing policy delete, swept twice, gives 0 unlocks, locks stay at 2 and no UAF; after the failure is cleared the SA is swept. Also `TestSaDeleteNeverUnlocksReferencedSA`. |
+| **M2** | The API is split: `Sweep(ctx, restart, live)` (live nil = charon stopped: unrecorded charon-range SPDs first, which drops their policy locks and unbinds, then SAs) and `AckRestart(ctx, restart, renderer)`. The ack is refused (`ErrSweepNotComplete`) unless a Sweep for the same token completed on the running VPP instance (persisted marker, dropped after the ack). Documented order: stop → Sweep → start → AckRestart. The remaining RF-2 window is question Q13. |
+| **M4** | Write-ahead records for the SPD, SA and SPD binding: existence check → pending record → add → confirm. If the add fails, the pending record is dropped only when a dump shows the object is absent. An existing object with our record is adopted on retry. `TestWriteAheadRecords` covers a lost reply after a successful add, then Retrieve reports the SA as ours, the retry adopts it and Delete cleans it. |
+| **M3** | Documented (ipsec.md "Known limitation → TD-3"): a stale SPD binding row on a reused sw_if_index goes to TD-3's sanitize list. |
+| **L1** | govpp's encode/decode buffers are documented in `vpn/doc.go` as a known limitation (govpp item). Every buffer DF-5 owns is zeroed (key-file read buffer, resolved material, dumped keys). |
+| **L2** | The ipsec host test holds the shared globals lock (`vpntest.LockGlobals(t, false)`) while reading `ipsec_backend_dump`. |
+| **L3** | An IKEv2 owner containing `-` is refused, so `<owner>-<name>` stays unambiguous (unit test). |
+
+### Fix-round evidence
+
+```
+$ go test -count=1 -v … -run 'Secret|KeyFile|Pasted|Legacy|CharonSweep|SaDeleteNever|WriteAhead|ErrorsAndLogsNeverPrintValues|Resolve'
+--- PASS: TestSecretReferences (0.00s)
+--- PASS: TestKeyFile (0.00s)
+--- PASS: TestResolve (0.00s)
+--- PASS: TestPastedPlaintextNeverEchoed (0.00s)
+ok  	ngfw/agent/internal/descriptors/vpn	0.023s
+--- PASS: TestCharonSweeperValidation (0.00s)
+--- PASS: TestCharonSweepStopped (0.00s)
+--- PASS: TestCharonSweepNeverFreesReferencedSA (0.00s)
+--- PASS: TestCharonSweepLive (0.00s)
+--- PASS: TestSaDeleteNeverUnlocksReferencedSA (0.00s)
+--- PASS: TestPastedPlaintextKey (0.00s)
+--- PASS: TestLegacyReferenceMigration (0.00s)
+--- PASS: TestWriteAheadRecords (0.00s)
+ok  	ngfw/agent/internal/descriptors/ipsec	0.030s
+--- PASS: TestErrorsAndLogsNeverPrintValues (0.00s)
+ok  	ngfw/agent/internal/scheduler	0.025s
+$ go test -count=1 ./internal/descriptors/{vpn,ipsec,ikev2,wireguard}/... ./internal/scheduler/...
+ok  vpn 0.024s · ok ipsec 0.041s · ok ikev2 0.034s · ok wireguard 0.034s · ok scheduler 0.051s
+$ golangci-lint run (same packages)
+0 issues.
+```
+
+Host checks (slot 4, one package at a time, no packets sent, D-095):
+
+```
+ipsec exit=0 NRestarts 5 -> 5
+ikev2 exit=0 NRestarts 5 -> 5
+wireguard exit=0 NRestarts 5 -> 5
+agent restart (fresh agent, persisted records): P05 plan … 0 create, 0 update, 0 delete, 10 unchanged
+charon sweep (charon running): SPDs [], policies 1, SAs [4501], in use []
+charon sweep (charon stopped): SPDs [4501], policies 0, SAs [4502], in use []
+AckRestart after the completed sweep: ok (calls 1)
+after the charon sweep (our SAs untouched): P05 plan … 0 create, 0 update, 0 delete, 10 unchanged
+--- PASS: TestIpsecOnHost (0.15s)
+--- PASS: TestIkev2OnHost (0.41s)     --- SKIP: TestIkev2GlobalsOwnerOnHost (VRX_DF5_GLOBALS unset)
+--- PASS: TestWireguardOnHost (0.56s)
+```
+
+The logged references in the host test logs are all `hmac:` (ipsec 5, ikev2 2, wireguard 1), there
+is no `sha256:` and no `VRX_TEST_PSK` string, and `sha256(VRX_TEST_PSK_DF5_ikev2)` occurs 0 times
+(it was present before the fix).
+
+CI gate on `c283f5e` (`/root/ngfw-wt/logs/DF-5-ci-fix.log`; the only warning is main's own `review(DF-5): findings` subject):
+
+```
+no contract files changed in the 27 commit(s) of HEAD since main (ca63114)
+  mode quick · wall time 3m58s · logs /root/ngfw-wt/logs/ci/DF-5-20260924-051310-2958918
+CI GATE PASSED
+```
+
+Decisions added: D-DF5-9, legacy `sha256:` references resolve once (options: refuse them / resolve
+once + keyed Retrieve). I chose the second because an old desired state still applies and converges
+without churn once it is re-derived. D-DF5-10, completion marker + token-gated ack in the DF-5
+sweeper (options: a sweeper-side gate / an RF-2-only gate). I chose the sweeper-side gate because it
+works with RF-2 as merged; Q13 asks RF-2 for an ack bound to the start time.
+
+## Fix round 2 (DF-5-rereview.md, BLOCK on N1/N2)
+
+`git merge main` first (clean).
+
+| Finding | Fix |
+|---|---|
+| **N1** VPP's SPD delete does not release its policies' SA locks | The stopped-mode sweep now runs in this order. (1) Every policy of every unrecorded charon-range SPD is deleted one by one, and a dump must show the SPD empty. (2) Per orphan SA: the SA must have zero references in a fresh dump of all SPDs; then it is re-read and unlocked once, and a re-dump must show it **gone**. If it is still there, it goes into `NotSwept` and the sweep returns an error. (3) The emptied SPDs are deleted. An error or any `NotSwept` SA means no completion marker, so `AckRestart` is refused. `ipsec.spd` Delete refuses while its SPD holds protect policies. The fake's SPD delete now leaks the locks exactly as VPP does. The unit test that asserted the wrong behaviour was rewritten, and new tests are `TestSpdDeleteKeepsSALocks`, `TestCharonSweepNotSwept` and `TestSpdDeleteRefusesProtectPolicies`. On the host, `TestSpdDeleteKeepsSALocksOnHost` mirrors the reviewer's vppctl reproduction through the binary API on slot ids (base+590, no packets). `TestIpsecOnHost` now leaves a protect policy in the charon SPD at stopped-sweep time and asserts the SA is absent afterwards. |
+| **N2** policies deleted in foreign SPDs | Policies are deleted only in unrecorded SPDs **inside the charon range**. A reference from any other SPD (ours, or another owner's) is reported as `InUse{SA, By: "spd <id>"}` and the SA is left alone (D-071). The unit test asserts that the foreign SPD 3002's policy survives. |
+| Low: key file | Now created crash-safe: temp 0600 file, fsync, `link(2)` into place (first writer wins), directory fsync. It is read with `O_NOFOLLOW` and `Fstat`, and must be a regular file of 32 bytes, mode 0600, owned by this uid. A group/world-writable directory is refused. Tests cover a short file, a symlink and no leftover temp files. |
+| Low: legacy refs (N5) | Unkeyed `sha256:` references are refused with `ErrBadRef` before VPP is called (`TestLegacyReferenceRefused`). The legacy code is deleted. |
+| N7 | The two pre-D-096 logs containing plain SHA-256 of test placeholders were deleted. |
+| N8 | Documented in bold as a P11 precondition: `Sweep(ctx, token, nil)` asserts that charon is stopped. |
+| N3/Q13 | Handled in P11 (already on its board notes). |
+
+```
+$ go test -count=1 ./internal/descriptors/{vpn,ipsec,ikev2,wireguard}/... ./internal/scheduler/
+ok vpn · ok ipsec · ok ikev2 · ok wireguard · ok scheduler
+$ golangci-lint run ./internal/descriptors/vpn/... ./internal/descriptors/ipsec/...
+0 issues.
+host (slot 4, one package at a time, no packets):
+ipsec exit=0 NRestarts 5 -> 5
+ikev2 exit=0 NRestarts 5 -> 5
+wireguard exit=0 NRestarts 5 -> 5
+charon sweep (charon running): SPDs [], policies 1, SAs [4501], in use []
+charon sweep (charon stopped): SPDs [4501], policies 1, SAs [4502 4504], in use []
+AckRestart after the completed sweep: ok (calls 1)
+sa 4504 (protect policy still in the charon SPD at sweep time): absent from ipsec_sa_v5_dump after the sweep
+after the charon sweep (our SAs untouched): P05 plan … 0 create, 0 update, 0 delete, 10 unchanged
+--- PASS: TestIpsecOnHost (0.17s)
+sa 4590 after spd del + one ipsec_sad_entry_del: still present (the policy's lock leaked with the SPD)
+sa 4590 after the second unlock: gone
+--- PASS: TestSpdDeleteKeepsSALocksOnHost (0.01s)
+--- PASS: TestIkev2OnHost (0.42s)   --- SKIP: TestIkev2GlobalsOwnerOnHost
+--- PASS: TestWireguardOnHost (0.56s)
+$ tools/ci.sh --base main   (bb56911; the only warnings are main's own review commit subjects)
+no contract files changed in the 31 commit(s) of HEAD since main (1f3e15d)
+  mode quick · wall time 3m40s · logs /root/ngfw-wt/logs/ci/DF-5-20260924-053035-3046889
+CI GATE PASSED
+```

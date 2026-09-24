@@ -1,0 +1,128 @@
+{{- /* swanctl.conf(5) connections for vrx-agent. Every user string passes one helper:
+       name (section names), q (quoted values), tok/list (validated bare tokens). */ -}}
+# vrx.conf: rendered by vrx-agent (strongswan renderer); every change is overwritten.
+# Secrets are in vrx-secrets.conf (mode 0600).
+connections {
+{{- range .Conns}}
+	{{name .Name}} {
+{{- with .Description}}
+		# {{line .}}
+{{- end}}
+		version = {{.Version}}
+		local_addrs = {{list .LocalAddrs}}
+		remote_addrs = {{list .RemoteAddrs}}
+		proposals = {{list .Proposals}}
+{{- if .DPDDelay}}
+		dpd_delay = {{.DPDDelay}}s
+{{- end}}
+{{- if .DPDTimeout}}
+		dpd_timeout = {{.DPDTimeout}}s
+{{- end}}
+{{- with .Mobike}}
+		mobike = {{tok .}}
+{{- end}}
+{{- if .Encap}}
+		encap = yes
+{{- end}}
+{{- with .Fragmentation}}
+		fragmentation = {{tok .}}
+{{- end}}
+{{- if .NoRekey}}
+		rekey_time = 0s
+{{- else if .RekeyTime}}
+		rekey_time = {{.RekeyTime}}s
+{{- end}}
+{{- if .ReauthTime}}
+		reauth_time = {{.ReauthTime}}s
+{{- end}}
+{{- with .Pools}}
+		pools = {{list .}}
+{{- end}}
+		local {
+			auth = {{tok .Local.Method}}
+{{- with .Local.ID}}
+			id = {{q .}}
+{{- end}}
+{{- with .Local.Certs}}
+			certs = {{list .}}
+{{- end}}
+		}
+		remote {
+			auth = {{tok .Remote.Method}}
+{{- with .Remote.ID}}
+			id = {{q .}}
+{{- end}}
+{{- with .Remote.CACerts}}
+			cacerts = {{list .}}
+{{- end}}
+		}
+		children {
+{{- range .Children}}
+			{{name .Name}} {
+{{- with .LocalTS}}
+				local_ts = {{list .}}
+{{- end}}
+{{- with .RemoteTS}}
+				remote_ts = {{list .}}
+{{- end}}
+{{- with .ESPProposals}}
+				esp_proposals = {{list .}}
+{{- end}}
+{{- with .AHProposals}}
+				ah_proposals = {{list .}}
+{{- end}}
+				mode = {{tok .Mode}}
+{{- with .StartAction}}
+				start_action = {{tok .}}
+{{- end}}
+{{- with .CloseAction}}
+				close_action = {{tok .}}
+{{- end}}
+{{- with .DPDAction}}
+				dpd_action = {{tok .}}
+{{- end}}
+{{- if .RekeyTime}}
+				rekey_time = {{.RekeyTime}}s
+{{- end}}
+{{- if .RekeyBytes}}
+				rekey_bytes = {{.RekeyBytes}}
+{{- end}}
+{{- if .RekeyPackets}}
+				rekey_packets = {{.RekeyPackets}}
+{{- end}}
+{{- with .ReplayWindow}}
+				replay_window = {{deref .}}
+{{- end}}
+{{- if .IfIDIn}}
+				if_id_in = {{.IfIDIn}}
+{{- end}}
+{{- if .IfIDOut}}
+				if_id_out = {{.IfIDOut}}
+{{- end}}
+			}
+{{- end}}
+		}
+	}
+{{- end}}
+}
+{{- if .Pools}}
+pools {
+{{- range .Pools}}
+	{{name .Name}} {
+		addrs = {{tok .Addrs}}
+{{- with .DNS}}
+		dns = {{list .}}
+{{- end}}
+	}
+{{- end}}
+}
+{{- end}}
+{{- if .Authorities}}
+authorities {
+{{- range .Authorities}}
+	{{name .Name}} {
+		cacert = {{tok .CACert}}
+	}
+{{- end}}
+}
+{{- end}}

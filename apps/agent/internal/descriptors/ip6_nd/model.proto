@@ -1,0 +1,67 @@
+// Desired state of the ip6_nd descriptors (agent-internal until moved to packages/proto).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.ip6nd;
+
+option go_package = "ngfw/agent/internal/descriptors/ip6_nd;ip6nd";
+
+// RaConfig is the router-advertisement configuration of one interface
+// (sw_interface_ip6nd_ra_config). Numeric fields carry the effective values VPP reports;
+// use NormalizeRaConfig to fill zeros with the VPP defaults before diffing.
+message RaConfig {
+  string interface = 1;
+  // Do not send router advertisements (VPP: send_radv = 0).
+  bool suppress = 2;
+  // Managed address configuration flag (M).
+  bool managed = 3;
+  // Other configuration flag (O).
+  bool other = 4;
+  // Suppress the source link-layer address option (API ll_option).
+  bool suppress_link_layer_option = 5;
+  // Answer solicitations with unicast RAs.
+  bool send_unicast = 6;
+  // Cease sending RAs (send final RA with lifetime 0).
+  bool cease = 7;
+  // Router lifetime in seconds; 0 = not a default router. VPP default 600.
+  uint32 router_lifetime = 8;
+  // Max/min interval between unsolicited RAs in seconds (defaults 600 / 0.75*max).
+  uint32 max_interval = 9;
+  uint32 min_interval = 10;
+  // Initial burst: count (default 3) and interval in seconds (default 16).
+  uint32 initial_count = 11;
+  uint32 initial_interval = 12;
+}
+
+// RaPrefix is one prefix-information option advertised on an interface
+// (sw_interface_ip6nd_ra_prefix).
+message RaPrefix {
+  string interface = 1;
+  // IPv6 prefix, canonical netip text.
+  string prefix = 2;
+  // Lifetimes in seconds; 0 is normalised to the VPP defaults 2592000 / 604800.
+  uint32 valid_lifetime = 3;
+  uint32 preferred_lifetime = 4;
+  // Keep the prefix configured but do not advertise it.
+  bool no_advertise = 5;
+  // Clear the on-link (L) flag.
+  bool off_link = 6;
+  // Clear the autonomous address-configuration (A) flag.
+  bool no_autoconfig = 7;
+}
+
+// ProxyNd proxies neighbour discovery for one address on an interface
+// (ip6nd_proxy_enable_disable + ip6nd_proxy_add_del).
+message ProxyNd {
+  string interface = 1;
+  // Proxied IPv6 address.
+  string address = 2;
+}
+
+// Dad is the global duplicate-address-detection configuration of the ip6_dad_autoremove
+// plugin (ip6_dad_enable_disable). Presence means enabled.
+message Dad {
+  // Number of DAD probes (VPP default 1).
+  uint32 transmits = 1;
+  // Delay between probes in seconds (VPP default 1).
+  double retransmit_delay = 2;
+}

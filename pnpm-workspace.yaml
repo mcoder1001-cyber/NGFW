@@ -1,0 +1,10 @@
+packages:
+  - apps/web
+  - apps/api
+  - packages/*
+
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+  protobufjs: true
+  '@scarf/scarf': false

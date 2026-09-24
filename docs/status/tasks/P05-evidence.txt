@@ -1,0 +1,777 @@
+$ /root/ngfw-wt/P05/apps/agent/bin/vrx-agentctl health
+{
+  "agentVersion": "dev",
+  "vppConnected": true,
+  "vppVersion": "26.06-release",
+  "owner": "w7",
+  "subsystems": [
+    "interfaces",
+    "vrfs",
+    "routing"
+  ],
+  "lastReconcileAt": "2026-09-23T21:20:39.190744122Z"
+}
+
+$ /root/ngfw-wt/P05/apps/agent/bin/vrx-agentctl dryrun doc.json -txn w7-e0
+{
+  "txnId": "w7-e0",
+  "ok": true,
+  "plan": [
+    {
+      "key": "vrf/7001",
+      "op": "APPLY_OPERATION_CREATE",
+      "pointer": "/vrfs/w7-red",
+      "subsystem": "vrfs"
+    },
+    {
+      "key": "interface.loopback/loop701",
+      "op": "APPLY_OPERATION_CREATE",
+      "pointer": "/interfaces/loop701",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface.loopback/loop702",
+      "op": "APPLY_OPERATION_CREATE",
+      "pointer": "/interfaces/loop702",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface-ip.table/loop701",
+      "op": "APPLY_OPERATION_CREATE",
+      "pointer": "/interfaces/loop701/vrf",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface-ip.table/loop702",
+      "op": "APPLY_OPERATION_CREATE",
+      "pointer": "/interfaces/loop702/vrf",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface-ip/loop701/10.7.1.1/24",
+      "op": "APPLY_OPERATION_CREATE",
+      "pointer": "/interfaces/loop701/ipv4/0",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface-ip/loop701/2001:db8:7::1/64",
+      "op": "APPLY_OPERATION_CREATE",
+      "pointer": "/interfaces/loop701/ipv6/0",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface-ip/loop702/10.7.2.1/24",
+      "op": "APPLY_OPERATION_CREATE",
+      "pointer": "/interfaces/loop702/ipv4/0",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "ip.route/7001/10.7.100.0/24",
+      "op": "APPLY_OPERATION_CREATE",
+      "pointer": "/routing/static/0",
+      "subsystem": "routing"
+    },
+    {
+      "key": "ip.route/7001/10.7.101.0/24",
+      "op": "APPLY_OPERATION_CREATE",
+      "pointer": "/routing/static/1",
+      "subsystem": "routing"
+    }
+  ],
+  "summary": {
+    "created": 10
+  }
+}
+
+$ /root/ngfw-wt/P05/apps/agent/bin/vrx-agentctl apply doc.json -txn w7-e1
+{
+  "txnId": "w7-e1",
+  "status": "APPLY_STATUS_APPLIED",
+  "results": [
+    {
+      "key": "vrf/7001",
+      "op": "APPLY_OPERATION_CREATE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "pointer": "/vrfs/w7-red",
+      "subsystem": "vrfs"
+    },
+    {
+      "key": "interface.loopback/loop701",
+      "op": "APPLY_OPERATION_CREATE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "pointer": "/interfaces/loop701",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface.loopback/loop702",
+      "op": "APPLY_OPERATION_CREATE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "pointer": "/interfaces/loop702",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface-ip.table/loop701",
+      "op": "APPLY_OPERATION_CREATE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "pointer": "/interfaces/loop701/vrf",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface-ip.table/loop702",
+      "op": "APPLY_OPERATION_CREATE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "pointer": "/interfaces/loop702/vrf",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface-ip/loop701/10.7.1.1/24",
+      "op": "APPLY_OPERATION_CREATE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "pointer": "/interfaces/loop701/ipv4/0",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface-ip/loop701/2001:db8:7::1/64",
+      "op": "APPLY_OPERATION_CREATE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "pointer": "/interfaces/loop701/ipv6/0",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface-ip/loop702/10.7.2.1/24",
+      "op": "APPLY_OPERATION_CREATE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "pointer": "/interfaces/loop702/ipv4/0",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "ip.route/7001/10.7.100.0/24",
+      "op": "APPLY_OPERATION_CREATE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "pointer": "/routing/static/0",
+      "subsystem": "routing"
+    },
+    {
+      "key": "ip.route/7001/10.7.101.0/24",
+      "op": "APPLY_OPERATION_CREATE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "pointer": "/routing/static/1",
+      "subsystem": "routing"
+    }
+  ],
+  "summary": {
+    "created": 10
+  },
+  "appliedAt": "2026-09-23T21:20:51.652657359Z"
+}
+
+$ /root/ngfw-wt/P05/apps/agent/bin/vrx-agentctl retrieve
+{
+  "desiredState": {
+    "interfaces": {
+      "loop701": {
+        "ipv4": [
+          "10.7.1.1/24"
+        ],
+        "ipv6": [
+          "2001:db8:7::1/64"
+        ],
+        "vrf": "w7-red"
+      },
+      "loop702": {
+        "ipv4": [
+          "10.7.2.1/24"
+        ],
+        "vrf": "w7-red"
+      }
+    },
+    "vrfs": {
+      "w7-red": {
+        "id": 7001
+      }
+    },
+    "routing": {
+      "static": [
+        {
+          "prefix": "10.7.100.0/24",
+          "nextHops": [
+            {
+              "address": "10.7.1.254",
+              "weight": 1
+            }
+          ],
+          "vrf": "w7-red",
+          "distance": 1
+        },
+        {
+          "prefix": "10.7.101.0/24",
+          "nextHops": [
+            {
+              "address": "10.7.2.254",
+              "interface": "loop702",
+              "weight": 1
+            }
+          ],
+          "vrf": "w7-red"
+        }
+      ]
+    }
+  },
+  "subsystems": [
+    "interfaces",
+    "vrfs",
+    "routing"
+  ],
+  "owner": "w7",
+  "retrievedAt": "2026-09-23T21:20:51.706901645Z"
+}
+
+$ vppctl show interface address
+lisp_gpe0 (dn):
+lisp_gpe11100 (dn):
+local0 (dn):
+loop701 (dn):
+  L3 10.7.1.1/24 ip4 table-id 7001 fib-idx 2
+  L3 2001:db8:7::1/64 ip6 table-id 7001 fib-idx 2
+loop702 (dn):
+  L3 10.7.2.1/24 ip4 table-id 7001 fib-idx 2
+
+$ vppctl show ip fib table 7001
+w7:w7-red, fib_index:2, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[interface:2, API:1, recursive-resolution:1, ]
+0.0.0.0/0
+  unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:29 buckets:1 uRPF:30 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+0.0.0.0/32
+  unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:13 buckets:1 uRPF:26 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+10.7.1.254/32
+  unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:36 buckets:1 uRPF:30 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+10.7.100.0/24
+  unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:37 buckets:1 uRPF:9 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+10.7.101.0/24
+  unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:38 buckets:1 uRPF:39 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+224.0.0.0/4
+  unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:16 buckets:1 uRPF:34 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+240.0.0.0/4
+  unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:25 buckets:1 uRPF:32 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+255.255.255.255/32
+  unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:26 buckets:1 uRPF:38 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+
+$ vppctl show ip6 fib table 7001
+w7:w7-red, fib_index:2, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[interface:2, API:1, ]
+::/0
+  unicast-ip6-chain
+  [@0]: dpo-load-balance: [proto:ip6 index:33 buckets:1 uRPF:33 to:[0:0]]
+    [0] [@0]: dpo-drop ip6
+fe80::/10
+  unicast-ip6-chain
+  [@0]: dpo-load-balance: [proto:ip6 index:22 buckets:1 uRPF:14 to:[0:0]]
+    [0] [@14]: ip6-link-local
+
+$ vppctl show ip table
+[0] table_id:0 ipv4-VRF:0
+[1] table_id:11013 w11-t11013
+[2] table_id:7001 w7:w7-red
+
+$ /root/ngfw-wt/P05/apps/agent/bin/vrx-agentctl apply doc.json -txn w7-e2
+{
+  "txnId": "w7-e2",
+  "status": "APPLY_STATUS_APPLIED",
+  "summary": {
+    "unchanged": 10
+  },
+  "appliedAt": "2026-09-23T21:20:51.799766661Z"
+}
+
+$ kill -9 992220
+
+agent pid 992220 alive? /bin/bash: line 18: kill: (992220) - No such process
+no
+$ python3 delete_owned.py w7
+delete_loopback loop702 2 0
+delete_loopback loop701 5 0
+ip_table_add_del del 7001 ip4 0
+ip_table_add_del del 7001 ip6 0
+
+$ vppctl show interface address
+lisp_gpe0 (dn):
+lisp_gpe11100 (dn):
+local0 (dn):
+
+$ vppctl show ip table
+[0] table_id:0 ipv4-VRF:0
+[1] table_id:11013 w11-t11013
+[2] table_id:7001 w7:w7-red
+
+recreated (Retrieve shows the routes) after  s
+$ grep resync agent-2.log
+{"time":"2026-09-24T00:51:05.409451445+03:30","level":"INFO","msg":"reconcile start","owner":"w7","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing"]}
+{"time":"2026-09-24T00:51:05.443301411+03:30","level":"INFO","msg":"reconcile done","owner":"w7","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing"],"status":"APPLY_STATUS_APPLIED","summary":"created:7 updated:2 unchanged:1","duration":32909418,"err":""}
+{"time":"2026-09-24T00:51:05.443366277+03:30","level":"INFO","msg":"resync finished","owner":"w7","status":"APPLY_STATUS_APPLIED","summary":"created:7 updated:2 unchanged:1"}
+$ /root/ngfw-wt/P05/apps/agent/bin/vrx-agentctl retrieve
+{
+  "desiredState": {
+    "interfaces": {
+      "loop701": {
+        "ipv4": [
+          "10.7.1.1/24"
+        ],
+        "ipv6": [
+          "2001:db8:7::1/64"
+        ],
+        "vrf": "w7-red"
+      },
+      "loop702": {
+        "ipv4": [
+          "10.7.2.1/24"
+        ],
+        "vrf": "w7-red"
+      }
+    },
+    "vrfs": {
+      "w7-red": {
+        "id": 7001
+      }
+    },
+    "routing": {
+      "static": [
+        {
+          "prefix": "10.7.100.0/24",
+          "nextHops": [
+            {
+              "address": "10.7.1.254",
+              "weight": 1
+            }
+          ],
+          "vrf": "w7-red",
+          "distance": 1
+        },
+        {
+          "prefix": "10.7.101.0/24",
+          "nextHops": [
+            {
+              "address": "10.7.2.254",
+              "interface": "loop702",
+              "weight": 1
+            }
+          ],
+          "vrf": "w7-red"
+        }
+      ]
+    }
+  },
+  "subsystems": [
+    "interfaces",
+    "vrfs",
+    "routing"
+  ],
+  "owner": "w7",
+  "retrievedAt": "2026-09-23T21:21:05.562732499Z"
+}
+
+$ vppctl show interface address
+lisp_gpe0 (dn):
+lisp_gpe11100 (dn):
+local0 (dn):
+loop701 (dn):
+  L3 10.7.1.1/24 ip4 table-id 7001 fib-idx 2
+  L3 2001:db8:7::1/64 ip6 table-id 7001 fib-idx 2
+loop702 (dn):
+  L3 10.7.2.1/24 ip4 table-id 7001 fib-idx 2
+
+$ vppctl show ip fib table 7001 10.7.100.0/24
+w7:w7-red, fib_index:2, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[interface:2, recursive-resolution:1, ]
+10.7.100.0/24 fib:2 index:30 locks:2
+  API refs:1 src-flags:added,contributing,active,
+    path-list:[40] locks:2 flags:shared, uPRF-list:9 len:0 itfs:[]
+      path:[50] pl-index:40 ip4 weight=1 pref=1 recursive: 
+        via 10.7.1.254 in fib:2 via-fib:31 via-dpo:[dpo-load-balance:36]
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:37 buckets:1 uRPF:9 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+
+=== fix: resync re-asserts the VRF API lock (scheduler.Reapplier); agent rebuilt ===
+$ grep 'reconcile done' agent-3.log
+{"time":"2026-09-24T00:52:38.907063638+03:30","level":"INFO","msg":"reconcile done","owner":"w7","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:10","reapplied":1,"duration":9718441,"err":""}
+
+$ vppctl show ip fib table 7001 10.7.100.0/24
+w7:w7-red, fib_index:2, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[interface:2, API:1, recursive-resolution:1, ]
+10.7.100.0/24 fib:2 index:30 locks:2
+  API refs:1 src-flags:added,contributing,active,
+    path-list:[40] locks:2 flags:shared, uPRF-list:9 len:0 itfs:[]
+      path:[50] pl-index:40 ip4 weight=1 pref=1 recursive: 
+        via 10.7.1.254 in fib:2 via-fib:31 via-dpo:[dpo-load-balance:36]
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:37 buckets:1 uRPF:9 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+
+=== kill -9 of a converged agent, restart: no VPP change ===
+$ vppctl show interface loop701
+              Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+loop701                           5     down         9000/0/0/0     
+
+$ kill -9 1015409
+
+$ grep 'reconcile done' agent-4.log
+{"time":"2026-09-24T00:52:40.822897016+03:30","level":"INFO","msg":"reconcile done","owner":"w7","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:10","reapplied":1,"duration":16779452,"err":""}
+
+$ vppctl show interface loop701
+              Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+loop701                           5     down         9000/0/0/0     
+
+=== confirmed commit: apply with confirm_timeout_sec=5, never confirmed → the agent reverts itself ===
+$ /root/ngfw-wt/P05/apps/agent/bin/vrx-agentctl apply doc-pending.json -txn w7-pending -confirm 5
+{
+  "txnId": "w7-pending",
+  "status": "APPLY_STATUS_APPLIED",
+  "results": [
+    {
+      "key": "interface.loopback/loop703",
+      "op": "APPLY_OPERATION_CREATE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "pointer": "/interfaces/loop703",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface-ip/loop703/10.7.3.1/24",
+      "op": "APPLY_OPERATION_CREATE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "pointer": "/interfaces/loop703/ipv4/0",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "ip.route/0/10.7.103.0/24",
+      "op": "APPLY_OPERATION_CREATE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "pointer": "/routing/static/2",
+      "subsystem": "routing"
+    }
+  ],
+  "summary": {
+    "created": 3,
+    "unchanged": 10
+  },
+  "appliedAt": "2026-09-23T21:22:50.865744667Z",
+  "confirmDeadline": "2026-09-23T21:22:55.837483347Z"
+}
+
+$ /root/ngfw-wt/P05/apps/agent/bin/vrx-agentctl health
+{
+  "agentVersion": "dev",
+  "vppConnected": true,
+  "vppVersion": "26.06-release",
+  "owner": "w7",
+  "subsystems": [
+    "interfaces",
+    "vrfs",
+    "routing"
+  ],
+  "lastTxnId": "w7-e2",
+  "pendingConfirmTxnId": "w7-pending",
+  "confirmDeadline": "2026-09-23T21:22:55.837483347Z",
+  "lastReconcileAt": "2026-09-23T21:22:50.867780069Z"
+}
+
+$ vppctl show interface address
+lisp_gpe0 (dn):
+lisp_gpe11100 (dn):
+local0 (dn):
+loop701 (dn):
+  L3 10.7.1.1/24 ip4 table-id 7001 fib-idx 2
+  L3 2001:db8:7::1/64 ip6 table-id 7001 fib-idx 2
+loop702 (dn):
+  L3 10.7.2.1/24 ip4 table-id 7001 fib-idx 2
+loop703 (dn):
+  L3 10.7.3.1/24
+
+$ vppctl show ip fib 10.7.103.0/24
+ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[LISP:10, default-route:1, det44-hi:2, nat44-ei-hi:4, nat-hi:4, ]
+10.7.103.0/24 fib:0 index:39 locks:2
+  API refs:1 entry-flags:attached, src-flags:added,contributing,active,
+    path-list:[55] locks:2 flags:shared, uPRF-list:40 len:1 itfs:[7, ]
+      path:[60] pl-index:55 ip4 weight=1 pref=0 attached:  cfg-flags:glean,
+         loop703
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:45 buckets:1 uRPF:40 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+w11-t11013, fib_index:1, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[LISP:7, ]
+0.0.0.0/0 fib:1 index:13 locks:2
+  default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+    path-list:[29] locks:2 flags:drop, uPRF-list:17 len:0 itfs:[]
+      path:[25] pl-index:29 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+        [@0]: dpo-drop ip4
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:28 buckets:1 uRPF:17 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+w7:w7-red, fib_index:2, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[interface:2, API:1, recursive-resolution:1, ]
+0.0.0.0/0 fib:2 index:26 locks:2
+  default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+    path-list:[15] locks:4 flags:drop, uPRF-list:30 len:0 itfs:[]
+      path:[24] pl-index:15 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+        [@0]: dpo-drop ip4
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:29 buckets:1 uRPF:30 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+
+$ vrx-agentctl events -n 6   (started before the apply)
+{
+  "ts": "2026-09-23T21:22:50.837500206Z",
+  "seq": "1",
+  "kind": "EVENT_KIND_RECONCILE_START",
+  "message": "apply [interfaces vrfs routing]",
+  "txnId": "w7-pending"
+}
+{
+  "ts": "2026-09-23T21:22:50.855416294Z",
+  "seq": "2",
+  "kind": "EVENT_KIND_LINK_DOWN",
+  "interface": "loop703",
+  "message": "loop703 link down admin down",
+  "attributes": {
+    "admin": "down",
+    "sw_if_index": "7"
+  }
+}
+{
+  "ts": "2026-09-23T21:22:50.867781764Z",
+  "seq": "3",
+  "kind": "EVENT_KIND_RECONCILE_DONE",
+  "message": "APPLY_STATUS_APPLIED",
+  "txnId": "w7-pending",
+  "summary": {
+    "created": 3,
+    "unchanged": 10
+  }
+}
+{
+  "ts": "2026-09-23T21:22:55.838417828Z",
+  "seq": "4",
+  "kind": "EVENT_KIND_CONFIRM_REVERTED",
+  "message": "confirm timeout expired; reverting to the last confirmed state",
+  "txnId": "w7-pending"
+}
+{
+  "ts": "2026-09-23T21:22:55.838554052Z",
+  "seq": "5",
+  "kind": "EVENT_KIND_RECONCILE_START",
+  "message": "revert [interfaces vrfs routing]"
+}
+{
+  "ts": "2026-09-23T21:22:55.849861395Z",
+  "seq": "6",
+  "kind": "EVENT_KIND_LINK_DOWN",
+  "interface": "loop703",
+  "message": "loop703 link down admin down",
+  "attributes": {
+    "admin": "down",
+    "deleted": "true",
+    "sw_if_index": "7"
+  }
+}
+
+$ /root/ngfw-wt/P05/apps/agent/bin/vrx-agentctl confirm w7-pending
+vrx-agentctl: rpc error: code = FailedPrecondition desc = transaction "w7-pending" is not pending confirmation
+
+$ vppctl show interface address
+lisp_gpe0 (dn):
+lisp_gpe11100 (dn):
+local0 (dn):
+loop701 (dn):
+  L3 10.7.1.1/24 ip4 table-id 7001 fib-idx 2
+  L3 2001:db8:7::1/64 ip6 table-id 7001 fib-idx 2
+loop702 (dn):
+  L3 10.7.2.1/24 ip4 table-id 7001 fib-idx 2
+
+$ /root/ngfw-wt/P05/apps/agent/bin/vrx-agentctl health
+{
+  "agentVersion": "dev",
+  "vppConnected": true,
+  "vppVersion": "26.06-release",
+  "owner": "w7",
+  "subsystems": [
+    "interfaces",
+    "vrfs",
+    "routing"
+  ],
+  "lastTxnId": "w7-e2",
+  "lastReconcileAt": "2026-09-23T21:22:55.856779957Z"
+}
+
+=== metrics (127.0.0.1:9171) ===
+$ curl -s 127.0.0.1:9171/metrics | grep -v '^#'
+vrx_agent_vpp_connected 1
+vrx_agent_degraded 0
+vrx_agent_confirm_pending 0
+vrx_agent_objects 10
+vrx_agent_confirm_reverts_total 1
+vrx_agent_retrieve_unsupported_descriptors 0
+vrx_agent_retrieve_unsupported_objects 0
+vrx_agent_reconcile_total{status="APPLY_STATUS_APPLIED"} 3
+vrx_agent_reconcile_errors_total 0
+vrx_agent_reconcile_operations_total{op="created"} 3
+vrx_agent_reconcile_operations_total{op="updated"} 0
+vrx_agent_reconcile_operations_total{op="deleted"} 3
+vrx_agent_reconcile_operations_total{op="reverted"} 0
+vrx_agent_reconcile_operations_total{op="failed"} 0
+vrx_agent_reconcile_duration_seconds_bucket{le="0.005"} 0
+vrx_agent_reconcile_duration_seconds_bucket{le="0.01"} 0
+vrx_agent_reconcile_duration_seconds_bucket{le="0.025"} 2
+vrx_agent_reconcile_duration_seconds_bucket{le="0.05"} 3
+vrx_agent_reconcile_duration_seconds_bucket{le="0.1"} 3
+vrx_agent_reconcile_duration_seconds_bucket{le="0.25"} 3
+vrx_agent_reconcile_duration_seconds_bucket{le="0.5"} 3
+vrx_agent_reconcile_duration_seconds_bucket{le="1"} 3
+vrx_agent_reconcile_duration_seconds_bucket{le="2.5"} 3
+vrx_agent_reconcile_duration_seconds_bucket{le="5"} 3
+vrx_agent_reconcile_duration_seconds_bucket{le="10"} 3
+vrx_agent_reconcile_duration_seconds_bucket{le="30"} 3
+vrx_agent_reconcile_duration_seconds_bucket{le="+Inf"} 3
+vrx_agent_reconcile_duration_seconds_sum 0.065309152
+vrx_agent_reconcile_duration_seconds_count 3
+
+$ /root/ngfw-wt/P05/apps/agent/bin/vrx-agentctl stats -n 2 -interval 500 -if loop701,loop702
+{
+  "ts": "2026-09-23T21:23:07.681968103Z",
+  "seq": "1",
+  "interfaceCounters": [
+    {
+      "name": "loop701",
+      "swIfIndex": 5
+    },
+    {
+      "name": "loop702",
+      "swIfIndex": 2
+    }
+  ],
+  "intervalMs": 500
+}
+{
+  "ts": "2026-09-23T21:23:08.179536307Z",
+  "seq": "2",
+  "interfaceCounters": [
+    {
+      "name": "loop701",
+      "swIfIndex": 5
+    },
+    {
+      "name": "loop702",
+      "swIfIndex": 2
+    }
+  ],
+  "intervalMs": 500
+}
+
+=== cleanup through the agent: interfaces/vrfs/routing authoritative and empty ===
+$ /root/ngfw-wt/P05/apps/agent/bin/vrx-agentctl apply empty.json -txn w7-cleanup -subsystems interfaces,vrfs,routing
+{
+  "txnId": "w7-cleanup",
+  "status": "APPLY_STATUS_APPLIED",
+  "results": [
+    {
+      "key": "ip.route/7001/10.7.101.0/24",
+      "op": "APPLY_OPERATION_DELETE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "subsystem": "routing"
+    },
+    {
+      "key": "ip.route/7001/10.7.100.0/24",
+      "op": "APPLY_OPERATION_DELETE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "subsystem": "routing"
+    },
+    {
+      "key": "interface-ip/loop702/10.7.2.1/24",
+      "op": "APPLY_OPERATION_DELETE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface-ip/loop701/2001:db8:7::1/64",
+      "op": "APPLY_OPERATION_DELETE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface-ip/loop701/10.7.1.1/24",
+      "op": "APPLY_OPERATION_DELETE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface-ip.table/loop702",
+      "op": "APPLY_OPERATION_DELETE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface-ip.table/loop701",
+      "op": "APPLY_OPERATION_DELETE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface.loopback/loop702",
+      "op": "APPLY_OPERATION_DELETE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "interface.loopback/loop701",
+      "op": "APPLY_OPERATION_DELETE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "subsystem": "interfaces"
+    },
+    {
+      "key": "vrf/7001",
+      "op": "APPLY_OPERATION_DELETE",
+      "code": "OBJECT_RESULT_CODE_OK",
+      "subsystem": "vrfs"
+    }
+  ],
+  "summary": {
+    "deleted": 10
+  },
+  "appliedAt": "2026-09-23T21:23:08.246804223Z"
+}
+
+$ kill -TERM 1015531
+
+$ tail -1 agent-4.log
+{"time":"2026-09-24T00:53:08.281008727+03:30","level":"INFO","msg":"vrx-agent stopped","owner":"w7"}
+
+$ vppctl show interface address
+lisp_gpe0 (dn):
+lisp_gpe11100 (dn):
+local0 (dn):
+
+$ vppctl show ip table
+[0] table_id:0 ipv4-VRF:0
+[1] table_id:11013 w11-t11013
+
+
+=== fix 2: a VRF repaired by Update (one family lost) re-asserts both families' API locks ===
+(loss restart again: kill -9, delete_owned.py w7, restart)
+{"time":"2026-09-24T00:54:36.376194406+03:30","level":"INFO","msg":"reconcile done","owner":"w7","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing"],"status":"APPLY_STATUS_APPLIED","summary":"created:7 updated:2 unchanged:1","reapplied":0,"duration":40353715,"err":""}
+{"time":"2026-09-24T00:54:45.740170439+03:30","level":"INFO","msg":"reconcile done","owner":"w7","txn_id":"w7-cleanup2","mode":"apply","domains":["interfaces","vrfs","routing"],"status":"APPLY_STATUS_APPLIED","summary":"deleted:10","reapplied":0,"duration":13881346,"err":""}
+$ vppctl show ip fib table 7001 | head -1   /  vppctl show ip6 fib table 7001 | head -1   (taken before cleanup)
+w7:w7-red, fib_index:2, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[interface:2, API:1, recursive-resolution:1, ]
+w7:w7-red, fib_index:2, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[interface:2, API:1, ]

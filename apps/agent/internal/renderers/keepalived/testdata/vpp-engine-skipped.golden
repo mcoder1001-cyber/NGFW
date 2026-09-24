@@ -1,0 +1,22 @@
+# Rendered by vrx-agent (keepalived renderer). Do not edit: every commit overwrites this file.
+global_defs {
+    router_id vrx
+    enable_script_security
+    script_user root
+    vrrp_version 3
+}
+
+vrrp_instance one {
+    state BACKUP
+    interface w0-a
+    virtual_router_id 83
+    priority 100
+    advert_int 1
+    virtual_ipaddress {
+        10.0.240.1/32 dev w0-a
+    }
+    notify_master "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE one MASTER"
+    notify_backup "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE one BACKUP"
+    notify_fault "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE one FAULT"
+    notify_stop "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE one STOP"
+}

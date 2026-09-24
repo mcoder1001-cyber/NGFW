@@ -1,0 +1,9 @@
+{
+  "dataplane": {
+    "plugins": {
+      "switches": {
+        "dpdk_plugin.so": false
+      }
+    }
+  }
+}

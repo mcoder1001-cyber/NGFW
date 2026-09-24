@@ -1,0 +1,19 @@
+[Unit]
+Description=NGFW manager agent supervisor (keeps the Claude manager alive across usage limits)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/ngfw
+Environment=HOME=/root
+Environment=PATH=/root/go/bin:/usr/local/bin:/usr/bin:/bin
+Environment=BACKOFF_MIN=15
+Environment=MAX_CYCLE_MIN=240
+ExecStart=/root/ngfw/tools/manager-supervisor.sh
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

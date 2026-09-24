@@ -1,0 +1,4 @@
+# vrx.conf: rendered by vrx-agent (strongswan renderer); every change is overwritten.
+# Secrets are in vrx-secrets.conf (mode 0600).
+connections {
+}

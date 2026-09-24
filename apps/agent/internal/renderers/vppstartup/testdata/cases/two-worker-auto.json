@@ -1,0 +1,7 @@
+{
+  "dataplane": {
+    "workers": 2,
+    "mainCore": 4,
+    "rxQueues": 2
+  }
+}

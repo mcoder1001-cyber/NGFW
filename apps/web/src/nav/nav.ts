@@ -1,0 +1,102 @@
+import type { RootKey } from '@ngfw/schema';
+import { DEV_ROUTES } from '../build-flags';
+import type { DomainInfo } from '../schema/registry';
+
+/** Left-navigation groups (docs/05-ui-spec.md screen inventory), in display order. */
+export const NAV_GROUPS = ['dashboard', 'interfaces', 'routing', 'firewall', 'vpn', 'services', 'system', 'tools', 'dev'] as const;
+export type NavGroupId = (typeof NAV_GROUPS)[number];
+
+/**
+ * Which group each schema domain (root key) belongs to. Navigation entries themselves come from the schema's
+ * top-level keys (vdom.md guardrail 4); this table only places them. A new root key without a mapping lands
+ * in `system` (and `nav.test.ts` reminds you to place it).
+ */
+export const DOMAIN_GROUP: Record<RootKey, NavGroupId> = {
+  system: 'system',
+  dataplane: 'system',
+  interfaces: 'interfaces',
+  vrfs: 'routing',
+  routing: 'routing',
+  nat: 'firewall',
+  objects: 'firewall',
+  acl: 'firewall',
+  vpn: 'vpn',
+  tunnels: 'vpn',
+  services: 'services',
+  ha: 'system',
+  management: 'system',
+};
+
+export interface NavItem {
+  id: string;
+  path: string;
+  /** i18n key (`nav:` namespace) for the label. */
+  labelKey: string;
+  /** Fallback label when the key is missing (schema title). */
+  fallbackLabel: string;
+  /** Schema domain backing this entry, when it is one. */
+  domain?: RootKey;
+  /** `false` → the route renders the "not yet available" page. Never fake data. */
+  available: boolean;
+}
+
+export interface NavGroup {
+  id: NavGroupId;
+  labelKey: string;
+  items: NavItem[];
+}
+
+export function domainPath(key: RootKey): string {
+  const group = DOMAIN_GROUP[key] ?? 'system';
+  return group === key ? `/${key}` : `/${group}/${key}`;
+}
+
+/**
+ * Developer demo entries. `DEV_ROUTES` is a build-time literal, so in a production build these are empty and the
+ * strings are not in the bundle (scripts/check-no-dev-routes.mjs).
+ */
+const DEV_NAV_ITEMS: NavItem[] = DEV_ROUTES
+  ? [
+      { id: 'dev-schema-form', path: '/dev/schema-form', labelKey: 'dev:nav.schemaForm', fallbackLabel: 'SchemaForm demo', available: true },
+      { id: 'dev-data-grid', path: '/dev/data-grid', labelKey: 'dev:nav.dataGrid', fallbackLabel: 'DataGrid demo', available: true },
+      { id: 'dev-stream', path: '/dev/stream', labelKey: 'dev:nav.stream', fallbackLabel: 'Stream demo', available: true },
+    ]
+  : [];
+const DEV_GROUP_LABEL = DEV_ROUTES ? 'dev:nav.group' : '';
+
+/**
+ * Build the navigation from the schema domains plus the fixed non-schema screens. The "Developer" group exists only when
+ * `devRoutes` is on (defaults to the build flag; a production build has no entries to add either way).
+ */
+export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTES }: { devRoutes?: boolean } = {}): NavGroup[] {
+  const groups = new Map<NavGroupId, NavItem[]>(NAV_GROUPS.map((g) => [g, []]));
+  groups.get('dashboard')!.push({ id: 'dashboard', path: '/', labelKey: 'nav:dashboard', fallbackLabel: 'Dashboard', available: true });
+  for (const d of domains) {
+    const group = DOMAIN_GROUP[d.key] ?? 'system';
+    groups.get(group)!.push({
+      id: d.key,
+      path: domainPath(d.key),
+      labelKey: `nav:domains.${d.key}`,
+      fallbackLabel: d.title,
+      domain: d.key,
+      available: false,
+    });
+  }
+  groups.get('system')!.push(
+    { id: 'users', path: '/system/users', labelKey: 'nav:users', fallbackLabel: 'Users', available: true },
+    { id: 'revisions', path: '/system/revisions', labelKey: 'nav:revisions', fallbackLabel: 'Revisions', available: true },
+  );
+  groups.get('tools')!.push({ id: 'tools', path: '/tools', labelKey: 'nav:tools', fallbackLabel: 'Tools', available: false });
+  if (devRoutes) groups.get('dev')!.push(...DEV_NAV_ITEMS);
+  return NAV_GROUPS.map((id) => ({ id, labelKey: id === 'dev' ? DEV_GROUP_LABEL : `nav:groups.${id}`, items: groups.get(id)! })).filter((g) => g.items.length > 0);
+}
+
+/** The single nav path to mark current for `pathname`: the longest item path equal to it or a parent of it. */
+export function currentNavPath(nav: readonly NavGroup[], pathname: string): string | undefined {
+  let best: string | undefined;
+  for (const item of nav.flatMap((g) => g.items)) {
+    const hit = item.path === '/' ? pathname === '/' : pathname === item.path || pathname.startsWith(`${item.path}/`);
+    if (hit && (best === undefined || item.path.length > best.length)) best = item.path;
+  }
+  return best;
+}

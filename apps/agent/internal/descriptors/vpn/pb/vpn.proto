@@ -1,0 +1,258 @@
+// Desired-state types for the DF-5 descriptors (ipsec, ikev2, wireguard).
+//
+// These are the values the descriptors under apps/agent/internal/descriptors/{ipsec,ikev2,wireguard}
+// take as desired state and return from Retrieve. They are agent-internal for now: packages/proto
+// (the vrx-api ↔ vrx-agent contract, P03/P03b) carries no VPN domain messages yet. The messages are
+// written so they can be moved into packages/proto/vrx/v1 verbatim as an additive contract change
+// (D-034 style: strings for enums, JSON-compatible, no VPP handles).
+//
+// Secrets never appear here. Every key/PSK field is a *reference* the descriptor resolves through
+// vpn.Resolver at apply time:
+//   "sha256:<hex>"          symmetric material (SA keys, IKEv2 PSK, WireGuard preshared key) —
+//                           the hex SHA-256 of the material;
+//   "x25519:<base64 pub>"   a WireGuard private key, referenced by its public key (std base64).
+// Because the reference is derived from the material, Retrieve can rebuild it from what VPP exposes
+// (SA keys are returned by ipsec_sa_v5_dump, the PSK by ikev2_profile_dump, the preshared key by
+// wireguard_peers_v2_dump, the public key by wireguard_interface_dump) without ever putting the
+// material into a Value, a log line or a key. See docs/agent/descriptors/ipsec.md "Secrets".
+//
+// Regenerate with pb/gen.sh (protoc + protoc-gen-go, versions pinned in the generated header).
+syntax = "proto3";
+
+package vrx.agent.vpn.v1;
+
+option go_package = "ngfw/agent/internal/descriptors/vpn/pb;vpnpb";
+
+// ----------------------------------------------------------------------------------------- ipsec
+
+// IpsecSpd is a security policy database (ipsec_spd_add_del). Key: ipsec.spd/<spd_id>.
+message IpsecSpd {
+  uint32 spd_id = 1;
+}
+
+// IpsecSpdInterface binds an SPD to an interface (ipsec_interface_add_del_spd). One SPD per
+// interface. Key: ipsec.spd-interface/<interface>.
+message IpsecSpdInterface {
+  string interface = 1;  // VPP interface name (the interface/<name> dependency)
+  uint32 spd_id = 2;
+}
+
+// IpsecSpdEntry is one policy in an SPD (ipsec_spd_entry_add_del_v2). VPP identifies a policy by
+// all of its fields, so the key is the canonical form of every field and Update is always
+// ErrRecreate. Key: ipsec.spd-entry/<spd_id>/<direction>/<priority>/<action>/<sa_id>/<protocol>/
+// <local_start>-<local_stop>/<local_port_start>-<local_port_stop>/<remote_start>-<remote_stop>/
+// <remote_port_start>-<remote_port_stop>.
+message IpsecSpdEntry {
+  uint32 spd_id = 1;
+  int32 priority = 2;
+  string direction = 3;  // "inbound" | "outbound"
+  string action = 4;     // "bypass" | "discard" | "protect" | "resolve"
+  uint32 sa_id = 5;      // required for action "protect", 0 otherwise
+  uint32 protocol = 6;   // IP protocol number, 0 = any
+  string local_start = 7;
+  string local_stop = 8;
+  string remote_start = 9;
+  string remote_stop = 10;
+  uint32 local_port_start = 11;
+  uint32 local_port_stop = 12;
+  uint32 remote_port_start = 13;
+  uint32 remote_port_stop = 14;
+}
+
+// IpsecTunnel is the tunnel-mode part of an SA (tunnel_types.Tunnel). Absent = transport mode.
+message IpsecTunnel {
+  string src = 1;
+  string dst = 2;
+  uint32 table_id = 3;             // outer FIB table (vrf/<table_id> dependency when != 0)
+  uint32 dscp = 4;                 // 0..63
+  uint32 hop_limit = 5;            // 0 = VPP default
+  repeated string encap_decap_flags = 6;  // sorted: encap-copy-df, encap-set-df, encap-copy-dscp,
+                                          // encap-copy-ecn, decap-copy-ecn, encap-inner-hash,
+                                          // encap-copy-hop-limit, encap-copy-flow-label
+}
+
+// IpsecSa is a security association (ipsec_sad_entry_add_v2 / ipsec_sad_entry_del, dump
+// ipsec_sa_v5_dump). Key: ipsec.sa/<sad_id>. Immutable: every change (including a new key
+// reference) is ErrRecreate; ipsec_sad_entry_update is not used.
+message IpsecSa {
+  uint32 sad_id = 1;
+  uint32 spi = 2;
+  string protocol = 3;      // "esp" | "ah"
+  string crypto_alg = 4;    // VPP name without the IPSEC_API_CRYPTO_ALG_ prefix, lower-case, "-":
+                            // none, aes-cbc-128/192/256, aes-ctr-128/192/256, aes-gcm-128/192/256,
+                            // des-cbc, 3des-cbc, chacha20-poly1305, aes-null-gmac-128/192/256
+  string crypto_key = 5;    // secret reference "sha256:<hex>" ("" for crypto_alg none)
+  string integ_alg = 6;     // none, md5-96, sha1-96, sha-256-96, sha-256-128, sha-384-192, sha-512-256
+  string integ_key = 7;     // secret reference "sha256:<hex>" ("" for integ_alg none)
+  bool use_esn = 8;
+  bool use_anti_replay = 9;
+  bool udp_encap = 10;
+  bool inbound = 11;
+  bool async = 12;
+  IpsecTunnel tunnel = 13;  // nil = transport mode
+  uint32 salt = 14;         // AEAD/CTR salt, host order
+  uint32 udp_src_port = 15; // required (explicit) when udp_encap; 0 otherwise
+  uint32 udp_dst_port = 16;
+  uint32 anti_replay_window_size = 17;  // required when use_anti_replay: power of two >= 64; 0 otherwise
+}
+
+// IpsecTunnelProtect protects a tunnel interface with SAs (ipsec_tunnel_protect_update / _del).
+// Key: ipsec.tunnel-protect/<interface>[/<nh>] (nh only for p2mp tunnels).
+message IpsecTunnelProtect {
+  string interface = 1;      // ipip (DF-6) or ipsec.itf interface name
+  string nh = 2;             // next hop for p2mp tunnels, "" for p2p
+  uint32 sa_out = 3;         // ipsec.sa/<sa_out> dependency
+  repeated uint32 sa_in = 4; // in the order given (first = current); every one is a dependency
+}
+
+// IpsecItf is an ipsec interface (ipsec_itf_create / _delete). VPP names it ipsec<instance>.
+// Key: ipsec.itf/ipsec<instance>.
+message IpsecItf {
+  uint32 instance = 1;
+  string mode = 2;  // "p2p" | "p2mp"
+}
+
+// IpsecBackend selects the crypto backend for one protocol (ipsec_select_backend; dump
+// ipsec_backend_dump). Global singleton: key ipsec.backend/<protocol>; Delete is a no-op.
+message IpsecBackend {
+  string protocol = 1;  // "esp" | "ah"
+  string name = 2;      // backend name as VPP reports it, e.g. "crypto engine backend"
+}
+
+// IpsecAsyncMode toggles asynchronous crypto (ipsec_set_async_mode). Global singleton without a
+// getter: key ipsec.async-mode/global; write-only (D-063, Retrieve returns ErrRetrieveUnsupported).
+message IpsecAsyncMode {
+  bool enabled = 1;
+}
+
+// ----------------------------------------------------------------------------------------- ikev2
+
+message Ikev2Auth {
+  string method = 1;     // "psk" | "rsa-sig"
+  string psk = 2;        // secret reference "sha256:<hex>" (method psk)
+  string cert_file = 3;  // path of the certificate on the VPP host (method rsa-sig)
+}
+
+message Ikev2Id {
+  string type = 1;   // "ip4" | "ip6" | "fqdn" | "rfc822" | "key-id"
+  string value = 2;  // address text for ip4/ip6, the string otherwise
+}
+
+message Ikev2Ts {
+  uint32 protocol = 1;    // 0 = any
+  uint32 start_port = 2;
+  uint32 end_port = 3;
+  string start_addr = 4;
+  string end_addr = 5;
+}
+
+// Ikev2Responder is the responder address (ikev2_set_responder). A responder given by hostname is
+// the separate write-only Ikev2ResponderHostname: VPP does not dump the hostname (D-063).
+message Ikev2Responder {
+  string interface = 1;  // interface the responder address is on (interface/<name>, Optional)
+  string address = 2;    // responder IP
+  reserved 3;            // was hostname
+}
+
+message Ikev2IkeTransforms {
+  string crypto_alg = 1;       // IANA IKEv2 names as VPP spells them: aes-cbc, aes-ctr, aes-gcm-16, chacha20-poly1305, 3des, null, ...
+  uint32 crypto_key_size = 2;  // bits
+  string integ_alg = 3;        // none, md5-96, sha1-96, hmac-sha2-256-128, hmac-sha2-384-192, hmac-sha2-512-256, ...
+  string prf_alg = 4;          // hmac-md5, hmac-sha1, hmac-sha2-256, hmac-sha2-384, hmac-sha2-512, aes128-xcbc, aes128-cmac
+  string dh_group = 5;         // modp-1024, modp-2048, ..., ecp-256, ecp-384, ecp-521, ...
+}
+
+message Ikev2EspTransforms {
+  string crypto_alg = 1;
+  uint32 crypto_key_size = 2;
+  string integ_alg = 3;
+}
+
+message Ikev2Lifetime {
+  uint64 seconds = 1;
+  uint32 jitter = 2;
+  uint32 handover = 3;
+  uint64 max_data = 4;
+}
+
+// Ikev2Profile is the composite IKEv2 profile (ikev2_profile_add_del + the ikev2_profile_set_* /
+// ikev2_set_* setters; dump ikev2_profile_dump). The VPP profile name is "<owner>:<name>" so
+// ownership survives restarts. Key: ikev2.profile/<name>.
+message Ikev2Profile {
+  string name = 1;
+  Ikev2Auth auth = 2;
+  Ikev2Id local_id = 3;
+  Ikev2Id remote_id = 4;
+  Ikev2Ts local_ts = 5;
+  Ikev2Ts remote_ts = 6;
+  Ikev2Responder responder = 7;
+  Ikev2IkeTransforms ike = 8;
+  Ikev2EspTransforms esp = 9;
+  Ikev2Lifetime lifetime = 10;
+  bool udp_encap = 11;              // can only be switched on in place; off = ErrRecreate
+  uint32 ipsec_over_udp_port = 12;  // 0 = not set
+  string tunnel_interface = 13;     // interface/<name> dependency (Optional); "" = none
+  bool natt_disabled = 14;          // can only be switched on in place; off = ErrRecreate
+}
+
+// Ikev2ResponderHostname points a profile's responder at a hostname (ikev2_set_responder_hostname).
+// VPP does not dump the hostname, so this is write-only (D-063): Retrieve returns
+// ErrRetrieveUnsupported. Key: ikev2.responder-hostname/<profile>.
+message Ikev2ResponderHostname {
+  string profile = 1;    // desired profile name (ikev2.profile/<profile> dependency)
+  string interface = 2;  // interface to resolve / send from (interface/<name>, Optional); "" = none
+  string hostname = 3;
+}
+
+// Ikev2LocalKey is the responder's private key file (ikev2_set_local_key). Global singleton without
+// a getter: key ikev2.local-key/global; write-only (D-063, Retrieve returns ErrRetrieveUnsupported).
+message Ikev2LocalKey {
+  string key_file = 1;  // path on the VPP host; the file itself is the secret, never read by the agent
+}
+
+// Ikev2SleepInterval is the IKEv2 process sleep interval (ikev2_plugin_set_sleep_interval /
+// ikev2_get_sleep_interval). Global singleton: key ikev2.sleep-interval/global; Delete is a no-op.
+message Ikev2SleepInterval {
+  double seconds = 1;
+}
+
+// Ikev2Liveness is the plugin-wide dead-peer-detection setting (ikev2_profile_set_liveness: despite
+// the name the message carries no profile, VPP stores it in ikev2_main). Global singleton without a
+// getter: key ikev2.liveness/global; write-only (D-063, Retrieve returns ErrRetrieveUnsupported);
+// Delete leaves VPP as it is.
+message Ikev2Liveness {
+  uint32 period = 1;       // seconds, > 0
+  uint32 max_retries = 2;  // > 0
+}
+
+// ------------------------------------------------------------------------------------- wireguard
+
+// WireguardInterface is a WireGuard interface (wireguard_interface_create / _delete; dump
+// wireguard_interface_dump with show_private_key=false). VPP names it wg<instance>.
+// Key: wireguard.interface/wg<instance>.
+message WireguardInterface {
+  uint32 instance = 1;
+  string private_key = 2;  // secret reference "x25519:<base64 public key>"; the resolver returns the 32-byte private key
+  uint32 port = 3;         // UDP listen port
+  string src_ip = 4;
+}
+
+// WireguardPeer is a peer of a WireGuard interface (wireguard_peer_add_v2 / wireguard_peer_remove;
+// dump wireguard_peers_v2_dump). Key: wireguard.peer/<interface>/<public_key>.
+message WireguardPeer {
+  string interface = 1;              // wireguard.interface/<interface> dependency
+  string public_key = 2;             // std base64 of the peer's 32-byte public key
+  string endpoint = 3;               // peer address
+  uint32 port = 4;                   // peer UDP port
+  repeated string allowed_ips = 5;   // canonical prefixes, sorted
+  uint32 persistent_keepalive = 6;   // seconds, 0 = off
+  uint32 table_id = 7;               // vrf/<table_id> dependency when != 0
+  string preshared_key = 8;          // secret reference "sha256:<hex>" or "" for none
+}
+
+// WireguardAsyncMode toggles asynchronous WireGuard crypto (wg_set_async_mode). Global singleton
+// without a getter: key wireguard.async-mode/global; write-only (D-063, Retrieve returns
+// ErrRetrieveUnsupported).
+message WireguardAsyncMode {
+  bool enabled = 1;
+}

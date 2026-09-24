@@ -1,0 +1,16 @@
+# Rendered by vrx-agent (rsyslog renderer). Do not edit: every commit overwrites this file.
+global(workDirectory="/run/vrx-test/w0/rsyslog/work")
+module(load="imuxsock" SysSock.Use="off")
+input(type="imuxsock" Socket="/run/vrx-test/w0/rsyslog/log.sock" CreatePath="off")
+module(load="imtcp")
+input(type="imtcp" address="127.0.0.1" port="3014")
+module(load="impstats" interval="1" format="json" log.file="/run/vrx-test/w0/rsyslog/impstats.json" log.syslog="off" resetCounters="off")
+template(name="vrx_rfc5424" type="string" string="<%PRI%>1 %TIMESTAMP:::date-rfc3339% %HOSTNAME% %APP-NAME% %PROCID% %MSGID% %STRUCTURED-DATA% %msg%\n")
+
+ruleset(name="vrx_export_0_67dbac0a") {
+    action(type="omfwd" name="vrx_export_0_67dbac0a" target="127.0.0.1" port="3015" protocol="udp"
+           template="vrx_rfc5424" queue.type="LinkedList" queue.size="10000" action.resumeRetryCount="-1")
+}
+if prifilt("*.info") then {
+    call vrx_export_0_67dbac0a
+}

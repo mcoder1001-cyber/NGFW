@@ -1,0 +1,14 @@
+frr version 10.7.1
+frr defaults traditional
+log syslog informational
+service integrated-vtysh-config
+!
+interface w12f0
+ description "; rm -rf /
+exit
+!
+interface w12f1
+ description a ! b # c; exit; end
+exit
+!
+end

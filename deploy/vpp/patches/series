@@ -1,0 +1,8 @@
+# deploy/vpp/patches/series — quilt-style patch series applied in order on top of VPP_TAG (see ../VERSION).
+# One patch per line, relative to this directory, applied with `patch -p1` (quilt default; append " -pN" to override).
+# Blank lines and '#' comments are ignored. Every patch file needs a header: Subject, Track (V-item in
+# docs/vpp-code-track.md or "build"), Status (demo|product|upstreamed), Upstream (gerrit change or "not submitted").
+#
+# DEMONSTRATION ONLY (F-vpp-debs): proves the mechanism; never installed on vrx-a. The product owner funds real
+# V7…V18 fixes (docs/vpp-code-track.md) — each becomes one more line here.
+0001-DEMO-ipfix-export-classify-dump-reply-msg-id-base-V16.patch

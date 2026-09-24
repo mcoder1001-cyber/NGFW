@@ -1,0 +1,4 @@
+# Rendered by vrx-agent (snmpd renderer). Do not edit: every commit overwrites this file.
+# Holds SNMP communities and USM passphrases: mode 0600.
+# services.snmp is disabled: the agent listens on a private unix socket only and grants no access.
+agentaddress unix:/run/vrx-test/w0/snmpd/agentx.sock.disabled

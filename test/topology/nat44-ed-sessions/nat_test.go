@@ -543,7 +543,7 @@ func (f *fixture) restart(t *testing.T) {
 	logFrom := fileSize(st.agentLog)
 	t0 := time.Now()
 	st.startAgent(t)
-	f.c = dialAgent(t, s.socket)
+	// f.c (dialled by the parent test) reconnects to the restarted agent on its own
 	var got *vrxv1.NatConfig
 	ok := waitFor(30*time.Second, func() bool {
 		n, err := retrieveNat(t, f.c)

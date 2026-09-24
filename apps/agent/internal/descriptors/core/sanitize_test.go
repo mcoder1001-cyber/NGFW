@@ -32,7 +32,7 @@ func TestLoopbackSanitizesReusedIndex(t *testing.T) {
 		t.Fatalf("sanitize (%d) must precede the tag (%d)", a, b)
 	}
 
-	v.Client.Fail("classify_set_interface_ip_table", errRefused) // VPP refuses the reset: the interface must not be reported created
+	v.Fail("classify_set_interface_ip_table", errRefused) // VPP refuses the reset: the interface must not be reported created
 	_, err = d.Create(ctx, &core.Loopback{Name: "loop202", Instance: 202})
 	if !errors.Is(err, errRefused) {
 		t.Fatalf("err = %v, want the sanitize error", err)

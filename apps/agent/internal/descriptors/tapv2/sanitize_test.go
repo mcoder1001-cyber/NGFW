@@ -24,7 +24,7 @@ func TestTapSanitizesReusedIndex(t *testing.T) {
 	if dirty := m.Dirty(meta.(iface.Meta).SwIfIndex); dirty != "" {
 		t.Fatalf("new tap still has inherited %s", dirty)
 	}
-	f.Client.Fail("classify_set_interface_ip_table", errRefused) // VPP refuses the reset: the interface must not be reported created
+	f.Fail("classify_set_interface_ip_table", errRefused) // VPP refuses the reset: the interface must not be reported created
 	_, err = d.Create(ctx, &tapv2.Tap{Name: "w2-tap1", Id: 201, HostIfName: "w2-tap1", RxRingSize: 256, TxRingSize: 256})
 	if !errors.Is(err, errRefused) {
 		t.Fatalf("err = %v", err)

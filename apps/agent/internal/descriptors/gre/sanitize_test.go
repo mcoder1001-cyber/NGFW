@@ -29,7 +29,7 @@ func TestTunnelSanitizesReusedIndex(t *testing.T) {
 	if a, b := sanitizetest.Order(f.Client, "classify_table_ids", "sw_interface_tag_add_del"); a < 0 || a > b {
 		t.Fatalf("sanitize (%d) must precede the tag (%d)", a, b)
 	}
-	f.Client.Fail("classify_set_interface_ip_table", errRefused) // VPP refuses the reset: the interface must not be reported created
+	f.Fail("classify_set_interface_ip_table", errRefused) // VPP refuses the reset: the interface must not be reported created
 	if _, err := d.Create(ctx, &gre.Tunnel{Instance: 1101, Src: "10.11.1.1", Dst: "10.11.1.3", Type: gre.TunnelType_L3}); !errors.Is(err, errRefused) {
 		t.Fatalf("err = %v", err)
 	}

@@ -40,25 +40,25 @@ func run(args []string, stdout, stderr io.Writer) int {
 	c := vpp.Dial(*socket, vpp.ConnOptions{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	defer c.Close()
 	if err := c.WaitConnected(ctx); err != nil {
-		fmt.Fprintf(stderr, "vrx-vpp-preflight: VPP API %s not reachable: %v\n", *socket, err)
+		_, _ = fmt.Fprintf(stderr, "vrx-vpp-preflight: VPP API %s not reachable: %v\n", *socket, err)
 		return 2
 	}
 	findings, err := ifsanitize.Preflight(ctx, c)
 	if err != nil {
-		fmt.Fprintf(stderr, "vrx-vpp-preflight: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "vrx-vpp-preflight: %v\n", err)
 		return 2
 	}
 	fatal := 0
 	for _, f := range findings {
-		fmt.Fprintln(stdout, f.String())
+		_, _ = fmt.Fprintln(stdout, f.String())
 		if f.Fatal {
 			fatal++
 		}
 	}
 	if fatal > 0 {
-		fmt.Fprintf(stdout, "V19 pre-flight FAILED: %d classify binding(s) point at deleted classify tables — the first packet through them crashes VPP (vnet_classify_find_entry). Remove the binding or the interface named above before running integration tests; do not send traffic through it.\n", fatal)
+		_, _ = fmt.Fprintf(stdout, "V19 pre-flight FAILED: %d classify binding(s) point at deleted classify tables — the first packet through them crashes VPP (vnet_classify_find_entry). Remove the binding or the interface named above before running integration tests; do not send traffic through it.\n", fatal)
 		return 1
 	}
-	fmt.Fprintf(stdout, "V19 pre-flight ok: no classify binding or classify DPO points at a missing table (%d warning(s))\n", len(findings))
+	_, _ = fmt.Fprintf(stdout, "V19 pre-flight ok: no classify binding or classify DPO points at a missing table (%d warning(s))\n", len(findings))
 	return 0
 }

@@ -106,3 +106,18 @@ binary API behind the agent's back) → plan = exactly the creates of what is go
 dependency order → plan empty → delete all → Retrieve empty. `TestAliasOnHost` configures a pre-existing
 untagged tap (admin-up, MTU, rx-mode, VLAN sub-interface) through `interface/tap271`. Output in
 `docs/status/tasks/DF-1.md`.
+
+## New interfaces are sanitized before they are reported created (TD-3, D-095 a)
+
+VPP reuses a deleted interface's sw_if_index and keeps per-index state across the delete (V19, V21, V23): the ip
+classify table, l2/in/out ACL, policer/flow classify tables, vxlan bypass, ADL and the IPsec SPD binding. Every
+interface creator — `interface.loopback` (core), `tapv2.tap`, `af-packet.host-interface`, `memif.memif`, `bond.bond`,
+`interface.subinterface` (via `iface.SanitizeAndTag`), all DF-6 interface types (`df6.IfDescriptor`: gre, ipip, 6rd,
+vxlan, vxlan-gpe, gtpu, l2tp, pppoe) and `mpls.tunnel` — calls `internal/vpp/ifsanitize.Sanitize` on the new index
+before tagging it and before Create returns; if VPP refuses the clean-up the interface is removed and Create fails.
+Only binapi messages are used; the ip classify, l2 classify, ADL and vxlan bypass settings are reset blindly (no
+readback), input ACL is read with `classify_table_by_interface`, output ACL / policer / flow classify are probed with an
+unbind per live classify table (NO_SUCH_TABLE = not bound), the SPD binding is read with `ipsec_spd_interface_dump`.
+A binding to an already freed table cannot be removed by any API call; it is dormant (VPP clears every feature arc on
+interface delete), logged at warn and counted as `unclearable`. Every run is logged at info and counted in
+`vrx_agent_iface_sanitize_{total,errors_total,inherited_total,cleared_total{state},unclearable_total{state}}`.

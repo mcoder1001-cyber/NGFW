@@ -28,7 +28,7 @@ func TestHostInterfaceSanitizesReusedIndex(t *testing.T) {
 	if a, b := sanitizetest.Order(f.Client, "classify_set_interface_ip_table", "sw_interface_tag_add_del"); a < 0 || a > b {
 		t.Fatalf("ip classify reset (%d) must precede the tag (%d)", a, b)
 	}
-	f.Client.Fail("classify_set_interface_ip_table", errRefused) // VPP refuses the reset: the interface must not be reported created
+	f.Fail("classify_set_interface_ip_table", errRefused) // VPP refuses the reset: the interface must not be reported created
 	if _, err := d.Create(ctx, &afpacket.HostInterface{Name: "w2-w0", HostIfName: "w2-w0"}); !errors.Is(err, errRefused) {
 		t.Fatalf("err = %v", err)
 	}

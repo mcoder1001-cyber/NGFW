@@ -76,7 +76,7 @@ const (
 	StatePolicerClassify = "policer-classify" // policer_classify_set_interface
 	StateFlowClassify    = "flow-classify"    // flow_classify_set_interface
 	StateADL             = "adl"              // adl_interface_enable_disable
-	StateVxlanBypass     = "vxlan-bypass"     // sw_interface_set_vxlan_bypass
+	StateVxlanBypass     = "vxlan-bypass"     //nolint:gosec // G101 false positive: a state label (sw_interface_set_vxlan_bypass)
 	StateIPsecSPD        = "ipsec-spd"        // ipsec_interface_add_del_spd
 )
 

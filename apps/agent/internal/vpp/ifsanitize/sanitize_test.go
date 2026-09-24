@@ -77,9 +77,9 @@ func TestInheritedStateIsCleared(t *testing.T) {
 		t.Fatalf("cleared %v, want %v", rep.Cleared, wantCleared)
 	}
 	got := m.If(7)
-	clear := sanitizetest.Clear()
-	if got.IPTable != clear.IPTable || got.L2In != clear.L2In || got.L2Out != clear.L2Out || got.InACL != clear.InACL ||
-		got.OutACL != clear.OutACL || got.Policer != clear.Policer || got.Flow != clear.Flow || got.Vxlan != clear.Vxlan || got.ADL || got.SPD != none {
+	want := sanitizetest.Clear()
+	if got.IPTable != want.IPTable || got.L2In != want.L2In || got.L2Out != want.L2Out || got.InACL != want.InACL ||
+		got.OutACL != want.OutACL || got.Policer != want.Policer || got.Flow != want.Flow || got.Vxlan != want.Vxlan || got.ADL || got.SPD != none {
 		t.Fatalf("state left after sanitize: %+v", got)
 	}
 	// an unrelated interface is never touched

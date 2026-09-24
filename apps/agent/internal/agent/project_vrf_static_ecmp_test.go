@@ -237,6 +237,15 @@ func TestVrfStaticEcmpRPCs(t *testing.T) {
 	if len(v.Svs().Pings) != 1 {
 		t.Fatalf("pings sent %v", v.Svs().Pings)
 	}
+	// review M1: a VPP with worker threads → FAILED_PRECONDITION (the API answers 409), nothing sent to the ping plugin
+	v.Svs().Workers = 2
+	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Ping{Ping: &vrxv1.PingAction{Target: "10.2.2.2"}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.FailedPrecondition || !strings.Contains(err.Error(), "2 worker thread(s)") {
+		t.Fatalf("ping with workers: %v", err)
+	}
+	if len(v.Svs().Pings) != 1 {
+		t.Fatalf("ping with workers reached VPP: %v", v.Svs().Pings)
+	}
+	v.Svs().Workers = 0
 	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Ping{Ping: &vrxv1.PingAction{Target: "10.2.2.2", Vrf: "red"}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.InvalidArgument || !strings.Contains(err.Error(), "VRF") {
 		t.Fatalf("ping in red: %v", err)
 	}

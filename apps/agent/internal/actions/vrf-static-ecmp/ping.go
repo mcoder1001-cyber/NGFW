@@ -12,6 +12,7 @@ import (
 
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/ping"
+	"ngfw/agent/binapi/vlib"
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/vpp"
 )
@@ -31,13 +32,14 @@ const (
 // VItem names the vpp-code-track item for what the VPP ping API cannot do.
 const VItem = "docs/vpp-code-track.md V-new (F-vrf-static-ecmp)"
 
-// Errors (the RPC maps ErrInvalid to INVALID_ARGUMENT, ErrBusy to UNAVAILABLE, ErrUnimplemented to UNIMPLEMENTED). An
-// ErrInvalid message names the PingAction field first ("invalid action argument: vrf: …"): the API turns it into a
-// problem+json pointer.
+// Errors (the RPC maps ErrInvalid to INVALID_ARGUMENT, ErrBusy to UNAVAILABLE, ErrUnimplemented to UNIMPLEMENTED,
+// ErrWorkers to FAILED_PRECONDITION). An ErrInvalid message names the PingAction field first ("invalid action argument:
+// vrf: …"): the API turns it into a problem+json pointer.
 var (
 	ErrInvalid       = errors.New("invalid action argument")
 	ErrBusy          = errors.New("another ping is running")
 	ErrUnimplemented = errors.New("not implemented by VPP")
+	ErrWorkers       = errors.New("ping refused on a VPP with worker threads")
 )
 
 // pingMu serialises pings of this agent: ping_finished_event carries no request id, so two pings on one API connection
@@ -96,6 +98,9 @@ func Ping(ctx context.Context, c vpp.Client, p PingPlan, send func(*vrxv1.Action
 		return ErrBusy
 	}
 	defer pingMu.Unlock()
+	if err := refuseWithWorkers(ctx, c); err != nil {
+		return err
+	}
 	wctx, cancel := context.WithTimeout(ctx, time.Duration(p.Count)*p.Interval+eventGracePeriod)
 	defer cancel()
 	w, err := c.WatchEvent(wctx, &ping.PingFinishedEvent{})
@@ -143,6 +148,21 @@ func Ping(ctx context.Context, c vpp.Client, p PingPlan, send func(*vrxv1.Action
 			"loss_pct":    strconv.FormatFloat(loss, 'f', 0, 64),
 		},
 	}}})
+}
+
+// refuseWithWorkers answers ErrWorkers when VPP runs more than its main thread (show_threads). VPP's ping API handler
+// (ping_api.c) is not registered mp-safe, so the binary-API dispatcher holds the worker barrier — every worker stopped,
+// no forwarding — while the handler suspends for count × interval; echo replies arriving on worker-polled interfaces
+// could not be counted either. The CLI ping is mp-safe; the API one is not (V-new (b)).
+func refuseWithWorkers(ctx context.Context, c vpp.Client) error {
+	rep, err := vlib.NewServiceClient(c).ShowThreads(ctx, &vlib.ShowThreads{})
+	if err != nil {
+		return fmt.Errorf("show_threads: %w", err)
+	}
+	if n := len(rep.ThreadData); n > 1 {
+		return fmt.Errorf("%w: VPP runs %d worker thread(s) and its ping API is not mp-safe — it would hold the worker barrier (stop forwarding on every worker) for the whole ping (%s)", ErrWorkers, n-1, VItem)
+	}
+	return nil
 }
 
 // Traceroute is not available: VPP has no traceroute API and there is no Linux path into the data plane before

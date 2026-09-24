@@ -76,8 +76,10 @@ func actionStatus(err error) error {
 		return status.Error(codes.InvalidArgument, err.Error())
 	case errors.Is(err, vse.ErrUnimplemented):
 		return status.Error(codes.Unimplemented, err.Error())
-	case errors.Is(err, vse.ErrBusy), errors.Is(err, vpp.ErrDisconnected):
+	case errors.Is(err, vse.ErrBusy), errors.Is(err, vse.ErrFIBBusy), errors.Is(err, vpp.ErrDisconnected):
 		return status.Error(codes.Unavailable, err.Error())
+	case errors.Is(err, vse.ErrWorkers):
+		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, context.Canceled):
 		return status.Error(codes.Canceled, err.Error())
 	case errors.Is(err, context.DeadlineExceeded):

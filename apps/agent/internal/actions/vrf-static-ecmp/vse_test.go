@@ -7,8 +7,12 @@ import (
 	"net/netip"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"go.fd.io/govpp/api"
 
 	"ngfw/agent/binapi/fib_types"
 	"ngfw/agent/binapi/ip"
@@ -133,10 +137,15 @@ func TestListRoutesFiltersAndDetail(t *testing.T) {
 		{Table: 2100, Family: "ip4"},
 		{Table: 2100, Limit: 1001},
 		{Table: 2100, Offset: vse.MaxWindow},
+		{Table: 2100, Offset: vse.MaxWindow - 999, Limit: 1000},
 	} {
 		if _, err := vse.ListRoutes(ctx, v, "w2", bad); !errors.Is(err, vse.ErrBadRequest) {
 			t.Errorf("%+v: %v", bad, err)
 		}
+	}
+	// the deepest page the window allows is accepted
+	if deep, err := vse.ListRoutes(ctx, v, "w2", vse.Query{Table: 2100, Offset: vse.MaxWindow - 1000, Limit: 1000}); err != nil || len(deep.Routes) != 0 {
+		t.Fatalf("deepest page: %v %+v", err, deep)
 	}
 	// a table that does not exist is an empty FIB, not an error
 	if none, err := vse.ListRoutes(ctx, v, "w2", vse.Query{Table: 2999}); err != nil || none.Total != 0 {
@@ -205,5 +214,93 @@ func TestPingSummaryAndStats(t *testing.T) {
 	}
 	if out[1].GetDone().GetExitCode() != 1 {
 		t.Fatalf("no replies: %v", out[1])
+	}
+}
+
+// Review H1 (c): N concurrent ListRoutes calls → at most one ip_route_v2_dump in flight (VPP runs the dump under its
+// worker barrier; the agent serialises walks), and every caller still gets its page.
+func TestListRoutesOneWalkAtATime(t *testing.T) {
+	v := fibModel(t, 10)
+	var inflight, peak, walks atomic.Int32
+	v.On("ip_route_v2_dump", func(api.Message) ([]api.Message, error) {
+		n := inflight.Add(1)
+		for {
+			p := peak.Load()
+			if n <= p || peak.CompareAndSwap(p, n) {
+				break
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+		walks.Add(1)
+		inflight.Add(-1)
+		return nil, nil
+	})
+	const callers = 6
+	var wg sync.WaitGroup
+	errs := make(chan error, callers)
+	for i := 0; i < callers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := vse.ListRoutes(context.Background(), v, "w2", vse.Query{Table: 2100, Limit: 10})
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Errorf("caller: %v", err)
+		}
+	}
+	if peak.Load() != 1 || walks.Load() != 2*callers {
+		t.Fatalf("peak in-flight dumps %d (want 1), dumps %d (want %d)", peak.Load(), walks.Load(), 2*callers)
+	}
+}
+
+// A caller that cannot start its walk in time gets ErrFIBBusy (→ UNAVAILABLE); the walk in progress is unaffected.
+func TestListRoutesBusyWhileAWalkRuns(t *testing.T) {
+	v := fibModel(t, 10)
+	started, release := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	v.On("ip_route_v2_dump", func(api.Message) ([]api.Message, error) {
+		once.Do(func() { close(started) })
+		<-release
+		return nil, nil
+	})
+	first := make(chan error, 1)
+	go func() {
+		_, err := vse.ListRoutes(context.Background(), v, "w2", vse.Query{Table: 2100, Family: "ipv4"})
+		first <- err
+	}()
+	<-started
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	if _, err := vse.ListRoutes(ctx, v, "w2", vse.Query{Table: 2100}); !errors.Is(err, vse.ErrFIBBusy) {
+		t.Fatalf("second walk while the first runs: %v", err)
+	}
+	close(release)
+	if err := <-first; err != nil {
+		t.Fatalf("first walk: %v", err)
+	}
+	if _, err := vse.ListRoutes(context.Background(), v, "w2", vse.Query{Table: 2100}); err != nil {
+		t.Fatalf("after the walk: %v", err)
+	}
+}
+
+// Review M1: VPP's ping API is not mp-safe, so a VPP with worker threads refuses the ping before anything is sent.
+func TestPingRefusedWithWorkerThreads(t *testing.T) {
+	v := coretest.New().InstallVrfStaticEcmp()
+	v.Svs().Workers = 1
+	plan, err := vse.ValidatePing(&vrxv1.PingAction{Target: "10.2.2.2", Count: 2, IntervalMs: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = vse.Ping(context.Background(), v, plan, func(*vrxv1.ActionOutput) error { return nil })
+	if !errors.Is(err, vse.ErrWorkers) || !strings.Contains(err.Error(), "worker barrier") || !strings.Contains(err.Error(), vse.VItem) {
+		t.Fatalf("ping with a worker thread: %v", err)
+	}
+	if n := len(v.Svs().Pings); n != 0 {
+		t.Fatalf("%d ping request(s) reached VPP", n)
 	}
 }

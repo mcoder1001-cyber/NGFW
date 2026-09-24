@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/netip"
 	"strings"
+	"time"
 
 	"go.fd.io/govpp/core"
 
@@ -26,12 +27,42 @@ import (
 const (
 	DefaultLimit = 100
 	MaxLimit     = 1000
-	// MaxWindow bounds offset + limit: the lister keeps that many entries while it streams the table.
-	MaxWindow = 1_000_000
+	// MaxWindow bounds offset + limit: the lister keeps that many (slim) entries while it streams the table — about
+	// 110 B each with one path, so ≤ ~12 MB per walk. Deeper pages need a narrower filter (prefix, family, source) until
+	// a keyset cursor exists (docs/tech-debt.md, V-new (d)).
+	MaxWindow = 100_000
+	// WalkWait is how long a ListRoutes waits for the FIB walk in progress before it answers ErrFIBBusy.
+	WalkWait = 3 * time.Second
+	// walkTimeout bounds one walk (both families) once it has started; the walk is not cut short by the caller's
+	// cancellation (see ListRoutes).
+	walkTimeout = 2 * time.Minute
 )
 
-// ErrBadRequest is a request the lister refuses (the RPC maps it to INVALID_ARGUMENT).
-var ErrBadRequest = errors.New("fib: bad request")
+// Errors of the lister: ErrBadRequest → INVALID_ARGUMENT, ErrFIBBusy → UNAVAILABLE.
+var (
+	ErrBadRequest = errors.New("fib: bad request")
+	ErrFIBBusy    = errors.New("a FIB read is in progress (the agent runs one ip_route_v2_dump walk at a time); retry shortly")
+)
+
+// walkSem admits one FIB walk per agent process. VPP's ip_route_v2_dump handler is not mp-safe: the binary-API
+// dispatcher holds the worker barrier (every worker stopped; on a main-core-only VPP no input is polled either) while it
+// walks and sends the whole table (docs/vpp-code-track.md V-new (d)). Concurrent readers would only queue inside VPP and
+// stretch that stall, so the agent serialises them and turns a long queue into UNAVAILABLE.
+var walkSem = make(chan struct{}, 1)
+
+// acquireWalk takes walkSem, waiting at most WalkWait (or until ctx ends).
+func acquireWalk(ctx context.Context) error {
+	t := time.NewTimer(WalkWait)
+	defer t.Stop()
+	select {
+	case walkSem <- struct{}{}:
+		return nil
+	case <-t.C:
+		return ErrFIBBusy
+	case <-ctx.Done():
+		return fmt.Errorf("%w (%v)", ErrFIBBusy, ctx.Err())
+	}
+}
 
 // Query is one ListRoutes request with the VRF already resolved to its table.
 type Query struct {
@@ -49,10 +80,44 @@ type Page struct {
 	Total  uint32
 }
 
-// entry is one kept route before it is converted.
+// slimPath is what a page needs of one fib_types.FibPath (~48 B instead of the decoded 252 B).
+type slimPath struct {
+	nh        netip.Addr // invalid when the path has no (or an all-zero) next-hop address
+	swIfIndex uint32
+	tableID   uint32
+	typ       fib_types.FibPathType
+	flags     fib_types.FibPathFlags
+	weight    uint8
+	pref      uint8
+}
+
+// entry is one kept route before it is converted: the window holds these, never the decoded binapi route (review M2).
 type entry struct {
-	prefix netip.Prefix
-	route  ip.IPRouteV2
+	prefix     netip.Prefix
+	paths      []slimPath
+	statsIndex uint32
+	src        uint8
+}
+
+// slim copies what convert needs out of a decoded route.
+func slim(p netip.Prefix, r *ip.IPRouteV2) entry {
+	e := entry{prefix: p, statsIndex: r.StatsIndex, src: r.Src, paths: make([]slimPath, len(r.Paths))}
+	for i := range r.Paths {
+		fp := &r.Paths[i]
+		sp := slimPath{swIfIndex: fp.SwIfIndex, tableID: fp.TableID, typ: fp.Type, flags: fp.Flags, weight: fp.Weight, pref: fp.Preference}
+		var a netip.Addr
+		switch fp.Proto {
+		case fib_types.FIB_API_PATH_NH_PROTO_IP4:
+			a = netip.AddrFrom4(fp.Nh.Address.GetIP4())
+		case fib_types.FIB_API_PATH_NH_PROTO_IP6:
+			a = netip.AddrFrom16(fp.Nh.Address.GetIP6())
+		}
+		if a.IsValid() && !a.IsUnspecified() {
+			sp.nh = a
+		}
+		e.paths[i] = sp
+	}
+	return e
 }
 
 // less orders routes by family (IPv4 first), address, prefix length.
@@ -83,7 +148,10 @@ func (w *window) Pop() any {
 
 // ListRoutes reads the FIB of q.Table once per family as a stream (ip_route_v2_dump, the source filter pushed down to
 // VPP), keeps the entries that pass the filters and only the smallest offset+limit of them, and returns the page plus the
-// number of matches. Memory and the answer are bounded by the window, not by the table.
+// number of matches. Memory and the answer are bounded by the window (≤ MaxWindow slim entries), not by the table; VPP's
+// cost is not: every call is one full walk of the table under VPP's worker barrier (V-new (d)). Walks are serialised per
+// agent (walkSem): a caller that cannot start within WalkWait gets ErrFIBBusy. A started walk is read to its end even if
+// ctx is cancelled — VPP finishes the walk anyway, and releasing the slot early would let the next walk queue behind it.
 func ListRoutes(ctx context.Context, c vpp.Client, owner string, q Query) (*Page, error) {
 	if q.Limit == 0 {
 		q.Limit = DefaultLimit
@@ -92,7 +160,7 @@ func ListRoutes(ctx context.Context, c vpp.Client, owner string, q Query) (*Page
 		return nil, fmt.Errorf("%w: limit %d > %d", ErrBadRequest, q.Limit, MaxLimit)
 	}
 	if uint64(q.Offset)+uint64(q.Limit) > MaxWindow {
-		return nil, fmt.Errorf("%w: offset + limit %d > %d (narrow the filter)", ErrBadRequest, uint64(q.Offset)+uint64(q.Limit), MaxWindow)
+		return nil, fmt.Errorf("%w: offset + limit %d > %d: narrow the listing with prefix, family or source", ErrBadRequest, uint64(q.Offset)+uint64(q.Limit), MaxWindow)
 	}
 	fams := []bool{false, true}
 	switch q.Family {
@@ -135,27 +203,42 @@ func ListRoutes(ctx context.Context, c vpp.Client, owner string, q Query) (*Page
 	keep := int(q.Offset + q.Limit)
 	w := &window{}
 	var total uint32
-	for _, v6 := range fams {
-		err := DumpRoutes(ctx, c, &ip.IPRouteV2Dump{Src: src, Table: ip.IPTable{TableID: q.Table, IsIP6: v6}}, func(det *ip.IPRouteV2Details) {
-			p, err := netip.ParsePrefix(det.Route.Prefix.String())
+	if err := acquireWalk(ctx); err != nil {
+		return nil, err
+	}
+	err = func() error {
+		defer func() { <-walkSem }()
+		wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), walkTimeout)
+		defer cancel()
+		for _, v6 := range fams {
+			err := DumpRoutes(wctx, c, &ip.IPRouteV2Dump{Src: src, Table: ip.IPTable{TableID: q.Table, IsIP6: v6}}, func(det *ip.IPRouteV2Details) {
+				p, err := netip.ParsePrefix(det.Route.Prefix.String())
+				if err != nil {
+					return
+				}
+				p = p.Masked()
+				if within.IsValid() && (!within.Contains(p.Addr()) || p.Bits() < within.Bits()) {
+					return
+				}
+				total++
+				if w.Len() < keep {
+					heap.Push(w, slim(p, &det.Route))
+				} else if less(p, (*w)[0].prefix) {
+					(*w)[0] = slim(p, &det.Route)
+					heap.Fix(w, 0)
+				}
+			})
 			if err != nil {
-				return
+				return fmt.Errorf("ip_route_v2_dump %d: %w", q.Table, err)
 			}
-			p = p.Masked()
-			if within.IsValid() && (!within.Contains(p.Addr()) || p.Bits() < within.Bits()) {
-				return
-			}
-			total++
-			if w.Len() < keep {
-				heap.Push(w, entry{p, det.Route})
-			} else if less(p, (*w)[0].prefix) {
-				(*w)[0] = entry{p, det.Route}
-				heap.Fix(w, 0)
-			}
-		})
-		if err != nil {
-			return nil, fmt.Errorf("ip_route_v2_dump %d: %w", q.Table, err)
 		}
+		return nil
+	}()
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	// the window holds the smallest `keep` entries: sorted ascending, the page is after the offset
 	sorted := make([]entry, w.Len())
@@ -169,8 +252,8 @@ func ListRoutes(ctx context.Context, c vpp.Client, owner string, q Query) (*Page
 	sorted = sorted[q.Offset:]
 	var ifs *iface.Table
 	for _, e := range sorted {
-		for _, fp := range e.route.Paths {
-			if fp.SwIfIndex != ^uint32(0) && ifs == nil {
+		for _, sp := range e.paths {
+			if sp.swIfIndex != ^uint32(0) && ifs == nil {
 				if ifs, err = iface.Dump(ctx, c, owner); err != nil {
 					return nil, err
 				}
@@ -231,39 +314,32 @@ var pathTypes = map[fib_types.FibPathType]string{
 }
 
 func convert(e entry, names map[uint8]string, ifs *iface.Table) *vrxv1.ListRoutesEntry {
-	out := &vrxv1.ListRoutesEntry{Prefix: e.prefix.String(), Source: names[e.route.Src], StatsIndex: e.route.StatsIndex}
+	out := &vrxv1.ListRoutesEntry{Prefix: e.prefix.String(), Source: names[e.src], StatsIndex: e.statsIndex}
 	if out.Source == "" {
-		out.Source = fmt.Sprintf("source-%d", e.route.Src)
+		out.Source = fmt.Sprintf("source-%d", e.src)
 	}
-	for _, fp := range e.route.Paths {
-		p := &vrxv1.ListRoutesPath{Type: pathTypes[fp.Type], TableId: fp.TableID, Weight: uint32(fp.Weight), Preference: uint32(fp.Preference)}
+	for _, sp := range e.paths {
+		p := &vrxv1.ListRoutesPath{Type: pathTypes[sp.typ], TableId: sp.tableID, Weight: uint32(sp.weight), Preference: uint32(sp.pref)}
 		if p.Type == "" {
-			p.Type = fmt.Sprintf("type-%d", fp.Type)
+			p.Type = fmt.Sprintf("type-%d", sp.typ)
 		}
-		var a netip.Addr
-		switch fp.Proto {
-		case fib_types.FIB_API_PATH_NH_PROTO_IP4:
-			a = netip.AddrFrom4(fp.Nh.Address.GetIP4())
-		case fib_types.FIB_API_PATH_NH_PROTO_IP6:
-			a = netip.AddrFrom16(fp.Nh.Address.GetIP6())
+		if sp.nh.IsValid() {
+			p.NextHop = sp.nh.String()
 		}
-		if a.IsValid() && !a.IsUnspecified() {
-			p.NextHop = a.String()
-		}
-		if fp.SwIfIndex != ^uint32(0) && ifs != nil {
-			if n, ok := ifs.Logical(fp.SwIfIndex); ok {
+		if sp.swIfIndex != ^uint32(0) && ifs != nil {
+			if n, ok := ifs.Logical(sp.swIfIndex); ok {
 				p.Interface = n
 			} else {
-				p.Interface = ifs.VPPName(fp.SwIfIndex)
+				p.Interface = ifs.VPPName(sp.swIfIndex)
 			}
 		}
-		if fp.Flags&fib_types.FIB_API_PATH_FLAG_RESOLVE_VIA_HOST != 0 {
+		if sp.flags&fib_types.FIB_API_PATH_FLAG_RESOLVE_VIA_HOST != 0 {
 			p.Flags = append(p.Flags, "resolve-via-host")
 		}
-		if fp.Flags&fib_types.FIB_API_PATH_FLAG_RESOLVE_VIA_ATTACHED != 0 {
+		if sp.flags&fib_types.FIB_API_PATH_FLAG_RESOLVE_VIA_ATTACHED != 0 {
 			p.Flags = append(p.Flags, "resolve-via-attached")
 		}
-		if fp.Flags&fib_types.FIB_API_PATH_FLAG_POP_PW_CW != 0 {
+		if sp.flags&fib_types.FIB_API_PATH_FLAG_POP_PW_CW != 0 {
 			p.Flags = append(p.Flags, "pop-pw-cw")
 		}
 		out.Paths = append(out.Paths, p)

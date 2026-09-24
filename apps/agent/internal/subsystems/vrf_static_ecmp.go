@@ -29,8 +29,13 @@ func registerVrfStaticEcmp(r scheduler.Registry, w *Wiring) {
 
 var staticSelectorOnce sync.Once
 
+// The selector is installed when this package is linked (review L3), so every binary or test that projects or renders
+// routing.static — the agent, the FRR renderer harness, P12's golden tests — sees `viaFrr` without calling Register.
+// P12 and every other package must NOT call frr.RegisterStaticSelector: the one selector is ViaFrr, installed here.
+func init() { RegisterStaticSelector() }
+
 // RegisterStaticSelector installs ViaFrr as RF-1's D-072 selector, once per process: frr.RegisterStaticSelector panics on
-// a second call and Register runs many times in tests.
+// a second call and Register runs many times in tests. The package init already calls it; calling it again is a no-op.
 func RegisterStaticSelector() {
 	staticSelectorOnce.Do(func() { frr.RegisterStaticSelector(ViaFrr) })
 }

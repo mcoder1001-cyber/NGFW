@@ -45,3 +45,12 @@ VPP), the API e2e (fake agent) and web tests. The first real agent of this slot 
 `apps/cli` is P13's. The operations `ObjectModel_fqdn` and `ObjectModel_usage` are in the regenerated operation table;
 a `show objects fqdn` / `show objects usage <name>` pair is a small follow-up for the CLI owner. The user doc gives the
 REST calls and the configuration-mode commands (`set/merge/delete objects …`).
+
+## Q8 — `tools/ci.sh` contract guard fails at random (pipefail + `grep -q`) — manager-owned file
+`do_contract_guard` runs `git log --format=%s "$mb..$TIP" | grep -qiE '^contract(\(|:|!)'` under `set -euo pipefail`.
+`grep -q` exits at the first match; when `git log` still has output to write it dies of SIGPIPE, the pipeline returns
+141 and the guard reports "CONTRACT FILES CHANGED WITHOUT A CONTRACT COMMIT" although the branch has six contract commits.
+On this branch it failed 173 of 200 times (loop over the exact pipeline, `set -o pipefail`); whether a branch is hit depends
+on how early its first contract commit appears in the log. **Proposed fix (one line):** read everything, e.g.
+`if git log --format=%s "$mb..$TIP" | grep -iE '^contract(\(|:|!)' >/dev/null; then` (or capture the subjects in a
+variable first). Meanwhile I re-ran `tools/ci.sh --base main` until the guard was not hit (attempt count in the status file).

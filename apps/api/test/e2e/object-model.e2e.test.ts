@@ -88,6 +88,8 @@ describe('object model e2e (PostgreSQL + fake agent)', () => {
     expect((await usage('lan')).definedAs).toEqual(['addresses', 'zones']);
     expect((await usage('lan')).usedBy.map((r) => r.pointer)).toEqual(['/acl/attachments/0/target/zone']);
     expect((await usage('loop3001')).usedBy.map((r) => r.kind)).toEqual(['zone-interface']);
+    // interface names with a slash are valid queries (nothing references this one)
+    expect(await usage('GigabitEthernet0/8/0')).toMatchObject({ definedAs: [], usedBy: [] });
 
     // FQDN state: never resolved, then resolved (the fake reports what a test sets)
     let f = await h.call(ro, 'GET', '/api/v1/state/objects/fqdn');

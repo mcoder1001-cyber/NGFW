@@ -29,7 +29,8 @@ const FqdnOut = z.object({
   items: z.array(FqdnItemOut),
 });
 
-// A where-used query names anything a document can reference: an object, a tag, a zone or an interface.
+// A where-used query names anything a document can reference: an object, a tag, a zone or an interface (VPP names
+// such as GigabitEthernet0/8/0 contain `/`).
 const UsageQuery = z.object({
   name: z.string().min(1).max(80).regex(/^[A-Za-z0-9][A-Za-z0-9_./:-]*$/, 'expected an object or interface name'),
   source: z.enum(['running', 'candidate']).default('running'),

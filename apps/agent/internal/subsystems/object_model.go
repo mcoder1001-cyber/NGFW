@@ -68,7 +68,7 @@ func (w *Wiring) CloseObjectModel() {
 // objectModelConfig reads EnvFQDNRefresh and EnvDNSServers. A malformed value is an error, never
 // a silent default.
 func objectModelConfig(env Env) (objects.Config, error) {
-	cfg := objects.Config{StateDir: env.StateDir, Owner: env.Owner, Log: env.Log.With("component", "objects")}
+	cfg := objects.Config{StateDir: env.StateDir, Owner: env.Owner, Log: env.Log.With("family", "objects")}
 	if s := strings.TrimSpace(os.Getenv(EnvFQDNRefresh)); s != "" {
 		n, err := strconv.Atoi(s)
 		if err != nil || n <= 0 {

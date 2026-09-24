@@ -2,9 +2,10 @@
 # deploy/vpp/apply-startup.sh — the manager's tool to apply a generated VPP startup.conf
 # (F-startup-apply; generator: F-startup-gen, WBS D0.6). MANAGER ONLY. Refuses --apply unless
 # docs/lab/host-<vm>.md says `handover: done` (D-012) or the product owner approved the change:
-# --i-have-product-owner-approval PENDING-<slug> — docs/decisions/PENDING-<slug>.md on main of /root/ngfw must
-# still be OPEN (its `decision:` field empty or "pending"), and a D-row on main must have that PENDING id as the
-# subject of its decision text. Executed/closed PENDINGs are refused. Both are resolved, recorded and logged.
+# --i-have-product-owner-approval PENDING-<slug> — docs/decisions/PENDING-<slug>.md must exist on main of /root/ngfw
+# and a D-row on main must have that PENDING id as the SUBJECT of its decision text (a mention elsewhere does not count)
+# AND name the sha256 of this rendering (--expect-new-sha256): the approval covers exactly one change. An approval
+# already executed for that rendering (a committed work dir) is refused. Resolved, recorded in the gate and logged.
 #
 #   apply-startup.sh --doc <document.json> [options] [-- <vrx-startupgen flags>]
 #       DRY RUN (default): render; unified + semantic diff; drivers of every PCI device involved; the
@@ -328,20 +329,27 @@ handover_sources() {  # → "<source> <pending|done>" lines: the canonical copy 
   done
 }
 canon_git() { local c; c="$(canon_root)"; git -c safe.directory="$c" -C "$c" "$@"; }
-approval_ref() {  # APPROVAL → "PENDING file @blob (open) + D-nnn" from main of the canonical repo, or fail (prints why)
-  local file="docs/decisions/$APPROVAL.md" blob dec ds re
+approval_ref() {  # APPROVAL → "PENDING file @blob + D-nnn for rendering <sha>" from main of the canonical repo, or fail (prints why)
+  # re-review N4: the approval binds to THIS change — a D-row on main whose decision column has the PENDING id as its
+  # subject (not a mention) and names the sha256 of the rendering (--expect-new-sha256); an approval already executed by
+  # this tool for that rendering (a committed work dir whose gate record names both) is spent.
+  local file="docs/decisions/$APPROVAL.md" blob ds re w
+  [[ $EXPECT_NEW =~ ^[0-9a-f]{64}$ ]] || { echo "no rendering sha256 to bind the approval to"; return 1; }
   blob="$(canon_git rev-parse --verify -q "main:$file" 2>/dev/null)" || { echo "$file does not exist on main"; return 1; }
-  dec="$(canon_git show "main:$file" 2>/dev/null | sed -nE 's/^- decision:[[:space:]]*(.*)$/\1/p' | head -1)"
-  # open = empty, the template placeholder, or explicitly pending; anything else is answered/executed/closed
-  if ! grep -qiE '^(\*\*)?[[:space:]]*(<empty[^>]*>|pending[^*]*)?[[:space:]]*(\*\*)?[[:space:]]*$' <<<"$dec"; then
-    echo "$file is not open (decision: $dec) — an executed or closed PENDING cannot approve a new change"; return 1
-  fi
   re="$(ere_escape "$APPROVAL")"
   # the D-row's decision column (3rd) must start with the PENDING id: it is the row's subject, not a mention
   ds="$(canon_git show main:docs/decisions/LOG.md 2>/dev/null | awk -F'|' -v re="^[[:space:]]*\\\\**$re([^A-Za-z0-9_-]|$)" \
-    '$3 ~ /^[[:space:]]*D-[0-9]+[[:space:]]*$/ && $4 ~ re {gsub(/[[:space:]]/, "", $3); print $3}' | sort -u | tr '\n' ' ' || true)"
+    '$3 ~ /^[[:space:]]*D-[0-9]+[[:space:]]*$/ && $4 ~ re {id = $3; gsub(/[[:space:]]/, "", id); print id "\t" $0}' || true)"
   [[ -n $ds ]] || { echo "no D-row on main has $APPROVAL as the subject of its decision"; return 1; }
-  echo "$file@${blob:0:12} (open) + LOG ${ds% }"
+  ds="$(grep -F -- "$EXPECT_NEW" <<<"$ds" | cut -f1 | sort -u | tr '\n' ' ' || true)"
+  [[ -n $ds ]] || { echo "no D-row on main answering $APPROVAL names this rendering (sha256 $EXPECT_NEW) — the approval does not cover this change"; return 1; }
+  for w in "$VRX_APPLY_STATE"/*/; do
+    [[ -e ${w}committed && -r ${w}gate ]] || continue
+    if grep -qF -- "APPROVAL $APPROVAL (" "${w}gate" && grep -qF -- "rendering $EXPECT_NEW" "${w}gate"; then
+      echo "$APPROVAL was already executed for this rendering (${w%/} committed) — a spent approval cannot be replayed"; return 1
+    fi
+  done
+  echo "$file@${blob:0:12} + LOG ${ds% } for rendering $EXPECT_NEW"
 }
 gate() {  # → the gate record (deterministic: the run recomputes and compares it); returns 3 when --apply is not allowed
   local st="done" src s summary="" ref
@@ -389,7 +397,8 @@ dry_run() {
   echo "== VPP preflight (read-only: vrx-vppcheck ifaces local0, bootid)"
   if ! vppcheck ifaces local0 2>&1 | sed 's/^/  /'; then echo "  VPP preflight FAILED — --apply will refuse"; rc=3; fi
   vppcheck bootid 2>&1 | sed 's/^/  boot identity: /' || true
-  echo "== handover gate (--apply only)"
+  echo "== handover gate (--apply only; an approval must name the rendering's sha256 below)"
+  [[ -n $EXPECT_NEW ]] || EXPECT_NEW="$(sha "$tmp/new.conf")"
   gate | sed 's/^/  /' || true
   command -v "$VRX_SYSTEMD_RUN" >/dev/null 2>&1 || { echo "  systemd-run not found — --apply will refuse"; rc=3; }
   echo "== sha256 of $VRX_STARTUP_CONF (--expect-sha256)"
@@ -668,6 +677,7 @@ stage_run() {
   [[ -s $WORK/plan.sha256 && $(plan_seal) == "$(cat "$WORK/plan.sha256")" ]] || { say "REFUSED: plan seal mismatch (work dir altered after planning)"; return 3; }
   local g; g="$(gate)" || { say "REFUSED: gate no longer holds: $g"; return 3; }
   [[ $g == "$(cat "$WORK/gate")" ]] || { say "REFUSED: gate changed since planning: now '$g'"; return 3; }
+  [[ ! -e $WORK/installed && ! -e $WORK/rollback-started ]] || { say "REFUSED: this work dir was already used (installed before) — plan again"; return 3; }
   say "$g"
   syslog "apply $WORK started; $g"
   start_holder || { refuse "locks not held"; return 3; }

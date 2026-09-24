@@ -21,22 +21,27 @@ FIX="$REPO/apps/agent/internal/renderers/vppstartup/testdata"
 TOP="$(mktemp -d)"
 PIDS=()
 export VRX_TEST_ROOT="$TOP"
-# fixture canonical repo: host flag pending; an open PENDING answered by a D-row that has it as subject; a closed one;
-# an open one that a D-row only mentions in passing
+# fixture canonical repo: host flag pending; PENDING-fake-change answered by D-900 (subject) naming the rendering's sha256
+# (row added by approve_rendering once the sum is known); PENDING-closed answered by D-901 for another change; PENDING-
+# mentioned that a D-row only mentions in passing
 CANON="$TOP/canon"
 mkdir -p "$CANON/docs/lab" "$CANON/docs/decisions"
 printf '# vrx-a\n\n`handover: pending`\n' > "$CANON/docs/lab/host-vrx-a.md"
-printf '# PENDING: fake-change\n\n- raised: 2026-09-24 by test\n- decision: **<empty until the product owner fills it>**\n' > "$CANON/docs/decisions/PENDING-fake-change.md"
+printf '# PENDING: fake-change\n\n- raised: 2026-09-24 by test\n- decision: **option 1** — product owner (D-900)\n' > "$CANON/docs/decisions/PENDING-fake-change.md"
 printf '# PENDING: closed\n\n- raised: 2026-09-20 by test\n- decision: **option 1** — product owner; executed 2026-09-21\n' > "$CANON/docs/decisions/PENDING-closed.md"
 printf '# PENDING: mentioned\n\n- raised: 2026-09-24 by test\n- decision: pending\n' > "$CANON/docs/decisions/PENDING-mentioned.md"
 {
   echo '| date | id | decision | options considered | why | reversal cost | tasks |'
   echo '|---|---|---|---|---|---|---|'
-  echo '| 2026-09-21 | D-901 | PENDING-closed answered by the product owner: option 1 | — | — | low | x |'
+  echo "| 2026-09-21 | D-901 | PENDING-closed answered by the product owner: option 1, rendering $(printf '%064d' 7) (executed 2026-09-21) | — | — | low | x |"
   echo '| 2026-09-24 | D-902 | Unrelated decision; see also PENDING-mentioned for background | — | — | low | x |'
-  echo '| 2026-09-24 | D-900 | **PENDING-fake-change** answered by the product owner: apply the six-NIC sample startup.conf once | — | — | low | F-startup-apply |'
 } > "$CANON/docs/decisions/LOG.md"
 git -C "$CANON" init -q -b main && git -C "$CANON" add -A && git -C "$CANON" -c user.name=test -c user.email=test@invalid commit -qm fixture
+approve_rendering() {  # <sha256> — D-900 (subject PENDING-fake-change) approves exactly this rendering
+  grep -qF "$1" "$CANON/docs/decisions/LOG.md" && return 0
+  echo "| 2026-09-24 | D-900 | **PENDING-fake-change** answered by the product owner: apply rendering $1 once | — | — | low | F-startup-apply |" >> "$CANON/docs/decisions/LOG.md"
+  git -C "$CANON" -c user.name=test -c user.email=test@invalid commit -qam "approve $1"
+}
 kill_recorded() { local p; for p in $(cat "$TOP"/case.*/state/pids 2>/dev/null || true); do kill -KILL "$p" 2>/dev/null || true; done; }
 cleanup() {
   local p
@@ -219,11 +224,12 @@ EOF
   HOSTARGS=(-- --no-host --mgmt-pci 0000:0b:00.0 --plugin-dir "$T/plugins" --online-cpus 0-31 --numa-nodes 2 --hugepages-mb 2048)
   ORIG="$(sha256sum "$T/etc/vpp/startup.conf" | awk '{print $1}')"
   NEW="$(rendered "$DOCF")"
+  approve_rendering "$NEW"
   T0=$SECONDS
 }
 rendered() { "$GEN" --current "$VRX_STARTUP_CONF" "${HOSTARGS[@]:1}" "$1" 2>/dev/null | sha256sum | awk '{print $1}'; }
 TIMING=(--window 2 --interval 1 --settle 1 --api-wait 2 --lock-timeout 2 --cmd-timeout 1 --svc-timeout 3 --deadman-lock-timeout 1)
-APPROVE=(--i-have-product-owner-approval PENDING-fake-change)   # fixture: open PENDING + D-900 has it as subject
+APPROVE=(--i-have-product-owner-approval PENDING-fake-change)   # fixture: D-900 has it as subject and names the rendering
 apply() { "$SCRIPT" --doc "$DOCF" --apply --foreground "${TIMING[@]}" "${APPROVE[@]}" --expect-sha256 "$ORIG" --expect-new-sha256 "$NEW" "$@" "${HOSTARGS[@]}"; }
 unchanged() { [[ $(sha256sum "$T/etc/vpp/startup.conf" | awk '{print $1}') == "$ORIG" ]]; }
 work() { find "$T/apply" -mindepth 1 -maxdepth 1 -type d | head -1; }
@@ -280,11 +286,11 @@ ok '[[ $rc == 2 ]] && unchanged && grep -q "foreground over SSH" "$T/out"' "--fo
 rc=0; VRX_STARTUP_CONF=/etc/vpp/startup.conf "$SCRIPT" --doc "$DOCF" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
 ok '[[ $rc == 2 ]] && grep -q "VRX_TEST_ROOT is only honoured when" "$T/out"' "a test root with the real startup.conf is refused (exit $rc)"
 
-echo "== 4. gate: pending → refused; approval only for an OPEN PENDING that a D-row has as its subject (fixture repo)"
+echo "== 4. gate: pending → refused; approval only when a D-row has the PENDING as subject AND names this rendering; spent approval refused (N4)"
 setup
 rc=0; out="$("$SCRIPT" --doc "$DOCF" --apply --foreground "${TIMING[@]}" --expect-sha256 "$ORIG" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" 2>&1)" || rc=$?
 ok '[[ $rc == 3 ]] && unchanged && [[ -z $(work) ]] && grep -q "REFUSED: docs/lab/host-vrx-a.md says handover: pending" <<<"$out"' "no approval: exit $rc, no work dir"
-for bad in "PENDING-no-such:does not exist on main" "PENDING-closed:is not open (decision: \*\*option 1\*\*" "PENDING-mentioned:no D-row on main has PENDING-mentioned as the subject"; do
+for bad in "PENDING-no-such:does not exist on main" "PENDING-closed:no D-row on main answering PENDING-closed names this rendering" "PENDING-mentioned:no D-row on main has PENDING-mentioned as the subject"; do
   id="${bad%%:*}" msg="${bad#*:}"
   rc=0; out="$("$SCRIPT" --doc "$DOCF" --apply --foreground "${TIMING[@]}" --i-have-product-owner-approval "$id" --expect-sha256 "$ORIG" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" 2>&1)" || rc=$?
   ok '[[ $rc == 3 ]] && unchanged && [[ -z $(work) ]] && grep -q "$msg" <<<"$out"' "$id refused (exit $rc)"
@@ -292,8 +298,16 @@ done
 ok '! grep -q "systemctl" "$T/calls"' "systemd never touched"
 rc=0; apply > "$T/out" 2>&1 || rc=$?
 W="$(work)"
-ok '[[ $rc == 0 ]] && grep -q "PRODUCT-OWNER APPROVAL PENDING-fake-change (docs/decisions/PENDING-fake-change.md@[0-9a-f]\{12\} (open) + LOG D-900)" "$W/gate" "$W/log"' "open PENDING + D-900 as subject: accepted, recorded in gate + log (exit $rc)"
+ok '[[ $rc == 0 ]] && grep -q "PRODUCT-OWNER APPROVAL PENDING-fake-change (docs/decisions/PENDING-fake-change.md@[0-9a-f]\{12\} + LOG D-900 for rendering $NEW)" "$W/gate" "$W/log"' "D-900 has the PENDING as subject and names this rendering: accepted, recorded in gate + log (exit $rc)"
 ok 'grep -q "logger -t vrx-startup-apply -- gate: handover pending.*PENDING-fake-change" "$T/calls"' "approval sent to syslog"
+cp "$FIX/host-startup.conf" "$T/etc/vpp/startup.conf"
+rc=0; apply > "$T/out" 2>&1 || rc=$?
+ok '[[ $rc == 3 ]] && unchanged && [[ $(find "$T/apply" -mindepth 1 -maxdepth 1 -type d | wc -l) == 1 ]] && grep -q "PENDING-fake-change was already executed for this rendering (.* committed) — a spent approval cannot be replayed" "$T/out"' "same approval + same rendering again after the commit: spent, exit $rc, no new work dir"
+jq '.dataplane.devices |= with_entries(if .value.name == "sync" then .value.name = "spare" else . end)' "$DOCF" > "$T/other.json"
+rc=0; "$SCRIPT" --doc "$T/other.json" --apply --foreground "${TIMING[@]}" "${APPROVE[@]}" --expect-sha256 "$ORIG" --expect-new-sha256 "$(rendered "$T/other.json")" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
+ok '[[ $rc == 3 ]] && unchanged && grep -q "no D-row on main answering PENDING-fake-change names this rendering" "$T/out"' "same PENDING, a different change: not covered, exit $rc"
+rc=0; out="$("$SCRIPT" --doc "$T/other.json" --cmd-timeout 1 "${APPROVE[@]}" "${HOSTARGS[@]}" 2>&1)" || rc=$?
+ok 'grep -q "does not cover this change" <<<"$out"' "the dry run shows the gate against its own rendering"
 setup
 sed -i 's/handover: pending/handover: done/' "$CANON/docs/lab/host-vrx-a.md"
 rc=0; "$SCRIPT" --doc "$DOCF" --apply --foreground "${TIMING[@]}" --expect-sha256 "$ORIG" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
@@ -320,6 +334,7 @@ echo "== 6. what was reviewed is pinned: live file or rendering changed → refu
 setup
 rc=0; "$SCRIPT" --doc "$DOCF" --apply --foreground "${TIMING[@]}" "${APPROVE[@]}" --expect-sha256 "$(printf '%064d' 0)" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
 ok '[[ $rc == 3 ]] && unchanged && ! grep -q "systemctl restart" "$T/calls" && grep -q "changed since the review" "$T/out" && locks_free' "live file changed: exit $rc, no restart, locks released"
+approve_rendering "$(printf '%064d' 1)"   # the approval matches the claimed sum; the run must still catch the real rendering
 rc=0; "$SCRIPT" --doc "$DOCF" --apply --foreground "${TIMING[@]}" "${APPROVE[@]}" --expect-sha256 "$ORIG" --expect-new-sha256 "$(printf '%064d' 1)" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
 ok '[[ $rc == 3 ]] && unchanged && ! grep -q "systemctl restart" "$T/calls" && grep -q "rendering differs from the reviewed one" "$T/out"' "rendering changed: exit $rc, no restart"
 
@@ -404,6 +419,8 @@ W="$(work)"
 ok '[[ $rc == 1 && -e $W/rolled-back && ! -e $W/committed ]] && unchanged && locks_free' "exit $rc, rolled back, original file restored, locks released"
 ok 'grep -q "ROLLBACK: logical interface(s) not in VPP (API check): missing: lan2" "$T/out"' "reason logged"
 ok 'grep -q "systemctl stop vpp" "$T/calls" && grep -q "systemctl reset-failed vpp" "$T/calls" && grep -q "systemctl start vpp" "$T/calls"' "VPP stopped, reset-failed, started on the old file"
+n="$(restarts)"; rc=0; "$W/bin/apply-startup.sh" --stage run --work "$W" > "$T/out" 2>&1 || rc=$?
+ok '[[ $rc == 3 ]] && unchanged && [[ $(restarts) == "$n" ]] && grep -q "REFUSED: this work dir was already used" "$T/out"' "replaying the rolled-back work dir with --stage run: refused (exit $rc), no restart"
 
 echo "== 16. ifupdown host (vrx-a), no netplan: VPP steals the management NIC → rebind + EXACT address/route restore"
 setup
@@ -445,7 +462,7 @@ rc=0; apply > "$T/out" 2>&1 || rc=$?
 ok '[[ $rc == 1 ]] && unchanged && grep -q "plugin npt66_plugin.so enabled but not loaded" "$T/out"' "exit $rc, reason: npt66 not loaded"
 setup
 jq 'del(.dataplane.plugins.switches["npt66_plugin.so"])' "$DOCF" > "$T/no-npt66.json"
-DOCF="$T/no-npt66.json"; NEW="$(rendered "$DOCF")"
+DOCF="$T/no-npt66.json"; NEW="$(rendered "$DOCF")"; approve_rendering "$NEW"
 hook restart 'grep -v npt66 "$FAKE/state/plugins" > "$FAKE/state/p2" && mv "$FAKE/state/p2" "$FAKE/state/plugins"'
 rc=0; apply > "$T/out" 2>&1 || rc=$?
 ok '[[ $rc == 0 && -e $(work)/committed ]] && ! grep -q npt66 "$T/etc/vpp/startup.conf"' "exit $rc, committed without npt66"

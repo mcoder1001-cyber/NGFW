@@ -37,6 +37,13 @@ optional object members should stay absent until the user opts in (a presence to
   **main @ a8d1efb** (a `git archive` export in my scratchpad, no worktree touched) 14:27 — identical failure, same index. NRestarts 0 → 0.
 - Consequence: any slot (and tools/app's agent) whose next interface create pops index 3 fails; `tools/ci.sh full` on main would fail
   in `internal/agent` the same way. Owner: TD-3/TD-5 (D-105 M1 cap = holes + 2×FreshRun ≤ 64) and the manager (VPP state).
-- What I do: to verify N1 on slot 1 I park index 3 under an admin-down, tagged slot-1 loopback (`loop199`, tag `w1park:v19-index-3`,
-  never up, no traffic — the same idea as TD-3's quarantine holder) for the duration of my run, and delete it afterwards (index 3
-  goes back to the pool exactly as I found it). Documented with output in P08.md.
+- Not index-specific: with index 3 parked under an admin-down slot-1 loopback (`loop199`, tag `w1park:v19-index-3`, 14:28:58–14:29:48,
+  deleted again), the next create got index **1** and failed the same way (`holes_left=2 fresh_run=0`).
+- Pool probe (14:30, scratch tool; the sanitizer's own pattern: placeholder tables with its signature mask, deleted in reverse
+  creation order so the free list is restored): `live classify tables: []`, `pool handed out 10 indices in this order:
+  [7 6 8 9 10 11 12 13 14 15]`, `live classify tables now: []`. So only 6 and 7 are on the free list, 8+ are fresh, and **0–5 are
+  neither live (`classify_table_ids`, `show classify tables` empty) nor handed out** — `resurrect` counts them as holes it can never
+  fill and caps. (VPP's `pool_foreach` and `pool_get` disagree about 0–5 on this instance; I did not dig further.)
+- Consequence: on this VPP instance **every interface create through any agent fails closed** (P08, main, tools/app, every slot):
+  `internal/agent` host tests and the P08 topology test cannot pass until the VPP state changes (manager) or the sanitizer treats
+  never-returned indices differently (TD-5, D-105 M1). NRestarts 0 → 0 throughout.

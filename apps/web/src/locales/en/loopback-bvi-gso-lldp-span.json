@@ -1,0 +1,155 @@
+{
+  "nav": {
+    "lldp": "LLDP",
+    "mirroring": "Port mirroring",
+    "nsim": "Delay simulator (lab)"
+  },
+  "save": "Save",
+  "reset": "Reset",
+  "cancel": "Cancel",
+  "edit": "Edit",
+  "remove": "Remove",
+  "pending": "pending",
+  "readonly": "Your role cannot change the configuration",
+  "unavailable": "The data-plane agent does not serve this view yet (it is older than this screen).",
+  "age": {
+    "sec": "{{n}} s ago",
+    "min": "{{n}} min ago",
+    "hour": "{{n}} h ago"
+  },
+  "direction": {
+    "rx": "received (rx)",
+    "tx": "transmitted (tx)",
+    "both": "both"
+  },
+  "level": {
+    "device": "device",
+    "l2": "L2 path"
+  },
+  "lldp": {
+    "title": "LLDP",
+    "intro": "Link Layer Discovery Protocol: advertise this router on its interfaces and see the neighbour heard on each.",
+    "globalsNote": "System name, TX hold and TX interval are VPP-wide settings: only the product agent that owns the VPP-global settings applies them. On a lab slot they are reported as not applied and VPP keeps its values. An empty system name keeps VPP's current one.",
+    "settings": "Settings",
+    "neighbors": "Neighbours",
+    "notConfigured": "not in the configuration",
+    "heard": "neighbour heard",
+    "silent": "nothing heard",
+    "col": {
+      "interface": "Interface",
+      "status": "Status",
+      "chassis": "Chassis ID",
+      "port": "Port ID",
+      "ttl": "TTL (s)",
+      "lastHeard": "Last heard",
+      "portDescription": "Port description"
+    }
+  },
+  "mirror": {
+    "title": "Port mirroring",
+    "intro": "Copy the traffic of a source interface to a destination interface (SPAN). For ERSPAN, choose a GRE tunnel of type erspan as the destination. Every session is kept on the source interface.",
+    "add": "Add session",
+    "none": "No mirror session is configured.",
+    "addTitle": "New mirror session",
+    "editTitle": "Edit mirror session",
+    "help": "The destination must be another interface that is not mirrored itself. Level device copies every frame; level L2 only frames of a bridge member or cross-connect.",
+    "sourceHelp": "The interface whose traffic is copied",
+    "active": "active",
+    "missing": "not in VPP",
+    "col": {
+      "source": "Source",
+      "destination": "Destination",
+      "direction": "Direction",
+      "level": "Level",
+      "status": "Status"
+    }
+  },
+  "nsim": {
+    "title": "Network delay simulator",
+    "lab": "lab tool",
+    "intro": "Adds delay, a bandwidth limit and random loss between two interfaces or on the output of interfaces (VPP nsim). For lab tests only.",
+    "warning": "The simulator is VPP-wide: only the agent that owns the VPP-global settings applies it (never a lab slot). VPP has no way to read it back, and it cannot unconfigure the delay model: removing it here detaches the interfaces and leaves the model inert.",
+    "off": "The simulator is not configured.",
+    "on": "The simulator is configured.",
+    "remove": "Remove simulator"
+  },
+  "field": {
+    "enabled": {
+      "title": "Enabled",
+      "help": "Run LLDP on the listed interfaces"
+    },
+    "systemName": {
+      "title": "System name",
+      "help": "Advertised system name (VPP-wide); empty keeps VPP's current one"
+    },
+    "txHold": {
+      "title": "TX hold multiplier",
+      "help": "TTL = TX interval × hold (VPP-wide)"
+    },
+    "txIntervalSec": {
+      "title": "TX interval (s)",
+      "help": "Seconds between LLDP frames (VPP-wide)"
+    },
+    "interfaces": {
+      "title": "Interfaces",
+      "help": "Interfaces LLDP runs on"
+    },
+    "interface": {
+      "title": "Interface"
+    },
+    "portDescription": {
+      "title": "Port description"
+    },
+    "mgmtIpv4": {
+      "title": "Management IPv4"
+    },
+    "mgmtIpv6": {
+      "title": "Management IPv6"
+    },
+    "mgmtOid": {
+      "title": "Management OID"
+    },
+    "destination": {
+      "title": "Destination",
+      "help": "Interface that transmits the copies — a monitor port, or a GRE erspan tunnel"
+    },
+    "direction": {
+      "title": "Direction",
+      "help": "Received (rx), transmitted (tx) or both"
+    },
+    "level": {
+      "title": "Level",
+      "help": "device: every frame; l2: frames in the L2 path (bridge member or cross-connect)"
+    },
+    "delayMs": {
+      "title": "Delay (ms)",
+      "help": "One-way delay added to every frame"
+    },
+    "bandwidthMbps": {
+      "title": "Bandwidth (Mbit/s)",
+      "help": "Simulated link rate"
+    },
+    "packetSize": {
+      "title": "Average packet size (bytes)",
+      "help": "Sizes the scheduler wheel (64–9000)"
+    },
+    "dropFraction": {
+      "title": "Drop fraction",
+      "help": "0 = no loss; 0.01 = one frame in 100"
+    },
+    "crossConnect": {
+      "title": "Cross-connect",
+      "help": "Two interfaces joined through the simulator"
+    },
+    "a": {
+      "title": "Interface A"
+    },
+    "b": {
+      "title": "Interface B"
+    },
+    "outputInterfaces": {
+      "title": "Output interfaces",
+      "help": "Interfaces whose output goes through the simulator"
+    }
+  }
+}

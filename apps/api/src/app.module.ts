@@ -66,6 +66,7 @@ import { UsersService } from './users/users.service.js';
 // wave-A: F-neighbors-ra
 // wave-A: F-rpf-adl-pbr
 // wave-A: F-object-model
+import { objectModelFeature } from './features/object-model/index.js';
 // wave-A: F-acl
 // wave-A: F-host-acl-nftables
 // wave-A: F-nat44-ed-sessions
@@ -149,6 +150,7 @@ export class AppModule {
         // wave-A: F-neighbors-ra
         // wave-A: F-rpf-adl-pbr
         // wave-A: F-object-model
+        ...objectModelFeature.controllers,
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables
         // wave-A: F-nat44-ed-sessions
@@ -217,6 +219,7 @@ export class AppModule {
         // wave-A: F-neighbors-ra
         // wave-A: F-rpf-adl-pbr
         // wave-A: F-object-model
+        ...objectModelFeature.providers,
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables
         // wave-A: F-nat44-ed-sessions

@@ -3,7 +3,7 @@
 # provider live runs (F-sdk-terraform-ansible). Everything carries the slot prefix (docs/lab/shared-host-rules.md).
 #
 #   live.sh up            pg-test database vrx_<prefix>, vrx-agent (VRX_OWNER=<prefix>, slot socket/state/metrics),
-#                         apps/api dist/main.js on the slot port, admin login → API key (operator role by default)
+#                         apps/api dist/main.js on the slot port, admin login → API key (admin role by default: the live runs also write management.users)
 #   live.sh down          stop both processes BY PID, drop the database, delete the slot's sdk Valkey keys, remove state
 #   live.sh run <cmd...>  up; <cmd> under `tools/lab lock shared` with VRX_SDK_URL / VRX_SDK_API_KEY_FILE exported; down
 #   live.sh status        what is running
@@ -21,7 +21,7 @@ P=$VRX_TEST_PREFIX
 RUN="/run/vrx-test/$P"
 STATE="$RUN/sdk-agent-state"
 LOGS="${VRX_SDK_LOG_DIR:-/root/ngfw-wt/logs}"
-KEYROLE="${VRX_SDK_KEY_ROLE:-operator}"
+KEYROLE="${VRX_SDK_KEY_ROLE:-admin}"
 VALKEY_PREFIX="vrx:$P:sdk:"
 URL="http://127.0.0.1:$VRX_HTTP_PORT"
 

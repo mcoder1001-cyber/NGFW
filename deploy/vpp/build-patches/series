@@ -1,0 +1,5 @@
+# deploy/vpp/build-patches/series — build-infrastructure patches, ALWAYS applied by build.sh (before patches/series).
+# Rules (enforced by verify.sh): they may only touch build/ (the external-deps build system, never src/ = product code),
+# they carry "Status: build", and — like every patch — they make the build "+vrx<N>" (D-092). Applied with
+# `git apply` (strict, no fuzz). Listed in manifest.json under build.build_patches.
+0001-build-dpdk-hash-locked-python-deps.patch

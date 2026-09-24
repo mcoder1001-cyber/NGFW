@@ -214,6 +214,7 @@ func TestRestartSimulationOnHost(t *testing.T) {
 	_, loopKey := ifacetest.Loopback(t, c1, owner, 60) // P05 core's object: created directly
 	tb := vpptest.TableBase(t)
 	slot := strconv.Itoa(vpptest.Slot(t))
+	macOctet := fmt.Sprintf("%02x", vpptest.Slot(t)) // one MAC octet (two hex digits) for slots 1–12
 	tap := func(i int) *tapv2.Tap {
 		n := vpptest.Name(t, "tap"+strconv.Itoa(i))
 		return &tapv2.Tap{Name: n, Id: vpptest.LoopbackInstance(t, i), HostIfName: n, RxRingSize: 256, TxRingSize: 256}
@@ -244,14 +245,14 @@ func TestRestartSimulationOnHost(t *testing.T) {
 		&iface.AdminState{Interface: tapKey(62)},
 		&iface.AdminState{Interface: subKey},
 		&iface.Mtu{Interface: loopKey, Mtu: 1500, Ip4: 1400},
-		&iface.MacAddress{Interface: loopKey, Mac: "02:0" + slot + ":00:00:3c:01"},
+		&iface.MacAddress{Interface: loopKey, Mac: "02:" + macOctet + ":00:00:3c:01"},
 		&iface.Promisc{Interface: tapKey(63)},
 		&iface.RxMode{Interface: tapKey(63), Mode: iface.RxModeKind_RX_MODE_KIND_INTERRUPT},
 		// l2
 		&l2.BridgeDomain{Id: bdID, Flood: true, UuFlood: true, Forward: true, Learn: true, MacAge: 5},
 		&l2.BridgeDomainMember{BridgeDomain: bdID, Interface: subKey, Shg: 1},
 		&l2.BridgeDomainMember{BridgeDomain: bdID, Interface: loopKey, PortType: l2.PortType_PORT_TYPE_BVI},
-		&l2.FibEntry{BridgeDomain: bdID, Mac: "02:0" + slot + ":00:00:3c:02", Interface: subKey, Static: true},
+		&l2.FibEntry{BridgeDomain: bdID, Mac: "02:" + macOctet + ":00:00:3c:02", Interface: subKey, Static: true},
 		&l2.Flags{BridgeDomain: bdID, Interface: subKey, Learn: false, Forward: true, Flood: true, UuFlood: true},
 		&l2.VlanTagRewrite{Interface: subKey, Op: l2.VtrOp_VTR_OP_POP_1, BridgeDomain: bdID},
 		&l2.Xconnect{Rx: tapKey(64), Tx: afKey},

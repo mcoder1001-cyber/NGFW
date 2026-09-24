@@ -32,6 +32,10 @@ type IdentitySource interface {
 	Identity() bootid.Identity
 }
 
+// ErrClaimUnbound: an interface claim could not be bound to the interface's current sw_if_index
+// (it is not in VPP's table right now, or the dump failed); nothing is recorded.
+var ErrClaimUnbound = errors.New("claim store: interface has no sw_if_index in VPP")
+
 // IndexResolver maps an untagged interface's VPP name to its current sw_if_index. Resolve may
 // answer from a short-lived cache; Invalidate forces the next Resolve to dump again.
 type IndexResolver interface {
@@ -113,10 +117,14 @@ func (c *fileClaims) claim(key, ifName string) error {
 	r := claimRecord{Key: key, Boot: boot}
 	if ifName != "" && c.index != nil {
 		c.index.Invalidate() // a claim binds to the index VPP has right now
-		if idx, ok := c.index.Resolve(ifName); ok {
-			v := int64(idx)
-			r.SwIfIndex = &v
+		idx, ok := c.index.Resolve(ifName)
+		if !ok {
+			// fail closed like the loader (review N7): a claim without its sw_if_index would make
+			// Claimed trust any interface of that name, e.g. one re-created by someone else
+			return fmt.Errorf("%w: %q (claim %s not recorded)", ErrClaimUnbound, ifName, key)
 		}
+		v := int64(idx)
+		r.SwIfIndex = &v
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -233,7 +241,19 @@ func atomicWrite(path string, raw []byte) error {
 	if err := f.Close(); err != nil {
 		return fmt.Errorf("state %s: %w", filepath.Base(path), err)
 	}
-	return os.Rename(tmp, path)
+	if err := os.Rename(tmp, path); err != nil {
+		return err
+	}
+	// the rename is durable only once the directory entry is (review N7)
+	d, err := os.Open(filepath.Dir(path)) //nolint:gosec // the agent's state dir
+	if err != nil {
+		return fmt.Errorf("state %s: %w", filepath.Base(path), err)
+	}
+	defer func() { _ = d.Close() }()
+	if err := d.Sync(); err != nil {
+		return fmt.Errorf("state %s: fsync dir: %w", filepath.Base(path), err)
+	}
+	return nil
 }
 
 // IfaceClaims is the persisted iface.ClaimStore: (interface VPP name, holder descriptor) pairs,

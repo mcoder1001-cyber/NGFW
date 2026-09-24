@@ -1,6 +1,7 @@
 package subsystems
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -61,6 +62,10 @@ func TestIfaceClaimsPersistAndExpire(t *testing.T) {
 	c3, _ := OpenIfaceClaims(dir, "w1", id, idx)
 	if c3.Len() != 0 {
 		t.Fatal("release not persisted")
+	}
+	// review N7: an interface that cannot be bound to a sw_if_index is not claimed (fail closed)
+	if err := c3.Claim("wan", "interface.mtu"); !errors.Is(err, ErrClaimUnbound) || c3.Len() != 0 || c3.Claimed("wan", "interface.mtu") {
+		t.Fatalf("unbound claim: err %v, len %d", err, c3.Len())
 	}
 	if fi, err := os.Stat(filepath.Join(dir, "claims-iface-w1.json")); err != nil || fi.Mode().Perm() != 0o600 {
 		t.Fatalf("state file mode %v %v", fi, err)

@@ -841,6 +841,7 @@ tasks:
   deps:
   - P08
   - DF-2
+  - DF-4
   priority: 3
   est_hours: 10
   state: todo
@@ -1039,6 +1040,7 @@ tasks:
   deps:
   - P08
   - DF-5
+  - P11
   priority: 4
   est_hours: 10
   state: todo
@@ -1405,6 +1407,7 @@ tasks:
   deps:
   - P08
   - DF-1
+  - F-startup-gen
   priority: 5
   est_hours: 10
   state: todo
@@ -1622,6 +1625,7 @@ tasks:
   deps:
   - P06
   - P08
+  - P07b
   priority: 6
   est_hours: 10
   state: todo
@@ -1667,6 +1671,7 @@ tasks:
   deps:
   - P06
   - P08
+  - P07b
   priority: 6
   est_hours: 10
   state: todo
@@ -1690,6 +1695,7 @@ tasks:
   - P06
   - P07b
   - P08
+  - F-ab-upgrade
   priority: 6
   est_hours: 10
   state: todo
@@ -1848,6 +1854,7 @@ tasks:
   deps:
   - P06
   - P08
+  - P07b
   priority: 6
   est_hours: 10
   state: todo

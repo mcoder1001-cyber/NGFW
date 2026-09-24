@@ -818,7 +818,9 @@ func groupSpecs(specs []objects.PortSpec) []svcGroup {
 
 // mergeSpans sorts and merges overlapping or adjacent spans.
 func mergeSpans(ss []span) []span {
-	sort.Slice(ss, func(i, j int) bool { return ss[i].first < ss[j].first || (ss[i].first == ss[j].first && ss[i].last < ss[j].last) })
+	sort.Slice(ss, func(i, j int) bool {
+		return ss[i].first < ss[j].first || (ss[i].first == ss[j].first && ss[i].last < ss[j].last)
+	})
 	var out []span
 	for _, s := range ss {
 		if n := len(out); n > 0 && int(s.first) <= int(out[n-1].last)+1 {

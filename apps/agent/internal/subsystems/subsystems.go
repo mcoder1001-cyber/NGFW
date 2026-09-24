@@ -56,6 +56,7 @@ const (
 	Objects = "objects"
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
+	ACL = "acl" // shared with F-acl: whichever merges second keeps this one constant
 	// wave-A: F-nat44-ed-sessions
 	// wave-A: P11
 	// wave-A: F-wireguard
@@ -104,6 +105,7 @@ var Domains = map[string][]string{
 	Objects: objectModelDescriptors(), // agent-local objects.* family (object_model.go)
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
+	ACL: hostACLDescriptors(), // host-acl.nftables (host_acl.go); F-acl appends its descriptors to this entry
 	// wave-A: F-nat44-ed-sessions
 	// wave-A: P11
 	// wave-A: F-wireguard
@@ -223,6 +225,9 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	}
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
+	if err := w.registerHostACL(r); err != nil { // host firewall: nftables renderer as one descriptor (host_acl.go)
+		return nil, err
+	}
 	// wave-A: F-nat44-ed-sessions
 	// wave-A: F-nat44-ei-64-66-nptv6
 	// wave-A: P11

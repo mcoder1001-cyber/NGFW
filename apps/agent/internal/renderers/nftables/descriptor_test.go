@@ -55,8 +55,10 @@ func TestKernelDriftIsVisible(t *testing.T) {
 		"rule comment": func(b []byte) []byte {
 			return bytes.Replace(b, []byte(`vrx:local-in:1000/0:54750c03`), []byte(`hand edit`), 1)
 		},
-		"policy": func(b []byte) []byte { return bytes.Replace(b, []byte(`"policy": "drop"`), []byte(`"policy": "accept"`), 1) },
-		"prio":   func(b []byte) []byte { return bytes.Replace(b, []byte(`"prio": -100`), []byte(`"prio": -99`), 1) },
+		"policy": func(b []byte) []byte {
+			return bytes.Replace(b, []byte(`"policy": "drop"`), []byte(`"policy": "accept"`), 1)
+		},
+		"prio": func(b []byte) []byte { return bytes.Replace(b, []byte(`"prio": -100`), []byte(`"prio": -99`), 1) },
 	} {
 		k, err := ParseKernel(edit(slices.Clone(raw)), "vrx_w9")
 		if err != nil {

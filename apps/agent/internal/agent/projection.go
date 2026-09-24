@@ -306,6 +306,9 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	}
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
+	if in["acl"] {
+		desired.HostACL(p, ds.GetAcl(), ds.GetObjects(), in["objects"]) // host firewall (internal/desired/hostacl.go)
+	}
 	// wave-A: F-nat44-ed-sessions
 	// wave-A: F-nat44-ei-64-66-nptv6
 	// wave-A: P11
@@ -422,6 +425,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	}
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
+	if in["acl"] {
+		ds.Acl = desired.AssembleHostACL(kvs, ds.Acl) // applied acl.host* (nil when no host firewall)
+	}
 	// wave-A: F-nat44-ed-sessions
 	// wave-A: F-nat44-ei-64-66-nptv6
 	// wave-A: P11

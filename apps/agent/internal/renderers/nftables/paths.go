@@ -1,6 +1,8 @@
 package nftables
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -46,15 +48,20 @@ type Paths struct {
 }
 
 var (
-	tableRe = regexp.MustCompile(`^vrx(_[A-Za-z0-9]{1,6})?$`)
+	tableRe = regexp.MustCompile(`^vrx(_[A-Za-z0-9_-]{1,24})?$`)
 	netnsRe = regexp.MustCompile(`^ns-[A-Za-z0-9]{1,6}-[A-Za-z0-9_-]{1,16}$`)
-	ownerRe = regexp.MustCompile(`^[A-Za-z0-9]{1,6}$`)
+	ownerRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,24}$`)
 )
 
-// TableFor is the table of owner: "vrx" for the product owner "vrx", "vrx_<owner>" for a test slot.
+// TableFor is the table of owner: "vrx" for the product owner "vrx", "vrx_<owner>" for a test slot
+// ("vrx_<hash>" when the owner has characters an nft identifier cannot carry).
 func TableFor(owner string) string {
 	if owner == ProductTable {
 		return ProductTable
+	}
+	if !ownerRe.MatchString(owner) {
+		sum := sha256.Sum256([]byte(owner))
+		return ProductTable + "_" + hex.EncodeToString(sum[:4])
 	}
 	return ProductTable + "_" + owner
 }
@@ -133,8 +140,6 @@ func (p Paths) Validate(owner string) error {
 		return fmt.Errorf("nftables: only the product owner loads table %q into the root network namespace (owner %q, table %q)", ProductTable, owner, p.Table)
 	case p.Mode != ModeApply && p.Mode != ModeNetns && p.Mode != ModeCheck:
 		return fmt.Errorf("nftables: unknown mode %q", p.Mode)
-	case owner != ProductTable && !ownerRe.MatchString(owner):
-		return fmt.Errorf("nftables: owner %q is not a slot prefix", owner)
 	}
 	for _, f := range []string{p.RulesFile, p.StoreFile} {
 		if !filepath.IsAbs(f) || filepath.Clean(f) != f {

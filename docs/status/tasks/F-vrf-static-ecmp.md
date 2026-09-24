@@ -4,8 +4,8 @@ Branch `task/F-vrf-static-ecmp` (worktree `/root/ngfw-wt/F-vrf-static-ecmp`, slo
 `task/W-seed@df67a8e` at 18:05 on the manager's A1 safety update). Speculative base (D-114/D-120): **not merged with main**.
 Continued after the usage-limit stop 20:57 (salvage `bc83330`, manager ngfw-46): the salvaged hunk is the
 `config.e2e.test.ts` line below; no host run after the stop (none needed: every acceptance run was before it, on the
-W-seed@df67a8e merge). P08 landed on main as `c2ca3ed` meanwhile; this branch still carries it through W-seed (no main merge
-— that is the manager's merge, D-114/D-120).
+W-seed@df67a8e merge). P08 landed on main as `c2ca3ed` meanwhile. **Fix round 1** (review `4435fcf`, APPROVE WITH CHANGES):
+main merged into the branch (`266d1dc`, `4431c24`), findings fixed — see "Fix round 1" at the end.
 
 ## What was built
 
@@ -354,3 +354,147 @@ descriptor README row for `next_hop_table` (`core/README.md` is not an owned fil
 See `F-vrf-static-ecmp-questions.md`: Q1 contract numbers (NextHop 4 to add to §2), Q2/Q3 traceroute and VRF-aware ping
 (defaults taken), Q4 `examples.test.ts` sibling regex, Q5/Q6 hunks outside anchors, Q7 slot-2 timeline around the 18:41 crash,
 Q8 govpp dump drops (every descriptor), Q9 CLI ping body, Q10 fake Action dispatch, Q11 routing tabs location.
+
+## Fix round 1 (review `4435fcf`, APPROVE WITH CHANGES) — 2026-09-24/25
+
+Unit/fake tests and the API e2e (PostgreSQL + fake agent) only — no host run, no VPP object created, no `show trace`.
+
+### Main merged (M3)
+
+`git merge main` (`266d1dc`, then `4431c24` for the docs-only `f13b744`). Main carries P08 and W-seed as squashes, so git's
+merge base (`63178d2`) predates both and 28 files conflicted. Resolved against the W-seed tip this branch carried
+(`df67a8e`) as the effective base — `git merge-file` per file: ours = branch, base = `df67a8e`, theirs = main; every file
+outside the feature's 94 = main's version. Check: `git diff --name-only main` after the merge equals the feature file set
+exactly (94 = 94, nothing else differs from main). Generated output regenerated (`pnpm gen`, `make -C apps/cli gen docs`).
+TD-2 hardening carried over: `SafeParamPipe('action', 64)` on `POST /actions/:action`, `safeText(63)` on the ping and
+traceroute `vrf`, `safeText` on `/state/routes` `vrf`/`prefix`/`source`; main's `safeText` import in `state.controller.ts`
+is dropped together with the moved routes block (P2). `fake-agent.ts`: the base `action` stub stays removed (Q10).
+
+### Findings → fixes
+
+| finding | fix | where |
+|---|---|---|
+| H1 (a) FIB tab polls every 5 s, a walk per prefix keystroke | no `refetchInterval`; a refresh button + "read at" chip; the prefix filter applies on Enter/blur; every FIB query is on demand (`staleTime ∞`, no focus/reconnect refetch, retry 1 — `useFibQueryDefaults` also covers the grid's query) | `apps/web/src/domains/routing/vrf-static-ecmp/{api.ts,FibTab.tsx}` |
+| H1 (b) per-VRF-row count and static-routes status poll every 5 s | VRF list: counts read once + a "Refresh FIB counts" button (503 → "count unavailable", only 404 → "not in the data plane"); static-routes status every 60 s | `VrfsPage.tsx`, `StaticRoutesTab.tsx` |
+| H1 (c) unbounded concurrent walks | `walkSem`: one `ip_route_v2_dump` walk per agent; waits ≤ 3 s, then `UNAVAILABLE` "a FIB read is in progress"; a started walk is read to its end even if the caller leaves (VPP finishes it anyway) | `internal/actions/vrf-static-ecmp/fib.go`, `rpc_vrf_static_ecmp.go` |
+| H1 (d) all-VRF form cost | documented in the OpenAPI (`vrf` description + operation description) | `features/vrf-static-ecmp/vrf-static-ecmp.controller.ts` |
+| H1 (e) V-new (d) | the dump is not mp-safe, holds the worker barrier for the whole walk, `src` does not shorten it; fallbacks + estimate | `docs/vpp-code-track.md` |
+| H1 (f) CLI `show ip route` | not owned → Q14 | — |
+| M1 ping under the barrier | `show_threads` first: more than the main thread → `FAILED_PRECONDITION` (API **409**) naming the barrier and the V-item, nothing sent to the ping plugin; V-new (b) + estimate; user doc | `ping.go`, coretest `show_threads` (`SvsState.Workers`), `actions.controller.ts` (`@Protected(…409…)`), `docs/user/routing/vrf-static-ecmp.md` |
+| M2 window memory / uint32 wrap | slim window entry (prefix + compact paths: `entry` 64 B + 48 B per path, was 88 B + 252 B per path) **and** `MaxWindow` 100 000 (was 1 000 000) with "narrow with prefix, family or source"; API: `page × pageSize ≤ 100 000` → 400 at `/page` before the offset becomes a uint32; keyset cursor → Q14 | `fib.go`, `vrf-static-ecmp.controller.ts` |
+| M3 merge hazards | done in the branch (above) | — |
+| L1 "carries" vs "best source" | proto comment, proto.md §11, API description, the static-routes status header tooltip, svs/coretest comments (commit `contract(proto,api-client): …` — comment/description only) | `dataplane.proto`, `docs/contracts/proto.md`, … |
+| L2 status beyond 1 000 API routes | a VRF whose status page was cut marks absent prefixes `unknown`, not "not in FIB" | `model.ts` `routeStatus(row, installed, partial)`, `StaticRoutesTab.tsx` |
+| L3 selector at init | `func init() { RegisterStaticSelector() }` (Once kept); P12 must not call `frr.RegisterStaticSelector` (Q15) | `internal/subsystems/vrf_static_ecmp.go` |
+| L4 audit detail | `req.audit = { resource: 'actions/ping', after: { target, count, intervalMs, vrf } }` (traceroute likewise) | `actions.controller.ts` |
+| L5 CLI | not owned → Q14 (= Q9) | — |
+| L6 svs record pruning | left for later: needs a listing on `dfkit.BootStore` (not owned) → Q14 | — |
+| L7 | no action (H1) | — |
+| Q1 | the manager adds NextHop 4 `vrf` to wave-A-hotspots §2 | — |
+
+### Evidence
+
+New agent tests (fake VPP, `-race`):
+
+```
+=== RUN   TestListRoutesPagesSortedAndBounded
+--- PASS: TestListRoutesPagesSortedAndBounded (4.07s)
+=== RUN   TestListRoutesFiltersAndDetail
+--- PASS: TestListRoutesFiltersAndDetail (0.09s)
+=== RUN   TestListRoutesOneWalkAtATime
+--- PASS: TestListRoutesOneWalkAtATime (0.25s)
+=== RUN   TestListRoutesBusyWhileAWalkRuns
+--- PASS: TestListRoutesBusyWhileAWalkRuns (0.10s)
+=== RUN   TestPingRefusedWithWorkerThreads
+--- PASS: TestPingRefusedWithWorkerThreads (0.00s)
+PASS
+ok  	ngfw/agent/internal/actions/vrf-static-ecmp	5.681s
+--- PASS: TestVrfStaticEcmpSelectorRegisteredOnce (0.00s)
+--- PASS: TestVrfStaticEcmpRPCs (0.04s)
+ok  	ngfw/agent/internal/agent	0.092s
+```
+
+`TestListRoutesOneWalkAtATime`: 6 concurrent callers → peak 1 `ip_route_v2_dump` in flight, 12 dumps, every caller
+answered. `TestListRoutesBusyWhileAWalkRuns`: a second caller while a walk is held → `ErrFIBBusy`. `TestVrfStaticEcmpRPCs`:
+ping with 2 modelled workers → `FailedPrecondition` "2 worker thread(s)", no ping request reached the model. Sizes
+(`unsafe.Sizeof`, temporary probe): `entry 64 B, slimPath 48 B, fib_types.FibPath 252 B`.
+
+API e2e (slot 2's database, fake agent) — the feature suite plus TD-2's three suites (M3: they now run against this
+branch's controllers) and `config.e2e`:
+
+```
+ ✓ test/e2e/td2.e2e.test.ts (14 tests) 11908ms
+ ✓ test/e2e/td2-verify.e2e.test.ts (8 tests) 29875ms
+ ✓ test/e2e/vrf-static-ecmp.e2e.test.ts (5 tests) 4041ms
+ ✓ test/e2e/config.e2e.test.ts (15 tests) 11477ms
+ ✓ test/e2e/td2-review.e2e.test.ts (11 tests) 35206ms
+ Test Files  5 passed (5)
+      Tests  53 passed (53)
+```
+
+(`td2.e2e`: `POST /actions/ping%1B` → 400, `/state/routes?vrf=%E2%81%A6x` → 400 at `/vrf`; `vrf-static-ecmp.e2e` adds:
+ping with workers → 409, `page=4296&pageSize=1000` → 400 at `/page` with no agent call, `source=API\x1b[2J` → 400 at
+`/source`, action vrf with U+202E → 400 at `/vrf`, the audit row `actions/ping` with `{target, count, intervalMs}`.)
+Web: `model.test.ts` 4/4 (L2 case added), `nav`/`App` tests pass; en/fa key sets identical (108/108 → 109/109 with
+`routes.statusHelp`); `check-logical-css: OK`.
+
+### CI
+
+`TMPDIR=/tmp/g-w2 tools/ci.sh --base main` on `8d20a853` (the branch's `tools/ci.sh` is main's since the merge; 00:04–00:17):
+
+```
+== contract guard: HEAD vs main ==
+ok — contract commit(s) on the branch:
+  9cdee9c8 contract(proto,api-client): ListRoutesRequest.source means "best FIB source" (comment only); regenerated client — 409 on actions, page bound and on-demand notes (review L1, M1, M2)
+  4fe7ae3b contract(proto): ListRoutes
+  0435d875 contract(schema): vrfs source-select, next-hop vrf, viaFrr
+  … (P08/W-seed contract commits this branch carries unsquashed)
+== generate + generated-output gate ==
+clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated
+== forbidden patterns (+ gitleaks) ==
+ok: gitleaks — scanned ~1121116 bytes (1.12 MB) in 1.55s no leaks found
+== lint · typecheck · unit tests · build (turbo) ==
+Tasks:    30 successful, 30 total Cached:    4 cached, 30 total Time:    4m20.04s
+== apps/agent: make lint test build ==
+ok  	ngfw/agent/internal/actions/vrf-static-ecmp	5.177s; ok  	ngfw/agent/internal/agent	9.400s; …
+== deploy/vpp: shellcheck + apply-startup fake-host harness ==
+shellcheck ok: ./apply-startup.sh ./build.sh ./lib.sh ./test-apply-startup.sh ./verify.sh
+apply-startup harness: green (4 shards; 128 checks passed in the parallel run)
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   1m56s
+  forbidden patterns (+ gitleaks)                    0m05s
+  lint · typecheck · unit tests · build (turbo)   4m21s
+  apps/agent: make lint test build                   1m04s
+  apps/cli: make lint test build                     0m19s
+  test/ Go modules, unit mode (test/integration/smoke test/topology/interfaces test/topology/vrf-static-ecmp)   0m08s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   5m23s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      merge main into task/F-vrf-static-ecmp (f13b744, D-130 docs only)
+      merge main into task/F-vrf-static-ecmp (P08 + W-seed squashes, TD-2, W-seed-BC anchors) — fix round 1, M3
+      review(F-vrf-static-ecmp): APPROVE WITH CHANGES — H1 FIB walk under barrier + 5 s polls, M1 ping barrier, M2 window memory, M3 merge hazards
+      review(W-seed): verify
+  mode quick · wall time 13m20s · logs /tmp/g-w2/ci-logs/F-vrf-static-ecmp-20260925-000415-1633046
+
+CI GATE PASSED
+```
+
+(The warnings are the two merge commits and the reviewers' commits; D-112's squash replaces them at merge.) After it only
+this section was committed; `tools/ci.sh check --base main` re-run on the final commit.
+
+### Shared hunks changed in this round
+
+A4 unchanged. P3 `actions.controller.ts` (owned this wave): TD-2 pipe/safe text, `@Req()`, audit detail, 409. P2
+`state.controller.ts`: additionally main's `safeText` import (only the moved block used it). C5/C6/C7: the comment-only
+proto edit, proto.md §11, regenerated client (409 on actions, descriptions). A6 coretest: `show_threads` handler.
+Everything else in owned files.
+
+### Cleanup
+
+No process of mine running; `vrx_w2` dropped by the e2e teardown (`select count(*) … like 'vrx_w2%'` → `0`); VPP
+untouched in this round (`show ip table` lists no w2 table; `NRestarts=1`, unchanged since D-128). Not removed (the `rm`
+was refused by the permission check earlier): `/run/vrx-test/w2/{vse,kea,kea-relay}` (the topology run's logs; the
+`kea*` directories are the kea renderer tests' scratch paths from the CI run) and the git-ignored `dist/`/`bin/` output.

@@ -30,6 +30,7 @@ import { RelayService } from './telemetry/relay.service.js';
 // wave-A: F-bridge-l2
 import { bridgeL2Feature } from './features/bridge-l2/index.js';
 // wave-A: F-loopback-bvi-gso-lldp-span
+import { loopbackBviGsoLldpSpanFeature } from './features/loopback-bvi-gso-lldp-span/index.js';
 // wave-A: F-vrf-static-ecmp
 // wave-A: F-neighbors-ra
 // wave-A: F-rpf-adl-pbr
@@ -82,6 +83,7 @@ export class AppModule {
         // wave-A: F-bridge-l2
         ...bridgeL2Feature.controllers,
         // wave-A: F-loopback-bvi-gso-lldp-span
+        ...loopbackBviGsoLldpSpanFeature.controllers,
         // wave-A: F-vrf-static-ecmp
         // wave-A: F-neighbors-ra
         // wave-A: F-rpf-adl-pbr
@@ -119,6 +121,7 @@ export class AppModule {
         // wave-A: F-bridge-l2
         ...bridgeL2Feature.providers,
         // wave-A: F-loopback-bvi-gso-lldp-span
+        ...loopbackBviGsoLldpSpanFeature.providers,
         // wave-A: F-vrf-static-ecmp
         // wave-A: F-neighbors-ra
         // wave-A: F-rpf-adl-pbr

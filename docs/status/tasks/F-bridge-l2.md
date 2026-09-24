@@ -324,3 +324,31 @@ files). No host runs this round: unit tests and the API e2e with the fake agent 
 | #11 INFO | stale "Manager to confirm" in the contract note fixed (D-122); lost-record mactime enable documented as a known limit in `mactime.md` |
 | #7 LOW scope coupling (`routing.l2` built under the `interfaces` scope) | **left for later**: a guard needs a decision on when an interfaces-only or routing-only transaction is an error (P08 tests apply `interfaces` alone); not live — the API always sends every implemented domain and resync uses all |
 | #1 HIGH rebase | not done by instruction (merger: `--onto main df67a8e`, regenerate `apps/cli/internal/api/operations_gen.go` and `packages/api-client/src/generated/schema.d.ts`) |
+
+### Fix round 1 — verification
+```
+apps/web  vitest src/domains/interfaces/bridge-l2:
+ ✓ src/domains/interfaces/bridge-l2/drawer-l2.test.tsx (1 test)
+   ✓ interface drawer with an l2 leaf (P08 drawer, F-bridge-l2 Q10) > an MTU edit saves only the MTU: the bridge membership and the MAC filter stay
+ ✓ src/domains/interfaces/bridge-l2/BridgingPage.test.tsx (5 tests)
+   ✓ Bridging page > removing a member sends l2: null for that (sub-)interface through the generic route      (+ host-w7l0 with macFilter → membership fields only)
+   ✓ Bridging page > removing an L2 cross-connect also drops the tag rewrite of its receive side (review #8)
+      Tests  6 passed (6)
+apps/api  e2e (slot DB vrx_w7, fake agent): ✓ test/e2e/bridge-l2.e2e.test.ts (5 tests) — Tests 5 passed (5)   (incl. 7999/macs → 404 on grpcCode)
+apps/agent go test: mactime ok · l2 ok · desired ok · agent ok · subsystems ok   (TestDevice: learned entry ErrNotOurs for a non-owner, replaced by the globals owner)
+```
+CI with main's `tools/ci.sh` (copied from `main`, run in this worktree):
+```
+$ TMPDIR=/tmp/g-w7 bash <main:tools/ci.sh copy> --base main
+branch    task/F-bridge-l2 @ 51e65f5   (base: main)
+ok — contract commit(s) on the branch: … 0ae1a9c, 401c0da, 72eb38b (F-bridge-l2) …
+WARN commit subject(s) not in Conventional Commits form: review(W-seed): verify   (W-seed's commit)
+clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated
+ok: gitleaks — scanned ~1224975 bytes (1.22 MB) in 1.48s no leaks found
+Tasks:    30 successful, 30 total Cached:    12 cached, 30 total Time:    4m15.802s
+apps/agent: make lint test build — all ok · apps/cli — all ok
+test/topology/bridge-l2: gofmt ok · go vet ok · ok
+deploy/vpp: shellcheck ok; apply-startup harness unchanged since a green run — skipped
+  mode quick · wall time 8m29s · logs /root/ngfw-wt/logs/ci/F-bridge-l2-20260924-233057-603967
+CI GATE PASSED
+```

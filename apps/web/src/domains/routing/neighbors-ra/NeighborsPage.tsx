@@ -44,6 +44,8 @@ const LTR = { dir: 'ltr' } as const;
 const FAMILIES = ['ipv4', 'ipv6'] as const;
 const STATES = ['static', 'dynamic'] as const;
 const TABLE_TAB = 'table';
+/** A select whose "" option means all/both: show that option's label instead of an empty field. */
+const SHOW_EMPTY = { select: { displayEmpty: true }, inputLabel: { shrink: true } } as const;
 const STATIC_TAB = 'static';
 type Family = (typeof FAMILIES)[number];
 
@@ -299,6 +301,7 @@ function FlushDialog(props: {
           <TextField
             select
             label={t('flush.scope')}
+            slotProps={SHOW_EMPTY}
             value={iface}
             onChange={(e) => setIface(e.target.value)}
           >
@@ -312,6 +315,7 @@ function FlushDialog(props: {
           <TextField
             select
             label={t('flush.family')}
+            slotProps={SHOW_EMPTY}
             value={family}
             onChange={(e) => setFamily(e.target.value as '' | Family)}
           >

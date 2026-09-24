@@ -60,6 +60,10 @@ service Dataplane {
   rpc Action(ActionRequest) returns (stream ActionOutput);
   // Health reports agent and VPP connectivity. Cheap; polled by the API.
   rpc Health(HealthRequest) returns (HealthResponse);
+  // InterfaceState dumps the live, read-only interface table (sw_if_index, type, admin/link state,
+  // MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
+  // another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
+  rpc InterfaceState(InterfaceStateRequest) returns (InterfaceStateResponse);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -562,6 +566,75 @@ message HealthResponse {
   google.protobuf.Timestamp last_reconcile_at = 10;
   // True while a reconcile is running.
   bool reconcile_in_progress = 11;
+}
+
+// ---------------------------------------------------------------------------------------------
+// InterfaceState (P08)
+// ---------------------------------------------------------------------------------------------
+
+// InterfaceStateRequest selects interfaces by logical name.
+message InterfaceStateRequest {
+  // Logical names to include (configuration keys; sub-interfaces "<parent>.<sub id>"); empty = all.
+  repeated string names = 1;
+  // Same rules as ApplyRequest.owner.
+  string owner = 2;
+}
+
+// InterfaceStateResponse is one snapshot of the interface table.
+message InterfaceStateResponse {
+  // One entry per interface, sorted by name.
+  repeated InterfaceState interfaces = 1;
+  // The owner whose view was returned.
+  string owner = 2;
+  // When the dump was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 3;
+}
+
+// InterfaceState is the live state of one interface as VPP reports it (not configuration).
+message InterfaceState {
+  // Logical name (D-069): the configuration key; the tag id of interfaces this agent created,
+  // VPP's name for untagged ones.
+  string name = 1;
+  // VPP's interface name (differs from `name` for some created interfaces, e.g. tap240).
+  string vpp_name = 2;
+  // VPP sw_if_index (runtime handle, changes when the interface is re-created).
+  uint32 sw_if_index = 3;
+  // Kind: "loopback", "af-packet", "sub-interface", "tap", "bond", "memif", "dpdk" or VPP's device
+  // class name for anything else.
+  string type = 4;
+  // Administrative state (sw_interface_details flags ADMIN_UP).
+  bool admin_up = 5;
+  // Link (carrier) state (flags LINK_UP).
+  bool link_up = 6;
+  // L3 MTU in effect (software MTU; the link MTU when VPP reports 0).
+  uint32 mtu = 7;
+  // Hardware (link) MTU.
+  uint32 link_mtu = 8;
+  // L2 address, lower-case "aa:bb:cc:dd:ee:ff"; empty for interfaces without one.
+  string mac = 9;
+  // IPv4 addresses in CIDR notation, sorted.
+  repeated string ipv4 = 10;
+  // IPv6 addresses in CIDR notation, sorted (link-local included when VPP reports it).
+  repeated string ipv6 = 11;
+  // VRF name of the IPv4 table: "default" for table 0, the configured VRF name for this agent's
+  // tables, the table id as a decimal string otherwise.
+  string vrf = 12;
+  // IPv4 FIB table id.
+  uint32 table_id = 13;
+  // Logical name of the parent interface; set for sub-interfaces only.
+  string parent = 14;
+  // Outer VLAN id of a sub-interface; 0 otherwise.
+  uint32 vlan_id = 15;
+  // Inner VLAN id of a QinQ sub-interface; 0 otherwise.
+  uint32 inner_vlan_id = 16;
+  // True when this agent created the interface or holds a claim on it (it manages attributes).
+  bool managed = 17;
+  // Link speed in kbit/s as reported by the driver; 0 = unknown.
+  uint64 link_speed_kbps = 18;
+  // RX mode of queue 0: "polling", "interrupt" or "adaptive"; empty when VPP reports no queue.
+  string rx_mode = 19;
+  // Description from this agent's stored desired state (VPP cannot store it, D-073b); empty if none.
+  string description = 20;
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -9,5 +9,5 @@ Slot 2 (w2). Branch task/TD-3. **Fix round 2 in progress (started 08:00).**
 | M1 re-read on stolen holes, cap 16, fail closed (ErrCapped), capped metric | done + unit tests |
 | M2 holder instance 16383↓16000, docs, schema question | done + unit tests; CONTRACT question in TD-3-questions.md |
 | L5 ci.sh after-failed-tests pre-flight, all FAIL lines | done; harness-tested |
-| host runs (ifsanitize, ipsec, wireguard, slot 2) | in progress (continue2, 13:2x; NRestarts baseline 0) |
-| status "Fix round 2" section, CI | next |
+| host runs (ifsanitize, ipsec, wireguard, slot 2) | done 13:18–13:27, all PASS, NRestarts 0→0 |
+| status "Fix round 2" section | done; CI next |

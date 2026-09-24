@@ -321,3 +321,105 @@ CI GATE PASSED
 - `FreshRun` is a bound, not a proof, for the write-only kinds: ≥ 8 tables freed in exact reverse creation order above the highest
   live table could hide one; the input-ACL kind is exact.
 - `apps/agent/internal/descriptors/core/coretest/fakevpp.go` import order is not gofmt-clean on main already; untouched.
+
+---
+
+## Fix round 2 (after re-review acce6e1, APPROVE WITH CHANGES) — 2026-09-24, slot 2 (w2)
+
+Code: cd21806 (H1, M1, M2), e73db90 (L5, docs, questions); host runs + this section after a manager/host restart
+(continue2). `git merge main` done first (6e42c16: DF-5 ipsec/wireguard, F-startup-apply, V24 quiesce).
+
+| finding | status | how verified |
+|---|---|---|
+| H1 ipsec/wireguard interfaces bypass the sanitizer | **fixed**: `ipsec.itf` (itf.go) and `wireguard.interface` (interface.go) create through `ifsanitize.Acquire` and call `BeforeDelete` before the VPP delete, same pattern as the others. Guard test `TestEveryInterfaceCreatorIsSanitized`: static scan of `apps/agent/internal/descriptors/**` — every interface-create message (the list comes from binapi, not by hand: 54 messages) must be sent inside `Acquire` / `iface.AcquireAndTag` / a `df6.IfSpec` Add; it fails on main's itf.go:67 and interface.go:89. `TestGuardCatchesARawCreate` proves the scanner flags raw creates | unit `TestItfSanitizesReusedIndex`, `TestInterfaceSanitizesReusedIndex`, guard tests; host `TestIpsecOnHost`, `TestWireguardOnHost` (sanitize log lines below) |
+| M1 unbounded placeholder loop | **fixed**: when a hole is taken by another client meanwhile, the classify table list is re-read (`rereads` in the log) and that table is used; cap `MaxPlaceholders` = 16 per create; cap hits counted in `vrx_agent_iface_sanitize_capped_total{phase}`; on cap the create fails closed (`ErrCapped` wraps `ErrNoCleanIndex`); quarantine only if the run also proved a binding unclearable (rationale + liveness trade-off in TD-3-questions.md) | unit `TestHoleTakenBySomeoneElse`, `TestCappedFailsClosed`, `TestAcquireCappedFailsClosed`, `TestAcquireCappedAndUnclearable` |
+| M2 holder takes the lowest free loopback instance | **fixed**: holders use `create_loopback_instance` with `is_specified`, highest free instance in **16000–16383** (VPP `LOOPBACK_MAX_INSTANCE` 16384), never VPP's lowest free; range documented as reserved in `docs/agent/descriptors/interface.md`; the schema accepts `loop16000+` today → CONTRACT question in TD-3-questions.md | unit `TestQuarantineHolderInstance`, `TestQuarantineReservedRangeFull`; host: holder is `loop16383` (below) |
+| L5 ci.sh pre-flight after failed suites; FAIL lines truncated | **fixed**: `after-tests` pre-flight runs even when a suite failed; all FAIL lines printed (no `tail -20`) | `bash -n`, harness run; CI below |
+
+### Unit
+
+```
+$ cd apps/agent && go test -count=1 ./internal/vpp/ifsanitize/ -run 'TestEveryInterfaceCreatorIsSanitized|TestGuard|TestQuarantine|Capped|HoleTaken' -v
+--- PASS: TestQuarantineHolderInstance (0.00s)
+--- PASS: TestQuarantineReservedRangeFull (0.00s)
+--- PASS: TestAcquireCappedFailsClosed (0.00s)
+--- PASS: TestAcquireCappedAndUnclearable (0.00s)
+    guard_test.go:360: 54 creator messages from binapi; 19 descriptor files create interfaces through ifsanitize, 0 violations; BeforeDelete in 11 packages
+--- PASS: TestEveryInterfaceCreatorIsSanitized (2.14s)
+    guard_test.go:402: flagged: raw.go:4:2: IpsecItfCreate sent outside ifsanitize.Acquire / iface.AcquireAndTag / a df6.IfSpec Add (VPP V19, D-095)
+    guard_test.go:402: flagged: raw.go:5:6: WireguardInterfaceCreate sent outside ifsanitize.Acquire / iface.AcquireAndTag / a df6.IfSpec Add (VPP V19, D-095)
+    guard_test.go:402: flagged: raw.go:6:14: TapCreateV3 sent outside ifsanitize.Acquire / iface.AcquireAndTag / a df6.IfSpec Add (VPP V19, D-095)
+    guard_test.go:402: flagged: raw.go:7:38: MemifCreateV2 sent outside ifsanitize.Acquire / iface.AcquireAndTag / a df6.IfSpec Add (VPP V19, D-095)
+    guard_test.go:402: flagged: raw.go:9:2: LcpItfPairAddDelV3 sent outside ifsanitize.Acquire / iface.AcquireAndTag / a df6.IfSpec Add (VPP V19, D-095)
+--- PASS: TestGuardCatchesARawCreate (0.00s)
+--- PASS: TestGuardPathsExist (0.00s)
+    sanitize_test.go:308: placeholders 10, rereads 1, API calls 159, freed [input-acl ip4 table 3 (deleted table; its index was taken by another client during the run, removed through that table) …]
+--- PASS: TestHoleTakenBySomeoneElse (0.00s)
+--- PASS: TestCappedFailsClosed (0.00s)
+ok  	ngfw/agent/internal/vpp/ifsanitize	2.511s
+```
+
+### Host (slot 2, `eval "$(tools/lab env 2)"`, `VRX_INTEGRATION=1`, `flock -s /run/lock/vrx-lab.lock`, one package at a time, no packets)
+
+Baseline: VPP restarted by its owner at 13:03:29 (host reboot 09:47) → `NRestarts=0`. None of these tests creates or
+deletes af_packet interfaces (D-101 not applicable).
+
+```
+13:18:58 NRestarts(before)=0
+$ go test -count=1 -v ./internal/vpp/ifsanitize/        (waited for the shared lock; ran 13:21–13:22)
+--- PASS: TestV19InheritanceClearedOnHost (64.99s)
+--- PASS: TestV19FreedTableOnHost (1.40s)
+… all unit tests PASS …
+ok  	ngfw/agent/internal/vpp/ifsanitize	70.117s
+13:26:25 NRestarts(after)=0
+
+  TestV19FreedTableOnHost (M2 on the real VPP):
+  ERROR interface sanitize failed (VPP V19) interface=loop288 sw_if_index=2 phase=create err="inherited binding to a deleted classify table cannot be removed (VPP V19): [input-acl l2 table 0]"
+  ERROR sw_if_index quarantined: … held by an admin-down loopback so it is never reused sw_if_index=2 tag=quarantine:w2 holder=loop16383
+  INFO interface sanitized … interface=loop288 sw_if_index=3 phase=create … placeholders=0 rereads=0
+    quarantine: loop288 created on fresh sw_if_index 3; dirty 2 held by loop16383 (tag "quarantine:w2", admin-down); gauge vrx_agent_iface_quarantined=9
+      (the gauge is process-wide: the fake-VPP Acquire tests in the same test binary quarantined 8 before)
+    pre-flight: WARN  interface loop16383 (tag quarantine:w2): input ACL l2 bound to classify table 0, which does not exist
+    pre-flight: WARN  interface loop16383 (tag quarantine:w2): output ACL ip4 bound to classify table 0, which does not exist
+    pre-flight: WARN  interface loop16383 (tag quarantine:w2): output ACL l2 bound to classify table 0, which does not exist
+    pre-flight: WARN  interface loop16383 (tag quarantine:w2): policer classify l2 bound to classify table 0, which does not exist
+  INFO quarantined sw_if_index released: its stale bindings are gone (VPP V19) sw_if_index=2 tag=quarantine:w2
+    Release: holder of 2 sanitized through placeholders (table 0 resurrected) and deleted; classify tables []
+
+13:26:34 NRestarts(before)=0
+$ go test -count=1 -v ./internal/descriptors/ipsec/
+--- PASS: TestIpsecOnHost (1.28s)
+--- PASS: TestSpdDeleteKeepsSALocksOnHost (0.01s)
+--- PASS: TestItfSanitizesReusedIndex (0.00s)
+… 21 more PASS …
+ok  	ngfw/agent/internal/descriptors/ipsec	1.591s
+13:26:51 NRestarts(after)=0
+  INFO interface sanitized (VPP V19/V21 inherited state) interface=ipsec2001 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=8 rereads=0 …
+  INFO interface sanitized (VPP V19/V21 inherited state) interface=ipsec2001 sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=0 rereads=0 …
+  INFO interface sanitized (VPP V19/V21 inherited state) interface=ipsec4002 sw_if_index=1 phase=create cleared="[input-acl ip4 table 3 output-acl ip6 table 3 ipsec-spd spd-index 0]" freed=[] placeholders=11 …
+  INFO interface sanitized (VPP V19/V21 inherited state) interface=ipsec4002 sw_if_index=1 phase=delete cleared="[input-acl ip4 table 3 input-acl ip6 table 3 input-acl l2 table 3]" …
+
+13:26:57 NRestarts(before)=0
+$ go test -count=1 -v ./internal/descriptors/wireguard/
+--- PASS: TestWireguardOnHost (1.78s)
+--- PASS: TestInterfaceSanitizesReusedIndex (0.00s)
+… 8 more PASS …
+ok  	ngfw/agent/internal/descriptors/wireguard	1.973s
+13:27:09 NRestarts(after)=0
+  INFO interface sanitized (VPP V19/V21 inherited state) interface=wg2001 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=8 …
+  INFO interface sanitized (VPP V19/V21 inherited state) interface=wg2001 sw_if_index=1 phase=delete …
+  INFO interface sanitized (VPP V19/V21 inherited state) interface=wg4001 sw_if_index=1 phase=create cleared="[input-acl ip4 table 3 output-acl ip6 table 3 ipsec-spd spd-index 0]" …
+  INFO interface sanitized (VPP V19/V21 inherited state) interface=wg4001 sw_if_index=1 phase=delete cleared="[output-acl ip4 table 3 output-acl ip6 table 3 output-acl l2 table 3]" …
+
+$ go run ./cmd/vrx-vpp-preflight        (read-only, after the three runs)
+V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+$ vppctl show interface | grep -E '^ *(w2|loop16|loop2|ipsec|wg)'   → (nothing left behind)
+```
+
+**NRestarts stayed 0 across all three runs.**
+
+### Out of scope / open (round 2)
+
+- CONTRACT: reserve `loop16000`–`loop16383` in `packages/schema` (TD-3-questions.md) — manager.
+- M1 liveness trade-off of cap 16 + fail closed (options a/b/c in TD-3-questions.md) — manager decides.
+- Not now per envelope: M3 exact binding readback (tech-debt), L7 af_packet rollback quiesce (TD-5), `Release` wiring (P08).

@@ -672,7 +672,7 @@ tasks:
   - DF-2
   priority: 1
   est_hours: 16
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D1.2
@@ -685,7 +685,8 @@ tasks:
   started: 2026-09-24T05:45
   finished: ''
   notes: ' | consolidate D-080 boot-identity helper; install persisted ClaimStore/records (DF-1 Q5, DF-6 Q10, DF-8 Q8); retrofit DF-2/DF-4 records | 07:2x cycle 12: worker found dead (no process since ~05:45);
-    uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/P08.continue.md'
+    uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/P08.continue.md | 08:17 worker done ffecf13 CI green; topology + restart-safety on slot
+    1 (NRestarts 6→6); its 07:27 run caused the V24 crash (confirmed); review spawned'
 - id: F-vlan-qinq
   title: 'Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking'
   prompt: prompts/features/F-vlan-qinq.md

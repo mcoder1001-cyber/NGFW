@@ -358,6 +358,34 @@ never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
 <!-- wave-A: F-acl -->
 <!-- wave-A: F-host-acl-nftables -->
 <!-- wave-A: F-nat44-ed-sessions -->
+### F-nat44-ed-sessions: NatSessions
+
+Three additions, all read-only except the kill (wave-A-hotspots §2: `ActionRequest.action` **5**):
+
+- `rpc NatSessions(NatSessionsRequest) → NatSessionsResponse`: one page of this owner's NAT44-ED sessions. VPP dumps
+  sessions per user (`nat44_user_dump`, then `nat44_user_session_v3_dump` per inside host), so the agent pages over the
+  users first: the user dump gives each user's session count, whole users before `offset` are skipped by count, and only
+  the users that cover the page are dumped. `limit` 0 = 100, > 1000 → `INVALID_ARGUMENT`; a response never carries
+  more than `limit` sessions. Order: users by (table id, address), then VPP's order of that user's sessions.
+  `filter.inside_address` / `filter.vrf` select users (no session scan); `outside_address`, `external_address`, `port`
+  and `protocol` scan the owner's sessions one user at a time, keeping only the page, and stop at the agent's scan
+  cap (`truncated` = the totals are lower bounds). Ownership (§6): a test slot `w<N>` sees only users in 10.N.0.0/16;
+  the product agent sees every user. `vrf` names follow `InterfaceState.vrf` ("default", the configured VRF name,
+  else the table id in decimal); the same spellings are accepted in `filter.vrf` and in the kill.
+- `rpc NatSummary(NatSummaryRequest) → NatSummaryResponse`: `enabled` and the per-thread `session_limit` from the
+  running config, users / sessions / static sessions from the user dump, and per owned pool (range pools from the
+  `nat44-ed.address-pool` Retrieve, interface pools from `nat44-ed.interface-address`) the number of addresses and of
+  sessions whose outside address is in the pool (one scan, same cap and `truncated` as above).
+- `ActionRequest.nat_session_kill = 5` (`NatSessionKillAction`): `nat44_del_session` with `NAT_IS_INSIDE` for the
+  5-tuple (protocol, inside address/port, external address/port) in the inside VRF. ED keys sessions by the full
+  5-tuple, so the external endpoint is required. Validation (`INVALID_ARGUMENT` before any output): addresses, ports,
+  protocol, VRF name, and the inside address must belong to the owner (slot range). The stream is one `done`:
+  `exit_code 0` "session deleted", `exit_code 1` "no such session" (VPP `NO_SUCH_ENTRY`), `exit_code 2` any other VPP
+  error (detail in `summary`); `stats` echo the 5-tuple and the table id.
+
+The API serves them as `GET /api/v1/state/nat/sessions`, `GET /api/v1/state/nat/summary` and
+`POST /api/v1/actions/nat/sessions/kill` (`apps/api/src/features/nat44-ed-sessions`). F-nat44-ei-64-66-nptv6 appends
+its EI variant to these messages (new field numbers only).
 <!-- wave-A: F-nat44-ei-64-66-nptv6 -->
 <!-- wave-A: P11 -->
 <!-- wave-A: F-wireguard -->

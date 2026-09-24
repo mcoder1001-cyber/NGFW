@@ -633,6 +633,10 @@ export class FakeAgent {
       // wave-A: F-acl
       // wave-A: F-host-acl-nftables
       // wave-A: F-nat44-ed-sessions
+      natSessions: (_call, cb) =>
+        cb({ code: status.UNIMPLEMENTED, details: 'fake agent: NatSessions stub' }),
+      natSummary: (_call, cb) =>
+        cb({ code: status.UNIMPLEMENTED, details: 'fake agent: NatSummary stub' }),
       // wave-A: F-nat44-ei-64-66-nptv6
       // wave-A: P11
       // wave-A: F-wireguard

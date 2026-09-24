@@ -54,6 +54,8 @@ const (
 	Dataplane_Action_FullMethodName         = "/vrx.v1.Dataplane/Action"
 	Dataplane_Health_FullMethodName         = "/vrx.v1.Dataplane/Health"
 	Dataplane_InterfaceState_FullMethodName = "/vrx.v1.Dataplane/InterfaceState"
+	Dataplane_NatSessions_FullMethodName    = "/vrx.v1.Dataplane/NatSessions"
+	Dataplane_NatSummary_FullMethodName     = "/vrx.v1.Dataplane/NatSummary"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -92,6 +94,13 @@ type DataplaneClient interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(ctx context.Context, in *InterfaceStateRequest, opts ...grpc.CallOption) (*InterfaceStateResponse, error)
+	// NatSessions pages the live NAT44-ED session table of this owner (read-only, never mutates). VPP
+	// dumps sessions per user (inside host), so the agent pages over the users first and dumps only
+	// the users that cover the requested page: one response carries at most `limit` (≤ 1000)
+	// sessions, never the whole table (docs/contracts/proto.md §11).
+	NatSessions(ctx context.Context, in *NatSessionsRequest, opts ...grpc.CallOption) (*NatSessionsResponse, error)
+	// NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only).
+	NatSummary(ctx context.Context, in *NatSummaryRequest, opts ...grpc.CallOption) (*NatSummaryResponse, error)
 }
 
 type dataplaneClient struct {
@@ -209,6 +218,26 @@ func (c *dataplaneClient) InterfaceState(ctx context.Context, in *InterfaceState
 	return out, nil
 }
 
+func (c *dataplaneClient) NatSessions(ctx context.Context, in *NatSessionsRequest, opts ...grpc.CallOption) (*NatSessionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NatSessionsResponse)
+	err := c.cc.Invoke(ctx, Dataplane_NatSessions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) NatSummary(ctx context.Context, in *NatSummaryRequest, opts ...grpc.CallOption) (*NatSummaryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NatSummaryResponse)
+	err := c.cc.Invoke(ctx, Dataplane_NatSummary_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -245,6 +274,13 @@ type DataplaneServer interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error)
+	// NatSessions pages the live NAT44-ED session table of this owner (read-only, never mutates). VPP
+	// dumps sessions per user (inside host), so the agent pages over the users first and dumps only
+	// the users that cover the requested page: one response carries at most `limit` (≤ 1000)
+	// sessions, never the whole table (docs/contracts/proto.md §11).
+	NatSessions(context.Context, *NatSessionsRequest) (*NatSessionsResponse, error)
+	// NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only).
+	NatSummary(context.Context, *NatSummaryRequest) (*NatSummaryResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -278,6 +314,12 @@ func (UnimplementedDataplaneServer) Health(context.Context, *HealthRequest) (*He
 }
 func (UnimplementedDataplaneServer) InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InterfaceState not implemented")
+}
+func (UnimplementedDataplaneServer) NatSessions(context.Context, *NatSessionsRequest) (*NatSessionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method NatSessions not implemented")
+}
+func (UnimplementedDataplaneServer) NatSummary(context.Context, *NatSummaryRequest) (*NatSummaryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method NatSummary not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -423,6 +465,42 @@ func _Dataplane_InterfaceState_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_NatSessions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NatSessionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).NatSessions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_NatSessions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).NatSessions(ctx, req.(*NatSessionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_NatSummary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NatSummaryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).NatSummary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_NatSummary_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).NatSummary(ctx, req.(*NatSummaryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -449,6 +527,14 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InterfaceState",
 			Handler:    _Dataplane_InterfaceState_Handler,
+		},
+		{
+			MethodName: "NatSessions",
+			Handler:    _Dataplane_NatSessions_Handler,
+		},
+		{
+			MethodName: "NatSummary",
+			Handler:    _Dataplane_NatSummary_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

@@ -79,6 +79,15 @@ service Dataplane {
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions
+
+  // NatSessions pages the live NAT44-ED session table of this owner (read-only, never mutates). VPP
+  // dumps sessions per user (inside host), so the agent pages over the users first and dumps only
+  // the users that cover the requested page: one response carries at most `limit` (≤ 1000)
+  // sessions, never the whole table (docs/contracts/proto.md §11).
+  rpc NatSessions(NatSessionsRequest) returns (NatSessionsResponse);
+  // NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only).
+  rpc NatSummary(NatSummaryRequest) returns (NatSummaryResponse);
+
   // wave-A: F-nat44-ei-64-66-nptv6
   // wave-A: P11
   // wave-A: F-wireguard
@@ -479,6 +488,11 @@ message ActionRequest {
 
     // wave-A: F-neighbors-ra
     // wave-A: F-nat44-ed-sessions
+
+    // Delete one NAT44-ED session (F-nat44-ed-sessions); one `done` line, exit_code 1 when VPP has no
+    // such session.
+    NatSessionKillAction nat_session_kill = 5;
+
     // wave-A: F-unbound-chrony-syslog
   }
 }
@@ -3453,6 +3467,157 @@ message RemoteAccessProfile {
 // ----- F-host-acl-nftables -----
 
 // ----- F-nat44-ed-sessions -----
+
+// NatSessionFilter narrows NatSessions. Every set field must match (AND); an unset field matches all.
+message NatSessionFilter {
+  // Inside (pre-translation) IPv4 address. It selects one user, so the agent dumps only that user.
+  optional string inside_address = 1;
+  // Outside (translated) IPv4 address.
+  optional string outside_address = 2;
+  // External (remote) host IPv4 address.
+  optional string external_address = 3;
+  // L4 port (ICMP: the identifier); matches the inside, outside or external port.
+  optional uint32 port = 4;
+  // "tcp" | "udp" | "icmp" | an IP protocol number in decimal.
+  optional string protocol = 5;
+  // Inside VRF name ("default" = table 0; a decimal string is a raw table id).
+  optional string vrf = 6;
+}
+
+// NatSessionsRequest selects one page of the session table.
+message NatSessionsRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // Index of the first session of the page in the (filtered) table order: users by (VRF, address),
+  // then VPP's order of that user's sessions.
+  uint32 offset = 2;
+  // Page size; 0 = 100; more than 1000 fails with INVALID_ARGUMENT.
+  uint32 limit = 3;
+  // Filter; unset = every session of this owner.
+  NatSessionFilter filter = 4;
+}
+
+// NatSession is one NAT44-ED translation as VPP reports it (state, not configuration).
+message NatSession {
+  // Inside endpoint (the user).
+  string inside_address = 1;
+  // Inside L4 port (ICMP: identifier).
+  uint32 inside_port = 2;
+  // Outside (translated) endpoint.
+  string outside_address = 3;
+  // Outside L4 port.
+  uint32 outside_port = 4;
+  // External (remote) host.
+  string external_address = 5;
+  // External host port.
+  uint32 external_port = 6;
+  // External host after twice-NAT (equal to external_* without twice-NAT).
+  string external_nat_address = 7;
+  // External host port after twice-NAT.
+  uint32 external_nat_port = 8;
+  // "tcp" | "udp" | "icmp" | the IP protocol number in decimal.
+  string protocol = 9;
+  // Inside VRF name: "default" for table 0, the configured VRF name, else the table id in decimal.
+  string vrf = 10;
+  // Inside FIB table id.
+  uint32 table_id = 11;
+  // Created by a static mapping.
+  bool static = 12;
+  // Twice-NAT session.
+  bool twice_nat = 13;
+  // VPP considers the session timed out (not yet reclaimed).
+  bool timed_out = 14;
+  // Seconds since the last packet (VPP-relative).
+  uint64 idle_seconds = 15;
+  // Bytes in both directions.
+  uint64 bytes = 16;
+  // Packets in both directions.
+  uint64 packets = 17;
+}
+
+// NatSessionsResponse is one page. It never carries more than the requested limit.
+message NatSessionsResponse {
+  // The page, in table order.
+  repeated NatSession sessions = 1;
+  // Offset of the next page; unset on the last page.
+  optional uint32 next_offset = 2;
+  // Users (inside hosts) of this owner with sessions that the filter's inside_address / vrf select.
+  uint64 total_users = 3;
+  // Sessions that match the filter (a lower bound when `truncated`).
+  uint64 total_sessions = 4;
+  // The agent stopped counting at its scan cap; total_sessions is a lower bound and the page may be
+  // short. Only a filter on outside/external address, port or protocol scans sessions.
+  bool truncated = 5;
+  // The owner whose view was returned.
+  string owner = 6;
+  // When the dump was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 7;
+}
+
+// NatSummaryRequest has only the owner.
+message NatSummaryRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+}
+
+// NatPoolUsage is the use of one owned NAT44-ED pool.
+message NatPoolUsage {
+  // First address of a range pool; for an interface pool the interface's first IPv4 address ("" if none).
+  string first_address = 1;
+  // Last address of a range pool (equal to first_address for one address and for interface pools).
+  string last_address = 2;
+  // Logical interface name of an interface pool; "" for a range pool.
+  string interface = 3;
+  // Tenant VRF name of a range pool ("default" for table 0); "" for an interface pool.
+  string vrf = 4;
+  // Twice-NAT pool.
+  bool twice_nat = 5;
+  // Number of addresses in the pool.
+  uint32 addresses = 6;
+  // Sessions whose outside address is in this pool (a lower bound when the response is truncated).
+  uint64 sessions = 7;
+}
+
+// NatSummaryResponse is one snapshot of this owner's NAT44-ED use.
+message NatSummaryResponse {
+  // nat44-ed is enabled on VPP.
+  bool enabled = 1;
+  // VPP's session limit per worker thread (running config); 0 when disabled.
+  uint32 session_limit = 2;
+  // Users (inside hosts) of this owner with sessions.
+  uint64 total_users = 3;
+  // Sessions of those users.
+  uint64 total_sessions = 4;
+  // Of which created by static mappings.
+  uint64 static_sessions = 5;
+  // Owned pools (range pools, then interface pools).
+  repeated NatPoolUsage pools = 6;
+  // Session count per protocol name ("tcp", "udp", "icmp", or the number in decimal).
+  map<string, uint64> sessions_by_protocol = 7;
+  // The per-pool and per-protocol counts stopped at the agent's scan cap (lower bounds).
+  bool truncated = 8;
+  // The owner whose view was returned.
+  string owner = 9;
+  // When the dump was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 10;
+}
+
+// NatSessionKillAction deletes one NAT44-ED session (nat44_del_session). An ED session is keyed by the
+// full 5-tuple, so the external endpoint is required. The inside address must belong to this owner.
+message NatSessionKillAction {
+  // "tcp" | "udp" | "icmp".
+  string protocol = 1;
+  // Inside IPv4 address.
+  string inside_address = 2;
+  // Inside L4 port (ICMP: identifier).
+  uint32 inside_port = 3;
+  // External (remote) host IPv4 address.
+  string external_address = 4;
+  // External host port.
+  uint32 external_port = 5;
+  // Inside VRF name; "" = "default" (a decimal string is a raw table id).
+  string vrf = 6;
+}
 
 // ----- F-nat44-ei-64-66-nptv6 -----
 

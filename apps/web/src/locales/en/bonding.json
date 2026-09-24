@@ -122,5 +122,11 @@
       "title": "Weight",
       "help": "active-backup only: the up member with the highest weight is active (1–255)"
     }
+  },
+  "memberStatus": {
+    "up": "up",
+    "down": "link down",
+    "adminDown": "admin down",
+    "degraded": "not aggregated"
   }
 }

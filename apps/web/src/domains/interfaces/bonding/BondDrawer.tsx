@@ -244,7 +244,7 @@ function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
                 <TableCell dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
                   {m}
                 </TableCell>
-                <TableCell>{lm ? <StatusChip size="small" status={memberStatus(lm)} label={t(`status.${memberStatus(lm)}`)} /> : t('notInVpp')}</TableCell>
+                <TableCell>{lm ? <StatusChip size="small" status={memberStatus(lm)} label={t(`memberStatus.${memberStatus(lm)}`)} /> : t('notInVpp')}</TableCell>
                 <TableCell>{opts || '—'}</TableCell>
                 <TableCell>
                   {lm?.lacp ? (

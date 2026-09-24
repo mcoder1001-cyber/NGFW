@@ -137,7 +137,7 @@ export function BondsPage() {
             </Typography>
           ),
       },
-      { field: 'active', headerName: t('col.active'), width: 110 },
+      { field: 'active', headerName: t('col.active'), width: 150 },
       {
         field: 'members',
         headerName: t('col.members'),

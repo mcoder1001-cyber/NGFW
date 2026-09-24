@@ -2299,7 +2299,7 @@ tasks:
 - id: TD-4
   title: 'Auth hardening follow-ups from TD-2 (D-100): account disable bumps the credential generation; API-key creation from a JWT session requires the current password; login gets the same transport check
     as password set'
-  prompt: ''
+  prompt: prompts/tech-debt/TD-4.md
   template: ''
   stage: S2
   deps:
@@ -2321,7 +2321,7 @@ tasks:
 - id: TD-5
   title: 'V24 + V19 follow-ups: af_packet Delete quiesces the Linux netdev (netlink link down) before af_packet_delete, also in Create rollback; restart-simulation fixtures do the same; ifsanitize placeholder
     cap = holes + 2×FreshRun, max 64 (TD-3 M1 option b)'
-  prompt: ''
+  prompt: prompts/tech-debt/TD-5.md
   template: ''
   stage: S2
   deps:
@@ -2332,8 +2332,9 @@ tasks:
   parked_on: ''
   wbs:
   - D1.2
-  scope: D-101 + D-105; apps/agent/internal/descriptors/af_packet/** + apps/agent/internal/ifsanitize/** (cap only) + their tests
-  files_owned: apps/agent/internal/descriptors/af_packet/** apps/agent/internal/ifsanitize/** docs/agent/descriptors/af_packet.md docs/status/tasks/TD-5*
+  scope: D-101 + D-105; af_packet quiesce before delete (Delete + Create rollback) + guard test; ifsanitize cap = holes + 2×FreshRun ≤ 64
+  files_owned: apps/agent/internal/descriptors/af_packet/** apps/agent/internal/vpp/ifsanitize/** (cap only, D-105) docs/agent/descriptors/af_packet.md docs/agent/descriptors/interface.md (cap paragraph)
+    docs/status/tasks/TD-5*
   branch: ''
   worktree: ''
   owner: ''

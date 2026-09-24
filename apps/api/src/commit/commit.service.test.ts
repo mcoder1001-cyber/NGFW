@@ -13,7 +13,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AgentClient } from '../agent/agent.client.js';
+import type { AuditService } from '../audit/audit.service.js';
 import type { SystemEventsService } from '../audit/system-events.service.js';
+import type { TokensService } from '../auth/tokens.service.js';
 import { ProblemError } from '../common/problem.js';
 import { DatastoreService } from '../datastore/datastore.service.js';
 import { emptyDocument } from '../datastore/documents.js';
@@ -58,6 +60,8 @@ describe('CommitService (fake agent over gRPC)', () => {
   let commits: CommitService;
   let bus: Bus;
   const events = { record: vi.fn(async () => undefined) };
+  const tokens = { revokeUser: vi.fn(async () => ({ persisted: true, families: 0 })) };
+  const audit = { write: vi.fn(async () => undefined) };
 
   beforeAll(async () => {
     fake = new FakeAgent({ owner: 'w1' });
@@ -83,6 +87,8 @@ describe('CommitService (fake agent over gRPC)', () => {
     repo.addUser('op', 'operator');
     bus = new Bus();
     ds = new DatastoreService(repo, env);
+    tokens.revokeUser.mockClear();
+    audit.write.mockClear();
     commits = new CommitService(
       repo,
       new ValidationService(repo, agent),
@@ -90,6 +96,8 @@ describe('CommitService (fake agent over gRPC)', () => {
       events as unknown as SystemEventsService,
       bus,
       env,
+      tokens as unknown as TokensService,
+      audit as unknown as AuditService,
     );
   });
   afterEach(() => commits.onApplicationShutdown());
@@ -346,6 +354,66 @@ describe('CommitService (fake agent over gRPC)', () => {
     expect((await problem(commits.rollback(OPERATOR, 1, {}))).status).toBe(403);
   });
 
+  it('D-102: a hash changed through the config API ends the user’s sessions after the promote, audited via: config', async () => {
+    const OTHER = '$vrx-test$VRX_TEST_HASH_D102';
+    await ds.putCandidate(ADMIN, '/management/users', [
+      { username: 'admin', role: 'admin' },
+      { username: 'alice', role: 'operator', passwordHash: TEST_HASH },
+    ]);
+    await commits.commit(ADMIN, {});
+    // a NEW user with a hash is not a reset
+    expect(tokens.revokeUser).not.toHaveBeenCalled();
+    const alice = repo.state.users.get('alice')!;
+    expect(alice.gen).toBe(0);
+    // the same hash staged again is not a change either
+    await ds.patchCandidate(ADMIN, '/management/users/1', { passwordHash: TEST_HASH });
+    await ds.patchCandidate(ADMIN, '/system', { hostname: 'same-hash' });
+    expect((await commits.commit(ADMIN, {})).status).toBe('applied');
+    expect(tokens.revokeUser).not.toHaveBeenCalled();
+    // a changed hash: generation bumped in the promote, sessions ended once it committed, one audit row
+    await ds.patchCandidate(ADMIN, '/management/users/1', { passwordHash: OTHER });
+    const r = await commits.commit(ADMIN, { comment: 'reset alice' });
+    expect(r.status).toBe('applied');
+    expect(repo.state.users.get('alice')).toMatchObject({ hash: OTHER, gen: 1 });
+    expect(tokens.revokeUser).toHaveBeenCalledTimes(1);
+    expect(tokens.revokeUser).toHaveBeenCalledWith(alice.id, 1);
+    expect(audit.write).toHaveBeenCalledTimes(1);
+    expect(audit.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'config.password-reset',
+        resource: 'user/alice',
+        userId: ADMIN.id,
+        username: 'admin',
+        result: 'success',
+        after: expect.objectContaining({
+          passwordSet: true,
+          via: 'config',
+          revision: r.revision!.id,
+          txnId: r.txnId,
+          apiKeysRevoked: [],
+        }),
+      }),
+    );
+    expect(JSON.stringify(audit.write.mock.calls)).not.toContain('VRX_TEST_HASH');
+  });
+
+  it('D-102: a confirmed commit resets at CONFIRM (when the hash reaches app_user), not while pending', async () => {
+    await ds.putCandidate(ADMIN, '/management/users', [
+      { username: 'admin', role: 'admin' },
+      { username: 'carol', role: 'operator', passwordHash: TEST_HASH },
+    ]);
+    await commits.commit(ADMIN, {});
+    await ds.patchCandidate(ADMIN, '/management/users/1', {
+      passwordHash: '$vrx-test$VRX_TEST_HASH_D102C',
+    });
+    expect((await commits.commit(ADMIN, { confirmSec: 30 })).status).toBe('pending');
+    expect(tokens.revokeUser).not.toHaveBeenCalled();
+    expect(repo.state.users.get('carol')?.hash).toBe(TEST_HASH);
+    await commits.confirm(ADMIN);
+    expect(repo.state.users.get('carol')).toMatchObject({ gen: 1 });
+    expect(tokens.revokeUser).toHaveBeenCalledWith(repo.state.users.get('carol')!.id, 1);
+  });
+
   // ---------------------------------------------------------------- review fix round (P06-review.md)
 
   it('M1: an operator cannot commit admin-only changes staged by someone else (stale takeover discards them)', async () => {
@@ -398,6 +466,8 @@ describe('CommitService (fake agent over gRPC)', () => {
       events as unknown as SystemEventsService,
       bus,
       shortEnv,
+      tokens as unknown as TokensService,
+      audit as unknown as AuditService,
     );
     try {
       await ds.patchCandidate(ADMIN, '/interfaces/loop1', { ipv4: ['10.1.0.1/24'] });

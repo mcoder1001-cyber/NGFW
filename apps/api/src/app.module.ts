@@ -25,6 +25,8 @@ import { SecretsController } from './secrets/secrets.controller.js';
 import { SecretsService } from './secrets/secrets.service.js';
 import { StateController } from './state/state.controller.js';
 import { RelayService } from './telemetry/relay.service.js';
+import { UsersController } from './users/users.controller.js';
+import { UsersService } from './users/users.service.js';
 
 const DB_HANDLE = Symbol('VRX_DB_HANDLE');
 
@@ -59,6 +61,7 @@ export class AppModule {
         ActionsController,
         SecretsController,
         AuditController,
+        UsersController,
       ],
       providers: [
         { provide: ENV, useValue: env },
@@ -78,6 +81,7 @@ export class AppModule {
         CommitService,
         SecretsService,
         RelayService,
+        UsersService,
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
         { provide: APP_FILTER, useClass: ProblemFilter },

@@ -20,7 +20,7 @@ const PUBLIC = new Set([
 ]);
 
 /** Mutations a readonly user may call (own credentials only). */
-const READONLY_MAY = new Set(['POST /api/v1/auth/password']);
+const READONLY_MAY = new Set(['POST /api/v1/auth/password', 'POST /api/v1/users/:name/password']);
 /** Routes that need the admin role (@MinRole('admin')). */
 const ADMIN_ONLY = new Set([
   'DELETE /api/v1/config/lock',

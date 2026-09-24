@@ -89,11 +89,18 @@ const (
 	PhaseDelete = "delete" // right before an interface is deleted, while its tables still exist
 )
 
-// MaxPlaceholders bounds the placeholder tables one create-phase run makes to resurrect freed
-// indices (TD-3 re-review M1: at most 16 per create). A run that reaches it before it has proven
-// the classify pool's free list empty fails closed with ErrCapped (counted as
+// MaxPlaceholders is the ceiling of the placeholder cap (PlaceholderCap): no create-phase run
+// makes more placeholder tables than this, however many freed indices it has seen.
+var MaxPlaceholders = 64
+
+// PlaceholderCap is the number of placeholder tables a create-phase run may make once it has seen
+// holes freed classify table indices: holes + 2 × FreshRun, at most MaxPlaceholders (D-105, TD-3
+// re-review M1 option b). Each freed index needs one placeholder and the proof of an empty free
+// list FreshRun more; the second FreshRun absorbs runs of ascending pops that were not fresh after
+// all. The cap grows as the run discovers holes. A run that reaches it before it has proven the
+// classify pool's free list empty fails closed with ErrCapped (counted as
 // vrx_agent_iface_sanitize_capped_total): Acquire deletes the interface and fails the create.
-var MaxPlaceholders = 16
+func PlaceholderCap(holes int) int { return min(holes+2*FreshRun, MaxPlaceholders) }
 
 // ErrCapped means the placeholder cap was reached before every freed classify table index was
 // resurrected: the new interface may still carry a binding to one of them, so it is not reported
@@ -128,9 +135,12 @@ type Report struct {
 	Phase     string
 	// Placeholders is how many throwaway tables were created to resurrect freed indices.
 	Placeholders int
-	// Capped reports that MaxPlaceholders was reached with freed indices possibly left (create
-	// phase: the run fails with ErrCapped).
+	// Capped reports that the placeholder cap was reached with freed indices possibly left
+	// (create phase: the run fails with ErrCapped).
 	Capped bool
+	// Holes is how many freed classify table indices the run has seen; Cap the placeholder cap
+	// they gave (PlaceholderCap(Holes)) when resurrect stopped.
+	Holes, Cap int
 	// Rereads counts classify_table_ids re-reads for holes another client took meanwhile.
 	Rereads int
 	// Freed lists removed bindings that named a deleted table (removed through a placeholder).
@@ -195,7 +205,7 @@ func run(ctx context.Context, c vpp.Client, idx uint32, name, phase string) (Rep
 		case len(rep.Unclearable) > 0:
 			err = fmt.Errorf("%w: %v", ErrUnclearable, rep.Unclearable)
 		case rep.Capped:
-			err = fmt.Errorf("%w (%d placeholders)", ErrCapped, rep.Placeholders)
+			err = fmt.Errorf("%w (%d placeholders, cap %d for %d freed indices seen)", ErrCapped, rep.Placeholders, rep.Cap, rep.Holes)
 		}
 	}
 	record(rep, err)
@@ -273,8 +283,8 @@ var FreshRun = 8
 // A hole another client takes between the classify_table_ids snapshot and the pop never comes
 // back from the pool (TD-3 re-review M1): once the run looks fresh with holes left, the table list
 // is read again, holes that are live now are dropped and every table that appeared meanwhile is
-// probed like a live one. MaxPlaceholders bounds the run; reaching it with holes left or without
-// FreshRun sets Report.Capped (the create fails closed, ErrCapped).
+// probed like a live one. PlaceholderCap(holes seen) bounds the run; reaching it with holes left or
+// without FreshRun sets Report.Capped (the create fails closed, ErrCapped).
 func (s *sanitizer) resurrect() error {
 	maxSeen := int64(-1)
 	for id := range s.live {
@@ -283,9 +293,27 @@ func (s *sanitizer) resurrect() error {
 		}
 	}
 	holes := map[uint32]bool{}
+	// seen is every freed index the run has seen, the cap's "holes" (D-105): the gaps below the
+	// highest index seen, the tables input ACL bindings name, and every pop proven to come from the
+	// free list — a pop below the highest index seen, and the ascending run such a pop or a gap
+	// interrupts (growth is consecutive to the end, so a broken run was never growth). Without the
+	// latter, a free list that replays a previous run's ascending pops (dropPlaceholders frees in
+	// reverse creation order, so the next run pops in the same order) stayed capped for good.
+	seen := map[uint32]bool{}
+	hole := func(i uint32) {
+		holes[i] = true
+		seen[i] = true
+	}
+	var run []uint32 // the current run of ascending pops (fresh growth or free-list entries)
+	proven := func() {
+		for _, i := range run {
+			seen[i] = true
+		}
+		run = run[:0]
+	}
 	for i := int64(0); i < maxSeen; i++ {
 		if !s.live[uint32(i)] {
-			holes[uint32(i)] = true
+			hole(uint32(i))
 		}
 	}
 	// the tables input ACL bindings name are known exactly: they must come back
@@ -295,23 +323,34 @@ func (s *sanitizer) resurrect() error {
 	}
 	for _, t := range []uint32{cur.IP4TableID, cur.IP6TableID, cur.L2TableID} {
 		if t != NoIndex && !s.live[t] {
-			holes[t] = true
+			hole(t)
 		}
 	}
 	consec := 0
 	for {
-		if len(holes) > 0 && (consec >= FreshRun || len(s.holds) >= MaxPlaceholders) {
+		s.rep.Holes, s.rep.Cap = len(seen), PlaceholderCap(len(seen))
+		if len(holes) > 0 && (consec >= FreshRun || len(s.holds) >= s.rep.Cap) {
 			if err := s.reread(holes); err != nil {
 				return err
+			}
+			if len(holes) > 0 {
+				// a hole still free after the re-read proves the free list is not empty, and VPP pops
+				// the free list before it grows the pool: every pop of the current ascending run came
+				// from the free list (TD-5 review M1 — an unbroken run above an older hole was counted
+				// only when a gap or a lower pop broke it, so it met a cap of 1 + 2 × FreshRun first,
+				// on every run). The success condition is unchanged; only the bound grows, ≤ 64.
+				proven()
+				s.rep.Holes, s.rep.Cap = len(seen), PlaceholderCap(len(seen))
 			}
 		}
 		if len(holes) == 0 && consec >= FreshRun {
 			return nil
 		}
-		if len(s.holds) >= MaxPlaceholders {
+		if len(s.holds) >= s.rep.Cap {
 			s.rep.Capped = true
 			slog.Default().Warn("interface sanitize: placeholder cap reached (VPP V19); the create fails closed",
-				"sw_if_index", uint32(s.idx), "placeholders", len(s.holds), "holes_left", len(holes), "fresh_run", consec)
+				"sw_if_index", uint32(s.idx), "placeholders", len(s.holds), "cap", s.rep.Cap, "holes_seen", s.rep.Holes,
+				"holes_left", len(holes), "fresh_run", consec, "pops", s.holds)
 			return nil
 		}
 		idx, err := s.createPlaceholder()
@@ -323,17 +362,22 @@ func (s *sanitizer) resurrect() error {
 		case int64(idx) == maxSeen+1:
 			consec++
 			maxSeen = int64(idx)
+			run = append(run, idx)
 		case int64(idx) > maxSeen:
 			// the indices skipped were not live at the snapshot and not popped by us: freed (or
 			// taken by another client meanwhile — the re-read drops those)
 			for i := maxSeen + 1; i < int64(idx); i++ {
 				if !s.live[uint32(i)] {
-					holes[uint32(i)] = true
+					hole(uint32(i))
 				}
 			}
+			proven()
+			run = append(run, idx)
 			consec = 1
 			maxSeen = int64(idx)
 		default:
+			proven()
+			seen[idx] = true
 			consec = 0
 		}
 	}

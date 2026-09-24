@@ -17,7 +17,7 @@ func TestHostInterfaceSanitizesReusedIndex(t *testing.T) {
 	m := sanitizetest.NewModel()
 	m.Install(f.Client)
 	m.Poison(1, 2, 3, 4, 5)
-	d := afpacket.New(f, owner)
+	d := f.desc()
 	meta, err := d.Create(ctx, &afpacket.HostInterface{Name: "w2-l0", HostIfName: "w2-l0"})
 	if err != nil {
 		t.Fatal(err)

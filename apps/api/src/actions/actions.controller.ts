@@ -1,9 +1,10 @@
-import { Body, Controller, HttpCode, Param, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, Param, Post, Req } from '@nestjs/common';
 import { ApiBody, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { ActionRequest } from '@ngfw/proto';
 import { ipAddress, pointerIssues } from '@ngfw/schema';
 import { z } from 'zod';
 import { AgentClient } from '../agent/agent.client.js';
+import type { VrxRequest } from '../common/principal.js';
 import { ProblemError, problems } from '../common/problem.js';
 import { Protected } from '../common/responses.js';
 import { safeText } from '../common/text.js';
@@ -89,7 +90,7 @@ export class ActionsController {
 
   @Post(':action')
   @HttpCode(200)
-  @Protected(400, 404, 501, 502, 503)
+  @Protected(400, 404, 409, 501, 502, 503)
   @ApiParam({ name: 'action', schema: { type: 'string', enum: [...ACTIONS] } })
   @ApiBody({
     required: false,
@@ -99,18 +100,25 @@ export class ActionsController {
   @ApiOperation({
     summary:
       'Run an action in the data plane (ping; traceroute and the others answer 501) and return its output',
+    description:
+      'ping uses VPP’s ping API: default VRF only, count × interval ≤ 5 s, one at a time (503 while another runs), and 409 when VPP runs worker threads (the API holds the worker barrier for the whole ping — docs/vpp-code-track.md V-new).',
   })
   @ApiOkResponse({ schema: openapi(ActionOut, 'output') })
   async run(
     @Param('action', new SafeParamPipe('action', 64)) action: string,
     @Body() body: unknown,
+    @Req() req: VrxRequest,
   ) {
     if (!(ACTIONS as readonly string[]).includes(action))
       throw problems.notFound(`unknown action '${action}'`);
-    let req: ActionRequest;
+    let areq: ActionRequest;
     if (action === 'ping') {
       const p = parse(PingBody, body);
-      req = {
+      req.audit = {
+        resource: 'actions/ping',
+        after: { target: p.target, count: p.count, intervalMs: p.intervalMs, vrf: p.vrf },
+      };
+      areq = {
         ping: {
           target: p.target,
           vrf: p.vrf ?? '',
@@ -123,7 +131,8 @@ export class ActionsController {
       };
     } else if (action === 'traceroute') {
       const p = parse(TracerouteBody, body);
-      req = {
+      req.audit = { resource: 'actions/traceroute', after: { target: p.target, vrf: p.vrf } };
+      areq = {
         traceroute: {
           target: p.target,
           vrf: p.vrf ?? '',
@@ -139,7 +148,7 @@ export class ActionsController {
       );
     }
     try {
-      const r = await this.agent.runAction(req);
+      const r = await this.agent.runAction(areq);
       const done = r.done ?? {
         summary: 'the agent ended the action without a result',
         exitCode: 1,

@@ -27,6 +27,8 @@ type Json = Record<string, unknown>;
 export interface VrfStaticEcmpFakeState {
   /** Replies the fake ping reports for a target (default: all of them). */
   pingReplies?: ((target: string, count: number) => number) | undefined;
+  /** Worker threads of the modelled VPP: > 0 refuses the ping with FAILED_PRECONDITION like the agent (review M1). */
+  workers?: number | undefined;
 }
 
 export const vrfStaticEcmpFakeState: VrfStaticEcmpFakeState = {};
@@ -190,6 +192,11 @@ export function vrfStaticEcmpFake(agent: FakeAgent): {
       const interval = ping.intervalMs || 1000;
       if (count > 100 || count * interval > 5000) return bad('count', 'count × interval > 5 s');
       if (interval < 100) return bad('interval_ms', `${interval} ms < 100 ms`);
+      if ((vrfStaticEcmpFakeState.workers ?? 0) > 0)
+        return fail(
+          status.FAILED_PRECONDITION,
+          `ping refused on a VPP with worker threads: VPP runs ${vrfStaticEcmpFakeState.workers} worker thread(s) and its ping API is not mp-safe (fake)`,
+        );
       const received = Math.min(
         count,
         vrfStaticEcmpFakeState.pingReplies?.(ping.target, count) ?? count,

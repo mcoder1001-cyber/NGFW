@@ -1,14 +1,17 @@
+import RefreshIcon from '@mui/icons-material/Refresh';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
+import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetchRoutes, FIB_POLL_MS, routeKeys, useCandidate, type RouteItem, type RoutesQuery } from './api';
+import { fetchRoutes, routeKeys, useCandidate, useFibQueryDefaults, useRefreshRoutes, type RouteItem, type RoutesQuery } from './api';
 import { Mono } from './common';
 import { NS, type VrfsConfig } from './model';
 
@@ -35,33 +38,44 @@ function pathText(p: RouteItem['paths'][number], table: number | undefined): str
     .join(' ');
 }
 
+const PREFIX_RE = /^[0-9a-fA-F.:]+\/[0-9]{1,3}$/;
+
 /**
  * The FIB browser: one VRF's live FIB through `GET /api/v1/state/routes` — the agent reads the table and returns only
  * the requested page (ListRoutes), so the grid stays 1M-safe (server-side paging; no sort/filter beyond the agent's:
  * family, prefix, source). Each entry shows its best FIB source and its paths (what they resolve to: the DPO kind).
+ * Every page is a full table walk in VPP (review H1): the grid never polls, the prefix filter applies on Enter or blur,
+ * and the refresh button re-reads the page.
  */
 export function FibTab() {
   const { t } = useTranslation(NS);
+  useFibQueryDefaults();
+  const refresh = useRefreshRoutes();
   const vrfs = useCandidate<VrfsConfig>('vrfs');
   const names = useMemo(() => ['default', ...Object.keys(vrfs.data ?? {}).filter((n) => n !== 'default').sort()], [vrfs.data]);
   const [vrf, setVrf] = useState('default');
   const [family, setFamily] = useState<'' | 'ipv4' | 'ipv6'>('');
+  // what the user types vs the filter the grid uses: applied on Enter or blur, never per keystroke (each is a walk)
+  const [prefixInput, setPrefixInput] = useState('');
   const [prefix, setPrefix] = useState('');
   const [source, setSource] = useState<string>('');
   const [meta, setMeta] = useState<{ tableId?: number | undefined; retrievedAt?: string | undefined; error?: string }>({});
-  const prefixOk = prefix === '' || /^[0-9a-fA-F.:]+\/[0-9]{1,3}$/.test(prefix.trim());
+  const inputOk = prefixInput.trim() === '' || PREFIX_RE.test(prefixInput.trim());
+  const applyPrefix = () => {
+    if (inputOk) setPrefix(prefixInput.trim());
+  };
 
   const fetchPage = useCallback(
     async (req: ServerPageRequest, signal: AbortSignal) => {
       const q: RoutesQuery = { vrf, page: req.page + 1, pageSize: req.pageSize };
       if (family) q.family = family;
-      if (prefix && prefixOk) q.prefix = prefix.trim();
+      if (prefix) q.prefix = prefix;
       if (source) q.source = source;
       const r = await fetchRoutes(q, signal);
       setMeta({ tableId: r.tableId, retrievedAt: r.retrievedAt });
       return { rows: r.items.map((it, i) => ({ ...it, id: `${req.page}:${i}:${it.prefix}` })), total: r.total };
     },
-    [vrf, family, prefix, prefixOk, source],
+    [vrf, family, prefix, source],
   );
 
   const columns = useMemo<GridColDef<FibRow>[]>(
@@ -126,10 +140,14 @@ export function FibTab() {
         <TextField
           size="small"
           label={t('fib.prefix')}
-          value={prefix}
-          onChange={(e) => setPrefix(e.target.value)}
-          error={!prefixOk}
-          helperText={prefixOk ? ' ' : t('fib.badPrefix')}
+          value={prefixInput}
+          onChange={(e) => setPrefixInput(e.target.value)}
+          onBlur={applyPrefix}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') applyPrefix();
+          }}
+          error={!inputOk}
+          helperText={inputOk ? (prefixInput.trim() !== prefix ? t('fib.prefixApply') : ' ') : t('fib.badPrefix')}
           slotProps={{ htmlInput: LTR }}
           sx={{ minInlineSize: 200 }}
         />
@@ -142,14 +160,21 @@ export function FibTab() {
         </TextField>
         <Box sx={{ flex: 1 }} />
         {meta.tableId !== undefined && <Chip size="small" variant="outlined" label={t('fib.table', { id: meta.tableId })} />}
+        {meta.retrievedAt !== undefined && (
+          <Chip size="small" variant="outlined" label={t('fib.retrievedAt', { time: new Date(meta.retrievedAt).toLocaleTimeString() })} />
+        )}
+        <Tooltip title={t('fib.refreshHelp')}>
+          <IconButton aria-label={t('fib.refresh')} onClick={refresh}>
+            <RefreshIcon />
+          </IconButton>
+        </Tooltip>
       </Stack>
       <Paper variant="outlined" sx={{ blockSize: 560 }}>
         <ServerDataGrid<FibRow>
           aria-label={t('fib.title')}
           columns={columns}
-          queryKey={[...routeKeys.all, 'grid', { vrf, family, prefix: prefixOk ? prefix : '', source }]}
+          queryKey={[...routeKeys.all, 'grid', { vrf, family, prefix, source }]}
           fetchPage={fetchPage}
-          refetchInterval={FIB_POLL_MS}
           initialPageSize={100}
           pageSizeOptions={[25, 100, 500, 1000]}
           getRowHeight={AUTO_HEIGHT}

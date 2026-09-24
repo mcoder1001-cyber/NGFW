@@ -1,5 +1,6 @@
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -19,7 +20,8 @@ import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { PageHeader } from '../../../shell/PageHeader';
-import { useCandidate, usePatchConfig, useRoutes } from './api';
+import { ApiError } from '../../../api-problem';
+import { useCandidate, useFibQueryDefaults, usePatchConfig, useRefreshRoutes, useRoutes } from './api';
 import { createMergePatch } from '../../interfaces/model';
 import { esc, Mono, pageOf, problemFor } from './common';
 import { localizeSchema, NS, vrfItemSchema, vrfRows, type VrfConfig, type VrfRow, type VrfsConfig } from './model';
@@ -27,11 +29,21 @@ import { localizeSchema, NS, vrfItemSchema, vrfRows, type VrfConfig, type VrfRow
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/;
 const LTR = { dir: 'ltr' } as const;
 
-/** Live status of a VRF: how many FIB entries its table has (the agent's ListRoutes total). */
+/**
+ * Live status of a VRF: how many FIB entries its table has (the agent's ListRoutes total). Read once and on the page's
+ * refresh button, never polled: the count is a full walk of the table in VPP (review H1).
+ */
 function LiveRoutes({ vrf }: { vrf: string }) {
   const { t } = useTranslation(NS);
   const q = useRoutes({ vrf, page: 1, pageSize: 1 });
-  if (q.isError) return <Chip size="small" color="warning" variant="outlined" label={t('vrfs.notInDataplane')} />;
+  if (q.isError)
+    return q.error instanceof ApiError && q.error.status === 404 ? (
+      <Chip size="small" color="warning" variant="outlined" label={t('vrfs.notInDataplane')} />
+    ) : (
+      <Tooltip title={q.error.message}>
+        <Chip size="small" variant="outlined" label={t('vrfs.fibUnknown')} />
+      </Tooltip>
+    );
   if (!q.data) return null;
   return <Chip size="small" color="success" variant="outlined" label={t('vrfs.fibEntries', { count: q.data.total })} />;
 }
@@ -55,6 +67,8 @@ export function VrfsPage() {
   const vrfs = useCandidate<VrfsConfig>('vrfs');
   const patch = usePatchConfig();
   const ifNames = useInterfaceNames();
+  useFibQueryDefaults();
+  const refreshCounts = useRefreshRoutes();
   const [edit, setEdit] = useState<{ name: string; value: VrfConfig | undefined } | null>(null);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -117,6 +131,11 @@ export function VrfsPage() {
               {t('vrfs.add')}
             </Button>
           </span>
+        </Tooltip>
+        <Tooltip title={t('fib.refreshHelp')}>
+          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={refreshCounts}>
+            {t('vrfs.refreshCounts')}
+          </Button>
         </Tooltip>
       </Stack>
       {vrfs.isError && <ProblemAlert error={vrfs.error} sx={{ mb: 1 }} />}

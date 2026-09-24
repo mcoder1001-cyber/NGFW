@@ -52,9 +52,15 @@ order (VRF, then prefix); keep that order when you write the list yourself, then
 The *FIB browser* tab shows one VRF's **live** forwarding table as VPP has it: every entry with its best source (`API` =
 static routes of the agent, `interface` = connected, `recursive-resolution`, `default-route`, `special`, `svs`, …) and its
 paths — type (`normal`, `drop`, `local`, …), next hop, interface, weight and the table a next hop is resolved in when it is
-another VRF. Filters: family, *within prefix* (the prefix and everything more specific) and source. Paging happens in the
-agent: VPP's table is read once per page and only the page travels, so a table of a million routes pages the same way.
-Reading a table costs a full walk in VPP (100 000 routes: about 1–2 s per page on the lab host; `docs/vpp-code-track.md`).
+another VRF. Filters: family, *within prefix* (the prefix and everything more specific; applied on Enter) and source —
+the entries whose **best** source is that one (a static route shadowed by a better source for the same prefix is not
+listed under `API`). Paging happens in the agent: VPP's table is read once per page and only the page travels.
+Reading a table costs a full walk in VPP under its worker barrier (forwarding pauses on every worker for the walk;
+100 000 routes: about 1–2 s per page on the lab host; `docs/vpp-code-track.md` V-new (d)). So the view is read **on
+demand** — the refresh button reads it again, nothing polls it — the agent runs one walk at a time (another request
+answers `503` "a FIB read is in progress" after 3 s), and a listing reaches at most 100 000 entries deep
+(`page × pageSize ≤ 100 000`, else `400` at `/page`): narrow a bigger table with *within prefix*, family or source. The
+VRF list's FIB counts are read once and on its refresh button; the static-routes status once a minute.
 
 ![FIB browser](../../status/tasks/F-vrf-static-ecmp-screens/fib-browser-en.png)
 
@@ -63,6 +69,8 @@ Reading a table costs a full walk in VPP (100 000 routes: about 1–2 s per page
 *Ping* sends ICMP echo requests **from the data plane** (VPP's ping plugin), not from the management host. VPP's ping API
 pings from the `default` VRF only, without a source address or payload size, and holds VPP's API while it runs, so
 count × interval is limited to 5 s. A VRF other than `default`, a source or a size answer `400` with the field's pointer.
+On a VPP with **worker threads** the ping is refused (`409`): VPP's ping API is not mp-safe, so it would hold the worker
+barrier — no forwarding on any worker — for the whole ping (V-new (b)); use VPP's own CLI `ping` on the host there.
 The result is the transmitted / received count VPP reports; on a busy data plane VPP's API under-counts replies (V-new in
 `docs/vpp-code-track.md`). Traceroute is not available (`501`): VPP has none.
 

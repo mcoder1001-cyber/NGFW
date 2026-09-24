@@ -119,9 +119,18 @@ export function prefixKey(p: string): string {
 /** Status of a configured static route against the live FIB (the API-source entries of its VRF). */
 export type RouteStatus = 'installed' | 'missing' | 'frr' | 'unknown';
 
-export function routeStatus(row: RouteRow, installed: ReadonlyMap<string, ReadonlySet<string>> | undefined): RouteStatus {
+/**
+ * `installed`: per VRF, the prefixes whose best FIB source is API (the first page the status reads); `partial`: the VRFs
+ * where that page did not hold every such entry — a prefix missing from it is then unknown, not missing (review L2).
+ */
+export function routeStatus(
+  row: RouteRow,
+  installed: ReadonlyMap<string, ReadonlySet<string>> | undefined,
+  partial?: ReadonlySet<string>,
+): RouteStatus {
   if (row.viaFrr) return 'frr';
   const set = installed?.get(row.vrf);
   if (!set) return 'unknown';
-  return set.has(prefixKey(row.prefix)) ? 'installed' : 'missing';
+  if (set.has(prefixKey(row.prefix))) return 'installed';
+  return partial?.has(row.vrf) ? 'unknown' : 'missing';
 }

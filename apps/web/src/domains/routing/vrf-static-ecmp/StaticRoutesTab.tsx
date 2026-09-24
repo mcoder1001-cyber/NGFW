@@ -19,7 +19,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
-import { fetchRoutes, FIB_POLL_MS, routeKeys, useCandidate, usePatchConfig } from './api';
+import { fetchRoutes, FIB_ON_DEMAND, FIB_STATUS_POLL_MS, routeKeys, useCandidate, usePatchConfig } from './api';
 import { Mono, pageOf, problemFor } from './common';
 import {
   localizeSchema,
@@ -64,22 +64,27 @@ export function StaticRoutesTab() {
     [ifs.data],
   );
 
-  // live status: the API-source FIB entries of every VRF a route uses (one agent page per VRF, ≤ 1000 static routes)
+  // live status: the entries whose best FIB source is API, per VRF a route uses (one agent page of ≤ 1000 per VRF; each
+  // read is a full table walk in VPP, so once a minute — review H1). Beyond the first 1000 the status is "unknown" (L2).
   const vrfNames = useMemo(() => [...new Set(rows.map((r) => r.vrf))].sort(), [rows]);
   const live = useQueries({
     queries: vrfNames.map((vrf) => ({
       queryKey: [...routeKeys.all, { vrf, source: 'API', page: 1, pageSize: 1000 }],
       queryFn: ({ signal }: { signal: AbortSignal }) => fetchRoutes({ vrf, source: 'API', page: 1, pageSize: 1000 }, signal),
-      refetchInterval: FIB_POLL_MS,
+      ...FIB_ON_DEMAND,
+      refetchInterval: FIB_STATUS_POLL_MS,
     })),
   });
-  const installed = useMemo(() => {
+  const [installed, partial] = useMemo(() => {
     const m = new Map<string, Set<string>>();
+    const cut = new Set<string>();
     vrfNames.forEach((vrf, i) => {
       const d = live[i]?.data;
-      if (d) m.set(vrf, new Set(d.items.map((x) => prefixKey(x.prefix))));
+      if (!d) return;
+      m.set(vrf, new Set(d.items.map((x) => prefixKey(x.prefix))));
+      if (d.total > d.items.length) cut.add(vrf);
     });
-    return m;
+    return [m, cut] as const;
   }, [vrfNames, live]);
 
   const fetchPage = useCallback(
@@ -110,17 +115,18 @@ export function StaticRoutesTab() {
       {
         field: 'status',
         headerName: t('routes.col.status'),
+        description: t('routes.statusHelp'),
         sortable: false,
         filterable: false,
         width: 150,
         renderCell: (p) => {
-          const st = routeStatus(p.row, installed);
+          const st = routeStatus(p.row, installed, partial);
           return <StatusChip size="small" status={STATUS_CHIP[st]} label={t(`routes.status.${st}`)} />;
         },
       },
       { field: 'description', headerName: t('routes.col.description'), minWidth: 140, flex: 1 },
     ],
-    [t, installed],
+    [t, installed, partial],
   );
 
   /** Writes the whole list in the agent's canonical order (VRF, then prefix) so Retrieve == running (no drift). */

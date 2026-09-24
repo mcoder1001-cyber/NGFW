@@ -205,7 +205,7 @@ func dumpSvs(ctx context.Context, d *RouteDescriptor, table uint32, v6 bool, src
 			return nil, fmt.Errorf("ip_route_v2_dump %d: %w", table, err)
 		}
 		if det.Route.Src != src {
-			continue // another source is best (the dump filter keeps every entry that carries src)
+			continue // defensive: the dump filter already keeps only entries whose best source is src
 		}
 		p, err := netip.ParsePrefix(det.Route.Prefix.String())
 		if err != nil || p.Bits() == 0 {

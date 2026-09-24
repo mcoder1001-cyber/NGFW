@@ -31,7 +31,9 @@
       "description": "Description",
       "sourceSelect": "Source selects",
       "live": "Live FIB"
-    }
+    },
+    "refreshCounts": "Refresh FIB counts",
+    "fibUnknown": "count unavailable"
   },
   "routes": {
     "title": "Static routes",
@@ -55,11 +57,12 @@
       "missing": "not in FIB",
       "frr": "FRR programs it",
       "unknown": "unknown"
-    }
+    },
+    "statusHelp": "Installed: the prefix's best FIB source in its VRF is a static (API) route. A route shadowed by a better source for the same prefix shows as not in FIB. Read once a minute."
   },
   "fib": {
     "title": "FIB",
-    "intro": "The live forwarding table of one VRF as VPP has it, read page by page (the agent pages it, so even a million routes load one page at a time). Each entry shows its best source and its paths.",
+    "intro": "The live forwarding table of one VRF as VPP has it, read page by page (the agent pages it, so even a million routes load one page at a time). Each entry shows its best source and its paths. Every page is a full walk of the table in VPP, so the view is read on demand: refresh it with the button; the prefix filter applies on Enter.",
     "vrf": "VRF",
     "family": "Family",
     "any": "any",
@@ -74,7 +77,11 @@
       "stats": "Stats index"
     },
     "ipv4": "IPv4",
-    "ipv6": "IPv6"
+    "ipv6": "IPv6",
+    "prefixApply": "Press Enter to apply",
+    "retrievedAt": "read at {{time}}",
+    "refresh": "Refresh",
+    "refreshHelp": "Read the FIB again (each read walks the whole table in VPP)"
   },
   "ping": {
     "intro": "Ping from the data plane (VPP), not from the management host.",

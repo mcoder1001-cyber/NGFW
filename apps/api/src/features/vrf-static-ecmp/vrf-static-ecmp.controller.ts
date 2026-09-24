@@ -5,33 +5,44 @@ import { z } from 'zod';
 import { AgentClient } from '../../agent/agent.client.js';
 import { ProblemError, problems } from '../../common/problem.js';
 import { Protected } from '../../common/responses.js';
+import { safeText } from '../../common/text.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
 import { DatastoreService } from '../../datastore/datastore.service.js';
 
-/** `GET /api/v1/state/routes` query (the P06 parameters plus the FIB browser's filters). */
-export const RoutesQuery = z.object({
-  vrf: z
-    .string()
-    .min(1)
-    .max(63)
-    .optional()
-    .describe('VRF name; absent = every VRF (default first, then the configured ones)'),
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(1000).default(100),
-  family: z.enum(['ipv4', 'ipv6']).optional(),
-  prefix: z
-    .string()
-    .max(64)
-    .optional()
-    .describe('only routes equal to or more specific than this prefix (CIDR)'),
-  source: z
-    .string()
-    .max(64)
-    .optional()
-    .describe(
-      'only routes that carry this FIB source (VPP name: API, interface, adjacency, svs, …)',
+/**
+ * The agent's ListRoutes window (apps/agent/internal/actions/vrf-static-ecmp MaxWindow): offset + limit of one listing.
+ * Deeper pages need a narrower filter until a keyset cursor exists (docs/tech-debt.md).
+ */
+export const ROUTES_WINDOW = 100_000;
+
+const RouteVrf = safeText(63).min(1);
+const RouteFilter = safeText(64);
+
+/** `GET /api/v1/state/routes` query (the P06 parameters plus the FIB browser's filters; TD-2 safe text). */
+export const RoutesQuery = z
+  .object({
+    vrf: RouteVrf.optional().describe(
+      'VRF name; absent = every VRF (default first, then the configured ones) — one full FIB walk per VRF, so clients should name the VRF',
     ),
-});
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(1000).default(100),
+    family: z.enum(['ipv4', 'ipv6']).optional(),
+    prefix: RouteFilter.optional().describe(
+      'only routes equal to or more specific than this prefix (CIDR)',
+    ),
+    source: RouteFilter.optional().describe(
+      'only routes whose best FIB source is this one (VPP name: API, interface, adjacency, svs, …)',
+    ),
+  })
+  .superRefine((q, ctx) => {
+    // bounded before the offset becomes a proto uint32 (review M2: no wrap-around, no window beyond the agent's)
+    if (q.page * q.pageSize > ROUTES_WINDOW)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['page'],
+        message: `page × pageSize must be ≤ ${ROUTES_WINDOW}: narrow the listing with prefix, family or source`,
+      });
+  });
 
 const PathOut = z.object({
   type: z
@@ -112,20 +123,27 @@ export class VrfStaticEcmpController {
 
   @Get('routes')
   @Protected(400, 404, 502, 503)
-  @ApiQuery({ name: 'vrf', required: false, schema: { type: 'string' } })
-  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1 } })
+  @ApiQuery({ name: 'vrf', required: false, schema: openapi(RouteVrf) })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    schema: { type: 'integer', minimum: 1 },
+    description: `page × pageSize ≤ ${ROUTES_WINDOW} (the agent's listing window)`,
+  })
   @ApiQuery({
     name: 'pageSize',
     required: false,
     schema: { type: 'integer', minimum: 1, maximum: 1000 },
   })
   @ApiQuery({ name: 'family', required: false, schema: { type: 'string', enum: ['ipv4', 'ipv6'] } })
-  @ApiQuery({ name: 'prefix', required: false, schema: { type: 'string' } })
-  @ApiQuery({ name: 'source', required: false, schema: { type: 'string' } })
+  @ApiQuery({ name: 'prefix', required: false, schema: openapi(RouteFilter) })
+  @ApiQuery({ name: 'source', required: false, schema: openapi(RouteFilter) })
   @ApiOperation({
     operationId: 'State_routes',
     summary:
       'Live FIB of a VRF (every VRF when none is given), paged and filtered by the agent, with each entry’s paths',
+    description:
+      'Every call is one full walk of the VRF’s FIB in VPP (under its worker barrier; the agent runs one walk at a time and answers 503 while another is in progress): refresh on demand, do not poll.',
   })
   @ApiOkResponse({ schema: openapi(RoutesOut, 'output') })
   async routes(@Query(new ZodPipe(RoutesQuery)) q: z.output<typeof RoutesQuery>) {

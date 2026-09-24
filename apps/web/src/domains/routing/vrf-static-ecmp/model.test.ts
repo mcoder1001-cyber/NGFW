@@ -21,6 +21,8 @@ describe('vrf-static-ecmp model', () => {
     expect(rows.map((r) => r.ecmp)).toEqual([true, false, false, false]);
     const installed = new Map([['red', new Set(['0.0.0.0/0'])], ['blue', new Set<string>()]]);
     expect(rows.map((r) => routeStatus(r, installed))).toEqual(['installed', 'missing', 'missing', 'frr']);
+    // review L2: when the status page of a VRF was cut (more API entries than one page), absent means unknown
+    expect(rows.map((r) => routeStatus(r, installed, new Set(['red'])))).toEqual(['installed', 'unknown', 'missing', 'frr']);
     expect(pathsText({ nextHops: [] })).toBe('');
   });
 

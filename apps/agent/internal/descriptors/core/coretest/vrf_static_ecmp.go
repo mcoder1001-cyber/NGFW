@@ -100,8 +100,8 @@ func (v *VPP) InstallVrfStaticEcmp() *VPP {
 		}
 		return out, nil
 	})
-	// ip_route_v2_dump as the base model answers it, plus VPP's `src` filter (fib_table_walk_w_src: only entries that
-	// carry that source; in the model every entry has exactly one source).
+	// ip_route_v2_dump as the base model answers it, plus VPP's `src` filter (fib_table_walk_w_src: only the entries
+	// whose best source it is; in the model every entry has exactly one source).
 	v.On("ip_route_v2_dump", func(m api.Message) ([]api.Message, error) {
 		req := m.(*ip.IPRouteV2Dump)
 		v.mu.Lock()

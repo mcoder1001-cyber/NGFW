@@ -189,6 +189,19 @@ describe('F-vrf-static-ecmp e2e (PostgreSQL + fake agent)', () => {
     expect((await h.call(ro, 'GET', '/api/v1/state/routes?vrf=red&pageSize=5000')).status).toBe(
       400,
     );
+    // review M2: the window is bounded before the offset becomes a uint32 (no wrap-around to a wrong page)
+    const calls = h.fake.calls.length;
+    const deep = await h.call(ro, 'GET', '/api/v1/state/routes?vrf=red&page=4296&pageSize=1000');
+    expect(deep.status, deep.raw).toBe(400);
+    expect(deep.body.errors[0]).toMatchObject({ pointer: '/page' });
+    expect(h.fake.calls.length).toBe(calls);
+    expect(
+      (await h.call(ro, 'GET', '/api/v1/state/routes?vrf=red&page=100&pageSize=1000')).status,
+    ).toBe(200);
+    // review M3 (TD-2): filters are safe text
+    const ctl = await h.call(ro, 'GET', '/api/v1/state/routes?vrf=red&source=API%1B%5B2J');
+    expect(ctl.status).toBe(400);
+    expect(ctl.body.errors[0]).toMatchObject({ pointer: '/source' });
   });
 
   it('bridges /actions/ping to the agent and maps the agent’s refusals', async () => {
@@ -225,6 +238,21 @@ describe('F-vrf-static-ecmp e2e (PostgreSQL + fake agent)', () => {
     expect(bad.status).toBe(400);
     expect(bad.body.errors[0].pointer).toBe('/target');
 
+    // review M1: VPP with worker threads → the agent's FAILED_PRECONDITION becomes 409 problem+json
+    vrfStaticEcmpFakeState.workers = 2;
+    const wk = await h.call(op, 'POST', '/api/v1/actions/ping', { target: '10.1.102.2' });
+    vrfStaticEcmpFakeState.workers = undefined;
+    expect(wk.status, wk.raw).toBe(409);
+    expect(wk.body.detail).toContain('worker thread');
+    // review M3 (TD-2): control characters in the action name or the VRF are refused
+    expect((await h.call(op, 'POST', '/api/v1/actions/ping%1B')).status).toBe(400);
+    const cvrf = await h.call(op, 'POST', '/api/v1/actions/ping', {
+      target: '10.1.102.2',
+      vrf: 'red\u202e',
+    });
+    expect(cvrf.status).toBe(400);
+    expect(cvrf.body.errors[0].pointer).toBe('/vrf');
+
     const tr = await h.call(op, 'POST', '/api/v1/actions/traceroute', { target: '10.1.102.2' });
     expect(tr.status, tr.raw).toBe(501);
     expect((await h.call(op, 'POST', '/api/v1/actions/reboot')).status).toBe(501);
@@ -233,7 +261,16 @@ describe('F-vrf-static-ecmp e2e (PostgreSQL + fake agent)', () => {
     expect(
       (await h.call(ro, 'POST', '/api/v1/actions/ping', { target: '10.1.102.2' })).status,
     ).toBe(403);
-    const audit = await h.call(admin, 'GET', '/api/v1/audit?limit=20');
+    const audit = await h.call(admin, 'GET', '/api/v1/audit?limit=50');
     expect(JSON.stringify(audit.body)).toContain('/api/v1/actions/ping');
+    // review L4: the audit row says what was pinged
+    expect(JSON.stringify(audit.body)).toContain('actions/ping');
+    const rows = (audit.body.items ?? audit.body) as { resource?: string; after?: unknown }[];
+    expect(rows).toContainEqual(
+      expect.objectContaining({
+        resource: 'actions/ping',
+        after: expect.objectContaining({ target: '10.1.102.2', count: 3, intervalMs: 200 }),
+      }),
+    );
   });
 });

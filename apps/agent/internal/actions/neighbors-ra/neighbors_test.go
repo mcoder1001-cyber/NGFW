@@ -126,10 +126,10 @@ func TestListFiltersSortsPagesAndNeverDumpsEverything(t *testing.T) {
 		{Query{Sort: "ip", Limit: 2}, []string{want[2], want[3]}},
 		{Query{Sort: "ip", Descending: true, Limit: 1}, []string{want[5]}},
 		{Query{Sort: "mac", Offset: 5}, []string{want[1]}},
-		{Query{Interface: "loop301"}, nil},                 // another owner's interface: not nameable
-		{Query{Interface: "local0"}, nil},                  // never
-		{Query{Offset: 100}, nil},                          // past the end: empty page, total kept
-		{Query{VRF: "nosuch"}, nil},                        // unknown VRF name: no rows
+		{Query{Interface: "loop301"}, nil}, // another owner's interface: not nameable
+		{Query{Interface: "local0"}, nil},  // never
+		{Query{Offset: 100}, nil},          // past the end: empty page, total kept
+		{Query{VRF: "nosuch"}, nil},        // unknown VRF name: no rows
 		{Query{Interface: "GigabitEthernet0/8/0", Family: "ipv6"}, nil},
 	} {
 		p, err := List(ctx, v, owner, c.q, vrfName)

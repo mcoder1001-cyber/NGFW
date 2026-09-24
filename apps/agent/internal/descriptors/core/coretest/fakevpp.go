@@ -12,8 +12,8 @@ import (
 
 	"go.fd.io/govpp/api"
 
-	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/fib_types"
+	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
@@ -84,10 +84,10 @@ type VPP struct {
 // New returns a model with local0 and the default tables.
 func New() *VPP {
 	v := &VPP{
-		Client: fake.New(fake.WithControlPingReply(&memclnt.ControlPingReply{})),
-		next:   1,
-		Ifaces: map[uint32]*Iface{0: {Index: 0, Name: "local0", DevType: "local", Addrs: map[string]bool{}}},
-		Tables: map[tableKey]string{{0, false}: "ipv4-VRF:0", {0, true}: "ipv6-VRF:0"},
+		Client:   fake.New(fake.WithControlPingReply(&memclnt.ControlPingReply{})),
+		next:     1,
+		Ifaces:   map[uint32]*Iface{0: {Index: 0, Name: "local0", DevType: "local", Addrs: map[string]bool{}}},
+		Tables:   map[tableKey]string{{0, false}: "ipv4-VRF:0", {0, true}: "ipv6-VRF:0"},
 		Routes:   map[routeKey]ip.IPRoute{},
 		Internal: map[routeKey]uint8{},
 	}

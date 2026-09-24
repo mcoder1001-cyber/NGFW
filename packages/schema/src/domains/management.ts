@@ -10,6 +10,7 @@ import {
 } from '../primitives.js';
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
+import { syslogTargetExtKeys } from './ext/syslog.js'; // F-unbound-chrony-syslog (SY4)
 
 /**
  * `management` — local users, AAA (RADIUS / TACACS+), TLS for the API and remote syslog (docs/04-api-datamodel.md).
@@ -201,6 +202,7 @@ export const SyslogServerSchema = z.strictObject({
     order: 4,
   }),
   vrf: withUi(vrfName.default(DEFAULT_VRF), { title: 'VRF', order: 5 }),
+  ...syslogTargetExtKeys, // F-unbound-chrony-syslog: facilities, format, queueSize, tls (D-086; SY4, no anchor seeded)
 });
 
 export const ManagementSchema = withUi(

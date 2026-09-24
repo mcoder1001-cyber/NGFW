@@ -179,3 +179,18 @@ func (d *SubinterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, 
 func (*SubinterfaceDescriptor) Normalize(obj proto.Message) proto.Message {
 	return NormalizeRefs(obj, "parent")
 }
+
+// ProvidedKeys implements scheduler.KeyProvider: a sub-interface also satisfies its alias key
+// interface/<parent>.<sub_id> (F-vlan-qinq defect fix; proof: desired's TestQinQDeleteWhileParentStays).
+// Its attributes (admin state, MTU, addresses, VRF, DHCP) depend on that alias, which is observe-only
+// (never deleted, D-065) and therefore never a node of a delete plan. Without this key a plan that removes
+// sub-interfaces while their parent stays had no edge from the attributes to the sub-interface, and the
+// sub-interface — ordered after them through its dependency on the parent's alias — was deleted first:
+// the attribute deletes then failed on a stale sw_if_index and the transaction rolled back.
+func (*SubinterfaceDescriptor) ProvidedKeys(obj proto.Message) []scheduler.Key {
+	o, ok := obj.(*Subinterface)
+	if !ok {
+		return nil
+	}
+	return []scheduler.Key{AliasKey(SubinterfaceID(o))}
+}

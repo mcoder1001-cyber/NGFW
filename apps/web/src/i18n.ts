@@ -24,6 +24,8 @@ import enVpn from './locales/en/vpn.json';
 import faVpn from './locales/fa/vpn.json';
 // Feature namespaces (locale namespace = task slug): the en and fa import under the feature's anchor (wave-A-hotspots W3).
 // wave-A: F-vlan-qinq
+import enVlanQinq from './locales/en/vlan-qinq.json';
+import faVlanQinq from './locales/fa/vlan-qinq.json';
 // wave-A: F-bonding
 // wave-A: F-bridge-l2
 // wave-A: F-loopback-bvi-gso-lldp-span
@@ -54,6 +56,7 @@ export const NAMESPACES = [
   'vpn',
   // Feature namespaces: one line under the feature's anchor.
   // wave-A: F-vlan-qinq
+  'vlan-qinq',
   // wave-A: F-bonding
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
@@ -86,6 +89,7 @@ const en = {
   vpn: enVpn,
   // Feature namespaces: one line under the feature's anchor.
   // wave-A: F-vlan-qinq
+  'vlan-qinq': enVlanQinq,
   // wave-A: F-bonding
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
@@ -115,6 +119,7 @@ const fa = {
   vpn: faVpn,
   // Feature namespaces: one line under the feature's anchor.
   // wave-A: F-vlan-qinq
+  'vlan-qinq': faVlanQinq,
   // wave-A: F-bonding
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span

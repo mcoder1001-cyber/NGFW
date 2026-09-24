@@ -19,6 +19,7 @@ package desired
 // Enable, timeouts and forwarding are VPP globals (D-071): the globals owner sets them, a test slot only requires them.
 
 import (
+	"net/netip"
 	"sort"
 	"strconv"
 
@@ -70,7 +71,7 @@ func nat44EI(s Sink, nat *vrxv1.NatConfig, vrfID func(string) (uint32, bool)) {
 	}
 	pools := nat44EIPools(s, nat.GetPools(), vrfID)
 	for i, m := range nat.GetStaticMappings() {
-		nat44EIStatic(s, m, i, pools, vrfID)
+		nat44EIStatic(s, m, i, pools, nat.GetStaticMappingOnly(), vrfID)
 	}
 	for i, m := range nat.GetIdentityMappings() {
 		nat44EIIdentity(s, m, i, vrfID)
@@ -80,8 +81,27 @@ func nat44EI(s Sink, nat *vrxv1.NatConfig, vrfID func(string) (uint32, bool)) {
 	}
 }
 
-func nat44EIPools(s Sink, pools []*vrxv1.NatPool, vrfID func(string) (uint32, bool)) map[string]natPoolRef {
+// eiPools are the pools of mode "ei" as the static mappings need them: by name (`external.pool`), the address
+// ranges, and whether any interface pool exists (its address is unknown to the builder).
+type eiPools struct {
+	refs    map[string]natPoolRef
+	ranges  [][2]netip.Addr
+	ifPools bool
+}
+
+// contains reports whether a is in one of the range pools.
+func (p eiPools) contains(a netip.Addr) bool {
+	for _, r := range p.ranges {
+		if !a.Less(r[0]) && !r[1].Less(a) {
+			return true
+		}
+	}
+	return false
+}
+
+func nat44EIPools(s Sink, pools []*vrxv1.NatPool, vrfID func(string) (uint32, bool)) eiPools {
 	refs := map[string]natPoolRef{}
+	out := eiPools{refs: refs}
 	for i, p := range pools {
 		pt := Ptr("nat", "pools", strconv.Itoa(i))
 		if p.GetTwiceNat() {
@@ -109,7 +129,9 @@ func nat44EIPools(s Sink, pools []*vrxv1.NatPool, vrfID func(string) (uint32, bo
 			if _, dup := refs[p.GetName()]; !dup {
 				refs[p.GetName()] = natPoolRef{ip: first.String()}
 			}
+			out.ranges = append(out.ranges, [2]netip.Addr{first, last})
 		case p.Interface != nil && p.Range == nil:
+			out.ifPools = true
 			natAdd(s, nat44ei.NameInterfaceAddress, p.GetInterface(), &nat44ei.InterfaceAddressSpec{Interface: p.GetInterface()}, pt)
 			if _, dup := refs[p.GetName()]; !dup {
 				refs[p.GetName()] = natPoolRef{iface: p.GetInterface()}
@@ -118,10 +140,14 @@ func nat44EIPools(s Sink, pools []*vrxv1.NatPool, vrfID func(string) (uint32, bo
 			s.Errorf(pt, "nat.pools-valid", "a pool is exactly one of range / interface")
 		}
 	}
-	return refs
+	return out
 }
 
-func nat44EIStatic(s Sink, m *vrxv1.NatStaticMapping, i int, pools map[string]natPoolRef, vrfID func(string) (uint32, bool)) {
+// ruleEIPortForwardPool: VPP 26.06 nat44-ei reserves a port-forward's external port on a POOL address
+// (nat44_ei_reserve_port; NO_SUCH_ENTRY otherwise), unless static-mapping-only is on.
+const ruleEIPortForwardPool = "nat.ei-port-forward-pool"
+
+func nat44EIStatic(s Sink, m *vrxv1.NatStaticMapping, i int, pools eiPools, staticOnly bool, vrfID func(string) (uint32, bool)) {
 	pt := Ptr("nat", "staticMappings", strconv.Itoa(i))
 	bad := false
 	for _, f := range []struct {
@@ -148,7 +174,7 @@ func nat44EIStatic(s Sink, m *vrxv1.NatStaticMapping, i int, pools map[string]na
 	case ext.Interface != nil && ext.Ip == nil && ext.Pool == nil:
 		spec.External.Interface = ext.GetInterface()
 	case ext.Pool != nil && ext.Ip == nil && ext.Interface == nil:
-		ref, ok := pools[ext.GetPool()]
+		ref, ok := pools.refs[ext.GetPool()]
 		if !ok {
 			s.Errorf(pt+"/external/pool", "nat.static-mappings", "pool %q does not exist in nat.pools", ext.GetPool())
 			return
@@ -173,6 +199,12 @@ func nat44EIStatic(s Sink, m *vrxv1.NatStaticMapping, i int, pools map[string]na
 		return
 	default:
 		spec.Protocol = m.GetProtocol()
+	}
+	if !spec.AddrOnly && !staticOnly && spec.External.IP != "" && !pools.ifPools {
+		if a, err := netip.ParseAddr(spec.External.IP); err == nil && !pools.contains(a) {
+			s.Errorf(pt+"/external", ruleEIPortForwardPool, "in mode 'ei' a port forward's external address %s must be a pool address (nat44-ei reserves the port on a pool address); add it to nat.pools or use external.pool", spec.External.IP)
+			return
+		}
 	}
 	vrf, ok := natVRF(s, m.GetVrf(), vrfID, pt+"/vrf")
 	if !ok {

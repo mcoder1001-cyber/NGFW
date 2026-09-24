@@ -309,6 +309,17 @@ func (v *VPP) installNat44EI() *Nat44EI {
 		if !r.IsAdd {
 			return one(&nat44_ei.Nat44EiAddDelStaticMappingReply{Retval: rv(api.NO_SUCH_ENTRY)})
 		}
+		// nat44_ei_reserve_port: a port mapping on an address reserves the port on a POOL address (not in
+		// static-mapping-only mode); an address outside the pool is NO_SUCH_ENTRY
+		if r.Flags&nat44_ei.NAT44_EI_ADDR_ONLY_MAPPING == 0 && n.Cfg.Flags&nat44_ei.NAT44_EI_STATIC_MAPPING_ONLY == 0 && r.ExternalSwIfIndex == noIf {
+			inPool := false
+			for _, a := range n.Addrs {
+				inPool = inPool || a.IPAddress == r.ExternalIPAddress
+			}
+			if !inPool {
+				return one(&nat44_ei.Nat44EiAddDelStaticMappingReply{Retval: rv(api.NO_SUCH_ENTRY)})
+			}
+		}
 		n.Statics = append(n.Statics, &nat44_ei.Nat44EiStaticMappingDetails{Flags: r.Flags, LocalIPAddress: r.LocalIPAddress, ExternalIPAddress: r.ExternalIPAddress,
 			Protocol: r.Protocol, LocalPort: r.LocalPort, ExternalPort: r.ExternalPort, ExternalSwIfIndex: r.ExternalSwIfIndex, VrfID: r.VrfID, Tag: r.Tag})
 		return one(&nat44_ei.Nat44EiAddDelStaticMappingReply{})

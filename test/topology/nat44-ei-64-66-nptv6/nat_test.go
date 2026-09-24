@@ -248,8 +248,8 @@ func TestNatEI6466Nptv6(t *testing.T) {
 		f.natCfg = map[string]any{
 			"mode": "ei", "inside": []string{r.lanIf}, "outside": []string{r.wanIf},
 			"pools": []any{map[string]any{"name": "pat", "description": "outbound PAT", "range": r.addr(2, 100) + "-" + r.addr(2, 103)}},
-			"staticMappings": []any{map[string]any{"name": "web", "description": "port forward :8080 → lan :80", "protocol": "tcp",
-				"local": map[string]any{"ip": r.lanIP, "port": 80}, "external": map[string]any{"ip": r.addr(2, 110), "port": 8080}}},
+			"staticMappings": []any{map[string]any{"name": "web", "description": "port forward pool :8080 → lan :80 (EI: on a pool address)", "protocol": "tcp",
+				"local": map[string]any{"ip": r.lanIP, "port": 80}, "external": map[string]any{"ip": r.addr(2, 103), "port": 8080}}},
 			"nat66": map[string]any{"enabled": true, "inside": []string{f.loopIn}, "outside": []string{f.loopOut},
 				"staticMappings": []any{map[string]any{"description": "server", "local": a6.nat66Local, "external": a6.nat66X}}},
 			"nptv6": map[string]any{"bindings": []any{map[string]any{"description": "site", "interface": r.wanIf, "internal": a6.nptInternal, "external": a6.nptExternal}}},
@@ -265,7 +265,7 @@ func TestNatEI6466Nptv6(t *testing.T) {
 		  "pools": [{"range": "%s-%s", "twiceNat": false}],
 		  "staticMappings": [{"name": "web", "protocol": "tcp", "local": {"ip": %q, "port": 80}, "external": {"ip": %q, "port": 8080}, "twiceNat": false, "selfTwiceNat": false, "out2inOnly": false}],
 		  "nat66": {"enabled": true, "inside": [%q], "outside": [%q], "staticMappings": [{"local": %q, "external": %q}]}}`,
-			r.lanIf, r.wanIf, r.addr(2, 100), r.addr(2, 103), r.lanIP, r.addr(2, 110), f.loopIn, f.loopOut, a6.nat66Local, a6.nat66X))
+			r.lanIf, r.wanIf, r.addr(2, 100), r.addr(2, 103), r.lanIP, r.addr(2, 103), f.loopIn, f.loopOut, a6.nat66Local, a6.nat66X))
 		got, err := retrieveNat(t, f.c)
 		if err != nil {
 			t.Fatal(err)

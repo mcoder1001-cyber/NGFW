@@ -103,7 +103,7 @@ const eiDoc = `{
     {"name": "wan", "interface": "host-w4w0"}
   ],
   "staticMappings": [
-    {"name": "web", "protocol": "tcp", "local": {"ip": "10.4.1.2", "port": 80}, "external": {"ip": "10.4.2.110", "port": 8080}},
+    {"name": "web", "protocol": "tcp", "local": {"ip": "10.4.1.2", "port": 80}, "external": {"ip": "10.4.2.103", "port": 8080}},
     {"name": "one2one", "local": {"ip": "10.4.1.3"}, "external": {"ip": "10.4.2.111"}, "description": "1:1"},
     {"name": "viapool", "protocol": "udp", "local": {"ip": "10.4.1.4", "port": 53}, "external": {"pool": "out", "port": 5353}},
     {"name": "viaif", "protocol": "tcp", "local": {"ip": "10.4.1.5", "port": 22}, "external": {"pool": "wan", "port": 2222}, "vrf": "cust"}
@@ -128,7 +128,7 @@ const eiCanonicalSlot = `{
     {"name": "one2one", "local": {"ip": "10.4.1.3"}, "external": {"ip": "10.4.2.111"}, "twiceNat": false, "selfTwiceNat": false, "out2inOnly": false},
     {"name": "viaif", "protocol": "tcp", "local": {"ip": "10.4.1.5", "port": 22}, "external": {"interface": "host-w4w0", "port": 2222}, "vrf": "cust", "twiceNat": false, "selfTwiceNat": false, "out2inOnly": false},
     {"name": "viapool", "protocol": "udp", "local": {"ip": "10.4.1.4", "port": 53}, "external": {"ip": "10.4.2.100", "port": 5353}, "twiceNat": false, "selfTwiceNat": false, "out2inOnly": false},
-    {"name": "web", "protocol": "tcp", "local": {"ip": "10.4.1.2", "port": 80}, "external": {"ip": "10.4.2.110", "port": 8080}, "twiceNat": false, "selfTwiceNat": false, "out2inOnly": false}
+    {"name": "web", "protocol": "tcp", "local": {"ip": "10.4.1.2", "port": 80}, "external": {"ip": "10.4.2.103", "port": 8080}, "twiceNat": false, "selfTwiceNat": false, "out2inOnly": false}
   ],
   "identityMappings": [
     {"ip": "10.4.2.112", "protocol": "udp", "port": 500},
@@ -209,6 +209,24 @@ func TestNat44EIBuilderEDOnlyAndWarnings(t *testing.T) {
 	}
 	if strings.Join(s.warns, ",") != "/nat/sessionLimit agent.unsupported-field" {
 		t.Fatalf("warnings %v", s.warns)
+	}
+	// a port forward outside every pool is refused (nat44-ei reserves the port on a pool address), not with an
+	// interface pool (unknown address) or in static-mapping-only mode
+	s = newSink()
+	desired.Nat(s, natDoc(t, `{"mode": "ei", "inside": ["host-w4l0"], "pools": [{"name": "p", "range": "10.4.2.100-10.4.2.101"}],
+	  "staticMappings": [{"name": "a", "protocol": "tcp", "local": {"ip": "10.4.1.2", "port": 80}, "external": {"ip": "10.4.2.110", "port": 80}},
+	    {"name": "b", "protocol": "tcp", "local": {"ip": "10.4.1.3", "port": 80}, "external": {"ip": "10.4.2.101", "port": 80}},
+	    {"name": "c", "local": {"ip": "10.4.1.4"}, "external": {"ip": "10.4.2.120"}}]}`), vrfID)
+	if strings.Join(s.errs, ",") != "/nat/staticMappings/0/external nat.ei-port-forward-pool" {
+		t.Fatalf("port forward outside the pools: %v", s.errs)
+	}
+	for _, extra := range []string{`"staticMappingOnly": true,`, `"pools": [{"name": "w", "interface": "host-w4w0"}],`} {
+		s = newSink()
+		desired.Nat(s, natDoc(t, `{"mode": "ei", "inside": ["host-w4l0"], `+extra+`
+		  "staticMappings": [{"name": "a", "protocol": "tcp", "local": {"ip": "10.4.1.2", "port": 80}, "external": {"ip": "10.4.2.110", "port": 80}}]}`), vrfID)
+		if len(s.errs) != 0 {
+			t.Fatalf("%s: %v", extra, s.errs)
+		}
 	}
 	// enabled:false keeps the EI configuration and projects nothing (D-062)
 	s = newSink()

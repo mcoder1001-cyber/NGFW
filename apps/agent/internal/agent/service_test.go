@@ -290,6 +290,25 @@ func TestRollbackReported(t *testing.T) {
 	}
 }
 
+// waitForSubscriber blocks until s.bus has at least one registered StreamEvents subscriber, or
+// fails the test after a generous, host-load-tolerant deadline (TD-12).
+func waitForSubscriber(t *testing.T, s *Service) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		s.bus.mu.Lock()
+		n := len(s.bus.subs)
+		s.bus.mu.Unlock()
+		if n > 0 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("StreamEvents subscriber never registered")
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
 func collect(t *testing.T, sub *subscriber, n int) []*vrxv1.Event {
 	t.Helper()
 	var out []*vrxv1.Event
@@ -385,9 +404,26 @@ func TestPendingSurvivesRestartAndRevertsAfterDeadline(t *testing.T) {
 	v := coretest.New()
 	dir := t.TempDir()
 	s := newSvc(t, v, dir)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, sampleDoc), ConfirmTimeoutSec: 1}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	// A long confirm window keeps the real revert timer (armTimerLocked, a genuine time.AfterFunc)
+	// from firing between apply() returning and Close() below: under host load that gap can stretch
+	// past a short deadline (TD-12 repro: a 1 s window + 1100 ms sleep raced the scheduler and failed
+	// intermittently with "pending txn not persisted"). The "deadline already passed" state needed
+	// for the restart+resync assertions below is created directly on disk instead, so nothing here
+	// depends on wall-clock sleeps racing a background timer.
+	const confirmSec = 3600
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, sampleDoc), ConfirmTimeoutSec: confirmSec}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	s.Close() // agent stops before the deadline (timer gone with the process)
-	time.Sleep(1100 * time.Millisecond)
+
+	st, err := loadState(dir, testOwner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	past := time.Now().Add(-time.Hour)
+	st.meta.ConfirmDeadline = &past
+	if err := st.save(); err != nil {
+		t.Fatal(err)
+	}
+
 	s2 := newSvc(t, v, dir)
 	if s2.Health().GetPendingConfirmTxnId() != "p1" {
 		t.Fatal("pending txn not persisted")
@@ -661,7 +697,10 @@ func TestGRPCRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(50 * time.Millisecond) // subscription registered
+	// grpc-go's client-side stream setup can return before the server goroutine has run far enough
+	// to call bus.subscribe (TD-12: a fixed 50 ms sleep here missed the registration under host
+	// load). Wait on the actual condition instead, bounded so a real regression still fails fast.
+	waitForSubscriber(t, s)
 	resp, err := c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: "g1", DesiredState: doc(t, sampleDoc)})
 	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("apply %v %v", err, resp)

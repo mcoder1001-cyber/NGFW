@@ -5,12 +5,14 @@ Values: package-local proto `ip_neighbor/model.proto` (D-055 stand-in until P03b
 
 | Object | Descriptor / key | Create / Update / Delete | Retrieve | Dependencies | Notes |
 |---|---|---|---|---|---|
-| static neighbour | `ip-neighbor.neighbor` / `ip-neighbor.neighbor/<ifname>/<ip>` | `ip_neighbor_add_del` (flags `STATIC` + optional `NO_FIB_ENTRY`); Update = re-add with the new MAC; a `no_fib_entry` change → `ErrRecreate` | `ip_neighbor_dump` per AF, `sw_if_index=~0`; keeps STATIC entries on interfaces tagged by this owner | `interface/<ifname>` | Meta `{SwIfIndex}`. IPs canonical via `net/netip`, MAC lower-case. |
+| static neighbour | `ip-neighbor.neighbor` / `ip-neighbor.neighbor/<ifname>/<ip>` | `ip_neighbor_add_del` (flags `STATIC` + optional `NO_FIB_ENTRY`); Update = re-add with the new MAC; a `no_fib_entry` change → `ErrRecreate` | `ip_neighbor_dump` per AF **and per candidate interface** (own tag or untagged; never `sw_if_index=~0`, which on a shared VPP reads every slot's table — F-neighbors-ra gap fix, `TestRetrieveNeverDumpsAllInterfaces`); keeps STATIC entries on interfaces tagged by this owner | `interface/<ifname>` | Meta `{SwIfIndex}`. IPs canonical via `net/netip`, MAC lower-case. |
 | neighbour DB config | `ip-neighbor.config` / `ip-neighbor.config/<ipv4\|ipv6>` | `ip_neighbor_config` (max_number, max_age, recycle); Delete restores VPP defaults (50000/0/false) | `ip_neighbor_config_get` per AF (always both families) | none | Global, not owner-scoped: in production the agent owns it; integration test saves and restores the previous value. |
 
 Limitations
 - VPP 26.06 `ip_neighbor_flags` has only `STATIC` and `NO_FIB_ENTRY`; the "no-adj-fib" flag named in the task prompt does not exist in binapi → not modelled.
-- Dynamic (learned) neighbours are never retrieved (not configuration). `ip_neighbor_flush` is an action, not a descriptor.
+- Dynamic (learned) neighbours are never retrieved (not configuration). The ARP flush is an action (F-neighbors-ra,
+  `internal/actions/neighbors-ra`): it deletes learned entries one by one; `ip_neighbor_flush` is not used because VPP's
+  `ip_neighbor_del_all` also removes the static entries of the configuration.
 - Ownership: see below.
 - `ip-neighbor.config` is a VPP-global singleton: **not in `Register`**; only `RegisterGlobals`, called by the designated globals owner (agent config `globalsOwner: true`, never a test slot on the shared host — D-071). Host tests set it and restore the previous value.
 

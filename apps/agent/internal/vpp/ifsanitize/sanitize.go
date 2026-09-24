@@ -230,10 +230,19 @@ func (s *sanitizer) l3Mode() error {
 	return nil
 }
 
+// FreshRun is how many consecutive fresh indices (each one above every index seen) resurrect
+// needs before it trusts that the classify pool's free list is empty. The pool pops the most
+// recently freed index first, so a run of ascending pops is also what tables deleted in reverse
+// order look like; FreshRun makes that ambiguity need that many tables freed in exact reverse
+// order above the highest live one. Input ACL bindings are exact (their table is read back and
+// resurrected by name), the write-only kinds rely on this bound.
+var FreshRun = 8
+
 // resurrect fills the classify table pool's free indices with placeholder tables so every index a
 // stale binding can name exists during the run. It stops once no index below the highest live
-// table is free and three consecutive creates returned consecutive fresh indices above everything
-// seen (the pool's free list is then empty: VPP grows the vector); MaxPlaceholders bounds it.
+// table is free, every table an input ACL binding of the interface names exists, and FreshRun
+// consecutive creates returned consecutive fresh indices above everything seen (the pool's free
+// list is then empty: VPP grows the vector); MaxPlaceholders bounds it.
 func (s *sanitizer) resurrect() error {
 	maxSeen := int64(-1)
 	for id := range s.live {
@@ -247,9 +256,19 @@ func (s *sanitizer) resurrect() error {
 			holes[uint32(i)] = true
 		}
 	}
+	// the tables input ACL bindings name are known exactly: they must come back
+	cur, err := classifyapi.NewServiceClient(s.c).ClassifyTableByInterface(s.ctx, &classifyapi.ClassifyTableByInterface{SwIfIndex: s.idx})
+	if err != nil {
+		return fmt.Errorf("classify_table_by_interface: %w", err)
+	}
+	for _, t := range []uint32{cur.IP4TableID, cur.IP6TableID, cur.L2TableID} {
+		if t != NoIndex && !s.live[t] {
+			holes[t] = true
+		}
+	}
 	consec := 0
 	for len(s.holds) < MaxPlaceholders {
-		if len(holes) == 0 && consec >= 3 {
+		if len(holes) == 0 && consec >= FreshRun {
 			return nil
 		}
 		idx, err := s.createPlaceholder()
@@ -268,7 +287,7 @@ func (s *sanitizer) resurrect() error {
 			consec = 0
 		}
 	}
-	return nil // capped: whatever is still free stays invisible; the verification decides
+	return nil // capped: whatever is still free stays unclearable; the verification decides
 }
 
 func (s *sanitizer) createPlaceholder() (uint32, error) {

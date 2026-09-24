@@ -291,8 +291,8 @@ func TestV19InheritanceClearedOnHost(t *testing.T) {
 		t.Fatalf("Create returned with inherited %v", bound)
 	}
 	after := ifsanitize.Snapshot()
-	if after.Inherited != before.Inherited+1 || after.Cleared["input-acl"] != before.Cleared["input-acl"]+1 || after.Cleared["ipsec-spd"] != before.Cleared["ipsec-spd"]+1 {
+	if after.Inherited["create"] != before.Inherited["create"]+1 || after.Cleared["create/input-acl"] != before.Cleared["create/input-acl"]+1 || after.Cleared["create/ipsec-spd"] != before.Cleared["create/ipsec-spd"]+1 {
 		t.Errorf("metrics %+v → %+v", before, after)
 	}
-	t.Logf("%s (reused sw_if_index %d of %s) created clean by the loopback descriptor; metric inherited %d→%d, cleared %v", dName, idx, cName, before.Inherited, after.Inherited, after.Cleared)
+	t.Logf("%s (reused sw_if_index %d of %s) created clean by the loopback descriptor; metric inherited %d→%d, cleared %v", dName, idx, cName, before.Inherited["create"], after.Inherited["create"], after.Cleared)
 }

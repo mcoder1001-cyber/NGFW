@@ -35,12 +35,17 @@ func TestCleanInterfaceOnlyResets(t *testing.T) {
 	if rep.Inherited() || len(rep.Skipped) > 0 {
 		t.Fatalf("clean interface reported %+v", rep)
 	}
-	want := []string{"ip-classify ip4", "ip-classify ip6", "l2-classify input", "l2-classify output", "adl adl-input", "vxlan-bypass ip4", "vxlan-bypass ip6"}
+	want := []string{"l2-mode l3", "ip-classify ip4", "ip-classify ip6", "l2-classify input", "l2-classify output", "adl adl-input", "vxlan-bypass ip4", "vxlan-bypass ip6"}
 	if !slices.Equal(rep.Reset, want) {
 		t.Fatalf("reset %v, want %v", rep.Reset, want)
 	}
-	// one probe per live table and slot: output acl ×3, policer ×3, flow ×2 — all NO_SUCH_TABLE
-	for name, n := range map[string]int{"output_acl_set_interface": 3, "policer_classify_set_interface": 3, "flow_classify_set_interface": 2, "input_acl_set_interface": 0, "ipsec_interface_add_del_spd": 0} {
+	// holes 0-2 and FreshRun fresh indices resurrected, all deleted again
+	if rep.Placeholders != 3+ifsanitize.FreshRun || len(m.Tables) != 1 {
+		t.Fatalf("placeholders %d, tables left %v", rep.Placeholders, m.Tables)
+	}
+	// one probe per table (live + placeholder) and slot: output acl ×3, policer ×3, flow ×2 — all NO_SUCH_TABLE
+	n := 1 + rep.Placeholders
+	for name, n := range map[string]int{"output_acl_set_interface": 3 * n, "policer_classify_set_interface": 3 * n, "flow_classify_set_interface": 2 * n, "input_acl_set_interface": 0, "ipsec_interface_add_del_spd": 0} {
 		if got := len(f.CallsNamed(name)); got != n {
 			t.Errorf("%s sent %d times, want %d", name, got, n)
 		}
@@ -93,25 +98,100 @@ func TestInheritedStateIsCleared(t *testing.T) {
 	}
 }
 
+// TestBindingToDeletedTable is TD-3 review H1/H2: bindings (input ACL, output ACL, policer — the
+// write-only kinds too) to tables that were deleted are removed through resurrected placeholder
+// tables, the placeholders are deleted again, and the L2 feature bits are cleared by the L3 reset.
 func TestBindingToDeletedTable(t *testing.T) {
 	f, m := setup()
-	m.Tables[3] = true
+	for _, id := range []uint32{0, 1, 2, 3, 4, 5, 6} {
+		m.Tables[id] = true
+	}
 	s := m.If(4)
-	s.InACL = [3]uint32{9, none, none} // table 9 is gone: VPP refuses the unbind
+	s.InACL = [3]uint32{none, none, 2}   // L2 input ACL (l2 feature bit, a live crash vector once bridged)
+	s.OutACL = [3]uint32{5, none, none}  // write-only kind: invisible before (H2)
+	s.Policer = [3]uint32{none, none, 6} // L2 policer
+	s.Features["l2:l2-input-acl"], s.Features["l2:l2-policer"] = true, true
+	m.DeleteInterface(4)
+	// deleted in creation order: 5 is popped last, 2 first
+	m.DeleteTable(2)
+	m.DeleteTable(6)
+	m.DeleteTable(5)
+	live := len(m.Tables)
+
 	rep, err := ifsanitize.Sanitize(context.Background(), f, 4, "loop202")
 	if err != nil {
-		t.Fatalf("a dormant stale binding must not fail the create: %v", err)
+		t.Fatalf("sanitize: %v (report %+v)", err, rep)
 	}
-	if len(rep.Unclearable) != 1 || !strings.Contains(rep.Unclearable[0], "input-acl ip4 table 9") {
-		t.Fatalf("unclearable %v", rep.Unclearable)
+	if d := m.Dirty(4); d != "" {
+		t.Fatalf("still inherited: %s (report %+v)", d, rep)
 	}
-	if n := len(f.CallsNamed("input_acl_set_interface")); n != 0 {
-		t.Fatalf("an unbind naming a freed table was sent (%d)", n)
+	if len(rep.Freed) != 3 || len(rep.Unclearable) != 0 {
+		t.Fatalf("freed %v unclearable %v", rep.Freed, rep.Unclearable)
+	}
+	for _, want := range []string{"input-acl l2 table 2", "output-acl ip4 table 5", "policer-classify l2 table 6"} {
+		if !slices.ContainsFunc(rep.Freed, func(e string) bool { return strings.HasPrefix(e, want) }) {
+			t.Errorf("freed %v lacks %q", rep.Freed, want)
+		}
+	}
+	if len(m.Tables) != live {
+		t.Fatalf("placeholders left: %d tables, want %d", len(m.Tables), live)
+	}
+	if rep.Placeholders < 3+ifsanitize.FreshRun {
+		t.Fatalf("placeholders %d", rep.Placeholders)
+	}
+	if m.If(4).L3Resets != 1 {
+		t.Fatal("no L3-mode reset")
 	}
 	// feature_is_enabled is never asked: VPP 26.06 answers true for any error (out-of-range
 	// sw_if_index on the arc), so it cannot tell an inherited feature from a new index
 	if n := len(f.CallsNamed("feature_is_enabled")); n != 0 {
 		t.Fatalf("feature_is_enabled sent %d times", n)
+	}
+}
+
+// TestFreedInReverseOrder: tables freed in reverse creation order come back ascending, which looks
+// like fresh growth; FreshRun must see past that.
+func TestFreedInReverseOrder(t *testing.T) {
+	f, m := setup()
+	for id := uint32(0); id < 7; id++ {
+		m.Tables[id] = true
+	}
+	m.If(9).OutACL = [3]uint32{6, none, none}
+	for id := uint32(6); id >= 2; id-- { // free list [6 5 4 3 2]: pops 2,3,4,5,6
+		m.DeleteTable(id)
+	}
+	rep, err := ifsanitize.Sanitize(context.Background(), f, 9, "loop205")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := m.Dirty(9); d != "" || len(rep.Freed) != 1 {
+		t.Fatalf("dirty %q, report %+v", d, rep)
+	}
+}
+
+// TestUnclearableIsAnError: what cannot be resurrected fails the create (H1: no "warn and go on"),
+// and only warns before a delete.
+func TestUnclearableIsAnError(t *testing.T) {
+	f, m := setup()
+	m.Tables[3] = true
+	m.If(4).InACL = [3]uint32{9, none, none}
+	m.DeleteTable(9)
+	defer func(n int) { ifsanitize.MaxPlaceholders = n }(ifsanitize.MaxPlaceholders)
+	ifsanitize.MaxPlaceholders = 0
+	before := ifsanitize.Snapshot()
+	rep, err := ifsanitize.Sanitize(context.Background(), f, 4, "loop206")
+	if !errors.Is(err, ifsanitize.ErrUnclearable) || len(rep.Unclearable) != 1 {
+		t.Fatalf("err %v, unclearable %v", err, rep.Unclearable)
+	}
+	if n := len(f.CallsNamed("input_acl_set_interface")); n != 0 {
+		t.Fatalf("an unbind naming a freed table was sent (%d)", n)
+	}
+	if err := ifsanitize.BeforeDelete(context.Background(), f, 4, "loop206"); err != nil {
+		t.Fatalf("before delete: %v", err)
+	}
+	after := ifsanitize.Snapshot()
+	if after.Unclearable["create/input-acl"] != before.Unclearable["create/input-acl"]+1 || after.Unclearable["delete/input-acl"] != before.Unclearable["delete/input-acl"]+1 {
+		t.Fatalf("counters %+v → %+v", before, after)
 	}
 }
 
@@ -138,7 +218,7 @@ func TestErrorsFailAndAreCounted(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 	after := ifsanitize.Snapshot()
-	if after.Runs != before.Runs+1 || after.Errors != before.Errors+1 {
+	if after.Runs["create"] != before.Runs["create"]+1 || after.Errors["create"] != before.Errors["create"]+1 {
 		t.Fatalf("counters %+v → %+v", before, after)
 	}
 }
@@ -153,12 +233,12 @@ func TestMetrics(t *testing.T) {
 		t.Fatal(err)
 	}
 	after := ifsanitize.Snapshot()
-	if after.Inherited != before.Inherited+1 || after.Cleared["input-acl"] != before.Cleared["input-acl"]+1 || after.Cleared["output-acl"] != before.Cleared["output-acl"]+1 {
+	if after.Inherited["create"] != before.Inherited["create"]+1 || after.Cleared["create/input-acl"] != before.Cleared["create/input-acl"]+1 || after.Cleared["create/output-acl"] != before.Cleared["create/output-acl"]+1 {
 		t.Fatalf("counters %+v → %+v", before, after)
 	}
 	var b bytes.Buffer
 	ifsanitize.WriteMetrics(&b)
-	for _, want := range []string{"vrx_agent_iface_sanitize_total ", `vrx_agent_iface_sanitize_cleared_total{state="input-acl"}`, "vrx_agent_iface_sanitize_inherited_total "} {
+	for _, want := range []string{`vrx_agent_iface_sanitize_total{phase="create"}`, `vrx_agent_iface_sanitize_cleared_total{phase="create",state="input-acl"}`, `vrx_agent_iface_sanitize_inherited_total{phase="create"}`, "vrx_agent_iface_quarantined "} {
 		if !strings.Contains(b.String(), want) {
 			t.Errorf("metrics lack %q:\n%s", want, b.String())
 		}

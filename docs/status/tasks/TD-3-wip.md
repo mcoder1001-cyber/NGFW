@@ -1,10 +1,14 @@
-# TD-3 WIP — V19 guard (D-095)
+# TD-3 WIP — V19 guard (D-095) — fix round 1 (after BLOCK 46fafdb)
 
-Slot 2 (w2). Branch task/TD-3. **Finished — see docs/status/tasks/TD-3.md.**
+Slot 2 (w2). Branch task/TD-3. Respawned 07:2x; salvage commit d5116b8 reviewed and kept.
 
-| part | state |
+| finding | state |
 |---|---|
-| (a) create-time sanitizer `internal/vpp/ifsanitize` (+ IPsec SPD, manager add-on), wired into every interface creator, metric, unit + host test | done |
-| (b) binding dependencies asserted; classify table Delete refuses while bound (TableUsers + write-only binding records) | done (unit + host) |
-| (c) raw deletes in restart simulations / fixtures clear bindings first (`ifsanitize.BeforeDelete`), cleanup order fixed | done |
-| (d) `cmd/vrx-vpp-preflight` + `v19_preflight` in ci.sh full (before tests, after rig up) | done (full not run by me) |
+| H1 L3-mode reset + resurrect + quarantine (Acquire) | code done (salvage) + resurrect made exact for input ACL, FreshRun=8; unit tests done; host test TODO |
+| H2 no blind spot (resurrect before probe) | code + unit done |
+| H3 BeforeDelete in every interface Delete (+ lcp) | wired (salvage); verify |
+| M1 classify table delete refusal for stale-index records | TODO |
+| M3 preflight before-tests under exclusive lock, after-tests run, exit 2 message | TODO |
+| M4 preflight: quarantine = WARN | TODO |
+| L1 per-phase metrics + quarantine gauge | done |
+| docs + status fix-round section + CI | TODO |

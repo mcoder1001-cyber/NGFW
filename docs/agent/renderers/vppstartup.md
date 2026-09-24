@@ -3,7 +3,7 @@
 Code: `apps/agent/internal/renderers/vppstartup` (pure generator, host-fact reader, `renderers.Renderer` for dry runs),
 and the CLI `apps/agent/cmd/vrx-startupgen`. File:
 `/etc/vpp/startup.conf`, mode 0644. VPP reads it only at start, so every change needs a **VPP restart**, which is a
-**manual manager step** (procedure below; tooling is task F-startup-apply, D-088). The agent never applies it: `Renderer.Apply` returns `ErrManagerStep`, `Retrieve`
+**manager step** (`deploy/vpp/apply-startup.sh`, procedure below; D-088). The agent never applies it: `Renderer.Apply` returns `ErrManagerStep`, `Retrieve`
 returns `ErrRetrieveUnsupported` (VPP has no API that reports its start-up config; compare with `vrx-startupgen --diff`).
 
 ## Pipeline
@@ -92,30 +92,44 @@ exit: 0 ok / identical · 1 different · 2 invalid input, missing host facts or 
 
 The CLI never restarts VPP, never talks to VPP and runs no other process. Build: `cd apps/agent && go build -o bin/vrx-startupgen ./cmd/vrx-startupgen`.
 
-## Manager apply procedure (manual, manager-only; tooling in task F-startup-apply)
+## Manager apply procedure — `deploy/vpp/apply-startup.sh` (F-startup-apply, manager-only)
 
-Only the manager does this, and only when a VPP restart is allowed (after handover, or on an explicit decision — D-012,
-D-060). Workers and tests never touch `/etc/vpp/startup.conf`. A scripted version (detached run, dead-man timer, driver
-rebind, API interface check) is being finished in task **F-startup-apply** (D-088); until it is merged the steps are manual:
+Only the manager applies a start-up file, and only when a VPP restart is allowed: the script refuses `--apply` unless
+`docs/lab/host-<vm>.md` says `handover: done` in the canonical `/root/ngfw` copy **and** the script's own tree (same rule as
+`tools/lab`, D-012), or the product owner approved this change: `--i-have-product-owner-approval <PENDING-slug|D-nnn>`
+(recorded in the run log, `<work>/gate` and syslog tag `vrx-startup-apply`). Workers and tests never touch
+`/etc/vpp/startup.conf`; the script is tested only against a fake host (`deploy/vpp/test-apply-startup.sh`).
 
-1. Build the generator from a known tree and use that absolute path for every step
-   (`cd /root/ngfw/apps/agent && go build -o /root/vrx-startupgen ./cmd/vrx-startupgen`).
-2. Review: `vrx-startupgen --diff /etc/vpp/startup.conf running.json` and `… --semantic`. Check the management NICs
-   the CLI prints (default route + SSH path) and every warning (kept/removed plugins, chosen cores).
-3. Pin what was reviewed: note `sha256sum /etc/vpp/startup.conf` **and** the `rendered sha256 …` line the CLI prints
-   (N5: it is the sha256 of exactly the file `-o` writes; the rendering depends on the host facts too, so render once).
-4. From a console or a detached session (`systemd-run --unit=vrx-startup-apply --collect …` / `setsid nohup`, never the
-   bare SSH shell), under `flock -x /run/lock/vrx-vpp.lock flock -x /run/lock/vrx-lab.lock`: re-check the live file's
-   sha256, render with `-o /run/vrx-startupgen/startup.conf`, compare its sha256 with the reviewed one, back up
-   (`cp -p /etc/vpp/startup.conf /etc/vpp/startup.conf.bak-<stamp>`), record `readlink /sys/bus/pci/devices/<pci>/driver`
-   for every PCI in the old and new file and for the management NICs, `install -m 0644` the new file,
-   `systemctl restart vpp`.
-5. Verify by content, not exit codes: `vppctl show plugins` lists every enabled plugin and none of the disabled ones;
-   every logical name appears in `vppctl show interface` output (first column); the management interface is UP, keeps
-   its address and its NIC's driver; the gateway answers.
-6. On any failure: `systemctl stop vpp`, restore the backup, rebind any NIC whose driver changed (driverctl
-   `unset-override`, sysfs unbind/`driver_override`/bind), bring the management interface up, `systemctl start vpp`.
-7. Record it in `docs/decisions/LOG.md` (what changed, backup name) and update `docs/lab/host-vrx-a.md`.
+1. Build both tools from a known tree: `cd apps/agent && go build -o bin/vrx-startupgen ./cmd/vrx-startupgen &&
+   go build -o bin/vrx-vppcheck ./cmd/vrx-vppcheck` (or point `VRX_STARTUPGEN` / `VRX_VPPCHECK` at absolute paths).
+2. Dry run (changes nothing): `deploy/vpp/apply-startup.sh --doc running.json [-- <generator flags>]`. Review the unified
+   and semantic diff, the drivers of every PCI device involved, the **protected management interfaces** (every default
+   route v4/v6, the path to `$SSH_CONNECTION`'s client, `--mgmt-if`) with their network manager (ifupdown / netplan /
+   networkd / none) and the exact `ip … replace` restore plan, the read-only VPP preflight (`vrx-vppcheck ifaces local0`)
+   and the gate. Exit 3 = `--apply` would refuse.
+3. Apply with both sums the dry run printed:
+   `apply-startup.sh --doc running.json --apply --expect-sha256 <live> --expect-new-sha256 <rendered> [-- <same flags>]`.
+   The document, both binaries and the script are copied into `/var/lib/vrx/startup-apply/<stamp>/`, every setting is
+   written to `<work>/settings` and passed to `systemd-run` as `--setenv` (fallback `setsid`); the caller returns at
+   once — follow `journalctl -fu vrx-startup-apply-<stamp>` or `<work>/log`. The SSH session may die at any point.
+4. The detached run: locks (`vrx-vpp.lock` then `vrx-lab.lock`, bounded) → both sha256 re-checked inside the lock → VPP
+   preflight → snapshot (`ip -j addr` / `ip -j route` per management interface, drivers, loaded plugins, NRestarts) →
+   backup → dead-man timer → install → `systemctl restart vpp` → watch `--window` s: unit active and not crash-restarting,
+   API answers, plugins by `show plugins` content, logical names by `sw_interface_dump`, every management interface up
+   with all recorded addresses, same driver, default gateway(s) answering.
+5. Any failure → rollback: stop VPP (SIGKILL if the stop hangs), restore the backup, rebind changed NICs (driverctl
+   `unset-override`, sysfs unbind / `driver_override` / bind), re-apply the recorded addresses and routes verbatim, and
+   only if the interface is still broken the manager's own re-apply (`ifup --force`, `networkctl reconfigure`,
+   `netplan apply`), `reset-failed` + start VPP, verify. An incomplete rollback leaves the dead-man armed; it retries.
+6. **Timeouts everywhere (re-review N1):** every VPP/kernel/systemd call runs under `timeout` (`--cmd-timeout` 10 s,
+   `--svc-timeout` 120 s) with the lock fds closed; `vrx-vppcheck` has its own deadline plus a hard exit. The run has a
+   time budget; the dead-man fires after it, **kills the run** (its process group or unit), takes the locks with a bounded
+   wait (`--deadman-lock-timeout` 60 s) and rolls back **even if they stay busy** (logged as FORCED).
+7. Record the result in `docs/decisions/LOG.md` (what changed, backup name) and update `docs/lab/host-<vm>.md`.
+
+Exit codes: 0 committed / nothing to do · 1 failed and rolled back · 2 usage · 3 refused before any change.
+Needs `jq`, `flock`, `timeout` (coreutils) on the target host. Plugins the old file enabled and the new document no
+longer mentions (D-084 omission) may disappear after the restart without failing the apply.
 
 A `dataplane.plugins` that leaves out a plugin the current file enables (D-084 "present = authoritative") is accepted by
 the generator with a warning; if the plugin is `default_disabled` in VPP (linux_cp, linux_nl, npt66) it will not load after

@@ -149,6 +149,11 @@ CI GATE PASSED
 ```
   (the warning is W-seed's commit, not this branch's)
 
+  Re-run on the final code tip 5466e9d (docs only after 7131792): **CI GATE PASSED** (quick, wall time 4m48s, logs
+  `/root/ngfw-wt/logs/ci/F-bonding-20260924-234743-1205141`; the one uncommitted file then was this task's questions doc).
+  Attempts 1–10 stopped at the contract guard only — a SIGPIPE flake in `tools/ci.sh` (`git log | grep -q` under
+  `pipefail`, 19/20 failures reproduced), reported as Q7 with a one-line fix; the branch carries 8 `contract(…)` commits.
+
 ### Tests added
 | where | what |
 |---|---|

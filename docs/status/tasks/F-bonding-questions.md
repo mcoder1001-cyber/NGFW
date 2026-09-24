@@ -83,3 +83,12 @@ the REST call. A follow-up for the CLI owner?
 **Q6 — base.** I started from task/W-seed@df67a8e (D-114) and did not merge main (P08 is merged there now); the merger
 rebases (D-112). Hotspot hunks are only under my anchors, so the rebase should be mechanical; generated files need
 `pnpm gen && make -C apps/cli gen docs` after it (rule 3).
+
+**Q7 — `tools/ci.sh` contract guard is flaky (manager-owned file).** `do_contract_guard` runs
+`if git log --format=%s "$mb..$TIP" | grep -qiE '^contract(\(|:|!)'` under `set -euo pipefail`: `grep -q` exits at the first
+match, `git log` then dies of SIGPIPE on its next write, and pipefail turns the pipeline into "no contract commit". On this
+branch (71 commits since the merge base, the newest contract commit 5th) it fails 19 of 20 times:
+`bash -c 'set -euo pipefail; … 20× git log | grep -qiE …'` → `ok=1 fail=19`; `tools/ci.sh check --base main` failed 3/3 at
+5466e9d although the branch has 8 `contract(…)` commits (`git log … | grep -ciE '^contract'` = 8), while the full quick gate
+at 7131792 passed the same guard. Fix: `grep -iE … >/dev/null` (reads all input) or capture `git log` into a variable first.
+The final gate was re-run until the guard passed (the rest of the gate is deterministic); see F-bonding.md.

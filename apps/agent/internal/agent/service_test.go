@@ -156,7 +156,7 @@ func TestApplyRetrieveIdempotent(t *testing.T) {
 		t.Fatalf("second apply %v", resp)
 	}
 	for _, c := range v.Calls() {
-		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" && n != "nat44_ed_output_interface_get" {
+		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" && n != "nat44_ed_output_interface_get" && n != "nat44_ei_output_interface_get" {
 			t.Fatalf("idempotent apply sent %s", n)
 		}
 	}
@@ -461,7 +461,7 @@ func TestResyncRecreatesAfterLoss(t *testing.T) {
 		if t4, ok := c.(*ip.IPTableAddDel); ok && t4.IsAdd {
 			continue // resync re-asserts the VRF's API lock (idempotent, scheduler.Reapplier)
 		}
-		if !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" && n != "nat44_ed_output_interface_get" {
+		if !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" && n != "nat44_ed_output_interface_get" && n != "nat44_ei_output_interface_get" {
 			t.Fatalf("converged resync sent %s", n)
 		}
 	}
@@ -514,7 +514,7 @@ func TestDryRun(t *testing.T) {
 		t.Fatalf("warnings %v", rep.GetErrors())
 	}
 	for _, c := range v.Calls() {
-		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" && n != "nat44_ed_output_interface_get" {
+		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" && n != "nat44_ed_output_interface_get" && n != "nat44_ei_output_interface_get" {
 			t.Fatalf("dry run sent %s", n)
 		}
 	}

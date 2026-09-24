@@ -122,7 +122,7 @@ func TestNatDomainOnFake(t *testing.T) {
 	for _, e := range rep.GetErrors() {
 		warns = append(warns, e.GetPointer()+" "+e.GetRule())
 	}
-	for _, w := range []string{"/nat/nat64 agent.unsupported-field", "/nat/ipfix agent.unsupported-field"} {
+	for _, w := range []string{"/nat/ipfix agent.unsupported-field"} { // nat64 {enabled: false} programs nothing (F-nat44-ei-64-66-nptv6)
 		if !strings.Contains(strings.Join(warns, ","), w) {
 			t.Errorf("dry run lacks %q: %v", w, warns)
 		}

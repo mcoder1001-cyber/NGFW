@@ -193,17 +193,17 @@ func TestNatBuilderOffDefaultsAndSiblings(t *testing.T) {
 	if strings.Join(s.keys(), ",") != "nat44-ed.enable/global" {
 		t.Fatalf("enabled only: %v", s.keys())
 	}
-	// mode ei, the sibling translators and ipfix are warnings, never objects; UNSUPPORTED VPP flags too
+	// the CGNAT siblings and ipfix are warnings, never objects; mode ei and disabled nat64/nat66 are
+	// F-nat44-ei-64-66-nptv6's (nat44-ei objects; nothing for a disabled translator); UNSUPPORTED VPP flags too
 	s = newSink()
 	desired.Nat(s, natDoc(t, `{"mode": "ei", "inside": ["host-w4l0"],
 	  "ipfix": {"enabled": false}, "nat64": {"enabled": false}, "nat66": {"inside": ["x"]}, "nptv6": {"bindings": []},
 	  "det44": {"enabled": true}, "dslite": {"enabled": false}, "map": {"domains": []}, "cnat": {"translations": []}}`), vrfID)
-	if len(s.kvs) != 0 {
+	if strings.Join(s.keys(), ",") != "nat44-ei.enable/global,nat44-ei.interface-feature/host-w4l0/inside" {
 		t.Fatalf("mode ei projected %v", s.keys())
 	}
 	want := []string{
-		"/nat/ipfix agent.unsupported-field", "/nat/mode agent.unsupported-field", "/nat/nat64 agent.unsupported-field",
-		"/nat/nat66 agent.unsupported-field", "/nat/det44 agent.unsupported-field", "/nat/dslite agent.unsupported-field",
+		"/nat/ipfix agent.unsupported-field", "/nat/det44 agent.unsupported-field", "/nat/dslite agent.unsupported-field",
 	}
 	sort.Strings(want)
 	sort.Strings(s.warns)

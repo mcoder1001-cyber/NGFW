@@ -15,6 +15,7 @@ import { haValidators } from './ha.js';
 import { managementValidators } from './management.js';
 // Feature rule files (semantic/<slug>.ts exporting `<slug>Validators`): one import under the feature's anchor.
 // wave-A: F-bonding
+import { bondingValidators } from './bonding.js';
 // wave-A: F-bridge-l2
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
@@ -51,6 +52,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...managementValidators,
   // Feature rules: one spread line under the feature's anchor (wave-A-hotspots C2).
   // wave-A: F-bonding
+  ...bondingValidators,
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp

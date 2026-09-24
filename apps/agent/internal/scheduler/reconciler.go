@@ -810,6 +810,32 @@ func (s *Scheduler) verify(ctx context.Context, desired []KV, scope Scope, write
 	return err
 }
 
+// DiffSummary describes how two values differ WITHOUT printing any value: the message type and
+// the names of the top-level fields that differ (values may carry secret references or other
+// sensitive data, and errors end up in logs, results and the API — review DF-5 H1). Only keys and
+// field names ever appear in scheduler errors and log lines.
+func DiffSummary(want, got proto.Message) string {
+	if want == nil || got == nil {
+		return "value missing"
+	}
+	rw, rg := want.ProtoReflect(), got.ProtoReflect()
+	if rw.Descriptor().FullName() != rg.Descriptor().FullName() {
+		return fmt.Sprintf("type %s != %s", rw.Descriptor().FullName(), rg.Descriptor().FullName())
+	}
+	var fields []string
+	fds := rw.Descriptor().Fields()
+	for i := 0; i < fds.Len(); i++ {
+		fd := fds.Get(i)
+		if rw.Has(fd) != rg.Has(fd) || !rw.Get(fd).Equal(rg.Get(fd)) {
+			fields = append(fields, string(fd.Name()))
+		}
+	}
+	if len(fields) == 0 {
+		fields = append(fields, "(unknown fields)")
+	}
+	return fmt.Sprintf("%s fields [%s] (values redacted)", rw.Descriptor().FullName(), strings.Join(fields, ", "))
+}
+
 func diffErr(desired []KV, actual map[Key]KV) error {
 	var problems []string
 	seen := make(map[Key]bool, len(desired))
@@ -820,7 +846,7 @@ func diffErr(desired []KV, actual map[Key]KV) error {
 		case !ok:
 			problems = append(problems, fmt.Sprintf("%s missing", kv.Key))
 		case !proto.Equal(a.Value, kv.Value):
-			problems = append(problems, fmt.Sprintf("%s differs: want {%v} got {%v}", kv.Key, kv.Value, a.Value))
+			problems = append(problems, fmt.Sprintf("%s differs: %s", kv.Key, DiffSummary(kv.Value, a.Value)))
 		}
 	}
 	for _, k := range sortedKeys(actual) {

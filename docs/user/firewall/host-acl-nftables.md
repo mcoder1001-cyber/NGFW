@@ -13,6 +13,8 @@ are rendered into the Linux kernel's nftables as one table, `table inet vrx`, wh
 commit replaces the whole table in one atomic step, and nothing else in the kernel ruleset is touched (the static base
 policy the package installs, and anything else, stays).
 
+![Host ACL, Lists tab: rules with their live packet/byte counters, the anti-lockout banner, a pending edit](img/host-acl-lists-en.png)
+
 ## Building blocks
 
 | part | what it is |
@@ -103,6 +105,12 @@ chain in_mgmt-in { type filter hook input priority 0; policy accept;
 ```
 
 Rule 30 drops SSH/HTTPS from everywhere else; the counters in the *Lists* tab show how many packets each rule matched.
+
+![Rendered tab: the table as the kernel holds it, per chain, with counters and the named sets](img/host-acl-rendered-en.png)
+
+The screen is fully available in Persian (right-to-left):
+
+![Settings tab in Persian](img/host-acl-settings-fa-rtl.png)
 
 ## Objects
 

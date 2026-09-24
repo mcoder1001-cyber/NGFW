@@ -32,7 +32,7 @@ type IdentitySource interface {
 	Identity() bootid.Identity
 }
 
-// ErrClaimUnbound: an interface claim could not be bound to the interface's current sw_if_index
+// ErrClaimUnbound means an interface claim could not be bound to the interface's current sw_if_index
 // (it is not in VPP's table right now, or the dump failed); nothing is recorded.
 var ErrClaimUnbound = errors.New("claim store: interface has no sw_if_index in VPP")
 

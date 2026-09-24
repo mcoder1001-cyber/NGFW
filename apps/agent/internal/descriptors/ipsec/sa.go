@@ -85,11 +85,33 @@ func (d *Sa) Create(ctx context.Context, obj proto.Message) (any, error) {
 	}
 	defer vpn.Zero(entry.CryptoKey.Data)
 	defer vpn.Zero(entry.IntegrityKey.Data)
+	key, value := saRecordKey(o.GetSadId()), saRecordValue(o.GetSpi(), o.GetProtocol())
+	cur, err := d.dumpDetails(ctx, o.GetSadId())
+	if err != nil {
+		return nil, err
+	}
+	for _, sa := range cur {
+		if sa.value.GetSadId() != o.GetSadId() {
+			continue
+		}
+		// exists: ours only with our record for this SPI (a retry after a lost reply); a changed
+		// SA is planned as Update → ErrRecreate by the scheduler, never here
+		if v, ok := rec.Valid(bid, key); ok && v == value && proto.Equal(sa.value, o) {
+			return SaMeta{SadID: o.GetSadId(), StatIndex: sa.statIndex}, rec.Put(bid, key, value)
+		}
+		return nil, fmt.Errorf("%s: sa %d exists: %w", SaName, o.GetSadId(), vpn.ErrNotOurs)
+	}
+	if err := rec.PutPending(bid, key, value); err != nil { // write-ahead (review M4)
+		return nil, fmt.Errorf("%s: record: %w", SaName, err)
+	}
 	rep, err := ipsec.NewServiceClient(d.cfg.Client).IpsecSadEntryAddV2(ctx, &ipsec.IpsecSadEntryAddV2{Entry: entry})
 	if err != nil {
+		if after, derr := d.dump(ctx, o.GetSadId()); derr == nil && len(after) == 0 {
+			_ = rec.Drop(key)
+		}
 		return nil, fmt.Errorf("ipsec_sad_entry_add_v2 (sa %d): %w", o.GetSadId(), err)
 	}
-	if err := rec.Put(bid, saRecordKey(o.GetSadId()), saRecordValue(o.GetSpi(), o.GetProtocol())); err != nil {
+	if err := rec.Put(bid, key, value); err != nil {
 		return nil, fmt.Errorf("%s: record: %w", SaName, err)
 	}
 	return SaMeta{SadID: o.GetSadId(), StatIndex: rep.StatIndex}, nil
@@ -123,6 +145,19 @@ func (d *Sa) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	}
 	if v, ok := rec.Valid(bid, key); !ok || !d.cfg.IDs.Contains(o.GetSadId()) || v != saRecordValue(cur[0].GetSpi(), cur[0].GetProtocol()) {
 		return fmt.Errorf("%s: sa %d: %w", SaName, o.GetSadId(), vpn.ErrNotOurs)
+	}
+	// ipsec_sad_entry_del is an UNLOCK (VPP lock counting): with a policy or a tunnel protection
+	// still holding the SA, a (retried) unlock could drop THEIR lock and free the SA under them
+	// (review H3). Unlock only when nothing references it any more.
+	if used, err := protectionUses(ctx, d.cfg, o.GetSadId()); err != nil {
+		return err
+	} else if used {
+		return fmt.Errorf("%s: sa %d is still used by a tunnel protection; not unlocked", SaName, o.GetSadId())
+	}
+	if refs, err := policiesUsing(ctx, d.cfg, o.GetSadId()); err != nil {
+		return err
+	} else if len(refs) > 0 {
+		return fmt.Errorf("%s: sa %d is still used by %d SPD policies; not unlocked", SaName, o.GetSadId(), len(refs))
 	}
 	if _, err := ipsec.NewServiceClient(d.cfg.Client).IpsecSadEntryDel(ctx, &ipsec.IpsecSadEntryDel{ID: o.GetSadId()}); err != nil {
 		return fmt.Errorf("ipsec_sad_entry_del (sa %d): %w", o.GetSadId(), err)

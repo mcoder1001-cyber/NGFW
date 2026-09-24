@@ -3,6 +3,7 @@ package vpn
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/vpp"
@@ -55,7 +56,19 @@ func (r Records) Valid(id bootid.Identity, key string) (string, bool) {
 	if !ok || !bootid.Matches(rec.Identity, id) {
 		return "", false
 	}
-	return rec.Value, true
+	return strings.TrimPrefix(rec.Value, pendingPrefix), true
+}
+
+const pendingPrefix = "pending|"
+
+// PutPending is the write-ahead half of an ownership record (review M4): written right BEFORE our
+// add, only after the caller verified that the object does not exist yet, so an add whose reply
+// is lost or a failure after a successful add still leaves the object recorded as ours — the next
+// Retrieve reports it (adopt or clean up) instead of it being stuck as "exists, not ours". A
+// pending record counts as ownership; Put confirms it with the final value, Drop removes it when
+// the add demonstrably did not happen.
+func (r Records) PutPending(id bootid.Identity, key, value string) error {
+	return r.Put(id, key, pendingPrefix+value)
 }
 
 // Put records value for key on the VPP instance id — call it only after VPP accepted our add.

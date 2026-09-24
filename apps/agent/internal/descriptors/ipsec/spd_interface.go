@@ -83,6 +83,9 @@ func parseBindingRecord(s string) (bindingRecord, bool) {
 	return bindingRecord{v[0], v[1], v[2]}, true
 }
 
+// anyIndex marks the pool index of a pending binding record (not known before the bind).
+const anyIndex = ^uint32(0)
+
 func bindingRecordKey(ifName string) string { return string(scheduler.Join(SpdInterfaceName, ifName)) }
 
 // Create implements scheduler.Descriptor. VPP refuses a second SPD on an interface
@@ -109,13 +112,37 @@ func (d *SpdInterface) Create(ctx context.Context, obj proto.Message) (any, erro
 		return nil, fmt.Errorf("%s: %w", SpdInterfaceName, err)
 	}
 	svc := ipsec.NewServiceClient(d.cfg.Client)
+	key := bindingRecordKey(o.GetInterface())
+	bindings, err := d.dumpBindings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if spdIndex, bound := bindings[uint32(idx)]; bound {
+		// bound already: ours only with our record for this index and SPD (a retry after a lost
+		// reply or a failure after the bind); VPP would refuse a second SPD anyway
+		if r, ok := d.record(bid, o.GetInterface(), uint32(idx), spdIndex); ok && r.spdID == o.GetSpdId() {
+			r.spdIndex = spdIndex
+			return SpdInterfaceMeta{SwIfIndex: uint32(idx), SpdID: r.spdID, SpdIndex: spdIndex}, rec.Put(bid, key, r.String())
+		}
+		return nil, fmt.Errorf("%s: %s already has an SPD: %w", SpdInterfaceName, o.GetInterface(), vpn.ErrNotOurs)
+	}
+	// write-ahead (review M4): pool index still unknown (anyIndex matches any)
+	pending := bindingRecord{swIfIndex: uint32(idx), spdID: o.GetSpdId(), spdIndex: anyIndex}
+	if err := rec.PutPending(bid, key, pending.String()); err != nil {
+		return nil, fmt.Errorf("%s: record: %w", SpdInterfaceName, err)
+	}
 	if _, err := svc.IpsecInterfaceAddDelSpd(ctx, &ipsec.IpsecInterfaceAddDelSpd{IsAdd: true, SwIfIndex: idx, SpdID: o.GetSpdId()}); err != nil {
+		if after, derr := d.dumpBindings(ctx); derr == nil {
+			if _, bound := after[uint32(idx)]; !bound {
+				_ = rec.Drop(key)
+			}
+		}
 		return nil, fmt.Errorf("ipsec_interface_add_del_spd (%s): %w", o.GetInterface(), err)
 	}
 	meta := SpdInterfaceMeta{SwIfIndex: uint32(idx), SpdID: o.GetSpdId(), SpdIndex: noInterface}
-	bindings, err := d.dumpBindings(ctx)
+	bindings, err = d.dumpBindings(ctx)
 	if err != nil {
-		return meta, err
+		return meta, err // the pending record keeps the binding ours
 	}
 	if spdIndex, ok := bindings[uint32(idx)]; ok {
 		meta.SpdIndex = spdIndex
@@ -190,7 +217,7 @@ func (d *SpdInterface) record(bid bootid.Identity, ifName string, swIfIndex, spd
 		return bindingRecord{}, false
 	}
 	r, ok := parseBindingRecord(v)
-	if !ok || r.swIfIndex != swIfIndex || r.spdIndex != spdIndex {
+	if !ok || r.swIfIndex != swIfIndex || (r.spdIndex != spdIndex && r.spdIndex != anyIndex) {
 		return bindingRecord{}, false
 	}
 	return r, true

@@ -287,6 +287,10 @@ func TestProfileOwnershipAndSecretsInDump(t *testing.T) {
 		t.Fatal(err)
 	}
 	mustRetrieve(t, d, &vpnpb.Ikev2Profile{Name: "mine"})
+	// an owner containing '-' could collide with another owner's names (review L3)
+	if _, err := ikev2d.NewProfile(ikev2d.Config{Keys: keys, Client: v, Owner: "w4-a"}).Create(ctx, &vpnpb.Ikev2Profile{Name: "b"}); err == nil {
+		t.Fatal("owner with '-' accepted")
+	}
 }
 
 // TestIDWithZeroOctet covers govpp cutting id.data at the first NUL: an address whose bytes after

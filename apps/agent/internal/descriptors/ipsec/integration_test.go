@@ -16,6 +16,7 @@ package ipsec_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -227,6 +228,7 @@ func TestIpsecOnHost(t *testing.T) {
 	if _, ok := backend.(*vpn.Require); !ok {
 		t.Fatalf("test slots are never the globals owner: %T", backend)
 	}
+	vpntest.LockGlobals(t, false) // reading a VPP-global (D-082, shared-host-rules §7)
 	actual, err := ipsecd.NewBackend(cfg2).Retrieve(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -279,22 +281,55 @@ func TestIpsecOnHost(t *testing.T) {
 		RemoteStart: vpntest.SlotAddr(t, 5, 0), RemoteStop: vpntest.SlotAddr(t, 5, 255)}); err == nil {
 		t.Fatal("a policy in an SPD that is not ours must be refused")
 	}
-	ack := &acker{}
-	res, err := ipsecd.SweepAndAck(ctx, cfg2, ipsecd.CharonSweep{IDs: charon, Live: func(spi uint32) bool { return spi == 2000+live }}, ack)
+	sw, err := ipsecd.NewCharonSweeper(cfg2, charon) // persisted store, disjoint ranges
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("charon sweep: deleted SAs %v, policies %d, in use %v; AckRestart calls %d", res.DeletedSAs, res.DeletedPolicies, res.InUse, ack.n)
-	if !slices.Equal(res.DeletedSAs, []uint32{orphan}) || ack.n != 1 {
-		t.Fatalf("sweep result %+v ack %d", res, ack.n)
+	if _, err := ipsecd.NewCharonSweeper(cfg2, vpn.IDRange{Lo: base + 400, Hi: base + 599}); err == nil {
+		t.Fatal("an overlapping charon range must be refused")
 	}
+	// charon running: only unrecorded, non-live SAs (their policies first, in every SPD)
+	res, err := sw.Sweep(ctx, "running", func(spi uint32) bool { return spi == 2000+live })
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("charon sweep (charon running): SPDs %v, policies %d, SAs %v, in use %v", res.DeletedSPDs, res.DeletedPolicies, res.DeletedSAs, res.InUse)
+	if !slices.Equal(res.DeletedSAs, []uint32{orphan}) || res.DeletedPolicies != 1 || len(res.DeletedSPDs) != 0 {
+		t.Fatalf("sweep result %+v", res)
+	}
+	ack := &acker{}
+	if err := sw.AckRestart(ctx, "host-restart", ack); !errors.Is(err, ipsecd.ErrSweepNotComplete) || ack.n != 0 {
+		t.Fatalf("ack without a sweep for this restart: %v", err)
+	}
+	// D-096 order: stop charon → Sweep (stopped: charon SPDs too) → start charon → AckRestart
+	res, err = sw.Sweep(ctx, "host-restart", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("charon sweep (charon stopped): SPDs %v, policies %d, SAs %v, in use %v", res.DeletedSPDs, res.DeletedPolicies, res.DeletedSAs, res.InUse)
+	if !slices.Equal(res.DeletedSPDs, []uint32{base + 501}) || !slices.Equal(res.DeletedSAs, []uint32{live}) {
+		t.Fatalf("stopped sweep result %+v", res)
+	}
+	if err := sw.AckRestart(ctx, "host-restart", ack); err != nil || ack.n != 1 {
+		t.Fatalf("ack after the sweep: %v (%d)", err, ack.n)
+	}
+	t.Logf("AckRestart after the completed sweep: ok (calls %d)", ack.n)
 	left, err := saIDs(ctx, c2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if slices.Contains(left, orphan) || !slices.Contains(left, live) || !slices.Contains(left, saT.GetSadId()) {
+	if slices.Contains(left, orphan) || slices.Contains(left, live) || !slices.Contains(left, saT.GetSadId()) {
 		t.Fatalf("after sweep: SAs %v", left)
 	}
+	// a charon SA that appears afterwards survives our empty desired state below
+	charonLate := base + 503
+	if _, err := svc.IpsecSadEntryAddV2(ctx, &ipsec.IpsecSadEntryAddV2{Entry: ipsec_types.IpsecSadEntryV4{
+		SadID: charonLate, Spi: 2000 + charonLate, Protocol: ipsec_types.IPSEC_API_PROTO_ESP,
+		CryptoAlgorithm: ipsec_types.IPSEC_API_CRYPTO_ALG_NONE, IntegrityAlgorithm: ipsec_types.IPSEC_API_INTEG_ALG_NONE,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _, _ = svc.IpsecSadEntryDel(context.Background(), &ipsec.IpsecSadEntryDel{ID: charonLate}) })
 	agent2.MustEmptyPlan(ctx, t, "after the charon sweep (our SAs untouched)", desired2)
 
 	pauseForEvidence(t)
@@ -305,7 +340,7 @@ func TestIpsecOnHost(t *testing.T) {
 		mustRetrieveNone(t, d, "after applying the empty desired state")
 	}
 	left, _ = saIDs(ctx, c2)
-	if !slices.Contains(left, live) {
+	if !slices.Contains(left, charonLate) {
 		t.Fatal("the charon SA must survive our empty desired state")
 	}
 }

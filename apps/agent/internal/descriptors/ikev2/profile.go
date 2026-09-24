@@ -223,6 +223,11 @@ func (d *Profile) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 }
 
 func (d *Profile) checkName(n string) (string, error) {
+	// owner-prefixed VPP names "<owner>-<name>" are unambiguous only when the owner has no '-'
+	// (owner "w4" + "a-b" and owner "w4-a" + "b" would both be "w4-a-b"; review L3)
+	if d.cfg.Owner == "" || strings.Contains(d.cfg.Owner, "-") {
+		return "", fmt.Errorf("ikev2: owner %q must be non-empty without '-' (profile names are \"<owner>-<name>\")", d.cfg.Owner)
+	}
 	if n == "" || strings.ContainsAny(n, "/\x00") {
 		return "", fmt.Errorf("ikev2: profile name %q must be non-empty without '/' or NUL", n)
 	}

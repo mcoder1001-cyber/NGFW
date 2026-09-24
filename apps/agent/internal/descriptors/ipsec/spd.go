@@ -42,9 +42,10 @@ func (*Spd) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 // spdRecordKey is the ownership record of an SPD (vpn.Records).
 func spdRecordKey(id uint32) string { return string(scheduler.Join(SpdName, vpn.Uint(id))) }
 
-// Create implements scheduler.Descriptor. VPP refuses an existing spd_id
-// (ENTRY_ALREADY_EXISTS), so an SPD that is not ours is never adopted; the ownership record is
-// written only after VPP accepted the add.
+// Create implements scheduler.Descriptor. An existing SPD is ours only with our record (a retry
+// after a lost reply adopts it); otherwise it is never adopted. Write-ahead (review M4): the
+// pending record is written after the existence check and before the add, confirmed after it, and
+// dropped only when the SPD demonstrably does not exist after a failed add.
 func (d *Spd) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*vpnpb.IpsecSpd)
 	if !ok {
@@ -58,10 +59,26 @@ func (d *Spd) Create(ctx context.Context, obj proto.Message) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", SpdName, err)
 	}
+	key := spdRecordKey(o.GetSpdId())
+	owned, exists, err := ownedSpd(ctx, d.cfg, o.GetSpdId())
+	switch {
+	case err != nil:
+		return nil, err
+	case exists && owned:
+		return SpdMeta{SpdID: o.GetSpdId()}, rec.Put(id, key, "spd") // our earlier add (retry)
+	case exists:
+		return nil, fmt.Errorf("%s: spd %d exists: %w", SpdName, o.GetSpdId(), vpn.ErrNotOurs)
+	}
+	if err := rec.PutPending(id, key, "spd"); err != nil {
+		return nil, fmt.Errorf("%s: record: %w", SpdName, err)
+	}
 	if _, err := ipsec.NewServiceClient(d.cfg.Client).IpsecSpdAddDel(ctx, &ipsec.IpsecSpdAddDel{IsAdd: true, SpdID: o.GetSpdId()}); err != nil {
+		if _, still, derr := ownedSpd(ctx, d.cfg, o.GetSpdId()); derr == nil && !still {
+			_ = rec.Drop(key)
+		}
 		return nil, fmt.Errorf("ipsec_spd_add_del (spd %d): %w", o.GetSpdId(), err)
 	}
-	if err := rec.Put(id, spdRecordKey(o.GetSpdId()), "spd"); err != nil {
+	if err := rec.Put(id, key, "spd"); err != nil {
 		return nil, fmt.Errorf("%s: record: %w", SpdName, err)
 	}
 	return SpdMeta{SpdID: o.GetSpdId()}, nil

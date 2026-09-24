@@ -41,6 +41,44 @@ type fakeVPP struct {
 	itfs       map[uint32]ipsec.IpsecItf
 	backends   []ipsec.IpsecBackendDetails
 	async      []bool
+	// VPP's SA lock counting (ipsec_sa.c): the add holds one lock, every protect policy and every
+	// tunnel protection holds one more; ipsec_sad_entry_del is an UNLOCK, the SA is freed at 0.
+	// freedWhileReferenced records a use-after-free (a policy/protection still pointing at it).
+	saLocks              map[uint32]int
+	freedWhileReferenced []uint32
+	failPolicyDel        bool // policy deletes fail with a VPP error (sweep regression)
+}
+
+func (v *fakeVPP) lockSA(id uint32) { v.saLocks[id]++ }
+
+func (v *fakeVPP) unlockSA(id uint32) {
+	if _, ok := v.sas[id]; !ok {
+		return
+	}
+	v.saLocks[id]--
+	if v.saLocks[id] > 0 {
+		return
+	}
+	delete(v.sas, id)
+	delete(v.saLocks, id)
+	for _, pols := range v.policies {
+		for _, p := range pols {
+			if p.Policy == ipsec_types.IPSEC_API_SPD_ACTION_PROTECT && p.SaID == id {
+				v.freedWhileReferenced = append(v.freedWhileReferenced, id)
+			}
+		}
+	}
+	for _, tp := range v.tps {
+		for _, x := range append([]uint32{tp.SaOut}, tp.SaIn...) {
+			if x == id {
+				v.freedWhileReferenced = append(v.freedWhileReferenced, id)
+			}
+		}
+	}
+}
+
+func protectSA(e ipsec_types.IpsecSpdEntryV2) (uint32, bool) {
+	return e.SaID, e.Policy == ipsec_types.IPSEC_API_SPD_ACTION_PROTECT
 }
 
 func newFakeVPP() *fakeVPP {
@@ -57,6 +95,7 @@ func newFakeVPP() *fakeVPP {
 		nextStat:   100,
 		tps:        map[uint32]ipsec.IpsecTunnelProtect{},
 		itfs:       map[uint32]ipsec.IpsecItf{},
+		saLocks:    map[uint32]int{},
 		backends: []ipsec.IpsecBackendDetails{
 			{Name: "crypto engine backend", Protocol: ipsec_types.IPSEC_API_PROTO_ESP, Index: 0, Active: true},
 			{Name: "dpdk backend", Protocol: ipsec_types.IPSEC_API_PROTO_ESP, Index: 1},
@@ -89,8 +128,19 @@ func newFakeVPP() *fakeVPP {
 			v.spds[r.SpdID] = v.nextSpdIdx
 			v.nextSpdIdx++
 		default:
+			poolIdx := v.spds[r.SpdID]
+			for _, p := range v.policies[r.SpdID] {
+				if id, ok := protectSA(p); ok {
+					defer v.unlockSA(id)
+				}
+			}
 			delete(v.spds, r.SpdID)
 			delete(v.policies, r.SpdID)
+			for sw, idx := range v.bindings { // VPP unbinds every interface from a deleted SPD
+				if idx == poolIdx {
+					delete(v.bindings, sw)
+				}
+			}
 		}
 		return []api.Message{&ipsec.IpsecSpdAddDelReply{}}, nil
 	})
@@ -126,6 +176,9 @@ func newFakeVPP() *fakeVPP {
 	})
 	v.On("ipsec_spd_entry_add_del_v2", func(req api.Message) ([]api.Message, error) {
 		r := req.(*ipsec.IpsecSpdEntryAddDelV2)
+		if !r.IsAdd && v.failPolicyDel {
+			return []api.Message{&ipsec.IpsecSpdEntryAddDelV2Reply{Retval: retvalInvalid}}, nil
+		}
 		if _, ok := v.spds[r.Entry.SpdID]; !ok {
 			return []api.Message{&ipsec.IpsecSpdEntryAddDelV2Reply{Retval: retvalNoSuch}}, nil
 		}
@@ -141,9 +194,18 @@ func newFakeVPP() *fakeVPP {
 		case r.IsAdd && pos >= 0, !r.IsAdd && pos < 0:
 			return []api.Message{&ipsec.IpsecSpdEntryAddDelV2Reply{Retval: retvalInvalid}}, nil
 		case r.IsAdd:
+			if id, ok := protectSA(e); ok {
+				if _, exists := v.sas[id]; !exists {
+					return []api.Message{&ipsec.IpsecSpdEntryAddDelV2Reply{Retval: retvalNoSuch}}, nil
+				}
+				v.lockSA(id)
+			}
 			v.policies[e.SpdID] = append(list, e)
 		default:
 			v.policies[e.SpdID] = append(list[:pos], list[pos+1:]...)
+			if id, ok := protectSA(e); ok {
+				v.unlockSA(id)
+			}
 		}
 		v.nextStat++
 		return []api.Message{&ipsec.IpsecSpdEntryAddDelV2Reply{StatIndex: v.nextStat}}, nil
@@ -170,6 +232,7 @@ func newFakeVPP() *fakeVPP {
 			e.AntiReplayWindowSize = 64
 		}
 		v.sas[e.SadID] = e
+		v.saLocks[e.SadID] = 1
 		v.nextStat++
 		v.saStat[e.SadID] = v.nextStat
 		return []api.Message{&ipsec.IpsecSadEntryAddV2Reply{StatIndex: v.nextStat}}, nil
@@ -179,7 +242,7 @@ func newFakeVPP() *fakeVPP {
 		if _, exists := v.sas[r.ID]; !exists {
 			return []api.Message{&ipsec.IpsecSadEntryDelReply{Retval: retvalNoSuch}}, nil
 		}
-		delete(v.sas, r.ID)
+		v.unlockSA(r.ID) // an unlock, not a delete
 		return []api.Message{&ipsec.IpsecSadEntryDelReply{}}, nil
 	})
 	v.On("ipsec_sa_v5_dump", func(req api.Message) ([]api.Message, error) {
@@ -208,15 +271,29 @@ func newFakeVPP() *fakeVPP {
 		}
 		tp := r.Tunnel
 		tp.SaIn = append([]uint32(nil), tp.SaIn...)
+		for _, x := range append([]uint32{tp.SaOut}, tp.SaIn...) {
+			v.lockSA(x)
+		}
+		if old, ok := v.tps[uint32(tp.SwIfIndex)]; ok {
+			defer func() {
+				for _, x := range append([]uint32{old.SaOut}, old.SaIn...) {
+					v.unlockSA(x)
+				}
+			}()
+		}
 		v.tps[uint32(tp.SwIfIndex)] = tp
 		return []api.Message{&ipsec.IpsecTunnelProtectUpdateReply{}}, nil
 	})
 	v.On("ipsec_tunnel_protect_del", func(req api.Message) ([]api.Message, error) {
 		r := req.(*ipsec.IpsecTunnelProtectDel)
-		if _, ok := v.tps[uint32(r.SwIfIndex)]; !ok {
+		old, ok := v.tps[uint32(r.SwIfIndex)]
+		if !ok {
 			return []api.Message{&ipsec.IpsecTunnelProtectDelReply{Retval: retvalNoSuch}}, nil
 		}
 		delete(v.tps, uint32(r.SwIfIndex))
+		for _, x := range append([]uint32{old.SaOut}, old.SaIn...) {
+			v.unlockSA(x)
+		}
 		return []api.Message{&ipsec.IpsecTunnelProtectDelReply{}}, nil
 	})
 	v.On("ipsec_tunnel_protect_dump", func(req api.Message) ([]api.Message, error) {

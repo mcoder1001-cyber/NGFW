@@ -107,9 +107,11 @@ func TestSpd(t *testing.T) {
 	if _, err := d.Update(ctx, desired, &vpnpb.IpsecSpd{SpdId: 4002}, meta); !errors.Is(err, scheduler.ErrRecreate) {
 		t.Fatalf("Update: %v", err)
 	}
-	if _, err := d.Create(ctx, desired); err == nil {
-		t.Fatal("VPP retval must surface")
+	// a retried Create of our own SPD (reply lost) adopts it through our record, no second add
+	if _, err := d.Create(ctx, desired); err != nil || len(v.CallsNamed("ipsec_spd_add_del")) != 1 {
+		t.Fatalf("retry of our own SPD: %v", err)
 	}
+
 	if err := d.Delete(ctx, desired, meta); err != nil {
 		t.Fatal(err)
 	}
@@ -282,6 +284,9 @@ func TestSpdEntry(t *testing.T) {
 	v := newFakeVPP()
 	cfg := newCfg(v)
 	if _, err := ipsecd.NewSpd(cfg).Create(ctx, &vpnpb.IpsecSpd{SpdId: 4001}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ipsecd.NewSa(cfg).Create(ctx, transportSA()); err != nil { // protect needs its SA
 		t.Fatal(err)
 	}
 	v.spds[3001] = 2

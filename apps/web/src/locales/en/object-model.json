@@ -115,33 +115,104 @@
     "option": "{{name}} — {{kind}}: {{detail}}"
   },
   "field": {
-    "address": { "title": "Address" },
-    "prefix": { "title": "Prefix", "help": "e.g. 10.0.0.0/24 or 2001:db8::/32" },
-    "start": { "title": "Start" },
-    "end": { "title": "End" },
+    "address": {
+      "title": "Address"
+    },
+    "prefix": {
+      "title": "Prefix",
+      "help": "e.g. 10.0.0.0/24 or 2001:db8::/32"
+    },
+    "start": {
+      "title": "Start"
+    },
+    "end": {
+      "title": "End"
+    },
     "addresses": {
-      "start": { "title": "First address" },
-      "end": { "title": "Last address" }
+      "start": {
+        "title": "First address"
+      },
+      "end": {
+        "title": "Last address"
+      }
     },
     "schedules": {
-      "start": { "title": "Start", "help": "HH:MM (recurring) or a date and time with its offset (one time)" },
-      "end": { "title": "End", "help": "Later than the start; an overnight window is two schedules" }
+      "start": {
+        "title": "Start",
+        "help": "HH:MM (recurring) or a date and time with its offset (one time)"
+      },
+      "end": {
+        "title": "End",
+        "help": "Later than the start; an overnight window is two schedules"
+      }
     },
-    "fqdn": { "title": "FQDN", "help": "Resolved by the agent (IPv4 and IPv6 answers); a name that does not resolve matches nothing" },
-    "description": { "title": "Description" },
-    "tags": { "title": "Tags" },
-    "members": { "title": "Members" },
-    "protocol": { "title": "Protocol" },
-    "destinationPorts": { "title": "Destination ports", "help": "443 or 8000-8080; empty = any port" },
-    "sourcePorts": { "title": "Source ports", "help": "empty = any port" },
-    "tcpFlags": { "title": "TCP flags" },
-    "mask": { "title": "Mask" },
-    "value": { "title": "Value" },
-    "type": { "title": "ICMP type", "help": "empty = any type" },
-    "code": { "title": "ICMP code", "help": "needs a type; empty = any code" },
-    "number": { "title": "IP protocol number", "help": "e.g. 47 = GRE, 50 = ESP, 89 = OSPF" },
-    "days": { "title": "Days" },
-    "interfaces": { "title": "Interfaces" },
-    "color": { "title": "Colour", "help": "#rrggbb" }
+    "fqdn": {
+      "title": "FQDN",
+      "help": "Resolved by the agent (IPv4 and IPv6 answers); a name that does not resolve matches nothing"
+    },
+    "description": {
+      "title": "Description"
+    },
+    "tags": {
+      "title": "Tags",
+      "help": "Tags from the Tags tab"
+    },
+    "members": {
+      "title": "Members"
+    },
+    "protocol": {
+      "title": "Protocol"
+    },
+    "destinationPorts": {
+      "title": "Destination ports",
+      "help": "443 or 8000-8080; empty = any port"
+    },
+    "sourcePorts": {
+      "title": "Source ports",
+      "help": "empty = any port"
+    },
+    "tcpFlags": {
+      "title": "TCP flags"
+    },
+    "mask": {
+      "title": "Mask"
+    },
+    "value": {
+      "title": "Value"
+    },
+    "type": {
+      "title": "ICMP type",
+      "help": "empty = any type"
+    },
+    "code": {
+      "title": "ICMP code",
+      "help": "needs a type; empty = any code"
+    },
+    "number": {
+      "title": "IP protocol number",
+      "help": "e.g. 47 = GRE, 50 = ESP, 89 = OSPF"
+    },
+    "days": {
+      "title": "Days"
+    },
+    "interfaces": {
+      "title": "Interfaces"
+    },
+    "color": {
+      "title": "Colour",
+      "help": "#rrggbb"
+    },
+    "addressGroups": {
+      "members": {
+        "title": "Members",
+        "help": "Addresses and address groups; may be empty while you build the group, but an ACL rule cannot use an empty group"
+      }
+    },
+    "serviceGroups": {
+      "members": {
+        "title": "Members",
+        "help": "Services and service groups; may be empty while you build the group, but an ACL rule cannot use an empty group"
+      }
+    }
   }
 }

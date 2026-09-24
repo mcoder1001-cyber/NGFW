@@ -57,7 +57,8 @@ export function pickerSchema(
       if (labels[name] !== undefined) continue;
       choices.push(name);
       const detail = summary(kind, entry);
-      labels[name] = t('picker.option', { name, kind: t(`kindOne.${kind}`), detail: detail || '—' });
+      // Unicode isolates keep names and addresses in their own direction inside an RTL label (2001:db8::10, #1e88e5)
+      labels[name] = t('picker.option', { name: `\u2068${name}\u2069`, kind: t(`kindOne.${kind}`), detail: `\u2066${detail || '—'}\u2069` });
     }
   }
   // dependsOn was applied by SchemaForm around this widget already; the widget swap must not recurse into itself

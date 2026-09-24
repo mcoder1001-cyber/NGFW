@@ -38,6 +38,8 @@ share one namespace (a rule says just `web-servers`), and so do services and ser
   remove the reference first, or discard.
 - **Groups may be empty** while you build them, but an ACL rule cannot use an empty group (it would silently match nothing).
 
+![Editing an address group: members and tags come from the object picker](img/object-model-dialog-en.png)
+
 ![Where-used drawer](img/object-model-usage-en.png)
 
 The screen is fully available in Persian (right-to-left):
@@ -127,8 +129,9 @@ the configuration commands is the API's answer).
 Objects are not VPP objects: on commit the agent stores the applied object set in its state directory (and reports it
 back in `GET /api/v1/state/drift` like any other domain), resolves the FQDN objects, and gives the consumers — the ACL
 feature, the host firewall, later NAT — the expanded addresses (ranges become the smallest set of prefixes, groups are
-flattened, IPv4 and IPv6 are split) and port ranges. An expansion larger than 10 000 entries for one rule is refused
-at validation, at the rule. A rollback restores the earlier object set like any other configuration.
+flattened, IPv4 and IPv6 are split) and port ranges. A rule whose expansion exceeds 10 000 entries is refused at
+validation by the feature that renders it, at the rule's pointer; a group that alone expands to more than that is flagged
+with a warning when you validate or commit. A rollback restores the earlier object set like any other configuration.
 
 Not in this release: GeoIP and threat-feed objects, zone-based policy beyond "a zone is a set of interfaces", objects
 per tenant (VDOM).

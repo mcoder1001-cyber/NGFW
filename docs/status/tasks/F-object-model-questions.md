@@ -29,3 +29,19 @@ wanted in the configuration, the manager can seed an anchor in `ObjectsSchema` a
 resolver when the family registers and it stops (a) at process exit, (b) when the same owner registers again in the same
 process (an in-process agent restart in tests closes the previous runtime first) or (c) through `Wiring.CloseObjectModel()`.
 **Ask:** a one-line `a.wiring.Close()` in `Agent.Stop()` (A5, manager) would make (b) unnecessary.
+
+## Q5 — two assertions in a file I do not own: `apps/agent/internal/agent/service_test.go`
+`TestApplyRetrieveIdempotent` and `TestGRPCRoundTrip` compared `Retrieve`/`Health` subsystems with the literal
+`"interfaces,vrfs,routing"`; every wave-A task that implements a domain (objects here, nat for F-nat44-ed-sessions, …)
+breaks them. Changed both to `strings.Join(implementedDomains(), ",")` (two lines, commit c9584c2) so the next domain
+needs no edit. If another feature makes the same change the hunks are identical; if it chose another fix, take either.
+
+## Q6 — VPP crash 18:41:08 (manager's incident note, D-126): not F-object-model
+F-object-model creates no VPP object and has no classify/policer code. Before 18:55 this task ran only unit tests (fake
+VPP), the API e2e (fake agent) and web tests. The first real agent of this slot started at 18:56:33 (topology run 1,
+`NRestarts=1` before and after), after the crash. Nothing of slot 3 needed re-creating.
+
+## Q7 — no CLI command for FQDN state / where-used
+`apps/cli` is P13's. The operations `ObjectModel_fqdn` and `ObjectModel_usage` are in the regenerated operation table;
+a `show objects fqdn` / `show objects usage <name>` pair is a small follow-up for the CLI owner. The user doc gives the
+REST calls and the configuration-mode commands (`set/merge/delete objects …`).

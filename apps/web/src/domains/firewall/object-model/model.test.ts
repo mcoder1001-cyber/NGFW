@@ -47,7 +47,8 @@ describe('object model helpers', () => {
       addressGroups: { web: { members: ['web1'], tags: [] } },
       services: { https: { protocol: 'tcp', destinationPorts: ['443'], sourcePorts: [], tags: [] } },
     } as never;
-    const t = (k: string, o?: Record<string, unknown>) => (k === 'picker.option' ? `${String(o?.['name'])} (${String(o?.['kind'])}: ${String(o?.['detail'])})` : k.replace('kindOne.', ''));
+    const bare = (v: unknown) => String(v).replace(/[\u2066-\u2069]/g, '');
+    const t = (k: string, o?: Record<string, unknown>) => (k === 'picker.option' ? `${bare(o?.['name'])} (${String(o?.['kind'])}: ${bare(o?.['detail'])})` : k.replace('kindOne.', ''));
     const members = pickerSchema({ schema: { type: 'array', items: { type: 'string' } }, hints: { widget: 'object-picker', dependsOn: 'x' } }, ['addresses', 'addressGroups'], objects, t);
     expect(members.schema.items?.enum).toEqual(['cdn', 'web1', 'web']);
     expect(members.hints).toMatchObject({ widget: 'multiselect', enumLabels: { web1: 'web1 (addresses: 192.0.2.10)', web: 'web (addressGroups: web1)' } });

@@ -243,7 +243,7 @@ func (w *Wiring) IPsecOptions() ([]ipsec.Option, error) {
 	return []ipsec.Option{ipsec.WithBootStore(w.boot), ipsec.WithKeyer(k), ipsec.WithGlobalsOwner(w.env.GlobalsOwner)}, nil
 }
 
-// IKEv2Options: as IPsecOptions for ikev2.Register (D-076 applied-once responder hostname records).
+// IKEv2Options is IPsecOptions for ikev2.Register (D-076 applied-once responder hostname records).
 func (w *Wiring) IKEv2Options() ([]ikev2.Option, error) {
 	k, err := w.VPNKeyer()
 	if err != nil {

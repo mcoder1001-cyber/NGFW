@@ -14,7 +14,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 )
 
-// VPP retval for an existing object (VNET_API_ERROR_IF_ALREADY_EXISTS / subif exists).
+// RetvalAlreadyExists is VPP's retval for an existing object (VNET_API_ERROR_IF_ALREADY_EXISTS / subif exists).
 const RetvalAlreadyExists int32 = -80
 
 func detailsOf(i *Iface) *interfaces.SwInterfaceDetails {
@@ -151,7 +151,7 @@ func (v *VPP) installIfExt() {
 		v.next++
 		v.Ifaces[idx] = &Iface{
 			Index: idx, Name: name, DevType: "af-packet", HostIf: req.HostIfName, Addrs: map[string]bool{},
-			LinkMtu: 9000, Mtu: [4]uint32{9000}, RxMode: interface_types.RX_MODE_API_INTERRUPT, L2: [6]uint8{0x02, 0xfe, 0, 0, 0, uint8(idx)},
+			LinkMtu: 9000, Mtu: [4]uint32{9000}, RxMode: interface_types.RX_MODE_API_INTERRUPT, L2: [6]uint8{0x02, 0xfe, 0, 0, 0, uint8(idx)}, //nolint:gosec // G115: a fake MAC byte; test indexes are small
 		}
 		return reply(&afpapi.AfPacketCreateV3Reply{SwIfIndex: interface_types.InterfaceIndex(idx)})
 	})

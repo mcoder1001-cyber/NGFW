@@ -114,7 +114,7 @@ func (v *VPP) install() {
 		}
 		idx := v.next
 		v.next++
-		v.Ifaces[idx] = &Iface{Index: idx, Name: name, DevType: "Loopback", Addrs: map[string]bool{}, LinkMtu: 9000, Mtu: [4]uint32{9000}, RxMode: interface_types.RX_MODE_API_POLLING, L2: [6]uint8{0xde, 0xad, 0, 0, 0, uint8(idx)}}
+		v.Ifaces[idx] = &Iface{Index: idx, Name: name, DevType: "Loopback", Addrs: map[string]bool{}, LinkMtu: 9000, Mtu: [4]uint32{9000}, RxMode: interface_types.RX_MODE_API_POLLING, L2: [6]uint8{0xde, 0xad, 0, 0, 0, uint8(idx)}} //nolint:gosec // G115: a fake MAC byte; test indexes are small
 		return reply(&interfaces.CreateLoopbackInstanceReply{SwIfIndex: interface_types.InterfaceIndex(idx)})
 	})
 	v.On("delete_loopback", func(m api.Message) ([]api.Message, error) {

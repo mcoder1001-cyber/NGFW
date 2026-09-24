@@ -161,8 +161,8 @@ type SyncFunc func(ctx context.Context) error
 // carry (seam S1, wave-BC-numbers.md): F-mpls-ldp's FRR→VPP label sync, F-igmp-mfib's PIM→mFIB sync.
 //
 // The agent merges Desired into the projection of every transaction under its transaction lock —
-// Apply, resync (start, VPP reconnect, Env.Resync), confirm revert, DryRun — with Descriptors in the
-// transaction's scope, and the source's own SyncFunc runs a transaction scoped to Descriptors only. So
+// Apply, resync (start, VPP reconnect, Env.Resync), confirm revert — and into DryRun's plan, with
+// Descriptors in the scope, and the source's own SyncFunc runs a transaction scoped to Descriptors only. So
 // an object the source stops producing is deleted, a VPP restart is repaired by the reconnect resync,
 // a config change that removes what a dynamic object depends on deletes both in one transaction, and
 // nothing but the scheduler writes VPP.
@@ -174,10 +174,10 @@ type DynamicSource struct {
 	// produces their keys; every key Desired returns must belong to one of them.
 	Descriptors []string
 	// Desired returns the source's objects for doc, the stored configuration document as it will be
-	// after the transaction (read-only). It runs under the transaction lock, so it must be fast and
-	// do no VPP or daemon I/O: it combines the state the Run loop cached (FRR's labels, PIM's
+	// after the transaction (a copy). Transactions call it under the transaction lock, so it must be
+	// fast and do no VPP or daemon I/O: it combines the state the Run loop cached (FRR's labels, PIM's
 	// routes) with doc, and leaves out objects whose configuration dependencies doc no longer has.
-	// It must be safe to call concurrently with Run.
+	// DryRun calls it without the lock: it must be safe to call concurrently with itself and with Run.
 	Desired func(doc *vrxv1.DesiredState) []scheduler.KV
 	// Run is the feature's loop (poll or subscribe to the daemon), optional. The agent starts it once,
 	// after its first resync, and cancels ctx when it stops; Run must return then. It calls sync after

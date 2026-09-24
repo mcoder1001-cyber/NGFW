@@ -37,6 +37,8 @@ import faVpn from './locales/fa/vpn.json';
 import enNat44EdSessions from './locales/en/nat44-ed-sessions.json';
 import faNat44EdSessions from './locales/fa/nat44-ed-sessions.json';
 // wave-A: F-nat44-ei-64-66-nptv6
+import enNat44Ei6466Nptv6 from './locales/en/nat44-ei-64-66-nptv6.json';
+import faNat44Ei6466Nptv6 from './locales/fa/nat44-ei-64-66-nptv6.json';
 // wave-A: P11
 // wave-A: F-wireguard
 // wave-A: P12
@@ -68,6 +70,7 @@ export const NAMESPACES = [
   // wave-A: F-nat44-ed-sessions
   'nat44-ed-sessions',
   // wave-A: F-nat44-ei-64-66-nptv6
+  'nat44-ei-64-66-nptv6',
   // wave-A: P11
   // wave-A: F-wireguard
   // wave-A: P12
@@ -101,6 +104,7 @@ const en = {
   // wave-A: F-nat44-ed-sessions
   'nat44-ed-sessions': enNat44EdSessions,
   // wave-A: F-nat44-ei-64-66-nptv6
+  'nat44-ei-64-66-nptv6': enNat44Ei6466Nptv6,
   // wave-A: P11
   // wave-A: F-wireguard
   // wave-A: P12
@@ -131,6 +135,7 @@ const fa = {
   // wave-A: F-nat44-ed-sessions
   'nat44-ed-sessions': faNat44EdSessions,
   // wave-A: F-nat44-ei-64-66-nptv6
+  'nat44-ei-64-66-nptv6': faNat44Ei6466Nptv6,
   // wave-A: P11
   // wave-A: F-wireguard
   // wave-A: P12

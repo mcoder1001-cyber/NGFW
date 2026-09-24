@@ -1,0 +1,116 @@
+{
+  "loading": "Loading…",
+  "save": "Save to candidate",
+  "reset": "Reset",
+  "saved": "Saved to the candidate. Commit to apply it.",
+  "cancel": "Cancel",
+  "readonly": "Your role can view but not change NAT.",
+  "tab": {
+    "ei": "NAT44-EI",
+    "nat64": "NAT64",
+    "nat66": "NAT66",
+    "nptv6": "NPTv6"
+  },
+  "ei": {
+    "intro": "Endpoint-independent NAT44 (VPP nat44-ei): one outside port per inside endpoint whatever the destination, so any remote host can reach a mapped inside endpoint (full-cone behaviour). It uses the same NAT44 settings as ED — Outbound, Static & port forwards and Pools — without twice-NAT and load-balanced mappings. ED and EI are mutually exclusive.",
+    "modeEi": "NAT44 runs in EI mode: the Outbound, Static and Pools tabs are applied with nat44-ei.",
+    "modeEd": "NAT44 runs in ED mode. Switch to EI to apply the NAT44 settings with nat44-ei (twice-NAT and load-balanced mappings must be removed first).",
+    "switchTo": {
+      "ei": "Switch to EI",
+      "ed": "Switch to ED"
+    },
+    "sessions": "NAT44-EI sessions"
+  },
+  "col": {
+    "protocol": "Protocol",
+    "inside": "Inside",
+    "outside": "Outside",
+    "external": "External host",
+    "vrf": "VRF",
+    "flags": "Flags",
+    "idle": "Idle (s)",
+    "packets": "Packets",
+    "actions": "Actions",
+    "any": "Any",
+    "client": "IPv6 client",
+    "pool": "IPv4 pool",
+    "remote": "IPv4 remote",
+    "remoteIpv6": "Remote as IPv6",
+    "status": "Status"
+  },
+  "sessions": {
+    "static": "static",
+    "filter": "Session filter",
+    "total": "{{sessions}} sessions from {{users}} inside hosts",
+    "truncated": "counts stopped at the agent's scan limit"
+  },
+  "filter": {
+    "inside": "Inside address",
+    "outside": "Outside address",
+    "external": "External address",
+    "port": "Port",
+    "protocol": "Protocol",
+    "vrf": "VRF",
+    "apply": "Filter",
+    "clear": "Clear"
+  },
+  "kill": {
+    "button": "Delete session {{session}}",
+    "title": "Delete NAT44-EI session?",
+    "question": "The session is removed from the data plane; the host opens a new one with its next packet.",
+    "confirm": "Delete session",
+    "gone": "The session no longer exists."
+  },
+  "nat64": {
+    "intro": "Stateful NAT64 (RFC 6146): IPv6-only clients reach IPv4 hosts through the NAT64 prefix (default 64:ff9b::/96), translated to the IPv4 pool. Clients need DNS64 (RFC 6147) to learn the synthesized addresses. This is also the provider side (PLAT) of 464XLAT.",
+    "sessions": "NAT64 sessions",
+    "total": "{{sessions}} sessions from {{clients}} IPv6 clients"
+  },
+  "nat66": {
+    "intro": "NAT66: stateless 1:1 translation of one IPv6 address to another between the inside and outside interfaces (VPP nat66).",
+    "mappings": "Static mappings",
+    "empty": "No static mapping."
+  },
+  "nptv6": {
+    "intro": "NPTv6 (RFC 6296): stateless, checksum-neutral translation of an internal IPv6 prefix to an external one on an interface. One binding per interface; both prefixes have the same length, at most /64.",
+    "running": "Bindings in the running configuration",
+    "empty": "No binding.",
+    "writeOnlyHelp": "VPP cannot list NPTv6 bindings: the agent applies every binding of the running configuration and re-applies it on each resync, but cannot read it back."
+  },
+  "status": {
+    "applied": "applied",
+    "drift_one": "{{count}} difference from the running configuration",
+    "drift_other": "{{count}} differences from the running configuration",
+    "unknown": "unknown",
+    "writeOnly": "applied (write-only)"
+  },
+  "field": {
+    "enabled": { "title": "Enabled" },
+    "inside": { "title": "Inside" },
+    "outside": { "title": "Outside" },
+    "prefixes": { "title": "NAT64 prefixes" },
+    "prefix": {
+      "title": "NAT64 prefix",
+      "help": "RFC 6052 length 32/40/48/56/64/96; 64:ff9b::/96 is the well-known prefix"
+    },
+    "vrf": { "title": "VRF" },
+    "pools": { "title": "IPv4 pools" },
+    "range": { "title": "Address range", "help": "10.0.0.10-10.0.0.20 or one address" },
+    "staticBibs": { "title": "Static BIB entries" },
+    "description": { "title": "Description" },
+    "protocol": { "title": "Protocol" },
+    "ip": { "title": "Address" },
+    "port": { "title": "Port" },
+    "timeouts": { "title": "Session timeouts (seconds)" },
+    "udp": { "title": "UDP" },
+    "tcpEstablished": { "title": "TCP established" },
+    "tcpTransitory": { "title": "TCP transitory" },
+    "icmp": { "title": "ICMP" },
+    "staticMappings": { "title": "Static mappings" },
+    "local": { "title": "Local address" },
+    "external": { "title": "External" },
+    "bindings": { "title": "Bindings" },
+    "interface": { "title": "Interface" },
+    "internal": { "title": "Internal prefix", "help": "Network prefix, host bits zero" }
+  }
+}

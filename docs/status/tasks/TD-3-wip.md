@@ -1,15 +1,10 @@
 # TD-3 WIP — V19 guard (D-095)
 
-Slot 2 (w2). Branch task/TD-3.
+Slot 2 (w2). Branch task/TD-3. **Finished — see docs/status/tasks/TD-3.md.**
 
 | part | state |
 |---|---|
-| (a) create-time sanitizer `internal/vpp/ifsanitize` + wired into loopback (core), tap, af_packet, memif, bond, sub-interface, DF-6 tunnels (df6.IfDescriptor: gre, ipip, 6rd, vxlan, vxlan-gpe, gtpu, l2tp, pppoe), mpls tunnel; metric `vrx_agent_iface_sanitize_*`; IPsec SPD (manager add-on, DF-5 M3) | code + unit tests done; host test pending |
-| (b) table Delete refuses while bindings exist | pending |
-| (c) restart simulations delete dependents first | pending |
-| (d) ci.sh pre-flight | pending |
-
-Notes
-- VPP facts (source-verified, /root/vpp): feature arcs are cleared on interface delete; per-index vectors (ip classify,
-  in/out ACL, policer/flow classify, vxlan bypass bitmap, ADL config, SPD) are not. ip classify is read directly by
-  ip4_add_interface_routes → classify DPO on the /32 → crash vector. policer/flow_classify_dump are broken (DF-7) → probe-unbind.
+| (a) create-time sanitizer `internal/vpp/ifsanitize` (+ IPsec SPD, manager add-on), wired into every interface creator, metric, unit + host test | done |
+| (b) binding dependencies asserted; classify table Delete refuses while bound (TableUsers + write-only binding records) | done (unit + host) |
+| (c) raw deletes in restart simulations / fixtures clear bindings first (`ifsanitize.BeforeDelete`), cleanup order fixed | done |
+| (d) `cmd/vrx-vpp-preflight` + `v19_preflight` in ci.sh full (before tests, after rig up) | done (full not run by me) |

@@ -1,0 +1,24 @@
+// NAT66 (nat66 plugin) objects of the DF-3 descriptors; see common.proto for the conventions.
+// Shared: InterfaceFeature (one object per interface; a side change is an in-place update).
+syntax = "proto3";
+
+package vrx.model.nat.v1;
+
+option go_package = "ngfw/agent/gen/vrx/model/nat/v1;natv1";
+
+// Nat66Enable is the plugin singleton (nat66_plugin_enable_disable), write-only in VPP (no
+// getter): an enable on an enabled plugin keeps its VRF. VPP-global (D-071).
+message Nat66Enable {
+  // Outside FIB table id.
+  uint32 outside_vrf = 1;
+}
+
+// Nat66StaticMapping is a 1:1 IPv6 mapping local ↔ external in a VRF (nat66_add_del_static_mapping).
+message Nat66StaticMapping {
+  // Local IPv6 address.
+  string local = 1;
+  // External IPv6 address.
+  string external = 2;
+  // FIB table id.
+  uint32 vrf = 3;
+}

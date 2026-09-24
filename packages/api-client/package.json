@@ -1,0 +1,31 @@
+{
+  "name": "@ngfw/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "gen": "pnpm --filter \"@ngfw/api^...\" run build && pnpm --filter @ngfw/api openapi && openapi-typescript openapi.json -o src/generated/schema.d.ts && prettier --write src/generated/schema.d.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src && redocly lint openapi.json --config redocly.yaml",
+    "test": "echo 'api-client: generated — no tests'"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.14"
+  },
+  "devDependencies": {
+    "@ngfw/api": "workspace:*",
+    "@redocly/cli": "^2.54.2",
+    "openapi-typescript": "^7",
+    "prettier": "^3",
+    "typescript": "^5.6"
+  }
+}

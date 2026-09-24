@@ -1,0 +1,34 @@
+{
+  "name": "@ngfw/proto",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/vrx/v1/dataplane.js",
+  "types": "./dist/vrx/v1/dataplane.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/vrx/v1/dataplane.d.ts",
+      "import": "./dist/vrx/v1/dataplane.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "gen": "bash ./gen.sh",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "buf lint",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2",
+    "@grpc/grpc-js": "^1.12"
+  },
+  "devDependencies": {
+    "@ngfw/schema": "workspace:*",
+    "ts-proto": "^2",
+    "typescript": "^5.6",
+    "vitest": "^3"
+  }
+}

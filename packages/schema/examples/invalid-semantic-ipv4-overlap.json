@@ -1,0 +1,11 @@
+{
+  "interfaces": {
+    "TenGigabitEthernet0/0/0": { "enabled": true, "ipv4": ["10.0.0.1/24"] },
+    "TenGigabitEthernet0/0/1": { "enabled": true, "ipv4": ["10.0.0.129/25"] }
+  },
+  "management": {
+    "users": [
+      { "username": "admin", "role": "admin", "passwordHash": "$vrx-test$VRX_TEST_HASH_admin" }
+    ]
+  }
+}

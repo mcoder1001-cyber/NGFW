@@ -1,0 +1,18 @@
+version: v2
+modules:
+  - path: .
+    excludes:
+      - node_modules
+      - gen
+lint:
+  use:
+    - STANDARD
+  except:
+    # D-008: the service keeps its docs/04 name `Dataplane`.
+    - SERVICE_SUFFIX
+    # P03: stream element types and the DryRun report keep their docs/04 names
+    # (StatsBatch, Event, ActionOutput, ValidationReport) instead of `<Rpc>Response` wrappers.
+    - RPC_RESPONSE_STANDARD_NAME
+breaking:
+  use:
+    - FILE

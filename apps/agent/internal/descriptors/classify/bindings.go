@@ -59,6 +59,11 @@ func (b binder) resolve(ctx context.Context, name string) (interface_types.Inter
 	return interface_types.InterfaceIndex(idx), untagged, err
 }
 
+// record keeps a write-only binding for TableUsers (VPP cannot report it).
+func (b binder) record(key scheduler.Key, iface string, idx interface_types.InterfaceIndex, tables ...uint32) error {
+	return b.store.PutBinding(BindingRecord{Key: string(key), Interface: iface, SwIfIndex: uint32(idx), Tables: tables})
+}
+
 // tableIndex resolves a table name; "" is NoIndex.
 func (b binder) tableIndex(name string) (uint32, error) {
 	if name == "" {
@@ -147,6 +152,9 @@ func (d *InterfaceIPTableDescriptor) Create(ctx context.Context, obj proto.Messa
 	if err := d.set(ctx, o, idx, table); err != nil {
 		return nil, err
 	}
+	if err := d.record(d.KeyOf(o), o.GetInterface(), idx, table); err != nil {
+		return nil, err
+	}
 	return BindingMeta{SwIfIndex: uint32(idx)}, nil
 }
 
@@ -170,6 +178,9 @@ func (d *InterfaceIPTableDescriptor) Update(ctx context.Context, oldObj, newObj 
 	if err := d.set(ctx, o, idx, table); err != nil {
 		return nil, err
 	}
+	if err := d.record(d.KeyOf(o), o.GetInterface(), idx, table); err != nil {
+		return nil, err
+	}
 	return meta, nil
 }
 
@@ -182,9 +193,15 @@ func (d *InterfaceIPTableDescriptor) Delete(ctx context.Context, obj proto.Messa
 	if skip, err := d.skipDelete(ctx, idx, obj, d.KeyOf(obj)); err != nil {
 		return err
 	} else if skip {
+		if err := d.store.DeleteBinding(string(d.KeyOf(obj))); err != nil {
+			return err
+		}
 		return df2.Release(d.opts.Claims, d.KeyOf(obj))
 	}
-	return d.set(ctx, obj.(*InterfaceIpTable), idx, NoIndex)
+	if err := d.set(ctx, obj.(*InterfaceIpTable), idx, NoIndex); err != nil {
+		return err
+	}
+	return d.store.DeleteBinding(string(d.KeyOf(obj)))
 }
 
 // Retrieve is unsupported: VPP has no readback for this binding.
@@ -259,7 +276,21 @@ func (d *InterfaceL2TablesDescriptor) Create(ctx context.Context, obj proto.Mess
 	if err := d.set(ctx, o, idx, false); err != nil {
 		return nil, err
 	}
+	if err := d.recordL2(o, idx); err != nil {
+		return nil, err
+	}
 	return BindingMeta{SwIfIndex: uint32(idx)}, nil
+}
+
+// recordL2 records the tables bound by o (TableUsers).
+func (d *InterfaceL2TablesDescriptor) recordL2(o *InterfaceL2Tables, idx interface_types.InterfaceIndex) error {
+	var tables []uint32
+	for _, n := range []string{o.GetIp4Table(), o.GetIp6Table(), o.GetOtherTable()} {
+		if t, err := d.tableIndex(n); err == nil && t != NoIndex {
+			tables = append(tables, t)
+		}
+	}
+	return d.record(d.KeyOf(o), o.GetInterface(), idx, tables...)
 }
 
 // Update replaces the table set in place.
@@ -274,6 +305,9 @@ func (d *InterfaceL2TablesDescriptor) Update(ctx context.Context, oldObj, newObj
 	if err := d.set(ctx, newObj.(*InterfaceL2Tables), idx, false); err != nil {
 		return nil, err
 	}
+	if err := d.recordL2(newObj.(*InterfaceL2Tables), idx); err != nil {
+		return nil, err
+	}
 	return meta, nil
 }
 
@@ -286,9 +320,15 @@ func (d *InterfaceL2TablesDescriptor) Delete(ctx context.Context, obj proto.Mess
 	if skip, err := d.skipDelete(ctx, idx, obj, d.KeyOf(obj)); err != nil {
 		return err
 	} else if skip {
+		if err := d.store.DeleteBinding(string(d.KeyOf(obj))); err != nil {
+			return err
+		}
 		return df2.Release(d.opts.Claims, d.KeyOf(obj))
 	}
-	return d.set(ctx, obj.(*InterfaceL2Tables), idx, true)
+	if err := d.set(ctx, obj.(*InterfaceL2Tables), idx, true); err != nil {
+		return err
+	}
+	return d.store.DeleteBinding(string(d.KeyOf(obj)))
 }
 
 // Retrieve is unsupported: VPP has no readback for this binding.

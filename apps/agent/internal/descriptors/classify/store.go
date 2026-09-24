@@ -71,6 +71,13 @@ type Store interface {
 	GetOutput(iface string) (OutputRecord, bool)
 	PutOutput(rec OutputRecord) error
 	DeleteOutput(iface string) error
+	// Outputs returns every output-ACL record sorted by interface.
+	Outputs() []OutputRecord
+	// PutBinding / DeleteBinding / Bindings keep the write-only bindings (interface-ip-table,
+	// interface-l2-tables) this owner applied, keyed by descriptor key, for TableUsers.
+	PutBinding(rec BindingRecord) error
+	DeleteBinding(key string) error
+	Bindings() []BindingRecord
 	// Instance returns the VPP instance (D-080 boot identity) the records were written against;
 	// known is false for a fresh or legacy store (pre-TD-1 files carried the vpe_pid only).
 	Instance() (id bootid.Identity, known bool)
@@ -85,6 +92,8 @@ type storeData struct {
 	VPPBoot string         `json:"vpp_boot,omitempty"`
 	Tables  []TableRecord  `json:"tables"`
 	Outputs []OutputRecord `json:"outputs,omitempty"`
+	// Bindings are the write-only bindings applied (TD-3, D-095).
+	Bindings []BindingRecord `json:"bindings,omitempty"`
 }
 
 // store is the Store implementation; path "" keeps it in memory.
@@ -95,6 +104,7 @@ type store struct {
 	instance *bootid.Identity
 	recs     map[string]TableRecord
 	outputs  map[string]OutputRecord
+	bindings map[string]BindingRecord
 }
 
 // MemStore is an in-memory Store: fine for tests and for an agent that is never restarted;
@@ -103,7 +113,7 @@ type MemStore struct{ store }
 
 // NewMemStore returns an empty MemStore.
 func NewMemStore() *MemStore {
-	return &MemStore{store{recs: map[string]TableRecord{}, outputs: map[string]OutputRecord{}}}
+	return &MemStore{store{recs: map[string]TableRecord{}, outputs: map[string]OutputRecord{}, bindings: map[string]BindingRecord{}}}
 }
 
 // FileStore is a Store persisted as one JSON file (rewritten atomically on every change), so
@@ -115,7 +125,7 @@ type FileStore struct{ store }
 // records, or a vpe_pid-only "vpp_instance") loads with an unknown instance, so its records are
 // not trusted.
 func OpenFileStore(path string) (*FileStore, error) {
-	s := &FileStore{store{path: path, recs: map[string]TableRecord{}, outputs: map[string]OutputRecord{}}}
+	s := &FileStore{store{path: path, recs: map[string]TableRecord{}, outputs: map[string]OutputRecord{}, bindings: map[string]BindingRecord{}}}
 	data, err := os.ReadFile(path) //nolint:gosec // the agent's own state file
 	switch {
 	case errors.Is(err, os.ErrNotExist):
@@ -143,6 +153,9 @@ func OpenFileStore(path string) (*FileStore, error) {
 	}
 	for _, o := range d.Outputs {
 		s.outputs[o.Interface] = o
+	}
+	for _, b := range d.Bindings {
+		s.bindings[b.Key] = b
 	}
 	return s, nil
 }
@@ -198,6 +211,53 @@ func (s *store) DeleteOutput(iface string) error {
 	return s.save()
 }
 
+func (s *store) Outputs() []OutputRecord {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.outputList()
+}
+
+func (s *store) outputList() []OutputRecord {
+	out := make([]OutputRecord, 0, len(s.outputs))
+	for _, o := range s.outputs {
+		out = append(out, o)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Interface < out[j].Interface })
+	return out
+}
+
+func (s *store) PutBinding(rec BindingRecord) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.bindings[rec.Key] = rec
+	return s.save()
+}
+
+func (s *store) DeleteBinding(key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.bindings[key]; !ok {
+		return nil
+	}
+	delete(s.bindings, key)
+	return s.save()
+}
+
+func (s *store) Bindings() []BindingRecord {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.bindingList()
+}
+
+func (s *store) bindingList() []BindingRecord {
+	out := make([]BindingRecord, 0, len(s.bindings))
+	for _, b := range s.bindings {
+		out = append(out, b)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
+	return out
+}
+
 func (s *store) Instance() (bootid.Identity, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -212,6 +272,7 @@ func (s *store) Reset(id bootid.Identity) error {
 	defer s.mu.Unlock()
 	s.recs = map[string]TableRecord{}
 	s.outputs = map[string]OutputRecord{}
+	s.bindings = map[string]BindingRecord{}
 	s.instance = &id
 	return s.save()
 }
@@ -234,10 +295,13 @@ func (s *store) save() error {
 	if s.instance != nil {
 		d.VPPBoot = s.instance.String()
 	}
-	for _, o := range s.outputs {
-		d.Outputs = append(d.Outputs, o)
+	d.Outputs = s.outputList()
+	if len(d.Outputs) == 0 {
+		d.Outputs = nil
 	}
-	sort.Slice(d.Outputs, func(i, j int) bool { return d.Outputs[i].Interface < d.Outputs[j].Interface })
+	if b := s.bindingList(); len(b) > 0 {
+		d.Bindings = b
+	}
 	data, err := json.MarshalIndent(d, "", "  ")
 	if err != nil {
 		return err

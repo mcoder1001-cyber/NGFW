@@ -70,9 +70,11 @@ cmd_build() {
 secrets() {
   install -d -m 0700 "$STATE"
   if [[ ! -f "$SECRETS" ]]; then
-    umask 077
-    { echo "VRX_JWT_SECRET=$(head -c 48 /dev/urandom | base64 | tr -d '/+=' | head -c 48)"
-      echo "VRX_BOOTSTRAP_ADMIN_PASSWORD=$(head -c 24 /dev/urandom | base64 | tr -d '/+=' | head -c 16)"; } >"$SECRETS"
+    # umask only in a subshell: the agent/API started later inherit this shell's umask, and a 077 agent created
+    # /run/vrx-test as 0700, locking the frr/_chrony test daemons out of every slot (D-106)
+    ( umask 077
+      { echo "VRX_JWT_SECRET=$(head -c 48 /dev/urandom | base64 | tr -d '/+=' | head -c 48)"
+        echo "VRX_BOOTSTRAP_ADMIN_PASSWORD=$(head -c 24 /dev/urandom | base64 | tr -d '/+=' | head -c 16)"; } >"$SECRETS" )
     FIRST_RUN=1
   fi
 }

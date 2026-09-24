@@ -458,7 +458,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D6.1
@@ -473,7 +473,7 @@ tasks:
   finished: ''
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)
     | CONTINUE worker done e553199 CI green; review spawned; D-096 | review BLOCK ac84fb7 (H1 D-096 not done + scheduler prints values, H2 sweep may delete others SAs, H3 sweep may free referenced SA →
-    crash, M1–M4); fix round 1 (authorised minimal scheduler redaction edit)'
+    crash, M1–M4); fix round 1 (authorised minimal scheduler redaction edit) | fix round 7f6bdf5 CI green; re-review spawned'
 - id: DF-6
   title: 'Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp'
   prompt: prompts/factories/DF-6.md
@@ -1027,7 +1027,8 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: 'build against staging sysroot from /root/vpp/build-root debs; test vs stock strongSwan in a netns | D-096: own charon SPD/SA id range; stop→sweep→start→AckRestart'
+  notes: 'build against staging sysroot from /root/vpp/build-root debs; test vs stock strongSwan in a netns | D-096: own charon SPD/SA id range; stop→sweep→start→AckRestart | DF-5 Q13: RF-2 AckRestart(ctx,
+    since) should ack only the charon start time P11 observed'
 - id: F-ikev2-native
   title: 'Wave B (day 10-12): VPP native IKEv2 responder path'
   prompt: prompts/features/F-ikev2-native.md

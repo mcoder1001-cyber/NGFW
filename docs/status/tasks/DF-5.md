@@ -70,6 +70,10 @@ secret contract for P11, VPP limitations, tests).
 
 All host runs on slot 4, one package at a time (D-087), `systemctl show vpp -p NRestarts` before
 and after every run: 4 → 4 each time (the earlier restarts are the incidents of D-064/D-087).
+**Note for the manager:** NRestarts rose to 5 at 04:50:26 (SIGSEGV, PC 0x7b4f1a3c92bb, faulting
+address 0x58, no backtrace in the journal) while no DF-5 process was talking to VPP — the last
+DF-5 host run ended at ~04:47 with NRestarts 4; at 04:50 only the unit-only CI gate (no
+VRX_INTEGRATION) was running in this worktree. No DF-5 host test was run after it.
 
 ### Unit tests (fake VPP)
 

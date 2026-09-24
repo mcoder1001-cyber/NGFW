@@ -67,18 +67,21 @@ describe('state/interfaces e2e (PostgreSQL + fake agent)', () => {
     // fields are equal and swapping them in the controller would pass (re-review T2/R2).
     const retrieved = h.fake.current['interfaces'] as Record<string, Record<string, unknown>>;
     const before = retrieved[L];
+    if (before === undefined) throw new Error(`the fake agent retrieved no ${L}`);
     retrieved[L] = { ...before, mtu: 9000 };
     try {
       const drift = await h.call(ro, 'GET', '/api/v1/state/interfaces');
       expect(drift.status).toBe(200);
-      const d = (drift.body.items as { name: string }[]).find((i) => i.name === L) as {
-        config: { mtu?: number };
-        running: { mtu?: number };
+      const items = drift.body.items as {
+        name: string;
+        config: { mtu?: number } | null;
+        running: { mtu?: number } | null;
         hasPendingChange: boolean;
-      };
-      expect(d.config.mtu).toBe(9000);
-      expect(d.running.mtu).toBe(1400);
-      expect(d.hasPendingChange).toBe(false); // running vs candidate, not vs the data plane
+      }[];
+      const d = items.find((i) => i.name === L);
+      expect(d?.config?.mtu).toBe(9000);
+      expect(d?.running?.mtu).toBe(1400);
+      expect(d?.hasPendingChange).toBe(false); // running vs candidate, not vs the data plane
     } finally {
       retrieved[L] = before;
     }

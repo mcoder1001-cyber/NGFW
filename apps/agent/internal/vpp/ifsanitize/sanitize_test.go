@@ -247,7 +247,7 @@ func TestMetrics(t *testing.T) {
 }
 
 // TestHoleTakenBySomeoneElse is TD-3 re-review M1: a hole popped by another client between the
-// snapshot and the loop used to run resurrect to MaxPlaceholders (256, ~2850 API calls). Now the
+// snapshot and the loop used to run resurrect to the cap (then 256, ~2850 API calls). Now the
 // run re-reads the table list, drops the hole, stays within 3 holes + FreshRun placeholders, and
 // the input ACL binding that names the stolen index is removed through the foreign table instead
 // of being reported unclearable.
@@ -308,23 +308,172 @@ func TestHoleTakenBySomeoneElse(t *testing.T) {
 	t.Logf("placeholders %d, rereads %d, API calls %d, freed %v", rep.Placeholders, rep.Rereads, calls, rep.Freed)
 }
 
-// TestCappedFailsClosed: a free list longer than the cap allows (tables deleted in creation order,
-// never ascending) is ErrCapped — ErrNoCleanIndex — and every placeholder is deleted again.
+// TestPlaceholderCap (D-105, TD-3 re-review M1 option b): the cap is holes + 2 × FreshRun, at most 64.
+func TestPlaceholderCap(t *testing.T) {
+	if ifsanitize.MaxPlaceholders != 64 || ifsanitize.FreshRun != 8 {
+		t.Fatalf("MaxPlaceholders %d FreshRun %d", ifsanitize.MaxPlaceholders, ifsanitize.FreshRun)
+	}
+	for holes, want := range map[int]int{0: 16, 1: 17, 12: 28, 47: 63, 48: 64, 49: 64, 1000: 64} {
+		if got := ifsanitize.PlaceholderCap(holes); got != want {
+			t.Errorf("PlaceholderCap(%d) = %d, want %d", holes, got, want)
+		}
+	}
+}
+
+// TestTwelveFreedOutOfOrderSucceeds (D-105): a free list of 12 indices that come back out of order
+// (not ascending: the fixed cap of 16 failed it — 12 placeholders + FreshRun is 20) now succeeds,
+// the inherited binding to a freed table is removed through its placeholder, and no placeholder
+// is left.
+func TestTwelveFreedOutOfOrderSucceeds(t *testing.T) {
+	freed := []uint32{9, 2, 14, 5, 11, 7, 1, 13, 4, 10, 6, 12} // free list: 12 pops first, then 6, 10, 4, …
+	pool := func() (*fake.Client, *sanitizetest.Model) {
+		f, m := setup()
+		for id := uint32(0); id < 16; id++ {
+			m.Tables[id] = true
+		}
+		m.If(3).OutACL = [3]uint32{9, none, none}
+		for _, id := range freed {
+			m.DeleteTable(id)
+		}
+		return f, m
+	}
+	// the old fixed cap (16) failed this pool closed
+	old := ifsanitize.MaxPlaceholders
+	ifsanitize.MaxPlaceholders = 16
+	f, _ := pool()
+	_, err := ifsanitize.Sanitize(context.Background(), f, 3, "loop209")
+	ifsanitize.MaxPlaceholders = old
+	if !errors.Is(err, ifsanitize.ErrCapped) {
+		t.Fatalf("with the fixed cap of 16: err %v", err)
+	}
+	f, m := pool()
+	before := ifsanitize.Snapshot()
+	rep, err := ifsanitize.Sanitize(context.Background(), f, 3, "loop209")
+	if err != nil || rep.Capped {
+		t.Fatalf("err %v report %+v", err, rep)
+	}
+	if rep.Placeholders < len(freed)+ifsanitize.FreshRun || rep.Placeholders <= 16 || rep.Placeholders > rep.Cap {
+		t.Fatalf("placeholders %d, cap %d (holes seen %d)", rep.Placeholders, rep.Cap, rep.Holes)
+	}
+	if d := m.Dirty(3); d != "" || len(rep.Freed) != 1 || len(m.Tables) != 16-len(freed) {
+		t.Fatalf("dirty %q freed %v tables %v", d, rep.Freed, m.Tables)
+	}
+	if after := ifsanitize.Snapshot(); after.Capped["create"] != before.Capped["create"] {
+		t.Fatalf("capped counter moved: %v → %v", before.Capped, after.Capped)
+	}
+	t.Logf("12 out-of-order freed indices: %d placeholders, cap %d (holes seen %d), freed %v", rep.Placeholders, rep.Cap, rep.Holes, rep.Freed)
+}
+
+// TestReplayedAscendingRunsAreCounted (TD-5 host run 14:32): a pool without live tables whose free
+// list pops 7, 8…16, 0…6, 17…21 — a previous run's creation order, replayed because
+// dropPlaceholders frees in reverse creation order — has only 7 gaps. Counting gaps alone gave a
+// cap of 23 and the create failed closed on every run (the same pops replay each time). The
+// ascending run 7…16 that the pop of 0 interrupts is proven freed and counts as seen, so the cap
+// grows and the run finishes; a second run replays the first one's pops and succeeds again.
+func TestReplayedAscendingRunsAreCounted(t *testing.T) {
+	f, m := setup()
+	var pops []uint32
+	for i := uint32(7); i <= 16; i++ {
+		pops = append(pops, i)
+	}
+	for i := uint32(0); i <= 6; i++ {
+		pops = append(pops, i)
+	}
+	for i := uint32(17); i <= 21; i++ {
+		pops = append(pops, i)
+	}
+	m.Len = 22
+	for i := len(pops) - 1; i >= 0; i-- { // LIFO: the first pop is on top
+		m.Free = append(m.Free, pops[i])
+	}
+	m.If(5).OutACL = [3]uint32{none, 12, none} // a binding to a freed table in the ascending run
+	for run := 1; run <= 2; run++ {
+		rep, err := ifsanitize.Sanitize(context.Background(), f, 5, "loop210")
+		if err != nil || rep.Capped {
+			t.Fatalf("run %d: err %v report %+v", run, err, rep)
+		}
+		// all 22 freed indices, then growth 22–24 completes the fresh run 17…24: 25, more than the
+		// 7 gaps + 2 × FreshRun = 23 a gap-only count allowed
+		if rep.Placeholders != 25 || rep.Placeholders <= 7+2*ifsanitize.FreshRun || rep.Cap < rep.Placeholders {
+			t.Fatalf("run %d: placeholders %d cap %d holes seen %d", run, rep.Placeholders, rep.Cap, rep.Holes)
+		}
+		if d := m.Dirty(5); d != "" || len(m.Tables) != 0 {
+			t.Fatalf("run %d: dirty %q tables %v", run, d, m.Tables)
+		}
+		t.Logf("run %d: %d placeholders, cap %d (freed indices seen %d), freed %v", run, rep.Placeholders, rep.Cap, rep.Holes, rep.Freed)
+		m.If(5).OutACL = [3]uint32{none, 12, none}
+	}
+}
+
+// TestAscendingRunAboveAHole (TD-5 review M1, the reviewer's probe): live tables {0,1,3,4}, an
+// older hole 2, and above them r tables 5…5+r-1 freed in reverse creation order (a test's LIFO
+// Cleanup), so the free list pops 5, 6, …, 5+r-1 and only then 2; an output-ACL binding names 2.
+// The unbroken ascending run used to be counted only once a gap or a lower pop broke it: holes
+// seen stayed 1, the cap 17, and every r ≥ 17 failed closed — on every run, as dropPlaceholders
+// replays the same pops. A hole still free at the re-read proves the run came from the free list,
+// so it needs exactly r + 1 + FreshRun placeholders, twice in a row; the cap of 64 still holds
+// (r = 55 needs 64 and succeeds, r = 56 needs 65 and fails closed).
+func TestAscendingRunAboveAHole(t *testing.T) {
+	for _, r := range []uint32{16, 17, 20, 40, 55, 56} {
+		f, m := setup()
+		for _, id := range []uint32{0, 1, 3, 4} {
+			m.Tables[id] = true
+		}
+		m.Len = 5 + r
+		m.Free = []uint32{2}
+		for i := 5 + r - 1; i >= 5; i-- { // LIFO: 5 is on top
+			m.Free = append(m.Free, i)
+		}
+		need := int(r) + 1 + ifsanitize.FreshRun
+		for run := 1; run <= 2; run++ {
+			m.If(7).OutACL = [3]uint32{2, none, none}
+			before := ifsanitize.Snapshot()
+			rep, err := ifsanitize.Sanitize(context.Background(), f, 7, "loop211")
+			capped := ifsanitize.Snapshot().Capped["create"] != before.Capped["create"]
+			t.Logf("r=%d run %d: needed %d, placeholders %d, cap %d, holes seen %d, rereads %d, capped %v, err %v", r, run, need, rep.Placeholders, rep.Cap, rep.Holes, rep.Rereads, rep.Capped, err)
+			if need > ifsanitize.MaxPlaceholders {
+				if !errors.Is(err, ifsanitize.ErrCapped) || !rep.Capped || !capped || rep.Placeholders != ifsanitize.MaxPlaceholders {
+					t.Fatalf("r=%d run %d: want ErrCapped at %d placeholders", r, run, ifsanitize.MaxPlaceholders)
+				}
+			} else if err != nil || rep.Capped || capped || rep.Placeholders != need || m.Dirty(7) != "" {
+				t.Fatalf("r=%d run %d: dirty %q", r, run, m.Dirty(7))
+			}
+			if len(m.Tables) != 4 {
+				t.Fatalf("r=%d run %d: placeholders left: tables %v", r, run, m.Tables)
+			}
+		}
+	}
+}
+
+// TestCappedFailsClosed: a free list that needs more than 64 placeholders (70 tables deleted in
+// creation order, never ascending: 70 + FreshRun) is ErrCapped — ErrNoCleanIndex — at exactly 64,
+// the capped counter moves, and every placeholder is deleted again.
 func TestCappedFailsClosed(t *testing.T) {
 	f, m := setup()
-	for id := uint32(0); id < 12; id++ {
+	for id := uint32(0); id < 70; id++ {
 		m.Tables[id] = true
 	}
-	for id := uint32(0); id < 12; id++ {
+	for id := uint32(0); id < 70; id++ {
 		m.DeleteTable(id)
 	}
+	before := ifsanitize.Snapshot()
 	rep, err := ifsanitize.Sanitize(context.Background(), f, 3, "loop208")
 	if !errors.Is(err, ifsanitize.ErrCapped) || !errors.Is(err, ifsanitize.ErrNoCleanIndex) || !rep.Capped {
 		t.Fatalf("err %v report %+v", err, rep)
 	}
-	if rep.Placeholders != ifsanitize.MaxPlaceholders || len(m.Tables) != 0 {
-		t.Fatalf("placeholders %d, tables left %v", rep.Placeholders, m.Tables)
+	if rep.Placeholders != ifsanitize.MaxPlaceholders || rep.Cap != 64 || len(m.Tables) != 0 {
+		t.Fatalf("placeholders %d cap %d, tables left %v", rep.Placeholders, rep.Cap, m.Tables)
 	}
+	after := ifsanitize.Snapshot()
+	if after.Capped["create"] != before.Capped["create"]+1 {
+		t.Fatalf("capped counter %v → %v", before.Capped, after.Capped)
+	}
+	var b bytes.Buffer
+	ifsanitize.WriteMetrics(&b)
+	if !strings.Contains(b.String(), `vrx_agent_iface_sanitize_capped_total{phase="create"}`) {
+		t.Fatalf("metrics lack the capped counter:\n%s", b.String())
+	}
+	t.Logf("capped: %v", err)
 	// the delete phase never resurrects, so it is never capped
 	if err := ifsanitize.BeforeDelete(context.Background(), f, 3, "loop208"); err != nil {
 		t.Fatal(err)

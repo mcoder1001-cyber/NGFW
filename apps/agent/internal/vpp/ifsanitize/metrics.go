@@ -17,7 +17,7 @@ type Stats struct {
 	Cleared     map[string]int64 // by phase/state: bindings removed (their table existed)
 	Freed       map[string]int64 // by phase/state: bindings to deleted tables removed through a placeholder
 	Unclearable map[string]int64 // by phase/state
-	Capped      map[string]int64 // by phase: runs that reached MaxPlaceholders (create: failed closed, ErrCapped)
+	Capped      map[string]int64 // by phase: runs that reached the placeholder cap (PlaceholderCap; create: failed closed, ErrCapped)
 	// Quarantined is the number of sw_if_indexes this process holds in quarantine (gauge).
 	Quarantined int64
 	// QuarantineTotal counts quarantines.

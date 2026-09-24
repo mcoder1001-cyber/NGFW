@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -582,5 +583,82 @@ func TestPendingCommitIsTracked(t *testing.T) {
 	a.refreshPending(context.Background())
 	if a.pending != nil || !strings.Contains(so.String(), "NOT confirmed and has been reverted automatically") {
 		t.Errorf("revert not reported: %q", so.String())
+	}
+}
+
+// p08Interfaces is GET /api/v1/state/interfaces as P08's controller builds it: a retrieved interface and
+// its sub-interface (config = Retrieve), and three rows the agent did not retrieve (config null): only in
+// the candidate, a live interface of another owner, and a configured one VPP does not have.
+const p08Interfaces = `{"retrievedAt":"2026-09-24T12:00:00.000Z","countersAt":"2026-09-24T12:00:00.000Z","items":[
+ {"name":"host-w1l0","kind":"interface","parent":null,
+  "state":{"name":"host-w1l0","vppName":"host-w1l0","swIfIndex":5,"type":"af_packet","adminUp":true,"linkUp":true,"mtu":1400,"linkMtu":1500,"mac":"02:fe:00:00:00:05","ipv4":["10.1.1.1/24"],"ipv6":[],"vrf":"default","tableId":0,"parent":"","vlanId":0,"innerVlanId":0,"managed":true,"linkSpeedKbps":"0","rxMode":"interrupt","description":"lan"},
+  "config":{"enabled":true,"promiscuous":false,"mtu":1400,"vrf":"default","ipv4":["10.1.1.1/24"],"description":"lan"},
+  "running":{"enabled":true,"mtu":1400,"ipv4":["10.1.1.1/24"],"description":"lan"},
+  "counters":{"name":"host-w1l0","swIfIndex":5,"rxPackets":"7","rxBytes":"700","txPackets":"9","txBytes":"900","drops":"0","errors":"0","punts":"0","rxMisses":"0"},
+  "hasPendingChange":false},
+ {"name":"host-w1l0.100","kind":"subinterface","parent":"host-w1l0","state":null,
+  "config":{"vlanId":100,"dot1ad":false,"enabled":true,"vrf":"default","ipv4":["10.1.100.1/24"]},
+  "running":{"vlanId":100,"enabled":true,"ipv4":["10.1.100.1/24"]},"counters":null,"hasPendingChange":false},
+ {"name":"host-w1w0","kind":"interface","parent":null,"state":null,"config":null,
+  "running":{"enabled":true,"mtu":1500,"ipv4":["10.1.2.1/24"]},"counters":null,"hasPendingChange":false},
+ {"name":"host-w1w9","kind":"interface","parent":null,"state":null,"config":null,"running":null,"counters":null,"hasPendingChange":true},
+ {"name":"host-w3l0","kind":"interface","parent":null,
+  "state":{"name":"host-w3l0","vppName":"host-w3l0","swIfIndex":7,"type":"af_packet","adminUp":true,"linkUp":true,"mtu":9000,"linkMtu":9000,"mac":"02:fe:00:00:00:07","ipv4":[],"ipv6":[],"vrf":"","tableId":7,"parent":"","vlanId":0,"innerVlanId":0,"managed":false,"linkSpeedKbps":"0","rxMode":"interrupt","description":""},
+  "config":null,"running":null,"counters":null,"hasPendingChange":false}]}`
+
+// P08 re-review R1 (D-118): `show interfaces` keeps its pre-P08 meaning — the interfaces the agent retrieved
+// from the data plane. Rows with a null config are not listed, a name lookup exits 5 "not in the data plane"
+// for them (a script checking the exit code must not take an uncommitted interface as present), and
+// completion does not offer them. --json prints the API's answer unchanged.
+func TestShowInterfacesListsOnlyRetrievedRows(t *testing.T) {
+	f := newFake(t)
+	f.override["GET /api/v1/state/interfaces"] = func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		_, _ = w.Write([]byte(p08Interfaces))
+	}
+	notRetrieved := []string{"host-w1w0", "host-w1w9", "host-w3l0"}
+
+	r := f.vrx(t, nil, "", "show", "interfaces")
+	if r.code != 0 || !strings.Contains(r.stdout, "host-w1l0 ") || !strings.Contains(r.stdout, "host-w1l0.100") || !strings.Contains(r.stdout, "1400") {
+		t.Fatalf("table: %d %q %q", r.code, r.stdout, r.stderr)
+	}
+	for _, n := range notRetrieved {
+		if strings.Contains(r.stdout, n) {
+			t.Errorf("table lists %s (config null):\n%s", n, r.stdout)
+		}
+	}
+
+	r = f.vrx(t, nil, "", "show", "interfaces", "host-w1l0")
+	if r.code != 0 || !strings.Contains(r.stdout, "Interface host-w1l0 (retrieved") || !strings.Contains(r.stdout, "mtu 1400") {
+		t.Errorf("show interfaces host-w1l0: %d %q %q", r.code, r.stdout, r.stderr)
+	}
+	for _, n := range notRetrieved {
+		r = f.vrx(t, nil, "", "show", "interfaces", n)
+		if r.code != ExitNotFound || !strings.Contains(r.stderr, "not in the data plane") {
+			t.Errorf("show interfaces %s: exit %d %q %q, want %d not in the data plane", n, r.code, r.stdout, r.stderr, ExitNotFound)
+		}
+	}
+
+	r = f.vrx(t, nil, "", "--json", "show", "interfaces")
+	if r.code != 0 || !strings.Contains(r.stdout, `"host-w1w9"`) {
+		t.Errorf("--json is the API's answer unchanged: %d %q", r.code, r.stdout)
+	}
+
+	a := &App{Stdin: os.Stdin, Stdout: io.Discard, Stderr: io.Discard, Getenv: func(string) string { return "" }}
+	c, _ := api.New(f.srv.URL)
+	c.Cred = api.Key("vrxk_test")
+	a.client = c
+	cs, _ := a.candidates(context.Background(), "show interfaces ")
+	var got []string
+	for _, x := range cs {
+		got = append(got, x.Text)
+	}
+	if !slices.Contains(got, "host-w1l0") || !slices.Contains(got, "host-w1l0.100") {
+		t.Errorf("completion %q lacks the retrieved interfaces", got)
+	}
+	for _, n := range notRetrieved {
+		if slices.Contains(got, n) {
+			t.Errorf("completion offers %s (config null): %q", n, got)
+		}
 	}
 }

@@ -131,7 +131,7 @@ that never calls `ifsanitize.BeforeDelete`. Test helpers (`*_test.go`, `*test/` 
    (read back exactly), then until `FreshRun` (8) consecutive fresh indices came back. A hole another client takes after
    the `classify_table_ids` snapshot never comes back from the pool: once the run looks fresh with holes left (or at the
    cap) the table list is read again, holes that are live now are dropped and every table that appeared during the run
-   is probed like a live one (re-review M1). `MaxPlaceholders` (**16 per create**) bounds it; a run that reaches the cap
+   is probed like a live one (re-review M1). `PlaceholderCap` (**freed indices seen + 2 × FreshRun, at most 64**) bounds it; a run that reaches the cap
    without that proof **fails closed** with `ErrCapped` (which is `ErrNoCleanIndex`), counted in
    `vrx_agent_iface_sanitize_capped_total{phase="create"}` — see "Placeholder cap" below.
 3. **Clear**: ip classify, l2 classify, ADL, vxlan bypass reset blindly; input ACL read with `classify_table_by_interface`
@@ -162,12 +162,22 @@ restart.
 
 ### Placeholder cap (fail closed)
 
-At most 16 placeholder tables per create. The cap is reached when the classify pool's free list holds more than about
-`16 − FreshRun` = 8 indices that do not come back in ascending order (e.g. ≥ 9 tables deleted in creation order and not
-reused). The create then fails with `ErrCapped` and the scheduler retries it later; it succeeds once the free list is
-shorter (new classify tables reuse freed indices) or VPP restarts. `vrx_agent_iface_sanitize_capped_total` > 0 is the
-signal. The exact per-interface readback that would remove the cap and the `FreshRun` guess is tracked in
-`docs/tech-debt.md` (TD-3 re-review M3), due before any production image.
+The cap is `holes + 2 × FreshRun`, at most `MaxPlaceholders` = 64 (`ifsanitize.PlaceholderCap`; D-105, TD-3 re-review M1
+option b), where `holes` is the number of freed classify table indices the run has seen so far, so the cap grows as the run
+discovers them: the gaps below the highest index seen, the tables input ACL bindings name, and every pop that the pop order
+proves came from the free list (a pop below the highest index seen, and the ascending run such a pop or a gap interrupts —
+growth stays consecutive, so a broken run was never growth — or that is still running when a re-read finds a hole still
+free: VPP pops the free list before it grows the pool, so a non-empty free list means the whole run came from it; TD-5
+review M1, an unbroken run of 17+ freed indices above an older hole used to meet a cap of 17 on every run). Each freed index needs one placeholder and the proof of an empty
+free list `FreshRun` (8) more; the second `FreshRun` absorbs ascending runs that were not fresh after all. Counting the broken
+runs matters on a shared VPP: `dropPlaceholders` frees in reverse creation order, so the next run pops exactly the previous
+run's sequence, and with a count of gaps alone a free list with fresh-looking runs above the highest live table stayed capped
+on every run (TD-5 host run 2026-09-24 14:32: 23 placeholders, 7 gaps). A free list of 12 out-of-order indices, which failed
+the old fixed cap of 16, now passes. A run that reaches the cap before the free list is proven empty still **fails closed**
+(`ErrCapped`, which is `ErrNoCleanIndex`; the index is quarantined only when a binding was proven unclearable), is counted in
+`vrx_agent_iface_sanitize_capped_total{phase="create"}` and logs its pop sequence (`pops`); the scheduler retries it later, and
+it succeeds once the free list is shorter or VPP restarts. The exact per-interface readback that would remove the cap and the
+`FreshRun` guess is tracked in `docs/tech-debt.md` (TD-3 re-review M3), due before any production image.
 
 Every interface Delete (loopback, tap, memif, bond, af_packet, sub-interface, DF-6 types, mpls tunnel, lcp pair host tap,
 ipsec itf, wireguard interface) calls `ifsanitize.BeforeDelete` right before the VPP delete — the only moment every table the interface is bound to still

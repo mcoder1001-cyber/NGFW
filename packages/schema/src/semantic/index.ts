@@ -22,6 +22,7 @@ import { managementValidators } from './management.js';
 // wave-A: F-rpf-adl-pbr
 // wave-A: F-object-model
 // wave-A: F-host-acl-nftables
+import { hostAclNftablesValidators } from './host-acl-nftables.js';
 // wave-A: F-nat44-ed-sessions
 // wave-A: P11
 // wave-A: F-wireguard
@@ -58,6 +59,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model
   // wave-A: F-host-acl-nftables
+  ...hostAclNftablesValidators,
   // wave-A: F-nat44-ed-sessions
   // wave-A: P11
   // wave-A: F-wireguard

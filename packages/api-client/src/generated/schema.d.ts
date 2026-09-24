@@ -3217,6 +3217,49 @@ export interface components {
         /** Description */
         description?: string;
       }[];
+      /** Host firewall settings */
+      hostSettings?: {
+        /**
+         * Default input policy
+         * @default accept
+         * @enum {string}
+         */
+        defaultInput: 'accept' | 'drop';
+        /**
+         * Allow ICMP
+         * @default true
+         */
+        allowIcmp: boolean;
+        /**
+         * Anti-lockout
+         * @default {}
+         */
+        antiLockout: {
+          /**
+           * Anti-lockout rule
+           * @default true
+           */
+          enabled: boolean;
+          /**
+           * Management sources
+           * @default []
+           */
+          sources: string[];
+          /**
+           * Management interfaces
+           * @default []
+           */
+          interfaces: string[];
+          /**
+           * Management TCP ports
+           * @default [
+           *       22,
+           *       443
+           *     ]
+           */
+          ports: number[];
+        };
+      };
     };
     /**
      * VPN

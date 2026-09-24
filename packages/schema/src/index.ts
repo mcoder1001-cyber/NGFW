@@ -76,6 +76,7 @@ export * from './domains/management.js';
 // wave-A: F-rpf-adl-pbr
 // wave-A: F-object-model
 // wave-A: F-host-acl-nftables
+export * from './domains/ext/host-acl-nftables.js';
 // wave-A: P12
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog

@@ -4421,6 +4421,8 @@ export interface AclConfig {
   macipAttachments: MacipAttachment[];
   /** Attachments of `host` lists to host chains. */
   hostAttachments: HostAttachment[];
+  /** Host firewall settings (default input policy, ICMP, anti-lockout); unset = the defaults. */
+  hostSettings: HostAclSettings | undefined;
 }
 
 export interface AclConfig_ListsEntry {
@@ -5317,6 +5319,133 @@ export interface FqdnObjectState {
   error: string;
   /** Consecutive failed attempts since the last success (0 after a success). */
   failures: number;
+}
+
+/**
+ * HostAclSettings mirrors `acl.hostSettings` (packages/schema/src/domains/ext/host-acl-nftables.ts):
+ * how the agent renders the input chains of the host firewall (table `inet vrx`).
+ */
+export interface HostAclSettings {
+  /** Policy of every input chain the agent renders: "accept" | "drop"; unset = "accept". */
+  defaultInput?:
+    | string
+    | undefined;
+  /**
+   * Accept ICMP and ICMPv6 in input chains before the rules; unset = true. IPv6 neighbour and
+   * router discovery is accepted either way.
+   */
+  allowIcmp?:
+    | boolean
+    | undefined;
+  /** The anti-lockout rule protecting management SSH/HTTPS. */
+  antiLockout: HostAclAntiLockout | undefined;
+}
+
+/**
+ * HostAclAntiLockout mirrors `acl.hostSettings.antiLockout`: management TCP ports from these sources
+ * on these interfaces are accepted at the top of every input chain; with `enabled` false a commit
+ * whose own rules would drop that traffic fails validation (rule acl.host-anti-lockout).
+ */
+export interface HostAclAntiLockout {
+  /** Render the anti-lockout rule; unset = true. */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Management source prefixes (CIDR); empty = any source. */
+  sources: string[];
+  /** Linux interfaces management traffic arrives on (≤ 15 chars each); empty = any interface. */
+  interfaces: string[];
+  /** Management TCP ports 1–65535; empty = 22 and 443. */
+  ports: number[];
+}
+
+/** HostAclStateRequest asks for the rendered host firewall. */
+export interface HostAclStateRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+}
+
+/**
+ * HostAclStateResponse is one snapshot of the host firewall table as the kernel reports it
+ * (`nft -j list table inet <table>`), annotated with what the agent rendered.
+ */
+export interface HostAclStateResponse {
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the snapshot was taken (agent clock). */
+  retrievedAt:
+    | Date
+    | undefined;
+  /** nftables table name in family inet: "vrx" for the product agent, "vrx_<owner>" for test slots. */
+  table: string;
+  /**
+   * How the agent drives the table: "apply" (root network namespace), "netns" (a test slot's
+   * namespace) or "check" (validated with `nft -c` only, never loaded).
+   */
+  mode: string;
+  /** The table exists in the kernel. */
+  present: boolean;
+  /**
+   * The kernel table equals the last rendering the agent applied (false = drift; the next
+   * Apply or resync re-renders it).
+   */
+  inSync: boolean;
+  /** Named sets (expanded address objects), sorted by name. */
+  sets: HostAclSetState[];
+  /** Base chains in evaluation order (hook, then priority, then name). */
+  chains: HostAclChainState[];
+}
+
+/** HostAclSetState is one named set of the table. */
+export interface HostAclSetState {
+  /** nftables set name ("a4_<object>" / "a6_<object>"). */
+  name: string;
+  /** "ipv4_addr" | "ipv6_addr". */
+  type: string;
+  /** The address object or group it was expanded from ("" when unknown). */
+  object: string;
+  /** Elements as canonical prefixes, sorted. */
+  elements: string[];
+}
+
+/** HostAclChainState is one base chain of the table (one per enabled attachment). */
+export interface HostAclChainState {
+  /** nftables chain name. */
+  name: string;
+  /** "input" | "output" | "forward". */
+  hook: string;
+  /** Chain priority -500..500. */
+  priority: number;
+  /** "accept" | "drop". */
+  policy: string;
+  /** The host list attached (acl.hostAttachments[].list); "" when unknown. */
+  list: string;
+  /** Rules in evaluation order. */
+  rules: HostAclRuleState[];
+}
+
+/** HostAclRuleState is one nftables rule with its counters. */
+export interface HostAclRuleState {
+  /**
+   * "established" | "loopback" | "icmp" | "anti-lockout" | "rule" | "unknown" (not rendered by
+   * this agent, or its rendering is unknown).
+   */
+  kind: string;
+  /** kind=rule: the host list (acl.host.<list>). */
+  list: string;
+  /** kind=rule: the rule's sequence number. */
+  sequence: number;
+  /** kind=rule: JSON pointer of the rule in the applied document (/acl/host/<list>/rules/<i>). */
+  pointer: string;
+  /** The rule as rendered (nftables syntax, without the counter); "" when unknown. */
+  text: string;
+  /** "accept" | "drop" | "reject". */
+  verdict: string;
+  /** The rule's nftables comment (its identity: "vrx:<list>:<sequence>/<n>:<hash>"). */
+  comment: string;
+  /** Counter values. */
+  packets: string;
+  bytes: string;
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -35942,7 +36071,15 @@ export const Tag: MessageFns<Tag> = {
 };
 
 function createBaseAclConfig(): AclConfig {
-  return { lists: {}, macip: {}, host: {}, attachments: [], macipAttachments: [], hostAttachments: [] };
+  return {
+    lists: {},
+    macip: {},
+    host: {},
+    attachments: [],
+    macipAttachments: [],
+    hostAttachments: [],
+    hostSettings: undefined,
+  };
 }
 
 export const AclConfig: MessageFns<AclConfig> = {
@@ -35964,6 +36101,9 @@ export const AclConfig: MessageFns<AclConfig> = {
     }
     for (const v of message.hostAttachments) {
       HostAttachment.encode(v!, writer.uint32(50).fork()).join();
+    }
+    if (message.hostSettings !== undefined) {
+      HostAclSettings.encode(message.hostSettings, writer.uint32(66).fork()).join();
     }
     return writer;
   },
@@ -36038,6 +36178,14 @@ export const AclConfig: MessageFns<AclConfig> = {
             message.hostAttachments.push(HostAttachment.decode(reader, reader.uint32()));
             continue;
           }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.hostSettings = HostAclSettings.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -36107,6 +36255,11 @@ export const AclConfig: MessageFns<AclConfig> = {
         : globalThis.Array.isArray(object?.host_attachments)
         ? object.host_attachments.map((e: any) => HostAttachment.fromJSON(e))
         : [],
+      hostSettings: isSet(object.hostSettings)
+        ? HostAclSettings.fromJSON(object.hostSettings)
+        : isSet(object.host_settings)
+        ? HostAclSettings.fromJSON(object.host_settings)
+        : undefined,
     };
   },
 
@@ -36148,6 +36301,9 @@ export const AclConfig: MessageFns<AclConfig> = {
     if (message.hostAttachments?.length) {
       obj.hostAttachments = message.hostAttachments.map((e) => HostAttachment.toJSON(e));
     }
+    if (message.hostSettings !== undefined) {
+      obj.hostSettings = HostAclSettings.toJSON(message.hostSettings);
+    }
     return obj;
   },
 
@@ -36186,6 +36342,9 @@ export const AclConfig: MessageFns<AclConfig> = {
     message.attachments = object.attachments?.map((e) => AclAttachment.fromPartial(e)) || [];
     message.macipAttachments = object.macipAttachments?.map((e) => MacipAttachment.fromPartial(e)) || [];
     message.hostAttachments = object.hostAttachments?.map((e) => HostAttachment.fromPartial(e)) || [];
+    message.hostSettings = (object.hostSettings !== undefined && object.hostSettings !== null)
+      ? HostAclSettings.fromPartial(object.hostSettings)
+      : undefined;
     return message;
   },
 };
@@ -43027,6 +43186,984 @@ export const FqdnObjectState: MessageFns<FqdnObjectState> = {
   },
 };
 
+function createBaseHostAclSettings(): HostAclSettings {
+  return { defaultInput: undefined, allowIcmp: undefined, antiLockout: undefined };
+}
+
+export const HostAclSettings: MessageFns<HostAclSettings> = {
+  encode(message: HostAclSettings, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.defaultInput !== undefined) {
+      writer.uint32(10).string(message.defaultInput);
+    }
+    if (message.allowIcmp !== undefined) {
+      writer.uint32(16).bool(message.allowIcmp);
+    }
+    if (message.antiLockout !== undefined) {
+      HostAclAntiLockout.encode(message.antiLockout, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostAclSettings {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostAclSettings();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.defaultInput = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.allowIcmp = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.antiLockout = HostAclAntiLockout.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostAclSettings {
+    return {
+      defaultInput: isSet(object.defaultInput)
+        ? globalThis.String(object.defaultInput)
+        : isSet(object.default_input)
+        ? globalThis.String(object.default_input)
+        : undefined,
+      allowIcmp: isSet(object.allowIcmp)
+        ? globalThis.Boolean(object.allowIcmp)
+        : isSet(object.allow_icmp)
+        ? globalThis.Boolean(object.allow_icmp)
+        : undefined,
+      antiLockout: isSet(object.antiLockout)
+        ? HostAclAntiLockout.fromJSON(object.antiLockout)
+        : isSet(object.anti_lockout)
+        ? HostAclAntiLockout.fromJSON(object.anti_lockout)
+        : undefined,
+    };
+  },
+
+  toJSON(message: HostAclSettings): unknown {
+    const obj: any = {};
+    if (message.defaultInput !== undefined) {
+      obj.defaultInput = message.defaultInput;
+    }
+    if (message.allowIcmp !== undefined) {
+      obj.allowIcmp = message.allowIcmp;
+    }
+    if (message.antiLockout !== undefined) {
+      obj.antiLockout = HostAclAntiLockout.toJSON(message.antiLockout);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostAclSettings>): HostAclSettings {
+    return HostAclSettings.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostAclSettings>): HostAclSettings {
+    const message = createBaseHostAclSettings();
+    message.defaultInput = object.defaultInput ?? undefined;
+    message.allowIcmp = object.allowIcmp ?? undefined;
+    message.antiLockout = (object.antiLockout !== undefined && object.antiLockout !== null)
+      ? HostAclAntiLockout.fromPartial(object.antiLockout)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseHostAclAntiLockout(): HostAclAntiLockout {
+  return { enabled: undefined, sources: [], interfaces: [], ports: [] };
+}
+
+export const HostAclAntiLockout: MessageFns<HostAclAntiLockout> = {
+  encode(message: HostAclAntiLockout, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    for (const v of message.sources) {
+      writer.uint32(18).string(v!);
+    }
+    for (const v of message.interfaces) {
+      writer.uint32(26).string(v!);
+    }
+    writer.uint32(34).fork();
+    for (const v of message.ports) {
+      writer.uint32(v);
+    }
+    writer.join();
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostAclAntiLockout {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostAclAntiLockout();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.sources.push(reader.string());
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.interfaces.push(reader.string());
+            continue;
+          }
+          case 4: {
+            if (tag === 32) {
+              message.ports.push(reader.uint32());
+
+              continue;
+            }
+
+            if (tag === 34) {
+              const end2 = reader.uint32() + reader.pos;
+              while (reader.pos < end2) {
+                message.ports.push(reader.uint32());
+              }
+
+              continue;
+            }
+
+            break;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostAclAntiLockout {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      sources: globalThis.Array.isArray(object?.sources) ? object.sources.map((e: any) => globalThis.String(e)) : [],
+      interfaces: globalThis.Array.isArray(object?.interfaces)
+        ? object.interfaces.map((e: any) => globalThis.String(e))
+        : [],
+      ports: globalThis.Array.isArray(object?.ports) ? object.ports.map((e: any) => globalThis.Number(e)) : [],
+    };
+  },
+
+  toJSON(message: HostAclAntiLockout): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.sources?.length) {
+      obj.sources = message.sources;
+    }
+    if (message.interfaces?.length) {
+      obj.interfaces = message.interfaces;
+    }
+    if (message.ports?.length) {
+      obj.ports = message.ports.map((e) => Math.round(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostAclAntiLockout>): HostAclAntiLockout {
+    return HostAclAntiLockout.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostAclAntiLockout>): HostAclAntiLockout {
+    const message = createBaseHostAclAntiLockout();
+    message.enabled = object.enabled ?? undefined;
+    message.sources = object.sources?.map((e) => e) || [];
+    message.interfaces = object.interfaces?.map((e) => e) || [];
+    message.ports = object.ports?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseHostAclStateRequest(): HostAclStateRequest {
+  return { owner: "" };
+}
+
+export const HostAclStateRequest: MessageFns<HostAclStateRequest> = {
+  encode(message: HostAclStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostAclStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostAclStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostAclStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: HostAclStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostAclStateRequest>): HostAclStateRequest {
+    return HostAclStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostAclStateRequest>): HostAclStateRequest {
+    const message = createBaseHostAclStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseHostAclStateResponse(): HostAclStateResponse {
+  return {
+    owner: "",
+    retrievedAt: undefined,
+    table: "",
+    mode: "",
+    present: false,
+    inSync: false,
+    sets: [],
+    chains: [],
+  };
+}
+
+export const HostAclStateResponse: MessageFns<HostAclStateResponse> = {
+  encode(message: HostAclStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    if (message.table !== "") {
+      writer.uint32(26).string(message.table);
+    }
+    if (message.mode !== "") {
+      writer.uint32(34).string(message.mode);
+    }
+    if (message.present !== false) {
+      writer.uint32(40).bool(message.present);
+    }
+    if (message.inSync !== false) {
+      writer.uint32(48).bool(message.inSync);
+    }
+    for (const v of message.sets) {
+      HostAclSetState.encode(v!, writer.uint32(58).fork()).join();
+    }
+    for (const v of message.chains) {
+      HostAclChainState.encode(v!, writer.uint32(66).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostAclStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostAclStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.table = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.mode = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.present = reader.bool();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.inSync = reader.bool();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.sets.push(HostAclSetState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.chains.push(HostAclChainState.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostAclStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      table: isSet(object.table) ? globalThis.String(object.table) : "",
+      mode: isSet(object.mode) ? globalThis.String(object.mode) : "",
+      present: isSet(object.present) ? globalThis.Boolean(object.present) : false,
+      inSync: isSet(object.inSync)
+        ? globalThis.Boolean(object.inSync)
+        : isSet(object.in_sync)
+        ? globalThis.Boolean(object.in_sync)
+        : false,
+      sets: globalThis.Array.isArray(object?.sets)
+        ? object.sets.map((e: any) => HostAclSetState.fromJSON(e))
+        : [],
+      chains: globalThis.Array.isArray(object?.chains)
+        ? object.chains.map((e: any) => HostAclChainState.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: HostAclStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.table !== "") {
+      obj.table = message.table;
+    }
+    if (message.mode !== "") {
+      obj.mode = message.mode;
+    }
+    if (message.present !== false) {
+      obj.present = message.present;
+    }
+    if (message.inSync !== false) {
+      obj.inSync = message.inSync;
+    }
+    if (message.sets?.length) {
+      obj.sets = message.sets.map((e) => HostAclSetState.toJSON(e));
+    }
+    if (message.chains?.length) {
+      obj.chains = message.chains.map((e) => HostAclChainState.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostAclStateResponse>): HostAclStateResponse {
+    return HostAclStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostAclStateResponse>): HostAclStateResponse {
+    const message = createBaseHostAclStateResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.table = object.table ?? "";
+    message.mode = object.mode ?? "";
+    message.present = object.present ?? false;
+    message.inSync = object.inSync ?? false;
+    message.sets = object.sets?.map((e) => HostAclSetState.fromPartial(e)) || [];
+    message.chains = object.chains?.map((e) => HostAclChainState.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseHostAclSetState(): HostAclSetState {
+  return { name: "", type: "", object: "", elements: [] };
+}
+
+export const HostAclSetState: MessageFns<HostAclSetState> = {
+  encode(message: HostAclSetState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.type !== "") {
+      writer.uint32(18).string(message.type);
+    }
+    if (message.object !== "") {
+      writer.uint32(26).string(message.object);
+    }
+    for (const v of message.elements) {
+      writer.uint32(34).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostAclSetState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostAclSetState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.object = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.elements.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostAclSetState {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      type: isSet(object.type) ? globalThis.String(object.type) : "",
+      object: isSet(object.object) ? globalThis.String(object.object) : "",
+      elements: globalThis.Array.isArray(object?.elements) ? object.elements.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: HostAclSetState): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.type !== "") {
+      obj.type = message.type;
+    }
+    if (message.object !== "") {
+      obj.object = message.object;
+    }
+    if (message.elements?.length) {
+      obj.elements = message.elements;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostAclSetState>): HostAclSetState {
+    return HostAclSetState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostAclSetState>): HostAclSetState {
+    const message = createBaseHostAclSetState();
+    message.name = object.name ?? "";
+    message.type = object.type ?? "";
+    message.object = object.object ?? "";
+    message.elements = object.elements?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseHostAclChainState(): HostAclChainState {
+  return { name: "", hook: "", priority: 0, policy: "", list: "", rules: [] };
+}
+
+export const HostAclChainState: MessageFns<HostAclChainState> = {
+  encode(message: HostAclChainState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.hook !== "") {
+      writer.uint32(18).string(message.hook);
+    }
+    if (message.priority !== 0) {
+      writer.uint32(24).int32(message.priority);
+    }
+    if (message.policy !== "") {
+      writer.uint32(34).string(message.policy);
+    }
+    if (message.list !== "") {
+      writer.uint32(42).string(message.list);
+    }
+    for (const v of message.rules) {
+      HostAclRuleState.encode(v!, writer.uint32(50).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostAclChainState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostAclChainState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.hook = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.priority = reader.int32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.policy = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.list = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.rules.push(HostAclRuleState.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostAclChainState {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      hook: isSet(object.hook) ? globalThis.String(object.hook) : "",
+      priority: isSet(object.priority) ? globalThis.Number(object.priority) : 0,
+      policy: isSet(object.policy) ? globalThis.String(object.policy) : "",
+      list: isSet(object.list) ? globalThis.String(object.list) : "",
+      rules: globalThis.Array.isArray(object?.rules) ? object.rules.map((e: any) => HostAclRuleState.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: HostAclChainState): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.hook !== "") {
+      obj.hook = message.hook;
+    }
+    if (message.priority !== 0) {
+      obj.priority = Math.round(message.priority);
+    }
+    if (message.policy !== "") {
+      obj.policy = message.policy;
+    }
+    if (message.list !== "") {
+      obj.list = message.list;
+    }
+    if (message.rules?.length) {
+      obj.rules = message.rules.map((e) => HostAclRuleState.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostAclChainState>): HostAclChainState {
+    return HostAclChainState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostAclChainState>): HostAclChainState {
+    const message = createBaseHostAclChainState();
+    message.name = object.name ?? "";
+    message.hook = object.hook ?? "";
+    message.priority = object.priority ?? 0;
+    message.policy = object.policy ?? "";
+    message.list = object.list ?? "";
+    message.rules = object.rules?.map((e) => HostAclRuleState.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseHostAclRuleState(): HostAclRuleState {
+  return { kind: "", list: "", sequence: 0, pointer: "", text: "", verdict: "", comment: "", packets: "0", bytes: "0" };
+}
+
+export const HostAclRuleState: MessageFns<HostAclRuleState> = {
+  encode(message: HostAclRuleState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.kind !== "") {
+      writer.uint32(10).string(message.kind);
+    }
+    if (message.list !== "") {
+      writer.uint32(18).string(message.list);
+    }
+    if (message.sequence !== 0) {
+      writer.uint32(24).uint32(message.sequence);
+    }
+    if (message.pointer !== "") {
+      writer.uint32(34).string(message.pointer);
+    }
+    if (message.text !== "") {
+      writer.uint32(42).string(message.text);
+    }
+    if (message.verdict !== "") {
+      writer.uint32(50).string(message.verdict);
+    }
+    if (message.comment !== "") {
+      writer.uint32(58).string(message.comment);
+    }
+    if (message.packets !== "0") {
+      writer.uint32(64).uint64(message.packets);
+    }
+    if (message.bytes !== "0") {
+      writer.uint32(72).uint64(message.bytes);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostAclRuleState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostAclRuleState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.kind = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.list = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.sequence = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.pointer = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.text = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.verdict = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.comment = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.packets = reader.uint64().toString();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.bytes = reader.uint64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostAclRuleState {
+    return {
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
+      list: isSet(object.list) ? globalThis.String(object.list) : "",
+      sequence: isSet(object.sequence) ? globalThis.Number(object.sequence) : 0,
+      pointer: isSet(object.pointer) ? globalThis.String(object.pointer) : "",
+      text: isSet(object.text) ? globalThis.String(object.text) : "",
+      verdict: isSet(object.verdict) ? globalThis.String(object.verdict) : "",
+      comment: isSet(object.comment) ? globalThis.String(object.comment) : "",
+      packets: isSet(object.packets) ? globalThis.String(object.packets) : "0",
+      bytes: isSet(object.bytes) ? globalThis.String(object.bytes) : "0",
+    };
+  },
+
+  toJSON(message: HostAclRuleState): unknown {
+    const obj: any = {};
+    if (message.kind !== "") {
+      obj.kind = message.kind;
+    }
+    if (message.list !== "") {
+      obj.list = message.list;
+    }
+    if (message.sequence !== 0) {
+      obj.sequence = Math.round(message.sequence);
+    }
+    if (message.pointer !== "") {
+      obj.pointer = message.pointer;
+    }
+    if (message.text !== "") {
+      obj.text = message.text;
+    }
+    if (message.verdict !== "") {
+      obj.verdict = message.verdict;
+    }
+    if (message.comment !== "") {
+      obj.comment = message.comment;
+    }
+    if (message.packets !== "0") {
+      obj.packets = message.packets;
+    }
+    if (message.bytes !== "0") {
+      obj.bytes = message.bytes;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostAclRuleState>): HostAclRuleState {
+    return HostAclRuleState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostAclRuleState>): HostAclRuleState {
+    const message = createBaseHostAclRuleState();
+    message.kind = object.kind ?? "";
+    message.list = object.list ?? "";
+    message.sequence = object.sequence ?? 0;
+    message.pointer = object.pointer ?? "";
+    message.text = object.text ?? "";
+    message.verdict = object.verdict ?? "";
+    message.comment = object.comment ?? "";
+    message.packets = object.packets ?? "0";
+    message.bytes = object.bytes ?? "0";
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
@@ -43159,6 +44296,22 @@ export const DataplaneService = {
       Buffer.from(FqdnObjectStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): FqdnObjectStateResponse => FqdnObjectStateResponse.decode(value),
   },
+  /**
+   * HostAclState reports the host firewall the agent rendered from `acl.host*` (the nftables table
+   * `inet vrx`): its sets, chains and rules with per-rule packet/byte counters read from
+   * `nft -j list table`, and whether the kernel table still matches the applied rendering.
+   * Read-only runtime state (docs/contracts/proto.md §5 keeps counters out of Retrieve). Never mutates.
+   */
+  hostAclState: {
+    path: "/vrx.v1.Dataplane/HostAclState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: HostAclStateRequest): Buffer => Buffer.from(HostAclStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): HostAclStateRequest => HostAclStateRequest.decode(value),
+    responseSerialize: (value: HostAclStateResponse): Buffer =>
+      Buffer.from(HostAclStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): HostAclStateResponse => HostAclStateResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -43211,6 +44364,13 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve). Never mutates.
    */
   fqdnObjectState: handleUnaryCall<FqdnObjectStateRequest, FqdnObjectStateResponse>;
+  /**
+   * HostAclState reports the host firewall the agent rendered from `acl.host*` (the nftables table
+   * `inet vrx`): its sets, chains and rules with per-rule packet/byte counters read from
+   * `nft -j list table`, and whether the kernel table still matches the applied rendering.
+   * Read-only runtime state (docs/contracts/proto.md §5 keeps counters out of Retrieve). Never mutates.
+   */
+  hostAclState: handleUnaryCall<HostAclStateRequest, HostAclStateResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -43361,6 +44521,27 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: FqdnObjectStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * HostAclState reports the host firewall the agent rendered from `acl.host*` (the nftables table
+   * `inet vrx`): its sets, chains and rules with per-rule packet/byte counters read from
+   * `nft -j list table`, and whether the kernel table still matches the applied rendering.
+   * Read-only runtime state (docs/contracts/proto.md §5 keeps counters out of Retrieve). Never mutates.
+   */
+  hostAclState(
+    request: HostAclStateRequest,
+    callback: (error: ServiceError | null, response: HostAclStateResponse) => void,
+  ): ClientUnaryCall;
+  hostAclState(
+    request: HostAclStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: HostAclStateResponse) => void,
+  ): ClientUnaryCall;
+  hostAclState(
+    request: HostAclStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: HostAclStateResponse) => void,
   ): ClientUnaryCall;
 }
 

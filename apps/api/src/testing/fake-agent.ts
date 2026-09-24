@@ -661,6 +661,14 @@ export class FakeAgent {
       // wave-A: P12
       // wave-A: F-kea-dhcp-relay
       // wave-A: F-unbound-chrony-syslog
+      dnsState: (_call, cb) =>
+        cb({ code: status.UNIMPLEMENTED, details: 'fake agent: DnsState' }, null),
+      ntpState: (_call, cb) =>
+        cb({ code: status.UNIMPLEMENTED, details: 'fake agent: NtpState' }, null),
+      syslogState: (_call, cb) =>
+        cb({ code: status.UNIMPLEMENTED, details: 'fake agent: SyslogState' }, null),
+      syslogEntries: (_call, cb) =>
+        cb({ code: status.UNIMPLEMENTED, details: 'fake agent: SyslogEntries' }, null),
     };
   }
 }

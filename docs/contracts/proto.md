@@ -364,3 +364,27 @@ never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
 <!-- wave-A: P12 -->
 <!-- wave-A: F-kea-dhcp-relay -->
 <!-- wave-A: F-unbound-chrony-syslog -->
+
+### F-unbound-chrony-syslog: DnsState, NtpState, SyslogState, SyslogEntries, ActionRequest.dns_lookup (7), SyslogTarget 6–9
+
+- **`SyslogTarget` 6 `facilities`, 7 `format`, 8 `queue_size`, 9 `tls` (`SyslogTls`)** — the RF-4 stand-ins (D-055) moved
+  into the contract (D-086); all optional, absent = the RF-4 default (every facility, rfc5424, 10000 messages, no TLS).
+  `SyslogTls{ca_ref, cert_ref, key_ref, auth_mode, permitted_peers}` carries references (D-051), never material.
+- **`DnsState(DnsStateRequest{owner}) → DnsStateResponse`** — read-only snapshot of the Unbound instance the agent
+  renders: `unbound-control status | stats_noreset | list_forwards | list_stubs | list_local_zones | list_local_data`,
+  the renderer's pending start/restart requests (`ServiceDaemonAction`, D-079), and the VPP DNS cache *as configured*
+  (`DnsVppCacheState`: VPP's dns plugin has no getter, D-063). A daemon that is not running is `running: false`, not
+  an error; a partial read sets `error`.
+- **`NtpState(NtpStateRequest{owner}) → NtpStateResponse`** — `chronyc -c tracking | sources | sourcestats | serverstats`
+  of the chronyd instance the agent renders, plus pending requests.
+- **`SyslogState(SyslogStateRequest{owner}) → SyslogStateResponse`** — per rendered export target the impstats
+  counters (`SyslogTargetState`), rsyslog inputs, pending restart requests.
+- **`SyslogEntries(SyslogEntriesRequest) → SyslogEntriesResponse`** — the log explorer: one bounded query of the local
+  journal (`journalctl -o json`, fixed argv, allow-listed; newest first; at most 5000 entries scanned since `since`,
+  never older than 30 days); `severity` (minimum), `facility` are validated enum values, `query` a plain
+  case-insensitive substring (≤ 128 printable characters, matched in the agent — never a regex or a shell argument);
+  `page`/`page_size` (≤ 500) over the matches. `truncated` says the scan bound was hit.
+- **`ActionRequest.dns_lookup` = 7 (`DnsLookupAction{name, timeout_ms}`)** — `dns_resolve_name` through VPP's DNS
+  cache with a deadline (0 = 5 s, max 30 s). Output: one `line` per address (`A 192.0.2.1`, `AAAA 2001:db8::1`), then
+  `done{exit_code, stats{ipv4, ipv6}}`. Needs the dns plugin enabled (the globals owner, D-071); elsewhere VPP answers
+  with an error that ends the stream with a non-zero `exit_code`. The name is validated (`dns.ValidateName`).

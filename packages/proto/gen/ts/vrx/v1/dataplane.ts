@@ -822,7 +822,11 @@ export interface ActionRequest {
     | TracerouteAction
     | undefined;
   /** Packet capture on one interface (pcap output). */
-  capture?: CaptureAction | undefined;
+  capture?:
+    | CaptureAction
+    | undefined;
+  /** Resolve a name through VPP's caching DNS plugin (dns_resolve_name; F-unbound-chrony-syslog). */
+  dnsLookup?: DnsLookupAction | undefined;
 }
 
 /** PingAction sends ICMP echo requests from the data plane. */
@@ -3443,7 +3447,24 @@ export interface SyslogTarget {
     | string
     | undefined;
   /** VRF the collector is reached through; Zod default "default". */
-  vrf?: string | undefined;
+  vrf?:
+    | string
+    | undefined;
+  /**
+   * F-unbound-chrony-syslog (D-086, the RF-4 stand-ins; numbers from wave-A-hotspots §2):
+   * facilities forwarded ("kern", "daemon", "local0" …); empty = every facility.
+   */
+  facilities: string[];
+  /** "rfc5424" | "rfc3164"; unset = rfc5424. */
+  format?:
+    | string
+    | undefined;
+  /** Messages queued while the collector is unreachable (100..1000000); unset = 10000. */
+  queueSize?:
+    | number
+    | undefined;
+  /** TLS settings; only with protocol "tls" (then required). */
+  tls: SyslogTls | undefined;
 }
 
 /**
@@ -5274,6 +5295,330 @@ export interface RemoteAccessProfile_Radius_Server {
     | undefined;
   /** Reference to the shared secret. */
   secretRef?: string | undefined;
+}
+
+/**
+ * SyslogTls is the TLS part of one remote-syslog target (management.syslog[i].tls). Material is
+ * referenced (D-051), never inline.
+ */
+export interface SyslogTls {
+  /** CA certificate that verifies the collector ("cert/<name>"). */
+  caRef?:
+    | string
+    | undefined;
+  /** Client certificate ("cert/<name>"); goes with key_ref. */
+  certRef?:
+    | string
+    | undefined;
+  /** Client private key ("key/<name>"); goes with cert_ref. */
+  keyRef?:
+    | string
+    | undefined;
+  /** "x509/name" | "x509/certvalid"; unset = x509/name. */
+  authMode?:
+    | string
+    | undefined;
+  /** Accepted collector certificate names (x509/name); empty = the collector host name. */
+  permittedPeers: string[];
+}
+
+/**
+ * DnsLookupAction resolves one name through VPP's DNS cache (dns_resolve_name). Works only where
+ * the VPP dns plugin is enabled (the globals owner, D-071). Output: one line per address, then
+ * done with stats "ipv4" / "ipv6".
+ */
+export interface DnsLookupAction {
+  /** DNS name (≤ 253 characters of [A-Za-z0-9.-_]; validated by the agent). */
+  name: string;
+  /** Deadline in milliseconds; 0 = 5000; max 30000. */
+  timeoutMs: number;
+}
+
+/**
+ * ServiceDaemonAction is a start/restart request a renderer returned and persisted (D-079): the
+ * files are written, the daemon applies them only after the action. It stays until the daemon's
+ * process started after the request.
+ */
+export interface ServiceDaemonAction {
+  /** "unbound" | "chronyd" | "rsyslogd". */
+  daemon: string;
+  /** systemd unit the product acts on ("unbound", "chrony", "rsyslog"). */
+  unit: string;
+  /** "start" | "restart". */
+  action: string;
+  /** Why the action is needed. */
+  reason: string;
+}
+
+/** DnsStateRequest selects the owner (same rules as ApplyRequest.owner). */
+export interface DnsStateRequest {
+  owner: string;
+}
+
+/** DnsStateResponse is one snapshot of the Unbound instance (not configuration). */
+export interface DnsStateResponse {
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the snapshot was taken (agent clock). */
+  retrievedAt:
+    | Date
+    | undefined;
+  /** True when unbound answers on its control socket. */
+  running: boolean;
+  /** unbound-control status ("version", "verbosity", "uptime" …). */
+  status: { [key: string]: string };
+  /** unbound-control stats_noreset ("total.num.queries" …). */
+  stats: { [key: string]: string };
+  /** list_forwards. */
+  forwards: DnsZoneState[];
+  /** list_stubs. */
+  stubs: DnsZoneState[];
+  /** list_local_zones. */
+  localZones: DnsLocalZoneState[];
+  /** list_local_data, one record per line. */
+  localData: string[];
+  /** list_local_data exceeded the capture limit; local_data is then empty. */
+  localDataTruncated: boolean;
+  /** Pending start/restart requests of the Unbound renderer. */
+  pendingActions: ServiceDaemonAction[];
+  /** The VPP DNS cache as this agent applies it. */
+  vppCache:
+    | DnsVppCacheState
+    | undefined;
+  /** Path of the rendered unbound.conf. */
+  configPath: string;
+  /** A read error (the snapshot is partial); empty when complete. */
+  error: string;
+}
+
+export interface DnsStateResponse_StatusEntry {
+  key: string;
+  value: string;
+}
+
+export interface DnsStateResponse_StatsEntry {
+  key: string;
+  value: string;
+}
+
+/** DnsZoneState is one list_forwards / list_stubs line. */
+export interface DnsZoneState {
+  zone: string;
+  /** "forward" | "stub". */
+  kind: string;
+  /** "+i", "+t" … flags as unbound prints them. */
+  flags: string[];
+  addresses: string[];
+}
+
+/** DnsLocalZoneState is one list_local_zones line. */
+export interface DnsLocalZoneState {
+  zone: string;
+  type: string;
+}
+
+/** DnsVppCacheState: VPP's dns plugin has no getter (D-063), so the state is what this agent applied. */
+export interface DnsVppCacheState {
+  /** The running configuration enables the VPP cache. */
+  configured: boolean;
+  /** This agent is the globals owner and programs it (D-071); false = another agent does, or none. */
+  appliedByThisAgent: boolean;
+  /** Upstream name servers as configured. */
+  upstreams: string[];
+}
+
+/** NtpStateRequest selects the owner. */
+export interface NtpStateRequest {
+  owner: string;
+}
+
+/** NtpStateResponse is one snapshot of the chronyd instance. */
+export interface NtpStateResponse {
+  owner: string;
+  retrievedAt:
+    | Date
+    | undefined;
+  /** True when chronyd answers on its command socket. */
+  running: boolean;
+  /** chronyc -c tracking (unset when not running). */
+  tracking:
+    | NtpTracking
+    | undefined;
+  /** chronyc -c sources. */
+  sources: NtpSource[];
+  /** chronyc -c sourcestats. */
+  sourceStats: NtpSourceStats[];
+  /** chronyc -c serverstats (name → value). */
+  serverStats: { [key: string]: string };
+  /** Pending start/restart requests of the chrony renderer. */
+  pendingActions: ServiceDaemonAction[];
+  /** Path of the rendered chrony.conf. */
+  configPath: string;
+  /** A read error; empty when complete. */
+  error: string;
+}
+
+export interface NtpStateResponse_ServerStatsEntry {
+  key: string;
+  value: string;
+}
+
+/** NtpTracking mirrors `chronyc -c tracking` (seconds, ppm). */
+export interface NtpTracking {
+  refId: string;
+  refName: string;
+  stratum: number;
+  refTime: number;
+  systemTime: number;
+  lastOffset: number;
+  rmsOffset: number;
+  frequency: number;
+  residualFreq: number;
+  skew: number;
+  rootDelay: number;
+  rootDispersion: number;
+  updateInterval: number;
+  leap: string;
+}
+
+/** NtpSource mirrors one `chronyc -c sources` row. */
+export interface NtpSource {
+  /** "^" server, "=" peer, "#" refclock. */
+  mode: string;
+  /** "*" selected, "+" combined, "-" not combined, "?" unusable, "x" falseticker, "~" variable. */
+  state: string;
+  name: string;
+  stratum: number;
+  poll: number;
+  /** Reachability register (octal). */
+  reach: string;
+  lastRx: string;
+  offset: number;
+  measured: number;
+  error: number;
+}
+
+/** NtpSourceStats mirrors one `chronyc -c sourcestats` row. */
+export interface NtpSourceStats {
+  name: string;
+  np: number;
+  nr: number;
+  span: number;
+  frequency: number;
+  freqSkew: number;
+  offset: number;
+  stdDev: number;
+}
+
+/** SyslogStateRequest selects the owner. */
+export interface SyslogStateRequest {
+  owner: string;
+}
+
+/** SyslogStateResponse is one snapshot of the remote-syslog export (rsyslog impstats). */
+export interface SyslogStateResponse {
+  owner: string;
+  retrievedAt:
+    | Date
+    | undefined;
+  /** One entry per rendered target, in management.syslog order. */
+  targets: SyslogTargetState[];
+  /** Messages submitted per rsyslog input (imuxsock, imtcp …). */
+  inputs: { [key: string]: string };
+  /** Pending restart request of the rsyslog renderer (test slots: the slot instance). */
+  pendingActions: ServiceDaemonAction[];
+  /** Path of the rendered export file. */
+  configPath: string;
+  /** Why counters are unavailable ("no impstats yet"); empty when complete. */
+  error: string;
+}
+
+export interface SyslogStateResponse_InputsEntry {
+  key: string;
+  value: string;
+}
+
+/** SyslogTargetState is one export action as impstats reports it. */
+export interface SyslogTargetState {
+  /** Index in management.syslog. */
+  index: number;
+  /** rsyslog action name ("vrx_export_<i>_<hash>"). */
+  action: string;
+  /** "<host>:<port>". */
+  target: string;
+  /** "udp" | "tcp". */
+  protocol: string;
+  /** False when impstats has no record of the action (rsyslog not running or not reporting yet). */
+  reported: boolean;
+  processed: string;
+  failed: string;
+  suspended: string;
+  suspendedDuration: string;
+  resumed: string;
+  queueSize: string;
+  enqueued: string;
+  full: string;
+  discardedFull: string;
+  discardedNf: string;
+  maxQueueSize: string;
+}
+
+/** SyslogEntriesRequest is one log-explorer query of the local journal. */
+export interface SyslogEntriesRequest {
+  owner: string;
+  /** Oldest entry considered; unset = one hour ago. Never older than 30 days. */
+  since:
+    | Date
+    | undefined;
+  /** Minimum severity ("emergency" … "debug"); "" = all. */
+  severity: string;
+  /** Syslog facility name ("kern", "daemon", "local0" …); "" = all. */
+  facility: string;
+  /**
+   * Case-insensitive substring of the message or identifier (≤ 128 printable characters; a plain
+   * string, never a pattern); "" = all.
+   */
+  query: string;
+  /** 1-based page, newest first; 0 = 1. */
+  page: number;
+  /** Entries per page; 0 = 100; max 500. */
+  pageSize: number;
+}
+
+/** SyslogEntriesResponse is one page of journal entries, newest first. */
+export interface SyslogEntriesResponse {
+  owner: string;
+  retrievedAt: Date | undefined;
+  entries: SyslogEntry[];
+  page: number;
+  pageSize: number;
+  /** Matching entries within the scanned window. */
+  total: number;
+  /** The scan stopped at its bound (the newest `scanned` entries since `since` were searched). */
+  truncated: boolean;
+  /** Entries read from the journal. */
+  scanned: number;
+  /** "journald". */
+  source: string;
+}
+
+/** SyslogEntry is one journal entry. */
+export interface SyslogEntry {
+  time:
+    | Date
+    | undefined;
+  /** "emergency" … "debug" ("" when the entry has no priority). */
+  severity: string;
+  /** Facility name ("" when unknown). */
+  facility: string;
+  /** SYSLOG_IDENTIFIER (or _COMM). */
+  identifier: string;
+  pid: number;
+  hostname: string;
+  /** _SYSTEMD_UNIT ("" when none). */
+  unit: string;
+  /** The message (non-UTF-8 bytes replaced, at most 4096 characters). */
+  message: string;
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -7626,7 +7971,7 @@ export const Event_AttributesEntry: MessageFns<Event_AttributesEntry> = {
 };
 
 function createBaseActionRequest(): ActionRequest {
-  return { ping: undefined, traceroute: undefined, capture: undefined };
+  return { ping: undefined, traceroute: undefined, capture: undefined, dnsLookup: undefined };
 }
 
 export const ActionRequest: MessageFns<ActionRequest> = {
@@ -7639,6 +7984,9 @@ export const ActionRequest: MessageFns<ActionRequest> = {
     }
     if (message.capture !== undefined) {
       CaptureAction.encode(message.capture, writer.uint32(26).fork()).join();
+    }
+    if (message.dnsLookup !== undefined) {
+      DnsLookupAction.encode(message.dnsLookup, writer.uint32(58).fork()).join();
     }
     return writer;
   },
@@ -7680,6 +8028,14 @@ export const ActionRequest: MessageFns<ActionRequest> = {
             message.capture = CaptureAction.decode(reader, reader.uint32());
             continue;
           }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.dnsLookup = DnsLookupAction.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -7697,6 +8053,11 @@ export const ActionRequest: MessageFns<ActionRequest> = {
       ping: isSet(object.ping) ? PingAction.fromJSON(object.ping) : undefined,
       traceroute: isSet(object.traceroute) ? TracerouteAction.fromJSON(object.traceroute) : undefined,
       capture: isSet(object.capture) ? CaptureAction.fromJSON(object.capture) : undefined,
+      dnsLookup: isSet(object.dnsLookup)
+        ? DnsLookupAction.fromJSON(object.dnsLookup)
+        : isSet(object.dns_lookup)
+        ? DnsLookupAction.fromJSON(object.dns_lookup)
+        : undefined,
     };
   },
 
@@ -7710,6 +8071,9 @@ export const ActionRequest: MessageFns<ActionRequest> = {
     }
     if (message.capture !== undefined) {
       obj.capture = CaptureAction.toJSON(message.capture);
+    }
+    if (message.dnsLookup !== undefined) {
+      obj.dnsLookup = DnsLookupAction.toJSON(message.dnsLookup);
     }
     return obj;
   },
@@ -7727,6 +8091,9 @@ export const ActionRequest: MessageFns<ActionRequest> = {
       : undefined;
     message.capture = (object.capture !== undefined && object.capture !== null)
       ? CaptureAction.fromPartial(object.capture)
+      : undefined;
+    message.dnsLookup = (object.dnsLookup !== undefined && object.dnsLookup !== null)
+      ? DnsLookupAction.fromPartial(object.dnsLookup)
       : undefined;
     return message;
   },
@@ -28328,7 +28695,17 @@ export const ManagementTls: MessageFns<ManagementTls> = {
 };
 
 function createBaseSyslogTarget(): SyslogTarget {
-  return { address: undefined, port: undefined, protocol: undefined, severity: undefined, vrf: undefined };
+  return {
+    address: undefined,
+    port: undefined,
+    protocol: undefined,
+    severity: undefined,
+    vrf: undefined,
+    facilities: [],
+    format: undefined,
+    queueSize: undefined,
+    tls: undefined,
+  };
 }
 
 export const SyslogTarget: MessageFns<SyslogTarget> = {
@@ -28347,6 +28724,18 @@ export const SyslogTarget: MessageFns<SyslogTarget> = {
     }
     if (message.vrf !== undefined) {
       writer.uint32(42).string(message.vrf);
+    }
+    for (const v of message.facilities) {
+      writer.uint32(50).string(v!);
+    }
+    if (message.format !== undefined) {
+      writer.uint32(58).string(message.format);
+    }
+    if (message.queueSize !== undefined) {
+      writer.uint32(64).uint32(message.queueSize);
+    }
+    if (message.tls !== undefined) {
+      SyslogTls.encode(message.tls, writer.uint32(74).fork()).join();
     }
     return writer;
   },
@@ -28404,6 +28793,38 @@ export const SyslogTarget: MessageFns<SyslogTarget> = {
             message.vrf = reader.string();
             continue;
           }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.facilities.push(reader.string());
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.format = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.queueSize = reader.uint32();
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.tls = SyslogTls.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -28423,6 +28844,16 @@ export const SyslogTarget: MessageFns<SyslogTarget> = {
       protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : undefined,
       severity: isSet(object.severity) ? globalThis.String(object.severity) : undefined,
       vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      facilities: globalThis.Array.isArray(object?.facilities)
+        ? object.facilities.map((e: any) => globalThis.String(e))
+        : [],
+      format: isSet(object.format) ? globalThis.String(object.format) : undefined,
+      queueSize: isSet(object.queueSize)
+        ? globalThis.Number(object.queueSize)
+        : isSet(object.queue_size)
+        ? globalThis.Number(object.queue_size)
+        : undefined,
+      tls: isSet(object.tls) ? SyslogTls.fromJSON(object.tls) : undefined,
     };
   },
 
@@ -28443,6 +28874,18 @@ export const SyslogTarget: MessageFns<SyslogTarget> = {
     if (message.vrf !== undefined) {
       obj.vrf = message.vrf;
     }
+    if (message.facilities?.length) {
+      obj.facilities = message.facilities;
+    }
+    if (message.format !== undefined) {
+      obj.format = message.format;
+    }
+    if (message.queueSize !== undefined) {
+      obj.queueSize = Math.round(message.queueSize);
+    }
+    if (message.tls !== undefined) {
+      obj.tls = SyslogTls.toJSON(message.tls);
+    }
     return obj;
   },
 
@@ -28456,6 +28899,10 @@ export const SyslogTarget: MessageFns<SyslogTarget> = {
     message.protocol = object.protocol ?? undefined;
     message.severity = object.severity ?? undefined;
     message.vrf = object.vrf ?? undefined;
+    message.facilities = object.facilities?.map((e) => e) || [];
+    message.format = object.format ?? undefined;
+    message.queueSize = object.queueSize ?? undefined;
+    message.tls = (object.tls !== undefined && object.tls !== null) ? SyslogTls.fromPartial(object.tls) : undefined;
     return message;
   },
 };
@@ -42617,6 +43064,3755 @@ export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_R
   },
 };
 
+function createBaseSyslogTls(): SyslogTls {
+  return { caRef: undefined, certRef: undefined, keyRef: undefined, authMode: undefined, permittedPeers: [] };
+}
+
+export const SyslogTls: MessageFns<SyslogTls> = {
+  encode(message: SyslogTls, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.caRef !== undefined) {
+      writer.uint32(10).string(message.caRef);
+    }
+    if (message.certRef !== undefined) {
+      writer.uint32(18).string(message.certRef);
+    }
+    if (message.keyRef !== undefined) {
+      writer.uint32(26).string(message.keyRef);
+    }
+    if (message.authMode !== undefined) {
+      writer.uint32(34).string(message.authMode);
+    }
+    for (const v of message.permittedPeers) {
+      writer.uint32(42).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogTls {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogTls();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.caRef = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.certRef = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.keyRef = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.authMode = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.permittedPeers.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogTls {
+    return {
+      caRef: isSet(object.caRef)
+        ? globalThis.String(object.caRef)
+        : isSet(object.ca_ref)
+        ? globalThis.String(object.ca_ref)
+        : undefined,
+      certRef: isSet(object.certRef)
+        ? globalThis.String(object.certRef)
+        : isSet(object.cert_ref)
+        ? globalThis.String(object.cert_ref)
+        : undefined,
+      keyRef: isSet(object.keyRef)
+        ? globalThis.String(object.keyRef)
+        : isSet(object.key_ref)
+        ? globalThis.String(object.key_ref)
+        : undefined,
+      authMode: isSet(object.authMode)
+        ? globalThis.String(object.authMode)
+        : isSet(object.auth_mode)
+        ? globalThis.String(object.auth_mode)
+        : undefined,
+      permittedPeers: globalThis.Array.isArray(object?.permittedPeers)
+        ? object.permittedPeers.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.permitted_peers)
+        ? object.permitted_peers.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: SyslogTls): unknown {
+    const obj: any = {};
+    if (message.caRef !== undefined) {
+      obj.caRef = message.caRef;
+    }
+    if (message.certRef !== undefined) {
+      obj.certRef = message.certRef;
+    }
+    if (message.keyRef !== undefined) {
+      obj.keyRef = message.keyRef;
+    }
+    if (message.authMode !== undefined) {
+      obj.authMode = message.authMode;
+    }
+    if (message.permittedPeers?.length) {
+      obj.permittedPeers = message.permittedPeers;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogTls>): SyslogTls {
+    return SyslogTls.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogTls>): SyslogTls {
+    const message = createBaseSyslogTls();
+    message.caRef = object.caRef ?? undefined;
+    message.certRef = object.certRef ?? undefined;
+    message.keyRef = object.keyRef ?? undefined;
+    message.authMode = object.authMode ?? undefined;
+    message.permittedPeers = object.permittedPeers?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseDnsLookupAction(): DnsLookupAction {
+  return { name: "", timeoutMs: 0 };
+}
+
+export const DnsLookupAction: MessageFns<DnsLookupAction> = {
+  encode(message: DnsLookupAction, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.timeoutMs !== 0) {
+      writer.uint32(16).uint32(message.timeoutMs);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsLookupAction {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsLookupAction();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.timeoutMs = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsLookupAction {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      timeoutMs: isSet(object.timeoutMs)
+        ? globalThis.Number(object.timeoutMs)
+        : isSet(object.timeout_ms)
+        ? globalThis.Number(object.timeout_ms)
+        : 0,
+    };
+  },
+
+  toJSON(message: DnsLookupAction): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.timeoutMs !== 0) {
+      obj.timeoutMs = Math.round(message.timeoutMs);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsLookupAction>): DnsLookupAction {
+    return DnsLookupAction.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsLookupAction>): DnsLookupAction {
+    const message = createBaseDnsLookupAction();
+    message.name = object.name ?? "";
+    message.timeoutMs = object.timeoutMs ?? 0;
+    return message;
+  },
+};
+
+function createBaseServiceDaemonAction(): ServiceDaemonAction {
+  return { daemon: "", unit: "", action: "", reason: "" };
+}
+
+export const ServiceDaemonAction: MessageFns<ServiceDaemonAction> = {
+  encode(message: ServiceDaemonAction, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.daemon !== "") {
+      writer.uint32(10).string(message.daemon);
+    }
+    if (message.unit !== "") {
+      writer.uint32(18).string(message.unit);
+    }
+    if (message.action !== "") {
+      writer.uint32(26).string(message.action);
+    }
+    if (message.reason !== "") {
+      writer.uint32(34).string(message.reason);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ServiceDaemonAction {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseServiceDaemonAction();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.daemon = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.unit = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.action = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.reason = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ServiceDaemonAction {
+    return {
+      daemon: isSet(object.daemon) ? globalThis.String(object.daemon) : "",
+      unit: isSet(object.unit) ? globalThis.String(object.unit) : "",
+      action: isSet(object.action) ? globalThis.String(object.action) : "",
+      reason: isSet(object.reason) ? globalThis.String(object.reason) : "",
+    };
+  },
+
+  toJSON(message: ServiceDaemonAction): unknown {
+    const obj: any = {};
+    if (message.daemon !== "") {
+      obj.daemon = message.daemon;
+    }
+    if (message.unit !== "") {
+      obj.unit = message.unit;
+    }
+    if (message.action !== "") {
+      obj.action = message.action;
+    }
+    if (message.reason !== "") {
+      obj.reason = message.reason;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ServiceDaemonAction>): ServiceDaemonAction {
+    return ServiceDaemonAction.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ServiceDaemonAction>): ServiceDaemonAction {
+    const message = createBaseServiceDaemonAction();
+    message.daemon = object.daemon ?? "";
+    message.unit = object.unit ?? "";
+    message.action = object.action ?? "";
+    message.reason = object.reason ?? "";
+    return message;
+  },
+};
+
+function createBaseDnsStateRequest(): DnsStateRequest {
+  return { owner: "" };
+}
+
+export const DnsStateRequest: MessageFns<DnsStateRequest> = {
+  encode(message: DnsStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: DnsStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsStateRequest>): DnsStateRequest {
+    return DnsStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsStateRequest>): DnsStateRequest {
+    const message = createBaseDnsStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseDnsStateResponse(): DnsStateResponse {
+  return {
+    owner: "",
+    retrievedAt: undefined,
+    running: false,
+    status: {},
+    stats: {},
+    forwards: [],
+    stubs: [],
+    localZones: [],
+    localData: [],
+    localDataTruncated: false,
+    pendingActions: [],
+    vppCache: undefined,
+    configPath: "",
+    error: "",
+  };
+}
+
+export const DnsStateResponse: MessageFns<DnsStateResponse> = {
+  encode(message: DnsStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    if (message.running !== false) {
+      writer.uint32(24).bool(message.running);
+    }
+    globalThis.Object.entries(message.status).forEach(([key, value]: [string, string]) => {
+      DnsStateResponse_StatusEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
+    });
+    globalThis.Object.entries(message.stats).forEach(([key, value]: [string, string]) => {
+      DnsStateResponse_StatsEntry.encode({ key: key as any, value }, writer.uint32(42).fork()).join();
+    });
+    for (const v of message.forwards) {
+      DnsZoneState.encode(v!, writer.uint32(50).fork()).join();
+    }
+    for (const v of message.stubs) {
+      DnsZoneState.encode(v!, writer.uint32(58).fork()).join();
+    }
+    for (const v of message.localZones) {
+      DnsLocalZoneState.encode(v!, writer.uint32(66).fork()).join();
+    }
+    for (const v of message.localData) {
+      writer.uint32(74).string(v!);
+    }
+    if (message.localDataTruncated !== false) {
+      writer.uint32(80).bool(message.localDataTruncated);
+    }
+    for (const v of message.pendingActions) {
+      ServiceDaemonAction.encode(v!, writer.uint32(90).fork()).join();
+    }
+    if (message.vppCache !== undefined) {
+      DnsVppCacheState.encode(message.vppCache, writer.uint32(98).fork()).join();
+    }
+    if (message.configPath !== "") {
+      writer.uint32(106).string(message.configPath);
+    }
+    if (message.error !== "") {
+      writer.uint32(114).string(message.error);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.running = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            const entry4 = DnsStateResponse_StatusEntry.decode(reader, reader.uint32());
+            if (entry4.value !== undefined) {
+              message.status[entry4.key] = entry4.value;
+            }
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            const entry5 = DnsStateResponse_StatsEntry.decode(reader, reader.uint32());
+            if (entry5.value !== undefined) {
+              message.stats[entry5.key] = entry5.value;
+            }
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.forwards.push(DnsZoneState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.stubs.push(DnsZoneState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.localZones.push(DnsLocalZoneState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.localData.push(reader.string());
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.localDataTruncated = reader.bool();
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.pendingActions.push(ServiceDaemonAction.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.vppCache = DnsVppCacheState.decode(reader, reader.uint32());
+            continue;
+          }
+          case 13: {
+            if (tag !== 106) {
+              break;
+            }
+
+            message.configPath = reader.string();
+            continue;
+          }
+          case 14: {
+            if (tag !== 114) {
+              break;
+            }
+
+            message.error = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      running: isSet(object.running) ? globalThis.Boolean(object.running) : false,
+      status: isObject(object.status)
+        ? (globalThis.Object.entries(object.status) as [string, any][]).reduce(
+          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: globalThis.String(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      stats: isObject(object.stats)
+        ? (globalThis.Object.entries(object.stats) as [string, any][]).reduce(
+          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: globalThis.String(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      forwards: globalThis.Array.isArray(object?.forwards)
+        ? object.forwards.map((e: any) => DnsZoneState.fromJSON(e))
+        : [],
+      stubs: globalThis.Array.isArray(object?.stubs) ? object.stubs.map((e: any) => DnsZoneState.fromJSON(e)) : [],
+      localZones: globalThis.Array.isArray(object?.localZones)
+        ? object.localZones.map((e: any) => DnsLocalZoneState.fromJSON(e))
+        : globalThis.Array.isArray(object?.local_zones)
+        ? object.local_zones.map((e: any) => DnsLocalZoneState.fromJSON(e))
+        : [],
+      localData: globalThis.Array.isArray(object?.localData)
+        ? object.localData.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.local_data)
+        ? object.local_data.map((e: any) => globalThis.String(e))
+        : [],
+      localDataTruncated: isSet(object.localDataTruncated)
+        ? globalThis.Boolean(object.localDataTruncated)
+        : isSet(object.local_data_truncated)
+        ? globalThis.Boolean(object.local_data_truncated)
+        : false,
+      pendingActions: globalThis.Array.isArray(object?.pendingActions)
+        ? object.pendingActions.map((e: any) => ServiceDaemonAction.fromJSON(e))
+        : globalThis.Array.isArray(object?.pending_actions)
+        ? object.pending_actions.map((e: any) => ServiceDaemonAction.fromJSON(e))
+        : [],
+      vppCache: isSet(object.vppCache)
+        ? DnsVppCacheState.fromJSON(object.vppCache)
+        : isSet(object.vpp_cache)
+        ? DnsVppCacheState.fromJSON(object.vpp_cache)
+        : undefined,
+      configPath: isSet(object.configPath)
+        ? globalThis.String(object.configPath)
+        : isSet(object.config_path)
+        ? globalThis.String(object.config_path)
+        : "",
+      error: isSet(object.error) ? globalThis.String(object.error) : "",
+    };
+  },
+
+  toJSON(message: DnsStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.running !== false) {
+      obj.running = message.running;
+    }
+    if (message.status) {
+      const entries = globalThis.Object.entries(message.status) as [string, string][];
+      if (entries.length > 0) {
+        obj.status = {};
+        entries.forEach(([k, v]) => {
+          obj.status[k] = v;
+        });
+      }
+    }
+    if (message.stats) {
+      const entries = globalThis.Object.entries(message.stats) as [string, string][];
+      if (entries.length > 0) {
+        obj.stats = {};
+        entries.forEach(([k, v]) => {
+          obj.stats[k] = v;
+        });
+      }
+    }
+    if (message.forwards?.length) {
+      obj.forwards = message.forwards.map((e) => DnsZoneState.toJSON(e));
+    }
+    if (message.stubs?.length) {
+      obj.stubs = message.stubs.map((e) => DnsZoneState.toJSON(e));
+    }
+    if (message.localZones?.length) {
+      obj.localZones = message.localZones.map((e) => DnsLocalZoneState.toJSON(e));
+    }
+    if (message.localData?.length) {
+      obj.localData = message.localData;
+    }
+    if (message.localDataTruncated !== false) {
+      obj.localDataTruncated = message.localDataTruncated;
+    }
+    if (message.pendingActions?.length) {
+      obj.pendingActions = message.pendingActions.map((e) => ServiceDaemonAction.toJSON(e));
+    }
+    if (message.vppCache !== undefined) {
+      obj.vppCache = DnsVppCacheState.toJSON(message.vppCache);
+    }
+    if (message.configPath !== "") {
+      obj.configPath = message.configPath;
+    }
+    if (message.error !== "") {
+      obj.error = message.error;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsStateResponse>): DnsStateResponse {
+    return DnsStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsStateResponse>): DnsStateResponse {
+    const message = createBaseDnsStateResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.running = object.running ?? false;
+    message.status = (globalThis.Object.entries(object.status ?? {}) as [string, string][]).reduce(
+      (acc: { [key: string]: string }, [key, value]: [string, string]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.stats = (globalThis.Object.entries(object.stats ?? {}) as [string, string][]).reduce(
+      (acc: { [key: string]: string }, [key, value]: [string, string]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.forwards = object.forwards?.map((e) => DnsZoneState.fromPartial(e)) || [];
+    message.stubs = object.stubs?.map((e) => DnsZoneState.fromPartial(e)) || [];
+    message.localZones = object.localZones?.map((e) => DnsLocalZoneState.fromPartial(e)) || [];
+    message.localData = object.localData?.map((e) => e) || [];
+    message.localDataTruncated = object.localDataTruncated ?? false;
+    message.pendingActions = object.pendingActions?.map((e) => ServiceDaemonAction.fromPartial(e)) || [];
+    message.vppCache = (object.vppCache !== undefined && object.vppCache !== null)
+      ? DnsVppCacheState.fromPartial(object.vppCache)
+      : undefined;
+    message.configPath = object.configPath ?? "";
+    message.error = object.error ?? "";
+    return message;
+  },
+};
+
+function createBaseDnsStateResponse_StatusEntry(): DnsStateResponse_StatusEntry {
+  return { key: "", value: "" };
+}
+
+export const DnsStateResponse_StatusEntry: MessageFns<DnsStateResponse_StatusEntry> = {
+  encode(message: DnsStateResponse_StatusEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsStateResponse_StatusEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsStateResponse_StatusEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsStateResponse_StatusEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+    };
+  },
+
+  toJSON(message: DnsStateResponse_StatusEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsStateResponse_StatusEntry>): DnsStateResponse_StatusEntry {
+    return DnsStateResponse_StatusEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsStateResponse_StatusEntry>): DnsStateResponse_StatusEntry {
+    const message = createBaseDnsStateResponse_StatusEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
+    return message;
+  },
+};
+
+function createBaseDnsStateResponse_StatsEntry(): DnsStateResponse_StatsEntry {
+  return { key: "", value: "" };
+}
+
+export const DnsStateResponse_StatsEntry: MessageFns<DnsStateResponse_StatsEntry> = {
+  encode(message: DnsStateResponse_StatsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsStateResponse_StatsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsStateResponse_StatsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsStateResponse_StatsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+    };
+  },
+
+  toJSON(message: DnsStateResponse_StatsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsStateResponse_StatsEntry>): DnsStateResponse_StatsEntry {
+    return DnsStateResponse_StatsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsStateResponse_StatsEntry>): DnsStateResponse_StatsEntry {
+    const message = createBaseDnsStateResponse_StatsEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
+    return message;
+  },
+};
+
+function createBaseDnsZoneState(): DnsZoneState {
+  return { zone: "", kind: "", flags: [], addresses: [] };
+}
+
+export const DnsZoneState: MessageFns<DnsZoneState> = {
+  encode(message: DnsZoneState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.zone !== "") {
+      writer.uint32(10).string(message.zone);
+    }
+    if (message.kind !== "") {
+      writer.uint32(18).string(message.kind);
+    }
+    for (const v of message.flags) {
+      writer.uint32(26).string(v!);
+    }
+    for (const v of message.addresses) {
+      writer.uint32(34).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsZoneState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsZoneState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.zone = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.kind = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.flags.push(reader.string());
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.addresses.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsZoneState {
+    return {
+      zone: isSet(object.zone) ? globalThis.String(object.zone) : "",
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
+      flags: globalThis.Array.isArray(object?.flags) ? object.flags.map((e: any) => globalThis.String(e)) : [],
+      addresses: globalThis.Array.isArray(object?.addresses)
+        ? object.addresses.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: DnsZoneState): unknown {
+    const obj: any = {};
+    if (message.zone !== "") {
+      obj.zone = message.zone;
+    }
+    if (message.kind !== "") {
+      obj.kind = message.kind;
+    }
+    if (message.flags?.length) {
+      obj.flags = message.flags;
+    }
+    if (message.addresses?.length) {
+      obj.addresses = message.addresses;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsZoneState>): DnsZoneState {
+    return DnsZoneState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsZoneState>): DnsZoneState {
+    const message = createBaseDnsZoneState();
+    message.zone = object.zone ?? "";
+    message.kind = object.kind ?? "";
+    message.flags = object.flags?.map((e) => e) || [];
+    message.addresses = object.addresses?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseDnsLocalZoneState(): DnsLocalZoneState {
+  return { zone: "", type: "" };
+}
+
+export const DnsLocalZoneState: MessageFns<DnsLocalZoneState> = {
+  encode(message: DnsLocalZoneState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.zone !== "") {
+      writer.uint32(10).string(message.zone);
+    }
+    if (message.type !== "") {
+      writer.uint32(18).string(message.type);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsLocalZoneState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsLocalZoneState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.zone = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsLocalZoneState {
+    return {
+      zone: isSet(object.zone) ? globalThis.String(object.zone) : "",
+      type: isSet(object.type) ? globalThis.String(object.type) : "",
+    };
+  },
+
+  toJSON(message: DnsLocalZoneState): unknown {
+    const obj: any = {};
+    if (message.zone !== "") {
+      obj.zone = message.zone;
+    }
+    if (message.type !== "") {
+      obj.type = message.type;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsLocalZoneState>): DnsLocalZoneState {
+    return DnsLocalZoneState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsLocalZoneState>): DnsLocalZoneState {
+    const message = createBaseDnsLocalZoneState();
+    message.zone = object.zone ?? "";
+    message.type = object.type ?? "";
+    return message;
+  },
+};
+
+function createBaseDnsVppCacheState(): DnsVppCacheState {
+  return { configured: false, appliedByThisAgent: false, upstreams: [] };
+}
+
+export const DnsVppCacheState: MessageFns<DnsVppCacheState> = {
+  encode(message: DnsVppCacheState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.configured !== false) {
+      writer.uint32(8).bool(message.configured);
+    }
+    if (message.appliedByThisAgent !== false) {
+      writer.uint32(16).bool(message.appliedByThisAgent);
+    }
+    for (const v of message.upstreams) {
+      writer.uint32(26).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsVppCacheState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsVppCacheState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.configured = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.appliedByThisAgent = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.upstreams.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsVppCacheState {
+    return {
+      configured: isSet(object.configured) ? globalThis.Boolean(object.configured) : false,
+      appliedByThisAgent: isSet(object.appliedByThisAgent)
+        ? globalThis.Boolean(object.appliedByThisAgent)
+        : isSet(object.applied_by_this_agent)
+        ? globalThis.Boolean(object.applied_by_this_agent)
+        : false,
+      upstreams: globalThis.Array.isArray(object?.upstreams)
+        ? object.upstreams.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: DnsVppCacheState): unknown {
+    const obj: any = {};
+    if (message.configured !== false) {
+      obj.configured = message.configured;
+    }
+    if (message.appliedByThisAgent !== false) {
+      obj.appliedByThisAgent = message.appliedByThisAgent;
+    }
+    if (message.upstreams?.length) {
+      obj.upstreams = message.upstreams;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsVppCacheState>): DnsVppCacheState {
+    return DnsVppCacheState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsVppCacheState>): DnsVppCacheState {
+    const message = createBaseDnsVppCacheState();
+    message.configured = object.configured ?? false;
+    message.appliedByThisAgent = object.appliedByThisAgent ?? false;
+    message.upstreams = object.upstreams?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseNtpStateRequest(): NtpStateRequest {
+  return { owner: "" };
+}
+
+export const NtpStateRequest: MessageFns<NtpStateRequest> = {
+  encode(message: NtpStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NtpStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNtpStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NtpStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: NtpStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NtpStateRequest>): NtpStateRequest {
+    return NtpStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NtpStateRequest>): NtpStateRequest {
+    const message = createBaseNtpStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseNtpStateResponse(): NtpStateResponse {
+  return {
+    owner: "",
+    retrievedAt: undefined,
+    running: false,
+    tracking: undefined,
+    sources: [],
+    sourceStats: [],
+    serverStats: {},
+    pendingActions: [],
+    configPath: "",
+    error: "",
+  };
+}
+
+export const NtpStateResponse: MessageFns<NtpStateResponse> = {
+  encode(message: NtpStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    if (message.running !== false) {
+      writer.uint32(24).bool(message.running);
+    }
+    if (message.tracking !== undefined) {
+      NtpTracking.encode(message.tracking, writer.uint32(34).fork()).join();
+    }
+    for (const v of message.sources) {
+      NtpSource.encode(v!, writer.uint32(42).fork()).join();
+    }
+    for (const v of message.sourceStats) {
+      NtpSourceStats.encode(v!, writer.uint32(50).fork()).join();
+    }
+    globalThis.Object.entries(message.serverStats).forEach(([key, value]: [string, string]) => {
+      NtpStateResponse_ServerStatsEntry.encode({ key: key as any, value }, writer.uint32(58).fork()).join();
+    });
+    for (const v of message.pendingActions) {
+      ServiceDaemonAction.encode(v!, writer.uint32(66).fork()).join();
+    }
+    if (message.configPath !== "") {
+      writer.uint32(74).string(message.configPath);
+    }
+    if (message.error !== "") {
+      writer.uint32(82).string(message.error);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NtpStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNtpStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.running = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.tracking = NtpTracking.decode(reader, reader.uint32());
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.sources.push(NtpSource.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.sourceStats.push(NtpSourceStats.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            const entry7 = NtpStateResponse_ServerStatsEntry.decode(reader, reader.uint32());
+            if (entry7.value !== undefined) {
+              message.serverStats[entry7.key] = entry7.value;
+            }
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.pendingActions.push(ServiceDaemonAction.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.configPath = reader.string();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.error = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NtpStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      running: isSet(object.running) ? globalThis.Boolean(object.running) : false,
+      tracking: isSet(object.tracking) ? NtpTracking.fromJSON(object.tracking) : undefined,
+      sources: globalThis.Array.isArray(object?.sources) ? object.sources.map((e: any) => NtpSource.fromJSON(e)) : [],
+      sourceStats: globalThis.Array.isArray(object?.sourceStats)
+        ? object.sourceStats.map((e: any) => NtpSourceStats.fromJSON(e))
+        : globalThis.Array.isArray(object?.source_stats)
+        ? object.source_stats.map((e: any) => NtpSourceStats.fromJSON(e))
+        : [],
+      serverStats: isObject(object.serverStats)
+        ? (globalThis.Object.entries(object.serverStats) as [string, any][]).reduce(
+          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: globalThis.String(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : isObject(object.server_stats)
+        ? (globalThis.Object.entries(object.server_stats) as [string, any][]).reduce(
+          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: globalThis.String(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      pendingActions: globalThis.Array.isArray(object?.pendingActions)
+        ? object.pendingActions.map((e: any) => ServiceDaemonAction.fromJSON(e))
+        : globalThis.Array.isArray(object?.pending_actions)
+        ? object.pending_actions.map((e: any) => ServiceDaemonAction.fromJSON(e))
+        : [],
+      configPath: isSet(object.configPath)
+        ? globalThis.String(object.configPath)
+        : isSet(object.config_path)
+        ? globalThis.String(object.config_path)
+        : "",
+      error: isSet(object.error) ? globalThis.String(object.error) : "",
+    };
+  },
+
+  toJSON(message: NtpStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.running !== false) {
+      obj.running = message.running;
+    }
+    if (message.tracking !== undefined) {
+      obj.tracking = NtpTracking.toJSON(message.tracking);
+    }
+    if (message.sources?.length) {
+      obj.sources = message.sources.map((e) => NtpSource.toJSON(e));
+    }
+    if (message.sourceStats?.length) {
+      obj.sourceStats = message.sourceStats.map((e) => NtpSourceStats.toJSON(e));
+    }
+    if (message.serverStats) {
+      const entries = globalThis.Object.entries(message.serverStats) as [string, string][];
+      if (entries.length > 0) {
+        obj.serverStats = {};
+        entries.forEach(([k, v]) => {
+          obj.serverStats[k] = v;
+        });
+      }
+    }
+    if (message.pendingActions?.length) {
+      obj.pendingActions = message.pendingActions.map((e) => ServiceDaemonAction.toJSON(e));
+    }
+    if (message.configPath !== "") {
+      obj.configPath = message.configPath;
+    }
+    if (message.error !== "") {
+      obj.error = message.error;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NtpStateResponse>): NtpStateResponse {
+    return NtpStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NtpStateResponse>): NtpStateResponse {
+    const message = createBaseNtpStateResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.running = object.running ?? false;
+    message.tracking = (object.tracking !== undefined && object.tracking !== null)
+      ? NtpTracking.fromPartial(object.tracking)
+      : undefined;
+    message.sources = object.sources?.map((e) => NtpSource.fromPartial(e)) || [];
+    message.sourceStats = object.sourceStats?.map((e) => NtpSourceStats.fromPartial(e)) || [];
+    message.serverStats = (globalThis.Object.entries(object.serverStats ?? {}) as [string, string][]).reduce(
+      (acc: { [key: string]: string }, [key, value]: [string, string]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.pendingActions = object.pendingActions?.map((e) => ServiceDaemonAction.fromPartial(e)) || [];
+    message.configPath = object.configPath ?? "";
+    message.error = object.error ?? "";
+    return message;
+  },
+};
+
+function createBaseNtpStateResponse_ServerStatsEntry(): NtpStateResponse_ServerStatsEntry {
+  return { key: "", value: "" };
+}
+
+export const NtpStateResponse_ServerStatsEntry: MessageFns<NtpStateResponse_ServerStatsEntry> = {
+  encode(message: NtpStateResponse_ServerStatsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NtpStateResponse_ServerStatsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNtpStateResponse_ServerStatsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NtpStateResponse_ServerStatsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+    };
+  },
+
+  toJSON(message: NtpStateResponse_ServerStatsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NtpStateResponse_ServerStatsEntry>): NtpStateResponse_ServerStatsEntry {
+    return NtpStateResponse_ServerStatsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NtpStateResponse_ServerStatsEntry>): NtpStateResponse_ServerStatsEntry {
+    const message = createBaseNtpStateResponse_ServerStatsEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
+    return message;
+  },
+};
+
+function createBaseNtpTracking(): NtpTracking {
+  return {
+    refId: "",
+    refName: "",
+    stratum: 0,
+    refTime: 0,
+    systemTime: 0,
+    lastOffset: 0,
+    rmsOffset: 0,
+    frequency: 0,
+    residualFreq: 0,
+    skew: 0,
+    rootDelay: 0,
+    rootDispersion: 0,
+    updateInterval: 0,
+    leap: "",
+  };
+}
+
+export const NtpTracking: MessageFns<NtpTracking> = {
+  encode(message: NtpTracking, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.refId !== "") {
+      writer.uint32(10).string(message.refId);
+    }
+    if (message.refName !== "") {
+      writer.uint32(18).string(message.refName);
+    }
+    if (message.stratum !== 0) {
+      writer.uint32(24).int32(message.stratum);
+    }
+    if (message.refTime !== 0) {
+      writer.uint32(33).double(message.refTime);
+    }
+    if (message.systemTime !== 0) {
+      writer.uint32(41).double(message.systemTime);
+    }
+    if (message.lastOffset !== 0) {
+      writer.uint32(49).double(message.lastOffset);
+    }
+    if (message.rmsOffset !== 0) {
+      writer.uint32(57).double(message.rmsOffset);
+    }
+    if (message.frequency !== 0) {
+      writer.uint32(65).double(message.frequency);
+    }
+    if (message.residualFreq !== 0) {
+      writer.uint32(73).double(message.residualFreq);
+    }
+    if (message.skew !== 0) {
+      writer.uint32(81).double(message.skew);
+    }
+    if (message.rootDelay !== 0) {
+      writer.uint32(89).double(message.rootDelay);
+    }
+    if (message.rootDispersion !== 0) {
+      writer.uint32(97).double(message.rootDispersion);
+    }
+    if (message.updateInterval !== 0) {
+      writer.uint32(105).double(message.updateInterval);
+    }
+    if (message.leap !== "") {
+      writer.uint32(114).string(message.leap);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NtpTracking {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNtpTracking();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.refId = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.refName = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.stratum = reader.int32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 33) {
+              break;
+            }
+
+            message.refTime = reader.double();
+            continue;
+          }
+          case 5: {
+            if (tag !== 41) {
+              break;
+            }
+
+            message.systemTime = reader.double();
+            continue;
+          }
+          case 6: {
+            if (tag !== 49) {
+              break;
+            }
+
+            message.lastOffset = reader.double();
+            continue;
+          }
+          case 7: {
+            if (tag !== 57) {
+              break;
+            }
+
+            message.rmsOffset = reader.double();
+            continue;
+          }
+          case 8: {
+            if (tag !== 65) {
+              break;
+            }
+
+            message.frequency = reader.double();
+            continue;
+          }
+          case 9: {
+            if (tag !== 73) {
+              break;
+            }
+
+            message.residualFreq = reader.double();
+            continue;
+          }
+          case 10: {
+            if (tag !== 81) {
+              break;
+            }
+
+            message.skew = reader.double();
+            continue;
+          }
+          case 11: {
+            if (tag !== 89) {
+              break;
+            }
+
+            message.rootDelay = reader.double();
+            continue;
+          }
+          case 12: {
+            if (tag !== 97) {
+              break;
+            }
+
+            message.rootDispersion = reader.double();
+            continue;
+          }
+          case 13: {
+            if (tag !== 105) {
+              break;
+            }
+
+            message.updateInterval = reader.double();
+            continue;
+          }
+          case 14: {
+            if (tag !== 114) {
+              break;
+            }
+
+            message.leap = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NtpTracking {
+    return {
+      refId: isSet(object.refId)
+        ? globalThis.String(object.refId)
+        : isSet(object.ref_id)
+        ? globalThis.String(object.ref_id)
+        : "",
+      refName: isSet(object.refName)
+        ? globalThis.String(object.refName)
+        : isSet(object.ref_name)
+        ? globalThis.String(object.ref_name)
+        : "",
+      stratum: isSet(object.stratum) ? globalThis.Number(object.stratum) : 0,
+      refTime: isSet(object.refTime)
+        ? globalThis.Number(object.refTime)
+        : isSet(object.ref_time)
+        ? globalThis.Number(object.ref_time)
+        : 0,
+      systemTime: isSet(object.systemTime)
+        ? globalThis.Number(object.systemTime)
+        : isSet(object.system_time)
+        ? globalThis.Number(object.system_time)
+        : 0,
+      lastOffset: isSet(object.lastOffset)
+        ? globalThis.Number(object.lastOffset)
+        : isSet(object.last_offset)
+        ? globalThis.Number(object.last_offset)
+        : 0,
+      rmsOffset: isSet(object.rmsOffset)
+        ? globalThis.Number(object.rmsOffset)
+        : isSet(object.rms_offset)
+        ? globalThis.Number(object.rms_offset)
+        : 0,
+      frequency: isSet(object.frequency) ? globalThis.Number(object.frequency) : 0,
+      residualFreq: isSet(object.residualFreq)
+        ? globalThis.Number(object.residualFreq)
+        : isSet(object.residual_freq)
+        ? globalThis.Number(object.residual_freq)
+        : 0,
+      skew: isSet(object.skew) ? globalThis.Number(object.skew) : 0,
+      rootDelay: isSet(object.rootDelay)
+        ? globalThis.Number(object.rootDelay)
+        : isSet(object.root_delay)
+        ? globalThis.Number(object.root_delay)
+        : 0,
+      rootDispersion: isSet(object.rootDispersion)
+        ? globalThis.Number(object.rootDispersion)
+        : isSet(object.root_dispersion)
+        ? globalThis.Number(object.root_dispersion)
+        : 0,
+      updateInterval: isSet(object.updateInterval)
+        ? globalThis.Number(object.updateInterval)
+        : isSet(object.update_interval)
+        ? globalThis.Number(object.update_interval)
+        : 0,
+      leap: isSet(object.leap) ? globalThis.String(object.leap) : "",
+    };
+  },
+
+  toJSON(message: NtpTracking): unknown {
+    const obj: any = {};
+    if (message.refId !== "") {
+      obj.refId = message.refId;
+    }
+    if (message.refName !== "") {
+      obj.refName = message.refName;
+    }
+    if (message.stratum !== 0) {
+      obj.stratum = Math.round(message.stratum);
+    }
+    if (message.refTime !== 0) {
+      obj.refTime = message.refTime;
+    }
+    if (message.systemTime !== 0) {
+      obj.systemTime = message.systemTime;
+    }
+    if (message.lastOffset !== 0) {
+      obj.lastOffset = message.lastOffset;
+    }
+    if (message.rmsOffset !== 0) {
+      obj.rmsOffset = message.rmsOffset;
+    }
+    if (message.frequency !== 0) {
+      obj.frequency = message.frequency;
+    }
+    if (message.residualFreq !== 0) {
+      obj.residualFreq = message.residualFreq;
+    }
+    if (message.skew !== 0) {
+      obj.skew = message.skew;
+    }
+    if (message.rootDelay !== 0) {
+      obj.rootDelay = message.rootDelay;
+    }
+    if (message.rootDispersion !== 0) {
+      obj.rootDispersion = message.rootDispersion;
+    }
+    if (message.updateInterval !== 0) {
+      obj.updateInterval = message.updateInterval;
+    }
+    if (message.leap !== "") {
+      obj.leap = message.leap;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NtpTracking>): NtpTracking {
+    return NtpTracking.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NtpTracking>): NtpTracking {
+    const message = createBaseNtpTracking();
+    message.refId = object.refId ?? "";
+    message.refName = object.refName ?? "";
+    message.stratum = object.stratum ?? 0;
+    message.refTime = object.refTime ?? 0;
+    message.systemTime = object.systemTime ?? 0;
+    message.lastOffset = object.lastOffset ?? 0;
+    message.rmsOffset = object.rmsOffset ?? 0;
+    message.frequency = object.frequency ?? 0;
+    message.residualFreq = object.residualFreq ?? 0;
+    message.skew = object.skew ?? 0;
+    message.rootDelay = object.rootDelay ?? 0;
+    message.rootDispersion = object.rootDispersion ?? 0;
+    message.updateInterval = object.updateInterval ?? 0;
+    message.leap = object.leap ?? "";
+    return message;
+  },
+};
+
+function createBaseNtpSource(): NtpSource {
+  return {
+    mode: "",
+    state: "",
+    name: "",
+    stratum: 0,
+    poll: 0,
+    reach: "",
+    lastRx: "",
+    offset: 0,
+    measured: 0,
+    error: 0,
+  };
+}
+
+export const NtpSource: MessageFns<NtpSource> = {
+  encode(message: NtpSource, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.mode !== "") {
+      writer.uint32(10).string(message.mode);
+    }
+    if (message.state !== "") {
+      writer.uint32(18).string(message.state);
+    }
+    if (message.name !== "") {
+      writer.uint32(26).string(message.name);
+    }
+    if (message.stratum !== 0) {
+      writer.uint32(32).int32(message.stratum);
+    }
+    if (message.poll !== 0) {
+      writer.uint32(40).int32(message.poll);
+    }
+    if (message.reach !== "") {
+      writer.uint32(50).string(message.reach);
+    }
+    if (message.lastRx !== "") {
+      writer.uint32(58).string(message.lastRx);
+    }
+    if (message.offset !== 0) {
+      writer.uint32(65).double(message.offset);
+    }
+    if (message.measured !== 0) {
+      writer.uint32(73).double(message.measured);
+    }
+    if (message.error !== 0) {
+      writer.uint32(81).double(message.error);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NtpSource {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNtpSource();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.mode = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.state = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.stratum = reader.int32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.poll = reader.int32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.reach = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.lastRx = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 65) {
+              break;
+            }
+
+            message.offset = reader.double();
+            continue;
+          }
+          case 9: {
+            if (tag !== 73) {
+              break;
+            }
+
+            message.measured = reader.double();
+            continue;
+          }
+          case 10: {
+            if (tag !== 81) {
+              break;
+            }
+
+            message.error = reader.double();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NtpSource {
+    return {
+      mode: isSet(object.mode) ? globalThis.String(object.mode) : "",
+      state: isSet(object.state) ? globalThis.String(object.state) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      stratum: isSet(object.stratum) ? globalThis.Number(object.stratum) : 0,
+      poll: isSet(object.poll) ? globalThis.Number(object.poll) : 0,
+      reach: isSet(object.reach) ? globalThis.String(object.reach) : "",
+      lastRx: isSet(object.lastRx)
+        ? globalThis.String(object.lastRx)
+        : isSet(object.last_rx)
+        ? globalThis.String(object.last_rx)
+        : "",
+      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
+      measured: isSet(object.measured) ? globalThis.Number(object.measured) : 0,
+      error: isSet(object.error) ? globalThis.Number(object.error) : 0,
+    };
+  },
+
+  toJSON(message: NtpSource): unknown {
+    const obj: any = {};
+    if (message.mode !== "") {
+      obj.mode = message.mode;
+    }
+    if (message.state !== "") {
+      obj.state = message.state;
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.stratum !== 0) {
+      obj.stratum = Math.round(message.stratum);
+    }
+    if (message.poll !== 0) {
+      obj.poll = Math.round(message.poll);
+    }
+    if (message.reach !== "") {
+      obj.reach = message.reach;
+    }
+    if (message.lastRx !== "") {
+      obj.lastRx = message.lastRx;
+    }
+    if (message.offset !== 0) {
+      obj.offset = message.offset;
+    }
+    if (message.measured !== 0) {
+      obj.measured = message.measured;
+    }
+    if (message.error !== 0) {
+      obj.error = message.error;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NtpSource>): NtpSource {
+    return NtpSource.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NtpSource>): NtpSource {
+    const message = createBaseNtpSource();
+    message.mode = object.mode ?? "";
+    message.state = object.state ?? "";
+    message.name = object.name ?? "";
+    message.stratum = object.stratum ?? 0;
+    message.poll = object.poll ?? 0;
+    message.reach = object.reach ?? "";
+    message.lastRx = object.lastRx ?? "";
+    message.offset = object.offset ?? 0;
+    message.measured = object.measured ?? 0;
+    message.error = object.error ?? 0;
+    return message;
+  },
+};
+
+function createBaseNtpSourceStats(): NtpSourceStats {
+  return { name: "", np: 0, nr: 0, span: 0, frequency: 0, freqSkew: 0, offset: 0, stdDev: 0 };
+}
+
+export const NtpSourceStats: MessageFns<NtpSourceStats> = {
+  encode(message: NtpSourceStats, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.np !== 0) {
+      writer.uint32(16).int32(message.np);
+    }
+    if (message.nr !== 0) {
+      writer.uint32(24).int32(message.nr);
+    }
+    if (message.span !== 0) {
+      writer.uint32(32).int32(message.span);
+    }
+    if (message.frequency !== 0) {
+      writer.uint32(41).double(message.frequency);
+    }
+    if (message.freqSkew !== 0) {
+      writer.uint32(49).double(message.freqSkew);
+    }
+    if (message.offset !== 0) {
+      writer.uint32(57).double(message.offset);
+    }
+    if (message.stdDev !== 0) {
+      writer.uint32(65).double(message.stdDev);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NtpSourceStats {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNtpSourceStats();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.np = reader.int32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.nr = reader.int32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.span = reader.int32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 41) {
+              break;
+            }
+
+            message.frequency = reader.double();
+            continue;
+          }
+          case 6: {
+            if (tag !== 49) {
+              break;
+            }
+
+            message.freqSkew = reader.double();
+            continue;
+          }
+          case 7: {
+            if (tag !== 57) {
+              break;
+            }
+
+            message.offset = reader.double();
+            continue;
+          }
+          case 8: {
+            if (tag !== 65) {
+              break;
+            }
+
+            message.stdDev = reader.double();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NtpSourceStats {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      np: isSet(object.np) ? globalThis.Number(object.np) : 0,
+      nr: isSet(object.nr) ? globalThis.Number(object.nr) : 0,
+      span: isSet(object.span) ? globalThis.Number(object.span) : 0,
+      frequency: isSet(object.frequency) ? globalThis.Number(object.frequency) : 0,
+      freqSkew: isSet(object.freqSkew)
+        ? globalThis.Number(object.freqSkew)
+        : isSet(object.freq_skew)
+        ? globalThis.Number(object.freq_skew)
+        : 0,
+      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
+      stdDev: isSet(object.stdDev)
+        ? globalThis.Number(object.stdDev)
+        : isSet(object.std_dev)
+        ? globalThis.Number(object.std_dev)
+        : 0,
+    };
+  },
+
+  toJSON(message: NtpSourceStats): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.np !== 0) {
+      obj.np = Math.round(message.np);
+    }
+    if (message.nr !== 0) {
+      obj.nr = Math.round(message.nr);
+    }
+    if (message.span !== 0) {
+      obj.span = Math.round(message.span);
+    }
+    if (message.frequency !== 0) {
+      obj.frequency = message.frequency;
+    }
+    if (message.freqSkew !== 0) {
+      obj.freqSkew = message.freqSkew;
+    }
+    if (message.offset !== 0) {
+      obj.offset = message.offset;
+    }
+    if (message.stdDev !== 0) {
+      obj.stdDev = message.stdDev;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NtpSourceStats>): NtpSourceStats {
+    return NtpSourceStats.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NtpSourceStats>): NtpSourceStats {
+    const message = createBaseNtpSourceStats();
+    message.name = object.name ?? "";
+    message.np = object.np ?? 0;
+    message.nr = object.nr ?? 0;
+    message.span = object.span ?? 0;
+    message.frequency = object.frequency ?? 0;
+    message.freqSkew = object.freqSkew ?? 0;
+    message.offset = object.offset ?? 0;
+    message.stdDev = object.stdDev ?? 0;
+    return message;
+  },
+};
+
+function createBaseSyslogStateRequest(): SyslogStateRequest {
+  return { owner: "" };
+}
+
+export const SyslogStateRequest: MessageFns<SyslogStateRequest> = {
+  encode(message: SyslogStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: SyslogStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogStateRequest>): SyslogStateRequest {
+    return SyslogStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogStateRequest>): SyslogStateRequest {
+    const message = createBaseSyslogStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseSyslogStateResponse(): SyslogStateResponse {
+  return { owner: "", retrievedAt: undefined, targets: [], inputs: {}, pendingActions: [], configPath: "", error: "" };
+}
+
+export const SyslogStateResponse: MessageFns<SyslogStateResponse> = {
+  encode(message: SyslogStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    for (const v of message.targets) {
+      SyslogTargetState.encode(v!, writer.uint32(26).fork()).join();
+    }
+    globalThis.Object.entries(message.inputs).forEach(([key, value]: [string, string]) => {
+      SyslogStateResponse_InputsEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
+    });
+    for (const v of message.pendingActions) {
+      ServiceDaemonAction.encode(v!, writer.uint32(42).fork()).join();
+    }
+    if (message.configPath !== "") {
+      writer.uint32(50).string(message.configPath);
+    }
+    if (message.error !== "") {
+      writer.uint32(58).string(message.error);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.targets.push(SyslogTargetState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            const entry4 = SyslogStateResponse_InputsEntry.decode(reader, reader.uint32());
+            if (entry4.value !== undefined) {
+              message.inputs[entry4.key] = entry4.value;
+            }
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.pendingActions.push(ServiceDaemonAction.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.configPath = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.error = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      targets: globalThis.Array.isArray(object?.targets)
+        ? object.targets.map((e: any) => SyslogTargetState.fromJSON(e))
+        : [],
+      inputs: isObject(object.inputs)
+        ? (globalThis.Object.entries(object.inputs) as [string, any][]).reduce(
+          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: globalThis.String(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      pendingActions: globalThis.Array.isArray(object?.pendingActions)
+        ? object.pendingActions.map((e: any) => ServiceDaemonAction.fromJSON(e))
+        : globalThis.Array.isArray(object?.pending_actions)
+        ? object.pending_actions.map((e: any) => ServiceDaemonAction.fromJSON(e))
+        : [],
+      configPath: isSet(object.configPath)
+        ? globalThis.String(object.configPath)
+        : isSet(object.config_path)
+        ? globalThis.String(object.config_path)
+        : "",
+      error: isSet(object.error) ? globalThis.String(object.error) : "",
+    };
+  },
+
+  toJSON(message: SyslogStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.targets?.length) {
+      obj.targets = message.targets.map((e) => SyslogTargetState.toJSON(e));
+    }
+    if (message.inputs) {
+      const entries = globalThis.Object.entries(message.inputs) as [string, string][];
+      if (entries.length > 0) {
+        obj.inputs = {};
+        entries.forEach(([k, v]) => {
+          obj.inputs[k] = v;
+        });
+      }
+    }
+    if (message.pendingActions?.length) {
+      obj.pendingActions = message.pendingActions.map((e) => ServiceDaemonAction.toJSON(e));
+    }
+    if (message.configPath !== "") {
+      obj.configPath = message.configPath;
+    }
+    if (message.error !== "") {
+      obj.error = message.error;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogStateResponse>): SyslogStateResponse {
+    return SyslogStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogStateResponse>): SyslogStateResponse {
+    const message = createBaseSyslogStateResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.targets = object.targets?.map((e) => SyslogTargetState.fromPartial(e)) || [];
+    message.inputs = (globalThis.Object.entries(object.inputs ?? {}) as [string, string][]).reduce(
+      (acc: { [key: string]: string }, [key, value]: [string, string]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.pendingActions = object.pendingActions?.map((e) => ServiceDaemonAction.fromPartial(e)) || [];
+    message.configPath = object.configPath ?? "";
+    message.error = object.error ?? "";
+    return message;
+  },
+};
+
+function createBaseSyslogStateResponse_InputsEntry(): SyslogStateResponse_InputsEntry {
+  return { key: "", value: "0" };
+}
+
+export const SyslogStateResponse_InputsEntry: MessageFns<SyslogStateResponse_InputsEntry> = {
+  encode(message: SyslogStateResponse_InputsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "0") {
+      writer.uint32(16).int64(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogStateResponse_InputsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogStateResponse_InputsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.value = reader.int64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogStateResponse_InputsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "0",
+    };
+  },
+
+  toJSON(message: SyslogStateResponse_InputsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "0") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogStateResponse_InputsEntry>): SyslogStateResponse_InputsEntry {
+    return SyslogStateResponse_InputsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogStateResponse_InputsEntry>): SyslogStateResponse_InputsEntry {
+    const message = createBaseSyslogStateResponse_InputsEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "0";
+    return message;
+  },
+};
+
+function createBaseSyslogTargetState(): SyslogTargetState {
+  return {
+    index: 0,
+    action: "",
+    target: "",
+    protocol: "",
+    reported: false,
+    processed: "0",
+    failed: "0",
+    suspended: "0",
+    suspendedDuration: "0",
+    resumed: "0",
+    queueSize: "0",
+    enqueued: "0",
+    full: "0",
+    discardedFull: "0",
+    discardedNf: "0",
+    maxQueueSize: "0",
+  };
+}
+
+export const SyslogTargetState: MessageFns<SyslogTargetState> = {
+  encode(message: SyslogTargetState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.index !== 0) {
+      writer.uint32(8).uint32(message.index);
+    }
+    if (message.action !== "") {
+      writer.uint32(18).string(message.action);
+    }
+    if (message.target !== "") {
+      writer.uint32(26).string(message.target);
+    }
+    if (message.protocol !== "") {
+      writer.uint32(34).string(message.protocol);
+    }
+    if (message.reported !== false) {
+      writer.uint32(40).bool(message.reported);
+    }
+    if (message.processed !== "0") {
+      writer.uint32(48).int64(message.processed);
+    }
+    if (message.failed !== "0") {
+      writer.uint32(56).int64(message.failed);
+    }
+    if (message.suspended !== "0") {
+      writer.uint32(64).int64(message.suspended);
+    }
+    if (message.suspendedDuration !== "0") {
+      writer.uint32(72).int64(message.suspendedDuration);
+    }
+    if (message.resumed !== "0") {
+      writer.uint32(80).int64(message.resumed);
+    }
+    if (message.queueSize !== "0") {
+      writer.uint32(88).int64(message.queueSize);
+    }
+    if (message.enqueued !== "0") {
+      writer.uint32(96).int64(message.enqueued);
+    }
+    if (message.full !== "0") {
+      writer.uint32(104).int64(message.full);
+    }
+    if (message.discardedFull !== "0") {
+      writer.uint32(112).int64(message.discardedFull);
+    }
+    if (message.discardedNf !== "0") {
+      writer.uint32(120).int64(message.discardedNf);
+    }
+    if (message.maxQueueSize !== "0") {
+      writer.uint32(128).int64(message.maxQueueSize);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogTargetState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogTargetState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.index = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.action = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.target = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.protocol = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.reported = reader.bool();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.processed = reader.int64().toString();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.failed = reader.int64().toString();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.suspended = reader.int64().toString();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.suspendedDuration = reader.int64().toString();
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.resumed = reader.int64().toString();
+            continue;
+          }
+          case 11: {
+            if (tag !== 88) {
+              break;
+            }
+
+            message.queueSize = reader.int64().toString();
+            continue;
+          }
+          case 12: {
+            if (tag !== 96) {
+              break;
+            }
+
+            message.enqueued = reader.int64().toString();
+            continue;
+          }
+          case 13: {
+            if (tag !== 104) {
+              break;
+            }
+
+            message.full = reader.int64().toString();
+            continue;
+          }
+          case 14: {
+            if (tag !== 112) {
+              break;
+            }
+
+            message.discardedFull = reader.int64().toString();
+            continue;
+          }
+          case 15: {
+            if (tag !== 120) {
+              break;
+            }
+
+            message.discardedNf = reader.int64().toString();
+            continue;
+          }
+          case 16: {
+            if (tag !== 128) {
+              break;
+            }
+
+            message.maxQueueSize = reader.int64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogTargetState {
+    return {
+      index: isSet(object.index) ? globalThis.Number(object.index) : 0,
+      action: isSet(object.action) ? globalThis.String(object.action) : "",
+      target: isSet(object.target) ? globalThis.String(object.target) : "",
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : "",
+      reported: isSet(object.reported) ? globalThis.Boolean(object.reported) : false,
+      processed: isSet(object.processed) ? globalThis.String(object.processed) : "0",
+      failed: isSet(object.failed) ? globalThis.String(object.failed) : "0",
+      suspended: isSet(object.suspended) ? globalThis.String(object.suspended) : "0",
+      suspendedDuration: isSet(object.suspendedDuration)
+        ? globalThis.String(object.suspendedDuration)
+        : isSet(object.suspended_duration)
+        ? globalThis.String(object.suspended_duration)
+        : "0",
+      resumed: isSet(object.resumed) ? globalThis.String(object.resumed) : "0",
+      queueSize: isSet(object.queueSize)
+        ? globalThis.String(object.queueSize)
+        : isSet(object.queue_size)
+        ? globalThis.String(object.queue_size)
+        : "0",
+      enqueued: isSet(object.enqueued) ? globalThis.String(object.enqueued) : "0",
+      full: isSet(object.full) ? globalThis.String(object.full) : "0",
+      discardedFull: isSet(object.discardedFull)
+        ? globalThis.String(object.discardedFull)
+        : isSet(object.discarded_full)
+        ? globalThis.String(object.discarded_full)
+        : "0",
+      discardedNf: isSet(object.discardedNf)
+        ? globalThis.String(object.discardedNf)
+        : isSet(object.discarded_nf)
+        ? globalThis.String(object.discarded_nf)
+        : "0",
+      maxQueueSize: isSet(object.maxQueueSize)
+        ? globalThis.String(object.maxQueueSize)
+        : isSet(object.max_queue_size)
+        ? globalThis.String(object.max_queue_size)
+        : "0",
+    };
+  },
+
+  toJSON(message: SyslogTargetState): unknown {
+    const obj: any = {};
+    if (message.index !== 0) {
+      obj.index = Math.round(message.index);
+    }
+    if (message.action !== "") {
+      obj.action = message.action;
+    }
+    if (message.target !== "") {
+      obj.target = message.target;
+    }
+    if (message.protocol !== "") {
+      obj.protocol = message.protocol;
+    }
+    if (message.reported !== false) {
+      obj.reported = message.reported;
+    }
+    if (message.processed !== "0") {
+      obj.processed = message.processed;
+    }
+    if (message.failed !== "0") {
+      obj.failed = message.failed;
+    }
+    if (message.suspended !== "0") {
+      obj.suspended = message.suspended;
+    }
+    if (message.suspendedDuration !== "0") {
+      obj.suspendedDuration = message.suspendedDuration;
+    }
+    if (message.resumed !== "0") {
+      obj.resumed = message.resumed;
+    }
+    if (message.queueSize !== "0") {
+      obj.queueSize = message.queueSize;
+    }
+    if (message.enqueued !== "0") {
+      obj.enqueued = message.enqueued;
+    }
+    if (message.full !== "0") {
+      obj.full = message.full;
+    }
+    if (message.discardedFull !== "0") {
+      obj.discardedFull = message.discardedFull;
+    }
+    if (message.discardedNf !== "0") {
+      obj.discardedNf = message.discardedNf;
+    }
+    if (message.maxQueueSize !== "0") {
+      obj.maxQueueSize = message.maxQueueSize;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogTargetState>): SyslogTargetState {
+    return SyslogTargetState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogTargetState>): SyslogTargetState {
+    const message = createBaseSyslogTargetState();
+    message.index = object.index ?? 0;
+    message.action = object.action ?? "";
+    message.target = object.target ?? "";
+    message.protocol = object.protocol ?? "";
+    message.reported = object.reported ?? false;
+    message.processed = object.processed ?? "0";
+    message.failed = object.failed ?? "0";
+    message.suspended = object.suspended ?? "0";
+    message.suspendedDuration = object.suspendedDuration ?? "0";
+    message.resumed = object.resumed ?? "0";
+    message.queueSize = object.queueSize ?? "0";
+    message.enqueued = object.enqueued ?? "0";
+    message.full = object.full ?? "0";
+    message.discardedFull = object.discardedFull ?? "0";
+    message.discardedNf = object.discardedNf ?? "0";
+    message.maxQueueSize = object.maxQueueSize ?? "0";
+    return message;
+  },
+};
+
+function createBaseSyslogEntriesRequest(): SyslogEntriesRequest {
+  return { owner: "", since: undefined, severity: "", facility: "", query: "", page: 0, pageSize: 0 };
+}
+
+export const SyslogEntriesRequest: MessageFns<SyslogEntriesRequest> = {
+  encode(message: SyslogEntriesRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.since !== undefined) {
+      Timestamp.encode(toTimestamp(message.since), writer.uint32(18).fork()).join();
+    }
+    if (message.severity !== "") {
+      writer.uint32(26).string(message.severity);
+    }
+    if (message.facility !== "") {
+      writer.uint32(34).string(message.facility);
+    }
+    if (message.query !== "") {
+      writer.uint32(42).string(message.query);
+    }
+    if (message.page !== 0) {
+      writer.uint32(48).uint32(message.page);
+    }
+    if (message.pageSize !== 0) {
+      writer.uint32(56).uint32(message.pageSize);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogEntriesRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogEntriesRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.since = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.severity = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.facility = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.query = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.page = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.pageSize = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogEntriesRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      since: isSet(object.since) ? fromJsonTimestamp(object.since) : undefined,
+      severity: isSet(object.severity) ? globalThis.String(object.severity) : "",
+      facility: isSet(object.facility) ? globalThis.String(object.facility) : "",
+      query: isSet(object.query) ? globalThis.String(object.query) : "",
+      page: isSet(object.page) ? globalThis.Number(object.page) : 0,
+      pageSize: isSet(object.pageSize)
+        ? globalThis.Number(object.pageSize)
+        : isSet(object.page_size)
+        ? globalThis.Number(object.page_size)
+        : 0,
+    };
+  },
+
+  toJSON(message: SyslogEntriesRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.since !== undefined) {
+      obj.since = message.since.toISOString();
+    }
+    if (message.severity !== "") {
+      obj.severity = message.severity;
+    }
+    if (message.facility !== "") {
+      obj.facility = message.facility;
+    }
+    if (message.query !== "") {
+      obj.query = message.query;
+    }
+    if (message.page !== 0) {
+      obj.page = Math.round(message.page);
+    }
+    if (message.pageSize !== 0) {
+      obj.pageSize = Math.round(message.pageSize);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogEntriesRequest>): SyslogEntriesRequest {
+    return SyslogEntriesRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogEntriesRequest>): SyslogEntriesRequest {
+    const message = createBaseSyslogEntriesRequest();
+    message.owner = object.owner ?? "";
+    message.since = object.since ?? undefined;
+    message.severity = object.severity ?? "";
+    message.facility = object.facility ?? "";
+    message.query = object.query ?? "";
+    message.page = object.page ?? 0;
+    message.pageSize = object.pageSize ?? 0;
+    return message;
+  },
+};
+
+function createBaseSyslogEntriesResponse(): SyslogEntriesResponse {
+  return {
+    owner: "",
+    retrievedAt: undefined,
+    entries: [],
+    page: 0,
+    pageSize: 0,
+    total: 0,
+    truncated: false,
+    scanned: 0,
+    source: "",
+  };
+}
+
+export const SyslogEntriesResponse: MessageFns<SyslogEntriesResponse> = {
+  encode(message: SyslogEntriesResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    for (const v of message.entries) {
+      SyslogEntry.encode(v!, writer.uint32(26).fork()).join();
+    }
+    if (message.page !== 0) {
+      writer.uint32(32).uint32(message.page);
+    }
+    if (message.pageSize !== 0) {
+      writer.uint32(40).uint32(message.pageSize);
+    }
+    if (message.total !== 0) {
+      writer.uint32(48).uint32(message.total);
+    }
+    if (message.truncated !== false) {
+      writer.uint32(56).bool(message.truncated);
+    }
+    if (message.scanned !== 0) {
+      writer.uint32(64).uint32(message.scanned);
+    }
+    if (message.source !== "") {
+      writer.uint32(74).string(message.source);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogEntriesResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogEntriesResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.entries.push(SyslogEntry.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.page = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.pageSize = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.total = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.truncated = reader.bool();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.scanned = reader.uint32();
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.source = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogEntriesResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      entries: globalThis.Array.isArray(object?.entries) ? object.entries.map((e: any) => SyslogEntry.fromJSON(e)) : [],
+      page: isSet(object.page) ? globalThis.Number(object.page) : 0,
+      pageSize: isSet(object.pageSize)
+        ? globalThis.Number(object.pageSize)
+        : isSet(object.page_size)
+        ? globalThis.Number(object.page_size)
+        : 0,
+      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
+      truncated: isSet(object.truncated) ? globalThis.Boolean(object.truncated) : false,
+      scanned: isSet(object.scanned) ? globalThis.Number(object.scanned) : 0,
+      source: isSet(object.source) ? globalThis.String(object.source) : "",
+    };
+  },
+
+  toJSON(message: SyslogEntriesResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.entries?.length) {
+      obj.entries = message.entries.map((e) => SyslogEntry.toJSON(e));
+    }
+    if (message.page !== 0) {
+      obj.page = Math.round(message.page);
+    }
+    if (message.pageSize !== 0) {
+      obj.pageSize = Math.round(message.pageSize);
+    }
+    if (message.total !== 0) {
+      obj.total = Math.round(message.total);
+    }
+    if (message.truncated !== false) {
+      obj.truncated = message.truncated;
+    }
+    if (message.scanned !== 0) {
+      obj.scanned = Math.round(message.scanned);
+    }
+    if (message.source !== "") {
+      obj.source = message.source;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogEntriesResponse>): SyslogEntriesResponse {
+    return SyslogEntriesResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogEntriesResponse>): SyslogEntriesResponse {
+    const message = createBaseSyslogEntriesResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.entries = object.entries?.map((e) => SyslogEntry.fromPartial(e)) || [];
+    message.page = object.page ?? 0;
+    message.pageSize = object.pageSize ?? 0;
+    message.total = object.total ?? 0;
+    message.truncated = object.truncated ?? false;
+    message.scanned = object.scanned ?? 0;
+    message.source = object.source ?? "";
+    return message;
+  },
+};
+
+function createBaseSyslogEntry(): SyslogEntry {
+  return { time: undefined, severity: "", facility: "", identifier: "", pid: 0, hostname: "", unit: "", message: "" };
+}
+
+export const SyslogEntry: MessageFns<SyslogEntry> = {
+  encode(message: SyslogEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.time !== undefined) {
+      Timestamp.encode(toTimestamp(message.time), writer.uint32(10).fork()).join();
+    }
+    if (message.severity !== "") {
+      writer.uint32(18).string(message.severity);
+    }
+    if (message.facility !== "") {
+      writer.uint32(26).string(message.facility);
+    }
+    if (message.identifier !== "") {
+      writer.uint32(34).string(message.identifier);
+    }
+    if (message.pid !== 0) {
+      writer.uint32(40).uint32(message.pid);
+    }
+    if (message.hostname !== "") {
+      writer.uint32(50).string(message.hostname);
+    }
+    if (message.unit !== "") {
+      writer.uint32(58).string(message.unit);
+    }
+    if (message.message !== "") {
+      writer.uint32(66).string(message.message);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.time = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.severity = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.facility = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.identifier = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.pid = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.hostname = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.unit = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.message = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogEntry {
+    return {
+      time: isSet(object.time) ? fromJsonTimestamp(object.time) : undefined,
+      severity: isSet(object.severity) ? globalThis.String(object.severity) : "",
+      facility: isSet(object.facility) ? globalThis.String(object.facility) : "",
+      identifier: isSet(object.identifier) ? globalThis.String(object.identifier) : "",
+      pid: isSet(object.pid) ? globalThis.Number(object.pid) : 0,
+      hostname: isSet(object.hostname) ? globalThis.String(object.hostname) : "",
+      unit: isSet(object.unit) ? globalThis.String(object.unit) : "",
+      message: isSet(object.message) ? globalThis.String(object.message) : "",
+    };
+  },
+
+  toJSON(message: SyslogEntry): unknown {
+    const obj: any = {};
+    if (message.time !== undefined) {
+      obj.time = message.time.toISOString();
+    }
+    if (message.severity !== "") {
+      obj.severity = message.severity;
+    }
+    if (message.facility !== "") {
+      obj.facility = message.facility;
+    }
+    if (message.identifier !== "") {
+      obj.identifier = message.identifier;
+    }
+    if (message.pid !== 0) {
+      obj.pid = Math.round(message.pid);
+    }
+    if (message.hostname !== "") {
+      obj.hostname = message.hostname;
+    }
+    if (message.unit !== "") {
+      obj.unit = message.unit;
+    }
+    if (message.message !== "") {
+      obj.message = message.message;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogEntry>): SyslogEntry {
+    return SyslogEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogEntry>): SyslogEntry {
+    const message = createBaseSyslogEntry();
+    message.time = object.time ?? undefined;
+    message.severity = object.severity ?? "";
+    message.facility = object.facility ?? "";
+    message.identifier = object.identifier ?? "";
+    message.pid = object.pid ?? 0;
+    message.hostname = object.hostname ?? "";
+    message.unit = object.unit ?? "";
+    message.message = object.message ?? "";
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
@@ -42732,6 +46928,60 @@ export const DataplaneService = {
       Buffer.from(InterfaceStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
   },
+  /**
+   * DnsState reads the Unbound resolver instance this agent renders (unbound-control status,
+   * stats_noreset, list_forwards / list_stubs / list_local_zones / list_local_data), its pending
+   * start/restart request and the VPP DNS cache as configured (write-only in VPP). Never mutates.
+   */
+  dnsState: {
+    path: "/vrx.v1.Dataplane/DnsState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: DnsStateRequest): Buffer => Buffer.from(DnsStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): DnsStateRequest => DnsStateRequest.decode(value),
+    responseSerialize: (value: DnsStateResponse): Buffer => Buffer.from(DnsStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): DnsStateResponse => DnsStateResponse.decode(value),
+  },
+  /**
+   * NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
+   * sourcestats / serverstats) and its pending start/restart request. Never mutates.
+   */
+  ntpState: {
+    path: "/vrx.v1.Dataplane/NtpState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: NtpStateRequest): Buffer => Buffer.from(NtpStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): NtpStateRequest => NtpStateRequest.decode(value),
+    responseSerialize: (value: NtpStateResponse): Buffer => Buffer.from(NtpStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): NtpStateResponse => NtpStateResponse.decode(value),
+  },
+  /**
+   * SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
+   * counters, and the pending restart request. Never mutates.
+   */
+  syslogState: {
+    path: "/vrx.v1.Dataplane/SyslogState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: SyslogStateRequest): Buffer => Buffer.from(SyslogStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): SyslogStateRequest => SyslogStateRequest.decode(value),
+    responseSerialize: (value: SyslogStateResponse): Buffer => Buffer.from(SyslogStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): SyslogStateResponse => SyslogStateResponse.decode(value),
+  },
+  /**
+   * SyslogEntries is the log explorer: one bounded, paged, read-only query of the local journal
+   * (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
+   */
+  syslogEntries: {
+    path: "/vrx.v1.Dataplane/SyslogEntries" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: SyslogEntriesRequest): Buffer => Buffer.from(SyslogEntriesRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): SyslogEntriesRequest => SyslogEntriesRequest.decode(value),
+    responseSerialize: (value: SyslogEntriesResponse): Buffer =>
+      Buffer.from(SyslogEntriesResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): SyslogEntriesResponse => SyslogEntriesResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -42777,6 +47027,27 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
    */
   interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
+  /**
+   * DnsState reads the Unbound resolver instance this agent renders (unbound-control status,
+   * stats_noreset, list_forwards / list_stubs / list_local_zones / list_local_data), its pending
+   * start/restart request and the VPP DNS cache as configured (write-only in VPP). Never mutates.
+   */
+  dnsState: handleUnaryCall<DnsStateRequest, DnsStateResponse>;
+  /**
+   * NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
+   * sourcestats / serverstats) and its pending start/restart request. Never mutates.
+   */
+  ntpState: handleUnaryCall<NtpStateRequest, NtpStateResponse>;
+  /**
+   * SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
+   * counters, and the pending restart request. Never mutates.
+   */
+  syslogState: handleUnaryCall<SyslogStateRequest, SyslogStateResponse>;
+  /**
+   * SyslogEntries is the log explorer: one bounded, paged, read-only query of the local journal
+   * (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
+   */
+  syslogEntries: handleUnaryCall<SyslogEntriesRequest, SyslogEntriesResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -42906,6 +47177,83 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * DnsState reads the Unbound resolver instance this agent renders (unbound-control status,
+   * stats_noreset, list_forwards / list_stubs / list_local_zones / list_local_data), its pending
+   * start/restart request and the VPP DNS cache as configured (write-only in VPP). Never mutates.
+   */
+  dnsState(
+    request: DnsStateRequest,
+    callback: (error: ServiceError | null, response: DnsStateResponse) => void,
+  ): ClientUnaryCall;
+  dnsState(
+    request: DnsStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: DnsStateResponse) => void,
+  ): ClientUnaryCall;
+  dnsState(
+    request: DnsStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: DnsStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
+   * sourcestats / serverstats) and its pending start/restart request. Never mutates.
+   */
+  ntpState(
+    request: NtpStateRequest,
+    callback: (error: ServiceError | null, response: NtpStateResponse) => void,
+  ): ClientUnaryCall;
+  ntpState(
+    request: NtpStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: NtpStateResponse) => void,
+  ): ClientUnaryCall;
+  ntpState(
+    request: NtpStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: NtpStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
+   * counters, and the pending restart request. Never mutates.
+   */
+  syslogState(
+    request: SyslogStateRequest,
+    callback: (error: ServiceError | null, response: SyslogStateResponse) => void,
+  ): ClientUnaryCall;
+  syslogState(
+    request: SyslogStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: SyslogStateResponse) => void,
+  ): ClientUnaryCall;
+  syslogState(
+    request: SyslogStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: SyslogStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * SyslogEntries is the log explorer: one bounded, paged, read-only query of the local journal
+   * (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
+   */
+  syslogEntries(
+    request: SyslogEntriesRequest,
+    callback: (error: ServiceError | null, response: SyslogEntriesResponse) => void,
+  ): ClientUnaryCall;
+  syslogEntries(
+    request: SyslogEntriesRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: SyslogEntriesResponse) => void,
+  ): ClientUnaryCall;
+  syslogEntries(
+    request: SyslogEntriesRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: SyslogEntriesResponse) => void,
   ): ClientUnaryCall;
 }
 

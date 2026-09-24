@@ -1,0 +1,62 @@
+{
+  "vrfs": { "default": { "id": 0 } },
+  "interfaces": {
+    "loop1053": { "enabled": true, "ipv4": ["192.0.2.53/32"], "ipv6": ["2001:db8:53::1/128"] }
+  },
+  "services": {
+    "dns": {
+      "resolvers": {
+        "lan": {
+          "description": "caching resolver with DNSSEC",
+          "listen": [{ "address": "192.0.2.53", "port": 53 }, { "address": "2001:db8:53::1" }],
+          "accessControl": [{ "prefix": "192.0.2.0/24", "action": "allow" }],
+          "forwarders": [{ "address": "9.9.9.9", "port": 853, "tls": true, "tlsServerName": "dns.quad9.net" }],
+          "forwardZones": [{ "zone": "corp.example.", "forwarders": [{ "address": "10.0.0.53" }], "forwardFirst": true }],
+          "localZones": [
+            {
+              "zone": "lab.example.",
+              "type": "static",
+              "records": [
+                { "name": "gw.lab.example.", "type": "A", "data": "192.0.2.1" },
+                { "name": "lab.example.", "type": "TXT", "data": "v=spf1 -all" }
+              ]
+            }
+          ],
+          "dnssec": { "enabled": true, "trustAnchorAuto": true },
+          "cache": { "prefetch": true, "maxTtlSec": 3600 },
+          "logQueries": false
+        }
+      },
+      "vppCache": { "enabled": false, "upstreams": ["192.0.2.53"] }
+    },
+    "ntp": {
+      "enabled": true,
+      "servers": [{ "address": "ntp1.example.net", "prefer": true }, { "address": "192.0.2.123", "nts": true }],
+      "pools": ["pool.ntp.org"],
+      "allow": ["192.0.2.0/24"],
+      "listen": ["192.0.2.53"],
+      "localStratum": 10
+    }
+  },
+  "management": {
+    "syslog": [
+      {
+        "address": "192.0.2.10",
+        "port": 6514,
+        "protocol": "tls",
+        "severity": "notice",
+        "facilities": ["auth", "authpriv", "local7"],
+        "format": "rfc5424",
+        "queueSize": 50000,
+        "tls": {
+          "caRef": "cert/syslog-ca",
+          "certRef": "cert/syslog-client",
+          "keyRef": "key/syslog-client",
+          "authMode": "x509/name",
+          "permittedPeers": ["collector.example.net"]
+        }
+      },
+      { "address": "collector2.example.net", "protocol": "tcp", "format": "rfc3164", "facilities": [] }
+    ]
+  }
+}

@@ -107,6 +107,20 @@ service Dataplane {
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
+
+  // DnsState reads the Unbound resolver instance this agent renders (unbound-control status,
+  // stats_noreset, list_forwards / list_stubs / list_local_zones / list_local_data), its pending
+  // start/restart request and the VPP DNS cache as configured (write-only in VPP). Never mutates.
+  rpc DnsState(DnsStateRequest) returns (DnsStateResponse);
+  // NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
+  // sourcestats / serverstats) and its pending start/restart request. Never mutates.
+  rpc NtpState(NtpStateRequest) returns (NtpStateResponse);
+  // SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
+  // counters, and the pending restart request. Never mutates.
+  rpc SyslogState(SyslogStateRequest) returns (SyslogStateResponse);
+  // SyslogEntries is the log explorer: one bounded, paged, read-only query of the local journal
+  // (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
+  rpc SyslogEntries(SyslogEntriesRequest) returns (SyslogEntriesResponse);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -518,6 +532,9 @@ message ActionRequest {
     // wave-A: F-neighbors-ra
     // wave-A: F-nat44-ed-sessions
     // wave-A: F-unbound-chrony-syslog
+
+    // Resolve a name through VPP's caching DNS plugin (dns_resolve_name; F-unbound-chrony-syslog).
+    DnsLookupAction dns_lookup = 7;
   }
 }
 
@@ -2349,6 +2366,15 @@ message SyslogTarget {
   optional string severity = 4;
   // VRF the collector is reached through; Zod default "default".
   optional string vrf = 5;
+  // F-unbound-chrony-syslog (D-086, the RF-4 stand-ins; numbers from wave-A-hotspots §2):
+  // facilities forwarded ("kern", "daemon", "local0" …); empty = every facility.
+  repeated string facilities = 6;
+  // "rfc5424" | "rfc3164"; unset = rfc5424.
+  optional string format = 7;
+  // Messages queued while the collector is unreachable (100..1000000); unset = 10000.
+  optional uint32 queue_size = 8;
+  // TLS settings; only with protocol "tls" (then required).
+  SyslogTls tls = 9;
 }
 
 // ----- nat (P02b, mirrors packages/schema/src/domains/nat.ts) -----
@@ -3590,6 +3616,280 @@ message RemoteAccessProfile {
 // ----- F-kea-dhcp-relay -----
 
 // ----- F-unbound-chrony-syslog -----
+
+// SyslogTls is the TLS part of one remote-syslog target (management.syslog[i].tls). Material is
+// referenced (D-051), never inline.
+message SyslogTls {
+  // CA certificate that verifies the collector ("cert/<name>").
+  optional string ca_ref = 1;
+  // Client certificate ("cert/<name>"); goes with key_ref.
+  optional string cert_ref = 2;
+  // Client private key ("key/<name>"); goes with cert_ref.
+  optional string key_ref = 3;
+  // "x509/name" | "x509/certvalid"; unset = x509/name.
+  optional string auth_mode = 4;
+  // Accepted collector certificate names (x509/name); empty = the collector host name.
+  repeated string permitted_peers = 5;
+}
+
+// DnsLookupAction resolves one name through VPP's DNS cache (dns_resolve_name). Works only where
+// the VPP dns plugin is enabled (the globals owner, D-071). Output: one line per address, then
+// done with stats "ipv4" / "ipv6".
+message DnsLookupAction {
+  // DNS name (≤ 253 characters of [A-Za-z0-9.-_]; validated by the agent).
+  string name = 1;
+  // Deadline in milliseconds; 0 = 5000; max 30000.
+  uint32 timeout_ms = 2;
+}
+
+// ServiceDaemonAction is a start/restart request a renderer returned and persisted (D-079): the
+// files are written, the daemon applies them only after the action. It stays until the daemon's
+// process started after the request.
+message ServiceDaemonAction {
+  // "unbound" | "chronyd" | "rsyslogd".
+  string daemon = 1;
+  // systemd unit the product acts on ("unbound", "chrony", "rsyslog").
+  string unit = 2;
+  // "start" | "restart".
+  string action = 3;
+  // Why the action is needed.
+  string reason = 4;
+}
+
+// DnsStateRequest selects the owner (same rules as ApplyRequest.owner).
+message DnsStateRequest {
+  string owner = 1;
+}
+
+// DnsStateResponse is one snapshot of the Unbound instance (not configuration).
+message DnsStateResponse {
+  // The owner whose view was returned.
+  string owner = 1;
+  // When the snapshot was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 2;
+  // True when unbound answers on its control socket.
+  bool running = 3;
+  // unbound-control status ("version", "verbosity", "uptime" …).
+  map<string, string> status = 4;
+  // unbound-control stats_noreset ("total.num.queries" …).
+  map<string, string> stats = 5;
+  // list_forwards.
+  repeated DnsZoneState forwards = 6;
+  // list_stubs.
+  repeated DnsZoneState stubs = 7;
+  // list_local_zones.
+  repeated DnsLocalZoneState local_zones = 8;
+  // list_local_data, one record per line.
+  repeated string local_data = 9;
+  // list_local_data exceeded the capture limit; local_data is then empty.
+  bool local_data_truncated = 10;
+  // Pending start/restart requests of the Unbound renderer.
+  repeated ServiceDaemonAction pending_actions = 11;
+  // The VPP DNS cache as this agent applies it.
+  DnsVppCacheState vpp_cache = 12;
+  // Path of the rendered unbound.conf.
+  string config_path = 13;
+  // A read error (the snapshot is partial); empty when complete.
+  string error = 14;
+}
+
+// DnsZoneState is one list_forwards / list_stubs line.
+message DnsZoneState {
+  string zone = 1;
+  // "forward" | "stub".
+  string kind = 2;
+  // "+i", "+t" … flags as unbound prints them.
+  repeated string flags = 3;
+  repeated string addresses = 4;
+}
+
+// DnsLocalZoneState is one list_local_zones line.
+message DnsLocalZoneState {
+  string zone = 1;
+  string type = 2;
+}
+
+// DnsVppCacheState: VPP's dns plugin has no getter (D-063), so the state is what this agent applied.
+message DnsVppCacheState {
+  // The running configuration enables the VPP cache.
+  bool configured = 1;
+  // This agent is the globals owner and programs it (D-071); false = another agent does, or none.
+  bool applied_by_this_agent = 2;
+  // Upstream name servers as configured.
+  repeated string upstreams = 3;
+}
+
+// NtpStateRequest selects the owner.
+message NtpStateRequest {
+  string owner = 1;
+}
+
+// NtpStateResponse is one snapshot of the chronyd instance.
+message NtpStateResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  // True when chronyd answers on its command socket.
+  bool running = 3;
+  // chronyc -c tracking (unset when not running).
+  NtpTracking tracking = 4;
+  // chronyc -c sources.
+  repeated NtpSource sources = 5;
+  // chronyc -c sourcestats.
+  repeated NtpSourceStats source_stats = 6;
+  // chronyc -c serverstats (name → value).
+  map<string, string> server_stats = 7;
+  // Pending start/restart requests of the chrony renderer.
+  repeated ServiceDaemonAction pending_actions = 8;
+  // Path of the rendered chrony.conf.
+  string config_path = 9;
+  // A read error; empty when complete.
+  string error = 10;
+}
+
+// NtpTracking mirrors `chronyc -c tracking` (seconds, ppm).
+message NtpTracking {
+  string ref_id = 1;
+  string ref_name = 2;
+  int32 stratum = 3;
+  double ref_time = 4;
+  double system_time = 5;
+  double last_offset = 6;
+  double rms_offset = 7;
+  double frequency = 8;
+  double residual_freq = 9;
+  double skew = 10;
+  double root_delay = 11;
+  double root_dispersion = 12;
+  double update_interval = 13;
+  string leap = 14;
+}
+
+// NtpSource mirrors one `chronyc -c sources` row.
+message NtpSource {
+  // "^" server, "=" peer, "#" refclock.
+  string mode = 1;
+  // "*" selected, "+" combined, "-" not combined, "?" unusable, "x" falseticker, "~" variable.
+  string state = 2;
+  string name = 3;
+  int32 stratum = 4;
+  int32 poll = 5;
+  // Reachability register (octal).
+  string reach = 6;
+  string last_rx = 7;
+  double offset = 8;
+  double measured = 9;
+  double error = 10;
+}
+
+// NtpSourceStats mirrors one `chronyc -c sourcestats` row.
+message NtpSourceStats {
+  string name = 1;
+  int32 np = 2;
+  int32 nr = 3;
+  int32 span = 4;
+  double frequency = 5;
+  double freq_skew = 6;
+  double offset = 7;
+  double std_dev = 8;
+}
+
+// SyslogStateRequest selects the owner.
+message SyslogStateRequest {
+  string owner = 1;
+}
+
+// SyslogStateResponse is one snapshot of the remote-syslog export (rsyslog impstats).
+message SyslogStateResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  // One entry per rendered target, in management.syslog order.
+  repeated SyslogTargetState targets = 3;
+  // Messages submitted per rsyslog input (imuxsock, imtcp …).
+  map<string, int64> inputs = 4;
+  // Pending restart request of the rsyslog renderer (test slots: the slot instance).
+  repeated ServiceDaemonAction pending_actions = 5;
+  // Path of the rendered export file.
+  string config_path = 6;
+  // Why counters are unavailable ("no impstats yet"); empty when complete.
+  string error = 7;
+}
+
+// SyslogTargetState is one export action as impstats reports it.
+message SyslogTargetState {
+  // Index in management.syslog.
+  uint32 index = 1;
+  // rsyslog action name ("vrx_export_<i>_<hash>").
+  string action = 2;
+  // "<host>:<port>".
+  string target = 3;
+  // "udp" | "tcp".
+  string protocol = 4;
+  // False when impstats has no record of the action (rsyslog not running or not reporting yet).
+  bool reported = 5;
+  int64 processed = 6;
+  int64 failed = 7;
+  int64 suspended = 8;
+  int64 suspended_duration = 9;
+  int64 resumed = 10;
+  int64 queue_size = 11;
+  int64 enqueued = 12;
+  int64 full = 13;
+  int64 discarded_full = 14;
+  int64 discarded_nf = 15;
+  int64 max_queue_size = 16;
+}
+
+// SyslogEntriesRequest is one log-explorer query of the local journal.
+message SyslogEntriesRequest {
+  string owner = 1;
+  // Oldest entry considered; unset = one hour ago. Never older than 30 days.
+  google.protobuf.Timestamp since = 2;
+  // Minimum severity ("emergency" … "debug"); "" = all.
+  string severity = 3;
+  // Syslog facility name ("kern", "daemon", "local0" …); "" = all.
+  string facility = 4;
+  // Case-insensitive substring of the message or identifier (≤ 128 printable characters; a plain
+  // string, never a pattern); "" = all.
+  string query = 5;
+  // 1-based page, newest first; 0 = 1.
+  uint32 page = 6;
+  // Entries per page; 0 = 100; max 500.
+  uint32 page_size = 7;
+}
+
+// SyslogEntriesResponse is one page of journal entries, newest first.
+message SyslogEntriesResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  repeated SyslogEntry entries = 3;
+  uint32 page = 4;
+  uint32 page_size = 5;
+  // Matching entries within the scanned window.
+  uint32 total = 6;
+  // The scan stopped at its bound (the newest `scanned` entries since `since` were searched).
+  bool truncated = 7;
+  // Entries read from the journal.
+  uint32 scanned = 8;
+  // "journald".
+  string source = 9;
+}
+
+// SyslogEntry is one journal entry.
+message SyslogEntry {
+  google.protobuf.Timestamp time = 1;
+  // "emergency" … "debug" ("" when the entry has no priority).
+  string severity = 2;
+  // Facility name ("" when unknown).
+  string facility = 3;
+  // SYSLOG_IDENTIFIER (or _COMM).
+  string identifier = 4;
+  uint32 pid = 5;
+  string hostname = 6;
+  // _SYSTEMD_UNIT ("" when none).
+  string unit = 7;
+  // The message (non-UTF-8 bytes replaced, at most 4096 characters).
+  string message = 8;
+}
 
 // ----- F-det44-map-dslite-cnat -----
 

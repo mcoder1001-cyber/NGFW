@@ -5395,6 +5395,52 @@ export interface components {
          * @default default
          */
         vrf: string;
+        /** Facilities */
+        facilities?: (
+          | 'kern'
+          | 'user'
+          | 'mail'
+          | 'daemon'
+          | 'auth'
+          | 'syslog'
+          | 'lpr'
+          | 'news'
+          | 'uucp'
+          | 'cron'
+          | 'authpriv'
+          | 'ftp'
+          | 'local0'
+          | 'local1'
+          | 'local2'
+          | 'local3'
+          | 'local4'
+          | 'local5'
+          | 'local6'
+          | 'local7'
+        )[];
+        /**
+         * Format
+         * @enum {string}
+         */
+        format?: 'rfc5424' | 'rfc3164';
+        /** Queue size (messages) */
+        queueSize?: number;
+        /** TLS */
+        tls?: {
+          /** CA certificate (reference) */
+          caRef: string;
+          /** Client certificate (reference) */
+          certRef?: string;
+          /** Client private key (reference) */
+          keyRef?: string;
+          /**
+           * Peer authentication
+           * @enum {string}
+           */
+          authMode?: 'x509/name' | 'x509/certvalid';
+          /** Permitted peer names */
+          permittedPeers?: string[];
+        };
       }[];
     };
     /** @description The whole configuration document (docs/04). Secret leaves are write-only and never returned. */

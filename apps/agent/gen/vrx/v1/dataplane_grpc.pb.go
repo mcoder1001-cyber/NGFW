@@ -54,6 +54,10 @@ const (
 	Dataplane_Action_FullMethodName         = "/vrx.v1.Dataplane/Action"
 	Dataplane_Health_FullMethodName         = "/vrx.v1.Dataplane/Health"
 	Dataplane_InterfaceState_FullMethodName = "/vrx.v1.Dataplane/InterfaceState"
+	Dataplane_DnsState_FullMethodName       = "/vrx.v1.Dataplane/DnsState"
+	Dataplane_NtpState_FullMethodName       = "/vrx.v1.Dataplane/NtpState"
+	Dataplane_SyslogState_FullMethodName    = "/vrx.v1.Dataplane/SyslogState"
+	Dataplane_SyslogEntries_FullMethodName  = "/vrx.v1.Dataplane/SyslogEntries"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -92,6 +96,19 @@ type DataplaneClient interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(ctx context.Context, in *InterfaceStateRequest, opts ...grpc.CallOption) (*InterfaceStateResponse, error)
+	// DnsState reads the Unbound resolver instance this agent renders (unbound-control status,
+	// stats_noreset, list_forwards / list_stubs / list_local_zones / list_local_data), its pending
+	// start/restart request and the VPP DNS cache as configured (write-only in VPP). Never mutates.
+	DnsState(ctx context.Context, in *DnsStateRequest, opts ...grpc.CallOption) (*DnsStateResponse, error)
+	// NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
+	// sourcestats / serverstats) and its pending start/restart request. Never mutates.
+	NtpState(ctx context.Context, in *NtpStateRequest, opts ...grpc.CallOption) (*NtpStateResponse, error)
+	// SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
+	// counters, and the pending restart request. Never mutates.
+	SyslogState(ctx context.Context, in *SyslogStateRequest, opts ...grpc.CallOption) (*SyslogStateResponse, error)
+	// SyslogEntries is the log explorer: one bounded, paged, read-only query of the local journal
+	// (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
+	SyslogEntries(ctx context.Context, in *SyslogEntriesRequest, opts ...grpc.CallOption) (*SyslogEntriesResponse, error)
 }
 
 type dataplaneClient struct {
@@ -209,6 +226,46 @@ func (c *dataplaneClient) InterfaceState(ctx context.Context, in *InterfaceState
 	return out, nil
 }
 
+func (c *dataplaneClient) DnsState(ctx context.Context, in *DnsStateRequest, opts ...grpc.CallOption) (*DnsStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DnsStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_DnsState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) NtpState(ctx context.Context, in *NtpStateRequest, opts ...grpc.CallOption) (*NtpStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NtpStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_NtpState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) SyslogState(ctx context.Context, in *SyslogStateRequest, opts ...grpc.CallOption) (*SyslogStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SyslogStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_SyslogState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) SyslogEntries(ctx context.Context, in *SyslogEntriesRequest, opts ...grpc.CallOption) (*SyslogEntriesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SyslogEntriesResponse)
+	err := c.cc.Invoke(ctx, Dataplane_SyslogEntries_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -245,6 +302,19 @@ type DataplaneServer interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error)
+	// DnsState reads the Unbound resolver instance this agent renders (unbound-control status,
+	// stats_noreset, list_forwards / list_stubs / list_local_zones / list_local_data), its pending
+	// start/restart request and the VPP DNS cache as configured (write-only in VPP). Never mutates.
+	DnsState(context.Context, *DnsStateRequest) (*DnsStateResponse, error)
+	// NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
+	// sourcestats / serverstats) and its pending start/restart request. Never mutates.
+	NtpState(context.Context, *NtpStateRequest) (*NtpStateResponse, error)
+	// SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
+	// counters, and the pending restart request. Never mutates.
+	SyslogState(context.Context, *SyslogStateRequest) (*SyslogStateResponse, error)
+	// SyslogEntries is the log explorer: one bounded, paged, read-only query of the local journal
+	// (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
+	SyslogEntries(context.Context, *SyslogEntriesRequest) (*SyslogEntriesResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -278,6 +348,18 @@ func (UnimplementedDataplaneServer) Health(context.Context, *HealthRequest) (*He
 }
 func (UnimplementedDataplaneServer) InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InterfaceState not implemented")
+}
+func (UnimplementedDataplaneServer) DnsState(context.Context, *DnsStateRequest) (*DnsStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DnsState not implemented")
+}
+func (UnimplementedDataplaneServer) NtpState(context.Context, *NtpStateRequest) (*NtpStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method NtpState not implemented")
+}
+func (UnimplementedDataplaneServer) SyslogState(context.Context, *SyslogStateRequest) (*SyslogStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SyslogState not implemented")
+}
+func (UnimplementedDataplaneServer) SyslogEntries(context.Context, *SyslogEntriesRequest) (*SyslogEntriesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SyslogEntries not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -423,6 +505,78 @@ func _Dataplane_InterfaceState_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_DnsState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DnsStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).DnsState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_DnsState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).DnsState(ctx, req.(*DnsStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_NtpState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NtpStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).NtpState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_NtpState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).NtpState(ctx, req.(*NtpStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_SyslogState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SyslogStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).SyslogState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_SyslogState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).SyslogState(ctx, req.(*SyslogStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_SyslogEntries_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SyslogEntriesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).SyslogEntries(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_SyslogEntries_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).SyslogEntries(ctx, req.(*SyslogEntriesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -449,6 +603,22 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InterfaceState",
 			Handler:    _Dataplane_InterfaceState_Handler,
+		},
+		{
+			MethodName: "DnsState",
+			Handler:    _Dataplane_DnsState_Handler,
+		},
+		{
+			MethodName: "NtpState",
+			Handler:    _Dataplane_NtpState_Handler,
+		},
+		{
+			MethodName: "SyslogState",
+			Handler:    _Dataplane_SyslogState_Handler,
+		},
+		{
+			MethodName: "SyslogEntries",
+			Handler:    _Dataplane_SyslogEntries_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

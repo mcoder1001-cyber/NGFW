@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"sync"
@@ -686,4 +687,41 @@ func TestConcurrentPlansWithWriteOnly(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+// changing descriptor: Create stores a different value than desired, so verification fails.
+type changing struct{ mem }
+
+func (c *changing) Create(ctx context.Context, o proto.Message) (any, error) {
+	v := proto.Clone(o).(*structpb.Struct)
+	v.Fields["val"] = structpb.NewStringValue("other")
+	return c.mem.Create(ctx, v)
+}
+
+// TestErrorsAndLogsNeverPrintValues plants a secret in a desired value and makes verification fail:
+// neither the transaction error nor any log line may contain it (review DF-5 H1).
+func TestErrorsAndLogsNeverPrintValues(t *testing.T) {
+	const secret = "VRX_TEST_PSK_scheduler_plant"
+	st := newStore()
+	reg := NewRegistry()
+	reg.Register(&changing{mem{name: "s", st: st}})
+	var logs strings.Builder
+	s := New(reg, slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	s.VerifyRetries = 0
+	r := s.Apply(context.Background(), []KV{kv("s", obj("x", secret))}, nil)
+	if r.Outcome == OutcomeApplied || r.Err == nil {
+		t.Fatalf("expected a verification failure, got %s", r.Outcome)
+	}
+	all := r.Err.Error() + logs.String()
+	for _, res := range r.Results {
+		if res.Err != nil {
+			all += res.Err.Error()
+		}
+	}
+	if strings.Contains(all, secret) || strings.Contains(all, "other") {
+		t.Fatalf("a value leaked into errors/logs:\n%s", all)
+	}
+	if !strings.Contains(r.Err.Error(), "s/x differs: google.protobuf.Struct fields [fields] (values redacted)") {
+		t.Fatalf("error lacks the redacted summary: %v", r.Err)
+	}
 }

@@ -26,6 +26,8 @@ import faVpn from './locales/fa/vpn.json';
 // wave-A: F-vlan-qinq
 // wave-A: F-bonding
 // wave-A: F-bridge-l2
+import enBridgeL2 from './locales/en/bridge-l2.json';
+import faBridgeL2 from './locales/fa/bridge-l2.json';
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
 // wave-A: F-neighbors-ra
@@ -56,6 +58,7 @@ export const NAMESPACES = [
   // wave-A: F-vlan-qinq
   // wave-A: F-bonding
   // wave-A: F-bridge-l2
+  'bridge-l2',
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
@@ -88,6 +91,7 @@ const en = {
   // wave-A: F-vlan-qinq
   // wave-A: F-bonding
   // wave-A: F-bridge-l2
+  'bridge-l2': enBridgeL2,
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
@@ -117,6 +121,7 @@ const fa = {
   // wave-A: F-vlan-qinq
   // wave-A: F-bonding
   // wave-A: F-bridge-l2
+  'bridge-l2': faBridgeL2,
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra

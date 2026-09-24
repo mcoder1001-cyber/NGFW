@@ -100,6 +100,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // the feature's namespace (wave-A-hotspots W2).
   // wave-A: F-bonding
   // wave-A: F-bridge-l2
+  groups.get('interfaces')!.push({ id: 'bridging', path: '/interfaces/bridging', labelKey: 'bridge-l2:nav.bridging', fallbackLabel: 'Bridging', available: true });
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr

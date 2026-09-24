@@ -37,6 +37,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // Feature items, in navigation order (group, then schema order, then non-domain items); one line under the feature's anchor.
       // wave-A: F-bonding
       // wave-A: F-bridge-l2
+      'bridging',
       // wave-A: F-loopback-bvi-gso-lldp-span
       // wave-A: F-vrf-static-ecmp
       // wave-A: F-neighbors-ra

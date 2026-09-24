@@ -14,3 +14,6 @@
   step failed (this branch's older harness, not touched here); 22:58 branch `tools/ci.sh --base main` → CI GATE PASSED (5m49s).
 - 23:09 cleanup evidence (no w2 objects in VPP, vrx_w2 absent, rig down, NRestarts 1 unchanged); status doc final.
 - left: nothing — waiting for the manager's merge (main merge + P08 dedupe is theirs, D-114/D-120).
+- fix round 1 (review 4435fcf): 23:5x main merged (266d1dc, 4431c24; df67a8e as effective base); agent b7d45081, api/web
+  5f619ae1, contract regen 9cdee9c8, questions Q14/Q15 8d20a853; e2e 53/53; 00:17 `tools/ci.sh --base main` → CI GATE
+  PASSED; status "Fix round 1" section d2989170. Left: nothing in owned files (Q14 = manager/CLI tech debt).

@@ -2336,15 +2336,15 @@ tasks:
   - F-startup-apply
   priority: 3
   est_hours: 3
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.6
   scope: D-103; F-startup-apply-verify.md V1–V9 + L1
   files_owned: deploy/vpp/apply-startup.sh deploy/vpp/test-apply-startup.sh apps/agent/cmd/vrx-vppcheck/** tools/ci.sh (harness hunk only) docs/agent/renderers/vppstartup.md docs/status/tasks/TD-6*
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/TD-6
+  worktree: /root/ngfw-wt/TD-6
+  owner: host-agent slot6
+  started: 2026-09-24T08:45
   finished: ''
-  notes: 'D-103: must merge before any real --apply on vrx-a'
+  notes: 'D-103: must merge before any real --apply on vrx-a | spawned 08:4x slot 6 (Agent tool), envelope /root/ngfw-wt/TD-6.envelope.md'

@@ -25,7 +25,7 @@ let failures = 0;
 for (const lang of ['en', 'fa']) {
   const auth = L(lang, 'auth');
   const nat = L(lang, 'nat44-ed-sessions');
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+  const ctx = await browser.newContext({ viewport: { width: 1680, height: 1100 } });
   await ctx.addInitScript((s) => localStorage.setItem('vrx.ui.settings', JSON.stringify(s)), {
     mode: 'light',
     lang,
@@ -90,7 +90,9 @@ for (const lang of ['en', 'fa']) {
     await page.waitForTimeout(1500);
     shot = `nat-${tab}-${lang}${rtl}.png`;
     await page.screenshot({ path: join(OUT, shot) });
-    console.log(`${shot}  html dir/lang=${await dir()}  status=${JSON.stringify(flat(await page.getByTestId('nat-status').first().innerText()))}  pageErrors=${errors.length}`);
+    const status = page.getByTestId('nat-status');
+    const st = (await status.count()) > 0 ? flat(await status.first().innerText()) : '-';
+    console.log(`${shot}  html dir/lang=${await dir()}  status=${JSON.stringify(st)}  pageErrors=${errors.length}`);
   }
   if (errors.length > 0) {
     console.log(`[${lang}] page errors: ${JSON.stringify(errors)}`);

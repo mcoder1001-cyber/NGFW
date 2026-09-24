@@ -67,6 +67,12 @@ func (r rig) peers(t *testing.T, up bool) {
 	_, _ = run(t, "ip", "netns", "exec", r.wanNS, "sysctl", "-qw", "net.ipv6.conf."+r.wanPeer+".disable_ipv6=1")
 	mustRun(t, "ip", "-n", r.lanNS, "route", "replace", "default", "via", r.lanGW)
 	mustRun(t, "ip", "-n", r.wanNS, "route", "replace", "default", "via", r.wanGW)
+	// The namespaces' kernels hand TCP/UDP to the veth with a PARTIAL checksum (tx checksum offload); VPP's af_packet
+	// input keeps it partial, NAT44-ED rewrites addresses/ports on top of it and the far host drops the segment
+	// silently (ICMP, checksummed in software, passes). A real NIC delivers complete checksums: offload off in the rig
+	// namespaces (test side only; F-nat44-ed-sessions questions Q7 / V-new).
+	mustRun(t, "ip", "netns", "exec", r.lanNS, "ethtool", "-K", r.lanPeer, "tx", "off")
+	mustRun(t, "ip", "netns", "exec", r.wanNS, "ethtool", "-K", r.wanPeer, "tx", "off")
 }
 
 // inNS runs a fixed command in a namespace of the rig.

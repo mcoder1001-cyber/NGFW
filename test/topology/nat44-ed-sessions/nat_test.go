@@ -140,6 +140,19 @@ func TestNat44EdSessions(t *testing.T) {
 		t.Log("rig VPP side handed to the agent: " + l)
 	}
 	f.st = newStack(t, s)
+	// runs before the stack stops (LIFO): whatever NAT object of the slot a failed step left behind is removed through
+	// the binary API, dependents first (D-095 c), so the plugin fixture can restore its previous state
+	t.Cleanup(func() {
+		if f.ifIdx == nil {
+			return
+		}
+		if left := ours(t, conn, s.prefix, f.slotNet, f.ifIdx); len(left) > 0 {
+			t.Logf("cleanup: %d NAT objects of the slot left by a failed step: %v", len(left), left)
+			for _, l := range natLoss(t, conn, s.prefix, f.slotNet, f.ifIdx) {
+				t.Log("cleanup: " + l)
+			}
+		}
+	})
 	f.a = f.st.api
 	f.c = dialAgent(t, s.socket)
 	f.scripts = f.st.work
@@ -275,6 +288,34 @@ func TestNat44EdSessions(t *testing.T) {
 }
 
 // sessionRow finds the API row of one inside endpoint.
+// TestNat44EdGC removes this slot's NAT44-ED objects from VPP (pool addresses in 10.N/16, mappings tagged
+// "<prefix>:", features on the rig interfaces) after an aborted run: VRX_NAT_GC=1 run.sh -run TestNat44EdGC.
+func TestNat44EdGC(t *testing.T) {
+	if os.Getenv("VRX_INTEGRATION") != "1" || os.Getenv("VRX_NAT_GC") != "1" {
+		t.Skip("slot NAT gc: set VRX_INTEGRATION=1 and VRX_NAT_GC=1")
+	}
+	s := slotFromEnv(t)
+	sharedLock(t)
+	slotLock(t, s, "nat44")
+	conn := connectVPP(t)
+	r := newRig(s)
+	ifIdx := map[uint32]string{}
+	for n, i := range dumpIfs(t, conn) {
+		if n == r.lanIf || n == r.wanIf {
+			ifIdx[i.idx] = n
+		}
+	}
+	slotNet := netip.MustParsePrefix(fmt.Sprintf("10.%d.0.0/16", s.num))
+	t.Logf("before: %v", ours(t, conn, s.prefix, slotNet, ifIdx))
+	for _, l := range natLoss(t, conn, s.prefix, slotNet, ifIdx) {
+		t.Log("gc: " + l)
+	}
+	if left := ours(t, conn, s.prefix, slotNet, ifIdx); len(left) != 0 {
+		t.Fatalf("left: %v", left)
+	}
+	t.Log("no NAT44-ED object of the slot is left")
+}
+
 func (f *fixture) sessionRow(t *testing.T, query string) map[string]any {
 	t.Helper()
 	rsp := f.a.must(200, "GET", "/api/v1/state/nat/sessions?"+query, nil)
@@ -287,6 +328,14 @@ func (f *fixture) sessionRow(t *testing.T, query string) map[string]any {
 
 func (f *fixture) packets(t *testing.T) {
 	r, a := f.r, f.a
+	if hold := os.Getenv("VRX_NAT_HOLD_ON_FAIL"); hold != "" { // debugging only: keep the stack for a look
+		t.Cleanup(func() {
+			if d, err := time.ParseDuration(hold); err == nil && t.Failed() {
+				t.Logf("holding the failed stack for %s (VRX_NAT_HOLD_ON_FAIL)", d)
+				time.Sleep(d)
+			}
+		})
+	}
 	logs := f.st.work
 	server := script(t, f.scripts, "hold_server.py", holdServer)
 	client := script(t, f.scripts, "hold_client.py", holdClient)

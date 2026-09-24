@@ -40,3 +40,7 @@ rig 10.1.{1,2}.0/24). Runs directly on the host (no wt.sh). NRestarts at start: 
 - 15:03 N1 part 2 (re-apply count 12, ce93fff) found by running TestAgentOnHost with the D-105 M1 cap (scratch); whole
   internal/agent package green with cap 64 (Q3 updated). 15:04 ci.sh #1: api vitest transform timeout under load (collect
   303 s, 31/31 tests passed) → re-run. Next: one topology run (scratch cap-64 agent), P08.md, cleanup.
+- 15:15–15:35 ci.sh run 2 red on my revive slip (74ec04e), run 3 **CI GATE PASSED** (load up to 60). 15:36 topology run 1:
+  stopped at my F4 assertion (API validation = 400, not 422) before any agent create → 76850ac. 15:40 run 2: F4 400+pointer on
+  the real stack; first real commit → 504 after 60 s (I6 VPP-wide stall, ~47 s without an answer, I2 orphan reproduced).
+  Stopped per envelope. Cleanup done 15:45 (rig down twice, Q4). DONE — handover in P08.md "Fix round 1".

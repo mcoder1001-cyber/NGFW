@@ -105,7 +105,7 @@ cmd_up() {
     [[ -S /run/vpp/api.sock ]] || die "VPP API socket /run/vpp/api.sock missing (is vpp.service up?) — or use --no-agent"
     say "vrx-agent"
     rm -f "$AGENT_SOCKET"
-    start_svc agent env VRX_AGENT_SOCKET="$AGENT_SOCKET" VRX_OWNER=vrx VRX_AGENT_STATE_DIR="$STATE/agent" \
+    start_svc agent env VRX_AGENT_SOCKET="$AGENT_SOCKET" VRX_OWNER=vrx VRX_GLOBALS_OWNER=0 VRX_AGENT_STATE_DIR="$STATE/agent" \
       VRX_METRICS_PORT="$METRICS_PORT" "$ROOT/apps/agent/bin/vrx-agent"
     for _ in $(seq 1 60); do [[ -S "$AGENT_SOCKET" ]] && break; [[ -n "$(pidof_svc agent)" ]] || break; sleep 0.5; done
     [[ -S "$AGENT_SOCKET" ]] || { tail -30 "$LOG/agent.log" >&2; die "agent did not open $AGENT_SOCKET"; }

@@ -35,7 +35,7 @@ case "$cmd" in
     else adm -c "create role $role with login password '$pw'" >/dev/null; echo "create role $role"; fi
     if [[ "$(adm -c "select 1 from pg_database where datname='$db'")" == 1 ]]; then echo "reuse  database $db"
     else adm -c "create database $db owner $role" >/dev/null; echo "create database $db (owner $role)"; fi
-    install -d -m 0700 "$dir"
+    install -d -m 0755 "$dir"   # slot run dir: frr/_chrony test daemons must traverse it (D-106); pg.env itself is 0600
     ( umask 077; cat > "$envf" <<EOV
 VRX_PG_HOST=$PG_HOST
 VRX_PG_PORT=$PG_PORT

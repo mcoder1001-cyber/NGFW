@@ -10,7 +10,7 @@ delay simulator (test tool). Reference: TNSR "Loopback, LLDP, SPAN"; VPP `gso`, 
 - Loopbacks: `apps/agent/internal/descriptors/core/loopback.go` (P05, `interface.loopback/loop<N>`; projection already maps
   `interfaces.<loopN>`) — reuse, do not edit (manager-owned); BVI membership = `l2.bridge-domain-member` port_type bvi owned by
   **F-bridge-l2** (consume only; if it is not merged yet, stub the BVI part behind a skip and say so)
-- LLDP + SPAN: read-only on `task/DF-7` until merged — `git show task/DF-7:docs/agent/descriptors/lldp.md` / `span.md`:
+- LLDP + SPAN (DF-7, **merged** — use, do not rebuild): `apps/agent/internal/descriptors/{lldp,span}/` + `docs/agent/descriptors/lldp.md` / `span.md`:
   `lldp.global` (global, `lldp.RegisterGlobals` only, D-071, write-only), `lldp.interface/<if>` (write-only, Update = disable+enable),
   `span.mirror/<src>/<dst>/<device|l2>` (`sw_interface_span_enable_disable`, Retrieve `sw_interface_span_dump`)
 - `apps/agent/binapi/gso/` (`feature_gso_enable_disable` — no dump) and `apps/agent/binapi/nsim/` (`nsim_configure2`,

@@ -15,7 +15,7 @@ Reference: TNSR "Routing: static routes, VRFs, ping/traceroute"; VPP `ip`/`fib`,
   (`ip_route_v2_dump`, `ip_route_lookup_v2`, `ip_table_flush`), `apps/agent/binapi/ping/` (`want_ping_finished_events` — confirm how
   a ping is started in binapi); traceroute has **no VPP API**
 - `packages/proto/vrx/v1/dataplane.proto` — `Action` RPC with `PingAction`/`TracerouteAction` exists; `server.go` returns Unimplemented
-- `task/P06` (read-only until merged): `apps/api/src/state/state.controller.ts` already serves `GET /state/routes?vrf&page&pageSize` by
+- P06 (merged; the file was reworked by P08 — read P08's version): `apps/api/src/state/state.controller.ts` already serves `GET /state/routes?vrf&page&pageSize` by
   paging a full Retrieve in the API — **extend it, don't duplicate**; for 1M routes paging must move into the agent
 - LOG D-072 (static routes: one programmer — VPP by default, FRR only when flagged), D-073b (descriptions kept in agent state),
   `docs/vpp-code-track.md` **V15** (table delete leaks API drop routes into the next table → fallback: remove own routes before deleting a

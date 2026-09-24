@@ -173,7 +173,34 @@ func (f *File) save() error {
 	return WriteAtomic(f.path, append(b, '\n'), 0o640)
 }
 
-// WriteAtomic writes data to path via a temporary file in the same directory, fsync and rename.
+// SyncDir fsyncs the directory dir: a rename in it is durable only once the directory is synced
+// (TD-9, review 1.5a — after a power loss the file could otherwise come back with its old content).
+// The shared helper for every atomic replace of an agent state file.
+func SyncDir(dir string) error {
+	d, err := os.Open(dir) //nolint:gosec // the caller's own state directory
+	if err != nil {
+		return err
+	}
+	if err := d.Sync(); err != nil {
+		_ = d.Close()
+		return fmt.Errorf("fsync %s: %w", dir, err)
+	}
+	return d.Close()
+}
+
+// syncDir is SyncDir (a var for the tests).
+var syncDir = SyncDir
+
+// SetSyncDir replaces the directory fsync of WriteAtomic (tests of other packages that write through
+// it, e.g. dfkit's boot store) and returns a function restoring the previous one.
+func SetSyncDir(f func(dir string) error) (restore func()) {
+	prev := syncDir
+	syncDir = f
+	return func() { syncDir = prev }
+}
+
+// WriteAtomic writes data to path via a temporary file in the same directory: write, fsync, rename,
+// then fsync the directory.
 func WriteAtomic(path string, data []byte, mode os.FileMode) error {
 	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
 	if err != nil {
@@ -196,5 +223,8 @@ func WriteAtomic(path string, data []byte, mode os.FileMode) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(name, path)
+	if err := os.Rename(name, path); err != nil {
+		return err
+	}
+	return syncDir(filepath.Dir(path))
 }

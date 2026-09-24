@@ -14,12 +14,26 @@ import (
 	"go.fd.io/govpp/core"
 )
 
+// DefaultReplyTimeout bounds one VPP reply (TD-9, review 1.1): the time VPP may take to answer a request, or to send the
+// next message of a dump. govpp's own default is 0, "wait forever": a VPP that crashes or hangs while a request is in
+// flight then parks the caller — and with it the agent's transaction lock — for good. The agent overrides it with
+// VRX_AGENT_VPP_REPLY_TIMEOUT (ConnOptions.ReplyTimeout).
+const DefaultReplyTimeout = 30 * time.Second
+
+// ErrTimeout is returned (wrapped) when VPP did not answer within the reply timeout. It wraps
+// context.DeadlineExceeded, so errors.Is(err, context.DeadlineExceeded) holds and its text survives a "%v" in
+// a descriptor's error: the request may have reached VPP, so its outcome is unknown (the scheduler reports the
+// transaction DEGRADED and the agent owes a resync).
+var ErrTimeout = fmt.Errorf("vpp: no reply in time: %w", context.DeadlineExceeded)
+
 // govpp's health-check defaults (250 ms reply timeout, 2 misses) disconnect on hypervisor jitter: on vrx-a an idle VPP
 // answers a control ping in 0.4 ms median but spikes to ~300 ms with nothing else running (ESXi memory reclaim, P08 review
 // I6, D-108), and every disconnect forces a full reconnect + resync. 2 s × 5 misses still reports a dead VPP within ~10 s.
+// core.DefaultReplyTimeout is the backstop for any govpp path that does not go through Conn (TD-9).
 func init() {
 	core.HealthCheckReplyTimeout = 2 * time.Second
 	core.HealthCheckThreshold = 5
+	core.DefaultReplyTimeout = DefaultReplyTimeout
 }
 
 // ConnState is a change of the binary-API connection state reported by Conn.States.
@@ -39,6 +53,9 @@ type ConnOptions struct {
 	MinBackoff, MaxBackoff time.Duration
 	// Logger (default slog.Default()).
 	Logger *slog.Logger
+	// ReplyTimeout bounds each VPP reply (default DefaultReplyTimeout): an Invoke's whole round trip, and every
+	// message of a stream (a stream's own core.WithReplyTimeout option overrides it for a known-slow dump).
+	ReplyTimeout time.Duration
 }
 
 // Conn is the production vpp.Client: a govpp connection over the binary-API socket with
@@ -79,6 +96,9 @@ func Dial(path string, opts ConnOptions) *Conn {
 	}
 	if opts.Logger == nil {
 		opts.Logger = slog.Default()
+	}
+	if opts.ReplyTimeout <= 0 {
+		opts.ReplyTimeout = DefaultReplyTimeout
 	}
 	c := &Conn{
 		path:   path,
@@ -221,22 +241,68 @@ func (c *Conn) current() (*core.Connection, error) {
 	return c.conn, nil
 }
 
-// Invoke implements Client.
+// Invoke implements Client. The round trip is bounded by ReplyTimeout (TD-9): a caller's earlier deadline
+// wins, a ctx without one gets it. A missed deadline is ErrTimeout.
 func (c *Conn) Invoke(ctx context.Context, req, reply api.Message) error {
 	conn, err := c.current()
 	if err != nil {
 		return err
 	}
-	return conn.Invoke(ctx, req, reply)
+	return invokeWithin(ctx, c.opts.ReplyTimeout, req, reply, conn.Invoke)
 }
 
-// NewStream implements Client.
+// invokeWithin runs one request/reply round trip with its ctx bounded by timeout and turns the bound's own
+// expiry into ErrTimeout (a caller's cancel or deadline stays ctx.Err()).
+func invokeWithin(ctx context.Context, timeout time.Duration, req, reply api.Message, invoke func(context.Context, api.Message, api.Message) error) error {
+	if timeout <= 0 {
+		return invoke(ctx, req, reply)
+	}
+	tctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	err := invoke(tctx, req, reply)
+	if err != nil && ctx.Err() == nil && tctx.Err() != nil {
+		return fmt.Errorf("%w: %s: %s", ErrTimeout, req.GetMessageName(), timeout)
+	}
+	return err
+}
+
+// NewStream implements Client. Every message of the stream is bounded by ReplyTimeout
+// (core.WithReplyTimeout, prepended: an option of the caller overrides it); a missed reply is ErrTimeout.
 func (c *Conn) NewStream(ctx context.Context, opts ...api.StreamOption) (api.Stream, error) {
 	conn, err := c.current()
 	if err != nil {
 		return nil, err
 	}
-	return conn.NewStream(ctx, opts...)
+	st, err := conn.NewStream(ctx, append([]api.StreamOption{core.WithReplyTimeout(c.opts.ReplyTimeout)}, opts...)...)
+	if err != nil {
+		return nil, err
+	}
+	return timeoutStream{st}, nil
+}
+
+// timeoutStream reports govpp's per-reply timeout as ErrTimeout.
+type timeoutStream struct{ api.Stream }
+
+func (s timeoutStream) RecvMsg() (api.Message, error) {
+	m, err := s.Stream.RecvMsg()
+	if errors.Is(err, core.ErrReplyTimeout) {
+		err = fmt.Errorf("%w: %w", ErrTimeout, err)
+	}
+	return m, err
+}
+
+// Bounded returns c with every Invoke bounded by timeout exactly as Conn bounds its own (TD-9): for a Client
+// that is not a Conn — the unit tests' fake VPPs prove the agent's behaviour when VPP never replies with it.
+// Streams pass through unchanged (a Conn bounds each of their messages with govpp's per-reply timer).
+func Bounded(c Client, timeout time.Duration) Client { return bounded{Client: c, timeout: timeout} }
+
+type bounded struct {
+	Client
+	timeout time.Duration
+}
+
+func (b bounded) Invoke(ctx context.Context, req, reply api.Message) error {
+	return invokeWithin(ctx, b.timeout, req, reply, b.Client.Invoke)
 }
 
 // WatchEvent implements Client.

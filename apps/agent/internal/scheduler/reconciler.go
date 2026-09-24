@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -142,7 +143,8 @@ const (
 	OutcomeFailed
 	// OutcomeRolledBack: an operation or the verification failed; everything was reverted.
 	OutcomeRolledBack
-	// OutcomeDegraded: an operation failed and its rollback failed too.
+	// OutcomeDegraded: an operation failed and its rollback failed too — or the failed operation's
+	// effect is unknown (TxnResult.Uncertain), which no rollback can undo.
 	OutcomeDegraded
 )
 
@@ -236,6 +238,56 @@ type TxnResult struct {
 	Duration time.Duration
 	// Reapplied / ReapplyErrors count Reapplier calls of a resync.
 	Reapplied, ReapplyErrors int
+	// Uncertain (TD-9): the operation that failed may have taken effect — its VPP call timed out or was
+	// cancelled after the request was sent, or its descriptor panicked. The journal cannot undo what it
+	// never recorded, so the outcome is DEGRADED and the caller owes a resync of the stored desired state.
+	Uncertain bool
+}
+
+// ErrDescriptorPanic marks a descriptor call that panicked (TD-9, review 1.1e). The scheduler recovers the
+// panic into an error wrapping it, so the transaction fails and rolls back like any other failure instead of
+// crashing the agent with VPP half-applied. The panic value and stack go to the log only: an error reaches
+// results and the API, and a panic message may carry a value.
+var ErrDescriptorPanic = errors.New("descriptor panicked")
+
+// DefaultRollbackTimeout bounds one rollback (Scheduler.RollbackTimeout).
+const DefaultRollbackTimeout = 2 * time.Minute
+
+// guard runs fn — a call into descriptor code — and turns a panic into an error wrapping ErrDescriptorPanic.
+func (s *Scheduler) guard(call string, key Key, fn func() error) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.log.Error("descriptor panicked", "call", call, "key", key, "panic", fmt.Sprint(r), "stack", string(debug.Stack()))
+			err = fmt.Errorf("%w: %s %s (stack in the agent log)", ErrDescriptorPanic, call, key)
+		}
+	}()
+	return fn()
+}
+
+// uncertain reports whether an operation that failed with err may still have taken effect: its call
+// was cut off by a deadline or a cancel (a VPP reply timeout wraps context.DeadlineExceeded) — matched
+// by text too, for descriptors that format errors with %v — or its descriptor panicked.
+func uncertain(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.Is(err, ErrDescriptorPanic) {
+		return true
+	}
+	msg := err.Error()
+	return strings.Contains(msg, context.DeadlineExceeded.Error()) || strings.Contains(msg, context.Canceled.Error())
+}
+
+// markPanicked records a recovered panic of op on its result (the first one added since index from, as
+// executor.fail would have), or adds one when the descriptor panicked before a result existed (Update).
+func markPanicked(res *TxnResult, from int, op PlannedOp, err error) {
+	for i := from; i < len(res.Results); i++ {
+		if r := &res.Results[i]; r.Key == op.Key {
+			r.Code, r.Err = CodeFailed, err
+			return
+		}
+	}
+	res.Results = append(res.Results, OpResult{Key: op.Key, Op: op.Op, Code: CodeFailed, Err: err})
 }
 
 // Scope selects the descriptors a transaction manages. A nil Scope means every registered
@@ -264,6 +316,9 @@ type Scheduler struct {
 	// mismatch counts as an error; 0 = verify once.
 	VerifyRetries int
 	VerifyDelay   time.Duration
+	// RollbackTimeout bounds one rollback (TD-9, review 1.1): the rollback runs even when the
+	// transaction's ctx is done, on a ctx of its own with this deadline; 0 = no bound.
+	RollbackTimeout time.Duration
 	// writeOnly caches the objects of write-only descriptors this process applied (their only
 	// "actual state"); guarded by mu.
 	writeOnly map[Key]KV
@@ -276,7 +331,7 @@ func New(reg *MapRegistry, log *slog.Logger) *Scheduler {
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
 	}
-	return &Scheduler{reg: reg, log: log, VerifyRetries: 2, VerifyDelay: 50 * time.Millisecond,
+	return &Scheduler{reg: reg, log: log, VerifyRetries: 2, VerifyDelay: 50 * time.Millisecond, RollbackTimeout: DefaultRollbackTimeout,
 		writeOnly: map[Key]KV{}, woDescriptors: map[string]bool{}}
 }
 
@@ -299,7 +354,11 @@ func (s *Scheduler) Registry() *MapRegistry { return s.reg }
 func (s *Scheduler) Retrieve(ctx context.Context, scope Scope) ([]KV, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	m, _, err := s.retrieve(ctx, scope, true)
+	var m map[Key]KV
+	err := s.guard("retrieve", "", func() (err error) {
+		m, _, err = s.retrieve(ctx, scope, true)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +378,11 @@ func (s *Scheduler) retrieve(ctx context.Context, scope Scope, strict bool) (map
 		if strict && !in {
 			continue
 		}
-		kvs, err := d.Retrieve(ctx)
+		var kvs []KV
+		err := s.guard("retrieve", Key(d.Name()+"/"), func() (err error) {
+			kvs, err = d.Retrieve(ctx)
+			return err
+		})
 		if IsRetrieveUnsupported(err) {
 			wo[d.Name()] = true
 			continue
@@ -347,10 +410,14 @@ func (s *Scheduler) retrieve(ctx context.Context, scope Scope, strict bool) (map
 
 // Plan validates desired against the actual state and returns what Apply would do. It never
 // mutates anything.
-func (s *Scheduler) Plan(ctx context.Context, desired []KV, scope Scope) (*TxnPlan, error) {
+func (s *Scheduler) Plan(ctx context.Context, desired []KV, scope Scope) (p *TxnPlan, err error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.plan(ctx, desired, scope, ApplyOptions{})
+	err = s.guard("plan", "", func() (err error) {
+		p, err = s.plan(ctx, desired, scope, ApplyOptions{})
+		return err
+	})
+	return p, err
 }
 
 // normalize returns desired with every value passed through its descriptor's Normalizer.
@@ -625,8 +692,12 @@ func (s *Scheduler) ApplyWith(ctx context.Context, desired []KV, scope Scope, op
 	res := &TxnResult{}
 	defer func() { res.Duration = time.Since(start) }()
 
-	desired = s.normalize(desired)
-	p, err := s.plan(ctx, desired, scope, opts)
+	var p *TxnPlan
+	err := s.guard("plan", "", func() (err error) { // Normalize, KeyOf, Dependencies, Retrieve (review 1.1e)
+		desired = s.normalize(desired)
+		p, err = s.plan(ctx, desired, scope, opts)
+		return err
+	})
 	if err != nil {
 		res.Outcome, res.Err = OutcomeFailed, err
 		return res
@@ -667,9 +738,14 @@ func (s *Scheduler) ApplyWith(ctx context.Context, desired []KV, scope Scope, op
 			continue // already converged by a recreate of one of its dependencies
 		}
 		if err := ctx.Err(); err != nil {
-			failed = err
+			failed = err // not started: nothing unknown
 		} else {
-			failed = x.run(ctx, op)
+			from := len(res.Results)
+			failed = s.guard(op.Op, op.Key, func() error { return x.run(ctx, op) })
+			if errors.Is(failed, ErrDescriptorPanic) {
+				markPanicked(res, from, op, failed)
+			}
+			res.Uncertain = uncertain(failed)
 		}
 		if failed != nil {
 			for _, rest := range p.Ops[i+1:] {
@@ -684,7 +760,7 @@ func (s *Scheduler) ApplyWith(ctx context.Context, desired []KV, scope Scope, op
 		s.reapply(ctx, x, res)
 	}
 	if failed == nil {
-		failed = s.verify(ctx, desired, scope, p.writeOnly)
+		failed = s.guard("verify", "", func() error { return s.verify(ctx, desired, scope, p.writeOnly) })
 		if failed != nil {
 			res.Results = append(res.Results, OpResult{Key: "", Op: "verify", Code: CodeFailed, Err: failed})
 		}
@@ -706,12 +782,18 @@ func (s *Scheduler) ApplyWith(ctx context.Context, desired []KV, scope Scope, op
 	}
 	res.Err = failed
 	res.Summary.Failed = 1
-	// Rollback: undo the journal in reverse order. Rollback runs even if ctx was cancelled.
+	// Rollback: undo the journal in reverse order. Rollback runs even if ctx was cancelled or ran out,
+	// on a ctx of its own bounded by RollbackTimeout (TD-9).
 	rbCtx := context.WithoutCancel(ctx)
+	if s.RollbackTimeout > 0 {
+		var cancel context.CancelFunc
+		rbCtx, cancel = context.WithTimeout(rbCtx, s.RollbackTimeout)
+		defer cancel()
+	}
 	degraded := false
 	for i := len(x.journal) - 1; i >= 0; i-- {
 		j := x.journal[i]
-		err := x.undo(rbCtx, j)
+		err := s.guard("undo "+j.op, j.key, func() error { return x.undo(rbCtx, j) })
 		r := &res.Results[j.result]
 		if err != nil {
 			degraded = true
@@ -725,7 +807,7 @@ func (s *Scheduler) ApplyWith(ctx context.Context, desired []KV, scope Scope, op
 			res.Summary.Reverted++
 		}
 	}
-	if degraded {
+	if degraded || res.Uncertain {
 		res.Outcome = OutcomeDegraded
 	} else {
 		res.Outcome = OutcomeRolledBack
@@ -748,7 +830,7 @@ func (s *Scheduler) reapply(ctx context.Context, x *executor, res *TxnResult) {
 		if !ok {
 			continue
 		}
-		if err := r.Reapply(ctx, x.desired[k].Value, x.live[k].Meta); err != nil {
+		if err := s.guard("reapply", k, func() error { return r.Reapply(ctx, x.desired[k].Value, x.live[k].Meta) }); err != nil {
 			res.ReapplyErrors++
 			s.log.Warn("reapply failed", "key", k, "err", err)
 			continue

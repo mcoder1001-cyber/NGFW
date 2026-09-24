@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -59,6 +61,18 @@ type Service struct {
 	retryTimer         *time.Timer
 	retryDelay         time.Duration
 	retryMin, retryMax time.Duration
+	// owed-resync retry while DEGRADED (TD-9, review 1.1b; guarded by txn): same backoff as the revert
+	resyncTimer *time.Timer
+	resyncDelay time.Duration
+	// requestResync asks the agent for a full resync (its Env.Resync path, watchVPP); nil = the retry
+	// timer resyncs itself (unit tests without an agent).
+	requestResync func()
+	// txnTimeout is the agent's own deadline of one transaction (TD-9, review 1.1/1.4).
+	txnTimeout time.Duration
+	// flushClaims runs between a transaction's outcome and st.save (TD-11c's per-transaction claim
+	// flush joins here); an error turns APPLIED into DEGRADED. nil = nothing to flush.
+	flushClaims func(context.Context) error
+	lastDrift   int // objects the last drift check found (guarded by txn)
 
 	mu              sync.Mutex // guards the fields below (Health snapshot)
 	degraded        bool
@@ -106,7 +120,19 @@ type ServiceConfig struct {
 	// Sources are the dynamic desired sources (S1, TD-8; subsystems.Wiring.DynamicSources). Their
 	// descriptors must be registered with Scheduler.
 	Sources []subsystems.DynamicSource
+	// TxnTimeout is the agent's own deadline of one transaction (0 = DefaultTxnTimeout).
+	TxnTimeout time.Duration
+	// RequestResync asks the agent for a full resync (TD-9: the owed resync goes through the same path as
+	// Env.Resync, so the wiring's after-resync hook runs too); nil = the service resyncs itself.
+	RequestResync func()
+	// FlushClaims runs between a transaction's outcome and the state save (TD-11c joins its per-transaction
+	// claim flush here); an error turns APPLIED into DEGRADED. nil = nothing to flush.
+	FlushClaims func(context.Context) error
 }
+
+// DefaultTxnTimeout bounds one transaction (Apply, resync, confirm revert) on the agent's own clock
+// (TD-9): every VPP reply is bounded too (vpp.DefaultReplyTimeout), this is the bound of the whole.
+const DefaultTxnTimeout = 5 * time.Minute
 
 // NewService loads the persisted state and returns a service. It does not touch VPP; call
 // Resync once VPP is connected.
@@ -130,10 +156,14 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 	if err := checkSources(cfg.Scheduler, cfg.Sources); err != nil {
 		return nil, err
 	}
+	if cfg.TxnTimeout <= 0 {
+		cfg.TxnTimeout = DefaultTxnTimeout
+	}
 	s := &Service{
 		owner: cfg.Owner, version: cfg.Version, log: cfg.Logger, vpp: cfg.VPP, sched: cfg.Scheduler,
 		st: st, bus: cfg.Events, metrics: cfg.Metrics, now: cfg.Now, txn: make(chan struct{}, 1),
 		retryMin: revertRetryMin, retryMax: revertRetryMax, beforeTxn: cfg.BeforeTxn, netdevKind: cfg.NetdevKind,
+		txnTimeout: cfg.TxnTimeout, requestResync: cfg.RequestResync, flushClaims: cfg.FlushClaims,
 	}
 	s.sources = newDynSources(cfg.Sources, s.metrics)
 	s.refreshSnapshotLocked()
@@ -157,6 +187,38 @@ func (s *Service) unlock() {
 		s.holder.Store(0)
 	}
 	<-s.txn
+}
+
+// txnContext is the context a transaction runs on once it holds the lock (TD-9, review 1.4): the
+// caller's cancel and deadline bounded only the wait for the lock — a transaction that has started
+// runs to its end (a caller that gave up retries with the same txn_id and gets the stored response) —
+// and the agent's own txnTimeout bounds it instead.
+func (s *Service) txnContext(caller context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(caller), s.txnTimeout)
+}
+
+// containLocked recovers a panic of the agent's own code in a transaction (deferred right after lock,
+// so it runs before the unlock; review 1.1d — descriptor panics never get here, the scheduler turns them
+// into ErrDescriptorPanic). The in-memory state may be half-updated, so it is reloaded from disk — what a
+// restart would do — and the agent is DEGRADED with a resync owed. An RPC answers INTERNAL.
+func (s *Service) containLocked(what string, errp *error) {
+	r := recover()
+	if r == nil {
+		return
+	}
+	s.log.Error("panic in a transaction: state reloaded from disk, resync owed", "in", what, "panic", fmt.Sprint(r), "stack", string(debug.Stack()))
+	s.metrics.panicked("transaction")
+	if st, err := loadState(s.st.dir, s.owner); err == nil {
+		s.st = st
+	} else {
+		s.log.Error("reload state after a panic", "err", err)
+	}
+	s.refreshSnapshotLocked()
+	s.setReconciling(false)
+	s.setDegraded(true, what+" panicked (agent bug, stack in the log): state reloaded from disk, resync owed")
+	if errp != nil {
+		*errp = status.Errorf(codes.Internal, "agent bug: %s panicked (logged); the agent is degraded and resyncs", what)
+	}
 }
 
 // refreshSnapshotLocked copies what Health/DryRun need out of st (caller holds txn or is the
@@ -269,7 +331,7 @@ func fingerprint(ds *vrxv1.DesiredState, subsystems []string) string {
 // ---- Apply --------------------------------------------------------------------------------
 
 // Apply implements the Apply RPC.
-func (s *Service) Apply(ctx context.Context, req *vrxv1.ApplyRequest) (*vrxv1.ApplyResponse, error) {
+func (s *Service) Apply(ctx context.Context, req *vrxv1.ApplyRequest) (resp *vrxv1.ApplyResponse, err error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -291,6 +353,9 @@ func (s *Service) Apply(ctx context.Context, req *vrxv1.ApplyRequest) (*vrxv1.Ap
 		return nil, err
 	}
 	defer s.unlock()
+	defer s.containLocked("Apply", &err)
+	tctx, cancel := s.txnContext(ctx)
+	defer cancel()
 
 	var fp string
 	if hasApply {
@@ -301,6 +366,11 @@ func (s *Service) Apply(ctx context.Context, req *vrxv1.ApplyRequest) (*vrxv1.Ap
 			}
 			s.log.Info("apply: repeated txn_id, returning the stored response", "txn_id", req.GetTxnId())
 			return resp, nil
+		}
+		// Before anything changes (review 1.3): a confirm-and-apply that cannot apply confirms nothing,
+		// and an owed revert is not touched.
+		if !s.vpp.Connected() {
+			return nil, status.Error(codes.Unavailable, "VPP binary API is not connected")
 		}
 	}
 	if hasConfirm {
@@ -318,28 +388,23 @@ func (s *Service) Apply(ctx context.Context, req *vrxv1.ApplyRequest) (*vrxv1.Ap
 		if !hasApply {
 			return &vrxv1.ApplyResponse{TxnId: req.GetConfirmTxnId(), Status: vrxv1.ApplyStatus_APPLY_STATUS_CONFIRMED, AppliedAt: timestamppb.New(s.now())}, nil
 		}
-	} else if s.st.meta.PendingTxnID != "" {
-		if !s.st.meta.Reverting {
-			return nil, status.Errorf(codes.FailedPrecondition, "transaction %q is pending confirmation: confirm it (confirm_txn_id) or let it revert", s.st.meta.PendingTxnID)
-		}
-		// N2: an owed revert (deadline passed, revert not yet successful) is superseded by a new
-		// apply: the stored desired state already is the confirmed baseline, the new document
-		// becomes the target, and the owed revert is dropped.
-		s.log.Warn("new transaction supersedes the owed confirm revert", "reverted_txn_id", s.st.meta.PendingTxnID, "txn_id", req.GetTxnId())
-		s.stopRetryLocked()
-		s.st.meta.PendingTxnID = ""
-		s.st.meta.ConfirmDeadline = nil
-		s.st.meta.Reverting = false
-		s.refreshSnapshotLocked()
+	} else if s.st.meta.PendingTxnID != "" && !s.st.meta.Reverting {
+		return nil, status.Errorf(codes.FailedPrecondition, "transaction %q is pending confirmation: confirm it (confirm_txn_id) or let it revert", s.st.meta.PendingTxnID)
 	}
-	if !s.vpp.Connected() {
-		return nil, status.Error(codes.Unavailable, "VPP binary API is not connected")
-	}
+	// N2: an owed revert (deadline passed, revert not yet successful) is superseded by a new apply —
+	// only when that apply ends APPLIED (applyLocked); a failed one leaves the revert owed (tech-debt
+	// "P05 owed revert dropped").
 	domains := authoritative(req.GetDesiredState(), req.GetSubsystems())
-	resp := s.applyLocked(ctx, modeTxn, req.GetTxnId(), req.GetDesiredState(), domains, req.GetConfirmTimeoutSec())
+	resp, retryable := s.applyLocked(tctx, modeTxn, req.GetTxnId(), req.GetDesiredState(), domains, req.GetConfirmTimeoutSec())
+	if retryable {
+		// Review 1.4: a timeout (a VPP reply, the transaction deadline) decided this outcome, or the state
+		// was not saved: it is not stored under the txn_id, so a retry runs the transaction again.
+		s.log.Warn("apply outcome not stored for txn_id retries: a timeout or a failed save decided it", "txn_id", req.GetTxnId(), "status", resp.GetStatus().String())
+		return resp, nil
+	}
 	s.st.remember(req.GetTxnId(), fp, resp)
 	if err := s.st.save(); err != nil {
-		s.log.Error("persist state", "err", err)
+		s.log.Error("persist state (txn_id history)", "err", err)
 	}
 	return resp, nil
 }
@@ -361,8 +426,10 @@ func (s *Service) confirmLocked() error {
 	return s.st.save()
 }
 
-// applyLocked runs one transaction (caller holds txn).
-func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrxv1.DesiredState, domains []string, confirmSec uint32) *vrxv1.ApplyResponse {
+// applyLocked runs one transaction (caller holds txn) on ctx, the transaction's own context. retryable
+// reports an outcome that must not be stored under the txn_id (review 1.4): an operation's outcome is
+// unknown (TxnResult.Uncertain), the transaction ran out of time, or the state could not be saved.
+func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrxv1.DesiredState, domains []string, confirmSec uint32) (*vrxv1.ApplyResponse, bool) {
 	if ds == nil {
 		ds = &vrxv1.DesiredState{}
 	}
@@ -379,6 +446,7 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	}
 	pj := project(ds, domains, s.resolveVRF, s.netdevKind)
 	var res *scheduler.TxnResult
+	retryable := false
 	if pj.hasErrors() {
 		resp.Status = vrxv1.ApplyStatus_APPLY_STATUS_FAILED
 		resp.Validation = report(txnID, pj, nil)
@@ -394,18 +462,43 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 		res, left = s.applySources(ctx, pj.kvs, scopeOf(domains), domains, view, scheduler.ApplyOptions{Resync: m != modeTxn})
 		fillResponse(resp, res, pj)
 		s.leaveOutLocked(resp, txnID, left, log)
+		if errors.Is(res.Err, scheduler.ErrDescriptorPanic) {
+			s.metrics.panicked("descriptor")
+		}
+		if res.Uncertain {
+			resp.Message += "; the outcome of that operation is unknown (VPP did not answer in time, or its descriptor panicked): the agent owes a resync of the stored desired state"
+		}
+		retryable = res.Uncertain || (ctx.Err() != nil && resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+		// Review 1.2: the projection's warnings (unimplemented domains, unsupported fields) reach an
+		// APPLIED or ROLLED_BACK answer too, not only DryRun.
+		if st := resp.GetStatus(); resp.Validation == nil && len(pj.issues) > 0 &&
+			(st == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || st == vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK) {
+			resp.Validation = report(txnID, pj, nil)
+		}
 	}
-	resp.AppliedAt = timestamppb.New(s.now())
+	applied := s.now()
+	resp.AppliedAt = timestamppb.New(applied)
 
 	switch resp.Status {
 	case vrxv1.ApplyStatus_APPLY_STATUS_APPLIED:
-		s.setDegraded(false, "")
 		switch m {
 		case modeTxn:
+			if p := s.st.meta.PendingTxnID; p != "" && s.st.meta.Reverting {
+				// N2: this APPLIED transaction supersedes the owed confirm revert: the stored desired
+				// state was the confirmed baseline, the new document is the target now.
+				log.Warn("new transaction supersedes the owed confirm revert", "reverted_txn_id", p)
+				s.stopRetryLocked()
+				s.st.meta.PendingTxnID = ""
+				s.st.meta.ConfirmDeadline = nil
+				s.st.meta.Reverting = false
+			}
+			covers := len(minus(s.st.meta.Managed, domains)) == 0
 			s.st.desired = mergeDomains(s.st.desired, ds, domains)
 			s.st.meta.Managed = union(s.st.meta.Managed, domains)
 			if confirmSec > 0 {
-				deadline := start.Add(time.Duration(confirmSec) * time.Second)
+				// Review 1.5b: the window starts when the transaction was applied (proto.md §4: applied_at
+				// + timeout), not when it started — a slow apply does not eat into it.
+				deadline := applied.Add(time.Duration(confirmSec) * time.Second)
 				resp.ConfirmDeadline = timestamppb.New(deadline)
 				s.st.meta.PendingTxnID = txnID
 				s.st.meta.ConfirmDeadline = &deadline
@@ -415,19 +508,37 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 				s.st.meta.ConfirmedManaged = append([]string(nil), s.st.meta.Managed...)
 				s.st.meta.LastTxnID = txnID
 			}
+			// An owed resync (TD-9) is paid only by a transaction over every managed domain.
+			if covers {
+				s.setDegraded(false, "")
+			}
 		case modeRevert:
+			s.setDegraded(false, "")
 			s.st.meta.Managed = domains
 			s.st.meta.ConfirmedManaged = domains
 			s.st.meta.PendingTxnID = ""
 			s.st.meta.ConfirmDeadline = nil
 			s.st.meta.Reverting = false
+		default:
+			s.setDegraded(false, "")
 		}
 	case vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED:
 		s.setDegraded(true, resp.GetMessage())
 	}
 	s.refreshSnapshotLocked()
+	// TD-11c's per-transaction claim flush joins here: after the outcome, before the save; a failed
+	// flush — like a failed save (ARCH-01) — turns APPLIED into DEGRADED.
+	if s.flushClaims != nil {
+		if err := s.flushClaims(ctx); err != nil {
+			log.Error("flush claims", "err", err)
+			retryable = s.notSavedLocked(resp, "its claims could not be flushed: "+err.Error()) || retryable
+		}
+	}
 	if err := s.st.save(); err != nil {
 		log.Error("persist state", "err", err)
+		if !errors.Is(err, errMirror) { // desired.pb is only a mirror for operators; agent-state.json is the state
+			retryable = s.notSavedLocked(resp, "the agent could not save its state: "+err.Error()) || retryable
+		}
 	}
 
 	d := s.now().Sub(start)
@@ -446,7 +557,31 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	}
 	s.lastResp = resp
 	log.Info("reconcile done", "status", resp.GetStatus().String(), "summary", resp.GetSummary().String(), "reapplied", reapplied, "duration", d, "err", resp.GetMessage())
-	return resp
+	return resp, retryable
+}
+
+// notSavedLocked turns an APPLIED resp into DEGRADED (ARCH-01, agent half): the data plane has the new
+// state but the agent's record of it is not durable (or its claims are not), so a restart would converge
+// back to the old one. It reports whether it changed resp.
+func (s *Service) notSavedLocked(resp *vrxv1.ApplyResponse, why string) bool {
+	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+		return false
+	}
+	resp.Status = vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED
+	resp.Message = "applied to the data plane, but " + why
+	s.setDegraded(true, resp.Message)
+	return true
+}
+
+// minus returns the elements of a that are not in b.
+func minus(a, b []string) []string {
+	var out []string
+	for _, x := range a {
+		if !contains(b, x) {
+			out = append(out, x)
+		}
+	}
+	return out
 }
 
 func modeName(m mode) string {
@@ -466,6 +601,9 @@ func (s *Service) setReconciling(v bool) {
 	s.mu.Unlock()
 }
 
+// setDegraded sets or clears DEGRADED (caller holds txn). DEGRADED owes a resync (TD-9, review 1.1b):
+// the retry timer runs one with backoff until one succeeds — except while a confirm revert is owed,
+// whose own retry converges to the same baseline. Clearing it pays the owed resync.
 func (s *Service) setDegraded(v bool, why string) {
 	s.mu.Lock()
 	was := s.degraded
@@ -476,6 +614,66 @@ func (s *Service) setDegraded(v bool, why string) {
 		s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_DEGRADED, Message: why})
 		s.log.Error("agent degraded", "why", why)
 	}
+	if v {
+		s.oweResyncLocked()
+	} else {
+		s.stopResyncLocked()
+	}
+}
+
+func (s *Service) isDegraded() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.degraded
+}
+
+// oweResyncLocked arms the owed-resync retry (caller holds txn): backoff retryMin doubling to retryMax
+// (N2: 5 s → 60 s), one timer, none after Close or while a confirm revert is owed.
+func (s *Service) oweResyncLocked() {
+	if s.closed || s.st.meta.Reverting || s.resyncTimer != nil {
+		return
+	}
+	if s.resyncDelay == 0 {
+		s.resyncDelay = s.retryMin
+	} else if s.resyncDelay *= 2; s.resyncDelay > s.retryMax {
+		s.resyncDelay = s.retryMax
+	}
+	s.resyncTimer = time.AfterFunc(s.resyncDelay, s.resyncRetry)
+	s.log.Warn("resync owed while degraded", "in", s.resyncDelay)
+}
+
+func (s *Service) stopResyncLocked() {
+	if s.resyncTimer != nil {
+		s.resyncTimer.Stop()
+		s.resyncTimer = nil
+	}
+	s.resyncDelay = 0
+}
+
+// resyncRetry is the owed-resync timer: while still degraded and connected, one full resync — through
+// the agent's resync request (watchVPP: Resync + the wiring's after-resync hook) when it has one. A
+// resync that fails again re-arms the timer (setDegraded); while VPP is down the reconnect resyncs.
+func (s *Service) resyncRetry() {
+	if err := s.lock(context.Background()); err != nil {
+		return
+	}
+	defer s.unlock()
+	defer s.containLocked("resync retry", nil)
+	s.resyncTimer = nil
+	switch {
+	case s.closed || !s.isDegraded():
+		return
+	case !s.vpp.Connected():
+		s.log.Info("owed resync waits for VPP: the reconnect resyncs")
+		return
+	case s.requestResync != nil:
+		s.log.Warn("retrying the owed resync")
+		s.requestResync()   // served once this lock is released
+		s.oweResyncLocked() // in case the request is dropped; a resync that succeeds stops it
+		return
+	}
+	s.log.Warn("retrying the owed resync")
+	s.resyncLocked(context.Background())
 }
 
 // ---- confirm timer and resync -----------------------------------------------------------
@@ -496,10 +694,13 @@ func (s *Service) armTimerLocked(txnID string, deadline time.Time) {
 func (s *Service) revert(txnID string) {
 	_ = s.lock(context.Background())
 	defer s.unlock()
-	s.revertLocked(txnID)
+	defer s.containLocked("confirm revert", nil)
+	s.revertLocked(context.Background(), txnID)
 }
 
-func (s *Service) revertLocked(txnID string) {
+// revertLocked runs the owed confirm revert of txnID on a deadline of its own (TD-9): ctx only carries
+// cancellation (agent stop) and values.
+func (s *Service) revertLocked(ctx context.Context, txnID string) {
 	if s.st.meta.PendingTxnID == "" || s.st.meta.PendingTxnID != txnID {
 		return
 	}
@@ -531,7 +732,9 @@ func (s *Service) revertLocked(txnID string) {
 			domains = append(domains, d)
 		}
 	}
-	resp := s.applyLocked(context.Background(), modeRevert, "", s.st.desired, domains, 0)
+	tctx, cancel := context.WithTimeout(ctx, s.txnTimeout)
+	defer cancel()
+	resp, _ := s.applyLocked(tctx, modeRevert, "", s.st.desired, domains, 0)
 	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		d := s.scheduleRetryLocked(txnID)
 		s.setDegraded(true, fmt.Sprintf("confirm revert of %s failed, retrying in %v (and on every resync; a new Apply supersedes it): %s", txnID, d, resp.GetMessage()))
@@ -574,17 +777,23 @@ func (s *Service) stopRetryLocked() {
 }
 
 // Resync re-applies the stored desired state of every managed domain (agent start, VPP
-// reconnect), then resumes or fires a pending confirm timer. It emits RECONCILE_START/DONE with
-// an empty txn_id.
-func (s *Service) Resync(ctx context.Context) *vrxv1.ApplyResponse {
+// reconnect, a requested or owed resync), then resumes or fires a pending confirm timer. It emits
+// RECONCILE_START/DONE with an empty txn_id. ctx bounds the wait for the lock and carries the agent's
+// stop; the resync itself runs on the agent's own deadline (TD-9).
+func (s *Service) Resync(ctx context.Context) (resp *vrxv1.ApplyResponse) {
 	if err := s.lock(ctx); err != nil {
 		return nil
 	}
 	defer s.unlock()
+	defer s.containLocked("resync", nil)
+	return s.resyncLocked(ctx)
+}
+
+func (s *Service) resyncLocked(ctx context.Context) *vrxv1.ApplyResponse {
 	// A pending transaction whose deadline passed (while the agent was down, or whose revert is
 	// owed): converge straight to the confirmed baseline, never re-apply the unconfirmed config.
 	if p := s.st.meta.PendingTxnID; p != "" && (s.st.meta.Reverting || (s.st.meta.ConfirmDeadline != nil && !s.st.meta.ConfirmDeadline.After(s.now()))) {
-		s.revertLocked(p)
+		s.revertLocked(ctx, p)
 		return s.lastResp
 	}
 	var domains []string
@@ -593,14 +802,77 @@ func (s *Service) Resync(ctx context.Context) *vrxv1.ApplyResponse {
 			domains = append(domains, d)
 		}
 	}
-	resp := s.applyLocked(ctx, modeResync, "", s.st.desired, domains, 0)
+	tctx, cancel := context.WithTimeout(ctx, s.txnTimeout)
+	defer cancel()
+	resp, _ := s.applyLocked(tctx, modeResync, "", s.st.desired, domains, 0)
 	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
-		s.setDegraded(true, "resync failed: "+resp.GetMessage())
+		s.setDegraded(true, "resync failed: "+resp.GetMessage()) // retried with backoff (review 1.1b)
 	}
 	if p := s.st.meta.PendingTxnID; p != "" && s.st.meta.ConfirmDeadline != nil && s.timer == nil {
 		s.armTimerLocked(p, *s.st.meta.ConfirmDeadline)
 	}
 	return resp
+}
+
+// CheckDrift is the periodic drift check (TD-9, review 1.1b): a Plan — never an apply — of the stored
+// desired state of every managed domain against VPP. Its count of objects that differ is the
+// vrx_agent_drift_objects gauge; when it becomes non-zero or changes, an ERROR event (attributes
+// reason=drift, objects=N) and a log line say so. The check never waits for a running transaction.
+// Correcting drift on its own is not the agent's call (a resync or an Apply does it).
+func (s *Service) CheckDrift(ctx context.Context) {
+	if !s.vpp.Connected() {
+		return
+	}
+	lctx, lcancel := context.WithTimeout(ctx, 100*time.Millisecond)
+	err := s.lock(lctx)
+	lcancel()
+	if err != nil {
+		return // a transaction is running: next round
+	}
+	defer s.unlock()
+	defer s.containLocked("drift check", nil)
+	var domains []string
+	for _, d := range s.st.meta.Managed {
+		if implemented(d) {
+			domains = append(domains, d)
+		}
+	}
+	pj := project(s.st.desired, domains, s.resolveVRF, s.netdevKind)
+	if pj.hasErrors() {
+		return
+	}
+	tctx, cancel := context.WithTimeout(ctx, s.txnTimeout)
+	defer cancel()
+	plan, err := s.planSources(tctx, pj, domains, s.st.desired)
+	if err != nil {
+		s.log.Warn("drift check: plan failed", "err", err)
+		return
+	}
+	n := len(plan.Ops) + len(plan.Issues)
+	s.metrics.setDrift(n)
+	prev := s.lastDrift
+	s.lastDrift = n
+	switch {
+	case n > 0 && n != prev:
+		var keys []string
+		for _, op := range plan.Ops {
+			if len(keys) == 5 {
+				break
+			}
+			keys = append(keys, op.Op+" "+string(op.Key))
+		}
+		for _, is := range plan.Issues {
+			if len(keys) == 5 {
+				break
+			}
+			keys = append(keys, string(is.Key)+": "+is.Message)
+		}
+		msg := fmt.Sprintf("drift: %d objects differ from the stored desired state (a resync or an Apply corrects them)", n)
+		s.log.Warn(msg, "first", keys)
+		s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_ERROR, Message: msg, Attributes: map[string]string{"reason": "drift", "objects": strconv.Itoa(n)}})
+	case n == 0 && prev > 0:
+		s.log.Info("drift check: VPP matches the stored desired state again")
+	}
 }
 
 // ---- Retrieve / DryRun / Health -------------------------------------------------------------
@@ -749,6 +1021,7 @@ func (s *Service) Close() {
 		s.timer = nil
 	}
 	s.stopRetryLocked()
+	s.stopResyncLocked()
 	s.closed = true
 	for _, ds := range s.sources {
 		s.stopSourceRetryLocked(ds)

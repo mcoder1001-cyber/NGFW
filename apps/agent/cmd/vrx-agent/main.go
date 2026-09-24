@@ -9,7 +9,11 @@
 //	VRX_AGENT_VPP_API_SOCKET    VPP binary API              (/run/vpp/api.sock)
 //	VRX_AGENT_VPP_STATS_SOCKET  VPP stats segment           (/run/vpp/stats.sock)
 //	VRX_METRICS_ADDR / _PORT    Prometheus                  (127.0.0.1:9101; "off" disables)
-//	VRX_LOG_LEVEL               debug|info|warn|error       (info)
+//	VRX_METRICS_ALLOW_REMOTE    1 = a non-loopback VRX_METRICS_ADDR is meant (/metrics is unauthenticated)
+//	VRX_LOG_LEVEL               debug|info|warn|error       (info; anything else refuses to start)
+//	VRX_AGENT_VPP_REPLY_TIMEOUT bound of one VPP reply      (30 s; seconds or a Go duration)
+//
+// An invalid setting refuses to start (exit status 1) instead of running with a default nobody asked for.
 package main
 
 import (
@@ -26,10 +30,13 @@ var version = "dev"
 
 func main() {
 	cfg := agent.ConfigFromEnv()
-	level := slog.LevelInfo
-	_ = level.UnmarshalText([]byte(cfg.LogLevel))
+	level, _ := agent.ParseLogLevel(cfg.LogLevel) // an invalid level is refused by Validate below (TD-9)
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 	slog.SetDefault(log)
+	if err := cfg.Validate(); err != nil {
+		log.Error("vrx-agent: invalid configuration", "err", err)
+		os.Exit(1)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

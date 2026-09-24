@@ -18,5 +18,24 @@ guessed. Compatibility: older API builds never call it; an older agent answers `
 the list from Retrieve alone with `state: null`).
 
 ## `contract(api-client)`: regenerated OpenAPI client
-`GET /api/v1/state/interfaces` gains typed `items[]` (live state + config + `hasPendingChange`),
-`GET /api/v1/state/interfaces/{name}/counters` is new. Additive.
+`GET /api/v1/state/interfaces/{name}/counters` is new.
+
+`GET /api/v1/state/interfaces` — **correction (fix round 1, D-105).** The first version of this file called the change
+"additive". It was not: P08 had moved `items[].config` from the Retrieve view to the running configuration (and put
+the Retrieve view into a new `actual`), which silently changed what `vrx show interfaces` prints. Fix round 1 restores
+the pre-P08 meaning and makes the change additive:
+
+| field | before P08 | P08 (round 0) | now |
+|---|---|---|---|
+| `items[].config` | Retrieve view of the interface (non-null) | running configuration (nullable) | **Retrieve view again**; `null` only on rows P08 added (a live interface the agent does not manage, or a configured one VPP does not have yet) |
+| `items[].running` | – | – | **new**: the running configuration of this (sub-)interface, `null` when not configured |
+| `items[].actual` | – | Retrieve view | **removed** (never released; it duplicated `config`) |
+| `items[].counters` | InterfaceCounters or `null` | same | same |
+| `items[].name/kind/parent/state/hasPendingChange` | only `name` | new | new |
+| rows | interfaces in Retrieve (sub-interfaces nested in `config.subinterfaces`) | + live-only, configured-only and one row per sub-interface (`<parent>.<id>`) | same as round 0 |
+
+Every row the old endpoint returned is still returned with the same `name`, `config` and `counters`; the new rows and
+fields are additions. The CLI is unchanged (`apps/cli/internal/cli/cmd_op.go` reads `name/config/counters`); its
+operations table is regenerated (`State_counters`, new summary). Consumers updated in the same round: the web screen
+(`InterfacesPage.tsx`, `model.ts`: fall back to `running`), `apps/api/test/e2e/interfaces.e2e.test.ts` and
+`test/topology/interfaces` (read the Retrieve view from `config`).

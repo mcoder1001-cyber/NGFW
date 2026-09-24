@@ -442,7 +442,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Interfaces as retrieved from VPP by the agent, with the latest counters */
+    /** Interfaces: live state from VPP (agent InterfaceState), what the agent retrieved (config), the running configuration, the latest counters and pending candidate changes */
     get: operations['State_interfaces'];
     put?: never;
     post?: never;
@@ -7256,12 +7256,12 @@ export interface operations {
                 rxMode: string;
                 description: string;
               } | null;
-              /** @description the running configuration of this (sub-)interface; null when it is not configured */
+              /** @description what the agent retrieved as configured on the data plane (Retrieve), as before P08; null only on the rows P08 added (a live interface the agent does not manage, or a configured one the data plane does not have yet) */
               config: {
                 [key: string]: unknown;
               } | null;
-              /** @description what the agent retrieved as configured on the data plane (Retrieve) */
-              actual: {
+              /** @description the running configuration of this (sub-)interface; null when it is not configured */
+              running: {
                 [key: string]: unknown;
               } | null;
               counters: {

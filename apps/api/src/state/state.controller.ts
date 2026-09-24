@@ -108,11 +108,13 @@ const InterfaceItemOut = z.object({
   config: z
     .record(z.string(), z.unknown())
     .nullable()
-    .describe('the running configuration of this (sub-)interface; null when it is not configured'),
-  actual: z
+    .describe(
+      'what the agent retrieved as configured on the data plane (Retrieve), as before P08; null only on the rows P08 added (a live interface the agent does not manage, or a configured one the data plane does not have yet)',
+    ),
+  running: z
     .record(z.string(), z.unknown())
     .nullable()
-    .describe('what the agent retrieved as configured on the data plane (Retrieve)'),
+    .describe('the running configuration of this (sub-)interface; null when it is not configured'),
   counters: CountersOut.nullable(),
   hasPendingChange: z
     .boolean()
@@ -226,12 +228,14 @@ export class StateController {
   @Get('interfaces')
   @Protected(502, 503)
   @ApiOperation({
-    summary: 'Interfaces as retrieved from VPP by the agent, with the latest counters',
+    summary:
+      'Interfaces: live state from VPP (agent InterfaceState), what the agent retrieved (config), the running configuration, the latest counters and pending candidate changes',
   })
   @ApiOkResponse({ schema: openapi(InterfacesOut, 'output') })
   async interfaces() {
     // P08: merged view — live state (InterfaceState, dumped from VPP by the agent), what the agent retrieved as
-    // configured (Retrieve), the running configuration, the latest counters and whether the candidate changes it.
+    // configured (Retrieve → `config`, its pre-P08 meaning, D-105), the running configuration (`running`), the
+    // latest counters and whether the candidate changes it.
     const [r, live, stats, running, candidate] = await Promise.all([
       this.agent.retrieve(['interfaces']),
       this.liveState(),
@@ -261,8 +265,8 @@ export class StateController {
         kind: parent ? ('subinterface' as const) : ('interface' as const),
         parent,
         state: st ? liveJson(st) : null,
-        config: runIfs.get(name)?.value ?? null,
-        actual: actIfs.get(name)?.value ?? null,
+        config: actIfs.get(name)?.value ?? null,
+        running: runIfs.get(name)?.value ?? null,
         counters: c ? countersJson(c) : null,
         hasPendingChange: !deepEqual(
           runIfs.get(name)?.value ?? null,

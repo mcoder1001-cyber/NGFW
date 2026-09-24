@@ -55,3 +55,8 @@ Host tests run one Go package at a time against the shared VPP (never `go test .
 ## 9. Shared daemons: owner-prefix scoping (D-089)
 When several slots' tests share one daemon instance (e.g. a charon), renderers operate only on objects carrying their owner prefix
 (`WithOwnerPrefix`); a renderer never unloads, flushes or restarts what another prefix loaded.
+
+## 10. Lab lock scope (D-094)
+`flock -s /run/lock/vrx-lab.lock` is held only for the duration of an actual integration/E2E run — never by a long-lived dev stack
+(API/agent/vite left running between runs). Workers stop every process they started (by PID) before they finish or pause; a stack left
+running blocks the manager's `tools/ci.sh full` barrier.

@@ -722,5 +722,20 @@ Dry run — default build, computed version (`build.sh --prepare-only`, log /roo
 
 CI gate (D-092 follow-up):
 ```
-@@CI92@@
+$ tools/ci.sh --base main      # 03:33, HEAD e106187 (only this report changed after it)
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m01s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   0m23s
+  forbidden patterns (+ gitleaks)                    0m03s
+  lint · typecheck · unit tests · build (turbo)   0m21s
+  apps/agent: make lint test build                   0m13s
+  test/ Go modules, unit mode (test/integration/smoke)   0m01s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      review(F-vpp-debs): findings
+  mode quick · wall time 1m04s · logs /root/ngfw-wt/logs/ci/F-vpp-debs-20260924-033341-2433216
+
+CI GATE PASSED
 ```

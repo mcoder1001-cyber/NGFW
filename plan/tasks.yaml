@@ -671,17 +671,17 @@ tasks:
   - DF-2
   priority: 1
   est_hours: 16
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D1.2
   - D1.3
   scope: packet path = af_packet/veth rig (D-010)
-  files_owned: apps/** test/topology/interfaces/** docs/user/interfaces/**
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  files_owned: apps/agent/cmd/vrx-agent/** apps/agent/internal/{agent,subsystems,desired}/** apps/api/src/state/** apps/web/src/domains/interfaces/** test/topology/interfaces/** docs/user/interfaces/**
+  branch: task/P08
+  worktree: /root/ngfw-wt/P08
+  owner: host-agent slot1
+  started: 2026-09-24T05:45
   finished: ''
   notes: ' | consolidate D-080 boot-identity helper; install persisted ClaimStore/records (DF-1 Q5, DF-6 Q10, DF-8 Q8); retrofit DF-2/DF-4 records'
 - id: F-vlan-qinq

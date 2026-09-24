@@ -827,8 +827,138 @@ export interface components {
                */
               setBroadcastFlag: boolean;
             };
+            /** IPv6 router advertisements */
+            ipv6Ra?: {
+              /**
+               * Suppress router advertisements
+               * @default true
+               */
+              suppress: boolean;
+              /**
+               * Managed flag (M)
+               * @default false
+               */
+              managed: boolean;
+              /**
+               * Other configuration flag (O)
+               * @default false
+               */
+              other: boolean;
+              /**
+               * Router lifetime (s)
+               * @default 600
+               */
+              lifetimeSec: number;
+              /**
+               * Maximum interval (s)
+               * @default 200
+               */
+              maxIntervalSec: number;
+              /**
+               * Minimum interval (s)
+               * @default 150
+               */
+              minIntervalSec: number;
+              /**
+               * Advertised prefixes
+               * @default {}
+               */
+              prefixes: {
+                [key: string]: {
+                  /**
+                   * Valid lifetime (s)
+                   * @default 2592000
+                   */
+                  validSec: number;
+                  /**
+                   * Preferred lifetime (s)
+                   * @default 604800
+                   */
+                  preferredSec: number;
+                  /**
+                   * Off-link
+                   * @default false
+                   */
+                  offLink: boolean;
+                  /**
+                   * No autoconfiguration
+                   * @default false
+                   */
+                  noAutoconfig: boolean;
+                };
+              };
+            };
+            /** Proxy ARP */
+            proxyArp?: boolean;
+            /** Proxy ND addresses (experimental) */
+            proxyNd?: string[];
           };
         };
+        /** IPv6 router advertisements */
+        ipv6Ra?: {
+          /**
+           * Suppress router advertisements
+           * @default true
+           */
+          suppress: boolean;
+          /**
+           * Managed flag (M)
+           * @default false
+           */
+          managed: boolean;
+          /**
+           * Other configuration flag (O)
+           * @default false
+           */
+          other: boolean;
+          /**
+           * Router lifetime (s)
+           * @default 600
+           */
+          lifetimeSec: number;
+          /**
+           * Maximum interval (s)
+           * @default 200
+           */
+          maxIntervalSec: number;
+          /**
+           * Minimum interval (s)
+           * @default 150
+           */
+          minIntervalSec: number;
+          /**
+           * Advertised prefixes
+           * @default {}
+           */
+          prefixes: {
+            [key: string]: {
+              /**
+               * Valid lifetime (s)
+               * @default 2592000
+               */
+              validSec: number;
+              /**
+               * Preferred lifetime (s)
+               * @default 604800
+               */
+              preferredSec: number;
+              /**
+               * Off-link
+               * @default false
+               */
+              offLink: boolean;
+              /**
+               * No autoconfiguration
+               * @default false
+               */
+              noAutoconfig: boolean;
+            };
+          };
+        };
+        /** Proxy ARP */
+        proxyArp?: boolean;
+        /** Proxy ND addresses (experimental) */
+        proxyNd?: string[];
       };
     };
     /**
@@ -842,6 +972,19 @@ export interface components {
         id: number;
         /** Description */
         description?: string;
+        /** Proxy-ARP ranges */
+        proxyArpRanges?: {
+          /**
+           * First address
+           * Format: ipv4
+           */
+          low: string;
+          /**
+           * Last address
+           * Format: ipv4
+           */
+          high: string;
+        }[];
       };
     };
     /**
@@ -1587,6 +1730,75 @@ export interface components {
            */
           enabled: boolean;
         }[];
+      };
+      /** Neighbours */
+      neighbors?: {
+        /**
+         * Static neighbours
+         * @default []
+         */
+        static: {
+          /** Interface */
+          interface: string;
+          /** IP address */
+          ip: string;
+          /** MAC address */
+          mac: string;
+          /**
+           * No FIB entry
+           * @default false
+           */
+          noFibEntry: boolean;
+        }[];
+        /** IPv4 (ARP) table limits */
+        ipv4Limits?: {
+          /**
+           * Maximum entries
+           * @default 50000
+           */
+          maxNumber: number;
+          /**
+           * Maximum age (s)
+           * @default 0
+           */
+          maxAgeSec: number;
+          /**
+           * Recycle
+           * @default false
+           */
+          recycle: boolean;
+        };
+        /** IPv6 (ND) table limits */
+        ipv6Limits?: {
+          /**
+           * Maximum entries
+           * @default 50000
+           */
+          maxNumber: number;
+          /**
+           * Maximum age (s)
+           * @default 0
+           */
+          maxAgeSec: number;
+          /**
+           * Recycle
+           * @default false
+           */
+          recycle: boolean;
+        };
+        /** Duplicate address detection */
+        dad?: {
+          /**
+           * Probes
+           * @default 1
+           */
+          transmits: number;
+          /**
+           * Retransmit delay (ms)
+           * @default 1000
+           */
+          delayMs: number;
+        };
       };
     };
     /**

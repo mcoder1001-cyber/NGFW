@@ -12,6 +12,7 @@ import {
 } from '../primitives.js';
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
+import { ipv6RaField, proxyArpField, proxyNdField } from './ext/neighbors-ra.js';
 
 /**
  * `interfaces` — record keyed by VPP interface name → interface settings (docs/04-api-datamodel.md; WBS D1.2–D1.4).
@@ -170,6 +171,9 @@ export const SubinterfaceSchema = z
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // wave-A: F-bridge-l2
     // wave-A: F-neighbors-ra
+    ipv6Ra: ipv6RaField,
+    proxyArp: proxyArpField,
+    proxyNd: proxyNdField,
     // wave-A: F-rpf-adl-pbr
   })
   .refine(noAddressesWhenUnnumbered, { message: UNNUMBERED_EXCLUSIVE, path: ['unnumbered'] });
@@ -209,6 +213,9 @@ export const InterfaceSchema = z
     // wave-A: F-bridge-l2
     // wave-A: F-loopback-bvi-gso-lldp-span
     // wave-A: F-neighbors-ra
+    ipv6Ra: ipv6RaField,
+    proxyArp: proxyArpField,
+    proxyNd: proxyNdField,
     // wave-A: F-rpf-adl-pbr
     // wave-A: P12
   })

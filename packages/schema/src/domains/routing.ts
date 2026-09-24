@@ -15,6 +15,7 @@ import {
 } from '../primitives.js';
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
+import { neighborsField } from './ext/neighbors-ra.js';
 
 /**
  * `routing` — static routes, the routing-policy skeleton (prefix-lists, route-maps) and the dynamic protocols
@@ -700,6 +701,7 @@ export const RoutingSchema = withUi(
     bfd: withUi(BfdSchema.optional(), { title: 'BFD', group: 'dynamic', order: 7 }),
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // wave-A: F-neighbors-ra
+    neighbors: neighborsField,
     // wave-A: F-rpf-adl-pbr
   }),
   {

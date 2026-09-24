@@ -73,6 +73,7 @@ export * from './domains/management.js';
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
 // wave-A: F-neighbors-ra
+export * from './domains/ext/neighbors-ra.js';
 // wave-A: F-rpf-adl-pbr
 // wave-A: F-object-model
 // wave-A: F-host-acl-nftables

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { descriptionText, objectName, uint32 } from '../primitives.js';
 import { withUi } from '../ui.js';
+import { proxyArpRangesField } from './ext/neighbors-ra.js';
 
 /**
  * `vrfs` — VRF / FIB tables keyed by name (docs/04-api-datamodel.md).
@@ -21,6 +22,7 @@ export const VrfSchema = z.strictObject({
   // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
+  proxyArpRanges: proxyArpRangesField,
 });
 export type VrfConfig = z.infer<typeof VrfSchema>;
 

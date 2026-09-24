@@ -19,6 +19,7 @@ import { managementValidators } from './management.js';
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
 // wave-A: F-neighbors-ra
+import { neighborsRaValidators } from './neighbors-ra.js';
 // wave-A: F-rpf-adl-pbr
 // wave-A: F-object-model
 // wave-A: F-host-acl-nftables
@@ -55,6 +56,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
+  ...neighborsRaValidators,
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model
   // wave-A: F-host-acl-nftables

@@ -606,6 +606,57 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/nat/sessions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** NAT44-ED sessions of this agent, server-side paged (pageSize ≤ 1000) and filtered by the agent (NatSessions RPC) */
+    get: operations['Nat44EdSessions_sessions'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/nat/summary': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** NAT44-ED totals and per-pool utilisation (NatSummary RPC) joined with the running configuration pool names */
+    get: operations['Nat44EdSessions_summary'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/nat/sessions/kill': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Delete one NAT44-ED session by its 5-tuple (protocol, inside and external endpoint) and inside VRF */
+    post: operations['Nat44EdSessions_kill'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7915,6 +7966,314 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Nat44EdSessions_sessions: {
+    parameters: {
+      query?: {
+        vrf?: string;
+        protocol?: string;
+        port?: number;
+        external?: string;
+        outside?: string;
+        inside?: string;
+        pageSize?: number;
+        page?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            page: number;
+            pageSize: number;
+            /** @description sessions matching the filter (a lower bound when truncated) */
+            total: number;
+            totalUsers: number;
+            /** @description the agent stopped a filtered scan at its cap: total is a lower bound */
+            truncated: boolean;
+            retrievedAt?: string;
+            items: {
+              insideAddress: string;
+              insidePort: number;
+              outsideAddress: string;
+              outsidePort: number;
+              externalAddress: string;
+              externalPort: number;
+              externalNatAddress: string;
+              externalNatPort: number;
+              protocol: string;
+              vrf: string;
+              tableId: number;
+              static: boolean;
+              twiceNat: boolean;
+              timedOut: boolean;
+              idleSeconds: number;
+              bytes: number;
+              packets: number;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Nat44EdSessions_summary: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            enabled: boolean;
+            /** @description per worker thread (VPP running config) */
+            sessionLimit: number;
+            totalUsers: number;
+            totalSessions: number;
+            staticSessions: number;
+            truncated: boolean;
+            byProtocol: {
+              [key: string]: number;
+            };
+            pools: {
+              /** @description the running configuration pool this usage belongs to */
+              name: string | null;
+              /** @enum {string} */
+              kind: 'range' | 'interface';
+              range: string | null;
+              interface: string | null;
+              vrf: string | null;
+              twiceNat: boolean;
+              addresses: number;
+              sessions: number;
+              /** @description sessions / (addresses × 64 512 ports), capped at 1 (an estimate: ED reuses ports per destination) */
+              utilisation: number;
+              /** @description the agent retrieved this pool from VPP */
+              applied: boolean;
+              /** @description the running configuration has this pool */
+              configured: boolean;
+            }[];
+            retrievedAt?: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Nat44EdSessions_kill: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @enum {string} */
+          protocol: 'tcp' | 'udp' | 'icmp';
+          /** Format: ipv4 */
+          insideAddress: string;
+          insidePort: number;
+          /** Format: ipv4 */
+          externalAddress: string;
+          externalPort: number;
+          /** @description inside VRF; default "default" */
+          vrf?: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @constant */
+            deleted: true;
+            summary: string;
+            stats: {
+              [key: string]: string;
+            };
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

@@ -2143,7 +2143,7 @@ tasks:
   - P01
   priority: 5
   est_hours: 8
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D0.2
@@ -2153,9 +2153,10 @@ tasks:
   worktree: /root/ngfw-wt/F-vpp-debs
   owner: host-agent slot2
   started: 2026-09-24T03:20
-  finished: ''
+  finished: '2026-09-24'
   notes: 'D-058: added; P10 consumes its output | worker done 90dbb81 (45 min build, 11 debs = host set); review spawned; D-089 | review APPROVE WITH CHANGES afb833a (H1 unpinned wheels from /root/vpp,
-    H2 demo patch unsuffixed, M1 fuzz, M2 rm -rf guards, M3 apt rc); fix round 1'
+    H2 demo patch unsuffixed, M1 fuzz, M2 rm -rf guards, M3 apt rc); fix round 1 | fix round 03e343c (D-092); merged f68bfe5; main CI green; worktree kept for build artefacts (.build/out) until P10 publishes
+    to /srv/vrx-artifacts'
 - id: F-ha-state-sync
   title: 'HA state sync (T2, partial ok): NAT/ACL session sync, IPsec SA sync, failover test automation'
   prompt: prompts/features/F-ha-state-sync.md

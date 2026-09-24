@@ -53,6 +53,7 @@ const (
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-rpf-adl-pbr
 	// wave-A: F-object-model
+	Objects = "objects"
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions
@@ -100,6 +101,7 @@ var Domains = map[string][]string{
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-rpf-adl-pbr
 	// wave-A: F-object-model
+	Objects: objectModelDescriptors(), // agent-local objects.* family (object_model.go)
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions
@@ -216,6 +218,9 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-A: F-neighbors-ra
 	// wave-A: F-rpf-adl-pbr
 	// wave-A: F-object-model
+	if err := w.registerObjectModel(r); err != nil { // objects.* store + FQDN resolver (object_model.go)
+		return nil, err
+	}
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions

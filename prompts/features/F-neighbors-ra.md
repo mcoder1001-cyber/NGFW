@@ -13,7 +13,7 @@ limits, proxy-ARP (ranges + interfaces), proxy-ND, IPv6 router advertisements (p
   is read-only for you (changes → questions file)
 - `apps/agent/binapi/ip_neighbor/` (`ip_neighbor_dump`, `ip_neighbor_flush`, `want_ip_neighbor_events_v2`), `ip6_nd/`, `arp/`, `ip6_dad/`
 - `packages/schema/src/domains/interfaces.ts` — **no neighbour/RA/proxy fields exist**
-- `task/P06`: `GET /api/v1/state/neighbors` answers **501** ("needs an agent state RPC") — you add it additively and make it real
+- `apps/api/src/state/state.controller.ts` (P06, merged; reworked by P08): `GET /api/v1/state/neighbors` still answers **501** ("needs an agent state RPC") — you add it additively and make it real
 - `docs/vpp-code-track.md` **V12** (VPP aborted after `ip6nd_proxy_add_del` → proxy-ND stays opt-in behind `VRX_DF2_PROXY_ND=1`, D-064; the
   product may expose it only as "experimental, off by default"); host-vrx-a: plugin `ip6_dad_autoremove` **not loaded** (no auto-remove)
 - LOG D-071 (neighbour-DB config and DAD are VPP globals: only the globals owner sets them; slots may only require), D-082 (globals lock)

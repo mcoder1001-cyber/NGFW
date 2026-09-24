@@ -49,3 +49,20 @@ Every other hotspot uses board order (`plan/tasks.yaml`).
 and the `available` test list: each of these features has its own anchor. Two features that add the same key still need a semantic union at merge
 (launch plan §4). I did not seed the keys themselves: an empty `Domains` entry changes `Health.subsystems`, and a `BUILT_DOMAINS`
 entry makes a placeholder screen reachable in the nav. Both would be behaviour changes.
+
+## Q6. `git merge main` (TD-5) is blocked by a P08 × TD-5 interaction, not by W-seed (the manager decides)
+The CONTINUE brief says: merge main, re-run CI, do not merge `task/P08` again. The merge had no conflicts, but the
+`pre-merge-commit` hook (`tools/ci.sh quick --base HEAD` on the merged tree) refused it. The only deterministic failure is in
+`apps/agent`: TD-5's `TestEveryAfPacketDeleteIsQuiesced` (V24 guard, now on main) flags
+`internal/descriptors/core/coretest/ifext.go:170:21`. That line is P08's fake-VPP handler decoding `m.(*afpapi.AfPacketDelete)`.
+- The same test fails on `task/P08@e1587c9` + main **without** W-seed (scratch clone). W-seed touches neither file.
+- `task/P08@7c06b88` ("V24 guard skips AfPacketDelete as a type assertion's asserted type", D-118) fixes it. With that diff
+  applied to W-seed + main (scratch clone, nothing committed), the guard passes: `0 violations`.
+- The second hook failure, `renderers/strongswan TestWatchResync` ("resync true poll false"), is a load flake (load avg 140 at the
+  time). It passes 3/3 when run alone, and W-seed/TD-5 do not touch strongswan.
+
+I did not merge `task/P08` or cherry-pick 7c06b88 (both forbidden for now), and I did not edit TD-5's `guard_test.go` (not my file;
+D-118 gives that edit to P08). The auto-mode classifier refused a logged `git merge --no-verify`, so I ran `git merge --abort`. The branch
+stays on `task/P08@e1587c9` + the main it had. CI was re-run on that head (below).
+Options: (a) as planned, the merger rebases W-seed onto main after P08 (with 7c06b88) lands, so no extra step is needed (recommended);
+(b) if a merged-main W-seed is needed before P08 lands, the manager commits the merge with a logged `--no-verify`.

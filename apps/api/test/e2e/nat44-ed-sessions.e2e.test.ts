@@ -149,9 +149,9 @@ describe('nat44-ed sessions e2e (PostgreSQL + fake agent)', () => {
     const f = await h.call(ro, 'GET', '/api/v1/state/nat/sessions?protocol=UDP&external=10.1.2.2');
     expect(f.body.total).toBe(1);
     expect(f.body.items[0]).toMatchObject({ protocol: 'udp', externalPort: 53 });
-    const last = await h.call(ro, 'GET', '/api/v1/state/nat/sessions?pageSize=1000&page=3');
+    const last = await h.call(ro, 'GET', '/api/v1/state/nat/sessions?pageSize=250&page=9');
     expect(last.body.items).toHaveLength(101);
-    for (const bad of ['pageSize=1001', 'inside=10.1.1', 'port=70000', 'vrf=a%20b']) {
+    for (const bad of ['pageSize=257', 'inside=10.1.1', 'port=70000', 'vrf=a%20b']) {
       const b = await h.call(ro, 'GET', `/api/v1/state/nat/sessions?${bad}`);
       expect(b.status, bad).toBe(400);
       expect(b.headers['content-type']).toMatch(/^application\/problem\+json/);

@@ -100,7 +100,8 @@ describe('sessions and kill mapping', () => {
       protocol: 'tcp',
       vrf: 'default',
     });
-    expect(SessionsQuery.safeParse({ pageSize: '1001' }).success).toBe(false);
+    expect(SessionsQuery.safeParse({ pageSize: '257' }).success).toBe(false); // review H1: ≤ 256 hosts per call
+    expect(SessionsQuery.safeParse({ pageSize: '256' }).success).toBe(true);
     expect(SessionsQuery.safeParse({ inside: '10.4.1' }).success).toBe(false);
     expect(
       sessionJson(fakeSession({ bytes: '4096', packets: '7', idleSeconds: '3' })),

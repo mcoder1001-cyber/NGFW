@@ -15,8 +15,11 @@ const vrfName = z
   .max(63)
   .regex(/^[A-Za-z0-9][A-Za-z0-9_.-]*$/, 'a VRF name ("default", a configured VRF or a table id)');
 
-/** Largest page (the agent refuses more than 1000 sessions per NatSessions call). */
-export const MAX_PAGE_SIZE = 1000;
+/**
+ * Largest page. The agent dumps at most 256 inside hosts per NatSessions call (each per-host dump walks VPP's whole
+ * session table under the barrier, review H1), so a page of ≤ 256 sessions is never cut short by that cap.
+ */
+export const MAX_PAGE_SIZE = 256;
 
 export const SessionsQuery = z.object({
   page: z.coerce.number().int().min(1).max(4_000_000).default(1),
@@ -58,7 +61,9 @@ export const SessionsOut = z.object({
   totalUsers: z.number().int(),
   truncated: z
     .boolean()
-    .describe('the agent stopped a filtered scan at its cap: total is a lower bound'),
+    .describe(
+      'the agent stopped at a per-call cap (256 inside hosts, 200 000 sessions): with an address/port/protocol filter total is a lower bound and later pages may be empty; narrow the filter (e.g. by inside address)',
+    ),
   retrievedAt: z.string().optional(),
   items: z.array(SessionOut),
 });
@@ -88,10 +93,17 @@ export const SummaryOut = z.object({
   totalUsers: z.number().int(),
   totalSessions: z.number().int(),
   staticSessions: z.number().int(),
-  truncated: z.boolean(),
+  truncated: z
+    .boolean()
+    .describe(
+      "the per-pool and per-protocol counts stopped at the agent's per-call caps (64 inside hosts, 200 000 sessions): lower bounds; the totals are complete",
+    ),
   byProtocol: z.record(z.string(), z.number().int()),
   pools: z.array(PoolUsageOut),
-  retrievedAt: z.string().optional(),
+  retrievedAt: z
+    .string()
+    .optional()
+    .describe('when the agent computed the summary; it serves one computation for up to 30 s'),
 });
 
 export const KillBody = z.object({

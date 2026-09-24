@@ -17,6 +17,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useFormatters } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api-problem';
@@ -24,6 +25,7 @@ import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import {
   EMPTY_FILTER,
+  isSessionLevelFilter,
   killBodyOf,
   sessionId,
   type Session,
@@ -39,7 +41,8 @@ export interface SessionRow extends Session {
 }
 
 const LTR = { dir: 'ltr' } as const;
-const PAGE_SIZES = [25, 50, 100, 500, 1000];
+/** Page sizes ≤ 250: the agent dumps at most 256 inside hosts per call (review H1), so a page is never cut short. */
+const PAGE_SIZES = [25, 50, 100, 250];
 const FILTER_FIELDS = ['inside', 'outside', 'external', 'port'] as const;
 const PROTOCOLS = ['', 'tcp', 'udp', 'icmp'];
 
@@ -56,6 +59,7 @@ export function SessionsTab() {
   const fmt = useFormatters();
   const perms = usePermissions();
   const kill = useKillSession();
+  const qc = useQueryClient();
   const [draft, setDraft] = useState<SessionFilter>(EMPTY_FILTER);
   const [filter, setFilter] = useState<SessionFilter>(EMPTY_FILTER);
   const [meta, setMeta] = useState<Pick<SessionsPage, 'total' | 'totalUsers' | 'truncated'> | null>(
@@ -160,33 +164,39 @@ export function SessionsTab() {
         width: 80,
         sortable: false,
         filterable: false,
-        renderCell: (p) => (
-          <Tooltip title={perms.editConfig ? '' : t('readonly')}>
-            <span>
-              <IconButton
-                size="small"
-                aria-label={t('kill.button', {
-                  session: ep(p.row.insideAddress, p.row.insidePort),
-                })}
-                disabled={!perms.editConfig}
-                onClick={() => setConfirm(p.row)}
-              >
-                <DeleteForeverIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-        ),
+        renderCell: (p) => {
+          const killable = killBodyOf(p.row) !== null;
+          return (
+            <Tooltip
+              title={!perms.editConfig ? t('readonly') : killable ? '' : t('kill.unsupported')}
+            >
+              <span>
+                <IconButton
+                  size="small"
+                  aria-label={t('kill.button', {
+                    session: ep(p.row.insideAddress, p.row.insidePort),
+                  })}
+                  disabled={!perms.editConfig || !killable}
+                  onClick={() => setConfirm(p.row)}
+                >
+                  <DeleteForeverIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          );
+        },
       },
     ],
     [t, fmt, perms.editConfig],
   );
 
   const doKill = async () => {
-    if (!confirm) return;
+    const body = confirm ? killBodyOf(confirm) : null;
+    if (!body) return;
     setResult(null);
     setKillError(null);
     try {
-      const r = await kill.mutateAsync(killBodyOf(confirm));
+      const r = await kill.mutateAsync(body);
       setResult({ ok: true, text: r.summary });
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) setResult({ ok: false, text: t('kill.gone') });
@@ -195,6 +205,8 @@ export function SessionsTab() {
     setConfirm(null);
   };
 
+  // a session-level filter makes the agent scan sessions: refreshed by hand only (review H1)
+  const manual = isSessionLevelFilter(filter);
   const apply = () => setFilter({ ...draft });
   const clear = () => {
     setDraft(EMPTY_FILTER);
@@ -257,6 +269,12 @@ export function SessionsTab() {
         <Button size="small" onClick={clear}>
           {t('filter.clear')}
         </Button>
+        <Button
+          size="small"
+          onClick={() => void qc.invalidateQueries({ queryKey: natKeys.sessions })}
+        >
+          {t('sessions.refresh')}
+        </Button>
       </Stack>
       <Stack direction="row" gap={1} alignItems="center" sx={{ mb: 1 }}>
         <Typography variant="body2" role="status" data-testid="nat-sessions-total">
@@ -268,6 +286,14 @@ export function SessionsTab() {
             : t('loading')}
         </Typography>
         {meta?.truncated && <Chip size="small" color="warning" label={t('status.truncated')} />}
+        {manual && (
+          <Chip
+            size="small"
+            variant="outlined"
+            label={t('sessions.manualRefresh')}
+            data-testid="nat-sessions-manual"
+          />
+        )}
       </Stack>
       {result && (
         <Alert
@@ -285,7 +311,7 @@ export function SessionsTab() {
           columns={columns}
           queryKey={[...natKeys.sessions, filter]}
           fetchPage={fetchPage}
-          refetchInterval={NAT_POLL_MS}
+          refetchInterval={manual ? false : NAT_POLL_MS}
           initialPageSize={100}
           pageSizeOptions={PAGE_SIZES}
           disableColumnFilter
@@ -302,7 +328,12 @@ export function SessionsTab() {
               sx={{ mt: 1, fontFamily: (th) => th.vrx.monoFontFamily, textAlign: 'start' }}
               data-testid="nat-kill-tuple"
             >
-              {`${confirm.protocol} ${ep(confirm.insideAddress, confirm.insidePort)} → ${ep(confirm.externalAddress, confirm.externalPort)} (vrf ${confirm.vrf})`}
+              {(() => {
+                const b = killBodyOf(confirm);
+                return b
+                  ? `${b.protocol} ${ep(b.insideAddress, b.insidePort)} → ${ep(b.externalAddress, b.externalPort)} (vrf ${confirm.vrf})`
+                  : '';
+              })()}
             </Typography>
           )}
         </DialogContent>

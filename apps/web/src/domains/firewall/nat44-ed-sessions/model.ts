@@ -107,16 +107,27 @@ export function usageFor(
   return usage.find((u) => poolKey(u) === key);
 }
 
-/** The kill request for one session row (the ED 5-tuple + inside VRF). */
-export function killBodyOf(s: Session): KillBody {
-  const protocol =
-    s.protocol === 'tcp' || s.protocol === 'udp' || s.protocol === 'icmp' ? s.protocol : 'tcp';
+/** The protocols the kill action takes (`KillBody.protocol`). */
+const KILLABLE = ['tcp', 'udp', 'icmp'] as const;
+
+/**
+ * The kill request for one session row (the ED 5-tuple + inside VRF), or `null` when the row cannot be killed through
+ * the API (a protocol other than tcp/udp/icmp — never a silent fallback to another 5-tuple). VPP looks the session up
+ * by its i2o flow, whose remote end is the external host **as the inside host addresses it**: the NAT'd external end
+ * (`externalNat*`) of a twice-NAT session, the external host otherwise (review M1).
+ */
+export function killBodyOf(s: Session): KillBody | null {
+  const protocol = KILLABLE.find((p) => p === s.protocol);
+  if (protocol === undefined) return null;
+  const [externalAddress, externalPort] = s.twiceNat
+    ? [s.externalNatAddress, s.externalNatPort]
+    : [s.externalAddress, s.externalPort];
   return {
     protocol,
     insideAddress: s.insideAddress,
     insidePort: s.insidePort,
-    externalAddress: s.externalAddress,
-    externalPort: s.externalPort,
+    externalAddress,
+    externalPort,
     vrf: s.vrf,
   };
 }
@@ -144,6 +155,14 @@ export const EMPTY_FILTER: SessionFilter = {
   protocol: '',
   vrf: '',
 };
+
+/**
+ * A filter on addresses, a port or the protocol makes the agent look at sessions (per-user dumps that walk VPP's whole
+ * session pool): such a grid is refreshed by hand, never polled (review H1). A VRF-only filter just selects users.
+ */
+export function isSessionLevelFilter(f: SessionFilter): boolean {
+  return [f.inside, f.outside, f.external, f.port, f.protocol].some((v) => v.trim() !== '');
+}
 
 /** Only the filled-in filters, as query parameters. */
 export function filterQuery(f: SessionFilter): Record<string, string | number> {

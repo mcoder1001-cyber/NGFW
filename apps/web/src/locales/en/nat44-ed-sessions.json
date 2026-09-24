@@ -143,7 +143,9 @@
     "total": "{{sessions}} sessions from {{users}} inside hosts",
     "static": "static",
     "twiceNat": "twice-NAT",
-    "timedOut": "timed out"
+    "timedOut": "timed out",
+    "refresh": "Refresh",
+    "manualRefresh": "Filtered: refreshed on demand only"
   },
   "filter": {
     "inside": "Inside address",
@@ -160,6 +162,7 @@
     "title": "Delete NAT session?",
     "question": "The translation is removed from the data plane now (audited). The flow's next packet creates a new session.",
     "confirm": "Delete session",
-    "gone": "The session no longer exists (it expired or was deleted already)."
+    "gone": "The session no longer exists (it expired or was deleted already).",
+    "unsupported": "Only TCP, UDP and ICMP sessions can be deleted here"
   }
 }

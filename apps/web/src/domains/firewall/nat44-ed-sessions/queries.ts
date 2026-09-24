@@ -11,8 +11,14 @@ export const natKeys = {
   sessions: ['state', 'nat', 'sessions'] as const,
 };
 
-/** Live refresh of the summary and the session grid (no WS topic for NAT state). */
+/** Live refresh of the unfiltered session grid (no WS topic for NAT state). */
 export const NAT_POLL_MS = 5_000;
+
+/**
+ * Refresh of the summary (Outbound and Pools tabs only; paused in a background browser tab). The agent caches the
+ * summary for 30 s, so polling faster would only re-read the same snapshot (review H1).
+ */
+export const NAT_SUMMARY_POLL_MS = 30_000;
 
 async function fetchCandidateNat(signal?: AbortSignal): Promise<Record<string, unknown>> {
   const r = await call(
@@ -63,7 +69,8 @@ export function useNatSummary() {
   return useQuery({
     queryKey: natKeys.summary,
     queryFn: ({ signal }) => fetchSummary(signal),
-    refetchInterval: NAT_POLL_MS,
+    refetchInterval: NAT_SUMMARY_POLL_MS,
+    refetchIntervalInBackground: false,
   });
 }
 

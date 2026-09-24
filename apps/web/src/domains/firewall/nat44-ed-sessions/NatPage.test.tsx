@@ -5,7 +5,16 @@ import { App } from '../../../App';
 import i18n from '../../../i18n';
 import { createTestRouter } from '../../../router';
 import { installFakeApi, resetSession, signIn, type FakeApi } from '../../../test-api';
-import { filterQuery, killBodyOf, usageFor, type PoolUsage, type Session } from './model';
+import {
+  filterQuery,
+  isSessionLevelFilter,
+  killBodyOf,
+  usageFor,
+  EMPTY_FILTER,
+  type PoolUsage,
+  type Session,
+} from './model';
+import { NAT_POLL_MS, NAT_SUMMARY_POLL_MS } from './queries';
 import { natTabs } from './tabs';
 
 /** F-nat44-ed-sessions NAT screen in jsdom against a scripted stand-in of the API (the real stack: test/topology). */
@@ -102,8 +111,8 @@ const session = (i: number): Session => ({
   outsidePort: 20000 + i,
   externalAddress: '10.1.2.2',
   externalPort: 80,
-  externalNatAddress: '10.1.2.2',
-  externalNatPort: 80,
+  externalNatAddress: '0.0.0.0', // VPP reports it only for twice-NAT sessions
+  externalNatPort: 0,
   protocol: 'tcp',
   vrf: 'default',
   tableId: 0,
@@ -176,6 +185,37 @@ describe('nat model', () => {
     expect(
       usageFor({ name: 'x', range: '10.1.9.1', twiceNat: true }, [usage({ range: '10.1.9.1' })]),
     ).toBeUndefined();
+  });
+
+  it("review M1: a twice-NAT row is killed by its NAT'd external end; other protocols are not killable", () => {
+    const tw: Session = {
+      ...session(1),
+      twiceNat: true,
+      externalNatAddress: '10.1.2.120',
+      externalNatPort: 1024,
+    };
+    expect(killBodyOf(tw)).toEqual({
+      protocol: 'tcp',
+      insideAddress: '10.1.1.10',
+      insidePort: 10001,
+      externalAddress: '10.1.2.120',
+      externalPort: 1024,
+      vrf: 'default',
+    });
+    expect(killBodyOf({ ...session(2), protocol: 'udp' })?.protocol).toBe('udp');
+    expect(killBodyOf({ ...session(3), protocol: 'icmp' })?.protocol).toBe('icmp');
+    expect(killBodyOf({ ...session(4), protocol: '47' })).toBeNull(); // never a silent `tcp`
+  });
+
+  it('review H1: filters that scan sessions switch polling off; the summary polls at 30 s', () => {
+    expect(isSessionLevelFilter(EMPTY_FILTER)).toBe(false);
+    expect(isSessionLevelFilter({ ...EMPTY_FILTER, vrf: 'cust' })).toBe(false); // selects users only
+    for (const k of ['inside', 'outside', 'external', 'port', 'protocol'] as const) {
+      expect(isSessionLevelFilter({ ...EMPTY_FILTER, [k]: k === 'port' ? '80' : 'x' })).toBe(true);
+    }
+    expect(isSessionLevelFilter({ ...EMPTY_FILTER, port: '  ' })).toBe(false);
+    expect(NAT_SUMMARY_POLL_MS).toBeGreaterThanOrEqual(30_000);
+    expect(NAT_POLL_MS).toBeLessThan(NAT_SUMMARY_POLL_MS);
   });
 
   it('natTabs: the four NAT44-ED tabs in order (siblings append after them)', () => {
@@ -272,6 +312,18 @@ describe('NAT screen', () => {
             (c) => c.path === '/api/v1/state/nat/sessions' && c.search.includes('inside=10.1.1.10'),
           ),
         ).toBe(true),
+      );
+
+      // a session-level filter: no polling, a visible note, the Refresh button fetches again
+      expect(await screen.findByTestId('nat-sessions-manual')).toHaveTextContent(
+        'Filtered: refreshed on demand only',
+      );
+      const before = api.calls.filter((c) => c.path === '/api/v1/state/nat/sessions').length;
+      fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+      await waitFor(() =>
+        expect(api.calls.filter((c) => c.path === '/api/v1/state/nat/sessions').length).toBe(
+          before + 1,
+        ),
       );
 
       // kill asks first, then POSTs the 5-tuple

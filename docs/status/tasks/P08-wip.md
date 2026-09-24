@@ -25,3 +25,13 @@ rig 10.1.{1,2}.0/24). Runs directly on the host (no wt.sh). NRestarts at start: 
 - 08:00 ci.sh #1 failed on agent lint (coretest G115/revive + my IKEv2Options comment) → fixed 390b409; merged main (F-startup-apply); ci.sh #3 running.
 - 08:05 ci.sh #3 PASSED (after lint fix + main merge). 08:12 topology re-run green after merge (trace matching made run-unique; agent built in-test when no binary given).
 - 08:17 final ci.sh --base main PASSED @82d699d; cleanup done (bin/dist/run dir removed, vrx_w1 dropped, rig down, lock free, NRestarts 6). DONE except TD-3 Release wiring (pending its merge).
+
+## Fix round 1 (manager ngfw-46, envelope P08.fix1-envelope.md; review BLOCK 6022f0d) — started 14:22, time box 4 h
+- 14:23 step 0: merged main a8d1efb (TD-3 ifsanitize); one conflict coretest/fakevpp.go (kept installIfExt + sanitizetest.Clean);
+  `go build ./... && go test ./internal/...` green (87 ok) → 1bcf450.
+- 14:25 N1 fixture fixed (5a48d48). Host run on slot 1: TestAgentOnHost/ProcessOnHost now fail EARLIER, in TD-3's sanitizer
+  (placeholder cap, every interface create) — identical on main @ a8d1efb (export in scratch). Environment → Q3 (+ pool probe 2084d9c).
+- 14:33–14:40 F1 (config = Retrieve again, new `running`, `actual` dropped; contract f6fbdf3), F2 CLI table regenerated,
+  web/e2e/topology consumers, N2 (0755, never re-moded), N3 (trace must be ours), I5 → 3a02345. Web 18/18, e2e 1/1, CLI green.
+- Next: F5 (tolerant Update → ErrRecreate), F4 (af_packet veth-only, validation + agent guard), F3/I4 docs, lows, merge main
+  again (D-108 rig ring), CI, one topology run.

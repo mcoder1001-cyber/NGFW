@@ -630,6 +630,7 @@ export class FakeAgent {
       // wave-A: F-neighbors-ra
       // wave-A: F-rpf-adl-pbr
       // wave-A: F-object-model
+      fqdnObjectState: (_call, cb) => cb({ code: status.UNIMPLEMENTED, details: 'fake agent: FqdnObjectState' }),
       // wave-A: F-acl
       // wave-A: F-host-acl-nftables
       // wave-A: F-nat44-ed-sessions

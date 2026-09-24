@@ -8,14 +8,7 @@ import {
   type StatsBatch,
   type ValidationIssue,
 } from '@ngfw/proto';
-import {
-  canonicalPrefix,
-  deepEqual,
-  diff,
-  isPlainObject,
-  parsePointer,
-  type Change,
-} from '@ngfw/schema';
+import { deepEqual, diff, isPlainObject, parsePointer, type Change } from '@ngfw/schema';
 import { z } from 'zod';
 import { AgentClient } from '../agent/agent.client.js';
 import { SystemEventsService } from '../audit/system-events.service.js';
@@ -30,22 +23,9 @@ import { RelayService } from '../telemetry/relay.service.js';
 
 const startedAt = new Date();
 
-const RoutesQuery = z.object({
-  vrf: z.string().max(64).optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(1000).default(100),
-});
 const PageQuery = z.object({
   limit: z.coerce.number().int().min(1).max(500).default(100),
   offset: z.coerce.number().int().min(0).default(0),
-});
-
-const RouteOut = z.object({
-  vrf: z.string(),
-  prefix: z.string(),
-  origin: z.enum(['connected', 'static']),
-  nextHops: z.array(z.object({ address: z.string().optional(), interface: z.string().optional() })),
-  distance: z.number().int().optional(),
 });
 
 const SystemOut = z.object({
@@ -325,42 +305,6 @@ export class StateController {
     return { name, vppName, ts: stats?.ts?.toISOString(), counters: countersJson(c) };
   }
 
-  @Get('routes')
-  @Protected(502, 503)
-  @ApiQuery({ name: 'vrf', required: false, schema: { type: 'string' } })
-  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1 } })
-  @ApiQuery({
-    name: 'pageSize',
-    required: false,
-    schema: { type: 'integer', minimum: 1, maximum: 1000 },
-  })
-  @ApiOperation({
-    summary: 'Connected + static routes retrieved from VPP by the agent (server-side paged)',
-  })
-  @ApiOkResponse({
-    schema: openapi(
-      z.object({
-        page: z.number().int(),
-        pageSize: z.number().int(),
-        total: z.number().int(),
-        items: z.array(RouteOut),
-      }),
-      'output',
-    ),
-  })
-  async routes(@Query(new ZodPipe(RoutesQuery)) q: z.output<typeof RoutesQuery>) {
-    const r = await this.agent.retrieve(['interfaces', 'routing']);
-    const actual = DesiredState.toJSON(r.desiredState ?? DesiredState.fromPartial({})) as Json;
-    const all = routesOf(actual).filter((x) => q.vrf === undefined || x.vrf === q.vrf);
-    const start = (q.page - 1) * q.pageSize;
-    return {
-      page: q.page,
-      pageSize: q.pageSize,
-      total: all.length,
-      items: all.slice(start, start + q.pageSize),
-    };
-  }
-
   @Get('neighbors')
   @Protected(501)
   @ApiOperation({
@@ -440,42 +384,6 @@ export function driftOf(
     return true;
   });
   return { subsystems, changes: kept, ignored };
-}
-
-/** Connected prefixes of every interface/sub-interface address + static routes, sorted by VRF then prefix. */
-export function routesOf(doc: Json): z.infer<typeof RouteOut>[] {
-  const out: z.infer<typeof RouteOut>[] = [];
-  const connected = (name: string, node: Json) => {
-    const vrf = typeof node['vrf'] === 'string' ? node['vrf'] : 'default';
-    for (const fam of ['ipv4', 'ipv6']) {
-      for (const a of (node[fam] as string[] | undefined) ?? []) {
-        const prefix = canonicalPrefix(a);
-        if (prefix === undefined) continue;
-        out.push({ vrf, prefix, origin: 'connected', nextHops: [{ interface: name }] });
-      }
-    }
-  };
-  for (const [name, node] of Object.entries((doc['interfaces'] ?? {}) as Json)) {
-    if (!isPlainObject(node)) continue;
-    connected(name, node);
-    for (const [sub, s] of Object.entries((node['subinterfaces'] ?? {}) as Json)) {
-      if (isPlainObject(s)) connected(`${name}.${sub}`, s);
-    }
-  }
-  const routing = (doc['routing'] ?? {}) as Json;
-  for (const r of (routing['static'] as Json[] | undefined) ?? []) {
-    out.push({
-      vrf: typeof r['vrf'] === 'string' ? r['vrf'] : 'default',
-      prefix: String(r['prefix']),
-      origin: 'static',
-      nextHops: ((r['nextHops'] as Json[] | undefined) ?? []).map((h) => ({
-        ...(typeof h['address'] === 'string' ? { address: h['address'] } : {}),
-        ...(typeof h['interface'] === 'string' ? { interface: h['interface'] } : {}),
-      })),
-      ...(typeof r['distance'] === 'number' ? { distance: r['distance'] } : {}),
-    });
-  }
-  return out.sort((a, b) => a.vrf.localeCompare(b.vrf) || a.prefix.localeCompare(b.prefix));
 }
 
 /** `interfaces` of a document → one entry per interface and per sub-interface ("<parent>.<id>"). */

@@ -50,6 +50,10 @@ export interface NavGroup {
 export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   'interfaces',
   // Feature domains: one line under the feature's anchor (wave-A-hotspots W2).
+  // wave-BC: F-tunnels
+  // wave-BC: F-vrrp-config-sync
+  // wave-BC: F-srv6
+  // wave-BC: F-lisp
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-object-model
   // wave-A: F-acl
@@ -98,6 +102,12 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   }
   // Feature screens that are not a schema domain: one `groups.get('<group>')!.push({…})` line under the feature's anchor, labelKey in
   // the feature's namespace (wave-A-hotspots W2).
+  // wave-BC: F-ospf
+  // wave-BC: F-isis-rip
+  // wave-BC: F-bfd-redistribution
+  // wave-BC: F-mpls-srmpls
+  // wave-BC: F-igmp-mfib
+  // wave-BC: F-capture-trace
   // wave-A: F-bonding
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
@@ -105,9 +115,19 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-host-acl-nftables
   // wave-A: P12
+  // web: WEB-2
   groups.get('system')!.push(
     { id: 'users', path: '/system/users', labelKey: 'nav:users', fallbackLabel: 'Users', available: true },
     { id: 'revisions', path: '/system/revisions', labelKey: 'nav:revisions', fallbackLabel: 'Revisions', available: true },
+    // Non-domain system items, one per S5 task (wave-BC-numbers.md S5 pack):
+    // wave-BC: F-restconf-yang
+    // wave-BC: F-aaa
+    // wave-BC: F-backup-restore
+    // wave-BC: P10
+    // wave-BC: P14
+    // wave-BC: F-ab-upgrade
+    // wave-BC: F-images
+    // wave-BC: F-hardening-lite
   );
   groups.get('tools')!.push({ id: 'tools', path: '/tools', labelKey: 'nav:tools', fallbackLabel: 'Tools', available: false });
   if (devRoutes) groups.get('dev')!.push(...DEV_NAV_ITEMS);

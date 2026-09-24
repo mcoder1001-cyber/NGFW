@@ -196,3 +196,10 @@ export const systemEvent = pgTable(
   },
   (t) => [index('system_event_ts_idx').on(t.ts)],
 );
+
+// Feature tables: new pgTable(s) directly under the task's anchor (SY3); generate the migration with
+// `pnpm -C apps/api db:generate --name <slug>` against main's latest snapshot — never hand-merge.
+// wave-BC: F-dashboard-prom-alarms
+// wave-BC: F-aaa
+// wave-BC: F-licensing
+// wave-BC: F-backup-restore

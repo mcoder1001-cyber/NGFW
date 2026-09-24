@@ -340,7 +340,8 @@ tasks:
   owner: host-agent slot1
   started: 2026-09-24T03:10
   finished: ''
-  notes: ' | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)'
+  notes: ' | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094) | worker done c4513b2 (real-stack E2E 50/50 en+fa, server-loss countdown); review spawned | review APPROVE WITH CHANGES 403092c
+    (H1 hash-only change invisible → TD-2 item 6 + UI, M1 apply result hidden, M2 outage reload → login, M3 no timeouts, M4 cross-tab auth, M5 break-lock confirm); fix round 1'
 - id: DF-1
   title: 'Descriptors: bond, l2 (bridge, xconnect), memif, tap, host-interface/af_packet, subinterface, admin-state, mtu, rx-mode'
   prompt: prompts/factories/DF-1.md
@@ -469,7 +470,9 @@ tasks:
   owner: host-agent slot4
   started: 2026-09-23T15:28
   finished: ''
-  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)'
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)
+    | CONTINUE worker done e553199 CI green; review spawned; D-096 | review BLOCK ac84fb7 (H1 D-096 not done + scheduler prints values, H2 sweep may delete others SAs, H3 sweep may free referenced SA →
+    crash, M1–M4); fix round 1 (authorised minimal scheduler redaction edit)'
 - id: DF-6
   title: 'Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp'
   prompt: prompts/factories/DF-6.md
@@ -1023,7 +1026,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: build against staging sysroot from /root/vpp/build-root debs; test vs stock strongSwan in a netns
+  notes: 'build against staging sysroot from /root/vpp/build-root debs; test vs stock strongSwan in a netns | D-096: own charon SPD/SA id range; stop→sweep→start→AckRestart'
 - id: F-ikev2-native
   title: 'Wave B (day 10-12): VPP native IKEv2 responder path'
   prompt: prompts/features/F-ikev2-native.md
@@ -1593,7 +1596,7 @@ tasks:
   - P06
   priority: 6
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D0.11
@@ -1603,9 +1606,10 @@ tasks:
   worktree: /root/ngfw-wt/P13
   owner: host-agent slot3
   started: 2026-09-24T03:10
-  finished: ''
+  finished: '2026-09-24'
   notes: ' | worker done a84258c (live CLI session vs real API/agent/VPP; make -C apps/cli all green — not yet in ci.sh); review spawned | review APPROVE WITH CHANGES 68605c2 (H1 terminal escape injection,
-    H2 Ctrl-C breaks REPL, M1 session file symlink/perms, M2 list delete by index, M3 confirm UX); fix round 1 | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)'
+    H2 Ctrl-C breaks REPL, M1 session file symlink/perms, M2 list delete by index, M3 confirm UX); fix round 1 | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094) | fix round 7e515ce; merged
+    58fe694; main CI green'
 - id: F-restconf-yang
   title: RESTCONF/NETCONF + YANG generated from schema
   prompt: prompts/features/F-restconf-yang.md
@@ -1638,7 +1642,7 @@ tasks:
   - P06
   priority: 6
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D8.9
@@ -1648,9 +1652,9 @@ tasks:
   worktree: /root/ngfw-wt/F-sdk-terraform-ansible
   owner: host-agent slot5
   started: 2026-09-24T03:10
-  finished: ''
+  finished: '2026-09-24'
   notes: ' | worker done 20c9bca CI green (live SDK + TF vs real API/agent/VPP); review spawned; D-093 | review APPROVE WITH CHANGES a2b2ad1 (H1 planned value rewrite, H2 hash in state, M1 notApplied dropped,
-    M2 sync state, M3 discard race, M4 drift, L1 codegen injection); fix round 1 | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)'
+    M2 sync state, M3 discard race, M4 drift, L1 codegen injection); fix round 1 | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094) | fix round 8338112; merged 43a3e66; main CI green'
 - id: F-aaa
   title: RADIUS/TACACS+/LDAP/SAML/OIDC + MFA
   prompt: prompts/features/F-aaa.md
@@ -2123,7 +2127,8 @@ tasks:
   finished: ''
   id: F-startup-apply
   notes: D-088 split from F-startup-gen | worker done 00315f4 CI green (72/72 fake-host checks); review spawned; leftover /tmp/tmp.FoyjiXAETl (rm denied) | usage-limit interruption ~04:00 → WIP salvaged,
-    resumed (D-094) | review BLOCK edd93a5 (H1 NRestarts reset by manual restart, H2 gateway ICMP, M1 dead-man lock race, M2 approval flag, M3 rollback budget); fix round 1
+    resumed (D-094) | review BLOCK edd93a5 (H1 NRestarts reset by manual restart, H2 gateway ICMP, M1 dead-man lock race, M2 approval flag, M3 rollback budget); fix round 1 | fix round 7d81982 (91/91 fake-host
+    checks) CI green; re-review spawned
   owner: host-agent slot6
   parked_on: ''
   priority: 4
@@ -2131,7 +2136,7 @@ tasks:
   scope: apply-startup.sh from branch task/F-startup-apply; fix re-review N1 N2 N3 N6 + lows (D-088)
   stage: S2
   started: 2026-09-24T03:10
-  state: running
+  state: review
   template: FEATURE-TEMPLATE.md
   title: Robust startup.conf apply tooling (detached, watchdog, hung-VPP, ifupdown restore, Go API checks, handover gate)
   wbs:
@@ -2212,3 +2217,49 @@ tasks:
   started: 2026-09-24T04:30
   finished: '2026-09-24'
   notes: D-080 consolidation pulled forward from P08 to use idle capacity | worker done f1282a0 CI green; NOTE ran on slot 12 concurrently with ci.sh full (D-087) | merged c128fc7; main CI green
+- id: TD-2
+  title: 'API follow-ups from P07b/P13/F-sdk: set-password endpoint (plaintext in, argon2id server-side), typed api-client build output, /health schema, reject control chars in free text (P13 H1), per-API-key
+    candidates (D-093)'
+  prompt: ''
+  template: ''
+  stage: S2
+  deps:
+  - P06
+  priority: 2
+  est_hours: 6
+  state: running
+  parked_on: ''
+  wbs:
+  - D0.9
+  scope: apps/api + packages/api-client only; additive API changes
+  files_owned: apps/api/** packages/api-client/**
+  branch: task/TD-2
+  worktree: /root/ngfw-wt/TD-2
+  owner: host-agent slot7
+  started: 2026-09-24T04:40
+  finished: ''
+  notes: from P07b Q1-Q3, P13 review H1, D-093
+- id: TD-3
+  title: 'V19 guard: sanitize inherited per-interface state on interface create; unbind classify before table/interface delete; restart simulations delete dependents; ci.sh full pre-flight'
+  prompt: ''
+  template: ''
+  stage: S2
+  deps:
+  - DF-1
+  - DF-2
+  - DF-7
+  - DF-8
+  priority: 2
+  est_hours: 6
+  state: running
+  parked_on: ''
+  wbs:
+  - D1.2
+  scope: D-095 (a)-(d)
+  files_owned: apps/agent/internal/descriptors/{interface,classify,policer,ipfix,adl}/** + their tests
+  branch: task/TD-3
+  worktree: /root/ngfw-wt/TD-3
+  owner: host-agent slot2
+  started: 2026-09-24T05:00
+  finished: ''
+  notes: D-095; V19 crash 04:50:27

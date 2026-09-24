@@ -116,12 +116,16 @@ type stack struct {
 func newStack(t *testing.T, s slot) *stack {
 	t.Helper()
 	bin := os.Getenv("VRX_P08_AGENT_BIN")
-	if bin == "" {
-		t.Fatal("VRX_P08_AGENT_BIN is not set — run test/topology/interfaces/run.sh (it builds the agent and the API)")
+	if bin == "" { // tools/ci.sh full: build the agent from this tree (run.sh passes a prebuilt one)
+		bin = filepath.Join(t.TempDir(), "vrx-agent")
+		out, err := run(t, "go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", bin, "./cmd/vrx-agent")
+		if err != nil {
+			t.Fatalf("go build vrx-agent: %v\n%s", err, out)
+		}
 	}
 	apiMain := filepath.Join(s.repo, "apps", "api", "dist", "main.js")
 	if _, err := os.Stat(apiMain); err != nil {
-		t.Fatalf("%s missing — run.sh builds it: %v", apiMain, err)
+		t.Fatalf("%s missing — run.sh (or the turbo build of tools/ci.sh) builds it: %v", apiMain, err)
 	}
 	node, err := exec.LookPath("node")
 	if err != nil {
@@ -269,13 +273,16 @@ func TestInterfacesVerticalSlice(t *testing.T) {
 		if !ok {
 			t.Fatal("ping lan → wan through VPP failed")
 		}
+		// The trace buffer is shared and never cleared by us (no global `clear trace`, shared-host rules §2): our packet
+		// is the echo request with a payload size unique to this run, and the newest matching block wins.
+		size := 200 + os.Getpid()%700
 		vppctl(t, "trace", "add", "af-packet-input", "20")
-		out, ok = r.ping(t, 1, 56, false)
+		out, ok = r.ping(t, 1, size, false)
 		if !ok {
 			t.Fatalf("traced ping failed:\n%s", out)
 		}
 		time.Sleep(300 * time.Millisecond)
-		tr := ourTrace(vppctl(t, "show", "trace", "max", "20"), r.lanIP, r.wanIP)
+		tr := ourTrace(vppctl(t, "show", "trace", "max", "5000"), r.lanIP, r.wanIP, size+28)
 		t.Log("vppctl show trace (our ICMP echo request):\n" + tr)
 		for _, node := range []string{"af-packet-input", "ip4-lookup", "ip4-rewrite", r.wanIf + "-output"} {
 			if !strings.Contains(tr, node) {
@@ -543,19 +550,19 @@ func describe(it map[string]any) string {
 	return "admin " + adm + " link " + link
 }
 
-// ourTrace returns the trace block(s) of the ICMP echo request src → dst.
-func ourTrace(all, src, dst string) string {
-	var out []string
+// ourTrace returns the newest trace block of the ICMP echo request src → dst whose IPv4 length is ipLen.
+func ourTrace(all, src, dst string, ipLen int) string {
+	want := "length " + strconv.Itoa(ipLen) + ","
+	found := ""
 	for _, blk := range strings.Split(all, "\nPacket ") {
-		if strings.Contains(blk, "ICMP: "+src+" -> "+dst) && strings.Contains(blk, "echo_request") {
-			out = append(out, "Packet "+strings.TrimPrefix(blk, "Packet "))
-			break
+		if strings.Contains(blk, "ICMP: "+src+" -> "+dst) && strings.Contains(blk, "echo_request") && strings.Contains(blk, want) {
+			found = "Packet " + strings.TrimPrefix(blk, "Packet ")
 		}
 	}
-	if len(out) == 0 {
-		return "(no trace block for ICMP " + src + " -> " + dst + ")\n" + trunc(all, 3000)
+	if found == "" {
+		return "(no trace block for ICMP " + src + " -> " + dst + " " + want + ")\n" + trunc(all, 3000)
 	}
-	return strings.Join(out, "\n")
+	return found
 }
 
 func within(a, b uint64, frac float64) bool {

@@ -192,8 +192,37 @@ Files: `docs/status/tasks/F-object-model-screens/*.png` (18), four of them in `d
 | ![](F-object-model-screens/object-model-addresses-en.png) addresses, FQDN column | ![](F-object-model-screens/object-model-usage-en.png) where-used drawer |
 | ![](F-object-model-screens/object-model-dialog-en.png) edit dialog, object/tag pickers | ![](F-object-model-screens/object-model-addresses-fa-rtl.png) Persian, RTL |
 
-### CI — `TMPDIR=/tmp/g-w3 tools/ci.sh --base main`
-See the block below (filled after the last code commit).
+### CI — `TMPDIR=/tmp/g-w3 tools/ci.sh --base main` (HEAD 48962f2; the next commit only fills this block and the cleanup)
+The contract guard is racy (Q8: `pipefail` + `grep -q`, 173/200 failures of the bare pipeline on this branch); the run was
+repeated until the guard was not hit — attempts 1–4 stopped at the guard after 1 s, attempt 5 ran the whole gate:
+```
+== VRX CI gate: quick ==
+branch    task/F-object-model @ 48962f2   (base: main)
+== contract guard: HEAD vs main ==
+contract files changed in HEAD since main: (dataplane.proto, generated Go/TS, api-client schema.d.ts; the schema files are W-seed's anchors)
+ok — contract commit(s) on the branch: … e94ad5f contract(proto): FqdnObjectState …
+== generate + generated-output gate ==
+clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated      (apps/agent/go.mod untouched)
+== test/ Go modules, unit mode (test/integration/smoke test/topology/interfaces test/topology/object-model) ==
+test/topology/object-model: gofmt ok · go vet ok · ok  	ngfw/test/topology/object-model	0.023s;
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m03s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   1m46s
+  forbidden patterns (+ gitleaks)                    0m05s
+  lint · typecheck · unit tests · build (turbo)   3m27s
+  apps/agent: make lint test build                   0m46s
+  apps/cli: make lint test build                     0m09s
+  test/ Go modules, unit mode (test/integration/smoke test/topology/interfaces test/topology/object-model)   0m07s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      review(W-seed): verify
+  mode quick · wall time 6m25s · logs /root/ngfw-wt/logs/ci/F-object-model-20260924-193354-2727608
+
+CI GATE PASSED
+```
+(The earlier commit dbe7d4f passed the same gate: attempt 7, wall time 7m45s.) The warning is W-seed's commit.
 
 ## Acceptance
 - [x] Unit tests: nested groups, range→CIDR, v4/v6 split, cap exceeded, schedule edges (DST change, `once` window) — above
@@ -212,6 +241,8 @@ ACL rules/attachments/rendering (F-acl), host lists/nftables (F-host-acl-nftable
 configuration, zone policy beyond "set of interfaces", GeoIP/threat feeds, VDOM scoping, a CLI `show objects …` command (Q7).
 
 ## Cleanup
-Every process started by the tests was stopped by PID (logged); `vrx_w3` dropped by each run; the slot's agent state dir
-(`/run/vrx-test/w3/object-model`) removed by the test cleanup; lab lock released; `apps/web/dist`, `apps/api/dist` and
-`apps/agent/bin` removed at the end (see below).
+Every process started by the tests (agent, API, vite preview, the in-process DNS responder) was stopped by PID (logged);
+`vrx_w3` dropped by every run ("ok nothing named vrx_w3 / vrx_w3 remains"); the slot's agent state dir
+(`/run/vrx-test/w3/object-model`) removed by the test cleanup; the lab lock is taken only by `run.sh` for the run;
+`apps/{web,api}/dist`, `packages/*/dist` and `apps/agent/bin` removed; nothing listens on 3300/5300/9131.
+No test of this task runs `vppctl` (no `show trace`/`trace add`, D-128) or touches classify bindings (D-126).

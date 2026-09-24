@@ -6,6 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
@@ -176,5 +179,71 @@ func TestSvsRangeFromSlot(t *testing.T) {
 	}
 	if r := subsystems.SvsRange(); r != svs.DefaultRange {
 		t.Fatalf("product range %v", r)
+	}
+}
+
+// actionStream is a minimal grpc.ServerStreamingServer[vrxv1.ActionOutput].
+type actionStream struct {
+	grpc.ServerStream
+	ctx context.Context
+	out []*vrxv1.ActionOutput
+}
+
+func (a *actionStream) Context() context.Context        { return a.ctx }
+func (a *actionStream) Send(o *vrxv1.ActionOutput) error { a.out = append(a.out, o); return nil }
+
+func TestVrfStaticEcmpRPCs(t *testing.T) {
+	s, v := newEcmpSvc(t)
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "r1", DesiredState: doc(t, ecmpDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	g := &server{svc: s}
+	ctx := context.Background()
+
+	page, err := g.ListRoutes(ctx, &vrxv1.ListRoutesRequest{Vrf: "red", Family: "ipv4", Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.GetTableId() != 2001 || page.GetVrf() != "red" || page.GetOwner() != testOwner {
+		t.Fatalf("page header %+v", page)
+	}
+	var def *vrxv1.ListRoutesEntry
+	for _, r := range page.GetRoutes() {
+		if r.GetPrefix() == "0.0.0.0/0" && r.GetSource() == "API" {
+			def = r
+		}
+	}
+	if def == nil || len(def.GetPaths()) != 2 || def.GetPaths()[0].GetWeight() != 3 {
+		t.Fatalf("ECMP default route in red: %v", page.GetRoutes())
+	}
+	for _, tc := range []struct {
+		req  *vrxv1.ListRoutesRequest
+		code codes.Code
+	}{
+		{&vrxv1.ListRoutesRequest{Vrf: "nope"}, codes.NotFound},
+		{&vrxv1.ListRoutesRequest{Vrf: "red", Limit: 5000}, codes.InvalidArgument},
+		{&vrxv1.ListRoutesRequest{Owner: "someone-else"}, codes.InvalidArgument},
+	} {
+		if _, err := g.ListRoutes(ctx, tc.req); status.Code(err) != tc.code {
+			t.Errorf("%v: %v, want %v", tc.req, err, tc.code)
+		}
+	}
+
+	st := &actionStream{ctx: ctx}
+	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Ping{Ping: &vrxv1.PingAction{Target: "10.2.2.2", Count: 3, IntervalMs: 100}}}, st); err != nil {
+		t.Fatal(err)
+	}
+	if len(st.out) != 2 || st.out[1].GetDone() == nil || st.out[1].GetDone().GetStats()["received"] != "3" {
+		t.Fatalf("ping output %v", st.out)
+	}
+	if len(v.Svs().Pings) != 1 {
+		t.Fatalf("pings sent %v", v.Svs().Pings)
+	}
+	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Ping{Ping: &vrxv1.PingAction{Target: "10.2.2.2", Vrf: "red"}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.InvalidArgument || !strings.Contains(err.Error(), "VRF") {
+		t.Fatalf("ping in red: %v", err)
+	}
+	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Traceroute{Traceroute: &vrxv1.TracerouteAction{Target: "10.2.2.2"}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.Unimplemented {
+		t.Fatalf("traceroute: %v", err)
+	}
+	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Capture{Capture: &vrxv1.CaptureAction{Interface: "loop201"}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.Unimplemented {
+		t.Fatalf("capture: %v", err)
 	}
 }

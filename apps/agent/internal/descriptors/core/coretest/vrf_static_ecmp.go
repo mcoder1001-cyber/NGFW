@@ -17,7 +17,9 @@ import (
 	"go.fd.io/govpp/api"
 
 	"ngfw/agent/binapi/fib"
+	"ngfw/agent/binapi/fib_types"
 	"ngfw/agent/binapi/interface_types"
+	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/ping"
 	"ngfw/agent/binapi/svs"
@@ -91,6 +93,45 @@ func (v *VPP) InstallVrfStaticEcmp() *VPP {
 		out := make([]api.Message, 0, len(hostSources))
 		for i, n := range hostSources {
 			out = append(out, &fib.FibSourceDetails{Src: fib.FibSource{ID: uint8(i), Name: n}}) //nolint:gosec // < 256 entries
+		}
+		return out, nil
+	})
+	// ip_route_v2_dump as the base model answers it, plus VPP's `src` filter (fib_table_walk_w_src: only entries that
+	// carry that source; in the model every entry has exactly one source).
+	v.On("ip_route_v2_dump", func(m api.Message) ([]api.Message, error) {
+		req := m.(*ip.IPRouteV2Dump)
+		v.mu.Lock()
+		defer v.mu.Unlock()
+		if _, ok := v.Tables[tableKey{req.Table.TableID, req.Table.IsIP6}]; !ok {
+			return nil, nil
+		}
+		seen := map[routeKey]bool{}
+		var keys []routeKey
+		for rk, r := range v.Routes {
+			if rk.table == req.Table.TableID && r.Prefix.Address.Af == afOf(req.Table.IsIP6) {
+				keys, seen[rk] = append(keys, rk), true
+			}
+		}
+		for rk := range v.Internal {
+			if rk.table == req.Table.TableID && netip.MustParsePrefix(rk.prefix).Addr().Is6() == req.Table.IsIP6 && !seen[rk] {
+				keys = append(keys, rk)
+			}
+		}
+		sort.Slice(keys, func(i, j int) bool { return keys[i].prefix < keys[j].prefix })
+		var out []api.Message
+		for _, rk := range keys {
+			if r, ok := v.Routes[rk]; ok {
+				if req.Src == 0 || req.Src == 8 {
+					out = append(out, &ip.IPRouteV2Details{Route: ip.IPRouteV2{TableID: r.TableID, Prefix: r.Prefix, NPaths: r.NPaths, Paths: r.Paths, Src: 8}})
+				}
+				continue
+			}
+			if req.Src != 0 && req.Src != v.Internal[rk] {
+				continue
+			}
+			pfx, _ := ip_types.ParsePrefix(rk.prefix)
+			out = append(out, &ip.IPRouteV2Details{Route: ip.IPRouteV2{TableID: rk.table, Prefix: pfx, NPaths: 1,
+				Paths: []fib_types.FibPath{{SwIfIndex: ^uint32(0), Type: fib_types.FIB_API_PATH_TYPE_DROP}}, Src: v.Internal[rk]}})
 		}
 		return out, nil
 	})

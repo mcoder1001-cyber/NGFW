@@ -457,7 +457,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D6.1
@@ -470,7 +470,8 @@ tasks:
   owner: host-agent slot4
   started: 2026-09-23T15:28
   finished: ''
-  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)'
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)
+    | CONTINUE worker done e553199 CI green; review spawned; D-096'
 - id: DF-6
   title: 'Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp'
   prompt: prompts/factories/DF-6.md
@@ -1024,7 +1025,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: build against staging sysroot from /root/vpp/build-root debs; test vs stock strongSwan in a netns
+  notes: 'build against staging sysroot from /root/vpp/build-root debs; test vs stock strongSwan in a netns | D-096: own charon SPD/SA id range; stop→sweep→start→AckRestart'
 - id: F-ikev2-native
   title: 'Wave B (day 10-12): VPP native IKEv2 responder path'
   prompt: prompts/features/F-ikev2-native.md

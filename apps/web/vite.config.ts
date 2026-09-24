@@ -21,7 +21,16 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    // Load-tolerant (TD-12): teardownTimeout (vitest default 10 s) raised to match the existing
+    // testTimeout/hookTimeout. Separately, "[vitest-worker]: Timeout calling 'fetch'/'transform'"
+    // (birpc's own 60 s default, not a test.*Timeout) is the worker pool asking the main thread to
+    // transform a module and getting starved of CPU before it answers; up to 12 worker slots run this
+    // suite at once on the shared host (docs/lab/shared-host-rules.md), so an unbounded fork count
+    // (vitest's default is "cpus - 1") multiplies into hundreds of processes contending for 32 cores.
+    // Capping it keeps each fork's transform call answering well inside the 60 s RPC timeout.
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    teardownTimeout: 30_000,
+    maxWorkers: 4,
   },
 }));

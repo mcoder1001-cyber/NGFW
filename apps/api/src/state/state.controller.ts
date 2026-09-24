@@ -109,7 +109,7 @@ const InterfaceItemOut = z.object({
     .record(z.string(), z.unknown())
     .nullable()
     .describe(
-      'what the agent retrieved as configured on the data plane (Retrieve), as before P08; null only on the rows P08 added (a live interface the agent does not manage, or a configured one the data plane does not have yet)',
+      'what the agent retrieved as configured on the data plane (Retrieve), as before P08; null only on the rows P08 added (a live interface the agent does not manage, a configured one the data plane does not have yet, or one only in the candidate)',
     ),
   running: z
     .record(z.string(), z.unknown())

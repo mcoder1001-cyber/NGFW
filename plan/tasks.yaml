@@ -329,16 +329,16 @@ tasks:
   - P06
   priority: 1
   est_hours: 12
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.10
   scope: ''
   files_owned: apps/web/** packages/ui-kit/**
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P07b
+  worktree: /root/ngfw-wt/P07b
+  owner: host-agent slot1
+  started: 2026-09-24T03:10
   finished: ''
   notes: ''
 - id: DF-1
@@ -1593,18 +1593,19 @@ tasks:
   - P06
   priority: 6
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.11
   scope: CLI basic
   files_owned: ''
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P13
+  worktree: /root/ngfw-wt/P13
+  owner: host-agent slot3
+  started: 2026-09-24T03:10
   finished: ''
-  notes: ''
+  notes: ' | worker done a84258c (live CLI session vs real API/agent/VPP; make -C apps/cli all green — not yet in ci.sh); review spawned | review APPROVE WITH CHANGES 68605c2 (H1 terminal escape injection,
+    H2 Ctrl-C breaks REPL, M1 session file symlink/perms, M2 list delete by index, M3 confirm UX); fix round 1'
 - id: F-restconf-yang
   title: RESTCONF/NETCONF + YANG generated from schema
   prompt: prompts/features/F-restconf-yang.md
@@ -1637,18 +1638,19 @@ tasks:
   - P06
   priority: 6
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D8.9
   scope: Terraform provider, Ansible collection, Python SDK
   files_owned: sdk/** docs/user/system/sdk-terraform-ansible.md test/topology/sdk-terraform-ansible/** docs/status/tasks/F-sdk-terraform-ansible*.md
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/F-sdk-terraform-ansible
+  worktree: /root/ngfw-wt/F-sdk-terraform-ansible
+  owner: host-agent slot5
+  started: 2026-09-24T03:10
   finished: ''
-  notes: ''
+  notes: ' | worker done 20c9bca CI green (live SDK + TF vs real API/agent/VPP); review spawned; D-093 | review APPROVE WITH CHANGES a2b2ad1 (H1 planned value rewrite, H2 hash in state, M1 notApplied dropped,
+    M2 sync state, M3 discard race, M4 drift, L1 codegen injection); fix round 1'
 - id: F-aaa
   title: RADIUS/TACACS+/LDAP/SAML/OIDC + MFA
   prompt: prompts/features/F-aaa.md
@@ -2120,20 +2122,20 @@ tasks:
   files_owned: deploy/vpp/apply-startup.sh deploy/vpp/vpp-iface-check* deploy/vpp/test-apply-startup.sh
   finished: ''
   id: F-startup-apply
-  notes: D-088 split from F-startup-gen
-  owner: ''
+  notes: D-088 split from F-startup-gen | worker done 00315f4 CI green (72/72 fake-host checks); review spawned; leftover /tmp/tmp.FoyjiXAETl (rm denied)
+  owner: host-agent slot6
   parked_on: ''
   priority: 4
   prompt: prompts/features/F-startup-gen.md
   scope: apply-startup.sh from branch task/F-startup-apply; fix re-review N1 N2 N3 N6 + lows (D-088)
   stage: S2
-  started: ''
-  state: ready
+  started: 2026-09-24T03:10
+  state: review
   template: FEATURE-TEMPLATE.md
   title: Robust startup.conf apply tooling (detached, watchdog, hung-VPP, ifupdown restore, Go API checks, handover gate)
   wbs:
   - D0.6
-  worktree: ''
+  worktree: /root/ngfw-wt/F-startup-apply
 - id: F-vpp-debs
   title: 'VPP package build pipeline: pinned 26.06 source, patch series, reproducible .deb build script'
   prompt: prompts/features/F-vpp-debs.md
@@ -2143,7 +2145,7 @@ tasks:
   - P01
   priority: 5
   est_hours: 8
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D0.2
@@ -2153,9 +2155,10 @@ tasks:
   worktree: /root/ngfw-wt/F-vpp-debs
   owner: host-agent slot2
   started: 2026-09-24T03:20
-  finished: ''
+  finished: '2026-09-24'
   notes: 'D-058: added; P10 consumes its output | worker done 90dbb81 (45 min build, 11 debs = host set); review spawned; D-089 | review APPROVE WITH CHANGES afb833a (H1 unpinned wheels from /root/vpp,
-    H2 demo patch unsuffixed, M1 fuzz, M2 rm -rf guards, M3 apt rc); fix round 1'
+    H2 demo patch unsuffixed, M1 fuzz, M2 rm -rf guards, M3 apt rc); fix round 1 | fix round 03e343c (D-092); merged f68bfe5; main CI green; worktree kept for build artefacts (.build/out) until P10 publishes
+    to /srv/vrx-artifacts'
 - id: F-ha-state-sync
   title: 'HA state sync (T2, partial ok): NAT/ACL session sync, IPsec SA sync, failover test automation'
   prompt: prompts/features/F-ha-state-sync.md

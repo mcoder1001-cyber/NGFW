@@ -1,0 +1,11 @@
+# deploy/vpp/pydeps.lock — Python packages the VPP 26.06 build runs (DPDK's meson venv), hash-locked (review H1).
+# pip requirements format, consumed verbatim by `pip install --require-hashes --no-index --find-links <dir> -r pydeps.lock`
+# inside the DPDK venv under deploy/vpp/.build (build-patches/0001). The trailing comment of each line is data for
+# build.sh: `# <file> <url>` — the exact distribution file and where to fetch it when it is not in the verified cache.
+# Hashes are PyPI's published sha256 digests (https://pypi.org/pypi/<name>/<version>/json, fetched 2026-09-24).
+# Bump: change version + hash + file + url together, then `deploy/vpp/verify.sh` and `build.sh --prepare-only`.
+meson==0.57.2 --hash=sha256:3a83e7b1c5de94fa991ec34d9b198d94f38ed699d3524cb0fdf3b99fd23d4cc5  # meson-0.57.2.tar.gz https://files.pythonhosted.org/packages/5d/0e/0c72dadd01af2da712eb987e2b7662e2e2c2c34fcdfe3cc6d765bddb2db3/meson-0.57.2.tar.gz
+pyelftools==0.33 --hash=sha256:f215ad5f47d3f1373a21496a6c9e0707c622840d0622f23ff7ce08678b020036  # pyelftools-0.33-py3-none-any.whl https://files.pythonhosted.org/packages/46/2a/f9697576603dae937727827505a6126a066affb227034e77e6f9068910da/pyelftools-0.33-py3-none-any.whl
+setuptools==84.0.0 --hash=sha256:51a52592b3b99e102b609654876bd65f19f999935166d1352678931132b0c670  # setuptools-84.0.0-py3-none-any.whl https://files.pythonhosted.org/packages/95/9c/c510029fc6ef33a6275cd2c5d3cecd6613dfd6aa401d57c54f1c18852ccf/setuptools-84.0.0-py3-none-any.whl
+wheel==0.48.0 --hash=sha256:3217dcc807155e45db462d7ef2431f5ddda0d7273b700d05a67b271ceb1287ab  # wheel-0.48.0-py3-none-any.whl https://files.pythonhosted.org/packages/2e/29/69cfbb602cd91690c55d38ba9fe53e6a7e76a6fa647bf38f19c138d25449/wheel-0.48.0-py3-none-any.whl
+packaging==26.3 --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c  # packaging-26.3-py3-none-any.whl https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl

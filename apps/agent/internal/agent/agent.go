@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -232,16 +233,35 @@ func (a *Agent) watchVPP(ctx context.Context) {
 	}
 	defer stopLinks()
 	connected, sourcesStarted := false, false
+	// Env.Resync storm guard (TD-8 review R8): a request within resyncMinInterval of the last requested
+	// resync is deferred to the end of the interval, where every request made meanwhile coalesces.
+	var lastRequested time.Time
+	var deferred <-chan time.Time
+	requested := func() {
+		if !connected || !a.conn.Connected() {
+			a.log.Debug("resync request dropped: VPP is not connected (the reconnect resyncs)")
+			return
+		}
+		a.fullResync(ctx, "requested")
+		lastRequested = time.Now()
+	}
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-deferred:
+			deferred = nil
+			requested()
 		case <-a.resyncs:
-			if !connected || !a.conn.Connected() {
-				a.log.Debug("resync request dropped: VPP is not connected (the reconnect resyncs)")
+			if deferred != nil {
+				continue // already deferred: coalesced
+			}
+			if wait := resyncMinInterval - time.Since(lastRequested); !lastRequested.IsZero() && wait > 0 {
+				a.log.Warn("resync requested again right after a requested resync: deferred", "in", wait)
+				deferred = time.After(wait)
 				continue
 			}
-			a.fullResync(ctx, "requested")
+			requested()
 		case st := <-a.conn.States():
 			a.metrics.setVPP(st.Connected)
 			connected = st.Connected
@@ -294,6 +314,9 @@ func (a *Agent) fullResync(ctx context.Context, why string) {
 	}
 }
 
+// resyncMinInterval is the least time between two requested resyncs (a var for the tests).
+var resyncMinInterval = 5 * time.Second
+
 // requestResync is the Env.Resync hook (A5, TD-8): it never blocks, and requests coalesce.
 func requestResync(ch chan<- struct{}) {
 	select {
@@ -303,18 +326,33 @@ func requestResync(ch chan<- struct{}) {
 }
 
 // startSources starts the loops of the dynamic desired sources (S1, TD-8) once, after the first
-// resync; they stop when ctx is cancelled (Stop waits for them).
+// resync; they stop when ctx is cancelled (Stop waits for them). A source without Run gets one sync
+// here instead (the agent retries it while it fails). A Run that panics or returns before ctx is done
+// stops its source until the agent restarts: out of sync, its objects left as they are (review R3).
 func (a *Agent) startSources(ctx context.Context) {
-	for _, src := range a.svc.sources {
-		if src.Run == nil {
+	for _, ds := range a.svc.sources {
+		if ds.Run == nil {
+			if err := a.svc.syncSource(ctx, ds.Name); err != nil {
+				a.log.Warn("dynamic source: first sync failed (retried)", "source", ds.Name, "err", err)
+			}
 			continue
 		}
-		a.log.Info("dynamic source started", "source", src.Name, "descriptors", src.Descriptors)
+		a.log.Info("dynamic source started", "source", ds.Name, "descriptors", ds.Descriptors)
 		a.wg.Add(1)
 		go func() {
 			defer a.wg.Done()
-			src.Run(ctx, a.svc.sourceSync(src.Name))
-			a.log.Info("dynamic source stopped", "source", src.Name)
+			defer func() {
+				if r := recover(); r != nil {
+					a.log.Error("dynamic source: Run panicked", "source", ds.Name, "panic", r, "stack", string(debug.Stack()))
+					a.svc.sourceStopped(ds, srcPanic, fmt.Sprintf("Run panicked: %v", r))
+				}
+			}()
+			ds.Run(ctx, a.svc.sourceSync(ds.Name))
+			if ctx.Err() == nil {
+				a.svc.sourceStopped(ds, srcStopped, "Run returned before the agent stopped")
+				return
+			}
+			a.log.Info("dynamic source stopped", "source", ds.Name)
 		}()
 	}
 }

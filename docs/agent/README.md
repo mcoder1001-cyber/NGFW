@@ -52,6 +52,7 @@ not empty, it warns with `agent.unimplemented-domain` and applies nothing for it
 | `af_packet` | `af-packet.host-interface` | **E2E** (lab path, D-010) | P08 |
 | `dhcp` (DF-8) | `dhcp.client` | **E2E** | P08 |
 | `dhcp` (DF-8) | `dhcp.proxy`, `dhcp.proxy-vss` | package | F-kea-dhcp-relay |
+| `dhcp` (DF-8) | `dhcp.dhcp6-client`, `dhcp.dhcp6-pd-client`, `dhcp.dhcp6-pd-address`, `dhcp.dhcp6-duid` | package | none on the board yet (the schema has no DHCPv6 client or prefix-delegation field) |
 | `bond` | `bond.member` (+ the `bond.bond` creator kind) | package | F-bonding |
 | `l2`, `l3xc` | `l2.bridge-domain`, `l2.bridge-domain-member`, `l2.xconnect`, `l2.flags`, `l2.fib-entry`, `l2.vlan-tag-rewrite`, `l3xc.l3xc` | package | F-bridge-l2 |
 | `lldp`, `span` | `lldp.global`, `lldp.interface`, `span.mirror` | package | F-loopback-bvi-gso-lldp-span |
@@ -66,7 +67,7 @@ not empty, it warns with `agent.unimplemented-domain` and applies nothing for it
 | `wireguard` | `wireguard.*` | package | F-wireguard |
 | `gre`, `ipip`, `vxlan`, `vxlan_gpe`, `gtpu`, `l2tp`, `pppoe` | tunnel families | package | F-tunnels (`vxlan_gpe`: also F-lisp) |
 | `lisp` | `lisp.*`, `lisp-gpe.*` | package | F-lisp |
-| `mpls`, `sr_mpls` | `mpls-*`, `sr-mpls.*` | package | F-mpls-srmpls, F-mpls-ldp (`mpls-route.ldp` through seam S1) |
+| `mpls`, `sr_mpls` | `mpls-*`, `sr-mpls.*` | package | F-mpls-srmpls, F-mpls-ldp (through seam S1, with a descriptor instance of its own that F-mpls-ldp adds: `mpls.RouteDescriptor`'s name and key prefix are fixed today) |
 | `sr` | `sr.*` | package | F-srv6 |
 | `igmp` | `igmp.*` | package | F-igmp-mfib (PIM→mFIB through seam S1) |
 | `bfd` | `bfd.*` | package | F-bfd-redistribution |
@@ -90,6 +91,7 @@ not empty, it warns with `agent.unimplemented-domain` and applies nothing for it
 | `unbound`, `chrony`, `rsyslog` | package | F-unbound-chrony-syslog (F-object-model reads `unbound` for FQDN objects) |
 | `snmpd` | package | F-snmp |
 | `keepalived` | package | F-vrrp-config-sync |
+| `rfkit` | shared kit (not a renderer): the control channel, apply and file helpers the single-file renderers `snmpd`, `keepalived` and `rsyslog` share, as `dfkit` serves the descriptor families | used by the renderers above |
 | `vppstartup` | tool: `cmd/vrx-startupgen` renders `startup.conf` outside the agent's reconcile | F-startup-gen |
 
 ## Seams (TD-8)
@@ -102,10 +104,57 @@ VPP, under the agent's transaction lock.
 | seam | feature side (`internal/subsystems/seams.go`) | agent side |
 |---|---|---|
 | events (A5) | `w.Publish(ev)` | Every `StreamEvents` subscriber receives a copy. The stream sets `seq`, and the bus sets `ts` when it is unset. `EVENT_KIND_UNSPECIFIED` is dropped. |
-| resync (A5) | `w.RequestResync()` never blocks and is safe inside a descriptor call | `watchVPP` runs `Service.Resync` and `Wiring.AfterResync`. Requests coalesce. A request made while VPP is down is dropped, because the reconnect resyncs anyway. |
-| id range | `w.IDRange()`: the slot's or reserved range, `nil` = every id, or `ErrNoIDRange` | `Config.IDs` comes from `subsystems.ResolveIDScope` and reaches `Env.IDs`. It fails closed. `VRX_VPP_TABLE_BASE=<base>` gives base..base+999. `VRX_VPP_ID_RANGE=all` gives every id. If neither is set, the agent owns no id: a family that asks for a range fails its registration, and start-up logs a warning. A malformed value, or both variables set, refuses start-up. |
-| S1 dynamic desired source | `w.AddDynamicSource(DynamicSource{Name, Descriptors, Desired, Run})` | Desired is merged into the projection of every transaction under the txn lock (Apply, resync, confirm revert) and into DryRun's plan, which runs without the lock, so Desired must be safe to call concurrently. The source's descriptors are in scope, and its view is the document as stored after the transaction. `Run` starts once after the first resync and stops with the agent. Its `sync(ctx)` runs a transaction scoped to the source's descriptors, with RECONCILE_START/DONE events that carry the `source` attribute. A source's descriptors must be registered and belong to no domain. A key outside them fails the transaction (`agent.dynamic-source`). |
-| metrics | `w.AddMetricsCollector(MetricsCollector{Name, Collect})` | Every scrape of `/metrics` appends the collector's families after the agent's own. Collectors run outside every agent lock, with a 5 s deadline each. A collector that fails serves nothing, and `vrx_agent_metrics_collector_errors_total{collector}` counts the failure. |
+| resync (A5) | `w.RequestResync()` never blocks and is safe inside a descriptor call | `watchVPP` runs `Service.Resync` and `Wiring.AfterResync`. Requests coalesce. A request made while VPP is down is dropped, because the reconnect resyncs anyway. A request within 5 s of the last requested resync is deferred to the end of those 5 s (with a WARN), so a descriptor that requests a resync on every resync cannot loop. |
+| id range | `w.IDRange()`: the slot's or reserved range, `nil` = every id, or the empty range with `ErrNoIDRange` (a family that ignores the error still owns nothing). Convert with `ids.DF2()`, `ids.DF7()` or `ids.VPN()` | `Config.IDs` comes from `subsystems.ResolveIDScope` and reaches `Env.IDs`. It fails closed. `VRX_VPP_TABLE_BASE=<base>` gives base..base+999. `VRX_VPP_ID_RANGE=all` gives every id. If neither is set, the agent owns no id: a family that asks for a range fails its registration, and start-up logs a warning. A malformed value, or both variables set, refuses start-up. |
+| S1 dynamic desired source | `w.AddDynamicSource(DynamicSource{Name, Descriptors, Desired, Run})` | A source **in sync** is merged into every transaction under the txn lock (Apply, resync, confirm revert) and into DryRun's plan, which runs without the lock, so Desired must be safe to call concurrently. Its descriptors are in scope, and its view is the document as stored after the transaction. `Run` starts once after the first resync and stops with the agent. Its `sync(ctx)` runs a transaction scoped to the source's descriptors. A source's descriptors must be registered and belong to no domain. The failure semantics are below. |
+| metrics | `w.AddMetricsCollector(MetricsCollector{Name, Collect})` | Every scrape of `/metrics` appends the collector's families after the agent's own. Collectors run outside every agent lock, with a 5 s deadline each. A collector that fails or panics serves nothing, and `vrx_agent_metrics_collector_errors_total{collector}` counts the failure. |
 
 Dynamic objects are not configuration, so Retrieve never returns them. In Apply results they have no
 JSON pointer and no `subsystem`.
+
+### S1: a source never costs the configuration its transaction (TD-8 fix round 1)
+
+The authoritative text is the `DynamicSource` doc comment in `internal/subsystems/seams.go`.
+
+- **Readiness.** Every source starts out of sync. It is in sync after its first successful sync:
+  Run's first sync once its cache is filled, or, for a source without Run, the sync the agent runs
+  once after the first resync. A source out of sync takes part in no transaction, and its
+  descriptors are out of scope. So an agent restart with VPP intact deletes no dynamic object.
+- **Fallback.** A source whose Desired panics, or returns a key outside its descriptors or a
+  duplicate, is left out before the transaction runs. If the transaction then fails because of a
+  dynamic object, the agent runs it once more without the sources, under the same lock. That covers
+  a plan issue or a failed operation on a dynamic key, and a failed Retrieve or verification of a
+  source descriptor. There is no second run after DEGRADED.
+  - Each culprit is reported three ways: a SKIPPED result with its key, an `ERROR` event with the
+    attributes `source`, `reason` and `key`, and a count in
+    `vrx_agent_dynamic_source_errors_total{source,reason}` (reason `invalid`, `panic`, `rejected`,
+    `stopped`).
+  - DryRun reports the same case as a WARNING issue, `agent.dynamic-source-skipped`.
+- **Retry.** A source left out, or whose sync failed, is out of sync. The agent retries its sync
+  with a backoff of 5 s doubling to 60 s. One exception: an UNAVAILABLE sync of a source that is in
+  sync changes nothing, because the reconnect resync includes it.
+- **Panics.** A panic in Desired, in a sync or in Run is recovered and logged with its stack. If a
+  descriptor panics during a sync, the agent is also marked DEGRADED. A Run that panics, or returns
+  before the agent stops, stops its source until the agent restarts: it stays out of sync, its
+  objects stay as they are, and sync is refused.
+- **Events.** A sync with nothing to do emits no event and no metric. Any other sync is followed by
+  `RECONCILE_START`/`RECONCILE_DONE` with an empty `txn_id` and the attribute `source`
+  (`docs/contracts/proto.md` §7).
+
+Rules for a source's author:
+
+1. **Disjoint objects (review R10a).** A source's descriptors are instances of their own, for example
+   `mpls-route.ldp`, never `ip.route`. Their Retrieve returns only the objects this source owns,
+   through a D-072-style owner table or df7 claims. So they are disjoint from every config
+   descriptor over the same VPP table. Otherwise, while both are in scope, each deletes the other's
+   objects as "not desired".
+2. **sync only from Run.** A call from Desired or from a descriptor call runs inside a transaction.
+   There it would wait for the lock its own goroutine holds, so the agent refuses it at once with
+   `FAILED_PRECONDITION`.
+3. **Lock order (review R7).** The agent's transaction lock comes first, then the source's own locks.
+   Desired runs under the transaction lock and takes the source's cache lock. So Run must not hold a
+   lock that Desired takes while it calls sync, or the two deadlock (ABBA). Update the cache, unlock,
+   then call sync.
+4. **Desired is pure and fast.** It does no VPP or daemon I/O. It leaves out objects whose
+   configuration dependencies the document no longer has, and it is safe to call concurrently
+   (DryRun).

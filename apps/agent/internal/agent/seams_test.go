@@ -101,8 +101,8 @@ func TestStartWiresFeatureEventsAndResync(t *testing.T) {
 
 func TestStartIDRangeFailsClosed(t *testing.T) {
 	a, _ := startFake(t, testConfig(t)) // a Config built in code: zero IDs
-	if r, err := a.wiring.IDRange(); r != nil || !errors.Is(err, subsystems.ErrNoIDRange) {
-		t.Fatalf("zero IDs: %v %v (want ErrNoIDRange)", r, err)
+	if r, err := a.wiring.IDRange(); r == nil || !r.Empty() || !errors.Is(err, subsystems.ErrNoIDRange) {
+		t.Fatalf("zero IDs: %v %v (want the empty range and ErrNoIDRange)", r, err)
 	}
 }
 
@@ -173,6 +173,9 @@ func TestMetricsCollectors(t *testing.T) {
 		<-ctx.Done() // honours its deadline: the scrape's context ends first here
 		return ctx.Err()
 	}}))
+	must(a.wiring.AddMetricsCollector(subsystems.MetricsCollector{Name: "boom", Collect: func(context.Context, io.Writer) error {
+		panic("collector bug") // R3: contained, counted as an error
+	}}))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // the scraper went away: slow is dropped, the others still run
 	var b strings.Builder
@@ -184,6 +187,7 @@ func TestMetricsCollectors(t *testing.T) {
 	for _, want := range []string{
 		"vrx_zeta_up 1\n# HELP vrx_agent_metrics_collector_errors_total",
 		`vrx_agent_metrics_collector_errors_total{collector="alpha"} 1`,
+		`vrx_agent_metrics_collector_errors_total{collector="boom"} 1`,
 		`vrx_agent_metrics_collector_errors_total{collector="slow"} 1`,
 		`vrx_agent_metrics_collector_errors_total{collector="zeta"} 0`,
 	} {
@@ -314,8 +318,7 @@ func (s *learnedSource) desired(doc *vrxv1.DesiredState) []scheduler.KV {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.panicNow {
-		var cache map[string][]string
-		cache["x"] = nil // the probe-C bug: a nil map in the source cache
+		panic("assignment to entry in nil map") // the probe-C bug: a nil map in the source cache
 	}
 	s.views = append(s.views, doc)
 	var out []scheduler.KV
@@ -376,6 +379,10 @@ func TestDynamicSourceMergedIntoEveryTransaction(t *testing.T) {
 	v := coretest.New()
 	s, md, src := newSrcSvc(t, v, nil)
 	src.set("loop701", "loop702", "loop799") // loop799 is not in the document: left out by Desired
+	// The source's first sync (nothing to do yet: no loopback) puts it in sync (R1).
+	if err := s.sourceSync("test-sync")(context.Background()); err != nil || md.list() != "" {
+		t.Fatalf("first sync: %v %q", err, md.list())
+	}
 
 	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)})
 	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
@@ -483,6 +490,19 @@ func TestDynamicSourceSyncIsScoped(t *testing.T) {
 	if _, ok := v.InterfaceByName("loop702"); ok {
 		t.Fatal("a source sync repaired a configuration object")
 	}
+	// A sync with nothing to do emits no event and counts no reconcile (R7).
+	quiet := s.events().subscribe(&vrxv1.StreamEventsRequest{})
+	var before strings.Builder
+	s.metrics.write(&before)
+	if err := sync(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	noEvent(t, quiet, 100*time.Millisecond)
+	var after strings.Builder
+	s.metrics.write(&after)
+	if before.String() != after.String() {
+		t.Fatal("an empty sync changed the metrics")
+	}
 	if !proto.Equal(s.st.desired, stored) || s.Health().GetLastTxnId() != last {
 		t.Fatal("a source sync changed the stored document or the last transaction")
 	}
@@ -507,22 +527,42 @@ func TestDynamicSourceSyncIsScoped(t *testing.T) {
 	}
 }
 
-func TestDynamicSourceKeyOutsideItsDescriptorsFails(t *testing.T) {
+// A source that produces a key outside its descriptors never fails a config transaction (R2): the
+// transaction leaves it out and names it; its own sync fails and applies nothing.
+func TestDynamicSourceKeyOutsideItsDescriptorsIsLeftOut(t *testing.T) {
 	v := coretest.New()
-	s, md, src := newSrcSvc(t, v, nil)
-	src.set("loop701")
-	src.extra = []scheduler.KV{{Key: scheduler.Join(core.LoopbackName, "loop777"), Value: wrapperspb.String("x")}}
+	s, md, src := syncedSrcSvc(t, v, "loop701")
+	bad := scheduler.Join(core.LoopbackName, "loop777")
+	src.mu.Lock()
+	src.extra = []scheduler.KV{{Key: bad, Value: wrapperspb.String("x")}}
+	src.mu.Unlock()
+	sub := s.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_ERROR}})
+
+	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)})
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if _, ok := v.InterfaceByName("loop703"); !ok || md.list() != "loop701" {
+		t.Fatalf("after the commit: loop703 %v, dynamic %q", ok, md.list())
+	}
+	last := resp.GetResults()[len(resp.GetResults())-1]
+	if last.GetKey() != string(bad) || last.GetCode() != vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_SKIPPED || !strings.Contains(last.GetMessage(), "outside its descriptors") || last.GetPointer() != "" {
+		t.Fatalf("the left-out source is not reported: %v", last)
+	}
+	if ev := collect(t, sub, 1)[0]; ev.GetAttributes()["source"] != "test-sync" || ev.GetAttributes()["reason"] != "invalid" || ev.GetAttributes()["key"] != string(bad) {
+		t.Fatalf("ERROR event %v", ev)
+	}
 	err := s.sourceSync("test-sync")(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "outside its descriptors") {
 		t.Fatalf("sync: %v", err)
 	}
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_FAILED)
-	if errs := resp.GetValidation().GetErrors(); len(errs) == 0 || errs[0].GetRule() != "agent.dynamic-source" || errs[0].GetPointer() != "" || resp.GetValidation().GetOk() {
-		t.Fatalf("validation: %v", resp.GetValidation())
+	if md.list() != "loop701" {
+		t.Fatalf("a failed sync applied something: %q", md.list())
 	}
-	if md.list() != "" || len(v.Ifaces) != 1 {
-		t.Fatalf("something was applied: %q, %d interfaces", md.list(), len(v.Ifaces))
+	var b strings.Builder
+	s.metrics.write(&b)
+	for _, want := range []string{`vrx_agent_dynamic_source_errors_total{source="test-sync",reason="invalid"} 2`, `vrx_agent_dynamic_source_errors_total{source="test-sync",reason="panic"} 0`} {
+		if !strings.Contains(b.String(), want) {
+			t.Errorf("missing %q in\n%s", want, b.String())
+		}
 	}
 }
 
@@ -848,4 +888,121 @@ func TestDynamicSourceAgentRestartKeepsDynamicObjects(t *testing.T) {
 	if md.list() != "loop701" {
 		t.Fatalf("removing loop703 after the first sync: %q", md.list())
 	}
+}
+
+// A source left out of a transaction rejoins on its own: the agent retries its sync with backoff.
+func TestDynamicSourceLeftOutRejoinsThroughTheRetry(t *testing.T) {
+	v := coretest.New()
+	s, md, src := syncedSrcSvc(t, v, "loop701")
+	s.retryMin, s.retryMax = 20*time.Millisecond, 40*time.Millisecond
+	md.failOn("loop703", errors.New(errLabelInUse))
+	src.set("loop701", "loop703")
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if s.source("test-sync").inSync.Load() {
+		t.Fatal("a left-out source is still in sync")
+	}
+	time.Sleep(150 * time.Millisecond) // a few retries that VPP still rejects
+	if md.list() != "loop701" {
+		t.Fatalf("dynamic objects while VPP rejects loop703: %q", md.list())
+	}
+	md.failOn("loop703", nil)
+	deadline := time.Now().Add(5 * time.Second)
+	for md.list() != "loop701,loop703" || !s.source("test-sync").inSync.Load() {
+		if time.Now().After(deadline) {
+			t.Fatalf("the source did not rejoin: dynamic %q", md.list())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// The agent syncs a source without Run once after the first resync; a Run that panics or returns
+// early stops its source until the agent restarts (R3): out of sync, its objects left as they are.
+func TestDynamicSourceStartAndRunFailure(t *testing.T) {
+	start := func(t *testing.T, run func(context.Context, subsystems.SyncFunc)) (*Service, *memDesc, *learnedSource) {
+		t.Helper()
+		v := coretest.New()
+		s, md, src := newSrcSvc(t, v, run)
+		mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+		src.set("loop701")
+		a := &Agent{log: s.log, svc: s, metrics: s.metrics}
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(func() { cancel(); a.wg.Wait() })
+		a.startSources(ctx)
+		return s, md, src
+	}
+	t.Run("no Run", func(t *testing.T) {
+		s, md, _ := start(t, nil)
+		if md.list() != "loop701" || !s.source("test-sync").inSync.Load() {
+			t.Fatalf("after start: dynamic %q, in sync %v", md.list(), s.source("test-sync").inSync.Load())
+		}
+	})
+	for name, tc := range map[string]struct {
+		run    func(context.Context, subsystems.SyncFunc)
+		reason string
+	}{
+		"Run panics": {func(ctx context.Context, sync subsystems.SyncFunc) {
+			_ = sync(ctx)
+			panic("run bug")
+		}, "panic"},
+		"Run returns early": {func(ctx context.Context, sync subsystems.SyncFunc) { _ = sync(ctx) }, "stopped"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var s *Service
+			var md *memDesc
+			var src *learnedSource
+			noPanic(t, "startSources", func() { s, md, src = start(t, tc.run) })
+			deadline := time.Now().Add(5 * time.Second)
+			for !s.source("test-sync").stoppedNow(s) {
+				if time.Now().After(deadline) {
+					t.Fatal("the source was not stopped")
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			if md.list() != "loop701" || s.source("test-sync").inSync.Load() {
+				t.Fatalf("after the stop: dynamic %q, in sync %v", md.list(), s.source("test-sync").inSync.Load())
+			}
+			// Out of sync: a commit leaves its objects alone, and a stray sync is refused.
+			src.set("loop702")
+			mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+			if err := s.sourceSync("test-sync")(context.Background()); grpcCode(err) != codes.FailedPrecondition || md.list() != "loop701" || s.source("test-sync").inSync.Load() {
+				t.Fatalf("a stopped source: sync %v, dynamic %q", err, md.list())
+			}
+			var b strings.Builder
+			s.metrics.write(&b)
+			if want := `vrx_agent_dynamic_source_errors_total{source="test-sync",reason="` + tc.reason + `"} 1`; !strings.Contains(b.String(), want) {
+				t.Fatalf("missing %q in\n%s", want, b.String())
+			}
+		})
+	}
+}
+
+// stoppedNow reads ds.stopped under the transaction lock.
+func (ds *dynSource) stoppedNow(s *Service) bool {
+	_ = s.lock(context.Background())
+	defer s.unlock()
+	return ds.stopped
+}
+
+// Env.Resync storm guard (R8/R9): a request right after a requested resync is deferred to the end of
+// the interval, and the requests made meanwhile coalesce into one resync.
+func TestRequestedResyncsAreRateLimited(t *testing.T) {
+	old := resyncMinInterval
+	resyncMinInterval = 500 * time.Millisecond
+	t.Cleanup(func() { resyncMinInterval = old })
+	a, fc := startFake(t, testConfig(t))
+	sub := a.svc.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_RECONCILE_START}})
+	fc.states <- vpp.ConnState{Connected: true}
+	collect(t, sub, 1) // the connect resync
+	a.wiring.RequestResync()
+	collect(t, sub, 1) // the first requested resync runs at once
+	start := time.Now()
+	for range 5 {
+		a.wiring.RequestResync()
+		time.Sleep(20 * time.Millisecond)
+	}
+	collect(t, sub, 1)
+	if d := time.Since(start); d < 300*time.Millisecond {
+		t.Fatalf("a requested resync right after another ran after %v (want it deferred)", d)
+	}
+	noEvent(t, sub, 700*time.Millisecond) // the five requests coalesced into one
 }

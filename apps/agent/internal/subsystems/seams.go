@@ -222,25 +222,34 @@ type SyncFunc func(ctx context.Context) error
 // in one transaction, and nothing but the scheduler writes VPP.
 //
 // Failure semantics (TD-8 review R1–R3): a source never costs the configuration its transaction.
-//   - In sync: the source's last sync ended APPLIED, and no transaction has left it out since. A
-//     source with Run is out of sync from start-up until its first successful sync, because its cache
-//     is empty until then; a source without Run is in sync from the start. While a source is out of
-//     sync, it takes part in no transaction: its descriptors are out of scope, so the scheduler neither
-//     creates nor deletes its objects (an agent restart with VPP intact deletes nothing). A config
-//     change that deletes what one of its live objects depends on fails with "cannot delete … depends
-//     on it" until the source is back in sync.
-//   - When a transaction fails because of a dynamic object (a key outside Descriptors, a duplicate, a
-//     plan issue or a failed operation on a dynamic key, a failed Retrieve of Descriptors, a panic in
-//     Desired), the agent runs it once more without the dynamic sources, under the same lock. The
-//     user's commit, the resync after a VPP restart and the confirm revert then succeed on the
-//     configuration alone. The response lists the dynamic key as SKIPPED with the source and the
-//     cause, an ERROR event carries attributes source and key, and
-//     vrx_agent_dynamic_source_errors_total{source,reason} counts it. Every source left out is out of
-//     sync until its next successful sync.
-//   - A source that is out of sync after it was in sync once is retried by the agent: a sync with
-//     backoff (5 s doubling to 60 s), so it rejoins on its own once VPP accepts its objects again.
-//   - A panic in Desired, in a sync or in Run is recovered and logged with its stack. A panic in Run
-//     stops the source for the life of the process: it stays out of sync, its objects stay as they are.
+//   - In sync: the source's last sync ended APPLIED, and no transaction has left it out since. Every
+//     source is out of sync from start-up until its first successful sync: Run's first sync, after it
+//     filled its cache, or — for a source without Run — the sync the agent runs once after its first
+//     resync. While a source is out of sync, it takes part in no transaction: its descriptors are out
+//     of scope, so the scheduler neither creates nor deletes its objects (an agent restart with VPP
+//     intact deletes nothing). A config change that deletes what one of its live objects depends on
+//     fails with "cannot delete … depends on it" until the source is back in sync.
+//   - A source whose Desired panics, or returns a key outside Descriptors or a duplicate, is left out
+//     of the transaction before it runs. When the transaction fails because of a dynamic object (a
+//     plan issue or the failed operation on a dynamic key, a failed Retrieve or verification naming
+//     one of Descriptors), the agent runs it once more without the dynamic sources, under the same
+//     lock (not after DEGRADED: a failed rollback is never retried). The user's commit, the resync
+//     after a VPP restart and the confirm revert then succeed on the configuration alone. The response
+//     lists the dynamic key as SKIPPED with the source and the cause, an ERROR event carries the
+//     attributes source, reason and key, and vrx_agent_dynamic_source_errors_total{source,reason}
+//     counts it (reason invalid, panic, rejected, stopped). DryRun plans the same: a source Apply
+//     would leave out is a WARNING issue "agent.dynamic-source-skipped". Every source left out is
+//     out of sync until its next successful sync.
+//   - A source out of sync whose sync failed, or that a transaction left out, is retried by the
+//     agent: a sync with backoff (5 s doubling to 60 s), so it rejoins on its own once VPP accepts its
+//     objects again. A failed sync takes the source out of sync, except UNAVAILABLE for a source in
+//     sync (the reconnect resync includes it).
+//   - A panic in Desired, in a sync or in Run is recovered and logged with its stack (a panic in a
+//     descriptor during a sync also marks the agent DEGRADED: the data plane may be partially
+//     changed). A Run that panics or returns before the agent stops stops its source for the life of
+//     the process: it stays out of sync, its objects stay as they are, and sync is refused.
+//   - A sync with nothing to do emits no event and no metric. Otherwise RECONCILE_START/DONE with an
+//     empty txn_id and the attribute "source" follow the sync (docs/contracts/proto.md §7).
 //
 // Object ownership (review R10a): a source's descriptors are instances of their own (e.g.
 // "mpls-route.ldp", never "ip.route"). Their Retrieve returns only the objects this source owns, so

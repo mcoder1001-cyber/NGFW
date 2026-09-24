@@ -40,8 +40,8 @@ func TestEventAndResyncHooksDefaultInert(t *testing.T) {
 func TestSlotIDRange(t *testing.T) {
 	t.Setenv(EnvTableBase, "")
 	t.Setenv(EnvIDRange, "")
-	if r, err := SlotIDRange(); r != nil || !errors.Is(err, ErrNoIDRange) {
-		t.Fatalf("unset: %v %v (want ErrNoIDRange: fail closed)", r, err)
+	if r, err := SlotIDRange(); r == nil || !r.Empty() || !errors.Is(err, ErrNoIDRange) {
+		t.Fatalf("unset: %v %v (want the empty range and ErrNoIDRange: fail closed)", r, err)
 	}
 	if s, err := ResolveIDScope(); s != (IDScope{}) || !errors.Is(err, ErrNoIDRange) || s.String() != "none (fail closed)" {
 		t.Fatalf("unset scope: %+v %v", s, err)
@@ -74,8 +74,8 @@ func TestSlotIDRange(t *testing.T) {
 	}
 	for _, bad := range []string{"x", "-1", "0", "4294967295", "4294967296"} {
 		t.Setenv(EnvTableBase, bad)
-		if r, err := SlotIDRange(); err == nil || errors.Is(err, ErrNoIDRange) {
-			t.Errorf("%s=%q: want a malformed-value error, got %v %v", EnvTableBase, bad, r, err)
+		if r, err := SlotIDRange(); err == nil || errors.Is(err, ErrNoIDRange) || r == nil || !r.Empty() {
+			t.Errorf("%s=%q: want a malformed-value error and the empty range, got %v %v", EnvTableBase, bad, r, err)
 		}
 	}
 	t.Setenv(EnvTableBase, "4294966296") // the last base whose range still fits in 32 bits
@@ -99,9 +99,27 @@ func TestWiringIDRangeFailsClosed(t *testing.T) {
 			t.Errorf("id %d is owned by the fail-closed range %v", id, none)
 		}
 	}
+	// ... and so does one that converts with the helpers.
+	for _, id := range []uint32{0, 1, 7000, 13000, ^uint32(0)} {
+		if none.DF2().Owns(id) || none.DF7().Owns(id) || none.VPN().Contains(id) {
+			t.Errorf("id %d is owned by the converted fail-closed range", id)
+		}
+	}
+	// The zero range 0..0 has no vpn.IDRange of its own (the zero value means every id): it fails closed.
+	if zero := (&IDRange{}); zero.VPN().Contains(0) || zero.VPN().Contains(1) || !zero.DF2().Owns(0) || zero.DF7().Owns(1) {
+		t.Errorf("0..0 converts wrongly: %v %v %v", zero.VPN(), zero.DF2(), zero.DF7())
+	}
 	w = &Wiring{env: Env{IDs: IDScope{All: true}}}
-	if r, err := w.IDRange(); r != nil || err != nil {
-		t.Fatalf("all: %v %v (want nil = every id)", r, err)
+	all, err := w.IDRange()
+	if all != nil || err != nil {
+		t.Fatalf("all: %v %v (want nil = every id)", all, err)
+	}
+	if !all.DF2().Owns(13000) || !all.DF7().Owns(1) || !all.VPN().Contains(^uint32(0)) {
+		t.Fatal("nil (every id) does not convert to every id")
+	}
+	slot := &IDRange{Lo: 3000, Hi: 3999}
+	if !slot.DF2().Owns(3000) || slot.DF7().Owns(4000) || !slot.VPN().Contains(3999) || slot.VPN().Contains(2999) {
+		t.Fatal("a slot range converts wrongly")
 	}
 	w = &Wiring{env: Env{IDs: IDScope{Range: &IDRange{Lo: 5000, Hi: 5999}, All: true}}}
 	r, err := w.IDRange()

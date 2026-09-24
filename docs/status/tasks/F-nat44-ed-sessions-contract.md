@@ -27,4 +27,11 @@ numbers; F-det44-map-dslite-cnat uses its own RPCs (wave-BC-numbers.md), never t
 
 ## `contract(schema): nat adjacent pools`
 
-See the section below once committed.
+The prompt's optional rule, decided **reject** (its default; the alternative "merge in the builder" would make the
+applied state differ from the document, so Retrieve could never equal desired). New file
+`packages/schema/src/semantic/nat44-ed-sessions.ts` (`nat44EdSessionsValidators`), rule id
+`nat.nat44-ed-sessions-adjacent-pools`: two NAT44 range pools of one twice-NAT class and tenant VRF that touch
+(end + 1 = start, either order; a missing `vrf` equals `"default"`) → finding at `/nat/pools/<later>/range`. Overlaps stay
+`nat.pools-valid`'s, reversed ranges too (no double finding). Shared hunk C2: one import and one spread line under the
+anchors of `packages/schema/src/semantic/index.ts`. Tests: `nat44-ed-sessions.test.ts` (the rule, and the existing P02b
+rules on the projected ED paths: inside/outside disjoint, overlapping pools, external port without protocol).

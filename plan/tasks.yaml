@@ -2120,7 +2120,7 @@ tasks:
   files_owned: deploy/vpp/apply-startup.sh deploy/vpp/vpp-iface-check* deploy/vpp/test-apply-startup.sh
   finished: ''
   id: F-startup-apply
-  notes: D-088 split from F-startup-gen
+  notes: D-088 split from F-startup-gen | worker done 00315f4 CI green (72/72 fake-host checks); review spawned; leftover /tmp/tmp.FoyjiXAETl (rm denied)
   owner: host-agent slot6
   parked_on: ''
   priority: 4
@@ -2128,7 +2128,7 @@ tasks:
   scope: apply-startup.sh from branch task/F-startup-apply; fix re-review N1 N2 N3 N6 + lows (D-088)
   stage: S2
   started: 2026-09-24T03:10
-  state: running
+  state: review
   template: FEATURE-TEMPLATE.md
   title: Robust startup.conf apply tooling (detached, watchdog, hung-VPP, ifupdown restore, Go API checks, handover gate)
   wbs:

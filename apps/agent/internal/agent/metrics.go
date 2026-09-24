@@ -5,6 +5,8 @@ package agent
 // prometheus/client_golang (and its dependency tree) into the privileged process.
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"math"
@@ -15,6 +17,7 @@ import (
 	"time"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
+	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
@@ -36,7 +39,16 @@ type metrics struct {
 	sum      float64
 	count    int64
 	ops      map[string]int64 // created/updated/deleted/reverted totals
+
+	// collectors returns the feature metrics collectors (TD-8: subsystems.Wiring.MetricsCollectors,
+	// set before the endpoint serves); nil = none.
+	collectors func() []subsystems.MetricsCollector
+	collMu     sync.Mutex
+	collErrs   map[string]int64 // failed scrapes by collector (guarded by collMu)
 }
+
+// collectorTimeout bounds one feature collector on one scrape (a var for the tests).
+var collectorTimeout = 5 * time.Second
 
 func newMetrics() *metrics {
 	return &metrics{byStatus: map[string]int64{}, buckets: make([]int64, len(durationBuckets)), ops: map[string]int64{}}
@@ -80,8 +92,54 @@ func b2f(b bool) int {
 	return 0
 }
 
-// write renders the exposition text.
-func (m *metrics) write(w io.Writer) {
+// write renders the exposition text (no deadline for the feature collectors beyond collectorTimeout).
+func (m *metrics) write(w io.Writer) { m.writeCtx(context.Background(), w) }
+
+// writeCtx renders the agent's families, then the feature collectors' (outside m.mu).
+func (m *metrics) writeCtx(ctx context.Context, w io.Writer) {
+	m.writeAgent(w)
+	m.writeCollectors(ctx, w)
+}
+
+// writeCollectors renders the feature collectors (TD-8) and their error counter; nothing without
+// collectors. A collector that fails (error or deadline) contributes nothing but a count.
+func (m *metrics) writeCollectors(ctx context.Context, w io.Writer) {
+	if m.collectors == nil {
+		return
+	}
+	cs := m.collectors()
+	if len(cs) == 0 {
+		return
+	}
+	for _, c := range cs {
+		var buf bytes.Buffer
+		cctx, cancel := context.WithTimeout(ctx, collectorTimeout)
+		err := c.Collect(cctx, &buf) // a collector that gives up on its deadline returns ctx.Err()
+		cancel()
+		if err != nil {
+			m.collMu.Lock()
+			if m.collErrs == nil {
+				m.collErrs = map[string]int64{}
+			}
+			m.collErrs[c.Name]++
+			m.collMu.Unlock()
+			continue
+		}
+		if b := buf.Bytes(); len(b) > 0 && b[len(b)-1] != '\n' {
+			buf.WriteByte('\n')
+		}
+		_, _ = w.Write(buf.Bytes())
+	}
+	_, _ = io.WriteString(w, "# HELP vrx_agent_metrics_collector_errors_total Scrapes on which a feature metrics collector failed (its families were not served).\n# TYPE vrx_agent_metrics_collector_errors_total counter\n")
+	m.collMu.Lock()
+	defer m.collMu.Unlock()
+	for _, c := range cs {
+		_, _ = fmt.Fprintf(w, "vrx_agent_metrics_collector_errors_total{collector=%q} %d\n", c.Name, m.collErrs[c.Name])
+	}
+}
+
+// writeAgent renders the agent's own families.
+func (m *metrics) writeAgent(w io.Writer) {
 	p := func(format string, a ...any) { _, _ = fmt.Fprintf(w, format, a...) }
 	p("# HELP vrx_agent_vpp_connected 1 when the VPP binary API is connected.\n# TYPE vrx_agent_vpp_connected gauge\nvrx_agent_vpp_connected %d\n", b2f(m.vppConnected.Load()))
 	p("# HELP vrx_agent_degraded 1 after a failed rollback until a transaction succeeds.\n# TYPE vrx_agent_degraded gauge\nvrx_agent_degraded %d\n", b2f(m.degraded.Load()))
@@ -125,9 +183,9 @@ func fmtFloat(f float64) string {
 // handler serves /metrics.
 func (m *metrics) handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/metrics", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
-		m.write(w)
+		m.writeCtx(r.Context(), w)
 	})
 	return mux
 }

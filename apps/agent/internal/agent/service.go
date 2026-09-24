@@ -68,10 +68,14 @@ type Service struct {
 	vrfDesc         map[string]string           // VRF name → description (D-073b)
 	routeDesc       map[string]string           // "<vrf>|<prefix>" → description (D-073b)
 	storedIfs       map[string]*vrxv1.Interface // stored desired `interfaces` (P08: descriptions, named NICs)
+	storedDoc       *vrxv1.DesiredState         // stored desired state for DryRun's dynamic sources (TD-8; only with sources)
 	beforeTxn       func()
 	pendingTxn      string
 	deadline        time.Time
 	lastTxn         string
+
+	// sources are the dynamic desired sources (S1, TD-8): merged into every transaction's projection.
+	sources []subsystems.DynamicSource
 }
 
 // ServiceConfig builds a Service.
@@ -89,6 +93,12 @@ type ServiceConfig struct {
 	// NetdevKind is the Linux netdev lookup of the af_packet veth rule (D-105; subsystems.Wiring.NetdevKind).
 	// nil skips the check (unit tests of other domains).
 	NetdevKind desired.NetdevKind
+	// Events is the event bus (TD-8: the agent creates it before the wiring, whose Env.Publish feeds
+	// it); nil = a new one.
+	Events *bus
+	// Sources are the dynamic desired sources (S1, TD-8; subsystems.Wiring.DynamicSources). Their
+	// descriptors must be registered with Scheduler.
+	Sources []subsystems.DynamicSource
 }
 
 // NewService loads the persisted state and returns a service. It does not touch VPP; call
@@ -107,10 +117,17 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 	if cfg.Metrics == nil {
 		cfg.Metrics = newMetrics()
 	}
+	if cfg.Events == nil {
+		cfg.Events = newBus()
+	}
+	if err := checkSources(cfg.Scheduler, cfg.Sources); err != nil {
+		return nil, err
+	}
 	s := &Service{
 		owner: cfg.Owner, version: cfg.Version, log: cfg.Logger, vpp: cfg.VPP, sched: cfg.Scheduler,
-		st: st, bus: newBus(), metrics: cfg.Metrics, now: cfg.Now, txn: make(chan struct{}, 1),
+		st: st, bus: cfg.Events, metrics: cfg.Metrics, now: cfg.Now, txn: make(chan struct{}, 1),
 		retryMin: revertRetryMin, retryMax: revertRetryMax, beforeTxn: cfg.BeforeTxn, netdevKind: cfg.NetdevKind,
+		sources: append([]subsystems.DynamicSource(nil), cfg.Sources...),
 	}
 	s.refreshSnapshotLocked()
 	return s, nil
@@ -170,6 +187,12 @@ func (s *Service) refreshSnapshotLocked() {
 	s.lastTxn = s.st.meta.LastTxnID
 	s.mu.Unlock()
 	s.metrics.setPending(s.st.meta.PendingTxnID != "")
+	if len(s.sources) > 0 {
+		doc := proto.Clone(s.st.desired).(*vrxv1.DesiredState)
+		s.mu.Lock()
+		s.storedDoc = doc
+		s.mu.Unlock()
+	}
 }
 
 func (s *Service) resolveVRF(name string) (uint32, bool) {
@@ -340,6 +363,14 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 		s.beforeTxn()
 	}
 	pj := project(ds, domains, s.resolveVRF, s.netdevKind)
+	scope := scopeOf(domains)
+	if len(s.sources) > 0 && !pj.hasErrors() {
+		view := ds // resync and revert apply the stored document itself
+		if m == modeTxn {
+			view = mergeDomains(s.st.desired, ds, domains)
+		}
+		scope = scheduler.Only(append(scopeNames(domains), s.addSources(pj, view, "")...)...) // S1 (TD-8)
+	}
 	var res *scheduler.TxnResult
 	if pj.hasErrors() {
 		resp.Status = vrxv1.ApplyStatus_APPLY_STATUS_FAILED
@@ -347,7 +378,7 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 		resp.Message = "validation failed"
 		resp.Summary = &vrxv1.ApplySummary{}
 	} else {
-		res = s.sched.ApplyWith(ctx, pj.kvs, scopeOf(domains), scheduler.ApplyOptions{Resync: m != modeTxn})
+		res = s.sched.ApplyWith(ctx, pj.kvs, scope, scheduler.ApplyOptions{Resync: m != modeTxn})
 		fillResponse(resp, res, pj)
 	}
 	resp.AppliedAt = timestamppb.New(s.now())
@@ -558,6 +589,135 @@ func (s *Service) Resync(ctx context.Context) *vrxv1.ApplyResponse {
 	return resp
 }
 
+// ---- dynamic desired sources (S1, TD-8) -----------------------------------------------------
+
+// checkSources refuses dynamic sources whose descriptors are not registered with the scheduler.
+func checkSources(sched *scheduler.Scheduler, srcs []subsystems.DynamicSource) error {
+	for _, src := range srcs {
+		if src.Desired == nil {
+			return fmt.Errorf("dynamic source %s: no Desired", src.Name)
+		}
+		for _, d := range src.Descriptors {
+			if sched == nil {
+				return fmt.Errorf("dynamic source %s: no scheduler", src.Name)
+			}
+			if _, ok := sched.Registry().Get(d); !ok {
+				return fmt.Errorf("dynamic source %s: descriptor %s is not registered", src.Name, d)
+			}
+		}
+	}
+	return nil
+}
+
+// scopeNames lists the descriptors of domains (scopeOf's names).
+func scopeNames(domains []string) []string {
+	var names []string
+	for _, d := range domains {
+		names = append(names, domainDescriptors[d]...)
+	}
+	return names
+}
+
+// addSources merges the objects of the dynamic sources (only != "": that source alone) for view, the
+// stored document as it will be after the transaction, into pj and returns their descriptors (what
+// they add to the transaction's scope). A key outside the source's descriptors, or one that is already
+// planned, is an error of the transaction; dynamic objects have no JSON pointer.
+func (s *Service) addSources(pj *projected, view *vrxv1.DesiredState, only string) []string {
+	if view == nil {
+		view = &vrxv1.DesiredState{}
+	}
+	view = proto.Clone(view).(*vrxv1.DesiredState) // the sources get a copy: never the stored state
+	have := make(map[scheduler.Key]bool, len(pj.kvs))
+	for _, kv := range pj.kvs {
+		have[kv.Key] = true
+	}
+	var names []string
+	for _, src := range s.sources {
+		if only != "" && src.Name != only {
+			continue
+		}
+		own := map[string]bool{}
+		for _, d := range src.Descriptors {
+			own[d] = true
+		}
+		names = append(names, src.Descriptors...)
+		for _, kv := range src.Desired(view) {
+			switch {
+			case !own[kv.Key.Descriptor()]:
+				pj.errorf("", "agent.dynamic-source", "dynamic source %s produced %s, outside its descriptors %v", src.Name, kv.Key, src.Descriptors)
+			case have[kv.Key]:
+				pj.errorf("", "agent.duplicate-object", "dynamic source %s: duplicate object %s", src.Name, kv.Key)
+			default:
+				have[kv.Key] = true
+				pj.kvs = append(pj.kvs, scheduler.KV{Key: kv.Key, Value: kv.Value})
+			}
+		}
+	}
+	return names
+}
+
+// sourceSync returns the SyncFunc the loop of the dynamic source name gets.
+func (s *Service) sourceSync(name string) subsystems.SyncFunc {
+	return func(ctx context.Context) error { return s.syncSource(ctx, name) }
+}
+
+// syncSource runs one transaction for the dynamic source name: its Desired for the stored document,
+// scoped to its descriptors, under the transaction lock, with RECONCILE_START/DONE events (attribute
+// "source") and the reconcile metrics. It never changes the stored document or the confirm state, and
+// its success does not clear DEGRADED (only a transaction over the configuration does).
+func (s *Service) syncSource(ctx context.Context, name string) error {
+	known := false
+	for _, src := range s.sources {
+		known = known || src.Name == name
+	}
+	if !known {
+		return fmt.Errorf("no dynamic source %q", name)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := s.lock(ctx); err != nil {
+		return err
+	}
+	defer s.unlock()
+	if !s.vpp.Connected() {
+		return status.Error(codes.Unavailable, "VPP binary API is not connected")
+	}
+	start := s.now()
+	s.setReconciling(true)
+	defer s.setReconciling(false)
+	attrs := map[string]string{"source": name}
+	s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_RECONCILE_START, Message: "sync " + name, Attributes: attrs})
+	log := s.log.With("mode", "sync", "source", name)
+	if s.beforeTxn != nil {
+		s.beforeTxn()
+	}
+	pj := &projected{pointers: map[scheduler.Key]string{}}
+	descs := s.addSources(pj, s.st.desired, name)
+	resp := &vrxv1.ApplyResponse{}
+	if pj.hasErrors() {
+		resp.Status = vrxv1.ApplyStatus_APPLY_STATUS_FAILED
+		resp.Message = "validation failed: " + pj.issues[0].message
+		resp.Summary = &vrxv1.ApplySummary{}
+	} else {
+		fillResponse(resp, s.sched.ApplyWith(ctx, pj.kvs, scheduler.Only(descs...), scheduler.ApplyOptions{}), pj)
+	}
+	if resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED {
+		s.setDegraded(true, "dynamic source "+name+": "+resp.GetMessage())
+	}
+	d := s.now().Sub(start)
+	s.metrics.observe(resp.GetStatus(), d, resp.GetSummary())
+	s.mu.Lock()
+	s.lastReconcileAt = s.now()
+	s.mu.Unlock()
+	s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE, Summary: resp.GetSummary(), Message: resp.GetStatus().String(), Attributes: attrs})
+	log.Info("reconcile done", "status", resp.GetStatus().String(), "summary", resp.GetSummary().String(), "duration", d, "err", resp.GetMessage())
+	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+		return fmt.Errorf("dynamic source %s: %s: %s", name, resp.GetStatus(), resp.GetMessage())
+	}
+	return nil
+}
+
 // ---- Retrieve / DryRun / Health -------------------------------------------------------------
 
 // Retrieve implements the Retrieve RPC.
@@ -654,7 +814,17 @@ func (s *Service) DryRun(ctx context.Context, req *vrxv1.DryRunRequest) (*vrxv1.
 	if pj.hasErrors() {
 		return report(req.GetTxnId(), pj, nil), nil
 	}
-	plan, err := s.sched.Plan(ctx, pj.kvs, scopeOf(domains))
+	scope := scopeOf(domains)
+	if len(s.sources) > 0 { // S1 (TD-8): plan what Apply would do, dynamic objects included
+		s.mu.Lock()
+		stored := s.storedDoc
+		s.mu.Unlock()
+		scope = scheduler.Only(append(scopeNames(domains), s.addSources(pj, mergeDomains(stored, req.GetDesiredState(), domains), "")...)...)
+		if pj.hasErrors() {
+			return report(req.GetTxnId(), pj, nil), nil
+		}
+	}
+	plan, err := s.sched.Plan(ctx, pj.kvs, scope)
 	if err != nil {
 		if errors.Is(err, vpp.ErrDisconnected) {
 			return nil, status.Error(codes.Unavailable, err.Error())

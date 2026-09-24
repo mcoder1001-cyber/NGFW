@@ -47,6 +47,12 @@ type Config struct {
 	// GlobalsOwner (VRX_GLOBALS_OWNER, D-071): true only for the product agent on a real box (the
 	// default for the production owner "vrx"); test slots on the shared host are never the owner.
 	GlobalsOwner bool
+	// IDs is the VPP numeric id range the families may allocate (TD-8, subsystems.ResolveIDScope:
+	// VRX_VPP_TABLE_BASE or VRX_VPP_ID_RANGE=all). It fails closed: the zero value (neither variable
+	// set, or a Config built in code) owns no id, so a family that allocates ids refuses to register.
+	IDs subsystems.IDScope
+	// idsErr is a malformed or contradictory id range setting (Validate refuses to start).
+	idsErr error
 }
 
 func env(key, def string) string {
@@ -70,7 +76,13 @@ func ConfigFromEnv() Config {
 	case "0", "false", "no":
 		globals = false
 	}
+	ids, idsErr := subsystems.ResolveIDScope()
+	if errors.Is(idsErr, subsystems.ErrNoIDRange) {
+		idsErr = nil // fail closed without refusing to start: the zero scope owns no id (Start warns)
+	}
 	return Config{
+		IDs:            ids,
+		idsErr:         idsErr,
 		GlobalsOwner:   globals,
 		Socket:         env("VRX_AGENT_SOCKET", "/run/vrx/agent.sock"),
 		SocketGroup:    env("VRX_SOCKET_GROUP", "vrx"),
@@ -92,6 +104,8 @@ func (c Config) Validate() error {
 		return errors.New("VRX_AGENT_SOCKET is empty")
 	case c.StateDir == "":
 		return errors.New("VRX_AGENT_STATE_DIR is empty")
+	case c.idsErr != nil:
+		return c.idsErr
 	}
 	return nil
 }
@@ -102,6 +116,10 @@ type vppConn interface {
 	States() <-chan vpp.ConnState
 	Close()
 }
+
+// dialVPP opens the VPP connection manager (vpp.Dial); the unit tests of Start's seam wiring (TD-8)
+// substitute a fake VPP.
+var dialVPP = func(socket string, opts vpp.ConnOptions) vppConn { return vpp.Dial(socket, opts) }
 
 // Agent is a running agent (Start/Stop form, used by Run and by in-process tests).
 type Agent struct {
@@ -114,6 +132,8 @@ type Agent struct {
 	httpSrv *http.Server
 	stats   *statsReader
 	wiring  *subsystems.Wiring
+	// resyncs carries Env.Resync requests (A5, TD-8) to watchVPP; nil = none (tests).
+	resyncs chan struct{}
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
 }
@@ -133,21 +153,29 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		return nil, err
 	}
 	m := newMetrics()
-	conn := vpp.Dial(cfg.VPPAPISocket, vpp.ConnOptions{Logger: log})
+	conn := dialVPP(cfg.VPPAPISocket, vpp.ConnOptions{Logger: log})
 	reg := scheduler.NewRegistry()
-	wiring, err := subsystems.Register(reg, subsystems.Env{Client: conn, Owner: cfg.Owner, StateDir: cfg.StateDir, Owned: owned, GlobalsOwner: cfg.GlobalsOwner, Log: log.With("component", "subsystems")})
+	// A5 seams (TD-8): the features' events reach the service's bus, their resync requests watchVPP.
+	events, resyncs := newBus(), make(chan struct{}, 1)
+	wiring, err := subsystems.Register(reg, subsystems.Env{Client: conn, Owner: cfg.Owner, StateDir: cfg.StateDir, Owned: owned, GlobalsOwner: cfg.GlobalsOwner, Log: log.With("component", "subsystems"),
+		Publish: events.publishFeature, Resync: func() { requestResync(resyncs) }, IDs: cfg.IDs})
 	if err != nil {
 		conn.Close()
 		return nil, err
 	}
-	log.Info("subsystems wired", "domains", implementedDomains(), "wiring", wiring.String())
+	log.Info("subsystems wired", "domains", implementedDomains(), "wiring", wiring.String(), "vpp_ids", cfg.IDs.String())
+	if cfg.IDs == (subsystems.IDScope{}) {
+		log.Warn("no VPP id range: families that allocate numeric ids refuse to register", "why", subsystems.ErrNoIDRange)
+	}
+	m.collectors = wiring.MetricsCollectors // TD-8: feature metric families on /metrics
 	sched := scheduler.New(reg, log.With("component", "scheduler"))
-	svc, err := NewService(ServiceConfig{Owner: cfg.Owner, Version: version, Logger: log, VPP: conn, Scheduler: sched, StateDir: cfg.StateDir, Metrics: m, BeforeTxn: wiring.BeforeTxn, NetdevKind: wiring.NetdevKind()})
+	svc, err := NewService(ServiceConfig{Owner: cfg.Owner, Version: version, Logger: log, VPP: conn, Scheduler: sched, StateDir: cfg.StateDir, Metrics: m, BeforeTxn: wiring.BeforeTxn, NetdevKind: wiring.NetdevKind(),
+		Events: events, Sources: wiring.DynamicSources()})
 	if err != nil {
 		conn.Close()
 		return nil, err
 	}
-	a := &Agent{cfg: cfg, log: log, conn: conn, svc: svc, metrics: m, stats: newStatsReader(cfg.VPPStatsSocket, log), wiring: wiring}
+	a := &Agent{cfg: cfg, log: log, conn: conn, svc: svc, metrics: m, stats: newStatsReader(cfg.VPPStatsSocket, log), wiring: wiring, resyncs: resyncs}
 
 	l, err := listenUnix(cfg.Socket, cfg.SocketGroup, log)
 	if err != nil {
@@ -192,7 +220,8 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 }
 
 // watchVPP reacts to connection changes: VPP_CONNECTED → version, resync, link events;
-// VPP_DISCONNECTED → event.
+// VPP_DISCONNECTED → event. It also serves Env.Resync requests while VPP is connected and starts the
+// dynamic sources' loops after the first resync (TD-8).
 func (a *Agent) watchVPP(ctx context.Context) {
 	var linkCancel context.CancelFunc
 	stopLinks := func() {
@@ -202,12 +231,20 @@ func (a *Agent) watchVPP(ctx context.Context) {
 		}
 	}
 	defer stopLinks()
+	connected, sourcesStarted := false, false
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-a.resyncs:
+			if !connected {
+				a.log.Debug("resync request dropped: VPP is not connected (the reconnect resyncs)")
+				continue
+			}
+			a.fullResync(ctx, "requested")
 		case st := <-a.conn.States():
 			a.metrics.setVPP(st.Connected)
+			connected = st.Connected
 			if !st.Connected {
 				stopLinks()
 				msg := "VPP binary API disconnected"
@@ -228,12 +265,10 @@ func (a *Agent) watchVPP(ctx context.Context) {
 			if a.wiring != nil {
 				a.wiring.Connected(ctx) // P08: D-080 boot identity for the stores, DF-8 Reconnected()
 			}
-			resp := a.svc.Resync(ctx)
-			if resp != nil {
-				a.log.Info("resync finished", "status", resp.GetStatus().String(), "summary", resp.GetSummary().String())
-			}
-			if a.wiring != nil {
-				a.wiring.AfterResync(ctx) // TD-3 Q2: release clean quarantine holders (ifsanitize.Release)
+			a.fullResync(ctx, "connect")
+			if !sourcesStarted {
+				sourcesStarted = true
+				a.startSources(ctx)
 			}
 			stopLinks()
 			lctx, cancelLinks := context.WithCancel(ctx)
@@ -244,6 +279,43 @@ func (a *Agent) watchVPP(ctx context.Context) {
 				}
 			}()
 		}
+	}
+}
+
+// fullResync re-applies the stored desired state (Service.Resync, with the dynamic sources) and runs
+// the wiring's after-resync hook.
+func (a *Agent) fullResync(ctx context.Context, why string) {
+	resp := a.svc.Resync(ctx)
+	if resp != nil {
+		a.log.Info("resync finished", "why", why, "status", resp.GetStatus().String(), "summary", resp.GetSummary().String())
+	}
+	if a.wiring != nil {
+		a.wiring.AfterResync(ctx) // TD-3 Q2: release clean quarantine holders (ifsanitize.Release)
+	}
+}
+
+// requestResync is the Env.Resync hook (A5, TD-8): it never blocks, and requests coalesce.
+func requestResync(ch chan<- struct{}) {
+	select {
+	case ch <- struct{}{}:
+	default:
+	}
+}
+
+// startSources starts the loops of the dynamic desired sources (S1, TD-8) once, after the first
+// resync; they stop when ctx is cancelled (Stop waits for them).
+func (a *Agent) startSources(ctx context.Context) {
+	for _, src := range a.svc.sources {
+		if src.Run == nil {
+			continue
+		}
+		a.log.Info("dynamic source started", "source", src.Name, "descriptors", src.Descriptors)
+		a.wg.Add(1)
+		go func() {
+			defer a.wg.Done()
+			src.Run(ctx, a.svc.sourceSync(src.Name))
+			a.log.Info("dynamic source stopped", "source", src.Name)
+		}()
 	}
 }
 

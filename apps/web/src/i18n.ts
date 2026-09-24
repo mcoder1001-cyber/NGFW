@@ -23,6 +23,38 @@ import faServices from './locales/fa/services.json';
 import enVpn from './locales/en/vpn.json';
 import faVpn from './locales/fa/vpn.json';
 // Feature namespaces (locale namespace = task slug): the en and fa import under the feature's anchor (wave-A-hotspots W3).
+// wave-BC: F-det44-map-dslite-cnat
+// wave-BC: F-tunnels
+// wave-BC: P10
+// wave-BC: F-vrrp-config-sync
+// wave-BC: F-pki
+// wave-BC: F-ikev2-native
+// wave-BC: F-ospf
+// wave-BC: F-isis-rip
+// wave-BC: P14
+// wave-BC: F-mpls-srmpls
+// wave-BC: F-lb
+// wave-BC: F-qos-flat
+// wave-BC: F-host-stack
+// wave-BC: F-snmp
+// wave-BC: F-ipfix-sflow
+// wave-BC: F-capture-trace
+// wave-BC: F-srv6
+// wave-BC: F-lisp
+// wave-BC: F-bfd-redistribution
+// wave-BC: F-ra-vpn
+// wave-BC: F-mpls-ldp
+// wave-BC: F-igmp-mfib
+// wave-BC: F-dashboard-prom-alarms
+// wave-BC: F-hardening-lite
+// wave-BC: F-aaa
+// wave-BC: F-licensing
+// wave-BC: F-restconf-yang
+// wave-BC: F-ha-state-sync
+// wave-BC: F-ab-upgrade
+// wave-BC: F-images
+// wave-BC: F-backup-restore
+// wave-A: UI-domain-editor
 // wave-A: F-vlan-qinq
 // wave-A: F-bonding
 // wave-A: F-bridge-l2
@@ -53,6 +85,38 @@ export const NAMESPACES = [
   'services',
   'vpn',
   // Feature namespaces: one line under the feature's anchor.
+  // wave-BC: F-det44-map-dslite-cnat
+  // wave-BC: F-tunnels
+  // wave-BC: P10
+  // wave-BC: F-vrrp-config-sync
+  // wave-BC: F-pki
+  // wave-BC: F-ikev2-native
+  // wave-BC: F-ospf
+  // wave-BC: F-isis-rip
+  // wave-BC: P14
+  // wave-BC: F-mpls-srmpls
+  // wave-BC: F-lb
+  // wave-BC: F-qos-flat
+  // wave-BC: F-host-stack
+  // wave-BC: F-snmp
+  // wave-BC: F-ipfix-sflow
+  // wave-BC: F-capture-trace
+  // wave-BC: F-srv6
+  // wave-BC: F-lisp
+  // wave-BC: F-bfd-redistribution
+  // wave-BC: F-ra-vpn
+  // wave-BC: F-mpls-ldp
+  // wave-BC: F-igmp-mfib
+  // wave-BC: F-dashboard-prom-alarms
+  // wave-BC: F-hardening-lite
+  // wave-BC: F-aaa
+  // wave-BC: F-licensing
+  // wave-BC: F-restconf-yang
+  // wave-BC: F-ha-state-sync
+  // wave-BC: F-ab-upgrade
+  // wave-BC: F-images
+  // wave-BC: F-backup-restore
+  // wave-A: UI-domain-editor
   // wave-A: F-vlan-qinq
   // wave-A: F-bonding
   // wave-A: F-bridge-l2
@@ -85,6 +149,38 @@ const en = {
   services: enServices,
   vpn: enVpn,
   // Feature namespaces: one line under the feature's anchor.
+  // wave-BC: F-det44-map-dslite-cnat
+  // wave-BC: F-tunnels
+  // wave-BC: P10
+  // wave-BC: F-vrrp-config-sync
+  // wave-BC: F-pki
+  // wave-BC: F-ikev2-native
+  // wave-BC: F-ospf
+  // wave-BC: F-isis-rip
+  // wave-BC: P14
+  // wave-BC: F-mpls-srmpls
+  // wave-BC: F-lb
+  // wave-BC: F-qos-flat
+  // wave-BC: F-host-stack
+  // wave-BC: F-snmp
+  // wave-BC: F-ipfix-sflow
+  // wave-BC: F-capture-trace
+  // wave-BC: F-srv6
+  // wave-BC: F-lisp
+  // wave-BC: F-bfd-redistribution
+  // wave-BC: F-ra-vpn
+  // wave-BC: F-mpls-ldp
+  // wave-BC: F-igmp-mfib
+  // wave-BC: F-dashboard-prom-alarms
+  // wave-BC: F-hardening-lite
+  // wave-BC: F-aaa
+  // wave-BC: F-licensing
+  // wave-BC: F-restconf-yang
+  // wave-BC: F-ha-state-sync
+  // wave-BC: F-ab-upgrade
+  // wave-BC: F-images
+  // wave-BC: F-backup-restore
+  // wave-A: UI-domain-editor
   // wave-A: F-vlan-qinq
   // wave-A: F-bonding
   // wave-A: F-bridge-l2
@@ -114,6 +210,38 @@ const fa = {
   services: faServices,
   vpn: faVpn,
   // Feature namespaces: one line under the feature's anchor.
+  // wave-BC: F-det44-map-dslite-cnat
+  // wave-BC: F-tunnels
+  // wave-BC: P10
+  // wave-BC: F-vrrp-config-sync
+  // wave-BC: F-pki
+  // wave-BC: F-ikev2-native
+  // wave-BC: F-ospf
+  // wave-BC: F-isis-rip
+  // wave-BC: P14
+  // wave-BC: F-mpls-srmpls
+  // wave-BC: F-lb
+  // wave-BC: F-qos-flat
+  // wave-BC: F-host-stack
+  // wave-BC: F-snmp
+  // wave-BC: F-ipfix-sflow
+  // wave-BC: F-capture-trace
+  // wave-BC: F-srv6
+  // wave-BC: F-lisp
+  // wave-BC: F-bfd-redistribution
+  // wave-BC: F-ra-vpn
+  // wave-BC: F-mpls-ldp
+  // wave-BC: F-igmp-mfib
+  // wave-BC: F-dashboard-prom-alarms
+  // wave-BC: F-hardening-lite
+  // wave-BC: F-aaa
+  // wave-BC: F-licensing
+  // wave-BC: F-restconf-yang
+  // wave-BC: F-ha-state-sync
+  // wave-BC: F-ab-upgrade
+  // wave-BC: F-images
+  // wave-BC: F-backup-restore
+  // wave-A: UI-domain-editor
   // wave-A: F-vlan-qinq
   // wave-A: F-bonding
   // wave-A: F-bridge-l2

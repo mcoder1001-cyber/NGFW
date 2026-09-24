@@ -86,6 +86,10 @@ export async function configureApp(app: NestFastifyApplication): Promise<void> {
   for (const type of ['application/merge-patch+json', 'application/problem+json']) {
     fastify.addContentTypeParser(type, { parseAs: 'string' }, json);
   }
+  // Feature content-type parsers (SY2): register from the feature's own module first
+  // (HttpAdapterHost in onModuleInit, before `ready`); a line here is the fallback only.
+  // wave-BC: F-restconf-yang
+  // wave-BC: F-backup-restore
   await app.register(fastifyWebsocket as never, {
     options: {
       maxPayload: 64 * 1024,

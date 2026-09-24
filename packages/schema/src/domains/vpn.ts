@@ -359,6 +359,7 @@ export const IpsecSettingsSchema = z.strictObject({
     widget: 'switch',
     help: 'Dedicated crypto workers / QAT offload (D6.1)',
   }),
+  // wave-BC: F-ikev2-native
 });
 
 export const IpsecSchema = z.strictObject({
@@ -460,6 +461,7 @@ export const PkiCaSchema = z.strictObject({
     { title: 'CRL' },
   ).optional(),
   ocspUrl: withUi(httpsUrl, { title: 'OCSP responder URL' }).optional(),
+  // wave-BC: F-pki
 });
 
 export const PkiCertificateSchema = z
@@ -484,6 +486,7 @@ export const PkiCertificateSchema = z
       title: 'Expiry alert (days before)',
       widget: 'number',
     }),
+    // wave-BC: F-pki
   })
   .superRefine((c, ctx) => {
     if (c.certificateRef === undefined && c.acme === undefined) {
@@ -545,6 +548,7 @@ export const RemoteAccessUserSchema = z.strictObject({
     },
   ),
   passwordRef: withUi(secretRefOf('password'), { title: 'Password (reference)' }),
+  // wave-BC: F-ra-vpn
 });
 
 export const RemoteAccessProfileSchema = z
@@ -612,6 +616,7 @@ export const RemoteAccessProfileSchema = z
     ).optional(),
     dpd: withUi(IpsecDpdSchema, { title: 'Dead peer detection', group: 'dpd' }).prefault({}),
     rekey: withUi(IpsecRekeySchema, { title: 'Rekeying', group: 'rekey' }).prefault({}),
+    // wave-BC: F-ra-vpn
   })
   .superRefine((p, ctx) => {
     const issue = (path: string, message: string): void => {

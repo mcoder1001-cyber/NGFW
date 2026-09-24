@@ -6,6 +6,11 @@ import type { DomainTab } from '../DomainTabsPage';
  * BUILT_DOMAINS (nav/nav.ts) in the same change. Empty: the page renders the domain placeholder (W-seed shell).
  */
 export const servicesTabs: readonly DomainTab[] = [
+  // wave-BC: F-host-stack
+  // wave-BC: F-lb
+  // wave-BC: F-qos-flat
+  // wave-BC: F-snmp
+  // wave-BC: F-ipfix-sflow
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
 ];

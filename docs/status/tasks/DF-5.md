@@ -397,3 +397,43 @@ once + keyed Retrieve). I chose the second because an old desired state still ap
 without churn once it is re-derived. D-DF5-10, completion marker + token-gated ack in the DF-5
 sweeper (options: a sweeper-side gate / an RF-2-only gate). I chose the sweeper-side gate because it
 works with RF-2 as merged; Q13 asks RF-2 for an ack bound to the start time.
+
+## Fix round 2 (DF-5-rereview.md, BLOCK on N1/N2)
+
+`git merge main` first (clean).
+
+| Finding | Fix |
+|---|---|
+| **N1** VPP's SPD delete does not release its policies' SA locks | The stopped-mode sweep now runs in this order. (1) Every policy of every unrecorded charon-range SPD is deleted one by one, and a dump must show the SPD empty. (2) Per orphan SA: the SA must have zero references in a fresh dump of all SPDs; then it is re-read and unlocked once, and a re-dump must show it **gone**. If it is still there, it goes into `NotSwept` and the sweep returns an error. (3) The emptied SPDs are deleted. An error or any `NotSwept` SA means no completion marker, so `AckRestart` is refused. `ipsec.spd` Delete refuses while its SPD holds protect policies. The fake's SPD delete now leaks the locks exactly as VPP does. The unit test that asserted the wrong behaviour was rewritten, and new tests are `TestSpdDeleteKeepsSALocks`, `TestCharonSweepNotSwept` and `TestSpdDeleteRefusesProtectPolicies`. On the host, `TestSpdDeleteKeepsSALocksOnHost` mirrors the reviewer's vppctl reproduction through the binary API on slot ids (base+590, no packets). `TestIpsecOnHost` now leaves a protect policy in the charon SPD at stopped-sweep time and asserts the SA is absent afterwards. |
+| **N2** policies deleted in foreign SPDs | Policies are deleted only in unrecorded SPDs **inside the charon range**. A reference from any other SPD (ours, or another owner's) is reported as `InUse{SA, By: "spd <id>"}` and the SA is left alone (D-071). The unit test asserts that the foreign SPD 3002's policy survives. |
+| Low: key file | Now created crash-safe: temp 0600 file, fsync, `link(2)` into place (first writer wins), directory fsync. It is read with `O_NOFOLLOW` and `Fstat`, and must be a regular file of 32 bytes, mode 0600, owned by this uid. A group/world-writable directory is refused. Tests cover a short file, a symlink and no leftover temp files. |
+| Low: legacy refs (N5) | Unkeyed `sha256:` references are refused with `ErrBadRef` before VPP is called (`TestLegacyReferenceRefused`). The legacy code is deleted. |
+| N7 | The two pre-D-096 logs containing plain SHA-256 of test placeholders were deleted. |
+| N8 | Documented in bold as a P11 precondition: `Sweep(ctx, token, nil)` asserts that charon is stopped. |
+| N3/Q13 | Handled in P11 (already on its board notes). |
+
+```
+$ go test -count=1 ./internal/descriptors/{vpn,ipsec,ikev2,wireguard}/... ./internal/scheduler/
+ok vpn · ok ipsec · ok ikev2 · ok wireguard · ok scheduler
+$ golangci-lint run ./internal/descriptors/vpn/... ./internal/descriptors/ipsec/...
+0 issues.
+host (slot 4, one package at a time, no packets):
+ipsec exit=0 NRestarts 5 -> 5
+ikev2 exit=0 NRestarts 5 -> 5
+wireguard exit=0 NRestarts 5 -> 5
+charon sweep (charon running): SPDs [], policies 1, SAs [4501], in use []
+charon sweep (charon stopped): SPDs [4501], policies 1, SAs [4502 4504], in use []
+AckRestart after the completed sweep: ok (calls 1)
+sa 4504 (protect policy still in the charon SPD at sweep time): absent from ipsec_sa_v5_dump after the sweep
+after the charon sweep (our SAs untouched): P05 plan … 0 create, 0 update, 0 delete, 10 unchanged
+--- PASS: TestIpsecOnHost (0.17s)
+sa 4590 after spd del + one ipsec_sad_entry_del: still present (the policy's lock leaked with the SPD)
+sa 4590 after the second unlock: gone
+--- PASS: TestSpdDeleteKeepsSALocksOnHost (0.01s)
+--- PASS: TestIkev2OnHost (0.42s)   --- SKIP: TestIkev2GlobalsOwnerOnHost
+--- PASS: TestWireguardOnHost (0.56s)
+$ tools/ci.sh --base main   (bb56911; the only warnings are main's own review commit subjects)
+no contract files changed in the 31 commit(s) of HEAD since main (1f3e15d)
+  mode quick · wall time 3m40s · logs /root/ngfw-wt/logs/ci/DF-5-20260924-053035-3046889
+CI GATE PASSED
+```

@@ -15,6 +15,8 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 
@@ -176,12 +178,28 @@ func (d *Descriptor) reresolve(ctx context.Context, m Mirror) (Meta, dfkit.Targe
 	}
 	to, err := ifs.Resolve(m.Destination)
 	if errors.Is(err, df7.ErrNoSuchInterface) {
+		// F-loopback-bvi-gso-lldp-span: a destination deleted behind the agent's back leaves the session in
+		// VPP's span bookkeeping of OUR source (span.c has no interface-delete hook; V-new), which Retrieve
+		// reports under the index spelling "#<sw_if_index>". Clearing that bit touches only our source's state.
+		if idx, ok := staleIndex(m.Destination); ok {
+			return Meta{From: tg.Index, To: idx}, tg, true, nil
+		}
 		return Meta{}, tg, false, nil
 	}
 	if err != nil {
 		return Meta{}, tg, false, err
 	}
 	return Meta{From: tg.Index, To: to}, tg, true, nil
+}
+
+// staleIndex parses the "#<sw_if_index>" spelling df7.Interfaces.Name gives an index VPP no longer names.
+func staleIndex(name string) (uint32, bool) {
+	rest, ok := strings.CutPrefix(name, "#")
+	if !ok {
+		return 0, false
+	}
+	n, err := strconv.ParseUint(rest, 10, 32)
+	return uint32(n), err == nil
 }
 
 // Update implements scheduler.Descriptor: a new direction set is applied in place.

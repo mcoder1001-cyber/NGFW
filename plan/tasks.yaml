@@ -2141,7 +2141,7 @@ tasks:
     resumed (D-094) | review BLOCK edd93a5 (H1 NRestarts reset by manual restart, H2 gateway ICMP, M1 dead-man lock race, M2 approval flag, M3 rollback budget); fix round 1 | fix round 7d81982 (91/91 fake-host
     checks) CI green; re-review spawned | re-review APPROVE WITH CHANGES 3c0bafc (N1 SSH-session probe → rollback loop, N2 no systemd-run fallback, N3 early crash, N4 approval binding); fix round 2 (last)
     | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/F-startup-apply.continue.md
-    | 07:35 fix round 2 done 5e0d8fe (101/101 fake-host, CI green); verify review spawned (last round → manager decides on verify); L1 ci.sh wiring = manager after merge | 08:3x verify APPROVE WITH CHANGES
+    | 07:35 fix round 2 done 5e0d8fe (101/101 fake-host, CI green); verify review spawned (last round → manager decides on verify); L1 ci.sh wiring = manager after merge | 07:54 verify APPROVE WITH CHANGES
     0ff06fd; merged per D-103 (V1–V4 → TD-6 before first real apply); pre-merge CI green (3m44s)'
   owner: host-agent slot6
   parked_on: ''
@@ -2254,7 +2254,7 @@ tasks:
   finished: ''
   notes: 'from P07b Q1-Q3, P13 review H1, D-093 | worker done 7f4578f CI green (88 unit, 41 e2e); review spawned | review APPROVE WITH CHANGES cc70629 (H1 reconcile restores old password hash, H2 refresh
     survives reset, M1 keys survive reset → D-097, M2 current-guessing); fix round 1 | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn
-    by host manager (Agent tool), envelope /root/ngfw-wt/TD-2.continue.md | 07:31 fix round 1 done 9373e6e CI green (Q1–Q4 in TD-2-questions.md → D-100); verify review spawned | 08:1x verify APPROVE WITH
+    by host manager (Agent tool), envelope /root/ngfw-wt/TD-2.continue.md | 07:31 fix round 1 done 9373e6e CI green (Q1–Q4 in TD-2-questions.md → D-100); verify review spawned | 07:49 verify APPROVE WITH
     CHANGES ae52906 (V1 keys created during reset survive — High; V2 config-API reset bypasses D-097 → D-102; V3–V5 low); fix round 2 (last) spawned'
 - id: TD-3
   title: 'V19 guard: sanitize inherited per-interface state on interface create; unbind classify before table/interface delete; restart simulations delete dependents; ci.sh full pre-flight'

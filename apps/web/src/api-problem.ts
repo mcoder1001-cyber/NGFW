@@ -71,9 +71,14 @@ export async function call<R extends FetchResult>(p: Promise<R>): Promise<{ data
   return { data: r.data as DataOf<R>, response };
 }
 
-/** Server clock offset (server − client, ms) from a response's `Date` header; 0 when absent. */
-export function serverOffsetMs(response: Response, clientNow: number = Date.now()): number {
+/**
+ * Largest plausible server clock offset (server − client, ms) from a response's `Date` header, 0 when absent. The
+ * header has 1 s resolution and the answer was produced after `sentAt`, so the server clock was at most
+ * `Date + 999 ms` when the client clock read `sentAt`. Using the largest offset makes a local countdown to a server
+ * deadline end early rather than late (never promise more time than there is).
+ */
+export function serverOffsetMs(response: Response, sentAt: number = Date.now()): number {
   const d = response.headers.get('date');
   const t = d ? Date.parse(d) : NaN;
-  return Number.isFinite(t) ? t - clientNow : 0;
+  return Number.isFinite(t) ? t + 999 - sentAt : 0;
 }

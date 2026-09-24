@@ -14,7 +14,8 @@
  *   VRX_E2E_ARGON2_FROM           package dir that has @node-rs/argon2 (default apps/api) — hashes the readonly user's
  *                                 random per-run password the same way the API does (argon2id PHC)
  *   VRX_PLAYWRIGHT_CORE, VRX_CHROME
- * Options: --langs en,fa  --shots <dir>  --revert
+ *   --keyboard runs login → commit (with auto-revert) → confirm using the keyboard only (Tab / Enter / typing).
+ * Options: --langs en,fa  --shots <dir>  --revert  --keyboard
  * Test users carry the slot prefix (VRX_TEST_PREFIX, default w1): `<prefix>ro`.
  */
 import { randomBytes } from 'node:crypto';
@@ -34,6 +35,7 @@ const opt = (name, dflt) => {
 const LANGS = opt('langs', 'en,fa').split(',');
 const SHOTS = opt('shots', '');
 const REVERT = args.includes('--revert');
+const KEYBOARD = args.includes('--keyboard');
 const BASE = process.env.VRX_E2E_BASE ?? 'http://127.0.0.1:5100';
 const ADMIN = process.env.VRX_E2E_ADMIN_USER ?? 'admin';
 const ADMIN_PW = readFileSync(process.env.VRX_E2E_ADMIN_PASSWORD_FILE ?? '/run/vrx-test/w1/admin.pw', 'utf8').trim();
@@ -269,6 +271,54 @@ async function revertPass(browser, lang) {
   await ctx.close();
 }
 
+/** Press Tab until the focused element's accessible text matches, like a keyboard user would. */
+async function tabTo(page, re, max = 60) {
+  for (let i = 0; i < max; i++) {
+    await page.keyboard.press('Tab');
+    const label = await page.evaluate(() => {
+      const el = document.activeElement;
+      return el ? `${el.getAttribute('aria-label') ?? ''} ${el.textContent ?? ''}`.trim() : '';
+    });
+    if (re.test(label)) return i + 1;
+  }
+  throw new Error(`FAILED: no focusable element matching ${re} within ${max} Tab presses`);
+}
+
+async function keyboardPass(browser, lang) {
+  const { ctx, page } = await newPage(browser, lang);
+  await page.goto(`${BASE}/login`);
+  await page.getByRole('button', { name: tr(lang, 'auth:signIn') }).waitFor();
+  await page.keyboard.type(ADMIN); // the username field has focus on load
+  await page.keyboard.press('Tab');
+  await page.keyboard.type(ADMIN_PW);
+  await page.keyboard.press('Enter');
+  await page.waitForURL((u) => !u.pathname.startsWith('/login'));
+  ok(`[${lang}] keyboard: signed in with typing + Tab + Enter only`);
+  // setup (not part of the keyboard path): one uncommitted change through the API, as another screen would make it
+  await page.evaluate(async (ro) => {
+    const { accessToken } = await (await fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' })).json();
+    const h = { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' };
+    const users = (await (await fetch('/api/v1/config/candidate/management', { headers: h })).json()).users;
+    for (const u of users) if (u.username === ro) u.fullName = `E2E keyboard ${Date.now()}`;
+    await fetch('/api/v1/config/management', { method: 'PATCH', headers: h, body: JSON.stringify({ users }) });
+  }, RO_USER);
+  await page.getByTestId('pending-bar').waitFor();
+  const t1 = await tabTo(page, new RegExp(`^${tr(lang, 'config:bar.commit')}$`));
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog');
+  await dialog.getByTestId('validate-ok').waitFor({ timeout: 30_000 });
+  const t2 = await tabTo(page, new RegExp(`^${tr(lang, 'config:commit.submitConfirm')}$`));
+  await page.keyboard.press('Enter');
+  await page.getByTestId('confirm-banner').waitFor({ timeout: 30_000 });
+  await dialog.waitFor({ state: 'hidden' });
+  const t3 = await tabTo(page, new RegExp(`^${tr(lang, 'config:confirm.button')}$`));
+  await page.keyboard.press('Enter');
+  const outcome = page.getByTestId('confirm-outcome');
+  await outcome.waitFor({ timeout: 30_000 });
+  check((await outcome.innerText()).includes(tr(lang, 'config:confirm.outcome.confirmed.title')), `[${lang}] keyboard: Commit… (${t1} Tabs) → Commit with auto-revert (${t2}) → Confirm (${t3}) → confirmed`);
+  await ctx.close();
+}
+
 /** Ground truth straight from the API (through the page's own session) — not from what the UI rendered. */
 async function apiRevisions(page) {
   return page.evaluate(async () => {
@@ -282,6 +332,7 @@ async function apiRevisions(page) {
 const browser = await chromium.launch({ executablePath: process.env.VRX_CHROME, headless: true });
 try {
   for (const [i, lang] of LANGS.entries()) await adminPass(browser, lang, i);
+  if (KEYBOARD) await keyboardPass(browser, LANGS[0]);
   if (REVERT) await revertPass(browser, LANGS[0]);
   console.log(`\nE2E PASSED (${results.length} checks)`);
 } catch (e) {

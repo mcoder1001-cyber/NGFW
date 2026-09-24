@@ -71,7 +71,7 @@ export function trackPending(outcome: CommitOutcome, minutes: number, kind: 'com
   const { result, sentAt, response } = outcome;
   if (result.status !== 'pending' || !result.txnId) return;
   let deadlineMs = sentAt + minutes * 60_000;
-  if (result.confirmDeadline) deadlineMs = Math.min(deadlineMs, Date.parse(result.confirmDeadline) - serverOffsetMs(response));
+  if (result.confirmDeadline) deadlineMs = Math.min(deadlineMs, Date.parse(result.confirmDeadline) - serverOffsetMs(response, sentAt));
   confirmStore.track({ txnId: result.txnId, deadlineMs, kind, trackedAt: Date.now() });
 }
 

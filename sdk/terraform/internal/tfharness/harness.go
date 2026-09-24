@@ -22,9 +22,11 @@ import (
 type H struct {
 	// Warnings are the warning diagnostics of the last Apply / Configure ("summary: detail").
 	Warnings []string
-	ctx      context.Context
-	srv      tfprotov6.ProviderServer
-	schema   *tfprotov6.GetProviderSchemaResponse
+	// private state per resource instance (key: type|id), threaded through plan/apply/read/import like Terraform core
+	private map[string][]byte
+	ctx     context.Context
+	srv     tfprotov6.ProviderServer
+	schema  *tfprotov6.GetProviderSchemaResponse
 }
 
 // New starts the provider server in-process and fetches its schemas.
@@ -33,7 +35,7 @@ func New(p func() provider.Provider) (*H, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := &H{ctx: context.Background(), srv: srv}
+	h := &H{ctx: context.Background(), srv: srv, private: map[string][]byte{}}
 	h.schema, err = srv.GetProviderSchema(h.ctx, &tfprotov6.GetProviderSchemaRequest{})
 	if err != nil {
 		return nil, err
@@ -107,6 +109,7 @@ func (h *H) Validate(res string, config tftypes.Value) error {
 // Plan is the result of PlanResourceChange.
 type Plan struct {
 	Prior, Planned  tftypes.Value
+	PlannedPrivate  []byte
 	RequiresReplace []*tftypes.AttributePath
 	Text            string // rendered like `terraform plan` (sensitive / write-only masked)
 }
@@ -142,7 +145,7 @@ func (h *H) PlanChange(res string, prior, config tftypes.Value) (*Plan, error) {
 		return nil, err
 	}
 	r, err := h.srv.PlanResourceChange(h.ctx, &tfprotov6.PlanResourceChangeRequest{
-		TypeName: res, PriorState: pdv, ProposedNewState: ndv, Config: cdv,
+		TypeName: res, PriorState: pdv, ProposedNewState: ndv, Config: cdv, PriorPrivate: h.private[key(res, prior)],
 		ClientCapabilities: &tfprotov6.PlanResourceChangeClientCapabilities{DeferralAllowed: false},
 	})
 	if err != nil {
@@ -157,10 +160,10 @@ func (h *H) PlanChange(res string, prior, config tftypes.Value) (*Plan, error) {
 	}
 	if !config.IsNull() {
 		if err := planValid(s.Block.Attributes, config, planned, tftypes.NewAttributePath()); err != nil {
-			return nil, fmt.Errorf("Provider produced invalid plan for %s: %w", res, err)
+			return nil, fmt.Errorf("provider produced invalid plan for %s: %w", res, err)
 		}
 	}
-	p := &Plan{Prior: prior, Planned: planned, RequiresReplace: r.RequiresReplace}
+	p := &Plan{Prior: prior, Planned: planned, RequiresReplace: r.RequiresReplace, PlannedPrivate: r.PlannedPrivate}
 	p.Text = Render(res, s, prior, planned, r.RequiresReplace)
 	return p, nil
 }
@@ -172,7 +175,7 @@ func (h *H) Apply(res string, p *Plan, config tftypes.Value) (tftypes.Value, err
 	ndv, _ := dyn(p.Planned)
 	cdv, _ := dyn(config)
 	r, err := h.srv.ApplyResourceChange(h.ctx, &tfprotov6.ApplyResourceChangeRequest{
-		TypeName: res, PriorState: pdv, PlannedState: ndv, Config: cdv,
+		TypeName: res, PriorState: pdv, PlannedState: ndv, Config: cdv, PlannedPrivate: p.PlannedPrivate,
 	})
 	if err != nil {
 		return tftypes.Value{}, err
@@ -184,6 +187,9 @@ func (h *H) Apply(res string, p *Plan, config tftypes.Value) (tftypes.Value, err
 	st, err := r.NewState.Unmarshal(s.ValueType())
 	if err != nil {
 		return tftypes.Value{}, err
+	}
+	if !st.IsNull() {
+		h.private[key(res, st)] = r.Private
 	}
 	return st, consistent(res, p.Planned, st)
 }
@@ -221,14 +227,18 @@ func consistent(res string, planned, st tftypes.Value) error {
 func (h *H) Read(res string, state tftypes.Value) (tftypes.Value, error) {
 	s := h.res(res)
 	dv, _ := dyn(state)
-	r, err := h.srv.ReadResource(h.ctx, &tfprotov6.ReadResourceRequest{TypeName: res, CurrentState: dv})
+	r, err := h.srv.ReadResource(h.ctx, &tfprotov6.ReadResourceRequest{TypeName: res, CurrentState: dv, Private: h.private[key(res, state)]})
 	if err != nil {
 		return tftypes.Value{}, err
 	}
 	if err := diagErr(r.Diagnostics); err != nil {
 		return tftypes.Value{}, err
 	}
-	return r.NewState.Unmarshal(s.ValueType())
+	st, err := r.NewState.Unmarshal(s.ValueType())
+	if err == nil && !st.IsNull() {
+		h.private[key(res, st)] = r.Private
+	}
+	return st, err
 }
 
 // Import imports by id and refreshes (terraform import).
@@ -248,6 +258,7 @@ func (h *H) Import(res, id string) (tftypes.Value, error) {
 	if err != nil {
 		return tftypes.Value{}, err
 	}
+	h.private[key(res, st)] = r.ImportedResources[0].Private
 	return h.Read(res, st)
 }
 
@@ -606,6 +617,8 @@ func format(v tftypes.Value) string {
 	}
 	return string(b)
 }
+
+func key(res string, st tftypes.Value) string { return fmt.Sprintf("%s|%v", res, Attr(st, "id")) }
 
 func dyn(v tftypes.Value) (*tfprotov6.DynamicValue, error) {
 	dv, err := tfprotov6.NewDynamicValue(v.Type(), v)

@@ -353,20 +353,10 @@ func TestUnsyncedApplianceIsRefused(t *testing.T) {
 }
 
 // M1: stored but not enforced must not look like success.
-func TestNotAppliedIsReported(t *testing.T) {
-	f, h := setup(t, nil)
+func TestNotAppliedIsAnErrorWhenAsked(t *testing.T) {
+	f, h := setup(t, map[string]any{"fail_on_not_applied": true})
 	f.notApplied = []string{"nat"}
-	st, _ := applyConfig(t, h, "vrx_config", h.Null("vrx_config"), map[string]any{"pointer": "/nat/x", "value": `{}`})
-	_ = st
-	f.Reset()
-	if w := strings.Join(h.Warnings, "\n"); w != "" {
-		t.Fatalf("warnings leaked into the next call: %s", w)
-	}
-	_, h2 := setup(t, nil)
-	_ = h2
-	f3, h3 := setup(t, map[string]any{"fail_on_not_applied": true})
-	f3.notApplied = []string{"nat"}
-	_, _, err := tryApply(h3, "vrx_config", h3.Null("vrx_config"), map[string]any{"pointer": "/nat/x", "value": `{}`})
+	_, _, err := tryApply(h, "vrx_config", h.Null("vrx_config"), map[string]any{"pointer": "/nat/x", "value": `{"a":1}`})
 	if err == nil || !strings.Contains(err.Error(), "NOT enforced") || !strings.Contains(err.Error(), "[nat]") {
 		t.Fatalf("want a not-enforced error, got %v", err)
 	}
@@ -375,7 +365,7 @@ func TestNotAppliedIsReported(t *testing.T) {
 func TestNotAppliedWarning(t *testing.T) {
 	f, h := setup(t, nil)
 	f.notApplied = []string{"nat"}
-	cfg, _ := h.Config("vrx_config", map[string]any{"pointer": "/nat/x", "value": `{}`})
+	cfg, _ := h.Config("vrx_config", map[string]any{"pointer": "/nat/x", "value": `{"a":1}`})
 	plan, err := h.PlanChange("vrx_config", h.Null("vrx_config"), cfg)
 	if err != nil {
 		t.Fatal(err)

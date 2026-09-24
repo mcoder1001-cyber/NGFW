@@ -518,19 +518,47 @@ func (c *Client) ownLeftover(ctx context.Context, changes []Change, e Edit) bool
 	if err != nil {
 		return false
 	}
-	return jsonEquivalent(got, e.Want)
+	// the API stores the candidate with schema defaults filled in: our leftover = every member we want is there
+	return jsonContains(roundTrip(got), roundTrip(e.Want))
 }
 
-func jsonEquivalent(a, b any) bool {
-	ja, err1 := json.Marshal(a)
-	jb, err2 := json.Marshal(b)
-	if err1 != nil || err2 != nil {
-		return false
+func roundTrip(v any) any {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil
 	}
-	var x, y any
-	_ = json.Unmarshal(ja, &x)
-	_ = json.Unmarshal(jb, &y)
-	return reflect.DeepEqual(x, y)
+	var out any
+	_ = json.Unmarshal(b, &out)
+	return out
+}
+
+// jsonContains: every member of want is in have with a contained value; arrays same length, element-wise.
+func jsonContains(have, want any) bool {
+	switch w := want.(type) {
+	case map[string]any:
+		h, ok := have.(map[string]any)
+		if !ok {
+			return false
+		}
+		for k, wv := range w {
+			if hv, ok := h[k]; !ok || !jsonContains(hv, wv) {
+				return false
+			}
+		}
+		return true
+	case []any:
+		h, ok := have.([]any)
+		if !ok || len(h) != len(w) {
+			return false
+		}
+		for i := range w {
+			if !jsonContains(h[i], w[i]) {
+				return false
+			}
+		}
+		return true
+	}
+	return reflect.DeepEqual(have, want)
 }
 
 // discardIfOwn drops the candidate only when every change in it lies inside root (never another run's edits).

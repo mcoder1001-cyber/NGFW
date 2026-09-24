@@ -45,7 +45,6 @@ func (t jsonType) ValueFromTerraform(ctx context.Context, in tftypes.Value) (att
 
 type jsonValue struct{ basetypes.StringValue }
 
-func jsonNull() jsonValue                          { return jsonValue{StringValue: basetypes.NewStringNull()} }
 func jsonOf(s string) jsonValue                    { return jsonValue{StringValue: basetypes.NewStringValue(s)} }
 func (v jsonValue) Type(context.Context) attr.Type { return jsonType{} }
 func (v jsonValue) Equal(o attr.Value) bool {

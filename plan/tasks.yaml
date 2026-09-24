@@ -2328,19 +2328,19 @@ tasks:
   - TD-3
   priority: 2
   est_hours: 3
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D1.2
   scope: D-101 + D-105; af_packet quiesce before delete (Delete + Create rollback) + guard test; ifsanitize cap = holes + 2×FreshRun ≤ 64
   files_owned: apps/agent/internal/descriptors/af_packet/** apps/agent/internal/vpp/ifsanitize/** (cap only, D-105) docs/agent/descriptors/af_packet.md docs/agent/descriptors/interface.md (cap paragraph)
     docs/status/tasks/TD-5*
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/TD-5
+  worktree: /root/ngfw-wt/TD-5
+  owner: ngfw-46 slot2
+  started: 2026-09-24T14:18
   finished: ''
-  notes: 'D-101 V24 crash 07:27:32 | TD-3 re-review L7: af_packet Create''s rollback delete also quiesces the veth'
+  notes: 'D-101 V24 crash 07:27:32 | TD-3 re-review L7: af_packet Create''s rollback delete also quiesces the veth | spawned by ngfw-46 (Agent tool), envelope /root/ngfw-wt/TD-5.envelope.md'
 - id: TD-6
   title: 'apply-startup.sh hardening before the first real --apply (D-103): stale dead-man vs newer commit, rollback write failure, systemctl-show failure, NRestarts compare; lows V5–V9; fake-host harness
     + shellcheck wired into tools/ci.sh'

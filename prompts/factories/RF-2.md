@@ -63,5 +63,5 @@ Daemon: **charon** (+ `swanctl` as fallback CLI). All paths come from one inject
 ## Out of scope (do not build)
 API/UI, schema changes (the `vpn.ipsec.*` contract is P11's — only an additive `contract/<id>` if a rendering field is missing), strongSwan build /
 kernel-vpp / socket-vpp packaging (P11), VPP IPsec descriptors and tunnel-protect (DF-5/P11), route-based tunnel wiring with ipip (P11), certificates /
-PKI / `authorities` loading (F-pki-basic — render the section shape only, untested), EAP / remote-access / IKEv1 tests (IKEv1 allowed in templates,
+PKI / `authorities` loading (F-pki — render the section shape only, untested), EAP / remote-access / IKEv1 tests (IKEv1 allowed in templates,
 not tested), QAT / crypto engines, FRR (RF-1), packet tests through VPP (P11). No `/etc/swanctl`, `/etc/strongswan.conf` or `strongswan.service` changes.

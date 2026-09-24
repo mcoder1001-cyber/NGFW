@@ -27,7 +27,7 @@ must start with it.
 | `localId` | `local { id = "<id>" }` | IP / FQDN / e-mail / `@#keyid` / DN; default: `localAddr` (rendered explicitly) |
 | `remoteId` | `remote { id = "<id>" }` | as above; default: `remoteAddr` when it is an IP (explicit, so charon never accepts an arbitrary peer identity), else not rendered (`%any`) |
 | `auth.method = psk`, `auth.secretRef` | `local/remote { auth = psk }` + `secrets.ike-<conn> { id-local; id-remote; secret = 0s<base64> }` | ref `psk/<name>` (D-051), resolved at render time, 8–1024 bytes; two PSK tunnels with the same identity pair are rejected |
-| `auth.method = cert`, `certificate`, `remoteCa` | `local { auth = pubkey; certs = <certificate>.pem }`, `remote { auth = pubkey; cacerts = <remoteCa>.pem }` | shape only (F-pki-basic installs the files in `x509/`, `x509ca/`); untested end-to-end |
+| `auth.method = cert`, `certificate`, `remoteCa` | `local { auth = pubkey; certs = <certificate>.pem }`, `remote { auth = pubkey; cacerts = <remoteCa>.pem }` | shape only (F-pki installs the files in `x509/`, `x509ca/`); untested end-to-end |
 | `proposal` → `proposals.<p>.ike` | `proposals = <encr>[-<integ>][-<prf>]-<dh>` | keyword grammar; AEAD ⇔ no integ; AEAD without `prf` → `prfsha256`; IKEv1 + AEAD rejected |
 | `proposal` → `proposals.<p>.esp` + `protocol`, `esn` | child `esp_proposals = <encr>[-<integ>][-<dh>][-esn]` or `ah_proposals = <integ>[-<dh>][-esn]` | AH needs `integ` |
 | `dpd.enabled/delaySec/timeoutSec/action` | `dpd_delay = <s>s`, IKEv1: `dpd_timeout = <s>s`; child `dpd_action = clear\|trap\|restart` | absent block → no DPD |
@@ -46,7 +46,7 @@ must start with it.
 | `vpn.ipsec.settings` | not rendered (VPP crypto engine: DF-5/P11) | |
 
 `pools { <name> { addrs; dns } }` and `authorities { <name> { cacert } }` are rendered from the
-model (remote access F-remote-access, PKI F-pki-basic map them later); no document field feeds
+model (remote access F-ra-vpn, PKI F-pki map them later); no document field feeds
 them yet.
 
 ## strongswan.conf

@@ -684,7 +684,8 @@ tasks:
   owner: host-agent slot1
   started: 2026-09-24T05:45
   finished: ''
-  notes: ' | consolidate D-080 boot-identity helper; install persisted ClaimStore/records (DF-1 Q5, DF-6 Q10, DF-8 Q8); retrofit DF-2/DF-4 records'
+  notes: ' | consolidate D-080 boot-identity helper; install persisted ClaimStore/records (DF-1 Q5, DF-6 Q10, DF-8 Q8); retrofit DF-2/DF-4 records | 07:2x cycle 12: worker found dead (no process since ~05:45);
+    uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/P08.continue.md'
 - id: F-vlan-qinq
   title: 'Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking'
   prompt: prompts/features/F-vlan-qinq.md
@@ -840,6 +841,7 @@ tasks:
   deps:
   - P08
   - DF-2
+  - DF-4
   priority: 3
   est_hours: 10
   state: todo
@@ -1038,6 +1040,7 @@ tasks:
   deps:
   - P08
   - DF-5
+  - P11
   priority: 4
   est_hours: 10
   state: todo
@@ -1404,6 +1407,7 @@ tasks:
   deps:
   - P08
   - DF-1
+  - F-startup-gen
   priority: 5
   est_hours: 10
   state: todo
@@ -1621,6 +1625,7 @@ tasks:
   deps:
   - P06
   - P08
+  - P07b
   priority: 6
   est_hours: 10
   state: todo
@@ -1666,6 +1671,7 @@ tasks:
   deps:
   - P06
   - P08
+  - P07b
   priority: 6
   est_hours: 10
   state: todo
@@ -1689,6 +1695,7 @@ tasks:
   - P06
   - P07b
   - P08
+  - F-ab-upgrade
   priority: 6
   est_hours: 10
   state: todo
@@ -1750,7 +1757,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'D-100 (TD-2 Q1): the product nginx never proxies /api from plain :80 (redirect only) — the API treats loopback peers as TLS-terminated'
 - id: P14
   title: Unattended installer ISO (26.04)
   prompt: prompts/P14-iso-installer.md
@@ -1847,6 +1854,7 @@ tasks:
   deps:
   - P06
   - P08
+  - P07b
   priority: 6
   est_hours: 10
   state: todo
@@ -2129,9 +2137,11 @@ tasks:
   files_owned: deploy/vpp/apply-startup.sh deploy/vpp/vpp-iface-check* deploy/vpp/test-apply-startup.sh
   finished: ''
   id: F-startup-apply
-  notes: D-088 split from F-startup-gen | worker done 00315f4 CI green (72/72 fake-host checks); review spawned; leftover /tmp/tmp.FoyjiXAETl (rm denied) | usage-limit interruption ~04:00 → WIP salvaged,
+  notes: 'D-088 split from F-startup-gen | worker done 00315f4 CI green (72/72 fake-host checks); review spawned; leftover /tmp/tmp.FoyjiXAETl (rm denied) | usage-limit interruption ~04:00 → WIP salvaged,
     resumed (D-094) | review BLOCK edd93a5 (H1 NRestarts reset by manual restart, H2 gateway ICMP, M1 dead-man lock race, M2 approval flag, M3 rollback budget); fix round 1 | fix round 7d81982 (91/91 fake-host
     checks) CI green; re-review spawned | re-review APPROVE WITH CHANGES 3c0bafc (N1 SSH-session probe → rollback loop, N2 no systemd-run fallback, N3 early crash, N4 approval binding); fix round 2 (last)
+    | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/F-startup-apply.continue.md
+    | 07:5x fix round 2 done 5e0d8fe (101/101 fake-host, CI green); verify review spawned (last round → manager decides on verify); L1 ci.sh wiring = manager after merge'
   owner: host-agent slot6
   parked_on: ''
   priority: 4
@@ -2139,7 +2149,7 @@ tasks:
   scope: apply-startup.sh from branch task/F-startup-apply; fix re-review N1 N2 N3 N6 + lows (D-088)
   stage: S2
   started: 2026-09-24T03:10
-  state: running
+  state: review
   template: FEATURE-TEMPLATE.md
   title: Robust startup.conf apply tooling (detached, watchdog, hung-VPP, ifupdown restore, Go API checks, handover gate)
   wbs:
@@ -2230,7 +2240,7 @@ tasks:
   - P06
   priority: 2
   est_hours: 6
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.9
@@ -2241,8 +2251,9 @@ tasks:
   owner: host-agent slot7
   started: 2026-09-24T04:40
   finished: ''
-  notes: from P07b Q1-Q3, P13 review H1, D-093 | worker done 7f4578f CI green (88 unit, 41 e2e); review spawned | review APPROVE WITH CHANGES cc70629 (H1 reconcile restores old password hash, H2 refresh
-    survives reset, M1 keys survive reset → D-097, M2 current-guessing); fix round 1
+  notes: 'from P07b Q1-Q3, P13 review H1, D-093 | worker done 7f4578f CI green (88 unit, 41 e2e); review spawned | review APPROVE WITH CHANGES cc70629 (H1 reconcile restores old password hash, H2 refresh
+    survives reset, M1 keys survive reset → D-097, M2 current-guessing); fix round 1 | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn
+    by host manager (Agent tool), envelope /root/ngfw-wt/TD-2.continue.md | 07:5x fix round 1 done 9373e6e CI green (Q1–Q4 in TD-2-questions.md → D-100); verify review spawned'
 - id: TD-3
   title: 'V19 guard: sanitize inherited per-interface state on interface create; unbind classify before table/interface delete; restart simulations delete dependents; ci.sh full pre-flight'
   prompt: ''
@@ -2255,7 +2266,7 @@ tasks:
   - DF-8
   priority: 2
   est_hours: 6
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D1.2
@@ -2268,4 +2279,48 @@ tasks:
   finished: ''
   notes: 'D-095; V19 crash 04:50:27 | worker done d001e5f CI green; review spawned (focus: unremovable binding to deleted table); V23 feature_is_enabled lies → fix folded into TD-3 fix round if confirmed
     | review BLOCK 46fafdb (H1 L2 ACL/policer bits = second crash path, H2 invisible bindings, H3 delete must clear bindings first, M1; reviewer safe behaviour adopted: force L3 → resurrect table index
-    → quarantine); fix round 1 incl. V23'
+    → quarantine); fix round 1 incl. V23 | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/TD-3.continue.md
+    | 08:0x fix round 1 done 175c676 CI green; VPP crash 07:27:32 during its window → V24/D-101 (not TD-3''s code per analysis); re-review spawned'
+- id: TD-4
+  title: 'Auth hardening follow-ups from TD-2 (D-100): account disable bumps the credential generation; API-key creation from a JWT session requires the current password; login gets the same transport check
+    as password set'
+  prompt: ''
+  template: ''
+  stage: S2
+  deps:
+  - TD-2
+  priority: 3
+  est_hours: 3
+  state: todo
+  parked_on: ''
+  wbs:
+  - D0.9
+  scope: D-100 (1)-(3); apps/api auth/users/tokens only, additive api-client
+  files_owned: apps/api/src/{auth,users}/** apps/api/test/e2e/td4-* docs/status/tasks/TD-4*
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: 'D-100: from TD-2-questions.md Q1–Q3'
+- id: TD-5
+  title: 'V24 guard: the agent''s af_packet Delete quiesces the Linux netdev (link down via netlink) before af_packet_delete; restart-simulation fixtures do the same'
+  prompt: ''
+  template: ''
+  stage: S2
+  deps:
+  - TD-3
+  priority: 2
+  est_hours: 2
+  state: todo
+  parked_on: ''
+  wbs:
+  - D1.2
+  scope: D-101; apps/agent/internal/descriptors/af_packet/** + its tests only
+  files_owned: apps/agent/internal/descriptors/af_packet/** docs/agent/descriptors/af_packet.md docs/status/tasks/TD-5*
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: D-101 V24 crash 07:27:32

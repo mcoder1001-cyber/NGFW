@@ -18,7 +18,7 @@ require variants elsewhere.
 | Adjacency | `lisp.adjacency` · `…/<vni>/<reid>/<leid>` | `lisp_add_del_adjacency` | `lisp_eid_table_vni_dump` + `lisp_adjacencies_get` | `ErrRecreate` | remote mapping, local EID |
 | EID-table map | `lisp.eid-table-map` · `…/l3/<vni>` or `…/l2/<vni>` | `lisp_eid_table_add_del_map` | `lisp_eid_table_map_dump` (l2 + l3) | `ErrRecreate` | `vrf/<dp_table>` or `bridge-domain/<dp_table>` (DF-1) |
 | PITR (global) | `lisp.pitr` · `lisp.pitr/global` | `lisp_pitr_set_locator_set` | `show_lisp_pitr` | set in place | locator set, `lisp.enable/global` |
-| GPE forwarding entry | `lisp-gpe.fwd-entry` · `…/<vni>/<reid>/<leid>` | `gpe_add_del_fwd_entry` | **partial: write-only** (V9) | `ErrRecreate` | `lisp-gpe.enable/global`, `vrf/<dp_table>` |
+| GPE forwarding entry | `lisp-gpe.fwd-entry` · `…/<vni>/<reid>/<leid>` | `gpe_add_del_fwd_entry` | **partial: write-only** (V13) | `ErrRecreate` | `lisp-gpe.enable/global`, `vrf/<dp_table>` |
 
 EIDs are strings: an IP prefix (canonical, masked) or a MAC; NSH EIDs are not modelled. The map-register HMAC key is not
 modelled (secret; map-server authentication out of scope). RLOCs / locator pairs are compared as sorted lists.
@@ -29,11 +29,11 @@ VPP quirks handled
   until a locator is added); Delete still works (VPP only needs some valid set name).
 - `lisp_enable_disable` also switches LISP-GPE: desired state with `lisp.enable` should include `lisp-gpe.enable`.
 - Remote-mapping delete also removes adjacencies with that reid (the scheduler deletes adjacencies first anyway).
-- **V9**: `gpe_fwd_entry_path_details` is sent with the message id *without* the plugin base, so the client receives a
+- **V13**: `gpe_fwd_entry_path_details` is sent with the message id *without* the plugin base, so the client receives a
   different message (`memclnt.GetFirstMsgIDReply` here) — locator pairs cannot be read back; `lisp-gpe.fwd-entry` is
   write-only with an existence probe (`Present`, via `gpe_fwd_entry_vnis_get` + `gpe_fwd_entries_get`). Entries the
   LISP control plane programs for its adjacencies are excluded from that probe.
-- **V10 (leak)**: deleting a remote mapping leaves its auto-created `<remote-N>` locator set (`show lisp locator-set`).
+- **V14 (leak)**: deleting a remote mapping leaves its auto-created `<remote-N>` locator set (`show lisp locator-set`).
 - Disabling LISP leaves the down `lisp_gpe0` / `lisp_gpe<vni>` interfaces VPP created (reused, not deletable by API).
 
 Host test: opt-in `VRX_DF6_LISP_HOST=1` (turns the global LISP switch on only if it was off and restores it), with

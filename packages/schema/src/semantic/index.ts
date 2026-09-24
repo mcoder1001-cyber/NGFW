@@ -40,6 +40,7 @@ import { managementValidators } from './management.js';
 // wave-A: F-nat44-ed-sessions
 // wave-A: P11
 // wave-A: F-wireguard
+import { wireguardValidators } from './wireguard.js';
 // wave-A: P12
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
@@ -91,6 +92,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-A: F-nat44-ed-sessions
   // wave-A: P11
   // wave-A: F-wireguard
+  ...wireguardValidators,
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog

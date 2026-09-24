@@ -3622,6 +3622,11 @@ export interface components {
                 persistentKeepaliveSec: number;
               };
             };
+            /**
+             * Route allowed IPs
+             * @default false
+             */
+            routeAllowedIps: boolean;
           };
         };
       };

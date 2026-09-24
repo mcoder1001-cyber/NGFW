@@ -340,7 +340,7 @@ tasks:
   owner: host-agent slot1
   started: 2026-09-24T03:10
   finished: ''
-  notes: ''
+  notes: ' | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)'
 - id: DF-1
   title: 'Descriptors: bond, l2 (bridge, xconnect), memif, tap, host-interface/af_packet, subinterface, admin-state, mtu, rx-mode'
   prompt: prompts/factories/DF-1.md
@@ -469,7 +469,7 @@ tasks:
   owner: host-agent slot4
   started: 2026-09-23T15:28
   finished: ''
-  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot)'
+  notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)'
 - id: DF-6
   title: 'Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp'
   prompt: prompts/factories/DF-6.md
@@ -1605,7 +1605,7 @@ tasks:
   started: 2026-09-24T03:10
   finished: ''
   notes: ' | worker done a84258c (live CLI session vs real API/agent/VPP; make -C apps/cli all green — not yet in ci.sh); review spawned | review APPROVE WITH CHANGES 68605c2 (H1 terminal escape injection,
-    H2 Ctrl-C breaks REPL, M1 session file symlink/perms, M2 list delete by index, M3 confirm UX); fix round 1'
+    H2 Ctrl-C breaks REPL, M1 session file symlink/perms, M2 list delete by index, M3 confirm UX); fix round 1 | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)'
 - id: F-restconf-yang
   title: RESTCONF/NETCONF + YANG generated from schema
   prompt: prompts/features/F-restconf-yang.md
@@ -1650,7 +1650,7 @@ tasks:
   started: 2026-09-24T03:10
   finished: ''
   notes: ' | worker done 20c9bca CI green (live SDK + TF vs real API/agent/VPP); review spawned; D-093 | review APPROVE WITH CHANGES a2b2ad1 (H1 planned value rewrite, H2 hash in state, M1 notApplied dropped,
-    M2 sync state, M3 discard race, M4 drift, L1 codegen injection); fix round 1'
+    M2 sync state, M3 discard race, M4 drift, L1 codegen injection); fix round 1 | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)'
 - id: F-aaa
   title: RADIUS/TACACS+/LDAP/SAML/OIDC + MFA
   prompt: prompts/features/F-aaa.md
@@ -2122,7 +2122,8 @@ tasks:
   files_owned: deploy/vpp/apply-startup.sh deploy/vpp/vpp-iface-check* deploy/vpp/test-apply-startup.sh
   finished: ''
   id: F-startup-apply
-  notes: D-088 split from F-startup-gen | worker done 00315f4 CI green (72/72 fake-host checks); review spawned; leftover /tmp/tmp.FoyjiXAETl (rm denied)
+  notes: D-088 split from F-startup-gen | worker done 00315f4 CI green (72/72 fake-host checks); review spawned; leftover /tmp/tmp.FoyjiXAETl (rm denied) | usage-limit interruption ~04:00 → WIP salvaged,
+    resumed (D-094)
   owner: host-agent slot6
   parked_on: ''
   priority: 4

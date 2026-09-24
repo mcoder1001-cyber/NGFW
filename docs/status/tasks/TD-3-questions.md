@@ -49,3 +49,38 @@ creation there; not my files). Proposal: call it once after the initial reconcil
 quarantine holder stays until something calls Release — harmless (admin-down, never used, it owns the dirty index so no creator
 gets it), counted in `vrx_agent_iface_quarantined` by the process that made it (the gauge restarts at 0 with the agent; the
 pre-flight still reports every holder as WARN).
+
+## Fix round 2 (2026-09-24 08:xx)
+
+### CONTRACT — reserve loop16000–loop16383 in packages/schema (re-review M2)
+
+Quarantine holders now take the highest free loopback instance of **16000–16383** (VPP's `LOOPBACK_MAX_INSTANCE` is 16384,
+`vnet/ethernet/interface.c:740`), never VPP's lowest free one, so a holder can no longer become `loop0`. The schema does
+**not** reject these names today: `vppInterfaceName` (`packages/schema/src/primitives.ts:105`) accepts any
+`^[A-Za-z][A-Za-z0-9_-]*…` name, so `loop16000`…`loop16383` validate without error. Proposal for a `contract/<id>` branch
+(additive, decision-policy: not a reshape): a semantic check on the interfaces map (or a refinement of the loopback key) that
+refuses `loop<N>` with 16000 ≤ N ≤ 16383 — pointer `/interfaces/loop16000`, message "loop16000–loop16383 are reserved for the
+agent (quarantine holders, VPP V19)". I did not change the schema (not in my files; contracts go through the manager). Until
+then the range is documented as reserved in `docs/agent/descriptors/interface.md`; a user `loop16383` only pushes holders down to
+16382…, and a holder sitting on an instance a user later configures makes that loopback's Create fail ("instance in use") until
+`Release` (P08) or a VPP restart.
+
+### M1 — how "fail closed on cap" is implemented (my reading of the envelope; please confirm)
+
+The envelope says "fail closed (ErrNoCleanIndex → quarantine path) on cap". Implemented:
+- `MaxPlaceholders` = 16 per create. A create-phase run that reaches it before proving the pool's free list empty returns
+  `ErrCapped` (wraps `ErrNoCleanIndex`) and is counted in `vrx_agent_iface_sanitize_capped_total{phase="create"}`.
+- `Acquire` deletes the interface and fails the Create. It quarantines the index **only if the run also proved a binding
+  unclearable** (`ErrUnclearable`, e.g. an input ACL naming a freed table the cap kept us from reaching) — and then does
+  **not** retry.
+- Why not "always quarantine + retry": the cap is a property of the classify pool (a long free list), not of the index. Every
+  retry would be capped again, so each failed Create would park up to `MaxAcquireAttempts` (4) holders on indices that are not
+  known to be dirty, and every reconcile retry would park 4 more — an unbounded holder leak while `Release` is not wired (Q2).
+  With this rule a failed Create makes at most one holder, and only for a proven-dirty index.
+- **Liveness trade-off (please decide):** with a cap of 16 and `FreshRun` 8, a free list of ≳ 9 indices that do not pop in
+  ascending order (e.g. ≥ 9 classify tables deleted in creation order and not reused) makes **every** interface Create on that
+  VPP fail until tables are created again (reusing the freed indices) or VPP restarts. On the shared lab VPP that can be caused
+  by another slot's test. Before round 2 the cap was 256 (the run then took ~20 placeholders and succeeded). Options: (a) keep
+  16 + fail closed (current; safest against a silent ACL bypass, worst for liveness); (b) cap = holes + 2 × FreshRun, max 64
+  (the reviewer's suggestion); (c) on cap, fail closed only if a write-only binding kind is actually in use on this VPP.
+  M3's exact readback (tech-debt) removes the trade-off. The knob is `ifsanitize.MaxPlaceholders`.

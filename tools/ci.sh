@@ -463,7 +463,9 @@ v19_preflight() {
   fi
   say "V19 pre-flight ($when): interfaces + classify/SPD bindings on the shared VPP"
   run "v19-preflight-$when" "$V19_PREFLIGHT_BIN" || rc=$?
-  sed 's/^/  /' "$CUR_LOG" | tail -n 20
+  # every FAIL line (the interface the gate message refers to), then the tail of the rest (TD-3 re-review L5)
+  { grep '^FAIL' "$CUR_LOG" || true; } | sed 's/^/  /'
+  { grep -v '^FAIL' "$CUR_LOG" || true; } | sed 's/^/  /' | tail -n 20
   return $rc
 }
 v19_message() {
@@ -477,6 +479,16 @@ v19_preflight_or_fail() {
   local rc=0
   v19_preflight "$1" || rc=$?
   ((rc == 0)) || fail "$(v19_message "$1" "$rc")"
+}
+# suite_failed <message>: a failing suite still gets the after-tests pre-flight (report only) before the gate fails, so the
+# pollution a failing run leaves behind is found by that run (TD-3 re-review L5); fail shows the suite's log, rig down
+# follows in cleanup()
+suite_failed() {
+  local msg=$1 log=$CUR_LOG rc=0
+  v19_preflight after-failed-tests || rc=$?
+  ((rc == 0)) || msg+="; ALSO $(v19_message after-failed-tests "$rc")"
+  CUR_LOG=$log
+  fail "$msg"
 }
 
 do_integration() {
@@ -521,12 +533,12 @@ do_integration() {
     say "go integration: $mod"
     # -p 1: one package at a time — packages share the CI slot's prefix/instance ranges on one VPP (D-087)
     run "go-integration-${mod//\//_}" env VRX_INTEGRATION=1 go -C "$mod" test -p 1 -race -count=1 -timeout 30m ./... \
-      || fail "Go integration tests failed in $mod"
+      || suite_failed "Go integration tests failed in $mod"
     grep -E '^(ok|FAIL)\s' "$CUR_LOG" | sed 's/^/  /' || true
   done < <(find apps/agent test -name go.mod -not -path '*/node_modules/*' 2>/dev/null | sort)
   say "ts integration: pnpm -r run test:integration (packages that define it)"
   run ts-integration env VRX_INTEGRATION=1 pnpm -r --workspace-concurrency=1 --if-present run test:integration \
-    || fail "TS integration tests failed"
+    || suite_failed "TS integration tests failed"
   # after the suites, before rig down: what this run left behind is found now (review M3); rig down runs either way
   local v19_after=0
   v19_preflight after-tests || v19_after=$?

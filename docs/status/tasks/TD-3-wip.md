@@ -1,9 +1,13 @@
 # TD-3 WIP — V19 guard (D-095)
 
-Slot 2 (w2). Branch task/TD-3. **Fix round 1 finished — see docs/status/tasks/TD-3.md "Fix round 1".**
+Slot 2 (w2). Branch task/TD-3. **Fix round 2 in progress (started 08:00).**
 
 | part | state |
 |---|---|
-| original (a)–(d) | done (first round) |
-| fix round 1: H1 H2 H3 M2 M3 M4 M5 L1 fixed, M1 narrowed + documented, L2 unchanged | done; unit + host (slot 2) + CI quick green |
-| incident: VPP NRestarts 5 → 6 at 07:27:32 (SIGSEGV PC 0x0), cause not established | written down in TD-3-questions.md; no host runs after noticing |
+| merge main (DF-5, F-startup-apply, V24) | done 6e42c16 (conflict in docs/vpp-code-track.md: kept V23 + V24) |
+| H1 ipsec.itf + wireguard.interface through Acquire/BeforeDelete | done + unit tests; guard test `TestEveryInterfaceCreatorIsSanitized` (fails on main's code: itf.go:67, interface.go:89) |
+| M1 re-read on stolen holes, cap 16, fail closed (ErrCapped), capped metric | done + unit tests |
+| M2 holder instance 16383↓16000, docs, schema question | done + unit tests; CONTRACT question in TD-3-questions.md |
+| L5 ci.sh after-failed-tests pre-flight, all FAIL lines | done; harness-tested |
+| host runs (ifsanitize, ipsec, wireguard, slot 2) | next |
+| status "Fix round 2" section, CI | next |

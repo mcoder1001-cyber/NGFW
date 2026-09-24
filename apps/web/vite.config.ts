@@ -13,7 +13,11 @@ export default defineConfig(({ mode }) => ({
     host: '127.0.0.1',
     port: webPort,
     strictPort: true,
-    proxy: { '/api': { target: `http://127.0.0.1:${apiPort}`, ws: true, changeOrigin: false } },
+    // xfwd (TD-10b, review 2.3b): X-Forwarded-For/-Proto/-Host to the API, which trusts them from loopback
+    // (VRX_TRUST_PROXY): rate limits, lockout and audit see the browser's address, and a password that reached this
+    // proxy over plain HTTP from another machine is refused (403 tls-required) instead of passing as "loopback".
+    // `vite preview` (tools/app) uses this proxy too.
+    proxy: { '/api': { target: `http://127.0.0.1:${apiPort}`, ws: true, changeOrigin: false, xfwd: true } },
   },
   preview: { host: '127.0.0.1', port: webPort, strictPort: true },
   build: { sourcemap: true, target: 'es2022' },

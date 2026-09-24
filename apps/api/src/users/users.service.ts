@@ -14,6 +14,7 @@ import { apiKey, appUser, configCandidate, configPending } from '../db/schema.js
 import { releaseKeyLocks } from '../datastore/pg-repo.js';
 import { AuthService } from '../auth/auth.service.js';
 import { secureTransport, tlsRequired } from '../auth/transport.js';
+import { withinCommitLock } from './commit-busy.js';
 
 export interface SetPasswordInput {
   password: string;
@@ -107,64 +108,71 @@ export class UsersService {
     }
     const hash = await hashPassword(input.password);
     const revokeKeys = !self && input.keepApiKeys !== true;
-    const r = await this.commits.exclusive(async () => {
-      const out = await this.db.transaction(async (tx) => {
-        // verify V1: the credential generation moves in the same transaction as the hash; API-key creation reads this
-        // row FOR SHARE, so it waits for this UPDATE and then sees the new generation / the deleted keys
-        const [row] = await tx
-          .update(appUser)
-          .set({
-            passwordHash: hash,
-            failedLogins: 0,
-            lockedUntil: null,
-            credentialGen: sql`${appUser.credentialGen} + 1`,
-          })
-          .where(eq(appUser.id, u.id))
-          .returning({ gen: appUser.credentialGen });
-        if (row === undefined) throw problems.notFound(`user '${name}' does not exist`);
-        // keys before the candidate/pending rows: the same lock order as deleteApiKey (api_key → candidate), so the
-        // two cannot deadlock (verify V4)
-        let keys: { id: string; name: string }[] = [];
-        let discardedCandidate = false;
-        let kept: number | undefined;
-        if (revokeKeys) {
-          // D-097 (review M1): an admin reset answers a suspected compromise — the target's keys go too
-          keys = await tx
-            .delete(apiKey)
-            .where(eq(apiKey.userId, u.id))
-            .returning({ id: apiKey.id, name: apiKey.name });
-          discardedCandidate = await releaseKeyLocks(
-            tx,
-            keys.map((k) => k.id),
-          );
-        } else if (!self) {
-          const [n] = await tx.select({ n: count() }).from(apiKey).where(eq(apiKey.userId, u.id));
-          kept = n?.n ?? 0;
-        }
-        const [c] = await tx
-          .select({ payload: configCandidate.payload })
-          .from(configCandidate)
-          .where(eq(configCandidate.id, 1))
-          .for('update');
-        const cand = c?.payload ? replaceUserHash(c.payload as Doc, name, hash) : null;
-        // payload only: the lock's owner and activity time stay as they are
-        if (cand !== null)
-          await tx.update(configCandidate).set({ payload: cand }).where(eq(configCandidate.id, 1));
-        const [p] = await tx
-          .select({ payload: configPending.payload })
-          .from(configPending)
-          .where(eq(configPending.id, 1))
-          .for('update');
-        const pend = p ? replaceUserHash(p.payload as Doc, name, hash) : null;
-        if (pend !== null)
-          await tx.update(configPending).set({ payload: pend }).where(eq(configPending.id, 1));
-        return { gen: row.gen, keys, discardedCandidate, kept };
-      });
-      // review H1 + verify V4: the copy a reconcile would promote after a lost Apply answer — only once the new hash
-      // is committed (still inside `exclusive`, so no promote runs in between)
-      this.commits.replaceInflightHash(name, hash);
-      return out;
-    });
+    // TD-10b (manager addendum, TD-10a review M2): at most 1 s behind a commit, then 409 commit-busy — nothing changed
+    const r = await withinCommitLock(
+      (f) => this.commits.exclusive(f),
+      async () => {
+        const out = await this.db.transaction(async (tx) => {
+          // verify V1: the credential generation moves in the same transaction as the hash; API-key creation reads this
+          // row FOR SHARE, so it waits for this UPDATE and then sees the new generation / the deleted keys
+          const [row] = await tx
+            .update(appUser)
+            .set({
+              passwordHash: hash,
+              failedLogins: 0,
+              lockedUntil: null,
+              credentialGen: sql`${appUser.credentialGen} + 1`,
+            })
+            .where(eq(appUser.id, u.id))
+            .returning({ gen: appUser.credentialGen });
+          if (row === undefined) throw problems.notFound(`user '${name}' does not exist`);
+          // keys before the candidate/pending rows: the same lock order as deleteApiKey (api_key → candidate), so the
+          // two cannot deadlock (verify V4)
+          let keys: { id: string; name: string }[] = [];
+          let discardedCandidate = false;
+          let kept: number | undefined;
+          if (revokeKeys) {
+            // D-097 (review M1): an admin reset answers a suspected compromise — the target's keys go too
+            keys = await tx
+              .delete(apiKey)
+              .where(eq(apiKey.userId, u.id))
+              .returning({ id: apiKey.id, name: apiKey.name });
+            discardedCandidate = await releaseKeyLocks(
+              tx,
+              keys.map((k) => k.id),
+            );
+          } else if (!self) {
+            const [n] = await tx.select({ n: count() }).from(apiKey).where(eq(apiKey.userId, u.id));
+            kept = n?.n ?? 0;
+          }
+          const [c] = await tx
+            .select({ payload: configCandidate.payload })
+            .from(configCandidate)
+            .where(eq(configCandidate.id, 1))
+            .for('update');
+          const cand = c?.payload ? replaceUserHash(c.payload as Doc, name, hash) : null;
+          // payload only: the lock's owner and activity time stay as they are
+          if (cand !== null)
+            await tx
+              .update(configCandidate)
+              .set({ payload: cand })
+              .where(eq(configCandidate.id, 1));
+          const [p] = await tx
+            .select({ payload: configPending.payload })
+            .from(configPending)
+            .where(eq(configPending.id, 1))
+            .for('update');
+          const pend = p ? replaceUserHash(p.payload as Doc, name, hash) : null;
+          if (pend !== null)
+            await tx.update(configPending).set({ payload: pend }).where(eq(configPending.id, 1));
+          return { gen: row.gen, keys, discardedCandidate, kept };
+        });
+        // review H1 + verify V4: the copy a reconcile would promote after a lost Apply answer — only once the new hash
+        // is committed (still inside `exclusive`, so no promote runs in between)
+        this.commits.replaceInflightHash(name, hash);
+        return out;
+      },
+    );
     const keep = self && caller.via === 'jwt' ? caller.sid : undefined;
     const revoked = await this.tokens.revokeUser(u.id, r.gen, keep);
     return {

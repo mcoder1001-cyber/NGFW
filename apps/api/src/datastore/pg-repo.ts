@@ -215,15 +215,16 @@ class PgConfigTx implements ConfigTx {
   async syncUsers(users: readonly UserConfig[]): Promise<PasswordReset[]> {
     const names = users.map((u) => u.username);
     // users that came from the configuration and are gone from it are deleted; the bootstrap admin stays (D-048)
-    await this.t
+    const deleted = await this.t
       .delete(appUser)
       .where(
         names.length > 0
           ? and(eq(appUser.source, 'config'), notInArray(appUser.username, names))
           : eq(appUser.source, 'config'),
-      );
+      )
+      .returning({ id: appUser.id, username: appUser.username, gen: appUser.credentialGen });
     // D-102: the hashes before this promote (the commit mutex serialises every hash writer of this process);
-    // D-100 (3): and the disabled flags
+    // D-100 (3): and the disabled flags; TD-10b: and the roles
     const before = new Map(
       names.length === 0
         ? []
@@ -233,12 +234,28 @@ class PgConfigTx implements ConfigTx {
                 username: appUser.username,
                 hash: appUser.passwordHash,
                 disabled: appUser.disabled,
+                role: appUser.role,
               })
               .from(appUser)
               .where(inArray(appUser.username, names))
           ).map((r) => [r.username, r]),
     );
-    const resets: PasswordReset[] = [];
+    // TD-10b — PENDING-session-revocation option 1 (the manager's recommendation; this block follows the product
+    // owner's answer): demotion and deletion end the user's sessions like a disable. The JWT carries the role and is
+    // not checked against app_user, so without this a demoted admin kept admin rights, and a deleted user their
+    // access, until the token expired (≤ VRX_ACCESS_TTL_SEC). A deleted user is returned with the generation it
+    // would have had next: `configResets` → `revokeUser` refuses every token below it (the row itself is gone).
+    // A demoted user's generation is bumped (refresh refused; they log in again with the new role). Promotions need
+    // nothing: a refresh reads the role from app_user. API keys follow the role per request already.
+    const rank: Record<Role, number> = { readonly: 1, operator: 2, admin: 3 };
+    const resets: PasswordReset[] = deleted.map((d) => ({
+      userId: d.id,
+      username: d.username,
+      gen: d.gen + 1,
+      apiKeysRevoked: [],
+      discardedCandidate: false,
+      reasons: ['deleted' as const],
+    }));
     for (const u of users) {
       const set: { role: Role; disabled: boolean; passwordHash?: string } = {
         role: u.role,
@@ -256,7 +273,9 @@ class PgConfigTx implements ConfigTx {
       // D-100 (3): an existing user this promote disables (not a re-enable, a user created disabled, or the same
       // flag staged again) — the generation moves, so access tokens, refresh chains and WebSockets end now
       const disabled = !prev.disabled && u.disabled === true;
-      if (!password && !disabled) continue;
+      // TD-10b (PENDING-session-revocation option 1, see above): a lower role than before
+      const demoted = rank[u.role] < rank[prev.role];
+      if (!password && !disabled && !demoted) continue;
       // D-102: an existing user's hash changed through the config API → admin-reset semantics, same transaction:
       // generation bumped (refresh and key creation check it), lockout cleared, every API key deleted (no
       // keepApiKeys on this path) with any candidate lock it held — keys before the candidate (verify V4 lock order).
@@ -295,6 +314,7 @@ class PgConfigTx implements ConfigTx {
         reasons: [
           ...(password ? ['password' as const] : []),
           ...(disabled ? ['disabled' as const] : []),
+          ...(demoted ? ['demoted' as const] : []),
         ],
       });
     }

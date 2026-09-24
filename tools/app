@@ -138,7 +138,16 @@ cmd_status() {
   local ips; ips="$(ip -4 -o addr show scope global | awk '{print $4}' | cut -d/ -f1 | grep -v '^192\.168\.122\.' || true)"
   echo "web UI:"
   if [[ "$HOST" == 0.0.0.0 ]]; then for ip in $ips; do echo "  http://$ip:$WEB_PORT/"; done; else echo "  http://$HOST:$WEB_PORT/"; fi
-  echo "API docs: http://<host>:$WEB_PORT/api/docs   (API itself on $API_HOST:$API_PORT)"
+  # TD-10b: the vite proxy forwards the browser's address and protocol (xfwd), and the API refuses passwords that
+  # crossed the network in plain HTTP (D-100) — a login from another machine to this plain-HTTP port gets 403
+  # tls-required. How the lab UI gets TLS or a loopback bind is PENDING-tools-app-transport; until then: a tunnel.
+  if [[ "$HOST" != 127.* && "$HOST" != localhost && "$HOST" != ::1 ]]; then
+    echo "  NOTE: plain HTTP — logins from other machines are refused (403 tls-required); use an SSH tunnel:"
+    echo "        ssh -L $WEB_PORT:127.0.0.1:$WEB_PORT root@<this host>   then open http://127.0.0.1:$WEB_PORT/"
+  fi
+  echo "API docs: http://<host>:$WEB_PORT/api/docs   (in a browser: log in to the web UI first; API itself on $API_HOST:$API_PORT)"
+  echo "locked out: VRX_VALKEY_DB=0 VRX_VALKEY_PREFIX=vrx:app: VRX_API_DIST=$ROOT/apps/api/dist \\"
+  echo "            $ROOT/deploy/sbin/vrx-authctl --env-file /run/vrx-test/app/pg.env unlock <user>   (root; audited)"
 }
 
 cmd_logs() { local s="${1:-}"; if [[ -n "$s" ]]; then tail -n 100 -f "$LOG/$s.log"; else tail -n 50 -f "$LOG"/*.log; fi; }

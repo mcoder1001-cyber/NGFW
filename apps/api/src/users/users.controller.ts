@@ -1,10 +1,12 @@
 import { Body, Controller, HttpCode, Param, Post, Req } from '@nestjs/common';
 import { ApiBody, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
+import { AuditUnavailableDoc } from '../audit/audit.interceptor.js';
 import { MinRole } from '../auth/decorators.js';
 import type { VrxRequest } from '../common/principal.js';
 import { Protected } from '../common/responses.js';
 import { openapi, SafeParamPipe, ZodPipe } from '../common/zod.js';
+import { CommitBusyDoc } from './commit-busy.js';
 import { UsersService } from './users.service.js';
 
 const SetPasswordBody = z.strictObject({
@@ -55,6 +57,8 @@ export class UsersController {
   @MinRole('readonly')
   @HttpCode(200)
   @Protected(400, 404, 429)
+  @CommitBusyDoc()
+  @AuditUnavailableDoc()
   @ApiParam({ name: 'name', description: 'username', schema: { type: 'string' } })
   @ApiOperation({
     summary:

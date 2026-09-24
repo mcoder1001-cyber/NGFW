@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# vrx-authctl — root-only break-glass for the VRX API's authentication on this device (TD-10b, review 2.3a).
+#
+#   vrx-authctl [--env-file <file>]... unlock <username>     clear every login lockout of the user
+#   vrx-authctl [--env-file <file>]... locks                 list the lockouts in force
+#   vrx-authctl [--env-file <file>]... rotate-jwt-key [<file>]  new JWT signing key (VRX_JWT_KEY_FILE ring)
+#
+# It uses the API's own settings (database, Valkey) from the environment and --env-file files and works when nobody
+# can log in. Every action is audited (audit_log + system_event). Packaged by P10 (install path, default env file);
+# in a repo checkout: VRX_API_DIST=<repo>/apps/api/dist. tools/app's stack: see `tools/app status`.
+set -euo pipefail
+
+[[ $EUID -eq 0 ]] || { echo "vrx-authctl: root only" >&2; exit 1; }
+DIST="${VRX_API_DIST:-/usr/lib/vrx/api/dist}"
+CLI="$DIST/auth/break-glass-cli.js"
+[[ -f "$CLI" ]] || { echo "vrx-authctl: $CLI not found (set VRX_API_DIST to the API's dist directory)" >&2; exit 1; }
+# the product unit's settings, when present and no --env-file was given (P10 decides the final path)
+args=("$@")
+if [[ " $* " != *" --env-file "* && -r /etc/vrx/api.env ]]; then args=(--env-file /etc/vrx/api.env "$@"); fi
+exec node "$CLI" "${args[@]}"

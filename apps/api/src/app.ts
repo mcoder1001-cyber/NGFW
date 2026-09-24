@@ -9,6 +9,7 @@ import { z } from 'zod';
 import type { FastifyInstance, RouteOptions } from 'fastify';
 import { AppModule } from './app.module.js';
 import { AuthService } from './auth/auth.service.js';
+import { DOCS_COOKIE } from './auth/cookies.js';
 import { loadEnv, type Env } from './config.js';
 import { problems, toProblem } from './common/problem.js';
 import { registerStreamRoute, STREAM_PROTOCOL } from './telemetry/stream.route.js';
@@ -32,7 +33,12 @@ export async function createApp(opts: CreateAppOptions = {}): Promise<NestFastif
   const env = opts.env ?? loadEnv();
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule.forRoot(env),
-    new FastifyAdapter({ bodyLimit: BODY_LIMIT }),
+    // TD-10b (review 2.3b): X-Forwarded-For/-Proto only from VRX_TRUST_PROXY peers (default loopback) — req.ip and
+    // req.ips are the client behind the product nginx / the vite proxy, not the proxy (principal.ts sourceIp)
+    new FastifyAdapter({
+      bodyLimit: BODY_LIMIT,
+      trustProxy: env.VRX_TRUST_PROXY.length > 0 ? env.VRX_TRUST_PROXY : false,
+    }),
     { logger: opts.logger ?? ['error', 'warn', 'log'], abortOnError: false },
   );
   if (opts.onRoute) {
@@ -43,18 +49,35 @@ export async function createApp(opts: CreateAppOptions = {}): Promise<NestFastif
   }
   await configureApp(app);
   if (opts.docs !== false) {
-    // review L1: the API description is not public; same credentials as every other route
+    // review L1: the API description is not public; same credentials as every other route. TD-10b (review 2.3g,
+    // option (a)): a browser has no Authorization header, so a GET/HEAD here also accepts the session's docs cookie
+    // (the access token, path /api/docs, set by login/refresh — auth/cookies.ts); the CLI keeps using the header
     const auth = app.get(AuthService);
     const fastify = app.getHttpAdapter().getInstance() as unknown as FastifyInstance;
     fastify.addHook('onRequest', async (req, reply) => {
       if (!req.url.startsWith(`/${DOCS_PATH}`)) return;
-      const p = await auth.authenticate(req.headers.authorization).catch(() => null);
+      const cookie = (req as { cookies?: Record<string, string | undefined> }).cookies?.[
+        DOCS_COOKIE
+      ];
+      const header =
+        req.headers.authorization ??
+        (cookie !== undefined && (req.method === 'GET' || req.method === 'HEAD')
+          ? `Bearer ${cookie}`
+          : undefined);
+      const p = await auth.authenticate(header).catch(() => null);
       if (p === null) {
         await reply
           .status(401)
           .header('content-type', 'application/problem+json')
           .header('www-authenticate', 'Bearer, ApiKey')
-          .send(toProblem(problems.unauthorized(), req.url.split('?')[0]));
+          .send(
+            toProblem(
+              problems.unauthorized(
+                'authentication required: send Authorization, or log in to the web UI of this device first (its session opens the docs)',
+              ),
+              req.url.split('?')[0],
+            ),
+          );
       }
     });
     SwaggerModule.setup(DOCS_PATH, app, buildOpenApi(app));

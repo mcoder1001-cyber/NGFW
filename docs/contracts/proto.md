@@ -355,6 +355,29 @@ never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
 <!-- wave-A: F-bridge-l2 -->
 <!-- wave-A: F-loopback-bvi-gso-lldp-span -->
 <!-- wave-A: F-vrf-static-ecmp -->
+
+### F-vrf-static-ecmp: ListRoutes
+
+`ListRoutes(ListRoutesRequest{owner, vrf, family, prefix, source, offset, limit}) → ListRoutesResponse{routes[], total,
+owner, vrf, table_id, retrieved_at}` is the FIB browser's **state RPC** (§5 keeps status and paging out of `Retrieve`).
+`vrf` is a VRF name of the agent's stored desired state (`""`/`default` = table 0; unknown → `NOT_FOUND`); `family`
+`ipv4`/`ipv6`/`""` (both, IPv4 first); `prefix` keeps routes equal to or more specific than it; `source` is a FIB source
+name as VPP's `fib_source_dump` reports it (`API`, `interface`, `adjacency`, `recursive-resolution`, `svs`, …) and is
+pushed down to `ip_route_v2_dump.src` (VPP walks only entries that carry it; unknown name → `INVALID_ARGUMENT`);
+`limit` 0 = 100, max 1000. The agent reads the dump **once per call as a stream** and keeps only the requested window
+(a bounded heap of `offset + limit` entries in sort order: family, prefix address, prefix length), so neither the agent's
+memory beyond the window nor the gRPC message grows with the table; `total` counts every match. Each entry: canonical
+`prefix`, best `source` (name), `stats_index`, and `paths[]` = the DPO detail VPP exposes per path: `type`
+(`normal`/`local`/`drop`/`udp-encap`/`bier-imp`/`icmp-unreach`/`icmp-prohibit`/`source-lookup`/`dvr`/`interface-rx`/
+`classify`), `next_hop`, `interface` (logical name, D-069), `table_id`, `weight`, `preference`, `flags`. Dumps only;
+`UNAVAILABLE` without VPP. The configuration fields of the feature are mirror fields (§1): `Vrf.source_select` (3,
+`repeated VrfSourceSelect{prefix, interface}`), `StaticRoute.via_frr` (7, D-072), `NextHop.vrf` (4).
+`Action` ping (`ActionRequest.ping`, already in v1) is served by the agent from this feature on: VPP's ping plugin API
+(`want_ping_finished_events` → one `ping_finished_event`) — default table only, no source, no size; a non-default
+`vrf`, a `source` or a `size` answers `INVALID_ARGUMENT`; `count × interval_ms` ≤ 5000 (the VPP handler holds the binary
+API while it runs); output = one summary `line` + `done{stats: transmitted, received, loss_pct}`. `traceroute` answers
+`UNIMPLEMENTED` (no VPP API; `docs/vpp-code-track.md` V-new F-vrf-static-ecmp).
+
 <!-- wave-A: F-neighbors-ra -->
 <!-- wave-A: F-rpf-adl-pbr -->
 <!-- wave-A: F-object-model -->

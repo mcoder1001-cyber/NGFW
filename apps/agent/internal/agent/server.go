@@ -81,7 +81,7 @@ func (g *server) StreamEvents(req *vrxv1.StreamEventsRequest, stream grpc.Server
 // Action dispatches on the requested action. Each feature adds its `case *vrxv1.ActionRequest_<Member>:`
 // under its anchor and implements it in its own internal/agent/rpc_<slug>.go; every other action is
 // Unimplemented (wave-A-hotspots A4).
-func (g *server) Action(req *vrxv1.ActionRequest, _ grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
+func (g *server) Action(req *vrxv1.ActionRequest, stream grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
 	switch req.GetAction().(type) {
 	// wave-BC: F-det44-map-dslite-cnat
 	// wave-BC: F-det44-map-dslite-cnat
@@ -91,6 +91,10 @@ func (g *server) Action(req *vrxv1.ActionRequest, _ grpc.ServerStreamingServer[v
 	// wave-BC: F-capture-trace
 	// wave-BC: F-backup-restore
 	// wave-A: F-vrf-static-ecmp
+	case *vrxv1.ActionRequest_Ping:
+		return g.actionPing(req.GetPing(), stream)
+	case *vrxv1.ActionRequest_Traceroute:
+		return g.actionTraceroute(req.GetTraceroute())
 	// wave-A: F-neighbors-ra
 	// wave-A: F-nat44-ed-sessions
 	// wave-A: F-unbound-chrony-syslog

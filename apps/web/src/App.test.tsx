@@ -42,10 +42,10 @@ describe('App frame', () => {
   });
 
   it('shows "not yet available" for unbuilt domain screens, with the schema title and no data', async () => {
-    render(app('/routing/vrfs'));
-    expect(await screen.findByRole('heading', { level: 2, name: 'VRFs' })).toBeInTheDocument();
+    render(app('/system/management')); // F-vrf-static-ecmp built /routing/vrfs; management has no screen yet
+    expect(await screen.findByRole('heading', { level: 2, name: 'Management' })).toBeInTheDocument();
     expect(screen.getByText('Not yet available')).toBeInTheDocument();
-    expect(screen.getByText('Configuration domain: VRFs')).toBeInTheDocument();
+    expect(screen.getByText('Configuration domain: Management')).toBeInTheDocument();
     expect(screen.queryByRole('grid')).toBeNull();
   });
 

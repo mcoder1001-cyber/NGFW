@@ -15,6 +15,7 @@ import {
 } from '../primitives.js';
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
+import { nextHopVrf, staticRouteViaFrr } from './ext/vrf-static-ecmp.js';
 
 /**
  * `routing` — static routes, the routing-policy skeleton (prefix-lists, route-maps) and the dynamic protocols
@@ -151,6 +152,7 @@ export const NextHopSchema = z
     }),
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // wave-A: F-vrf-static-ecmp
+    vrf: nextHopVrf,
   })
   .refine((hop) => hop.address !== undefined || hop.interface !== undefined, {
     message: 'a next hop needs an address, an interface or both',
@@ -184,6 +186,7 @@ export const StaticRouteSchema = z
     description: withUi(descriptionText.optional(), { title: 'Description', order: 6 }),
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // wave-A: F-vrf-static-ecmp
+    viaFrr: staticRouteViaFrr,
     // wave-A: P12
   })
   .refine((route) => route.blackhole === (route.nextHops.length === 0), {

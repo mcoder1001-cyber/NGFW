@@ -1,0 +1,45 @@
+// Values of the F-vrf-static-ecmp source-VRF-select descriptors (VPP svs plugin; scheduler.KV.Value).
+// Agent-internal: internal/desired/vrf_static_ecmp.go projects `vrfs.<name>.sourceSelect` onto these
+// objects and back. proto.Equal on these messages is the scheduler's diff.
+syntax = "proto3";
+
+package vrx.agent.svs;
+
+option go_package = "ngfw/agent/internal/descriptors/svs;svs";
+
+// Table is one source-VRF-select table: an IPv4 and an IPv6 FIB table with the same id, named
+// "<owner>:svs:<id>" in VPP (ip_table_add_del) and locked by the svs source (svs_table_add_del).
+// One per ingress interface. Key: "svs.table/<id>".
+message Table {
+  uint32 id = 1;
+  // Set by Retrieve only (partial loss): the IPv4 / IPv6 table does not exist; never in desired state.
+  bool missing_ip4 = 2;
+  bool missing_ip6 = 3;
+}
+
+// Route is one source prefix → VRF entry of an svs table (svs_route_add_del): a packet whose source
+// address matches `prefix` is looked up (destination) in `source_table_id`. Key:
+// "svs.route/<table id>/<prefix>".
+message Route {
+  // The svs table (Table.id).
+  uint32 table_id = 1;
+  // Source prefix, canonical netip form with host bits cleared; never /0 (that entry belongs to the
+  // interface enablement).
+  string prefix = 2;
+  // FIB table of the selected VRF (0 = default). VPP's dump does not expose it (the entry is an exclusive
+  // lookup DPO): Retrieve takes it from the applied-once record of the running VPP instance (D-076/D-080),
+  // or reports UnknownTable when there is none, so the diff re-programs the entry.
+  uint32 source_table_id = 3;
+}
+
+// Interface enables source VRF select on one interface for IPv4 and IPv6 (svs_enable_disable), with
+// its svs table. Key: "svs.interface/<interface>".
+message Interface {
+  // Logical interface name (D-069).
+  string interface = 1;
+  // The svs table (Table.id).
+  uint32 table_id = 2;
+  // Set by Retrieve only: the IPv4 / IPv6 enablement is missing; never in desired state.
+  bool missing_ip4 = 3;
+  bool missing_ip6 = 4;
+}

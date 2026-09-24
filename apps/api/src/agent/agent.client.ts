@@ -41,6 +41,11 @@ import {
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
+  type ActionDone,
+  type ActionOutput,
+  type ActionRequest,
+  type ListRoutesRequest,
+  type ListRoutesResponse,
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model
@@ -169,6 +174,36 @@ export class AgentClient implements OnModuleDestroy {
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
+  /** One page of one VRF's live FIB (F-vrf-static-ecmp; proto.md §11): paging and filtering happen in the agent. */
+  listRoutes(req: Omit<ListRoutesRequest, 'owner'>): Promise<ListRoutesResponse> {
+    return this.unary(this.c.listRoutes, { ...req, owner: this.owner });
+  }
+
+  /**
+   * Runs one diagnostic (the Action RPC) to its end and collects the stream: every `line`, the number of pcap bytes and
+   * the terminal `done`. gRPC failures become problems (agentProblem); the generic `/actions/:action` bridge and the
+   * features that serve their own action routes (F-neighbors-ra, F-nat44-ed-sessions) share it.
+   */
+  runAction(
+    req: ActionRequest,
+    timeoutMs = 60_000,
+  ): Promise<{ lines: string[]; pcapBytes: number; done: ActionDone | undefined }> {
+    return new Promise((resolve, reject) => {
+      const lines: string[] = [];
+      let pcapBytes = 0;
+      let done: ActionDone | undefined;
+      const call = this.c.action(req, new Metadata(), {
+        deadline: new Date(Date.now() + timeoutMs),
+      });
+      call.on('data', (o: ActionOutput) => {
+        if (o.line !== undefined) lines.push(o.line);
+        if (o.pcapChunk !== undefined) pcapBytes += o.pcapChunk.length;
+        if (o.done !== undefined) done = o.done;
+      });
+      call.on('error', (e: ServiceError) => reject(agentProblem(e)));
+      call.on('end', () => resolve({ lines, pcapBytes, done }));
+    });
+  }
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model

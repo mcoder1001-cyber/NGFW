@@ -60,6 +60,8 @@ import faVpn from './locales/fa/vpn.json';
 // wave-A: F-bridge-l2
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
+import enVrfStaticEcmp from './locales/en/vrf-static-ecmp.json';
+import faVrfStaticEcmp from './locales/fa/vrf-static-ecmp.json';
 // wave-A: F-neighbors-ra
 // wave-A: F-rpf-adl-pbr
 // wave-A: F-object-model
@@ -122,6 +124,7 @@ export const NAMESPACES = [
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
+  'vrf-static-ecmp',
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model
@@ -186,6 +189,7 @@ const en = {
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
+  'vrf-static-ecmp': enVrfStaticEcmp,
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model
@@ -247,6 +251,7 @@ const fa = {
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
+  'vrf-static-ecmp': faVrfStaticEcmp,
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model

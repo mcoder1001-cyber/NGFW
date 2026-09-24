@@ -38,6 +38,7 @@ import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { vrfStaticEcmpFake } from '../features/vrf-static-ecmp/fake.js';
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -615,12 +616,6 @@ export class FakeAgent {
       interfaceState,
       streamStats,
       streamEvents,
-      action: (call) => {
-        this.record('Action', call.request);
-        call.destroy(
-          Object.assign(new Error('actions are not implemented'), { code: status.UNIMPLEMENTED }),
-        );
-      },
       // Feature RPCs: one handler line under the feature's anchor (the contract commit's UNIMPLEMENTED stub;
       // real fake behaviour lives in features/<slug>/fake.ts, wired by the same line — wave-A-hotspots P5).
       // wave-BC: F-det44-map-dslite-cnat
@@ -649,6 +644,7 @@ export class FakeAgent {
       // wave-A: F-bridge-l2
       // wave-A: F-loopback-bvi-gso-lldp-span
       // wave-A: F-vrf-static-ecmp
+      ...vrfStaticEcmpFake(this), // listRoutes + action (ping/traceroute; other actions stay UNIMPLEMENTED)
       // wave-A: F-neighbors-ra
       // wave-A: F-rpf-adl-pbr
       // wave-A: F-object-model

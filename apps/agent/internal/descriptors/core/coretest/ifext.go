@@ -42,6 +42,14 @@ func detailsOf(i *Iface) *interfaces.SwInterfaceDetails {
 	return d
 }
 
+// SetMtuFilter makes every later sw_interface_set_mtu store f(sw_if_index, requested) instead of the
+// requested MTU (nil: store it as requested) — fault injection for "VPP did not take the value".
+func (v *VPP) SetMtuFilter(f func(swIfIndex uint32, mtu [4]uint32) [4]uint32) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.mtuFilter = f
+}
+
 func (v *VPP) installIfExt() {
 	v.On("sw_interface_set_flags", func(m api.Message) ([]api.Message, error) {
 		req := m.(*interfaces.SwInterfaceSetFlags)
@@ -63,6 +71,9 @@ func (v *VPP) installIfExt() {
 			return reply(&interfaces.SwInterfaceSetMtuReply{Retval: RetvalInvalidSwIfIndex})
 		}
 		copy(i.Mtu[:], req.Mtu)
+		if v.mtuFilter != nil {
+			i.Mtu = v.mtuFilter(i.Index, i.Mtu)
+		}
 		return reply(&interfaces.SwInterfaceSetMtuReply{})
 	})
 	v.On("sw_interface_set_rx_mode", func(m api.Message) ([]api.Message, error) {

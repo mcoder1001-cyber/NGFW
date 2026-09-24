@@ -70,27 +70,21 @@ func (t *defaultTolerant) Create(ctx context.Context, obj proto.Message) (any, e
 	return meta, nil
 }
 
-// Update implements scheduler.Descriptor: a change TO the default value restores the default.
+// Update implements scheduler.Descriptor. A change TO the default value is a recreate
+// (scheduler.ErrRecreate): the scheduler then runs a journaled Delete(old) — DF-1 restores the
+// default — and Create(new), which is this wrapper's verified no-op or DF-1's error. Doing the
+// delete here instead would leave VPP at the default without a journal entry when the check after it
+// fails, so the transaction would report ROLLED_BACK with the change still in VPP (review F5). DF-1
+// rejects the default before it sends anything to VPP, so nothing has changed when this returns.
 func (t *defaultTolerant) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	m, err := t.Descriptor.Update(ctx, oldObj, newObj, meta)
-	if !errors.Is(err, t.isDefault) {
-		if err == nil {
-			t.forget(t.KeyOf(newObj))
-		}
-		return m, err
+	if errors.Is(err, t.isDefault) {
+		return nil, scheduler.ErrRecreate
 	}
-	if err := t.Descriptor.Delete(ctx, oldObj, meta); err != nil {
-		return nil, err
+	if err == nil {
+		t.forget(t.KeyOf(newObj))
 	}
-	m, ok, err := t.inEffect(ctx, newObj)
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return nil, t.isDefault
-	}
-	t.remember(t.KeyOf(newObj), newObj)
-	return m, nil
+	return m, err
 }
 
 // Delete implements scheduler.Descriptor.

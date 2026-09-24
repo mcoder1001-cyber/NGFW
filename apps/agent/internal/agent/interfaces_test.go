@@ -186,3 +186,59 @@ func TestPhysicalInterfaceOnFake(t *testing.T) {
 		t.Fatalf("missing NIC applied: %v", resp)
 	}
 }
+
+// Review F5: an MTU change TO the interface's creation default is a journaled recreate (DF-1 restores
+// the default in a Delete, the tolerant wrapper's Create verifies it). When VPP does not end up at the
+// default, the transaction rolls back AND VPP gets the old MTU back — nothing escapes the journal.
+func TestMtuToDefaultIsJournaled(t *testing.T) {
+	v := coretest.New()
+	s := newSvc(t, v, t.TempDir())
+	withMtu := func(mtu uint32) *vrxv1.DesiredState {
+		d := doc(t, `{"interfaces":{"host-w1l0":{"enabled":true,"ipv4":["10.1.1.1/24"]}}}`)
+		d.Interfaces["host-w1l0"].Mtu = proto.Uint32(mtu)
+		return d
+	}
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "m1", DesiredState: withMtu(1400)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if v.MTU("host-w1l0") != 1400 {
+		t.Fatalf("MTU %d", v.MTU("host-w1l0"))
+	}
+
+	// 1400 → 9000 (af_packet default): a recreate, VPP at the default, Retrieve reports 9000, re-apply is empty
+	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "m2", DesiredState: withMtu(9000)})
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	var ops []string
+	for _, r := range resp.GetResults() {
+		ops = append(ops, r.GetKey()+":"+r.GetOp().String())
+	}
+	if len(ops) != 1 || ops[0] != "interface.mtu/host-w1l0:APPLY_OPERATION_RECREATE" {
+		t.Fatalf("results %v", ops)
+	}
+	if v.MTU("host-w1l0") != 9000 {
+		t.Fatalf("MTU after the change to the default: %d", v.MTU("host-w1l0"))
+	}
+	if got := retrieveIfs(t, s).GetInterfaces()["host-w1l0"].GetMtu(); got != 9000 {
+		t.Fatalf("Retrieve mtu %d", got)
+	}
+	if r := apply(t, s, &vrxv1.ApplyRequest{TxnId: "m3", DesiredState: withMtu(9000)}); len(r.GetResults()) != 0 {
+		t.Fatalf("re-apply %v", r.GetResults())
+	}
+
+	// back to 1400, then 1400 → 9000 while VPP does not take the default (it keeps 8999): the create
+	// fails, the transaction rolls back and the journaled delete is undone — VPP has 1400 again
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "m4", DesiredState: withMtu(1400)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	v.SetMtuFilter(func(_ uint32, m [4]uint32) [4]uint32 {
+		if m[0] == 9000 {
+			m[0] = 8999
+		}
+		return m
+	})
+	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "m5", DesiredState: withMtu(9000)})
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
+	v.SetMtuFilter(nil)
+	if v.MTU("host-w1l0") != 1400 {
+		t.Fatalf("after the rolled-back change to the default VPP has MTU %d, want the old 1400", v.MTU("host-w1l0"))
+	}
+	if got := retrieveIfs(t, s).GetInterfaces()["host-w1l0"].GetMtu(); got != 1400 {
+		t.Fatalf("Retrieve mtu after rollback %d", got)
+	}
+}

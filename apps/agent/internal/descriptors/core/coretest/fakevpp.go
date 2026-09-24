@@ -77,6 +77,8 @@ type VPP struct {
 	// Internal are VPP-generated FIB entries (source id, e.g. 18 recursive-resolution, 4 interface,
 	// 15 adjacency); an API route on the same prefix is reported instead (API outranks them).
 	Internal map[routeKey]uint8
+	// mtuFilter (P08, SetMtuFilter) rewrites the MTU a sw_interface_set_mtu stores (fault injection).
+	mtuFilter func(swIfIndex uint32, mtu [4]uint32) [4]uint32
 }
 
 // New returns a model with local0 and the default tables.

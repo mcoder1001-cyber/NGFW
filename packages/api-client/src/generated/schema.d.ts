@@ -452,6 +452,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/interfaces/{name}/counters': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Latest counters of one interface (absolute; rates come from consecutive samples or the WS iface.counters topic) */
+    get: operations['State_counters'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/routes': {
     parameters: {
       query?: never;
@@ -7211,13 +7228,56 @@ export interface operations {
             retrievedAt?: string;
             countersAt?: string;
             items: {
+              /** @description logical name; sub-interfaces are "<parent>.<id>" */
               name: string;
+              /** @enum {string} */
+              kind: 'interface' | 'subinterface';
+              parent: string | null;
+              /** @description null when VPP has no such interface (or the agent is older than P08) */
+              state: {
+                name: string;
+                vppName: string;
+                swIfIndex: number;
+                type: string;
+                adminUp: boolean;
+                linkUp: boolean;
+                mtu: number;
+                linkMtu: number;
+                mac: string;
+                ipv4: string[];
+                ipv6: string[];
+                vrf: string;
+                tableId: number;
+                parent: string;
+                vlanId: number;
+                innerVlanId: number;
+                managed: boolean;
+                linkSpeedKbps: string;
+                rxMode: string;
+                description: string;
+              } | null;
+              /** @description the running configuration of this (sub-)interface; null when it is not configured */
               config: {
                 [key: string]: unknown;
-              };
-              counters: {
+              } | null;
+              /** @description what the agent retrieved as configured on the data plane (Retrieve) */
+              actual: {
                 [key: string]: unknown;
               } | null;
+              counters: {
+                name: string;
+                swIfIndex: number;
+                rxPackets: string;
+                rxBytes: string;
+                txPackets: string;
+                txBytes: string;
+                drops: string;
+                errors: string;
+                punts: string;
+                rxMisses: string;
+              } | null;
+              /** @description the candidate differs from running for this (sub-)interface */
+              hasPendingChange: boolean;
             }[];
           };
         };
@@ -7233,6 +7293,89 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  State_counters: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description logical interface name (sub-interfaces "<parent>.<id>") */
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            name: string;
+            vppName: string;
+            ts?: string;
+            counters: {
+              name: string;
+              swIfIndex: number;
+              rxPackets: string;
+              rxBytes: string;
+              txPackets: string;
+              txBytes: string;
+              drops: string;
+              errors: string;
+              punts: string;
+              rxMisses: string;
+            };
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
         headers: {
           [name: string]: unknown;
         };

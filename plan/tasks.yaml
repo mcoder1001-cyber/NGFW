@@ -2141,7 +2141,7 @@ tasks:
     resumed (D-094) | review BLOCK edd93a5 (H1 NRestarts reset by manual restart, H2 gateway ICMP, M1 dead-man lock race, M2 approval flag, M3 rollback budget); fix round 1 | fix round 7d81982 (91/91 fake-host
     checks) CI green; re-review spawned | re-review APPROVE WITH CHANGES 3c0bafc (N1 SSH-session probe → rollback loop, N2 no systemd-run fallback, N3 early crash, N4 approval binding); fix round 2 (last)
     | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/F-startup-apply.continue.md
-    | 07:5x fix round 2 done 5e0d8fe (101/101 fake-host, CI green); verify review spawned (last round → manager decides on verify); L1 ci.sh wiring = manager after merge | 08:3x verify APPROVE WITH CHANGES
+    | 07:35 fix round 2 done 5e0d8fe (101/101 fake-host, CI green); verify review spawned (last round → manager decides on verify); L1 ci.sh wiring = manager after merge | 08:3x verify APPROVE WITH CHANGES
     0ff06fd; merged per D-103 (V1–V4 → TD-6 before first real apply); pre-merge CI green (3m44s)'
   owner: host-agent slot6
   parked_on: ''
@@ -2254,7 +2254,7 @@ tasks:
   finished: ''
   notes: 'from P07b Q1-Q3, P13 review H1, D-093 | worker done 7f4578f CI green (88 unit, 41 e2e); review spawned | review APPROVE WITH CHANGES cc70629 (H1 reconcile restores old password hash, H2 refresh
     survives reset, M1 keys survive reset → D-097, M2 current-guessing); fix round 1 | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn
-    by host manager (Agent tool), envelope /root/ngfw-wt/TD-2.continue.md | 07:5x fix round 1 done 9373e6e CI green (Q1–Q4 in TD-2-questions.md → D-100); verify review spawned | 08:1x verify APPROVE WITH
+    by host manager (Agent tool), envelope /root/ngfw-wt/TD-2.continue.md | 07:31 fix round 1 done 9373e6e CI green (Q1–Q4 in TD-2-questions.md → D-100); verify review spawned | 08:1x verify APPROVE WITH
     CHANGES ae52906 (V1 keys created during reset survive — High; V2 config-API reset bypasses D-097 → D-102; V3–V5 low); fix round 2 (last) spawned'
 - id: TD-3
   title: 'V19 guard: sanitize inherited per-interface state on interface create; unbind classify before table/interface delete; restart simulations delete dependents; ci.sh full pre-flight'
@@ -2282,7 +2282,7 @@ tasks:
   notes: 'D-095; V19 crash 04:50:27 | worker done d001e5f CI green; review spawned (focus: unremovable binding to deleted table); V23 feature_is_enabled lies → fix folded into TD-3 fix round if confirmed
     | review BLOCK 46fafdb (H1 L2 ACL/policer bits = second crash path, H2 invisible bindings, H3 delete must clear bindings first, M1; reviewer safe behaviour adopted: force L3 → resurrect table index
     → quarantine); fix round 1 incl. V23 | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/TD-3.continue.md
-    | 08:0x fix round 1 done 175c676 CI green; VPP crash 07:27:32 during its window → V24/D-101 (not TD-3''s code per analysis); re-review spawned | 09:0x re-review APPROVE WITH CHANGES acce6e1 (H1 ipsec/wireguard
+    | 07:39 fix round 1 done 175c676 CI green; VPP crash 07:27:32 during its window → V24/D-101 (not TD-3''s code per analysis); re-review spawned | 08:00 re-review APPROVE WITH CHANGES acce6e1 (H1 ipsec/wireguard
     creators from DF-5 unwired, M1 placeholder cap, M2 quarantine loop0); fix round 2 (last) spawned; M3 → tech-debt, L7 → TD-5'
 - id: TD-4
   title: 'Auth hardening follow-ups from TD-2 (D-100): account disable bumps the credential generation; API-key creation from a JWT session requires the current password; login gets the same transport check
@@ -2346,6 +2346,6 @@ tasks:
   branch: task/TD-6
   worktree: /root/ngfw-wt/TD-6
   owner: host-agent slot6
-  started: 2026-09-24T08:45
+  started: 2026-09-24T07:58
   finished: ''
-  notes: 'D-103: must merge before any real --apply on vrx-a | spawned 08:4x slot 6 (Agent tool), envelope /root/ngfw-wt/TD-6.envelope.md'
+  notes: 'D-103: must merge before any real --apply on vrx-a | spawned 07:58 slot 6 (Agent tool), envelope /root/ngfw-wt/TD-6.envelope.md'

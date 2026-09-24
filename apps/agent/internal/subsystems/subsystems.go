@@ -159,6 +159,9 @@ type Env struct {
 	// Resync asks the agent for a full resync of its stored desired state (A5 seam, F-acl);
 	// Wiring.RequestResync calls it. nil = no-op (the default).
 	Resync func()
+	// IDs is this agent's VPP numeric id range (TD-8; the agent resolves it once with ResolveIDScope).
+	// Families read it through Wiring.IDRange, which fails closed: the zero value owns no id.
+	IDs IDScope
 }
 
 // Wiring is the result of Register: the stores and the hooks the agent calls.
@@ -174,6 +177,8 @@ type Wiring struct {
 	keyed    map[string]*KeyedClaims
 	classify *classify.FileStore
 	vpnKeys  *vpn.Keyer
+
+	seams seamRegistry // TD-8: dynamic desired sources and metrics collectors (seams.go)
 }
 
 // Register builds every store (persisted in env.StateDir), installs the process-wide ones for

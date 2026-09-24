@@ -2290,7 +2290,7 @@ tasks:
   - P06
   priority: 2
   est_hours: 6
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D0.9
@@ -2307,7 +2307,8 @@ tasks:
     12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/TD-2.continue.md | 07:31 fix round 1 done
     9373e6e CI green (Q1–Q4 in TD-2-questions.md → D-100); verify review spawned | 07:49 verify APPROVE WITH CHANGES ae52906 (V1 keys created during reset survive — High; V2 config-API reset bypasses D-097
     → D-102; V3–V5 low); fix round 2 (last) spawned | 08:18 fix round 2 done 84210b7 (V1–V5 fixed, e2e 61/3 skip, CI green); Q6 self-change via config logs out = D-102 as written; verify of round 2 spawned
-    | 14:00 ngfw-46: verify round 2 CONTINUE (Agent tool), envelope /root/ngfw-wt/TD-2.verify3.md; Q6 answered D-105'
+    | 14:00 ngfw-46: verify round 2 CONTINUE (Agent tool), envelope /root/ngfw-wt/TD-2.verify3.md; Q6 answered D-105 | verify2 APPROVE WITH CHANGES 9bdc466 (T1 e2e flaky under load, test-only); T1 fix worker
+    (D-111), envelope /root/ngfw-wt/TD-2.t1fix.md; merge after 3 green runs, no further review round'
 - id: TD-3
   title: 'V19 guard: sanitize inherited per-interface state on interface create; unbind classify before table/interface delete; restart simulations delete dependents; ci.sh full pre-flight'
   prompt: ''

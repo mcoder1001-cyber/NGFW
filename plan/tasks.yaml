@@ -719,15 +719,15 @@ tasks:
     after P08 lands; focused verify (sonnet) | verify APPROVE ff18d0b (no behaviour change, 425 anchors); merge right after P08'
 - template: ''
   parked_on: ''
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/W-seed-BC
+  worktree: /root/ngfw-wt/W-seed-BC
+  owner: ngfw-46 (no slot)
+  started: 2026-09-24T19:17
   finished: ''
-  state: todo
+  state: running
   id: W-seed-BC
   title: 'Wave-B/C anchor pass: seed every wave-BC site listed in docs/status/wave-BC-numbers.md (A4 cases, SY1–SY5, ED nat.go/natTabs groups), directly above the first wave-A anchor — no behaviour change'
-  prompt: docs/status/wave-BC-numbers.md
+  prompt: /root/ngfw-wt/W-seed-BC.envelope.md
   stage: S4
   deps:
   - W-seed
@@ -737,7 +737,7 @@ tasks:
   - D0.1
   scope: anchors only (D-119 M1)
   files_owned: hotspot files (anchors only)
-  notes: D-119 M1
+  notes: D-119 M1 | SPECULATIVE from task/W-seed (D-114)
 - template: ''
   parked_on: ''
   branch: task/TD-8
@@ -771,7 +771,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D1.4
@@ -783,7 +783,8 @@ tasks:
   started: 2026-09-24T17:28
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-vlan-qinq.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-vlan-qinq.envelope.md |
-    D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list)'
+    D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | done 01b80ff, CI green; host run 1 NRestarts 0→0; VPP crash 18:41:08 during its run 2 packet
+    phase (D-126); review spawned'
 - id: F-bonding
   title: 'Wave A (day 7-9): LACP/XOR/RR/active-backup bonds'
   prompt: prompts/features/F-bonding.md
@@ -795,19 +796,19 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D1.5
   scope: LACP/XOR/RR/active-backup bonds
   files_owned: '- apps/agent/internal/descriptors/bond/**, docs/agent/descriptors/bond.md'
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/F-bonding
+  worktree: /root/ngfw-wt/F-bonding
+  owner: ngfw-46 slot6
+  started: 2026-09-24T19:17
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-bonding.envelope.md (prep-waveA, D-109) | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125:
-    merge after TD-11c, or else a KeyProvider obligation in the envelope'
+    merge after TD-11c, or else a KeyProvider obligation in the envelope | SPECULATIVE from task/W-seed@df67a8e (contains P08 r2 + TD-5)'
 - id: F-bridge-l2
   title: 'Wave A (day 7-9): bridge domains, L2XC/L3XC, split-horizon, MAC aging, time-range MAC filter'
   prompt: prompts/features/F-bridge-l2.md
@@ -2586,7 +2587,7 @@ tasks:
   deps: []
   priority: 1
   est_hours: 2
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.4
@@ -2597,7 +2598,7 @@ tasks:
   owner: ngfw-46 slot6
   started: ''
   finished: ''
-  notes: 'D-121: merger request after the TD-6 gate failed on TestGRPCRoundTrip at load ~34'
+  notes: 'D-121: merger request after the TD-6 gate failed on TestGRPCRoundTrip at load ~34 | done fed09a5, verify APPROVE 4bf176f; merging (merger)'
 - template: ''
   parked_on: ''
   finished: ''
@@ -2750,13 +2751,13 @@ tasks:
     dep of P10, INTEGRATE-E2E, SECURITY-REVIEW | reconciler.go hunks: TD-9 ApplyWith ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage; whichever merges second rebases'
 - id: TD-10a
   title: API commit engine correctness (+ running vs Health.last_txn_id check on boot/reconnect)
-  prompt: ''
+  prompt: /root/ngfw-wt/TD-10a.envelope.md
   template: ''
   stage: S4
   deps: []
   priority: 2
   est_hours: 14
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.8
@@ -2766,10 +2767,10 @@ tasks:
     and RECONCILE_DONE compare Health.last_txn_id with the config_sync or running txnId (whichever came last) and re-apply through reconcile() (commit.service.ts:228-232, 256)'
   files_owned: apps/api/src/commit/** apps/api/src/secrets/secrets.service.ts apps/api/src/datastore/repo.ts (PendingCommit) apps/api/src/db/schema.ts apps/api/migrations/0004_* apps/api/src/common/mutex.ts
     apps/api/src/testing/fake-agent.ts (Apply/revert hunk, P5 outside the anchors) apps/web/src/net.ts apps/web/src/pages/RevisionsPage.tsx (timeout-recovery hunk) apps/cli/internal/api/client.go docs/status/tasks/TD-10a*
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/TD-10a
+  worktree: /root/ngfw-wt/TD-10a
+  owner: ngfw-46 slot5
+  started: 2026-09-24T19:17
   finished: ''
   notes: D-125 | est 11 h review plan + 3 h audit ARCH-01 API half | start from main now; merge after TD-4 | not a wave-A gate; gates INTEGRATE-E2E and any operator use of confirm windows on vrx-a
 - id: TD-10b

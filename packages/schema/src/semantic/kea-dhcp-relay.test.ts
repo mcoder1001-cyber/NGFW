@@ -40,7 +40,9 @@ function mine(d: unknown) {
 /** Schema errors (refinements in domains/services.ts) as pointer → message. */
 function schemaIssues(d: unknown) {
   const r = RootConfig.safeParse(d);
-  return r.success ? [] : r.error.issues.map((i) => ({ path: i.path.join('/'), message: i.message }));
+  return r.success
+    ? []
+    : r.error.issues.map((i) => ({ path: i.path.join('/'), message: i.message }));
 }
 
 describe('F-kea-dhcp-relay rules', () => {
@@ -58,7 +60,9 @@ describe('F-kea-dhcp-relay rules', () => {
       servers: {
         lan: server({
           subnets: {
-            lan: subnet({ reservations: { printer: { mac: '02:00:00:00:00:01', ip: '192.168.10.20' } } }),
+            lan: subnet({
+              reservations: { printer: { mac: '02:00:00:00:00:01', ip: '192.168.10.20' } },
+            }),
           },
         }),
       },
@@ -92,7 +96,8 @@ describe('F-kea-dhcp-relay rules', () => {
     expect(mine(d)).toEqual([
       {
         pointer: '/services/dhcp/servers/lan/subnets/lan/reservations/edge/ip',
-        message: '192.168.10.59 lies inside pool 0 (192.168.10.50-192.168.10.59); reserve an address outside the pools',
+        message:
+          '192.168.10.59 lies inside pool 0 (192.168.10.50-192.168.10.59); reserve an address outside the pools',
       },
       {
         pointer: '/services/dhcp/servers/lan/subnets/lan/reservations/inside/ip',
@@ -106,7 +111,16 @@ describe('F-kea-dhcp-relay rules', () => {
     const d = doc({
       servers: {
         a: server(),
-        b: server({ vrf: 'customer-a', interfaces: [IF2], subnets: { s: subnet({ subnet: '10.20.0.0/24', pools: [{ start: '10.20.0.10', end: '10.20.0.20' }] }) } }),
+        b: server({
+          vrf: 'customer-a',
+          interfaces: [IF2],
+          subnets: {
+            s: subnet({
+              subnet: '10.20.0.0/24',
+              pools: [{ start: '10.20.0.10', end: '10.20.0.20' }],
+            }),
+          },
+        }),
         c: server({ enabled: false, vrf: 'customer-a', interfaces: [IF2], subnets: {} }),
         v6: server({
           family: 'ipv6',
@@ -162,7 +176,9 @@ describe('F-kea-dhcp-relay rules', () => {
         [IF1]: {
           ipv4: ['192.168.10.1/24'],
           dhcpClient: {},
-          subinterfaces: { '100': { vlanId: 100, ipv4: ['10.1.0.1/24'], dhcpClient: { hostname: 'r1' } } },
+          subinterfaces: {
+            '100': { vlanId: 100, ipv4: ['10.1.0.1/24'], dhcpClient: { hostname: 'r1' } },
+          },
         },
         'TenGigabitEthernet0/0/3': { dhcpClient: {} },
       },
@@ -187,11 +203,21 @@ describe('F-kea-dhcp-relay rules', () => {
 describe('existing DHCP rules this feature relies on', () => {
   it('a pool outside its subnet is a schema error at the pool (400 problem+json pointer)', () => {
     const d = doc({
-      servers: { lan: server({ subnets: { lan: subnet({ pools: [{ start: '192.168.11.10', end: '192.168.11.20' }] }) } }) },
+      servers: {
+        lan: server({
+          subnets: { lan: subnet({ pools: [{ start: '192.168.11.10', end: '192.168.11.20' }] }) },
+        }),
+      },
     });
     expect(schemaIssues(d)).toEqual([
-      { path: 'services/dhcp/servers/lan/subnets/lan/pools/0/start', message: '192.168.11.10 is outside 192.168.10.0/24' },
-      { path: 'services/dhcp/servers/lan/subnets/lan/pools/0/end', message: '192.168.11.20 is outside 192.168.10.0/24' },
+      {
+        path: 'services/dhcp/servers/lan/subnets/lan/pools/0/start',
+        message: '192.168.11.10 is outside 192.168.10.0/24',
+      },
+      {
+        path: 'services/dhcp/servers/lan/subnets/lan/pools/0/end',
+        message: '192.168.11.20 is outside 192.168.10.0/24',
+      },
     ]);
   });
 
@@ -214,8 +240,12 @@ describe('existing DHCP rules this feature relies on', () => {
     });
     const paths = schemaIssues(d).map((i) => `${i.path}: ${i.message}`);
     expect(paths).toContain('services/dhcp/servers/lan/subnets/lan/pools/1: pool overlaps pool 0');
-    expect(paths).toContain('services/dhcp/servers/lan/subnets/lan/pools/2/end: pool end is lower than pool start');
-    expect(paths).toContain('services/dhcp/servers/lan/subnets/lan/pools/3/start: pool family does not match subnet 192.168.10.0/24');
+    expect(paths).toContain(
+      'services/dhcp/servers/lan/subnets/lan/pools/2/end: pool end is lower than pool start',
+    );
+    expect(paths).toContain(
+      'services/dhcp/servers/lan/subnets/lan/pools/3/start: pool family does not match subnet 192.168.10.0/24',
+    );
   });
 
   it('reservations: inside the subnet, one address once, one MAC once', () => {
@@ -235,14 +265,31 @@ describe('existing DHCP rules this feature relies on', () => {
       },
     });
     const paths = schemaIssues(d).map((i) => `${i.path}: ${i.message}`);
-    expect(paths).toContain('services/dhcp/servers/lan/subnets/lan/reservations/b/ip: 192.168.10.20 is reserved twice');
-    expect(paths).toContain('services/dhcp/servers/lan/subnets/lan/reservations/b: client 02:00:00:00:00:01 is reserved twice');
-    expect(paths).toContain('services/dhcp/servers/lan/subnets/lan/reservations/c/ip: 192.168.99.1 is outside 192.168.10.0/24');
+    expect(paths).toContain(
+      'services/dhcp/servers/lan/subnets/lan/reservations/b/ip: 192.168.10.20 is reserved twice',
+    );
+    expect(paths).toContain(
+      'services/dhcp/servers/lan/subnets/lan/reservations/b: client 02:00:00:00:00:01 is reserved twice',
+    );
+    expect(paths).toContain(
+      'services/dhcp/servers/lan/subnets/lan/reservations/c/ip: 192.168.99.1 is outside 192.168.10.0/24',
+    );
   });
 
   it('subnets: unique per VRF across servers, inside an interface prefix; relay source configured in the server VRF', () => {
     const d = doc({
-      servers: { a: server(), b: server(), c: server({ subnets: { far: subnet({ subnet: '172.16.0.0/24', pools: [{ start: '172.16.0.10', end: '172.16.0.20' }] }) } }) },
+      servers: {
+        a: server(),
+        b: server(),
+        c: server({
+          subnets: {
+            far: subnet({
+              subnet: '172.16.0.0/24',
+              pools: [{ start: '172.16.0.10', end: '172.16.0.20' }],
+            }),
+          },
+        }),
+      },
       relays: { r: relay({ sourceAddress: '10.99.0.1' }) },
     });
     expect(run(d).map((i) => i.pointer)).toEqual([

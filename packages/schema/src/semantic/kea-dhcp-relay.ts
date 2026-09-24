@@ -38,7 +38,16 @@ const reservationOutsidePools: ValidatorDefinition = {
           );
           if (pool >= 0) {
             issues.push({
-              pointer: P('dhcp', 'servers', name, 'subnets', subnetName, 'reservations', resName, 'ip'),
+              pointer: P(
+                'dhcp',
+                'servers',
+                name,
+                'subnets',
+                subnetName,
+                'reservations',
+                resName,
+                'ip',
+              ),
               message: `${res.ip} lies inside pool ${pool} (${subnet.pools[pool]?.start}-${subnet.pools[pool]?.end}); reserve an address outside the pools`,
             });
           }
@@ -113,7 +122,10 @@ const dhcpClientNoStatic: ValidatorDefinition = {
   domains: ['interfaces'],
   validate(config) {
     const issues: SemanticIssue[] = [];
-    const check = (path: string[], node: { ipv4: readonly string[]; dhcpClient?: unknown }): void => {
+    const check = (
+      path: string[],
+      node: { ipv4: readonly string[]; dhcpClient?: unknown },
+    ): void => {
       if (node.dhcpClient !== undefined && node.ipv4.length > 0) {
         issues.push({
           pointer: jsonPointer('interfaces', ...path, 'ipv4'),

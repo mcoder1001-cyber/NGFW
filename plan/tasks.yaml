@@ -1757,7 +1757,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: 'D-100 (TD-2 Q1): the product nginx never proxies /api from plain :80 (redirect only) — the API treats loopback peers as TLS-terminated'
 - id: P14
   title: Unattended installer ISO (26.04)
   prompt: prompts/P14-iso-installer.md
@@ -2279,3 +2279,24 @@ tasks:
   notes: 'D-095; V19 crash 04:50:27 | worker done d001e5f CI green; review spawned (focus: unremovable binding to deleted table); V23 feature_is_enabled lies → fix folded into TD-3 fix round if confirmed
     | review BLOCK 46fafdb (H1 L2 ACL/policer bits = second crash path, H2 invisible bindings, H3 delete must clear bindings first, M1; reviewer safe behaviour adopted: force L3 → resurrect table index
     → quarantine); fix round 1 incl. V23 | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/TD-3.continue.md'
+- id: TD-4
+  title: 'Auth hardening follow-ups from TD-2 (D-100): account disable bumps the credential generation; API-key creation from a JWT session requires the current password; login gets the same transport check as password set'
+  prompt: ''
+  template: ''
+  stage: S2
+  deps:
+  - TD-2
+  priority: 3
+  est_hours: 3
+  state: todo
+  parked_on: ''
+  wbs:
+  - D0.9
+  scope: D-100 (1)-(3); apps/api auth/users/tokens only, additive api-client
+  files_owned: apps/api/src/{auth,users}/** apps/api/test/e2e/td4-* docs/status/tasks/TD-4*
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: 'D-100: from TD-2-questions.md Q1–Q3'

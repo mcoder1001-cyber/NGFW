@@ -110,6 +110,7 @@ type stack struct {
 	agentLog string
 	apiProc  *proc
 	api      *api
+	adminPW  string
 }
 
 func newStack(t *testing.T, s slot) *stack {
@@ -170,6 +171,7 @@ func newStack(t *testing.T, s slot) *stack {
 		t.Fatalf("vrx-api did not come up on %s:\n%s", s.httpPort, raw)
 	}
 	st.api.login("admin", adminPW)
+	st.adminPW = adminPW
 	return st
 }
 
@@ -578,3 +580,5 @@ func js(v any) string {
 	b, _ := json.Marshal(v)
 	return string(b)
 }
+
+func itoa(n int) string { return strconv.Itoa(n) }

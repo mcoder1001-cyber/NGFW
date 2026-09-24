@@ -124,7 +124,13 @@
     "vrf": "VRF (جدول)",
     "rxMode": "حالت دریافت",
     "rates": "نرخ‌ها",
-    "noRates": "در انتظار شمارنده‌ها…",
-    "rateText": "دریافت {{rx}} · ارسال {{tx}}"
-  }
+    "noRates": "در انتظار شمارنده‌ها…"
+  },
+  "group": {
+    "general": "عمومی",
+    "addressing": "آدرس‌دهی",
+    "encapsulation": "کپسوله‌سازی",
+    "subinterfaces": "زیراینترفیس‌ها"
+  },
+  "rateCell": "{{bps}} · {{pps}}"
 }

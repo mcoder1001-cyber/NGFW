@@ -52,7 +52,8 @@ export function localizeSchema(schema: JsonSchema, t: Translate): JsonSchema {
     out[name] = {
       ...prop,
       title: t(`field.${name}.title`, { defaultValue: prop.title ?? name }),
-      'x-vrx-ui': { ...hints, ...(help ? { help } : {}) },
+      // group names are fieldset titles: translate them too (the same key for every member keeps the grouping)
+      'x-vrx-ui': { ...hints, ...(help ? { help } : {}), ...(typeof hints.group === 'string' ? { group: t(`group.${hints.group}`, { defaultValue: hints.group }) } : {}) },
     } as JsonSchema;
   }
   return { ...schema, properties: out } as JsonSchema;

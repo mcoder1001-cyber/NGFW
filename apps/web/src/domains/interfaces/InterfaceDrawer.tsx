@@ -19,7 +19,6 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useTheme } from '@mui/material/styles';
 import { StatusChip, useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
@@ -64,12 +63,10 @@ function withoutSubs(c: InterfaceConfig | undefined): Partial<InterfaceConfig> |
   return Object.fromEntries(Object.entries(c).filter(([k]) => k !== 'subinterfaces')) as Partial<InterfaceConfig>;
 }
 
+/** Opens from the end of the reading direction: MUI flips `anchor="right"` to the left in RTL. */
 export function InterfaceDrawer({ name, onClose, rates }: { name: string | null; onClose: () => void; rates: Map<string, Rate> }) {
-  const theme = useTheme();
-  // the drawer opens from the reading end of the page (right in LTR, left in RTL)
-  const anchor = theme.direction === 'rtl' ? 'left' : 'right';
   return (
-    <Drawer anchor={anchor} open={name !== null} onClose={onClose} slotProps={{ paper: { sx: { inlineSize: { xs: '100%', md: 640 } } } }}>
+    <Drawer anchor="right" open={name !== null} onClose={onClose} sx={{ zIndex: (th) => th.zIndex.modal }} slotProps={{ paper: { sx: { inlineSize: { xs: '100%', md: 640 } } } }}>
       {name !== null && <DrawerBody key={name} name={name} onClose={onClose} rates={rates} />}
     </Drawer>
   );
@@ -188,7 +185,10 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
               <TableCell>
                 {rate ? (
                   <Stack direction="row" gap={1} alignItems="center">
-                    <span>{t('live.rateText', { rx: fmt.rate(rate.rxBps, BPS), tx: fmt.rate(rate.txBps, BPS) })}</span>
+                    <span>{t('col.rx')}</span>
+                    <bdi dir="ltr">{fmt.rate(rate.rxBps, BPS)}</bdi>
+                    <span>{t('col.tx')}</span>
+                    <bdi dir="ltr">{fmt.rate(rate.txBps, BPS)}</bdi>
                     <Sparkline values={rate.history} label={t('trendLabel', { name })} />
                   </Stack>
                 ) : (

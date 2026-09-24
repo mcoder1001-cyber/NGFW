@@ -51,7 +51,8 @@ export function toRow(item: InterfaceItem): Row {
     type: s?.type ?? (item.kind === 'subinterface' ? 'sub-interface' : ''),
     admin: adminStatus(s) ?? '',
     link: linkStatus(s) ?? '',
-    mtu: s?.mtu ?? cfg.mtu ?? null,
+    // VPP reports 0 for a sub-interface that inherits its parent's MTU: show nothing rather than 0
+    mtu: s?.mtu || cfg.mtu || null,
     addresses: addressesOf(item).join(' '),
     vrf: s?.vrf ?? cfg.vrf ?? 'default',
     errors: Number(item.counters?.errors ?? 0) + Number(item.counters?.drops ?? 0),
@@ -86,6 +87,8 @@ export function pageOf(rows: Row[], req: ServerPageRequest): { rows: Row[]; tota
 }
 
 const LTR = { dir: 'ltr' } as const;
+const BPS = 'bps' as const;
+const PPS = 'pps' as const;
 const NAME_RE = /^[A-Za-z][A-Za-z0-9_./-]{0,62}$/;
 
 export function InterfacesPage() {
@@ -126,7 +129,7 @@ export function InterfacesPage() {
           </Stack>
         ),
       },
-      { field: 'type', headerName: t('col.type'), width: 120 },
+      { field: 'type', headerName: t('col.type'), width: 110 },
       {
         field: 'admin',
         headerName: t('col.admin'),
@@ -151,16 +154,16 @@ export function InterfacesPage() {
           </Box>
         ),
       },
-      { field: 'vrf', headerName: t('col.vrf'), width: 100 },
+      { field: 'vrf', headerName: t('col.vrf'), width: 90 },
       {
         field: 'rx',
         headerName: t('col.rx'),
         sortable: false,
         filterable: false,
-        width: 130,
+        width: 175,
         renderCell: (p) => {
           const r = rateOf(p.row);
-          return r ? `${fmt.rate(r.rxBps, 'bps')} · ${fmt.rate(r.rxPps, 'pps')}` : '';
+          return r ? <span dir="ltr">{t('rateCell', { bps: fmt.rate(r.rxBps, BPS), pps: fmt.rate(r.rxPps, PPS) })}</span> : null;
         },
       },
       {
@@ -168,10 +171,10 @@ export function InterfacesPage() {
         headerName: t('col.tx'),
         sortable: false,
         filterable: false,
-        width: 130,
+        width: 175,
         renderCell: (p) => {
           const r = rateOf(p.row);
-          return r ? `${fmt.rate(r.txBps, 'bps')} · ${fmt.rate(r.txPps, 'pps')}` : '';
+          return r ? <span dir="ltr">{t('rateCell', { bps: fmt.rate(r.txBps, BPS), pps: fmt.rate(r.txPps, PPS) })}</span> : null;
         },
       },
       {

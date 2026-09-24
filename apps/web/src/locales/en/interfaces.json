@@ -124,7 +124,13 @@
     "vrf": "VRF (table)",
     "rxMode": "RX mode",
     "rates": "Rates",
-    "noRates": "waiting for counters…",
-    "rateText": "RX {{rx}} · TX {{tx}}"
-  }
+    "noRates": "waiting for counters…"
+  },
+  "group": {
+    "general": "General",
+    "addressing": "Addressing",
+    "encapsulation": "Encapsulation",
+    "subinterfaces": "Sub-interfaces"
+  },
+  "rateCell": "{{bps}} · {{pps}}"
 }

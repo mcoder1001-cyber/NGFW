@@ -50,3 +50,9 @@ optional object members should stay absent until the user opts in (a presence to
   the same tree passes: `TestAgentOnHost` 5.51 s, `TestAgentProcessOnHost` 7.66 s, whole `internal/agent` package `ok 20.8s`,
   NRestarts 0 → 0. So TD-5's cap change is enough to unblock this VPP instance. TD-3 predicted this trade-off itself
   (TD-3-questions "Liveness trade-off"). Until TD-5 merges, `tools/ci.sh full` on main fails in `internal/agent` here.
+
+## Q4 — `tools/lab rig down` aborts half-way after an agent-created orphan (fix round 1, 15:42; not P08's file)
+In topology run 2 the agent's `af_packet_create_v3 host-w1l0` reply was lost in the I6 stall (the interface existed, untagged —
+review I2). `rig down w1` printed `delete vpp host-w1l0`, `delete netns ns-w1-lan (and its veth peer)`, then `Cannot find device
+"w1l0"` and exited 1, leaving `w1w0` and `ns-w1-wan`. A second `tools/lab rig down w1` (15:43) removed them. The veth delete after
+the netns delete should tolerate a device that went with its peer (owner: tools/lab, manager).

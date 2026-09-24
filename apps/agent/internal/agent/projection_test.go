@@ -45,7 +45,7 @@ func TestProjectSchemaExamples(t *testing.T) {
 			}
 		}
 		// Round trip of what the core descriptors represent.
-		out := assemble(pj.kvs, implementedDomains(), nil)
+		out := assemble(pj.kvs, implementedDomains(), nil, ds.GetInterfaces(), nil)
 		for _, kv := range pj.kvs {
 			if kv.Key == "" || kv.Value == nil {
 				t.Fatalf("%s: empty kv", base)

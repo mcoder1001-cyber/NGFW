@@ -18,7 +18,9 @@ import (
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/descriptors/core"
+	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp"
 )
 
@@ -60,9 +62,11 @@ type Service struct {
 	reconciling     bool
 	lastReconcileAt time.Time
 	vppVersion      string
-	vrfIDs          map[string]uint32 // VRF name → table id of the stored desired state
-	vrfDesc         map[string]string // VRF name → description (D-073b)
-	routeDesc       map[string]string // "<vrf>|<prefix>" → description (D-073b)
+	vrfIDs          map[string]uint32           // VRF name → table id of the stored desired state
+	vrfDesc         map[string]string           // VRF name → description (D-073b)
+	routeDesc       map[string]string           // "<vrf>|<prefix>" → description (D-073b)
+	storedIfs       map[string]*vrxv1.Interface // stored desired `interfaces` (P08: descriptions, named NICs)
+	beforeTxn       func()
 	pendingTxn      string
 	deadline        time.Time
 	lastTxn         string
@@ -78,6 +82,8 @@ type ServiceConfig struct {
 	StateDir  string
 	Metrics   *metrics
 	Now       func() time.Time
+	// BeforeTxn runs at the start of every transaction (P08: subsystems.Wiring.BeforeTxn).
+	BeforeTxn func()
 }
 
 // NewService loads the persisted state and returns a service. It does not touch VPP; call
@@ -99,7 +105,7 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 	s := &Service{
 		owner: cfg.Owner, version: cfg.Version, log: cfg.Logger, vpp: cfg.VPP, sched: cfg.Scheduler,
 		st: st, bus: newBus(), metrics: cfg.Metrics, now: cfg.Now, txn: make(chan struct{}, 1),
-		retryMin: revertRetryMin, retryMax: revertRetryMax,
+		retryMin: revertRetryMin, retryMax: revertRetryMax, beforeTxn: cfg.BeforeTxn,
 	}
 	s.refreshSnapshotLocked()
 	return s, nil
@@ -143,8 +149,13 @@ func (s *Service) refreshSnapshotLocked() {
 			routeDesc[vrf+"|"+p] = r.GetDescription()
 		}
 	}
+	ifs := map[string]*vrxv1.Interface{}
+	for name, itf := range s.st.desired.GetInterfaces() {
+		ifs[name] = proto.Clone(itf).(*vrxv1.Interface)
+	}
 	s.mu.Lock()
 	s.vrfDesc, s.routeDesc = vrfDesc, routeDesc
+	s.storedIfs = ifs
 	s.vrfIDs = ids
 	s.pendingTxn = s.st.meta.PendingTxnID
 	s.deadline = time.Time{}
@@ -320,6 +331,9 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	log.Info("reconcile start")
 
 	resp := &vrxv1.ApplyResponse{TxnId: txnID}
+	if s.beforeTxn != nil {
+		s.beforeTxn()
+	}
 	pj := project(ds, domains, s.resolveVRF)
 	var res *scheduler.TxnResult
 	if pj.hasErrors() {
@@ -564,6 +578,20 @@ func (s *Service) Retrieve(ctx context.Context, req *vrxv1.RetrieveRequest) (*vr
 		}
 		return nil, status.Errorf(codes.Internal, "retrieve: %v", err)
 	}
+	var live desired.Live
+	if in := union(domains, nil); contains(in, subsystems.Interfaces) {
+		tbl, err := s.interfaceTable(ctx)
+		if err != nil {
+			if errors.Is(err, vpp.ErrDisconnected) {
+				return nil, status.Error(codes.Unavailable, err.Error())
+			}
+			return nil, status.Errorf(codes.Internal, "retrieve: %v", err)
+		}
+		live = tbl
+	}
+	s.mu.Lock()
+	stored := s.storedIfs
+	s.mu.Unlock()
 	ds := assemble(kvs, domains, func(id uint32) (string, bool) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -573,9 +601,18 @@ func (s *Service) Retrieve(ctx context.Context, req *vrxv1.RetrieveRequest) (*vr
 			}
 		}
 		return "", false
-	})
+	}, stored, live)
 	s.addDescriptions(ds)
 	return &vrxv1.RetrieveResponse{DesiredState: ds, Subsystems: domains, Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}, nil
+}
+
+func contains(list []string, v string) bool {
+	for _, x := range list {
+		if x == v {
+			return true
+		}
+	}
+	return false
 }
 
 // addDescriptions fills VRF and static-route descriptions — VPP cannot store them (D-073b) —

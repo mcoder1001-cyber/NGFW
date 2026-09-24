@@ -19,9 +19,9 @@ import (
 	"google.golang.org/grpc"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
-	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp"
 )
 
@@ -44,6 +44,9 @@ type Config struct {
 	MetricsAddr string
 	// LogLevel: debug, info, warn, error (VRX_LOG_LEVEL).
 	LogLevel string
+	// GlobalsOwner (VRX_GLOBALS_OWNER, D-071): true only for the product agent on a real box (the
+	// default for the production owner "vrx"); test slots on the shared host are never the owner.
+	GlobalsOwner bool
 }
 
 func env(key, def string) string {
@@ -59,13 +62,22 @@ func ConfigFromEnv() Config {
 	if metrics == "" {
 		metrics = "127.0.0.1:" + env("VRX_METRICS_PORT", "9101")
 	}
+	owner := env("VRX_OWNER", "vrx")
+	globals := owner == "vrx"
+	switch strings.ToLower(os.Getenv("VRX_GLOBALS_OWNER")) {
+	case "1", "true", "yes":
+		globals = true
+	case "0", "false", "no":
+		globals = false
+	}
 	return Config{
+		GlobalsOwner:   globals,
 		Socket:         env("VRX_AGENT_SOCKET", "/run/vrx/agent.sock"),
 		SocketGroup:    env("VRX_SOCKET_GROUP", "vrx"),
 		VPPAPISocket:   env("VRX_AGENT_VPP_API_SOCKET", "/run/vpp/api.sock"),
 		VPPStatsSocket: env("VRX_AGENT_VPP_STATS_SOCKET", "/run/vpp/stats.sock"),
 		StateDir:       env("VRX_AGENT_STATE_DIR", "/var/lib/vrx/agent"),
-		Owner:          env("VRX_OWNER", "vrx"),
+		Owner:          owner,
 		MetricsAddr:    metrics,
 		LogLevel:       env("VRX_LOG_LEVEL", "info"),
 	}
@@ -101,6 +113,7 @@ type Agent struct {
 	metrics *metrics
 	httpSrv *http.Server
 	stats   *statsReader
+	wiring  *subsystems.Wiring
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
 }
@@ -122,14 +135,19 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 	m := newMetrics()
 	conn := vpp.Dial(cfg.VPPAPISocket, vpp.ConnOptions{Logger: log})
 	reg := scheduler.NewRegistry()
-	core.Register(reg, core.Env{Client: conn, Owner: cfg.Owner, Owned: owned})
-	sched := scheduler.New(reg, log.With("component", "scheduler"))
-	svc, err := NewService(ServiceConfig{Owner: cfg.Owner, Version: version, Logger: log, VPP: conn, Scheduler: sched, StateDir: cfg.StateDir, Metrics: m})
+	wiring, err := subsystems.Register(reg, subsystems.Env{Client: conn, Owner: cfg.Owner, StateDir: cfg.StateDir, Owned: owned, GlobalsOwner: cfg.GlobalsOwner, Log: log.With("component", "subsystems")})
 	if err != nil {
 		conn.Close()
 		return nil, err
 	}
-	a := &Agent{cfg: cfg, log: log, conn: conn, svc: svc, metrics: m, stats: newStatsReader(cfg.VPPStatsSocket, log)}
+	log.Info("subsystems wired", "domains", implementedDomains(), "wiring", wiring.String())
+	sched := scheduler.New(reg, log.With("component", "scheduler"))
+	svc, err := NewService(ServiceConfig{Owner: cfg.Owner, Version: version, Logger: log, VPP: conn, Scheduler: sched, StateDir: cfg.StateDir, Metrics: m, BeforeTxn: wiring.BeforeTxn})
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	a := &Agent{cfg: cfg, log: log, conn: conn, svc: svc, metrics: m, stats: newStatsReader(cfg.VPPStatsSocket, log), wiring: wiring}
 
 	l, err := listenUnix(cfg.Socket, cfg.SocketGroup, log)
 	if err != nil {
@@ -207,6 +225,9 @@ func (a *Agent) watchVPP(ctx context.Context) {
 			}
 			a.svc.SetVPPVersion(v)
 			a.svc.events().publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_VPP_CONNECTED, Message: "VPP " + v})
+			if a.wiring != nil {
+				a.wiring.Connected(ctx) // P08: D-080 boot identity for the stores, DF-8 Reconnected()
+			}
 			resp := a.svc.Resync(ctx)
 			if resp != nil {
 				a.log.Info("resync finished", "status", resp.GetStatus().String(), "summary", resp.GetSummary().String())

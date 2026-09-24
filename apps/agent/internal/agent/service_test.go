@@ -25,6 +25,7 @@ import (
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp"
 )
 
@@ -38,10 +39,14 @@ func newSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
 		t.Fatal(err)
 	}
 	reg := scheduler.NewRegistry()
-	core.Register(reg, core.Env{Client: v, Owner: testOwner, Owned: owned})
+	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.Connected(context.Background()) // boot identity for the claim stores (P08)
 	sched := scheduler.New(reg, nil)
 	sched.VerifyRetries = 0
-	svc, err := NewService(ServiceConfig{Owner: testOwner, Version: "test", VPP: v, Scheduler: sched, StateDir: dir})
+	svc, err := NewService(ServiceConfig{Owner: testOwner, Version: "test", VPP: v, Scheduler: sched, StateDir: dir, BeforeTxn: w.BeforeTxn})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,8 +83,8 @@ const sampleDoc = `{
 const canonicalDoc = `{
   "vrfs": {"red": {"id": 7001}},
   "interfaces": {
-    "loop701": {"vrf": "red", "ipv4": ["10.7.1.1/24"], "ipv6": ["2001:db8:7::1/64"]},
-    "loop702": {"vrf": "red", "ipv4": ["10.7.2.1/24"]}
+    "loop701": {"enabled": false, "promiscuous": false, "vrf": "red", "ipv4": ["10.7.1.1/24"], "ipv6": ["2001:db8:7::1/64"]},
+    "loop702": {"enabled": false, "promiscuous": false, "vrf": "red", "ipv4": ["10.7.2.1/24"]}
   },
   "routing": {"static": [
     {"prefix": "10.7.200.0/24", "vrf": "default", "blackhole": false, "nextHops": [{"interface": "loop701", "weight": 1}]},
@@ -110,7 +115,7 @@ func TestApplyRetrieveIdempotent(t *testing.T) {
 	s := newSvc(t, v, t.TempDir())
 	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)})
 	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	if resp.GetSummary().GetCreated() != 10 || len(resp.GetResults()) != 10 {
+	if resp.GetSummary().GetCreated() != 12 || len(resp.GetResults()) != 12 { // P08: + interface/loop701, interface/loop702 aliases
 		t.Fatalf("summary %v results %d", resp.GetSummary(), len(resp.GetResults()))
 	}
 	for _, r := range resp.GetResults() {
@@ -133,7 +138,7 @@ func TestApplyRetrieveIdempotent(t *testing.T) {
 	v.Reset()
 	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, sampleDoc)})
 	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	if len(resp.GetResults()) != 0 || resp.GetSummary().GetUnchanged() != 10 {
+	if len(resp.GetResults()) != 0 || resp.GetSummary().GetUnchanged() != 12 {
 		t.Fatalf("second apply %v", resp)
 	}
 	for _, c := range v.Calls() {
@@ -279,7 +284,7 @@ func TestRollbackReported(t *testing.T) {
 			reverted++
 		}
 	}
-	if failed != 1 || reverted != 2 || resp.GetSummary().GetReverted() != 2 {
+	if failed != 1 || reverted != 3 || resp.GetSummary().GetReverted() != 3 { // P08: + the loop703 alias
 		t.Fatalf("failed=%d reverted=%d %v", failed, reverted, resp.GetResults())
 	}
 	if v.Snapshot() != before {
@@ -479,7 +484,7 @@ func TestDryRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !rep.GetOk() || len(rep.GetPlan()) != 4 || rep.GetSummary().GetCreated() != 4 {
+	if !rep.GetOk() || len(rep.GetPlan()) != 6 || rep.GetSummary().GetCreated() != 6 { // P08: + alias, interface.mtu
 		t.Fatalf("report %v", rep)
 	}
 	if rep.GetPlan()[0].GetKey() != "vrf/7001" || rep.GetPlan()[0].GetOp() != vrxv1.ApplyOperation_APPLY_OPERATION_CREATE || rep.GetPlan()[0].GetCode() != vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_UNSPECIFIED {
@@ -491,7 +496,7 @@ func TestDryRun(t *testing.T) {
 			warn++
 		}
 	}
-	if warn != 1 { // interfaces.mtu; vrfs.description is kept by the agent (D-073b)
+	if warn != 0 { // P08 implements interfaces.mtu; vrfs.description is kept by the agent (D-073b)
 		t.Fatalf("warnings %v", rep.GetErrors())
 	}
 	for _, c := range v.Calls() {
@@ -521,7 +526,7 @@ func TestDefaultVRFNoDrift(t *testing.T) {
 	d := `{"interfaces":{"loop705":{"vrf":"default","ipv4":["10.7.5.1/24"]},"loop706":{}}}`
 	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "d1", DesiredState: doc(t, d)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces"}})
-	want := doc(t, `{"interfaces":{"loop705":{"vrf":"default","ipv4":["10.7.5.1/24"]},"loop706":{"vrf":"default"}}}`)
+	want := doc(t, `{"interfaces":{"loop705":{"enabled":false,"promiscuous":false,"vrf":"default","ipv4":["10.7.5.1/24"]},"loop706":{"enabled":false,"promiscuous":false,"vrf":"default"}}}`)
 	if err != nil || !proto.Equal(got.GetDesiredState(), want) {
 		t.Fatalf("retrieve %v %s", err, protojson.Format(got.GetDesiredState()))
 	}
@@ -671,7 +676,7 @@ func TestGRPCRoundTrip(t *testing.T) {
 		t.Fatalf("event 1 %v %v", err, e1)
 	}
 	e2, err := evs.Recv()
-	if err != nil || e2.GetKind() != vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE || e2.GetSummary().GetCreated() != 10 {
+	if err != nil || e2.GetKind() != vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE || e2.GetSummary().GetCreated() != 12 {
 		t.Fatalf("event 2 %v %v", err, e2)
 	}
 	got, err := c.Retrieve(ctx, &vrxv1.RetrieveRequest{})
@@ -1017,7 +1022,7 @@ func TestTableZeroNamedByID(t *testing.T) {
 	d := `{"vrfs":{"main":{"id":0}},"interfaces":{"loop705":{"vrf":"main"}},"routing":{"static":[{"prefix":"10.7.66.0/24","vrf":"main","distance":1,"blackhole":true}]}}`
 	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "z1", DesiredState: doc(t, d)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces", "routing"}})
-	want := doc(t, `{"interfaces":{"loop705":{"vrf":"main"}},"routing":{"static":[{"prefix":"10.7.66.0/24","vrf":"main","distance":1,"blackhole":true}]}}`)
+	want := doc(t, `{"interfaces":{"loop705":{"enabled":false,"promiscuous":false,"vrf":"main"}},"routing":{"static":[{"prefix":"10.7.66.0/24","vrf":"main","distance":1,"blackhole":true}]}}`)
 	if err != nil || !proto.Equal(got.GetDesiredState(), want) {
 		t.Fatalf("retrieve %v %s", err, protojson.Format(got.GetDesiredState()))
 	}

@@ -214,15 +214,23 @@ func MetaOf(meta any) (Meta, error) {
 	return m, nil
 }
 
-// SanitizeAndTag prepares a sw_if_index VPP has just returned for a new interface: it first
-// clears the per-interface state VPP keeps from the interface that had the index before
-// (ifsanitize.Sanitize: classify bindings, ADL, vxlan bypass, IPsec SPD — VPP V19/V21, D-095),
-// then stamps the owner tag. On error the caller removes the interface.
-func SanitizeAndTag(ctx context.Context, client vpp.Client, owner, id string, swIfIndex uint32) error {
-	if _, err := ifsanitize.Sanitize(ctx, client, swIfIndex, id); err != nil {
-		return err
+// AcquireAndTag creates an interface with create, makes sure its new sw_if_index carries nothing
+// of the interface that had it before — ifsanitize.Acquire: L3 mode, classify bindings (also to
+// deleted tables, through placeholders), ADL, vxlan bypass, IPsec SPD, or quarantine of the index
+// and a fresh one (VPP V19/V21, D-095) — and stamps the owner tag. del removes the interface
+// (rollback); a failed tag removes it too, so nothing untagged is left behind.
+func AcquireAndTag(ctx context.Context, client vpp.Client, owner, id string, create func() (uint32, error), del func(uint32) error) (uint32, error) {
+	idx, err := ifsanitize.Acquire(ctx, client, owner, id, create, del)
+	if err != nil {
+		return 0, err
 	}
-	return Tag(ctx, client, owner, id, swIfIndex)
+	if err := Tag(ctx, client, owner, id, idx); err != nil {
+		if derr := del(idx); derr != nil {
+			return 0, fmt.Errorf("%w (and removing the untagged orphan %d: %v)", err, idx, derr)
+		}
+		return 0, err
+	}
+	return idx, nil
 }
 
 // Tag stamps the owner tag "<owner>:<id>" on sw_if_index (sw_interface_tag_add_del).

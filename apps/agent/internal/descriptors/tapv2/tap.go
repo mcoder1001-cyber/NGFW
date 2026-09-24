@@ -138,19 +138,22 @@ func (d *TapDescriptor) Create(ctx context.Context, obj proto.Message) (any, err
 	if o.GetCsumOffload() {
 		req.TapFlags |= tapapi.TAP_API_FLAG_CSUM_OFFLOAD
 	}
-	rep, err := d.svc().TapCreateV3(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("tap_create_v3: %w", err)
-	}
-	// D-095 / VPP V19: clear what the previous holder of this sw_if_index left behind before the
-	// tap is reported created; a tap that cannot be made clean is removed again
-	if _, err := ifsanitize.Sanitize(ctx, d.client, uint32(rep.SwIfIndex), o.GetName()); err != nil {
-		if _, derr := d.svc().TapDeleteV2(ctx, &tapapi.TapDeleteV2{SwIfIndex: rep.SwIfIndex}); derr != nil {
-			return nil, fmt.Errorf("%w (and tap_delete_v2 of %d: %v)", err, rep.SwIfIndex, derr)
+	// D-095 / VPP V19: the new sw_if_index is cleaned of what its previous holder left behind (or
+	// quarantined and a fresh one taken) before the tap is reported created
+	idx, err := ifsanitize.Acquire(ctx, d.client, d.owner, o.GetName(), func() (uint32, error) {
+		rep, err := d.svc().TapCreateV3(ctx, req)
+		if err != nil {
+			return 0, fmt.Errorf("tap_create_v3: %w", err)
 		}
+		return uint32(rep.SwIfIndex), nil
+	}, func(i uint32) error {
+		_, err := d.svc().TapDeleteV2(ctx, &tapapi.TapDeleteV2{SwIfIndex: interface_types.InterfaceIndex(i)})
+		return err
+	})
+	if err != nil {
 		return nil, err
 	}
-	return iface.Meta{SwIfIndex: uint32(rep.SwIfIndex)}, nil
+	return iface.Meta{SwIfIndex: idx}, nil
 }
 
 // Update implements scheduler.Descriptor.
@@ -162,6 +165,10 @@ func (*TapDescriptor) Update(context.Context, proto.Message, proto.Message, any)
 func (d *TapDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
 	m, err := iface.MetaOf(meta)
 	if err != nil {
+		return err
+	}
+	// D-095 / review H3: clear every binding while its tables still exist
+	if err := ifsanitize.BeforeDelete(ctx, d.client, m.SwIfIndex, "tap"); err != nil {
 		return err
 	}
 	if _, err := d.svc().TapDeleteV2(ctx, &tapapi.TapDeleteV2{SwIfIndex: interface_types.InterfaceIndex(m.SwIfIndex)}); err != nil {

@@ -100,18 +100,23 @@ func (d *TunnelDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	if err != nil {
 		return nil, err
 	}
-	rep, err := mpls.NewServiceClient(d.Client).MplsTunnelAddDel(ctx, &mpls.MplsTunnelAddDel{MtIsAdd: true, MtTunnel: mpls.MplsTunnel{
-		MtSwIfIndex: interface_types.InterfaceIndex(df7.NoIndex), MtL2Only: t.L2Only, MtIsMulticast: t.Multicast, MtTag: tag,
-		MtNPaths: uint8(len(paths)), MtPaths: paths}}) //nolint:gosec // ≤ 255
+	// D-095 / VPP V19: the new sw_if_index is cleaned of what its previous holder left behind (or
+	// quarantined and a fresh one taken) before the tunnel is tagged and reported created
+	var rep *mpls.MplsTunnelAddDelReply
+	_, err = ifsanitize.Acquire(ctx, d.Client, d.Owner, t.Name, func() (uint32, error) {
+		r, err := mpls.NewServiceClient(d.Client).MplsTunnelAddDel(ctx, &mpls.MplsTunnelAddDel{MtIsAdd: true, MtTunnel: mpls.MplsTunnel{
+			MtSwIfIndex: interface_types.InterfaceIndex(df7.NoIndex), MtL2Only: t.L2Only, MtIsMulticast: t.Multicast, MtTag: tag,
+			MtNPaths: uint8(len(paths)), MtPaths: paths}}) //nolint:gosec // ≤ 255
+		if err != nil {
+			return 0, d.Wrap("mpls_tunnel_add_del (add) "+t.Name, err)
+		}
+		rep = r
+		return uint32(r.SwIfIndex), nil
+	}, func(i uint32) error { return d.remove(ctx, i, paths) })
 	if err != nil {
-		return nil, d.Wrap("mpls_tunnel_add_del (add) "+t.Name, err)
-	}
-	m := TunnelMeta{SwIfIndex: uint32(rep.SwIfIndex), TunnelIndex: rep.TunnelIndex}
-	// D-095 / VPP V19: clear inherited per-interface state before the tunnel is reported created
-	if _, err := ifsanitize.Sanitize(ctx, d.Client, m.SwIfIndex, t.Name); err != nil {
-		_ = d.remove(ctx, m.SwIfIndex, paths)
 		return nil, err
 	}
+	m := TunnelMeta{SwIfIndex: uint32(rep.SwIfIndex), TunnelIndex: rep.TunnelIndex}
 	if _, err := interfaces.NewServiceClient(d.Client).SwInterfaceTagAddDel(ctx, &interfaces.SwInterfaceTagAddDel{IsAdd: true, SwIfIndex: rep.SwIfIndex, Tag: tag}); err != nil {
 		_ = d.remove(ctx, m.SwIfIndex, paths)
 		return nil, d.Wrap("sw_interface_tag_add_del "+t.Name, err)
@@ -152,6 +157,10 @@ func (d *TunnelDescriptor) Delete(ctx context.Context, obj proto.Message, _ any)
 	for _, o := range all {
 		if o.Name != name || (dupSw != "" && dupSw != u32(uint32(o.Detail.MtSwIfIndex))) {
 			continue
+		}
+		// D-095 / review H3: clear every binding while its tables still exist
+		if err := ifsanitize.BeforeDelete(ctx, d.Client, uint32(o.Detail.MtSwIfIndex), o.Name); err != nil {
+			return err
 		}
 		if err := d.remove(ctx, uint32(o.Detail.MtSwIfIndex), o.Detail.MtPaths); err != nil {
 			return err

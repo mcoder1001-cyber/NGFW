@@ -12,6 +12,7 @@ import (
 	"ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
 // HostInterfaceName is the descriptor name ("af-packet.host-interface").
@@ -61,18 +62,20 @@ func (d *HostInterfaceDescriptor) Create(ctx context.Context, obj proto.Message)
 	if o.GetMode() == Mode_MODE_IP {
 		mode = afpapi.AF_PACKET_API_MODE_IP
 	}
-	rep, err := d.svc().AfPacketCreateV3(ctx, &afpapi.AfPacketCreateV3{
-		Mode: mode, UseRandomHwAddr: true, HostIfName: o.GetHostIfName(), NumRxQueues: 1, NumTxQueues: 1,
+	// an untagged or unclean host-interface is removed again (review M3, D-095)
+	idx, err := iface.AcquireAndTag(ctx, d.client, d.owner, o.GetName(), func() (uint32, error) {
+		rep, err := d.svc().AfPacketCreateV3(ctx, &afpapi.AfPacketCreateV3{
+			Mode: mode, UseRandomHwAddr: true, HostIfName: o.GetHostIfName(), NumRxQueues: 1, NumTxQueues: 1,
+		})
+		if err != nil {
+			return 0, fmt.Errorf("af_packet_create_v3: %w", err)
+		}
+		return uint32(rep.SwIfIndex), nil
+	}, func(uint32) error {
+		_, err := d.svc().AfPacketDelete(ctx, &afpapi.AfPacketDelete{HostIfName: o.GetHostIfName()})
+		return err
 	})
 	if err != nil {
-		return nil, fmt.Errorf("af_packet_create_v3: %w", err)
-	}
-	idx := uint32(rep.SwIfIndex)
-	if err := iface.SanitizeAndTag(ctx, d.client, d.owner, o.GetName(), idx); err != nil {
-		// an untagged host-interface is invisible to Retrieve and blocks every retry: remove it (review M3)
-		if _, derr := d.svc().AfPacketDelete(ctx, &afpapi.AfPacketDelete{HostIfName: o.GetHostIfName()}); derr != nil {
-			return nil, fmt.Errorf("%w (and af_packet_delete of the untagged orphan %d: %v)", err, idx, derr)
-		}
 		return nil, err
 	}
 	return iface.Meta{SwIfIndex: idx}, nil
@@ -85,12 +88,17 @@ func (*HostInterfaceDescriptor) Update(context.Context, proto.Message, proto.Mes
 
 // Delete implements scheduler.Descriptor.
 func (d *HostInterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
-	if _, err := iface.MetaOf(meta); err != nil {
+	m, err := iface.MetaOf(meta)
+	if err != nil {
 		return err
 	}
 	o, ok := obj.(*HostInterface)
 	if !ok {
 		return ErrEmptyValue
+	}
+	// D-095 / review H3: clear every binding while its tables still exist
+	if err := ifsanitize.BeforeDelete(ctx, d.client, m.SwIfIndex, o.GetName()); err != nil {
+		return err
 	}
 	if _, err := d.svc().AfPacketDelete(ctx, &afpapi.AfPacketDelete{HostIfName: o.GetHostIfName()}); err != nil {
 		return fmt.Errorf("af_packet_delete: %w", err)

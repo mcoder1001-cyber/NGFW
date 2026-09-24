@@ -58,17 +58,22 @@ func (d *LoopbackDescriptor) Create(ctx context.Context, obj proto.Message) (any
 		return nil, err
 	}
 	svc := interfaces.NewServiceClient(d.Client)
-	rep, err := svc.CreateLoopbackInstance(ctx, &interfaces.CreateLoopbackInstance{IsSpecified: true, UserInstance: inst})
+	// D-095 / VPP V19: the new sw_if_index is cleaned of what its previous holder left behind (or
+	// quarantined and a fresh one taken) before the loopback is tagged and reported created
+	i, err := ifsanitize.Acquire(ctx, d.Client, d.Owner, l.GetName(), func() (uint32, error) {
+		rep, err := svc.CreateLoopbackInstance(ctx, &interfaces.CreateLoopbackInstance{IsSpecified: true, UserInstance: inst})
+		if err != nil {
+			return 0, fmt.Errorf("create_loopback_instance %d: %w", inst, err)
+		}
+		return uint32(rep.SwIfIndex), nil
+	}, func(i uint32) error {
+		_, err := svc.DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: interface_types.InterfaceIndex(i)})
+		return err
+	})
 	if err != nil {
-		return nil, fmt.Errorf("create_loopback_instance %d: %w", inst, err)
-	}
-	idx := rep.SwIfIndex
-	// D-095 / VPP V19: clear what the previous holder of this sw_if_index left behind (classify
-	// bindings, ADL, vxlan bypass, SPD) before the loopback is tagged and reported created
-	if _, err := ifsanitize.Sanitize(ctx, d.Client, uint32(idx), l.GetName()); err != nil {
-		_, _ = svc.DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: idx})
 		return nil, err
 	}
+	idx := interface_types.InterfaceIndex(i)
 	if _, err := svc.SwInterfaceTagAddDel(ctx, &interfaces.SwInterfaceTagAddDel{IsAdd: true, SwIfIndex: idx, Tag: tag}); err != nil {
 		// never leave an untagged (unowned, therefore unreachable for us) loopback behind
 		_, _ = svc.DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: idx})
@@ -99,6 +104,10 @@ func (d *LoopbackDescriptor) Delete(ctx context.Context, obj proto.Message, _ an
 		return nil // already gone
 	}
 	if err != nil {
+		return err
+	}
+	// D-095 / review H3: clear every binding while its tables still exist
+	if err := ifsanitize.BeforeDelete(ctx, d.Client, in.Index, in.ID); err != nil {
 		return err
 	}
 	if _, err := interfaces.NewServiceClient(d.Client).DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: interface_types.InterfaceIndex(in.Index)}); err != nil {

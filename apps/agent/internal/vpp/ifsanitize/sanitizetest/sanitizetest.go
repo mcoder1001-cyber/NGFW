@@ -10,6 +10,7 @@ package sanitizetest
 
 import (
 	"sort"
+	"strings"
 	"sync"
 
 	"go.fd.io/govpp/api"
@@ -18,6 +19,7 @@ import (
 	classifyapi "ngfw/agent/binapi/classify"
 	"ngfw/agent/binapi/interface_types"
 	ipsecapi "ngfw/agent/binapi/ipsec"
+	l2api "ngfw/agent/binapi/l2"
 	vxlanapi "ngfw/agent/binapi/vxlan"
 	"ngfw/agent/internal/vpp/fake"
 	"ngfw/agent/internal/vpp/ifsanitize"
@@ -39,6 +41,8 @@ type Iface struct {
 	Vxlan    [2]bool
 	// SPD is the bound SPD pool index (none: unbound).
 	SPD uint32
+	// L3Resets counts sw_interface_set_l2_bridge enable=0 calls.
+	L3Resets int
 }
 
 // Clear returns a state without bindings.
@@ -57,11 +61,18 @@ type Model struct {
 	Ifs    map[uint32]*Iface
 	// SPDs maps spd_id → SPD pool index.
 	SPDs map[uint32]uint32
+	// Free is the classify table pool's free list (LIFO, as vppinfra pool); Len the pool vector
+	// length (grown to cover every table index).
+	Free []uint32
+	Len  uint32
+	// Created counts classify_add_del_table adds (placeholders).
+	Created int
+	masks   map[uint32][]byte
 }
 
 // NewModel returns an empty model.
 func NewModel() *Model {
-	return &Model{Tables: map[uint32]bool{}, Ifs: map[uint32]*Iface{}, SPDs: map[uint32]uint32{}}
+	return &Model{Tables: map[uint32]bool{}, Ifs: map[uint32]*Iface{}, SPDs: map[uint32]uint32{}, masks: map[uint32][]byte{}}
 }
 
 // If returns (creating) the state of sw_if_index idx.
@@ -101,11 +112,44 @@ func (m *Model) unbind(slots []uint32, want []uint32, features []string, f map[s
 }
 
 var (
-	inFeatures      = []string{"ip4-unicast/ip4-inacl", "ip6-unicast/ip6-inacl", ""}
-	outFeatures     = []string{"ip4-output/ip4-outacl", "ip6-output/ip6-outacl", ""}
-	policerFeatures = []string{"ip4-unicast/ip4-policer-classify", "ip6-unicast/ip6-policer-classify", ""}
+	inFeatures      = []string{"ip4-unicast/ip4-inacl", "ip6-unicast/ip6-inacl", "l2:l2-input-acl"}
+	outFeatures     = []string{"ip4-output/ip4-outacl", "ip6-output/ip6-outacl", "l2:l2-output-acl"}
+	policerFeatures = []string{"ip4-unicast/ip4-policer-classify", "ip6-unicast/ip6-policer-classify", "l2:l2-policer"}
 	flowFeatures    = []string{"ip4-unicast/ip4-flow-classify", "ip6-unicast/ip6-flow-classify"}
 )
+
+// DeleteTable frees table t as VPP does (index pushed on the pool's free list).
+func (m *Model) DeleteTable(t uint32) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.growLocked()
+	if t+1 > m.Len {
+		m.Len = t + 1
+	}
+	delete(m.Tables, t)
+	delete(m.masks, t)
+	m.Free = append(m.Free, t)
+}
+
+// growLocked makes the pool consistent with Tables: the vector covers every table, and every index
+// below Len that is neither a table nor on the free list is a freed index (pushed ascending, so the
+// highest pops first).
+func (m *Model) growLocked() {
+	for t := range m.Tables {
+		if t+1 > m.Len {
+			m.Len = t + 1
+		}
+	}
+	onFree := map[uint32]bool{}
+	for _, f := range m.Free {
+		onFree[f] = true
+	}
+	for i := uint32(0); i < m.Len; i++ {
+		if !m.Tables[i] && !onFree[i] {
+			m.Free = append([]uint32{i}, m.Free...)
+		}
+	}
+}
 
 // Install registers the model's handlers on f (replacing earlier ones for these messages).
 func (m *Model) Install(f *fake.Client) {
@@ -128,6 +172,60 @@ func (m *Model) Handlers() map[string]fake.Handler {
 		}
 		rep.Count = uint32(len(rep.Ids)) //nolint:gosec // test sizes
 		return one(rep), nil
+	})
+	f.On("classify_add_del_table", func(req api.Message) ([]api.Message, error) {
+		r := req.(*classifyapi.ClassifyAddDelTable)
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		m.growLocked()
+		if !r.IsAdd {
+			if !m.Tables[r.TableIndex] {
+				return nil, api.VPPApiError(-6)
+			}
+			delete(m.Tables, r.TableIndex)
+			delete(m.masks, r.TableIndex)
+			m.Free = append(m.Free, r.TableIndex)
+			return one(&classifyapi.ClassifyAddDelTableReply{}), nil
+		}
+		var idx uint32
+		if n := len(m.Free); n > 0 {
+			idx, m.Free = m.Free[n-1], m.Free[:n-1]
+		} else {
+			idx = m.Len
+			m.Len++
+		}
+		m.Tables[idx] = true
+		m.masks[idx] = append([]byte(nil), r.Mask...)
+		m.Created++
+		return one(&classifyapi.ClassifyAddDelTableReply{NewTableIndex: idx, MatchNVectors: r.MatchNVectors, SkipNVectors: r.SkipNVectors}), nil
+	})
+	f.On("classify_table_info", func(req api.Message) ([]api.Message, error) {
+		r := req.(*classifyapi.ClassifyTableInfo)
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		if !m.Tables[r.TableID] {
+			return nil, api.VPPApiError(-6)
+		}
+		mask := m.masks[r.TableID]
+		if mask == nil {
+			mask = make([]byte, 16)
+		}
+		return one(&classifyapi.ClassifyTableInfoReply{TableID: r.TableID, MatchNVectors: 1, NextTableIndex: none, MaskLength: uint32(len(mask)), Mask: mask}), nil //nolint:gosec // 16
+	})
+	f.On("sw_interface_set_l2_bridge", func(req api.Message) ([]api.Message, error) {
+		r := req.(*l2api.SwInterfaceSetL2Bridge)
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		if !r.Enable {
+			st := m.ifLocked(uint32(r.RxSwIfIndex))
+			for k := range st.Features {
+				if strings.HasPrefix(k, "l2:") {
+					delete(st.Features, k)
+				}
+			}
+			st.L3Resets++
+		}
+		return one(&l2api.SwInterfaceSetL2BridgeReply{}), nil
 	})
 	f.On("classify_set_interface_ip_table", func(req api.Message) ([]api.Message, error) {
 		r := req.(*classifyapi.ClassifySetInterfaceIPTable)
@@ -311,9 +409,13 @@ func (m *Model) set(slots []uint32, want []uint32, isAdd bool, features []string
 func (m *Model) DeleteInterface(idx uint32) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	s := m.ifLocked(idx)
-	s.Features = map[string]bool{}
-	s.ADL = false
+	st := m.ifLocked(idx)
+	for k := range st.Features {
+		if !strings.HasPrefix(k, "l2:") { // l2 feature bits are not arcs: kept (TD-3 review H1)
+			delete(st.Features, k)
+		}
+	}
+	st.ADL = false
 }
 
 // Clean answers the sanitize messages f has no handler for as a VPP without classify tables
@@ -333,6 +435,7 @@ func Clean(f *fake.Client) *Model {
 var Messages = []string{
 	"classify_table_ids", "classify_set_interface_ip_table", "classify_set_interface_l2_tables",
 	"classify_table_by_interface", "input_acl_set_interface", "output_acl_set_interface",
+	"classify_add_del_table", "classify_table_info", "sw_interface_set_l2_bridge",
 	"policer_classify_set_interface", "flow_classify_set_interface",
 	"adl_interface_enable_disable", "sw_interface_set_vxlan_bypass",
 	"ipsec_spd_interface_dump", "ipsec_spds_dump", "ipsec_interface_add_del_spd",
@@ -383,6 +486,11 @@ func (m *Model) Dirty(idx uint32) string {
 		return "adl"
 	case s.SPD != none:
 		return "ipsec spd"
+	}
+	for k := range s.Features {
+		if strings.HasPrefix(k, "l2:") {
+			return "l2 feature bit " + k
+		}
 	}
 	return ""
 }

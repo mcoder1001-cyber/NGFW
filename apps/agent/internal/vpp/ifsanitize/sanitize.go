@@ -31,18 +31,29 @@
 //     ipsec_spds_dump is used (deleting an SPD clears every binding to it, so a stale binding
 //     always refers to an existing SPD).
 //
-// A binding that points at a freed table cannot be removed through the API. It is dormant:
-// VPP disables every feature arc of an interface when it is deleted (vnet_feature_add_del_sw_
-// interface) and a later add of the same kind returns success without enabling anything, so no
-// packet reaches the classifier through it. It is reported as "unclearable" and logged at warn.
-// Sanitize fails only when VPP refuses a call it must accept; the creator then removes the
-// interface instead of reporting it created.
+// Every new interface is first put in L3 mode (sw_interface_set_l2_bridge enable=0 →
+// set_int_l2_mode(MODE_L3)): that zeroes the l2-input/l2-output feature bitmaps, which carry the
+// L2 input ACL, L2 output ACL and L2 policer classify bits — they are not vnet feature arcs, VPP
+// resets them on delete only for interfaces that were bridged/xconnected, and l2-input-acl reads
+// its table unconditionally (TD-3 review H1: a live crash vector once the index is bridged).
 //
-// Sanitize uses only binapi messages and touches only the given sw_if_index. Messages of a
-// plugin that is not loaded are skipped. Every run is logged at info and counted (Metrics).
+// A binding that names a deleted table cannot be removed while the table is gone (VPP checks
+// pool_is_free_index). The classify table pool hands out the most recently freed index first
+// (vppinfra/pool.h, _pool_get pops free_indices[n_free-1]), so before reading/probing, Sanitize
+// resurrects every free index: it creates throwaway placeholder tables (a signature mask) until
+// the pool's holes are filled and it hands out fresh indices; the bindings are then removed
+// through the placeholders and the placeholders deleted again (identity re-verified by geometry
+// and mask right before each delete). What still cannot be removed is Unclearable: in the create
+// phase that is ErrUnclearable, and Acquire quarantines the index (see acquire.go) instead of
+// reporting the interface created.
+//
+// Sanitize uses only binapi messages and touches only the given sw_if_index (plus its own
+// placeholder tables). Messages of a plugin that is not loaded are skipped. Every run is logged at
+// info and counted per phase (create / delete, Metrics).
 package ifsanitize
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -56,6 +67,7 @@ import (
 	classifyapi "ngfw/agent/binapi/classify"
 	"ngfw/agent/binapi/interface_types"
 	ipsecapi "ngfw/agent/binapi/ipsec"
+	l2api "ngfw/agent/binapi/l2"
 	vxlanapi "ngfw/agent/binapi/vxlan"
 	"ngfw/agent/internal/vpp"
 )
@@ -66,6 +78,22 @@ const NoIndex = ^uint32(0)
 // ErrNoSuchTable is VNET_API_ERROR_NO_SUCH_TABLE (vnet/error.h): the answer to an unbind that
 // names a table which is not the one bound.
 const ErrNoSuchTable api.VPPApiError = -65
+
+// ErrUnclearable means a binding of the new interface names a deleted classify table and could not
+// be removed even through a resurrected placeholder: the index must not be used (quarantine).
+var ErrUnclearable = errors.New("inherited binding to a deleted classify table cannot be removed (VPP V19)")
+
+// Phases of a sanitize run.
+const (
+	PhaseCreate = "create" // a new sw_if_index, before the interface is reported created
+	PhaseDelete = "delete" // right before an interface is deleted, while its tables still exist
+)
+
+// MaxPlaceholders bounds the placeholder tables one run creates to resurrect freed indices.
+var MaxPlaceholders = 256
+
+// placeholderMask is the signature of Sanitize's own throwaway classify tables.
+var placeholderMask = []byte("vrx-td3-v19-hold")
 
 // State names used in reports, logs and the metric label.
 const (
@@ -78,69 +106,214 @@ const (
 	StateADL             = "adl"              // adl_interface_enable_disable
 	StateVxlanBypass     = "vxlan-bypass"     //nolint:gosec // G101 false positive: a state label (sw_interface_set_vxlan_bypass)
 	StateIPsecSPD        = "ipsec-spd"        // ipsec_interface_add_del_spd
+	StateL2Mode          = "l2-mode"          // sw_interface_set_l2_bridge enable=0 (L3 mode)
 )
 
 // Report is what one Sanitize run found and did.
 type Report struct {
 	SwIfIndex uint32
 	Name      string
+	Phase     string
+	// Placeholders is how many throwaway tables were created to resurrect freed indices.
+	Placeholders int
+	// Freed lists removed bindings that named a deleted table (removed through a placeholder).
+	Freed []string
 	// Reset lists the states reset blindly (no readback in VPP; the call is a no-op when unset).
 	Reset []string
 	// Cleared lists inherited state that was found and removed ("input-acl ip4 table 3").
 	Cleared []string
-	// Unclearable lists inherited bindings to deleted tables (dormant: their feature is off).
+	// Unclearable lists bindings to deleted tables that could not be removed.
 	Unclearable []string
 	// Skipped lists steps skipped because VPP does not know the message (plugin not loaded).
 	Skipped []string
 }
 
 // Inherited reports whether anything inherited was found.
-func (r Report) Inherited() bool { return len(r.Cleared) > 0 || len(r.Unclearable) > 0 }
+func (r Report) Inherited() bool {
+	return len(r.Cleared) > 0 || len(r.Freed) > 0 || len(r.Unclearable) > 0
+}
 
 type sanitizer struct {
-	ctx context.Context
-	c   vpp.Client
-	idx interface_types.InterfaceIndex
-	ids []uint32 // live classify table indices
-	rep *Report
+	ctx   context.Context
+	c     vpp.Client
+	idx   interface_types.InterfaceIndex
+	phase string
+	live  map[uint32]bool // classify tables that existed before the run
+	ids   []uint32        // live + placeholder table indices (every index a binding can name)
+	holds []uint32        // placeholder tables of this run
+	rep   *Report
 }
 
 // Sanitize clears inherited per-interface state on idx, a sw_if_index VPP has just returned for
 // a new interface called name (used in logs and errors only). Call it after the create and
-// before the interface is reported created; on error the caller removes the interface.
+// before the interface is reported created; on error the caller removes the interface, and on
+// ErrUnclearable it quarantines the index (Acquire does both).
 func Sanitize(ctx context.Context, c vpp.Client, idx uint32, name string) (Report, error) {
-	rep := Report{SwIfIndex: idx, Name: name}
-	s := &sanitizer{ctx: ctx, c: c, idx: interface_types.InterfaceIndex(idx), rep: &rep}
+	return run(ctx, c, idx, name, PhaseCreate)
+}
+
+// BeforeDelete clears every per-interface binding of an interface that is about to be deleted —
+// the only moment all its tables are guaranteed to exist (VPP keeps the bindings on the freed
+// index, V19; TD-3 review H3). Every interface descriptor's Delete, the restart simulations and
+// the test fixtures call it right before the VPP delete. A binding that cannot be removed is
+// logged and counted, not an error (the delete must go on; the next creator's Sanitize handles
+// the index).
+func BeforeDelete(ctx context.Context, c vpp.Client, idx uint32, name string) error {
+	_, err := run(ctx, c, idx, name, PhaseDelete)
+	return err
+}
+
+func run(ctx context.Context, c vpp.Client, idx uint32, name, phase string) (Report, error) {
+	rep := Report{SwIfIndex: idx, Name: name, Phase: phase}
+	s := &sanitizer{ctx: ctx, c: c, idx: interface_types.InterfaceIndex(idx), phase: phase, rep: &rep}
 	err := s.run()
+	if derr := s.dropPlaceholders(); derr != nil && err == nil {
+		err = derr
+	}
+	if err == nil && phase == PhaseCreate && len(rep.Unclearable) > 0 {
+		err = fmt.Errorf("%w: %v", ErrUnclearable, rep.Unclearable)
+	}
 	record(rep, err)
-	log := slog.Default().With("interface", name, "sw_if_index", idx)
+	log := slog.Default().With("interface", name, "sw_if_index", idx, "phase", phase)
 	switch {
 	case err != nil:
-		log.Error("interface sanitize failed (VPP V19)", "err", err, "cleared", rep.Cleared, "unclearable", rep.Unclearable)
+		log.Error("interface sanitize failed (VPP V19)", "err", err, "cleared", rep.Cleared, "freed", rep.Freed, "unclearable", rep.Unclearable)
 	case len(rep.Unclearable) > 0:
-		log.Warn("interface sanitized: inherited bindings to deleted classify tables remain (dormant, VPP V19)",
-			"cleared", rep.Cleared, "unclearable", rep.Unclearable, "reset", rep.Reset, "skipped", rep.Skipped)
+		log.Warn("interface sanitized: bindings to deleted classify tables remain (VPP V19)",
+			"cleared", rep.Cleared, "freed", rep.Freed, "unclearable", rep.Unclearable, "reset", rep.Reset, "skipped", rep.Skipped)
 	default:
-		log.Info("interface sanitized (VPP V19/V21 inherited state)", "cleared", rep.Cleared, "reset", rep.Reset, "skipped", rep.Skipped)
+		log.Info("interface sanitized (VPP V19/V21 inherited state)", "cleared", rep.Cleared, "freed", rep.Freed,
+			"placeholders", rep.Placeholders, "reset", rep.Reset, "skipped", rep.Skipped)
 	}
 	if err != nil {
-		return rep, fmt.Errorf("sanitize %s (sw_if_index %d): %w", name, idx, err)
+		return rep, fmt.Errorf("sanitize %s (sw_if_index %d, %s): %w", name, idx, phase, err)
 	}
 	return rep, nil
 }
 
 func (s *sanitizer) run() error {
+	if err := s.l3Mode(); err != nil {
+		return err
+	}
 	ids, err := classifyapi.NewServiceClient(s.c).ClassifyTableIds(s.ctx, &classifyapi.ClassifyTableIds{})
 	if err != nil {
 		return fmt.Errorf("classify_table_ids: %w", err)
 	}
-	s.ids = ids.Ids
+	s.live = map[uint32]bool{}
+	for _, id := range ids.Ids {
+		s.live[id] = true
+	}
+	s.ids = append([]uint32(nil), ids.Ids...)
+	if s.phase == PhaseCreate {
+		if err := s.resurrect(); err != nil {
+			return err
+		}
+	}
 	for _, step := range []func() error{s.ipClassify, s.l2Classify, s.inputACL, s.outputACL, s.policerClassify, s.flowClassify, s.adl, s.vxlanBypass, s.ipsecSPD} {
 		if err := step(); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// l3Mode puts the interface in L3 mode: set_int_l2_mode(MODE_L3) zeroes the l2 feature bitmaps
+// (L2 input/output ACL, L2 policer classify bits) whether or not their tables still exist. For
+// an interface that is already L3 (every new interface) it changes nothing else (no L2 count
+// change, the ethernet sub-interface flags of an L3 port stay).
+func (s *sanitizer) l3Mode() error {
+	_, err := l2api.NewServiceClient(s.c).SwInterfaceSetL2Bridge(s.ctx, &l2api.SwInterfaceSetL2Bridge{RxSwIfIndex: s.idx, Enable: false})
+	if err != nil {
+		return fmt.Errorf("sw_interface_set_l2_bridge (L3 mode): %w", err)
+	}
+	s.rep.Reset = append(s.rep.Reset, StateL2Mode+" l3")
+	return nil
+}
+
+// resurrect fills the classify table pool's free indices with placeholder tables so every index a
+// stale binding can name exists during the run. It stops once no index below the highest live
+// table is free and three consecutive creates returned consecutive fresh indices above everything
+// seen (the pool's free list is then empty: VPP grows the vector); MaxPlaceholders bounds it.
+func (s *sanitizer) resurrect() error {
+	maxSeen := int64(-1)
+	for id := range s.live {
+		if int64(id) > maxSeen {
+			maxSeen = int64(id)
+		}
+	}
+	holes := map[uint32]bool{}
+	for i := int64(0); i < maxSeen; i++ {
+		if !s.live[uint32(i)] {
+			holes[uint32(i)] = true
+		}
+	}
+	consec := 0
+	for len(s.holds) < MaxPlaceholders {
+		if len(holes) == 0 && consec >= 3 {
+			return nil
+		}
+		idx, err := s.createPlaceholder()
+		if err != nil {
+			return err
+		}
+		delete(holes, idx)
+		switch {
+		case int64(idx) == maxSeen+1:
+			consec++
+			maxSeen = int64(idx)
+		case int64(idx) > maxSeen:
+			consec = 1
+			maxSeen = int64(idx)
+		default:
+			consec = 0
+		}
+	}
+	return nil // capped: whatever is still free stays invisible; the verification decides
+}
+
+func (s *sanitizer) createPlaceholder() (uint32, error) {
+	rep, err := classifyapi.NewServiceClient(s.c).ClassifyAddDelTable(s.ctx, &classifyapi.ClassifyAddDelTable{IsAdd: true, TableIndex: NoIndex,
+		Nbuckets: 2, MemorySize: 64 << 10, MatchNVectors: 1, NextTableIndex: NoIndex, MissNextIndex: NoIndex,
+		MaskLen: uint32(len(placeholderMask)), Mask: placeholderMask}) //nolint:gosec // 16
+	if err != nil {
+		return 0, fmt.Errorf("classify_add_del_table (placeholder): %w", err)
+	}
+	s.holds = append(s.holds, rep.NewTableIndex)
+	s.ids = append(s.ids, rep.NewTableIndex)
+	s.rep.Placeholders++
+	return rep.NewTableIndex, nil
+}
+
+// dropPlaceholders deletes this run's placeholder tables, each only after classify_table_info
+// shows the placeholder's geometry and signature mask at that index (D-071).
+func (s *sanitizer) dropPlaceholders() error {
+	cl := classifyapi.NewServiceClient(s.c)
+	var errs []error
+	for i := len(s.holds) - 1; i >= 0; i-- {
+		idx := s.holds[i]
+		info, err := cl.ClassifyTableInfo(s.ctx, &classifyapi.ClassifyTableInfo{TableID: idx})
+		if err != nil || info.MatchNVectors != 1 || info.SkipNVectors != 0 || !bytes.Equal(info.Mask, placeholderMask) {
+			errs = append(errs, fmt.Errorf("placeholder table %d is not ours any more (%v): left in VPP", idx, err))
+			continue
+		}
+		if _, err := cl.ClassifyAddDelTable(s.ctx, &classifyapi.ClassifyAddDelTable{IsAdd: false, TableIndex: idx, Nbuckets: 2, MemorySize: 64 << 10,
+			MatchNVectors: 1, MaskLen: uint32(len(placeholderMask)), Mask: placeholderMask, NextTableIndex: NoIndex, MissNextIndex: NoIndex}); err != nil { //nolint:gosec // 16
+			errs = append(errs, fmt.Errorf("delete placeholder table %d: %w", idx, err))
+		}
+	}
+	s.holds = nil
+	return errors.Join(errs...)
+}
+
+// freed reports whether table was deleted before this run (it exists only as a placeholder).
+func (s *sanitizer) freed(table uint32) bool { return !s.live[table] }
+
+func (s *sanitizer) cleared(what string, table uint32) {
+	if s.freed(table) {
+		s.rep.Freed = append(s.rep.Freed, what+" (deleted table, removed through a placeholder)")
+		return
+	}
+	s.rep.Cleared = append(s.rep.Cleared, what)
 }
 
 // unknownMsg reports whether err says the VPP does not know the message (plugin not loaded).
@@ -225,20 +398,30 @@ func (s *sanitizer) inputACL() error {
 		sl := aclSlots[i]
 		what := fmt.Sprintf("%s %s table %d", StateInputACL, sl.name, t)
 		if !s.exists(t) {
-			s.rep.Unclearable = append(s.rep.Unclearable, what+" (table deleted)")
-			continue
+			continue // re-read below: unclearable
 		}
 		ip4, ip6, l2 := sl.set(t)
 		if _, err := svc.InputACLSetInterface(s.ctx, &classifyapi.InputACLSetInterface{SwIfIndex: s.idx, IP4TableIndex: ip4, IP6TableIndex: ip6, L2TableIndex: l2, IsAdd: false}); err != nil {
 			return fmt.Errorf("input_acl_set_interface (unbind %s): %w", what, err)
 		}
-		s.rep.Cleared = append(s.rep.Cleared, what)
+		s.cleared(what, t)
+	}
+	// verify via the dump
+	after, err := svc.ClassifyTableByInterface(s.ctx, &classifyapi.ClassifyTableByInterface{SwIfIndex: s.idx})
+	if err != nil {
+		return fmt.Errorf("classify_table_by_interface (verify): %w", err)
+	}
+	for i, t := range []uint32{after.IP4TableID, after.IP6TableID, after.L2TableID} {
+		if t != NoIndex {
+			s.rep.Unclearable = append(s.rep.Unclearable, fmt.Sprintf("%s %s table %d", StateInputACL, aclSlots[i].name, t))
+		}
 	}
 	return nil
 }
 
-// probe unbinds every live table from every slot of one binding kind: NO_SUCH_TABLE means
-// "not this table", success means it was bound and is now removed.
+// probe unbinds every table (live and placeholder) from every slot of one binding kind:
+// NO_SUCH_TABLE means "not this table", success means it was bound and is now removed — which is
+// then verified by the same unbind answering NO_SUCH_TABLE.
 func (s *sanitizer) probe(state string, slots []slot, unbind func(ip4, ip6, l2 uint32) error) error {
 	for _, t := range s.ids {
 		for _, sl := range slots {
@@ -246,7 +429,12 @@ func (s *sanitizer) probe(state string, slots []slot, unbind func(ip4, ip6, l2 u
 			err := unbind(ip4, ip6, l2)
 			switch {
 			case err == nil:
-				s.rep.Cleared = append(s.rep.Cleared, fmt.Sprintf("%s %s table %d", state, sl.name, t))
+				what := fmt.Sprintf("%s %s table %d", state, sl.name, t)
+				if verr := unbind(ip4, ip6, l2); !isRetval(verr, ErrNoSuchTable) {
+					s.rep.Unclearable = append(s.rep.Unclearable, fmt.Sprintf("%s (still bound after the unbind: %v)", what, verr))
+					continue
+				}
+				s.cleared(what, t)
 			case isRetval(err, ErrNoSuchTable):
 			case unknownMsg(err):
 				s.rep.Skipped = append(s.rep.Skipped, state)
@@ -369,13 +557,4 @@ func (s *sanitizer) ipsecSPD() error {
 	}
 	s.rep.Cleared = append(s.rep.Cleared, what)
 	return nil
-}
-
-// BeforeDelete clears the per-interface state of an interface that is about to be deleted
-// outside a descriptor (restart simulations deleting "behind the agent's back", test cleanups):
-// VPP keeps that state on the freed index (V19), so the dependents go first (D-095 c). It is
-// Sanitize under a name that says why.
-func BeforeDelete(ctx context.Context, c vpp.Client, idx uint32, name string) error {
-	_, err := Sanitize(ctx, c, idx, name+" (before delete)")
-	return err
 }

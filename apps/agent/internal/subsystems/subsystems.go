@@ -40,6 +40,7 @@ import (
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/bootid"
+	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
 // Domain names (ROOT_KEYS of packages/schema).
@@ -152,6 +153,22 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	w.dhcpClient = dhcp.NewClient(c, owner, dhcp.WithInterfaceKey(dfkit.DefaultInterfaceKey))
 	r.Register(w.dhcpClient)
 	return w, nil
+}
+
+// AfterResync runs after every full resync — the initial reconcile and the one on each VPP
+// (re)connect: it releases this owner's quarantine holders whose parked sw_if_index is clean again
+// (TD-3 Q2, ifsanitize.Release), so the index is free for the next creator. A holder that is still
+// unclearable stays (admin down, owns the dirty index).
+func (w *Wiring) AfterResync(ctx context.Context) {
+	rctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	n, err := ifsanitize.Release(rctx, w.env.Client, w.env.Owner)
+	switch {
+	case err != nil:
+		w.env.Log.Warn("quarantine release after resync (VPP V19)", "released", n, "err", err)
+	case n > 0:
+		w.env.Log.Info("quarantine holders released after resync (VPP V19)", "released", n)
+	}
 }
 
 // NetdevKind is the Linux netdev lookup of the af_packet veth guard; the projection uses the same one

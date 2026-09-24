@@ -232,6 +232,9 @@ func (a *Agent) watchVPP(ctx context.Context) {
 			if resp != nil {
 				a.log.Info("resync finished", "status", resp.GetStatus().String(), "summary", resp.GetSummary().String())
 			}
+			if a.wiring != nil {
+				a.wiring.AfterResync(ctx) // TD-3 Q2: release clean quarantine holders (ifsanitize.Release)
+			}
 			stopLinks()
 			lctx, cancelLinks := context.WithCancel(ctx)
 			linkCancel = cancelLinks

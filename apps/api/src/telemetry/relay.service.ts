@@ -24,6 +24,13 @@ export function eventTopic(kind: EventKind): Topic {
       return 'reconcile.events';
     case EventKind.EVENT_KIND_CONFIRM_REVERTED:
       return 'commit.events';
+    // Feature event kinds: one `case …: return '<topic>';` under the feature's anchor (wave-A-hotspots P6).
+    // wave-A: F-neighbors-ra
+    // wave-A: F-object-model
+    // wave-A: F-acl
+    // wave-A: P11
+    // wave-A: F-wireguard
+    // wave-A: P12
     default:
       return 'agent.events';
   }

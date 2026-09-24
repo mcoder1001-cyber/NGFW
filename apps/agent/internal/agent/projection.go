@@ -292,6 +292,24 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 			p.warnf(ptr("routing"), "agent.unsupported-field", "routing protocols and policy are rendered by RF-1 (FRR), not by this agent build")
 		}
 	}
+	// Feature builders (internal/desired/<slug>.go): one call under the feature's anchor, e.g.
+	// `if in["nat"] { desired.Nat(p, ds.GetNat(), vrfID) }` (wave-A-hotspots A2).
+	// wave-A: F-bonding
+	// wave-A: F-bridge-l2
+	// wave-A: F-loopback-bvi-gso-lldp-span
+	// wave-A: F-vrf-static-ecmp
+	// wave-A: F-neighbors-ra
+	// wave-A: F-rpf-adl-pbr
+	// wave-A: F-object-model
+	// wave-A: F-acl
+	// wave-A: F-host-acl-nftables
+	// wave-A: F-nat44-ed-sessions
+	// wave-A: F-nat44-ei-64-66-nptv6
+	// wave-A: P11
+	// wave-A: F-wireguard
+	// wave-A: P12
+	// wave-A: F-kea-dhcp-relay
+	// wave-A: F-unbound-chrony-syslog
 	return p
 }
 
@@ -387,6 +405,24 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 			ds.Routing.Static = append(ds.Routing.Static, sr)
 		}
 	}
+	// Feature assemblers (internal/desired/<slug>.go): one call under the feature's anchor; it runs after
+	// desired.Assemble and the routes, so it adds its leaves to the assembled document (wave-A-hotspots A2).
+	// wave-A: F-bonding
+	// wave-A: F-bridge-l2
+	// wave-A: F-loopback-bvi-gso-lldp-span
+	// wave-A: F-vrf-static-ecmp
+	// wave-A: F-neighbors-ra
+	// wave-A: F-rpf-adl-pbr
+	// wave-A: F-object-model
+	// wave-A: F-acl
+	// wave-A: F-host-acl-nftables
+	// wave-A: F-nat44-ed-sessions
+	// wave-A: F-nat44-ei-64-66-nptv6
+	// wave-A: P11
+	// wave-A: F-wireguard
+	// wave-A: P12
+	// wave-A: F-kea-dhcp-relay
+	// wave-A: F-unbound-chrony-syslog
 	return ds
 }
 

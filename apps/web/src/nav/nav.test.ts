@@ -31,7 +31,31 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
   it('marks unbuilt screens unavailable; dashboard, users, revisions (P07b) and dev demos are available', () => {
     const nav = buildNav(domains, { devRoutes: true });
     const available = nav.flatMap((g) => g.items).filter((i) => i.available).map((i) => i.id);
-    expect(available).toEqual(['dashboard', 'interfaces', 'users', 'revisions', 'dev-schema-form', 'dev-data-grid', 'dev-stream']);
+    expect(available).toEqual([
+      'dashboard',
+      'interfaces',
+      // Feature items, in navigation order (group, then schema order, then non-domain items); one line under the feature's anchor.
+      // wave-A: F-bonding
+      // wave-A: F-bridge-l2
+      // wave-A: F-loopback-bvi-gso-lldp-span
+      // wave-A: F-vrf-static-ecmp
+      // wave-A: F-neighbors-ra
+      // wave-A: F-rpf-adl-pbr
+      // wave-A: P12
+      // wave-A: F-nat44-ed-sessions
+      // wave-A: F-object-model
+      // wave-A: F-acl
+      // wave-A: F-host-acl-nftables
+      // wave-A: P11
+      // wave-A: F-wireguard
+      // wave-A: F-kea-dhcp-relay
+      // wave-A: F-unbound-chrony-syslog
+      'users',
+      'revisions',
+      'dev-schema-form',
+      'dev-data-grid',
+      'dev-stream',
+    ]);
   });
 
   it('has no Developer group and no /dev entries when dev routes are off (production builds, review M1)', () => {

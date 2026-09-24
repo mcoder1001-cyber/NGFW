@@ -139,8 +139,9 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	df7.SetBootStore(env.Owner, w.boot) // D-076/D-080 applied-once records of the DF-7 families
 
 	c, owner := env.Client, env.Owner
-	core.Register(r, core.Env{Client: c, Owner: owner, Owned: env.Owned, IfRef: core.AliasInterfaceRef}) // D-065/D-073a
-	r.Register(&vethOnly{Descriptor: afpacket.New(c, owner), kind: env.NetdevKind})                      // D-105: veth only
+	// D-065/D-073a; TD-11c: addresses and VRF bindings on untagged NICs through the persisted claims (D-071/D-080)
+	core.Register(r, core.Env{Client: c, Owner: owner, Owned: env.Owned, IfRef: core.AliasInterfaceRef, Claims: w.ifaceClaim})
+	r.Register(&vethOnly{Descriptor: afpacket.New(c, owner), kind: env.NetdevKind}) // D-105: veth only
 	// DF-1, in iface.Register's order, with the MTU/rx-mode "value equal to the default" tolerance
 	r.Register(iface.NewSubinterface(c, owner))
 	r.Register(iface.NewAdminState(c, owner))

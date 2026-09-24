@@ -31,12 +31,18 @@ import (
 
 const nicDoc = `{
   "vrfs": {"blue": {"id": 10001}},
-  "interfaces": {"lan": {"enabled": true, "vrf": "blue", "ipv4": ["10.10.1.1/24"], "ipv6": ["2001:db8:a::1/64"]}}
+  "interfaces": {
+    "lan": {"enabled": true, "vrf": "blue", "ipv4": ["10.10.1.1/24"], "ipv6": ["2001:db8:a::1/64"]},
+    "wan": {"ipv4": ["10.10.3.1/24"]}
+  }
 }`
 
 const nicCanonical = `{
   "vrfs": {"blue": {"id": 10001}},
-  "interfaces": {"lan": {"enabled": true, "promiscuous": false, "vrf": "blue", "ipv4": ["10.10.1.1/24"], "ipv6": ["2001:db8:a::1/64"]}}
+  "interfaces": {
+    "lan": {"enabled": true, "promiscuous": false, "vrf": "blue", "ipv4": ["10.10.1.1/24"], "ipv6": ["2001:db8:a::1/64"]},
+    "wan": {"enabled": false, "promiscuous": false, "vrf": "default", "ipv4": ["10.10.3.1/24"]}
+  }
 }`
 
 func claimFile(t *testing.T, dir string) string {
@@ -62,7 +68,8 @@ func sent(v *coretest.VPP, names ...string) []string {
 
 func TestPhysicalNICAddressAndVRF(t *testing.T) {
 	v := coretest.New()
-	lan := v.AddInterface("lan", "dpdk", "")
+	v.AddInterface("lan", "dpdk", "")
+	wan := v.AddInterface("wan", "dpdk", "")
 	dir := t.TempDir()
 	s := newSvc(t, v, dir)
 	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "n1", DesiredState: doc(t, nicDoc)})
@@ -79,8 +86,10 @@ func TestPhysicalNICAddressAndVRF(t *testing.T) {
 		}
 	}
 
-	// Somebody else's address on the NIC (linux-nl, a DHCP lease, vppctl): never ours.
-	v.Ifaces[lan].Addrs["192.0.2.1/24"] = true
+	// Somebody else's address on a NIC we hold an address on (linux-nl, a DHCP lease, vppctl): never
+	// ours — not reported, not removed. (On lan it would block the VRF unbind: VPP refuses a table
+	// change while the interface has an address of that family, ADDRESS_FOUND_FOR_INTERFACE.)
+	v.Ifaces[wan].Addrs["192.0.2.1/24"] = true
 	if r := apply(t, s, &vrxv1.ApplyRequest{TxnId: "n2", DesiredState: doc(t, nicDoc)}); len(r.GetResults()) != 0 {
 		t.Fatalf("re-apply changed %v", r.GetResults())
 	}
@@ -103,14 +112,16 @@ func TestPhysicalNICAddressAndVRF(t *testing.T) {
 		t.Fatalf("after restart:\n%s", protojson.Format(got))
 	}
 
-	// Removal: our addresses and binding leave VPP, the claims are released, the NIC and the foreign
+	// Removal: our addresses and binding leave VPP, the claims are released, the NICs and the foreign
 	// address stay.
 	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "n3", DesiredState: doc(t, `{"interfaces":{}}`), Subsystems: []string{"interfaces"}}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	i, ok := v.InterfaceByName("lan")
-	if !ok || i.Table4 != 0 || i.Table6 != 0 || len(i.Addrs) != 1 || !i.Addrs["192.0.2.1/24"] {
+	if i, ok := v.InterfaceByName("lan"); !ok || i.Table4 != 0 || i.Table6 != 0 || len(i.Addrs) != 0 {
 		t.Fatalf("lan after removal %+v", i)
 	}
-	if f := claimFile(t, dir); strings.Contains(f, "lan|interface-ip") {
+	if i, ok := v.InterfaceByName("wan"); !ok || len(i.Addrs) != 1 || !i.Addrs["192.0.2.1/24"] {
+		t.Fatalf("wan after removal %+v", i)
+	}
+	if f := claimFile(t, dir); strings.Contains(f, "interface-ip") {
 		t.Fatalf("claims not released:\n%s", f)
 	}
 }

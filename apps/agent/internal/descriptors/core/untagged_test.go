@@ -182,3 +182,30 @@ func descs2vrf(t *testing.T, v *coretest.VPP) (any, error) {
 	d, _ := reg.Get(core.VRFName)
 	return d.Create(context.Background(), &core.Table{Id: 10001, Vrf: "blue"})
 }
+
+// A binding VPP accepts for IPv4 and refuses for IPv6 (the NIC carries somebody else's IPv6 address:
+// ADDRESS_FOUND_FOR_INTERFACE) leaves nothing behind: IPv4 gets its previous table back and the
+// claim is released.
+func TestUntaggedPartialBindRestored(t *testing.T) {
+	ctx := context.Background()
+	v := coretest.New()
+	v.AddInterface("dmz", "dpdk", "")
+	if _, err := descs2vrf(t, v); err != nil {
+		t.Fatal(err)
+	}
+	_, other := descs(v, "w9", newClaims())
+	if _, err := other.Create(ctx, &core.InterfaceAddress{Interface: "dmz", Prefix: "2001:db8:f::1/64"}); err != nil {
+		t.Fatal(err)
+	}
+	cs := newClaims()
+	tbl, _ := descs(v, "w10", cs)
+	if _, err := tbl.Create(ctx, &core.InterfaceTable{Interface: "dmz", TableId: 10001}); err == nil {
+		t.Fatal("binding over a foreign IPv6 address succeeded")
+	}
+	if i, _ := v.InterfaceByName("dmz"); i.Table4 != 0 || i.Table6 != 0 {
+		t.Fatalf("dmz after the refused binding %+v", i)
+	}
+	if cs.Claimed("dmz", core.InterfaceTableName) {
+		t.Fatal("claim kept although nothing is bound")
+	}
+}

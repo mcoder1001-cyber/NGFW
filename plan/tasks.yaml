@@ -1,6 +1,6 @@
 version: 2
 max_workers: 12
-updated: '2026-09-24'
+updated: '2026-09-25'
 tasks:
 - id: P01
   title: Monorepo scaffold
@@ -745,7 +745,7 @@ tasks:
   owner: ngfw-46 (no slot, unit only)
   started: ''
   finished: ''
-  state: running
+  state: merged
   id: TD-8
   title: 'Agent seams: Env.Publish/Resync wiring (W-seed Q1), S1 dynamic desired source, metrics collector hook'
   prompt: docs/status/wave-BC-launch-queue.md
@@ -759,7 +759,7 @@ tasks:
   - D1.2
   scope: A5 hunks in apps/agent/internal/agent/{agent,service,metrics}.go + subsystems/seams*.go (D-119 M2)
   files_owned: apps/agent/internal/agent/{agent,service,metrics}.go (seam hunks only) apps/agent/internal/subsystems/seams*.go docs/status/tasks/TD-8*
-  notes: D-119 M2 | SPECULATIVE from task/W-seed@df67a8e; scope +fail-closed SlotIDRange +ARCH-1 coverage table (audit A3/A4, D-123)
+  notes: D-119 M2 | SPECULATIVE from task/W-seed@df67a8e; scope +fail-closed SlotIDRange +ARCH-1 coverage table (audit A3/A4, D-123) | merged 8a633616 (squash 6320e21d, D-112), main gate green
 - id: F-vlan-qinq
   title: 'Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking'
   prompt: prompts/features/F-vlan-qinq.md
@@ -1117,7 +1117,7 @@ tasks:
   - TD-8
   priority: 4
   est_hours: 16
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D6.1
@@ -1174,7 +1174,7 @@ tasks:
   - TD-8
   priority: 4
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D6.5

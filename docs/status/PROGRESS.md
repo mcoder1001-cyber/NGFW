@@ -1,18 +1,18 @@
 # Progress
 
-Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
+Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 33.7% by hours (383/1135.0 h), 34.5% by tasks (41/119)**
+**Overall: 34.3% by hours (389/1135.0 h), 35.3% by tasks (42/119)**
 
 | state | tasks |
 |---|---|
-| merged | 41 |
+| merged | 42 |
 | review | 3 |
-| running | 11 |
-| ready | 19 |
+| running | 10 |
+| ready | 21 |
 | parked | 1 |
 | failed | 0 |
-| todo | 44 |
+| todo | 42 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
@@ -20,13 +20,12 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 253 / 268 | 94.4% | 24/27 | 0 | 0 | 1 |
 | S3 | 16 / 16 | 100.0% | 1/1 | 0 | 0 | 0 |
-| S4 | 7 / 576.5 | 1.2% | 3/62 | 11 | 18 | 0 |
+| S4 | 13 / 576.5 | 2.3% | 4/62 | 10 | 20 | 0 |
 | S5 | 28 / 147.5 | 19.0% | 3/15 | 0 | 1 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
 ## Running / review
 
-- TD-8 — Agent seams: Env.Publish/Resync wiring (W-seed Q1), S1 dynamic desired source, metrics collector hook (running, ngfw-46 (no slot, unit only))
 - F-vlan-qinq — Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking (review, ngfw-46 slot5)
 - F-bonding — Wave A (day 7-9): LACP/XOR/RR/active-backup bonds (running, ngfw-46 slot6)
 - F-bridge-l2 — Wave A (day 7-9): bridge domains, L2XC/L3XC, split-horizon, MAC aging, time-range MAC filter (running, ngfw-46 slot7)

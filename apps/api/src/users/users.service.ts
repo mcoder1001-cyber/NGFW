@@ -13,6 +13,7 @@ import { DB, type Db } from '../db/db.js';
 import { apiKey, appUser, configCandidate, configPending } from '../db/schema.js';
 import { releaseKeyLocks } from '../datastore/pg-repo.js';
 import { AuthService } from '../auth/auth.service.js';
+import { assertPasswordPolicy } from './password-policy.js';
 
 /** Loopback peers: the local TLS terminator (nginx, docs/01-architecture.md), the dev proxy, tests. */
 function isLoopback(ip: string | undefined): boolean {
@@ -77,6 +78,8 @@ export class UsersService {
     input: SetPasswordInput,
     req: FastifyRequest,
   ): Promise<SetPasswordResult> {
+    // first, like the schema check it replaces: a too-short password costs no rate-limit hit and reveals nothing
+    assertPasswordPolicy(input.password, this.env.VRX_DEV_WEAK_PASSWORDS);
     const limit = this.env.VRX_PASSWORD_RATE_PER_MIN;
     if ((await this.tokens.hit(`pwset:${caller.id}`, 60)) > limit) {
       throw problems.tooMany('too many password changes; try again in a minute');

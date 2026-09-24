@@ -11,6 +11,13 @@ describe('loadEnv', () => {
     expect(env.VRX_LOGIN_MAX_FAILURES).toBe(10);
   });
 
+  it('VRX_DEV_WEAK_PASSWORDS is off unless explicitly set', () => {
+    expect(loadEnv({}).VRX_DEV_WEAK_PASSWORDS).toBe(false);
+    expect(loadEnv({ VRX_DEV_WEAK_PASSWORDS: '' }).VRX_DEV_WEAK_PASSWORDS).toBe(false);
+    expect(loadEnv({ VRX_DEV_WEAK_PASSWORDS: '1' }).VRX_DEV_WEAK_PASSWORDS).toBe(true);
+    expect(() => loadEnv({ VRX_DEV_WEAK_PASSWORDS: 'yes' })).toThrow(/VRX_DEV_WEAK_PASSWORDS/);
+  });
+
   it('VRX_DATABASE_URL wins over the pg-test VRX_PG_DSN', () => {
     expect(databaseUrl(loadEnv({ VRX_PG_DSN: 'postgres://a/b' }))).toBe('postgres://a/b');
     expect(

@@ -27,6 +27,7 @@ import { openapi, SafeParamPipe, ZodPipe } from '../common/zod.js';
 import { safeText } from '../common/text.js';
 import { ROLES } from '../db/schema.js';
 import { AuthService, type LoginResult } from './auth.service.js';
+import { newPasswordDoc, newPasswordIn } from '../users/password-policy.js';
 import { UsersService } from '../users/users.service.js';
 import { MinRole, NoAudit, Public } from './decorators.js';
 
@@ -39,8 +40,10 @@ const LoginBody = z.strictObject({
 });
 const PasswordBody = z.strictObject({
   current: z.string().min(1).max(1024),
-  password: z.string().min(12).max(1024),
+  password: newPasswordDoc,
 });
+/** Parsed with any non-empty password: the length rule is UsersService.setPassword's (VRX_DEV_WEAK_PASSWORDS). */
+const PasswordBodyIn = PasswordBody.extend({ password: newPasswordIn });
 const ApiKeyBody = z.strictObject({
   name: safeText(64).min(1),
   /** Role cap; the effective role is never above the owner's. */
@@ -177,7 +180,7 @@ export class AuthController {
   @ApiNoContentResponse({ description: 'Password changed' })
   @ApiBody({ schema: openapi(PasswordBody) })
   async password(
-    @Body(new ZodPipe(PasswordBody)) body: z.output<typeof PasswordBody>,
+    @Body(new ZodPipe(PasswordBodyIn)) body: z.output<typeof PasswordBodyIn>,
     @Req() req: VrxRequest,
   ) {
     // TD-2 #1: one implementation with POST /api/v1/users/{name}/password (serialised with commits, stored

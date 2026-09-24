@@ -13,6 +13,8 @@
 # State: database vrx_app (deploy/dev/pg-test.sh), Valkey db 0 prefix vrx:app:, secrets in /var/lib/vrx-app/secrets.env (0600,
 # generated once: JWT key + first-admin password), logs and pids in /var/log/vrx-app and /run/vrx-app.
 # Agent: the real vrx-agent against the host VPP (/run/vpp/api.sock), owner tag "vrx" — it only touches objects it owns.
+# VRX_APP_WEAK_PASSWORDS=1 starts the API with VRX_DEV_WEAK_PASSWORDS=1 (development only): new passwords shorter than
+# 12 characters are accepted (e.g. admin/admin on a lab box); `status` warns while it is on.
 # Slot rules (docs/lab/shared-host-rules.md): slot ports are 3N00/5N00/91N1 for N=1..12; the defaults here stay out of them.
 set -euo pipefail
 
@@ -22,6 +24,7 @@ WEB_PORT="${VRX_APP_WEB_PORT:-8080}"
 API_HOST="${VRX_APP_API_HOST:-127.0.0.1}"
 API_PORT="${VRX_APP_API_PORT:-3000}"
 METRICS_PORT="${VRX_APP_METRICS_PORT:-9101}"
+WEAK_PASSWORDS="${VRX_APP_WEAK_PASSWORDS:-0}"
 STATE=/var/lib/vrx-app
 RUN=/run/vrx-app
 LOG=/var/log/vrx-app
@@ -113,9 +116,10 @@ cmd_up() {
 
   say "vrx-api"
   start_svc api env VRX_HTTP_HOST="$API_HOST" VRX_HTTP_PORT="$API_PORT" VRX_DATABASE_URL="$VRX_PG_DSN" \
-    VRX_VALKEY_DB=0 VRX_VALKEY_PREFIX=vrx:app: VRX_AGENT_SOCKET="$AGENT_SOCKET" VRX_COOKIE_SECURE=0 \
+    VRX_VALKEY_DB=0 VRX_VALKEY_PREFIX=vrx:app: VRX_AGENT_SOCKET="$AGENT_SOCKET" VRX_COOKIE_SECURE=0 VRX_DEV_WEAK_PASSWORDS="$WEAK_PASSWORDS" \
     VRX_SECRET_KEY_FILE="$STATE/secret.key" node "$ROOT/apps/api/dist/main.js"
   wait_port "$API_HOST" "$API_PORT" vrx-api api
+  echo "VRX_DEV_WEAK_PASSWORDS=$WEAK_PASSWORDS" >"$RUN/api.env"
 
   say "web UI"
   start_svc web env VRX_HTTP_PORT="$API_PORT" VRX_WEB_PORT="$WEB_PORT" \
@@ -139,6 +143,9 @@ cmd_status() {
   echo "web UI:"
   if [[ "$HOST" == 0.0.0.0 ]]; then for ip in $ips; do echo "  http://$ip:$WEB_PORT/"; done; else echo "  http://$HOST:$WEB_PORT/"; fi
   echo "API docs: http://<host>:$WEB_PORT/api/docs   (API itself on $API_HOST:$API_PORT)"
+  if [[ -f "$RUN/api.env" ]] && grep -qx "VRX_DEV_WEAK_PASSWORDS=1" "$RUN/api.env"; then
+    echo "WARNING: the API runs with VRX_DEV_WEAK_PASSWORDS=1 — short passwords are accepted (development only)"
+  fi
 }
 
 cmd_logs() { local s="${1:-}"; if [[ -n "$s" ]]; then tail -n 100 -f "$LOG/$s.log"; else tail -n 50 -f "$LOG"/*.log; fi; }

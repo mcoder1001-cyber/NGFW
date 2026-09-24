@@ -5,14 +5,11 @@ import { MinRole } from '../auth/decorators.js';
 import type { VrxRequest } from '../common/principal.js';
 import { Protected } from '../common/responses.js';
 import { openapi, SafeParamPipe, ZodPipe } from '../common/zod.js';
+import { newPasswordDoc, newPasswordIn } from './password-policy.js';
 import { UsersService } from './users.service.js';
 
 const SetPasswordBody = z.strictObject({
-  password: z
-    .string()
-    .min(12)
-    .max(1024)
-    .describe('the new password (write-only; hashed with argon2id)'),
+  password: newPasswordDoc.describe('the new password (write-only; hashed with argon2id)'),
   current: z
     .string()
     .min(1)
@@ -26,6 +23,8 @@ const SetPasswordBody = z.strictObject({
       'admin reset only: keep the target’s API keys (service users); by default an admin reset revokes them (D-097)',
     ),
 });
+/** What the pipe parses: the documented body with any non-empty password — the length rule is UsersService's. */
+const SetPasswordBodyIn = SetPasswordBody.extend({ password: newPasswordIn });
 const SetPasswordOut = z.object({
   self: z.boolean(),
   apiKeysRevoked: z
@@ -64,7 +63,7 @@ export class UsersController {
   @ApiOkResponse({ schema: openapi(SetPasswordOut, 'output') })
   async setPassword(
     @Param('name', new SafeParamPipe('name', 64)) name: string,
-    @Body(new ZodPipe(SetPasswordBody)) body: z.output<typeof SetPasswordBody>,
+    @Body(new ZodPipe(SetPasswordBodyIn)) body: z.output<typeof SetPasswordBodyIn>,
     @Req() req: VrxRequest,
   ): Promise<z.output<typeof SetPasswordOut>> {
     req.audit = { resource: `user/${name}` };

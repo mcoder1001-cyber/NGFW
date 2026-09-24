@@ -9,6 +9,7 @@ import { DB, type Db } from '../db/db.js';
 import { apiKey, appUser, ROLES, type Role } from '../db/schema.js';
 import { releaseKeyLocks } from '../datastore/pg-repo.js';
 import { hashPassword, verifyPassword } from './password.js';
+import { PASSWORD_MIN } from '../users/password-policy.js';
 import { apiKeyHash, newApiKeyToken, TokensService } from './tokens.service.js';
 
 export interface LoginResult {
@@ -37,6 +38,11 @@ export class AuthService {
 
   /** D-048: the API seeds the first admin when there is no user at all. Returns true when it created one. */
   async seedBootstrapAdmin(): Promise<boolean> {
+    if (this.env.VRX_DEV_WEAK_PASSWORDS) {
+      this.log.warn(
+        `VRX_DEV_WEAK_PASSWORDS is on: new passwords shorter than ${PASSWORD_MIN} characters are accepted — development only`,
+      );
+    }
     const [c] = await this.db.select({ n: count() }).from(appUser);
     if ((c?.n ?? 0) > 0) return false;
     const password = this.env.VRX_BOOTSTRAP_ADMIN_PASSWORD;

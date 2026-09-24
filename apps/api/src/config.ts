@@ -52,6 +52,14 @@ const Env = z.object({
   VRX_LOGIN_RATE_PER_MIN: z.coerce.number().int().min(1).default(20),
   VRX_LOGIN_MAX_FAILURES: z.coerce.number().int().min(1).default(10),
   VRX_LOGIN_LOCKOUT_SEC: z.coerce.number().int().min(1).default(900),
+  /**
+   * DEVELOPMENT ONLY: accept new passwords shorter than PASSWORD_MIN (any non-empty one, e.g. admin/admin on a lab box).
+   * Off by default; a warning is logged at boot while it is on. Never set it in a product image.
+   */
+  VRX_DEV_WEAK_PASSWORDS: z
+    .enum(['0', '1', 'true', 'false'])
+    .default('0')
+    .transform((v) => v === '1' || v === 'true'),
   /** Password set/change attempts per caller and minute (TD-2 #1; wrong current passwords count too). */
   VRX_PASSWORD_RATE_PER_MIN: z.coerce.number().int().min(1).default(5),
   /** Telemetry relay heartbeat interval. */

@@ -158,6 +158,13 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
         })
       ).status,
     ).toBe(403);
+    // product rule (VRX_DEV_WEAK_PASSWORDS off): shorter than 12 → 400 on /password, before the current password is checked
+    const short = await h.call(ro, 'POST', '/api/v1/auth/password', {
+      current: PW.ro,
+      password: PW.ro2.slice(0, 11),
+    });
+    expect(short.status).toBe(400);
+    expect(short.body.errors[0].pointer).toBe('/password');
     expect(
       (
         await h.call(ro, 'POST', '/api/v1/auth/password', {

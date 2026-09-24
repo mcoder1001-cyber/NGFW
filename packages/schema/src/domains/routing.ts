@@ -16,6 +16,7 @@ import {
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
 import { nextHopVrf, staticRouteViaFrr } from './ext/vrf-static-ecmp.js';
+import { staticRouteTag } from './ext/frr-linuxcp.js';
 
 /**
  * `routing` — static routes, the routing-policy skeleton (prefix-lists, route-maps) and the dynamic protocols
@@ -188,6 +189,7 @@ export const StaticRouteSchema = z
     // wave-A: F-vrf-static-ecmp
     viaFrr: staticRouteViaFrr,
     // wave-A: P12
+    tag: staticRouteTag,
   })
   .refine((route) => route.blackhole === (route.nextHops.length === 0), {
     message: 'a route needs at least one next hop, unless it is a blackhole route (then none)',

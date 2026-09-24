@@ -12,6 +12,7 @@ import {
 } from '../primitives.js';
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
+import { interfaceLcp } from './ext/frr-linuxcp.js';
 
 /**
  * `interfaces` — record keyed by VPP interface name → interface settings (docs/04-api-datamodel.md; WBS D1.2–D1.4).
@@ -211,6 +212,7 @@ export const InterfaceSchema = z
     // wave-A: F-neighbors-ra
     // wave-A: F-rpf-adl-pbr
     // wave-A: P12
+    lcp: interfaceLcp,
   })
   .refine(noAddressesWhenUnnumbered, { message: UNNUMBERED_EXCLUSIVE, path: ['unnumbered'] });
 

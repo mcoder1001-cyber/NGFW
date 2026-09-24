@@ -88,6 +88,7 @@ export * from './domains/ext/vrf-static-ecmp.js';
 // wave-A: F-object-model
 // wave-A: F-host-acl-nftables
 // wave-A: P12
+export * from './domains/ext/frr-linuxcp.js';
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
 export * from './primitives.js';

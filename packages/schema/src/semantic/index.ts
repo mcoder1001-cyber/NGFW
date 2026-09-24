@@ -42,6 +42,7 @@ import { vrfStaticEcmpValidators } from './vrf-static-ecmp.js';
 // wave-A: P11
 // wave-A: F-wireguard
 // wave-A: P12
+import { bgpValidators } from './bgp.js';
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
 
@@ -94,6 +95,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-A: P11
   // wave-A: F-wireguard
   // wave-A: P12
+  ...bgpValidators,
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
 ];

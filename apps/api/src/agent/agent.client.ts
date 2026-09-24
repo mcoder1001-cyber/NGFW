@@ -8,6 +8,7 @@ import {
   type DryRunRequest,
   type Event,
   type HealthResponse,
+  type InterfaceStateResponse,
   type RetrieveResponse,
   type StatsBatch,
   type StreamEventsRequest,
@@ -82,6 +83,11 @@ export class AgentClient implements OnModuleDestroy {
 
   retrieve(subsystems: string[] = []): Promise<RetrieveResponse> {
     return this.unary(this.c.retrieve, { subsystems, owner: this.owner });
+  }
+
+  /** Live interface table (P08, proto.md §8a); an agent without the RPC answers 501. */
+  interfaceState(names: string[] = []): Promise<InterfaceStateResponse> {
+    return this.unary(this.c.interfaceState, { names, owner: this.owner });
   }
 
   health(timeoutMs = 5000): Promise<HealthResponse> {

@@ -27,6 +27,8 @@ The manager pulls from here when nothing on the board is ready. Add items with a
 
 ## From the TD-6 review (D-116, 2026-09-24) — deploy/vpp/apply-startup.sh harness
 - F3 harness cache key misses the test fixtures; F4 `VRX_TEST_ROOT` guard does not cover driverctl/ifup/networkctl/netplan; F5 own rollback goes FORCED after 60 s when only the holder died; F6 no harness timeout in CI; F7 SIGTERM trap path untested (systemd kills the run unit after 90 s); F8 a flaky pass is warned once then cached; F9 minor rollback edge cases (details: TD-6-review.md in refs/archive/TD-6)
+- (pre-existing, TD-6 review) rollback verification never checks that VPP's boot identity changed (`apply-startup.sh` ~:753); `kill_recorded` may SIGKILL already-reaped PIDs (PID reuse)
+- (TD-7 finding) `check_health` (`deploy/vpp/apply-startup.sh:568`) reads `systemctl show` once without retry: a timed-out/partial D-Bus read counts as "vpp.service restarted" → needless rollback (never a false commit); harness scenarios 5/28/29 start with an unguarded apply so a very loaded host kills a whole shard instead of getting a rerun
 
 ## Open items: owner and due-before (D-125, 2026-09-24 triage of the REVIEW-2026-09-24 report and the architecture audit)
 Items above that are not ticked keep their text; this table gives each one an owner and a due-before. "idle pool" = no row yet, the manager pulls it when a slot is free.
@@ -56,8 +58,16 @@ Items above that are not ticked keep their text; this table gives each one an ow
 | DF-7 manager window: pin the V22b ip4-options trigger (`VRX_DF7_VRRP_HOST=1`, `VRX_DF7_IGMP_HOST=1`, VPP idle) | manager | PENDING-vpp-c-track option 2 |
 | F-startup-gen Q4: tools/lab provision still has its own startup.conf template | idle pool (TD-19 owns the same provision hunk) | first `tools/lab provision vrx-b\|vrx-c --apply` |
 | D-100 shared single-line pattern in packages/schema; TD-6 review F3–F9 | idle pool | — |
-- (pre-existing, TD-6 review) rollback verification never checks that VPP's boot identity changed (`apply-startup.sh` ~:753); `kill_recorded` may SIGKILL already-reaped PIDs (PID reuse)
-## From the P08 re-review (D-118, 2026-09-24)
-- R2-stores: DF-1 attribute Create on an untagged interface can fail with ErrClaimUnbound after VPP was written (claim store re-dump bounded at 5 s < API 60 s); an attribute Create should claim before writing
-- R3-gauge: `vrx_agent_iface_quarantined` is not re-set from the holders `ifsanitize.Release` finds after an agent restart (set the absolute count after every Release)
-- (TD-7 finding) `check_health` (`deploy/vpp/apply-startup.sh:568`) reads `systemctl show` once without retry: a timed-out/partial D-Bus read counts as "vpp.service restarted" → needless rollback (never a false commit); harness scenarios 5/28/29 start with an unguarded apply so a very loaded host kills a whole shard instead of getting a rerun
+
+## P08 re-review (D-118, 2026-09-24) — interfaces vertical slice, no code in P08's fix round 2
+- **R2-stores** (low; `apps/agent/internal/subsystems/stores.go:124`, DF-1 `attributes.go:259-260`): a DF-1 attribute Create on an
+  untagged interface writes VPP first and claims after; the claim's index refresh (`fileClaims.claim` → Invalidate + Resolve) has its
+  own 5 s bound (`subsystems.go:119`), shorter than the transaction's 60 s. A VPP API stall > 5 s between the write and the claim fails
+  the Create after VPP changed (N7's `ErrClaimUnbound`); the scheduler does not journal a failed Create → ROLLED_BACK with the value
+  still in VPP, invisible to Retrieve, never reverted by resync. Untagged (DPDK) NICs only; af_packet is tagged. Fix: bound the claim
+  refresh by the caller's context (≥ the API deadline) or retry it once after a reconnect; and in DF-1, claim before writing (release
+  on write failure) or undo the write when the claim fails — or let the scheduler journal a Create that returns Meta with an error.
+- **R3-gauge** (low; `apps/agent/internal/subsystems/subsystems.go:162`, ifsanitize = TD-3/TD-5 files): `AfterResync` calls
+  `ifsanitize.Release` but never sets `vrx_agent_iface_quarantined` from the holders it found; after an agent restart the gauge reads 0
+  while this owner's still-dirty quarantine holders are in VPP (TD-3 re-review L6). Fix: `Release` returns the number of holders left
+  (holders − released) and the wiring sets `Stats.Quarantined` to that absolute number after every Release (not deltas).

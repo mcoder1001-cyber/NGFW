@@ -19,7 +19,8 @@ import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { PageHeader } from '../../../shell/PageHeader';
-import { useCandidate, useDeleteConfig, usePutConfig, useRoutes } from './api';
+import { useCandidate, usePatchConfig, useRoutes } from './api';
+import { createMergePatch } from '../../interfaces/model';
 import { esc, Mono, pageOf, problemFor } from './common';
 import { localizeSchema, NS, vrfItemSchema, vrfRows, type VrfConfig, type VrfRow, type VrfsConfig } from './model';
 
@@ -52,8 +53,7 @@ export function VrfsPage() {
   const { t } = useTranslation(NS);
   const perms = usePermissions();
   const vrfs = useCandidate<VrfsConfig>('vrfs');
-  const put = usePutConfig();
-  const del = useDeleteConfig();
+  const patch = usePatchConfig();
   const ifNames = useInterfaceNames();
   const [edit, setEdit] = useState<{ name: string; value: VrfConfig | undefined } | null>(null);
   const [adding, setAdding] = useState(false);
@@ -87,7 +87,9 @@ export function VrfsPage() {
   const save = async (value: unknown) => {
     if (!edit) return;
     try {
-      await put.mutateAsync({ path: `vrfs/${edit.name}`, body: value });
+      // merge patch from what the form opened with: removed members become null (RFC 7386)
+      const body = edit.value === undefined ? value : createMergePatch(edit.value, value);
+      await patch.mutateAsync({ key: 'vrfs', patch: { [edit.name]: body } });
       setEdit(null);
     } catch {
       // shown in the dialog (pointers mapped onto the fields)
@@ -96,7 +98,7 @@ export function VrfsPage() {
 
   const remove = async (name: string) => {
     try {
-      await del.mutateAsync(`vrfs/${name}`);
+      await patch.mutateAsync({ key: 'vrfs', patch: { [name]: null } });
       setEdit(null);
     } catch {
       // shown in the dialog
@@ -173,7 +175,7 @@ export function VrfsPage() {
               <Alert severity="info" sx={{ mb: 2 }}>
                 {t('vrfs.sourceSelectHelp')}
               </Alert>
-              {(put.isError || del.isError) && <ProblemAlert error={put.error ?? del.error} sx={{ mb: 1 }} />}
+              {patch.isError && <ProblemAlert error={patch.error} sx={{ mb: 1 }} />}
               <SchemaForm
                 key={edit.name}
                 schema={schema}
@@ -182,11 +184,11 @@ export function VrfsPage() {
                 interfaceOptions={ifNames}
                 submitLabel={t('save')}
                 resetLabel={t('reset')}
-                problem={problemFor(put.error, `/vrfs/${esc(edit.name)}`)}
+                problem={problemFor(patch.error, `/vrfs/${esc(edit.name)}`)}
                 onSubmit={save}
               >
                 {edit.value && edit.name !== 'default' && (
-                  <Button color="error" variant="outlined" startIcon={<DeleteIcon />} disabled={!perms.editConfig || del.isPending} onClick={() => void remove(edit.name)}>
+                  <Button color="error" variant="outlined" startIcon={<DeleteIcon />} disabled={!perms.editConfig || patch.isPending} onClick={() => void remove(edit.name)}>
                     {t('remove')}
                   </Button>
                 )}

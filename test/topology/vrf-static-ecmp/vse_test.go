@@ -89,17 +89,24 @@ func TestVrfStaticEcmpTopology(t *testing.T) {
 			"red":  map[string]any{"id": red, "description": "customer red", "sourceSelect": []any{map[string]any{"prefix": fmt.Sprintf("10.%d.50.0/24", n), "interface": l2}}},
 			"blue": map[string]any{"id": blue},
 		},
+		// canonical order (VRF, then prefix) — the order Retrieve assembles, so the drift view compares equal
 		"routing": map[string]any{"static": []any{
+			map[string]any{"prefix": fmt.Sprintf("10.%d.70.0/24", n), "vrf": "blue", "blackhole": true},
 			map[string]any{"prefix": "0.0.0.0/0", "vrf": "red", "description": "weighted ECMP", "nextHops": []any{
 				map[string]any{"address": fmt.Sprintf("10.%d.221.2", n), "weight": 3},
 				map[string]any{"address": fmt.Sprintf("10.%d.221.3", n), "weight": 1}}},
 			map[string]any{"prefix": fmt.Sprintf("10.%d.60.0/24", n), "vrf": "red", "nextHops": []any{
 				map[string]any{"address": fmt.Sprintf("10.%d.2.2", n), "vrf": "default"}}},
-			map[string]any{"prefix": fmt.Sprintf("10.%d.70.0/24", n), "vrf": "blue", "blackhole": true},
 		}},
 	}
+	// baseline revision: the two loopbacks in the default VRF (the rollback target)
+	a.patch("/interfaces", map[string]any{
+		l1: map[string]any{"enabled": true, "ipv4": []string{fmt.Sprintf("10.%d.221.1/24", n)}},
+		l2: map[string]any{"enabled": true, "ipv4": []string{fmt.Sprintf("10.%d.222.1/24", n)}},
+	})
+	a.commit("vse-baseline")
 	rev0 := revision(t, a)
-	for _, k := range []string{"interfaces", "vrfs", "routing"} {
+	for _, k := range []string{"vrfs", "interfaces", "routing"} {
 		a.patch("/"+k, cfg[k])
 	}
 	start := time.Now()

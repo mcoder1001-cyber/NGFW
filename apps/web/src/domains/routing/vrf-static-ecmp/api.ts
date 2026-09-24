@@ -32,30 +32,27 @@ export function useRoutes(query: RoutesQuery, enabled = true) {
   });
 }
 
-/** A subtree of the candidate (`vrfs`, `routing/static`, `interfaces`); equals running when nobody edits. */
-export function useCandidate<T>(path: string) {
+/**
+ * A top-level node of the candidate (`vrfs`, `routing`, `interfaces`); equals running when nobody edits. Only root keys:
+ * a percent-encoded `/` would be read as part of one pointer segment by the API (config/path.ts).
+ */
+export function useCandidate<T>(key: 'vrfs' | 'routing' | 'interfaces') {
   return useQuery({
-    queryKey: qk.candidate(path),
+    queryKey: qk.candidate(key),
     queryFn: async ({ signal }) =>
-      ((await call(api.GET('/api/v1/config/candidate/{path}', { params: { path: { path } }, signal }))).data ?? undefined) as T | undefined,
+      ((await call(api.GET('/api/v1/config/candidate/{path}', { params: { path: { path: key } }, signal }))).data ?? undefined) as T | undefined,
   });
 }
 
-/** Replace a candidate subtree (the generic P06 pointer route) — nothing VRF- or route-specific in the API. */
-export function usePutConfig() {
+/**
+ * RFC 7386 merge patch of a top-level candidate node (the generic P06 pointer route, nothing VRF- or route-specific):
+ * `{ red: {…} }` / `{ red: null }` for VRFs, `{ static: [...] }` (arrays are replaced whole) for static routes.
+ */
+export function usePatchConfig() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ path, body }: { path: string; body: unknown }) =>
-      call(api.PUT('/api/v1/config/{path}', { params: { path: { path } }, body: body as never })),
-    onSettled: () => invalidateConfig(qc),
-  });
-}
-
-/** Delete a candidate subtree. */
-export function useDeleteConfig() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (path: string) => call(api.DELETE('/api/v1/config/{path}', { params: { path: { path } } })),
+    mutationFn: async ({ key, patch }: { key: 'vrfs' | 'routing'; patch: Record<string, unknown> }) =>
+      call(api.PATCH('/api/v1/config/{path}', { params: { path: { path: key } }, body: patch as never })),
     onSettled: () => invalidateConfig(qc),
   });
 }

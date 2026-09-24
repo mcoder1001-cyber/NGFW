@@ -19,7 +19,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
-import { fetchRoutes, FIB_POLL_MS, routeKeys, useCandidate, usePutConfig } from './api';
+import { fetchRoutes, FIB_POLL_MS, routeKeys, useCandidate, usePatchConfig } from './api';
 import { Mono, pageOf, problemFor } from './common';
 import {
   localizeSchema,
@@ -49,11 +49,14 @@ const STATUS_CHIP: Record<RouteStatus, 'up' | 'down' | 'adminDown' | 'degraded'>
 export function StaticRoutesTab() {
   const { t } = useTranslation(NS);
   const perms = usePermissions();
-  const routes = useCandidate<StaticRouteConfig[]>('routing/static');
+  const routing = useCandidate<{ static?: StaticRouteConfig[] }>('routing');
+  const routes = { ...routing, data: routing.data?.static };
   const vrfs = useCandidate<VrfsConfig>('vrfs');
   const ifs = useCandidate<Record<string, { subinterfaces?: Record<string, unknown> }>>('interfaces');
-  const put = usePutConfig();
+  const put = usePatchConfig();
   const [edit, setEdit] = useState<{ index: number; value: StaticRouteConfig | undefined } | null>(null);
+  // index of the edited route in the list as sent (the list is written in canonical order, so pointers follow it)
+  const [sentIndex, setSentIndex] = useState<number | null>(null);
   const schema = useMemo(() => localizeSchema(staticRouteSchema(), (k, o) => t(k, o ?? {})), [t]);
   const rows = useMemo(() => routeRows(routes.data), [routes.data]);
   const ifNames = useMemo(
@@ -120,17 +123,21 @@ export function StaticRoutesTab() {
     [t, installed],
   );
 
-  const writeAll = async (list: StaticRouteConfig[]) => {
-    await put.mutateAsync({ path: 'routing/static', body: list });
+  /** Writes the whole list in the agent's canonical order (VRF, then prefix) so Retrieve == running (no drift). */
+  const writeAll = async (list: StaticRouteConfig[], edited?: StaticRouteConfig) => {
+    const sorted = [...list].sort((a, b) => a.vrf.localeCompare(b.vrf) || a.prefix.toLowerCase().localeCompare(b.prefix.toLowerCase()));
+    setSentIndex(edited ? sorted.indexOf(edited) : null);
+    await put.mutateAsync({ key: 'routing', patch: { static: sorted } });
   };
 
   const save = async (value: unknown) => {
     if (!edit) return;
     const list = [...(routes.data ?? [])];
-    if (edit.index < 0) list.push(value as StaticRouteConfig);
-    else list[edit.index] = value as StaticRouteConfig;
+    const v = value as StaticRouteConfig;
+    if (edit.index < 0) list.push(v);
+    else list[edit.index] = v;
     try {
-      await writeAll(list);
+      await writeAll(list, v);
       setEdit(null);
     } catch {
       // shown in the dialog
@@ -147,8 +154,7 @@ export function StaticRoutesTab() {
     }
   };
 
-  const index = edit?.index ?? -1;
-  const prefix = index < 0 ? `/routing/static/${routes.data?.length ?? 0}` : `/routing/static/${index}`;
+  const prefix = `/routing/static/${sentIndex ?? edit?.index ?? 0}`;
   return (
     <Box>
       <Typography color="text.secondary" sx={{ mb: 2 }}>
@@ -168,7 +174,7 @@ export function StaticRoutesTab() {
         <ServerDataGrid<RouteRow>
           aria-label={t('routes.title')}
           columns={columns}
-          queryKey={['config', 'candidate', 'routing', 'static', 'grid', routes.dataUpdatedAt]}
+          queryKey={['config', 'candidate', 'routing', 'static', 'grid', routing.dataUpdatedAt]}
           fetchPage={fetchPage}
           initialPageSize={25}
           onRowClick={(p) => setEdit({ index: p.row.index, value: routes.data?.[p.row.index] })}

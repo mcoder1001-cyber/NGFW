@@ -28,10 +28,10 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
     expect(domainPath('management')).toBe('/system/management');
   });
 
-  it('marks unbuilt screens unavailable and only the dashboard/dev demos available', () => {
+  it('marks unbuilt screens unavailable; dashboard, users, revisions (P07b) and dev demos are available', () => {
     const nav = buildNav(domains, { devRoutes: true });
     const available = nav.flatMap((g) => g.items).filter((i) => i.available).map((i) => i.id);
-    expect(available).toEqual(['dashboard', 'dev-schema-form', 'dev-data-grid', 'dev-stream']);
+    expect(available).toEqual(['dashboard', 'users', 'revisions', 'dev-schema-form', 'dev-data-grid', 'dev-stream']);
   });
 
   it('has no Developer group and no /dev entries when dev routes are off (production builds, review M1)', () => {

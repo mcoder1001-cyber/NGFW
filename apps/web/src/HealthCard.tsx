@@ -10,9 +10,11 @@ export function HealthCard() {
   const q = useQuery({
     queryKey: ['health'],
     queryFn: async () => {
-      const { data, error } = await api.GET('/api/v1/health');
-      if (error || !data) throw new Error('health failed');
-      return data;
+      // The OpenAPI document declares no body for /health (P07b-questions #2), so the shape is read defensively.
+      const { data, response } = await api.GET('/api/v1/health', { parseAs: 'json' });
+      if (!response.ok) throw new Error('health failed');
+      const body = data as unknown as { version?: unknown } | undefined;
+      return { version: typeof body?.version === 'string' ? body.version : '?' };
     },
     refetchInterval: 5000,
   });

@@ -21,7 +21,10 @@ import { NavLink, Outlet, useLocation } from 'react-router';
 import { DEV_ROUTES } from '../build-flags';
 import { buildNav, currentNavPath } from '../nav/nav';
 import { domains } from '../schema/registry';
+import { ConfirmBanner } from '../config/ConfirmBanner';
+import { PendingChangeBar, SyncBanner } from '../config/PendingChangeBar';
 import { SettingsPopover } from './SettingsPopover';
+import { UserMenu } from './UserMenu';
 
 const DRAWER_WIDTH = 264;
 
@@ -112,6 +115,7 @@ export function AppShell({ devRoutes = DEV_ROUTES }: { devRoutes?: boolean }) {
             aria-label={t('stream.label')}
             sx={{ color: 'inherit', borderColor: 'currentColor', marginInlineEnd: 1 }}
           />
+          <UserMenu />
           <IconButton color="inherit" edge="end" aria-label={t('menu.settings')} onClick={(e) => setSettingsAnchor(e.currentTarget)}>
             <SettingsIcon />
           </IconButton>
@@ -132,6 +136,9 @@ export function AppShell({ devRoutes = DEV_ROUTES }: { devRoutes?: boolean }) {
       </Drawer>
       <Box component="main" id="main" tabIndex={-1} sx={{ flexGrow: 1, minInlineSize: 0, p: 3, outline: 'none' }}>
         <Toolbar />
+        <ConfirmBanner />
+        <SyncBanner />
+        <PendingChangeBar />
         <Suspense fallback={<LinearProgress aria-label={t('loading')} />}>
           <Outlet />
         </Suspense>

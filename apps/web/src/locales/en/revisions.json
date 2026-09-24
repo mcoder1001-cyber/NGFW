@@ -1,0 +1,42 @@
+{
+  "title": "Revisions",
+  "intro": "Every commit, confirmed commit and rollback is saved as a revision. Compare any two, or roll back to an earlier one — a rollback is itself a new revision.",
+  "readonlyNote": "Signed in as {{role}}: you can browse and compare revisions; rolling back needs an operator or administrator.",
+  "loading": "Loading…",
+  "running": "running",
+  "changes": "Changes",
+  "col": {
+    "id": "Revision",
+    "createdAt": "Date",
+    "author": "Author",
+    "system": "system",
+    "kind": "Kind",
+    "comment": "Comment",
+    "actions": "Actions"
+  },
+  "kind": {
+    "commit": "commit",
+    "rollback": "rollback",
+    "import": "import"
+  },
+  "compare": {
+    "label": "Compare revisions",
+    "from": "From",
+    "to": "To",
+    "submit": "Compare",
+    "result": "Revision {{from}} → revision {{to}}",
+    "initial": "Revision {{to}} (first revision, compared with an empty configuration)"
+  },
+  "rollback": {
+    "button": "Roll back…",
+    "title": "Roll back to revision {{id}}",
+    "body": "The configuration of revision {{id}} is validated and applied as a new revision. The history is kept.",
+    "willChange": "What changes compared with the running configuration",
+    "defaultComment": "rollback to revision {{id}}",
+    "submit": "Roll back to revision {{id}}",
+    "running": "Rolling back…",
+    "dirty": "There are uncommitted changes. Commit or discard them first.",
+    "isRunning": "This revision is the running configuration.",
+    "noVisibleChange": "No visible configuration difference. Rolling back still re-applies this revision (and re-activates its pinned secret versions)."
+  }
+}

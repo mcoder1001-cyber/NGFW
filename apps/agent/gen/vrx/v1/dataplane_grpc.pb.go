@@ -99,7 +99,8 @@ type DataplaneClient interface {
 	// the users that cover the requested page: one response carries at most `limit` (≤ 1000)
 	// sessions, never the whole table (docs/contracts/proto.md §11).
 	NatSessions(ctx context.Context, in *NatSessionsRequest, opts ...grpc.CallOption) (*NatSessionsResponse, error)
-	// NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only).
+	// NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only; served from a
+	// cache of up to 30 s, see retrieved_at).
 	NatSummary(ctx context.Context, in *NatSummaryRequest, opts ...grpc.CallOption) (*NatSummaryResponse, error)
 }
 
@@ -279,7 +280,8 @@ type DataplaneServer interface {
 	// the users that cover the requested page: one response carries at most `limit` (≤ 1000)
 	// sessions, never the whole table (docs/contracts/proto.md §11).
 	NatSessions(context.Context, *NatSessionsRequest) (*NatSessionsResponse, error)
-	// NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only).
+	// NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only; served from a
+	// cache of up to 30 s, see retrieved_at).
 	NatSummary(context.Context, *NatSummaryRequest) (*NatSummaryResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }

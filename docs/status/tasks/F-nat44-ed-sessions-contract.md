@@ -35,3 +35,10 @@ applied state differ from the document, so Retrieve could never equal desired). 
 `nat.pools-valid`'s, reversed ranges too (no double finding). Shared hunk C2: one import and one spread line under the
 anchors of `packages/schema/src/semantic/index.ts`. Tests: `nat44-ed-sessions.test.ts` (the rule, and the existing P02b
 rules on the projected ED paths: inside/outside disjoint, overlapping pools, external port without protocol).
+
+## Fix round 1: `contract(proto): nat sessions — comments` (comment-only)
+
+Review L1/M1/H1: `NatSession.external_nat_*` says VPP reports "0.0.0.0"/0 without twice-NAT; `NatSessionKillAction.
+external_*` is the remote end as the inside host addresses it (`external_nat_*` of a twice-NAT session);
+`NatSessionsResponse.truncated` / `NatSummaryResponse.truncated` name the per-call caps; `NatSummary` and its
+`retrieved_at` mention the 30-s cache. No field, number or type changed; `buf lint` clean; generated code regenerated.

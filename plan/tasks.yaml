@@ -724,7 +724,7 @@ tasks:
   owner: ngfw-46 (no slot)
   started: 2026-09-24T19:17
   finished: ''
-  state: running
+  state: merged
   id: W-seed-BC
   title: 'Wave-B/C anchor pass: seed every wave-BC site listed in docs/status/wave-BC-numbers.md (A4 cases, SY1–SY5, ED nat.go/natTabs groups), directly above the first wave-A anchor — no behaviour change'
   prompt: /root/ngfw-wt/W-seed-BC.envelope.md
@@ -737,7 +737,7 @@ tasks:
   - D0.1
   scope: anchors only (D-119 M1)
   files_owned: hotspot files (anchors only)
-  notes: D-119 M1 | SPECULATIVE from task/W-seed (D-114)
+  notes: D-119 M1 | SPECULATIVE from task/W-seed (D-114) | merged 7279831 (squash 4e2b21d, D-112), main gate green
 - template: ''
   parked_on: ''
   branch: task/TD-8
@@ -1415,7 +1415,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D2.8
@@ -1490,7 +1490,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D6.7
@@ -1513,7 +1513,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D6.8
@@ -1537,7 +1537,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.10
@@ -1562,7 +1562,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.9
@@ -1587,7 +1587,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.8
@@ -1613,7 +1613,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.5
@@ -1639,7 +1639,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.6
@@ -2031,7 +2031,7 @@ tasks:
   - ui-nav-collapse
   priority: 6
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D12.2

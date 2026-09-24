@@ -606,6 +606,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/objects/fqdn': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** FQDN address objects as the agent resolves them: addresses in use, last resolution, next refresh, latest error */
+    get: operations['ObjectModel_fqdn'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/objects/usage': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Where-used of an object, tag, zone or interface name: group members, tags, ACL rules and attachments, zones */
+    get: operations['ObjectModel_usage'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7902,6 +7936,179 @@ export interface operations {
               status: number | null;
             }[];
           };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  ObjectModel_fqdn: {
+    parameters: {
+      query?: {
+        name?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt?: string;
+            items: {
+              /** @description FQDN address object (key of objects.addresses) */
+              name: string;
+              fqdn: string;
+              /** @description A and AAAA answers in use, IPv4 first; the last good answers after a failed refresh */
+              addresses: string[];
+              /** @description null = never resolved (the object expands to nothing) */
+              lastResolved: string | null;
+              nextRefresh: string | null;
+              /** @description the latest attempt’s failure; empty when it succeeded */
+              error: string;
+              /** @description consecutive failed attempts */
+              failures: number;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  ObjectModel_usage: {
+    parameters: {
+      query: {
+        source?: 'running' | 'candidate';
+        name: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            name: string;
+            /** @enum {string} */
+            source: 'running' | 'candidate';
+            /** @description the object kinds that define this name */
+            definedAs: (
+              | 'addresses'
+              | 'addressGroups'
+              | 'services'
+              | 'serviceGroups'
+              | 'schedules'
+              | 'zones'
+              | 'tags'
+            )[];
+            usedBy: {
+              /** @description JSON pointer of the referencing leaf */
+              pointer: string;
+              /** @description pointer of the group, rule, attachment or object holding it */
+              container: string;
+              /** @enum {string} */
+              domain: 'objects' | 'acl';
+              /** @enum {string} */
+              kind:
+                | 'address-group-member'
+                | 'service-group-member'
+                | 'tag'
+                | 'acl-rule-source'
+                | 'acl-rule-destination'
+                | 'acl-rule-service'
+                | 'acl-rule-schedule'
+                | 'acl-attachment-zone'
+                | 'zone-interface';
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
         };
       };
       /** @description Not authenticated */

@@ -130,6 +130,66 @@ describe('interfaces screen', () => {
     expect(patches).toHaveLength(1);
   });
 
+  it('a server error for a new sub-interface lands on its field, mapped with the typed id (review N5)', { timeout: 60_000 }, async () => {
+    const api = installFakeApi();
+    withInterfaces(api);
+    const msg = 'VLAN 100 is already used by host-w1l0.100';
+    const patches: unknown[] = [];
+    api.on('PATCH /api/v1/config/interfaces', (_r, body) => {
+      patches.push(body);
+      return {
+        status: 400,
+        body: {
+          type: 'https://vrx.dev/problems/validation', title: 'Validation failed', status: 400, detail: 'The candidate is not valid',
+          errors: [{ pointer: '/interfaces/host-w1l0/subinterfaces/200/vlanId', message: msg, rule: 'interfaces.vlan-unique' }],
+        },
+      };
+    });
+    await signIn();
+    render(app('/interfaces'));
+    const grid = await screen.findByRole('grid', {}, { timeout: 15_000 });
+    fireEvent.click(await within(grid).findByText('host-w1l0'));
+    const drawer = await screen.findByRole('region', { name: 'Interface host-w1l0' });
+    await within(drawer).findByText('host-w1l0.100');
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Add sub-interface' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText(/^Sub-interface id/), { target: { value: '200' } });
+    fireEvent.change(within(dialog).getByLabelText(/^VLAN ID/), { target: { value: '100' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save to candidate' }));
+    await waitFor(() => expect(patches).toHaveLength(1));
+    expect(patches[0]).toMatchObject({ 'host-w1l0': { subinterfaces: { '200': { vlanId: 100 } } } });
+    // the pointer is mapped with the id typed in the dialog ("add" opens with an empty id): the message is the
+    // VLAN field's own error, not an unmapped entry in an alert on top
+    const vlan = within(dialog).getByLabelText(/^VLAN ID/);
+    await waitFor(() => expect(vlan).toHaveAccessibleDescription(msg));
+    expect(vlan).toHaveAttribute('aria-invalid', 'true');
+    expect(within(dialog).queryByRole('alert')).toBeNull();
+  });
+
+  it('a refetch of the candidate keeps what the user typed in the open form (review N4)', { timeout: 60_000 }, async () => {
+    const api = installFakeApi();
+    withInterfaces(api);
+    await signIn();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 0 } } });
+    render(<App router={createTestRouter(['/interfaces'], { devRoutes: false })} streamUrl={STREAM} queryClient={queryClient} />);
+    const grid = await screen.findByRole('grid', {}, { timeout: 15_000 });
+    fireEvent.click(await within(grid).findByText('host-w1l0'));
+    const drawer = await screen.findByRole('region', { name: 'Interface host-w1l0' });
+    fireEvent.change(await within(drawer).findByLabelText(/^MTU/), { target: { value: '1400' } });
+    // another session changes the candidate and the screen refetches it (poll, focus, a save elsewhere)
+    api.on('GET /api/v1/config/candidate/interfaces', { body: { 'host-w1l0': { ...lanCfg, description: 'set elsewhere', mtu: 9000 } } });
+    const fetches = () => api.calls.filter((c) => c.method === 'GET' && c.path === '/api/v1/config/candidate/interfaces').length;
+    const before = fetches();
+    await act(async () => {
+      await queryClient.refetchQueries();
+    });
+    expect(fetches()).toBeGreaterThan(before);
+    await new Promise((r) => setTimeout(r, 300));
+    // the form was not remounted with the refetched value: the typed MTU and the value it opened with stay
+    expect((within(drawer).getByLabelText(/^MTU/) as HTMLInputElement).value).toBe('1400');
+    expect((within(drawer).getByLabelText(/^Description/) as HTMLInputElement).value).toBe('lan');
+  });
+
   it('renders in Persian', { timeout: 30_000 }, async () => {
     const api = installFakeApi();
     withInterfaces(api);

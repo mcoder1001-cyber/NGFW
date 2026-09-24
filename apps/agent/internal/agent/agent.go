@@ -142,7 +142,7 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 	}
 	log.Info("subsystems wired", "domains", implementedDomains(), "wiring", wiring.String())
 	sched := scheduler.New(reg, log.With("component", "scheduler"))
-	svc, err := NewService(ServiceConfig{Owner: cfg.Owner, Version: version, Logger: log, VPP: conn, Scheduler: sched, StateDir: cfg.StateDir, Metrics: m, BeforeTxn: wiring.BeforeTxn})
+	svc, err := NewService(ServiceConfig{Owner: cfg.Owner, Version: version, Logger: log, VPP: conn, Scheduler: sched, StateDir: cfg.StateDir, Metrics: m, BeforeTxn: wiring.BeforeTxn, NetdevKind: wiring.NetdevKind()})
 	if err != nil {
 		conn.Close()
 		return nil, err

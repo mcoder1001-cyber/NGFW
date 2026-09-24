@@ -44,7 +44,7 @@ The screen is fully available in Persian (right-to-left); the drawer opens from 
 
 | name | what the agent does |
 |---|---|
-| `host-<netdev>` | creates an af_packet interface on the Linux netdev `<netdev>` (lab/test path; `host-w1l0` on `w1l0`) |
+| `host-<netdev>` | creates an af_packet interface on the Linux netdev `<netdev>` (lab/test path; `host-w1l0` on `w1l0`). Only a **veth** is accepted: naming an existing netdev of any other kind (the management NIC `ens192`, a bridge, …) fails validation with 422 at `/interfaces/host-<netdev>` (rule `interfaces.af-packet-veth`), and the agent checks again right before it creates the interface |
 | `loop<N>` | creates loopback instance N |
 | anything else (`GigabitEthernet0/8/0`, `TenGigabitEthernet…`) | an existing NIC; it is configured, never created or deleted |
 | `<parent>.<id>` | an 802.1Q sub-interface (exact-match, routed), configured under `subinterfaces.<id>` of the parent |

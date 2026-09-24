@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -240,5 +241,41 @@ func TestMtuToDefaultIsJournaled(t *testing.T) {
 	}
 	if got := retrieveIfs(t, s).GetInterfaces()["host-w1l0"].GetMtu(); got != 1400 {
 		t.Fatalf("Retrieve mtu after rollback %d", got)
+	}
+}
+
+// Review F4 / D-105: af_packet attaches only to a Linux veth. A netdev that exists and is not a veth
+// is a validation error with the interface's pointer (nothing reaches VPP); a netdev that is missing
+// passes validation (a vanished rig veth must not block unrelated commits) and the af_packet Create
+// guard refuses it.
+func TestAfPacketOnlyOnVeth(t *testing.T) {
+	v := coretest.New()
+	s := newSvc(t, v, t.TempDir())
+	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "v1", DesiredState: doc(t, `{"interfaces":{
+	  "host-ens192":{"enabled":true,"ipv4":["10.1.9.1/24"]},
+	  "host-br-lab":{"enabled":true},
+	  "host-w1l0":{"enabled":true}}}`)})
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_FAILED)
+	rules := map[string]string{}
+	for _, e := range resp.GetValidation().GetErrors() {
+		rules[e.GetPointer()] = e.GetRule() + ": " + e.GetMessage()
+	}
+	for _, p := range []string{"/interfaces/host-ens192", "/interfaces/host-br-lab"} {
+		if !strings.HasPrefix(rules[p], "interfaces.af-packet-veth: ") {
+			t.Errorf("%s: %q (all %v)", p, rules[p], rules)
+		}
+	}
+	if _, bad := rules["/interfaces/host-w1l0"]; bad || !strings.Contains(rules["/interfaces/host-ens192"], `"ens192" is a physical`) {
+		t.Errorf("issues %v", rules)
+	}
+	if n := len(v.CallsNamed("af_packet_create_v3")); n != 0 {
+		t.Fatalf("validation failure sent %d af_packet_create_v3", n)
+	}
+
+	// missing netdev: validation passes, the Create guard refuses before VPP is asked
+	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "v2", DesiredState: doc(t, `{"interfaces":{"host-gone0":{"enabled":true}}}`)})
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
+	if !strings.Contains(resp.GetMessage(), `no Linux netdev "gone0"`) || len(v.CallsNamed("af_packet_create_v3")) != 0 {
+		t.Fatalf("missing netdev: %v (af_packet_create_v3 calls %d)", resp.GetMessage(), len(v.CallsNamed("af_packet_create_v3")))
 	}
 }

@@ -31,6 +31,20 @@ import (
 
 const testOwner = "w7"
 
+// fakeNetdevs stands in for the host's Linux netdevs (D-105 veth rule): every name is a veth except
+// ens192 (a physical NIC), br-lab (a bridge) and gone0 (missing).
+func fakeNetdevs(name string) (string, bool, error) {
+	switch name {
+	case "ens192":
+		return "", true, nil
+	case "br-lab":
+		return "bridge", true, nil
+	case "gone0":
+		return "", false, nil
+	}
+	return "veth", true, nil
+}
+
 // newSvc builds a service over the fake VPP v with its state in dir.
 func newSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
 	t.Helper()
@@ -39,14 +53,14 @@ func newSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
 		t.Fatal(err)
 	}
 	reg := scheduler.NewRegistry()
-	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned})
+	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs})
 	if err != nil {
 		t.Fatal(err)
 	}
 	w.Connected(context.Background()) // boot identity for the claim stores (P08)
 	sched := scheduler.New(reg, nil)
 	sched.VerifyRetries = 0
-	svc, err := NewService(ServiceConfig{Owner: testOwner, Version: "test", VPP: v, Scheduler: sched, StateDir: dir, BeforeTxn: w.BeforeTxn})
+	svc, err := NewService(ServiceConfig{Owner: testOwner, Version: "test", VPP: v, Scheduler: sched, StateDir: dir, BeforeTxn: w.BeforeTxn, NetdevKind: w.NetdevKind()})
 	if err != nil {
 		t.Fatal(err)
 	}

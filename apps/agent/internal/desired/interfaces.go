@@ -103,9 +103,17 @@ func RxModeName(k iface.RxModeKind) string {
 	return ""
 }
 
+// NetdevKind reports the rtnetlink link kind of a Linux netdev ("veth", "bridge", …; "" for a
+// physical NIC) and whether it exists (subsystems.LinuxNetdevKind; a stub in unit tests).
+type NetdevKind func(name string) (kind string, exists bool, err error)
+
 // Interfaces emits the objects of every interface in ifs. vrfID maps a VRF name to its table id
-// (false: unknown VRF).
-func Interfaces(s Sink, ifs map[string]*vrxv1.Interface, vrfID func(string) (uint32, bool)) {
+// (false: unknown VRF). lookup (nil: no check) looks up the Linux netdev of a host-<netdev> name:
+// af_packet attaches only to a veth (D-010/D-105), so a netdev that exists and is not a veth is a
+// validation error at /interfaces/<name> — the management NIC can never be taken by configuration.
+// A netdev that does not exist (yet) is not an error here: a vanished rig veth must not block
+// unrelated commits; the af_packet Create checks again (subsystems' veth guard).
+func Interfaces(s Sink, ifs map[string]*vrxv1.Interface, vrfID func(string) (uint32, bool), lookup NetdevKind) {
 	for _, name := range sortedKeys(ifs) {
 		itf := ifs[name]
 		pt := Ptr("interfaces", name)
@@ -117,6 +125,20 @@ func Interfaces(s Sink, ifs map[string]*vrxv1.Interface, vrfID func(string) (uin
 			s.Add(k, &core.Loopback{Name: name, Instance: inst}, pt)
 			alias.Creator = string(k)
 		case KindHostInterface:
+			if lookup != nil {
+				switch k, ok, err := lookup(netdev); {
+				case err != nil:
+					s.Errorf(pt, "interfaces.af-packet-veth", "cannot check the Linux netdev %q of %s (af_packet attaches only to a veth): %v", netdev, name, err)
+					continue
+				case ok && k != "veth":
+					what := "a physical (kind-less)"
+					if k != "" {
+						what = "a " + k
+					}
+					s.Errorf(pt, "interfaces.af-packet-veth", "%s: af_packet attaches only to a Linux veth (lab data path); %q is %s netdev", name, netdev, what)
+					continue
+				}
+			}
 			hi := &afpacket.HostInterface{Name: name, HostIfName: netdev, Mode: afpacket.Mode_MODE_ETHERNET}
 			k := scheduler.Join(afpacket.HostInterfaceName, name)
 			s.Add(k, hi, pt)

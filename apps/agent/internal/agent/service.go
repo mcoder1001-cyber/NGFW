@@ -38,15 +38,17 @@ const (
 // Service implements the vrx.v1.Dataplane semantics (docs/contracts/proto.md) on top of the
 // scheduler. The gRPC adapter (server.go) only translates.
 type Service struct {
-	owner   string
-	version string
-	log     *slog.Logger
-	vpp     vpp.Client
-	sched   *scheduler.Scheduler
-	st      *state
-	bus     *bus
-	metrics *metrics
-	now     func() time.Time
+	// netdevKind: the af_packet veth rule's Linux netdev lookup (D-105), nil = no check
+	netdevKind desired.NetdevKind
+	owner      string
+	version    string
+	log        *slog.Logger
+	vpp        vpp.Client
+	sched      *scheduler.Scheduler
+	st         *state
+	bus        *bus
+	metrics    *metrics
+	now        func() time.Time
 
 	// txn serialises transactions (Apply, resync, revert) and guards st and timer.
 	txn      chan struct{}
@@ -84,6 +86,9 @@ type ServiceConfig struct {
 	Now       func() time.Time
 	// BeforeTxn runs at the start of every transaction (P08: subsystems.Wiring.BeforeTxn).
 	BeforeTxn func()
+	// NetdevKind is the Linux netdev lookup of the af_packet veth rule (D-105; subsystems.Wiring.NetdevKind).
+	// nil skips the check (unit tests of other domains).
+	NetdevKind desired.NetdevKind
 }
 
 // NewService loads the persisted state and returns a service. It does not touch VPP; call
@@ -105,7 +110,7 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 	s := &Service{
 		owner: cfg.Owner, version: cfg.Version, log: cfg.Logger, vpp: cfg.VPP, sched: cfg.Scheduler,
 		st: st, bus: newBus(), metrics: cfg.Metrics, now: cfg.Now, txn: make(chan struct{}, 1),
-		retryMin: revertRetryMin, retryMax: revertRetryMax, beforeTxn: cfg.BeforeTxn,
+		retryMin: revertRetryMin, retryMax: revertRetryMax, beforeTxn: cfg.BeforeTxn, netdevKind: cfg.NetdevKind,
 	}
 	s.refreshSnapshotLocked()
 	return s, nil
@@ -334,7 +339,7 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	if s.beforeTxn != nil {
 		s.beforeTxn()
 	}
-	pj := project(ds, domains, s.resolveVRF)
+	pj := project(ds, domains, s.resolveVRF, s.netdevKind)
 	var res *scheduler.TxnResult
 	if pj.hasErrors() {
 		resp.Status = vrxv1.ApplyStatus_APPLY_STATUS_FAILED
@@ -645,7 +650,7 @@ func (s *Service) DryRun(ctx context.Context, req *vrxv1.DryRunRequest) (*vrxv1.
 		return nil, status.Error(codes.Unavailable, "VPP binary API is not connected")
 	}
 	domains := authoritative(req.GetDesiredState(), req.GetSubsystems())
-	pj := project(req.GetDesiredState(), domains, s.resolveVRF)
+	pj := project(req.GetDesiredState(), domains, s.resolveVRF, s.netdevKind)
 	if pj.hasErrors() {
 		return report(req.GetTxnId(), pj, nil), nil
 	}

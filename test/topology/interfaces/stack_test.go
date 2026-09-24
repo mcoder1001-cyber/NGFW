@@ -443,3 +443,19 @@ func must[T any](v T, err error) T {
 }
 
 var _ = fmt.Sprintf
+
+// defaultRouteDev is the netdev of the host's default route (the management NIC on the lab VMs), "" if none.
+func defaultRouteDev(t *testing.T) string {
+	t.Helper()
+	out, err := run(t, "ip", "-o", "route", "show", "default")
+	if err != nil {
+		return ""
+	}
+	f := strings.Fields(out)
+	for i := 0; i+1 < len(f); i++ {
+		if f[i] == "dev" {
+			return f[i+1]
+		}
+	}
+	return ""
+}

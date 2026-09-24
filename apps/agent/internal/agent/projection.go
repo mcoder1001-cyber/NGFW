@@ -179,7 +179,8 @@ type vrfResolver func(name string) (uint32, bool)
 
 // project turns the authoritative domains of ds into KVs. resolve maps VRF names that are not in
 // ds.vrfs (e.g. when `vrfs` is not part of this transaction) to table ids.
-func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver) *projected {
+// netdev (nil: no check) is the Linux netdev lookup of the af_packet veth rule (D-105).
+func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netdev desired.NetdevKind) *projected {
 	p := &projected{pointers: map[scheduler.Key]string{}}
 	in := map[string]bool{}
 	for _, d := range domains {
@@ -227,7 +228,7 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver) *pro
 	}
 
 	if in["interfaces"] {
-		desired.Interfaces(p, ds.GetInterfaces(), vrfID) // P08: aliases, creators, attributes, sub-interfaces
+		desired.Interfaces(p, ds.GetInterfaces(), vrfID, netdev) // P08: aliases, creators, attributes, sub-interfaces
 	}
 
 	for _, k := range rootKeys {

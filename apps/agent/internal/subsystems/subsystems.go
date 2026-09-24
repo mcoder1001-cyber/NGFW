@@ -84,6 +84,8 @@ type Env struct {
 	// This build registers no global descriptor; the flag is recorded for the families that do.
 	GlobalsOwner bool
 	Log          *slog.Logger
+	// NetdevKind looks up Linux netdevs for the af_packet veth guard (D-105); nil = LinuxNetdevKind.
+	NetdevKind NetdevKind
 }
 
 // Wiring is the result of Register: the stores and the hooks the agent calls.
@@ -107,6 +109,9 @@ type Wiring struct {
 func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	if env.Log == nil {
 		env.Log = slog.Default()
+	}
+	if env.NetdevKind == nil {
+		env.NetdevKind = LinuxNetdevKind
 	}
 	w := &Wiring{env: env, identity: &Identity{}, keyed: map[string]*KeyedClaims{}}
 	w.index = NewIndexCache(time.Second, func() (map[string]uint32, error) {
@@ -134,7 +139,7 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 
 	c, owner := env.Client, env.Owner
 	core.Register(r, core.Env{Client: c, Owner: owner, Owned: env.Owned, IfRef: core.AliasInterfaceRef}) // D-065/D-073a
-	afpacket.Register(r, c, owner)
+	r.Register(&vethOnly{Descriptor: afpacket.New(c, owner), kind: env.NetdevKind})                      // D-105: veth only
 	// DF-1, in iface.Register's order, with the MTU/rx-mode "value equal to the default" tolerance
 	r.Register(iface.NewSubinterface(c, owner))
 	r.Register(iface.NewAdminState(c, owner))
@@ -148,6 +153,10 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	r.Register(w.dhcpClient)
 	return w, nil
 }
+
+// NetdevKind is the Linux netdev lookup of the af_packet veth guard; the projection uses the same one
+// to refuse an existing non-veth netdev at validation time (D-105).
+func (w *Wiring) NetdevKind() NetdevKind { return w.env.NetdevKind }
 
 // Connected is P05's VPP (re)connect hook, called before the resync: it records the D-080 boot
 // identity (claims of another VPP instance expire and are pruned from disk), invalidates cached

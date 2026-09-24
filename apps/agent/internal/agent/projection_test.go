@@ -38,7 +38,7 @@ func TestProjectSchemaExamples(t *testing.T) {
 			continue
 		}
 		n++
-		pj := project(ds, implementedDomains(), nil)
+		pj := project(ds, implementedDomains(), nil, nil)
 		for _, is := range pj.issues {
 			if is.severity == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
 				t.Errorf("%s: %s %s: %s", base, is.pointer, is.rule, is.message)
@@ -51,7 +51,7 @@ func TestProjectSchemaExamples(t *testing.T) {
 				t.Fatalf("%s: empty kv", base)
 			}
 		}
-		again := project(out, implementedDomains(), nil)
+		again := project(out, implementedDomains(), nil, nil)
 		if !sameKVs(pj.kvs, again.kvs) {
 			t.Errorf("%s: project(assemble(project(doc))) != project(doc)", base)
 		}

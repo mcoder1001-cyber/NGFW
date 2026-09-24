@@ -15,6 +15,7 @@ import {
 } from '../primitives.js';
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
+import { routingL2Field } from './ext/bridge-l2.js'; // wave-A: F-bridge-l2
 
 /**
  * `routing` — static routes, the routing-policy skeleton (prefix-lists, route-maps) and the dynamic protocols
@@ -699,6 +700,8 @@ export const RoutingSchema = withUi(
     rip: withUi(RipSchema.optional(), { title: 'RIP', group: 'dynamic', order: 6 }),
     bfd: withUi(BfdSchema.optional(), { title: 'BFD', group: 'dynamic', order: 7 }),
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
+    // wave-A: F-bridge-l2
+    l2: routingL2Field,
     // wave-A: F-neighbors-ra
     // wave-A: F-rpf-adl-pbr
   }),

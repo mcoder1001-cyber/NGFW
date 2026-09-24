@@ -70,6 +70,7 @@ export * from './domains/management.js';
 // Feature sub-schemas: one `export * from './domains/ext/<slug>.js'` under the feature's anchor (wave-A-hotspots C3).
 // wave-A: F-bonding
 // wave-A: F-bridge-l2
+export * from './domains/ext/bridge-l2.js';
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
 // wave-A: F-neighbors-ra

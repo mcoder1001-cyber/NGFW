@@ -12,6 +12,7 @@ import {
 } from '../primitives.js';
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
+import { interfaceL2Field, subinterfaceL2Field } from './ext/bridge-l2.js'; // wave-A: F-bridge-l2
 
 /**
  * `interfaces` — record keyed by VPP interface name → interface settings (docs/04-api-datamodel.md; WBS D1.2–D1.4).
@@ -169,6 +170,7 @@ export const SubinterfaceSchema = z
     ...commonFields,
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // wave-A: F-bridge-l2
+    l2: subinterfaceL2Field,
     // wave-A: F-neighbors-ra
     // wave-A: F-rpf-adl-pbr
   })
@@ -207,6 +209,7 @@ export const InterfaceSchema = z
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // wave-A: F-bonding
     // wave-A: F-bridge-l2
+    l2: interfaceL2Field,
     // wave-A: F-loopback-bvi-gso-lldp-span
     // wave-A: F-neighbors-ra
     // wave-A: F-rpf-adl-pbr

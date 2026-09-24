@@ -8,17 +8,17 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|
 | merged | 33 |
 | review | 3 |
-| running | 3 |
+| running | 4 |
 | ready | 0 |
 | parked | 0 |
 | failed | 0 |
-| todo | 53 |
+| todo | 52 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
-| S2 | 239 / 256 | 93.4% | 20/25 | 1 | 0 | 0 |
+| S2 | 239 / 256 | 93.4% | 20/25 | 2 | 0 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 1 | 0 | 0 |
 | S4 | 0 / 408 | 0.0% | 0/39 | 1 | 0 | 0 |
 | S5 | 28 / 128 | 21.9% | 3/13 | 0 | 0 | 0 |
@@ -32,6 +32,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 - TD-4 — Auth hardening follow-ups from TD-2 (D-100): account disable bumps the credential generation; API-key creation from a JWT session requires the current password; login gets the same transport check as password set (running, ngfw-46 slot8)
 - TD-5 — V24 + V19 follow-ups: af_packet Delete quiesces the Linux netdev (netlink link down) before af_packet_delete, also in Create rollback; restart-simulation fixtures do the same; ifsanitize placeholder cap = holes + 2×FreshRun, max 64 (TD-3 M1 option b) (review, ngfw-46 slot2)
 - TD-6 — apply-startup.sh hardening before the first real --apply (D-103): stale dead-man vs newer commit, rollback write failure, systemctl-show failure, NRestarts compare; lows V5–V9; fake-host harness + shellcheck wired into tools/ci.sh (review, ngfw-46 slot6)
+- TD-7 — apply-startup.sh follow-ups from the TD-6 review: F1 concurrent manual rollback of one apply (per-apply lock + cancel the dead-man), F2 scenario 40 bound independent of load (count ip neigh calls) (running, ngfw-46 slot6)
 
 ## Parked
 

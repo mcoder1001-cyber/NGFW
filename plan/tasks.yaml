@@ -2419,22 +2419,22 @@ tasks:
     to the merger'
 - id: TD-7
   title: 'apply-startup.sh follow-ups from the TD-6 review: F1 concurrent manual rollback of one apply (per-apply lock + cancel the dead-man), F2 scenario 40 bound independent of load (count ip neigh calls)'
-  prompt: ''
+  prompt: /root/ngfw-wt/TD-7.envelope.md
   template: ''
   stage: S2
   deps:
   - TD-6
   priority: 4
   est_hours: 2
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D0.6
   scope: D-116; deploy/vpp/** + its harness only; must merge before any real --apply
   files_owned: deploy/vpp/** docs/agent/renderers/vppstartup.md docs/status/tasks/TD-7*
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/TD-7
+  worktree: /root/ngfw-wt/TD-7
+  owner: ngfw-46 slot6
+  started: 2026-09-24T16:09
   finished: ''
-  notes: 'D-116: from TD-6-review.md F1/F2; F3–F9 in docs/tech-debt.md'
+  notes: 'D-116: from TD-6-review.md F1/F2; F3–F9 in docs/tech-debt.md | SPECULATIVE from task/TD-6 (D-114)'

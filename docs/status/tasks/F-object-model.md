@@ -246,3 +246,93 @@ Every process started by the tests (agent, API, vite preview, the in-process DNS
 (`/run/vrx-test/w3/object-model`) removed by the test cleanup; the lab lock is taken only by `run.sh` for the run;
 `apps/{web,api}/dist`, `packages/*/dist` and `apps/agent/bin` removed; nothing listens on 3300/5300/9131.
 No test of this task runs `vppctl` (no `show trace`/`trace add`, D-128) or touches classify bindings (D-126).
+
+## Fix round 1 (review `F-object-model-review.md` @ 47beb50, APPROVE WITH CHANGES)
+
+Commits: `448ded6` (agent: F1, F2, F6, F7/D-129, Q4 seam), `c4dad58` (F4 picker, F3 docs, F8, doc updates), `4b98dd1`
+(questions), `07301c4` (merge of main with W-seed `a303f0b` and the P08 squash), `68d4c5d` (merge of main with
+W-seed-BC `7279831`), and this status commit. Branch HEAD at CI: `68d4c5d`.
+
+| item | done |
+|---|---|
+| **F1** (must) | `Store` changes the document in place (O(1) per object) and writes it **once per transaction**. The scheduler's verification Retrieve flushes it; otherwise it is written 200 ms after the last change (debounced) and at `Close`. A write error is logged and counted, and the changes stay in memory. The resolver hears only about FQDN objects (`track`/`untrack`, O(1)) and writes its state coalesced (when idle, at most every 5 s while busy). `single()` is O(1), because the scheduler calls KeyOf/Dependencies O(N²) times. Tests: `TestStoreScale5000` (5 000 objects in 0.19 s), `TestStoreWritesCoalescedAndFQDNOnlyOnChange` |
+| **F2** (must) | a corrupt store is moved to `objects-<owner>.json.corrupt-<unix>`, logged as ERROR and counted (`vrx_agent_objects_store_corrupt_total`); the store starts empty and the resync rebuilds it (`TestStoreCorruptMovedAside`) |
+| **F3** | `docs/agent/objects.md`: consumers expand the request's `ds.GetObjects()`, and when a transaction manages `acl` without `objects` they report an error. Out-of-band re-projection goes through a resync of the stored desired state. `Snapshot` is out of the stable API; the example checks `in["objects"]` |
+| **F4** (must) | `pickerKinds` returns no kinds for an unclassified field, and `ObjectPicker` then renders the plain field. `ObjectPicker.test.tsx` uses the real `acl.attachments[]` item schema: `list` stays a text field, `target.zone` is a select of zones, and no address object is offered. The same check covers `macipAttachments`/`hostAttachments` `list` |
+| **F7 / D-129** | a failing address family keeps its last good answers for at most **24 h** after it last answered (`VRX_OBJECTS_FQDN_MAX_STALE_SEC`, clamped to 60 s – 30 days). After that they are dropped with a WARN, counted (`vrx_agent_objects_fqdn_stale_expired_total`) and subscribers are notified (`TestFQDNLastGoodExpiresAfterMaxStale`) |
+| F6 | a persisted next refresh more than one interval ahead is pulled in at start; at run time, more than 1 h ahead counts as due (`TestFQDNNextRefreshBoundedAgainstClockSteps`) |
+| F8 | the fake agent's handler calls back with the error when the import or the handler fails |
+| Q1–Q3 | reviewer's recommendations taken (questions file) |
+| **Q4** | generic close seam `Wiring.OnClose/Close` (`subsystems/lifecycle.go`, no edit of `subsystems.go`). `Agent.Stop` calls `a.wiring.Close()`. The objects family registers `rt.Close` (resolver stopped, store and FQDN state written). `CloseObjectModel` is dropped (`TestWiringCloseSeam`, `TestAgentStopClosesObjectsRuntimeAndMetrics`) |
+| **R1** | main merged twice: W-seed + P08, then W-seed-BC. The conflicts were add/add at the anchors (union: my hunks under my anchors) and generated files (main's side, then `pnpm gen` + `make -C apps/cli gen docs`) |
+| F5 | main has no version of the two `service_test.go` lines yet, so this branch keeps its own (D-129: the first wave-A merge defines them) |
+| open | Q9 (scheduler O(N² log N) per operation, P05 core), Q10 (explicit `objectKinds` hints; current-value option; shared reference walker; `staleSince` field) |
+
+**Additional shared hunks (manager-directed, outside the anchors):**
+- `apps/agent/internal/agent/agent.go`: 3 lines in `Stop()` after `a.svc.Close()` (`if a.wiring != nil { a.wiring.Close() }`)
+- `apps/agent/internal/agent/metrics.go`: 1 line `objects.WriteMetrics(w)` after `ifsanitize.WriteMetrics(w)`, plus the import
+- `apps/agent/internal/subsystems/lifecycle.go` + `_test.go`: new files
+
+### F1 benchmark: `TestStoreScaleReport` (sequential Create through the descriptor + one Retrieve = one transaction)
+```
+before (47beb50)                          after (fix round 1)
+tmpfs  1000 objects:   12.163 s           tmpfs  1000 objects:    0.044 s
+tmpfs  2000 objects:   58.542 s           tmpfs  2000 objects:    0.059 s
+tmpfs  4000 objects:  223.613 s           tmpfs  4000 objects:    0.169 s
+disk   1000 objects:   16.220 s           disk   1000 objects:    0.078 s
+disk   2000 objects:   62.854 s           disk   2000 objects:    0.082 s
+                                          disk   4000 objects:    0.146 s
+whole scheduler transaction (TestStoreScaleSchedulerReport, after): 1000: 0.913 s · 2000: 3.575 s · 4000: 13.719 s
+  (before the O(1) single(): 5.748 / 15.982 / 43.985 s; the rest is the scheduler's own executor.dependents/topo, Q9)
+```
+
+### Unit evidence (new tests)
+```
+--- PASS: TestStoreCorruptMovedAside
+    log: level=ERROR msg="objects store is corrupt: moved aside, starting empty; the next resync re-applies the configuration" file=…/objects-w3.json moved_to=…/objects-w3.json.corrupt-1790278952 err="proto: syntax error (line 1:2): invalid value not"
+--- PASS: TestFQDNLastGoodExpiresAfterMaxStale
+    level=WARN msg="fqdn last-good answers expired: the object expands to nothing for this family until the name resolves again" host=gone.w3.test objects=[gone] family=ipv4 stale_for=24h2m0s max_stale=24h0m0s err="lookup gone.w3.test. on 127.0.0.1:…: no such host"
+--- PASS: TestFQDNNextRefreshBoundedAgainstClockSteps
+--- PASS: TestStoreScale5000        scale_test.go:78: 5 000 objects: 193.378235ms
+--- PASS: TestStoreWritesCoalescedAndFQDNOnlyOnChange
+ok  	ngfw/agent/internal/objects
+ok  	ngfw/agent/internal/agent        (TestAgentStopClosesObjectsRuntimeAndMetrics, TestObjects*)
+ok  	ngfw/agent/internal/subsystems   (TestWiringCloseSeam)
+ ✓ src/domains/firewall/object-model/ObjectPicker.test.tsx (2 tests)
+   ✓ ObjectPicker in F-acl attachment forms > renders the list as a plain text field and the zone as a select of zones
+ ✓ src/domains/firewall/object-model/model.test.ts (5 tests) · ✓ ObjectsPage.test.tsx (3 tests)
+```
+
+### Topology re-run on the fixed code (slot 3, `run.sh -run TestObjectModelTopology`, HEAD 68d4c5d)
+```
+objects_test.go:29: systemctl show vpp -p NRestarts (before) = 1
+objects_test.go:98: refresh observed: lastResolved 2026-09-24T20:16:55.336Z → 2026-09-24T20:17:25.339Z (30.0 s), addresses [192.0.2.54 2001:db8::53]
+objects_test.go:127: objects back after 0.25 s (Retrieve == before the restart)
+objects_test.go:136: FQDN state reloaded from the state dir: cdn lastResolved 2026-09-24T20:17:25.339Z unchanged, 0 DNS queries in the first 3.3 s after start
+objects_test.go:32: systemctl show vpp -p NRestarts (after) = 1
+--- PASS: TestObjectModelTopology (71.35s)   all 7 subtests PASS
+ok  	ngfw/test/topology/object-model	71.405s
+```
+
+### CI: `TMPDIR=/tmp/g-w3 tools/ci.sh --base main` (HEAD 68d4c5d, main's ci.sh with the D-127 guard fix, one run)
+```
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m01s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m00s
+  generate + generated-output gate                   2m48s
+  forbidden patterns (+ gitleaks)                    0m05s
+  lint · typecheck · unit tests · build (turbo)   4m04s
+  apps/agent: make lint test build                   0m54s
+  apps/cli: make lint test build                     0m22s
+  test/ Go modules, unit mode (test/integration/smoke test/topology/interfaces test/topology/object-model)   0m11s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   5m12s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      merge main (W-seed a303f0b + P08 squash) into task/F-object-model
+      review(F-object-model): architecture review — APPROVE WITH CHANGES
+      review(W-seed): verify
+  mode quick · wall time 13m40s · logs /root/ngfw-wt/logs/ci/F-object-model-20260924-233226-647487
+CI GATE PASSED
+```
+Cleanup: every process was stopped by PID and `vrx_w3` was dropped (by the test). `.scale-tmp`, `packages/*/dist` and `apps/*/dist` were removed. No `vppctl`/trace command was used (D-128).

@@ -15,6 +15,7 @@ import (
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
 // TunnelMeta is the runtime handle of a tunnel: its interface and tunnel index.
@@ -106,6 +107,11 @@ func (d *TunnelDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 		return nil, d.Wrap("mpls_tunnel_add_del (add) "+t.Name, err)
 	}
 	m := TunnelMeta{SwIfIndex: uint32(rep.SwIfIndex), TunnelIndex: rep.TunnelIndex}
+	// D-095 / VPP V19: clear inherited per-interface state before the tunnel is reported created
+	if _, err := ifsanitize.Sanitize(ctx, d.Client, m.SwIfIndex, t.Name); err != nil {
+		_ = d.remove(ctx, m.SwIfIndex, paths)
+		return nil, err
+	}
 	if _, err := interfaces.NewServiceClient(d.Client).SwInterfaceTagAddDel(ctx, &interfaces.SwInterfaceTagAddDel{IsAdd: true, SwIfIndex: rep.SwIfIndex, Tag: tag}); err != nil {
 		_ = d.remove(ctx, m.SwIfIndex, paths)
 		return nil, d.Wrap("sw_interface_tag_add_del "+t.Name, err)

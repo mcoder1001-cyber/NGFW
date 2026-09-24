@@ -17,6 +17,7 @@ import (
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/internal/vpp/fake"
+	"ngfw/agent/internal/vpp/ifsanitize/sanitizetest"
 )
 
 // FakeVPP is a fake.Client with an interface table behind sw_interface_dump,
@@ -85,6 +86,7 @@ func NewFakeVPP() *FakeVPP {
 		r := req.(*feature.FeatureIsEnabled)
 		return []api.Message{&feature.FeatureIsEnabledReply{IsEnabled: v.Feature(r.ArcName, r.FeatureName, uint32(r.SwIfIndex)) > 0}}, nil
 	})
+	sanitizetest.Clean(v.Client) // interface creators sanitize the new sw_if_index (D-095)
 	return v
 }
 

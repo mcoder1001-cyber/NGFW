@@ -12,6 +12,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
 // Interface references
@@ -211,6 +212,17 @@ func MetaOf(meta any) (Meta, error) {
 		return Meta{}, fmt.Errorf("%w: %T", ErrBadMeta, meta)
 	}
 	return m, nil
+}
+
+// SanitizeAndTag prepares a sw_if_index VPP has just returned for a new interface: it first
+// clears the per-interface state VPP keeps from the interface that had the index before
+// (ifsanitize.Sanitize: classify bindings, ADL, vxlan bypass, IPsec SPD — VPP V19/V21, D-095),
+// then stamps the owner tag. On error the caller removes the interface.
+func SanitizeAndTag(ctx context.Context, client vpp.Client, owner, id string, swIfIndex uint32) error {
+	if _, err := ifsanitize.Sanitize(ctx, client, swIfIndex, id); err != nil {
+		return err
+	}
+	return Tag(ctx, client, owner, id, swIfIndex)
 }
 
 // Tag stamps the owner tag "<owner>:<id>" on sw_if_index (sw_interface_tag_add_del).

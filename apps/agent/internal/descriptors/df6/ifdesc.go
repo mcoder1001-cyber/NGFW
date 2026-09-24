@@ -10,6 +10,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
 // IfSpec describes one object type that is a VPP interface (tunnel, session): how to build
@@ -120,6 +121,14 @@ func (d *IfDescriptor[T, D]) Create(ctx context.Context, obj proto.Message) (any
 			return nil
 		}
 		return d.spec.Del(ctx, d.client, ifs, t, idx)
+	}
+	// D-095 / VPP V19/V21: clear what the previous holder of this sw_if_index left behind before
+	// the interface is tagged and reported created
+	if _, err := ifsanitize.Sanitize(ctx, d.client, uint32(idx), scheduler.Join(d.spec.Name, id).String()); err != nil {
+		if rerr := rollback(); rerr != nil {
+			return nil, fmt.Errorf("%s: %w (rollback failed: %v)", d.spec.Name, err, rerr)
+		}
+		return nil, fmt.Errorf("%s: %w", d.spec.Name, err)
 	}
 	if err := TagOrRollback(ctx, d.client, d.owner, scheduler.Join(d.spec.Name, id), idx, rollback); err != nil {
 		return nil, fmt.Errorf("%s: %w", d.spec.Name, err)

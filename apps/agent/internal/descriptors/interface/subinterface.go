@@ -119,7 +119,7 @@ func (d *SubinterfaceDescriptor) Create(ctx context.Context, obj proto.Message) 
 		return nil, fmt.Errorf("create_subif: %w", err)
 	}
 	idx := uint32(rep.SwIfIndex)
-	if err := Tag(ctx, d.client, d.owner, SubinterfaceID(o), idx); err != nil {
+	if err := SanitizeAndTag(ctx, d.client, d.owner, SubinterfaceID(o), idx); err != nil {
 		// an untagged sub-interface is invisible to Retrieve and would block every retry with
 		// "sub-interface already exists": remove it (review M3)
 		if _, derr := d.svc().DeleteSubif(ctx, &ifapi.DeleteSubif{SwIfIndex: rep.SwIfIndex}); derr != nil {

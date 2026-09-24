@@ -63,7 +63,7 @@ func (d *MemifDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 		return nil, fmt.Errorf("memif_create_v2: %w", err)
 	}
 	idx := uint32(rep.SwIfIndex)
-	if err := iface.Tag(ctx, d.client, d.owner, o.GetName(), idx); err != nil {
+	if err := iface.SanitizeAndTag(ctx, d.client, d.owner, o.GetName(), idx); err != nil {
 		// an untagged memif is invisible to Retrieve and blocks every retry (id in use): remove it (review M3)
 		if _, derr := d.svc().MemifDelete(ctx, &memifapi.MemifDelete{SwIfIndex: rep.SwIfIndex}); derr != nil {
 			return nil, fmt.Errorf("%w (and memif_delete of the untagged orphan %d: %v)", err, idx, derr)

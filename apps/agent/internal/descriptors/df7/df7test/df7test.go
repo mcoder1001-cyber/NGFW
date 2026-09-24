@@ -25,6 +25,7 @@ import (
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/bootid"
 	"ngfw/agent/internal/vpp/fake"
+	"ngfw/agent/internal/vpp/ifsanitize/sanitizetest"
 )
 
 // Owner is the owner the unit tests use; Other is another agent on the same VPP.
@@ -98,6 +99,7 @@ func NewFake(ifs ...FakeIf) *Fake {
 		id.BootID, id.StartTime = "fake-boot", uint64(f.start)+1
 		return id, nil
 	}
+	sanitizetest.Clean(f.Client) // interface creators sanitize the new sw_if_index (D-095)
 	return f
 }
 

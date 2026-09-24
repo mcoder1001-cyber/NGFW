@@ -15,6 +15,7 @@ import (
 	"ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
 // TapName is the descriptor name ("tapv2.tap").
@@ -140,6 +141,14 @@ func (d *TapDescriptor) Create(ctx context.Context, obj proto.Message) (any, err
 	rep, err := d.svc().TapCreateV3(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("tap_create_v3: %w", err)
+	}
+	// D-095 / VPP V19: clear what the previous holder of this sw_if_index left behind before the
+	// tap is reported created; a tap that cannot be made clean is removed again
+	if _, err := ifsanitize.Sanitize(ctx, d.client, uint32(rep.SwIfIndex), o.GetName()); err != nil {
+		if _, derr := d.svc().TapDeleteV2(ctx, &tapapi.TapDeleteV2{SwIfIndex: rep.SwIfIndex}); derr != nil {
+			return nil, fmt.Errorf("%w (and tap_delete_v2 of %d: %v)", err, rep.SwIfIndex, derr)
+		}
+		return nil, err
 	}
 	return iface.Meta{SwIfIndex: uint32(rep.SwIfIndex)}, nil
 }

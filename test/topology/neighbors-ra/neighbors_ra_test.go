@@ -174,13 +174,15 @@ func TestNeighborsRaHost(t *testing.T) {
 	}
 	ip6 := vppctl(t, "show", "ip6", "interface", nm.lo1)
 	t.Logf("vppctl show ip6 interface %s:\n%s", nm.lo1, ip6)
-	if !strings.Contains(ip6, nm.v6a+"::/64") {
+	if !strings.Contains(ip6, raPrefixLine(nm)) {
 		t.Fatalf("advertised prefix missing in show ip6 interface:\n%s", ip6)
 	}
 	proxy := vppctl(t, "show", "arp", "proxy")
 	t.Logf("vppctl show arp proxy:\n%s", proxy)
-	if !strings.Contains(proxy, nm.rangeLo) || !strings.Contains(proxy, nm.lo1) {
-		t.Fatalf("proxy ARP range / interface missing:\n%s", proxy)
+	feats := vppctl(t, "show", "interface", "features", nm.lo1)
+	t.Logf("vppctl show interface features %s (arp arc): %q", nm.lo1, linesWith(feats, "arp-proxy"))
+	if !strings.Contains(proxy, nm.rangeLo+" - "+nm.rangeHi) || len(linesWith(feats, "arp-proxy")) == 0 {
+		t.Fatalf("proxy ARP range / interface missing:\n%s\n%s", proxy, feats)
 	}
 
 	// ---- live table + flush (learned entries injected: flags NONE)
@@ -236,7 +238,8 @@ func TestNeighborsRaHost(t *testing.T) {
 	proxyArpInterface(t, conn, i1, false)
 	proxyArpRange(t, conn, nm.table, nm.rangeLo, nm.rangeHi, false)
 	gone := vppctl(t, "show", "ip", "neighbors")
-	if len(linesWith(gone, nm.lo1)) != 0 || len(linesWith(gone, nm.lo2)) != 0 || strings.Contains(vppctl(t, "show", "arp", "proxy"), nm.rangeLo) {
+	if len(linesWith(gone, nm.lo1)) != 0 || len(linesWith(gone, nm.lo2)) != 0 || strings.Contains(vppctl(t, "show", "arp", "proxy"), nm.rangeLo) ||
+		strings.Contains(vppctl(t, "show", "ip6", "interface", nm.lo1), raPrefixLine(nm)) || len(linesWith(vppctl(t, "show", "interface", "features", nm.lo1), "arp-proxy")) != 0 {
 		t.Fatalf("simulated loss incomplete:\n%s", gone)
 	}
 	t.Log("simulated loss: static neighbours, RA prefix + RA config, proxy-ARP interface and range deleted via binapi (agent stopped)")
@@ -246,8 +249,9 @@ func TestNeighborsRaHost(t *testing.T) {
 	back := waitFor(30*time.Second, func() bool {
 		n := vppctl(t, "show", "ip", "neighbors")
 		return len(linesWith(n, nm.net1+".50", nm.lo1)) == 1 && len(linesWith(n, nm.v6b+"::50", nm.lo2)) == 1 &&
-			strings.Contains(vppctl(t, "show", "ip6", "interface", nm.lo1), nm.v6a+"::/64") &&
-			strings.Contains(vppctl(t, "show", "arp", "proxy"), nm.rangeLo)
+			strings.Contains(vppctl(t, "show", "ip6", "interface", nm.lo1), raPrefixLine(nm)) &&
+			strings.Contains(vppctl(t, "show", "arp", "proxy"), nm.rangeLo) &&
+			len(linesWith(vppctl(t, "show", "interface", "features", nm.lo1), "arp-proxy")) == 1
 	})
 	took := time.Since(t0)
 	lines, raw := readAgentLog(t, st.agentLog, logFrom)
@@ -274,9 +278,10 @@ func TestNeighborsRaHost(t *testing.T) {
 		}
 	}
 	nbrs, ip6, proxy = vppctl(t, "show", "ip", "neighbors"), vppctl(t, "show", "ip6", "interface", nm.lo1), vppctl(t, "show", "arp", "proxy")
-	t.Logf("after the rollback — show ip neighbors (ours): %q; show arp proxy: %q", append(linesWith(nbrs, nm.lo1), linesWith(nbrs, nm.lo2)...), strings.TrimSpace(proxy))
+	feats = vppctl(t, "show", "interface", "features", nm.lo1)
+	t.Logf("after the rollback — show ip neighbors (ours): %q; show arp proxy: %q; arp-proxy feature on %s: %q", append(linesWith(nbrs, nm.lo1), linesWith(nbrs, nm.lo2)...), strings.TrimSpace(proxy), nm.lo1, linesWith(feats, "arp-proxy"))
 	t.Logf("after the rollback — show ip6 interface %s:\n%s", nm.lo1, ip6)
-	if len(linesWith(nbrs, nm.lo1))+len(linesWith(nbrs, nm.lo2)) != 0 || strings.Contains(ip6, nm.v6a+"::/64") || strings.Contains(proxy, nm.rangeLo) || strings.Contains(proxy, nm.lo1) {
+	if len(linesWith(nbrs, nm.lo1))+len(linesWith(nbrs, nm.lo2)) != 0 || strings.Contains(ip6, raPrefixLine(nm)) || strings.Contains(proxy, nm.rangeLo) || len(linesWith(feats, "arp-proxy")) != 0 {
 		t.Fatal("rollback left feature objects in VPP")
 	}
 	_ = got
@@ -321,6 +326,9 @@ func cleanup(t *testing.T, a *api, conn vppapi.Connection, nm names) {
 		t.Errorf("cleanup left %s/%s in VPP", nm.lo1, nm.lo2)
 	}
 }
+
+// raPrefixLine is how `show ip6 interface` lists the advertised prefix ("prefix 2001:db8:9:1::, length 64").
+func raPrefixLine(nm names) string { return "prefix " + nm.v6a + "::, length 64" }
 
 func revisionOf(t *testing.T, body map[string]any) int {
 	t.Helper()

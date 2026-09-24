@@ -2,7 +2,7 @@
 
 - raised: 2026-09-24 15:00 by the manager (ngfw-46), from the wave-A prep: the P11 envelope, the F-wireguard/P12/F-unbound prompts, and P08's note "P11 adds the secret resolver"
 - decision: **<empty until the product owner fills it>**
-- parked tasks: none as whole tasks. Only the **end-to-end secret steps** of P11 (IKE PSK/private key), F-wireguard (private key), P12 (`passwordRef`) and F-unbound-chrony-syslog (TLS key) wait. Their schema, descriptors, renderers, UI and tests proceed with a slot-local `vpn.MapResolver` fixture (`VRX_TEST_PSK_<id>_*`).
+- parked tasks: none as whole tasks. Only the **end-to-end secret steps** wait: P11 (IKE PSK/private key), F-wireguard (private key), P12 (`passwordRef`), F-unbound-chrony-syslog (TLS key), and since D-119 also F-ikev2-native, F-pki, F-ra-vpn, F-snmp (community/USM keys), F-ospf/F-isis-rip/F-bfd/F-mpls-ldp (auth keys), F-host-stack, F-vrrp-config-sync (keepalived auth + cluster sync key). Their schema, descriptors, renderers, UI and tests proceed with a slot-local `vpn.MapResolver` fixture (`VRX_TEST_PSK_<id>_*`).
 
 ## Context
 The API stores secrets encrypted in PostgreSQL: AES-GCM, with the secret name as AAD (D-091). It strips secret leaves before sending desired state to the agent (D-040), and `desired.pb` must never hold plaintext (rule 10). The agent needs the plaintext to render swanctl/WireGuard/FRR/TLS files. Nothing carries secret material from the API to the agent today. `docs/04-api-datamodel.md` specifies only the `secret` table, not the channel. That makes this a security-boundary and secret-storage decision (decision-policy always-ask #4).

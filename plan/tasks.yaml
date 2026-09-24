@@ -715,6 +715,49 @@ tasks:
   finished: ''
   notes: 'D-109: seeded by one worker right after P08+TD-2 merge so 17 parallel features merge without union conflicts | SPECULATIVE from task/P08@74ec04e (D-114), envelope /root/ngfw-wt/W-seed.envelope.md
     | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118)'
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: todo
+  id: W-seed-BC
+  title: 'Wave-B/C anchor pass: seed every wave-BC site listed in docs/status/wave-BC-numbers.md (A4 cases, SY1–SY5, ED nat.go/natTabs groups), directly above the first wave-A anchor — no behaviour change'
+  prompt: docs/status/wave-BC-numbers.md
+  stage: S4
+  deps:
+  - W-seed
+  priority: 3
+  est_hours: 3
+  wbs:
+  - D0.1
+  scope: anchors only (D-119 M1)
+  files_owned: hotspot files (anchors only)
+  notes: D-119 M1
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: todo
+  id: TD-8
+  title: 'Agent seams: Env.Publish/Resync wiring (W-seed Q1), S1 dynamic desired source, metrics collector hook'
+  prompt: docs/status/wave-BC-launch-queue.md
+  stage: S4
+  deps:
+  - P08
+  - W-seed
+  priority: 4
+  est_hours: 4
+  wbs:
+  - D1.2
+  scope: A5 hunks in apps/agent/internal/agent/{agent,service,metrics}.go + subsystems/seams*.go (D-119 M2)
+  files_owned: apps/agent/internal/agent/{agent,service,metrics}.go (seam hunks only) apps/agent/internal/subsystems/seams*.go docs/status/tasks/TD-8*
+  notes: D-119 M2
 - id: F-vlan-qinq
   title: 'Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking'
   prompt: prompts/features/F-vlan-qinq.md
@@ -1024,6 +1067,8 @@ tasks:
   - P08
   - DF-3
   - F-nat44-ed-sessions
+  - F-vrf-static-ecmp
+  - W-seed-BC
   priority: 4
   est_hours: 16
   state: todo
@@ -1033,8 +1078,7 @@ tasks:
   - D4.5
   - D4.6
   scope: DET44 CGNAT, MAP-E/T, DS-Lite, LW4o6, 464XLAT, CNAT policies
-  files_owned: apps/agent/internal/descriptors/{det44,mapnat,dslite,cnat,pnat}/** docs/agent/descriptors/{det44,map,dslite,cnat,pnat}.md apps/agent/internal/agent/project_det44_map_dslite_cnat*.go apps/api/src/features/det44-map-dslite-cnat/**
-    apps/web/src/domains/firewall/det44-map-dslite-cnat/** apps/web/src/locales/*/det44-map-dslite-cnat.json docs/user/firewall/det44-map-dslite-cnat.md test/topology/det44-map-dslite-cnat/** docs/status/tasks/F-det44-map-dslite-cnat*.md
+  files_owned: '- apps/agent/internal/descriptors/dslite/** and docs/agent/descriptors/dslite.md (new)'
   branch: ''
   worktree: ''
   owner: ''
@@ -1081,6 +1125,8 @@ tasks:
   - P08
   - DF-5
   - P11
+  - F-vrf-static-ecmp
+  - W-seed-BC
   priority: 4
   est_hours: 10
   state: todo
@@ -1088,8 +1134,7 @@ tasks:
   wbs:
   - D6.3
   scope: VPP native IKEv2 responder path
-  files_owned: apps/agent/internal/descriptors/ikev2/** docs/agent/descriptors/ikev2.md apps/agent/internal/actions/ikev2-native/** apps/agent/internal/agent/project_ikev2_native*.go apps/api/src/features/ikev2-native/**
-    apps/web/src/domains/vpn/ikev2-native/** apps/web/src/locales/*/ikev2-native.json docs/user/vpn/ikev2-native.md test/topology/ikev2-native/** docs/status/tasks/F-ikev2-native*.md
+  files_owned: '- gap-only (DF-5 built it; edit only for a proven defect, name the test): apps/agent/internal/descriptors/ikev2/**, docs/agent/descriptors/ikev2.md'
   branch: ''
   worktree: ''
   owner: ''
@@ -1130,6 +1175,7 @@ tasks:
   - P08
   - DF-6
   - F-bridge-l2
+  - W-seed-BC
   priority: 4
   est_hours: 10
   state: todo
@@ -1137,8 +1183,7 @@ tasks:
   wbs:
   - D6.6
   scope: GRE, IPIP, VXLAN(-GPE), GTP-U, L2TPv3, PPPoE
-  files_owned: apps/agent/internal/descriptors/{gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe}/** docs/agent/descriptors/{gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe}.md apps/agent/internal/agent/project_tunnels*.go
-    apps/api/src/features/tunnels/** apps/web/src/domains/vpn/tunnels/** apps/web/src/locales/*/tunnels.json docs/user/vpn/tunnels.md test/topology/tunnels/** docs/status/tasks/F-tunnels*.md
+  files_owned: '- gap-only (DF-6 built them): apps/agent/internal/descriptors/{gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe}/**, docs/agent/descriptors/{gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe}.md'
   branch: ''
   worktree: ''
   owner: ''
@@ -1153,6 +1198,7 @@ tasks:
   deps:
   - P08
   - P11
+  - W-seed-BC
   priority: 4
   est_hours: 10
   state: todo
@@ -1160,8 +1206,8 @@ tasks:
   wbs:
   - D6.4
   scope: CA, CSR, import/export, CRL/OCSP, expiry alerts
-  files_owned: apps/agent/internal/pki/** apps/agent/internal/agent/project_pki*.go apps/api/src/features/pki/** apps/web/src/domains/vpn/pki/** apps/web/src/locales/*/pki.json docs/user/vpn/pki.md test/topology/pki/**
-    docs/status/tasks/F-pki*.md
+  files_owned: '- apps/agent/internal/pki/** (materialiser + its singleton scheduler descriptor), apps/agent/internal/subsystems/pki*.go, apps/agent/internal/desired/pki*.go, apps/agent/internal/agent/rpc_pki*.go
+    (`PkiFileState`)'
   branch: ''
   worktree: ''
   owner: ''
@@ -1179,7 +1225,7 @@ tasks:
   - DF-8
   - F-vrf-static-ecmp
   - W-seed
-  priority: 4
+  priority: 3
   est_hours: 16
   state: todo
   parked_on: ''
@@ -1207,6 +1253,7 @@ tasks:
   deps:
   - P08
   - P12
+  - W-seed-BC
   priority: 4
   est_hours: 10
   state: todo
@@ -1215,8 +1262,7 @@ tasks:
   - D3.4
   - D3.5
   scope: OSPFv2/v3 via FRR
-  files_owned: apps/agent/internal/renderers/frr/ospf/** docs/agent/renderers/frr-ospf.md apps/agent/internal/agent/project_ospf*.go apps/api/src/features/ospf/** apps/web/src/domains/routing/ospf/** apps/web/src/locales/*/ospf.json
-    docs/user/routing/ospf.md test/topology/ospf/** docs/status/tasks/F-ospf*.md
+  files_owned: '- apps/agent/internal/renderers/frr/ospf/** (both sections `ospf` and `ospf6`: orders 440/450 per wave-BC-numbers.md), docs/agent/renderers/frr-ospf.md'
   branch: ''
   worktree: ''
   owner: ''
@@ -1231,6 +1277,7 @@ tasks:
   deps:
   - P08
   - P12
+  - W-seed-BC
   priority: 4
   est_hours: 10
   state: todo
@@ -1239,8 +1286,7 @@ tasks:
   - D3.6
   - D3.7
   scope: IS-IS, RIPv2/RIPng via FRR
-  files_owned: apps/agent/internal/renderers/frr/{isis,rip}/** docs/agent/renderers/frr-{isis,rip}.md apps/agent/internal/agent/project_isis_rip*.go apps/api/src/features/isis-rip/** apps/web/src/domains/routing/isis-rip/**
-    apps/web/src/locales/*/isis-rip.json docs/user/routing/isis-rip.md test/topology/isis-rip/** docs/status/tasks/F-isis-rip*.md
+  files_owned: '- apps/agent/internal/renderers/frr/{isis,rip}/** (sections `isis` 470, `rip` 420, `ripng` 430 — RIPng lives in the rip package), docs/agent/renderers/frr-{isis,rip}.md'
   branch: ''
   worktree: ''
   owner: ''
@@ -1257,6 +1303,7 @@ tasks:
   - P12
   - DF-7
   - F-ospf
+  - W-seed-BC
   priority: 4
   est_hours: 10
   state: todo
@@ -1265,9 +1312,7 @@ tasks:
   - D3.8
   - D3.10
   scope: BFD (VPP+FRR), redistribution matrix, route-policy UX
-  files_owned: apps/agent/internal/descriptors/bfd/** apps/agent/internal/renderers/frr/{bfd,redistribute}/** docs/agent/descriptors/bfd.md docs/agent/renderers/frr-{bfd,redistribute}.md apps/agent/internal/agent/project_bfd_redistribution*.go
-    apps/api/src/features/bfd-redistribution/** apps/web/src/domains/routing/bfd-redistribution/** apps/web/src/locales/*/bfd-redistribution.json docs/user/routing/bfd-redistribution.md test/topology/bfd-redistribution/**
-    docs/status/tasks/F-bfd-redistribution*.md
+  files_owned: '- apps/agent/internal/descriptors/bfd/** and docs/agent/descriptors/bfd.md (gap-only: DF-7 built them; edit only for a proven defect, name the test)'
   branch: ''
   worktree: ''
   owner: ''
@@ -1340,6 +1385,7 @@ tasks:
   - P08
   - DF-7
   - DF-6
+  - W-seed-BC
   priority: 5
   est_hours: 10
   state: todo
@@ -1347,9 +1393,7 @@ tasks:
   wbs:
   - D2.8
   scope: static MPLS, SR-MPLS; no LDP (F-mpls-ldp)
-  files_owned: apps/agent/internal/descriptors/{mpls,sr_mpls}/** apps/agent/internal/renderers/frr/ldp/** apps/agent/internal/frrsync/ldp/** docs/agent/descriptors/{mpls,sr_mpls}.md docs/agent/renderers/frr-ldp.md
-    apps/agent/internal/agent/project_mpls_srmpls*.go apps/api/src/features/mpls-srmpls/** apps/web/src/domains/routing/mpls-srmpls/** apps/web/src/locales/*/mpls-srmpls.json docs/user/routing/mpls-srmpls.md
-    test/topology/mpls-srmpls/** docs/status/tasks/F-mpls-srmpls*.md
+  files_owned: '- apps/agent/internal/descriptors/{mpls,sr_mpls}/** and docs/agent/descriptors/{mpls,sr_mpls}.md (gap-only)'
   branch: ''
   worktree: ''
   owner: ''
@@ -1361,8 +1405,10 @@ tasks:
   - F-mpls-srmpls
   - RF-1
   - P12
+  - TD-8
+  - W-seed-BC
   est_hours: 10
-  files_owned: ''
+  files_owned: '- apps/agent/internal/renderers/frr/ldp/** (section `ldp`, order 600), docs/agent/renderers/frr-ldp.md'
   finished: ''
   id: F-mpls-ldp
   notes: D-085 split | prompt generated (prep-waveA, D-109); owns renderers/frr/ldp/** frrsync/ldp/** docs/agent/renderers/frr-ldp.md
@@ -1388,6 +1434,9 @@ tasks:
   - P08
   - DF-7
   - RF-1
+  - P12
+  - TD-8
+  - W-seed-BC
   priority: 5
   est_hours: 10
   state: todo
@@ -1395,9 +1444,7 @@ tasks:
   wbs:
   - D2.9
   scope: IGMPv3, static mfib, BIER (PIM via agent-side sync, V5 fallback)
-  files_owned: apps/agent/internal/descriptors/{igmp,mfib,bier}/** apps/agent/internal/renderers/frr/pim/** apps/agent/internal/frrsync/pim/** docs/agent/descriptors/{igmp,mfib,bier}.md docs/agent/renderers/frr-pim.md
-    apps/agent/internal/agent/project_igmp_mfib*.go apps/api/src/features/igmp-mfib/** apps/web/src/domains/routing/igmp-mfib/** apps/web/src/locales/*/igmp-mfib.json docs/user/routing/igmp-mfib.md test/topology/igmp-mfib/**
-    docs/status/tasks/F-igmp-mfib*.md
+  files_owned: '- apps/agent/internal/descriptors/igmp/** and docs/agent/descriptors/igmp.md (gap-only), apps/agent/internal/descriptors/{mfib,bier}/** and docs/agent/descriptors/{mfib,bier}.md (new)'
   branch: ''
   worktree: ''
   owner: ''
@@ -1412,6 +1459,7 @@ tasks:
   deps:
   - P08
   - DF-6
+  - W-seed-BC
   priority: 5
   est_hours: 10
   state: todo
@@ -1419,8 +1467,7 @@ tasks:
   wbs:
   - D6.7
   scope: SRv6 policies, network programming, service chaining proxies, SRv6-mobile
-  files_owned: apps/agent/internal/descriptors/{sr,sr_proxy}/** docs/agent/descriptors/{sr,sr_proxy}.md apps/agent/internal/agent/project_srv6*.go apps/api/src/features/srv6/** apps/web/src/domains/vpn/srv6/**
-    apps/web/src/locales/*/srv6.json docs/user/vpn/srv6.md test/topology/srv6/** docs/status/tasks/F-srv6*.md
+  files_owned: '- apps/agent/internal/descriptors/sr/** and docs/agent/descriptors/sr.md (gap-only)'
   branch: ''
   worktree: ''
   owner: ''
@@ -1435,6 +1482,7 @@ tasks:
   deps:
   - P08
   - DF-6
+  - W-seed-BC
   priority: 5
   est_hours: 10
   state: todo
@@ -1442,8 +1490,7 @@ tasks:
   wbs:
   - D6.8
   scope: LISP/LISP-GPE
-  files_owned: apps/agent/internal/descriptors/lisp/** docs/agent/descriptors/lisp.md apps/agent/internal/agent/project_lisp*.go apps/api/src/features/lisp/** apps/web/src/domains/vpn/lisp/** apps/web/src/locales/*/lisp.json
-    docs/user/vpn/lisp.md test/topology/lisp/** docs/status/tasks/F-lisp*.md
+  files_owned: '- apps/agent/internal/descriptors/lisp/** and docs/agent/descriptors/lisp.md (gap-only)'
   branch: ''
   worktree: ''
   owner: ''
@@ -1459,6 +1506,7 @@ tasks:
   - P08
   - DF-1
   - F-startup-gen
+  - W-seed-BC
   priority: 5
   est_hours: 10
   state: todo
@@ -1466,8 +1514,9 @@ tasks:
   wbs:
   - D7.10
   scope: 'expose host-stack config: session layer, TCP/UDP tuning, TLS, QUIC, HTTP static, HTTP/3 proxy'
-  files_owned: apps/agent/internal/descriptors/hoststack/** docs/agent/descriptors/hoststack.md apps/agent/internal/agent/project_host_stack*.go apps/api/src/features/host-stack/** apps/web/src/domains/services/host-stack/**
-    apps/web/src/locales/*/host-stack.json docs/user/services/host-stack.md test/topology/host-stack/** docs/status/tasks/F-host-stack*.md
+  files_owned: apps/agent/internal/descriptors/hoststack/** docs/agent/descriptors/hoststack.md apps/agent/internal/desired/host_stack*.go apps/agent/internal/subsystems/host_stack*.go apps/agent/internal/agent/rpc_host_stack*.go
+    packages/schema/src/domains/ext/host-stack*.ts packages/schema/src/semantic/host-stack*.ts packages/schema/examples/host-stack-*.json packages/proto/test/fixtures/host-stack-*.json apps/api/src/features/host-stack/**
+    apps/api/test/e2e/host-stack* apps/web/src/domains/services/host-stack/** apps/web/src/locales/{en,fa}/host-stack.json docs/user/services/host-stack.md test/topology/host-stack/** docs/status/tasks/F-host-stack*
   branch: ''
   worktree: ''
   owner: ''
@@ -1482,6 +1531,7 @@ tasks:
   deps:
   - P08
   - DF-7
+  - W-seed-BC
   priority: 5
   est_hours: 10
   state: todo
@@ -1489,8 +1539,9 @@ tasks:
   wbs:
   - D7.9
   scope: Load Balancer plugin (GRE/NAT/L3DSR/maglev)
-  files_owned: apps/agent/internal/descriptors/lb/** docs/agent/descriptors/lb.md apps/agent/internal/agent/project_lb*.go apps/api/src/features/lb/** apps/web/src/domains/services/lb/** apps/web/src/locales/*/lb.json
-    docs/user/services/lb.md test/topology/lb/** docs/status/tasks/F-lb*.md
+  files_owned: 'apps/agent/internal/descriptors/lb/** (gap-only: a proven defect or a missing helper, name the test) docs/agent/descriptors/lb.md apps/agent/internal/desired/lb*.go apps/agent/internal/subsystems/lb*.go
+    apps/agent/internal/agent/rpc_lb*.go packages/schema/src/domains/ext/lb*.ts packages/schema/src/semantic/lb*.ts packages/schema/examples/lb-*.json packages/proto/test/fixtures/lb-*.json apps/api/src/features/lb/**
+    apps/api/test/e2e/lb* apps/web/src/domains/services/lb/** apps/web/src/locales/{en,fa}/lb.json docs/user/services/lb.md test/topology/lb/** docs/status/tasks/F-lb*'
   branch: ''
   worktree: ''
   owner: ''
@@ -1505,6 +1556,7 @@ tasks:
   deps:
   - P08
   - DF-7
+  - W-seed-BC
   priority: 5
   est_hours: 10
   state: todo
@@ -1512,8 +1564,10 @@ tasks:
   wbs:
   - D7.8
   scope: policer, marking, QoS record/map, DSCP/dot1p (HQoS = V3, excluded)
-  files_owned: apps/agent/internal/descriptors/{policer,qos}/** docs/agent/descriptors/{policer,qos}.md apps/agent/internal/agent/project_qos_flat*.go apps/api/src/features/qos-flat/** apps/web/src/domains/services/qos-flat/**
-    apps/web/src/locales/*/qos-flat.json docs/user/services/qos-flat.md test/topology/qos-flat/** docs/status/tasks/F-qos-flat*.md
+  files_owned: 'apps/agent/internal/descriptors/policer/** apps/agent/internal/descriptors/qos/** (both gap-only: a proven defect or a missing helper, name the test) docs/agent/descriptors/policer.md docs/agent/descriptors/qos.md
+    apps/agent/internal/desired/qos*.go apps/agent/internal/subsystems/qos*.go apps/agent/internal/agent/rpc_qos*.go packages/schema/src/domains/ext/qos-flat*.ts (only with a gap) packages/schema/src/semantic/qos-flat*.ts
+    packages/schema/examples/qos-flat-*.json packages/proto/test/fixtures/qos-flat-*.json apps/api/src/features/qos-flat/** apps/api/test/e2e/qos-flat* apps/web/src/domains/services/qos-flat/** apps/web/src/locales/{en,fa}/qos-flat.json
+    docs/user/services/qos-flat.md test/topology/qos-flat/** docs/status/tasks/F-qos-flat*'
   branch: ''
   worktree: ''
   owner: ''
@@ -1528,6 +1582,7 @@ tasks:
   deps:
   - P08
   - RF-4
+  - W-seed-BC
   priority: 5
   est_hours: 10
   state: todo
@@ -1535,8 +1590,10 @@ tasks:
   wbs:
   - D7.5
   scope: SNMP v2c/v3 via snmpd renderer + private MIB
-  files_owned: apps/agent/internal/renderers/snmpd/** apps/agent/internal/snmpagent/** deploy/snmp/** docs/agent/renderers/snmpd.md apps/agent/internal/agent/project_snmp*.go apps/api/src/features/snmp/**
-    apps/web/src/domains/services/snmp/** apps/web/src/locales/*/snmp.json docs/user/services/snmp.md test/topology/snmp/** docs/status/tasks/F-snmp*.md
+  files_owned: 'apps/agent/internal/renderers/snmpd/** (gap-only: keep RF-4''s redaction, parse run, restart-request persistence and goldens; name the test for every change) docs/agent/renderers/snmpd.md
+    apps/agent/internal/snmpagent/** deploy/snmp/** apps/agent/internal/desired/snmp*.go apps/agent/internal/subsystems/snmp*.go apps/agent/internal/agent/rpc_snmp*.go packages/schema/src/domains/ext/snmp*.ts
+    packages/schema/src/semantic/snmp*.ts packages/schema/examples/snmp-*.json packages/proto/test/fixtures/snmp-*.json apps/api/src/features/snmp/** apps/api/test/e2e/snmp* apps/web/src/domains/services/snmp/**
+    apps/web/src/locales/{en,fa}/snmp.json docs/user/services/snmp.md test/topology/snmp/** docs/status/tasks/F-snmp*'
   branch: ''
   worktree: ''
   owner: ''
@@ -1551,6 +1608,7 @@ tasks:
   deps:
   - P08
   - DF-8
+  - W-seed-BC
   priority: 5
   est_hours: 10
   state: todo
@@ -1558,8 +1616,11 @@ tasks:
   wbs:
   - D7.6
   scope: IPFIX/flowprobe + sFlow exporters
-  files_owned: apps/agent/internal/descriptors/{ipfix,flowprobe,sflow}/** docs/agent/descriptors/{ipfix,flowprobe,sflow}.md apps/agent/internal/agent/project_ipfix_sflow*.go apps/api/src/features/ipfix-sflow/**
-    apps/web/src/domains/services/ipfix-sflow/** apps/web/src/locales/*/ipfix-sflow.json docs/user/services/ipfix-sflow.md test/topology/ipfix-sflow/** docs/status/tasks/F-ipfix-sflow*.md
+  files_owned: 'apps/agent/internal/descriptors/ipfix/** apps/agent/internal/descriptors/flowprobe/** apps/agent/internal/descriptors/sflow/** (all gap-only: a proven defect or a missing helper, name the
+    test) docs/agent/descriptors/ipfix.md docs/agent/descriptors/flowprobe.md docs/agent/descriptors/sflow.md apps/agent/internal/desired/ipfix_sflow*.go apps/agent/internal/subsystems/ipfix_sflow*.go apps/agent/internal/agent/rpc_ipfix_sflow*.go
+    packages/schema/src/domains/ext/ipfix-sflow*.ts (only with a gap) packages/schema/src/semantic/ipfix-sflow*.ts packages/schema/examples/ipfix-sflow-*.json packages/proto/test/fixtures/ipfix-sflow-*.json
+    apps/api/src/features/ipfix-sflow/** apps/api/test/e2e/ipfix-sflow* apps/web/src/domains/services/ipfix-sflow/** apps/web/src/locales/{en,fa}/ipfix-sflow.json docs/user/services/ipfix-sflow.md test/topology/ipfix-sflow/**
+    docs/status/tasks/F-ipfix-sflow*'
   branch: ''
   worktree: ''
   owner: ''
@@ -1574,6 +1635,9 @@ tasks:
   deps:
   - P08
   - DF-8
+  - F-unbound-chrony-syslog
+  - TD-8
+  - W-seed-BC
   priority: 5
   est_hours: 10
   state: todo
@@ -1584,8 +1648,10 @@ tasks:
   - D8.4
   - D6.10
   scope: dashboard, Prometheus exporter/prom plugin, alarms/events, tunnel dashboards
-  files_owned: apps/agent/internal/promexport/** deploy/grafana/** apps/agent/internal/agent/project_dashboard_prom_alarms*.go apps/api/src/features/dashboard-prom-alarms/** apps/web/src/domains/dashboard/dashboard-prom-alarms/**
-    apps/web/src/locales/*/dashboard-prom-alarms.json docs/user/dashboard/dashboard-prom-alarms.md test/topology/dashboard-prom-alarms/** docs/status/tasks/F-dashboard-prom-alarms*.md
+  files_owned: apps/agent/internal/promexport/** deploy/grafana/** apps/agent/internal/desired/prometheus*.go apps/agent/internal/subsystems/dashboard_prom_alarms*.go apps/agent/internal/agent/rpc_dashboard*.go
+    packages/schema/src/domains/ext/dashboard-prom-alarms*.ts packages/schema/src/semantic/dashboard-prom-alarms*.ts packages/schema/examples/dashboard-prom-alarms-*.json packages/proto/test/fixtures/dashboard-prom-alarms-*.json
+    apps/api/src/features/dashboard-prom-alarms/** apps/api/test/e2e/dashboard-prom-alarms* apps/web/src/domains/dashboard/dashboard-prom-alarms/** apps/web/src/pages/DashboardPage.tsx apps/web/src/locales/{en,fa}/dashboard-prom-alarms.json
+    docs/user/dashboard/dashboard-prom-alarms.md test/topology/dashboard-prom-alarms/** docs/status/tasks/F-dashboard-prom-alarms*
   branch: ''
   worktree: ''
   owner: ''
@@ -1601,6 +1667,8 @@ tasks:
   - P08
   - DF-8
   - F-vpp-debs
+  - F-vrf-static-ecmp
+  - W-seed-BC
   priority: 5
   est_hours: 10
   state: todo
@@ -1609,8 +1677,10 @@ tasks:
   - D8.2
   - D7.11
   scope: pcap capture, BPF trace filter, trace node, Trace Path, PG
-  files_owned: apps/agent/internal/descriptors/{pcap,trace,bpf_trace_filter,pg}/** docs/agent/descriptors/{pcap,trace,bpf_trace_filter,pg}.md apps/agent/internal/actions/capture-trace/** apps/agent/internal/agent/project_capture_trace*.go
-    apps/api/src/features/capture-trace/** apps/web/src/domains/tools/capture-trace/** apps/web/src/locales/*/capture-trace.json docs/user/tools/capture-trace.md test/topology/capture-trace/** docs/status/tasks/F-capture-trace*.md
+  files_owned: 'apps/agent/internal/descriptors/pcap/** apps/agent/internal/descriptors/trace/** (both gap-only: a proven defect or a missing helper, name the test) apps/agent/internal/descriptors/pg/**
+    (new, on descriptors/dfkit) docs/agent/descriptors/pcap.md docs/agent/descriptors/trace.md docs/agent/descriptors/pg.md apps/agent/internal/actions/capture-trace/** apps/agent/internal/subsystems/capture_trace*.go
+    apps/agent/internal/agent/rpc_capture_trace*.go apps/api/src/features/capture-trace/** apps/api/test/e2e/capture-trace* apps/web/src/domains/tools/capture-trace/** apps/web/src/locales/{en,fa}/capture-trace.json
+    docs/user/tools/capture-trace.md test/topology/capture-trace/** docs/status/tasks/F-capture-trace*'
   branch: ''
   worktree: ''
   owner: ''
@@ -1627,7 +1697,8 @@ tasks:
   - DF-7
   - RF-4
   - P12
-  priority: 5
+  - W-seed-BC
+  priority: 4
   est_hours: 16
   state: todo
   parked_on: ''
@@ -1636,9 +1707,8 @@ tasks:
   - D9.2
   - D9.5
   scope: VRRPv3 (VPP plugin + keepalived path), config sync, cluster UI
-  files_owned: apps/agent/internal/descriptors/vrrp/** apps/agent/internal/renderers/keepalived/** docs/agent/descriptors/vrrp.md docs/agent/renderers/keepalived.md apps/agent/internal/agent/project_vrrp_config_sync*.go
-    apps/api/src/features/vrrp-config-sync/** apps/web/src/domains/system/vrrp-config-sync/** apps/web/src/locales/*/vrrp-config-sync.json docs/user/system/vrrp-config-sync.md test/topology/vrrp-config-sync/**
-    docs/status/tasks/F-vrrp-config-sync*.md
+  files_owned: '- gap-only (DF-7 / RF-4 built them; edit for a proven defect or the mapper/stand-in wiring, name the test): apps/agent/internal/descriptors/vrrp/**, docs/agent/descriptors/vrrp.md, apps/agent/internal/renderers/keepalived/**,
+    docs/agent/renderers/keepalived.md'
   branch: ''
   worktree: ''
   owner: ''
@@ -1677,6 +1747,7 @@ tasks:
   - P06
   - P08
   - P07b
+  - W-seed-BC
   priority: 6
   est_hours: 10
   state: todo
@@ -1684,8 +1755,7 @@ tasks:
   wbs:
   - D8.8
   scope: RESTCONF/NETCONF + YANG generated from schema
-  files_owned: packages/yang/** apps/api/src/features/restconf-yang/** apps/web/src/domains/system/restconf-yang/** apps/web/src/locales/*/restconf-yang.json docs/user/system/restconf-yang.md test/topology/restconf-yang/**
-    docs/status/tasks/F-restconf-yang*.md
+  files_owned: '- packages/yang/** (new workspace package: package.json with `gen` + `test` scripts, src/ generator + hints side table, modules/*.yang generated output, golden tests)'
   branch: ''
   worktree: ''
   owner: ''
@@ -1723,6 +1793,8 @@ tasks:
   - P06
   - P08
   - P07b
+  - TD-4
+  - W-seed-BC
   priority: 6
   est_hours: 10
   state: todo
@@ -1730,7 +1802,7 @@ tasks:
   wbs:
   - D10.2
   scope: RADIUS/TACACS+/LDAP/SAML/OIDC + MFA
-  files_owned: apps/api/src/features/aaa/** apps/web/src/domains/system/aaa/** apps/web/src/locales/*/aaa.json docs/user/system/aaa.md test/topology/aaa/** docs/status/tasks/F-aaa*.md
+  files_owned: '- apps/api/src/features/aaa/** (index.ts exports {controllers, providers}; `AaaController`; backends, TOTP, OIDC, SAML if time allows; unit-test fakes)'
   branch: ''
   worktree: ''
   owner: ''
@@ -1747,6 +1819,8 @@ tasks:
   - P07b
   - P08
   - F-ab-upgrade
+  - F-vrf-static-ecmp
+  - W-seed-BC
   priority: 6
   est_hours: 10
   state: todo
@@ -1756,8 +1830,8 @@ tasks:
   - D8.6
   - D8.7
   scope: backup/restore, scheduled export, templates, support bundle, upgrade UI
-  files_owned: deploy/support-bundle/** apps/api/src/features/backup-restore/** apps/web/src/domains/system/backup-restore/** apps/web/src/locales/*/backup-restore.json docs/user/system/backup-restore.md
-    test/topology/backup-restore/** docs/status/tasks/F-backup-restore*.md
+  files_owned: '- apps/api/src/features/backup-restore/** (index.ts exports {controllers, providers}; `BackupRestoreController`; scheduler provider; template renderer; bundle builder; real fake-agent behaviour
+    in fake.ts)'
   branch: ''
   worktree: ''
   owner: ''
@@ -1772,6 +1846,8 @@ tasks:
   deps:
   - P11
   - F-pki
+  - F-vrf-static-ecmp
+  - W-seed-BC
   priority: 6
   est_hours: 10
   state: todo
@@ -1779,8 +1855,8 @@ tasks:
   wbs:
   - D6.9
   scope: remote-access VPN IKEv2+EAP
-  files_owned: apps/agent/internal/renderers/strongswan/** docs/agent/renderers/strongswan.md apps/agent/internal/actions/ra-vpn/** apps/agent/internal/agent/project_ra_vpn*.go apps/api/src/features/ra-vpn/**
-    apps/web/src/domains/vpn/ra-vpn/** apps/web/src/locales/*/ra-vpn.json docs/user/vpn/ra-vpn.md test/topology/ra-vpn/** docs/status/tasks/F-ra-vpn*.md
+  files_owned: '- NEW files in P11''s renderer: apps/agent/internal/renderers/strongswan/ra*.go (+ ra*_test.go), apps/agent/internal/renderers/strongswan/templates/vrx-ra*.tmpl (prefer a separate conf.d
+    `vrx-ra.conf`, a 0600 `vrx-ra-secrets.conf` and a strongswan.d `eap-radius.conf` over editing P11''s templates), apps/agent/internal/renderers/strongswan/testdata/ra-*'
   branch: ''
   worktree: ''
   owner: ''
@@ -1795,14 +1871,16 @@ tasks:
   deps:
   - P08
   - F-vpp-debs
-  priority: 6
+  - TD-7
+  - W-seed-BC
+  priority: 5
   est_hours: 10
   state: todo
   parked_on: ''
   wbs:
   - D0.4
   scope: Debian packaging + systemd + install (26.04, our VPP debs)
-  files_owned: ''
+  files_owned: '- deploy/debian/vrx/** (the source package: control, rules, *.install, postinst/prerm/postrm, units wiring), deploy/debian/README.md'
   branch: ''
   worktree: ''
   owner: ''
@@ -1816,14 +1894,15 @@ tasks:
   stage: S5
   deps:
   - P10
-  priority: 6
+  - W-seed-BC
+  priority: 5
   est_hours: 10
   state: todo
   parked_on: ''
   wbs:
   - D0.3
   scope: Unattended installer ISO (26.04)
-  files_owned: ''
+  files_owned: '- deploy/image/iso/** (autoinstall user-data/meta-data, late-commands, pool builder)'
   branch: ''
   worktree: ''
   owner: ''
@@ -1838,6 +1917,7 @@ tasks:
   deps:
   - P10
   - P14
+  - W-seed-BC
   priority: 6
   est_hours: 10
   state: todo
@@ -1845,7 +1925,7 @@ tasks:
   wbs:
   - D0.5
   scope: A/B image upgrade with rollback
-  files_owned: deploy/upgrade/** docs/install/ab-upgrade.md test/topology/ab-upgrade/** docs/status/tasks/F-ab-upgrade*.md
+  files_owned: '- deploy/upgrade/** (CLI, health unit + script, bundle builder/verifier, `tests/run.sh` unit-style tests without root)'
   branch: ''
   worktree: ''
   owner: ''
@@ -1860,6 +1940,7 @@ tasks:
   deps:
   - P10
   - P14
+  - W-seed-BC
   priority: 6
   est_hours: 10
   state: todo
@@ -1868,7 +1949,7 @@ tasks:
   - D11.2
   - D11.1
   scope: VM/cloud image builds
-  files_owned: deploy/image/{vm,cloud}/** docs/install/images.md test/topology/images/** docs/status/tasks/F-images*.md
+  files_owned: '- deploy/image/vm/** (builder, conversion, OVF template), deploy/image/cloud/** (aws/azure/gcp overlays + import notes)'
   branch: ''
   worktree: ''
   owner: ''
@@ -1883,6 +1964,7 @@ tasks:
   deps:
   - P10
   - F-host-acl-nftables
+  - W-seed-BC
   priority: 6
   est_hours: 10
   state: todo
@@ -1890,7 +1972,7 @@ tasks:
   wbs:
   - D12.1
   scope: systemd hardening, package signing; consumes the nftables host-policy renderer owned by F-host-acl-nftables (D-057)
-  files_owned: deploy/hardening/** docs/install/hardening.md test/topology/hardening-lite/** docs/status/tasks/F-hardening-lite*.md
+  files_owned: '- deploy/hardening/** (baseline/, systemd/<unit>.d/10-vrx-hardening.conf, signing/, check.sh, tests/run.sh)'
   branch: ''
   worktree: ''
   owner: ''
@@ -1906,6 +1988,7 @@ tasks:
   - P06
   - P08
   - P07b
+  - W-seed-BC
   priority: 6
   est_hours: 10
   state: todo
@@ -1913,8 +1996,8 @@ tasks:
   wbs:
   - D12.2
   scope: simple licence/entitlement
-  files_owned: tools/license/** apps/api/src/features/licensing/** apps/web/src/domains/system/licensing/** apps/web/src/locales/*/licensing.json docs/user/system/licensing.md test/topology/licensing/**
-    docs/status/tasks/F-licensing*.md
+  files_owned: tools/license/** apps/api/src/features/licensing/** apps/api/test/e2e/licensing* apps/web/src/domains/system/licensing/** apps/web/src/locales/{en,fa}/licensing.json docs/user/system/licensing.md
+    test/topology/licensing/** docs/status/tasks/F-licensing*
   branch: ''
   worktree: ''
   owner: ''
@@ -2240,6 +2323,7 @@ tasks:
   - F-vrrp-config-sync
   - F-nat44-ed-sessions
   - F-nat44-ei-64-66-nptv6
+  - W-seed-BC
   priority: 6
   est_hours: 12
   state: todo
@@ -2249,8 +2333,7 @@ tasks:
   - D9.3
   - D9.4
   scope: Wave C; whatever VPP exposes via API only (no C code — park gaps to vpp-code-track); failover test on single-host rig
-  files_owned: apps/agent/internal/descriptors/hasync/** docs/agent/descriptors/hasync.md apps/agent/internal/agent/project_ha_state_sync*.go apps/api/src/features/ha-state-sync/** apps/web/src/domains/system/ha-state-sync/**
-    apps/web/src/locales/*/ha-state-sync.json docs/user/system/ha-state-sync.md test/topology/ha-state-sync/** docs/status/tasks/F-ha-state-sync*.md
+  files_owned: '- apps/agent/internal/descriptors/hasync/** and docs/agent/descriptors/hasync.md (new; base on descriptors/dfkit, D-077)'
   branch: ''
   worktree: ''
   owner: ''

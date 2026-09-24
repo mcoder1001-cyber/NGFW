@@ -12,33 +12,39 @@ or import certificates, export public parts, refresh CRLs, check OCSP, alert bef
   (IPsec/remote-access `certificate`/`remoteCa`/`clientCa` must name these)
 - The P06 secret store (`apps/api/src/secrets/`, `POST /api/v1/secrets` returns a ref; D-051 kinds cert/key) — PKI material lives there,
   encrypted at rest; the config document only carries refs
-- `prompts/P11-strongswan-vpp.md` and RF-2's renderer doc (`git show task/RF-2:docs/agent/renderers/strongswan.md`): `certs = <name>.pem`,
+- `prompts/P11-strongswan-vpp.md` and the merged renderer doc `docs/agent/renderers/strongswan.md` (RF-2 + P11): `certs = <name>.pem`,
   `cacerts = <ca>.pem`, "F-pki installs the files in `x509/`, `x509ca/`"
 - `apps/agent/internal/renderers/{renderer.go,helpers_files.go}` — atomic file writes, modes; ALLOWLIST for any exec (prefer Go `crypto/x509`, no `openssl` exec)
-- `docs/decisions/LOG.md` D-040 (no auth material over the agent boundary except what daemons need), D-046, D-051
+- `docs/decisions/LOG.md` D-040 (no auth material over the agent boundary except what daemons need), D-046, D-051; the API→agent secret
+  channel is `docs/decisions/PENDING-secret-channel.md` — the materialiser needs cert/key material in the agent: use what P11 merged, else
+  build against the `vpn.Resolver` interface with a fixture and leave only the end-to-end step open
 
 ## Scope — build exactly this
 1. **Schema**: semantic rules — a certificate needs `certificateRef` or `acme` (exists); `ca` must name a CA; CA certificates must be
-   CA:TRUE; `expiryAlertDays` < validity. New fields (CSR subject/SAN/key type, `issued` metadata) → `contract/F-pki`, additive.
+   CA:TRUE; `expiryAlertDays` < validity. New fields (CSR subject/SAN/key type, `issued` metadata) → `contract(schema|proto): …` commits on
+   your task branch, additive (no `contract/` branch; numbers from `docs/status/wave-BC-numbers.md`).
 2. **API** (the bulk of this task, `apps/api/src/features/pki/`): actions `POST /api/v1/actions/pki/ca` (generate self-signed CA:
    ECDSA P-256/P-384 or RSA 2048/3072/4096), `…/csr` (key pair + CSR, key stored as secret, CSR returned), `…/sign` (internal CA signs a CSR),
    `…/import` (PEM / PKCS#12 with passphrase; validates chain, key match), `GET …/export/{name}` (certificate/chain PEM only — **never**
    private keys), `…/crl/refresh`; state `GET /api/v1/state/pki` (subject, issuer, SAN, notBefore/notAfter, days left, CRL age, OCSP
    status); a daily expiry job raising an event/alarm topic consumed later by F-dashboard-prom-alarms. Node `crypto` / a vetted pure-JS
-   X.509 lib — no shell. OpenAPI; regenerate `packages/api-client`.
-3. **Agent** (`apps/agent/internal/pki/`): a file materialiser the strongSwan renderer calls: given the resolved cert/key/CA refs of
+   X.509 lib — no shell. Node 22 `crypto` parses certificates but cannot create certificates or CSRs, so the library is a new dependency:
+   write the options (licence, size) in the questions file first; the manager installs it on main. OpenAPI; regenerate `packages/api-client`.
+3. **Agent** (`apps/agent/internal/pki/`): a file materialiser (default: its own singleton scheduler descriptor that the strongSwan renderer
+   depends on — D-109 d): given the resolved cert/key/CA refs of
    the desired state, write `/etc/swanctl/{x509,x509ca,private,x509crl}/<name>.pem` atomically (keys 0600 root), remove files no longer
    referenced, Retrieve = fingerprints of what is on disk (no key material). Tests use a temp root, never `/etc`.
 4. **UI**: PKI page — CAs, certificates (expiry chips), CSR wizard, import dialog, export button; en + fa; screenshot against the real endpoint.
 5. **Docs**: `docs/user/vpn/pki.md` — internal CA → server cert for an IKEv2 tunnel, importing a third-party chain, CLI equivalent.
-Files you own: `apps/agent/internal/pki/**`, `apps/agent/internal/agent/project_pki*.go`, `apps/api/src/features/pki/**`,
-`apps/web/src/domains/vpn/pki/**`, `apps/web/src/locales/*/pki.json`, `docs/user/vpn/pki.md`, `test/topology/pki/**`.
-Shared files: one-line appends only; the strongSwan renderer (P11) gets a hook call, requested via questions — do not edit it.
+Files you own (the envelope's list wins): `apps/agent/internal/pki/**`, `apps/agent/internal/{desired,subsystems}/pki*.go`,
+`apps/agent/internal/agent/rpc_pki*.go`, `apps/api/src/features/pki/**`, `apps/web/src/domains/vpn/pki/**`, `apps/web/src/locales/*/pki.json`,
+`docs/user/vpn/pki.md`, `test/topology/pki/**`. Shared files: one-line appends only. P11 is merged before you start (board dep): add the
+renderer hook yourself as ONE named hunk in its strongSwan renderer (F-ra-vpn inherits it) — never change its S2S behaviour.
 
 ## Acceptance (paste the evidence)
 - [ ] CA → CSR → sign → `openssl verify -CAfile ca.pem cert.pem` OK (run by the test, output pasted); PKCS#12 import round-trip
-- [ ] Agent writes the files for a cert-auth tunnel; `swanctl --list-certs` inside the test namespace shows them (or, before P11 merges,
-      the file tree + modes pasted)
+- [ ] Agent writes the files for a cert-auth tunnel; `swanctl --list-certs` inside the test namespace shows them (or, when the manager has
+      not handed you daemon-owner strongswan, the file tree + modes pasted)
 - [ ] Agent-restart simulation → missing files re-materialised within 30 s; rollback removes unreferenced files (Retrieve)
 - [ ] Certificate with `ca: "missing"` → 400 problem+json with a `pointer`; export of a private key → 403/404, never material
 - [ ] No private key or passphrase in logs, GET, audit, fixtures, status files (grep evidence); `tools/ci.sh --base main` green

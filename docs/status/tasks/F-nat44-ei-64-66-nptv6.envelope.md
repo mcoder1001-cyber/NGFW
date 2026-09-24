@@ -36,11 +36,11 @@ files you own exclusively:
   - gap-only (DF-3 built them; edit only for a proven defect, name the test): apps/agent/internal/descriptors/{nat44ei,nat64,nat66}/**, docs/agent/descriptors/{nat44-ei,nat64,nat66}.md
 shared hotspots (append-only, conflicts resolved by the manager at merge):
   - protocol: docs/status/wave-A-hotspots.md §0. Insert only directly below your own anchor `// wave-A: F-nat44-ei-64-66-nptv6` if the manager seeded one, else at the end of the block. Never reorder or reformat other lines. List every hunk under "Shared hunks" in docs/status/tasks/F-nat44-ei-64-66-nptv6.md
-  - apps/agent/internal/desired/nat.go (F-nat44-ed-sessions' builder): the dispatch to your builders; F-det44-map-dslite-cnat appends after you
+  - apps/agent/internal/desired/nat.go (F-nat44-ed-sessions' builder): replace the EI-group unsupported cases under the `// wave-A: F-nat44-ei-64-66-nptv6` anchor that ED seeds (ED envelope obligation) with calls to your builders; F-det44-map-dslite-cnat may run in parallel and edits only the CGNAT group under its own anchor — never touch that group
   - A1 apps/agent/internal/subsystems/subsystems.go: nat44ei/nat64/nat66/npt66 Register with natcommon.WithGlobalsOwner(env.GlobalsOwner) + WithClaims(<KeyedClaims("nat")>); append to Domains["nat"]
   - A2 apps/agent/internal/agent/projection.go: the assemble hook
   - A4 variant dispatch: in F-nat44-ed-sessions' NatSessions handler (apps/agent/internal/agent/rpc_nat44_ed*.go) and in the nat_session_kill case of server.go Action
-  - the natTabs registry file in apps/web/src/domains/firewall/nat44-ed-sessions/: append your tabs
+  - the natTabs registry file in apps/web/src/domains/firewall/nat44-ed-sessions/: your tabs under your ED-seeded anchor (F-det44-map-dslite-cnat has its own)
   - A7 docs/vpp-code-track.md: `### V-new (F-nat44-ei-64-66-nptv6)` for npt66_binding_dump; the manager numbers it
   - C5 packages/proto/vrx/v1/dataplane.proto: the variant enum and fields are appended to F-nat44-ed-sessions' NatSessions*/NatSessionKillAction messages (after their current max, nothing renamed); new messages go in a `// ----- F-nat44-ei-64-66-nptv6 -----` section. No other numbers are allocated to you: ask the manager first
   - C4 packages/schema/examples/ + packages/proto/test/fixtures/: new files only (e.g. nat44-ei-*.json, nat64-*.json); existing nat-*.json are read-only

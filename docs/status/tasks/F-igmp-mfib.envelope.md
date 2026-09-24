@@ -1,0 +1,70 @@
+# TASK ENVELOPE — F-igmp-mfib
+id: F-igmp-mfib   branch: task/F-igmp-mfib   worktree: /root/ngfw-wt/F-igmp-mfib   base: main@<BASE>   started: <STARTED>
+title: Wave C (day 13-15): IGMPv3, static mfib, BIER (PIM via agent-side sync, V5 fallback)
+prompt: prompts/features/F-igmp-mfib.md   (template: prompts/FEATURE-TEMPLATE.md; refreshed on task/prep-rest against main, task/P08 and task/W-seed)   wbs: D2.9
+scope: the new `routing.multicast` model (contract: RoutingConfig 16), projection onto DF-7's merged igmp descriptors, a new `mfib.route` descriptor (static (S,G)/(*,G) in slot tables), the FRR `pim` section + `frrsync/pim` (FRR mroutes → `mfib.route` objects in their own scope through seam S1), `MulticastState` + IGMP events, API, UI, docs; BIER descriptors only if everything else is green inside the time box
+merged deps you can rely on: P08, DF-7, RF-1, W-seed (+ the wave-B/C anchor pass and seam S1, docs/status/wave-BC-numbers.md "Pack rules"); **P12 is proposed as a dep** (prep-rest report) — see coordination (1)
+  - DF-7: apps/agent/internal/descriptors/igmp/ + docs/agent/descriptors/igmp.md — `igmp.interface` (write-only), `igmp.listen` (INCLUDE only, ≥ 1 source), global `igmp.group-prefix` (write-only, `igmp.RegisterGlobals`, globals owner only), `igmp.proxy-device` / `igmp.proxy-downstream` (write-only), `igmp.WatchEvents`, `igmp.ClearInterface`; `df7.SetBootStore` installed by P08
+  - RF-1: sections, state readers, pollers, `rc.MapInterface`, `frrtest`; `descriptors/dfkit` helpers (claims, boot records)
+  - P08: desired/ + subsystems/ + projection patterns, `Wiring.Publish` (W-seed), `subsystems.SlotIDRange()` (W-seed), transaction lock (service.go)
+  - also on main: TD-2, TD-3 (V19 sanitizer + preflight), TD-5 if merged
+read first: prompts/features/F-igmp-mfib.md · docs/status/wave-BC-numbers.md (Pack rules incl. S1/S2, section F-igmp-mfib) · docs/status/wave-A-hotspots.md (§0 rules; ids A1 A2 A6 C1–C7 P1 P4 P5 P6 W1–W3 A7) · docs/agent/descriptors/igmp.md · docs/status/tasks/DF-7.md + DF-7-questions.md (Q9) · apps/agent/internal/renderers/frr/README.md · docs/vpp-code-track.md V5, V15, V20, V22 · docs/decisions/LOG.md D-056, D-063, D-064, D-071, D-076, D-080, D-082, D-087, D-090, D-094, D-095, D-101, D-109
+slot: <SLOT> → VRX_SLOT=<SLOT> VRX_TEST_PREFIX=w<SLOT> VRX_HTTP_PORT=3000+100·<SLOT> VRX_WEB_PORT=5000+100·<SLOT> VRX_METRICS_PORT=9100+10·<SLOT>+1 VRX_AGENT_SOCKET=/run/vrx-test/w<SLOT>/agent.sock VRX_PG_DATABASE=vrx_w<SLOT> VRX_VALKEY_DB=<SLOT> VRX_VPP_TABLE_BASE=<SLOT>000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+  - source of truth: `eval "$(tools/lab env <SLOT>)"`
+  - rig prefix w<SLOT> → 10.<SLOT>.{1,2}.0/24; multicast VRF/mfib tables in <SLOT>000–<SLOT>999; test groups from a slot band (e.g. 232.<SLOT>.x.y SSM, 239.<SLOT>.x.y ASM), sources inside 10.<SLOT>.0.0/16
+  - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
+  - slots 1–11 only; 12 is CI
+daemon-owner: frr — PIM part only, slot test instances through `frrtest` (pathspace w<SLOT>, `Daemons: pimd`); `frr.service` stays disabled; nothing under /etc/frr; other FRR tasks may run in their own slots only after the manager has logged per-slot-instance FRR ownership (wave-BC-launch-queue.md M3; until then one FRR task at a time). A zebra in the ROOT netns (linux-nl FIB proof) is host-wide in any case: one slot at a time, manager window (P12 coordination 4)
+obligations:
+  - D-104: use, do not rebuild — DF-7 igmp descriptors are gap-only; `mfib.route` and `bier.*` are new, built on `descriptors/dfkit` (claims, boot records; D-071 ownership: own tag / claim record, never adopt foreign entries)
+  - `mfib.route/<vrf>/<group>/<source>`: Create/Update/Delete via `ip_mroute_add_del`, Retrieve via `ip_mroute_dump` filtered to this owner's tables/claims; every delete checks existence first (D-074 pattern); mroutes only in slot tables on the shared host; V15: mroutes before their table on every delete path; never a table flush (V22a)
+  - D-071/D-082: `igmp.group-prefix` (the SSM range) only via `igmp.RegisterGlobals` on the globals owner; slot agents never set it; tests reading it hold `flock -s /run/lock/vrx-globals.lock`
+  - D-063/D-076/D-080: igmp.interface/proxy objects are write-only — idempotent (VPP answers a repeated enable with -1 → success, see igmp.md) or applied-once records in a store from `Wiring`
+  - D-087/D-090/V22b: the IGMP host test (router-alert packets crashed VPP in `ip4_options_node_fn`) runs ONLY with `VRX_DF7_IGMP_HOST=1`, alone, in a manager window; ask for the window in the questions file; without it: fake-client evidence + the reason. `mfib.route` host checks (no IGMP packets) may run normally
+  - seam S1: `frrsync/pim` hands its translated set to the agent, applied under the transaction lock with scope = the PIM-owned `mfib.route` instance only. Use the manager-seeded seam if it is on main; if not, keep the loop behind an interface in `frrsync/pim` with a fake apply in the tests, write the question, never edit apps/agent/internal/agent/{agent,service}.go (A5)
+  - seam S2 for the per-interface `ip pim` lines (P12's hook if present, else own `interface` block proven converged, else questions file)
+  - BIER last: `bier.table` + `bier.route` descriptors with fake-client tests only, no API/UI; otherwise "not built" in F-igmp-mfib.md
+files you own exclusively:
+  - apps/agent/internal/descriptors/igmp/** and docs/agent/descriptors/igmp.md (gap-only), apps/agent/internal/descriptors/{mfib,bier}/** and docs/agent/descriptors/{mfib,bier}.md (new)
+  - apps/agent/internal/descriptors/core/coretest/igmp_mfib*.go (A6: new file only)
+  - apps/agent/internal/renderers/frr/pim/** (section `pim`, order 480), docs/agent/renderers/frr-pim.md, apps/agent/internal/frrsync/pim/** (never a shared `frrsync/` root package)
+  - apps/agent/internal/desired/igmp_mfib*.go (builder + assembler), apps/agent/internal/subsystems/igmp_mfib*.go (igmp.Register / RegisterGlobals on the globals owner, mfib/bier registration, WatchEvents → `Wiring.Publish`, the PIM sync wiring, blank import of renderers/frr/pim), apps/agent/internal/agent/rpc_igmp_mfib*.go (`MulticastState`)
+  - packages/schema/src/domains/ext/igmp-mfib*.ts, packages/schema/src/semantic/igmp-mfib*.ts (rule ids `routing.igmp-mfib-…`), packages/schema/examples/igmp-mfib-*.json, packages/proto/test/fixtures/igmp-mfib-*.json
+  - apps/api/src/features/igmp-mfib/** (index.ts exports {controllers, providers}; `IgmpMfibController`; `GET /api/v1/state/routing/multicast/{groups,mroutes,pim-neighbors}`; real fake behaviour in fake.ts), apps/api/test/e2e/igmp-mfib*
+  - apps/web/src/domains/routing/igmp-mfib/**, apps/web/src/locales/{en,fa}/igmp-mfib.json
+  - docs/user/routing/igmp-mfib.md, test/topology/igmp-mfib/**, docs/status/tasks/F-igmp-mfib*
+shared hotspots (append-only, conflicts resolved by the manager at merge):
+  - protocol: docs/status/wave-A-hotspots.md §0. Insert only directly below your own anchor `// wave-BC: F-igmp-mfib` (manager's wave-B/C anchor pass); if missing, say so in the questions file and insert at the end of that anchor block. dataplane.proto: keep the one-blank-line framing. Never reorder or reformat other lines. List every hunk under "Shared hunks" in docs/status/tasks/F-igmp-mfib.md
+  - A1 apps/agent/internal/subsystems/subsystems.go: igmp.* and `mfib.route` names (package constants) into `Domains[Routing]` (the PIM-owned instance in no domain); one call into your subsystems/igmp_mfib.go at the end of `Register()`
+  - A2 apps/agent/internal/agent/projection.go: one builder call in project(), one assembler call in assemble()
+  - C1 packages/schema/src/domains/routing.ts: `RoutingSchema.multicast` key line (sub-schema in ext/igmp-mfib.ts) · C2 semantic/index.ts · C3 schema/src/index.ts · C4 new fixture files only
+  - C5 packages/proto/vrx/v1/dataplane.proto: `RoutingConfig` 16, `EventKind` 24 (+ 25 optional), the `MulticastState` rpc under the service anchor; new messages in `// ----- F-igmp-mfib -----`
+  - C6 docs/contracts/proto.md · C7 generated, never hand-edited (apps/agent/gen/**, packages/proto/gen/ts/**, packages/api-client/src/generated/**, apps/cli/internal/api/operations_gen.go, docs/user/cli/reference.md)
+  - P1 apps/api/src/app.module.ts · P4 apps/api/src/agent/agent.client.ts · P5 apps/api/src/testing/fake-agent.ts (UNIMPLEMENTED stub on the contract commit; real fake in features/igmp-mfib/fake.ts) · P6 apps/api/src/infra/bus.ts (`igmp-mfib.events`) + telemetry/relay.service.ts (EventKind 24/25 cases)
+  - W1 apps/web/src/router.tsx · W2 apps/web/src/nav/nav.ts + nav.test.ts (a Multicast NavItem in the routing group, labelKey in `igmp-mfib:`) · W3 apps/web/src/i18n.ts
+  - A7 docs/vpp-code-track.md: `### V-new (F-igmp-mfib)` (IGMP protocol claim vs FRR pimd, IGMPv2 not handled); the manager numbers it
+  - allocated numbers (docs/status/wave-BC-numbers.md, a merge blocker if reused): **RoutingConfig 16 `multicast`**, **EventKind 24 `IGMP_GROUP_CHANGED`**, **EventKind 25 `PIM_NEIGHBOR_CHANGED`** (optional; unused = reserved) — nothing else
+contract: commit `contract(schema): routing multicast` and `contract(proto): routing multicast, MulticastState, igmp/pim events` as separate commits on YOUR branch first + docs/status/tasks/F-igmp-mfib-contract.md; tell the manager in the questions file and keep building. Never a `contract/` branch
+files you must not touch:
+  - everything else
+  - never: /root/ngfw (main), other worktrees, /etc (incl. /etc/vpp and /etc/frr), /root/vpp, the frr/vpp units
+  - apps/agent/binapi + tools/binapi-gen.sh, tools/lab, tools/ci.sh, plan/tasks.yaml, docs/decisions/LOG.md, docs/status/PROGRESS.md, packages/ui-kit/** (a need → questions file)
+  - apps/agent/internal/descriptors/{df7,dfkit}/** (shared helpers — use, do not edit), every other descriptor package; apps/agent/internal/renderers/frr/*.go, frr/frrtest/**, frr/templates/**, frr/{bgp,policy,ospf,isis,rip,bfd,redistribute,ldp}/**; apps/agent/internal/frrsync/ldp/** (F-mpls-ldp)
+  - P12's files (lcp, lcpmap, desired/{bgp,lcp}*, subsystems/{frr,lcp}*, rpc_{bgp,routing}*) — read its exported mapper only
+  - agent core (A5): apps/agent/internal/agent/{agent,service,state,ifstate}.go, apps/agent/cmd/**; apps/agent/internal/desired/interfaces.go (A3); packages/schema/src/domains/routing.ts beyond the anchored key line; apps/api/src/state/**
+host facts:
+  - `igmp_plugin.so` loaded; binapi `igmp`, `ip` (`ip_mroute_add_del`, `ip_mroute_dump`, `ip_mtable_dump`), `mfib_types`, `bier` (`bier_table_add_del`, `bier_route_add_del`, `bier_imp_add/del`, `bier_disp_*`) present on main; V20: `igmp_group_prefix_dump` replies with the wrong message id (write-only)
+  - source (VPP 26.06 igmp_input.c:441): the igmp plugin claims IP protocol 2 for all local delivery, drops IGMP on interfaces without igmp config (`NOT_ENABLED`) and handles only IGMPv3 — so FRR pimd's own IGMP querier behind linux-cp never sees membership reports; receivers come from VPP IGMP (router mode, `igmp.WatchEvents`) or static joins. Record it (V-new) and say how PIM learns receivers; never patch VPP
+  - PIM (IP proto 103) is not claimed by VPP and goes to the tap through the ip4-punt arc; linux-cp installs a (*,224.0.0.0/24) accept mfib entry on LCP pairs (lcp_router.c) — confirm PIM hellos (224.0.0.13) reach the tap
+  - kernel 7.0.0-31; FRR 10.7.1 with `pimd` (and `pim6d`, out of scope)
+  - no data NICs bound (D-026): af_packet rig only (D-010)
+coordination: (1) `frrsync/pim` translates OIL interfaces (Linux names) to VPP logical names through P12's LCP mapping (reverse direction: adapter in your package over P12's exported data), and the VRX-side pimd runs over P12's LCP pairs — so the netns PIM acceptance needs P12 merged. If P12 is not on main at spawn: build everything else plus the translation against a fake mapper, keep the netns PIM step open and write it in the questions file (the prep report proposes P12 as a board dep) · (2) F-mpls-ldp needs the same seam S1 — one framework, reused · (3) F-mpls-srmpls: MPLS multicast out of scope for both
+V19/V24 SAFETY (D-095, D-101): before ANY multicast/IGMP packet through the rig, run TD-3's preflight on the rig interfaces' sw_if_index and never send packets through an unchecked interface; every af_packet delete with its veth down; one host test package at a time (D-087); `systemctl show vpp -p NRestarts` before/after every host run pasted — stop host runs and write it down if it rises
+evidence: Playwright is not installed — use the headless Chrome approach from P07a/P07b/P08 (kept outside the product code) for screenshots (en + fa/RTL: IGMP interfaces/joins, static mroutes, PIM RP/interfaces, live groups); paste `vppctl show ip mfib table <t>`, `show igmp config` (window only) and the frrsync log
+time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-igmp-mfib.md with what is left
+WIP: commit at least every 45 min; keep docs/status/tasks/F-igmp-mfib-wip.md current
+CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-igmp-mfib.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
+cleanup: stop every process you started (API/agent/vite; FRR daemons through the harness Stop) by PID · lab lock released · vrx_w<SLOT> dropped · no w<SLOT> mroutes/tables/IGMP objects left (Retrieve + `show ip mfib table <t>` pasted; mroutes before the table) · no ns-w<SLOT>-* netns left · rig down · dist/ and apps/agent/bin removed
+questions: docs/status/tasks/F-igmp-mfib-questions.md — write and keep going; never wait for a human
+never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own

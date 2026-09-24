@@ -20,6 +20,7 @@ obligations:
   - persisted NAT claims only: natcommon.WithClaims(<Wiring.KeyedClaims("nat")>); no in-memory default in the product agent (D-080)
   - D-063/D-076: DF-3's write-only / applied-once rules stay unchanged
   - mode ei, nat64, nat66, nptv6, det44, dslite, map, cnat and ipfix stay agent.unsupported-field; the siblings append to desired/nat.go, so keep its dispatch appendable
+  - seed the sibling anchors in the two files you create (prep-rest critic: F-nat44-ei-64-66-nptv6 and F-det44-map-dslite-cnat may run in parallel after you merge, and two edits at one spot conflict): in desired/nat.go put the unsupported cases in two groups, the EI group (ei, nat64, nat66, nptv6) under `// wave-A: F-nat44-ei-64-66-nptv6` and the CGNAT group (det44, dslite, map, cnat, plus the pnat call site) under `// wave-BC: F-det44-map-dslite-cnat`, with the second anchor line between the groups; in the natTabs registry leave one anchor line per sibling after your own tabs. ipfix stays outside both groups (owner undecided, see wave-BC-launch-queue.md M7)
   - D-104: use, do not rebuild — DF-3 descriptors, P02b schema/semantic rules, NatConfig, P08 wiring
 files you own exclusively:
   - apps/agent/internal/desired/nat.go and apps/agent/internal/desired/nat_*.go (incl. tests). This is narrower than the prompt's `desired/nat*.go`, so that F-nat44-ei-64-66-nptv6's desired/{nat44ei,nat64,nat66,nptv6}*.go stay separate; the envelope wins

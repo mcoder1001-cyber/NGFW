@@ -74,8 +74,10 @@ type Service struct {
 	deadline        time.Time
 	lastTxn         string
 
-	// sources are the dynamic desired sources (S1, TD-8): merged into every transaction's projection.
-	sources []subsystems.DynamicSource
+	// sources are the dynamic desired sources (S1, TD-8): merged into every transaction's projection
+	// while they are in sync (dynsource.go).
+	sources []*dynSource
+	closed  bool // Close ran: no source retry is armed any more (guarded by txn)
 }
 
 // ServiceConfig builds a Service.
@@ -127,8 +129,8 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		owner: cfg.Owner, version: cfg.Version, log: cfg.Logger, vpp: cfg.VPP, sched: cfg.Scheduler,
 		st: st, bus: cfg.Events, metrics: cfg.Metrics, now: cfg.Now, txn: make(chan struct{}, 1),
 		retryMin: revertRetryMin, retryMax: revertRetryMax, beforeTxn: cfg.BeforeTxn, netdevKind: cfg.NetdevKind,
-		sources: append([]subsystems.DynamicSource(nil), cfg.Sources...),
 	}
+	s.sources = newDynSources(cfg.Sources, s.metrics)
 	s.refreshSnapshotLocked()
 	return s, nil
 }

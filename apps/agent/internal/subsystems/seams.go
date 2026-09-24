@@ -20,6 +20,9 @@ import (
 	"sync"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
+	"ngfw/agent/internal/descriptors/df2"
+	"ngfw/agent/internal/descriptors/df7"
+	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -44,8 +47,47 @@ const SlotIDRangeSize = 1000
 var ErrNoIDRange = errors.New("no VPP id range: set " + EnvTableBase + " (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §11) or " + EnvIDRange + "=" + IDRangeAll + " (the product agent on a box of its own)")
 
 // IDRange is a closed range of numeric ids (FIB tables, SPD/SA ids, policy ids, map ids). Convert it
-// to the family's own range type (df2.IDRange, df7.IDRange, vpn.IDRange) when registering.
+// to the family's own range type with DF2, DF7 or VPN when registering. Lo > Hi is the empty range
+// (NoIDs): it owns no id.
 type IDRange struct{ Lo, Hi uint32 }
+
+// NoIDs returns the empty range that Wiring.IDRange returns with ErrNoIDRange. It is non-nil on
+// purpose: to df2 and df7 a nil range means "every id", and so does the zero vpn.IDRange, so a family
+// that ignores the error must still own nothing (TD-8 review R4).
+func NoIDs() *IDRange { return &IDRange{Lo: 1, Hi: 0} }
+
+// Empty reports whether the range owns no id.
+func (r IDRange) Empty() bool { return r.Lo > r.Hi }
+
+// DF2 converts the range for a DF-2 family. A nil receiver (VRX_VPP_ID_RANGE=all) becomes df2's nil,
+// every id; any other range, the empty one included, is copied as it is.
+func (r *IDRange) DF2() *df2.IDRange {
+	if r == nil {
+		return nil
+	}
+	return &df2.IDRange{Lo: r.Lo, Hi: r.Hi}
+}
+
+// DF7 converts the range for a DF-7 family, like DF2.
+func (r *IDRange) DF7() *df7.IDRange {
+	if r == nil {
+		return nil
+	}
+	return &df7.IDRange{Lo: r.Lo, Hi: r.Hi}
+}
+
+// VPN converts the range for the DF-5 vpn families (ipsec, ikev2). A nil receiver becomes the zero
+// vpn.IDRange, every id. A range the zero value cannot express without meaning "every id" (0..0)
+// becomes the empty range: it fails closed.
+func (r *IDRange) VPN() vpn.IDRange {
+	switch {
+	case r == nil:
+		return vpn.IDRange{}
+	case r.Empty() || *r == (IDRange{}):
+		return vpn.IDRange{Lo: 1, Hi: 0}
+	}
+	return vpn.IDRange{Lo: r.Lo, Hi: r.Hi}
+}
 
 // IDScope is the agent's resolved id range, handed to the wiring through Env.IDs and read by the
 // families through Wiring.IDRange. The zero value owns no id (fail closed).
@@ -99,24 +141,28 @@ func ResolveIDScope() (IDScope, error) {
 }
 
 // SlotIDRange is ResolveIDScope as a range: base..base+999, nil only with VRX_VPP_ID_RANGE=all
-// (every id), ErrNoIDRange when neither variable is set. Families read the range through
-// Wiring.IDRange (Env), never from the environment; this is for tools and tests.
+// (every id), and on any error (ErrNoIDRange, a malformed or contradictory setting) the empty range
+// NoIDs with the error.
+//
+// Deprecated: families read the range through Wiring.IDRange (Env), never from the environment.
 func SlotIDRange() (*IDRange, error) {
 	s, err := ResolveIDScope()
 	if err != nil {
-		return nil, err
+		return NoIDs(), err
 	}
 	return s.Range, nil
 }
 
-// IDRange returns the id range of this agent (Env.IDs): the slot's or reserved range, nil = every id
-// (only with VRX_VPP_ID_RANGE=all), or ErrNoIDRange (fail closed). A family that allocates numeric ids
-// calls it on its Register line and fails the registration on error:
+// IDRange returns the id range of this agent (Env.IDs): a copy of the slot's or reserved range, nil =
+// every id (only with VRX_VPP_ID_RANGE=all), or the empty range NoIDs with ErrNoIDRange (fail closed:
+// a family that ignores the error still owns nothing). A family that allocates numeric ids calls it
+// on its Register line, fails the registration on error, and converts the range with DF2, DF7 or VPN:
 //
 //	ids, err := w.IDRange()
 //	if err != nil {
 //		return nil, fmt.Errorf("<family>: %w", err)
 //	}
+//	… ids.DF7() (nil = every id) / ids.VPN() …
 func (w *Wiring) IDRange() (*IDRange, error) {
 	switch {
 	case w.env.IDs.Range != nil:
@@ -125,7 +171,7 @@ func (w *Wiring) IDRange() (*IDRange, error) {
 	case w.env.IDs.All:
 		return nil, nil
 	}
-	return nil, ErrNoIDRange
+	return NoIDs(), ErrNoIDRange
 }
 
 // ---- events and resync (A5) -------------------------------------------------------------------
@@ -153,19 +199,53 @@ func (w *Wiring) RequestResync() {
 
 // SyncFunc runs one transaction for a dynamic source: its current Desired, scoped to its descriptors,
 // under the agent's transaction lock. It returns nil when the transaction ended APPLIED, and an error
-// when VPP is disconnected (the reconnect resync includes the source), ctx is done, or the
-// transaction failed or rolled back.
+// when VPP is disconnected (the reconnect resync includes a source that is in sync), ctx is done, the
+// transaction failed or rolled back, Desired panicked, or sync was called from the wrong place.
+//
+// Call it only from Run (TD-8 review R6/R7):
+//   - Never from Desired or from a descriptor call. Both run inside a transaction, under the
+//     transaction lock, and sync waits for that lock: the agent refuses such a call at once
+//     (FAILED_PRECONDITION "… inside …") instead of deadlocking.
+//   - Lock order: the agent's transaction lock first, then the source's own locks. Desired runs under
+//     the transaction lock and takes the source's cache lock, so Run must not hold a lock that Desired
+//     takes while it calls sync (that is an ABBA deadlock). Update the cache, unlock, then call sync.
 type SyncFunc func(ctx context.Context) error
 
 // DynamicSource is a feature-owned source of desired state the configuration document does not
 // carry (seam S1, wave-BC-numbers.md): F-mpls-ldp's FRR→VPP label sync, F-igmp-mfib's PIM→mFIB sync.
 //
-// The agent merges Desired into the projection of every transaction under its transaction lock —
-// Apply, resync (start, VPP reconnect, Env.Resync), confirm revert — and into DryRun's plan, with
-// Descriptors in the scope, and the source's own SyncFunc runs a transaction scoped to Descriptors only. So
-// an object the source stops producing is deleted, a VPP restart is repaired by the reconnect resync,
-// a config change that removes what a dynamic object depends on deletes both in one transaction, and
-// nothing but the scheduler writes VPP.
+// A source that is in sync is merged into every transaction under the transaction lock — Apply,
+// resync (start, VPP reconnect, Env.Resync), confirm revert — and into DryRun's plan: its Desired
+// KVs join the projection, and Descriptors join the scope. Its own SyncFunc runs a transaction scoped
+// to Descriptors only. So an object the source stops producing is deleted, a VPP restart is repaired
+// by the reconnect resync, a config change that removes what a dynamic object depends on deletes both
+// in one transaction, and nothing but the scheduler writes VPP.
+//
+// Failure semantics (TD-8 review R1–R3): a source never costs the configuration its transaction.
+//   - In sync: the source's last sync ended APPLIED, and no transaction has left it out since. A
+//     source with Run is out of sync from start-up until its first successful sync, because its cache
+//     is empty until then; a source without Run is in sync from the start. While a source is out of
+//     sync, it takes part in no transaction: its descriptors are out of scope, so the scheduler neither
+//     creates nor deletes its objects (an agent restart with VPP intact deletes nothing). A config
+//     change that deletes what one of its live objects depends on fails with "cannot delete … depends
+//     on it" until the source is back in sync.
+//   - When a transaction fails because of a dynamic object (a key outside Descriptors, a duplicate, a
+//     plan issue or a failed operation on a dynamic key, a failed Retrieve of Descriptors, a panic in
+//     Desired), the agent runs it once more without the dynamic sources, under the same lock. The
+//     user's commit, the resync after a VPP restart and the confirm revert then succeed on the
+//     configuration alone. The response lists the dynamic key as SKIPPED with the source and the
+//     cause, an ERROR event carries attributes source and key, and
+//     vrx_agent_dynamic_source_errors_total{source,reason} counts it. Every source left out is out of
+//     sync until its next successful sync.
+//   - A source that is out of sync after it was in sync once is retried by the agent: a sync with
+//     backoff (5 s doubling to 60 s), so it rejoins on its own once VPP accepts its objects again.
+//   - A panic in Desired, in a sync or in Run is recovered and logged with its stack. A panic in Run
+//     stops the source for the life of the process: it stays out of sync, its objects stay as they are.
+//
+// Object ownership (review R10a): a source's descriptors are instances of their own (e.g.
+// "mpls-route.ldp", never "ip.route"). Their Retrieve returns only the objects this source owns, so
+// they are disjoint from every config descriptor over the same VPP table (a D-072 style owner table,
+// or df7 claims). Otherwise each side deletes the other's objects as "not desired" while in scope.
 type DynamicSource struct {
 	// Name identifies the source in logs and events: the feature slug ("mpls-ldp").
 	Name string
@@ -175,13 +255,15 @@ type DynamicSource struct {
 	Descriptors []string
 	// Desired returns the source's objects for doc, the stored configuration document as it will be
 	// after the transaction (a copy). Transactions call it under the transaction lock, so it must be
-	// fast and do no VPP or daemon I/O: it combines the state the Run loop cached (FRR's labels, PIM's
-	// routes) with doc, and leaves out objects whose configuration dependencies doc no longer has.
-	// DryRun calls it without the lock: it must be safe to call concurrently with itself and with Run.
+	// fast and do no VPP or daemon I/O, and it must never call sync: it combines the state the Run loop
+	// cached (FRR's labels, PIM's routes) with doc, and leaves out objects whose configuration
+	// dependencies doc no longer has. DryRun calls it without the lock: it must be safe to call
+	// concurrently with itself and with Run.
 	Desired func(doc *vrxv1.DesiredState) []scheduler.KV
 	// Run is the feature's loop (poll or subscribe to the daemon), optional. The agent starts it once,
-	// after its first resync, and cancels ctx when it stops; Run must return then. It calls sync after
-	// its cached state changed.
+	// after its first resync, and cancels ctx when it stops; Run must return then, and not before (a
+	// Run that returns early stops the source like a panic). It calls sync after its cached state
+	// changed; its first successful sync puts the source in sync.
 	Run func(ctx context.Context, sync SyncFunc)
 }
 

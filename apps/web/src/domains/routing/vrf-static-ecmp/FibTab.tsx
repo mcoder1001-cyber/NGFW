@@ -21,14 +21,14 @@ interface FibRow extends RouteItem {
   id: string;
 }
 
-/** One path as text: "normal 10.2.1.2 via lan w=3 (table 2001) resolve-via-host". */
-function pathText(p: RouteItem['paths'][number]): string {
+/** One path as text: "normal 10.2.1.2 via lan w=3 (table 0) resolve-via-host"; the table only when it is another one. */
+function pathText(p: RouteItem['paths'][number], table: number | undefined): string {
   return [
     p.type,
     p.nextHop ?? '',
     p.interface ? `via ${p.interface}` : '',
     `w=${p.weight}`,
-    p.tableId ? `(table ${p.tableId})` : '',
+    p.nextHop && !p.interface && table !== undefined && p.tableId !== table ? `(table ${p.tableId})` : '',
     ...p.flags,
   ]
     .filter(Boolean)
@@ -85,14 +85,14 @@ export function FibTab() {
         renderCell: (p) => (
           <Stack sx={{ py: 0.5 }}>
             {p.row.paths.map((x, i) => (
-              <Mono key={i}>{pathText(x)}</Mono>
+              <Mono key={i}>{pathText(x, meta.tableId)}</Mono>
             ))}
           </Stack>
         ),
       },
       { field: 'statsIndex', headerName: t('fib.col.stats'), type: 'number', width: 110, sortable: false, filterable: false },
     ],
-    [t],
+    [t, meta.tableId],
   );
 
   return (

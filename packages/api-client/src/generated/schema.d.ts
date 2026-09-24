@@ -829,6 +829,19 @@ export interface components {
             };
           };
         };
+        /** Linux pair (linux-cp) */
+        lcp?: {
+          /** Linux interface name */
+          hostIfName?: string;
+          /**
+           * Host interface type
+           * @default tap
+           * @enum {string}
+           */
+          hostIfType: 'tap' | 'tun';
+          /** Network namespace */
+          netns?: string;
+        };
       };
     };
     /**
@@ -900,6 +913,8 @@ export interface components {
         description?: string;
         /** Program via FRR */
         viaFrr?: boolean;
+        /** Route tag */
+        tag?: number;
       }[];
       /**
        * Routing policy

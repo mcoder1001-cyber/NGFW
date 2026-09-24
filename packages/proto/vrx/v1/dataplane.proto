@@ -110,6 +110,12 @@ service Dataplane {
   // wave-A: P11
   // wave-A: F-wireguard
   // wave-A: P12
+
+  // RoutingState reads the live routing-daemon state (FRR, P12): BGP instances and neighbours, FRR RIB counts, this
+  // owner's linux-cp pairs, registered FRR state readers by key and a bounded RIB lookup. Read-only state
+  // (docs/contracts/proto.md §11 P12: RoutingState); never part of Retrieve.
+  rpc RoutingState(RoutingStateRequest) returns (RoutingStateResponse);
+
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
 }
@@ -476,6 +482,13 @@ enum EventKind {
   // wave-A: P11
   // wave-A: F-wireguard
   // wave-A: P12
+
+  // FRR's RIB changed: the route count of one family/VRF/protocol moved (1 Hz poll of the RIB summary, P12). Attributes:
+  // `source` "frr", `family`, `vrf`, `protocol`, `old`, `new` (counts).
+  EVENT_KIND_ROUTING_CHANGED = 14;
+  // A BGP neighbour changed state (1 Hz poll, P12). Attributes: `source` "frr", `vrf`, `peer`, `old`, `new` (FRR state
+  // names: Idle, Connect, Active, OpenSent, OpenConfirm, Established; "" = the neighbour appeared/disappeared).
+  EVENT_KIND_BGP_NEIGHBOR_CHANGED = 15;
 }
 
 // Event is one asynchronous notification. Events on one stream are delivered in observation
@@ -887,6 +900,9 @@ message Interface {
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: P12
+
+  // linux-cp pair of this interface (lcp_itf_pair_add_del_v3, P12); present = the pair exists.
+  InterfaceLcp lcp = 22;
 }
 
 // DhcpClient mirrors `interfaces.<name>.dhcpClient` / `….subinterfaces.<id>.dhcpClient`.
@@ -1001,6 +1017,9 @@ message StaticRoute {
   optional bool via_frr = 7;
 
   // wave-A: P12
+
+  // Route tag carried by FRR (`ip route … tag N`, P12, RF-1 Q1); only for via_frr routes (VPP has no route tag).
+  optional uint32 tag = 8;
 }
 
 // NextHop is one path of a StaticRoute.
@@ -3675,6 +3694,145 @@ message ListRoutesPath {
 // ----- F-wireguard -----
 
 // ----- P12 -----
+
+// InterfaceLcp mirrors `interfaces.<name>.lcp`: the linux-cp pair of a VPP interface (a Linux tap/tun FRR runs on).
+message InterfaceLcp {
+  // Linux name of the host interface (≤ 15 bytes); unset = the VPP name.
+  optional string host_if_name = 1;
+  // "tap" | "tun"; Zod default "tap".
+  optional string host_if_type = 2;
+  // Network namespace of the host interface; unset = the linux-cp default namespace.
+  optional string netns = 3;
+}
+
+// RoutingStateRequest selects the parts of RoutingState to read (the BGP table, counts and pairs are always returned).
+message RoutingStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // Keys of registered FRR state readers to return (e.g. "bgpSummary"); unknown key → INVALID_ARGUMENT.
+  repeated string readers = 2;
+  // RIB lookup: FRR's RIB entries of these prefixes (canonical CIDR, at most 1000) in `rib_vrf`.
+  repeated string rib_prefixes = 3;
+  // VRF of the RIB lookup: a VRF name of the document ("" = default).
+  string rib_vrf = 4;
+}
+
+// RoutingStateResponse is the live routing-daemon state. Nothing in it is configuration and nothing holds a secret.
+message RoutingStateResponse {
+  // The owner whose view was returned.
+  string owner = 1;
+  // When FRR was read (agent clock).
+  google.protobuf.Timestamp retrieved_at = 2;
+  // FRR answered on its vty sockets. false = FRR is not running for this agent; `error` says why and the FRR fields
+  // below are empty (lcp_pairs is still filled from VPP).
+  bool frr_running = 3;
+  // FRR version ("10.7.1").
+  string frr_version = 4;
+  // Why FRR (or VPP for lcp_pairs) could not be read; "" = no error.
+  string error = 5;
+  // BGP instances (one per VRF with `router bgp`), sorted by VRF.
+  repeated BgpInstanceState bgp = 6;
+  // FRR RIB counts "<family>/<vrf>/<protocol>" → routes (family "ipv4" | "ipv6").
+  map<string, uint32> rib_counts = 7;
+  // This owner's linux-cp pairs (lcp_itf_pair_get), sorted by interface.
+  repeated RoutingLcpPair lcp_pairs = 8;
+  // Requested readers' JSON output by key (redacted, bounded by the reader's scoped command).
+  map<string, string> readers = 9;
+  // RIB lookup result: FRR's entries for the requested prefixes that exist, sorted by prefix then protocol.
+  repeated RoutingRibEntry rib = 10;
+}
+
+// BgpInstanceState is one `router bgp` instance (`show bgp vrf all summary json`).
+message BgpInstanceState {
+  // VRF name ("default" for the default VRF).
+  string vrf = 1;
+  // Local AS.
+  uint32 asn = 2;
+  // Router id in use.
+  string router_id = 3;
+  // Neighbours, sorted by address.
+  repeated BgpNeighborState neighbors = 4;
+}
+
+// BgpNeighborState is one BGP neighbour's live session state.
+message BgpNeighborState {
+  // Neighbour address (the `routing.bgp.neighbors` key).
+  string address = 1;
+  // Remote AS.
+  uint32 remote_as = 2;
+  // FRR state name: Idle, Connect, Active, OpenSent, OpenConfirm, Established (Idle (Admin) = shutdown).
+  string state = 3;
+  // Seconds in Established (0 when not established).
+  uint64 uptime_sec = 4;
+  // Prefixes accepted from the peer, summed over the families.
+  uint32 prefixes_received = 5;
+  // Prefixes announced to the peer, summed over the families.
+  uint32 prefixes_sent = 6;
+  // Session drops since the daemon started (FRR connectionsDropped): the flap count.
+  uint32 flaps = 7;
+  // Sessions established since the daemon started.
+  uint32 established = 8;
+  // Description from the configuration (FRR echo).
+  string description = 9;
+  // Per-family counters ("ipv4Unicast", "ipv6Unicast").
+  repeated BgpNeighborAfiState afis = 10;
+  // BGP messages received / sent.
+  uint64 messages_received = 11;
+  uint64 messages_sent = 12;
+}
+
+// BgpNeighborAfiState is a neighbour's per-family prefix counters.
+message BgpNeighborAfiState {
+  // "ipv4Unicast" | "ipv6Unicast".
+  string afi = 1;
+  uint32 prefixes_received = 2;
+  uint32 prefixes_sent = 3;
+}
+
+// RoutingLcpPair is one linux-cp pair of this owner (live VPP state).
+message RoutingLcpPair {
+  // VPP-side interface (logical name, D-069).
+  string interface = 1;
+  // Linux interface name.
+  string host_if_name = 2;
+  // "tap" | "tun".
+  string host_if_type = 3;
+  // Network namespace ("" = the default namespace).
+  string netns = 4;
+  // sw_if_index of the VPP-side interface and of VPP's end of the host tap; Linux ifindex of the host interface.
+  uint32 phy_sw_if_index = 5;
+  uint32 host_sw_if_index = 6;
+  uint32 vif_index = 7;
+}
+
+// RoutingRibEntry is one entry of FRR's RIB (`show ip[v6] route vrf <vrf> <prefix> json`).
+message RoutingRibEntry {
+  // Canonical prefix.
+  string prefix = 1;
+  // VRF name.
+  string vrf = 2;
+  // FRR protocol ("bgp", "static", "connected", "kernel", "ospf" …).
+  string protocol = 3;
+  // Best route of its prefix / installed in the kernel FIB.
+  bool selected = 4;
+  bool installed = 5;
+  // Administrative distance and metric.
+  uint32 distance = 6;
+  uint32 metric = 7;
+  // Next hops.
+  repeated RoutingRibNextHop next_hops = 8;
+}
+
+// RoutingRibNextHop is one next hop of a RoutingRibEntry.
+message RoutingRibNextHop {
+  // Gateway address ("" = directly connected).
+  string address = 1;
+  // Linux interface name.
+  string interface = 2;
+  // Active in FRR / installed in the FIB.
+  bool active = 3;
+  bool fib = 4;
+}
 
 // ----- F-kea-dhcp-relay -----
 

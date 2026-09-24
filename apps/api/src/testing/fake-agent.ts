@@ -655,6 +655,8 @@ export class FakeAgent {
       // wave-A: P11
       // wave-A: F-wireguard
       // wave-A: P12
+      routingState: (_call, cb) =>
+        cb({ code: status.UNIMPLEMENTED, details: 'RoutingState (P12)' }),
       // wave-A: F-kea-dhcp-relay
       // wave-A: F-unbound-chrony-syslog
     };

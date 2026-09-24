@@ -388,5 +388,28 @@ API while it runs); output = one summary `line` + `done{stats: transmitted, rece
 <!-- wave-A: P11 -->
 <!-- wave-A: F-wireguard -->
 <!-- wave-A: P12 -->
+
+### P12: RoutingState
+
+`RoutingState(RoutingStateRequest{owner, readers[], rib_prefixes[], rib_vrf}) → RoutingStateResponse{owner, retrieved_at,
+frr_running, frr_version, error, bgp[], rib_counts, lcp_pairs[], readers, rib[]}` is the routing-daemon **state RPC** (§5
+keeps live state out of `Retrieve`). The agent reads FRR through the RF-1 renderer's fixed vtysh argv, only scoped commands
+(RF-1 review M3): `show bgp vrf all summary json` (→ `bgp[]`: one `BgpInstanceState{vrf, asn, router_id, neighbors[]}` per
+`router bgp`, each `BgpNeighborState{address, remote_as, state, uptime_sec, prefixes_received, prefixes_sent, flaps
+(= FRR connectionsDropped), established, description, afis[{afi, prefixes_received, prefixes_sent}], messages_received,
+messages_sent}`, sorted by VRF then address), `show ip[v6] route vrf all summary json` (→ `rib_counts`
+`"<family>/<vrf>/<protocol>"`), the registered FRR state readers named in `readers` (JSON text by key, redacted; an
+unknown key → `INVALID_ARGUMENT`; F-ospf/F-isis-rip/F-bfd read their daemons through this), and for `rib_prefixes` (≤ 1000
+canonical CIDRs, else `INVALID_ARGUMENT`) one `show ip[v6] route vrf <rib_vrf> <prefix> json` each (→ `rib[]`: the
+entries FRR has for exactly that prefix: `prefix, vrf, protocol, selected, installed, distance, metric, next_hops[{address,
+interface, active, fib}]`). `lcp_pairs[]` is this owner's linux-cp pairs from VPP (`lcp_itf_pair_get`, D-069 logical
+names). FRR not running (no vty socket) is **not** an RPC error: `frr_running=false`, `error` says why, the FRR fields are
+empty; `UNAVAILABLE` only when VPP is disconnected. Nothing in the response is configuration or a secret.
+
+Mirror fields (§1): `Interface.lcp` (**22**, `InterfaceLcp{host_if_name, host_if_type, netns}`, P12) and
+`StaticRoute.tag` (**8**). Event kinds: `EVENT_KIND_ROUTING_CHANGED` (**14**: FRR RIB count of one family/VRF/protocol
+changed; attributes `source=frr, family, vrf, protocol, old, new`) and `EVENT_KIND_BGP_NEIGHBOR_CHANGED` (**15**:
+attributes `source=frr, vrf, peer, old, new` with FRR state names). Both come from the agent's 1 Hz FRR poll (FRR has no
+push channel without linking it, RF-1); a change is published once, never repeated.
 <!-- wave-A: F-kea-dhcp-relay -->
 <!-- wave-A: F-unbound-chrony-syslog -->

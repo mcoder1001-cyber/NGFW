@@ -55,6 +55,7 @@ const (
 	Dataplane_Health_FullMethodName         = "/vrx.v1.Dataplane/Health"
 	Dataplane_InterfaceState_FullMethodName = "/vrx.v1.Dataplane/InterfaceState"
 	Dataplane_ListRoutes_FullMethodName     = "/vrx.v1.Dataplane/ListRoutes"
+	Dataplane_RoutingState_FullMethodName   = "/vrx.v1.Dataplane/RoutingState"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -96,6 +97,10 @@ type DataplaneClient interface {
 	// ListRoutes pages the live FIB of one VRF (ip_route_v2_dump read once, filtered and paged in the agent; only the
 	// page crosses this boundary). Read-only state (docs/contracts/proto.md §11 F-vrf-static-ecmp: ListRoutes).
 	ListRoutes(ctx context.Context, in *ListRoutesRequest, opts ...grpc.CallOption) (*ListRoutesResponse, error)
+	// RoutingState reads the live routing-daemon state (FRR, P12): BGP instances and neighbours, FRR RIB counts, this
+	// owner's linux-cp pairs, registered FRR state readers by key and a bounded RIB lookup. Read-only state
+	// (docs/contracts/proto.md §11 P12: RoutingState); never part of Retrieve.
+	RoutingState(ctx context.Context, in *RoutingStateRequest, opts ...grpc.CallOption) (*RoutingStateResponse, error)
 }
 
 type dataplaneClient struct {
@@ -223,6 +228,16 @@ func (c *dataplaneClient) ListRoutes(ctx context.Context, in *ListRoutesRequest,
 	return out, nil
 }
 
+func (c *dataplaneClient) RoutingState(ctx context.Context, in *RoutingStateRequest, opts ...grpc.CallOption) (*RoutingStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RoutingStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_RoutingState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -262,6 +277,10 @@ type DataplaneServer interface {
 	// ListRoutes pages the live FIB of one VRF (ip_route_v2_dump read once, filtered and paged in the agent; only the
 	// page crosses this boundary). Read-only state (docs/contracts/proto.md §11 F-vrf-static-ecmp: ListRoutes).
 	ListRoutes(context.Context, *ListRoutesRequest) (*ListRoutesResponse, error)
+	// RoutingState reads the live routing-daemon state (FRR, P12): BGP instances and neighbours, FRR RIB counts, this
+	// owner's linux-cp pairs, registered FRR state readers by key and a bounded RIB lookup. Read-only state
+	// (docs/contracts/proto.md §11 P12: RoutingState); never part of Retrieve.
+	RoutingState(context.Context, *RoutingStateRequest) (*RoutingStateResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -298,6 +317,9 @@ func (UnimplementedDataplaneServer) InterfaceState(context.Context, *InterfaceSt
 }
 func (UnimplementedDataplaneServer) ListRoutes(context.Context, *ListRoutesRequest) (*ListRoutesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListRoutes not implemented")
+}
+func (UnimplementedDataplaneServer) RoutingState(context.Context, *RoutingStateRequest) (*RoutingStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RoutingState not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -461,6 +483,24 @@ func _Dataplane_ListRoutes_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_RoutingState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RoutingStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).RoutingState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_RoutingState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).RoutingState(ctx, req.(*RoutingStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -491,6 +531,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListRoutes",
 			Handler:    _Dataplane_ListRoutes_Handler,
+		},
+		{
+			MethodName: "RoutingState",
+			Handler:    _Dataplane_RoutingState_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

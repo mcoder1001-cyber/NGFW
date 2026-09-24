@@ -73,6 +73,14 @@ export class FakeAgent {
   failAllWith: status | undefined;
   /** Answer Apply only after this delay — the transaction IS applied (simulates a lost/late answer). */
   applyDelayMs = 0;
+  /**
+   * P08 InterfaceState fidelity (review N6): extra live rows the agent does not manage (appended, `managed:false`
+   * unless set), configured interfaces VPP does not have (left out of the live table), and an agent older than
+   * P08 (the RPC answers UNIMPLEMENTED).
+   */
+  liveExtra: Partial<InterfaceState>[] = [];
+  liveMissing = new Set<string>();
+  interfaceStateUnimplemented = false;
 
   private server: Server | undefined;
   private socketPath = '';
@@ -132,6 +140,9 @@ export class FakeAgent {
     this.dryRunIssues = undefined;
     this.failAllWith = undefined;
     this.applyDelayMs = 0;
+    this.liveExtra = [];
+    this.liveMissing = new Set();
+    this.interfaceStateUnimplemented = false;
     this.implemented = [...ROOT_KEYS];
     this.degraded = false;
     this.txnCache.clear();
@@ -543,6 +554,9 @@ export class FakeAgent {
     ) => {
       const r = call.request;
       if (!this.checkCommon('InterfaceState', r, cb)) return;
+      if (this.interfaceStateUnimplemented) {
+        return cb({ code: status.UNIMPLEMENTED, details: 'unknown method InterfaceState' });
+      }
       const ifs = (this.current['interfaces'] ?? {}) as Record<string, Json>;
       const out: InterfaceState[] = [];
       let idx = 1;
@@ -579,9 +593,15 @@ export class FakeAgent {
           );
         }
       }
+      for (const x of this.liveExtra) {
+        const name = x.name ?? `extra${idx}`;
+        out.push({ ...row(name, {}, x.parent ?? '', x.vlanId ?? 0), managed: false, ...x });
+      }
       const want = r.names;
       cb(null, {
-        interfaces: out.filter((i) => want.length === 0 || want.includes(i.name)),
+        interfaces: out.filter(
+          (i) => !this.liveMissing.has(i.name) && (want.length === 0 || want.includes(i.name)),
+        ),
         owner: this.owner,
         retrievedAt: new Date(),
       });

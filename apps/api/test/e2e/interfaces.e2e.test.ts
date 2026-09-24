@@ -90,4 +90,42 @@ describe('state/interfaces e2e (PostgreSQL + fake agent)', () => {
     expect((await h.call(ro, 'GET', '/api/v1/state/interfaces/nosuch0/counters')).status).toBe(404);
     expect((await h.call(ro, 'GET', '/api/v1/state/interfaces/..%2Fx/counters')).status).toBe(400);
   });
+
+  it('lists live rows the agent does not manage and configured rows VPP lacks; an older agent still lists Retrieve (review N6)', async () => {
+    // the configuration of the first test is committed: host-w1l0, host-w1w0, host-w1w0.100
+    h.fake.liveExtra = [{ name: 'local0', type: 'local', adminUp: false, linkUp: false }];
+    h.fake.liveMissing = new Set([W]);
+    const st = await h.call(ro, 'GET', '/api/v1/state/interfaces');
+    expect(st.status).toBe(200);
+    const by = new Map(
+      (st.body.items as { name: string }[]).map((i) => [i.name, i as Record<string, unknown>]),
+    );
+    expect([...by.keys()]).toEqual([L, W, `${W}.100`, 'local0']);
+    expect(by.get('local0')).toMatchObject({
+      kind: 'interface',
+      parent: null,
+      state: { managed: false, type: 'local', adminUp: false },
+      config: null,
+      running: null,
+      hasPendingChange: false,
+    });
+    expect(by.get(W)).toMatchObject({ state: null, config: { enabled: true }, running: { enabled: true } });
+
+    // an agent that predates the InterfaceState RPC answers UNIMPLEMENTED: the list comes from Retrieve alone
+    h.fake.liveExtra = [];
+    h.fake.liveMissing = new Set();
+    h.fake.interfaceStateUnimplemented = true;
+    try {
+      const old = await h.call(ro, 'GET', '/api/v1/state/interfaces');
+      expect(old.status).toBe(200);
+      const items = old.body.items as { name: string; state: unknown; config: unknown }[];
+      expect(items.map((i) => i.name)).toEqual([L, W, `${W}.100`]);
+      expect(items.every((i) => i.state === null)).toBe(true);
+      expect(items[0]).toMatchObject({ config: { enabled: true, mtu: 1400 } });
+      const c = await h.call(ro, 'GET', `/api/v1/state/interfaces/${L}/counters`);
+      expect(c.status).toBe(200); // falls back to the logical name as the VPP name
+    } finally {
+      h.fake.interfaceStateUnimplemented = false;
+    }
+  });
 });

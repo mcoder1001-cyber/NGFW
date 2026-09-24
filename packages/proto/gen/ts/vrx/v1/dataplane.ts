@@ -467,6 +467,63 @@ export function captureDirectionToJSON(object: CaptureDirection): string {
   }
 }
 
+/** AclRuleStatus says whether and why a configuration rule rendered VPP rules. */
+export enum AclRuleStatus {
+  /** ACL_RULE_STATUS_UNSPECIFIED - Not known (the mapping to VPP rules is unknown). */
+  ACL_RULE_STATUS_UNSPECIFIED = 0,
+  /** ACL_RULE_STATUS_APPLIED - Rendered as vpp_rules VPP rules. */
+  ACL_RULE_STATUS_APPLIED = 1,
+  /** ACL_RULE_STATUS_DISABLED - enabled: false — not rendered. */
+  ACL_RULE_STATUS_DISABLED = 2,
+  /** ACL_RULE_STATUS_SCHEDULE_INACTIVE - Its schedule is not active now — not rendered until it is. */
+  ACL_RULE_STATUS_SCHEDULE_INACTIVE = 3,
+  /** ACL_RULE_STATUS_EMPTY - Expanded to nothing (e.g. an FQDN object without addresses, or no common address family). */
+  ACL_RULE_STATUS_EMPTY = 4,
+  UNRECOGNIZED = -1,
+}
+
+export function aclRuleStatusFromJSON(object: any): AclRuleStatus {
+  switch (object) {
+    case 0:
+    case "ACL_RULE_STATUS_UNSPECIFIED":
+      return AclRuleStatus.ACL_RULE_STATUS_UNSPECIFIED;
+    case 1:
+    case "ACL_RULE_STATUS_APPLIED":
+      return AclRuleStatus.ACL_RULE_STATUS_APPLIED;
+    case 2:
+    case "ACL_RULE_STATUS_DISABLED":
+      return AclRuleStatus.ACL_RULE_STATUS_DISABLED;
+    case 3:
+    case "ACL_RULE_STATUS_SCHEDULE_INACTIVE":
+      return AclRuleStatus.ACL_RULE_STATUS_SCHEDULE_INACTIVE;
+    case 4:
+    case "ACL_RULE_STATUS_EMPTY":
+      return AclRuleStatus.ACL_RULE_STATUS_EMPTY;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return AclRuleStatus.UNRECOGNIZED;
+  }
+}
+
+export function aclRuleStatusToJSON(object: AclRuleStatus): string {
+  switch (object) {
+    case AclRuleStatus.ACL_RULE_STATUS_UNSPECIFIED:
+      return "ACL_RULE_STATUS_UNSPECIFIED";
+    case AclRuleStatus.ACL_RULE_STATUS_APPLIED:
+      return "ACL_RULE_STATUS_APPLIED";
+    case AclRuleStatus.ACL_RULE_STATUS_DISABLED:
+      return "ACL_RULE_STATUS_DISABLED";
+    case AclRuleStatus.ACL_RULE_STATUS_SCHEDULE_INACTIVE:
+      return "ACL_RULE_STATUS_SCHEDULE_INACTIVE";
+    case AclRuleStatus.ACL_RULE_STATUS_EMPTY:
+      return "ACL_RULE_STATUS_EMPTY";
+    case AclRuleStatus.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 /**
  * ApplyRequest carries one transaction. Exactly one of these forms is valid:
  *   - apply:            txn_id + desired_state (+ subsystems, confirm_timeout_sec)
@@ -5317,6 +5374,119 @@ export interface FqdnObjectState {
   error: string;
   /** Consecutive failed attempts since the last success (0 after a success). */
   failures: number;
+}
+
+/** AclStateRequest selects what AclState reports. */
+export interface AclStateRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+  /** acl.lists.<name> whose rule page is wanted; empty = no rule page (list summaries only). */
+  list: string;
+  /** Page over the list's configuration rules in sequence order, after the filter. */
+  offset: number;
+  /** Page size 1–1000; 0 = 100. More than 1000 is INVALID_ARGUMENT. */
+  limit: number;
+  /** Optional rule filter. */
+  filter:
+    | AclStateFilter
+    | undefined;
+  /** Also report the ACLs bound to every interface (acl_interface_list_dump, MACIP binding). */
+  includeInterfaces: boolean;
+}
+
+/** AclStateFilter narrows the rule page. */
+export interface AclStateFilter {
+  /** Only these configuration rule sequences (at most 1000); empty = every rule. */
+  sequences: number[];
+  /** Only rules whose counters show at least one packet (empty page when counters are unavailable). */
+  hitsOnly: boolean;
+}
+
+/** AclStateResponse is one snapshot of the ACL plugin state of this owner. */
+export interface AclStateResponse {
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the snapshot was taken (agent clock). */
+  retrievedAt:
+    | Date
+    | undefined;
+  /**
+   * True when per-rule hit counters are readable: acl.stats-enable was applied to this VPP by the
+   * globals owner (D-071) and the stats segment answers. False → packets/bytes are 0.
+   */
+  countersAvailable: boolean;
+  /** Why counters are unavailable (empty when available), e.g. "not the globals owner". */
+  countersReason: string;
+  /** Summaries of this owner's L3/L4 ACLs in VPP, sorted by name (only `list` when it is set). */
+  lists: AclListState[];
+  /** The requested page of `list`'s configuration rules, in sequence order. */
+  rules: AclRuleState[];
+  /** Number of configuration rules of `list` that match the filter (the paging total). */
+  total: number;
+  /** Interfaces with at least one ACL or a MACIP ACL bound (include_interfaces), by sw_if_index. */
+  interfaces: AclInterfaceState[];
+  /** Summaries of this owner's MACIP ACLs in VPP, sorted by name (list summaries only). */
+  macipLists: AclListState[];
+}
+
+/** AclListState is the runtime summary of one ACL of this owner. */
+export interface AclListState {
+  /** List name (key of acl.lists / acl.macip). */
+  name: string;
+  /** The VPP acl_index. */
+  aclIndex: number;
+  /** Rules of the ACL in VPP. */
+  vppRules: number;
+  /** True when the agent can map VPP rules to configuration rules (it projected exactly what VPP holds). */
+  mappingKnown: boolean;
+  /** Configuration rules of the list (mapping_known), including those that rendered no VPP rule. */
+  configRules: number;
+  /** Hits of all rules (L3/L4 ACLs with counters available; MACIP ACLs have no counters). */
+  packets: string;
+  /** Bytes of all rules. */
+  bytes: string;
+}
+
+/** AclRuleState is the runtime state of one configuration rule. */
+export interface AclRuleState {
+  /** Configuration rule sequence. */
+  sequence: number;
+  /** Whether it is rendered. */
+  status: AclRuleStatus;
+  /** Number of VPP rules it expanded to (addresses × families × services). */
+  vppRules: number;
+  /** Index of its first VPP rule in the ACL (its rules are contiguous); meaningful when vpp_rules > 0. */
+  firstVppRule: number;
+  /** Hits summed over its VPP rules and all workers. */
+  packets: string;
+  /** Bytes summed over its VPP rules and all workers. */
+  bytes: string;
+}
+
+/** AclInterfaceState is the ACL binding of one VPP interface. */
+export interface AclInterfaceState {
+  /** Logical interface name (D-069); another owner's interface by its VPP name. */
+  interface: string;
+  /** VPP sw_if_index. */
+  swIfIndex: number;
+  /** Inbound ACLs in evaluation order (first match wins), other owners' included. */
+  input: AclBoundAcl[];
+  /** Outbound ACLs in evaluation order, other owners' included. */
+  output: AclBoundAcl[];
+  /** The MACIP ACL bound inbound; unset = none. */
+  macip: AclBoundAcl | undefined;
+}
+
+/** AclBoundAcl is one ACL in an interface's list. */
+export interface AclBoundAcl {
+  /** VPP acl_index. */
+  aclIndex: number;
+  /** List name when the ACL is this owner's; empty for another owner's or an untagged ACL. */
+  name: string;
+  /** The VPP tag as stored ("<owner>:<name>" for managed ACLs). */
+  tag: string;
+  /** True when the ACL is not this owner's (D-066: preserved, never changed by this agent). */
+  foreign: boolean;
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -43027,6 +43197,1089 @@ export const FqdnObjectState: MessageFns<FqdnObjectState> = {
   },
 };
 
+function createBaseAclStateRequest(): AclStateRequest {
+  return { owner: "", list: "", offset: 0, limit: 0, filter: undefined, includeInterfaces: false };
+}
+
+export const AclStateRequest: MessageFns<AclStateRequest> = {
+  encode(message: AclStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.list !== "") {
+      writer.uint32(18).string(message.list);
+    }
+    if (message.offset !== 0) {
+      writer.uint32(24).uint32(message.offset);
+    }
+    if (message.limit !== 0) {
+      writer.uint32(32).uint32(message.limit);
+    }
+    if (message.filter !== undefined) {
+      AclStateFilter.encode(message.filter, writer.uint32(42).fork()).join();
+    }
+    if (message.includeInterfaces !== false) {
+      writer.uint32(48).bool(message.includeInterfaces);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AclStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAclStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.list = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.offset = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.limit = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.filter = AclStateFilter.decode(reader, reader.uint32());
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.includeInterfaces = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AclStateRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      list: isSet(object.list) ? globalThis.String(object.list) : "",
+      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
+      limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
+      filter: isSet(object.filter) ? AclStateFilter.fromJSON(object.filter) : undefined,
+      includeInterfaces: isSet(object.includeInterfaces)
+        ? globalThis.Boolean(object.includeInterfaces)
+        : isSet(object.include_interfaces)
+        ? globalThis.Boolean(object.include_interfaces)
+        : false,
+    };
+  },
+
+  toJSON(message: AclStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.list !== "") {
+      obj.list = message.list;
+    }
+    if (message.offset !== 0) {
+      obj.offset = Math.round(message.offset);
+    }
+    if (message.limit !== 0) {
+      obj.limit = Math.round(message.limit);
+    }
+    if (message.filter !== undefined) {
+      obj.filter = AclStateFilter.toJSON(message.filter);
+    }
+    if (message.includeInterfaces !== false) {
+      obj.includeInterfaces = message.includeInterfaces;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AclStateRequest>): AclStateRequest {
+    return AclStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AclStateRequest>): AclStateRequest {
+    const message = createBaseAclStateRequest();
+    message.owner = object.owner ?? "";
+    message.list = object.list ?? "";
+    message.offset = object.offset ?? 0;
+    message.limit = object.limit ?? 0;
+    message.filter = (object.filter !== undefined && object.filter !== null)
+      ? AclStateFilter.fromPartial(object.filter)
+      : undefined;
+    message.includeInterfaces = object.includeInterfaces ?? false;
+    return message;
+  },
+};
+
+function createBaseAclStateFilter(): AclStateFilter {
+  return { sequences: [], hitsOnly: false };
+}
+
+export const AclStateFilter: MessageFns<AclStateFilter> = {
+  encode(message: AclStateFilter, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    writer.uint32(10).fork();
+    for (const v of message.sequences) {
+      writer.uint32(v);
+    }
+    writer.join();
+    if (message.hitsOnly !== false) {
+      writer.uint32(16).bool(message.hitsOnly);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AclStateFilter {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAclStateFilter();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag === 8) {
+              message.sequences.push(reader.uint32());
+
+              continue;
+            }
+
+            if (tag === 10) {
+              const end2 = reader.uint32() + reader.pos;
+              while (reader.pos < end2) {
+                message.sequences.push(reader.uint32());
+              }
+
+              continue;
+            }
+
+            break;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.hitsOnly = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AclStateFilter {
+    return {
+      sequences: globalThis.Array.isArray(object?.sequences)
+        ? object.sequences.map((e: any) => globalThis.Number(e))
+        : [],
+      hitsOnly: isSet(object.hitsOnly)
+        ? globalThis.Boolean(object.hitsOnly)
+        : isSet(object.hits_only)
+        ? globalThis.Boolean(object.hits_only)
+        : false,
+    };
+  },
+
+  toJSON(message: AclStateFilter): unknown {
+    const obj: any = {};
+    if (message.sequences?.length) {
+      obj.sequences = message.sequences.map((e) => Math.round(e));
+    }
+    if (message.hitsOnly !== false) {
+      obj.hitsOnly = message.hitsOnly;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AclStateFilter>): AclStateFilter {
+    return AclStateFilter.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AclStateFilter>): AclStateFilter {
+    const message = createBaseAclStateFilter();
+    message.sequences = object.sequences?.map((e) => e) || [];
+    message.hitsOnly = object.hitsOnly ?? false;
+    return message;
+  },
+};
+
+function createBaseAclStateResponse(): AclStateResponse {
+  return {
+    owner: "",
+    retrievedAt: undefined,
+    countersAvailable: false,
+    countersReason: "",
+    lists: [],
+    rules: [],
+    total: 0,
+    interfaces: [],
+    macipLists: [],
+  };
+}
+
+export const AclStateResponse: MessageFns<AclStateResponse> = {
+  encode(message: AclStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    if (message.countersAvailable !== false) {
+      writer.uint32(24).bool(message.countersAvailable);
+    }
+    if (message.countersReason !== "") {
+      writer.uint32(34).string(message.countersReason);
+    }
+    for (const v of message.lists) {
+      AclListState.encode(v!, writer.uint32(42).fork()).join();
+    }
+    for (const v of message.rules) {
+      AclRuleState.encode(v!, writer.uint32(50).fork()).join();
+    }
+    if (message.total !== 0) {
+      writer.uint32(56).uint32(message.total);
+    }
+    for (const v of message.interfaces) {
+      AclInterfaceState.encode(v!, writer.uint32(66).fork()).join();
+    }
+    for (const v of message.macipLists) {
+      AclListState.encode(v!, writer.uint32(74).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AclStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAclStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.countersAvailable = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.countersReason = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.lists.push(AclListState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.rules.push(AclRuleState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.total = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.interfaces.push(AclInterfaceState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.macipLists.push(AclListState.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AclStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      countersAvailable: isSet(object.countersAvailable)
+        ? globalThis.Boolean(object.countersAvailable)
+        : isSet(object.counters_available)
+        ? globalThis.Boolean(object.counters_available)
+        : false,
+      countersReason: isSet(object.countersReason)
+        ? globalThis.String(object.countersReason)
+        : isSet(object.counters_reason)
+        ? globalThis.String(object.counters_reason)
+        : "",
+      lists: globalThis.Array.isArray(object?.lists)
+        ? object.lists.map((e: any) => AclListState.fromJSON(e))
+        : [],
+      rules: globalThis.Array.isArray(object?.rules) ? object.rules.map((e: any) => AclRuleState.fromJSON(e)) : [],
+      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
+      interfaces: globalThis.Array.isArray(object?.interfaces)
+        ? object.interfaces.map((e: any) => AclInterfaceState.fromJSON(e))
+        : [],
+      macipLists: globalThis.Array.isArray(object?.macipLists)
+        ? object.macipLists.map((e: any) => AclListState.fromJSON(e))
+        : globalThis.Array.isArray(object?.macip_lists)
+        ? object.macip_lists.map((e: any) => AclListState.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: AclStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.countersAvailable !== false) {
+      obj.countersAvailable = message.countersAvailable;
+    }
+    if (message.countersReason !== "") {
+      obj.countersReason = message.countersReason;
+    }
+    if (message.lists?.length) {
+      obj.lists = message.lists.map((e) => AclListState.toJSON(e));
+    }
+    if (message.rules?.length) {
+      obj.rules = message.rules.map((e) => AclRuleState.toJSON(e));
+    }
+    if (message.total !== 0) {
+      obj.total = Math.round(message.total);
+    }
+    if (message.interfaces?.length) {
+      obj.interfaces = message.interfaces.map((e) => AclInterfaceState.toJSON(e));
+    }
+    if (message.macipLists?.length) {
+      obj.macipLists = message.macipLists.map((e) => AclListState.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AclStateResponse>): AclStateResponse {
+    return AclStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AclStateResponse>): AclStateResponse {
+    const message = createBaseAclStateResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.countersAvailable = object.countersAvailable ?? false;
+    message.countersReason = object.countersReason ?? "";
+    message.lists = object.lists?.map((e) => AclListState.fromPartial(e)) || [];
+    message.rules = object.rules?.map((e) => AclRuleState.fromPartial(e)) || [];
+    message.total = object.total ?? 0;
+    message.interfaces = object.interfaces?.map((e) => AclInterfaceState.fromPartial(e)) || [];
+    message.macipLists = object.macipLists?.map((e) => AclListState.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseAclListState(): AclListState {
+  return { name: "", aclIndex: 0, vppRules: 0, mappingKnown: false, configRules: 0, packets: "0", bytes: "0" };
+}
+
+export const AclListState: MessageFns<AclListState> = {
+  encode(message: AclListState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.aclIndex !== 0) {
+      writer.uint32(16).uint32(message.aclIndex);
+    }
+    if (message.vppRules !== 0) {
+      writer.uint32(24).uint32(message.vppRules);
+    }
+    if (message.mappingKnown !== false) {
+      writer.uint32(32).bool(message.mappingKnown);
+    }
+    if (message.configRules !== 0) {
+      writer.uint32(40).uint32(message.configRules);
+    }
+    if (message.packets !== "0") {
+      writer.uint32(48).uint64(message.packets);
+    }
+    if (message.bytes !== "0") {
+      writer.uint32(56).uint64(message.bytes);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AclListState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAclListState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.aclIndex = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.vppRules = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.mappingKnown = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.configRules = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.packets = reader.uint64().toString();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.bytes = reader.uint64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AclListState {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      aclIndex: isSet(object.aclIndex)
+        ? globalThis.Number(object.aclIndex)
+        : isSet(object.acl_index)
+        ? globalThis.Number(object.acl_index)
+        : 0,
+      vppRules: isSet(object.vppRules)
+        ? globalThis.Number(object.vppRules)
+        : isSet(object.vpp_rules)
+        ? globalThis.Number(object.vpp_rules)
+        : 0,
+      mappingKnown: isSet(object.mappingKnown)
+        ? globalThis.Boolean(object.mappingKnown)
+        : isSet(object.mapping_known)
+        ? globalThis.Boolean(object.mapping_known)
+        : false,
+      configRules: isSet(object.configRules)
+        ? globalThis.Number(object.configRules)
+        : isSet(object.config_rules)
+        ? globalThis.Number(object.config_rules)
+        : 0,
+      packets: isSet(object.packets) ? globalThis.String(object.packets) : "0",
+      bytes: isSet(object.bytes) ? globalThis.String(object.bytes) : "0",
+    };
+  },
+
+  toJSON(message: AclListState): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.aclIndex !== 0) {
+      obj.aclIndex = Math.round(message.aclIndex);
+    }
+    if (message.vppRules !== 0) {
+      obj.vppRules = Math.round(message.vppRules);
+    }
+    if (message.mappingKnown !== false) {
+      obj.mappingKnown = message.mappingKnown;
+    }
+    if (message.configRules !== 0) {
+      obj.configRules = Math.round(message.configRules);
+    }
+    if (message.packets !== "0") {
+      obj.packets = message.packets;
+    }
+    if (message.bytes !== "0") {
+      obj.bytes = message.bytes;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AclListState>): AclListState {
+    return AclListState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AclListState>): AclListState {
+    const message = createBaseAclListState();
+    message.name = object.name ?? "";
+    message.aclIndex = object.aclIndex ?? 0;
+    message.vppRules = object.vppRules ?? 0;
+    message.mappingKnown = object.mappingKnown ?? false;
+    message.configRules = object.configRules ?? 0;
+    message.packets = object.packets ?? "0";
+    message.bytes = object.bytes ?? "0";
+    return message;
+  },
+};
+
+function createBaseAclRuleState(): AclRuleState {
+  return { sequence: 0, status: 0, vppRules: 0, firstVppRule: 0, packets: "0", bytes: "0" };
+}
+
+export const AclRuleState: MessageFns<AclRuleState> = {
+  encode(message: AclRuleState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.sequence !== 0) {
+      writer.uint32(8).uint32(message.sequence);
+    }
+    if (message.status !== 0) {
+      writer.uint32(16).int32(message.status);
+    }
+    if (message.vppRules !== 0) {
+      writer.uint32(24).uint32(message.vppRules);
+    }
+    if (message.firstVppRule !== 0) {
+      writer.uint32(32).uint32(message.firstVppRule);
+    }
+    if (message.packets !== "0") {
+      writer.uint32(40).uint64(message.packets);
+    }
+    if (message.bytes !== "0") {
+      writer.uint32(48).uint64(message.bytes);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AclRuleState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAclRuleState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.sequence = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.status = reader.int32() as any;
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.vppRules = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.firstVppRule = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.packets = reader.uint64().toString();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.bytes = reader.uint64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AclRuleState {
+    return {
+      sequence: isSet(object.sequence) ? globalThis.Number(object.sequence) : 0,
+      status: isSet(object.status) ? aclRuleStatusFromJSON(object.status) : 0,
+      vppRules: isSet(object.vppRules)
+        ? globalThis.Number(object.vppRules)
+        : isSet(object.vpp_rules)
+        ? globalThis.Number(object.vpp_rules)
+        : 0,
+      firstVppRule: isSet(object.firstVppRule)
+        ? globalThis.Number(object.firstVppRule)
+        : isSet(object.first_vpp_rule)
+        ? globalThis.Number(object.first_vpp_rule)
+        : 0,
+      packets: isSet(object.packets) ? globalThis.String(object.packets) : "0",
+      bytes: isSet(object.bytes) ? globalThis.String(object.bytes) : "0",
+    };
+  },
+
+  toJSON(message: AclRuleState): unknown {
+    const obj: any = {};
+    if (message.sequence !== 0) {
+      obj.sequence = Math.round(message.sequence);
+    }
+    if (message.status !== 0) {
+      obj.status = aclRuleStatusToJSON(message.status);
+    }
+    if (message.vppRules !== 0) {
+      obj.vppRules = Math.round(message.vppRules);
+    }
+    if (message.firstVppRule !== 0) {
+      obj.firstVppRule = Math.round(message.firstVppRule);
+    }
+    if (message.packets !== "0") {
+      obj.packets = message.packets;
+    }
+    if (message.bytes !== "0") {
+      obj.bytes = message.bytes;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AclRuleState>): AclRuleState {
+    return AclRuleState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AclRuleState>): AclRuleState {
+    const message = createBaseAclRuleState();
+    message.sequence = object.sequence ?? 0;
+    message.status = object.status ?? 0;
+    message.vppRules = object.vppRules ?? 0;
+    message.firstVppRule = object.firstVppRule ?? 0;
+    message.packets = object.packets ?? "0";
+    message.bytes = object.bytes ?? "0";
+    return message;
+  },
+};
+
+function createBaseAclInterfaceState(): AclInterfaceState {
+  return { interface: "", swIfIndex: 0, input: [], output: [], macip: undefined };
+}
+
+export const AclInterfaceState: MessageFns<AclInterfaceState> = {
+  encode(message: AclInterfaceState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== "") {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.swIfIndex !== 0) {
+      writer.uint32(16).uint32(message.swIfIndex);
+    }
+    for (const v of message.input) {
+      AclBoundAcl.encode(v!, writer.uint32(26).fork()).join();
+    }
+    for (const v of message.output) {
+      AclBoundAcl.encode(v!, writer.uint32(34).fork()).join();
+    }
+    if (message.macip !== undefined) {
+      AclBoundAcl.encode(message.macip, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AclInterfaceState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAclInterfaceState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.swIfIndex = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.input.push(AclBoundAcl.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.output.push(AclBoundAcl.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.macip = AclBoundAcl.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AclInterfaceState {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      swIfIndex: isSet(object.swIfIndex)
+        ? globalThis.Number(object.swIfIndex)
+        : isSet(object.sw_if_index)
+        ? globalThis.Number(object.sw_if_index)
+        : 0,
+      input: globalThis.Array.isArray(object?.input) ? object.input.map((e: any) => AclBoundAcl.fromJSON(e)) : [],
+      output: globalThis.Array.isArray(object?.output) ? object.output.map((e: any) => AclBoundAcl.fromJSON(e)) : [],
+      macip: isSet(object.macip) ? AclBoundAcl.fromJSON(object.macip) : undefined,
+    };
+  },
+
+  toJSON(message: AclInterfaceState): unknown {
+    const obj: any = {};
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.swIfIndex !== 0) {
+      obj.swIfIndex = Math.round(message.swIfIndex);
+    }
+    if (message.input?.length) {
+      obj.input = message.input.map((e) => AclBoundAcl.toJSON(e));
+    }
+    if (message.output?.length) {
+      obj.output = message.output.map((e) => AclBoundAcl.toJSON(e));
+    }
+    if (message.macip !== undefined) {
+      obj.macip = AclBoundAcl.toJSON(message.macip);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AclInterfaceState>): AclInterfaceState {
+    return AclInterfaceState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AclInterfaceState>): AclInterfaceState {
+    const message = createBaseAclInterfaceState();
+    message.interface = object.interface ?? "";
+    message.swIfIndex = object.swIfIndex ?? 0;
+    message.input = object.input?.map((e) => AclBoundAcl.fromPartial(e)) || [];
+    message.output = object.output?.map((e) => AclBoundAcl.fromPartial(e)) || [];
+    message.macip = (object.macip !== undefined && object.macip !== null)
+      ? AclBoundAcl.fromPartial(object.macip)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseAclBoundAcl(): AclBoundAcl {
+  return { aclIndex: 0, name: "", tag: "", foreign: false };
+}
+
+export const AclBoundAcl: MessageFns<AclBoundAcl> = {
+  encode(message: AclBoundAcl, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.aclIndex !== 0) {
+      writer.uint32(8).uint32(message.aclIndex);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    if (message.tag !== "") {
+      writer.uint32(26).string(message.tag);
+    }
+    if (message.foreign !== false) {
+      writer.uint32(32).bool(message.foreign);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AclBoundAcl {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAclBoundAcl();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.aclIndex = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.tag = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.foreign = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AclBoundAcl {
+    return {
+      aclIndex: isSet(object.aclIndex)
+        ? globalThis.Number(object.aclIndex)
+        : isSet(object.acl_index)
+        ? globalThis.Number(object.acl_index)
+        : 0,
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      tag: isSet(object.tag) ? globalThis.String(object.tag) : "",
+      foreign: isSet(object.foreign) ? globalThis.Boolean(object.foreign) : false,
+    };
+  },
+
+  toJSON(message: AclBoundAcl): unknown {
+    const obj: any = {};
+    if (message.aclIndex !== 0) {
+      obj.aclIndex = Math.round(message.aclIndex);
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.tag !== "") {
+      obj.tag = message.tag;
+    }
+    if (message.foreign !== false) {
+      obj.foreign = message.foreign;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AclBoundAcl>): AclBoundAcl {
+    return AclBoundAcl.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AclBoundAcl>): AclBoundAcl {
+    const message = createBaseAclBoundAcl();
+    message.aclIndex = object.aclIndex ?? 0;
+    message.name = object.name ?? "";
+    message.tag = object.tag ?? "";
+    message.foreign = object.foreign ?? false;
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
@@ -43159,6 +44412,24 @@ export const DataplaneService = {
       Buffer.from(FqdnObjectStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): FqdnObjectStateResponse => FqdnObjectStateResponse.decode(value),
   },
+  /**
+   * AclState reports the runtime state of this owner's L3/L4 ACLs (acl.lists): per list the VPP
+   * acl_index, VPP rule count and summed hit counters; for one list a page (≤ 1000) of its
+   * configuration rules by sequence with the number of VPP rules each expanded to and their hit
+   * counters, mapped back through the agent's expansion; on request the ACLs bound to every
+   * interface in VPP order, other owners' included (D-066), and the MACIP ACL per interface.
+   * Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve); counters come
+   * from the stats segment, never a whole list in one message. Never mutates.
+   */
+  aclState: {
+    path: "/vrx.v1.Dataplane/AclState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: AclStateRequest): Buffer => Buffer.from(AclStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): AclStateRequest => AclStateRequest.decode(value),
+    responseSerialize: (value: AclStateResponse): Buffer => Buffer.from(AclStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): AclStateResponse => AclStateResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -43211,6 +44482,16 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve). Never mutates.
    */
   fqdnObjectState: handleUnaryCall<FqdnObjectStateRequest, FqdnObjectStateResponse>;
+  /**
+   * AclState reports the runtime state of this owner's L3/L4 ACLs (acl.lists): per list the VPP
+   * acl_index, VPP rule count and summed hit counters; for one list a page (≤ 1000) of its
+   * configuration rules by sequence with the number of VPP rules each expanded to and their hit
+   * counters, mapped back through the agent's expansion; on request the ACLs bound to every
+   * interface in VPP order, other owners' included (D-066), and the MACIP ACL per interface.
+   * Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve); counters come
+   * from the stats segment, never a whole list in one message. Never mutates.
+   */
+  aclState: handleUnaryCall<AclStateRequest, AclStateResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -43361,6 +44642,30 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: FqdnObjectStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * AclState reports the runtime state of this owner's L3/L4 ACLs (acl.lists): per list the VPP
+   * acl_index, VPP rule count and summed hit counters; for one list a page (≤ 1000) of its
+   * configuration rules by sequence with the number of VPP rules each expanded to and their hit
+   * counters, mapped back through the agent's expansion; on request the ACLs bound to every
+   * interface in VPP order, other owners' included (D-066), and the MACIP ACL per interface.
+   * Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve); counters come
+   * from the stats segment, never a whole list in one message. Never mutates.
+   */
+  aclState(
+    request: AclStateRequest,
+    callback: (error: ServiceError | null, response: AclStateResponse) => void,
+  ): ClientUnaryCall;
+  aclState(
+    request: AclStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: AclStateResponse) => void,
+  ): ClientUnaryCall;
+  aclState(
+    request: AclStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: AclStateResponse) => void,
   ): ClientUnaryCall;
 }
 

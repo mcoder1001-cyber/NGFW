@@ -701,7 +701,7 @@ func (c *changing) Create(ctx context.Context, o proto.Message) (any, error) {
 // TestErrorsAndLogsNeverPrintValues plants a secret in a desired value and makes verification fail:
 // neither the transaction error nor any log line may contain it (review DF-5 H1).
 func TestErrorsAndLogsNeverPrintValues(t *testing.T) {
-	const secret = "VRX_TEST_PSK_scheduler_plant"
+	const secret = "VRX_TEST_PSK_scheduler_plant" //nolint:gosec // documented test placeholder, not a credential
 	st := newStore()
 	reg := NewRegistry()
 	reg.Register(&changing{mem{name: "s", st: st}})

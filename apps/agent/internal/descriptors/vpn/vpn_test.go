@@ -97,7 +97,7 @@ func TestKeyFile(t *testing.T) {
 	if err != nil || k2.Ref(testKey) != k1.Ref(testKey) {
 		t.Fatalf("reload: %v", err)
 	}
-	if err := os.Chmod(path, 0o644); err != nil {
+	if err := os.Chmod(path, 0o644); err != nil { //nolint:gosec // the test makes the key file group-readable on purpose
 		t.Fatal(err)
 	}
 	if _, err := vpn.LoadOrCreateKeyFile(path); err == nil {

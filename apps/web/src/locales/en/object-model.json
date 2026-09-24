@@ -1,0 +1,147 @@
+{
+  "title": "Objects",
+  "intro": "Reusable addresses, groups, services, schedules, zones and tags that ACL and NAT rules refer to by name. Changes go to the candidate configuration; commit them from the pending-change bar.",
+  "tabsLabel": "Object kinds",
+  "tabs": {
+    "addresses": "Addresses",
+    "addressGroups": "Address groups",
+    "services": "Services",
+    "serviceGroups": "Service groups",
+    "schedules": "Schedules",
+    "zones": "Zones",
+    "tags": "Tags"
+  },
+  "kindOne": {
+    "addresses": "address",
+    "addressGroups": "address group",
+    "services": "service",
+    "serviceGroups": "service group",
+    "schedules": "schedule",
+    "zones": "zone",
+    "tags": "tag"
+  },
+  "listSeparator": ", ",
+  "add": "Add {{kind}}",
+  "filter": "Filter",
+  "readonly": "Your role cannot change the configuration",
+  "loading": "Loading",
+  "close": "Close",
+  "pending": "pending",
+  "empty": "No {{kind}} yet.",
+  "noMatch": "Nothing matches the filter.",
+  "whereUsed": "Where used",
+  "whereUsedOf": "Where is {{name}} used",
+  "deleteNamed": "Delete {{name}}",
+  "col": {
+    "name": "Name",
+    "type": "Type",
+    "value": {
+      "addresses": "Address",
+      "addressGroups": "Members",
+      "services": "Protocol and ports",
+      "serviceGroups": "Members",
+      "schedules": "Window",
+      "zones": "Interfaces",
+      "tags": "Tag"
+    },
+    "resolved": "Resolution",
+    "tags": "Tags",
+    "description": "Description",
+    "actions": "Actions"
+  },
+  "variant": {
+    "host": "Host",
+    "network": "Network",
+    "range": "Range",
+    "fqdn": "FQDN",
+    "tcp": "TCP",
+    "tcp-udp": "TCP and UDP",
+    "udp": "UDP",
+    "sctp": "SCTP",
+    "icmp": "ICMP",
+    "icmp6": "ICMPv6",
+    "any": "Any protocol",
+    "other": "Other IP protocol",
+    "tcp|tcp-udp": "TCP / TCP and UDP",
+    "udp|sctp": "UDP / SCTP",
+    "icmp|icmp6": "ICMP / ICMPv6",
+    "recurring": "Recurring",
+    "once": "One time"
+  },
+  "fqdn": {
+    "unavailable": "Resolver state unavailable",
+    "notResolved": "Not resolved yet",
+    "notApplied": "Not committed yet",
+    "resolvedAgo": "Resolved {{when}}",
+    "keptLastGood": "Last good answer kept",
+    "failed": "Resolution failed"
+  },
+  "usage": {
+    "title": "Where is {{name}} used?",
+    "sourceLabel": "Configuration to search",
+    "source": {
+      "candidate": "Candidate",
+      "running": "Running"
+    },
+    "definedAs": "Defined as: {{kinds}}",
+    "notDefined": "No object with this name.",
+    "none": "Not referenced anywhere.",
+    "listLabel": "References",
+    "kind": {
+      "address-group-member": "Member of an address group",
+      "service-group-member": "Member of a service group",
+      "tag": "Tag of an object or list",
+      "acl-rule-source": "ACL rule source",
+      "acl-rule-destination": "ACL rule destination",
+      "acl-rule-service": "ACL rule service",
+      "acl-rule-schedule": "ACL rule schedule",
+      "acl-attachment-zone": "ACL attached to the zone",
+      "zone-interface": "Interface of a zone"
+    }
+  },
+  "dialog": {
+    "addTitle": "New {{kind}}",
+    "editTitle": "Edit {{kind}} {{name}}",
+    "name": "Name",
+    "nameHelp": "Letters, digits, dot, dash and underscore; up to 63 characters",
+    "exists": "An object of this kind with this name exists already",
+    "groupHint": "A group may be empty while you build it, but an ACL rule cannot use an empty group.",
+    "save": "Save to candidate",
+    "reset": "Reset",
+    "remove": "Delete",
+    "cancel": "Cancel"
+  },
+  "picker": {
+    "option": "{{name}} — {{kind}}: {{detail}}"
+  },
+  "field": {
+    "address": { "title": "Address" },
+    "prefix": { "title": "Prefix", "help": "e.g. 10.0.0.0/24 or 2001:db8::/32" },
+    "start": { "title": "Start" },
+    "end": { "title": "End" },
+    "addresses": {
+      "start": { "title": "First address" },
+      "end": { "title": "Last address" }
+    },
+    "schedules": {
+      "start": { "title": "Start", "help": "HH:MM (recurring) or a date and time with its offset (one time)" },
+      "end": { "title": "End", "help": "Later than the start; an overnight window is two schedules" }
+    },
+    "fqdn": { "title": "FQDN", "help": "Resolved by the agent (IPv4 and IPv6 answers); a name that does not resolve matches nothing" },
+    "description": { "title": "Description" },
+    "tags": { "title": "Tags" },
+    "members": { "title": "Members" },
+    "protocol": { "title": "Protocol" },
+    "destinationPorts": { "title": "Destination ports", "help": "443 or 8000-8080; empty = any port" },
+    "sourcePorts": { "title": "Source ports", "help": "empty = any port" },
+    "tcpFlags": { "title": "TCP flags" },
+    "mask": { "title": "Mask" },
+    "value": { "title": "Value" },
+    "type": { "title": "ICMP type", "help": "empty = any type" },
+    "code": { "title": "ICMP code", "help": "needs a type; empty = any code" },
+    "number": { "title": "IP protocol number", "help": "e.g. 47 = GRE, 50 = ESP, 89 = OSPF" },
+    "days": { "title": "Days" },
+    "interfaces": { "title": "Interfaces" },
+    "color": { "title": "Colour", "help": "#rrggbb" }
+  }
+}

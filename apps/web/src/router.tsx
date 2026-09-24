@@ -76,6 +76,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-A: F-neighbors-ra
         // wave-A: F-rpf-adl-pbr
         // wave-A: F-object-model
+        { path: domainPath('objects').slice(1), lazy: async () => ({ Component: (await import('./domains/firewall/object-model/ObjectsPage')).ObjectsPage }) },
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables
         // wave-A: F-nat44-ed-sessions

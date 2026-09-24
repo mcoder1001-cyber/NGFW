@@ -279,3 +279,55 @@ the harness; no `loop9xx` / w9 neighbour, RA or proxy object left (cleanup lines
 (slot agent, D-071); `apps/agent/bin`, every `dist/` and `/run/vrx-test/w9/nra` removed after the CI run (below, final check:
 `vppctl show interface | grep -c loop9xx` = 0, `show ip neighbors` = 0, `show arp proxy` empty, no watcher on loop9xx,
 no listener on 3900/5900/9191, `/run/vrx-test/w9/pg.env` gone).
+
+## Fix round 1 (review `a7c9543`, APPROVE WITH CHANGES)
+Unit/e2e only, no VPP run, no `show trace`. No rebase: the merger squashes `git diff df67a8e task/F-neighbors-ra` onto
+main and regenerates `schema.d.ts` / `operations_gen.go`.
+
+| finding | fix | commit | test |
+|---|---|---|---|
+| **M1** named arp-flush reached any untagged interface | `rpc_neighbors_ra.go`: a named interface must be in the stored configuration or tagged by this owner (`neighborsra.Owned`), otherwise INVALID_ARGUMENT naming it (API: 400, pointer `/interface`); proto.md §11 and the user page say so | `c8f8b00` | `TestListNeighborsAndArpFlushRPCs`: untagged unconfigured `loop555` refused and untouched, own-tagged `loop777` flushed. Negative control (check disabled): `project_neighbors_ra_test.go:376: unconfigured untagged flush: <nil>` → FAIL; enabled → ok |
+| **L1** flush not serialised with Apply/Resync | the flush holds the service's transaction lock (`s.lock`/`s.unlock`) | `c8f8b00` | existing flush tests (lock taken and released) |
+| **L2** events lost ≤ 30 s after (re)connect | watcher rescans early (default 1 s and 5 s after start, then every 30 s; `NeighborWatchConfig.Early`) | `c8f8b00` | `TestRunNeighborWatchEarlyRescan` (Rescan 1 h, Early 100 ms: an interface created after the first scan is subscribed) |
+| **L3** untagged twin shadowed our interface | `Nameable` takes own-tagged interfaces first, untagged second (IndexByName's rule); `only` asks VPP for the tables of the named interface only (N1) | `c8f8b00` | `TestNameableOursFirst` (twin "lan" with a lower index; list shows ours; 2 `sw_interface_get_table` calls for one name) |
+| **L5** free-text query params | `vrf`/`search` = main's `safeText(64)`; `apps/api/src/common/text.ts` copied byte-for-byte from main (blob `233c712` on both), so the squash is a no-op for it | `1236448` | controller test: ESC/LF/U+202E/65 chars refused |
+| **Q9** fake Action / e2e | `features/neighbors-ra/fake.ts` answers `arp_flush` for real (lines + `done`, M1's INVALID_ARGUMENT); its `action` spread replaces the shared generic handler and answers every other action with UNIMPLEMENTED via `emit('error')` — **the same fix F-nat44-ed-sessions makes to the generic handler; at merge that fix comes from F-nat44-ed, and when F-vrf-static-ecmp's fake Action dispatch lands, fold `arpFlush` into it as one case**. The e2e now accepts only the real answers | `1236448` | e2e below |
+| **N1** comment on gone interfaces' watchers | corrected (VPP keeps them until unwatch/reaper; reused-index events are dropped by the name filter) | `c8f8b00` | — |
+
+E2E (host PostgreSQL + Valkey + the in-process fake agent; no VPP):
+```
+ ✓ test/e2e/neighbors-ra.e2e.test.ts (4 tests) 4406ms          (was 8.4 s: the flush case no longer waits for the 5 s deadline)
+      Tests  4 passed (4)
+drop   database vrx_w9 · drop role vrx_w9 · ok nothing named vrx_w9 / vrx_w9 remains
+```
+Unit: `go test -race` on `actions/neighbors-ra`, `agent`, `subsystems`, `desired`, `descriptors/ip_neighbor` ok;
+golangci-lint 0 issues on the touched packages; API `src/features` 7 tests ok; API typecheck/eslint clean.
+
+### Left for later
+- **L4** permanent `/state/drift` from list order and text form (static neighbours sorted by interface+address, ranges by
+  table/low/high, `proxyNd` by address; MACs lower-case colon, IPv6 compressed): the same pattern as P08's address lists —
+  cross-cutting tech debt (canonicalise in the schema, or assemble in the stored document's order), manager.
+- **N1** remainder: the projection options are process-global (`desired.ConfigureNeighborsRa`; pass them through the
+  Wiring or `project()` when A2 is next touched); `neighborWatches` is never pruned (tests only); proto message names
+  without the `Neighbor*` prefix (no collision today; checked at merge).
+- Q5 (examples `SIBLING` regex) stays with the manager; anchors for `Wiring.Connected`, `coretest.New()` and the import
+  blocks as the review's merge note says.
+
+### CI (fix round 1)
+Main's `tools/ci.sh` (blob `b14e19f`, D-127 included) copied to `/tmp/g-w9/ci-main.sh`, run in this worktree on `1236448`
+(this commit only adds this section):
+```
+== VRX CI gate: quick ==
+branch    task/F-neighbors-ra @ 1236448   (base: main)
+== contract guard: HEAD vs main ==            ok — contract commit(s) on the branch (19935ee 61412e5 f1fccf2 744392e 65fbe25 + W-seed/P08's)
+== generate + generated-output gate ==        clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated
+== lint · typecheck · unit tests · build ==   Tasks:    30 successful, 30 total Cached:    12 cached, 30 total Time:    5m8.484s
+== apps/agent: make lint test build ==        golangci-lint 0 issues · go test -race: ok=91 FAIL=0
+== apps/cli: make lint test build ==          ok
+== test/ Go modules, unit mode ==             test/topology/neighbors-ra: gofmt ok · go vet ok · ok
+== deploy/vpp: shellcheck + apply-startup fake-host harness ==
+apply-startup harness: green (4 shards; 404 checks passed in the parallel run)
+  warning: commit subject not in Conventional Commits form: review(F-neighbors-ra): … (the manager's review commit)
+  mode quick · wall time 17m56s · logs /root/ngfw-wt/logs/ci/F-neighbors-ra-20260924-232824-533285
+CI GATE PASSED
+```

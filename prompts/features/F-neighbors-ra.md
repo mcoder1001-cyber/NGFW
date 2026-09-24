@@ -17,6 +17,13 @@ limits, proxy-ARP (ranges + interfaces), proxy-ND, IPv6 router advertisements (p
 - `docs/vpp-code-track.md` **V12** (VPP aborted after `ip6nd_proxy_add_del` → proxy-ND stays opt-in behind `VRX_DF2_PROXY_ND=1`, D-064; the
   product may expose it only as "experimental, off by default"); host-vrx-a: plugin `ip6_dad_autoremove` **not loaded** (no auto-remove)
 - LOG D-071 (neighbour-DB config and DAD are VPP globals: only the globals owner sets them; slots may only require), D-082 (globals lock)
+- Registration facts (checked 2026-09-24, prep-waveA, against DF-2 + P08): `ipneighbor.Register` / `ip6nd.Register` / `arp.Register(r, c,
+  owner, tables *df2.IDRange, …)` take `df2.WithClaims(<P08 Wiring.KeyedClaims("acl")>)` — the persisted claim store, never the in-memory
+  default; `arp.Register`'s table range is the slot range `N000–N999` on the shared host and nil (= all) only for the product agent;
+  `RegisterGlobals` (neighbour config, DAD) only when `Env.GlobalsOwner`. `ip_neighbor_flush` / `ip_neighbor_dump` /
+  `want_ip_neighbor_events_v2` default to `sw_if_index = ~0` = **every interface of every slot**: flush only interfaces this agent may
+  name (own tag or untagged, never a foreign tag — resolve with DF-1 `iface.ResolveName`), never send `~0` on the shared host; filter
+  events to nameable interfaces and re-subscribe from P08's reconnect hook (`Wiring.Connected`, like DF-8's `Reconnected`)
 
 ## Contract changes
 Additive on `contract/F-neighbors-ra`: `interfaces.<if>.ipv6Ra?{suppress, managed, other, lifetimeSec, minIntervalSec, maxIntervalSec,
@@ -32,16 +39,25 @@ delayMs}}` + a paged neighbour state message and an `ArpFlushAction` in `ActionR
    `want_ip_neighbor_events_v2`; flush action in `apps/agent/internal/actions/neighbors-ra/`. Fake-client unit tests; ONE host check
    (prefixed taps): Retrieve == desired, `vppctl show ip neighbors` / `show ip6 interface <if>` contain it, rollback clears, restart simulation.
 3. **API**: config via pointer routes; replace the 501 in `/api/v1/state/neighbors` (paged, filter vrf/interface/state);
-   `POST /api/v1/actions/arp-flush {interface?}`.
+   `POST /api/v1/actions/arp-flush {interface?}` served by a controller in your own feature module (a static route wins over the
+   generic `:action` route; `apps/api/src/actions/**` belongs to F-vrf-static-ecmp in this wave); the flush is audited.
 4. **UI**: Neighbours screen (ServerDataGrid, live via WS events, flush button with confirm), static entries form, per-interface IPv6 RA tab; en+fa.
+   P08's interface drawer renders every `interfaces.<if>` leaf through SchemaForm grouped by the `withUi` `group` hint, so the new
+   per-interface fields appear there without a drawer rewrite; give them a `group` and make absent/default mean "off" (drawer saves
+   write defaults back; P08's `dropPhantomOptionals` drops only unchanged optional objects).
 5. **Docs**: `docs/user/routing/neighbors-ra.md` (static ARP, RA with SLAAC prefix, proxy-ARP; CLI equivalent).
 
-Files you own: `apps/agent/internal/descriptors/{ip_neighbor,ip6_nd,arp}/**`, `docs/agent/descriptors/{ip_neighbor,ip6_nd,arp}.md`,
-`apps/agent/internal/actions/neighbors-ra/**`, `apps/agent/internal/agent/project_neighbors_ra*.go`, `apps/api/src/features/neighbors-ra/**`,
+Files you own: `apps/agent/internal/descriptors/{ip_neighbor,ip6_nd,arp}/**` (DF-2's, merged — gap fixes only),
+`docs/agent/descriptors/{ip_neighbor,ip6_nd,arp}.md`, `apps/agent/internal/actions/neighbors-ra/**`, `apps/agent/internal/agent/project_neighbors_ra*.go`,
+`apps/agent/internal/desired/neighbors_ra*.go` (P08 puts builders in `internal/desired/`), `apps/api/src/features/neighbors-ra/**`,
 `apps/web/src/domains/routing/neighbors-ra/**`, `apps/web/src/locales/*/neighbors-ra.json`, `docs/user/routing/neighbors-ra.md`,
 `test/topology/neighbors-ra/**`.
-Shared files: one-line appends only (agent registry/projection hook, Action dispatch in `server.go`, `state.controller.ts` neighbors
-delegation, `app.module.ts`, web router/nav); `packages/api-client` regenerated.
+Shared files (P08 layout; protocol and anchors in `docs/status/wave-A-hotspots.md`; list each hunk in your PR):
+`apps/agent/internal/subsystems/subsystems.go` (register, `Domains`, one line in the reconnect hook), `apps/agent/internal/agent/projection.go`
+(one call in `project()`, one in `assemble()` after `desired.Assemble` — `desired/interfaces.go` stays P08's), `server.go` (the Action case;
+the neighbour RPC method goes in an owned `rpc_neighbors_ra.go`), `state.controller.ts` (move the neighbors handler into your
+controller), `apps/api/src/agent/agent.client.ts`, `apps/api/src/{infra/bus.ts,telemetry/relay.service.ts}` (event topic), `app.module.ts`,
+web router/nav/`i18n.ts`; `packages/api-client` regenerated.
 
 ## Acceptance (paste the evidence)
 - [ ] `vppctl show ip neighbors` lists the static entry; `vppctl show ip6 interface <if>` shows RA config + prefix (pasted); Retrieve == desired

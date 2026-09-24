@@ -14,6 +14,14 @@ import (
 	"go.fd.io/govpp/core"
 )
 
+// govpp's health-check defaults (250 ms reply timeout, 2 misses) disconnect on hypervisor jitter: on vrx-a an idle VPP
+// answers a control ping in 0.4 ms median but spikes to ~300 ms with nothing else running (ESXi memory reclaim, P08 review
+// I6, D-108), and every disconnect forces a full reconnect + resync. 2 s × 5 misses still reports a dead VPP within ~10 s.
+func init() {
+	core.HealthCheckReplyTimeout = 2 * time.Second
+	core.HealthCheckThreshold = 5
+}
+
 // ConnState is a change of the binary-API connection state reported by Conn.States.
 type ConnState struct {
 	Connected bool

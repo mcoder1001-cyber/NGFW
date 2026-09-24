@@ -44,3 +44,16 @@ rig 10.1.{1,2}.0/24). Runs directly on the host (no wt.sh). NRestarts at start: 
   stopped at my F4 assertion (API validation = 400, not 422) before any agent create → 76850ac. 15:40 run 2: F4 400+pointer on
   the real stack; first real commit → 504 after 60 s (I6 VPP-wide stall, ~47 s without an answer, I2 orphan reproduced).
   Stopped per envelope. Cleanup done 15:45 (rig down twice, Q4). DONE — handover in P08.md "Fix round 1".
+
+## Fix round 2 (manager ngfw-46, envelope P08.fix2.md, D-118; LAST round) — started 16:52, time box 3 h
+- 16:52 step 0: `git merge main` (TD-5 3048991, rig-down race 63178d2): no conflicts; the pre-merge-commit gate went red on
+  exactly T1 (`TestEveryAfPacketDeleteIsQuiesced`: coretest/ifext.go:170) + `TestGRPCRoundTrip` (its own 10 s ctx at load ~20;
+  green alone and in every later run) → merge committed as is (f2ac0e2), T1 fixed next.
+- T1 guard skips a type assertion's asserted type (7c06b88); R1-agent remembered default → ErrRecreate (7ae4701); R1-cli contract
+  description (6ce08c2) + CLI skips null-config rows (0643ef4); T2 e2e Retrieve drift (c1f9518); T3 web N5/N4 tests (25f8cc5).
+  Every new test was run against the old code and fails there.
+- T4/T5 docs (I4 list, Q3/Q4 answers), R2-stores/R3-gauge → docs/tech-debt.md. Next: CI --base main, one topology run, P08.md.
+- 17:27–17:58 CI: run 1 red (my T2 typecheck; N5 test over 60 s at load ~52; P07's App.test lazy-route flake), run 2 red
+  (typecheck only) → 5204b81, 1a90988; run 3 **CI GATE PASSED** @1a90988.
+- 18:00–18:03 topology + restart-safety on slot 1, the one run: **PASS** (71 s), NRestarts 0 → 0 (pid 8760); first commit 1.7 s,
+  resync after loss 0.38 s, ping back at +1.82 s; sanitizer 26 placeholders under TD-5's cap. P08.md "Fix round 2" written. DONE.

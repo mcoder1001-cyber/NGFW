@@ -7468,7 +7468,7 @@ export interface operations {
                 rxMode: string;
                 description: string;
               } | null;
-              /** @description what the agent retrieved as configured on the data plane (Retrieve), as before P08; null only on the rows P08 added (a live interface the agent does not manage, or a configured one the data plane does not have yet) */
+              /** @description what the agent retrieved as configured on the data plane (Retrieve), as before P08; null only on the rows P08 added (a live interface the agent does not manage, a configured one the data plane does not have yet, or one only in the candidate) */
               config: {
                 [key: string]: unknown;
               } | null;

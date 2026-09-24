@@ -207,17 +207,17 @@ func TestQuarantineReservedRangeFull(t *testing.T) {
 }
 
 // TestAcquireCappedFailsClosed is TD-3 re-review M1: a classify pool whose free list needs more
-// than MaxPlaceholders placeholders fails the create closed (ErrCapped, which is ErrNoCleanIndex):
+// placeholders than the cap (80 freed indices: more than MaxPlaceholders, 64) fails the create closed (ErrCapped, which is ErrNoCleanIndex):
 // the interface is deleted, nothing is reported created, there is no retry, the cap hit is
 // counted, and no quarantine holder is made for an index that is not known to be dirty.
 func TestAcquireCappedFailsClosed(t *testing.T) {
 	f, m := setup()
 	p := newPool(20)
 	p.install(f)
-	for id := uint32(0); id < 20; id++ {
+	for id := uint32(0); id < 80; id++ {
 		m.Tables[id] = true
 	}
-	for id := uint32(0); id < 20; id++ { // deleted in creation order: pops 19, 18, … (never ascending)
+	for id := uint32(0); id < 80; id++ { // deleted in creation order: pops 79, 78, … (never ascending)
 		m.DeleteTable(id)
 	}
 	before := ifsanitize.Snapshot()
@@ -252,10 +252,10 @@ func TestAcquireCappedAndUnclearable(t *testing.T) {
 	f, m := setup()
 	p := newPool(8, 7)
 	p.install(f)
-	for id := uint32(0); id < 20; id++ {
+	for id := uint32(0); id < 80; id++ {
 		m.Tables[id] = true
 	}
-	for id := uint32(0); id < 20; id++ {
+	for id := uint32(0); id < 80; id++ {
 		m.DeleteTable(id)
 	}
 	m.If(7).InACL = [3]uint32{0, none, none} // table 0 is at the bottom of the free list: never reached

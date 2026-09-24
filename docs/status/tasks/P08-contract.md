@@ -27,7 +27,7 @@ the pre-P08 meaning and makes the change additive:
 
 | field | before P08 | P08 (round 0) | now |
 |---|---|---|---|
-| `items[].config` | Retrieve view of the interface (non-null) | running configuration (nullable) | **Retrieve view again**; `null` only on rows P08 added (a live interface the agent does not manage, or a configured one VPP does not have yet) |
+| `items[].config` | Retrieve view of the interface (non-null) | running configuration (nullable) | **Retrieve view again**; `null` only on rows P08 added (a live interface the agent does not manage, a configured one VPP does not have yet, or one only in the candidate) |
 | `items[].running` | – | – | **new**: the running configuration of this (sub-)interface, `null` when not configured |
 | `items[].actual` | – | Retrieve view | **removed** (never released; it duplicated `config`) |
 | `items[].counters` | InterfaceCounters or `null` | same | same |
@@ -35,7 +35,11 @@ the pre-P08 meaning and makes the change additive:
 | rows | interfaces in Retrieve (sub-interfaces nested in `config.subinterfaces`) | + live-only, configured-only and one row per sub-interface (`<parent>.<id>`) | same as round 0 |
 
 Every row the old endpoint returned is still returned with the same `name`, `config` and `counters`; the new rows and
-fields are additions. The CLI is unchanged (`apps/cli/internal/cli/cmd_op.go` reads `name/config/counters`); its
-operations table is regenerated (`State_counters`, new summary). Consumers updated in the same round: the web screen
+fields are additions. The CLI reads `name/config/counters` (`apps/cli/internal/cli/cmd_op.go`); its operations table is
+regenerated (`State_counters`, new summary). **Fix round 2 (re-review R1, D-118):** the new rows reached the CLI's text
+output — `vrx show interfaces <candidate-only name>` exited 0 with an empty body instead of 5 "not in the data plane".
+The CLI now skips items whose `config` is `null` in the table, the name lookup and completion, which restores its
+pre-P08 output exactly (`TestShowInterfacesListsOnlyRetrievedRows`, P08 response shape); `--json` prints the API's
+answer unchanged, as before. The `config` description names candidate-only rows (client regenerated). Consumers updated in the same round: the web screen
 (`InterfacesPage.tsx`, `model.ts`: fall back to `running`), `apps/api/test/e2e/interfaces.e2e.test.ts` and
 `test/topology/interfaces` (read the Retrieve view from `config`).

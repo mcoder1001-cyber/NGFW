@@ -183,3 +183,27 @@ func TestObjectsDryRunFindings(t *testing.T) {
 	}
 	t.Logf("DryRun warning: %s %s: %s", rep.GetErrors()[0].GetPointer(), rep.GetErrors()[0].GetRule(), rep.GetErrors()[0].GetMessage())
 }
+
+// Q4 close seam: Agent.Stop closes the objects runtime (resolver stopped, store written, unregistered), and the
+// agent's /metrics carries the objects counters.
+func TestAgentStopClosesObjectsRuntimeAndMetrics(t *testing.T) {
+	cfg := testConfig(t)
+	a, err := Start(context.Background(), cfg, "test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if objects.RuntimeFor(cfg.StateDir, cfg.Owner) == nil {
+		t.Fatal("objects runtime not opened by Start")
+	}
+	a.Stop()
+	if objects.RuntimeFor(cfg.StateDir, cfg.Owner) != nil {
+		t.Fatal("Stop did not close the objects runtime (Wiring.Close)")
+	}
+	var b strings.Builder
+	newMetrics().write(&b)
+	for _, m := range []string{"vrx_agent_objects_store_corrupt_total", "vrx_agent_objects_store_persist_errors_total", "vrx_agent_objects_fqdn_stale_expired_total"} {
+		if !strings.Contains(b.String(), m+" ") {
+			t.Fatalf("metric %s missing", m)
+		}
+	}
+}

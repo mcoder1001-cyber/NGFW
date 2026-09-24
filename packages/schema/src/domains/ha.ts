@@ -87,6 +87,7 @@ export const VrrpInstanceSchema = z
     track: withUi(z.array(VrrpTrackSchema).max(16).default([]), {
       title: 'Tracked interfaces',
     }),
+    // wave-BC: F-vrrp-config-sync
   })
   .superRefine((v, ctx) => {
     const wantV6 = v.addressFamily === 'ipv6';
@@ -177,9 +178,11 @@ export const HaClusterSchema = z
         nat: withUi(z.boolean().default(false), { title: 'NAT sessions', widget: 'switch' }),
         ipsec: withUi(z.boolean().default(false), { title: 'IPsec SAs', widget: 'switch' }),
         acl: withUi(z.boolean().default(false), { title: 'ACL sessions', widget: 'switch' }),
+        // wave-BC: F-ha-state-sync
       }),
       { title: 'State synchronisation' },
     ).prefault({}),
+    // wave-BC: F-vrrp-config-sync
   })
   .superRefine((c, ctx) => {
     const names = new Set<string>();
@@ -221,6 +224,7 @@ export const HaSchema = withUi(
       help: 'Keyed by name; a virtual router is (interface, address family, VRID) on the wire',
     }),
     cluster: withUi(HaClusterSchema, { title: 'Cluster', group: 'cluster', order: 2 }).optional(),
+    // wave-BC: F-vrrp-config-sync
   }),
   {
     title: 'High availability',

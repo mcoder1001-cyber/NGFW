@@ -15,6 +15,7 @@ import (
 	"time"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
+	"ngfw/agent/internal/objects"
 	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
@@ -113,6 +114,7 @@ func (m *metrics) write(w io.Writer) {
 	p("vrx_agent_reconcile_duration_seconds_bucket{le=\"+Inf\"} %d\n", m.count)
 	p("vrx_agent_reconcile_duration_seconds_sum %s\nvrx_agent_reconcile_duration_seconds_count %d\n", fmtFloat(m.sum), m.count)
 	ifsanitize.WriteMetrics(w) // D-095: inherited per-interface state cleared on new interfaces
+	objects.WriteMetrics(w)    // F-object-model: objects store (corrupt, write errors) and FQDN staleness counters
 }
 
 func fmtFloat(f float64) string {

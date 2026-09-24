@@ -221,6 +221,7 @@ func TestFQDNSyncAndUnresolved(t *testing.T) {
 	if len(rt.FQDNStates()) != 0 {
 		t.Fatal("state listed for a removed object")
 	}
+	rt.ResolveDue(context.Background()) // nothing due; writes the state
 	stateFile := filepath.Join(dir, "objects-fqdn-w3.json")
 	raw, _ := os.ReadFile(stateFile) //nolint:gosec // the test's own temp dir
 	if !strings.Contains(string(raw), "dormantSince") {
@@ -275,7 +276,7 @@ func TestClampRefreshAndRetry(t *testing.T) {
 			t.Errorf("ClampRefresh(%v) = %v, want %v", in, got, want)
 		}
 	}
-	r := newResolver("", nil, 10*time.Minute, time.Now, slog.Default())
+	r := newResolver("", nil, 10*time.Minute, 0, time.Now, slog.Default())
 	var got []string
 	for n := 1; n <= 7; n++ {
 		got = append(got, r.retryDelay(n).String())
@@ -294,4 +295,82 @@ func TestClampRefreshAndRetry(t *testing.T) {
 
 func slogTo(lb *logBuf) *slog.Logger {
 	return slog.New(slog.NewTextHandler(lb, &slog.HandlerOptions{Level: slog.LevelDebug}))
+}
+
+// D-129 (review F7): after NXDOMAIN or a failing resolver the last good answers are kept for at most the maximum
+// staleness (24 h by default), then dropped with a warning; the object expands to nothing until the name resolves.
+func TestFQDNLastGoodExpiresAfterMaxStale(t *testing.T) {
+	dns := startDNS(t)
+	dns.set("gone.w3.test", "192.0.2.77")
+	clock := &fakeClock{t: time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)}
+	lb := &logBuf{}
+	rt := openRT(t, t.TempDir(), dns, clock, lb)
+	var changes []Change
+	defer rt.Subscribe(func(c Change) { changes = append(changes, c) })()
+	if err := rt.Store().put(KindAddresses, "gone", fqdnObject("gone.w3.test")); err != nil {
+		t.Fatal(err)
+	}
+	rt.ResolveDue(context.Background())
+	dns.del("gone.w3.test") // the record is removed: NXDOMAIN from now on
+	before := fqdnExpired.Load()
+	clock.Advance(DefaultRefresh)
+	rt.ResolveDue(context.Background())
+	if addrsOf(rt, "gone") != "192.0.2.77" {
+		t.Fatalf("last-good not kept after the first NXDOMAIN: %q", addrsOf(rt, "gone"))
+	}
+	clock.Advance(23 * time.Hour)
+	rt.ResolveDue(context.Background())
+	if addrsOf(rt, "gone") != "192.0.2.77" {
+		t.Fatalf("dropped before 24 h: %q", addrsOf(rt, "gone"))
+	}
+	clock.Advance(time.Hour + DefaultRefresh)
+	rt.ResolveDue(context.Background())
+	if addrsOf(rt, "gone") != "" || fqdnExpired.Load() != before+1 {
+		t.Fatalf("not dropped after 24 h: %q, metric %d→%d", addrsOf(rt, "gone"), before, fqdnExpired.Load())
+	}
+	got, _ := Expand(rt.Snapshot(), "gone", WithFQDN(rt.FQDN))
+	if got.Len() != 0 || strings.Join(got.Unresolved, ",") != "gone" {
+		t.Fatalf("expansion after expiry: %+v", got)
+	}
+	if len(changes) != 2 || len(changes[1].Addresses) != 0 {
+		t.Fatalf("subscribers not told: %+v", changes)
+	}
+	if !strings.Contains(lb.String(), "fqdn last-good answers expired") || !strings.Contains(lb.String(), "stale_for=24h") {
+		t.Fatalf("no expiry warning:\n%s", lb.String())
+	}
+	for _, l := range strings.Split(lb.String(), "\n") {
+		if strings.Contains(l, "expired") {
+			t.Log(l)
+		}
+	}
+	// a configured maximum is honoured and clamped
+	if ClampMaxStale(0) != DefaultMaxStale || ClampMaxStale(time.Second) != MinMaxStale || ClampMaxStale(90*24*time.Hour) != MaxMaxStale {
+		t.Fatal("ClampMaxStale")
+	}
+}
+
+// Review F6: a persisted next refresh far ahead (the wall clock stepped back while the agent was down) is pulled in
+// to one interval at start, and one that is implausibly far ahead at run time counts as due.
+func TestFQDNNextRefreshBoundedAgainstClockSteps(t *testing.T) {
+	dns := startDNS(t)
+	dns.set("cdn.w3.test", "192.0.2.53")
+	clock := &fakeClock{t: time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)}
+	dir := t.TempDir()
+	rt := openRT(t, dir, dns, clock, &logBuf{})
+	if err := rt.Store().put(KindAddresses, "cdn", fqdnObject("cdn.w3.test")); err != nil {
+		t.Fatal(err)
+	}
+	rt.ResolveDue(context.Background())
+	rt.Close()
+	clock.Advance(-3 * time.Hour) // the clock stepped back three hours
+	rt2 := openRT(t, dir, dns, clock, &logBuf{})
+	if st := rt2.FQDNStates(); len(st) != 1 || !st[0].NextRefresh.Equal(clock.Now().Add(DefaultRefresh)) {
+		t.Fatalf("next refresh not pulled in: %+v (now %v)", st, clock.Now())
+	}
+	rt2.res.mu.Lock()
+	rt2.res.hosts["cdn.w3.test"].NextRefresh = clock.Now().Add(2 * MaxRefresh) // a step back at run time
+	rt2.res.mu.Unlock()
+	if n := rt2.ResolveDue(context.Background()); n != 1 {
+		t.Fatalf("an implausibly distant next refresh was not treated as due (%d resolved)", n)
+	}
 }

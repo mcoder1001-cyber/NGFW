@@ -51,6 +51,9 @@ source is the plugin **directory** it lists (host facts), not a binary.
 | `/usr/sbin/keepalived` | keepalived | config check | `keepalived -t -f <file>` | RF |
 | `/usr/sbin/snmpd` | snmpd | integration test child process only | `snmpd -f -c <cfg> -p <pid> 127.0.0.1:<slot port>` | RF |
 | `/usr/sbin/swanctl` | strongswan | load / list SAs when VICI is unavailable | `swanctl --load-all --noprompt`, `swanctl --list-sas --raw` | P11 |
+| (VPP `cli_inband` binary-API call, not an exec'd binary) | lb | trigger VPP's LB VIP cleanup after a removal (D-090) | fixed-string command, no user input | F-lb |
+| `/usr/libexec/vrx/vrx-upgrade` | backup-restore | stage/activate/confirm/rollback an update bundle (packaged by P10) | `vrx-upgrade status [--json]\|stage <bundle>\|activate\|confirm\|rollback` | F-backup-restore |
+| `/usr/libexec/vrx/vrx-support-collect` | backup-restore | assemble a support bundle (config, logs, audit rows) | `vrx-support-collect --out <path> [--since <sec>] [--audit-rows]` | F-backup-restore |
 
 ## Active — RF-3 (kea, unbound, chrony)
 

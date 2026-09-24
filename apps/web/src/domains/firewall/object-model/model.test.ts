@@ -11,7 +11,9 @@ describe('object model helpers', () => {
     expect(pickerKinds({ help: 'objects.schedules; omit = always' }, 'schedule')).toEqual(['schedules']);
     expect(pickerKinds({}, 'target.zone')).toEqual(['zones']);
     expect(pickerKinds({ help: 'Names of entries in objects.tags' }, 'tags')).toEqual(['tags']);
-    expect(pickerKinds({ help: 'anything' }, 'members')).toEqual(['addresses', 'addressGroups']);
+    // unclassified: no kinds (review F4) — the picker renders the plain field
+    expect(pickerKinds({ help: 'anything' }, 'members')).toEqual([]);
+    expect(pickerKinds({}, 'attachments.list')).toEqual([]);
   });
 
   it('item schemas come from the one schema; group members and tags carry the picker widgets', () => {

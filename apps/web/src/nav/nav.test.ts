@@ -35,6 +35,16 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       'dashboard',
       'interfaces',
       // Feature items, in navigation order (group, then schema order, then non-domain items); one line under the feature's anchor.
+      // wave-BC: F-ospf
+      // wave-BC: F-isis-rip
+      // wave-BC: F-bfd-redistribution
+      // wave-BC: F-mpls-srmpls
+      // wave-BC: F-igmp-mfib
+      // wave-BC: F-capture-trace
+      // wave-BC: F-tunnels
+      // wave-BC: F-vrrp-config-sync
+      // wave-BC: F-srv6
+      // wave-BC: F-lisp
       // wave-A: F-bonding
       // wave-A: F-bridge-l2
       // wave-A: F-loopback-bvi-gso-lldp-span
@@ -53,6 +63,16 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-A: F-unbound-chrony-syslog
       'users',
       'revisions',
+      // Non-domain system items, one per S5 task (wave-BC-numbers.md S5 pack) + WEB-2:
+      // wave-BC: F-restconf-yang
+      // wave-BC: F-aaa
+      // wave-BC: F-backup-restore
+      // wave-BC: P10
+      // wave-BC: P14
+      // wave-BC: F-ab-upgrade
+      // wave-BC: F-images
+      // wave-BC: F-hardening-lite
+      // web: WEB-2
       'dev-schema-form',
       'dev-data-grid',
       'dev-stream',

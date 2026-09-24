@@ -362,8 +362,8 @@ never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
 **state RPC** §5 points to for FQDN address objects (`objects.addresses.<name>` with `type: fqdn`). The agent resolves them
 itself (Go resolver over the system's `/etc/resolv.conf`, A + AAAA, no exec) and keeps the results in its state dir. One
 entry per FQDN object of the **applied** configuration (the agent's objects store, not the request), sorted by name:
-`name`, `fqdn`, `addresses[]` (canonical text, IPv4 first; after a failed refresh the last good answers — an FQDN that never
-resolved has none and expands to nothing), `last_resolved` (unset = never), `next_refresh`, `error` (the latest attempt's
+`name`, `fqdn`, `addresses[]` (canonical text, IPv4 first; after a failed refresh the last good answers, for at most 24 h
+(D-129) — an FQDN that never resolved, or whose answers expired, has none and expands to nothing), `last_resolved` (unset = never), `next_refresh`, `error` (the latest attempt's
 failure, empty after a success) and `failures` (consecutive). `names` filters (unknown names are skipped); `owner` as for
 Apply. No VPP round trip; the RPC works while VPP is disconnected. `Retrieve` never carries any of it (§5): the
 `objects` domain it returns is the applied objects document only. Refresh policy, restart behaviour and the agent-internal

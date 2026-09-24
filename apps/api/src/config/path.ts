@@ -1,5 +1,6 @@
 import { escapePointerSegment, ROOT_KEYS, unescapePointerSegment } from '@ngfw/schema';
 import { problems } from '../common/problem.js';
+import { firstUnsafe, UNSAFE_TEXT_MESSAGE, visible } from '../common/text.js';
 
 /**
  * `/api/v1/config/{path}` → RFC 6901 pointer. The path IS the pointer: segments are URL-decoded and then read as
@@ -12,12 +13,20 @@ export function pointerFromUrl(url: string, prefix: string): string {
   if (!path.startsWith(prefix)) throw problems.notFound(`no configuration path in '${path}'`);
   const rest = path.slice(prefix.length).replace(/^\/+/, '').replace(/\/+$/, '');
   if (rest === '') return '';
-  const segments = rest.split('/').map((raw) => {
+  const segments = rest.split('/').map((raw, i, all) => {
     let decoded: string;
     try {
       decoded = decodeURIComponent(raw);
     } catch {
       throw problems.badRequest(`invalid URL encoding in '${raw}'`);
+    }
+    // D-049 / TD-2 #4: a path segment becomes a member name of the document (or is echoed in a 404)
+    const bad = firstUnsafe(decoded);
+    if (bad !== undefined) {
+      const pointer = [...all.slice(0, i), visible(decoded)].map((x) => `/${x}`).join('');
+      throw problems.badRequest(`${bad} in the configuration path: ${UNSAFE_TEXT_MESSAGE}`, [
+        { pointer, message: `${bad}: ${UNSAFE_TEXT_MESSAGE}`, rule: 'api.safe-text' },
+      ]);
     }
     // a decoded '/' belongs to the segment (percent-encoded in the URL): keep it inside by pointer-escaping it
     return decoded

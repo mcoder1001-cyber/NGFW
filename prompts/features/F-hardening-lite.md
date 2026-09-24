@@ -10,7 +10,16 @@ not written: F-host-acl-nftables owns the nftables renderer (D-057). Secure boot
   `deploy/apt/` reprepro + Release signing (key in `~/.config/ngfw/apt-signing/`, never committed), `systemd-analyze security` targets (api ≤ 3.0, agent ≤ 5.0)
 - `prompts/P14-iso-installer.md` (what the image purges/installs), `docs/09-os-packages.md` §3 (what must not be on the box) and §4 (kernel/boot)
 - `prompts/features/F-host-acl-nftables.md` + `apps/agent/internal/renderers/nftables/` (after it merges) — the host policy you rely on
-- `docs/decisions/LOG.md` D-001, D-002, D-012 (never restart VPP/daemons on this host), D-057, D-059; daemons: FRR, strongSwan, Kea, Unbound, chrony, snmpd, keepalived, rsyslog
+- `docs/decisions/LOG.md` D-001, D-002, D-012 (never restart VPP/daemons on this host), D-057, D-059, D-079 (Kea control sockets, no
+  kea-ctrl-agent), D-086 (rsyslog TLS driver), D-100 (nginx :80 redirect only); daemons: FRR, strongSwan (`vrx-strongswan` from P11 — if P11
+  has not merged, write proposals only), Kea, Unbound, chrony, snmpd, keepalived, rsyslog
+- P10's merged units: the agent needs `AF_NETLINK` (rtnetlink/nft) and `ReadWritePaths` for the daemon configs its renderers write — a
+  drop-in that removes them breaks the product; verify every tightening against the unit's real needs in the container
+- Host facts (verified 2026-09-24; no host package installs): present — `systemd-analyze` (systemd 259, `--offline=yes`), systemd-nspawn,
+  debootstrap (`resolute`), gpg/gpgv, reprepro, shellcheck; absent on the host — auditd, AppArmor userspace (apparmor_parser/aa-status),
+  lintian, dpkg-sig, debsig-verify → evaluate those controls inside the chroot/container (packages from the mirror `repo.amnafzar.ir`);
+  package signing = signed `Release` + `signed-by=` keyring verified with gpgv (no dpkg-sig). The host's nginx (:80), sshd, PostgreSQL and
+  Valkey serve other users — never reload, restart or reconfigure them
 
 ## Scope — build exactly this
 1. **Baseline** `deploy/hardening/baseline/`: sysctl drop-in (`kernel.kptr_restrict`, `dmesg_restrict`, `fs.protected_*`, `net.ipv4.conf.*.rp_filter`
@@ -31,7 +40,10 @@ not written: F-host-acl-nftables owns the nftables renderer (D-057). Secure boot
 6. **Docs**: `docs/install/hardening.md` — controls table, exceptions with reasons, how the nftables host policy (F-host-acl-nftables) fits in.
 
 Files you own: `deploy/hardening/**`, `docs/install/hardening.md`, `test/topology/hardening-lite/**`. Shared files: packaging hooks in P10's
-`deploy/debian/**` — one-line additions to install the drop-ins (`vrx-meta` install list), resolved at merge; `renderers/nftables/**` is F-host-acl-nftables' (read only).
+`deploy/debian/vrx/**` — one-line additions to install the drop-ins (`vrx-meta` install list, under your anchor), resolved at merge;
+`renderers/nftables/**` is F-host-acl-nftables' (read only); P10's `deploy/systemd/vrx-*` base units are read-only (you add drop-ins).
+The signing key lives in `~/.config/ngfw/apt-signing/` (P10) — never copy it into the worktree, never print it; rotation is documented and
+tested with a throwaway key under `.scratch/`.
 
 ## Acceptance (paste the evidence)
 - [ ] `systemd-analyze security --offline=yes` scores before/after for every hardened unit, vrx-api ≤ 3.0 and vrx-agent ≤ 5.0 (pasted)

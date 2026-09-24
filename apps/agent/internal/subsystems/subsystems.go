@@ -50,6 +50,7 @@ const (
 	VRFs       = "vrfs"
 	Routing    = "routing"
 	// New domain constants: one line under the feature's anchor (wave-A-hotspots A1).
+	// wave-BC: F-lisp
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-rpf-adl-pbr
 	// wave-A: F-object-model
@@ -92,12 +93,28 @@ var Domains = map[string][]string{
 	},
 	Routing: {
 		core.RouteName,
+		// wave-BC: F-bfd-redistribution
+		// wave-BC: F-mpls-srmpls
+		// wave-BC: F-igmp-mfib
+		// wave-BC: F-srv6
 		// wave-A: F-vrf-static-ecmp
 		// wave-A: F-neighbors-ra
 		// wave-A: F-rpf-adl-pbr
 		// wave-A: P12
 	},
 	// New domain entries: one `<Const>: {…}` entry under the feature's anchor (wave-A-hotspots A1).
+	// wave-BC: F-det44-map-dslite-cnat
+	// wave-BC: F-tunnels
+	// wave-BC: F-vrrp-config-sync
+	// wave-BC: F-pki
+	// wave-BC: F-ikev2-native
+	// wave-BC: F-lb
+	// wave-BC: F-qos-flat
+	// wave-BC: F-host-stack
+	// wave-BC: F-snmp
+	// wave-BC: F-ipfix-sflow
+	// wave-BC: F-lisp
+	// wave-BC: F-dashboard-prom-alarms
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-rpf-adl-pbr
 	// wave-A: F-object-model
@@ -211,6 +228,20 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	r.Register(w.dhcpClient)
 	// Feature families: one `<pkg>.Register(r, c, owner, opts…)` line under the feature's anchor; store
 	// options only through the Wiring methods (wave-A-hotspots A1).
+	// wave-BC: F-det44-map-dslite-cnat
+	// wave-BC: F-tunnels
+	// wave-BC: F-vrrp-config-sync
+	// wave-BC: F-pki
+	// wave-BC: F-ikev2-native
+	// wave-BC: F-ospf
+	// wave-BC: F-isis-rip
+	// wave-BC: F-mpls-srmpls
+	// wave-BC: F-srv6
+	// wave-BC: F-lisp
+	// wave-BC: F-bfd-redistribution
+	// wave-BC: F-mpls-ldp
+	// wave-BC: F-igmp-mfib
+	// wave-BC: F-ha-state-sync
 	// wave-A: F-bonding
 	// wave-A: F-bridge-l2
 	// wave-A: F-loopback-bvi-gso-lldp-span

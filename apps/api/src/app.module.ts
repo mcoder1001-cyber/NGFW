@@ -25,7 +25,40 @@ import { SecretsController } from './secrets/secrets.controller.js';
 import { SecretsService } from './secrets/secrets.service.js';
 import { StateController } from './state/state.controller.js';
 import { RelayService } from './telemetry/relay.service.js';
+import { UsersController } from './users/users.controller.js';
+import { UsersService } from './users/users.service.js';
 // Feature modules: `import { <slug>Feature } from './features/<slug>/index.js';` under the feature's anchor.
+// wave-BC: F-det44-map-dslite-cnat
+// wave-BC: F-tunnels
+// wave-BC: P10
+// wave-BC: F-vrrp-config-sync
+// wave-BC: F-pki
+// wave-BC: F-ikev2-native
+// wave-BC: F-ospf
+// wave-BC: F-isis-rip
+// wave-BC: P14
+// wave-BC: F-mpls-srmpls
+// wave-BC: F-lb
+// wave-BC: F-qos-flat
+// wave-BC: F-host-stack
+// wave-BC: F-snmp
+// wave-BC: F-ipfix-sflow
+// wave-BC: F-capture-trace
+// wave-BC: F-srv6
+// wave-BC: F-lisp
+// wave-BC: F-bfd-redistribution
+// wave-BC: F-ra-vpn
+// wave-BC: F-mpls-ldp
+// wave-BC: F-igmp-mfib
+// wave-BC: F-dashboard-prom-alarms
+// wave-BC: F-hardening-lite
+// wave-BC: F-aaa
+// wave-BC: F-licensing
+// wave-BC: F-restconf-yang
+// wave-BC: F-ha-state-sync
+// wave-BC: F-ab-upgrade
+// wave-BC: F-images
+// wave-BC: F-backup-restore
 // wave-A: F-bonding
 // wave-A: F-bridge-l2
 // wave-A: F-loopback-bvi-gso-lldp-span
@@ -77,7 +110,39 @@ export class AppModule {
         ActionsController,
         SecretsController,
         AuditController,
+        UsersController,
         // Feature controllers: `...<slug>Feature.controllers,` under the feature's anchor (wave-A-hotspots P1).
+        // wave-BC: F-det44-map-dslite-cnat
+        // wave-BC: F-tunnels
+        // wave-BC: P10
+        // wave-BC: F-vrrp-config-sync
+        // wave-BC: F-pki
+        // wave-BC: F-ikev2-native
+        // wave-BC: F-ospf
+        // wave-BC: F-isis-rip
+        // wave-BC: P14
+        // wave-BC: F-mpls-srmpls
+        // wave-BC: F-lb
+        // wave-BC: F-qos-flat
+        // wave-BC: F-host-stack
+        // wave-BC: F-snmp
+        // wave-BC: F-ipfix-sflow
+        // wave-BC: F-capture-trace
+        // wave-BC: F-srv6
+        // wave-BC: F-lisp
+        // wave-BC: F-bfd-redistribution
+        // wave-BC: F-ra-vpn
+        // wave-BC: F-mpls-ldp
+        // wave-BC: F-igmp-mfib
+        // wave-BC: F-dashboard-prom-alarms
+        // wave-BC: F-hardening-lite
+        // wave-BC: F-aaa
+        // wave-BC: F-licensing
+        // wave-BC: F-restconf-yang
+        // wave-BC: F-ha-state-sync
+        // wave-BC: F-ab-upgrade
+        // wave-BC: F-images
+        // wave-BC: F-backup-restore
         // wave-A: F-bonding
         // wave-A: F-bridge-l2
         // wave-A: F-loopback-bvi-gso-lldp-span
@@ -114,7 +179,39 @@ export class AppModule {
         CommitService,
         SecretsService,
         RelayService,
+        UsersService,
         // Feature providers: `...<slug>Feature.providers,` under the feature's anchor (wave-A-hotspots P1).
+        // wave-BC: F-det44-map-dslite-cnat
+        // wave-BC: F-tunnels
+        // wave-BC: P10
+        // wave-BC: F-vrrp-config-sync
+        // wave-BC: F-pki
+        // wave-BC: F-ikev2-native
+        // wave-BC: F-ospf
+        // wave-BC: F-isis-rip
+        // wave-BC: P14
+        // wave-BC: F-mpls-srmpls
+        // wave-BC: F-lb
+        // wave-BC: F-qos-flat
+        // wave-BC: F-host-stack
+        // wave-BC: F-snmp
+        // wave-BC: F-ipfix-sflow
+        // wave-BC: F-capture-trace
+        // wave-BC: F-srv6
+        // wave-BC: F-lisp
+        // wave-BC: F-bfd-redistribution
+        // wave-BC: F-ra-vpn
+        // wave-BC: F-mpls-ldp
+        // wave-BC: F-igmp-mfib
+        // wave-BC: F-dashboard-prom-alarms
+        // wave-BC: F-hardening-lite
+        // wave-BC: F-aaa
+        // wave-BC: F-licensing
+        // wave-BC: F-restconf-yang
+        // wave-BC: F-ha-state-sync
+        // wave-BC: F-ab-upgrade
+        // wave-BC: F-images
+        // wave-BC: F-backup-restore
         // wave-A: F-bonding
         // wave-A: F-bridge-l2
         // wave-A: F-loopback-bvi-gso-lldp-span

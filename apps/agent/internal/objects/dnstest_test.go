@@ -47,6 +47,12 @@ func (d *dnsResponder) set(name string, addrs ...string) {
 	d.records[strings.ToLower(name)] = as
 }
 
+func (d *dnsResponder) del(name string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	delete(d.records, strings.ToLower(name))
+}
+
 func (d *dnsResponder) count(name string) int {
 	d.mu.Lock()
 	defer d.mu.Unlock()

@@ -44,6 +44,13 @@ export const appUser = pgTable(
     lockedUntil: ts('locked_until'),
     /** bootstrap (seeded from VRX_BOOTSTRAP_ADMIN_PASSWORD) · config (management.users) */
     source: text('source').notNull().default('config'),
+    /**
+     * Credential generation (D-097, D-102, TD-2 verify V1): bumped in the same transaction as every password set
+     * (admin reset, self-service change, a hash change committed through the config API). Refresh chains and access
+     * tokens carry the generation they were issued under; refresh and API-key creation compare it with this column
+     * (key creation under `FOR SHARE`, so it waits for a reset in progress).
+     */
+    credentialGen: integer('credential_gen').notNull().default(0),
     createdAt: ts('created_at').notNull().defaultNow(),
   },
   (t) => [
@@ -91,6 +98,11 @@ export const configRevision = pgTable(
     kind: text('kind').notNull().default('commit'),
     /** Secret versions this revision was committed with, `{ "<kind>/<name>": version }` (rollback restores them). */
     secretVersions: jsonb('secret_versions').$type<Record<string, number>>(),
+    /** Secret leaves this revision changed against its parent: `[{op, pointer, redacted: true}]`, never values (TD-2 #6). */
+    secretChanges: jsonb('secret_changes')
+      .$type<{ op: 'add' | 'remove' | 'replace'; pointer: string; redacted: true }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
   },
   (t) => [index('config_revision_created_idx').on(t.createdAt)],
 );
@@ -99,6 +111,12 @@ export const configCandidate = pgTable('config_candidate', {
   /** Singleton row (id = 1): one candidate, one writer. */
   id: integer('id').primaryKey(),
   ownerId: integer('owner_id').references(() => appUser.id, { onDelete: 'set null' }),
+  /**
+   * API key holding the lock (TD-2 #5): an API-key session is its own lock owner; null = the interactive sessions of
+   * owner_id. No foreign key on purpose: a deleted key's lock must not turn into its user's interactive lock — it
+   * just goes stale (VRX_LOCK_TTL_SEC) or an admin breaks it.
+   */
+  ownerKeyId: uuid('owner_key_id'),
   lockedAt: ts('locked_at'),
   /** null = the candidate equals running (nothing edited since the last commit/discard). */
   payload: jsonb('payload'),
@@ -196,3 +214,10 @@ export const systemEvent = pgTable(
   },
   (t) => [index('system_event_ts_idx').on(t.ts)],
 );
+
+// Feature tables: new pgTable(s) directly under the task's anchor (SY3); generate the migration with
+// `pnpm -C apps/api db:generate --name <slug>` against main's latest snapshot — never hand-merge.
+// wave-BC: F-dashboard-prom-alarms
+// wave-BC: F-aaa
+// wave-BC: F-licensing
+// wave-BC: F-backup-restore

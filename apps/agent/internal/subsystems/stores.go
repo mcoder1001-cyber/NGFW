@@ -9,7 +9,8 @@ package subsystems
 //
 //	<state dir>/claims-iface-<owner>.json   iface.ClaimStore (DF-1 attributes on untagged interfaces;
 //	                                        df6.ClaimStore is the same type)
-//	<state dir>/claims-<family>-<owner>.json KeyedClaims for acl/df2 (acl.ClaimStore), natcommon
+//	<state dir>/claims-<family>-<owner>.json KeyedClaims for acl/df2 (acl.ClaimStore), natcommon;
+//	                                        written once per transaction (Wiring.ClaimsTxn, TD-11c)
 //	<state dir>/boot-<owner>.json           dfkit.FileBootStore (df7.SetBootStore, pcap, …)
 //	<state dir>/classify-<owner>.json       classify.FileStore (DF-2 classify tables, ipfix, redirect)
 
@@ -79,6 +80,10 @@ type fileClaims struct {
 	id    IdentitySource
 	index IndexResolver
 	recs  map[string]claimRecord
+	// batch: a transaction is open (Begin … Flush, TD-11c review 3.2): writes change recs in memory
+	// only and mark it dirty; Flush writes it once. Outside a batch every write goes to disk first.
+	batch, dirty bool
+	writes       int // atomic file writes so far (tests, diagnostics)
 }
 
 func openClaims(path string, id IdentitySource, index IndexResolver) (*fileClaims, error) {
@@ -128,13 +133,7 @@ func (c *fileClaims) claim(key, ifName string) error {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	next := c.copyLocked()
-	next[key] = r
-	if err := c.flushLocked(next); err != nil {
-		return err
-	}
-	c.recs = next
-	return nil
+	return c.setLocked(key, &r)
 }
 
 func (c *fileClaims) release(key string) error {
@@ -143,13 +142,7 @@ func (c *fileClaims) release(key string) error {
 	if _, ok := c.recs[key]; !ok {
 		return nil
 	}
-	next := c.copyLocked()
-	delete(next, key)
-	if err := c.flushLocked(next); err != nil {
-		return err
-	}
-	c.recs = next
-	return nil
+	return c.setLocked(key, nil)
 }
 
 func (c *fileClaims) claimed(key, ifName string) bool {
@@ -188,10 +181,9 @@ func (c *fileClaims) Prune() (int, error) {
 	if n == 0 {
 		return 0, nil
 	}
-	if err := c.flushLocked(next); err != nil {
+	if err := c.replaceLocked(next); err != nil {
 		return 0, err
 	}
-	c.recs = next
 	return n, nil
 }
 
@@ -210,6 +202,64 @@ func (c *fileClaims) copyLocked() map[string]claimRecord {
 	return out
 }
 
+// setLocked records rec under key (nil: removes key): in a batch in memory only, otherwise through
+// replaceLocked.
+func (c *fileClaims) setLocked(key string, rec *claimRecord) error {
+	if c.batch {
+		if rec == nil {
+			delete(c.recs, key)
+		} else {
+			c.recs[key] = *rec
+		}
+		c.dirty = true
+		return nil
+	}
+	next := c.copyLocked()
+	if rec == nil {
+		delete(next, key)
+	} else {
+		next[key] = *rec
+	}
+	return c.replaceLocked(next)
+}
+
+// replaceLocked makes next the record set: in a batch at once (Flush writes it), otherwise only once
+// it is on disk, so outside a batch memory never runs ahead of the file.
+func (c *fileClaims) replaceLocked(next map[string]claimRecord) error {
+	if c.batch {
+		c.recs, c.dirty = next, true
+		return nil
+	}
+	if err := c.flushLocked(next); err != nil {
+		return err
+	}
+	c.recs, c.dirty = next, false
+	return nil
+}
+
+// begin opens a batch: until flush, Claim/Release/Prune change the in-memory set only.
+func (c *fileClaims) begin() {
+	c.mu.Lock()
+	c.batch = true
+	c.mu.Unlock()
+}
+
+// flush ends the batch and writes the set once when it changed. A failed write keeps the records in
+// memory and dirty: the next write (the next flush, or any write outside a batch) persists them.
+func (c *fileClaims) flush() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.batch = false
+	if !c.dirty {
+		return nil
+	}
+	if err := c.flushLocked(c.recs); err != nil {
+		return err
+	}
+	c.dirty = false
+	return nil
+}
+
 func (c *fileClaims) flushLocked(m map[string]claimRecord) error {
 	recs := make([]claimRecord, 0, len(m))
 	for _, r := range m {
@@ -220,7 +270,11 @@ func (c *fileClaims) flushLocked(m map[string]claimRecord) error {
 	if err != nil {
 		return err
 	}
-	return atomicWrite(c.path, raw)
+	if err := atomicWrite(c.path, raw); err != nil {
+		return err
+	}
+	c.writes++
+	return nil
 }
 
 // atomicWrite writes raw to path via a fsynced temp file and a rename (0600).
@@ -307,6 +361,40 @@ func (c *KeyedClaims) Release(key string) error { return c.release(key) }
 
 // Claimed implements the single-key claim stores.
 func (c *KeyedClaims) Claimed(key string) bool { return c.claimed(key, "") }
+
+// Begin opens a transaction on the store (TD-11c, review 3.2): Claim, Release and Prune change only
+// the in-memory set — Claimed reads it, so the transaction sees its own claims — until Flush writes
+// it once (the same atomic, fsync'd replace as an immediate write). The agent brackets every
+// transaction with Wiring.ClaimsTxn. Trade-off: an agent process that dies inside a transaction loses
+// that transaction's keyed claims (an untagged object it created stays in VPP unclaimed, invisible,
+// until VPP restarts); before, it paid a whole-file rewrite with two fsyncs per claim (O(n²)).
+func (c *KeyedClaims) Begin() { c.begin() }
+
+// Flush ends the transaction Begin opened: one write when the set changed, none otherwise. A failed
+// write keeps the records in memory and dirty; the next write persists them.
+func (c *KeyedClaims) Flush() error { return c.flush() }
+
+// ClaimsTxn opens one transaction on every keyed claim store opened so far and returns the function
+// that ends it: each store that changed is written once (KeyedClaims.Begin/Flush). The agent calls it
+// around every transaction (Service: ClaimsTxn); a store opened later writes immediately.
+func (w *Wiring) ClaimsTxn() (flush func() error) {
+	w.storesMu.Lock()
+	open := make([]*KeyedClaims, 0, len(w.keyed))
+	for _, k := range w.keyed {
+		k.Begin()
+		open = append(open, k)
+	}
+	w.storesMu.Unlock()
+	return func() error {
+		var errs []error
+		for _, k := range open {
+			if err := k.Flush(); err != nil {
+				errs = append(errs, fmt.Errorf("claim store %s: %w", filepath.Base(k.path), err))
+			}
+		}
+		return errors.Join(errs...)
+	}
+}
 
 // IndexCache is an IndexResolver over a cached name → sw_if_index map refreshed at most every ttl.
 type IndexCache struct {

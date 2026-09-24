@@ -69,6 +69,7 @@ type Service struct {
 	routeDesc       map[string]string           // "<vrf>|<prefix>" → description (D-073b)
 	storedIfs       map[string]*vrxv1.Interface // stored desired `interfaces` (P08: descriptions, named NICs)
 	beforeTxn       func()
+	claimsTxn       func() (flush func() error) // TD-11c: Wiring.ClaimsTxn, set by Start (nil = none)
 	pendingTxn      string
 	deadline        time.Time
 	lastTxn         string
@@ -339,6 +340,10 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	if s.beforeTxn != nil {
 		s.beforeTxn()
 	}
+	flushClaims := func() error { return nil }
+	if s.claimsTxn != nil {
+		flushClaims = s.claimsTxn() // TD-11c: the keyed claim stores write once, at the end of the transaction
+	}
 	pj := project(ds, domains, s.resolveVRF, s.netdevKind)
 	var res *scheduler.TxnResult
 	if pj.hasErrors() {
@@ -379,6 +384,12 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 		}
 	case vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED:
 		s.setDegraded(true, resp.GetMessage())
+	}
+	// TD-11c: the transaction's keyed claims reach disk before the new desired state does; a failed
+	// write leaves them pending in memory (retried at the next transaction end) and the agent DEGRADED.
+	if err := flushClaims(); err != nil {
+		log.Error("persist claim stores", "err", err)
+		s.setDegraded(true, "claim stores not persisted: "+err.Error())
 	}
 	s.refreshSnapshotLocked()
 	if err := s.st.save(); err != nil {

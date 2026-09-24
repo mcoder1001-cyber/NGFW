@@ -47,7 +47,7 @@ const nicCanonical = `{
 
 func claimFile(t *testing.T, dir string) string {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join(dir, "claims-iface-"+testOwner+".json"))
+	raw, err := os.ReadFile(filepath.Join(dir, "claims-iface-"+testOwner+".json")) //nolint:gosec // the test's own temp dir
 	if err != nil {
 		t.Fatal(err)
 	}

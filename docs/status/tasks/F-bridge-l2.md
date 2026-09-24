@@ -215,7 +215,49 @@ MAC filter; the same in Persian RTL dark; P08's interface drawer with `l2` as an
 ![Members and MAC table](F-bridge-l2-screens/bridging-members-macs-en.png)
 
 ### CI — `TMPDIR=/tmp/g-w7 tools/ci.sh --base main`
-CI_RESULT_PLACEHOLDER
+Run at `93f7934` with this tree's `tools/ci.sh` plus main's D-127 fix only (a scratch copy; the contract-guard pipe
+`git log | grep -q` under `pipefail` lost to SIGPIPE on every one of 5 runs here — this branch carries 75 commits since main;
+`tools/ci.sh` itself is not mine to edit, Q11). The one-hunk difference:
+```
+330c330,332
+<     if git log --format=%s "$mb..$TIP" | grep -qiE '^contract(\(|:|!)'; then
+---
+>     # D-127 (main 7edac8c): capture first, `git log | grep -q` loses to SIGPIPE under pipefail
+>     local subjects; subjects=$(git log --format=%s "$mb..$TIP")
+>     if grep -qiE '^contract(\(|:|!)' <<<"$subjects"; then
+```
+```
+== VRX CI gate: quick ==
+branch    task/F-bridge-l2 @ 93f7934   (base: main)
+== contract guard: HEAD vs main ==
+ok — contract commit(s) on the branch:
+  0ae1a9c contract(api-client): regenerate for GET /state/l2/bridge-domains and /state/l2/bridge-domains/{id}/macs (pnpm gen; make -C apps/cli gen docs)
+  401c0da contract(proto): F-bridge-l2 — Interface.l2 14, Subinterface.l2 12, RoutingConfig.l2 20 (BridgeL2* messages), BridgeDomainState/BridgeDomainMacs RPCs, fake-agent UNIMPLEMENTED stubs, proto.md §11
+  72eb38b contract(schema): l2 — per-port interfaces.<if>.l2 leaves + routing.l2 container (bridge domains, xconnects, l3xc, MAC filter) and bridge-l2 semantic rules (D-109 c)
+  … (P08 / W-seed contract commits of the speculative base)
+WARN commit subject(s) not in Conventional Commits form (type(scope): subject):
+      review(W-seed): verify          (W-seed's commit, not F-bridge-l2's)
+== generate + generated-output gate ==
+clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated
+== forbidden patterns (+ gitleaks) ==
+ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
+ok: no Dockerfile/compose files
+ok: no kill-by-pattern in scripts
+ok: no secret-shaped strings
+ok: gitleaks — scanned ~1187652 bytes (1.19 MB) in 1.42s no leaks found
+== lint · typecheck · unit tests · build (turbo) ==
+Tasks:    30 successful, 30 total Cached:    24 cached, 30 total Time:    1m45.699s
+== apps/agent: make lint test build ==
+ok  	ngfw/agent/internal/agent	10.596s; ok  	ngfw/agent/internal/contracttest	2.467s; … (all packages ok)
+== apps/cli: make lint test build ==
+ok  	ngfw/cli/internal/api	1.579s; … (all ok)
+== test/ Go modules, unit mode (test/integration/smoke test/topology/bridge-l2 test/topology/interfaces) ==
+test/topology/bridge-l2: gofmt ok · go vet ok · ok  	ngfw/test/topology/bridge-l2	0.083s;
+  mode quick · wall time 5m43s · logs /root/ngfw-wt/logs/ci/F-bridge-l2-20260924-194319-2889498
+CI GATE PASSED
+```
+The first gate run (before `93f7934`) failed in `apps/agent: make lint` (ineffassign + staticcheck S1016 in two test
+files); fixed in `93f7934`.
 
 ## Acceptance
 - [x] `vppctl show bridge-domain 7001 detail` shows members, shg 1, BVI loop720 and mac-age 5 as committed; Retrieve == desired (pasted)
@@ -224,7 +266,7 @@ CI_RESULT_PLACEHOLDER
 - [x] Second membership → 400 problem+json with the pointer `/routing/l2/xconnects/host-w7l0` (host run + e2e). "Two bridge
       domains" cannot be expressed with D-109 (c)'s single-valued leaf — Q2
 - [x] UI screenshot against the real endpoint (above)
-- [x] `tools/ci.sh --base main` — see the CI section
+- [x] `tools/ci.sh --base main` green at `93f7934` (with main's D-127 guard fix, see the CI section)
 
 ## Decisions taken (options in the questions file)
 - Container `routing.l2` (a/b/c: routing / services / dataplane) — D-122 confirmed `RoutingConfig.l2 = 20` (Q1)

@@ -84,3 +84,9 @@ the import and the return, both marked `wave-A: F-bridge-l2`.
 `grep -rn 'show trace\|trace add\|"trace"'` over `test/topology/bridge-l2`, `descriptors/mactime`, `desired/l2*.go` and
 `agent/rpc_bridge_l2*.go` finds nothing: the F-bridge-l2 tests never trace (they send no packets; the evidence is
 bridge-domain / l2fib / mode / l3xc / mactime dumps and vppctl `show` of those tables only).
+
+## Q11 — CI contract guard (D-127) on this branch
+This worktree's `tools/ci.sh` predates main's D-127 fix (7edac8c); its `git log | grep -q` guard failed 5/5 here with
+SIGPIPE (the branch has 75 commits since main because of the speculative W-seed/P08 base). The green gate was run with a
+scratch copy of this tree's ci.sh that differs only by main's D-127 hunk (pasted in `F-bridge-l2.md`). The merger's run on
+main (or after the base rebase) uses the fixed script anyway.

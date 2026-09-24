@@ -81,6 +81,13 @@ service Dataplane {
   rpc BridgeDomainMacs(BridgeDomainMacsRequest) returns (BridgeDomainMacsResponse);
 
   // wave-A: F-loopback-bvi-gso-lldp-span
+
+  // LldpNeighbors lists the interfaces with LLDP enabled that this agent can name (its own and untagged ones,
+  // never another owner's) with what was heard on each (lldp_dump: chassis id, port id, TTL, last heard/sent),
+  // ordered by interface name, at most 1000 per call (docs/contracts/proto.md "F-loopback-bvi-gso-lldp-span").
+  // Read-only.
+  rpc LldpNeighbors(LldpNeighborsRequest) returns (LldpNeighborsResponse);
+
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
@@ -852,6 +859,12 @@ message Interface {
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-loopback-bvi-gso-lldp-span
+
+  // Software GSO on output (feature_gso_enable_disable; F-loopback-bvi-gso-lldp-span); unset = off.
+  optional bool gso = 20;
+  // Mirror sessions with this interface as the source (sw_interface_span_enable_disable; F-loopback-bvi-gso-lldp-span).
+  repeated MirrorSession mirror = 21;
+
   // wave-A: P12
 }
 
@@ -1455,6 +1468,9 @@ message ServicesConfig {
 
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-loopback-bvi-gso-lldp-span
+
+  // Network delay simulator, a lab tool (VPP nsim; applied by the globals owner only, D-071; F-loopback-bvi-gso-lldp-span).
+  NsimService nsim = 9;
 }
 
 // SocketAddress is an `{ address, port }` pair (listen sockets, collectors).
@@ -3665,6 +3681,82 @@ message BridgeDomainMac {
 }
 
 // ----- F-loopback-bvi-gso-lldp-span -----
+
+// MirrorSession mirrors one entry of `interfaces.<name>.mirror`: the interface is the source of the session.
+message MirrorSession {
+  // Interface that transmits the copies (a monitor port, or a GRE tunnel of type erspan for ERSPAN).
+  optional string destination = 1;
+  // "rx" | "tx" | "both"; Zod default "both".
+  optional string direction = 2;
+  // "device" | "l2" (the L2 path: bridge members and cross-connects); Zod default "device".
+  optional string level = 3;
+}
+
+// NsimService is `services.nsim` (VPP nsim plugin: nsim_configure2, nsim_cross_connect_enable_disable,
+// nsim_output_feature_enable_disable).
+message NsimService {
+  // The nsim cross-connect of two hardware interfaces.
+  message CrossConnect {
+    optional string a = 1;
+    optional string b = 2;
+  }
+  // One-way delay in milliseconds (> 0; microsecond resolution on VPP).
+  optional double delay_ms = 1;
+  // Simulated link rate in Mbit/s (> 0).
+  optional double bandwidth_mbps = 2;
+  // Average packet size 64–9000 bytes (sizes the scheduler wheel); Zod default 1500.
+  optional uint32 packet_size = 3;
+  // Random loss 0–1 (VPP packets_per_drop = 1 / fraction); Zod default 0.
+  optional double drop_fraction = 4;
+  // Cross-connect; unset = none.
+  CrossConnect cross_connect = 5;
+  // Interfaces whose output goes through the simulator.
+  repeated string output_interfaces = 6;
+}
+
+// LldpNeighborsRequest pages through the LLDP table.
+message LldpNeighborsRequest {
+  // Index of the first entry (entries are ordered by interface name).
+  uint32 offset = 1;
+  // Page size 1–1000; 0 = 100. More than 1000 fails with INVALID_ARGUMENT.
+  uint32 limit = 2;
+  // Expected agent owner; empty = the agent's owner.
+  string owner = 3;
+}
+
+// LldpNeighborsResponse is one page of the LLDP table.
+message LldpNeighborsResponse {
+  repeated LldpNeighbor neighbors = 1;
+  // Number of entries in the whole table (for paging).
+  uint32 total = 2;
+  string owner = 3;
+  google.protobuf.Timestamp retrieved_at = 4;
+}
+
+// LldpNeighbor is one LLDP-enabled interface and the peer heard on it (VPP keeps one peer per interface).
+message LldpNeighbor {
+  // Logical name of the interface.
+  string interface = 1;
+  uint32 sw_if_index = 2;
+  // A peer was heard since LLDP was enabled (last_heard > 0).
+  bool heard = 3;
+  // Peer chassis id: "aa:bb:cc:dd:ee:ff" for a MAC address, the text when printable, hex otherwise; "" = none.
+  string chassis_id = 4;
+  // "chassis-component" | "interface-alias" | "port-component" | "mac-address" | "network-address" |
+  // "interface-name" | "local"; "" = none heard.
+  string chassis_id_subtype = 5;
+  // Peer port id, formatted like chassis_id.
+  string port_id = 6;
+  // "interface-alias" | "port-component" | "mac-address" | "network-address" | "interface-name" |
+  // "agent-circuit-id" | "local"; "" = none heard.
+  string port_id_subtype = 7;
+  // Time to live the peer advertised, in seconds.
+  uint32 ttl = 8;
+  // Seconds since the peer was last heard (VPP clock); 0 when never heard.
+  double last_heard_sec_ago = 9;
+  // Seconds since this interface last sent an LLDPDU; 0 when never.
+  double last_sent_sec_ago = 10;
+}
 
 // ----- F-vrf-static-ecmp -----
 

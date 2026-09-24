@@ -371,6 +371,27 @@ file Q1). Retrieve reports the same messages: a bridge domain's record name come
   (`BridgeL2Controller`); an agent without the RPCs answers `UNIMPLEMENTED` → 501.
 
 <!-- wave-A: F-loopback-bvi-gso-lldp-span -->
+
+### F-loopback-bvi-gso-lldp-span: LldpNeighbors (+ `Interface.gso` 20, `Interface.mirror` 21, `ServicesConfig.nsim` 9)
+
+Config (additive, numbers from wave-A-hotspots §2 / D-109 e): `interfaces.<if>.gso` (`optional bool`, unset = off),
+`interfaces.<if>.mirror[]` (`MirrorSession{destination, direction rx|tx|both, level device|l2}` — the interface is the
+SOURCE; ERSPAN = a destination that is a GRE tunnel of type erspan) and `services.nsim` (`NsimService`: `delay_ms`,
+`bandwidth_mbps`, `packet_size`, `drop_fraction`, `cross_connect{a,b}`, `output_interfaces`; a lab tool). LLDP config is
+the existing `services.lldp` (`LldpService`). Retrieve reports `gso` (applied-once record of this VPP boot +
+`feature_is_enabled` read-back) and `mirror` (`sw_interface_span_dump`); `services.lldp` and `services.nsim` are
+write-only in VPP 26.06 (no getter; D-063) — DryRun marks them `agent.write-only`, and on a non-globals-owner the
+VPP-global parts (LLDP system name / timers, all of nsim) `agent.unsupported-field` (D-071).
+
+- **`LldpNeighbors(offset, limit, owner)`** — read-only, like `InterfaceState` (§8a): one `LldpNeighbor` per
+  LLDP-enabled interface this agent can name (its own and untagged ones, never another owner's), ordered by interface
+  name: `interface`, `sw_if_index`, `heard`, the peer's `chassis_id` / `port_id` (MAC → `aa:bb:…`, printable text as
+  is, else hex) with their subtypes (`mac-address`, `interface-name`, …), `ttl`, `last_heard_sec_ago` /
+  `last_sent_sec_ago` (VPP clock via `show_vpe_system_time`; 0 = never). `limit` 1–1000 (0 = 100; > 1000 →
+  `INVALID_ARGUMENT`), `total` = entries in the whole table; `UNAVAILABLE` while VPP is disconnected. VPP keeps one
+  peer per interface (`lldp_dump`).
+- API: `GET /api/v1/state/lldp/neighbors?page&pageSize` (`LoopbackBviGsoLldpSpanController`); an agent without the RPC
+  answers `UNIMPLEMENTED` → 501.
 <!-- wave-A: F-vrf-static-ecmp -->
 <!-- wave-A: F-neighbors-ra -->
 <!-- wave-A: F-rpf-adl-pbr -->

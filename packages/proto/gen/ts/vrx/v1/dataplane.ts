@@ -1253,7 +1253,15 @@ export interface Interface {
     | DhcpClient
     | undefined;
   /** L2 role of the interface (F-bridge-l2, D-109 c): bridge membership, VLAN tag rewrite, MAC filter; unset = L3 only. */
-  l2: BridgeL2Port | undefined;
+  l2:
+    | BridgeL2Port
+    | undefined;
+  /** Software GSO on output (feature_gso_enable_disable; F-loopback-bvi-gso-lldp-span); unset = off. */
+  gso?:
+    | boolean
+    | undefined;
+  /** Mirror sessions with this interface as the source (sw_interface_span_enable_disable; F-loopback-bvi-gso-lldp-span). */
+  mirror: MirrorSession[];
 }
 
 export interface Interface_SubinterfacesEntry {
@@ -2182,7 +2190,11 @@ export interface ServicesConfig {
     | NtpService
     | undefined;
   /** QoS: policers, shapers, marking maps, interface attachments (D-052). */
-  qos: QosService | undefined;
+  qos:
+    | QosService
+    | undefined;
+  /** Network delay simulator, a lab tool (VPP nsim; applied by the globals owner only, D-071; F-loopback-bvi-gso-lldp-span). */
+  nsim: NsimService | undefined;
 }
 
 /** SocketAddress is an `{ address, port }` pair (listen sockets, collectors). */
@@ -5558,6 +5570,103 @@ export interface BridgeDomainMac {
   filter: boolean;
   /** BVI entry. */
   bvi: boolean;
+}
+
+/** MirrorSession mirrors one entry of `interfaces.<name>.mirror`: the interface is the source of the session. */
+export interface MirrorSession {
+  /** Interface that transmits the copies (a monitor port, or a GRE tunnel of type erspan for ERSPAN). */
+  destination?:
+    | string
+    | undefined;
+  /** "rx" | "tx" | "both"; Zod default "both". */
+  direction?:
+    | string
+    | undefined;
+  /** "device" | "l2" (the L2 path: bridge members and cross-connects); Zod default "device". */
+  level?: string | undefined;
+}
+
+/**
+ * NsimService is `services.nsim` (VPP nsim plugin: nsim_configure2, nsim_cross_connect_enable_disable,
+ * nsim_output_feature_enable_disable).
+ */
+export interface NsimService {
+  /** One-way delay in milliseconds (> 0; microsecond resolution on VPP). */
+  delayMs?:
+    | number
+    | undefined;
+  /** Simulated link rate in Mbit/s (> 0). */
+  bandwidthMbps?:
+    | number
+    | undefined;
+  /** Average packet size 64–9000 bytes (sizes the scheduler wheel); Zod default 1500. */
+  packetSize?:
+    | number
+    | undefined;
+  /** Random loss 0–1 (VPP packets_per_drop = 1 / fraction); Zod default 0. */
+  dropFraction?:
+    | number
+    | undefined;
+  /** Cross-connect; unset = none. */
+  crossConnect:
+    | NsimService_CrossConnect
+    | undefined;
+  /** Interfaces whose output goes through the simulator. */
+  outputInterfaces: string[];
+}
+
+/** The nsim cross-connect of two hardware interfaces. */
+export interface NsimService_CrossConnect {
+  a?: string | undefined;
+  b?: string | undefined;
+}
+
+/** LldpNeighborsRequest pages through the LLDP table. */
+export interface LldpNeighborsRequest {
+  /** Index of the first entry (entries are ordered by interface name). */
+  offset: number;
+  /** Page size 1–1000; 0 = 100. More than 1000 fails with INVALID_ARGUMENT. */
+  limit: number;
+  /** Expected agent owner; empty = the agent's owner. */
+  owner: string;
+}
+
+/** LldpNeighborsResponse is one page of the LLDP table. */
+export interface LldpNeighborsResponse {
+  neighbors: LldpNeighbor[];
+  /** Number of entries in the whole table (for paging). */
+  total: number;
+  owner: string;
+  retrievedAt: Date | undefined;
+}
+
+/** LldpNeighbor is one LLDP-enabled interface and the peer heard on it (VPP keeps one peer per interface). */
+export interface LldpNeighbor {
+  /** Logical name of the interface. */
+  interface: string;
+  swIfIndex: number;
+  /** A peer was heard since LLDP was enabled (last_heard > 0). */
+  heard: boolean;
+  /** Peer chassis id: "aa:bb:cc:dd:ee:ff" for a MAC address, the text when printable, hex otherwise; "" = none. */
+  chassisId: string;
+  /**
+   * "chassis-component" | "interface-alias" | "port-component" | "mac-address" | "network-address" |
+   * "interface-name" | "local"; "" = none heard.
+   */
+  chassisIdSubtype: string;
+  /** Peer port id, formatted like chassis_id. */
+  portId: string;
+  /**
+   * "interface-alias" | "port-component" | "mac-address" | "network-address" | "interface-name" |
+   * "agent-circuit-id" | "local"; "" = none heard.
+   */
+  portIdSubtype: string;
+  /** Time to live the peer advertised, in seconds. */
+  ttl: number;
+  /** Seconds since the peer was last heard (VPP clock); 0 when never heard. */
+  lastHeardSecAgo: number;
+  /** Seconds since this interface last sent an LLDPDU; 0 when never. */
+  lastSentSecAgo: number;
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -11363,6 +11472,8 @@ function createBaseInterface(): Interface {
     promiscuous: undefined,
     dhcpClient: undefined,
     l2: undefined,
+    gso: undefined,
+    mirror: [],
   };
 }
 
@@ -11406,6 +11517,12 @@ export const Interface: MessageFns<Interface> = {
     }
     if (message.l2 !== undefined) {
       BridgeL2Port.encode(message.l2, writer.uint32(114).fork()).join();
+    }
+    if (message.gso !== undefined) {
+      writer.uint32(160).bool(message.gso);
+    }
+    for (const v of message.mirror) {
+      MirrorSession.encode(v!, writer.uint32(170).fork()).join();
     }
     return writer;
   },
@@ -11530,6 +11647,22 @@ export const Interface: MessageFns<Interface> = {
             message.l2 = BridgeL2Port.decode(reader, reader.uint32());
             continue;
           }
+          case 20: {
+            if (tag !== 160) {
+              break;
+            }
+
+            message.gso = reader.bool();
+            continue;
+          }
+          case 21: {
+            if (tag !== 170) {
+              break;
+            }
+
+            message.mirror.push(MirrorSession.decode(reader, reader.uint32()));
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -11578,6 +11711,10 @@ export const Interface: MessageFns<Interface> = {
         ? DhcpClient.fromJSON(object.dhcp_client)
         : undefined,
       l2: isSet(object.l2) ? BridgeL2Port.fromJSON(object.l2) : undefined,
+      gso: isSet(object.gso) ? globalThis.Boolean(object.gso) : undefined,
+      mirror: globalThis.Array.isArray(object?.mirror)
+        ? object.mirror.map((e: any) => MirrorSession.fromJSON(e))
+        : [],
     };
   },
 
@@ -11628,6 +11765,12 @@ export const Interface: MessageFns<Interface> = {
     if (message.l2 !== undefined) {
       obj.l2 = BridgeL2Port.toJSON(message.l2);
     }
+    if (message.gso !== undefined) {
+      obj.gso = message.gso;
+    }
+    if (message.mirror?.length) {
+      obj.mirror = message.mirror.map((e) => MirrorSession.toJSON(e));
+    }
     return obj;
   },
 
@@ -11659,6 +11802,8 @@ export const Interface: MessageFns<Interface> = {
       ? DhcpClient.fromPartial(object.dhcpClient)
       : undefined;
     message.l2 = (object.l2 !== undefined && object.l2 !== null) ? BridgeL2Port.fromPartial(object.l2) : undefined;
+    message.gso = object.gso ?? undefined;
+    message.mirror = object.mirror?.map((e) => MirrorSession.fromPartial(e)) || [];
     return message;
   },
 };
@@ -18572,6 +18717,7 @@ function createBaseServicesConfig(): ServicesConfig {
     ipfix: undefined,
     ntp: undefined,
     qos: undefined,
+    nsim: undefined,
   };
 }
 
@@ -18597,6 +18743,9 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
     }
     if (message.qos !== undefined) {
       QosService.encode(message.qos, writer.uint32(58).fork()).join();
+    }
+    if (message.nsim !== undefined) {
+      NsimService.encode(message.nsim, writer.uint32(74).fork()).join();
     }
     return writer;
   },
@@ -18670,6 +18819,14 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
             message.qos = QosService.decode(reader, reader.uint32());
             continue;
           }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.nsim = NsimService.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -18691,6 +18848,7 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
       ipfix: isSet(object.ipfix) ? IpfixService.fromJSON(object.ipfix) : undefined,
       ntp: isSet(object.ntp) ? NtpService.fromJSON(object.ntp) : undefined,
       qos: isSet(object.qos) ? QosService.fromJSON(object.qos) : undefined,
+      nsim: isSet(object.nsim) ? NsimService.fromJSON(object.nsim) : undefined,
     };
   },
 
@@ -18717,6 +18875,9 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
     if (message.qos !== undefined) {
       obj.qos = QosService.toJSON(message.qos);
     }
+    if (message.nsim !== undefined) {
+      obj.nsim = NsimService.toJSON(message.nsim);
+    }
     return obj;
   },
 
@@ -18740,6 +18901,9 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
       : undefined;
     message.ntp = (object.ntp !== undefined && object.ntp !== null) ? NtpService.fromPartial(object.ntp) : undefined;
     message.qos = (object.qos !== undefined && object.qos !== null) ? QosService.fromPartial(object.qos) : undefined;
+    message.nsim = (object.nsim !== undefined && object.nsim !== null)
+      ? NsimService.fromPartial(object.nsim)
+      : undefined;
     return message;
   },
 };
@@ -45712,6 +45876,850 @@ export const BridgeDomainMac: MessageFns<BridgeDomainMac> = {
   },
 };
 
+function createBaseMirrorSession(): MirrorSession {
+  return { destination: undefined, direction: undefined, level: undefined };
+}
+
+export const MirrorSession: MessageFns<MirrorSession> = {
+  encode(message: MirrorSession, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.destination !== undefined) {
+      writer.uint32(10).string(message.destination);
+    }
+    if (message.direction !== undefined) {
+      writer.uint32(18).string(message.direction);
+    }
+    if (message.level !== undefined) {
+      writer.uint32(26).string(message.level);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MirrorSession {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMirrorSession();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.destination = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.direction = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.level = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MirrorSession {
+    return {
+      destination: isSet(object.destination) ? globalThis.String(object.destination) : undefined,
+      direction: isSet(object.direction) ? globalThis.String(object.direction) : undefined,
+      level: isSet(object.level) ? globalThis.String(object.level) : undefined,
+    };
+  },
+
+  toJSON(message: MirrorSession): unknown {
+    const obj: any = {};
+    if (message.destination !== undefined) {
+      obj.destination = message.destination;
+    }
+    if (message.direction !== undefined) {
+      obj.direction = message.direction;
+    }
+    if (message.level !== undefined) {
+      obj.level = message.level;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MirrorSession>): MirrorSession {
+    return MirrorSession.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MirrorSession>): MirrorSession {
+    const message = createBaseMirrorSession();
+    message.destination = object.destination ?? undefined;
+    message.direction = object.direction ?? undefined;
+    message.level = object.level ?? undefined;
+    return message;
+  },
+};
+
+function createBaseNsimService(): NsimService {
+  return {
+    delayMs: undefined,
+    bandwidthMbps: undefined,
+    packetSize: undefined,
+    dropFraction: undefined,
+    crossConnect: undefined,
+    outputInterfaces: [],
+  };
+}
+
+export const NsimService: MessageFns<NsimService> = {
+  encode(message: NsimService, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.delayMs !== undefined) {
+      writer.uint32(9).double(message.delayMs);
+    }
+    if (message.bandwidthMbps !== undefined) {
+      writer.uint32(17).double(message.bandwidthMbps);
+    }
+    if (message.packetSize !== undefined) {
+      writer.uint32(24).uint32(message.packetSize);
+    }
+    if (message.dropFraction !== undefined) {
+      writer.uint32(33).double(message.dropFraction);
+    }
+    if (message.crossConnect !== undefined) {
+      NsimService_CrossConnect.encode(message.crossConnect, writer.uint32(42).fork()).join();
+    }
+    for (const v of message.outputInterfaces) {
+      writer.uint32(50).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NsimService {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNsimService();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 9) {
+              break;
+            }
+
+            message.delayMs = reader.double();
+            continue;
+          }
+          case 2: {
+            if (tag !== 17) {
+              break;
+            }
+
+            message.bandwidthMbps = reader.double();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.packetSize = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 33) {
+              break;
+            }
+
+            message.dropFraction = reader.double();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.crossConnect = NsimService_CrossConnect.decode(reader, reader.uint32());
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.outputInterfaces.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NsimService {
+    return {
+      delayMs: isSet(object.delayMs)
+        ? globalThis.Number(object.delayMs)
+        : isSet(object.delay_ms)
+        ? globalThis.Number(object.delay_ms)
+        : undefined,
+      bandwidthMbps: isSet(object.bandwidthMbps)
+        ? globalThis.Number(object.bandwidthMbps)
+        : isSet(object.bandwidth_mbps)
+        ? globalThis.Number(object.bandwidth_mbps)
+        : undefined,
+      packetSize: isSet(object.packetSize)
+        ? globalThis.Number(object.packetSize)
+        : isSet(object.packet_size)
+        ? globalThis.Number(object.packet_size)
+        : undefined,
+      dropFraction: isSet(object.dropFraction)
+        ? globalThis.Number(object.dropFraction)
+        : isSet(object.drop_fraction)
+        ? globalThis.Number(object.drop_fraction)
+        : undefined,
+      crossConnect: isSet(object.crossConnect)
+        ? NsimService_CrossConnect.fromJSON(object.crossConnect)
+        : isSet(object.cross_connect)
+        ? NsimService_CrossConnect.fromJSON(object.cross_connect)
+        : undefined,
+      outputInterfaces: globalThis.Array.isArray(object?.outputInterfaces)
+        ? object.outputInterfaces.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.output_interfaces)
+        ? object.output_interfaces.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: NsimService): unknown {
+    const obj: any = {};
+    if (message.delayMs !== undefined) {
+      obj.delayMs = message.delayMs;
+    }
+    if (message.bandwidthMbps !== undefined) {
+      obj.bandwidthMbps = message.bandwidthMbps;
+    }
+    if (message.packetSize !== undefined) {
+      obj.packetSize = Math.round(message.packetSize);
+    }
+    if (message.dropFraction !== undefined) {
+      obj.dropFraction = message.dropFraction;
+    }
+    if (message.crossConnect !== undefined) {
+      obj.crossConnect = NsimService_CrossConnect.toJSON(message.crossConnect);
+    }
+    if (message.outputInterfaces?.length) {
+      obj.outputInterfaces = message.outputInterfaces;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NsimService>): NsimService {
+    return NsimService.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NsimService>): NsimService {
+    const message = createBaseNsimService();
+    message.delayMs = object.delayMs ?? undefined;
+    message.bandwidthMbps = object.bandwidthMbps ?? undefined;
+    message.packetSize = object.packetSize ?? undefined;
+    message.dropFraction = object.dropFraction ?? undefined;
+    message.crossConnect = (object.crossConnect !== undefined && object.crossConnect !== null)
+      ? NsimService_CrossConnect.fromPartial(object.crossConnect)
+      : undefined;
+    message.outputInterfaces = object.outputInterfaces?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseNsimService_CrossConnect(): NsimService_CrossConnect {
+  return { a: undefined, b: undefined };
+}
+
+export const NsimService_CrossConnect: MessageFns<NsimService_CrossConnect> = {
+  encode(message: NsimService_CrossConnect, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.a !== undefined) {
+      writer.uint32(10).string(message.a);
+    }
+    if (message.b !== undefined) {
+      writer.uint32(18).string(message.b);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NsimService_CrossConnect {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNsimService_CrossConnect();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.a = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.b = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NsimService_CrossConnect {
+    return {
+      a: isSet(object.a) ? globalThis.String(object.a) : undefined,
+      b: isSet(object.b) ? globalThis.String(object.b) : undefined,
+    };
+  },
+
+  toJSON(message: NsimService_CrossConnect): unknown {
+    const obj: any = {};
+    if (message.a !== undefined) {
+      obj.a = message.a;
+    }
+    if (message.b !== undefined) {
+      obj.b = message.b;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NsimService_CrossConnect>): NsimService_CrossConnect {
+    return NsimService_CrossConnect.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NsimService_CrossConnect>): NsimService_CrossConnect {
+    const message = createBaseNsimService_CrossConnect();
+    message.a = object.a ?? undefined;
+    message.b = object.b ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLldpNeighborsRequest(): LldpNeighborsRequest {
+  return { offset: 0, limit: 0, owner: "" };
+}
+
+export const LldpNeighborsRequest: MessageFns<LldpNeighborsRequest> = {
+  encode(message: LldpNeighborsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.offset !== 0) {
+      writer.uint32(8).uint32(message.offset);
+    }
+    if (message.limit !== 0) {
+      writer.uint32(16).uint32(message.limit);
+    }
+    if (message.owner !== "") {
+      writer.uint32(26).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LldpNeighborsRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLldpNeighborsRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.offset = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.limit = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LldpNeighborsRequest {
+    return {
+      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
+      limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+    };
+  },
+
+  toJSON(message: LldpNeighborsRequest): unknown {
+    const obj: any = {};
+    if (message.offset !== 0) {
+      obj.offset = Math.round(message.offset);
+    }
+    if (message.limit !== 0) {
+      obj.limit = Math.round(message.limit);
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LldpNeighborsRequest>): LldpNeighborsRequest {
+    return LldpNeighborsRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LldpNeighborsRequest>): LldpNeighborsRequest {
+    const message = createBaseLldpNeighborsRequest();
+    message.offset = object.offset ?? 0;
+    message.limit = object.limit ?? 0;
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseLldpNeighborsResponse(): LldpNeighborsResponse {
+  return { neighbors: [], total: 0, owner: "", retrievedAt: undefined };
+}
+
+export const LldpNeighborsResponse: MessageFns<LldpNeighborsResponse> = {
+  encode(message: LldpNeighborsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.neighbors) {
+      LldpNeighbor.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.total !== 0) {
+      writer.uint32(16).uint32(message.total);
+    }
+    if (message.owner !== "") {
+      writer.uint32(26).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(34).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LldpNeighborsResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLldpNeighborsResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.neighbors.push(LldpNeighbor.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.total = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LldpNeighborsResponse {
+    return {
+      neighbors: globalThis.Array.isArray(object?.neighbors)
+        ? object.neighbors.map((e: any) => LldpNeighbor.fromJSON(e))
+        : [],
+      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: LldpNeighborsResponse): unknown {
+    const obj: any = {};
+    if (message.neighbors?.length) {
+      obj.neighbors = message.neighbors.map((e) => LldpNeighbor.toJSON(e));
+    }
+    if (message.total !== 0) {
+      obj.total = Math.round(message.total);
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LldpNeighborsResponse>): LldpNeighborsResponse {
+    return LldpNeighborsResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LldpNeighborsResponse>): LldpNeighborsResponse {
+    const message = createBaseLldpNeighborsResponse();
+    message.neighbors = object.neighbors?.map((e) => LldpNeighbor.fromPartial(e)) || [];
+    message.total = object.total ?? 0;
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLldpNeighbor(): LldpNeighbor {
+  return {
+    interface: "",
+    swIfIndex: 0,
+    heard: false,
+    chassisId: "",
+    chassisIdSubtype: "",
+    portId: "",
+    portIdSubtype: "",
+    ttl: 0,
+    lastHeardSecAgo: 0,
+    lastSentSecAgo: 0,
+  };
+}
+
+export const LldpNeighbor: MessageFns<LldpNeighbor> = {
+  encode(message: LldpNeighbor, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== "") {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.swIfIndex !== 0) {
+      writer.uint32(16).uint32(message.swIfIndex);
+    }
+    if (message.heard !== false) {
+      writer.uint32(24).bool(message.heard);
+    }
+    if (message.chassisId !== "") {
+      writer.uint32(34).string(message.chassisId);
+    }
+    if (message.chassisIdSubtype !== "") {
+      writer.uint32(42).string(message.chassisIdSubtype);
+    }
+    if (message.portId !== "") {
+      writer.uint32(50).string(message.portId);
+    }
+    if (message.portIdSubtype !== "") {
+      writer.uint32(58).string(message.portIdSubtype);
+    }
+    if (message.ttl !== 0) {
+      writer.uint32(64).uint32(message.ttl);
+    }
+    if (message.lastHeardSecAgo !== 0) {
+      writer.uint32(73).double(message.lastHeardSecAgo);
+    }
+    if (message.lastSentSecAgo !== 0) {
+      writer.uint32(81).double(message.lastSentSecAgo);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LldpNeighbor {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLldpNeighbor();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.swIfIndex = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.heard = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.chassisId = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.chassisIdSubtype = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.portId = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.portIdSubtype = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.ttl = reader.uint32();
+            continue;
+          }
+          case 9: {
+            if (tag !== 73) {
+              break;
+            }
+
+            message.lastHeardSecAgo = reader.double();
+            continue;
+          }
+          case 10: {
+            if (tag !== 81) {
+              break;
+            }
+
+            message.lastSentSecAgo = reader.double();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LldpNeighbor {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      swIfIndex: isSet(object.swIfIndex)
+        ? globalThis.Number(object.swIfIndex)
+        : isSet(object.sw_if_index)
+        ? globalThis.Number(object.sw_if_index)
+        : 0,
+      heard: isSet(object.heard) ? globalThis.Boolean(object.heard) : false,
+      chassisId: isSet(object.chassisId)
+        ? globalThis.String(object.chassisId)
+        : isSet(object.chassis_id)
+        ? globalThis.String(object.chassis_id)
+        : "",
+      chassisIdSubtype: isSet(object.chassisIdSubtype)
+        ? globalThis.String(object.chassisIdSubtype)
+        : isSet(object.chassis_id_subtype)
+        ? globalThis.String(object.chassis_id_subtype)
+        : "",
+      portId: isSet(object.portId)
+        ? globalThis.String(object.portId)
+        : isSet(object.port_id)
+        ? globalThis.String(object.port_id)
+        : "",
+      portIdSubtype: isSet(object.portIdSubtype)
+        ? globalThis.String(object.portIdSubtype)
+        : isSet(object.port_id_subtype)
+        ? globalThis.String(object.port_id_subtype)
+        : "",
+      ttl: isSet(object.ttl) ? globalThis.Number(object.ttl) : 0,
+      lastHeardSecAgo: isSet(object.lastHeardSecAgo)
+        ? globalThis.Number(object.lastHeardSecAgo)
+        : isSet(object.last_heard_sec_ago)
+        ? globalThis.Number(object.last_heard_sec_ago)
+        : 0,
+      lastSentSecAgo: isSet(object.lastSentSecAgo)
+        ? globalThis.Number(object.lastSentSecAgo)
+        : isSet(object.last_sent_sec_ago)
+        ? globalThis.Number(object.last_sent_sec_ago)
+        : 0,
+    };
+  },
+
+  toJSON(message: LldpNeighbor): unknown {
+    const obj: any = {};
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.swIfIndex !== 0) {
+      obj.swIfIndex = Math.round(message.swIfIndex);
+    }
+    if (message.heard !== false) {
+      obj.heard = message.heard;
+    }
+    if (message.chassisId !== "") {
+      obj.chassisId = message.chassisId;
+    }
+    if (message.chassisIdSubtype !== "") {
+      obj.chassisIdSubtype = message.chassisIdSubtype;
+    }
+    if (message.portId !== "") {
+      obj.portId = message.portId;
+    }
+    if (message.portIdSubtype !== "") {
+      obj.portIdSubtype = message.portIdSubtype;
+    }
+    if (message.ttl !== 0) {
+      obj.ttl = Math.round(message.ttl);
+    }
+    if (message.lastHeardSecAgo !== 0) {
+      obj.lastHeardSecAgo = message.lastHeardSecAgo;
+    }
+    if (message.lastSentSecAgo !== 0) {
+      obj.lastSentSecAgo = message.lastSentSecAgo;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LldpNeighbor>): LldpNeighbor {
+    return LldpNeighbor.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LldpNeighbor>): LldpNeighbor {
+    const message = createBaseLldpNeighbor();
+    message.interface = object.interface ?? "";
+    message.swIfIndex = object.swIfIndex ?? 0;
+    message.heard = object.heard ?? false;
+    message.chassisId = object.chassisId ?? "";
+    message.chassisIdSubtype = object.chassisIdSubtype ?? "";
+    message.portId = object.portId ?? "";
+    message.portIdSubtype = object.portIdSubtype ?? "";
+    message.ttl = object.ttl ?? 0;
+    message.lastHeardSecAgo = object.lastHeardSecAgo ?? 0;
+    message.lastSentSecAgo = object.lastSentSecAgo ?? 0;
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
@@ -45858,6 +46866,22 @@ export const DataplaneService = {
       Buffer.from(BridgeDomainMacsResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): BridgeDomainMacsResponse => BridgeDomainMacsResponse.decode(value),
   },
+  /**
+   * LldpNeighbors lists the interfaces with LLDP enabled that this agent can name (its own and untagged ones,
+   * never another owner's) with what was heard on each (lldp_dump: chassis id, port id, TTL, last heard/sent),
+   * ordered by interface name, at most 1000 per call (docs/contracts/proto.md "F-loopback-bvi-gso-lldp-span").
+   * Read-only.
+   */
+  lldpNeighbors: {
+    path: "/vrx.v1.Dataplane/LldpNeighbors" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: LldpNeighborsRequest): Buffer => Buffer.from(LldpNeighborsRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): LldpNeighborsRequest => LldpNeighborsRequest.decode(value),
+    responseSerialize: (value: LldpNeighborsResponse): Buffer =>
+      Buffer.from(LldpNeighborsResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): LldpNeighborsResponse => LldpNeighborsResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -45914,6 +46938,13 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * at most 1000 entries per call, so a message stays bounded however large the table is. Read-only.
    */
   bridgeDomainMacs: handleUnaryCall<BridgeDomainMacsRequest, BridgeDomainMacsResponse>;
+  /**
+   * LldpNeighbors lists the interfaces with LLDP enabled that this agent can name (its own and untagged ones,
+   * never another owner's) with what was heard on each (lldp_dump: chassis id, port id, TTL, last heard/sent),
+   * ordered by interface name, at most 1000 per call (docs/contracts/proto.md "F-loopback-bvi-gso-lldp-span").
+   * Read-only.
+   */
+  lldpNeighbors: handleUnaryCall<LldpNeighborsRequest, LldpNeighborsResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -46082,6 +47113,27 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: BridgeDomainMacsResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * LldpNeighbors lists the interfaces with LLDP enabled that this agent can name (its own and untagged ones,
+   * never another owner's) with what was heard on each (lldp_dump: chassis id, port id, TTL, last heard/sent),
+   * ordered by interface name, at most 1000 per call (docs/contracts/proto.md "F-loopback-bvi-gso-lldp-span").
+   * Read-only.
+   */
+  lldpNeighbors(
+    request: LldpNeighborsRequest,
+    callback: (error: ServiceError | null, response: LldpNeighborsResponse) => void,
+  ): ClientUnaryCall;
+  lldpNeighbors(
+    request: LldpNeighborsRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: LldpNeighborsResponse) => void,
+  ): ClientUnaryCall;
+  lldpNeighbors(
+    request: LldpNeighborsRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: LldpNeighborsResponse) => void,
   ): ClientUnaryCall;
 }
 

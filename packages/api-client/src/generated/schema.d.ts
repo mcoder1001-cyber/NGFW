@@ -963,6 +963,25 @@ export interface components {
            */
           macFilter: boolean;
         };
+        /** GSO */
+        gso?: boolean;
+        /** Port mirroring */
+        mirror?: {
+          /** Destination */
+          destination: string;
+          /**
+           * Direction
+           * @default both
+           * @enum {string}
+           */
+          direction: 'rx' | 'tx' | 'both';
+          /**
+           * Level
+           * @default device
+           * @enum {string}
+           */
+          level: 'device' | 'l2';
+        }[];
       };
     };
     /**
@@ -5340,6 +5359,38 @@ export interface components {
             };
           };
         };
+      };
+      /**
+       * Network delay simulator (lab)
+       * @description VPP nsim: delay, bandwidth and loss between two cross-connected interfaces or on output. A lab tool; applied only by the globals owner.
+       */
+      nsim?: {
+        /** Delay (ms) */
+        delayMs: number;
+        /** Bandwidth (Mbit/s) */
+        bandwidthMbps: number;
+        /**
+         * Average packet size (bytes)
+         * @default 1500
+         */
+        packetSize: number;
+        /**
+         * Drop fraction
+         * @default 0
+         */
+        dropFraction: number;
+        /** Cross-connect */
+        crossConnect?: {
+          /** Interface A */
+          a: string;
+          /** Interface B */
+          b: string;
+        };
+        /**
+         * Output interfaces
+         * @default []
+         */
+        outputInterfaces: string[];
       };
     };
     /**

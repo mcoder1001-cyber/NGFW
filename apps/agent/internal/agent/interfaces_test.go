@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	"ngfw/agent/binapi/interface_types"
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
@@ -241,6 +242,78 @@ func TestMtuToDefaultIsJournaled(t *testing.T) {
 	}
 	if got := retrieveIfs(t, s).GetInterfaces()["host-w1l0"].GetMtu(); got != 1400 {
 		t.Fatalf("Retrieve mtu after rollback %d", got)
+	}
+}
+
+// Re-review R1 (fix round 2): a value remembered as an untagged NIC's default (nothing written, nothing
+// claimed) that changes to a non-default value is a recreate — the wrapper's Delete forgets it and
+// DF-1's Create writes AND claims — so verification, Retrieve, re-apply and rollback work. A plain
+// DF-1 Update would write without a claim: verify fails, the revert cannot undo the write (DEGRADED).
+func TestRememberedDefaultThenChange(t *testing.T) {
+	v := coretest.New()
+	idx := v.AddInterface("lan", "dpdk", "")
+	v.Ifaces[idx].LinkMtu = 1500
+	v.Ifaces[idx].Mtu = [4]uint32{1500}
+	v.Ifaces[idx].RxMode = interface_types.RX_MODE_API_POLLING
+	s := newSvc(t, v, t.TempDir())
+	set := func(txn, attrs string, want vrxv1.ApplyStatus) []string {
+		t.Helper()
+		resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: txn, DesiredState: doc(t, `{"interfaces":{"lan":{"enabled":true,`+attrs+`}}}`)})
+		mustStatus(t, resp, want)
+		var ops []string
+		for _, r := range resp.GetResults() {
+			ops = append(ops, r.GetKey()+":"+r.GetOp().String())
+		}
+		return ops
+	}
+	const applied, rolledBack = vrxv1.ApplyStatus_APPLY_STATUS_APPLIED, vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK
+	converged := func(txn, attrs string, mtu uint32) {
+		t.Helper()
+		if v.MTU("lan") != mtu {
+			t.Fatalf("%s: VPP MTU %d, want %d", txn, v.MTU("lan"), mtu)
+		}
+		if got := retrieveIfs(t, s).GetInterfaces()["lan"].GetMtu(); got != mtu {
+			t.Fatalf("%s: Retrieve mtu %d, want %d", txn, got, mtu)
+		}
+		if ops := set(txn+"-again", attrs, applied); len(ops) != 0 {
+			t.Fatalf("%s: re-apply %v", txn, ops)
+		}
+	}
+
+	set("r1", `"mtu":1500`, applied) // the link MTU: remembered, nothing written
+	converged("r1", `"mtu":1500`, 1500)
+	if ops := set("r2", `"mtu":1400`, applied); len(ops) != 1 || ops[0] != "interface.mtu/lan:APPLY_OPERATION_RECREATE" {
+		t.Fatalf("remembered 1500 → 1400: results %v, want one RECREATE", ops)
+	}
+	converged("r2", `"mtu":1400`, 1400)
+	set("r3", `"mtu":1500`, applied) // back to the default (F5: a recreate), remembered again
+	converged("r3", `"mtu":1500`, 1500)
+	set("r4", `"mtu":9000`, applied)
+	converged("r4", `"mtu":9000`, 9000)
+
+	// rollback from a remembered default: VPP does not take 1400 (keeps 1399) → ROLLED_BACK, VPP at 1500 again
+	set("r5", `"mtu":1500`, applied)
+	v.SetMtuFilter(func(_ uint32, m [4]uint32) [4]uint32 {
+		if m[0] == 1400 {
+			m[0] = 1399
+		}
+		return m
+	})
+	set("r6", `"mtu":1400`, rolledBack)
+	v.SetMtuFilter(nil)
+	converged("r6", `"mtu":1500`, 1500)
+
+	// rx-mode: polling (the DPDK default, remembered) → interrupt
+	set("x1", `"mtu":1500,"rxMode":"polling"`, applied)
+	set("x2", `"mtu":1500,"rxMode":"interrupt"`, applied)
+	if got, _ := v.InterfaceByName("lan"); got.RxMode != interface_types.RX_MODE_API_INTERRUPT {
+		t.Fatalf("VPP rx-mode %v, want interrupt", got.RxMode)
+	}
+	if got := retrieveIfs(t, s).GetInterfaces()["lan"].GetRxMode(); got != "interrupt" {
+		t.Fatalf("Retrieve rxMode %q, want interrupt", got)
+	}
+	if ops := set("x3", `"mtu":1500,"rxMode":"interrupt"`, applied); len(ops) != 0 {
+		t.Fatalf("rx-mode re-apply %v", ops)
 	}
 }
 

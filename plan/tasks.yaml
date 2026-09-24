@@ -693,7 +693,7 @@ tasks:
 - id: W-seed
   title: 'Wave-A seed commit: hotspot anchors (A1,A2,A4,C1-C3,C5,P1,P4-P6,W1-W3), one-entry-per-line lists, Env event-publish + Resync hooks (A5), subsystems.SlotIDRange(), vpn/services page shells, proto.md
     "Feature RPCs" heading — no behaviour change'
-  prompt: docs/status/wave-A-hotspots.md
+  prompt: prompts/tech-debt/W-seed.md
   template: ''
   stage: S4
   deps:
@@ -701,18 +701,18 @@ tasks:
   - TD-2
   priority: 2
   est_hours: 2
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D0.1
   scope: hotspots §4.2 + launch plan §5.2; no feature logic
   files_owned: hotspot files listed in docs/status/wave-A-hotspots.md §1 (anchors/registration only)
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/W-seed
+  worktree: /root/ngfw-wt/W-seed
+  owner: ngfw-46 slot3
+  started: 2026-09-24T15:36
   finished: ''
-  notes: 'D-109: seeded by one worker right after P08+TD-2 merge so 17 parallel features merge without union conflicts'
+  notes: 'D-109: seeded by one worker right after P08+TD-2 merge so 17 parallel features merge without union conflicts | SPECULATIVE from task/P08@74ec04e (D-114), envelope /root/ngfw-wt/W-seed.envelope.md'
 - id: F-vlan-qinq
   title: 'Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking'
   prompt: prompts/features/F-vlan-qinq.md
@@ -2290,7 +2290,7 @@ tasks:
   - P06
   priority: 2
   est_hours: 6
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.9
@@ -2308,7 +2308,7 @@ tasks:
     9373e6e CI green (Q1–Q4 in TD-2-questions.md → D-100); verify review spawned | 07:49 verify APPROVE WITH CHANGES ae52906 (V1 keys created during reset survive — High; V2 config-API reset bypasses D-097
     → D-102; V3–V5 low); fix round 2 (last) spawned | 08:18 fix round 2 done 84210b7 (V1–V5 fixed, e2e 61/3 skip, CI green); Q6 self-change via config logs out = D-102 as written; verify of round 2 spawned
     | 14:00 ngfw-46: verify round 2 CONTINUE (Agent tool), envelope /root/ngfw-wt/TD-2.verify3.md; Q6 answered D-105 | verify2 APPROVE WITH CHANGES 9bdc466 (T1 e2e flaky under load, test-only); T1 fix worker
-    (D-111), envelope /root/ngfw-wt/TD-2.t1fix.md; merge after 3 green runs, no further review round'
+    (D-111), envelope /root/ngfw-wt/TD-2.t1fix.md; merge after 3 green runs, no further review round | T1 fixed 20eb16d: api e2e 61/3 ×3 green, CI green (D-111 met) → handed to the merger'
 - id: TD-3
   title: 'V19 guard: sanitize inherited per-interface state on interface create; unbind classify before table/interface delete; restart simulations delete dependents; ci.sh full pre-flight'
   prompt: ''
@@ -2351,7 +2351,7 @@ tasks:
   - TD-2
   priority: 3
   est_hours: 3
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D0.9
@@ -2360,12 +2360,12 @@ tasks:
     reset type only) apps/api/src/testing/memory-repo.ts (syncUsers only) apps/api/src/commit/commit.service{,.test}.ts (post-promote hook only) apps/api/test/e2e/{auth,td2,td2-review,td2-verify}.e2e.test.ts
     (JWT key-creation bodies only) apps/cli/internal/cli/cmd_op.go (apiKeyCreate only) + its unit test apps/cli/test/e2e/repl_e2e_test.go test/topology/sdk-terraform-ansible/live.sh (one line) docs/user/system/sdk-terraform-ansible.md
     (key-creation example)'
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/TD-4
+  worktree: /root/ngfw-wt/TD-4
+  owner: ngfw-46 slot8
+  started: 2026-09-24T15:36
   finished: ''
-  notes: 'D-100: from TD-2-questions.md Q1–Q3 | envelope draft docs/status/tasks/TD-4.envelope.md (prep-waveA, D-109)'
+  notes: 'D-100: from TD-2-questions.md Q1–Q3 | envelope draft docs/status/tasks/TD-4.envelope.md (prep-waveA, D-109) | SPECULATIVE from task/TD-2@4391a44 (D-114), envelope /root/ngfw-wt/TD-4.envelope.md'
 - id: TD-5
   title: 'V24 + V19 follow-ups: af_packet Delete quiesces the Linux netdev (netlink link down) before af_packet_delete, also in Create rollback; restart-simulation fixtures do the same; ifsanitize placeholder
     cap = holes + 2×FreshRun, max 64 (TD-3 M1 option b)'
@@ -2376,7 +2376,7 @@ tasks:
   - TD-3
   priority: 2
   est_hours: 3
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D1.2
@@ -2389,7 +2389,9 @@ tasks:
   started: 2026-09-24T14:18
   finished: ''
   notes: 'D-101 V24 crash 07:27:32 | TD-3 re-review L7: af_packet Create''s rollback delete also quiesces the veth | spawned by ngfw-46 (Agent tool), envelope /root/ngfw-wt/TD-5.envelope.md | worker done
-    90cc0cb (code 3381e3e), CI green; D1 (b) + Q1 (a) confirmed D-110; review spawned'
+    90cc0cb (code 3381e3e), CI green; D1 (b) + Q1 (a) confirmed D-110; review spawned | review APPROVE WITH CHANGES e8f3d63 (H1 TX frame overrun → D-113, M1 cap run, L2, L3); fix round 1 envelope /root/ngfw-wt/TD-5.fix1.md
+    | fix round 1 done f63c1e3 (code 5c1148f), CI green, host NRestarts 0→0; focused verify spawned (D-115) | verify APPROVE ae34d24 → handed to the merger (D-112) | merged 3048991 (squash 221f230, D-112),
+    main gate green'
 - id: TD-6
   title: 'apply-startup.sh hardening before the first real --apply (D-103): stale dead-man vs newer commit, rollback write failure, systemctl-show failure, NRestarts compare; lows V5–V9; fake-host harness
     + shellcheck wired into tools/ci.sh'
@@ -2400,7 +2402,7 @@ tasks:
   - F-startup-apply
   priority: 3
   est_hours: 3
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.6
@@ -2413,4 +2415,27 @@ tasks:
   finished: ''
   notes: 'D-103: must merge before any real --apply on vrx-a | spawned 07:58 slot 6 (Agent tool), envelope /root/ngfw-wt/TD-6.envelope.md | 13:18 manager restart: CONTINUE respawned, envelope /root/ngfw-wt/TD-6.continue.md
     | 13:51 stopped for handover: WIP 59fb54e; L1 ci step + doc done; sharded harness 102 pass / 24 fail under load 35–45 (likely timing, unverified); next: serial rerun of failed scenarios on quiet host
-    (cmd in TD-6-wip.md), then tools/ci.sh --base main, TD-6.md | 14:00 ngfw-46: CONTINUE (Agent tool), envelope /root/ngfw-wt/TD-6.continue46.md — serial rerun of the 24 load failures, CI, TD-6.md'
+    (cmd in TD-6-wip.md), then tools/ci.sh --base main, TD-6.md | 14:00 ngfw-46: CONTINUE (Agent tool), envelope /root/ngfw-wt/TD-6.continue46.md — serial rerun of the 24 load failures, CI, TD-6.md | worker
+    done b388ca7 (code 85a6ed5), CI green, harness 128/128; review spawned by ngfw-46, envelope /root/ngfw-wt/TD-6.review.md | review APPROVE WITH CHANGES 621d1e2 → merge now, F1/F2 → TD-7 (D-116); handed
+    to the merger'
+- id: TD-7
+  title: 'apply-startup.sh follow-ups from the TD-6 review: F1 concurrent manual rollback of one apply (per-apply lock + cancel the dead-man), F2 scenario 40 bound independent of load (count ip neigh calls)'
+  prompt: /root/ngfw-wt/TD-7.envelope.md
+  template: ''
+  stage: S2
+  deps:
+  - TD-6
+  priority: 4
+  est_hours: 2
+  state: running
+  parked_on: ''
+  wbs:
+  - D0.6
+  scope: D-116; deploy/vpp/** + its harness only; must merge before any real --apply
+  files_owned: deploy/vpp/** docs/agent/renderers/vppstartup.md docs/status/tasks/TD-7*
+  branch: task/TD-7
+  worktree: /root/ngfw-wt/TD-7
+  owner: ngfw-46 slot6
+  started: 2026-09-24T16:09
+  finished: ''
+  notes: 'D-116: from TD-6-review.md F1/F2; F3–F9 in docs/tech-debt.md | SPECULATIVE from task/TD-6 (D-114)'

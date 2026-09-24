@@ -61,6 +61,11 @@ F-nat44-ei-64-66-nptv6) and mention it in status. Nothing else is parked on it.
 - **Concurrency:** start with 6 workers; raise to 10–12 while load (`awk '{print $1}' /proc/loadavg`) < 20, available RAM (`free -g | awk '/Mem/{print $7}'`) > 10 and free disk (`df -BG --output=avail / | tail -1`) > 40 G. Never more than one worker per package when they would edit the same files; declare `files_owned` in envelopes (the board carries it).
 - **Review:** on `review`, spawn a fresh agent with `REVIEW-PROMPT.md` on the branch. BLOCK → hand findings to the worker (max 2 rounds; then you decide and log). APPROVE → merge.
 - **Merge:** `git -C /root/ngfw status --porcelain` must be empty (commit board/status first). In the worker's worktree run
+  **squash + rebase first (D-112)**: `cd /root/ngfw-wt/<id> && git update-ref refs/archive/<id> HEAD` (keeps the reviewed SHAs
+  resolvable), `git reset --soft "$(git merge-base main HEAD)" && git commit` with one Conventional-Commits subject
+  (`contract(<pkg>): …` when the branch touches contract files, else the contract guard fails; never `wip:`) and a body listing
+  what was built, the review verdict and the D-ids, then `git rebase main` (resolve conflicts in the worktree). The branch is now
+  exactly one commit on top of the current `main`; if `main` gets a non-board commit before the merge, rebase again. Then run
   `tools/ci.sh --base main` (unit-only quick gate; this script *is* the CI). Then `git -C /root/ngfw merge --no-ff task/<id>`;
   if the merge touches `pnpm-lock.yaml` or `--frozen-lockfile` fails, run `pnpm install` once on `main` and commit the lockfile.
   Then `tools/ci.sh` on `main`; red → `git revert -m 1 <merge>` and reopen the task with the log attached.

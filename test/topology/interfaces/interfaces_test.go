@@ -59,23 +59,33 @@ func newRig(s slot) rig {
 	}
 }
 
-// peers sets the netns-side veths down/up: while they are down no packet can enter VPP on the rig interfaces
-// (host-side carrier off), so nothing crosses an interface before the V19 guard has passed.
+// peers sets both veth pairs down/up. Down: no packet can enter VPP on the rig interfaces (nothing crosses an interface
+// before the V19 guard has passed), and — D-101 / V24 — an af_packet interface may only be deleted (by the agent or behind
+// its back) while its host-side veth is down: af_packet_delete with the veth up double-closes the socket fds and crashed
+// the shared VPP at 07:27:32.
 func (r rig) peers(t *testing.T, up bool) {
 	t.Helper()
 	st := "down"
 	if up {
 		st = "up"
 	}
+	if up {
+		mustRun(t, "ip", "link", "set", r.lanDev, "up")
+		mustRun(t, "ip", "link", "set", r.wanDev, "up")
+	}
 	mustRun(t, "ip", "-n", r.lanNS, "link", "set", r.lanPeer, st)
 	mustRun(t, "ip", "-n", r.wanNS, "link", "set", r.wanPeer, st)
-	if up { // keep IPv6 RS/MLD noise out of VPP (the rig does the same on the host side)
-		_, _ = run(t, "ip", "netns", "exec", r.lanNS, "sysctl", "-qw", "net.ipv6.conf."+r.lanPeer+".disable_ipv6=1")
-		_, _ = run(t, "ip", "netns", "exec", r.wanNS, "sysctl", "-qw", "net.ipv6.conf."+r.wanPeer+".disable_ipv6=1")
-		// the default route disappears with the link: put it back
-		mustRun(t, "ip", "-n", r.lanNS, "route", "replace", "default", "via", r.lanGW)
-		mustRun(t, "ip", "-n", r.wanNS, "route", "replace", "default", "via", r.wanGW)
+	if !up {
+		mustRun(t, "ip", "link", "set", r.lanDev, "down")
+		mustRun(t, "ip", "link", "set", r.wanDev, "down")
+		return
 	}
+	// keep IPv6 RS/MLD noise out of VPP (the rig does the same on the host side)
+	_, _ = run(t, "ip", "netns", "exec", r.lanNS, "sysctl", "-qw", "net.ipv6.conf."+r.lanPeer+".disable_ipv6=1")
+	_, _ = run(t, "ip", "netns", "exec", r.wanNS, "sysctl", "-qw", "net.ipv6.conf."+r.wanPeer+".disable_ipv6=1")
+	// the default route disappears with the link: put it back
+	mustRun(t, "ip", "-n", r.lanNS, "route", "replace", "default", "via", r.lanGW)
+	mustRun(t, "ip", "-n", r.wanNS, "route", "replace", "default", "via", r.wanGW)
 }
 
 // ping from the lan namespace to the wan host; size is the ICMP payload (1472 = a 1500-byte IP packet), df sets DF.
@@ -469,6 +479,7 @@ func TestInterfacesVerticalSlice(t *testing.T) {
 
 	t.Run("cleanup-through-api", func(t *testing.T) {
 		a.t = t
+		r.peers(t, false) // D-101: the agent deletes the af_packet interfaces only with their veths down
 		for _, n := range []string{r.lanIf, r.wanIf} {
 			a.must(200, "DELETE", "/api/v1/config/interfaces/"+n, nil)
 		}

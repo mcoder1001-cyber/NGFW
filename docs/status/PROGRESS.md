@@ -2,17 +2,17 @@
 
 Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 36.7% by hours (358/976 h), 35.6% by tasks (36/101)**
+**Overall: 36.9% by hours (360/976 h), 36.6% by tasks (37/101)**
 
 | state | tasks |
 |---|---|
-| merged | 36 |
-| review | 5 |
+| merged | 37 |
+| review | 4 |
 | running | 11 |
-| ready | 0 |
+| ready | 1 |
 | parked | 0 |
 | failed | 0 |
-| todo | 49 |
+| todo | 48 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
@@ -20,7 +20,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 251 / 258 | 97.3% | 23/26 | 1 | 0 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
-| S4 | 0 / 447 | 0.0% | 0/47 | 10 | 0 | 0 |
+| S4 | 2 / 447 | 0.4% | 1/47 | 10 | 1 | 0 |
 | S5 | 28 / 128 | 21.9% | 3/13 | 0 | 0 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -41,7 +41,6 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 - TD-12 — De-flake load-sensitive tests that break merge gates (TestGRPCRoundTrip, TestPendingSurvives…, strongswan TestWatchResync, api vitest fetch timeout) (running, ngfw-46 slot6)
 - WEB-1 — ui-kit SchemaForm gaps: presence toggle, port/ip-range, datetime/time/timezone/color widgets, LTR identifiers in RTL, per-path i18n, itemKey summaries + rule-editor table view (running, ngfw-46 slot11)
 - WEB-2 — Config screen kit (generic list+drawer+live-status over any candidate path) + data widgets + Secrets page (running, ngfw-46 slot1)
-- ui-nav-collapse — Web nav: collapsible groups (closed by default, current group opens, useId ids, shared open state) — product-owner request in session «وب» (review, «وب»)
 
 ## Parked
 

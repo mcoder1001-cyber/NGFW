@@ -2607,7 +2607,7 @@ tasks:
   - ui-nav-collapse
   priority: 3
   est_hours: 4
-  state: todo
+  state: ready
   scope: web-ahead (D-123)
   files_owned: apps/web/test/e2e/{lib/**,shots.mjs,README.md,screens/_example.mjs,flow.e2e.mjs}
   branch: ''
@@ -2666,7 +2666,7 @@ tasks:
   - P07b
   priority: 2
   est_hours: 2
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D1.1
@@ -2677,4 +2677,4 @@ tasks:
   owner: «وب»
   started: 2026-09-24T15:00
   finished: ''
-  notes: D-117 review → fixes 27b4fdf..3f0014e; verify APPROVE 16b622a; queued for the merger
+  notes: D-117 review → fixes 27b4fdf..3f0014e; verify APPROVE 16b622a; queued for the merger | merged 3a6c679 (squash 8408f5b, D-112), main gate green

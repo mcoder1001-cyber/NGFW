@@ -16,6 +16,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
@@ -86,6 +87,7 @@ func (h *Host) loopback(t *testing.T, i int, tagged bool) (string, uint32) {
 	if tbl, err := dfkit.DumpInterfaces(ctx, c, h.Owner); err == nil {
 		if old, ok := tbl.ByName[name]; ok {
 			t.Logf("leftover %s (sw_if_index %d, tag %q): deleting", name, old.Index, old.Tag)
+			_ = ifsanitize.BeforeDelete(ctx, c, uint32(interfaceIndex(old.Index)), "test cleanup") // D-095 c: bindings go before the interface (V19)
 			if _, err := svc.DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: interfaceIndex(old.Index)}); err != nil {
 				t.Fatalf("delete leftover %s: %v", name, err)
 			}
@@ -96,6 +98,7 @@ func (h *Host) loopback(t *testing.T, i int, tagged bool) (string, uint32) {
 		t.Fatalf("create_loopback_instance %d: %v", inst, err)
 	}
 	t.Cleanup(func() {
+		_ = ifsanitize.BeforeDelete(context.Background(), c, uint32(rep.SwIfIndex), "test cleanup") // D-095 c: bindings go before the interface (V19)
 		if _, err := svc.DeleteLoopback(context.Background(), &interfaces.DeleteLoopback{SwIfIndex: rep.SwIfIndex}); err != nil {
 			t.Errorf("cleanup delete_loopback %s: %v", name, err)
 		}

@@ -15,7 +15,7 @@ build:
 lint: check
 	@test -z "$$(gofmt -l .)" || { gofmt -l .; echo "gofmt: files above need formatting"; exit 1; }
 	go vet ./...
-	@if command -v golangci-lint >/dev/null 2>&1; then golangci-lint run ./...; else echo "golangci-lint not installed — go vet only"; fi
+	@if command -v golangci-lint >/dev/null 2>&1; then golangci-lint run --allow-serial-runners ./...; else echo "golangci-lint not installed — go vet only"; fi
 
 # unit tests only; the e2e skips without VRX_INTEGRATION=1
 test:

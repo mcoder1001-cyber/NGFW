@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+# tools/app — build and run the whole VRX stack on this host (agent + API + web UI), reachable from other machines.
+#
+#   tools/app up [--no-build] [--no-agent]   build everything, then start agent → API → web (idempotent: restarts what runs)
+#   tools/app down                           stop web, API, agent (never touches VPP, PostgreSQL or Valkey)
+#   tools/app status                         pids, ports, URLs
+#   tools/app logs [agent|api|web]           tail -f the logs
+#   tools/app build                          build only
+#
+# Layout: the web UI (vite preview of the production build) listens on VRX_APP_HOST:VRX_APP_WEB_PORT (default 0.0.0.0:8080)
+# and proxies /api (HTTP + WebSocket) to the API on 127.0.0.1:VRX_APP_API_PORT (default 3000). Only the web port is public;
+# set VRX_APP_API_HOST=0.0.0.0 to expose the API directly too.
+# State: database vrx_app (deploy/dev/pg-test.sh), Valkey db 0 prefix vrx:app:, secrets in /var/lib/vrx-app/secrets.env (0600,
+# generated once: JWT key + first-admin password), logs and pids in /var/log/vrx-app and /run/vrx-app.
+# Agent: the real vrx-agent against the host VPP (/run/vpp/api.sock), owner tag "vrx" — it only touches objects it owns.
+# Slot rules (docs/lab/shared-host-rules.md): slot ports are 3N00/5N00/91N1 for N=1..12; the defaults here stay out of them.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HOST="${VRX_APP_HOST:-0.0.0.0}"
+WEB_PORT="${VRX_APP_WEB_PORT:-8080}"
+API_HOST="${VRX_APP_API_HOST:-127.0.0.1}"
+API_PORT="${VRX_APP_API_PORT:-3000}"
+METRICS_PORT="${VRX_APP_METRICS_PORT:-9101}"
+STATE=/var/lib/vrx-app
+RUN=/run/vrx-app
+LOG=/var/log/vrx-app
+SECRETS="$STATE/secrets.env"
+AGENT_SOCKET=/run/vrx/agent.sock
+
+die() { echo "app: $*" >&2; exit 1; }
+say() { echo "== $*"; }
+
+pidof_svc() { local f="$RUN/$1.pid"; [[ -f "$f" ]] && kill -0 "$(cat "$f")" 2>/dev/null && cat "$f" || true; }
+
+stop_svc() {
+  local pid; pid="$(pidof_svc "$1")"
+  [[ -n "$pid" ]] || { rm -f "$RUN/$1.pid"; return 0; }
+  kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+  for _ in $(seq 1 50); do kill -0 "$pid" 2>/dev/null || break; sleep 0.2; done
+  kill -0 "$pid" 2>/dev/null && { kill -KILL -- "-$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null || true; }
+  rm -f "$RUN/$1.pid"; echo "stopped $1 ($pid)"
+}
+
+# start_svc <name> <cmd...> — own process group (setsid) so `down` stops children too (pnpm → node)
+start_svc() {
+  local name="$1"; shift
+  setsid "$@" >>"$LOG/$name.log" 2>&1 < /dev/null &
+  echo $! >"$RUN/$name.pid"; echo "started $name (pid $!, log $LOG/$name.log)"
+}
+
+wait_port() {  # <host> <port> <name> <pid-name>
+  for _ in $(seq 1 120); do
+    ss -ltnH "sport = :$2" | grep -q . && return 0
+    [[ -n "$(pidof_svc "$4")" ]] || { tail -30 "$LOG/$4.log" >&2; die "$3 exited during start (log $LOG/$4.log)"; }
+    sleep 0.5
+  done
+  tail -30 "$LOG/$4.log" >&2; die "$3 did not listen on $1:$2 within 60 s"
+}
+
+port_free() { ! ss -ltnH "sport = :$1" | grep -q . || die "port $1 is already in use ($(ss -ltnpH "sport = :$1" | head -1)); set $2"; }
+
+cmd_build() {
+  cd "$ROOT"
+  say "pnpm install"; pnpm install --frozen-lockfile
+  say "build (turbo: schema, proto, api-client, api, web, …)"; pnpm build
+  say "build vrx-agent"; make -C apps/agent build
+}
+
+secrets() {
+  install -d -m 0700 "$STATE"
+  if [[ ! -f "$SECRETS" ]]; then
+    # umask only in a subshell: the agent/API started later inherit this shell's umask, and a 077 agent created
+    # /run/vrx-test as 0700, locking the frr/_chrony test daemons out of every slot (D-106)
+    ( umask 077
+      { echo "VRX_JWT_SECRET=$(head -c 48 /dev/urandom | base64 | tr -d '/+=' | head -c 48)"
+        echo "VRX_BOOTSTRAP_ADMIN_PASSWORD=$(head -c 24 /dev/urandom | base64 | tr -d '/+=' | head -c 16)"; } >"$SECRETS" )
+    FIRST_RUN=1
+  fi
+}
+
+cmd_up() {
+  local build=1 agent=1
+  for a in "$@"; do case "$a" in --no-build) build=0 ;; --no-agent) agent=0 ;; *) die "up: unknown option $a" ;; esac; done
+  [[ $EUID -eq 0 ]] || die "run as root (VPP API socket, /run, /var/lib)"
+  install -d "$RUN" "$LOG" /run/vrx
+  FIRST_RUN=0; secrets
+  (( build )) && cmd_build
+  cd "$ROOT"
+  [[ -f apps/web/dist/index.html && -f apps/api/dist/main.js ]] || die "no build output — run without --no-build"
+
+  stop_svc web; stop_svc api; stop_svc agent
+  port_free "$WEB_PORT" VRX_APP_WEB_PORT; port_free "$API_PORT" VRX_APP_API_PORT
+
+  say "database vrx_app"
+  deploy/dev/pg-test.sh create app >/dev/null
+  set -a
+  # shellcheck disable=SC1091
+  . /run/vrx-test/app/pg.env
+  # shellcheck disable=SC1090
+  . "$SECRETS"
+  set +a
+
+  if (( agent )); then
+    [[ -S /run/vpp/api.sock ]] || die "VPP API socket /run/vpp/api.sock missing (is vpp.service up?) — or use --no-agent"
+    say "vrx-agent"
+    rm -f "$AGENT_SOCKET"
+    start_svc agent env VRX_AGENT_SOCKET="$AGENT_SOCKET" VRX_OWNER=vrx VRX_GLOBALS_OWNER=0 VRX_AGENT_STATE_DIR="$STATE/agent" \
+      VRX_METRICS_PORT="$METRICS_PORT" "$ROOT/apps/agent/bin/vrx-agent"
+    for _ in $(seq 1 60); do [[ -S "$AGENT_SOCKET" ]] && break; [[ -n "$(pidof_svc agent)" ]] || break; sleep 0.5; done
+    [[ -S "$AGENT_SOCKET" ]] || { tail -30 "$LOG/agent.log" >&2; die "agent did not open $AGENT_SOCKET"; }
+  fi
+
+  say "vrx-api"
+  start_svc api env VRX_HTTP_HOST="$API_HOST" VRX_HTTP_PORT="$API_PORT" VRX_DATABASE_URL="$VRX_PG_DSN" \
+    VRX_VALKEY_DB=0 VRX_VALKEY_PREFIX=vrx:app: VRX_AGENT_SOCKET="$AGENT_SOCKET" VRX_COOKIE_SECURE=0 \
+    VRX_SECRET_KEY_FILE="$STATE/secret.key" node "$ROOT/apps/api/dist/main.js"
+  wait_port "$API_HOST" "$API_PORT" vrx-api api
+
+  say "web UI"
+  start_svc web env VRX_HTTP_PORT="$API_PORT" VRX_WEB_PORT="$WEB_PORT" \
+    "$ROOT/apps/web/node_modules/.bin/vite" preview --config "$ROOT/apps/web/vite.config.ts" "$ROOT/apps/web" \
+    --host "$HOST" --port "$WEB_PORT" --strictPort
+  wait_port "$HOST" "$WEB_PORT" web web
+
+  cmd_status
+  if (( FIRST_RUN )); then
+    echo; echo "first admin: user admin, password in $SECRETS (VRX_BOOTSTRAP_ADMIN_PASSWORD) — change it after the first login"
+  fi
+}
+
+cmd_down() { stop_svc web; stop_svc api; stop_svc agent; }
+
+cmd_status() {
+  for s in agent api web; do
+    local pid; pid="$(pidof_svc $s)"; if [[ -n "$pid" ]]; then printf '%-6s running (pid %s)\n' "$s" "$pid"; else printf '%-6s stopped\n' "$s"; fi
+  done
+  local ips; ips="$(ip -4 -o addr show scope global | awk '{print $4}' | cut -d/ -f1 | grep -v '^192\.168\.122\.' || true)"
+  echo "web UI:"
+  if [[ "$HOST" == 0.0.0.0 ]]; then for ip in $ips; do echo "  http://$ip:$WEB_PORT/"; done; else echo "  http://$HOST:$WEB_PORT/"; fi
+  echo "API docs: http://<host>:$WEB_PORT/api/docs   (API itself on $API_HOST:$API_PORT)"
+}
+
+cmd_logs() { local s="${1:-}"; if [[ -n "$s" ]]; then tail -n 100 -f "$LOG/$s.log"; else tail -n 50 -f "$LOG"/*.log; fi; }
+
+case "${1:-}" in
+  up) shift; cmd_up "$@" ;;
+  down) cmd_down ;;
+  status) cmd_status ;;
+  logs) shift; cmd_logs "$@" ;;
+  build) cmd_build ;;
+  *) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

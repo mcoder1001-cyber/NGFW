@@ -97,6 +97,14 @@ func (c *Client) On(name string, h Handler) *Client {
 	return c
 }
 
+// Handles reports whether a handler is registered for requests named name.
+func (c *Client) Handles(name string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	_, ok := c.handlers[name]
+	return ok
+}
+
 // Reply registers fixed replies for name: one message for request/reply calls, the details
 // list (zero or more) for dumps. The same messages are returned on every call.
 func (c *Client) Reply(name string, replies ...api.Message) *Client {

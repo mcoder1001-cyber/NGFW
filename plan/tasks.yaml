@@ -681,11 +681,15 @@ tasks:
   files_owned: apps/agent/cmd/vrx-agent/** apps/agent/internal/{agent,subsystems,desired}/** apps/api/src/state/** apps/web/src/domains/interfaces/** test/topology/interfaces/** docs/user/interfaces/**
   branch: task/P08
   worktree: /root/ngfw-wt/P08
-  owner: host-agent slot1
+  owner: ngfw-46 slot1
   started: 2026-09-24T05:45
   finished: ''
   notes: ' | consolidate D-080 boot-identity helper; install persisted ClaimStore/records (DF-1 Q5, DF-6 Q10, DF-8 Q8); retrofit DF-2/DF-4 records | 07:2x cycle 12: worker found dead (no process since ~05:45);
-    uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/P08.continue.md'
+    | 13:18 manager restart (host reboot 09:47, workers lost): review respawned, envelope /root/ngfw-wt/P08.review.md | 13:51 stopped for manager handover (ngfw-f3 → ngfw-46): review partial 3c318d0 docs/status/tasks/P08-review-partial.md,
+    provisional APPROVE WITH CHANGES (F1 /state/interfaces config meaning + CLI, F2 CLI operations_gen missing counters route); its ci full run (slot 1) log /root/ngfw-wt/logs/ci/P08-20260924-131914-10894;
+    review items 2,3,6,7,11 open uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/P08.continue.md | 08:17 worker done ffecf13 CI green; topology
+    + restart-safety on slot 1 (NRestarts 6→6); its 07:27 run caused the V24 crash (confirmed); review spawned | 14:00 ngfw-46: review CONTINUE (Agent tool), envelope /root/ngfw-wt/P08.review2.md; fix round
+    follows after ci full (PID 10894) ends; F1/F4 decided D-105 | review BLOCK 6022f0d (N1 hostDoc, F1/F2, N2, F5 …); fix round 1 spawned by ngfw-46, envelope /root/ngfw-wt/P08.fix1.md (D-107)'
 - id: F-vlan-qinq
   title: 'Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking'
   prompt: prompts/features/F-vlan-qinq.md
@@ -783,7 +787,8 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: 'prompts-s4: suggested deps +F-bridge-l2 (BVI membership uses its l2 descriptor); soft +F-tunnels (ERSPAN over GRE) — docs/status/tasks/prompts-s4.md'
+  notes: 'prompts-s4: suggested deps +F-bridge-l2 (BVI membership uses its l2 descriptor); soft +F-tunnels (ERSPAN over GRE) — docs/status/tasks/prompts-s4.md | D-105: add the semantic check refusing loop16000–loop16383
+    (reserved for agent quarantine holders, TD-3 M2) on this task''s contract branch'
 - id: F-vrf-static-ecmp
   title: 'Wave A (day 7-9): VRF mgmt, static routes, ECMP, FIB browser (paged), ping/traceroute actions'
   prompt: prompts/features/F-vrf-static-ecmp.md
@@ -842,6 +847,7 @@ tasks:
   - P08
   - DF-2
   - DF-4
+  - TD-3
   priority: 3
   est_hours: 10
   state: todo
@@ -858,7 +864,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: 'prompts-s4: suggested deps +DF-4 (ABF policies resolve ACLs by name) — docs/status/tasks/prompts-s4.md'
+  notes: 'prompts-s4: suggested deps +DF-4 (ABF policies resolve ACLs by name) — docs/status/tasks/prompts-s4.md | D-104: +dep TD-3 (TD-3 owns descriptors/{classify,adl} until merged)'
 - id: F-object-model
   title: 'Wave A (day 7-9): addresses, groups, FQDN (agent-resolved), services, schedules, zones, tags'
   prompt: prompts/features/F-object-model.md
@@ -2141,7 +2147,7 @@ tasks:
     resumed (D-094) | review BLOCK edd93a5 (H1 NRestarts reset by manual restart, H2 gateway ICMP, M1 dead-man lock race, M2 approval flag, M3 rollback budget); fix round 1 | fix round 7d81982 (91/91 fake-host
     checks) CI green; re-review spawned | re-review APPROVE WITH CHANGES 3c0bafc (N1 SSH-session probe → rollback loop, N2 no systemd-run fallback, N3 early crash, N4 approval binding); fix round 2 (last)
     | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/F-startup-apply.continue.md
-    | 07:5x fix round 2 done 5e0d8fe (101/101 fake-host, CI green); verify review spawned (last round → manager decides on verify); L1 ci.sh wiring = manager after merge | 08:3x verify APPROVE WITH CHANGES
+    | 07:35 fix round 2 done 5e0d8fe (101/101 fake-host, CI green); verify review spawned (last round → manager decides on verify); L1 ci.sh wiring = manager after merge | 07:54 verify APPROVE WITH CHANGES
     0ff06fd; merged per D-103 (V1–V4 → TD-6 before first real apply); pre-merge CI green (3m44s)'
   owner: host-agent slot6
   parked_on: ''
@@ -2241,7 +2247,7 @@ tasks:
   - P06
   priority: 2
   est_hours: 6
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.9
@@ -2249,13 +2255,16 @@ tasks:
   files_owned: apps/api/** packages/api-client/**
   branch: task/TD-2
   worktree: /root/ngfw-wt/TD-2
-  owner: host-agent slot7
+  owner: ngfw-46 slot7
   started: 2026-09-24T04:40
   finished: ''
   notes: 'from P07b Q1-Q3, P13 review H1, D-093 | worker done 7f4578f CI green (88 unit, 41 e2e); review spawned | review APPROVE WITH CHANGES cc70629 (H1 reconcile restores old password hash, H2 refresh
-    survives reset, M1 keys survive reset → D-097, M2 current-guessing); fix round 1 | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn
-    by host manager (Agent tool), envelope /root/ngfw-wt/TD-2.continue.md | 07:5x fix round 1 done 9373e6e CI green (Q1–Q4 in TD-2-questions.md → D-100); verify review spawned | 08:1x verify APPROVE WITH
-    CHANGES ae52906 (V1 keys created during reset survive — High; V2 config-API reset bypasses D-097 → D-102; V3–V5 low); fix round 2 (last) spawned'
+    | 13:18 manager restart: verify round 2 respawned, envelope /root/ngfw-wt/TD-2.verify2.md | 13:51 stopped for handover: verify2 partial 899e919 docs/status/tasks/TD-2-verify2-partial.md leans APPROVE
+    (V1–V5 fixed by reading; info only); CI failed on parallel golangci-lint collision, e2e slot 7 not run survives reset, M1 keys survive reset → D-097, M2 current-guessing); fix round 1 | 07:2x cycle
+    12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/TD-2.continue.md | 07:31 fix round 1 done
+    9373e6e CI green (Q1–Q4 in TD-2-questions.md → D-100); verify review spawned | 07:49 verify APPROVE WITH CHANGES ae52906 (V1 keys created during reset survive — High; V2 config-API reset bypasses D-097
+    → D-102; V3–V5 low); fix round 2 (last) spawned | 08:18 fix round 2 done 84210b7 (V1–V5 fixed, e2e 61/3 skip, CI green); Q6 self-change via config logs out = D-102 as written; verify of round 2 spawned
+    | 14:00 ngfw-46: verify round 2 CONTINUE (Agent tool), envelope /root/ngfw-wt/TD-2.verify3.md; Q6 answered D-105'
 - id: TD-3
   title: 'V19 guard: sanitize inherited per-interface state on interface create; unbind classify before table/interface delete; restart simulations delete dependents; ci.sh full pre-flight'
   prompt: ''
@@ -2268,26 +2277,30 @@ tasks:
   - DF-8
   priority: 2
   est_hours: 6
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D1.2
   scope: D-095 (a)-(d)
   files_owned: apps/agent/internal/descriptors/{interface,classify,policer,ipfix,adl}/** + their tests
   branch: task/TD-3
-  worktree: /root/ngfw-wt/TD-3
-  owner: host-agent slot2
+  worktree: ''
+  owner: ngfw-46 slot2
   started: 2026-09-24T05:00
-  finished: ''
+  finished: 2026-09-24T14:18
   notes: 'D-095; V19 crash 04:50:27 | worker done d001e5f CI green; review spawned (focus: unremovable binding to deleted table); V23 feature_is_enabled lies → fix folded into TD-3 fix round if confirmed
-    | review BLOCK 46fafdb (H1 L2 ACL/policer bits = second crash path, H2 invisible bindings, H3 delete must clear bindings first, M1; reviewer safe behaviour adopted: force L3 → resurrect table index
-    → quarantine); fix round 1 incl. V23 | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/TD-3.continue.md
-    | 08:0x fix round 1 done 175c676 CI green; VPP crash 07:27:32 during its window → V24/D-101 (not TD-3''s code per analysis); re-review spawned | 09:0x re-review APPROVE WITH CHANGES acce6e1 (H1 ipsec/wireguard
-    creators from DF-5 unwired, M1 placeholder cap, M2 quarantine loop0); fix round 2 (last) spawned; M3 → tech-debt, L7 → TD-5'
+    | 13:18 manager restart: fix round 2 CONTINUE respawned, envelope /root/ngfw-wt/TD-3.continue2.md | 13:51 stopped for handover: fix round 2 done 4d19176 (host runs green, NRestarts 0→0); only CI green
+    missing (failed on parallel golangci-lint collision); next: tools/ci.sh --base main; questions: loop16000+ schema reservation, M1 cap 16 | review BLOCK 46fafdb (H1 L2 ACL/policer bits = second crash
+    path, H2 invisible bindings, H3 delete must clear bindings first, M1; reviewer safe behaviour adopted: force L3 → resurrect table index → quarantine); fix round 1 incl. V23 | 07:2x cycle 12: worker
+    found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/TD-3.continue.md | 07:39 fix round 1 done 175c676
+    CI green; VPP crash 07:27:32 during its window → V24/D-101 (not TD-3''s code per analysis); re-review spawned | 08:00 re-review APPROVE WITH CHANGES acce6e1 (H1 ipsec/wireguard creators from DF-5 unwired,
+    M1 placeholder cap, M2 quarantine loop0); fix round 2 (last) spawned; M3 → tech-debt, L7 → TD-5 | 14:00 ngfw-46: merge gate rerun (TMPDIR-isolated) log /root/ngfw-wt/logs/TD-3-gate-46.log; Q M1 → option
+    (b) in TD-5, loop16000-16383 reservation → F-loopback contract (D-105) | merged 0504c89 by ngfw-46 (re-review APPROVE WITH CHANGES, round 2 fixed with host evidence; 2-round rule); main quick gate green
+    14:18'
 - id: TD-4
   title: 'Auth hardening follow-ups from TD-2 (D-100): account disable bumps the credential generation; API-key creation from a JWT session requires the current password; login gets the same transport check
     as password set'
-  prompt: ''
+  prompt: prompts/tech-debt/TD-4.md
   template: ''
   stage: S2
   deps:
@@ -2307,26 +2320,28 @@ tasks:
   finished: ''
   notes: 'D-100: from TD-2-questions.md Q1–Q3'
 - id: TD-5
-  title: 'V24 guard: the agent''s af_packet Delete quiesces the Linux netdev (link down via netlink) before af_packet_delete; restart-simulation fixtures do the same'
-  prompt: ''
+  title: 'V24 + V19 follow-ups: af_packet Delete quiesces the Linux netdev (netlink link down) before af_packet_delete, also in Create rollback; restart-simulation fixtures do the same; ifsanitize placeholder
+    cap = holes + 2×FreshRun, max 64 (TD-3 M1 option b)'
+  prompt: prompts/tech-debt/TD-5.md
   template: ''
   stage: S2
   deps:
   - TD-3
   priority: 2
-  est_hours: 2
-  state: todo
+  est_hours: 3
+  state: running
   parked_on: ''
   wbs:
   - D1.2
-  scope: D-101; apps/agent/internal/descriptors/af_packet/** + its tests only
-  files_owned: apps/agent/internal/descriptors/af_packet/** docs/agent/descriptors/af_packet.md docs/status/tasks/TD-5*
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  scope: D-101 + D-105; af_packet quiesce before delete (Delete + Create rollback) + guard test; ifsanitize cap = holes + 2×FreshRun ≤ 64
+  files_owned: apps/agent/internal/descriptors/af_packet/** apps/agent/internal/vpp/ifsanitize/** (cap only, D-105) docs/agent/descriptors/af_packet.md docs/agent/descriptors/interface.md (cap paragraph)
+    docs/status/tasks/TD-5*
+  branch: task/TD-5
+  worktree: /root/ngfw-wt/TD-5
+  owner: ngfw-46 slot2
+  started: 2026-09-24T14:18
   finished: ''
-  notes: 'D-101 V24 crash 07:27:32 | TD-3 re-review L7: af_packet Create''s rollback delete also quiesces the veth'
+  notes: 'D-101 V24 crash 07:27:32 | TD-3 re-review L7: af_packet Create''s rollback delete also quiesces the veth | spawned by ngfw-46 (Agent tool), envelope /root/ngfw-wt/TD-5.envelope.md'
 - id: TD-6
   title: 'apply-startup.sh hardening before the first real --apply (D-103): stale dead-man vs newer commit, rollback write failure, systemctl-show failure, NRestarts compare; lows V5–V9; fake-host harness
     + shellcheck wired into tools/ci.sh'
@@ -2345,7 +2360,9 @@ tasks:
   files_owned: deploy/vpp/apply-startup.sh deploy/vpp/test-apply-startup.sh apps/agent/cmd/vrx-vppcheck/** tools/ci.sh (harness hunk only) docs/agent/renderers/vppstartup.md docs/status/tasks/TD-6*
   branch: task/TD-6
   worktree: /root/ngfw-wt/TD-6
-  owner: host-agent slot6
-  started: 2026-09-24T08:45
+  owner: ngfw-46 slot6
+  started: 2026-09-24T07:58
   finished: ''
-  notes: 'D-103: must merge before any real --apply on vrx-a | spawned 08:4x slot 6 (Agent tool), envelope /root/ngfw-wt/TD-6.envelope.md'
+  notes: 'D-103: must merge before any real --apply on vrx-a | spawned 07:58 slot 6 (Agent tool), envelope /root/ngfw-wt/TD-6.envelope.md | 13:18 manager restart: CONTINUE respawned, envelope /root/ngfw-wt/TD-6.continue.md
+    | 13:51 stopped for handover: WIP 59fb54e; L1 ci step + doc done; sharded harness 102 pass / 24 fail under load 35–45 (likely timing, unverified); next: serial rerun of failed scenarios on quiet host
+    (cmd in TD-6-wip.md), then tools/ci.sh --base main, TD-6.md | 14:00 ngfw-46: CONTINUE (Agent tool), envelope /root/ngfw-wt/TD-6.continue46.md — serial rerun of the 24 load failures, CI, TD-6.md'

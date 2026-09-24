@@ -19,6 +19,7 @@ import (
 	"ngfw/agent/binapi/ipsec_types"
 	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/internal/vpp/fake"
+	"ngfw/agent/internal/vpp/ifsanitize/sanitizetest"
 )
 
 const (
@@ -354,6 +355,7 @@ func newFakeVPP() *fakeVPP {
 		v.async = append(v.async, req.(*ipsec.IpsecSetAsyncMode).AsyncEnable)
 		return []api.Message{&ipsec.IpsecSetAsyncModeReply{}}, nil
 	})
+	sanitizetest.Clean(v.Client) // D-095: interface creates sanitize the new sw_if_index (TD-3 re-review H1)
 	return v
 }
 

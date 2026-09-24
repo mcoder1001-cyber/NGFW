@@ -106,3 +106,79 @@ binary API behind the agent's back) → plan = exactly the creates of what is go
 dependency order → plan empty → delete all → Retrieve empty. `TestAliasOnHost` configures a pre-existing
 untagged tap (admin-up, MTU, rx-mode, VLAN sub-interface) through `interface/tap271`. Output in
 `docs/status/tasks/DF-1.md`.
+
+## New interfaces are sanitized before they are reported created (TD-3, D-095 a; fix rounds 1 and 2)
+
+VPP reuses a deleted interface's sw_if_index and keeps per-index state across the delete (V19, V21, V23): the ip
+classify table, l2/in/out ACL, policer/flow classify tables, the l2-input/l2-output feature bits (L2 ACL, L2 policer
+classify — not feature arcs, reset on delete only for bridged/xconnected interfaces), vxlan bypass, ADL and the IPsec
+SPD binding. Every interface creator — `interface.loopback` (core), `tapv2.tap`, `af-packet.host-interface`,
+`memif.memif`, `bond.bond`, `interface.subinterface` (via `iface.AcquireAndTag`), all DF-6 interface types
+(`df6.IfDescriptor`: gre, ipip, 6rd, vxlan, vxlan-gpe, gtpu, l2tp, pppoe), `mpls.tunnel`, the VPP-side host tap of
+`lcp.itf-pair`, `ipsec.itf` and `wireguard.interface` (DF-5; fix round 2, re-review H1) — creates the interface through
+`internal/vpp/ifsanitize.Acquire`, which sanitizes the new index before it is tagged and before Create returns.
+`TestEveryInterfaceCreatorIsSanitized` (`ifsanitize/guard_test.go`) keeps it that way: it derives the interface-create
+messages from the generated binapi (every request whose reply carries a sw_if_index, minus three reads, plus
+`gpe_add_del_iface`) and fails, naming file:line, when a descriptor under `internal/descriptors` sends one outside an
+`ifsanitize.Acquire` / `iface.AcquireAndTag` closure or a `df6.IfSpec` Add/Del, or creates through Acquire in a package
+that never calls `ifsanitize.BeforeDelete`. Test helpers (`*_test.go`, `*test/` packages) are not scanned.
+
+1. **L3 mode** (`sw_interface_set_l2_bridge enable=0` → `set_int_l2_mode(MODE_L3)`): zeroes the l2 feature bitmaps,
+   whatever tables they name — removes the `l2-input-acl` crash path (a stale L2 ACL bit on a later bridged port reads a
+   freed table on the first frame).
+2. **Resurrect**: placeholder classify tables (16-byte signature mask, 2 buckets) are created until the pool's free indices
+   are filled — the pool hands out the most recently freed index first — including every table an input ACL binding names
+   (read back exactly), then until `FreshRun` (8) consecutive fresh indices came back. A hole another client takes after
+   the `classify_table_ids` snapshot never comes back from the pool: once the run looks fresh with holes left (or at the
+   cap) the table list is read again, holes that are live now are dropped and every table that appeared during the run
+   is probed like a live one (re-review M1). `MaxPlaceholders` (**16 per create**) bounds it; a run that reaches the cap
+   without that proof **fails closed** with `ErrCapped` (which is `ErrNoCleanIndex`), counted in
+   `vrx_agent_iface_sanitize_capped_total{phase="create"}` — see "Placeholder cap" below.
+3. **Clear**: ip classify, l2 classify, ADL, vxlan bypass reset blindly; input ACL read with `classify_table_by_interface`
+   and unbound; output ACL / policer / flow classify probed with an unbind per table (live and placeholder; NO_SUCH_TABLE =
+   not bound) — so bindings to deleted tables are no longer invisible; SPD read with `ipsec_spd_interface_dump`.
+4. The placeholders are deleted again (identity re-checked with `classify_table_info` first).
+5. **Quarantine**: anything still bound (a binding to a deleted table that could not be resurrected) is `ErrUnclearable`:
+   the interface is deleted, an admin-down loopback tagged `quarantine:<owner>` takes the dirty index (the sw_interface
+   pool is LIFO too) and the interface is created again on a fresh index (at most `MaxAcquireAttempts`, then Create fails
+   with `ErrNoCleanIndex`). `ifsanitize.Release` re-sanitizes the owner's holders and deletes the clean ones.
+   A capped run (`ErrCapped`) deletes the interface and fails Create **without a retry** (the cap is a property of the
+   classify pool, not of the index — the next index would be capped too); its index is quarantined only if the run also
+   proved a binding unclearable, so a failed create makes at most one holder.
+   Any other sanitize failure removes the interface and fails Create.
+
+### Reserved loopback instances loop16000–loop16383 (quarantine holders)
+
+A quarantine holder is created with `create_loopback_instance(is_specified=1)` on the **highest free instance of
+16000–16383**, scanning down from 16383 (VPP's `LOOPBACK_MAX_INSTANCE` is 16384, `vnet/ethernet/interface.c:740`; an
+instance in use answers INVALID_REGISTRATION before anything is allocated) — never VPP's lowest free instance, so a holder
+never becomes `loop0`/`loop1` and never blocks a user's loopback (re-review M2). The instance only names the loopback;
+the holder still lands on the dirty sw_if_index. If the whole range is taken the quarantine fails and so does the Create.
+**loop16000–loop16383 are reserved for the agent**: do not configure user loopbacks there. `packages/schema` does not
+reject these names yet (`vppInterfaceName` accepts any `loopN`) — a contract change is proposed in
+`docs/status/tasks/TD-3-questions.md` (CONTRACT); until then a user `loop16383` makes holders use 16382 and below, and a
+holder on an instance a user later wants makes that user's Create fail with "instance in use" until `Release` or a VPP
+restart.
+
+### Placeholder cap (fail closed)
+
+At most 16 placeholder tables per create. The cap is reached when the classify pool's free list holds more than about
+`16 − FreshRun` = 8 indices that do not come back in ascending order (e.g. ≥ 9 tables deleted in creation order and not
+reused). The create then fails with `ErrCapped` and the scheduler retries it later; it succeeds once the free list is
+shorter (new classify tables reuse freed indices) or VPP restarts. `vrx_agent_iface_sanitize_capped_total` > 0 is the
+signal. The exact per-interface readback that would remove the cap and the `FreshRun` guess is tracked in
+`docs/tech-debt.md` (TD-3 re-review M3), due before any production image.
+
+Every interface Delete (loopback, tap, memif, bond, af_packet, sub-interface, DF-6 types, mpls tunnel, lcp pair host tap,
+ipsec itf, wireguard interface) calls `ifsanitize.BeforeDelete` right before the VPP delete — the only moment every table the interface is bound to still
+exists (review H3); an unclearable binding there is logged and counted, the delete goes on.
+
+Handled by VPP itself (no action): ACL plugin in/out lists (`acl.c` resets them on interface delete), NAT44-ED/EI interface
+flags, ADL per-index config (re-initialised on interface add). Known, not handled (no crash path found; recorded in
+`docs/vpp-code-track.md` V23 b): ABF attachments, NAT64/NAT66/DET44 interface flags, cnat snat-if, flowprobe.
+
+Only binapi messages are used. Every run is logged at info and counted per phase (`create` for a new index, `delete`
+before a delete): `vrx_agent_iface_sanitize_{total,errors_total,inherited_total}{phase}`,
+`vrx_agent_iface_sanitize_{cleared_total,freed_table_total,unclearable_total}{phase,state}`,
+`vrx_agent_iface_sanitize_capped_total{phase}` (placeholder cap reached; create failed closed), plus the gauge
+`vrx_agent_iface_quarantined` and the counter `vrx_agent_iface_quarantine_total`.

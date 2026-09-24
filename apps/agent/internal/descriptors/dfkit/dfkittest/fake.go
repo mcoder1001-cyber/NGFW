@@ -17,6 +17,7 @@ import (
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/bootid"
 	"ngfw/agent/internal/vpp/fake"
+	"ngfw/agent/internal/vpp/ifsanitize/sanitizetest"
 )
 
 // Iface is one interface of the fake VPP's model.
@@ -67,6 +68,7 @@ func NewFake(ifaces ...Iface) *FakeVPP {
 		id.BootID, id.StartTime = "fake", 1
 		return id, nil
 	}
+	sanitizetest.Clean(f.Client) // interface creators sanitize the new sw_if_index (D-095)
 	return f
 }
 

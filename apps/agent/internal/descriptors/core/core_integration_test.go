@@ -17,6 +17,7 @@ import (
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
@@ -172,6 +173,10 @@ func TestCoreOnHost(t *testing.T) {
 		if kv.Key == core.LoopbackKey(l2) {
 			idx = kv.Meta.(core.IfMeta).SwIfIndex
 		}
+	}
+	// D-095 c: dependents (per-interface bindings) first — VPP keeps them on the freed index (V19)
+	if err := ifsanitize.BeforeDelete(ctx, c, idx, l2); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := interfaces.NewServiceClient(c).DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: interface_types.InterfaceIndex(idx)}); err != nil {
 		t.Fatal(err)

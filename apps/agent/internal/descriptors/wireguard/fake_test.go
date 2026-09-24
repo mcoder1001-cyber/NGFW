@@ -20,6 +20,7 @@ import (
 	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/binapi/wireguard"
 	"ngfw/agent/internal/vpp/fake"
+	"ngfw/agent/internal/vpp/ifsanitize/sanitizetest"
 )
 
 const (
@@ -179,6 +180,7 @@ func newFakeVPP() *fakeVPP {
 		v.async = append(v.async, req.(*wireguard.WgSetAsyncMode).AsyncEnable)
 		return []api.Message{&wireguard.WgSetAsyncModeReply{}}, nil
 	})
+	sanitizetest.Clean(v.Client) // D-095: interface creates sanitize the new sw_if_index (TD-3 re-review H1)
 	return v
 }
 

@@ -10,6 +10,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
 // IfSpec describes one object type that is a VPP interface (tunnel, session): how to build
@@ -111,10 +112,34 @@ func (d *IfDescriptor[T, D]) Create(ctx context.Context, obj proto.Message) (any
 	if idx, ok := ifs.IndexByTag(id); ok {
 		return IfMeta{SwIfIndex: idx}, nil
 	}
-	idx, err := d.spec.Add(ctx, d.client, ifs, t)
-	if err != nil {
-		return nil, PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
+	name := scheduler.Join(d.spec.Name, id).String()
+	add := func() (uint32, error) {
+		i, err := d.spec.Add(ctx, d.client, ifs, t)
+		if err != nil {
+			return 0, PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
+		}
+		return uint32(i), nil
 	}
+	var i uint32
+	if d.spec.Del == nil {
+		// no delete: the index can only be cleaned, not quarantined
+		if i, err = add(); err != nil {
+			return nil, err
+		}
+		if _, err := ifsanitize.Sanitize(ctx, d.client, i, name); err != nil {
+			return nil, fmt.Errorf("%s: %w", d.spec.Name, err)
+		}
+	} else {
+		// D-095 / VPP V19/V21: the new sw_if_index is cleaned of what its previous holder left
+		// behind (or quarantined and a fresh one taken) before it is tagged and reported created
+		i, err = ifsanitize.Acquire(ctx, d.client, d.owner, name, add, func(i uint32) error {
+			return d.spec.Del(ctx, d.client, ifs, t, interface_types.InterfaceIndex(i))
+		})
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", d.spec.Name, err)
+		}
+	}
+	idx := interface_types.InterfaceIndex(i)
 	rollback := func() error {
 		if d.spec.Del == nil {
 			return nil
@@ -217,6 +242,10 @@ func (d *IfDescriptor[T, D]) Delete(ctx context.Context, obj proto.Message, meta
 	}
 	ifs, idx, actual, ok, err := d.verify(ctx, t, meta)
 	if err != nil || !ok {
+		return err
+	}
+	// D-095 / review H3: clear every binding while its tables still exist
+	if err := ifsanitize.BeforeDelete(ctx, d.client, idx, d.KeyOf(obj).String()); err != nil {
 		return err
 	}
 	if err := d.spec.Del(ctx, d.client, ifs, actual, interface_types.InterfaceIndex(idx)); err != nil {

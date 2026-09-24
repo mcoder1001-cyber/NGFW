@@ -13,6 +13,7 @@ import (
 	"ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
 // Descriptor names.
@@ -93,16 +94,18 @@ func (d *BondDescriptor) Create(ctx context.Context, obj proto.Message) (any, er
 	if err != nil {
 		return nil, err
 	}
-	rep, err := d.svc().BondCreate2(ctx, &bondapi.BondCreate2{Mode: mode, Lb: lb, NumaOnly: o.GetNumaOnly(), ID: o.GetId()})
-	if err != nil {
-		return nil, fmt.Errorf("bond_create2: %w", err)
-	}
-	idx := uint32(rep.SwIfIndex)
-	if err := iface.Tag(ctx, d.client, d.owner, o.GetName(), idx); err != nil {
-		// an untagged bond is invisible to Retrieve and blocks every retry (id in use): remove it (review M3)
-		if _, derr := d.svc().BondDelete(ctx, &bondapi.BondDelete{SwIfIndex: rep.SwIfIndex}); derr != nil {
-			return nil, fmt.Errorf("%w (and bond_delete of the untagged orphan %d: %v)", err, idx, derr)
+	// an untagged or unclean bond is removed again (review M3, D-095)
+	idx, err := iface.AcquireAndTag(ctx, d.client, d.owner, o.GetName(), func() (uint32, error) {
+		rep, err := d.svc().BondCreate2(ctx, &bondapi.BondCreate2{Mode: mode, Lb: lb, NumaOnly: o.GetNumaOnly(), ID: o.GetId()})
+		if err != nil {
+			return 0, fmt.Errorf("bond_create2: %w", err)
 		}
+		return uint32(rep.SwIfIndex), nil
+	}, func(i uint32) error {
+		_, err := d.svc().BondDelete(ctx, &bondapi.BondDelete{SwIfIndex: interface_types.InterfaceIndex(i)})
+		return err
+	})
+	if err != nil {
 		return nil, err
 	}
 	return iface.Meta{SwIfIndex: idx}, nil
@@ -117,6 +120,10 @@ func (*BondDescriptor) Update(context.Context, proto.Message, proto.Message, any
 func (d *BondDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
 	m, err := iface.MetaOf(meta)
 	if err != nil {
+		return err
+	}
+	// D-095 / review H3: clear every binding while its tables still exist
+	if err := ifsanitize.BeforeDelete(ctx, d.client, m.SwIfIndex, "bond"); err != nil {
 		return err
 	}
 	if _, err := d.svc().BondDelete(ctx, &bondapi.BondDelete{SwIfIndex: interface_types.InterfaceIndex(m.SwIfIndex)}); err != nil {

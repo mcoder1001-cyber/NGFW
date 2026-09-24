@@ -13,6 +13,7 @@ import (
 	"ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
 // MemifDescriptor implements memif.memif (memif_create_v2 / memif_delete). All fields are
@@ -55,19 +56,21 @@ func (d *MemifDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 		// socket 0 is VPP's shared /run/vpp/memif.sock, owned by nobody (review L4)
 		return nil, errors.New("memif: an owned memif.socket is mandatory (socket 0 is VPP's shared default)")
 	}
-	rep, err := d.svc().MemifCreateV2(ctx, &memifapi.MemifCreateV2{
-		Role: memifapi.MemifRole(o.GetRole()), Mode: memifapi.MemifMode(o.GetMode()), ID: o.GetId(), SocketID: o.GetSocket(), //nolint:gosec // enum values 0-2
-		NoZeroCopy: !o.GetZeroCopy(), // ring_size / buffer_size 0 → VPP defaults (1024 / 2048)
+	// an untagged or unclean memif is removed again (review M3, D-095)
+	idx, err := iface.AcquireAndTag(ctx, d.client, d.owner, o.GetName(), func() (uint32, error) {
+		rep, err := d.svc().MemifCreateV2(ctx, &memifapi.MemifCreateV2{
+			Role: memifapi.MemifRole(o.GetRole()), Mode: memifapi.MemifMode(o.GetMode()), ID: o.GetId(), SocketID: o.GetSocket(), //nolint:gosec // enum values 0-2
+			NoZeroCopy: !o.GetZeroCopy(), // ring_size / buffer_size 0 → VPP defaults (1024 / 2048)
+		})
+		if err != nil {
+			return 0, fmt.Errorf("memif_create_v2: %w", err)
+		}
+		return uint32(rep.SwIfIndex), nil
+	}, func(i uint32) error {
+		_, err := d.svc().MemifDelete(ctx, &memifapi.MemifDelete{SwIfIndex: interface_types.InterfaceIndex(i)})
+		return err
 	})
 	if err != nil {
-		return nil, fmt.Errorf("memif_create_v2: %w", err)
-	}
-	idx := uint32(rep.SwIfIndex)
-	if err := iface.Tag(ctx, d.client, d.owner, o.GetName(), idx); err != nil {
-		// an untagged memif is invisible to Retrieve and blocks every retry (id in use): remove it (review M3)
-		if _, derr := d.svc().MemifDelete(ctx, &memifapi.MemifDelete{SwIfIndex: rep.SwIfIndex}); derr != nil {
-			return nil, fmt.Errorf("%w (and memif_delete of the untagged orphan %d: %v)", err, idx, derr)
-		}
 		return nil, err
 	}
 	return iface.Meta{SwIfIndex: idx}, nil
@@ -82,6 +85,10 @@ func (*MemifDescriptor) Update(context.Context, proto.Message, proto.Message, an
 func (d *MemifDescriptor) Delete(ctx context.Context, _ proto.Message, meta any) error {
 	m, err := iface.MetaOf(meta)
 	if err != nil {
+		return err
+	}
+	// D-095 / review H3: clear every binding while its tables still exist
+	if err := ifsanitize.BeforeDelete(ctx, d.client, m.SwIfIndex, "memif"); err != nil {
 		return err
 	}
 	if _, err := d.svc().MemifDelete(ctx, &memifapi.MemifDelete{SwIfIndex: interface_types.InterfaceIndex(m.SwIfIndex)}); err != nil {

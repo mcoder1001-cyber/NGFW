@@ -89,6 +89,10 @@ func TestPolicerOnHost(t *testing.T) {
 			MemorySize: 2 << 20, MatchNVectors: 1, NextTableIndex: df7.NoIndex, MissNextIndex: df7.NoIndex, MaskLen: 16, Mask: make([]byte, 16)})
 		h.Must("classify_add_del_table", err)
 		t.Cleanup(func() {
+			// D-095 c: unbind before the table goes (a no-op NO_SUCH_TABLE when DeleteAll already
+			// did) — a policer classify binding to a freed table crashes VPP on the next packet (V19)
+			_, _ = svc.PolicerClassifySetInterface(h.Ctx, &classify.PolicerClassifySetInterface{SwIfIndex: interface_types.InterfaceIndex(idxA),
+				IP4TableIndex: rep.NewTableIndex, IP6TableIndex: df7.NoIndex, L2TableIndex: df7.NoIndex, IsAdd: false})
 			_, err := svc.ClassifyAddDelTable(h.Ctx, &classify.ClassifyAddDelTable{IsAdd: false, TableIndex: rep.NewTableIndex, DelChain: true})
 			if err != nil {
 				t.Errorf("cleanup classify table %d: %v", rep.NewTableIndex, err)

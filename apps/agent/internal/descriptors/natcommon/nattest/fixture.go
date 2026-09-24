@@ -12,6 +12,7 @@ import (
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
@@ -109,6 +110,7 @@ func LoopbackOwnedBy(t testing.TB, c vpp.Client, i int, owner string) (name stri
 	t.Cleanup(func() {
 		cctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
+		_ = ifsanitize.BeforeDelete(cctx, c, uint32(idx), "test cleanup") // D-095 c: bindings go before the interface (V19)
 		if _, err := svc.DeleteLoopback(cctx, &interfaces.DeleteLoopback{SwIfIndex: idx}); err != nil {
 			t.Errorf("cleanup delete_loopback %d: %v", idx, err)
 		}

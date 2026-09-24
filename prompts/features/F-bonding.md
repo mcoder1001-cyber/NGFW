@@ -50,7 +50,7 @@ Shared files: one-line appends only (agent registry/projection hook, `app.module
 - [ ] `tools/ci.sh --base main` green in your worktree
 
 ## Out of scope (do not build)
-VLAN sub-interfaces on bonds beyond "they work via F-vlan-qinq's descriptor"; bridge domains (F-bridge-l2); LLDP on members
+VLAN sub-interfaces on bonds beyond "they work via DF-1's `interface.subinterface` and P08's projection (F-vlan-qinq verifies QinQ)"; bridge domains (F-bridge-l2); LLDP on members
 (F-loopback-bvi-gso-lldp-span); linux-cp pairs for bonds and their V1 edge cases (P12); DPDK NIC binding / startup.conf (F-startup-gen);
 GSO on bonds; bond MAC override beyond the existing `interface.mac-address`.
 

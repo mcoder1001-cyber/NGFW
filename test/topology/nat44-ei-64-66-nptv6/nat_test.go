@@ -478,10 +478,15 @@ func (f *fixture) nptPackets(t *testing.T) {
 
 func (f *fixture) nat64(t *testing.T, tbl string, tblID uint32) {
 	r, a6, a := f.r, f.a6, f.a
-	// rev 3: EI removed (NAT44 without objects is off), the rig interfaces in the slot VRF, NAT64 with the slot /96 in
-	// that VRF (nat64 translates by the inside interface's IPv6 FIB); NAT66 and NPTv6 stay
+	// rev 3: EI removed (NAT44 without objects is off), NAT64 with the slot /96 in the slot VRF. VPP's NAT64 is
+	// multi-tenant on the inside only: the prefix is chosen by the inside interface's IPv6 FIB (so the lan interface
+	// moves into the slot VRF), the outside keys use FIB 0 (nat64_db.c: out2in keys with fib_index 0; the wan interface
+	// stays in the default VRF), and the translated IPv4 packet is looked up in the inside interface's IPv4 table (so
+	// the slot VRF gets a route to the wan subnet through the wan interface). NAT66 and NPTv6 stay.
 	bibIn, bibOut := a6.lanClient, r.addr(64, 2)
-	a.patch("/interfaces", map[string]any{r.lanIf: map[string]any{"vrf": tbl}, r.wanIf: map[string]any{"vrf": tbl}})
+	a.patch("/interfaces", map[string]any{r.lanIf: map[string]any{"vrf": tbl}})
+	a.patch("/routing", map[string]any{"static": []any{map[string]any{"prefix": r.addr(2, 0) + "/24", "vrf": tbl, "description": "NAT64: the tenant's way out",
+		"nextHops": []any{map[string]any{"address": r.wanIP, "interface": r.wanIf}}}}})
 	a.patch("/nat", map[string]any{
 		"inside": []string{}, "outside": []string{}, "pools": []any{}, "staticMappings": []any{},
 		"nat64": map[string]any{"enabled": true, "inside": []string{r.lanIf}, "outside": []string{r.wanIf},
@@ -493,7 +498,7 @@ func (f *fixture) nat64(t *testing.T, tbl string, tblID uint32) {
 	d := a.must(200, "GET", "/api/v1/config/diff", nil)
 	t.Logf("candidate diff: %s", trunc(d.raw, 3000))
 	c := a.commit("nat-ei-rev3-nat64")
-	t.Logf("commit NAT64 (EI removed, interfaces in VRF %s) → %v revision %v results %s", tbl, c["status"], c["revision"].(map[string]any)["id"], trunc(js(c["results"]), 4000))
+	t.Logf("commit NAT64 (EI removed, lan interface in VRF %s) → %v revision %v results %s", tbl, c["status"], c["revision"].(map[string]any)["id"], trunc(js(c["results"]), 4000))
 	f.ei.release(t) // nat44-ei holds nothing of this slot any more: give it back now (other slots' ED tests wait for it)
 
 	f.canon = natJSON(t, fmt.Sprintf(`{

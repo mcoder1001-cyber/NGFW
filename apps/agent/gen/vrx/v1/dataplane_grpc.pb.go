@@ -54,6 +54,7 @@ const (
 	Dataplane_Action_FullMethodName         = "/vrx.v1.Dataplane/Action"
 	Dataplane_Health_FullMethodName         = "/vrx.v1.Dataplane/Health"
 	Dataplane_InterfaceState_FullMethodName = "/vrx.v1.Dataplane/InterfaceState"
+	Dataplane_WireguardState_FullMethodName = "/vrx.v1.Dataplane/WireguardState"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -92,6 +93,10 @@ type DataplaneClient interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(ctx context.Context, in *InterfaceStateRequest, opts ...grpc.CallOption) (*InterfaceStateResponse, error)
+	// WireguardState dumps the live, read-only WireGuard state of this agent's own wg<N> interfaces and
+	// their peers (handshake flags, learnt endpoint, interface counters); never keys, never another
+	// owner's interfaces. Never mutates (docs/contracts/proto.md "F-wireguard: WireguardState").
+	WireguardState(ctx context.Context, in *WireguardStateRequest, opts ...grpc.CallOption) (*WireguardStateResponse, error)
 }
 
 type dataplaneClient struct {
@@ -209,6 +214,16 @@ func (c *dataplaneClient) InterfaceState(ctx context.Context, in *InterfaceState
 	return out, nil
 }
 
+func (c *dataplaneClient) WireguardState(ctx context.Context, in *WireguardStateRequest, opts ...grpc.CallOption) (*WireguardStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WireguardStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_WireguardState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -245,6 +260,10 @@ type DataplaneServer interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error)
+	// WireguardState dumps the live, read-only WireGuard state of this agent's own wg<N> interfaces and
+	// their peers (handshake flags, learnt endpoint, interface counters); never keys, never another
+	// owner's interfaces. Never mutates (docs/contracts/proto.md "F-wireguard: WireguardState").
+	WireguardState(context.Context, *WireguardStateRequest) (*WireguardStateResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -278,6 +297,9 @@ func (UnimplementedDataplaneServer) Health(context.Context, *HealthRequest) (*He
 }
 func (UnimplementedDataplaneServer) InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InterfaceState not implemented")
+}
+func (UnimplementedDataplaneServer) WireguardState(context.Context, *WireguardStateRequest) (*WireguardStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method WireguardState not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -423,6 +445,24 @@ func _Dataplane_InterfaceState_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_WireguardState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WireguardStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).WireguardState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_WireguardState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).WireguardState(ctx, req.(*WireguardStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -449,6 +489,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InterfaceState",
 			Handler:    _Dataplane_InterfaceState_Handler,
+		},
+		{
+			MethodName: "WireguardState",
+			Handler:    _Dataplane_WireguardState_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

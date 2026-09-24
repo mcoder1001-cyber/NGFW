@@ -658,6 +658,7 @@ export class FakeAgent {
       // wave-A: F-nat44-ei-64-66-nptv6
       // wave-A: P11
       // wave-A: F-wireguard
+      wireguardState: (_call, cb) => cb({ code: status.UNIMPLEMENTED, details: 'WireguardState: not faked' }),
       // wave-A: P12
       // wave-A: F-kea-dhcp-relay
       // wave-A: F-unbound-chrony-syslog

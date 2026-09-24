@@ -351,6 +351,12 @@ export enum EventKind {
   EVENT_KIND_VPP_DISCONNECTED = 8,
   /** EVENT_KIND_DEGRADED - A rollback failed; the agent is degraded until an Apply succeeds (AD-4). */
   EVENT_KIND_DEGRADED = 9,
+  /**
+   * EVENT_KIND_WIREGUARD_PEER_CHANGED - A WireGuard peer's handshake state changed (wireguard_peer_event, F-wireguard): `interface` is the
+   * wg<N> interface; attributes "public_key", "peer_index", "established" and "dead" ("true"/"false").
+   * Never key material.
+   */
+  EVENT_KIND_WIREGUARD_PEER_CHANGED = 13,
   UNRECOGNIZED = -1,
 }
 
@@ -386,6 +392,9 @@ export function eventKindFromJSON(object: any): EventKind {
     case 9:
     case "EVENT_KIND_DEGRADED":
       return EventKind.EVENT_KIND_DEGRADED;
+    case 13:
+    case "EVENT_KIND_WIREGUARD_PEER_CHANGED":
+      return EventKind.EVENT_KIND_WIREGUARD_PEER_CHANGED;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -415,6 +424,8 @@ export function eventKindToJSON(object: EventKind): string {
       return "EVENT_KIND_VPP_DISCONNECTED";
     case EventKind.EVENT_KIND_DEGRADED:
       return "EVENT_KIND_DEGRADED";
+    case EventKind.EVENT_KIND_WIREGUARD_PEER_CHANGED:
+      return "EVENT_KIND_WIREGUARD_PEER_CHANGED";
     case EventKind.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
@@ -5046,6 +5057,8 @@ export interface WireguardInterface {
     | undefined;
   /** Peers keyed by name. */
   peers: { [key: string]: WireguardPeer };
+  /** Install a route via this interface for every allowed IP of its peers (F-wireguard; default false). */
+  routeAllowedIps?: boolean | undefined;
 }
 
 export interface WireguardInterface_PeersEntry {
@@ -5274,6 +5287,81 @@ export interface RemoteAccessProfile_Radius_Server {
     | undefined;
   /** Reference to the shared secret. */
   secretRef?: string | undefined;
+}
+
+/** WireguardStateRequest selects the WireGuard interfaces to report. */
+export interface WireguardStateRequest {
+  /** VPP interface names ("wg<instance>") to include; empty = every WireGuard interface of this owner. */
+  interfaces: string[];
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+}
+
+/** WireguardStateResponse is one snapshot of this owner's WireGuard interfaces. */
+export interface WireguardStateResponse {
+  /** One entry per interface, sorted by name. */
+  interfaces: WireguardInterfaceState[];
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the dumps were taken (agent clock). */
+  retrievedAt:
+    | Date
+    | undefined;
+  /** Whether the agent's peer-event subscription is running (last_handshake is only observed while it is). */
+  eventsActive: boolean;
+}
+
+/** WireguardInterfaceState is the live state of one wg<N> interface (not configuration). */
+export interface WireguardInterfaceState {
+  /** VPP name and logical name: "wg<instance>". */
+  name: string;
+  /** user_instance. */
+  instance: number;
+  /** VPP sw_if_index (runtime handle). */
+  swIfIndex: number;
+  /** The interface's public key (std base64; a public value). The private key is never read back. */
+  publicKey: string;
+  /** UDP listen port. */
+  listenPort: number;
+  /** Source (listen) address. */
+  listenAddress: string;
+  /** Administrative and link state (sw_interface_details flags). */
+  adminUp: boolean;
+  linkUp: boolean;
+  /**
+   * Interface counters from the stats segment (VPP 26.06 has no per-peer counters; 0 when the stats
+   * segment is unavailable).
+   */
+  rxPackets: string;
+  rxBytes: string;
+  txPackets: string;
+  txBytes: string;
+  /** Peers, sorted by public key. */
+  peers: WireguardPeerState[];
+}
+
+/** WireguardPeerState is the live state of one peer (wireguard_peers_dump; no preshared key). */
+export interface WireguardPeerState {
+  /** Std base64 public key (the peer's identity; the configuration names peers in the document only). */
+  publicKey: string;
+  /** VPP peer index (runtime handle, reused after a delete). */
+  peerIndex: number;
+  /** wireguard_peer_flags: ESTABLISHED (handshake completed) and STATUS_DEAD (no handshake answer). */
+  established: boolean;
+  dead: boolean;
+  /** The endpoint VPP currently sends to (learnt from the last authenticated packet); "" = none yet. */
+  endpoint: string;
+  endpointPort: number;
+  /**
+   * Last time this agent observed the peer become established (peer event); unset = not observed
+   * since the agent started. VPP 26.06 exposes no handshake timestamp.
+   */
+  lastHandshake:
+    | Date
+    | undefined;
+  /** Configured persistent keepalive (seconds, 0 = off) and allowed IPs (canonical, sorted). */
+  persistentKeepaliveSec: number;
+  allowedIps: string[];
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -40387,6 +40475,7 @@ function createBaseWireguardInterface(): WireguardInterface {
     address: [],
     mtu: undefined,
     peers: {},
+    routeAllowedIps: undefined,
   };
 }
 
@@ -40425,6 +40514,9 @@ export const WireguardInterface: MessageFns<WireguardInterface> = {
     globalThis.Object.entries(message.peers).forEach(([key, value]: [string, WireguardPeer]) => {
       WireguardInterface_PeersEntry.encode({ key: key as any, value }, writer.uint32(90).fork()).join();
     });
+    if (message.routeAllowedIps !== undefined) {
+      writer.uint32(96).bool(message.routeAllowedIps);
+    }
     return writer;
   },
 
@@ -40532,6 +40624,14 @@ export const WireguardInterface: MessageFns<WireguardInterface> = {
             }
             continue;
           }
+          case 12: {
+            if (tag !== 96) {
+              break;
+            }
+
+            message.routeAllowedIps = reader.bool();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -40588,6 +40688,11 @@ export const WireguardInterface: MessageFns<WireguardInterface> = {
           {},
         )
         : {},
+      routeAllowedIps: isSet(object.routeAllowedIps)
+        ? globalThis.Boolean(object.routeAllowedIps)
+        : isSet(object.route_allowed_ips)
+        ? globalThis.Boolean(object.route_allowed_ips)
+        : undefined,
     };
   },
 
@@ -40632,6 +40737,9 @@ export const WireguardInterface: MessageFns<WireguardInterface> = {
         });
       }
     }
+    if (message.routeAllowedIps !== undefined) {
+      obj.routeAllowedIps = message.routeAllowedIps;
+    }
     return obj;
   },
 
@@ -40659,6 +40767,7 @@ export const WireguardInterface: MessageFns<WireguardInterface> = {
       },
       {},
     );
+    message.routeAllowedIps = object.routeAllowedIps ?? undefined;
     return message;
   },
 };
@@ -42617,6 +42726,768 @@ export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_R
   },
 };
 
+function createBaseWireguardStateRequest(): WireguardStateRequest {
+  return { interfaces: [], owner: "" };
+}
+
+export const WireguardStateRequest: MessageFns<WireguardStateRequest> = {
+  encode(message: WireguardStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.interfaces) {
+      writer.uint32(10).string(v!);
+    }
+    if (message.owner !== "") {
+      writer.uint32(18).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WireguardStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWireguardStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interfaces.push(reader.string());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WireguardStateRequest {
+    return {
+      interfaces: globalThis.Array.isArray(object?.interfaces)
+        ? object.interfaces.map((e: any) => globalThis.String(e))
+        : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+    };
+  },
+
+  toJSON(message: WireguardStateRequest): unknown {
+    const obj: any = {};
+    if (message.interfaces?.length) {
+      obj.interfaces = message.interfaces;
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WireguardStateRequest>): WireguardStateRequest {
+    return WireguardStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WireguardStateRequest>): WireguardStateRequest {
+    const message = createBaseWireguardStateRequest();
+    message.interfaces = object.interfaces?.map((e) => e) || [];
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseWireguardStateResponse(): WireguardStateResponse {
+  return { interfaces: [], owner: "", retrievedAt: undefined, eventsActive: false };
+}
+
+export const WireguardStateResponse: MessageFns<WireguardStateResponse> = {
+  encode(message: WireguardStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.interfaces) {
+      WireguardInterfaceState.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.owner !== "") {
+      writer.uint32(18).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(26).fork()).join();
+    }
+    if (message.eventsActive !== false) {
+      writer.uint32(32).bool(message.eventsActive);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WireguardStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWireguardStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interfaces.push(WireguardInterfaceState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.eventsActive = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WireguardStateResponse {
+    return {
+      interfaces: globalThis.Array.isArray(object?.interfaces)
+        ? object.interfaces.map((e: any) => WireguardInterfaceState.fromJSON(e))
+        : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      eventsActive: isSet(object.eventsActive)
+        ? globalThis.Boolean(object.eventsActive)
+        : isSet(object.events_active)
+        ? globalThis.Boolean(object.events_active)
+        : false,
+    };
+  },
+
+  toJSON(message: WireguardStateResponse): unknown {
+    const obj: any = {};
+    if (message.interfaces?.length) {
+      obj.interfaces = message.interfaces.map((e) => WireguardInterfaceState.toJSON(e));
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.eventsActive !== false) {
+      obj.eventsActive = message.eventsActive;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WireguardStateResponse>): WireguardStateResponse {
+    return WireguardStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WireguardStateResponse>): WireguardStateResponse {
+    const message = createBaseWireguardStateResponse();
+    message.interfaces = object.interfaces?.map((e) => WireguardInterfaceState.fromPartial(e)) || [];
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.eventsActive = object.eventsActive ?? false;
+    return message;
+  },
+};
+
+function createBaseWireguardInterfaceState(): WireguardInterfaceState {
+  return {
+    name: "",
+    instance: 0,
+    swIfIndex: 0,
+    publicKey: "",
+    listenPort: 0,
+    listenAddress: "",
+    adminUp: false,
+    linkUp: false,
+    rxPackets: "0",
+    rxBytes: "0",
+    txPackets: "0",
+    txBytes: "0",
+    peers: [],
+  };
+}
+
+export const WireguardInterfaceState: MessageFns<WireguardInterfaceState> = {
+  encode(message: WireguardInterfaceState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.instance !== 0) {
+      writer.uint32(16).uint32(message.instance);
+    }
+    if (message.swIfIndex !== 0) {
+      writer.uint32(24).uint32(message.swIfIndex);
+    }
+    if (message.publicKey !== "") {
+      writer.uint32(34).string(message.publicKey);
+    }
+    if (message.listenPort !== 0) {
+      writer.uint32(40).uint32(message.listenPort);
+    }
+    if (message.listenAddress !== "") {
+      writer.uint32(50).string(message.listenAddress);
+    }
+    if (message.adminUp !== false) {
+      writer.uint32(56).bool(message.adminUp);
+    }
+    if (message.linkUp !== false) {
+      writer.uint32(64).bool(message.linkUp);
+    }
+    if (message.rxPackets !== "0") {
+      writer.uint32(72).uint64(message.rxPackets);
+    }
+    if (message.rxBytes !== "0") {
+      writer.uint32(80).uint64(message.rxBytes);
+    }
+    if (message.txPackets !== "0") {
+      writer.uint32(88).uint64(message.txPackets);
+    }
+    if (message.txBytes !== "0") {
+      writer.uint32(96).uint64(message.txBytes);
+    }
+    for (const v of message.peers) {
+      WireguardPeerState.encode(v!, writer.uint32(106).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WireguardInterfaceState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWireguardInterfaceState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.instance = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.swIfIndex = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.publicKey = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.listenPort = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.listenAddress = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.adminUp = reader.bool();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.linkUp = reader.bool();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.rxPackets = reader.uint64().toString();
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.rxBytes = reader.uint64().toString();
+            continue;
+          }
+          case 11: {
+            if (tag !== 88) {
+              break;
+            }
+
+            message.txPackets = reader.uint64().toString();
+            continue;
+          }
+          case 12: {
+            if (tag !== 96) {
+              break;
+            }
+
+            message.txBytes = reader.uint64().toString();
+            continue;
+          }
+          case 13: {
+            if (tag !== 106) {
+              break;
+            }
+
+            message.peers.push(WireguardPeerState.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WireguardInterfaceState {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      instance: isSet(object.instance) ? globalThis.Number(object.instance) : 0,
+      swIfIndex: isSet(object.swIfIndex)
+        ? globalThis.Number(object.swIfIndex)
+        : isSet(object.sw_if_index)
+        ? globalThis.Number(object.sw_if_index)
+        : 0,
+      publicKey: isSet(object.publicKey)
+        ? globalThis.String(object.publicKey)
+        : isSet(object.public_key)
+        ? globalThis.String(object.public_key)
+        : "",
+      listenPort: isSet(object.listenPort)
+        ? globalThis.Number(object.listenPort)
+        : isSet(object.listen_port)
+        ? globalThis.Number(object.listen_port)
+        : 0,
+      listenAddress: isSet(object.listenAddress)
+        ? globalThis.String(object.listenAddress)
+        : isSet(object.listen_address)
+        ? globalThis.String(object.listen_address)
+        : "",
+      adminUp: isSet(object.adminUp)
+        ? globalThis.Boolean(object.adminUp)
+        : isSet(object.admin_up)
+        ? globalThis.Boolean(object.admin_up)
+        : false,
+      linkUp: isSet(object.linkUp)
+        ? globalThis.Boolean(object.linkUp)
+        : isSet(object.link_up)
+        ? globalThis.Boolean(object.link_up)
+        : false,
+      rxPackets: isSet(object.rxPackets)
+        ? globalThis.String(object.rxPackets)
+        : isSet(object.rx_packets)
+        ? globalThis.String(object.rx_packets)
+        : "0",
+      rxBytes: isSet(object.rxBytes)
+        ? globalThis.String(object.rxBytes)
+        : isSet(object.rx_bytes)
+        ? globalThis.String(object.rx_bytes)
+        : "0",
+      txPackets: isSet(object.txPackets)
+        ? globalThis.String(object.txPackets)
+        : isSet(object.tx_packets)
+        ? globalThis.String(object.tx_packets)
+        : "0",
+      txBytes: isSet(object.txBytes)
+        ? globalThis.String(object.txBytes)
+        : isSet(object.tx_bytes)
+        ? globalThis.String(object.tx_bytes)
+        : "0",
+      peers: globalThis.Array.isArray(object?.peers)
+        ? object.peers.map((e: any) => WireguardPeerState.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: WireguardInterfaceState): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.instance !== 0) {
+      obj.instance = Math.round(message.instance);
+    }
+    if (message.swIfIndex !== 0) {
+      obj.swIfIndex = Math.round(message.swIfIndex);
+    }
+    if (message.publicKey !== "") {
+      obj.publicKey = message.publicKey;
+    }
+    if (message.listenPort !== 0) {
+      obj.listenPort = Math.round(message.listenPort);
+    }
+    if (message.listenAddress !== "") {
+      obj.listenAddress = message.listenAddress;
+    }
+    if (message.adminUp !== false) {
+      obj.adminUp = message.adminUp;
+    }
+    if (message.linkUp !== false) {
+      obj.linkUp = message.linkUp;
+    }
+    if (message.rxPackets !== "0") {
+      obj.rxPackets = message.rxPackets;
+    }
+    if (message.rxBytes !== "0") {
+      obj.rxBytes = message.rxBytes;
+    }
+    if (message.txPackets !== "0") {
+      obj.txPackets = message.txPackets;
+    }
+    if (message.txBytes !== "0") {
+      obj.txBytes = message.txBytes;
+    }
+    if (message.peers?.length) {
+      obj.peers = message.peers.map((e) => WireguardPeerState.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WireguardInterfaceState>): WireguardInterfaceState {
+    return WireguardInterfaceState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WireguardInterfaceState>): WireguardInterfaceState {
+    const message = createBaseWireguardInterfaceState();
+    message.name = object.name ?? "";
+    message.instance = object.instance ?? 0;
+    message.swIfIndex = object.swIfIndex ?? 0;
+    message.publicKey = object.publicKey ?? "";
+    message.listenPort = object.listenPort ?? 0;
+    message.listenAddress = object.listenAddress ?? "";
+    message.adminUp = object.adminUp ?? false;
+    message.linkUp = object.linkUp ?? false;
+    message.rxPackets = object.rxPackets ?? "0";
+    message.rxBytes = object.rxBytes ?? "0";
+    message.txPackets = object.txPackets ?? "0";
+    message.txBytes = object.txBytes ?? "0";
+    message.peers = object.peers?.map((e) => WireguardPeerState.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseWireguardPeerState(): WireguardPeerState {
+  return {
+    publicKey: "",
+    peerIndex: 0,
+    established: false,
+    dead: false,
+    endpoint: "",
+    endpointPort: 0,
+    lastHandshake: undefined,
+    persistentKeepaliveSec: 0,
+    allowedIps: [],
+  };
+}
+
+export const WireguardPeerState: MessageFns<WireguardPeerState> = {
+  encode(message: WireguardPeerState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.publicKey !== "") {
+      writer.uint32(10).string(message.publicKey);
+    }
+    if (message.peerIndex !== 0) {
+      writer.uint32(16).uint32(message.peerIndex);
+    }
+    if (message.established !== false) {
+      writer.uint32(24).bool(message.established);
+    }
+    if (message.dead !== false) {
+      writer.uint32(32).bool(message.dead);
+    }
+    if (message.endpoint !== "") {
+      writer.uint32(42).string(message.endpoint);
+    }
+    if (message.endpointPort !== 0) {
+      writer.uint32(48).uint32(message.endpointPort);
+    }
+    if (message.lastHandshake !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastHandshake), writer.uint32(58).fork()).join();
+    }
+    if (message.persistentKeepaliveSec !== 0) {
+      writer.uint32(64).uint32(message.persistentKeepaliveSec);
+    }
+    for (const v of message.allowedIps) {
+      writer.uint32(74).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WireguardPeerState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWireguardPeerState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.publicKey = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.peerIndex = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.established = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.dead = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.endpoint = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.endpointPort = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.lastHandshake = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.persistentKeepaliveSec = reader.uint32();
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.allowedIps.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WireguardPeerState {
+    return {
+      publicKey: isSet(object.publicKey)
+        ? globalThis.String(object.publicKey)
+        : isSet(object.public_key)
+        ? globalThis.String(object.public_key)
+        : "",
+      peerIndex: isSet(object.peerIndex)
+        ? globalThis.Number(object.peerIndex)
+        : isSet(object.peer_index)
+        ? globalThis.Number(object.peer_index)
+        : 0,
+      established: isSet(object.established) ? globalThis.Boolean(object.established) : false,
+      dead: isSet(object.dead) ? globalThis.Boolean(object.dead) : false,
+      endpoint: isSet(object.endpoint) ? globalThis.String(object.endpoint) : "",
+      endpointPort: isSet(object.endpointPort)
+        ? globalThis.Number(object.endpointPort)
+        : isSet(object.endpoint_port)
+        ? globalThis.Number(object.endpoint_port)
+        : 0,
+      lastHandshake: isSet(object.lastHandshake)
+        ? fromJsonTimestamp(object.lastHandshake)
+        : isSet(object.last_handshake)
+        ? fromJsonTimestamp(object.last_handshake)
+        : undefined,
+      persistentKeepaliveSec: isSet(object.persistentKeepaliveSec)
+        ? globalThis.Number(object.persistentKeepaliveSec)
+        : isSet(object.persistent_keepalive_sec)
+        ? globalThis.Number(object.persistent_keepalive_sec)
+        : 0,
+      allowedIps: globalThis.Array.isArray(object?.allowedIps)
+        ? object.allowedIps.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.allowed_ips)
+        ? object.allowed_ips.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: WireguardPeerState): unknown {
+    const obj: any = {};
+    if (message.publicKey !== "") {
+      obj.publicKey = message.publicKey;
+    }
+    if (message.peerIndex !== 0) {
+      obj.peerIndex = Math.round(message.peerIndex);
+    }
+    if (message.established !== false) {
+      obj.established = message.established;
+    }
+    if (message.dead !== false) {
+      obj.dead = message.dead;
+    }
+    if (message.endpoint !== "") {
+      obj.endpoint = message.endpoint;
+    }
+    if (message.endpointPort !== 0) {
+      obj.endpointPort = Math.round(message.endpointPort);
+    }
+    if (message.lastHandshake !== undefined) {
+      obj.lastHandshake = message.lastHandshake.toISOString();
+    }
+    if (message.persistentKeepaliveSec !== 0) {
+      obj.persistentKeepaliveSec = Math.round(message.persistentKeepaliveSec);
+    }
+    if (message.allowedIps?.length) {
+      obj.allowedIps = message.allowedIps;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WireguardPeerState>): WireguardPeerState {
+    return WireguardPeerState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WireguardPeerState>): WireguardPeerState {
+    const message = createBaseWireguardPeerState();
+    message.publicKey = object.publicKey ?? "";
+    message.peerIndex = object.peerIndex ?? 0;
+    message.established = object.established ?? false;
+    message.dead = object.dead ?? false;
+    message.endpoint = object.endpoint ?? "";
+    message.endpointPort = object.endpointPort ?? 0;
+    message.lastHandshake = object.lastHandshake ?? undefined;
+    message.persistentKeepaliveSec = object.persistentKeepaliveSec ?? 0;
+    message.allowedIps = object.allowedIps?.map((e) => e) || [];
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
@@ -42732,6 +43603,22 @@ export const DataplaneService = {
       Buffer.from(InterfaceStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
   },
+  /**
+   * WireguardState dumps the live, read-only WireGuard state of this agent's own wg<N> interfaces and
+   * their peers (handshake flags, learnt endpoint, interface counters); never keys, never another
+   * owner's interfaces. Never mutates (docs/contracts/proto.md "F-wireguard: WireguardState").
+   */
+  wireguardState: {
+    path: "/vrx.v1.Dataplane/WireguardState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: WireguardStateRequest): Buffer =>
+      Buffer.from(WireguardStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): WireguardStateRequest => WireguardStateRequest.decode(value),
+    responseSerialize: (value: WireguardStateResponse): Buffer =>
+      Buffer.from(WireguardStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): WireguardStateResponse => WireguardStateResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -42777,6 +43664,12 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
    */
   interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
+  /**
+   * WireguardState dumps the live, read-only WireGuard state of this agent's own wg<N> interfaces and
+   * their peers (handshake flags, learnt endpoint, interface counters); never keys, never another
+   * owner's interfaces. Never mutates (docs/contracts/proto.md "F-wireguard: WireguardState").
+   */
+  wireguardState: handleUnaryCall<WireguardStateRequest, WireguardStateResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -42906,6 +43799,26 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * WireguardState dumps the live, read-only WireGuard state of this agent's own wg<N> interfaces and
+   * their peers (handshake flags, learnt endpoint, interface counters); never keys, never another
+   * owner's interfaces. Never mutates (docs/contracts/proto.md "F-wireguard: WireguardState").
+   */
+  wireguardState(
+    request: WireguardStateRequest,
+    callback: (error: ServiceError | null, response: WireguardStateResponse) => void,
+  ): ClientUnaryCall;
+  wireguardState(
+    request: WireguardStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: WireguardStateResponse) => void,
+  ): ClientUnaryCall;
+  wireguardState(
+    request: WireguardStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: WireguardStateResponse) => void,
   ): ClientUnaryCall;
 }
 

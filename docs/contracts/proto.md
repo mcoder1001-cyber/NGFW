@@ -361,6 +361,24 @@ never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
 <!-- wave-A: F-nat44-ei-64-66-nptv6 -->
 <!-- wave-A: P11 -->
 <!-- wave-A: F-wireguard -->
+
+### F-wireguard: WireguardState
+
+- `rpc WireguardState(WireguardStateRequest) returns (WireguardStateResponse)` — read-only, never mutates. One
+  `wireguard_interface_dump` (`show_private_key=false`), one `wireguard_peers_dump` (v1: carries no preshared key),
+  one `sw_interface_dump` and one stats-segment read per call, serialised in the agent (D-132: callers do not poll
+  faster than every 30 s; live status comes from the events below). Only this owner's `wg<N>` interfaces (owner
+  tag) and their peers; `interfaces` filters by VPP name. No key material: the interface public key is the only key
+  in the response. Per-peer rx/tx counters and a handshake timestamp do not exist in the VPP 26.06 API: the response
+  carries the interface's counters, and `last_handshake` is the time this agent last observed the peer become
+  established (unset when not observed since the agent started; `events_active` says whether it is watching).
+- `WireguardInterface.route_allowed_ips = 12` (`vpn.wireguard.interfaces.<n>.routeAllowedIps`, default false): the agent
+  installs `ip.route` objects via `wg<N>` in the interface's overlay VRF for every peer allowed IP.
+- `EVENT_KIND_WIREGUARD_PEER_CHANGED = 13`: published through the agent's event sink (`Env.Publish`, TD-8) from DF-5's
+  `peer.Events()` for peers of this owner's interfaces: `interface` = `wg<N>`, attributes `public_key`, `peer_index`,
+  `established`, `dead` (`"true"`/`"false"`), `message` = `"established"` / `"dead"` / `"down"`. The API relays it on
+  the WebSocket topic `wireguard.events`.
+
 <!-- wave-A: P12 -->
 <!-- wave-A: F-kea-dhcp-relay -->
 <!-- wave-A: F-unbound-chrony-syslog -->

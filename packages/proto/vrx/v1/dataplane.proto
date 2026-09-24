@@ -104,6 +104,12 @@ service Dataplane {
   // wave-A: F-nat44-ei-64-66-nptv6
   // wave-A: P11
   // wave-A: F-wireguard
+
+  // WireguardState dumps the live, read-only WireGuard state of this agent's own wg<N> interfaces and
+  // their peers (handshake flags, learnt endpoint, interface counters); never keys, never another
+  // owner's interfaces. Never mutates (docs/contracts/proto.md "F-wireguard: WireguardState").
+  rpc WireguardState(WireguardStateRequest) returns (WireguardStateResponse);
+
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
@@ -470,6 +476,12 @@ enum EventKind {
   // wave-A: F-object-model
   // wave-A: P11
   // wave-A: F-wireguard
+
+  // A WireGuard peer's handshake state changed (wireguard_peer_event, F-wireguard): `interface` is the
+  // wg<N> interface; attributes "public_key", "peer_index", "established" and "dead" ("true"/"false").
+  // Never key material.
+  EVENT_KIND_WIREGUARD_PEER_CHANGED = 13;
+
   // wave-A: P12
 }
 
@@ -3407,6 +3419,8 @@ message WireguardInterface {
   optional uint32 mtu = 10;
   // Peers keyed by name.
   map<string, WireguardPeer> peers = 11;
+  // Install a route via this interface for every allowed IP of its peers (F-wireguard; default false).
+  optional bool route_allowed_ips = 12;
 }
 
 // WireguardConfig mirrors `vpn.wireguard`.
@@ -3584,6 +3598,73 @@ message RemoteAccessProfile {
 // ----- P11 -----
 
 // ----- F-wireguard -----
+
+// WireguardStateRequest selects the WireGuard interfaces to report.
+message WireguardStateRequest {
+  // VPP interface names ("wg<instance>") to include; empty = every WireGuard interface of this owner.
+  repeated string interfaces = 1;
+  // Same rules as ApplyRequest.owner.
+  string owner = 2;
+}
+
+// WireguardStateResponse is one snapshot of this owner's WireGuard interfaces.
+message WireguardStateResponse {
+  // One entry per interface, sorted by name.
+  repeated WireguardInterfaceState interfaces = 1;
+  // The owner whose view was returned.
+  string owner = 2;
+  // When the dumps were taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 3;
+  // Whether the agent's peer-event subscription is running (last_handshake is only observed while it is).
+  bool events_active = 4;
+}
+
+// WireguardInterfaceState is the live state of one wg<N> interface (not configuration).
+message WireguardInterfaceState {
+  // VPP name and logical name: "wg<instance>".
+  string name = 1;
+  // user_instance.
+  uint32 instance = 2;
+  // VPP sw_if_index (runtime handle).
+  uint32 sw_if_index = 3;
+  // The interface's public key (std base64; a public value). The private key is never read back.
+  string public_key = 4;
+  // UDP listen port.
+  uint32 listen_port = 5;
+  // Source (listen) address.
+  string listen_address = 6;
+  // Administrative and link state (sw_interface_details flags).
+  bool admin_up = 7;
+  bool link_up = 8;
+  // Interface counters from the stats segment (VPP 26.06 has no per-peer counters; 0 when the stats
+  // segment is unavailable).
+  uint64 rx_packets = 9;
+  uint64 rx_bytes = 10;
+  uint64 tx_packets = 11;
+  uint64 tx_bytes = 12;
+  // Peers, sorted by public key.
+  repeated WireguardPeerState peers = 13;
+}
+
+// WireguardPeerState is the live state of one peer (wireguard_peers_dump; no preshared key).
+message WireguardPeerState {
+  // Std base64 public key (the peer's identity; the configuration names peers in the document only).
+  string public_key = 1;
+  // VPP peer index (runtime handle, reused after a delete).
+  uint32 peer_index = 2;
+  // wireguard_peer_flags: ESTABLISHED (handshake completed) and STATUS_DEAD (no handshake answer).
+  bool established = 3;
+  bool dead = 4;
+  // The endpoint VPP currently sends to (learnt from the last authenticated packet); "" = none yet.
+  string endpoint = 5;
+  uint32 endpoint_port = 6;
+  // Last time this agent observed the peer become established (peer event); unset = not observed
+  // since the agent started. VPP 26.06 exposes no handshake timestamp.
+  google.protobuf.Timestamp last_handshake = 7;
+  // Configured persistent keepalive (seconds, 0 = off) and allowed IPs (canonical, sorted).
+  uint32 persistent_keepalive_sec = 8;
+  repeated string allowed_ips = 9;
+}
 
 // ----- P12 -----
 

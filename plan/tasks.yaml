@@ -843,6 +843,7 @@ tasks:
   - P08
   - DF-2
   - DF-4
+  - TD-3
   priority: 3
   est_hours: 10
   state: todo
@@ -859,7 +860,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: 'prompts-s4: suggested deps +DF-4 (ABF policies resolve ACLs by name) — docs/status/tasks/prompts-s4.md'
+  notes: 'prompts-s4: suggested deps +DF-4 (ABF policies resolve ACLs by name) — docs/status/tasks/prompts-s4.md | D-104: +dep TD-3 (TD-3 owns descriptors/{classify,adl} until merged)'
 - id: F-object-model
   title: 'Wave A (day 7-9): addresses, groups, FQDN (agent-resolved), services, schedules, zones, tags'
   prompt: prompts/features/F-object-model.md

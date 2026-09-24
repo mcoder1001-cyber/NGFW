@@ -43,3 +43,9 @@
   (D-089). Host check now runs through P05 (vpntest.Agent): apply → empty plan → restart sim (fresh conn/descriptors,
   persisted records) → stranger adopts nothing → loss re-created → sweep → empty desired deletes all ours.
   TestIpsecOnHost green (NRestarts 4 → 4). Next: ikev2, wireguard, docs, CI.
+- 2026-09-24 ikev2 (D-069 names, D-071 globals roles, D-076 applied-once responder hostname, verified delete) and
+  wireguard (own-interface peers, async-mode global role, verified deletes, no cached peer indexes) done; all three
+  host checks green through P05 incl. restart simulation (NRestarts 4 → 4). gitleaks tripped on the questions file's
+  own quote of the old false positive (8fecca0) → recreated as f7154a9 per D-067, merge + own commits replayed.
+  Redacted CLI evidence with leak guard in /root/ngfw-wt/logs/DF-5-vppctl-evidence.txt. CI GATE PASSED on 81de066.
+  DF-5.md written. Questions Q10–Q12 added, Q4/Q7 closed.

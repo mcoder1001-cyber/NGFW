@@ -12,6 +12,10 @@ after `9aea5ca` — conflicts with "no history rewriting" in shared-host-rules �
 `c1c1c88`, same content + the test rewritten to use the name constants). The manager's salvage commit
 `cc002dc` and everything before `9aea5ca` are untouched; nothing else references the old hashes.
 Please confirm or tell me the preferred procedure for the next false positive.
+**Update (continue #2):** this very paragraph then tripped gitleaks itself (it quoted the matched
+string, commit `8fecca0`). Per D-067 (task-branch history rewrite accepted for gitleaks false
+positives, never on main) the one commit was recreated as `f7154a9` with the quote paraphrased; the
+main merge and the later own commits were replayed on top (trees identical except that line).
 
 ## Q2 — IKEv2 id data is truncated by govpp (VPP / govpp code-track candidate)
 `ikev2_id.data` is `string[64]` in ikev2_types.api and govpp v0.13's `DecodeString` stops at the first
@@ -29,7 +33,7 @@ Options: (a) leave it (ordering does not matter to VPP), (b) DF-1 adds an addres
 `interface-ip/<addr>` provided by every ip-address object, (c) add `src_interface` to the WireGuard
 message. I recommend (b) if another consumer needs it, else (a).
 
-## Q4 — `ErrRetrieveUnsupported` sentinel
+## Q4 — `ErrRetrieveUnsupported` sentinel — CLOSED (P05 merged: `vpn.ErrRetrieveUnsupported = scheduler.ErrRetrieveUnsupported`)
 P05 defines `scheduler.ErrRetrieveUnsupported` on `task/P05` (not on main yet). DF-5 declares
 `vpn.ErrRetrieveUnsupported` with the **same message**, so `scheduler.IsRetrieveUnsupported` (which
 also matches by message) recognises it. After P05 merges, a one-line follow-up can alias the
@@ -49,7 +53,7 @@ move; P11 / F-* consume the secret-reference contract documented in `docs/agent/
 Note: since D-063 the IKEv2 responder hostname is its own message `Ikev2ResponderHostname`
 (`Ikev2Responder.hostname` is reserved) — P02c's `vpn.ipsec` schema maps onto that split.
 
-## Q7 — Known restart limitation: SPD binding after an agent restart
+## Q7 — Known restart limitation: SPD binding after an agent restart — CLOSED by the ownership records (the binding record stores spd_id + pool index; needs the persisted store, Q12)
 `ipsec_spd_interface_details` reports the SPD *pool index*, not the spd_id; after an agent restart a
 binding is retrieved with `spd_id: 0` until re-bound (one ErrRecreate). Acceptable? A proper fix is a
 VPP API change (return spd_id) — V-track candidate.
@@ -62,3 +66,33 @@ docs/agent/descriptors/wireguard.md). Who wires it into the gRPC `StreamEvents` 
 When an initiator flow resolves a hostname responder, VPP fills `responder.addr`; the profile would
 then report a responder address its desired value lacks → ErrRecreate. Out of DF-5's scope (no
 initiator flows); flagged for the F-* task that adds them.
+
+## Q10 — Charon SPDs/ids after a restart (P11)
+The D-089 sweep (`ipsec.SweepAndAck`) removes orphaned charon SAs and their protect policies, then
+acknowledges the restart. It does **not** remove charon's SPDs or bypass policies: a fresh charon's
+SPD holds only bypass policies until its first CHILD_SA and cannot be told apart from a stale one.
+Stock kernel-vpp allocates SPD and SA ids from 1 upward after every start (`ref_get(next_spd_id)`),
+so a restarted charon collides with its own leftovers and with any agent id in that range.
+Options: (a) P11's vrx-strongswan build takes an id base/range from config (disjoint from the
+agent's descriptors; the sweep gets the same range) and P11 deletes charon SPDs before starting
+charon; (b) the sweep also deletes every unrecorded SPD in the charon range while charon is
+stopped (P11 would have to sequence stop → sweep → start); (c) leave as is. I recommend (a) + the
+sequencing of (b).
+
+## Q11 — Secret reference format vs D-051 (decide before P11 wires the contract)
+DF-5 references secrets by a digest of the material (`sha256:<hex>`, WireGuard private keys by
+`x25519:<public key>`) so Retrieve can compare VPP's dumped material without a cache. D-051 names
+secrets `<kind>/<name>` (RF-2 uses `psk/site-a`). An unsalted SHA-256 of a low-entropy PSK in
+desired state / plans / logs is offline-guessable. Options: (a) keep digest refs; P08 translates
+`psk/<name>` → digest when building desired state (today's contract); (b) keyed digest
+(HMAC-SHA256 with an agent-local key from the state dir, `hmac:<hex>`): same mechanics, not
+guessable offline — small change in `vpn.Ref`/`Resolve` and P08; (c) D-051 names in desired state
++ Retrieve reverse-looks-up the name by material in the secret store. I recommend (b); not changed
+in DF-5 because it is a contract decision.
+
+## Q12 — Persisted record store for P05/P08
+SPDs, SAs, SPD bindings (ownership) and the responder hostname (D-076 applied-once) live in a
+`dfkit.BootStore` passed with `ipsec.WithBootStore` / `ikev2.WithBootStore`. P05/P08 must pass the
+owner's persisted `dfkit.NewFileBootStore(<state dir>/…)` — one store per owner can be shared with
+DF-8's/DF-7's records (keys are prefixed by descriptor name). With the in-memory default a
+restarted agent recognises none of its SPDs/SAs and fails to re-create them (never adopts/deletes).

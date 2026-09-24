@@ -8,7 +8,7 @@ package ikev2_test
 // VPP-globals (sleep interval, liveness, local key) are only read or required as a non-owner;
 // the owner's setters of the getter-less ones run only behind VRX_DF5_GLOBALS=1. No peer
 // exists: configuration is asserted, not negotiation. VRX_DF5_PAUSE=<seconds> holds the objects
-// before cleanup so `vppctl show ikev2 profile` evidence can be captured.
+// before cleanup so CLI show evidence can be captured.
 
 import (
 	"context"

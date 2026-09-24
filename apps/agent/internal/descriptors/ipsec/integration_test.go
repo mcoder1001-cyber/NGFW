@@ -5,7 +5,7 @@ package ipsec_test
 // (simulated charon SAs), loopback/ipip fixtures in the slot's instance range, addresses in
 // 10.<slot>.0.0/16, UDP port 20000+100*slot (docs/agent/descriptors/ipsec.md). No peer exists:
 // configuration is asserted, not traffic. VRX_DF5_PAUSE=<seconds> holds the objects before the
-// final delete so `vppctl show` evidence can be captured from a shell.
+// final delete so CLI show evidence can be captured from a shell (docs/status/tasks/DF-5.md).
 //
 // Flow: agent 1 (P05 reconciler + DF-1 alias + the ipsec descriptors, persisted record store)
 // applies the desired state → Retrieve equals desired per object type → the same desired state

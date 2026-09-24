@@ -5,8 +5,8 @@ package wireguard_test
 // 20000+100*slot+10 (DF-5 port scheme, never 51820), addresses are in 10.<slot>.0.0/16, and every
 // key is a documented test vector derived from the slot (VPP requires peer public keys to be unique
 // VPP-wide, so slots must not share them). No peer exists: configuration is asserted, not
-// handshakes. VRX_DF5_PAUSE=<seconds> holds the objects before cleanup so `vppctl show wireguard
-// interface` / `show wireguard peer` evidence can be captured.
+// handshakes. VRX_DF5_PAUSE=<seconds> holds the objects before cleanup so CLI show evidence can be
+// captured.
 
 import (
 	"context"

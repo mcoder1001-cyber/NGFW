@@ -45,40 +45,7 @@ func TestObjectModelTopology(t *testing.T) {
 	st := newStack(t, s, dns.addr, refresh)
 	a := st.api
 
-	objects := map[string]any{
-		"tags": map[string]any{"prod": map[string]any{"color": "#1e88e5", "description": "production"}},
-		"addresses": map[string]any{
-			"web1":  map[string]any{"type": "host", "address": "192.0.2.10", "tags": []string{"prod"}},
-			"web2":  map[string]any{"type": "host", "address": "192.0.2.11", "tags": []string{"prod"}},
-			"cdn":   map[string]any{"type": "fqdn", "fqdn": cdn, "description": "content delivery"},
-			"site":  map[string]any{"type": "fqdn", "fqdn": web},
-			"pool":  map[string]any{"type": "range", "start": "10." + slotNum(s) + ".2.1", "end": "10." + slotNum(s) + ".2.20"},
-			"lan":   map[string]any{"type": "network", "prefix": "10." + slotNum(s) + ".1.0/24"},
-			"web6":  map[string]any{"type": "host", "address": "2001:db8::10"},
-			"guest": map[string]any{"type": "network", "prefix": "2001:db8:" + slotNum(s) + "::/64"},
-		},
-		"addressGroups": map[string]any{
-			"web-servers": map[string]any{"members": []string{"web1", "web2", "web6"}, "tags": []string{"prod"}},
-			"dmz":         map[string]any{"members": []string{"web-servers", "cdn", "pool"}},
-		},
-		"services": map[string]any{
-			"https": map[string]any{"protocol": "tcp", "destinationPorts": []string{"443"}},
-			"dns":   map[string]any{"protocol": "tcp-udp", "destinationPorts": []string{"53"}},
-			"ping":  map[string]any{"protocol": "icmp", "type": 8},
-		},
-		"serviceGroups": map[string]any{"web": map[string]any{"members": []string{"https"}}},
-		"schedules": map[string]any{
-			"office-hours": map[string]any{"type": "recurring", "days": []string{"mon", "tue", "wed", "thu", "fri"}, "start": "08:00", "end": "18:00"},
-			"maintenance":  map[string]any{"type": "once", "start": "2026-10-01T22:00:00+03:30", "end": "2026-10-02T02:00:00+03:30"},
-		},
-		"zones": map[string]any{"lan": map[string]any{"description": "LAN side (no interface: this run creates no VPP object)"}},
-	}
-	acl := map[string]any{
-		"lists": map[string]any{"web-in": map[string]any{"rules": []any{
-			map[string]any{"sequence": 10, "action": "permit", "destination": map[string]any{"kind": "object", "name": "web-servers"},
-				"service": map[string]any{"kind": "object", "name": "web"}, "schedule": "office-hours"},
-		}}},
-	}
+	objects, acl := sampleObjects(s, cdn, web), sampleACL()
 
 	var rev1 float64
 	var lastResolved string
@@ -187,8 +154,8 @@ func TestObjectModelTopology(t *testing.T) {
 			t.Fatalf("last-good not kept: %v", item)
 		}
 		t.Logf("resolver down: %s", js(item))
-		lines := st.agentLogLines(t, off, "last-good addresses kept")
-		if len(lines) == 0 {
+		var lines []string
+		if !waitFor(10*time.Second, func() bool { lines = st.agentLogLines(t, off, "last-good addresses kept"); return len(lines) > 0 }) {
 			t.Fatal("no last-good log line")
 		}
 		for _, l := range lines {
@@ -229,7 +196,9 @@ func TestObjectModelTopology(t *testing.T) {
 		if _, ok := changed["addresses"].(map[string]any)["web2"]; ok {
 			t.Fatal("web2 still retrieved after the change")
 		}
-		if u := a.must(200, "GET", "/api/v1/state/objects/usage?name=web-servers", nil).body; len(u["usedBy"].([]any)) != 0 {
+		// only the dmz membership is left: the rule no longer uses the group
+		if u := a.must(200, "GET", "/api/v1/state/objects/usage?name=web-servers", nil).body; len(u["usedBy"].([]any)) != 1 ||
+			u["usedBy"].([]any)[0].(map[string]any)["pointer"] != "/objects/addressGroups/dmz/members/0" {
 			t.Fatalf("usage after the change: %v", u)
 		}
 		rb := a.must(200, "POST", fmt.Sprintf("/api/v1/config/rollback/%d?comment=undo", int(rev1)), nil)
@@ -323,5 +292,49 @@ func norm(v any) any {
 		return out
 	default:
 		return v
+	}
+}
+
+// sampleObjects is the object set of the run: every kind, v4 and v6, a range, two FQDN objects (the test's zone), nested
+// groups, tags; the zone has no interface (no VPP object in this run).
+func sampleObjects(s slot, cdn, web string) map[string]any {
+	return map[string]any{
+		"tags": map[string]any{"prod": map[string]any{"color": "#1e88e5", "description": "production"}},
+		"addresses": map[string]any{
+			"web1":  map[string]any{"type": "host", "address": "192.0.2.10", "tags": []string{"prod"}},
+			"web2":  map[string]any{"type": "host", "address": "192.0.2.11", "tags": []string{"prod"}},
+			"cdn":   map[string]any{"type": "fqdn", "fqdn": cdn, "description": "content delivery"},
+			"site":  map[string]any{"type": "fqdn", "fqdn": web},
+			"pool":  map[string]any{"type": "range", "start": "10." + slotNum(s) + ".2.1", "end": "10." + slotNum(s) + ".2.20"},
+			"lan":   map[string]any{"type": "network", "prefix": "10." + slotNum(s) + ".1.0/24"},
+			"web6":  map[string]any{"type": "host", "address": "2001:db8::10"},
+			"guest": map[string]any{"type": "network", "prefix": "2001:db8:" + slotNum(s) + "::/64"},
+		},
+		"addressGroups": map[string]any{
+			"web-servers": map[string]any{"members": []string{"web1", "web2", "web6"}, "tags": []string{"prod"}},
+			"dmz":         map[string]any{"members": []string{"web-servers", "cdn", "pool"}},
+		},
+		"services": map[string]any{
+			"https": map[string]any{"protocol": "tcp", "destinationPorts": []string{"443"}},
+			"dns":   map[string]any{"protocol": "tcp-udp", "destinationPorts": []string{"53"}},
+			"ping":  map[string]any{"protocol": "icmp", "type": 8},
+		},
+		"serviceGroups": map[string]any{"web": map[string]any{"members": []string{"https"}}},
+		"schedules": map[string]any{
+			"office-hours": map[string]any{"type": "recurring", "days": []string{"mon", "tue", "wed", "thu", "fri"}, "start": "08:00", "end": "18:00"},
+			"maintenance":  map[string]any{"type": "once", "start": "2026-10-01T22:00:00+03:30", "end": "2026-10-02T02:00:00+03:30"},
+		},
+		"zones": map[string]any{"lan": map[string]any{"description": "LAN side (no interface: this run creates no VPP object)"}},
+	}
+}
+
+// sampleACL is an ACL list that uses the objects (not applied by this agent build — F-acl — but part of the running
+// document, so where-used and the reference checks see it).
+func sampleACL() map[string]any {
+	return map[string]any{
+		"lists": map[string]any{"web-in": map[string]any{"rules": []any{
+			map[string]any{"sequence": 10, "action": "permit", "destination": map[string]any{"kind": "object", "name": "web-servers"},
+				"service": map[string]any{"kind": "object", "name": "web"}, "schedule": "office-hours"},
+		}}},
 	}
 }

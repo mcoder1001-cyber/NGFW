@@ -416,12 +416,20 @@ func (a *api) patch(path string, body any) resp {
 	return a.must(200, "PATCH", "/api/v1/config"+path, body, "content-type", "application/merge-patch+json")
 }
 
-// commit commits the candidate and returns the response body.
+// commit commits the candidate and returns the response body. The ACL in the document is not applied by this agent
+// build (F-acl), so "partially-applied" with notApplied = [acl] is the expected outcome whenever the document has one.
 func (a *api) commit(comment string) map[string]any {
 	a.t.Helper()
 	r := a.must(200, "POST", "/api/v1/config/commit?comment="+comment, nil)
-	if r.body["status"] != "applied" {
+	na := fmt.Sprint(r.body["notApplied"])
+	ok := r.body["status"] == "applied" || (r.body["status"] == "partially-applied" && na == "[acl]")
+	if !ok {
 		a.t.Fatalf("commit %s: %s", comment, r.raw)
+	}
+	for _, res := range r.body["results"].([]any) {
+		if m := res.(map[string]any); m["code"] != "ok" {
+			a.t.Fatalf("commit %s: object result %v", comment, m)
+		}
 	}
 	return r.body
 }

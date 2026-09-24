@@ -2569,7 +2569,7 @@ tasks:
   - TD-6
   priority: 4
   est_hours: 2
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D0.6
@@ -2581,7 +2581,7 @@ tasks:
   started: 2026-09-24T16:09
   finished: ''
   notes: 'D-116: from TD-6-review.md F1/F2; F3–F9 in docs/tech-debt.md | SPECULATIVE from task/TD-6 (D-114) | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118) | done 902a935, CI green (fresh
-    cache), harness 138/138; focused verify (sonnet); check_health retry → tech-debt'
+    cache), harness 138/138; focused verify (sonnet); check_health retry → tech-debt | merged bd205c13 (squash 04d78d0f, D-112), main gate green'
 - id: TD-12
   title: De-flake load-sensitive tests that break merge gates (TestGRPCRoundTrip, TestPendingSurvives…, strongswan TestWatchResync, api vitest fetch timeout)
   prompt: /root/ngfw-wt/TD-12.envelope.md
@@ -2960,7 +2960,7 @@ tasks:
   - TD-7
   priority: 5
   est_hours: 6
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.6

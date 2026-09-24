@@ -2,26 +2,26 @@
 
 Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 34.0% by hours (391/1151.5 h), 34.7% by tasks (43/124)**
+**Overall: 34.1% by hours (393/1151.5 h), 35.5% by tasks (44/124)**
 
 | state | tasks |
 |---|---|
-| merged | 43 |
-| review | 10 |
+| merged | 44 |
+| review | 9 |
 | running | 17 |
-| ready | 16 |
+| ready | 17 |
 | parked | 1 |
 | failed | 0 |
-| todo | 37 |
+| todo | 36 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
-| S2 | 255 / 270 | 94.4% | 25/28 | 0 | 0 | 1 |
+| S2 | 257 / 270 | 95.2% | 26/28 | 0 | 0 | 1 |
 | S3 | 16 / 16 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S4 | 13 / 591.0 | 2.2% | 4/66 | 17 | 15 | 0 |
-| S5 | 28 / 147.5 | 19.0% | 3/15 | 0 | 1 | 0 |
+| S5 | 28 / 147.5 | 19.0% | 3/15 | 0 | 2 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
 ## Running / review
@@ -43,7 +43,6 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 - F-kea-dhcp-relay — Wave B (day 10-12): Kea DHCPv4/v6 server + VPP DHCP relay/client (running, unassigned)
 - F-unbound-chrony-syslog — Wave B (day 10-12): Unbound DNS, chrony NTP, syslog export + log explorer (running, unassigned)
 - TD-4 — Auth hardening follow-ups from TD-2 (D-100): account disable bumps the credential generation; API-key creation from a JWT session requires the current password; login gets the same transport check as password set (review, ngfw-46 slot8)
-- TD-7 — apply-startup.sh follow-ups from the TD-6 review: F1 concurrent manual rollback of one apply (per-apply lock + cancel the dead-man), F2 scenario 40 bound independent of load (count ip neigh calls) (review, ngfw-46 slot6)
 - WEB-1 — ui-kit SchemaForm gaps: presence toggle, port/ip-range, datetime/time/timezone/color widgets, LTR identifiers in RTL, per-path i18n, itemKey summaries + rule-editor table view (running, ngfw-46 slot11)
 - WEB-2 — Config screen kit (generic list+drawer+live-status over any candidate path) + data widgets + Secrets page (review, ngfw-46 slot1)
 - WEB-3 — Committed browser harness: e2e lib, shots.mjs, screens/_example.mjs (P08 screenshot script was lost, F6) (running, unassigned)

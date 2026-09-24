@@ -71,6 +71,15 @@ service Dataplane {
   // `// ----- <task-id> -----` section at the end of this file; numbers only from wave-A-hotspots.md §2.
   // wave-A: F-bonding
   // wave-A: F-bridge-l2
+
+  // BridgeDomainState dumps the live state of this agent's bridge domains (bd_tag "<owner>:…"): flags,
+  // MAC aging, members with their port role and split-horizon group, the BVI and the number of learned
+  // and static L2 FIB entries (docs/contracts/proto.md "F-bridge-l2"). Read-only.
+  rpc BridgeDomainState(BridgeDomainStateRequest) returns (BridgeDomainStateResponse);
+  // BridgeDomainMacs pages through the L2 FIB of one of this agent's bridge domains (l2_fib_table_dump),
+  // at most 1000 entries per call, so a message stays bounded however large the table is. Read-only.
+  rpc BridgeDomainMacs(BridgeDomainMacsRequest) returns (BridgeDomainMacsResponse);
+
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
@@ -836,6 +845,10 @@ message Interface {
 
   // wave-A: F-bonding
   // wave-A: F-bridge-l2
+
+  // L2 role of the interface (F-bridge-l2, D-109 c): bridge membership, VLAN tag rewrite, MAC filter; unset = L3 only.
+  BridgeL2Port l2 = 14;
+
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-loopback-bvi-gso-lldp-span
@@ -878,6 +891,10 @@ message Subinterface {
   DhcpClient dhcp_client = 11;
 
   // wave-A: F-bridge-l2
+
+  // L2 role of the sub-interface (F-bridge-l2, D-109 c): bridge membership, VLAN tag rewrite; unset = L3 only.
+  BridgeL2Port l2 = 12;
+
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
 }
@@ -918,6 +935,11 @@ message RoutingConfig {
   BfdConfig bfd = 8;
   // Routing policy: prefix lists and route maps (FRR).
   RoutingPolicy policy = 9;
+
+  // wave-A: F-bridge-l2
+
+  // L2 switching container (F-bridge-l2, D-109 c): bridge domains, L2/L3 cross-connects, MAC filter; unset = none.
+  BridgeL2Config l2 = 20;
 
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
@@ -3437,6 +3459,210 @@ message RemoteAccessProfile {
 // ----- F-bonding -----
 
 // ----- F-bridge-l2 -----
+
+// BridgeL2Port mirrors `interfaces.<if>.l2` and `interfaces.<if>.subinterfaces.<id>.l2`
+// (packages/schema/src/domains/ext/bridge-l2.ts).
+message BridgeL2Port {
+  // Name of the bridge domain (a key of routing.l2.bridge_domains) the interface is a member of; unset = not bridged.
+  optional string bridge_domain = 1;
+  // Split-horizon group 0–255, 0 = none (sw_interface_set_l2_bridge.shg); Zod default 0.
+  optional uint32 shg = 2;
+  // Bridge virtual interface (port_type BVI; a loopback, one per bridge domain); Zod default false.
+  optional bool bvi = 3;
+  // Unknown-unicast forwarder (port_type UU_FWD); Zod default false.
+  optional bool uu_fwd = 4;
+  // VLAN tag rewrite on the L2 port (l2_interface_vlan_tag_rewrite); unset = none.
+  BridgeL2TagRewrite tag_rewrite = 5;
+  // mactime filter enabled on this parent interface (mactime_enable_disable); Zod default false.
+  optional bool mac_filter = 6;
+}
+
+// BridgeL2TagRewrite mirrors `….l2.tagRewrite`.
+message BridgeL2TagRewrite {
+  // "push-1" | "push-2" | "pop-1" | "pop-2" | "translate-1-1" | "translate-1-2" | "translate-2-1" | "translate-2-2".
+  optional string op = 1;
+  // Outer VLAN id 1–4094 written by push / translate; unset for pop.
+  optional uint32 tag1 = 2;
+  // Inner VLAN id 1–4094 written by push-2 / translate-1-2 / translate-2-2.
+  optional uint32 tag2 = 3;
+  // Pushed outer tag is 802.1ad (0x88a8) instead of 802.1Q; Zod default false.
+  optional bool dot1ad = 4;
+}
+
+// BridgeL2Config mirrors `routing.l2`.
+message BridgeL2Config {
+  // Bridge domains keyed by name.
+  map<string, BridgeL2Domain> bridge_domains = 1;
+  // L2 cross-connects keyed by the receiving interface (one direction each).
+  map<string, BridgeL2Xconnect> xconnects = 2;
+  // L3 cross-connects keyed by the receiving interface.
+  map<string, BridgeL2L3xc> l3xc = 3;
+  // Time-range MAC filter devices keyed by name.
+  map<string, BridgeL2MacFilter> mac_filters = 4;
+}
+
+// BridgeL2Domain mirrors `routing.l2.bridgeDomains.<name>` (bridge_domain_add_del_v2).
+message BridgeL2Domain {
+  // VPP bridge-domain id 1–16777215 (tunnels.*.bridge_domain references it).
+  optional uint32 id = 1;
+  // Flood broadcast / multicast; Zod default true.
+  optional bool flood = 2;
+  // Flood unknown unicast; Zod default true.
+  optional bool uu_flood = 3;
+  // Forward by the L2 FIB; Zod default true.
+  optional bool forward = 4;
+  // Learn source MACs; Zod default true.
+  optional bool learn = 5;
+  // ARP termination; Zod default false.
+  optional bool arp_term = 6;
+  // MAC aging in minutes 0–255, 0 = off; Zod default 0.
+  optional uint32 mac_age_min = 7;
+  // Static L2 FIB entries.
+  repeated BridgeL2StaticMac static_macs = 8;
+}
+
+// BridgeL2StaticMac mirrors one entry of `….staticMacs` (l2fib_add_del, static).
+message BridgeL2StaticMac {
+  // MAC address "aa:bb:cc:dd:ee:ff".
+  optional string mac = 1;
+  // Member interface the MAC is reached through.
+  optional string interface = 2;
+}
+
+// BridgeL2Xconnect mirrors `routing.l2.xconnects.<rx>` (sw_interface_set_l2_xconnect).
+message BridgeL2Xconnect {
+  // Transmit interface.
+  optional string tx = 1;
+}
+
+// BridgeL2L3xc mirrors `routing.l2.l3xc.<rx>` (l3xc_update).
+message BridgeL2L3xc {
+  // IPv4 paths (one l3xc object per family).
+  repeated BridgeL2L3xcPath ipv4_paths = 1;
+  // IPv6 paths.
+  repeated BridgeL2L3xcPath ipv6_paths = 2;
+}
+
+// BridgeL2L3xcPath mirrors one path of an L3 cross-connect (a fib_path).
+message BridgeL2L3xcPath {
+  // Next-hop address; unset = interface-only path or table lookup.
+  optional string next_hop = 1;
+  // Egress interface; unset = resolve / look up in the VRF.
+  optional string interface = 2;
+  // VRF name of the path's table; Zod default "default".
+  optional string vrf = 3;
+  // Weight 1–255; Zod default 1.
+  optional uint32 weight = 4;
+  // Preference 0–255; Zod default 0.
+  optional uint32 preference = 5;
+}
+
+// BridgeL2MacFilter mirrors `routing.l2.macFilters.<name>` (mactime_add_del_range).
+message BridgeL2MacFilter {
+  // Source MAC "aa:bb:cc:dd:ee:ff" of the device.
+  optional string mac = 1;
+  // "allow" | "drop"; Zod default "allow".
+  optional string action = 2;
+  // Weekly ranges; empty = the action applies always (static allow / drop).
+  repeated BridgeL2MacFilterRange ranges = 3;
+}
+
+// BridgeL2MacFilterRange mirrors one entry of `….ranges`.
+message BridgeL2MacFilterRange {
+  // Days "mon" … "sun".
+  repeated string days = 1;
+  // Start "HH:MM".
+  optional string start = 2;
+  // End "HH:MM" (after start; "24:00" = midnight).
+  optional string end = 3;
+}
+
+// BridgeDomainStateRequest selects bridge domains by VPP id; empty = every bridge domain of this agent.
+message BridgeDomainStateRequest {
+  repeated uint32 ids = 1;
+  // Expected agent owner (as ApplyRequest.owner); empty = the agent's owner.
+  string owner = 2;
+}
+
+// BridgeDomainStateResponse is the live bridge-domain table of this agent (bd_tag "<owner>:…").
+message BridgeDomainStateResponse {
+  repeated BridgeDomainStatus bridge_domains = 1;
+  string owner = 2;
+  google.protobuf.Timestamp retrieved_at = 3;
+}
+
+// BridgeDomainStatus is one bridge domain as VPP reports it (bridge_domain_dump + l2_fib_table_dump).
+message BridgeDomainStatus {
+  uint32 id = 1;
+  // Record name from the bridge-domain tag ("" when VPP holds none, e.g. created by an older agent).
+  string name = 2;
+  bool flood = 3;
+  bool uu_flood = 4;
+  bool forward = 5;
+  bool learn = 6;
+  bool arp_term = 7;
+  bool arp_ufwd = 8;
+  // MAC aging in minutes, 0 = off.
+  uint32 mac_age_min = 9;
+  // Logical name of the BVI member ("" = none).
+  string bvi = 10;
+  // Logical name of the uu-fwd member ("" = none).
+  string uu_fwd = 11;
+  repeated BridgeDomainMember members = 12;
+  // Learned (dynamic) L2 FIB entries.
+  uint32 learned_macs = 13;
+  // Static, filter and BVI L2 FIB entries.
+  uint32 static_macs = 14;
+}
+
+// BridgeDomainMember is one member of a bridge domain.
+message BridgeDomainMember {
+  // Logical interface name (D-069); VPP's name for an interface this agent cannot name by tag.
+  string interface = 1;
+  uint32 sw_if_index = 2;
+  // "normal" | "bvi" | "uu-fwd".
+  string port_type = 3;
+  // Split-horizon group, 0 = none.
+  uint32 shg = 4;
+  // VLAN tag rewrite in the configuration spelling ("pop-1", …; "" = none).
+  string tag_rewrite = 5;
+}
+
+// BridgeDomainMacsRequest pages through one bridge domain's L2 FIB.
+message BridgeDomainMacsRequest {
+  // VPP bridge-domain id; must be one of this agent's.
+  uint32 bd_id = 1;
+  // Index of the first entry (entries are ordered by MAC).
+  uint32 offset = 2;
+  // Page size 1–1000; 0 = 100. More than 1000 fails with INVALID_ARGUMENT.
+  uint32 limit = 3;
+  // Expected agent owner; empty = the agent's owner.
+  string owner = 4;
+}
+
+// BridgeDomainMacsResponse is one page of an L2 FIB.
+message BridgeDomainMacsResponse {
+  repeated BridgeDomainMac macs = 1;
+  // Number of entries in the whole table (for paging).
+  uint32 total = 2;
+  string owner = 3;
+  google.protobuf.Timestamp retrieved_at = 4;
+}
+
+// BridgeDomainMac is one L2 FIB entry.
+message BridgeDomainMac {
+  // "aa:bb:cc:dd:ee:ff".
+  string mac = 1;
+  // Logical interface name ("" for a filter entry).
+  string interface = 2;
+  uint32 sw_if_index = 3;
+  // Static entry (configured); false = learned.
+  bool static = 4;
+  // Filter (drop) entry.
+  bool filter = 5;
+  // BVI entry.
+  bool bvi = 6;
+}
 
 // ----- F-loopback-bvi-gso-lldp-span -----
 

@@ -827,7 +827,107 @@ export interface components {
                */
               setBroadcastFlag: boolean;
             };
+            /** L2 switching */
+            l2?: {
+              /** Bridge domain */
+              bridgeDomain?: string;
+              /**
+               * Split-horizon group
+               * @default 0
+               */
+              shg: number;
+              /**
+               * BVI
+               * @default false
+               */
+              bvi: boolean;
+              /**
+               * Unknown-unicast forwarder
+               * @default false
+               */
+              uuFwd: boolean;
+              /** VLAN tag rewrite */
+              tagRewrite?: {
+                /**
+                 * Operation
+                 * @enum {string}
+                 */
+                op:
+                  | 'push-1'
+                  | 'push-2'
+                  | 'pop-1'
+                  | 'pop-2'
+                  | 'translate-1-1'
+                  | 'translate-1-2'
+                  | 'translate-2-1'
+                  | 'translate-2-2';
+                /** Tag 1 */
+                tag1?: number;
+                /** Tag 2 */
+                tag2?: number;
+                /**
+                 * 802.1ad outer tag
+                 * @default false
+                 */
+                dot1ad: boolean;
+              };
+              /**
+               * Time-range MAC filter
+               * @default false
+               */
+              macFilter: boolean;
+            };
           };
+        };
+        /** L2 switching */
+        l2?: {
+          /** Bridge domain */
+          bridgeDomain?: string;
+          /**
+           * Split-horizon group
+           * @default 0
+           */
+          shg: number;
+          /**
+           * BVI
+           * @default false
+           */
+          bvi: boolean;
+          /**
+           * Unknown-unicast forwarder
+           * @default false
+           */
+          uuFwd: boolean;
+          /** VLAN tag rewrite */
+          tagRewrite?: {
+            /**
+             * Operation
+             * @enum {string}
+             */
+            op:
+              | 'push-1'
+              | 'push-2'
+              | 'pop-1'
+              | 'pop-2'
+              | 'translate-1-1'
+              | 'translate-1-2'
+              | 'translate-2-1'
+              | 'translate-2-2';
+            /** Tag 1 */
+            tag1?: number;
+            /** Tag 2 */
+            tag2?: number;
+            /**
+             * 802.1ad outer tag
+             * @default false
+             */
+            dot1ad: boolean;
+          };
+          /**
+           * Time-range MAC filter
+           * @default false
+           */
+          macFilter: boolean;
         };
       };
     };
@@ -1587,6 +1687,158 @@ export interface components {
            */
           enabled: boolean;
         }[];
+      };
+      /**
+       * L2 switching
+       * @description Bridge domains, L2/L3 cross-connects and the time-range MAC filter.
+       */
+      l2?: {
+        /**
+         * Bridge domains
+         * @default {}
+         */
+        bridgeDomains: {
+          [key: string]: {
+            /** Bridge-domain ID */
+            id: number;
+            /**
+             * Flood
+             * @default true
+             */
+            flood: boolean;
+            /**
+             * Unknown-unicast flood
+             * @default true
+             */
+            uuFlood: boolean;
+            /**
+             * Forward
+             * @default true
+             */
+            forward: boolean;
+            /**
+             * Learn
+             * @default true
+             */
+            learn: boolean;
+            /**
+             * ARP termination
+             * @default false
+             */
+            arpTerm: boolean;
+            /**
+             * MAC aging (minutes)
+             * @default 0
+             */
+            macAgeMin: number;
+            /**
+             * Static MACs
+             * @default []
+             */
+            staticMacs: {
+              /** MAC address */
+              mac: string;
+              /** Interface */
+              interface: string;
+            }[];
+          };
+        };
+        /**
+         * L2 cross-connects
+         * @default {}
+         */
+        xconnects: {
+          [key: string]: {
+            /** Transmit interface */
+            tx: string;
+          };
+        };
+        /**
+         * L3 cross-connects
+         * @default {}
+         */
+        l3xc: {
+          [key: string]: {
+            /**
+             * IPv4 paths
+             * @default []
+             */
+            ipv4Paths: {
+              /** Next hop */
+              nextHop?: string;
+              /** Interface */
+              interface?: string;
+              /**
+               * VRF
+               * @default default
+               */
+              vrf: string;
+              /**
+               * Weight
+               * @default 1
+               */
+              weight: number;
+              /**
+               * Preference
+               * @default 0
+               */
+              preference: number;
+            }[];
+            /**
+             * IPv6 paths
+             * @default []
+             */
+            ipv6Paths: {
+              /** Next hop */
+              nextHop?: string;
+              /** Interface */
+              interface?: string;
+              /**
+               * VRF
+               * @default default
+               */
+              vrf: string;
+              /**
+               * Weight
+               * @default 1
+               */
+              weight: number;
+              /**
+               * Preference
+               * @default 0
+               */
+              preference: number;
+            }[];
+          };
+        };
+        /**
+         * Time-range MAC filter
+         * @default {}
+         */
+        macFilters: {
+          [key: string]: {
+            /** MAC address */
+            mac: string;
+            /**
+             * Action
+             * @default allow
+             * @enum {string}
+             */
+            action: 'allow' | 'drop';
+            /**
+             * Weekly ranges
+             * @default []
+             */
+            ranges: {
+              /** Days */
+              days: ('mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun')[];
+              /** Start */
+              start: string;
+              /** End */
+              end: string;
+            }[];
+          };
+        };
       };
     };
     /**

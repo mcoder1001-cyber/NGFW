@@ -690,6 +690,29 @@ tasks:
     review items 2,3,6,7,11 open uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/P08.continue.md | 08:17 worker done ffecf13 CI green; topology
     + restart-safety on slot 1 (NRestarts 6→6); its 07:27 run caused the V24 crash (confirmed); review spawned | 14:00 ngfw-46: review CONTINUE (Agent tool), envelope /root/ngfw-wt/P08.review2.md; fix round
     follows after ci full (PID 10894) ends; F1/F4 decided D-105 | review BLOCK 6022f0d (N1 hostDoc, F1/F2, N2, F5 …); fix round 1 spawned by ngfw-46, envelope /root/ngfw-wt/P08.fix1.md (D-107)'
+- id: W-seed
+  title: 'Wave-A seed commit: hotspot anchors (A1,A2,A4,C1-C3,C5,P1,P4-P6,W1-W3), one-entry-per-line lists, Env event-publish + Resync hooks (A5), subsystems.SlotIDRange(), vpn/services page shells, proto.md
+    "Feature RPCs" heading — no behaviour change'
+  prompt: docs/status/wave-A-hotspots.md
+  template: ''
+  stage: S4
+  deps:
+  - P08
+  - TD-2
+  priority: 2
+  est_hours: 2
+  state: todo
+  parked_on: ''
+  wbs:
+  - D0.1
+  scope: hotspots §4.2 + launch plan §5.2; no feature logic
+  files_owned: hotspot files listed in docs/status/wave-A-hotspots.md §1 (anchors/registration only)
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: 'D-109: seeded by one worker right after P08+TD-2 merge so 17 parallel features merge without union conflicts'
 - id: F-vlan-qinq
   title: 'Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking'
   prompt: prompts/features/F-vlan-qinq.md
@@ -698,6 +721,7 @@ tasks:
   deps:
   - P08
   - DF-1
+  - W-seed
   priority: 3
   est_hours: 10
   state: todo
@@ -705,13 +729,13 @@ tasks:
   wbs:
   - D1.4
   scope: 802.1q sub-interfaces + QinQ stacking
-  files_owned: ''
+  files_owned: '- apps/web/src/domains/interfaces/subinterfaces/**'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | envelope draft docs/status/tasks/F-vlan-qinq.envelope.md (prep-waveA, D-109)'
 - id: F-bonding
   title: 'Wave A (day 7-9): LACP/XOR/RR/active-backup bonds'
   prompt: prompts/features/F-bonding.md
@@ -720,6 +744,7 @@ tasks:
   deps:
   - P08
   - DF-1
+  - W-seed
   priority: 3
   est_hours: 10
   state: todo
@@ -727,14 +752,13 @@ tasks:
   wbs:
   - D1.5
   scope: LACP/XOR/RR/active-backup bonds
-  files_owned: apps/agent/internal/descriptors/bond/** docs/agent/descriptors/bond.md apps/agent/internal/agent/project_bonding*.go apps/api/src/features/bonding/** apps/web/src/domains/interfaces/bonding/**
-    apps/web/src/locales/*/bonding.json docs/user/interfaces/bonding.md test/topology/bonding/** docs/status/tasks/F-bonding*.md
+  files_owned: '- apps/agent/internal/descriptors/bond/**, docs/agent/descriptors/bond.md'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | envelope draft docs/status/tasks/F-bonding.envelope.md (prep-waveA, D-109)'
 - id: F-bridge-l2
   title: 'Wave A (day 7-9): bridge domains, L2XC/L3XC, split-horizon, MAC aging, time-range MAC filter'
   prompt: prompts/features/F-bridge-l2.md
@@ -743,6 +767,7 @@ tasks:
   deps:
   - P08
   - DF-1
+  - W-seed
   priority: 3
   est_hours: 10
   state: todo
@@ -750,14 +775,13 @@ tasks:
   wbs:
   - D1.6
   scope: bridge domains, L2XC/L3XC, split-horizon, MAC aging, time-range MAC filter
-  files_owned: apps/agent/internal/descriptors/{l2,l3xc,mactime}/** docs/agent/descriptors/{l2,l3xc,mactime}.md apps/agent/internal/agent/project_bridge_l2*.go apps/api/src/features/bridge-l2/** apps/web/src/domains/interfaces/bridge-l2/**
-    apps/web/src/locales/*/bridge-l2.json docs/user/interfaces/bridge-l2.md test/topology/bridge-l2/** docs/status/tasks/F-bridge-l2*.md
+  files_owned: '- apps/agent/internal/descriptors/{l2,l3xc,mactime}/**, docs/agent/descriptors/{l2,l3xc,mactime}.md'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | envelope draft docs/status/tasks/F-bridge-l2.envelope.md (prep-waveA, D-109)'
 - id: F-loopback-bvi-gso-lldp-span
   title: 'Wave A (day 7-9): loopback/BVI, GSO/offload flags, LLDP, SPAN/ERSPAN, nsim'
   prompt: prompts/features/F-loopback-bvi-gso-lldp-span.md
@@ -768,6 +792,7 @@ tasks:
   - DF-1
   - DF-7
   - F-bridge-l2
+  - W-seed
   priority: 3
   est_hours: 10
   state: todo
@@ -779,16 +804,14 @@ tasks:
   - D1.10
   - D1.9
   scope: loopback/BVI, GSO/offload flags, LLDP, SPAN/ERSPAN, nsim
-  files_owned: apps/agent/internal/descriptors/{lldp,span,gso,nsim}/** docs/agent/descriptors/{lldp,span,gso,nsim}.md apps/agent/internal/agent/project_loopback_bvi_gso_lldp_span*.go apps/api/src/features/loopback-bvi-gso-lldp-span/**
-    apps/web/src/domains/interfaces/loopback-bvi-gso-lldp-span/** apps/web/src/locales/*/loopback-bvi-gso-lldp-span.json docs/user/interfaces/loopback-bvi-gso-lldp-span.md test/topology/loopback-bvi-gso-lldp-span/**
-    docs/status/tasks/F-loopback-bvi-gso-lldp-span*.md
+  files_owned: '- apps/agent/internal/descriptors/{lldp,span,gso,nsim}/**, docs/agent/descriptors/{lldp,span,gso,nsim}.md'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
   notes: 'prompts-s4: suggested deps +F-bridge-l2 (BVI membership uses its l2 descriptor); soft +F-tunnels (ERSPAN over GRE) — docs/status/tasks/prompts-s4.md | D-105: add the semantic check refusing loop16000–loop16383
-    (reserved for agent quarantine holders, TD-3 M2) on this task''s contract branch'
+    (reserved for agent quarantine holders, TD-3 M2) on this task''s contract branch | envelope draft docs/status/tasks/F-loopback-bvi-gso-lldp-span.envelope.md (prep-waveA, D-109)'
 - id: F-vrf-static-ecmp
   title: 'Wave A (day 7-9): VRF mgmt, static routes, ECMP, FIB browser (paged), ping/traceroute actions'
   prompt: prompts/features/F-vrf-static-ecmp.md
@@ -796,6 +819,7 @@ tasks:
   stage: S4
   deps:
   - P08
+  - W-seed
   priority: 3
   est_hours: 10
   state: todo
@@ -806,15 +830,14 @@ tasks:
   - D2.5
   - D2.6
   scope: VRF mgmt, static routes, ECMP, FIB browser (paged), ping/traceroute actions
-  files_owned: apps/agent/internal/descriptors/core/{route,vrf}*.go apps/agent/internal/descriptors/svs/** docs/agent/descriptors/svs.md apps/agent/internal/actions/vrf-static-ecmp/** apps/agent/internal/agent/project_vrf_static_ecmp*.go
-    apps/api/src/features/vrf-static-ecmp/** apps/web/src/domains/routing/vrf-static-ecmp/** apps/web/src/locales/*/vrf-static-ecmp.json docs/user/routing/vrf-static-ecmp.md test/topology/vrf-static-ecmp/**
-    docs/status/tasks/F-vrf-static-ecmp*.md
+  files_owned: '- apps/agent/internal/descriptors/core/{route,vrf}*.go and apps/agent/internal/descriptors/core/core_model.proto + core_model.pb.go (append-only: a next-hop table field on RoutePath; nothing
+    renamed) — no other wave-A task edits them'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | envelope draft docs/status/tasks/F-vrf-static-ecmp.envelope.md (prep-waveA, D-109)'
 - id: F-neighbors-ra
   title: 'Wave A (day 7-9): ARP/ND table, proxy-ND, IPv6 RA, DAD'
   prompt: prompts/features/F-neighbors-ra.md
@@ -823,6 +846,7 @@ tasks:
   deps:
   - P08
   - DF-2
+  - W-seed
   priority: 3
   est_hours: 10
   state: todo
@@ -830,14 +854,13 @@ tasks:
   wbs:
   - D2.3
   scope: ARP/ND table, proxy-ND, IPv6 RA, DAD
-  files_owned: apps/agent/internal/descriptors/{ip_neighbor,ip6_nd,arp}/** docs/agent/descriptors/{ip_neighbor,ip6_nd,arp}.md apps/agent/internal/actions/neighbors-ra/** apps/agent/internal/agent/project_neighbors_ra*.go
-    apps/api/src/features/neighbors-ra/** apps/web/src/domains/routing/neighbors-ra/** apps/web/src/locales/*/neighbors-ra.json docs/user/routing/neighbors-ra.md test/topology/neighbors-ra/** docs/status/tasks/F-neighbors-ra*.md
+  files_owned: '- apps/agent/internal/desired/neighbors_ra*.go (builder + assembler for the per-interface, vrfs and routing leaves; `desired/interfaces.go` stays P08''s)'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | envelope draft docs/status/tasks/F-neighbors-ra.envelope.md (prep-waveA, D-109)'
 - id: F-rpf-adl-pbr
   title: 'Wave A (day 7-9): uRPF strict/loose, ADL, ABF policy-based routing'
   prompt: prompts/features/F-rpf-adl-pbr.md
@@ -848,6 +871,7 @@ tasks:
   - DF-2
   - DF-4
   - TD-3
+  - W-seed
   priority: 3
   est_hours: 10
   state: todo
@@ -857,14 +881,14 @@ tasks:
   - D2.7
   - D3.9
   scope: uRPF strict/loose, ADL, ABF policy-based routing
-  files_owned: apps/agent/internal/descriptors/{urpf,adl,auto_sdl,abf,classify,ip_session_redirect}/** docs/agent/descriptors/{urpf,adl,auto_sdl,abf,classify,ip_session_redirect}.md apps/agent/internal/agent/project_rpf_adl_pbr*.go
-    apps/api/src/features/rpf-adl-pbr/** apps/web/src/domains/routing/rpf-adl-pbr/** apps/web/src/locales/*/rpf-adl-pbr.json docs/user/routing/rpf-adl-pbr.md test/topology/rpf-adl-pbr/** docs/status/tasks/F-rpf-adl-pbr*.md
+  files_owned: '- apps/agent/internal/descriptors/auto_sdl/**, docs/agent/descriptors/auto_sdl.md (new, based on descriptors/dfkit, D-077)'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: 'prompts-s4: suggested deps +DF-4 (ABF policies resolve ACLs by name) — docs/status/tasks/prompts-s4.md | D-104: +dep TD-3 (TD-3 owns descriptors/{classify,adl} until merged)'
+  notes: 'prompts-s4: suggested deps +DF-4 (ABF policies resolve ACLs by name) — docs/status/tasks/prompts-s4.md | D-104: +dep TD-3 (TD-3 owns descriptors/{classify,adl} until merged) | envelope draft docs/status/tasks/F-rpf-adl-pbr.envelope.md
+    (prep-waveA, D-109)'
 - id: F-object-model
   title: 'Wave A (day 7-9): addresses, groups, FQDN (agent-resolved), services, schedules, zones, tags'
   prompt: prompts/features/F-object-model.md
@@ -872,6 +896,7 @@ tasks:
   stage: S4
   deps:
   - P08
+  - W-seed
   priority: 3
   est_hours: 10
   state: todo
@@ -879,14 +904,13 @@ tasks:
   wbs:
   - D5.1
   scope: addresses, groups, FQDN (agent-resolved), services, schedules, zones, tags
-  files_owned: apps/agent/internal/objects/** apps/agent/internal/agent/project_object_model*.go apps/api/src/features/object-model/** apps/web/src/domains/firewall/object-model/** apps/web/src/locales/*/object-model.json
-    docs/user/firewall/object-model.md test/topology/object-model/** docs/status/tasks/F-object-model*.md
+  files_owned: '- apps/agent/internal/objects/** (library, resolver, the `objects.*` descriptor family and its store), docs/agent/objects.md'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | envelope draft docs/status/tasks/F-object-model.envelope.md (prep-waveA, D-109)'
 - id: F-acl
   title: 'Wave A (day 7-9): MACIP/L3/L4 ACLs, attachments, hit counters, 100k-rule editor, ADL/Auto-SDL'
   prompt: prompts/features/F-acl.md
@@ -896,6 +920,7 @@ tasks:
   - P08
   - DF-4
   - F-object-model
+  - W-seed
   priority: 3
   est_hours: 10
   state: todo
@@ -905,14 +930,13 @@ tasks:
   - D5.4
   - D5.5
   scope: MACIP/L3/L4 ACLs, attachments, hit counters, 100k-rule editor, ADL/Auto-SDL
-  files_owned: apps/agent/internal/descriptors/acl/** docs/agent/descriptors/acl.md apps/agent/internal/agent/project_acl*.go apps/api/src/features/acl/** apps/web/src/domains/firewall/acl/** apps/web/src/locales/*/acl.json
-    docs/user/firewall/acl.md test/topology/acl/** docs/status/tasks/F-acl*.md
+  files_owned: '- apps/agent/internal/descriptors/acl/** (gap-only: edit only for a proven defect, name the test) and docs/agent/descriptors/acl.md'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: 'prompts-s4: suggested deps soft +F-rpf-adl-pbr (ADL/Auto-SDL screens it links to) — docs/status/tasks/prompts-s4.md'
+  notes: 'prompts-s4: suggested deps soft +F-rpf-adl-pbr (ADL/Auto-SDL screens it links to) — docs/status/tasks/prompts-s4.md | envelope draft docs/status/tasks/F-acl.envelope.md (prep-waveA, D-109)'
 - id: F-host-acl-nftables
   title: 'Wave A (day 7-9): local-in ACL + nftables host policy renderer'
   prompt: prompts/features/F-host-acl-nftables.md
@@ -922,6 +946,7 @@ tasks:
   - P08
   - DF-4
   - F-object-model
+  - W-seed
   priority: 3
   est_hours: 10
   state: todo
@@ -929,14 +954,14 @@ tasks:
   wbs:
   - D5.3
   scope: local-in ACL + nftables host policy renderer
-  files_owned: apps/agent/internal/renderers/nftables/** docs/agent/renderers/nftables.md apps/agent/internal/agent/project_host_acl_nftables*.go apps/api/src/features/host-acl-nftables/** apps/web/src/domains/firewall/host-acl-nftables/**
-    apps/web/src/locales/*/host-acl-nftables.json docs/user/firewall/host-acl-nftables.md test/topology/host-acl-nftables/** docs/status/tasks/F-host-acl-nftables*.md
+  files_owned: '- apps/agent/internal/renderers/nftables/** and docs/agent/renderers/nftables.md'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: 'prompts-s4: suggested deps +F-object-model (host rules expand objects via internal/objects) — docs/status/tasks/prompts-s4.md'
+  notes: 'prompts-s4: suggested deps +F-object-model (host rules expand objects via internal/objects) — docs/status/tasks/prompts-s4.md | envelope draft docs/status/tasks/F-host-acl-nftables.envelope.md
+    (prep-waveA, D-109)'
 - id: F-nat44-ed-sessions
   title: 'Wave A (day 7-9): NAT44-ED outbound/1:1/port-forward + session browser/kill'
   prompt: prompts/features/F-nat44-ed-sessions.md
@@ -945,6 +970,7 @@ tasks:
   deps:
   - P08
   - DF-3
+  - W-seed
   priority: 3
   est_hours: 10
   state: todo
@@ -953,13 +979,14 @@ tasks:
   - D4.1
   - D4.7
   scope: NAT44-ED outbound/1:1/port-forward + session browser/kill
-  files_owned: ''
+  files_owned: '- apps/agent/internal/desired/nat.go and apps/agent/internal/desired/nat_*.go (incl. tests). This is narrower than the prompt''s `desired/nat*.go`, so that F-nat44-ei-64-66-nptv6''s desired/{nat44ei,nat64,nat66,nptv6}*.go
+    stay separate; the envelope wins'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | envelope draft docs/status/tasks/F-nat44-ed-sessions.envelope.md (prep-waveA, D-109)'
 - id: F-nat44-ei-64-66-nptv6
   title: 'Wave A (day 7-9): NAT44-EI, NAT64, NAT66, NPTv6 (npt66 skip-unless-loaded)'
   prompt: prompts/features/F-nat44-ei-64-66-nptv6.md
@@ -969,6 +996,7 @@ tasks:
   - P08
   - DF-3
   - F-nat44-ed-sessions
+  - W-seed
   priority: 3
   est_hours: 10
   state: todo
@@ -977,15 +1005,14 @@ tasks:
   - D4.2
   - D4.3
   scope: NAT44-EI, NAT64, NAT66, NPTv6 (npt66 skip-unless-loaded)
-  files_owned: apps/agent/internal/descriptors/{nat44ei,nat64,nat66,npt66}/** docs/agent/descriptors/{nat44-ei,nat64,nat66,npt66}.md apps/agent/internal/agent/project_nat44_ei_64_66_nptv6*.go apps/api/src/features/nat44-ei-64-66-nptv6/**
-    apps/web/src/domains/firewall/nat44-ei-64-66-nptv6/** apps/web/src/locales/*/nat44-ei-64-66-nptv6.json docs/user/firewall/nat44-ei-64-66-nptv6.md test/topology/nat44-ei-64-66-nptv6/** docs/status/tasks/F-nat44-ei-64-66-nptv6*.md
+  files_owned: '- apps/agent/internal/descriptors/npt66/** and docs/agent/descriptors/npt66.md'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
   notes: 'NPTv6 part needs npt66 plugin (handover) — build the rest, skip-unless-loaded | D-060: npt66 loaded — NPTv6 part no longer skipped | prompts-s4: suggested deps +F-nat44-ed-sessions (shared nat
-    page/tabs; ED and EI mutually exclusive on one VPP) — docs/status/tasks/prompts-s4.md'
+    page/tabs; ED and EI mutually exclusive on one VPP) — docs/status/tasks/prompts-s4.md | envelope draft docs/status/tasks/F-nat44-ei-64-66-nptv6.envelope.md (prep-waveA, D-109)'
 - id: F-det44-map-dslite-cnat
   title: 'Wave B (day 10-12): DET44 CGNAT, MAP-E/T, DS-Lite, LW4o6, 464XLAT, CNAT policies'
   prompt: prompts/features/F-det44-map-dslite-cnat.md
@@ -1021,6 +1048,7 @@ tasks:
   - P08
   - RF-2
   - DF-5
+  - W-seed
   priority: 4
   est_hours: 16
   state: todo
@@ -1030,14 +1058,18 @@ tasks:
   - D6.2
   - D6.10
   scope: strongSwan+VPP build (staging sysroot) + IPsec S2S + tunnel dashboards
-  files_owned: ''
+  files_owned: 'deploy/strongswan/** deploy/debian/vrx-strongswan/** apps/agent/internal/renderers/strongswan/** (gap-only: `AckRestart(ctx, since)` per DF-5 Q13, kernel-vpp plugin list/paths, the IPsec
+    state message; keep RF-2''s owner-prefix scoping) apps/agent/internal/descriptors/ipsec/** (gap-only; keep TD-3''s sanitizer hunk in itf.go) apps/agent/internal/charon/** (charon lifecycle: stop → sweep
+    → start → AckRestart, SA state/event glue) apps/agent/internal/desired/ipsec*.go apps/agent/internal/subsystems/ipsec*.go apps/agent/internal/agent/rpc_ipsec*.go packages/schema/src/semantic/ipsec*.ts
+    apps/api/src/features/ipsec/** apps/api/test/e2e/ipsec* apps/web/src/domains/vpn/ipsec/** apps/web/src/locales/{en,fa}/ipsec.json docs/user/vpn/ipsec.md docs/agent/renderers/strongswan.md docs/agent/descriptors/ipsec.md
+    test/topology/ipsec/** docs/status/tasks/P11* — plus apps/agent/internal/secrets/** ONLY if the manager assigns the API→agent secret channel to P11 (see coordination)'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
   notes: 'build against staging sysroot from /root/vpp/build-root debs; test vs stock strongSwan in a netns | D-096: own charon SPD/SA id range; stop→sweep→start→AckRestart | DF-5 Q13: RF-2 AckRestart(ctx,
-    since) should ack only the charon start time P11 observed'
+    since) should ack only the charon start time P11 observed | envelope draft docs/status/tasks/P11.envelope.md (prep-waveA, D-109)'
 - id: F-ikev2-native
   title: 'Wave B (day 10-12): VPP native IKEv2 responder path'
   prompt: prompts/features/F-ikev2-native.md
@@ -1070,6 +1102,7 @@ tasks:
   deps:
   - P08
   - DF-5
+  - W-seed
   priority: 4
   est_hours: 10
   state: todo
@@ -1077,14 +1110,15 @@ tasks:
   wbs:
   - D6.5
   scope: WireGuard peers/keys
-  files_owned: apps/agent/internal/descriptors/wireguard/** docs/agent/descriptors/wireguard.md apps/agent/internal/actions/wireguard/** apps/agent/internal/agent/project_wireguard*.go apps/api/src/features/wireguard/**
-    apps/web/src/domains/vpn/wireguard/** apps/web/src/locales/*/wireguard.json docs/user/vpn/wireguard.md test/topology/wireguard/** docs/status/tasks/F-wireguard*.md
+  files_owned: apps/agent/internal/descriptors/wireguard/** (gap-only; keep TD-3's sanitizer hunk in interface.go) docs/agent/descriptors/wireguard.md apps/agent/internal/desired/wireguard*.go apps/agent/internal/subsystems/wireguard*.go
+    apps/agent/internal/agent/rpc_wireguard*.go apps/agent/internal/actions/wireguard/** packages/schema/src/semantic/wireguard*.ts apps/api/src/features/wireguard/** apps/api/test/e2e/wireguard* apps/web/src/domains/vpn/wireguard/**
+    apps/web/src/locales/{en,fa}/wireguard.json docs/user/vpn/wireguard.md test/topology/wireguard/** docs/status/tasks/F-wireguard*
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | envelope draft docs/status/tasks/F-wireguard.envelope.md (prep-waveA, D-109)'
 - id: F-tunnels
   title: 'Wave B (day 10-12): GRE, IPIP, VXLAN(-GPE), GTP-U, L2TPv3, PPPoE'
   prompt: prompts/features/F-tunnels.md
@@ -1141,6 +1175,8 @@ tasks:
   - P08
   - RF-1
   - DF-8
+  - F-vrf-static-ecmp
+  - W-seed
   priority: 4
   est_hours: 16
   state: todo
@@ -1150,13 +1186,17 @@ tasks:
   - D3.2
   - D3.3
   scope: FRR + linux-cp framework, BGP
-  files_owned: ''
+  files_owned: 'apps/agent/internal/renderers/frr/bgp/** apps/agent/internal/renderers/frr/policy/** (prefix lists / route maps, reused by F-ospf …) apps/agent/internal/renderers/frr/*.go apps/agent/internal/renderers/frr/templates/**
+    apps/agent/internal/renderers/frr/frrtest/** (framework: gap-only — a proven defect or a missing hook; F-ospf/F-isis-rip/F-bfd-redistribution depend on you) apps/agent/internal/descriptors/lcp/** (gap-only;
+    keep TD-3''s sanitizer hunk) apps/agent/internal/lcpmap/** (linux-cp interface mapper for `frr.WithInterfaceMapper`) apps/agent/internal/desired/{bgp,lcp}*.go apps/agent/internal/subsystems/{frr,lcp}*.go
+    apps/agent/internal/agent/rpc_{bgp,routing}*.go packages/schema/src/semantic/bgp*.ts apps/api/src/features/bgp/** apps/api/test/e2e/bgp* apps/web/src/domains/routing/bgp/** apps/web/src/locales/{en,fa}/bgp.json
+    docs/user/routing/bgp.md docs/agent/renderers/{frr,frr-bgp}.md docs/agent/descriptors/lcp.md test/topology/bgp/** docs/status/tasks/P12*'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: 'needs linux_cp/linux_nl enabled in startup.conf (handover) | D-060: un-parked (plugins enabled 2026-09-24)'
+  notes: 'needs linux_cp/linux_nl enabled in startup.conf (handover) | D-060: un-parked (plugins enabled 2026-09-24) | envelope draft docs/status/tasks/P12.envelope.md (prep-waveA, D-109)'
 - id: F-ospf
   title: 'Wave B (day 10-12): OSPFv2/v3 via FRR'
   prompt: prompts/features/F-ospf.md
@@ -1241,6 +1281,7 @@ tasks:
   - P08
   - RF-3
   - DF-8
+  - W-seed
   priority: 4
   est_hours: 10
   state: todo
@@ -1249,15 +1290,16 @@ tasks:
   - D7.1
   - D7.2
   scope: Kea DHCPv4/v6 server + VPP DHCP relay/client
-  files_owned: apps/agent/internal/renderers/kea/** apps/agent/internal/descriptors/dhcp/** docs/agent/renderers/kea.md docs/agent/descriptors/dhcp.md apps/agent/internal/agent/project_kea_dhcp_relay*.go
-    apps/api/src/features/kea-dhcp-relay/** apps/web/src/domains/services/kea-dhcp-relay/** apps/web/src/locales/*/kea-dhcp-relay.json docs/user/services/kea-dhcp-relay.md test/topology/kea-dhcp-relay/**
-    docs/status/tasks/F-kea-dhcp-relay*.md
+  files_owned: 'apps/agent/internal/renderers/kea/** apps/agent/internal/descriptors/dhcp/** (gap-only: keep `NewClient`/`WithInterfaceKey`/`Reconnected` as P08 calls them) docs/agent/renderers/kea.md docs/agent/descriptors/dhcp.md
+    apps/agent/internal/desired/{kea,dhcp_relay}*.go apps/agent/internal/subsystems/kea*.go apps/agent/internal/agent/rpc_kea*.go packages/schema/src/semantic/kea-dhcp-relay*.ts apps/api/src/features/kea-dhcp-relay/**
+    apps/api/test/e2e/kea-dhcp-relay* apps/web/src/domains/services/kea-dhcp-relay/** apps/web/src/locales/{en,fa}/kea-dhcp-relay.json docs/user/services/kea-dhcp-relay.md test/topology/kea-dhcp-relay/**
+    docs/status/tasks/F-kea-dhcp-relay*'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | envelope draft docs/status/tasks/F-kea-dhcp-relay.envelope.md (prep-waveA, D-109)'
 - id: F-unbound-chrony-syslog
   title: 'Wave B (day 10-12): Unbound DNS, chrony NTP, syslog export + log explorer'
   prompt: prompts/features/F-unbound-chrony-syslog.md
@@ -1267,6 +1309,7 @@ tasks:
   - P08
   - RF-3
   - RF-4
+  - W-seed
   priority: 4
   est_hours: 10
   state: todo
@@ -1276,17 +1319,18 @@ tasks:
   - D7.4
   - D7.7
   scope: Unbound DNS, chrony NTP, syslog export + log explorer
-  files_owned: apps/agent/internal/renderers/{unbound,chrony,rsyslog}/** apps/agent/internal/descriptors/dns/** docs/agent/renderers/{unbound,chrony,rsyslog}.md docs/agent/descriptors/dns.md apps/agent/internal/agent/project_unbound_chrony_syslog*.go
-    apps/api/src/features/unbound-chrony-syslog/** apps/web/src/domains/services/unbound-chrony-syslog/** apps/web/src/locales/*/unbound-chrony-syslog.json docs/user/services/unbound-chrony-syslog.md test/topology/unbound-chrony-syslog/**
-    docs/status/tasks/F-unbound-chrony-syslog*.md
+  files_owned: apps/agent/internal/renderers/{unbound,chrony,rsyslog}/** apps/agent/internal/descriptors/dns/** docs/agent/renderers/{unbound,chrony,rsyslog}.md docs/agent/descriptors/dns.md apps/agent/internal/desired/{dns,ntp,syslog}*.go
+    apps/agent/internal/subsystems/{unbound,chrony,rsyslog,dns}*.go apps/agent/internal/agent/rpc_{dns,ntp,logs}*.go apps/agent/internal/actions/unbound-chrony-syslog/** packages/schema/src/domains/ext/syslog*.ts
+    packages/schema/src/semantic/unbound-chrony-syslog*.ts apps/api/src/features/unbound-chrony-syslog/** apps/api/test/e2e/unbound-chrony-syslog* apps/web/src/domains/services/unbound-chrony-syslog/**
+    apps/web/src/locales/{en,fa}/unbound-chrony-syslog.json docs/user/services/unbound-chrony-syslog.md test/topology/unbound-chrony-syslog/** docs/status/tasks/F-unbound-chrony-syslog*
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | envelope draft docs/status/tasks/F-unbound-chrony-syslog.envelope.md (prep-waveA, D-109)'
 - id: F-mpls-srmpls
-  title: 'Wave C (day 13-15): static MPLS, SR-MPLS (LDP via agent-side FRR sync, V5 fallback)'
+  title: 'Wave C (day 13-15): static MPLS + SR-MPLS (LDP split to F-mpls-ldp, D-085/D-109)'
   prompt: prompts/features/F-mpls-srmpls.md
   template: prompts/FEATURE-TEMPLATE.md
   stage: S4
@@ -1294,14 +1338,13 @@ tasks:
   - P08
   - DF-7
   - DF-6
-  - RF-1
   priority: 5
   est_hours: 10
   state: todo
   parked_on: ''
   wbs:
   - D2.8
-  scope: static MPLS, SR-MPLS (LDP via agent-side FRR sync, V5 fallback) — LDP agent-side sync split out to F-mpls-ldp (D-085)
+  scope: static MPLS, SR-MPLS; no LDP (F-mpls-ldp)
   files_owned: apps/agent/internal/descriptors/{mpls,sr_mpls}/** apps/agent/internal/renderers/frr/ldp/** apps/agent/internal/frrsync/ldp/** docs/agent/descriptors/{mpls,sr_mpls}.md docs/agent/renderers/frr-ldp.md
     apps/agent/internal/agent/project_mpls_srmpls*.go apps/api/src/features/mpls-srmpls/** apps/web/src/domains/routing/mpls-srmpls/** apps/web/src/locales/*/mpls-srmpls.json docs/user/routing/mpls-srmpls.md
     test/topology/mpls-srmpls/** docs/status/tasks/F-mpls-srmpls*.md
@@ -1320,7 +1363,7 @@ tasks:
   files_owned: ''
   finished: ''
   id: F-mpls-ldp
-  notes: D-085 split
+  notes: D-085 split | prompt generated (prep-waveA, D-109); owns renderers/frr/ldp/** frrsync/ldp/** docs/agent/renderers/frr-ldp.md
   owner: ''
   parked_on: ''
   priority: 5
@@ -2312,13 +2355,16 @@ tasks:
   wbs:
   - D0.9
   scope: D-100 (1)-(3); apps/api auth/users/tokens only, additive api-client
-  files_owned: apps/api/src/{auth,users}/** apps/api/test/e2e/td4-* docs/status/tasks/TD-4*
+  files_owned: 'apps/api/src/{auth,users}/** apps/api/test/e2e/td4-*.e2e.test.ts docs/status/tasks/TD-4* · minimal hunks, each named in TD-4.md: apps/api/src/datastore/{repo,pg-repo}.ts (syncUsers + its
+    reset type only) apps/api/src/testing/memory-repo.ts (syncUsers only) apps/api/src/commit/commit.service{,.test}.ts (post-promote hook only) apps/api/test/e2e/{auth,td2,td2-review,td2-verify}.e2e.test.ts
+    (JWT key-creation bodies only) apps/cli/internal/cli/cmd_op.go (apiKeyCreate only) + its unit test apps/cli/test/e2e/repl_e2e_test.go test/topology/sdk-terraform-ansible/live.sh (one line) docs/user/system/sdk-terraform-ansible.md
+    (key-creation example)'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: 'D-100: from TD-2-questions.md Q1–Q3'
+  notes: 'D-100: from TD-2-questions.md Q1–Q3 | envelope draft docs/status/tasks/TD-4.envelope.md (prep-waveA, D-109)'
 - id: TD-5
   title: 'V24 + V19 follow-ups: af_packet Delete quiesces the Linux netdev (netlink link down) before af_packet_delete, also in Create rollback; restart-simulation fixtures do the same; ifsanitize placeholder
     cap = holes + 2×FreshRun, max 64 (TD-3 M1 option b)'

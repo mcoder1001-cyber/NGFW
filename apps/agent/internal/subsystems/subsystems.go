@@ -84,6 +84,7 @@ var Domains = map[string][]string{
 		// wave-A: F-neighbors-ra
 		// wave-A: F-rpf-adl-pbr
 		// wave-A: P12
+		lcpItfPairName,
 	},
 	VRFs: {
 		core.VRFName,
@@ -103,6 +104,7 @@ var Domains = map[string][]string{
 		// wave-A: F-neighbors-ra
 		// wave-A: F-rpf-adl-pbr
 		// wave-A: P12
+		frrConfigName,
 	},
 	// New domain entries: one `<Const>: {…}` entry under the feature's anchor (wave-A-hotspots A1).
 	// wave-BC: F-det44-map-dslite-cnat
@@ -263,6 +265,7 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-A: P11
 	// wave-A: F-wireguard
 	// wave-A: P12
+	registerP12(r, w)
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
 	return w, nil

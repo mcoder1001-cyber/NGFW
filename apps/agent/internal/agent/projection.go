@@ -298,9 +298,11 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 			core.SortPaths(v.Paths)
 			p.add(core.RouteKey(table, pfx), v, pt)
 		}
-		rt := ds.GetRouting()
-		if rt.GetPolicy() != nil || rt.GetBgp() != nil || rt.GetOspf() != nil || rt.GetIsis() != nil || rt.GetRip() != nil || rt.GetBfd() != nil {
-			p.warnf(ptr("routing"), "agent.unsupported-field", "routing protocols and policy are rendered by RF-1 (FRR), not by this agent build")
+		// S3 (wave-BC-numbers "Seams"): one row per routing-protocol leaf; a task that renders a leaf flips its row
+		for _, leaf := range routingLeaves {
+			if !leaf.handled && leaf.present(ds.GetRouting()) {
+				p.warnf(ptr("routing", leaf.name), "agent.unsupported-field", "routing.%s is rendered by RF-1 (FRR) sections this agent build does not have yet", leaf.name)
+			}
 		}
 	}
 	// Feature builders (internal/desired/<slug>.go): one call under the feature's anchor, e.g.
@@ -330,9 +332,35 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-A: P11
 	// wave-A: F-wireguard
 	// wave-A: P12
+	if in["interfaces"] {
+		desired.Lcp(p, ds.GetInterfaces())
+	}
+	desired.FRR(p, ds, in, subsystems.FRRProjection())
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
 	return p
+}
+
+// routingLeaf is one row of the routing-protocol table (seam S3): present reports whether the document sets the leaf,
+// handled whether this build renders it (FRR sections registered by the protocol's task).
+type routingLeaf struct {
+	name    string
+	present func(*vrxv1.RoutingConfig) bool
+	handled bool
+}
+
+// routingLeaves lists the routing-protocol leaves; a leaf that is set but not handled is an agent.unsupported-field
+// warning. A task that renders a leaf sets handled on its own row (one line each, under its anchor).
+var routingLeaves = []routingLeaf{
+	{name: "bgp", present: func(r *vrxv1.RoutingConfig) bool { return r.GetBgp() != nil }, handled: true},       // P12
+	{name: "policy", present: func(r *vrxv1.RoutingConfig) bool { return r.GetPolicy() != nil }, handled: true}, // P12
+	// wave-BC: F-ospf
+	{name: "ospf", present: func(r *vrxv1.RoutingConfig) bool { return r.GetOspf() != nil }},
+	// wave-BC: F-isis-rip
+	{name: "isis", present: func(r *vrxv1.RoutingConfig) bool { return r.GetIsis() != nil }},
+	{name: "rip", present: func(r *vrxv1.RoutingConfig) bool { return r.GetRip() != nil }},
+	// wave-BC: F-bfd-redistribution
+	{name: "bfd", present: func(r *vrxv1.RoutingConfig) bool { return r.GetBfd() != nil }},
 }
 
 // isEmptyDomain reports whether a present domain message carries nothing (the API sends all 13
@@ -459,6 +487,12 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-A: P11
 	// wave-A: F-wireguard
 	// wave-A: P12
+	if in["interfaces"] {
+		desired.AssembleLcp(ds, kvs)
+	}
+	if in["routing"] {
+		desired.AssembleFRR(ds, kvs)
+	}
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
 	return ds

@@ -684,7 +684,7 @@ tasks:
   owner: host-agent slot1
   started: 2026-09-24T05:45
   finished: ''
-  notes: ' | consolidate D-080 boot-identity helper; install persisted ClaimStore/records (DF-1 Q5, DF-6 Q10, DF-8 Q8); retrofit DF-2/DF-4 records | 07:2x cycle 12: worker found dead (no process since ~05:45);
+  notes: ' | consolidate D-080 boot-identity helper; install persisted ClaimStore/records (DF-1 Q5, DF-6 Q10, DF-8 Q8); retrofit DF-2/DF-4 records | 07:2x cycle 12: worker found dead (no process since ~05:45); | 13:25 manager restart (host reboot 09:47, workers lost): review respawned, envelope /root/ngfw-wt/P08.review.md
     uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/P08.continue.md | 08:17 worker done ffecf13 CI green; topology + restart-safety on slot
     1 (NRestarts 6→6); its 07:27 run caused the V24 crash (confirmed); review spawned'
 - id: F-vlan-qinq
@@ -2254,7 +2254,7 @@ tasks:
   owner: host-agent slot7
   started: 2026-09-24T04:40
   finished: ''
-  notes: 'from P07b Q1-Q3, P13 review H1, D-093 | worker done 7f4578f CI green (88 unit, 41 e2e); review spawned | review APPROVE WITH CHANGES cc70629 (H1 reconcile restores old password hash, H2 refresh
+  notes: 'from P07b Q1-Q3, P13 review H1, D-093 | worker done 7f4578f CI green (88 unit, 41 e2e); review spawned | review APPROVE WITH CHANGES cc70629 (H1 reconcile restores old password hash, H2 refresh | 13:25 manager restart: verify round 2 respawned, envelope /root/ngfw-wt/TD-2.verify2.md
     survives reset, M1 keys survive reset → D-097, M2 current-guessing); fix round 1 | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn
     by host manager (Agent tool), envelope /root/ngfw-wt/TD-2.continue.md | 07:31 fix round 1 done 9373e6e CI green (Q1–Q4 in TD-2-questions.md → D-100); verify review spawned | 07:49 verify APPROVE WITH
     CHANGES ae52906 (V1 keys created during reset survive — High; V2 config-API reset bypasses D-097 → D-102; V3–V5 low); fix round 2 (last) spawned | 08:18 fix round 2 done 84210b7 (V1–V5 fixed, e2e 61/3
@@ -2282,7 +2282,7 @@ tasks:
   owner: host-agent slot2
   started: 2026-09-24T05:00
   finished: ''
-  notes: 'D-095; V19 crash 04:50:27 | worker done d001e5f CI green; review spawned (focus: unremovable binding to deleted table); V23 feature_is_enabled lies → fix folded into TD-3 fix round if confirmed
+  notes: 'D-095; V19 crash 04:50:27 | worker done d001e5f CI green; review spawned (focus: unremovable binding to deleted table); V23 feature_is_enabled lies → fix folded into TD-3 fix round if confirmed | 13:25 manager restart: fix round 2 CONTINUE respawned, envelope /root/ngfw-wt/TD-3.continue2.md
     | review BLOCK 46fafdb (H1 L2 ACL/policer bits = second crash path, H2 invisible bindings, H3 delete must clear bindings first, M1; reviewer safe behaviour adopted: force L3 → resurrect table index
     → quarantine); fix round 1 incl. V23 | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/TD-3.continue.md
     | 07:39 fix round 1 done 175c676 CI green; VPP crash 07:27:32 during its window → V24/D-101 (not TD-3''s code per analysis); re-review spawned | 08:00 re-review APPROVE WITH CHANGES acce6e1 (H1 ipsec/wireguard
@@ -2351,4 +2351,4 @@ tasks:
   owner: host-agent slot6
   started: 2026-09-24T07:58
   finished: ''
-  notes: 'D-103: must merge before any real --apply on vrx-a | spawned 07:58 slot 6 (Agent tool), envelope /root/ngfw-wt/TD-6.envelope.md'
+  notes: 'D-103: must merge before any real --apply on vrx-a | spawned 07:58 slot 6 (Agent tool), envelope /root/ngfw-wt/TD-6.envelope.md | 13:25 manager restart: CONTINUE respawned, envelope /root/ngfw-wt/TD-6.continue.md'

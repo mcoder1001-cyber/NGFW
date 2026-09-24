@@ -53,3 +53,7 @@ rig 10.1.{1,2}.0/24). Runs directly on the host (no wt.sh). NRestarts at start: 
   description (6ce08c2) + CLI skips null-config rows (0643ef4); T2 e2e Retrieve drift (c1f9518); T3 web N5/N4 tests (25f8cc5).
   Every new test was run against the old code and fails there.
 - T4/T5 docs (I4 list, Q3/Q4 answers), R2-stores/R3-gauge → docs/tech-debt.md. Next: CI --base main, one topology run, P08.md.
+- 17:27–17:58 CI: run 1 red (my T2 typecheck; N5 test over 60 s at load ~52; P07's App.test lazy-route flake), run 2 red
+  (typecheck only) → 5204b81, 1a90988; run 3 **CI GATE PASSED** @1a90988.
+- 18:00–18:03 topology + restart-safety on slot 1, the one run: **PASS** (71 s), NRestarts 0 → 0 (pid 8760); first commit 1.7 s,
+  resync after loss 0.38 s, ping back at +1.82 s; sanitizer 26 placeholders under TD-5's cap. P08.md "Fix round 2" written. DONE.

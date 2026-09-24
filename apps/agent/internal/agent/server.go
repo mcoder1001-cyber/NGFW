@@ -87,6 +87,10 @@ func (g *server) Action(req *vrxv1.ActionRequest, stream grpc.ServerStreamingSer
 	// wave-A: F-neighbors-ra
 	// wave-A: F-nat44-ed-sessions
 	case *vrxv1.ActionRequest_NatSessionKill:
+		// wave-A: F-nat44-ei-64-66-nptv6 — variant dispatch (EI, NAT64: rpc_nat44_ei.go); unset / ED below
+		if natVariantOf(req.GetNatSessionKill().GetVariant()) {
+			return g.natSessionKillVariantStream(req, stream)
+		}
 		return g.natSessionKill(req, stream)
 	// wave-A: F-unbound-chrony-syslog
 	default:

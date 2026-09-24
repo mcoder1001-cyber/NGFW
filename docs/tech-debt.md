@@ -21,3 +21,4 @@ The manager pulls from here when nothing on the board is ready. Add items with a
 - 2026-09-24 (P06): JWT signing-key rotation, `VRX_TRUST_PROXY` setting, owner check of the secret key file.
 - 2026-09-24 (F-sdk): add `sdk/test.sh` and `sdk/gen.sh --check` to tools/ci.sh; P06 per-API-key (not per-user) candidates so parallel pipelines of one user cannot edit each other's candidate.
 - 2026-09-24 (P13): tools/ci.sh must run `make -C apps/cli lint test build` (apps/cli has its own Makefile, not in the pnpm workspace).
+- 2026-09-24 (P13 review H1): API must reject C0/C1 control characters and bidi overrides in commit comments and all free-text fields not covered by the schema (D-049 applies to the API layer too).

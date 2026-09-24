@@ -1593,7 +1593,7 @@ tasks:
   - P06
   priority: 6
   est_hours: 10
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D0.11
@@ -1604,7 +1604,8 @@ tasks:
   owner: host-agent slot3
   started: 2026-09-24T03:10
   finished: ''
-  notes: ' | worker done a84258c (live CLI session vs real API/agent/VPP; make -C apps/cli all green — not yet in ci.sh); review spawned'
+  notes: ' | worker done a84258c (live CLI session vs real API/agent/VPP; make -C apps/cli all green — not yet in ci.sh); review spawned | review APPROVE WITH CHANGES 68605c2 (H1 terminal escape injection,
+    H2 Ctrl-C breaks REPL, M1 session file symlink/perms, M2 list delete by index, M3 confirm UX); fix round 1'
 - id: F-restconf-yang
   title: RESTCONF/NETCONF + YANG generated from schema
   prompt: prompts/features/F-restconf-yang.md

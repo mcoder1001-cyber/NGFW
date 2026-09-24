@@ -62,6 +62,9 @@ func (s *Service) natReady(owner string) error {
 func (s *Service) natFilter(f *vrxv1.NatSessionFilter) (natsessions.Filter, error) {
 	var out natsessions.Filter
 	var err error
+	if f == nil {
+		return out, nil
+	}
 	if f.InsideAddress != nil {
 		if out.Inside, err = natsessions.ParseIPv4("filter.inside_address", f.GetInsideAddress()); err != nil {
 			return out, err

@@ -48,8 +48,10 @@ type Nat44ED struct {
 	SessionDumps int
 }
 
-// Lock / Unlock guard the exported fields while a test seeds or inspects them.
-func (n *Nat44ED) Lock()   { n.mu.Lock() }
+// Lock guards the exported fields while a test seeds or inspects them.
+func (n *Nat44ED) Lock() { n.mu.Lock() }
+
+// Unlock releases Lock.
 func (n *Nat44ED) Unlock() { n.mu.Unlock() }
 
 // NatEnable enables the modelled plugin as a test fixture would (VPP defaults: 63×1024 sessions, default

@@ -353,8 +353,8 @@ export enum EventKind {
   EVENT_KIND_DEGRADED = 9,
   /**
    * EVENT_KIND_NEIGHBOR_CHANGED - The ARP/ND table of an interface changed (F-neighbors-ra): learned, updated or removed entries, coalesced to at
-   * most one event per interface per second (`interface` set; attributes "added", "removed"), or one event with
-   * `interface` unset when more than 16 interfaces changed in that second.
+   * most one event per interface per second (`interface` set; attributes "added", "removed", "updated" — counts), or
+   * one event with `interface` unset (plus attribute "interfaces") when more than 16 interfaces changed in that second.
    */
   EVENT_KIND_NEIGHBOR_CHANGED = 10,
   UNRECOGNIZED = -1,

@@ -378,9 +378,9 @@ interface of the agent's stored configuration that it can name; a named interfac
 
 The agent subscribes with `want_ip_neighbor_events_v2` **per nameable interface** (never `~0`, and never 0 — VPP maps
 0 to "all") on every VPP (re)connect, re-scans interfaces every 30 s, and drops events for interfaces it cannot name.
-Events are coalesced: at most one per interface per second (`interface` set, attributes `added`, `removed`), or one
-event without `interface` (attributes `added`, `removed`, `interfaces`) when more than 16 interfaces changed in that
-second. The events travel through `subsystems.Env.Publish` (A5 seam); until the agent core wires that hook (TD-8) they
+Events are coalesced: at most one per interface per second (`interface` set, attributes `added`, `removed`, `updated`
+— counts; `updated` = a known entry changed its MAC or state), or one event without `interface` (the same counts plus
+`interfaces`) when more than 16 interfaces changed in that second. The events travel through `subsystems.Env.Publish` (A5 seam); until the agent core wires that hook (TD-8) they
 are dropped and consumers poll ListNeighbors.
 <!-- wave-A: F-rpf-adl-pbr -->
 <!-- wave-A: F-object-model -->

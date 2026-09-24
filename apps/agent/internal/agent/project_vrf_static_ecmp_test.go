@@ -189,7 +189,7 @@ type actionStream struct {
 	out []*vrxv1.ActionOutput
 }
 
-func (a *actionStream) Context() context.Context        { return a.ctx }
+func (a *actionStream) Context() context.Context         { return a.ctx }
 func (a *actionStream) Send(o *vrxv1.ActionOutput) error { a.out = append(a.out, o); return nil }
 
 func TestVrfStaticEcmpRPCs(t *testing.T) {

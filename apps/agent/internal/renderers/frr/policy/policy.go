@@ -174,17 +174,21 @@ func prefixListRule(fam, name string, r *vrxv1.PrefixListRule) (string, error) {
 	if (fam == "ipv6") != p.Addr().Is6() {
 		return "", fmt.Errorf("%w: prefix %s is not in the family of the list", frr.ErrInput, p)
 	}
-	max := uint32(p.Addr().BitLen())
+	maxLen := uint32(32) // prefix lengths are 0–128: no conversion can overflow
+	if p.Addr().Is6() {
+		maxLen = 128
+	}
+	bits := uint32(p.Bits()) //nolint:gosec // G115: 0–128
 	line := fmt.Sprintf("%s prefix-list %s seq %d %s %s", fam, name, r.GetSeq(), act, p)
 	if r.Ge != nil {
-		if r.GetGe() <= uint32(p.Bits()) || r.GetGe() > max {
-			return "", fmt.Errorf("%w: ge %d must be > %d and ≤ %d", frr.ErrInput, r.GetGe(), p.Bits(), max)
+		if r.GetGe() <= bits || r.GetGe() > maxLen {
+			return "", fmt.Errorf("%w: ge %d must be > %d and ≤ %d", frr.ErrInput, r.GetGe(), bits, maxLen)
 		}
 		line += fmt.Sprintf(" ge %d", r.GetGe())
 	}
 	if r.Le != nil {
-		if r.GetLe() < uint32(p.Bits()) || r.GetLe() > max || (r.Ge != nil && r.GetGe() > r.GetLe()) {
-			return "", fmt.Errorf("%w: le %d must be in %d..%d and ≥ ge", frr.ErrInput, r.GetLe(), p.Bits(), max)
+		if r.GetLe() < bits || r.GetLe() > maxLen || (r.Ge != nil && r.GetGe() > r.GetLe()) {
+			return "", fmt.Errorf("%w: le %d must be in %d..%d and ≥ ge", frr.ErrInput, r.GetLe(), bits, maxLen)
 		}
 		line += fmt.Sprintf(" le %d", r.GetLe())
 	}

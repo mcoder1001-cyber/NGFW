@@ -141,6 +141,14 @@ func CheckFRR(doc *vrxv1.DesiredState) error {
 
 func newFRR(env Env, runner renderers.Runner, opts ...frr.Option) *FRR {
 	paths, ok := frrPaths(env.Owner)
+	return newFRRAt(env, runner, paths, ok, opts...)
+}
+
+// newFRRAt builds a runtime for explicit paths (tests: a temporary directory and a recording runner).
+func newFRRAt(env Env, runner renderers.Runner, paths frr.Paths, ok bool, opts ...frr.Option) *FRR {
+	if env.Log == nil {
+		env.Log = slog.Default()
+	}
 	rt := &FRR{owner: env.Owner, client: env.Client, log: env.Log.With("component", "frr"), publish: env.Publish,
 		paths: paths, enabled: ok, mapper: &lcpmap.Mapper{}, stop: make(chan struct{})}
 	if ok {

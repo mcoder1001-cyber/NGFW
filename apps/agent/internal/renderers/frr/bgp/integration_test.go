@@ -24,7 +24,7 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-const testPassword = "VRX_TEST_PSK_P12_1" // test fixture literal (00-CONTEXT: VRX_TEST_PSK_<id>)
+const testPassword = "VRX_TEST_PSK_P12_1" //nolint:gosec // G101: the test fixture literal (00-CONTEXT: VRX_TEST_PSK_<id>)
 
 func fixtureResolver() frr.SecretResolver {
 	return frr.SecretResolverFunc(func(_ context.Context, ref string) (string, error) {

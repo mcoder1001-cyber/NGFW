@@ -693,7 +693,7 @@ tasks:
 - id: W-seed
   title: 'Wave-A seed commit: hotspot anchors (A1,A2,A4,C1-C3,C5,P1,P4-P6,W1-W3), one-entry-per-line lists, Env event-publish + Resync hooks (A5), subsystems.SlotIDRange(), vpn/services page shells, proto.md
     "Feature RPCs" heading — no behaviour change'
-  prompt: docs/status/wave-A-hotspots.md
+  prompt: prompts/tech-debt/W-seed.md
   template: ''
   stage: S4
   deps:
@@ -701,18 +701,18 @@ tasks:
   - TD-2
   priority: 2
   est_hours: 2
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D0.1
   scope: hotspots §4.2 + launch plan §5.2; no feature logic
   files_owned: hotspot files listed in docs/status/wave-A-hotspots.md §1 (anchors/registration only)
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/W-seed
+  worktree: /root/ngfw-wt/W-seed
+  owner: ngfw-46 slot3
+  started: 2026-09-24T15:36
   finished: ''
-  notes: 'D-109: seeded by one worker right after P08+TD-2 merge so 17 parallel features merge without union conflicts'
+  notes: 'D-109: seeded by one worker right after P08+TD-2 merge so 17 parallel features merge without union conflicts | SPECULATIVE from task/P08@74ec04e (D-114), envelope /root/ngfw-wt/W-seed.envelope.md'
 - id: F-vlan-qinq
   title: 'Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking'
   prompt: prompts/features/F-vlan-qinq.md
@@ -2351,7 +2351,7 @@ tasks:
   - TD-2
   priority: 3
   est_hours: 3
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D0.9
@@ -2360,12 +2360,12 @@ tasks:
     reset type only) apps/api/src/testing/memory-repo.ts (syncUsers only) apps/api/src/commit/commit.service{,.test}.ts (post-promote hook only) apps/api/test/e2e/{auth,td2,td2-review,td2-verify}.e2e.test.ts
     (JWT key-creation bodies only) apps/cli/internal/cli/cmd_op.go (apiKeyCreate only) + its unit test apps/cli/test/e2e/repl_e2e_test.go test/topology/sdk-terraform-ansible/live.sh (one line) docs/user/system/sdk-terraform-ansible.md
     (key-creation example)'
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/TD-4
+  worktree: /root/ngfw-wt/TD-4
+  owner: ngfw-46 slot8
+  started: 2026-09-24T15:36
   finished: ''
-  notes: 'D-100: from TD-2-questions.md Q1–Q3 | envelope draft docs/status/tasks/TD-4.envelope.md (prep-waveA, D-109)'
+  notes: 'D-100: from TD-2-questions.md Q1–Q3 | envelope draft docs/status/tasks/TD-4.envelope.md (prep-waveA, D-109) | SPECULATIVE from task/TD-2@4391a44 (D-114), envelope /root/ngfw-wt/TD-4.envelope.md'
 - id: TD-5
   title: 'V24 + V19 follow-ups: af_packet Delete quiesces the Linux netdev (netlink link down) before af_packet_delete, also in Create rollback; restart-simulation fixtures do the same; ifsanitize placeholder
     cap = holes + 2×FreshRun, max 64 (TD-3 M1 option b)'

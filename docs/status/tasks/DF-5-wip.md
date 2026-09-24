@@ -34,3 +34,12 @@
 - Host evidence: redacted vppctl capture (show wireguard interface prints private key hex + mac-key; show ikev2 profile
   prints the PSK) with a leak guard; empty second plan proven per plugin (vpntest.MustEmptyPlan).
 - Next: CI gate, DF-5.md.
+- 2026-09-24 CONTINUE #2 (worker respawned on the host after the previous one went silent at 8fecca0): merged main
+  (go.mod/go.sum from main + tidy). New rules since the first pass applied: D-069 logical names via DF-1's resolver
+  (vpn.DumpInterfaces wraps iface.Table; foreign refused), D-071 globals roles (vpn.Global: owner setter / Require),
+  ownership records bound to the D-080 boot identity (vpn.Records over dfkit.BootStore, written only after our own
+  add; SPD/SA/SPD-binding never adopted), D-074 verified deletes (re-read before delete by id/index), dedupe on
+  Retrieve, vpn.ErrRetrieveUnsupported = scheduler sentinel (Q4 closed). ipsec: charon orphan sweep + AckRestart
+  (D-089). Host check now runs through P05 (vpntest.Agent): apply → empty plan → restart sim (fresh conn/descriptors,
+  persisted records) → stranger adopts nothing → loss re-created → sweep → empty desired deletes all ours.
+  TestIpsecOnHost green (NRestarts 4 → 4). Next: ikev2, wireguard, docs, CI.

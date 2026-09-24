@@ -135,7 +135,9 @@ func (p *Plugin) newBinding() *natcommon.Descriptor[BindingSpec] {
 		Name:   NameBinding,
 		ID:     BindingID,
 		// the interface: its binding is deleted before it (D-095c: an entry whose interface is gone stays in VPP)
-		Deps: func(s BindingSpec) []scheduler.Dependency { return []scheduler.Dependency{natcommon.InterfaceDep(s.Interface)} },
+		Deps: func(s BindingSpec) []scheduler.Dependency {
+			return []scheduler.Dependency{natcommon.InterfaceDep(s.Interface)}
+		},
 		Create: func(ctx context.Context, s BindingSpec) (any, error) {
 			m, err := p.add(ctx, s)
 			if err != nil {

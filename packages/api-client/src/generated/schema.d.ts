@@ -606,6 +606,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/l2/bridge-domains': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Bridge domains: live state from VPP (agent BridgeDomainState: members, BVI, flags, learned-MAC count) merged with the running configuration and pending candidate changes */
+    get: operations['BridgeL2_bridgeDomains'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/l2/bridge-domains/{id}/macs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** L2 FIB of one bridge domain (agent BridgeDomainMacs, server-side paged, ordered by MAC) */
+    get: operations['BridgeL2_bridgeDomainMacs'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -8167,6 +8201,211 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  BridgeL2_bridgeDomains: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt?: string;
+            items: {
+              /** @description record name (routing.l2.bridgeDomains key; the id when VPP holds no name) */
+              name: string;
+              id: number | null;
+              /** @description null when VPP has no such bridge domain */
+              state: {
+                id: number;
+                flood: boolean;
+                uuFlood: boolean;
+                forward: boolean;
+                learn: boolean;
+                arpTerm: boolean;
+                arpUfwd: boolean;
+                macAgeMin: number;
+                /** @description BVI interface ("" = none) */
+                bvi: string;
+                /** @description uu-fwd interface ("" = none) */
+                uuFwd: string;
+                members: {
+                  /** @description logical interface name */
+                  interface: string;
+                  swIfIndex: number;
+                  /** @enum {string} */
+                  portType: 'normal' | 'bvi' | 'uu-fwd';
+                  shg: number;
+                  /** @description VLAN tag rewrite in the configuration spelling ("" = none) */
+                  tagRewrite: string;
+                }[];
+                learnedMacs: number;
+                /** @description static, filter and BVI L2 FIB entries */
+                staticMacs: number;
+              } | null;
+              /** @description the running configuration of the record; null when it is not configured */
+              running: {
+                [key: string]: unknown;
+              } | null;
+              /** @description the candidate differs from running for this record */
+              hasPendingChange: boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  BridgeL2_bridgeDomainMacs: {
+    parameters: {
+      query?: {
+        pageSize?: number;
+        page?: number;
+      };
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            page: number;
+            pageSize: number;
+            total: number;
+            items: {
+              mac: string;
+              /** @description "" for a filter entry */
+              interface: string;
+              swIfIndex: number;
+              static: boolean;
+              filter: boolean;
+              bvi: boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

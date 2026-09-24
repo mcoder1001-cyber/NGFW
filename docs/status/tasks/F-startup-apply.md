@@ -196,3 +196,192 @@ holder → FORCED rollback, bounded), 23 (apply refused), 24 (N9 fallback releas
 
 ## Open questions
 None blocking. Merge order: independent of other branches (owns only deploy/vpp/*, cmd/vrx-vppcheck, the vppstartup doc).
+
+## Review fixes (round 1 — review BLOCK at edd93a5)
+
+`git merge main` first (8adfa86). Nothing run with `--apply` on the host; VPP not restarted; only read-only calls below.
+
+| finding | fix |
+|---|---|
+| H1 NRestarts reset by a manual restart | NRestarts dropped. `vrx-vppcheck bootid` (D-080 triple via `internal/vpp/bootid`: boot_id / control_ping vpe_pid / /proc start time). Before the restart the identity is recorded; after it the run requires a **new** identity whose PID equals vpp.service's `MainPID`; during the window `MainPID` + `ActiveEnterTimestampMonotonic` and the identity must stay unchanged (a crash + systemd auto-restart changes both). Fake `systemctl` now resets NRestarts to 0 on restart and gives a new MainPID/start time; scenarios 8 (NRestarts 4 → 0 commits), 9 (no real restart → rollback), 10 (crash in the window → rollback) |
+| H2 gateway drops ICMP | `--mgmt-probe auto\|ssh-peer\|gateway-ping\|tcp:HOST:PORT`. auto = ssh-peer (the manager's session from `$SSH_CONNECTION`/`--mgmt-peer` ESTABLISHED in `ss`), else gateway-ping only if the gateway answers ICMP now, else **refuse** (dry run exit 3, "NONE VIABLE"). The dry run prints which check will be used; the run takes a baseline before installing (refuse 3 if it fails). In addition every management interface must keep its addresses and routes **exactly** as snapshotted (restore plan regenerated and compared). Fake gateway can drop ICMP; fake `ss` / TCP prober; scenarios 2, 11, 12, 13 |
+| M1 locks free between run and dead-man | a separate **lock holder** (`--stage hold`, own unit/session) takes both locks and keeps them until commit or the end of the rollback; the dead-man kills the run's process tree but never the holder, rolls back, then releases. Holder gone → the dead-man takes both locks exclusively (bounded) **before** touching the run; only a foreign holder → FORCED, holder from `lslocks` logged. Scenario 26: a queued `flock -s` waiter gets the lab lock only after the rollback restarted VPP; 27, 28, 29 |
+| M2 approval / gate | approval must be `PENDING-<slug>`: `docs/decisions/PENDING-<slug>.md` must exist on main of /root/ngfw and a LOG.md D-row on main must reference it; the gate record carries the file blob + D ids. The planner seals `plan.sha256` (settings, document, gen args, pinned binaries, gate); `--stage run` refuses on a seal mismatch and re-evaluates the gate, which must equal the sealed record. Scenarios 3, 4, 5 |
+| M3 budget / retries | explicit budgets (`ITER`, `RB_BUDGET`, `RUN_BUDGET`); dead-man deadline = run budget + one check round + worst-case rollback + 60 s (logged; scenario 8 asserts deadline > run + rollback budget). The run makes one rollback attempt; if incomplete the locks stay held and the dead-man makes up to `--rollback-retries` attempts with exponential backoff, then gives up loudly and releases. Scenario 31 |
+| lows | SSH peer shown and protected in the dry run (L2); interface names regex-escaped (`ere_escape`); dry-run temp dir removed by an EXIT trap (scenario 1); `--foreground` refused over SSH unless `--console`; `noprefixroute` kept in the restore plan; restore plan applies addresses before routes. L1 (fake-host test in the CI gate) needs `tools/ci.sh`, which this task does not own — proposed for the manager |
+
+### tools/ci.sh --base main
+```
+  apps/agent: make lint test build                   0m26s
+  test/ Go modules, unit mode (test/integration/smoke)   0m02s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      review(F-startup-apply): findings
+  mode quick · wall time 3m35s · logs /root/ngfw-wt/logs/ci/F-startup-apply-20260924-045104-2811545
+
+CI GATE PASSED
+```
+(the warning is the manager's `review(F-startup-apply): findings` subject)
+
+### shellcheck deploy/vpp/apply-startup.sh deploy/vpp/test-apply-startup.sh
+```
+(no output) exit 0
+```
+
+### go test -v ./cmd/vrx-vppcheck
+```
+--- PASS: TestVersion (0.00s)
+--- PASS: TestBootID (0.00s)
+--- PASS: TestPluginsByContent (0.00s)
+--- PASS: TestIfacesExactMatch (0.00s)
+--- PASS: TestDisconnectedIsExit2 (0.00s)
+--- PASS: TestUsage (0.00s)
+--- PASS: TestNoSocket (0.00s)
+--- PASS: TestHungVPPTimesOut (0.70s)
+PASS
+ok  	ngfw/agent/cmd/vrx-vppcheck	0.728s
+```
+
+### read-only on vrx-a: boot identity vs vpp.service (the PID matches MainPID)
+```
+$ vrx-vppcheck bootid ; systemctl show vpp -p MainPID -p ActiveEnterTimestampMonotonic -p NRestarts
+b7712a53-c1e7-45e2-98b8-bdb21f3904f9/2808617/5808198
+exit=0
+ActiveEnterTimestampMonotonic=58081985783
+MainPID=2808617
+NRestarts=5
+```
+
+### deploy/vpp/test-apply-startup.sh <generator> (fake host)
+```
+== 1. dry run (default) changes nothing; prints diffs, drivers, management restore plan, reachability check, preflight, gate, both sha256
+  ok   exit 0; unified diff shows the new dev lines
+  ok   semantic diff shows the logical names
+  ok   drivers of the PCI devices involved are listed
+  ok   management interface, ifupdown detected, addresses recorded
+  ok   exact restore plan printed (address + default route)
+  ok   link-local address and kernel routes are not in the plan
+  ok   reachability check chosen and shown: gateway-ping
+  ok   VPP preflight + boot identity; gate state shown
+  ok   sha256 of the live file and of the rendering printed
+  ok   live file untouched, VPP not restarted, no ip change
+  ok   dry run removed its temp dir (L3)
+== 2. dry run: SSH peer shown and used; no viable reachability check → exit 3 (review H2, L2)
+  ok   exit 0; peer 10.0.0.9 shown; gateway drops ICMP → ssh-peer chosen
+  ok   no peer, no ICMP: exit 3, refused early
+  ok   --mgmt-probe tcp:10.0.0.1:22 viable (exit 0)
+  ok   explicit gateway-ping on a no-ICMP gateway: exit 3
+== 3. usage errors → exit 2, nothing changed
+  ok   --apply without --expect-new-sha256 refused (exit 2)
+  ok   approval id that is not PENDING-<slug> refused (exit 2)
+  ok   --foreground over SSH without --console refused (exit 2)
+== 4. handover gate: pending → refused; approval verified on main (PENDING file + LOG D-row); unknown PENDING → refused
+  ok   no approval: exit 3, no work dir
+  ok   unknown PENDING id: exit 3
+  ok   systemd never touched
+  ok   approval resolved on main (file blob + D-060), recorded in gate + log (exit 0)
+  ok   approval sent to syslog
+  ok   handover flag parser (tools/lab rule): done / pending / absent → pending
+  ok   interface names are regex-escaped (L3)
+== 5. --stage run verifies the sealed plan and re-evaluates the gate (review M2)
+  ok   forged gate file: exit 3, refused, nothing installed
+  ok   altered settings: exit 3, refused
+== 6. what was reviewed is pinned: live file or rendering changed → refused inside the lock
+  ok   live file changed: exit 3, no restart, locks released
+  ok   rendering changed: exit 3, no restart
+== 7. VPP hung BEFORE the apply → preflight refuses within the timeout, nothing installed
+  ok   exit 3, refused, locks released
+  ok   bounded: 6s
+== 8. healthy apply commits — NRestarts 4 before, reset to 0 by the restart (review H1)
+  ok   exit 0, committed although NRestarts went 4 → 0
+  ok   new boot identity, PID = vpp.service MainPID
+  ok   new file installed
+  ok   backup kept (work dir + next to the file)
+  ok   logical interfaces + plugins verified through vrx-vppcheck
+  ok   drivers recorded before the restart
+  ok   management snapshot: ens192, ifupdown; check gateway-ping
+  ok   locks taken (holder) before backup and diff
+  ok   dead-man timer and lock holder started with the settings as --setenv
+  ok   dead-man timer cancelled, locks released after commit
+  ok   dead-man deadline > run budget + rollback budget (review M3)
+== 9. VPP did not actually restart (same boot identity) → rollback
+  ok   exit 1, detected
+== 10. VPP crashes during the window (systemd brings it back) → rollback
+  ok   exit 1, crash detected by MainPID/ActiveEnter/boot identity
+== 11. gateway drops ICMP (vrx-a): auto check = the manager's SSH session → commits (review H2)
+  ok   exit 0, committed with ssh-peer
+== 12. gateway drops ICMP, --mgmt-probe tcp:… → commits; path lost → rollback verified by the same probe
+  ok   exit 0, committed with a TCP probe
+  ok   exit 1, lost TCP path → rollback, healthy afterwards
+== 13. no viable check at apply time → refused before anything changes
+  ok   exit 3, refused, locks released
+== 14. a logical interface missing in VPP → rollback
+  ok   exit 1, rolled back, original file restored, locks released
+  ok   reason logged
+  ok   VPP stopped, reset-failed (N11), started on the old file
+== 15. ifupdown host (vrx-a), no netplan: VPP steals the management NIC → rebind + EXACT address/route restore
+  ok   exit 1, loss detected (addresses/routes compared exactly)
+  ok   unbound from vfio-pci, bound back to vmxnet3, override cleared
+  ok   recorded addresses (v4+v6) and default route re-applied verbatim
+  ok   addresses before routes
+  ok   fake kernel: address, default route and vmxnet3 driver back
+  ok   no network manager needed; rollback verified healthy
+== 16. ifupdown, exact re-apply not enough → ifup --force ens192
+  ok   exit 1, ifup --force used, rollback healthy
+== 17. systemd-networkd host → networkctl reconfigure
+  ok   exit 1, networkd detected, reconfigure used, rollback healthy
+== 18. netplan host → netplan apply
+  ok   exit 1, netplan detected, netplan apply used, rollback healthy
+== 19. a plugin the new file enables is not loaded → rollback
+  ok   exit 1, reason: npt66 not loaded
+== 20. D-084 omission (re-review N6): the new document drops npt66 → it may vanish; the apply commits
+  ok   exit 0, committed without npt66
+== 21. VPP HANGS after the restart (socket accepted, no answer) → bounded wait, rollback
+  ok   exit 1, rolled back
+  ok   bounded: 12s (cmd-timeout 1s, api-wait 2s)
+== 22. VPP hangs in the middle of the watch window → rollback
+  ok   exit 1, hang detected, rolled back
+  ok   bounded: 13s
+== 23. systemctl restart itself hangs → svc timeout, rollback
+  ok   exit 1, rolled back
+  ok   bounded: 14s
+== 24. SSH session dies mid-apply (detached through systemd-run, clean environment) → the run still commits
+  ok   session killed after install, before commit
+  ok   detached run committed anyway
+  ok   unit started with every setting as --setenv
+  ok   the unit saw exactly the recorded settings under env -i
+== 25. SSH session dies mid-apply, systemd-run unavailable → setsid fallback survives too
+  ok   setsid run committed after the session died
+== 26. the run HANGS mid-apply; an integration run queues on the lab lock → dead-man kills the run, the locks never go free until the rollback is done (review M1)
+  ok   run stuck in 'systemctl restart'; holder 2799224 owns the locks
+  ok   exit 1, run killed, file restored
+  ok   holder kept the locks across the kill; not FORCED
+  ok   queued shared waiter got the lab lock only after the rollback restarted VPP
+  ok   locks released at the end, holder gone
+  ok   bounded: 5s
+== 27. dead-man: no-op after commit; rollback when the run died before committing
+  ok   committed run: dead-man does nothing
+  ok   uncommitted run, holder gone: dead-man took the locks itself, restored the backup (exit 1)
+== 28. dead-man, holder gone AND a foreign process holds the lab lock forever → bounded wait, FORCED rollback, holder logged
+  ok   exit 1, rolled back without the lock, holder named
+  ok   bounded: 5s
+== 29. lab lock held by someone else at apply time → refused, nothing changed
+  ok   exit 3, lock busy (holder named), file unchanged
+== 30. timer unavailable → setsid dead-man; stopped on commit; locks free
+  ok   exit 0, committed, fallback dead-man used
+  ok   both locks free right after the commit
+  ok   fallback dead-man stopped by the commit
+== 31. rollback cannot restore the management path → incomplete, locks STAY held, dead-man retries with backoff
+  ok   exit 1, incomplete, timer NOT cancelled, locks still held
+  ok   still broken: 2 bounded attempts with backoff, then gives up and releases
+  ok   path fixable: dead-man retry restored it and released the locks
+== 32. the generator refuses the management NIC as a device (host facts) → nothing changed
+  ok   dry run fails with the generator's error (exit 2)
+
+apply-startup tests: 91 passed, 0 failed
+```
+
+### Still not provable without a real apply
+The ones listed above, plus: the real `ss` output for the manager's session during a VPP restart, real `lslocks`, a real
+`systemd-run` lock-holder unit surviving the run unit, and `systemd-run` timer re-use. The ssh-peer check fails (→ rollback)
+if the manager closes the SSH session during the window: keep it open, or use `--mgmt-probe tcp:HOST:PORT`.

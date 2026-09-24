@@ -403,6 +403,15 @@ do_agent() {
   note "$(grep -E '^(ok|FAIL)\s' "$CUR_LOG" | head -n 12 | tr '\n' ';' | sed 's/;/; /g')"
 }
 
+# vrx CLI (P13): its own Go module, not a pnpm package. lint (gofmt, vet, golangci-lint, no-direct-VPP check) + unit tests +
+# build; TestOperationsTableMatchesOpenAPI catches a stale operations_gen.go after an API route change (P08 review F2).
+do_cli() {
+  [[ -f apps/cli/go.mod ]] || return 0
+  step "apps/cli: make lint test build"
+  run cli make -C apps/cli lint test build || fail "apps/cli lint/test/build failed (stale operations table? run 'make -C apps/cli gen' after 'pnpm gen')"
+  note "$(grep -E '^(ok|FAIL)\s' "$CUR_LOG" | head -n 8 | tr '\n' ';' | sed 's/;/; /g')"
+}
+
 # every Go module under test/ (e.g. test/integration/smoke, its own module with `replace ngfw/agent => ../../../apps/agent`)
 # is compiled, vetted and run in unit mode: its integration tests t.Skip without VRX_INTEGRATION, but a gofmt/vet/compile
 # regression or a stale go.sum ("missing go.sum entry" after apps/agent/go.mod grew) fails the gate here, not in someone's
@@ -531,6 +540,7 @@ case $MODE in
     do_forbidden
     do_turbo
     do_agent
+    do_cli
     do_test_modules
     [[ $MODE != full ]] || do_integration
     passed ;;

@@ -329,7 +329,7 @@ tasks:
   - P06
   priority: 1
   est_hours: 12
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D0.10
@@ -339,9 +339,10 @@ tasks:
   worktree: /root/ngfw-wt/P07b
   owner: host-agent slot1
   started: 2026-09-24T03:10
-  finished: ''
+  finished: '2026-09-24'
   notes: ' | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094) | worker done c4513b2 (real-stack E2E 50/50 en+fa, server-loss countdown); review spawned | review APPROVE WITH CHANGES 403092c
-    (H1 hash-only change invisible → TD-2 item 6 + UI, M1 apply result hidden, M2 outage reload → login, M3 no timeouts, M4 cross-tab auth, M5 break-lock confirm); fix round 1'
+    (H1 hash-only change invisible → TD-2 item 6 + UI, M1 apply result hidden, M2 outage reload → login, M3 no timeouts, M4 cross-tab auth, M5 break-lock confirm); fix round 1 | fix round e7d3bd5 (E2E 77/77);
+    merged 735db8a; main CI green'
 - id: DF-1
   title: 'Descriptors: bond, l2 (bridge, xconnect), memif, tap, host-interface/af_packet, subinterface, admin-state, mtu, rx-mode'
   prompt: prompts/factories/DF-1.md
@@ -457,7 +458,7 @@ tasks:
   - P04
   priority: 2
   est_hours: 12
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D6.1
@@ -469,10 +470,11 @@ tasks:
   worktree: /root/ngfw-wt/DF-5
   owner: host-agent slot4
   started: 2026-09-23T15:28
-  finished: ''
+  finished: 2026-09-24T05:43
   notes: ' | 2026-09-24 00:2x: worker stalled ~8 h; uncommitted work salvaged; CONTINUE respawn by host manager (Agent tool, same slot) | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)
     | CONTINUE worker done e553199 CI green; review spawned; D-096 | review BLOCK ac84fb7 (H1 D-096 not done + scheduler prints values, H2 sweep may delete others SAs, H3 sweep may free referenced SA →
-    crash, M1–M4); fix round 1 (authorised minimal scheduler redaction edit)'
+    crash, M1–M4); fix round 1 (authorised minimal scheduler redaction edit) | fix round 7f6bdf5 CI green; re-review spawned | re-review BLOCK 4a370b9 (N1 SPD delete keeps SA locks — sweep reports false
+    success, fake models opposite; N2 deletes policies in foreign SPDs); fix round 2 (last) | merged 4b11eff (verify of fix round 2 APPROVE); worktree removed 07:2x by host manager cycle 12'
 - id: DF-6
   title: 'Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp'
   prompt: prompts/factories/DF-6.md
@@ -670,19 +672,20 @@ tasks:
   - DF-2
   priority: 1
   est_hours: 16
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D1.2
   - D1.3
   scope: packet path = af_packet/veth rig (D-010)
-  files_owned: apps/** test/topology/interfaces/** docs/user/interfaces/**
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  files_owned: apps/agent/cmd/vrx-agent/** apps/agent/internal/{agent,subsystems,desired}/** apps/api/src/state/** apps/web/src/domains/interfaces/** test/topology/interfaces/** docs/user/interfaces/**
+  branch: task/P08
+  worktree: /root/ngfw-wt/P08
+  owner: host-agent slot1
+  started: 2026-09-24T05:45
   finished: ''
-  notes: ' | consolidate D-080 boot-identity helper; install persisted ClaimStore/records (DF-1 Q5, DF-6 Q10, DF-8 Q8); retrofit DF-2/DF-4 records'
+  notes: ' | consolidate D-080 boot-identity helper; install persisted ClaimStore/records (DF-1 Q5, DF-6 Q10, DF-8 Q8); retrofit DF-2/DF-4 records | 07:2x cycle 12: worker found dead (no process since ~05:45);
+    uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/P08.continue.md'
 - id: F-vlan-qinq
   title: 'Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking'
   prompt: prompts/features/F-vlan-qinq.md
@@ -838,6 +841,7 @@ tasks:
   deps:
   - P08
   - DF-2
+  - DF-4
   priority: 3
   est_hours: 10
   state: todo
@@ -1026,7 +1030,8 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: 'build against staging sysroot from /root/vpp/build-root debs; test vs stock strongSwan in a netns | D-096: own charon SPD/SA id range; stop→sweep→start→AckRestart'
+  notes: 'build against staging sysroot from /root/vpp/build-root debs; test vs stock strongSwan in a netns | D-096: own charon SPD/SA id range; stop→sweep→start→AckRestart | DF-5 Q13: RF-2 AckRestart(ctx,
+    since) should ack only the charon start time P11 observed'
 - id: F-ikev2-native
   title: 'Wave B (day 10-12): VPP native IKEv2 responder path'
   prompt: prompts/features/F-ikev2-native.md
@@ -1035,6 +1040,7 @@ tasks:
   deps:
   - P08
   - DF-5
+  - P11
   priority: 4
   est_hours: 10
   state: todo
@@ -1401,6 +1407,7 @@ tasks:
   deps:
   - P08
   - DF-1
+  - F-startup-gen
   priority: 5
   est_hours: 10
   state: todo
@@ -1618,6 +1625,7 @@ tasks:
   deps:
   - P06
   - P08
+  - P07b
   priority: 6
   est_hours: 10
   state: todo
@@ -1663,6 +1671,7 @@ tasks:
   deps:
   - P06
   - P08
+  - P07b
   priority: 6
   est_hours: 10
   state: todo
@@ -1686,6 +1695,7 @@ tasks:
   - P06
   - P07b
   - P08
+  - F-ab-upgrade
   priority: 6
   est_hours: 10
   state: todo
@@ -1844,6 +1854,7 @@ tasks:
   deps:
   - P06
   - P08
+  - P07b
   priority: 6
   est_hours: 10
   state: todo
@@ -2126,9 +2137,10 @@ tasks:
   files_owned: deploy/vpp/apply-startup.sh deploy/vpp/vpp-iface-check* deploy/vpp/test-apply-startup.sh
   finished: ''
   id: F-startup-apply
-  notes: D-088 split from F-startup-gen | worker done 00315f4 CI green (72/72 fake-host checks); review spawned; leftover /tmp/tmp.FoyjiXAETl (rm denied) | usage-limit interruption ~04:00 → WIP salvaged,
+  notes: 'D-088 split from F-startup-gen | worker done 00315f4 CI green (72/72 fake-host checks); review spawned; leftover /tmp/tmp.FoyjiXAETl (rm denied) | usage-limit interruption ~04:00 → WIP salvaged,
     resumed (D-094) | review BLOCK edd93a5 (H1 NRestarts reset by manual restart, H2 gateway ICMP, M1 dead-man lock race, M2 approval flag, M3 rollback budget); fix round 1 | fix round 7d81982 (91/91 fake-host
-    checks) CI green; re-review spawned
+    checks) CI green; re-review spawned | re-review APPROVE WITH CHANGES 3c0bafc (N1 SSH-session probe → rollback loop, N2 no systemd-run fallback, N3 early crash, N4 approval binding); fix round 2 (last)
+    | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/F-startup-apply.continue.md'
   owner: host-agent slot6
   parked_on: ''
   priority: 4
@@ -2136,7 +2148,7 @@ tasks:
   scope: apply-startup.sh from branch task/F-startup-apply; fix re-review N1 N2 N3 N6 + lows (D-088)
   stage: S2
   started: 2026-09-24T03:10
-  state: review
+  state: running
   template: FEATURE-TEMPLATE.md
   title: Robust startup.conf apply tooling (detached, watchdog, hung-VPP, ifupdown restore, Go API checks, handover gate)
   wbs:
@@ -2238,7 +2250,9 @@ tasks:
   owner: host-agent slot7
   started: 2026-09-24T04:40
   finished: ''
-  notes: from P07b Q1-Q3, P13 review H1, D-093
+  notes: 'from P07b Q1-Q3, P13 review H1, D-093 | worker done 7f4578f CI green (88 unit, 41 e2e); review spawned | review APPROVE WITH CHANGES cc70629 (H1 reconcile restores old password hash, H2 refresh
+    survives reset, M1 keys survive reset → D-097, M2 current-guessing); fix round 1 | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn
+    by host manager (Agent tool), envelope /root/ngfw-wt/TD-2.continue.md'
 - id: TD-3
   title: 'V19 guard: sanitize inherited per-interface state on interface create; unbind classify before table/interface delete; restart simulations delete dependents; ci.sh full pre-flight'
   prompt: ''
@@ -2262,4 +2276,6 @@ tasks:
   owner: host-agent slot2
   started: 2026-09-24T05:00
   finished: ''
-  notes: D-095; V19 crash 04:50:27
+  notes: 'D-095; V19 crash 04:50:27 | worker done d001e5f CI green; review spawned (focus: unremovable binding to deleted table); V23 feature_is_enabled lies → fix folded into TD-3 fix round if confirmed
+    | review BLOCK 46fafdb (H1 L2 ACL/policer bits = second crash path, H2 invisible bindings, H3 delete must clear bindings first, M1; reviewer safe behaviour adopted: force L3 → resurrect table index
+    → quarantine); fix round 1 incl. V23 | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn by host manager (Agent tool), envelope /root/ngfw-wt/TD-3.continue.md'

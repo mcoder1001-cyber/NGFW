@@ -23,7 +23,7 @@ export default [
               'orientation', 'direction', 'position', 'anchor', 'justifyContent', 'alignItems', 'flexWrap', 'gap',
               'autoComplete', 'inputMode', 'role', 'lang', 'dir', 'mode', 'fontFamily', 'underline', 'textColor',
               'indicatorColor', 'labelKey', 'anchorOrigin', 'transformOrigin', 'queryKey', 'paginationMode', 'sortingMode',
-              'filterMode', 'density', 'valueLabelDisplay', 'data-.*', 'aria-(controls|labelledby|describedby|haspopup|live|current|hidden|expanded|owns)',
+              'filterMode', 'density', 'maxWidth', 'fontSize', 'valueLabelDisplay', 'data-.*', 'aria-(controls|labelledby|describedby|haspopup|live|current|hidden|expanded|owns)',
             ],
           },
           words: { exclude: ['[0-9!-/:-@[-`{-~]+', '—', '…'] },

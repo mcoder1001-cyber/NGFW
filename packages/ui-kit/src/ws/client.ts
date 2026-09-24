@@ -5,6 +5,8 @@ import { backoffDelay, DEFAULT_BACKOFF, type BackoffOptions } from './backoff.js
  *   client → server  { subscribe: string[] } | { unsubscribe: string[] }
  *   server → client  { topic: string, data: unknown, ts?: number }   (one message per sample)
  *                    { error: { title?: string, detail?: string } }  (non-fatal, surfaced via onError)
+ * P06's relay (apps/api/src/telemetry) sends `{ type: 'data', topic, data }`, `{ type: 'error', message }` and
+ * control frames (`heartbeat`, `pong`, `subscribed`) that carry no topic and are ignored here.
  * Recorded for P06 in docs/status/tasks/P07a-questions.md; the shape is isolated in `encode/decode`.
  */
 export interface TopicMessage<T = unknown> {
@@ -29,7 +31,8 @@ export interface WebSocketLike {
   close(code?: number, reason?: string): void;
 }
 
-export type WebSocketFactory = (url: string) => WebSocketLike;
+/** `protocols` is the subprotocol list offered in the handshake (browsers cannot set headers on a WebSocket). */
+export type WebSocketFactory = (url: string, protocols?: string[]) => WebSocketLike;
 
 export interface VrxWsClientOptions {
   url: string;
@@ -50,6 +53,12 @@ export interface VrxWsClientOptions {
    * timers to about once a minute, so an unbounded buffer could grow without limit (review P07a L6a).
    */
   maxBufferPerTopic?: number;
+  /**
+   * Subprotocols offered on every (re)connect, read at connect time so a refreshed credential is used after a
+   * reconnect (P06 D-P06-9: `['vrx.v1', 'bearer.<access-token>']`, never a token in the URL). Returning
+   * `undefined` postpones the connection: the client stays `idle` until `connect()`/`subscribe()` is called again.
+   */
+  protocols?: () => string[] | undefined;
   onError?: (err: unknown) => void;
   /** Injected clock/timers for deterministic tests. */
   now?: () => number;
@@ -73,6 +82,7 @@ export class VrxWsClient {
   private readonly maxBufferPerTopic: number;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly onError: ((err: unknown) => void) | undefined;
+  private readonly protocols: (() => string[] | undefined) | undefined;
   private readonly now: () => number;
 
   private socket: WebSocketLike | null = null;
@@ -90,10 +100,10 @@ export class VrxWsClient {
     this.url = opts.url;
     this.factory =
       opts.factory ??
-      ((url) => {
-        const Ctor = (globalThis as { WebSocket?: new (u: string) => WebSocketLike }).WebSocket;
+      ((url, protocols) => {
+        const Ctor = (globalThis as { WebSocket?: new (u: string, p?: string[]) => WebSocketLike }).WebSocket;
         if (!Ctor) throw new Error('WebSocket is not available in this environment');
-        return new Ctor(url);
+        return protocols ? new Ctor(url, protocols) : new Ctor(url);
       });
     this.flushIntervalMs = opts.flushIntervalMs ?? 1000;
     this.backoff = { ...DEFAULT_BACKOFF, ...opts.backoff };
@@ -101,6 +111,7 @@ export class VrxWsClient {
     this.idleCloseDelayMs = opts.idleCloseDelayMs ?? 2000;
     this.maxBufferPerTopic = Math.max(1, opts.maxBufferPerTopic ?? 600);
     this.onError = opts.onError;
+    this.protocols = opts.protocols;
     this.now = opts.now ?? (() => Date.now());
   }
 
@@ -146,10 +157,19 @@ export class VrxWsClient {
   connect(): void {
     if (this.socket) return;
     this.closedByUser = false;
+    let protocols: string[] | undefined;
+    if (this.protocols) {
+      protocols = this.protocols();
+      // no credential yet (signed out): stay idle instead of hammering the server with 401 upgrades
+      if (protocols === undefined) {
+        this.setStatus('idle');
+        return;
+      }
+    }
     this.setStatus(this.attempt === 0 ? 'connecting' : 'reconnecting');
     let ws: WebSocketLike;
     try {
-      ws = this.factory(this.url);
+      ws = protocols ? this.factory(this.url, protocols) : this.factory(this.url);
     } catch (err) {
       this.onError?.(err);
       this.scheduleReconnect();
@@ -267,9 +287,14 @@ export class VrxWsClient {
       return;
     }
     if (!msg || typeof msg !== 'object') return;
-    const m = msg as { topic?: unknown; data?: unknown; ts?: unknown; error?: unknown };
+    const m = msg as { type?: unknown; topic?: unknown; data?: unknown; ts?: unknown; error?: unknown; message?: unknown };
     if (m.error !== undefined) {
       this.onError?.(m.error);
+      return;
+    }
+    // P06 relay frames: {type:'data',topic,data} | {type:'error',message} | heartbeat/pong/subscribed (ignored)
+    if (m.type === 'error') {
+      this.onError?.({ detail: typeof m.message === 'string' ? m.message : 'stream error' });
       return;
     }
     if (typeof m.topic !== 'string') return;

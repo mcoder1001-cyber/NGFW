@@ -38,6 +38,7 @@ import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { nat44EdSessionsFake } from '../features/nat44-ed-sessions/fake.js';
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -617,7 +618,9 @@ export class FakeAgent {
       streamEvents,
       action: (call) => {
         this.record('Action', call.request);
-        call.destroy(
+        // 'error' (not destroy): a destroyed stream never sends its status, so the client hung until its deadline
+        call.emit(
+          'error',
           Object.assign(new Error('actions are not implemented'), { code: status.UNIMPLEMENTED }),
         );
       },
@@ -633,10 +636,7 @@ export class FakeAgent {
       // wave-A: F-acl
       // wave-A: F-host-acl-nftables
       // wave-A: F-nat44-ed-sessions
-      natSessions: (_call, cb) =>
-        cb({ code: status.UNIMPLEMENTED, details: 'fake agent: NatSessions stub' }),
-      natSummary: (_call, cb) =>
-        cb({ code: status.UNIMPLEMENTED, details: 'fake agent: NatSummary stub' }),
+      ...nat44EdSessionsFake(this),
       // wave-A: F-nat44-ei-64-66-nptv6
       // wave-A: P11
       // wave-A: F-wireguard

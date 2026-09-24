@@ -36,6 +36,7 @@ import { RelayService } from './telemetry/relay.service.js';
 // wave-A: F-acl
 // wave-A: F-host-acl-nftables
 // wave-A: F-nat44-ed-sessions
+import { nat44EdSessionsFeature } from './features/nat44-ed-sessions/index.js';
 // wave-A: F-nat44-ei-64-66-nptv6
 // wave-A: P11
 // wave-A: F-wireguard
@@ -87,6 +88,7 @@ export class AppModule {
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables
         // wave-A: F-nat44-ed-sessions
+        ...nat44EdSessionsFeature.controllers,
         // wave-A: F-nat44-ei-64-66-nptv6
         // wave-A: P11
         // wave-A: F-wireguard
@@ -123,6 +125,7 @@ export class AppModule {
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables
         // wave-A: F-nat44-ed-sessions
+        ...nat44EdSessionsFeature.providers,
         // wave-A: F-nat44-ei-64-66-nptv6
         // wave-A: P11
         // wave-A: F-wireguard

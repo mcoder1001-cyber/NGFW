@@ -25,6 +25,12 @@ import {
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions
+  type ActionDone,
+  type ActionOutput,
+  type NatSessionKillAction,
+  type NatSessionsRequest,
+  type NatSessionsResponse,
+  type NatSummaryResponse,
   // wave-A: F-nat44-ei-64-66-nptv6
   // wave-A: P11
   // wave-A: F-wireguard
@@ -131,6 +137,49 @@ export class AgentClient implements OnModuleDestroy {
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions
+  /** F-nat44-ed-sessions: one bounded page of NAT44-ED sessions (limit ≤ 1000, proto.md §11). */
+  natSessions(req: Omit<NatSessionsRequest, 'owner'>): Promise<NatSessionsResponse> {
+    return this.unary(this.c.natSessions, { ...req, owner: this.owner });
+  }
+
+  /** F-nat44-ed-sessions: NAT44-ED totals and per-pool usage. */
+  natSummary(): Promise<NatSummaryResponse> {
+    return this.unary(this.c.natSummary, { owner: this.owner });
+  }
+
+  /** F-nat44-ed-sessions: the NatSessionKillAction through the Action stream; resolves with its `done`. */
+  natSessionKill(
+    a: NatSessionKillAction,
+    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+  ): Promise<ActionDone> {
+    return new Promise((resolve, reject) => {
+      const call = this.c.action({ natSessionKill: a }, new Metadata(), {
+        deadline: new Date(Date.now() + timeoutMs),
+      });
+      let done: ActionDone | undefined;
+      let failed = false;
+      call.on('data', (o: ActionOutput) => {
+        if (o.done !== undefined) done = o.done;
+      });
+      call.on('error', (e: ServiceError) => {
+        failed = true;
+        reject(agentProblem(e));
+      });
+      call.on('end', () => {
+        if (failed) return;
+        if (done !== undefined) resolve(done);
+        else
+          reject(
+            new ProblemError(
+              502,
+              'agent-error',
+              'Agent error',
+              'agent: the action stream ended without done',
+            ),
+          );
+      });
+    });
+  }
   // wave-A: F-nat44-ei-64-66-nptv6
   // wave-A: P11
   // wave-A: F-wireguard

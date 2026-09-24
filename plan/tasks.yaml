@@ -672,7 +672,7 @@ tasks:
   - DF-2
   priority: 1
   est_hours: 16
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D1.2
@@ -691,7 +691,7 @@ tasks:
     + restart-safety on slot 1 (NRestarts 6→6); its 07:27 run caused the V24 crash (confirmed); review spawned | 14:00 ngfw-46: review CONTINUE (Agent tool), envelope /root/ngfw-wt/P08.review2.md; fix round
     follows after ci full (PID 10894) ends; F1/F4 decided D-105 | review BLOCK 6022f0d (N1 hostDoc, F1/F2, N2, F5 …); fix round 1 spawned by ngfw-46, envelope /root/ngfw-wt/P08.fix1.md (D-107) | re-review
     APPROVE WITH CHANGES (T1 guard vs coretest, R1 tolerant/CLI, e2e discrimination) → fix round 2 (last), envelope /root/ngfw-wt/P08.fix2.md (D-118) | fix round 2 done abb6950 (code 1a90988), CI green,
-    topology PASSED first run (resync 0.4 s, NRestarts 0→0); focused verify of round 2'
+    topology PASSED first run (resync 0.4 s, NRestarts 0→0); focused verify of round 2 | merged c2ca3ed (squash a5cbf58, D-112), main gate green'
 - id: W-seed
   title: 'Wave-A seed commit: hotspot anchors (A1,A2,A4,C1-C3,C5,P1,P4-P6,W1-W3), one-entry-per-line lists, Env event-publish + Resync hooks (A5), subsystems.SlotIDRange(), vpn/services page shells, proto.md
     "Feature RPCs" heading — no behaviour change'
@@ -2587,7 +2587,7 @@ tasks:
   deps: []
   priority: 1
   est_hours: 2
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D0.4
@@ -2598,7 +2598,7 @@ tasks:
   owner: ngfw-46 slot6
   started: ''
   finished: ''
-  notes: 'D-121: merger request after the TD-6 gate failed on TestGRPCRoundTrip at load ~34 | done fed09a5, verify APPROVE 4bf176f; merging (merger)'
+  notes: 'D-121: merger request after the TD-6 gate failed on TestGRPCRoundTrip at load ~34 | done fed09a5, verify APPROVE 4bf176f; merging (merger) | merged b5b9ed6 (squash 3060e22, D-112), main gate green'
 - template: ''
   parked_on: ''
   finished: ''
@@ -2731,7 +2731,7 @@ tasks:
   - P08
   priority: 2
   est_hours: 14.5
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.7
@@ -2835,7 +2835,7 @@ tasks:
   - P08
   priority: 2
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.7
@@ -2859,7 +2859,7 @@ tasks:
   - P08
   priority: 2
   est_hours: 11
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.7
@@ -2885,7 +2885,7 @@ tasks:
   - P08
   priority: 3
   est_hours: 8
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.7

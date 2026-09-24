@@ -323,7 +323,8 @@ do_contract_guard() {
   local mb; mb=$(git merge-base "$BASE" "$TIP") || fail "no merge base between $BASE and $TIP"
   MERGE_BASE=$mb
   local n; n=$(git rev-list --count "$mb..$TIP")
-  local changed; changed=$(git diff --name-only "$mb" "$TIP" -- "${CONTRACT_PATHS[@]}")
+  # test files under the contract paths are not contract (D-128b: F-vlan-qinq's semantic *.test.ts tripped the guard)
+  local changed; changed=$(git diff --name-only "$mb" "$TIP" -- "${CONTRACT_PATHS[@]}" | grep -vE '(\.test\.ts|_test\.go)$' || true)
   if [[ -z $changed ]]; then
     say "no contract files changed in the $n commit(s) of $TIP since $BASE ($(git rev-parse --short "$mb"))"
   else

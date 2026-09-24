@@ -24,3 +24,9 @@ Started 2026-09-24T19:10 from task/W-seed@df67a8e (speculative, D-114). Time box
 - 19:55 contract commits cc85681 (schema) + 07ba37e (proto); agent: weight descriptor, KeyProvider, builder/assembler, registry,
   projection, BondState RPC, coretest bond model, tests. Finding: sub-interface attributes cannot be removed together with the
   sub-interface (observed-only alias → no topo edge; TD-11c 3.1c) — two-step removal in the test, questions Q4.
+- 23:00 (after the usage-limit pause; P08 merged on main meanwhile — not rebased, D-112 merger) API committed (cf40008 +
+  8b4ea9a); UI: drawer exclusion line (P08 drawer save blocked by the phantom `bond`), Bonds page + tests (1580b1f, 7131792).
+- 23:31 host run 1 PASS (fixture taps, NRestarts 1→1, restart 0.420 s); Chrome-for-Testing + libs extracted into the
+  scratchpad (no system install) for the screenshots.
+- 23:42 `TMPDIR=/tmp/g-w6 tools/ci.sh --base main` → CI GATE PASSED (7m57s) at 7131792.
+- 23:43 host run 2 PASS (final evidence + screenshots, NRestarts 1→1, restart 0.413 s); cleanup verified; F-bonding.md written.

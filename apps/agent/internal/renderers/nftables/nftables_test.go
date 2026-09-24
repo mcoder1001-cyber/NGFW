@@ -453,3 +453,23 @@ func limitDoc() string {
 	b.WriteString(`"acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "source": {"kind": "object", "name": "big"}}]}}, "hostAttachments": [{"list": "l", "chain": "input"}]}}`)
 	return b.String()
 }
+
+// TestGoldenDocsExample is the example of docs/user/firewall/host-acl-nftables.md ("SSH only from
+// 10.0.0.0/24"): it renders without findings.
+func TestGoldenDocsExample(t *testing.T) {
+	v, issues := build(t, doc(t, `{"acl": {
+	  "host": {"mgmt-in": {"description": "management plane", "rules": [
+	    {"sequence": 10, "action": "accept", "source": {"kind": "prefix", "prefix": "10.0.0.0/24"}, "service": {"kind": "inline", "spec": {"protocol": "tcp", "destinationPorts": ["22", "443"]}}},
+	    {"sequence": 20, "action": "accept", "source": {"kind": "prefix", "prefix": "10.0.0.0/24"}, "service": {"kind": "inline", "spec": {"protocol": "udp", "destinationPorts": ["161"]}}},
+	    {"sequence": 30, "action": "drop", "log": true, "service": {"kind": "inline", "spec": {"protocol": "tcp", "destinationPorts": ["22", "443"]}}}]}},
+	  "hostAttachments": [{"list": "mgmt-in", "chain": "input", "priority": 0}],
+	  "hostSettings": {"antiLockout": {"sources": ["10.0.0.0/24"], "interfaces": ["ens192"]}}}}`))
+	if len(issues) != 0 {
+		t.Fatalf("issues: %+v", issues)
+	}
+	text, err := RenderText(ProductTable, v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	golden(t, "docs-example", text)
+}

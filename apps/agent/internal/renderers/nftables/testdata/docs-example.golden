@@ -1,0 +1,18 @@
+# vrx-agent host firewall (F-host-acl-nftables): table inet vrx, rendered from acl.host*.
+# One nft -f transaction replaces the whole table; hand edits are overwritten by the next apply.
+add table inet vrx
+delete table inet vrx
+table inet vrx {
+	comment "vrx-agent host firewall"
+	chain in_mgmt-in {
+		type filter hook input priority 0; policy accept;
+		ct state established,related counter accept comment "vrx:@established/0:c77fde03"
+		iif "lo" counter accept comment "vrx:@loopback/0:ad72b3be"
+		meta l4proto icmp counter accept comment "vrx:@icmp/0:36418210"
+		meta l4proto ipv6-icmp counter accept comment "vrx:@icmp/1:455fde78"
+		iifname "ens192" ip saddr 10.0.0.0/24 tcp dport { 22, 443 } counter accept comment "vrx:@anti-lockout/0:0de959a4"
+		ip saddr 10.0.0.0/24 tcp dport { 22, 443 } counter accept comment "vrx:mgmt-in:10/0:c7ad031a"
+		ip saddr 10.0.0.0/24 udp dport 161 counter accept comment "vrx:mgmt-in:20/0:eccc846b"
+		tcp dport { 22, 443 } counter log prefix "vrx:mgmt-in:30 " drop comment "vrx:mgmt-in:30/0:b65366bb"
+	}
+}

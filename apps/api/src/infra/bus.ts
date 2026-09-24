@@ -10,6 +10,13 @@ export const TOPICS = [
   'reconcile.events',
   'commit.events',
   'agent.events',
+  // Feature topics: one line under the feature's anchor (wave-A-hotspots P6).
+  // wave-A: F-neighbors-ra
+  // wave-A: F-object-model
+  // wave-A: F-acl
+  // wave-A: P11
+  // wave-A: F-wireguard
+  // wave-A: P12
 ] as const;
 export type Topic = (typeof TOPICS)[number];
 

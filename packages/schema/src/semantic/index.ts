@@ -13,6 +13,21 @@ import { tunnelsValidators } from './tunnels.js';
 import { servicesValidators } from './services.js';
 import { haValidators } from './ha.js';
 import { managementValidators } from './management.js';
+// Feature rule files (semantic/<slug>.ts exporting `<slug>Validators`): one import under the feature's anchor.
+// wave-A: F-bonding
+// wave-A: F-bridge-l2
+// wave-A: F-loopback-bvi-gso-lldp-span
+// wave-A: F-vrf-static-ecmp
+// wave-A: F-neighbors-ra
+// wave-A: F-rpf-adl-pbr
+// wave-A: F-object-model
+// wave-A: F-host-acl-nftables
+// wave-A: F-nat44-ed-sessions
+// wave-A: P11
+// wave-A: F-wireguard
+// wave-A: P12
+// wave-A: F-kea-dhcp-relay
+// wave-A: F-unbound-chrony-syslog
 
 export * from './registry.js';
 
@@ -34,6 +49,21 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...servicesValidators,
   ...haValidators,
   ...managementValidators,
+  // Feature rules: one spread line under the feature's anchor (wave-A-hotspots C2).
+  // wave-A: F-bonding
+  // wave-A: F-bridge-l2
+  // wave-A: F-loopback-bvi-gso-lldp-span
+  // wave-A: F-vrf-static-ecmp
+  // wave-A: F-neighbors-ra
+  // wave-A: F-rpf-adl-pbr
+  // wave-A: F-object-model
+  // wave-A: F-host-acl-nftables
+  // wave-A: F-nat44-ed-sessions
+  // wave-A: P11
+  // wave-A: F-wireguard
+  // wave-A: P12
+  // wave-A: F-kea-dhcp-relay
+  // wave-A: F-unbound-chrony-syslog
 ];
 
 /** Process-wide registry populated from {@link SEMANTIC_VALIDATORS}. */

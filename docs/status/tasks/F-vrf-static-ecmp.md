@@ -217,3 +217,70 @@ Screenshots (`docs/status/tasks/F-vrf-static-ecmp-screens/`, en + fa/RTL): `vrfs
 ![ECMP editor](F-vrf-static-ecmp-screens/ecmp-editor-en.png)
 ![FIB browser, Persian](F-vrf-static-ecmp-screens/fib-browser-fa-rtl.png)
 ![Ping result](F-vrf-static-ecmp-screens/ping-result-en.png)
+
+## Tests
+
+| suite | where | result |
+|---|---|---|
+| schema rules (new + reused) | `packages/schema/src/semantic/vrf-static-ecmp.test.ts` | 12/12; whole schema suite 1226/1226 |
+| proto round-trip / drift corpus | `packages/proto/test`, `apps/agent/internal/contracttest` (+ fixture `vrf-static-ecmp-full.json`) | pass |
+| core route (ECMP weights, next-hop table, blackhole, deps, sort) | `apps/agent/internal/descriptors/core/route_vrf_static_ecmp_test.go` | pass (fake) |
+| svs descriptors | `apps/agent/internal/descriptors/svs/svs_test.go` (6 tests, coretest model with VPP's duplicate-add behaviour) | pass |
+| agent end to end (projection → reconcile → Retrieve, viaFrr skip + notice, validation, ListRoutes/Action RPCs) | `apps/agent/internal/agent/project_vrf_static_ecmp_test.go` | pass |
+| lister + ping | `apps/agent/internal/actions/vrf-static-ecmp/vse_test.go` | pass |
+| API e2e (PostgreSQL + fake agent) | `apps/api/test/e2e/vrf-static-ecmp.e2e.test.ts` | 5/5 |
+| web model | `apps/web/src/domains/routing/vrf-static-ecmp/model.test.ts` | 4/4 |
+| host: descriptors | `svs_integration_test.go`, `fib_integration_test.go` (`VRX_INTEGRATION=1`, one package at a time) | PASS (above) |
+| host: full stack | `test/topology/vrf-static-ecmp/run.sh` (+ screenshots) | PASS 78.6 s |
+
+## Shared hunks (append-only under `wave-A: F-vrf-static-ecmp` unless stated)
+
+| id | file | hunk |
+|---|---|---|
+| A1 | `apps/agent/internal/subsystems/subsystems.go` | `svsTableName`, `svsInterfaceName`, `svsRouteName` in `Domains[VRFs]`; `registerVrfStaticEcmp(r, w)` in `Register()` |
+| A2 | `apps/agent/internal/agent/projection.go` | `desired.VrfStaticEcmp(p, ds, in, vrfID, subsystems.SvsRange())` in `project()`; `desired.AssembleVrfStaticEcmp(ds, kvs, nameOf)` in `assemble()`; **in P08's `routing.static` blocks** (allowed this wave): the next-hop-VRF lines in project (→ `RoutePath.NextHopTable`) and assemble (→ `NextHop.Vrf`) |
+| A4 | `apps/agent/internal/agent/server.go` | `Action`'s stream parameter named (`_` → `stream`, needed by every case); `case ActionRequest_Ping` / `ActionRequest_Traceroute` |
+| A6 | `apps/agent/internal/descriptors/core/coretest/vrf_static_ecmp.go` | new file (svs, fib_source_dump, ping, `ip_route_v2_dump` with `src` — installed only by `InstallVrfStaticEcmp`) |
+| A7 | `docs/vpp-code-track.md` | `### V-new (F-vrf-static-ecmp)` appended (no anchor in the file) |
+| C1 | `packages/schema/src/domains/{vrfs,routing}.ts` | `sourceSelect: vrfSourceSelect`, `vrf: nextHopVrf`, `viaFrr: staticRouteViaFrr` under the anchors **+ one import line each, outside the anchor** (Q5) |
+| C2/C3 | `packages/schema/src/semantic/index.ts`, `packages/schema/src/index.ts` | import + spread; `export *` |
+| C4 | `packages/proto/test/fixtures/vrf-static-ecmp-full.json` | new file; **`packages/proto/test/desired-state.test.ts`**: `toEqual` → `toMatchObject` on the `vrfs['customer-a']` line (Q6) |
+| C5 | `packages/proto/vrx/v1/dataplane.proto` | `rpc ListRoutes` under the service anchor; `Vrf.source_select = 3`, `StaticRoute.via_frr = 7` under their anchors; `NextHop.vrf = 4` (no anchor; NextHop is touched only by this task); messages in `// ----- F-vrf-static-ecmp -----` |
+| C6 | `docs/contracts/proto.md` | `### F-vrf-static-ecmp: ListRoutes` |
+| C7 | generated | `apps/agent/gen/**`, `packages/proto/gen/ts/**`, `packages/api-client/src/generated/schema.d.ts`, `apps/cli/internal/api/operations_gen.go`, `docs/user/cli/reference.md` (regenerated, never hand-edited) |
+| P1 | `apps/api/src/app.module.ts` | import + `...vrfStaticEcmpFeature.controllers` / `.providers` |
+| P2 | `apps/api/src/state/state.controller.ts` | the `routes()` handler removed (one hunk, blank separator kept) + its now-unused `RoutesQuery`/`RouteOut` consts, `routesOf()` and the `canonicalPrefix` import (prettier collapsed that import to one line) |
+| P3 | `apps/api/src/actions/actions.controller.ts` | owned this wave: the Action bridge |
+| P4 | `apps/api/src/agent/agent.client.ts` | 5 type imports; `listRoutes()`, `runAction()` (generic, for F-neighbors-ra / F-nat44-ed-sessions) |
+| P5 | `apps/api/src/testing/fake-agent.ts` | `...vrfStaticEcmpFake(this)` + one import line; **the base `action` stub removed** (TS2783 duplicate key; the feature fake answers every other action UNIMPLEMENTED — Q10) |
+| W1 | `apps/web/src/router.tsx` | `/routing/vrfs` → `VrfsPage`, `/routing` → `RoutingPage` |
+| W2 | `apps/web/src/nav/nav.ts`, `nav.test.ts` | `'vrfs'`, `'routing'` in `BUILT_DOMAINS` and in the expected `available` list |
+| W3 | `apps/web/src/i18n.ts` | en/fa imports, namespace, resources |
+| — | `apps/web/src/App.test.tsx` | the "not yet available" example moves from `/routing/vrfs` (built now) to `/system/management` (one hunk, not owned; needed) |
+
+## Out of scope (not built)
+
+BGP/OSPF/IS-IS/RIP and FRR rendering of `viaFrr` routes (P12 / F-bfd-redistribution: the flag and the selector are here);
+neighbours/ARP (F-neighbors-ra); uRPF/ABF/PBR (F-rpf-adl-pbr); MPLS labels; multicast routes; traceroute without a Linux path
+(UNIMPLEMENTED + V-new); VRF leaking via route maps (only the next hop in another VRF); the CLI `ping` body fix (Q9); the core
+descriptor README row for `next_hop_table` (`core/README.md` is not an owned file — `core_model.proto` documents the field).
+
+## Decisions taken (options → choice)
+
+| # | decision | options | chosen, why |
+|---|---|---|---|
+| 1 | svs table creation | (a) `svs_table_add_del` (+ boot record to balance its counted lock) (b) named `ip_table_add_del` only | (b): idempotent single API lock, ownership by name, no underflow risk; svs route/enable only need the table to exist |
+| 2 | svs route readback (selected table not in the dump) | (a) write-only D-063 (b) dump existence + boot-keyed applied-once record (c) echo desired | (b): existence from VPP, attribute from what this agent applied on this VPP instance; unknown → re-program; (c) is forbidden |
+| 3 | svs table ids | (a) new config field (contract reshape) (b) agent allocation | (b): hashed per interface in the top of the slot range / 4294967040–4294967294, skipping declared VRF ids |
+| 4 | new schema fields' presence | (a) `viaFrr` default false (b) optional without default | (b): existing documents parse identically, no drift on Retrieve, no change to P08/P02 tests |
+| 5 | next-hop VRF canonical form | (a) always set (b) only when it differs and the hop is address-only | (b) + semantic rule refusing the route's own VRF / an interface hop — Retrieve can then equal running |
+| 6 | ping | (a) API ping with limits (b) CLI-in-band ping | (a): `cli_inband` would run the CLI ping loop inside the API process and swallow other clients' socket events; limits: default VRF only, count × interval ≤ 5 s, serialised; traceroute UNIMPLEMENTED (prompt default) |
+| 7 | FIB paging | (a) agent pages a full dump per request (bounded heap) (b) cache snapshots | (a): FAST MODE (no performance work), memory bounded by the window; 64k-reply stream against govpp drops (Q8) |
+| 8 | `/state/routes` | (a) new route (b) replace in place | (b) with operationId `State_routes` kept (the CLI binds by it), old item fields kept, new fields added, all-VRF listing when `vrf` is absent |
+| 9 | UI writes | (a) PUT `vrfs/<name>`, `routing/static` (b) merge patch of the root key | (b): the API reads a percent-encoded `/` as part of one pointer segment |
+
+## Open questions
+
+See `F-vrf-static-ecmp-questions.md`: Q1 contract numbers (NextHop 4 to add to §2), Q2/Q3 traceroute and VRF-aware ping
+(defaults taken), Q4 `examples.test.ts` sibling regex, Q5/Q6 hunks outside anchors, Q7 slot-2 timeline around the 18:41 crash,
+Q8 govpp dump drops (every descriptor), Q9 CLI ping body, Q10 fake Action dispatch, Q11 routing tabs location.

@@ -42,3 +42,21 @@ Exactly **one** worker at a time owns a daemon (the manager declares it in the e
 
 ## 6. Git
 - Only your branch, only your worktree. No `git push`/`pull` (no remote). No history rewriting anywhere. Commit often; the manager merges.
+
+## 7. VPP-global settings in tests (D-071, D-082)
+Test slots are never the globals owner. A test that must read a VPP-wide setting holds `flock -s /run/lock/vrx-globals.lock`; a test that
+changes one (only behind its opt-in env var, e.g. `VRX_DF7_GLOBALS=1`, `VRX_DF8_GLOBALS=1`) holds `flock -x` on it, saves the previous
+value and restores exactly that value (never VPP defaults). The lab lock (`/run/lock/vrx-lab.lock`) stays the VPP-instance lock.
+
+## 8. Slot 12 is reserved for the manager's `tools/ci.sh full` (D-087)
+`tools/ci.sh full` runs the integration suite on main as CI slot 12. Workers are assigned slots 1–11 only; a worker never uses slot 12.
+Host tests run one Go package at a time against the shared VPP (never `go test ./...` with VRX_INTEGRATION=1 in a worker).
+
+## 9. Shared daemons: owner-prefix scoping (D-089)
+When several slots' tests share one daemon instance (e.g. a charon), renderers operate only on objects carrying their owner prefix
+(`WithOwnerPrefix`); a renderer never unloads, flushes or restarts what another prefix loaded.
+
+## 10. Lab lock scope (D-094)
+`flock -s /run/lock/vrx-lab.lock` is held only for the duration of an actual integration/E2E run — never by a long-lived dev stack
+(API/agent/vite left running between runs). Workers stop every process they started (by PID) before they finish or pause; a stack left
+running blocks the manager's `tools/ci.sh full` barrier.

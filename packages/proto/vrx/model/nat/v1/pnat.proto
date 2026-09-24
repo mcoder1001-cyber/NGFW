@@ -1,0 +1,64 @@
+// Policy NAT (pnat plugin) objects of the DF-3 descriptors; see common.proto for the conventions.
+syntax = "proto3";
+
+package vrx.model.nat.v1;
+
+option go_package = "ngfw/agent/gen/vrx/model/nat/v1;natv1";
+
+// PnatMatch is the match tuple; empty addresses / zero ports / empty proto are wildcards (the
+// mask is derived from what is set).
+message PnatMatch {
+  // Source address; empty = any.
+  string src = 1;
+  // Destination address; empty = any.
+  string dst = 2;
+  // Protocol name ("tcp" | "udp" | "icmp"); empty = any.
+  string proto = 3;
+  // Source port; 0 = any.
+  uint32 src_port = 4;
+  // Destination port; 0 = any.
+  uint32 dst_port = 5;
+}
+
+// PnatRewrite is the rewrite tuple; the mask is derived from what is set.
+message PnatRewrite {
+  // New source address; empty = unchanged.
+  string src = 1;
+  // New destination address; empty = unchanged.
+  string dst = 2;
+  // New source port; 0 = unchanged.
+  uint32 src_port = 3;
+  // New destination port; 0 = unchanged.
+  uint32 dst_port = 4;
+  // Copy the byte at from_offset to to_offset.
+  bool copy_byte = 5;
+  // Source offset of copy_byte.
+  uint32 from_offset = 6;
+  // Destination offset of copy_byte.
+  uint32 to_offset = 7;
+  // Clear the byte at clear_offset.
+  bool clear_byte = 8;
+  // Offset of clear_byte.
+  uint32 clear_offset = 9;
+}
+
+// PnatBinding is one binding (pnat_binding_add_v2); its id is the canonical match tuple.
+message PnatBinding {
+  // Match tuple.
+  PnatMatch match = 1;
+  // Rewrite tuple.
+  PnatRewrite rewrite = 2;
+  // 0 in desired state; Retrieve sets it to the VPP index of a duplicate binding (key
+  // "<id>#<index>") so the scheduler deletes it (D-066 pattern).
+  uint32 extra = 3;
+}
+
+// PnatAttachment attaches a binding to an interface's input or output path (pnat_binding_attach).
+message PnatAttachment {
+  // Logical interface name (D-069).
+  string interface = 1;
+  // "input" | "output".
+  string point = 2;
+  // Binding id (PnatBinding match-tuple id).
+  string binding = 3;
+}

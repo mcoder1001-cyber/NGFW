@@ -1,0 +1,45 @@
+// Desired state of the l2tp (L2TPv3) descriptors (agent-internal until moved to packages/proto).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.l2tp;
+
+option go_package = "ngfw/agent/internal/descriptors/l2tp;l2tp";
+
+// Tunnel is one L2TPv3 tunnel interface (l2tpv3_create_tunnel / sw_if_l2tpv3_tunnel_dump).
+// name is the object id and owner tag. VPP has no delete message: Delete returns
+// df6.ErrNoDelete (docs/agent/descriptors/l2tp.md). Cookies change in place
+// (l2tpv3_set_tunnel_cookies); everything else is immutable.
+message Tunnel {
+  string name = 1;
+  // Remote (client) IPv6 address.
+  string client_address = 2;
+  // Local IPv6 address.
+  string our_address = 3;
+  uint32 local_session_id = 4;
+  uint32 remote_session_id = 5;
+  uint64 local_cookie = 6;
+  uint64 remote_cookie = 7;
+  bool l2_sublayer_present = 8;
+  // Encap FIB table id. Not reported by the dump, so only 0 round-trips; non-zero is rejected
+  // until VPP exposes it (DF-6-questions.md).
+  uint32 encap_vrf_id = 9;
+}
+
+// InterfaceEnable enables L2TPv3 decapsulation on an interface
+// (l2tpv3_interface_enable_disable). Write-only: VPP has no dump for it.
+message InterfaceEnable {
+  string interface = 1;
+}
+
+// LookupKeyType mirrors l2t_lookup_key.
+enum LookupKeyType {
+  SRC_ADDR = 0;
+  DST_ADDR = 1;
+  SESSION_ID = 2;
+}
+
+// LookupKey is the VPP-global session lookup key (l2tpv3_set_lookup_key). Singleton,
+// write-only, Delete is a no-op (VPP has neither a getter nor a documented reset).
+message LookupKey {
+  LookupKeyType key = 1;
+}

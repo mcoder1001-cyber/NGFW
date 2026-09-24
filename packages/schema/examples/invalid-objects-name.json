@@ -1,0 +1,1 @@
+{ "objects": { "addresses": { "bad name": { "type": "host", "address": "10.0.0.1" } } } }

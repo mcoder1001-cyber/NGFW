@@ -1,7 +1,7 @@
 # PENDING: handover
 
 - raised: 2026-09-23 by manager (cycle 1)
-- decision: **<empty — product owner fills in>**
+- decision: **option 2** — product owner, 2026-09-24 00:40 (D-060). Executed by the host manager: plugins block added to `/etc/vpp/startup.conf` (backup `startup.conf.bak-2026-09-24`), one VPP restart under `flock -x /run/lock/vrx-lab.lock`. `handover` stays **pending**. Still open: NIC → port-group mapping (the `dpdk { dev }` lines need a second restart once it is known).
 - parked tasks: P12 (FRR/linux-cp), the NPTv6 part of F-nat44-ei-64-66-nptv6; and (since 13:17) binding the six new data NICs to DPDK
 
 ## Context

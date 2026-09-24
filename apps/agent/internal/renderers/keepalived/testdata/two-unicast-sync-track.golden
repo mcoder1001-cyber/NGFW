@@ -1,0 +1,78 @@
+# Rendered by vrx-agent (keepalived renderer). Do not edit: every commit overwrites this file.
+global_defs {
+    router_id w0-ka
+    enable_script_security
+    script_user root
+    vrrp_version 3
+    vrrp_garp_master_refresh 60
+}
+
+vrrp_script gw {
+    script "/opt/vrx-test/bin/checks/vrx-check-ping"
+    interval 2
+    weight -20
+    fall 3
+    rise 2
+}
+
+vrrp_script up {
+    script "/opt/vrx-test/bin/checks/vrx-check-ok"
+    interval 1
+}
+
+vrrp_instance vi1 {
+    state BACKUP
+    interface w0-a
+    virtual_router_id 81
+    priority 150
+    advert_int 1
+    nopreempt
+    unicast_src_ip 10.0.240.2
+    unicast_peer {
+        10.0.240.3
+        10.0.240.4
+    }
+    virtual_ipaddress {
+        10.0.240.1/32 dev w0-a
+    }
+    virtual_routes {
+        10.0.250.0/24 via 10.0.240.254 dev w0-a
+        10.0.251.0/24 dev w0-c
+    }
+    track_interface {
+        w0-c weight -30
+    }
+    track_script {
+        up
+        gw
+    }
+    notify_master "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi1 MASTER"
+    notify_backup "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi1 BACKUP"
+    notify_fault "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi1 FAULT"
+    notify_stop "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi1 STOP"
+}
+
+vrrp_instance vi2 {
+    state MASTER
+    interface w0-b
+    virtual_router_id 82
+    priority 255
+    advert_int 1
+    preempt_delay 30
+    accept
+    virtual_ipaddress {
+        10.0.241.1/32 dev w0-b
+        10.0.241.2/32 dev w0-b
+    }
+    notify_master "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi2 MASTER"
+    notify_backup "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi2 BACKUP"
+    notify_fault "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi2 FAULT"
+    notify_stop "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi2 STOP"
+}
+
+vrrp_sync_group g1 {
+    group {
+        vi1
+        vi2
+    }
+}

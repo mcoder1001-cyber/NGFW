@@ -1,0 +1,47 @@
+// Desired state of the ipip descriptors (agent-internal until moved to packages/proto).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.ipip;
+
+option go_package = "ngfw/agent/internal/descriptors/ipip;ipip";
+
+// TunnelMode mirrors tunnel_mode: point-to-point or multipoint (dst unset).
+enum TunnelMode {
+  P2P = 0;
+  MP = 1;
+}
+
+// Tunnel is one IP-in-IP tunnel interface (ipip_add_tunnel / ipip_del_tunnel). VPP names it
+// ipip<instance>, which is the object id; instance is mandatory and unique.
+message Tunnel {
+  uint32 instance = 1;
+  // Outer source address (IPv4 or IPv6).
+  string src = 2;
+  // Outer destination address; empty for MP tunnels.
+  string dst = 3;
+  // Outer FIB table id (dependency vrf/<id> unless 0).
+  uint32 table_id = 4;
+  // tunnel_encap_decap_flags bitmask.
+  uint32 flags = 5;
+  TunnelMode mode = 6;
+  // Outer DSCP (ip_dscp value, 0 = CS0).
+  uint32 dscp = 7;
+}
+
+// Tunnel6rd is one 6rd tunnel (ipip_6rd_add_tunnel / ipip_6rd_del_tunnel). The name is the
+// object id and the owner tag; VPP has no dump that exposes the 6rd parameters, so the
+// descriptor is write-only (docs/agent/descriptors/ipip.md).
+message Tunnel6rd {
+  string name = 1;
+  // 6rd IPv6 delegated prefix.
+  string ip6_prefix = 2;
+  // IPv4 prefix (common bits) of the 6rd domain.
+  string ip4_prefix = 3;
+  // IPv4 source (border relay) address.
+  string ip4_src = 4;
+  bool security_check = 5;
+  uint32 ip6_table_id = 6;
+  uint32 ip4_table_id = 7;
+  // Outer traffic class / TOS.
+  uint32 tc_tos = 8;
+}

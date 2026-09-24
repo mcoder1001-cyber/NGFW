@@ -1,0 +1,113 @@
+{{- /* keepalived.conf — rendered by the vrx-agent keepalived renderer (RF-4). Every user value
+       passes one helper: name (instance/script/group names), ifname, addr, prefix, adv, pass,
+       path. Script strings name only the shipped notify helper and shipped checks. Never
+       rendered: vrrp_strict, use_vmac, no_accept (they make keepalived install firewall
+       rules), include, $VAR definitions. */ -}}
+# Rendered by vrx-agent (keepalived renderer). Do not edit: every commit overwrites this file.
+global_defs {
+    router_id {{name .RouterID}}
+    enable_script_security
+    script_user root
+    vrrp_version 3
+{{- with .GarpMasterRefresh}}
+    vrrp_garp_master_refresh {{.}}
+{{- end}}
+}
+{{- range .Scripts}}
+
+vrrp_script {{name .Name}} {
+    script "{{path .Path}}"
+    interval {{.Interval}}
+{{- if .HasWeight}}
+    weight {{.Weight}}
+{{- end}}
+{{- if .HasFall}}
+    fall {{.Fall}}
+{{- end}}
+{{- if .HasRise}}
+    rise {{.Rise}}
+{{- end}}
+}
+{{- end}}
+{{- $m := .}}
+{{- range .Instances}}
+
+vrrp_instance {{name .Name}} {
+    state {{.State}}
+    interface {{ifname .Interface}}
+    virtual_router_id {{.VRID}}
+    priority {{.Priority}}
+    advert_int {{adv .AdvertInt}}
+{{- if .Version2}}
+    version 2
+{{- end}}
+{{- if .IPv6}}
+    native_ipv6
+{{- end}}
+{{- if not .Preempt}}
+    nopreempt
+{{- else if .PreemptDelay}}
+    preempt_delay {{.PreemptDelay}}
+{{- end}}
+{{- if .Accept}}
+    accept
+{{- end}}
+{{- with .UnicastSrc}}
+    unicast_src_ip {{addr .}}
+{{- end}}
+{{- with .Peers}}
+    unicast_peer {
+{{- range .}}
+        {{addr .}}
+{{- end}}
+    }
+{{- end}}
+{{- $if := .Interface}}
+    virtual_ipaddress {
+{{- range .VIPs}}
+        {{prefix .}} dev {{ifname $if}}
+{{- end}}
+    }
+{{- with .Routes}}
+    virtual_routes {
+{{- range .}}
+        {{network .Prefix}}{{with .Via}} via {{addr .}}{{end}} dev {{ifname .Dev}}
+{{- end}}
+    }
+{{- end}}
+{{- with .Track}}
+    track_interface {
+{{- range .}}
+        {{ifname .Interface}} weight {{.Weight}}
+{{- end}}
+    }
+{{- end}}
+{{- with .TrackScripts}}
+    track_script {
+{{- range .}}
+        {{name .}}
+{{- end}}
+    }
+{{- end}}
+{{- if .Version2}}
+    authentication {
+        auth_type PASS
+        auth_pass {{pass .AuthPass}}
+    }
+{{- end}}
+    notify_master "{{path $m.Notify}} {{path $m.StateDir}} INSTANCE {{name .Name}} MASTER"
+    notify_backup "{{path $m.Notify}} {{path $m.StateDir}} INSTANCE {{name .Name}} BACKUP"
+    notify_fault "{{path $m.Notify}} {{path $m.StateDir}} INSTANCE {{name .Name}} FAULT"
+    notify_stop "{{path $m.Notify}} {{path $m.StateDir}} INSTANCE {{name .Name}} STOP"
+}
+{{- end}}
+{{- range .SyncGroups}}
+
+vrrp_sync_group {{name .Name}} {
+    group {
+{{- range .Instances}}
+        {{name .}}
+{{- end}}
+    }
+}
+{{- end}}

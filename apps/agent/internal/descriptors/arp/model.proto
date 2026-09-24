@@ -1,0 +1,21 @@
+// Desired state of the arp (proxy ARP) descriptors (agent-internal until moved to packages/proto).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.arp;
+
+option go_package = "ngfw/agent/internal/descriptors/arp;arp";
+
+// ProxyRange is one proxy-ARP address range in a FIB table (proxy_arp_add_del).
+message ProxyRange {
+  // FIB table id (dependency vrf/<id> unless 0).
+  uint32 table_id = 1;
+  // First IPv4 address of the range.
+  string low = 2;
+  // Last IPv4 address of the range.
+  string high = 3;
+}
+
+// ProxyInterface enables proxy ARP on an interface (proxy_arp_intfc_enable_disable).
+message ProxyInterface {
+  string interface = 1;
+}

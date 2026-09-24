@@ -1,0 +1,56 @@
+// Desired state of the gtpu descriptors (agent-internal until moved to packages/proto).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.gtpu;
+
+option go_package = "ngfw/agent/internal/descriptors/gtpu;gtpu";
+
+// DecapNext mirrors gtpu_decap_next_type: where decapsulated packets go.
+enum DecapNext {
+  DROP = 0;
+  L2 = 1;
+  IP4 = 2;
+  IP6 = 3;
+}
+
+// Tunnel is one GTP-U tunnel interface (gtpu_add_del_tunnel_v2 / gtpu_tunnel_v2_dump). VPP
+// names the interface itself; name is the object id and the owner tag. Only tteid changes in
+// place (gtpu_tunnel_update_tteid); everything else recreates.
+message Tunnel {
+  string name = 1;
+  string src = 2;
+  // Unicast or multicast destination.
+  string dst = 3;
+  // Interface for the multicast group (mandatory iff dst is multicast).
+  string mcast_interface = 4;
+  // Encap FIB table id (dependency vrf/<id> unless 0).
+  uint32 encap_vrf_id = 5;
+  DecapNext decap_next = 6;
+  // Local (receive) TEID.
+  uint32 teid = 7;
+  // Remote (transmit) TEID; 0 = same as teid semantics of VPP (unset).
+  uint32 tteid = 8;
+  // Add the PDU session container extension header with this QFI (0–63).
+  bool pdu_extension = 9;
+  uint32 qfi = 10;
+}
+
+// Forward is a GTP-U forwarding entry (gtpu_add_del_forward): packets that match no tunnel
+// (bad header / unknown TEID / unknown type, a bitmask of gtpu_forwarding_type) are forwarded
+// to dst. VPP represents it as a tunnel interface; name is the object id and owner tag.
+message Forward {
+  string name = 1;
+  string dst = 2;
+  // gtpu_forwarding_type bitmask: 1 = bad header, 2 = unknown TEID, 4 = unknown type.
+  uint32 forwarding_type = 3;
+  uint32 encap_vrf_id = 4;
+  DecapNext decap_next = 5;
+}
+
+// Bypass enables the ip4/ip6-gtpu-bypass features on an interface
+// (sw_interface_set_gtpu_bypass). Write-only: VPP has no dump for it.
+message Bypass {
+  string interface = 1;
+  bool ipv4 = 2;
+  bool ipv6 = 3;
+}

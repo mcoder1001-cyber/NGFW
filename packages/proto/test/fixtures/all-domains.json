@@ -1,0 +1,587 @@
+{
+  "system": {
+    "hostname": "vrx-a",
+    "timezone": "Asia/Tehran",
+    "banner": { "login": "Authorised access only." },
+    "dns": { "servers": ["10.0.0.53", "2001:db8::53"], "searchDomains": ["lab.example"], "vrf": "default" }
+  },
+  "dataplane": {
+    "workers": 4,
+    "corelist": [2, 3, 4, 8],
+    "mainCore": 1,
+    "rxQueues": 2,
+    "txQueues": 2,
+    "hugepagesGb": 4,
+    "pciWhitelist": ["0000:0b:00.0", "0000:13:00.0"]
+  },
+  "interfaces": {
+    "loop0": {
+      "enabled": true,
+      "description": "router id",
+      "ipv4": ["10.255.0.1/32"],
+      "vrf": "default",
+      "promiscuous": true
+    },
+    "TenGigabitEthernet0/0/0": {
+      "enabled": true,
+      "mtu": 9000,
+      "mac": "02:00:00:00:00:01",
+      "ipv4": ["10.0.0.1/24"],
+      "ipv6": ["2001:db8::1/64"],
+      "vrf": "default",
+      "rxMode": "adaptive",
+      "promiscuous": false,
+      "dhcpClient": { "hostname": "vrx-a", "setBroadcastFlag": true }
+    },
+    "TenGigabitEthernet0/0/1": {
+      "enabled": true,
+      "vrf": "customer-a",
+      "unnumbered": "loop0",
+      "subinterfaces": {
+        "200": {
+          "vlanId": 200,
+          "innerVlanId": 20,
+          "dot1ad": true,
+          "enabled": true,
+          "ipv4": ["192.168.200.1/24"],
+          "vrf": "customer-a"
+        }
+      }
+    }
+  },
+  "vrfs": {
+    "default": { "id": 0 },
+    "customer-a": { "id": 10, "description": "customer A" }
+  },
+  "routing": {
+    "static": [
+      {
+        "prefix": "0.0.0.0/0",
+        "vrf": "default",
+        "nextHops": [
+          { "address": "10.0.0.254", "weight": 1 },
+          { "address": "10.0.0.253", "interface": "TenGigabitEthernet0/0/0", "weight": 2 }
+        ],
+        "distance": 1,
+        "description": "default via upstream"
+      },
+      {
+        "prefix": "192.0.2.0/24",
+        "vrf": "customer-a",
+        "nextHops": [{ "interface": "loop0", "weight": 1 }],
+        "distance": 5
+      },
+      { "prefix": "198.51.100.0/24", "vrf": "default", "blackhole": true, "distance": 250 }
+    ],
+    "policy": {
+      "prefixLists": {
+        "pl-default": {
+          "description": "default only",
+          "family": "ipv4",
+          "rules": [
+            { "seq": 10, "action": "permit", "prefix": "0.0.0.0/0" },
+            { "seq": 20, "action": "permit", "prefix": "10.0.0.0/8", "ge": 16, "le": 24 }
+          ]
+        },
+        "pl-v6": { "family": "ipv6", "rules": [{ "seq": 5, "action": "deny", "prefix": "::/0" }] }
+      },
+      "routeMaps": {
+        "rm-in": {
+          "description": "upstream import",
+          "entries": [
+            {
+              "seq": 10,
+              "action": "permit",
+              "match": { "prefixList": "pl-default", "asPath": "^65001_" },
+              "set": { "localPref": 200, "med": 50, "community": ["65000:100"], "communityAdditive": true, "asPathPrepend": [65000, 65000] }
+            }
+          ]
+        }
+      }
+    },
+    "bgp": {
+      "asn": 65000,
+      "routerId": "10.255.0.1",
+      "vrf": "default",
+      "peerGroups": {
+        "upstreams": {
+          "remoteAs": 65001,
+          "passwordRef": "password/bgp-upstream",
+          "afi": { "ipv4Unicast": { "routeMapIn": "rm-in", "softReconfig": true } }
+        }
+      },
+      "neighbors": {
+        "10.0.0.254": { "peerGroup": "upstreams", "description": "upstream", "bfd": true },
+        "2001:db8::fe": { "remoteAs": 65002, "shutdown": true, "afi": { "ipv6Unicast": { "enabled": true, "prefixListOut": "pl-v6" } } }
+      },
+      "networks": [{ "prefix": "10.255.0.0/24" }],
+      "redistribute": { "connected": {}, "static": { "metric": 10, "routeMap": "rm-in" } },
+      "gracefulRestart": true,
+      "ebgpRequiresPolicy": true
+    },
+    "ospf": {
+      "routerId": "10.255.0.1",
+      "areas": { "0": {}, "0.0.0.51": { "type": "stub", "noSummary": true } },
+      "interfaces": {
+        "loop0": { "area": "0", "passive": true },
+        "TenGigabitEthernet0/0/0": { "area": "0.0.0.51", "cost": 10, "networkType": "point-to-point" }
+      },
+      "redistribute": { "bgp": { "routeMap": "rm-in" } },
+      "defaultInformationOriginate": "on"
+    },
+    "bfd": {
+      "sessions": [
+        { "interface": "TenGigabitEthernet0/0/0", "localAddress": "10.0.0.1", "peerAddress": "10.0.0.254", "desiredMinTxUs": 100000, "detectMultiplier": 3 }
+      ]
+    }
+  },
+  "nat": {
+    "enabled": true,
+    "mode": "ed",
+    "inside": ["TenGigabitEthernet0/0/1"],
+    "outside": ["TenGigabitEthernet0/0/0"],
+    "outputFeature": ["TenGigabitEthernet0/0/0"],
+    "insideVrf": "customer-a",
+    "outsideVrf": "default",
+    "forwarding": false,
+    "staticMappingOnly": false,
+    "connectionTracking": true,
+    "sessionLimit": 100000,
+    "pools": [
+      { "name": "public", "description": "public pool", "range": "203.0.113.10-203.0.113.20", "vrf": "default", "twiceNat": false }
+    ],
+    "staticMappings": [
+      {
+        "name": "web",
+        "description": "port forward",
+        "protocol": "tcp",
+        "local": { "ip": "192.168.200.10", "port": 8080 },
+        "external": { "ip": "203.0.113.10", "port": 80 },
+        "vrf": "customer-a",
+        "twiceNat": false,
+        "selfTwiceNat": false,
+        "out2inOnly": true
+      },
+      {
+        "name": "one-to-one",
+        "local": { "ip": "192.168.200.11" },
+        "external": { "interface": "TenGigabitEthernet0/0/0" },
+        "twiceNat": true,
+        "selfTwiceNat": false,
+        "out2inOnly": false
+      }
+    ],
+    "identityMappings": [
+      { "description": "ssh to self", "interface": "TenGigabitEthernet0/0/0", "protocol": "tcp", "port": 22, "vrf": "default" }
+    ],
+    "loadBalancedMappings": [
+      {
+        "name": "lb-web",
+        "protocol": "tcp",
+        "external": { "ip": "203.0.113.11", "port": 443 },
+        "locals": [
+          { "ip": "192.168.200.20", "port": 8443, "probability": 50, "vrf": "customer-a" },
+          { "ip": "192.168.200.21", "port": 8443, "probability": 50 }
+        ],
+        "affinity": 0,
+        "twiceNat": false,
+        "selfTwiceNat": false,
+        "out2inOnly": false
+      }
+    ],
+    "timeouts": { "udp": 300, "tcpEstablished": 7440, "tcpTransitory": 240, "icmp": 60 },
+    "ipfix": { "enabled": true, "domainId": 1, "sourcePort": 4739 },
+    "nat64": {
+      "enabled": false,
+      "inside": ["TenGigabitEthernet0/0/1"],
+      "outside": ["TenGigabitEthernet0/0/0"],
+      "prefixes": [{ "prefix": "64:ff9b::/96", "vrf": "default" }],
+      "pools": [{ "range": "203.0.113.30-203.0.113.31" }],
+      "staticBibs": [
+        { "description": "bib", "protocol": "tcp", "inside": { "ip": "2001:db8::10", "port": 80 }, "outside": { "ip": "203.0.113.30", "port": 8080 } }
+      ],
+      "timeouts": { "udp": 300, "tcpEstablished": 7440, "tcpTransitory": 240, "icmp": 60 }
+    },
+    "nat66": {
+      "enabled": false,
+      "inside": ["TenGigabitEthernet0/0/1"],
+      "outside": ["TenGigabitEthernet0/0/0"],
+      "staticMappings": [{ "local": "2001:db8:1::10", "external": "2001:db8:2::10", "vrf": "default" }]
+    },
+    "nptv6": {
+      "bindings": [{ "description": "prefix translation", "interface": "TenGigabitEthernet0/0/0", "internal": "fd00::/64", "external": "2001:db8:3::/64" }]
+    },
+    "det44": {
+      "enabled": false,
+      "inside": ["TenGigabitEthernet0/0/1"],
+      "outside": ["TenGigabitEthernet0/0/0"],
+      "insideVrf": "customer-a",
+      "mappings": [{ "description": "det", "inside": "10.0.0.0/8", "outside": "203.0.113.64/26" }],
+      "timeouts": { "udp": 300, "tcpEstablished": 7440, "tcpTransitory": 240, "icmp": 60 }
+    },
+    "dslite": {
+      "enabled": false,
+      "aftr": { "ipv6": "2001:db8:af::1", "ipv4": "192.0.0.1" },
+      "b4": { "ipv6": "2001:db8:b4::1" },
+      "pools": [{ "range": "203.0.113.128-203.0.113.130" }]
+    },
+    "map": {
+      "domains": [
+        {
+          "name": "d1",
+          "description": "MAP-E domain",
+          "mode": "map-e",
+          "ipv4Prefix": "192.0.2.0/24",
+          "ipv6Prefix": "2001:db8:100::/48",
+          "ipv6Source": "2001:db8:bb::1/128",
+          "eaBitsLength": 16,
+          "psidOffset": 6,
+          "psidLength": 8,
+          "mtu": 1280,
+          "rules": [{ "psid": 1, "ipv6Destination": "2001:db8:100:1::1" }]
+        }
+      ],
+      "parameters": {
+        "fragmentation": { "inner": false, "ignoreDf": false },
+        "icmpSourceAddress": "192.0.2.1",
+        "icmp6Unreachables": true,
+        "securityCheck": { "enabled": true, "fragments": false },
+        "tcpMss": 1360,
+        "trafficClass": { "copy": true },
+        "preResolve": { "ipv4": "10.0.0.254" }
+      }
+    },
+    "cnat": {
+      "translations": [
+        {
+          "name": "svc",
+          "protocol": "tcp",
+          "vip": { "ip": "203.0.113.200", "port": 443 },
+          "backends": [{ "ip": "192.168.200.30", "port": 8443 }],
+          "lbType": "default"
+        }
+      ],
+      "snat": {
+        "policy": "interface",
+        "addresses": { "ipv4": "203.0.113.201" },
+        "interfaces": [{ "interface": "TenGigabitEthernet0/0/0", "table": "include-v4" }],
+        "excludePrefixes": ["10.0.0.0/8"]
+      }
+    }
+  },
+  "objects": {
+    "addresses": {
+      "h1": { "type": "host", "address": "192.168.200.10", "description": "web server", "tags": ["prod"] },
+      "n1": { "type": "network", "prefix": "192.168.200.0/24" },
+      "r1": { "type": "range", "start": "192.168.200.100", "end": "192.168.200.199" },
+      "f1": { "type": "fqdn", "fqdn": "updates.example.net" }
+    },
+    "addressGroups": { "servers": { "description": "all servers", "members": ["h1", "n1"] } },
+    "services": {
+      "https": { "protocol": "tcp", "destinationPorts": ["443"], "tcpFlags": { "mask": 2, "value": 2 }, "description": "TLS" },
+      "ping": { "protocol": "icmp", "type": 8, "code": 0 },
+      "gre": { "protocol": "other", "number": 47 }
+    },
+    "serviceGroups": { "web": { "members": ["https"], "tags": ["prod"] } },
+    "schedules": {
+      "office": { "type": "recurring", "days": ["mon", "tue", "wed", "thu", "fri"], "start": "08:00", "end": "18:00", "description": "office hours" }
+    },
+    "zones": { "lan": { "description": "inside", "interfaces": ["TenGigabitEthernet0/0/1"] } },
+    "tags": { "prod": { "description": "production", "color": "#ff0000" } }
+  },
+  "acl": {
+    "lists": {
+      "edge-in": {
+        "description": "edge inbound",
+        "tags": ["prod"],
+        "rules": [
+          {
+            "sequence": 10,
+            "description": "allow web",
+            "enabled": true,
+            "action": "permit",
+            "ipVersion": "ipv4",
+            "source": { "kind": "any" },
+            "destination": { "kind": "object", "name": "h1" },
+            "service": { "kind": "object", "name": "https" },
+            "schedule": "office",
+            "log": true
+          },
+          {
+            "sequence": 20,
+            "enabled": false,
+            "action": "deny",
+            "ipVersion": "any",
+            "source": { "kind": "prefix", "prefix": "0.0.0.0/0" },
+            "destination": { "kind": "any" },
+            "service": { "kind": "inline", "spec": { "protocol": "udp", "destinationPorts": ["53"] } },
+            "log": false
+          }
+        ]
+      }
+    },
+    "macip": {
+      "guest-macip": {
+        "rules": [{ "sequence": 1, "action": "permit", "sourceMac": "02:00:00:00:00:10", "sourceMacMask": "ff:ff:ff:ff:ff:ff", "sourcePrefix": "192.168.200.10/32" }]
+      }
+    },
+    "host": {
+      "mgmt-in": {
+        "rules": [
+          { "sequence": 1, "enabled": true, "action": "accept", "ipVersion": "ipv4", "source": { "kind": "object", "name": "n1" }, "destination": { "kind": "any" }, "service": { "kind": "inline", "spec": { "protocol": "tcp", "destinationPorts": ["22", "443"] } }, "interface": "eth0", "log": false }
+        ]
+      }
+    },
+    "attachments": [
+      { "list": "edge-in", "target": { "kind": "interface", "interface": "TenGigabitEthernet0/0/0" }, "direction": "in", "sequence": 1, "enabled": true },
+      { "list": "edge-in", "target": { "kind": "zone", "zone": "lan" }, "direction": "out", "sequence": 2, "vrf": "customer-a", "enabled": false, "description": "disabled" }
+    ],
+    "macipAttachments": [{ "list": "guest-macip", "interface": "TenGigabitEthernet0/0/1", "enabled": true }],
+    "hostAttachments": [{ "list": "mgmt-in", "chain": "input", "priority": -10, "enabled": true }]
+  },
+  "vpn": {
+    "ipsec": {
+      "settings": { "cryptoEngine": "native", "asyncCrypto": false },
+      "proposals": {
+        "default": { "description": "AES-GCM", "ike": { "encr": "aes256gcm16", "prf": "prfsha384", "dh": "ecp384" }, "esp": { "encr": "aes256gcm16", "dh": "ecp384" } }
+      },
+      "tunnels": {
+        "site-b": {
+          "enabled": true,
+          "description": "to site B",
+          "engine": "strongswan",
+          "ikeVersion": 2,
+          "mode": "tunnel",
+          "protocol": "esp",
+          "localAddr": "10.0.0.1",
+          "remoteAddr": "192.0.2.1",
+          "localId": "vrx-a",
+          "remoteId": "site-b",
+          "auth": { "method": "psk", "secretRef": "psk/site-b" },
+          "proposal": "default",
+          "localTs": ["192.168.200.0/24"],
+          "remoteTs": ["10.99.0.0/24"],
+          "dpd": { "enabled": true, "delaySec": 30, "timeoutSec": 120, "action": "restart" },
+          "natT": true,
+          "mobike": false,
+          "rekey": { "ikeSec": 14400, "espSec": 3600, "espBytes": "1073741824", "reauth": false },
+          "startAction": "start",
+          "closeAction": "trap",
+          "vrf": "default",
+          "underlayVrf": "default",
+          "routeBased": { "ipipInterface": "ipip0" },
+          "esn": true,
+          "antiReplay": true
+        }
+      }
+    },
+    "wireguard": {
+      "interfaces": {
+        "wg0": {
+          "enabled": true,
+          "instance": 0,
+          "vrf": "default",
+          "underlayVrf": "default",
+          "listenAddress": "10.0.0.1",
+          "listenPort": 51820,
+          "privateKeyRef": "key/wg0",
+          "address": ["10.200.0.1/24"],
+          "mtu": 1420,
+          "peers": {
+            "laptop": {
+              "description": "road warrior",
+              "publicKey": "VlJYX1RFU1RfUFVCS0VZX3dnMF9sYXB0b3BfX19fX18=",
+              "presharedKeyRef": "psk/wg0-laptop",
+              "endpoint": { "address": "198.51.100.7", "port": 51820 },
+              "allowedIps": ["10.200.0.2/32"],
+              "persistentKeepaliveSec": 25
+            }
+          }
+        }
+      }
+    },
+    "pki": {
+      "cas": { "lab-ca": { "description": "lab CA", "certificateRef": "cert/lab-ca", "crl": { "url": "http://pki.example.net/lab.crl", "refreshIntervalSec": 86400 } } },
+      "certificates": {
+        "api": { "certificateRef": "cert/api", "privateKeyRef": "key/api", "ca": "lab-ca", "expiryAlertDays": 30 },
+        "acme-edge": { "privateKeyRef": "key/edge", "acme": { "directoryUrl": "https://acme.example.net/directory", "domains": ["edge.example.net"], "challenge": "http-01" }, "expiryAlertDays": 14 }
+      },
+      "hsm": { "enabled": false, "module": "/usr/lib/softhsm/libsofthsm2.so" }
+    },
+    "remoteAccess": {
+      "employees": {
+        "enabled": true,
+        "localAddr": "10.0.0.1",
+        "vrf": "default",
+        "underlayVrf": "default",
+        "auth": "eap-mschapv2",
+        "certificate": "api",
+        "proposal": "default",
+        "pools": [{ "name": "ra-pool", "prefix": "10.201.0.0/24", "dns": ["10.255.0.1"] }],
+        "splitTunnel": ["192.168.200.0/24"],
+        "users": [{ "username": "alice", "passwordRef": "password/alice" }],
+        "radius": { "servers": [{ "address": "10.255.0.5", "port": 1812, "secretRef": "psk/radius-ra" }] },
+        "dpd": { "enabled": true, "delaySec": 30, "timeoutSec": 120, "action": "clear" },
+        "rekey": { "ikeSec": 14400, "espSec": 3600, "reauth": true }
+      }
+    }
+  },
+  "tunnels": {
+    "gre": {
+      "gre0": { "enabled": true, "description": "to DC", "instance": 0, "src": "10.0.0.1", "underlayVrf": "default", "vrf": "default", "mtu": 1476, "ipv4": ["10.254.0.1/30"], "ipv6": ["fd00:254::1/64"], "dst": "192.0.2.10", "type": "l3" },
+      "mirror": { "src": "10.0.0.1", "dst": "192.0.2.20", "type": "erspan", "sessionId": 7, "bridgeDomain": 20 }
+    },
+    "vxlan": {
+      "vx100": { "instance": 100, "src": "10.0.0.1", "dst": "239.1.1.100", "vni": 100, "srcPort": 4789, "dstPort": 4789, "mcastInterface": "TenGigabitEthernet0/0/0", "decap": "l2", "bridgeDomain": 100 }
+    },
+    "ipip": {
+      "ipip0": { "instance": 0, "src": "10.0.0.1", "underlayVrf": "default", "vrf": "default", "mode": "p2p", "dst": "192.0.2.1", "dscp": 46, "ipv4": ["10.255.1.1/30"] }
+    }
+  },
+  "services": {
+    "dhcp": {
+      "servers": {
+        "lan": {
+          "enabled": true,
+          "family": "ipv4",
+          "vrf": "default",
+          "interfaces": ["TenGigabitEthernet0/0/1"],
+          "leaseTimeSec": 3600,
+          "renewTimerSec": 900,
+          "rebindTimerSec": 1800,
+          "authoritative": true,
+          "subnets": {
+            "lan": {
+              "subnet": "192.168.200.0/24",
+              "pools": [{ "start": "192.168.200.100", "end": "192.168.200.199" }],
+              "gateway": "192.168.200.1",
+              "dnsServers": ["192.168.200.1"],
+              "ntpServers": ["192.168.200.1"],
+              "domainName": "lan.example",
+              "domainSearch": ["lan.example"],
+              "options": [{ "code": 42, "data": "192.168.200.1", "alwaysSend": false }],
+              "reservations": { "printer": { "mac": "02:00:00:00:00:10", "ip": "192.168.200.10", "hostname": "printer" } }
+            }
+          },
+          "options": [{ "code": 15, "data": "lan.example", "alwaysSend": true }]
+        }
+      },
+      "relays": {
+        "customer": { "enabled": true, "family": "ipv4", "vrf": "default", "serverVrf": "default", "interfaces": ["TenGigabitEthernet0/0/1"], "servers": ["10.255.0.53"], "sourceAddress": "10.0.0.1" }
+      }
+    },
+    "dns": {
+      "resolvers": {
+        "lan": {
+          "enabled": true,
+          "vrf": "default",
+          "listen": [{ "address": "192.168.200.1", "port": 53 }],
+          "accessControl": [{ "prefix": "192.168.200.0/24", "action": "allow" }],
+          "forwarders": [{ "address": "9.9.9.9", "port": 853, "tls": true, "tlsServerName": "dns.quad9.net" }],
+          "forwardZones": [{ "zone": "corp.example", "forwarders": [{ "address": "10.255.0.53" }], "forwardFirst": false }],
+          "localZones": [{ "zone": "lan.example", "type": "static", "records": [{ "name": "printer.lan.example", "type": "A", "ttlSec": 300, "data": "192.168.200.10" }] }],
+          "dnssec": { "enabled": true, "trustAnchorAuto": true },
+          "cache": { "minTtlSec": 0, "maxTtlSec": 86400, "prefetch": true, "msgCacheMb": 4, "rrsetCacheMb": 8 },
+          "threads": 2,
+          "qnameMinimisation": true,
+          "hideIdentity": true,
+          "hideVersion": true,
+          "logQueries": false
+        }
+      },
+      "vppCache": { "enabled": false, "upstreams": ["10.255.0.53"] }
+    },
+    "snmp": {
+      "enabled": true,
+      "vrf": "default",
+      "listen": [{ "address": "10.0.0.1", "port": 161 }],
+      "engineId": "800000090300aabbccddeeff",
+      "sysName": "vrx-a",
+      "sysLocation": "lab",
+      "sysContact": "noc@example.net",
+      "communities": { "monitoring": { "secretRef": "password/snmp-monitoring", "access": "ro", "sources": ["10.255.0.0/24"] } },
+      "v3Users": { "noc": { "securityLevel": "authPriv", "authProtocol": "sha256", "authRef": "password/snmp-noc-auth", "privProtocol": "aes", "privRef": "password/snmp-noc-priv", "access": "ro" } },
+      "trapReceivers": [{ "address": "10.255.0.9", "port": 162, "version": "v3", "user": "noc", "inform": true }]
+    },
+    "lldp": {
+      "enabled": true,
+      "systemName": "vrx-a",
+      "txHold": 4,
+      "txIntervalSec": 30,
+      "interfaces": [{ "interface": "TenGigabitEthernet0/0/1", "portDescription": "lan", "mgmtIpv4": "10.0.0.1", "mgmtIpv6": "2001:db8::1", "mgmtOid": "1.3.6.1.4.1" }]
+    },
+    "ipfix": {
+      "exporters": { "collector": { "enabled": true, "collector": { "address": "10.255.0.9", "port": 4739 }, "sourceAddress": "10.0.0.1", "vrf": "default", "pathMtu": 512, "templateIntervalSec": 20, "udpChecksum": false } },
+      "flowprobe": { "activeTimerSec": 15, "passiveTimerSec": 120, "recordL2": false, "recordL3": true, "recordL4": true, "interfaces": [{ "interface": "TenGigabitEthernet0/0/1", "direction": "both", "l2": false, "ip4": true, "ip6": true }] },
+      "sflow": { "enabled": true, "samplingN": 10000, "pollingIntervalSec": 20, "headerBytes": 128, "collectors": [{ "address": "10.255.0.9", "port": 6343 }], "agentAddress": "10.0.0.1", "vrf": "default", "interfaces": ["TenGigabitEthernet0/0/0"] }
+    },
+    "ntp": {
+      "enabled": true,
+      "vrf": "default",
+      "servers": [{ "address": "10.255.0.123", "iburst": true, "prefer": true, "minPoll": 4, "maxPoll": 10, "nts": false, "keyRef": "key/ntp-1" }],
+      "pools": ["pool.ntp.org"],
+      "allow": ["192.168.200.0/24"],
+      "listen": ["192.168.200.1"],
+      "deny": ["192.168.200.99/32"],
+      "port": 123,
+      "rateLimit": { "interval": 3, "burst": 8, "leak": 2 },
+      "localStratum": 10,
+      "orphan": true,
+      "rtcSync": true,
+      "ntsServer": { "certificateRef": "cert/ntp", "keyRef": "key/ntp", "port": 4460 },
+      "makestep": { "thresholdSec": 0.5, "limit": 3 }
+    },
+    "qos": {
+      "policers": {
+        "wan-in": { "type": "2r3c-rfc2698", "rateUnit": "kbps", "cir": 100000, "eir": 200000, "cb": "125000", "eb": "250000", "round": "closest", "colorAware": false, "conformAction": { "action": "transmit" }, "exceedAction": { "action": "mark-and-transmit", "dscp": 10 }, "violateAction": { "action": "drop" } }
+      },
+      "shapers": { "wan-out": { "rateKbps": 500000, "burstBytes": "625000" } },
+      "maps": { "dscp-to-pcp": { "id": 1, "rows": { "ip": [{ "from": 46, "to": 5 }], "vlan": [{ "from": 3, "to": 3 }] } } },
+      "interfaces": {
+        "TenGigabitEthernet0/0/0": { "description": "WAN", "policer": { "input": "wan-in" }, "shaper": "wan-out", "record": "ip", "store": { "source": "ext", "value": 1 }, "mark": { "map": "dscp-to-pcp", "output": "vlan" } }
+      }
+    }
+  },
+  "ha": {
+    "vrrp": {
+      "lan-v4": {
+        "enabled": true,
+        "interface": "TenGigabitEthernet0/0/1",
+        "vrId": 10,
+        "addressFamily": "ipv4",
+        "priority": 200,
+        "advertisementIntervalMs": 1000,
+        "preempt": true,
+        "acceptMode": false,
+        "unicast": { "peers": ["192.168.200.3"] },
+        "addresses": ["192.168.200.254"],
+        "vrf": "default",
+        "engine": "vpp",
+        "track": [{ "interface": "TenGigabitEthernet0/0/0", "priorityDecrement": 50 }]
+      }
+    },
+    "cluster": {
+      "enabled": true,
+      "nodeName": "vrx-a",
+      "peers": [{ "name": "vrx-b", "address": "192.168.200.3" }],
+      "port": 4370,
+      "secretRef": "key/cluster-sync",
+      "interface": "TenGigabitEthernet0/0/1",
+      "vrf": "default",
+      "configSync": true,
+      "stateSync": { "nat": true, "ipsec": true, "acl": false }
+    }
+  },
+  "management": {
+    "users": [
+      { "username": "admin", "role": "admin", "scope": "*", "sshKeys": ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyMaterialForTestsOnly0000000000 admin@lab"], "disabled": false },
+      { "username": "auditor", "role": "readonly", "scope": "*", "fullName": "Audit Account", "disabled": true }
+    ],
+    "aaa": {
+      "order": ["radius", "local"],
+      "radius": { "servers": [{ "address": "10.0.0.10", "secretRef": "psk/radius-primary", "timeoutSec": 3 }] }
+    },
+    "tls": { "certificateRef": "cert/api", "privateKeyRef": "key/api", "minVersion": "1.3" },
+    "syslog": [{ "address": "10.0.0.20", "port": 514, "protocol": "tcp", "severity": "notice", "vrf": "default" }]
+  }
+}

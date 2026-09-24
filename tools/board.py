@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 '''Validate plan/tasks.yaml and write docs/status/PROGRESS.md (progress by estimated hours and by count).
-Usage: tools/board.py [--set ID STATE [--note TEXT]] [--ready]   (run from the repo root)'''
+Usage: tools/board.py [--set ID STATE [--note TEXT]]   (run from the repo root)'''
 import sys, re, pathlib, datetime
 try:
     import yaml
@@ -18,10 +18,10 @@ if "--set" in args:
     by[tid]["state"] = state
     if "--note" in args: by[tid]["notes"] = (by[tid].get("notes") or "") + " | " + args[args.index("--note")+1]
     changed = True
-if "--ready" in args or changed or True:
-    for t in tasks:
-        if t["state"] == "todo" and all(by[x]["state"] == "merged" for x in t["deps"]) and not t.get("parked_on"):
-            t["state"] = "ready"; changed = True
+# auto-ready runs on every invocation
+for t in tasks:
+    if t["state"] == "todo" and all(by[x]["state"] == "merged" for x in t["deps"]) and not t.get("parked_on"):
+        t["state"] = "ready"; changed = True
 # validation
 ids = [t["id"] for t in tasks]
 dup = {x for x in ids if ids.count(x) > 1}
@@ -56,5 +56,9 @@ for s in stages:
     lines.append(f"| {s} | {dh} / {th} | {pct(dh, th)} | {sum(1 for t in ts if t['state']=='merged')}/{len(ts)} | {sum(1 for t in ts if t['state']=='running')} | {sum(1 for t in ts if t['state']=='ready')} | {sum(1 for t in ts if t['state']=='parked')} |")
 lines += ["", "## Running / review", ""] + [f"- {t['id']} — {t['title']} ({t['state']}, {t.get('owner') or 'unassigned'})" for t in tasks if t["state"] in ("running","review")] or ["- none"]
 lines += ["", "## Parked", ""] + ([f"- {t['id']} — parked_on: {t.get('parked_on')}" for t in tasks if t["state"] == "parked"] or ["- none"])
-(ROOT / "docs" / "status" / "PROGRESS.md").write_text("\n".join(lines) + "\n")
+prog = ROOT / "docs" / "status" / "PROGRESS.md"
+body = "\n".join(lines) + "\n"
+strip = lambda x: re.sub(r"^Updated \S+ ", "", x, flags=re.M)
+if not prog.exists() or strip(prog.read_text()) != strip(body):  # a date-only change is not a change
+    prog.write_text(body)
 print(f"board ok: {len(tasks)} tasks; progress {pct(done_h, tot_h)} by hours, {counts['merged']}/{len(tasks)} merged; ready={counts['ready']} running={counts['running']} parked={counts['parked']}")

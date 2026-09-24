@@ -1,0 +1,31 @@
+// Desired state of the urpf descriptor (agent-internal until moved to packages/proto).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.urpf;
+
+import "df2/df2.proto";
+
+option go_package = "ngfw/agent/internal/descriptors/urpf;urpf";
+
+// Interface is one uRPF check on an interface, per address family and direction
+// (urpf_update_v2). Mode OFF is never desired: it is what Delete sends.
+message Interface {
+  // Mode mirrors urpf.urpf_mode.
+  enum Mode {
+    OFF = 0;
+    LOOSE = 1;
+    STRICT = 2;
+  }
+  // Direction of the check.
+  enum Direction {
+    RX = 0;
+    TX = 1;
+  }
+  string interface = 1;
+  ngfw.agent.descriptors.df2.AddressFamily af = 2;
+  Direction direction = 3;
+  Mode mode = 4;
+  // FIB table used for the lookup (VPP reports the resolved table, so it is explicit here:
+  // 0 = default table; the API layer fills the interface's VRF).
+  uint32 table_id = 5;
+}

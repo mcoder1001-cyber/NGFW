@@ -1,0 +1,45 @@
+// Desired state of the vxlan_gpe descriptors (agent-internal until moved to packages/proto).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.vxlan_gpe;
+
+option go_package = "ngfw/agent/internal/descriptors/vxlan_gpe;vxlan_gpe";
+
+// Protocol is the VXLAN-GPE next-protocol of the inner payload.
+enum Protocol {
+  PROTOCOL_UNSPECIFIED = 0;
+  IP4 = 1;
+  IP6 = 2;
+  ETHERNET = 3;
+  NSH = 4;
+}
+
+// Tunnel is one VXLAN-GPE tunnel interface (vxlan_gpe_add_del_tunnel_v2 /
+// vxlan_gpe_tunnel_v2_dump). VPP names the interface itself; the name field is the object id
+// and the owner tag.
+message Tunnel {
+  string name = 1;
+  // Outer local address (IPv4 or IPv6).
+  string local = 2;
+  // Outer remote address, unicast or multicast group.
+  string remote = 3;
+  // UDP ports; 0 = VXLAN-GPE default 4790 (Retrieve canonicalises 4790 back to 0).
+  uint32 local_port = 4;
+  uint32 remote_port = 5;
+  // Interface for the multicast group (mandatory iff remote is multicast).
+  string mcast_interface = 6;
+  uint32 vni = 7;
+  Protocol protocol = 8;
+  // Encap FIB table id (dependency vrf/<id> unless 0).
+  uint32 encap_vrf_id = 9;
+  // Decap FIB table id (dependency vrf/<id> unless 0).
+  uint32 decap_vrf_id = 10;
+}
+
+// Bypass enables the ip4/ip6-vxlan-gpe-bypass features on an interface
+// (sw_interface_set_vxlan_gpe_bypass). Write-only: VPP has no dump for it.
+message Bypass {
+  string interface = 1;
+  bool ipv4 = 2;
+  bool ipv6 = 3;
+}

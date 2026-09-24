@@ -1,0 +1,7 @@
+{
+  "dataplane": {
+    "pciWhitelist": ["0000:04:00.0", "0000:0C:00.0"],
+    "devices": { "0000:0c:00.0": { "name": "lan" } },
+    "managementPci": ["0000:0b:00.0"]
+  }
+}

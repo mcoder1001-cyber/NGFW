@@ -1,0 +1,39 @@
+// Desired state of the gre descriptors (agent-internal until moved to packages/proto).
+syntax = "proto3";
+
+package ngfw.agent.descriptors.gre;
+
+option go_package = "ngfw/agent/internal/descriptors/gre;gre";
+
+// TunnelType mirrors gre_tunnel_type.
+enum TunnelType {
+  L3 = 0;
+  TEB = 1;
+  ERSPAN = 2;
+}
+
+// TunnelMode mirrors tunnel_mode: point-to-point or multipoint (dst unset).
+enum TunnelMode {
+  P2P = 0;
+  MP = 1;
+}
+
+// Tunnel is one GRE tunnel interface (gre_tunnel_add_del_v2). VPP names it gre<instance>,
+// which is the object id; instance is therefore mandatory and must be unique.
+message Tunnel {
+  uint32 instance = 1;
+  TunnelType type = 2;
+  TunnelMode mode = 3;
+  // Outer source address (IPv4 or IPv6).
+  string src = 4;
+  // Outer destination address; empty for MP tunnels.
+  string dst = 5;
+  // Outer FIB table id (dependency vrf/<id> unless 0).
+  uint32 outer_table_id = 6;
+  // ERSPAN session id (0–1023), ERSPAN tunnels only.
+  uint32 session_id = 7;
+  // tunnel_encap_decap_flags bitmask.
+  uint32 flags = 8;
+  // GRE key (0 = none).
+  uint32 key = 9;
+}

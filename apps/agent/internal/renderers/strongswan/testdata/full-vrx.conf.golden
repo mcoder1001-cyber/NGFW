@@ -1,0 +1,115 @@
+# vrx.conf: rendered by vrx-agent (strongswan renderer); every change is overwritten.
+# Secrets are in vrx-secrets.conf (mode 0600).
+connections {
+	w3+site-b {
+		version = 1
+		local_addrs = 10.3.250.1
+		remote_addrs = 10.3.250.3
+		proposals = aes256-sha256-prfsha256-modp2048
+		dpd_delay = 30s
+		dpd_timeout = 150s
+		rekey_time = 0s
+		reauth_time = 28800s
+		local {
+			auth = psk
+			id = "gw-a.example.net"
+		}
+		remote {
+			auth = psk
+			id = "C=CH, O=Example, CN=gw-b"
+		}
+		children {
+			w3+site-b {
+				esp_proposals = aes128-sha256-modp2048-esn
+				mode = transport
+				dpd_action = clear
+				rekey_time = 1800s
+				rekey_bytes = 1000000000
+				rekey_packets = 5000000
+				replay_window = 0
+			}
+		}
+	}
+	w3-cert-c {
+		version = 2
+		local_addrs = 2001:db8:3::1
+		remote_addrs = peer-c.example.net
+		proposals = aes128-sha1-ecp256
+		rekey_time = 14400s
+		local {
+			auth = pubkey
+			id = "2001:db8:3::1"
+			certs = gw-a.pem
+		}
+		remote {
+			auth = pubkey
+			cacerts = lab-ca.pem
+		}
+		children {
+			w3-cert-c {
+				local_ts = 2001:db8:3:1::/64
+				remote_ts = 2001:db8:3:2::/64
+				ah_proposals = sha384
+				mode = tunnel
+				rekey_time = 3600s
+			}
+		}
+	}
+	w3-route-d {
+		version = 2
+		local_addrs = 10.3.250.1
+		remote_addrs = 10.3.250.4
+		proposals = aes256gcm16-prfsha256-curve25519
+		rekey_time = 14400s
+		local {
+			auth = psk
+			id = "10.3.250.1"
+		}
+		remote {
+			auth = psk
+			id = "10.3.250.4"
+		}
+		children {
+			w3-route-d {
+				local_ts = 0.0.0.0/0,::/0
+				remote_ts = 0.0.0.0/0,::/0
+				esp_proposals = aes256gcm16
+				mode = tunnel
+				start_action = start
+				rekey_time = 3600s
+				if_id_in = 3001
+				if_id_out = 3001
+			}
+		}
+	}
+	w3-site-a {
+		# HQ "primary" # uplink
+		version = 2
+		local_addrs = 10.3.250.1
+		remote_addrs = 10.3.250.2
+		proposals = aes256gcm16-prfsha256-curve25519
+		dpd_delay = 10s
+		mobike = no
+		fragmentation = yes
+		rekey_time = 14400s
+		local {
+			auth = psk
+			id = "10.3.250.1"
+		}
+		remote {
+			auth = psk
+			id = "10.3.250.2"
+		}
+		children {
+			w3-site-a {
+				local_ts = 10.3.1.0/24
+				remote_ts = 10.3.2.0/24,2001:db8:3::/64
+				esp_proposals = aes256gcm16
+				mode = tunnel
+				start_action = trap
+				dpd_action = restart
+				rekey_time = 3600s
+			}
+		}
+	}
+}

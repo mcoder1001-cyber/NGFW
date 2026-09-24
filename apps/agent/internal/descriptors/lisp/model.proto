@@ -1,0 +1,107 @@
+// Desired state of the LISP / LISP-GPE descriptors (agent-internal until moved to
+// packages/proto). EIDs are strings: an IP prefix ("10.11.0.0/24", "fd11::/64") or a MAC
+// ("02:0b:00:00:00:01"); NSH EIDs are not modelled.
+syntax = "proto3";
+
+package ngfw.agent.descriptors.lisp;
+
+option go_package = "ngfw/agent/internal/descriptors/lisp;lisp";
+
+// Enable is the global LISP control-plane switch (lisp_enable_disable / show_lisp_status).
+// Singleton "lisp.enable/global"; present when enabled; Delete disables.
+message Enable {}
+
+// GpeEnable is the global LISP-GPE data-plane switch (gpe_enable_disable /
+// show_lisp_status). Singleton "lisp-gpe.enable/global".
+message GpeEnable {}
+
+// LocatorSet is a local locator set (lisp_add_del_locator_set / lisp_locator_set_dump).
+// Its members are Locator objects. Id = name (≤ 63 bytes).
+message LocatorSet {
+  string name = 1;
+}
+
+// Locator is one interface of a local locator set (lisp_add_del_locator / lisp_locator_dump).
+// Id = "<locator_set>/<interface>". priority/weight change recreates.
+message Locator {
+  string locator_set = 1;
+  string interface = 2;
+  uint32 priority = 3;
+  uint32 weight = 4;
+}
+
+// LocalEid is a local EID mapping (lisp_add_del_local_eid / lisp_eid_table_dump local).
+// Id = "<vni>/<eid>". The map-register HMAC key is not modelled (secret; map-server
+// authentication is out of DF-6 scope).
+message LocalEid {
+  uint32 vni = 1;
+  string eid = 2;
+  string locator_set = 3;
+}
+
+// MapResolver / MapServer (lisp_add_del_map_resolver|server / *_dump). Id = address.
+message MapResolver {
+  string address = 1;
+}
+message MapServer {
+  string address = 1;
+}
+
+// Rloc is one remote locator of a remote mapping.
+message Rloc {
+  string address = 1;
+  uint32 priority = 2;
+  uint32 weight = 3;
+}
+
+// RemoteMapping is a static remote EID mapping (lisp_add_del_remote_mapping /
+// lisp_eid_table_dump remote + lisp_locator_dump of its remote locator set).
+// Id = "<vni>/<eid>". action (0 no-action, 1 natively-forward, 2 send-map-request, 3 drop)
+// applies when rlocs is empty (negative mapping). Every change recreates.
+message RemoteMapping {
+  uint32 vni = 1;
+  string eid = 2;
+  repeated Rloc rlocs = 3;
+  uint32 action = 4;
+}
+
+// Adjacency binds a local and a remote EID (lisp_add_del_adjacency / lisp_adjacencies_get).
+// Id = "<vni>/<reid>/<leid>".
+message Adjacency {
+  uint32 vni = 1;
+  string reid = 2;
+  string leid = 3;
+}
+
+// EidTableMap maps a VNI to a VRF (L3) or a bridge domain (L2) (lisp_eid_table_add_del_map /
+// lisp_eid_table_map_dump). Id = "l3/<vni>" or "l2/<vni>".
+message EidTableMap {
+  uint32 vni = 1;
+  uint32 dp_table = 2;
+  bool is_l2 = 3;
+}
+
+// Pitr sets the proxy-ITR locator set (lisp_pitr_set_locator_set / show_lisp_pitr).
+// Singleton "lisp.pitr/global"; Delete clears it.
+message Pitr {
+  string locator_set = 1;
+}
+
+// LocatorPair is one (local, remote) RLOC pair of a GPE forwarding entry.
+message LocatorPair {
+  string local = 1;
+  string remote = 2;
+  uint32 weight = 3;
+}
+
+// GpeFwdEntry is a LISP-GPE forwarding entry (gpe_add_del_fwd_entry /
+// gpe_fwd_entry_vnis_get + gpe_fwd_entries_get + gpe_fwd_entry_path_dump).
+// Id = "<vni>/<reid>/<leid>" (leid mandatory). Negative entries (no pairs) use action.
+message GpeFwdEntry {
+  uint32 vni = 1;
+  uint32 dp_table = 2;
+  string reid = 3;
+  string leid = 4;
+  repeated LocatorPair pairs = 5;
+  uint32 action = 6;
+}

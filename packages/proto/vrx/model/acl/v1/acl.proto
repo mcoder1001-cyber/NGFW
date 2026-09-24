@@ -1,0 +1,113 @@
+// Reconciler object model of the ACL plugin descriptors (apps/agent/internal/descriptors/acl, DF-4).
+//
+// Agent-internal: these messages are the Value of scheduler.KV for the acl.* descriptors, i.e. what
+// one VPP object looks like after the desired-state builder (P08) has resolved the configuration
+// document (vrx.v1.AclConfig: objects, kinds, attachments) into VPP terms. They never cross the
+// API↔agent boundary; vrx.v1.Dataplane does not reference them. D-055: they replace the
+// *structpb.Struct stand-in of the DF-4 typed specs (acl.ACL, acl.MacipACL, …) field for field —
+// same names as the structpb documents (spec.go Field* constants), same meaning, same canonical
+// form — so the factory adapts by swapping Proto()/FromProto() for these types.
+//
+// Presence: proto3 implicit presence on purpose (unlike DesiredState, D-039). The scheduler diffs
+// values with proto.Equal and the typed specs always carry every field; the zero value is the
+// canonical "not set / any" of each field (documented per field), exactly as in the structpb form.
+// Enumerations are strings with the allowed values in the comment, like DesiredState (D-P03-1).
+syntax = "proto3";
+
+package vrx.model.acl.v1;
+
+option go_package = "ngfw/agent/gen/vrx/model/acl/v1;aclv1";
+
+// Acl is one acl.acl object (acl_add_replace): a named, ordered L3/L4 rule list.
+// Key acl.acl/<name>; VPP tag "<owner>:<name>" (D-066).
+message Acl {
+  // Object id and, owner-prefixed, the VPP tag. Must not contain "#" (reserved for duplicate cleanup).
+  string name = 1;
+  // Rules in evaluation order.
+  repeated AclRule rules = 2;
+}
+
+// AclRule is one L3/L4 rule (acl_types.acl_rule).
+message AclRule {
+  // "deny" | "permit" | "reflect" (permit + session, stateful).
+  string action = 1;
+  // Source prefix, canonical CIDR (netip.Prefix.Masked()); "0.0.0.0/0" / "::/0" = any.
+  // src and dst are of the same address family.
+  string src = 2;
+  // Destination prefix, same form and family as src.
+  string dst = 3;
+  // IP protocol number; 0 = any protocol (ports are then ignored by VPP). 0–255.
+  uint32 proto = 4;
+  // First source port (TCP/UDP) or ICMP type; inclusive range, 0–65535 (0–255 for ICMP).
+  uint32 src_port_first = 5;
+  // Last source port / ICMP type; ≥ src_port_first.
+  uint32 src_port_last = 6;
+  // First destination port (TCP/UDP) or ICMP code.
+  uint32 dst_port_first = 7;
+  // Last destination port / ICMP code; ≥ dst_port_first.
+  uint32 dst_port_last = 8;
+  // TCP flags mask (packet.flags & mask == value); 0/0 = any. 0–255.
+  uint32 tcp_flags_mask = 9;
+  // TCP flags value, see tcp_flags_mask. 0–255.
+  uint32 tcp_flags_value = 10;
+}
+
+// MacipAcl is one acl.macip-acl object (macip_acl_add_replace). Key acl.macip-acl/<name>.
+message MacipAcl {
+  // Object id and, owner-prefixed, the VPP tag. Must not contain "#".
+  string name = 1;
+  // Rules in evaluation order.
+  repeated MacipRule rules = 2;
+}
+
+// MacipRule is one L2 MACIP rule (acl_types.macip_acl_rule).
+message MacipRule {
+  // "deny" | "permit" (reflect has no meaning for L2 rules).
+  string action = 1;
+  // Source MAC, lower-case "aa:bb:cc:dd:ee:ff".
+  string src_mac = 2;
+  // Source MAC mask, same form; "ff:ff:ff:ff:ff:ff" = exact match.
+  string src_mac_mask = 3;
+  // Source IP prefix, canonical CIDR (spec field SrcPrefix; structpb name "src").
+  string src = 4;
+}
+
+// InterfaceBinding is one acl.interface-binding object (acl_interface_set_acl_list): the complete
+// ordered ACL lists applied to one interface. Key acl.interface-binding/<interface>. At least one
+// list is non-empty; to unbind, the object is omitted from the desired state.
+message InterfaceBinding {
+  // Logical interface name (D-069), resolved through the DF-1 resolver.
+  string interface = 1;
+  // acl.acl names applied inbound, in order.
+  repeated string input = 2;
+  // acl.acl names applied outbound, in order.
+  repeated string output = 3;
+}
+
+// EtypeWhitelist is one acl.etype-whitelist object (acl_interface_set_etype_whitelist): the non-IP
+// ethertypes let through on an interface with ACLs. Key acl.etype-whitelist/<interface>.
+message EtypeWhitelist {
+  // Logical interface name (D-069).
+  string interface = 1;
+  // Inbound ethertypes, strictly ascending (canonical form), each 0–65535.
+  repeated uint32 input = 2;
+  // Outbound ethertypes, strictly ascending, each 0–65535.
+  repeated uint32 output = 3;
+}
+
+// MacipBinding is one acl.macip-interface-binding object (macip_acl_interface_add_del): the single
+// MACIP ACL applied inbound on an interface. Key acl.macip-interface-binding/<interface>.
+message MacipBinding {
+  // Logical interface name (D-069).
+  string interface = 1;
+  // acl.macip-acl name.
+  string acl = 2;
+}
+
+// StatsEnable is the acl.stats-enable singleton (acl_stats_intf_counters_enable), key
+// acl.stats-enable/global: whether VPP increments the per-rule hit counters. A VPP-global
+// setting — only the globals owner sets it (D-071).
+message StatsEnable {
+  // Per-rule counters on/off.
+  bool enabled = 1;
+}

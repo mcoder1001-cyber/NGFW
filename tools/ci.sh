@@ -473,21 +473,28 @@ do_integration() {
   export VRX_LAB_LOCK_HELD=1 VRX_CI_FULL=1
   say "lab lock converted to shared for rig up → suites → rig down"
   if run lab-status tools/lab status; then sed 's/^/  /' "$CUR_LOG" | tail -n 15; else warn "tools/lab status failed (non-fatal)"; fi
-  run rig-up tools/lab rig up "$RIG_PREFIX" || fail "tools/lab rig up $RIG_PREFIX failed"
-  RIG_UP=1
   local mod
   while IFS= read -r mod; do
     mod=$(dirname "$mod")
+    # the veth/netns rig takes 10.<slot>.{1,2}.0/24 — the same range the apps/agent descriptor tests use on their own
+    # loopbacks — so it comes up only for the rig-based modules under test/ (D-087 follow-up)
+    if [[ $mod != apps/agent && $RIG_UP == 0 ]]; then
+      run rig-up tools/lab rig up "$RIG_PREFIX" || fail "tools/lab rig up $RIG_PREFIX failed"
+      RIG_UP=1
+    fi
     say "go integration: $mod"
-    run "go-integration-${mod//\//_}" env VRX_INTEGRATION=1 go -C "$mod" test -race -count=1 -timeout 20m ./... \
+    # -p 1: one package at a time — packages share the CI slot's prefix/instance ranges on one VPP (D-087)
+    run "go-integration-${mod//\//_}" env VRX_INTEGRATION=1 go -C "$mod" test -p 1 -race -count=1 -timeout 30m ./... \
       || fail "Go integration tests failed in $mod"
     grep -E '^(ok|FAIL)\s' "$CUR_LOG" | sed 's/^/  /' || true
   done < <(find apps/agent test -name go.mod -not -path '*/node_modules/*' 2>/dev/null | sort)
   say "ts integration: pnpm -r run test:integration (packages that define it)"
   run ts-integration env VRX_INTEGRATION=1 pnpm -r --workspace-concurrency=1 --if-present run test:integration \
     || fail "TS integration tests failed"
-  run rig-down tools/lab rig down "$RIG_PREFIX" || fail "tools/lab rig down $RIG_PREFIX failed — objects with prefix $RIG_PREFIX may be left on VPP; run 'tools/lab rig gc $RIG_PREFIX'"
-  RIG_UP=0
+  if [[ $RIG_UP == 1 ]]; then
+    run rig-down tools/lab rig down "$RIG_PREFIX" || fail "tools/lab rig down $RIG_PREFIX failed — objects with prefix $RIG_PREFIX may be left on VPP; run 'tools/lab rig gc $RIG_PREFIX'"
+    RIG_UP=0
+  fi
   unset VRX_LAB_LOCK_HELD VRX_CI_FULL
   exec 9>&-
   INTEGRATION_STATUS="ran on slot $CI_SLOT (prefix $RIG_PREFIX): rig up → Go + TS suites with VRX_INTEGRATION=1 → rig down"

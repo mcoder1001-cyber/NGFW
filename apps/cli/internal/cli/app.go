@@ -228,8 +228,7 @@ func (a *App) login(ctx context.Context, user, password string, save bool) error
 		if !lineedit.IsTerminal(a.Stdin) {
 			return usagef("login needs a username (vrx login <user>)")
 		}
-		fmt.Fprint(a.Stdout, "Username: ")
-		if user, err = a.readLine(); err != nil {
+		if user, err = a.readLine("Username: "); err != nil {
 			return err
 		}
 		user = strings.TrimSpace(user)
@@ -277,12 +276,12 @@ func (a *App) refresh(ctx context.Context) (api.Credential, error) {
 	return api.Bearer(out.AccessToken), nil
 }
 
-func (a *App) readLine() (string, error) {
+func (a *App) readLine(prompt string) (string, error) {
 	if a.editor != nil {
-		return a.editor.ReadLine("")
+		return a.editor.ReadLine(prompt)
 	}
 	e := &lineedit.Editor{In: a.Stdin, Out: a.Stdout}
-	return e.ReadLine("")
+	return e.ReadLine(prompt)
 }
 
 func (a *App) readSecret(prompt string) (string, error) {

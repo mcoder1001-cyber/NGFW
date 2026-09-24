@@ -365,12 +365,9 @@ type commitOut struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
 	} `json:"results"`
-	Summary  map[string]float64 `json:"summary"`
-	Warnings []struct {
-		Pointer string `json:"pointer"`
-		Message string `json:"message"`
-	} `json:"warnings"`
-	NotApplied []string `json:"notApplied"`
+	Summary    map[string]float64 `json:"summary"`
+	Warnings   []warning          `json:"warnings"`
+	NotApplied []string           `json:"notApplied"`
 	Sync       *struct {
 		State  string `json:"state"`
 		Reason string `json:"reason"`
@@ -471,16 +468,16 @@ func printCommit(w io.Writer, out *commitOut) {
 		fmt.Fprintf(w, "  objects: %s\n", strings.Join(parts, ", "))
 	}
 	for _, r := range out.Results {
-		if r.Code != "OK" && r.Code != "" {
-			fmt.Fprintf(w, "  %s %s: %s %s\n", r.Op, r.Key, r.Code, r.Message)
+		line := fmt.Sprintf("  %s %s: %s", r.Op, r.Key, r.Code)
+		if r.Message != "" {
+			line += " — " + r.Message
 		}
+		fmt.Fprintln(w, line)
 	}
 	if len(out.NotApplied) > 0 {
 		fmt.Fprintf(w, "  not applied (agent does not implement): %s — stored in running, enforced when supported\n", strings.Join(out.NotApplied, ", "))
 	}
-	for _, x := range out.Warnings {
-		fmt.Fprintf(w, "  warning %s: %s\n", x.Pointer, x.Message)
-	}
+	printWarnings(w, out.Warnings)
 	if out.Sync != nil {
 		fmt.Fprintf(w, "  sync: %s", out.Sync.State)
 		if out.Sync.Reason != "" {
@@ -505,12 +502,9 @@ func sortedKeys(m map[string]float64) []string {
 
 func validateCmd(a *App, ctx context.Context, _ []cpath.Token) error {
 	var out struct {
-		OK       bool `json:"ok"`
-		Warnings []struct {
-			Pointer string `json:"pointer"`
-			Message string `json:"message"`
-		} `json:"warnings"`
-		Plan []struct {
+		OK       bool      `json:"ok"`
+		Warnings []warning `json:"warnings"`
+		Plan     []struct {
 			Key       string `json:"key"`
 			Op        string `json:"op"`
 			Subsystem string `json:"subsystem"`
@@ -529,10 +523,30 @@ func validateCmd(a *App, ctx context.Context, _ []cpath.Token) error {
 		if len(out.NotApplied) > 0 {
 			fmt.Fprintf(w, "  not applied (agent does not implement): %s\n", strings.Join(out.NotApplied, ", "))
 		}
-		for _, x := range out.Warnings {
-			fmt.Fprintf(w, "  warning %s: %s\n", x.Pointer, x.Message)
-		}
+		printWarnings(w, out.Warnings)
 	})
+}
+
+type warning = struct {
+	Pointer string `json:"pointer"`
+	Message string `json:"message"`
+}
+
+// printWarnings prints real warnings one per line and folds the agent's coverage notes ("… is not implemented by
+// this agent build", "… is not applied") into one line of pointers — stored in running, not enforced (D-P06-15/16).
+func printWarnings(w io.Writer, ws []warning) {
+	var notEnforced []string
+	for _, x := range ws {
+		m := strings.ToLower(x.Message)
+		if strings.Contains(m, "not implemented by this agent") || strings.Contains(m, "not applied") || strings.Contains(m, "not by this agent build") {
+			notEnforced = append(notEnforced, x.Pointer)
+			continue
+		}
+		fmt.Fprintf(w, "  warning %s: %s\n", x.Pointer, x.Message)
+	}
+	if len(notEnforced) > 0 {
+		fmt.Fprintf(w, "  stored but not enforced by this agent build (%d): %s  (details: --json)\n", len(notEnforced), strings.Join(notEnforced, " "))
+	}
 }
 
 func discardCmd(a *App, ctx context.Context, _ []cpath.Token) error {

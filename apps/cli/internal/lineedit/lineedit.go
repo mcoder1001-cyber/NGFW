@@ -127,6 +127,7 @@ func (e *Editor) edit(prompt string) (string, error) {
 		}
 		switch r {
 		case '\r', '\n':
+			s.refresh() // typed-ahead input was not drawn yet
 			s.write("\r\n")
 			return string(s.buf), nil
 		case 3: // Ctrl-C
@@ -183,6 +184,7 @@ func (e *Editor) edit(prompt string) (string, error) {
 				s.insert(r)
 			} else {
 				text := e.Help(string(s.buf[:s.pos]))
+				s.refresh()
 				s.write("?\r\n" + strings.ReplaceAll(strings.TrimRight(text, "\n"), "\n", "\r\n") + "\r\n")
 			}
 		case 27: // escape sequence
@@ -192,7 +194,9 @@ func (e *Editor) edit(prompt string) (string, error) {
 				s.insert(r)
 			}
 		}
-		s.refresh()
+		if s.in.Buffered() == 0 { // pasted/typed-ahead input: redraw once, not per character
+			s.refresh()
+		}
 	}
 }
 
@@ -329,6 +333,7 @@ func (s *state) complete() {
 		s.replaceWord(len([]rune(word)), p)
 		return
 	}
+	s.refresh()
 	s.write("\r\n" + strings.ReplaceAll(List(cands, 100), "\n", "\r\n"))
 }
 

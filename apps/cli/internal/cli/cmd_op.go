@@ -391,7 +391,7 @@ func showSystem(a *App, ctx context.Context, args []cpath.Token) error {
 			sort.Strings(keys)
 			fmt.Fprintln(w, "agent      reachable")
 			for _, k := range keys {
-				fmt.Fprintf(w, "  %-18s %s\n", k, compact(s.Agent[k]))
+				fmt.Fprintf(w, "  %-20s %s\n", k, compact(s.Agent[k]))
 			}
 		} else {
 			fmt.Fprintf(w, "agent      UNREACHABLE: %v\n", s.Agent["error"])
@@ -406,7 +406,11 @@ func showSystem(a *App, ctx context.Context, args []cpath.Token) error {
 		} else {
 			fmt.Fprintln(w, "pending    none")
 		}
-		fmt.Fprintf(w, "sync       %s — %s (since %s)\n", s.Sync.State, s.Sync.Reason, s.Sync.Since)
+		fmt.Fprintf(w, "sync       %s", s.Sync.State)
+		if s.Sync.Reason != "" {
+			fmt.Fprintf(w, " — %s (since %s)", s.Sync.Reason, s.Sync.Since)
+		}
+		fmt.Fprintln(w, " (running ↔ data plane)")
 	})
 }
 
@@ -836,10 +840,18 @@ func apiKeyList(a *App, ctx context.Context, _ []cpath.Token) error {
 	return a.emit(raw, func(w io.Writer) {
 		rows := make([][]string, 0, len(out))
 		for _, k := range out {
-			rows = append(rows, []string{fmt.Sprint(k["id"]), fmt.Sprint(k["name"]), fmt.Sprint(k["role"]), fmt.Sprint(k["expiresAt"]), fmt.Sprint(k["lastUsedAt"])})
+			rows = append(rows, []string{str(k["id"]), str(k["name"]), str(k["role"]), str(k["createdAt"]), str(k["expiresAt"]), str(k["lastUsed"])})
 		}
-		table(w, []string{"ID", "NAME", "ROLE", "EXPIRES", "LAST-USED"}, rows)
+		table(w, []string{"ID", "NAME", "ROLE", "CREATED", "EXPIRES", "LAST-USED"}, rows)
 	})
+}
+
+// str prints an optional JSON value ("-" for null/absent).
+func str(v any) string {
+	if v == nil {
+		return "-"
+	}
+	return fmt.Sprint(v)
 }
 
 func apiKeyDelete(a *App, ctx context.Context, args []cpath.Token) error {

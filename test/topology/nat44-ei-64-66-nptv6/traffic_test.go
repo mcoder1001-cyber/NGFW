@@ -105,7 +105,7 @@ func (c *capture) lines(t *testing.T) []string {
 	raw, _ := os.ReadFile(c.log) //nolint:gosec // our own log
 	var out []string
 	for _, l := range strings.Split(string(raw), "\n") {
-		if strings.Contains(l, " IP ") {
+		if strings.Contains(l, " IP ") || strings.Contains(l, " IP6 ") {
 			out = append(out, strings.TrimSpace(l))
 		}
 	}

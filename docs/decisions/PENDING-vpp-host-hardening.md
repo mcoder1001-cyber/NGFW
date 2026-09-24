@@ -24,7 +24,7 @@
    - `Restart=always` turns a clean EAL failure into a restart loop (the 12:52 burst of 5 starts).
 4. **Host/VM.** The VMware balloon holds 1 GiB, and first-touch of fresh memory runs at a few MiB/s.
    - Because of that, `systemd-sysctl` timed out at boot and left **555** hugepages instead of 1024.
-   - Each af_packet interface allocates a ~76 MiB zeroed kernel ring **on VPP's only thread**. Result: API/CLI stalls of 40 s to 5.5 min (13:43–13:49, 14:10:17–14:10:57). This is P08 review I6: it blocks every af_packet test and every slot.
+   - Each af_packet interface allocates a ~76 MiB zeroed kernel ring **on VPP's only thread**. Result: API/CLI stalls of 40 s to 5.5 min (13:43–13:49, 14:10:17–14:10:57). This is P08 review I6: it blocks every af_packet test and every slot. **Confirmed at 15:10 by a dedicated diagnosis:** the cause is ESXi reclaiming the VM's memory (balloon at its 1 GiB target, 81 GB free inside the guest). The same ring setup outside VPP took 11.6 s in a slow period and 10–19 ms minutes later, and a plain 64 MiB write ran at 4–6 MiB/s. Even idle, API ping spikes reach ~300 ms from hypervisor jitter. No startup.conf change fixes this; **option A is the real fix**.
 
 ## Options
 | # | Option | Cost now | Reversal | Risk |

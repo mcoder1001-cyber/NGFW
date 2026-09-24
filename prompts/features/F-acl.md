@@ -20,20 +20,42 @@ counters and a rule editor that stays usable at 100 000 rules. Reference: TNSR "
 - D-071 (`acl.stats-enable` is a global: only the globals owner sets it; slots require it), D-082 (globals lock in tests),
   D-080 (boot identity for the stats flag), `docs/vpp-code-track.md` **V7** (stats-enable replies with the wrong message id and has
   no getter/disable → fallback in place: raw stream, treat mismatched reply as success, never disabled by the agent)
+- **P08** (vertical slice) — the patterns you extend, do not rebuild: builders in `apps/agent/internal/desired/` (`Sink`,
+  `interface/<name>` alias references), registration + `Domains` in `apps/agent/internal/subsystems/subsystems.go`
+  (`Wiring.KeyedClaims("acl")` = the persisted claim store for `acl.WithEtypeClaims`; `Env.GlobalsOwner` = the D-071 flag,
+  `VRX_GLOBALS_OWNER=0` on slots), the hook in `apps/agent/internal/agent/projection.go`, and the read-only state RPC pattern
+  (`InterfaceState`: `agent/ifstate.go` + `apps/api/src/state/state.controller.ts`). Read `docs/status/vertical-slice.md`.
+- **Restart-safety trap:** the agent persists only *implemented* domains (`agent/state.go` `mergeDomains`, `service.go` `Resync`).
+  Your projection reads `objects` (groups, zones, schedules). Check that F-object-model registered `objects` in `subsystems.Domains`
+  (it has no descriptors). If it did not, add that one-line hunk and say so in the questions file; otherwise the expanded rules
+  cannot be rebuilt after an agent restart.
 
 ## Contract changes
-The domain is complete for this scope. Anything extra (e.g. `acl.settings.counters: bool`) is additive on `contract/F-acl`
-(schema + proto + drift guard + `docs/status/tasks/F-acl-contract.md`), manager told via questions file; continue meanwhile.
+Config needs none (`AclConfig` exists). The **counters/state path is new**, so make one additive proto change first: a read-only
+unary RPC `AclState(list, offset, limit ≤ 1000, filter) → rules[]{sequence, expanded VPP rule count, packets, bytes}, total,
+counters_available` plus the lists bound per interface (foreign ones included, D-066). Never put a whole 100k list in one message.
+Commit it as `contract(proto): acl state` (+ regenerated stubs, `docs/contracts/proto.md`, `docs/status/tasks/F-acl-contract.md`),
+tell the manager in the questions file and continue. Anything else (e.g. `acl.settings.counters: bool`) is additive the same way.
+Renames/reshapes are PENDING.
 
 ## Scope — build exactly this
-Files you own: `apps/agent/internal/descriptors/acl/**`, `docs/agent/descriptors/acl.md`, `apps/agent/internal/agent/project_acl*.go`,
-`apps/api/src/features/acl/**`, `apps/web/src/domains/firewall/acl/**`, `apps/web/src/locales/*/acl.json`, `docs/user/firewall/acl.md`,
-`test/topology/acl/**`. Shared files: one-line appends only (app.module import, router/nav entry, projection hook).
+Files you own: `apps/agent/internal/descriptors/acl/**` (gap-only), `docs/agent/descriptors/acl.md`, `apps/agent/internal/desired/acl*.go`,
+`apps/agent/internal/actions/acl/**` (state/counter mapping: pure functions + fake-client tests), `apps/agent/internal/agent/rpc_acl*.go`
+(the `AclState` method; `server` embeds `UnimplementedDataplaneServer`), `apps/agent/internal/subsystems/acl*.go` (new `Wiring` methods,
+the re-projection ticker), `apps/agent/internal/descriptors/core/coretest/acl*.go`, `apps/api/src/features/acl/**`,
+`apps/api/test/e2e/acl*`, `apps/web/src/domains/firewall/acl/**`, `apps/web/src/locales/*/acl.json`, `docs/user/firewall/acl.md`,
+`test/topology/acl/**`. Shared, minimal hunks only (state each in the PR; protocol in `docs/status/wave-A-hotspots.md`): `subsystems.go`
+(`acl.Register` + `Domains["acl"]` — the `acl` key is shared with F-host-acl-nftables), `projection.go` (builder + assemble hook),
+`apps/api/src/agent/agent.client.ts`, `apps/api/src/testing/fake-agent.ts`, `app.module.ts`, router/nav, `apps/web/src/i18n.ts`,
+regenerated `packages/api-client`. The agent core (`agent/{agent,service}.go`) is read-only in wave A.
 1. **Projection**: `acl.lists.<name>` → one `acl.acl/<name>` (rules expanded through `internal/objects`; `ipVersion: any` → v4 + v6
-   rules; disabled rules skipped; inactive schedules → rule omitted, re-projected every 60 s; `reflect` → permit+reflect);
+   rules; disabled rules skipped; inactive schedules → rule omitted; re-projected every 60 s and on F-object-model's FQDN change event
+   through the existing `Service.Resync` path, not a second reconcile path — the ticker/subscription lives in your `subsystems/acl*.go`;
+   the one-line hook that lets it call `Resync` is a core change: ask the manager in the questions file; `reflect` → permit+reflect);
    attachments (interface or zone → every zone interface) → `acl.interface-binding/<ifname>` with in/out lists ordered by
-   `sequence`; MACIP → `acl.macip-acl` + `acl.macip-interface-binding`. Expansion > 10 000 VPP rules for one list → DryRun error with
-   the pointer. Descriptor changes only if a gap shows up (you own `descriptors/acl` for this task).
+   `sequence`; MACIP → `acl.macip-acl` + `acl.macip-interface-binding`; `acl.stats-enable` only when `Env.GlobalsOwner`. An expansion
+   above 10 000 VPP rules for one config rule (F-object-model's cap) or above 100 000 for one list → DryRun error with the pointer.
+   Descriptor changes only if a gap shows up (you own `descriptors/acl` for this task).
 2. **Counters**: `acl.StatsReader` → per-rule packets/bytes mapped back to the **config rule** (sequence) through the expansion map;
    requires `acl.stats-enable` (globals owner) — non-owner slots report "counters unavailable" rather than failing.
 3. **API**: config via pointer routes; `GET /api/v1/state/acl/lists/{name}/rules?page&pageSize&filter` (server-side paging, expanded
@@ -48,6 +70,7 @@ Files you own: `apps/agent/internal/descriptors/acl/**`, `docs/agent/descriptors
 - [ ] `vppctl show acl-plugin acl` and `show acl-plugin interface` reflect the committed lists/bindings (pasted); `Retrieve()` == desired
 - [ ] Hit counters: traffic on the rig (`ip netns exec ns-<p>-lan ping …`) increments the matching rule's counter in the API (pasted)
 - [ ] 100k-rule list: projection time, `acl_add_replace` time and first-page API latency measured and pasted; UI scroll screenshot
+      (on the shared VPP go 10k first, then 100k, with `systemctl show vpp -p NRestarts` before/after each step — D-064)
 - [ ] Agent-restart simulation → bindings back within 30 s; foreign ACL on the same interface untouched (D-066)
 - [ ] Rollback removes lists and bindings (Retrieve empty for the owner)
 - [ ] Rule referencing an empty group → 400 problem+json with `pointer`; `tools/ci.sh --base main` green; UI screenshot pasted

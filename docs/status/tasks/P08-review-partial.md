@@ -18,6 +18,15 @@ The provisional verdict so far is **APPROVE WITH CHANGES**. It is not final beca
 | 10 | i18n | done. en and fa `interfaces.json` have identical key sets. No `margin-left/right`. The drawer anchor follows the theme direction. |
 | 11 | Own `tools/ci.sh` run | **NOT finished.** Command: `VRX_CI_SLOT=1 tools/ci.sh full --base main`, started 13:19. The quick part **passed** every step: contract guard ok, gen gate, forbidden patterns + gitleaks, turbo 30/30, agent `make lint test build`, test/ modules. The integration step (slot 1, rig w1, lock converted to shared) was still running at 13:40, with NRestarts 0 → 0 so far. Log: `/root/ngfw-wt/logs/ci/P08-20260924-131914-10894`. I left it running so that ci.sh does its own rig-down/cleanup. |
 
+### Item 11 — the CI run finished after the stop order (14:01), result recorded without new checks
+- **Result:** `EXIT 1`, `CI GATE FAILED — Go integration tests failed in apps/agent`. NRestarts stayed 0 before and after. The rig is down (no `w1l0/w1w0` veths remain).
+- **What failed:**
+  - `renderers/frr`: `TestReviewH2NotConvergedLive`, `TestReviewM2SecretLive`, `TestReviewM3ManyRoutesLive`.
+  - `renderers/frr/frrtest`: `TestHarnessSlotLockSerialises`. mgmtd could not bind `/var/run/frr/w1/mgmtd_fe.sock` (Permission denied) and could not set its log file.
+- **Not P08's code:** P08 changes nothing under `apps/agent/internal/renderers`. This looks like an environment or slot-1 FRR problem. That is my reading; I did not verify it.
+- **What it means for P08:** the gate stops at the `apps/agent` suite, so the **P08 topology and restart-safety test (`test/topology/interfaces`) did not run in my gate.**
+- **Still open:** re-run on a clean slot, or run with the FRR issue triaged. Item 11 stays open until then.
+
 ## Findings so far (ranked)
 **F1 — medium. `/state/interfaces` changed the meaning of `items[].config`, and the CLI still reads the old meaning.**
 - **What changed:** `apps/api/src/state/state.controller.ts` (`interfaces()`, `config: runIfs.get(name)?.value ?? null`). Before P08, `config` held the Retrieve (data-plane) view and was never null. Now it holds the running configuration, may be null, and the old meaning has moved to `actual`. The list also now includes every live VPP interface.

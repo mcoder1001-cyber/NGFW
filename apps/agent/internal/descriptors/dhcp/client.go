@@ -113,7 +113,7 @@ func (d *ClientDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 		return nil, err
 	}
 	idx := tg.Index
-	had := tg.Claimed() // ours before this Create (always true on our tagged interfaces)
+	had := tg.Claimed()                // ours before this Create (always true on our tagged interfaces)
 	if err := tg.Claim(); err != nil { // nothing written to VPP yet
 		return nil, err
 	}

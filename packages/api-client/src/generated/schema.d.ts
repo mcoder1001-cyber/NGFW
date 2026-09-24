@@ -606,6 +606,57 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/dhcp/leases': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Kea DHCP leases, one page (the agent pages lease4/6-get-page; never the whole lease file), with kea-dhcp4/6 status and per-subnet pool usage */
+    get: operations['KeaDhcpRelay_leases'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/dhcp/relays': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** DHCP relays: the running configuration next to what the agent retrieves from VPP (dhcp proxy per client VRF) */
+    get: operations['KeaDhcpRelay_relays'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/interfaces/{name}/dhcp-client': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** VPP DHCPv4 client of one interface: state and lease (dhcp_client_dump) */
+    get: operations['KeaDhcpRelay_client'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7915,6 +7966,309 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  KeaDhcpRelay_leases: {
+    parameters: {
+      query?: {
+        filter?: string;
+        pageSize?: number;
+        page?: number;
+        family?: 'ipv4' | 'ipv6';
+        server?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt?: string;
+            page: number;
+            pageSize: number;
+            /** @description matching leases the agent read */
+            total: number;
+            /** @description Kea holds more leases than the agent reads per call (100 000 per family) */
+            truncated: boolean;
+            items: {
+              /** @enum {string} */
+              family: 'ipv4' | 'ipv6';
+              address: string;
+              hwAddress: string;
+              clientId: string;
+              duid: string;
+              hostname: string;
+              /** @description empty when the subnet is not one of this agent’s */
+              server: string;
+              subnet: string;
+              subnetId: number;
+              validLifetimeSec: number;
+              expiresAt: string | null;
+              /** @description default, declined, expired-reclaimed or state-<n> */
+              state: string;
+              /** @description DHCPv6 IA_NA / IA_PD; empty for DHCPv4 */
+              leaseType: string;
+              prefixLen: number;
+            }[];
+            servers: {
+              /** @enum {string} */
+              family: 'ipv4' | 'ipv6';
+              /** @description the daemon answers on its control socket */
+              running: boolean;
+              /** @description its configuration binds interfaces */
+              active: boolean;
+              /** @description "start" while an active configuration waits for a stopped daemon (D-079) */
+              actionRequired: string;
+              reloadSec: number;
+              subnets: {
+                server: string;
+                subnet: string;
+                prefix: string;
+                subnetId: number;
+                /** @description addresses in the pools (decimal string: DHCPv6 pools exceed 2^53) */
+                total: string;
+                assigned: string;
+                declined: string;
+              }[];
+              error: string;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  KeaDhcpRelay_relays: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt?: string;
+            items: {
+              name: string;
+              /** @description the running configuration of the relay */
+              config: {
+                [key: string]: unknown;
+              } | null;
+              /** @description what the agent retrieved (VPP dhcp proxy + the relay record); null = not on the data plane */
+              retrieved: {
+                [key: string]: unknown;
+              } | null;
+              /**
+               * @description applied = retrieved equals running; unmanaged = on the data plane but not in running
+               * @enum {string}
+               */
+              state: 'applied' | 'drift' | 'missing' | 'disabled' | 'unmanaged';
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  KeaDhcpRelay_client: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description logical interface name */
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            interface: string;
+            /** @description VPP runs a DHCPv4 client on the interface */
+            configured: boolean;
+            /** @description DISCOVER, REQUEST or BOUND; empty when not configured */
+            state: string;
+            /** @description leased address (CIDR); empty until bound */
+            address: string;
+            router: string;
+            dnsServers: string[];
+            hostname: string;
+            mac: string;
+            /** @description interfaces.<name>.dhcpClient of the running configuration (null = not configured) */
+            config: {
+              [key: string]: unknown;
+            } | null;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

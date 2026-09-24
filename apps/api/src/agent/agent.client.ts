@@ -52,6 +52,8 @@ import {
   // wave-A: F-wireguard
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
+  type DhcpLeasesRequest,
+  type DhcpLeasesResponse,
   // wave-A: F-unbound-chrony-syslog
 } from '@ngfw/proto';
 import type { ClientReadableStream } from '@grpc/grpc-js';
@@ -180,6 +182,10 @@ export class AgentClient implements OnModuleDestroy {
   // wave-A: F-wireguard
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
+  /** F-kea-dhcp-relay (proto.md §11): Kea lease pages + daemon status, or one interface's DHCPv4 client state. */
+  dhcpLeases(req: Omit<DhcpLeasesRequest, 'owner'>): Promise<DhcpLeasesResponse> {
+    return this.unary(this.c.dhcpLeases, { ...req, owner: this.owner });
+  }
   // wave-A: F-unbound-chrony-syslog
 
   close(): void {

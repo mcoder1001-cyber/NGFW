@@ -405,3 +405,86 @@ nat44-ed is disabled, as the fixture found it before this task's first run (18:5
 cleanup-on-failure fix) had left the slot's pool addresses and mappings behind for ~10 min; `TestNat44EdGC` removed them
 at 19:08 and restored "disabled". `apps/*/dist`, `packages/*/dist` and `apps/agent/bin` are removed after the final
 commit.
+
+---
+
+## Fix round 1 (review `F-nat44-ed-sessions-review.md` @ 0ee338e, APPROVE WITH CHANGES; manager D-129)
+
+No host runs this round (slot 4 now belongs to F-nat44-ei); no rebase (L5, the merger rebases). Commits: `c6132fe`
+contract(proto) comments · `e6c2e36` fix(agent) · `407a23e` fix(web,api) · `8af7141` contract(api-client) · `8f81fa8`
+docs · `e2a95dc` status/questions.
+
+| finding | fix | evidence |
+|---|---|---|
+| **H1** VPP cost O(users × sessions), polled every 5 s | agent: per-call caps (`actions/nat44-ed-sessions` `Caps`): ≤ **256** per-user dumps per NatSessions call (filtered scan and unfiltered page), ≤ **64** per NatSummary breakdown, ≤ 200 000 sessions looked at (now counted inside the stream, L4); `truncated` whenever a cap stops a call; the totals stay exact (one `nat44_user_dump`). NatSummary cached per agent for **30 s** behind a single flight (`rpc_nat44_ed.go`). API `pageSize` ≤ 256 (= the host cap, so a page is never cut short). UI: summary polls every 30 s only on Outbound/Pools and pauses in a background tab; the session grid stops polling while an address/port/protocol filter is set (Refresh button + note); page sizes 25/50/100/250 | `TestUserDumpCaps` (600 hosts: filtered scan = 256 dumps + truncated; 1000-row page = 256 dumps, short page with next; 100-row page untruncated; summary = 64 dumps + truncated, totals 600; scan cap stops inside one host's stream); `TestNatSummaryCacheAndCaps` (first call: 1 user dump + 64 session dumps; within 30 s: no VPP call, identical snapshot; 8 concurrent callers after the TTL: one computation; filtered NatSessions: 256 dumps, truncated); web `review H1` test + the Refresh assertion |
+| **M1** twice-NAT kill → 404; other protocols killed as `tcp` | `killBodyOf` sends `externalNat*` for a twice-NAT row and returns `null` for protocols other than tcp/udp/icmp (button disabled, tooltip); the confirm dialog shows the tuple that is sent; proto comment on `NatSessionKillAction.external_*`; the coretest model keys `nat44_del_session` of a twice-NAT session on its NAT'd external end, as VPP | `TestKillTwiceNatSession` (the untranslated end → no such session, the NAT'd end → deleted); web `review M1` test (twice-NAT → `10.1.2.120:1024`, udp/icmp kept, `47` → not killable) |
+| **L1** `external_nat_*` doc | proto comment: VPP reports "0.0.0.0"/0 without twice-NAT (comment-only `contract(proto)`); the API fake and the model now report 0.0.0.0 | `TestKillTwiceNatSession` asserts 0.0.0.0/0 on the plain row |
+| **L2** address-only v3 dump / multi-worker rows | users merged by (VRF, address) with summed counts; users that share an address partition its dump (no session listed twice); one dump per address in scans and the summary; the model's v3 dump matches the address only, like VPP; `### V-new (F-nat44-ed-sessions, review L2)`; user page note | `TestUsersMergedAndSharedAddress` |
+| **L3** per-RPC `nat44ed.New` | tech debt (needs an A5 Wiring handle) — questions Q12 | — |
+| **L4** a scan held a whole host's sessions | DF-3 gap-only helper `Plugin.EachUserSession` (streaming; `UserSessions` uses it); scans keep only the page and stop inside a host at the cap | `TestUserDumpCaps` (scan cap 100 over one 500-session host: 100 counted, 1 dump); `go test ./internal/descriptors/nat44ed/` ok |
+| **L5** branch on the old W-seed | not rebased (manager: the merger rebases) | — |
+| **L6** pasted evidence = run 5 | the topology block above is now run 6's output (19:40), acceptance numbers aligned | above |
+
+Not re-run on the host this round: the topology test (none of its files changed; its API page size 100 is within the
+new bound, its gRPC `limit=1000` call is still accepted by the agent) and the API e2e (Q11: the e2e harness drops the slot database, and `vrx_w4` is F-nat44-ei's now).
+
+### Unit tests (fix round 1)
+```
+$ go test -count=1 -v ./internal/actions/...                                   (apps/agent)
+--- PASS: TestListPagesByUserCounts · TestListOwnership · TestListFilters · TestParse · TestKill · TestSummarize
+--- PASS: TestUserDumpCaps (0.02s)
+--- PASS: TestUsersMergedAndSharedAddress (0.00s)
+--- PASS: TestKillTwiceNatSession (0.00s)
+ok  	ngfw/agent/internal/actions/nat44-ed-sessions	0.122s
+$ go test -count=1 -v -run TestNat ./internal/agent/
+--- PASS: TestNatDomainOnFake (0.10s)
+--- PASS: TestNatSessionsSummaryKillOverGRPC (0.09s)
+--- PASS: TestNatSummaryCacheAndCaps (0.04s)
+ok  	ngfw/agent/internal/agent	0.334s        (also -race: ok)
+$ go test -count=1 ./internal/descriptors/nat44ed/ ./internal/desired/
+ok  	ngfw/agent/internal/descriptors/nat44ed	0.066s
+ok  	ngfw/agent/internal/desired	0.081s
+$ make -C apps/agent lint                      0 issues.
+$ vitest run src/domains/firewall/nat44-ed-sessions     (apps/web)
+ ✓ src/domains/firewall/nat44-ed-sessions/NatPage.test.tsx (9 tests)
+$ vitest run src/features                               (apps/api)
+ ✓ src/features/nat44-ed-sessions/nat44-ed-sessions.test.ts (4 tests)
+```
+
+### CI (main's ci.sh: `git show main:tools/ci.sh > /tmp/g-rev4b/ci.sh`)
+Two runs of `TMPDIR=/tmp/g-rev4b /tmp/g-rev4b/ci.sh --base main` (head `e2a95dc`, load average 30–45). Every step is
+green except the last one, the deploy/vpp apply-startup fake-host harness. That harness is **not this task's code**.
+The branch still carries the pre-D-103 copy of `deploy/vpp/test-apply-startup.sh`: it came in with the old W-seed base,
+and main hardened the harness at 16:21 (6a1b3fc7). The old copy has no `VRX_TEST_SHARD` support (0 hits; main's copy
+has 3). So main's ci.sh starts four FULL copies of it in parallel, and they collide on the timing-sensitive scenarios
+24 and 26 (`sleep 0.5; W="$(work)"` → `/log`, `/run-pid`). Run serially, the same copy passes 101/101. The L5 rebase
+brings main's harness.
+```
+== VRX CI gate: quick ==
+branch    task/F-nat44-ed-sessions @ e2a95dc9   (base: main)
+== contract guard: HEAD vs main ==
+ok — contract commit(s) on the branch:
+  8af7141 contract(api-client): nat44-ed-sessions — truncated / retrievedAt descriptions (review H1), regenerated
+  c6132fe contract(proto): nat sessions — comments: external_nat_* is 0.0.0.0 without twice-NAT, kill uses the NAT'd external end, per-call caps, 30-s summary cache
+  2b6b70d contract(api-client): nat44-ed-sessions routes (…) · a7d7469 contract(schema): nat adjacent pools · bd4e9e3 contract(proto): nat sessions
+  (+ the P08 / W-seed contract commits still on the branch, L5)
+== generate + generated-output gate ==
+clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated
+== forbidden patterns (+ gitleaks) ==
+ok: gitleaks — scanned ~1224745 bytes (1.22 MB) in 1.19s no leaks found
+== lint · typecheck · unit tests · build (turbo) ==
+Tasks:    30 successful, 30 total Cached:    24 cached, 30 total Time:    1m40.148s
+== apps/agent: make lint test build ==        0 issues. · 91 packages ok, 0 FAIL (incl. actions/nat44-ed-sessions, internal/agent)
+== apps/cli: make lint test build ==          0 issues. · ok
+test/topology/nat44-ed-sessions: gofmt ok · go vet ok · ok  	ngfw/test/topology/nat44-ed-sessions	0.038s;
+== deploy/vpp: shellcheck + apply-startup fake-host harness ==
+apply-startup shard 1 died (exit 1, result: none)      (run 1: shards 3, 4 died; shard 1 FAIL in scenario 24)
+apply-startup shard 2 died (exit 1, result: none)
+apply-startup shard 3 died (exit 1, result: none)
+apply-startup shard 4 died (exit 1, result: none)
+CI GATE FAILED — apply-startup fake-host harness failed (0 passed; …) — logs /root/ngfw-wt/logs/ci/F-nat44-ed-sessions-20260924-235423-1378529
+$ grep -c VRX_TEST_SHARD deploy/vpp/test-apply-startup.sh          → 0      (main's copy: 3)
+$ deploy/vpp/test-apply-startup.sh <the gate's vrx-startupgen>      (serial, the same tree, load 45)
+apply-startup tests: 101 passed, 0 failed
+```
+Logs: `/root/ngfw-wt/logs/F-nat44-ed-sessions-ci-fix1-run{1,2}.log`, `…-apply-startup-serial.log`.

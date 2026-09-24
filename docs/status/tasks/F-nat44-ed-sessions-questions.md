@@ -91,3 +91,8 @@ next to the tcpdump in the lan netns. The trace excerpt in the status file is fr
   never touch claims) because `Service` has no Wiring handle (A5). When A5 gets a seam, expose the registered plugin as
   `Wiring.Nat44ED()` from `subsystems/nat44_ed.go` and use it. L4 is done (streaming `EachUserSession`, a gap-only DF-3
   helper).
+- **Q13 (merge note): main's ci.sh vs the branch's old deploy/vpp harness.** The gate with main's ci.sh fails only in the
+  apply-startup harness step. The branch's pre-D-103 `deploy/vpp/test-apply-startup.sh` has no `VRX_TEST_SHARD`, so
+  main's ci.sh runs four full copies of it in parallel, and they collide on scenarios 24 and 26. Serially, the same copy
+  passes 101/101. The file is not mine, and the L5 rebase replaces it with main's copy. After the rebase the step runs
+  main's sharded harness and should pass.

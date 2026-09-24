@@ -57,7 +57,7 @@ func newFake() *fakeMactime {
 				return []api.Message{&mactimeapi.MactimeAddDelRangeReply{}}, nil
 			}
 			for _, x := range r.Ranges { // VPP appends
-				d.Ranges = append(d.Ranges, mactimeapi.MactimeTimeRange{Start: x.Start, End: x.End})
+				d.Ranges = append(d.Ranges, mactimeapi.MactimeTimeRange(x))
 			}
 			d.Nranges = uint32(len(d.Ranges)) //nolint:gosec // test
 			return []api.Message{&mactimeapi.MactimeAddDelRangeReply{}}, nil
@@ -67,7 +67,7 @@ func newFake() *fakeMactime {
 		}
 		d := &mactimeapi.MactimeDetails{MacAddress: r.MacAddress, DeviceName: r.DeviceName}
 		for _, x := range r.Ranges {
-			d.Ranges = append(d.Ranges, mactimeapi.MactimeTimeRange{Start: x.Start, End: x.End})
+			d.Ranges = append(d.Ranges, mactimeapi.MactimeTimeRange(x))
 		}
 		d.Nranges = uint32(len(d.Ranges)) //nolint:gosec // test
 		switch {
@@ -215,8 +215,7 @@ func TestEnableAppliedOnce(t *testing.T) {
 	if got := retrieve(t, d); len(got) != 0 {
 		t.Fatalf("quirk leaked into Retrieve: %v", got)
 	}
-	meta, err := d.Create(ctx, desired)
-	if err != nil {
+	if _, err := d.Create(ctx, desired); err != nil {
 		t.Fatal(err)
 	}
 	if f.count[1] != 1 {
@@ -247,7 +246,8 @@ func TestEnableAppliedOnce(t *testing.T) {
 	if got := retrieve(t, d); len(got) != 0 {
 		t.Fatalf("stale record reported after a VPP restart: %v", got)
 	}
-	if meta, err = d.Create(ctx, desired); err != nil || f.count[1] != 1 {
+	meta, err := d.Create(ctx, desired)
+	if err != nil || f.count[1] != 1 {
 		t.Fatalf("after restart: %v count %d", err, f.count[1])
 	}
 	// a stale enable without a record (lost state dir): normalised to exactly one

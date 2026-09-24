@@ -445,7 +445,7 @@ func (v *VPP) installBridgeL2() {
 				return reply(&mactimeapi.MactimeAddDelRangeReply{})
 			}
 			for _, x := range r.Ranges { // VPP appends to an existing device
-				d.Ranges = append(d.Ranges, mactimeapi.MactimeTimeRange{Start: x.Start, End: x.End})
+				d.Ranges = append(d.Ranges, mactimeapi.MactimeTimeRange(x))
 			}
 			d.Nranges = uint32(len(d.Ranges)) //nolint:gosec // small
 			return reply(&mactimeapi.MactimeAddDelRangeReply{})
@@ -455,7 +455,7 @@ func (v *VPP) installBridgeL2() {
 		}
 		d := &mactimeapi.MactimeDetails{PoolIndex: uint32(len(m.devices)), MacAddress: r.MacAddress, DeviceName: r.DeviceName} //nolint:gosec // small
 		for _, x := range r.Ranges {
-			d.Ranges = append(d.Ranges, mactimeapi.MactimeTimeRange{Start: x.Start, End: x.End})
+			d.Ranges = append(d.Ranges, mactimeapi.MactimeTimeRange(x))
 		}
 		d.Nranges = uint32(len(d.Ranges)) //nolint:gosec // small
 		switch {

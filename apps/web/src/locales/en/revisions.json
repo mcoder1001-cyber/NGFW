@@ -37,6 +37,14 @@
     "running": "Rolling back…",
     "dirty": "There are uncommitted changes. Commit or discard them first.",
     "isRunning": "This revision is the running configuration.",
-    "noVisibleChange": "No visible configuration difference. Rolling back still re-applies this revision (and re-activates its pinned secret versions)."
+    "noVisibleChange": "No visible configuration difference. Rolling back still re-applies this revision (and re-activates its pinned secret versions).",
+    "outcome": {
+      "looking": "No answer in time — asking the device what became of the rollback…",
+      "applied": "No answer in time, but revision {{revision}} was created: the rollback was applied.",
+      "pending": "No answer in time, but the rollback was applied and waits for confirmation (transaction {{txnId}}). Confirm it in the banner before it reverts.",
+      "unknown": "No answer in time, and the device does not know yet whether running matches the data plane ({{reason}}). A reconcile is running — check System › State before you try again.",
+      "notApplied": "No answer in time, and nothing changed: no new revision and nothing pending. The rollback was not applied; you can try again.",
+      "lookupFailed": "No answer in time, and the device is still unreachable. Do not retry blindly: check the revision list and the pending commit once it answers."
+    }
   }
 }

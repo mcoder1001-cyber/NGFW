@@ -14,7 +14,6 @@ package subsystems
 //	<state dir>/classify-<owner>.json       classify.FileStore (DF-2 classify tables, ipfix, redirect)
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -361,6 +360,18 @@ func (c *fileClaims) closeJournalLocked() {
 	}
 }
 
+// splitLines splits raw at every newline (a final segment without one is the torn tail).
+func splitLines(raw []byte) [][]byte {
+	var out [][]byte
+	for start, i := 0, 0; i <= len(raw); i++ {
+		if i == len(raw) || raw[i] == '\n' {
+			out = append(out, raw[start:i])
+			start = i + 1
+		}
+	}
+	return out
+}
+
 // replayJournal applies the journal at path over the loaded snapshot (the agent died inside a
 // transaction) and compacts it into the snapshot. A torn last line — the process died inside
 // write(2) — is dropped; a bad line before it fails closed like a corrupt snapshot.
@@ -373,7 +384,7 @@ func (c *fileClaims) replayJournal(path string) error {
 	case err != nil:
 		return fmt.Errorf("claim journal %s: %w", path, err)
 	}
-	lines, whole := bytes.Split(raw, []byte("\n")), 0
+	lines, whole := splitLines(raw), 0
 	for i, l := range lines {
 		if len(l) == 0 {
 			continue

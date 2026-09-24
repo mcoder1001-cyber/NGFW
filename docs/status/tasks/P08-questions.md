@@ -27,23 +27,26 @@ so saving an unrelated field would enable a DHCP client. P08 drops such phantom 
 (`dropPhantomOptionals`, unit-tested); the proper fix is in `packages/ui-kit/src/schema-form/form-value.ts` (not P08's file):
 optional object members should stay absent until the user opts in (a presence toggle).
 
-## Q3 — BLOCKER (environment, fix round 1, 14:25): every interface create that gets freed sw_if_index 3 fails closed in TD-3's sanitizer
+## Q3 — BLOCKER (environment, fix round 1, 14:25): every interface create on this VPP fails closed in TD-3's sanitizer (placeholder cap 16)
 - Symptom (P08 and **main** alike): `interface.loopback/loop101: sanitize loop101 (sw_if_index 3, create): no clean sw_if_index
   obtained (VPP V19 quarantine): placeholder cap reached before every freed classify table index was resurrected (16 placeholders)`;
   sanitizer log `placeholders=16 holes_left=2 fresh_run=0 rereads=4`. VPP had no live classify table (`show classify tables` empty),
-  only `local0` in `show int`. So the freed index 3 still carries two bindings to deleted classify tables (V19) and the pool does not
-  hand those table indices back within `MaxPlaceholders = 16`.
+  only `local0` in `show int`. (My first reading — stale bindings on the freed index 3 — is wrong: see the next bullets; it is the
+  order in which the classify table pool hands out indices, not the interface index.)
 - Reproduced three times in a row: P08 `go test -run 'TestAgentOnHost|TestAgentProcessOnHost' ./internal/agent/` 14:25 and 14:26, and
   **main @ a8d1efb** (a `git archive` export in my scratchpad, no worktree touched) 14:27 — identical failure, same index. NRestarts 0 → 0.
-- Consequence: any slot (and tools/app's agent) whose next interface create pops index 3 fails; `tools/ci.sh full` on main would fail
-  in `internal/agent` the same way. Owner: TD-3/TD-5 (D-105 M1 cap = holes + 2×FreshRun ≤ 64) and the manager (VPP state).
+- Owner: TD-3/TD-5 (D-105 M1 cap = holes + 2×FreshRun ≤ 64) and the manager (VPP state).
 - Not index-specific: with index 3 parked under an admin-down slot-1 loopback (`loop199`, tag `w1park:v19-index-3`, 14:28:58–14:29:48,
   deleted again), the next create got index **1** and failed the same way (`holes_left=2 fresh_run=0`).
 - Pool probe (14:30, scratch tool; the sanitizer's own pattern: placeholder tables with its signature mask, deleted in reverse
   creation order so the free list is restored): `live classify tables: []`, `pool handed out 10 indices in this order:
-  [7 6 8 9 10 11 12 13 14 15]`, `live classify tables now: []`. So only 6 and 7 are on the free list, 8+ are fresh, and **0–5 are
-  neither live (`classify_table_ids`, `show classify tables` empty) nor handed out** — `resurrect` counts them as holes it can never
-  fill and caps. (VPP's `pool_foreach` and `pool_get` disagree about 0–5 on this instance; I did not dig further.)
+  [7 6 8 9 10 11 12 13 14 15]`, `live classify tables now: []`. The probe stops after 8 consecutive fresh indices, like
+  `resurrect`: 0–5 were neither live nor among the first 10 indices handed out, so `resurrect` keeps them as holes and needs more
+  than 16 placeholders to get past them (the cap-64 run below does). I did not dig into why VPP hands them out that late.
 - Consequence: on this VPP instance **every interface create through any agent fails closed** (P08, main, tools/app, every slot):
-  `internal/agent` host tests and the P08 topology test cannot pass until the VPP state changes (manager) or the sanitizer treats
-  never-returned indices differently (TD-5, D-105 M1). NRestarts 0 → 0 throughout.
+  `internal/agent` host tests and the P08 topology test cannot pass with the cap of 16 until the VPP state changes (manager) or
+  TD-5's cap (D-105 M1) is merged. NRestarts 0 → 0 throughout.
+- 15:02–15:04: with the cap D-105 M1 decided (`ifsanitize.MaxPlaceholders = 64`, set by a scratch-only init file, never committed)
+  the same tree passes: `TestAgentOnHost` 5.51 s, `TestAgentProcessOnHost` 7.66 s, whole `internal/agent` package `ok 20.8s`,
+  NRestarts 0 → 0. So TD-5's cap change is enough to unblock this VPP instance. TD-3 predicted this trade-off itself
+  (TD-3-questions "Liveness trade-off"). Until TD-5 merges, `tools/ci.sh full` on main fails in `internal/agent` here.

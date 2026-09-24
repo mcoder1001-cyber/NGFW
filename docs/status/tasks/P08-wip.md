@@ -35,3 +35,8 @@ rig 10.1.{1,2}.0/24). Runs directly on the host (no wt.sh). NRestarts at start: 
   web/e2e/topology consumers, N2 (0755, never re-moded), N3 (trace must be ours), I5 → 3a02345. Web 18/18, e2e 1/1, CLI green.
 - Next: F5 (tolerant Update → ErrRecreate), F4 (af_packet veth-only, validation + agent guard), F3/I4 docs, lows, merge main
   again (D-108 rig ring), CI, one topology run.
+- 14:45–15:00 F5 (b445a0b), F4 (16356d9), N7 (e52de75), TD-3 Release wiring (2ec61f0), N4/N5 (122d14a), gofmt fakevpp.go
+  (manager add-on, ac8b6bf), N6 (aa53687). 15:01 merged main again (D-108 rings, health check) → 058bb33.
+- 15:03 N1 part 2 (re-apply count 12, ce93fff) found by running TestAgentOnHost with the D-105 M1 cap (scratch); whole
+  internal/agent package green with cap 64 (Q3 updated). 15:04 ci.sh #1: api vitest transform timeout under load (collect
+  303 s, 31/31 tests passed) → re-run. Next: one topology run (scratch cap-64 agent), P08.md, cleanup.

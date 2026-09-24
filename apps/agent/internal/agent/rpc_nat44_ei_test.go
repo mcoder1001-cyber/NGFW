@@ -189,7 +189,8 @@ func TestNatEIAndNat64SessionsOverGRPC(t *testing.T) {
 		t.Fatalf("NAT64 page %s", protojson.Format(r))
 	}
 	s0 := r.GetSessions()[0]
-	if s0.GetInsideAddress() != "fd00:7::10" || s0.GetOutsideAddress() != "10.7.64.1" || s0.GetExternalAddress() != "10.7.2.2" ||
+	// the fake sends what VPP 26.06 sends (il_port = remote port, no r_port); the agent corrects it from the BIB
+	if s0.GetInsideAddress() != "fd00:7::10" || s0.GetInsidePort() != 40000 || s0.GetOutsideAddress() != "10.7.64.1" || s0.GetExternalAddress() != "10.7.2.2" ||
 		s0.GetExternalNatAddress() != "fd00:7:64::a07:202" || s0.GetExternalPort() != 80 || s0.GetProtocol() != "tcp" {
 		t.Fatalf("NAT64 session %v", s0)
 	}

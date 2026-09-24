@@ -8,18 +8,23 @@ package agent
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"io"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	binnat64 "ngfw/agent/binapi/nat64"
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	natsessions "ngfw/agent/internal/actions/nat44-ed-sessions"
 	natvariants "ngfw/agent/internal/actions/nat44-ei-64-66-nptv6"
 	"ngfw/agent/internal/descriptors/nat44ei"
 	"ngfw/agent/internal/descriptors/nat64"
 	"ngfw/agent/internal/descriptors/natcommon"
+	"ngfw/agent/internal/vpp"
 )
 
 // natVariantOf reports whether a variant is served by this file (EI, NAT64); ED and unset stay F-nat44-ed-sessions'.
@@ -83,7 +88,7 @@ func (s *Service) natSessionsNat64(ctx context.Context, req *vrxv1.NatSessionsRe
 		}
 		proto = p
 	}
-	page, err := natvariants.ListNat64(ctx, nat64.New(s.vpp, s.owner), natcommon.ScopeFor(s.owner), proto, int(req.GetOffset()), limit, natScanCap)
+	page, err := natvariants.ListNat64(ctx, nat64.New(s.vpp, s.owner), nat64BIB{s.vpp}, natcommon.ScopeFor(s.owner), proto, int(req.GetOffset()), limit, natScanCap)
 	if err != nil {
 		return nil, natErr("nat64 sessions", err)
 	}
@@ -99,6 +104,27 @@ func (s *Service) natSessionsNat64(ctx context.Context, req *vrxv1.NatSessionsRe
 		})
 	}
 	return resp, nil
+}
+
+// nat64BIB reads every BIB entry (nat64_bib_dump, all protocols) for the NAT64 port correction (natvariants.BIBSource).
+type nat64BIB struct{ c vpp.Client }
+
+func (b nat64BIB) InsidePorts(ctx context.Context) (map[natvariants.BIBKey]uint32, error) {
+	stream, err := binnat64.NewServiceClient(b.c).Nat64BibDump(ctx, &binnat64.Nat64BibDump{Proto: 255})
+	if err != nil {
+		return nil, fmt.Errorf("nat64_bib_dump: %w", err)
+	}
+	out := map[natvariants.BIBKey]uint32{}
+	for {
+		d, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			return out, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("nat64_bib_dump: %w", err)
+		}
+		out[natvariants.BIBKey{Protocol: natcommon.ProtoName(d.Proto), Outside: natcommon.IP4String(d.OAddr), Port: uint32(d.OPort)}] = uint32(d.IPort)
+	}
 }
 
 // natSessionKillVariant runs the EI kill (NAT64 has no session delete in VPP 26.06: INVALID_ARGUMENT). Same stream

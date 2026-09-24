@@ -4,7 +4,8 @@ package coretest
 // of the VPP model, following DF-3's per-package fakes and VPP 26.06's nat64_api.c / nat66_api.c where the agent
 // depends on them: the enables answer the bare retval 1 for "already enabled/disabled" and a disable wipes the
 // plugin; nothing is dumped while disabled; nat64 keeps one prefix per VRF (an add for the same VRF replaces it),
-// pool addresses one by one, static BIBs with NAT_IS_STATIC, sessions per protocol (255 = all); nat66 keeps one
+// pool addresses one by one, static BIBs with NAT_IS_STATIC (and a dynamic BIB entry per session), sessions per
+// protocol (255 = all) with VPP 26.06's st_details defect (il_port carries the remote port, r_port is 0); nat66 keeps one
 // entry per interface whose details carry only NAT_IS_INSIDE, and an entry whose interface is gone cannot be removed
 // (retval -2) — the D-095c order the agent must keep.
 
@@ -288,6 +289,11 @@ func (v *VPP) installNat64() *Nat64 {
 				out = append(out, &c)
 			}
 		}
+		for _, d := range n.Sessions { // every dynamic session has its (dynamic) BIB entry
+			if r.Proto == 255 || r.Proto == d.Proto {
+				out = append(out, &nat64.Nat64BibDetails{IAddr: d.IlAddr, OAddr: d.OlAddr, IPort: d.IlPort, OPort: d.OlPort, VrfID: d.VrfID, Proto: d.Proto, SesNum: 1})
+			}
+		}
 		return out, nil
 	})
 	v.On("nat64_st_dump", func(m api.Message) ([]api.Message, error) {
@@ -298,6 +304,7 @@ func (v *VPP) installNat64() *Nat64 {
 		for _, d := range n.Sessions {
 			if r.Proto == 255 || r.Proto == d.Proto {
 				c := *d
+				c.IlPort, c.RPort = d.RPort, 0 // VPP 26.06 nat64_api_st_walk: il_port = r_port, r_port never set
 				out = append(out, &c)
 			}
 		}

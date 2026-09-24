@@ -131,27 +131,50 @@ func TestListNat64(t *testing.T) {
 		nat64.SessionEntry{InsideLocal: "fd00:9::1", OutsideLocal: "10.9.64.1", Protocol: "tcp", VRF: 9001},      // another slot's
 		nat64.SessionEntry{InsideLocal: "2001:db8::1", OutsideLocal: "198.51.100.1", Protocol: "udp", VRF: 4002}) // our table
 	scope := natcommon.ScopeFor("w4")
-	p, err := ListNat64(context.Background(), f, scope, "", 8, 5, 0)
+	p, err := ListNat64(context.Background(), f, nil, scope, "", 8, 5, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(p.Rows) != 3 || p.TotalSessions != 11 || p.TotalUsers != 5 || p.Next != nil || p.Truncated {
 		t.Fatalf("page %+v", p)
 	}
-	p, _ = ListNat64(context.Background(), f, scope, "udp", 0, 5, 0)
+	p, _ = ListNat64(context.Background(), f, nil, scope, "udp", 0, 5, 0)
 	if p.TotalSessions != 1 || p.Rows[0].VRF != 4002 {
 		t.Fatalf("udp %+v", p)
 	}
-	p, _ = ListNat64(context.Background(), f, scope, "", 0, 5, 6)
+	p, _ = ListNat64(context.Background(), f, nil, scope, "", 0, 5, 6)
 	if !p.Truncated || p.TotalSessions != 6 || len(p.Rows) != 5 || p.Next == nil || *p.Next != 5 {
 		t.Fatalf("capped %+v", p)
 	}
-	if _, err := ListNat64(context.Background(), f, scope, "", 0, 1001, 0); !errors.Is(err, natsessions.ErrInvalid) {
+	if _, err := ListNat64(context.Background(), f, nil, scope, "", 0, 1001, 0); !errors.Is(err, natsessions.ErrInvalid) {
 		t.Fatalf("limit: %v", err)
 	}
 	// the production owner sees every session
-	p, _ = ListNat64(context.Background(), f, natcommon.ScopeFor("vrx"), "", 0, 100, 0)
+	p, _ = ListNat64(context.Background(), f, nil, natcommon.ScopeFor("vrx"), "", 0, 100, 0)
 	if p.TotalSessions != 12 {
 		t.Fatalf("production owner %+v", p)
+	}
+}
+
+type fakeBIB map[BIBKey]uint32
+
+func (b fakeBIB) InsidePorts(context.Context) (map[BIBKey]uint32, error) { return b, nil }
+
+// VPP 26.06's nat64_st_details carry the remote port in il_port and no r_port: the page is corrected from the BIB.
+func TestListNat64PortWorkaround(t *testing.T) {
+	f := fake64{rows: []nat64.SessionEntry{
+		{InsideLocal: "fd00:4:1::2", InsidePort: 8000, OutsideLocal: "10.4.64.1", OutsidePort: 11570, OutsideRemote: "10.4.2.2", Protocol: "tcp"},                 // as VPP 26.06 sends it
+		{InsideLocal: "fd00:4:1::3", InsidePort: 50000, OutsideLocal: "10.4.64.1", OutsidePort: 1024, OutsideRemote: "10.4.2.2", RemotePort: 53, Protocol: "udp"}, // a fixed VPP
+	}}
+	bib := fakeBIB{{Protocol: "tcp", Outside: "10.4.64.1", Port: 11570}: 46001}
+	p, err := ListNat64(context.Background(), f, bib, natcommon.ScopeFor("w4"), "", 0, 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := p.Rows[0]; r.InsidePort != 46001 || r.RemotePort != 8000 {
+		t.Fatalf("defective row not corrected: %+v", r)
+	}
+	if r := p.Rows[1]; r.InsidePort != 50000 || r.RemotePort != 53 {
+		t.Fatalf("a complete row was changed: %+v", r)
 	}
 }

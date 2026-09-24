@@ -154,6 +154,33 @@ type Nat64Source interface {
 	Sessions(ctx context.Context, protocol string, offset, limit int) ([]nat64.SessionEntry, error)
 }
 
+// BIBKey identifies a BIB entry by its outside endpoint (what a session row carries intact).
+type BIBKey struct {
+	Protocol string
+	Outside  string
+	Port     uint32
+}
+
+// BIBSource returns the inside port of every BIB entry (dynamic and static) by its outside endpoint.
+type BIBSource interface {
+	InsidePorts(ctx context.Context) (map[BIBKey]uint32, error)
+}
+
+// fixPorts works around VPP 26.06's nat64_st_details (nat64_api.c nat64_api_st_walk sets il_port twice, the second
+// time to the remote port, and never sets r_port): a row whose remote port is 0 carries the remote port in its
+// inside-port field, and its real inside port is its BIB entry's (looked up by the outside endpoint, which the
+// details carry intact). docs/vpp-code-track.md V-new (F-nat44-ei-64-66-nptv6).
+func fixPorts(rows []nat64.SessionEntry, bib map[BIBKey]uint32) {
+	for i := range rows {
+		r := &rows[i]
+		if r.RemotePort != 0 {
+			continue // a fixed VPP reports both ports
+		}
+		r.RemotePort = r.InsidePort
+		r.InsidePort = bib[BIBKey{Protocol: r.Protocol, Outside: r.OutsideLocal, Port: r.OutsidePort}]
+	}
+}
+
 // Nat64Page is one NAT64 page.
 type Nat64Page struct {
 	Rows          []nat64.SessionEntry
@@ -170,8 +197,9 @@ func OwnsNat64(scope natcommon.Scope, s nat64.SessionEntry) bool {
 }
 
 // ListNat64 returns one page (offset, limit 1..MaxLimit) of the owner's NAT64 sessions for protocol ("" = all),
-// counting at most scanCap owned sessions (0 = natsessions.DefaultScanCap).
-func ListNat64(ctx context.Context, src Nat64Source, scope natcommon.Scope, protocol string, offset, limit, scanCap int) (Nat64Page, error) {
+// counting at most scanCap owned sessions (0 = natsessions.DefaultScanCap); the page's ports are corrected with the
+// BIB (fixPorts, VPP 26.06 defect) when bibs is not nil.
+func ListNat64(ctx context.Context, src Nat64Source, bibs BIBSource, scope natcommon.Scope, protocol string, offset, limit, scanCap int) (Nat64Page, error) {
 	if limit < 1 || limit > natsessions.MaxLimit {
 		return Nat64Page{}, fmt.Errorf("%w: limit %d outside 1–%d", natsessions.ErrInvalid, limit, natsessions.MaxLimit)
 	}
@@ -203,6 +231,13 @@ func ListNat64(ctx context.Context, src Nat64Source, scope natcommon.Scope, prot
 		matched++
 	}
 	p.TotalSessions, p.TotalUsers = uint64(matched), uint64(len(users)) //nolint:gosec // counts
+	if len(p.Rows) > 0 && bibs != nil {
+		bib, err := bibs.InsidePorts(ctx)
+		if err != nil {
+			return Nat64Page{}, err
+		}
+		fixPorts(p.Rows, bib)
+	}
 	if end := offset + len(p.Rows); end < matched || (p.Truncated && len(p.Rows) == limit) {
 		n := uint32(end) //nolint:gosec // bounded by the session table
 		p.Next = &n

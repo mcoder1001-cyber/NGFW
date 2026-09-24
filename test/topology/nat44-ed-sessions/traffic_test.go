@@ -123,11 +123,16 @@ func srcOf(line string) (string, string) {
 	return m[1], m[2]
 }
 
-// natTraceBlock returns the newest trace block of a packet from src:sport that went through the given node.
-func natTraceBlock(all, node, srcDst, sport string) (string, bool) {
+// natTraceBlock returns the newest trace block that went through node and contains every needle (addresses, ports,
+// TCP flags).
+func natTraceBlock(all, node string, needles ...string) (string, bool) {
 	found := ""
 	for _, blk := range strings.Split(all, "\nPacket ") {
-		if strings.Contains(blk, node) && strings.Contains(blk, srcDst) && strings.Contains(blk, sport) {
+		ok := strings.Contains(blk, node)
+		for _, n := range needles {
+			ok = ok && strings.Contains(blk, n)
+		}
+		if ok {
 			found = "Packet " + strings.TrimPrefix(blk, "Packet ")
 		}
 	}

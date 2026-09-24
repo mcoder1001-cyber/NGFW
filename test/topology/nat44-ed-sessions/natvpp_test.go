@@ -179,7 +179,8 @@ func ensurePlugin(t *testing.T, conn vppapi.Connection) (wasOn bool) {
 	f := flock(t, fixtureLock, syscall.LOCK_SH)
 	ctx, cancel := ctx10()
 	defer cancel()
-	_, err := nat44_ed.NewServiceClient(conn).Nat44EdPluginEnableDisable(ctx, &nat44_ed.Nat44EdPluginEnableDisable{Enable: true, Sessions: 1024})
+	// sessions 0 = VPP's default (63×1024 per thread): the ≥ 2 000-session step needs more than DF-3's fixture 1024
+	_, err := nat44_ed.NewServiceClient(conn).Nat44EdPluginEnableDisable(ctx, &nat44_ed.Nat44EdPluginEnableDisable{Enable: true, Sessions: 0})
 	var rv vppapi.VPPApiError
 	switch {
 	case errors.As(err, &rv) && rv == vppapi.FEATURE_ALREADY_ENABLED:
@@ -189,7 +190,7 @@ func ensurePlugin(t *testing.T, conn vppapi.Connection) (wasOn bool) {
 		_ = f.Close()
 		t.Fatalf("fixture: enable nat44-ed: %v", err)
 	default:
-		t.Log("fixture: nat44-ed enabled for this test (sessions 1024)")
+		t.Log("fixture: nat44-ed enabled for this test (VPP default session limit)")
 	}
 	t.Cleanup(func() {
 		defer func() { _ = f.Close() }()

@@ -49,9 +49,9 @@ func TestTcpdumpAndTraceParsers(t *testing.T) {
 	if src, _ := srcOf("listening on w4w1, link-type EN10MB"); src != "" {
 		t.Fatal("a non-packet line has a source")
 	}
-	buf := "Packet 1\n\n00:00:01: af-packet-input\n  TCP: 10.4.2.2 -> 10.4.2.110\n    41001 -> 8080\n00:00:01: nat44-ed-out2in\n" +
+	buf := "Packet 1\n\n00:00:01: af-packet-input\n  TCP: 10.4.2.2 -> 10.4.2.110\n    41001 -> 8080\n    flags 0x02 SYN\n00:00:01: nat44-ed-out2in\n" +
 		"\nPacket 2\n\n00:00:02: af-packet-input\n  TCP: 10.4.2.2 -> 10.4.2.110\n    41002 -> 8080\n00:00:02: ip4-lookup\n"
-	blk, ok := natTraceBlock(buf, "nat44-ed-out2in", "TCP: 10.4.2.2 -> 10.4.2.110", "41001")
+	blk, ok := natTraceBlock(buf, "nat44-ed-out2in", "TCP: 10.4.2.2 -> 10.4.2.110", "41001", "flags 0x02 SYN")
 	if !ok || blk[:8] != "Packet 1" {
 		t.Fatalf("trace block: %v %q", ok, blk)
 	}

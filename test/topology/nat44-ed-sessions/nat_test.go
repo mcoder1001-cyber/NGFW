@@ -26,9 +26,11 @@ import (
 	"net/netip"
 	"os"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
+	vppapi "go.fd.io/govpp/api"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -36,6 +38,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	"ngfw/agent/binapi/nat44_ed"
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 )
 
@@ -93,6 +96,7 @@ type fixture struct {
 	canon   *vrxv1.NatConfig
 	ifIdx   map[uint32]string
 	slotNet netip.Prefix
+	conn    vppapi.Connection
 	scripts string
 }
 
@@ -127,7 +131,7 @@ func TestNat44EdSessions(t *testing.T) {
 		t.Skipf("nat44-ed is enabled by another owner with inside/outside VRF %d/%d: this slot's document cannot require it", rc.insideVrf, rc.outsideV)
 	}
 
-	f := &fixture{s: s, r: newRig(s), slotNet: netip.MustParsePrefix(fmt.Sprintf("10.%d.0.0/16", s.num))}
+	f := &fixture{s: s, r: newRig(s), slotNet: netip.MustParsePrefix(fmt.Sprintf("10.%d.0.0/16", s.num)), conn: conn}
 	r := f.r
 	// ---- rig; its VPP side is handed to the agent (created from the configuration); peers down until the V19 guard
 	t.Log(mustRun(t, s.lab, "rig", "up", s.prefix))
@@ -314,6 +318,24 @@ func TestNat44EdGC(t *testing.T) {
 		t.Fatalf("left: %v", left)
 	}
 	t.Log("no NAT44-ED object of the slot is left")
+	// restore "disabled" after aborted runs left the plugin on (the fixture of an aborted run never got to its
+	// restore): exclusive fixture lock, all-owner emptiness, then disable — never while anyone holds an object
+	if os.Getenv("VRX_NAT_GC_DISABLE_IF_EMPTY") == "1" {
+		f := flock(t, fixtureLock, syscall.LOCK_EX)
+		defer func() { _ = f.Close() }()
+		o := dumpNat(t, conn)
+		vt := vppctl(t, "show", "nat44", "vrf", "tables")
+		if !o.empty() || strings.Contains(vt, "table") || !natRunning(t, conn).enabled {
+			t.Logf("plugin left as is: enabled=%v empty=%v vrf tables=%q", natRunning(t, conn).enabled, o.empty(), strings.TrimSpace(vt))
+			return
+		}
+		ctx, cancel := ctx10()
+		defer cancel()
+		if _, err := nat44_ed.NewServiceClient(conn).Nat44EdPluginEnableDisable(ctx, &nat44_ed.Nat44EdPluginEnableDisable{Enable: false}); err != nil {
+			t.Fatalf("disable: %v", err)
+		}
+		t.Logf("nat44-ed was empty (all owners) and is disabled again (the state before this task's first run)")
+	}
 }
 
 func (f *fixture) sessionRow(t *testing.T, query string) map[string]any {
@@ -398,7 +420,7 @@ func (f *fixture) packets(t *testing.T) {
 	}
 	time.Sleep(300 * time.Millisecond)
 	all := vppctl(t, "show", "trace", "max", "5000")
-	tr, ok := natTraceBlock(all, "nat44-ed-out2in", "TCP: "+r.wanIP+" -> "+r.addr(2, 110), "41001")
+	tr, ok := natTraceBlock(all, "nat44-ed-out2in", "TCP: "+r.wanIP+" -> "+r.addr(2, 110), "41001 -> 8080", "flags 0x02 SYN")
 	if !ok {
 		t.Fatalf("no trace block with nat44-ed-out2in for %s:41001 -> %s; buffer starts:\n%s", r.wanIP, r.addr(2, 110), trunc(all, 3000))
 	}
@@ -423,7 +445,11 @@ func (f *fixture) packets(t *testing.T) {
 		t.Fatal("1:1 inbound did not reach the lan host")
 	}
 
-	// ---- ≥ 2 000 sessions from the lan host to our own wan address (never outside 10.N.0.0/16)
+	// ---- ≥ 2 000 sessions from the lan host to our own wan address (never outside 10.N.0.0/16); the plugin's
+	// per-thread session limit is a VPP global this slot only requires (D-071)
+	if lim := natRunning(t, f.conn).sessions; lim < 2200 {
+		t.Fatalf("nat44-ed was enabled by another owner with %d sessions per thread: the ≥ 2 000-session step cannot run (re-run when the plugin is off or has VPP's default limit)", lim)
+	}
 	out, err = inNS(t, r.lanNS, "python3", flows, r.lanIP, "20000", "2100", r.wanIP, "9")
 	t.Logf("udp flows: %v %s", err, strings.TrimSpace(out))
 	if err != nil {

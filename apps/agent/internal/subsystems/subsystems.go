@@ -78,6 +78,9 @@ var Domains = map[string][]string{
 		core.InterfaceAddrName,
 		dhcp.NameClient,
 		// wave-A: F-bonding
+		bondingBond,
+		bondingMember,
+		bondingWeight,
 		// wave-A: F-bridge-l2
 		// wave-A: F-loopback-bvi-gso-lldp-span
 		// wave-A: F-neighbors-ra
@@ -210,6 +213,9 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// Feature families: one `<pkg>.Register(r, c, owner, opts…)` line under the feature's anchor; store
 	// options only through the Wiring methods (wave-A-hotspots A1).
 	// wave-A: F-bonding
+	if err := w.registerBonding(r); err != nil {
+		return nil, err
+	}
 	// wave-A: F-bridge-l2
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-vrf-static-ecmp

@@ -92,6 +92,7 @@ func New() *VPP {
 		Internal: map[routeKey]uint8{},
 	}
 	v.install()
+	v.installBonding()           // F-bonding (coretest/bonding.go): bond + lacp plugins
 	v.installIfExt()             // P08: DF-1 attributes, af_packet, sub-interfaces, DHCP client dump
 	sanitizetest.Clean(v.Client) // interface creators sanitize the new sw_if_index (D-095)
 	return v

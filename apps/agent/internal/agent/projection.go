@@ -295,6 +295,9 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// Feature builders (internal/desired/<slug>.go): one call under the feature's anchor, e.g.
 	// `if in["nat"] { desired.Nat(p, ds.GetNat(), vrfID) }` (wave-A-hotspots A2).
 	// wave-A: F-bonding
+	if in["interfaces"] {
+		desired.Bonds(p, ds.GetInterfaces()) // interfaces.<BondEthernet<id>>.bond → bond.bond, bond.member, bond.member-weight
+	}
 	// wave-A: F-bridge-l2
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-vrf-static-ecmp
@@ -408,6 +411,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// Feature assemblers (internal/desired/<slug>.go): one call under the feature's anchor; it runs after
 	// desired.Assemble and the routes, so it adds its leaves to the assembled document (wave-A-hotspots A2).
 	// wave-A: F-bonding
+	if in["interfaces"] {
+		desired.AssembleBonds(ds, kvs, stored, nameOf) // the bond leaf of every retrieved bond (F-bonding)
+	}
 	// wave-A: F-bridge-l2
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-vrf-static-ecmp

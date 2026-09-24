@@ -18,3 +18,9 @@ Started 2026-09-24T19:10 from task/W-seed@df67a8e (speculative, D-114). Time box
 - 19:25 coordinator: VPP crashed 18:41:08 (NRestarts 0→1, baseline now 1). D-126: never sweep classify bindings by index; unbind
   only what you recorded; minimal packet phases; never 802.1ad on the rig. → this task sends NO packets; the topology test does not
   copy P08's V19-guard reset (it resets classify bindings by sw_if_index).
+- 19:50 coordinator D-128 (replaces the D-126 guess): the 18:41 crash was `vppctl show trace` formatting a trace record of a
+  deleted+reused interface. Never `show trace` / `trace add` on the shared VPP. → this task uses counters + `show bond details`
+  / `show lacp` / bond+LACP binapi dumps only; nothing traced.
+- 19:55 contract commits cc85681 (schema) + 07ba37e (proto); agent: weight descriptor, KeyProvider, builder/assembler, registry,
+  projection, BondState RPC, coretest bond model, tests. Finding: sub-interface attributes cannot be removed together with the
+  sub-interface (observed-only alias → no topo edge; TD-11c 3.1c) — two-step removal in the test, questions Q4.

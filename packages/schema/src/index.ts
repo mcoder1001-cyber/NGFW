@@ -67,6 +67,18 @@ export * from './domains/tunnels.js';
 export * from './domains/services.js';
 export * from './domains/ha.js';
 export * from './domains/management.js';
+// Feature sub-schemas: one `export * from './domains/ext/<slug>.js'` under the feature's anchor (wave-A-hotspots C3).
+// wave-A: F-bonding
+// wave-A: F-bridge-l2
+// wave-A: F-loopback-bvi-gso-lldp-span
+// wave-A: F-vrf-static-ecmp
+// wave-A: F-neighbors-ra
+// wave-A: F-rpf-adl-pbr
+// wave-A: F-object-model
+// wave-A: F-host-acl-nftables
+// wave-A: P12
+// wave-A: F-kea-dhcp-relay
+// wave-A: F-unbound-chrony-syslog
 export * from './primitives.js';
 export * from './ip.js';
 export * from './ui.js';

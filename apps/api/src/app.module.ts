@@ -27,6 +27,23 @@ import { StateController } from './state/state.controller.js';
 import { RelayService } from './telemetry/relay.service.js';
 import { UsersController } from './users/users.controller.js';
 import { UsersService } from './users/users.service.js';
+// Feature modules: `import { <slug>Feature } from './features/<slug>/index.js';` under the feature's anchor.
+// wave-A: F-bonding
+// wave-A: F-bridge-l2
+// wave-A: F-loopback-bvi-gso-lldp-span
+// wave-A: F-vrf-static-ecmp
+// wave-A: F-neighbors-ra
+// wave-A: F-rpf-adl-pbr
+// wave-A: F-object-model
+// wave-A: F-acl
+// wave-A: F-host-acl-nftables
+// wave-A: F-nat44-ed-sessions
+// wave-A: F-nat44-ei-64-66-nptv6
+// wave-A: P11
+// wave-A: F-wireguard
+// wave-A: P12
+// wave-A: F-kea-dhcp-relay
+// wave-A: F-unbound-chrony-syslog
 
 const DB_HANDLE = Symbol('VRX_DB_HANDLE');
 
@@ -62,6 +79,23 @@ export class AppModule {
         SecretsController,
         AuditController,
         UsersController,
+        // Feature controllers: `...<slug>Feature.controllers,` under the feature's anchor (wave-A-hotspots P1).
+        // wave-A: F-bonding
+        // wave-A: F-bridge-l2
+        // wave-A: F-loopback-bvi-gso-lldp-span
+        // wave-A: F-vrf-static-ecmp
+        // wave-A: F-neighbors-ra
+        // wave-A: F-rpf-adl-pbr
+        // wave-A: F-object-model
+        // wave-A: F-acl
+        // wave-A: F-host-acl-nftables
+        // wave-A: F-nat44-ed-sessions
+        // wave-A: F-nat44-ei-64-66-nptv6
+        // wave-A: P11
+        // wave-A: F-wireguard
+        // wave-A: P12
+        // wave-A: F-kea-dhcp-relay
+        // wave-A: F-unbound-chrony-syslog
       ],
       providers: [
         { provide: ENV, useValue: env },
@@ -82,6 +116,23 @@ export class AppModule {
         SecretsService,
         RelayService,
         UsersService,
+        // Feature providers: `...<slug>Feature.providers,` under the feature's anchor (wave-A-hotspots P1).
+        // wave-A: F-bonding
+        // wave-A: F-bridge-l2
+        // wave-A: F-loopback-bvi-gso-lldp-span
+        // wave-A: F-vrf-static-ecmp
+        // wave-A: F-neighbors-ra
+        // wave-A: F-rpf-adl-pbr
+        // wave-A: F-object-model
+        // wave-A: F-acl
+        // wave-A: F-host-acl-nftables
+        // wave-A: F-nat44-ed-sessions
+        // wave-A: F-nat44-ei-64-66-nptv6
+        // wave-A: P11
+        // wave-A: F-wireguard
+        // wave-A: P12
+        // wave-A: F-kea-dhcp-relay
+        // wave-A: F-unbound-chrony-syslog
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
         { provide: APP_FILTER, useClass: ProblemFilter },

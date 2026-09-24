@@ -1225,6 +1225,9 @@ export const ServicesSchema = withUi(
     ipfix: withUi(IpfixSchema.prefault({}), { title: 'IPFIX / sFlow', group: 'ipfix', order: 5 }),
     ntp: withUi(ServicesNtpSchema.prefault({}), { title: 'NTP', group: 'ntp', order: 6 }),
     qos: withUi(QosSchema.prefault({}), { title: 'QoS', group: 'qos', order: 7 }),
+    // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
+    // wave-A: F-loopback-bvi-gso-lldp-span
+    // wave-A: F-rpf-adl-pbr
   }),
   {
     title: 'Services',

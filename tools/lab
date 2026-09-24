@@ -327,6 +327,9 @@ rig_side_up() {  # <ns> <host-veth> <ns-veth> <vpp-if> <gw> <ip>
   ip -n "$ns" link set lo up
   ip -n "$ns" addr replace "$ip/24" dev "$v"
   ip -n "$ns" link set "$v" up
+  # no TX checksum offload on the netns end: NAT'ed TCP from a veth with offload is silently dropped by VPP's af_packet
+  # path (F-nat44-ed-sessions Q7, D-129)
+  ip netns exec "$ns" ethtool -K "$v" tx off >/dev/null 2>&1 || warn "rig: could not disable tx offload on $ns:$v"
   ip -n "$ns" route replace default via "$gw"
   if vpp_if_exists "$vif"; then echo "  reuse  vpp $vif"; else
     # small rings (TX 16 × 66 KiB = 1 MiB instead of 1024 × 66 KiB = 66 MiB; RX 2.5 MiB instead of 10 MiB): rings are set up on

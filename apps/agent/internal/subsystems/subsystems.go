@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	vrxv1 "ngfw/agent/gen/vrx/v1"
 	afpacket "ngfw/agent/internal/descriptors/af_packet"
 	"ngfw/agent/internal/descriptors/classify"
 	"ngfw/agent/internal/descriptors/core"
@@ -48,17 +49,64 @@ const (
 	Interfaces = "interfaces"
 	VRFs       = "vrfs"
 	Routing    = "routing"
+	// New domain constants: one line under the feature's anchor (wave-A-hotspots A1).
+	// wave-A: F-loopback-bvi-gso-lldp-span
+	// wave-A: F-rpf-adl-pbr
+	// wave-A: F-object-model
+	// wave-A: F-acl
+	// wave-A: F-host-acl-nftables
+	// wave-A: F-nat44-ed-sessions
+	// wave-A: P11
+	// wave-A: F-wireguard
+	// wave-A: F-kea-dhcp-relay
+	// wave-A: F-unbound-chrony-syslog
 )
 
 // Domains maps each implemented configuration domain to the descriptors that realise it.
 var Domains = map[string][]string{
 	Interfaces: {
-		core.LoopbackName, afpacket.HostInterfaceName, iface.SubinterfaceName, iface.AliasName,
-		iface.AdminStateName, iface.MtuName, iface.MacAddressName, iface.PromiscName, iface.RxModeName,
-		core.InterfaceTableName, core.InterfaceAddrName, dhcp.NameClient,
+		core.LoopbackName,
+		afpacket.HostInterfaceName,
+		iface.SubinterfaceName,
+		iface.AliasName,
+		iface.AdminStateName,
+		iface.MtuName,
+		iface.MacAddressName,
+		iface.PromiscName,
+		iface.RxModeName,
+		core.InterfaceTableName,
+		core.InterfaceAddrName,
+		dhcp.NameClient,
+		// wave-A: F-bonding
+		// wave-A: F-bridge-l2
+		// wave-A: F-loopback-bvi-gso-lldp-span
+		// wave-A: F-neighbors-ra
+		// wave-A: F-rpf-adl-pbr
+		// wave-A: P12
 	},
-	VRFs:    {core.VRFName},
-	Routing: {core.RouteName},
+	VRFs: {
+		core.VRFName,
+		// wave-A: F-vrf-static-ecmp
+		// wave-A: F-neighbors-ra
+	},
+	Routing: {
+		core.RouteName,
+		// wave-A: F-vrf-static-ecmp
+		// wave-A: F-neighbors-ra
+		// wave-A: F-rpf-adl-pbr
+		// wave-A: P12
+	},
+	// New domain entries: one `<Const>: {…}` entry under the feature's anchor (wave-A-hotspots A1).
+	// wave-A: F-loopback-bvi-gso-lldp-span
+	// wave-A: F-rpf-adl-pbr
+	// wave-A: F-object-model
+	// wave-A: F-acl
+	// wave-A: F-host-acl-nftables
+	// wave-A: F-nat44-ed-sessions
+	// wave-A: P11
+	// wave-A: F-wireguard
+	// wave-A: F-kea-dhcp-relay
+	// wave-A: F-unbound-chrony-syslog
 }
 
 // DomainOf returns the domain a descriptor belongs to ("" when none).
@@ -87,6 +135,13 @@ type Env struct {
 	Log          *slog.Logger
 	// NetdevKind looks up Linux netdevs for the af_packet veth guard (D-105); nil = LinuxNetdevKind.
 	NetdevKind NetdevKind
+	// Publish is the agent's event sink (A5 seam): families that observe asynchronous changes
+	// (neighbours, FQDN objects, IPsec SAs, WireGuard peers, routing) publish through
+	// Wiring.Publish. nil = events are dropped (the default).
+	Publish func(*vrxv1.Event)
+	// Resync asks the agent for a full resync of its stored desired state (A5 seam, F-acl);
+	// Wiring.RequestResync calls it. nil = no-op (the default).
+	Resync func()
 }
 
 // Wiring is the result of Register: the stores and the hooks the agent calls.
@@ -153,6 +208,24 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	r.Register(iface.NewAlias(c, owner))
 	w.dhcpClient = dhcp.NewClient(c, owner, dhcp.WithInterfaceKey(dfkit.DefaultInterfaceKey))
 	r.Register(w.dhcpClient)
+	// Feature families: one `<pkg>.Register(r, c, owner, opts…)` line under the feature's anchor; store
+	// options only through the Wiring methods (wave-A-hotspots A1).
+	// wave-A: F-bonding
+	// wave-A: F-bridge-l2
+	// wave-A: F-loopback-bvi-gso-lldp-span
+	// wave-A: F-vrf-static-ecmp
+	// wave-A: F-neighbors-ra
+	// wave-A: F-rpf-adl-pbr
+	// wave-A: F-object-model
+	// wave-A: F-acl
+	// wave-A: F-host-acl-nftables
+	// wave-A: F-nat44-ed-sessions
+	// wave-A: F-nat44-ei-64-66-nptv6
+	// wave-A: P11
+	// wave-A: F-wireguard
+	// wave-A: P12
+	// wave-A: F-kea-dhcp-relay
+	// wave-A: F-unbound-chrony-syslog
 	return w, nil
 }
 

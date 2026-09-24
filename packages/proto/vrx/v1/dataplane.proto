@@ -64,6 +64,27 @@ service Dataplane {
   // MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
   // another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
   rpc InterfaceState(InterfaceStateRequest) returns (InterfaceStateResponse);
+
+  // Feature RPCs (wave A/B, docs/status/wave-A-hotspots.md C5): insert below your own anchor, framed by
+  // one blank line before and after, so every anchor stays a detached comment and out of the generated
+  // code (the same rule for the field/value anchors in the messages below). New messages go in your
+  // `// ----- <task-id> -----` section at the end of this file; numbers only from wave-A-hotspots.md §2.
+  // wave-A: F-bonding
+  // wave-A: F-bridge-l2
+  // wave-A: F-loopback-bvi-gso-lldp-span
+  // wave-A: F-vrf-static-ecmp
+  // wave-A: F-neighbors-ra
+  // wave-A: F-rpf-adl-pbr
+  // wave-A: F-object-model
+  // wave-A: F-acl
+  // wave-A: F-host-acl-nftables
+  // wave-A: F-nat44-ed-sessions
+  // wave-A: F-nat44-ei-64-66-nptv6
+  // wave-A: P11
+  // wave-A: F-wireguard
+  // wave-A: P12
+  // wave-A: F-kea-dhcp-relay
+  // wave-A: F-unbound-chrony-syslog
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -411,6 +432,12 @@ enum EventKind {
   EVENT_KIND_VPP_DISCONNECTED = 8;
   // A rollback failed; the agent is degraded until an Apply succeeds (AD-4).
   EVENT_KIND_DEGRADED = 9;
+
+  // wave-A: F-neighbors-ra
+  // wave-A: F-object-model
+  // wave-A: P11
+  // wave-A: F-wireguard
+  // wave-A: P12
 }
 
 // Event is one asynchronous notification. Events on one stream are delivered in observation
@@ -449,6 +476,10 @@ message ActionRequest {
     TracerouteAction traceroute = 2;
     // Packet capture on one interface (pcap output).
     CaptureAction capture = 3;
+
+    // wave-A: F-neighbors-ra
+    // wave-A: F-nat44-ed-sessions
+    // wave-A: F-unbound-chrony-syslog
   }
 }
 
@@ -802,6 +833,13 @@ message Interface {
   optional bool promiscuous = 11;
   // DHCPv4 client (dhcp_client_config); present = enabled (D-050).
   DhcpClient dhcp_client = 12;
+
+  // wave-A: F-bonding
+  // wave-A: F-bridge-l2
+  // wave-A: F-neighbors-ra
+  // wave-A: F-rpf-adl-pbr
+  // wave-A: F-loopback-bvi-gso-lldp-span
+  // wave-A: P12
 }
 
 // DhcpClient mirrors `interfaces.<name>.dhcpClient` / `….subinterfaces.<id>.dhcpClient`.
@@ -838,6 +876,10 @@ message Subinterface {
   optional bool dot1ad = 10;
   // DHCPv4 client; present = enabled (D-050).
   DhcpClient dhcp_client = 11;
+
+  // wave-A: F-bridge-l2
+  // wave-A: F-neighbors-ra
+  // wave-A: F-rpf-adl-pbr
 }
 
 // ----- vrfs (P02a, mirrors packages/schema/src/domains/vrfs.ts) -----
@@ -848,6 +890,9 @@ message Vrf {
   optional uint32 id = 1;
   // Free-text description (VPP table name carries "<owner>:<name>").
   optional string description = 2;
+
+  // wave-A: F-vrf-static-ecmp
+  // wave-A: F-neighbors-ra
 }
 
 // ----- routing (P02a, mirrors packages/schema/src/domains/routing.ts) -----
@@ -873,6 +918,9 @@ message RoutingConfig {
   BfdConfig bfd = 8;
   // Routing policy: prefix lists and route maps (FRR).
   RoutingPolicy policy = 9;
+
+  // wave-A: F-neighbors-ra
+  // wave-A: F-rpf-adl-pbr
 }
 
 // StaticRoute mirrors one entry of `routing.static`.
@@ -889,6 +937,9 @@ message StaticRoute {
   optional string description = 5;
   // Drop matching traffic (null route, FIB_PATH_TYPE drop); requires empty next_hops. Zod default false.
   optional bool blackhole = 6;
+
+  // wave-A: F-vrf-static-ecmp
+  // wave-A: P12
 }
 
 // NextHop is one path of a StaticRoute.
@@ -1379,6 +1430,9 @@ message ServicesConfig {
   NtpService ntp = 6;
   // QoS: policers, shapers, marking maps, interface attachments (D-052).
   QosService qos = 7;
+
+  // wave-A: F-rpf-adl-pbr
+  // wave-A: F-loopback-bvi-gso-lldp-span
 }
 
 // SocketAddress is an `{ address, port }` pair (listen sockets, collectors).
@@ -2843,6 +2897,9 @@ message AclConfig {
   repeated MacipAttachment macip_attachments = 5;
   // Attachments of `host` lists to host chains.
   repeated HostAttachment host_attachments = 6;
+
+  // wave-A: F-acl
+  // wave-A: F-host-acl-nftables
 }
 
 // AddressMatch is a rule's source/destination — a Zod discriminated union on `kind`, flattened.
@@ -3371,3 +3428,40 @@ message RemoteAccessProfile {
   // FIB IKE/ESP run in (outer packets); local_addr is configured in it. `vrf` is the overlay (F4).
   optional string underlay_vrf = 16;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Feature sections (wave A/B): each feature's new messages and enums go below its own
+// `// ----- <task-id> -----` line, framed by blank lines (docs/status/wave-A-hotspots.md C5).
+// ---------------------------------------------------------------------------------------------
+
+// ----- F-bonding -----
+
+// ----- F-bridge-l2 -----
+
+// ----- F-loopback-bvi-gso-lldp-span -----
+
+// ----- F-vrf-static-ecmp -----
+
+// ----- F-neighbors-ra -----
+
+// ----- F-rpf-adl-pbr -----
+
+// ----- F-object-model -----
+
+// ----- F-acl -----
+
+// ----- F-host-acl-nftables -----
+
+// ----- F-nat44-ed-sessions -----
+
+// ----- F-nat44-ei-64-66-nptv6 -----
+
+// ----- P11 -----
+
+// ----- F-wireguard -----
+
+// ----- P12 -----
+
+// ----- F-kea-dhcp-relay -----
+
+// ----- F-unbound-chrony-syslog -----

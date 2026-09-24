@@ -621,6 +621,24 @@ export class FakeAgent {
           Object.assign(new Error('actions are not implemented'), { code: status.UNIMPLEMENTED }),
         );
       },
+      // Feature RPCs: one handler line under the feature's anchor (the contract commit's UNIMPLEMENTED stub;
+      // real fake behaviour lives in features/<slug>/fake.ts, wired by the same line — wave-A-hotspots P5).
+      // wave-A: F-bonding
+      // wave-A: F-bridge-l2
+      // wave-A: F-loopback-bvi-gso-lldp-span
+      // wave-A: F-vrf-static-ecmp
+      // wave-A: F-neighbors-ra
+      // wave-A: F-rpf-adl-pbr
+      // wave-A: F-object-model
+      // wave-A: F-acl
+      // wave-A: F-host-acl-nftables
+      // wave-A: F-nat44-ed-sessions
+      // wave-A: F-nat44-ei-64-66-nptv6
+      // wave-A: P11
+      // wave-A: F-wireguard
+      // wave-A: P12
+      // wave-A: F-kea-dhcp-relay
+      // wave-A: F-unbound-chrony-syslog
     };
   }
 }

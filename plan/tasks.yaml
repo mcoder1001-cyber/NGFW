@@ -703,7 +703,7 @@ tasks:
   - TD-2
   priority: 2
   est_hours: 2
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D0.1
@@ -716,7 +716,7 @@ tasks:
   finished: ''
   notes: 'D-109: seeded by one worker right after P08+TD-2 merge so 17 parallel features merge without union conflicts | SPECULATIVE from task/P08@74ec04e (D-114), envelope /root/ngfw-wt/W-seed.envelope.md
     | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118) | done 8b7558e (425 anchors, CI green); main merge blocked by the TD-5 guard × old P08 coretest (resolved by P08 round 2, D-118) → rebase
-    after P08 lands; focused verify (sonnet) | verify APPROVE ff18d0b (no behaviour change, 425 anchors); merge right after P08'
+    after P08 lands; focused verify (sonnet) | verify APPROVE ff18d0b (no behaviour change, 425 anchors); merge right after P08 | merged 0ae3559 (squash a303f0b, D-112), main gate green'
 - template: ''
   parked_on: ''
   branch: task/W-seed-BC
@@ -1358,7 +1358,7 @@ tasks:
   - W-seed
   priority: 4
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.1
@@ -1386,7 +1386,7 @@ tasks:
   - W-seed
   priority: 4
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.3
@@ -2809,7 +2809,7 @@ tasks:
   - W-seed
   priority: 2
   est_hours: 6
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.7
@@ -3048,7 +3048,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 8
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.10

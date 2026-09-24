@@ -20,3 +20,4 @@ The manager pulls from here when nothing on the board is ready. Add items with a
 - 2026-09-24 (DF-7): manager window — run `VRX_DF7_VRRP_HOST=1` and `VRX_DF7_IGMP_HOST=1` host tests each alone with VPP otherwise idle to pin the V22b ip4-options crash trigger; DF-7 L5/L6 open.
 - 2026-09-24 (P06): JWT signing-key rotation, `VRX_TRUST_PROXY` setting, owner check of the secret key file.
 - 2026-09-24 (F-sdk): add `sdk/test.sh` and `sdk/gen.sh --check` to tools/ci.sh; P06 per-API-key (not per-user) candidates so parallel pipelines of one user cannot edit each other's candidate.
+- 2026-09-24 (P13): tools/ci.sh must run `make -C apps/cli lint test build` (apps/cli has its own Makefile, not in the pnpm workspace).

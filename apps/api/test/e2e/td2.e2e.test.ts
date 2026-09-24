@@ -37,7 +37,10 @@ describe('TD-2 e2e', () => {
   afterAll(async () => h?.close());
 
   const apiKey = async (token: string, name: string): Promise<{ id: string; key: string }> => {
-    const r = await h.call(token, 'POST', '/api/v1/auth/api-keys', { name });
+    const r = await h.call(token, 'POST', '/api/v1/auth/api-keys', {
+      name,
+      current: h.adminPassword,
+    });
     expect(r.status).toBe(201);
     return r.body;
   };

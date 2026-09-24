@@ -799,8 +799,10 @@ export class CommitService implements OnApplicationShutdown {
   /**
    * D-102 after the promote committed: the sessions of every user whose hash the config API changed end (no kept
    * session, no keepApiKeys — the committer's own session too when they changed their own hash this way), and each
-   * reset is audited on its own row. Never throws: the revision is saved, and the generation in PostgreSQL already
-   * refuses the old refresh chains and key creation.
+   * reset is audited on its own row. D-100 (3), TD-4: the same for a user the promote disabled (access tokens,
+   * refresh chains and WebSockets end now, not at TTL; API keys stay and are refused while disabled), audited as
+   * `config.user-disabled`. Hash change + disable in one promote: one revocation, two rows. Never throws: the
+   * revision is saved, and the generation in PostgreSQL already refuses the old refresh chains and key creation.
    */
   private async configResets(
     resets: PasswordReset[],
@@ -810,27 +812,47 @@ export class CommitService implements OnApplicationShutdown {
     for (const r of resets) {
       try {
         const revoked = await this.tokens.revokeUser(r.userId, r.gen);
-        await this.audit.write({
-          userId: rev.authorId,
-          username: rev.author,
-          sourceIp: null,
-          action: 'config.password-reset',
-          resource: `user/${r.username}`,
-          after: {
-            passwordSet: true,
-            self: rev.authorId === r.userId,
-            via: 'config',
-            revision: rev.id,
-            txnId,
-            apiKeysRevoked: r.apiKeysRevoked,
-            ...(r.discardedCandidate ? { discardedCandidate: true } : {}),
-            ...(revoked.persisted ? {} : { revocationPersisted: false }),
-          },
-          result: 'success',
-          status: null,
-        });
+        if (r.reasons.includes('password'))
+          await this.audit.write({
+            userId: rev.authorId,
+            username: rev.author,
+            sourceIp: null,
+            action: 'config.password-reset',
+            resource: `user/${r.username}`,
+            after: {
+              passwordSet: true,
+              self: rev.authorId === r.userId,
+              via: 'config',
+              revision: rev.id,
+              txnId,
+              apiKeysRevoked: r.apiKeysRevoked,
+              ...(r.discardedCandidate ? { discardedCandidate: true } : {}),
+              ...(revoked.persisted ? {} : { revocationPersisted: false }),
+            },
+            result: 'success',
+            status: null,
+          });
+        if (r.reasons.includes('disabled'))
+          await this.audit.write({
+            userId: rev.authorId,
+            username: rev.author,
+            sourceIp: null,
+            action: 'config.user-disabled',
+            resource: `user/${r.username}`,
+            after: {
+              disabled: true,
+              via: 'config',
+              revision: rev.id,
+              txnId,
+              ...(revoked.persisted ? {} : { revocationPersisted: false }),
+            },
+            result: 'success',
+            status: null,
+          });
       } catch (e) {
-        this.log.error(`D-102 reset of '${r.username}': ${(e as Error).message}`);
+        this.log.error(
+          `config-path revocation (${r.reasons.join('+')}) of '${r.username}': ${(e as Error).message}`,
+        );
       }
     }
   }

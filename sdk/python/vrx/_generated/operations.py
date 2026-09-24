@@ -33,6 +33,7 @@ OPERATIONS: dict[str, tuple[str, str, tuple[str, ...], tuple[str, ...], bool]] =
     "Config_breakLock": ("DELETE", "/api/v1/config/lock", (), (), False),
     "Config_revisions": ("GET", "/api/v1/config/revisions", (), ('offset', 'limit'), False),
     "Config_revision": ("GET", "/api/v1/config/revisions/{rev}", ('rev',), (), False),
+    "Config_revisionDiff": ("GET", "/api/v1/config/revisions/{rev}/diff", ('rev',), (), False),
     "Config_rollback": ("POST", "/api/v1/config/rollback/{rev}", ('rev',), ('comment', 'confirm'), False),
     "Config_validate": ("POST", "/api/v1/config/validate", (), (), False),
     "Config_runningAt": ("GET", "/api/v1/config/{path}", ('path',), (), False),
@@ -49,6 +50,7 @@ OPERATIONS: dict[str, tuple[str, str, tuple[str, ...], tuple[str, ...], bool]] =
     "State_neighbors": ("GET", "/api/v1/state/neighbors", (), (), False),
     "State_routes": ("GET", "/api/v1/state/routes", (), ('pageSize', 'page', 'vrf'), False),
     "State_system": ("GET", "/api/v1/state/system", (), (), False),
+    "Users_setPassword": ("POST", "/api/v1/users/{name}/password", ('name',), (), True),
 }
 
 
@@ -91,7 +93,7 @@ class Operations:
         return self._call("Auth_me", {}, {})  # type: ignore[no-any-return]
 
     def auth_password(self, body: "AuthPasswordBody") -> None:
-        'POST /api/v1/auth/password — Change the own password (argon2id)'
+        'POST /api/v1/auth/password — Change the own password (argon2id); same as POST /api/v1/users/{name}/password for yourself'
         return self._call("Auth_password", {}, {}, body)  # type: ignore[no-any-return]
 
     def auth_refresh(self) -> "AuthRefreshResponse":
@@ -158,6 +160,10 @@ class Operations:
         'GET /api/v1/config/revisions/{rev} — One revision with its (redacted) payload'
         return self._call("Config_revision", {"rev": rev}, {})  # type: ignore[no-any-return]
 
+    def config_revision_diff(self, rev: str) -> "ConfigRevisionDiffResponse":
+        'GET /api/v1/config/revisions/{rev}/diff — What revision {rev} changed against its parent (redacted; secret leaves as `redacted: true` entries)'
+        return self._call("Config_revisionDiff", {"rev": rev}, {})  # type: ignore[no-any-return]
+
     def config_rollback(self, rev: str, *, comment: str | None = None, confirm: int | None = None) -> "ConfigRollbackResponse":
         'POST /api/v1/config/rollback/{rev} — Apply an old revision as a new revision (payload = the old one)'
         return self._call("Config_rollback", {"rev": rev}, {"comment": comment, "confirm": confirm})  # type: ignore[no-any-return]
@@ -182,7 +188,7 @@ class Operations:
         'DELETE /api/v1/config/{path} — Remove the candidate node at a JSON pointer'
         return self._call("Config_deleteAt", {"path": path}, {})  # type: ignore[no-any-return]
 
-    def health_health(self) -> Any:
+    def health_health(self) -> "HealthHealthResponse":
         'GET /api/v1/health — Liveness of the API process'
         return self._call("Health_health", {}, {})  # type: ignore[no-any-return]
 
@@ -221,3 +227,7 @@ class Operations:
     def state_system(self) -> "StateSystemResponse":
         'GET /api/v1/state/system — API + agent health, pending commit, running revision'
         return self._call("State_system", {}, {})  # type: ignore[no-any-return]
+
+    def users_set_password(self, name: str, body: "UsersSetPasswordBody") -> "UsersSetPasswordResponse":
+        "POST /api/v1/users/{name}/password — Set a user's password (admin: any user; everyone: their own, with `current`). TLS only; argon2id server-side; ends the user's other sessions; an admin reset also revokes the user's API keys unless keepApiKeys"
+        return self._call("Users_setPassword", {"name": name}, {}, body)  # type: ignore[no-any-return]

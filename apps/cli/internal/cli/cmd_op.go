@@ -810,6 +810,24 @@ func apiKeyCreate(ctx context.Context, a *App, args []cpath.Token) error {
 			return usagef("unknown option %q (role, expires, file)", args[i].Text)
 		}
 	}
+	if a.credSource == "login" || a.credSource == "session" {
+		// D-100 (2): a login session proves the current password to mint a key; an API key does not (automation)
+		var pw string
+		var err error
+		switch {
+		case a.passwordFile != "":
+			if pw, err = readSecretFile(a.passwordFile); err != nil {
+				return usagef("password file: %v", err)
+			}
+		case lineedit.IsTerminal(a.Stdin):
+			if pw, err = a.readSecret("Current password: "); err != nil {
+				return err
+			}
+		default:
+			return usagef("api-key create with a login session needs your current password: run it in a terminal (prompted without echo), pass --password-file <path> (mode 0600), or authenticate with an API key (--api-key-file / VRX_API_KEY)")
+		}
+		body["current"] = pw
+	}
 	var out struct {
 		ID        string  `json:"id"`
 		Name      string  `json:"name"`

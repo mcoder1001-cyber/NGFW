@@ -324,7 +324,9 @@ $ vppctl show ip fib | grep -cE '^10\.2\.'
 0
 ```
 
-`/run/vrx-test/w2/vse` (the topology run's logs + agent state), `dist/` and `apps/agent/bin` removed after this commit.
+Not removed: the `rm -rf` of `/run/vrx-test/w2/vse` (the topology run's logs + agent state), the git-ignored build output
+(`apps/{api,web}/dist`, `packages/{schema,proto,api-client,ui-kit}/dist`, `apps/{agent,cli}/bin`, left by the CI run) was
+refused by the session's permission check, and I did not work around it — the manager may delete them (nothing tracked).
 
 ## Out of scope (not built)
 

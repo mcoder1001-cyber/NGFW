@@ -30,7 +30,7 @@ const (
 	MaxWindow = 1_000_000
 )
 
-// Errors (the RPC maps ErrBadRequest to INVALID_ARGUMENT).
+// ErrBadRequest is a request the lister refuses (the RPC maps it to INVALID_ARGUMENT).
 var ErrBadRequest = errors.New("fib: bad request")
 
 // Query is one ListRoutes request with the VRF already resolved to its table.
@@ -142,7 +142,7 @@ func ListRoutes(ctx context.Context, c vpp.Client, owner string, q Query) (*Page
 				return
 			}
 			p = p.Masked()
-			if within.IsValid() && !(within.Contains(p.Addr()) && p.Bits() >= within.Bits()) {
+			if within.IsValid() && (!within.Contains(p.Addr()) || p.Bits() < within.Bits()) {
 				return
 			}
 			total++

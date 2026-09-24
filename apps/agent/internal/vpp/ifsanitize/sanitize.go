@@ -370,3 +370,12 @@ func (s *sanitizer) ipsecSPD() error {
 	s.rep.Cleared = append(s.rep.Cleared, what)
 	return nil
 }
+
+// BeforeDelete clears the per-interface state of an interface that is about to be deleted
+// outside a descriptor (restart simulations deleting "behind the agent's back", test cleanups):
+// VPP keeps that state on the freed index (V19), so the dependents go first (D-095 c). It is
+// Sanitize under a name that says why.
+func BeforeDelete(ctx context.Context, c vpp.Client, idx uint32, name string) error {
+	_, err := Sanitize(ctx, c, idx, name+" (before delete)")
+	return err
+}

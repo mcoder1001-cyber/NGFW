@@ -29,6 +29,7 @@ import (
 	"ngfw/agent/internal/descriptors/tapv2"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
@@ -425,6 +426,12 @@ func lose(t *testing.T, c vpp.Client, actual map[scheduler.Key]scheduler.KV, tap
 			t.Fatalf("%s not retrieved before the loss", k)
 		}
 		return interface_types.InterfaceIndex(kv.Meta.(iface.Meta).SwIfIndex)
+	}
+	// D-095 c: per-interface bindings go before the interface (VPP keeps them on the freed index, V19)
+	for _, ref := range []string{tapRef, memifRef} {
+		if err := ifsanitize.BeforeDelete(ctx, c, uint32(idx(ref)), ref); err != nil {
+			t.Fatalf("clear %s before delete: %v", ref, err)
+		}
 	}
 	if _, err := tapapi.NewServiceClient(c).TapDeleteV2(ctx, &tapapi.TapDeleteV2{SwIfIndex: idx(tapRef)}); err != nil {
 		t.Fatalf("tap_delete_v2: %v", err)

@@ -21,6 +21,7 @@ import (
 	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
@@ -78,6 +79,7 @@ func (h *Host) Loopback(i int, tagged, up bool) (string, uint32) {
 	svc := interfaces.NewServiceClient(h.C)
 	if idx, ok := h.IfIndex(name); ok {
 		t.Logf("leftover %s (sw_if_index %d) from an earlier run: deleting", name, idx)
+		_ = ifsanitize.BeforeDelete(h.Ctx, h.C, uint32(interface_types.InterfaceIndex(idx)), "test cleanup") // D-095 c: bindings go before the interface (V19)
 		if _, err := svc.DeleteLoopback(h.Ctx, &interfaces.DeleteLoopback{SwIfIndex: interface_types.InterfaceIndex(idx)}); err != nil {
 			t.Fatalf("delete leftover %s: %v", name, err)
 		}
@@ -87,6 +89,7 @@ func (h *Host) Loopback(i int, tagged, up bool) (string, uint32) {
 		t.Fatalf("create_loopback_instance %d: %v", inst, err)
 	}
 	t.Cleanup(func() {
+		_ = ifsanitize.BeforeDelete(context.Background(), h.C, uint32(rep.SwIfIndex), "test cleanup") // D-095 c: bindings go before the interface (V19)
 		if _, err := svc.DeleteLoopback(context.Background(), &interfaces.DeleteLoopback{SwIfIndex: rep.SwIfIndex}); err != nil {
 			t.Errorf("cleanup delete_loopback %s: %v", name, err)
 		}

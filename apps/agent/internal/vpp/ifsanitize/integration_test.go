@@ -206,7 +206,7 @@ func TestV19InheritanceClearedOnHost(t *testing.T) {
 	a, aName := h.loopback(91)
 	h.bindAll(a)
 	t.Logf("%s sw_if_index %d: ip4/ip6 classify, input/output ACL, policer, flow classify → table %d; vxlan bypass; SPD %d", aName, a, h.table, h.spdID)
-	h.keep = true // until the freed index is back in our hands
+	h.keep = true                                                                                                                             // until the freed index is back in our hands
 	_, err = interfaces.NewServiceClient(h.c).DeleteLoopback(h.ctx, &interfaces.DeleteLoopback{SwIfIndex: interface_types.InterfaceIndex(a)}) // raw: leave the bindings behind
 	h.must("delete_loopback "+aName, err)
 	b, bName := h.loopback(92)

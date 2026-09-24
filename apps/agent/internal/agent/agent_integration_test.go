@@ -35,6 +35,7 @@ import (
 	"ngfw/agent/binapi/ip"
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
@@ -175,6 +176,10 @@ func deleteOwned(t *testing.T, c vpp.Client, owner string) int {
 	ifs, tables := ownedOnHost(t, c, owner)
 	n := 0
 	for name, idx := range ifs {
+		// D-095 c: the interface's bindings go first (VPP keeps them on the freed index, V19)
+		if err := ifsanitize.BeforeDelete(ctx, c, uint32(idx), name); err != nil {
+			t.Errorf("clear %s before delete: %v", name, err)
+		}
 		if _, err := interfaces.NewServiceClient(c).DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: interface_types.InterfaceIndex(idx)}); err != nil {
 			t.Errorf("delete %s: %v", name, err)
 		}

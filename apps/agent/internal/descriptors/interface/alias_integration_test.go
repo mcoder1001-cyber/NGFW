@@ -13,6 +13,7 @@ import (
 	"ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/interface/ifacetest"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
@@ -38,6 +39,7 @@ func TestAliasOnHost(t *testing.T) {
 	}
 	tapIdx := uint32(rep.SwIfIndex)
 	t.Cleanup(func() {
+		_ = ifsanitize.BeforeDelete(context.Background(), c, tapIdx, "tap") // D-095 c
 		if _, err := svc.TapDeleteV2(context.Background(), &tapapi.TapDeleteV2{SwIfIndex: interface_types.InterfaceIndex(tapIdx)}); err != nil {
 			t.Errorf("cleanup tap_delete_v2: %v", err)
 		}

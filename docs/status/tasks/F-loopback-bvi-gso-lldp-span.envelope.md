@@ -1,5 +1,5 @@
 # TASK ENVELOPE — F-loopback-bvi-gso-lldp-span
-id: F-loopback-bvi-gso-lldp-span   branch: task/F-loopback-bvi-gso-lldp-span   worktree: /root/ngfw-wt/F-loopback-bvi-gso-lldp-span   base: main@<BASE>   started: <STARTED>
+id: F-loopback-bvi-gso-lldp-span   branch: task/F-loopback-bvi-gso-lldp-span   worktree: /root/ngfw-wt/F-loopback-bvi-gso-lldp-span   base: main@task/F-bridge-l2@a735aa9 (SPECULATIVE D-114: F-bridge-l2 done, under review; contains W-seed + P08 r2 + TD-5)   started: 2026-09-24T19:51
 title: Wave A (day 7-9): loopback/BVI, GSO/offload flags, LLDP, SPAN/ERSPAN, nsim
 prompt: prompts/features/F-loopback-bvi-gso-lldp-span.md   (template: prompts/FEATURE-TEMPLATE.md; checked against main + P08 in wave-A prep)   wbs: D1.11, D1.8, D1.7, D1.10, D1.9
 scope: loopback/BVI (verify + document; creation exists since P08), GSO, SPAN/ERSPAN mirroring, LLDP wiring + the LldpNeighbors state RPC, nsim (lab tool)
@@ -10,9 +10,9 @@ merged deps you can rely on: P08, DF-1, DF-7, F-bridge-l2 (a wave-A follow-on: s
   - F-bridge-l2: L2 model + BVI member support; consume it, do not edit it
   - also on main: TD-3 (V19 sanitizer apps/agent/internal/vpp/ifsanitize + cmd/vrx-vpp-preflight; loopback Create sanitizes) and TD-2 (API auth/users follow-ups)
 read first: prompts/features/F-loopback-bvi-gso-lldp-span.md · docs/status/vertical-slice.md · docs/status/wave-A-hotspots.md (§0 rules, §2 numbers; your ids: A1, A2, A6, A7, C1–C7, P1, P4, P5, W1, W2, W3, D1) · docs/agent/descriptors/{lldp,span,interface}.md · docs/status/tasks/F-bridge-l2.md · docs/vpp-code-track.md V19–V21 · docs/decisions/LOG.md D-063, D-064, D-071, D-076, D-080, D-082, D-090, D-095, D-101, D-104
-slot: <SLOT> → VRX_SLOT=<SLOT> VRX_TEST_PREFIX=w<SLOT> VRX_HTTP_PORT=3000+100·<SLOT> VRX_WEB_PORT=5000+100·<SLOT> VRX_METRICS_PORT=9100+10·<SLOT>+1 VRX_AGENT_SOCKET=/run/vrx-test/w<SLOT>/agent.sock VRX_PG_DATABASE=vrx_w<SLOT> VRX_VALKEY_DB=<SLOT> VRX_VPP_TABLE_BASE=<SLOT>000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
-  - source of truth: `eval "$(tools/lab env <SLOT>)"`
-  - rig prefix w<SLOT> → 10.<SLOT>.{1,2}.0/24
+slot: 7 → VRX_SLOT=7 VRX_TEST_PREFIX=w7 VRX_HTTP_PORT=3000+100·7 VRX_WEB_PORT=5000+100·7 VRX_METRICS_PORT=9100+10·7+1 VRX_AGENT_SOCKET=/run/vrx-test/w7/agent.sock VRX_PG_DATABASE=vrx_w7 VRX_VALKEY_DB=7 VRX_VPP_TABLE_BASE=7000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+  - source of truth: `eval "$(tools/lab env 7)"`
+  - rig prefix w7 → 10.7.{1,2}.0/24
   - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none
@@ -29,7 +29,7 @@ obligations:
   - D-077: base new descriptors on descriptors/dfkit
   - D-104: use, do not rebuild, DF-7's lldp/span and P08's loopback path
   - D-105 (TD-3 M2): add a semantic rule on your contract commit that refuses config loopbacks loop16000–loop16383 (reserved for the agent's quarantine holders); rule id `interfaces.loopback-bvi-gso-lldp-span-…`, pointer to the offending key
-numbers: NOT yet in wave-A-hotspots §2 (you are a follow-on). Proposed from the "20–29 waves B+" block; the manager confirms and records them in §2 before spawn. Reusing a number or taking "next free" blocks the merge.
+numbers: wave-A-hotspots §2 "Proposed for the follow-ons and wave B" block, confirmed and binding by D-109 (e) (restated in docs/status/wave-BC-numbers.md "Batch-2 follow-ons"). Reusing a number or taking "next free" blocks the merge.
   - Interface.gso = 20 and Interface.mirror = 21 (+ a nested Mirror message)
   - ServicesConfig.nsim = 9 (ServicesConfig 8 is F-rpf-adl-pbr's auto_sdl) (+ NsimService)
   - rpc LldpNeighbors (+ LldpNeighbor* messages)
@@ -76,7 +76,7 @@ files you must not touch:
   - packages/schema/src/domains/tunnels.ts (F-tunnels)
   - sibling dirs: apps/agent/internal/descriptors/bond/**, apps/web/src/domains/interfaces/{subinterfaces,bonding,bridge-l2}/**
 host rules:
-  - mirror/LLDP/GSO only on w<SLOT> loopbacks, taps, rig interfaces, and a fixture ERSPAN GRE tunnel named w<SLOT>…
+  - mirror/LLDP/GSO only on w7 loopbacks, taps, rig interfaces, and a fixture ERSPAN GRE tunnel named w7…
   - V19 SAFETY: send no packets through the rig until TD-3's pre-flight (`go -C apps/agent run ./cmd/vrx-vpp-preflight` exits 0) or a dump shows no classify/ACL/SPD binding on your interfaces' sw_if_index
   - D-101: bring the veth down before any af_packet delete
   - run `systemctl show vpp -p NRestarts` before and after every host run; stop and write the questions file if it rises
@@ -85,15 +85,17 @@ host rules:
 evidence: Playwright is not installed. Take the UI screenshots with the headless Chrome approach of P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`), kept outside the product code, and say so. nsim in the default gate is fake-client only; say so.
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-loopback-bvi-gso-lldp-span.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-loopback-bvi-gso-lldp-span-wip.md current
-CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w7 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-loopback-bvi-gso-lldp-span.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
 cleanup:
   - stop every process you started (API/agent/vite), by PID
   - lab lock released
-  - vrx_w<SLOT> dropped
+  - vrx_w7 dropped
   - your rig removed
-  - no w<SLOT> loopbacks, mirrors or GRE fixtures left (dump pasted)
+  - no w7 loopbacks, mirrors or GRE fixtures left (dump pasted)
   - GSO/LLDP disabled on everything you enabled
   - dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-loopback-bvi-gso-lldp-span-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own
+
+MANAGER ADDENDA: D-128 — never run `show trace` / `trace add` / `clear trace` on the shared VPP; prove with counters/dumps. D-126 — no classify sweeps by index. D-105 — add the semantic check refusing loop16000–loop16383 (reserved for agent quarantine holders). F-rpf-adl-pbr registered Domains["services"] first on its branch — if you need it, add under the anchor and note the expected union at merge. GIT RULE: git only inside your own worktree, NEVER in /root/ngfw. CI: if your branch copy of tools/ci.sh fails in the contract guard with SIGPIPE, run main's copy (`git show main:tools/ci.sh > /tmp/g-w7/ci.sh`, D-127).

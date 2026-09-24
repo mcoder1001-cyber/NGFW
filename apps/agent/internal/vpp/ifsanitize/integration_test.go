@@ -17,6 +17,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip_types"
 	ipsecapi "ngfw/agent/binapi/ipsec"
+	l2api "ngfw/agent/binapi/l2"
 	"ngfw/agent/binapi/vlib"
 	vxlanapi "ngfw/agent/binapi/vxlan"
 	"ngfw/agent/internal/descriptors/core"
@@ -295,4 +296,220 @@ func TestV19InheritanceClearedOnHost(t *testing.T) {
 		t.Errorf("metrics %+v → %+v", before, after)
 	}
 	t.Logf("%s (reused sw_if_index %d of %s) created clean by the loopback descriptor; metric inherited %d→%d, cleared %v", dName, idx, cName, before.Inherited["create"], after.Inherited["create"], after.Cleared)
+}
+
+// l2Bits reads the raw l2 feature bitmaps of idx (l2_flags_get).
+func (h *host) l2Bits(idx uint32) (in, out uint32) {
+	h.t.Helper()
+	rep, err := l2api.NewServiceClient(h.c).L2FlagsGet(h.ctx, &l2api.L2FlagsGet{SwIfIndex: interface_types.InterfaceIndex(idx)})
+	h.must("l2_flags_get", err)
+	return rep.InputFeatureBitmap, rep.OutputFeatureBitmap
+}
+
+// l2 feature bit positions (vnet/l2/l2_input.h, l2_output.h foreach_l2*_feat order)
+const (
+	l2inACL         = 1 << 14 // L2INPUT_FEAT_ACL ("l2-input-acl")
+	l2inPolicerClas = 1 << 16 // L2INPUT_FEAT_POLICER_CLAS ("l2-policer-classify")
+	l2outACL        = 1 << 4  // L2OUTPUT_FEAT_ACL ("l2-output-acl")
+)
+
+func (h *host) newTable() uint32 {
+	h.t.Helper()
+	rep, err := classifyapi.NewServiceClient(h.c).ClassifyAddDelTable(h.ctx, &classifyapi.ClassifyAddDelTable{IsAdd: true, TableIndex: ifsanitize.NoIndex, Nbuckets: 2, MemorySize: 2 << 20,
+		MatchNVectors: 1, NextTableIndex: ifsanitize.NoIndex, MissNextIndex: ifsanitize.NoIndex, MaskLen: 16, Mask: make([]byte, 16)})
+	h.must("classify_add_del_table", err)
+	return rep.NewTableIndex
+}
+
+func (h *host) delTable(t uint32) {
+	h.t.Helper()
+	_, err := classifyapi.NewServiceClient(h.c).ClassifyAddDelTable(h.ctx, &classifyapi.ClassifyAddDelTable{IsAdd: false, TableIndex: t, Nbuckets: 2, MemorySize: 2 << 20,
+		MatchNVectors: 1, NextTableIndex: ifsanitize.NoIndex, MissNextIndex: ifsanitize.NoIndex, MaskLen: 16, Mask: make([]byte, 16)})
+	h.must(fmt.Sprintf("delete classify table %d", t), err)
+}
+
+func (h *host) tableIDs() []uint32 {
+	h.t.Helper()
+	rep, err := classifyapi.NewServiceClient(h.c).ClassifyTableIds(h.ctx, &classifyapi.ClassifyTableIds{})
+	h.must("classify_table_ids", err)
+	ids := append([]uint32(nil), rep.Ids...)
+	slices.Sort(ids)
+	return ids
+}
+
+// plantFreed makes the TD-3 review H1/H2 state on a fresh loopback: in L3 mode (no bridge, no
+// address, admin down: nothing can reach it) bind a new table as L2 input ACL, L2 output ACL, L2
+// policer classify and ip4 output ACL, delete the loopback raw (VPP keeps the bindings and the l2
+// feature bits on the index) and then delete the table. Returns the freed sw_if_index and table.
+func (h *host) plantFreed(i int) (uint32, uint32) {
+	h.t.Helper()
+	table := h.newTable()
+	a, aName := h.loopback(i)
+	x := interface_types.InterfaceIndex(a)
+	cl := classifyapi.NewServiceClient(h.c)
+	_, err := cl.InputACLSetInterface(h.ctx, &classifyapi.InputACLSetInterface{SwIfIndex: x, IP4TableIndex: ifsanitize.NoIndex, IP6TableIndex: ifsanitize.NoIndex, L2TableIndex: table, IsAdd: true})
+	h.must("input_acl_set_interface l2", err)
+	_, err = cl.OutputACLSetInterface(h.ctx, &classifyapi.OutputACLSetInterface{SwIfIndex: x, IP4TableIndex: table, IP6TableIndex: ifsanitize.NoIndex, L2TableIndex: table, IsAdd: true})
+	h.must("output_acl_set_interface ip4+l2", err)
+	_, err = cl.PolicerClassifySetInterface(h.ctx, &classifyapi.PolicerClassifySetInterface{SwIfIndex: x, IP4TableIndex: ifsanitize.NoIndex, IP6TableIndex: ifsanitize.NoIndex, L2TableIndex: table, IsAdd: true})
+	h.must("policer_classify_set_interface l2", err)
+	in, out := h.l2Bits(a)
+	if in&l2inACL == 0 || in&l2inPolicerClas == 0 || out&l2outACL == 0 {
+		h.t.Fatalf("VPP did not set the l2 feature bits: in %#x out %#x", in, out)
+	}
+	h.t.Logf("%s sw_if_index %d (L3 mode): L2 input ACL, L2 output ACL, L2 policer classify, ip4 output ACL → table %d; l2 bitmaps in %#x out %#x", aName, a, table, in, out)
+	_, err = interfaces.NewServiceClient(h.c).DeleteLoopback(h.ctx, &interfaces.DeleteLoopback{SwIfIndex: x}) // raw: leave everything behind
+	h.must("delete_loopback "+aName, err)
+	h.delTable(table)
+	return a, table
+}
+
+// rescue is the safety net of the freed-table test: if the planted index is still dirty when the
+// test ends, take it back with a raw loopback and sanitize it (placeholders) before deleting it.
+func (h *host) rescue(idx uint32, clean *bool) {
+	if *clean {
+		return
+	}
+	svc := interfaces.NewServiceClient(h.c)
+	rep, err := svc.CreateLoopback(context.Background(), &interfaces.CreateLoopback{})
+	if err != nil {
+		h.t.Errorf("RESCUE: create_loopback: %v — sw_if_index %d may still carry bindings to a deleted table", err, idx)
+		return
+	}
+	got := uint32(rep.SwIfIndex)
+	if got == idx {
+		if _, err := ifsanitize.Sanitize(context.Background(), h.c, got, "td3-rescue"); err != nil {
+			h.t.Errorf("RESCUE: sanitize %d: %v", got, err)
+		}
+	} else {
+		h.t.Errorf("RESCUE: sw_if_index %d was taken by another creator (we got %d): it may carry bindings to a deleted table — tell the manager", idx, got)
+	}
+	_, _ = svc.DeleteLoopback(context.Background(), &interfaces.DeleteLoopback{SwIfIndex: rep.SwIfIndex})
+}
+
+// TestV19FreedTableOnHost is TD-3 review H1/H2 on the host VPP, without traffic: an index that
+// carries L2 ACL / L2 policer / output ACL bindings to a DELETED classify table (the state that
+// crashes l2-input-acl once the index is bridged, and makes a later ACL bind a silent no-op) is
+// (1) cleaned by the loopback descriptor's Create — L3 mode clears the l2 bits, the table index is
+// resurrected by placeholders, the bindings unbound, the placeholders deleted — and (2) when
+// resurrection is impossible (MaxPlaceholders 0), quarantined: an admin-down "quarantine:<owner>"
+// holder takes the index, the pre-flight reports it as WARN, the interface is created on a fresh
+// index, and Release frees the holder once the index can be cleaned.
+func TestV19FreedTableOnHost(t *testing.T) {
+	vpptest.SkipUnlessIntegration(t)
+	vpptest.LockLab(t)
+	h := &host{t: t, ctx: context.Background(), c: ifacetest.Connect(t), owner: vpptest.Prefix(t)}
+	d := &core.LoopbackDescriptor{Env: core.Env{Client: h.c, Owner: h.owner}}
+	baseline := h.tableIDs()
+
+	// --- 1: resurrect
+	a, table := h.plantFreed(85)
+	clean := false
+	defer h.rescue(a, &clean)
+	for _, cmd := range []string{"show inacl type l2", "show outacl type l2", "show classify policer type l2"} {
+		rep, err := vlib.NewServiceClient(h.c).CliInband(h.ctx, &vlib.CliInband{Cmd: cmd})
+		h.must(cmd, err)
+		t.Logf("after the raw delete of the loopback and of table %d — %s:\n%s", table, cmd, strings.TrimRight(rep.Reply, "\n"))
+	}
+	before := ifsanitize.Snapshot()
+	inst := vpptest.LoopbackInstance(t, 86)
+	obj := &core.Loopback{Name: fmt.Sprintf("loop%d", inst), Instance: inst}
+	meta, err := d.Create(h.ctx, obj)
+	h.must("LoopbackDescriptor.Create", err)
+	defer func() { h.must("LoopbackDescriptor.Delete", d.Delete(context.Background(), obj, meta)) }()
+	idx := meta.(core.IfMeta).SwIfIndex
+	if idx != a {
+		t.Fatalf("%s got sw_if_index %d, not the planted %d (another creator took it)", obj.Name, idx, a)
+	}
+	clean = true
+	cur, err := classifyapi.NewServiceClient(h.c).ClassifyTableByInterface(h.ctx, &classifyapi.ClassifyTableByInterface{SwIfIndex: interface_types.InterfaceIndex(idx)})
+	h.must("classify_table_by_interface", err)
+	if cur.IP4TableID != ifsanitize.NoIndex || cur.IP6TableID != ifsanitize.NoIndex || cur.L2TableID != ifsanitize.NoIndex {
+		clean = false
+		t.Fatalf("input ACL left on %d: %+v", idx, cur)
+	}
+	in, out := h.l2Bits(idx)
+	if in&(l2inACL|l2inPolicerClas) != 0 || out&l2outACL != 0 {
+		clean = false
+		t.Fatalf("l2 feature bits left on %d: in %#x out %#x", idx, in, out)
+	}
+	for _, cmd := range []string{"show inacl type l2", "show outacl type ip4", "show outacl type l2", "show classify policer type l2"} {
+		rep, err := vlib.NewServiceClient(h.c).CliInband(h.ctx, &vlib.CliInband{Cmd: cmd})
+		h.must(cmd, err)
+		for _, line := range strings.Split(rep.Reply, "\n") {
+			if f := strings.Fields(line); len(f) >= 2 && f[0] == fmt.Sprint(idx) {
+				clean = false
+				t.Fatalf("%s still lists sw_if_index %d: %q", cmd, idx, line)
+			}
+		}
+	}
+	if got := h.tableIDs(); !slices.Equal(got, baseline) {
+		t.Errorf("classify tables %v after Create, want the baseline %v (placeholders left?)", got, baseline)
+	}
+	after := ifsanitize.Snapshot()
+	t.Logf("%s created on the planted sw_if_index %d: input ACL none, l2 bitmaps in %#x out %#x, no row in show inacl/outacl/classify policer; classify tables back to %v; freed %v → %v",
+		obj.Name, idx, in, out, baseline, before.Freed, after.Freed)
+	if after.Freed["create/input-acl"] != before.Freed["create/input-acl"]+1 || after.Freed["create/output-acl"] < before.Freed["create/output-acl"]+2 ||
+		after.Freed["create/policer-classify"] != before.Freed["create/policer-classify"]+1 {
+		t.Errorf("freed counters %v → %v", before.Freed, after.Freed)
+	}
+
+	// --- 2: quarantine (resurrection disabled), pre-flight WARN, release
+	c, table2 := h.plantFreed(87)
+	cleanC := false
+	defer h.rescue(c, &cleanC)
+	defer func(n int) { ifsanitize.MaxPlaceholders = n }(ifsanitize.MaxPlaceholders)
+	ifsanitize.MaxPlaceholders = 0
+	inst2 := vpptest.LoopbackInstance(t, 88)
+	obj2 := &core.Loopback{Name: fmt.Sprintf("loop%d", inst2), Instance: inst2}
+	meta2, err := d.Create(h.ctx, obj2)
+	h.must("LoopbackDescriptor.Create (quarantine path)", err)
+	defer func() { h.must("LoopbackDescriptor.Delete", d.Delete(context.Background(), obj2, meta2)) }()
+	idx2 := meta2.(core.IfMeta).SwIfIndex
+	ifsanitize.MaxPlaceholders = 256
+	if idx2 == c {
+		t.Fatalf("%s was reported created on the dirty index %d", obj2.Name, c)
+	}
+	holder := h.ifDetails(c)
+	if holder == nil || holder.Tag != ifsanitize.QuarantineTagPrefix+h.owner || holder.Flags&interface_types.IF_STATUS_API_FLAG_ADMIN_UP != 0 {
+		t.Fatalf("no admin-down quarantine holder on %d: %+v", c, holder)
+	}
+	t.Logf("quarantine: %s created on fresh sw_if_index %d; dirty %d held by %s (tag %q, admin-down); gauge vrx_agent_iface_quarantined=%d",
+		obj2.Name, idx2, c, holder.InterfaceName, holder.Tag, ifsanitize.Snapshot().Quarantined)
+	findings, err := ifsanitize.Preflight(h.ctx, h.c)
+	h.must("Preflight", err)
+	for _, f := range findings {
+		if f.SwIfIndex == c {
+			if f.Fatal {
+				t.Errorf("pre-flight FAILs the quarantine holder: %s", f)
+			}
+			t.Logf("pre-flight: %s", f)
+		}
+	}
+	n, err := ifsanitize.Release(h.ctx, h.c, h.owner)
+	h.must("Release", err)
+	if n != 1 || h.ifDetails(c) != nil {
+		t.Fatalf("released %d, holder still there: %v", n, h.ifDetails(c) != nil)
+	}
+	cleanC = true
+	t.Logf("Release: holder of %d sanitized through placeholders (table %d resurrected) and deleted; classify tables %v", c, table2, h.tableIDs())
+	if got := h.tableIDs(); !slices.Equal(got, baseline) {
+		t.Errorf("classify tables %v after Release, want %v", got, baseline)
+	}
+}
+
+func (h *host) ifDetails(idx uint32) *interfaces.SwInterfaceDetails {
+	h.t.Helper()
+	stream, err := interfaces.NewServiceClient(h.c).SwInterfaceDump(h.ctx, &interfaces.SwInterfaceDump{SwIfIndex: interface_types.InterfaceIndex(idx)})
+	h.must("sw_interface_dump", err)
+	var out *interfaces.SwInterfaceDetails
+	for {
+		d, err := stream.Recv()
+		if err != nil {
+			return out
+		}
+		if uint32(d.SwIfIndex) == idx {
+			out = d
+		}
+	}
 }

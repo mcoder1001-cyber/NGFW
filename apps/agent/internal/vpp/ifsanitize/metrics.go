@@ -64,6 +64,9 @@ func recordQuarantine(delta int64) {
 	mu.Lock()
 	defer mu.Unlock()
 	stats.Quarantined += delta
+	if stats.Quarantined < 0 { // a holder made by an earlier process was released
+		stats.Quarantined = 0
+	}
 	if delta > 0 {
 		stats.QuarantineTotal += delta
 	}

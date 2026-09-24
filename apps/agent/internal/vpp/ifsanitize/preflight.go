@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 
+	"go.fd.io/govpp/api"
+
 	classifyapi "ngfw/agent/binapi/classify"
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
@@ -29,6 +31,10 @@ type Finding struct {
 	SwIfIndex uint32 // ~0 when not interface-bound (a FIB entry of no known interface)
 	Interface string // "<name> (tag <tag>)", "DELETED (<idx>)" or ""
 	What      string
+	// Table is the missing classify table the finding is about (NoIndex when none). A table that
+	// exists in the second classify_table_ids snapshot was created during the run (another slot):
+	// the finding is dropped (TD-3 review M3, TOCTOU).
+	Table uint32
 }
 
 func (f Finding) String() string {
@@ -42,7 +48,15 @@ func (f Finding) String() string {
 	return fmt.Sprintf("%s  interface %s: %s", sev, f.Interface, f.What)
 }
 
-type ifInfo struct{ name, tag string }
+type ifInfo struct {
+	name, tag string
+	adminUp   bool
+}
+
+// quarantined reports whether the interface is an agent's quarantine holder (ifsanitize.Acquire):
+// admin-down, tagged "quarantine:<owner>". Its stale bindings are known and it is never used, so
+// the pre-flight reports them as WARN — the same rule as the agent (TD-3 review M4).
+func (i ifInfo) quarantined() bool { return IsQuarantineTag(i.tag) && !i.adminUp }
 
 func (i ifInfo) String() string {
 	if i.tag == "" {
@@ -78,7 +92,8 @@ func Preflight(ctx context.Context, c vpp.Client) ([]Finding, error) {
 		if err != nil {
 			return nil, fmt.Errorf("sw_interface_dump: %w", err)
 		}
-		ifs[uint32(d.SwIfIndex)] = ifInfo{name: strings.TrimRight(d.InterfaceName, "\x00"), tag: strings.TrimRight(d.Tag, "\x00")}
+		ifs[uint32(d.SwIfIndex)] = ifInfo{name: strings.TrimRight(d.InterfaceName, "\x00"), tag: strings.TrimRight(d.Tag, "\x00"),
+			adminUp: d.Flags&interface_types.IF_STATUS_API_FLAG_ADMIN_UP != 0}
 	}
 	cl := classifyapi.NewServiceClient(c)
 	idsRep, err := cl.ClassifyTableIds(ctx, &classifyapi.ClassifyTableIds{})
@@ -97,11 +112,24 @@ func Preflight(ctx context.Context, c vpp.Client) ([]Finding, error) {
 			out = append(out, f)
 		}
 	}
+	// fatal: a binding on an existing interface that is not a quarantine holder
 	ifName := func(idx uint32) (string, bool) {
 		if in, ok := ifs[idx]; ok {
-			return in.String(), true
+			return in.String(), !in.quarantined()
 		}
 		return fmt.Sprintf("DELETED (%d)", idx), false
+	}
+
+	// chained tables: a live table whose next_table_index is gone crashes the same chain walk (M2)
+	for _, id := range sortedIDs(tables) {
+		info, err := cl.ClassifyTableInfo(ctx, &classifyapi.ClassifyTableInfo{TableID: id})
+		if err != nil {
+			continue // deleted since classify_table_ids
+		}
+		if info.NextTableIndex != NoIndex && !tables[info.NextTableIndex] {
+			add(Finding{Fatal: true, SwIfIndex: NoIndex, Table: info.NextTableIndex,
+				What: fmt.Sprintf("classify table %d chains to classify table %d, which does not exist", id, info.NextTableIndex)})
+		}
 	}
 
 	// input ACL through the binary API, on every existing interface
@@ -112,15 +140,19 @@ func Preflight(ctx context.Context, c vpp.Client) ([]Finding, error) {
 	sort.Slice(idxs, func(i, j int) bool { return idxs[i] < idxs[j] })
 	for _, idx := range idxs {
 		rep, err := cl.ClassifyTableByInterface(ctx, &classifyapi.ClassifyTableByInterface{SwIfIndex: interface_types.InterfaceIndex(idx)})
-		if err != nil {
+		if isRetval(err, api.INVALID_SW_IF_INDEX) {
 			continue // deleted since the dump
+		}
+		if err != nil {
+			return nil, fmt.Errorf("classify_table_by_interface %d: %w", idx, err)
 		}
 		for _, b := range []struct {
 			kind string
 			t    uint32
 		}{{"ip4", rep.IP4TableID}, {"ip6", rep.IP6TableID}, {"l2", rep.L2TableID}} {
 			if b.t != NoIndex && !tables[b.t] {
-				add(Finding{Fatal: true, SwIfIndex: idx, Interface: ifs[idx].String(), What: fmt.Sprintf("input ACL %s bound to classify table %d, which does not exist", b.kind, b.t)})
+				name, fatal := ifName(idx)
+				add(Finding{Fatal: fatal, SwIfIndex: idx, Interface: name, Table: b.t, What: fmt.Sprintf("input ACL %s bound to classify table %d, which does not exist", b.kind, b.t)})
 			}
 		}
 	}
@@ -148,7 +180,7 @@ func Preflight(ctx context.Context, c vpp.Client) ([]Finding, error) {
 				continue
 			}
 			name, live := ifName(b.idx)
-			add(Finding{Fatal: live, SwIfIndex: b.idx, Interface: name, What: fmt.Sprintf("%s bound to classify table %d, which does not exist", src.what, b.table)})
+			add(Finding{Fatal: live, SwIfIndex: b.idx, Interface: name, Table: b.table, What: fmt.Sprintf("%s bound to classify table %d, which does not exist", src.what, b.table)})
 		}
 	}
 
@@ -163,9 +195,10 @@ func Preflight(ctx context.Context, c vpp.Client) ([]Finding, error) {
 			if tables[e.table] {
 				continue
 			}
-			f := Finding{Fatal: true, SwIfIndex: NoIndex, What: fmt.Sprintf("FIB %s %s has a classify DPO to classify table %d, which does not exist (ip classify binding inherited or left behind)", e.vrf, e.prefix, e.table)}
+			f := Finding{Fatal: true, SwIfIndex: NoIndex, Table: e.table, What: fmt.Sprintf("FIB %s %s has a classify DPO to classify table %d, which does not exist (ip classify binding inherited or left behind)", e.vrf, e.prefix, e.table)}
 			if idx, ok := addrOwner[e.addr]; ok {
 				f.SwIfIndex, f.Interface = idx, ifs[idx].String()
+				f.Fatal = !ifs[idx].quarantined()
 			}
 			add(f)
 		}
@@ -176,23 +209,53 @@ func Preflight(ctx context.Context, c vpp.Client) ([]Finding, error) {
 	if err == nil {
 		for {
 			d, err := spds.Recv()
-			if err != nil {
+			if errors.Is(err, io.EOF) {
 				break
+			}
+			if err != nil {
+				return nil, fmt.Errorf("ipsec_spd_interface_dump: %w", err)
 			}
 			idx := uint32(d.SwIfIndex)
 			in, live := ifs[idx]
 			switch {
 			case !live:
-				add(Finding{SwIfIndex: idx, Interface: fmt.Sprintf("DELETED (%d)", idx), What: fmt.Sprintf("IPsec SPD (index %d) still bound: the next interface on this index cannot get an SPD", d.SpdIndex)})
+				add(Finding{SwIfIndex: idx, Table: NoIndex, Interface: fmt.Sprintf("DELETED (%d)", idx), What: fmt.Sprintf("IPsec SPD (index %d) still bound: the next interface on this index cannot get an SPD", d.SpdIndex)})
 			case in.tag == "" && idx != 0:
-				add(Finding{SwIfIndex: idx, Interface: in.String(), What: fmt.Sprintf("IPsec SPD (index %d) bound on an untagged (foreign) interface", d.SpdIndex)})
+				add(Finding{SwIfIndex: idx, Table: NoIndex, Interface: in.String(), What: fmt.Sprintf("IPsec SPD (index %d) bound on an untagged (foreign) interface", d.SpdIndex)})
 			}
 		}
 	} else if !unknownMsg(err) {
 		return nil, fmt.Errorf("ipsec_spd_interface_dump: %w", err)
 	}
+	// TOCTOU (review M3): a table created (and bound) by another slot after the first snapshot
+	// is not missing — only tables absent from both snapshots count
+	again, err := cl.ClassifyTableIds(ctx, &classifyapi.ClassifyTableIds{})
+	if err != nil {
+		return nil, fmt.Errorf("classify_table_ids (second snapshot): %w", err)
+	}
+	now := map[uint32]bool{}
+	for _, id := range again.Ids {
+		now[id] = true
+	}
+	kept := out[:0]
+	for _, f := range out {
+		if f.Table != NoIndex && now[f.Table] {
+			continue
+		}
+		kept = append(kept, f)
+	}
+	out = kept
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Fatal && !out[j].Fatal })
 	return out, nil
+}
+
+func sortedIDs(m map[uint32]bool) []uint32 {
+	out := make([]uint32, 0, len(m))
+	for id := range m {
+		out = append(out, id)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
 }
 
 type binding struct{ idx, table uint32 }

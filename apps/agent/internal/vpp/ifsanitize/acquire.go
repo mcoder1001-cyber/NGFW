@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"strings"
 
 	interfaces "ngfw/agent/binapi/interface"
+	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/vpp"
 )
 
@@ -82,3 +85,46 @@ func IsQuarantineTag(tag string) bool {
 	return len(tag) > len(QuarantineTagPrefix) && tag[:len(QuarantineTagPrefix)] == QuarantineTagPrefix
 }
 
+// Release retries the sanitize of every quarantine holder of owner (tag "quarantine:<owner>") and
+// deletes the holders that are clean now — the index is then free and clean for the next creator.
+// A holder that is still unclearable stays. It returns how many holders were released.
+func Release(ctx context.Context, c vpp.Client, owner string) (int, error) {
+	svc := interfaces.NewServiceClient(c)
+	stream, err := svc.SwInterfaceDump(ctx, &interfaces.SwInterfaceDump{SwIfIndex: ^interface_types.InterfaceIndex(0)})
+	if err != nil {
+		return 0, fmt.Errorf("sw_interface_dump: %w", err)
+	}
+	tag := QuarantineTagPrefix + owner
+	var holders []uint32
+	for {
+		d, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return 0, fmt.Errorf("sw_interface_dump: %w", err)
+		}
+		if strings.TrimRight(d.Tag, "\x00") == tag {
+			holders = append(holders, uint32(d.SwIfIndex))
+		}
+	}
+	released := 0
+	var errs []error
+	for _, idx := range holders {
+		name := fmt.Sprintf("quarantine holder %d", idx)
+		if _, err := Sanitize(ctx, c, idx, name); err != nil {
+			if !errors.Is(err, ErrUnclearable) {
+				errs = append(errs, err)
+			}
+			continue
+		}
+		if _, err := svc.DeleteLoopback(ctx, &interfaces.DeleteLoopback{SwIfIndex: interface_types.InterfaceIndex(idx)}); err != nil {
+			errs = append(errs, fmt.Errorf("delete_loopback (%s): %w", name, err))
+			continue
+		}
+		recordQuarantine(-1)
+		released++
+		slog.Default().Info("quarantined sw_if_index released: its stale bindings are gone (VPP V19)", "sw_if_index", idx, "tag", tag)
+	}
+	return released, errors.Join(errs...)
+}

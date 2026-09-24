@@ -113,3 +113,53 @@ func TestPreflightClean(t *testing.T) {
 		}
 	}
 }
+
+// TestPreflightReviewM2M3M4: a quarantine holder's stale binding is WARN (one rule with the
+// agent), a table that appears in the second snapshot is not missing (TOCTOU), a chain to a
+// missing table is FAIL, and an API error is an error, not "clean".
+func TestPreflightReviewM2M3M4(t *testing.T) {
+	f := preflightFake([]uint32{1}, map[string]string{"show inacl type ip4": inaclDeleted})
+	f.Reply("sw_interface_dump",
+		&interfaces.SwInterfaceDetails{SwIfIndex: 0, InterfaceName: "local0"},
+		&interfaces.SwInterfaceDetails{SwIfIndex: 5, InterfaceName: "loop0", Tag: "quarantine:w2"}, // admin-down holder
+		&interfaces.SwInterfaceDetails{SwIfIndex: 6, InterfaceName: "loop292", Tag: "w2:loop292"},
+	)
+	snap := 0
+	f.On("classify_table_ids", func(api.Message) ([]api.Message, error) {
+		snap++
+		ids := []uint32{1}
+		if snap > 1 {
+			ids = []uint32{0, 1} // table 0 was created (and bound on DELETED (2)'s index) by another slot meanwhile
+		}
+		return []api.Message{&classifyapi.ClassifyTableIdsReply{Ids: ids, Count: uint32(len(ids))}}, nil //nolint:gosec // test sizes
+	})
+	f.On("classify_table_info", func(req api.Message) ([]api.Message, error) {
+		r := req.(*classifyapi.ClassifyTableInfo)
+		return []api.Message{&classifyapi.ClassifyTableInfoReply{TableID: r.TableID, NextTableIndex: 4}}, nil
+	})
+	got, err := ifsanitize.Preflight(context.Background(), f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lines []string
+	for _, g := range got {
+		lines = append(lines, g.String())
+	}
+	all := strings.Join(lines, "\n")
+	t.Logf("findings:\n%s", all)
+	for _, want := range []string{
+		"FAIL  classify table 1 chains to classify table 4, which does not exist",
+		"WARN  interface loop0 (tag quarantine:w2): input ACL ip4 bound to classify table 7, which does not exist",
+	} {
+		if !strings.Contains(all, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+	if strings.Contains(all, "DELETED (2)") {
+		t.Error("a table present in the second snapshot was reported missing")
+	}
+	f.Fail("classify_table_by_interface", api.VPPApiError(-1))
+	if _, err := ifsanitize.Preflight(context.Background(), f); err == nil {
+		t.Fatal("an API error was swallowed")
+	}
+}

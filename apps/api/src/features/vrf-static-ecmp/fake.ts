@@ -26,7 +26,7 @@ type Json = Record<string, unknown>;
 
 export interface VrfStaticEcmpFakeState {
   /** Replies the fake ping reports for a target (default: all of them). */
-  pingReplies?: (target: string, count: number) => number;
+  pingReplies?: ((target: string, count: number) => number) | undefined;
 }
 
 export const vrfStaticEcmpFakeState: VrfStaticEcmpFakeState = {};

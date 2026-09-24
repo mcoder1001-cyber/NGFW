@@ -1,0 +1,165 @@
+{
+  "title": "NAT",
+  "tabs": "NAT sections",
+  "loading": "Loading…",
+  "save": "Save to candidate",
+  "reset": "Reset",
+  "saved": "Saved to the candidate. Commit to apply it.",
+  "cancel": "Cancel",
+  "readonly": "Your role can view but not change NAT.",
+  "yes": "yes",
+  "no": "no",
+  "tab": {
+    "outbound": "Outbound",
+    "static": "Static & port forwards",
+    "pools": "Pools",
+    "sessions": "Sessions"
+  },
+  "status": {
+    "label": "NAT44-ED status on the data plane",
+    "enabled": "NAT44-ED enabled",
+    "disabled": "NAT44-ED disabled",
+    "sessionLimit": "Session limit {{limit}} per worker",
+    "totals": "{{sessions}} sessions · {{users}} inside hosts",
+    "truncated": "counts stopped at the agent's scan limit"
+  },
+  "outbound": {
+    "intro": "Source NAT (PAT) of inside hosts to the pool addresses on the outside interfaces (VPP nat44-ed). Traffic that matches no pool is dropped unless forwarding is on. Changes go to the candidate and apply on Commit.",
+    "enabled": {
+      "auto": "Automatic (on when NAT44 is configured)",
+      "on": "On",
+      "off": "Off (keep the configuration, apply nothing)"
+    }
+  },
+  "group": {
+    "General": "General",
+    "Timeouts": "Timeouts"
+  },
+  "field": {
+    "enabled": {
+      "title": "NAT44",
+      "help": "Automatic = on as soon as interfaces, pools or mappings are configured"
+    },
+    "mode": {
+      "title": "Mode",
+      "help": "ed = endpoint-dependent (applied by this build); ei = endpoint-independent"
+    },
+    "inside": { "title": "Inside interfaces", "help": "Local side" },
+    "outside": { "title": "Outside interfaces", "help": "Public side" },
+    "outputFeature": {
+      "title": "Output-feature interfaces",
+      "help": "NAT on the output path (post-routing)"
+    },
+    "insideVrf": { "title": "Inside VRF" },
+    "outsideVrf": { "title": "Outside VRF" },
+    "forwarding": {
+      "title": "Forwarding",
+      "help": "Forward traffic that matches no NAT session instead of dropping it"
+    },
+    "sessionLimit": {
+      "title": "Session limit",
+      "help": "Max sessions per worker thread; empty = VPP default"
+    },
+    "timeouts": { "title": "Session timeouts (seconds)" },
+    "name": { "title": "Name" },
+    "description": { "title": "Description" },
+    "range": { "title": "Address range", "help": "10.0.0.10-10.0.0.20 or one address" },
+    "interface": { "title": "Interface" },
+    "vrf": { "title": "VRF" },
+    "twiceNat": { "title": "Twice-NAT" },
+    "selfTwiceNat": { "title": "Self twice-NAT" },
+    "out2inOnly": { "title": "Out-to-in only" },
+    "protocol": { "title": "Protocol" },
+    "local": { "title": "Local (inside)" },
+    "external": { "title": "External" },
+    "ip": { "title": "Address" },
+    "port": { "title": "Port" },
+    "locals": { "title": "Local endpoints" },
+    "affinity": { "title": "Affinity (seconds)" }
+  },
+  "list": {
+    "actions": "Actions",
+    "remove": "Remove {{name}}",
+    "editTitle": "Edit {{name}}",
+    "conflict": "This entry changed in the candidate since the list was loaded (another session). Nothing was saved; the list shows the current candidate."
+  },
+  "col": {
+    "name": "Name",
+    "kind": "Kind",
+    "protocol": "Protocol",
+    "any": "any",
+    "local": "Local",
+    "external": "External",
+    "vrf": "VRF",
+    "flags": "Flags",
+    "address": "Address / interface",
+    "port": "Port",
+    "locals": "Local endpoints (weight)",
+    "addresses": "Addresses",
+    "twiceNat": "Twice-NAT",
+    "utilisation": "Utilisation (live)",
+    "inside": "Inside",
+    "outside": "Outside (translated)",
+    "externalHost": "External host",
+    "idle": "Idle (s)",
+    "packets": "Packets",
+    "bytes": "Bytes"
+  },
+  "static": {
+    "intro": "1:1 NAT (no ports) and port forwards (protocol + ports), identity mappings (never translated) and load-balanced port forwards.",
+    "title": "Static mappings & port forwards",
+    "add": "Add static mapping",
+    "none": "No static mappings.",
+    "portForward": "port forward",
+    "oneToOne": "1:1"
+  },
+  "identity": {
+    "title": "Identity mappings",
+    "add": "Add identity mapping",
+    "none": "No identity mappings."
+  },
+  "lb": {
+    "title": "Load-balanced mappings",
+    "add": "Add load-balanced mapping",
+    "none": "No load-balanced mappings."
+  },
+  "pools": {
+    "intro": "Outside addresses: an IPv4 range (optionally for one VRF) or the address of an interface (follows DHCP). Adjacent ranges of one VRF must be written as one range.",
+    "title": "Address pools",
+    "add": "Add pool",
+    "none": "No pools.",
+    "kindInterface": "interface address",
+    "kindRange": "range",
+    "notApplied": "not on the data plane",
+    "utilisationOf": "Utilisation of pool {{name}}",
+    "utilisationText": "{{pct}} percent",
+    "usage": "{{sessions}} sessions on {{addresses}} addresses ({{pct}} %)",
+    "orphans": "Pools on the data plane that the running configuration does not have:"
+  },
+  "sessions": {
+    "intro": "Live NAT44-ED sessions from the data plane, paged by the server. Deleting a session drops that translation; the next packet of the flow creates a new one.",
+    "title": "NAT sessions",
+    "filter": "Session filter",
+    "total": "{{sessions}} sessions from {{users}} inside hosts",
+    "static": "static",
+    "twiceNat": "twice-NAT",
+    "timedOut": "timed out"
+  },
+  "filter": {
+    "inside": "Inside address",
+    "outside": "Outside address",
+    "external": "External address",
+    "port": "Port",
+    "protocol": "Protocol",
+    "vrf": "VRF",
+    "apply": "Filter",
+    "clear": "Clear"
+  },
+  "kill": {
+    "button": "Delete session {{session}}",
+    "title": "Delete NAT session?",
+    "question": "The translation is removed from the data plane now (audited). The flow's next packet creates a new session.",
+    "confirm": "Delete session",
+    "gone": "The session no longer exists (it expired or was deleted already)."
+  }
+}

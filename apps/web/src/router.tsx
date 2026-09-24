@@ -79,6 +79,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables
         // wave-A: F-nat44-ed-sessions
+        { path: domainPath('nat').slice(1), lazy: async () => ({ Component: (await import('./domains/firewall/nat44-ed-sessions/NatPage')).NatPage }) },
         // wave-A: P11
         // wave-A: F-wireguard
         // wave-A: P12

@@ -299,6 +299,7 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-vrf-static-ecmp
 	// wave-A: F-neighbors-ra
+	desired.NeighborsRa(p, ds, in, vrfID)
 	// wave-A: F-rpf-adl-pbr
 	// wave-A: F-object-model
 	// wave-A: F-acl
@@ -412,6 +413,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-vrf-static-ecmp
 	// wave-A: F-neighbors-ra
+	desired.AssembleNeighborsRa(ds, kvs, in, stored, nameOf)
 	// wave-A: F-rpf-adl-pbr
 	// wave-A: F-object-model
 	// wave-A: F-acl

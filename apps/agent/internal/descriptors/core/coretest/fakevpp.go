@@ -93,6 +93,7 @@ func New() *VPP {
 	}
 	v.install()
 	v.installIfExt()             // P08: DF-1 attributes, af_packet, sub-interfaces, DHCP client dump
+	v.installNeighborsRa()       // F-neighbors-ra (neighbors_ra.go, A6): ip_neighbor, ip6_nd, ip6_dad, arp
 	sanitizetest.Clean(v.Client) // interface creators sanitize the new sw_if_index (D-095)
 	return v
 }

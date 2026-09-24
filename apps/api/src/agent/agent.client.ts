@@ -16,6 +16,7 @@ import {
   type ValidationReport,
   // Feature RPC types: one import line under the feature's anchor (wave-A-hotspots P4).
   // wave-A: F-bonding
+  type BondStateResponse,
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
@@ -122,6 +123,11 @@ export class AgentClient implements OnModuleDestroy {
   // Feature RPCs: one method per RPC under the feature's anchor, e.g.
   // `natSessions(req: …): Promise<…> { return this.unary(this.c.natSessions, { ...req, owner: this.owner }); }`
   // wave-A: F-bonding
+  /** F-bonding: live bonds (proto.md §11); an agent without the RPC answers 501. */
+  bondState(names: string[] = []): Promise<BondStateResponse> {
+    return this.unary(this.c.bondState, { names, owner: this.owner });
+  }
+
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp

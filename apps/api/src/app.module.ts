@@ -27,6 +27,7 @@ import { StateController } from './state/state.controller.js';
 import { RelayService } from './telemetry/relay.service.js';
 // Feature modules: `import { <slug>Feature } from './features/<slug>/index.js';` under the feature's anchor.
 // wave-A: F-bonding
+import { bondingFeature } from './features/bonding/index.js';
 // wave-A: F-bridge-l2
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
@@ -78,6 +79,7 @@ export class AppModule {
         AuditController,
         // Feature controllers: `...<slug>Feature.controllers,` under the feature's anchor (wave-A-hotspots P1).
         // wave-A: F-bonding
+        ...bondingFeature.controllers,
         // wave-A: F-bridge-l2
         // wave-A: F-loopback-bvi-gso-lldp-span
         // wave-A: F-vrf-static-ecmp
@@ -114,6 +116,7 @@ export class AppModule {
         RelayService,
         // Feature providers: `...<slug>Feature.providers,` under the feature's anchor (wave-A-hotspots P1).
         // wave-A: F-bonding
+        ...bondingFeature.providers,
         // wave-A: F-bridge-l2
         // wave-A: F-loopback-bvi-gso-lldp-span
         // wave-A: F-vrf-static-ecmp

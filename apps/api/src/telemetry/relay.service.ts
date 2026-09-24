@@ -25,6 +25,13 @@ export function eventTopic(kind: EventKind): Topic {
     case EventKind.EVENT_KIND_CONFIRM_REVERTED:
       return 'commit.events';
     // Feature event kinds: one `case …: return '<topic>';` under the feature's anchor (wave-A-hotspots P6).
+    // wave-BC: F-vrrp-config-sync
+    // wave-BC: F-ospf
+    // wave-BC: F-isis-rip
+    // wave-BC: F-bfd-redistribution
+    // wave-BC: F-ra-vpn
+    // wave-BC: F-mpls-ldp
+    // wave-BC: F-igmp-mfib
     // wave-A: F-neighbors-ra
     // wave-A: F-object-model
     // wave-A: F-acl

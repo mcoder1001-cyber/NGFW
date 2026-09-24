@@ -69,6 +69,24 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
           },
         })),
         // Feature screens: one lazy route line under the feature's anchor (wave-A-hotspots W1).
+        // wave-BC: F-tunnels
+        // wave-BC: P10
+        // wave-BC: F-vrrp-config-sync
+        // wave-BC: F-ospf
+        // wave-BC: F-isis-rip
+        // wave-BC: P14
+        // wave-BC: F-mpls-srmpls
+        // wave-BC: F-capture-trace
+        // wave-BC: F-bfd-redistribution
+        // wave-BC: F-igmp-mfib
+        // wave-BC: F-hardening-lite
+        // wave-BC: F-aaa
+        // wave-BC: F-restconf-yang
+        // wave-BC: F-ab-upgrade
+        // wave-BC: F-images
+        // wave-BC: F-backup-restore
+        // web: WEB-2
+        // wave-A: UI-domain-editor
         // wave-A: F-bonding
         // wave-A: F-bridge-l2
         // wave-A: F-loopback-bvi-gso-lldp-span

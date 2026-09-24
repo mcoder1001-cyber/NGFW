@@ -6,6 +6,11 @@ import type { DomainTab } from '../DomainTabsPage';
  * (nav/nav.ts) in the same change. Empty: the page renders the domain placeholder (W-seed shell).
  */
 export const vpnTabs: readonly DomainTab[] = [
+  // wave-BC: F-pki
+  // wave-BC: F-ikev2-native
+  // wave-BC: F-srv6
+  // wave-BC: F-lisp
+  // wave-BC: F-ra-vpn
   // wave-A: P11
   // wave-A: F-wireguard
 ];

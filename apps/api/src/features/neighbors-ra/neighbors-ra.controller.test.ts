@@ -155,6 +155,14 @@ describe('NeighborsRaController', () => {
     ]);
   });
 
+  it("vrf and search are terminal-safe single-line text (main's safeText, review L5)", () => {
+    expect(NeighborsQuery.safeParse({ search: '02:00', vrf: 'w9red' }).success).toBe(true);
+    for (const bad of ['a\u001b[31mb', 'x\ny', 'a\u202eb', 'x'.repeat(65)]) {
+      expect(NeighborsQuery.safeParse({ search: bad }).success).toBe(false);
+      expect(NeighborsQuery.safeParse({ vrf: bad }).success).toBe(false);
+    }
+  });
+
   it('rejects unknown body members and families', () => {
     expect(ArpFlushBody.safeParse({ family: 'ipx' }).success).toBe(false);
     expect(ArpFlushBody.safeParse({ interfaces: 'x' }).success).toBe(false);

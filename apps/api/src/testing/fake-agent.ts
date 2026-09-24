@@ -629,7 +629,7 @@ export class FakeAgent {
       // wave-A: F-loopback-bvi-gso-lldp-span
       // wave-A: F-vrf-static-ecmp
       // wave-A: F-neighbors-ra
-      listNeighbors: neighborsRaFake(this).listNeighbors,
+      ...neighborsRaFake(this),
       // wave-A: F-rpf-adl-pbr
       // wave-A: F-object-model
       // wave-A: F-acl

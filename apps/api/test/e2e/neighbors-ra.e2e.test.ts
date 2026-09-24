@@ -194,29 +194,55 @@ describe('neighbors-ra e2e (PostgreSQL + fake agent)', () => {
       '/extra',
       '/family',
     ]);
-    // The shared fake agent's Action handler (fake-agent.ts, not this feature's) ends every Action with
-    // call.destroy(UNIMPLEMENTED), which never reaches the client: the API answers 504 after VRX_AGENT_TIMEOUT_MS
-    // (5 s here). Either way the request went to the agent through this route — the generic route would have
-    // answered 404 "unknown action 'arp-flush'" — and the failure is a problem+json (questions Q9).
+    // the fake agent answers arp_flush for real (features/neighbors-ra/fake.ts): only the real answers are accepted
+    setFakeNeighbors(h.fake, [
+      { interface: L, ip: '10.9.1.7', mac: '02:00:00:00:09:07' },
+      { interface: L, ip: '2001:db8:9:1::7', mac: '02:00:00:00:09:08' },
+    ]);
     const r = await h.call(admin, 'POST', '/api/v1/actions/arp-flush', {
       interface: L,
       family: 'ipv4',
     });
-    expect([501, 504]).toContain(r.status);
-    expect(r.headers['content-type']).toMatch(/^application\/problem\+json/);
-    expect(r.body.type).toMatch(/^https:\/\/vrx\.dev\/problems\/agent-(unimplemented|timeout)$/);
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({
+      deleted: 1,
+      interfaces: 1,
+      summary: 'deleted 1 learned entries on 1 interfaces',
+      lines: [`${L} ipv4: deleted 1 learned entries`],
+    });
     const action = h.fake.calls.filter((c) => c.method === 'Action').at(-1)!.request;
-    expect(action).toEqual({ arpFlush: { interface: L, family: 'ipv4' } });
+    expect(action).toMatchObject({ arpFlush: { interface: L, family: 'ipv4' } });
+    const left = await h.call(admin, 'GET', `/api/v1/state/neighbors?interface=${L}&state=dynamic`);
+    expect(left.body.items.map((i: { ip: string }) => i.ip)).toEqual(['2001:db8:9:1::7']);
+    // review M1: a name outside the configuration is the caller's 400, pointing at /interface
+    const foreign = await h.call(admin, 'POST', '/api/v1/actions/arp-flush', {
+      interface: 'loop555',
+    });
+    expect(foreign.status).toBe(400);
+    expect(foreign.headers['content-type']).toMatch(/^application\/problem\+json/);
+    expect(foreign.body.errors).toEqual([
+      {
+        pointer: '/interface',
+        message: expect.stringContaining('"loop555" is not an interface of this configuration'),
+      },
+    ]);
+    // every configured interface, both families
+    const all = await h.call(admin, 'POST', '/api/v1/actions/arp-flush', {});
+    expect(all.status).toBe(200);
+    expect(all.body).toMatchObject({ deleted: 1, interfaces: 1 });
     const audit = await h.call(admin, 'GET', '/api/v1/audit?limit=10');
-    expect(audit.body.items).toContainEqual(
-      expect.objectContaining({
-        action: 'POST /api/v1/actions/arp-flush',
-        resource: `arp-flush/${L}`,
-        before: { interface: L, family: 'ipv4' },
-        result: 'failure',
-        status: r.status,
-      }),
+    const rows = (audit.body.items as Record<string, unknown>[]).filter(
+      (i) => i['action'] === 'POST /api/v1/actions/arp-flush' && i['username'] === 'admin',
     );
+    expect(rows.slice(0, 3).map((i) => [i['resource'], i['result'], i['status']])).toEqual([
+      ['arp-flush/*', 'success', 200],
+      ['arp-flush/loop555', 'failure', 400],
+      [`arp-flush/${L}`, 'success', 200],
+    ]);
+    expect(rows[2]).toMatchObject({
+      before: { interface: L, family: 'ipv4' },
+      after: { deleted: 1, interfaces: 1, exitCode: 0 },
+    });
     // the generic action route still owns the other names
     expect((await h.call(admin, 'POST', '/api/v1/actions/ping')).status).toBe(501);
   });

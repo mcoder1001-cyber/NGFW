@@ -1,12 +1,25 @@
-import { status, type handleUnaryCall } from '@grpc/grpc-js';
-import type { ListNeighborsRequest, ListNeighborsResponse, NeighborEntry } from '@ngfw/proto';
+import { status, type handleServerStreamingCall, type handleUnaryCall } from '@grpc/grpc-js';
+import type {
+  ActionOutput,
+  ActionRequest,
+  ListNeighborsRequest,
+  ListNeighborsResponse,
+  NeighborEntry,
+} from '@ngfw/proto';
 import type { FakeAgent } from '../../testing/fake-agent.js';
 
 /**
  * Fake-agent behaviour of F-neighbors-ra (wired by the one line under the F-neighbors-ra anchor of
  * `testing/fake-agent.ts`, wave-A-hotspots P5). ListNeighbors answers from the fake's applied state — the static
  * neighbours of `routing.neighbors.static` — plus learned entries a test adds with {@link setFakeNeighbors}, filtered,
- * sorted and paged the way the agent does it (docs/contracts/proto.md §11). It never touches VPP.
+ * sorted and paged the way the agent does it (docs/contracts/proto.md §11). The `arp_flush` Action deletes the fake's
+ * learned entries of one configured interface (a name outside the configuration → INVALID_ARGUMENT, like the agent,
+ * review M1) or of every configured one, and streams lines + `done`. It never touches VPP.
+ *
+ * The fake's Action handler is shared: this module's `action` replaces the generic one (the spread comes after it in
+ * `impl()`) and answers every OTHER action exactly like the generic handler as F-nat44-ed-sessions fixed it
+ * (`emit('error', UNIMPLEMENTED)`, which reaches the client — `destroy` did not). When F-vrf-static-ecmp's Action
+ * dispatch lands in the fake, the merger folds `arpFlush` into it as one case.
  */
 type Json = Record<string, unknown>;
 
@@ -70,10 +83,87 @@ const cmp: Record<string, (a: NeighborEntry, b: NeighborEntry) => number> = {
   state: (a, b) => a.state.localeCompare(b.state),
 };
 
+/** The configured (sub-)interface names of the fake's applied state. */
+function configuredNames(current: Json): string[] {
+  const out: string[] = [];
+  for (const [name, itf] of Object.entries((current['interfaces'] ?? {}) as Record<string, Json>)) {
+    out.push(name);
+    for (const id of Object.keys((itf['subinterfaces'] ?? {}) as Json)) out.push(`${name}.${id}`);
+  }
+  return out.sort();
+}
+
+const grpcError = (code: status, details: string) =>
+  Object.assign(new Error(details), { code, details });
+
+function arpFlush(
+  fake: FakeAgent,
+  call: Parameters<handleServerStreamingCall<ActionRequest, ActionOutput>>[0],
+): void {
+  const req = call.request.arpFlush!;
+  if (fake.failAllWith !== undefined) {
+    call.emit('error', grpcError(fake.failAllWith, 'fake agent: failing every call'));
+    return;
+  }
+  if (req.family !== '' && req.family !== 'ipv4' && req.family !== 'ipv6') {
+    call.emit(
+      'error',
+      grpcError(
+        status.INVALID_ARGUMENT,
+        `invalid request: family "${req.family}" is not ipv4 or ipv6`,
+      ),
+    );
+    return;
+  }
+  const configured = configuredNames(fake.current);
+  if (req.interface !== '' && !configured.includes(req.interface)) {
+    call.emit(
+      'error',
+      grpcError(
+        status.INVALID_ARGUMENT,
+        `interface "${req.interface}" is not an interface of this configuration (configured, or created by owner "${fake.owner}"): refusing to flush it`,
+      ),
+    );
+    return;
+  }
+  const targets = req.interface !== '' ? [req.interface] : configured;
+  let rows = learned.get(fake) ?? [];
+  let deleted = 0;
+  for (const name of targets) {
+    for (const family of req.family !== '' ? [req.family] : ['ipv4', 'ipv6']) {
+      const gone = rows.filter(
+        (n) => n.interface === name && n.family === family && n.state === 'dynamic',
+      );
+      rows = rows.filter((n) => !gone.includes(n));
+      deleted += gone.length;
+      call.write({ line: `${name} ${family}: deleted ${gone.length} learned entries` });
+    }
+  }
+  learned.set(fake, rows);
+  call.write({
+    done: {
+      summary: `deleted ${deleted} learned entries on ${targets.length} interfaces`,
+      exitCode: 0,
+      stats: { deleted: String(deleted), interfaces: String(targets.length) },
+    },
+  });
+  call.end();
+}
+
 export function neighborsRaFake(fake: FakeAgent): {
   listNeighbors: handleUnaryCall<ListNeighborsRequest, ListNeighborsResponse>;
+  // optional in the type only: it replaces the generic handler that precedes the spread in impl() (TS2783 otherwise)
+  action?: handleServerStreamingCall<ActionRequest, ActionOutput>;
 } {
   return {
+    action: (call) => {
+      fake.calls.push({ method: 'Action', request: call.request });
+      if (call.request.arpFlush !== undefined) {
+        arpFlush(fake, call);
+        return;
+      }
+      call.emit('error', grpcError(status.UNIMPLEMENTED, 'actions are not implemented'));
+    },
     listNeighbors: (call, cb) => {
       const r = call.request;
       fake.calls.push({ method: 'ListNeighbors', request: r });

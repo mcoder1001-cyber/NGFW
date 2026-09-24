@@ -6,6 +6,7 @@ import { AgentClient } from '../../agent/agent.client.js';
 import type { VrxRequest } from '../../common/principal.js';
 import { ProblemError, problems } from '../../common/problem.js';
 import { Protected } from '../../common/responses.js';
+import { safeText } from '../../common/text.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
 
 /** Logical interface name as the agent reports it (sub-interfaces "<parent>.<id>"). */
@@ -18,16 +19,11 @@ const InterfaceName = z
 const SORT_FIELDS = ['interface', 'ip', 'mac', 'age', 'vrf', 'state'] as const;
 
 export const NeighborsQuery = z.object({
-  vrf: z.string().min(1).max(64).optional(),
+  vrf: safeText(64).min(1).optional(),
   interface: InterfaceName.optional(),
   family: z.enum(['ipv4', 'ipv6']).optional(),
   state: z.enum(['static', 'dynamic']).optional(),
-  search: z
-    .string()
-    .min(1)
-    .max(64)
-    .optional()
-    .describe('substring of the IP, MAC or interface name'),
+  search: safeText(64).min(1).optional().describe('substring of the IP, MAC or interface name'),
   sort: z.enum(SORT_FIELDS).default('interface'),
   dir: z.enum(['asc', 'desc']).default('asc'),
   page: z.coerce.number().int().min(1).default(1),
@@ -101,7 +97,7 @@ export class NeighborsRaController {
   @Get('api/v1/state/neighbors')
   @ApiTags('state')
   @Protected(400, 502, 503)
-  @ApiQuery({ name: 'vrf', required: false, schema: { type: 'string' } })
+  @ApiQuery({ name: 'vrf', required: false, schema: openapi(safeText(64)) })
   @ApiQuery({ name: 'interface', required: false, schema: { type: 'string' } })
   @ApiQuery({ name: 'family', required: false, schema: { type: 'string', enum: ['ipv4', 'ipv6'] } })
   @ApiQuery({
@@ -109,7 +105,7 @@ export class NeighborsRaController {
     required: false,
     schema: { type: 'string', enum: ['static', 'dynamic'] },
   })
-  @ApiQuery({ name: 'search', required: false, schema: { type: 'string' } })
+  @ApiQuery({ name: 'search', required: false, schema: openapi(safeText(64)) })
   @ApiQuery({ name: 'sort', required: false, schema: { type: 'string', enum: [...SORT_FIELDS] } })
   @ApiQuery({ name: 'dir', required: false, schema: { type: 'string', enum: ['asc', 'desc'] } })
   @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1 } })

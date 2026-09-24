@@ -111,7 +111,10 @@ export function useCommit() {
       const { data, response } = await call(api.POST('/api/v1/config/commit', { params: { query: commitQuery(args) } }));
       return { result: data, sentAt, response };
     },
-    onSettled: () => invalidateConfig(qc),
+    // not awaited: TanStack runs the caller's mutate() callbacks only after this settles (the countdown must start at once)
+    onSettled: () => {
+      void invalidateConfig(qc);
+    },
   });
 }
 
@@ -125,7 +128,10 @@ export function useRollback() {
       );
       return { result: data, sentAt, response };
     },
-    onSettled: () => invalidateConfig(qc),
+    // not awaited: TanStack runs the caller's mutate() callbacks only after this settles (the countdown must start at once)
+    onSettled: () => {
+      void invalidateConfig(qc);
+    },
   });
 }
 
@@ -133,7 +139,10 @@ export function useConfirm() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => (await call(api.POST('/api/v1/config/commit/confirm'))).data,
-    onSettled: () => invalidateConfig(qc),
+    // not awaited: TanStack runs the caller's mutate() callbacks only after this settles (the countdown must start at once)
+    onSettled: () => {
+      void invalidateConfig(qc);
+    },
   });
 }
 
@@ -141,7 +150,10 @@ export function useDiscard() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => (await call(api.POST('/api/v1/config/discard'))).data,
-    onSettled: () => invalidateConfig(qc),
+    // not awaited: TanStack runs the caller's mutate() callbacks only after this settles (the countdown must start at once)
+    onSettled: () => {
+      void invalidateConfig(qc);
+    },
   });
 }
 
@@ -149,7 +161,10 @@ export function useBreakLock() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => (await call(api.DELETE('/api/v1/config/lock'))).data,
-    onSettled: () => invalidateConfig(qc),
+    // not awaited: TanStack runs the caller's mutate() callbacks only after this settles (the countdown must start at once)
+    onSettled: () => {
+      void invalidateConfig(qc);
+    },
   });
 }
 

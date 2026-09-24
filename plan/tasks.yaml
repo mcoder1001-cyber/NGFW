@@ -702,7 +702,7 @@ tasks:
   - TD-2
   priority: 2
   est_hours: 2
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.1
@@ -714,7 +714,8 @@ tasks:
   started: 2026-09-24T15:36
   finished: ''
   notes: 'D-109: seeded by one worker right after P08+TD-2 merge so 17 parallel features merge without union conflicts | SPECULATIVE from task/P08@74ec04e (D-114), envelope /root/ngfw-wt/W-seed.envelope.md
-    | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118)'
+    | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118) | done 8b7558e (425 anchors, CI green); main merge blocked by the TD-5 guard × old P08 coretest (resolved by P08 round 2, D-118) → rebase
+    after P08 lands; focused verify (sonnet)'
 - template: ''
   parked_on: ''
   branch: ''
@@ -769,18 +770,18 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D1.4
   scope: 802.1q sub-interfaces + QinQ stacking
   files_owned: '- apps/web/src/domains/interfaces/subinterfaces/**'
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/F-vlan-qinq
+  worktree: /root/ngfw-wt/F-vlan-qinq
+  owner: ngfw-46 slot5
+  started: 2026-09-24T17:28
   finished: ''
-  notes: ' | envelope draft docs/status/tasks/F-vlan-qinq.envelope.md (prep-waveA, D-109)'
+  notes: ' | envelope draft docs/status/tasks/F-vlan-qinq.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-vlan-qinq.envelope.md'
 - id: F-bonding
   title: 'Wave A (day 7-9): LACP/XOR/RR/active-backup bonds'
   prompt: prompts/features/F-bonding.md
@@ -815,18 +816,18 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D1.6
   scope: bridge domains, L2XC/L3XC, split-horizon, MAC aging, time-range MAC filter
   files_owned: '- apps/agent/internal/descriptors/{l2,l3xc,mactime}/**, docs/agent/descriptors/{l2,l3xc,mactime}.md'
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/F-bridge-l2
+  worktree: /root/ngfw-wt/F-bridge-l2
+  owner: ngfw-46 slot7
+  started: 2026-09-24T17:28
   finished: ''
-  notes: ' | envelope draft docs/status/tasks/F-bridge-l2.envelope.md (prep-waveA, D-109)'
+  notes: ' | envelope draft docs/status/tasks/F-bridge-l2.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-bridge-l2.envelope.md'
 - id: F-loopback-bvi-gso-lldp-span
   title: 'Wave A (day 7-9): loopback/BVI, GSO/offload flags, LLDP, SPAN/ERSPAN, nsim'
   prompt: prompts/features/F-loopback-bvi-gso-lldp-span.md
@@ -867,7 +868,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D2.1
@@ -877,12 +878,12 @@ tasks:
   scope: VRF mgmt, static routes, ECMP, FIB browser (paged), ping/traceroute actions
   files_owned: '- apps/agent/internal/descriptors/core/{route,vrf}*.go and apps/agent/internal/descriptors/core/core_model.proto + core_model.pb.go (append-only: a next-hop table field on RoutePath; nothing
     renamed) — no other wave-A task edits them'
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/F-vrf-static-ecmp
+  worktree: /root/ngfw-wt/F-vrf-static-ecmp
+  owner: ngfw-46 slot2
+  started: 2026-09-24T17:28
   finished: ''
-  notes: ' | envelope draft docs/status/tasks/F-vrf-static-ecmp.envelope.md (prep-waveA, D-109)'
+  notes: ' | envelope draft docs/status/tasks/F-vrf-static-ecmp.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-vrf-static-ecmp.envelope.md'
 - id: F-neighbors-ra
   title: 'Wave A (day 7-9): ARP/ND table, proxy-ND, IPv6 RA, DAD'
   prompt: prompts/features/F-neighbors-ra.md
@@ -894,18 +895,18 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D2.3
   scope: ARP/ND table, proxy-ND, IPv6 RA, DAD
   files_owned: '- apps/agent/internal/desired/neighbors_ra*.go (builder + assembler for the per-interface, vrfs and routing leaves; `desired/interfaces.go` stays P08''s)'
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/F-neighbors-ra
+  worktree: /root/ngfw-wt/F-neighbors-ra
+  owner: ngfw-46 slot9
+  started: 2026-09-24T17:28
   finished: ''
-  notes: ' | envelope draft docs/status/tasks/F-neighbors-ra.envelope.md (prep-waveA, D-109)'
+  notes: ' | envelope draft docs/status/tasks/F-neighbors-ra.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-neighbors-ra.envelope.md'
 - id: F-rpf-adl-pbr
   title: 'Wave A (day 7-9): uRPF strict/loose, ADL, ABF policy-based routing'
   prompt: prompts/features/F-rpf-adl-pbr.md
@@ -919,7 +920,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D2.4
@@ -927,13 +928,13 @@ tasks:
   - D3.9
   scope: uRPF strict/loose, ADL, ABF policy-based routing
   files_owned: '- apps/agent/internal/descriptors/auto_sdl/**, docs/agent/descriptors/auto_sdl.md (new, based on descriptors/dfkit, D-077)'
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/F-rpf-adl-pbr
+  worktree: /root/ngfw-wt/F-rpf-adl-pbr
+  owner: ngfw-46 slot10
+  started: 2026-09-24T17:28
   finished: ''
   notes: 'prompts-s4: suggested deps +DF-4 (ABF policies resolve ACLs by name) — docs/status/tasks/prompts-s4.md | D-104: +dep TD-3 (TD-3 owns descriptors/{classify,adl} until merged) | envelope draft docs/status/tasks/F-rpf-adl-pbr.envelope.md
-    (prep-waveA, D-109)'
+    (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-rpf-adl-pbr.envelope.md'
 - id: F-object-model
   title: 'Wave A (day 7-9): addresses, groups, FQDN (agent-resolved), services, schedules, zones, tags'
   prompt: prompts/features/F-object-model.md
@@ -944,18 +945,18 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D5.1
   scope: addresses, groups, FQDN (agent-resolved), services, schedules, zones, tags
   files_owned: '- apps/agent/internal/objects/** (library, resolver, the `objects.*` descriptor family and its store), docs/agent/objects.md'
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/F-object-model
+  worktree: /root/ngfw-wt/F-object-model
+  owner: ngfw-46 slot3
+  started: 2026-09-24T17:28
   finished: ''
-  notes: ' | envelope draft docs/status/tasks/F-object-model.envelope.md (prep-waveA, D-109)'
+  notes: ' | envelope draft docs/status/tasks/F-object-model.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-object-model.envelope.md'
 - id: F-acl
   title: 'Wave A (day 7-9): MACIP/L3/L4 ACLs, attachments, hit counters, 100k-rule editor, ADL/Auto-SDL'
   prompt: prompts/features/F-acl.md
@@ -1018,7 +1019,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D4.1
@@ -1026,12 +1027,12 @@ tasks:
   scope: NAT44-ED outbound/1:1/port-forward + session browser/kill
   files_owned: '- apps/agent/internal/desired/nat.go and apps/agent/internal/desired/nat_*.go (incl. tests). This is narrower than the prompt''s `desired/nat*.go`, so that F-nat44-ei-64-66-nptv6''s desired/{nat44ei,nat64,nat66,nptv6}*.go
     stay separate; the envelope wins'
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/F-nat44-ed-sessions
+  worktree: /root/ngfw-wt/F-nat44-ed-sessions
+  owner: ngfw-46 slot4
+  started: 2026-09-24T17:28
   finished: ''
-  notes: ' | envelope draft docs/status/tasks/F-nat44-ed-sessions.envelope.md (prep-waveA, D-109)'
+  notes: ' | envelope draft docs/status/tasks/F-nat44-ed-sessions.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-nat44-ed-sessions.envelope.md'
 - id: F-nat44-ei-64-66-nptv6
   title: 'Wave A (day 7-9): NAT44-EI, NAT64, NAT66, NPTv6 (npt66 skip-unless-loaded)'
   prompt: prompts/features/F-nat44-ei-64-66-nptv6.md

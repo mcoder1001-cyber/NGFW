@@ -1637,7 +1637,7 @@ tasks:
   - P06
   priority: 6
   est_hours: 10
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D8.9
@@ -1648,7 +1648,8 @@ tasks:
   owner: host-agent slot5
   started: 2026-09-24T03:10
   finished: ''
-  notes: ' | worker done 20c9bca CI green (live SDK + TF vs real API/agent/VPP); review spawned; D-093'
+  notes: ' | worker done 20c9bca CI green (live SDK + TF vs real API/agent/VPP); review spawned; D-093 | review APPROVE WITH CHANGES a2b2ad1 (H1 planned value rewrite, H2 hash in state, M1 notApplied dropped,
+    M2 sync state, M3 discard race, M4 drift, L1 codegen injection); fix round 1'
 - id: F-aaa
   title: RADIUS/TACACS+/LDAP/SAML/OIDC + MFA
   prompt: prompts/features/F-aaa.md

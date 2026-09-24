@@ -27,3 +27,16 @@ The manager pulls from here when nothing on the board is ready. Add items with a
 
 ## From the TD-6 review (D-116, 2026-09-24) — deploy/vpp/apply-startup.sh harness
 - F3 harness cache key misses the test fixtures; F4 `VRX_TEST_ROOT` guard does not cover driverctl/ifup/networkctl/netplan; F5 own rollback goes FORCED after 60 s when only the holder died; F6 no harness timeout in CI; F7 SIGTERM trap path untested (systemd kills the run unit after 90 s); F8 a flaky pass is warned once then cached; F9 minor rollback edge cases (details: TD-6-review.md in refs/archive/TD-6)
+
+## P08 re-review (D-118, 2026-09-24) — interfaces vertical slice, no code in P08's fix round 2
+- **R2-stores** (low; `apps/agent/internal/subsystems/stores.go:124`, DF-1 `attributes.go:259-260`): a DF-1 attribute Create on an
+  untagged interface writes VPP first and claims after; the claim's index refresh (`fileClaims.claim` → Invalidate + Resolve) has its
+  own 5 s bound (`subsystems.go:119`), shorter than the transaction's 60 s. A VPP API stall > 5 s between the write and the claim fails
+  the Create after VPP changed (N7's `ErrClaimUnbound`); the scheduler does not journal a failed Create → ROLLED_BACK with the value
+  still in VPP, invisible to Retrieve, never reverted by resync. Untagged (DPDK) NICs only; af_packet is tagged. Fix: bound the claim
+  refresh by the caller's context (≥ the API deadline) or retry it once after a reconnect; and in DF-1, claim before writing (release
+  on write failure) or undo the write when the claim fails — or let the scheduler journal a Create that returns Meta with an error.
+- **R3-gauge** (low; `apps/agent/internal/subsystems/subsystems.go:162`, ifsanitize = TD-3/TD-5 files): `AfterResync` calls
+  `ifsanitize.Release` but never sets `vrx_agent_iface_quarantined` from the holders it found; after an agent restart the gauge reads 0
+  while this owner's still-dirty quarantine holders are in VPP (TD-3 re-review L6). Fix: `Release` returns the number of holders left
+  (holders − released) and the wiring sets `Stats.Quarantined` to that absolute number after every Release (not deltas).

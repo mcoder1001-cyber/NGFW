@@ -101,3 +101,5 @@ any API call (the P08 restart-safety test measured 0.33 s from agent start to a 
 
 Not in this release: bonding, bridge domains, QinQ, LACP, LLDP (planned features), per-interface description in VPP
 (the description is kept by the agent and shown from there).
+
+See also: [Bridging](bridge-l2.md) — bridge domains, cross-connects, VLAN tag rewrite on L2 ports and the time-range MAC filter (`interfaces.<if>.l2`, `routing.l2`).

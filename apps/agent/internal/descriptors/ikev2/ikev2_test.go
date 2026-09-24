@@ -14,9 +14,11 @@ import (
 	"ngfw/agent/binapi/ikev2"
 	"ngfw/agent/binapi/ikev2_types"
 	"ngfw/agent/binapi/ip_types"
+	"ngfw/agent/internal/descriptors/dfkit"
 	ikev2d "ngfw/agent/internal/descriptors/ikev2"
 	"ngfw/agent/internal/descriptors/vpn"
 	vpnpb "ngfw/agent/internal/descriptors/vpn/pb"
+	"ngfw/agent/internal/descriptors/vpn/vpntest"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
@@ -28,10 +30,11 @@ var (
 	pskRef  = vpn.Ref(psk)
 	owner   = "w4"
 	ctx     = context.Background()
+	boot    = vpntest.NewFakeBoot()
 )
 
 func newCfg(v *fakeVPP) ikev2d.Config {
-	return ikev2d.Config{Client: v, Owner: owner, Secrets: secrets}
+	return ikev2d.Config{Client: v, Owner: owner, Secrets: secrets, Boot: dfkit.NewMemoryBootStore()}
 }
 
 func fullProfile() *vpnpb.Ikev2Profile {
@@ -266,7 +269,12 @@ func TestProfileOwnershipAndSecretsInDump(t *testing.T) {
 	v := newFakeVPP()
 	d := ikev2d.NewProfile(newCfg(v))
 	foreign := ikev2d.NewProfile(ikev2d.Config{Client: v, Owner: "w3", Secrets: secrets})
-	if _, err := foreign.Create(ctx, fullProfile()); err != nil {
+	fp := fullProfile()
+	if _, err := foreign.Create(ctx, fp); !errors.Is(err, vpn.ErrForeignInterface) {
+		t.Fatalf("w3 must not use w4's interfaces (D-069): %v", err)
+	}
+	fp.Responder.Interface, fp.TunnelInterface = "loop301", ""
+	if _, err := foreign.Create(ctx, fp); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := d.Create(ctx, &vpnpb.Ikev2Profile{Name: "mine"}); err != nil {
@@ -320,14 +328,46 @@ func TestResponderHostname(t *testing.T) {
 	if fmt.Sprint(h.Dependencies(hn)) != fmt.Sprint(want) {
 		t.Fatalf("deps %v", h.Dependencies(hn))
 	}
-	for i := 0; i < 2; i++ { // idempotent: re-applied on every resync
+	for i := 0; i < 2; i++ { // re-applied on every resync: must not reach VPP twice (D-076)
 		if _, err := h.Create(ctx, hn); err != nil {
 			t.Fatal(err)
 		}
 	}
-	r := v.CallsNamed("ikev2_set_responder_hostname")[0].(*ikev2.Ikev2SetResponderHostname)
+	calls := v.CallsNamed("ikev2_set_responder_hostname")
+	if len(calls) != 1 {
+		t.Fatalf("VPP's setter leaks and resets resolution on every call: %d calls, want 1", len(calls))
+	}
+	r := calls[0].(*ikev2.Ikev2SetResponderHostname)
 	if r.Name != "w4-h" || r.Hostname != "peer.vrx.test" || r.SwIfIndex != 1 {
 		t.Fatalf("set_responder_hostname %+v", r)
+	}
+	// a changed value is applied; after a VPP restart the record has expired → applied once more
+	hn2 := &vpnpb.Ikev2ResponderHostname{Profile: "h", Interface: "loop401", Hostname: "peer2.vrx.test"}
+	if _, err := h.Update(ctx, hn, hn2, nil); err != nil {
+		t.Fatal(err)
+	}
+	boot.RestartVPP()
+	if _, err := h.Create(ctx, hn2); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.Create(ctx, hn2); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(v.CallsNamed("ikev2_set_responder_hostname")); n != 3 {
+		t.Fatalf("%d calls, want 3 (first, changed value, after VPP restart)", n)
+	}
+	// the profile deleted and re-added (recreate): its hostname must be applied again
+	if err := d.Delete(ctx, p, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.Create(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.Create(ctx, hn2); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(v.CallsNamed("ikev2_set_responder_hostname")); n != 4 {
+		t.Fatalf("%d calls, want 4 (re-applied on the re-added profile)", n)
 	}
 	// D-063: write-only — the hostname is not dumped and never echoed
 	if kvs, err := h.Retrieve(ctx); !errors.Is(err, vpn.ErrRetrieveUnsupported) || kvs != nil {
@@ -343,6 +383,8 @@ func TestResponderHostname(t *testing.T) {
 		"no hostname":  {Profile: "h"},
 		"too long":     {Profile: "h", Hostname: strings.Repeat("h", 64)},
 		"no interface": {Profile: "h", Hostname: "x", Interface: "loop999"},
+		"foreign":      {Profile: "h", Hostname: "x", Interface: "loop301"},
+		"vpp name":     {Profile: "h", Hostname: "x", Interface: "ipsec4001x"},
 	} {
 		if _, err := h.Create(ctx, bad); err == nil {
 			t.Fatalf("%s: Create must fail", name)
@@ -385,9 +427,28 @@ func TestProfileDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	mustRetrieve(t, d)
-	if err := d.Delete(ctx, p, meta); err == nil {
-		t.Fatal("deleting a missing profile must fail")
+	if err := d.Delete(ctx, p, meta); err != nil {
+		t.Fatalf("deleting a vanished profile is done (D-074): %v", err)
 	}
+	if n := len(v.CallsNamed("ikev2_profile_add_del")); n != 2 {
+		t.Fatalf("%d add/del calls, want 2 (the second delete must not reach VPP)", n)
+	}
+}
+
+func TestProfileInterfacesByLogicalName(t *testing.T) {
+	v := newFakeVPP()
+	d := ikev2d.NewProfile(newCfg(v))
+	// D-069: an untagged interface (physical NIC) by VPP's name is fine, another owner's is refused
+	wan := &vpnpb.Ikev2Profile{Name: "wan", Responder: &vpnpb.Ikev2Responder{Interface: "wan0", Address: "10.4.0.9"}}
+	if _, err := d.Create(ctx, wan); err != nil {
+		t.Fatal(err)
+	}
+	mustRetrieve(t, d, wan)
+	foreign := &vpnpb.Ikev2Profile{Name: "f", Responder: &vpnpb.Ikev2Responder{Interface: "loop301", Address: "10.4.0.9"}}
+	if _, err := d.Create(ctx, foreign); !errors.Is(err, vpn.ErrForeignInterface) {
+		t.Fatalf("foreign interface: %v", err)
+	}
+	mustRetrieve(t, d, wan) // the failed Create rolled its profile back
 }
 
 func TestSingletons(t *testing.T) {
@@ -440,6 +501,29 @@ func TestSingletons(t *testing.T) {
 	for _, d := range []scheduler.Descriptor{sleep, live, lk} {
 		if d.KeyOf(nil) != scheduler.Join(d.Name(), "global") || d.Dependencies(nil) != nil {
 			t.Fatalf("%s: singleton key/deps", d.Name())
+		}
+	}
+
+	// D-071: a non-owner only requires; the getter-less globals can never be required
+	req := map[string]scheduler.Descriptor{}
+	for _, d := range ikev2d.All(newCfg(v)) {
+		req[d.Name()] = d
+	}
+	before := len(v.Calls())
+	if _, err := req[ikev2d.SleepIntervalName].Create(ctx, &vpnpb.Ikev2SleepInterval{Seconds: 0.5}); err != nil {
+		t.Fatalf("require (satisfied): %v", err)
+	}
+	if _, err := req[ikev2d.SleepIntervalName].Create(ctx, &vpnpb.Ikev2SleepInterval{Seconds: 3}); !errors.Is(err, vpn.ErrNotGlobalsOwner) {
+		t.Fatalf("require (differs): %v", err)
+	}
+	for _, name := range []string{ikev2d.LivenessName, ikev2d.LocalKeyName} {
+		if _, err := req[name].Create(ctx, &vpnpb.Ikev2Liveness{Period: 1, MaxRetries: 1}); !errors.Is(err, vpn.ErrNotGlobalsOwner) {
+			t.Fatalf("%s non-owner: %v", name, err)
+		}
+	}
+	for _, c := range v.Calls()[before:] {
+		if n := c.GetMessageName(); n != "ikev2_get_sleep_interval" {
+			t.Fatalf("a non-owner sent %s", n)
 		}
 	}
 }

@@ -53,6 +53,8 @@ func newFakeVPP() *fakeVPP {
 			0: {SwIfIndex: 0, InterfaceName: "local0"},
 			1: {SwIfIndex: 1, InterfaceName: "loop401", Tag: "w4:loop401"},
 			2: {SwIfIndex: 2, InterfaceName: "ipsec4001", Tag: "w4:ipsec4001"},
+			3: {SwIfIndex: 3, InterfaceName: "loop301", Tag: "w3:loop301"},
+			4: {SwIfIndex: 4, InterfaceName: "wan0"},
 		},
 		profiles: map[string]*fakeProfile{},
 		sleep:    2,

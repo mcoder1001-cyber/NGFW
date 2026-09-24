@@ -1,14 +1,17 @@
 package ikev2_test
 
-// One integration check per object type against the host VPP (VRX_INTEGRATION=1, shared lab
-// lock, slot prefix). Profiles are named "<prefix>-…", fixtures are prefixed loopbacks, addresses
+// Host checks against the shared VPP (VRX_INTEGRATION=1, shared lab lock, slot prefix), through
+// P05's reconciler (vpntest.Agent) including the restart simulation. Profiles are named "<prefix>-…", fixtures are prefixed loopbacks, addresses
 // are in 10.<slot>.0.0/16, the ipsec-over-udp port is 20000+100*slot+1 (DF-5 port scheme,
 // docs/agent/descriptors/ikev2.md). The rsa-sig certificate and the local key are throwaway
-// material generated at test time under /run/vrx-test/<prefix>/ and removed in Cleanup. No peer
+// material generated at test time under /run/vrx-test/<prefix>/ and removed in Cleanup. The
+// VPP-globals (sleep interval, liveness, local key) are only read or required as a non-owner;
+// the owner's setters of the getter-less ones run only behind VRX_DF5_GLOBALS=1. No peer
 // exists: configuration is asserted, not negotiation. VRX_DF5_PAUSE=<seconds> holds the objects
 // before cleanup so `vppctl show ikev2 profile` evidence can be captured.
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -25,6 +28,8 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 
+	"ngfw/agent/binapi/ikev2"
+	"ngfw/agent/internal/descriptors/dfkit"
 	ikev2d "ngfw/agent/internal/descriptors/ikev2"
 	"ngfw/agent/internal/descriptors/vpn"
 	vpnpb "ngfw/agent/internal/descriptors/vpn/pb"
@@ -96,47 +101,61 @@ func throwawayRSA(t *testing.T, dir string) (certFile, keyFile string) {
 	return certFile, keyFile
 }
 
+func byName(ds []scheduler.Descriptor, name string) scheduler.Descriptor {
+	for _, d := range ds {
+		if d.Name() == name {
+			return d
+		}
+	}
+	return nil
+}
+
 func TestIkev2OnHost(t *testing.T) {
 	c := vpntest.Connect(t)
 	ctx := vpntest.Context(t)
 	owner := vpptest.Prefix(t)
 	slot := vpptest.Slot(t)
-	udpPort := uint32(20000 + 100*slot + 1) //nolint:gosec // slots are 1–12
-	cfg := ikev2d.Config{Client: c, Owner: owner, Secrets: secrets}
+	udpPort := uint32(20000 + 100*slot + 1) //nolint:gosec // slots are 1–11
+	store, err := dfkit.NewFileBootStore(filepath.Join(t.TempDir(), "records.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := ikev2d.Config{Client: c, Owner: owner, Secrets: secrets, Boot: store}
 	dir := filepath.Join("/run/vrx-test", owner)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	certFile, keyFile := throwawayRSA(t, dir)
+	certFile, _ := throwawayRSA(t, dir)
 
 	respIf, _ := vpntest.Loopback(ctx, t, c, owner, 2)
 	tunIf, _ := vpntest.Loopback(ctx, t, c, owner, 3)
 
-	profile, localKey := ikev2d.NewProfile(cfg), ikev2d.NewLocalKey(cfg)
-	sleep, liveness := ikev2d.NewSleepInterval(cfg), ikev2d.NewLiveness(cfg)
+	ds := ikev2d.All(cfg) // a test slot is never the globals owner (D-071)
+	profile, hostname := byName(ds, ikev2d.ProfileName), byName(ds, ikev2d.ResponderHostnameName)
+	sleep, liveness, localKey := byName(ds, ikev2d.SleepIntervalName), byName(ds, ikev2d.LivenessName), byName(ds, ikev2d.LocalKeyName)
 
-	// ---- ikev2.sleep-interval: read-only on the shared host ----
-	kvs, err := sleep.Retrieve(ctx)
+	// ---- VPP-globals as a non-owner: read under the shared globals lock, never set ----
+	vpntest.LockGlobals(t, false)
+	kvs, err := ikev2d.NewSleepInterval(cfg).Retrieve(ctx)
 	if err != nil || len(kvs) != 1 {
 		t.Fatalf("sleep-interval Retrieve: %v %v", kvs, err)
 	}
-	t.Logf("%s: VPP reports %s (read-only check, not changed)", sleep.Name(), prototext.Format(kvs[0].Value))
-
-	// ---- ikev2.liveness: re-applies VPP's built-in defaults (30 s / 3), no effective change ----
-	live := &vpnpb.Ikev2Liveness{Period: 30, MaxRetries: 3}
-	if _, err := liveness.Create(ctx, live); err != nil {
-		t.Fatal(err)
+	t.Logf("%s: VPP reports %s (read under the shared globals lock)", sleep.Name(), prototext.Format(kvs[0].Value))
+	if _, err := sleep.Create(ctx, kvs[0].Value); err != nil {
+		t.Fatalf("requiring VPP's own sleep interval: %v", err)
 	}
-	mustBeWriteOnly(t, liveness)
-
-	// ---- ikev2.local-key: throwaway key under /run/vrx-test/<prefix>/ ----
-	lk := &vpnpb.Ikev2LocalKey{KeyFile: keyFile}
-	if _, err := localKey.Create(ctx, lk); err != nil {
-		t.Fatal(err)
+	t.Logf("%s (non-owner): requirement satisfied without setting", sleep.Name())
+	for _, x := range []struct {
+		d scheduler.Descriptor
+		v proto.Message
+	}{{liveness, &vpnpb.Ikev2Liveness{Period: 30, MaxRetries: 3}}, {localKey, &vpnpb.Ikev2LocalKey{KeyFile: filepath.Join(dir, "k.pem")}}} {
+		if _, err := x.d.Create(ctx, x.v); !errors.Is(err, vpn.ErrNotGlobalsOwner) {
+			t.Fatalf("%s as non-owner: %v", x.d.Name(), err)
+		}
+		t.Logf("%s (non-owner): refused without a VPP call: %v", x.d.Name(), errors.Unwrap(err) != nil)
 	}
-	mustBeWriteOnly(t, localKey)
 
-	// ---- ikev2.profile: psk, every part set ----
+	// ---- profiles (psk with every part, rsa-sig) + a responder hostname, applied through P05 ----
 	psk := &vpnpb.Ikev2Profile{
 		Name:      "df5-psk",
 		Auth:      &vpnpb.Ikev2Auth{Method: "psk", Psk: pskRef},
@@ -150,53 +169,67 @@ func TestIkev2OnHost(t *testing.T) {
 		Lifetime:  &vpnpb.Ikev2Lifetime{Seconds: 3600, Jitter: 10, Handover: 5, MaxData: 1 << 30},
 		UdpEncap:  true, IpsecOverUdpPort: udpPort, TunnelInterface: tunIf, NattDisabled: true,
 	}
-	meta, err := profile.Create(ctx, psk)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = profile.Delete(vpntest.Context(t), psk, meta) })
-	t.Logf("profile meta: %+v", meta)
-	mustRetrieveEqual(t, profile, psk)
-	// a fresh descriptor (≈ agent restart) retrieves the same value: nothing is cached
-	mustRetrieveEqual(t, ikev2d.NewProfile(cfg), psk)
-
-	// update in place: new remote id, new ESP transforms, new port
-	psk2 := proto.Clone(psk).(*vpnpb.Ikev2Profile)
-	psk2.RemoteId = &vpnpb.Ikev2Id{Type: "rfc822", Value: "peer@" + owner + ".vrx.test"}
-	psk2.Esp = &vpnpb.Ikev2EspTransforms{CryptoAlg: "aes-cbc", CryptoKeySize: 128, IntegAlg: "sha1-96"}
-	psk2.IpsecOverUdpPort = udpPort + 1
-	if meta, err = profile.Update(ctx, psk, psk2, meta); err != nil {
-		t.Fatal(err)
-	}
-	mustRetrieveEqual(t, profile, psk2)
-	if _, err := profile.Update(ctx, psk2, &vpnpb.Ikev2Profile{Name: psk2.Name}, meta); err != scheduler.ErrRecreate {
-		t.Fatalf("removing parts must be ErrRecreate, got %v", err)
-	}
-
-	// ---- ikev2.profile: rsa-sig; ikev2.responder-hostname on it (write-only, D-063) ----
 	rsaP := &vpnpb.Ikev2Profile{
 		Name:    "df5-rsa",
 		Auth:    &vpnpb.Ikev2Auth{Method: "rsa-sig", CertFile: certFile},
 		LocalId: &vpnpb.Ikev2Id{Type: "ip4", Value: vpntest.SlotAddr(t, 5, 1)},
 	}
-	rsaMeta, err := profile.Create(ctx, rsaP)
-	if err != nil {
+	hn := &vpnpb.Ikev2ResponderHostname{Profile: rsaP.Name, Interface: respIf, Hostname: "peer." + owner + ".vrx.test"}
+	desired := []proto.Message{psk, rsaP, hn}
+	pd := []scheduler.Descriptor{profile, hostname}
+	t.Cleanup(func() {
+		_ = vpntest.NewAgent(c, owner, ikev2d.NewProfile(cfg), ikev2d.NewResponderHostname(cfg)).S.Apply(context.Background(), nil, scheduler.All)
+	})
+	agent1 := vpntest.NewAgent(c, owner, pd...)
+	agent1.Apply(ctx, t, desired)
+	mustRetrieveEqual(t, profile, psk)
+	mustRetrieveEqual(t, profile, rsaP) // the hostname does not change the profile's value
+	mustBeWriteOnly(t, hostname)
+
+	// update in place: new remote id, new ESP transforms, new port → one Update
+	psk2 := proto.Clone(psk).(*vpnpb.Ikev2Profile)
+	psk2.RemoteId = &vpnpb.Ikev2Id{Type: "rfc822", Value: "peer@" + owner + ".vrx.test"}
+	psk2.Esp = &vpnpb.Ikev2EspTransforms{CryptoAlg: "aes-cbc", CryptoKeySize: 128, IntegAlg: "sha1-96"}
+	psk2.IpsecOverUdpPort = udpPort + 1
+	desired2 := []proto.Message{psk2, rsaP, hn}
+	p := agent1.Plan(ctx, t, desired2)
+	if s := p.Summary(); s.Updated != 1 || s.Created+s.Deleted != 0 {
+		t.Fatalf("update plan: %s", vpntest.PlanString(p))
+	}
+	t.Logf("update plan: %s", vpntest.PlanString(p))
+	agent1.Apply(ctx, t, desired2)
+	mustRetrieveEqual(t, profile, psk2)
+	if _, err := profile.Update(ctx, psk2, &vpnpb.Ikev2Profile{Name: psk2.Name}, nil); err != scheduler.ErrRecreate {
+		t.Fatalf("removing parts must be ErrRecreate, got %v", err)
+	}
+
+	// ---- the same desired state again → empty plan (PSK compared by reference) ----
+	agent1.MustEmptyPlan(ctx, t, "agent 1, second apply", desired2)
+
+	// ---- restart simulation: fresh connection + fresh descriptors, same persisted records ----
+	c2 := vpntest.Connect(t)
+	cfg2 := cfg
+	cfg2.Client = c2
+	agent2 := vpntest.NewAgent(c2, owner, ikev2d.NewProfile(cfg2), ikev2d.NewResponderHostname(cfg2))
+	agent2.MustEmptyPlan(ctx, t, "agent restart (fresh agent, persisted records)", desired2)
+	// the fresh agent re-applies the write-only hostname (D-063 resync); the applied-once record
+	// (D-076) keeps VPP's leaking setter from being called again on the same VPP instance
+	agent2.Apply(ctx, t, desired2)
+
+	// a profile lost behind the agent's back → exactly its re-creation
+	if _, err := ikev2.NewServiceClient(c2).Ikev2ProfileAddDel(ctx, &ikev2.Ikev2ProfileAddDel{Name: owner + "-" + psk2.Name, IsAdd: false}); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = profile.Delete(vpntest.Context(t), rsaP, rsaMeta) })
-	mustRetrieveEqual(t, profile, rsaP)
-	hostname := ikev2d.NewResponderHostname(cfg)
-	hn := &vpnpb.Ikev2ResponderHostname{Profile: rsaP.Name, Interface: respIf, Hostname: "peer." + owner + ".vrx.test"}
-	for i := 0; i < 2; i++ { // idempotent: the reconciler re-applies write-only objects on resync
-		if _, err := hostname.Create(ctx, hn); err != nil {
-			t.Fatal(err)
-		}
+	p = agent2.Plan(ctx, t, desired2)
+	if len(p.Ops) != 1 || p.Ops[0].Op != scheduler.OpCreate || p.Ops[0].Key != profile.KeyOf(psk2) {
+		t.Fatalf("after loss: plan %s", vpntest.PlanString(p))
 	}
-	mustBeWriteOnly(t, hostname)
-	mustRetrieveEqual(t, profile, rsaP) // the hostname does not change the profile's value
+	t.Logf("after loss (profile deleted via the API): plan %s", vpntest.PlanString(p))
+	agent2.Apply(ctx, t, desired2)
+	agent2.MustEmptyPlan(ctx, t, "after re-creation", desired2)
 
 	// ---- SA state helper: no peer, so no SA of ours ----
-	sas, err := ikev2d.SAs(ctx, c, owner)
+	sas, err := ikev2d.SAs(ctx, c2, owner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,30 +238,43 @@ func TestIkev2OnHost(t *testing.T) {
 	}
 	t.Logf("ikev2 SA state helper: %d SAs for owner %s (no peer)", len(sas), owner)
 
-	// ---- the same desired state again → empty plan (PSK compared by reference; write-only skipped) ----
-	vpntest.MustEmptyPlan(t, []scheduler.Descriptor{profile, localKey, liveness, hostname},
-		[]proto.Message{psk2, rsaP, lk, live, hn})
-
 	pauseForEvidence(t)
 
-	for _, p := range []struct {
-		v *vpnpb.Ikev2Profile
-		m any
-	}{{psk2, meta}, {rsaP, rsaMeta}} {
-		if err := profile.Delete(ctx, p.v, p.m); err != nil {
-			t.Fatal(err)
+	// ---- the empty desired state deletes our profiles ----
+	agent2.Apply(ctx, t, nil)
+	for _, v := range []*vpnpb.Ikev2Profile{psk2, rsaP} {
+		if _, ok := retrieveOne(t, profile, profile.KeyOf(v)); ok {
+			t.Fatalf("%s still retrieved after the empty desired state", profile.KeyOf(v))
 		}
-		if _, ok := retrieveOne(t, profile, profile.KeyOf(p.v)); ok {
-			t.Fatalf("%s still retrieved after Delete", profile.KeyOf(p.v))
-		}
-		t.Logf("%s: %s gone after Delete", profile.Name(), profile.KeyOf(p.v))
+		t.Logf("%s: %s gone", profile.Name(), profile.KeyOf(v))
 	}
-	for _, d := range []scheduler.Descriptor{localKey, liveness, hostname} {
-		if err := d.Delete(ctx, nil, nil); err != nil {
-			t.Fatal(err)
-		}
-		t.Logf("%s: Delete is a no-op (write-only; plugin-wide or gone with its profile)", d.Name())
+}
+
+// TestIkev2GlobalsOwnerOnHost exercises the globals owner's setters of the getter-less
+// liveness and local key. Opt-in only (VRX_DF5_GLOBALS=1, exclusive globals lock): their previous
+// values cannot be read back, so they cannot be restored (shared-host-rules §7).
+func TestIkev2GlobalsOwnerOnHost(t *testing.T) {
+	vpntest.SkipUnlessGlobals(t, "ikev2 liveness / local key")
+	c := vpntest.Connect(t)
+	ctx := vpntest.Context(t)
+	owner := vpptest.Prefix(t)
+	vpntest.LockGlobals(t, true)
+	dir := filepath.Join("/run/vrx-test", owner)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
 	}
+	_, keyFile := throwawayRSA(t, dir)
+	cfg := ikev2d.Config{Client: c, Owner: owner, Secrets: secrets, Boot: dfkit.NewMemoryBootStore(), GlobalsOwner: true}
+	ds := ikev2d.All(cfg)
+	live := &vpnpb.Ikev2Liveness{Period: 30, MaxRetries: 3} // VPP's built-in defaults
+	if _, err := byName(ds, ikev2d.LivenessName).Create(ctx, live); err != nil {
+		t.Fatal(err)
+	}
+	mustBeWriteOnly(t, byName(ds, ikev2d.LivenessName))
+	if _, err := byName(ds, ikev2d.LocalKeyName).Create(ctx, &vpnpb.Ikev2LocalKey{KeyFile: keyFile}); err != nil {
+		t.Fatal(err)
+	}
+	mustBeWriteOnly(t, byName(ds, ikev2d.LocalKeyName))
 }
 
 func mustBeWriteOnly(t *testing.T, d scheduler.Descriptor) {

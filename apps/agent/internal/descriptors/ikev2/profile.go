@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"sort"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -14,6 +15,7 @@ import (
 	"ngfw/agent/binapi/ikev2"
 	"ngfw/agent/binapi/ikev2_types"
 	"ngfw/agent/binapi/interface_types"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/vpn"
 	vpnpb "ngfw/agent/internal/descriptors/vpn/pb"
 	"ngfw/agent/internal/scheduler"
@@ -93,6 +95,12 @@ func (d *Profile) Create(ctx context.Context, obj proto.Message) (any, error) {
 	if _, err := svc.Ikev2ProfileAddDel(ctx, &ikev2.Ikev2ProfileAddDel{Name: name, IsAdd: true}); err != nil {
 		return nil, fmt.Errorf("ikev2_profile_add_del (%s): %w", name, err)
 	}
+	// a new profile has no responder hostname yet: the applied-once record of its
+	// ikev2.responder-hostname (D-076) must not survive a delete/re-add of the profile
+	if err := d.cfg.records().Drop(hostnameRecordKey(o.GetName())); err != nil {
+		_, _ = svc.Ikev2ProfileAddDel(ctx, &ikev2.Ikev2ProfileAddDel{Name: name, IsAdd: false})
+		return nil, err
+	}
 	if err := d.apply(ctx, name, nil, o); err != nil {
 		_, _ = svc.Ikev2ProfileAddDel(ctx, &ikev2.Ikev2ProfileAddDel{Name: name, IsAdd: false})
 		return nil, err
@@ -136,10 +144,37 @@ func (d *Profile) Delete(ctx context.Context, obj proto.Message, meta any) error
 	if m, ok := meta.(ProfileMeta); ok && m.VPPName != "" {
 		name = m.VPPName
 	}
-	if _, err := ikev2.NewServiceClient(d.cfg.Client).Ikev2ProfileAddDel(ctx, &ikev2.Ikev2ProfileAddDel{Name: name, IsAdd: false}); err != nil {
-		return fmt.Errorf("ikev2_profile_add_del (%s, del): %w", name, err)
+	// D-074: delete only what exists (the profile is ours by its owner-prefixed name)
+	exists, err := d.exists(ctx, name)
+	if err != nil {
+		return err
 	}
-	return nil
+	if exists {
+		if _, err := ikev2.NewServiceClient(d.cfg.Client).Ikev2ProfileAddDel(ctx, &ikev2.Ikev2ProfileAddDel{Name: name, IsAdd: false}); err != nil {
+			return fmt.Errorf("ikev2_profile_add_del (%s, del): %w", name, err)
+		}
+	}
+	return d.cfg.records().Drop(hostnameRecordKey(o.GetName()))
+}
+
+// exists reports whether VPP has a profile with the VPP name name (the dumped PSKs are zeroed).
+func (d *Profile) exists(ctx context.Context, name string) (bool, error) {
+	stream, err := ikev2.NewServiceClient(d.cfg.Client).Ikev2ProfileDump(ctx, &ikev2.Ikev2ProfileDump{})
+	if err != nil {
+		return false, fmt.Errorf("ikev2_profile_dump: %w", err)
+	}
+	found := false
+	for {
+		det, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			return found, nil
+		}
+		if err != nil {
+			return false, fmt.Errorf("ikev2_profile_dump: %w", err)
+		}
+		vpn.Zero(det.Profile.Auth.Data)
+		found = found || det.Profile.Name == name
+	}
 }
 
 // Retrieve implements scheduler.Descriptor: every profile whose VPP name carries the owner prefix.
@@ -167,7 +202,7 @@ func (d *Profile) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	var tbl *vpn.Interfaces
 	for _, p := range dumped {
 		if p.Responder.SwIfIndex != interface_types.InterfaceIndex(noInterface) || p.TunItf != noInterface {
-			if tbl, err = vpn.DumpInterfaces(ctx, d.cfg.Client); err != nil {
+			if tbl, err = vpn.DumpInterfaces(ctx, d.cfg.Client, d.cfg.Owner); err != nil {
 				for i := range dumped {
 					vpn.Zero(dumped[i].Auth.Data)
 				}
@@ -181,8 +216,7 @@ func (d *Profile) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 		v := decodeProfile(&dumped[i], strings.TrimPrefix(dumped[i].Name, d.cfg.Owner+"-"), tbl)
 		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: ProfileMeta{VPPName: dumped[i].Name}})
 	}
-	sortKVs(out)
-	return out, nil
+	return sortKVs(out), nil
 }
 
 func (d *Profile) checkName(n string) (string, error) {
@@ -279,17 +313,22 @@ func (d *Profile) apply(ctx context.Context, name string, o, n *vpnpb.Ikev2Profi
 	svc := ikev2.NewServiceClient(d.cfg.Client)
 
 	var tbl *vpn.Interfaces
+	// interfaces are named by their logical name (D-069); another owner's is refused
 	index := func(ifName string) (interface_types.InterfaceIndex, error) {
 		if ifName == "" {
 			return interface_types.InterfaceIndex(noInterface), nil
 		}
 		if tbl == nil {
 			var err error
-			if tbl, err = vpn.DumpInterfaces(ctx, d.cfg.Client); err != nil {
+			if tbl, err = vpn.DumpInterfaces(ctx, d.cfg.Client, d.cfg.Owner); err != nil {
 				return 0, err
 			}
 		}
-		return tbl.Index(ifName)
+		idx, err := tbl.Resolve(ifName)
+		if err != nil {
+			return 0, fmt.Errorf("%s (%s): %w", ProfileName, name, err)
+		}
+		return idx, nil
 	}
 
 	if changed(o.GetAuth(), n.GetAuth(), n.GetAuth() != nil) {
@@ -595,7 +634,7 @@ func decodeProfile(p *ikev2_types.Ikev2Profile, name string, tbl *vpn.Interfaces
 		v.IpsecOverUdpPort = uint32(p.IpsecOverUDPPort)
 	}
 	if p.TunItf != noInterface && tbl != nil {
-		v.TunnelInterface = tbl.Name(p.TunItf)
+		v.TunnelInterface = tbl.Logical(p.TunItf)
 	}
 	// the responder is reported when VPP has an address for it; a hostname responder (address
 	// unspecified, only the interface set by ikev2_set_responder_hostname) belongs to the write-only
@@ -603,16 +642,14 @@ func decodeProfile(p *ikev2_types.Ikev2Profile, name string, tbl *vpn.Interfaces
 	if !vpn.IsUnspecified(p.Responder.Addr) {
 		v.Responder = &vpnpb.Ikev2Responder{Address: vpn.AddressString(p.Responder.Addr)}
 		if idx := uint32(p.Responder.SwIfIndex); idx != noInterface && tbl != nil {
-			v.Responder.Interface = tbl.Name(idx)
+			v.Responder.Interface = tbl.Logical(idx)
 		}
 	}
 	return v
 }
 
-func sortKVs(kvs []scheduler.KV) {
-	for i := 1; i < len(kvs); i++ {
-		for j := i; j > 0 && kvs[j-1].Key > kvs[j].Key; j-- {
-			kvs[j-1], kvs[j] = kvs[j], kvs[j-1]
-		}
-	}
+// sortKVs sorts by key and drops repeated keys (a Retrieve never reports one key twice).
+func sortKVs(kvs []scheduler.KV) []scheduler.KV {
+	sort.SliceStable(kvs, func(i, j int) bool { return kvs[i].Key < kvs[j].Key })
+	return dfkit.Dedupe(kvs)
 }

@@ -24,9 +24,11 @@ var (
 // ---- ikev2.local-key ------------------------------------------------------------------------
 
 // LocalKey sets the responder's private key file (ikev2_set_local_key), needed by profiles with
-// rsa-sig auth. The file is the secret: the agent passes its path and never reads it. VPP has no
-// getter, so the descriptor is write-only (D-063): Retrieve returns vpn.ErrRetrieveUnsupported and
-// the reconciler re-applies the path on resync. Delete leaves VPP's loaded key (there is no unset).
+// rsa-sig auth. The file is the secret: the agent passes its path and never reads it. A VPP-global
+// (D-071): registered as setter only for the globals owner. VPP has no getter, so the descriptor
+// is write-only (D-063): Retrieve returns vpn.ErrRetrieveUnsupported and the reconciler re-applies
+// the path on resync — idempotent (D-076): VPP frees the loaded key and loads the file again.
+// Delete leaves VPP's loaded key (there is no unset).
 type LocalKey struct{ cfg Config }
 
 // NewLocalKey returns the descriptor.
@@ -72,7 +74,8 @@ func (*LocalKey) Retrieve(context.Context) ([]scheduler.KV, error) {
 // ---- ikev2.sleep-interval -------------------------------------------------------------------
 
 // SleepInterval sets the IKEv2 process sleep interval (ikev2_plugin_set_sleep_interval; read with
-// ikev2_get_sleep_interval). Plugin-wide: Retrieve always reports VPP's value, Delete leaves it.
+// ikev2_get_sleep_interval). A VPP-global (D-071): the globals owner's setter reports VPP's value
+// and never deletes on absence; everybody else requires it through current.
 type SleepInterval struct{ cfg Config }
 
 // NewSleepInterval returns the descriptor.
@@ -110,6 +113,15 @@ func (d *SleepInterval) Update(ctx context.Context, _, newObj proto.Message, _ a
 // Delete implements scheduler.Descriptor: a plugin-wide setting cannot be absent.
 func (*SleepInterval) Delete(context.Context, proto.Message, any) error { return nil }
 
+// current is the Require getter (D-071).
+func (d *SleepInterval) current(ctx context.Context, _ proto.Message) (proto.Message, bool, error) {
+	kvs, err := d.Retrieve(ctx)
+	if err != nil || len(kvs) == 0 {
+		return nil, false, err
+	}
+	return kvs[0].Value, true, nil
+}
+
 // Retrieve implements scheduler.Descriptor.
 func (d *SleepInterval) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	rep, err := ikev2.NewServiceClient(d.cfg.Client).Ikev2GetSleepInterval(ctx, &ikev2.Ikev2GetSleepInterval{})
@@ -122,8 +134,9 @@ func (d *SleepInterval) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 // ---- ikev2.liveness -------------------------------------------------------------------------
 
 // Liveness sets the plugin-wide dead-peer detection (ikev2_profile_set_liveness — the message has
-// no profile name, VPP keeps the values in ikev2_main). No getter: write-only (D-063), Retrieve
-// returns vpn.ErrRetrieveUnsupported; Delete leaves VPP as it is.
+// no profile name, VPP keeps the values in ikev2_main). A VPP-global (D-071): setter only for the
+// globals owner. No getter: write-only (D-063), Retrieve returns vpn.ErrRetrieveUnsupported; the
+// re-apply is idempotent (D-076: VPP stores the two values); Delete leaves VPP as it is.
 type Liveness struct{ cfg Config }
 
 // NewLiveness returns the descriptor.

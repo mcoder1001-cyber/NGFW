@@ -2,6 +2,7 @@ package vpn
 
 import (
 	"context"
+	"errors"
 
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/vpp"
@@ -47,6 +48,9 @@ func (r Records) Identity(ctx context.Context) (bootid.Identity, error) {
 // Valid returns the value recorded for key on the VPP instance id (ok=false: no record, or a
 // record of an earlier VPP instance).
 func (r Records) Valid(id bootid.Identity, key string) (string, bool) {
+	if r.Store == nil {
+		return "", false
+	}
 	rec, ok := r.Store.Get(key)
 	if !ok || !bootid.Matches(rec.Identity, id) {
 		return "", false
@@ -56,8 +60,20 @@ func (r Records) Valid(id bootid.Identity, key string) (string, bool) {
 
 // Put records value for key on the VPP instance id — call it only after VPP accepted our add.
 func (r Records) Put(id bootid.Identity, key, value string) error {
+	if r.Store == nil {
+		return ErrNoRecordStore
+	}
 	return r.Store.Put(dfkit.BootRecord{Key: key, Identity: id.String(), Value: value})
 }
 
 // Drop removes key's record (after our delete, or when the object is gone).
-func (r Records) Drop(key string) error { return r.Store.Delete(key) }
+func (r Records) Drop(key string) error {
+	if r.Store == nil {
+		return nil
+	}
+	return r.Store.Delete(key)
+}
+
+// ErrNoRecordStore is returned when a descriptor that needs ownership records was constructed
+// without a store (Config.Boot; Register always sets one).
+var ErrNoRecordStore = errors.New("vpn: no ownership record store configured (Config.Boot)")

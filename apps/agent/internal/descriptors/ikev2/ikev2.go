@@ -7,7 +7,9 @@
 //
 // Ownership: a profile is named "<owner>-<name>" in VPP (ikev2_profile_add_del.name, ≤ 63 bytes),
 // so Retrieve keeps only profiles with the owner's prefix and ownership survives an agent restart.
-// The singletons are unowned: they are plugin-wide, Delete leaves VPP as it is.
+// The local key, sleep interval and liveness are VPP-globals (D-071): only the globals owner
+// (WithGlobalsOwner) registers their setters; every other agent registers requirements
+// (vpn.Require). Interfaces are named by their logical names (D-069).
 package ikev2
 
 import (
@@ -17,6 +19,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
@@ -37,7 +40,20 @@ type Config struct {
 	Client  vpp.Client
 	Owner   string       // VRX_OWNER; tests pass their VRX_TEST_PREFIX
 	Secrets vpn.Resolver // resolves PSK references; nil = every PSK reference fails
+	// Boot is the owner's persisted record store (D-076 applied-once records of the responder
+	// hostname; vpn.Records). Register defaults to an in-memory store.
+	Boot dfkit.BootStore
+	// GlobalsOwner registers the setters of the local key / sleep interval / liveness globals.
+	GlobalsOwner bool
 }
+
+func (c Config) records() vpn.Records { return vpn.Records{Client: c.Client, Store: c.Boot} }
+
+// WithBootStore sets the owner's persisted record store (shared by every DF-5 package).
+func WithBootStore(s dfkit.BootStore) Option { return func(c *Config) { c.Boot = s } }
+
+// WithGlobalsOwner marks this agent as the globals owner (agent config globalsOwner: true).
+func WithGlobalsOwner(on bool) Option { return func(c *Config) { c.GlobalsOwner = on } }
 
 // Option tunes Register.
 type Option func(*Config)
@@ -51,15 +67,25 @@ func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...Option) 
 	for _, o := range opts {
 		o(&cfg)
 	}
+	if cfg.Boot == nil {
+		cfg.Boot = dfkit.NewMemoryBootStore()
+	}
 	for _, d := range All(cfg) {
 		r.Register(d)
 	}
 }
 
 // All returns the package's descriptors in registration order (singletons first: a profile with
-// rsa-sig auth depends on the local key; the responder hostname depends on its profile).
+// rsa-sig auth depends on the local key; the responder hostname depends on its profile). The
+// globals are the owner's setters or the Require variants (D-071). cfg.Boot must be set.
 func All(cfg Config) []scheduler.Descriptor {
-	return []scheduler.Descriptor{NewLocalKey(cfg), NewSleepInterval(cfg), NewLiveness(cfg), NewProfile(cfg), NewResponderHostname(cfg)}
+	sleep := NewSleepInterval(cfg)
+	return []scheduler.Descriptor{
+		vpn.Global(cfg.GlobalsOwner, NewLocalKey(cfg), nil),
+		vpn.Global(cfg.GlobalsOwner, sleep, sleep.current),
+		vpn.Global(cfg.GlobalsOwner, NewLiveness(cfg), nil),
+		NewProfile(cfg), NewResponderHostname(cfg),
+	}
 }
 
 // ---- value tables ---------------------------------------------------------------------------

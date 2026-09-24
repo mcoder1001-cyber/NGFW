@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, createMemoryRouter, type RouteObject } from 'react-router';
 import { DEV_ROUTES } from './build-flags';
-import { domainPath } from './nav/nav';
+import { BUILT_DOMAINS, domainPath } from './nav/nav';
 import { domains } from './schema/registry';
 import { RequireAuth } from './auth/RequireAuth';
 import { LoginPage } from './pages/LoginPage';
@@ -48,7 +48,9 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
       children: [
         // Screens are code-split per route; feature screens (P08+) plug in the same way.
         { index: true, lazy: async () => ({ Component: (await import('./pages/DashboardPage')).DashboardPage }) },
-        ...domains.map((d) => ({
+        // P08: the first built domain screen; the others keep their placeholder until their feature task lands
+        { path: domainPath('interfaces').slice(1), lazy: async () => ({ Component: (await import('./domains/interfaces/InterfacesPage')).InterfacesPage }) },
+        ...domains.filter((d) => !BUILT_DOMAINS.has(d.key)).map((d) => ({
           path: domainPath(d.key).slice(1),
           lazy: async () => {
             const { DomainPlaceholderPage } = await import('./pages/DomainPlaceholderPage');

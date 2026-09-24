@@ -14,3 +14,9 @@ Run 1 (07:25:4x, same code, no concurrent TD-3 host test) passed every packet st
 NRestarts 5 → 5. I cannot prove the trigger; the correlation points to TD-3's freed-tables host test (V19 second path) running
 concurrently on the shared VPP. Per the envelope I stopped host runs; P08 continues with UI/docs and re-runs the topology test
 only when no TD-3 host test is running (checked with `ps` before the run). Please confirm or tell me to wait for TD-3's merge.
+
+## Q2 — ui-kit SchemaForm turns an absent optional object into its defaults (for P07a / ui-kit owner)
+`withDefaults` fills an absent optional object member with its default object (`dhcpClient` → `{setBroadcastFlag:false}`),
+so saving an unrelated field would enable a DHCP client. P08 drops such phantom members in its own screen
+(`dropPhantomOptionals`, unit-tested); the proper fix is in `packages/ui-kit/src/schema-form/form-value.ts` (not P08's file):
+optional object members should stay absent until the user opts in (a presence toggle).

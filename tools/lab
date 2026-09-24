@@ -329,9 +329,10 @@ rig_side_up() {  # <ns> <host-veth> <ns-veth> <vpp-if> <gw> <ip>
   ip -n "$ns" link set "$v" up
   ip -n "$ns" route replace default via "$gw"
   if vpp_if_exists "$vif"; then echo "  reuse  vpp $vif"; else
-    # small rings (TX 2048 × 256 = 0.5 MiB instead of 66 KiB × 1024 = 66 MiB; RX 2.5 MiB instead of 10 MiB): rings are set up on
-    # VPP's only thread and, under ESXi memory reclaim, stalled every API client for 40 s–5 min (P08 review I6, D-108); rig MTU 1500
-    local out; out="$(vpp_cli_ok create host-interface name "$h" tx-size 2048 tx-per-block 256 rx-size 2048 rx-per-block 8)" || die "rig: VPP refused 'create host-interface name $h': $out"
+    # small rings (TX 16 × 66 KiB = 1 MiB instead of 1024 × 66 KiB = 66 MiB; RX 2.5 MiB instead of 10 MiB): rings are set up on
+    # VPP's only thread and, under ESXi memory reclaim, stalled every API client for 40 s–5 min (P08 review I6, D-108). The TX FRAME
+    # stays 66 KiB: VPP's af_packet TX copy has no length check (device.c:561-573), a GSO/jumbo frame would overrun a smaller slot (TD-5 review H1, D-113)
+    local out; out="$(vpp_cli_ok create host-interface name "$h" tx-size 67584 tx-per-block 16 rx-size 2048 rx-per-block 8)" || die "rig: VPP refused 'create host-interface name $h': $out"
     [[ "$out" == *"$vif"* ]] || die "rig: expected VPP to create $vif, got: $out"
     echo "  create vpp $vif (af_packet on $h)"; fi
   vpp_cli_ok set interface state "$vif" up >/dev/null || die "rig: set interface state $vif up failed"

@@ -329,7 +329,9 @@ rig_side_up() {  # <ns> <host-veth> <ns-veth> <vpp-if> <gw> <ip>
   ip -n "$ns" link set "$v" up
   ip -n "$ns" route replace default via "$gw"
   if vpp_if_exists "$vif"; then echo "  reuse  vpp $vif"; else
-    local out; out="$(vpp_cli_ok create host-interface name "$h")" || die "rig: VPP refused 'create host-interface name $h': $out"
+    # small TX ring (2048-byte frames × 256 = 0.5 MiB instead of VPP's 66 KiB × 1024 = 66 MiB): the default ring is zeroed on
+    # VPP's only thread and stalled every API client for 40 s–5 min on this VM (P08 review I6, D-108); rig MTU is 1500
+    local out; out="$(vpp_cli_ok create host-interface name "$h" tx-size 2048 tx-per-block 256)" || die "rig: VPP refused 'create host-interface name $h': $out"
     [[ "$out" == *"$vif"* ]] || die "rig: expected VPP to create $vif, got: $out"
     echo "  create vpp $vif (af_packet on $h)"; fi
   vpp_cli_ok set interface state "$vif" up >/dev/null || die "rig: set interface state $vif up failed"

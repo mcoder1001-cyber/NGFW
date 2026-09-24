@@ -56,6 +56,7 @@ const (
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions
+	Nat = "nat"
 	// wave-A: P11
 	// wave-A: F-wireguard
 	// wave-A: F-kea-dhcp-relay
@@ -103,6 +104,11 @@ var Domains = map[string][]string{
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions
+	Nat: natDomain(
+		nat44EDDescriptors,
+		// wave-A: F-nat44-ei-64-66-nptv6
+		// wave-BC: F-det44-map-dslite-cnat
+	),
 	// wave-A: P11
 	// wave-A: F-wireguard
 	// wave-A: F-kea-dhcp-relay
@@ -219,6 +225,9 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions
+	if err := w.registerNat44ED(r); err != nil {
+		return nil, err
+	}
 	// wave-A: F-nat44-ei-64-66-nptv6
 	// wave-A: P11
 	// wave-A: F-wireguard

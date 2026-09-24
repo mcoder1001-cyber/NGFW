@@ -145,7 +145,7 @@ func TestApplyRetrieveIdempotent(t *testing.T) {
 	if want := doc(t, canonicalDoc); !proto.Equal(got.GetDesiredState(), want) {
 		t.Fatalf("retrieve:\n got %s\nwant %s", protojson.Format(got.GetDesiredState()), protojson.Format(want))
 	}
-	if strings.Join(got.GetSubsystems(), ",") != "interfaces,vrfs,routing" || got.GetOwner() != testOwner {
+	if strings.Join(got.GetSubsystems(), ",") != strings.Join(implementedDomains(), ",") || !strings.HasPrefix(strings.Join(got.GetSubsystems(), ","), "interfaces,vrfs,routing") || got.GetOwner() != testOwner {
 		t.Fatalf("retrieve meta %v %s", got.GetSubsystems(), got.GetOwner())
 	}
 	// Idempotent: same state, new txn → empty plan, no results.
@@ -156,7 +156,7 @@ func TestApplyRetrieveIdempotent(t *testing.T) {
 		t.Fatalf("second apply %v", resp)
 	}
 	for _, c := range v.Calls() {
-		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" {
+		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" && n != "nat44_ed_output_interface_get" {
 			t.Fatalf("idempotent apply sent %s", n)
 		}
 	}
@@ -178,7 +178,7 @@ func TestApplyRequestValidation(t *testing.T) {
 		{&vrxv1.ApplyRequest{TxnId: "x", Owner: "w3"}, codes.InvalidArgument},
 		{&vrxv1.ApplyRequest{TxnId: "x", Subsystems: []string{"bogus"}}, codes.InvalidArgument},
 		{&vrxv1.ApplyRequest{TxnId: "x", Subsystems: []string{"routing.bgp"}}, codes.InvalidArgument},
-		{&vrxv1.ApplyRequest{TxnId: "x", Subsystems: []string{"nat"}}, codes.Unimplemented},
+		{&vrxv1.ApplyRequest{TxnId: "x", Subsystems: []string{"system"}}, codes.Unimplemented}, // F-nat44-ed-sessions implements "nat"
 		{&vrxv1.ApplyRequest{ConfirmTxnId: "nope"}, codes.FailedPrecondition},
 		{&vrxv1.ApplyRequest{TxnId: "same", ConfirmTxnId: "same"}, codes.InvalidArgument},
 	}
@@ -461,7 +461,7 @@ func TestResyncRecreatesAfterLoss(t *testing.T) {
 		if t4, ok := c.(*ip.IPTableAddDel); ok && t4.IsAdd {
 			continue // resync re-asserts the VRF's API lock (idempotent, scheduler.Reapplier)
 		}
-		if !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" {
+		if !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" && n != "nat44_ed_output_interface_get" {
 			t.Fatalf("converged resync sent %s", n)
 		}
 	}
@@ -514,7 +514,7 @@ func TestDryRun(t *testing.T) {
 		t.Fatalf("warnings %v", rep.GetErrors())
 	}
 	for _, c := range v.Calls() {
-		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" {
+		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" && n != "nat44_ed_output_interface_get" {
 			t.Fatalf("dry run sent %s", n)
 		}
 	}
@@ -673,7 +673,7 @@ func TestGRPCRoundTrip(t *testing.T) {
 	defer cancel()
 
 	h, err := c.Health(ctx, &vrxv1.HealthRequest{})
-	if err != nil || h.GetOwner() != testOwner || !h.GetVppConnected() || strings.Join(h.GetSubsystems(), ",") != "interfaces,vrfs,routing" {
+	if err != nil || h.GetOwner() != testOwner || !h.GetVppConnected() || strings.Join(h.GetSubsystems(), ",") != strings.Join(implementedDomains(), ",") || !strings.HasPrefix(strings.Join(h.GetSubsystems(), ","), "interfaces,vrfs,routing") {
 		t.Fatalf("health %v %v", err, h)
 	}
 	evs, err := c.StreamEvents(ctx, &vrxv1.StreamEventsRequest{})

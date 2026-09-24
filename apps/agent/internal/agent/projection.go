@@ -304,6 +304,9 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions
+	if in["nat"] {
+		desired.Nat(p, ds.GetNat(), vrfID)
+	}
 	// wave-A: F-nat44-ei-64-66-nptv6
 	// wave-A: P11
 	// wave-A: F-wireguard
@@ -417,6 +420,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions
+	if n := desired.AssembleNat(kvs, nameOf); in["nat"] && proto.Size(n) > 0 {
+		ds.Nat = n
+	}
 	// wave-A: F-nat44-ei-64-66-nptv6
 	// wave-A: P11
 	// wave-A: F-wireguard

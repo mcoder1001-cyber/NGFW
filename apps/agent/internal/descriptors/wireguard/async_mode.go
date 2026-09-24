@@ -12,10 +12,12 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
-// AsyncMode toggles asynchronous WireGuard crypto (wg_set_async_mode). VPP has no getter, so the
-// descriptor is write-only (D-063): Retrieve returns vpn.ErrRetrieveUnsupported and the reconciler
-// re-applies the desired value on resync (idempotent). Delete leaves VPP as it is. Key
-// wireguard.async-mode/global. Not exercised on the dev host (no worker threads).
+// AsyncMode toggles asynchronous WireGuard crypto (wg_set_async_mode). A VPP-global (D-071):
+// registered as setter only for the globals owner. VPP has no getter, so the descriptor is
+// write-only (D-063): Retrieve returns vpn.ErrRetrieveUnsupported and the reconciler re-applies the
+// desired value on resync — idempotent (D-076: VPP sets or clears the ASYNC op-mode flag, it does
+// not toggle). Delete leaves VPP as it is. Key wireguard.async-mode/global. Not exercised on the
+// dev host (no worker threads; test slots are never the globals owner).
 type AsyncMode struct{ cfg Config }
 
 // AsyncModeKey is the singleton's key.

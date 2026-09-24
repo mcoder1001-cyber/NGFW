@@ -18,7 +18,9 @@ import (
 )
 
 // Interface manages WireGuard interfaces (wireguard_interface_create / _delete; dump
-// wireguard_interface_dump with show_private_key=false — never true). The private key is an
+// wireguard_interface_dump with show_private_key=false — never true). VPP names the interface
+// wg<instance> and refuses an existing instance, so an interface that is not ours is never
+// adopted; the owner tag "<owner>:wg<instance>" makes the logical name equal VPP's (D-069). The private key is an
 // "x25519:<base64 public key>" reference: Create resolves the 32-byte private key, Retrieve
 // rebuilds the reference from the public key VPP reports, so the private key never leaves the
 // secret store after Create. Every field is immutable (no update message): Update is ErrRecreate.
@@ -100,23 +102,34 @@ func (*Interface) Update(context.Context, proto.Message, proto.Message, any) (an
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor.
-func (d *Interface) Delete(ctx context.Context, _ proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor. Right before the delete it re-verifies that the index
+// still carries our tag for this instance (D-071: indexes are reused after a VPP restart); an
+// interface that is gone needs nothing (D-074).
+func (d *Interface) Delete(ctx context.Context, obj proto.Message, meta any) error {
+	o, ok := obj.(*vpnpb.WireguardInterface)
+	if !ok {
+		return typeErr(InterfaceName, obj)
+	}
 	m, ok := meta.(InterfaceMeta)
 	if !ok {
 		return metaErr(InterfaceName, meta)
 	}
+	present, err := vpn.OwnedAt(ctx, d.cfg.Client, d.cfg.Owner, m.SwIfIndex, ItfName(o.GetInstance()))
+	if err != nil || !present {
+		return err
+	}
 	if _, err := wireguard.NewServiceClient(d.cfg.Client).WireguardInterfaceDelete(ctx, &wireguard.WireguardInterfaceDelete{
 		SwIfIndex: interface_types.InterfaceIndex(m.SwIfIndex),
 	}); err != nil {
-		return fmt.Errorf("wireguard_interface_delete: %w", err)
+		return fmt.Errorf("wireguard_interface_delete (%s): %w", ItfName(o.GetInstance()), err)
 	}
 	return nil
 }
 
-// Retrieve implements scheduler.Descriptor: WireGuard interfaces tagged by this owner.
+// Retrieve implements scheduler.Descriptor: WireGuard interfaces tagged by this owner with the tag
+// id of their instance.
 func (d *Interface) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
-	tbl, err := vpn.DumpInterfaces(ctx, d.cfg.Client)
+	tbl, err := vpn.DumpInterfaces(ctx, d.cfg.Client, d.cfg.Owner)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +151,7 @@ func (d *Interface) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 		w := det.Interface
 		vpn.Zero(w.PrivateKey) // empty with show_private_key=false; zeroed regardless
 		idx := uint32(w.SwIfIndex)
-		if _, owned := tbl.Owned(idx, d.cfg.Owner); !owned {
+		if id, owned := tbl.Owned(idx); !owned || id != ItfName(w.UserInstance) {
 			continue
 		}
 		v := &vpnpb.WireguardInterface{
@@ -147,8 +160,7 @@ func (d *Interface) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 		}
 		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: InterfaceMeta{SwIfIndex: idx}})
 	}
-	sortKVs(out)
-	return out, nil
+	return sortKVs(out), nil
 }
 
 func srcIP(a ip_types.Address) string { return vpn.AddressString(a) }

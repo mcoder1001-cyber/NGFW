@@ -4,15 +4,19 @@
 // contract (private key and preshared key references) is in internal/descriptors/vpn. Object ↔
 // message table: docs/agent/descriptors/wireguard.md.
 //
-// Ownership: interfaces carry the owner tag "<owner>:wg<instance>"; peers belong to the owner of
-// the interface they are attached to. The async-mode singleton is unowned.
+// Ownership: interfaces carry the owner tag "<owner>:wg<instance>" (logical name = tag id = VPP's
+// name, D-069); peers belong to the owner of the interface they are attached to. The async-mode
+// singleton is a VPP-global (D-071): its setter is registered only for the globals owner
+// (WithGlobalsOwner), everybody else registers a requirement that cannot be met (no getter).
 package wireguard
 
 import (
 	"fmt"
+	"sort"
 
 	"google.golang.org/protobuf/proto"
 
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
@@ -30,7 +34,12 @@ type Config struct {
 	Client  vpp.Client
 	Owner   string       // VRX_OWNER; tests pass their VRX_TEST_PREFIX
 	Secrets vpn.Resolver // resolves private/preshared key references; nil = every reference fails
+	// GlobalsOwner registers the setter of the async-mode global (D-071).
+	GlobalsOwner bool
 }
+
+// WithGlobalsOwner marks this agent as the globals owner (agent config globalsOwner: true).
+func WithGlobalsOwner(on bool) Option { return func(c *Config) { c.GlobalsOwner = on } }
 
 // Option tunes Register.
 type Option func(*Config)
@@ -45,8 +54,8 @@ func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...Option) 
 	for _, o := range opts {
 		o(&cfg)
 	}
-	itf, peer, async := NewInterface(cfg), NewPeer(cfg), NewAsyncMode(cfg)
-	for _, d := range []scheduler.Descriptor{itf, peer, async} {
+	itf, peer := NewInterface(cfg), NewPeer(cfg)
+	for _, d := range []scheduler.Descriptor{itf, peer, vpn.Global(cfg.GlobalsOwner, NewAsyncMode(cfg), nil)} {
 		r.Register(d)
 	}
 	return peer
@@ -66,10 +75,8 @@ func metaErr(name string, meta any) error {
 	return fmt.Errorf("%s: unexpected meta %T", name, meta)
 }
 
-func sortKVs(kvs []scheduler.KV) {
-	for i := 1; i < len(kvs); i++ {
-		for j := i; j > 0 && kvs[j-1].Key > kvs[j].Key; j-- {
-			kvs[j-1], kvs[j] = kvs[j], kvs[j-1]
-		}
-	}
+// sortKVs sorts by key and drops repeated keys (a Retrieve never reports one key twice).
+func sortKVs(kvs []scheduler.KV) []scheduler.KV {
+	sort.SliceStable(kvs, func(i, j int) bool { return kvs[i].Key < kvs[j].Key })
+	return dfkit.Dedupe(kvs)
 }

@@ -152,7 +152,7 @@ func TestIkev2OnHost(t *testing.T) {
 		if _, err := x.d.Create(ctx, x.v); !errors.Is(err, vpn.ErrNotGlobalsOwner) {
 			t.Fatalf("%s as non-owner: %v", x.d.Name(), err)
 		}
-		t.Logf("%s (non-owner): refused without a VPP call: %v", x.d.Name(), errors.Unwrap(err) != nil)
+		t.Logf("%s (non-owner): refused: %v", x.d.Name(), err)
 	}
 
 	// ---- profiles (psk with every part, rsa-sig) + a responder hostname, applied through P05 ----

@@ -76,6 +76,18 @@ func TestRegister(t *testing.T) {
 	if p == nil || p.Name() != wgd.PeerName || wgd.InterfaceName != "wireguard.interface" {
 		t.Fatal("Register returns the peer descriptor (event source)")
 	}
+	// D-071: the async-mode global is a requirement unless this agent is the globals owner
+	for _, owns := range []bool{false, true} {
+		reg := scheduler.NewRegistry()
+		wgd.Register(reg, newFakeVPP(), owner, wgd.WithGlobalsOwner(owns))
+		d, _ := reg.Get(wgd.AsyncModeName)
+		if _, isReq := d.(*vpn.Require); isReq == owns {
+			t.Fatalf("globals owner=%v registered %T", owns, d)
+		}
+		if a, ok := d.(scheduler.AbsenceDeleter); !ok || a.DeleteOnAbsence() {
+			t.Fatal("a global is never deleted on absence")
+		}
+	}
 }
 
 func TestInterface(t *testing.T) {
@@ -120,6 +132,22 @@ func TestInterface(t *testing.T) {
 		t.Fatal(err)
 	}
 	mustRetrieve(t, e.itf)
+	if err := e.itf.Delete(ctx, want, meta); err != nil {
+		t.Fatalf("second delete is a no-op (D-074): %v", err)
+	}
+	// the index now held by another owner's interface is never deleted (D-071)
+	var fidx uint32
+	for idx, i := range e.v.ifaces {
+		if i.Tag == "w3:wg3001" {
+			fidx = idx
+		}
+	}
+	if err := e.itf.Delete(ctx, want, wgd.InterfaceMeta{SwIfIndex: fidx}); !errors.Is(err, vpn.ErrNotOurs) {
+		t.Fatalf("stale index: %v", err)
+	}
+	if n := len(e.v.CallsNamed("wireguard_interface_delete")); n != 1 {
+		t.Fatalf("%d deletes reached VPP", n)
+	}
 }
 
 func TestInterfaceValidation(t *testing.T) {
@@ -188,12 +216,27 @@ func TestPeer(t *testing.T) {
 	if _, err := e.peer.Update(ctx, want, minimal, meta); !errors.Is(err, scheduler.ErrRecreate) {
 		t.Fatalf("Update: %v", err)
 	}
-	for _, m := range []any{meta, m2} {
-		if err := e.peer.Delete(ctx, nil, m); err != nil {
+	// a stale index (the peer is gone, the index now holds another peer) touches nothing (D-071)
+	stale := wgd.PeerMeta{PeerIndex: m2.(wgd.PeerMeta).PeerIndex, SwIfIndex: meta.(wgd.PeerMeta).SwIfIndex}
+	if err := e.peer.Delete(ctx, want, stale); err != nil {
+		t.Fatal(err)
+	}
+	mustRetrieve(t, e.peer, want, minimal)
+	for _, x := range []struct {
+		v *vpnpb.WireguardPeer
+		m any
+	}{{want, meta}, {minimal, m2}} {
+		if err := e.peer.Delete(ctx, x.v, x.m); err != nil {
 			t.Fatal(err)
 		}
 	}
 	mustRetrieve(t, e.peer)
+	if err := e.peer.Delete(ctx, want, meta); err != nil {
+		t.Fatalf("second delete is a no-op (D-074): %v", err)
+	}
+	if n := len(e.v.CallsNamed("wireguard_peer_remove")); n != 2 {
+		t.Fatalf("%d removes reached VPP, want 2", n)
+	}
 }
 
 func TestPeerOwnershipAndValidation(t *testing.T) {
@@ -209,6 +252,15 @@ func TestPeerOwnershipAndValidation(t *testing.T) {
 
 	if _, err := e.itf.Create(ctx, e.itfV()); err != nil {
 		t.Fatal(err)
+	}
+	// D-069: peers only on our own WireGuard interfaces, by logical name
+	untagged := e.v.addIface("wg4002", "")
+	e.v.wgs[untagged] = wireguard.WireguardInterface{UserInstance: 4002, SwIfIndex: interfaceIndex(untagged)}
+	for name, want := range map[string]error{"wg3001": vpn.ErrForeignInterface, "wg4002": vpn.ErrNotOurs, "wg4999": vpn.ErrNoInterface} {
+		p := &vpnpb.WireguardPeer{Interface: name, PublicKey: e.vec.peerPub[1], AllowedIps: []string{"10.4.0.0/16"}}
+		if _, err := e.peer.Create(ctx, p); !errors.Is(err, want) {
+			t.Fatalf("%s: %v, want %v", name, err, want)
+		}
 	}
 	for name, p := range map[string]*vpnpb.WireguardPeer{
 		"bad pubkey":      {Interface: "wg4001", PublicKey: "short", AllowedIps: []string{"10.4.0.0/16"}},

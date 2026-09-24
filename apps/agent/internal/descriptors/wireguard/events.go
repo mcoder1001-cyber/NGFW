@@ -2,16 +2,13 @@ package wireguard
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"time"
 
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/wireguard"
-	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -116,47 +113,12 @@ func (d *Peer) Events(ctx context.Context) (<-chan PeerEvent, error) {
 	return out, nil
 }
 
-// lookup maps a peer index to its key: from what Create/Retrieve learnt, otherwise by dumping the
-// one peer (wireguard_peers_dump, which carries no preshared key) and checking the interface owner.
+// lookup maps a peer index to its key by reading the peer at that index (indexes are reused, so
+// nothing is cached) and checking that its interface is ours.
 func (d *Peer) lookup(ctx context.Context, idx uint32) (peerRef, bool) {
-	d.mu.Lock()
-	ref, ok := d.byIdx[idx]
-	d.mu.Unlock()
-	if ok {
-		return ref, true
-	}
-	stream, err := wireguard.NewServiceClient(d.cfg.Client).WireguardPeersDump(ctx, &wireguard.WireguardPeersDump{PeerIndex: idx})
-	if err != nil {
+	ref, found, err := d.peerAt(ctx, idx)
+	if err != nil || !found || !ref.owned {
 		return peerRef{}, false
 	}
-	var found *wireguard.WireguardPeer
-	for {
-		det, err := stream.Recv()
-		if err != nil {
-			if !errors.Is(err, io.EOF) {
-				return peerRef{}, false
-			}
-			break
-		}
-		if det.Peer.PeerIndex == idx {
-			p := det.Peer
-			found = &p
-		}
-	}
-	if found == nil {
-		return peerRef{}, false
-	}
-	tbl, err := vpn.DumpInterfaces(ctx, d.cfg.Client)
-	if err != nil {
-		return peerRef{}, false
-	}
-	if _, owned := tbl.Owned(uint32(found.SwIfIndex), d.cfg.Owner); !owned {
-		return peerRef{}, false
-	}
-	iface, pub := tbl.Name(uint32(found.SwIfIndex)), base64.StdEncoding.EncodeToString(found.PublicKey)
-	ref = peerRef{key: scheduler.Join(PeerName, iface, pub), iface: iface, publicKey: pub}
-	d.mu.Lock()
-	d.byIdx[idx] = ref
-	d.mu.Unlock()
 	return ref, true
 }

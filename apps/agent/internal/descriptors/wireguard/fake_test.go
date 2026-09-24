@@ -205,3 +205,7 @@ func (v *fakeVPP) emit(idx uint32, flags wireguard.WireguardPeerFlags) bool {
 	}
 	return v.Emit(&wireguard.WireguardPeerEvent{PeerIndex: idx, Flags: flags}) > 0
 }
+
+func interfaceIndex(i uint32) interface_types.InterfaceIndex {
+	return interface_types.InterfaceIndex(i)
+}

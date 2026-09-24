@@ -52,8 +52,10 @@ The agent on the box resolves every `fqdn` address itself (A and AAAA, through t
 uses the answers wherever the object is referenced:
 
 - It refreshes each name every **60 s** (the service setting `VRX_OBJECTS_FQDN_REFRESH_SEC`, 30 s – 1 h).
-- If a refresh fails (resolver unreachable, NXDOMAIN), the **last good answers stay in use**; the *Resolution* column
-  shows *Last good answer kept* with the error, and the agent retries after 30 s, then less often.
+- If a refresh fails (resolver unreachable, NXDOMAIN), the **last good answers stay in use for up to 24 h**; the
+  *Resolution* column shows *Last good answer kept* with the error, and the agent retries after 30 s, then less often.
+  After 24 h without an answer they are dropped (the object then matches nothing) and the agent logs a warning; the
+  service setting `VRX_OBJECTS_FQDN_MAX_STALE_SEC` changes the 24 h (60 s – 30 days).
 - A name that has **never** resolved matches nothing (a rule using it matches no traffic) — a warning, not an error.
 - The answers survive an agent restart: the agent reloads them and only re-queries what is due, spread over 30 s.
 

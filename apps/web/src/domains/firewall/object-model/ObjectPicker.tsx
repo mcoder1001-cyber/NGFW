@@ -11,6 +11,9 @@ import { useCandidateObjects } from './queries';
  * property name (`zone`, `schedule`, `tags`) — labelled with their kind and value. A string field becomes a select, an
  * array (group members, tags) a multi-select; validation stays the form's (the schema of the whole document).
  *
+ * A field it cannot classify (no hint, no kinds in its help, no known property name — e.g. `acl.attachments[].list`,
+ * which names an ACL list) is rendered as the plain field, never as a guess (review F4).
+ *
  * Consumers (F-acl, F-host-acl-nftables) pass `objectModelWidgets` as `<SchemaForm widgets={objectModelWidgets}>`;
  * the picker loads the candidate's objects itself (TanStack Query, key `['config', 'candidate', 'objects']`).
  */
@@ -18,7 +21,10 @@ export const ObjectPicker: WidgetComponent = (props: WidgetProps) => {
   const { t } = useTranslation('object-model');
   const objects = useCandidateObjects();
   const kinds = pickerKinds(props.hints, props.propPath);
-  const { schema, hints } = useMemo(() => pickerSchema(props, kinds, objects.data, (k, o) => t(k, o ?? {})), [props, kinds, objects.data, t]);
+  const { schema, hints } = useMemo(
+    () => (kinds.length > 0 ? pickerSchema(props, kinds, objects.data, (k, o) => t(k, o ?? {})) : plainSchema(props)),
+    [props, kinds, objects.data, t],
+  );
   const parentName = props.name.includes('.') ? props.name.slice(0, props.name.lastIndexOf('.')) : props.name;
   return (
     <SchemaField
@@ -42,6 +48,15 @@ export const objectModelWidgets: Readonly<Record<string, WidgetComponent>> = {
 };
 
 type Translate = (key: string, opts?: Record<string, unknown>) => string;
+
+/** The field as the form would render it without the widget (no enum, no picker). */
+export function plainSchema(props: Pick<WidgetProps, 'schema' | 'hints'>): { schema: JsonSchema; hints: Record<string, unknown> } {
+  const rest: Record<string, unknown> = { ...props.hints };
+  delete rest.dependsOn;
+  delete rest.widget;
+  delete rest.objectKinds;
+  return { schema: props.schema, hints: rest };
+}
 
 /** The field's schema with the choices as an `enum` (+ labels) and a select/multiselect widget. */
 export function pickerSchema(

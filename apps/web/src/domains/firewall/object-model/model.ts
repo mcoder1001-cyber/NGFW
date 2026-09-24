@@ -71,9 +71,10 @@ const KIND_IN_TEXT = /objects\.(addresses|addressGroups|services|serviceGroups|s
 /**
  * The kinds an `object-picker` field offers: an explicit `x-vrx-ui.objectKinds` hint, else the kinds its help text names
  * (`objects.addresses or objects.addressGroups`, as the schema writes them), else what its property name says
- * (`zone`, `schedule`, `tags`), else addresses and address groups.
+ * (`zone`, `schedule`, `tags`). A field none of these classify gets **no** kinds (review F4: `acl.attachments[].list`
+ * names an ACL list, not an object) and the picker renders the plain field instead of guessing.
  */
-export function pickerKinds(hints: { objectKinds?: unknown; help?: unknown }, propPath: string): readonly ObjectKind[] {
+export function pickerKinds(hints: { objectKinds?: unknown; help?: unknown; [hint: string]: unknown }, propPath: string): readonly ObjectKind[] {
   if (Array.isArray(hints.objectKinds)) {
     const ks = hints.objectKinds.filter((k): k is ObjectKind => typeof k === 'string' && isObjectKind(k));
     if (ks.length > 0) return ks;
@@ -86,7 +87,7 @@ export function pickerKinds(hints: { objectKinds?: unknown; help?: unknown }, pr
   if (last === 'zone' || last === 'zones') return PICKER_KINDS.zone;
   if (last === 'schedule') return PICKER_KINDS.schedule;
   if (last === 'tags') return PICKER_KINDS.tag;
-  return PICKER_KINDS.address;
+  return [];
 }
 
 /** A one-line summary of an entry for tables and picker labels (language-neutral: addresses, ports, days). */
@@ -156,7 +157,10 @@ export function localizeSchema(schema: JsonSchema, t: Translate, scope = ''): Js
         t(`field.${scope}.${name}.${what}`, { defaultValue: t(`field.${name}.${what}`, { defaultValue: fallback }) });
       const help = text('help', '');
       const extra: Record<string, unknown> = {};
-      if (ph.widget === 'object-picker' || ph.widget === 'tag-picker') extra.objectKinds = pickerKinds(ph, name);
+      if (ph.widget === 'object-picker' || ph.widget === 'tag-picker') {
+        const kinds = pickerKinds(ph, name);
+        if (kinds.length > 0) extra.objectKinds = kinds;
+      }
       props[name] = localizeSchema(
         {
           ...prop,

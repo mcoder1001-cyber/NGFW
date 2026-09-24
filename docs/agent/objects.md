@@ -17,24 +17,35 @@ There are no VPP objects in this domain.
 | `WithFQDN(FQDNLookup)`, `WithLimit(n)` | options; without `WithFQDN` every fqdn object is `Unresolved` |
 | `MaxEntries = 10000`, `CheckLimit(ref, n) error`, `*LimitError{Ref, Count, Limit}` | the cap: one expansion above it fails with `*LimitError`; a consumer that multiplies expansions into rules (sources × destinations × services) checks the product with `CheckLimit` and reports the error as a DryRun issue **at the rule's pointer** |
 | `ErrUnknownObject`, `ErrCycle`, `ErrInvalid` | `errors.Is` targets; cycles are defence in depth (the schema's `objects.*-group-members` rules reject them) |
-| `RuntimeFor(stateDir, owner) *Runtime` | the running agent's objects runtime (nil if none); `subsystems.Wiring.ObjectModel()` returns the same |
-| `(*Runtime).Snapshot() *vrxv1.ObjectsConfig` | the **applied** objects document (what Retrieve returns) — use it when `objects` is not part of the transaction being projected; when it is, use `ds.GetObjects()` |
+| `RuntimeFor(stateDir, owner) *Runtime` | the running agent's objects runtime (nil if none); `subsystems.Wiring.ObjectModel()` returns the same. Use it for `FQDN` and `Subscribe` only |
 | `(*Runtime).FQDN` | the `FQDNLookup` of the resolver: `Expand(doc, ref, WithFQDN(rt.FQDN))` |
-| `(*Runtime).Subscribe(func(Change)) (unsubscribe func())` | **the in-agent notification**: called on the resolver goroutine after every change of the addresses an FQDN resolves to (`Change{Host, Objects, Addresses}`); keep it short. F-acl wires its re-projection here (e.g. `Wiring.RequestResync()` once the A5 hook is set) |
+| `(*Runtime).Subscribe(func(Change)) (unsubscribe func())` | **the in-agent notification**: called on the resolver goroutine after every change of the addresses an FQDN resolves to (`Change{Host, Objects, Addresses}`, including an expiry that empties them); keep it short. F-acl re-projects by asking for a resync of the agent's **stored desired state** (`Wiring.RequestResync()` once the A5 hook is set) — never by reading the applied store |
 | `(*Runtime).FQDNStates(names...) []FQDNState` | what `FqdnObjectState` serves |
 
 `Addresses.Unresolved` is a **warning** for the consumer (report `objects.fqdn-unresolved`-style issues at the rule), never
 an error: an FQDN object that has no address yet expands to nothing (the schema comment on `objects.addresses`).
 
-Anything else exported from the package (`Store`, `Register`, `Key`, `Value`, `Kinds`, descriptor names, `Open`,
-`NetLookup`, the refresh constants) is for the wiring and tests and may change.
+Anything else exported from the package (`Store`, `Snapshot`, `Register`, `Key`, `Value`, `Kinds`, descriptor names,
+`Open`, `NetLookup`, `WriteMetrics`, the refresh and staleness constants) is for the wiring, diagnostics and tests and
+may change.
+
+### Project from the request, never from the applied store (review F3)
+
+The objects a consumer expands against are **the transaction's own** `ds.GetObjects()` — the desired state the API sent
+from PostgreSQL (rule 2: RPCs carry desired state). The product API sends every implemented domain in every Apply, so
+`objects` is in the transaction whenever `acl` is; a transaction with `objects` present but empty (`{}`, or nil after
+protobuf decoding — the same thing, proto.md §1) means *no objects*, not "use what is applied". If a partial Apply
+(`vrx-agentctl`, tests) manages `acl` without `objects`, the consumer reports an error at the rule (e.g.
+`acl.objects-required`) instead of guessing. Out-of-band re-projection (an FQDN change, a schedule tick) goes through a
+resync of the agent's stored desired state, which carries its objects. The applied store (`Runtime.Snapshot`) is for
+diagnostics and tests only and is deliberately not part of the stable API.
 
 ### Example (F-acl projection)
 
 ```go
-rt := objects.RuntimeFor(stateDir, owner)
-doc := ds.GetObjects()          // objects in this transaction …
-if doc == nil { doc = rt.Snapshot() } // … else what is applied
+if !in["objects"] { /* rules that reference objects: sink.Errorf(ptr, "acl.objects-required", …) */ }
+doc := ds.GetObjects()          // the request's objects (nil = none)
+rt := objects.RuntimeFor(stateDir, owner) // the resolver, for FQDN answers only
 src, err := objects.Expand(doc, rule.GetSource().GetName(), objects.WithFQDN(rt.FQDN))
 var le *objects.LimitError
 switch {
@@ -61,9 +72,16 @@ order: `objects.tag`, `objects.address`, `objects.address-group`, `objects.servi
 - Key `objects.<descriptor>/<name>`; value: an `ObjectsConfig` holding exactly that one entry in its kind's map (the
   configuration message itself, so no agent-internal model is needed and Retrieve returns the document unchanged).
   Pointer `/objects/<kind>/<name>`.
-- Create/Update/Delete write the **store** `<state dir>/objects-<owner>.json` (protobuf JSON, 0600, atomic replace);
-  Retrieve reads it. A corrupt store fails the agent start (fail closed, like the claim stores; move it aside and the
-  next resync re-applies the configuration).
+- Create/Update/Delete change the **store** — a derived record of applied state, not a source of truth — in memory, in
+  place (O(1) per object); it is persisted to `<state dir>/objects-<owner>.json` (protobuf JSON, 0600, atomic replace)
+  **once per transaction**: the scheduler's verification Retrieve writes it, else 200 ms after the last change, and at
+  agent stop. Losing the last unwritten changes in a crash is harmless (Retrieve shows the older set, the next resync
+  re-applies). 4 000 objects: 0.17 s in the store, 13.7 s for the whole scheduler transaction (review F1; the rest is
+  the scheduler's own per-operation cost, questions Q9). Only FQDN objects reach the resolver.
+- A **corrupt** store never stops the agent (review F2): it is moved to `objects-<owner>.json.corrupt-<unix time>`,
+  logged as an ERROR and counted (`vrx_agent_objects_store_corrupt_total`); the store starts empty and the resync
+  rebuilds it from the stored desired state. A failed write is logged and counted
+  (`vrx_agent_objects_store_persist_errors_total`); the changes stay in memory and the next flush writes them.
 - Dependencies are optional (ordering only): groups after their members, tagged objects after their tags.
 - Apply, rollback, confirm-revert and resync work through the scheduler like any domain; after an agent restart
   Retrieve comes from the persisted store (D-063: real agent state, never an echo of the request). An explicitly empty
@@ -88,12 +106,20 @@ order: `objects.tag`, `objects.address`, `objects.address-group`, `objects.servi
   answers are used); `error` and `failures` say what happened; a WARN log line `fqdn resolution failed; last-good
   addresses kept`. NXDOMAIN or no A/AAAA at all counts as a failure too (the old answers stay); a name that never
   resolved has no address and expands to nothing.
+- **Maximum staleness (D-129):** a failing family keeps its last good answers for at most **24 h** after it last
+  answered (`VRX_OBJECTS_FQDN_MAX_STALE_SEC`, clamped to 60 s – 30 days). After that they are dropped with a WARN
+  `fqdn last-good answers expired …` (`stale_for`, `max_stale`), counted (`vrx_agent_objects_fqdn_stale_expired_total`),
+  and subscribers are told: the object expands to nothing until the name resolves again.
+- **Clock steps (review F6):** a persisted next refresh more than one interval ahead is pulled in at start, and one
+  more than 1 h ahead at run time counts as due.
 - **Persistence and restart:** results live in `<state dir>/objects-fqdn-<owner>.json` (0600). A (re)started agent
   loads them (`fqdn state reloaded … fresh=N due=M`), keeps every fresh entry's next refresh and spreads the due ones
   (overdue while the agent was down, or never resolved) evenly over 30 s: **no query storm**. The loop itself starts at
-  most 4 lookups back to back, then waits 250 ms. An unreadable state file is only a cache: it is ignored with a warning.
-- **Lifecycle:** started by `subsystems/object_model.go` when the family registers (never from `agent.go`); stopped at
-  process exit, when the same owner registers again in the process (`objects.Open` closes the previous runtime), or by
-  `Wiring.CloseObjectModel()` (questions Q4).
+  most 4 lookups back to back, then waits 250 ms, and writes the state file when idle or at most every 5 s while busy.
+  An unreadable state file is only a cache: it is ignored with a warning.
+- **Lifecycle:** started by `subsystems/object_model.go` when the family registers (never from `agent.go`), which also
+  registers `rt.Close` with the generic close seam `Wiring.OnClose`; `Agent.Stop` calls `Wiring.Close()` (resolver
+  stopped, pending store changes and FQDN state written). An in-process re-open for the same state dir and owner
+  (unit tests without `Stop`) closes the previous runtime first.
 - **State RPC:** `FqdnObjectState` (docs/contracts/proto.md §11) → the API's `GET /api/v1/state/objects/fqdn`.
   Nothing of it is in Retrieve (proto.md §5). No event is published yet (questions Q1: EventKind 11 stays reserved).

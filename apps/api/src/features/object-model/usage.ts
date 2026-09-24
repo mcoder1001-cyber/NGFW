@@ -2,8 +2,9 @@ import { isPlainObject, jsonPointer } from '@ngfw/schema';
 
 /**
  * Where-used of one name in a configuration document (F-object-model): every leaf that references it, computed from
- * the document alone (no agent). Object names are unique within their kind only (vdom.md #2), so one name can be
- * defined in several kinds (`definedAs`) and one reference kind can only mean one of them:
+ * the document alone (no agent). Addresses and address groups share one namespace, and so do services and service
+ * groups (D-062); across those families a name may repeat (an address and a service, a zone, a tag), so `definedAs`
+ * lists every kind that defines it and each reference below can only mean one of them:
  *
  * | reference                                            | kind                   | refers to                        |
  * |------------------------------------------------------|------------------------|----------------------------------|

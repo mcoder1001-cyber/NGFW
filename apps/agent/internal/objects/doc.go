@@ -11,8 +11,9 @@
 //	ExpandServiceSpec(spec)     inline ServiceSpec of an ACL rule → []PortSpec
 //	Active(schedule, now, loc)  is a schedule active at an instant
 //	ZoneInterfaces(doc, zone)   interfaces of a zone
-//	RuntimeFor(stateDir, owner) the running agent's Runtime: Snapshot() (applied objects document),
-//	                            FQDN (lookup for WithFQDN), FQDNStates, Subscribe (FQDN changes)
+//	RuntimeFor(stateDir, owner) the running agent's Runtime: FQDN (lookup for WithFQDN), FQDNStates,
+//	                            Subscribe (FQDN changes). Consumers expand the REQUEST's objects
+//	                            (ds.GetObjects()), never the applied store (docs/agent/objects.md).
 //
 // # Domain realisation
 //
@@ -31,7 +32,7 @@
 // Every `type: fqdn` address object of the store is resolved by the agent itself: Go's resolver
 // (PreferGo, the system's /etc/resolv.conf; no exec, no shell), A and AAAA, refreshed on a fixed
 // interval clamped to [30 s, 1 h] (Go's resolver reports no TTL; a Lookup that does is honoured
-// with the same clamp). A failed refresh keeps the last good answers; results are persisted in
+// with the same clamp). A failed refresh keeps the last good answers (for at most 24 h, D-129); results are persisted in
 // <dir>/objects-fqdn-<owner>.json, so a restarted agent reloads them and re-queries only what is
 // due, spread out (no query storm). A name that never resolved expands to nothing (Unresolved),
 // never to an error.

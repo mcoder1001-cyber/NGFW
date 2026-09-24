@@ -125,6 +125,16 @@ describe('F-neighbors-ra schema', () => {
     expect(dad({ delayMs: 99 })).toBe(false);
     expect(dad({ delayMs: 10001 })).toBe(false);
   });
+
+  it('RA prefix lifetimes are at least 1 s (0 would be sent as "VPP default")', () => {
+    const pf = (o: Record<string, unknown>) =>
+      RootConfig.safeParse({
+        interfaces: lan({ ipv6Ra: { prefixes: { '2001:db8:9:1::/64': o } } }),
+      }).success;
+    expect(pf({ validSec: 1, preferredSec: 1 })).toBe(true);
+    expect(pf({ validSec: 0 })).toBe(false);
+    expect(pf({ preferredSec: 0 })).toBe(false);
+  });
 });
 
 describe('interfaces.neighbors-ra-ipv6-required', () => {

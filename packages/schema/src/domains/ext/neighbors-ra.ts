@@ -51,17 +51,20 @@ export const RA_MIN_INTERVAL_SEC = 3;
 /** Prefix-information lifetimes VPP uses when none are given (DEF_ADV_VALID_LIFETIME / DEF_ADV_PREF_LIFETIME). */
 export const RA_PREFIX_DEFAULTS = { validSec: 2592000, preferredSec: 604800 } as const;
 
-/** One advertised prefix (prefix-information option) of `ipv6Ra.prefixes`, keyed by the IPv6 network. */
+/**
+ * One advertised prefix (prefix-information option) of `ipv6Ra.prefixes`, keyed by the IPv6 network. Lifetimes are ≥ 1:
+ * DF-2 sends 0 as "VPP default" (NormalizeRaPrefix), so a 0 could never be applied as written.
+ */
 export const Ipv6RaPrefixSchema = z
   .strictObject({
-    validSec: withUi(uint32.default(RA_PREFIX_DEFAULTS.validSec), {
+    validSec: withUi(uint32.min(1).default(RA_PREFIX_DEFAULTS.validSec), {
       title: 'Valid lifetime (s)',
-      help: 'valid lifetime advertised for the prefix; 4294967295 = infinite',
+      help: 'valid lifetime advertised for the prefix, at least 1; 4294967295 = infinite',
       order: 1,
     }),
-    preferredSec: withUi(uint32.default(RA_PREFIX_DEFAULTS.preferredSec), {
+    preferredSec: withUi(uint32.min(1).default(RA_PREFIX_DEFAULTS.preferredSec), {
       title: 'Preferred lifetime (s)',
-      help: 'preferred lifetime; must not exceed the valid lifetime',
+      help: 'preferred lifetime, at least 1; must not exceed the valid lifetime',
       order: 2,
     }),
     offLink: withUi(z.boolean().default(false), {

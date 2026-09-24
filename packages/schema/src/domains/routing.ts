@@ -149,6 +149,8 @@ export const NextHopSchema = z
       help: 'relative share for equal-cost multipath',
       order: 3,
     }),
+    // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
+    // wave-A: F-vrf-static-ecmp
   })
   .refine((hop) => hop.address !== undefined || hop.interface !== undefined, {
     message: 'a next hop needs an address, an interface or both',
@@ -180,6 +182,9 @@ export const StaticRouteSchema = z
       order: 5,
     }),
     description: withUi(descriptionText.optional(), { title: 'Description', order: 6 }),
+    // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
+    // wave-A: F-vrf-static-ecmp
+    // wave-A: P12
   })
   .refine((route) => route.blackhole === (route.nextHops.length === 0), {
     message: 'a route needs at least one next hop, unless it is a blackhole route (then none)',
@@ -693,6 +698,9 @@ export const RoutingSchema = withUi(
     isis: withUi(IsisSchema.optional(), { title: 'IS-IS', group: 'dynamic', order: 5 }),
     rip: withUi(RipSchema.optional(), { title: 'RIP', group: 'dynamic', order: 6 }),
     bfd: withUi(BfdSchema.optional(), { title: 'BFD', group: 'dynamic', order: 7 }),
+    // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
+    // wave-A: F-neighbors-ra
+    // wave-A: F-rpf-adl-pbr
   }),
   {
     title: 'Routing',

@@ -294,6 +294,16 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	}
 	// Feature builders (internal/desired/<slug>.go): one call under the feature's anchor, e.g.
 	// `if in["nat"] { desired.Nat(p, ds.GetNat(), vrfID) }` (wave-A-hotspots A2).
+	// wave-BC: F-det44-map-dslite-cnat
+	// wave-BC: F-tunnels
+	// wave-BC: F-vrrp-config-sync
+	// wave-BC: F-ikev2-native
+	// wave-BC: F-mpls-srmpls
+	// wave-BC: F-srv6
+	// wave-BC: F-lisp
+	// wave-BC: F-bfd-redistribution
+	// wave-BC: F-igmp-mfib
+	// wave-BC: F-ha-state-sync
 	// wave-A: F-bonding
 	// wave-A: F-bridge-l2
 	// wave-A: F-loopback-bvi-gso-lldp-span
@@ -407,6 +417,16 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	}
 	// Feature assemblers (internal/desired/<slug>.go): one call under the feature's anchor; it runs after
 	// desired.Assemble and the routes, so it adds its leaves to the assembled document (wave-A-hotspots A2).
+	// wave-BC: F-det44-map-dslite-cnat
+	// wave-BC: F-tunnels
+	// wave-BC: F-vrrp-config-sync
+	// wave-BC: F-ikev2-native
+	// wave-BC: F-mpls-srmpls
+	// wave-BC: F-srv6
+	// wave-BC: F-lisp
+	// wave-BC: F-bfd-redistribution
+	// wave-BC: F-igmp-mfib
+	// wave-BC: F-ha-state-sync
 	// wave-A: F-bonding
 	// wave-A: F-bridge-l2
 	// wave-A: F-loopback-bvi-gso-lldp-span

@@ -209,8 +209,10 @@ const dynDesc = "test.dyn"
 // memDesc is an in-memory descriptor instance of no domain: one object per interface name, which
 // depends on that loopback (a dynamic object with a configuration dependency).
 type memDesc struct {
-	mu   sync.Mutex
-	objs map[string]bool
+	mu       sync.Mutex
+	objs     map[string]bool
+	fail     map[string]error // Create of these names fails (VPP rejects the object)
+	onCreate func()           // called by Create outside mu (a descriptor that calls sync)
 }
 
 func (d *memDesc) Name() string { return dynDesc }
@@ -222,9 +224,31 @@ func (d *memDesc) Dependencies(o proto.Message) []scheduler.Dependency {
 }
 func (d *memDesc) Create(_ context.Context, o proto.Message) (any, error) {
 	d.mu.Lock()
+	hook := d.onCreate
+	d.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
+	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.objs[o.(*wrapperspb.StringValue).GetValue()] = true
+	name := o.(*wrapperspb.StringValue).GetValue()
+	if err := d.fail[name]; err != nil {
+		return nil, err
+	}
+	d.objs[name] = true
 	return nil, nil
+}
+func (d *memDesc) failOn(name string, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.fail == nil {
+		d.fail = map[string]error{}
+	}
+	if err == nil {
+		delete(d.fail, name)
+		return
+	}
+	d.fail[name] = err
 }
 func (d *memDesc) Update(_ context.Context, _, _ proto.Message, meta any) (any, error) {
 	return meta, nil
@@ -263,10 +287,12 @@ func (d *memDesc) drop(v string) {
 // learnedSource is a feature's cached daemon state (e.g. FRR's labels): the interface names it
 // learned. Desired keeps those whose loopback the document still has.
 type learnedSource struct {
-	mu      sync.Mutex
-	learned map[string]bool
-	extra   []scheduler.KV // a buggy source: keys it must not produce
-	views   []*vrxv1.DesiredState
+	mu        sync.Mutex
+	learned   map[string]bool
+	extra     []scheduler.KV // a buggy source: keys it must not produce
+	views     []*vrxv1.DesiredState
+	panicNow  bool   // a buggy source: Desired panics
+	onDesired func() // called by Desired before it takes mu (a source that calls sync from Desired)
 }
 
 func (s *learnedSource) set(names ...string) {
@@ -280,7 +306,17 @@ func (s *learnedSource) set(names ...string) {
 
 func (s *learnedSource) desired(doc *vrxv1.DesiredState) []scheduler.KV {
 	s.mu.Lock()
+	hook := s.onDesired
+	s.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
+	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.panicNow {
+		var cache map[string][]string
+		cache["x"] = nil // the probe-C bug: a nil map in the source cache
+	}
 	s.views = append(s.views, doc)
 	var out []scheduler.KV
 	for n := range s.learned {
@@ -301,7 +337,15 @@ func (s *learnedSource) lastView() *vrxv1.DesiredState {
 // through the wiring (AddDynamicSource → DynamicSources → ServiceConfig.Sources), as agent.Start does.
 func newSrcSvc(t *testing.T, v *coretest.VPP, run func(context.Context, subsystems.SyncFunc)) (*Service, *memDesc, *learnedSource) {
 	t.Helper()
-	dir := t.TempDir()
+	md := &memDesc{objs: map[string]bool{}}
+	s, src := newSrcSvcIn(t, v, t.TempDir(), md, run)
+	return s, md, src
+}
+
+// newSrcSvcIn builds the service over state dir and the dynamic objects md (the "VPP" of test.dyn), so
+// a second call over the same dir and md is an agent restart with VPP intact (a cold source cache).
+func newSrcSvcIn(t *testing.T, v *coretest.VPP, dir string, md *memDesc, run func(context.Context, subsystems.SyncFunc)) (*Service, *learnedSource) {
+	t.Helper()
 	owned, err := ownertable.Open(dir, testOwner)
 	if err != nil {
 		t.Fatal(err)
@@ -312,7 +356,6 @@ func newSrcSvc(t *testing.T, v *coretest.VPP, run func(context.Context, subsyste
 		t.Fatal(err)
 	}
 	w.Connected(context.Background())
-	md := &memDesc{objs: map[string]bool{}}
 	reg.Register(md)
 	src := &learnedSource{learned: map[string]bool{}}
 	if err := w.AddDynamicSource(subsystems.DynamicSource{Name: "test-sync", Descriptors: []string{dynDesc}, Desired: src.desired, Run: run}); err != nil {
@@ -326,7 +369,7 @@ func newSrcSvc(t *testing.T, v *coretest.VPP, run func(context.Context, subsyste
 	}
 	svc.retryMin, svc.retryMax = time.Hour, time.Hour
 	t.Cleanup(svc.Close)
-	return svc, md, src
+	return svc, src
 }
 
 func TestDynamicSourceMergedIntoEveryTransaction(t *testing.T) {
@@ -553,4 +596,256 @@ func errString(err error) string {
 		return "ok"
 	}
 	return err.Error()
+}
+
+// ---- S1 failure semantics (TD-8 fix round 1: the review's probes A–E) --------------------------
+
+const errLabelInUse = "VPP: label already in use (-1)"
+
+// withLoop703 is sampleDoc plus the loopback loop703.
+func withLoop703(t *testing.T) *vrxv1.DesiredState {
+	t.Helper()
+	ds := doc(t, sampleDoc)
+	ds.Interfaces["loop703"] = &vrxv1.Interface{}
+	return ds
+}
+
+// syncedSrcSvc is newSrcSvc after the config apply of sampleDoc and one successful sync of names.
+func syncedSrcSvc(t *testing.T, v *coretest.VPP, names ...string) (*Service, *memDesc, *learnedSource) {
+	t.Helper()
+	s, md, src := newSrcSvc(t, v, nil)
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	src.set(names...)
+	if err := s.sourceSync("test-sync")(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if want := strings.Join(names, ","); md.list() != want {
+		t.Fatalf("dynamic objects after the first sync: %q, want %q", md.list(), want)
+	}
+	return s, md, src
+}
+
+// Probe A (R2): a dynamic object that VPP rejects never fails the user's valid commit. The transaction
+// runs once more without the dynamic sources, and the response, an ERROR event and the log name the
+// source and the key.
+func TestDynamicSourceFailureDoesNotFailTheCommit(t *testing.T) {
+	v := coretest.New()
+	s, md, src := syncedSrcSvc(t, v, "loop701")
+	md.failOn("loop703", errors.New(errLabelInUse))
+	src.set("loop701", "loop703")
+	sub := s.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_ERROR}})
+
+	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)})
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if _, ok := v.InterfaceByName("loop703"); !ok || md.list() != "loop701" {
+		t.Fatalf("after the commit: loop703 %v, dynamic objects %q (want the commit applied, the source left alone)", ok, md.list())
+	}
+	var skipped *vrxv1.ObjectResult
+	for _, r := range resp.GetResults() {
+		if r.GetKey() == dynDesc+"/loop703" {
+			skipped = r
+		}
+	}
+	if skipped == nil || skipped.GetCode() != vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_SKIPPED || !strings.Contains(skipped.GetMessage(), "test-sync") ||
+		!strings.Contains(skipped.GetMessage(), errLabelInUse) || skipped.GetPointer() != "" || skipped.GetSubsystem() != "" {
+		t.Fatalf("the skipped dynamic object is not reported: %v", resp.GetResults())
+	}
+	evs := collect(t, sub, 1)
+	if a := evs[0].GetAttributes(); a["source"] != "test-sync" || a["key"] != dynDesc+"/loop703" || evs[0].GetTxnId() != "t2" {
+		t.Fatalf("ERROR event %v", evs[0])
+	}
+	if s.Health().GetLastTxnId() != "t2" || s.Health().GetDegraded() {
+		t.Fatalf("health after the fallback: %v", s.Health())
+	}
+
+	// The source's own sync retries its objects, where a failure touches only them.
+	sync := s.sourceSync("test-sync")
+	if err := sync(context.Background()); err == nil || !strings.Contains(err.Error(), errLabelInUse) {
+		t.Fatalf("sync while VPP still rejects loop703: %v", err)
+	}
+	if _, ok := v.InterfaceByName("loop703"); !ok || md.list() != "loop701" {
+		t.Fatalf("a failed sync touched more than its own objects: loop703 %v, dynamic %q", ok, md.list())
+	}
+	md.failOn("loop703", nil)
+	if err := sync(context.Background()); err != nil || md.list() != "loop701,loop703" {
+		t.Fatalf("sync once VPP accepts loop703: %v, dynamic %q", err, md.list())
+	}
+	// In sync again, the source rides in config transactions: removing loop703 deletes both at once.
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if md.list() != "loop701" {
+		t.Fatalf("after removing loop703: %q", md.list())
+	}
+}
+
+// Probe B (R2): the resync after a VPP restart rebuilds the configuration even when VPP rejects a
+// dynamic object; the data plane is never left empty and DEGRADED because of a source.
+func TestDynamicSourceFailureDoesNotRollBackTheResync(t *testing.T) {
+	v := coretest.New()
+	s, md, _ := syncedSrcSvc(t, v, "loop701", "loop702")
+	v.DeleteInterface("loop701") // VPP restarted: everything is gone ...
+	v.DeleteInterface("loop702")
+	v.DeleteTable(7001, false)
+	v.DeleteTable(7001, true)
+	md.drop("loop701")
+	md.drop("loop702")
+	md.failOn("loop702", errors.New(errLabelInUse)) // ... and VPP now rejects one dynamic object
+
+	resp := s.Resync(context.Background())
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if s.Health().GetDegraded() {
+		t.Fatal("degraded after a resync whose only failure was a dynamic object")
+	}
+	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{})
+	if err != nil || !proto.Equal(got.GetDesiredState(), doc(t, canonicalDoc)) {
+		t.Fatalf("the configuration was not rebuilt: %v", err)
+	}
+	if md.list() != "" {
+		t.Fatalf("dynamic objects %q (the source was left out of the resync)", md.list())
+	}
+	md.failOn("loop702", nil)
+	if err := s.sourceSync("test-sync")(context.Background()); err != nil || md.list() != "loop701,loop702" {
+		t.Fatalf("sync after the resync: %v, dynamic %q", err, md.list())
+	}
+}
+
+// noPanic runs f and fails the test instead of crashing when f panics.
+func noPanic(t *testing.T, what string, f func()) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("%s panicked: %v", what, r)
+		}
+	}()
+	f()
+}
+
+// Probe C (R3): a panic in a source's Desired is a source error, never an agent crash (and so never a
+// crash loop through the first resync).
+func TestDynamicSourcePanicIsContained(t *testing.T) {
+	v := coretest.New()
+	s, md, src := syncedSrcSvc(t, v, "loop701")
+	src.mu.Lock()
+	src.panicNow = true
+	src.mu.Unlock()
+
+	var resp *vrxv1.ApplyResponse
+	noPanic(t, "Apply", func() { resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}) })
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if _, ok := v.InterfaceByName("loop703"); !ok || md.list() != "loop701" {
+		t.Fatalf("after the commit: loop703 %v, dynamic %q", ok, md.list())
+	}
+	var rep *vrxv1.ValidationReport
+	var err error
+	noPanic(t, "DryRun", func() {
+		rep, err = s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: withLoop703(t)})
+	})
+	if err != nil || !rep.GetOk() {
+		t.Fatalf("dry run: %v %v", err, rep)
+	}
+	noPanic(t, "sync", func() { err = s.sourceSync("test-sync")(context.Background()) })
+	if err == nil || !strings.Contains(err.Error(), "panicked") {
+		t.Fatalf("sync of a panicking source: %v", err)
+	}
+	noPanic(t, "Resync", func() { resp = s.Resync(context.Background()) })
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	// The transaction lock is free again.
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+}
+
+// Probe D (R6): sync called from inside Desired, or from a descriptor call, would wait for the
+// transaction lock its own goroutine holds; it is refused at once instead.
+func TestDynamicSourceSyncInsideATransactionRefused(t *testing.T) {
+	v := coretest.New()
+	s, md, src := newSrcSvc(t, v, nil)
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	sync := s.sourceSync("test-sync")
+	var inner error
+	var took time.Duration
+	try := func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		start := time.Now()
+		inner = sync(ctx)
+		took = time.Since(start)
+	}
+	armed := true
+	src.mu.Lock()
+	src.onDesired = func() {
+		if armed {
+			armed = false
+			try()
+		}
+	}
+	src.mu.Unlock()
+	src.set("loop701")
+	if err := sync(context.Background()); err != nil || md.list() != "loop701" {
+		t.Fatalf("outer sync: %v, dynamic %q", err, md.list())
+	}
+	if inner == nil || took > time.Second || !strings.Contains(inner.Error(), "inside") {
+		t.Fatalf("sync from inside Desired: %v after %v (want an immediate refusal)", inner, took)
+	}
+
+	src.mu.Lock()
+	src.onDesired = nil
+	src.mu.Unlock()
+	inner, armed = nil, true
+	md.mu.Lock()
+	md.onCreate = func() {
+		if armed {
+			armed = false
+			try()
+		}
+	}
+	md.mu.Unlock()
+	src.set("loop701", "loop702")
+	if err := sync(context.Background()); err != nil || md.list() != "loop701,loop702" {
+		t.Fatalf("outer sync: %v, dynamic %q", err, md.list())
+	}
+	if inner == nil || took > time.Second || !strings.Contains(inner.Error(), "inside") {
+		t.Fatalf("sync from inside a descriptor call: %v after %v (want an immediate refusal)", inner, took)
+	}
+}
+
+// Probe E (R1): an agent restart with VPP intact deletes no dynamic object. Until the source's first
+// sync has filled its cache, it takes part in no transaction (resync, Apply, DryRun).
+func TestDynamicSourceAgentRestartKeepsDynamicObjects(t *testing.T) {
+	v := coretest.New()
+	dir := t.TempDir()
+	md := &memDesc{objs: map[string]bool{}}
+	s1, src1 := newSrcSvcIn(t, v, dir, md, nil)
+	mustStatus(t, apply(t, s1, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	src1.set("loop701", "loop702")
+	if err := s1.sourceSync("test-sync")(context.Background()); err != nil || md.list() != "loop701,loop702" {
+		t.Fatalf("first process: %v %q", err, md.list())
+	}
+	s1.Close()
+
+	s2, src2 := newSrcSvcIn(t, v, dir, md, nil) // the new process: its source cache is empty
+	resp := s2.Resync(context.Background())
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if resp.GetSummary().GetDeleted() != 0 || md.list() != "loop701,loop702" {
+		t.Fatalf("first resync after an agent restart: summary %v, dynamic %q (want nothing deleted)", resp.GetSummary(), md.list())
+	}
+	rep, err := s2.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: withLoop703(t)})
+	if err != nil || !rep.GetOk() {
+		t.Fatalf("dry run: %v %v", err, rep)
+	}
+	for _, op := range rep.GetPlan() {
+		if strings.HasPrefix(op.GetKey(), dynDesc+"/") {
+			t.Fatalf("dry run before the first sync plans a dynamic object: %v", op)
+		}
+	}
+	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if md.list() != "loop701,loop702" {
+		t.Fatalf("a commit before the first sync touched dynamic objects: %q", md.list())
+	}
+	// The first sync after Run filled the cache reconciles them; from then on the source rides along.
+	src2.set("loop701", "loop703")
+	if err := s2.sourceSync("test-sync")(context.Background()); err != nil || md.list() != "loop701,loop703" {
+		t.Fatalf("first sync: %v, dynamic %q", err, md.list())
+	}
+	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if md.list() != "loop701" {
+		t.Fatalf("removing loop703 after the first sync: %q", md.list())
+	}
 }

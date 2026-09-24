@@ -9,6 +9,9 @@ import (
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/descriptors/core"
+	"ngfw/agent/internal/descriptors/df2"
+	"ngfw/agent/internal/descriptors/df7"
+	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -85,8 +88,16 @@ func TestSlotIDRange(t *testing.T) {
 func TestWiringIDRangeFailsClosed(t *testing.T) {
 	t.Setenv(EnvTableBase, "7000") // the environment is never read by Wiring.IDRange
 	w := &Wiring{}
-	if r, err := w.IDRange(); r != nil || !errors.Is(err, ErrNoIDRange) {
-		t.Fatalf("zero Env.IDs: %v %v (want ErrNoIDRange)", r, err)
+	none, err := w.IDRange()
+	if none == nil || !errors.Is(err, ErrNoIDRange) {
+		t.Fatalf("zero Env.IDs: %v %v (want a non-nil empty range and ErrNoIDRange)", none, err)
+	}
+	// R4: a family that ignores the error owns nothing, whichever range type it converts to — nil
+	// (df2/df7) and the zero vpn.IDRange mean "every id".
+	for _, id := range []uint32{0, 1, 7000, 13000, ^uint32(0)} {
+		if (*df2.IDRange)(none).Owns(id) || (*df7.IDRange)(none).Owns(id) || vpn.IDRange(*none).Contains(id) {
+			t.Errorf("id %d is owned by the fail-closed range %v", id, none)
+		}
 	}
 	w = &Wiring{env: Env{IDs: IDScope{All: true}}}
 	if r, err := w.IDRange(); r != nil || err != nil {

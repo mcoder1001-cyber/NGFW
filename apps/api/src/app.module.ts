@@ -28,6 +28,7 @@ import { RelayService } from './telemetry/relay.service.js';
 // Feature modules: `import { <slug>Feature } from './features/<slug>/index.js';` under the feature's anchor.
 // wave-A: F-bonding
 // wave-A: F-bridge-l2
+import { bridgeL2Feature } from './features/bridge-l2/index.js';
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
 // wave-A: F-neighbors-ra
@@ -79,6 +80,7 @@ export class AppModule {
         // Feature controllers: `...<slug>Feature.controllers,` under the feature's anchor (wave-A-hotspots P1).
         // wave-A: F-bonding
         // wave-A: F-bridge-l2
+        ...bridgeL2Feature.controllers,
         // wave-A: F-loopback-bvi-gso-lldp-span
         // wave-A: F-vrf-static-ecmp
         // wave-A: F-neighbors-ra
@@ -115,6 +117,7 @@ export class AppModule {
         // Feature providers: `...<slug>Feature.providers,` under the feature's anchor (wave-A-hotspots P1).
         // wave-A: F-bonding
         // wave-A: F-bridge-l2
+        ...bridgeL2Feature.providers,
         // wave-A: F-loopback-bvi-gso-lldp-span
         // wave-A: F-vrf-static-ecmp
         // wave-A: F-neighbors-ra

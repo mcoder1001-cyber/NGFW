@@ -17,6 +17,9 @@ import {
   // Feature RPC types: one import line under the feature's anchor (wave-A-hotspots P4).
   // wave-A: F-bonding
   // wave-A: F-bridge-l2
+  type BridgeDomainMacsRequest,
+  type BridgeDomainMacsResponse,
+  type BridgeDomainStateResponse,
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
@@ -123,6 +126,16 @@ export class AgentClient implements OnModuleDestroy {
   // `natSessions(req: …): Promise<…> { return this.unary(this.c.natSessions, { ...req, owner: this.owner }); }`
   // wave-A: F-bonding
   // wave-A: F-bridge-l2
+  /** F-bridge-l2: live bridge domains (proto.md §11); an agent without the RPC answers 501. */
+  bridgeDomainState(ids: number[] = []): Promise<BridgeDomainStateResponse> {
+    return this.unary(this.c.bridgeDomainState, { ids, owner: this.owner });
+  }
+
+  /** F-bridge-l2: one page (≤ 1000) of a bridge domain's L2 FIB. */
+  bridgeDomainMacs(req: Omit<BridgeDomainMacsRequest, 'owner'>): Promise<BridgeDomainMacsResponse> {
+    return this.unary(this.c.bridgeDomainMacs, { ...req, owner: this.owner });
+  }
+
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra

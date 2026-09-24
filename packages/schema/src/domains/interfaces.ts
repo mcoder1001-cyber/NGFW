@@ -167,6 +167,10 @@ export const SubinterfaceSchema = z
       order: 7,
     }),
     ...commonFields,
+    // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
+    // wave-A: F-bridge-l2
+    // wave-A: F-neighbors-ra
+    // wave-A: F-rpf-adl-pbr
   })
   .refine(noAddressesWhenUnnumbered, { message: UNNUMBERED_EXCLUSIVE, path: ['unnumbered'] });
 
@@ -200,6 +204,13 @@ export const InterfaceSchema = z
       group: 'subinterfaces',
       order: 20,
     }),
+    // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
+    // wave-A: F-bonding
+    // wave-A: F-bridge-l2
+    // wave-A: F-loopback-bvi-gso-lldp-span
+    // wave-A: F-neighbors-ra
+    // wave-A: F-rpf-adl-pbr
+    // wave-A: P12
   })
   .refine(noAddressesWhenUnnumbered, { message: UNNUMBERED_EXCLUSIVE, path: ['unnumbered'] });
 

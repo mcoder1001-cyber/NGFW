@@ -342,3 +342,25 @@ small follow-up commit on its next task (D-055); DF-1 then deletes its local `if
 copies exist; the P03b evidence shows them field-for-field identical. New descriptor families add their messages here
 under `vrx/model/<family>/v1` with a `contract(proto):` commit.
 
+## 11. Feature RPCs
+
+Each wave-A/B feature documents its new RPCs, `ActionRequest` members and `EventKind` values here, as
+`### <task-id>: <Rpc>` directly below its own anchor (docs/status/wave-A-hotspots.md C6). Sections are appended,
+never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
+
+<!-- wave-A: F-bonding -->
+<!-- wave-A: F-bridge-l2 -->
+<!-- wave-A: F-loopback-bvi-gso-lldp-span -->
+<!-- wave-A: F-vrf-static-ecmp -->
+<!-- wave-A: F-neighbors-ra -->
+<!-- wave-A: F-rpf-adl-pbr -->
+<!-- wave-A: F-object-model -->
+<!-- wave-A: F-acl -->
+<!-- wave-A: F-host-acl-nftables -->
+<!-- wave-A: F-nat44-ed-sessions -->
+<!-- wave-A: F-nat44-ei-64-66-nptv6 -->
+<!-- wave-A: P11 -->
+<!-- wave-A: F-wireguard -->
+<!-- wave-A: P12 -->
+<!-- wave-A: F-kea-dhcp-relay -->
+<!-- wave-A: F-unbound-chrony-syslog -->

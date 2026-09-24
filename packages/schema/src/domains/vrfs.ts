@@ -18,6 +18,9 @@ export const VrfSchema = z.strictObject({
     order: 1,
   }),
   description: withUi(descriptionText.optional(), { title: 'Description', order: 2 }),
+  // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
+  // wave-A: F-vrf-static-ecmp
+  // wave-A: F-neighbors-ra
 });
 export type VrfConfig = z.infer<typeof VrfSchema>;
 

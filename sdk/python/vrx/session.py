@@ -5,14 +5,25 @@ from __future__ import annotations
 import json
 import logging
 import os
+import ipaddress
 import time
+import warnings
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import Any
 from urllib.parse import quote, urlencode, urlsplit
 
 from ._generated.operations import OPERATIONS, Operations
-from .errors import ConfirmError, VrxError, error_for
+from .errors import (
+    ConcurrentEdit,
+    ConfirmError,
+    NotEnforced,
+    NotEnforcedWarning,
+    NotInSync,
+    Unavailable,
+    VrxError,
+    error_for,
+)
 from .pointer import normalize, to_url_path
 from .redact import redact
 from .transport import HttpResponse, Transport, UrllibTransport
@@ -64,12 +75,18 @@ class VrxSession(Operations):
         timeout: float = 60.0,
         transport: Transport | None = None,
         log_bodies: bool = False,
+        allow_http: bool = False,
     ):
         parts = urlsplit(url)
         if parts.scheme not in ("http", "https") or not parts.netloc:
             raise ValueError(f"url must be http(s)://host[:port], got {url!r}")
         if parts.username or parts.password:
             raise ValueError("credentials in the URL are not accepted; use api_key / api_key_file")
+        if parts.scheme == "http" and not _loopback(parts.hostname or ""):
+            if not allow_http:
+                raise ValueError(f"refusing plain http:// to {parts.hostname}: the API key would cross the network in clear "
+                                 "— use https:// (or allow_http=True for an isolated lab)")
+            warnings.warn("vrx: plain http:// — the API key is sent without TLS", stacklevel=2)
         self.url = f"{parts.scheme}://{parts.netloc}{parts.path.rstrip('/')}"
         if api_key is None and api_key_file:
             with open(api_key_file, encoding="utf-8") as f:
@@ -191,29 +208,46 @@ class VrxSession(Operations):
         return list(self.config_revisions(limit=limit, offset=offset).get("items") or [])
 
     def commit_confirmed(self, *, confirm: int = 60, comment: str | None = None,
-                         check: Callable[[VrxSession], object] | None = None) -> dict[str, Any]:
-        """Commit with `?confirm=<sec>`, run `check(session)` (default: the API still answers `/state/system`),
-        then confirm. If the check fails the commit is NOT confirmed and the agent reverts it at the deadline."""
+                         check: Callable[[VrxSession], object] | None = None,
+                         allow_unsynced: bool = False, require_enforced: bool = False) -> dict[str, Any]:
+        """Commit with `?confirm=<sec>`, run `check(session)` (default: `/state/system` answers and reports sync
+        `in-sync`), then confirm. If the check fails the commit is NOT confirmed and the agent reverts it at the
+        deadline (ConfirmError). The result carries `notApplied` from the pending answer; a commit the agent stores but
+        does not enforce warns (NotEnforcedWarning) or, with require_enforced=True, raises NotEnforced."""
         r = self.commit(confirm=confirm, comment=comment)
         if r.get("status") != "pending":
-            return r  # unchanged (nothing to do) — nothing waits for a confirmation
+            return _enforced(r, require_enforced)
+        deadline = r.get("confirmDeadline")
+        sync = (r.get("sync") or {}).get("state", "in-sync")
+        if sync != "in-sync" and not allow_unsynced:
+            raise ConfirmError(_not_confirmed(f"sync is {sync}", deadline), r)
         try:
-            (check or _default_check)(self)
+            (check or (lambda s: _synced(s, allow_unsynced, pending_ok=True)))(self)
         except Exception as e:  # noqa: BLE001 — any failure of the check means "do not confirm"
-            raise ConfirmError(f"post-commit check failed, not confirming (auto-revert at "
-                               f"{r.get('confirmDeadline')}): {e}", r) from e
+            raise ConfirmError(_not_confirmed(f"post-commit check failed: {e}", deadline), r) from e
         try:
-            return self.confirm()
+            c = self.confirm()
         except VrxError as e:
-            raise ConfirmError(f"confirm failed (auto-revert at {r.get('confirmDeadline')}): {e}", r) from e
+            raise ConfirmError(_not_confirmed(f"confirm failed: {e}", deadline), r) from e
+        c["notApplied"] = list(dict.fromkeys([*(c.get("notApplied") or []), *(r.get("notApplied") or [])]))
+        return _enforced(c, require_enforced)
 
     @contextmanager
     def transaction(self, *, confirm: int | None = 60, comment: str | None = None,
                     check: Callable[[VrxSession], object] | None = None,
-                    allow_dirty: bool = False) -> Iterator[Transaction]:
-        """Edit the candidate inside the block; on exit commit (confirmed when `confirm` is set) — or discard on an
-        exception. Refuses to start on a candidate that already holds uncommitted changes (they would be committed
-        with ours) unless `allow_dirty=True`."""
+                    allow_dirty: bool = False, allow_unsynced: bool = False,
+                    require_enforced: bool = False) -> Iterator[Transaction]:
+        """Edit the candidate inside the block; on exit commit (confirmed when `confirm` is set).
+
+        Safety rules (the candidate is per USER, shared by every key of that user — D-093):
+        - refuses to start when `/state/system` is not `in-sync` or a confirmed commit is pending (NotInSync), unless
+          allow_unsynced=True, and when the candidate already has changes (unless allow_dirty=True);
+        - before committing, every candidate change must lie under a pointer this transaction edited, otherwise
+          ConcurrentEdit is raised and nothing is committed or discarded;
+        - on an error the candidate is discarded only when it holds nothing but this transaction's own changes.
+        """
+        if not allow_unsynced:
+            _synced(self, False, pending_ok=False)
         if not allow_dirty:
             pending_changes = self.diff()
             if pending_changes:
@@ -224,19 +258,27 @@ class VrxSession(Operations):
         try:
             yield tx
         except BaseException:
-            _quiet_discard(self)
+            _discard_if_own(self, tx.pointers)
             raise
-        if not self.diff():
-            _quiet_discard(self)
-            tx.result = {"status": "unchanged"}
+        changes = self.diff()
+        foreign = [c for c in changes if not any(_within(c.get("pointer", ""), p) for p in tx.pointers)]
+        if foreign and not allow_dirty:
+            raise ConcurrentEdit(f"the candidate also contains {foreign[0].get('op')} {foreign[0].get('pointer') or '/'} "
+                                 "which this transaction did not make — another run of the same user is editing; "
+                                 "nothing was committed or discarded (use one service user per pipeline)")
+        if not changes:
+            tx.result = {"status": "unchanged", "notApplied": []}
             return
         try:
-            tx.result = (self.commit_confirmed(confirm=confirm, comment=comment, check=check)
-                         if confirm else self.commit(comment=comment))
-        except ConfirmError:
+            tx.result = (self.commit_confirmed(confirm=confirm, comment=comment, check=check,
+                                               allow_unsynced=allow_unsynced, require_enforced=require_enforced)
+                         if confirm else _enforced(self.commit(comment=comment), require_enforced))
+        except (ConfirmError, NotEnforced):
             raise
+        except Unavailable:
+            raise  # outcome unknown (running-unknown): the API reconciles and may still promote the candidate
         except VrxError:
-            _quiet_discard(self)  # running is untouched (commit is atomic); release the lock
+            _discard_if_own(self, tx.pointers)  # running is untouched (commit is atomic)
             raise
 
     # ------------------------------------------------------------------ state, secrets
@@ -251,20 +293,28 @@ class VrxSession(Operations):
 
 
 class Transaction:
-    """The candidate edits of one `VrxSession.transaction()` block. `result` holds the commit answer afterwards."""
+    """The candidate edits of one `VrxSession.transaction()` block. `result` holds the commit answer afterwards
+    (including `notApplied`); `pointers` are the subtrees this transaction edited."""
 
     def __init__(self, session: VrxSession):
         self.session = session
         self.result: dict[str, Any] | None = None
+        self.pointers: list[str] = []
+
+    def _touch(self, pointer: str) -> str:
+        p = normalize(pointer)
+        if p not in self.pointers:
+            self.pointers.append(p)
+        return p
 
     def set(self, pointer: str, value: Any) -> dict[str, Any]:
-        return self.session.set(pointer, value)
+        return self.session.set(self._touch(pointer), value)
 
     def merge(self, pointer: str, patch: Any) -> dict[str, Any]:
-        return self.session.merge(pointer, patch)
+        return self.session.merge(self._touch(pointer), patch)
 
     def delete(self, pointer: str) -> dict[str, Any]:
-        return self.session.delete(pointer)
+        return self.session.delete(self._touch(pointer))
 
     def diff(self) -> list[dict[str, Any]]:
         return self.session.diff()
@@ -289,12 +339,50 @@ def _nonroot(pointer: str) -> str:
     return p
 
 
-def _default_check(s: VrxSession) -> None:
-    s.state("system")
-
-
-def _quiet_discard(s: VrxSession) -> None:
+def _loopback(host: str) -> bool:
+    if host == "localhost":
+        return True
     try:
-        s.discard()
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def _within(p: str, root: str) -> bool:
+    return p == root or (root != "" and p.startswith(root + "/")) or root == ""
+
+
+def _synced(s: VrxSession, allow_unsynced: bool, *, pending_ok: bool) -> None:
+    st = s.state("system")
+    sync = (st.get("sync") or {}) if isinstance(st, dict) else {}
+    if not allow_unsynced and sync.get("state", "in-sync") != "in-sync":
+        raise NotInSync(f"running ↔ data plane sync is {sync.get('state')!r} ({sync.get('reason')}) — wait for the "
+                        "API's reconcile or pass allow_unsynced=True")
+    if not pending_ok and isinstance(st, dict) and st.get("pendingCommit"):
+        raise NotInSync("a confirmed commit is pending — confirm it or let it revert first")
+
+
+def _not_confirmed(why: str, deadline: Any) -> str:
+    return (f"commit NOT confirmed ({why}) — the appliance reverts it at {deadline}. Afterwards the candidate still "
+            "holds the edit: discard it (VrxSession.discard()) before the next transaction")
+
+
+def _enforced(r: dict[str, Any], require: bool) -> dict[str, Any]:
+    na = list(r.get("notApplied") or [])
+    if r.get("status") in ("partially-applied", "not-applied") or na:
+        msg = (f"commit stored but NOT enforced by the data plane (status {r.get('status')!r}, domains not applied: "
+               f"{na}) — it takes effect when the agent implements them")
+        if require:
+            raise NotEnforced(msg, r)
+        warnings.warn(msg, NotEnforcedWarning, stacklevel=3)
+    return r
+
+
+def _discard_if_own(s: VrxSession, pointers: list[str]) -> None:
+    """Discard only a candidate that holds nothing but this transaction's changes (never another run's edits)."""
+    try:
+        changes = s.diff()
+        if changes and pointers and all(any(_within(c.get("pointer", ""), p) for p in pointers) for c in changes):
+            s.discard()
     except VrxError as e:
         log.warning("discard after a failed transaction: %s", e)

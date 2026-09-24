@@ -59,165 +59,165 @@ class Operations:
         raise NotImplementedError
 
     def actions_run(self, action: str) -> Any:
-        """POST /api/v1/actions/{action} — Run an action (all 501 until the agent implements Action)"""
+        'POST /api/v1/actions/{action} — Run an action (all 501 until the agent implements Action)'
         return self._call("Actions_run", {"action": action}, {})  # type: ignore[no-any-return]
 
     def audit_list(self, *, offset: int | None = None, limit: int | None = None) -> "AuditListResponse":
-        """GET /api/v1/audit — Audit log, newest first (admin)"""
+        'GET /api/v1/audit — Audit log, newest first (admin)'
         return self._call("Audit_list", {}, {"offset": offset, "limit": limit})  # type: ignore[no-any-return]
 
     def auth_api_keys(self) -> list["AuthApiKeysResponseItem"]:
-        """GET /api/v1/auth/api-keys — API keys of the authenticated user"""
+        'GET /api/v1/auth/api-keys — API keys of the authenticated user'
         return self._call("Auth_apiKeys", {}, {})  # type: ignore[no-any-return]
 
     def auth_create_api_key(self, body: "AuthCreateApiKeyBody") -> "AuthCreateApiKeyResponse":
-        """POST /api/v1/auth/api-keys — Create an API key (`Authorization: ApiKey <key>`); the key is shown once"""
+        'POST /api/v1/auth/api-keys — Create an API key (`Authorization: ApiKey <key>`); the key is shown once'
         return self._call("Auth_createApiKey", {}, {}, body)  # type: ignore[no-any-return]
 
     def auth_delete_api_key(self, id: str) -> None:
-        """DELETE /api/v1/auth/api-keys/{id} — Delete an API key (own; admin: any)"""
+        'DELETE /api/v1/auth/api-keys/{id} — Delete an API key (own; admin: any)'
         return self._call("Auth_deleteApiKey", {"id": id}, {})  # type: ignore[no-any-return]
 
     def auth_login(self, body: "AuthLoginBody") -> "AuthLoginResponse":
-        """POST /api/v1/auth/login — Log in with a local user; sets the refresh cookie"""
+        'POST /api/v1/auth/login — Log in with a local user; sets the refresh cookie'
         return self._call("Auth_login", {}, {}, body)  # type: ignore[no-any-return]
 
     def auth_logout(self) -> None:
-        """POST /api/v1/auth/logout — Revoke the refresh cookie (and its rotation family)"""
+        'POST /api/v1/auth/logout — Revoke the refresh cookie (and its rotation family)'
         return self._call("Auth_logout", {}, {})  # type: ignore[no-any-return]
 
     def auth_me(self) -> "AuthMeResponse":
-        """GET /api/v1/auth/me — The authenticated user"""
+        'GET /api/v1/auth/me — The authenticated user'
         return self._call("Auth_me", {}, {})  # type: ignore[no-any-return]
 
     def auth_password(self, body: "AuthPasswordBody") -> None:
-        """POST /api/v1/auth/password — Change the own password (argon2id)"""
+        'POST /api/v1/auth/password — Change the own password (argon2id)'
         return self._call("Auth_password", {}, {}, body)  # type: ignore[no-any-return]
 
     def auth_refresh(self) -> "AuthRefreshResponse":
-        """POST /api/v1/auth/refresh — Rotate the refresh cookie and get a new access token"""
+        'POST /api/v1/auth/refresh — Rotate the refresh cookie and get a new access token'
         return self._call("Auth_refresh", {}, {})  # type: ignore[no-any-return]
 
     def config_running(self) -> "RootConfig":
-        """GET /api/v1/config — Whole running configuration (redacted)"""
+        'GET /api/v1/config — Whole running configuration (redacted)'
         return self._call("Config_running", {}, {})  # type: ignore[no-any-return]
 
     def config_patch_root(self, body: dict[str, Any]) -> "ConfigPatchRootResponse":
-        """PATCH /api/v1/config — RFC 7386 merge patch of the whole candidate"""
+        'PATCH /api/v1/config — RFC 7386 merge patch of the whole candidate'
         return self._call("Config_patchRoot", {}, {}, body)  # type: ignore[no-any-return]
 
     def config_candidate(self) -> "RootConfig":
-        """GET /api/v1/config/candidate — Whole candidate configuration (redacted); equals running when nobody edits"""
+        'GET /api/v1/config/candidate — Whole candidate configuration (redacted); equals running when nobody edits'
         return self._call("Config_candidate", {}, {})  # type: ignore[no-any-return]
 
     def config_candidate_at(self, path: str) -> Any:
-        """GET /api/v1/config/candidate/{path} — Node of the candidate at a JSON pointer"""
+        'GET /api/v1/config/candidate/{path} — Node of the candidate at a JSON pointer'
         return self._call("Config_candidateAt", {"path": path}, {})  # type: ignore[no-any-return]
 
     def config_commit(self, *, comment: str | None = None, confirm: int | None = None) -> "ConfigCommitResponse":
-        """POST /api/v1/config/commit — Validate and apply the candidate; with ?confirm=<sec> the agent reverts unless confirmed"""
+        'POST /api/v1/config/commit — Validate and apply the candidate; with ?confirm=<sec> the agent reverts unless confirmed'
         return self._call("Config_commit", {}, {"comment": comment, "confirm": confirm})  # type: ignore[no-any-return]
 
     def config_confirm(self) -> "ConfigConfirmResponse":
-        """POST /api/v1/config/commit/confirm — Confirm the pending commit (cancels the auto-revert) and persist its revision"""
+        'POST /api/v1/config/commit/confirm — Confirm the pending commit (cancels the auto-revert) and persist its revision'
         return self._call("Config_confirm", {}, {})  # type: ignore[no-any-return]
 
     def config_pending(self) -> "ConfigPendingResponse":
-        """GET /api/v1/config/commit/pending — The commit waiting for confirmation, if any"""
+        'GET /api/v1/config/commit/pending — The commit waiting for confirmation, if any'
         return self._call("Config_pending", {}, {})  # type: ignore[no-any-return]
 
     def config_diff(self) -> "ConfigDiffResponse":
-        """GET /api/v1/config/diff — Structured candidate ↔ running diff (RFC 6902-style ops with JSON pointers)"""
+        'GET /api/v1/config/diff — Structured candidate ↔ running diff (RFC 6902-style ops with JSON pointers)'
         return self._call("Config_diff", {}, {})  # type: ignore[no-any-return]
 
     def config_discard(self) -> "ConfigDiscardResponse":
-        """POST /api/v1/config/discard — Drop the candidate and release the lock"""
+        'POST /api/v1/config/discard — Drop the candidate and release the lock'
         return self._call("Config_discard", {}, {})  # type: ignore[no-any-return]
 
     def config_export(self) -> "RootConfig":
-        """GET /api/v1/config/export — Running configuration as a download (redacted)"""
+        'GET /api/v1/config/export — Running configuration as a download (redacted)'
         return self._call("Config_export", {}, {})  # type: ignore[no-any-return]
 
     def config_import(self, body: "RootConfig") -> "ConfigImportResponse":
-        """POST /api/v1/config/import — Replace the candidate with a document (schema-checked; not applied)"""
+        'POST /api/v1/config/import — Replace the candidate with a document (schema-checked; not applied)'
         return self._call("Config_import", {}, {}, body)  # type: ignore[no-any-return]
 
     def config_lock(self) -> "ConfigLockResponse":
-        """GET /api/v1/config/lock — Candidate lock (single writer)"""
+        'GET /api/v1/config/lock — Candidate lock (single writer)'
         return self._call("Config_lock", {}, {})  # type: ignore[no-any-return]
 
     def config_break_lock(self) -> "ConfigBreakLockResponse":
-        """DELETE /api/v1/config/lock — Admin: break the lock of another user (the candidate is discarded)"""
+        'DELETE /api/v1/config/lock — Admin: break the lock of another user (the candidate is discarded)'
         return self._call("Config_breakLock", {}, {})  # type: ignore[no-any-return]
 
     def config_revisions(self, *, offset: int | None = None, limit: int | None = None) -> "ConfigRevisionsResponse":
-        """GET /api/v1/config/revisions — Revision history, newest first"""
+        'GET /api/v1/config/revisions — Revision history, newest first'
         return self._call("Config_revisions", {}, {"offset": offset, "limit": limit})  # type: ignore[no-any-return]
 
     def config_revision(self, rev: str) -> "ConfigRevisionResponse":
-        """GET /api/v1/config/revisions/{rev} — One revision with its (redacted) payload"""
+        'GET /api/v1/config/revisions/{rev} — One revision with its (redacted) payload'
         return self._call("Config_revision", {"rev": rev}, {})  # type: ignore[no-any-return]
 
     def config_rollback(self, rev: str, *, comment: str | None = None, confirm: int | None = None) -> "ConfigRollbackResponse":
-        """POST /api/v1/config/rollback/{rev} — Apply an old revision as a new revision (payload = the old one)"""
+        'POST /api/v1/config/rollback/{rev} — Apply an old revision as a new revision (payload = the old one)'
         return self._call("Config_rollback", {"rev": rev}, {"comment": comment, "confirm": confirm})  # type: ignore[no-any-return]
 
     def config_validate(self) -> "ConfigValidateResponse":
-        """POST /api/v1/config/validate — Three-tier validation of the candidate (schema → semantic → agent DryRun); nothing is applied"""
+        'POST /api/v1/config/validate — Three-tier validation of the candidate (schema → semantic → agent DryRun); nothing is applied'
         return self._call("Config_validate", {}, {})  # type: ignore[no-any-return]
 
     def config_running_at(self, path: str) -> Any:
-        """GET /api/v1/config/{path} — Node of the running configuration at a JSON pointer"""
+        'GET /api/v1/config/{path} — Node of the running configuration at a JSON pointer'
         return self._call("Config_runningAt", {"path": path}, {})  # type: ignore[no-any-return]
 
     def config_put_at(self, path: str, body: Any) -> "ConfigPutAtResponse":
-        """PUT /api/v1/config/{path} — Replace the candidate node at a JSON pointer"""
+        'PUT /api/v1/config/{path} — Replace the candidate node at a JSON pointer'
         return self._call("Config_putAt", {"path": path}, {}, body)  # type: ignore[no-any-return]
 
     def config_patch_at(self, path: str, body: Any) -> "ConfigPatchAtResponse":
-        """PATCH /api/v1/config/{path} — RFC 7386 merge patch of the candidate node at a JSON pointer"""
+        'PATCH /api/v1/config/{path} — RFC 7386 merge patch of the candidate node at a JSON pointer'
         return self._call("Config_patchAt", {"path": path}, {}, body)  # type: ignore[no-any-return]
 
     def config_delete_at(self, path: str) -> "ConfigDeleteAtResponse":
-        """DELETE /api/v1/config/{path} — Remove the candidate node at a JSON pointer"""
+        'DELETE /api/v1/config/{path} — Remove the candidate node at a JSON pointer'
         return self._call("Config_deleteAt", {"path": path}, {})  # type: ignore[no-any-return]
 
     def health_health(self) -> Any:
-        """GET /api/v1/health — Liveness of the API process"""
+        'GET /api/v1/health — Liveness of the API process'
         return self._call("Health_health", {}, {})  # type: ignore[no-any-return]
 
     def secrets_list(self) -> list["SecretsListResponseItem"]:
-        """GET /api/v1/secrets — Secret references (no values)"""
+        'GET /api/v1/secrets — Secret references (no values)'
         return self._call("Secrets_list", {}, {})  # type: ignore[no-any-return]
 
     def secrets_put(self, body: "SecretsPutBody", *, replace: str | None = None) -> "SecretsPutResponse":
-        """POST /api/v1/secrets — Create or replace a secret; returns the reference to put into the configuration"""
+        'POST /api/v1/secrets — Create or replace a secret; returns the reference to put into the configuration'
         return self._call("Secrets_put", {}, {"replace": replace}, body)  # type: ignore[no-any-return]
 
     def secrets_delete(self, kind: str, name: str) -> None:
-        """DELETE /api/v1/secrets/{kind}/{name} — Delete a secret that nothing references"""
+        'DELETE /api/v1/secrets/{kind}/{name} — Delete a secret that nothing references'
         return self._call("Secrets_delete", {"kind": kind, "name": name}, {})  # type: ignore[no-any-return]
 
     def state_drift(self) -> "StateDriftResponse":
-        """GET /api/v1/state/drift — Running configuration vs what the agent retrieves (proto.md §5)"""
+        'GET /api/v1/state/drift — Running configuration vs what the agent retrieves (proto.md §5)'
         return self._call("State_drift", {}, {})  # type: ignore[no-any-return]
 
     def state_events(self, *, offset: int | None = None, limit: int | None = None) -> "StateEventsResponse":
-        """GET /api/v1/state/events — System events (commits, confirm reverts, agent degradation), newest first"""
+        'GET /api/v1/state/events — System events (commits, confirm reverts, agent degradation), newest first'
         return self._call("State_events", {}, {"offset": offset, "limit": limit})  # type: ignore[no-any-return]
 
     def state_interfaces(self) -> "StateInterfacesResponse":
-        """GET /api/v1/state/interfaces — Interfaces as retrieved from VPP by the agent, with the latest counters"""
+        'GET /api/v1/state/interfaces — Interfaces as retrieved from VPP by the agent, with the latest counters'
         return self._call("State_interfaces", {}, {})  # type: ignore[no-any-return]
 
     def state_neighbors(self) -> Any:
-        """GET /api/v1/state/neighbors — IP neighbours — needs an agent state RPC that the v1 contract does not have (501)"""
+        'GET /api/v1/state/neighbors — IP neighbours — needs an agent state RPC that the v1 contract does not have (501)'
         return self._call("State_neighbors", {}, {})  # type: ignore[no-any-return]
 
     def state_routes(self, *, page_size: int | None = None, page: int | None = None, vrf: str | None = None) -> "StateRoutesResponse":
-        """GET /api/v1/state/routes — Connected + static routes retrieved from VPP by the agent (server-side paged)"""
+        'GET /api/v1/state/routes — Connected + static routes retrieved from VPP by the agent (server-side paged)'
         return self._call("State_routes", {}, {"pageSize": page_size, "page": page, "vrf": vrf})  # type: ignore[no-any-return]
 
     def state_system(self) -> "StateSystemResponse":
-        """GET /api/v1/state/system — API + agent health, pending commit, running revision"""
+        'GET /api/v1/state/system — API + agent health, pending commit, running revision'
         return self._call("State_system", {}, {})  # type: ignore[no-any-return]

@@ -23,9 +23,29 @@ If the client loses the appliance after step 2 (e.g. you changed the management 
 appliance **reverts on its own** when the window ends. A validation error at any step leaves the running configuration
 untouched and the clients discard the candidate.
 
-The appliance has one candidate. The clients refuse to start when the candidate already holds somebody else's
-uncommitted changes (they would otherwise be committed together); commit or discard those first
-(`POST /api/v1/config/discard`).
+**The candidate is per user, not per API key.** All keys of one user share one candidate (D-093). The clients refuse
+to start when the candidate already holds uncommitted changes. They also refuse to commit when a change they did not
+make appears during their run, and they only ever discard a candidate that holds nothing but their own changes.
+Two runs under the same user still get in each other's way (one of them fails), so **give every pipeline its own
+service user** (with its own API key) and do not use that user interactively. Clear a leftover candidate with
+`POST /api/v1/config/discard`.
+
+**Sync state.** Both clients check `GET /api/v1/state/system` before editing and again before confirming. If the
+running configuration and the data plane are not `in-sync` (`unknown` after a lost agent answer, `degraded` after a
+partial apply), or if a confirmed commit is still pending, they stop without changing anything. The API reconciles on
+its own; retry afterwards. Override with `allow_unsynced` only when you know why. If a commit's answer is lost
+(`502`/`504`, "running-unknown"), the outcome is **unknown**: the API may still promote the change. Refresh or re-read
+before retrying.
+
+**Stored but not enforced.** When the agent build does not implement a domain yet, a commit touching that domain is
+stored in the running configuration but not applied to the data plane. The API reports this as status
+`partially-applied`/`not-applied` with `notApplied: [domains]` (P06). The SDK then warns (`NotEnforcedWarning`) or,
+with `require_enforced=True`, raises `NotEnforced`. The Terraform provider reports a warning, or an error with
+`fail_on_not_applied = true`.
+
+**Not confirmed.** If the post-commit check fails, the change reverts at the deadline, but the candidate still holds
+the edit. Terraform recognises its own leftover edit and re-uses it on the next run. With the SDK, call
+`discard()` first.
 
 ## Credentials
 
@@ -33,8 +53,9 @@ Automation uses **API keys**, not passwords: create one in the web UI or with
 `POST /api/v1/auth/api-keys {"name": "ci", "role": "operator", "expiresInDays": 90}` — the key is shown once.
 The role caps what the key can do: `readonly` (GET only), `operator` (configuration, not users/AAA/secrets),
 `admin` (everything). Keep the key in a file or in the environment (`VRX_API_KEY`), never in code or in a Terraform
-file. TLS certificates are verified by default; `verify=False` / `insecure = true` exist for lab boxes with
-self-signed certificates only, `ca_file` trusts your own CA.
+file. Use `https://`: plain `http://` is refused for anything but a loopback address unless you set
+`allow_http=True` / `allow_http = true` (the key would travel in clear). TLS certificates are verified by default;
+`verify=False` / `insecure = true` exist for lab boxes with self-signed certificates only, and `ca_file` trusts your own CA.
 
 **Secrets.** Write-only members (today: `management.users[].passwordHash`) are never returned by the API. The SDK never
 logs them (nor the API key) and the Terraform provider only accepts them through a *write-only* attribute, so they
@@ -61,7 +82,7 @@ for item in s.state("interfaces")["items"]:                          # live stat
 s.rollback(41, confirm=60); s.confirm()                              # back to the revision before
 ```
 
-Leaving the `with` block commits with `?confirm=60`, calls `/state/system` as the reachability check and confirms;
+Leaving the `with` block commits with `?confirm=60`, checks that `/state/system` answers `in-sync`, and confirms;
 pass `check=` to use your own test (e.g. ping a next hop through the new interface). An exception inside the block
 discards the candidate. Errors are typed:
 
@@ -106,6 +127,8 @@ provider "vrx" {
   url             = "https://vrx-a.example.net"   # or VRX_URL
   # api_key       — prefer the VRX_API_KEY environment variable
   confirm_timeout = 60                            # seconds; 0 = commit without confirmation
+  # fail_on_not_applied = true                    # stored-but-not-enforced commits become errors (default: warning)
+  # allow_unsynced      = false                   # default: refuse to edit while sync is unknown/degraded
 }
 
 # typed: attributes generated from the interfaces JSON Schema (defaults filled in like the API does)
@@ -115,17 +138,19 @@ resource "vrx_interface" "loop10" {
   ipv4    = ["192.0.2.10/32"]
 }
 
-# generic: any JSON value at any pointer — every schema domain, no provider change needed
+# generic: any JSON value at any pointer — every schema domain, no provider change needed.
+# /system/hostname always exists on an appliance: import it first (terraform import vrx_config.hostname /system/hostname)
 resource "vrx_config" "hostname" {
-  pointer = "/system/hostname"
+  pointer = "/system/hostname"          # canonical form: leading "/", no trailing "/"
   value   = jsonencode("edge-1")
 }
 
-# a user with a password hash: the hash goes through the write-only attribute (never in plan or state)
+# users (admin key only): the hash goes through the write-only attribute (never in plan or state) and is matched to
+# the user BY USERNAME — never by position. /management/users exists by default: import it first.
 resource "vrx_config" "users" {
   pointer                 = "/management/users"
   value                   = jsonencode([{ username = "admin", role = "admin" }, { username = "ops", role = "operator" }])
-  sensitive_value         = jsonencode([{}, { passwordHash = var.ops_password_hash }])
+  sensitive_value         = jsonencode([{ username = "ops", passwordHash = var.ops_password_hash }])
   sensitive_value_version = 1          # bump to send a new hash
 }
 
@@ -135,9 +160,17 @@ output "loop10_state" {
 }
 ```
 
-`terraform apply` makes **one confirmed commit per resource change** (the provider serialises them; each commit is a
-revision you can roll back to). A second `terraform plan` shows no changes: members the API adds as schema defaults
-are not drift, reformatted JSON is not a change, but an out-of-band change of a configured member is reported.
+`terraform apply` makes **one confirmed commit per resource change**. The provider serialises them, and each commit
+is a revision you can roll back to. A second `terraform plan` shows no changes. Drift of a `vrx_config` is measured
+against the node **as the API stored it after the last apply**, so:
+- members the API fills in as schema defaults are not drift;
+- members changed **or added** out of band are drift, and the plan shows that the apply will remove them (the node is
+  replaced as a whole);
+- rewriting `value` with different formatting shows as an in-place update that commits nothing.
+
+`vrx_interface` refuses to update an interface that has members its generated schema does not know (it would
+delete them); rebuild the provider with `sdk/gen.sh`, or manage that node with `vrx_config`. `revision` is the
+revision of the last commit made by the resource, or 0 after an import or a no-op apply.
 Import existing configuration with the pointer or interface name:
 `terraform import vrx_config.hostname /system/hostname`, `terraform import vrx_interface.loop10 loop10`.
 Creating a resource over a node that already exists is refused with that hint. `sensitive_value` is a write-only

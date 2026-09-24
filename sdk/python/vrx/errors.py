@@ -101,6 +101,29 @@ class Unavailable(ApiError):
         return s if isinstance(s, dict) else None
 
 
+class NotInSync(VrxError):
+    """/state/system says running and the data plane do not agree (`unknown`/`degraded`) or a confirmed commit is
+    pending — nothing was edited. Wait for the API's reconcile, or pass allow_unsynced=True."""
+
+
+class ConcurrentEdit(VrxError):
+    """The candidate (per USER, D-093) holds changes this session did not make — another run of the same user is
+    editing. Nothing was committed and the candidate was left untouched. Use one service user per pipeline."""
+
+
+class NotEnforced(VrxError):
+    """The commit was stored but the agent does not (fully) enforce it (`partially-applied`/`not-applied`,
+    `notApplied` names the domains). Raised with require_enforced=True; `result` is the commit answer."""
+
+    def __init__(self, message: str, result: dict[str, Any]):
+        super().__init__(message)
+        self.result = result
+
+
+class NotEnforcedWarning(UserWarning):
+    """Warning variant of NotEnforced (the default)."""
+
+
 class ConfirmError(VrxError):
     """A confirmed commit could not be confirmed; the agent reverts it at the deadline."""
 

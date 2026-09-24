@@ -19,8 +19,12 @@ def fake() -> FakeTransport:
     return FakeTransport()
 
 
+SYNCED = (200, {"sync": {"state": "in-sync", "reason": ""}, "pendingCommit": None})
+
+
 @pytest.fixture
 def s(fake: FakeTransport) -> vrx.VrxSession:
+    fake.on("GET", "/api/v1/state/system", SYNCED)
     return vrx.VrxSession(URL, FAKE_KEY, transport=fake)
 
 
@@ -119,15 +123,14 @@ def test_transaction_commits_with_confirm_then_confirms(s: vrx.VrxSession, fake:
     fake.on("GET", "/api/v1/config/diff", lambda _: (200, {"baseRevision": 1, "changes": next(diffs)}))
     fake.on("PUT", "/api/v1/config/interfaces/loop1", (200, {"pointer": "/interfaces/loop1"}))
     fake.on("POST", "/api/v1/config/commit", pending_commit)
-    fake.on("GET", "/api/v1/state/system", (200, {"sync": {"state": "in-sync"}}))
-    fake.on("POST", "/api/v1/config/commit/confirm", (200, {"status": "confirmed", "revision": {"id": 2}}))
+    fake.on("POST", "/api/v1/config/commit/confirm", (200, {"status": "confirmed", "revision": {"id": 2}, "notApplied": []}))
     with s.transaction(confirm=30, comment="add loop1") as tx:
         tx.set("/interfaces/loop1", {"ipv4": ["192.0.2.1/32"]})
-    assert tx.result == {"status": "confirmed", "revision": {"id": 2}}
+    assert tx.result == {"status": "confirmed", "revision": {"id": 2}, "notApplied": []}
     assert fake.calls() == [
-        "GET /api/v1/config/diff", "PUT /api/v1/config/interfaces/loop1", "GET /api/v1/config/diff",
-        "POST /api/v1/config/commit?comment=add loop1&confirm=30", "GET /api/v1/state/system",
-        "POST /api/v1/config/commit/confirm"]
+        "GET /api/v1/state/system", "GET /api/v1/config/diff", "PUT /api/v1/config/interfaces/loop1",
+        "GET /api/v1/config/diff", "POST /api/v1/config/commit?comment=add loop1&confirm=30",
+        "GET /api/v1/state/system", "POST /api/v1/config/commit/confirm"]
 
 
 def test_transaction_refuses_dirty_candidate(s: vrx.VrxSession, fake: FakeTransport) -> None:
@@ -136,19 +139,64 @@ def test_transaction_refuses_dirty_candidate(s: vrx.VrxSession, fake: FakeTransp
     with pytest.raises(vrx.VrxError, match="1 uncommitted change.*alice"):
         with s.transaction():
             pass
+    assert "POST /api/v1/config/discard" not in fake.calls()
 
 
-def test_transaction_discards_on_exception_and_on_failed_commit(s: vrx.VrxSession, fake: FakeTransport) -> None:
-    fake.on("GET", "/api/v1/config/diff", (200, {"changes": []}))
-    fake.on("POST", "/api/v1/config/discard", (200, {"discarded": True}))
-    with pytest.raises(RuntimeError):
+def test_transaction_refuses_unsynced_appliance(s: vrx.VrxSession, fake: FakeTransport) -> None:
+    """review M2: sync unknown/degraded or a pending commit → nothing is edited (unless allow_unsynced)."""
+    fake.on("GET", "/api/v1/state/system", (200, {"sync": {"state": "unknown", "reason": "lost Apply answer"}}))
+    with pytest.raises(vrx.NotInSync, match="'unknown'"):
+        with s.transaction() as tx:
+            tx.set("/interfaces/loop1", {})
+    assert not any(c.startswith("PUT") for c in fake.calls())
+    fake.on("GET", "/api/v1/state/system", (200, {"sync": {"state": "in-sync"}, "pendingCommit": {"txnId": "t"}}))
+    with pytest.raises(vrx.NotInSync, match="pending"):
         with s.transaction():
+            pass
+
+
+def test_pending_answer_out_of_sync_is_not_confirmed(s: vrx.VrxSession, fake: FakeTransport) -> None:
+    fake.on("POST", "/api/v1/config/commit", (200, {"status": "pending", "confirmDeadline": "d", "sync": {"state": "degraded"}}))
+    with pytest.raises(vrx.ConfirmError, match="sync is degraded"):
+        s.commit_confirmed(confirm=10)
+    assert "POST /api/v1/config/commit/confirm" not in fake.calls()
+
+
+def test_concurrent_edit_is_neither_committed_nor_discarded(s: vrx.VrxSession, fake: FakeTransport) -> None:
+    """review M3: another run of the same user staged /system/hostname meanwhile."""
+    diffs = iter([[], [{"op": "add", "pointer": "/interfaces/loop1"}, {"op": "replace", "pointer": "/system/hostname"}]])
+    fake.on("GET", "/api/v1/config/diff", lambda _: (200, {"changes": next(diffs)}))
+    fake.on("PUT", "/api/v1/config/interfaces/loop1", (200, {}))
+    with pytest.raises(vrx.ConcurrentEdit, match="/system/hostname"):
+        with s.transaction() as tx:
+            tx.set("/interfaces/loop1", {})
+    assert not any("commit" in c or "discard" in c for c in fake.calls())
+
+
+def test_transaction_discards_only_its_own_changes(s: vrx.VrxSession, fake: FakeTransport) -> None:
+    fake.on("POST", "/api/v1/config/discard", (200, {"discarded": True}))
+    # exception inside the block: our change only → discarded
+    diffs = iter([[], [{"op": "add", "pointer": "/interfaces/loop1"}]])
+    fake.on("GET", "/api/v1/config/diff", lambda _: (200, {"changes": next(diffs)}))
+    fake.on("PUT", "/api/v1/config/interfaces/loop1", (200, {}))
+    with pytest.raises(RuntimeError):
+        with s.transaction() as tx:
+            tx.set("/interfaces/loop1", {})
             raise RuntimeError("boom")
     assert fake.calls()[-1] == "POST /api/v1/config/discard"
 
-    diffs = iter([[], [{"op": "add"}]])
-    fake.on("GET", "/api/v1/config/diff", lambda _: (200, {"changes": next(diffs)}))
-    fake.on("PUT", "/api/v1/config/interfaces/loop1", (200, {}))
+    # exception while another run's change is also in the candidate → NOT discarded
+    fake.seen.clear()
+    diffs = iter([[], [{"op": "add", "pointer": "/interfaces/loop1"}, {"op": "add", "pointer": "/nat/x"}]])
+    with pytest.raises(RuntimeError):
+        with s.transaction() as tx:
+            tx.set("/interfaces/loop1", {})
+            raise RuntimeError("boom")
+    assert "POST /api/v1/config/discard" not in fake.calls()
+
+    # failed commit (validation) → running untouched, our own change discarded
+    fake.seen.clear()
+    diffs = iter([[], [{"op": "add", "pointer": "/interfaces/loop1"}], [{"op": "add", "pointer": "/interfaces/loop1"}]])
     fake.on("POST", "/api/v1/config/commit", (400, problem(400, "Validation failed", errors=[
         {"pointer": "/interfaces/loop1/ipv4/0", "message": "overlaps /interfaces/loop2/ipv4/0"}])))
     with pytest.raises(vrx.BadRequest) as ei:
@@ -164,19 +212,44 @@ def test_failed_check_does_not_confirm(s: vrx.VrxSession, fake: FakeTransport) -
     def unreachable(_s: vrx.VrxSession) -> None:
         raise vrx.TransportError("management path lost")
 
-    with pytest.raises(vrx.ConfirmError, match="not confirming") as ei:
+    with pytest.raises(vrx.ConfirmError, match="NOT confirmed.*discard") as ei:
         s.commit_confirmed(confirm=10, check=unreachable)
     assert ei.value.commit is not None and ei.value.commit["status"] == "pending"
     assert "POST /api/v1/config/commit/confirm" not in fake.calls()
 
 
-def test_unchanged_transaction_discards_without_commit(s: vrx.VrxSession, fake: FakeTransport) -> None:
+def test_not_enforced_warns_or_raises(s: vrx.VrxSession, fake: FakeTransport) -> None:
+    """review M1: notApplied from the pending answer survives the confirm; stored-but-not-enforced is never silent."""
+    fake.on("POST", "/api/v1/config/commit", (200, {"status": "pending", "confirmDeadline": "d", "notApplied": ["nat"],
+                                                    "sync": {"state": "in-sync"}}))
+    fake.on("POST", "/api/v1/config/commit/confirm", (200, {"status": "confirmed", "notApplied": []}))
+    with pytest.warns(vrx.NotEnforcedWarning, match=r"\['nat'\]"):
+        r = s.commit_confirmed(confirm=10)
+    assert r["notApplied"] == ["nat"]
+    with pytest.raises(vrx.NotEnforced) as ei:
+        s.commit_confirmed(confirm=10, require_enforced=True)
+    assert ei.value.result["notApplied"] == ["nat"]
+    fake.on("POST", "/api/v1/config/commit", (200, {"status": "partially-applied", "notApplied": ["vpn"]}))
+    with pytest.raises(vrx.NotEnforced, match="partially-applied"):
+        s.commit_confirmed(confirm=10, require_enforced=True)
+
+
+def test_http_refused_for_remote_hosts(fake: FakeTransport) -> None:
+    """review L2."""
+    with pytest.raises(ValueError, match="refusing plain http"):
+        vrx.VrxSession("http://vrx-a.example", FAKE_KEY, transport=fake)
+    with pytest.warns(UserWarning, match="without TLS"):
+        vrx.VrxSession("http://vrx-a.example", FAKE_KEY, transport=fake, allow_http=True)
+    vrx.VrxSession("http://127.0.0.1:3500", FAKE_KEY, transport=fake)
+    vrx.VrxSession("http://[::1]:3500", FAKE_KEY, transport=fake)
+
+
+def test_unchanged_transaction_commits_nothing(s: vrx.VrxSession, fake: FakeTransport) -> None:
     fake.on("GET", "/api/v1/config/diff", (200, {"changes": []}))
-    fake.on("POST", "/api/v1/config/discard", (200, {"discarded": False}))
     with s.transaction() as tx:
         pass
-    assert tx.result == {"status": "unchanged"}
-    assert not any("commit" in c for c in fake.calls())
+    assert tx.result == {"status": "unchanged", "notApplied": []}
+    assert not any("commit" in c or "discard" in c for c in fake.calls())
 
 
 def test_rollback_and_revisions(s: vrx.VrxSession, fake: FakeTransport) -> None:

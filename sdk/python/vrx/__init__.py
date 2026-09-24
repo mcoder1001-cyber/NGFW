@@ -5,11 +5,15 @@ from .errors import (
     ApiError,
     BadRequest,
     CommitFailed,
+    ConcurrentEdit,
     ConfirmError,
     Conflict,
     FieldError,
     Forbidden,
+    NotEnforced,
+    NotEnforcedWarning,
     NotFound,
+    NotInSync,
     TransportError,
     Unauthorized,
     Unavailable,
@@ -21,7 +25,7 @@ from .session import Transaction, VrxSession
 
 __version__ = "0.1.0"
 __all__ = [
-    "ApiError", "BadRequest", "CommitFailed", "ConfirmError", "Conflict", "FieldError", "Forbidden", "NotFound",
+    "ApiError", "BadRequest", "CommitFailed", "ConcurrentEdit", "ConfirmError", "NotEnforced", "NotEnforcedWarning", "NotInSync", "Conflict", "FieldError", "Forbidden", "NotFound",
     "REDACTED", "Transaction", "TransportError", "Unauthorized", "Unavailable", "ValidationError", "VrxError",
     "VrxSession", "models", "pointer", "redact", "secret_pointers",
 ]

@@ -1996,6 +1996,7 @@ tasks:
   - P08
   - P07b
   - W-seed-BC
+  - ui-nav-collapse
   priority: 6
   est_hours: 10
   state: todo
@@ -2656,3 +2657,24 @@ tasks:
   owner: ''
   started: ''
   notes: D-123
+- id: ui-nav-collapse
+  title: 'Web nav: collapsible groups (closed by default, current group opens, useId ids, shared open state) — product-owner request in session «وب»'
+  prompt: ''
+  template: ''
+  stage: S4
+  deps:
+  - P07b
+  priority: 2
+  est_hours: 2
+  state: review
+  parked_on: ''
+  wbs:
+  - D1.1
+  scope: apps/web shell nav only (D-117)
+  files_owned: apps/web/src/shell/AppShell.tsx apps/web/src/nav/nav.ts apps/web/src/App.test.tsx apps/web/test/e2e/flow.e2e.mjs docs/status/tasks/ui-nav-collapse*
+  branch: task/ui-nav-collapse
+  worktree: /root/ngfw-wt/ui-nav-collapse
+  owner: «وب»
+  started: 2026-09-24T15:00
+  finished: ''
+  notes: D-117 review → fixes 27b4fdf..3f0014e; verify APPROVE 16b622a; queued for the merger

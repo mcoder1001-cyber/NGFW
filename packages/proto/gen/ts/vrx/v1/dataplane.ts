@@ -1320,7 +1320,14 @@ export interface Vrf {
     | number
     | undefined;
   /** Free-text description (VPP table name carries "<owner>:<name>"). */
-  description?: string | undefined;
+  description?:
+    | string
+    | undefined;
+  /**
+   * Source VRF select (svs plugin): packets from these source prefixes arriving on these interfaces are routed in this
+   * VRF. Canonical order: by interface, then prefix (F-vrf-static-ecmp).
+   */
+  sourceSelect: VrfSourceSelect[];
 }
 
 /**
@@ -1376,7 +1383,11 @@ export interface StaticRoute {
     | string
     | undefined;
   /** Drop matching traffic (null route, FIB_PATH_TYPE drop); requires empty next_hops. Zod default false. */
-  blackhole?: boolean | undefined;
+  blackhole?:
+    | boolean
+    | undefined;
+  /** D-072: true = FRR (staticd) programs this route and the agent does not; unset/false = the agent programs it in VPP. */
+  viaFrr?: boolean | undefined;
 }
 
 /** NextHop is one path of a StaticRoute. */
@@ -1393,7 +1404,14 @@ export interface NextHop {
     | string
     | undefined;
   /** ECMP weight 1–255; Zod default 1 (always set in a parsed document). */
-  weight?: number | undefined;
+  weight?:
+    | number
+    | undefined;
+  /**
+   * VRF the next-hop address is resolved in (VPP path table_id); unset = the route's VRF. Only with `address` and
+   * without `interface` (F-vrf-static-ecmp).
+   */
+  vrf?: string | undefined;
 }
 
 /** RoutingPolicy mirrors `routing.policy`. */
@@ -5274,6 +5292,16 @@ export interface RemoteAccessProfile_Radius_Server {
     | undefined;
   /** Reference to the shared secret. */
   secretRef?: string | undefined;
+}
+
+/** VrfSourceSelect mirrors one entry of `vrfs.<name>.sourceSelect` (VPP svs plugin). */
+export interface VrfSourceSelect {
+  /** Source prefix in CIDR notation (network address, not /0), IPv4 or IPv6. */
+  prefix?:
+    | string
+    | undefined;
+  /** Ingress VPP interface name (configuration key). */
+  interface?: string | undefined;
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -11814,7 +11842,7 @@ export const Subinterface: MessageFns<Subinterface> = {
 };
 
 function createBaseVrf(): Vrf {
-  return { id: undefined, description: undefined };
+  return { id: undefined, description: undefined, sourceSelect: [] };
 }
 
 export const Vrf: MessageFns<Vrf> = {
@@ -11824,6 +11852,9 @@ export const Vrf: MessageFns<Vrf> = {
     }
     if (message.description !== undefined) {
       writer.uint32(18).string(message.description);
+    }
+    for (const v of message.sourceSelect) {
+      VrfSourceSelect.encode(v!, writer.uint32(26).fork()).join();
     }
     return writer;
   },
@@ -11857,6 +11888,14 @@ export const Vrf: MessageFns<Vrf> = {
             message.description = reader.string();
             continue;
           }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.sourceSelect.push(VrfSourceSelect.decode(reader, reader.uint32()));
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -11873,6 +11912,11 @@ export const Vrf: MessageFns<Vrf> = {
     return {
       id: isSet(object.id) ? globalThis.Number(object.id) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
+      sourceSelect: globalThis.Array.isArray(object?.sourceSelect)
+        ? object.sourceSelect.map((e: any) => VrfSourceSelect.fromJSON(e))
+        : globalThis.Array.isArray(object?.source_select)
+        ? object.source_select.map((e: any) => VrfSourceSelect.fromJSON(e))
+        : [],
     };
   },
 
@@ -11884,6 +11928,9 @@ export const Vrf: MessageFns<Vrf> = {
     if (message.description !== undefined) {
       obj.description = message.description;
     }
+    if (message.sourceSelect?.length) {
+      obj.sourceSelect = message.sourceSelect.map((e) => VrfSourceSelect.toJSON(e));
+    }
     return obj;
   },
 
@@ -11894,6 +11941,7 @@ export const Vrf: MessageFns<Vrf> = {
     const message = createBaseVrf();
     message.id = object.id ?? undefined;
     message.description = object.description ?? undefined;
+    message.sourceSelect = object.sourceSelect?.map((e) => VrfSourceSelect.fromPartial(e)) || [];
     return message;
   },
 };
@@ -12085,6 +12133,7 @@ function createBaseStaticRoute(): StaticRoute {
     distance: undefined,
     description: undefined,
     blackhole: undefined,
+    viaFrr: undefined,
   };
 }
 
@@ -12107,6 +12156,9 @@ export const StaticRoute: MessageFns<StaticRoute> = {
     }
     if (message.blackhole !== undefined) {
       writer.uint32(48).bool(message.blackhole);
+    }
+    if (message.viaFrr !== undefined) {
+      writer.uint32(56).bool(message.viaFrr);
     }
     return writer;
   },
@@ -12172,6 +12224,14 @@ export const StaticRoute: MessageFns<StaticRoute> = {
             message.blackhole = reader.bool();
             continue;
           }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.viaFrr = reader.bool();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -12196,6 +12256,11 @@ export const StaticRoute: MessageFns<StaticRoute> = {
       distance: isSet(object.distance) ? globalThis.Number(object.distance) : undefined,
       description: isSet(object.description) ? globalThis.String(object.description) : undefined,
       blackhole: isSet(object.blackhole) ? globalThis.Boolean(object.blackhole) : undefined,
+      viaFrr: isSet(object.viaFrr)
+        ? globalThis.Boolean(object.viaFrr)
+        : isSet(object.via_frr)
+        ? globalThis.Boolean(object.via_frr)
+        : undefined,
     };
   },
 
@@ -12219,6 +12284,9 @@ export const StaticRoute: MessageFns<StaticRoute> = {
     if (message.blackhole !== undefined) {
       obj.blackhole = message.blackhole;
     }
+    if (message.viaFrr !== undefined) {
+      obj.viaFrr = message.viaFrr;
+    }
     return obj;
   },
 
@@ -12233,12 +12301,13 @@ export const StaticRoute: MessageFns<StaticRoute> = {
     message.distance = object.distance ?? undefined;
     message.description = object.description ?? undefined;
     message.blackhole = object.blackhole ?? undefined;
+    message.viaFrr = object.viaFrr ?? undefined;
     return message;
   },
 };
 
 function createBaseNextHop(): NextHop {
-  return { address: undefined, interface: undefined, weight: undefined };
+  return { address: undefined, interface: undefined, weight: undefined, vrf: undefined };
 }
 
 export const NextHop: MessageFns<NextHop> = {
@@ -12251,6 +12320,9 @@ export const NextHop: MessageFns<NextHop> = {
     }
     if (message.weight !== undefined) {
       writer.uint32(24).uint32(message.weight);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(34).string(message.vrf);
     }
     return writer;
   },
@@ -12292,6 +12364,14 @@ export const NextHop: MessageFns<NextHop> = {
             message.weight = reader.uint32();
             continue;
           }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -12309,6 +12389,7 @@ export const NextHop: MessageFns<NextHop> = {
       address: isSet(object.address) ? globalThis.String(object.address) : undefined,
       interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
       weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
     };
   },
 
@@ -12323,6 +12404,9 @@ export const NextHop: MessageFns<NextHop> = {
     if (message.weight !== undefined) {
       obj.weight = Math.round(message.weight);
     }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
     return obj;
   },
 
@@ -12334,6 +12418,7 @@ export const NextHop: MessageFns<NextHop> = {
     message.address = object.address ?? undefined;
     message.interface = object.interface ?? undefined;
     message.weight = object.weight ?? undefined;
+    message.vrf = object.vrf ?? undefined;
     return message;
   },
 };
@@ -42613,6 +42698,91 @@ export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_R
     message.address = object.address ?? undefined;
     message.port = object.port ?? undefined;
     message.secretRef = object.secretRef ?? undefined;
+    return message;
+  },
+};
+
+function createBaseVrfSourceSelect(): VrfSourceSelect {
+  return { prefix: undefined, interface: undefined };
+}
+
+export const VrfSourceSelect: MessageFns<VrfSourceSelect> = {
+  encode(message: VrfSourceSelect, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.prefix !== undefined) {
+      writer.uint32(10).string(message.prefix);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(18).string(message.interface);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): VrfSourceSelect {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseVrfSourceSelect();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): VrfSourceSelect {
+    return {
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+    };
+  },
+
+  toJSON(message: VrfSourceSelect): unknown {
+    const obj: any = {};
+    if (message.prefix !== undefined) {
+      obj.prefix = message.prefix;
+    }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<VrfSourceSelect>): VrfSourceSelect {
+    return VrfSourceSelect.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<VrfSourceSelect>): VrfSourceSelect {
+    const message = createBaseVrfSourceSelect();
+    message.prefix = object.prefix ?? undefined;
+    message.interface = object.interface ?? undefined;
     return message;
   },
 };

@@ -72,6 +72,7 @@ export * from './domains/management.js';
 // wave-A: F-bridge-l2
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
+export * from './domains/ext/vrf-static-ecmp.js';
 // wave-A: F-neighbors-ra
 // wave-A: F-rpf-adl-pbr
 // wave-A: F-object-model

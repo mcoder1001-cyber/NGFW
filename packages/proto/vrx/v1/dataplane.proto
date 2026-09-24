@@ -892,6 +892,11 @@ message Vrf {
   optional string description = 2;
 
   // wave-A: F-vrf-static-ecmp
+
+  // Source VRF select (svs plugin): packets from these source prefixes arriving on these interfaces are routed in this
+  // VRF. Canonical order: by interface, then prefix (F-vrf-static-ecmp).
+  repeated VrfSourceSelect source_select = 3;
+
   // wave-A: F-neighbors-ra
 }
 
@@ -939,6 +944,10 @@ message StaticRoute {
   optional bool blackhole = 6;
 
   // wave-A: F-vrf-static-ecmp
+
+  // D-072: true = FRR (staticd) programs this route and the agent does not; unset/false = the agent programs it in VPP.
+  optional bool via_frr = 7;
+
   // wave-A: P12
 }
 
@@ -951,6 +960,9 @@ message NextHop {
   optional string interface = 2;
   // ECMP weight 1–255; Zod default 1 (always set in a parsed document).
   optional uint32 weight = 3;
+  // VRF the next-hop address is resolved in (VPP path table_id); unset = the route's VRF. Only with `address` and
+  // without `interface` (F-vrf-static-ecmp).
+  optional string vrf = 4;
 }
 
 // RoutingPolicy mirrors `routing.policy`.
@@ -3441,6 +3453,14 @@ message RemoteAccessProfile {
 // ----- F-loopback-bvi-gso-lldp-span -----
 
 // ----- F-vrf-static-ecmp -----
+
+// VrfSourceSelect mirrors one entry of `vrfs.<name>.sourceSelect` (VPP svs plugin).
+message VrfSourceSelect {
+  // Source prefix in CIDR notation (network address, not /0), IPv4 or IPv6.
+  optional string prefix = 1;
+  // Ingress VPP interface name (configuration key).
+  optional string interface = 2;
+}
 
 // ----- F-neighbors-ra -----
 

@@ -842,6 +842,13 @@ export interface components {
         id: number;
         /** Description */
         description?: string;
+        /** Source VRF select */
+        sourceSelect?: {
+          /** Source prefix */
+          prefix: string;
+          /** Ingress interface */
+          interface: string;
+        }[];
       };
     };
     /**
@@ -876,6 +883,8 @@ export interface components {
            * @default 1
            */
           weight: number;
+          /** Next-hop VRF */
+          vrf?: string;
         }[];
         /**
          * Blackhole
@@ -889,6 +898,8 @@ export interface components {
         distance: number;
         /** Description */
         description?: string;
+        /** Program via FRR */
+        viaFrr?: boolean;
       }[];
       /**
        * Routing policy

@@ -57,15 +57,15 @@ func TestInterfacesDomainOnFake(t *testing.T) {
 		byKey[r.GetKey()] = r
 	}
 	for k, ptr := range map[string]string{
-		"af-packet.host-interface/host-w1l0":        "/interfaces/host-w1l0",
-		"interface/host-w1l0":                       "/interfaces/host-w1l0",
-		"interface.admin-state/host-w1l0":           "/interfaces/host-w1l0/enabled",
-		"interface.mtu/host-w1l0":                   "/interfaces/host-w1l0/mtu",
-		"interface.mtu/host-w1w0":                   "/interfaces/host-w1w0/mtu", // 9000 = af_packet default: tolerated no-op
-		"interface.subinterface/host-w1w0.100":      "/interfaces/host-w1w0/subinterfaces/100",
-		"interface-ip.table/host-w1w0.100":          "/interfaces/host-w1w0/subinterfaces/100/vrf",
+		"af-packet.host-interface/host-w1l0":       "/interfaces/host-w1l0",
+		"interface/host-w1l0":                      "/interfaces/host-w1l0",
+		"interface.admin-state/host-w1l0":          "/interfaces/host-w1l0/enabled",
+		"interface.mtu/host-w1l0":                  "/interfaces/host-w1l0/mtu",
+		"interface.mtu/host-w1w0":                  "/interfaces/host-w1w0/mtu", // 9000 = af_packet default: tolerated no-op
+		"interface.subinterface/host-w1w0.100":     "/interfaces/host-w1w0/subinterfaces/100",
+		"interface-ip.table/host-w1w0.100":         "/interfaces/host-w1w0/subinterfaces/100/vrf",
 		"interface-ip/host-w1w0.100/10.1.100.1/24": "/interfaces/host-w1w0/subinterfaces/100/ipv4/0",
-		"interface.loopback/loop101":                "/interfaces/loop101",
+		"interface.loopback/loop101":               "/interfaces/loop101",
 	} {
 		if r := byKey[k]; r == nil || r.GetPointer() != ptr || r.GetSubsystem() != "interfaces" {
 			t.Fatalf("result %s = %v, want pointer %s", k, r, ptr)

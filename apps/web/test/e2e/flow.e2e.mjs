@@ -15,10 +15,17 @@
  *                                 random per-run password the same way the API does (argon2id PHC)
  *   VRX_PLAYWRIGHT_CORE, VRX_CHROME
  *   --keyboard runs login → commit (with auto-revert) → confirm using the keyboard only (Tab / Enter / typing).
- * Options: --langs en,fa  --shots <dir>  --revert  --keyboard
+ *   --secret   changes ONLY the readonly user's password hash (write-only, redacted in every diff) → the bar must still
+ *              appear with "password changed", the commit must go through and the new password must work (review H1).
+ *   --blackhole silent-drop test (review M3/M2/M1). Needs VRX_E2E_PROXY_PORT (the port vite proxies /api to, e.g. the
+ *              slot port 3100) and VRX_E2E_UPSTREAM (host:port of the API, e.g. 127.0.0.1:3101): this script runs a TCP
+ *              proxy in-process between them and, mid-countdown, swallows all traffic without closing a socket (what a
+ *              commit that cuts the operator's own route looks like). No iptables, no system change.
+ * Options: --langs en,fa  --shots <dir>  --revert  --keyboard  --secret  --blackhole
  * Test users carry the slot prefix (VRX_TEST_PREFIX, default w1): `<prefix>ro`.
  */
 import { randomBytes } from 'node:crypto';
+import net from 'node:net';
 import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
@@ -36,16 +43,19 @@ const LANGS = opt('langs', 'en,fa').split(',');
 const SHOTS = opt('shots', '');
 const REVERT = args.includes('--revert');
 const KEYBOARD = args.includes('--keyboard');
+const SECRET = args.includes('--secret');
+const BLACKHOLE = args.includes('--blackhole');
 const BASE = process.env.VRX_E2E_BASE ?? 'http://127.0.0.1:5100';
 const ADMIN = process.env.VRX_E2E_ADMIN_USER ?? 'admin';
 const ADMIN_PW = readFileSync(process.env.VRX_E2E_ADMIN_PASSWORD_FILE ?? '/run/vrx-test/w1/admin.pw', 'utf8').trim();
 const PREFIX = process.env.VRX_TEST_PREFIX ?? 'w1';
 const RO_USER = `${PREFIX}ro`;
-const RO_PW = randomBytes(18).toString('base64url'); // per run, memory only
+let RO_PW = randomBytes(18).toString('base64url'); // per run, memory only
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.VRX_PLAYWRIGHT_CORE ?? 'playwright-core');
 const argon2 = createRequire(join(resolve(repo, process.env.VRX_E2E_ARGON2_FROM ?? 'apps/api'), 'package.json'))('@node-rs/argon2');
-const RO_HASH = await argon2.hash(RO_PW, { memoryCost: 19456, timeCost: 2, parallelism: 1 });
+const hashOf = (pw) => argon2.hash(pw, { memoryCost: 19456, timeCost: 2, parallelism: 1 });
+let RO_HASH = await hashOf(RO_PW);
 
 /** The app's own locale files, so every lookup matches what the UI renders in that language. */
 function loadLocales(lang) {
@@ -319,6 +329,143 @@ async function keyboardPass(browser, lang) {
   await ctx.close();
 }
 
+/**
+ * TCP proxy that can go silent: in `drop` mode it keeps every socket open but forwards nothing (and accepts new
+ * connections without ever answering) — no RST, no FIN, exactly like packets vanishing on a cut route.
+ */
+function silentProxy(listenPort, upstream) {
+  const [upHost, upPort] = upstream.split(':');
+  let dropping = false;
+  const sockets = new Set();
+  const server = net.createServer((client) => {
+    sockets.add(client);
+    client.on('error', () => {});
+    client.on('close', () => sockets.delete(client));
+    if (dropping) return; // accepted, never answered
+    const up = net.connect(Number(upPort), upHost);
+    sockets.add(up);
+    up.on('error', () => client.destroy());
+    up.on('close', () => {
+      sockets.delete(up);
+      if (!dropping) client.destroy();
+    });
+    client.on('close', () => {
+      if (!dropping) up.destroy();
+    });
+    client.on('data', (d) => {
+      if (!dropping) up.write(d);
+    });
+    up.on('data', (d) => {
+      if (!dropping) client.write(d);
+    });
+  });
+  return new Promise((resolveListen, rejectListen) => {
+    server.once('error', rejectListen);
+    server.listen(Number(listenPort), '127.0.0.1', () =>
+      resolveListen({
+        drop() {
+          dropping = true;
+        },
+        /** The route is back: the dead connections are gone (as after a TCP timeout), new ones work. */
+        restore() {
+          dropping = false;
+          for (const sock of sockets) sock.destroy();
+          sockets.clear();
+        },
+        close: () => new Promise((r) => {
+          for (const sock of sockets) sock.destroy();
+          server.close(() => r());
+        }),
+      }),
+    );
+  });
+}
+
+async function secretPass(browser, lang) {
+  const { ctx, page } = await newPage(browser, lang);
+  await page.goto(`${BASE}/login`);
+  await login(page, lang, ADMIN, ADMIN_PW);
+  await page.waitForURL((u) => !u.pathname.startsWith('/login'));
+  await nav(page, lang, 'users');
+  await page.getByRole('button', { name: tr(lang, 'users:edit', { user: RO_USER }) }).click();
+  const dialog = page.getByRole('dialog');
+  const newPw = randomBytes(18).toString('base64url');
+  await dialog.getByLabel(tr(lang, 'users:field.passwordHash.title'), { exact: false }).fill(await hashOf(newPw));
+  await dialog.getByRole('button', { name: tr(lang, 'users:saveToCandidate') }).click();
+  await dialog.waitFor({ state: 'hidden' });
+  const serverDiff = await apiGet(page, '/api/v1/config/diff');
+  ok(`[${lang}] secret: only ${RO_USER}'s password hash changed → server diff has ${serverDiff.changes.length} visible change(s)${serverDiff.changes.some((c) => c.redacted) ? ' (redacted entry from the API)' : ''}`);
+  await page.getByTestId('pending-bar').waitFor({ timeout: 15_000 });
+  await page.getByTestId('password-changed').first().waitFor();
+  check(true, `[${lang}] secret: the bar appears ("${await page.getByTestId('pending-count').innerText()}") and the user row says "${tr(lang, 'users:pending.password')}"`);
+  await shot(page, `40-password-only-bar-${lang}`);
+  await page.getByTestId('pending-bar').getByRole('button', { name: tr(lang, 'config:bar.review') }).click();
+  const review = page.getByRole('dialog');
+  const text = await review.getByTestId('redacted-change').first().innerText();
+  check(!text.includes('$argon2'), `[${lang}] secret: review shows "${text.replace(/\n/g, ' ')}" — no value`);
+  await shot(page, `41-password-only-review-${lang}`);
+  await review.getByRole('button', { name: tr(lang, 'config:close') }).click();
+  await commitViaDialog(page, lang, `e2e: new password for ${RO_USER}`, null, null);
+  const result = page.getByRole('dialog').getByTestId('commit-result');
+  await result.waitFor({ timeout: 30_000 });
+  ok(`[${lang}] secret: committed → "${(await result.innerText()).split('\n')[0]}"`);
+  await page.getByRole('dialog').getByRole('button', { name: tr(lang, 'config:close') }).click();
+  await page.getByTestId('pending-bar').waitFor({ state: 'hidden', timeout: 15_000 });
+  await signOut(page, lang);
+  await login(page, lang, RO_USER, newPw);
+  await page.waitForURL((u) => !u.pathname.startsWith('/login'));
+  check(true, `[${lang}] secret: ${RO_USER} signs in with the NEW password`);
+  RO_PW = newPw;
+  await ctx.close();
+}
+
+async function blackholePass(browser, lang, proxy) {
+  const { ctx, page } = await newPage(browser, lang);
+  await page.goto(`${BASE}/login`);
+  await login(page, lang, ADMIN, ADMIN_PW);
+  await page.waitForURL((u) => !u.pathname.startsWith('/login'));
+  await editRoUser(page, lang, `E2E blackhole ${new Date().toISOString().slice(11, 19)}`);
+  await commitViaDialog(page, lang, `e2e ${lang}: silent drop`, 2, null);
+  const banner = page.getByTestId('confirm-banner');
+  await banner.waitFor({ timeout: 30_000 });
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  proxy.drop();
+  const t0 = Date.now();
+  ok(`[${lang}] blackhole: traffic to the API now silently dropped (sockets stay open, nothing answers)`);
+  await banner.getByText(tr(lang, 'config:confirm.reconnecting')).first().waitFor({ timeout: 30_000 });
+  const t1 = await banner.innerText();
+  check(true, `[${lang}] blackhole: banner says "${tr(lang, 'config:confirm.reconnecting')}" after ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+  await page.waitForTimeout(2200);
+  const t2 = await banner.innerText();
+  check(t1 !== t2 && (await banner.getByRole('button', { name: tr(lang, 'config:confirm.button') }).isDisabled()), `[${lang}] blackhole: countdown keeps running locally ("${t1.split('\n')[1]}" → "${t2.split('\n')[1]}"), Confirm disabled`);
+  await shot(page, `50-silent-drop-reconnecting-${lang}`);
+  await page.reload();
+  const offline = page.getByTestId('offline-screen');
+  await offline.waitFor({ timeout: 30_000 });
+  await offline.getByTestId('confirm-banner').waitFor();
+  check(!page.url().includes('/login'), `[${lang}] blackhole: reload during the drop → offline screen with the countdown ("${(await offline.getByTestId('confirm-banner').innerText()).split('\n')[1]}"), not /login`);
+  await shot(page, `51-reload-during-drop-${lang}`);
+  proxy.restore();
+  ok(`[${lang}] blackhole: route restored`);
+  const back = page.getByTestId('confirm-banner');
+  await back.getByText(tr(lang, 'config:confirm.titleMine')).first().waitFor({ timeout: 45_000 });
+  check(true, `[${lang}] blackhole: session restored without a login, banner: "${(await back.innerText()).split('\n')[1]}"`);
+  await back.getByRole('button', { name: tr(lang, 'config:confirm.button') }).click();
+  const outcome = page.getByTestId('confirm-outcome');
+  await outcome.waitFor({ timeout: 30_000 });
+  const applied = await outcome.getByTestId('commit-result').innerText();
+  check(applied.includes(tr(lang, 'config:confirm.applyResult')), `[${lang}] blackhole: confirmed; apply result shown: "${applied.split('\n').slice(0, 2).join(' | ')}"`);
+  await shot(page, `52-confirmed-with-apply-result-${lang}`);
+  await ctx.close();
+}
+
+async function apiGet(page, path) {
+  return page.evaluate(async (p) => {
+    const { accessToken } = await (await fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' })).json();
+    return (await fetch(p, { headers: { authorization: `Bearer ${accessToken}` } })).json();
+  }, path);
+}
+
 /** Ground truth straight from the API (through the page's own session) — not from what the UI rendered. */
 async function apiRevisions(page) {
   return page.evaluate(async () => {
@@ -329,9 +476,13 @@ async function apiRevisions(page) {
   });
 }
 
+const proxy = process.env.VRX_E2E_PROXY_PORT ? await silentProxy(process.env.VRX_E2E_PROXY_PORT, process.env.VRX_E2E_UPSTREAM ?? '127.0.0.1:3101') : null;
+if (BLACKHOLE && !proxy) throw new Error('--blackhole needs VRX_E2E_PROXY_PORT and VRX_E2E_UPSTREAM');
 const browser = await chromium.launch({ executablePath: process.env.VRX_CHROME, headless: true });
 try {
   for (const [i, lang] of LANGS.entries()) await adminPass(browser, lang, i);
+  if (SECRET) await secretPass(browser, LANGS[0]);
+  if (BLACKHOLE) for (const lang of LANGS) await blackholePass(browser, lang, proxy);
   if (KEYBOARD) await keyboardPass(browser, LANGS[0]);
   if (REVERT) await revertPass(browser, LANGS[0]);
   console.log(`\nE2E PASSED (${results.length} checks)`);
@@ -340,4 +491,5 @@ try {
   process.exitCode = 1;
 } finally {
   await browser.close();
+  await proxy?.close();
 }

@@ -168,23 +168,58 @@ func TestFamilyValueShape(t *testing.T) {
 	}
 }
 
-func TestStoreCorruptFailsClosed(t *testing.T) {
+// Review F2: a corrupt store never stops the agent — it is moved aside (.corrupt-<unix>), logged as an
+// ERROR, counted, and the store starts empty; the next transaction (the API's resync) rebuilds it.
+func TestStoreCorruptMovedAside(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "objects-w3.json")
 	if err := os.WriteFile(path, []byte("{not json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := OpenStore(path); err == nil || !strings.Contains(err.Error(), "corrupt") {
-		t.Fatalf("corrupt store: %v", err)
+	before := storeCorrupt.Load()
+	lb := &logBuf{}
+	rt, err := Open(Config{StateDir: dir, Owner: "w3", Lookup: NetLookup([]string{"127.0.0.1:9"}), Log: slogTo(lb)})
+	if err != nil {
+		t.Fatalf("a corrupt store stopped the runtime: %v", err)
 	}
-	// the FQDN state is a cache: unreadable → ignored, never fatal
+	aside, _ := filepath.Glob(path + ".corrupt-*")
+	if len(aside) != 1 || storeCorrupt.Load() != before+1 || !strings.Contains(lb.String(), "level=ERROR") || !strings.Contains(lb.String(), "moved aside") {
+		t.Fatalf("aside=%v metric %d→%d log:\n%s", aside, before, storeCorrupt.Load(), lb.String())
+	}
+	if raw, _ := os.ReadFile(aside[0]); string(raw) != "{not json" { //nolint:gosec // the test's own temp dir
+		t.Fatalf("moved file: %q", raw)
+	}
+	reg := scheduler.NewRegistry()
+	Register(reg, rt)
+	sched := scheduler.New(reg, nil)
+	scope := scheduler.Only(DescriptorNames()...)
+	got, err := sched.Retrieve(context.Background(), scope)
+	if err != nil || len(got) != 0 {
+		t.Fatalf("Retrieve after the move: %v %v", got, err)
+	}
+	// the resync re-applies the configuration: the store is rebuilt and written again
+	want := objectsDoc(t, familyDoc)
+	if res := sched.ApplyWith(context.Background(), kvsOf(t, want), scope, scheduler.ApplyOptions{Resync: true}); res.Outcome != scheduler.OutcomeApplied {
+		t.Fatalf("resync: %v %v", res.Outcome, res.Err)
+	}
+	if reopened, err := OpenStore(path, slogTo(&logBuf{})); err != nil || !proto.Equal(reopened.Snapshot(), want) {
+		t.Fatalf("rebuilt store: %v", err)
+	}
+	var metrics strings.Builder
+	WriteMetrics(&metrics)
+	if !strings.Contains(metrics.String(), "vrx_agent_objects_store_corrupt_total ") {
+		t.Fatalf("metrics:\n%s", metrics.String())
+	}
+	t.Logf("log: %s", strings.TrimSpace(lb.String()))
+
+	// the FQDN state is a cache as well: unreadable → ignored, never fatal
+	rt.Close()
 	if err := os.WriteFile(filepath.Join(dir, "objects-fqdn-w3.json"), []byte("garbage"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_ = os.Remove(path)
-	lb := &logBuf{}
-	if _, err := Open(Config{StateDir: dir, Owner: "w3", Lookup: NetLookup([]string{"127.0.0.1:9"}), Log: slogTo(lb)}); err != nil || !strings.Contains(lb.String(), "fqdn state unreadable") {
-		t.Fatalf("corrupt fqdn state: %v %s", err, lb.String())
+	lb2 := &logBuf{}
+	if _, err := Open(Config{StateDir: dir, Owner: "w3", Lookup: NetLookup([]string{"127.0.0.1:9"}), Log: slogTo(lb2)}); err != nil || !strings.Contains(lb2.String(), "fqdn state unreadable") {
+		t.Fatalf("corrupt fqdn state: %v %s", err, lb2.String())
 	}
 }
 

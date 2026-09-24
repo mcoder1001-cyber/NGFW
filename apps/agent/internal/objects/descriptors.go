@@ -52,21 +52,53 @@ func Value(k Kind, name string, v proto.Message) (*vrxv1.ObjectsConfig, error) {
 	return doc, nil
 }
 
-// single returns the one entry of kind k in a family value.
+// single returns the one entry of kind k in a family value — O(1): the scheduler calls KeyOf and
+// Dependencies for every object of a transaction many times (review F1 profile).
 func single(k Kind, obj proto.Message) (string, proto.Message, error) {
 	doc, ok := obj.(*vrxv1.ObjectsConfig)
 	if !ok {
 		return "", nil, fmt.Errorf("%w: value %T is not an ObjectsConfig", ErrInvalid, obj)
 	}
-	var total int
-	for _, kk := range Kinds {
-		total += len(listKind(doc, kk))
+	total := len(doc.GetAddresses()) + len(doc.GetAddressGroups()) + len(doc.GetServices()) + len(doc.GetServiceGroups()) +
+		len(doc.GetSchedules()) + len(doc.GetZones()) + len(doc.GetTags())
+	var name string
+	var value proto.Message
+	n := 0
+	one := func(key string, v proto.Message) { name, value, n = key, v, n+1 }
+	switch k {
+	case KindAddresses:
+		for key, v := range doc.GetAddresses() {
+			one(key, v)
+		}
+	case KindAddressGroups:
+		for key, v := range doc.GetAddressGroups() {
+			one(key, v)
+		}
+	case KindServices:
+		for key, v := range doc.GetServices() {
+			one(key, v)
+		}
+	case KindServiceGroups:
+		for key, v := range doc.GetServiceGroups() {
+			one(key, v)
+		}
+	case KindSchedules:
+		for key, v := range doc.GetSchedules() {
+			one(key, v)
+		}
+	case KindZones:
+		for key, v := range doc.GetZones() {
+			one(key, v)
+		}
+	case KindTags:
+		for key, v := range doc.GetTags() {
+			one(key, v)
+		}
 	}
-	es := listKind(doc, k)
-	if len(es) != 1 || total != 1 {
-		return "", nil, fmt.Errorf("%w: a %s value holds exactly one %s entry (has %d of %d entries)", ErrInvalid, descriptorOf[k], k, len(es), total)
+	if n != 1 || total != 1 {
+		return "", nil, fmt.Errorf("%w: a %s value holds exactly one %s entry (has %d of %d entries)", ErrInvalid, descriptorOf[k], k, n, total)
 	}
-	return es[0].name, es[0].value, nil
+	return name, value, nil
 }
 
 // Register adds the objects.* family over rt's store to r (Kinds order: tags, addresses, groups,
@@ -146,10 +178,14 @@ func (d *descriptor) Delete(_ context.Context, obj proto.Message, _ any) error {
 	return d.store.remove(d.kind, name)
 }
 
+// Retrieve returns the kind's applied objects from the store. It first writes pending changes (the
+// scheduler retrieves to verify every transaction, so a transaction is written once, review F1); a write
+// error is logged and counted by the store and does not fail Retrieve — memory is the applied state.
 func (d *descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	_ = d.store.Flush()
 	es := d.store.entries(d.kind)
 	out := make([]scheduler.KV, 0, len(es))
 	for _, e := range es {

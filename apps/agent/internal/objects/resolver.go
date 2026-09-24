@@ -30,6 +30,12 @@ const (
 	RestartWindow = 30 * time.Second
 	// DormantTTL: how long the answers of a name no object uses any more are kept (not queried).
 	DormantTTL = time.Hour
+	// DefaultMaxStale: how long the last good answers of a failing name are kept (D-129); after that the
+	// family expands to nothing, with a warning. VRX_OBJECTS_FQDN_MAX_STALE_SEC overrides it within
+	// [MinMaxStale, MaxMaxStale].
+	DefaultMaxStale = 24 * time.Hour
+	MinMaxStale     = time.Minute
+	MaxMaxStale     = 30 * 24 * time.Hour
 	// queryBurst lookups may run back to back; after that the loop waits querySpacing between
 	// rounds (≤ 16 hosts per second), so a bulk commit of new FQDN objects is no query storm either.
 	queryBurst   = 4
@@ -45,6 +51,19 @@ func ClampRefresh(d time.Duration) time.Duration {
 		return MinRefresh
 	case d > MaxRefresh:
 		return MaxRefresh
+	}
+	return d
+}
+
+// ClampMaxStale bounds d to [MinMaxStale, MaxMaxStale]; 0 means DefaultMaxStale.
+func ClampMaxStale(d time.Duration) time.Duration {
+	switch {
+	case d == 0:
+		return DefaultMaxStale
+	case d < MinMaxStale:
+		return MinMaxStale
+	case d > MaxMaxStale:
+		return MaxMaxStale
 	}
 	return d
 }
@@ -150,6 +169,11 @@ type fqdnEntry struct {
 	NextRefresh  time.Time    `json:"nextRefresh"`
 	Err          string       `json:"error,omitempty"`
 	Failures     int          `json:"failures,omitempty"`
+	// V4At / V6At: when the family last answered (its records, or an authoritative "none"). While a
+	// family fails its last-good answers are kept for at most the maximum staleness after that (D-129).
+	// Zero in state files of older builds: LastResolved stands in.
+	V4At time.Time `json:"v4At,omitzero"`
+	V6At time.Time `json:"v6At,omitzero"`
 	// DormantSince: no object uses the name since then; the answers are kept (not refreshed) for
 	// DormantTTL, so an object that comes back — a rollback, the resync after a lost store —
 	// gets them at once, without a query.
@@ -166,26 +190,35 @@ type fqdnFile struct {
 }
 
 type resolver struct {
-	lookup  Lookup
-	refresh time.Duration
-	now     func() time.Time
-	log     *slog.Logger
-	path    string
+	lookup   Lookup
+	refresh  time.Duration
+	maxStale time.Duration
+	now      func() time.Time
+	log      *slog.Logger
+	path     string
 
 	mu      sync.Mutex
-	hosts   map[string]*fqdnEntry // canonical host → state
-	objects map[string]string     // FQDN object name → canonical host
+	hosts   map[string]*fqdnEntry      // canonical host → state
+	objects map[string]string          // FQDN object name → canonical host
+	byHost  map[string]map[string]bool // canonical host → the FQDN objects using it (a host is used iff present)
 	subs    map[int]func(Change)
 	nextSub int
 	queries int // lookups started (both families count once), for tests and logs
+	// dirty: the state changed since the last write; the loop writes it coalesced (review F1)
+	dirty       bool
+	lastPersist time.Time
 
 	wake chan struct{}
 }
 
-func newResolver(path string, lookup Lookup, refresh time.Duration, now func() time.Time, log *slog.Logger) *resolver {
+// persistEvery bounds how often the loop writes the state file while it is busy resolving.
+const persistEvery = 5 * time.Second
+
+func newResolver(path string, lookup Lookup, refresh, maxStale time.Duration, now func() time.Time, log *slog.Logger) *resolver {
 	return &resolver{
-		lookup: lookup, refresh: ClampRefresh(refresh), now: now, log: log, path: path,
-		hosts: map[string]*fqdnEntry{}, objects: map[string]string{}, subs: map[int]func(Change){}, wake: make(chan struct{}, 1),
+		lookup: lookup, refresh: ClampRefresh(refresh), maxStale: ClampMaxStale(maxStale), now: now, log: log, path: path,
+		hosts: map[string]*fqdnEntry{}, objects: map[string]string{}, byHost: map[string]map[string]bool{},
+		subs: map[int]func(Change){}, wake: make(chan struct{}, 1),
 	}
 }
 
@@ -213,16 +246,32 @@ func (r *resolver) load() {
 	}
 }
 
-// persist writes the state file (0600, atomic). A failure is logged: the answers stay in memory.
+// persist writes the state file (0600, atomic). A failure is logged: the answers stay in memory and
+// the state stays dirty.
 func (r *resolver) persist() {
 	r.mu.Lock()
 	raw, err := json.MarshalIndent(fqdnFile{Version: 1, Hosts: r.hosts}, "", "  ")
+	r.dirty = false
+	r.lastPersist = r.now()
 	r.mu.Unlock()
 	if err == nil {
 		err = atomicWrite(r.path, raw)
 	}
 	if err != nil {
+		r.mu.Lock()
+		r.dirty = true
+		r.mu.Unlock()
 		r.log.Error("persist fqdn state", "file", r.path, "err", err)
+	}
+}
+
+// persistIfDirty writes the state file when it changed.
+func (r *resolver) persistIfDirty() {
+	r.mu.Lock()
+	dirty := r.dirty
+	r.mu.Unlock()
+	if dirty {
+		r.persist()
 	}
 }
 
@@ -233,37 +282,29 @@ func (r *resolver) poke() {
 	}
 }
 
-// sync makes the resolver track exactly objs (FQDN object name → host). A new host is due now; a
-// host no object uses any more becomes dormant (kept, not queried) and is dropped after DormantTTL.
-// With initial (agent start) the due entries are spread over RestartWindow: persisted answers that
-// are still fresh keep their next refresh, so a restart does not re-query everything at once.
+// sync makes the resolver track exactly objs (FQDN object name → host); used at start. A new host is
+// due now; a host no object uses any more becomes dormant (kept, not queried) and is dropped after
+// DormantTTL. With initial (agent start) the due entries are spread over RestartWindow — persisted
+// answers that are still fresh keep their next refresh, so a restart does not re-query everything at
+// once — and a persisted next refresh further away than one interval (a wall clock that stepped back,
+// review F6) is pulled in to one interval.
 func (r *resolver) sync(objs map[string]string, initial bool) {
 	now := r.now()
 	r.mu.Lock()
-	r.objects = map[string]string{}
-	used := map[string]bool{}
+	r.objects, r.byHost = map[string]string{}, map[string]map[string]bool{}
 	for name, host := range objs {
-		h := canonHost(host)
-		r.objects[name] = h
-		used[h] = true
+		r.attachLocked(name, canonHost(host), now)
 	}
-	changed := false
-	for h := range used {
-		if e, ok := r.hosts[h]; !ok {
-			r.hosts[h] = &fqdnEntry{NextRefresh: now}
-			changed = true
-		} else if !e.DormantSince.IsZero() {
-			e.DormantSince = time.Time{}
-			changed = true
-		}
-	}
-	changed = r.pruneLocked(now, used) || changed
+	r.pruneLocked(now)
 	var fresh, due []string
 	dormant := 0
 	for h, e := range r.hosts {
 		switch {
-		case !used[h]:
+		case r.byHost[h] == nil:
 			dormant++
+		case initial && e.NextRefresh.After(now.Add(r.refresh)):
+			e.NextRefresh = now.Add(r.refresh)
+			fresh = append(fresh, h)
 		case e.NextRefresh.After(now):
 			fresh = append(fresh, h)
 		default:
@@ -276,25 +317,82 @@ func (r *resolver) sync(objs map[string]string, initial bool) {
 		for i, h := range due {
 			r.hosts[h].NextRefresh = now.Add(time.Duration(i) * step)
 		}
-		changed = true
 	}
+	r.dirty = true
 	r.mu.Unlock()
 	if initial {
 		r.log.Info("fqdn state reloaded", "file", r.path, "hosts", len(fresh)+len(due), "fresh", len(fresh), "due", len(due),
 			"dormant", dormant, "due_spread_over", RestartWindow.String())
 	}
-	if changed {
-		r.persist()
-	}
+	r.persist()
 	r.poke()
 }
 
-// pruneLocked marks hosts outside used dormant and drops those dormant for longer than DormantTTL.
-func (r *resolver) pruneLocked(now time.Time, used map[string]bool) bool {
+// track makes FQDN object name resolve host (a new object, or its FQDN changed) — O(1), no rescan of
+// the other objects (review F1). A host new to the resolver is due now.
+func (r *resolver) track(name, host string) {
+	h := canonHost(host)
+	now := r.now()
+	r.mu.Lock()
+	if old, ok := r.objects[name]; ok {
+		if old == h {
+			r.mu.Unlock()
+			return
+		}
+		r.detachLocked(name, old, now)
+	}
+	r.attachLocked(name, h, now)
+	r.dirty = true
+	r.mu.Unlock()
+	r.poke()
+}
+
+// untrack forgets FQDN object name (deleted, or no FQDN object any more); its host goes dormant when
+// no other object uses it.
+func (r *resolver) untrack(name string) {
+	now := r.now()
+	r.mu.Lock()
+	if old, ok := r.objects[name]; ok {
+		r.detachLocked(name, old, now)
+		r.dirty = true
+	}
+	r.mu.Unlock()
+}
+
+func (r *resolver) attachLocked(name, h string, now time.Time) {
+	r.objects[name] = h
+	set := r.byHost[h]
+	if set == nil {
+		set = map[string]bool{}
+		r.byHost[h] = set
+	}
+	set[name] = true
+	if e, ok := r.hosts[h]; !ok {
+		r.hosts[h] = &fqdnEntry{NextRefresh: now}
+	} else if !e.DormantSince.IsZero() {
+		e.DormantSince = time.Time{}
+	}
+}
+
+func (r *resolver) detachLocked(name, h string, now time.Time) {
+	delete(r.objects, name)
+	if set := r.byHost[h]; set != nil {
+		delete(set, name)
+		if len(set) == 0 {
+			delete(r.byHost, h)
+			if e := r.hosts[h]; e != nil {
+				e.DormantSince = now
+			}
+		}
+	}
+}
+
+// pruneLocked marks unused hosts dormant and drops those dormant for longer than DormantTTL.
+func (r *resolver) pruneLocked(now time.Time) bool {
 	changed := false
 	for h, e := range r.hosts {
 		switch {
-		case used[h]:
+		case r.byHost[h] != nil:
 		case e.DormantSince.IsZero():
 			e.DormantSince = now
 			changed = true
@@ -303,16 +401,16 @@ func (r *resolver) pruneLocked(now time.Time, used map[string]bool) bool {
 			changed = true
 		}
 	}
+	if changed {
+		r.dirty = true
+	}
 	return changed
 }
 
-// usedLocked is the set of hosts some object uses.
-func (r *resolver) usedLocked() map[string]bool {
-	used := map[string]bool{}
-	for _, h := range r.objects {
-		used[h] = true
-	}
-	return used
+// dueLocked: a used host whose refresh time has come, or lies implausibly far ahead (> MaxRefresh: the
+// wall clock stepped back, review F6).
+func (r *resolver) dueLocked(h string, e *fqdnEntry, now time.Time) bool {
+	return r.byHost[h] != nil && (!e.NextRefresh.After(now) || e.NextRefresh.After(now.Add(MaxRefresh)))
 }
 
 // untilNext is the time until the earliest scheduled refresh (MaxRefresh when there is none).
@@ -321,31 +419,29 @@ func (r *resolver) untilNext() time.Duration {
 	defer r.mu.Unlock()
 	now := r.now()
 	next := MaxRefresh
-	used := r.usedLocked()
 	for h, e := range r.hosts {
-		if !used[h] {
+		if r.byHost[h] == nil {
 			continue
+		}
+		if r.dueLocked(h, e, now) {
+			return 0
 		}
 		if d := e.NextRefresh.Sub(now); d < next {
 			next = d
 		}
 	}
-	if next < 0 {
-		return 0
-	}
 	return next
 }
 
 // resolveDue resolves the hosts whose refresh is due (earliest first), at most limit of them
-// (limit ≤ 0: all), persists the result and returns how many it resolved.
+// (limit ≤ 0: all), and returns how many it resolved. It does not write the state file (persistIfDirty).
 func (r *resolver) resolveDue(ctx context.Context, limit int) int {
 	now := r.now()
 	r.mu.Lock()
-	used := r.usedLocked()
-	pruned := r.pruneLocked(now, used)
+	r.pruneLocked(now)
 	var due []string
 	for h, e := range r.hosts {
-		if used[h] && !e.NextRefresh.After(now) {
+		if r.dueLocked(h, e, now) {
 			due = append(due, h)
 		}
 	}
@@ -365,9 +461,6 @@ func (r *resolver) resolveDue(ctx context.Context, limit int) int {
 			break
 		}
 		r.resolveOne(ctx, h)
-	}
-	if len(due) > 0 || pruned {
-		r.persist()
 	}
 	return len(due)
 }
@@ -394,32 +487,35 @@ func (r *resolver) resolveOne(ctx context.Context, host string) {
 	now := r.now()
 	r.mu.Lock()
 	e, ok := r.hosts[host]
-	if !ok { // dropped by a sync meanwhile
+	if !ok { // dropped meanwhile
 		r.mu.Unlock()
 		return
 	}
+	r.dirty = true
 	before := e.addrs()
 	ok4, ok6 := v4.err == nil || IsNotFound(v4.err), v6.err == nil || IsNotFound(v6.err)
 	var failure string
+	var failed4, failed6 bool
 	switch {
 	case ok4 && ok6 && len(v4.addrs)+len(v6.addrs) > 0:
 		e.V4, e.V6 = canonAddrs(v4.addrs), canonAddrs(v6.addrs)
+		e.V4At, e.V6At = now, now
 		e.Err, e.Failures, e.LastResolved = "", 0, now
 		e.NextRefresh = now.Add(r.interval(v4, v6))
 	case ok4 && ok6: // both families answered: the name has no address (NXDOMAIN or no A/AAAA)
-		failure = "no A or AAAA records"
+		failure, failed4, failed6 = "no A or AAAA records", true, true
 		if v4.err != nil {
 			failure = v4.err.Error()
 		}
 	case !ok4 && !ok6: // both failed (usually for the same reason): report the A lookup's error
-		failure = v4.err.Error()
+		failure, failed4, failed6 = v4.err.Error(), true, true
 	default: // one family answered, the other failed: use the answer, keep the other's last-good
 		if ok4 {
-			e.V4 = canonAddrs(v4.addrs)
-			failure = v6.err.Error()
+			e.V4, e.V4At = canonAddrs(v4.addrs), now
+			failure, failed6 = v6.err.Error(), true
 		} else {
-			e.V6 = canonAddrs(v6.addrs)
-			failure = v4.err.Error()
+			e.V6, e.V6At = canonAddrs(v6.addrs), now
+			failure, failed4 = v4.err.Error(), true
 		}
 		e.LastResolved = now
 	}
@@ -428,9 +524,30 @@ func (r *resolver) resolveOne(ctx context.Context, host string) {
 		e.Failures++
 		e.NextRefresh = now.Add(r.retryDelay(e.Failures))
 	}
+	// D-129: a failing family keeps its last good answers for at most maxStale after it last answered
+	type expiry struct {
+		family string
+		age    time.Duration
+	}
+	var expired []expiry
+	expire := func(family string, addrs *[]netip.Addr, at time.Time) {
+		if at.IsZero() {
+			at = e.LastResolved
+		}
+		if len(*addrs) > 0 && !at.IsZero() && now.Sub(at) > r.maxStale {
+			*addrs = nil
+			expired = append(expired, expiry{family, now.Sub(at)})
+		}
+	}
+	if failed4 {
+		expire("ipv4", &e.V4, e.V4At)
+	}
+	if failed6 {
+		expire("ipv6", &e.V6, e.V6At)
+	}
 	after := e.addrs()
 	st := *e
-	objs := r.objectsOf(host)
+	objs := r.objectsOfLocked(host)
 	var subs []func(Change)
 	changed := !slices.Equal(before, after)
 	if changed {
@@ -440,7 +557,15 @@ func (r *resolver) resolveOne(ctx context.Context, host string) {
 	}
 	r.mu.Unlock()
 
+	for _, x := range expired {
+		fqdnExpired.Add(1)
+		r.log.Warn("fqdn last-good answers expired: the object expands to nothing for this family until the name resolves again",
+			"host", host, "objects", objs, "family", x.family, "stale_for", x.age.Round(time.Second).String(), "max_stale", r.maxStale.String(), "err", failure)
+	}
 	switch {
+	case failure != "" && len(after) == 0:
+		r.log.Warn("fqdn resolution failed; no address in use", "host", host, "objects", objs, "err", failure,
+			"failures", st.Failures, "retry_at", st.NextRefresh.UTC().Format(time.RFC3339))
 	case failure != "":
 		r.log.Warn("fqdn resolution failed; last-good addresses kept", "host", host, "objects", objs, "err", failure,
 			"kept", addrStrings(after), "failures", st.Failures, "retry_at", st.NextRefresh.UTC().Format(time.RFC3339))
@@ -481,12 +606,10 @@ func (r *resolver) retryDelay(n int) time.Duration {
 	return d
 }
 
-func (r *resolver) objectsOf(host string) []string {
-	var out []string
-	for n, h := range r.objects {
-		if h == host {
-			out = append(out, n)
-		}
+func (r *resolver) objectsOfLocked(host string) []string {
+	out := make([]string, 0, len(r.byHost[host]))
+	for n := range r.byHost[host] {
+		out = append(out, n)
 	}
 	sort.Strings(out)
 	return out
@@ -545,11 +668,18 @@ func (r *resolver) subscribe(f func(Change)) func() {
 	}
 }
 
-// run is the resolver loop: resolve what is due (rate limited), sleep until the next refresh or a
-// sync. It returns when ctx ends.
+// run is the resolver loop: resolve what is due (rate limited), write the state file coalesced (when
+// idle, at most every persistEvery while busy), sleep until the next refresh or a change. It returns
+// when ctx ends.
 func (r *resolver) run(ctx context.Context) {
 	for {
 		n := r.resolveDue(ctx, queryBurst)
+		r.mu.Lock()
+		write := r.dirty && (n < queryBurst || r.now().Sub(r.lastPersist) >= persistEvery)
+		r.mu.Unlock()
+		if write {
+			r.persist()
+		}
 		wait := r.untilNext()
 		if n == queryBurst && wait < querySpacing {
 			wait = querySpacing

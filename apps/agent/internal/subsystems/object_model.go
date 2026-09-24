@@ -20,6 +20,9 @@ import (
 const (
 	// EnvFQDNRefresh is the FQDN refresh interval in seconds (default 60; clamped to 30–3600).
 	EnvFQDNRefresh = "VRX_OBJECTS_FQDN_REFRESH_SEC"
+	// EnvFQDNMaxStale is how long a failing FQDN keeps its last good answers, in seconds (default 86400 =
+	// 24 h, D-129; clamped to 60 s – 30 days); after that the object expands to nothing, with a warning.
+	EnvFQDNMaxStale = "VRX_OBJECTS_FQDN_MAX_STALE_SEC"
 	// EnvDNSServers lists "ip:port" DNS servers (comma-separated) the FQDN resolver asks instead of
 	// the system configuration (/etc/resolv.conf) — for test slots and their in-process responder;
 	// the product agent leaves it unset.
@@ -30,9 +33,8 @@ const (
 func objectModelDescriptors() []string { return objects.DescriptorNames() }
 
 // registerObjectModel opens the objects runtime of this owner (store + FQDN state in the state
-// dir), registers the objects.* family with r and starts the resolver. The resolver stops at
-// process exit, when the same owner registers again in this process (objects.Open closes the
-// previous runtime) or through CloseObjectModel (questions Q4: there is no Wiring stop hook).
+// dir), registers the objects.* family with r and starts the resolver; Agent.Stop closes it through
+// the close seam (w.OnClose: resolver stopped, pending store changes and FQDN state written).
 func (w *Wiring) registerObjectModel(r scheduler.Registry) error {
 	cfg, err := objectModelConfig(w.env)
 	if err != nil {
@@ -44,12 +46,13 @@ func (w *Wiring) registerObjectModel(r scheduler.Registry) error {
 	}
 	objects.Register(r, rt)
 	rt.Start()
+	w.OnClose(rt.Close)
 	servers := "system (/etc/resolv.conf)"
 	if s := os.Getenv(EnvDNSServers); s != "" {
 		servers = s
 	}
 	w.env.Log.Info("objects domain wired", "store", rt.Store().Path(), "fqdn_objects", len(rt.FQDNStates()),
-		"fqdn_refresh", objects.ClampRefresh(cfg.Refresh).String(), "dns", servers)
+		"fqdn_refresh", objects.ClampRefresh(cfg.Refresh).String(), "fqdn_max_stale", objects.ClampMaxStale(cfg.MaxStale).String(), "dns", servers)
 	return nil
 }
 
@@ -58,14 +61,7 @@ func (w *Wiring) ObjectModel() *objects.Runtime {
 	return objects.RuntimeFor(w.env.StateDir, w.env.Owner)
 }
 
-// CloseObjectModel stops the FQDN resolver (tests; an agent restart in one process).
-func (w *Wiring) CloseObjectModel() {
-	if rt := w.ObjectModel(); rt != nil {
-		rt.Close()
-	}
-}
-
-// objectModelConfig reads EnvFQDNRefresh and EnvDNSServers. A malformed value is an error, never
+// objectModelConfig reads EnvFQDNRefresh, EnvFQDNMaxStale and EnvDNSServers. A malformed value is an error, never
 // a silent default.
 func objectModelConfig(env Env) (objects.Config, error) {
 	cfg := objects.Config{StateDir: env.StateDir, Owner: env.Owner, Log: env.Log.With("family", "objects")}
@@ -78,6 +74,17 @@ func objectModelConfig(env Env) (objects.Config, error) {
 		if c := objects.ClampRefresh(cfg.Refresh); c != cfg.Refresh {
 			env.Log.Warn("FQDN refresh interval clamped", "env", EnvFQDNRefresh, "value", s, "used", c.String())
 			cfg.Refresh = c
+		}
+	}
+	if s := strings.TrimSpace(os.Getenv(EnvFQDNMaxStale)); s != "" {
+		n, err := strconv.Atoi(s)
+		if err != nil || n <= 0 {
+			return cfg, fmt.Errorf("%s=%q: want a number of seconds", EnvFQDNMaxStale, s)
+		}
+		cfg.MaxStale = time.Duration(n) * time.Second
+		if c := objects.ClampMaxStale(cfg.MaxStale); c != cfg.MaxStale {
+			env.Log.Warn("FQDN maximum staleness clamped", "env", EnvFQDNMaxStale, "value", s, "used", c.String())
+			cfg.MaxStale = c
 		}
 	}
 	if s := strings.TrimSpace(os.Getenv(EnvDNSServers)); s != "" {

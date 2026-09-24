@@ -271,6 +271,9 @@ func (a *Agent) Stop() {
 	}
 	a.wg.Wait()
 	a.svc.Close()
+	if a.wiring != nil {
+		a.wiring.Close() // families' background work (subsystems close seam, Wiring.OnClose)
+	}
 	a.stats.close()
 	a.conn.Close()
 	_ = os.Remove(a.cfg.Socket)

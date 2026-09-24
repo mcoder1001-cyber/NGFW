@@ -20,6 +20,9 @@ import {
   EventKind,
   type HealthRequest,
   type HealthResponse,
+  type InterfaceState,
+  type InterfaceStateRequest,
+  type InterfaceStateResponse,
   IssueSeverity,
   ObjectResultCode,
   type ObjectResult,
@@ -533,11 +536,63 @@ export class FakeAgent {
       call.on('close', end);
     };
 
+    // P08: the live table of the applied interfaces (admin state = `enabled`, link up with it).
+    const interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse> = (
+      call,
+      cb,
+    ) => {
+      const r = call.request;
+      if (!this.checkCommon('InterfaceState', r, cb)) return;
+      const ifs = (this.current['interfaces'] ?? {}) as Record<string, Json>;
+      const out: InterfaceState[] = [];
+      let idx = 1;
+      const row = (name: string, c: Json, parent: string, vlanId: number): InterfaceState => ({
+        name,
+        vppName: name,
+        swIfIndex: idx++,
+        type: parent ? 'sub-interface' : name.startsWith('loop') ? 'loopback' : 'af-packet',
+        adminUp: c['enabled'] === true,
+        linkUp: c['enabled'] === true,
+        mtu: typeof c['mtu'] === 'number' ? c['mtu'] : 9000,
+        linkMtu: 9000,
+        mac: '02:fe:00:00:00:01',
+        ipv4: (c['ipv4'] as string[] | undefined) ?? [],
+        ipv6: (c['ipv6'] as string[] | undefined) ?? [],
+        vrf: typeof c['vrf'] === 'string' ? c['vrf'] : 'default',
+        tableId: 0,
+        parent,
+        vlanId,
+        innerVlanId: 0,
+        managed: true,
+        linkSpeedKbps: '0',
+        rxMode: 'interrupt',
+        description: typeof c['description'] === 'string' ? c['description'] : '',
+      });
+      for (const name of Object.keys(ifs).sort()) {
+        const c = ifs[name]!;
+        out.push(row(name, c, '', 0));
+        const subs = (c['subinterfaces'] ?? {}) as Record<string, Json>;
+        for (const id of Object.keys(subs).sort()) {
+          const s = subs[id]!;
+          out.push(
+            row(`${name}.${id}`, s, name, typeof s['vlanId'] === 'number' ? s['vlanId'] : 0),
+          );
+        }
+      }
+      const want = r.names;
+      cb(null, {
+        interfaces: out.filter((i) => want.length === 0 || want.includes(i.name)),
+        owner: this.owner,
+        retrievedAt: new Date(),
+      });
+    };
+
     return {
       apply,
       dryRun,
       retrieve,
       health,
+      interfaceState,
       streamStats,
       streamEvents,
       action: (call) => {

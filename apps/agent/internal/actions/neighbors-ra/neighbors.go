@@ -164,7 +164,7 @@ func dump(ctx context.Context, c vpp.Client, it Iface, af ip_types.AddressFamily
 		if uint32(nb.SwIfIndex) != it.Index {
 			continue // VPP walks exactly this interface; never report anything else
 		}
-		out = append(out, Entry{
+		e := Entry{
 			Interface:  it.Name,
 			Index:      it.Index,
 			IP:         df2.FromAddress(nb.IPAddress),
@@ -175,7 +175,11 @@ func dump(ctx context.Context, c vpp.Client, it Iface, af ip_types.AddressFamily
 			Age:        d.Age,
 			TableID:    it.table(af),
 			raw:        nb,
-		})
+		}
+		if e.Static {
+			e.Age = 0 // VPP reports an age for static entries too; it means nothing there (proto: 0 for static entries)
+		}
+		out = append(out, e)
 	}
 	return out, nil
 }

@@ -40,3 +40,32 @@ F-neighbors-ra had sent nothing to the host VPP before 18:41: until then only fa
 model, API fake agent) and the API e2e (host PostgreSQL + Valkey + in-process fake agent) ran. This feature has no
 classify/policer code at all; its only binding-like objects (RA config, proxy-ARP interface, static neighbours) are
 per-key and deleted only by key (never swept by index). Noted D-126 for every later host run.
+Update (D-128, `show trace` crash vector): nothing in this task runs `show trace` / `trace add`, in code, tests or by
+hand; the host evidence uses `show ip neighbors`, `show ip6 interface`, `show arp proxy`, `show interface features` and
+`show ip neighbor-watcher` (the last through `cli_inband` in the watcher integration test).
+
+## Q8. `tools/ci.sh` contract-guard flake (D-127) on this branch
+My worktree's `tools/ci.sh` predates main's D-127 fix (`git log | grep -q` loses to SIGPIPE under `pipefail`): the
+guard failed 3 of 4 `check` runs although the branch carries `contract(…)` commits. I did not edit `tools/ci.sh`; the
+gate was re-run until the guard step (the first one) passed, and every later step ran unmodified.
+
+## Q9. Fake agent's `action` handler never completes the stream (not this task's file)
+`apps/api/src/testing/fake-agent.ts` ends every Action with `call.destroy(UNIMPLEMENTED)`, which the client never sees:
+the API hits its deadline (504) instead of a 501. My e2e accepts either and asserts the route, RBAC, validation, the
+request that reached the agent and the audit row; the success path is unit-tested with a stub AgentClient and proven on
+the real agent in the topology test. Option: `call.emit('error', …)` in the fake (F-vrf-static-ecmp owns Action).
+
+## Q10. Decisions taken (options in brackets, chosen first)
+- ARP flush deletes learned entries one by one (`ip_neighbor_add_del is_add=0`) [vs `ip_neighbor_flush`, which also
+  removes the configuration's static entries (VPP `ip_neighbor_del_all`) → drift until the next resync].
+- Flush "all" = the interfaces of the agent's stored configuration that it can name [vs every nameable interface, which
+  on the shared host includes other slots' untagged interfaces].
+- Event rate: 1 Hz coalescing per interface, one aggregate event above 16 interfaces per second (prompt default).
+- `ipv6Ra.suppress` defaults to true (VPP's own default) so absent/default = off, as the envelope requires [vs false,
+  which would make the drawer's defaulted object send RAs].
+- No default is added to existing objects (`proxyArp`/`proxyNd` optional) [vs `default(false)`, which would change the
+  parsed shape of every interface and P08's exact-shape tests].
+- DF-2 gap fix: `ip-neighbor.neighbor` Retrieve dumps per candidate interface (named test
+  `TestRetrieveNeverDumpsAllInterfaces`, fails on the old code) [vs leaving the read-only `~0` dump].
+- Drawer strings: `neighbors-ra.json#interfaceDrawer` merged into the `interfaces` namespace at i18n init without
+  overwriting keys [vs editing `interfaces.json` (W4 forbids) or English-only titles in fa].

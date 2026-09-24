@@ -111,7 +111,7 @@ func TestListFiltersSortsPagesAndNeverDumpsEverything(t *testing.T) {
 	if got := rows(p); p.Total != 6 || strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("total %d rows\n%s", p.Total, strings.Join(got, "\n"))
 	}
-	if p.Entries[0].Age != 12.5 || p.Entries[4].NoFibEntry {
+	if p.Entries[0].Age != 12.5 || p.Entries[4].NoFibEntry || p.Entries[4].Age != 0 { // static: the model reports age 3 like VPP; the lister says 0
 		t.Fatalf("age/flags %+v", p.Entries)
 	}
 	for _, c := range []struct {

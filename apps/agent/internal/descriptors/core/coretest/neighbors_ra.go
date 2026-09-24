@@ -205,6 +205,9 @@ func (v *VPP) installNeighborsRa() {
 			return reply(&ip_neighbor.IPNeighborAddDelReply{})
 		}
 		m.nbrs[k] = r.Neighbor
+		if _, ok := m.age[k]; !ok {
+			m.age[k] = 3 // VPP reports an age for every entry, static ones included
+		}
 		return reply(&ip_neighbor.IPNeighborAddDelReply{})
 	})
 	v.On("ip_neighbor_dump", func(req api.Message) ([]api.Message, error) {

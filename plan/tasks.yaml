@@ -2126,7 +2126,8 @@ tasks:
   finished: ''
   id: F-startup-apply
   notes: D-088 split from F-startup-gen | worker done 00315f4 CI green (72/72 fake-host checks); review spawned; leftover /tmp/tmp.FoyjiXAETl (rm denied) | usage-limit interruption ~04:00 → WIP salvaged,
-    resumed (D-094) | review BLOCK edd93a5 (H1 NRestarts reset by manual restart, H2 gateway ICMP, M1 dead-man lock race, M2 approval flag, M3 rollback budget); fix round 1
+    resumed (D-094) | review BLOCK edd93a5 (H1 NRestarts reset by manual restart, H2 gateway ICMP, M1 dead-man lock race, M2 approval flag, M3 rollback budget); fix round 1 | fix round 7d81982 (91/91 fake-host
+    checks) CI green; re-review spawned
   owner: host-agent slot6
   parked_on: ''
   priority: 4
@@ -2134,7 +2135,7 @@ tasks:
   scope: apply-startup.sh from branch task/F-startup-apply; fix re-review N1 N2 N3 N6 + lows (D-088)
   stage: S2
   started: 2026-09-24T03:10
-  state: running
+  state: review
   template: FEATURE-TEMPLATE.md
   title: Robust startup.conf apply tooling (detached, watchdog, hung-VPP, ifupdown restore, Go API checks, handover gate)
   wbs:

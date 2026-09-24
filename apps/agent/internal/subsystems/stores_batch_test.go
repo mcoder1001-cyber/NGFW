@@ -89,7 +89,8 @@ func TestKeyedClaimsFlushOncePerTxn(t *testing.T) {
 		t.Fatalf("empty transaction: %v, writes %d", err, nat.writes)
 	}
 
-	// A failed write keeps the records in memory and dirty; the next transaction end writes them.
+	// A failed snapshot write keeps the records in memory, dirty and in the journal; the next
+	// transaction end writes them.
 	flush = w.ClaimsTxn()
 	if err := nat.Claim("late"); err != nil {
 		t.Fatal(err)
@@ -103,8 +104,11 @@ func TestKeyedClaimsFlushOncePerTxn(t *testing.T) {
 	if err := os.Remove(path + ".tmp"); err != nil {
 		t.Fatal(err)
 	}
-	if !nat.Claimed("late") || reopen().Claimed("late") {
-		t.Fatal("the failed transaction's claim must stay in memory and not be on disk")
+	if !nat.Claimed("late") {
+		t.Fatal("the failed flush dropped the claim from memory")
+	}
+	if !reopen().Claimed("late") { // fix round 1 (D-133): the journal holds it although the snapshot failed
+		t.Fatal("the claim of a transaction whose snapshot failed is not durable (journal)")
 	}
 	if err := w.ClaimsTxn()(); err != nil {
 		t.Fatal(err)

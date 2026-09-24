@@ -335,9 +335,17 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_RECONCILE_START, TxnId: txnID, Message: fmt.Sprintf("%s %v", modeName(m), domains)})
 	log := s.log.With("txn_id", txnID, "mode", modeName(m), "domains", domains)
 	log.Info("reconcile start")
+	// TD-11c: the keyed claim stores are one batch per transaction (journal-backed, D-133); its end
+	// runs before the outcome is recorded, or from the defer if the transaction panics (review F4).
 	flushClaims := func() error { return nil }
 	if s.claimsTxn != nil {
-		flushClaims = s.claimsTxn() // TD-11c: the keyed claim stores write once, at the end of the transaction
+		end, ended := s.claimsTxn(), false
+		flushClaims = func() error { ended = true; return end() }
+		defer func() {
+			if !ended {
+				_ = end() // never leave the stores in batch mode
+			}
+		}()
 	}
 
 	resp := &vrxv1.ApplyResponse{TxnId: txnID}
@@ -357,6 +365,21 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	}
 	resp.AppliedAt = timestamppb.New(s.now())
 
+	// TD-11c (review F2): the claims reach the snapshot before the outcome is recorded. A failed write
+	// is never APPLIED: DEGRADED, so the desired state is not merged and the API re-applies running;
+	// the records stay in memory and in the journal and are written at the next transaction end.
+	claimsErr := flushClaims()
+	if claimsErr != nil {
+		log.Error("persist claim stores", "err", claimsErr)
+		msg := "claim stores not persisted: " + claimsErr.Error()
+		if resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+			resp.Status = vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED
+		}
+		if resp.GetMessage() != "" {
+			msg = resp.GetMessage() + "; " + msg
+		}
+		resp.Message = msg
+	}
 	switch resp.Status {
 	case vrxv1.ApplyStatus_APPLY_STATUS_APPLIED:
 		s.setDegraded(false, "")
@@ -385,11 +408,8 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	case vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED:
 		s.setDegraded(true, resp.GetMessage())
 	}
-	// TD-11c: the transaction's keyed claims reach disk before the new desired state does; a failed
-	// write leaves them pending in memory (retried at the next transaction end) and the agent DEGRADED.
-	if err := flushClaims(); err != nil {
-		log.Error("persist claim stores", "err", err)
-		s.setDegraded(true, "claim stores not persisted: "+err.Error())
+	if claimsErr != nil { // a rolled-back or refused transaction keeps its status, the agent is DEGRADED
+		s.setDegraded(true, resp.GetMessage())
 	}
 	s.refreshSnapshotLocked()
 	if err := s.st.save(); err != nil {

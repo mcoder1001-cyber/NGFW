@@ -14,9 +14,11 @@ package subsystems
 //	<state dir>/classify-<owner>.json       classify.FileStore (DF-2 classify tables, ipfix, redirect)
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -80,9 +82,24 @@ type fileClaims struct {
 	index IndexResolver
 	recs  map[string]claimRecord
 	// batch: a transaction is open (Begin … Flush, TD-11c review 3.2): writes change recs in memory
-	// only and mark it dirty; Flush writes it once. Outside a batch every write goes to disk first.
+	// and mark it dirty; Flush writes it once. Outside a batch every write goes to disk first.
 	batch, dirty bool
 	writes       int // atomic file writes so far (tests, diagnostics)
+	// journal (KeyedClaims, TD-11c fix round 1, D-133): inside a batch every Claim/Release is appended
+	// here with one write(2) BEFORE it returns — so before the descriptor writes VPP (TD-11b's
+	// claim-first order) — and survives the death of the agent process in the page cache. No fsync:
+	// what loses the page cache (kernel crash, power loss) restarts VPP too, which voids every claim
+	// (D-080). Every snapshot write (Flush: one atomic, fsync'd write per transaction) empties it;
+	// opening the store replays it over the snapshot. "" = no journal (IfaceClaims never batches).
+	journal string
+	jf      *os.File // open while the current batch appends
+	jsize   int64    // bytes of whole lines in the journal (a failed append is cut back to it)
+}
+
+// journalLine is one journal record: a claim (Set) or a release (Del).
+type journalLine struct {
+	Set *claimRecord `json:"set,omitempty"`
+	Del string       `json:"del,omitempty"`
 }
 
 func openClaims(path string, id IdentitySource, index IndexResolver) (*fileClaims, error) {
@@ -205,6 +222,9 @@ func (c *fileClaims) copyLocked() map[string]claimRecord {
 // replaceLocked.
 func (c *fileClaims) setLocked(key string, rec *claimRecord) error {
 	if c.batch {
+		if err := c.appendLocked(key, rec); err != nil {
+			return err // nothing recorded: the caller must not write VPP
+		}
 		if rec == nil {
 			delete(c.recs, key)
 		} else {
@@ -244,10 +264,12 @@ func (c *fileClaims) begin() {
 }
 
 // flush ends the batch and writes the set once when it changed. A failed write keeps the records in
-// memory and dirty: the next write (the next flush, or any write outside a batch) persists them.
+// memory and dirty, and in the journal: the next write (the next flush, or any write outside a
+// batch) persists them.
 func (c *fileClaims) flush() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	defer c.closeJournalLocked()
 	c.batch = false
 	if !c.dirty {
 		return nil
@@ -273,6 +295,115 @@ func (c *fileClaims) flushLocked(m map[string]claimRecord) error {
 		return err
 	}
 	c.writes++
+	c.truncateJournalLocked() // the snapshot is durable: the journal's records are in it
+	return nil
+}
+
+// appendLocked appends key's claim (rec) or release (nil) to the journal with one write(2); a failed
+// or short write is cut back so the journal only ever holds whole lines.
+func (c *fileClaims) appendLocked(key string, rec *claimRecord) error {
+	if c.journal == "" {
+		return nil
+	}
+	line := journalLine{Del: key}
+	if rec != nil {
+		line = journalLine{Set: rec}
+	}
+	raw, err := json.Marshal(line)
+	if err != nil {
+		return err
+	}
+	raw = append(raw, '\n')
+	if c.jf == nil {
+		f, err := os.OpenFile(c.journal, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600) //nolint:gosec // the agent's own state file
+		if err != nil {
+			return fmt.Errorf("claim journal %s: %w", filepath.Base(c.journal), err)
+		}
+		fi, err := f.Stat()
+		if err != nil {
+			_ = f.Close()
+			return fmt.Errorf("claim journal %s: %w", filepath.Base(c.journal), err)
+		}
+		c.jf, c.jsize = f, fi.Size()
+	}
+	n, err := c.jf.Write(raw)
+	if err == nil && n != len(raw) {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
+		_ = c.jf.Truncate(c.jsize)
+		return fmt.Errorf("claim journal %s: %w", filepath.Base(c.journal), err)
+	}
+	c.jsize += int64(n)
+	return nil
+}
+
+// truncateJournalLocked empties the journal after a durable snapshot. A failure is harmless: the
+// replay of lines the snapshot already holds is idempotent.
+func (c *fileClaims) truncateJournalLocked() {
+	switch {
+	case c.journal == "":
+	case c.jf != nil:
+		if c.jf.Truncate(0) == nil {
+			c.jsize = 0
+		}
+	default:
+		if err := os.Truncate(c.journal, 0); err == nil || errors.Is(err, os.ErrNotExist) {
+			c.jsize = 0
+		}
+	}
+}
+
+func (c *fileClaims) closeJournalLocked() {
+	if c.jf != nil {
+		_ = c.jf.Close()
+		c.jf = nil
+	}
+}
+
+// replayJournal applies the journal at path over the loaded snapshot (the agent died inside a
+// transaction) and compacts it into the snapshot. A torn last line — the process died inside
+// write(2) — is dropped; a bad line before it fails closed like a corrupt snapshot.
+func (c *fileClaims) replayJournal(path string) error {
+	c.journal = path
+	raw, err := os.ReadFile(path) //nolint:gosec // the agent's own state file
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		return nil
+	case err != nil:
+		return fmt.Errorf("claim journal %s: %w", path, err)
+	}
+	lines, whole := bytes.Split(raw, []byte("\n")), 0
+	for i, l := range lines {
+		if len(l) == 0 {
+			continue
+		}
+		var jl journalLine
+		if err := json.Unmarshal(l, &jl); err != nil || (jl.Set == nil) == (jl.Del == "") {
+			if i == len(lines)-1 { // torn tail (no trailing newline): never completed
+				break
+			}
+			return fmt.Errorf("claim journal %s is corrupt at line %d (move it aside to drop the claims of the interrupted transaction): %v", path, i+1, err)
+		}
+		if jl.Set != nil {
+			c.recs[jl.Set.Key] = *jl.Set
+		} else {
+			delete(c.recs, jl.Del)
+		}
+		whole += len(l) + 1
+	}
+	if len(raw) == 0 {
+		return nil
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.flushLocked(c.recs); err != nil {
+		// keep the journal (its whole lines hold the records) and write the snapshot at the next flush
+		if whole < len(raw) {
+			_ = os.Truncate(path, int64(whole))
+		}
+		c.dirty = true
+	}
 	return nil
 }
 
@@ -347,6 +478,9 @@ type KeyedClaims struct{ *fileClaims }
 func OpenKeyedClaims(dir, family, owner string, id IdentitySource) (*KeyedClaims, error) {
 	c, err := openClaims(filepath.Join(dir, "claims-"+family+"-"+owner+".json"), id, nil)
 	if err != nil {
+		return nil, err
+	}
+	if err := c.replayJournal(filepath.Join(dir, "claims-"+family+"-"+owner+".journal")); err != nil {
 		return nil, err
 	}
 	return &KeyedClaims{c}, nil

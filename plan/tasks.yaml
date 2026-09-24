@@ -2248,15 +2248,15 @@ tasks:
   - DF-8
   priority: 2
   est_hours: 6
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D1.2
   scope: D-095 (a)-(d)
   files_owned: apps/agent/internal/descriptors/{interface,classify,policer,ipfix,adl}/** + their tests
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/TD-3
+  worktree: /root/ngfw-wt/TD-3
+  owner: host-agent slot2
+  started: 2026-09-24T05:00
   finished: ''
   notes: D-095; V19 crash 04:50:27

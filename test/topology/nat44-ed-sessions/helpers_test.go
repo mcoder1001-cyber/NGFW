@@ -1,7 +1,9 @@
 package nat44edsessions
 
 import (
+	"context"
 	"encoding/json"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -26,6 +28,17 @@ func waitIfs(t *testing.T, vc vppapi.Connection, names ...string) map[string]uin
 		t.Fatalf("VPP does not have %v", names)
 	}
 	return out
+}
+
+// runEnv is run with an explicit environment (the screenshot script's LD_LIBRARY_PATH).
+func runEnv(t *testing.T, env []string, name string, args ...string) (string, error) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Env = env
+	out, err := cmd.CombinedOutput()
+	return string(out), err
 }
 
 func trunc(s string, n int) string {

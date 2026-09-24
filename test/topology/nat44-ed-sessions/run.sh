@@ -15,6 +15,8 @@ RUN="/run/vrx-test/$VRX_TEST_PREFIX"
 [[ -d "$RUN" ]] || install -d -m 0755 "$RUN"
 ( cd "$ROOT/apps/agent" && go build -o bin/vrx-agent ./cmd/vrx-agent && go build -o bin/vrx-vpp-preflight ./cmd/vrx-vpp-preflight )
 ( cd "$ROOT/apps/api" && pnpm build >/dev/null )
+# the screenshot run serves the production web build (vite preview)
+[[ -z "${VRX_NAT_SHOTS_OUT:-}" ]] || ( cd "$ROOT" && pnpm --filter @ngfw/web build >/dev/null )
 "$ROOT/apps/agent/bin/vrx-vpp-preflight"
 export VRX_NAT_AGENT_BIN="$ROOT/apps/agent/bin/vrx-agent" VRX_PREFLIGHT_BIN="$ROOT/apps/agent/bin/vrx-vpp-preflight" VRX_INTEGRATION=1
 cd "$HERE"

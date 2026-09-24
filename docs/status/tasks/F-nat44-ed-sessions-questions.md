@@ -54,3 +54,10 @@ Root cause proven on slot 4 (19:03): NAT44-ED rewrites TCP/UDP that af_packet de
 host drops the segment silently (ICMP passes). `ethtool -K <veth> tx off` inside the rig namespaces fixes it; my topology
 test does that after `peers up`. Proposal: `tools/lab rig up` turns it off for every slot (NAT, cnat, det44 tests will all
 hit it). Recorded as `### V-new (F-nat44-ed-sessions)` in docs/vpp-code-track.md (A7).
+
+## Q8 (answer to the manager's incident note, VPP crash 18:41:08): not slot 4
+At 18:40:59 slot 4 ran only the API e2e (PostgreSQL + the in-process fake agent, no VPP) and `pnpm gen`; this task's
+first host run started at 18:57 (its log records `NRestarts (before) = 1`, i.e. after the crash). None of my code sweeps
+classify bindings: the topology test's V19 guard (P08's `v19Guard`, copied) reads `classify_table_by_interface` and
+resets the write-only ip/l2 bindings to `~0` on the two rig interfaces the agent just created — no loop over table
+indexes. The agent code of this task sends only nat44-ed messages. D-126 noted; the NAT packet phase is ~12 s.

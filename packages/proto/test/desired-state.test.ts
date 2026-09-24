@@ -150,7 +150,8 @@ describe('DesiredState mirrors RootConfig', () => {
     expect(sub?.vrf).toBe('customer-a');
 
     expect(ds.vrfs['default']?.id).toBe(0);
-    expect(ds.vrfs['customer-a']).toEqual({ id: 10, description: 'customer A' });
+    // proxyArpRanges: repeated (F-neighbors-ra, Vrf 4) — ts-proto fills an absent repeated field with []
+    expect(ds.vrfs['customer-a']).toEqual({ id: 10, description: 'customer A', proxyArpRanges: [] });
 
     const route: StaticRoute | undefined = ds.routing?.static[0];
     expect(route?.prefix).toBe('0.0.0.0/0');

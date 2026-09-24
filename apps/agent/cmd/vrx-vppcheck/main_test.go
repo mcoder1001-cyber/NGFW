@@ -79,6 +79,11 @@ func TestBootID(t *testing.T) {
 	if rc != exitOK || out != "b-1/4242/777\n" {
 		t.Fatalf("rc=%d out=%q err=%q", rc, out, e)
 	}
+	// a PID without /proc entry → start time unknown → incomplete → exit 1
+	f.Reply("control_ping", &memclnt.ControlPingReply{VpePID: 99})
+	if rc, out, _ := runWith(t, withFake(f), "bootid"); rc != exitMissing || out != "b-1/99/?\n" {
+		t.Fatalf("incomplete identity: rc=%d out=%q", rc, out)
+	}
 }
 
 func TestPluginsByContent(t *testing.T) {

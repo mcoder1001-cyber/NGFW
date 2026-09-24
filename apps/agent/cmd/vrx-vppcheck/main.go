@@ -6,7 +6,7 @@
 //	vrx-vppcheck [--socket PATH] [--timeout DUR] version          print "vpp <version>" (show_version)
 //	vrx-vppcheck [--socket PATH] [--timeout DUR] plugins          loaded plugins, one per line (content of `show plugins`)
 //	vrx-vppcheck [--socket PATH] [--timeout DUR] ifaces NAME...   every NAME is a VPP interface (sw_interface_dump by name, exact match)
-//	vrx-vppcheck [--socket PATH] [--timeout DUR] bootid           D-080 boot identity "<boot_id>/<vpe pid>/<start time>" (control_ping + /proc)
+//	vrx-vppcheck [--socket PATH] [--timeout DUR] bootid           D-080 boot identity "<boot_id>/<vpe pid>/<start time>" (control_ping + /proc); exit 1 when incomplete
 //
 // The socket defaults to $VRX_VPP_API_SOCKET, then /run/vpp/api.sock; the timeout (default 10s)
 // bounds the whole run: connect plus every request. A VPP that accepts the socket but does not
@@ -152,6 +152,11 @@ func run(args []string, stdout, stderr io.Writer, dial dialer, afterFunc func(ti
 			return exitVPP
 		}
 		_, _ = fmt.Fprintln(stdout, id.String())
+		if !id.Complete() {
+			// a partial identity (unreadable /proc, other PID namespace) cannot prove "same instance"
+			_, _ = fmt.Fprintln(stderr, "vrx-vppcheck: boot identity incomplete (boot_id or start time unreadable)")
+			return exitMissing
+		}
 	case "ifaces":
 		missing, err := missingIfaces(ctx, client, names)
 		if err != nil {

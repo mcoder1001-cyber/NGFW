@@ -2376,7 +2376,7 @@ tasks:
   - TD-3
   priority: 2
   est_hours: 3
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D1.2
@@ -2389,7 +2389,8 @@ tasks:
   started: 2026-09-24T14:18
   finished: ''
   notes: 'D-101 V24 crash 07:27:32 | TD-3 re-review L7: af_packet Create''s rollback delete also quiesces the veth | spawned by ngfw-46 (Agent tool), envelope /root/ngfw-wt/TD-5.envelope.md | worker done
-    90cc0cb (code 3381e3e), CI green; D1 (b) + Q1 (a) confirmed D-110; review spawned | review APPROVE WITH CHANGES e8f3d63 (H1 TX frame overrun → D-113, M1 cap run, L2, L3); fix round 1 envelope /root/ngfw-wt/TD-5.fix1.md'
+    90cc0cb (code 3381e3e), CI green; D1 (b) + Q1 (a) confirmed D-110; review spawned | review APPROVE WITH CHANGES e8f3d63 (H1 TX frame overrun → D-113, M1 cap run, L2, L3); fix round 1 envelope /root/ngfw-wt/TD-5.fix1.md
+    | fix round 1 done f63c1e3 (code 5c1148f), CI green, host NRestarts 0→0; focused verify spawned (D-115)'
 - id: TD-6
   title: 'apply-startup.sh hardening before the first real --apply (D-103): stale dead-man vs newer commit, rollback write failure, systemctl-show failure, NRestarts compare; lows V5–V9; fake-host harness
     + shellcheck wired into tools/ci.sh'

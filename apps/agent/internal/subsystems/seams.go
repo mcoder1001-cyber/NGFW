@@ -200,7 +200,8 @@ func (w *Wiring) RequestResync() {
 // SyncFunc runs one transaction for a dynamic source: its current Desired, scoped to its descriptors,
 // under the agent's transaction lock. It returns nil when the transaction ended APPLIED, and an error
 // when VPP is disconnected (the reconnect resync includes a source that is in sync), ctx is done, the
-// transaction failed or rolled back, Desired panicked, or sync was called from the wrong place.
+// transaction failed or rolled back, Desired panicked, sync was called from the wrong place, or the
+// source is stopped (its Run ended).
 //
 // Call it only from Run (TD-8 review R6/R7):
 //   - Never from Desired or from a descriptor call. Both run inside a transaction, under the

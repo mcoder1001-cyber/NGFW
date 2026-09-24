@@ -238,3 +238,96 @@ Getting to that pass took several runs:
 - Q4: the `SlotIDRange()` change of meaning.
 - Q5: the S1 design, for LOG.md.
 - F1: the `ci.sh` contract guard fails intermittently under `pipefail`.
+
+## Fix round 1 (review `d8891da`: APPROVE WITH CHANGES; manager answers D-129)
+
+Code: `95d7dde fix(agent): TD-8 fix round 1 …`. It builds on `ca435ec` (the review's probes as tests) and the salvage
+commit `09ce0f3`. The S1 code now lives in `internal/agent/dynsource.go`. `service.go` keeps only the calls into it.
+Everything is unit-tested, no host runs. The agent stays declarative: the scheduler, under the txn lock, is still the
+only writer, and no state is persisted beyond the stored document.
+
+### What changed
+
+| finding | fix | tests |
+|---|---|---|
+| R1 HIGH: cold source cache flushes dynamic objects on restart | **Readiness gate.** Every source starts out of sync. It is in sync after its first successful sync: Run's first sync, or, for a source without Run, the sync `startSources` runs once after the first resync. A source that is out of sync takes part in no Apply, resync, revert or DryRun: no KVs, and its descriptors are out of scope. | probe E `TestDynamicSourceAgentRestartKeepsDynamicObjects` (`deleted:0`); `TestDynamicSourceStartAndRunFailure/no_Run` |
+| R2 HIGH: a dynamic object fails the commit or the post-restart resync | **Config-only fallback in `applySources`, under the same lock.** A source whose Desired panics, or returns a key outside its descriptors or a duplicate, is left out before the transaction runs. If the merged transaction then ends FAILED/ROLLED_BACK because of a dynamic key (plan issue, the first failed operation, or a Retrieve/verify error that names a source descriptor), the transaction runs **once** more without the sources. It does not rerun after DEGRADED or after a cancelled ctx. Each culprit is reported: a SKIPPED `ObjectResult` (key, source, cause; no pointer or subsystem), an `ERROR` event (`attributes.source/reason/key`, the txn id), and `vrx_agent_dynamic_source_errors_total{source,reason}` (`invalid`, `panic`, `rejected`, `stopped`; rendered only when sources exist). Every source left out is out of sync. The agent retries its sync with backoff (`retryMin` 5 s doubling to `retryMax` 60 s, one timer per source, stopped by `Close`). DryRun mirrors this at plan level with a WARNING issue `agent.dynamic-source-skipped`. | probe A `…DoesNotFailTheCommit`, probe B `…DoesNotRollBackTheResync`, `TestDynamicSourceKeyOutsideItsDescriptorsIsLeftOut` (was `…Fails`), `TestDynamicSourceLeftOutRejoinsThroughTheRetry` |
+| R3 MEDIUM: panics | **Recovered.** Desired: `desiredOf` recovers and the source is left out (reason `panic`). A panic during a sync: recovered, and it also marks DEGRADED, because a descriptor that panics mid-transaction leaves no journal rollback. Run: recovered in the `startSources` goroutine. A Run that panics or returns before ctx is done stops its source until restart: out of sync, objects untouched, sync refused with FAILED_PRECONDITION. Collect: `runCollector` recovers, and the panic counts as a collector error. | probe C `TestDynamicSourcePanicIsContained`, `TestDynamicSourceStartAndRunFailure/{Run_panics,Run_returns_early}`, `TestMetricsCollectors` ("boom") |
+| R4 MEDIUM: the id range fails open for a family that ignores the error | `Wiring.IDRange()` and `SlotIDRange()` return `NoIDs()` = `&IDRange{Lo: 1, Hi: 0}` with the error. Converters: `ids.DF2()`/`ids.DF7()` (nil → nil = every id) and `ids.VPN()` (nil → zero = every id; empty or 0..0 → `{1,0}`, owns nothing). The df2/df7/vpn packages are unchanged: their `Owns`/`Contains` already treat Lo > Hi as owning nothing, and nil/zero must keep meaning "every id" for the product agent. `SlotIDRange` is marked `Deprecated` (Q4). | `TestWiringIDRangeFailsClosed` (direct casts and the converters), `TestSlotIDRange`, `TestStartIDRangeFailsClosed` |
+| R6 (low): sync from inside a transaction deadlocks | Refused at once with FAILED_PRECONDITION ("… inside a transaction …"). The guard compares goroutine ids (`goid()`, from the `runtime.Stack` header): the txn lock's holder, recorded only when sources exist, and the goroutines inside a Desired call, so DryRun is covered too. Documented on `SyncFunc`. | probe D `TestDynamicSourceSyncInsideATransactionRefused` (from Desired and from a descriptor Create) |
+| R7 (low): lock order | `SyncFunc` doc and README rule 3: txn lock first, then the source's locks. Run updates its cache, unlocks, and only then calls sync. | docs |
+| R8 (low): sync events | A sync that changes nothing emits no event, no metric and no `last_reconcile_at`. Any other sync emits `RECONCILE_START`/`RECONCILE_DONE` once it has finished. `docs/contracts/proto.md` §7 now says that `attributes.source` marks a source's sync, and that an `ERROR` event with `attributes.source` names a source that was left out or stopped. | `TestDynamicSourceSyncIsScoped` (the quiet sync) |
+| R9 (low): resync storm | `watchVPP` defers a requested resync that arrives within `resyncMinInterval` (5 s) of the last one to the end of that interval, with a WARN. Requests made meanwhile coalesce into one. | `TestRequestedResyncsAreRateLimited` |
+| R10a (low): disjoint objects | README rule 1 and the `DynamicSource` doc: a source's descriptors are instances of their own, and their Retrieve returns only the objects the source owns. | docs |
+| ARCH-1 table | `dhcp`: a row for `dhcp.dhcp6-client`, `-pd-client`, `-pd-address`, `-duid` (package; no feature on the board, no schema field). `mpls`: no `mpls-route.ldp`; F-mpls-ldp adds its own instance. Renderers: `rfkit` (shared kit). | docs |
+| review note (`metrics.go`) | `writeCtx` renders the agent's families into a buffer before it writes, so a stalled scraper never holds `metrics.mu`, which `observe` takes under the txn lock. | `TestMetricsExposition`, `TestMetricsCollectors` |
+
+Behaviour notes:
+- `vrx_agent_objects` counts only the configuration's objects of the last transaction. Dynamic ones are no longer
+  included.
+- R10b (freeze `AddDynamicSource` after `Start`) is not done. It was not in the fix envelope, and
+  `TestAddDynamicSourceValidation` reads the registry before it adds to it. It needs an explicit `Seal()` that
+  `Start` calls. That is ~10 lines, if the manager wants it.
+- Q2's optional `Config.dial` (in place of the `dialVPP` package var) is not done.
+
+### How verified
+
+The review's probes fail on the pre-fix code. Command: `git archive ca435ec apps/agent` into the scratchpad, where
+`ca435ec` = `d4c9701`'s code plus the probe tests, then `go test` there.
+```
+--- FAIL: TestDynamicSourceFailureDoesNotFailTheCommit      status APPLY_STATUS_ROLLED_BACK … create test.dyn/loop703: VPP: label already in use (-1)
+--- FAIL: TestDynamicSourceFailureDoesNotRollBackTheResync  status APPLY_STATUS_ROLLED_BACK … create test.dyn/loop702: …
+--- FAIL: TestDynamicSourcePanicIsContained                 Apply panicked: assignment to entry in nil map
+--- FAIL: TestDynamicSourceSyncInsideATransactionRefused    … DeadlineExceeded after 3.001908875s (want an immediate refusal)
+--- FAIL: TestDynamicSourceAgentRestartKeepsDynamicObjects  first resync after an agent restart: summary deleted:2 unchanged:12, dynamic ""
+--- FAIL: TestWiringIDRangeFailsClosed                      zero Env.IDs: <nil> … (want a non-nil empty range and ErrNoIDRange)
+```
+On `95d7dde`:
+```
+$ cd apps/agent && env -u VRX_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/subsystems/...
+ok  	ngfw/agent/internal/agent	13.575s
+ok  	ngfw/agent/internal/subsystems	1.166s
+$ env -u VRX_INTEGRATION go test -race -count=3 -run 'TestDynamicSource|TestRequestedResyncs' ./internal/agent/   → ok (9.4s)
+$ make lint                                                                                 → go vet clean, golangci-lint 0 issues
+```
+- The probe-C nil-map write in the test is now an explicit `panic(...)` with the same message, because staticcheck
+  SA5000 flagged it.
+- CI gate: `TMPDIR=/tmp/g-td8 tools/ci.sh --base main` on `95d7dde` → **CI GATE PASSED** (quick mode, wall time
+  6m10s, logs `/root/ngfw-wt/logs/ci/TD-8-20260924-225853-3811477`).
+  - apps/agent `make lint test build`: 1m08s.
+  - The only warnings are the subjects of the two `review(...)` commits, which are not Conventional Commits (TD-8
+    review, W-seed).
+  - After the gate, only the `SyncFunc` doc comment ("or the source is stopped") and this file changed.
+
+### Manager answers (D-129), as applied
+
+- **Q1 (a), Q2 both:** nothing to change.
+- **Q4:** `SlotIDRange` is marked `// Deprecated: …`.
+- **Q3, staged.** The flip "refuse start-up when no range is set" must merge before the first family that allocates
+  ids. None of its pieces are in TD-8's files, so they are listed here for the manager:
+  1. `tools/app` (the integrated main build): `VRX_VPP_TABLE_BASE=13000`.
+  2. `test/topology/interfaces`: the harness must pass `VRX_VPP_TABLE_BASE` through to the `vrx-agent` it starts with a
+     clean environment.
+  3. P10's systemd unit: `VRX_VPP_ID_RANGE=all` in its EnvironmentFile, with a packaging test.
+  4. Then `ConfigFromEnv` stops clearing `ErrNoIDRange` (`agent.go`, the `idsErr = nil` line) and start-up refuses.
+
+  The §11 text above still applies.
+- **Q5 (a), with the amendments.** Text for LOG.md:
+
+  > S1 dynamic desired sources are merged into every transaction (option a) while in sync. Amendments: a readiness
+  > gate (out of sync until the first successful sync; out of scope while out of sync), a config-only rerun when a
+  > dynamic object fails the transaction, the source left out and retried with backoff, panic containment (Desired,
+  > sync, Run, collectors), sync refused from inside a transaction, and source descriptors disjoint from config
+  > descriptors (own instances, owned Retrieve). A failing dynamic object never rolls back a config transaction.
+
+### R5, for `docs/tech-debt.md` (required before the first metrics collector merges; not TD-8)
+
+```markdown
+- 2026-09-24 (TD-8 review R5): /metrics collectors run one after another with a cooperative 5 s deadline each, and the
+  metrics http.Server has no WriteTimeout. A collector that ignores ctx holds the scrape for as long as it runs, and
+  three collectors at their deadlines take 15 s, past Prometheus' 10 s scrape_timeout, which then loses the agent's own
+  families too. Fix before the first collector merges (F-dashboard-prom-alarms): run each collector in its own
+  goroutine into its own buffer, wait on one per-scrape budget (e.g. 4 s in total), and abandon a late collector,
+  counting an error. Keep one flight per collector, so a stuck collector is skipped instead of piling up goroutines.
+  Add a WriteTimeout. (internal/agent/metrics.go writeCollectors, agent.go httpSrv)
+```

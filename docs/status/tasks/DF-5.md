@@ -320,3 +320,80 @@ recommend keyed digest), **Q12** (persisted record store for P05/P08). Q4 and Q7
 | D-DF5-6 | Charon orphan sweep deletes SAs + their protect policies only; SAs used by a tunnel protection are reported; ack only after a clean sweep | (a) also delete charon SPDs (b) SAs/policies only | a fresh charon SPD cannot be told from a stale one (Q10) |
 | D-DF5-7 | Host checks use P05's scheduler (`vpntest.Agent` + DF-1 alias) instead of a local diff helper | (a) keep the local helper (b) P05 | P05 is on main; the restart simulation must use the real reconciler |
 | D-DF5-8 | Own commit `8fecca0` recreated (`f7154a9`) to remove a gitleaks false positive | (a) rewrite own unmerged commit (b) `.gitleaksignore` (c) red gate | D-067 precedent; (b) not my file |
+
+## Review fixes (fix round for DF-5-review.md, BLOCK @ e553199)
+
+`git merge main` first (clean). Every finding, what changed, where:
+
+| Finding | Fix |
+|---|---|
+| **H1** (D-096) | `vpn.Keyer`: references are `hmac:<hex>` = HMAC-SHA256 under an agent-local key. `vpn.LoadOrCreateKeyFile(<state dir>/…)` creates 32 random bytes with mode 0600 (dir 0700) on first use. It refuses an existing file that is readable by group or other, or that has the wrong size, and never logs the key. The Keyer formats as `vpn.Keyer(hmac-sha256)`. It is injected with `WithKeyer` in ipsec, ikev2 and wireguard (no package global). `Verify`/`Resolve` take the keyer; `MapResolver` keys with it. `x25519:<public key>` stays. **Migration:** old `sha256:` references still resolve (legacy verify), and Retrieve always reports `hmac:`. So an old desired value is a mismatch, re-applied once, and converges once the desired state carries the keyed ref (`TestLegacyReferenceMigration`). Ownership and applied-once records never held fingerprints, so none needed migrating. **Scheduler (authorised):** `reconciler.go` `diffErr` now prints `<key> differs: <type> fields [<names>] (values redacted)` via the new `scheduler.DiffSummary`. That was the only place in the scheduler that formatted values. `TestErrorsAndLogsNeverPrintValues` plants `VRX_TEST_PSK_…` in a desired value, forces a verification failure and asserts that neither the txn error, nor any op result, nor any slog line contains it. |
+| **M1** | `vpn.CheckRef` checks the reference grammar (`hmac:`64 hex, `x25519:`base64-32, legacy `sha256:`64 hex) first, in every validate/encode path (SA keys, IKEv2 psk, WG preshared key) and in `Resolve`. A malformed value fails with a bare `ErrBadRef`. `Redact` returns `<redacted>` for anything that is not a well-formed reference (a D-051 `<kind>/<name>` passes as is; a legacy sha256 shows only its prefix). Tests: `TestPastedPlaintextNeverEchoed`, `TestPastedPlaintextKey` (VPP is not called). |
+| **H2** | `ipsec.NewCharonSweeper(cfg, charonRange)` validates at startup and refuses in each of these cases: zero range; range ≥ 0x80000000 (ikev2 plugin SA ids); `cfg.IDs` unset (the descriptors would own all ids); any overlap; a non-persisted record store (only `*dfkit.FileBootStore` or `Persistent()`); no keyer. Anything with a record (valid, pending or stale) is never touched. `TestCharonSweeperValidation`. |
+| **H3** | Per orphan SA: if a tunnel protection uses it → `InUse`. Otherwise its protect policies are deleted in **all** SPDs (an SPD with our record → `InUse`), then a fresh dump must show no reference, then the SA is re-read and unlocked once. Any failure stops the sweep for that SA and writes no completion marker. `ipsec.sa` Delete refuses to unlock while any policy or protection references the SA. The fake now models VPP's lock counting (add = 1 lock, +1 per protect policy and per protection, `ipsec_sad_entry_del` = unlock, free at 0, use-after-free recorded). `TestCharonSweepNeverFreesReferencedSA`: a failing policy delete, swept twice, gives 0 unlocks, locks stay at 2 and no UAF; after the failure is cleared the SA is swept. Also `TestSaDeleteNeverUnlocksReferencedSA`. |
+| **M2** | The API is split: `Sweep(ctx, restart, live)` (live nil = charon stopped: unrecorded charon-range SPDs first, which drops their policy locks and unbinds, then SAs) and `AckRestart(ctx, restart, renderer)`. The ack is refused (`ErrSweepNotComplete`) unless a Sweep for the same token completed on the running VPP instance (persisted marker, dropped after the ack). Documented order: stop → Sweep → start → AckRestart. The remaining RF-2 window is question Q13. |
+| **M4** | Write-ahead records for the SPD, SA and SPD binding: existence check → pending record → add → confirm. If the add fails, the pending record is dropped only when a dump shows the object is absent. An existing object with our record is adopted on retry. `TestWriteAheadRecords` covers a lost reply after a successful add, then Retrieve reports the SA as ours, the retry adopts it and Delete cleans it. |
+| **M3** | Documented (ipsec.md "Known limitation → TD-3"): a stale SPD binding row on a reused sw_if_index goes to TD-3's sanitize list. |
+| **L1** | govpp's encode/decode buffers are documented in `vpn/doc.go` as a known limitation (govpp item). Every buffer DF-5 owns is zeroed (key-file read buffer, resolved material, dumped keys). |
+| **L2** | The ipsec host test holds the shared globals lock (`vpntest.LockGlobals(t, false)`) while reading `ipsec_backend_dump`. |
+| **L3** | An IKEv2 owner containing `-` is refused, so `<owner>-<name>` stays unambiguous (unit test). |
+
+### Fix-round evidence
+
+```
+$ go test -count=1 -v … -run 'Secret|KeyFile|Pasted|Legacy|CharonSweep|SaDeleteNever|WriteAhead|ErrorsAndLogsNeverPrintValues|Resolve'
+--- PASS: TestSecretReferences (0.00s)
+--- PASS: TestKeyFile (0.00s)
+--- PASS: TestResolve (0.00s)
+--- PASS: TestPastedPlaintextNeverEchoed (0.00s)
+ok  	ngfw/agent/internal/descriptors/vpn	0.023s
+--- PASS: TestCharonSweeperValidation (0.00s)
+--- PASS: TestCharonSweepStopped (0.00s)
+--- PASS: TestCharonSweepNeverFreesReferencedSA (0.00s)
+--- PASS: TestCharonSweepLive (0.00s)
+--- PASS: TestSaDeleteNeverUnlocksReferencedSA (0.00s)
+--- PASS: TestPastedPlaintextKey (0.00s)
+--- PASS: TestLegacyReferenceMigration (0.00s)
+--- PASS: TestWriteAheadRecords (0.00s)
+ok  	ngfw/agent/internal/descriptors/ipsec	0.030s
+--- PASS: TestErrorsAndLogsNeverPrintValues (0.00s)
+ok  	ngfw/agent/internal/scheduler	0.025s
+$ go test -count=1 ./internal/descriptors/{vpn,ipsec,ikev2,wireguard}/... ./internal/scheduler/...
+ok  vpn 0.024s · ok ipsec 0.041s · ok ikev2 0.034s · ok wireguard 0.034s · ok scheduler 0.051s
+$ golangci-lint run (same packages)
+0 issues.
+```
+
+Host checks (slot 4, one package at a time, no packets sent, D-095):
+
+```
+ipsec exit=0 NRestarts 5 -> 5
+ikev2 exit=0 NRestarts 5 -> 5
+wireguard exit=0 NRestarts 5 -> 5
+agent restart (fresh agent, persisted records): P05 plan … 0 create, 0 update, 0 delete, 10 unchanged
+charon sweep (charon running): SPDs [], policies 1, SAs [4501], in use []
+charon sweep (charon stopped): SPDs [4501], policies 0, SAs [4502], in use []
+AckRestart after the completed sweep: ok (calls 1)
+after the charon sweep (our SAs untouched): P05 plan … 0 create, 0 update, 0 delete, 10 unchanged
+--- PASS: TestIpsecOnHost (0.15s)
+--- PASS: TestIkev2OnHost (0.41s)     --- SKIP: TestIkev2GlobalsOwnerOnHost (VRX_DF5_GLOBALS unset)
+--- PASS: TestWireguardOnHost (0.56s)
+```
+
+The logged references in the host test logs are all `hmac:` (ipsec 5, ikev2 2, wireguard 1), there
+is no `sha256:` and no `VRX_TEST_PSK` string, and `sha256(VRX_TEST_PSK_DF5_ikev2)` occurs 0 times
+(it was present before the fix).
+
+CI gate on `c283f5e` (`/root/ngfw-wt/logs/DF-5-ci-fix.log`; the only warning is main's own `review(DF-5): findings` subject):
+
+```
+no contract files changed in the 27 commit(s) of HEAD since main (ca63114)
+  mode quick · wall time 3m58s · logs /root/ngfw-wt/logs/ci/DF-5-20260924-051310-2958918
+CI GATE PASSED
+```
+
+Decisions added: D-DF5-9, legacy `sha256:` references resolve once (options: refuse them / resolve
+once + keyed Retrieve). I chose the second because an old desired state still applies and converges
+without churn once it is re-derived. D-DF5-10, completion marker + token-gated ack in the DF-5
+sweeper (options: a sweeper-side gate / an RF-2-only gate). I chose the sweeper-side gate because it
+works with RF-2 as merged; Q13 asks RF-2 for an ack bound to the start time.

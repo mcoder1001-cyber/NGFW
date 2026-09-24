@@ -24,3 +24,4 @@ rig 10.1.{1,2}.0/24). Runs directly on the host (no wt.sh). NRestarts at start: 
 - 07:50–08:00 screenshots (TestInterfacesScreenshots, prod build) → docs/user/interfaces; basics.md, vertical-slice.md, P08.md.
 - 08:00 ci.sh #1 failed on agent lint (coretest G115/revive + my IKEv2Options comment) → fixed 390b409; merged main (F-startup-apply); ci.sh #3 running.
 - 08:05 ci.sh #3 PASSED (after lint fix + main merge). 08:12 topology re-run green after merge (trace matching made run-unique; agent built in-test when no binary given).
+- 08:17 final ci.sh --base main PASSED @82d699d; cleanup done (bin/dist/run dir removed, vrx_w1 dropped, rig down, lock free, NRestarts 6). DONE except TD-3 Release wiring (pending its merge).

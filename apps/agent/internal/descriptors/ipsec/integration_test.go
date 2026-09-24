@@ -301,24 +301,43 @@ func TestIpsecOnHost(t *testing.T) {
 	if err := sw.AckRestart(ctx, "host-restart", ack); !errors.Is(err, ipsecd.ErrSweepNotComplete) || ack.n != 0 {
 		t.Fatalf("ack without a sweep for this restart: %v", err)
 	}
+	// a crashed charon leaves an SA whose protect policy is STILL in its SPD at stopped-sweep time
+	// (fix round 2, N1: VPP's SPD delete would not release that lock)
+	crashed := base + 504
+	if _, err := svc.IpsecSadEntryAddV2(ctx, &ipsec.IpsecSadEntryAddV2{Entry: ipsec_types.IpsecSadEntryV4{
+		SadID: crashed, Spi: 2000 + crashed, Protocol: ipsec_types.IPSEC_API_PROTO_ESP,
+		CryptoAlgorithm: ipsec_types.IPSEC_API_CRYPTO_ALG_NONE, IntegrityAlgorithm: ipsec_types.IPSEC_API_INTEG_ALG_NONE,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _, _ = svc.IpsecSadEntryDel(context.Background(), &ipsec.IpsecSadEntryDel{ID: crashed}) })
+	if _, err := svc.IpsecSpdEntryAddDelV2(ctx, &ipsec.IpsecSpdEntryAddDelV2{IsAdd: true, Entry: ipsec_types.IpsecSpdEntryV2{
+		SpdID: base + 501, Priority: 7, SaID: crashed, Policy: ipsec_types.IPSEC_API_SPD_ACTION_PROTECT, Protocol: 255,
+		LocalAddressStart: lo, LocalAddressStop: hi, RemoteAddressStart: lo, RemoteAddressStop: hi,
+		LocalPortStop: 65535, RemotePortStop: 65535,
+	}}); err != nil {
+		t.Fatal(err)
+	}
 	// D-096 order: stop charon → Sweep (stopped: charon SPDs too) → start charon → AckRestart
 	res, err = sw.Sweep(ctx, "host-restart", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("charon sweep (charon stopped): SPDs %v, policies %d, SAs %v, in use %v", res.DeletedSPDs, res.DeletedPolicies, res.DeletedSAs, res.InUse)
-	if !slices.Equal(res.DeletedSPDs, []uint32{base + 501}) || !slices.Equal(res.DeletedSAs, []uint32{live}) {
+	if !slices.Equal(res.DeletedSPDs, []uint32{base + 501}) || !slices.Equal(res.DeletedSAs, []uint32{live, crashed}) ||
+		res.DeletedPolicies != 1 || len(res.NotSwept) != 0 {
 		t.Fatalf("stopped sweep result %+v", res)
 	}
 	if err := sw.AckRestart(ctx, "host-restart", ack); err != nil || ack.n != 1 {
 		t.Fatalf("ack after the sweep: %v (%d)", err, ack.n)
 	}
 	t.Logf("AckRestart after the completed sweep: ok (calls %d)", ack.n)
+	t.Logf("sa %d (protect policy still in the charon SPD at sweep time): absent from ipsec_sa_v5_dump after the sweep", crashed)
 	left, err := saIDs(ctx, c2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if slices.Contains(left, orphan) || slices.Contains(left, live) || !slices.Contains(left, saT.GetSadId()) {
+	if slices.Contains(left, orphan) || slices.Contains(left, live) || slices.Contains(left, crashed) || !slices.Contains(left, saT.GetSadId()) {
 		t.Fatalf("after sweep: SAs %v", left)
 	}
 	// a charon SA that appears afterwards survives our empty desired state below
@@ -380,4 +399,58 @@ func vpntestDescriptorOf(v proto.Message) string {
 		return ipsecd.ItfName
 	}
 	return ""
+}
+
+// TestSpdDeleteKeepsSALocksOnHost mirrors the re-review's vppctl reproduction on slot ids through
+// the binary API (no packets): deleting an SPD does NOT release its protect policies' SA locks —
+// one ipsec_sad_entry_del leaves the SA in VPP, only a second unlock frees it. The fake models this.
+func TestSpdDeleteKeepsSALocksOnHost(t *testing.T) {
+	c := vpntest.Connect(t)
+	ctx := vpntest.Context(t)
+	base := vpptest.TableBase(t)
+	svc := ipsec.NewServiceClient(c)
+	sa, spd := base+590, base+590
+	if _, err := svc.IpsecSadEntryAddV2(ctx, &ipsec.IpsecSadEntryAddV2{Entry: ipsec_types.IpsecSadEntryV4{
+		SadID: sa, Spi: 2000 + sa, Protocol: ipsec_types.IPSEC_API_PROTO_ESP,
+		CryptoAlgorithm: ipsec_types.IPSEC_API_CRYPTO_ALG_NONE, IntegrityAlgorithm: ipsec_types.IPSEC_API_INTEG_ALG_NONE,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		for i := 0; i < 3; i++ { // release whatever locks are left
+			_, _ = svc.IpsecSadEntryDel(context.Background(), &ipsec.IpsecSadEntryDel{ID: sa})
+		}
+	})
+	if _, err := svc.IpsecSpdAddDel(ctx, &ipsec.IpsecSpdAddDel{IsAdd: true, SpdID: spd}); err != nil {
+		t.Fatal(err)
+	}
+	a, _ := vpn.ParseAddress(vpntest.SlotAddr(t, 90, 0))
+	b, _ := vpn.ParseAddress(vpntest.SlotAddr(t, 90, 255))
+	if _, err := svc.IpsecSpdEntryAddDelV2(ctx, &ipsec.IpsecSpdEntryAddDelV2{IsAdd: true, Entry: ipsec_types.IpsecSpdEntryV2{
+		SpdID: spd, Priority: 1, SaID: sa, Policy: ipsec_types.IPSEC_API_SPD_ACTION_PROTECT, Protocol: 255, IsOutbound: true,
+		LocalAddressStart: a, LocalAddressStop: b, RemoteAddressStart: a, RemoteAddressStop: b, LocalPortStop: 65535, RemotePortStop: 65535,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.IpsecSpdAddDel(ctx, &ipsec.IpsecSpdAddDel{IsAdd: false, SpdID: spd}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.IpsecSadEntryDel(ctx, &ipsec.IpsecSadEntryDel{ID: sa}); err != nil {
+		t.Fatal(err)
+	}
+	left, err := saIDs(ctx, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(left, sa) {
+		t.Fatal("VPP released the policy's SA lock on SPD delete — the fake's model would be wrong")
+	}
+	t.Logf("sa %d after spd del + one ipsec_sad_entry_del: still present (the policy's lock leaked with the SPD)", sa)
+	if _, err := svc.IpsecSadEntryDel(ctx, &ipsec.IpsecSadEntryDel{ID: sa}); err != nil {
+		t.Fatal(err)
+	}
+	if left, _ = saIDs(ctx, c); slices.Contains(left, sa) {
+		t.Fatal("second unlock did not free the SA")
+	}
+	t.Logf("sa %d after the second unlock: gone", sa)
 }

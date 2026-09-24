@@ -80,7 +80,7 @@ from 1 again. The procedure (D-096), run by P11 when RF-2 reports `State.Restart
 ```go
 sw, err := ipsec.NewCharonSweeper(cfg, charonRange) // at startup: validated, refused on any misconfiguration
 // stop charon →
-res, err := sw.Sweep(ctx, restart, nil)             // charon stopped: charon SPDs, then unrecorded charon SAs
+res, err := sw.Sweep(ctx, restart, nil)             // charon STOPPED (P11 precondition): see the order below
 // start charon →
 err = sw.AckRestart(ctx, restart, renderer)         // refused unless Sweep(restart) completed on this VPP instance
 ```
@@ -91,13 +91,20 @@ err = sw.AckRestart(ctx, restart, renderer)         // refused unless Sweep(rest
 * **Store (H2):** the owner's persisted record store is required (`*dfkit.FileBootStore` or a store
   reporting `Persistent()`); the in-memory default is refused. Nothing with an ownership record —
   valid, pending or of an earlier VPP instance — is touched; nothing tagged is deleted.
-* **Lock-safe order (H3):** `ipsec_sad_entry_del` is an unlock; every protect policy and tunnel
-  protection holds its own lock. Per orphan SA: a tunnel protection using it → `InUse`, left; the
-  protect policies using it are deleted in **all** SPDs (except SPDs with our record → `InUse`); a
-  fresh dump of all SPDs must show no reference; the SA is re-read (same SPI, unrecorded, not live)
-  and unlocked once. Any failure stops the sweep **for that SA** (never an unlock of a referenced
-  SA); the sweep then returns an error and writes no completion marker. `ipsec.sa` Delete applies
-  the same "no remaining reference" check before its unlock.
+* **Lock-safe order (H3, fix round 2 N1/N2):** VPP's SPD delete frees the policy vectors
+  **without** unlocking their SAs (ipsec_spd.c; reproduced on the host by
+  `TestSpdDeleteKeepsSALocksOnHost`), and `ipsec_sad_entry_del` is an unlock. So, with charon
+  stopped: (1) every policy of every unrecorded charon-range SPD is deleted one by one and a dump
+  must show the SPD empty; (2) per orphan SA: a tunnel protection or a policy in any SPD that is
+  not charon's (ours, or another owner's outside both ranges — D-071, never touched) → reported
+  `InUse{SA, By: "spd <id>" | "tunnel protection"}` and left alone; remaining references (charon
+  SPDs, running mode) are deleted, a fresh dump of all SPDs must show none, the SA is re-read and
+  unlocked once, and a re-dump must show it **gone** — otherwise it is `NotSwept`; (3) the emptied
+  charon SPDs are deleted. Any error or `NotSwept` SA → no completion marker → the ack for that
+  restart is refused. `ipsec.spd` Delete refuses while its SPD still holds protect policies;
+  `ipsec.sa` Delete refuses while anything references the SA.
+* **P11 precondition:** `Sweep(ctx, token, nil)` asserts that charon is stopped (it removes every
+  unrecorded charon-range SPD).
 * **Ack gate (M2):** `Sweep` persists a completion marker `(restart token, VPP boot identity)`;
   `AckRestart` calls RF-2's `Renderer.AckRestart` only with a matching marker, then drops it.
   `restart` is RF-2's `State.DaemonStartedAt` of the instance that went away. A second charon
@@ -129,8 +136,9 @@ interfaces at reused indexes.
 * `IpsecSa.crypto_key` / `integ_key` are **references**, never material: `hmac:<hex>` =
   HMAC-SHA256 of the key bytes under the agent-local fingerprint key (D-096: a 0600 file of 32
   random bytes in the state dir, created on first use, never logged). A plain sha256 would let a
-  weak PSK be guessed offline from desired state, plans or logs. Legacy `sha256:` references still
-  resolve (one re-apply, then the keyed form). A value that is not a well-formed reference
+  weak PSK be guessed offline from desired state, plans or logs. Unkeyed `sha256:` references are
+  refused (fix round 2). The key file is created crash-safe (temp + fsync + link + dir fsync) and
+  read with `O_NOFOLLOW`, owner and mode checked. A value that is not a well-formed reference
   (pasted plaintext) is refused before anything else and never echoed (`vpn.CheckRef`, `Redact`). Create resolves them through `vpn.Resolver` (the agent's secret store; tests use
   `vpn.MapResolver`), verifies material ↔ reference, sends `ipsec_sad_entry_add_v2`, then zeroes
   the request buffer.

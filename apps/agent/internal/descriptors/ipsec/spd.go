@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/ipsec"
+	"ngfw/agent/binapi/ipsec_types"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/vpn"
 	vpnpb "ngfw/agent/internal/descriptors/vpn/pb"
@@ -106,6 +107,18 @@ func (d *Spd) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	}
 	if !owned {
 		return fmt.Errorf("%s: spd %d: %w", SpdName, o.GetSpdId(), vpn.ErrNotOurs)
+	}
+	// VPP's SPD delete frees the policy vectors WITHOUT unlocking the protect policies' SAs
+	// (ipsec_spd.c): those SAs would stay locked forever. Protect policies must be deleted first
+	// (they are ipsec.spd-entry dependents; fix round 2, N1).
+	pols, err := NewSpdEntry(d.cfg).dumpSpd(ctx, o.GetSpdId())
+	if err != nil {
+		return err
+	}
+	for _, p := range pols {
+		if p.GetAction() == actions.name(ipsec_types.IPSEC_API_SPD_ACTION_PROTECT) {
+			return fmt.Errorf("%s: spd %d still holds protect policies (SA %d); delete them first", SpdName, o.GetSpdId(), p.GetSaId())
+		}
 	}
 	if _, err := ipsec.NewServiceClient(d.cfg.Client).IpsecSpdAddDel(ctx, &ipsec.IpsecSpdAddDel{IsAdd: false, SpdID: o.GetSpdId()}); err != nil {
 		return fmt.Errorf("ipsec_spd_add_del (spd %d, del): %w", o.GetSpdId(), err)

@@ -129,11 +129,8 @@ func newFakeVPP() *fakeVPP {
 			v.nextSpdIdx++
 		default:
 			poolIdx := v.spds[r.SpdID]
-			for _, p := range v.policies[r.SpdID] {
-				if id, ok := protectSA(p); ok {
-					defer v.unlockSA(id)
-				}
-			}
+			// VPP (ipsec_spd.c:24-104) frees the policy vectors WITHOUT unlocking their SAs: the
+			// locks of protect policies stay held (leaked) — modelled exactly (fix round 2, N1)
 			delete(v.spds, r.SpdID)
 			delete(v.policies, r.SpdID)
 			for sw, idx := range v.bindings { // VPP unbinds every interface from a deleted SPD

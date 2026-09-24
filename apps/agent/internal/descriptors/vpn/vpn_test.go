@@ -55,8 +55,8 @@ func TestSecretReferences(t *testing.T) {
 	if err := vpn.Verify(testKeys, "plain:abc", testKey); !errors.Is(err, vpn.ErrBadRef) {
 		t.Fatalf("Verify bad ref: %v", err)
 	}
-	// legacy (pre-D-096) references still verify, so an old desired state applies once
-	if err := vpn.Verify(testKeys, "sha256:"+hex.EncodeToString(plain[:]), testKey); err != nil {
+	// an unkeyed sha256 fingerprint is refused (D-096; fix round 2, N5)
+	if err := vpn.Verify(testKeys, "sha256:"+hex.EncodeToString(plain[:]), testKey); !errors.Is(err, vpn.ErrBadRef) {
 		t.Fatalf("legacy ref: %v", err)
 	}
 
@@ -102,6 +102,28 @@ func TestKeyFile(t *testing.T) {
 	}
 	if _, err := vpn.LoadOrCreateKeyFile(path); err == nil {
 		t.Fatal("a group/world-readable key file must be refused")
+	}
+	// a short file (what a non-crash-safe writer could leave behind) and a symlink are refused
+	short := filepath.Join(dir, "short.key")
+	if err := os.WriteFile(short, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := vpn.LoadOrCreateKeyFile(short); err == nil {
+		t.Fatal("short key file accepted")
+	}
+	link := filepath.Join(dir, "state", "link.key")
+	if err := os.Symlink(path, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := vpn.LoadOrCreateKeyFile(link); err == nil {
+		t.Fatal("symlinked key file accepted")
+	}
+	// no temporary files are left behind
+	ents, _ := os.ReadDir(filepath.Join(dir, "state"))
+	for _, e := range ents {
+		if strings.HasPrefix(e.Name(), ".fingerprint-key-") {
+			t.Fatalf("temporary key file left: %s", e.Name())
+		}
 	}
 }
 

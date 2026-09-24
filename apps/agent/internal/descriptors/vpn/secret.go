@@ -11,12 +11,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
+	"syscall"
 )
 
 // Reference prefixes (see the package doc).
@@ -26,10 +28,6 @@ const (
 	RefHMAC = "hmac:"
 	// RefX25519 references a WireGuard private key by its (public) public key.
 	RefX25519 = "x25519:"
-	// RefSHA256 is the legacy (pre-D-096) unkeyed fingerprint. Accepted only for resolution so an
-	// old desired state still applies; Retrieve never produces it, so such an object is planned
-	// for one re-apply and converges once the desired state carries the keyed reference.
-	RefSHA256 = "sha256:"
 )
 
 // X25519KeyLen is the length of WireGuard private, public and preshared keys.
@@ -46,16 +44,16 @@ var (
 
 var (
 	hmacRefRe   = regexp.MustCompile(`^hmac:[0-9a-f]{64}$`)
-	sha256RefRe = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 	x25519RefRe = regexp.MustCompile(`^x25519:[A-Za-z0-9+/]{43}=$`)
 	// d051RefRe is the configuration-level reference form (D-051); never material.
 	d051RefRe = regexp.MustCompile(`^(psk|key|cert|password|token)/[A-Za-z0-9_.-]{1,64}$`)
 )
 
-// CheckRef validates the grammar of a DF-5 secret reference (hmac:, x25519:, legacy sha256:)
-// without echoing it: a pasted plaintext value fails with a bare ErrBadRef (review M1).
+// CheckRef validates the grammar of a DF-5 secret reference (hmac:, x25519:) without echoing it:
+// a pasted plaintext value fails with a bare ErrBadRef (review M1). An unkeyed "sha256:"
+// fingerprint is refused as well (D-096 forbids it; fix round 2, N5).
 func CheckRef(ref string) error {
-	if hmacRefRe.MatchString(ref) || x25519RefRe.MatchString(ref) || sha256RefRe.MatchString(ref) {
+	if hmacRefRe.MatchString(ref) || x25519RefRe.MatchString(ref) {
 		return nil
 	}
 	return ErrBadRef
@@ -163,51 +161,92 @@ func NewKeyer(key []byte) (*Keyer, error) {
 }
 
 // LoadOrCreateKeyFile returns the Keyer of the agent-local key file at path (in the agent's
-// state dir): created on first use with KeyLen random bytes, mode 0600 (directory 0700); an
-// existing file must be a regular file of exactly KeyLen bytes readable by its owner only. The
-// key is never logged.
+// state dir). On first use it is created crash-safe: KeyLen random bytes are written to a
+// temporary 0600 file in the same directory, fsynced, hard-linked into place (first writer wins
+// when two agents start together) and the directory fsynced — a crash never leaves a short key
+// file. An existing file is opened without following symlinks and checked on the open descriptor:
+// a regular file of exactly KeyLen bytes, mode 0600 or stricter, owned by this user. The directory
+// must not be group/world-writable. The key is never logged.
 func LoadOrCreateKeyFile(path string) (*Keyer, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("vpn: fingerprint key dir: %w", err)
 	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // agent state file
-	switch {
-	case err == nil:
-		key := make([]byte, KeyLen)
-		defer Zero(key)
-		if _, err := rand.Read(key); err != nil {
-			_ = f.Close()
-			_ = os.Remove(path)
-			return nil, fmt.Errorf("vpn: fingerprint key: %w", err)
-		}
-		if _, err := f.Write(key); err != nil {
-			_ = f.Close()
-			_ = os.Remove(path)
-			return nil, fmt.Errorf("vpn: fingerprint key: %w", err)
-		}
-		if err := f.Sync(); err != nil {
-			_ = f.Close()
-			return nil, fmt.Errorf("vpn: fingerprint key: %w", err)
-		}
-		if err := f.Close(); err != nil {
-			return nil, fmt.Errorf("vpn: fingerprint key: %w", err)
-		}
-		return NewKeyer(key)
-	case !errors.Is(err, os.ErrExist):
-		return nil, fmt.Errorf("vpn: fingerprint key: %w", err)
+	if info, err := os.Stat(dir); err != nil || info.Mode().Perm()&0o022 != 0 {
+		return nil, fmt.Errorf("vpn: fingerprint key dir %s must exist and not be group/world-writable", dir)
 	}
-	info, err := os.Lstat(path)
+	if k, err := loadKeyFile(path); !errors.Is(err, os.ErrNotExist) {
+		return k, err
+	}
+	if err := createKeyFile(dir, path); err != nil {
+		return nil, err
+	}
+	return loadKeyFile(path)
+}
+
+func createKeyFile(dir, path string) error {
+	tmp, err := os.CreateTemp(dir, ".fingerprint-key-*")
 	if err != nil {
-		return nil, fmt.Errorf("vpn: fingerprint key: %w", err)
+		return fmt.Errorf("vpn: fingerprint key: %w", err)
 	}
-	if !info.Mode().IsRegular() || info.Mode().Perm()&0o077 != 0 || info.Size() != KeyLen {
-		return nil, fmt.Errorf("vpn: fingerprint key %s must be a regular %d-byte file with mode 0600", path, KeyLen)
-	}
-	key, err := os.ReadFile(path) //nolint:gosec // agent state file
-	if err != nil {
-		return nil, fmt.Errorf("vpn: fingerprint key: %w", err)
-	}
+	defer func() { _ = os.Remove(tmp.Name()) }()
+	key := make([]byte, KeyLen)
 	defer Zero(key)
+	if _, err := rand.Read(key); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("vpn: fingerprint key: %w", err)
+	}
+	if err := tmp.Chmod(0o600); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("vpn: fingerprint key: %w", err)
+	}
+	if _, err := tmp.Write(key); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("vpn: fingerprint key: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("vpn: fingerprint key: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("vpn: fingerprint key: %w", err)
+	}
+	if err := os.Link(tmp.Name(), path); err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("vpn: fingerprint key: %w", err)
+	}
+	d, err := os.Open(dir) //nolint:gosec // the agent's state dir
+	if err != nil {
+		return fmt.Errorf("vpn: fingerprint key dir: %w", err)
+	}
+	defer func() { _ = d.Close() }()
+	if err := d.Sync(); err != nil {
+		return fmt.Errorf("vpn: fingerprint key dir: %w", err)
+	}
+	return nil
+}
+
+func loadKeyFile(path string) (*Keyer, error) {
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0) //nolint:gosec // agent state file
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+		return nil, fmt.Errorf("vpn: fingerprint key: %w", err)
+	}
+	defer func() { _ = f.Close() }()
+	info, err := f.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("vpn: fingerprint key: %w", err)
+	}
+	st, ok := info.Sys().(*syscall.Stat_t)
+	if !info.Mode().IsRegular() || info.Mode().Perm()&0o077 != 0 || info.Size() != KeyLen || !ok || int(st.Uid) != os.Geteuid() {
+		return nil, fmt.Errorf("vpn: fingerprint key %s must be a regular %d-byte file, mode 0600, owned by this user", path, KeyLen)
+	}
+	key := make([]byte, KeyLen)
+	defer Zero(key)
+	if _, err := io.ReadFull(f, key); err != nil {
+		return nil, fmt.Errorf("vpn: fingerprint key: %w", err)
+	}
 	return NewKeyer(key)
 }
 
@@ -226,12 +265,6 @@ func (k *Keyer) GoString() string { return k.String() }
 
 // LogValue implements slog.LogValuer.
 func (k *Keyer) LogValue() slog.Value { return slog.StringValue(k.String()) }
-
-// legacyRef is the pre-D-096 unkeyed fingerprint (verification of old references only).
-func legacyRef(material []byte) string {
-	sum := sha256.Sum256(material)
-	return RefSHA256 + hex.EncodeToString(sum[:])
-}
 
 // X25519Ref returns the x25519 reference (base64 public key) of a 32-byte private key.
 func X25519Ref(private []byte) (string, error) {
@@ -271,8 +304,6 @@ func Verify(k *Keyer, ref string, material []byte) error {
 			return ErrNoKeyer
 		}
 		want = k.Ref(material)
-	case strings.HasPrefix(ref, RefSHA256):
-		want = legacyRef(material)
 	default: // x25519
 		var err error
 		if want, err = X25519Ref(material); err != nil {
@@ -314,16 +345,13 @@ func Resolve(ctx context.Context, r Resolver, k *Keyer, ref string) ([]byte, err
 func Zero(b []byte) { clear(b) }
 
 // Redact is the only form in which a reference appears in an error or log line. A well-formed
-// keyed or x25519 reference is shortened to its prefix and the first 8 characters; a legacy
-// sha256 reference (offline-guessable, D-096) shows only its prefix; a D-051 name is shown as is;
-// anything else — above all a pasted plaintext secret — becomes "<redacted>" (review M1).
+// keyed or x25519 reference is shortened to its prefix and the first 8 characters; a D-051 name is
+// shown as is; anything else — a pasted plaintext secret, an unkeyed sha256 — becomes "<redacted>".
 func Redact(ref string) string {
 	switch {
 	case hmacRefRe.MatchString(ref), x25519RefRe.MatchString(ref):
 		i := strings.IndexByte(ref, ':')
 		return ref[:i+1] + ref[i+1:i+9] + "…"
-	case sha256RefRe.MatchString(ref):
-		return RefSHA256 + "<redacted>"
 	case d051RefRe.MatchString(ref):
 		return ref
 	default:

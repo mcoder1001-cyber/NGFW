@@ -15,9 +15,9 @@
 // The fingerprint key is a 0600 file of 32 random bytes in the agent's state dir, created on first
 // use (LoadOrCreateKeyFile) and passed to every package with WithKeyer; it is never logged and the
 // Keyer formats as "vpn.Keyer(hmac-sha256)". A weak PSK therefore cannot be guessed offline from
-// desired state, plans, logs or test output. Legacy "sha256:<hex>" references (before D-096) still
-// resolve so an old desired state applies; Retrieve always reports the keyed form, so such an
-// object is re-applied once and converges when the desired state carries the keyed reference.
+// desired state, plans, logs or test output. The key file is written crash-safe (temp file,
+// fsync, link, directory fsync) and read without following symlinks. Unkeyed "sha256:"
+// fingerprints are refused like any other malformed reference (D-096).
 //
 // A value where a reference belongs is checked against the reference grammar (CheckRef) before
 // anything else; a malformed one — typically pasted plaintext — fails with a bare ErrBadRef and

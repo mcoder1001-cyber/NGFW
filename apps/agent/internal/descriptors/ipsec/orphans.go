@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 
 	"ngfw/agent/binapi/ipsec"
@@ -29,16 +30,23 @@ import (
 //     a store reporting Persistent()): nothing with an ownership record — valid, pending or of an
 //     earlier VPP instance — is ever touched; with an in-memory store a restarted agent would have
 //     forgotten its own objects.
-//   - With charon stopped (live == nil) every unrecorded SPD in the charon range is deleted first
-//     (VPP drops its policies' SA locks and unbinds its interfaces), then every unrecorded SA in the
-//     range. While charon runs, live reports its installed SPIs and only SAs are swept.
-//   - VPP lock counting (ipsec_sa.c): ipsec_sad_entry_del is an UNLOCK; every protect policy and
-//     every tunnel protection holds its own lock. So per SA: a tunnel protection using it → left in
-//     place (InUse); the protect policies using it are deleted in EVERY SPD (not only charon's) —
-//     except in an SPD with our ownership record (then InUse); then a fresh dump of all SPDs must
-//     show no policy referencing it; only then the SA is unlocked, after re-reading it (same SPI,
-//     still unrecorded, not live). Any failure stops the sweep FOR THAT SA — a referenced SA is
-//     never unlocked, so it can never be freed under a policy (use-after-free on the packet path).
+//   - **P11 precondition: live == nil asserts that charon is STOPPED** — the sweep then removes
+//     every unrecorded SPD in the charon range, which would drop a running charon's tunnels.
+//   - VPP lock counting (ipsec_sa.c, ipsec_spd.c:24-104, ipsec_spd_policy.c:308):
+//     ipsec_sad_entry_del is an UNLOCK; every protect policy and every tunnel protection holds its
+//     own lock, released ONLY by deleting that policy / protection — deleting an SPD frees its
+//     policy vectors WITHOUT unlocking their SAs (fix round 2, N1, reproduced on the host). So:
+//     1. (charon stopped) every policy of every unrecorded charon-range SPD is deleted one by one,
+//        and a dump must show the SPD empty;
+//     2. per orphan SA: a tunnel protection using it, or a policy in any SPD outside the charon
+//        range or recorded by us, leaves it alone — reported "in use by <who>" (D-071: foreign
+//        SPDs are never touched, fix round 2 N2); policies in unrecorded charon-range SPDs are
+//        deleted; a fresh dump of all SPDs must show zero references; the SA is re-read (same
+//        SPI, unrecorded, not live) and unlocked once; a re-dump must show it GONE, otherwise it
+//        is reported NotSwept (a lock we cannot see is still held);
+//     3. (charon stopped) the emptied charon SPDs are deleted.
+//     Any failure stops the sweep for that SA or SPD; a sweep with an error or a NotSwept SA writes
+//     no completion marker, so the ack for that restart is refused.
 //   - AckRestart is refused unless a Sweep for the same restart token finished without error on the
 //     running VPP instance (persisted marker); it then calls the RF-2 renderer's AckRestart and drops
 //     the marker. restart is the token P11 uses for the restart being handled (RF-2's
@@ -96,7 +104,18 @@ type SweepResult struct {
 	DeletedSPDs     []uint32
 	DeletedPolicies int
 	DeletedSAs      []uint32
-	InUse           []uint32 // orphans still referenced by a tunnel protection or one of our policies
+	// InUse: orphans left alone because something else references them ("spd <id>" of a foreign
+	// or our SPD, "tunnel protection").
+	InUse []InUseSA
+	// NotSwept: orphans still present after their unlock (a lock is held elsewhere) — the sweep
+	// reports an error and the restart cannot be acked.
+	NotSwept []uint32
+}
+
+// InUseSA is an orphan SA left in place and what references it.
+type InUseSA struct {
+	SA uint32
+	By string
 }
 
 const sweepMarkerKey = "ipsec.charon-sweep"
@@ -107,7 +126,7 @@ func (s *CharonSweeper) recorded(key string) bool {
 	return ok
 }
 
-// Sweep removes charon's orphans (see the file comment). live == nil means charon is stopped.
+// Sweep removes charon's orphans (see the file comment). live == nil asserts charon is stopped.
 func (s *CharonSweeper) Sweep(ctx context.Context, restart string, live func(spi uint32) bool) (SweepResult, error) {
 	var res SweepResult
 	if restart == "" {
@@ -123,23 +142,41 @@ func (s *CharonSweeper) Sweep(ctx context.Context, restart string, live func(spi
 		return res, fmt.Errorf("charon sweep: %w", err)
 	}
 	svc := ipsec.NewServiceClient(s.cfg.Client)
+	entries := NewSpdEntry(s.cfg)
 	var errs []error
 
-	// 1. charon stopped: its SPDs go first (drops the policies' SA locks, unbinds interfaces)
+	// 1. charon stopped: empty its SPDs policy by policy (only a policy delete unlocks its SA)
+	var emptied []uint32
 	if stopped {
 		spds, err := dumpSpdIDs(ctx, s.cfg)
 		if err != nil {
 			return res, err
 		}
 		for _, id := range spds {
-			if !s.ids.Contains(id) || s.recorded(spdRecordKey(id)) {
+			if !s.charonSPD(id) {
 				continue
 			}
-			if _, err := svc.IpsecSpdAddDel(ctx, &ipsec.IpsecSpdAddDel{IsAdd: false, SpdID: id}); err != nil {
-				errs = append(errs, fmt.Errorf("ipsec_spd_add_del (charon spd %d, del): %w", id, err))
+			pols, err := entries.dumpSpd(ctx, id)
+			if err != nil {
+				return res, err
+			}
+			ok := true
+			for _, p := range pols {
+				if err := deletePolicy(ctx, svc, p); err != nil {
+					errs = append(errs, err)
+					ok = false
+					break
+				}
+				res.DeletedPolicies++
+			}
+			if !ok {
 				continue
 			}
-			res.DeletedSPDs = append(res.DeletedSPDs, id)
+			if left, err := entries.dumpSpd(ctx, id); err != nil || len(left) > 0 {
+				errs = append(errs, fmt.Errorf("ipsec: charon spd %d still holds %d policies (%v)", id, len(left), err))
+				continue
+			}
+			emptied = append(emptied, id)
 		}
 	}
 
@@ -162,35 +199,47 @@ func (s *CharonSweeper) Sweep(ctx context.Context, restart string, live func(spi
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 
 	for _, id := range ids {
-		inUse, deleted, err := s.releasePolicies(ctx, svc, id)
+		by, deleted, err := s.releasePolicies(ctx, svc, id)
 		res.DeletedPolicies += deleted
 		if err != nil {
 			errs = append(errs, err) // stop for this SA: never unlock a referenced SA
 			continue
 		}
-		if inUse {
-			res.InUse = append(res.InUse, id)
+		if by != "" {
+			res.InUse = append(res.InUse, InUseSA{SA: id, By: by})
 			continue
 		}
 		// re-read right before the unlock: same SA, still unrecorded, not live
-		cur, err := dumpSAs(ctx, s.cfg, id)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		same := false
-		for _, sa := range cur {
-			same = same || (sa.value.GetSadId() == id && sa.value.GetSpi() == orphans[id])
-		}
-		if !same || live(orphans[id]) || s.recorded(saRecordKey(id)) {
+		if !s.stillOrphan(ctx, id, orphans[id], live) {
 			continue
 		}
 		if _, err := svc.IpsecSadEntryDel(ctx, &ipsec.IpsecSadEntryDel{ID: id}); err != nil {
 			errs = append(errs, fmt.Errorf("ipsec_sad_entry_del (orphan sa %d): %w", id, err))
 			continue
 		}
+		// VPP frees the SA only when its last lock goes: it must be gone now
+		after, err := dumpSAs(ctx, s.cfg, id)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		if slices.ContainsFunc(after, func(sa dumpedSa) bool { return sa.value.GetSadId() == id }) {
+			res.NotSwept = append(res.NotSwept, id)
+			errs = append(errs, fmt.Errorf("ipsec: orphan sa %d still present after its unlock (a lock is held elsewhere)", id))
+			continue
+		}
 		res.DeletedSAs = append(res.DeletedSAs, id)
 	}
+
+	// 3. charon stopped: delete the emptied charon SPDs (unbinds their interfaces)
+	for _, id := range emptied {
+		if _, err := svc.IpsecSpdAddDel(ctx, &ipsec.IpsecSpdAddDel{IsAdd: false, SpdID: id}); err != nil {
+			errs = append(errs, fmt.Errorf("ipsec_spd_add_del (charon spd %d, del): %w", id, err))
+			continue
+		}
+		res.DeletedSPDs = append(res.DeletedSPDs, id)
+	}
+
 	if err := errors.Join(errs...); err != nil {
 		return res, err
 	}
@@ -200,36 +249,54 @@ func (s *CharonSweeper) Sweep(ctx context.Context, restart string, live func(spi
 	return res, nil
 }
 
-// releasePolicies removes every protect policy referencing SA id, in every SPD without our
-// record, and verifies with a fresh dump that no policy references it any more. inUse: a tunnel
-// protection or a policy in one of OUR SPDs references it (left alone).
-func (s *CharonSweeper) releasePolicies(ctx context.Context, svc ipsec.RPCService, id uint32) (inUse bool, deleted int, err error) {
+// charonSPD reports whether SPD id is charon's: inside the charon range and without any record of ours.
+func (s *CharonSweeper) charonSPD(id uint32) bool {
+	return s.ids.Contains(id) && !s.recorded(spdRecordKey(id))
+}
+
+// stillOrphan re-reads SA id right before its unlock.
+func (s *CharonSweeper) stillOrphan(ctx context.Context, id, spi uint32, live func(uint32) bool) bool {
+	cur, err := dumpSAs(ctx, s.cfg, id)
+	if err != nil {
+		return false
+	}
+	same := slices.ContainsFunc(cur, func(sa dumpedSa) bool { return sa.value.GetSadId() == id && sa.value.GetSpi() == spi })
+	return same && !live(spi) && !s.recorded(saRecordKey(id))
+}
+
+// releasePolicies removes the protect policies referencing SA id in charon SPDs and verifies with a
+// fresh dump that no policy references it any more. by != "": a tunnel protection or a policy in
+// an SPD that is not charon's (ours, another owner's) references it — left alone (D-071).
+func (s *CharonSweeper) releasePolicies(ctx context.Context, svc ipsec.RPCService, id uint32) (by string, deleted int, err error) {
 	if used, err := protectionUses(ctx, s.cfg, id); err != nil || used {
-		return used, 0, err
+		if used {
+			return "tunnel protection", 0, nil
+		}
+		return "", 0, err
 	}
 	refs, err := policiesUsing(ctx, s.cfg, id)
 	if err != nil {
-		return false, 0, err
+		return "", 0, err
 	}
 	for _, p := range refs {
-		if s.recorded(spdRecordKey(p.GetSpdId())) {
-			return true, 0, nil
+		if !s.charonSPD(p.GetSpdId()) {
+			return fmt.Sprintf("spd %d", p.GetSpdId()), 0, nil
 		}
 	}
 	for _, p := range refs {
 		if err := deletePolicy(ctx, svc, p); err != nil {
-			return false, deleted, err
+			return "", deleted, err
 		}
 		deleted++
 	}
 	left, err := policiesUsing(ctx, s.cfg, id)
 	if err != nil {
-		return false, deleted, err
+		return "", deleted, err
 	}
 	if len(left) > 0 {
-		return false, deleted, fmt.Errorf("ipsec: orphan sa %d still referenced by %d policies; not unlocked", id, len(left))
+		return "", deleted, fmt.Errorf("ipsec: orphan sa %d still referenced by %d policies; not unlocked", id, len(left))
 	}
-	return false, deleted, nil
+	return "", deleted, nil
 }
 
 // protectionUses reports whether a tunnel protection references SA id.

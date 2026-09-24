@@ -147,32 +147,59 @@ func TestInterfaces(t *testing.T) {
 	f := fake.New(fake.WithControlPingReply(&memclnt.ControlPingReply{}))
 	f.Reply("sw_interface_dump",
 		&interfaces.SwInterfaceDetails{SwIfIndex: 0, InterfaceName: "local0"},
-		&interfaces.SwInterfaceDetails{SwIfIndex: 5, InterfaceName: "loop400", Tag: "w4:loop400\x00\x00"},
+		&interfaces.SwInterfaceDetails{SwIfIndex: 5, InterfaceName: "ipsec400", Tag: "w4:w4-tun0\x00\x00"},
 		&interfaces.SwInterfaceDetails{SwIfIndex: 6, InterfaceName: "loop300", Tag: "w3:loop300"},
+		&interfaces.SwInterfaceDetails{SwIfIndex: 7, InterfaceName: "wan0"},
 	)
 	f.Reply("sw_interface_tag_add_del", &interfaces.SwInterfaceTagAddDelReply{})
 	ctx := context.Background()
-	tbl, err := vpn.DumpInterfaces(ctx, f)
+	tbl, err := vpn.DumpInterfaces(ctx, f, "w4")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if idx, err := tbl.Index("loop400"); err != nil || idx != 5 {
-		t.Fatalf("Index = %d %v", idx, err)
+	// D-069: our interfaces by their logical (tag id) name, untagged ones by VPP's name
+	if idx, err := tbl.Resolve("w4-tun0"); err != nil || idx != 5 {
+		t.Fatalf("Resolve(own) = %d %v", idx, err)
 	}
-	if _, err := tbl.Index("nope"); err == nil {
-		t.Fatal("missing interface must error")
+	if idx, err := tbl.Resolve("wan0"); err != nil || idx != 7 {
+		t.Fatalf("Resolve(untagged) = %d %v", idx, err)
 	}
-	if id, ok := tbl.Owned(5, "w4"); !ok || id != "loop400" {
+	if _, err := tbl.Resolve("ipsec400"); !errors.Is(err, vpn.ErrNoInterface) {
+		t.Fatalf("VPP name of our interface must not resolve: %v", err)
+	}
+	if _, err := tbl.Resolve("loop300"); !errors.Is(err, vpn.ErrForeignInterface) {
+		t.Fatalf("foreign interface: %v", err)
+	}
+	if _, err := tbl.Resolve("local0"); !errors.Is(err, vpn.ErrNoInterface) {
+		t.Fatalf("local0: %v", err)
+	}
+	if _, err := tbl.ResolveOwn("wan0"); !errors.Is(err, vpn.ErrNotOurs) {
+		t.Fatalf("ResolveOwn(untagged): %v", err)
+	}
+	if idx, err := tbl.ResolveOwn("w4-tun0"); err != nil || idx != 5 {
+		t.Fatalf("ResolveOwn = %d %v", idx, err)
+	}
+	if id, ok := tbl.Owned(5); !ok || id != "w4-tun0" {
 		t.Fatalf("Owned = %q %v", id, ok)
 	}
-	if _, ok := tbl.Owned(6, "w4"); ok {
+	if _, ok := tbl.Owned(6); ok {
 		t.Fatal("another owner's interface reported as owned")
 	}
-	if _, ok := tbl.Owned(0, "w4"); ok {
-		t.Fatal("local0 reported as owned")
+	if tbl.Logical(6) != "" || tbl.Logical(7) != "wan0" || tbl.Logical(5) != "w4-tun0" || tbl.Logical(0) != "" || tbl.Logical(99) != "" {
+		t.Fatal("Logical")
 	}
-	if tbl.Name(6) != "loop300" || tbl.Name(99) != "" {
-		t.Fatal("Name")
+	if !tbl.Untagged(7) || tbl.Untagged(5) || tbl.Untagged(0) {
+		t.Fatal("Untagged")
+	}
+	// delete-by-index re-verification
+	if ok, err := vpn.OwnedAt(ctx, f, "w4", 5, "w4-tun0"); !ok || err != nil {
+		t.Fatalf("OwnedAt(own) = %v %v", ok, err)
+	}
+	if ok, err := vpn.OwnedAt(ctx, f, "w4", 99, "w4-tun0"); ok || err != nil {
+		t.Fatalf("OwnedAt(gone) = %v %v", ok, err)
+	}
+	if _, err := vpn.OwnedAt(ctx, f, "w4", 6, "w4-tun0"); !errors.Is(err, vpn.ErrNotOurs) {
+		t.Fatalf("OwnedAt(reused index) = %v", err)
 	}
 	if err := vpn.TagInterface(ctx, f, 5, "w4", "x"); err != nil {
 		t.Fatal(err)
@@ -182,7 +209,7 @@ func TestInterfaces(t *testing.T) {
 		t.Fatalf("tag call: %+v", calls)
 	}
 	f.Fail("sw_interface_dump", errors.New("boom"))
-	if _, err := vpn.DumpInterfaces(ctx, f); err == nil {
+	if _, err := vpn.DumpInterfaces(ctx, f, "w4"); err == nil {
 		t.Fatal("dump error must surface")
 	}
 	var _ api.Message = &interfaces.SwInterfaceDump{}

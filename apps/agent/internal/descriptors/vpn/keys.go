@@ -1,7 +1,6 @@
 package vpn
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -21,12 +20,11 @@ const (
 // InterfaceKey returns the dependency key of a VPP interface by name.
 func InterfaceKey(name string) scheduler.Key { return scheduler.Join(InterfaceDescriptor, name) }
 
-// ErrRetrieveUnsupported is returned (wrapped) by Retrieve when VPP has no dump or getter for the
-// object type (D-063: async mode, IKEv2 local key / liveness / responder hostname). The reconciler
-// treats such descriptors as write-only; they never echo cached desired state. The message is the
-// one P05's scheduler.ErrRetrieveUnsupported uses, so scheduler.IsRetrieveUnsupported recognises
-// it until DF-5 switches to the scheduler sentinel after P05 merges.
-var ErrRetrieveUnsupported = errors.New("vpp has no dump for this object type")
+// ErrRetrieveUnsupported is P05's sentinel (scheduler.ErrRetrieveUnsupported), returned (wrapped)
+// by Retrieve when VPP has no dump or getter for the object type (D-063: async mode, IKEv2 local
+// key / liveness / responder hostname, every non-owner global requirement). The reconciler treats
+// such descriptors as write-only; they never echo cached desired state.
+var ErrRetrieveUnsupported = scheduler.ErrRetrieveUnsupported
 
 // VRFKey returns the dependency key of a FIB table.
 func VRFKey(id uint32) scheduler.Key {

@@ -8,7 +8,7 @@ import { ENV, type Env } from '../config.js';
 import { ROLE_RANK, type Principal } from '../common/principal.js';
 import { DB, type Db } from '../db/db.js';
 import { appUser } from '../db/schema.js';
-import { Bus, TOPICS, type Topic } from '../infra/bus.js';
+import { Bus, TOPICS, type SessionsEvent, type Topic } from '../infra/bus.js';
 
 const STATS_TOPICS: readonly Topic[] = ['iface.counters', 'worker.cpu'];
 const MAX_CLIENT_MESSAGE = 4096;
@@ -231,15 +231,13 @@ export class RelayService implements OnApplicationShutdown {
    * Logout (sid), password change (userId) or a commit that changed users: close the affected connections — a
    * deleted, disabled or demoted user keeps nothing open (review L3).
    */
-  private async onSessions(e: {
-    sid?: string;
-    userId?: number;
-    usersChanged?: boolean;
-  }): Promise<void> {
+  private async onSessions(e: SessionsEvent): Promise<void> {
     for (const c of this.clients) {
       if (
         (e.sid && c.principal.sid === e.sid) ||
-        (e.userId !== undefined && c.principal.id === e.userId)
+        (e.userId !== undefined &&
+          c.principal.id === e.userId &&
+          !(e.exceptSid !== undefined && c.principal.sid === e.exceptSid))
       ) {
         c.socket.close(WS_CLOSE.revoked, 'session ended');
       }

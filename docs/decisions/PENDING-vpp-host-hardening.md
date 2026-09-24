@@ -2,9 +2,11 @@
 
 - raised: 2026-09-24 14:40 by the manager (ngfw-46), from the read-only VPP audit (workflow wf_7f25cdf3, 4 investigators + 4 adversarial verifiers)
 - decision: **<empty until the product owner fills it>**
-- parked tasks: none. Everything keeps running on the current VPP. Items A–D below change `/etc/vpp`, `vpp.service`, the host or the VM, so they need you (decision-policy always-ask #6/#7).
+- parked tasks: LAB-vpp-per-slot (option F, D-125). Everything else keeps running on the current VPP. Items A–C below change `/etc/vpp`, `vpp.service`, the host or the VM, so they need you (decision-policy always-ask #6/#7).
 
 ## Context (verified facts)
+**Re-checked 2026-09-24 (D-125):** vpp.service up since 13:03:29, NRestarts=0, no coredumps, nr_hugepages=555, rmem_max=4194304, no hugepage cmdline args.
+
 1. **Crashes.** This build crashed **10 times**, not 4: 9 SIGSEGV and 1 SIGABRT, 2026-09-23 15:52 → 2026-09-24 07:27. There has been none since the 13:03 restart.
    - 6 are **upstream VPP bugs** reached through normal API use: det44 ×2 (V9), gtpu ×3 (V8), IGMP `ip4_options` trace ×1 (V22b). None is fixed on master or stable/2610.
    - 2 are **our test misuse hitting upstream weak spots**: `fib_table_flush` (two clients on one table, D-087) and classify V19 (D-095, fixed agent-side by TD-3).
@@ -32,11 +34,12 @@
 | A | **VM memory**: reserve all guest memory in vSphere (balloon → 0), or shrink the VM to what ESXi can back | your vSphere click | trivial | none; biggest single win for the stalls |
 | B | **Hugepages on the kernel command line** (`default_hugepagesz=2M hugepagesz=2M hugepages=1024`), drop `vm.nr_hugepages` from 80-vpp.conf; add `/etc/sysctl.d/60-vrx-netlink.conf` with `net.core.rmem_max=268435456` / `wmem_max` | 0.5 h + 1 reboot | 0.5 h | low |
 | C | **startup.conf tuning** (one VPP restart, applied by the manager through the generator under `flock /run/lock/vrx-vpp.lock`): `memory { main-heap-size 4G }`, `api-trace { on nitems 32768 }`, `cpu { main-core 1 }` (move the main thread off the CI cores), `statseg { size 128M }`, `buffers { buffers-per-numa 32768 }`; unit drop-in `Restart=on-failure`, `StartLimitIntervalSec=300`; `ExecStopPost` moves `/tmp/api_post_mortem.*` to `/var/lib/vpp-crash/`; install the already-built `vpp-dbg` deb | 1 h + 1 VPP restart | 0.5 h | low: none of these changes behaviour, only headroom and diagnostics |
-| D | **VPP patch build `26.06+vrx1`** (D-092 suffix): det44 V9, gtpu V8, ip4_options V22b, af_packet V24 close ordering, + cherry-pick `2e2179223` | 1–1.5 days (C code: today forbidden in FAST MODE) | 1 day | medium; it is the only real fix for the 6 upstream crashes |
+| D | *Moved to `PENDING-vpp-c-track.md` (D-125)*: the VPP patch build for the upstream crash bugs (6 crashes from 3 bugs) is decided there, so A–C can be answered alone | — | — | — |
 | E | Do nothing now, move to **26.10** when it is released (late Oct) | 0 now | — | the crash bugs are unchanged in 26.10 |
+| F | **Per-slot VPP for tests** (row LAB-vpp-per-slot): each test slot gets its own small VPP (dpdk off, ~512M heap, own sockets); the shared VPP stays for tools/app. Needs A+B first: about 12×(heap+buffers), so hugepages above 555 | 10 h (the row) | 1 h | low once A+B are in; removes the cross-slot interference on the shared VPP |
 
 ## Recommendation
-**A + B + C now; D after the 21-day plan (or earlier if you lift the "no C code" rule for these 5 small patches); E as the next baseline.**
+**A + B + C now; F (LAB-vpp-per-slot) once A + B are in; E as the next baseline. The patch question (old option D) is now `PENDING-vpp-c-track.md`.**
 - A and C remove the stalls and give crash forensics.
 - The upstream crash bugs stay contained by the agent-side guards already built: TD-3 for V19, TD-5 for V24, det44/gtpu never driven into the failing paths, IGMP/VRRP host tests opt-in (V22), CI slot 12 reserved (D-087).
 
@@ -54,5 +57,7 @@
 - **سورس:** درست است. `v26.06` همان آخرین commit شاخهٔ `stable/2606` است و بعد از انتشار هیچ اصلاحی به آن اضافه نشده.
 - **پیکربندی:** معتبر است ولی تنظیم نشده (پیش‌فرض‌ها). برای VPP مشترک بین ۱۲ اسلات، حافظه و هستهٔ پردازشی آن کم است.
 - **مشکل اصلی امروز از VM است:** balloon در VMware یک گیگابایت حافظه را گرفته، hugepageها ۵۵۵ به‌جای ۱۰۲۴ است، و ساخت هر اینترفیس af_packet چند ده ثانیه تا چند دقیقه VPP را قفل می‌کند.
-- **پیشنهاد:** گزینه‌های A، B و C همین حالا (رزرو حافظه در vSphere، hugepage روی خط فرمان کرنل، تنظیم `startup.conf` با یک ری‌استارت). D (پچ VPP) بعداً. مهاجرت به 26.10 وقتی منتشر شد.
+- **بررسی دوباره (۲۰۲۶-۰۹-۲۴):** VPP از ساعت ۱۳:۰۳:۲۹ بدون ری‌استارت بالاست و کرش یا core dump تازه‌ای نبوده است. hugepageها هنوز ۵۵۵ است.
+- **پیشنهاد:** گزینه‌های A، B و C همین حالا (رزرو حافظه در vSphere، hugepage روی خط فرمان کرنل، تنظیم `startup.conf` با یک ری‌استارت). گزینهٔ جدید F بعد از A و B: یک VPP جدا برای هر اسلات تست (ردیف LAB-vpp-per-slot، که تا آن موقع متوقف است). مهاجرت به 26.10 وقتی منتشر شد.
+- **پچ VPP (گزینهٔ D قبلی):** به پروندهٔ جداگانهٔ `PENDING-vpp-c-track.md` منتقل شد.
 - **تصمیم لازم است:** لطفاً در خط `decision:` بنویسید یا در چت بگویید.

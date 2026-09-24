@@ -22,8 +22,10 @@ import { problems } from '../common/problem.js';
 import type { VrxRequest } from '../common/principal.js';
 import { Protected } from '../common/responses.js';
 import { openapi, ref, ZodPipe } from '../common/zod.js';
+import { safeText } from '../common/text.js';
 import { CommitService } from '../commit/commit.service.js';
 import { DatastoreService, type EditResult } from '../datastore/datastore.service.js';
+import { markSecretChanges } from '../datastore/documents.js';
 import { pointerFromUrl } from './path.js';
 
 const PREFIX = '/api/v1/config';
@@ -36,7 +38,7 @@ const CommitQuery = z.object({
     .max(3600)
     .optional()
     .describe('auto-revert after this many seconds unless confirmed'),
-  comment: z.string().max(1024).optional(),
+  comment: safeText(1024).optional(),
 });
 const PageQuery = z.object({
   limit: z.coerce.number().int().min(1).max(500).default(50),
@@ -49,11 +51,27 @@ const ChangeOut = z.object({
   pointer: z.string(),
   from: z.unknown().optional(),
   to: z.unknown().optional(),
+  redacted: z
+    .literal(true)
+    .optional()
+    .describe(
+      'a write-only (secret) leaf changed; no from/to — the value is never shown (TD-2 #6)',
+    ),
+});
+const SecretChangeOut = z.object({
+  op: z.enum(['add', 'remove', 'replace']),
+  pointer: z.string(),
+  redacted: z.literal(true),
 });
 const LockOut = z.object({
   locked: z.boolean(),
   owner: z.string().nullable(),
   ownerId: z.number().int().nullable(),
+  ownerKeyId: z
+    .string()
+    .nullable()
+    .describe('API key holding the lock (each key is its own owner); null = interactive sessions'),
+  ownerKey: z.string().nullable().describe('name of that API key'),
   lockedAt: z.string().nullable(),
   lastActivity: z.string().nullable(),
   expiresAt: z.string().nullable(),
@@ -75,6 +93,9 @@ const RevisionMetaOut = z.object({
   hash: z.string(),
   txnId: z.string().nullable(),
   kind: z.string(),
+  secretChanges: z
+    .array(SecretChangeOut)
+    .describe('secret leaves this revision changed against its parent, without values (TD-2 #6)'),
 });
 const SyncOut = z.object({
   state: z.enum(['in-sync', 'unknown', 'degraded']),
@@ -114,6 +135,11 @@ const EditOut = z.object({
   before: z.unknown(),
   after: z.unknown(),
   discardedStaleCandidateOf: z.string().optional(),
+  secretChanges: z.array(SecretChangeOut).optional(),
+  ignoredSecrets: z
+    .array(z.string())
+    .optional()
+    .describe('import: password hashes in the document that were ignored (D-097)'),
 });
 const PendingOut = z.object({
   pending: z
@@ -148,8 +174,10 @@ export class ConfigController {
     private readonly commits: CommitService,
   ) {}
 
-  private edited(req: VrxRequest, r: EditResult): EditResult {
-    req.audit = { resource: r.pointer || '/', before: r.before, after: r.after };
+  private edited(req: VrxRequest, r: EditResult, resource = r.pointer || '/'): EditResult {
+    // TD-2 #6: a changed secret leaf is marked in the audit row (never its value)
+    const marked = markSecretChanges(r.pointer, r.before, r.after, r.secretChanges ?? []);
+    req.audit = { resource, before: marked.before, after: marked.after };
     return r;
   }
 
@@ -247,7 +275,7 @@ export class ConfigController {
     required: false,
     schema: { type: 'integer', minimum: 1, maximum: 3600 },
   })
-  @ApiQuery({ name: 'comment', required: false, schema: { type: 'string' } })
+  @ApiQuery({ name: 'comment', required: false, schema: openapi(safeText(1024)) })
   @ApiOperation({
     summary:
       'Validate and apply the candidate; with ?confirm=<sec> the agent reverts unless confirmed',
@@ -332,6 +360,26 @@ export class ConfigController {
     return this.ds.getRevision(rev);
   }
 
+  @Get('revisions/:rev/diff')
+  @Protected(404)
+  @ApiOperation({
+    summary:
+      'What revision {rev} changed against its parent (redacted; secret leaves as `redacted: true` entries)',
+  })
+  @ApiOkResponse({
+    schema: openapi(
+      z.object({
+        revision: z.number().int(),
+        parent: z.number().int().nullable(),
+        changes: z.array(ChangeOut),
+      }),
+      'output',
+    ),
+  })
+  revisionDiff(@Param('rev', new ZodPipe(Rev)) rev: number) {
+    return this.ds.revisionDiff(rev);
+  }
+
   @Post('rollback/:rev')
   @HttpCode(200)
   @Protected(400, 404, 409, 422, 502, 503)
@@ -340,7 +388,7 @@ export class ConfigController {
     required: false,
     schema: { type: 'integer', minimum: 1, maximum: 3600 },
   })
-  @ApiQuery({ name: 'comment', required: false, schema: { type: 'string' } })
+  @ApiQuery({ name: 'comment', required: false, schema: openapi(safeText(1024)) })
   @ApiOperation({ summary: 'Apply an old revision as a new revision (payload = the old one)' })
   @ApiOkResponse({ schema: openapi(CommitOut, 'output') })
   async rollback(
@@ -375,9 +423,7 @@ export class ConfigController {
   @ApiBody({ schema: ref('RootConfig') })
   @ApiOkResponse({ schema: openapi(EditOut, 'output') })
   async import(@Body() body: unknown, @Req() req: VrxRequest) {
-    const r = await this.ds.importCandidate(req.principal!, body);
-    req.audit = { resource: 'import', before: r.before, after: r.after };
-    return r;
+    return this.edited(req, await this.ds.importCandidate(req.principal!, body), 'import');
   }
 
   // ---- whole document edits ----

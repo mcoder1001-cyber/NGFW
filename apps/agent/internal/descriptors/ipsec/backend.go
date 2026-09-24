@@ -16,8 +16,10 @@ import (
 )
 
 // Backend selects the crypto backend per protocol (ipsec_select_backend; dump
-// ipsec_backend_dump). It is a global singleton: Retrieve always reports the active backend of
-// each protocol, Create/Update select by name, Delete leaves VPP as it is.
+// ipsec_backend_dump). It is a VPP-global (D-071): only the globals owner registers this setter
+// (Retrieve reports the active backend of each protocol, Create/Update select by name, Delete
+// leaves VPP as it is, absence never deletes); every other agent registers vpn.Require with
+// current as the getter.
 type Backend struct{ cfg Config }
 
 // BackendMeta is the VPP index of the selected backend.
@@ -80,6 +82,24 @@ func (d *Backend) selectBackend(ctx context.Context, o *vpnpb.IpsecBackend) (any
 	return nil, fmt.Errorf("ipsec: no %s backend named %q (have %s)", o.GetProtocol(), o.GetName(), strings.Join(names, ", "))
 }
 
+// current is the Require getter: the active backend of the desired protocol.
+func (d *Backend) current(ctx context.Context, desired proto.Message) (proto.Message, bool, error) {
+	o, ok := desired.(*vpnpb.IpsecBackend)
+	if !ok {
+		return nil, false, typeErr(BackendName, desired)
+	}
+	all, err := d.dump(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, b := range all {
+		if b.Active && protocols.name(b.Protocol) == o.GetProtocol() {
+			return &vpnpb.IpsecBackend{Protocol: o.GetProtocol(), Name: b.Name}, true, nil
+		}
+	}
+	return nil, false, nil
+}
+
 // Retrieve implements scheduler.Descriptor: the active backend of every protocol.
 func (d *Backend) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	all, err := d.dump(ctx)
@@ -94,8 +114,7 @@ func (d *Backend) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 		v := &vpnpb.IpsecBackend{Protocol: protocols.name(b.Protocol), Name: b.Name}
 		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: BackendMeta{Index: b.Index}})
 	}
-	sortKVs(out)
-	return out, nil
+	return sortKVs(out), nil
 }
 
 type backend struct {

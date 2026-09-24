@@ -16,7 +16,9 @@ import (
 )
 
 // Itf manages ipsec interfaces (ipsec_itf_create / _delete; dump ipsec_itf_dump). VPP names the
-// interface ipsec<instance>; the owner tag is "<owner>:ipsec<instance>".
+// interface ipsec<instance>; the owner tag is "<owner>:ipsec<instance>", so the logical name
+// (D-069: the tag id) and VPP's name coincide. VPP refuses an existing instance, so an interface
+// that is not ours is never adopted.
 type Itf struct{ cfg Config }
 
 // ItfMeta is the runtime handle of an ipsec interface.
@@ -78,21 +80,32 @@ func (*Itf) Update(context.Context, proto.Message, proto.Message, any) (any, err
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor.
-func (d *Itf) Delete(ctx context.Context, _ proto.Message, meta any) error {
+// Delete implements scheduler.Descriptor. Right before the delete it re-verifies that the index
+// still carries our tag for this instance (D-071: indexes are reused after a VPP restart); an
+// interface that is gone needs nothing (D-074).
+func (d *Itf) Delete(ctx context.Context, obj proto.Message, meta any) error {
+	o, ok := obj.(*vpnpb.IpsecItf)
+	if !ok {
+		return typeErr(ItfName, obj)
+	}
 	m, ok := meta.(ItfMeta)
 	if !ok {
 		return metaErr(ItfName, meta)
 	}
+	present, err := vpn.OwnedAt(ctx, d.cfg.Client, d.cfg.Owner, m.SwIfIndex, ItfInterfaceName(o.GetInstance()))
+	if err != nil || !present {
+		return err
+	}
 	if _, err := ipsec.NewServiceClient(d.cfg.Client).IpsecItfDelete(ctx, &ipsec.IpsecItfDelete{SwIfIndex: interface_types.InterfaceIndex(m.SwIfIndex)}); err != nil {
-		return fmt.Errorf("ipsec_itf_delete: %w", err)
+		return fmt.Errorf("ipsec_itf_delete (%s): %w", ItfInterfaceName(o.GetInstance()), err)
 	}
 	return nil
 }
 
-// Retrieve implements scheduler.Descriptor: ipsec interfaces tagged by this owner.
+// Retrieve implements scheduler.Descriptor: ipsec interfaces tagged by this owner with the tag id
+// of their instance.
 func (d *Itf) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
-	tbl, err := vpn.DumpInterfaces(ctx, d.cfg.Client)
+	tbl, err := vpn.DumpInterfaces(ctx, d.cfg.Client, d.cfg.Owner)
 	if err != nil {
 		return nil, err
 	}
@@ -110,12 +123,11 @@ func (d *Itf) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 			return nil, fmt.Errorf("ipsec_itf_dump: %w", err)
 		}
 		idx := uint32(det.Itf.SwIfIndex)
-		if _, owned := tbl.Owned(idx, d.cfg.Owner); !owned {
+		if id, owned := tbl.Owned(idx); !owned || id != ItfInterfaceName(det.Itf.UserInstance) {
 			continue
 		}
 		v := &vpnpb.IpsecItf{Instance: det.Itf.UserInstance, Mode: tunnelModeName(det.Itf.Mode)}
 		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: ItfMeta{SwIfIndex: idx}})
 	}
-	sortKVs(out)
-	return out, nil
+	return sortKVs(out), nil
 }

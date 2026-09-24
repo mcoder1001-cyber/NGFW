@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 
 	"google.golang.org/protobuf/proto"
 
@@ -80,6 +81,12 @@ func (d *SpdEntry) Create(ctx context.Context, obj proto.Message) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	// a policy belongs to its SPD's owner: never add one to an SPD we did not create (D-071)
+	if owned, _, err := ownedSpd(ctx, d.cfg, o.GetSpdId()); err != nil {
+		return nil, err
+	} else if !owned {
+		return nil, fmt.Errorf("%s: spd %d: %w", SpdEntryName, o.GetSpdId(), vpn.ErrNotOurs)
+	}
 	if _, err := ipsec.NewServiceClient(d.cfg.Client).IpsecSpdEntryAddDelV2(ctx, &ipsec.IpsecSpdEntryAddDelV2{IsAdd: true, Entry: e}); err != nil {
 		return nil, fmt.Errorf("ipsec_spd_entry_add_del_v2: %w", err)
 	}
@@ -91,7 +98,8 @@ func (*SpdEntry) Update(context.Context, proto.Message, proto.Message, any) (any
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor.
+// Delete implements scheduler.Descriptor. Right before the delete it re-checks that the SPD is
+// ours and that the policy is still in it (D-071, D-074): a policy that is gone needs nothing.
 func (d *SpdEntry) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	o, ok := obj.(*vpnpb.IpsecSpdEntry)
 	if !ok {
@@ -101,8 +109,25 @@ func (d *SpdEntry) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	if err != nil {
 		return err
 	}
+	owned, exists, err := ownedSpd(ctx, d.cfg, o.GetSpdId())
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil // the SPD and its policies are gone
+	}
+	if !owned {
+		return fmt.Errorf("%s: spd %d: %w", SpdEntryName, o.GetSpdId(), vpn.ErrNotOurs)
+	}
+	cur, err := d.dumpSpd(ctx, o.GetSpdId())
+	if err != nil {
+		return err
+	}
+	if !slices.ContainsFunc(cur, func(v *vpnpb.IpsecSpdEntry) bool { return d.KeyOf(v) == d.KeyOf(o) }) {
+		return nil
+	}
 	if _, err := ipsec.NewServiceClient(d.cfg.Client).IpsecSpdEntryAddDelV2(ctx, &ipsec.IpsecSpdEntryAddDelV2{IsAdd: false, Entry: e}); err != nil {
-		return fmt.Errorf("ipsec_spd_entry_add_del_v2: %w", err)
+		return fmt.Errorf("ipsec_spd_entry_add_del_v2 (del): %w", err)
 	}
 	return nil
 }
@@ -113,27 +138,38 @@ func (d *SpdEntry) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	if err != nil {
 		return nil, err
 	}
-	svc := ipsec.NewServiceClient(d.cfg.Client)
 	var out []scheduler.KV
 	for _, id := range ids {
-		stream, err := svc.IpsecSpdDump(ctx, &ipsec.IpsecSpdDump{SpdID: id, SaID: ^uint32(0)})
+		vs, err := d.dumpSpd(ctx, id)
 		if err != nil {
-			return nil, fmt.Errorf("ipsec_spd_dump: %w", err)
+			return nil, err
 		}
-		for {
-			det, err := stream.Recv()
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			if err != nil {
-				return nil, fmt.Errorf("ipsec_spd_dump: %w", err)
-			}
-			v := decodeSpdEntry(det.Entry)
+		for _, v := range vs {
 			out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v})
 		}
 	}
-	sortKVs(out)
-	return out, nil
+	return sortKVs(out), nil
+}
+
+// dumpSpd returns the decoded policies of SPD id (ipsec_spd_dump).
+func (d *SpdEntry) dumpSpd(ctx context.Context, id uint32) ([]*vpnpb.IpsecSpdEntry, error) {
+	stream, err := ipsec.NewServiceClient(d.cfg.Client).IpsecSpdDump(ctx, &ipsec.IpsecSpdDump{SpdID: id, SaID: ^uint32(0)})
+	if err != nil {
+		return nil, fmt.Errorf("ipsec_spd_dump: %w", err)
+	}
+	var out []*vpnpb.IpsecSpdEntry
+	for {
+		det, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			return out, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("ipsec_spd_dump: %w", err)
+		}
+		if det.Entry.SpdID == id {
+			out = append(out, decodeSpdEntry(det.Entry))
+		}
+	}
 }
 
 func encodeSpdEntry(o *vpnpb.IpsecSpdEntry) (ipsec_types.IpsecSpdEntryV2, error) {

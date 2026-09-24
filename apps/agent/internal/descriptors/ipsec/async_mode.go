@@ -12,10 +12,13 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
-// AsyncMode toggles asynchronous crypto (ipsec_set_async_mode). VPP has no getter, so the
-// descriptor is write-only (D-063): Retrieve returns vpn.ErrRetrieveUnsupported and the reconciler
-// re-applies the desired value on resync (the call is idempotent). Delete leaves VPP as it is:
-// absence in the desired state is not "disable". Key ipsec.async-mode/global.
+// AsyncMode toggles asynchronous crypto (ipsec_set_async_mode). A VPP-global (D-071): only the
+// globals owner registers this setter, everybody else a getter-less vpn.Require (which always
+// fails). VPP has no getter, so the setter is write-only (D-063): Retrieve returns
+// vpn.ErrRetrieveUnsupported and the reconciler re-applies the desired value on resync —
+// idempotent (D-076): VPP stores the flag (im->async_mode = is_enabled) and re-sets every SA's
+// crypto op data, it does not toggle or stack. Delete leaves VPP as it is: absence in the desired
+// state is not "disable". Key ipsec.async-mode/global.
 type AsyncMode struct{ cfg Config }
 
 // AsyncModeKey is the singleton's key.

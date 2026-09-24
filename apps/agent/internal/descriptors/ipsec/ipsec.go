@@ -4,10 +4,13 @@
 // internal/descriptors/vpn/pb; the secret contract is in internal/descriptors/vpn (doc.go).
 // Object ↔ message table: docs/agent/descriptors/ipsec.md.
 //
-// Ownership on a shared VPP: interfaces by owner tag, SPD/SA ids by Config.IDs (the slot's
-// numeric range in tests, everything in production), bindings/protections through the tag of the
-// interface they hang off. The backend and async-mode singletons are unowned: Retrieve reports
-// them, Delete leaves them alone.
+// Ownership on a shared VPP (D-071): ipsec/tunnel interfaces by owner tag; SPDs and SAs (which
+// carry only a numeric id that VPP reuses across restarts) and SPD bindings on untagged interfaces
+// by ownership records written after our own successful add and bound to the VPP boot identity
+// (vpn.Records, D-080); SPD policies through their SPD; protections through the tag of the tunnel
+// interface. Config.IDs additionally confines SPD/SA ids to the slot's range on the shared host.
+// The backend and async-mode singletons are VPP-globals: set only by the globals owner
+// (WithGlobalsOwner), required (checked, never set) by everybody else.
 package ipsec
 
 import (
@@ -19,6 +22,7 @@ import (
 
 	"ngfw/agent/binapi/ipsec_types"
 	"ngfw/agent/binapi/tunnel_types"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
@@ -42,7 +46,14 @@ type Config struct {
 	Owner   string       // VRX_OWNER; tests pass their VRX_TEST_PREFIX
 	Secrets vpn.Resolver // resolves SA key references; nil = every secret reference fails
 	IDs     vpn.IDRange  // owned SPD/SA ids; zero value = all
+	// Boot is the owner's persisted record store (ownership records of SPDs, SAs and SPD
+	// bindings; vpn.Records). Register defaults to an in-memory store.
+	Boot dfkit.BootStore
+	// GlobalsOwner registers the setters of the backend / async-mode globals (D-071).
+	GlobalsOwner bool
 }
+
+func (c Config) records() vpn.Records { return vpn.Records{Client: c.Client, Store: c.Boot} }
 
 // Option tunes Register.
 type Option func(*Config)
@@ -55,22 +66,36 @@ func WithIDRange(lo, hi uint32) Option {
 	return func(c *Config) { c.IDs = vpn.IDRange{Lo: lo, Hi: hi} }
 }
 
+// WithBootStore sets the owner's persisted record store (P05/P08: dfkit.NewFileBootStore in the
+// agent state dir, shared by every DF-5 package of the owner).
+func WithBootStore(s dfkit.BootStore) Option { return func(c *Config) { c.Boot = s } }
+
+// WithGlobalsOwner marks this agent as the globals owner (agent config globalsOwner: true).
+func WithGlobalsOwner(on bool) Option { return func(c *Config) { c.GlobalsOwner = on } }
+
 // Register constructs every descriptor of the plugin and registers it (P05 wires this).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...Option) {
 	cfg := Config{Client: c, Owner: owner}
 	for _, o := range opts {
 		o(&cfg)
 	}
+	if cfg.Boot == nil {
+		cfg.Boot = dfkit.NewMemoryBootStore()
+	}
 	for _, d := range All(cfg) {
 		r.Register(d)
 	}
 }
 
-// All returns the package's descriptors in registration order.
+// All returns the package's descriptors in registration order; the globals are the owner's
+// setters or the Require variants (D-071). cfg.Boot must be set.
 func All(cfg Config) []scheduler.Descriptor {
+	backend := NewBackend(cfg)
 	return []scheduler.Descriptor{
 		NewSpd(cfg), NewSpdInterface(cfg), NewSpdEntry(cfg), NewSa(cfg),
-		NewTunnelProtect(cfg), NewItf(cfg), NewBackend(cfg), NewAsyncMode(cfg),
+		NewTunnelProtect(cfg), NewItf(cfg),
+		vpn.Global(cfg.GlobalsOwner, backend, backend.current),
+		vpn.Global(cfg.GlobalsOwner, NewAsyncMode(cfg), nil),
 	}
 }
 

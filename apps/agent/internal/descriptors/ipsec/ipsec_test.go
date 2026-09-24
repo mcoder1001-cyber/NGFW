@@ -12,9 +12,11 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/ipsec"
+	"ngfw/agent/internal/descriptors/dfkit"
 	ipsecd "ngfw/agent/internal/descriptors/ipsec"
 	"ngfw/agent/internal/descriptors/vpn"
 	vpnpb "ngfw/agent/internal/descriptors/vpn/pb"
+	"ngfw/agent/internal/descriptors/vpn/vpntest"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
@@ -26,10 +28,11 @@ var (
 	secrets   = vpn.NewMapResolver(cryptoKey, integKey)
 	owner     = "w4"
 	ctx       = context.Background()
+	boot      = vpntest.NewFakeBoot()
 )
 
 func newCfg(v *fakeVPP) ipsecd.Config {
-	return ipsecd.Config{Client: v, Owner: owner, Secrets: secrets, IDs: vpn.IDRange{Lo: 4000, Hi: 4999}}
+	return ipsecd.Config{Client: v, Owner: owner, Secrets: secrets, IDs: vpn.IDRange{Lo: 4000, Hi: 4999}, Boot: dfkit.NewMemoryBootStore()}
 }
 
 func mustEqual(t *testing.T, kvs []scheduler.KV, want ...proto.Message) {
@@ -54,6 +57,20 @@ func TestRegister(t *testing.T) {
 	for _, d := range reg.Descriptors() {
 		if !scheduler.ValidName(d.Name()) {
 			t.Fatalf("invalid name %q", d.Name())
+		}
+	}
+	// D-071: a non-owner registers only requirements for the VPP-globals, the owner the setters
+	for _, owner := range []bool{false, true} {
+		reg := scheduler.NewRegistry()
+		ipsecd.Register(reg, newFakeVPP(), "w4", ipsecd.WithGlobalsOwner(owner))
+		for _, name := range []string{"ipsec.backend", "ipsec.async-mode"} {
+			d, _ := reg.Get(name)
+			if _, isReq := d.(*vpn.Require); isReq == owner {
+				t.Fatalf("%s: globals owner=%v registered %T", name, owner, d)
+			}
+			if a, ok := d.(scheduler.AbsenceDeleter); !ok || a.DeleteOnAbsence() {
+				t.Fatalf("%s: a global must never be deleted on absence", name)
+			}
 		}
 	}
 }
@@ -102,71 +119,154 @@ func TestSpd(t *testing.T) {
 	if _, ok := v.spds[3001]; !ok {
 		t.Fatal("foreign SPD touched")
 	}
+	if err := d.Delete(ctx, desired, meta); err != nil {
+		t.Fatalf("deleting a vanished SPD is done, not an error (D-074): %v", err)
+	}
+
+	// D-071: an SPD in our range that we did not create is never adopted or deleted
+	v.spds[4003] = 99
+	stranger := &vpnpb.IpsecSpd{SpdId: 4003}
+	if kvs, _ = d.Retrieve(ctx); len(kvs) != 0 {
+		t.Fatalf("unrecorded SPD reported: %+v", kvs)
+	}
+	if _, err := d.Create(ctx, stranger); err == nil {
+		t.Fatal("an existing SPD must not be adopted")
+	}
+	if err := d.Delete(ctx, stranger, SpdMetaOf(4003)); !errors.Is(err, vpn.ErrNotOurs) {
+		t.Fatalf("Delete of a stranger's SPD: %v", err)
+	}
+	if _, ok := v.spds[4003]; !ok {
+		t.Fatal("stranger's SPD deleted")
+	}
+
+	// restart simulation: a fresh descriptor with the persisted store sees its SPD (agent
+	// restart); after a VPP restart the record has expired and the id is not ours any more
+	cfg := newCfg(v)
+	if _, err := ipsecd.NewSpd(cfg).Create(ctx, desired); err != nil {
+		t.Fatal(err)
+	}
+	if kvs, _ = ipsecd.NewSpd(cfg).Retrieve(ctx); len(kvs) != 1 {
+		t.Fatalf("agent restart: %+v", kvs)
+	}
+	boot.RestartVPP()
+	if kvs, _ = ipsecd.NewSpd(cfg).Retrieve(ctx); len(kvs) != 0 {
+		t.Fatalf("VPP restart: records must expire: %+v", kvs)
+	}
 	v.SetConnected(false)
 	if _, err := d.Retrieve(ctx); !errors.Is(err, vpp.ErrDisconnected) {
 		t.Fatalf("disconnected: %v", err)
 	}
 }
 
+// SpdMetaOf is the meta of SPD id.
+func SpdMetaOf(id uint32) ipsecd.SpdMeta { return ipsecd.SpdMeta{SpdID: id} }
+
 func TestSpdInterface(t *testing.T) {
 	v := newFakeVPP()
-	loop := v.addIface("loop400", "w4:loop400")
+	cfg := newCfg(v)
+	loop := v.addIface("loop400", "w4:w4-lan")
 	other := v.addIface("loop300", "w3:loop300")
-	v.spds[4001], v.spds[3001] = 11, 12
+	wan := v.addIface("wan0", "") // untagged physical NIC
+	if _, err := ipsecd.NewSpd(cfg).Create(ctx, &vpnpb.IpsecSpd{SpdId: 4001}); err != nil {
+		t.Fatal(err)
+	}
+	v.spds[3001] = 12
 	v.bindings[other] = 12
-	d := ipsecd.NewSpdInterface(newCfg(v))
-	desired := &vpnpb.IpsecSpdInterface{Interface: "loop400", SpdId: 4001}
-	if d.KeyOf(desired) != "ipsec.spd-interface/loop400" {
+	d := ipsecd.NewSpdInterface(cfg)
+	desired := &vpnpb.IpsecSpdInterface{Interface: "w4-lan", SpdId: 4001}
+	if d.KeyOf(desired) != "ipsec.spd-interface/w4-lan" {
 		t.Fatalf("key %s", d.KeyOf(desired))
 	}
 	deps := d.Dependencies(desired)
-	if len(deps) != 2 || deps[0].Key != "ipsec.spd/4001" || deps[1].Key != "interface/loop400" || deps[0].Optional || deps[1].Optional {
+	if len(deps) != 2 || deps[0].Key != "ipsec.spd/4001" || deps[1].Key != "interface/w4-lan" || deps[0].Optional || deps[1].Optional {
 		t.Fatalf("deps %+v", deps)
 	}
-	if _, err := d.Create(ctx, &vpnpb.IpsecSpdInterface{Interface: "nope", SpdId: 4001}); err == nil {
-		t.Fatal("unknown interface must fail")
+	for name, bad := range map[string]error{"nope": vpn.ErrNoInterface, "loop400": vpn.ErrNoInterface, "loop300": vpn.ErrForeignInterface, "local0": vpn.ErrNoInterface} {
+		if _, err := d.Create(ctx, &vpnpb.IpsecSpdInterface{Interface: name, SpdId: 4001}); !errors.Is(err, bad) {
+			t.Fatalf("%s: %v, want %v (D-069 logical names)", name, err, bad)
+		}
 	}
 	meta, err := d.Create(ctx, desired)
 	if err != nil {
 		t.Fatal(err)
 	}
 	m := meta.(ipsecd.SpdInterfaceMeta)
-	if m.SwIfIndex != loop || m.SpdID != 4001 || m.SpdIndex != 11 {
+	if m.SwIfIndex != loop || m.SpdID != 4001 || m.SpdIndex != v.spds[4001] {
 		t.Fatalf("meta %+v", m)
 	}
 	kvs, err := d.Retrieve(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	mustEqual(t, kvs, desired) // w3's binding filtered, index 11 decoded to 4001 via the learned map
+	mustEqual(t, kvs, desired) // w3's binding filtered, pool index decoded to 4001 via the record
 	if kvs[0].Meta != meta {
 		t.Fatalf("meta %+v != %+v", kvs[0].Meta, meta)
 	}
-	if _, err := d.Update(ctx, desired, &vpnpb.IpsecSpdInterface{Interface: "loop400", SpdId: 4002}, meta); !errors.Is(err, scheduler.ErrRecreate) {
+	if _, err := d.Update(ctx, desired, &vpnpb.IpsecSpdInterface{Interface: "w4-lan", SpdId: 4002}, meta); !errors.Is(err, scheduler.ErrRecreate) {
 		t.Fatalf("Update: %v", err)
 	}
 
-	// A fresh descriptor (agent restart) has not learned the pool index: the binding is
-	// retrieved with spd_id 0, Update recreates, Delete still works through any known SPD id.
-	fresh := ipsecd.NewSpdInterface(newCfg(v))
-	kvs, err = fresh.Retrieve(ctx)
-	if err != nil || len(kvs) != 1 || kvs[0].Value.(*vpnpb.IpsecSpdInterface).GetSpdId() != 0 {
-		t.Fatalf("fresh Retrieve = %+v %v", kvs, err)
+	// an untagged (physical) interface: bound and reported through our record only
+	onWan := &vpnpb.IpsecSpdInterface{Interface: "wan0", SpdId: 4001}
+	metaWan, err := d.Create(ctx, onWan)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := fresh.Update(ctx, kvs[0].Value, desired, kvs[0].Meta); !errors.Is(err, scheduler.ErrRecreate) {
-		t.Fatalf("fresh Update: %v", err)
+	kvs, _ = d.Retrieve(ctx)
+	mustEqual(t, kvs, desired, onWan)
+
+	// agent restart with the persisted store: same objects, same spd ids (no Update planned)
+	kvs, _ = ipsecd.NewSpdInterface(cfg).Retrieve(ctx)
+	mustEqual(t, kvs, desired, onWan)
+
+	// an agent without our records never adopts or deletes a binding (D-071)
+	stranger := newCfg(v)
+	if kvs, _ = ipsecd.NewSpdInterface(stranger).Retrieve(ctx); len(kvs) != 0 {
+		t.Fatalf("unrecorded bindings reported: %+v", kvs)
 	}
-	if err := fresh.Delete(ctx, kvs[0].Value, kvs[0].Meta); err != nil {
+	if err := ipsecd.NewSpdInterface(stranger).Delete(ctx, onWan, metaWan); !errors.Is(err, vpn.ErrNotOurs) {
+		t.Fatalf("Delete without record: %v", err)
+	}
+	if _, err := ipsecd.NewSpdInterface(stranger).Create(ctx, onWan); err == nil {
+		t.Fatal("a second SPD on an interface must fail in VPP")
+	}
+
+	if err := d.Delete(ctx, onWan, metaWan); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Delete(ctx, desired, meta); err != nil {
 		t.Fatal(err)
 	}
 	if _, bound := v.bindings[loop]; bound {
 		t.Fatal("binding not removed")
+	}
+	if _, bound := v.bindings[wan]; bound {
+		t.Fatal("wan binding not removed")
+	}
+	if err := d.Delete(ctx, desired, meta); err != nil {
+		t.Fatalf("second delete is a no-op (D-074): %v", err)
 	}
 	if kvs, _ = d.Retrieve(ctx); len(kvs) != 0 {
 		t.Fatalf("after delete: %+v", kvs)
 	}
 	if _, bound := v.bindings[other]; !bound {
 		t.Fatal("foreign binding touched")
+	}
+
+	// D-071/D-080: after a VPP restart the index in meta may belong to another interface
+	if _, err := d.Create(ctx, desired); err != nil {
+		t.Fatal(err)
+	}
+	boot.RestartVPP()
+	if kvs, _ = d.Retrieve(ctx); len(kvs) != 0 {
+		t.Fatalf("records must expire with the VPP instance: %+v", kvs)
+	}
+	stale := ipsecd.SpdInterfaceMeta{SwIfIndex: other, SpdID: 4001}
+	if err := d.Delete(ctx, desired, stale); err != nil {
+		t.Fatalf("stale index: %v", err)
+	}
+	if _, bound := v.bindings[loop]; !bound {
+		t.Fatal("a delete with a stale index must not unbind anything")
 	}
 }
 
@@ -180,9 +280,15 @@ func spdEntry(prio int32, dir, action string, sa uint32) *vpnpb.IpsecSpdEntry {
 
 func TestSpdEntry(t *testing.T) {
 	v := newFakeVPP()
-	v.spds[4001], v.spds[3001] = 1, 2
+	cfg := newCfg(v)
+	if _, err := ipsecd.NewSpd(cfg).Create(ctx, &vpnpb.IpsecSpd{SpdId: 4001}); err != nil {
+		t.Fatal(err)
+	}
+	v.spds[3001] = 2
 	v.policies[3001] = []ipsecSpdEntryV2Alias{{SpdID: 3001, Priority: 1, Protocol: 255}}
-	d := ipsecd.NewSpdEntry(newCfg(v))
+	v.spds[4002] = 3 // in range, not ours
+	v.policies[4002] = []ipsecSpdEntryV2Alias{{SpdID: 4002, Priority: 1, Protocol: 255}}
+	d := ipsecd.NewSpdEntry(cfg)
 	bypass := spdEntry(10, "outbound", "bypass", 0)
 	protect := spdEntry(20, "inbound", "protect", 4001)
 	protect.Protocol = 17
@@ -245,10 +351,24 @@ func TestSpdEntry(t *testing.T) {
 	}
 	kvs, _ = d.Retrieve(ctx)
 	mustEqual(t, kvs, protect)
-	if err := d.Delete(ctx, bypass, nil); err == nil {
-		t.Fatal("deleting twice must surface VPP's error")
+	if err := d.Delete(ctx, bypass, nil); err != nil {
+		t.Fatalf("deleting a vanished policy is done (D-074): %v", err)
 	}
-	if len(v.policies[3001]) != 1 {
+	if n := len(v.CallsNamed("ipsec_spd_entry_add_del_v2")); n != 3 {
+		t.Fatalf("the second delete must not reach VPP (%d calls)", n)
+	}
+	strangers := spdEntry(1, "inbound", "bypass", 0)
+	strangers.SpdId = 4002
+	if _, err := d.Create(ctx, spdEntry(2, "inbound", "bypass", 0)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.Create(ctx, func() *vpnpb.IpsecSpdEntry { e := spdEntry(3, "inbound", "bypass", 0); e.SpdId = 4002; return e }()); !errors.Is(err, vpn.ErrNotOurs) {
+		t.Fatalf("policy into an SPD that is not ours: %v", err)
+	}
+	if err := d.Delete(ctx, strangers, nil); !errors.Is(err, vpn.ErrNotOurs) {
+		t.Fatalf("policy in an SPD that is not ours: %v", err)
+	}
+	if len(v.policies[3001]) != 1 || len(v.policies[4002]) != 1 {
 		t.Fatal("foreign policy touched")
 	}
 }
@@ -354,23 +474,61 @@ func TestSa(t *testing.T) {
 	}
 	kvs, _ = d.Retrieve(ctx)
 	mustEqual(t, kvs, tn)
-	if err := d.Delete(ctx, ts, metaTS); err == nil {
-		t.Fatal("second delete must surface VPP's error")
+	if err := d.Delete(ctx, ts, metaTS); err != nil {
+		t.Fatalf("deleting a vanished SA is done (D-074): %v", err)
 	}
-	// a foreign SA (outside the owned range) is never returned
+	// a foreign SA (outside the owned range) and an unrecorded one in range are never returned
 	foreign := v.sas[4002]
 	foreign.SadID = 3001
 	v.sas[3001] = foreign
+	stranger := v.sas[4002]
+	stranger.SadID = 4005
+	v.sas[4005] = stranger
 	kvs, _ = d.Retrieve(ctx)
 	mustEqual(t, kvs, tn)
+	s5 := tunnelSA()
+	s5.SadId = 4005
+	if _, err := d.Create(ctx, s5); err == nil {
+		t.Fatal("an existing SA must not be adopted")
+	}
+	if err := d.Delete(ctx, s5, nil); !errors.Is(err, vpn.ErrNotOurs) {
+		t.Fatalf("Delete of an unrecorded SA: %v", err)
+	}
+	// D-071/D-080: SA ids are reused after a VPP restart — our record expires, and an SA that
+	// someone else created under our id (different SPI) is not ours even with the record
+	boot.RestartVPP()
+	if kvs, _ = d.Retrieve(ctx); len(kvs) != 0 {
+		t.Fatalf("VPP restart: %+v", kvs)
+	}
+	if err := d.Delete(ctx, tn, metaTN); !errors.Is(err, vpn.ErrNotOurs) {
+		t.Fatalf("Delete after VPP restart: %v", err)
+	}
+	delete(v.sas, 4002)
+	if _, err := d.Create(ctx, tn); err != nil {
+		t.Fatal(err)
+	}
+	reused := v.sas[4002]
+	reused.Spi = 9999
+	v.sas[4002] = reused
+	if kvs, _ = d.Retrieve(ctx); len(kvs) != 0 {
+		t.Fatalf("SA with another SPI under our id reported: %+v", kvs)
+	}
+	if err := d.Delete(ctx, tn, metaTN); !errors.Is(err, vpn.ErrNotOurs) {
+		t.Fatalf("Delete of a replaced SA: %v", err)
+	}
+	if _, ok := v.sas[3001]; !ok {
+		t.Fatal("foreign SA touched")
+	}
 }
 
 func TestTunnelProtect(t *testing.T) {
 	v := newFakeVPP()
 	tun := v.addIface("ipip4001", "w4:ipip4001")
 	foreign := v.addIface("ipip3001", "w3:ipip3001")
-	d := ipsecd.NewTunnelProtect(newCfg(v))
-	sa := ipsecd.NewSa(newCfg(v))
+	v.addIface("ipip0", "") // untagged: somebody else's tunnel
+	cfg := newCfg(v)
+	d := ipsecd.NewTunnelProtect(cfg)
+	sa := ipsecd.NewSa(cfg)
 	for _, id := range []uint32{4001, 4002, 4003} {
 		s := transportSA()
 		s.SadId, s.Spi = id, 1000+id
@@ -406,6 +564,11 @@ func TestTunnelProtect(t *testing.T) {
 	if _, err := d.Create(ctx, &vpnpb.IpsecTunnelProtect{Interface: "ipip4001", SaOut: 4001}); err == nil {
 		t.Fatal("no sa_in must be refused")
 	}
+	for name, want := range map[string]error{"ipip3001": vpn.ErrForeignInterface, "ipip0": vpn.ErrNotOurs, "nope": vpn.ErrNoInterface} {
+		if _, err := d.Create(ctx, &vpnpb.IpsecTunnelProtect{Interface: name, SaOut: 4001, SaIn: []uint32{4002}}); !errors.Is(err, want) {
+			t.Fatalf("%s: %v, want %v", name, err, want)
+		}
+	}
 	meta, err := d.Create(ctx, desired)
 	if err != nil {
 		t.Fatal(err)
@@ -438,6 +601,17 @@ func TestTunnelProtect(t *testing.T) {
 	}
 	if kvs, _ = d.Retrieve(ctx); len(kvs) != 0 {
 		t.Fatalf("after delete %+v", kvs)
+	}
+	if err := d.Delete(ctx, swapped, meta); err != nil {
+		t.Fatalf("second delete is a no-op (D-074): %v", err)
+	}
+	if n := len(v.CallsNamed("ipsec_tunnel_protect_del")); n != 1 {
+		t.Fatalf("%d deletes reached VPP", n)
+	}
+	// an index that now belongs to another owner's tunnel (VPP restart) is refused
+	stale := ipsecd.TunnelProtectMeta{SwIfIndex: foreign, Interface: "ipip4001"}
+	if err := d.Delete(ctx, &vpnpb.IpsecTunnelProtect{Interface: "ipip4001", SaOut: 3001, SaIn: []uint32{3001}}, stale); !errors.Is(err, vpn.ErrNotOurs) {
+		t.Fatalf("stale index: %v", err)
 	}
 	if _, ok := v.tps[foreign]; !ok {
 		t.Fatal("foreign protection touched")
@@ -482,6 +656,16 @@ func TestItf(t *testing.T) {
 	if kvs, _ = d.Retrieve(ctx); len(kvs) != 0 {
 		t.Fatalf("after delete %+v", kvs)
 	}
+	if err := d.Delete(ctx, desired, meta); err != nil {
+		t.Fatalf("second delete is a no-op (D-074): %v", err)
+	}
+	// the index of a deleted interface reused by another owner's interface is never deleted
+	if err := d.Delete(ctx, desired, ipsecd.ItfMeta{SwIfIndex: fidx}); !errors.Is(err, vpn.ErrNotOurs) {
+		t.Fatalf("stale index: %v", err)
+	}
+	if n := len(v.CallsNamed("ipsec_itf_delete")); n != 1 {
+		t.Fatalf("%d deletes reached VPP", n)
+	}
 	if _, ok := v.itfs[fidx]; !ok {
 		t.Fatal("foreign itf touched")
 	}
@@ -513,6 +697,23 @@ func TestBackend(t *testing.T) {
 	}
 	if err := d.Delete(ctx, want, meta); err != nil || len(v.CallsNamed("ipsec_select_backend")) != 1 {
 		t.Fatal("Delete must be a no-op")
+	}
+
+	// non-owner (D-071): the requirement holds only when VPP already has the backend, never set
+	var req scheduler.Descriptor
+	for _, x := range ipsecd.All(newCfg(v)) {
+		if x.Name() == ipsecd.BackendName {
+			req = x
+		}
+	}
+	if _, err := req.Create(ctx, want); err != nil {
+		t.Fatalf("require (satisfied): %v", err)
+	}
+	if _, err := req.Create(ctx, &vpnpb.IpsecBackend{Protocol: "esp", Name: "crypto engine backend"}); !errors.Is(err, vpn.ErrNotGlobalsOwner) {
+		t.Fatalf("require (differs): %v", err)
+	}
+	if len(v.CallsNamed("ipsec_select_backend")) != 1 {
+		t.Fatal("a non-owner selected a backend")
 	}
 }
 

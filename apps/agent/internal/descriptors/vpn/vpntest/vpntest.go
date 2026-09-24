@@ -56,8 +56,20 @@ func Context(t testing.TB) context.Context {
 }
 
 // Loopback creates loop<slot><ii> (vpptest.LoopbackInstance(t, i)) tagged "<owner>:<name>" and
-// deletes it in Cleanup. It returns the VPP name and sw_if_index.
+// deletes it in Cleanup. It returns the logical name (= the tag id = VPP's name) and sw_if_index.
 func Loopback(ctx context.Context, t testing.TB, c vpp.Client, owner string, i int) (string, interface_types.InterfaceIndex) {
+	t.Helper()
+	name, idx := UntaggedLoopback(ctx, t, c, i)
+	if err := vpn.TagInterface(ctx, c, idx, owner, name); err != nil {
+		t.Fatal(err)
+	}
+	return name, idx
+}
+
+// UntaggedLoopback creates loop<slot><ii> WITHOUT a tag — the stand-in for a physical NIC, whose
+// logical name is VPP's name (D-069) — and deletes it in Cleanup. The instance number is in the
+// slot's range, so the object is still identifiable as this slot's.
+func UntaggedLoopback(ctx context.Context, t testing.TB, c vpp.Client, i int) (string, interface_types.InterfaceIndex) {
 	t.Helper()
 	inst := vpptest.LoopbackInstance(t, i)
 	svc := interfaces.NewServiceClient(c)
@@ -68,11 +80,7 @@ func Loopback(ctx context.Context, t testing.TB, c vpp.Client, owner string, i i
 	t.Cleanup(func() {
 		_, _ = svc.DeleteLoopback(context.Background(), &interfaces.DeleteLoopback{SwIfIndex: rep.SwIfIndex})
 	})
-	name := fmt.Sprintf("loop%d", inst)
-	if err := vpn.TagInterface(ctx, c, rep.SwIfIndex, owner, name); err != nil {
-		t.Fatal(err)
-	}
-	return name, rep.SwIfIndex
+	return fmt.Sprintf("loop%d", inst), rep.SwIfIndex
 }
 
 // Ipip creates a p2p ipip tunnel (instance in the slot's numeric range, endpoints in the slot's

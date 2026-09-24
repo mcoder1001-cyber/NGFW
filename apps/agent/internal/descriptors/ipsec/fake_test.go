@@ -182,9 +182,13 @@ func newFakeVPP() *fakeVPP {
 		delete(v.sas, r.ID)
 		return []api.Message{&ipsec.IpsecSadEntryDelReply{}}, nil
 	})
-	v.On("ipsec_sa_v5_dump", func(api.Message) ([]api.Message, error) {
+	v.On("ipsec_sa_v5_dump", func(req api.Message) ([]api.Message, error) {
+		want := req.(*ipsec.IpsecSaV5Dump).SaID
 		var out []api.Message
 		for id, e := range v.sas {
+			if want != ^uint32(0) && id != want {
+				continue
+			}
 			c := e
 			c.CryptoKey.Data = append([]byte(nil), e.CryptoKey.Data...)
 			c.IntegrityKey.Data = append([]byte(nil), e.IntegrityKey.Data...)
@@ -215,9 +219,13 @@ func newFakeVPP() *fakeVPP {
 		delete(v.tps, uint32(r.SwIfIndex))
 		return []api.Message{&ipsec.IpsecTunnelProtectDelReply{}}, nil
 	})
-	v.On("ipsec_tunnel_protect_dump", func(api.Message) ([]api.Message, error) {
+	v.On("ipsec_tunnel_protect_dump", func(req api.Message) ([]api.Message, error) {
+		want := uint32(req.(*ipsec.IpsecTunnelProtectDump).SwIfIndex)
 		var out []api.Message
-		for _, tp := range v.tps {
+		for sw, tp := range v.tps {
+			if want != ^uint32(0) && sw != want {
+				continue
+			}
 			out = append(out, &ipsec.IpsecTunnelProtectDetails{Tun: tp})
 		}
 		return out, nil

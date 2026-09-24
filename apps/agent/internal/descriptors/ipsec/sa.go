@@ -17,6 +17,7 @@ import (
 	"ngfw/agent/internal/descriptors/vpn"
 	vpnpb "ngfw/agent/internal/descriptors/vpn/pb"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // Sa manages security associations (ipsec_sad_entry_add_v2 / ipsec_sad_entry_del; dump
@@ -56,7 +57,15 @@ func (*Sa) Dependencies(obj proto.Message) []scheduler.Dependency {
 	return nil
 }
 
-// Create implements scheduler.Descriptor.
+// saRecordKey is the ownership record of an SA; the value is "<spi>/<protocol>", so an SA that
+// another party created under the same id after a VPP restart never matches.
+func saRecordKey(id uint32) string { return string(scheduler.Join(SaName, vpn.Uint(id))) }
+
+func saRecordValue(spi uint32, protocol string) string { return vpn.Uint(spi) + "/" + protocol }
+
+// Create implements scheduler.Descriptor. VPP refuses an existing sad_id
+// (ENTRY_ALREADY_EXISTS), so an SA that is not ours is never adopted; the ownership record is
+// written only after VPP accepted the add.
 func (d *Sa) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*vpnpb.IpsecSa)
 	if !ok {
@@ -64,6 +73,11 @@ func (d *Sa) Create(ctx context.Context, obj proto.Message) (any, error) {
 	}
 	if err := d.cfg.IDs.Check("sa", o.GetSadId()); err != nil {
 		return nil, err
+	}
+	rec := d.cfg.records()
+	bid, err := rec.Identity(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", SaName, err)
 	}
 	entry, err := d.encodeSa(ctx, o)
 	if err != nil {
@@ -75,6 +89,9 @@ func (d *Sa) Create(ctx context.Context, obj proto.Message) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ipsec_sad_entry_add_v2 (sa %d): %w", o.GetSadId(), err)
 	}
+	if err := rec.Put(bid, saRecordKey(o.GetSadId()), saRecordValue(o.GetSpi(), o.GetProtocol())); err != nil {
+		return nil, fmt.Errorf("%s: record: %w", SaName, err)
+	}
 	return SaMeta{SadID: o.GetSadId(), StatIndex: rep.StatIndex}, nil
 }
 
@@ -83,41 +100,106 @@ func (*Sa) Update(context.Context, proto.Message, proto.Message, any) (any, erro
 	return nil, scheduler.ErrRecreate
 }
 
-// Delete implements scheduler.Descriptor.
+// Delete implements scheduler.Descriptor. Right before the delete it re-reads the SA by id and
+// re-checks our record against the running VPP instance and the SA's SPI/protocol (D-071, D-074):
+// an SA that is gone needs nothing, an SA that is not ours is refused (ErrNotOurs).
 func (d *Sa) Delete(ctx context.Context, obj proto.Message, _ any) error {
 	o, ok := obj.(*vpnpb.IpsecSa)
 	if !ok {
 		return typeErr(SaName, obj)
 	}
+	rec := d.cfg.records()
+	key := saRecordKey(o.GetSadId())
+	cur, err := d.dump(ctx, o.GetSadId())
+	if err != nil {
+		return err
+	}
+	if len(cur) == 0 {
+		return rec.Drop(key)
+	}
+	bid, err := rec.Identity(ctx)
+	if err != nil {
+		return fmt.Errorf("%s: %w", SaName, err)
+	}
+	if v, ok := rec.Valid(bid, key); !ok || !d.cfg.IDs.Contains(o.GetSadId()) || v != saRecordValue(cur[0].GetSpi(), cur[0].GetProtocol()) {
+		return fmt.Errorf("%s: sa %d: %w", SaName, o.GetSadId(), vpn.ErrNotOurs)
+	}
 	if _, err := ipsec.NewServiceClient(d.cfg.Client).IpsecSadEntryDel(ctx, &ipsec.IpsecSadEntryDel{ID: o.GetSadId()}); err != nil {
 		return fmt.Errorf("ipsec_sad_entry_del (sa %d): %w", o.GetSadId(), err)
 	}
-	return nil
+	return rec.Drop(key)
 }
 
-// Retrieve implements scheduler.Descriptor: every SA whose id is owned, keys reduced to references.
+// Retrieve implements scheduler.Descriptor: every SA in the owned id range whose record matches
+// (running VPP instance, SPI, protocol); keys reduced to references.
 func (d *Sa) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
-	stream, err := ipsec.NewServiceClient(d.cfg.Client).IpsecSaV5Dump(ctx, &ipsec.IpsecSaV5Dump{SaID: ^uint32(0)})
+	all, err := d.dumpDetails(ctx, ^uint32(0))
+	if err != nil {
+		return nil, err
+	}
+	rec := d.cfg.records()
+	var out []scheduler.KV
+	var bid bootid.Identity
+	for _, sa := range all {
+		v := sa.value
+		if !d.cfg.IDs.Contains(v.GetSadId()) {
+			continue
+		}
+		if bid.IsZero() {
+			if bid, err = rec.Identity(ctx); err != nil {
+				return nil, fmt.Errorf("%s: %w", SaName, err)
+			}
+		}
+		if r, ok := rec.Valid(bid, saRecordKey(v.GetSadId())); !ok || r != saRecordValue(v.GetSpi(), v.GetProtocol()) {
+			continue
+		}
+		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: SaMeta{SadID: v.GetSadId(), StatIndex: sa.statIndex}})
+	}
+	return sortKVs(out), nil
+}
+
+type dumpedSa struct {
+	value     *vpnpb.IpsecSa
+	statIndex uint32
+}
+
+// dump returns the decoded SA with id (none when absent).
+func (d *Sa) dump(ctx context.Context, id uint32) ([]*vpnpb.IpsecSa, error) {
+	all, err := d.dumpDetails(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	var out []*vpnpb.IpsecSa
+	for _, sa := range all {
+		if sa.value.GetSadId() == id {
+			out = append(out, sa.value)
+		}
+	}
+	return out, nil
+}
+
+// dumpDetails runs ipsec_sa_v5_dump (sa_id ~0 = all). Key material is hashed into references and
+// zeroed while decoding.
+func (d *Sa) dumpDetails(ctx context.Context, id uint32) ([]dumpedSa, error) {
+	return dumpSAs(ctx, d.cfg, id)
+}
+
+func dumpSAs(ctx context.Context, cfg Config, id uint32) ([]dumpedSa, error) {
+	stream, err := ipsec.NewServiceClient(cfg.Client).IpsecSaV5Dump(ctx, &ipsec.IpsecSaV5Dump{SaID: id})
 	if err != nil {
 		return nil, fmt.Errorf("ipsec_sa_v5_dump: %w", err)
 	}
-	var out []scheduler.KV
+	var out []dumpedSa
 	for {
 		det, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
-			break
+			return out, nil
 		}
 		if err != nil {
 			return nil, fmt.Errorf("ipsec_sa_v5_dump: %w", err)
 		}
-		v := decodeSa(&det.Entry) // hashes and zeroes the key material
-		if !d.cfg.IDs.Contains(v.GetSadId()) {
-			continue
-		}
-		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: SaMeta{SadID: v.GetSadId(), StatIndex: det.StatIndex}})
+		out = append(out, dumpedSa{value: decodeSa(&det.Entry), statIndex: det.StatIndex}) // hashes and zeroes the key material
 	}
-	sortKVs(out)
-	return out, nil
 }
 
 // encodeSa validates o and builds the binapi entry, resolving the key references. The caller

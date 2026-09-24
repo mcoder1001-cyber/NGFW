@@ -146,7 +146,11 @@ and `make test` are unit-only. Slot 12 and the exclusive lock are the gate's.
    The subject must be Conventional Commits and must be `contract(<pkg>): …` when the branch changes contract files — the
    contract guard reads the branch's commit subjects, and after the squash there is only this one. Never `wip:`. If `main` gets a
    commit other than board/status between this step and the merge, rebase again (and re-run step 3).
-3. In the worker's worktree: `tools/ci.sh --base main` → must end with `CI GATE PASSED` (contract guard included).
+3. **Branch gate.** After step 2 the branch is `main` + 1 commit, so its tree is exactly the tree the merge will produce and the
+   `pre-merge-commit` hook in step 4 gates it (quick + contract guard + gitleaks, D-130). Without the hook installed, run
+   `tools/ci.sh --base main` in the worker's worktree → must end with `CI GATE PASSED`. Steps 4–8 run under one
+   `flock /run/lock/vrx-main.lock env VRX_MAIN_LOCK_HELD=1 …`; a red hook is followed by `git merge --abort` before the lock is
+   released. The local `.git/hooks/pre-commit` guard refuses any commit in /root/ngfw that does not carry `VRX_MAIN_LOCK_HELD=1`.
 4. `git -C /root/ngfw merge --no-ff task/<id>`. With the hook installed (`cd /root/ngfw && tools/ci.sh install-hooks`),
    `pre-merge-commit` runs `tools/ci.sh quick --base HEAD` with `VRX_CI_HEAD_REF=<the ref named on the merge command line>`
    (git does not write `MERGE_HEAD` before this hook, but exports `GIT_REFLOG_ACTION="merge task/<id>"`): the quick gate on the

@@ -71,3 +71,18 @@ Items above that are not ticked keep their text; this table gives each one an ow
   `ifsanitize.Release` but never sets `vrx_agent_iface_quarantined` from the holders it found; after an agent restart the gauge reads 0
   while this owner's still-dirty quarantine holders are in VPP (TD-3 re-review L6). Fix: `Release` returns the number of holders left
   (holders − released) and the wiring sets `Stats.Quarantined` to that absolute number after every Release (not deltas).
+
+## From the wave-A reviews (D-129, 2026-09-24)
+- (F-nat44-ed Q3 d) the agent should return a canonical form of the running config so /state/drift stops flagging NAT pool names/descriptions and owner-mode `enabled`/timeouts
+- (TD-8 R5) metrics collectors run serially with a per-collector 5 s deadline that only a cooperative collector honours; bound the whole scrape before the first collector merges
+- (F-object-model Q2) FQDN refresh uses a fixed interval; DNS TTLs need golang.org/x/net promoted in go.mod
+- (WEB-2 M3) the config kit keeps writeOnly members (passwordHash) in mutation variables/React state — fix before any secret-leaf kit screen
+- (F-vrf-static-ecmp Q8) govpp drops dump replies on a loaded host — all descriptors exposed; (Q9) CLI `vrx ping` sends no body (400 since ping is implemented)
+
+## From the wave-A reviews, batch 2 (D-131/D-132, 2026-09-24)
+- (TD-7 finding) `check_health` (`deploy/vpp/apply-startup.sh:568`) reads `systemctl show` once without retry: a timed-out/partial D-Bus read counts as "vpp.service restarted" → needless rollback (never a false commit); harness scenarios 5/28/29 start with an unguarded apply so a very loaded host kills a whole shard instead of getting a rerun
+- (F-vrf-static-ecmp Q4) packages/schema/src/examples.test.ts rejects feature example files (`<slug>-*.json`) — widen the SIBLING regex once (F-vlan-qinq Q3, F-bridge-l2 Q4, F-neighbors-ra Q5 hit the same)
+- (F-vrf-static-ecmp Q8) govpp drops dump replies on a loaded host — needs a fix in apps/agent/internal/vpp (all descriptors exposed)
+- (F-vrf-static-ecmp Q9/L5) CLI `vrx ping`/`traceroute` send no body (400 since ping is implemented) and the CLI docs for /state/routes are stale
+- (F-vrf-static-ecmp Q10, F-neighbors-ra Q9) the shared fake agent needs a per-feature Action dispatch table
+- (F-vrf-static-ecmp M2) FIB browser: keyset cursor instead of offset paging

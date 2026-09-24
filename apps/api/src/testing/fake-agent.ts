@@ -664,6 +664,28 @@ export class FakeAgent {
       },
       // Feature RPCs: one handler line under the feature's anchor (the contract commit's UNIMPLEMENTED stub;
       // real fake behaviour lives in features/<slug>/fake.ts, wired by the same line — wave-A-hotspots P5).
+      // wave-BC: F-det44-map-dslite-cnat
+      // wave-BC: F-tunnels
+      // wave-BC: F-vrrp-config-sync
+      // wave-BC: F-pki
+      // wave-BC: F-ikev2-native
+      // wave-BC: F-ospf
+      // wave-BC: F-isis-rip
+      // wave-BC: F-mpls-srmpls
+      // wave-BC: F-lb
+      // wave-BC: F-qos-flat
+      // wave-BC: F-host-stack
+      // wave-BC: F-snmp
+      // wave-BC: F-ipfix-sflow
+      // wave-BC: F-capture-trace
+      // wave-BC: F-srv6
+      // wave-BC: F-lisp
+      // wave-BC: F-bfd-redistribution
+      // wave-BC: F-ra-vpn
+      // wave-BC: F-mpls-ldp
+      // wave-BC: F-igmp-mfib
+      // wave-BC: F-dashboard-prom-alarms
+      // wave-BC: F-ha-state-sync
       // wave-A: F-bonding
       // wave-A: F-bridge-l2
       // wave-A: F-loopback-bvi-gso-lldp-span

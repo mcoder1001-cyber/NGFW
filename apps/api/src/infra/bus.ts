@@ -11,6 +11,15 @@ export const TOPICS = [
   'commit.events',
   'agent.events',
   // Feature topics: one line under the feature's anchor (wave-A-hotspots P6).
+  // wave-BC: F-vrrp-config-sync
+  // wave-BC: F-pki
+  // wave-BC: F-ospf
+  // wave-BC: F-isis-rip
+  // wave-BC: F-bfd-redistribution
+  // wave-BC: F-ra-vpn
+  // wave-BC: F-mpls-ldp
+  // wave-BC: F-igmp-mfib
+  // wave-BC: F-dashboard-prom-alarms
   // wave-A: F-neighbors-ra
   // wave-A: F-object-model
   // wave-A: F-acl

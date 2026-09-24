@@ -197,3 +197,127 @@ table was back at index 0), then deleted. The test now sanitizes in every raw de
 
 CI GATE PASSED
 ```
+
+---
+
+## Fix round 1 (after BLOCK 46fafdb) — 2026-09-24, slot 2 (w2)
+
+The first fix-round worker died at ~05:45; its uncommitted edits were salvaged as d5116b8 and reviewed: kept (L3-mode
+reset, resurrect, `Acquire`/quarantine, `BeforeDelete` in every Delete, per-phase metrics, lcp wiring). This round
+finished them: exact resurrect of input-ACL tables + `FreshRun`, `Release`, unit tests, pre-flight M2/M3/M4, ci.sh M3,
+a host test for the freed-table case, docs.
+
+| finding | status | how verified |
+|---|---|---|
+| H1 unclearable accepted; L2 bits crash path | **fixed**: `Sanitize` first sets L3 mode (clears the l2-input/l2-output bitmaps whatever table they name), then resurrects freed table indices with placeholder tables (exactly for input-ACL tables, read back; `FreshRun`=8 fresh indices otherwise), unbinds through them, deletes the placeholders. Anything left is `ErrUnclearable` in the create phase → `Acquire` deletes the interface, parks the index under an admin-down `quarantine:<owner>` loopback and creates the interface again on a fresh index (`ErrNoCleanIndex` after 4 tries). `Release` frees holders that can be cleaned later | unit: `TestBindingToDeletedTable`, `TestFreedInReverseOrder`, `TestUnclearableIsAnError`, `TestAcquire*`; host: `TestV19FreedTableOnHost` (below) |
+| H2 output ACL / policer / flow to a freed table invisible | **fixed**: the probe runs over live + placeholder tables, so a binding to a freed index is found and removed (counted as `freed_table_total`) | unit `TestBindingToDeletedTable` (output-acl ip4 → deleted 5); host: `output-acl ip4/l2 table 0 (deleted table, removed through a placeholder)` |
+| H3 Delete does not clear bindings | **fixed**: `ifsanitize.BeforeDelete` right before the VPP delete in loopback, tap, memif, bond, af_packet, sub-interface, all DF-6 types, mpls tunnel, lcp pair (host tap) | unit suites of those descriptors pass with the sanitizing fake (`sanitizetest.Clean`); host: `phase=delete` log lines in both host tests |
+| M1 table-delete refusal misses stale indices | **narrowed, documented** (`docs/agent/descriptors/classify.md`): VPP refuses every call on a deleted index, so an input ACL there can be neither read nor unbound; with H3 + resurrect such a table delete is no longer a crash vector for our interfaces; output-ACL records keep refusing; TOCTOU note (sequential scheduler) added | docs |
+| M2 pre-flight false negatives | chained tables (`next_table_index` missing → FAIL) and API errors no longer swallowed (`classify_table_by_interface` other than INVALID_SW_IF_INDEX, SPD dump) **fixed**; L2 classify tables / punt ACL / pcap filter not inspected (noted) | unit `TestPreflightReviewM2M3M4` |
+| M3 pre-flight placement / TOCTOU / exit 2 | **fixed**: `before-tests` now runs while the exclusive lock is still held; second `classify_table_ids` snapshot after the reads (only tables missing in both count); new `after-tests` run after the suites, before rig down (rig down runs either way, then the gate fails); exit 2 has its own message ("could not inspect VPP", not "crash vector") | unit `TestPreflightReviewM2M3M4`; `bash -n tools/ci.sh`; quick gate green (full not run by me) |
+| M4 product and CI disagree | **fixed**: pre-flight reports a quarantine holder (tag `quarantine:*`, admin-down) as WARN, everything else as FAIL — the agent's rule | unit + host (`WARN interface loop0 (tag quarantine:w2): …`) |
+| M5 lcp host tap not sanitized; docs | **fixed** (salvage): lcp pair create goes through `Acquire` on `host_sw_if_index`, Delete calls `BeforeDelete`; VPP-handled (ACL plugin, NAT44, ADL) and known-unhandled (ABF, NAT64/66/DET44, cnat, flowprobe) listed in `interface.md` and V23(b) | lcp unit tests (5 sanitize runs logged) |
+| L1 metrics | **fixed**: `phase="create|delete"` label on every counter, `freed_table_total{phase,state}`, gauge `vrx_agent_iface_quarantined`, `vrx_agent_iface_quarantine_total` | unit `TestMetrics` |
+| L2 probe cost | not changed; cost grew: every create now makes ≥ 8 placeholder tables (+ holes) and probes 8 × (tables + placeholders) unbinds. Fine at today's table counts; cap/batch later | — |
+
+### Unit
+
+```
+$ cd apps/agent && go test -count=1 ./internal/vpp/ifsanitize/ -v | grep -E '^(---|ok)'
+--- PASS: TestAcquireQuarantinesAnUnclearableIndex (0.00s)
+--- PASS: TestAcquireFailsWithoutACleanIndex (0.00s)
+--- PASS: TestAcquireOtherErrorsDeleteAndFail (0.00s)
+--- SKIP: TestV19InheritanceClearedOnHost (0.00s)
+--- SKIP: TestV19FreedTableOnHost (0.00s)
+--- PASS: TestPreflightNamesTheOffendingInterface (0.00s)
+--- PASS: TestPreflightClean (0.00s)
+--- PASS: TestPreflightReviewM2M3M4 (0.00s)
+--- PASS: TestCleanInterfaceOnlyResets (0.00s)
+--- PASS: TestInheritedStateIsCleared (0.00s)
+--- PASS: TestBindingToDeletedTable (0.00s)
+--- PASS: TestFreedInReverseOrder (0.00s)
+--- PASS: TestUnclearableIsAnError (0.00s)
+--- PASS: TestPluginNotLoadedIsSkipped (0.00s)
+--- PASS: TestErrorsFailAndAreCounted (0.00s)
+--- PASS: TestMetrics (0.00s)
+ok  	ngfw/agent/internal/vpp/ifsanitize	0.036s
+$ go test -count=1 ./internal/descriptors/... ./cmd/...   → 61 packages ok, 0 FAIL
+```
+
+### Host (slot 2, `eval "$(tools/lab env 2)"`, `tools/lab lock shared`, no packets)
+
+Run 1, 07:27:23 (`NRestarts=5` before): `TestV19InheritanceClearedOnHost` PASS (the original repro, now with the L3 reset and
+placeholders in the log: `placeholders=9 reset="[l2-mode l3 …]"`), `TestV19FreedTableOnHost` FAIL at its first readback —
+`l2_flags_get` answers INVALID_SW_IF_INDEX for an interface that is neither bridged nor xconnected (`l2_api.c:428`); the test
+now reads the bits with `show interface <idx> feat`. **Then VPP restarted: NRestarts 5 → 6 at 07:27:32, SIGSEGV PC 0x0** —
+see `TD-3-questions.md` (cause not established; the classify state in VPP then pointed only at a live table and no packet was
+sent; slot 1 had just deleted af_packet interfaces with the known EBADF lines, and my read-only `vppctl show interface
+features` was running). No further host runs after I noticed.
+
+Run 2, 07:28:55 (`NRestarts=6` printed before it — noticed only afterwards; `NRestarts=6` after):
+
+```
+=== RUN   TestV19FreedTableOnHost
+    loop285 sw_if_index 2 (L3 mode): L2 input ACL, L2 output ACL, L2 policer classify, ip4 output ACL → table 0; show interface feat:
+        l2-input:
+             POLICER_CLAS (l2-policer-classify)
+                      ACL (l2-input-acl)
+        l2-output:
+                      ACL (l2-output-acl)
+    after the raw delete of the loopback and of table 0 — show inacl type l2:
+                 2                   0		DELETED (2)
+    … show outacl type l2:            2                   0		DELETED (2)
+    … show classify policer type l2:  2                   0		DELETED (2)
+INFO interface sanitized (VPP V19/V21 inherited state) interface=loop286 sw_if_index=2 phase=create cleared=[]
+     freed="[input-acl l2 table 0 (deleted table, removed through a placeholder) output-acl ip4 table 0 (…) output-acl l2 table 0 (…)
+     policer-classify l2 table 0 (…)]" placeholders=8 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input
+     l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+    loop286 created on the planted sw_if_index 2: input ACL none, l2 features "l2-input:\n\n" "l2-output:\n  none configured\n",
+    no row in show inacl/outacl/classify policer; classify tables back to []; freed map[] → map[create/input-acl:1 create/output-acl:2 create/policer-classify:1]
+    loop287 sw_if_index 1 (L3 mode): … → table 0 (same plant)
+ERROR interface sanitize failed (VPP V19) interface=loop288 sw_if_index=1 phase=create err="inherited binding to a deleted classify
+      table cannot be removed (VPP V19): [input-acl l2 table 0]"            (MaxPlaceholders=0: resurrection disabled on purpose)
+ERROR sw_if_index quarantined: … held by an admin-down loopback so it is never reused sw_if_index=1 tag=quarantine:w2
+INFO interface sanitized … interface=loop288 sw_if_index=3 phase=create … placeholders=0
+    quarantine: loop288 created on fresh sw_if_index 3; dirty 1 held by loop0 (tag "quarantine:w2", admin-down); gauge vrx_agent_iface_quarantined=1
+    pre-flight: WARN  interface loop0 (tag quarantine:w2): input ACL l2 bound to classify table 0, which does not exist
+    pre-flight: WARN  interface loop0 (tag quarantine:w2): output ACL ip4 bound to classify table 0, which does not exist
+    pre-flight: WARN  interface loop0 (tag quarantine:w2): output ACL l2 bound to classify table 0, which does not exist
+    pre-flight: WARN  interface loop0 (tag quarantine:w2): policer classify l2 bound to classify table 0, which does not exist
+INFO interface sanitized … interface="quarantine holder 1" sw_if_index=1 phase=create freed="[input-acl l2 table 0 (…) output-acl ip4
+     table 0 (…) output-acl l2 table 0 (…) policer-classify l2 table 0 (…)]" placeholders=8
+INFO quarantined sw_if_index released: its stale bindings are gone (VPP V19) sw_if_index=1 tag=quarantine:w2
+    Release: holder of 1 sanitized through placeholders (table 0 resurrected) and deleted; classify tables []
+INFO interface sanitized … interface=loop288 sw_if_index=3 phase=delete …
+INFO interface sanitized … interface=loop286 sw_if_index=2 phase=delete …
+--- PASS: TestV19FreedTableOnHost (0.22s)
+ok  	ngfw/agent/internal/vpp/ifsanitize	0.239s
+```
+
+Pre-flight against the live VPP after the restart and after run 2: `V19 pre-flight ok: no classify binding or classify DPO
+points at a missing table (0 warning(s))`.
+
+**NRestarts: 5 before run 1 → 6 (VPP crash 07:27:32, not attributed, written down in TD-3-questions.md) → 6 after run 2.**
+
+### CI
+
+```
+$ tools/ci.sh --base main
+  contract guard: HEAD vs main 0m01s · generate + generated-output gate 1m34s · forbidden patterns (+ gitleaks) 0m03s
+  lint · typecheck · unit tests · build (turbo) 1m37s · apps/agent: make lint test build 0m49s · test/ Go modules 0m02s
+  warnings: commit subject(s) not in Conventional Commits form: review(TD-3): findings   (the reviewer's commit)
+  mode quick · wall time 4m09s · logs /root/ngfw-wt/logs/ci/TD-3-20260924-073128-3199816
+CI GATE PASSED
+```
+
+`tools/ci.sh full` was not run (it restarts nothing, but it runs every suite under the lab lock; left to the manager).
+
+### Out of scope / open
+
+- Quarantine release is a library call (`ifsanitize.Release`), not yet called by the agent loop — `internal/agent` is P08's
+  (TD-3-questions.md Q2).
+- Pre-flight does not inspect L2 input/output classify tables (`classify_set_interface_l2_tables`), the punt ACL or the pcap/trace
+  classify filter (M2 remainder); `Sanitize` resets the l2 classify tables blindly.
+- `FreshRun` is a bound, not a proof, for the write-only kinds: ≥ 8 tables freed in exact reverse creation order above the highest
+  live table could hide one; the input-ACL kind is exact.
+- `apps/agent/internal/descriptors/core/coretest/fakevpp.go` import order is not gofmt-clean on main already; untouched.

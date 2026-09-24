@@ -160,7 +160,7 @@ export const ipv6RaField = withUi(Ipv6RaSchema.optional(), {
   title: 'IPv6 router advertisements',
   help: 'absent = VPP defaults (RAs suppressed); the interface needs an IPv6 address',
   group: NEIGHBORS_RA_GROUP,
-  order: 40,
+  order: 42,
 });
 
 /** `interfaces.<if>.proxyArp`: answer ARP requests for addresses in the VRF's proxy-ARP ranges. */
@@ -168,7 +168,7 @@ export const proxyArpField = withUi(z.boolean().optional(), {
   title: 'Proxy ARP',
   help: 'answer ARP for the proxy-ARP ranges of this interface’s VRF; absent = off',
   group: NEIGHBORS_RA_GROUP,
-  order: 41,
+  order: 40,
 });
 
 /** `interfaces.<if>.proxyNd`: IPv6 addresses this interface answers neighbour solicitations for (experimental, V12). */
@@ -176,7 +176,7 @@ export const proxyNdField = withUi(z.array(ipv6Address).max(64).optional(), {
   title: 'Proxy ND addresses (experimental)',
   help: 'experimental and off by default: applied only by an agent started with VRX_DF2_PROXY_ND=1 (VPP V12)',
   group: NEIGHBORS_RA_GROUP,
-  order: 42,
+  order: 41,
 });
 
 /** One proxy-ARP range (IPv4 only: ARP is IPv4) of `vrfs.<name>.proxyArpRanges`. */

@@ -469,23 +469,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/v1/state/routes': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Connected + static routes retrieved from VPP by the agent (server-side paged) */
-    get: operations['State_routes'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/v1/state/neighbors': {
     parameters: {
       query?: never;
@@ -546,7 +529,7 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Run an action (all 501 until the agent implements Action) */
+    /** Run an action in the data plane (ping; traceroute and the others answer 501) and return its output */
     post: operations['Actions_run'];
     delete?: never;
     options?: never;
@@ -598,6 +581,23 @@ export interface paths {
     };
     /** Audit log, newest first (admin) */
     get: operations['Audit_list'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Live FIB of a VRF (every VRF when none is given), paged and filtered by the agent, with each entry’s paths */
+    get: operations['State_routes'];
     put?: never;
     post?: never;
     delete?: never;
@@ -7414,80 +7414,6 @@ export interface operations {
       };
     };
   };
-  State_routes: {
-    parameters: {
-      query?: {
-        pageSize?: number;
-        page?: number;
-        vrf?: string;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            page: number;
-            pageSize: number;
-            total: number;
-            items: {
-              vrf: string;
-              prefix: string;
-              /** @enum {string} */
-              origin: 'connected' | 'static';
-              nextHops: {
-                address?: string;
-                interface?: string;
-              }[];
-              distance?: number;
-            }[];
-          };
-        };
-      };
-      /** @description Not authenticated */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Role too low */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Agent error */
-      502: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Agent or database unavailable */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-    };
-  };
   State_neighbors: {
     parameters: {
       query?: never;
@@ -7661,14 +7587,74 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody?: never;
+    /** @description ping: PingBody; traceroute: TracerouteBody; the other actions take no body (501) */
+    requestBody?: {
+      content: {
+        'application/json':
+          | {
+              /**
+               * IP address
+               * @description IPv4 or IPv6 address (no name resolution)
+               */
+              target: string;
+              /** @description VRF; the data plane pings from `default` only */
+              vrf?: string;
+              /** @description echo requests (default 5) */
+              count?: number;
+              /** @description default 1000 */
+              intervalMs?: number;
+              timeoutMs?: number;
+              /** @description not supported by VPP’s ping API */
+              size?: number;
+              /**
+               * IP address
+               * @description not supported by VPP’s ping API
+               */
+              source?: string;
+            }
+          | {
+              /** IP address */
+              target: string;
+              vrf?: string;
+              maxHops?: number;
+              probes?: number;
+              timeoutMs?: number;
+              /** IP address */
+              source?: string;
+            };
+      };
+    };
     responses: {
-      /** @description Action output (reserved: every action answers 501 in this release) */
       200: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': {
+            action: string;
+            /** @description human-readable output lines, in order */
+            lines: string[];
+            /** @description the terminal message of the action */
+            done: {
+              summary: string;
+              /** @description 0 = success */
+              exitCode: number;
+              /** @description e.g. transmitted, received, loss_pct */
+              stats: {
+                [key: string]: string;
+              };
+            };
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
       };
       /** @description Not authenticated */
       401: {
@@ -7699,6 +7685,24 @@ export interface operations {
       };
       /** @description Not implemented */
       501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };
@@ -7926,6 +7930,121 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  State_routes: {
+    parameters: {
+      query?: {
+        source?: string;
+        prefix?: string;
+        family?: 'ipv4' | 'ipv6';
+        pageSize?: number;
+        page?: number;
+        vrf?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            page: number;
+            pageSize: number;
+            total: number;
+            /** @description the VRF read (absent when every VRF was listed) */
+            vrf?: string;
+            tableId?: number;
+            retrievedAt?: string;
+            items: {
+              vrf: string;
+              prefix: string;
+              /** @description static (API source), connected (interface source), else the FIB source name */
+              origin: string;
+              /** @description best FIB source as VPP names it */
+              source: string;
+              nextHops: {
+                address?: string;
+                interface?: string;
+              }[];
+              /** @description administrative distance of a static route */
+              distance?: number;
+              /** @description the entry’s paths and what they resolve to (DPO kind) */
+              paths: {
+                /** @description normal, local, drop, udp-encap, icmp-unreach, icmp-prohibit, source-lookup, … */
+                type: string;
+                nextHop?: string;
+                interface?: string;
+                /** @description table the next hop is resolved in */
+                tableId: number;
+                weight: number;
+                preference: number;
+                flags: string[];
+              }[];
+              statsIndex: number;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

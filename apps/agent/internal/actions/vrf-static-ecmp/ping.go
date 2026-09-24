@@ -31,7 +31,9 @@ const (
 // VItem names the vpp-code-track item for what the VPP ping API cannot do.
 const VItem = "docs/vpp-code-track.md V-new (F-vrf-static-ecmp)"
 
-// Errors (the RPC maps ErrInvalid to INVALID_ARGUMENT, ErrBusy to UNAVAILABLE, ErrUnimplemented to UNIMPLEMENTED).
+// Errors (the RPC maps ErrInvalid to INVALID_ARGUMENT, ErrBusy to UNAVAILABLE, ErrUnimplemented to UNIMPLEMENTED). An
+// ErrInvalid message names the PingAction field first ("invalid action argument: vrf: …"): the API turns it into a
+// problem+json pointer.
 var (
 	ErrInvalid       = errors.New("invalid action argument")
 	ErrBusy          = errors.New("another ping is running")
@@ -55,34 +57,34 @@ func ValidatePing(p *vrxv1.PingAction) (PingPlan, error) {
 	var out PingPlan
 	a, err := netip.ParseAddr(strings.TrimSpace(p.GetTarget()))
 	if err != nil || a.Zone() != "" {
-		return out, fmt.Errorf("%w: target %q is not an IPv4 or IPv6 address (the agent does not resolve names)", ErrInvalid, p.GetTarget())
+		return out, fmt.Errorf("%w: target: %q is not an IPv4 or IPv6 address (the agent does not resolve names)", ErrInvalid, p.GetTarget())
 	}
 	out.Target = a.Unmap()
 	if v := p.GetVrf(); v != "" && v != "default" {
-		return out, fmt.Errorf("%w: ping in VRF %q: VPP's ping API has no table and always pings from the default VRF (%s)", ErrInvalid, v, VItem)
+		return out, fmt.Errorf("%w: vrf: ping in VRF %q: VPP's ping API has no table and always pings from the default VRF (%s)", ErrInvalid, v, VItem)
 	}
 	if p.GetSource() != "" {
-		return out, fmt.Errorf("%w: a source address is not supported: VPP's ping API chooses it from the FIB (%s)", ErrInvalid, VItem)
+		return out, fmt.Errorf("%w: source: a source address is not supported: VPP's ping API chooses it from the FIB (%s)", ErrInvalid, VItem)
 	}
 	if p.GetSize() != 0 {
-		return out, fmt.Errorf("%w: a payload size is not supported: VPP's ping API always sends the default size (%s)", ErrInvalid, VItem)
+		return out, fmt.Errorf("%w: size: a payload size is not supported: VPP's ping API always sends the default size (%s)", ErrInvalid, VItem)
 	}
 	out.Count = p.GetCount()
 	if out.Count == 0 {
 		out.Count = DefaultCount
 	}
 	if out.Count > MaxCount {
-		return out, fmt.Errorf("%w: count %d > %d", ErrInvalid, out.Count, MaxCount)
+		return out, fmt.Errorf("%w: count: %d > %d", ErrInvalid, out.Count, MaxCount)
 	}
 	out.Interval = time.Duration(p.GetIntervalMs()) * time.Millisecond
 	if out.Interval == 0 {
 		out.Interval = DefaultInterval
 	}
 	if out.Interval < MinInterval {
-		return out, fmt.Errorf("%w: interval %v < %v", ErrInvalid, out.Interval, MinInterval)
+		return out, fmt.Errorf("%w: interval_ms: %v < %v", ErrInvalid, out.Interval, MinInterval)
 	}
 	if d := time.Duration(out.Count) * out.Interval; d > MaxPingDuration {
-		return out, fmt.Errorf("%w: count × interval = %v > %v (VPP's ping API holds the binary API for the whole ping)", ErrInvalid, d, MaxPingDuration)
+		return out, fmt.Errorf("%w: count: count × interval = %v > %v (VPP's ping API holds the binary API for the whole ping)", ErrInvalid, d, MaxPingDuration)
 	}
 	return out, nil
 }

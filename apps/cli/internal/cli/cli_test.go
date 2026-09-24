@@ -325,6 +325,78 @@ func TestLoginWithPasswordFileNeverPrintsSecrets(t *testing.T) {
 	}
 }
 
+// TD-4 (D-100 (2)): api-key create from a login session sends the current password (--password-file, or a prompt
+// without echo on a terminal); without a terminal it stops before any request; an API-key credential sends none.
+func TestAPIKeyCreateStepUp(t *testing.T) {
+	f := newFake(t)
+	f.override["POST /api/v1/auth/api-keys"] = func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"k1","name":"ci","role":"operator","expiresAt":null,"key":"vrxk_` + strings.Repeat("A", 43) + `"}`))
+	}
+	// the bodies of the key requests, as the fake recorded them (it has read the request body before the override)
+	sent := func() []map[string]any {
+		var out []map[string]any
+		for _, line := range f.requests() {
+			if rest, ok := strings.CutPrefix(line, "POST /api/v1/auth/api-keys "); ok {
+				var b map[string]any
+				if err := json.Unmarshal([]byte(rest), &b); err != nil {
+					t.Fatalf("key request body %q: %v", rest, err)
+				}
+				out = append(out, b)
+			}
+		}
+		return out
+	}
+	dir := t.TempDir()
+	pw := filepath.Join(dir, "pw")
+	secret := "s3cret-" + strings.Repeat("y", 12)
+	if err := os.WriteFile(pw, []byte(secret+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// an API key: no password, no prompt
+	if r := f.vrx(t, nil, "", "api-key", "create", "ci"); r.code != 0 {
+		t.Fatalf("with an API key: %d %s", r.code, r.stderr)
+	}
+	if bodies := sent(); len(bodies) != 1 || bodies[0]["current"] != nil {
+		t.Fatalf("API-key caller sent %v", bodies)
+	}
+	// a login session with --password-file: the current password goes in the body, never on the terminal
+	env := map[string]string{"VRX_API_KEY": "", "VRX_SESSION_FILE": filepath.Join(dir, "sess", "session.json")}
+	if r := f.vrx(t, env, "", "--password-file", pw, "login", "admin"); r.code != 0 {
+		t.Fatalf("login: %d %s", r.code, r.stderr)
+	}
+	r := f.vrx(t, env, "", "--password-file", pw, "api-key", "create", "ci", "role", "operator")
+	if r.code != 0 {
+		t.Fatalf("with a session and --password-file: %d %s", r.code, r.stderr)
+	}
+	if bodies := sent(); len(bodies) != 2 || bodies[1]["current"] != secret || bodies[1]["role"] != "operator" {
+		t.Errorf("session caller sent %v", bodies)
+	}
+	if f.auth[len(f.auth)-1] != "Bearer tok-123" {
+		t.Errorf("the session was not used: %q", f.auth[len(f.auth)-1])
+	}
+	if strings.Contains(r.stdout+r.stderr, secret) {
+		t.Error("the password reached the terminal")
+	}
+	// a login session, no terminal, no --password-file: a usage error naming the ways out, nothing sent, no key file
+	keyFile := filepath.Join(dir, "k")
+	r = f.vrx(t, env, "", "api-key", "create", "ci", "file", keyFile)
+	if r.code != ExitUsage {
+		t.Fatalf("no terminal: exit %d (%s)", r.code, r.stderr)
+	}
+	for _, want := range []string{"terminal", "--password-file", "API key"} {
+		if !strings.Contains(r.stderr, want) {
+			t.Errorf("no-terminal error does not mention %q: %s", want, r.stderr)
+		}
+	}
+	if bodies := sent(); len(bodies) != 2 {
+		t.Errorf("a request was sent without the password: %v", bodies)
+	}
+	if _, err := os.Stat(keyFile); !os.IsNotExist(err) {
+		t.Errorf("key file created although nothing was minted: %v", err)
+	}
+}
+
 func TestScriptOnStdinStopsAtFirstError(t *testing.T) {
 	f := newFake(t)
 	r := f.vrx(t, nil, "set interfaces eth0 mtu 9000\n# a comment\nset interfaces eth0 mtu 1\ncommit\n")

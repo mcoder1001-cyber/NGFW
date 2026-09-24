@@ -33,6 +33,9 @@ import (
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dhcp"
 	iface "ngfw/agent/internal/descriptors/interface"
+	"ngfw/agent/internal/descriptors/ikev2"
+	"ngfw/agent/internal/descriptors/ipsec"
+	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
@@ -95,6 +98,7 @@ type Wiring struct {
 	storesMu sync.Mutex
 	keyed    map[string]*KeyedClaims
 	classify *classify.FileStore
+	vpnKeys  *vpn.Keyer
 }
 
 // Register builds every store (persisted in env.StateDir), installs the process-wide ones for
@@ -210,6 +214,42 @@ func (w *Wiring) ClassifyStore() (classify.Store, error) {
 		w.classify = s
 	}
 	return w.classify, nil
+}
+
+// VPNKeyer opens (once) the agent-local HMAC key of DF-5's secret fingerprints (D-096):
+// <state dir>/vpn-<owner>.key, 0600, created when missing.
+func (w *Wiring) VPNKeyer() (*vpn.Keyer, error) {
+	w.storesMu.Lock()
+	defer w.storesMu.Unlock()
+	if w.vpnKeys == nil {
+		k, err := vpn.LoadOrCreateKeyFile(filepath.Join(w.env.StateDir, "vpn-"+w.env.Owner+".key"))
+		if err != nil {
+			return nil, err
+		}
+		w.vpnKeys = k
+	}
+	return w.vpnKeys, nil
+}
+
+// IPsecOptions are the persisted-store options DF-5's ipsec.Register must get from the product agent
+// (D-096 / DF-5 Q12): the owner's file-backed BootStore (ownership records of SPDs, SAs, SPD bindings;
+// the charon sweeper refuses an in-memory store), the D-071 globals flag and the D-096 keyer. P11 adds
+// the secret resolver and the id range when it registers the family.
+func (w *Wiring) IPsecOptions() ([]ipsec.Option, error) {
+	k, err := w.VPNKeyer()
+	if err != nil {
+		return nil, err
+	}
+	return []ipsec.Option{ipsec.WithBootStore(w.boot), ipsec.WithKeyer(k), ipsec.WithGlobalsOwner(w.env.GlobalsOwner)}, nil
+}
+
+// IKEv2Options: as IPsecOptions for ikev2.Register (D-076 applied-once responder hostname records).
+func (w *Wiring) IKEv2Options() ([]ikev2.Option, error) {
+	k, err := w.VPNKeyer()
+	if err != nil {
+		return nil, err
+	}
+	return []ikev2.Option{ikev2.WithBootStore(w.boot), ikev2.WithKeyer(k), ikev2.WithGlobalsOwner(w.env.GlobalsOwner)}, nil
 }
 
 // BeforeTxn is called before every transaction: interface indexes may have changed behind us.

@@ -6,6 +6,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"slices"
 	"sort"
 	"strconv"
 
@@ -87,9 +88,31 @@ func (g *server) arpFlush(req *vrxv1.ArpFlushAction, stream grpc.ServerStreaming
 		return status.Error(codes.Unavailable, "VPP binary API is not connected")
 	}
 	ctx := stream.Context()
-	names := []string{req.GetInterface()}
-	if req.GetInterface() == "" {
-		all, err := neighborsra.Nameable(ctx, s.vpp, s.owner)
+	// L1: one flush at a time with Apply/Resync. VPP's delete takes whatever entry has the key, so a flush interleaved
+	// with a commit that turns a learned entry static could delete the new static neighbour.
+	if err := s.lock(ctx); err != nil {
+		return err
+	}
+	defer s.unlock()
+	configured := s.configuredInterfaces()
+	var names []string
+	if name := req.GetInterface(); name != "" {
+		// M1: a named flush acts only on an interface of this agent's configuration or one it created (own tag) — never
+		// on another workload's untagged interface, which the resolver would otherwise accept by its VPP name.
+		ok := slices.Contains(configured, name)
+		if !ok {
+			owned, err := neighborsra.Owned(ctx, s.vpp, s.owner, name)
+			if err != nil {
+				return neighborsError("arp flush", err)
+			}
+			ok = owned
+		}
+		if !ok {
+			return status.Errorf(codes.InvalidArgument, "interface %q is not an interface of this configuration (configured, or created by owner %q): refusing to flush it", name, s.owner)
+		}
+		names = []string{name}
+	} else {
+		all, err := neighborsra.Nameable(ctx, s.vpp, s.owner, "")
 		if err != nil {
 			return neighborsError("arp flush", err)
 		}
@@ -97,8 +120,7 @@ func (g *server) arpFlush(req *vrxv1.ArpFlushAction, stream grpc.ServerStreaming
 		for _, it := range all {
 			nameable[it.Name] = true
 		}
-		names = names[:0]
-		for _, n := range s.configuredInterfaces() {
+		for _, n := range configured {
 			if nameable[n] {
 				names = append(names, n)
 			}

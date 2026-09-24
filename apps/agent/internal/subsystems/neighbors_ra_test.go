@@ -144,6 +144,23 @@ func TestRunNeighborWatch(t *testing.T) {
 	<-done
 }
 
+// Review L2: the interfaces the resync creates right after Connected are subscribed by an early rescan, not 30 s later.
+func TestRunNeighborWatchEarlyRescan(t *testing.T) {
+	v := coretest.New()
+	m := coretest.NeighborsRaOf(v)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		RunNeighborWatch(ctx, NeighborWatchConfig{Client: v, Owner: "w9", Publish: func(*vrxv1.Event) {}, Rescan: time.Hour, Early: []time.Duration{100 * time.Millisecond}, PID: 1})
+	}()
+	time.Sleep(20 * time.Millisecond) // the first scan found nothing
+	idx := v.AddInterface("loop903", "Loopback", "w9:loop903")
+	waitFor(t, "early rescan", func() bool { return slices.Equal(m.Watched(), []uint32{idx}) })
+	cancel()
+	<-done
+}
+
 func atoi(s string) int {
 	n := 0
 	for _, c := range s {

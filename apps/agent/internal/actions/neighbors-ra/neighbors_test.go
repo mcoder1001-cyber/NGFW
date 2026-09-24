@@ -150,6 +150,42 @@ func TestListFiltersSortsPagesAndNeverDumpsEverything(t *testing.T) {
 	}
 }
 
+// Review L3: an untagged interface whose VPP name equals one of our logical names (and has a LOWER sw_if_index) never
+// shadows ours — the lister shows our interface under that name, like the flush (IndexByName) acts on ours.
+func TestNameableOursFirst(t *testing.T) {
+	v := coretest.New()
+	m := coretest.NeighborsRaOf(v)
+	v.AddInterface("lan", "tap", "")                  // someone else's untagged interface, VPP-named "lan", lower index
+	ours := v.AddInterface("tap240", "tap", "w9:lan") // ours: logical name "lan"
+	m.Learn(v, "lan", "192.0.2.1", "02:00:00:00:00:01", 1)
+	m.Learn(v, "tap240", "10.9.9.9", "02:00:00:00:00:02", 1)
+	ifs, err := Nameable(context.Background(), v, owner, "lan")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ifs) != 1 || ifs[0].Index != ours {
+		t.Fatalf("Nameable(lan) = %+v, want our tap240 (sw_if_index %d)", ifs, ours)
+	}
+	p, err := List(context.Background(), v, owner, Query{Interface: "lan"}, vrfName)
+	if err != nil || len(p.Entries) != 1 || p.Entries[0].IP.String() != "10.9.9.9" {
+		t.Fatalf("list lan: %+v %v", p.Entries, err)
+	}
+	// only the named interface's tables are asked for
+	v.Reset()
+	if _, err := Nameable(context.Background(), v, owner, "lan"); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(v.CallsNamed("sw_interface_get_table")); n != 2 {
+		t.Fatalf("%d sw_interface_get_table calls for one interface", n)
+	}
+	if owned, _ := Owned(context.Background(), v, owner, "lan"); !owned {
+		t.Fatal("Owned(lan) must be our tagged interface")
+	}
+	if owned, _ := Owned(context.Background(), v, owner, "GigabitEthernet0/8/0"); owned {
+		t.Fatal("an untagged interface is not owned")
+	}
+}
+
 func TestListRejectsBadQueries(t *testing.T) {
 	v, _ := rig(t)
 	for _, q := range []Query{{Family: "ipx"}, {State: "stale"}, {Sort: "speed"}, {Limit: MaxLimit + 1}} {

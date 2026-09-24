@@ -367,4 +367,25 @@ func TestListNeighborsAndArpFlushRPCs(t *testing.T) {
 	if m.AllCalls() != 0 || len(v.CallsNamed("ip_neighbor_flush")) != 0 {
 		t.Fatal("~0 or ip_neighbor_flush used")
 	}
+	// review M1: an UNTAGGED interface outside the configuration (another workload's, resolvable by its VPP name) is
+	// refused too, and nothing on it is deleted
+	v.AddInterface("loop555", "Loopback", "")
+	m.Learn(v, "loop555", "10.5.5.5", "02:00:00:00:55:55", 1)
+	err = g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_ArpFlush{ArpFlush: &vrxv1.ArpFlushAction{Interface: "loop555"}}}, &actionStream{ctx: ctx})
+	if grpcCode(err) != codes.InvalidArgument || !strings.Contains(err.Error(), `"loop555" is not an interface of this configuration`) {
+		t.Fatalf("unconfigured untagged flush: %v", err)
+	}
+	if got := m.Neighbors(v, "loop555"); len(got) != 1 {
+		t.Fatalf("loop555 was flushed: %v", got)
+	}
+	// an interface this owner created (own tag) but the document no longer names may still be flushed
+	v.AddInterface("loop777", "Loopback", testOwner+":loop777")
+	m.Learn(v, "loop777", "10.7.7.7", "02:00:00:00:77:77", 1)
+	st = &actionStream{ctx: ctx}
+	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_ArpFlush{ArpFlush: &vrxv1.ArpFlushAction{Interface: "loop777"}}}, st); err != nil {
+		t.Fatalf("own-tagged flush: %v", err)
+	}
+	if got := m.Neighbors(v, "loop777"); len(got) != 0 {
+		t.Fatalf("loop777 not flushed: %v", got)
+	}
 }

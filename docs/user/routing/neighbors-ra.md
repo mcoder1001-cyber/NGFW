@@ -17,6 +17,8 @@ so large tables stay fast (up to 1000 rows per page). The table refreshes every 
 
 **Flush…** deletes learned entries — of one interface, or of every configured interface — for IPv4, IPv6 or both. The
 data plane learns them again with the next packet. **Static neighbours are never flushed** (they are configuration).
+Only interfaces of this device's configuration (or created by it) can be flushed; any other name is refused with a
+`400 bad-request` problem pointing at `/interface`. A flush never runs in the middle of a commit.
 Operators and admins may flush; read-only users see the table only. Every flush is written to the audit log.
 
 ![Flush dialog](img/neighbors-ra-flush-confirm-en.png)

@@ -370,8 +370,10 @@ INVALID_ARGUMENT; the owner check is the usual one (§6).
 `ArpFlushAction{interface, family}` deletes the **learned** entries (no `STATIC` flag) with `ip_neighbor_add_del`
 `is_add=0`, entry by entry — `ip_neighbor_flush` would also delete the static neighbours of the configuration (VPP
 `ip_neighbor_del_all` walks every entry), which Retrieve would then report as drift. `interface = ""` flushes every
-interface of the agent's stored configuration that it can name; a named interface must resolve for this owner
-(`iface.ResolveName`, foreign tags are refused with INVALID_ARGUMENT). Output: one `line` per interface and family
+interface of the agent's stored configuration that it can name; a named interface must be one of the stored
+configuration's interfaces or one tagged by this owner — an untagged interface outside the configuration (another
+workload's, resolvable by its VPP name) and foreign tags are refused with INVALID_ARGUMENT naming the interface. A
+flush runs under the transaction lock (never interleaved with Apply/Resync). Output: one `line` per interface and family
 (`<interface> ipv4: deleted N learned entries`), then `done` with `stats {deleted, interfaces}` and exit code 0.
 
 ### F-neighbors-ra: EventKind.EVENT_KIND_NEIGHBOR_CHANGED (10)

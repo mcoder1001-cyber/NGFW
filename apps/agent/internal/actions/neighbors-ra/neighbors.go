@@ -89,37 +89,65 @@ func (i Iface) table(af ip_types.AddressFamily) uint32 {
 }
 
 // Nameable returns every interface owner can name (own tag or untagged, never another owner's, never local0), sorted by
-// name, with its FIB tables (sw_interface_get_table per family).
-func Nameable(ctx context.Context, c vpp.Client, owner string) ([]Iface, error) {
+// name, with its FIB tables (sw_interface_get_table per family). only != "" keeps just that logical name (and asks VPP for
+// the tables of that one interface). Our own tagged interfaces are taken first, untagged ones second: an untagged
+// interface whose VPP name equals one of our logical names never shadows ours (the rule of iface.Table.IndexByName, so
+// the lister and the flush always mean the same interface; review L3).
+func Nameable(ctx context.Context, c vpp.Client, owner, only string) ([]Iface, error) {
 	t, err := iface.Dump(ctx, c, owner)
 	if err != nil {
 		return nil, err
 	}
-	svc := ifapi.NewServiceClient(c)
 	seen := map[string]bool{}
-	var out []Iface
-	for _, idx := range t.Indexes() {
-		name, ok := t.Logical(idx)
-		if !ok || idx == 0 || idx == df2.NoInterface || seen[name] {
-			continue // another owner's, local0, or an untagged twin of our own name (ours wins, alias rule)
+	var picked []Iface
+	for _, ownedPass := range []bool{true, false} {
+		for _, idx := range t.Indexes() {
+			if idx == 0 || idx == df2.NoInterface {
+				continue
+			}
+			_, owned := t.OwnedID(idx)
+			if owned != ownedPass {
+				continue
+			}
+			name, ok := t.Logical(idx)
+			if !ok || seen[name] || (only != "" && name != only) {
+				continue // another owner's, local0, the untagged twin of one of our names, or filtered out
+			}
+			seen[name] = true
+			picked = append(picked, Iface{Name: name, Index: idx})
 		}
-		seen[name] = true
-		it := Iface{Name: name, Index: idx}
+	}
+	svc := ifapi.NewServiceClient(c)
+	for i := range picked {
 		for _, v6 := range []bool{false, true} {
-			r, err := svc.SwInterfaceGetTable(ctx, &ifapi.SwInterfaceGetTable{SwIfIndex: interface_types.InterfaceIndex(idx), IsIPv6: v6})
+			r, err := svc.SwInterfaceGetTable(ctx, &ifapi.SwInterfaceGetTable{SwIfIndex: interface_types.InterfaceIndex(picked[i].Index), IsIPv6: v6})
 			if err != nil {
-				return nil, fmt.Errorf("sw_interface_get_table %s: %w", name, err)
+				return nil, fmt.Errorf("sw_interface_get_table %s: %w", picked[i].Name, err)
 			}
 			if v6 {
-				it.Table6 = r.VrfID
+				picked[i].Table6 = r.VrfID
 			} else {
-				it.Table4 = r.VrfID
+				picked[i].Table4 = r.VrfID
 			}
 		}
-		out = append(out, it)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out, nil
+	sort.Slice(picked, func(i, j int) bool { return picked[i].Name < picked[j].Name })
+	return picked, nil
+}
+
+// Owned reports whether name is one of owner's own (tagged) interfaces: the only interfaces besides the configured ones
+// a named ARP flush may touch (review M1).
+func Owned(ctx context.Context, c vpp.Client, owner, name string) (bool, error) {
+	t, err := iface.Dump(ctx, c, owner)
+	if err != nil {
+		return false, err
+	}
+	idx, err := t.IndexByName(name)
+	if err != nil {
+		return false, nil //nolint:nilerr // not nameable at all: certainly not ours
+	}
+	_, ours := t.OwnedID(idx)
+	return ours, nil
 }
 
 // Entry is one ARP/ND entry.
@@ -225,18 +253,9 @@ func List(ctx context.Context, c vpp.Client, owner string, q Query, vrfName func
 	case limit > MaxLimit:
 		return Page{}, fmt.Errorf("%w: limit %d exceeds %d", ErrInvalid, limit, MaxLimit)
 	}
-	ifs, err := Nameable(ctx, c, owner)
+	ifs, err := Nameable(ctx, c, owner, q.Interface)
 	if err != nil {
 		return Page{}, err
-	}
-	if q.Interface != "" {
-		var one []Iface
-		for _, it := range ifs {
-			if it.Name == q.Interface {
-				one = append(one, it)
-			}
-		}
-		ifs = one
 	}
 	search := strings.ToLower(q.Search)
 	var all []Entry

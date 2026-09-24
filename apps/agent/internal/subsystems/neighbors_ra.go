@@ -132,6 +132,9 @@ type NeighborWatchConfig struct {
 	Tick time.Duration
 	// Rescan is how often new or vanished interfaces are picked up (default 30 s).
 	Rescan time.Duration
+	// Early are extra rescans this long after the start (default 1 s and 5 s): Connected runs before the resync that
+	// re-creates this owner's interfaces after a VPP restart, so the first scan often sees none of them (review L2).
+	Early []time.Duration
 	// PID is the pid field of the subscriptions (default os.Getpid()).
 	PID uint32
 }
@@ -146,6 +149,9 @@ func RunNeighborWatch(ctx context.Context, cfg NeighborWatchConfig) {
 	}
 	if cfg.Rescan <= 0 {
 		cfg.Rescan = 30 * time.Second
+	}
+	if cfg.Early == nil {
+		cfg.Early = []time.Duration{time.Second, 5 * time.Second}
 	}
 	if cfg.PID == 0 {
 		cfg.PID = uint32(os.Getpid()) //nolint:gosec // G115: a Linux pid fits in 32 bits
@@ -189,7 +195,10 @@ func RunNeighborWatch(ctx context.Context, cfg NeighborWatchConfig) {
 				continue
 			}
 			delete(subscribed, idx)
-			if _, exists := t.Details(idx); exists { // gone interfaces took their watcher with them
+			// VPP keeps a watcher of a deleted interface (only unwatch or the client reaper removes it) and an unwatch of a
+			// gone index fails VALIDATE_SW_IF_INDEX, so only a still-existing index is unwatched; a reused index's events
+			// are dropped by the subscribed-name filter below.
+			if _, exists := t.Details(idx); exists {
 				_ = neighborsra.Subscribe(sctx, cfg.Client, idx, cfg.PID, false)
 			}
 		}
@@ -199,6 +208,18 @@ func RunNeighborWatch(ctx context.Context, cfg NeighborWatchConfig) {
 	defer tick.Stop()
 	again := time.NewTicker(cfg.Rescan)
 	defer again.Stop()
+	start := time.Now()
+	early := time.NewTimer(time.Hour)
+	defer early.Stop()
+	pending := append([]time.Duration(nil), cfg.Early...)
+	armEarly := func() {
+		if len(pending) > 0 {
+			early.Reset(max(0, pending[0]-time.Since(start)))
+			pending = pending[1:]
+		}
+	}
+	early.Stop()
+	armEarly()
 	var co neighborsra.Coalescer
 	for {
 		select {
@@ -221,6 +242,9 @@ func RunNeighborWatch(ctx context.Context, cfg NeighborWatchConfig) {
 			}
 		case <-again.C:
 			rescan()
+		case <-early.C:
+			rescan()
+			armEarly()
 		}
 	}
 }

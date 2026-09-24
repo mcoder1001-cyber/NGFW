@@ -9,4 +9,8 @@
 - api: VrfStaticEcmpController (`/state/routes`, operationId State_routes kept), Action bridge, fake behaviour, e2e PASS.
 - web: VRFs page, routing page (static routes + ECMP editor, FIB browser, ping), en/fa; merge-patch writes (Q-web: `%2F`).
 - incidents: VPP crash 18:41 (D-126/D-128: `show trace`, not this task; Q7 has slot 2's timeline).
-- left: CI (`tools/ci.sh --base main`), final status doc with evidence, cleanup.
+- 20:57 usage-limit stop; 22:40 salvage `bc83330` (config.e2e `actions answer 501` example: ping → reboot).
+- 22:42 continued: branch ci.sh run 1 hit the D-127 guard flake; main's ci.sh copy: every step green, only its new deploy/vpp
+  step failed (this branch's older harness, not touched here); 22:58 branch `tools/ci.sh --base main` → CI GATE PASSED (5m49s).
+- 23:09 cleanup evidence (no w2 objects in VPP, vrx_w2 absent, rig down, NRestarts 1 unchanged); status doc final.
+- left: nothing — waiting for the manager's merge (main merge + P08 dedupe is theirs, D-114/D-120).

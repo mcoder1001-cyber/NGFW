@@ -2,6 +2,10 @@
 
 Branch `task/F-vrf-static-ecmp` (worktree `/root/ngfw-wt/F-vrf-static-ecmp`, slot 2, base `task/W-seed@8b7558e`, merged
 `task/W-seed@df67a8e` at 18:05 on the manager's A1 safety update). Speculative base (D-114/D-120): **not merged with main**.
+Continued after the usage-limit stop 20:57 (salvage `bc83330`, manager ngfw-46): the salvaged hunk is the
+`config.e2e.test.ts` line below; no host run after the stop (none needed: every acceptance run was before it, on the
+W-seed@df67a8e merge). P08 landed on main as `c2ca3ed` meanwhile; this branch still carries it through W-seed (no main merge
+— that is the manager's merge, D-114/D-120).
 
 ## What was built
 
@@ -256,7 +260,71 @@ Screenshots (`docs/status/tasks/F-vrf-static-ecmp-screens/`, en + fa/RTL): `vrfs
 | W1 | `apps/web/src/router.tsx` | `/routing/vrfs` → `VrfsPage`, `/routing` → `RoutingPage` |
 | W2 | `apps/web/src/nav/nav.ts`, `nav.test.ts` | `'vrfs'`, `'routing'` in `BUILT_DOMAINS` and in the expected `available` list |
 | W3 | `apps/web/src/i18n.ts` | en/fa imports, namespace, resources |
+| — | `apps/api/test/e2e/config.e2e.test.ts` | `actions answer 501` example: `POST /actions/ping` (runs now, the Action bridge) → `POST /actions/reboot` (still 501); one hunk, not owned; needed (salvaged in `bc83330`) |
 | — | `apps/web/src/App.test.tsx` | the "not yet available" example moves from `/routing/vrfs` (built now) to `/system/management` (one hunk, not owned; needed) |
+
+## CI
+
+Branch gate, `TMPDIR=/tmp/g-w2 tools/ci.sh --base main` on `bc83330` (22:58–23:04, first attempt; the D-127 guard flake of
+Q12 did not hit):
+
+```
+== VRX CI gate: quick ==
+worktree  /root/ngfw-wt/F-vrf-static-ecmp
+branch    task/F-vrf-static-ecmp @ bc83330   (base: main)
+...
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   2m08s
+  forbidden patterns (+ gitleaks)                    0m07s
+  lint · typecheck · unit tests · build (turbo)   2m27s
+  apps/agent: make lint test build                   0m48s
+  apps/cli: make lint test build                     0m08s
+  test/ Go modules, unit mode (test/integration/smoke test/topology/interfaces test/topology/vrf-static-ecmp)   0m07s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      review(W-seed): verify
+  mode quick · wall time 5m49s · logs /tmp/g-w2/ci-logs/F-vrf-static-ecmp-20260924-225858-3816629
+
+CI GATE PASSED
+```
+
+(The warning is W-seed's commit, not this task's.) Before that, main's `tools/ci.sh` (7e2c272, the D-127/D-128b guard fix;
+run as a copy in this worktree, per the CONTINUE note) passed every step this branch's gate has — guard (`ok — contract
+commit(s) on the branch: 4fe7ae3 contract(proto): ListRoutes, 0435d87 contract(schema): …`), gen gate `clean`, forbidden
+patterns + gitleaks, turbo `30 successful, 30 total`, agent, CLI, test/ modules — and then failed only in its new
+`deploy/vpp` step (`apply-startup shard 2 died … shard 4 died`, 202 checks passed): that step is not in this branch's
+`ci.sh`, and it ran main's step against this branch's older `deploy/vpp/test-apply-startup.sh` (from the W-seed base,
+without shard support; this task does not touch `deploy/vpp`). It goes away with the main merge.
+
+## Cleanup (23:09)
+
+No process of slot 2 running (agent/API/vite of the topology run were stopped by PID in the run), lab lock not held,
+`vrx_w2` absent (`select count(*) from pg_database where datname like 'vrx_w2%'` → `0`), rig down (`ip netns list | grep -c w2`
+→ `0`), `NRestarts=1` (unchanged since the 18:41 `show trace` crash, D-128). Nothing of slot 2 in VPP:
+
+```
+$ vppctl show ip table
+[0] table_id:0 ipv4-VRF:0
+$ vppctl show ip6 table
+[0] table_id:0 ipv6-VRF:0
+$ vppctl show svs
+Source VRF select interface to fib-index mappings:
+ ipv4
+ ipv6
+$ vppctl show ip fib table 2021
+$ vppctl show ip fib table 2022
+$ vppctl show ip fib table 2100
+$ vppctl show ip fib table 2960
+$ vppctl show interface | grep -c -E 'loop22|w2'
+0
+$ vppctl show ip fib | grep -cE '^10\.2\.'
+0
+```
+
+`/run/vrx-test/w2/vse` (the topology run's logs + agent state), `dist/` and `apps/agent/bin` removed after this commit.
 
 ## Out of scope (not built)
 

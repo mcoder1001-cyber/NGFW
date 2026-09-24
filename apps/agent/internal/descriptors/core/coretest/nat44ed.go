@@ -5,8 +5,9 @@ package coretest
 // against the same fake as every other domain. It follows DF-3's per-package fake (descriptors/nat44ed/nat44ed_test.go)
 // and VPP 26.06's API handlers where the agent depends on them: pool addresses are stored one by one, static /
 // identity mappings bound to an interface are dumped twice (the resolved twin, then the to-resolve record), deletes
-// of static mappings match the endpoint (not the tag), sessions are dumped per user and deleted by the full ED
-// 5-tuple (nat44_ed_del_session: NO_SUCH_ENTRY otherwise, UNSUPPORTED while the plugin is disabled).
+// of static mappings match the endpoint (not the tag), sessions are dumped per user by address only (the VRF of the
+// request is ignored, as in VPP) and deleted by the full ED 5-tuple of the i2o flow (the NAT'd external end for
+// twice-NAT; NO_SUCH_ENTRY otherwise, UNSUPPORTED while the plugin is disabled).
 
 import (
 	"net/netip"
@@ -70,14 +71,28 @@ func (n *Nat44ED) enableLocked(r nat44_ed.Nat44EdPluginEnableDisable) {
 	n.Timeouts = nat_types.NatTimeouts{UDP: 300, TCPEstablished: 7440, TCPTransitory: 240, ICMP: 60}
 }
 
-// AddNatSession seeds one session (inside/outside/external endpoints in "a.b.c.d", host-order ports).
+// AddNatSession seeds one session (inside/outside/external endpoints in "a.b.c.d", host-order ports). Like VPP
+// (nat44_ed_api.c), a session without twice-NAT reports ext_host_nat 0.0.0.0:0.
 func (n *Nat44ED) AddNatSession(vrf uint32, proto uint16, in string, inPort uint16, out string, outPort uint16, ext string, extPort uint16) {
+	n.addSession(vrf, proto, in, inPort, out, outPort, ext, extPort, "", 0)
+}
+
+// AddTwiceNatSession seeds a twice-NAT session: extNat:extNatPort is the external host as the inside host addresses
+// it (the session's i2o flow and the key nat44_del_session looks up).
+func (n *Nat44ED) AddTwiceNatSession(vrf uint32, proto uint16, in string, inPort uint16, out string, outPort uint16, ext string, extPort uint16, extNat string, extNatPort uint16) {
+	n.addSession(vrf, proto, in, inPort, out, outPort, ext, extPort, extNat, extNatPort)
+}
+
+func (n *Nat44ED) addSession(vrf uint32, proto uint16, in string, inPort uint16, out string, outPort uint16, ext string, extPort uint16, extNat string, extNatPort uint16) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	d := nat44_ed.Nat44UserSessionV3Details{
 		InsideIPAddress: ip4(in), InsidePort: inPort, OutsideIPAddress: ip4(out), OutsidePort: outPort,
-		ExtHostAddress: ip4(ext), ExtHostPort: extPort, ExtHostNatAddress: ip4(ext), ExtHostNatPort: extPort,
+		ExtHostAddress: ip4(ext), ExtHostPort: extPort, ExtHostNatAddress: ip4(extNat), ExtHostNatPort: extNatPort,
 		Protocol: proto, TotalBytes: 100, TotalPkts: 2, TimeSinceLastHeard: 1,
+	}
+	if extNat != "" {
+		d.Flags |= nat_types.NAT_IS_TWICE_NAT
 	}
 	n.Sessions = append(n.Sessions, NatSession{VRF: vrf, Nat44UserSessionV3Details: d})
 }
@@ -491,7 +506,8 @@ func (v *VPP) installNat44ED() *Nat44ED {
 		n.SessionDumps++
 		var out []api.Message
 		for _, s := range n.Sessions {
-			if s.VRF == r.VrfID && s.InsideIPAddress == r.IPAddress {
+			// like vl_api_nat44_user_session_v3_dump_t_handler: the address only (VPP ignores the VRF here)
+			if s.InsideIPAddress == r.IPAddress {
 				d := s.Nat44UserSessionV3Details
 				out = append(out, &d)
 			}
@@ -506,8 +522,13 @@ func (v *VPP) installNat44ED() *Nat44ED {
 			return one(&nat44_ed.Nat44DelSessionReply{Retval: rv(api.UNSUPPORTED)})
 		}
 		for i, s := range n.Sessions {
+			// nat44_ed_del_session looks up the session's i2o flow: its remote end is ext_host_nat for twice-NAT
+			remote, remotePort := s.ExtHostAddress, s.ExtHostPort
+			if s.Flags&nat_types.NAT_IS_TWICE_NAT != 0 {
+				remote, remotePort = s.ExtHostNatAddress, s.ExtHostNatPort
+			}
 			if r.Flags&nat_types.NAT_IS_INSIDE != 0 && s.VRF == r.VrfID && s.InsideIPAddress == r.Address && s.InsidePort == r.Port &&
-				uint8(s.Protocol) == r.Protocol && s.ExtHostAddress == r.ExtHostAddress && s.ExtHostPort == r.ExtHostPort { //nolint:gosec // IP protocol numbers are 8-bit
+				uint8(s.Protocol) == r.Protocol && remote == r.ExtHostAddress && remotePort == r.ExtHostPort { //nolint:gosec // IP protocol numbers are 8-bit
 				n.Sessions = append(n.Sessions[:i], n.Sessions[i+1:]...)
 				return one(&nat44_ed.Nat44DelSessionReply{})
 			}

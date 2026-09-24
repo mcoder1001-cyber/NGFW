@@ -29,6 +29,10 @@ import (
 //     followed by such an if (review N2: `_ = d.quiesce(…)` does not count);
 //   - a string literal that matches cliDelete — the vppctl / cli_inband form, including the unique
 //     prefixes VPP's CLI accepts (`del host-int …`, review N1).
+//
+// Not a violation: AfPacketDelete as the asserted type of a type assertion (`m.(*afpapi.AfPacketDelete)`,
+// e.g. a fake VPP decoding a received request, D-118). An assertion only reads a message it was
+// handed; sending one still needs the service method or a request value, which stay flagged.
 
 const agentRoot = "../../.." // apps/agent
 
@@ -112,8 +116,13 @@ func scanV24File(fset *token.FileSet, f *ast.File) ([]v24Violation, int) {
 		}
 		return nil
 	}
+	asserted := map[*ast.Ident]bool{} // AfPacketDelete named as a type assertion's type (D-118)
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch x := n.(type) {
+		case *ast.TypeAssertExpr: // visited before its children
+			if id := assertedIdent(x.Type); id != nil {
+				asserted[id] = true
+			}
 		case *ast.BasicLit:
 			if x.Kind == token.STRING {
 				if s, err := strconv.Unquote(x.Value); err == nil && cliDelete.MatchString(s) {
@@ -121,7 +130,7 @@ func scanV24File(fset *token.FileSet, f *ast.File) ([]v24Violation, int) {
 				}
 			}
 		case *ast.Ident:
-			if x.Name != msgIdent {
+			if x.Name != msgIdent || asserted[x] {
 				return true
 			}
 			h := inHelper(x.Pos())
@@ -142,6 +151,25 @@ func scanV24File(fset *token.FileSet, f *ast.File) ([]v24Violation, int) {
 		return true
 	})
 	return out, sites
+}
+
+// assertedIdent returns the type name of a type assertion's asserted type — T, *T, pkg.T or *pkg.T
+// (parenthesised or not) — or nil (`.(type)` in a type switch, or any other type expression).
+func assertedIdent(t ast.Expr) *ast.Ident {
+	for {
+		switch x := t.(type) {
+		case *ast.ParenExpr:
+			t = x.X
+		case *ast.StarExpr:
+			t = x.X
+		case *ast.SelectorExpr:
+			return x.Sel
+		case *ast.Ident:
+			return x
+		default:
+			return nil
+		}
+	}
 }
 
 // isHelper reports whether fd is (*HostInterfaceDescriptor).quiescedDelete in package afpacket.
@@ -323,6 +351,25 @@ func (d *HostInterfaceDescriptor) quiescedDelete(ctx context.Context, dev string
 
 func Lose(ctx context.Context, svc afpapi.RPCService) { svc.AfPacketDelete(ctx, nil) }
 `,
+		// D-118: a fake VPP decoding a received request (type assertion) sends nothing — not flagged;
+		// a raw send of the decoded request and a type-switch case still are
+		"internal/descriptors/x/xtest/fakevpp.go": `package xtest
+
+func (v *VPP) install() {
+	v.On("af_packet_delete", func(m api.Message) ([]api.Message, error) {
+		req := m.(*afpapi.AfPacketDelete)
+		_ = m.((*AfPacketDelete))
+		return v.drop(req.HostIfName)
+	})
+}
+
+func (v *VPP) resend(ctx context.Context, svc afpapi.RPCService, m api.Message) {
+	svc.AfPacketDelete(ctx, m.(*afpapi.AfPacketDelete))
+	switch m.(type) {
+	case *afpapi.AfPacketDelete:
+	}
+}
+`,
 		// not scanned: tests and generated bindings
 		"internal/descriptors/x/raw_test.go":   "package x\n\nfunc TestX() { svc.AfPacketDelete(ctx, nil) }\n",
 		"binapi/af_packet/af_packet.ba.go":     "package af_packet\n\ntype AfPacketDelete struct{}\n\nfunc (m *AfPacketDelete) Reset() { *m = AfPacketDelete{} }\n",
@@ -358,6 +405,8 @@ func Lose(ctx context.Context, svc afpapi.RPCService) { svc.AfPacketDelete(ctx, 
 		"internal/descriptors/x/raw.go:6",               // new(AfPacketDelete)
 		"internal/descriptors/x/raw.go:7",               // vppctl "delete host-interface"
 		"internal/descriptors/x/raw.go:13",              // a quiescedDelete outside package afpacket
+		"internal/descriptors/x/xtest/fakevpp.go:12",    // a raw send of a decoded request (the assertion itself is not flagged, D-118)
+		"internal/descriptors/x/xtest/fakevpp.go:14",    // a type-switch case is not a type assertion
 		"internal/descriptors/x/xtest/fixture.go:3",     // a test-helper package
 	}
 	if !slices.Equal(got, want) {

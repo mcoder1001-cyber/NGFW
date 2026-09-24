@@ -46,6 +46,9 @@ export interface NavGroup {
   items: NavItem[];
 }
 
+/** Domains whose screen is built (the rest render "not yet available"); P08 adds interfaces. */
+export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>(['interfaces']);
+
 export function domainPath(key: RootKey): string {
   const group = DOMAIN_GROUP[key] ?? 'system';
   return group === key ? `/${key}` : `/${group}/${key}`;
@@ -79,7 +82,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
       labelKey: `nav:domains.${d.key}`,
       fallbackLabel: d.title,
       domain: d.key,
-      available: false,
+      available: BUILT_DOMAINS.has(d.key),
     });
   }
   groups.get('system')!.push(

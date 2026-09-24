@@ -944,6 +944,77 @@ export interface HealthResponse {
   reconcileInProgress: boolean;
 }
 
+/** InterfaceStateRequest selects interfaces by logical name. */
+export interface InterfaceStateRequest {
+  /** Logical names to include (configuration keys; sub-interfaces "<parent>.<sub id>"); empty = all. */
+  names: string[];
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+}
+
+/** InterfaceStateResponse is one snapshot of the interface table. */
+export interface InterfaceStateResponse {
+  /** One entry per interface, sorted by name. */
+  interfaces: InterfaceState[];
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the dump was taken (agent clock). */
+  retrievedAt: Date | undefined;
+}
+
+/** InterfaceState is the live state of one interface as VPP reports it (not configuration). */
+export interface InterfaceState {
+  /**
+   * Logical name (D-069): the configuration key; the tag id of interfaces this agent created,
+   * VPP's name for untagged ones.
+   */
+  name: string;
+  /** VPP's interface name (differs from `name` for some created interfaces, e.g. tap240). */
+  vppName: string;
+  /** VPP sw_if_index (runtime handle, changes when the interface is re-created). */
+  swIfIndex: number;
+  /**
+   * Kind: "loopback", "af-packet", "sub-interface", "tap", "bond", "memif", "dpdk" or VPP's device
+   * class name for anything else.
+   */
+  type: string;
+  /** Administrative state (sw_interface_details flags ADMIN_UP). */
+  adminUp: boolean;
+  /** Link (carrier) state (flags LINK_UP). */
+  linkUp: boolean;
+  /** L3 MTU in effect (software MTU; the link MTU when VPP reports 0). */
+  mtu: number;
+  /** Hardware (link) MTU. */
+  linkMtu: number;
+  /** L2 address, lower-case "aa:bb:cc:dd:ee:ff"; empty for interfaces without one. */
+  mac: string;
+  /** IPv4 addresses in CIDR notation, sorted. */
+  ipv4: string[];
+  /** IPv6 addresses in CIDR notation, sorted (link-local included when VPP reports it). */
+  ipv6: string[];
+  /**
+   * VRF name of the IPv4 table: "default" for table 0, the configured VRF name for this agent's
+   * tables, the table id as a decimal string otherwise.
+   */
+  vrf: string;
+  /** IPv4 FIB table id. */
+  tableId: number;
+  /** Logical name of the parent interface; set for sub-interfaces only. */
+  parent: string;
+  /** Outer VLAN id of a sub-interface; 0 otherwise. */
+  vlanId: number;
+  /** Inner VLAN id of a QinQ sub-interface; 0 otherwise. */
+  innerVlanId: number;
+  /** True when this agent created the interface or holds a claim on it (it manages attributes). */
+  managed: boolean;
+  /** Link speed in kbit/s as reported by the driver; 0 = unknown. */
+  linkSpeedKbps: string;
+  /** RX mode of queue 0: "polling", "interrupt" or "adaptive"; empty when VPP reports no queue. */
+  rxMode: string;
+  /** Description from this agent's stored desired state (VPP cannot store it, D-073b); empty if none. */
+  description: string;
+}
+
 /**
  * DesiredState is the whole configuration as the agent sees it. Domain messages are named
  * `<Key>Config` like the schema package's `<Key>Config` types; the two record-shaped domains
@@ -8794,6 +8865,636 @@ export const HealthResponse: MessageFns<HealthResponse> = {
     message.degraded = object.degraded ?? false;
     message.lastReconcileAt = object.lastReconcileAt ?? undefined;
     message.reconcileInProgress = object.reconcileInProgress ?? false;
+    return message;
+  },
+};
+
+function createBaseInterfaceStateRequest(): InterfaceStateRequest {
+  return { names: [], owner: "" };
+}
+
+export const InterfaceStateRequest: MessageFns<InterfaceStateRequest> = {
+  encode(message: InterfaceStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.names) {
+      writer.uint32(10).string(v!);
+    }
+    if (message.owner !== "") {
+      writer.uint32(18).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): InterfaceStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseInterfaceStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.names.push(reader.string());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): InterfaceStateRequest {
+    return {
+      names: globalThis.Array.isArray(object?.names) ? object.names.map((e: any) => globalThis.String(e)) : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+    };
+  },
+
+  toJSON(message: InterfaceStateRequest): unknown {
+    const obj: any = {};
+    if (message.names?.length) {
+      obj.names = message.names;
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<InterfaceStateRequest>): InterfaceStateRequest {
+    return InterfaceStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<InterfaceStateRequest>): InterfaceStateRequest {
+    const message = createBaseInterfaceStateRequest();
+    message.names = object.names?.map((e) => e) || [];
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseInterfaceStateResponse(): InterfaceStateResponse {
+  return { interfaces: [], owner: "", retrievedAt: undefined };
+}
+
+export const InterfaceStateResponse: MessageFns<InterfaceStateResponse> = {
+  encode(message: InterfaceStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.interfaces) {
+      InterfaceState.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.owner !== "") {
+      writer.uint32(18).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): InterfaceStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseInterfaceStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interfaces.push(InterfaceState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): InterfaceStateResponse {
+    return {
+      interfaces: globalThis.Array.isArray(object?.interfaces)
+        ? object.interfaces.map((e: any) => InterfaceState.fromJSON(e))
+        : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: InterfaceStateResponse): unknown {
+    const obj: any = {};
+    if (message.interfaces?.length) {
+      obj.interfaces = message.interfaces.map((e) => InterfaceState.toJSON(e));
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<InterfaceStateResponse>): InterfaceStateResponse {
+    return InterfaceStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<InterfaceStateResponse>): InterfaceStateResponse {
+    const message = createBaseInterfaceStateResponse();
+    message.interfaces = object.interfaces?.map((e) => InterfaceState.fromPartial(e)) || [];
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseInterfaceState(): InterfaceState {
+  return {
+    name: "",
+    vppName: "",
+    swIfIndex: 0,
+    type: "",
+    adminUp: false,
+    linkUp: false,
+    mtu: 0,
+    linkMtu: 0,
+    mac: "",
+    ipv4: [],
+    ipv6: [],
+    vrf: "",
+    tableId: 0,
+    parent: "",
+    vlanId: 0,
+    innerVlanId: 0,
+    managed: false,
+    linkSpeedKbps: "0",
+    rxMode: "",
+    description: "",
+  };
+}
+
+export const InterfaceState: MessageFns<InterfaceState> = {
+  encode(message: InterfaceState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.vppName !== "") {
+      writer.uint32(18).string(message.vppName);
+    }
+    if (message.swIfIndex !== 0) {
+      writer.uint32(24).uint32(message.swIfIndex);
+    }
+    if (message.type !== "") {
+      writer.uint32(34).string(message.type);
+    }
+    if (message.adminUp !== false) {
+      writer.uint32(40).bool(message.adminUp);
+    }
+    if (message.linkUp !== false) {
+      writer.uint32(48).bool(message.linkUp);
+    }
+    if (message.mtu !== 0) {
+      writer.uint32(56).uint32(message.mtu);
+    }
+    if (message.linkMtu !== 0) {
+      writer.uint32(64).uint32(message.linkMtu);
+    }
+    if (message.mac !== "") {
+      writer.uint32(74).string(message.mac);
+    }
+    for (const v of message.ipv4) {
+      writer.uint32(82).string(v!);
+    }
+    for (const v of message.ipv6) {
+      writer.uint32(90).string(v!);
+    }
+    if (message.vrf !== "") {
+      writer.uint32(98).string(message.vrf);
+    }
+    if (message.tableId !== 0) {
+      writer.uint32(104).uint32(message.tableId);
+    }
+    if (message.parent !== "") {
+      writer.uint32(114).string(message.parent);
+    }
+    if (message.vlanId !== 0) {
+      writer.uint32(120).uint32(message.vlanId);
+    }
+    if (message.innerVlanId !== 0) {
+      writer.uint32(128).uint32(message.innerVlanId);
+    }
+    if (message.managed !== false) {
+      writer.uint32(136).bool(message.managed);
+    }
+    if (message.linkSpeedKbps !== "0") {
+      writer.uint32(144).uint64(message.linkSpeedKbps);
+    }
+    if (message.rxMode !== "") {
+      writer.uint32(154).string(message.rxMode);
+    }
+    if (message.description !== "") {
+      writer.uint32(162).string(message.description);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): InterfaceState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseInterfaceState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.vppName = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.swIfIndex = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.adminUp = reader.bool();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.linkUp = reader.bool();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.mtu = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.linkMtu = reader.uint32();
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.mac = reader.string();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.ipv4.push(reader.string());
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.ipv6.push(reader.string());
+            continue;
+          }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 13: {
+            if (tag !== 104) {
+              break;
+            }
+
+            message.tableId = reader.uint32();
+            continue;
+          }
+          case 14: {
+            if (tag !== 114) {
+              break;
+            }
+
+            message.parent = reader.string();
+            continue;
+          }
+          case 15: {
+            if (tag !== 120) {
+              break;
+            }
+
+            message.vlanId = reader.uint32();
+            continue;
+          }
+          case 16: {
+            if (tag !== 128) {
+              break;
+            }
+
+            message.innerVlanId = reader.uint32();
+            continue;
+          }
+          case 17: {
+            if (tag !== 136) {
+              break;
+            }
+
+            message.managed = reader.bool();
+            continue;
+          }
+          case 18: {
+            if (tag !== 144) {
+              break;
+            }
+
+            message.linkSpeedKbps = reader.uint64().toString();
+            continue;
+          }
+          case 19: {
+            if (tag !== 154) {
+              break;
+            }
+
+            message.rxMode = reader.string();
+            continue;
+          }
+          case 20: {
+            if (tag !== 162) {
+              break;
+            }
+
+            message.description = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): InterfaceState {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      vppName: isSet(object.vppName)
+        ? globalThis.String(object.vppName)
+        : isSet(object.vpp_name)
+        ? globalThis.String(object.vpp_name)
+        : "",
+      swIfIndex: isSet(object.swIfIndex)
+        ? globalThis.Number(object.swIfIndex)
+        : isSet(object.sw_if_index)
+        ? globalThis.Number(object.sw_if_index)
+        : 0,
+      type: isSet(object.type) ? globalThis.String(object.type) : "",
+      adminUp: isSet(object.adminUp)
+        ? globalThis.Boolean(object.adminUp)
+        : isSet(object.admin_up)
+        ? globalThis.Boolean(object.admin_up)
+        : false,
+      linkUp: isSet(object.linkUp)
+        ? globalThis.Boolean(object.linkUp)
+        : isSet(object.link_up)
+        ? globalThis.Boolean(object.link_up)
+        : false,
+      mtu: isSet(object.mtu) ? globalThis.Number(object.mtu) : 0,
+      linkMtu: isSet(object.linkMtu)
+        ? globalThis.Number(object.linkMtu)
+        : isSet(object.link_mtu)
+        ? globalThis.Number(object.link_mtu)
+        : 0,
+      mac: isSet(object.mac) ? globalThis.String(object.mac) : "",
+      ipv4: globalThis.Array.isArray(object?.ipv4)
+        ? object.ipv4.map((e: any) => globalThis.String(e))
+        : [],
+      ipv6: globalThis.Array.isArray(object?.ipv6)
+        ? object.ipv6.map((e: any) => globalThis.String(e))
+        : [],
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : "",
+      tableId: isSet(object.tableId)
+        ? globalThis.Number(object.tableId)
+        : isSet(object.table_id)
+        ? globalThis.Number(object.table_id)
+        : 0,
+      parent: isSet(object.parent) ? globalThis.String(object.parent) : "",
+      vlanId: isSet(object.vlanId)
+        ? globalThis.Number(object.vlanId)
+        : isSet(object.vlan_id)
+        ? globalThis.Number(object.vlan_id)
+        : 0,
+      innerVlanId: isSet(object.innerVlanId)
+        ? globalThis.Number(object.innerVlanId)
+        : isSet(object.inner_vlan_id)
+        ? globalThis.Number(object.inner_vlan_id)
+        : 0,
+      managed: isSet(object.managed) ? globalThis.Boolean(object.managed) : false,
+      linkSpeedKbps: isSet(object.linkSpeedKbps)
+        ? globalThis.String(object.linkSpeedKbps)
+        : isSet(object.link_speed_kbps)
+        ? globalThis.String(object.link_speed_kbps)
+        : "0",
+      rxMode: isSet(object.rxMode)
+        ? globalThis.String(object.rxMode)
+        : isSet(object.rx_mode)
+        ? globalThis.String(object.rx_mode)
+        : "",
+      description: isSet(object.description) ? globalThis.String(object.description) : "",
+    };
+  },
+
+  toJSON(message: InterfaceState): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.vppName !== "") {
+      obj.vppName = message.vppName;
+    }
+    if (message.swIfIndex !== 0) {
+      obj.swIfIndex = Math.round(message.swIfIndex);
+    }
+    if (message.type !== "") {
+      obj.type = message.type;
+    }
+    if (message.adminUp !== false) {
+      obj.adminUp = message.adminUp;
+    }
+    if (message.linkUp !== false) {
+      obj.linkUp = message.linkUp;
+    }
+    if (message.mtu !== 0) {
+      obj.mtu = Math.round(message.mtu);
+    }
+    if (message.linkMtu !== 0) {
+      obj.linkMtu = Math.round(message.linkMtu);
+    }
+    if (message.mac !== "") {
+      obj.mac = message.mac;
+    }
+    if (message.ipv4?.length) {
+      obj.ipv4 = message.ipv4;
+    }
+    if (message.ipv6?.length) {
+      obj.ipv6 = message.ipv6;
+    }
+    if (message.vrf !== "") {
+      obj.vrf = message.vrf;
+    }
+    if (message.tableId !== 0) {
+      obj.tableId = Math.round(message.tableId);
+    }
+    if (message.parent !== "") {
+      obj.parent = message.parent;
+    }
+    if (message.vlanId !== 0) {
+      obj.vlanId = Math.round(message.vlanId);
+    }
+    if (message.innerVlanId !== 0) {
+      obj.innerVlanId = Math.round(message.innerVlanId);
+    }
+    if (message.managed !== false) {
+      obj.managed = message.managed;
+    }
+    if (message.linkSpeedKbps !== "0") {
+      obj.linkSpeedKbps = message.linkSpeedKbps;
+    }
+    if (message.rxMode !== "") {
+      obj.rxMode = message.rxMode;
+    }
+    if (message.description !== "") {
+      obj.description = message.description;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<InterfaceState>): InterfaceState {
+    return InterfaceState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<InterfaceState>): InterfaceState {
+    const message = createBaseInterfaceState();
+    message.name = object.name ?? "";
+    message.vppName = object.vppName ?? "";
+    message.swIfIndex = object.swIfIndex ?? 0;
+    message.type = object.type ?? "";
+    message.adminUp = object.adminUp ?? false;
+    message.linkUp = object.linkUp ?? false;
+    message.mtu = object.mtu ?? 0;
+    message.linkMtu = object.linkMtu ?? 0;
+    message.mac = object.mac ?? "";
+    message.ipv4 = object.ipv4?.map((e) => e) || [];
+    message.ipv6 = object.ipv6?.map((e) => e) || [];
+    message.vrf = object.vrf ?? "";
+    message.tableId = object.tableId ?? 0;
+    message.parent = object.parent ?? "";
+    message.vlanId = object.vlanId ?? 0;
+    message.innerVlanId = object.innerVlanId ?? 0;
+    message.managed = object.managed ?? false;
+    message.linkSpeedKbps = object.linkSpeedKbps ?? "0";
+    message.rxMode = object.rxMode ?? "";
+    message.description = object.description ?? "";
     return message;
   },
 };
@@ -42015,6 +42716,22 @@ export const DataplaneService = {
     responseSerialize: (value: HealthResponse): Buffer => Buffer.from(HealthResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): HealthResponse => HealthResponse.decode(value),
   },
+  /**
+   * InterfaceState dumps the live, read-only interface table (sw_if_index, type, admin/link state,
+   * MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
+   * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
+   */
+  interfaceState: {
+    path: "/vrx.v1.Dataplane/InterfaceState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: InterfaceStateRequest): Buffer =>
+      Buffer.from(InterfaceStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): InterfaceStateRequest => InterfaceStateRequest.decode(value),
+    responseSerialize: (value: InterfaceStateResponse): Buffer =>
+      Buffer.from(InterfaceStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -42054,6 +42771,12 @@ export interface DataplaneServer extends UntypedServiceImplementation {
   action: handleServerStreamingCall<ActionRequest, ActionOutput>;
   /** Health reports agent and VPP connectivity. Cheap; polled by the API. */
   health: handleUnaryCall<HealthRequest, HealthResponse>;
+  /**
+   * InterfaceState dumps the live, read-only interface table (sw_if_index, type, admin/link state,
+   * MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
+   * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
+   */
+  interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -42163,6 +42886,26 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: HealthResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * InterfaceState dumps the live, read-only interface table (sw_if_index, type, admin/link state,
+   * MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
+   * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
+   */
+  interfaceState(
+    request: InterfaceStateRequest,
+    callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  interfaceState(
+    request: InterfaceStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  interfaceState(
+    request: InterfaceStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
   ): ClientUnaryCall;
 }
 

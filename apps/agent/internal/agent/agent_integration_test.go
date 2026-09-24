@@ -66,11 +66,12 @@ func hostDoc(t *testing.T, owner string) (*vrxv1.DesiredState, *vrxv1.DesiredSta
 	    {"prefix": "10.%[5]d.101.0/24", "vrf": %[1]q, "nextHops": [{"address": "10.%[5]d.2.254", "interface": %[4]q, "weight": 1}]}
 	  ]}
 	}`, vrf, table, l1, l2, slot)
+	// Retrieve (desired.Assemble, P08) always reports admin state and promiscuous mode
 	canon := fmt.Sprintf(`{
 	  "vrfs": {%[1]q: {"id": %[2]d}},
 	  "interfaces": {
-	    %[3]q: {"vrf": %[1]q, "ipv4": ["10.%[5]d.1.1/24"], "ipv6": ["2001:db8:%[5]d::1/64"]},
-	    %[4]q: {"vrf": %[1]q, "ipv4": ["10.%[5]d.2.1/24"]}
+	    %[3]q: {"enabled": false, "promiscuous": false, "vrf": %[1]q, "ipv4": ["10.%[5]d.1.1/24"], "ipv6": ["2001:db8:%[5]d::1/64"]},
+	    %[4]q: {"enabled": false, "promiscuous": false, "vrf": %[1]q, "ipv4": ["10.%[5]d.2.1/24"]}
 	  },
 	  "routing": {"static": [
 	    {"prefix": "10.%[5]d.100.0/24", "vrf": %[1]q, "distance": 1, "blackhole": false, "nextHops": [{"address": "10.%[5]d.1.254", "weight": 1}]},
@@ -239,7 +240,8 @@ func TestAgentOnHost(t *testing.T) {
 	t.Logf("apply: %s", protojson.Format(resp.GetSummary()))
 	waitConverged(t, c, canonical, time.Now())
 	resp, err = c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-it-2", DesiredState: desired})
-	if err != nil || len(resp.GetResults()) != 0 || resp.GetSummary().GetUnchanged() != 10 {
+	// 12 = VRF + 2 loopbacks + 2 interface/<name> aliases (P08, D-065) + 2 table bindings + 3 addresses + 2 routes
+	if err != nil || len(resp.GetResults()) != 0 || resp.GetSummary().GetUnchanged() != 12 {
 		t.Fatalf("idempotent apply: %v %v", err, resp)
 	}
 	ifsBefore, _ := ownedOnHost(t, raw, owner)

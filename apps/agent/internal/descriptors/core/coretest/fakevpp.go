@@ -12,8 +12,8 @@ import (
 
 	"go.fd.io/govpp/api"
 
-	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/fib_types"
+	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
@@ -41,6 +41,19 @@ type Iface struct {
 	Table4  uint32
 	Table6  uint32
 	Addrs   map[string]bool // canonical "addr/len"
+	// P08 (ifext.go): the attributes DF-1's descriptors read and write.
+	AdminUp  bool
+	LinkMtu  uint16
+	Mtu      [4]uint32
+	RxMode   interface_types.RxMode
+	L2       [6]uint8
+	HostIf   string // af_packet: the Linux netdev
+	Sup      uint32 // sub-interface: parent sw_if_index
+	SubID    uint32
+	SubFlags interface_types.SubIfFlags
+	Outer    uint16
+	Inner    uint16
+	IsSub    bool
 }
 
 type tableKey struct {
@@ -64,19 +77,22 @@ type VPP struct {
 	// Internal are VPP-generated FIB entries (source id, e.g. 18 recursive-resolution, 4 interface,
 	// 15 adjacency); an API route on the same prefix is reported instead (API outranks them).
 	Internal map[routeKey]uint8
+	// mtuFilter (P08, SetMtuFilter) rewrites the MTU a sw_interface_set_mtu stores (fault injection).
+	mtuFilter func(swIfIndex uint32, mtu [4]uint32) [4]uint32
 }
 
 // New returns a model with local0 and the default tables.
 func New() *VPP {
 	v := &VPP{
-		Client: fake.New(fake.WithControlPingReply(&memclnt.ControlPingReply{})),
-		next:   1,
-		Ifaces: map[uint32]*Iface{0: {Index: 0, Name: "local0", DevType: "local", Addrs: map[string]bool{}}},
-		Tables: map[tableKey]string{{0, false}: "ipv4-VRF:0", {0, true}: "ipv6-VRF:0"},
+		Client:   fake.New(fake.WithControlPingReply(&memclnt.ControlPingReply{})),
+		next:     1,
+		Ifaces:   map[uint32]*Iface{0: {Index: 0, Name: "local0", DevType: "local", Addrs: map[string]bool{}}},
+		Tables:   map[tableKey]string{{0, false}: "ipv4-VRF:0", {0, true}: "ipv6-VRF:0"},
 		Routes:   map[routeKey]ip.IPRoute{},
 		Internal: map[routeKey]uint8{},
 	}
 	v.install()
+	v.installIfExt()             // P08: DF-1 attributes, af_packet, sub-interfaces, DHCP client dump
 	sanitizetest.Clean(v.Client) // interface creators sanitize the new sw_if_index (D-095)
 	return v
 }
@@ -102,7 +118,7 @@ func (v *VPP) install() {
 		}
 		idx := v.next
 		v.next++
-		v.Ifaces[idx] = &Iface{Index: idx, Name: name, DevType: "Loopback", Addrs: map[string]bool{}}
+		v.Ifaces[idx] = &Iface{Index: idx, Name: name, DevType: "Loopback", Addrs: map[string]bool{}, LinkMtu: 9000, Mtu: [4]uint32{9000}, RxMode: interface_types.RX_MODE_API_POLLING, L2: [6]uint8{0xde, 0xad, 0, 0, 0, uint8(idx)}} //nolint:gosec // G115: a fake MAC byte; test indexes are small
 		return reply(&interfaces.CreateLoopbackInstanceReply{SwIfIndex: interface_types.InterfaceIndex(idx)})
 	})
 	v.On("delete_loopback", func(m api.Message) ([]api.Message, error) {
@@ -137,7 +153,7 @@ func (v *VPP) install() {
 		var out []api.Message
 		for _, idx := range v.indexesLocked() {
 			i := v.Ifaces[idx]
-			out = append(out, &interfaces.SwInterfaceDetails{SwIfIndex: interface_types.InterfaceIndex(i.Index), InterfaceName: i.Name, InterfaceDevType: i.DevType, Tag: i.Tag})
+			out = append(out, detailsOf(i))
 		}
 		return out, nil
 	})

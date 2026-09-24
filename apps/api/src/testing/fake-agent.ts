@@ -660,6 +660,7 @@ export class FakeAgent {
       // wave-A: F-wireguard
       // wave-A: P12
       // wave-A: F-kea-dhcp-relay
+      dhcpLeases: (_call, cb) => cb({ code: status.UNIMPLEMENTED, details: 'unknown method DhcpLeases' }),
       // wave-A: F-unbound-chrony-syslog
     };
   }

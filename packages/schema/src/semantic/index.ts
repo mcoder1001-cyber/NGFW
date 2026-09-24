@@ -42,6 +42,7 @@ import { managementValidators } from './management.js';
 // wave-A: F-wireguard
 // wave-A: P12
 // wave-A: F-kea-dhcp-relay
+import { keaDhcpRelayValidators } from './kea-dhcp-relay.js';
 // wave-A: F-unbound-chrony-syslog
 
 export * from './registry.js';
@@ -93,6 +94,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-A: F-wireguard
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
+  ...keaDhcpRelayValidators,
   // wave-A: F-unbound-chrony-syslog
 ];
 

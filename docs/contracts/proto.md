@@ -363,4 +363,29 @@ never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
 <!-- wave-A: F-wireguard -->
 <!-- wave-A: P12 -->
 <!-- wave-A: F-kea-dhcp-relay -->
+
+### F-kea-dhcp-relay: DhcpLeases
+
+`rpc DhcpLeases(DhcpLeasesRequest) returns (DhcpLeasesResponse)` — read-only DHCP status, never part of Retrieve (§5).
+
+- **Kea leases** (`interface` empty): the agent pages the leases of kea-dhcp4 / kea-dhcp6 with `lease4-get-page` /
+  `lease6-get-page` over the daemons' own unix control sockets (D-079; 1000 leases per message, at most 100 000 per
+  family per call — `truncated` says more exist), keeps those of `server` (a `services.dhcp.servers` key, matched
+  through the subnet ids of the running configuration) and `family`, applies `filter` (case-insensitive substring of
+  address, hardware address, client id / DUID, hostname), sorts by family then address and returns page `page`
+  (1-based, 0 = 1) of `page_size` (1–1000, 0 = 100). `total` counts the matching leases read.
+- `servers[]`: one `DhcpServerStatus` per daemon (only the requested family when `family` is set): `running` (the
+  control socket answers), `active` (its configuration binds interfaces), `action_required` = `"start"` when the
+  configuration binds interfaces and the daemon is not running (derived on every read, so it persists until acted on —
+  D-079), and per-subnet pool usage from `statistic-get-all` (`subnet[<id>].total-addresses` / `assigned-addresses` /
+  `declined-addresses`; DHCPv6: `total-nas` / `assigned-nas` / `declined-addresses`), subnets named from the
+  `user-context` the renderer writes. A daemon that cannot be read has `error` set; the call itself does not fail.
+- **VPP DHCPv4 client** (`interface` set): `client` is the `dhcp_client_dump` state of that logical interface
+  (`configured` false when the interface runs no client); `leases`/`servers` are empty. Interfaces of another owner
+  are never reported (same filter as Retrieve).
+- Errors: `INVALID_ARGUMENT` for a bad family, page size or owner mismatch; `UNAVAILABLE` when VPP is not connected
+  (client form only — the Kea form works without VPP); `UNIMPLEMENTED` from an agent without the `services` domain.
+- API: `GET /api/v1/state/dhcp/leases?server&family&page&pageSize&filter`,
+  `GET /api/v1/state/interfaces/{name}/dhcp-client`; relays come from Retrieve (`GET /api/v1/state/dhcp/relays`).
+
 <!-- wave-A: F-unbound-chrony-syslog -->

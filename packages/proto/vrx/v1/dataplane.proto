@@ -106,6 +106,12 @@ service Dataplane {
   // wave-A: F-wireguard
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
+
+  // DhcpLeases (F-kea-dhcp-relay) pages the Kea DHCPv4/v6 leases (lease4/6-get-page, filtered and paged by the
+  // agent, never the whole lease file) with the daemons' status and per-subnet pool usage, or — with `interface` —
+  // the VPP DHCPv4 client lease of one interface. Read-only status, never part of Retrieve (§5).
+  rpc DhcpLeases(DhcpLeasesRequest) returns (DhcpLeasesResponse);
+
   // wave-A: F-unbound-chrony-syslog
 }
 
@@ -3588,6 +3594,138 @@ message RemoteAccessProfile {
 // ----- P12 -----
 
 // ----- F-kea-dhcp-relay -----
+
+// DhcpLeasesRequest selects Kea leases (paged by the agent) or, with `interface` set, the VPP DHCPv4 client state
+// of that interface.
+message DhcpLeasesRequest {
+  // Must be empty or equal to the agent's owner (§6).
+  string owner = 1;
+  // Kea server name (`services.dhcp.servers` key): only leases of its subnets; empty = every server.
+  string server = 2;
+  // "ipv4" or "ipv6"; empty = both families.
+  string family = 3;
+  // 1-based page number; 0 = 1.
+  uint32 page = 4;
+  // Leases per page, 1–1000; 0 = 100.
+  uint32 page_size = 5;
+  // Case-insensitive substring of the address, hardware address, client id / DUID or hostname; empty = all.
+  string filter = 6;
+  // Logical interface name: return the VPP DHCPv4 client state of this interface (`client`) instead of Kea leases.
+  string interface = 7;
+}
+
+// DhcpLease is one Kea lease (lease4-get-page / lease6-get-page).
+message DhcpLease {
+  // "ipv4" or "ipv6".
+  string family = 1;
+  // Leased address (IA_PD: the delegated prefix without its length).
+  string address = 2;
+  // Client hardware address, lower-case "aa:bb:cc:dd:ee:ff" (empty when Kea has none).
+  string hw_address = 3;
+  // DHCPv4 client identifier as colon-separated hex (empty when the client sent none).
+  string client_id = 4;
+  // DHCPv6 DUID as colon-separated hex.
+  string duid = 5;
+  // Client hostname (option 12 / FQDN) as Kea stored it.
+  string hostname = 6;
+  // `services.dhcp.servers` key of the lease's subnet; empty when the subnet is not one of this agent's.
+  string server = 7;
+  // Subnet name (`…servers.<server>.subnets` key); empty when unknown.
+  string subnet = 8;
+  // Kea subnet id.
+  uint32 subnet_id = 9;
+  // Valid lifetime in seconds.
+  uint32 valid_lifetime_sec = 10;
+  // Expiry: client last transaction time + valid lifetime.
+  google.protobuf.Timestamp expires_at = 11;
+  // Kea lease state: "default", "declined", "expired-reclaimed" or "state-<n>".
+  string state = 12;
+  // DHCPv6 lease type "IA_NA" / "IA_PD"; empty for DHCPv4.
+  string lease_type = 13;
+  // Delegated prefix length (IA_PD); 0 otherwise.
+  uint32 prefix_len = 14;
+}
+
+// DhcpSubnetUsage is the pool usage of one Kea subnet (statistic-get-all: total/assigned/declined addresses;
+// DHCPv6 counts IA_NA addresses).
+message DhcpSubnetUsage {
+  // `services.dhcp.servers` key.
+  string server = 1;
+  // Subnet name.
+  string subnet = 2;
+  // Subnet prefix (CIDR).
+  string prefix = 3;
+  // Kea subnet id.
+  uint32 subnet_id = 4;
+  // Addresses in the subnet's pools.
+  uint64 total = 5;
+  // Addresses leased.
+  uint64 assigned = 6;
+  // Addresses declined by clients.
+  uint64 declined = 7;
+}
+
+// DhcpServerStatus is the state of one Kea daemon (kea-dhcp4 or kea-dhcp6) as the agent reads it over the
+// daemon's own unix control socket (D-079).
+message DhcpServerStatus {
+  // "ipv4" (kea-dhcp4) or "ipv6" (kea-dhcp6).
+  string family = 1;
+  // The control socket answers.
+  bool running = 2;
+  // The configuration the daemon runs (or loads when it starts) binds at least one interface.
+  bool active = 3;
+  // "start" when the daemon must be started for its configuration to take effect; empty otherwise. Derived on every
+  // read, so it is repeated until acted on (D-079).
+  string action_required = 4;
+  // Seconds since the daemon (re)loaded its configuration (status-get "reload"); 0 when unknown.
+  uint64 reload_sec = 5;
+  // Per-subnet pool usage of this agent's subnets.
+  repeated DhcpSubnetUsage subnets = 6;
+  // Why the daemon could not be read; empty on success.
+  string error = 7;
+}
+
+// DhcpClientLease is the VPP DHCPv4 client of one interface (dhcp_client_dump; status, never desired state).
+message DhcpClientLease {
+  // Logical interface name.
+  string interface = 1;
+  // A DHCPv4 client is configured on the interface.
+  bool configured = 2;
+  // Client state: "DISCOVER", "REQUEST" or "BOUND"; empty when not configured.
+  string state = 3;
+  // Leased address in CIDR notation; empty until bound.
+  string address = 4;
+  // Default router from the lease; empty when none.
+  string router = 5;
+  // DNS servers from the lease.
+  repeated string dns_servers = 6;
+  // Hostname the client sends.
+  string hostname = 7;
+  // MAC address the client uses, lower-case.
+  string mac = 8;
+}
+
+// DhcpLeasesResponse is one page of leases plus the daemons' status, or the client state of one interface.
+message DhcpLeasesResponse {
+  // The agent's owner.
+  string owner = 1;
+  // The page of leases (sorted by family, then address).
+  repeated DhcpLease leases = 2;
+  // Page number returned (1-based).
+  uint32 page = 3;
+  // Page size used.
+  uint32 page_size = 4;
+  // Leases matching server/family/filter among those read (see truncated).
+  uint32 total = 5;
+  // The agent stopped reading at its bound (100 000 leases per family): more leases exist than total counts.
+  bool truncated = 6;
+  // kea-dhcp4 and kea-dhcp6 status (only the requested family when family is set).
+  repeated DhcpServerStatus servers = 7;
+  // The DHCPv4 client state when the request named an interface.
+  DhcpClientLease client = 8;
+  // When the agent read the state.
+  google.protobuf.Timestamp retrieved_at = 9;
+}
 
 // ----- F-unbound-chrony-syslog -----
 

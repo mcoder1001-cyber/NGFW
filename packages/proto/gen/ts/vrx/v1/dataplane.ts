@@ -5276,6 +5276,150 @@ export interface RemoteAccessProfile_Radius_Server {
   secretRef?: string | undefined;
 }
 
+/**
+ * DhcpLeasesRequest selects Kea leases (paged by the agent) or, with `interface` set, the VPP DHCPv4 client state
+ * of that interface.
+ */
+export interface DhcpLeasesRequest {
+  /** Must be empty or equal to the agent's owner (§6). */
+  owner: string;
+  /** Kea server name (`services.dhcp.servers` key): only leases of its subnets; empty = every server. */
+  server: string;
+  /** "ipv4" or "ipv6"; empty = both families. */
+  family: string;
+  /** 1-based page number; 0 = 1. */
+  page: number;
+  /** Leases per page, 1–1000; 0 = 100. */
+  pageSize: number;
+  /** Case-insensitive substring of the address, hardware address, client id / DUID or hostname; empty = all. */
+  filter: string;
+  /** Logical interface name: return the VPP DHCPv4 client state of this interface (`client`) instead of Kea leases. */
+  interface: string;
+}
+
+/** DhcpLease is one Kea lease (lease4-get-page / lease6-get-page). */
+export interface DhcpLease {
+  /** "ipv4" or "ipv6". */
+  family: string;
+  /** Leased address (IA_PD: the delegated prefix without its length). */
+  address: string;
+  /** Client hardware address, lower-case "aa:bb:cc:dd:ee:ff" (empty when Kea has none). */
+  hwAddress: string;
+  /** DHCPv4 client identifier as colon-separated hex (empty when the client sent none). */
+  clientId: string;
+  /** DHCPv6 DUID as colon-separated hex. */
+  duid: string;
+  /** Client hostname (option 12 / FQDN) as Kea stored it. */
+  hostname: string;
+  /** `services.dhcp.servers` key of the lease's subnet; empty when the subnet is not one of this agent's. */
+  server: string;
+  /** Subnet name (`…servers.<server>.subnets` key); empty when unknown. */
+  subnet: string;
+  /** Kea subnet id. */
+  subnetId: number;
+  /** Valid lifetime in seconds. */
+  validLifetimeSec: number;
+  /** Expiry: client last transaction time + valid lifetime. */
+  expiresAt:
+    | Date
+    | undefined;
+  /** Kea lease state: "default", "declined", "expired-reclaimed" or "state-<n>". */
+  state: string;
+  /** DHCPv6 lease type "IA_NA" / "IA_PD"; empty for DHCPv4. */
+  leaseType: string;
+  /** Delegated prefix length (IA_PD); 0 otherwise. */
+  prefixLen: number;
+}
+
+/**
+ * DhcpSubnetUsage is the pool usage of one Kea subnet (statistic-get-all: total/assigned/declined addresses;
+ * DHCPv6 counts IA_NA addresses).
+ */
+export interface DhcpSubnetUsage {
+  /** `services.dhcp.servers` key. */
+  server: string;
+  /** Subnet name. */
+  subnet: string;
+  /** Subnet prefix (CIDR). */
+  prefix: string;
+  /** Kea subnet id. */
+  subnetId: number;
+  /** Addresses in the subnet's pools. */
+  total: string;
+  /** Addresses leased. */
+  assigned: string;
+  /** Addresses declined by clients. */
+  declined: string;
+}
+
+/**
+ * DhcpServerStatus is the state of one Kea daemon (kea-dhcp4 or kea-dhcp6) as the agent reads it over the
+ * daemon's own unix control socket (D-079).
+ */
+export interface DhcpServerStatus {
+  /** "ipv4" (kea-dhcp4) or "ipv6" (kea-dhcp6). */
+  family: string;
+  /** The control socket answers. */
+  running: boolean;
+  /** The configuration the daemon runs (or loads when it starts) binds at least one interface. */
+  active: boolean;
+  /**
+   * "start" when the daemon must be started for its configuration to take effect; empty otherwise. Derived on every
+   * read, so it is repeated until acted on (D-079).
+   */
+  actionRequired: string;
+  /** Seconds since the daemon (re)loaded its configuration (status-get "reload"); 0 when unknown. */
+  reloadSec: string;
+  /** Per-subnet pool usage of this agent's subnets. */
+  subnets: DhcpSubnetUsage[];
+  /** Why the daemon could not be read; empty on success. */
+  error: string;
+}
+
+/** DhcpClientLease is the VPP DHCPv4 client of one interface (dhcp_client_dump; status, never desired state). */
+export interface DhcpClientLease {
+  /** Logical interface name. */
+  interface: string;
+  /** A DHCPv4 client is configured on the interface. */
+  configured: boolean;
+  /** Client state: "DISCOVER", "REQUEST" or "BOUND"; empty when not configured. */
+  state: string;
+  /** Leased address in CIDR notation; empty until bound. */
+  address: string;
+  /** Default router from the lease; empty when none. */
+  router: string;
+  /** DNS servers from the lease. */
+  dnsServers: string[];
+  /** Hostname the client sends. */
+  hostname: string;
+  /** MAC address the client uses, lower-case. */
+  mac: string;
+}
+
+/** DhcpLeasesResponse is one page of leases plus the daemons' status, or the client state of one interface. */
+export interface DhcpLeasesResponse {
+  /** The agent's owner. */
+  owner: string;
+  /** The page of leases (sorted by family, then address). */
+  leases: DhcpLease[];
+  /** Page number returned (1-based). */
+  page: number;
+  /** Page size used. */
+  pageSize: number;
+  /** Leases matching server/family/filter among those read (see truncated). */
+  total: number;
+  /** The agent stopped reading at its bound (100 000 leases per family): more leases exist than total counts. */
+  truncated: boolean;
+  /** kea-dhcp4 and kea-dhcp6 status (only the requested family when family is set). */
+  servers: DhcpServerStatus[];
+  /** The DHCPv4 client state when the request named an interface. */
+  client:
+    | DhcpClientLease
+    | undefined;
+  /** When the agent read the state. */
+  retrievedAt: Date | undefined;
+}
+
 function createBaseApplyRequest(): ApplyRequest {
   return { txnId: "", desiredState: undefined, subsystems: [], confirmTimeoutSec: 0, confirmTxnId: "", owner: "" };
 }
@@ -42617,6 +42761,1252 @@ export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_R
   },
 };
 
+function createBaseDhcpLeasesRequest(): DhcpLeasesRequest {
+  return { owner: "", server: "", family: "", page: 0, pageSize: 0, filter: "", interface: "" };
+}
+
+export const DhcpLeasesRequest: MessageFns<DhcpLeasesRequest> = {
+  encode(message: DhcpLeasesRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.server !== "") {
+      writer.uint32(18).string(message.server);
+    }
+    if (message.family !== "") {
+      writer.uint32(26).string(message.family);
+    }
+    if (message.page !== 0) {
+      writer.uint32(32).uint32(message.page);
+    }
+    if (message.pageSize !== 0) {
+      writer.uint32(40).uint32(message.pageSize);
+    }
+    if (message.filter !== "") {
+      writer.uint32(50).string(message.filter);
+    }
+    if (message.interface !== "") {
+      writer.uint32(58).string(message.interface);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DhcpLeasesRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDhcpLeasesRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.server = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.family = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.page = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.pageSize = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.filter = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DhcpLeasesRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      server: isSet(object.server) ? globalThis.String(object.server) : "",
+      family: isSet(object.family) ? globalThis.String(object.family) : "",
+      page: isSet(object.page) ? globalThis.Number(object.page) : 0,
+      pageSize: isSet(object.pageSize)
+        ? globalThis.Number(object.pageSize)
+        : isSet(object.page_size)
+        ? globalThis.Number(object.page_size)
+        : 0,
+      filter: isSet(object.filter) ? globalThis.String(object.filter) : "",
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+    };
+  },
+
+  toJSON(message: DhcpLeasesRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.server !== "") {
+      obj.server = message.server;
+    }
+    if (message.family !== "") {
+      obj.family = message.family;
+    }
+    if (message.page !== 0) {
+      obj.page = Math.round(message.page);
+    }
+    if (message.pageSize !== 0) {
+      obj.pageSize = Math.round(message.pageSize);
+    }
+    if (message.filter !== "") {
+      obj.filter = message.filter;
+    }
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DhcpLeasesRequest>): DhcpLeasesRequest {
+    return DhcpLeasesRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DhcpLeasesRequest>): DhcpLeasesRequest {
+    const message = createBaseDhcpLeasesRequest();
+    message.owner = object.owner ?? "";
+    message.server = object.server ?? "";
+    message.family = object.family ?? "";
+    message.page = object.page ?? 0;
+    message.pageSize = object.pageSize ?? 0;
+    message.filter = object.filter ?? "";
+    message.interface = object.interface ?? "";
+    return message;
+  },
+};
+
+function createBaseDhcpLease(): DhcpLease {
+  return {
+    family: "",
+    address: "",
+    hwAddress: "",
+    clientId: "",
+    duid: "",
+    hostname: "",
+    server: "",
+    subnet: "",
+    subnetId: 0,
+    validLifetimeSec: 0,
+    expiresAt: undefined,
+    state: "",
+    leaseType: "",
+    prefixLen: 0,
+  };
+}
+
+export const DhcpLease: MessageFns<DhcpLease> = {
+  encode(message: DhcpLease, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.family !== "") {
+      writer.uint32(10).string(message.family);
+    }
+    if (message.address !== "") {
+      writer.uint32(18).string(message.address);
+    }
+    if (message.hwAddress !== "") {
+      writer.uint32(26).string(message.hwAddress);
+    }
+    if (message.clientId !== "") {
+      writer.uint32(34).string(message.clientId);
+    }
+    if (message.duid !== "") {
+      writer.uint32(42).string(message.duid);
+    }
+    if (message.hostname !== "") {
+      writer.uint32(50).string(message.hostname);
+    }
+    if (message.server !== "") {
+      writer.uint32(58).string(message.server);
+    }
+    if (message.subnet !== "") {
+      writer.uint32(66).string(message.subnet);
+    }
+    if (message.subnetId !== 0) {
+      writer.uint32(72).uint32(message.subnetId);
+    }
+    if (message.validLifetimeSec !== 0) {
+      writer.uint32(80).uint32(message.validLifetimeSec);
+    }
+    if (message.expiresAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.expiresAt), writer.uint32(90).fork()).join();
+    }
+    if (message.state !== "") {
+      writer.uint32(98).string(message.state);
+    }
+    if (message.leaseType !== "") {
+      writer.uint32(106).string(message.leaseType);
+    }
+    if (message.prefixLen !== 0) {
+      writer.uint32(112).uint32(message.prefixLen);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DhcpLease {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDhcpLease();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.family = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.hwAddress = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.clientId = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.duid = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.hostname = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.server = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.subnet = reader.string();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.subnetId = reader.uint32();
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.validLifetimeSec = reader.uint32();
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.expiresAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.state = reader.string();
+            continue;
+          }
+          case 13: {
+            if (tag !== 106) {
+              break;
+            }
+
+            message.leaseType = reader.string();
+            continue;
+          }
+          case 14: {
+            if (tag !== 112) {
+              break;
+            }
+
+            message.prefixLen = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DhcpLease {
+    return {
+      family: isSet(object.family) ? globalThis.String(object.family) : "",
+      address: isSet(object.address) ? globalThis.String(object.address) : "",
+      hwAddress: isSet(object.hwAddress)
+        ? globalThis.String(object.hwAddress)
+        : isSet(object.hw_address)
+        ? globalThis.String(object.hw_address)
+        : "",
+      clientId: isSet(object.clientId)
+        ? globalThis.String(object.clientId)
+        : isSet(object.client_id)
+        ? globalThis.String(object.client_id)
+        : "",
+      duid: isSet(object.duid) ? globalThis.String(object.duid) : "",
+      hostname: isSet(object.hostname) ? globalThis.String(object.hostname) : "",
+      server: isSet(object.server) ? globalThis.String(object.server) : "",
+      subnet: isSet(object.subnet) ? globalThis.String(object.subnet) : "",
+      subnetId: isSet(object.subnetId)
+        ? globalThis.Number(object.subnetId)
+        : isSet(object.subnet_id)
+        ? globalThis.Number(object.subnet_id)
+        : 0,
+      validLifetimeSec: isSet(object.validLifetimeSec)
+        ? globalThis.Number(object.validLifetimeSec)
+        : isSet(object.valid_lifetime_sec)
+        ? globalThis.Number(object.valid_lifetime_sec)
+        : 0,
+      expiresAt: isSet(object.expiresAt)
+        ? fromJsonTimestamp(object.expiresAt)
+        : isSet(object.expires_at)
+        ? fromJsonTimestamp(object.expires_at)
+        : undefined,
+      state: isSet(object.state) ? globalThis.String(object.state) : "",
+      leaseType: isSet(object.leaseType)
+        ? globalThis.String(object.leaseType)
+        : isSet(object.lease_type)
+        ? globalThis.String(object.lease_type)
+        : "",
+      prefixLen: isSet(object.prefixLen)
+        ? globalThis.Number(object.prefixLen)
+        : isSet(object.prefix_len)
+        ? globalThis.Number(object.prefix_len)
+        : 0,
+    };
+  },
+
+  toJSON(message: DhcpLease): unknown {
+    const obj: any = {};
+    if (message.family !== "") {
+      obj.family = message.family;
+    }
+    if (message.address !== "") {
+      obj.address = message.address;
+    }
+    if (message.hwAddress !== "") {
+      obj.hwAddress = message.hwAddress;
+    }
+    if (message.clientId !== "") {
+      obj.clientId = message.clientId;
+    }
+    if (message.duid !== "") {
+      obj.duid = message.duid;
+    }
+    if (message.hostname !== "") {
+      obj.hostname = message.hostname;
+    }
+    if (message.server !== "") {
+      obj.server = message.server;
+    }
+    if (message.subnet !== "") {
+      obj.subnet = message.subnet;
+    }
+    if (message.subnetId !== 0) {
+      obj.subnetId = Math.round(message.subnetId);
+    }
+    if (message.validLifetimeSec !== 0) {
+      obj.validLifetimeSec = Math.round(message.validLifetimeSec);
+    }
+    if (message.expiresAt !== undefined) {
+      obj.expiresAt = message.expiresAt.toISOString();
+    }
+    if (message.state !== "") {
+      obj.state = message.state;
+    }
+    if (message.leaseType !== "") {
+      obj.leaseType = message.leaseType;
+    }
+    if (message.prefixLen !== 0) {
+      obj.prefixLen = Math.round(message.prefixLen);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DhcpLease>): DhcpLease {
+    return DhcpLease.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DhcpLease>): DhcpLease {
+    const message = createBaseDhcpLease();
+    message.family = object.family ?? "";
+    message.address = object.address ?? "";
+    message.hwAddress = object.hwAddress ?? "";
+    message.clientId = object.clientId ?? "";
+    message.duid = object.duid ?? "";
+    message.hostname = object.hostname ?? "";
+    message.server = object.server ?? "";
+    message.subnet = object.subnet ?? "";
+    message.subnetId = object.subnetId ?? 0;
+    message.validLifetimeSec = object.validLifetimeSec ?? 0;
+    message.expiresAt = object.expiresAt ?? undefined;
+    message.state = object.state ?? "";
+    message.leaseType = object.leaseType ?? "";
+    message.prefixLen = object.prefixLen ?? 0;
+    return message;
+  },
+};
+
+function createBaseDhcpSubnetUsage(): DhcpSubnetUsage {
+  return { server: "", subnet: "", prefix: "", subnetId: 0, total: "0", assigned: "0", declined: "0" };
+}
+
+export const DhcpSubnetUsage: MessageFns<DhcpSubnetUsage> = {
+  encode(message: DhcpSubnetUsage, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.server !== "") {
+      writer.uint32(10).string(message.server);
+    }
+    if (message.subnet !== "") {
+      writer.uint32(18).string(message.subnet);
+    }
+    if (message.prefix !== "") {
+      writer.uint32(26).string(message.prefix);
+    }
+    if (message.subnetId !== 0) {
+      writer.uint32(32).uint32(message.subnetId);
+    }
+    if (message.total !== "0") {
+      writer.uint32(40).uint64(message.total);
+    }
+    if (message.assigned !== "0") {
+      writer.uint32(48).uint64(message.assigned);
+    }
+    if (message.declined !== "0") {
+      writer.uint32(56).uint64(message.declined);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DhcpSubnetUsage {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDhcpSubnetUsage();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.server = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.subnet = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.subnetId = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.total = reader.uint64().toString();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.assigned = reader.uint64().toString();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.declined = reader.uint64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DhcpSubnetUsage {
+    return {
+      server: isSet(object.server) ? globalThis.String(object.server) : "",
+      subnet: isSet(object.subnet) ? globalThis.String(object.subnet) : "",
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : "",
+      subnetId: isSet(object.subnetId)
+        ? globalThis.Number(object.subnetId)
+        : isSet(object.subnet_id)
+        ? globalThis.Number(object.subnet_id)
+        : 0,
+      total: isSet(object.total) ? globalThis.String(object.total) : "0",
+      assigned: isSet(object.assigned) ? globalThis.String(object.assigned) : "0",
+      declined: isSet(object.declined) ? globalThis.String(object.declined) : "0",
+    };
+  },
+
+  toJSON(message: DhcpSubnetUsage): unknown {
+    const obj: any = {};
+    if (message.server !== "") {
+      obj.server = message.server;
+    }
+    if (message.subnet !== "") {
+      obj.subnet = message.subnet;
+    }
+    if (message.prefix !== "") {
+      obj.prefix = message.prefix;
+    }
+    if (message.subnetId !== 0) {
+      obj.subnetId = Math.round(message.subnetId);
+    }
+    if (message.total !== "0") {
+      obj.total = message.total;
+    }
+    if (message.assigned !== "0") {
+      obj.assigned = message.assigned;
+    }
+    if (message.declined !== "0") {
+      obj.declined = message.declined;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DhcpSubnetUsage>): DhcpSubnetUsage {
+    return DhcpSubnetUsage.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DhcpSubnetUsage>): DhcpSubnetUsage {
+    const message = createBaseDhcpSubnetUsage();
+    message.server = object.server ?? "";
+    message.subnet = object.subnet ?? "";
+    message.prefix = object.prefix ?? "";
+    message.subnetId = object.subnetId ?? 0;
+    message.total = object.total ?? "0";
+    message.assigned = object.assigned ?? "0";
+    message.declined = object.declined ?? "0";
+    return message;
+  },
+};
+
+function createBaseDhcpServerStatus(): DhcpServerStatus {
+  return { family: "", running: false, active: false, actionRequired: "", reloadSec: "0", subnets: [], error: "" };
+}
+
+export const DhcpServerStatus: MessageFns<DhcpServerStatus> = {
+  encode(message: DhcpServerStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.family !== "") {
+      writer.uint32(10).string(message.family);
+    }
+    if (message.running !== false) {
+      writer.uint32(16).bool(message.running);
+    }
+    if (message.active !== false) {
+      writer.uint32(24).bool(message.active);
+    }
+    if (message.actionRequired !== "") {
+      writer.uint32(34).string(message.actionRequired);
+    }
+    if (message.reloadSec !== "0") {
+      writer.uint32(40).uint64(message.reloadSec);
+    }
+    for (const v of message.subnets) {
+      DhcpSubnetUsage.encode(v!, writer.uint32(50).fork()).join();
+    }
+    if (message.error !== "") {
+      writer.uint32(58).string(message.error);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DhcpServerStatus {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDhcpServerStatus();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.family = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.running = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.active = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.actionRequired = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.reloadSec = reader.uint64().toString();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.subnets.push(DhcpSubnetUsage.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.error = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DhcpServerStatus {
+    return {
+      family: isSet(object.family) ? globalThis.String(object.family) : "",
+      running: isSet(object.running) ? globalThis.Boolean(object.running) : false,
+      active: isSet(object.active) ? globalThis.Boolean(object.active) : false,
+      actionRequired: isSet(object.actionRequired)
+        ? globalThis.String(object.actionRequired)
+        : isSet(object.action_required)
+        ? globalThis.String(object.action_required)
+        : "",
+      reloadSec: isSet(object.reloadSec)
+        ? globalThis.String(object.reloadSec)
+        : isSet(object.reload_sec)
+        ? globalThis.String(object.reload_sec)
+        : "0",
+      subnets: globalThis.Array.isArray(object?.subnets)
+        ? object.subnets.map((e: any) => DhcpSubnetUsage.fromJSON(e))
+        : [],
+      error: isSet(object.error) ? globalThis.String(object.error) : "",
+    };
+  },
+
+  toJSON(message: DhcpServerStatus): unknown {
+    const obj: any = {};
+    if (message.family !== "") {
+      obj.family = message.family;
+    }
+    if (message.running !== false) {
+      obj.running = message.running;
+    }
+    if (message.active !== false) {
+      obj.active = message.active;
+    }
+    if (message.actionRequired !== "") {
+      obj.actionRequired = message.actionRequired;
+    }
+    if (message.reloadSec !== "0") {
+      obj.reloadSec = message.reloadSec;
+    }
+    if (message.subnets?.length) {
+      obj.subnets = message.subnets.map((e) => DhcpSubnetUsage.toJSON(e));
+    }
+    if (message.error !== "") {
+      obj.error = message.error;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DhcpServerStatus>): DhcpServerStatus {
+    return DhcpServerStatus.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DhcpServerStatus>): DhcpServerStatus {
+    const message = createBaseDhcpServerStatus();
+    message.family = object.family ?? "";
+    message.running = object.running ?? false;
+    message.active = object.active ?? false;
+    message.actionRequired = object.actionRequired ?? "";
+    message.reloadSec = object.reloadSec ?? "0";
+    message.subnets = object.subnets?.map((e) => DhcpSubnetUsage.fromPartial(e)) || [];
+    message.error = object.error ?? "";
+    return message;
+  },
+};
+
+function createBaseDhcpClientLease(): DhcpClientLease {
+  return {
+    interface: "",
+    configured: false,
+    state: "",
+    address: "",
+    router: "",
+    dnsServers: [],
+    hostname: "",
+    mac: "",
+  };
+}
+
+export const DhcpClientLease: MessageFns<DhcpClientLease> = {
+  encode(message: DhcpClientLease, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== "") {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.configured !== false) {
+      writer.uint32(16).bool(message.configured);
+    }
+    if (message.state !== "") {
+      writer.uint32(26).string(message.state);
+    }
+    if (message.address !== "") {
+      writer.uint32(34).string(message.address);
+    }
+    if (message.router !== "") {
+      writer.uint32(42).string(message.router);
+    }
+    for (const v of message.dnsServers) {
+      writer.uint32(50).string(v!);
+    }
+    if (message.hostname !== "") {
+      writer.uint32(58).string(message.hostname);
+    }
+    if (message.mac !== "") {
+      writer.uint32(66).string(message.mac);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DhcpClientLease {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDhcpClientLease();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.configured = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.state = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.router = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.dnsServers.push(reader.string());
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.hostname = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.mac = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DhcpClientLease {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      configured: isSet(object.configured) ? globalThis.Boolean(object.configured) : false,
+      state: isSet(object.state) ? globalThis.String(object.state) : "",
+      address: isSet(object.address) ? globalThis.String(object.address) : "",
+      router: isSet(object.router) ? globalThis.String(object.router) : "",
+      dnsServers: globalThis.Array.isArray(object?.dnsServers)
+        ? object.dnsServers.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.dns_servers)
+        ? object.dns_servers.map((e: any) => globalThis.String(e))
+        : [],
+      hostname: isSet(object.hostname) ? globalThis.String(object.hostname) : "",
+      mac: isSet(object.mac) ? globalThis.String(object.mac) : "",
+    };
+  },
+
+  toJSON(message: DhcpClientLease): unknown {
+    const obj: any = {};
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.configured !== false) {
+      obj.configured = message.configured;
+    }
+    if (message.state !== "") {
+      obj.state = message.state;
+    }
+    if (message.address !== "") {
+      obj.address = message.address;
+    }
+    if (message.router !== "") {
+      obj.router = message.router;
+    }
+    if (message.dnsServers?.length) {
+      obj.dnsServers = message.dnsServers;
+    }
+    if (message.hostname !== "") {
+      obj.hostname = message.hostname;
+    }
+    if (message.mac !== "") {
+      obj.mac = message.mac;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DhcpClientLease>): DhcpClientLease {
+    return DhcpClientLease.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DhcpClientLease>): DhcpClientLease {
+    const message = createBaseDhcpClientLease();
+    message.interface = object.interface ?? "";
+    message.configured = object.configured ?? false;
+    message.state = object.state ?? "";
+    message.address = object.address ?? "";
+    message.router = object.router ?? "";
+    message.dnsServers = object.dnsServers?.map((e) => e) || [];
+    message.hostname = object.hostname ?? "";
+    message.mac = object.mac ?? "";
+    return message;
+  },
+};
+
+function createBaseDhcpLeasesResponse(): DhcpLeasesResponse {
+  return {
+    owner: "",
+    leases: [],
+    page: 0,
+    pageSize: 0,
+    total: 0,
+    truncated: false,
+    servers: [],
+    client: undefined,
+    retrievedAt: undefined,
+  };
+}
+
+export const DhcpLeasesResponse: MessageFns<DhcpLeasesResponse> = {
+  encode(message: DhcpLeasesResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    for (const v of message.leases) {
+      DhcpLease.encode(v!, writer.uint32(18).fork()).join();
+    }
+    if (message.page !== 0) {
+      writer.uint32(24).uint32(message.page);
+    }
+    if (message.pageSize !== 0) {
+      writer.uint32(32).uint32(message.pageSize);
+    }
+    if (message.total !== 0) {
+      writer.uint32(40).uint32(message.total);
+    }
+    if (message.truncated !== false) {
+      writer.uint32(48).bool(message.truncated);
+    }
+    for (const v of message.servers) {
+      DhcpServerStatus.encode(v!, writer.uint32(58).fork()).join();
+    }
+    if (message.client !== undefined) {
+      DhcpClientLease.encode(message.client, writer.uint32(66).fork()).join();
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(74).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DhcpLeasesResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDhcpLeasesResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.leases.push(DhcpLease.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.page = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.pageSize = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.total = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.truncated = reader.bool();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.servers.push(DhcpServerStatus.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.client = DhcpClientLease.decode(reader, reader.uint32());
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DhcpLeasesResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      leases: globalThis.Array.isArray(object?.leases) ? object.leases.map((e: any) => DhcpLease.fromJSON(e)) : [],
+      page: isSet(object.page) ? globalThis.Number(object.page) : 0,
+      pageSize: isSet(object.pageSize)
+        ? globalThis.Number(object.pageSize)
+        : isSet(object.page_size)
+        ? globalThis.Number(object.page_size)
+        : 0,
+      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
+      truncated: isSet(object.truncated) ? globalThis.Boolean(object.truncated) : false,
+      servers: globalThis.Array.isArray(object?.servers)
+        ? object.servers.map((e: any) => DhcpServerStatus.fromJSON(e))
+        : [],
+      client: isSet(object.client) ? DhcpClientLease.fromJSON(object.client) : undefined,
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: DhcpLeasesResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.leases?.length) {
+      obj.leases = message.leases.map((e) => DhcpLease.toJSON(e));
+    }
+    if (message.page !== 0) {
+      obj.page = Math.round(message.page);
+    }
+    if (message.pageSize !== 0) {
+      obj.pageSize = Math.round(message.pageSize);
+    }
+    if (message.total !== 0) {
+      obj.total = Math.round(message.total);
+    }
+    if (message.truncated !== false) {
+      obj.truncated = message.truncated;
+    }
+    if (message.servers?.length) {
+      obj.servers = message.servers.map((e) => DhcpServerStatus.toJSON(e));
+    }
+    if (message.client !== undefined) {
+      obj.client = DhcpClientLease.toJSON(message.client);
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DhcpLeasesResponse>): DhcpLeasesResponse {
+    return DhcpLeasesResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DhcpLeasesResponse>): DhcpLeasesResponse {
+    const message = createBaseDhcpLeasesResponse();
+    message.owner = object.owner ?? "";
+    message.leases = object.leases?.map((e) => DhcpLease.fromPartial(e)) || [];
+    message.page = object.page ?? 0;
+    message.pageSize = object.pageSize ?? 0;
+    message.total = object.total ?? 0;
+    message.truncated = object.truncated ?? false;
+    message.servers = object.servers?.map((e) => DhcpServerStatus.fromPartial(e)) || [];
+    message.client = (object.client !== undefined && object.client !== null)
+      ? DhcpClientLease.fromPartial(object.client)
+      : undefined;
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
@@ -42732,6 +44122,20 @@ export const DataplaneService = {
       Buffer.from(InterfaceStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
   },
+  /**
+   * DhcpLeases (F-kea-dhcp-relay) pages the Kea DHCPv4/v6 leases (lease4/6-get-page, filtered and paged by the
+   * agent, never the whole lease file) with the daemons' status and per-subnet pool usage, or — with `interface` —
+   * the VPP DHCPv4 client lease of one interface. Read-only status, never part of Retrieve (§5).
+   */
+  dhcpLeases: {
+    path: "/vrx.v1.Dataplane/DhcpLeases" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: DhcpLeasesRequest): Buffer => Buffer.from(DhcpLeasesRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): DhcpLeasesRequest => DhcpLeasesRequest.decode(value),
+    responseSerialize: (value: DhcpLeasesResponse): Buffer => Buffer.from(DhcpLeasesResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): DhcpLeasesResponse => DhcpLeasesResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -42777,6 +44181,12 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
    */
   interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
+  /**
+   * DhcpLeases (F-kea-dhcp-relay) pages the Kea DHCPv4/v6 leases (lease4/6-get-page, filtered and paged by the
+   * agent, never the whole lease file) with the daemons' status and per-subnet pool usage, or — with `interface` —
+   * the VPP DHCPv4 client lease of one interface. Read-only status, never part of Retrieve (§5).
+   */
+  dhcpLeases: handleUnaryCall<DhcpLeasesRequest, DhcpLeasesResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -42906,6 +44316,26 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * DhcpLeases (F-kea-dhcp-relay) pages the Kea DHCPv4/v6 leases (lease4/6-get-page, filtered and paged by the
+   * agent, never the whole lease file) with the daemons' status and per-subnet pool usage, or — with `interface` —
+   * the VPP DHCPv4 client lease of one interface. Read-only status, never part of Retrieve (§5).
+   */
+  dhcpLeases(
+    request: DhcpLeasesRequest,
+    callback: (error: ServiceError | null, response: DhcpLeasesResponse) => void,
+  ): ClientUnaryCall;
+  dhcpLeases(
+    request: DhcpLeasesRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: DhcpLeasesResponse) => void,
+  ): ClientUnaryCall;
+  dhcpLeases(
+    request: DhcpLeasesRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: DhcpLeasesResponse) => void,
   ): ClientUnaryCall;
 }
 

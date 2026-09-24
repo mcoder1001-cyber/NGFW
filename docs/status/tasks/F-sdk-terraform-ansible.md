@@ -335,3 +335,262 @@ MPL-2.0 is file-level copyleft: fine for a provider binary that is not modified-
 ## Open questions
 `docs/status/tasks/F-sdk-terraform-ansible-questions.md` (7 items: Ansible, CI hook, batching, per-key lock, OpenAPI
 pointer parameter, users via automation, real CLI run).
+
+
+## Review fixes (docs/status/tasks/F-sdk-terraform-ansible-review.md, a2b2ad1)
+
+Round started with `git merge main` (9764d69). The partial edits from before the usage-limit interruption were
+salvaged by the manager in 18c718f and completed here.
+
+| finding | fix | where | test |
+|---|---|---|---|
+| **H1** plan modifiers rewrote configured values | `samePointer` and `semanticJSON` are deleted. `value` is now a custom string type with **semantic equality** (`jsontype.go`), which the framework applies on Read/Apply. Plans are never rewritten, so a reformatted value is a harmless in-place update that commits nothing. `pointer` must be canonical (`ValidateConfig`), and imports store the canonical form. **The harness enforces Terraform core's plan-validity rule** (`planValid`: configured non-computed or optional+computed values are planned exactly as configured, nested attributes recurse with their own flags, write-only attributes are planned null). It also threads private state the way core does. | `config_resource.go`, `jsontype.go`, `tfharness/harness.go` | `TestPlanValidRejectsRewrittenConfiguredValues`; `TestConfigImportAndExisting` (the review's import-then-reformat probe); `TestConfigResourceLifecycle` (reformat gives a valid plan, revision 0, and the next plan is empty); `TestNonCanonicalPointerIsRefused`. Every unit test and the live run now go through `planValid`. |
+| **H2** write-only guard skipped when `value` is unknown at validate | `checkValue` also runs in `ModifyPlan` (the planned value is known there) and in `body()` before any HTTP call | `config_resource.go` | `TestWriteOnlyGuardWhenValueUnknownAtValidate` (the review's probe): unknown at validate → refused at plan; unknown at plan but known at apply → refused before the PUT, with no hash in state and no PUT or commit |
+| **M1** not-applied reported as success | `CommitResult` has `NotApplied` and `Sync`, and the confirm answer inherits `notApplied` from the pending answer. Terraform: a **warning** by default, an error with `fail_on_not_applied = true`. SDK: `NotEnforcedWarning`, or `NotEnforced` with `require_enforced=True`; `tx.result["notApplied"]` | `client.go`, `provider.go`, `session.py`, `errors.py` | `TestNotAppliedWarning`, `TestNotAppliedIsAnErrorWhenAsked`, `test_not_enforced_warns_or_raises` |
+| **M2** sync state ignored | Before editing, `/state/system` must report `in-sync` and no pending commit. Before confirming, the pending answer's `sync` and `/state/system` must both report `in-sync`; otherwise the commit is not confirmed. `allow_unsynced` overrides this. A 502/504 at commit time returns "outcome UNKNOWN" and the candidate is not discarded. | `client.go`, `session.py` | `TestUnsyncedApplianceIsRefused`, `test_transaction_refuses_unsynced_appliance`, `test_pending_answer_out_of_sync_is_not_confirmed` |
+| **M3** racy discard / false success | The candidate is discarded **only** when every change in it lies inside our own pointer(s). If a change outside our pointer appears after the edit, the client returns `ErrConcurrent` / `ConcurrentEdit` and neither commits nor discards. A Create that commits nothing is an error; an Update that commits nothing is an error unless the node already holds the value. The user doc now says **one service user per pipeline** (D-093). | `client.go`, both resources, `session.py`, user doc | `TestConcurrentEditIsNotCommittedNorDiscarded`, `TestCreateThatCommittedNothingFails`, `TestDirtyCandidateIsRefusedAndNeverDiscarded`, `test_concurrent_edit_is_neither_committed_nor_discarded`, `test_transaction_discards_only_its_own_changes` |
+| **M4** drift misses added members | After each write, `vrx_config` records the node as the API stored it, in **private state**. Read reports drift when the live node differs from that record, so added members count too, and the plan shows the PUT removing them. `vrx_interface` refuses an update when the live object has members the generated schema does not know, and warns about them on Read. | `config_resource.go`, `interface_resource.go` | `TestConfigResourceLifecycle` (an out-of-band `mtu` shows as a planned removal), `TestInterfaceResource` (`futureField` → update refused) |
+| L1 generator injection | Python: headers and comments go through `clean()`, docstrings are `repr()` literals, and raw operationIds, parameter names and schema names must be identifiers. Every generated module is re-parsed and must contain exactly the expected top-level names. Go: `generate()` returns errors instead of exiting, comments are sanitised, identifiers must match `^[A-Za-z_][A-Za-z0-9_]*$`, and the output passes `format.Source`. | `tools/gen.py`, `tools/genschema/main.go` | `test_gen_hostile.py` (the payload stays inert on import; hostile identifiers fail generation), `TestHostileSpecCannotInjectCode`, `TestHostilePropertyNameFailsGeneration` |
+| L2 plain http | `http://` to a non-loopback host is refused unless `allow_http` is set, in which case the client warns | `client.go`, `provider.go`, `session.py` | `TestProviderConfiguration`, `test_http_refused_for_remote_hosts` |
+| L3 index merge of hashes | Keyed arrays are generated from `x-vrx-ui.itemKey` (`/management/users` → `username`). `sensitive_value` elements are matched by that key, and a missing or unmatched key is an error. Unkeyed arrays must have the same length as in `value`. | `jsonvalue.go` `mergeSensitive`, `zz_secrets_gen.go` | `TestMergeSensitiveByKeyNeverByIndex`, `TestConfigSecretsNeverInPlanOrState` |
+| L4 dirty candidate after auto-revert | The not-confirmed error names the deadline and how to recover. The next Terraform apply recognises its own leftover edit (changes only under our pointer, and the candidate node contains what we want) and re-uses it. | `client.go` `ownLeftover` | `TestOwnLeftoverAfterRevertIsReused`, `TestFailedPostCommitCheckDoesNotConfirm` |
+| L5 docs / small | Singleton pointers (`/system/hostname`, `/management/users`) now say "import first". `vrx_state.path` is restricted to the six state names. The meaning of `revision` is documented. The user doc gained sections on the per-user candidate, sync state, stored-but-not-enforced commits, unconfirmed commits and http. | user doc, `state_datasource.go` | `TestStateDataSource` (`../config` and `auth` are refused) |
+
+### `sdk/test.sh`
+```
+== python sdk
+......s............................                                      [100%]
+34 passed, 1 skipped in 1.05s
+== terraform provider
+0 issues.
+?   	ngfw/sdk/terraform	[no test files]
+ok  	ngfw/sdk/terraform/internal/client	0.036s
+ok  	ngfw/sdk/terraform/internal/provider	0.640s
+ok  	ngfw/sdk/terraform/internal/tfharness	0.026s
+ok  	ngfw/sdk/terraform/tools/genschema	0.019s
+sdk: OK
+```
+Provider, harness and generator tests (`go test -v ./...`):
+```
+--- PASS: TestPointers (0.00s)
+--- PASS: TestNoRedirectNoKeyLeak (0.01s)
+--- PASS: TestProblemParsing (0.00s)
+ok  	ngfw/sdk/terraform/internal/client	0.031s
+--- PASS: TestJSONSubset (0.00s)
+--- PASS: TestMergeSensitiveByKeyNeverByIndex (0.00s)
+--- PASS: TestWriteOnlyLeaves (0.00s)
+--- SKIP: TestLive (0.00s)
+--- PASS: TestConfigResourceLifecycle (0.09s)
+--- PASS: TestNonCanonicalPointerIsRefused (0.00s)
+--- PASS: TestConfigImportAndExisting (0.03s)
+--- PASS: TestConfigSecretsNeverInPlanOrState (0.03s)
+--- PASS: TestWriteOnlyGuardWhenValueUnknownAtValidate (0.00s)
+--- PASS: TestDirtyCandidateIsRefusedAndNeverDiscarded (0.01s)
+--- PASS: TestConcurrentEditIsNotCommittedNorDiscarded (0.01s)
+--- PASS: TestCreateThatCommittedNothingFails (0.01s)
+--- PASS: TestOwnLeftoverAfterRevertIsReused (0.02s)
+--- PASS: TestValidationErrorKeepsPointer (0.01s)
+--- PASS: TestFailedPostCommitCheckDoesNotConfirm (0.01s)
+--- PASS: TestUnsyncedApplianceIsRefused (0.02s)
+--- PASS: TestNotAppliedIsAnErrorWhenAsked (0.01s)
+--- PASS: TestNotAppliedWarning (0.02s)
+--- PASS: TestNoConfirmWhenTimeoutZero (0.01s)
+--- PASS: TestProviderConfiguration (0.01s)
+--- PASS: TestInterfaceResource (0.09s)
+--- PASS: TestStateDataSource (0.01s)
+ok  	ngfw/sdk/terraform/internal/provider	0.463s
+--- PASS: TestPlanValidRejectsRewrittenConfiguredValues (0.00s)
+ok  	ngfw/sdk/terraform/internal/tfharness	0.029s
+--- PASS: TestHostileSpecCannotInjectCode (0.00s)
+--- PASS: TestHostilePropertyNameFailsGeneration (0.00s)
+ok  	ngfw/sdk/terraform/tools/genschema	0.017s
+```
+
+### `sdk/gen.sh --check` (full API build of the merged tree)
+```
+api: OpenAPI written to /root/ngfw-wt/F-sdk-terraform-ansible/sdk/openapi.json
+python sdk: 41 operations, 341 models, 1 write-only + 22 secret-ref pointer patterns → /root/ngfw-wt/F-sdk-terraform-ansible/sdk/python/vrx/_generated
+terraform: vrx_interface 6 JSON names, 1 helpers; 1 write-only + 22 secret-ref pointer patterns, 4 keyed arrays → internal/provider
+gen: clean — sdk/python/vrx/_generated sdk/terraform/internal/provider/zz_*_gen.go
+```
+
+### Live on slot 5 — real API, vrx-agent and VPP (`live.sh run …`: the Python live test, then `TestLive` through the plan-validity-enforcing harness)
+```
+create role vrx_w5
+create database vrx_w5 (owner vrx_w5)
+check  vrx_w5 as vrx_w5 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+ok     env /run/vrx-test/w5/pg.env (0600) · DSN postgres://vrx_w5:<redacted>@127.0.0.1:5432/vrx_w5
+live: agent up (pid 2637373, owner w5, socket /run/vrx-test/w5/agent.sock)
+live: api up (pid 2637675, http://127.0.0.1:3500)
+live: API key 'sdk-live' role=admin id=963c36e4-b16e-4b63-bfce-2769a53fc6d9 → /run/vrx-test/w5/sdk-apikey (0600, not printed)
+== python live
+
+[live] VrxSession(url='http://127.0.0.1:3500', verify=True) · API 0.1.0-dev · agent owner w5
+[live] diff: [('add', '/interfaces/loop511', {'vrf': 'default', 'ipv4': ['10.5.111.1/24'], 'ipv6': [], 'enabled': True, 'promiscuous': False, 'subinterfaces': {}})]
+[live] commit → status=confirmed revision=1 txn=f9d5e6d2-47ee-40c9-a8d6-779cdd2084e5
+[live] /state/interfaces loop511: config={'ipv4': ['10.5.111.1/24'], 'vrf': 'default'} swIfIndex=4
+[live] vppctl show int addr:
+loop511 (dn):
+  L3 10.5.111.1/24
+[live] commit → status=confirmed revision=2
+[live] rollback/1 → pending → confirm → confirmed revision=3
+[live] /state/interfaces loop511 after rollback: config={'ipv4': ['10.5.111.1/24'], 'vrf': 'default'}
+[live] vppctl show int addr:
+loop511 (dn):
+  L3 10.5.111.1/24
+[live] invalid edit → BadRequest pointer=/interfaces/loop511/ipv4/0 (Invalid IPv4 range)
+[live] delete → confirmed; in running: False; in state: False
+[live] vppctl show int addr:
+(no loop511 in `vppctl show int addr`)
+[live] 41 SDK log records, API key present in them: False
+.
+1 passed in 2.66s
+== terraform live
+=== RUN   TestLive
+$ terraform plan   (vrx_config)
+  # vrx_config will be create
+  + resource "vrx_config" {
+      + id                       = (known after apply)
+      + pointer                  = "/interfaces/loop521"
+      + revision                 = (known after apply)
+      + sensitive_value          = (write-only attribute)
+      + value                    = "{\"enabled\":true,\"ipv4\":[\"10.5.121.1/24\"]}"
+    }
+[tf-live] apply → revision 5
+$ terraform plan   (again, after refresh)
+No changes. Your infrastructure matches the configuration.
+$ terraform plan   (vrx_config)
+  # vrx_config will be update in-place
+  ~ resource "vrx_config" {
+      ~ revision                 = 5 -> (known after apply)
+      ~ value                    = "{\"enabled\":true,\"ipv4\":[\"10.5.121.1/24\"]}" -> "{\"enabled\":true,\"ipv4\":[\"10.5.121.2/24\"]}"
+    }
+[tf-live] apply → revision 6
+$ terraform plan   (again, after refresh)
+No changes. Your infrastructure matches the configuration.
+[tf-live] data.vrx_state interfaces: loop521 config=map[ipv4:[10.5.121.2/24] vrf:default]
+[tf-live] vppctl show int addr: loop521 (dn): L3 10.5.121.2/24
+[tf-live] import /interfaces/loop521 → value={"enabled":true,"ipv4":["10.5.121.2/24"],"ipv6":[],"promiscuous":false,"subinterfaces":{},"vrf":"default"}
+$ terraform plan   (vrx_interface)
+  # vrx_interface will be create
+  + resource "vrx_interface" {
+      + description              = "terraform w5"
+      + enabled                  = true
+      + id                       = (known after apply)
+      + ipv4                     = ["10.5.122.1/24"]
+      + ipv6                     = []
+      + mtu                      = 1500
+      + name                     = "loop522"
+      + promiscuous              = false
+      + revision                 = (known after apply)
+      + subinterfaces            = {}
+      + vrf                      = "default"
+    }
+[tf-live] apply → revision 7
+$ terraform plan   (again, after refresh)
+No changes. Your infrastructure matches the configuration.
+$ terraform plan   (vrx_interface)
+  # vrx_interface will be update in-place
+  ~ resource "vrx_interface" {
+      ~ mtu                      = 1500 -> 9000
+      ~ revision                 = 7 -> (known after apply)
+    }
+[tf-live] apply → revision 8
+$ terraform plan   (again, after refresh)
+No changes. Your infrastructure matches the configuration.
+[tf-live] vppctl show int addr: loop522 (dn): L3 10.5.122.1/24
+$ terraform plan   (vrx_config)
+  # vrx_config will be update in-place
+  ~ resource "vrx_config" {
+      ~ revision                 = 0 -> (known after apply)
+      ~ sensitive_value_version  = null -> 1
+      ~ value                    = "[]" -> "[{\"username\":\"admin\",\"role\":\"admin\"},{\"username\":\"w5tf\",\"role\":\"operator\"}]"
+    }
+[tf-live] apply → revision 9
+$ terraform plan   (again, after refresh)
+No changes. Your infrastructure matches the configuration.
+[tf-live] hash inside value → validation: write-only member in value: /management/users/0/passwordHash is write-only (a secret): move it into sensitive_value so it never appears in plans or state
+[tf-live] state after apply: sensitive_value=<nil> (write-only), hash in state: false
+[tf-live] app_user w5tf has a password hash: t
+$ terraform plan   (vrx_config)
+  # vrx_config will be update in-place
+  ~ resource "vrx_config" {
+      ~ revision                 = 9 -> (known after apply)
+      ~ value                    = "[{\"username\":\"admin\",\"role\":\"admin\"},{\"username\":\"w5tf\",\"role\":\"operator\"}]" -> "[{\"username\":\"admin\",\"role\":\"admin\"}]"
+    }
+[tf-live] apply → revision 10
+$ terraform plan   (again, after refresh)
+No changes. Your infrastructure matches the configuration.
+[tf-live] app_user w5tf still present: f
+$ terraform plan   (vrx_interface)
+  # vrx_interface will be destroy
+  - resource "vrx_interface" {
+      - description              = "terraform w5"
+      - enabled                  = true
+      - id                       = "loop522"
+      - ipv4                     = ["10.5.122.1/24"]
+      - ipv6                     = []
+      - mtu                      = 9000
+      - name                     = "loop522"
+      - promiscuous              = false
+      - revision                 = 8
+      - subinterfaces            = {}
+      - vrf                      = "default"
+    }
+[tf-live] destroy applied (confirmed commit)
+$ terraform plan   (vrx_config)
+  # vrx_config will be destroy
+  - resource "vrx_config" {
+      - id                       = "/interfaces/loop521"
+      - pointer                  = "/interfaces/loop521"
+      - revision                 = 6
+      - value                    = "{\"enabled\":true,\"ipv4\":[\"10.5.121.2/24\"]}"
+    }
+[tf-live] destroy applied (confirmed commit)
+[tf-live] after destroy: (no loop521 in vppctl show int addr) (no loop522 in vppctl show int addr)
+--- PASS: TestLive (2.99s)
+PASS
+ok  	ngfw/sdk/terraform/internal/provider	3.045s
+live: api stopped (pid 2637675)
+live: agent stopped (pid 2637373)
+live: deleted 4 Valkey keys vrx:w5:sdk:* in db 5
+drop   database vrx_w5
+drop   role vrx_w5
+ok     nothing named vrx_w5 / vrx_w5 remains
+```
+Afterwards: `vppctl show int | grep -cE "loop5(11|21|22)\b"` → `0`, 0 `vrx:w5:*` keys, `/run/vrx-test/w5` holds only
+`df8-globals.lock`, `vrx_w5` dropped, both processes stopped by PID.
+
+### CI gate — `tools/ci.sh --base main`
+```
+== VRX CI gate: quick ==
+worktree  /root/ngfw-wt/F-sdk-terraform-ansible
+branch    task/F-sdk-terraform-ansible @ 11493f3   (base: main)
+tools     node v22.23.2 · pnpm 12.5.1 · go1.26.0 · buf 1.73.0 · golangci-lint 2.13.2 (pinned) · gitleaks 8.30.1 (pinned)
+caches    pnpm store /root/.local/share/pnpm/store/v11 · turbo /root/.cache/vrx-turbo · go /root/.cache/go-build
+logs      /root/ngfw-wt/logs/ci/F-sdk-terraform-ansible-20260924-043707-2707979
+...
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   1m33s
+  forbidden patterns (+ gitleaks)                    0m03s
+  lint · typecheck · unit tests · build (turbo)   1m26s
+  apps/agent: make lint test build                   0m27s
+  test/ Go modules, unit mode (test/integration/smoke)   0m02s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      merge main into task/F-sdk-terraform-ansible
+      review(F-sdk-terraform-ansible): findings
+  mode quick · wall time 3m35s · logs /root/ngfw-wt/logs/ci/F-sdk-terraform-ansible-20260924-043707-2707979
+
+CI GATE PASSED
+```
+The two warnings refer to the merge commit and the manager's `review(...)` commit.
+
+### Still open
+- A real terraform CLI run (terraform ≥ 1.11) is still needed before release (questions #7). The harness now checks
+  plan validity, post-apply consistency and private state, but it remains an emulation.
+- The per-user candidate is still a documented limitation (D-093). The ownership checks narrow the race but cannot
+  close it without per-key candidates in the API (P06 tech-debt).

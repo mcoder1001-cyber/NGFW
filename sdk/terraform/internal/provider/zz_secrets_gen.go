@@ -32,3 +32,12 @@ var secretRefPointers = []string{
 	"/vpn/wireguard/interfaces/*/peers/*/presharedKeyRef",
 	"/vpn/wireguard/interfaces/*/privateKeyRef",
 }
+
+// keyedArrayPointers: arrays whose elements are identified by one member (`x-vrx-ui.itemKey`) —
+// sensitive_value elements are matched by that key, never by index.
+var keyedArrayPointers = map[string]string{
+	"/management/users":                   "username",
+	"/routing/bgp/networks":               "prefix",
+	"/routing/policy/prefixLists/*/rules": "seq",
+	"/routing/policy/routeMaps/*/entries": "seq",
+}

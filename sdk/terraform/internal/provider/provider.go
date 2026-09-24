@@ -3,10 +3,13 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -26,19 +29,45 @@ func New(version string) func() provider.Provider {
 }
 
 type providerModel struct {
-	URL            types.String `tfsdk:"url"`
-	APIKey         types.String `tfsdk:"api_key"`
-	Insecure       types.Bool   `tfsdk:"insecure"`
-	CAFile         types.String `tfsdk:"ca_file"`
-	ConfirmTimeout types.Int64  `tfsdk:"confirm_timeout"`
-	CommitComment  types.String `tfsdk:"commit_comment"`
+	URL              types.String `tfsdk:"url"`
+	APIKey           types.String `tfsdk:"api_key"`
+	Insecure         types.Bool   `tfsdk:"insecure"`
+	CAFile           types.String `tfsdk:"ca_file"`
+	ConfirmTimeout   types.Int64  `tfsdk:"confirm_timeout"`
+	CommitComment    types.String `tfsdk:"commit_comment"`
+	AllowHTTP        types.Bool   `tfsdk:"allow_http"`
+	AllowUnsynced    types.Bool   `tfsdk:"allow_unsynced"`
+	FailOnNotApplied types.Bool   `tfsdk:"fail_on_not_applied"`
 }
 
 // providerData is handed to every resource / data source.
 type providerData struct {
-	client     *client.Client
-	confirmSec int64
-	comment    string
+	client           *client.Client
+	confirmSec       int64
+	comment          string
+	allowUnsynced    bool
+	failOnNotApplied bool
+}
+
+// apply is the one write path: client.Apply with this provider's commit options.
+func (d *providerData) apply(ctx context.Context, what string, e client.Edit) (*client.CommitResult, error) {
+	return d.client.Apply(ctx, client.ApplyOptions{ConfirmSec: d.confirmSec, Comment: d.comment + ": " + what,
+		AllowUnsynced: d.allowUnsynced}, e)
+}
+
+// reportCommit: a commit the agent stored but does not (fully) enforce must not look like success (P06 D-P06-15).
+func (d *providerData) reportCommit(diags *diag.Diagnostics, what string, r *client.CommitResult) {
+	if !r.NotEnforced() {
+		return
+	}
+	summary := fmt.Sprintf("VRX: %s was stored but is NOT enforced by the data plane", what)
+	detail := fmt.Sprintf("commit status %q; domains this agent build does not apply: %v. Running holds the change (revision %d); "+
+		"it takes effect when the agent implements these domains.", r.Status, r.NotApplied, revisionOf(r))
+	if d.failOnNotApplied {
+		diags.AddError(summary, detail+" (fail_on_not_applied = true)")
+		return
+	}
+	diags.AddWarning(summary, detail+" Set fail_on_not_applied = true to make this an error.")
 }
 
 func (p *vrxProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -64,6 +93,14 @@ func (p *vrxProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *
 				MarkdownDescription: "Seconds of the confirmed-commit window (1–3600; default 60). `0` commits without confirmation."},
 			"commit_comment": schema.StringAttribute{Optional: true,
 				MarkdownDescription: "Comment stored with every revision this provider creates (default `terraform`)."},
+			"allow_http": schema.BoolAttribute{Optional: true,
+				MarkdownDescription: "Permit plain `http://` to a non-loopback host (the API key then crosses the network in clear). Default `false`."},
+			"allow_unsynced": schema.BoolAttribute{Optional: true,
+				MarkdownDescription: "Edit and confirm even when `/state/system` reports the running configuration and the data plane " +
+					"out of sync (`unknown`/`degraded`) or a confirmed commit pending. Default `false`: such runs fail before editing."},
+			"fail_on_not_applied": schema.BoolAttribute{Optional: true,
+				MarkdownDescription: "Make a commit the agent stores but does not enforce (`partially-applied`/`not-applied`) an error " +
+					"instead of a warning. Default `false`."},
 		},
 	}
 }
@@ -95,6 +132,7 @@ func (p *vrxProvider) Configure(ctx context.Context, req provider.ConfigureReque
 		CAFile:    m.CAFile.ValueString(),
 		Timeout:   time.Duration(max(confirm, 60)+60) * time.Second,
 		UserAgent: "terraform-provider-vrx/" + p.version,
+		AllowHTTP: m.AllowHTTP.ValueBool(),
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("cannot configure the VRX provider", err.Error())
@@ -103,7 +141,11 @@ func (p *vrxProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	if m.Insecure.ValueBool() {
 		resp.Diagnostics.AddWarning("TLS verification disabled", "insecure = true: the appliance certificate is not verified")
 	}
-	data := &providerData{client: c, confirmSec: confirm, comment: stringOr(m.CommitComment, "terraform")}
+	if strings.HasPrefix(url, "http://") {
+		resp.Diagnostics.AddWarning("plain http://", "the API key is sent without TLS — use https:// outside an isolated lab")
+	}
+	data := &providerData{client: c, confirmSec: confirm, comment: stringOr(m.CommitComment, "terraform"),
+		allowUnsynced: m.AllowUnsynced.ValueBool(), failOnNotApplied: m.FailOnNotApplied.ValueBool()}
 	resp.ResourceData = data
 	resp.DataSourceData = data
 }

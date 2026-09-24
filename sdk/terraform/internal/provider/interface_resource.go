@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -80,21 +81,43 @@ func (r *interfaceResource) Create(ctx context.Context, req resource.CreateReque
 		resp.Diagnostics.AddError("cannot encode the interface", err.Error())
 		return
 	}
-	res, err := r.p.client.Apply(ctx, r.p.confirmSec, r.p.comment+": create "+ptr, func(ctx context.Context) error {
+	res, err := r.p.apply(ctx, "create "+ptr, client.Edit{Pointer: ptr, Want: body, Do: func(ctx context.Context) error {
 		if _, err := r.p.client.Running(ctx, ptr); err == nil {
-			return fmt.Errorf("%s already exists in the running configuration — import it: terraform import <address> %s", ptr, name.ValueString())
+			return fmt.Errorf("%s already exists in the running configuration — import it first: terraform import <address> %s", ptr, name.ValueString())
 		} else if !client.IsNotFound(err) {
 			return err
 		}
 		return r.p.client.Put(ctx, ptr, body)
-	})
+	}})
 	if err != nil {
 		addAPIError(&resp.Diagnostics, "create "+ptr, err)
+		return
+	}
+	if res.Status == "unchanged" {
+		resp.Diagnostics.AddError("VRX: nothing was committed for create "+ptr, concurrentHint)
 		return
 	}
 	resp.State.Raw = req.Plan.Raw
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), name.ValueString())...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("revision"), revisionOf(res))...)
+	r.p.reportCommit(&resp.Diagnostics, "create "+ptr, res)
+}
+
+// unknownMembers lists members of the live object that this provider's (generated) schema does not know. A PUT of
+// the typed object would silently delete them, so Update refuses and Read warns (regenerate the provider).
+func unknownMembers(live map[string]any) []string {
+	known := map[string]bool{}
+	for k := range interfaceGeneratedAttributes() {
+		known[jsonName(k, interfaceJSONNames)] = true
+	}
+	var out []string
+	for k := range live {
+		if !known[k] {
+			out = append(out, k)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 func (r *interfaceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -123,6 +146,10 @@ func (r *interfaceResource) Read(ctx context.Context, req resource.ReadRequest, 
 	if !ok {
 		resp.Diagnostics.AddError("unexpected API answer", fmt.Sprintf("%s is not an object", ptr))
 		return
+	}
+	if extra := unknownMembers(obj); len(extra) > 0 {
+		resp.Diagnostics.AddWarning("VRX: "+ptr+" has members this provider does not know",
+			fmt.Sprintf("%v — they are not shown in the plan and an update would remove them; rebuild the provider from the current API (sdk/gen.sh)", extra))
 	}
 	obj["id"], obj["name"] = name.ValueString(), name.ValueString()
 	obj["revision"] = json.Number("0")
@@ -154,13 +181,30 @@ func (r *interfaceResource) Update(ctx context.Context, req resource.UpdateReque
 		resp.Diagnostics.AddError("cannot encode the interface", err.Error())
 		return
 	}
-	res, err := r.p.client.Apply(ctx, r.p.confirmSec, r.p.comment+": update "+ptr, func(ctx context.Context) error {
+	res, err := r.p.apply(ctx, "update "+ptr, client.Edit{Pointer: ptr, Want: body, Do: func(ctx context.Context) error {
+		live, err := r.p.client.Running(ctx, ptr)
+		if err != nil {
+			return err
+		}
+		if m, ok := live.(map[string]any); ok {
+			if extra := unknownMembers(m); len(extra) > 0 {
+				return fmt.Errorf("%s has members this provider does not know (%v); replacing the object would remove them — "+
+					"rebuild the provider from the current API (sdk/gen.sh) or manage the node with vrx_config", ptr, extra)
+			}
+		}
 		return r.p.client.Put(ctx, ptr, body)
-	})
+	}})
 	if err != nil {
 		addAPIError(&resp.Diagnostics, "update "+ptr, err)
 		return
 	}
+	if res.Status == "unchanged" {
+		if live, err := r.p.client.Running(ctx, ptr); err != nil || !jsonSubset(normalizeNumbers(body), normalizeNumbers(live)) {
+			resp.Diagnostics.AddError("VRX: nothing was committed for update "+ptr, concurrentHint)
+			return
+		}
+	}
+	r.p.reportCommit(&resp.Diagnostics, "update "+ptr, res)
 	resp.State.Raw = req.Plan.Raw
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), name.ValueString())...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("revision"), revisionOf(res))...)
@@ -177,15 +221,17 @@ func (r *interfaceResource) Delete(ctx context.Context, req resource.DeleteReque
 		resp.Diagnostics.AddError("invalid name in state", err.Error())
 		return
 	}
-	_, err = r.p.client.Apply(ctx, r.p.confirmSec, r.p.comment+": delete "+ptr, func(ctx context.Context) error {
+	res, err := r.p.apply(ctx, "delete "+ptr, client.Edit{Pointer: ptr, Absent: true, Do: func(ctx context.Context) error {
 		if err := r.p.client.Delete(ctx, ptr); err != nil && !client.IsNotFound(err) {
 			return err
 		}
 		return nil
-	})
+	}})
 	if err != nil {
 		addAPIError(&resp.Diagnostics, "delete "+ptr, err)
+		return
 	}
+	r.p.reportCommit(&resp.Diagnostics, "delete "+ptr, res)
 }
 
 func (r *interfaceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

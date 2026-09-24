@@ -11,9 +11,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,6 +30,7 @@ type Options struct {
 	CAFile    string // extra CA bundle (PEM)
 	Timeout   time.Duration
 	UserAgent string
+	AllowHTTP bool // permit plain http:// to a non-loopback host (the API key then crosses the network in clear)
 }
 
 // Client talks to one appliance. Mutations are serialised by Committer (one candidate per appliance).
@@ -95,6 +98,9 @@ func New(o Options) (*Client, error) {
 	if u.User != nil {
 		return nil, errors.New("credentials in the URL are not accepted; use api_key")
 	}
+	if u.Scheme == "http" && !o.AllowHTTP && !IsLoopback(u.Hostname()) {
+		return nil, fmt.Errorf("refusing plain http:// to %s: the API key would cross the network in clear — use https:// (or set allow_http = true for an isolated lab)", u.Hostname())
+	}
 	if o.APIKey == "" {
 		return nil, errors.New("no API key (api_key or VRX_API_KEY)")
 	}
@@ -133,6 +139,15 @@ func New(o Options) (*Client, error) {
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		},
 	}, nil
+}
+
+// IsLoopback reports localhost / 127.0.0.0/8 / ::1.
+func IsLoopback(host string) bool {
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // String never shows the key.
@@ -299,7 +314,20 @@ type CommitResult struct {
 	Revision        *struct {
 		ID int64 `json:"id"`
 	} `json:"revision"`
-	Warnings []FieldError `json:"warnings"`
+	Warnings   []FieldError `json:"warnings"`
+	NotApplied []string     `json:"notApplied"`
+	Sync       *SyncState   `json:"sync"`
+}
+
+// SyncState is the API's running ↔ data-plane agreement (P06 D-P06-14).
+type SyncState struct {
+	State  string `json:"state"`
+	Reason string `json:"reason"`
+}
+
+// NotEnforced reports a commit that was stored but not (fully) enforced by the agent (P06 D-P06-15).
+func (r *CommitResult) NotEnforced() bool {
+	return r != nil && (r.Status == "partially-applied" || r.Status == "not-applied" || len(r.NotApplied) > 0)
 }
 
 // Commit applies the candidate; confirmSec > 0 makes it a confirmed commit (status "pending").
@@ -329,58 +357,191 @@ func (c *Client) State(ctx context.Context, name string, query url.Values) (any,
 
 // ---- the one write path of the provider
 
-// ErrDirtyCandidate: the candidate already holds changes that are not ours.
-var ErrDirtyCandidate = errors.New("dirty candidate")
+// SystemState is the part of GET /state/system the write path needs.
+type SystemState struct {
+	Sync          *SyncState      `json:"sync"`
+	PendingCommit json.RawMessage `json:"pendingCommit"`
+}
 
-// Apply runs edit against the candidate and commits it, serialised per client (Terraform applies resources in
-// parallel; the appliance has one candidate). Steps: refuse a dirty candidate → edit → nothing changed? discard →
-// commit (?confirm=confirmSec when > 0) → check the API still answers → confirm. Any failure before the commit
-// discards the candidate (running is untouched: commit is atomic); a failed check leaves the commit unconfirmed so
-// the agent reverts it at the deadline.
-func (c *Client) Apply(ctx context.Context, confirmSec int64, comment string, edit func(context.Context) error) (*CommitResult, error) {
+// System reads /state/system.
+func (c *Client) System(ctx context.Context) (*SystemState, error) {
+	var s SystemState
+	return &s, c.Do(ctx, http.MethodGet, "/api/v1/state/system", nil, nil, &s)
+}
+
+// Candidate returns the candidate node at pointer (redacted). 404 → IsNotFound.
+func (c *Client) Candidate(ctx context.Context, pointer string) (any, error) {
+	var v any
+	return v, c.Do(ctx, http.MethodGet, "/api/v1/config/candidate/"+URLPath(pointer), nil, nil, &v)
+}
+
+var (
+	// ErrDirtyCandidate: the candidate holds changes this run did not make.
+	ErrDirtyCandidate = errors.New("dirty candidate")
+	// ErrUnsynced: running and the data plane do not agree (sync unknown/degraded) or a commit is pending.
+	ErrUnsynced = errors.New("appliance not in sync")
+	// ErrConcurrent: the candidate changed under us (another run of the same user, D-093).
+	ErrConcurrent = errors.New("candidate modified concurrently")
+)
+
+// ApplyOptions tune one Apply.
+type ApplyOptions struct {
+	ConfirmSec    int64
+	Comment       string
+	AllowUnsynced bool // edit/confirm even when /state/system reports sync ≠ in-sync
+}
+
+// Edit is one change confined to one subtree of the document.
+type Edit struct {
+	Pointer string                          // every change this edit makes is at or below this pointer
+	Want    any                             // the node after the edit (nil + Absent = removed)
+	Absent  bool                            // the edit removes the node
+	Do      func(ctx context.Context) error // the candidate edit (PUT/DELETE)
+}
+
+func within(p, root string) bool { return p == root || strings.HasPrefix(p, root+"/") }
+
+// ownChanges reports whether every candidate change lies inside root; it returns the first foreign one otherwise.
+func ownChanges(changes []Change, root string) (bool, string) {
+	for _, ch := range changes {
+		if !within(ch.Pointer, root) {
+			return false, ch.Op + " " + orRoot(ch.Pointer)
+		}
+	}
+	return true, ""
+}
+
+// Apply runs one edit against the candidate and commits it, serialised per client (Terraform applies resources in
+// parallel; the appliance has one candidate per user). Steps:
+//  1. /state/system: sync must be in-sync and no confirmed commit pending (unless AllowUnsynced);
+//  2. the candidate must be clean — or hold exactly this edit already (our own leftover after an auto-revert);
+//  3. edit; the resulting changes must all lie inside e.Pointer (anything else = a concurrent run: fail, touch nothing);
+//  4. commit (?confirm when ConfirmSec > 0); the pending answer and /state/system must say in-sync; confirm.
+//
+// A candidate is only ever discarded when every change in it lies inside e.Pointer (never someone else's edits).
+func (c *Client) Apply(ctx context.Context, o ApplyOptions, e Edit) (*CommitResult, error) {
 	c.commit.Lock()
 	defer c.commit.Unlock()
+	if !o.AllowUnsynced {
+		if err := c.requireSynced(ctx, "before editing"); err != nil {
+			return nil, err
+		}
+	}
 	changes, err := c.Diff(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if len(changes) > 0 {
+	if len(changes) > 0 && !c.ownLeftover(ctx, changes, e) {
 		owner, _ := c.LockOwner(ctx)
 		return nil, fmt.Errorf("%w: the candidate already has %d uncommitted change(s) (first %s %s, lock owner %q) — "+
-			"commit or discard them before running terraform", ErrDirtyCandidate, len(changes), changes[0].Op, changes[0].Pointer, owner)
+			"commit or discard them (POST /api/v1/config/discard) before running again; nothing was changed", ErrDirtyCandidate,
+			len(changes), changes[0].Op, orRoot(changes[0].Pointer), owner)
 	}
-	if err := edit(ctx); err != nil {
-		c.quietDiscard()
+	if err := e.Do(ctx); err != nil {
+		c.discardIfOwn(e.Pointer)
 		return nil, err
 	}
 	if changes, err = c.Diff(ctx); err != nil {
-		c.quietDiscard()
 		return nil, err
 	}
+	if ok, foreign := ownChanges(changes, e.Pointer); !ok {
+		return nil, fmt.Errorf("%w: the candidate now also contains %s — another run with the same user is editing "+
+			"(use one service user per pipeline); nothing was committed and the candidate was left as it is", ErrConcurrent, foreign)
+	}
 	if len(changes) == 0 {
-		c.quietDiscard()
+		c.discardIfOwn(e.Pointer)
 		return &CommitResult{Status: "unchanged"}, nil
 	}
-	r, err := c.Commit(ctx, confirmSec, comment)
+	r, err := c.Commit(ctx, o.ConfirmSec, o.Comment)
 	if err != nil {
-		c.quietDiscard()
+		var ae *APIError
+		if errors.As(err, &ae) && (ae.Status == http.StatusBadGateway || ae.Status == http.StatusGatewayTimeout) {
+			// running-unknown: the API reconciles on its own and may still promote this candidate — do not discard it
+			return nil, fmt.Errorf("the commit outcome is UNKNOWN (the API is reconciling; check /state/system and refresh before retrying): %w", err)
+		}
+		c.discardIfOwn(e.Pointer)
 		return nil, err
 	}
 	if r.Status != "pending" {
 		return r, nil
 	}
-	if _, err := c.State(ctx, "system", nil); err != nil {
-		return r, fmt.Errorf("post-commit check failed, NOT confirming — the appliance reverts the commit at %s: %v", r.ConfirmDeadline, err)
+	notConfirmed := func(why string) error {
+		return fmt.Errorf("commit NOT confirmed (%s) — the appliance reverts it at %s. Afterwards the candidate still holds "+
+			"this edit: re-running recognises and re-uses it, or POST /api/v1/config/discard", why, r.ConfirmDeadline)
+	}
+	if r.Sync != nil && r.Sync.State != "in-sync" && !o.AllowUnsynced {
+		return r, notConfirmed("sync is " + r.Sync.State + ": " + r.Sync.Reason)
+	}
+	if !o.AllowUnsynced {
+		if err := c.requireSynced(ctx, "after the commit"); err != nil && !errors.Is(err, errPending) {
+			return r, notConfirmed(err.Error())
+		}
+	} else if _, err := c.System(ctx); err != nil {
+		return r, notConfirmed("post-commit check failed: " + err.Error())
 	}
 	cr, err := c.Confirm(ctx)
 	if err != nil {
-		return r, fmt.Errorf("confirm failed — the appliance reverts the commit at %s: %v", r.ConfirmDeadline, err)
+		return r, notConfirmed("confirm failed: " + err.Error())
 	}
+	// the confirm answer carries no notApplied; the pending answer knows which domains are not enforced
+	cr.NotApplied = append(cr.NotApplied, r.NotApplied...)
 	return cr, nil
 }
 
-func (c *Client) quietDiscard() {
+var errPending = errors.New("a confirmed commit is pending")
+
+func (c *Client) requireSynced(ctx context.Context, when string) error {
+	s, err := c.System(ctx)
+	if err != nil {
+		return fmt.Errorf("post-commit check failed: %w", err)
+	}
+	if s.Sync != nil && s.Sync.State != "in-sync" {
+		return fmt.Errorf("%w %s: running ↔ data plane sync is %q (%s) — wait for the API's reconcile or set allow_unsynced",
+			ErrUnsynced, when, s.Sync.State, s.Sync.Reason)
+	}
+	if len(s.PendingCommit) > 0 && string(s.PendingCommit) != "null" {
+		return fmt.Errorf("%w (%w) %s — confirm or let it revert first", ErrUnsynced, errPending, when)
+	}
+	return nil
+}
+
+// ownLeftover: the candidate holds only changes inside e.Pointer and the node there already equals what this edit
+// wants — the leftover of an earlier run of the same edit whose confirmed commit was reverted (L4).
+func (c *Client) ownLeftover(ctx context.Context, changes []Change, e Edit) bool {
+	if ok, _ := ownChanges(changes, e.Pointer); !ok {
+		return false
+	}
+	got, err := c.Candidate(ctx, e.Pointer)
+	if e.Absent {
+		return IsNotFound(err)
+	}
+	if err != nil {
+		return false
+	}
+	return jsonEquivalent(got, e.Want)
+}
+
+func jsonEquivalent(a, b any) bool {
+	ja, err1 := json.Marshal(a)
+	jb, err2 := json.Marshal(b)
+	if err1 != nil || err2 != nil {
+		return false
+	}
+	var x, y any
+	_ = json.Unmarshal(ja, &x)
+	_ = json.Unmarshal(jb, &y)
+	return reflect.DeepEqual(x, y)
+}
+
+// discardIfOwn drops the candidate only when every change in it lies inside root (never another run's edits).
+func (c *Client) discardIfOwn(root string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	_ = c.Discard(ctx)
+	changes, err := c.Diff(ctx)
+	if err != nil {
+		return
+	}
+	if ok, _ := ownChanges(changes, root); ok && len(changes) > 0 {
+		_ = c.Discard(ctx)
+	}
 }

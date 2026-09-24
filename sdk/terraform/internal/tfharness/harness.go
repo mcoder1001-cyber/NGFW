@@ -20,9 +20,11 @@ import (
 
 // H is one provider instance.
 type H struct {
-	ctx    context.Context
-	srv    tfprotov6.ProviderServer
-	schema *tfprotov6.GetProviderSchemaResponse
+	// Warnings are the warning diagnostics of the last Apply / Configure ("summary: detail").
+	Warnings []string
+	ctx      context.Context
+	srv      tfprotov6.ProviderServer
+	schema   *tfprotov6.GetProviderSchemaResponse
 }
 
 // New starts the provider server in-process and fetches its schemas.
@@ -63,6 +65,7 @@ func (h *H) Configure(cfg map[string]any) error {
 	if err != nil {
 		return err
 	}
+	h.Warnings = warnings(r.Diagnostics)
 	return diagErr(r.Diagnostics)
 }
 
@@ -152,6 +155,11 @@ func (h *H) PlanChange(res string, prior, config tftypes.Value) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !config.IsNull() {
+		if err := planValid(s.Block.Attributes, config, planned, tftypes.NewAttributePath()); err != nil {
+			return nil, fmt.Errorf("Provider produced invalid plan for %s: %w", res, err)
+		}
+	}
 	p := &Plan{Prior: prior, Planned: planned, RequiresReplace: r.RequiresReplace}
 	p.Text = Render(res, s, prior, planned, r.RequiresReplace)
 	return p, nil
@@ -169,6 +177,7 @@ func (h *H) Apply(res string, p *Plan, config tftypes.Value) (tftypes.Value, err
 	if err != nil {
 		return tftypes.Value{}, err
 	}
+	h.Warnings = warnings(r.Diagnostics)
 	if err := diagErr(r.Diagnostics); err != nil {
 		return tftypes.Value{}, err
 	}
@@ -442,6 +451,82 @@ func proposedNew(attrs []*tfprotov6.SchemaAttribute, prior, config tftypes.Value
 	return tftypes.NewValue(config.Type(), out), nil
 }
 
+// planValid is Terraform core's objchange.AssertPlanValid for attribute-only schemas: a write-only attribute is planned
+// null; a configured (non-null) value of a non-computed OR optional+computed attribute must be planned exactly as
+// configured (nested attributes recurse with their own flags); a non-computed attribute that is not configured must be
+// planned null. Only computed attributes the configuration leaves null may take any planned value.
+func planValid(attrs []*tfprotov6.SchemaAttribute, config, planned tftypes.Value, at *tftypes.AttributePath) error {
+	var cm, pm map[string]tftypes.Value
+	if err := config.As(&cm); err != nil {
+		return err
+	}
+	if planned.IsNull() || !planned.IsKnown() {
+		return fmt.Errorf("%s: planned object is null/unknown for a configured object", at)
+	}
+	if err := planned.As(&pm); err != nil {
+		return err
+	}
+	for _, a := range attrs {
+		cv, pv := cm[a.Name], pm[a.Name]
+		here := at.WithAttributeName(a.Name)
+		switch {
+		case a.WriteOnly:
+			if !pv.IsNull() {
+				return fmt.Errorf("%s: write-only attribute planned non-null", here)
+			}
+		case cv.IsNull():
+			if !a.Computed && !pv.IsNull() {
+				return fmt.Errorf("%s: planned %s for a non-computed attribute that is not configured", here, format(pv))
+			}
+		case !cv.IsKnown():
+			if pv.IsKnown() && !a.Computed {
+				return fmt.Errorf("%s: planned a known value for an unknown configuration value", here)
+			}
+		case a.NestedType != nil && a.NestedType.Nesting == tfprotov6.SchemaObjectNestingModeSingle:
+			if err := planValid(a.NestedType.Attributes, cv, pv, here); err != nil {
+				return err
+			}
+		case a.NestedType != nil && (a.NestedType.Nesting == tfprotov6.SchemaObjectNestingModeMap || a.NestedType.Nesting == tfprotov6.SchemaObjectNestingModeList):
+			if !pv.IsKnown() || pv.IsNull() {
+				return fmt.Errorf("%s: configured collection planned null/unknown", here)
+			}
+			var ce, pe map[string]tftypes.Value
+			if a.NestedType.Nesting == tfprotov6.SchemaObjectNestingModeMap {
+				_ = cv.As(&ce)
+				_ = pv.As(&pe)
+			} else {
+				var cl, pl []tftypes.Value
+				_ = cv.As(&cl)
+				_ = pv.As(&pl)
+				ce, pe = map[string]tftypes.Value{}, map[string]tftypes.Value{}
+				for i, v := range cl {
+					ce[fmt.Sprint(i)] = v
+				}
+				for i, v := range pl {
+					pe[fmt.Sprint(i)] = v
+				}
+			}
+			if len(ce) != len(pe) {
+				return fmt.Errorf("%s: planned %d elements, configured %d", here, len(pe), len(ce))
+			}
+			for k, e := range ce {
+				p, ok := pe[k]
+				if !ok {
+					return fmt.Errorf("%s[%s]: configured element missing from the plan", here, k)
+				}
+				if err := planValid(a.NestedType.Attributes, e, p, here.WithElementKeyString(k)); err != nil {
+					return err
+				}
+			}
+		default:
+			if !pv.Equal(cv) {
+				return fmt.Errorf("%s: planned value %s does not match config value %s", here, format(pv), format(cv))
+			}
+		}
+	}
+	return nil
+}
+
 // Render prints a plan like Terraform does, one top-level attribute per line; sensitive values are
 // `(sensitive value)`, write-only ones `(write-only attribute)`.
 func Render(res string, s *tfprotov6.Schema, prior, planned tftypes.Value, replace []*tftypes.AttributePath) string {
@@ -525,6 +610,16 @@ func format(v tftypes.Value) string {
 func dyn(v tftypes.Value) (*tfprotov6.DynamicValue, error) {
 	dv, err := tfprotov6.NewDynamicValue(v.Type(), v)
 	return &dv, err
+}
+
+func warnings(ds []*tfprotov6.Diagnostic) []string {
+	var out []string
+	for _, d := range ds {
+		if d.Severity == tfprotov6.DiagnosticSeverityWarning {
+			out = append(out, d.Summary+": "+d.Detail)
+		}
+	}
+	return out
 }
 
 func diagErr(ds []*tfprotov6.Diagnostic) error {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -22,11 +23,15 @@ type configResource struct{ p *providerData }
 type configModel struct {
 	ID                    types.String `tfsdk:"id"`
 	Pointer               types.String `tfsdk:"pointer"`
-	Value                 types.String `tfsdk:"value"`
+	Value                 jsonValue    `tfsdk:"value"`
 	SensitiveValue        types.String `tfsdk:"sensitive_value"`
 	SensitiveValueVersion types.Int64  `tfsdk:"sensitive_value_version"`
 	Revision              types.Int64  `tfsdk:"revision"`
 }
+
+// privateNode is the private-state key holding the node exactly as the API stored it after our last write (or as
+// last seen on import). Read reports drift when the live node differs from it — including members added out of band.
+const privateNode = "node"
 
 var (
 	_ resource.ResourceWithImportState    = (*configResource)(nil)
@@ -49,20 +54,24 @@ func (r *configResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"id": schema.StringAttribute{Computed: true, MarkdownDescription: "The pointer.",
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"pointer": schema.StringAttribute{Required: true,
-				MarkdownDescription: "RFC 6901 pointer below the root, first token a configuration domain (e.g. `/interfaces/loop1`, `/system/hostname`).",
-				PlanModifiers:       []planmodifier.String{samePointer{}, stringplanmodifier.RequiresReplace()}},
-			"value": schema.StringAttribute{Required: true,
-				MarkdownDescription: "The JSON value (use `jsonencode(...)`). Members the API fills in as schema defaults are not drift. " +
-					"Write-only members (e.g. `passwordHash`) are refused here — put them into `sensitive_value`.",
-				PlanModifiers: []planmodifier.String{semanticJSON{}}},
+				MarkdownDescription: "RFC 6901 pointer in canonical form (leading `/`, no trailing `/`), first token a configuration " +
+					"domain, e.g. `/interfaces/loop1`, `/system/hostname`. Changing it replaces the resource.",
+				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
+			"value": schema.StringAttribute{Required: true, CustomType: jsonType{},
+				MarkdownDescription: "The JSON value (use `jsonencode(...)`); the whole node is replaced (PUT). JSON that means the " +
+					"same is not drift. Members the API fills in as schema defaults are not drift; members changed or ADDED out of band " +
+					"are (the next apply would remove them, and the plan shows it). Write-only members (e.g. `passwordHash`) are refused " +
+					"here — put them into `sensitive_value`."},
 			"sensitive_value": schema.StringAttribute{Optional: true, Sensitive: true, WriteOnly: true,
-				MarkdownDescription: "JSON merged over `value` when writing (objects member-wise, arrays index-wise) — for write-only " +
-					"members such as `passwordHash`. Write-only: never stored in plan or state (Terraform ≥ 1.11); the API never returns it. " +
+				MarkdownDescription: "JSON merged over `value` when writing — for write-only members such as `passwordHash`. Objects merge " +
+					"member-wise; arrays with an item key (`management.users` by `username`) merge by that key, other arrays must mirror " +
+					"`value` element by element. Write-only: never stored in plan or state (Terraform ≥ 1.11); the API never returns it. " +
 					"Change `sensitive_value_version` to send it again."},
 			"sensitive_value_version": schema.Int64Attribute{Optional: true,
 				MarkdownDescription: "Bump to re-send `sensitive_value` (it is not in state, so Terraform cannot see its changes)."},
 			"revision": schema.Int64Attribute{Computed: true,
-				MarkdownDescription: "Revision created by the last commit of this resource (0 when the commit changed nothing)."},
+				MarkdownDescription: "Revision created by the last commit of this resource; 0 after an import or when the last apply " +
+					"committed nothing (the value was already in place)."},
 		},
 	}
 }
@@ -79,28 +88,19 @@ func (r *configResource) ValidateConfig(ctx context.Context, req resource.Valida
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	ptr := ""
 	if !m.Pointer.IsUnknown() && !m.Pointer.IsNull() {
 		p, err := client.NormalizePointer(m.Pointer.ValueString())
 		if err != nil {
 			resp.Diagnostics.AddAttributeError(path.Root("pointer"), "invalid pointer", err.Error())
 			return
 		}
-		ptr = p
-	}
-	if !m.Value.IsUnknown() && !m.Value.IsNull() {
-		v, err := decodeJSON(m.Value.ValueString())
-		if err != nil {
-			resp.Diagnostics.AddAttributeError(path.Root("value"), "value is not JSON", err.Error())
+		if p != m.Pointer.ValueString() {
+			resp.Diagnostics.AddAttributeError(path.Root("pointer"), "non-canonical pointer",
+				fmt.Sprintf("write the pointer as %q (leading slash, no trailing slash) — state and imports use that form", p))
 			return
 		}
-		if ptr != "" {
-			if leaves := writeOnlyLeaves(v, ptr); len(leaves) > 0 {
-				resp.Diagnostics.AddAttributeError(path.Root("value"), "write-only member in value",
-					fmt.Sprintf("%s is write-only (a secret): move it into sensitive_value so it never appears in plans or state", strings.Join(leaves, ", ")))
-			}
-		}
 	}
+	checkValue(&resp.Diagnostics, m.Pointer, m.Value)
 	if !m.SensitiveValue.IsUnknown() && !m.SensitiveValue.IsNull() {
 		if _, err := decodeJSON(m.SensitiveValue.ValueString()); err != nil {
 			// never echo the content
@@ -109,8 +109,54 @@ func (r *configResource) ValidateConfig(ctx context.Context, req resource.Valida
 	}
 }
 
+// checkValue: `value` must be JSON without write-only members. Runs at validate AND at plan (ModifyPlan) — a value
+// that depends on another resource is unknown at validate time — and once more in body() before any HTTP call.
+func checkValue(d *diag.Diagnostics, ptr types.String, v jsonValue) {
+	if v.IsUnknown() || v.IsNull() {
+		return
+	}
+	j, err := decodeJSON(v.ValueString())
+	if err != nil {
+		d.AddAttributeError(path.Root("value"), "value is not JSON", err.Error())
+		return
+	}
+	if ptr.IsUnknown() || ptr.IsNull() {
+		return
+	}
+	p, err := client.NormalizePointer(ptr.ValueString())
+	if err != nil {
+		return
+	}
+	if leaves := writeOnlyLeaves(j, p); len(leaves) > 0 {
+		d.AddAttributeError(path.Root("value"), "write-only member in value",
+			fmt.Sprintf("%s is write-only (a secret): move it into sensitive_value so it never appears in plans or state", strings.Join(leaves, ", ")))
+	}
+}
+
+// ModifyPlan (after the attribute plan modifiers): the write-only guard on the planned value, and `revision` keeps its
+// prior value when nothing that is written changes. Configured attributes are never rewritten.
+func (r *configResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+	var pl configModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &pl)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	checkValue(&resp.Diagnostics, pl.Pointer, pl.Value)
+	if resp.Diagnostics.HasError() || req.State.Raw.IsNull() {
+		return
+	}
+	var st configModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &st)...)
+	if pl.Pointer.Equal(st.Pointer) && pl.Value.Equal(st.Value) && pl.SensitiveValueVersion.Equal(st.SensitiveValueVersion) {
+		resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("revision"), st.Revision)...)
+	}
+}
+
 // body = value, with sensitive_value (from the configuration — write-only values are never in the plan) merged over it.
-func (r *configResource) body(ctx context.Context, plan configModel, cfg configModel) (string, any, error) {
+func (r *configResource) body(plan configModel, cfg configModel) (string, any, error) {
 	ptr, err := client.NormalizePointer(plan.Pointer.ValueString())
 	if err != nil {
 		return "", nil, err
@@ -119,14 +165,18 @@ func (r *configResource) body(ctx context.Context, plan configModel, cfg configM
 	if err != nil {
 		return "", nil, fmt.Errorf("value: %w", err)
 	}
+	if leaves := writeOnlyLeaves(v, ptr); len(leaves) > 0 {
+		return "", nil, fmt.Errorf("%s is write-only (a secret) and must not be in value (it would be stored in the state): use sensitive_value", strings.Join(leaves, ", "))
+	}
 	if !cfg.SensitiveValue.IsNull() && !cfg.SensitiveValue.IsUnknown() {
 		sv, err := decodeJSON(cfg.SensitiveValue.ValueString())
 		if err != nil {
 			return "", nil, fmt.Errorf("sensitive_value is not JSON")
 		}
-		v = deepMerge(v, sv)
+		if v, err = mergeSensitive(v, sv, ptr); err != nil {
+			return "", nil, fmt.Errorf("sensitive_value: %w", err)
+		}
 	}
-	_ = ctx
 	return ptr, v, nil
 }
 
@@ -137,28 +187,38 @@ func (r *configResource) Create(ctx context.Context, req resource.CreateRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	ptr, body, err := r.body(ctx, plan, cfg)
+	ptr, body, err := r.body(plan, cfg)
 	if err != nil {
 		resp.Diagnostics.AddError("invalid vrx_config", err.Error())
 		return
 	}
-	res, err := r.p.client.Apply(ctx, r.p.confirmSec, r.p.comment+": create "+ptr, func(ctx context.Context) error {
+	res, err := r.p.apply(ctx, "create "+ptr, client.Edit{Pointer: ptr, Want: body, Do: func(ctx context.Context) error {
 		if _, err := r.p.client.Running(ctx, ptr); err == nil {
-			return fmt.Errorf("%s already exists in the running configuration — import it: terraform import <address> %s", ptr, ptr)
+			return fmt.Errorf("%s already exists in the running configuration — import it first: terraform import <address> %s", ptr, ptr)
 		} else if !client.IsNotFound(err) {
 			return err
 		}
 		return r.p.client.Put(ctx, ptr, body)
-	})
+	}})
 	if err != nil {
 		addAPIError(&resp.Diagnostics, "create "+ptr, err)
+		return
+	}
+	if res.Status == "unchanged" {
+		resp.Diagnostics.AddError("VRX: nothing was committed for create "+ptr, concurrentHint)
 		return
 	}
 	plan.ID = types.StringValue(ptr)
 	plan.SensitiveValue = types.StringNull()
 	plan.Revision = types.Int64Value(revisionOf(res))
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	r.rememberNode(ctx, ptr, resp.Private.SetKey, &resp.Diagnostics)
+	r.p.reportCommit(&resp.Diagnostics, "create "+ptr, res)
 }
+
+// concurrentHint explains an edit that produced no commit although the plan changed something.
+const concurrentHint = "the candidate showed no change after the edit although the plan changes this node — another run " +
+	"with the same user may have discarded it (the candidate is per user: use one service user per pipeline). Re-run plan."
 
 func (r *configResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var st configModel
@@ -181,14 +241,17 @@ func (r *configResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 	live = normalizeNumbers(live)
-	keep := false
-	if !st.Value.IsNull() && !st.Value.IsUnknown() {
-		if want, err := decodeJSON(st.Value.ValueString()); err == nil && jsonSubset(want, live) {
-			keep = true // only schema defaults added by the API — not drift
-		}
+	stored, d := req.Private.GetKey(ctx, privateNode)
+	resp.Diagnostics.Append(d...)
+	var prev any
+	if len(stored) > 0 {
+		prev, _ = decodeJSON(string(stored))
 	}
-	if !keep {
-		st.Value = types.StringValue(canonicalJSON(live))
+	// drift = the live node differs from what the API stored after our last write (schema defaults included there),
+	// so members changed OR added out of band are reported; without a record (import) the live node is the value
+	if len(stored) == 0 || !jsonEqual(prev, live) || st.Value.IsNull() || st.Value.IsUnknown() {
+		st.Value = jsonOf(canonicalJSON(live))
+		resp.Diagnostics.Append(resp.Private.SetKey(ctx, privateNode, []byte(canonicalJSON(live)))...)
 	}
 	st.ID = types.StringValue(ptr)
 	st.SensitiveValue = types.StringNull()
@@ -199,28 +262,58 @@ func (r *configResource) Read(ctx context.Context, req resource.ReadRequest, res
 }
 
 func (r *configResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan, cfg configModel
+	var plan, cfg, prior configModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &prior)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	ptr, body, err := r.body(ctx, plan, cfg)
+	ptr, body, err := r.body(plan, cfg)
 	if err != nil {
 		resp.Diagnostics.AddError("invalid vrx_config", err.Error())
 		return
 	}
-	res, err := r.p.client.Apply(ctx, r.p.confirmSec, r.p.comment+": update "+ptr, func(ctx context.Context) error {
+	res, err := r.p.apply(ctx, "update "+ptr, client.Edit{Pointer: ptr, Want: body, Do: func(ctx context.Context) error {
 		return r.p.client.Put(ctx, ptr, body)
-	})
+	}})
 	if err != nil {
 		addAPIError(&resp.Diagnostics, "update "+ptr, err)
+		return
+	}
+	if res.Status == "unchanged" && r.changesDocument(ctx, ptr, prior, plan, cfg) {
+		resp.Diagnostics.AddError("VRX: nothing was committed for update "+ptr, concurrentHint)
 		return
 	}
 	plan.ID = types.StringValue(ptr)
 	plan.SensitiveValue = types.StringNull()
 	plan.Revision = types.Int64Value(revisionOf(res))
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	r.rememberNode(ctx, ptr, resp.Private.SetKey, &resp.Diagnostics)
+	r.p.reportCommit(&resp.Diagnostics, "update "+ptr, res)
+}
+
+// changesDocument: should this update have changed the running node? A reformatted `value`, or one that only
+// restates what is already stored, legitimately commits nothing; a new sensitive_value version always writes.
+func (r *configResource) changesDocument(ctx context.Context, ptr string, prior, plan, cfg configModel) bool {
+	if !cfg.SensitiveValue.IsNull() && !plan.SensitiveValueVersion.Equal(prior.SensitiveValueVersion) {
+		return true
+	}
+	live, err := r.p.client.Running(ctx, ptr)
+	if err != nil {
+		return true
+	}
+	want, _ := decodeJSON(plan.Value.ValueString())
+	return !jsonSubset(want, normalizeNumbers(live))
+}
+
+func (r *configResource) rememberNode(ctx context.Context, ptr string, set func(context.Context, string, []byte) diag.Diagnostics, d *diag.Diagnostics) {
+	live, err := r.p.client.Running(ctx, ptr)
+	if err != nil {
+		d.AddWarning("VRX: could not read back "+ptr, err.Error())
+		return
+	}
+	d.Append(set(ctx, privateNode, []byte(canonicalJSON(normalizeNumbers(live))))...)
 }
 
 func (r *configResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -234,15 +327,17 @@ func (r *configResource) Delete(ctx context.Context, req resource.DeleteRequest,
 		resp.Diagnostics.AddError("invalid pointer in state", err.Error())
 		return
 	}
-	_, err = r.p.client.Apply(ctx, r.p.confirmSec, r.p.comment+": delete "+ptr, func(ctx context.Context) error {
+	res, err := r.p.apply(ctx, "delete "+ptr, client.Edit{Pointer: ptr, Absent: true, Do: func(ctx context.Context) error {
 		if err := r.p.client.Delete(ctx, ptr); err != nil && !client.IsNotFound(err) {
 			return err
 		}
 		return nil
-	})
+	}})
 	if err != nil {
 		addAPIError(&resp.Diagnostics, "delete "+ptr, err)
+		return
 	}
+	r.p.reportCommit(&resp.Diagnostics, "delete "+ptr, res)
 }
 
 func (r *configResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -251,62 +346,8 @@ func (r *configResource) ImportState(ctx context.Context, req resource.ImportSta
 		resp.Diagnostics.AddError("import id must be a JSON pointer", err.Error())
 		return
 	}
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("pointer"), req.ID)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("pointer"), ptr)...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), ptr)...)
-}
-
-// ModifyPlan runs after the attribute plan modifiers: when pointer, value and sensitive_value_version are
-// (semantically) unchanged there is nothing to commit, so `revision` keeps its prior value instead of becoming
-// "known after apply" — otherwise a reformatted JSON string would still show as an in-place update.
-func (r *configResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
-	if req.State.Raw.IsNull() || req.Plan.Raw.IsNull() {
-		return
-	}
-	var st, pl configModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &st)...)
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &pl)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	if pl.Pointer.Equal(st.Pointer) && pl.Value.Equal(st.Value) && pl.SensitiveValueVersion.Equal(st.SensitiveValueVersion) {
-		resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("revision"), st.Revision)...)
-	}
-}
-
-// semanticJSON keeps the prior string when the configured JSON means the same (key order, whitespace, 1.0 vs 1).
-type semanticJSON struct{}
-
-func (semanticJSON) Description(context.Context) string {
-	return "JSON values that are semantically equal are not a change"
-}
-func (m semanticJSON) MarkdownDescription(ctx context.Context) string { return m.Description(ctx) }
-func (semanticJSON) PlanModifyString(_ context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	if req.StateValue.IsNull() || req.StateValue.IsUnknown() || req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
-		return
-	}
-	a, err1 := decodeJSON(req.StateValue.ValueString())
-	b, err2 := decodeJSON(req.ConfigValue.ValueString())
-	if err1 == nil && err2 == nil && jsonEqual(a, b) {
-		resp.PlanValue = req.StateValue
-	}
-}
-
-// samePointer: `interfaces/loop1/` and `/interfaces/loop1` address the same node — not a replacement.
-type samePointer struct{}
-
-func (samePointer) Description(context.Context) string {
-	return "equivalent JSON pointers are not a change"
-}
-func (m samePointer) MarkdownDescription(ctx context.Context) string { return m.Description(ctx) }
-func (samePointer) PlanModifyString(_ context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	if req.StateValue.IsNull() || req.StateValue.IsUnknown() || req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
-		return
-	}
-	a, err1 := client.NormalizePointer(req.StateValue.ValueString())
-	b, err2 := client.NormalizePointer(req.ConfigValue.ValueString())
-	if err1 == nil && err2 == nil && a == b {
-		resp.PlanValue = req.StateValue
-	}
 }
 
 func revisionOf(r *client.CommitResult) int64 {

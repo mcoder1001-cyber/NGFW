@@ -21,7 +21,8 @@ type stateModel struct {
 	JSON  types.String `tfsdk:"json"`
 }
 
-var statePathRE = regexp.MustCompile(`^[a-z][a-z0-9-]*(?:/[A-Za-z0-9._~-]+)*$`)
+// the state endpoints of the API (a closed list: `path` is not a way to GET arbitrary routes)
+var statePathRE = regexp.MustCompile(`^(?:system|interfaces|routes|neighbors|drift|events)$`)
 
 func newStateDataSource() datasource.DataSource { return &stateDataSource{} }
 
@@ -55,7 +56,7 @@ func (d *stateDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	}
 	p := m.Path.ValueString()
 	if !statePathRE.MatchString(p) {
-		resp.Diagnostics.AddAttributeError(path.Root("path"), "invalid state path", "expected e.g. `interfaces`, `system`, `routes`")
+		resp.Diagnostics.AddAttributeError(path.Root("path"), "invalid state path", "one of system, interfaces, routes, neighbors, drift, events")
 		return
 	}
 	q := url.Values{}

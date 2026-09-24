@@ -95,38 +95,92 @@ func jsonSubset(want, have any) bool {
 	return true
 }
 
-// deepMerge overlays src onto dst: objects merge member-wise, arrays merge index-wise, anything else is replaced.
-func deepMerge(dst, src any) any {
+// mergeSensitive overlays the write-only `sensitive_value` onto `value` (both located at ptr). Objects merge
+// member-wise. Arrays listed in keyedArrayPointers (x-vrx-ui.itemKey, e.g. management.users by username) merge by
+// that key — a sensitive element must name its key and match exactly one element of value; other arrays must have
+// the same length and merge index-wise. Anything that cannot be matched is an error: a hash must never attach to the
+// wrong element (the plan cannot show a write-only value).
+func mergeSensitive(dst, src any, ptr string) (any, error) {
 	switch s := src.(type) {
 	case map[string]any:
 		d, ok := dst.(map[string]any)
 		if !ok {
-			return s
+			if dst != nil {
+				return nil, fmt.Errorf("%s: sensitive_value has an object where value has %T", orRoot(ptr), dst)
+			}
+			d = map[string]any{}
 		}
 		out := make(map[string]any, len(d)+len(s))
 		for k, v := range d {
 			out[k] = v
 		}
 		for k, v := range s {
-			out[k] = deepMerge(d[k], v)
+			m, err := mergeSensitive(d[k], v, ptr+"/"+escapeToken(k))
+			if err != nil {
+				return nil, err
+			}
+			out[k] = m
 		}
-		return out
+		return out, nil
 	case []any:
 		d, ok := dst.([]any)
 		if !ok {
-			return s
+			return nil, fmt.Errorf("%s: sensitive_value has an array where value has %T", orRoot(ptr), dst)
 		}
 		out := append([]any(nil), d...)
-		for i, v := range s {
-			if i < len(out) {
-				out[i] = deepMerge(out[i], v)
-			} else {
-				out = append(out, v)
+		if key := keyedArrayKey(ptr); key != "" {
+			for i, e := range s {
+				em, _ := e.(map[string]any)
+				kv, has := em[key]
+				if !has {
+					return nil, fmt.Errorf("%s/%d: sensitive_value elements of this array must name their %q to be matched", orRoot(ptr), i, key)
+				}
+				match := -1
+				for j, de := range d {
+					if dm, ok := de.(map[string]any); ok && jsonEqual(dm[key], kv) {
+						if match >= 0 {
+							return nil, fmt.Errorf("%s: two elements of value have %s = %v", orRoot(ptr), key, kv)
+						}
+						match = j
+					}
+				}
+				if match < 0 {
+					return nil, fmt.Errorf("%s: sensitive_value names %s = %v, which is not in value", orRoot(ptr), key, kv)
+				}
+				m, err := mergeSensitive(out[match], e, fmt.Sprintf("%s/%d", ptr, match))
+				if err != nil {
+					return nil, err
+				}
+				out[match] = m
 			}
+			return out, nil
 		}
-		return out
+		if len(s) != len(d) {
+			return nil, fmt.Errorf("%s: sensitive_value has %d elements but value has %d — it must mirror value element by element", orRoot(ptr), len(s), len(d))
+		}
+		for i, e := range s {
+			m, err := mergeSensitive(out[i], e, fmt.Sprintf("%s/%d", ptr, i))
+			if err != nil {
+				return nil, err
+			}
+			out[i] = m
+		}
+		return out, nil
 	}
-	return src
+	return src, nil
+}
+
+func keyedArrayKey(ptr string) string {
+	for pat, key := range keyedArrayPointers {
+		if matchPointer(pat, ptr) {
+			return key
+		}
+	}
+	return ""
+}
+
+func escapeToken(k string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(k, "~", "~0"), "/", "~1")
 }
 
 // matchPointer: `/a/*/c` matches `/a/0/c`.

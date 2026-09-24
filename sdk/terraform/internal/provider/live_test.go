@@ -96,20 +96,21 @@ func TestLive(t *testing.T) {
 			return
 		}
 		ctx := context.Background()
-		_ = c.Discard(ctx)
-		_, err = c.Apply(ctx, 0, "terraform live cleanup", func(ctx context.Context) error {
-			for _, p := range []string{ptrA, "/interfaces/" + ifB} {
-				if err := c.Delete(ctx, p); err != nil && !client.IsNotFound(err) {
-					return err
-				}
+		for _, p := range []string{ptrA, "/interfaces/" + ifB} {
+			if _, err := c.Running(ctx, p); client.IsNotFound(err) {
+				continue
 			}
-			if u, err := c.Running(ctx, "/management/users"); err == nil && strings.Contains(fmt.Sprint(u), user) {
-				return c.Put(ctx, "/management/users", []any{map[string]any{"username": "admin", "role": "admin"}})
+			if _, err := c.Apply(ctx, client.ApplyOptions{Comment: "terraform live cleanup"}, client.Edit{Pointer: p, Absent: true,
+				Do: func(ctx context.Context) error { return c.Delete(ctx, p) }}); err != nil {
+				t.Logf("cleanup %s: %v", p, err)
 			}
-			return nil
-		})
-		if err != nil {
-			t.Logf("cleanup: %v", err)
+		}
+		if u, err := c.Running(ctx, "/management/users"); err == nil && strings.Contains(fmt.Sprint(u), user) {
+			want := []any{map[string]any{"username": "admin", "role": "admin"}}
+			if _, err := c.Apply(ctx, client.ApplyOptions{Comment: "terraform live cleanup"}, client.Edit{Pointer: "/management/users", Want: want,
+				Do: func(ctx context.Context) error { return c.Put(ctx, "/management/users", want) }}); err != nil {
+				t.Logf("cleanup users: %v", err)
+			}
 		}
 	}
 	cleanup()

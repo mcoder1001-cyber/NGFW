@@ -6,7 +6,7 @@
 //	                outside, a PAT pool, a port forward, a 1:1 mapping → Retrieve(nat) == canonical desired, vppctl
 //	  packets       V19 guard + vrx-vpp-preflight → outbound PAT (tcpdump in the wan netns sees the pool address; the
 //	                same 5-tuple in vppctl and GET /state/nat/sessions) → port forward wan→external:8080 reaches the lan
-//	                host on :80 (trace: nat44-ed-out2in) → 1:1 both directions → ≥ 2 000 sessions: pageSize=100 never
+//	                host on :80 (the static session in vppctl and the API) → 1:1 both directions → ≥ 2 000 sessions: pageSize=100 never
 //	                returns more than 100, bounded gRPC messages → summary → kill through the API (gone from vppctl,
 //	                audited)
 //	  restart       stop the agent → delete the slot's mappings, pools and features via binapi (dependents first)
@@ -406,7 +406,6 @@ func (f *fixture) packets(t *testing.T) {
 	// ---- port forward: wan 10.N.2.2:41001 → external 10.N.2.110:8080 reaches the lan host on :80
 	inNSProc(t, "lan-server-80", logs, r.lanNS, "python3", server, r.lanIP, "80")
 	time.Sleep(500 * time.Millisecond)
-	vppctl(t, "trace", "add", "af-packet-input", "40")
 	capL := startCapture(t, "tcpdump-lan-fwd", logs, r.lanNS, r.lanPeer, "tcp", "port", "80")
 	out, err := inNS(t, r.wanNS, "python3", once, r.wanIP, "41001", r.addr(2, 110), "8080")
 	t.Logf("wan %s:41001 → %s:8080: %v %s", r.wanIP, r.addr(2, 110), err, strings.TrimSpace(out))
@@ -418,13 +417,18 @@ func (f *fixture) packets(t *testing.T) {
 	if len(lanLines) == 0 || !strings.Contains(lanLines[0], r.wanIP+".41001 > "+r.lanIP+".80") {
 		t.Fatalf("the lan host did not receive %s:41001 → %s:80", r.wanIP, r.lanIP)
 	}
-	time.Sleep(300 * time.Millisecond)
-	all := vppctl(t, "show", "trace", "max", "5000")
-	tr, ok := natTraceBlock(all, "nat44-ed-out2in", "TCP: "+r.wanIP+" -> "+r.addr(2, 110), "41001 -> 8080", "flags 0x02 SYN")
-	if !ok {
-		t.Fatalf("no trace block with nat44-ed-out2in for %s:41001 -> %s; buffer starts:\n%s", r.wanIP, r.addr(2, 110), trunc(all, 3000))
+	// the out2in translation, proven by the session (never `vppctl trace`/`show trace`: D-128, the 18:41 crash)
+	fs := vppctl(t, "show", "nat44", "sessions", "filter", "i2o", "saddr", r.lanIP, "filter", "i2o", "sport", "80")
+	t.Log("vppctl show nat44 sessions filter i2o saddr " + r.lanIP + " filter i2o sport 80:\n" + fs)
+	if !strings.Contains(fs, fmt.Sprintf("i2o %s proto TCP port 80", r.lanIP)) || !strings.Contains(fs, fmt.Sprintf("o2i %s proto TCP port 8080", r.addr(2, 110))) ||
+		!strings.Contains(fs, fmt.Sprintf("external host %s:41001", r.wanIP)) || !strings.Contains(fs, "static translation") {
+		t.Fatal("vppctl does not show the port-forward session (static translation 10.N.2.110:8080 ↔ lan :80)")
 	}
-	t.Log("vppctl show trace (the port-forwarded SYN):\n" + tr)
+	fwd := f.sessionRow(t, "inside="+r.lanIP+"&port=41001&protocol=tcp")
+	t.Logf("GET /state/nat/sessions?inside=%s&port=41001&protocol=tcp → %s", r.lanIP, js(fwd))
+	if fwd["outsideAddress"] != r.addr(2, 110) || fwd["outsidePort"] != float64(8080) || fwd["insidePort"] != float64(80) || fwd["static"] != true {
+		t.Fatal("the session browser row of the port forward differs from vppctl")
+	}
 
 	// ---- 1:1 both directions
 	capW = startCapture(t, "tcpdump-wan-1to1", logs, r.wanNS, r.wanPeer, "tcp", "port", "8000", "and", "src", "host", r.addr(2, 111))

@@ -1,7 +1,7 @@
 package nat44edsessions
 
 // Direct VPP access of the test (never of the product API): binary API dumps for the V19 guard and the
-// simulated loss, vppctl for the evidence the acceptance asks for (show int, trace).
+// simulated loss, vppctl for the evidence the acceptance asks for (show nat44 …; never `trace`, D-128).
 
 import (
 	"context"

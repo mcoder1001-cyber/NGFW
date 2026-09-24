@@ -61,3 +61,20 @@ first host run started at 18:57 (its log records `NRestarts (before) = 1`, i.e. 
 classify bindings: the topology test's V19 guard (P08's `v19Guard`, copied) reads `classify_table_by_interface` and
 resets the write-only ip/l2 bindings to `~0` on the two rig interfaces the agent just created — no loop over table
 indexes. The agent code of this task sends only nat44-ed messages. D-126 noted; the NAT packet phase is ~12 s.
+
+## Q9 (tools/ci.sh bug, manager-owned): the contract guard fails a branch whose commit subjects exceed 8 KiB
+`TMPDIR=/tmp/g-w4 tools/ci.sh --base main` stops at "CONTRACT FILES CHANGED WITHOUT A CONTRACT COMMIT" although the
+branch carries `contract(proto): nat sessions`, `contract(schema): nat adjacent pools` and `contract(api-client): …`.
+Cause: under `set -o pipefail`, `git log --format=%s "$mb..$TIP" | grep -qiE '^contract…'` — `grep -q` exits at the first
+match, git log's second 8 KiB write gets SIGPIPE (exit 141) and pipefail turns the `if` false. My branch's subjects since
+the merge base with main are 8 383 bytes (it still contains P08's and W-seed's history); reproduced 8/8 in a shell with
+`set -o pipefail` (`PIPESTATUS` = `141 0`). Fix: `grep -iE … >/dev/null` (no `-q`) or capture the log in a variable
+first. Until then I ran the full gate without the guard (`tools/ci.sh quick`, green — see the status file) and list the
+contract commits by hand.
+
+## Q10 (D-128 acknowledged): `vppctl trace` / `show trace` removed from the topology test
+The port-forward step used `vppctl trace add af-packet-input 40` + `show trace max 5000` in runs 1–5 (18:59–19:13,
+before the D-128 message; NRestarts stayed 1 → 1). Removed (commit below): the out2in translation is now proven by
+`vppctl show nat44 sessions filter i2o saddr 10.4.1.2 filter i2o sport 80` (the static session `o2i 10.4.2.110:8080`,
+`external host 10.4.2.2:41001`, "static translation") and the same row in `GET /state/nat/sessions` (`static: true`),
+next to the tcpdump in the lan netns. The trace excerpt in the status file is from run 5 and marked as such.

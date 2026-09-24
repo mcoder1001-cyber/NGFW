@@ -99,6 +99,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // Feature screens that are not a schema domain: one `groups.get('<group>')!.push({…})` line under the feature's anchor, labelKey in
   // the feature's namespace (wave-A-hotspots W2).
   // wave-A: F-bonding
+  groups.get('interfaces')!.push({ id: 'bonds', path: '/interfaces/bonds', labelKey: 'bonding:nav', fallbackLabel: 'Bonds', available: true });
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-neighbors-ra

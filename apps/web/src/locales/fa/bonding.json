@@ -1,0 +1,126 @@
+{
+  "nav": "باندها",
+  "title": "باندها",
+  "intro": "تجمیع لینک: واسط‌های باند (BondEthernet<id>) با کارت‌های شبکهٔ عضو، و وضعیت زندهٔ اعضا و LACP از صفحهٔ داده. تغییرات به پیکربندی نامزد می‌روند و با Commit اعمال می‌شوند.",
+  "add": "افزودن باند",
+  "addTitle": "افزودن یک واسط باند",
+  "addHelp": "نام باند BondEthernet<id> است. پس از ساخت، اعضا را اضافه کنید؛ نشانی‌ها، MTU و VLANهای باند مانند هر واسط دیگری در صفحهٔ واسط‌ها تنظیم می‌شوند.",
+  "addFailed": "باند به پیکربندی نامزد افزوده نشد.",
+  "bondId": "شناسهٔ باند",
+  "badId": "یک عدد دهدهی (بدون صفر در ابتدا)",
+  "exists": "{{name}} از قبل پیکربندی شده است",
+  "willBe": "{{name}} ساخته می‌شود",
+  "cancel": "انصراف",
+  "close": "بستن",
+  "loading": "در حال بارگذاری…",
+  "readonly": "نقش شما اجازهٔ مشاهده دارد، نه تغییر پیکربندی.",
+  "pending": "در انتظار",
+  "notInVpp": "در VPP نیست",
+  "memberLacp": "{{name}}: {{state}}",
+  "col": {
+    "name": "نام",
+    "mode": "حالت",
+    "loadBalance": "توزیع بار",
+    "status": "وضعیت",
+    "active": "اعضای فعال",
+    "members": "اعضا"
+  },
+  "mode": {
+    "lacp": "LACP (802.3ad)",
+    "xor": "XOR",
+    "round-robin": "نوبتی (round-robin)",
+    "active-backup": "فعال-پشتیبان",
+    "broadcast": "پخش همگانی"
+  },
+  "status": {
+    "up": "بالا",
+    "down": "پایین",
+    "adminDown": "غیرفعال مدیریتی",
+    "degraded": "بدون عضو فعال"
+  },
+  "lacp": {
+    "mux": {
+      "detached": "جدا",
+      "waiting": "در انتظار",
+      "attached": "متصل",
+      "collecting-distributing": "در حال دریافت/ارسال"
+    },
+    "rx": {
+      "initialize": "آغاز",
+      "port-disabled": "درگاه غیرفعال",
+      "expired": "منقضی",
+      "lacp-disabled": "LACP غیرفعال",
+      "defaulted": "پیش‌فرض (بدون همتا)",
+      "current": "جاری"
+    },
+    "detail": "این سو: {{flags}} · همتا: {{system}}"
+  },
+  "live": {
+    "vppName": "نام در VPP",
+    "swIfIndex": "sw_if_index",
+    "activeOf": "{{active}} از {{total}}"
+  },
+  "drawer": {
+    "label": "باند {{name}}",
+    "liveTitle": "وضعیت زنده",
+    "notInVpp": "VPP (هنوز) چنین باندی ندارد. با Commit ساخته می‌شود.",
+    "noLive": "عامل وضعیت زندهٔ باند را گزارش نمی‌کند؛ فقط پیکربندی نمایش داده می‌شود.",
+    "interfaceHint": "وضعیت مدیریتی، MTU، MAC، نشانی‌ها، VRF و زیرواسط‌های VLAN باند مانند هر واسط دیگری ویرایش می‌شوند:",
+    "interfaceLink": "باز کردن واسط‌ها",
+    "configTitle": "باند (نامزد)",
+    "notConfigured": "این باند در پیکربندی نامزد نیست.",
+    "saved": "در نامزد ذخیره شد. برای اعمال، Commit کنید.",
+    "save": "ذخیره در نامزد",
+    "reset": "بازنشانی",
+    "remove": "حذف باند"
+  },
+  "members": {
+    "title": "اعضا",
+    "interface": "واسط",
+    "link": "لینک",
+    "options": "گزینه‌ها",
+    "lacp": "LACP",
+    "actions": "کنش‌ها",
+    "none": "هنوز عضوی ندارد.",
+    "weight": "وزن {{weight}}",
+    "remove": "حذف عضو {{name}}",
+    "editTitle": "عضو {{name}} از {{bond}}",
+    "addTitle": "افزودن {{name}} به {{bond}}",
+    "pick": "واسط مجاز",
+    "noneEligible": "واسط مجازی نیست (کارت شبکه بدون نشانی و خارج از باند دیگر)",
+    "add": "افزودن عضو"
+  },
+  "group": {
+    "bonding": "باند"
+  },
+  "field": {
+    "mode": {
+      "title": "حالت",
+      "help": "lacp (802.3ad)، xor، نوبتی، فعال-پشتیبان یا پخش همگانی؛ تغییر آن باند را از نو می‌سازد"
+    },
+    "loadBalance": {
+      "title": "توزیع بار",
+      "help": "فقط xor و lacp: درهم‌سازی ارسال روی l2 (MAC)، l23 (MAC+IP) یا l34 (IP+درگاه)؛ خالی = l2"
+    },
+    "numaOnly": {
+      "title": "فقط اعضای هم‌NUMA",
+      "help": "ارسال فقط روی اعضایی که به گرهٔ NUMA باند وصل‌اند"
+    },
+    "id": {
+      "title": "شناسهٔ باند",
+      "help": "خالی = عدد موجود در نام واسط (BondEthernet<id>)"
+    },
+    "passive": {
+      "title": "غیرفعال (passive)",
+      "help": "فقط LACP: LACP را آغاز نکن؛ همتا باید فعال باشد"
+    },
+    "longTimeout": {
+      "title": "مهلت طولانی",
+      "help": "فقط LACP: مهلت ۹۰ ثانیه‌ای همتا (LACPDU کند) به‌جای ۳ ثانیه"
+    },
+    "weight": {
+      "title": "وزن",
+      "help": "فقط فعال-پشتیبان: عضو بالا با بیشترین وزن فعال است (۱ تا ۲۵۵)"
+    }
+  }
+}

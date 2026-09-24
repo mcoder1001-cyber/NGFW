@@ -70,6 +70,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         })),
         // Feature screens: one lazy route line under the feature's anchor (wave-A-hotspots W1).
         // wave-A: F-bonding
+        { path: 'interfaces/bonds', lazy: async () => ({ Component: (await import('./domains/interfaces/bonding/BondsPage')).BondsPage }) },
         // wave-A: F-bridge-l2
         // wave-A: F-loopback-bvi-gso-lldp-span
         // wave-A: F-vrf-static-ecmp

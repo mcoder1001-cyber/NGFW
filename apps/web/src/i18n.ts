@@ -25,6 +25,8 @@ import faVpn from './locales/fa/vpn.json';
 // Feature namespaces (locale namespace = task slug): the en and fa import under the feature's anchor (wave-A-hotspots W3).
 // wave-A: F-vlan-qinq
 // wave-A: F-bonding
+import enBonding from './locales/en/bonding.json';
+import faBonding from './locales/fa/bonding.json';
 // wave-A: F-bridge-l2
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
@@ -55,6 +57,7 @@ export const NAMESPACES = [
   // Feature namespaces: one line under the feature's anchor.
   // wave-A: F-vlan-qinq
   // wave-A: F-bonding
+  'bonding',
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
@@ -87,6 +90,7 @@ const en = {
   // Feature namespaces: one line under the feature's anchor.
   // wave-A: F-vlan-qinq
   // wave-A: F-bonding
+  bonding: enBonding,
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
@@ -116,6 +120,7 @@ const fa = {
   // Feature namespaces: one line under the feature's anchor.
   // wave-A: F-vlan-qinq
   // wave-A: F-bonding
+  bonding: faBonding,
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp

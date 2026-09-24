@@ -2239,7 +2239,7 @@ tasks:
   - P06
   priority: 2
   est_hours: 6
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.9
@@ -2252,7 +2252,7 @@ tasks:
   finished: ''
   notes: 'from P07b Q1-Q3, P13 review H1, D-093 | worker done 7f4578f CI green (88 unit, 41 e2e); review spawned | review APPROVE WITH CHANGES cc70629 (H1 reconcile restores old password hash, H2 refresh
     survives reset, M1 keys survive reset → D-097, M2 current-guessing); fix round 1 | 07:2x cycle 12: worker found dead (no process since ~05:45); uncommitted work salvaged as wip commit; CONTINUE respawn
-    by host manager (Agent tool), envelope /root/ngfw-wt/TD-2.continue.md'
+    by host manager (Agent tool), envelope /root/ngfw-wt/TD-2.continue.md | 07:5x fix round 1 done 9373e6e CI green (Q1–Q4 in TD-2-questions.md → D-100); verify review spawned'
 - id: TD-3
   title: 'V19 guard: sanitize inherited per-interface state on interface create; unbind classify before table/interface delete; restart simulations delete dependents; ci.sh full pre-flight'
   prompt: ''

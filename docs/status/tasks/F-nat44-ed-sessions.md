@@ -2,7 +2,7 @@
 
 Branch `task/F-nat44-ed-sessions` (slot 4), base `task/W-seed@8b7558e` (speculative, D-114); `task/W-seed@df67a8e` merged
 in (the manager's safety update: TD-5 + the D-113 rig fix) before any host run. Questions:
-`F-nat44-ed-sessions-questions.md` (Q1–Q9); contract: `F-nat44-ed-sessions-contract.md`; WIP log:
+`F-nat44-ed-sessions-questions.md` (Q1–Q10); contract: `F-nat44-ed-sessions-contract.md`; WIP log:
 `F-nat44-ed-sessions-wip.md`; screenshots: `F-nat44-ed-sessions-screens/`.
 
 ## What

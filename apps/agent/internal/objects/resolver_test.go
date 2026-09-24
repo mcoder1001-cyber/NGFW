@@ -195,8 +195,9 @@ func TestFQDNRestartSpreadsOverdue(t *testing.T) {
 	}
 }
 
-// Removing the object drops its name from the resolver and from the state file; a name that
-// never resolved expands to nothing and says so.
+// Removing the object takes its name out of the resolver's view at once; the answers stay dormant
+// (not queried) for DormantTTL and are then dropped from the state file. A name that never resolved
+// expands to nothing and says so.
 func TestFQDNSyncAndUnresolved(t *testing.T) {
 	dns := startDNS(t)
 	clock := &fakeClock{t: time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)}
@@ -218,11 +219,53 @@ func TestFQDNSyncAndUnresolved(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(rt.FQDNStates()) != 0 {
-		t.Fatal("state kept for a removed object")
+		t.Fatal("state listed for a removed object")
 	}
-	raw, err := os.ReadFile(filepath.Join(dir, "objects-fqdn-w3.json")) //nolint:gosec // the test's own temp dir
+	stateFile := filepath.Join(dir, "objects-fqdn-w3.json")
+	raw, _ := os.ReadFile(stateFile) //nolint:gosec // the test's own temp dir
+	if !strings.Contains(string(raw), "dormantSince") {
+		t.Fatalf("not dormant in the state file:\n%s", raw)
+	}
+	q := rt.Queries()
+	clock.Advance(2 * DefaultRefresh)
+	if rt.ResolveDue(context.Background()) != 0 || rt.Queries() != q {
+		t.Fatal("a dormant name was queried")
+	}
+	clock.Advance(DormantTTL)
+	rt.ResolveDue(context.Background())
+	raw, err = os.ReadFile(stateFile) //nolint:gosec // the test's own temp dir
 	if err != nil || strings.Contains(string(raw), "nx.w3.test") {
-		t.Fatalf("state file still has the name: %v\n%s", err, raw)
+		t.Fatalf("dormant name not dropped after %v: %v\n%s", DormantTTL, err, raw)
+	}
+}
+
+// Simulated loss of the objects store: the agent restarts with an empty store but its FQDN state;
+// the resync re-creates the objects and they get their answers back at once, without a query.
+func TestFQDNStateSurvivesLostStore(t *testing.T) {
+	dns := startDNS(t)
+	dns.set("cdn.w3.test", "192.0.2.53")
+	clock := &fakeClock{t: time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)}
+	dir := t.TempDir()
+	rt := openRT(t, dir, dns, clock, &logBuf{})
+	if err := rt.Store().put(KindAddresses, "cdn", fqdnObject("cdn.w3.test")); err != nil {
+		t.Fatal(err)
+	}
+	rt.ResolveDue(context.Background())
+	rt.Close()
+	if err := os.Remove(filepath.Join(dir, "objects-w3.json")); err != nil {
+		t.Fatal(err)
+	}
+	clock.Advance(10 * time.Second)
+	lb := &logBuf{}
+	rt2 := openRT(t, dir, dns, clock, lb)
+	if !strings.Contains(lb.String(), "fresh=0 due=0 dormant=1") {
+		t.Fatalf("reload log: %s", lb.String())
+	}
+	if err := rt2.Store().put(KindAddresses, "cdn", fqdnObject("cdn.w3.test")); err != nil { // what the resync does
+		t.Fatal(err)
+	}
+	if addrsOf(rt2, "cdn") != "192.0.2.53" || rt2.ResolveDue(context.Background()) != 0 || rt2.Queries() != 0 {
+		t.Fatalf("answers not restored without a query: %q, queries %d", addrsOf(rt2, "cdn"), rt2.Queries())
 	}
 }
 

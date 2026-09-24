@@ -28,6 +28,8 @@ const (
 	// RestartWindow: after a (re)start, entries that are due (overdue while the agent was down,
 	// or never resolved) are spread evenly over this window instead of being queried at once.
 	RestartWindow = 30 * time.Second
+	// DormantTTL: how long the answers of a name no object uses any more are kept (not queried).
+	DormantTTL = time.Hour
 	// queryBurst lookups may run back to back; after that the loop waits querySpacing between
 	// rounds (≤ 16 hosts per second), so a bulk commit of new FQDN objects is no query storm either.
 	queryBurst   = 4
@@ -148,6 +150,10 @@ type fqdnEntry struct {
 	NextRefresh  time.Time    `json:"nextRefresh"`
 	Err          string       `json:"error,omitempty"`
 	Failures     int          `json:"failures,omitempty"`
+	// DormantSince: no object uses the name since then; the answers are kept (not refreshed) for
+	// DormantTTL, so an object that comes back — a rollback, the resync after a lost store —
+	// gets them at once, without a query.
+	DormantSince time.Time `json:"dormantSince,omitzero"`
 }
 
 func (e *fqdnEntry) addrs() []netip.Addr {
@@ -227,10 +233,10 @@ func (r *resolver) poke() {
 	}
 }
 
-// sync makes the resolver track exactly objs (FQDN object name → host). New hosts are due now,
-// hosts no object uses are dropped. With initial (agent start) every due entry is spread over
-// RestartWindow: persisted answers that are still fresh keep their next refresh, so a restart
-// does not re-query everything at once.
+// sync makes the resolver track exactly objs (FQDN object name → host). A new host is due now; a
+// host no object uses any more becomes dormant (kept, not queried) and is dropped after DormantTTL.
+// With initial (agent start) the due entries are spread over RestartWindow: persisted answers that
+// are still fresh keep their next refresh, so a restart does not re-query everything at once.
 func (r *resolver) sync(objs map[string]string, initial bool) {
 	now := r.now()
 	r.mu.Lock()
@@ -243,22 +249,24 @@ func (r *resolver) sync(objs map[string]string, initial bool) {
 	}
 	changed := false
 	for h := range used {
-		if _, ok := r.hosts[h]; !ok {
+		if e, ok := r.hosts[h]; !ok {
 			r.hosts[h] = &fqdnEntry{NextRefresh: now}
 			changed = true
-		}
-	}
-	for h := range r.hosts {
-		if !used[h] {
-			delete(r.hosts, h)
+		} else if !e.DormantSince.IsZero() {
+			e.DormantSince = time.Time{}
 			changed = true
 		}
 	}
+	changed = r.pruneLocked(now, used) || changed
 	var fresh, due []string
+	dormant := 0
 	for h, e := range r.hosts {
-		if e.NextRefresh.After(now) {
+		switch {
+		case !used[h]:
+			dormant++
+		case e.NextRefresh.After(now):
 			fresh = append(fresh, h)
-		} else {
+		default:
 			due = append(due, h)
 		}
 	}
@@ -272,12 +280,39 @@ func (r *resolver) sync(objs map[string]string, initial bool) {
 	}
 	r.mu.Unlock()
 	if initial {
-		r.log.Info("fqdn state reloaded", "file", r.path, "hosts", len(fresh)+len(due), "fresh", len(fresh), "due", len(due), "due_spread_over", RestartWindow.String())
+		r.log.Info("fqdn state reloaded", "file", r.path, "hosts", len(fresh)+len(due), "fresh", len(fresh), "due", len(due),
+			"dormant", dormant, "due_spread_over", RestartWindow.String())
 	}
 	if changed {
 		r.persist()
 	}
 	r.poke()
+}
+
+// pruneLocked marks hosts outside used dormant and drops those dormant for longer than DormantTTL.
+func (r *resolver) pruneLocked(now time.Time, used map[string]bool) bool {
+	changed := false
+	for h, e := range r.hosts {
+		switch {
+		case used[h]:
+		case e.DormantSince.IsZero():
+			e.DormantSince = now
+			changed = true
+		case now.Sub(e.DormantSince) > DormantTTL:
+			delete(r.hosts, h)
+			changed = true
+		}
+	}
+	return changed
+}
+
+// usedLocked is the set of hosts some object uses.
+func (r *resolver) usedLocked() map[string]bool {
+	used := map[string]bool{}
+	for _, h := range r.objects {
+		used[h] = true
+	}
+	return used
 }
 
 // untilNext is the time until the earliest scheduled refresh (MaxRefresh when there is none).
@@ -286,7 +321,11 @@ func (r *resolver) untilNext() time.Duration {
 	defer r.mu.Unlock()
 	now := r.now()
 	next := MaxRefresh
-	for _, e := range r.hosts {
+	used := r.usedLocked()
+	for h, e := range r.hosts {
+		if !used[h] {
+			continue
+		}
 		if d := e.NextRefresh.Sub(now); d < next {
 			next = d
 		}
@@ -302,9 +341,11 @@ func (r *resolver) untilNext() time.Duration {
 func (r *resolver) resolveDue(ctx context.Context, limit int) int {
 	now := r.now()
 	r.mu.Lock()
+	used := r.usedLocked()
+	pruned := r.pruneLocked(now, used)
 	var due []string
 	for h, e := range r.hosts {
-		if !e.NextRefresh.After(now) {
+		if used[h] && !e.NextRefresh.After(now) {
 			due = append(due, h)
 		}
 	}
@@ -325,7 +366,7 @@ func (r *resolver) resolveDue(ctx context.Context, limit int) int {
 		}
 		r.resolveOne(ctx, h)
 	}
-	if len(due) > 0 {
+	if len(due) > 0 || pruned {
 		r.persist()
 	}
 	return len(due)

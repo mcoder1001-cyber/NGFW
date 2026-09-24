@@ -171,6 +171,11 @@ func cands(words ...string) []lineedit.Candidate {
 
 // ---- show interfaces ----
 
+// ifaceState is the part of GET /api/v1/state/interfaces the CLI reads. `show interfaces` shows what the
+// agent retrieved from the data plane: an item whose config is null (a live interface the agent does not
+// manage, a configured one VPP does not have, or one only in the candidate — P08, D-105/D-118) is not
+// listed, not found by name (exit 5 "not in the data plane") and not completed. --json prints the API's
+// answer unchanged.
 type ifaceState struct {
 	RetrievedAt string `json:"retrievedAt"`
 	CountersAt  string `json:"countersAt"`
@@ -193,7 +198,7 @@ func showInterfaces(ctx context.Context, a *App, args []cpath.Token) error {
 	if len(args) == 1 {
 		name := args[0].Text
 		for _, it := range st.Items {
-			if it.Name == name {
+			if it.Name == name && it.Config != nil {
 				return a.emit(it, func(w io.Writer) {
 					fmt.Fprintf(w, "Interface %s (retrieved %s)\n", it.Name, st.RetrievedAt)
 					_, _ = fmt.Fprint(w, indentText(render.Text(it.Config), "  "))
@@ -210,6 +215,9 @@ func showInterfaces(ctx context.Context, a *App, args []cpath.Token) error {
 		rows := make([][]string, 0, len(st.Items))
 		for _, it := range st.Items {
 			c := it.Config
+			if c == nil {
+				continue // not retrieved from the data plane (see ifaceState)
+			}
 			addrs := append(strList(c["ipv4"]), strList(c["ipv6"])...)
 			rows = append(rows, []string{it.Name, onOff(c["enabled"]), scalarOr(c["mtu"], "-"), scalarOr(c["vrf"], "default"), strings.Join(addrs, ","), counter(it.Counters, "rx", "packets"), counter(it.Counters, "tx", "packets")})
 		}
@@ -283,7 +291,9 @@ func completeInterfaceNames(ctx context.Context, a *App, args []string, _ string
 	}
 	out := make([]lineedit.Candidate, 0, len(st.Items))
 	for _, it := range st.Items {
-		out = append(out, lineedit.Candidate{Text: cpath.Quote(it.Name)})
+		if it.Config != nil {
+			out = append(out, lineedit.Candidate{Text: cpath.Quote(it.Name)})
+		}
 	}
 	return out
 }

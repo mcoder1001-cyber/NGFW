@@ -20,6 +20,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/renderers"
 )
 
@@ -70,6 +71,7 @@ type Renderer struct {
 	ctrl          Controller
 	leaseCmdsHook string
 	hookSet       bool
+	noAddrBinding bool
 
 	mu  sync.Mutex
 	ids map[int]map[string]uint32 // family → "<server>/<subnet>" → subnet id Kea runs (ids.go)
@@ -88,6 +90,11 @@ func WithInterfaceMapper(m InterfaceMapper) Option { return func(r *Renderer) { 
 
 // WithController replaces the unix-socket controller (unit tests).
 func WithController(c Controller) Option { return func(r *Renderer) { r.ctrl = c } }
+
+// WithAddressBinding turns the "<if>/<addr>" interface bindings on (the default) or off. Off is for rigs whose
+// mapped Linux interface does not carry the VPP interface's address (the lab stand-in for linux-cp, where DHCP
+// reaches Kea through the VPP relay): Kea then listens on the plain interface name.
+func WithAddressBinding(on bool) Option { return func(r *Renderer) { r.noAddrBinding = !on } }
 
 // WithLeaseCmdsHook fixes the lease_cmds hook path ("" renders no hook) instead of
 // discovering it under Paths.HooksDir.
@@ -140,31 +147,58 @@ func (r *Renderer) Render(_ context.Context, desired proto.Message) (renderers.F
 	if err != nil {
 		return nil, err
 	}
-	c4, err := r.buildFamily(in, 4)
-	if err != nil {
-		return nil, err
-	}
-	r.interfaceBindings(in, &c4, 4)
-	c6, err := r.buildFamily(in, 6)
-	if err != nil {
-		return nil, err
-	}
-	b4, err := marshal(dhcp4Root{Dhcp4: c4})
-	if err != nil {
-		return nil, err
-	}
-	b6, err := marshal(dhcp6Root{Dhcp6: c6})
-	if err != nil {
-		return nil, err
-	}
-	file := func(b []byte) renderers.File {
-		return renderers.File{Mode: r.paths.FileMode, Owner: r.paths.FileOwner, Content: b}
-	}
-	files := renderers.Files{
-		r.paths.Dhcp4Conf(): file(b4),
-		r.paths.Dhcp6Conf(): file(b6),
+	files := renderers.Files{}
+	for _, fam := range []int{4, 6} {
+		b, err := r.renderFamily(in, fam)
+		if err != nil {
+			return nil, err
+		}
+		files[r.paths.conf(fam)] = r.file(b)
 	}
 	return files, files.Validate()
+}
+
+// RenderFamily renders the configuration file of one family (4 or 6) from its render input (Input; nil = the idle
+// configuration). The result holds exactly that family's file (the descriptor applies one daemon at a time).
+func (r *Renderer) RenderFamily(input *vrxv1.DesiredState, family int) (renderers.Files, error) {
+	if err := r.check(); err != nil {
+		return nil, err
+	}
+	if family != 4 && family != 6 {
+		return nil, fmt.Errorf("%w: family %d", ErrInvalid, family)
+	}
+	in, err := extract(input)
+	if err != nil {
+		return nil, err
+	}
+	b, err := r.renderFamily(in, family)
+	if err != nil {
+		return nil, err
+	}
+	files := renderers.Files{r.paths.conf(family): r.file(b)}
+	return files, files.Validate()
+}
+
+func (r *Renderer) file(b []byte) renderers.File {
+	return renderers.File{Mode: r.paths.FileMode, Owner: r.paths.FileOwner, Content: b}
+}
+
+// renderFamily builds and marshals one family's configuration with its embedded render input.
+func (r *Renderer) renderFamily(in input, family int) ([]byte, error) {
+	c, err := r.buildFamily(in, family)
+	if err != nil {
+		return nil, err
+	}
+	if family == 4 && !r.noAddrBinding {
+		r.interfaceBindings(in, &c, 4)
+	}
+	if c.UserContext, err = encodeInput(inputOf(in, family)); err != nil {
+		return nil, err
+	}
+	if family == 6 {
+		return marshal(dhcp6Root{Dhcp6: c})
+	}
+	return marshal(dhcp4Root{Dhcp4: c})
 }
 
 func (r *Renderer) checkFiles(files renderers.Files) error {

@@ -23,6 +23,8 @@ type serverConfig struct {
 	Subnet4          *[]subnet        `json:"subnet4,omitempty"`
 	Subnet6          *[]subnet        `json:"subnet6,omitempty"`
 	Loggers          []logger         `json:"loggers"`
+	// UserContext carries the render input (input.go); absent in an idle configuration.
+	UserContext *topContext `json:"user-context,omitempty"`
 }
 
 type interfacesConfig struct {

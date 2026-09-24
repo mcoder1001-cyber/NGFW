@@ -319,6 +319,9 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-A: F-wireguard
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
+	if in["services"] {
+		desired.DHCP(p, ds, vrfID)
+	}
 	// wave-A: F-unbound-chrony-syslog
 	return p
 }
@@ -442,6 +445,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-A: F-wireguard
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
+	if in["services"] {
+		desired.AssembleDHCP(ds, kvs)
+	}
 	// wave-A: F-unbound-chrony-syslog
 	return ds
 }

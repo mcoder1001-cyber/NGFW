@@ -38,6 +38,7 @@ import (
 	"ngfw/agent/internal/descriptors/ipsec"
 	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/ownertable"
+	"ngfw/agent/internal/renderers/kea"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/bootid"
@@ -60,6 +61,7 @@ const (
 	// wave-A: P11
 	// wave-A: F-wireguard
 	// wave-A: F-kea-dhcp-relay
+	Services = "services"
 	// wave-A: F-unbound-chrony-syslog
 )
 
@@ -123,6 +125,13 @@ var Domains = map[string][]string{
 	// wave-A: P11
 	// wave-A: F-wireguard
 	// wave-A: F-kea-dhcp-relay
+	Services: {
+		kea.NameDhcp4,
+		kea.NameDhcp6,
+		dhcp.NameProxy,
+		dhcp.NameProxyVSS,
+		dhcp.NameRelay,
+	},
 	// wave-A: F-unbound-chrony-syslog
 }
 
@@ -255,6 +264,9 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-A: F-wireguard
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
+	if err := w.registerKea(r); err != nil {
+		return nil, err
+	}
 	// wave-A: F-unbound-chrony-syslog
 	return w, nil
 }

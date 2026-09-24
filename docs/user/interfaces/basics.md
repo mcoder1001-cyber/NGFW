@@ -54,7 +54,8 @@ The screen is fully available in Persian (right-to-left); the drawer opens from 
 All calls need `Authorization: Bearer <access token>` (or an API key). Examples use the lab rig names.
 
 ```sh
-# live table (merged view: state from VPP, running config, Retrieve, counters, hasPendingChange)
+# live table, one item per (sub-)interface: state (live, from VPP), config (what the agent retrieved from VPP),
+# running (the committed configuration), counters, hasPendingChange (the candidate changes this interface)
 curl -s -H "authorization: Bearer $T" http://127.0.0.1:3000/api/v1/state/interfaces
 # counters of one interface (absolute; 64-bit counters are decimal strings)
 curl -s -H "authorization: Bearer $T" http://127.0.0.1:3000/api/v1/state/interfaces/host-w1l0/counters

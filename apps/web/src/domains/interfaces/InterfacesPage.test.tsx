@@ -27,9 +27,9 @@ function withInterfaces(api: FakeApi) {
   api.on('GET /api/v1/state/interfaces', {
     body: {
       items: [
-        { name: 'host-w1l0', kind: 'interface', parent: null, state: live('host-w1l0'), config: lanCfg, actual: lanCfg, counters: null, hasPendingChange: false },
-        { name: 'host-w1l0.100', kind: 'subinterface', parent: 'host-w1l0', state: live('host-w1l0.100', { type: 'sub-interface', linkUp: false, adminUp: false, ipv4: [] }), config: lanCfg.subinterfaces['100'], actual: null, counters: null, hasPendingChange: true },
-        { name: 'host-w1w0', kind: 'interface', parent: null, state: live('host-w1w0', { adminUp: true, linkUp: false, ipv4: ['10.1.2.1/24'] }), config: null, actual: null, counters: null, hasPendingChange: false },
+        { name: 'host-w1l0', kind: 'interface', parent: null, state: live('host-w1l0'), config: lanCfg, running: lanCfg, counters: null, hasPendingChange: false },
+        { name: 'host-w1l0.100', kind: 'subinterface', parent: 'host-w1l0', state: live('host-w1l0.100', { type: 'sub-interface', linkUp: false, adminUp: false, ipv4: [] }), config: lanCfg.subinterfaces['100'], running: lanCfg.subinterfaces['100'], counters: null, hasPendingChange: true },
+        { name: 'host-w1w0', kind: 'interface', parent: null, state: live('host-w1w0', { adminUp: true, linkUp: false, ipv4: ['10.1.2.1/24'] }), config: null, running: null, counters: null, hasPendingChange: false },
       ],
     },
   });
@@ -45,14 +45,24 @@ afterEach(async () => {
 describe('interface rows', () => {
   it('toRow + pageOf: sub-interfaces, pending flag, sort and quick filter', () => {
     const items = [
-      { name: 'host-w1w0', kind: 'interface', parent: null, state: live('host-w1w0', { linkUp: false }), config: null, actual: null, counters: { errors: '2', drops: '3' }, hasPendingChange: false },
-      { name: 'host-w1l0', kind: 'interface', parent: null, state: live('host-w1l0'), config: lanCfg, actual: lanCfg, counters: null, hasPendingChange: true },
+      { name: 'host-w1w0', kind: 'interface', parent: null, state: live('host-w1w0', { linkUp: false }), config: null, running: null, counters: { errors: '2', drops: '3' }, hasPendingChange: false },
+      { name: 'host-w1l0', kind: 'interface', parent: null, state: live('host-w1l0'), config: lanCfg, running: lanCfg, counters: null, hasPendingChange: true },
     ] as unknown as InterfaceItem[];
     const rows = items.map(toRow);
     expect(rows[0]).toMatchObject({ admin: 'up', link: 'down', errors: 5, addresses: '10.1.1.1/24' });
     const req = { page: 0, pageSize: 25, sort: [{ field: 'name', dir: 'asc' as const }], filter: [], filterLogic: 'and' as const, quickFilter: [] };
     expect(pageOf(rows, req).rows.map((r) => r.name)).toEqual(['host-w1l0', 'host-w1w0']);
     expect(pageOf(rows, { ...req, quickFilter: ['w0'] }).total).toBe(1);
+  });
+
+  it('a configured interface VPP does not have yet shows the running configuration, not the Retrieve view (D-105)', () => {
+    const row = toRow({
+      name: 'host-w1w1', kind: 'interface', parent: null, state: null,
+      config: { mtu: 1300, ipv4: ['10.9.9.9/24'], vrf: 'old' }, // what the agent last retrieved
+      running: { mtu: 1400, ipv4: ['10.1.3.1/24'], vrf: 'red' }, // what is committed
+      counters: null, hasPendingChange: false,
+    } as unknown as InterfaceItem);
+    expect(row).toMatchObject({ mtu: 1400, addresses: '10.1.3.1/24', vrf: 'red', admin: '', link: '' });
   });
 });
 

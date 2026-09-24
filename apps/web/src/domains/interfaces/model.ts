@@ -98,10 +98,10 @@ export function linkStatus(s: LiveState | null | undefined): VrxStatus | undefin
   return s.linkUp ? 'up' : 'down';
 }
 
-/** Addresses to show: live when VPP has the interface, else the configured ones. */
+/** Addresses to show: live when VPP has the interface, else the configured (running) ones. */
 export function addressesOf(it: InterfaceItem): string[] {
   if (it.state) return [...it.state.ipv4, ...it.state.ipv6];
-  const c = (it.config ?? {}) as { ipv4?: string[]; ipv6?: string[] };
+  const c = (it.running ?? {}) as { ipv4?: string[]; ipv6?: string[] };
   return [...(c.ipv4 ?? []), ...(c.ipv6 ?? [])];
 }
 

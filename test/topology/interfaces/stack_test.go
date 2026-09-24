@@ -100,6 +100,25 @@ func sharedLock(t *testing.T) {
 	t.Cleanup(func() { _ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN); _ = f.Close() })
 }
 
+// mkdirShared creates dir and any missing parent as 0755 whatever the umask (the slot run dir /run/vrx-test/<prefix>
+// and /run/vrx-test must stay traversable for the frr/_chrony test daemons, D-106/D-107). An existing directory is
+// never re-moded; only the test's own work dir below it is private (0700).
+func mkdirShared(dir string) error {
+	if fi, err := os.Stat(dir); err == nil {
+		if !fi.IsDir() {
+			return fmt.Errorf("%s exists and is not a directory", dir)
+		}
+		return nil
+	}
+	if err := mkdirShared(filepath.Dir(dir)); err != nil {
+		return err
+	}
+	if err := os.Mkdir(dir, 0o755); err != nil && !os.IsExist(err) {
+		return err
+	}
+	return os.Chmod(dir, 0o755) //nolint:gosec // G302: a shared, traversable run directory (no secrets in it)
+}
+
 // run executes a fixed command (no user input) and returns its combined output.
 func run(t *testing.T, name string, args ...string) (string, error) {
 	t.Helper()

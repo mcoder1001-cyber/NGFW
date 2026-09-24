@@ -131,7 +131,7 @@ func newStack(t *testing.T, s slot) *stack {
 	if err != nil {
 		t.Fatal("node not in PATH")
 	}
-	if err := os.MkdirAll(s.runDir, 0o700); err != nil {
+	if err := mkdirShared(s.runDir); err != nil {
 		t.Fatal(err)
 	}
 	work := filepath.Join(s.runDir, "p08")
@@ -250,8 +250,8 @@ func TestInterfacesVerticalSlice(t *testing.T) {
 		for _, n := range []string{r.lanIf, r.wanIf} {
 			it := items[n]
 			stt, _ := it["state"].(map[string]any)
-			act, _ := it["actual"].(map[string]any)
-			t.Logf("/state/interfaces %s: state=%s actual=%s hasPendingChange=%v", n, js(stt), js(act), it["hasPendingChange"])
+			act, _ := it["config"].(map[string]any) // the agent's Retrieve view (D-105)
+			t.Logf("/state/interfaces %s: state=%s config(Retrieve)=%s running=%s hasPendingChange=%v", n, js(stt), js(act), js(it["running"]), it["hasPendingChange"])
 			if stt == nil || stt["adminUp"] != true || stt["managed"] != true {
 				t.Fatalf("%s: live state %v", n, stt)
 			}
@@ -259,7 +259,7 @@ func TestInterfacesVerticalSlice(t *testing.T) {
 				t.Fatalf("%s: Retrieve %v", n, act)
 			}
 		}
-		if got := items[r.lanIf]["actual"].(map[string]any)["ipv4"]; js(got) != js([]string{r.lanGW + "/24"}) {
+		if got := items[r.lanIf]["config"].(map[string]any)["ipv4"]; js(got) != js([]string{r.lanGW + "/24"}) {
 			t.Fatalf("Retrieve ipv4 of %s = %v", r.lanIf, got)
 		}
 		t.Log("vppctl show interface address:\n" + vppctl(t, "show", "interface", "address", r.lanIf, r.wanIf))
@@ -282,7 +282,11 @@ func TestInterfacesVerticalSlice(t *testing.T) {
 			t.Fatalf("traced ping failed:\n%s", out)
 		}
 		time.Sleep(300 * time.Millisecond)
-		tr := ourTrace(vppctl(t, "show", "trace", "max", "5000"), r.lanIP, r.wanIP, size+28)
+		all := vppctl(t, "show", "trace", "max", "5000")
+		tr, found := ourTrace(all, r.lanIP, r.wanIP, size+28)
+		if !found {
+			t.Fatalf("no trace block for our ICMP echo request %s -> %s (IP length %d); trace buffer starts:\n%s", r.lanIP, r.wanIP, size+28, trunc(all, 3000))
+		}
 		t.Log("vppctl show trace (our ICMP echo request):\n" + tr)
 		for _, node := range []string{"af-packet-input", "ip4-lookup", "ip4-rewrite", r.wanIf + "-output"} {
 			if !strings.Contains(tr, node) {
@@ -327,8 +331,8 @@ func TestInterfacesVerticalSlice(t *testing.T) {
 		c2 := a.commit("p08-mtu1400")
 		t.Logf("commit → status %v revision %v", c2["status"], c2["revision"].(map[string]any)["id"])
 		items = stateItems(t, a)
-		t.Logf("Retrieve after the MTU commit: %s mtu=%v; %s ipv4=%v", r.wanIf, items[r.wanIf]["actual"].(map[string]any)["mtu"], r.lanIf, items[r.lanIf]["actual"].(map[string]any)["ipv4"])
-		if mtu := items[r.wanIf]["actual"].(map[string]any)["mtu"]; mtu != float64(1400) {
+		t.Logf("Retrieve after the MTU commit: %s mtu=%v; %s ipv4=%v", r.wanIf, items[r.wanIf]["config"].(map[string]any)["mtu"], r.lanIf, items[r.lanIf]["config"].(map[string]any)["ipv4"])
+		if mtu := items[r.wanIf]["config"].(map[string]any)["mtu"]; mtu != float64(1400) {
 			t.Fatalf("Retrieve mtu of %s = %v, want 1400", r.wanIf, mtu)
 		}
 		showWan := vppctl(t, "show", "interface", r.wanIf)
@@ -352,10 +356,10 @@ func TestInterfacesVerticalSlice(t *testing.T) {
 			t.Fatalf("rollback: %s", rb.raw)
 		}
 		items = stateItems(t, a)
-		wanAct := items[r.wanIf]["actual"].(map[string]any)
-		lanAct := items[r.lanIf]["actual"].(map[string]any)
+		wanAct := items[r.wanIf]["config"].(map[string]any)
+		lanAct := items[r.lanIf]["config"].(map[string]any)
 		wanSt := items[r.wanIf]["state"].(map[string]any)
-		t.Logf("Retrieve after rollback: %s actual=%s live mtu=%v; %s actual=%s", r.wanIf, js(wanAct), wanSt["mtu"], r.lanIf, js(lanAct))
+		t.Logf("Retrieve after rollback: %s config=%s live mtu=%v; %s config=%s", r.wanIf, js(wanAct), wanSt["mtu"], r.lanIf, js(lanAct))
 		if _, has := wanAct["mtu"]; has {
 			t.Errorf("Retrieve still reports an MTU object on %s: %v", r.wanIf, wanAct["mtu"])
 		}
@@ -550,8 +554,9 @@ func describe(it map[string]any) string {
 	return "admin " + adm + " link " + link
 }
 
-// ourTrace returns the newest trace block of the ICMP echo request src → dst whose IPv4 length is ipLen.
-func ourTrace(all, src, dst string, ipLen int) string {
+// ourTrace returns the newest trace block of our ICMP echo request (run-unique IP length) and whether there is one;
+// the shared trace buffer also holds other packets and earlier runs, so nothing outside that block may count (N3).
+func ourTrace(all, src, dst string, ipLen int) (string, bool) {
 	want := "length " + strconv.Itoa(ipLen) + ","
 	found := ""
 	for _, blk := range strings.Split(all, "\nPacket ") {
@@ -559,10 +564,7 @@ func ourTrace(all, src, dst string, ipLen int) string {
 			found = "Packet " + strings.TrimPrefix(blk, "Packet ")
 		}
 	}
-	if found == "" {
-		return "(no trace block for ICMP " + src + " -> " + dst + " " + want + ")\n" + trunc(all, 3000)
-	}
-	return found
+	return found, found != ""
 }
 
 func within(a, b uint64, frac float64) bool {

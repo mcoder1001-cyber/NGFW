@@ -43,7 +43,8 @@ export interface Row {
 
 export function toRow(item: InterfaceItem): Row {
   const s = item.state;
-  const cfg = (item.config ?? {}) as { mtu?: number; vrf?: string };
+  // fallback when VPP has no such interface: the running configuration (`config` is the agent's Retrieve view)
+  const cfg = (item.running ?? {}) as { mtu?: number; vrf?: string };
   return {
     id: item.name,
     name: item.name,
@@ -188,7 +189,7 @@ export function InterfacesPage() {
           return r ? <Sparkline values={r.history} label={t('trendLabel', { name: p.row.name })} /> : null;
         },
       },
-      { field: 'errors', headerName: t('col.errors'), type: 'number', width: 90, valueFormatter: (v: number) => fmt.integer(v) },
+      { field: 'errors', headerName: t('col.errors'), type: 'number', width: 120, valueFormatter: (v: number) => fmt.integer(v) },
     ],
     [t, fmt, rateOf],
   );

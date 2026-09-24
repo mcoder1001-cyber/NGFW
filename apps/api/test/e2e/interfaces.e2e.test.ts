@@ -5,8 +5,8 @@ const PW = { ro: runSecret() };
 
 /**
  * P08 `/api/v1/state/interfaces` (merged live + config view) and `/state/interfaces/{name}/counters` on the host
- * PostgreSQL with the fake agent: live state from the InterfaceState RPC, running config, Retrieve, counters and
- * `hasPendingChange` from the candidate. Names follow the slot rules (host-w1l0 / w1w0, 10.1.0.0/16).
+ * PostgreSQL with the fake agent: live state from the InterfaceState RPC, Retrieve (`config`, its pre-P08 meaning,
+ * D-105), the running configuration (`running`), counters and `hasPendingChange` from the candidate. Names follow the slot rules (host-w1l0 / w1w0, 10.1.0.0/16).
  */
 describe('state/interfaces e2e (PostgreSQL + fake agent)', () => {
   let h: Harness;
@@ -55,16 +55,19 @@ describe('state/interfaces e2e (PostgreSQL + fake agent)', () => {
       kind: 'interface',
       parent: null,
       state: { adminUp: true, mtu: 1400, ipv4: ['10.1.1.1/24'], description: 'lan' },
-      config: { enabled: true, mtu: 1400, ipv4: ['10.1.1.1/24'] },
-      actual: { enabled: true, mtu: 1400 },
+      config: { enabled: true, mtu: 1400, ipv4: ['10.1.1.1/24'] }, // Retrieve view (as before P08)
+      running: { enabled: true, mtu: 1400, description: 'lan', ipv4: ['10.1.1.1/24'] },
       counters: { name: L },
       hasPendingChange: false,
     });
+    expect(by.get(L)).not.toHaveProperty('actual'); // dropped in fix round 1: it duplicated `config`
+    expect(by.get(W)).toMatchObject({ config: { subinterfaces: { '100': { vlanId: 100 } } } });
     expect(by.get(`${W}.100`)).toMatchObject({
       kind: 'subinterface',
       parent: W,
       state: { type: 'sub-interface', vlanId: 100, parent: W },
       config: { vlanId: 100, ipv4: ['10.1.100.1/24'] },
+      running: { vlanId: 100, enabled: true, ipv4: ['10.1.100.1/24'] },
       hasPendingChange: false,
     });
 
@@ -75,6 +78,9 @@ describe('state/interfaces e2e (PostgreSQL + fake agent)', () => {
       .filter((i) => i.hasPendingChange)
       .map((i) => i.name);
     expect(pending).toEqual([L]);
+    // a candidate edit changes neither the Retrieve view nor the running configuration
+    const l2 = (st2.body.items as { name: string }[]).find((i) => i.name === L) as Record<string, unknown>;
+    expect(l2).toMatchObject({ config: { mtu: 1400 }, running: { mtu: 1400 } });
     expect((await h.call(admin, 'POST', '/api/v1/config/discard')).status).toBe(200);
 
     const c = await h.call(ro, 'GET', `/api/v1/state/interfaces/${L}/counters`);

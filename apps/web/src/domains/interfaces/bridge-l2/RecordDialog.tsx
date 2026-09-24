@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { problemFor } from '../InterfaceDrawer';
 import { dropPhantomOptionals, localizeSchema } from '../model';
+import { localizeDeep } from './model';
 
 const LTR = { dir: 'ltr' } as const;
 
@@ -58,7 +59,7 @@ export function RecordDialog({
 }) {
   const { t } = useTranslation('bridge-l2');
   const [key, setKey] = useState(fixedKey ?? '');
-  const localized = localizeSchema(schema, (k, o) => t(k, o ?? {}));
+  const localized = localizeDeep(schema, (k, o) => t(k, o ?? {}), localizeSchema);
   const taken = fixedKey === undefined && takenKeys.includes(key);
   const keyOk = key !== '' && !taken && (keyRe === undefined || keyRe.test(key));
   const problem = problemFor(error, pointerOf(key));

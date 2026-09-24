@@ -30,6 +30,7 @@ import {
   formSchemas,
   L2_TABLES,
   l2Patch,
+  localizeDeep,
   macKind,
   presence,
   roleOf,
@@ -206,7 +207,7 @@ function DrawerBody({ item, onClose }: { item: BridgeDomainItem; onClose: () => 
       {patchRouting.isError && <ProblemAlert error={patchRouting.error} sx={{ mb: 1 }} />}
       {l2.isSuccess && (
         <SchemaForm
-          schema={localizeSchema(domainSchema, (k, o) => t(k, o ?? {}))}
+          schema={localizeDeep(domainSchema, (k, o) => t(k, o ?? {}), localizeSchema)}
           value={record}
           readOnly={readOnly}
           submitLabel={t('save')}

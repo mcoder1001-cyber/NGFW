@@ -179,3 +179,36 @@ export function drawerSafeL2(item: JsonSchema): JsonSchema {
     },
   } as JsonSchema;
 }
+
+type Translate = (key: string, opts?: Record<string, unknown>) => string;
+
+/**
+ * `localizeSchema` (P08, top-level properties only) applied to every nested object and array-item schema as well, so the
+ * static-MAC, path, range and tag-rewrite sub-forms are translated too (`bridge-l2:field.<name>.title|help`).
+ */
+export function localizeDeep(
+  schema: JsonSchema,
+  t: Translate,
+  localize: (s: JsonSchema, t: Translate) => JsonSchema,
+): JsonSchema {
+  const top = localize(schema, t);
+  const props = (top.properties ?? {}) as Record<string, JsonSchema>;
+  const out: Record<string, JsonSchema> = {};
+  for (const [name, p] of Object.entries(props)) {
+    let q = p;
+    if (q.properties) q = localizeDeep(q, t, localize);
+    const items = q.items as JsonSchema | undefined;
+    if (items && typeof items === 'object' && !Array.isArray(items) && items.properties) {
+      q = { ...q, items: localizeDeep(items, t, localize) } as JsonSchema;
+    }
+    const any = q.anyOf as JsonSchema[] | undefined;
+    if (Array.isArray(any)) {
+      q = {
+        ...q,
+        anyOf: any.map((a) => (a.properties ? localizeDeep(a, t, localize) : a)),
+      } as JsonSchema;
+    }
+    out[name] = q;
+  }
+  return { ...top, properties: out } as JsonSchema;
+}

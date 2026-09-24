@@ -183,6 +183,54 @@
     },
     "ranges": {
       "title": "Weekly ranges"
+    },
+    "interface": {
+      "title": "Interface",
+      "help": "Member or egress interface"
+    },
+    "op": {
+      "title": "Operation",
+      "help": "push adds tags, pop removes tags, translate replaces them"
+    },
+    "tag1": {
+      "title": "Tag 1",
+      "help": "Outer VLAN id written by push / translate"
+    },
+    "tag2": {
+      "title": "Tag 2",
+      "help": "Inner VLAN id"
+    },
+    "dot1ad": {
+      "title": "802.1ad outer tag",
+      "help": "Pushed outer tag uses 0x88a8"
+    },
+    "nextHop": {
+      "title": "Next hop",
+      "help": "Next-hop address of the path"
+    },
+    "vrf": {
+      "title": "VRF",
+      "help": "Table the next hop is resolved or looked up in"
+    },
+    "weight": {
+      "title": "Weight",
+      "help": "1–255"
+    },
+    "preference": {
+      "title": "Preference",
+      "help": "0–255"
+    },
+    "days": {
+      "title": "Days",
+      "help": "Days of the week"
+    },
+    "start": {
+      "title": "Start",
+      "help": "HH:MM"
+    },
+    "end": {
+      "title": "End",
+      "help": "HH:MM after start; 24:00 = midnight"
     }
   }
 }

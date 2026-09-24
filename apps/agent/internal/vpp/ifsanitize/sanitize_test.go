@@ -35,7 +35,7 @@ func TestCleanInterfaceOnlyResets(t *testing.T) {
 	if rep.Inherited() || len(rep.Skipped) > 0 {
 		t.Fatalf("clean interface reported %+v", rep)
 	}
-	want := []string{"ip-classify ip4", "ip-classify ip6", "l2-classify input", "l2-classify output", "vxlan-bypass ip4", "vxlan-bypass ip6"}
+	want := []string{"ip-classify ip4", "ip-classify ip6", "l2-classify input", "l2-classify output", "adl adl-input", "vxlan-bypass ip4", "vxlan-bypass ip6"}
 	if !slices.Equal(rep.Reset, want) {
 		t.Fatalf("reset %v, want %v", rep.Reset, want)
 	}
@@ -66,13 +66,13 @@ func TestInheritedStateIsCleared(t *testing.T) {
 	s.SPD = 0
 	s.ADL = true
 	m.DeleteInterface(7)
-	s.ADL = true // not cleared by a delete in this scenario: models an ADL left on (review path)
+	s.ADL = true // models an ADL feature that survived (reset blindly all the same)
 
 	rep, err := ifsanitize.Sanitize(context.Background(), f, 7, "tap2")
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantCleared := []string{"input-acl ip4 table 3", "output-acl ip6 table 5", "policer-classify l2 table 3", "flow-classify ip4 table 5", "adl adl-input", "ipsec-spd spd-index 0"}
+	wantCleared := []string{"input-acl ip4 table 3", "output-acl ip6 table 5", "policer-classify l2 table 3", "flow-classify ip4 table 5", "ipsec-spd spd-index 0"}
 	if !slices.Equal(rep.Cleared, wantCleared) {
 		t.Fatalf("cleared %v, want %v", rep.Cleared, wantCleared)
 	}
@@ -100,7 +100,7 @@ func TestBindingToDeletedTable(t *testing.T) {
 	s.InACL = [3]uint32{9, none, none} // table 9 is gone: VPP refuses the unbind
 	rep, err := ifsanitize.Sanitize(context.Background(), f, 4, "loop202")
 	if err != nil {
-		t.Fatalf("dormant stale binding must not fail the create: %v", err)
+		t.Fatalf("a dormant stale binding must not fail the create: %v", err)
 	}
 	if len(rep.Unclearable) != 1 || !strings.Contains(rep.Unclearable[0], "input-acl ip4 table 9") {
 		t.Fatalf("unclearable %v", rep.Unclearable)
@@ -108,12 +108,10 @@ func TestBindingToDeletedTable(t *testing.T) {
 	if n := len(f.CallsNamed("input_acl_set_interface")); n != 0 {
 		t.Fatalf("an unbind naming a freed table was sent (%d)", n)
 	}
-
-	// the same binding with the feature on is the crash vector: refuse
-	s.Features["ip4-unicast/ip4-inacl"] = true
-	_, err = ifsanitize.Sanitize(context.Background(), f, 4, "loop202")
-	if !errors.Is(err, ifsanitize.ErrActiveStaleBinding) || !strings.Contains(err.Error(), "ip4-unicast/ip4-inacl") {
-		t.Fatalf("err = %v, want ErrActiveStaleBinding naming the feature", err)
+	// feature_is_enabled is never asked: VPP 26.06 answers true for any error (out-of-range
+	// sw_if_index on the arc), so it cannot tell an inherited feature from a new index
+	if n := len(f.CallsNamed("feature_is_enabled")); n != 0 {
+		t.Fatalf("feature_is_enabled sent %d times", n)
 	}
 }
 

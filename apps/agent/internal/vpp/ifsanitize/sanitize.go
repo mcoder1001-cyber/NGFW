@@ -15,7 +15,11 @@
 //     (policer/flow_classify_dump read out of bounds per interface, see policer/attach.go), so
 //     each existing classify table is probed with an unbind: VPP answers NO_SUCH_TABLE unless
 //     that exact table is bound on the interface, and unbinds it otherwise.
-//   - ADL: the adl-input feature on device-input (read with feature_is_enabled).
+//   - ADL: the adl-input feature on device-input — disabled blindly (a disable of a feature
+//     that is not enabled is a no-op in vnet_feature_enable_disable). Not read back:
+//     feature_is_enabled is unreliable in VPP 26.06 (the handler turns vnet_feature_is_enabled's
+//     negative error codes — e.g. "sw_if_index beyond the arc's config vector", common for a
+//     brand-new highest index — into is_enabled=true).
 //   - vxlan bypass: a per-index bitmap that makes a later enable a silent no-op (V21); reset
 //     blindly (disable is a no-op when the bit is clear).
 //   - IPsec SPD binding (ipsec_interface_add_del_spd; DF-5 review M3): spd_index_by_sw_if_index
@@ -27,11 +31,12 @@
 //     ipsec_spds_dump is used (deleting an SPD clears every binding to it, so a stale binding
 //     always refers to an existing SPD).
 //
-// A binding that points at a freed table cannot be removed through the API. It is harmless
-// while the classify feature is off (VPP disables every feature arc on interface delete and a
-// later add of the same kind is a no-op), so it is reported as "unclearable" and logged; when
-// the corresponding feature is enabled on the new interface Sanitize fails, and the creator
-// removes the interface instead of reporting it created.
+// A binding that points at a freed table cannot be removed through the API. It is dormant:
+// VPP disables every feature arc of an interface when it is deleted (vnet_feature_add_del_sw_
+// interface) and a later add of the same kind returns success without enabling anything, so no
+// packet reaches the classifier through it. It is reported as "unclearable" and logged at warn.
+// Sanitize fails only when VPP refuses a call it must accept; the creator then removes the
+// interface instead of reporting it created.
 //
 // Sanitize uses only binapi messages and touches only the given sw_if_index. Messages of a
 // plugin that is not loaded are skipped. Every run is logged at info and counted (Metrics).
@@ -49,7 +54,6 @@ import (
 
 	adlapi "ngfw/agent/binapi/adl"
 	classifyapi "ngfw/agent/binapi/classify"
-	featureapi "ngfw/agent/binapi/feature"
 	"ngfw/agent/binapi/interface_types"
 	ipsecapi "ngfw/agent/binapi/ipsec"
 	vxlanapi "ngfw/agent/binapi/vxlan"
@@ -62,10 +66,6 @@ const NoIndex = ^uint32(0)
 // ErrNoSuchTable is VNET_API_ERROR_NO_SUCH_TABLE (vnet/error.h): the answer to an unbind that
 // names a table which is not the one bound.
 const ErrNoSuchTable api.VPPApiError = -65
-
-// ErrActiveStaleBinding means the new interface has a classify feature enabled whose table
-// binding cannot be removed (its table is gone): a packet would crash VPP (V19).
-var ErrActiveStaleBinding = errors.New("ifsanitize: active classify feature bound to a deleted table (VPP V19)")
 
 // State names used in reports, logs and the metric label.
 const (
@@ -88,7 +88,7 @@ type Report struct {
 	Reset []string
 	// Cleared lists inherited state that was found and removed ("input-acl ip4 table 3").
 	Cleared []string
-	// Unclearable lists inherited bindings to deleted tables (dormant: feature off).
+	// Unclearable lists inherited bindings to deleted tables (dormant: their feature is off).
 	Unclearable []string
 	// Skipped lists steps skipped because VPP does not know the message (plugin not loaded).
 	Skipped []string
@@ -140,7 +140,7 @@ func (s *sanitizer) run() error {
 			return err
 		}
 	}
-	return s.activeCheck()
+	return nil
 }
 
 // unknownMsg reports whether err says the VPP does not know the message (plugin not loaded).
@@ -283,32 +283,16 @@ func (s *sanitizer) flowClassify() error {
 	})
 }
 
-// featureOn reads feature_is_enabled; ok=false when VPP does not know the message.
-func (s *sanitizer) featureOn(arc, feature string) (on, ok bool, err error) {
-	rep, err := featureapi.NewServiceClient(s.c).FeatureIsEnabled(s.ctx, &featureapi.FeatureIsEnabled{ArcName: arc, FeatureName: feature, SwIfIndex: s.idx})
-	if unknownMsg(err) {
-		return false, false, nil
-	}
-	if err != nil {
-		return false, false, fmt.Errorf("feature_is_enabled %s/%s: %w", arc, feature, err)
-	}
-	return rep.IsEnabled, true, nil
-}
-
 func (s *sanitizer) adl() error {
-	on, ok, err := s.featureOn("device-input", "adl-input")
-	if err != nil || !ok || !on {
-		return err
-	}
-	_, err = adlapi.NewServiceClient(s.c).AdlInterfaceEnableDisable(s.ctx, &adlapi.AdlInterfaceEnableDisable{SwIfIndex: s.idx, EnableDisable: false})
+	_, err := adlapi.NewServiceClient(s.c).AdlInterfaceEnableDisable(s.ctx, &adlapi.AdlInterfaceEnableDisable{SwIfIndex: s.idx, EnableDisable: false})
 	if unknownMsg(err) {
 		s.rep.Skipped = append(s.rep.Skipped, StateADL)
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("adl_interface_enable_disable (disable): %w", err)
+		return fmt.Errorf("adl_interface_enable_disable (reset): %w", err)
 	}
-	s.rep.Cleared = append(s.rep.Cleared, StateADL+" adl-input")
+	s.rep.Reset = append(s.rep.Reset, StateADL+" adl-input")
 	return nil
 }
 
@@ -384,32 +368,5 @@ func (s *sanitizer) ipsecSPD() error {
 		return fmt.Errorf("ipsec_interface_add_del_spd (unbind stale %s): %w", what, err)
 	}
 	s.rep.Cleared = append(s.rep.Cleared, what)
-	return nil
-}
-
-// activeFeatures are the classify features that read a per-interface table index on the
-// packet path. After the unbinds none of them may be on: if one is, its table is gone and a
-// packet would crash VPP.
-var activeFeatures = []struct{ arc, feature string }{
-	{"ip4-unicast", "ip4-inacl"}, {"ip6-unicast", "ip6-inacl"},
-	{"ip4-output", "ip4-outacl"}, {"ip6-output", "ip6-outacl"},
-	{"ip4-unicast", "ip4-policer-classify"}, {"ip6-unicast", "ip6-policer-classify"},
-	{"ip4-unicast", "ip4-flow-classify"}, {"ip6-unicast", "ip6-flow-classify"},
-}
-
-func (s *sanitizer) activeCheck() error {
-	var active []string
-	for _, f := range activeFeatures {
-		on, _, err := s.featureOn(f.arc, f.feature)
-		if err != nil {
-			return err
-		}
-		if on {
-			active = append(active, f.arc+"/"+f.feature)
-		}
-	}
-	if len(active) > 0 {
-		return fmt.Errorf("%w: %v still enabled after unbinding every live table", ErrActiveStaleBinding, active)
-	}
 	return nil
 }

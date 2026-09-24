@@ -6,7 +6,6 @@ import (
 
 	afpacket "ngfw/agent/internal/descriptors/af_packet"
 	"ngfw/agent/internal/descriptors/interface"
-	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/ifsanitize/sanitizetest"
 )
 
@@ -29,11 +28,13 @@ func TestHostInterfaceSanitizesReusedIndex(t *testing.T) {
 	if a, b := sanitizetest.Order(f.Client, "classify_set_interface_ip_table", "sw_interface_tag_add_del"); a < 0 || a > b {
 		t.Fatalf("ip classify reset (%d) must precede the tag (%d)", a, b)
 	}
-	m.PoisonActive(1, 2, 3, 4, 5)
-	if _, err := d.Create(ctx, &afpacket.HostInterface{Name: "w2-w0", HostIfName: "w2-w0"}); !errors.Is(err, ifsanitize.ErrActiveStaleBinding) {
+	f.Client.Fail("classify_set_interface_ip_table", errRefused) // VPP refuses the reset: the interface must not be reported created
+	if _, err := d.Create(ctx, &afpacket.HostInterface{Name: "w2-w0", HostIfName: "w2-w0"}); !errors.Is(err, errRefused) {
 		t.Fatalf("err = %v", err)
 	}
 	if len(f.CallsNamed("af_packet_delete")) != 1 {
 		t.Fatal("the unsafe host-interface was not deleted")
 	}
 }
+
+var errRefused = errors.New("vpp refused")

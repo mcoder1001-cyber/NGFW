@@ -7,7 +7,6 @@ import (
 
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/core/coretest"
-	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/ifsanitize/sanitizetest"
 )
 
@@ -33,10 +32,10 @@ func TestLoopbackSanitizesReusedIndex(t *testing.T) {
 		t.Fatalf("sanitize (%d) must precede the tag (%d)", a, b)
 	}
 
-	m.PoisonActive(idx + 1)
+	v.Client.Fail("classify_set_interface_ip_table", errRefused) // VPP refuses the reset: the interface must not be reported created
 	_, err = d.Create(ctx, &core.Loopback{Name: "loop202", Instance: 202})
-	if !errors.Is(err, ifsanitize.ErrActiveStaleBinding) {
-		t.Fatalf("err = %v, want ErrActiveStaleBinding", err)
+	if !errors.Is(err, errRefused) {
+		t.Fatalf("err = %v, want the sanitize error", err)
 	}
 	for _, in := range v.Ifaces {
 		if in.Name == "loop202" {
@@ -44,3 +43,5 @@ func TestLoopbackSanitizesReusedIndex(t *testing.T) {
 		}
 	}
 }
+
+var errRefused = errors.New("vpp refused")

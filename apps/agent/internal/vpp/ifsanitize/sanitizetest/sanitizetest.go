@@ -16,7 +16,6 @@ import (
 
 	adlapi "ngfw/agent/binapi/adl"
 	classifyapi "ngfw/agent/binapi/classify"
-	featureapi "ngfw/agent/binapi/feature"
 	"ngfw/agent/binapi/interface_types"
 	ipsecapi "ngfw/agent/binapi/ipsec"
 	vxlanapi "ngfw/agent/binapi/vxlan"
@@ -209,17 +208,6 @@ func (m *Model) Handlers() map[string]fake.Handler {
 		}
 		return one(&classifyapi.FlowClassifySetInterfaceReply{}), nil
 	})
-	f.On("feature_is_enabled", func(req api.Message) ([]api.Message, error) {
-		r := req.(*featureapi.FeatureIsEnabled)
-		m.mu.Lock()
-		defer m.mu.Unlock()
-		s := m.ifLocked(uint32(r.SwIfIndex))
-		on := s.Features[r.ArcName+"/"+r.FeatureName]
-		if r.ArcName == "device-input" && r.FeatureName == "adl-input" {
-			on = s.ADL
-		}
-		return one(&featureapi.FeatureIsEnabledReply{IsEnabled: on}), nil
-	})
 	f.On("adl_interface_enable_disable", func(req api.Message) ([]api.Message, error) {
 		r := req.(*adlapi.AdlInterfaceEnableDisable)
 		m.mu.Lock()
@@ -345,7 +333,7 @@ func Clean(f *fake.Client) *Model {
 var Messages = []string{
 	"classify_table_ids", "classify_set_interface_ip_table", "classify_set_interface_l2_tables",
 	"classify_table_by_interface", "input_acl_set_interface", "output_acl_set_interface",
-	"policer_classify_set_interface", "flow_classify_set_interface", "feature_is_enabled",
+	"policer_classify_set_interface", "flow_classify_set_interface",
 	"adl_interface_enable_disable", "sw_interface_set_vxlan_bypass",
 	"ipsec_spd_interface_dump", "ipsec_spds_dump", "ipsec_interface_add_del_spd",
 }
@@ -369,16 +357,6 @@ func (m *Model) Poison(idx ...uint32) {
 		s.OutACL[1] = PoisonTable
 		s.Vxlan = [2]bool{true, true}
 		s.SPD = 0
-	}
-}
-
-// PoisonActive plants, on every index in idx, the crash vector Sanitize must refuse: an input
-// ACL bound to a deleted table (99) with ip4-inacl enabled.
-func (m *Model) PoisonActive(idx ...uint32) {
-	for _, i := range idx {
-		s := m.If(i)
-		s.InACL[0] = 99
-		s.Features["ip4-unicast/ip4-inacl"] = true
 	}
 }
 

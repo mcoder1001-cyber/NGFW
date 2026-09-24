@@ -446,6 +446,25 @@ slot_env() {
   say "slot $n exports: $(env | grep '^VRX_' | sort | tr '\n' ' ')"
 }
 
+# D-095 (d) / VPP V19: before any integration test (and again after the rig is up) dump the interfaces and their
+# classify / IPsec SPD bindings on the shared VPP and fail fast, naming the interface, when a binding or a classify DPO
+# points at a classify table that no longer exists — the first packet through it crashes VPP (vnet_classify_find_entry,
+# 2026-09-24 04:50:27). Read-only (apps/agent/cmd/vrx-vpp-preflight); warnings (dormant bindings of deleted interfaces,
+# stale SPD bindings) are printed, not fatal.
+V19_PREFLIGHT_BIN=""
+v19_preflight() {
+  local when=$1
+  if [[ -z $V19_PREFLIGHT_BIN ]]; then
+    V19_PREFLIGHT_BIN="$LOG_DIR/vrx-vpp-preflight"
+    run v19-preflight-build go -C apps/agent build -o "$V19_PREFLIGHT_BIN" ./cmd/vrx-vpp-preflight \
+      || fail "could not build apps/agent/cmd/vrx-vpp-preflight"
+  fi
+  say "V19 pre-flight ($when): interfaces + classify/SPD bindings on the shared VPP"
+  run "v19-preflight-$when" "$V19_PREFLIGHT_BIN" \
+    || fail "V19 pre-flight ($when): a classify binding on the shared VPP points at a deleted classify table — a crash vector for the next packet (VPP V19). The offending interface is named in the log below. No integration test was started; do NOT send traffic through that interface — remove the binding or the interface first (or report it to the manager)"
+  sed 's/^/  /' "$CUR_LOG" | tail -n 20
+}
+
 do_integration() {
   step "integration (slot $CI_SLOT, exclusive lab lock)"
   if [[ ! -x tools/lab ]]; then
@@ -473,6 +492,7 @@ do_integration() {
   export VRX_LAB_LOCK_HELD=1 VRX_CI_FULL=1
   say "lab lock converted to shared for rig up → suites → rig down"
   if run lab-status tools/lab status; then sed 's/^/  /' "$CUR_LOG" | tail -n 15; else warn "tools/lab status failed (non-fatal)"; fi
+  v19_preflight before-tests
   local mod
   while IFS= read -r mod; do
     mod=$(dirname "$mod")
@@ -481,6 +501,7 @@ do_integration() {
     if [[ $mod != apps/agent && $RIG_UP == 0 ]]; then
       run rig-up tools/lab rig up "$RIG_PREFIX" || fail "tools/lab rig up $RIG_PREFIX failed"
       RIG_UP=1
+      v19_preflight after-rig-up   # the rig's af_packet interfaces may reuse an index with inherited bindings
     fi
     say "go integration: $mod"
     # -p 1: one package at a time — packages share the CI slot's prefix/instance ranges on one VPP (D-087)

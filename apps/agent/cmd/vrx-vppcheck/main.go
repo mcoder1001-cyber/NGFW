@@ -55,7 +55,7 @@ func main() {
 }
 
 func dialVPP(ctx context.Context, socket string) (vpp.Client, func(), error) {
-	if fi, err := os.Stat(socket); err != nil {
+	if fi, err := os.Stat(socket); err != nil { //nolint:gosec // operator-supplied socket path, only stat'ed
 		return nil, nil, fmt.Errorf("no VPP API socket: %w", err)
 	} else if fi.Mode()&os.ModeSocket == 0 {
 		return nil, nil, fmt.Errorf("%s is not a socket", socket)

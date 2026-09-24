@@ -3555,7 +3555,7 @@ message NatSessionsResponse {
   string owner = 6;
   // When the dump was taken (agent clock).
   google.protobuf.Timestamp retrieved_at = 7;
-  // The session table this page comes from (F-nat44-ei-64-66-nptv6); never UNSPECIFIED.
+  // The session table this page comes from (F-nat44-ei-64-66-nptv6): EI or NAT64; unset = NAT44-ED.
   optional NatSessionVariant variant = 8;
 }
 

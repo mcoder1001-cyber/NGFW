@@ -15783,7 +15783,7 @@ type NatSessionsResponse struct {
 	Owner string `protobuf:"bytes,6,opt,name=owner,proto3" json:"owner,omitempty"`
 	// When the dump was taken (agent clock).
 	RetrievedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=retrieved_at,json=retrievedAt,proto3" json:"retrieved_at,omitempty"`
-	// The session table this page comes from (F-nat44-ei-64-66-nptv6); never UNSPECIFIED.
+	// The session table this page comes from (F-nat44-ei-64-66-nptv6): EI or NAT64; unset = NAT44-ED.
 	Variant       *NatSessionVariant `protobuf:"varint,8,opt,name=variant,proto3,enum=vrx.v1.NatSessionVariant,oneof" json:"variant,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

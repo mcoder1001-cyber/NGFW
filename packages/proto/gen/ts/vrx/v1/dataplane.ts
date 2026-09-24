@@ -5447,7 +5447,7 @@ export interface NatSessionsResponse {
   retrievedAt:
     | Date
     | undefined;
-  /** The session table this page comes from (F-nat44-ei-64-66-nptv6); never UNSPECIFIED. */
+  /** The session table this page comes from (F-nat44-ei-64-66-nptv6): EI or NAT64; unset = NAT44-ED. */
   variant?: NatSessionVariant | undefined;
 }
 

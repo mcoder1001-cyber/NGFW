@@ -394,8 +394,9 @@ Additive fields on F-nat44-ed-sessions' messages (after their maxima, nothing re
 
 - `enum NatSessionVariant { UNSPECIFIED = 0, ED = 1, EI = 2, NAT64 = 3 }`. UNSPECIFIED keeps the F-nat44-ed-sessions
   behaviour (NAT44-ED), so existing clients are unchanged.
-- `NatSessionsRequest.variant = 5`, `NatSessionsResponse.variant = 8` (the table the page comes from, never
-  UNSPECIFIED), `NatSessionKillAction.variant = 7`.
+- `NatSessionsRequest.variant = 5`, `NatSessionsResponse.variant = 8` (the table the page comes from: EI or NAT64;
+  unset on NAT44-ED pages, whose handler is F-nat44-ed-sessions' and unchanged), `NatSessionKillAction.variant = 7`.
+  All three are `optional`.
 - **EI** (`nat44_ei_user_dump` + `nat44_ei_user_session_v2_dump`): the same user-first paging, filter, order, cap and
   ownership as ED. `external_nat_*` equals `external_*` (EI has no twice-NAT), `twice_nat` and `timed_out` are false
   (the EI details carry neither). The kill is `nat44_ei_del_session` with `NAT44_EI_IF_INSIDE`: VPP looks the session up

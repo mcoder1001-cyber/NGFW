@@ -15417,7 +15417,7 @@ type ListRoutesRequest struct {
 	Family string `protobuf:"bytes,3,opt,name=family,proto3" json:"family,omitempty"`
 	// Only routes equal to or more specific than this prefix (CIDR); "" = all.
 	Prefix string `protobuf:"bytes,4,opt,name=prefix,proto3" json:"prefix,omitempty"`
-	// Only routes that carry this FIB source (VPP's name as fib_source_dump reports it, e.g. "API", "interface",
+	// Only routes whose best FIB source is this one (VPP's name as fib_source_dump reports it, e.g. "API", "interface",
 	// "adjacency", "svs"); "" = all. Filtered by VPP (ip_route_v2_dump src). Unknown → INVALID_ARGUMENT.
 	Source string `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
 	// Index of the first route of the page in the sorted, filtered list (0-based).

@@ -3602,7 +3602,7 @@ message ListRoutesRequest {
   string family = 3;
   // Only routes equal to or more specific than this prefix (CIDR); "" = all.
   string prefix = 4;
-  // Only routes that carry this FIB source (VPP's name as fib_source_dump reports it, e.g. "API", "interface",
+  // Only routes whose best FIB source is this one (VPP's name as fib_source_dump reports it, e.g. "API", "interface",
   // "adjacency", "svs"); "" = all. Filtered by VPP (ip_route_v2_dump src). Unknown → INVALID_ARGUMENT.
   string source = 5;
   // Index of the first route of the page in the sorted, filtered list (0-based).

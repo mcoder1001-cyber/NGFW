@@ -5315,7 +5315,7 @@ export interface ListRoutesRequest {
   /** Only routes equal to or more specific than this prefix (CIDR); "" = all. */
   prefix: string;
   /**
-   * Only routes that carry this FIB source (VPP's name as fib_source_dump reports it, e.g. "API", "interface",
+   * Only routes whose best FIB source is this one (VPP's name as fib_source_dump reports it, e.g. "API", "interface",
    * "adjacency", "svs"); "" = all. Filtered by VPP (ip_route_v2_dump src). Unknown → INVALID_ARGUMENT.
    */
   source: string;

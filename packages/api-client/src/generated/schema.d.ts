@@ -546,7 +546,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Run an action in the data plane (ping; traceroute and the others answer 501) and return its output */
+    /**
+     * Run an action in the data plane (ping; traceroute and the others answer 501) and return its output
+     * @description ping uses VPP’s ping API: default VRF only, count × interval ≤ 5 s, one at a time (503 while another runs), and 409 when VPP runs worker threads (the API holds the worker barrier for the whole ping — docs/vpp-code-track.md V-new).
+     */
     post: operations['Actions_run'];
     delete?: never;
     options?: never;
@@ -630,7 +633,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Live FIB of a VRF (every VRF when none is given), paged and filtered by the agent, with each entry’s paths */
+    /**
+     * Live FIB of a VRF (every VRF when none is given), paged and filtered by the agent, with each entry’s paths
+     * @description Every call is one full walk of the VRF’s FIB in VPP (under its worker barrier; the agent runs one walk at a time and answers 503 while another is in progress): refresh on demand, do not poll.
+     */
     get: operations['State_routes'];
     put?: never;
     post?: never;
@@ -7906,6 +7912,15 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem'];
         };
       };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
       /** @description Not implemented */
       501: {
         headers: {
@@ -8265,6 +8280,7 @@ export interface operations {
         prefix?: string;
         family?: 'ipv4' | 'ipv6';
         pageSize?: number;
+        /** @description page × pageSize ≤ 100000 (the agent's listing window) */
         page?: number;
         vrf?: string;
       };

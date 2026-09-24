@@ -360,7 +360,10 @@ owner, vrf, table_id, retrieved_at}` is the FIB browser's **state RPC** (§5 kee
 `vrf` is a VRF name of the agent's stored desired state (`""`/`default` = table 0; unknown → `NOT_FOUND`); `family`
 `ipv4`/`ipv6`/`""` (both, IPv4 first); `prefix` keeps routes equal to or more specific than it; `source` is a FIB source
 name as VPP's `fib_source_dump` reports it (`API`, `interface`, `adjacency`, `recursive-resolution`, `svs`, …) and is
-pushed down to `ip_route_v2_dump.src` (VPP walks only entries that carry it; unknown name → `INVALID_ARGUMENT`);
+pushed down to `ip_route_v2_dump.src` (VPP still walks every entry and keeps those whose **best** source it is —
+`fib_table_walk_w_src`; unknown name → `INVALID_ARGUMENT`); offset + limit ≤ 100 000 (`INVALID_ARGUMENT` beyond: narrow
+the filter); one walk at a time per agent (a caller that cannot start within 3 s → `UNAVAILABLE`), because the dump
+runs under VPP's worker barrier (docs/vpp-code-track.md V-new (d));
 `limit` 0 = 100, max 1000. The agent reads the dump **once per call as a stream** and keeps only the requested window
 (a bounded heap of `offset + limit` entries in sort order: family, prefix address, prefix length), so neither the agent's
 memory beyond the window nor the gRPC message grows with the table; `total` counts every match. Each entry: canonical

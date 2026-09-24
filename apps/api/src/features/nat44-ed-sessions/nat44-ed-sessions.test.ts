@@ -1,6 +1,6 @@
 import type { NatPoolUsage } from '@ngfw/proto';
 import { describe, expect, it } from 'vitest';
-import { ProblemError } from '../../common/problem.js';
+import type { ProblemError } from '../../common/problem.js';
 import { SessionsQuery } from './dto.js';
 import { fakeSession } from './fake.js';
 import { filterOf, killOutcome, mergePools, PORTS_PER_ADDRESS, sessionJson } from './service.js';

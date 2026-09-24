@@ -15,6 +15,16 @@ export interface DiffChange {
   pointer: string;
   from?: unknown;
   to?: unknown;
+  /** A write-only member changed; no value is ever shown (TD-2 shape `{op, pointer, redacted: true}`). */
+  redacted?: boolean;
+  /** Derived by the UI (not reported by the API) — see config/effective.ts. */
+  synthetic?: boolean;
+}
+
+/** What to say for a redacted change (never a value). */
+function redactedKey(c: DiffChange): string {
+  if (c.pointer === '') return 'diff.redacted.unknown';
+  return /\/passwordHash$/.test(c.pointer) ? 'diff.redacted.password' : 'diff.redacted.secret';
 }
 
 const OP_META = {
@@ -95,9 +105,9 @@ export function DiffView({ changes: raw, dense = false }: { changes: readonly Di
         })}
       </Stack>
       {groups.map(([domain, list]) => (
-        <Box key={domain} component="section" aria-label={t(`nav:domains.${domain}`, { defaultValue: domain })}>
+        <Box key={domain} component="section" aria-label={domain ? t(`nav:domains.${domain}`, { defaultValue: domain }) : t('diff.redacted.group')}>
           <Typography component="h3" variant="subtitle2" sx={{ mb: 1 }}>
-            {t(`nav:domains.${domain}`, { defaultValue: domain })}
+            {domain ? t(`nav:domains.${domain}`, { defaultValue: domain }) : t('diff.redacted.group')}
           </Typography>
           <Stack component="ul" gap={1} sx={{ listStyle: 'none', m: 0, p: 0 }}>
             {list.map((c) => {
@@ -115,11 +125,23 @@ export function DiffView({ changes: raw, dense = false }: { changes: readonly Di
                 >
                   <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
                     <Chip size="small" color={color} icon={<Icon />} label={t(`diff.op.${key}`)} />
-                    <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily, fontSize: '0.8125rem', wordBreak: 'break-all' }}>
-                      {c.pointer}
-                    </Box>
+                    {c.pointer && (
+                      <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily, fontSize: '0.8125rem', wordBreak: 'break-all' }}>
+                        {c.pointer}
+                      </Box>
+                    )}
                   </Stack>
-                  {c.op !== 'add' && (
+                  {c.redacted && (
+                    <Typography variant="body2" sx={{ mt: 0.5 }} data-testid="redacted-change">
+                      {t(redactedKey(c))}
+                      {c.synthetic && (
+                        <Typography component="span" variant="caption" color="text.secondary" sx={{ marginInlineStart: 1 }}>
+                          {t('diff.redacted.synthetic')}
+                        </Typography>
+                      )}
+                    </Typography>
+                  )}
+                  {!c.redacted && c.op !== 'add' && (
                     <Stack direction="row" gap={1} alignItems="flex-start" sx={{ mt: 0.5 }}>
                       <Typography variant="caption" color="text.secondary" sx={{ minInlineSize: 48 }}>
                         {t('diff.from')}
@@ -127,7 +149,7 @@ export function DiffView({ changes: raw, dense = false }: { changes: readonly Di
                       <Value value={c.from} label={t('diff.from')} />
                     </Stack>
                   )}
-                  {c.op !== 'remove' && (
+                  {!c.redacted && c.op !== 'remove' && (
                     <Stack direction="row" gap={1} alignItems="flex-start" sx={{ mt: 0.5 }}>
                       <Typography variant="caption" color="text.secondary" sx={{ minInlineSize: 48 }}>
                         {t('diff.to')}

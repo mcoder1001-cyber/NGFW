@@ -22,12 +22,13 @@ import { useMemo, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { call } from '../api-problem';
-import { useAuth, usePermissions } from '../auth/AuthProvider';
+import { usePermissions } from '../auth/AuthProvider';
 import { ConfirmWindowField, DEFAULT_CONFIRM_MINUTES, confirmWindowValid, trackPending, type ConfirmWindow } from '../config/CommitDialog';
 import { CommitResultView } from '../config/CommitResultView';
 import { DiffView } from '../config/DiffView';
 import { ProblemAlert } from '../config/ProblemAlert';
-import { qk, useDiff, useLock, usePending, useRevision, useRollback, useRunning, type CommitResult, type RevisionMeta } from '../config/queries';
+import { useEffectiveChanges } from '../config/effective';
+import { qk, usePending, useRevision, useRollback, useRunning, type CommitResult, type RevisionMeta } from '../config/queries';
 import { PageHeader } from '../shell/PageHeader';
 
 const REV_INPUT = { min: 1, dir: 'ltr' } as const;
@@ -86,7 +87,7 @@ function RollbackDialog({ target, onClose }: { target: RevisionMeta | null; onCl
       {
         onSuccess: (outcome) => {
           if (outcome.result.status === 'pending') {
-            trackPending(outcome, revert.minutes, 'rollback');
+            trackPending(outcome, revert.minutes, 'rollback', changes ?? []);
             close();
           } else setResult(outcome.result);
         },
@@ -109,7 +110,10 @@ function RollbackDialog({ target, onClose }: { target: RevisionMeta | null; onCl
             ) : changes === null ? (
               <LinearProgress aria-label={t('loading')} />
             ) : (
-              <DiffView changes={changes} />
+              <>
+                <DiffView changes={changes} />
+                {changes.length === 0 && <Alert severity="info">{t('rollback.noVisibleChange')}</Alert>}
+              </>
             )}
             <TextField
               label={t('config:commit.comment')}
@@ -137,7 +141,7 @@ function RollbackDialog({ target, onClose }: { target: RevisionMeta | null; onCl
               variant="contained"
               color="warning"
               onClick={submit}
-              disabled={rollback.isPending || !confirmWindowValid(revert) || changes === null || changes.length === 0}
+              disabled={rollback.isPending || !confirmWindowValid(revert) || changes === null}
             >
               {rollback.isPending ? t('rollback.running') : t('rollback.submit', { id: target.id })}
             </Button>
@@ -153,17 +157,17 @@ export function RevisionsPage() {
   const { t } = useTranslation(['revisions', 'config', 'common']);
   const fmt = useFormatters();
   const perms = usePermissions();
-  const { state } = useAuth();
-  const candidate = useDiff();
-  const lock = useLock();
+  const eff = useEffectiveChanges();
+  const candidate = eff.diff;
   const pending = usePending();
   const [cmp, setCmp] = useState<{ from: number; to: number } | null>(null);
   const [fromInput, setFromInput] = useState('');
   const [toInput, setToInput] = useState('');
   const [target, setTarget] = useState<RevisionMeta | null>(null);
 
-  const dirty = (candidate.data?.changes.length ?? 0) > 0;
-  const lockedByOther = lock.data?.locked === true && lock.data.owner !== state.user?.username;
+  // same rules as the bar: hidden write-only edits count as dirty (H1), a stale lock does not block (L2)
+  const dirty = eff.dirty;
+  const lockedByOther = eff.lockedByOther;
   const runningRev = candidate.data?.baseRevision ?? null;
   const rollbackBlocked = !perms.commit
     ? t('config:perm.commit')
@@ -172,7 +176,7 @@ export function RevisionsPage() {
       : dirty
         ? t('rollback.dirty')
         : lockedByOther
-          ? t('config:bar.lockedByOther', { owner: lock.data?.owner })
+          ? t('config:bar.lockedByOther', { owner: eff.lock?.owner })
           : undefined;
 
   const columns = useMemo<GridColDef<RevisionMeta>[]>(

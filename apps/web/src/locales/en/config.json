@@ -46,6 +46,13 @@
       "add": "Added",
       "remove": "Removed",
       "replace": "Changed"
+    },
+    "redacted": {
+      "password": "Password changed (the value is never shown)",
+      "secret": "Write-only value changed (not shown)",
+      "unknown": "The candidate is locked by you but shows no visible difference: it may hold write-only changes such as passwords.",
+      "synthetic": "(detected by this browser)",
+      "group": "Write-only fields"
     }
   },
   "commit": {
@@ -100,7 +107,10 @@
         "title": "Commit reverted",
         "body": "It was not confirmed in time, so the device went back to the previous configuration. Your changes are still in the candidate."
       }
-    }
+    },
+    "applyResult": "What the device applied",
+    "notApplied_one": "Stored but not enforced yet: {{domains}} (not implemented by the data-plane agent).",
+    "notApplied_other": "Stored but not enforced yet: {{domains}} (not implemented by the data-plane agent)."
   },
   "sync": {
     "state": {
@@ -134,5 +144,10 @@
     "unexpected": "Unexpected error.",
     "unreachableTitle": "No answer from the device",
     "unreachable": "The request did not reach the API. It will be retried when the connection is back."
+  },
+  "breakLock": {
+    "title": "Break the lock of {{owner}}?",
+    "body": "{{owner}} locked the candidate {{since}} (last change {{activity}}). Breaking the lock discards all of their uncommitted changes. This cannot be undone.",
+    "confirm": "Discard {{owner}}’s changes and break the lock"
   }
 }

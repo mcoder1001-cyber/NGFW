@@ -15,9 +15,9 @@ import Typography from '@mui/material/Typography';
 import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApiError, serverOffsetMs } from '../api-problem';
-import { confirmStore } from './confirm-store';
+import { applyStatus, confirmStore, type ApplySummary } from './confirm-store';
 import { CommitResultView } from './CommitResultView';
-import { DiffView, type DiffChange } from './DiffView';
+import { DiffView, domainOf, type DiffChange } from './DiffView';
 import { ProblemAlert } from './ProblemAlert';
 import { useDomainList } from './useDomainList';
 import { useCommit, useValidate, type CommitOutcome, type CommitResult } from './queries';
@@ -67,12 +67,19 @@ export function confirmWindowValid(w: ConfirmWindow): boolean {
 }
 
 /** Start the local countdown for a commit/rollback the server holds for confirmation. */
-export function trackPending(outcome: CommitOutcome, minutes: number, kind: 'commit' | 'rollback'): void {
+export function trackPending(outcome: CommitOutcome, minutes: number, kind: 'commit' | 'rollback', changes: readonly DiffChange[]): void {
   const { result, sentAt, response } = outcome;
   if (result.status !== 'pending' || !result.txnId) return;
   let deadlineMs = sentAt + minutes * 60_000;
   if (result.confirmDeadline) deadlineMs = Math.min(deadlineMs, Date.parse(result.confirmDeadline) - serverOffsetMs(response, sentAt));
-  confirmStore.track({ txnId: result.txnId, deadlineMs, kind, trackedAt: Date.now() });
+  const summary: ApplySummary = {
+    status: applyStatus(result.notApplied, [...new Set(changes.map((c) => domainOf(c.pointer)))]),
+    notApplied: result.notApplied,
+    warnings: result.warnings,
+    results: result.results,
+    sync: result.sync,
+  };
+  confirmStore.track({ txnId: result.txnId, deadlineMs, kind, trackedAt: Date.now(), summary });
 }
 
 /**
@@ -107,7 +114,7 @@ export function CommitDialog({ open, onClose, changes }: { open: boolean; onClos
       {
         onSuccess: (outcome) => {
           if (outcome.result.status === 'pending') {
-            trackPending(outcome, minutes, 'commit');
+            trackPending(outcome, minutes, 'commit', changes);
             setComment('');
             onClose();
           } else {

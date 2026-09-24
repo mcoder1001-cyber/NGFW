@@ -20,7 +20,17 @@ const USERNAME_INPUT = { dir: 'ltr', spellCheck: false, autoCapitalize: 'none' }
 
 /** Only same-app paths are accepted as `next` (no open redirect to another origin). */
 export function safeNext(next: string | null): string {
-  return next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/login') ? next : '/';
+  // review L5: no `\` (URL parsing turns it into `/`), no control characters, and the result must stay same-origin
+  // eslint-disable-next-line no-control-regex -- rejecting control characters is the point
+  if (!next || !next.startsWith('/') || next.startsWith('//') || /[\\\u0000-\u001f\u007f]/.test(next)) return '/';
+  try {
+    const base = globalThis.location?.origin ?? 'http://localhost';
+    const u = new URL(next, base);
+    if (u.origin !== new URL(base).origin || u.pathname.startsWith('/login')) return '/';
+    return `${u.pathname}${u.search}${u.hash}`;
+  } catch {
+    return '/';
+  }
 }
 
 function failureKey(f: LoginFailure): string {

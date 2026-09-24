@@ -33,6 +33,7 @@ import { api } from '../api';
 import { ApiError, call } from '../api-problem';
 import { useAuth, usePermissions } from '../auth/AuthProvider';
 import { ProblemAlert } from '../config/ProblemAlert';
+import { secretEdits, useSecretEdits } from '../config/effective';
 import { invalidateConfig, qk } from '../config/queries';
 import { domainSchemas } from '../schema/registry';
 import { PageHeader } from '../shell/PageHeader';
@@ -111,6 +112,11 @@ export function rowStates(candidate: readonly ConfigUser[], running: readonly Co
   return rows;
 }
 
+async function fetchCandidateUsers({ signal }: { signal: AbortSignal }): Promise<ConfigUser[]> {
+  const r = await call(api.GET('/api/v1/config/candidate/{path}', { params: { path: { path: 'management' } }, signal }));
+  return ((r.data as { users?: ConfigUser[] } | undefined)?.users ?? []) as ConfigUser[];
+}
+
 function useManagement(which: 'running' | 'candidate') {
   return useQuery({
     queryKey: which === 'candidate' ? qk.candidate('management') : (['config', 'running', 'management'] as const),
@@ -142,6 +148,7 @@ export function UsersPage() {
 
   const schema = useMemo(() => localizeUserSchema(userItemSchema(), (k, o) => t(k, o ?? {})), [t]);
   const users = useMemo(() => candidate.data ?? [], [candidate.data]);
+  const passwordEdited = useSecretEdits();
   const rows = useMemo(() => rowStates(users, running.data ?? []), [users, running.data]);
 
   const save = useMutation({
@@ -159,14 +166,27 @@ export function UsersPage() {
     setEditing(e);
   };
 
+  /** The list as the candidate holds it NOW (review L4: never write back a snapshot up to one poll old). */
+  const freshUsers = async (): Promise<ConfigUser[]> => {
+    try {
+      return await qc.fetchQuery({ queryKey: qk.candidate('management'), queryFn: fetchCandidateUsers, staleTime: 0 });
+    } catch {
+      return users;
+    }
+  };
+
   const submitUser = async (value: unknown) => {
     if (!editing) return;
     const user = value as ConfigUser;
-    const next = [...users];
-    if (editing.index < 0) next.push(user);
-    else next[editing.index] = user;
+    const current = await freshUsers();
+    const next = [...current];
+    const at = editing.user ? current.findIndex((u) => u.username === editing.user!.username) : -1;
+    if (at < 0) next.push(user);
+    else next[at] = user;
     try {
       await save.mutateAsync(next);
+      // hash edits are invisible in the redacted diff: remember the username (never the value) — review H1
+      if (typeof user.passwordHash === 'string' && user.passwordHash !== '') secretEdits.markPassword(user.username);
       setEditing(null);
     } catch {
       // the problem (pointers mapped onto the fields) is rendered from `save.error`
@@ -246,7 +266,14 @@ export function UsersPage() {
                 </TableCell>
                 <TableCell>{user.disabled ? t('status.disabled') : t('status.enabled')}</TableCell>
                 <TableCell>{fmt.integer(user.sshKeys?.length ?? 0)}</TableCell>
-                <TableCell>{rowState && <Chip size="small" color={rowState === 'removed' ? 'error' : 'warning'} label={t(`pending.${rowState}`)} />}</TableCell>
+                <TableCell>
+                  <Stack direction="row" gap={0.5} flexWrap="wrap">
+                    {rowState && <Chip size="small" color={rowState === 'removed' ? 'error' : 'warning'} label={t(`pending.${rowState}`)} />}
+                    {rowState !== 'removed' && passwordEdited.includes(user.username) && (
+                      <Chip size="small" color="warning" variant="outlined" label={t('pending.password')} data-testid="password-changed" />
+                    )}
+                  </Stack>
+                </TableCell>
                 <TableCell sx={{ textAlign: 'end' }}>
                   {rowState !== 'removed' && (
                     <>
@@ -290,6 +317,7 @@ export function UsersPage() {
         <DialogContent dividers>
           <Alert severity="info" sx={{ mb: 2 }}>
             {t('passwordNote')}
+            {editing?.user && <Box sx={{ mt: 0.5 }}>{t('renameNote')}</Box>}
           </Alert>
           {editing && (
             <SchemaForm
@@ -330,9 +358,12 @@ export function UsersPage() {
             disabled={save.isPending}
             onClick={() => {
               if (!deleting) return;
-              save.mutate(
-                users.filter((_, i) => i !== deleting.index),
-                { onSuccess: () => setDeleting(null) },
+              const name = deleting.user.username;
+              void freshUsers().then((current) =>
+                save.mutate(
+                  current.filter((u) => u.username !== name),
+                  { onSuccess: () => setDeleting(null) },
+                ),
               );
             }}
           >

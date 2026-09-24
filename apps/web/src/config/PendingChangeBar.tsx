@@ -23,8 +23,8 @@ import { useAuth, usePermissions } from '../auth/AuthProvider';
 import { CommitDialog } from './CommitDialog';
 import { DiffView } from './DiffView';
 import { ProblemAlert } from './ProblemAlert';
-import { refineChanges } from './refine';
-import { invalidateConfig, useBreakLock, useDiff, useDiscard, useLock, usePending, useSystemState } from './queries';
+import { useEffectiveChanges } from './effective';
+import { invalidateConfig, useBreakLock, useDiscard, usePending, useSystemState } from './queries';
 
 /** A disabled button still explains itself (tooltip on a wrapper, since disabled elements get no pointer events). */
 function Why({ reason, children }: { reason: string | undefined; children: ReactElement }) {
@@ -55,28 +55,29 @@ export function PendingChangeBar() {
   const fmt = useFormatters();
   const { state } = useAuth();
   const perms = usePermissions();
-  const diff = useDiff();
-  const lock = useLock();
+  const eff = useEffectiveChanges();
+  const { diff, lock: lockData } = eff;
   const pending = usePending();
   const discard = useDiscard();
   const breakLock = useBreakLock();
   const [review, setReview] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [discarding, setDiscarding] = useState(false);
+  const [breaking, setBreaking] = useState(false);
   useCommitEvents();
 
-  const changes = diff.data?.changes ?? [];
-  const shown = refineChanges(changes).length;
+  const changes = eff.changes;
+  const shown = eff.count;
   const reconnecting = diff.isError && isUnreachable(diff.error);
-  if (changes.length === 0 && !committing) {
+  if (!eff.dirty && !committing) {
     return reconnecting ? (
       <Chip color="warning" size="small" label={t('bar.reconnecting')} sx={{ mb: 2 }} role="status" />
     ) : null;
   }
 
   const me = state.user?.username;
-  const owner = lock.data?.locked ? lock.data.owner : null;
-  const lockedByOther = owner !== null && owner !== me && (lock.data?.expiresAt ? Date.parse(lock.data.expiresAt) > Date.now() : true);
+  const owner = lockData?.locked ? lockData.owner : null;
+  const lockedByOther = eff.lockedByOther;
   const pendingCommit = pending.data?.pending ?? null;
 
   const commitBlocked = !perms.commit
@@ -134,14 +135,39 @@ export function PendingChangeBar() {
             />
           )}
           {lockedByOther && perms.breakLock && (
-            <Button size="small" color="error" onClick={() => breakLock.mutate()} disabled={breakLock.isPending}>
+            <Button size="small" color="error" onClick={() => setBreaking(true)} disabled={breakLock.isPending}>
               {t('bar.breakLock')}
             </Button>
           )}
           {reconnecting && <Chip color="warning" size="small" label={t('bar.reconnecting')} role="status" />}
         </Stack>
-        {breakLock.isError && <ProblemAlert error={breakLock.error} sx={{ mt: 1 }} />}
       </Paper>
+
+      {/* review M5: breaking a lock discards another user's work — confirm, naming the owner and the lock's age */}
+      <Dialog open={breaking} onClose={() => setBreaking(false)} aria-labelledby="break-title">
+        <DialogTitle id="break-title">{t('breakLock.title', { owner })}</DialogTitle>
+        <DialogContent>
+          <DialogContentText data-testid="break-lock-body">
+            {t('breakLock.body', {
+              owner,
+              since: lockData?.lockedAt ? fmt.relative(lockData.lockedAt) : '—',
+              activity: lockData?.lastActivity ? fmt.relative(lockData.lastActivity) : '—',
+            })}
+          </DialogContentText>
+          {breakLock.isError && <ProblemAlert error={breakLock.error} sx={{ mt: 1 }} />}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBreaking(false)}>{t('cancel')}</Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={breakLock.isPending}
+            onClick={() => breakLock.mutate(undefined, { onSuccess: () => setBreaking(false) })}
+          >
+            {t('breakLock.confirm', { owner })}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={review} onClose={() => setReview(false)} maxWidth="md" fullWidth aria-labelledby="review-title">
         <DialogTitle id="review-title">{t('review.title')}</DialogTitle>

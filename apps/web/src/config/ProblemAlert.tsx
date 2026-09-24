@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../api-problem';
+import { OK_CODES } from './CommitResultView';
 
 interface AgentResult {
   key?: string;
@@ -51,7 +52,7 @@ export function ProblemAlert({ error, sx }: { error: unknown; sx?: SxProps<Theme
   const b = error.body;
   const slugKey = error.slug ? SLUG_KEYS[error.slug] : undefined;
   const lock = b['lock'] as { owner?: string | null } | undefined;
-  const results = (Array.isArray(b['results']) ? (b['results'] as AgentResult[]) : []).filter((r) => r.code && r.code !== 'OK');
+  const results = (Array.isArray(b['results']) ? (b['results'] as AgentResult[]) : []).filter((r) => !OK_CODES.has(r.code ?? ''));
   const sync = b['sync'] as { state?: string; reason?: string } | undefined;
   return (
     <Alert severity="error" sx={sx} data-testid="problem">

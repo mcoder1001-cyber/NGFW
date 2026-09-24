@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useWsClient } from '@ngfw/ui-kit/ws';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { confirmStore } from '../config/confirm-store';
 import { session as appSession, type Role, type Session, type SessionState } from './session';
 
 interface AuthValue {
@@ -24,6 +25,7 @@ export function AuthProvider({ session = appSession, children }: { session?: Ses
       if (s.status === 'anonymous') {
         queryClient.clear();
         ws.close();
+        confirmStore.reset(); // the next user in this tab must not inherit "your commit" (review L3)
       } else if (s.status === 'authenticated' && ws.topics.length > 0) {
         ws.connect(); // subscribers that mounted before the credential existed (the client stayed idle)
       }

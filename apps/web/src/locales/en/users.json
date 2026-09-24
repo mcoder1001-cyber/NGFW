@@ -37,7 +37,8 @@
   "pending": {
     "new": "new",
     "changed": "changed",
-    "removed": "to be removed"
+    "removed": "to be removed",
+    "password": "password changed"
   },
   "field": {
     "username": {
@@ -73,5 +74,6 @@
       "title": "Disabled",
       "help": "Keep the account but refuse sign-ins."
     }
-  }
+  },
+  "renameNote": "Renaming a user drops its stored password (passwords are kept by username): set a new hash when you rename."
 }

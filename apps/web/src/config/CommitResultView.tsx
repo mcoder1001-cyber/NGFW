@@ -6,6 +6,14 @@ import { useTranslation } from 'react-i18next';
 import type { CommitResult } from './queries';
 import { useDomainList } from './useDomainList';
 
+/** P06 `resultJson` code names that are plain successes. */
+export const OK_CODES = new Set(['ok', 'unspecified', '']);
+
+/** Per-object agent results that are not plain successes. */
+function failedResults(result: ResultLike) {
+  return result.results.filter((r) => !OK_CODES.has(r.code));
+}
+
 const SEVERITY: Record<CommitResult['status'], 'success' | 'warning' | 'info'> = {
   applied: 'success',
   confirmed: 'success',
@@ -19,13 +27,21 @@ const SEVERITY: Record<CommitResult['status'], 'success' | 'warning' | 'info'> =
  * The commit answer as P06 reports it (D-P06-15/16): `partially-applied` / `not-applied` name the domains the agent
  * does not implement yet (`notApplied`) — stored in running but NOT enforced on the data plane. Shown, never hidden.
  */
-export function CommitResultView({ result }: { result: CommitResult }) {
+/** What the view needs: a commit/rollback answer, or the apply summary kept across a confirmed commit (review M1). */
+export type ResultLike = Pick<CommitResult, 'status' | 'warnings' | 'notApplied' | 'results'> & {
+  txnId?: string | undefined;
+  revision?: { id: number } | undefined;
+  sync?: CommitResult['sync'] | undefined;
+};
+
+export function CommitResultView({ result, title }: { result: ResultLike; title?: string }) {
   const { t } = useTranslation('config');
   const domainList = useDomainList();
   const fmt = useFormatters();
   return (
     <Alert severity={SEVERITY[result.status]} data-testid="commit-result">
-      <AlertTitle>{t(`result.${result.status}`)}</AlertTitle>
+      <AlertTitle>{title ?? t(`result.${result.status}`)}</AlertTitle>
+      {title && <Box sx={{ fontWeight: 500 }}>{t(`result.${result.status}`)}</Box>}
       {result.revision && (
         <Box>
           {t('result.revision', { id: fmt.integer(result.revision.id) })}
@@ -53,6 +69,18 @@ export function CommitResultView({ result }: { result: CommitResult }) {
               </Box>
               {' — '}
               {w.message}
+            </li>
+          ))}
+        </Box>
+      )}
+      {failedResults(result).length > 0 && (
+        <Box component="ul" sx={{ m: 0, mt: 0.5, paddingInlineStart: 2.5 }} aria-label={t('problem.results')}>
+          {failedResults(result).map((r, i) => (
+            <li key={`${r.key}:${i}`} dir="auto">
+              <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+                {r.key || r.pointer}
+              </Box>
+              {` ${r.code}: ${r.message}`}
             </li>
           ))}
         </Box>

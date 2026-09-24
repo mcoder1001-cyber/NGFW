@@ -11,7 +11,9 @@ import { ApiError, call, isUnreachable, serverOffsetMs } from '../api-problem';
 import { usePermissions } from '../auth/AuthProvider';
 import { useNow } from '../hooks/useNow';
 import { confirmStore, formatCountdown, useConfirmState } from './confirm-store';
-import { useConfirm, usePending } from './queries';
+import { CommitResultView } from './CommitResultView';
+import { POLL_MS, useConfirm, usePending } from './queries';
+import { useDomainList } from './useDomainList';
 import { ProblemAlert } from './ProblemAlert';
 
 /** Which revision (if any) was written for `txnId`: revisions are persisted only after CONFIRMED (D-P06-5). */
@@ -26,7 +28,7 @@ async function revisionOf(txnId: string): Promise<number | undefined> {
  * the operator's own access. When the window closes the outcome is read back (revision written = confirmed, none =
  * reverted), never assumed.
  */
-export function ConfirmBanner() {
+export function ConfirmBanner({ offline = false }: { offline?: boolean } = {}) {
   const { t } = useTranslation('config');
   const fmt = useFormatters();
   const perms = usePermissions();
@@ -40,7 +42,12 @@ export function ConfirmBanner() {
   const answered = pendingQ.isSuccess && !pendingQ.isError;
   // the last answer stays authoritative while the device does not answer (TanStack keeps `data` on a failed refetch)
   const serverPending = pendingQ.data?.pending ?? null;
-  const unreachable = pendingQ.isError && isUnreachable(pendingQ.error);
+  const domainList = useDomainList();
+  // Unreachable = the last poll failed at the network level, OR no successful answer for 3 poll periods — a silently
+  // dropped route can leave `isError` false for a while (review M3); `offline` = the page was reloaded during an outage.
+  const lastOk = pendingQ.dataUpdatedAt;
+  const unreachable =
+    offline || (pendingQ.isError && isUnreachable(pendingQ.error)) || (lastOk > 0 && Date.now() - lastOk > 3 * POLL_MS);
   const active = serverPending !== null || (tracked !== null && (!answered || pendingQ.dataUpdatedAt < tracked.trackedAt));
   const now = useNow(active ? 1000 : null);
 
@@ -88,10 +95,21 @@ export function ConfirmBanner() {
   if (!active && outcome) {
     const sev = outcome.kind === 'reverted' ? 'warning' : 'success';
     return (
-      <Alert severity={sev} onClose={() => confirmStore.dismiss()} sx={{ mb: 2 }} data-testid="confirm-outcome">
-        <AlertTitle>{t(`confirm.outcome.${outcome.kind}.title`)}</AlertTitle>
-        {t(`confirm.outcome.${outcome.kind}.body`, { revision: fmt.integer(outcome.revision ?? 0) })}
-      </Alert>
+      <Box sx={{ mb: 2 }} data-testid="confirm-outcome">
+        <Alert severity={sev} onClose={() => confirmStore.dismiss()}>
+          <AlertTitle>{t(`confirm.outcome.${outcome.kind}.title`)}</AlertTitle>
+          {t(`confirm.outcome.${outcome.kind}.body`, { revision: fmt.integer(outcome.revision ?? 0) })}
+        </Alert>
+        {/* what the agent actually did when it applied it (review M1) — never just "confirmed" */}
+        {outcome.kind !== 'reverted' && outcome.summary && (
+          <Box sx={{ mt: 1 }}>
+            <CommitResultView
+              title={t('confirm.applyResult')}
+              result={{ ...outcome.summary, txnId: outcome.txnId, revision: outcome.revision ? { id: outcome.revision } : undefined }}
+            />
+          </Box>
+        )}
+      </Box>
     );
   }
   if (!active || deadline === null) return null;
@@ -131,6 +149,11 @@ export function ConfirmBanner() {
             : t('confirm.countdown', { time })}
         </span>{' '}
         {!expired && t('confirm.expected')}
+        {mine && tracked?.summary && tracked.summary.notApplied.length > 0 && (
+          <Box component="span" sx={{ display: 'block', mt: 0.5 }} data-testid="confirm-not-applied">
+            {t('confirm.notApplied', { count: tracked.summary.notApplied.length, domains: domainList(tracked.summary.notApplied) })}
+          </Box>
+        )}
         {serverPending?.comment ? (
           <Box component="span" sx={{ display: 'block', mt: 0.5 }}>
             {t('confirm.comment', { comment: serverPending.comment })}

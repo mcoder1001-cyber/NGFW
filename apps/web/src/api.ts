@@ -1,5 +1,6 @@
 import { createApiClient } from '@ngfw/api-client';
 import { AUTH_PREFIX, session as appSession, type Session } from './auth/session';
+import { fetchWithTimeout } from './net';
 
 type Fetch = (input: Request) => Promise<Response>;
 
@@ -7,11 +8,13 @@ type Fetch = (input: Request) => Promise<Response>;
 const COOKIE_ROUTES = new Set([`${AUTH_PREFIX}login`, `${AUTH_PREFIX}refresh`, `${AUTH_PREFIX}logout`]);
 
 /**
- * openapi-fetch middleware: attaches `Authorization: Bearer <access token>` and, on a 401, refreshes the session once
+ * openapi-fetch middleware: every request gets a deadline (`net.ts`), attaches `Authorization: Bearer <access token>` and, on a 401, refreshes the session once
  * and retries the request. The middleware performs the request itself (`onRequest` returning a Response), so the retry
  * can reuse a clone of the original body and tests can stub `globalThis.fetch` at any time.
  */
-export function authMiddleware(session: Session, fetchImpl: Fetch = (r) => globalThis.fetch(r)) {
+export function authMiddleware(session: Session, rawFetch: Fetch = (r) => globalThis.fetch(r)) {
+  // every request has a deadline (review M3): a silently dropped route surfaces as "unreachable" within seconds
+  const fetchImpl: Fetch = (r) => fetchWithTimeout(rawFetch, r);
   return {
     async onRequest({ request }: { request: Request }): Promise<Response> {
       const path = new URL(request.url, 'http://localhost').pathname;

@@ -36,6 +36,7 @@
     "submit": "Roll back to revision {{id}}",
     "running": "Rolling back…",
     "dirty": "There are uncommitted changes. Commit or discard them first.",
-    "isRunning": "This revision is the running configuration."
+    "isRunning": "This revision is the running configuration.",
+    "noVisibleChange": "No visible configuration difference. Rolling back still re-applies this revision (and re-activates its pinned secret versions)."
   }
 }

@@ -329,7 +329,7 @@ tasks:
   - P06
   priority: 1
   est_hours: 12
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.10
@@ -340,7 +340,7 @@ tasks:
   owner: host-agent slot1
   started: 2026-09-24T03:10
   finished: ''
-  notes: ' | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094)'
+  notes: ' | usage-limit interruption ~04:00 → WIP salvaged, resumed (D-094) | worker done c4513b2 (real-stack E2E 50/50 en+fa, server-loss countdown); review spawned'
 - id: DF-1
   title: 'Descriptors: bond, l2 (bridge, xconnect), memif, tap, host-interface/af_packet, subinterface, admin-state, mtu, rx-mode'
   prompt: prompts/factories/DF-1.md
@@ -2212,3 +2212,25 @@ tasks:
   started: 2026-09-24T04:30
   finished: '2026-09-24'
   notes: D-080 consolidation pulled forward from P08 to use idle capacity | worker done f1282a0 CI green; NOTE ran on slot 12 concurrently with ci.sh full (D-087) | merged c128fc7; main CI green
+- id: TD-2
+  title: 'API follow-ups from P07b/P13/F-sdk: set-password endpoint (plaintext in, argon2id server-side), typed api-client build output, /health schema, reject control chars in free text (P13 H1), per-API-key
+    candidates (D-093)'
+  prompt: ''
+  template: ''
+  stage: S2
+  deps:
+  - P06
+  priority: 2
+  est_hours: 6
+  state: running
+  parked_on: ''
+  wbs:
+  - D0.9
+  scope: apps/api + packages/api-client only; additive API changes
+  files_owned: apps/api/** packages/api-client/**
+  branch: task/TD-2
+  worktree: /root/ngfw-wt/TD-2
+  owner: host-agent slot7
+  started: 2026-09-24T04:40
+  finished: ''
+  notes: from P07b Q1-Q3, P13 review H1, D-093

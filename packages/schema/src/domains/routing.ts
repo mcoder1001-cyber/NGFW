@@ -15,6 +15,7 @@ import {
 } from '../primitives.js';
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
+import { pbrField } from './ext/rpf-adl-pbr.js';
 
 /**
  * `routing` — static routes, the routing-policy skeleton (prefix-lists, route-maps) and the dynamic protocols
@@ -701,6 +702,7 @@ export const RoutingSchema = withUi(
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // wave-A: F-neighbors-ra
     // wave-A: F-rpf-adl-pbr
+    pbr: pbrField,
   }),
   {
     title: 'Routing',

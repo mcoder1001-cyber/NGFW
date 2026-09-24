@@ -74,6 +74,7 @@ export * from './domains/management.js';
 // wave-A: F-vrf-static-ecmp
 // wave-A: F-neighbors-ra
 // wave-A: F-rpf-adl-pbr
+export * from './domains/ext/rpf-adl-pbr.js';
 // wave-A: F-object-model
 // wave-A: F-host-acl-nftables
 // wave-A: P12

@@ -93,7 +93,7 @@ const sampleDoc = `{
 }`
 
 // canonical is what Retrieve must return for sampleDoc (owned objects only; default VRF not
-// owned; distance only when set).
+// owned; distance only when set; every implemented domain present — `services` since F-rpf-adl-pbr).
 const canonicalDoc = `{
   "vrfs": {"red": {"id": 7001}},
   "interfaces": {
@@ -103,7 +103,8 @@ const canonicalDoc = `{
   "routing": {"static": [
     {"prefix": "10.7.200.0/24", "vrf": "default", "blackhole": false, "nextHops": [{"interface": "loop701", "weight": 1}]},
     {"prefix": "10.7.100.0/24", "vrf": "red", "distance": 1, "blackhole": false, "nextHops": [{"address": "10.7.1.254", "weight": 1}]}
-  ]}
+  ]},
+  "services": {}
 }`
 
 func apply(t *testing.T, s *Service, req *vrxv1.ApplyRequest) *vrxv1.ApplyResponse {
@@ -145,7 +146,7 @@ func TestApplyRetrieveIdempotent(t *testing.T) {
 	if want := doc(t, canonicalDoc); !proto.Equal(got.GetDesiredState(), want) {
 		t.Fatalf("retrieve:\n got %s\nwant %s", protojson.Format(got.GetDesiredState()), protojson.Format(want))
 	}
-	if strings.Join(got.GetSubsystems(), ",") != "interfaces,vrfs,routing" || got.GetOwner() != testOwner {
+	if strings.Join(got.GetSubsystems(), ",") != strings.Join(implementedDomains(), ",") || got.GetOwner() != testOwner {
 		t.Fatalf("retrieve meta %v %s", got.GetSubsystems(), got.GetOwner())
 	}
 	// Idempotent: same state, new txn → empty plan, no results.
@@ -156,7 +157,8 @@ func TestApplyRetrieveIdempotent(t *testing.T) {
 		t.Fatalf("second apply %v", resp)
 	}
 	for _, c := range v.Calls() {
-		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" {
+		// feature_is_enabled: adl.interface's read-back (the adl plugin has no dump; F-rpf-adl-pbr)
+		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" && n != "feature_is_enabled" {
 			t.Fatalf("idempotent apply sent %s", n)
 		}
 	}
@@ -461,7 +463,8 @@ func TestResyncRecreatesAfterLoss(t *testing.T) {
 		if t4, ok := c.(*ip.IPTableAddDel); ok && t4.IsAdd {
 			continue // resync re-asserts the VRF's API lock (idempotent, scheduler.Reapplier)
 		}
-		if !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" {
+		// feature_is_enabled: adl.interface's read-back (the adl plugin has no dump; F-rpf-adl-pbr)
+		if !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" && n != "feature_is_enabled" {
 			t.Fatalf("converged resync sent %s", n)
 		}
 	}
@@ -673,7 +676,7 @@ func TestGRPCRoundTrip(t *testing.T) {
 	defer cancel()
 
 	h, err := c.Health(ctx, &vrxv1.HealthRequest{})
-	if err != nil || h.GetOwner() != testOwner || !h.GetVppConnected() || strings.Join(h.GetSubsystems(), ",") != "interfaces,vrfs,routing" {
+	if err != nil || h.GetOwner() != testOwner || !h.GetVppConnected() || strings.Join(h.GetSubsystems(), ",") != strings.Join(implementedDomains(), ",") {
 		t.Fatalf("health %v %v", err, h)
 	}
 	evs, err := c.StreamEvents(ctx, &vrxv1.StreamEventsRequest{})

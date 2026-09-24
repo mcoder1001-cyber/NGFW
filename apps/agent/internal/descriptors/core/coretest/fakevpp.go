@@ -81,6 +81,10 @@ type VPP struct {
 	mtuFilter func(swIfIndex uint32, mtu [4]uint32) [4]uint32
 }
 
+// extensions install the feature parts of the model (wave-A-hotspots A6: each feature's own
+// coretest/<slug>.go appends its installer in init()).
+var extensions []func(*VPP)
+
 // New returns a model with local0 and the default tables.
 func New() *VPP {
 	v := &VPP{
@@ -94,6 +98,11 @@ func New() *VPP {
 	v.install()
 	v.installIfExt()             // P08: DF-1 attributes, af_packet, sub-interfaces, DHCP client dump
 	sanitizetest.Clean(v.Client) // interface creators sanitize the new sw_if_index (D-095)
+	// wave-A features: coretest/<slug>.go appends its installer in init() (A6); after the sanitizer
+	// model, so a feature's handler of a shared message (adl_interface_enable_disable) is the one used
+	for _, install := range extensions {
+		install(v)
+	}
 	return v
 }
 

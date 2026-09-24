@@ -1249,7 +1249,15 @@ export interface Interface {
     | boolean
     | undefined;
   /** DHCPv4 client (dhcp_client_config); present = enabled (D-050). */
-  dhcpClient: DhcpClient | undefined;
+  dhcpClient:
+    | DhcpClient
+    | undefined;
+  /** Unicast RPF check (F-rpf-adl-pbr, urpf_update_v2); unset = no check. */
+  urpf:
+    | UrpfConfig
+    | undefined;
+  /** Allow/deny list (F-rpf-adl-pbr, adl plugin); unset = off. */
+  adl: AdlConfig | undefined;
 }
 
 export interface Interface_SubinterfacesEntry {
@@ -1352,7 +1360,11 @@ export interface RoutingConfig {
     | BfdConfig
     | undefined;
   /** Routing policy: prefix lists and route maps (FRR). */
-  policy: RoutingPolicy | undefined;
+  policy:
+    | RoutingPolicy
+    | undefined;
+  /** Policy-based routing: ACL-based forwarding (F-rpf-adl-pbr, abf plugin); unset = none. */
+  pbr: PbrConfig | undefined;
 }
 
 /** StaticRoute mirrors one entry of `routing.static`. */
@@ -2170,7 +2182,11 @@ export interface ServicesConfig {
     | NtpService
     | undefined;
   /** QoS: policers, shapers, marking maps, interface attachments (D-052). */
-  qos: QosService | undefined;
+  qos:
+    | QosService
+    | undefined;
+  /** Automatic source deny list of the host stack (F-rpf-adl-pbr, auto_sdl plugin, a VPP-global); unset = off. */
+  autoSdl: AutoSdlConfig | undefined;
 }
 
 /** SocketAddress is an `{ address, port }` pair (listen sockets, collectors). */
@@ -5274,6 +5290,117 @@ export interface RemoteAccessProfile_Radius_Server {
     | undefined;
   /** Reference to the shared secret. */
   secretRef?: string | undefined;
+}
+
+/**
+ * UrpfConfig mirrors `interfaces.<name>.urpf` (packages/schema/src/domains/ext/rpf-adl-pbr.ts): one uRPF check per
+ * address family (urpf_update_v2), in one direction.
+ */
+export interface UrpfConfig {
+  /** "loose" | "strict"; unset = no IPv4 check. */
+  ipv4?:
+    | string
+    | undefined;
+  /** "loose" | "strict"; unset = no IPv6 check. */
+  ipv6?:
+    | string
+    | undefined;
+  /** "rx" | "tx"; Zod default "rx". */
+  direction?: string | undefined;
+}
+
+/**
+ * AdlConfig mirrors `interfaces.<name>.adl`: the adl-input feature plus its allow-list binding
+ * (adl_interface_enable_disable, adl_allowlist_enable_disable). Off unless ipv4 or ipv6 is checked.
+ */
+export interface AdlConfig {
+  /** Check IPv4 sources; Zod default false. */
+  ipv4?:
+    | boolean
+    | undefined;
+  /** Check IPv6 sources; Zod default false. */
+  ipv6?:
+    | boolean
+    | undefined;
+  /** VRF whose table holds the allowed sources (local entries); required when a family is checked. */
+  allowVrf?:
+    | string
+    | undefined;
+  /** Non-IP frames pass unchecked; Zod default true (false is refused on VPP 26.06). */
+  defaultAllow?: boolean | undefined;
+}
+
+/** PbrConfig mirrors `routing.pbr`: ABF policies keyed by name and their interface attachments. */
+export interface PbrConfig {
+  /** Policies keyed by name (objectName, no "#"). */
+  policies: { [key: string]: PbrPolicy };
+  /** Attachments, unique by (policy, interface, family). */
+  attachments: PbrAttachment[];
+}
+
+export interface PbrConfig_PoliciesEntry {
+  key: string;
+  value: PbrPolicy | undefined;
+}
+
+/** PbrPolicy is one ABF policy: packets its ACL permits are forwarded over the paths (abf_policy_add_del). */
+export interface PbrPolicy {
+  /** Name of an entry of `acl.lists`. */
+  acl?:
+    | string
+    | undefined;
+  /** Order among the policies attached to one interface, lower first (abf_itf_attach priority); Zod default 100. */
+  priority?:
+    | number
+    | undefined;
+  /** Forwarding paths, 1–255. */
+  paths: PbrPath[];
+}
+
+/** PbrPath is one forwarding path of a PbrPolicy (fib_path). */
+export interface PbrPath {
+  /** Next-hop address; unset = none. */
+  address?:
+    | string
+    | undefined;
+  /** Egress interface; unset = none. */
+  interface?:
+    | string
+    | undefined;
+  /** Table the next hop is resolved in (or the packet looked up in, without address and interface); Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** Weight 1–255; Zod default 1. */
+  weight?: number | undefined;
+}
+
+/** PbrAttachment binds a policy to an interface for one address family (abf_itf_attach_add_del). */
+export interface PbrAttachment {
+  /** Name of an entry of `routing.pbr.policies`. */
+  policy?:
+    | string
+    | undefined;
+  /** Interface the packets are received on. */
+  interface?:
+    | string
+    | undefined;
+  /** "ipv4" | "ipv6"; Zod default "ipv4". */
+  family?: string | undefined;
+}
+
+/** AutoSdlConfig mirrors `services.autoSdl` (auto_sdl_config, VPP-global; no getter). */
+export interface AutoSdlConfig {
+  /** Enable automatic deny entries; Zod default false. */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Hits from one source before its deny entry is created; Zod default 5. */
+  threshold?:
+    | number
+    | undefined;
+  /** Lifetime of an automatic entry in seconds (auto_sdl_config.remove_timeout); Zod default 300. */
+  removeTimeoutSec?: number | undefined;
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -11078,6 +11205,8 @@ function createBaseInterface(): Interface {
     unnumbered: undefined,
     promiscuous: undefined,
     dhcpClient: undefined,
+    urpf: undefined,
+    adl: undefined,
   };
 }
 
@@ -11118,6 +11247,12 @@ export const Interface: MessageFns<Interface> = {
     }
     if (message.dhcpClient !== undefined) {
       DhcpClient.encode(message.dhcpClient, writer.uint32(98).fork()).join();
+    }
+    if (message.urpf !== undefined) {
+      UrpfConfig.encode(message.urpf, writer.uint32(146).fork()).join();
+    }
+    if (message.adl !== undefined) {
+      AdlConfig.encode(message.adl, writer.uint32(154).fork()).join();
     }
     return writer;
   },
@@ -11234,6 +11369,22 @@ export const Interface: MessageFns<Interface> = {
             message.dhcpClient = DhcpClient.decode(reader, reader.uint32());
             continue;
           }
+          case 18: {
+            if (tag !== 146) {
+              break;
+            }
+
+            message.urpf = UrpfConfig.decode(reader, reader.uint32());
+            continue;
+          }
+          case 19: {
+            if (tag !== 154) {
+              break;
+            }
+
+            message.adl = AdlConfig.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -11281,6 +11432,8 @@ export const Interface: MessageFns<Interface> = {
         : isSet(object.dhcp_client)
         ? DhcpClient.fromJSON(object.dhcp_client)
         : undefined,
+      urpf: isSet(object.urpf) ? UrpfConfig.fromJSON(object.urpf) : undefined,
+      adl: isSet(object.adl) ? AdlConfig.fromJSON(object.adl) : undefined,
     };
   },
 
@@ -11328,6 +11481,12 @@ export const Interface: MessageFns<Interface> = {
     if (message.dhcpClient !== undefined) {
       obj.dhcpClient = DhcpClient.toJSON(message.dhcpClient);
     }
+    if (message.urpf !== undefined) {
+      obj.urpf = UrpfConfig.toJSON(message.urpf);
+    }
+    if (message.adl !== undefined) {
+      obj.adl = AdlConfig.toJSON(message.adl);
+    }
     return obj;
   },
 
@@ -11358,6 +11517,10 @@ export const Interface: MessageFns<Interface> = {
     message.dhcpClient = (object.dhcpClient !== undefined && object.dhcpClient !== null)
       ? DhcpClient.fromPartial(object.dhcpClient)
       : undefined;
+    message.urpf = (object.urpf !== undefined && object.urpf !== null)
+      ? UrpfConfig.fromPartial(object.urpf)
+      : undefined;
+    message.adl = (object.adl !== undefined && object.adl !== null) ? AdlConfig.fromPartial(object.adl) : undefined;
     return message;
   },
 };
@@ -11907,6 +12070,7 @@ function createBaseRoutingConfig(): RoutingConfig {
     rip: undefined,
     bfd: undefined,
     policy: undefined,
+    pbr: undefined,
   };
 }
 
@@ -11932,6 +12096,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     }
     if (message.policy !== undefined) {
       RoutingPolicy.encode(message.policy, writer.uint32(74).fork()).join();
+    }
+    if (message.pbr !== undefined) {
+      PbrConfig.encode(message.pbr, writer.uint32(90).fork()).join();
     }
     return writer;
   },
@@ -12005,6 +12172,14 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
             message.policy = RoutingPolicy.decode(reader, reader.uint32());
             continue;
           }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.pbr = PbrConfig.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -12026,6 +12201,7 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       rip: isSet(object.rip) ? RipConfig.fromJSON(object.rip) : undefined,
       bfd: isSet(object.bfd) ? BfdConfig.fromJSON(object.bfd) : undefined,
       policy: isSet(object.policy) ? RoutingPolicy.fromJSON(object.policy) : undefined,
+      pbr: isSet(object.pbr) ? PbrConfig.fromJSON(object.pbr) : undefined,
     };
   },
 
@@ -12052,6 +12228,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     if (message.policy !== undefined) {
       obj.policy = RoutingPolicy.toJSON(message.policy);
     }
+    if (message.pbr !== undefined) {
+      obj.pbr = PbrConfig.toJSON(message.pbr);
+    }
     return obj;
   },
 
@@ -12073,6 +12252,7 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     message.policy = (object.policy !== undefined && object.policy !== null)
       ? RoutingPolicy.fromPartial(object.policy)
       : undefined;
+    message.pbr = (object.pbr !== undefined && object.pbr !== null) ? PbrConfig.fromPartial(object.pbr) : undefined;
     return message;
   },
 };
@@ -18237,6 +18417,7 @@ function createBaseServicesConfig(): ServicesConfig {
     ipfix: undefined,
     ntp: undefined,
     qos: undefined,
+    autoSdl: undefined,
   };
 }
 
@@ -18262,6 +18443,9 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
     }
     if (message.qos !== undefined) {
       QosService.encode(message.qos, writer.uint32(58).fork()).join();
+    }
+    if (message.autoSdl !== undefined) {
+      AutoSdlConfig.encode(message.autoSdl, writer.uint32(66).fork()).join();
     }
     return writer;
   },
@@ -18335,6 +18519,14 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
             message.qos = QosService.decode(reader, reader.uint32());
             continue;
           }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.autoSdl = AutoSdlConfig.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -18356,6 +18548,11 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
       ipfix: isSet(object.ipfix) ? IpfixService.fromJSON(object.ipfix) : undefined,
       ntp: isSet(object.ntp) ? NtpService.fromJSON(object.ntp) : undefined,
       qos: isSet(object.qos) ? QosService.fromJSON(object.qos) : undefined,
+      autoSdl: isSet(object.autoSdl)
+        ? AutoSdlConfig.fromJSON(object.autoSdl)
+        : isSet(object.auto_sdl)
+        ? AutoSdlConfig.fromJSON(object.auto_sdl)
+        : undefined,
     };
   },
 
@@ -18382,6 +18579,9 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
     if (message.qos !== undefined) {
       obj.qos = QosService.toJSON(message.qos);
     }
+    if (message.autoSdl !== undefined) {
+      obj.autoSdl = AutoSdlConfig.toJSON(message.autoSdl);
+    }
     return obj;
   },
 
@@ -18405,6 +18605,9 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
       : undefined;
     message.ntp = (object.ntp !== undefined && object.ntp !== null) ? NtpService.fromPartial(object.ntp) : undefined;
     message.qos = (object.qos !== undefined && object.qos !== null) ? QosService.fromPartial(object.qos) : undefined;
+    message.autoSdl = (object.autoSdl !== undefined && object.autoSdl !== null)
+      ? AutoSdlConfig.fromPartial(object.autoSdl)
+      : undefined;
     return message;
   },
 };
@@ -42613,6 +42816,860 @@ export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_R
     message.address = object.address ?? undefined;
     message.port = object.port ?? undefined;
     message.secretRef = object.secretRef ?? undefined;
+    return message;
+  },
+};
+
+function createBaseUrpfConfig(): UrpfConfig {
+  return { ipv4: undefined, ipv6: undefined, direction: undefined };
+}
+
+export const UrpfConfig: MessageFns<UrpfConfig> = {
+  encode(message: UrpfConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ipv4 !== undefined) {
+      writer.uint32(10).string(message.ipv4);
+    }
+    if (message.ipv6 !== undefined) {
+      writer.uint32(18).string(message.ipv6);
+    }
+    if (message.direction !== undefined) {
+      writer.uint32(26).string(message.direction);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UrpfConfig {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseUrpfConfig();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.ipv4 = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.ipv6 = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.direction = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): UrpfConfig {
+    return {
+      ipv4: isSet(object.ipv4) ? globalThis.String(object.ipv4) : undefined,
+      ipv6: isSet(object.ipv6) ? globalThis.String(object.ipv6) : undefined,
+      direction: isSet(object.direction) ? globalThis.String(object.direction) : undefined,
+    };
+  },
+
+  toJSON(message: UrpfConfig): unknown {
+    const obj: any = {};
+    if (message.ipv4 !== undefined) {
+      obj.ipv4 = message.ipv4;
+    }
+    if (message.ipv6 !== undefined) {
+      obj.ipv6 = message.ipv6;
+    }
+    if (message.direction !== undefined) {
+      obj.direction = message.direction;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<UrpfConfig>): UrpfConfig {
+    return UrpfConfig.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<UrpfConfig>): UrpfConfig {
+    const message = createBaseUrpfConfig();
+    message.ipv4 = object.ipv4 ?? undefined;
+    message.ipv6 = object.ipv6 ?? undefined;
+    message.direction = object.direction ?? undefined;
+    return message;
+  },
+};
+
+function createBaseAdlConfig(): AdlConfig {
+  return { ipv4: undefined, ipv6: undefined, allowVrf: undefined, defaultAllow: undefined };
+}
+
+export const AdlConfig: MessageFns<AdlConfig> = {
+  encode(message: AdlConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ipv4 !== undefined) {
+      writer.uint32(8).bool(message.ipv4);
+    }
+    if (message.ipv6 !== undefined) {
+      writer.uint32(16).bool(message.ipv6);
+    }
+    if (message.allowVrf !== undefined) {
+      writer.uint32(26).string(message.allowVrf);
+    }
+    if (message.defaultAllow !== undefined) {
+      writer.uint32(32).bool(message.defaultAllow);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AdlConfig {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAdlConfig();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.ipv4 = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.ipv6 = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.allowVrf = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.defaultAllow = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AdlConfig {
+    return {
+      ipv4: isSet(object.ipv4) ? globalThis.Boolean(object.ipv4) : undefined,
+      ipv6: isSet(object.ipv6) ? globalThis.Boolean(object.ipv6) : undefined,
+      allowVrf: isSet(object.allowVrf)
+        ? globalThis.String(object.allowVrf)
+        : isSet(object.allow_vrf)
+        ? globalThis.String(object.allow_vrf)
+        : undefined,
+      defaultAllow: isSet(object.defaultAllow)
+        ? globalThis.Boolean(object.defaultAllow)
+        : isSet(object.default_allow)
+        ? globalThis.Boolean(object.default_allow)
+        : undefined,
+    };
+  },
+
+  toJSON(message: AdlConfig): unknown {
+    const obj: any = {};
+    if (message.ipv4 !== undefined) {
+      obj.ipv4 = message.ipv4;
+    }
+    if (message.ipv6 !== undefined) {
+      obj.ipv6 = message.ipv6;
+    }
+    if (message.allowVrf !== undefined) {
+      obj.allowVrf = message.allowVrf;
+    }
+    if (message.defaultAllow !== undefined) {
+      obj.defaultAllow = message.defaultAllow;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AdlConfig>): AdlConfig {
+    return AdlConfig.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AdlConfig>): AdlConfig {
+    const message = createBaseAdlConfig();
+    message.ipv4 = object.ipv4 ?? undefined;
+    message.ipv6 = object.ipv6 ?? undefined;
+    message.allowVrf = object.allowVrf ?? undefined;
+    message.defaultAllow = object.defaultAllow ?? undefined;
+    return message;
+  },
+};
+
+function createBasePbrConfig(): PbrConfig {
+  return { policies: {}, attachments: [] };
+}
+
+export const PbrConfig: MessageFns<PbrConfig> = {
+  encode(message: PbrConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    globalThis.Object.entries(message.policies).forEach(([key, value]: [string, PbrPolicy]) => {
+      PbrConfig_PoliciesEntry.encode({ key: key as any, value }, writer.uint32(10).fork()).join();
+    });
+    for (const v of message.attachments) {
+      PbrAttachment.encode(v!, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PbrConfig {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePbrConfig();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            const entry1 = PbrConfig_PoliciesEntry.decode(reader, reader.uint32());
+            if (entry1.value !== undefined) {
+              message.policies[entry1.key] = entry1.value;
+            }
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.attachments.push(PbrAttachment.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PbrConfig {
+    return {
+      policies: isObject(object.policies)
+        ? (globalThis.Object.entries(object.policies) as [string, any][]).reduce(
+          (acc: { [key: string]: PbrPolicy }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: PbrPolicy.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      attachments: globalThis.Array.isArray(object?.attachments)
+        ? object.attachments.map((e: any) => PbrAttachment.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: PbrConfig): unknown {
+    const obj: any = {};
+    if (message.policies) {
+      const entries = globalThis.Object.entries(message.policies) as [string, PbrPolicy][];
+      if (entries.length > 0) {
+        obj.policies = {};
+        entries.forEach(([k, v]) => {
+          obj.policies[k] = PbrPolicy.toJSON(v);
+        });
+      }
+    }
+    if (message.attachments?.length) {
+      obj.attachments = message.attachments.map((e) => PbrAttachment.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PbrConfig>): PbrConfig {
+    return PbrConfig.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PbrConfig>): PbrConfig {
+    const message = createBasePbrConfig();
+    message.policies = (globalThis.Object.entries(object.policies ?? {}) as [string, PbrPolicy][]).reduce(
+      (acc: { [key: string]: PbrPolicy }, [key, value]: [string, PbrPolicy]) => {
+        if (value !== undefined) {
+          acc[key] = PbrPolicy.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.attachments = object.attachments?.map((e) => PbrAttachment.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBasePbrConfig_PoliciesEntry(): PbrConfig_PoliciesEntry {
+  return { key: "", value: undefined };
+}
+
+export const PbrConfig_PoliciesEntry: MessageFns<PbrConfig_PoliciesEntry> = {
+  encode(message: PbrConfig_PoliciesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      PbrPolicy.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PbrConfig_PoliciesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePbrConfig_PoliciesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = PbrPolicy.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PbrConfig_PoliciesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? PbrPolicy.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: PbrConfig_PoliciesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = PbrPolicy.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PbrConfig_PoliciesEntry>): PbrConfig_PoliciesEntry {
+    return PbrConfig_PoliciesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PbrConfig_PoliciesEntry>): PbrConfig_PoliciesEntry {
+    const message = createBasePbrConfig_PoliciesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? PbrPolicy.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBasePbrPolicy(): PbrPolicy {
+  return { acl: undefined, priority: undefined, paths: [] };
+}
+
+export const PbrPolicy: MessageFns<PbrPolicy> = {
+  encode(message: PbrPolicy, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.acl !== undefined) {
+      writer.uint32(10).string(message.acl);
+    }
+    if (message.priority !== undefined) {
+      writer.uint32(16).uint32(message.priority);
+    }
+    for (const v of message.paths) {
+      PbrPath.encode(v!, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PbrPolicy {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePbrPolicy();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.acl = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.priority = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.paths.push(PbrPath.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PbrPolicy {
+    return {
+      acl: isSet(object.acl) ? globalThis.String(object.acl) : undefined,
+      priority: isSet(object.priority) ? globalThis.Number(object.priority) : undefined,
+      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => PbrPath.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: PbrPolicy): unknown {
+    const obj: any = {};
+    if (message.acl !== undefined) {
+      obj.acl = message.acl;
+    }
+    if (message.priority !== undefined) {
+      obj.priority = Math.round(message.priority);
+    }
+    if (message.paths?.length) {
+      obj.paths = message.paths.map((e) => PbrPath.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PbrPolicy>): PbrPolicy {
+    return PbrPolicy.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PbrPolicy>): PbrPolicy {
+    const message = createBasePbrPolicy();
+    message.acl = object.acl ?? undefined;
+    message.priority = object.priority ?? undefined;
+    message.paths = object.paths?.map((e) => PbrPath.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBasePbrPath(): PbrPath {
+  return { address: undefined, interface: undefined, vrf: undefined, weight: undefined };
+}
+
+export const PbrPath: MessageFns<PbrPath> = {
+  encode(message: PbrPath, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== undefined) {
+      writer.uint32(10).string(message.address);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(18).string(message.interface);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(26).string(message.vrf);
+    }
+    if (message.weight !== undefined) {
+      writer.uint32(32).uint32(message.weight);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PbrPath {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePbrPath();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PbrPath {
+    return {
+      address: isSet(object.address) ? globalThis.String(object.address) : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
+    };
+  },
+
+  toJSON(message: PbrPath): unknown {
+    const obj: any = {};
+    if (message.address !== undefined) {
+      obj.address = message.address;
+    }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.weight !== undefined) {
+      obj.weight = Math.round(message.weight);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PbrPath>): PbrPath {
+    return PbrPath.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PbrPath>): PbrPath {
+    const message = createBasePbrPath();
+    message.address = object.address ?? undefined;
+    message.interface = object.interface ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.weight = object.weight ?? undefined;
+    return message;
+  },
+};
+
+function createBasePbrAttachment(): PbrAttachment {
+  return { policy: undefined, interface: undefined, family: undefined };
+}
+
+export const PbrAttachment: MessageFns<PbrAttachment> = {
+  encode(message: PbrAttachment, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.policy !== undefined) {
+      writer.uint32(10).string(message.policy);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(18).string(message.interface);
+    }
+    if (message.family !== undefined) {
+      writer.uint32(26).string(message.family);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PbrAttachment {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePbrAttachment();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.policy = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.family = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PbrAttachment {
+    return {
+      policy: isSet(object.policy) ? globalThis.String(object.policy) : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      family: isSet(object.family) ? globalThis.String(object.family) : undefined,
+    };
+  },
+
+  toJSON(message: PbrAttachment): unknown {
+    const obj: any = {};
+    if (message.policy !== undefined) {
+      obj.policy = message.policy;
+    }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.family !== undefined) {
+      obj.family = message.family;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PbrAttachment>): PbrAttachment {
+    return PbrAttachment.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PbrAttachment>): PbrAttachment {
+    const message = createBasePbrAttachment();
+    message.policy = object.policy ?? undefined;
+    message.interface = object.interface ?? undefined;
+    message.family = object.family ?? undefined;
+    return message;
+  },
+};
+
+function createBaseAutoSdlConfig(): AutoSdlConfig {
+  return { enabled: undefined, threshold: undefined, removeTimeoutSec: undefined };
+}
+
+export const AutoSdlConfig: MessageFns<AutoSdlConfig> = {
+  encode(message: AutoSdlConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    if (message.threshold !== undefined) {
+      writer.uint32(16).uint32(message.threshold);
+    }
+    if (message.removeTimeoutSec !== undefined) {
+      writer.uint32(24).uint32(message.removeTimeoutSec);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AutoSdlConfig {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAutoSdlConfig();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.threshold = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.removeTimeoutSec = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AutoSdlConfig {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      threshold: isSet(object.threshold) ? globalThis.Number(object.threshold) : undefined,
+      removeTimeoutSec: isSet(object.removeTimeoutSec)
+        ? globalThis.Number(object.removeTimeoutSec)
+        : isSet(object.remove_timeout_sec)
+        ? globalThis.Number(object.remove_timeout_sec)
+        : undefined,
+    };
+  },
+
+  toJSON(message: AutoSdlConfig): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.threshold !== undefined) {
+      obj.threshold = Math.round(message.threshold);
+    }
+    if (message.removeTimeoutSec !== undefined) {
+      obj.removeTimeoutSec = Math.round(message.removeTimeoutSec);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AutoSdlConfig>): AutoSdlConfig {
+    return AutoSdlConfig.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AutoSdlConfig>): AutoSdlConfig {
+    const message = createBaseAutoSdlConfig();
+    message.enabled = object.enabled ?? undefined;
+    message.threshold = object.threshold ?? undefined;
+    message.removeTimeoutSec = object.removeTimeoutSec ?? undefined;
     return message;
   },
 };

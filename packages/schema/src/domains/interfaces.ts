@@ -12,6 +12,7 @@ import {
 } from '../primitives.js';
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
+import { adlField, urpfField } from './ext/rpf-adl-pbr.js';
 
 /**
  * `interfaces` — record keyed by VPP interface name → interface settings (docs/04-api-datamodel.md; WBS D1.2–D1.4).
@@ -210,6 +211,8 @@ export const InterfaceSchema = z
     // wave-A: F-loopback-bvi-gso-lldp-span
     // wave-A: F-neighbors-ra
     // wave-A: F-rpf-adl-pbr
+    urpf: urpfField,
+    adl: adlField,
     // wave-A: P12
   })
   .refine(noAddressesWhenUnnumbered, { message: UNNUMBERED_EXCLUSIVE, path: ['unnumbered'] });

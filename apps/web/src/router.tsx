@@ -75,6 +75,8 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-A: F-vrf-static-ecmp
         // wave-A: F-neighbors-ra
         // wave-A: F-rpf-adl-pbr
+        { path: 'routing/pbr', lazy: async () => ({ Component: (await import('./domains/routing/rpf-adl-pbr/PbrPage')).PbrPage }) },
+        { path: 'firewall/adl', lazy: async () => ({ Component: (await import('./domains/routing/rpf-adl-pbr/AdlPage')).AdlPage }) },
         // wave-A: F-object-model
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables

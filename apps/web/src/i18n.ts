@@ -30,6 +30,9 @@ import faVpn from './locales/fa/vpn.json';
 // wave-A: F-vrf-static-ecmp
 // wave-A: F-neighbors-ra
 // wave-A: F-rpf-adl-pbr
+import './domains/routing/rpf-adl-pbr/drawer-i18n';
+import enRpfAdlPbr from './locales/en/rpf-adl-pbr.json';
+import faRpfAdlPbr from './locales/fa/rpf-adl-pbr.json';
 // wave-A: F-object-model
 // wave-A: F-acl
 // wave-A: F-host-acl-nftables
@@ -60,6 +63,7 @@ export const NAMESPACES = [
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
+  'rpf-adl-pbr',
   // wave-A: F-object-model
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables
@@ -92,6 +96,7 @@ const en = {
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
+  'rpf-adl-pbr': enRpfAdlPbr,
   // wave-A: F-object-model
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables
@@ -121,6 +126,7 @@ const fa = {
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
+  'rpf-adl-pbr': faRpfAdlPbr,
   // wave-A: F-object-model
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables

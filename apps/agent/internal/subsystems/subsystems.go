@@ -52,6 +52,7 @@ const (
 	// New domain constants: one line under the feature's anchor (wave-A-hotspots A1).
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-rpf-adl-pbr
+	Services = "services"
 	// wave-A: F-object-model
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
@@ -82,6 +83,9 @@ var Domains = map[string][]string{
 		// wave-A: F-loopback-bvi-gso-lldp-span
 		// wave-A: F-neighbors-ra
 		// wave-A: F-rpf-adl-pbr
+		rpfAdlPbrURPF,
+		rpfAdlPbrADL,
+		rpfAdlPbrADLAllow,
 		// wave-A: P12
 	},
 	VRFs: {
@@ -94,11 +98,15 @@ var Domains = map[string][]string{
 		// wave-A: F-vrf-static-ecmp
 		// wave-A: F-neighbors-ra
 		// wave-A: F-rpf-adl-pbr
+		rpfAdlPbrABFPolicy,
+		rpfAdlPbrABFAttach,
+		rpfAdlPbrPolicyName,
 		// wave-A: P12
 	},
 	// New domain entries: one `<Const>: {…}` entry under the feature's anchor (wave-A-hotspots A1).
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-rpf-adl-pbr
+	Services: {rpfAdlPbrAutoSdl},
 	// wave-A: F-object-model
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
@@ -215,6 +223,9 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-A: F-vrf-static-ecmp
 	// wave-A: F-neighbors-ra
 	// wave-A: F-rpf-adl-pbr
+	if err := w.registerRpfAdlPbr(r); err != nil {
+		return nil, err
+	}
 	// wave-A: F-object-model
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables

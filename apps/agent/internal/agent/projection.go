@@ -300,6 +300,7 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-A: F-vrf-static-ecmp
 	// wave-A: F-neighbors-ra
 	// wave-A: F-rpf-adl-pbr
+	desired.RpfAdlPbr(p, ds, in, vrfID, subsystems.RpfAdlPbrEnv())
 	// wave-A: F-object-model
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
@@ -413,6 +414,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-A: F-vrf-static-ecmp
 	// wave-A: F-neighbors-ra
 	// wave-A: F-rpf-adl-pbr
+	desired.RpfAdlPbrAssemble(ds, kvs, in, nameOf, stored)
 	// wave-A: F-object-model
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables

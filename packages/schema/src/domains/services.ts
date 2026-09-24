@@ -21,6 +21,7 @@ import {
   u32Int,
   vrfRef,
 } from './_shared/primitives.js';
+import { autoSdlField } from './ext/rpf-adl-pbr.js';
 
 /**
  * `services` — DHCP server (Kea) and relay (VPP dhcp proxy), DNS (Unbound resolver + VPP caching plugin), SNMP
@@ -1228,6 +1229,7 @@ export const ServicesSchema = withUi(
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // wave-A: F-loopback-bvi-gso-lldp-span
     // wave-A: F-rpf-adl-pbr
+    autoSdl: autoSdlField,
   }),
   {
     title: 'Services',

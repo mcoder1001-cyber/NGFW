@@ -32,6 +32,7 @@ import { RelayService } from './telemetry/relay.service.js';
 // wave-A: F-vrf-static-ecmp
 // wave-A: F-neighbors-ra
 // wave-A: F-rpf-adl-pbr
+import { rpfAdlPbrFeature } from './features/rpf-adl-pbr/index.js';
 // wave-A: F-object-model
 // wave-A: F-acl
 // wave-A: F-host-acl-nftables
@@ -83,6 +84,7 @@ export class AppModule {
         // wave-A: F-vrf-static-ecmp
         // wave-A: F-neighbors-ra
         // wave-A: F-rpf-adl-pbr
+        ...rpfAdlPbrFeature.controllers,
         // wave-A: F-object-model
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables
@@ -119,6 +121,7 @@ export class AppModule {
         // wave-A: F-vrf-static-ecmp
         // wave-A: F-neighbors-ra
         // wave-A: F-rpf-adl-pbr
+        ...rpfAdlPbrFeature.providers,
         // wave-A: F-object-model
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables

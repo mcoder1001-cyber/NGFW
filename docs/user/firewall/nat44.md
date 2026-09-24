@@ -75,10 +75,14 @@ Use `"external": {"interface": "host-w4w0", "port": 8080}` to forward on the add
 
 ## Session browser
 
+![NAT sessions, 2 101 live sessions, server-side paging](../../status/tasks/F-nat44-ed-sessions-screens/nat-sessions-en.png)
+
 *Firewall → NAT → Sessions* lists the live translations of this system, paged on the server (at most 1 000 rows per
 page), filtered by inside / outside / external address, port, protocol and inside VRF, with **Kill** on each row (asks for
 confirmation). The Pools tab shows per pool the number of sessions and a utilisation bar (sessions ÷ (addresses × 64 512
 ports) — an estimate: an endpoint-dependent session reuses a port for different destinations).
+
+![Pools with the utilisation bar](../../status/tasks/F-nat44-ed-sessions-screens/nat-pools-en.png)
 
 ```sh
 # one page (page, pageSize ≤ 1000) and filters

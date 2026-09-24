@@ -35,6 +35,7 @@ var tmpl = template.Must(renderers.NewTemplate("unbound.conf.tmpl").Funcs(templa
 	"rr":       rrQuote,
 	"sockaddr": sockaddr,
 	"fwdaddr":  fwdaddr,
+	"b64":      b64,
 }).ParseFS(templateFS, "templates/*.tmpl"))
 
 const (
@@ -144,6 +145,9 @@ func (r *Renderer) Render(_ context.Context, desired proto.Message) (renderers.F
 	}
 	data, err := r.build(in)
 	if err != nil {
+		return nil, err
+	}
+	if data.Input, err = encodeInput(Input(in.dns)); err != nil {
 		return nil, err
 	}
 	conf, err := renderers.Execute(tmpl, data)

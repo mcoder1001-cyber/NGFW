@@ -61,6 +61,8 @@ const (
 	// wave-A: F-wireguard
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
+	Services   = "services"
+	Management = "management"
 )
 
 // Domains maps each implemented configuration domain to the descriptors that realise it.
@@ -124,6 +126,8 @@ var Domains = map[string][]string{
 	// wave-A: F-wireguard
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
+	Services:   servicesDescriptors,
+	Management: managementDescriptors,
 }
 
 // DomainOf returns the domain a descriptor belongs to ("" when none).
@@ -256,6 +260,9 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
+	if err := registerUnboundChronySyslog(r, env); err != nil {
+		return nil, err
+	}
 	return w, nil
 }
 

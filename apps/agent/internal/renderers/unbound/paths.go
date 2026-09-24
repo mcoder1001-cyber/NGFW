@@ -83,13 +83,18 @@ func ProductPaths() Paths {
 // TestPaths are the test-scoped paths for slot prefix ("w6") and slot number: everything
 // under /run/vrx-test/<prefix>/unbound, loopback listeners only, idle port 3<slot>53.
 func TestPaths(prefix string, slot int) Paths {
-	base := filepath.Join("/run/vrx-test", prefix, "unbound")
+	return PathsUnder(filepath.Join("/run/vrx-test", prefix, "unbound"), uint32(3000+slot*100+53)) //nolint:gosec // slots 1–12
+}
+
+// PathsUnder are TestPaths rooted at base (an agent that is not the globals owner renders its slot-local instance
+// there, F-unbound-chrony-syslog): everything under base, loopback listeners only, the given idle port.
+func PathsUnder(base string, idlePort uint32) Paths {
 	return Paths{
 		ConfDir:           base,
 		ControlSocketPath: filepath.Join(base, "unbound.ctl"),
 		PidFilePath:       filepath.Join(base, "unbound.pid"),
 		PendingFile:       filepath.Join(base, "vrx.pending"),
-		IdlePort:          uint32(3000 + slot*100 + 53), //nolint:gosec // slots 1–12
+		IdlePort:          idlePort,
 		TrustAnchor:       filepath.Join(base, "root.key"),
 		RootKey:           "/usr/share/dns/root.key",
 		TLSCertBundle:     "/etc/ssl/certs/ca-certificates.crt",

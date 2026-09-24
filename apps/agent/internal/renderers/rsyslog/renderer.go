@@ -180,6 +180,12 @@ func funcs() template.FuncMap {
 			return s, nil
 		},
 		"join": func(l []string) string { return strings.Join(l, ",") },
+		"b64": func(s string) (string, error) {
+			if !base64Re.MatchString(s) {
+				return "", fmt.Errorf("%w: render input is not base64", ErrInput)
+			}
+			return s, nil
+		},
 	}
 }
 
@@ -189,7 +195,7 @@ func (r *Renderer) Render(ctx context.Context, desired proto.Message) (renderers
 	if err := r.check(); err != nil {
 		return nil, err
 	}
-	ds, ext, err := rfkit.Decode(desired)
+	ds, ext, err := rfkit.Decode(asDesired(desired))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInput, err)
 	}
@@ -201,6 +207,9 @@ func (r *Renderer) Render(ctx context.Context, desired proto.Message) (renderers
 	}
 	// Render stays deterministic: the host scan happened in New (Validate re-checks it).
 	model.LoadStats, model.StatsFile = !r.host.Loaded, r.statsFile()
+	if model.Input, err = encodeInput(Input(ds)); err != nil {
+		return nil, err
+	}
 	content, err := renderers.ExecuteTemplate(r.tmpl, "rsyslog.conf.tmpl", model)
 	if err != nil {
 		return nil, r.red.Error(err)
@@ -347,6 +356,9 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 		if f.Secret {
 			r.red.Add(string(f.Content))
 		}
+	}
+	if dc, ok := r.ctl.(*DeferredController); ok {
+		return r.applyDeferred(files, dc)
 	}
 	// D-076 / review M2: rsyslog is the host's logger and can only be restarted (losing local
 	// messages for the restart window). An Apply whose files are already on disk byte for byte

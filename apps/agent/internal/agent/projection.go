@@ -320,6 +320,7 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
+	desired.HostServices(p, ds, in["services"], in["management"])
 	return p
 }
 
@@ -443,6 +444,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
+	desired.AssembleHostServices(ds, kvs, in["services"], in["management"])
 	return ds
 }
 

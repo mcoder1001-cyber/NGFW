@@ -100,6 +100,12 @@ type source struct {
 	NTS     bool
 }
 
+// sourcesData is the vrx.sources template model: the embedded render input and the server/pool lines.
+type sourcesData struct {
+	Input   string
+	Sources []source
+}
+
 type key struct {
 	ID  uint32
 	Hex string

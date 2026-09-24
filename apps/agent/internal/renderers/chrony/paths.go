@@ -84,7 +84,12 @@ func ProductPaths() Paths {
 // and chronyc drops to _chrony before talking to the socket, so the instance directory is
 // _chrony:_chrony 0750 (chronyd refuses a command-socket directory it does not own).
 func TestPaths(prefix, instance string) Paths {
-	base := filepath.Join("/run/vrx-test", prefix, "chrony", instance)
+	return PathsUnder(filepath.Join("/run/vrx-test", prefix, "chrony", instance))
+}
+
+// PathsUnder are TestPaths rooted at base (an agent that is not the globals owner renders its slot-local instance
+// there, F-unbound-chrony-syslog).
+func PathsUnder(base string) Paths {
 	return Paths{
 		ConfDir:      base,
 		RunDir:       base,

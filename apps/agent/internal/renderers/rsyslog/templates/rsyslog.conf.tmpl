@@ -4,6 +4,9 @@
        Only omfwd actions are emitted; never omprog/omshell/omusrmsg, $IncludeConfig or
        include() — this file is included by the host's rsyslog in the product. */ -}}
 # Rendered by vrx-agent (rsyslog renderer). Do not edit: every commit overwrites this file.
+{{- if .Input}}
+# vrx-input: {{b64 .Input}}
+{{- end}}
 {{- with .Standalone}}
 global(workDirectory={{q .WorkDir}})
 module(load="imuxsock" SysSock.Use="off")

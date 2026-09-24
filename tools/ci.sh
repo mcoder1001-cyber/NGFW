@@ -328,7 +328,10 @@ do_contract_guard() {
     say "no contract files changed in the $n commit(s) of $TIP since $BASE ($(git rev-parse --short "$mb"))"
   else
     say "contract files changed in $TIP since $BASE:"; sed 's/^/  /' <<<"$changed"
-    if git log --format=%s "$mb..$TIP" | grep -qiE '^contract(\(|:|!)'; then
+    # capture first: `git log | grep -q` under pipefail lost to SIGPIPE in ~55% of runs (git exit 141 when grep -q exits
+    # early) and failed the gate on branches that do carry a contract commit (F-vlan-qinq Q6, TD-4 Q10, D-127)
+    local subjects; subjects=$(git log --format=%s "$mb..$TIP")
+    if grep -qiE '^contract(\(|:|!)' <<<"$subjects"; then
       say "ok — contract commit(s) on the branch:"; git log --format='  %h %s' "$mb..$TIP" | grep -iE '^  [0-9a-f]+ contract(\(|:|!)'
     else
       fail "CONTRACT FILES CHANGED WITHOUT A CONTRACT COMMIT. [${CONTRACT_PATHS[*]}] are the contract between packages;

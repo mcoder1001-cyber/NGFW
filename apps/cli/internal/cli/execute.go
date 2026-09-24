@@ -48,7 +48,7 @@ func (a *App) execute(ctx context.Context, toks []cpath.Token, oneShot bool) err
 			return err
 		}
 	}
-	return cmd.Run(a, ctx, toks[n:])
+	return cmd.Run(ctx, a, toks[n:])
 }
 
 // ---- output helpers ----

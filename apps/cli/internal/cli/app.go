@@ -85,7 +85,7 @@ func (a *App) Main(args []string) int {
 	fs.BoolVar(&a.noSession, "no-session", false, "do not read or write the login session file")
 	showVersion := fs.Bool("version", false, "print the version and exit")
 	fs.Usage = func() {
-		fmt.Fprintf(a.Stderr, "usage: vrx [flags] [command …]   (no command: interactive shell)\n\nflags:\n")
+		_, _ = fmt.Fprintf(a.Stderr, "usage: vrx [flags] [command …]   (no command: interactive shell)\n\nflags:\n")
 		fs.PrintDefaults()
 		fmt.Fprintf(a.Stderr, "\ncommands: vrx help\n")
 	}
@@ -159,11 +159,11 @@ func (a *App) ensureAuth(ctx context.Context) error {
 		if err != nil {
 			return usagef("API key file: %v", err)
 		}
-		a.client.Cred, a.credSource = api.APIKey(key), "api-key-file"
+		a.client.Cred, a.credSource = api.Key(key), "api-key-file"
 		return nil
 	}
 	if k := strings.TrimSpace(a.Getenv("VRX_API_KEY")); k != "" {
-		a.client.Cred, a.credSource = api.APIKey(k), "env"
+		a.client.Cred, a.credSource = api.Key(k), "env"
 		return nil
 	}
 	if a.user != "" {
@@ -183,7 +183,7 @@ func (a *App) ensureAuth(ctx context.Context) error {
 		}
 	}
 	if a.interactive {
-		fmt.Fprintln(a.Stdout, "Not logged in (no API key, no session).")
+		_, _ = fmt.Fprintln(a.Stdout, "Not logged in (no API key, no session).")
 		return a.login(ctx, "", "", !a.noSession)
 	}
 	return &ExitErr{Code: ExitAuth, Err: errors.New("not logged in — run `vrx login`, or set VRX_API_KEY / --api-key-file")}

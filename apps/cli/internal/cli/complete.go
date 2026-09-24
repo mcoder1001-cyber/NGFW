@@ -83,7 +83,7 @@ func (a *App) candidates(ctx context.Context, line string) ([]lineedit.Candidate
 	}
 	if cmd != nil && (full || n < len(toks) || len(out) == 0) && cmd.Complete != nil {
 		args := cpath.Texts(toks[n:])
-		for _, c := range cmd.Complete(a, ctx, args, partial) {
+		for _, c := range cmd.Complete(ctx, a, args, partial) {
 			if strings.HasPrefix(c.Text, partial) || strings.HasPrefix(c.Text, "<") {
 				out = append(out, c)
 			}
@@ -97,14 +97,14 @@ func wordsMatch(words []string, toks []cpath.Token) bool {
 		if i >= len(words) || t.Quoted {
 			return false
 		}
-		if words[i] != t.Text && !(i < len(toks) && strings.HasPrefix(words[i], t.Text) && uniquePrefix(t.Text, i, toks)) {
+		if words[i] != t.Text && (!strings.HasPrefix(words[i], t.Text) || !uniquePrefix(t.Text, i)) {
 			return false
 		}
 	}
 	return true
 }
 
-func uniquePrefix(w string, depth int, toks []cpath.Token) bool {
+func uniquePrefix(w string, depth int) bool {
 	hits := map[string]bool{}
 	for _, c := range registry {
 		if len(c.Words) > depth && strings.HasPrefix(c.Words[depth], w) {
@@ -237,7 +237,7 @@ func (a *App) segsFor(args []string, base []string) ([]string, bool) {
 	return segs, true
 }
 
-func completePath(a *App, ctx context.Context, args []string, _ string) []lineedit.Candidate {
+func completePath(ctx context.Context, a *App, args []string, _ string) []lineedit.Candidate {
 	segs, ok := a.segsFor(args, a.edit)
 	if !ok {
 		return nil
@@ -246,7 +246,7 @@ func completePath(a *App, ctx context.Context, args []string, _ string) []lineed
 	return out
 }
 
-func completeContainers(a *App, ctx context.Context, args []string, _ string) []lineedit.Candidate {
+func completeContainers(ctx context.Context, a *App, args []string, _ string) []lineedit.Candidate {
 	segs, ok := a.segsFor(args, a.edit)
 	if !ok {
 		return nil
@@ -255,7 +255,7 @@ func completeContainers(a *App, ctx context.Context, args []string, _ string) []
 	return out
 }
 
-func completeSet(a *App, ctx context.Context, args []string, _ string) []lineedit.Candidate {
+func completeSet(ctx context.Context, a *App, args []string, _ string) []lineedit.Candidate {
 	segs, ok := a.segsFor(args, a.edit)
 	if !ok || len(segs) == 0 {
 		if ok {
@@ -279,7 +279,7 @@ func completeSet(a *App, ctx context.Context, args []string, _ string) []lineedi
 	return valueCandidates(node)
 }
 
-func completeDelete(a *App, ctx context.Context, args []string, _ string) []lineedit.Candidate {
+func completeDelete(ctx context.Context, a *App, args []string, _ string) []lineedit.Candidate {
 	segs, ok := a.segsFor(args, a.edit)
 	if !ok {
 		return nil
@@ -308,7 +308,7 @@ func completeDelete(a *App, ctx context.Context, args []string, _ string) []line
 	return out
 }
 
-func completeShowPath(a *App, ctx context.Context, args []string, _ string) []lineedit.Candidate {
+func completeShowPath(ctx context.Context, a *App, args []string, _ string) []lineedit.Candidate {
 	base := []string(nil)
 	if a.mode == ModeConfig {
 		base = a.edit
@@ -348,7 +348,7 @@ func (a *App) revisionCandidates(ctx context.Context) []lineedit.Candidate {
 }
 
 // helpCmd prints the command list of the current mode, or one command's syntax and REST mapping.
-func helpCmd(a *App, _ context.Context, args []cpath.Token) error {
+func helpCmd(_ context.Context, a *App, args []cpath.Token) error {
 	mode := a.mode
 	if len(args) > 0 {
 		cmd, n, _ := match(mode, args)

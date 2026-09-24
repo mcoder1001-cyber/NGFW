@@ -231,9 +231,10 @@ func jsonEnd(line string, i int) (int, bool) {
 	for j := i; j < len(line); j++ {
 		c := line[j]
 		if inStr {
-			if c == '\\' {
+			switch c {
+			case '\\':
 				j++
-			} else if c == '"' {
+			case '"':
 				inStr = false
 			}
 			continue

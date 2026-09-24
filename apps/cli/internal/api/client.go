@@ -35,14 +35,14 @@ type Credential interface {
 	Kind() string
 }
 
-// APIKey authenticates with a vrxk_… key.
-type APIKey string
+// Key authenticates with a vrxk_… key.
+type Key string
 
 // Authorization implements Credential.
-func (k APIKey) Authorization() string { return "ApiKey " + string(k) }
+func (k Key) Authorization() string { return "ApiKey " + string(k) }
 
 // Kind implements Credential.
-func (APIKey) Kind() string { return "apikey" }
+func (Key) Kind() string { return "apikey" }
 
 // Bearer authenticates with an access token from /auth/login.
 type Bearer string
@@ -234,7 +234,7 @@ func (c *Client) do(ctx context.Context, call Call) (*Response, error) {
 	res, err := c.HTTP.Do(req)
 	if err != nil {
 		if c.Debug != nil {
-			fmt.Fprintf(c.Debug, "debug: %s %s → error after %s\n", op.Method, req.URL.Path, time.Since(start).Round(time.Millisecond))
+			_, _ = fmt.Fprintf(c.Debug, "debug: %s %s → error after %s\n", op.Method, req.URL.Path, time.Since(start).Round(time.Millisecond))
 		}
 		return nil, &Error{Op: op, Err: err}
 	}
@@ -245,7 +245,7 @@ func (c *Client) do(ctx context.Context, call Call) (*Response, error) {
 	}
 	if c.Debug != nil {
 		// never headers or bodies: they carry credentials
-		fmt.Fprintf(c.Debug, "debug: %s %s → %d (%s)\n", op.Method, req.URL.EscapedPath(), res.StatusCode, time.Since(start).Round(time.Millisecond))
+		_, _ = fmt.Fprintf(c.Debug, "debug: %s %s → %d (%s)\n", op.Method, req.URL.EscapedPath(), res.StatusCode, time.Since(start).Round(time.Millisecond))
 	}
 	r := &Response{Status: res.StatusCode, Header: res.Header, Body: data, Cookies: res.Cookies()}
 	if res.StatusCode >= 200 && res.StatusCode < 300 {

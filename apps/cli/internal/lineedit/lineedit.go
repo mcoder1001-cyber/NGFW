@@ -58,8 +58,8 @@ func (e *Editor) AddHistory(line string) {
 		return
 	}
 	e.History = append(e.History, line)
-	if max := e.maxHist(); len(e.History) > max {
-		e.History = e.History[len(e.History)-max:]
+	if limit := e.maxHist(); len(e.History) > limit {
+		e.History = e.History[len(e.History)-limit:]
 	}
 }
 
@@ -377,8 +377,8 @@ func List(cands []Candidate, width int) string {
 			continue
 		}
 		help := c.Help
-		if max := width - w - 6; max > 10 && utf8.RuneCountInString(help) > max {
-			help = string([]rune(help)[:max-1]) + "…"
+		if room := width - w - 6; room > 10 && utf8.RuneCountInString(help) > room {
+			help = string([]rune(help)[:room-1]) + "…"
 		}
 		fmt.Fprintf(&b, "  %-*s  %s\n", w, c.Text, help)
 	}

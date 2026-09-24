@@ -123,7 +123,7 @@ func TestREPLConfirmedCommitAutoRevertAndRBAC(t *testing.T) {
 	r.expect(`rxMode `, long)
 	r.send("?")
 	r.expect(`polling[\s\S]*interrupt[\s\S]*adaptive`, long) // the enum of rxMode, in schema order
-	r.send("\x15") // Ctrl-U: clear the line
+	r.send("\x15")                                           // Ctrl-U: clear the line
 	r.send("set interfaces " + If + " mt?")
 	r.expect(`mtu\s+MTU — L3 MTU in bytes[^\n]*integer 68\.\.9216`, long)
 	r.send("\x15")

@@ -42,7 +42,7 @@ func init() {
 	})
 	register(&Command{
 		Words: []string{"up"}, Where: inConfig, Summary: "Move the edit level up one element",
-		NoREST: "local", Run: func(a *App, _ context.Context, _ []cpath.Token) error {
+		NoREST: "local", Run: func(_ context.Context, a *App, _ []cpath.Token) error {
 			if len(a.edit) > 0 {
 				a.edit = a.edit[:len(a.edit)-1]
 			}
@@ -51,7 +51,7 @@ func init() {
 	})
 	register(&Command{
 		Words: []string{"top"}, Where: inConfig, Summary: "Move the edit level to the top",
-		NoREST: "local", Run: func(a *App, _ context.Context, _ []cpath.Token) error { a.edit = nil; return nil },
+		NoREST: "local", Run: func(_ context.Context, a *App, _ []cpath.Token) error { a.edit = nil; return nil },
 	})
 	register(&Command{
 		Words: []string{"show"}, Args: "[<path>] [json|text|set]", Where: inConfig,
@@ -72,7 +72,7 @@ func init() {
 		Words: []string{"commit"}, Args: "[confirm <sec>] [comment <text>]", Where: inBoth,
 		Summary: "Apply the candidate atomically; with `confirm <sec>` the change reverts unless `confirm` follows in time",
 		Ops:     []string{"Config_commit"}, Run: commitCmd,
-		Complete: func(_ *App, _ context.Context, args []string, _ string) []lineedit.Candidate {
+		Complete: func(_ context.Context, _ *App, args []string, _ string) []lineedit.Candidate {
 			return commitOptions(args)
 		},
 		Example: `commit confirm 60 comment "mtu 9000 on loop301"`,
@@ -86,7 +86,7 @@ func init() {
 		Words: []string{"rollback"}, Args: "<rev> [confirm <sec>] [comment <text>]", Where: inBoth,
 		Summary: "Apply an old revision as a new revision",
 		Ops:     []string{"Config_rollback"}, Run: rollbackCmd,
-		Complete: func(a *App, ctx context.Context, args []string, _ string) []lineedit.Candidate {
+		Complete: func(ctx context.Context, a *App, args []string, _ string) []lineedit.Candidate {
 			if len(args) == 0 {
 				return a.revisionCandidates(ctx)
 			}
@@ -170,7 +170,7 @@ func (a *App) edited(raw json.RawMessage) error {
 	})
 }
 
-func setCmd(a *App, ctx context.Context, args []cpath.Token) error {
+func setCmd(ctx context.Context, a *App, args []cpath.Token) error {
 	if len(args) < 2 {
 		return usagef("set <path> <value>")
 	}
@@ -247,7 +247,7 @@ func mergePatch(target, patch any) any {
 	return out
 }
 
-func mergeCmd(a *App, ctx context.Context, args []cpath.Token) error {
+func mergeCmd(ctx context.Context, a *App, args []cpath.Token) error {
 	if len(args) < 1 {
 		return usagef("merge <path> <json-object>")
 	}
@@ -288,7 +288,7 @@ func pathLabel(segs []string) string {
 	return cpath.Words(segs)
 }
 
-func deleteCmd(a *App, ctx context.Context, args []cpath.Token) error {
+func deleteCmd(ctx context.Context, a *App, args []cpath.Token) error {
 	if len(args) < 1 && len(a.edit) == 0 {
 		return usagef("delete <path> [<list-value>]")
 	}
@@ -333,7 +333,7 @@ func deleteCmd(a *App, ctx context.Context, args []cpath.Token) error {
 	return &ExitErr{Code: ExitNotFound, Err: fmt.Errorf("%s does not contain %v", cpath.Words(lsegs), item)}
 }
 
-func editCmd(a *App, ctx context.Context, args []cpath.Token) error {
+func editCmd(ctx context.Context, a *App, args []cpath.Token) error {
 	segs, node, err := a.target(ctx, args)
 	if err != nil {
 		return err
@@ -345,7 +345,7 @@ func editCmd(a *App, ctx context.Context, args []cpath.Token) error {
 	return nil
 }
 
-func configShow(a *App, ctx context.Context, args []cpath.Token) error {
+func configShow(ctx context.Context, a *App, args []cpath.Token) error {
 	args, format := splitFormat(args)
 	segs, err := wordsToSegs(a.edit, args)
 	if err != nil {
@@ -403,7 +403,7 @@ func commitQuery(args []cpath.Token) (url.Values, error) {
 	return q, nil
 }
 
-func commitCmd(a *App, ctx context.Context, args []cpath.Token) error {
+func commitCmd(ctx context.Context, a *App, args []cpath.Token) error {
 	q, err := commitQuery(args)
 	if err != nil {
 		return err
@@ -411,7 +411,7 @@ func commitCmd(a *App, ctx context.Context, args []cpath.Token) error {
 	return a.commitLike(ctx, api.Call{Op: "Config_commit", Query: q})
 }
 
-func rollbackCmd(a *App, ctx context.Context, args []cpath.Token) error {
+func rollbackCmd(ctx context.Context, a *App, args []cpath.Token) error {
 	if len(args) < 1 {
 		return usagef("rollback <rev> [confirm <sec>] [comment <text>]")
 	}
@@ -426,7 +426,7 @@ func rollbackCmd(a *App, ctx context.Context, args []cpath.Token) error {
 	return a.commitLike(ctx, api.Call{Op: "Config_rollback", Params: map[string]string{"rev": rev}, Query: q})
 }
 
-func confirmCmd(a *App, ctx context.Context, _ []cpath.Token) error {
+func confirmCmd(ctx context.Context, a *App, _ []cpath.Token) error {
 	return a.commitLike(ctx, api.Call{Op: "Config_confirm"})
 }
 
@@ -445,7 +445,7 @@ func printCommit(w io.Writer, out *commitOut) {
 	case "pending":
 		fmt.Fprintf(w, "commit %s applied, NOT confirmed: it reverts automatically at %s unless you run `confirm`\n", out.TxnID, out.ConfirmDeadline)
 	case "unchanged":
-		fmt.Fprintln(w, "nothing to commit: the candidate equals running")
+		_, _ = fmt.Fprintln(w, "nothing to commit: the candidate equals running")
 	case "confirmed":
 		fmt.Fprintf(w, "commit %s confirmed", out.TxnID)
 	default:
@@ -458,7 +458,7 @@ func printCommit(w io.Writer, out *commitOut) {
 		}
 	}
 	if out.Status != "pending" && out.Status != "unchanged" {
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 	if len(out.Summary) > 0 {
 		parts := make([]string, 0, len(out.Summary))
@@ -500,7 +500,7 @@ func sortedKeys(m map[string]float64) []string {
 	return keys
 }
 
-func validateCmd(a *App, ctx context.Context, _ []cpath.Token) error {
+func validateCmd(ctx context.Context, a *App, _ []cpath.Token) error {
 	var out struct {
 		OK       bool      `json:"ok"`
 		Warnings []warning `json:"warnings"`
@@ -549,7 +549,7 @@ func printWarnings(w io.Writer, ws []warning) {
 	}
 }
 
-func discardCmd(a *App, ctx context.Context, _ []cpath.Token) error {
+func discardCmd(ctx context.Context, a *App, _ []cpath.Token) error {
 	var out struct {
 		Discarded bool `json:"discarded"`
 	}
@@ -567,7 +567,7 @@ func discardCmd(a *App, ctx context.Context, _ []cpath.Token) error {
 	})
 }
 
-func exitConfig(a *App, ctx context.Context, _ []cpath.Token) error {
+func exitConfig(ctx context.Context, a *App, _ []cpath.Token) error {
 	if len(a.edit) > 0 {
 		a.edit = a.edit[:0]
 		return nil

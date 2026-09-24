@@ -34,7 +34,7 @@ func init() {
 		Words: []string{"show", "bgp", "summary"}, Where: inBoth,
 		Summary: "BGP neighbour summary",
 		NoREST:  "no REST endpoint yet: the API has no BGP state route (FRR state arrives with P12) — exits 10",
-		Run: func(*App, context.Context, []cpath.Token) error {
+		Run: func(context.Context, *App, []cpath.Token) error {
 			return notImplemented("show bgp summary: the API has no BGP state endpoint yet (P12)")
 		},
 	})
@@ -42,7 +42,7 @@ func init() {
 		Words: []string{"show", "ipsec", "sa"}, Where: inBoth,
 		Summary: "IPsec security associations",
 		NoREST:  "no REST endpoint yet: the API has no IPsec SA state route (P11) — exits 10",
-		Run: func(*App, context.Context, []cpath.Token) error {
+		Run: func(context.Context, *App, []cpath.Token) error {
 			return notImplemented("show ipsec sa: the API has no IPsec SA state endpoint yet (P11)")
 		},
 	})
@@ -100,12 +100,12 @@ func init() {
 	register(&Command{
 		Words: []string{"ping"}, Args: "<host>", Where: inOp,
 		Summary: "Ping from the data plane (the API answers 501 until the agent implements actions)",
-		Ops:     []string{"Actions_run"}, Run: func(a *App, ctx context.Context, args []cpath.Token) error { return action(a, ctx, "ping", args) },
+		Ops:     []string{"Actions_run"}, Run: func(ctx context.Context, a *App, args []cpath.Token) error { return action(ctx, a, "ping", args) },
 	})
 	register(&Command{
 		Words: []string{"traceroute"}, Args: "<host>", Where: inOp,
 		Summary: "Traceroute from the data plane (the API answers 501 until the agent implements actions)",
-		Ops:     []string{"Actions_run"}, Run: func(a *App, ctx context.Context, args []cpath.Token) error { return action(a, ctx, "traceroute", args) },
+		Ops:     []string{"Actions_run"}, Run: func(ctx context.Context, a *App, args []cpath.Token) error { return action(ctx, a, "traceroute", args) },
 	})
 	register(&Command{
 		Words: []string{"login"}, Args: "[<user>]", Where: inOp, Public: true,
@@ -121,7 +121,7 @@ func init() {
 		Words: []string{"api-key", "create"}, Args: "<name> [role admin|operator|readonly] [expires <days>] [file <path>]", Where: inOp,
 		Summary: "Create an API key (shown once; with `file` it is written to a new 0600 file instead)",
 		Ops:     []string{"Auth_createApiKey"}, Run: apiKeyCreate,
-		Complete: func(_ *App, _ context.Context, args []string, _ string) []lineedit.Candidate {
+		Complete: func(_ context.Context, _ *App, args []string, _ string) []lineedit.Candidate {
 			if len(args) > 0 && args[len(args)-1] == "role" {
 				return cands("admin", "operator", "readonly")
 			}
@@ -145,7 +145,7 @@ func init() {
 		Words: []string{"configure"}, Where: inOp,
 		Summary: "Enter configuration mode (one-shot: `vrx configure <config command>`)",
 		NoREST:  "local: switches the shell mode; the candidate lives in the API",
-		Run: func(a *App, _ context.Context, _ []cpath.Token) error {
+		Run: func(_ context.Context, a *App, _ []cpath.Token) error {
 			a.mode, a.edit = ModeConfig, nil
 			if a.interactive {
 				fmt.Fprintln(a.Stdout, "Entering configuration mode (changes go to the candidate; `commit` applies them).")
@@ -181,7 +181,7 @@ type ifaceState struct {
 	} `json:"items"`
 }
 
-func showInterfaces(a *App, ctx context.Context, args []cpath.Token) error {
+func showInterfaces(ctx context.Context, a *App, args []cpath.Token) error {
 	if len(args) > 1 {
 		return usagef("show interfaces [<name>]")
 	}
@@ -196,10 +196,10 @@ func showInterfaces(a *App, ctx context.Context, args []cpath.Token) error {
 			if it.Name == name {
 				return a.emit(it, func(w io.Writer) {
 					fmt.Fprintf(w, "Interface %s (retrieved %s)\n", it.Name, st.RetrievedAt)
-					fmt.Fprint(w, indentText(render.Text(it.Config), "  "))
+					_, _ = fmt.Fprint(w, indentText(render.Text(it.Config), "  "))
 					if it.Counters != nil {
 						fmt.Fprintf(w, "Counters (%s)\n", st.CountersAt)
-						fmt.Fprint(w, indentText(render.Text(it.Counters), "  "))
+						_, _ = fmt.Fprint(w, indentText(render.Text(it.Counters), "  "))
 					}
 				})
 			}
@@ -273,7 +273,7 @@ func indentText(s, prefix string) string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func completeInterfaceNames(a *App, ctx context.Context, args []string, _ string) []lineedit.Candidate {
+func completeInterfaceNames(ctx context.Context, a *App, args []string, _ string) []lineedit.Candidate {
 	if len(args) > 0 {
 		return nil
 	}
@@ -306,7 +306,7 @@ type routePage struct {
 	} `json:"items"`
 }
 
-func showRoutes(a *App, ctx context.Context, args []cpath.Token) error {
+func showRoutes(ctx context.Context, a *App, args []cpath.Token) error {
 	if len(args) > 1 {
 		return usagef("show ip route [<vrf>]")
 	}
@@ -370,7 +370,7 @@ type systemState struct {
 	} `json:"sync"`
 }
 
-func showSystem(a *App, ctx context.Context, args []cpath.Token) error {
+func showSystem(ctx context.Context, a *App, args []cpath.Token) error {
 	if len(args) > 0 {
 		return usagef("show system takes no arguments")
 	}
@@ -460,7 +460,7 @@ func (a *App) printConfig(segs []string, raw json.RawMessage, format string) err
 		}
 		return nil
 	}
-	fmt.Fprint(a.Stdout, render.Text(v))
+	_, _ = fmt.Fprint(a.Stdout, render.Text(v))
 	return nil
 }
 
@@ -472,7 +472,7 @@ func wordsToSegs(base []string, args []cpath.Token) ([]string, error) {
 	return segs, nil
 }
 
-func showRunning(a *App, ctx context.Context, args []cpath.Token) error {
+func showRunning(ctx context.Context, a *App, args []cpath.Token) error {
 	args, format := splitFormat(args)
 	segs, err := wordsToSegs(nil, args)
 	if err != nil {
@@ -489,7 +489,7 @@ func showRunning(a *App, ctx context.Context, args []cpath.Token) error {
 	return a.printConfig(segs, raw, format)
 }
 
-func showCandidate(a *App, ctx context.Context, args []cpath.Token) error {
+func showCandidate(ctx context.Context, a *App, args []cpath.Token) error {
 	args, format := splitFormat(args)
 	segs, err := wordsToSegs(nil, args)
 	if err != nil {
@@ -515,7 +515,7 @@ type diffOut struct {
 	Changes      []render.Change `json:"changes"`
 }
 
-func showDiff(a *App, ctx context.Context, args []cpath.Token) error {
+func showDiff(ctx context.Context, a *App, args []cpath.Token) error {
 	if len(args) > 0 {
 		return usagef("show configuration diff takes no arguments")
 	}
@@ -553,7 +553,7 @@ type revisionMeta struct {
 	Kind      string  `json:"kind"`
 }
 
-func showRevisions(a *App, ctx context.Context, args []cpath.Token) error {
+func showRevisions(ctx context.Context, a *App, args []cpath.Token) error {
 	limit := "20"
 	if len(args) == 1 {
 		if n, err := strconv.Atoi(args[0].Text); err != nil || n < 1 || n > 500 {
@@ -608,7 +608,7 @@ func parseRev(t cpath.Token) (string, error) {
 	return strconv.Itoa(n), nil
 }
 
-func showRevision(a *App, ctx context.Context, args []cpath.Token) error {
+func showRevision(ctx context.Context, a *App, args []cpath.Token) error {
 	args, format := splitFormat(args)
 	if len(args) != 1 {
 		return usagef("show revision <rev> [json|text|set]")
@@ -636,7 +636,7 @@ func showRevision(a *App, ctx context.Context, args []cpath.Token) error {
 	return a.printConfig(nil, out.Payload, format)
 }
 
-func showPending(a *App, ctx context.Context, _ []cpath.Token) error {
+func showPending(ctx context.Context, a *App, _ []cpath.Token) error {
 	var out struct {
 		Pending map[string]any `json:"pending"`
 	}
@@ -653,7 +653,7 @@ func showPending(a *App, ctx context.Context, _ []cpath.Token) error {
 	})
 }
 
-func showLock(a *App, ctx context.Context, _ []cpath.Token) error {
+func showLock(ctx context.Context, a *App, _ []cpath.Token) error {
 	var out map[string]any
 	raw, err := a.call(ctx, api.Call{Op: "Config_lock"}, &out)
 	if err != nil {
@@ -668,7 +668,7 @@ func showLock(a *App, ctx context.Context, _ []cpath.Token) error {
 	})
 }
 
-func showDrift(a *App, ctx context.Context, _ []cpath.Token) error {
+func showDrift(ctx context.Context, a *App, _ []cpath.Token) error {
 	var out struct {
 		Subsystems []string        `json:"subsystems"`
 		Changes    []render.Change `json:"changes"`
@@ -697,7 +697,7 @@ func showDrift(a *App, ctx context.Context, _ []cpath.Token) error {
 	})
 }
 
-func whoami(a *App, ctx context.Context, _ []cpath.Token) error {
+func whoami(ctx context.Context, a *App, _ []cpath.Token) error {
 	var me map[string]any
 	raw, err := a.call(ctx, api.Call{Op: "Auth_me"}, &me)
 	if err != nil {
@@ -708,7 +708,7 @@ func whoami(a *App, ctx context.Context, _ []cpath.Token) error {
 	})
 }
 
-func action(a *App, ctx context.Context, name string, args []cpath.Token) error {
+func action(ctx context.Context, a *App, name string, args []cpath.Token) error {
 	if len(args) != 1 {
 		return usagef("%s <host>", name)
 	}
@@ -721,7 +721,7 @@ func action(a *App, ctx context.Context, name string, args []cpath.Token) error 
 
 // ---- auth ----
 
-func loginCmd(a *App, ctx context.Context, args []cpath.Token) error {
+func loginCmd(ctx context.Context, a *App, args []cpath.Token) error {
 	if len(args) > 1 {
 		return usagef("login [<user>]")
 	}
@@ -749,7 +749,7 @@ func loginCmd(a *App, ctx context.Context, args []cpath.Token) error {
 	})
 }
 
-func logoutCmd(a *App, ctx context.Context, _ []cpath.Token) error {
+func logoutCmd(ctx context.Context, a *App, _ []cpath.Token) error {
 	if a.refreshCookie != "" {
 		_, _ = a.call(ctx, api.Call{Op: "Auth_logout", Cookie: a.refreshCookie}, nil)
 		a.refreshCookie = ""
@@ -768,7 +768,7 @@ func logoutCmd(a *App, ctx context.Context, _ []cpath.Token) error {
 	})
 }
 
-func apiKeyCreate(a *App, ctx context.Context, args []cpath.Token) error {
+func apiKeyCreate(ctx context.Context, a *App, args []cpath.Token) error {
 	if len(args) < 1 {
 		return usagef("api-key create <name> [role …] [expires <days>] [file <path>]")
 	}
@@ -831,7 +831,7 @@ func apiKeyCreate(a *App, ctx context.Context, args []cpath.Token) error {
 	})
 }
 
-func apiKeyList(a *App, ctx context.Context, _ []cpath.Token) error {
+func apiKeyList(ctx context.Context, a *App, _ []cpath.Token) error {
 	var out []map[string]any
 	raw, err := a.call(ctx, api.Call{Op: "Auth_apiKeys"}, &out)
 	if err != nil {
@@ -854,7 +854,7 @@ func str(v any) string {
 	return fmt.Sprint(v)
 }
 
-func apiKeyDelete(a *App, ctx context.Context, args []cpath.Token) error {
+func apiKeyDelete(ctx context.Context, a *App, args []cpath.Token) error {
 	if len(args) != 1 {
 		return usagef("api-key delete <id>")
 	}

@@ -1,6 +1,15 @@
 version: "2"
+# same linter set as apps/agent; the CLI writes its output with fmt.Fprint* to stdout/stderr, whose errors
+# (a closed terminal) are not actionable, and its tests start the binary under test on a pty.
 linters:
   default: standard
   enable: [errcheck, govet, staticcheck, unused, gosec, revive, misspell]
+  settings:
+    errcheck:
+      exclude-functions: [fmt.Fprintf, fmt.Fprintln, fmt.Fprint]
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [gosec]
 run:
   timeout: 5m

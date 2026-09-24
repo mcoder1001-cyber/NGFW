@@ -26,8 +26,8 @@ type Command struct {
 	Ops      []string
 	NoREST   string // why a command has no REST call (local command, or the API lacks the endpoint)
 	Public   bool   // runs without credentials (login, help)
-	Run      func(a *App, ctx context.Context, args []cpath.Token) error
-	Complete func(a *App, ctx context.Context, args []string, partial string) []lineedit.Candidate
+	Run      func(ctx context.Context, a *App, args []cpath.Token) error
+	Complete func(ctx context.Context, a *App, args []string, partial string) []lineedit.Candidate
 	Example  string
 }
 

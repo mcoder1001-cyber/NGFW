@@ -468,6 +468,61 @@ export function captureDirectionToJSON(object: CaptureDirection): string {
 }
 
 /**
+ * NatSessionVariant selects the NAT session table of NatSessions / NatSessionKillAction (docs/contracts/proto.md §11
+ * "F-nat44-ei-64-66-nptv6"). The NatSession fields keep their names; for NAT64 they carry: inside_* = the IPv6
+ * client (il_addr/il_port), outside_* = the IPv4 pool endpoint (ol_addr/ol_port), external_* = the IPv4 remote
+ * (or_addr/r_port), external_nat_* = the remote as the IPv6 client sees it (ir_addr = NAT64 prefix + IPv4, r_port).
+ */
+export enum NatSessionVariant {
+  /** NAT_SESSION_VARIANT_UNSPECIFIED - Unset: NAT44-ED (the F-nat44-ed-sessions behaviour). */
+  NAT_SESSION_VARIANT_UNSPECIFIED = 0,
+  /** NAT_SESSION_VARIANT_ED - NAT44 endpoint-dependent (nat44-ed). */
+  NAT_SESSION_VARIANT_ED = 1,
+  /** NAT_SESSION_VARIANT_EI - NAT44 endpoint-independent (nat44-ei). */
+  NAT_SESSION_VARIANT_EI = 2,
+  /** NAT_SESSION_VARIANT_NAT64 - NAT64 (nat64_st_dump; read-only). */
+  NAT_SESSION_VARIANT_NAT64 = 3,
+  UNRECOGNIZED = -1,
+}
+
+export function natSessionVariantFromJSON(object: any): NatSessionVariant {
+  switch (object) {
+    case 0:
+    case "NAT_SESSION_VARIANT_UNSPECIFIED":
+      return NatSessionVariant.NAT_SESSION_VARIANT_UNSPECIFIED;
+    case 1:
+    case "NAT_SESSION_VARIANT_ED":
+      return NatSessionVariant.NAT_SESSION_VARIANT_ED;
+    case 2:
+    case "NAT_SESSION_VARIANT_EI":
+      return NatSessionVariant.NAT_SESSION_VARIANT_EI;
+    case 3:
+    case "NAT_SESSION_VARIANT_NAT64":
+      return NatSessionVariant.NAT_SESSION_VARIANT_NAT64;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return NatSessionVariant.UNRECOGNIZED;
+  }
+}
+
+export function natSessionVariantToJSON(object: NatSessionVariant): string {
+  switch (object) {
+    case NatSessionVariant.NAT_SESSION_VARIANT_UNSPECIFIED:
+      return "NAT_SESSION_VARIANT_UNSPECIFIED";
+    case NatSessionVariant.NAT_SESSION_VARIANT_ED:
+      return "NAT_SESSION_VARIANT_ED";
+    case NatSessionVariant.NAT_SESSION_VARIANT_EI:
+      return "NAT_SESSION_VARIANT_EI";
+    case NatSessionVariant.NAT_SESSION_VARIANT_NAT64:
+      return "NAT_SESSION_VARIANT_NAT64";
+    case NatSessionVariant.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
+/**
  * ApplyRequest carries one transaction. Exactly one of these forms is valid:
  *   - apply:            txn_id + desired_state (+ subsystems, confirm_timeout_sec)
  *   - confirm:          confirm_txn_id only (no desired_state) — cancels the self-revert timer
@@ -5321,7 +5376,14 @@ export interface NatSessionsRequest {
   /** Page size; 0 = 100; more than 1000 fails with INVALID_ARGUMENT. */
   limit: number;
   /** Filter; unset = every session of this owner. */
-  filter: NatSessionFilter | undefined;
+  filter:
+    | NatSessionFilter
+    | undefined;
+  /**
+   * Session table (F-nat44-ei-64-66-nptv6); UNSPECIFIED = NAT44-ED. NAT44_EI takes the same filter as ED;
+   * NAT64 accepts only `filter.protocol` (any other filter field is INVALID_ARGUMENT).
+   */
+  variant?: NatSessionVariant | undefined;
 }
 
 /** NatSession is one NAT44-ED translation as VPP reports it (state, not configuration). */
@@ -5382,7 +5444,11 @@ export interface NatSessionsResponse {
   /** The owner whose view was returned. */
   owner: string;
   /** When the dump was taken (agent clock). */
-  retrievedAt: Date | undefined;
+  retrievedAt:
+    | Date
+    | undefined;
+  /** The session table this page comes from (F-nat44-ei-64-66-nptv6); never UNSPECIFIED. */
+  variant?: NatSessionVariant | undefined;
 }
 
 /** NatSummaryRequest has only the owner. */
@@ -5455,6 +5521,12 @@ export interface NatSessionKillAction {
   externalPort: number;
   /** Inside VRF name; "" = "default" (a decimal string is a raw table id). */
   vrf: string;
+  /**
+   * Session table (F-nat44-ei-64-66-nptv6); UNSPECIFIED = NAT44-ED. NAT44_EI deletes by the inside endpoint
+   * (protocol, inside address/port, VRF; the external endpoint is optional and ignored by VPP). NAT64 has no
+   * session delete in VPP 26.06: INVALID_ARGUMENT.
+   */
+  variant?: NatSessionVariant | undefined;
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -42989,7 +43061,7 @@ export const NatSessionFilter: MessageFns<NatSessionFilter> = {
 };
 
 function createBaseNatSessionsRequest(): NatSessionsRequest {
-  return { owner: "", offset: 0, limit: 0, filter: undefined };
+  return { owner: "", offset: 0, limit: 0, filter: undefined, variant: undefined };
 }
 
 export const NatSessionsRequest: MessageFns<NatSessionsRequest> = {
@@ -43005,6 +43077,9 @@ export const NatSessionsRequest: MessageFns<NatSessionsRequest> = {
     }
     if (message.filter !== undefined) {
       NatSessionFilter.encode(message.filter, writer.uint32(34).fork()).join();
+    }
+    if (message.variant !== undefined) {
+      writer.uint32(40).int32(message.variant);
     }
     return writer;
   },
@@ -43054,6 +43129,14 @@ export const NatSessionsRequest: MessageFns<NatSessionsRequest> = {
             message.filter = NatSessionFilter.decode(reader, reader.uint32());
             continue;
           }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.variant = reader.int32() as any;
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -43072,6 +43155,7 @@ export const NatSessionsRequest: MessageFns<NatSessionsRequest> = {
       offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
       limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
       filter: isSet(object.filter) ? NatSessionFilter.fromJSON(object.filter) : undefined,
+      variant: isSet(object.variant) ? natSessionVariantFromJSON(object.variant) : undefined,
     };
   },
 
@@ -43089,6 +43173,9 @@ export const NatSessionsRequest: MessageFns<NatSessionsRequest> = {
     if (message.filter !== undefined) {
       obj.filter = NatSessionFilter.toJSON(message.filter);
     }
+    if (message.variant !== undefined) {
+      obj.variant = natSessionVariantToJSON(message.variant);
+    }
     return obj;
   },
 
@@ -43103,6 +43190,7 @@ export const NatSessionsRequest: MessageFns<NatSessionsRequest> = {
     message.filter = (object.filter !== undefined && object.filter !== null)
       ? NatSessionFilter.fromPartial(object.filter)
       : undefined;
+    message.variant = object.variant ?? undefined;
     return message;
   },
 };
@@ -43507,6 +43595,7 @@ function createBaseNatSessionsResponse(): NatSessionsResponse {
     truncated: false,
     owner: "",
     retrievedAt: undefined,
+    variant: undefined,
   };
 }
 
@@ -43532,6 +43621,9 @@ export const NatSessionsResponse: MessageFns<NatSessionsResponse> = {
     }
     if (message.retrievedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(58).fork()).join();
+    }
+    if (message.variant !== undefined) {
+      writer.uint32(64).int32(message.variant);
     }
     return writer;
   },
@@ -43605,6 +43697,14 @@ export const NatSessionsResponse: MessageFns<NatSessionsResponse> = {
             message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
             continue;
           }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.variant = reader.int32() as any;
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -43644,6 +43744,7 @@ export const NatSessionsResponse: MessageFns<NatSessionsResponse> = {
         : isSet(object.retrieved_at)
         ? fromJsonTimestamp(object.retrieved_at)
         : undefined,
+      variant: isSet(object.variant) ? natSessionVariantFromJSON(object.variant) : undefined,
     };
   },
 
@@ -43670,6 +43771,9 @@ export const NatSessionsResponse: MessageFns<NatSessionsResponse> = {
     if (message.retrievedAt !== undefined) {
       obj.retrievedAt = message.retrievedAt.toISOString();
     }
+    if (message.variant !== undefined) {
+      obj.variant = natSessionVariantToJSON(message.variant);
+    }
     return obj;
   },
 
@@ -43685,6 +43789,7 @@ export const NatSessionsResponse: MessageFns<NatSessionsResponse> = {
     message.truncated = object.truncated ?? false;
     message.owner = object.owner ?? "";
     message.retrievedAt = object.retrievedAt ?? undefined;
+    message.variant = object.variant ?? undefined;
     return message;
   },
 };
@@ -44308,7 +44413,15 @@ export const NatSummaryResponse_SessionsByProtocolEntry: MessageFns<NatSummaryRe
 };
 
 function createBaseNatSessionKillAction(): NatSessionKillAction {
-  return { protocol: "", insideAddress: "", insidePort: 0, externalAddress: "", externalPort: 0, vrf: "" };
+  return {
+    protocol: "",
+    insideAddress: "",
+    insidePort: 0,
+    externalAddress: "",
+    externalPort: 0,
+    vrf: "",
+    variant: undefined,
+  };
 }
 
 export const NatSessionKillAction: MessageFns<NatSessionKillAction> = {
@@ -44330,6 +44443,9 @@ export const NatSessionKillAction: MessageFns<NatSessionKillAction> = {
     }
     if (message.vrf !== "") {
       writer.uint32(50).string(message.vrf);
+    }
+    if (message.variant !== undefined) {
+      writer.uint32(56).int32(message.variant);
     }
     return writer;
   },
@@ -44395,6 +44511,14 @@ export const NatSessionKillAction: MessageFns<NatSessionKillAction> = {
             message.vrf = reader.string();
             continue;
           }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.variant = reader.int32() as any;
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -44431,6 +44555,7 @@ export const NatSessionKillAction: MessageFns<NatSessionKillAction> = {
         ? globalThis.Number(object.external_port)
         : 0,
       vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : "",
+      variant: isSet(object.variant) ? natSessionVariantFromJSON(object.variant) : undefined,
     };
   },
 
@@ -44454,6 +44579,9 @@ export const NatSessionKillAction: MessageFns<NatSessionKillAction> = {
     if (message.vrf !== "") {
       obj.vrf = message.vrf;
     }
+    if (message.variant !== undefined) {
+      obj.variant = natSessionVariantToJSON(message.variant);
+    }
     return obj;
   },
 
@@ -44468,6 +44596,7 @@ export const NatSessionKillAction: MessageFns<NatSessionKillAction> = {
     message.externalAddress = object.externalAddress ?? "";
     message.externalPort = object.externalPort ?? 0;
     message.vrf = object.vrf ?? "";
+    message.variant = object.variant ?? undefined;
     return message;
   },
 };

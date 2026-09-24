@@ -237,7 +237,7 @@ func (a *Agent) watchVPP(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-a.resyncs:
-			if !connected {
+			if !connected || !a.conn.Connected() {
 				a.log.Debug("resync request dropped: VPP is not connected (the reconnect resyncs)")
 				continue
 			}

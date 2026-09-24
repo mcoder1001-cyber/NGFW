@@ -130,8 +130,9 @@ func (w *Wiring) IDRange() (*IDRange, error) {
 
 // ---- events and resync (A5) -------------------------------------------------------------------
 
-// Publish hands ev to the agent's event bus (Env.Publish; the bus assigns seq and time, the agent
-// copies ev, so the caller may reuse it). Without a sink, and for a nil event, it does nothing.
+// Publish hands ev to the agent's event bus (Env.Publish): every StreamEvents subscriber gets a copy
+// (the caller may reuse ev), numbered by its stream, with ts set by the bus when unset. The agent drops
+// an EVENT_KIND_UNSPECIFIED event. Without a sink, and for a nil event, it does nothing.
 func (w *Wiring) Publish(ev *vrxv1.Event) {
 	if ev != nil && w.env.Publish != nil {
 		w.env.Publish(ev)

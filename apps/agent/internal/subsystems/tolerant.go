@@ -70,13 +70,24 @@ func (t *defaultTolerant) Create(ctx context.Context, obj proto.Message) (any, e
 	return meta, nil
 }
 
-// Update implements scheduler.Descriptor. A change TO the default value is a recreate
-// (scheduler.ErrRecreate): the scheduler then runs a journaled Delete(old) — DF-1 restores the
-// default — and Create(new), which is this wrapper's verified no-op or DF-1's error. Doing the
-// delete here instead would leave VPP at the default without a journal entry when the check after it
-// fails, so the transaction would report ROLLED_BACK with the change still in VPP (review F5). DF-1
-// rejects the default before it sends anything to VPP, so nothing has changed when this returns.
+// Update implements scheduler.Descriptor. Two changes are recreates (scheduler.ErrRecreate), which
+// the scheduler runs as a journaled Delete(old) + Create(new):
+//   - a change FROM a remembered default value (re-review R1): nothing was written or claimed for
+//     it, so DF-1's Update would write the new value without claiming the (untagged) interface —
+//     Retrieve would not report it, verification would fail and the revert could not undo the write.
+//     Delete(old) is this wrapper's no-op that forgets it; Create(new) is DF-1's write + claim.
+//   - a change TO the default value: Delete(old) — DF-1 restores the default — and Create(new),
+//     which is this wrapper's verified no-op or DF-1's error. Doing the delete here instead would
+//     leave VPP at the default without a journal entry when the check after it fails, so the
+//     transaction would report ROLLED_BACK with the change still in VPP (review F5). DF-1 rejects the
+//     default before it sends anything to VPP, so nothing has changed when this returns.
 func (t *defaultTolerant) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
+	t.mu.Lock()
+	_, remembered := t.mem[t.KeyOf(oldObj)]
+	t.mu.Unlock()
+	if remembered {
+		return nil, scheduler.ErrRecreate
+	}
 	m, err := t.Descriptor.Update(ctx, oldObj, newObj, meta)
 	if errors.Is(err, t.isDefault) {
 		return nil, scheduler.ErrRecreate

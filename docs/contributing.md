@@ -133,20 +133,34 @@ and `make test` are unit-only. Slot 12 and the exclusive lock are the gate's.
 ## How the manager merges (from `prompts/MANAGER-PROMPT.md` §2)
 
 1. `git -C /root/ngfw status --porcelain` is empty (board and status committed first).
-2. In the worker's worktree: `tools/ci.sh --base main` → must end with `CI GATE PASSED` (contract guard included).
-3. `git -C /root/ngfw merge --no-ff task/<id>`. With the hook installed (`cd /root/ngfw && tools/ci.sh install-hooks`),
+2. **Squash and rebase (D-112).** In the worker's worktree, after the review APPROVE, the branch becomes exactly one commit on top of
+   the current `main`:
+   ```sh
+   cd /root/ngfw-wt/<id>
+   git update-ref refs/archive/<id> HEAD                    # the reviewed history stays resolvable (review docs cite its SHAs)
+   git reset --soft "$(git merge-base main HEAD)"           # squash first, so conflicts are resolved once, not per commit
+   git commit -m "<type>(<scope>): <task title>" -m "<what was built; review verdict; D-ids>"
+   git rebase main                                          # conflicts: fix, git add, git rebase --continue
+   git rev-list --count main..HEAD                          # must print 1
+   ```
+   The subject must be Conventional Commits and must be `contract(<pkg>): …` when the branch changes contract files — the
+   contract guard reads the branch's commit subjects, and after the squash there is only this one. Never `wip:`. If `main` gets a
+   commit other than board/status between this step and the merge, rebase again (and re-run step 3).
+3. In the worker's worktree: `tools/ci.sh --base main` → must end with `CI GATE PASSED` (contract guard included).
+4. `git -C /root/ngfw merge --no-ff task/<id>`. With the hook installed (`cd /root/ngfw && tools/ci.sh install-hooks`),
    `pre-merge-commit` runs `tools/ci.sh quick --base HEAD` with `VRX_CI_HEAD_REF=<the ref named on the merge command line>`
    (git does not write `MERGE_HEAD` before this hook, but exports `GIT_REFLOG_ACTION="merge task/<id>"`): the quick gate on the
    merged tree plus the contract guard and gitleaks on the commits being merged. Merge by ref name, as the procedure says —
    for a bare SHA or an unresolvable word the hook still runs quick, without the contract guard, and says so. A red gate aborts the merge commit; the working tree
    keeps the merge result for inspection (`git merge --abort` to drop it). `git merge --no-verify` bypasses the hook — only
    deliberately, and logged in the status entry. Git runs this hook only when it creates a merge commit: never for
-   fast-forward or `--squash` merges, which is why the procedure says `--no-ff`.
-4. If the merge touched `pnpm-lock.yaml` or `--frozen-lockfile` fails: `pnpm install` once on `main`, commit the lockfile.
-5. `tools/ci.sh` on `main`; red → `git revert -m 1 <merge>` and reopen the task with the log attached.
-6. `tools/ci.sh full` on `main`, serialized under the lab lock, at most once per hour, never while a worker's envelope says it is in
+   fast-forward or `--squash` merges, which is why the procedure squashes on the branch (step 2) and still merges `--no-ff`:
+   `main` gets one task commit plus its merge commit, and `git revert -m 1 <merge>` keeps working.
+5. If the merge touched `pnpm-lock.yaml` or `--frozen-lockfile` fails: `pnpm install` once on `main`, commit the lockfile.
+6. `tools/ci.sh` on `main`; red → `git revert -m 1 <merge>` and reopen the task with the log attached.
+7. `tools/ci.sh full` on `main`, serialized under the lab lock, at most once per hour, never while a worker's envelope says it is in
    its integration phase; record the result in `docs/status/`.
-7. Green → `git worktree remove /root/ngfw-wt/<id>`, `git branch -d task/<id>`, board → merged.
+8. Green → `git worktree remove /root/ngfw-wt/<id>`, `git branch -d task/<id>`, board → merged.
 
 ## Speed and caches
 

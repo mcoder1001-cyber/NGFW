@@ -413,3 +413,34 @@ func TestCompletionFromTheLiveSchema(t *testing.T) {
 		t.Errorf("? help: %q", h)
 	}
 }
+
+// Interactive sessions keep the refresh cookie in memory and renew the access token once on a 401.
+func TestInteractiveRefreshOn401(t *testing.T) {
+	f := newFake(t)
+	var cookies []string
+	me := 0
+	f.override["POST /api/v1/auth/refresh"] = func(w http.ResponseWriter, r *http.Request) {
+		cookies = append(cookies, r.Header.Get("Cookie"))
+		http.SetCookie(w, &http.Cookie{Name: "vrx_refresh", Value: "r2", Path: "/api/v1/auth"})
+		_, _ = w.Write([]byte(`{"accessToken":"tok-456","tokenType":"Bearer","expiresIn":900,"user":{"id":1,"username":"admin","role":"admin"}}`))
+	}
+	f.override["GET /api/v1/auth/me"] = func(w http.ResponseWriter, r *http.Request) {
+		me++
+		if r.Header.Get("Authorization") != "Bearer tok-456" {
+			problem(w, 401, "expired")
+			return
+		}
+		_, _ = w.Write([]byte(`{"id":1,"username":"admin","role":"admin","lastLogin":null,"effectiveRole":"admin","via":"jwt"}`))
+	}
+	a := &App{Stdin: os.Stdin, Stdout: io.Discard, Stderr: io.Discard, Getenv: func(string) string { return "" }, interactive: true, noSession: true}
+	a.client, _ = api.New(f.srv.URL)
+	if err := a.login(context.Background(), "admin", "pw", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.call(context.Background(), api.Call{Op: "Auth_me"}, nil); err != nil {
+		t.Fatalf("after refresh: %v", err)
+	}
+	if me != 2 || len(cookies) != 1 || cookies[0] != "vrx_refresh=r1" || a.refreshCookie != "vrx_refresh=r2" {
+		t.Errorf("me calls %d, refresh cookies %q, kept %q", me, cookies, a.refreshCookie)
+	}
+}

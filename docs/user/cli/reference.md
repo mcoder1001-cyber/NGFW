@@ -70,20 +70,20 @@ Output formats of configuration: `text` (default: a stable brace hierarchy, keys
 | `ping <host>` | Ping from the data plane (the API answers 501 until the agent implements actions) | `POST /api/v1/actions/{action}` · *operational* |
 | `rollback <rev> [confirm <sec>] [comment <text>]` | Apply an old revision as a new revision | `POST /api/v1/config/rollback/{rev}` · *both* |
 | `set <path> <value>` | Set the value at a path in the candidate (value checked against the schema first); on a list of scalars it appends | `PUT /api/v1/config/{path}`<br>`GET /api/v1/config/candidate/{path}` · *both* |
-| `show bgp summary` | BGP neighbour summary | no REST endpoint yet: the API has no BGP state route (FRR state arrives with P12) — exits 10 · *both* |
-| `show commit pending` | The confirmed commit waiting for `confirm`, if any | `GET /api/v1/config/commit/pending` · *both* |
-| `show configuration [<path>] [json\|text\|set]` | Running configuration (redacted), whole or at a path | `GET /api/v1/config`<br>`GET /api/v1/config/{path}` · *both* |
-| `show configuration candidate [<path>] [json\|text\|set]` | Candidate configuration (what `commit` would apply) | `GET /api/v1/config/candidate`<br>`GET /api/v1/config/candidate/{path}` · *both* |
-| `show configuration diff` | Uncommitted changes: candidate vs running, as - / + set lines | `GET /api/v1/config/diff` · *both* |
-| `show drift` | Running configuration vs what the agent retrieves from the data plane | `GET /api/v1/state/drift` · *both* |
-| `show interfaces [<name>]` | Interfaces as retrieved from VPP by the agent, with counters | `GET /api/v1/state/interfaces` · *both* |
-| `show ip route [<vrf>]` | Routes retrieved from the data plane (connected + static), optionally of one VRF | `GET /api/v1/state/routes` · *both* |
-| `show ipsec sa` | IPsec security associations | no REST endpoint yet: the API has no IPsec SA state route (P11) — exits 10 · *both* |
-| `show lock` | Who holds the candidate (single writer) | `GET /api/v1/config/lock` · *both* |
-| `show revision <rev> [json\|text\|set]` | One revision with its (redacted) configuration | `GET /api/v1/config/revisions/{rev}` · *both* |
-| `show revisions [<count>]` | Commit history, newest first | `GET /api/v1/config/revisions` · *both* |
-| `show system` | API and agent health, running revision, pending commit, running↔data-plane sync state | `GET /api/v1/state/system` · *both* |
-| `show whoami` | The authenticated user, effective role and credential type | `GET /api/v1/auth/me` · *both* |
+| `show bgp summary` | BGP neighbour summary | no REST endpoint yet: the API has no BGP state route (FRR state arrives with P12) — exits 10 · *operational* |
+| `show commit pending` | The confirmed commit waiting for `confirm`, if any | `GET /api/v1/config/commit/pending` · *operational* |
+| `show configuration [<path>] [json\|text\|set]` | Running configuration (redacted), whole or at a path | `GET /api/v1/config`<br>`GET /api/v1/config/{path}` · *operational* |
+| `show configuration candidate [<path>] [json\|text\|set]` | Candidate configuration (what `commit` would apply) | `GET /api/v1/config/candidate`<br>`GET /api/v1/config/candidate/{path}` · *operational* |
+| `show configuration diff` | Uncommitted changes: candidate vs running, as - / + set lines | `GET /api/v1/config/diff` · *operational* |
+| `show drift` | Running configuration vs what the agent retrieves from the data plane | `GET /api/v1/state/drift` · *operational* |
+| `show interfaces [<name>]` | Interfaces as retrieved from VPP by the agent, with counters | `GET /api/v1/state/interfaces` · *operational* |
+| `show ip route [<vrf>]` | Routes retrieved from the data plane (connected + static), optionally of one VRF | `GET /api/v1/state/routes` · *operational* |
+| `show ipsec sa` | IPsec security associations | no REST endpoint yet: the API has no IPsec SA state route (P11) — exits 10 · *operational* |
+| `show lock` | Who holds the candidate (single writer) | `GET /api/v1/config/lock` · *operational* |
+| `show revision <rev> [json\|text\|set]` | One revision with its (redacted) configuration | `GET /api/v1/config/revisions/{rev}` · *operational* |
+| `show revisions [<count>]` | Commit history, newest first | `GET /api/v1/config/revisions` · *operational* |
+| `show system` | API and agent health, running revision, pending commit, running↔data-plane sync state | `GET /api/v1/state/system` · *operational* |
+| `show whoami` | The authenticated user, effective role and credential type | `GET /api/v1/auth/me` · *operational* |
 | `traceroute <host>` | Traceroute from the data plane (the API answers 501 until the agent implements actions) | `POST /api/v1/actions/{action}` · *operational* |
 | `validate` | Three-tier validation of the candidate (schema → semantic → agent dry-run); nothing is applied | `POST /api/v1/config/validate` · *both* |
 

@@ -20,18 +20,18 @@ import (
 
 func init() {
 	register(&Command{
-		Words: []string{"show", "interfaces"}, Args: "[<name>]", Where: inBoth,
+		Words: []string{"show", "interfaces"}, Args: "[<name>]", Where: inOp,
 		Summary: "Interfaces as retrieved from VPP by the agent, with counters",
 		Ops:     []string{"State_interfaces"}, Run: showInterfaces, Complete: completeInterfaceNames,
 		Example: "show interfaces loop301",
 	})
 	register(&Command{
-		Words: []string{"show", "ip", "route"}, Args: "[<vrf>]", Where: inBoth,
+		Words: []string{"show", "ip", "route"}, Args: "[<vrf>]", Where: inOp,
 		Summary: "Routes retrieved from the data plane (connected + static), optionally of one VRF",
 		Ops:     []string{"State_routes"}, Run: showRoutes,
 	})
 	register(&Command{
-		Words: []string{"show", "bgp", "summary"}, Where: inBoth,
+		Words: []string{"show", "bgp", "summary"}, Where: inOp,
 		Summary: "BGP neighbour summary",
 		NoREST:  "no REST endpoint yet: the API has no BGP state route (FRR state arrives with P12) — exits 10",
 		Run: func(context.Context, *App, []cpath.Token) error {
@@ -39,7 +39,7 @@ func init() {
 		},
 	})
 	register(&Command{
-		Words: []string{"show", "ipsec", "sa"}, Where: inBoth,
+		Words: []string{"show", "ipsec", "sa"}, Where: inOp,
 		Summary: "IPsec security associations",
 		NoREST:  "no REST endpoint yet: the API has no IPsec SA state route (P11) — exits 10",
 		Run: func(context.Context, *App, []cpath.Token) error {
@@ -47,53 +47,53 @@ func init() {
 		},
 	})
 	register(&Command{
-		Words: []string{"show", "system"}, Where: inBoth,
+		Words: []string{"show", "system"}, Where: inOp,
 		Summary: "API and agent health, running revision, pending commit, running↔data-plane sync state",
 		Ops:     []string{"State_system"}, Run: showSystem,
 	})
 	register(&Command{
-		Words: []string{"show", "configuration"}, Args: "[<path>] [json|text|set]", Where: inBoth,
+		Words: []string{"show", "configuration"}, Args: "[<path>] [json|text|set]", Where: inOp,
 		Summary: "Running configuration (redacted), whole or at a path",
 		Ops:     []string{"Config_running", "Config_runningAt"}, Run: showRunning, Complete: completeShowPath,
 		Example: "show configuration interfaces loop301 set",
 	})
 	register(&Command{
-		Words: []string{"show", "configuration", "candidate"}, Args: "[<path>] [json|text|set]", Where: inBoth,
+		Words: []string{"show", "configuration", "candidate"}, Args: "[<path>] [json|text|set]", Where: inOp,
 		Summary: "Candidate configuration (what `commit` would apply)",
 		Ops:     []string{"Config_candidate", "Config_candidateAt"}, Run: showCandidate, Complete: completeShowPath,
 	})
 	register(&Command{
-		Words: []string{"show", "configuration", "diff"}, Where: inBoth,
+		Words: []string{"show", "configuration", "diff"}, Where: inOp,
 		Summary: "Uncommitted changes: candidate vs running, as - / + set lines",
 		Ops:     []string{"Config_diff"}, Run: showDiff,
 	})
 	register(&Command{
-		Words: []string{"show", "revisions"}, Args: "[<count>]", Where: inBoth,
+		Words: []string{"show", "revisions"}, Args: "[<count>]", Where: inOp,
 		Summary: "Commit history, newest first",
 		Ops:     []string{"Config_revisions"}, Run: showRevisions,
 	})
 	register(&Command{
-		Words: []string{"show", "revision"}, Args: "<rev> [json|text|set]", Where: inBoth,
+		Words: []string{"show", "revision"}, Args: "<rev> [json|text|set]", Where: inOp,
 		Summary: "One revision with its (redacted) configuration",
 		Ops:     []string{"Config_revision"}, Run: showRevision,
 	})
 	register(&Command{
-		Words: []string{"show", "commit", "pending"}, Where: inBoth,
+		Words: []string{"show", "commit", "pending"}, Where: inOp,
 		Summary: "The confirmed commit waiting for `confirm`, if any",
 		Ops:     []string{"Config_pending"}, Run: showPending,
 	})
 	register(&Command{
-		Words: []string{"show", "lock"}, Where: inBoth,
+		Words: []string{"show", "lock"}, Where: inOp,
 		Summary: "Who holds the candidate (single writer)",
 		Ops:     []string{"Config_lock"}, Run: showLock,
 	})
 	register(&Command{
-		Words: []string{"show", "drift"}, Where: inBoth,
+		Words: []string{"show", "drift"}, Where: inOp,
 		Summary: "Running configuration vs what the agent retrieves from the data plane",
 		Ops:     []string{"State_drift"}, Run: showDrift,
 	})
 	register(&Command{
-		Words: []string{"show", "whoami"}, Where: inBoth,
+		Words: []string{"show", "whoami"}, Where: inOp,
 		Summary: "The authenticated user, effective role and credential type",
 		Ops:     []string{"Auth_me"}, Run: whoami,
 	})
@@ -113,7 +113,7 @@ func init() {
 		Ops:     []string{"Auth_login"}, Run: loginCmd,
 	})
 	register(&Command{
-		Words: []string{"logout"}, Where: inOp,
+		Words: []string{"logout"}, Where: inOp, Public: true,
 		Summary: "Revoke the refresh token (interactive) and remove the session file",
 		Ops:     []string{"Auth_logout"}, Run: logoutCmd,
 	})

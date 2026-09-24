@@ -14,6 +14,8 @@ import { NS, type VrfsConfig } from './model';
 
 const SOURCES = ['', 'API', 'interface', 'adjacency', 'recursive-resolution', 'default-route', 'special', 'svs'] as const;
 const LTR = { dir: 'ltr' } as const;
+const FAMILIES = ['ipv4', 'ipv6'] as const;
+const AUTO_HEIGHT = () => 'auto' as const;
 
 interface FibRow extends RouteItem {
   id: string;
@@ -115,8 +117,11 @@ export function FibTab() {
           sx={{ minInlineSize: 120 }}
         >
           <MenuItem value="">{t('fib.any')}</MenuItem>
-          <MenuItem value="ipv4">IPv4</MenuItem>
-          <MenuItem value="ipv6">IPv6</MenuItem>
+          {FAMILIES.map((f) => (
+            <MenuItem key={f} value={f}>
+              {t(`fib.${f}`)}
+            </MenuItem>
+          ))}
         </TextField>
         <TextField
           size="small"
@@ -147,7 +152,7 @@ export function FibTab() {
           refetchInterval={FIB_POLL_MS}
           initialPageSize={100}
           pageSizeOptions={[25, 100, 500, 1000]}
-          getRowHeight={() => 'auto'}
+          getRowHeight={AUTO_HEIGHT}
           disableColumnMenu
         />
       </Paper>

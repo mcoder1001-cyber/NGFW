@@ -20,6 +20,9 @@ import { NS } from './model';
 
 const LTR = { dir: 'ltr' } as const;
 const NUM = { dir: 'ltr', inputMode: 'numeric' } as const;
+const STATS = ['transmitted', 'received', 'loss_pct'] as const;
+const REPLIED = 'up' as const;
+const SILENT = 'down' as const;
 const ADDR_RE = /^(?:[0-9]{1,3}(?:\.[0-9]{1,3}){3}|[0-9a-fA-F:]*:[0-9a-fA-F:.]*)$/;
 
 /**
@@ -84,7 +87,7 @@ export function PingTab() {
         <Paper variant="outlined" sx={{ p: 2 }} aria-label={t('ping.result')}>
           <Stack direction="row" gap={1} alignItems="center" sx={{ mb: 1 }}>
             <StatusChip
-              status={res.done.exitCode === 0 ? 'up' : 'down'}
+              status={res.done.exitCode === 0 ? REPLIED : SILENT}
               label={res.done.exitCode === 0 ? t('ping.reachable') : t('ping.unreachable')}
             />
           </Stack>
@@ -95,7 +98,7 @@ export function PingTab() {
           ))}
           <Table size="small" sx={{ mt: 1, maxInlineSize: 420 }}>
             <TableBody>
-              {(['transmitted', 'received', 'loss_pct'] as const).map((k) => (
+              {STATS.map((k) => (
                 <TableRow key={k}>
                   <TableCell component="th">{t(`ping.stats.${k}`)}</TableCell>
                   <TableCell dir="ltr" sx={{ textAlign: 'start' }}>

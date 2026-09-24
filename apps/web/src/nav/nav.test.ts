@@ -39,6 +39,8 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-A: F-bridge-l2
       // wave-A: F-loopback-bvi-gso-lldp-span
       // wave-A: F-vrf-static-ecmp
+      'vrfs',
+      'routing',
       // wave-A: F-neighbors-ra
       // wave-A: F-rpf-adl-pbr
       // wave-A: P12

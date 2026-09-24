@@ -51,6 +51,8 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   'interfaces',
   // Feature domains: one line under the feature's anchor (wave-A-hotspots W2).
   // wave-A: F-vrf-static-ecmp
+  'vrfs',
+  'routing',
   // wave-A: F-object-model
   // wave-A: F-acl
   // wave-A: F-nat44-ed-sessions

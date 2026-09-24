@@ -69,3 +69,13 @@ static action routes and call `AgentClient.runAction`; for their fake behaviour 
 ## Q11 Routing page tabs live in the feature folder
 `domains/routing/vrf-static-ecmp/tabs.ts` (the envelope owns only that folder). P12 will want BGP/OSPF tabs on `/routing`:
 the manager may move it to `domains/routing/tabs.ts` (like vpn/services) at merge.
+
+## Q12 CI on this base hits the D-127 contract-guard flake
+This branch's `tools/ci.sh` predates D-127 (fixed on main): `git log | grep -q '^contract'` under pipefail fails ~55 % of runs
+with "CONTRACT FILES CHANGED WITHOUT A CONTRACT COMMIT" although `contract(schema): …` and `contract(proto): …` are on the
+branch (3 `tools/ci.sh check --base main` probes: fail / pass / fail). I re-ran the unchanged gate until the guard passed
+(attempts logged in the status doc); nothing else in the gate is retried.
+
+## Q13 D-128 (`show trace` crash) — nothing to remove here
+No test or code of this task runs `show trace` or `trace add` (grep of the owned files and the topology module: none). Host
+evidence uses `vppctl show ip fib …`, `show svs`, FIB dumps and ping replies only.

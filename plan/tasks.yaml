@@ -2497,7 +2497,7 @@ tasks:
   - F-startup-apply
   priority: 3
   est_hours: 3
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D0.6
@@ -2512,7 +2512,7 @@ tasks:
     | 13:51 stopped for handover: WIP 59fb54e; L1 ci step + doc done; sharded harness 102 pass / 24 fail under load 35–45 (likely timing, unverified); next: serial rerun of failed scenarios on quiet host
     (cmd in TD-6-wip.md), then tools/ci.sh --base main, TD-6.md | 14:00 ngfw-46: CONTINUE (Agent tool), envelope /root/ngfw-wt/TD-6.continue46.md — serial rerun of the 24 load failures, CI, TD-6.md | worker
     done b388ca7 (code 85a6ed5), CI green, harness 128/128; review spawned by ngfw-46, envelope /root/ngfw-wt/TD-6.review.md | review APPROVE WITH CHANGES 621d1e2 → merge now, F1/F2 → TD-7 (D-116); handed
-    to the merger'
+    to the merger | merged 35f3a96 (squash 6a1b3fc, D-112), main gate green (first redo aborted: TestGRPCRoundTrip load flake, D-121)'
 - id: TD-7
   title: 'apply-startup.sh follow-ups from the TD-6 review: F1 concurrent manual rollback of one apply (per-apply lock + cancel the dead-man), F2 scenario 40 bound independent of load (count ip neigh calls)'
   prompt: /root/ngfw-wt/TD-7.envelope.md

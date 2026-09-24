@@ -2,12 +2,12 @@
 
 Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 36.4% by hours (355/976 h), 34.7% by tasks (35/101)**
+**Overall: 36.7% by hours (358/976 h), 35.6% by tasks (36/101)**
 
 | state | tasks |
 |---|---|
-| merged | 35 |
-| review | 6 |
+| merged | 36 |
+| review | 5 |
 | running | 11 |
 | ready | 0 |
 | parked | 0 |
@@ -18,7 +18,7 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
-| S2 | 248 / 258 | 96.1% | 22/26 | 1 | 0 | 0 |
+| S2 | 251 / 258 | 97.3% | 23/26 | 1 | 0 | 0 |
 | S3 | 0 / 16 | 0.0% | 0/1 | 0 | 0 | 0 |
 | S4 | 0 / 447 | 0.0% | 0/47 | 10 | 0 | 0 |
 | S5 | 28 / 128 | 21.9% | 3/13 | 0 | 0 | 0 |
@@ -37,7 +37,6 @@ Updated 2026-09-24 from plan/tasks.yaml (estimated hours are the plan's, not act
 - F-object-model — Wave A (day 7-9): addresses, groups, FQDN (agent-resolved), services, schedules, zones, tags (running, ngfw-46 slot3)
 - F-nat44-ed-sessions — Wave A (day 7-9): NAT44-ED outbound/1:1/port-forward + session browser/kill (running, ngfw-46 slot4)
 - TD-4 — Auth hardening follow-ups from TD-2 (D-100): account disable bumps the credential generation; API-key creation from a JWT session requires the current password; login gets the same transport check as password set (review, ngfw-46 slot8)
-- TD-6 — apply-startup.sh hardening before the first real --apply (D-103): stale dead-man vs newer commit, rollback write failure, systemctl-show failure, NRestarts compare; lows V5–V9; fake-host harness + shellcheck wired into tools/ci.sh (review, ngfw-46 slot6)
 - TD-7 — apply-startup.sh follow-ups from the TD-6 review: F1 concurrent manual rollback of one apply (per-apply lock + cancel the dead-man), F2 scenario 40 bound independent of load (count ip neigh calls) (review, ngfw-46 slot6)
 - TD-12 — De-flake load-sensitive tests that break merge gates (TestGRPCRoundTrip, TestPendingSurvives…, strongswan TestWatchResync, api vitest fetch timeout) (running, ngfw-46 slot6)
 - WEB-1 — ui-kit SchemaForm gaps: presence toggle, port/ip-range, datetime/time/timezone/color widgets, LTR identifiers in RTL, per-path i18n, itemKey summaries + rule-editor table view (running, ngfw-46 slot11)

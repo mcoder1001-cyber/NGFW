@@ -636,6 +636,7 @@ export class FakeAgent {
       // wave-BC: F-host-stack
       // wave-BC: F-snmp
       // wave-BC: F-ipfix-sflow
+      ipfixState: (_call, cb) => cb({ code: status.UNIMPLEMENTED, details: 'unknown method IpfixState' }),
       // wave-BC: F-capture-trace
       // wave-BC: F-srv6
       // wave-BC: F-lisp

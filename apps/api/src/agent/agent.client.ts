@@ -28,6 +28,7 @@ import {
   // wave-BC: F-host-stack
   // wave-BC: F-snmp
   // wave-BC: F-ipfix-sflow
+  type IpfixStateResponse,
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
   // wave-BC: F-lisp
@@ -156,6 +157,9 @@ export class AgentClient implements OnModuleDestroy {
   // wave-BC: F-host-stack
   // wave-BC: F-snmp
   // wave-BC: F-ipfix-sflow
+  ipfixState(): Promise<IpfixStateResponse> {
+    return this.unary(this.c.ipfixState, { owner: this.owner });
+  }
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
   // wave-BC: F-lisp

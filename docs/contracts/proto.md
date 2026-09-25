@@ -367,3 +367,15 @@ never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
 <!-- wave-A: P12 -->
 <!-- wave-A: F-kea-dhcp-relay -->
 <!-- wave-A: F-unbound-chrony-syslog -->
+
+### F-ipfix-sflow: IpfixState
+
+`IpfixState(IpfixStateRequest{owner}) → IpfixStateResponse` (unanchored: no `wave-BC: F-ipfix-sflow` anchor in this
+file) is the state RPC of `services.ipfix`, behind `GET /api/v1/state/ipfix`. Dumps only, never mutates, `UNAVAILABLE`
+without VPP. `exporters[]`: exporter 0 first (`default_exporter`, read with `ipfix_exporter_dump` also when this agent
+is not the globals owner), then the additional exporters this agent owns (Retrieve of `ipfix.exporter`), with the
+configuration `name` when the agent knows it and `stat_index` only when this agent process created the exporter.
+`flowprobe_params` (unset while no record flag is set), `flowprobe_interfaces[]` and `sflow_interfaces[]` (Retrieve of
+this owner's objects; sFlow reports learned interfaces only, V17), `sflow_global` (always, VPP defaults included),
+`sflow_counters[]` (`/err/sflow/*` from the stats segment, summed over workers; empty with a note when the segment is
+unavailable), `globals_owner` (D-071), `notes[]`, `owner`, `retrieved_at`. Messages: `// ----- F-ipfix-sflow -----`.

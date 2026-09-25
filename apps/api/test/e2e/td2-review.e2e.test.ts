@@ -235,8 +235,14 @@ describe('TD-2 review fixes e2e', () => {
   describe('M1 — an admin reset revokes the target’s API keys (D-097)', () => {
     it('default: keys revoked, listed and audited; the key’s candidate lock is released', async () => {
       const op = (await login('keyop')).body.accessToken as string;
-      const k1 = await h.call(op, 'POST', '/api/v1/auth/api-keys', { name: 'ci-1' });
-      const k2 = await h.call(op, 'POST', '/api/v1/auth/api-keys', { name: 'ci-2' });
+      const k1 = await h.call(op, 'POST', '/api/v1/auth/api-keys', {
+        name: 'ci-1',
+        current: PW['keyop'],
+      });
+      const k2 = await h.call(op, 'POST', '/api/v1/auth/api-keys', {
+        name: 'ci-2',
+        current: PW['keyop'],
+      });
       const key = { authorization: `ApiKey ${k1.body.key}` };
       expect(
         (
@@ -272,7 +278,10 @@ describe('TD-2 review fixes e2e', () => {
 
     it('keepApiKeys: true keeps them (service users); a self-service change keeps them too', async () => {
       const op = (await login('keyop')).body.accessToken as string;
-      const k = await h.call(op, 'POST', '/api/v1/auth/api-keys', { name: 'svc' });
+      const k = await h.call(op, 'POST', '/api/v1/auth/api-keys', {
+        name: 'svc',
+        current: PW['keyop'],
+      });
       const key = { authorization: `ApiKey ${k.body.key}` };
       const r = await reset('keyop', { keepApiKeys: true });
       expect(r.body.apiKeysRevoked).toEqual([]);
@@ -291,7 +300,10 @@ describe('TD-2 review fixes e2e', () => {
     });
 
     it('L4: deleting a key releases the candidate lock it holds immediately', async () => {
-      const k = await h.call(admin, 'POST', '/api/v1/auth/api-keys', { name: 'short-lived' });
+      const k = await h.call(admin, 'POST', '/api/v1/auth/api-keys', {
+        name: 'short-lived',
+        current: h.adminPassword,
+      });
       const key = { authorization: `ApiKey ${k.body.key}` };
       await h.call(
         undefined,

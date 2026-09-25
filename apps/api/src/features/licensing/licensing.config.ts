@@ -1,3 +1,4 @@
+import type { Entitlements } from './entitlements.js';
 /**
  * Licensing configuration (kept in the feature directory; apps/api/src/config.ts is shared).
  *
@@ -30,6 +31,8 @@ export interface LicensingOptions {
   /** Re-evaluation period for the expiry event (ms). */
   checkIntervalMs: number;
   now: () => Date;
+  /** Community entitlements; default COMMUNITY (permissive). Tests pass SAMPLE_COMMUNITY. */
+  community?: Entitlements | undefined;
 }
 
 export function licensingOptionsFromEnv(env: NodeJS.ProcessEnv = process.env): LicensingOptions {

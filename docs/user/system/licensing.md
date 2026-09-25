@@ -8,7 +8,7 @@ checked only when you commit a configuration.
 
 | Situation | Status | Effect |
 |---|---|---|
-| No licence installed | `community` | The community feature set applies (table below). |
+| No licence installed | `community` | The community feature set applies (currently permissive, see below). |
 | Licence valid | `valid` | The licence's features and limits apply. |
 | Licence expired, less than 30 days ago | `grace` | Licence still applies; every commit returns a warning; a banner is shown; a `license.grace` system event is recorded. |
 | Licence expired more than 30 days ago | `expired` | Community set for **new** configuration; a `license.expired` system event is recorded. |
@@ -20,6 +20,10 @@ with `403` `application/problem+json`, `type …/license-required`, `tier: "lice
 first offending node, for example `/ha/vrrp/lan-v4`.
 
 ## Entitlement table (SAMPLE — to be confirmed by the product owner)
+
+**Today the community set is permissive: every feature below, no limits** (`COMMUNITY` in `entitlements.ts`), until the
+product owner decides the matrix (`docs/decisions/PENDING-licensing-matrix.md`). The "Community" column is the
+restrictive SAMPLE (`SAMPLE_COMMUNITY`) used by the tests.
 
 | Feature id | Used when the configuration has | Community |
 |---|---|---|

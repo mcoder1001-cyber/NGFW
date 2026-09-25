@@ -119,11 +119,18 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
     try {
       text = await readFile(this.opts.file, 'utf8');
     } catch (e) {
-      return (e as NodeJS.ErrnoException).code === 'ENOENT' ? 'none' : 'unreadable';
+      const code = (e as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT') return 'none';
+      this.log.warn(`stored licence ${this.opts.file} cannot be read (${code ?? 'error'})`);
+      return 'unreadable';
     }
     try {
       return parseAndVerify(text, this.trustedKeys());
-    } catch {
+    } catch (e) {
+      // no licence content or signature in the log: only the path and the verification error class
+      this.log.warn(
+        `stored licence ${this.opts.file} does not verify (${e instanceof LicenseFormatError ? e.code : 'error'}); community entitlements apply`,
+      );
       return 'unreadable';
     }
   }
@@ -146,7 +153,7 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
       },
       entitlements: licensed
         ? { features: [...lic.entitlements.features], limits: { ...lic.entitlements.limits } }
-        : structuredClone(COMMUNITY),
+        : structuredClone(this.opts.community ?? COMMUNITY),
     };
     if (ev.reason !== undefined) out.reason = ev.reason;
     return out;
@@ -162,7 +169,7 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
         daysLeft: 0,
         graceDays: GRACE_DAYS,
         bound: { machineId: false, serial: false },
-        entitlements: structuredClone(COMMUNITY),
+        entitlements: structuredClone(this.opts.community ?? COMMUNITY),
       };
     } else if (lic === 'unreadable') {
       st = {
@@ -171,7 +178,7 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
         daysLeft: 0,
         graceDays: GRACE_DAYS,
         bound: { machineId: false, serial: false },
-        entitlements: structuredClone(COMMUNITY),
+        entitlements: structuredClone(this.opts.community ?? COMMUNITY),
       };
     } else st = this.describe(lic);
     await this.noteTransition(st);

@@ -52,8 +52,20 @@ export interface Entitlements {
   limits: Record<string, number>;
 }
 
-/** No licence (or expired past grace / invalid): the community set. SAMPLE — product-owner decision. */
+/**
+ * Community set in force when there is no licence (or it is invalid / expired past grace): PERMISSIVE — every gated
+ * feature, no limits — until the product owner decides the matrix (docs/decisions/PENDING-licensing-matrix.md).
+ */
 export const COMMUNITY: Entitlements = {
+  features: FEATURES.map((f) => f.feature),
+  limits: {},
+};
+
+/**
+ * SAMPLE restrictive community set: test data and the docs table only, never the default. Pass it explicitly
+ * (`LicensingOptions.community`) to exercise enforcement.
+ */
+export const SAMPLE_COMMUNITY: Entitlements = {
   features: ['wireguard', 'ospf'],
   limits: { wireguardInterfaces: 2 },
 };

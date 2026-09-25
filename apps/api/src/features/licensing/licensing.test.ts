@@ -1,6 +1,7 @@
 import { readFileSync, mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { validateConfig } from '@ngfw/schema';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,7 +11,7 @@ import { ROLE_KEY } from '../../auth/decorators.js';
 import { ProblemError } from '../../common/problem.js';
 import { ValidationService } from '../../commit/validation.service.js';
 import type { ConfigRepo, Doc } from '../../datastore/repo.js';
-import { COMMUNITY, entitlementIssues, matchPointers } from './entitlements.js';
+import { COMMUNITY, SAMPLE_COMMUNITY, entitlementIssues, matchPointers } from './entitlements.js';
 import {
   canonicalJson,
   evaluate,
@@ -109,7 +110,7 @@ describe('entitlement predicates on sample documents', () => {
 
   it('VRRP document without the "ha" entitlement → pointer of the first VRRP instance', () => {
     const doc = parsed('ha-vrrp.json');
-    const issues = entitlementIssues(doc, {}, COMMUNITY);
+    const issues = entitlementIssues(doc, {}, SAMPLE_COMMUNITY);
     expect(issues[0]).toMatchObject({ pointer: '/ha/vrrp/lan-v4', rule: 'license.feature.ha' });
     expect(entitlementIssues(doc, {}, { features: ['ha'], limits: {} })).toEqual([]);
   });
@@ -118,7 +119,7 @@ describe('entitlement predicates on sample documents', () => {
     const doc = parsed('vpn-site-to-site.json');
     const tunnels = matchPointers(doc, '/vpn/ipsec/tunnels/*');
     expect(tunnels.length).toBeGreaterThan(0);
-    expect(entitlementIssues(doc, {}, COMMUNITY)[0]).toMatchObject({
+    expect(entitlementIssues(doc, {}, SAMPLE_COMMUNITY)[0]).toMatchObject({
       pointer: tunnels[0],
       rule: 'license.feature.ipsec',
     });
@@ -131,15 +132,15 @@ describe('entitlement predicates on sample documents', () => {
   });
 
   it('minimal document is fine under the community set', () => {
-    expect(entitlementIssues(parsed('minimal.json'), {}, COMMUNITY)).toEqual([]);
+    expect(entitlementIssues(parsed('minimal.json'), {}, SAMPLE_COMMUNITY)).toEqual([]);
   });
 
   it('grandfathering: nodes already running never offend; a new one does', () => {
     const doc = parsed('ha-vrrp.json');
-    expect(entitlementIssues(doc, doc, COMMUNITY)).toEqual([]);
+    expect(entitlementIssues(doc, doc, SAMPLE_COMMUNITY)).toEqual([]);
     const running = structuredClone(doc) as { ha: { vrrp: Record<string, unknown> } };
     delete running.ha.vrrp['customer-a'];
-    expect(entitlementIssues(doc, running, COMMUNITY)[0]).toMatchObject({
+    expect(entitlementIssues(doc, running, SAMPLE_COMMUNITY)[0]).toMatchObject({
       pointer: '/ha/vrrp/customer-a',
     });
   });
@@ -160,6 +161,7 @@ describe('LicensingService + commit validation stage', () => {
     dmiSerialFile: join(dir, 'none'),
     checkIntervalMs: 3_600_000,
     now: () => now,
+    community: SAMPLE_COMMUNITY,
   };
   const repo = {
     latestRevision: async () => (running ? { payload: running } : null),
@@ -198,7 +200,7 @@ describe('LicensingService + commit validation stage', () => {
 
   it('no licence = community entitlements', async () => {
     const st = await svc.state();
-    expect(st).toMatchObject({ status: 'community', entitlements: COMMUNITY });
+    expect(st).toMatchObject({ status: 'community', entitlements: SAMPLE_COMMUNITY });
   });
 
   it('install: valid licence stored; GET-state carries no signature or binding values', async () => {
@@ -278,6 +280,31 @@ describe('LicensingService + commit validation stage', () => {
     const keep = await validation.validate(structuredClone(running) as Doc, 't5');
     expect(keep.ok).toBe(true);
     expect((await svc.state()).status).toBe('expired');
+  });
+
+  it('default community set is permissive: every gated feature, no limits (PENDING-licensing-matrix)', () => {
+    expect(COMMUNITY.limits).toEqual({});
+    for (const f of ['ipsec', 'wireguard', 'bgp', 'ospf', 'isis', 'ha'])
+      expect(COMMUNITY.features).toContain(f);
+    expect(entitlementIssues(parsed('ha-vrrp.json'), {}, COMMUNITY)).toEqual([]);
+    expect(entitlementIssues(parsed('vpn-site-to-site.json'), {}, COMMUNITY)).toEqual([]);
+  });
+
+  it('unreadable stored licence → invalid with a reason and a warning log (no licence content)', async () => {
+    const { mkdirSync } = await import('node:fs');
+    mkdirSync(join(dir, 'store'), { recursive: true });
+    const text = signFile(sampleLicense(NOW), k.privateKey);
+    writeFileSync(opts.file, text.replace('"ha"', '"hb"'));
+    const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const st = await svc.state();
+    expect(st).toMatchObject({
+      status: 'invalid',
+      reason: expect.stringMatching(/cannot be verified/),
+    });
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/does not verify \(signature\)/));
+    const sig = (JSON.parse(text) as { signature: string }).signature;
+    for (const c of warn.mock.calls) expect(String(c[0])).not.toContain(sig);
+    warn.mockRestore();
   });
 
   it('RBAC: upload is admin-only; state uses the default (readonly) role', () => {

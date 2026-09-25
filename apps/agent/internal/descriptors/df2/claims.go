@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"ngfw/agent/internal/descriptors/acl"
+	"ngfw/agent/internal/descriptors/dfkit/persist"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
@@ -102,7 +103,35 @@ func (s *Interfaces) Candidates() []uint32 {
 	return out
 }
 
-// Claim records key when the object was created on an untagged interface.
+// CheckPersistent is the persistence check (dfkit/persist, TD-11b review 3.2) of a DF-2 descriptor
+// built with these Options; call it from the descriptor's CheckPersistent. The product wiring passes
+// df2.WithClaims(Wiring.KeyedClaims("acl")); the in-memory default is for tests.
+func (o Options) CheckPersistent(name string) error {
+	return persist.Require(name+": claims on untagged interfaces (pass df2.WithClaims(Wiring.KeyedClaims(\"acl\")))", o.Claims)
+}
+
+// ClaimFirst records key BEFORE the VPP call when the object goes on an untagged interface (TD-11b,
+// review 3.3; DF-2 N5): a claim that cannot be recorded fails the Create with nothing written —
+// claiming after the call left an unclaimed object in VPP, invisible to Retrieve and never undone.
+// undo releases a claim this call made (not one that existed before); call it when the VPP call
+// fails without changing anything.
+func ClaimFirst(claims ClaimStore, untagged bool, key scheduler.Key) (undo func(), err error) {
+	if !untagged || claims == nil {
+		return func() {}, nil
+	}
+	had := claims.Claimed(string(key))
+	if err := claims.Claim(string(key)); err != nil {
+		return nil, fmt.Errorf("claim %s: %w", key, err)
+	}
+	return func() {
+		if !had {
+			_ = claims.Release(string(key))
+		}
+	}, nil
+}
+
+// Claim records key when the object was created on an untagged interface (after the VPP call;
+// prefer ClaimFirst).
 func Claim(claims ClaimStore, untagged bool, key scheduler.Key) error {
 	if !untagged || claims == nil {
 		return nil
@@ -154,7 +183,9 @@ func OpenFileClaimStore(path string) (*FileClaimStore, error) {
 	return s, nil
 }
 
-// Claim implements ClaimStore.
+// Claim implements ClaimStore. Memory changes only when the file was written (TD-11b; DF-2 N5): a
+// claim kept in memory after a failed write made the retry report success, and the claim was then
+// lost on the next agent restart.
 func (s *FileClaimStore) Claim(key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -162,10 +193,14 @@ func (s *FileClaimStore) Claim(key string) error {
 		return nil
 	}
 	s.m[key] = struct{}{}
-	return s.save()
+	if err := s.save(); err != nil {
+		delete(s.m, key)
+		return err
+	}
+	return nil
 }
 
-// Release implements ClaimStore.
+// Release implements ClaimStore (memory changes only when the file was written, as Claim).
 func (s *FileClaimStore) Release(key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -173,8 +208,15 @@ func (s *FileClaimStore) Release(key string) error {
 		return nil
 	}
 	delete(s.m, key)
-	return s.save()
+	if err := s.save(); err != nil {
+		s.m[key] = struct{}{}
+		return err
+	}
+	return nil
 }
+
+// Persistent marks FileClaimStore as a store that survives an agent restart (dfkit/persist).
+func (*FileClaimStore) Persistent() bool { return true }
 
 // Claimed implements ClaimStore.
 func (s *FileClaimStore) Claimed(key string) bool {

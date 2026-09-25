@@ -68,31 +68,38 @@ describe('F-qos-flat e2e (PostgreSQL + fake agent)', () => {
   });
   afterAll(async () => h?.close());
 
-  it('store.source mpls → 400 problem+json at …/store/source (services.qos-flat-store-source)', async () => {
-    // record is vlan on loop1001, so the store uses another slot (record and store on one slot is a schema error)
-    const bad = {
-      ...QOS,
-      interfaces: {
-        ...QOS.interfaces,
-        loop1001: { ...QOS.interfaces.loop1001, store: { source: 'mpls', value: 3 } },
-      },
-    };
-    expect((await h.call(op, 'PUT', '/api/v1/config/services/qos', bad)).status).toBe(200);
-    const applies = h.fake.calls.filter((c) => c.method === 'Apply').length;
-    for (const route of ['/api/v1/config/validate', '/api/v1/config/commit']) {
-      const r = await h.call(op, 'POST', route);
-      expect(r.status).toBe(400);
-      expect(r.headers['content-type']).toMatch(/^application\/problem\+json/);
-      expect(r.body).toMatchObject({ status: 400, tier: 'semantic' });
-      expect(r.body.errors).toContainEqual(
-        expect.objectContaining({
-          pointer: '/services/qos/interfaces/loop1001/store/source',
-          message: expect.stringMatching(/ip source only/),
-        }),
-      );
-    }
-    expect(h.fake.calls.filter((c) => c.method === 'Apply')).toHaveLength(applies); // never sent to the agent
-  });
+  // record is vlan on loop1001 and ip on loop1002, so each store uses another slot (record and store on one slot is a
+  // schema error); loop1002 + vlan is the acceptance case of the prompt
+  it.each([
+    ['loop1002', 'vlan'],
+    ['loop1001', 'mpls'],
+  ] as const)(
+    'store.source on %s = %s → 400 problem+json at …/store/source (services.qos-flat-store-source)',
+    async (ifName, source) => {
+      const bad = {
+        ...QOS,
+        interfaces: {
+          ...QOS.interfaces,
+          [ifName]: { ...QOS.interfaces[ifName], store: { source, value: 3 } },
+        },
+      };
+      expect((await h.call(op, 'PUT', '/api/v1/config/services/qos', bad)).status).toBe(200);
+      const applies = h.fake.calls.filter((c) => c.method === 'Apply').length;
+      for (const route of ['/api/v1/config/validate', '/api/v1/config/commit']) {
+        const r = await h.call(op, 'POST', route);
+        expect(r.status).toBe(400);
+        expect(r.headers['content-type']).toMatch(/^application\/problem\+json/);
+        expect(r.body).toMatchObject({ status: 400, tier: 'semantic' });
+        expect(r.body.errors).toContainEqual(
+          expect.objectContaining({
+            pointer: `/services/qos/interfaces/${ifName}/store/source`,
+            message: expect.stringMatching(/ip source only/),
+          }),
+        );
+      }
+      expect(h.fake.calls.filter((c) => c.method === 'Apply')).toHaveLength(applies); // never sent to the agent
+    },
+  );
 
   it('mark without map and shaper + policer.output are 400 with pointers at edit time', async () => {
     const mark = await h.call(

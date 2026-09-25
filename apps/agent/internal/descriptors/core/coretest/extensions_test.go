@@ -86,6 +86,12 @@ func TestOnExtensionCollisionPanics(t *testing.T) {
 // core's, installed before any extension) is normal and must not panic — only two *different*
 // extension names colliding is a bug.
 func TestOnSameExtensionReplacesItsOwnRegistration(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("On panicked on a non-colliding replace: %v", r)
+		}
+	}()
+
 	v := &VPP{Client: fake.New()}
 	// Unclaimed (core-phase) registration: installingExt is empty, as it is for install/installIfExt.
 	v.On("sw_interface_dump", func(api.Message) ([]api.Message, error) { return nil, nil })

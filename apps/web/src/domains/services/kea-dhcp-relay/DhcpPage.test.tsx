@@ -287,6 +287,9 @@ describe('dhcp screen', () => {
       const servers = await screen.findByRole('table', { name: 'DHCP servers' });
       expect(await within(servers).findByText('lan')).toBeInTheDocument();
       expect(await within(servers).findByText('Running')).toBeInTheDocument();
+      // review M1: kea-dhcp6 has no configuration the agent wrote → "Not configured", never "Stopped" or a start warning
+      expect(await screen.findByText('Not configured')).toBeInTheDocument();
+      expect(screen.queryByText('Stopped')).toBeNull();
 
       // subnets & pools: utilisation bar = assigned / total of Kea's statistics
       fireEvent.click(within(sections).getByRole('tab', { name: 'Subnets & Pools' }));

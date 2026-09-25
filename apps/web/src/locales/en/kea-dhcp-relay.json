@@ -32,7 +32,8 @@
     "startRequired": "Start required",
     "running": "Running",
     "stopped": "Stopped",
-    "disabled": "Disabled"
+    "disabled": "Disabled",
+    "notConfigured": "Not configured"
   },
   "daemon": {
     "v4": "kea-dhcp4",

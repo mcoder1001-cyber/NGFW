@@ -45,7 +45,8 @@ type DaemonStatus struct {
 	Err string
 }
 
-// Status reads the state of the daemon of family 4 or 6. It never fails: read errors go into Err.
+// Status reads the state of the daemon of family 4 or 6. It never fails: read errors go into Err. A daemon whose
+// configuration the agent did not write (no embedded render input) is reported as not configured: only Running.
 func (r *Renderer) Status(ctx context.Context, family int) DaemonStatus {
 	st := DaemonStatus{Family: family}
 	cfg, running, err := r.actualConfig(ctx, family)
@@ -54,7 +55,12 @@ func (r *Renderer) Status(ctx context.Context, family int) DaemonStatus {
 		return st
 	}
 	st.Running = running
-	st.Active = cfg != nil && active(cfg)
+	if _, ours, _ := EmbeddedInput(cfg); cfg == nil || !ours {
+		// Not configured by the agent (review M1): no file, an idle configuration, or a foreign one — such as the
+		// packaged, commented /etc/kea file. Nothing is active, nothing must be started, nothing is an error.
+		return st
+	}
+	st.Active = active(cfg)
 	if st.Active && !running {
 		st.ActionRequired = "start"
 	}

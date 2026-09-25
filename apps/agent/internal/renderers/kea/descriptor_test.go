@@ -340,3 +340,33 @@ func TestOwnershipDeclaration(t *testing.T) {
 		t.Fatal("kea descriptor declares no ownership mode (TD-11b guard)")
 	}
 }
+
+// Review M1: a daemon whose configuration the agent did not write is "not configured" — the packaged, commented
+// /etc/kea file (daemon stopped) and a foreign JSON configuration with interfaces (daemon running) are neither active
+// nor a start request nor an error. The old Status reported active=true, actionRequired=start and a parse error.
+func TestStatusForeignConfigNotConfigured(t *testing.T) {
+	ctx := context.Background()
+	packaged := "// This is the packaged kea-dhcp4.conf.\n{\n  \"Dhcp4\": {\n    // comment\n    \"interfaces-config\": {\"interfaces\": [\"eth0\"]},\n    \"subnet4\": []\n  }\n}\n"
+	m := newModel()
+	r, p := descRenderer(t, m)
+	if err := os.WriteFile(p.Dhcp4Conf(), []byte(packaged), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	st := r.Status(ctx, 4)
+	if st.Running || st.Active || st.ActionRequired != "" || st.Err != "" || len(st.Subnets) != 0 {
+		t.Fatalf("stopped daemon, packaged file: %+v", st)
+	}
+	m.running[4] = true
+	m.config[4] = map[string]any{"Dhcp4": map[string]any{
+		"interfaces-config": map[string]any{"interfaces": []any{"eth0"}},
+		"subnet4":           []any{map[string]any{"id": 7, "subnet": "192.0.2.0/24"}},
+	}}
+	st = r.Status(ctx, 4)
+	if !st.Running || st.Active || st.ActionRequired != "" || st.Err != "" || len(st.Subnets) != 0 {
+		t.Fatalf("running daemon, foreign config: %+v", st)
+	}
+	// no file at all (kea-dhcp6 here): not configured either
+	if st6 := r.Status(ctx, 6); st6.Running || st6.Active || st6.ActionRequired != "" || st6.Err != "" {
+		t.Fatalf("no file: %+v", st6)
+	}
+}

@@ -32,7 +32,8 @@
     "startRequired": "نیاز به راه‌اندازی",
     "running": "در حال اجرا",
     "stopped": "متوقف",
-    "disabled": "غیرفعال"
+    "disabled": "غیرفعال",
+    "notConfigured": "پیکربندی نشده"
   },
   "daemon": {
     "v4": "kea-dhcp4",

@@ -237,6 +237,9 @@ function DaemonChip({ status }: { status: ServerStatus | undefined }) {
     );
   if (status.actionRequired === 'start')
     return <StatusChip size="small" status={ST_DEGRADED} label={t('status.startRequired')} />;
+  // no configuration the agent wrote (no subnet, nothing bound): not a fault, whether the daemon runs idle or not
+  if (!status.active && status.subnets.length === 0)
+    return <Chip size="small" variant="outlined" label={t('status.notConfigured')} />;
   if (status.running) return <StatusChip size="small" status={ST_UP} label={t('status.running')} />;
   return <StatusChip size="small" status={ST_OFF} label={t('status.stopped')} />;
 }

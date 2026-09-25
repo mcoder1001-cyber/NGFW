@@ -175,9 +175,12 @@ func TestSnmpStageRollbackRemovesCommunity(t *testing.T) {
 // pointer — the transaction never reaches the scheduler, so no VPP write happens; the secret value is
 // never in the message.
 func TestSnmpProjectionChecksBeforeVPP(t *testing.T) {
+	saved := desired.SnapshotSnmpChecks() // other tests' register() calls leave their owners registered
+	desired.RestoreSnmpChecks(nil)
+	t.Cleanup(func() { desired.RestoreSnmpChecks(saved) })
 	st, _, _ := newTestStage(t, map[string]string{"password/snmp-ro": fixtureCommunity})
-	desired.SetSnmpCheck(st.Check)
-	t.Cleanup(func() { desired.SetSnmpCheck(nil) })
+	desired.SetSnmpCheck("w9", st.Check)
+	t.Cleanup(func() { desired.SetSnmpCheck("w9", nil) })
 	sink := &recSink{}
 	desired.Snmp(sink, &vrxv1.ServicesConfig{Snmp: snmpValue()}) // noc-auth is not resolvable
 	if len(sink.errs) != 1 || !strings.HasPrefix(sink.errs[0], "/services/snmp/v3Users/noc/authRef ") || len(sink.kvs) != 0 {
@@ -244,3 +247,61 @@ func (r *recSink) Warnf(pointer, _, format string, a ...any) {
 }
 
 func fmtS(format string, a ...any) string { return fmt.Sprintf(format, a...) }
+
+// TestServicesUnsupportedByReflection: every set services field not marked handled is reported,
+// including fields added later; a field marked by its feature is not.
+func TestServicesUnsupportedByReflection(t *testing.T) {
+	sink := &recSink{}
+	desired.Snmp(sink, &vrxv1.ServicesConfig{
+		Dhcp: &vrxv1.DhcpService{Servers: map[string]*vrxv1.DhcpServer{"a": {}}},
+		Lldp: &vrxv1.LldpService{},
+		Ntp:  &vrxv1.NtpService{},
+		Snmp: &vrxv1.SnmpService{Enabled: proto.Bool(false)},
+	})
+	want := []string{"/services/dhcp", "/services/lldp", "/services/ntp"}
+	if len(sink.warns) != len(want) {
+		t.Fatalf("warnings %v", sink.warns)
+	}
+	for i, w := range want {
+		if !strings.HasPrefix(sink.warns[i], w+" ") {
+			t.Fatalf("warning %d = %q, want %s", i, sink.warns[i], w)
+		}
+	}
+	desired.MarkServicesHandled("lldp")
+	sink = &recSink{}
+	desired.Snmp(sink, &vrxv1.ServicesConfig{Lldp: &vrxv1.LldpService{}})
+	if len(sink.warns) != 0 {
+		t.Fatalf("handled field still reported: %v", sink.warns)
+	}
+}
+
+// TestSnmpCheckPerOwner: stages register per owner, Close unregisters; two owners fail closed.
+func TestSnmpCheckPerOwner(t *testing.T) {
+	saved := desired.SnapshotSnmpChecks() // other tests' register() calls leave their owners registered
+	desired.RestoreSnmpChecks(nil)
+	t.Cleanup(func() { desired.RestoreSnmpChecks(saved) })
+	calls := 0
+	desired.SetSnmpCheck("a", func(*vrxv1.SnmpService) error { calls++; return nil })
+	t.Cleanup(func() { desired.SetSnmpCheck("a", nil); desired.SetSnmpCheck("b", nil) })
+	v := snmpValue()
+	sink := &recSink{}
+	desired.Snmp(sink, &vrxv1.ServicesConfig{Snmp: v})
+	if calls != 1 || len(sink.kvs) != 1 {
+		t.Fatalf("calls %d kvs %d errs %v", calls, len(sink.kvs), sink.errs)
+	}
+	desired.SetSnmpCheck("b", func(*vrxv1.SnmpService) error { return nil })
+	sink = &recSink{}
+	desired.Snmp(sink, &vrxv1.ServicesConfig{Snmp: v})
+	if len(sink.errs) != 1 || len(sink.kvs) != 0 {
+		t.Fatalf("two owners: %+v", sink)
+	}
+	desired.SetSnmpCheck("b", nil)
+	st, _, _ := newTestStage(t, allFixtures)
+	st.owner = "c"
+	desired.SetSnmpCheck("c", st.Check)
+	snmpStages.Store("c", st)
+	st.Close()
+	if _, ok := SnmpStageOf("c"); ok {
+		t.Fatal("Close left the stage registered")
+	}
+}

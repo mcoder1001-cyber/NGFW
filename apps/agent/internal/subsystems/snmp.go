@@ -97,6 +97,7 @@ func SnmpFixtureResolver(path string) rfkit.SecretResolver {
 // SnmpStage is the snmpd renderer stage: the descriptor plus the state GET /state/snmp reads.
 type SnmpStage struct {
 	r      *snmpd.Renderer
+	owner  string // registration key (registerSnmp); "" = unregistered (tests)
 	record string // applied services.snmp (protojson; refs only, never values)
 	log    *slog.Logger
 	source snmpagent.Source
@@ -295,8 +296,14 @@ func (s *SnmpStage) subagent(on bool) {
 	s.log.Info("VRX-MIB subagent started", "socket", s.r.Paths().AgentXSocket)
 }
 
-// Close stops the subagent (agent shutdown).
-func (s *SnmpStage) Close() { s.subagent(false) }
+// Close stops the subagent and unregisters the stage (agent shutdown).
+func (s *SnmpStage) Close() {
+	s.subagent(false)
+	if s.owner != "" {
+		desired.SetSnmpCheck(s.owner, nil)
+		snmpStages.CompareAndDelete(s.owner, s)
+	}
+}
 
 // SnmpStateView is what GET /api/v1/state/snmp shows (no secret: credentials by name only).
 type SnmpStateView struct {
@@ -379,7 +386,8 @@ func registerSnmp(r scheduler.Registry, w *Wiring) {
 	}
 	st := NewSnmpStage(rend, filepath.Join(w.env.StateDir, "snmpd-"+w.env.Owner+".json"), src, w.env.Log)
 	r.Register(st)
-	desired.SetSnmpCheck(st.Check)
+	st.owner = w.env.Owner
+	desired.SetSnmpCheck(w.env.Owner, st.Check)
 	snmpStages.Store(w.env.Owner, st)
 }
 

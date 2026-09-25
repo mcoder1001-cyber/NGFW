@@ -55,6 +55,8 @@ type Iface struct {
 	Outer    uint16
 	Inner    uint16
 	IsSub    bool
+	// TD-24 (dhcp.go): the interface's DHCPv4 client; nil = none. It goes with the interface.
+	DHCP *DHCPClient
 }
 
 type tableKey struct {

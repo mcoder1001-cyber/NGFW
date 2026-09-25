@@ -2,12 +2,12 @@
 
 Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 47.1% by hours (552.0/1172.5 h), 49.2% by tasks (64/130)**
+**Overall: 47.3% by hours (555.0/1172.5 h), 50.0% by tasks (65/130)**
 
 | state | tasks |
 |---|---|
-| merged | 64 |
-| review | 21 |
+| merged | 65 |
+| review | 20 |
 | running | 5 |
 | ready | 7 |
 | parked | 2 |
@@ -20,7 +20,7 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 155.0 / 605.0 | 25.6% | 21/70 | 4 | 6 | 0 |
+| S4 | 158.0 / 605.0 | 26.1% | 22/70 | 4 | 6 | 0 |
 | S5 | 38 / 147.5 | 25.8% | 4/15 | 1 | 1 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -51,7 +51,6 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 - WEB-2 — Config screen kit (generic list+drawer+live-status over any candidate path) + data widgets + Secrets page (review, ngfw-46 slot1)
 - WEB-3 — Committed browser harness: e2e lib, shots.mjs, screens/_example.mjs (P08 screenshot script was lost, F6) (review, unassigned)
 - UI-domain-editor — Advanced configuration editor: generic schema-driven page for any domain path (review, unassigned)
-- TD-24 — interface-ip reconcile must not delete a DHCP-leased address (Retrieve skips the dhcp_client_dump lease) (review, unassigned)
 
 ## Parked
 

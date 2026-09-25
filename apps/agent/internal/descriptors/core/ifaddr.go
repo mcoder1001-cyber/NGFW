@@ -5,14 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/netip"
 
+	"go.fd.io/govpp/adapter"
 	"google.golang.org/protobuf/proto"
 
+	"ngfw/agent/binapi/dhcp"
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/vpp"
 )
 
 // ---- interface-ip.table ----------------------------------------------------------------------
@@ -303,13 +307,17 @@ func (d *InterfaceAddrDescriptor) Delete(ctx context.Context, obj proto.Message,
 }
 
 // Retrieve implements scheduler.Descriptor: every address of every tagged interface of ours, and the
-// claimed addresses of untagged interfaces.
+// claimed addresses of untagged interfaces — except the addresses VPP itself installed and owns
+// (TD-24): the lease of a DHCPv4 client is never desired state, so reporting it would make the next
+// reconcile delete it. The leases are read with ONE dhcp_client_dump per Retrieve (D-132), and only
+// when an interface of ours has an address at all.
 func (d *InterfaceAddrDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := dumpInterfaces(ctx, d.Client, d.Owner)
 	if err != nil {
 		return nil, err
 	}
 	svc := ip.NewServiceClient(d.Client)
+	var leases leaseAddrs // nil until the first address of ours is seen
 	var out []scheduler.KV
 	for _, in := range t.all {
 		if in.ID == "" && (!in.Untagged || d.Claims == nil) {
@@ -336,6 +344,14 @@ func (d *InterfaceAddrDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV,
 				if !ours {
 					continue
 				}
+				if leases == nil {
+					if leases, err = dumpLeaseAddrs(ctx, d.Client); err != nil {
+						return nil, err
+					}
+				}
+				if leases[in.Index][p] {
+					continue // VPP's DHCP client installed it: VPP-owned, never ours to delete
+				}
 				out = append(out, scheduler.KV{
 					Key:   InterfaceAddrKey(name, p),
 					Value: &InterfaceAddress{Interface: name, Prefix: p},
@@ -345,4 +361,55 @@ func (d *InterfaceAddrDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV,
 		}
 	}
 	return out, nil
+}
+
+// leaseAddrs holds, per sw_if_index, the interface addresses VPP's DHCPv4 client installed (canonical
+// "addr/len", as CanonAddrPrefix). VPP adds a lease with the ordinary interface-address call
+// (plugins/dhcp/client.c dhcp_client_acquire_address), so ip_address_dump cannot tell it from ours;
+// dhcp_client_dump reports exactly the installed lease (lease.host_address/mask_width =
+// client->installed, dhcp_api.c dhcp_client_lease_encode), and VPP removes it itself when the lease
+// ends or the client is deleted.
+type leaseAddrs map[uint32]map[string]bool
+
+// dumpLeaseAddrs reads every DHCPv4 client's installed lease with one dhcp_client_dump (D-132). A
+// client that is not bound (host address 0.0.0.0) has installed nothing; a VPP without the dhcp plugin
+// has no client at all (empty set). Any other error fails the Retrieve: without the lease list an
+// address cannot be classified, and reporting a lease as ours would delete it.
+func dumpLeaseAddrs(ctx context.Context, c vpp.Client) (leaseAddrs, error) {
+	out := leaseAddrs{}
+	stream, err := dhcp.NewServiceClient(c).DHCPClientDump(ctx, &dhcp.DHCPClientDump{})
+	if unknownMsg(err) {
+		return out, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("dhcp_client_dump: %w", err)
+	}
+	for {
+		det, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			return out, nil
+		}
+		if unknownMsg(err) {
+			return leaseAddrs{}, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("dhcp_client_dump: %w", err)
+		}
+		l := det.Lease
+		a := netip.AddrFrom4(l.HostAddress.Un.GetIP4())
+		if a.IsUnspecified() || l.MaskWidth > 32 {
+			continue
+		}
+		idx := uint32(det.Client.SwIfIndex)
+		if out[idx] == nil {
+			out[idx] = map[string]bool{}
+		}
+		out[idx][netip.PrefixFrom(a, int(l.MaskWidth)).String()] = true
+	}
+}
+
+// unknownMsg reports whether err says VPP does not know the message (its plugin is not loaded).
+func unknownMsg(err error) bool {
+	var unknown *adapter.UnknownMsgError
+	return errors.As(err, &unknown)
 }

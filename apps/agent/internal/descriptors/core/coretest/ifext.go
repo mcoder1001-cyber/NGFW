@@ -2,7 +2,7 @@ package coretest
 
 // P08 extension of the model: what the interfaces domain needs beyond P05's core — admin state,
 // per-protocol MTU, rx mode, MAC, promiscuous mode, af_packet host-interfaces, sub-interfaces and
-// an (empty) DHCP client table — so the agent's projection, Retrieve and restart paths run in unit
+// the DHCPv4 client (dhcp.go, TD-24) — so the agent's projection, Retrieve and restart paths run in unit
 // tests with DF-1's real descriptors. Values follow what the host VPP 26.06 reports (af_packet:
 // link MTU 9000, sw MTU 9000/0/0/0, rx mode interrupt; sub-interface MTU 0/0/0/0).
 
@@ -189,7 +189,7 @@ func (v *VPP) installIfExt() {
 		}
 		return out, nil
 	})
-	v.On("dhcp_client_dump", func(api.Message) ([]api.Message, error) { return nil, nil })
+	v.installDHCPClient() // TD-24: the DHCPv4 client and its lease (dhcp.go)
 }
 
 func itoa(n uint32) string {

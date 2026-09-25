@@ -8,7 +8,7 @@ The minimum set that proves the reconciler end to end. Values are the agent-inte
 | `vrf` | `vrf/<table id>` | `Table{id, vrf}` | `ip_table_add_del` (IPv4 + IPv6), `ip_table_dump` | table name `<owner>:<vrf name>` | rename → `ErrRecreate`; a missing family is re-added in place |
 | `interface.loopback` | `interface.loopback/loop<N>` | `Loopback{name, instance}` | `create_loopback_instance` (is_specified, user_instance N), `sw_interface_tag_add_del`, `delete_loopback`, `sw_interface_dump` | interface tag `<owner>:loop<N>` | instance change → `ErrRecreate` |
 | `interface-ip.table` | `interface-ip.table/<if>` | `InterfaceTable{interface, table_id}` | `sw_interface_set_table` (IPv4 + IPv6), `sw_interface_get_table` | the interface's tag | always `ErrRecreate` (VPP refuses a rebind while addresses exist; the scheduler removes and re-adds them around it) |
-| `interface-ip` | `interface-ip/<if>/<addr>/<len>` | `InterfaceAddress{interface, prefix}` | `sw_interface_add_del_address`, `ip_address_dump` | the interface's tag | value = key |
+| `interface-ip` | `interface-ip/<if>/<addr>/<len>` | `InterfaceAddress{interface, prefix}` | `sw_interface_add_del_address`, `ip_address_dump`, `dhcp_client_dump` (VPP-owned leases, TD-24) | the interface's tag | value = key |
 | `ip.route` | `ip.route/<table id>/<prefix>` | `Route{table_id, prefix, paths[], preference}` | `ip_route_add_del` (is_multipath=false: add replaces the path set, delete removes it), `ip_route_dump` | owner table `owned-<owner>.json` in the state dir (key added before create, removed after delete) | path set replaced in place |
 
 Dependencies: `interface-ip.table` → interface + `vrf/<id>`; `interface-ip` → interface (+ optional
@@ -45,6 +45,26 @@ route's administrative distance (0 when unset). Table 0 (`default`) is VPP's own
   flag and its `RegisterStaticSelector` belong to P08/P12 (+ contract change). A linux-nl route that FRR installs for a
   prefix the agent also programs makes our Create fail with `ErrRouteConflict` (plugin source `lcp-rt`) — the intended
   "never both" outcome.
+
+## VPP-owned addresses: DHCPv4 leases (TD-24)
+
+VPP's DHCPv4 client (`dhcp.client`, DF-8) installs its lease with the ordinary interface-address call, so
+`ip_address_dump` lists it next to our addresses. The lease is never desired state. If Retrieve reported it, the next
+reconcile or resync would delete it (F-kea review Q5). So `interface-ip` Retrieve leaves out, per sw_if_index, exactly
+the installed lease that `dhcp_client_dump` reports (`lease.host_address/mask_width`, which is VPP's `installed` copy).
+It reads that dump once per Retrieve, and only when an interface of ours has an address (D-132). An unbound client
+(host address `0.0.0.0`) excludes nothing. A failing dump fails the Retrieve instead of guessing. A VPP without the
+dhcp plugin has no leases. VPP removes the lease itself when the client is deleted, so a switch from `dhcpClient` to a
+static IPv4 equal to the old lease works in one commit, because deletes run first. A static IPv4 next to `dhcpClient`
+on the same interface is refused by F-kea's schema rule `interfaces.kea-dhcp-relay-dhcp-client-no-static`; a static
+equal to the lease would otherwise fail at apply (VPP `DUPLICATE_IF_ADDRESS`). Known gaps (TD-24-questions.md): a VRF
+change on a DHCP interface with a bound lease is refused by VPP (`ADDRESS_FOUND_FOR_INTERFACE`) until `dhcp.client`
+declares an optional dependency on `interface-ip.table/<if>`. IPv6 addresses VPP installs itself (SLAAC via
+`ip6_nd_address_autoconfig`, the DHCPv6 IA_NA client, `ip6_add_del_address_using_prefix`) have no dump in 26.06. No
+product path enables them today. The two dumps are not atomic, which leaves a narrow race that heals itself (TD-24
+review). A renewal to a new address can land between `ip_address_dump` and `dhcp_client_dump`. One Retrieve then
+reports the superseded address as ours. Its delete fails because VPP already removed it, that one transaction rolls
+back, and the next Retrieve is consistent. D-132 rules out dumping the leases first, unconditionally.
 
 ## Owner table recovery (L2)
 

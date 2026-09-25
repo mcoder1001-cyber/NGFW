@@ -49,6 +49,9 @@ import (
 //     DefaultValidateTimeout) and stops waiting when it passes; a checker is started with
 //     exec.CommandContext (or renderers.Command's Timeout) so it dies with ctx. A call that did not
 //     return in time is a finding; a panic is a finding too (its stack goes to the agent log).
+//   - Safe for concurrent use, like Retrieve: two DryRuns plan at the same time (Plan holds only
+//     the read side of the scheduler lock), and a call abandoned at its deadline may still be
+//     running when the next transaction's Create/Update/Delete run.
 //   - A non-nil error rejects the object. Wrap it with InvalidAt to name the offending leaf by its
 //     RFC 6901 pointer into the configuration document, when the value carries one.
 //   - No secrets in the error. A validator that resolves secret references (rfkit.Secrets) masks

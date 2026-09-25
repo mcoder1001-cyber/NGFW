@@ -65,6 +65,8 @@
 //   - bounded: it honours ctx, which carries a deadline (Scheduler.ValidateTimeout, default
 //     DefaultValidateTimeout = 30 s); the scheduler stops waiting at the deadline and a panic is
 //     recovered — both are findings;
+//   - safe for concurrent use with itself, Retrieve and (once abandoned at its deadline) the next
+//     transaction's operations;
 //   - its error names the offending leaf with InvalidAt(pointer, err) when the value carries a
 //     pointer, and never carries a secret: plaintexts it resolved are masked by the validator
 //     (rfkit.Redactor), and the scheduler masks the secret leaves of the value (RedactLeaves).

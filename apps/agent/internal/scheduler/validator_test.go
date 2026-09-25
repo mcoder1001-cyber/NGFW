@@ -199,10 +199,10 @@ func TestFailingValidatorLeavesVPPUntouched(t *testing.T) {
 
 	r := s.Apply(context.Background(), []scheduler.KV{loopKV("loop200"), d.kv("lan", "loop200", nil)}, nil)
 
+	mustNoVPPWrite(t, v)
 	if r.Outcome != scheduler.OutcomeFailed {
 		t.Fatalf("outcome %s, want FAILED: err %v, results %+v", r.Outcome, r.Err, r.Results)
 	}
-	mustNoVPPWrite(t, v)
 	if len(v.ifaces) != before {
 		t.Fatalf("VPP interfaces %d, want %d", len(v.ifaces), before)
 	}
@@ -322,6 +322,9 @@ func TestValidatorViewIsTheStateAfterAndReadOnly(t *testing.T) {
 		if _, ok := view.Get(scheduler.Join(daemonName, "old")); ok {
 			return errors.New("the view shows an object the transaction deletes")
 		}
+		if bv, ok := view.Get(scheduler.Join(daemonName, "b")); ok {
+			bv.(*structpb.Struct).Fields["listen"] = structpb.NewStringValue("evil")
+		}
 		value.(*structpb.Struct).Fields["listen"] = structpb.NewStringValue("evil")
 		return nil
 	})
@@ -335,10 +338,11 @@ func TestValidatorViewIsTheStateAfterAndReadOnly(t *testing.T) {
 		t.Fatal("the out-of-scope loopback is missing from the view")
 	}
 	d.mu.Lock()
-	got := field(d.conf["daemon.fake/a"], "listen").GetStringValue()
+	gotA := field(d.conf["daemon.fake/a"], "listen").GetStringValue()
+	gotB := field(d.conf["daemon.fake/b"], "listen").GetStringValue()
 	d.mu.Unlock()
-	if got != "loop200" {
-		t.Fatalf("the daemon received listen=%q: a validator changed what is applied", got)
+	if gotA != "loop200" || gotB != "" {
+		t.Fatalf("the daemon received listen=%q / %q: a validator changed what is applied", gotA, gotB)
 	}
 	actual, err := s.Retrieve(ctx, nil)
 	if err != nil {

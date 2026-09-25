@@ -44,8 +44,8 @@ export function fakeSession(p: Partial<NatSession>): NatSession {
     outsidePort: 1024,
     externalAddress: '10.1.2.2',
     externalPort: 80,
-    externalNatAddress: '10.1.2.2',
-    externalNatPort: 80,
+    externalNatAddress: '0.0.0.0', // VPP fills it only for twice-NAT sessions
+    externalNatPort: 0,
     protocol: 'tcp',
     vrf: 'default',
     tableId: 0,

@@ -62,30 +62,47 @@ func (p *Plugin) Users(ctx context.Context) ([]User, error) {
 // UserSessions returns one page (offset, limit) of the sessions of user; limit 0 means all.
 // The dump itself is per user, so the page size bounds what crosses the API.
 func (p *Plugin) UserSessions(ctx context.Context, user User, offset, limit int) ([]Session, error) {
+	var out []Session
+	i := 0
+	err := p.EachUserSession(ctx, user, func(s Session) bool {
+		defer func() { i++ }()
+		if i < offset {
+			return true
+		}
+		if limit > 0 && len(out) >= limit {
+			return false
+		}
+		out = append(out, s)
+		return true
+	})
+	return out, err
+}
+
+// EachUserSession streams the sessions of user to fn in VPP's order, one detail at a time (F-nat44-ed-sessions
+// review L4: a filtered scan keeps only its page, never a whole user's session list). fn returns false to stop
+// using the details; the stream is still drained to its control_ping_reply.
+func (p *Plugin) EachUserSession(ctx context.Context, user User, fn func(Session) bool) error {
 	ip, err := natcommon.IP4(user.IP)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	stream, err := p.svc.Nat44UserSessionV3Dump(ctx, &nat44_ed.Nat44UserSessionV3Dump{IPAddress: ip, VrfID: user.VRF})
 	if err != nil {
-		return nil, fmt.Errorf("nat44_user_session_v3_dump: %w", err)
+		return fmt.Errorf("nat44_user_session_v3_dump: %w", err)
 	}
-	var out []Session
-	for i := 0; ; i++ {
+	more := true
+	for {
 		d, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
-			return out, nil
+			return nil
 		}
 		if err != nil {
-			return nil, fmt.Errorf("nat44_user_session_v3_dump: %w", err)
+			return fmt.Errorf("nat44_user_session_v3_dump: %w", err)
 		}
-		if i < offset {
-			continue
-		}
-		if limit > 0 && len(out) >= limit {
+		if !more {
 			continue // keep draining: the stream must reach control_ping_reply
 		}
-		out = append(out, Session{
+		more = fn(Session{
 			Inside:     Endpoint{IP: natcommon.IP4String(d.InsideIPAddress), Port: uint32(d.InsidePort)},
 			Outside:    Endpoint{IP: natcommon.IP4String(d.OutsideIPAddress), Port: uint32(d.OutsidePort)},
 			ExtHost:    Endpoint{IP: natcommon.IP4String(d.ExtHostAddress), Port: uint32(d.ExtHostPort)},

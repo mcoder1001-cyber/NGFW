@@ -5400,9 +5400,12 @@ export interface NatSession {
   externalAddress: string;
   /** External host port. */
   externalPort: number;
-  /** External host after twice-NAT (equal to external_* without twice-NAT). */
+  /**
+   * External host after twice-NAT (as the inside host addresses it). VPP reports it only for twice-NAT
+   * sessions: "0.0.0.0" without twice-NAT.
+   */
   externalNatAddress: string;
-  /** External host port after twice-NAT. */
+  /** External host port after twice-NAT; 0 without twice-NAT. */
   externalNatPort: number;
   /** "tcp" | "udp" | "icmp" | the IP protocol number in decimal. */
   protocol: string;
@@ -5437,8 +5440,9 @@ export interface NatSessionsResponse {
   /** Sessions that match the filter (a lower bound when `truncated`). */
   totalSessions: string;
   /**
-   * The agent stopped counting at its scan cap; total_sessions is a lower bound and the page may be
-   * short. Only a filter on outside/external address, port or protocol scans sessions.
+   * A per-call cap stopped the agent (users dumped, sessions looked at): with a filter on outside/external
+   * address, port or protocol total_sessions is then a lower bound; either way the page may be
+   * short — continue at next_offset.
    */
   truncated: boolean;
   /** The owner whose view was returned. */
@@ -5491,11 +5495,14 @@ export interface NatSummaryResponse {
   pools: NatPoolUsage[];
   /** Session count per protocol name ("tcp", "udp", "icmp", or the number in decimal). */
   sessionsByProtocol: { [key: string]: string };
-  /** The per-pool and per-protocol counts stopped at the agent's scan cap (lower bounds). */
+  /**
+   * The per-pool and per-protocol counts stopped at the agent's per-call caps (users dumped, sessions
+   * looked at): they are lower bounds. The user / session / static totals are always complete.
+   */
   truncated: boolean;
   /** The owner whose view was returned. */
   owner: string;
-  /** When the dump was taken (agent clock). */
+  /** When the summary was computed (agent clock); the agent serves one computation for up to 30 s. */
   retrievedAt: Date | undefined;
 }
 
@@ -5515,9 +5522,12 @@ export interface NatSessionKillAction {
   insideAddress: string;
   /** Inside L4 port (ICMP: identifier). */
   insidePort: number;
-  /** External (remote) host IPv4 address. */
+  /**
+   * External (remote) host IPv4 address as the inside host addresses it: the session's i2o flow, which
+   * nat44_del_session looks up — external_nat_address of a twice-NAT session, external_address otherwise.
+   */
   externalAddress: string;
-  /** External host port. */
+  /** External host port as the inside host addresses it (external_nat_port of a twice-NAT session). */
   externalPort: number;
   /** Inside VRF name; "" = "default" (a decimal string is a raw table id). */
   vrf: string;
@@ -44731,7 +44741,10 @@ export const DataplaneService = {
     responseSerialize: (value: NatSessionsResponse): Buffer => Buffer.from(NatSessionsResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): NatSessionsResponse => NatSessionsResponse.decode(value),
   },
-  /** NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only). */
+  /**
+   * NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only; served from a
+   * cache of up to 30 s, see retrieved_at).
+   */
   natSummary: {
     path: "/vrx.v1.Dataplane/NatSummary" as const,
     requestStream: false as const,
@@ -44793,7 +44806,10 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * sessions, never the whole table (docs/contracts/proto.md §11).
    */
   natSessions: handleUnaryCall<NatSessionsRequest, NatSessionsResponse>;
-  /** NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only). */
+  /**
+   * NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only; served from a
+   * cache of up to 30 s, see retrieved_at).
+   */
   natSummary: handleUnaryCall<NatSummaryRequest, NatSummaryResponse>;
 }
 
@@ -44946,7 +44962,10 @@ export interface DataplaneClient extends Client {
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: NatSessionsResponse) => void,
   ): ClientUnaryCall;
-  /** NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only). */
+  /**
+   * NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only; served from a
+   * cache of up to 30 s, see retrieved_at).
+   */
   natSummary(
     request: NatSummaryRequest,
     callback: (error: ServiceError | null, response: NatSummaryResponse) => void,

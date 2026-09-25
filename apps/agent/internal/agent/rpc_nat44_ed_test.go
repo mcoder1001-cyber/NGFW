@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -278,5 +279,76 @@ func TestNatSessionsSummaryKillOverGRPC(t *testing.T) {
 	}
 	if grpcCode(err) != codes.Unimplemented {
 		t.Fatalf("ping: %v", err)
+	}
+}
+
+// Review H1: NatSummary is served from a per-agent cache for natSummaryTTL (single flight), and one computation visits
+// at most MaxSummaryUserDumps users; NatSessions with a session-level filter visits at most MaxUserDumps users.
+func TestNatSummaryCacheAndCaps(t *testing.T) {
+	v := coretest.New()
+	n := v.Nat44ED()
+	n.NatEnable()
+	s := newSvc(t, v, t.TempDir())
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "c1", DesiredState: doc(t, strings.Replace(natIfDoc, "%s", natPart, 1))}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	for u := 0; u < 300; u++ { // 300 inside hosts, one session each
+		h := 256 + 10 + u
+		n.AddNatSession(0, 6, "10.7."+strconv.Itoa(h/256)+"."+strconv.Itoa(h%256), 10000, "10.7.2.100", uint16(20000+u), "10.7.2.2", 80) //nolint:gosec // test data
+	}
+	clock := time.Date(2026, 9, 24, 20, 0, 0, 0, time.UTC)
+	s.now = func() time.Time { return clock }
+	ctx := context.Background()
+	counts := func() (users, sessions int) {
+		n.Lock()
+		defer n.Unlock()
+		return len(v.CallsNamed("nat44_user_dump")), n.SessionDumps
+	}
+
+	u0, d0 := counts()
+	first, err := s.NatSummary(ctx, &vrxv1.NatSummaryRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	u1, d1 := counts()
+	if first.GetTotalSessions() != 300 || first.GetTotalUsers() != 300 || !first.GetTruncated() || u1-u0 != 1 || d1-d0 != natSummaryCaps.UserDumps {
+		t.Fatalf("first summary: sessions %d users %d truncated %v, %d user dumps, %d session dumps (cap %d)", first.GetTotalSessions(), first.GetTotalUsers(), first.GetTruncated(), u1-u0, d1-d0, natSummaryCaps.UserDumps)
+	}
+	// within the TTL: the cached snapshot, no VPP call at all, same retrieved_at
+	clock = clock.Add(natSummaryTTL - time.Second)
+	n.AddNatSession(0, 6, "10.7.1.9", 1, "10.7.2.100", 1, "10.7.2.2", 80)
+	again, err := s.NatSummary(ctx, &vrxv1.NatSummaryRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u2, d2 := counts(); u2 != u1 || d2 != d1 || !proto.Equal(again, first) {
+		t.Fatalf("cached summary asked VPP again (%d/%d user dumps, %d/%d session dumps) or changed", u1, u2, d1, d2)
+	}
+	// concurrent callers share one computation (single flight)
+	clock = clock.Add(2 * time.Second) // expired
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if r, err := s.NatSummary(ctx, &vrxv1.NatSummaryRequest{}); err != nil || r.GetTotalSessions() != 301 {
+				t.Errorf("concurrent summary %v %v", err, r.GetTotalSessions())
+			}
+		}()
+	}
+	wg.Wait()
+	if u3, d3 := counts(); u3-u1 != 1 || d3-d1 != natSummaryCaps.UserDumps {
+		t.Fatalf("8 concurrent callers after the TTL: %d user dumps, %d session dumps (want 1 and %d)", u3-u1, d3-d1, natSummaryCaps.UserDumps)
+	}
+	if r, _ := s.NatSummary(ctx, &vrxv1.NatSummaryRequest{}); !r.GetRetrievedAt().AsTime().Equal(clock) {
+		t.Fatalf("retrieved_at %v, want the refresh time %v", r.GetRetrievedAt().AsTime(), clock)
+	}
+
+	// NatSessions with a session-level filter: at most MaxUserDumps users per call, truncated
+	_, d4 := counts()
+	r, err := s.NatSessions(ctx, &vrxv1.NatSessionsRequest{Filter: &vrxv1.NatSessionFilter{Port: proto.Uint32(80)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, d5 := counts(); d5-d4 != natCaps.UserDumps || !r.GetTruncated() || len(r.GetSessions()) != 100 {
+		t.Fatalf("filtered NatSessions: %d session dumps (cap %d), truncated %v, %d sessions", d5-d4, natCaps.UserDumps, r.GetTruncated(), len(r.GetSessions()))
 	}
 }

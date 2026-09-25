@@ -6,8 +6,13 @@
 // Paging (never the whole table): VPP dumps sessions per user (inside host). List reads the user dump (one small
 // row per user, with its session counts), keeps this owner's users, sorts them by (table, address) and — without a
 // session-level filter — skips whole users by their counts and dumps only the users that cover the page. A filter on
-// the outside / external address, a port or the protocol has to look at sessions: users are dumped one at a time, only
-// the page is kept, and the scan stops at a cap (Truncated: the totals are lower bounds).
+// the outside / external address, a port or the protocol has to look at sessions: users are dumped one at a time and
+// their sessions streamed, only the page is kept.
+//
+// Bounded VPP cost (review H1): every nat44_user_session_v3_dump walks the worker's WHOLE session pool under the
+// worker barrier (the nat44-ed API handlers are not mp-safe), so one call visits at most Caps.UserDumps users
+// (MaxUserDumps for a page, MaxSummaryUserDumps for the summary's breakdown) and looks at most Caps.ScanCap sessions;
+// hitting either sets Truncated. The user / session / static totals always come from the single nat44_user_dump.
 package nat44edsessions
 
 import (
@@ -23,13 +28,34 @@ import (
 	"ngfw/agent/internal/descriptors/natcommon"
 )
 
-// Limits of one page (proto: limit 0 = 100, more than 1000 is INVALID_ARGUMENT).
+// Limits of one call (proto: limit 0 = 100, more than 1000 is INVALID_ARGUMENT).
 const (
 	DefaultLimit = 100
 	MaxLimit     = 1000
 	// DefaultScanCap bounds the sessions a filtered List or a Summary looks at.
 	DefaultScanCap = 200_000
+	// MaxUserDumps bounds the per-user session dumps (each one a walk of the worker's whole session pool under the
+	// barrier) of one NatSessions call.
+	MaxUserDumps = 256
+	// MaxSummaryUserDumps bounds the per-user dumps of one NatSummary breakdown (per pool / per protocol).
+	MaxSummaryUserDumps = 64
 )
+
+// Caps bound one call's VPP work; zero fields take the defaults (DefaultScanCap, MaxUserDumps).
+type Caps struct {
+	ScanCap   int // sessions looked at
+	UserDumps int // nat44_user_session_v3_dump calls
+}
+
+func (c Caps) withDefaults(userDumps int) Caps {
+	if c.ScanCap <= 0 {
+		c.ScanCap = DefaultScanCap
+	}
+	if c.UserDumps <= 0 {
+		c.UserDumps = userDumps
+	}
+	return c
+}
 
 // ErrInvalid marks a request error (the RPC answers INVALID_ARGUMENT).
 var ErrInvalid = errors.New("invalid request")
@@ -42,6 +68,7 @@ func invalid(format string, a ...any) error {
 type Source interface {
 	Users(ctx context.Context) ([]nat44ed.User, error)
 	UserSessions(ctx context.Context, user nat44ed.User, offset, limit int) ([]nat44ed.Session, error)
+	EachUserSession(ctx context.Context, user nat44ed.User, fn func(nat44ed.Session) bool) error
 }
 
 // Filter narrows List; zero fields match everything.
@@ -126,20 +153,37 @@ type Page struct {
 	Next          *uint32 // offset of the next page; nil on the last page
 	TotalUsers    uint64
 	TotalSessions uint64
-	Truncated     bool
+	// Truncated: a cap stopped the call (Caps). With a session-level filter TotalSessions is then a lower bound; either
+	// way the page may be short — continue at Next.
+	Truncated bool
 }
 
-// ownUsers returns this owner's users that the filter selects, in table order (table id, then address).
+// ownUsers returns this owner's users that the filter selects, in table order (table id, then address). Rows of one
+// (VRF, address) are merged and their counts summed: on a multi-worker VPP nat44_user_dump reports a user once per
+// worker (review L2).
 func ownUsers(ctx context.Context, src Source, scope natcommon.Scope, f Filter) ([]nat44ed.User, error) {
 	all, err := src.Users(ctx)
 	if err != nil {
 		return nil, err
 	}
+	type key struct {
+		vrf uint32
+		ip  string
+	}
+	at := map[key]int{}
 	var out []nat44ed.User
 	for _, u := range all {
-		if scope.OwnsAddrString(u.IP) && f.matchUser(u) {
-			out = append(out, u)
+		if !scope.OwnsAddrString(u.IP) || !f.matchUser(u) {
+			continue
 		}
+		k := key{u.VRF, u.IP}
+		if i, dup := at[k]; dup {
+			out[i].Sessions += u.Sessions
+			out[i].StaticSessions += u.StaticSessions
+			continue
+		}
+		at[k] = len(out)
+		out = append(out, u)
 	}
 	sort.Slice(out, func(a, b int) bool {
 		if out[a].VRF != out[b].VRF {
@@ -152,46 +196,52 @@ func ownUsers(ctx context.Context, src Source, scope natcommon.Scope, f Filter) 
 	return out, nil
 }
 
-// List returns one page (offset, limit) of the owner's sessions that match f. limit must be 1..MaxLimit; scanCap
-// bounds the sessions a filtered scan looks at (0 = DefaultScanCap).
-func List(ctx context.Context, src Source, scope natcommon.Scope, f Filter, offset, limit, scanCap int) (Page, error) {
+// List returns one page (offset, limit) of the owner's sessions that match f. limit must be 1..MaxLimit; caps bound
+// the VPP work of the call (zero = defaults, MaxUserDumps).
+func List(ctx context.Context, src Source, scope natcommon.Scope, f Filter, offset, limit int, caps Caps) (Page, error) {
 	if limit < 1 || limit > MaxLimit {
 		return Page{}, invalid("limit %d outside 1–%d", limit, MaxLimit)
 	}
 	if offset < 0 {
 		return Page{}, invalid("offset %d is negative", offset)
 	}
-	if scanCap <= 0 {
-		scanCap = DefaultScanCap
-	}
+	caps = caps.withDefaults(MaxUserDumps)
 	users, err := ownUsers(ctx, src, scope, f)
 	if err != nil {
 		return Page{}, err
 	}
 	p := Page{TotalUsers: uint64(len(users))}
 	if !f.scansSessions() {
-		return listByCounts(ctx, src, users, offset, limit, p)
+		return listByCounts(ctx, src, users, offset, limit, caps, p)
 	}
-	matched, scanned := 0, 0
+	matched, scanned, dumps := 0, 0, 0
+	dumped := map[string]bool{} // the dump matches the address only: one dump per address (review L2)
 	for _, u := range users {
-		if scanned >= scanCap {
+		if dumped[u.IP] {
+			continue
+		}
+		if scanned >= caps.ScanCap || dumps >= caps.UserDumps {
 			p.Truncated = true
 			break
 		}
-		ss, err := src.UserSessions(ctx, u, 0, 0)
+		dumped[u.IP] = true
+		dumps++
+		err := src.EachUserSession(ctx, u, func(s nat44ed.Session) bool {
+			scanned++
+			if f.matchSession(s) {
+				if matched >= offset && len(p.Rows) < limit {
+					p.Rows = append(p.Rows, Row{Session: s, VRF: u.VRF})
+				}
+				matched++
+			}
+			return scanned < caps.ScanCap
+		})
 		if err != nil {
 			return Page{}, err
 		}
-		scanned += len(ss)
-		for _, s := range ss {
-			if !f.matchSession(s) {
-				continue
-			}
-			if matched >= offset && len(p.Rows) < limit {
-				p.Rows = append(p.Rows, Row{Session: s, VRF: u.VRF})
-			}
-			matched++
-		}
+	}
+	if scanned >= caps.ScanCap {
+		p.Truncated = true
 	}
 	p.TotalSessions = uint64(matched) //nolint:gosec // a count
 	if end := offset + len(p.Rows); end < matched || (p.Truncated && len(p.Rows) == limit) {
@@ -201,24 +251,36 @@ func List(ctx context.Context, src Source, scope natcommon.Scope, f Filter, offs
 	return p, nil
 }
 
-// listByCounts pages by the users' session counts: whole users before offset are skipped without a dump.
-func listByCounts(ctx context.Context, src Source, users []nat44ed.User, offset, limit int, p Page) (Page, error) {
+// listByCounts pages by the users' session counts: whole users before offset are skipped without a dump, and at
+// most count − skip rows are taken from one user's dump. The dump matches the address only (review L2), so the users
+// that share an address (overlapping tenant addresses in several VRFs) partition that address's dump in user order:
+// a user starts at the counts of the earlier users of its address — no session is shown twice; which VRF a row
+// belongs to cannot be told from the dump (docs/vpp-code-track.md V-new). At most caps.UserDumps users are dumped.
+func listByCounts(ctx context.Context, src Source, users []nat44ed.User, offset, limit int, caps Caps, p Page) (Page, error) {
 	var total int
 	for _, u := range users {
 		total += int(u.Sessions + u.StaticSessions)
 	}
 	p.TotalSessions = uint64(total) //nolint:gosec // a count
-	skip := offset
+	skip, dumps := offset, 0
+	before := map[string]int{} // address → sessions of the earlier users of that address
 	for _, u := range users {
+		n := int(u.Sessions + u.StaticSessions)
+		base := before[u.IP]
+		before[u.IP] += n
 		if len(p.Rows) >= limit {
 			break
 		}
-		n := int(u.Sessions + u.StaticSessions)
 		if skip >= n {
 			skip -= n
 			continue
 		}
-		ss, err := src.UserSessions(ctx, u, skip, limit-len(p.Rows))
+		if dumps >= caps.UserDumps {
+			p.Truncated = true
+			break
+		}
+		dumps++
+		ss, err := src.UserSessions(ctx, u, base+skip, min(limit-len(p.Rows), n-skip))
 		if err != nil {
 			return Page{}, err
 		}

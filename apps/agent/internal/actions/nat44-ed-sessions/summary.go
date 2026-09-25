@@ -71,11 +71,10 @@ func RunningConfig(ctx context.Context, c vpp.Client) (enabled bool, sessions ui
 }
 
 // Summarize counts the owner's users and sessions (from the user dump) and, in one capped scan, the sessions per
-// pool (by outside address) and per protocol.
-func Summarize(ctx context.Context, src Source, scope natcommon.Scope, pools []Pool, scanCap int) (Summary, error) {
-	if scanCap <= 0 {
-		scanCap = DefaultScanCap
-	}
+// pool (by outside address) and per protocol. The scan visits at most caps.UserDumps users (zero: MaxSummaryUserDumps)
+// and caps.ScanCap sessions; hitting either sets Truncated (the breakdown is then a lower bound, the totals are not).
+func Summarize(ctx context.Context, src Source, scope natcommon.Scope, pools []Pool, caps Caps) (Summary, error) {
+	caps = caps.withDefaults(MaxSummaryUserDumps)
 	users, err := ownUsers(ctx, src, scope, Filter{})
 	if err != nil {
 		return Summary{}, err
@@ -85,30 +84,37 @@ func Summarize(ctx context.Context, src Source, scope natcommon.Scope, pools []P
 		sum.TotalSessions += uint64(u.Sessions + u.StaticSessions)
 		sum.StaticSessions += uint64(u.StaticSessions)
 	}
-	scanned := 0
+	scanned, dumps := 0, 0
+	dumped := map[string]bool{} // the dump matches the address only: one dump per address (review L2)
 	for _, u := range users {
-		if scanned >= scanCap {
+		if dumped[u.IP] {
+			continue
+		}
+		if scanned >= caps.ScanCap || dumps >= caps.UserDumps {
 			sum.Truncated = true
 			break
 		}
-		ss, err := src.UserSessions(ctx, u, 0, 0)
+		dumped[u.IP] = true
+		dumps++
+		err := src.EachUserSession(ctx, u, func(s nat44ed.Session) bool {
+			scanned++
+			sum.ByProtocol[s.Protocol]++
+			if out, err := netip.ParseAddr(s.Outside.IP); err == nil {
+				for i, p := range pools {
+					if p.contains(out) {
+						sum.PoolSessions[i]++
+						break
+					}
+				}
+			}
+			return scanned < caps.ScanCap
+		})
 		if err != nil {
 			return Summary{}, err
 		}
-		scanned += len(ss)
-		for _, s := range ss {
-			sum.ByProtocol[s.Protocol]++
-			out, err := netip.ParseAddr(s.Outside.IP)
-			if err != nil {
-				continue
-			}
-			for i, p := range pools {
-				if p.contains(out) {
-					sum.PoolSessions[i]++
-					break
-				}
-			}
-		}
+	}
+	if scanned >= caps.ScanCap {
+		sum.Truncated = true
 	}
 	return sum, nil
 }

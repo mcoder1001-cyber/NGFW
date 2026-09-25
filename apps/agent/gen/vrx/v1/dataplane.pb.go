@@ -15590,9 +15590,10 @@ type NatSession struct {
 	ExternalAddress string `protobuf:"bytes,5,opt,name=external_address,json=externalAddress,proto3" json:"external_address,omitempty"`
 	// External host port.
 	ExternalPort uint32 `protobuf:"varint,6,opt,name=external_port,json=externalPort,proto3" json:"external_port,omitempty"`
-	// External host after twice-NAT (equal to external_* without twice-NAT).
+	// External host after twice-NAT (as the inside host addresses it). VPP reports it only for twice-NAT
+	// sessions: "0.0.0.0" without twice-NAT.
 	ExternalNatAddress string `protobuf:"bytes,7,opt,name=external_nat_address,json=externalNatAddress,proto3" json:"external_nat_address,omitempty"`
-	// External host port after twice-NAT.
+	// External host port after twice-NAT; 0 without twice-NAT.
 	ExternalNatPort uint32 `protobuf:"varint,8,opt,name=external_nat_port,json=externalNatPort,proto3" json:"external_nat_port,omitempty"`
 	// "tcp" | "udp" | "icmp" | the IP protocol number in decimal.
 	Protocol string `protobuf:"bytes,9,opt,name=protocol,proto3" json:"protocol,omitempty"`
@@ -15776,8 +15777,9 @@ type NatSessionsResponse struct {
 	TotalUsers uint64 `protobuf:"varint,3,opt,name=total_users,json=totalUsers,proto3" json:"total_users,omitempty"`
 	// Sessions that match the filter (a lower bound when `truncated`).
 	TotalSessions uint64 `protobuf:"varint,4,opt,name=total_sessions,json=totalSessions,proto3" json:"total_sessions,omitempty"`
-	// The agent stopped counting at its scan cap; total_sessions is a lower bound and the page may be
-	// short. Only a filter on outside/external address, port or protocol scans sessions.
+	// A per-call cap stopped the agent (users dumped, sessions looked at): with a filter on outside/external
+	// address, port or protocol total_sessions is then a lower bound; either way the page may be
+	// short — continue at next_offset.
 	Truncated bool `protobuf:"varint,5,opt,name=truncated,proto3" json:"truncated,omitempty"`
 	// The owner whose view was returned.
 	Owner string `protobuf:"bytes,6,opt,name=owner,proto3" json:"owner,omitempty"`
@@ -16038,11 +16040,12 @@ type NatSummaryResponse struct {
 	Pools []*NatPoolUsage `protobuf:"bytes,6,rep,name=pools,proto3" json:"pools,omitempty"`
 	// Session count per protocol name ("tcp", "udp", "icmp", or the number in decimal).
 	SessionsByProtocol map[string]uint64 `protobuf:"bytes,7,rep,name=sessions_by_protocol,json=sessionsByProtocol,proto3" json:"sessions_by_protocol,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	// The per-pool and per-protocol counts stopped at the agent's scan cap (lower bounds).
+	// The per-pool and per-protocol counts stopped at the agent's per-call caps (users dumped, sessions
+	// looked at): they are lower bounds. The user / session / static totals are always complete.
 	Truncated bool `protobuf:"varint,8,opt,name=truncated,proto3" json:"truncated,omitempty"`
 	// The owner whose view was returned.
 	Owner string `protobuf:"bytes,9,opt,name=owner,proto3" json:"owner,omitempty"`
-	// When the dump was taken (agent clock).
+	// When the summary was computed (agent clock); the agent serves one computation for up to 30 s.
 	RetrievedAt   *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=retrieved_at,json=retrievedAt,proto3" json:"retrieved_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -16158,9 +16161,10 @@ type NatSessionKillAction struct {
 	InsideAddress string `protobuf:"bytes,2,opt,name=inside_address,json=insideAddress,proto3" json:"inside_address,omitempty"`
 	// Inside L4 port (ICMP: identifier).
 	InsidePort uint32 `protobuf:"varint,3,opt,name=inside_port,json=insidePort,proto3" json:"inside_port,omitempty"`
-	// External (remote) host IPv4 address.
+	// External (remote) host IPv4 address as the inside host addresses it: the session's i2o flow, which
+	// nat44_del_session looks up — external_nat_address of a twice-NAT session, external_address otherwise.
 	ExternalAddress string `protobuf:"bytes,4,opt,name=external_address,json=externalAddress,proto3" json:"external_address,omitempty"`
-	// External host port.
+	// External host port as the inside host addresses it (external_nat_port of a twice-NAT session).
 	ExternalPort uint32 `protobuf:"varint,5,opt,name=external_port,json=externalPort,proto3" json:"external_port,omitempty"`
 	// Inside VRF name; "" = "default" (a decimal string is a raw table id).
 	Vrf string `protobuf:"bytes,6,opt,name=vrf,proto3" json:"vrf,omitempty"`

@@ -10,10 +10,13 @@ import (
 	"errors"
 	"net/netip"
 	"sort"
+	"sync"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
@@ -24,8 +27,26 @@ import (
 	"ngfw/agent/internal/vpp"
 )
 
-// natScanCap bounds the sessions one filtered NatSessions or one NatSummary looks at (tests lower it).
-var natScanCap = natsessions.DefaultScanCap
+// natCaps / natSummaryCaps bound the VPP work of one NatSessions / NatSummary call (review H1: every per-user dump
+// walks the worker's whole session pool under the barrier); tests lower them. Zero fields are the package defaults.
+var (
+	natCaps        = natsessions.Caps{ScanCap: natsessions.DefaultScanCap, UserDumps: natsessions.MaxUserDumps}
+	natSummaryCaps = natsessions.Caps{ScanCap: natsessions.DefaultScanCap, UserDumps: natsessions.MaxSummaryUserDumps}
+)
+
+// natSummaryTTL is how long the agent serves a computed NatSummary before it asks VPP again (review H1): however many
+// browsers poll, VPP sees at most one summary scan per TTL. retrieved_at tells the caller how old it is.
+var natSummaryTTL = 30 * time.Second
+
+// natSummaryCache is the per-Service summary cache behind a single flight: the mutex is held while one caller
+// computes, so concurrent callers wait and then share its result. (Service is A5 core; the cache lives here.)
+type natSummaryCache struct {
+	mu   sync.Mutex
+	at   time.Time
+	resp *vrxv1.NatSummaryResponse
+}
+
+var natSummaryCaches sync.Map // *Service → *natSummaryCache
 
 func (g *server) NatSessions(ctx context.Context, req *vrxv1.NatSessionsRequest) (*vrxv1.NatSessionsResponse, error) {
 	return g.svc.NatSessions(ctx, req)
@@ -119,7 +140,7 @@ func (s *Service) NatSessions(ctx context.Context, req *vrxv1.NatSessionsRequest
 	if err != nil {
 		return nil, natErr("filter", err)
 	}
-	page, err := natsessions.List(ctx, nat44ed.New(s.vpp, s.owner), natcommon.ScopeFor(s.owner), f, int(req.GetOffset()), limit, natScanCap)
+	page, err := natsessions.List(ctx, nat44ed.New(s.vpp, s.owner), natcommon.ScopeFor(s.owner), f, int(req.GetOffset()), limit, natCaps)
 	if err != nil {
 		return nil, natErr("nat sessions", err)
 	}
@@ -182,11 +203,28 @@ func (s *Service) natPools(ctx context.Context) ([]natsessions.Pool, error) {
 	return out, nil
 }
 
-// NatSummary implements the NatSummary RPC.
+// NatSummary implements the NatSummary RPC from the per-Service cache (natSummaryTTL, single flight).
 func (s *Service) NatSummary(ctx context.Context, req *vrxv1.NatSummaryRequest) (*vrxv1.NatSummaryResponse, error) {
 	if err := s.natReady(req.GetOwner()); err != nil {
 		return nil, err
 	}
+	c, _ := natSummaryCaches.LoadOrStore(s, &natSummaryCache{})
+	cache := c.(*natSummaryCache)
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if now := s.now(); cache.resp != nil && now.Sub(cache.at) >= 0 && now.Sub(cache.at) < natSummaryTTL {
+		return proto.Clone(cache.resp).(*vrxv1.NatSummaryResponse), nil
+	}
+	resp, err := s.natSummary(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cache.at, cache.resp = s.now(), resp
+	return proto.Clone(resp).(*vrxv1.NatSummaryResponse), nil
+}
+
+// natSummary computes one summary: the running config, the user dump totals and the capped per-pool breakdown.
+func (s *Service) natSummary(ctx context.Context) (*vrxv1.NatSummaryResponse, error) {
 	enabled, limit, err := natsessions.RunningConfig(ctx, s.vpp)
 	if err != nil {
 		return nil, natErr("nat summary", err)
@@ -199,7 +237,7 @@ func (s *Service) NatSummary(ctx context.Context, req *vrxv1.NatSummaryRequest) 
 	if err != nil {
 		return nil, natErr("nat pools", err)
 	}
-	sum, err := natsessions.Summarize(ctx, nat44ed.New(s.vpp, s.owner), natcommon.ScopeFor(s.owner), pools, natScanCap)
+	sum, err := natsessions.Summarize(ctx, nat44ed.New(s.vpp, s.owner), natcommon.ScopeFor(s.owner), pools, natSummaryCaps)
 	if err != nil {
 		return nil, natErr("nat summary", err)
 	}

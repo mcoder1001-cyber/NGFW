@@ -78,3 +78,21 @@ before the D-128 message; NRestarts stayed 1 → 1). Removed (commit below): the
 `vppctl show nat44 sessions filter i2o saddr 10.4.1.2 filter i2o sport 80` (the static session `o2i 10.4.2.110:8080`,
 `external host 10.4.2.2:41001`, "static translation") and the same row in `GET /state/nat/sessions` (`static: true`),
 next to the tcpdump in the lan netns. The trace excerpt in the status file is from run 5 and marked as such.
+
+## Fix round 1 (review 0ee338e, D-129)
+- D-129 noted: Q2 all four out-of-anchor edits kept (the coretest `extensions` seam = A6, one copy at merge); Q3 (c)
+  kept, (d) is the manager's tech-debt row; Q4 goes to a later task; Q7 the manager adds `tx off` in `tools/lab rig up`
+  (my test's two `ethtool` lines can go then). L5: no rebase by me.
+- **Q11 (info): the API e2e was not run this round.** Slot 4 (`vrx_w4`) now belongs to F-nat44-ei, and the e2e
+  global setup creates and DROPS the slot database — running it would destroy that task's database. No other slot was
+  assigned for this round, so the API side is covered by its unit tests (vitest, no DB) plus the agent and web tests;
+  the e2e file is updated (`pageSize=257` is the new bad value) and runs unchanged on a free slot.
+- **Q12 (tech debt, review L3):** the RPCs still build `nat44ed.New(s.vpp, s.owner)` per call (read-only helpers,
+  never touch claims) because `Service` has no Wiring handle (A5). When A5 gets a seam, expose the registered plugin as
+  `Wiring.Nat44ED()` from `subsystems/nat44_ed.go` and use it. L4 is done (streaming `EachUserSession`, a gap-only DF-3
+  helper).
+- **Q13 (merge note): main's ci.sh vs the branch's old deploy/vpp harness.** The gate with main's ci.sh fails only in the
+  apply-startup harness step. The branch's pre-D-103 `deploy/vpp/test-apply-startup.sh` has no `VRX_TEST_SHARD`, so
+  main's ci.sh runs four full copies of it in parallel, and they collide on scenarios 24 and 26. Serially, the same copy
+  passes 101/101. The file is not mine, and the L5 rebase replaces it with main's copy. After the rebase the step runs
+  main's sharded harness and should pass.

@@ -85,7 +85,8 @@ service Dataplane {
   // the users that cover the requested page: one response carries at most `limit` (≤ 1000)
   // sessions, never the whole table (docs/contracts/proto.md §11).
   rpc NatSessions(NatSessionsRequest) returns (NatSessionsResponse);
-  // NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only).
+  // NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only; served from a
+  // cache of up to 30 s, see retrieved_at).
   rpc NatSummary(NatSummaryRequest) returns (NatSummaryResponse);
 
   // wave-A: F-nat44-ei-64-66-nptv6
@@ -3514,9 +3515,10 @@ message NatSession {
   string external_address = 5;
   // External host port.
   uint32 external_port = 6;
-  // External host after twice-NAT (equal to external_* without twice-NAT).
+  // External host after twice-NAT (as the inside host addresses it). VPP reports it only for twice-NAT
+  // sessions: "0.0.0.0" without twice-NAT.
   string external_nat_address = 7;
-  // External host port after twice-NAT.
+  // External host port after twice-NAT; 0 without twice-NAT.
   uint32 external_nat_port = 8;
   // "tcp" | "udp" | "icmp" | the IP protocol number in decimal.
   string protocol = 9;
@@ -3548,8 +3550,9 @@ message NatSessionsResponse {
   uint64 total_users = 3;
   // Sessions that match the filter (a lower bound when `truncated`).
   uint64 total_sessions = 4;
-  // The agent stopped counting at its scan cap; total_sessions is a lower bound and the page may be
-  // short. Only a filter on outside/external address, port or protocol scans sessions.
+  // A per-call cap stopped the agent (users dumped, sessions looked at): with a filter on outside/external
+  // address, port or protocol total_sessions is then a lower bound; either way the page may be
+  // short — continue at next_offset.
   bool truncated = 5;
   // The owner whose view was returned.
   string owner = 6;
@@ -3599,11 +3602,12 @@ message NatSummaryResponse {
   repeated NatPoolUsage pools = 6;
   // Session count per protocol name ("tcp", "udp", "icmp", or the number in decimal).
   map<string, uint64> sessions_by_protocol = 7;
-  // The per-pool and per-protocol counts stopped at the agent's scan cap (lower bounds).
+  // The per-pool and per-protocol counts stopped at the agent's per-call caps (users dumped, sessions
+  // looked at): they are lower bounds. The user / session / static totals are always complete.
   bool truncated = 8;
   // The owner whose view was returned.
   string owner = 9;
-  // When the dump was taken (agent clock).
+  // When the summary was computed (agent clock); the agent serves one computation for up to 30 s.
   google.protobuf.Timestamp retrieved_at = 10;
 }
 
@@ -3616,9 +3620,10 @@ message NatSessionKillAction {
   string inside_address = 2;
   // Inside L4 port (ICMP: identifier).
   uint32 inside_port = 3;
-  // External (remote) host IPv4 address.
+  // External (remote) host IPv4 address as the inside host addresses it: the session's i2o flow, which
+  // nat44_del_session looks up — external_nat_address of a twice-NAT session, external_address otherwise.
   string external_address = 4;
-  // External host port.
+  // External host port as the inside host addresses it (external_nat_port of a twice-NAT session).
   uint32 external_port = 5;
   // Inside VRF name; "" = "default" (a decimal string is a raw table id).
   string vrf = 6;

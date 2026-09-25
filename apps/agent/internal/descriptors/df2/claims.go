@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"ngfw/agent/internal/descriptors/kit"
 	"os"
-	"path/filepath"
 	"sort"
 	"sync"
 
@@ -239,30 +239,9 @@ func (s *FileClaimStore) save() error {
 	return WriteFileAtomic(s.path, data)
 }
 
-// WriteFileAtomic writes data to path through a temp file + rename in the same directory.
+// WriteFileAtomic is kit.WriteFileAtomic (file and directory fsync; TD-16) with mode 0600.
 func WriteFileAtomic(path string, data []byte) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o750); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(dir, ".df2-*.json")
-	if err != nil {
-		return err
-	}
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmp.Name())
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmp.Name())
-		return err
-	}
-	if err := os.Rename(tmp.Name(), path); err != nil {
-		_ = os.Remove(tmp.Name())
-		return err
-	}
-	return nil
+	return kit.WriteFileAtomic(path, data, 0o600)
 }
 
 // Named is any desired object attached to an interface by name.

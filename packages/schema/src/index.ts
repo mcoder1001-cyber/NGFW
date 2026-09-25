@@ -90,6 +90,7 @@ export * from './domains/ext/lisp.js';
 // wave-A: P12
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
+export * from './domains/ext/host-stack.js'; // F-host-stack (unanchored)
 export * from './primitives.js';
 export * from './ip.js';
 export * from './ui.js';

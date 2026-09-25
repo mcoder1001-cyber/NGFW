@@ -33,6 +33,7 @@ import (
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dhcp"
+	"ngfw/agent/internal/descriptors/hoststack"
 	"ngfw/agent/internal/descriptors/ikev2"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/ipsec"
@@ -114,7 +115,8 @@ var Domains = map[string][]string{
 	// wave-BC: F-host-stack
 	// wave-BC: F-snmp
 	// wave-BC: F-ipfix-sflow
-	"services": ipfixSflowDescriptors, // other services families: extend ipfixSflowDescriptors' slice here
+	"services": append(append([]string{}, ipfixSflowDescriptors...), // other services families: extend ipfixSflowDescriptors' slice here
+		hoststack.NameSession, hoststack.NameNamespace, hoststack.NameSessionRule, hoststack.NameTCPSrc, hoststack.NameHTTPStatic), // F-host-stack
 	// wave-BC: F-lisp
 	Tunnels: {
 		lisp.EnableName, lisp.GpeEnableName, lisp.LocatorSetName, lisp.LocatorName, lisp.LocalEidName,
@@ -268,6 +270,10 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
+	hoststack.Register(r, c, owner, hoststack.WithBootStore(w.boot), hoststack.WithGlobalsOwner(env.GlobalsOwner)) // F-host-stack (unanchored)
+	if env.GlobalsOwner {
+		hoststack.RegisterGlobals(r, c, hoststack.WithBootStore(w.boot)) // F-host-stack: D-071 session layer, opt-in http_static
+	}
 	// wave-BC: F-ipfix-sflow (unanchored)
 	if err := registerIpfixSflow(r, w); err != nil {
 		return nil, err

@@ -2172,7 +2172,11 @@ export interface ServicesConfig {
     | NtpService
     | undefined;
   /** QoS: policers, shapers, marking maps, interface attachments (D-052). */
-  qos: QosService | undefined;
+  qos:
+    | QosService
+    | undefined;
+  /** VPP host stack: session layer, app namespaces, session rules, TCP source addresses, http_static (F-host-stack). */
+  hostStack: HostStackService | undefined;
 }
 
 /** SocketAddress is an `{ address, port }` pair (listen sockets, collectors). */
@@ -5276,6 +5280,161 @@ export interface RemoteAccessProfile_Radius_Server {
     | undefined;
   /** Reference to the shared secret. */
   secretRef?: string | undefined;
+}
+
+/** HostStackService is `services.hostStack` (F-host-stack, D-085): the API-configurable part of VPP's host stack. */
+export interface HostStackService {
+  /** Required state of the session layer (rule-table engine); set only by the globals owner (D-071). */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Application namespaces by id. */
+  namespaces: { [key: string]: HostStackNamespace };
+  /** Session rules (the host-stack "firewall"), each with a unique tag. */
+  sessionRules: HostStackSessionRule[];
+  /** TCP source-address pool of one VRF (write-only in VPP, no delete). */
+  tcpSourceAddresses:
+    | HostStackTcpSource
+    | undefined;
+  /** http_static server (agent opt-in only, cannot be disabled via the API). */
+  httpStatic: HostStackHttpStatic | undefined;
+}
+
+export interface HostStackService_NamespacesEntry {
+  key: string;
+  value: HostStackNamespace | undefined;
+}
+
+/** HostStackNamespace is one application namespace. */
+export interface HostStackNamespace {
+  /** Namespace secret as a `key/<name>` reference (D-051); refused until the secret channel exists. */
+  secretRef?:
+    | string
+    | undefined;
+  /** VPP interface the namespace is bound to. */
+  interface?:
+    | string
+    | undefined;
+  /** VRF (ip4/ip6 fib). */
+  vrf?: string | undefined;
+}
+
+/** HostStackSessionRule is one session rule. */
+export interface HostStackSessionRule {
+  /** Unique tag (the agent prefixes its owner in VPP). */
+  tag?:
+    | string
+    | undefined;
+  /** "global" | "local". */
+  scope?:
+    | string
+    | undefined;
+  /** "tcp" | "udp". */
+  transport?:
+    | string
+    | undefined;
+  /** Local prefix (canonical CIDR). */
+  local?:
+    | string
+    | undefined;
+  /** Local port; unset = any. */
+  localPort?:
+    | number
+    | undefined;
+  /** Remote prefix (canonical CIDR, same family). */
+  remote?:
+    | string
+    | undefined;
+  /** Remote port; unset = any. */
+  remotePort?:
+    | number
+    | undefined;
+  /** "allow" | "deny" | "redirect". */
+  action?:
+    | string
+    | undefined;
+  /** App index for action redirect. */
+  redirectAppIndex?:
+    | number
+    | undefined;
+  /** App namespace id; unset = default namespace. */
+  appNamespace?: string | undefined;
+}
+
+/** HostStackTcpSource is the TCP source-address pool of one VRF. */
+export interface HostStackTcpSource {
+  /** First address. */
+  first?:
+    | string
+    | undefined;
+  /** Last address. */
+  last?:
+    | string
+    | undefined;
+  /** VRF. */
+  vrf?: string | undefined;
+}
+
+/** HostStackHttpStatic is the http_static server. */
+export interface HostStackHttpStatic {
+  /** Enabled. */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Web root, under /var/lib/vrx/www/. */
+  wwwRootPath?:
+    | string
+    | undefined;
+  /** Listen URI, e.g. tcp://0.0.0.0/80. */
+  uri?:
+    | string
+    | undefined;
+  /** Cache size in MiB. */
+  cacheSizeMb?: number | undefined;
+}
+
+/** HostStackStateRequest asks for the host-stack snapshot. */
+export interface HostStackStateRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+}
+
+/** HostStackRuleState is one session rule as VPP reports it (this owner's tags only). */
+export interface HostStackRuleState {
+  /** Tag without the owner prefix. */
+  tag: string;
+  /** "global" | "local" | "both". */
+  scope: string;
+  /** "tcp" | "udp" | other VPP transport names. */
+  transport: string;
+  /** Local prefix. */
+  local: string;
+  /** Local port (0 = any). */
+  localPort: number;
+  /** Remote prefix. */
+  remote: string;
+  /** Remote port (0 = any). */
+  remotePort: number;
+  /** "allow" | "deny" | "redirect". */
+  action: string;
+  /** VPP app namespace indexes the rule applies to. */
+  appnsIndexes: number[];
+}
+
+/** HostStackStateResponse is one host-stack snapshot. */
+export interface HostStackStateResponse {
+  /** Session layer answered the rules dump (VPP has no getter; true when the dump works). */
+  sessionEnabled: boolean;
+  /** Why session_enabled is false or unknown (e.g. "session layer disabled"), empty otherwise. */
+  sessionDetail: string;
+  /** App namespaces this agent applied on the running VPP (write-only in VPP: from the agent's records). */
+  namespaces: string[];
+  /** This owner's session rules. */
+  rules: HostStackRuleState[];
+  /** Number of session rules in VPP (all owners). */
+  ruleCountTotal: number;
+  /** Snapshot time. */
+  retrievedAt: Date | undefined;
 }
 
 /** IpfixStateRequest asks for the flow-export state. */
@@ -18556,6 +18715,7 @@ function createBaseServicesConfig(): ServicesConfig {
     ipfix: undefined,
     ntp: undefined,
     qos: undefined,
+    hostStack: undefined,
   };
 }
 
@@ -18581,6 +18741,9 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
     }
     if (message.qos !== undefined) {
       QosService.encode(message.qos, writer.uint32(58).fork()).join();
+    }
+    if (message.hostStack !== undefined) {
+      HostStackService.encode(message.hostStack, writer.uint32(82).fork()).join();
     }
     return writer;
   },
@@ -18654,6 +18817,14 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
             message.qos = QosService.decode(reader, reader.uint32());
             continue;
           }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.hostStack = HostStackService.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -18675,6 +18846,11 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
       ipfix: isSet(object.ipfix) ? IpfixService.fromJSON(object.ipfix) : undefined,
       ntp: isSet(object.ntp) ? NtpService.fromJSON(object.ntp) : undefined,
       qos: isSet(object.qos) ? QosService.fromJSON(object.qos) : undefined,
+      hostStack: isSet(object.hostStack)
+        ? HostStackService.fromJSON(object.hostStack)
+        : isSet(object.host_stack)
+        ? HostStackService.fromJSON(object.host_stack)
+        : undefined,
     };
   },
 
@@ -18701,6 +18877,9 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
     if (message.qos !== undefined) {
       obj.qos = QosService.toJSON(message.qos);
     }
+    if (message.hostStack !== undefined) {
+      obj.hostStack = HostStackService.toJSON(message.hostStack);
+    }
     return obj;
   },
 
@@ -18724,6 +18903,9 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
       : undefined;
     message.ntp = (object.ntp !== undefined && object.ntp !== null) ? NtpService.fromPartial(object.ntp) : undefined;
     message.qos = (object.qos !== undefined && object.qos !== null) ? QosService.fromPartial(object.qos) : undefined;
+    message.hostStack = (object.hostStack !== undefined && object.hostStack !== null)
+      ? HostStackService.fromPartial(object.hostStack)
+      : undefined;
     return message;
   },
 };
@@ -42936,6 +43118,1317 @@ export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_R
   },
 };
 
+function createBaseHostStackService(): HostStackService {
+  return { enabled: undefined, namespaces: {}, sessionRules: [], tcpSourceAddresses: undefined, httpStatic: undefined };
+}
+
+export const HostStackService: MessageFns<HostStackService> = {
+  encode(message: HostStackService, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    globalThis.Object.entries(message.namespaces).forEach(([key, value]: [string, HostStackNamespace]) => {
+      HostStackService_NamespacesEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
+    });
+    for (const v of message.sessionRules) {
+      HostStackSessionRule.encode(v!, writer.uint32(26).fork()).join();
+    }
+    if (message.tcpSourceAddresses !== undefined) {
+      HostStackTcpSource.encode(message.tcpSourceAddresses, writer.uint32(34).fork()).join();
+    }
+    if (message.httpStatic !== undefined) {
+      HostStackHttpStatic.encode(message.httpStatic, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostStackService {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostStackService();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            const entry2 = HostStackService_NamespacesEntry.decode(reader, reader.uint32());
+            if (entry2.value !== undefined) {
+              message.namespaces[entry2.key] = entry2.value;
+            }
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.sessionRules.push(HostStackSessionRule.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.tcpSourceAddresses = HostStackTcpSource.decode(reader, reader.uint32());
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.httpStatic = HostStackHttpStatic.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostStackService {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      namespaces: isObject(object.namespaces)
+        ? (globalThis.Object.entries(object.namespaces) as [string, any][]).reduce(
+          (acc: { [key: string]: HostStackNamespace }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: HostStackNamespace.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      sessionRules: globalThis.Array.isArray(object?.sessionRules)
+        ? object.sessionRules.map((e: any) => HostStackSessionRule.fromJSON(e))
+        : globalThis.Array.isArray(object?.session_rules)
+        ? object.session_rules.map((e: any) => HostStackSessionRule.fromJSON(e))
+        : [],
+      tcpSourceAddresses: isSet(object.tcpSourceAddresses)
+        ? HostStackTcpSource.fromJSON(object.tcpSourceAddresses)
+        : isSet(object.tcp_source_addresses)
+        ? HostStackTcpSource.fromJSON(object.tcp_source_addresses)
+        : undefined,
+      httpStatic: isSet(object.httpStatic)
+        ? HostStackHttpStatic.fromJSON(object.httpStatic)
+        : isSet(object.http_static)
+        ? HostStackHttpStatic.fromJSON(object.http_static)
+        : undefined,
+    };
+  },
+
+  toJSON(message: HostStackService): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.namespaces) {
+      const entries = globalThis.Object.entries(message.namespaces) as [string, HostStackNamespace][];
+      if (entries.length > 0) {
+        obj.namespaces = {};
+        entries.forEach(([k, v]) => {
+          obj.namespaces[k] = HostStackNamespace.toJSON(v);
+        });
+      }
+    }
+    if (message.sessionRules?.length) {
+      obj.sessionRules = message.sessionRules.map((e) => HostStackSessionRule.toJSON(e));
+    }
+    if (message.tcpSourceAddresses !== undefined) {
+      obj.tcpSourceAddresses = HostStackTcpSource.toJSON(message.tcpSourceAddresses);
+    }
+    if (message.httpStatic !== undefined) {
+      obj.httpStatic = HostStackHttpStatic.toJSON(message.httpStatic);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostStackService>): HostStackService {
+    return HostStackService.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostStackService>): HostStackService {
+    const message = createBaseHostStackService();
+    message.enabled = object.enabled ?? undefined;
+    message.namespaces = (globalThis.Object.entries(object.namespaces ?? {}) as [string, HostStackNamespace][]).reduce(
+      (acc: { [key: string]: HostStackNamespace }, [key, value]: [string, HostStackNamespace]) => {
+        if (value !== undefined) {
+          acc[key] = HostStackNamespace.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.sessionRules = object.sessionRules?.map((e) => HostStackSessionRule.fromPartial(e)) || [];
+    message.tcpSourceAddresses = (object.tcpSourceAddresses !== undefined && object.tcpSourceAddresses !== null)
+      ? HostStackTcpSource.fromPartial(object.tcpSourceAddresses)
+      : undefined;
+    message.httpStatic = (object.httpStatic !== undefined && object.httpStatic !== null)
+      ? HostStackHttpStatic.fromPartial(object.httpStatic)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseHostStackService_NamespacesEntry(): HostStackService_NamespacesEntry {
+  return { key: "", value: undefined };
+}
+
+export const HostStackService_NamespacesEntry: MessageFns<HostStackService_NamespacesEntry> = {
+  encode(message: HostStackService_NamespacesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      HostStackNamespace.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostStackService_NamespacesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostStackService_NamespacesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = HostStackNamespace.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostStackService_NamespacesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? HostStackNamespace.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: HostStackService_NamespacesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = HostStackNamespace.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostStackService_NamespacesEntry>): HostStackService_NamespacesEntry {
+    return HostStackService_NamespacesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostStackService_NamespacesEntry>): HostStackService_NamespacesEntry {
+    const message = createBaseHostStackService_NamespacesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? HostStackNamespace.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseHostStackNamespace(): HostStackNamespace {
+  return { secretRef: undefined, interface: undefined, vrf: undefined };
+}
+
+export const HostStackNamespace: MessageFns<HostStackNamespace> = {
+  encode(message: HostStackNamespace, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.secretRef !== undefined) {
+      writer.uint32(10).string(message.secretRef);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(18).string(message.interface);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(26).string(message.vrf);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostStackNamespace {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostStackNamespace();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.secretRef = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostStackNamespace {
+    return {
+      secretRef: isSet(object.secretRef)
+        ? globalThis.String(object.secretRef)
+        : isSet(object.secret_ref)
+        ? globalThis.String(object.secret_ref)
+        : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+    };
+  },
+
+  toJSON(message: HostStackNamespace): unknown {
+    const obj: any = {};
+    if (message.secretRef !== undefined) {
+      obj.secretRef = message.secretRef;
+    }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostStackNamespace>): HostStackNamespace {
+    return HostStackNamespace.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostStackNamespace>): HostStackNamespace {
+    const message = createBaseHostStackNamespace();
+    message.secretRef = object.secretRef ?? undefined;
+    message.interface = object.interface ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    return message;
+  },
+};
+
+function createBaseHostStackSessionRule(): HostStackSessionRule {
+  return {
+    tag: undefined,
+    scope: undefined,
+    transport: undefined,
+    local: undefined,
+    localPort: undefined,
+    remote: undefined,
+    remotePort: undefined,
+    action: undefined,
+    redirectAppIndex: undefined,
+    appNamespace: undefined,
+  };
+}
+
+export const HostStackSessionRule: MessageFns<HostStackSessionRule> = {
+  encode(message: HostStackSessionRule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.tag !== undefined) {
+      writer.uint32(10).string(message.tag);
+    }
+    if (message.scope !== undefined) {
+      writer.uint32(18).string(message.scope);
+    }
+    if (message.transport !== undefined) {
+      writer.uint32(26).string(message.transport);
+    }
+    if (message.local !== undefined) {
+      writer.uint32(34).string(message.local);
+    }
+    if (message.localPort !== undefined) {
+      writer.uint32(40).uint32(message.localPort);
+    }
+    if (message.remote !== undefined) {
+      writer.uint32(50).string(message.remote);
+    }
+    if (message.remotePort !== undefined) {
+      writer.uint32(56).uint32(message.remotePort);
+    }
+    if (message.action !== undefined) {
+      writer.uint32(66).string(message.action);
+    }
+    if (message.redirectAppIndex !== undefined) {
+      writer.uint32(72).uint32(message.redirectAppIndex);
+    }
+    if (message.appNamespace !== undefined) {
+      writer.uint32(82).string(message.appNamespace);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostStackSessionRule {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostStackSessionRule();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.tag = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.scope = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.transport = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.local = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.localPort = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.remote = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.remotePort = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.action = reader.string();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.redirectAppIndex = reader.uint32();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.appNamespace = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostStackSessionRule {
+    return {
+      tag: isSet(object.tag) ? globalThis.String(object.tag) : undefined,
+      scope: isSet(object.scope) ? globalThis.String(object.scope) : undefined,
+      transport: isSet(object.transport) ? globalThis.String(object.transport) : undefined,
+      local: isSet(object.local) ? globalThis.String(object.local) : undefined,
+      localPort: isSet(object.localPort)
+        ? globalThis.Number(object.localPort)
+        : isSet(object.local_port)
+        ? globalThis.Number(object.local_port)
+        : undefined,
+      remote: isSet(object.remote) ? globalThis.String(object.remote) : undefined,
+      remotePort: isSet(object.remotePort)
+        ? globalThis.Number(object.remotePort)
+        : isSet(object.remote_port)
+        ? globalThis.Number(object.remote_port)
+        : undefined,
+      action: isSet(object.action) ? globalThis.String(object.action) : undefined,
+      redirectAppIndex: isSet(object.redirectAppIndex)
+        ? globalThis.Number(object.redirectAppIndex)
+        : isSet(object.redirect_app_index)
+        ? globalThis.Number(object.redirect_app_index)
+        : undefined,
+      appNamespace: isSet(object.appNamespace)
+        ? globalThis.String(object.appNamespace)
+        : isSet(object.app_namespace)
+        ? globalThis.String(object.app_namespace)
+        : undefined,
+    };
+  },
+
+  toJSON(message: HostStackSessionRule): unknown {
+    const obj: any = {};
+    if (message.tag !== undefined) {
+      obj.tag = message.tag;
+    }
+    if (message.scope !== undefined) {
+      obj.scope = message.scope;
+    }
+    if (message.transport !== undefined) {
+      obj.transport = message.transport;
+    }
+    if (message.local !== undefined) {
+      obj.local = message.local;
+    }
+    if (message.localPort !== undefined) {
+      obj.localPort = Math.round(message.localPort);
+    }
+    if (message.remote !== undefined) {
+      obj.remote = message.remote;
+    }
+    if (message.remotePort !== undefined) {
+      obj.remotePort = Math.round(message.remotePort);
+    }
+    if (message.action !== undefined) {
+      obj.action = message.action;
+    }
+    if (message.redirectAppIndex !== undefined) {
+      obj.redirectAppIndex = Math.round(message.redirectAppIndex);
+    }
+    if (message.appNamespace !== undefined) {
+      obj.appNamespace = message.appNamespace;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostStackSessionRule>): HostStackSessionRule {
+    return HostStackSessionRule.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostStackSessionRule>): HostStackSessionRule {
+    const message = createBaseHostStackSessionRule();
+    message.tag = object.tag ?? undefined;
+    message.scope = object.scope ?? undefined;
+    message.transport = object.transport ?? undefined;
+    message.local = object.local ?? undefined;
+    message.localPort = object.localPort ?? undefined;
+    message.remote = object.remote ?? undefined;
+    message.remotePort = object.remotePort ?? undefined;
+    message.action = object.action ?? undefined;
+    message.redirectAppIndex = object.redirectAppIndex ?? undefined;
+    message.appNamespace = object.appNamespace ?? undefined;
+    return message;
+  },
+};
+
+function createBaseHostStackTcpSource(): HostStackTcpSource {
+  return { first: undefined, last: undefined, vrf: undefined };
+}
+
+export const HostStackTcpSource: MessageFns<HostStackTcpSource> = {
+  encode(message: HostStackTcpSource, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.first !== undefined) {
+      writer.uint32(10).string(message.first);
+    }
+    if (message.last !== undefined) {
+      writer.uint32(18).string(message.last);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(26).string(message.vrf);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostStackTcpSource {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostStackTcpSource();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.first = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.last = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostStackTcpSource {
+    return {
+      first: isSet(object.first) ? globalThis.String(object.first) : undefined,
+      last: isSet(object.last) ? globalThis.String(object.last) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+    };
+  },
+
+  toJSON(message: HostStackTcpSource): unknown {
+    const obj: any = {};
+    if (message.first !== undefined) {
+      obj.first = message.first;
+    }
+    if (message.last !== undefined) {
+      obj.last = message.last;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostStackTcpSource>): HostStackTcpSource {
+    return HostStackTcpSource.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostStackTcpSource>): HostStackTcpSource {
+    const message = createBaseHostStackTcpSource();
+    message.first = object.first ?? undefined;
+    message.last = object.last ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    return message;
+  },
+};
+
+function createBaseHostStackHttpStatic(): HostStackHttpStatic {
+  return { enabled: undefined, wwwRootPath: undefined, uri: undefined, cacheSizeMb: undefined };
+}
+
+export const HostStackHttpStatic: MessageFns<HostStackHttpStatic> = {
+  encode(message: HostStackHttpStatic, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    if (message.wwwRootPath !== undefined) {
+      writer.uint32(18).string(message.wwwRootPath);
+    }
+    if (message.uri !== undefined) {
+      writer.uint32(26).string(message.uri);
+    }
+    if (message.cacheSizeMb !== undefined) {
+      writer.uint32(32).uint32(message.cacheSizeMb);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostStackHttpStatic {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostStackHttpStatic();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.wwwRootPath = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.uri = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.cacheSizeMb = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostStackHttpStatic {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      wwwRootPath: isSet(object.wwwRootPath)
+        ? globalThis.String(object.wwwRootPath)
+        : isSet(object.www_root_path)
+        ? globalThis.String(object.www_root_path)
+        : undefined,
+      uri: isSet(object.uri) ? globalThis.String(object.uri) : undefined,
+      cacheSizeMb: isSet(object.cacheSizeMb)
+        ? globalThis.Number(object.cacheSizeMb)
+        : isSet(object.cache_size_mb)
+        ? globalThis.Number(object.cache_size_mb)
+        : undefined,
+    };
+  },
+
+  toJSON(message: HostStackHttpStatic): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.wwwRootPath !== undefined) {
+      obj.wwwRootPath = message.wwwRootPath;
+    }
+    if (message.uri !== undefined) {
+      obj.uri = message.uri;
+    }
+    if (message.cacheSizeMb !== undefined) {
+      obj.cacheSizeMb = Math.round(message.cacheSizeMb);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostStackHttpStatic>): HostStackHttpStatic {
+    return HostStackHttpStatic.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostStackHttpStatic>): HostStackHttpStatic {
+    const message = createBaseHostStackHttpStatic();
+    message.enabled = object.enabled ?? undefined;
+    message.wwwRootPath = object.wwwRootPath ?? undefined;
+    message.uri = object.uri ?? undefined;
+    message.cacheSizeMb = object.cacheSizeMb ?? undefined;
+    return message;
+  },
+};
+
+function createBaseHostStackStateRequest(): HostStackStateRequest {
+  return { owner: "" };
+}
+
+export const HostStackStateRequest: MessageFns<HostStackStateRequest> = {
+  encode(message: HostStackStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostStackStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostStackStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostStackStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: HostStackStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostStackStateRequest>): HostStackStateRequest {
+    return HostStackStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostStackStateRequest>): HostStackStateRequest {
+    const message = createBaseHostStackStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseHostStackRuleState(): HostStackRuleState {
+  return {
+    tag: "",
+    scope: "",
+    transport: "",
+    local: "",
+    localPort: 0,
+    remote: "",
+    remotePort: 0,
+    action: "",
+    appnsIndexes: [],
+  };
+}
+
+export const HostStackRuleState: MessageFns<HostStackRuleState> = {
+  encode(message: HostStackRuleState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.tag !== "") {
+      writer.uint32(10).string(message.tag);
+    }
+    if (message.scope !== "") {
+      writer.uint32(18).string(message.scope);
+    }
+    if (message.transport !== "") {
+      writer.uint32(26).string(message.transport);
+    }
+    if (message.local !== "") {
+      writer.uint32(34).string(message.local);
+    }
+    if (message.localPort !== 0) {
+      writer.uint32(40).uint32(message.localPort);
+    }
+    if (message.remote !== "") {
+      writer.uint32(50).string(message.remote);
+    }
+    if (message.remotePort !== 0) {
+      writer.uint32(56).uint32(message.remotePort);
+    }
+    if (message.action !== "") {
+      writer.uint32(66).string(message.action);
+    }
+    writer.uint32(74).fork();
+    for (const v of message.appnsIndexes) {
+      writer.uint32(v);
+    }
+    writer.join();
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostStackRuleState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostStackRuleState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.tag = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.scope = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.transport = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.local = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.localPort = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.remote = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.remotePort = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.action = reader.string();
+            continue;
+          }
+          case 9: {
+            if (tag === 72) {
+              message.appnsIndexes.push(reader.uint32());
+
+              continue;
+            }
+
+            if (tag === 74) {
+              const end2 = reader.uint32() + reader.pos;
+              while (reader.pos < end2) {
+                message.appnsIndexes.push(reader.uint32());
+              }
+
+              continue;
+            }
+
+            break;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostStackRuleState {
+    return {
+      tag: isSet(object.tag) ? globalThis.String(object.tag) : "",
+      scope: isSet(object.scope) ? globalThis.String(object.scope) : "",
+      transport: isSet(object.transport) ? globalThis.String(object.transport) : "",
+      local: isSet(object.local) ? globalThis.String(object.local) : "",
+      localPort: isSet(object.localPort)
+        ? globalThis.Number(object.localPort)
+        : isSet(object.local_port)
+        ? globalThis.Number(object.local_port)
+        : 0,
+      remote: isSet(object.remote) ? globalThis.String(object.remote) : "",
+      remotePort: isSet(object.remotePort)
+        ? globalThis.Number(object.remotePort)
+        : isSet(object.remote_port)
+        ? globalThis.Number(object.remote_port)
+        : 0,
+      action: isSet(object.action) ? globalThis.String(object.action) : "",
+      appnsIndexes: globalThis.Array.isArray(object?.appnsIndexes)
+        ? object.appnsIndexes.map((e: any) => globalThis.Number(e))
+        : globalThis.Array.isArray(object?.appns_indexes)
+        ? object.appns_indexes.map((e: any) => globalThis.Number(e))
+        : [],
+    };
+  },
+
+  toJSON(message: HostStackRuleState): unknown {
+    const obj: any = {};
+    if (message.tag !== "") {
+      obj.tag = message.tag;
+    }
+    if (message.scope !== "") {
+      obj.scope = message.scope;
+    }
+    if (message.transport !== "") {
+      obj.transport = message.transport;
+    }
+    if (message.local !== "") {
+      obj.local = message.local;
+    }
+    if (message.localPort !== 0) {
+      obj.localPort = Math.round(message.localPort);
+    }
+    if (message.remote !== "") {
+      obj.remote = message.remote;
+    }
+    if (message.remotePort !== 0) {
+      obj.remotePort = Math.round(message.remotePort);
+    }
+    if (message.action !== "") {
+      obj.action = message.action;
+    }
+    if (message.appnsIndexes?.length) {
+      obj.appnsIndexes = message.appnsIndexes.map((e) => Math.round(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostStackRuleState>): HostStackRuleState {
+    return HostStackRuleState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostStackRuleState>): HostStackRuleState {
+    const message = createBaseHostStackRuleState();
+    message.tag = object.tag ?? "";
+    message.scope = object.scope ?? "";
+    message.transport = object.transport ?? "";
+    message.local = object.local ?? "";
+    message.localPort = object.localPort ?? 0;
+    message.remote = object.remote ?? "";
+    message.remotePort = object.remotePort ?? 0;
+    message.action = object.action ?? "";
+    message.appnsIndexes = object.appnsIndexes?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseHostStackStateResponse(): HostStackStateResponse {
+  return {
+    sessionEnabled: false,
+    sessionDetail: "",
+    namespaces: [],
+    rules: [],
+    ruleCountTotal: 0,
+    retrievedAt: undefined,
+  };
+}
+
+export const HostStackStateResponse: MessageFns<HostStackStateResponse> = {
+  encode(message: HostStackStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.sessionEnabled !== false) {
+      writer.uint32(8).bool(message.sessionEnabled);
+    }
+    if (message.sessionDetail !== "") {
+      writer.uint32(18).string(message.sessionDetail);
+    }
+    for (const v of message.namespaces) {
+      writer.uint32(26).string(v!);
+    }
+    for (const v of message.rules) {
+      HostStackRuleState.encode(v!, writer.uint32(34).fork()).join();
+    }
+    if (message.ruleCountTotal !== 0) {
+      writer.uint32(40).uint32(message.ruleCountTotal);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(50).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostStackStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostStackStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.sessionEnabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.sessionDetail = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.namespaces.push(reader.string());
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.rules.push(HostStackRuleState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.ruleCountTotal = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostStackStateResponse {
+    return {
+      sessionEnabled: isSet(object.sessionEnabled)
+        ? globalThis.Boolean(object.sessionEnabled)
+        : isSet(object.session_enabled)
+        ? globalThis.Boolean(object.session_enabled)
+        : false,
+      sessionDetail: isSet(object.sessionDetail)
+        ? globalThis.String(object.sessionDetail)
+        : isSet(object.session_detail)
+        ? globalThis.String(object.session_detail)
+        : "",
+      namespaces: globalThis.Array.isArray(object?.namespaces)
+        ? object.namespaces.map((e: any) => globalThis.String(e))
+        : [],
+      rules: globalThis.Array.isArray(object?.rules)
+        ? object.rules.map((e: any) => HostStackRuleState.fromJSON(e))
+        : [],
+      ruleCountTotal: isSet(object.ruleCountTotal)
+        ? globalThis.Number(object.ruleCountTotal)
+        : isSet(object.rule_count_total)
+        ? globalThis.Number(object.rule_count_total)
+        : 0,
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: HostStackStateResponse): unknown {
+    const obj: any = {};
+    if (message.sessionEnabled !== false) {
+      obj.sessionEnabled = message.sessionEnabled;
+    }
+    if (message.sessionDetail !== "") {
+      obj.sessionDetail = message.sessionDetail;
+    }
+    if (message.namespaces?.length) {
+      obj.namespaces = message.namespaces;
+    }
+    if (message.rules?.length) {
+      obj.rules = message.rules.map((e) => HostStackRuleState.toJSON(e));
+    }
+    if (message.ruleCountTotal !== 0) {
+      obj.ruleCountTotal = Math.round(message.ruleCountTotal);
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostStackStateResponse>): HostStackStateResponse {
+    return HostStackStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostStackStateResponse>): HostStackStateResponse {
+    const message = createBaseHostStackStateResponse();
+    message.sessionEnabled = object.sessionEnabled ?? false;
+    message.sessionDetail = object.sessionDetail ?? "";
+    message.namespaces = object.namespaces?.map((e) => e) || [];
+    message.rules = object.rules?.map((e) => HostStackRuleState.fromPartial(e)) || [];
+    message.ruleCountTotal = object.ruleCountTotal ?? 0;
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
 function createBaseIpfixStateRequest(): IpfixStateRequest {
   return { owner: "" };
 }
@@ -46639,6 +48132,21 @@ export const DataplaneService = {
     responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
   },
   /**
+   * HostStackState reports the host stack as VPP sees it: session layer on/off (read-only probe),
+   * this owner's session rules (from session_rules_v2_dump) and the app namespaces it applied. Never mutates.
+   */
+  hostStackState: {
+    path: "/vrx.v1.Dataplane/HostStackState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: HostStackStateRequest): Buffer =>
+      Buffer.from(HostStackStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): HostStackStateRequest => HostStackStateRequest.decode(value),
+    responseSerialize: (value: HostStackStateResponse): Buffer =>
+      Buffer.from(HostStackStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): HostStackStateResponse => HostStackStateResponse.decode(value),
+  },
+  /**
    * IpfixState reports the live flow-export state (F-ipfix-sflow): IPFIX exporters from Retrieve
    * (exporter 0 read-only when this agent is not the globals owner), flowprobe and sFlow interfaces
    * of this owner, the VPP-global flowprobe/sFlow parameters and the sFlow node counters from the
@@ -46711,6 +48219,11 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
    */
   interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
+  /**
+   * HostStackState reports the host stack as VPP sees it: session layer on/off (read-only probe),
+   * this owner's session rules (from session_rules_v2_dump) and the app namespaces it applied. Never mutates.
+   */
+  hostStackState: handleUnaryCall<HostStackStateRequest, HostStackStateResponse>;
   /**
    * IpfixState reports the live flow-export state (F-ipfix-sflow): IPFIX exporters from Retrieve
    * (exporter 0 read-only when this agent is not the globals owner), flowprobe and sFlow interfaces
@@ -46852,6 +48365,25 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * HostStackState reports the host stack as VPP sees it: session layer on/off (read-only probe),
+   * this owner's session rules (from session_rules_v2_dump) and the app namespaces it applied. Never mutates.
+   */
+  hostStackState(
+    request: HostStackStateRequest,
+    callback: (error: ServiceError | null, response: HostStackStateResponse) => void,
+  ): ClientUnaryCall;
+  hostStackState(
+    request: HostStackStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: HostStackStateResponse) => void,
+  ): ClientUnaryCall;
+  hostStackState(
+    request: HostStackStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: HostStackStateResponse) => void,
   ): ClientUnaryCall;
   /**
    * IpfixState reports the live flow-export state (F-ipfix-sflow): IPFIX exporters from Retrieve

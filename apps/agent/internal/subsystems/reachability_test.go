@@ -70,6 +70,7 @@ var descriptorReach = map[string]reachEntry{
 	"gtpu":                {pending, "F-tunnels"},
 	"igmp":                {pending, "F-igmp-mfib"},
 	"ikev2":               {pending, "F-ikev2-native"},
+	"hoststack":           {wired, "F-host-stack"},
 	"interface":           {wired, "P08"},
 	"ip6_nd":              {pending, "F-neighbors-ra"},
 	"ip_neighbor":         {pending, "F-neighbors-ra"},

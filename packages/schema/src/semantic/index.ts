@@ -44,6 +44,7 @@ import { lispValidators } from './lisp.js';
 // wave-A: P12
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
+import { hostStackValidators } from './host-stack.js'; // F-host-stack (unanchored)
 // wave-BC: F-ipfix-sflow (unanchored)
 import { ipfixSflowValidators } from './ipfix-sflow.js';
 
@@ -98,6 +99,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
+  ...hostStackValidators, // F-host-stack (unanchored)
   // wave-BC: F-ipfix-sflow (unanchored)
   ...ipfixSflowValidators,
 ];

@@ -410,7 +410,11 @@ export class StateController {
   }
 }
 
-const COVERAGE_RULES = new Set(['agent.unsupported-field', 'agent.unimplemented-domain']);
+const COVERAGE_RULES = new Set([
+  'agent.unsupported-field',
+  'agent.unimplemented-domain',
+  'agent.write-only-field', // D-147 (F-host-stack): applied, but VPP has no dump/getter
+]);
 
 function isEmptyContainer(v: unknown): boolean {
   return (Array.isArray(v) && v.length === 0) || (isPlainObject(v) && Object.keys(v).length === 0);

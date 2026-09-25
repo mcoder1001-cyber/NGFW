@@ -39,6 +39,7 @@ import { ipfixStateFake } from '../features/ipfix-sflow/fake.js'; // F-ipfix-sfl
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { hostStackFake } from '../features/host-stack/fake.js'; // F-host-stack (P5)
 import { lispStateFake } from '../features/lisp/fake.js';
 
 /**
@@ -636,6 +637,7 @@ export class FakeAgent {
       // wave-BC: F-lb
       // wave-BC: F-qos-flat
       // wave-BC: F-host-stack
+      hostStackState: hostStackFake(this.owner, () => this.current),
       // wave-BC: F-snmp
       // wave-BC: F-ipfix-sflow
       ipfixState: ipfixStateFake(this),

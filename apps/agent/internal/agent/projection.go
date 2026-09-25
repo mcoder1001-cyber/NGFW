@@ -323,6 +323,9 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
+	if in["services"] {
+		desired.HostStack(p, ds.GetServices().GetHostStack(), vrfID)
+	} // F-host-stack (unanchored)
 	// wave-BC: F-ipfix-sflow (unanchored)
 	if in["services"] {
 		desired.IpfixSflow(p, ds.GetServices(), vrfID)
@@ -453,6 +456,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
+	if in["services"] {
+		desired.HostStackAssemble(ds, kvs)
+	} // F-host-stack (unanchored)
 	// wave-BC: F-ipfix-sflow (unanchored)
 	if in["services"] {
 		desired.AssembleIpfixSflow(ds, kvs, nameOf)

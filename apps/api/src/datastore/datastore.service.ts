@@ -177,7 +177,7 @@ export class DatastoreService {
       let discarded = false;
       if (staged !== null && decision === 'stale' && user.role !== 'admin') {
         // review M1: a lower role taking over a stale lock must not inherit staged admin-only changes
-        const hashes = await this.repo.userHashes();
+        const hashes = await tx.userHashes();
         if (
           privilegedChanges(hydrateHashes(runningDoc, hashes), hydrateHashes(staged, hashes))
             .length > 0
@@ -213,7 +213,7 @@ export class DatastoreService {
         before: getAt(redact(base), pointer),
         after: getAt(redact(next), pointer),
       };
-      const hashes = await this.repo.userHashes();
+      const hashes = await tx.userHashes();
       const secrets = secretChanges(hydrateHashes(base, hashes), hydrateHashes(next, hashes));
       if (secrets.length > 0) r.secretChanges = secrets;
       if (discarded) r.discardedStaleCandidateOf = c.owner ?? `user #${c.ownerId}`;

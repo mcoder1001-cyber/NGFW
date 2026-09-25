@@ -1,17 +1,10 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
-import {
-  ApiBody,
-  ApiNoContentResponse,
-  ApiOkResponse,
-  ApiOperation,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBody, ApiNoContentResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { SECRET_KINDS } from '@ngfw/schema';
 import { z } from 'zod';
 import { MinRole } from '../auth/decorators.js';
 import type { VrxRequest } from '../common/principal.js';
-import { Protected } from '../common/responses.js';
+import { ApiOut, Protected } from '../common/responses.js';
 import { openapi, SafeParamPipe, ZodPipe } from '../common/zod.js';
 import { SecretsService } from './secrets.service.js';
 
@@ -37,7 +30,7 @@ export class SecretsController {
   @Get()
   @Protected()
   @ApiOperation({ summary: 'Secret references (no values)' })
-  @ApiOkResponse({ schema: openapi(z.array(SecretOut), 'output') })
+  @ApiOut(z.array(SecretOut))
   list() {
     return this.secrets.list();
   }
@@ -55,12 +48,7 @@ export class SecretsController {
     summary: 'Create or replace a secret; returns the reference to put into the configuration',
   })
   @ApiBody({ schema: openapi(SecretBody) })
-  @ApiOkResponse({
-    schema: openapi(
-      z.object({ ref: z.string(), created: z.boolean(), version: z.number().int() }),
-      'output',
-    ),
-  })
+  @ApiOut(z.object({ ref: z.string(), created: z.boolean(), version: z.number().int() }))
   async put(
     @Body(new ZodPipe(SecretBody)) body: z.output<typeof SecretBody>,
     @Query(new ZodPipe(ReplaceQuery)) q: z.output<typeof ReplaceQuery>,

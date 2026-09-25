@@ -7097,9 +7097,14 @@ export interface operations {
               /** @constant */
               redacted: true;
             }[];
+            /** @description the configuration document (redacted, D-046) */
             payload: {
               [key: string]: unknown;
             };
+            /** @description secret versions pinned by this revision, `<kind>/<name>` → version (no values; review M2); a rollback re-activates them */
+            secretVersions?: {
+              [key: string]: number;
+            } | null;
           };
         };
       };

@@ -377,5 +377,5 @@ LISP / LISP-GPE state from the VPP dumps: the two global switches (`show_lisp_st
 + `lisp_adjacencies_get`), EID-table maps (`lisp_eid_table_map_dump`, L2 and L3), map-resolvers / map-servers and the VNIs
 that carry LISP-GPE forwarding entries (`gpe_fwd_entry_vnis_get`; the entries' locator pairs cannot be read, V13). LISP
 objects carry no owner tag, so the snapshot is VPP-wide, like `show lisp …`; `owner` echoes the request. Owner mismatch →
-`PERMISSION_DENIED`, VPP not connected → `UNAVAILABLE`, LISP plugin missing → the response has `enabled: false` and empty
+`INVALID_ARGUMENT` (as every RPC), VPP not connected → `UNAVAILABLE`, LISP plugin missing → the response has `enabled: false` and empty
 lists. Config: `DesiredState.tunnels.lisp` (`TunnelsConfig` field **10**, `LispConfig`; docs/status/wave-BC-numbers.md).

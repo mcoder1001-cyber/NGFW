@@ -9,7 +9,6 @@ export const hostAclKeys = {
   running: ['config', 'running', 'acl'] as const,
 };
 
-/** Counters change with traffic: a 5 s poll keeps the columns current without a WS topic. */
 /** D-132: no UI timer below 30 s on live state; the page has a Refresh button. */
 export const STATE_POLL_MS = 30_000;
 

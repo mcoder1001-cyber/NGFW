@@ -20,10 +20,11 @@ policy the package installs, and anything else, stays).
 | part | what it is |
 |---|---|
 | **host list** (`acl.host.<name>`) | an ordered list of rules. Each rule: `sequence` (order), `action` accept / drop / reject, `ipVersion` ipv4 / ipv6 / any, `source` and `destination` (any, a prefix, or an address object/group), `service` (any, a service object/group, or inline protocol + ports), optional `interface` (Linux name, e.g. `ens192`), `log`, `enabled`, `description` |
-| **attachment** (`acl.hostAttachments[]`) | puts a list on a hook: `input` (to the box), `output` (from the box) or `forward` (through the Linux stack), with a `priority` −500…500 (lower runs first). A list that is not attached does nothing |
+| **attachment** (`acl.hostAttachments[]`) | puts a list on a hook: `input` (to the box), `output` (from the box) or `forward` (through the Linux stack), with a `priority` −500…500 (lower runs first). **Output** attachments must use a priority above −200: before connection tracking (−200) the box's replies are not yet "established" and a drop there would cut them, so a lower priority is refused. A list that is not attached does nothing |
 | **settings** (`acl.hostSettings`) | `defaultInput` (accept / drop: what happens to input traffic no rule matched), `allowIcmp`, and the **anti-lockout** rule |
 
-Every chain starts with *established/related → accept* (replies to connections that were allowed are never cut), then
+Every chain starts with *established/related → accept* (replies to connections that were allowed are not cut — output chains
+therefore always run after connection tracking), then
 loopback, then ICMP (if allowed; IPv6 neighbour discovery always), then — on input — the anti-lockout rule, then your
 rules in `sequence` order. Every rule has a counter; rules with *log* write `vrx:<list>:<sequence>` to the kernel log.
 
@@ -35,7 +36,7 @@ the accept rules first, then switch the policy.
 
 ## Anti-lockout
 
-A commit can never cut the management connection you are using, in two layers:
+A commit cannot cut management access through the box's own host firewall, in two layers:
 
 1. **The anti-lockout rule** (on by default) accepts new TCP connections to the management ports (`22` and `443` unless
    you change `antiLockout.ports`) from `antiLockout.sources` (empty = anywhere) on `antiLockout.interfaces` (empty =
@@ -45,7 +46,14 @@ A commit can never cut the management connection you are using, in two layers:
    refused with a **400** validation problem that points at the rule that drops it (or at `defaultInput`), e.g.
    `/acl/host/mgmt-in/rules/1: management TCP 443 from 10.0.0.0/24 on ens192 would be dropped by this rule …`.
    The check is conservative: an accept rule must cover the whole source; two accepts that only together cover it are
-   reported — widen one of them.
+   reported — widen one of them. It never relies on DNS: an accept through an FQDN object does not count as letting
+   management in, and a drop through one counts as possibly hitting it (its addresses change at runtime), so a commit it
+   accepts cannot become a lockout later.
+
+**Use a confirmed commit for host-ACL changes** (*Commit* with a confirm timeout, `POST /api/v1/config/commit?confirm=<sec>`,
+CLI `commit confirm <sec>`, then `confirm`): if you lose the session anyway — a wrong `sources` for your own address, or another table
+on the box (the package's base policy, iptables rules) dropping what this ACL accepts, which the check cannot see — the
+box reverts on its own.
 
 With the rule on, a rule that *would* have dropped management traffic gets a warning (`acl.host-anti-lockout-shadow`):
 the rule still works for everybody else. The *Settings* tab shows the anti-lockout state as a banner.
@@ -122,7 +130,8 @@ Services can be service objects/groups; a service with several protocols becomes
 ## Troubleshooting
 
 - *Rendered* tab: **present** = the table exists in the kernel; **in sync** = it is exactly what the last commit rendered.
-  If someone changed or deleted the table by hand, the next commit (or an agent restart) puts it back.
+  If someone deleted the table, switched it off (`flags dormant`), or added, removed, reordered or edited rules, chains or
+  sets by hand, the table is no longer in sync and the next commit (or an agent restart) puts it back.
 - Rules of a list that is not attached are validated but not rendered.
 - `reject` answers with an ICMP *port unreachable* (nftables' default); `drop` stays silent.
 - Descriptions are kept in the configuration only; they never reach the kernel ruleset.

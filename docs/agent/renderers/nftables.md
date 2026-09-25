@@ -42,6 +42,7 @@ for the fixed ones; `hash8` = the first 8 hex digits of sha256 of the rendered r
 | `acl.host-object`, `acl.host-expansion-limit` | error | unknown/invalid object, group cycle, more than 10 000 entries (`objects.MaxEntries`) — at the rule's `…/name` or `…/spec` |
 | `acl.host-fqdn-unresolved` | warning | an FQDN object without answers matches nothing yet |
 | `acl.host-rule-empty` | warning | a rule whose families never meet (e.g. an IPv6-only object in an IPv4 rule) renders nothing |
+| `acl.host-attachment` (priority) | error | an enabled **output** attachment at priority ≤ −200 (`NF_IP_PRI_CONNTRACK`): before conntrack `ct state established,related` never matches and a drop cuts management replies (fix round 1, H1; also the schema rule `acl.host-output-priority`) |
 | `acl.host-list-name`, `acl.host-rule`, `acl.host-attachment`, `acl.host-settings` | error | defence in depth behind the schema (names, enums, ranges, the same list twice on a chain) |
 | `agent.unsupported-field` | warning | `acl.lists`, `acl.macip`, `acl.attachments`, `acl.macipAttachments` (F-acl) until F-acl lands |
 
@@ -49,7 +50,9 @@ The probe walk follows nftables: base chains on the input hook run in priority o
 decides; `accept` ends that chain only (the next base chain still sees the packet); `drop`/`reject` is final; no match →
 the chain policy. A rule matches a probe fully, partly or not at all; an `accept` lets the probe through only when it
 matches fully, a `drop`/`reject` counts when it matches even partly (conservative: split accepts that together cover a
-source are reported, naming the rule to widen).
+source are reported, naming the rule to widen). Matches through FQDN-bearing objects count as partial whatever the
+resolver answers, and a rule whose FQDN object has no answer yet still takes part (not rendered): the check is a pure
+function of the configuration, so a config accepted at commit can never fail a later resync on DNS (fix round 1, M2).
 
 ## Apply, Retrieve, restart
 
@@ -57,20 +60,25 @@ source are reported, naming the rule to widen).
   checked with `nft -c -f` on a staged copy, loaded with one `nft -f` (atomic: all or nothing).
 - Store `<state dir>/host-acl-<owner>.json` (0600): the value last applied (configuration + rendering).
 - Retrieve: `nft -j list table inet vrx` → sets (elements normalised to canonical prefixes), chains in evaluation order,
-  rules by comment; the configuration and rule annotations come from the store entry the kernel still matches. A lost or
-  edited table differs from the desired value, so the next Apply/resync (agent start, VPP reconnect) re-renders it.
+  rules by comment; the configuration and rule annotations come from the store entry the kernel still matches — same
+  comment, same verdict, and the same rule body (sha256 of the kernel's `expr` JSON without counter values, recorded in
+  the store right after each `nft -f`). The table's `flags dormant` is read too. A lost, dormant or edited table (rules
+  added, removed, reordered, their verdict or body changed; chains, hooks, priorities, policies, sets) differs from the
+  desired value, so the next Apply/resync (agent start, VPP reconnect) re-renders it (fix round 1, M1).
 - Counters are state, not configuration: `HostAclState` (proto.md §11) → `GET /api/v1/state/host-acl`.
 
 ## Modes (`VRX_HOST_ACL_MODE`, `VRX_HOST_ACL_NETNS`)
 
 | agent | mode | where |
 |---|---|---|
-| product (`VRX_OWNER=vrx`) | `apply` | `table inet vrx` in the agent's (root) network namespace |
+| product (`VRX_OWNER=vrx`) and globals owner (D-071) | `apply` | `table inet vrx` in the agent's (root) network namespace |
+| product owner with `VRX_GLOBALS_OWNER=0` (tools/app on the shared host) | `check` | `nft -c` only (fix round 1, H2) |
 | test slot, `VRX_HOST_ACL_NETNS=ns-<prefix>-<name>` | `netns` | `table inet vrx_<prefix>` inside that namespace: every nft call runs on a thread that entered it with `setns(2)` |
 | test slot without a namespace | `check` | `nft -c` only; nothing is loaded; Retrieve returns the stored value |
 | any, `VRX_HOST_ACL_MODE=check` | `check` | a product stack on a shared host |
 
-`VRX_HOST_ACL_MODE=apply` is refused for any owner but `vrx`: a test slot never loads into the root namespace.
+`VRX_HOST_ACL_MODE=apply` is refused for any owner but `vrx` and without the globals owner: a test slot, or a product stack
+that is not the host's globals owner, never loads into the root namespace.
 
 CLI equivalent: none yet (the API routes `PATCH /api/v1/config/acl/…`, `GET /api/v1/state/host-acl` are in
 `docs/user/cli/reference.md` once the CLI binds them).

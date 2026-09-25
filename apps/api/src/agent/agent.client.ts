@@ -53,6 +53,13 @@ import {
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
+  type ActionOutput,
+  type DnsLookupAction,
+  type DnsStateResponse,
+  type NtpStateResponse,
+  type SyslogEntriesRequest,
+  type SyslogEntriesResponse,
+  type SyslogStateResponse,
 } from '@ngfw/proto';
 import type { ClientReadableStream } from '@grpc/grpc-js';
 import { ENV, type Env } from '../config.js';
@@ -181,6 +188,37 @@ export class AgentClient implements OnModuleDestroy {
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
+  /** F-unbound-chrony-syslog: Unbound instance state (read-only). */
+  dnsState(): Promise<DnsStateResponse> {
+    return this.unary(this.c.dnsState, { owner: this.owner });
+  }
+  /** F-unbound-chrony-syslog: chronyd state (read-only). */
+  ntpState(): Promise<NtpStateResponse> {
+    return this.unary(this.c.ntpState, { owner: this.owner });
+  }
+  /** F-unbound-chrony-syslog: remote-syslog export counters (read-only). */
+  syslogState(): Promise<SyslogStateResponse> {
+    return this.unary(this.c.syslogState, { owner: this.owner });
+  }
+  /** F-unbound-chrony-syslog: one page of the log explorer (bounded journal query). */
+  syslogEntries(req: Omit<SyslogEntriesRequest, 'owner'>): Promise<SyslogEntriesResponse> {
+    return this.unary(this.c.syslogEntries, { ...req, owner: this.owner });
+  }
+  /** F-unbound-chrony-syslog: ActionRequest.dns_lookup; collects the whole (short) output stream. */
+  dnsLookup(
+    req: DnsLookupAction,
+    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+  ): Promise<ActionOutput[]> {
+    return new Promise((resolve, reject) => {
+      const out: ActionOutput[] = [];
+      const stream = this.c.action({ dnsLookup: req }, new Metadata(), {
+        deadline: new Date(Date.now() + timeoutMs),
+      });
+      stream.on('data', (o: ActionOutput) => out.push(o));
+      stream.on('error', (err: ServiceError) => reject(agentProblem(err)));
+      stream.on('end', () => resolve(out));
+    });
+  }
 
   close(): void {
     this.client?.close();

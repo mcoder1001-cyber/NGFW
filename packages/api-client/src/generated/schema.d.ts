@@ -640,6 +640,91 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/dns': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Unbound resolver state (status, stats, forwards, local zones), pending daemon actions, VPP DNS cache as configured */
+    get: operations['UnboundChronySyslog_dns'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/ntp': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** chronyd state: tracking, sources, source statistics, pending daemon actions */
+    get: operations['UnboundChronySyslog_ntp'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/syslog': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Remote-syslog export: per-target counters (rsyslog impstats), pending daemon actions */
+    get: operations['UnboundChronySyslog_syslog'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/logs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Log explorer: one page of the local journal, newest first (bounded scan; filters by severity, facility, text) */
+    get: operations['UnboundChronySyslog_logs'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/dns-lookup': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Resolve a name through the VPP DNS cache (dns_resolve_name, with a deadline); needs the VPP DNS cache enabled by the globals owner */
+    post: operations['UnboundChronySyslog_dnsLookup'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -8289,6 +8374,544 @@ export interface operations {
       };
       /** @description Rate limited */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  UnboundChronySyslog_dns: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            /** @description unbound answers on its control socket */
+            running: boolean;
+            status: {
+              [key: string]: string;
+            };
+            /** @description unbound-control stats_noreset */
+            stats: {
+              [key: string]: string;
+            };
+            forwards: {
+              zone: string;
+              kind: string;
+              flags: string[];
+              addresses: string[];
+            }[];
+            stubs: {
+              zone: string;
+              kind: string;
+              flags: string[];
+              addresses: string[];
+            }[];
+            localZones: {
+              zone: string;
+              type: string;
+            }[];
+            localData: string[];
+            localDataTruncated: boolean;
+            pendingActions: {
+              daemon: string;
+              unit: string;
+              /** @description "start" | "restart" */
+              action: string;
+              reason: string;
+            }[];
+            vppCache: {
+              configured: boolean;
+              /** @description the globals owner programs it (D-071) */
+              appliedByThisAgent: boolean;
+              upstreams: string[];
+              /**
+               * @description VPP has no getter for its DNS cache (D-063): configured, never read back
+               * @constant
+               */
+              live: false;
+            } | null;
+            configPath: string;
+            error: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  UnboundChronySyslog_ntp: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            running: boolean;
+            tracking: {
+              refId: string;
+              refName: string;
+              stratum: number;
+              refTime: number;
+              systemTime: number;
+              lastOffset: number;
+              rmsOffset: number;
+              frequency: number;
+              residualFreq: number;
+              skew: number;
+              rootDelay: number;
+              rootDispersion: number;
+              updateInterval: number;
+              leap: string;
+            } | null;
+            sources: {
+              mode: string;
+              /** @description "*" selected, "+" combined, "-" not combined, "?" unusable, "x" falseticker, "~" variable */
+              state: string;
+              name: string;
+              stratum: number;
+              poll: number;
+              reach: string;
+              lastRx: string;
+              offset: number;
+              measured: number;
+              error: number;
+            }[];
+            sourceStats: {
+              name: string;
+              np: number;
+              nr: number;
+              span: number;
+              frequency: number;
+              freqSkew: number;
+              offset: number;
+              stdDev: number;
+            }[];
+            serverStats: {
+              [key: string]: string;
+            };
+            pendingActions: {
+              daemon: string;
+              unit: string;
+              /** @description "start" | "restart" */
+              action: string;
+              reason: string;
+            }[];
+            configPath: string;
+            error: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  UnboundChronySyslog_syslog: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            targets: {
+              index: number;
+              action: string;
+              target: string;
+              protocol: string;
+              reported: boolean;
+              processed: number;
+              failed: number;
+              suspended: number;
+              suspendedDuration: number;
+              resumed: number;
+              queueSize: number;
+              enqueued: number;
+              full: number;
+              discardedFull: number;
+              discardedNf: number;
+              maxQueueSize: number;
+            }[];
+            inputs: {
+              [key: string]: number;
+            };
+            pendingActions: {
+              daemon: string;
+              unit: string;
+              /** @description "start" | "restart" */
+              action: string;
+              reason: string;
+            }[];
+            configPath: string;
+            error: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  UnboundChronySyslog_logs: {
+    parameters: {
+      query?: {
+        pageSize?: number;
+        page?: number;
+        q?: string;
+        facility?:
+          | 'kern'
+          | 'user'
+          | 'mail'
+          | 'daemon'
+          | 'auth'
+          | 'syslog'
+          | 'lpr'
+          | 'news'
+          | 'uucp'
+          | 'cron'
+          | 'authpriv'
+          | 'ftp'
+          | 'local0'
+          | 'local1'
+          | 'local2'
+          | 'local3'
+          | 'local4'
+          | 'local5'
+          | 'local6'
+          | 'local7';
+        severity?:
+          'emergency' | 'alert' | 'critical' | 'error' | 'warning' | 'notice' | 'info' | 'debug';
+        since?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: {
+              time: string | null;
+              severity: string;
+              facility: string;
+              identifier: string;
+              pid: number;
+              hostname: string;
+              unit: string;
+              message: string;
+            }[];
+            page: number;
+            pageSize: number;
+            /** @description matches within the scanned window */
+            total: number;
+            scanned: number;
+            /** @description the scan stopped at its bound (5000 newest entries since `since`) */
+            truncated: boolean;
+            /** @description "journald" */
+            source: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  UnboundChronySyslog_dnsLookup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          name: string;
+          /** @description deadline (default 5000) */
+          timeoutMs?: number;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            name: string;
+            ok: boolean;
+            addresses: {
+              /** @enum {string} */
+              type: 'A' | 'AAAA';
+              address: string;
+            }[];
+            summary: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

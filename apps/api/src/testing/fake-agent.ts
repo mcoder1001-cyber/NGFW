@@ -35,6 +35,7 @@ import {
   type ValidationReport,
 } from '@ngfw/proto';
 import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
+import { unboundChronySyslogFake } from '../features/unbound-chrony-syslog/fake.js';
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -661,14 +662,7 @@ export class FakeAgent {
       // wave-A: P12
       // wave-A: F-kea-dhcp-relay
       // wave-A: F-unbound-chrony-syslog
-      dnsState: (_call, cb) =>
-        cb({ code: status.UNIMPLEMENTED, details: 'fake agent: DnsState' }, null),
-      ntpState: (_call, cb) =>
-        cb({ code: status.UNIMPLEMENTED, details: 'fake agent: NtpState' }, null),
-      syslogState: (_call, cb) =>
-        cb({ code: status.UNIMPLEMENTED, details: 'fake agent: SyslogState' }, null),
-      syslogEntries: (_call, cb) =>
-        cb({ code: status.UNIMPLEMENTED, details: 'fake agent: SyslogEntries' }, null),
+      ...unboundChronySyslogFake(this), // DnsState/NtpState/SyslogState/SyslogEntries + Action dns_lookup (others UNIMPLEMENTED)
     };
   }
 }

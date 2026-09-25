@@ -75,6 +75,7 @@ import { UsersService } from './users/users.service.js';
 // wave-A: P12
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
+import { unboundChronySyslogFeature } from './features/unbound-chrony-syslog/index.js';
 
 const DB_HANDLE = Symbol('VRX_DB_HANDLE');
 
@@ -158,6 +159,7 @@ export class AppModule {
         // wave-A: P12
         // wave-A: F-kea-dhcp-relay
         // wave-A: F-unbound-chrony-syslog
+        ...unboundChronySyslogFeature.controllers,
       ],
       providers: [
         { provide: ENV, useValue: env },
@@ -226,6 +228,7 @@ export class AppModule {
         // wave-A: P12
         // wave-A: F-kea-dhcp-relay
         // wave-A: F-unbound-chrony-syslog
+        ...unboundChronySyslogFeature.providers,
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
         { provide: APP_FILTER, useClass: ProblemFilter },

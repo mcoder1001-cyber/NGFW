@@ -28,7 +28,73 @@ export function lcpInterfaces(config: RootConfig): Map<string, string> {
   return out;
 }
 
+/** FRR's description rule (the agent's `frr.Description`): what a LINE token in frr.conf can carry and frr-reload.py can
+ * compare. '' when `d` is fine, else the reason. Review M2: the schema and the agent must agree. */
+export function frrDescriptionProblem(d: string): string {
+  if (d.length > 80) return 'at most 80 characters (FRR)';
+  if (!/^[\x20-\x7e]*$/.test(d)) return 'printable ASCII only: FRR stores it verbatim in frr.conf';
+  if (d.trim() !== d) return 'no leading or trailing blanks';
+  if (d.startsWith('!') || d.startsWith('#'))
+    return 'must not start with ! or # (FRR reads a comment)';
+  if (d.includes('|')) return "no '|' (FRR's CLI pipe cuts the line there)";
+  if (d.includes('  ')) return 'no double blanks (FRR joins the words with one)';
+  return '';
+}
+
+/** Every description P12 renders into FRR, with its path. Interface descriptions are not rendered (not FRR's). */
+function frrDescriptions(config: RootConfig): [string, (string | number)[]][] {
+  const out: [string, (string | number)[]][] = [];
+  const bgp = config.routing.bgp;
+  for (const [name, g] of Object.entries(bgp?.peerGroups ?? {}))
+    if (g.description !== undefined)
+      out.push([g.description, ['routing', 'bgp', 'peerGroups', name, 'description']]);
+  for (const [addr, n] of Object.entries(bgp?.neighbors ?? {}))
+    if (n.description !== undefined)
+      out.push([n.description, ['routing', 'bgp', 'neighbors', addr, 'description']]);
+  for (const [name, pl] of Object.entries(config.routing.policy.prefixLists))
+    if (pl.description !== undefined)
+      out.push([pl.description, ['routing', 'policy', 'prefixLists', name, 'description']]);
+  for (const [name, rm] of Object.entries(config.routing.policy.routeMaps))
+    for (const [i, e] of rm.entries.entries())
+      if (e.description !== undefined)
+        out.push([
+          e.description,
+          ['routing', 'policy', 'routeMaps', name, 'entries', i, 'description'],
+        ]);
+  return out;
+}
+
 export const bgpValidators: readonly ValidatorDefinition[] = [
+  {
+    // review M2: descriptions FRR renders follow FRR's rule (the agent refuses the rest at render time)
+    name: 'routing.bgp-frr-description',
+    domains: ['routing'],
+    validate: (config) =>
+      frrDescriptions(config).flatMap(([d, path]) => {
+        const why = frrDescriptionProblem(d);
+        return why === ''
+          ? []
+          : [{ pointer: jsonPointer(...path), message: `FRR description: ${why}` }];
+      }),
+  },
+  {
+    // review M2: FRR's route-map sequence numbers are 1–65535 (the schema's seq is a uint32 shared with prefix lists)
+    name: 'routing.bgp-route-map-seq',
+    domains: ['routing'],
+    validate: (config) =>
+      Object.entries(config.routing.policy.routeMaps).flatMap(([name, rm]) =>
+        rm.entries.flatMap((e, i) =>
+          e.seq > 65535
+            ? [
+                {
+                  pointer: jsonPointer('routing', 'policy', 'routeMaps', name, 'entries', i, 'seq'),
+                  message: 'FRR route-map sequence numbers are 1–65535',
+                },
+              ]
+            : [],
+        ),
+      ),
+  },
   {
     // without hostIfName the VPP name becomes the Linux name, which must then be a valid Linux interface name
     name: 'routing.bgp-lcp-host-name',

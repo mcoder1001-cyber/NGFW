@@ -136,6 +136,60 @@ describe('semantic rules routing.bgp-*', () => {
     ]);
   });
 
+  it('frr-description: FRR-rendered descriptions follow the FRR rule; interface descriptions are free (review M2)', () => {
+    const doc: RootConfigInput = {
+      interfaces: { loop0: { description: 'لینک اصلی', lcp: {} } },
+      routing: {
+        policy: {
+          prefixLists: { pl: { description: 'ok list', rules: [] } },
+          routeMaps: { rm: { entries: [{ seq: 10, action: 'permit', description: 'a  b' }] } },
+        },
+        bgp: {
+          asn: 65000,
+          ebgpRequiresPolicy: false,
+          peerGroups: { pg: { remoteAs: 1, description: 'uplink | isp' } },
+          neighbors: {
+            '10.0.0.1': { remoteAs: 2, description: 'همسایه' },
+            '10.0.0.2': { remoteAs: 2, description: 'peer two' },
+          },
+        },
+      },
+    };
+    expect(
+      run('routing.bgp-frr-description', doc)
+        .map((i) => i.pointer)
+        .sort(),
+    ).toEqual([
+      '/routing/bgp/neighbors/10.0.0.1/description',
+      '/routing/bgp/peerGroups/pg/description',
+      '/routing/policy/routeMaps/rm/entries/0/description',
+    ]);
+  });
+
+  it('route-map-seq: at most 65535 (FRR), at the entry', () => {
+    expect(
+      run('routing.bgp-route-map-seq', {
+        routing: {
+          policy: {
+            routeMaps: {
+              rm: {
+                entries: [
+                  { seq: 70000, action: 'permit' },
+                  { seq: 10, action: 'deny' },
+                ],
+              },
+            },
+          },
+        },
+      }),
+    ).toEqual([
+      {
+        pointer: '/routing/policy/routeMaps/rm/entries/0/seq',
+        message: expect.stringContaining('65535') as string,
+      },
+    ]);
+  });
+
   it('are registered and run through validateSemantics', () => {
     const doc = RootConfig.parse({ interfaces: { 'Gi0/1/0': { lcp: {} } } });
     expect(validateSemantics(doc).map((i) => i.pointer)).toContain(

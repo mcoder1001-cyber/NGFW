@@ -92,3 +92,9 @@ branch (71 commits since the merge base, the newest contract commit 5th) it fail
 5466e9d although the branch has 8 `contract(…)` commits (`git log … | grep -ciE '^contract'` = 8), while the full quick gate
 at 7131792 passed the same guard. Fix: `grep -iE … >/dev/null` (reads all input) or capture `git log` into a variable first.
 The final gate was re-run until the guard passed (the rest of the gate is deterministic); see F-bonding.md.
+
+## Fix round 1 (2026-09-25)
+- Q1 answered by the manager: `broadcast` dropped (642995f9).
+- Q7 fixed on main (D-127, 7edac8c4); the branch has it since the merge of main.
+- F-B8 superseded: the coretest hook is the D-129 `extensions` seam (F3).
+- Q4 unchanged, waits for TD-11c.

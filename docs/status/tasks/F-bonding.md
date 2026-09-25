@@ -211,3 +211,42 @@ lab lock                                      → released (held only during the
 systemctl show vpp -p NRestarts               → 1 before and after every host run of this task
 apps/agent/bin, */dist                        → removed at the end
 ```
+
+## Fix round 1 (2026-09-25, review `F-bonding-review.md` @ 7c7e9b0f, envelope `F-bonding.fix1.md`)
+
+| item | commit | test (fails on the pre-fix code) | pre-fix failure (pasted) |
+|---|---|---|---|
+| **Q1** drop `broadcast` (manager decision) | 642995f9 `contract(schema,proto)` (enum, help, proto comments, regenerated); 27585e19 (builder: not configurable, `BondModeName` still names VPP's value); cfbe008a (locales, add dialog uses `BondMode.options`); bbdc5887 (docs) | `semantic/bonding.test.ts` "Q1: broadcast is not a mode" + the reject list; `desired/bond_test.go` broadcast → `interfaces.bonding-mode` | `× fix round 1 > Q1: broadcast is not a mode` |
+| **F4** non-Ethernet members | 642995f9: `interfaces.bonding-member-kind` also refuses tunnels / virtual L3 names (`NON_ETHERNET_INTERFACE_RE`: wg, ipip, gre, ipsec, vxlan_tunnel, …) → 400 with the membership pointer; 27585e19: `bond.member` Create refuses a sub-interface, a loopback, a bond or any interface **without an L2 address** before `bond_add_member` (`ErrNotEthernet`); the builder mirrors the name rule | `semantic/bonding.test.ts` "F4: tunnels …"; `descriptors/bond/ethernet_test.go` `TestMemberMustBeEthernet` (wg0 with no L2 address, a sub-interface, a loopback: refused, **0** `bond_add_member` sent; an Ethernet tap still joins) | `× fix round 1 > F4: tunnels and other virtual L3 interfaces are not members`; with the Create check disabled: `ethernet_test.go:27: member wg0: err = <nil>, want ErrNotEthernet` |
+| **F5** member `mac` | 642995f9: new rule `interfaces.bonding-member-mac` (pointer `/interfaces/<member>/mac`); 27585e19: builder mirror | `semantic/bonding.test.ts` "F5: a member has no MAC of its own"; `desired/bond_test.go` F5 case | `× fix round 1 > F5: a member has no MAC of its own (the bond gives it one)` |
+| **F1** no `dropPhantomOptionals` | cfbe008a: both calls and the import removed from `BondDrawer.tsx` (the bond and member forms have no optional object member) | existing "bond edit sends only the change" / member-add patch assertions stay green | — (no behaviour change; WEB-1 compatibility) |
+| **F2** D-132 | cfbe008a (web): `BONDS_POLL_MS = 30_000`, the grid is the page's only timer; the drawer reads the grid's cache (`useBondsCache`, `enabled:false`) and loads the interface table once (no timer); **Refresh** on the page and in the bond panel (one walk per click); 27585e19 (agent): `BondState` admits one walk at a time (`acquireBondWalk`, one-slot semaphore), a second caller waits up to 3 s, then `UNAVAILABLE` | web: `BondsPage.test.tsx` "D-132: one timer of at least 30 s; the drawer reads the grid cache; Refresh walks once"; agent: `rpc_bonding_test.go` `TestBondStateOneWalkAtATime` (6 concurrent callers → max 1 `sw_bond_interface_dump` in flight; a walk longer than the wait → second caller `UNAVAILABLE`) | web: `→ expected 3000 to be greater than or equal to 30000`; agent (guard removed): `rpc_bonding_test.go:325: 6 bond walks in flight at once, want 1` |
+| **F3** D-129 seam | 27585e19: `coretest/fakevpp.go` gets F-nat44-ed's `extensions` seam verbatim (same blob `2fe2490a`, so the two merge as one hunk); `coretest/bonding.go` appends `installBonding` in `init()` | every agent test on `coretest.New()` (e.g. `TestBondingOnFake`) | — (refactor) |
+| **M1** TD-11b declarations | 27585e19 + 1d26e617: `bond.bond` and `bond.member-weight` declare `RecordsNoOwnership()` (owner tag / membership owned by bond.member); `bond.member` declares `CheckPersistent()` = `persist.Require(iface.Claims(owner))` | `descriptors/bond/ownership_test.go` `TestOwnershipDeclarations` (exactly one declaration each; in-memory store refused, persisted accepted); after the merge TD-11b's registration guard runs on every `subsystems.Register` in the agent tests | the undeclared descriptors fail TD-11b's guard (`persist.ErrUndeclared`) at registration |
+| **F6** docs table | bbdc5887: the blank line inside the `bond.md` table removed; member row notes the F4 check; ownership declarations documented | — | — |
+| **F7** nits | cfbe008a: "Add bond" avoids configured **and live** bond names; status column 170 px | model test (next free name) | — |
+| merge main | 1d26e617 (TD-11b, TD-8, TD-20, TD-7, W-seed/P08 squashes: P08/W-seed files take main's side, F-bonding hunks re-applied under their anchors, generated files regenerated), d4f2955b (TD-4, clean) | full agent suite green on the merged tree (TD-11b guard included) | — |
+
+Not changed in this round: Q4 (sub-interface attributes removed in an earlier commit) stays until TD-11c merges; then
+`TestBondingOnFake`'s two-step removal (`b3a` + `b3`) collapses and the doc sentences go (review §6). No host run: F4 adds no
+VPP message — the refusal reads the `sw_interface_dump` row `bond.member` already fetched — so the VPP call path is
+unchanged for Ethernet members (fixture taps have an L2 address: `TestBondingOnHost` unchanged).
+
+CI after the fix round, on the merged tree d4f2955b (`TMPDIR=/tmp/g-w6b tools/ci.sh --base main`):
+```
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m01s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m00s
+  generate + generated-output gate                   2m12s
+  forbidden patterns (+ gitleaks)                    0m04s
+  packet-trace ban on the shared VPP (D-128)         0m01s
+  lint · typecheck · unit tests · build (turbo)   3m58s
+  apps/agent: make lint test build                   1m13s
+  apps/cli: make lint test build                     0m21s
+  test/ Go modules, unit mode (test/integration/smoke test/topology/bonding test/topology/interfaces)   0m10s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   4m53s
+  mode quick · wall time 12m56s · logs /root/ngfw-wt/logs/ci/F-bonding-20260925-041306-3149891
+CI GATE PASSED
+```
+(warnings: the subjects `review(F-bonding): …` and `review(W-seed): verify` are not Conventional Commits — reviewers' commits.)

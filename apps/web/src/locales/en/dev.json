@@ -46,5 +46,16 @@
     "lastMessage": "Last message",
     "noMessage": "No message received",
     "batch": "Messages in last batch: {{count}}"
+  },
+  "kitPreview": {
+    "title": "Config kit preview",
+    "intro": "Widgets of the config screen kit with synthetic values. Nothing on this page talks to the device.",
+    "statusSection": "Status, counters and rates",
+    "gridSection": "Key cells in a grid",
+    "counter": "64-bit counter",
+    "trend": "Trend of {{name}}",
+    "item": "Preview item {{key}}",
+    "itemBody": "A drawer opened from the key button. Keyboard: Tab or the arrow keys to the key cell, then Enter or Space.",
+    "status": "Status"
   }
 }

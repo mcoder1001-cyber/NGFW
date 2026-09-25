@@ -86,3 +86,23 @@ owner, or a test under `flock -x` on the globals lock) the per-rule counters are
 available whatever the role; when it is off, `counters_available=false` with the reason. The flag is read with the
 read-only CLI `show acl-plugin tables mask` (V7: no API getter). My topology test switched it on once (opt-in
 `VRX_ACL_STATS_GLOBALS=1`, flock -x) and — per the envelope — never off: it is on on the shared VPP now.
+
+## Q11 — a candidate edit of a 100 000-rule list takes ~40 s (datastore, not F-acl)
+`POST /actions/acl/lists/{name}/rules/bulk` and the CSV import write the new rules array with ONE
+`DatastoreService.putCandidate`. With a 100k-rule candidate that call takes ~40 s (bulk disable of 1 000 rules 43 s, a
+one-rule move 40 s; import 25 s): the datastore parses the whole document (Zod), redacts it twice for the before/after of
+the edit and walks it for secret changes, then writes a ~15 MB jsonb row. A per-rule pointer edit (the generic routes) has
+the same cost. Suggestion for the datastore owner: redact/diff only the edited subtree (the acl domain has no secrets).
+Reads are fine now (first page 2.5 s, decision 8 in F-acl.md). Not changed by me (datastore is not mine).
+
+## Q12 — ui-kit SchemaForm fills absent optional objects (TCP flags edited as JSON text)
+The web sub-worker found that SchemaForm fills an absent optional object (`service.spec.tcpFlags`) with empty fields, so
+every TCP rule failed validation; the rule dialog edits that one field as JSON text (`optionalObjectsAsJson()` in
+`domains/firewall/acl/model.ts`). Same cause as P08-questions Q2; a ui-kit fix would let the dialog use the plain form.
+
+## Q13 — screenshots wait for TD-25 (V19 sanitizer cap)
+Since the 04:27 VPP restart the TD-3 sanitizer refuses interface creates on the shared VPP (122 freed classify indices >
+cap 64). Manager: host runs paused until TD-25. The screenshot run is ready (`TestACLScreenshots`, also a no-rig mode that
+creates no interface and no MACIP classify tables). Also recorded: my first three passing topology runs deleted the rig
+interfaces while the test's foreign ACL was still bound to host-w3l0 (VPP cleared the list itself, NRestarts unchanged);
+the test now unbinds the foreign ACL first (D-095c) and cleans up through the API in `t.Cleanup` even when a step fails.

@@ -9,13 +9,21 @@ export const wgKeys = { state: ['state', 'vpn', 'wireguard'] as const };
 /** D-132: the state walks VPP — never faster than every 30 s; live peer status comes from `wireguard.events`. */
 export const WG_STATE_POLL_MS = 30_000;
 
+/**
+ * The state query (review F9, D-132): refetched every 30 s and on Refresh only — never on focus or remount within 30 s
+ * (the app-wide staleTime is 5 s).
+ */
+export const wireguardStateQuery = {
+  queryKey: wgKeys.state,
+  queryFn: async ({ signal }: { signal: AbortSignal }) =>
+    (await call(api.GET('/api/v1/state/vpn/wireguard', { signal }))).data,
+  refetchInterval: WG_STATE_POLL_MS,
+  staleTime: WG_STATE_POLL_MS,
+  refetchOnWindowFocus: false,
+} as const;
+
 export function useWireguardState() {
-  return useQuery({
-    queryKey: wgKeys.state,
-    queryFn: async ({ signal }) =>
-      (await call(api.GET('/api/v1/state/vpn/wireguard', { signal }))).data,
-    refetchInterval: WG_STATE_POLL_MS,
-  });
+  return useQuery(wireguardStateQuery);
 }
 
 async function fetchCandidate(signal?: AbortSignal): Promise<WgInterfacesConfig> {

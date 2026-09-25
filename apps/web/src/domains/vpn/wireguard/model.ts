@@ -43,6 +43,15 @@ export function interfaceFormSchema(): JsonSchema {
   return { ...item, properties: props, ...(required ? { required } : {}) } as JsonSchema;
 }
 
+/**
+ * The form value a NEW interface opens with: `routeAllowedIps` on — VPP's wg interface is NBMA, so without the routes (or
+ * hand-made ones with a next hop inside an allowed IP) the tunnel carries nothing. The schema default stays false (TNSR
+ * parity); only the screen proposes true.
+ */
+export function newInterfaceDefaults(): Partial<WireguardInterface> {
+  return { routeAllowedIps: true };
+}
+
 /** `vpn.wireguard.interfaces.<name>.peers.<peer>` item schema. */
 export function peerFormSchema(): JsonSchema {
   const item = recordItem(prop(prop(domainSchemas.vpn as JsonSchema, 'wireguard'), 'interfaces'));

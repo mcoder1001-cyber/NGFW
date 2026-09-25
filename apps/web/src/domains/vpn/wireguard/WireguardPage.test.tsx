@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from '../../../App';
 import i18n from '../../../i18n';
@@ -10,6 +10,7 @@ import {
   foldPeerEvents,
   ifaceChip,
   interfaceFormSchema,
+  newInterfaceDefaults,
   networkOf,
   peerChip,
   peerFormSchema,
@@ -17,6 +18,7 @@ import {
   type WgInterfaceState,
   type WireguardInterface,
 } from './model';
+import { WG_STATE_POLL_MS, wireguardStateQuery } from './queries';
 
 const STREAM = 'ws://127.0.0.1:1/api/v1/stream';
 const PUB = 'HIgo9xNzJMWLKASShiTqIybxZ0U3wGLiUeJ1PKf8ykw=';
@@ -145,6 +147,22 @@ describe('WireGuard model', () => {
   });
 });
 
+describe('fix round 1', () => {
+  it('F9 (D-132): the state is not refetched on focus or remount within 30 s', () => {
+    expect(WG_STATE_POLL_MS).toBeGreaterThanOrEqual(30_000);
+    expect(wireguardStateQuery.staleTime).toBeGreaterThanOrEqual(30_000);
+    expect(wireguardStateQuery.refetchInterval).toBeGreaterThanOrEqual(30_000);
+    expect(wireguardStateQuery.refetchOnWindowFocus).toBe(false);
+  });
+
+  it('new interfaces open with routeAllowedIps on (the schema default stays off)', () => {
+    expect(newInterfaceDefaults()).toEqual({ routeAllowedIps: true });
+    expect(
+      (interfaceFormSchema().properties?.['routeAllowedIps'] as { default?: unknown }).default,
+    ).toBe(false);
+  });
+});
+
 describe('WireGuard tab', () => {
   it('lists interfaces with peers and live status, key-pair action for admins', async () => {
     const api = installFakeApi();
@@ -173,5 +191,10 @@ describe('WireGuard tab', () => {
     expect(within(row).getByText('10.1.51.2:20111')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Generate key pair' })).toBeInTheDocument();
     expect(screen.getByText('Live status on')).toBeInTheDocument();
+    // Add interface: the NBMA hint and Route allowed IPs switched on
+    fireEvent.click(screen.getByRole('button', { name: 'Add interface' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByTestId('wg-nbma-hint')).toHaveTextContent(/NBMA/);
+    expect(within(dialog).getByRole('switch', { name: 'Route allowed IPs' })).toBeChecked();
   });
 });

@@ -129,5 +129,6 @@
       "title": "Persistent keepalive (s)",
       "help": "0 disables"
     }
-  }
+  },
+  "nbmaHint": "Route allowed IPs is on for new interfaces: VPP treats a WireGuard interface as point-to-multipoint (NBMA), so traffic needs a route through it whose next hop lies inside a peer's allowed IPs. Turn it off only if you add such routes yourself; full-tunnel peers (0.0.0.0/0) need their own overlay VRF."
 }

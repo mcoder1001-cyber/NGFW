@@ -38,6 +38,7 @@ import {
   foldPeerEvents,
   ifaceChip,
   interfaceFormSchema,
+  newInterfaceDefaults,
   peerChip,
   peerFormSchema,
   peerStatus,
@@ -384,7 +385,9 @@ function InterfaceDialog({
     delete rest['peers'];
     return rest;
   }, [existing, target.name]);
-  const [value, setValue] = useState<Record<string, unknown> | undefined>(base);
+  const [value, setValue] = useState<Record<string, unknown> | undefined>(
+    base ?? (target.isNew ? newInterfaceDefaults() : undefined),
+  );
   const [pub, setPub] = useState<string | null>(null);
   const nameOk = NAME_RE.test(name) && (!target.isNew || !(name in existing));
 
@@ -443,6 +446,11 @@ function InterfaceDialog({
           </Stack>
         )}
         {keypair.error !== null && <ProblemAlert error={keypair.error} sx={{ mb: 1 }} />}
+        {target.isNew && (
+          <Alert severity="info" sx={{ mb: 1 }} data-testid="wg-nbma-hint">
+            {t('nbmaHint')}
+          </Alert>
+        )}
         <SchemaForm
           schema={schema}
           value={value}

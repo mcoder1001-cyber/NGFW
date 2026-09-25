@@ -331,8 +331,12 @@ func (d *TableDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 		d.zero.set(true)
 		return nil, nil
 	}
-	if err := d.Opts.CheckID("mpls table", t.ID); err != nil {
-		return nil, err
+	// table 0 is VPP's default MPLS table, never an allocated id: the globals owner declares it
+	// whatever its id range (D-071)
+	if t.ID != SharedTable {
+		if err := d.Opts.CheckID("mpls table", t.ID); err != nil {
+			return nil, err
+		}
 	}
 	if err := d.foreign(ctx, t.ID); err != nil {
 		return nil, err

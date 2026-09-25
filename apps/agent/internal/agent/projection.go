@@ -299,6 +299,7 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-BC: F-vrrp-config-sync
 	// wave-BC: F-ikev2-native
 	// wave-BC: F-mpls-srmpls
+	desired.MplsSrmpls(p, ds, in, vrfID)
 	// wave-BC: F-srv6
 	// wave-BC: F-lisp
 	// wave-BC: F-bfd-redistribution
@@ -422,6 +423,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-BC: F-vrrp-config-sync
 	// wave-BC: F-ikev2-native
 	// wave-BC: F-mpls-srmpls
+	if in["routing"] {
+		desired.AssembleMplsSrmpls(ds, kvs, nameOf)
+	}
 	// wave-BC: F-srv6
 	// wave-BC: F-lisp
 	// wave-BC: F-bfd-redistribution

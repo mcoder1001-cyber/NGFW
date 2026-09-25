@@ -235,6 +235,16 @@ describe('services.lb schema', () => {
     ).toEqual(['/services/lb/vips/a/encap']);
   });
 
+  it('VIPs in 0.0.0.0/8 are reserved (the agent garbage-collection sentinel)', () => {
+    expect(pointers(doc({ vips: { a: gre({ prefix: '0.0.0.0/32' }) } }))).toEqual([
+      '/services/lb/vips/a/prefix',
+    ]);
+    expect(pointers(doc({ vips: { a: gre({ prefix: '0.0.0.0/0' }) } }))).toEqual([
+      '/services/lb/vips/a/prefix',
+    ]);
+    expect(pointers(doc({ vips: { a: gre({ prefix: '1.0.0.1/32' }) } }))).toEqual([]);
+  });
+
   it('(prefix, protocol, port) is unique; host bits of the prefix are refused', () => {
     expect(pointers(doc({ vips: { a: gre(), b: gre() } }))).toEqual(['/services/lb/vips/b/prefix']);
     expect(pointers(doc({ vips: { a: gre({ prefix: '10.2.250.1/24' }) } }))).toEqual([

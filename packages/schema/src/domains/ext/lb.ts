@@ -153,6 +153,12 @@ export const LbVipSchema = z
     };
     const cidr = parseCidr(v.prefix);
     const vipFamily = cidr?.family;
+    if (cidr !== undefined && cidr.family === 4 && cidr.first < 1n << 24n) {
+      add(
+        ['prefix'],
+        "VIPs in 0.0.0.0/8 are reserved (0.0.0.0/32 is the agent's lb garbage-collection sentinel, D-090)",
+      );
+    }
     if (vipFamily !== undefined && !lbEncapVipFamilies(v.encap).includes(vipFamily)) {
       add(
         ['encap'],

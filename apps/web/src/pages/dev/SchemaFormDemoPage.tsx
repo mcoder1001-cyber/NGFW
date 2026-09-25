@@ -13,7 +13,7 @@ import { useTheme } from '@mui/material/styles';
 import { SchemaForm, isRecordSchema, type JsonSchema, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { domains, rootSchema } from '../../schema/registry';
+import { domainSchemas, domains, rootSchema } from '../../schema/registry';
 import { PageHeader } from '../../shell/PageHeader';
 import { demoSchema, demoValue } from './demoSchema';
 
@@ -22,9 +22,14 @@ interface Choice {
   label: string;
   schema: JsonSchema;
   value: unknown;
+  /** Per-path i18n keys for the form (I18N-1), e.g. the users screen's own `users:field.*` keys. */
+  i18nPrefix?: string;
 }
 
 const INTERFACE_OPTIONS = ['GigabitEthernet0/8/0', 'TenGigabitEthernet0/0/0', 'loop0'];
+
+/** `management.users[]` item — the generated schema, rendered with the users namespace's per-path keys. */
+const USER_ITEM = (domainSchemas.management as { properties?: { users?: { items?: JsonSchema } } }).properties?.users?.items;
 
 export function SchemaFormDemoPage() {
   const { t } = useTranslation(['dev', 'common']);
@@ -33,6 +38,9 @@ export function SchemaFormDemoPage() {
     () => [
       { id: 'demo', label: t('dev:schemaForm.demo'), schema: demoSchema as JsonSchema, value: demoValue },
       { id: 'root', label: t('dev:schemaForm.root'), schema: rootSchema, value: undefined },
+      ...(USER_ITEM
+        ? [{ id: 'users-item', label: t('dev:schemaForm.domain', { title: t('users:title') }), schema: USER_ITEM, value: undefined, i18nPrefix: 'users:field' }]
+        : []),
       ...domains.map((d) => ({ id: d.key, label: t('dev:schemaForm.domain', { title: d.title }), schema: d.schema, value: undefined })),
     ],
     [t],
@@ -84,6 +92,7 @@ export function SchemaFormDemoPage() {
             value={selected.value}
             problem={problem}
             interfaceOptions={INTERFACE_OPTIONS}
+            i18nPrefix={selected.i18nPrefix}
             onSubmit={(v) => {
               setSubmitted(v);
               setProblem(null);

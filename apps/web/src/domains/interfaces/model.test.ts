@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { adminStatus, createMergePatch, interfaceFormSchema, linkStatus, subinterfaceSchema, type LiveState } from './model';
+import { adminStatus, createMergePatch, dropPhantomOptionals, interfaceFormSchema, linkStatus, subinterfaceSchema, type LiveState } from './model';
 import { foldRates, stepRates } from './rates';
 
 describe('interfaces model', () => {
+  it('dropPhantomOptionals is a deprecated identity (WEB-1 verify C1)', () => {
+    const after = { mtu: 1400, dhcpClient: { setBroadcastFlag: false } };
+    expect(dropPhantomOptionals(interfaceFormSchema(), {}, after)).toBe(after);
+  });
+
   it('form schema is the generated interface item without subinterfaces; sub-interface schema has vlanId', () => {
     const f = interfaceFormSchema();
     expect(Object.keys(f.properties ?? {})).toEqual(expect.arrayContaining(['enabled', 'mtu', 'ipv4', 'ipv6', 'vrf', 'description']));

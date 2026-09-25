@@ -24,6 +24,11 @@ export interface SchemaFormContextValue {
   interfaceOptions: readonly string[];
   /** Translate a field label; receives the property path and the schema's own title as fallback. */
   translateLabel: (propPath: string, fallback: string) => string;
+  /**
+   * Namespaced i18n key prefix for per-path texts (`'users:field'`), or `undefined` for the schema's own English.
+   * See `useSchemaText()` for the key layout.
+   */
+  i18nPrefix?: string | undefined;
 }
 
 const SchemaFormContext = createContext<SchemaFormContextValue | null>(null);

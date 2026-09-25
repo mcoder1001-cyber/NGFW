@@ -12,7 +12,7 @@ import { SchemaFormContextProvider, type SchemaFormContextValue, type WidgetComp
 import { SchemaField } from './fields/SchemaField.js';
 import { compileError, pointerToFormPath, toFormValue, withDefaults } from './form-value.js';
 import { createSchemaResolver, ROOT_FIELD } from './resolver.js';
-import { getIn } from './schema-utils.js';
+import { FORM_DEFAULTS, getIn } from './schema-utils.js';
 import type { JsonSchema, ProblemDetails, ProblemFieldError, Translate } from './types.js';
 
 export interface SchemaFormProps {
@@ -34,8 +34,14 @@ export interface SchemaFormProps {
   widgets?: Readonly<Record<string, WidgetComponent>> | undefined;
   /** Choices for `interface-picker`. */
   interfaceOptions?: readonly string[] | undefined;
-  /** Label override hook (property path → label); defaults to the schema title. */
+  /** Label override hook (property path → label); receives the per-path translation or the schema title as fallback. */
   translateLabel?: ((propPath: string, fallback: string) => string) | undefined;
+  /**
+   * Namespaced i18n key prefix for per-path titles, help, placeholders, enum/variant/group labels (I18N-1), e.g.
+   * `'users:field'` → `users:field.role.title`, `users:field.role.enum.admin`. Key layout: `SchemaText` (text.ts).
+   * Missing keys fall back to the schema's own English texts.
+   */
+  i18nPrefix?: string | undefined;
   /** When to validate; defaults to `onBlur` (submit always validates). */
   mode?: 'onBlur' | 'onChange' | 'onSubmit' | undefined;
   /** Extra action buttons rendered next to Save. */
@@ -74,6 +80,7 @@ export function SchemaForm({
   widgets,
   interfaceOptions,
   translateLabel,
+  i18nPrefix,
   mode = 'onBlur',
   children,
   sx,
@@ -86,8 +93,9 @@ export function SchemaForm({
   const stableValue = useRef<{ key: string; value: unknown }>({ key: valueKey, value });
   if (stableValue.current.key !== valueKey) stableValue.current = { key: valueKey, value };
   const currentValue = stableValue.current.value;
+  // Optional objects stay absent until switched on (presence, P08-questions Q2); everything else gets its defaults.
   const initial = useMemo<FieldValues>(
-    () => ({ [ROOT_FIELD]: toFormValue(schema, withDefaults(schema, currentValue, schema), schema) }),
+    () => ({ [ROOT_FIELD]: toFormValue(schema, withDefaults(schema, currentValue, schema, FORM_DEFAULTS), schema) }),
     [schema, currentValue],
   );
   const resolver = useMemo(() => createSchemaResolver(schema, translate), [schema, translate]);
@@ -111,7 +119,10 @@ export function SchemaForm({
     for (const e of problemEntries(problem)) {
       const detail = e.detail ?? e.title ?? problem.title ?? '';
       const path = pointerToFormPath(schema, formRoot, e.pointer, schema);
-      if (path === null) rest.push({ pointer: e.pointer, detail });
+      // A field inside an absent container (an optional object switched off, a missing list item) is not rendered:
+      // its error would be invisible, so it is listed with the unmapped ones instead.
+      const parent = path === null ? '' : path.split('.').slice(0, -1).join('.');
+      if (path === null || (parent !== '' && getIn(formRoot, parent) === undefined)) rest.push({ pointer: e.pointer, detail });
       else setError(`${ROOT_FIELD}.${path}`, { type: 'server', message: detail });
     }
     setUnmapped(rest);
@@ -124,8 +135,9 @@ export function SchemaForm({
       widgets: widgets ?? {},
       interfaceOptions: interfaceOptions ?? [],
       translateLabel: translateLabel ?? ((_p, fallback) => fallback),
+      i18nPrefix,
     }),
-    [schema, readOnly, widgets, interfaceOptions, translateLabel],
+    [schema, readOnly, widgets, interfaceOptions, translateLabel, i18nPrefix],
   );
 
   const submit = handleSubmit(async (values) => {

@@ -29,7 +29,6 @@ import { ProblemAlert } from '../../config/ProblemAlert';
 import {
   adminStatus,
   createMergePatch,
-  dropPhantomOptionals,
   interfaceFormSchema,
   linkStatus,
   localizeSchema,
@@ -117,11 +116,12 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
     const base = opened?.value;
     const current = withoutSubs((await fresh())[name]);
     setChangedElsewhere(!sameValue(base, current));
-    const cleaned = dropPhantomOptionals(formSchema, base, value);
-    const body = base === undefined ? cleaned : createMergePatch(base, cleaned);
+    // No phantom clean-up: SchemaForm keeps an optional object (dhcpClient) absent until its presence switch is on
+    // (WEB-1), so an object in `value` is one the user enabled, possibly holding nothing but its defaults.
+    const body = base === undefined ? value : createMergePatch(base, value);
     try {
       await patch.mutateAsync({ [name]: body });
-      setOpened({ reload, value: cleaned as Partial<InterfaceConfig> }); // the next save diffs against what is saved now
+      setOpened({ reload, value: value as Partial<InterfaceConfig> }); // the next save diffs against what is saved now
       setSaved(true);
     } catch {
       // rendered from patch.error (pointers mapped onto the fields)
@@ -144,8 +144,7 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
     setSubError(null);
     const base = subDialog?.value;
     const current = (await fresh())[parentName]?.subinterfaces?.[id];
-    const cleaned = dropPhantomOptionals(subSchema, base, value);
-    const body = current === undefined || base === undefined ? cleaned : createMergePatch(base, cleaned);
+    const body = current === undefined || base === undefined ? value : createMergePatch(base, value);
     try {
       await patch.mutateAsync({ [parentName]: { subinterfaces: { [id]: body } } });
       setSubDialog(null);

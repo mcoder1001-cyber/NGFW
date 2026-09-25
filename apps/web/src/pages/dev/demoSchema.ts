@@ -1,4 +1,22 @@
-import { hostname, ipAddress, ipv4Cidr, ipv6Cidr, macAddress, objectName, vppInterfaceName, withUi, type UiMeta } from '@ngfw/schema';
+import {
+  AclRuleSchema,
+  DhcpClientSchema,
+  hexColor,
+  hostname,
+  ipAddress,
+  ipv4AddressRange,
+  ipv4Cidr,
+  ipv6Cidr,
+  l4PortRange,
+  macAddress,
+  objectName,
+  timeOfDay,
+  timezone,
+  vppInterfaceName,
+  vrfName,
+  withUi,
+  type UiMeta,
+} from '@ngfw/schema';
 import { z } from 'zod';
 
 /**
@@ -18,9 +36,12 @@ const DemoInterface = withUi(
     ipv4: withUi(z.array(ipv4Cidr).default([]), { title: 'IPv4 addresses', group: 'Addressing', order: 20 }),
     ipv6: withUi(z.array(ipv6Cidr).default([]), { title: 'IPv6 addresses', widget: 'chips', group: 'Addressing', order: 21 }),
     gateway: withUi(ipAddress.optional(), { title: 'Gateway', group: 'Addressing', order: 22 }),
-    vrf: withUi(objectName.default('default'), { title: 'VRF', group: 'Addressing', order: 23 }),
+    vrf: withUi(vrfName.default('default'), { title: 'VRF', group: 'Addressing', order: 23 }),
     dnsServer: withUi(hostname.optional(), { title: 'DNS server', group: 'Addressing', order: 24 }),
+    // optional object without a default: a presence switch, absent until switched on (P08-questions Q2)
+    dhcpClient: withUi(DhcpClientSchema.optional(), { title: 'DHCP client', group: 'Addressing', order: 25 }),
     features: withUi(z.array(z.enum(['lldp', 'ipfix', 'nat'])).default([]), { title: 'Features', widget: 'multiselect', group: 'Services', order: 30 }),
+    tags: withUi(z.array(objectName).max(32).default([]), { title: 'Tags', widget: 'tag-picker', group: 'Services', order: 31 }),
     subinterfaces: withUi(
       z.record(
         vppInterfaceName,
@@ -58,8 +79,16 @@ const DemoInterface = withUi(
           }),
         )
         .default([]),
-      { title: 'Static neighbours', group: 'Neighbours', order: 60 },
+      { title: 'Static neighbours', group: 'Neighbours', order: 60, itemKey: ['address'] },
     ),
+    // structured strings (the product primitives carry their widget hints)
+    managementPorts: withUi(l4PortRange.optional(), { title: 'Management ports', group: 'Ranges and time', order: 70 }),
+    natPool: withUi(ipv4AddressRange.optional(), { title: 'NAT pool', group: 'Ranges and time', order: 71 }),
+    maintenanceStart: withUi(timeOfDay.optional(), { title: 'Maintenance window start', group: 'Ranges and time', order: 72 }),
+    validFrom: withUi(z.iso.datetime({ offset: true }).optional(), { title: 'Valid from', widget: 'datetime', group: 'Ranges and time', order: 73 }),
+    timeZone: withUi(timezone.default('UTC'), { group: 'Ranges and time', order: 74 }),
+    labelColour: withUi(hexColor.optional(), { title: 'Label colour', group: 'Ranges and time', order: 75 }),
+    aclRules: withUi(z.array(AclRuleSchema).default([]), { title: 'ACL rules', widget: 'rule-editor', group: 'Rules', order: 80 }),
     notes: withUi(z.looseObject({}).optional(), { title: 'Vendor extensions', widget: 'json', group: 'Advanced', order: 90 }),
   }),
   { title: 'Interface (demo)', description: 'Demo schema exercising every SchemaForm widget; not a product schema.' },
@@ -75,4 +104,16 @@ export const demoValue = {
   ipv4: ['192.0.2.1/24'],
   subinterfaces: { 'GigabitEthernet0/8/0.100': { vlanId: 100, ipv4: [] } },
   auth: { kind: 'none' },
+  tags: ['uplink'],
+  neighbours: [{ address: '192.0.2.254', description: 'upstream router' }],
+  managementPorts: '8443',
+  natPool: '198.51.100.10-198.51.100.20',
+  maintenanceStart: '02:00',
+  validFrom: '2026-09-24T18:00:00+03:30',
+  timeZone: 'Asia/Tehran',
+  labelColour: '#1e88e5',
+  aclRules: [
+    { sequence: 10, action: 'permit', source: { kind: 'prefix', prefix: '192.0.2.0/24' }, service: { kind: 'object', name: 'https' } },
+    { sequence: 20, action: 'deny', log: true },
+  ],
 };

@@ -98,6 +98,31 @@ describe('interfaces screen', () => {
     await waitFor(() => expect(patched).toEqual({ 'host-w1l0': { subinterfaces: { '100': null } } }));
   });
 
+  it('switching the DHCP client on with only its defaults saves the object; switching it off removes it (WEB-1 review H1)', { timeout: 60_000 }, async () => {
+    const api = installFakeApi();
+    withInterfaces(api);
+    const patches: unknown[] = [];
+    api.on('PATCH /api/v1/config/interfaces', (_r, body) => {
+      patches.push(body);
+      return { body: { pointer: '/interfaces', before: null, after: null } };
+    });
+    await signIn();
+    render(app('/interfaces'));
+    const grid = await screen.findByRole('grid', {}, { timeout: 15_000 });
+    fireEvent.click(await within(grid).findByText('host-w1l0'));
+    const drawer = await screen.findByRole('region', { name: 'Interface host-w1l0' });
+    const dhcp = await within(drawer).findByLabelText('Configure DHCP client');
+    expect(dhcp).not.toBeChecked();
+    fireEvent.click(dhcp);
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Save to candidate' }));
+    // "just use DHCP": the enabled object holds nothing but its defaults and must still be sent
+    await waitFor(() => expect(patches).toEqual([{ 'host-w1l0': { dhcpClient: { setBroadcastFlag: false } } }]));
+    fireEvent.click(within(drawer).getByLabelText('Configure DHCP client'));
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Save to candidate' }));
+    await waitFor(() => expect(patches).toHaveLength(2));
+    expect(patches[1]).toEqual({ 'host-w1l0': { dhcpClient: null } });
+  });
+
   it('saves only the edits against the value the form opened with; a new sub-interface cannot reuse an id (review N4/N5)', { timeout: 60_000 }, async () => {
     const api = installFakeApi();
     withInterfaces(api);

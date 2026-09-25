@@ -2,6 +2,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import Autocomplete from '@mui/material/Autocomplete';
 import Checkbox from '@mui/material/Checkbox';
+import Chip from '@mui/material/Chip';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormHelperText from '@mui/material/FormHelperText';
@@ -18,8 +19,10 @@ import { useTheme } from '@mui/material/styles';
 import { useEffect, useId, useState, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UI_KIT_NS } from '../../i18n/index.js';
-import { typeOf } from '../schema-utils.js';
+import { IDENTIFIER_WIDGETS, isLtrString, typeOf } from '../schema-utils.js';
 import type { JsonSchema, UiHints } from '../types.js';
+import { prose } from './bidi.js';
+import { ColorInput, DateTimeInput, RANGE_KIND, RangeInput, SuggestInput, TimeInput, TimeZoneInput } from './widgets.js';
 
 /**
  * Presentational, fully controlled inputs. `PrimitiveInput` picks the control from the schema type and the
@@ -43,9 +46,10 @@ export interface PrimitiveInputProps {
   options?: readonly string[] | undefined;
 }
 
-const MONO_WIDGETS = new Set(['cidr', 'ip', 'mac', 'interface-picker', 'mono']);
-
-/** Technical values (IP/CIDR/MAC/interface names/JSON) stay LTR in RTL locales so bidi never reorders them (review L7). */
+/**
+ * Technical values (IP/CIDR/MAC/interface names/JSON, identifier widgets, identifier formats, ASCII-only patterns) stay
+ * LTR in RTL locales so bidi never reorders them (review L7, RTL-1); free text follows the page direction.
+ */
 const LTR = { dir: 'ltr' } as const;
 const NUMERIC = { inputMode: { integer: 'numeric', decimal: 'decimal' }, anyStep: 'any' } as const;
 
@@ -63,7 +67,8 @@ export function inferStringWidget(schema: JsonSchema): string {
       break;
   }
   if (schema.writeOnly) return 'password';
-  if ((schema.maxLength ?? 0) > 200) return 'textarea';
+  // Long prose gets a textarea; a long identifier (hostname: 253, ASCII-only pattern) stays a one-line LTR input.
+  if ((schema.maxLength ?? 0) > 200 && !isLtrString(schema, undefined)) return 'textarea';
   return 'text';
 }
 
@@ -90,8 +95,25 @@ export function PrimitiveInput(props: PrimitiveInputProps) {
   }
   if (t === 'string') {
     const w = widget ?? inferStringWidget(schema);
-    if (w === 'interface-picker') return <InterfacePickerInput {...props} />;
-    return <TextInput {...props} widget={w} />;
+    switch (w) {
+      case 'interface-picker':
+        return <InterfacePickerInput {...props} />;
+      case 'port-range':
+        return <RangeInput {...props} kind={RANGE_KIND.port} />;
+      case 'ip-range':
+        return <RangeInput {...props} kind={RANGE_KIND.ip} />;
+      case 'time':
+        return <TimeInput {...props} />;
+      case 'datetime':
+        return <DateTimeInput {...props} />;
+      case 'timezone':
+      case 'timezone-picker':
+        return <TimeZoneInput {...props} />;
+      case 'color':
+        return <ColorInput {...props} />;
+      default:
+        return <TextInput {...props} widget={w} />;
+    }
   }
   return <JsonInput {...props} />;
 }
@@ -103,7 +125,8 @@ function TextInput(props: PrimitiveInputProps) {
   const { t } = useTranslation(UI_KIT_NS);
   const [show, setShow] = useState(false);
   const isPassword = widget === 'password';
-  const mono = widget !== undefined && MONO_WIDGETS.has(widget);
+  const mono = widget !== undefined && IDENTIFIER_WIDGETS.has(widget);
+  const ltr = mono || isLtrString(schema, widget);
   const placeholder = typeof hints.placeholder === 'string' ? hints.placeholder : undefined;
   return (
     <TextField
@@ -115,7 +138,7 @@ function TextInput(props: PrimitiveInputProps) {
       onBlur={onBlur}
       inputRef={inputRef}
       error={error !== undefined}
-      helperText={error ?? helperText}
+      helperText={prose(error ?? helperText)}
       multiline={widget === 'textarea'}
       minRows={widget === 'textarea' ? 3 : undefined}
       type={isPassword && !show ? 'password' : 'text'}
@@ -143,8 +166,8 @@ function TextInput(props: PrimitiveInputProps) {
         htmlInput: {
           ...(placeholder ? { placeholder } : {}),
           ...(schema.maxLength !== undefined ? { maxLength: schema.maxLength } : {}),
-          ...(widget === 'ip' || widget === 'cidr' || widget === 'mac' ? { spellCheck: false } : {}),
-          ...(mono ? LTR : {}),
+          ...(ltr && !isPassword ? { spellCheck: false } : {}),
+          ...(ltr ? LTR : {}),
           'aria-readonly': readOnly || undefined,
         },
       }}
@@ -153,37 +176,8 @@ function TextInput(props: PrimitiveInputProps) {
 }
 
 function InterfacePickerInput(props: PrimitiveInputProps) {
-  const { value, onChange, onBlur, label, required, readOnly, error, helperText, options } = props;
-  const theme = useTheme();
   const { t } = useTranslation(UI_KIT_NS);
-  const current = typeof value === 'string' ? value : '';
-  return (
-    <Autocomplete
-      freeSolo
-      autoSelect
-      options={options ? [...options] : []}
-      value={current}
-      readOnly={readOnly}
-      onChange={(_e, v) => onChange(typeof v === 'string' && v !== '' ? v : undefined)}
-      onInputChange={(_e, text, reason) => {
-        if (reason === 'input' || reason === 'clear') onChange(text === '' ? undefined : text);
-      }}
-      onBlur={onBlur}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          label={label}
-          required={required}
-          error={error !== undefined}
-          helperText={error ?? helperText ?? t('form.interfacePickerHelp')}
-          slotProps={{
-            input: { ...params.InputProps, sx: { fontFamily: theme.vrx.monoFontFamily } },
-            htmlInput: { ...params.inputProps, spellCheck: false, ...LTR },
-          }}
-        />
-      )}
-    />
-  );
+  return <SuggestInput {...props} suggestions={props.options ?? []} defaultHelp={t('form.interfacePickerHelp')} />;
 }
 
 function toNumberValue(raw: string): unknown {
@@ -207,7 +201,7 @@ function NumberInput(props: PrimitiveInputProps) {
       onBlur={onBlur}
       inputRef={inputRef}
       error={error !== undefined}
-      helperText={error ?? helperText}
+      helperText={prose(error ?? helperText)}
       slotProps={{
         input: { readOnly },
         htmlInput: {
@@ -248,7 +242,7 @@ function SliderInput(props: PrimitiveInputProps) {
         disabled={readOnly}
         sx={{ mx: 1 }}
       />
-      {(error ?? helperText) && <FormHelperText>{error ?? helperText}</FormHelperText>}
+      {(error ?? helperText) && <FormHelperText>{prose(error ?? helperText)}</FormHelperText>}
     </FormControl>
   );
 }
@@ -277,7 +271,7 @@ function BooleanInput(props: PrimitiveInputProps) {
   return (
     <FormControl error={error !== undefined} disabled={readOnly}>
       <FormControlLabel control={control} label={label} />
-      {(error ?? helperText) && <FormHelperText>{error ?? helperText}</FormHelperText>}
+      {(error ?? helperText) && <FormHelperText>{prose(error ?? helperText)}</FormHelperText>}
     </FormControl>
   );
 }
@@ -298,7 +292,7 @@ function SelectInput(props: PrimitiveInputProps) {
       onBlur={onBlur}
       inputRef={inputRef}
       error={error !== undefined}
-      helperText={error ?? helperText}
+      helperText={prose(error ?? helperText)}
       slotProps={{ input: { readOnly } }}
     >
       {!required && (
@@ -336,7 +330,7 @@ function RadioInput(props: PrimitiveInputProps) {
           <FormControlLabel key={String(i)} value={String(i)} control={<Radio />} label={enumLabel(v, hints)} />
         ))}
       </RadioGroup>
-      {(error ?? helperText) && <FormHelperText>{error ?? helperText}</FormHelperText>}
+      {(error ?? helperText) && <FormHelperText>{prose(error ?? helperText)}</FormHelperText>}
     </FormControl>
   );
 }
@@ -349,7 +343,7 @@ function ConstInput(props: PrimitiveInputProps) {
       label={label}
       value={typeof schema.const === 'string' ? schema.const : JSON.stringify(schema.const)}
       error={error !== undefined}
-      helperText={error ?? helperText}
+      helperText={prose(error ?? helperText)}
       slotProps={{ input: { readOnly: true }, htmlInput: { 'aria-readonly': true } }}
     />
   );
@@ -398,7 +392,7 @@ function JsonInput(props: PrimitiveInputProps) {
       onFocus={() => setFocused(true)}
       onBlur={commit}
       error={shown !== undefined}
-      helperText={shown ?? helperText ?? t('form.jsonValue')}
+      helperText={prose(shown ?? helperText ?? t('form.jsonValue'))}
       slotProps={{
         input: { readOnly, sx: { fontFamily: theme.vrx.monoFontFamily } },
         htmlInput: { spellCheck: false, ...LTR, 'aria-readonly': readOnly || undefined },
@@ -408,8 +402,8 @@ function JsonInput(props: PrimitiveInputProps) {
 }
 
 /** Array of strings as chips (`widget: 'chips'`). */
-export function ChipsInput(props: PrimitiveInputProps) {
-  const { value, onChange, onBlur, label, required, readOnly, error, helperText } = props;
+export function ChipsInput(props: PrimitiveInputProps & { ltr?: boolean | undefined }) {
+  const { value, onChange, onBlur, label, required, readOnly, error, helperText, ltr = false } = props;
   const theme = useTheme();
   const items = Array.isArray(value) ? value.map(String) : [];
   return (
@@ -422,16 +416,26 @@ export function ChipsInput(props: PrimitiveInputProps) {
       readOnly={readOnly}
       onChange={(_e, v) => onChange(v.map(String))}
       onBlur={onBlur}
+      // Identifier chips (prefixes, names) are isolated LTR so `2001:db8::/64` never reorders in an RTL page (RTL-1).
+      {...(ltr
+        ? {
+            renderValue: (vals: readonly string[], getItemProps: (a: { index: number }) => Record<string, unknown> & { key: number }) =>
+              vals.map((v, index) => {
+                const { key, ...itemProps } = getItemProps({ index });
+                return <Chip key={key} {...itemProps} label={<bdi dir="ltr">{v}</bdi>} />;
+              }),
+          }
+        : {})}
       renderInput={(params) => (
         <TextField
           {...params}
           label={label}
           required={required && items.length === 0}
           error={error !== undefined}
-          helperText={error ?? helperText}
+          helperText={prose(error ?? helperText)}
           slotProps={{
             input: { ...params.InputProps, sx: { fontFamily: theme.vrx.monoFontFamily } },
-            htmlInput: { ...params.inputProps, spellCheck: false },
+            htmlInput: { ...params.inputProps, spellCheck: false, ...(ltr ? LTR : {}) },
           }}
         />
       )}
@@ -460,7 +464,7 @@ export function MultiSelectInput(props: PrimitiveInputProps & { choices: unknown
           label={label}
           required={required && selected.length === 0}
           error={error !== undefined}
-          helperText={error ?? helperText}
+          helperText={prose(error ?? helperText)}
         />
       )}
     />

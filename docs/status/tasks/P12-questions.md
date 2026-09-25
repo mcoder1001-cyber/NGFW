@@ -110,3 +110,19 @@ S2 `frr.RegisterInterfaceLines(name, fn)`: protocol/LCP lines inside the framewo
 is rendered when a description or registered lines exist). S3: projection.go's routing warning is table-driven, one row
 per leaf with a `handled` flag; `bgp` and `policy` are handled by P12; `wave-BC` anchors for F-ospf, F-isis-rip,
 F-bfd-redistribution sit in the table.
+
+## Q12 — manager coordination notes (2026-09-25), recorded as asked
+
+- **D-072 selector (F-vrf-static-ecmp L3/Q15):** P12 never calls `frr.RegisterStaticSelector`. The FRR stage and the
+  projection read the one selector through `frr.StaticOwnedByFRR` (`subsystems/frr.go` `FRRProjection`,
+  `desired/bgp.go` `FRRDoc`); whoever registers it (today `subsystems.RegisterStaticSelector`, later the package init) is
+  F-vrf-static-ecmp's.
+- **ListRoutes:** P12 adds no dump of its own. The FRR→VPP route sync is linux-nl's; the FIB proof and
+  `/state/routes?proto=` go through F-vrf-static-ecmp's `ListRoutes` (API `AgentClient.listRoutes`), so its bounded walks
+  and one-walk semaphore apply unchanged.
+- **TD-8 seams:** events use `Wiring.Publish` (`subsystems/frr.go` `registerP12`). No dynamic desired source is
+  registered (Q6): the seam does not fit a daemon-config singleton, and linux-nl does the route sync; nothing forked.
+- **TD-11b:** declared ahead of its merge — `frr.config` `RecordsNoOwnership()`, the lcp.itf-pair wrapper
+  `CheckPersistent()` (DF-1 iface claim store, `Persistent()` structural check) in `subsystems/frr.go`.
+- **Pre-existing red on this base (not P12):** `internal/agent` `TestSvsRangeFromSlot` fails on `74e5e24` too
+  (`product range {0 0}`: SvsRange vs TD-8's fail-closed SlotIDRange) — F-vrf-static-ecmp's test, its fix round.

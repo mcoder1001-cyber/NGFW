@@ -524,3 +524,64 @@ running; the lab lock is not held; database `vrx_w7` dropped by the harness ("no
 no rig was used; GSO / LLDP disabled on everything enabled (rollbacks + leftover check); `dist/` and `apps/agent/bin`
 removed; the test work dir /run/vrx-test/w7/lbgs (logs, agent state) is left in the slot run dir. nsim was never applied
 on the shared VPP (slot agent; opt-in host test not run).
+
+## Fix round 1 (review 777f629f, APPROVE WITH CHANGES)
+
+Commits: `439959c5` (M1, M2 agent), `f8decdf9` (gofmt), `03a60428` (M2 API), `31bb7302` (M3), `e6ae0f4e` (M6, M5 UI, M2
+text), `9278c416` (L1 contract text), `4718b431` (docs: M5, M2, M3, L3, L1). The base is still `task/F-bridge-l2`, so
+TD-11b's `Target.ClaimFirst`, TD-23's extension registry and WEB-1 are not in it; everything below is written so the
+rebase round only swaps names.
+
+| item | what changed | tests (all pass at HEAD) | on the old code |
+|---|---|---|---|
+| M1 wheel bound | `nsim.Config.WheelSlots()` (VPP's own formula: `floor(delay·bw/8 + 0.5) / packetSize + 1`) and `WheelSlotsMax = 2^20` (same as the schema's `NSIM_WHEEL_SLOTS_MAX`); `Validate` refuses a larger model with `dfkit.ErrSpec`, so `nsim_configure2` is never sent (VPP NULL-derefs a failed wheel mmap) | `nsim.TestConfigWheelBound` (schema maxima refused, largest model under the bound accepted) | probe `TestProbeOldWheelBound` fails: a >10^9-slot model reaches `nsim_configure2` |
+| M2 (a) workers | `nsim.config` Create asks `show_threads` first; with worker threads and no `WithPollMainThread(true)` it returns `nsim.ErrWorkerThreads` before any nsim call (the main thread has no wheel). The operator asserts `nsim { poll-main-thread }` in startup.conf with `VRX_NSIM_POLL_MAIN_THREAD=1` | `nsim.TestConfigRefusesWorkerThreads` | probe `TestProbeOldWorkerThreads` fails: `nsim_configure2` sent on a 3-thread VPP |
+| M2 (b) lab gate | agent: nsim descriptors are registered only on the globals owner **and** `VRX_NSIM=lab` (off by default; `LoopbackBviGsoLldpSpanEnv().Nsim`); otherwise `services.nsim` is reported `agent.unsupported-field` with the reason. API: `NsimGateInterceptor` (feature provider, `APP_INTERCEPTOR`) answers a commit or a rollback whose document carries `services.nsim` with 409 problem+json `nsim-disabled`, pointer `/services/nsim`, unless `VRX_NSIM=lab` (read per request) | `subsystems.TestNsimLabGate` (owner × env), `desired.TestNsimProjection` (owner without the gate), e2e `a commit carrying services.nsim is 409 … unless VRX_NSIM=lab` (409 + pointer, no Apply; accepted with lab; commit and rollback refused again with the gate off) | probe `TestProbeOldNsimLabGate` fails: nsim registered on the globals owner without the opt-in; the e2e 409 test fails by construction (no gate existed) |
+| M2 (c) docs | user guide, `docs/agent/descriptors/nsim.md`, UI warning (en + fa): lab opt-in, 409, worker refusal, bound, and that configuring nsim leaves the `nsim-wheel` input node polling the main thread until VPP restarts | — | — |
+| M3 claim first | gso, nsim (cross-connect, output), span and lldp Creates claim the untagged interface before the first VPP write; a failed write releases a claim they took; gso and nsim disable again when the boot record cannot be written (no enable without a record). lldp keeps the claim when the neighbour dump fails after the enable (V20: no disable), and releases it on `ErrIndexMismatch`. Local `claimFirst` helper in each package — replaced by `tg.ClaimFirst` at the rebase (mechanical) | `{gso,nsim,span}.TestCreateClaimsFirst`, `{gso,nsim}.TestCreateUndoesEnableWithoutRecord`, `span.TestCreateReleasesClaimOnFailure`, `lldp.TestInterfaceClaimsFirst`, `lldp.TestInterfaceMismatchReleasesClaim` | against the pre-M3 sources: `TestCreateClaimsFirst` fails in all four packages ("2 GSO calls before the claim", "2 nsim enables before the claim", "a mirror was written before the claim", "LLDP enabled before the claim"), `TestCreateUndoesEnableWithoutRecord` fails in gso and nsim ("GSO left enabled (1) without a record", "enables left without a record: cross 1 output map[4:1]") |
+| M5 LLDP mismatch | a refusal before any VPP call is impossible (the binapi exposes no hw_if_index for an interface). The user guide, `lldp.md` and a warning on the LLDP page now say what happens: DF-7 enables LLDP first, then the agent reads the index back, reports `ErrIndexMismatch`, and the interface stays in drift until VPP's indexes line up | — (text) | — |
+| M6 form submits | LLDP and nsim SchemaForms submitted in tests; the nsim cross-connect is its own switch (an absent optional object is no longer materialised; `withoutProps`), so a model without a pair is saved without one and switching it off sends `crossConnect: null` | `pages.test.tsx` › form submits: LLDP edit → `{lldp:{systemName:'vrx-lab'}}`; nsim delay → `{nsim:{delayMs:35}}`; cross-connect off → `{nsim:{crossConnect:null}}` | old pages (`NsimPage.tsx`, `LldpPage.tsx`, `model.ts` from 777f629f): both nsim tests fail ("expected undefined to deeply equal { nsim: { delayMs: 35 } }": the materialised empty cross-connect kept the form from saving; no switch to turn it off); the LLDP test passes (M6 was missing coverage there, not a bug) |
+| L1 | schema help "Empty keeps VPP's current system name (VPP starts without one)" (`contract(schema)`, generation unchanged); lldp.go comment | — | — |
+| L3 | guide quotes the evidence: +0.61 s, reconcile 0.428 s | — | — |
+| M4 | **after TD-23** (not on main at 09:58: `git log main` head `1d3ccf31`, no TD-23 merge). At the rebase: merge main, drop the fakevpp.go hook hunk, `RegisterExtension("loopback-bvi-gso-lldp-span", …)` in `coretest/loopback_bvi_gso_lldp_span.go`, the `gso-ip4` answer through `RegisterFeatureIsEnabled`, the replicated mactime branch deleted; the core dispatcher untouched | — | — |
+| L2, L4, L5 | L2 at the rebase (seam file, `reportUnsupportedServices`, `dfkit.CheckClaims/CheckBoot`); L4, L5 not done (L5's slug is Q9, not mine) | — | — |
+
+No host run in this round (manager: af_packet creates wait for TD-25; nothing here needs VPP). A refused nsim commit is,
+by Nest's interceptor order (reasoned, not tested), not written to the audit log: the feature's interceptor is registered
+before the global `AuditInterceptor`, so it is the outer one. The 409 is visible to
+the caller; if the audit should record refusals, the gate would move into the commit service (manager's call).
+
+Old-code probes (`TestProbeOld*`, only pre-fix symbols; the review-round sources swapped in at 777f629f, restored after):
+```
+--- FAIL: TestProbeOldWheelBound       M1: a >1e9-slot wheel was not refused: err=<nil>, nsim_configure2 sent 1 times
+--- FAIL: TestProbeOldWorkerThreads    M2(a): worker box without poll-main-thread: err=<nil>, nsim_configure2 sent 1 times
+--- FAIL: TestProbeOldNsimLabGate      M2(b): nsim registered on the globals owner without VRX_NSIM=lab
+HEAD: ok ngfw/agent/internal/descriptors/nsim · ok ngfw/agent/internal/subsystems (same probes)
+web at 777f629f: 2 failed | 1 passed (form submits); at HEAD: 3 passed
+```
+
+### CI (fix round 1)
+`TMPDIR=/tmp/g-w7 tools/ci.sh --base main` at `4718b431`. The branch's own copy failed again only on the D-127 SIGPIPE
+contract-guard flake, so the gate ran as before through `/tmp/g-w7/ci-branch.sh` (the branch's `tools/ci.sh` plus main's
+D-127 capture-then-grep and D-128b test-file exclusion; `tools/ci.sh` untouched). The guard listed the four contract
+commits including `9278c416 contract(schema)`.
+```
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m03s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m04s
+  generate + generated-output gate                   2m04s
+  forbidden patterns (+ gitleaks)                    0m04s
+  lint · typecheck · unit tests · build (turbo)   4m04s
+  apps/agent: make lint test build                   0m53s
+  apps/cli: make lint test build                     0m09s
+  test/ Go modules, unit mode (test/integration/smoke test/topology/bridge-l2 test/topology/interfaces test/topology/loopback-bvi-gso-lldp-span)   0m13s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      review(F-loopback-bvi-gso-lldp-span): APPROVE WITH CHANGES
+      review(W-seed): verify
+  mode quick · wall time 7m36s · logs /root/ngfw-wt/logs/ci/F-loopback-bvi-gso-lldp-span-20260925-094246-471669
+
+CI GATE PASSED
+exit=0
+```

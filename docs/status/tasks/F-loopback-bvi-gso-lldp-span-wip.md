@@ -13,3 +13,5 @@
 | 00:20 | usage-limit stop |
 | 03:45 | resumed: eaa556b TD-11b declarations, D-132 polls/Refresh/serialised walk, WEB-1 dropPhantomOptionals removed |
 | 04:40 | done: CI gate green at c97508f (guard-fixed copy, see status), host check + e2e + screenshots re-run at HEAD, status with evidence, cleanup |
+| 09:05 | fix round 1 (review 777f629f): 439959c M1/M2 agent, 03a6042 M2 API 409 gate, 31bb730 M3 claim first, e6ae0f4 M6/M5 web, 9278c41 L1, 4718b43 docs |
+| 09:55 | CI gate green at 4718b43 (guard-fixed copy); old-code probes fail as expected; status "Fix round 1"; M4 after TD-23 |

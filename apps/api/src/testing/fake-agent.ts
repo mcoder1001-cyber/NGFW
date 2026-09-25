@@ -68,6 +68,8 @@ export class FakeAgent {
   lastTxnId = '';
   degraded = false;
   lastReconcileAt: Date | undefined;
+  /** Health.reconcile_in_progress (TD-9 review L8: an Apply the agent is still finishing after the API gave up). */
+  reconcileInProgress = false;
   /** Answer a confirm only after this delay — the transaction IS confirmed (simulates a lost confirm answer, TD-10a). */
   confirmDelayMs = 0;
   /** gRPC deadline of the last call per method (TD-10a 2.4a: the server's time budget reaches the agent). */
@@ -145,6 +147,7 @@ export class FakeAgent {
     this.current = structuredClone(state);
     this.confirmed = structuredClone(state);
     this.lastTxnId = '';
+    this.reconcileInProgress = false;
     this.confirmDelayMs = 0;
     this.deadlines = {};
     this.calls = [];
@@ -488,7 +491,7 @@ export class FakeAgent {
         confirmDeadline: this.pending?.deadline,
         degraded: this.degraded,
         lastReconcileAt: this.lastReconcileAt,
-        reconcileInProgress: false,
+        reconcileInProgress: this.reconcileInProgress,
       });
     };
 

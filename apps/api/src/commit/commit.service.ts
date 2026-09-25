@@ -1,5 +1,12 @@
 import { Inject, Injectable, Logger, Optional, type OnApplicationShutdown } from '@nestjs/common';
-import { ApplyStatus, EventKind, type ApplyResponse, type ObjectResult } from '@ngfw/proto';
+import {
+  ApplyStatus,
+  EventKind,
+  IssueSeverity,
+  type ApplyResponse,
+  type ObjectResult,
+  type ValidationIssue,
+} from '@ngfw/proto';
 import { deepEqual, diff, parsePointer, type UserConfig } from '@ngfw/schema';
 import { randomUUID } from 'node:crypto';
 import { AgentClient } from '../agent/agent.client.js';
@@ -359,6 +366,11 @@ export class CommitService implements OnApplicationShutdown {
         );
       } else if (h.pendingConfirmTxnId) {
         // a confirm window is open on the agent: wait for it to close (confirm or self-revert)
+        this.scheduleReconcile();
+        return syncJson(this.sync);
+      } else if (h.reconcileInProgress) {
+        // TD-9 review L8: the agent is still finishing a transaction (a lost Apply outlived our deadline — the agent no
+        // longer cuts it): wait, then look at last_txn_id again, instead of queueing a re-apply of running over it
         this.scheduleReconcile();
         return syncJson(this.sync);
       } else {
@@ -776,12 +788,12 @@ export class CommitService implements OnApplicationShutdown {
         { txnId, results },
       );
       this.bus.publish('commit.events', { type: 'failed', txnId, status: statusName(res.status) });
+      // TD-9 review M4: since TD-9 an answer's validation also carries the projection's WARNINGS (e.g. /system
+      // agent.unimplemented-domain on every real document) — only errors are errors; the rest joins `warnings`
+      const issues = res.validation?.errors ?? [];
+      const isError = (i: ValidationIssue) => i.severity === IssueSeverity.ISSUE_SEVERITY_ERROR;
       const errors: ProblemIssue[] = [
-        ...(res.validation?.errors ?? []).map((i) => ({
-          pointer: i.pointer,
-          message: i.message,
-          ...(i.rule ? { rule: i.rule } : {}),
-        })),
+        ...issues.filter(isError).map(issueJson),
         ...res.results
           .filter((r) => r.code !== 1 && r.code !== 4)
           .map((r) => ({
@@ -810,7 +822,7 @@ export class CommitService implements OnApplicationShutdown {
           results,
           summary,
           sync,
-          warnings: v.warnings,
+          warnings: mergeIssues(v.warnings, issues.filter((i) => !isError(i)).map(issueJson)),
         },
       );
     }
@@ -1173,6 +1185,17 @@ export class CommitService implements OnApplicationShutdown {
       { txnId, via },
     );
   }
+}
+
+function issueJson(i: ValidationIssue): ProblemIssue {
+  return { pointer: i.pointer, message: i.message, ...(i.rule ? { rule: i.rule } : {}) };
+}
+
+/** `a` then the entries of `b` not already in it (DryRun and Apply report the same projection warnings). */
+function mergeIssues(a: readonly ProblemIssue[], b: readonly ProblemIssue[]): ProblemIssue[] {
+  const key = (i: ProblemIssue) => `${i.pointer}\u0000${i.rule ?? ''}\u0000${i.message}`;
+  const seen = new Set(a.map(key));
+  return [...a, ...b.filter((i) => !seen.has(key(i)))];
 }
 
 function pick(m: Record<string, number>, keys: readonly string[]): Record<string, number> {

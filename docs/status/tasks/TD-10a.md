@@ -189,3 +189,16 @@ no contract files changed in the 11 commit(s) of HEAD since main (ae359680)
 == summary (quick) ==
 CI GATE PASSED
 ```
+
+## Add-on: TD-9 review M4 and L8 (manager, 2026-09-25)
+
+- **M4:** the 422 `apply-failed` now splits `res.validation.errors` by severity. Only `ISSUE_SEVERITY_ERROR` entries go into `errors`. Every other entry joins the existing `warnings` extension (from 2.5), merged with the DryRun warnings and de-duplicated. No new field was needed, so there is no contract change.
+- **L8:** when there is no in-flight or pending match and Health reports `reconcile_in_progress`, `reconcileLocked()` retries later instead of re-applying running over an Apply the agent is still finishing. The fake agent gains a `reconcileInProgress` flag, which Health reports.
+- Both tests fail before the fix (`/root/ngfw-wt/logs/TD-10a-td9-prefix-fail.log`):
+```
+   × TD-9 review M4 / L8 > M4: a ROLLED_BACK answer with an error and a warning → the 422 has errors=[the error], warnings=[the warning]
+     → expected [ { …(3) }, …(1) ] to deeply equal [ { …(3) } ]
+   × TD-9 review M4 / L8 > L8: the reconcile waits while the agent still finishes the lost Apply, then saves it (no re-apply over it)
+     → expected [ { …(6) }, { …(6) } ] to have a length of 1 but got 2
+```
+- After the fix: the API unit suite passes (`Test Files 12 passed (12)   Tests 121 passed (121)`), and tsc and eslint are clean.

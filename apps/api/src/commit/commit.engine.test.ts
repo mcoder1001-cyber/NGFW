@@ -432,6 +432,74 @@ describe('TD-10a commit engine (fake agent over gRPC)', { timeout: 20_000 }, () 
     });
   });
 
+  // ------------------------------------------------------------------------------------------------ TD-9 review add-on
+
+  describe('TD-9 review M4 / L8', () => {
+    it('M4: a ROLLED_BACK answer with an error and a warning → the 422 has errors=[the error], warnings=[the warning]', async () => {
+      await ds.patchCandidate(ADMIN, '/interfaces/loop1', { ipv4: ['10.1.0.1/24'] });
+      fake.nextApply = (req) => ({
+        status: ApplyStatus.APPLY_STATUS_ROLLED_BACK,
+        message: 'vpp said no',
+        validation: {
+          txnId: req.txnId,
+          ok: false,
+          errors: [
+            {
+              pointer: '/interfaces/loop1',
+              message: 'no such device',
+              severity: IssueSeverity.ISSUE_SEVERITY_ERROR,
+              rule: 'interfaces.exists',
+            },
+            {
+              pointer: '/system',
+              message: 'domain system is not implemented by this agent build',
+              severity: IssueSeverity.ISSUE_SEVERITY_WARNING,
+              rule: 'agent.unimplemented-domain',
+            },
+          ],
+          plan: [],
+          summary: undefined,
+        },
+      });
+      const p = await problem(commits.commit(ADMIN, {}));
+      expect(p.status).toBe(422);
+      expect(p.body['errors']).toEqual([
+        { pointer: '/interfaces/loop1', message: 'no such device', rule: 'interfaces.exists' },
+      ]);
+      expect(p.body['warnings']).toEqual([
+        {
+          pointer: '/system',
+          message: 'domain system is not implemented by this agent build',
+          rule: 'agent.unimplemented-domain',
+        },
+      ]);
+    });
+
+    it('L8: the reconcile waits while the agent still finishes the lost Apply, then saves it (no re-apply over it)', async () => {
+      const c2 = service(shortEnv('300'), true);
+      await ds.patchCandidate(ADMIN, '/interfaces/loop1', { ipv4: ['10.1.0.1/24'] });
+      fake.applyDelayMs = 800;
+      const p = await problem(c2.commit(ADMIN, {}));
+      expect(p.body['type']).toBe('https://vrx.dev/problems/running-unknown');
+      const txn = fake.lastTxnId;
+      // the agent is still running that Apply (its lock held): last_txn_id not yet updated
+      fake.lastTxnId = 'previous';
+      fake.reconcileInProgress = true;
+      fake.applyDelayMs = 0;
+      const n = applies(fake).length;
+      await new Promise((r) => setTimeout(r, 1500));
+      expect(applies(fake)).toHaveLength(n); // no re-apply of running queued behind the agent's Apply
+      fake.lastTxnId = txn;
+      fake.reconcileInProgress = false;
+      await vi.waitFor(async () => expect((await c2.syncStatus()).state).toBe('in-sync'), {
+        timeout: 8000,
+        interval: 100,
+      });
+      expect(repo.state.revisions.map((x) => x.txnId)).toEqual([txn]);
+      expect(applies(fake)).toHaveLength(n);
+    });
+  });
+
   // ------------------------------------------------------------------------------------------------ fix round 1
 
   describe('fix round 1 (TD-10a-review.md)', () => {

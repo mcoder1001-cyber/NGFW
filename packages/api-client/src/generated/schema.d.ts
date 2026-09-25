@@ -640,6 +640,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/services/qos/policers': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** QoS policers and shapers: what VPP reports (parameters, token buckets, conform/exceed/violate counters) joined with the running configuration (attachments) */
+    get: operations['QosFlat_policers'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/qos/policers/{name}/reset': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Refill a policer's token buckets (VPP policer_reset); the counters are kept. Operator; audited */
+    post: operations['QosFlat_reset'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -8267,6 +8301,222 @@ export interface operations {
       };
       /** @description Rate limited */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  QosFlat_policers: {
+    parameters: {
+      query?: {
+        name?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt?: string;
+            /** @description set when the agent could not read the stats segment (the counters are then 0) */
+            countersError: string | null;
+            items: {
+              /** @description services.qos.policers key, or the services.qos.shapers key for kind=shaper */
+              name: string;
+              /** @enum {string} */
+              kind: 'policer' | 'shaper';
+              /** @description the name the agent gives it in VPP without the owner prefix (shaper:<name> for a shaper) */
+              vppName: string;
+              /** @description in the running configuration */
+              configured: boolean;
+              /** @description VPP reports it for this agent */
+              present: boolean;
+              /** @description VPP pool index; null when not present */
+              index: number | null;
+              type: string;
+              rateUnit: string;
+              cir: number;
+              eir: number;
+              cb: number;
+              eb: number;
+              /** @description VPP's token buckets (internal token units); null when not present */
+              bucket: {
+                current: number;
+                limit: number;
+                extendedCurrent: number;
+                extendedLimit: number;
+              } | null;
+              conform: {
+                /** @description 64-bit counter as a decimal string */
+                packets: string;
+                bytes: string;
+              };
+              exceed: {
+                /** @description 64-bit counter as a decimal string */
+                packets: string;
+                bytes: string;
+              };
+              violate: {
+                /** @description 64-bit counter as a decimal string */
+                packets: string;
+                bytes: string;
+              };
+              /** @description interfaces the running configuration attaches it to */
+              attachments: {
+                interface: string;
+                /** @enum {string} */
+                direction: 'input' | 'output';
+              }[];
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  QosFlat_reset: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description a qos.policers key, or shaper:<qos.shapers key> */
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            name: string;
+            index: number;
+            resetAt?: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

@@ -70,8 +70,8 @@ The schema allows a hostname as peer endpoint; this agent build does not resolve
 path): the projection fails with `agent.unsupported-value` at `endpoint/address`. A resolver belongs to F-object-model's
 FQDN machinery (a later row).
 
-## Q11 — TD-11b PartialCreate (manager addendum, D-133)
-TD-11b is not on main yet (checked at every commit point). The fix (`scheduler.PartialCreate` around the
-`want_wireguard_peer_events` failure in `peer.go` Create, plus a test failing on the old code) is applied as soon as it
-lands; until then Create still returns meta+error there (the only path: an event subscription is active and the per-peer
-registration fails).
+## Q11 — TD-11b PartialCreate (manager addendum, D-133) — DONE
+`peer.go` Create wraps the `want_wireguard_peer_events` failure (the peer already exists in VPP) in
+`scheduler.PartialCreate`; `TestPeerCreatePartialWhenEventRegistrationFails` runs it through the reconciler: the
+transaction fails, the peer is journaled and the rollback deletes it. On the old code the test fails ("peer result is not
+a partial Create"; the peer stays in VPP).

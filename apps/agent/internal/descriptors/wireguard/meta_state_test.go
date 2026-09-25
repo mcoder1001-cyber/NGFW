@@ -1,11 +1,13 @@
 package wireguard_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/wireguard"
@@ -149,5 +151,49 @@ func TestOwnershipDeclarations(t *testing.T) {
 	}
 	if err := wgd.NewMeta(s).CheckPersistent(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TD-11b / D-133 (manager addendum): when the per-peer event registration fails after the peer was
+// added, Create reports a partial Create, the reconciler journals the peer and the rollback deletes it.
+// On the old code (a bare error with the Meta) the peer stayed in VPP after the ROLLED_BACK transaction.
+func TestPeerCreatePartialWhenEventRegistrationFails(t *testing.T) {
+	e := newEnv(t)
+	reg := scheduler.NewRegistry()
+	reg.Register(e.itf)
+	reg.Register(e.peer)
+	s := scheduler.New(reg, nil)
+	evCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	if _, err := e.peer.Events(evCtx); err != nil { // an active subscription: Create registers each new peer
+		t.Fatal(err)
+	}
+	e.v.On("want_wireguard_peer_events", func(api.Message) ([]api.Message, error) {
+		return []api.Message{&wireguard.WantWireguardPeerEventsReply{Retval: -1}}, nil
+	})
+	itf := e.itfV()
+	peer := e.peerV()
+	peer.TableId = 0
+	res := s.Apply(ctx, []scheduler.KV{
+		{Key: e.itf.KeyOf(itf), Value: itf},
+		{Key: e.peer.KeyOf(peer), Value: peer},
+	}, scheduler.All)
+	if res.Err == nil {
+		t.Fatal("the transaction must fail")
+	}
+	var partial bool
+	for _, r := range res.Results {
+		if r.Key == e.peer.KeyOf(peer) && scheduler.IsPartialCreate(r.Err) {
+			partial = true
+		}
+	}
+	if !partial {
+		t.Fatalf("peer result is not a partial Create: %+v", res.Results)
+	}
+	if n := len(e.v.peers); n != 0 {
+		t.Fatalf("%d peer(s) left in VPP after the rollback", n)
+	}
+	if len(e.v.wgs) != 0 {
+		t.Fatal("interface left in VPP after the rollback")
 	}
 }

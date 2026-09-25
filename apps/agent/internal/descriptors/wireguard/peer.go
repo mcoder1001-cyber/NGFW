@@ -133,7 +133,9 @@ func (d *Peer) Create(ctx context.Context, obj proto.Message) (any, error) {
 		if _, err := svc.WantWireguardPeerEvents(ctx, &wireguard.WantWireguardPeerEvents{
 			SwIfIndex: interface_types.InterfaceIndex(noInterface), PeerIndex: rep.PeerIndex, EnableDisable: 1, PID: pid,
 		}); err != nil {
-			return PeerMeta{PeerIndex: rep.PeerIndex, SwIfIndex: uint32(idx)}, fmt.Errorf("want_wireguard_peer_events (%s): %w", d.KeyOf(o), err)
+			// the peer exists in VPP: a partial Create (TD-11b, D-133) — the reconciler journals it with this
+			// Meta and the rollback deletes it; a bare error would leave it in VPP, unjournaled
+			return PeerMeta{PeerIndex: rep.PeerIndex, SwIfIndex: uint32(idx)}, scheduler.PartialCreate(fmt.Errorf("want_wireguard_peer_events (%s): %w", d.KeyOf(o), err))
 		}
 	}
 	return PeerMeta{PeerIndex: rep.PeerIndex, SwIfIndex: uint32(idx)}, nil

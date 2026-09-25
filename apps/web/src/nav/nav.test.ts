@@ -56,6 +56,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-A: F-object-model
       'objects',
       // wave-A: F-acl
+      'acl',
       // wave-A: F-host-acl-nftables
       // wave-A: P11
       // wave-A: F-wireguard

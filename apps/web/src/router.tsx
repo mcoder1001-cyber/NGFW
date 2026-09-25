@@ -96,6 +96,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-A: F-object-model
         { path: domainPath('objects').slice(1), lazy: async () => ({ Component: (await import('./domains/firewall/object-model/ObjectsPage')).ObjectsPage }) },
         // wave-A: F-acl
+        { path: domainPath('acl').slice(1), lazy: async () => ({ Component: (await import('./domains/firewall/acl/AclPage')).AclPage }) },
         // wave-A: F-host-acl-nftables
         // wave-A: F-nat44-ed-sessions
         // wave-A: P11

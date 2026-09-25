@@ -58,6 +58,7 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   // wave-A: F-object-model
   'objects',
   // wave-A: F-acl
+  'acl',
   // wave-A: F-nat44-ed-sessions
   // wave-A: P11
   // wave-A: F-wireguard

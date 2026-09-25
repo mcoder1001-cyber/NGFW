@@ -66,6 +66,8 @@ import faVpn from './locales/fa/vpn.json';
 import enObjectModel from './locales/en/object-model.json';
 import faObjectModel from './locales/fa/object-model.json';
 // wave-A: F-acl
+import enAcl from './locales/en/acl.json';
+import faAcl from './locales/fa/acl.json';
 // wave-A: F-host-acl-nftables
 // wave-A: F-nat44-ed-sessions
 // wave-A: F-nat44-ei-64-66-nptv6
@@ -129,6 +131,7 @@ export const NAMESPACES = [
   // wave-A: F-object-model
   'object-model',
   // wave-A: F-acl
+  'acl',
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions
   // wave-A: F-nat44-ei-64-66-nptv6
@@ -194,6 +197,7 @@ const en = {
   // wave-A: F-object-model
   'object-model': enObjectModel,
   // wave-A: F-acl
+  acl: enAcl,
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions
   // wave-A: F-nat44-ei-64-66-nptv6
@@ -256,6 +260,7 @@ const fa = {
   // wave-A: F-object-model
   'object-model': faObjectModel,
   // wave-A: F-acl
+  acl: faAcl,
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions
   // wave-A: F-nat44-ei-64-66-nptv6

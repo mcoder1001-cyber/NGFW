@@ -103,3 +103,4 @@ Not in this release: bonding, bridge domains, QinQ, LACP, LLDP (planned features
 (the description is kept by the agent and shown from there).
 
 See also: [Bridging](bridge-l2.md) — bridge domains, cross-connects, VLAN tag rewrite on L2 ports and the time-range MAC filter (`interfaces.<if>.l2`, `routing.l2`).
+See also: [Loopbacks as BVI, GSO, port mirroring, LLDP and the delay simulator](loopback-bvi-gso-lldp-span.md) — `interfaces.<if>.gso`, `interfaces.<if>.mirror`, `services.lldp`, `services.nsim`.

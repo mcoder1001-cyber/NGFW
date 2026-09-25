@@ -212,6 +212,7 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 }
 
 // Register registers the descriptor with r; store is the classify Store of the same owner.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, store classify.Store) {
 	r.Register(New(c, owner, store))
 }

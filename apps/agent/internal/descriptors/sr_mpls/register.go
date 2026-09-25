@@ -7,6 +7,7 @@ import (
 )
 
 // Register registers the SR-MPLS descriptors (policy, steering, endpoint color) with r.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df6.Option) {
 	r.Register(NewPolicy(c, owner, opts...))
 	r.Register(NewSteering(c, owner, opts...))

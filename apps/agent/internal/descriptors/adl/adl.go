@@ -243,6 +243,7 @@ func (*AllowlistDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
 // Register registers the adl descriptor VPP can read back (adl.interface) with r.
 // adl.allowlist is write-only (no readback in VPP 26.06) and only registered by
 // RegisterWriteOnly, for a reconciler that implements D-063.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df2.Option) {
 	r.Register(NewInterface(c, owner, opts...))
 }

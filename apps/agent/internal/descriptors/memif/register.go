@@ -14,6 +14,7 @@ type options struct{ socketDir string }
 func WithSocketDir(dir string) Option { return func(o *options) { o.socketDir = dir } }
 
 // Register registers the memif descriptors with r.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...Option) {
 	var o options
 	for _, opt := range opts {

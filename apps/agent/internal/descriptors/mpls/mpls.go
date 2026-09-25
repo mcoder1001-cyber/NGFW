@@ -731,6 +731,7 @@ func (d *IPBindDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
 
 // Register constructs every mpls descriptor (tables before interfaces, routes, bindings and
 // tunnels).
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
 	r.Register(NewTable(c, owner, opts...))
 	r.Register(NewInterface(c, owner, opts...))

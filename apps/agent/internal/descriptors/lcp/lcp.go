@@ -138,6 +138,7 @@ func WithInterfaceKey(f dfkit.KeyFunc) Option {
 }
 
 // Register constructs and registers the lcp descriptors.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Option) {
 	r.Register(NewItfPair(client, owner, opts...))
 }

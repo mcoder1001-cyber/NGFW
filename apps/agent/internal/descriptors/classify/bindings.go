@@ -758,6 +758,7 @@ func (d *OutputACLDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 // input-acl, output-acl) with r, all sharing store (nil = MemStore). The write-only bindings
 // (interface-ip-table, interface-l2-tables: no readback in VPP 26.06) are left out; see
 // RegisterWriteOnly and D-063.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, store Store, opts ...df2.Option) {
 	if store == nil {
 		store = NewMemStore()

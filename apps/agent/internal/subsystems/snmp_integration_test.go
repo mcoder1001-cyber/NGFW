@@ -161,7 +161,7 @@ func TestSnmpStageIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	newOther := func() *gosnmp.GoSNMP {
-		return &gosnmp.GoSNMP{Target: "127.0.0.1", Port: uint16(port), Version: gosnmp.Version2c, Community: fixtureOther, Timeout: 2 * time.Second, Retries: 1}
+		return &gosnmp.GoSNMP{Target: "127.0.0.1", Port: uint16(port), Version: gosnmp.Version2c, Community: fixtureOther, Timeout: 2 * time.Second, Retries: 1} //nolint:gosec // test port
 	}
 	walk(t, "v2c community other (added)", newOther(), prefix+"-snmp")
 	if _, err := st.Update(ctx, v2, v, nil); err != nil { // the scheduler's rollback path
@@ -169,7 +169,7 @@ func TestSnmpStageIntegration(t *testing.T) {
 	}
 	other := newOther()
 	if err := other.Connect(); err == nil {
-		defer other.Conn.Close()
+		defer func() { _ = other.Conn.Close() }()
 		if _, err := other.Get([]string{".1.3.6.1.2.1.1.5.0"}); err == nil {
 			t.Fatal("rolled-back community still answers")
 		} else {
@@ -177,7 +177,7 @@ func TestSnmpStageIntegration(t *testing.T) {
 		}
 	}
 	for _, f := range []string{filepath.Join(base, "snmpd.log"), filepath.Join(base, "state", "snmpd-"+prefix+".json")} {
-		b, _ := os.ReadFile(f)
+		b, _ := os.ReadFile(f) //nolint:gosec // test-owned path
 		assertNoSecrets(t, f, string(b))
 	}
 }
@@ -187,7 +187,7 @@ func walk(t *testing.T, name string, c *gosnmp.GoSNMP, sysName string) {
 	if err := c.Connect(); err != nil {
 		t.Fatal(err)
 	}
-	defer c.Conn.Close()
+	defer func() { _ = c.Conn.Close() }()
 	r, err := c.Get([]string{".1.3.6.1.2.1.1.5.0"})
 	if err != nil || len(r.Variables) != 1 || fmt.Sprint(string(r.Variables[0].Value.([]byte))) != sysName {
 		t.Fatalf("%s: sysName: %v %v", name, r, err)

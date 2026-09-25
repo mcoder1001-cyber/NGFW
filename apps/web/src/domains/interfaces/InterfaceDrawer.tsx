@@ -137,11 +137,15 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
     }
   };
 
+  // Like saveInterface (review N4), an edit diffs against the value the dialog opened with, never against a fresher
+  // candidate: a field another session set meanwhile (e.g. F-bridge-l2's `l2`) is not in the stale dialog, and a diff
+  // against the fresh value would send `l2: null` and delete it (F-bridge-l2 review #3, TD-22).
   const saveSub = async (id: string, value: unknown) => {
     setSubError(null);
+    const base = subDialog?.value;
     const current = (await fresh())[parentName]?.subinterfaces?.[id];
-    const cleaned = dropPhantomOptionals(subSchema, current, value);
-    const body = current === undefined ? cleaned : createMergePatch(current, cleaned);
+    const cleaned = dropPhantomOptionals(subSchema, base, value);
+    const body = current === undefined || base === undefined ? cleaned : createMergePatch(base, cleaned);
     try {
       await patch.mutateAsync({ [parentName]: { subinterfaces: { [id]: body } } });
       setSubDialog(null);

@@ -262,6 +262,7 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 }
 
 // Register registers the span descriptor.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
 	r.Register(New(c, owner, opts...))
 }

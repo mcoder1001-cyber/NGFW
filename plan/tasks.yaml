@@ -1526,7 +1526,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: ready
+  state: merged
   parked_on: ''
   wbs:
   - D6.8
@@ -1536,7 +1536,7 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-09-25'
   notes: ''
 - id: F-host-stack
   title: 'Wave C (day 13-15): expose host-stack config: session layer, TCP/UDP tuning, TLS, QUIC, HTTP static, HTTP/3 proxy'
@@ -1550,7 +1550,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: ready
+  state: merged
   parked_on: ''
   wbs:
   - D7.10
@@ -1562,7 +1562,7 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-09-25'
   notes: 'prompts-s4: suggested deps +F-startup-gen (TCP/UDP buffer tuning is startup.conf-only) — docs/status/tasks/prompts-s4.md'
 - id: F-lb
   title: 'Wave C (day 13-15): Load Balancer plugin (GRE/NAT/L3DSR/maglev)'
@@ -1626,7 +1626,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: ready
+  state: review
   parked_on: ''
   wbs:
   - D7.5
@@ -1652,7 +1652,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: ready
+  state: merged
   parked_on: ''
   wbs:
   - D7.6
@@ -1666,7 +1666,7 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-09-25'
   notes: 'prompts-s4: suggested deps soft: hsflowd packaging (P10 or follow-up) for sFlow collector export — docs/status/tasks/prompts-s4.md'
 - id: F-dashboard-prom-alarms
   title: 'Wave C (day 13-15): dashboard, Prometheus exporter/prom plugin, alarms/events, tunnel dashboards'
@@ -2044,7 +2044,7 @@ tasks:
   - ui-nav-collapse
   priority: 6
   est_hours: 10
-  state: ready
+  state: merged
   parked_on: ''
   wbs:
   - D12.2
@@ -2055,7 +2055,7 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-09-25'
   notes: 'prompts-s4: suggested deps +P07b/P08 (owns apps/web/** and apps/**; overlap check) — docs/status/tasks/prompts-s4.md'
 - id: INTEGRATE-E2E
   title: 'Freeze: integration + E2E on available topology'
@@ -2827,7 +2827,7 @@ tasks:
   - W-seed
   priority: 2
   est_hours: 6
-  state: ready
+  state: merged
   parked_on: ''
   wbs:
   - D0.7
@@ -2841,7 +2841,7 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-09-25'
   notes: 'D-125 | the 12 wave-A rows merge after TD-11a; escape hatch (TD-11a only): an APPROVE''d wave-A branch that has waited > 2 h merges anyway and goes on TD-11a''s retro list | gates INTEGRATE-E2E
     and STATUS-FINAL'
 - id: TD-11b
@@ -2928,7 +2928,7 @@ tasks:
   - TD-4
   priority: 3
   est_hours: 6
-  state: ready
+  state: review
   parked_on: ''
   wbs:
   - D0.8
@@ -2953,7 +2953,7 @@ tasks:
   - TD-11b
   priority: 3
   est_hours: 7
-  state: ready
+  state: merged
   parked_on: ''
   wbs:
   - D0.7
@@ -2964,7 +2964,7 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-09-25'
   notes: D-125 (audit ARCH-06; est by the plan review) | before wave B spawns | starts after TD-11b (same dfkit/df2/df6 files); reuse TD-9's directory-fsync helper (1.5a) if merged, else own it and TD-9
     rebases
 - id: TD-17
@@ -2997,7 +2997,7 @@ tasks:
   deps: []
   priority: 4
   est_hours: 3
-  state: ready
+  state: merged
   parked_on: ''
   wbs:
   - D0.1
@@ -3009,7 +3009,7 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-09-25'
   notes: D-125 (review plan id TD-13, renumbered) | 5.4a before the first wave-A merge; 5.1b before P10/P14 | the 5.3 part waits for PENDING-remote-mirror
 - id: TD-19
   title: Install & lab provisioning from product artifacts
@@ -3296,7 +3296,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  state: ready
+  state: review
   wbs: *id002
   prompt: ''
   id: TD-22

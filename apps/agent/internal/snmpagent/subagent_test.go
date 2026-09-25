@@ -78,7 +78,7 @@ func leOID(b []byte, o OID, include bool) []byte {
 	if include {
 		inc = 1
 	}
-	b = append(b, byte(len(o)), 0, inc, 0)
+	b = append(b, byte(len(o)), 0, inc, 0) //nolint:gosec // test fixture, small values
 	for _, s := range o {
 		b = binary.LittleEndian.AppendUint32(b, s)
 	}
@@ -90,7 +90,7 @@ func leHeader(typ uint8, packet uint32, payload []byte) []byte {
 	b = binary.LittleEndian.AppendUint32(b, 42)
 	b = binary.LittleEndian.AppendUint32(b, 7)
 	b = binary.LittleEndian.AppendUint32(b, packet)
-	b = binary.LittleEndian.AppendUint32(b, uint32(len(payload)))
+	b = binary.LittleEndian.AppendUint32(b, uint32(len(payload))) //nolint:gosec // test fixture, small values
 	return append(b, payload...)
 }
 
@@ -223,7 +223,7 @@ func TestSubagentReregisters(t *testing.T) {
 	start := time.Now()
 	_ = c.Close()
 	c2 := waitSession(t, m, 30*time.Second)
-	defer c2.Close()
+	defer func() { _ = c2.Close() }()
 	took := time.Since(start)
 	waitStatus(t, s, 2)
 	t.Logf("re-registered after master restart in %v", took)

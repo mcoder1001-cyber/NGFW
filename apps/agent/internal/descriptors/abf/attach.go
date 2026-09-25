@@ -148,6 +148,7 @@ func (d *AttachDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 // Register registers the abf descriptors (policy, attach) with r. ids scopes the policy ids
 // this agent owns on a shared VPP (nil = all); opts (df2.WithClaims) attribute attachments on
 // untagged interfaces.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, ids *df2.IDRange, opts ...df2.Option) {
 	r.Register(NewPolicy(c, owner, ids))
 	r.Register(NewAttach(c, owner, ids, opts...))

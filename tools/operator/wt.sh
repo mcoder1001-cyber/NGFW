@@ -9,13 +9,16 @@
 set -euo pipefail
 HOST="${WT_HOST:-ngfw}"; WT=/root/ngfw-wt; LOCAL="${WT_LOCAL:-$HOME/atest/wt}"
 cmd="${1:-}"; id="${2:-}"; [[ -n "$cmd" && -n "$id" ]] || { sed -n 2,9p "$0"; exit 1; }
+# the id becomes a path and a branch name inside remote shell commands: allow only board-id characters
+[[ "$id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]] || { echo "invalid id '$id' (allowed: [A-Za-z0-9._-], max 64)" >&2; exit 1; }
+q() { printf '%q' "$1"; }   # quote one argument for the remote shell
 EXCL=(--exclude .git --exclude node_modules --exclude dist --exclude .turbo --exclude 'apps/agent/bin' --exclude coverage)
 case "$cmd" in
-  new)    base="${3:-main}"; ssh "$HOST" "git -C /root/ngfw worktree add $WT/$id -b task/$id $base && echo created $WT/$id" ;;
+  new)    base="${3:-main}"; ssh "$HOST" "git -C /root/ngfw worktree add $(q "$WT/$id") -b $(q "task/$id") $(q "$base") && echo created $(q "$WT/$id")" ;;
   pull)   mkdir -p "$LOCAL/$id"; rsync -rlptDz --delete "${EXCL[@]}" "$HOST:$WT/$id/" "$LOCAL/$id/"; echo "pulled -> $LOCAL/$id" ;;
-  push)   rsync -rlptDz --no-o --no-g "${EXCL[@]}" "$LOCAL/$id/" "$HOST:$WT/$id/"; ssh "$HOST" "chown -R root:root $WT/$id"; echo "pushed -> $HOST:$WT/$id" ;;
-  run)    shift 2; ssh "$HOST" "cd $WT/$id && export PATH=\$PATH:\$HOME/go/bin && $*" ;;
-  commit) shift 2; ssh "$HOST" "cd $WT/$id && git add -A && git commit -qm \"$*\" && git log --oneline | head -1" ;;
-  log)    ssh "$HOST" "cd $WT/$id && git log --oneline main..HEAD | head -20; git status --short | head -20" ;;
+  push)   rsync -rlptDz --no-o --no-g "${EXCL[@]}" "$LOCAL/$id/" "$HOST:$WT/$id/"; ssh "$HOST" "chown -R root:root $(q "$WT/$id")"; echo "pushed -> $HOST:$WT/$id" ;;
+  run)    shift 2; ssh "$HOST" "cd $(q "$WT/$id") && export PATH=\$PATH:\$HOME/go/bin && $*" ;;
+  commit) shift 2; printf '%s\n' "$*" | ssh "$HOST" "cd $(q "$WT/$id") && git add -A && git commit -q -F - && git log --oneline | head -1" ;;
+  log)    ssh "$HOST" "cd $(q "$WT/$id") && git log --oneline main..HEAD | head -20; git status --short | head -20" ;;
   *)      echo "unknown command $cmd"; exit 1 ;;
 esac

@@ -43,3 +43,9 @@ unless 0 = off, at least one record flag); `Interface{interface, which, directio
 - Retrieve never reports a key twice (`dfkit.Dedupe`).
 - Restart simulation (fresh connection + fresh descriptors → empty plan; objects deleted via binapi → exactly their
   re-creation planned → empty plan again): `internal/descriptors/dfkit/restarttest`, output in `DF-8.md`.
+
+## F-ipfix-sflow additions (gap-only, D-104)
+- TD-11b declarations (`ownership.go`): `ParamsDescriptor.RecordsNoOwnership()` (VPP-global singleton);
+  `InterfaceDescriptor.CheckPersistent()` = `dfkit.CheckClaims` (claims on untagged interfaces). Found by
+  `subsystems.TestRequirePersistentPerFamily`.
+- Product wiring: `RegisterGlobals` only for the globals owner, `NewParams(c)` (requirement only) otherwise.

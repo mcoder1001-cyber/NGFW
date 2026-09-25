@@ -9,6 +9,7 @@ import (
 )
 
 // Register registers the l2tp descriptors (tunnel, interface-enable, lookup-key) with r.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df6.Option) {
 	o := df6.BuildOptions(owner, opts)
 	r.Register(NewTunnel(c, owner))

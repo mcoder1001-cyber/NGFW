@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/scheduler"
@@ -87,40 +86,6 @@ func RestoreSnmpChecks(m map[string]SnmpCheck) {
 	}
 }
 
-// ---- services fields handled by some feature ----------------------------------------------
-
-var (
-	handledMu sync.RWMutex
-	handled   = map[string]bool{}
-)
-
-// MarkServicesHandled records that a feature realises services.<field> (proto field name), so the
-// projection does not report it as agent.unsupported-field. Each services feature calls it from its
-// own file (init), e.g. MarkServicesHandled("snmp").
-func MarkServicesHandled(field string) {
-	handledMu.Lock()
-	defer handledMu.Unlock()
-	handled[field] = true
-}
-
-// UnmarkServicesHandled removes a mark (tests restore their marks with t.Cleanup).
-func UnmarkServicesHandled(field string) {
-	handledMu.Lock()
-	defer handledMu.Unlock()
-	delete(handled, field)
-}
-
-// ServicesHandled reports whether a feature marked services.<field> handled.
-func ServicesHandled(field string) bool { return servicesHandled(field) }
-
-func servicesHandled(field string) bool {
-	handledMu.RLock()
-	defer handledMu.RUnlock()
-	return handled[field]
-}
-
-func init() { MarkServicesHandled("snmp") }
-
 var pathRe = regexp.MustCompile(`services\.snmp(?:\.[A-Za-z0-9_-]+|\[[0-9]+\])*`)
 
 // SnmpPointer turns the first dotted path in msg into an RFC 6901 pointer (default /services/snmp).
@@ -135,18 +100,6 @@ func SnmpPointer(msg string) string {
 
 // Snmp projects services (the `services` domain is authoritative in this transaction).
 func Snmp(p Sink, svc *vrxv1.ServicesConfig) {
-	// Every set field of services that no feature marked handled is reported (never silently dropped).
-	// A message field that is present but empty ({}: the schema prefaults every services subtree) counts as unset.
-	svc.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
-		if fd.Message() != nil && !fd.IsList() && !fd.IsMap() && proto.Size(v.Message().Interface()) == 0 {
-			return true
-		}
-		if name := string(fd.Name()); !servicesHandled(name) {
-			json := fd.JSONName()
-			p.Warnf(Ptr("services", json), "agent.unsupported-field", "services.%s is not implemented by this agent build and is not applied", json)
-		}
-		return true
-	})
 	snmp := svc.GetSnmp()
 	if !snmp.GetEnabled() {
 		return // no object: an applied configuration is replaced by the disabled rendering (Delete)

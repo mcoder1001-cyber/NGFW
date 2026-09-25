@@ -80,6 +80,11 @@ service Dataplane {
   // wave-BC: F-lb
   // wave-BC: F-qos-flat
   // wave-BC: F-host-stack
+
+  // HostStackState reports the host stack as VPP sees it: session layer on/off (read-only probe),
+  // this owner's session rules (from session_rules_v2_dump) and the app namespaces it applied. Never mutates.
+  rpc HostStackState(HostStackStateRequest) returns (HostStackStateResponse);
+
   // wave-BC: F-snmp
 
   // SnmpState reports the snmpd renderer stage (F-snmp): daemon state read over SNMP, the pending
@@ -87,9 +92,21 @@ service Dataplane {
   rpc SnmpState(SnmpStateRequest) returns (SnmpStateResponse);
 
   // wave-BC: F-ipfix-sflow
+
+  // IpfixState reports the live flow-export state (F-ipfix-sflow): IPFIX exporters from Retrieve
+  // (exporter 0 read-only when this agent is not the globals owner), flowprobe and sFlow interfaces
+  // of this owner, the VPP-global flowprobe/sFlow parameters and the sFlow node counters from the
+  // stats segment. Dumps only; never mutates. UNAVAILABLE without VPP.
+  rpc IpfixState(IpfixStateRequest) returns (IpfixStateResponse);
+
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
   // wave-BC: F-lisp
+
+  // LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
+  // adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
+  rpc LispState(LispStateRequest) returns (LispStateResponse);
+
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
@@ -1382,6 +1399,9 @@ message TunnelsConfig {
 
   // wave-BC: F-tunnels
   // wave-BC: F-lisp
+
+  // LISP / LISP-GPE (F-lisp); unset = no LISP managed by this document.
+  LispConfig lisp = 10;
 }
 
 // GreTunnel is `tunnels.gre.<name>`.
@@ -1505,6 +1525,10 @@ message ServicesConfig {
   QosService qos = 7;
 
   // wave-BC: F-host-stack
+
+  // VPP host stack: session layer, app namespaces, session rules, TCP source addresses, http_static (F-host-stack).
+  HostStackService host_stack = 10;
+
   // wave-BC: F-lb
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-loopback-bvi-gso-lldp-span
@@ -3630,6 +3654,120 @@ message RemoteAccessProfile {
 
 // ----- F-host-stack -----
 
+// HostStackService is `services.hostStack` (F-host-stack, D-085): the API-configurable part of VPP's host stack.
+message HostStackService {
+  // Required state of the session layer (rule-table engine); set only by the globals owner (D-071).
+  optional bool enabled = 1;
+  // Application namespaces by id.
+  map<string, HostStackNamespace> namespaces = 2;
+  // Session rules (the host-stack "firewall"), each with a unique tag.
+  repeated HostStackSessionRule session_rules = 3;
+  // TCP source-address pool of one VRF (write-only in VPP, no delete).
+  HostStackTcpSource tcp_source_addresses = 4;
+  // http_static server (agent opt-in only, cannot be disabled via the API).
+  HostStackHttpStatic http_static = 5;
+}
+
+// HostStackNamespace is one application namespace.
+message HostStackNamespace {
+  // Namespace secret as a `key/<name>` reference (D-051); refused until the secret channel exists.
+  optional string secret_ref = 1;
+  // VPP interface the namespace is bound to.
+  optional string interface = 2;
+  // VRF (ip4/ip6 fib).
+  optional string vrf = 3;
+}
+
+// HostStackSessionRule is one session rule.
+message HostStackSessionRule {
+  // Unique tag (the agent prefixes its owner in VPP).
+  optional string tag = 1;
+  // "global" | "local".
+  optional string scope = 2;
+  // "tcp" | "udp".
+  optional string transport = 3;
+  // Local prefix (canonical CIDR).
+  optional string local = 4;
+  // Local port; unset = any.
+  optional uint32 local_port = 5;
+  // Remote prefix (canonical CIDR, same family).
+  optional string remote = 6;
+  // Remote port; unset = any.
+  optional uint32 remote_port = 7;
+  // "allow" | "deny" | "redirect".
+  optional string action = 8;
+  // App index for action redirect.
+  optional uint32 redirect_app_index = 9;
+  // App namespace id; unset = default namespace.
+  optional string app_namespace = 10;
+}
+
+// HostStackTcpSource is the TCP source-address pool of one VRF.
+message HostStackTcpSource {
+  // First address.
+  optional string first = 1;
+  // Last address.
+  optional string last = 2;
+  // VRF.
+  optional string vrf = 3;
+}
+
+// HostStackHttpStatic is the http_static server.
+message HostStackHttpStatic {
+  // Enabled.
+  optional bool enabled = 1;
+  // Web root, under /var/lib/vrx/www/.
+  optional string www_root_path = 2;
+  // Listen URI, e.g. tcp://0.0.0.0/80.
+  optional string uri = 3;
+  // Cache size in MiB.
+  optional uint32 cache_size_mb = 4;
+}
+
+// HostStackStateRequest asks for the host-stack snapshot.
+message HostStackStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+}
+
+// HostStackRuleState is one session rule as VPP reports it (this owner's tags only).
+message HostStackRuleState {
+  // Tag without the owner prefix.
+  string tag = 1;
+  // "global" | "local" | "both".
+  string scope = 2;
+  // "tcp" | "udp" | other VPP transport names.
+  string transport = 3;
+  // Local prefix.
+  string local = 4;
+  // Local port (0 = any).
+  uint32 local_port = 5;
+  // Remote prefix.
+  string remote = 6;
+  // Remote port (0 = any).
+  uint32 remote_port = 7;
+  // "allow" | "deny" | "redirect".
+  string action = 8;
+  // VPP app namespace indexes the rule applies to.
+  repeated uint32 appns_indexes = 9;
+}
+
+// HostStackStateResponse is one host-stack snapshot.
+message HostStackStateResponse {
+  // Session layer answered the rules dump (VPP has no getter; true when the dump works).
+  bool session_enabled = 1;
+  // Why session_enabled is false or unknown (e.g. "session layer disabled"), empty otherwise.
+  string session_detail = 2;
+  // App namespaces this agent applied on the running VPP (write-only in VPP: from the agent's records).
+  repeated string namespaces = 3;
+  // This owner's session rules.
+  repeated HostStackRuleState rules = 4;
+  // Number of session rules in VPP (all owners).
+  uint32 rule_count_total = 5;
+  // Snapshot time.
+  google.protobuf.Timestamp retrieved_at = 6;
+}
+
 // ----- F-snmp -----
 
 // SnmpView is one VACM view of `services.snmp.views` (F-snmp, D-086).
@@ -3711,11 +3849,284 @@ message SnmpStateResponse {
 
 // ----- F-ipfix-sflow -----
 
+// IpfixStateRequest asks for the flow-export state.
+message IpfixStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+}
+
+// IpfixStateResponse is one snapshot of the flow-export state.
+message IpfixStateResponse {
+  // Exporters, exporter 0 first, then additional exporters by collector.
+  repeated IpfixExporterState exporters = 1;
+  // flowprobe.params as VPP has it; unset while no record flag is set.
+  IpfixFlowprobeParamsState flowprobe_params = 2;
+  // Interfaces of this owner with flowprobe enabled, sorted by interface.
+  repeated IpfixFlowprobeInterfaceState flowprobe_interfaces = 3;
+  // sFlow global parameters as VPP has them (always reported; VPP defaults when never set).
+  IpfixSflowGlobalState sflow_global = 4;
+  // Interfaces of this owner with sFlow enabled (learned mapping only, docs/vpp-code-track.md V17).
+  repeated IpfixSflowInterfaceState sflow_interfaces = 5;
+  // sFlow node counters from the stats segment (/err/sflow/*), summed over workers, sorted by name.
+  repeated IpfixCounter sflow_counters = 6;
+  // Whether this agent is the VPP-globals owner (D-071): it sets exporter 0, flowprobe.params and
+  // sflow.global; otherwise it only requires them.
+  bool globals_owner = 7;
+  // Human-readable notes (e.g. stats segment unavailable, sFlow export needs hsflowd).
+  repeated string notes = 8;
+  // The owner whose view was returned.
+  string owner = 9;
+  // When the dump was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 10;
+}
+
+// IpfixExporterState is one IPFIX exporter as VPP has it.
+message IpfixExporterState {
+  // Configuration key (services.ipfix.exporters.<name>) when the agent knows it; empty otherwise.
+  string name = 1;
+  // Exporter 0 (the one flowprobe records use).
+  bool default_exporter = 2;
+  // Collector address.
+  string collector = 3;
+  // Collector UDP port.
+  uint32 collector_port = 4;
+  // Source address.
+  string source_address = 5;
+  // VRF name (table name of vrf_id; "default" for table 0).
+  string vrf = 6;
+  // Path MTU.
+  uint32 path_mtu = 7;
+  // Template interval in seconds.
+  uint32 template_interval_sec = 8;
+  // UDP checksum.
+  bool udp_checksum = 9;
+  // Stats index VPP returned when this agent created the exporter (additional exporters only);
+  // unset when not known (e.g. after an agent restart).
+  optional uint32 stat_index = 10;
+}
+
+// IpfixFlowprobeParamsState is flowprobe_get_params.
+message IpfixFlowprobeParamsState {
+  // Record L2 fields.
+  bool record_l2 = 1;
+  // Record L3 fields.
+  bool record_l3 = 2;
+  // Record L4 fields.
+  bool record_l4 = 3;
+  // Active timer in seconds.
+  uint32 active_timer_sec = 4;
+  // Passive timer in seconds.
+  uint32 passive_timer_sec = 5;
+}
+
+// IpfixFlowprobeInterfaceState is flowprobe on one interface.
+message IpfixFlowprobeInterfaceState {
+  // Logical interface name (D-069).
+  string interface = 1;
+  // "ip4" | "ip6" | "l2".
+  string which = 2;
+  // "rx" | "tx" | "both".
+  string direction = 3;
+}
+
+// IpfixSflowGlobalState is the sFlow plugin's global parameters.
+message IpfixSflowGlobalState {
+  // Sampling rate 1 in N (0 = off).
+  uint32 sampling_n = 1;
+  // Counter polling interval in seconds.
+  uint32 polling_interval_sec = 2;
+  // Sampled header bytes.
+  uint32 header_bytes = 3;
+  // "rx" | "tx" | "both".
+  string direction = 4;
+  // Drop monitoring.
+  bool drop_monitoring = 5;
+}
+
+// IpfixSflowInterfaceState is sFlow sampling on one interface.
+message IpfixSflowInterfaceState {
+  // Logical interface name (D-069).
+  string interface = 1;
+  // VPP hw_if_index (sflow_interface_details).
+  uint32 hw_if_index = 2;
+}
+
+// IpfixCounter is one named counter.
+message IpfixCounter {
+  // Stats segment name, e.g. "/err/sflow/sflow packets processed".
+  string name = 1;
+  // Value, summed over workers.
+  uint64 value = 2;
+}
+
 // ----- F-capture-trace -----
 
 // ----- F-srv6 -----
 
 // ----- F-lisp -----
+
+// LispConfig is `tunnels.lisp` (packages/schema domains/ext/lisp.ts).
+message LispConfig {
+  // Global LISP switch (VPP-global: set by the globals owner only).
+  optional bool enabled = 1;
+  // Global LISP-GPE switch (requires enabled).
+  optional bool gpe = 2;
+  // Local locator sets keyed by name.
+  map<string, LispLocatorSet> locator_sets = 3;
+  // Local EIDs.
+  repeated LispLocalEid local_eids = 4;
+  // VNI (decimal string) → VRF (L3) or bridge domain (L2).
+  map<string, LispEidTable> eid_tables = 5;
+  // Static remote mappings.
+  repeated LispRemoteMapping remote_mappings = 6;
+  // Adjacencies (remote EID ↔ local EID).
+  repeated LispAdjacency adjacencies = 7;
+  // Static LISP-GPE forwarding entries (write-only in VPP 26.06, V13).
+  repeated LispGpeEntry gpe_entries = 8;
+  // Map-resolver addresses.
+  repeated string map_resolvers = 9;
+  // Map-server addresses (authentication not modelled).
+  repeated string map_servers = 10;
+  // Proxy-ITR locator set (VPP-global).
+  optional string pitr = 11;
+}
+
+// LispLocatorSet is `tunnels.lisp.locatorSets.<name>`.
+message LispLocatorSet {
+  repeated LispLocator locators = 1;
+}
+
+// LispLocator is one interface of a local locator set.
+message LispLocator {
+  optional string interface = 1;
+  optional uint32 priority = 2;
+  optional uint32 weight = 3;
+}
+
+// LispLocalEid is one local EID.
+message LispLocalEid {
+  optional uint32 vni = 1;
+  optional string eid = 2;
+  optional string locator_set = 3;
+}
+
+// LispEidTable maps one VNI to a VRF (L3) or a bridge domain (L2); exactly one is set.
+message LispEidTable {
+  optional string vrf = 1;
+  optional uint32 bridge_domain = 2;
+}
+
+// LispRloc is one remote locator of a mapping.
+message LispRloc {
+  optional string address = 1;
+  optional uint32 priority = 2;
+  optional uint32 weight = 3;
+}
+
+// LispRemoteMapping is one static remote mapping; action (no-action, natively-forward,
+// send-map-request, drop) applies when rlocs is empty.
+message LispRemoteMapping {
+  optional uint32 vni = 1;
+  optional string eid = 2;
+  repeated LispRloc rlocs = 3;
+  optional string action = 4;
+}
+
+// LispAdjacency binds a remote and a local EID.
+message LispAdjacency {
+  optional uint32 vni = 1;
+  optional string reid = 2;
+  optional string leid = 3;
+}
+
+// LispLocatorPair is one (local, remote) RLOC pair of a GPE forwarding entry.
+message LispLocatorPair {
+  optional string local = 1;
+  optional string remote = 2;
+  optional uint32 weight = 3;
+}
+
+// LispGpeEntry is one static LISP-GPE forwarding entry.
+message LispGpeEntry {
+  optional uint32 vni = 1;
+  optional string vrf = 2;
+  optional string reid = 3;
+  optional string leid = 4;
+  repeated LispLocatorPair pairs = 5;
+  optional string action = 6;
+}
+
+// LispStateRequest asks for the live LISP state.
+message LispStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+}
+
+// LispStateLocator is one locator of a local locator set as VPP reports it.
+message LispStateLocator {
+  // Logical interface name ("" when the interface is not nameable by this agent).
+  string interface = 1;
+  uint32 sw_if_index = 2;
+  uint32 priority = 3;
+  uint32 weight = 4;
+}
+
+// LispStateLocatorSet is one local locator set.
+message LispStateLocatorSet {
+  string name = 1;
+  repeated LispStateLocator locators = 2;
+}
+
+// LispStateMapping is one EID-table entry (local EID or map-cache entry).
+message LispStateMapping {
+  uint32 vni = 1;
+  string eid = 2;
+  // true: a local EID; false: a remote mapping (static or learned, the map-cache).
+  bool local = 3;
+  // Locator set of a local EID.
+  string locator_set = 4;
+  // Remote locators of a remote mapping.
+  repeated string rlocs = 5;
+  // Negative-mapping action (no-action, natively-forward, send-map-request, drop).
+  string action = 6;
+  // The mapping came from an authoritative source (map-reply authoritative bit / static).
+  bool authoritative = 7;
+  // TTL in minutes (learned mappings).
+  uint32 ttl = 8;
+}
+
+// LispStateAdjacency is one adjacency.
+message LispStateAdjacency {
+  uint32 vni = 1;
+  string reid = 2;
+  string leid = 3;
+}
+
+// LispStateEidTable is one VNI → table / bridge-domain map.
+message LispStateEidTable {
+  uint32 vni = 1;
+  uint32 dp_table = 2;
+  bool is_l2 = 3;
+}
+
+// LispStateResponse is one snapshot of the LISP state. LISP objects carry no owner tag; the
+// snapshot is VPP-wide (every owner's objects), like `show lisp …`.
+message LispStateResponse {
+  string owner = 1;
+  bool enabled = 2;
+  bool gpe_enabled = 3;
+  // Proxy-ITR locator set ("" when unset).
+  string pitr = 4;
+  repeated LispStateLocatorSet locator_sets = 5;
+  repeated LispStateMapping mappings = 6;
+  repeated LispStateAdjacency adjacencies = 7;
+  repeated LispStateEidTable eid_tables = 8;
+  repeated string map_resolvers = 9;
+  repeated string map_servers = 10;
+  // VNIs that have LISP-GPE forwarding entries.
+  repeated uint32 gpe_vnis = 11;
+  google.protobuf.Timestamp retrieved_at = 12;
+}
 
 // ----- F-bfd-redistribution -----
 

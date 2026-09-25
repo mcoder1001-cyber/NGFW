@@ -1,9 +1,9 @@
 import { Body, Controller, HttpCode, Param, Post, Req } from '@nestjs/common';
-import { ApiBody, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { MinRole } from '../auth/decorators.js';
 import type { VrxRequest } from '../common/principal.js';
-import { Protected } from '../common/responses.js';
+import { ApiOut, Protected } from '../common/responses.js';
 import { openapi, SafeParamPipe, ZodPipe } from '../common/zod.js';
 import { UsersService } from './users.service.js';
 
@@ -61,7 +61,7 @@ export class UsersController {
       "Set a user's password (admin: any user; everyone: their own, with `current`). TLS only; argon2id server-side; ends the user's other sessions; an admin reset also revokes the user's API keys unless keepApiKeys",
   })
   @ApiBody({ schema: openapi(SetPasswordBody) })
-  @ApiOkResponse({ schema: openapi(SetPasswordOut, 'output') })
+  @ApiOut(SetPasswordOut)
   async setPassword(
     @Param('name', new SafeParamPipe('name', 64)) name: string,
     @Body(new ZodPipe(SetPasswordBody)) body: z.output<typeof SetPasswordBody>,

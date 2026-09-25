@@ -1,9 +1,9 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { MinRole } from '../auth/decorators.js';
-import { Protected } from '../common/responses.js';
-import { openapi, ZodPipe } from '../common/zod.js';
+import { ApiOut, Protected } from '../common/responses.js';
+import { ZodPipe } from '../common/zod.js';
 import { AuditService } from './audit.service.js';
 
 const PageQuery = z.object({
@@ -41,7 +41,7 @@ export class AuditController {
   @ApiQuery({ name: 'limit', required: false, schema: { type: 'integer' } })
   @ApiQuery({ name: 'offset', required: false, schema: { type: 'integer' } })
   @ApiOperation({ summary: 'Audit log, newest first (admin)' })
-  @ApiOkResponse({ schema: openapi(AuditPage, 'output') })
+  @ApiOut(AuditPage)
   list(@Query(new ZodPipe(PageQuery)) q: z.output<typeof PageQuery>) {
     return this.audit.list(q.limit, q.offset);
   }

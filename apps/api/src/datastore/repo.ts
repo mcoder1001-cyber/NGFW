@@ -122,6 +122,13 @@ export interface ConfigTx extends ConfigReads {
   /** Re-activate the given secret versions (rollback, review M2); unknown refs/versions are skipped. */
   restoreSecretVersions(versions: Record<string, number>): Promise<string[]>;
   setSync(s: Omit<SyncStatus, 'since'>): Promise<void>;
+  /**
+   * ARCH-11 (TD-15): the same reads as on ConfigRepo, but on this transaction's connection. Code inside `tx()` must
+   * use these — a `repo.*` read there takes a SECOND pool client while holding one, and N concurrent edits with a pool
+   * of N deadlock the pool (every holder waits for a client none will release).
+   */
+  userHashes(): Promise<Map<string, string>>;
+  secretVersions(refs: readonly string[]): Promise<Record<string, number>>;
 }
 
 export interface ConfigRepo extends ConfigReads {

@@ -75,6 +75,7 @@ export * from './domains/management.js';
 // wave-BC: F-mpls-srmpls
 // wave-BC: F-srv6
 // wave-BC: F-lisp
+export * from './domains/ext/lisp.js';
 // wave-BC: F-bfd-redistribution
 // wave-BC: F-mpls-ldp
 // wave-BC: F-igmp-mfib
@@ -90,6 +91,7 @@ export * from './domains/management.js';
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
 export * from './domains/ext/snmp.js'; // F-snmp (unanchored)
+export * from './domains/ext/host-stack.js'; // F-host-stack (unanchored)
 export * from './primitives.js';
 export * from './ip.js';
 export * from './ui.js';

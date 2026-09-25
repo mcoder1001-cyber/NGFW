@@ -3,6 +3,7 @@ package dfkit
 import (
 	"net"
 	"net/netip"
+	"ngfw/agent/internal/descriptors/kit"
 
 	"ngfw/agent/binapi/ip_types"
 )
@@ -19,14 +20,11 @@ func ParseAddr(s string) (netip.Addr, error) {
 	return a.Unmap(), nil
 }
 
-// ParsePrefix parses a prefix and requires the canonical (masked) form.
+// ParsePrefix applies kit.ParsePrefix (host bits rejected) as a spec error.
 func ParsePrefix(s string) (netip.Prefix, error) {
-	p, err := netip.ParsePrefix(s)
+	p, err := kit.ParsePrefix(s)
 	if err != nil {
-		return netip.Prefix{}, Specf("prefix %q: %v", s, err)
-	}
-	if p.Masked() != p {
-		return netip.Prefix{}, Specf("prefix %q is not canonical (want %s)", s, p.Masked())
+		return netip.Prefix{}, Specf("%v", err)
 	}
 	return p, nil
 }

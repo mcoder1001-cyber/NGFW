@@ -1,0 +1,74 @@
+{
+  "tab": "Flow export",
+  "loading": "Loading…",
+  "sections": "Flow export sections",
+  "section": {
+    "exporters": "Exporters",
+    "flowprobe": "Flowprobe",
+    "sflow": "sFlow"
+  },
+  "hsflowdBanner": "sFlow: VPP samples packets on the selected interfaces, but exporting the samples to sFlow collectors needs the hsflowd daemon, which is not shipped yet. IPFIX (flowprobe) export works without it.",
+  "notGlobalsOwner": "This agent is not the owner of VPP-global settings: exporter 0, flowprobe and sFlow parameters are only checked, never set.",
+  "edit": "Edit {{name}}",
+  "remove": "Remove {{name}}",
+  "enabled": "Enabled",
+  "cancel": "Cancel",
+  "save": "Save to candidate",
+  "add": "Add",
+  "interface": "Interface",
+  "interfacePicker": "Interface to add",
+  "direction": {
+    "rx": "Receive",
+    "tx": "Transmit",
+    "both": "Both"
+  },
+  "exporters": {
+    "help": "The first enabled exporter with an IPv4 collector (by name) becomes IPFIX exporter 0 — the only one flowprobe records are sent through. Other exporters serve other producers (e.g. NAT logging).",
+    "name": "Name",
+    "collector": "Collector",
+    "collectorAddress": "Collector address",
+    "port": "Port",
+    "source": "Source address",
+    "vrf": "VRF",
+    "status": "Status",
+    "empty": "No exporters configured.",
+    "disabled": "Disabled",
+    "notApplied": "Not applied",
+    "active": "Active",
+    "default": "Exporter 0",
+    "statIndex": "stats #{{index}}",
+    "add": "Add exporter",
+    "pathMtu": "Path MTU",
+    "template": "Template interval (s)",
+    "description": "Description"
+  },
+  "flowprobe": {
+    "help": "Flow records per interface, exported through exporter 0. VPP records one variant per interface: IPv4, IPv6 or L2.",
+    "needsExporter": "Flowprobe needs an enabled exporter with an IPv4 collector.",
+    "active": "Active timer (s)",
+    "passive": "Passive timer (s)",
+    "recordL2": "Record L2 fields",
+    "recordL3": "Record L3 fields",
+    "recordL4": "Record L4 fields",
+    "interfaces": "Monitored interfaces",
+    "variant": "Variant",
+    "direction": "Direction",
+    "which": {
+      "ip4": "IPv4",
+      "ip6": "IPv6",
+      "l2": "L2"
+    }
+  },
+  "sflow": {
+    "help": "Random packet sampling, 1 in N packets, on the selected interfaces.",
+    "samplingN": "Sampling rate (1 in N)",
+    "polling": "Counter polling interval (s)",
+    "headerBytes": "Sampled header bytes",
+    "collectors": "Collectors",
+    "collectorsHelp": "address:port, comma separated (used by hsflowd)",
+    "agentAddress": "Agent address",
+    "interfaces": "Sampled interfaces",
+    "live": "Sampling on the data plane",
+    "hwIfIndex": "hw_if_index / value"
+  }
+}

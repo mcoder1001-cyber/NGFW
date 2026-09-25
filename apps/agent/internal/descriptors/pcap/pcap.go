@@ -129,6 +129,7 @@ func (s FilterFunction) Validate() error {
 }
 
 // Register constructs and registers the pcap descriptors.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, client vpp.Client, owner string, boot dfkit.BootStore, opts ...Option) {
 	r.Register(NewCapture(client, owner, boot, opts...))
 }

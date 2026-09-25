@@ -10,6 +10,7 @@ import (
 
 // Register registers the pppoe descriptors with r: sessions, and pppoe.cp/global (setter only
 // on the globals owner, df6.WithGlobalsOwner; require variant otherwise — D-071).
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df6.Option) {
 	o := df6.BuildOptions(owner, opts)
 	r.Register(NewSession(c, owner))

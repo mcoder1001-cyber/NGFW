@@ -1,0 +1,9 @@
+# Picked up by tools/ci.sh (secret scan). Same exemption as ci.sh's built-in grep:
+# test fixtures use the VRX_TEST_PSK_<id> marker (00-CONTEXT secret rules), never real secrets.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "VRX_TEST_PSK_ test-fixture marker"
+regexTarget = "match"
+regexes = ['''VRX_TEST_PSK_''']

@@ -42,6 +42,10 @@ type SingletonSpec[T proto.Message] struct {
 	// Equal compares a retrieved value with a required one (require variant; nil =
 	// proto.Equal).
 	Equal func(have, want T) bool
+	// Claims (optional) is the store Set/Unset record per-boot ownership claims in (pppoe.cp);
+	// nil = the singleton records nothing (it belongs to the globals owner by role, D-071).
+	// CheckPersistent requires it to survive an agent restart when set.
+	Claims ClaimStore
 }
 
 // SingletonDescriptor is the scheduler.Descriptor built from a SingletonSpec.
@@ -70,6 +74,17 @@ func (d *SingletonDescriptor[T]) cast(obj proto.Message) (T, error) {
 }
 
 func zero[T any](T) (z T) { return z }
+
+// CheckPersistent is the product agent's guard (dfkit/persist, TD-16b): a singleton that records
+// per-boot claims (spec.Claims) needs a persistent pair store; one that records nothing belongs to
+// the globals owner by role (D-071) and passes. It is CheckPersistent rather than
+// RecordsNoOwnership because a method set cannot depend on the spec.
+func (d *SingletonDescriptor[T]) CheckPersistent() error {
+	if d.spec.Claims == nil {
+		return nil
+	}
+	return checkIDClaims(d.spec.Name, d.spec.Claims)
+}
 
 // Name implements scheduler.Descriptor.
 func (d *SingletonDescriptor[T]) Name() string { return d.spec.Name }
@@ -176,6 +191,9 @@ type RequireDescriptor[T proto.Message] struct {
 func NewRequireDescriptor[T proto.Message](spec SingletonSpec[T], c vpp.Client) *RequireDescriptor[T] {
 	return &RequireDescriptor[T]{spec: spec, client: c}
 }
+
+// RecordsNoOwnership implements persist.NoOwnership: the require variant only reads VPP (TD-16b).
+func (*RequireDescriptor[T]) RecordsNoOwnership() {}
 
 // Name implements scheduler.Descriptor.
 func (d *RequireDescriptor[T]) Name() string { return d.spec.Name }

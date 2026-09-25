@@ -3,6 +3,7 @@ package df2
 import (
 	"fmt"
 	"net/netip"
+	"ngfw/agent/internal/descriptors/kit"
 	"strings"
 
 	"ngfw/agent/binapi/ethernet_types"
@@ -19,14 +20,10 @@ func ParseAddr(s string) (netip.Addr, error) {
 	return a.Unmap().WithZone(""), nil
 }
 
-// ParsePrefix parses a prefix and masks it to its network address.
+// ParsePrefix is kit.ParsePrefix: host bits are rejected (D-149), so every prefix has exactly one
+// spelling and Validate refuses non-canonical input instead of silently masking it.
 func ParsePrefix(s string) (netip.Prefix, error) {
-	p, err := netip.ParsePrefix(strings.TrimSpace(s))
-	if err != nil {
-		return netip.Prefix{}, fmt.Errorf("prefix %q: %w", s, err)
-	}
-	p = netip.PrefixFrom(p.Addr().Unmap().WithZone(""), p.Bits())
-	return p.Masked(), nil
+	return kit.ParsePrefix(s)
 }
 
 // FamilyOf returns the desired-state address family of a.

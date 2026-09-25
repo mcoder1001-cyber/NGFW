@@ -313,9 +313,12 @@ func TestRaPrefixLifecycle(t *testing.T) {
 	if !scheduler.ValidName(d.Name()) {
 		t.Fatal(d.Name())
 	}
-	desired := &RaPrefix{Interface: "loop300", Prefix: "2001:DB8:3:0:1::/64", OffLink: true}
+	desired := &RaPrefix{Interface: "loop300", Prefix: "2001:DB8:3::/64", OffLink: true}
 	if k := d.KeyOf(desired); k != "ip6-nd.ra-prefix/loop300/2001:db8:3::/64" {
 		t.Fatalf("KeyOf = %s", k)
+	}
+	if _, err := d.Create(ctx, &RaPrefix{Interface: "loop300", Prefix: "2001:db8:3:0:1::/64"}); err == nil {
+		t.Fatal("prefix with host bits accepted (D-149)")
 	}
 	deps := d.Dependencies(desired)
 	if len(deps) != 2 || deps[0].Key != "interface/loop300" || deps[1].Key != "interface-ip/loop300/2001:db8:3::/64" || !deps[1].Optional {

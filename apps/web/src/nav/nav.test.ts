@@ -45,6 +45,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-vrrp-config-sync
       // wave-BC: F-srv6
       // wave-BC: F-lisp
+      'vpn',
       // wave-A: F-bonding
       // wave-A: F-bridge-l2
       // wave-A: F-loopback-bvi-gso-lldp-span
@@ -60,7 +61,8 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-A: F-wireguard
       // wave-A: F-kea-dhcp-relay
       // wave-A: F-unbound-chrony-syslog
-      'services', // F-snmp (unanchored)
+      // wave-BC: F-ipfix-sflow (unanchored)
+      'services',
       'users',
       'revisions',
       // Non-domain system items, one per S5 task (wave-BC-numbers.md S5 pack) + WEB-2:
@@ -72,6 +74,8 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-ab-upgrade
       // wave-BC: F-images
       // wave-BC: F-hardening-lite
+      // wave-BC: F-licensing (unanchored)
+      'licensing',
       // web: WEB-2
       'dev-schema-form',
       'dev-data-grid',

@@ -143,8 +143,37 @@ async function readPending(db: Exec): Promise<PendingCommit | null> {
   };
 }
 
+/** Stored password hashes by username. Shared by the repo and the transaction (ARCH-11). */
+async function readUserHashes(q: Db | DbTx): Promise<Map<string, string>> {
+  const rows = await q
+    .select({ username: appUser.username, hash: appUser.passwordHash })
+    .from(appUser);
+  return new Map(rows.filter((r) => r.hash !== null).map((r) => [r.username, r.hash as string]));
+}
+
+/** Current version of each existing secret ref among `refs`. */
+async function readSecretVersions(
+  q: Db | DbTx,
+  refs: readonly string[],
+): Promise<Record<string, number>> {
+  if (refs.length === 0) return {};
+  const rows = await q
+    .select({ ref: secret.ref, version: secret.version })
+    .from(secret)
+    .where(inArray(secret.ref, [...refs]));
+  return Object.fromEntries(rows.map((r) => [r.ref, r.version]));
+}
+
 class PgConfigTx implements ConfigTx {
   constructor(private readonly t: DbTx) {}
+
+  /** ARCH-11 (TD-15): read on this transaction's connection — never a second pool client while holding one. */
+  userHashes() {
+    return readUserHashes(this.t);
+  }
+  secretVersions(refs: readonly string[]) {
+    return readSecretVersions(this.t, refs);
+  }
 
   latestRevision() {
     return readRevision(this.t);
@@ -337,20 +366,12 @@ export class PgConfigRepo implements ConfigRepo {
     return { items, total: c?.n ?? 0 };
   }
 
-  async userHashes(): Promise<Map<string, string>> {
-    const rows = await this.db
-      .select({ username: appUser.username, hash: appUser.passwordHash })
-      .from(appUser);
-    return new Map(rows.filter((r) => r.hash !== null).map((r) => [r.username, r.hash as string]));
+  userHashes() {
+    return readUserHashes(this.db);
   }
 
-  async secretVersions(refs: readonly string[]): Promise<Record<string, number>> {
-    if (refs.length === 0) return {};
-    const rows = await this.db
-      .select({ ref: secret.ref, version: secret.version })
-      .from(secret)
-      .where(inArray(secret.ref, [...refs]));
-    return Object.fromEntries(rows.map((r) => [r.ref, r.version]));
+  secretVersions(refs: readonly string[]) {
+    return readSecretVersions(this.db, refs);
   }
 
   getSync() {

@@ -512,7 +512,7 @@
     },
     "ipfix": {
       "exporters": { "collector": { "enabled": true, "collector": { "address": "10.255.0.9", "port": 4739 }, "sourceAddress": "10.0.0.1", "vrf": "default", "pathMtu": 512, "templateIntervalSec": 20, "udpChecksum": false } },
-      "flowprobe": { "activeTimerSec": 15, "passiveTimerSec": 120, "recordL2": false, "recordL3": true, "recordL4": true, "interfaces": [{ "interface": "TenGigabitEthernet0/0/1", "direction": "both", "l2": false, "ip4": true, "ip6": true }] },
+      "flowprobe": { "activeTimerSec": 15, "passiveTimerSec": 120, "recordL2": false, "recordL3": true, "recordL4": true, "interfaces": [{ "interface": "TenGigabitEthernet0/0/1", "direction": "both", "l2": false, "ip4": true, "ip6": false }] },
       "sflow": { "enabled": true, "samplingN": 10000, "pollingIntervalSec": 20, "headerBytes": 128, "collectors": [{ "address": "10.255.0.9", "port": 6343 }], "agentAddress": "10.0.0.1", "vrf": "default", "interfaces": ["TenGigabitEthernet0/0/0"] }
     },
     "ntp": {

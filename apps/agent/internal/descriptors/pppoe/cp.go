@@ -95,6 +95,7 @@ func cpSpec(owner string, claims df6.ClaimStore) df6.SingletonSpec[*Cp] {
 			}
 			return send(ctx, c, cp, true)
 		},
-		Deps: func(cp *Cp) []scheduler.Dependency { return df6.InterfaceDeps(cp.GetInterface()) },
+		Deps:   func(cp *Cp) []scheduler.Dependency { return df6.InterfaceDeps(cp.GetInterface()) },
+		Claims: claims,
 	}
 }

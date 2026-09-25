@@ -130,6 +130,30 @@ describe('interfaces screen', () => {
     expect(patches).toHaveLength(1);
   });
 
+  it('a sub-interface edit diffs against the value its dialog opened with: fields set elsewhere are not nulled (TD-22)', { timeout: 60_000 }, async () => {
+    const api = installFakeApi();
+    withInterfaces(api);
+    const patches: unknown[] = [];
+    api.on('PATCH /api/v1/config/interfaces', (_r, body) => {
+      patches.push(body);
+      return { body: { pointer: '/interfaces', before: null, after: null } };
+    });
+    await signIn();
+    render(app('/interfaces'));
+    const grid = await screen.findByRole('grid', {}, { timeout: 15_000 });
+    fireEvent.click(await within(grid).findByText('host-w1l0'));
+    const drawer = await screen.findByRole('region', { name: 'Interface host-w1l0' });
+    fireEvent.click(await within(drawer).findByText('host-w1l0.100'));
+    const dialog = await screen.findByRole('dialog');
+    // another session sets a field the open dialog does not hold (stand-in for F-bridge-l2's `l2`)
+    const sub = { ...lanCfg.subinterfaces['100'], mtu: 1300 };
+    api.on('GET /api/v1/config/candidate/interfaces', { body: { 'host-w1l0': { ...lanCfg, subinterfaces: { '100': sub } } } });
+    fireEvent.change(within(dialog).getByLabelText(/^Description/), { target: { value: 'edited' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save to candidate' }));
+    await waitFor(() => expect(patches).toHaveLength(1));
+    expect(patches[0]).toEqual({ 'host-w1l0': { subinterfaces: { '100': { description: 'edited' } } } });
+  });
+
   it('a server error for a new sub-interface lands on its field, mapped with the typed id (review N5)', { timeout: 120_000 }, async () => {
     const api = installFakeApi();
     withInterfaces(api);

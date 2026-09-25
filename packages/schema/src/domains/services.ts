@@ -7,6 +7,7 @@ import {
   snmpViewRefField,
   snmpViewsField,
 } from './ext/snmp.js';
+import { HostStackSchema } from './ext/host-stack.js'; // F-host-stack (unanchored)
 import { hostname, ipAddress, macAddress, objectName, vppInterfaceName } from '../primitives.js';
 import {
   cidrContainsIp,
@@ -752,7 +753,7 @@ export const IpfixFlowprobeInterfaceSchema = z
     }),
     l2: withUi(z.boolean().default(false), { title: 'L2 flows', widget: 'switch' }),
     ip4: withUi(z.boolean().default(true), { title: 'IPv4 flows', widget: 'switch' }),
-    ip6: withUi(z.boolean().default(true), { title: 'IPv6 flows', widget: 'switch' }),
+    ip6: withUi(z.boolean().default(false), { title: 'IPv6 flows', widget: 'switch' }),
   })
   .superRefine((f, ctx) => {
     if (!f.l2 && !f.ip4 && !f.ip6) add(ctx, ['ip4'], 'enable at least one of l2, ip4, ip6');
@@ -1242,6 +1243,7 @@ export const ServicesSchema = withUi(
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // wave-A: F-loopback-bvi-gso-lldp-span
     // wave-A: F-rpf-adl-pbr
+    hostStack: HostStackSchema.optional(), // F-host-stack (unanchored)
   }),
   {
     title: 'Services',

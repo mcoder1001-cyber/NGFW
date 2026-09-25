@@ -126,7 +126,7 @@ func TestSnmpStageLifecycle(t *testing.T) {
 		t.Fatalf("retrieve %v %v", kvs, err)
 	}
 	// drift: someone edited the file
-	if err := os.WriteFile(p.ConfFile, append(conf, []byte("rocommunity public\n")...), 0o600); err != nil {
+	if err := os.WriteFile(p.ConfFile, append(conf, []byte("rocommunity public\n")...), 0o600); err != nil { //nolint:gosec // test temp path
 		t.Fatal(err)
 	}
 	if kvs, _ := st.Retrieve(ctx); len(kvs) != 0 {
@@ -191,8 +191,8 @@ func TestSnmpProjectionChecksBeforeVPP(t *testing.T) {
 	ok := snmpValue()
 	ok.V3Users = nil
 	sink = &recSink{}
-	desired.Snmp(sink, &vrxv1.ServicesConfig{Snmp: ok, Dhcp: &vrxv1.DhcpService{Servers: map[string]*vrxv1.DhcpServer{"a": {}}}})
-	if len(sink.errs) != 0 || len(sink.kvs) != 1 || len(sink.warns) != 1 {
+	desired.Snmp(sink, &vrxv1.ServicesConfig{Snmp: ok}) // unsupported-field reporting: desired.unsupportedServices
+	if len(sink.errs) != 0 || len(sink.kvs) != 1 || len(sink.warns) != 0 {
 		t.Fatalf("errs %v warns %v kvs %d", sink.errs, sink.warns, len(sink.kvs))
 	}
 	// disabled → no object (an applied config is replaced by the disabled rendering through Delete)
@@ -247,38 +247,6 @@ func (r *recSink) Warnf(pointer, _, format string, a ...any) {
 }
 
 func fmtS(format string, a ...any) string { return fmt.Sprintf(format, a...) }
-
-// TestServicesUnsupportedByReflection: every set services field not marked handled is reported,
-// including fields added later; a field marked by its feature is not.
-func TestServicesUnsupportedByReflection(t *testing.T) {
-	lldp := &vrxv1.LldpService{Interfaces: []*vrxv1.LldpService_Interface{{Interface: proto.String("loop0")}}}
-	sink := &recSink{}
-	desired.Snmp(sink, &vrxv1.ServicesConfig{
-		Dhcp: &vrxv1.DhcpService{Servers: map[string]*vrxv1.DhcpServer{"a": {}}},
-		Lldp: lldp,
-		Ntp:  &vrxv1.NtpService{}, // prefaulted {}: not a finding
-		Qos:  &vrxv1.QosService{},
-		Snmp: &vrxv1.SnmpService{Enabled: proto.Bool(false)},
-	})
-	want := []string{"/services/dhcp", "/services/lldp"}
-	if len(sink.warns) != len(want) {
-		t.Fatalf("warnings %v", sink.warns)
-	}
-	for i, w := range want {
-		if !strings.HasPrefix(sink.warns[i], w+" ") {
-			t.Fatalf("warning %d = %q, want %s", i, sink.warns[i], w)
-		}
-	}
-	if !desired.ServicesHandled("lldp") {
-		desired.MarkServicesHandled("lldp")
-		t.Cleanup(func() { desired.UnmarkServicesHandled("lldp") })
-	}
-	sink = &recSink{}
-	desired.Snmp(sink, &vrxv1.ServicesConfig{Lldp: lldp})
-	if len(sink.warns) != 0 {
-		t.Fatalf("handled field still reported: %v", sink.warns)
-	}
-}
 
 // TestSnmpCheckPerOwner: stages register per owner, Close unregisters; two owners fail closed.
 func TestSnmpCheckPerOwner(t *testing.T) {

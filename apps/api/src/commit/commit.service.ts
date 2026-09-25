@@ -745,9 +745,9 @@ export class CommitService implements OnApplicationShutdown {
         }
       }
       const refs = [...new Set(secretRefs(payload).map((r) => r.ref))];
-      const secretVersions = refs.length > 0 ? await this.repo.secretVersions(refs) : null;
+      const secretVersions = refs.length > 0 ? await tx.secretVersions(refs) : null;
       // TD-2 #6: the (redacted) revision records WHICH secret leaves it changed, before app_user follows it
-      const hashes = await this.repo.userHashes();
+      const hashes = await tx.userHashes();
       const changedSecrets = secretChanges(
         hydrateHashes(running?.payload ?? emptyDocument(), hashes),
         hydrateHashes(config, hashes),

@@ -51,12 +51,12 @@ import (
 // Environment of the snmpd stage.
 const (
 	// EnvSnmpFixtureSecrets names the slot-local fixture secret file (JSON {"password/<n>": "VRX_TEST_PSK_F-snmp_…"}).
-	EnvSnmpFixtureSecrets = "VRX_SNMP_FIXTURE_SECRETS"
+	EnvSnmpFixtureSecrets = "VRX_SNMP_FIXTURE_SECRETS" //nolint:gosec // env var name, not a credential
 	// EnvTestPrefix selects snmpd.TestPaths(<prefix>) and a pidfile controller: a slot agent never
 	// touches /etc/snmp or the system snmpd unit.
 	EnvTestPrefix = "VRX_TEST_PREFIX"
 	// FixtureSecretPrefix is the only value prefix the fixture resolver accepts.
-	FixtureSecretPrefix = "VRX_TEST_PSK_F-snmp_"
+	FixtureSecretPrefix = "VRX_TEST_PSK_F-snmp_" //nolint:gosec // fixture prefix, not a credential
 )
 
 // ErrNoSecretChannel is returned for every secret ref while no channel exists.
@@ -68,7 +68,7 @@ func SnmpFixtureResolver(path string) rfkit.SecretResolver {
 		if path == "" {
 			return "", ErrNoSecretChannel
 		}
-		st, err := os.Stat(path)
+		st, err := os.Stat(path) //nolint:gosec // operator-configured path
 		if err != nil {
 			return "", fmt.Errorf("fixture secrets: %w", err)
 		}
@@ -348,7 +348,7 @@ func SnmpStageOf(owner string) (*SnmpStage, bool) {
 }
 
 // snmpPaths are the product paths, or the slot's test paths with a pidfile controller.
-func snmpPaths(runner renderers.Runner) (snmpd.Paths, []snmpd.Option) {
+func snmpPaths(_ renderers.Runner) (snmpd.Paths, []snmpd.Option) {
 	prefix := os.Getenv(EnvTestPrefix)
 	if prefix == "" {
 		return snmpd.ProductPaths(), nil

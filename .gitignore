@@ -13,3 +13,10 @@ packages/api-client/openapi.json
 # F-vpp-debs: VPP source/build scratch and built packages are never committed
 deploy/vpp/.build/
 *.deb
+
+# review 5.1b (SY7): Python venvs, Terraform state/plugins, repo-local scratch
+.venv/
+*.tfstate
+*.tfstate.*
+.terraform/
+/.scratch/

@@ -378,3 +378,37 @@ the VRX-MIB AgentX subagent (`subagent_registered`, `subagent_registrations`, `s
 Retrieve (`INVALID_ARGUMENT` on mismatch); `UNAVAILABLE` when the agent build has no snmpd stage. No credential
 value is ever part of the response. Additive fields of `services.snmp` (D-086): see
 docs/status/tasks/F-snmp-contract.md.
+
+<!-- F-host-stack (unanchored: no wave-BC anchor in this file) -->
+### F-host-stack: HostStackState
+
+`rpc HostStackState(HostStackStateRequest) returns (HostStackStateResponse)` — read-only snapshot of VPP's host stack
+for `GET /api/v1/state/host-stack`. `session_enabled` is true when `session_rules_v2_dump` answers (VPP has no
+session-layer getter; a disabled layer makes the dump fail and `session_detail` says why). `rules` are this owner's
+session rules only (VPP tag `<owner>:<tag>`, the prefix stripped); `rule_count_total` counts every rule in VPP.
+`namespaces` are the app-namespace ids this agent applied to the running VPP instance (VPP has no namespace dump:
+from the agent's own D-076 records, never echoed desired state). Never mutates. Config: `ServicesConfig.host_stack = 10`
+(`HostStackService`, `HostStackNamespace`, `HostStackSessionRule`, `HostStackTcpSource`, `HostStackHttpStatic`).
+### F-lisp: LispState
+
+`rpc LispState(LispStateRequest) returns (LispStateResponse)` — additive (F-lisp, WBS D6.8). Read-only snapshot of the live
+LISP / LISP-GPE state from the VPP dumps: the two global switches (`show_lisp_status`), the PITR locator set
+(`show_lisp_pitr`), local locator sets with their locators (`lisp_locator_set_dump` / `lisp_locator_dump`), the EID table
+— local EIDs and the map-cache, static and learned (`lisp_eid_table_dump`), adjacencies per VNI (`lisp_eid_table_vni_dump`
++ `lisp_adjacencies_get`), EID-table maps (`lisp_eid_table_map_dump`, L2 and L3), map-resolvers / map-servers and the VNIs
+that carry LISP-GPE forwarding entries (`gpe_fwd_entry_vnis_get`; the entries' locator pairs cannot be read, V13). LISP
+objects carry no owner tag, so the snapshot is VPP-wide, like `show lisp …`; `owner` echoes the request. Owner mismatch →
+`INVALID_ARGUMENT` (as every RPC), VPP not connected → `UNAVAILABLE`, LISP plugin missing → the response has `enabled: false` and empty
+lists. Config: `DesiredState.tunnels.lisp` (`TunnelsConfig` field **10**, `LispConfig`; docs/status/wave-BC-numbers.md).
+
+### F-ipfix-sflow: IpfixState
+
+`IpfixState(IpfixStateRequest{owner}) → IpfixStateResponse` (unanchored: no `wave-BC: F-ipfix-sflow` anchor in this
+file) is the state RPC of `services.ipfix`, behind `GET /api/v1/state/ipfix`. Dumps only, never mutates, `UNAVAILABLE`
+without VPP. `exporters[]`: exporter 0 first (`default_exporter`, read with `ipfix_exporter_dump` also when this agent
+is not the globals owner), then the additional exporters this agent owns (Retrieve of `ipfix.exporter`), with the
+configuration `name` when the agent knows it and `stat_index` only when this agent process created the exporter.
+`flowprobe_params` (unset while no record flag is set), `flowprobe_interfaces[]` and `sflow_interfaces[]` (Retrieve of
+this owner's objects; sFlow reports learned interfaces only, V17), `sflow_global` (always, VPP defaults included),
+`sflow_counters[]` (`/err/sflow/*` from the stats segment, summed over workers; empty with a note when the segment is
+unavailable), `globals_owner` (D-071), `notes[]`, `owner`, `retrieved_at`. Messages: `// ----- F-ipfix-sflow -----`.

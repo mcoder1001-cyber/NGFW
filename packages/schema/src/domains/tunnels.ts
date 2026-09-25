@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { withUi } from '../ui.js';
 import { ipAddress, ipv4Cidr, ipv6Cidr, objectName, vppInterfaceName } from '../primitives.js';
+import { LispSchema } from './ext/lisp.js';
 import { isMulticast, isUnspecified } from '../semantic/tunnels-common.js';
 import {
   descriptionField,
@@ -260,6 +261,7 @@ export const TunnelsSchema = withUi(
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // wave-BC: F-tunnels
     // wave-BC: F-lisp
+    lisp: LispSchema.optional(),
   }),
   {
     title: 'Tunnels',

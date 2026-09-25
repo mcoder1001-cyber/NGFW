@@ -1,13 +1,14 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { DesiredState, IssueSeverity, type ObjectResult, type ValidationIssue } from '@ngfw/proto';
 import { ROOT_KEYS, validateConfig } from '@ngfw/schema';
 import { AgentClient } from '../agent/agent.client.js';
 import type { ProblemIssue } from '../common/problem.js';
+import { licenseProblem, LicensingService } from '../features/licensing/index.js'; // wave-BC: F-licensing (unanchored)
 import { CONFIG_REPO } from '../datastore/datastore.service.js';
 import { hydrateHashes, missingSecretIssues, redact, secretRefs } from '../datastore/documents.js';
 import type { ConfigRepo, Doc } from '../datastore/repo.js';
 
-export type ValidationTier = 'schema' | 'semantic' | 'agent';
+export type ValidationTier = 'schema' | 'semantic' | 'agent' | 'license'; // wave-BC: F-licensing ('license', unanchored)
 
 export interface PlanEntry {
   key: string;
@@ -55,6 +56,8 @@ export class ValidationService {
   constructor(
     @Inject(CONFIG_REPO) private readonly repo: ConfigRepo,
     private readonly agent: AgentClient,
+    // wave-BC: F-licensing (unanchored) — optional so unit tests that build the service by hand keep working
+    @Optional() private readonly licensing?: LicensingService,
   ) {}
 
   /** The agent's DesiredState for a parsed document: protobuf JSON projection without secret leaves (D-040). */
@@ -92,6 +95,10 @@ export class ValidationService {
     if (missing.length > 0)
       return { ...base, ok: false, tier: 'semantic', errors: missing, config };
 
+    // wave-BC: F-licensing (unanchored): licence stage — 403 problem+json, pointer of the first unlicensed node
+    const license = this.licensing ? await this.licensing.check(config) : undefined;
+    if (license && license.errors.length > 0) throw licenseProblem(license);
+
     const health = await this.agent.health();
     const implemented = new Set(health.subsystems);
     const subsystems = ROOT_KEYS.filter((k) => implemented.has(k));
@@ -105,7 +112,7 @@ export class ValidationService {
       .filter((i) => i.severity !== IssueSeverity.ISSUE_SEVERITY_ERROR)
       .map(issue);
     const outcome = {
-      warnings,
+      warnings: [...(license?.warnings ?? []), ...warnings], // wave-BC: F-licensing (unanchored)
       subsystems,
       notApplied,
       config,

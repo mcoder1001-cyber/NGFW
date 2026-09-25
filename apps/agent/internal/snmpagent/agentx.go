@@ -188,10 +188,10 @@ func (e *encoder) oid(o OID, include bool) {
 	prefix := uint8(0)
 	subs := o
 	if len(o) >= 5 && o[0] == 1 && o[1] == 3 && o[2] == 6 && o[3] == 1 && o[4] > 0 && o[4] < 256 {
-		prefix = uint8(o[4])
+		prefix = uint8(o[4]) //nolint:gosec // AgentX wire field: bounded by protocol
 		subs = o[5:]
 	}
-	e.u8(uint8(len(subs)))
+	e.u8(uint8(len(subs))) //nolint:gosec // AgentX wire field: bounded by protocol
 	e.u8(prefix)
 	if include {
 		e.u8(1)
@@ -205,7 +205,7 @@ func (e *encoder) oid(o OID, include bool) {
 }
 
 func (e *encoder) octets(s []byte) {
-	e.u32(uint32(len(s)))
+	e.u32(uint32(len(s))) //nolint:gosec // AgentX wire field: bounded by protocol
 	e.b = append(e.b, s...)
 	for len(e.b)%4 != 0 {
 		e.b = append(e.b, 0)
@@ -218,7 +218,7 @@ func (e *encoder) varbind(vb VarBind) {
 	e.oid(vb.Name, false)
 	switch vb.Value.Type {
 	case TypeInteger, TypeCounter32, TypeGauge32, TypeTimeTicks:
-		e.u32(uint32(vb.Value.Int))
+		e.u32(uint32(vb.Value.Int)) //nolint:gosec // AgentX wire field: bounded by protocol
 	case TypeCounter64:
 		e.u64(vb.Value.U64)
 	case TypeOctetString, TypeIPAddress:
@@ -235,7 +235,7 @@ func pdu(typ uint8, flags uint8, session, txn, packet uint32, payload []byte) []
 	out = binary.BigEndian.AppendUint32(out, session)
 	out = binary.BigEndian.AppendUint32(out, txn)
 	out = binary.BigEndian.AppendUint32(out, packet)
-	out = binary.BigEndian.AppendUint32(out, uint32(len(payload)))
+	out = binary.BigEndian.AppendUint32(out, uint32(len(payload))) //nolint:gosec // AgentX wire field: bounded by protocol
 	return append(out, payload...)
 }
 
@@ -349,7 +349,7 @@ func (d *decoder) varbind() VarBind {
 	vb.Name, _ = d.oid()
 	switch vb.Value.Type {
 	case TypeInteger:
-		vb.Value.Int = int64(int32(d.u32()))
+		vb.Value.Int = int64(int32(d.u32())) //nolint:gosec // AgentX wire field: two's complement by design
 	case TypeCounter32, TypeGauge32, TypeTimeTicks:
 		vb.Value.Int = int64(d.u32())
 	case TypeCounter64:

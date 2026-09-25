@@ -176,6 +176,7 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 
 // Register registers the urpf descriptor with r; opts (df2.WithClaims) attribute checks on
 // untagged interfaces.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df2.Option) {
 	r.Register(New(c, owner, opts...))
 }

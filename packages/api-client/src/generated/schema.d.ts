@@ -698,7 +698,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Log explorer: one page of the local journal, newest first (bounded scan; filters by severity, facility, text) */
+    /** Log explorer (admin only): one page of the local journal, newest first (bounded scan; filters by severity, facility, text) */
     get: operations['UnboundChronySyslog_logs'];
     put?: never;
     post?: never;

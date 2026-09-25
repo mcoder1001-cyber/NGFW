@@ -108,6 +108,21 @@ agent.client.ts, fake-agent.ts handler, app.module.ts (import, controllers, prov
 subsystems.go register(), projection.go (2), fake-agent.ts import, nav.ts + nav.test.ts, proto.md.
 Shared test edits: agent/service_test.go (2 expected lists), agent/projection_test.go (1 line) — Q7.
 
+## files_owned exceptions (accepted in review)
+Outside `files_owned`, accepted by the coordinator's review: `apps/agent/internal/agent/service_test.go` (two expected
+subsystem lists gain `services`), `apps/agent/internal/agent/projection_test.go` (snapshots the per-owner snmp checks,
+clears them for the schema-example projection, restores them with `t.Cleanup`), and the unanchored `projection.go`
+hunks (the `desired.Snmp` call in project(), `desired.AssembleSnmp` in assemble()).
+
+## Review fixes
+- `desired/snmp.go`: unsupported `services.*` fields are found by reflection over the set fields; a feature marks its
+  field with `desired.MarkServicesHandled("<proto field>")` from its own file (snmp does so in `init`). Test
+  **TestServicesUnsupportedByReflection**.
+- Pre-VPP check is registered per owner (`desired.SetSnmpCheck(owner, …)`), removed on `SnmpStage.Close` together with
+  the `snmpStages` entry. `project()` has no owner parameter (agent core), so the projection uses the only registered
+  owner and fails closed (projection error) if a process ever registers two. Test **TestSnmpCheckPerOwner**.
+- User docs say plainly that SNMP cannot be enabled on product builds until PENDING-secret-channel is decided.
+
 ## Out of scope (not built)
 Alarm/threshold engine, syslog, IPFIX/sFlow, SNMP SET (TestSet answers notWritable), AAA, ENTITY/HOST-RESOURCES work,
 unit start/restart of snmpd (P10), IF-MIB override (Q3), last-trap time (Q4), the API→agent secret channel (PENDING).

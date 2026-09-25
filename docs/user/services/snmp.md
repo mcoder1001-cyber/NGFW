@@ -12,9 +12,10 @@ interface counters and agent health are served by the VRX-MIB subagent (AgentX) 
   with `POST /api/v1/secrets` (kind `password`, admin only) and reference them as `password/<name>`. They
   are never returned by any GET and never logged.
 
-> Current limitation: the API→agent secret channel is not built yet
-> (docs/decisions/PENDING-secret-channel.md). Until it is, the agent resolves `password/…` references only
-> from a slot-local test fixture; on an appliance, communities and users are refused with a clear error.
+> **SNMP cannot be enabled on product builds yet.** Every community and SNMPv3 user needs a secret, and the
+> API→agent secret channel is still undecided (docs/decisions/PENDING-secret-channel.md). Until it is decided,
+> the agent resolves `password/…` references only from a lab test fixture; on an appliance a commit that enables
+> SNMP is refused ("no API→agent secret channel yet"). The steps below are how it will work once that lands.
 
 > By default snmpd listens on **loopback only** (`127.0.0.1:161`, `[::1]:161`). Set `listen` to reach it
 > from the management network. Only the `default` VRF is supported: binding snmpd to another VRF needs a

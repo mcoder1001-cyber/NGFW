@@ -3,7 +3,8 @@
 //
 //	TestInterfacesVerticalSlice
 //	  topology        rig up → both VPP host-interfaces configured with IPs through the API (candidate → commit) →
-//	                  V19 guard → ping lan→wan through VPP + vppctl trace → vppctl show int counters vs the WS
+//	                  V19 guard → ping lan→wan through VPP; the path without a packet trace (D-128): FIB /32 entries,
+//	                  their ip4-lookup counters and the rx/tx counters of both interfaces → vppctl show int counters vs the WS
 //	                  iface.counters topic (±5 %) → MTU 1400 on the wan side + an extra address, commit → 1500-byte DF
 //	                  ping fails → rollback to the first revision → Retrieve shows neither the MTU nor the address,
 //	                  the DF ping succeeds again
@@ -19,6 +20,7 @@
 package interfaces
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -31,6 +33,10 @@ import (
 	"time"
 
 	vppapi "go.fd.io/govpp/api"
+
+	"ngfw/agent/binapi/fib_types"
+	"ngfw/agent/binapi/ip"
+	"ngfw/agent/binapi/ip_types"
 )
 
 type rig struct {
@@ -276,7 +282,7 @@ func TestInterfacesVerticalSlice(t *testing.T) {
 		}
 		t.Log("vppctl show interface address:\n" + vppctl(t, "show", "interface", "address", r.lanIf, r.wanIf))
 
-		// ---- ping through VPP with a trace of the first packets
+		// ---- ping through VPP (the first packets resolve ARP on both sides)
 		out, ok := r.ping(t, 3, 56, false)
 		if !ok { // the first attempt may lose the ARP round
 			out, ok = r.ping(t, 3, 56, false)
@@ -285,24 +291,59 @@ func TestInterfacesVerticalSlice(t *testing.T) {
 		if !ok {
 			t.Fatal("ping lan → wan through VPP failed")
 		}
-		// The trace buffer is shared and never cleared by us (no global `clear trace`, shared-host rules §2): our packet
-		// is the echo request with a payload size unique to this run, and the newest matching block wins.
-		size := 200 + os.Getpid()%700
-		vppctl(t, "trace", "add", "af-packet-input", "20")
-		out, ok = r.ping(t, 1, size, false)
-		if !ok {
-			t.Fatalf("traced ping failed:\n%s", out)
+		// ---- the forwarding path, proven WITHOUT a packet trace (D-128: a packet-trace dump on the shared VPP crashed it at
+		// 18:41 — a stale record of a recycled interface tx node has no formatter; docs/lab/shared-host-rules.md §11). The
+		// same path the trace showed (af-packet-input on the lan side → ip4-lookup → ip4-rewrite → <wan>-output, and back):
+		//   FIB         ip_route_lookup (exact) of <wanIP>/32 and <lanIP>/32: one attached path each, via the wan / lan
+		//               interface; `show ip fib table 0 <ip>/32` rewrites via that interface
+		//   ip4-lookup  that /32's load-balance to-counter rises by exactly n packets and n × the IP length (our run-unique size)
+		//   interfaces  requests: rx on the lan and tx on the wan side; replies: rx on the wan and tx on the lan side — each
+		//               rises by exactly n echo-sized frames (+ at most a few small ARP frames of the quiet rig, never a
+		//               further echo-sized one), see echoFrames
+		size := 1000 + os.Getpid()%300 // echo frame = size+42 bytes: far above any ARP/control frame of the rig
+		const n = 5
+		ipLen := size + 28
+		for _, h := range []struct{ ip, ifName string }{{r.wanIP, r.wanIf}, {r.lanIP, r.lanIf}} {
+			rt := fibLookup(t, conn, h.ip)
+			t.Logf("ip_route_lookup table 0 exact %s/32 → prefix %s paths %s", h.ip, rt.Prefix, describePaths(rt.Paths))
+			if len(rt.Paths) != 1 || rt.Paths[0].SwIfIndex != idx[h.ifName] || rt.Paths[0].Nh.Address.GetIP4().String() != h.ip {
+				t.Fatalf("FIB: %s/32 is not one path via %s (sw_if_index %d) next hop %s", h.ip, h.ifName, idx[h.ifName], h.ip)
+			}
 		}
-		time.Sleep(300 * time.Millisecond)
-		all := vppctl(t, "show", "trace", "max", "5000")
-		tr, found := ourTrace(all, r.lanIP, r.wanIP, size+28)
-		if !found {
-			t.Fatalf("no trace block for our ICMP echo request %s -> %s (IP length %d); trace buffer starts:\n%s", r.lanIP, r.wanIP, size+28, trunc(all, 3000))
+		ifs0, _ := showIntCounters(t, r.lanIf, r.wanIf)
+		wanTo0, _ := fibTo(t, r.wanIP, r.wanIf)
+		lanTo0, _ := fibTo(t, r.lanIP, r.lanIf)
+		out, ok = r.ping(t, n, size, false)
+		ifs1, rawIfs := showIntCounters(t, r.lanIf, r.wanIf)
+		wanTo1, rawWan := fibTo(t, r.wanIP, r.wanIf)
+		lanTo1, rawLan := fibTo(t, r.lanIP, r.lanIf)
+		t.Logf("ping -c %d -s %d (IP length %d, frame %d):\n%s", n, size, ipLen, ipLen+14, out)
+		if tx, rx := pingCounts(out); !ok || tx != n || rx != n {
+			t.Fatalf("path ping: %d sent, %d received (want %d / %d)", tx, rx, n, n)
 		}
-		t.Log("vppctl show trace (our ICMP echo request):\n" + tr)
-		for _, node := range []string{"af-packet-input", "ip4-lookup", "ip4-rewrite", r.wanIf + "-output"} {
-			if !strings.Contains(tr, node) {
-				t.Errorf("trace lacks node %s", node)
+		t.Log("vppctl show ip fib table 0 " + r.wanIP + "/32 (after):\n" + rawWan)
+		t.Log("vppctl show ip fib table 0 " + r.lanIP + "/32 (after):\n" + rawLan)
+		t.Log("vppctl show interface (after):\n" + rawIfs)
+		for _, c := range []struct {
+			what   string
+			d0, d1 [2]uint64
+		}{{"echo requests → " + r.wanIP + "/32", wanTo0, wanTo1}, {"echo replies → " + r.lanIP + "/32", lanTo0, lanTo1}} {
+			dp, db := c.d1[0]-c.d0[0], c.d1[1]-c.d0[1]
+			t.Logf("ip4-lookup to-counter, %s: +%d packets +%d bytes (want +%d / +%d)", c.what, dp, db, n, n*ipLen)
+			if dp != n || db != uint64(n*ipLen) {
+				t.Errorf("ip4-lookup %s: +%d packets +%d bytes, want exactly +%d / +%d", c.what, dp, db, n, n*ipLen)
+			}
+		}
+		for _, c := range []struct{ ifName, dir, what string }{
+			{r.lanIf, "rx", "echo requests in"}, {r.wanIf, "tx", "echo requests out"},
+			{r.wanIf, "rx", "echo replies in"}, {r.lanIf, "tx", "echo replies out"},
+		} {
+			dp := ifs1[c.ifName][c.dir+" packets"] - ifs0[c.ifName][c.dir+" packets"]
+			db := ifs1[c.ifName][c.dir+" bytes"] - ifs0[c.ifName][c.dir+" bytes"]
+			err := echoFrames(dp, db, n, ipLen+14)
+			t.Logf("%s %s (%s): +%d frames +%d bytes → %v", c.ifName, c.dir, c.what, dp, db, errOK(err))
+			if err != nil {
+				t.Errorf("%s %s (%s): %v", c.ifName, c.dir, c.what, err)
 			}
 		}
 
@@ -566,17 +607,100 @@ func describe(it map[string]any) string {
 	return "admin " + adm + " link " + link
 }
 
-// ourTrace returns the newest trace block of our ICMP echo request (run-unique IP length) and whether there is one;
-// the shared trace buffer also holds other packets and earlier runs, so nothing outside that block may count (N3).
-func ourTrace(all, src, dst string, ipLen int) (string, bool) {
-	want := "length " + strconv.Itoa(ipLen) + ","
-	found := ""
-	for _, blk := range strings.Split(all, "\nPacket ") {
-		if strings.Contains(blk, "ICMP: "+src+" -> "+dst) && strings.Contains(blk, "echo_request") && strings.Contains(blk, want) {
-			found = "Packet " + strings.TrimPrefix(blk, "Packet ")
-		}
+// Frame bounds of echoFrames: besides the n echo frames an interface may carry at most maxSmallFrames frames of at most
+// smallFrameMax bytes (ARP request/reply/probe of the quiet rig). maxSmallFrames*smallFrameMax stays below the smallest echo
+// frame (1042 bytes), so the byte count admits exactly n echo-sized frames — never n-1, never n+1.
+const (
+	maxSmallFrames = 4
+	smallFrameMax  = 200
+)
+
+// echoFrames checks one interface counter (one direction) across the path ping (D-128, replaces the packet trace): it
+// rose by exactly n frames of frameLen bytes, plus at most maxSmallFrames small frames.
+func echoFrames(dPkts, dBytes uint64, n, frameLen int) error {
+	if frameLen <= maxSmallFrames*smallFrameMax {
+		return fmt.Errorf("echo frame %d bytes is too small to tell it from %d ARP frames", frameLen, maxSmallFrames)
 	}
-	return found, found != ""
+	if dPkts < uint64(n) {
+		return fmt.Errorf("+%d frames, fewer than the %d echo packets", dPkts, n)
+	}
+	extra := dPkts - uint64(n)
+	if extra > maxSmallFrames {
+		return fmt.Errorf("+%d frames: %d more than the %d echo packets (at most %d small frames allowed)", dPkts, extra, n, maxSmallFrames)
+	}
+	echo := uint64(n * frameLen)
+	if dBytes < echo || dBytes-echo > extra*smallFrameMax {
+		return fmt.Errorf("+%d bytes in +%d frames: not exactly %d frames of %d bytes plus %d small (≤ %d bytes) frames", dBytes, dPkts, n, frameLen, extra, smallFrameMax)
+	}
+	return nil
+}
+
+func errOK(err error) string {
+	if err != nil {
+		return "FAIL: " + err.Error()
+	}
+	return "ok"
+}
+
+// fibLookup is ip_route_lookup (table 0, exact) of <addr>/32: the adj-fib entry VPP adds for a resolved neighbour.
+func fibLookup(t *testing.T, conn vppapi.Connection, addr string) ip.IPRoute {
+	t.Helper()
+	pfx, err := ip_types.ParsePrefix(addr + "/32")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	rep, err := ip.NewServiceClient(conn).IPRouteLookup(ctx, &ip.IPRouteLookup{TableID: 0, Exact: 1, Prefix: pfx})
+	if err != nil {
+		t.Fatalf("ip_route_lookup table 0 exact %s/32: %v", addr, err)
+	}
+	return rep.Route
+}
+
+func describePaths(ps []fib_types.FibPath) string {
+	var s []string
+	for i := range ps {
+		s = append(s, fmt.Sprintf("{sw_if_index %d nh %s type %s}", ps[i].SwIfIndex, ps[i].Nh.Address.GetIP4(), ps[i].Type))
+	}
+	return "[" + strings.Join(s, " ") + "]"
+}
+
+var lbToRe = regexp.MustCompile(`dpo-load-balance: \[proto:ip4 index:\d+ .*?to:\[(\d+):(\d+)\]`)
+
+// fibTo reads `show ip fib table 0 <addr>/32`: the matching entry must be <addr>/32 itself and its forwarding chain must
+// rewrite via ifName. Returns the forwarding load-balance's to-counter {packets, bytes}: ip4-lookup counts every packet
+// it sends through that entry (bytes = IP length).
+func fibTo(t *testing.T, addr, ifName string) ([2]uint64, string) {
+	t.Helper()
+	out := vppctl(t, "show", "ip", "fib", "table", "0", addr+"/32")
+	fwd := strings.Index(out, "forwarding:")
+	if fwd < 0 || !regexp.MustCompile(`(?m)^`+regexp.QuoteMeta(addr)+`/32 fib:0 `).MatchString(out) {
+		t.Fatalf("show ip fib table 0 %s/32: no /32 entry with a forwarding chain:\n%s", addr, out)
+	}
+	if !strings.Contains(out[fwd:], "ipv4 via "+addr+" "+ifName+":") {
+		t.Fatalf("show ip fib table 0 %s/32: forwarding does not rewrite via %s:\n%s", addr, ifName, out)
+	}
+	m := lbToRe.FindStringSubmatch(out[fwd:])
+	if m == nil {
+		t.Fatalf("show ip fib table 0 %s/32: no load-balance to-counter:\n%s", addr, out)
+	}
+	p, _ := strconv.ParseUint(m[1], 10, 64)
+	b, _ := strconv.ParseUint(m[2], 10, 64)
+	return [2]uint64{p, b}, out
+}
+
+var pingCountRe = regexp.MustCompile(`(\d+) packets transmitted, (\d+) (?:packets )?received`)
+
+// pingCounts reads "N packets transmitted, M received" from iputils ping output (-1, -1 when absent).
+func pingCounts(out string) (int, int) {
+	m := pingCountRe.FindStringSubmatch(out)
+	if m == nil {
+		return -1, -1
+	}
+	tx, _ := strconv.Atoi(m[1])
+	rx, _ := strconv.Atoi(m[2])
+	return tx, rx
 }
 
 func within(a, b uint64, frac float64) bool {

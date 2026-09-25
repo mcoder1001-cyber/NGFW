@@ -1,6 +1,7 @@
 package subsystems
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -11,8 +12,11 @@ import (
 
 type fixedIndex map[string]uint32
 
-func (f fixedIndex) Resolve(name string) (uint32, bool) { i, ok := f[name]; return i, ok }
-func (fixedIndex) Invalidate()                          {}
+func (f fixedIndex) Resolve(_ context.Context, name string) (uint32, bool) {
+	i, ok := f[name]
+	return i, ok
+}
+func (fixedIndex) Invalidate() {}
 
 func TestIfaceClaimsPersistAndExpire(t *testing.T) {
 	dir := t.TempDir()

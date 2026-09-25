@@ -152,8 +152,8 @@ uses a fixture repo via `VRX_TEST_ROOT`, honoured only when every mutating path 
 ### Hardening before the first real apply (TD-6, D-103)
 
 - **One unfinished apply at a time; a dead-man only reverts its own file (V1).** `--apply` (and the dry run, which then
-  exits 3) refuses while an earlier work dir installed a file and has no result yet — finish it with its dead-man or
-  `--stage rollback --work <dir>`. A rollback first checks ownership of the live file: if a newer apply installed after
+  exits 3) refuses while an earlier work dir installed a file and has no result yet — wait for its dead-man, or run that
+  one rollback now through the dead-man's own unit (the refusal prints the command, TD-7 below). A rollback first checks ownership of the live file: if a newer apply installed after
   this one (`newer:`) or the live sum is neither this run's new file nor its backup (`foreign:`), the rollback is skipped,
   logged to syslog, the timer is disarmed and the locks are released — a stale dead-man never overwrites a newer commit.
 - **The restore file exists before VPP is stopped (V2).** startup.conf is never written in place: the new file and the
@@ -173,16 +173,46 @@ uses a fixture repo via `VRX_TEST_ROOT`, honoured only when every mutating path 
   read is bounded by time, not by poll count.
 - **Dry-run exit code (V9):** 3 when `--apply` would be refused by the gate (sums are still printed), 0 when it would run.
 
+### Follow-ups from the TD-6 review (TD-7, D-116)
+
+- **One rollback per apply at a time (F1).** The refusal above used to send the operator to `--stage rollback --work
+  <dir>` by hand while that apply's dead-man timer was still armed. If the timer fired during the manual rollback, both
+  processes stopped and started VPP: a second outage, and one's health check could land in the other's stop. Now:
+  - the refusal (planner, run and dry run) prints the safe command, the dead-man's own unit:
+    `systemctl start vrx-startup-apply-deadman-<stamp>.service`. systemd starts a unit only once, so it cannot run next
+    to the timer's own start, and it runs detached from the SSH session. The stage by hand
+    (`<work>/bin/apply-startup.sh --stage rollback --work <work>`) is only the fallback when no dead-man unit was
+    recorded, or systemd no longer knows it. Run it from a console: it is not detached.
+  - `--stage rollback` first takes a **per-apply lock**: `flock -n` on the apply's own work dir, which is keyed by the
+    apply id. Nothing has to be created, so a full disk cannot stop the dead-man. A second rollback stage of the same
+    apply logs `a rollback of <work> is already running (pid N) — nothing to do` and exits 0 without touching anything.
+    The children that can outlive the stage (`timeout`-wrapped commands, `flock` waits) close the lock's fd, so a
+    killed rollback cannot leave the lock held.
+  - it then **cancels the armed timer** before it touches the run or VPP. This is harmless when the process is the
+    timer's own service.
+- **Scenario 40 no longer depends on the host load (F2).** Its time bound was scaled by the load factor, and the
+  regression it guards (the pre-V8 poll bounded by count) costs only ~25 s. From load ≈ 17 the limit went above that, so
+  the check stopped catching it. Now the scenario counts the fake's `ip neigh` reads instead. Every read hangs until the
+  3 s command timeout, so the time-bounded poll makes 1 read (at most 2 are accepted), and the count-bounded poll makes
+  2 × cmd-timeout = 6.
+
 Tests: `deploy/vpp/test-apply-startup.sh` (fake host; scenarios 32–41 cover V1–V9, each failed on the pre-TD-6 script
-via `VRX_TEST_APPLY_SCRIPT`). `tools/ci.sh quick` runs `shellcheck -x` on `deploy/vpp/*.sh` and the harness in 4
+via `VRX_TEST_APPLY_SCRIPT`; 42–43 and the refusal check in 32 cover F1, each failed on TD-6's script; 40 fails on the
+pre-TD-6 script at any load). `tools/ci.sh quick` runs `shellcheck -x` on `deploy/vpp/*.sh` and the harness in 4
 parallel shards (`VRX_CI_APPLY_SHARDS`); a green run is cached by the sha256 of `deploy/vpp/*` + the built generator, so
 an unchanged tree skips it. Failed scenarios get one serial rerun: green → a WARN naming them, failing again → the gate
 fails. `VRX_TEST_ONLY`/`VRX_TEST_SHARD` never leak in from the caller; `VRX_TEST_APPLY_SCRIPT` is honoured but never
 cached. The harness is meant to be green next to other workers' CI (load average up to ~50 on 32 CPUs): the fake host
 runs with `--cmd-timeout 3 --svc-timeout 6`, waits for files with long ceilings (they return as soon as the file
 exists), and the "bounded" checks (hangs cost the configured timeouts, not the fake's `sleep 300–1000`) scale their
-idle-host limit by a load factor 1 + 3·min(load/CPUs, 1.6) (measured: 3.6× the idle time at load 32 on 32 CPUs), always
-below the unbounded case. A failing check prints the host load and the script's last verdict lines.
+idle-host limit by a load factor 1 + 3·min(load/CPUs, 1.6) (measured: 3.6× the idle time at load 32 on 32 CPUs). Only
+the six `bounded` checks (scenarios 7, 21, 22, 23, 26 and 29) use such a limit. Each guards a fake that hangs in
+`sleep 300` or `sleep 1000`, and the largest limit, 30 s × 5.8 = 174 s, stays below 300 s. Scenario 40 has no time bound
+any more (TD-7 F2). The regression it guards, the pre-V8 poll bounded by count, costs only ~25 s, and a load factor
+hides that from load ≈ 17 on. So the check counts the fake's `ip -j neigh show` reads instead. Each read hangs until the
+3 s command timeout, so the time-bounded poll makes 1 read (the check accepts up to 2), and the count-bounded poll always
+makes 2 × cmd-timeout = 6. The verdict does not depend on the host load. A failing check prints the host load and the
+script's last verdict lines.
 
 Exit codes: 0 committed / nothing to do · 1 failed (rolled back or console needed) · 2 usage · 3 refused before any change.
 Needs `jq`, `flock`, `timeout`, `systemd-run`, `ss` (session signal), `git` (approval check) on the target host. Not restored automatically: multipath

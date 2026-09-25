@@ -1,7 +1,7 @@
 package interfaces
 
 // Direct VPP access of the test (never of the product API): binary API dumps for the V19 guard and the
-// simulated loss, vppctl for the evidence the acceptance asks for (show int, trace).
+// simulated loss, vppctl for the evidence the acceptance asks for (show int, show ip fib — never a packet trace, D-128).
 
 import (
 	"context"
@@ -188,9 +188,10 @@ func vppctl(t *testing.T, args ...string) string {
 	return string(out)
 }
 
-var counterRe = regexp.MustCompile(`(?m)^\s*(?:(\S+)\s+\d+\s+(?:up|down)\s+\S+\s+)?(rx packets|tx packets)\s+(\d+)`)
+var counterRe = regexp.MustCompile(`(?m)^\s*(?:(\S+)\s+\d+\s+(?:up|down)\s+\S+\s+)?((?:rx|tx) (?:packets|bytes))\s+(\d+)`)
 
-// showIntCounters parses `vppctl show interface <names>` into name → {"rx packets": n, "tx packets": n}.
+// showIntCounters parses `vppctl show interface <names>` into name → {"rx packets": n, "rx bytes": n, "tx packets": n,
+// "tx bytes": n} (VPP prints only non-zero counters: a missing one is 0).
 func showIntCounters(t *testing.T, names ...string) (map[string]map[string]uint64, string) {
 	t.Helper()
 	out := vppctl(t, append([]string{"show", "interface"}, names...)...)

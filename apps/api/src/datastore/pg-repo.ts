@@ -222,16 +222,21 @@ class PgConfigTx implements ConfigTx {
           ? and(eq(appUser.source, 'config'), notInArray(appUser.username, names))
           : eq(appUser.source, 'config'),
       );
-    // D-102: the hashes before this promote (the commit mutex serialises every hash writer of this process)
+    // D-102: the hashes before this promote (the commit mutex serialises every hash writer of this process);
+    // D-100 (3): and the disabled flags
     const before = new Map(
       names.length === 0
         ? []
         : (
             await this.t
-              .select({ username: appUser.username, hash: appUser.passwordHash })
+              .select({
+                username: appUser.username,
+                hash: appUser.passwordHash,
+                disabled: appUser.disabled,
+              })
               .from(appUser)
               .where(inArray(appUser.username, names))
-          ).map((r) => [r.username, r.hash]),
+          ).map((r) => [r.username, r]),
     );
     const resets: PasswordReset[] = [];
     for (const u of users) {
@@ -246,34 +251,51 @@ class PgConfigTx implements ConfigTx {
         .onConflictDoUpdate({ target: appUser.username, set })
         .returning({ id: appUser.id });
       const prev = before.get(u.username);
-      if (row === undefined || prev === undefined || u.passwordHash === undefined) continue;
-      if (prev === u.passwordHash) continue;
+      if (row === undefined || prev === undefined) continue;
+      const password = u.passwordHash !== undefined && prev.hash !== u.passwordHash;
+      // D-100 (3): an existing user this promote disables (not a re-enable, a user created disabled, or the same
+      // flag staged again) — the generation moves, so access tokens, refresh chains and WebSockets end now
+      const disabled = !prev.disabled && u.disabled === true;
+      if (!password && !disabled) continue;
       // D-102: an existing user's hash changed through the config API → admin-reset semantics, same transaction:
       // generation bumped (refresh and key creation check it), lockout cleared, every API key deleted (no
-      // keepApiKeys on this path) with any candidate lock it held — keys before the candidate (verify V4 lock order)
+      // keepApiKeys on this path) with any candidate lock it held — keys before the candidate (verify V4 lock order).
+      // A disable alone bumps the generation only; both at once bump it ONCE.
       const [g] = await this.t
         .update(appUser)
-        .set({
-          credentialGen: sql`${appUser.credentialGen} + 1`,
-          failedLogins: 0,
-          lockedUntil: null,
-        })
+        .set(
+          password
+            ? {
+                credentialGen: sql`${appUser.credentialGen} + 1`,
+                failedLogins: 0,
+                lockedUntil: null,
+              }
+            : { credentialGen: sql`${appUser.credentialGen} + 1` },
+        )
         .where(eq(appUser.id, row.id))
         .returning({ gen: appUser.credentialGen });
-      const keys = await this.t
-        .delete(apiKey)
-        .where(eq(apiKey.userId, row.id))
-        .returning({ id: apiKey.id, name: apiKey.name });
-      const discardedCandidate = await releaseKeyLocks(
-        this.t,
-        keys.map((k) => k.id),
-      );
+      let keys: { id: string; name: string }[] = [];
+      let discardedCandidate = false;
+      if (password) {
+        keys = await this.t
+          .delete(apiKey)
+          .where(eq(apiKey.userId, row.id))
+          .returning({ id: apiKey.id, name: apiKey.name });
+        discardedCandidate = await releaseKeyLocks(
+          this.t,
+          keys.map((k) => k.id),
+        );
+      }
       resets.push({
         userId: row.id,
         username: u.username,
         gen: g!.gen,
         apiKeysRevoked: keys,
         discardedCandidate,
+        reasons: [
+          ...(password ? ['password' as const] : []),
+          ...(disabled ? ['disabled' as const] : []),
+        ],
       });
     }
     return resets;

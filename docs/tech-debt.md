@@ -78,3 +78,17 @@ Items above that are not ticked keep their text; this table gives each one an ow
 - (F-object-model Q2) FQDN refresh uses a fixed interval; DNS TTLs need golang.org/x/net promoted in go.mod
 - (WEB-2 M3) the config kit keeps writeOnly members (passwordHash) in mutation variables/React state — fix before any secret-leaf kit screen
 - (F-vrf-static-ecmp Q8) govpp drops dump replies on a loaded host — all descriptors exposed; (Q9) CLI `vrx ping` sends no body (400 since ping is implemented)
+
+## From the wave-A reviews, batch 2 (D-131/D-132, 2026-09-24)
+- (TD-7 finding) `check_health` (`deploy/vpp/apply-startup.sh:568`) reads `systemctl show` once without retry: a timed-out/partial D-Bus read counts as "vpp.service restarted" → needless rollback (never a false commit); harness scenarios 5/28/29 start with an unguarded apply so a very loaded host kills a whole shard instead of getting a rerun
+- (F-vrf-static-ecmp Q4) packages/schema/src/examples.test.ts rejects feature example files (`<slug>-*.json`) — widen the SIBLING regex once (F-vlan-qinq Q3, F-bridge-l2 Q4, F-neighbors-ra Q5 hit the same)
+- (F-vrf-static-ecmp Q8) govpp drops dump replies on a loaded host — needs a fix in apps/agent/internal/vpp (all descriptors exposed)
+- (F-vrf-static-ecmp Q9/L5) CLI `vrx ping`/`traceroute` send no body (400 since ping is implemented) and the CLI docs for /state/routes are stale
+- (F-vrf-static-ecmp Q10, F-neighbors-ra Q9) the shared fake agent needs a per-feature Action dispatch table
+- (F-vrf-static-ecmp M2) FIB browser: keyset cursor instead of offset paging
+
+## Review follow-ups (2026-09-25, manager cycle 20)
+- TD-10a verify nits (00d3ab9f): apps/web net.ts:106 compares the pending commit against the client clock — use the pending snapshot taken before the request; tech-debt text says followOutcome lives in net.ts, it is RevisionsPage.tsx:101; MIN_CROSS_WAIT_MS lets the lock wait reach 1.25 s while budget.ts documents 1 s. Owner: apps/web/src/config/** owner / TD-15.
+- F-vrf-static-ecmp verify (19d250c0): two API e2e files in one vitest call → the second fails DB setup with PostgreSQL 28P01 (auth) — harness bug in the e2e DB bootstrap (each file alone passes). Owner: TD-15 / API test harness. Also: tests don't yet pin the no-polling UI, the 100k cap or selector-at-init (F-vrf-static-ecmp follow-up).
+- TD-11c verify (e83c6318): prompts/features/F-tunnels.md and F-mpls-srmpls.md must state the TD-11c obligation — every interface creator registers iface.RegisterKind or provides the interface/<name> KeyProvider, and removes itself from the guard allowlist; add a guard that fails if a creator on the gap list gets wired while still allowlisted. (manager: prompt edits in the next batch)
+- WEB-3 review (0ea17400): apps/web/test/e2e/** is outside eslint and the forbidden-pattern/gitleaks scan (pre-existing) — extend `pnpm --filter @ngfw/web lint` and tools/ci.sh forbidden patterns to cover test/e2e. Owner: TD-18 (repo hygiene).

@@ -391,6 +391,35 @@ do_forbidden() {
   fi
 }
 
+# D-128 (TD-20): packet trace is banned on the shared VPP. The VPP crash of 2026-09-24 18:41 (very likely 07:27 too) was a
+# packet-trace dump: format_vlib_trace (vlib/trace.c:159-162) calls a NULL formatter for a record whose node is the tx/output
+# node of a deleted and recycled interface, so any slot's dump can take VPP down for everyone (docs/lab/shared-host-rules.md
+# §11, docs/vpp-code-track.md V25, TD-20). Fails on code that adds, dumps or clears a packet trace: vppctl/cli_inband
+# command strings, argv lists (Go `vppctl(t, "show", "trace")`, TS/Python arrays) and the tracedump binary API (trace_dump
+# formats the same records). Prose is exempt (docs/, prompts/, wbs/, plan/, *.md, comment-only lines), as are the generated
+# bindings (apps/agent/binapi). No escape hatch: the ban holds until VPP carries the fix.
+do_trace_ban() {
+  step "packet-trace ban on the shared VPP (D-128)"
+  CUR_LOG=""  # a static grep, no step log: a failure must not print the previous step's log
+  local q="[\"']" s='[[:space:]]' hits
+  local cmd="(show$s+trace|trace$s+add|clear$s+trace)\b"
+  local pats=(
+    "${q}trace${q}$s*,$s*${q}add${q}|${q}show${q}$s*,$s*${q}trace${q}|${q}clear${q}$s*,$s*${q}trace${q}"   # argv list
+    "${q}(vppctl$s+(-s$s+[^[:space:]]+$s+)?)?$cmd"                                                     # command string
+    "(^|[^[:alnum:]_.-])vppctl($s+-s$s+[^[:space:]]+)?$s+$cmd"                                          # shell
+    "\bTrace(CapturePackets|Dump|V2Dump|ClearCapture)\b|\btrace_(capture_packets|dump|v2_dump|clear_capture)\b|binapi/trace${q}"  # tracedump API
+  )
+  local args=() p; for p in "${pats[@]}"; do args+=(-e "$p"); done
+  hits=$(git grep -nIE --untracked "${args[@]}" -- . ':(exclude)docs' ':(exclude)prompts' ':(exclude)wbs' ':(exclude)plan' \
+           ':(exclude)*.md' ':(exclude)apps/agent/binapi' 2>/dev/null \
+         | grep -vE '^[^:]+:[0-9]+:[[:space:]]*(#|//|/\*|\*)' || true)
+  [[ -z $hits ]] || fail "PACKET TRACE ON THE SHARED VPP (D-128): trace add / show trace / clear trace (or the tracedump API)
+  crashed VPP for every slot — a stale trace record of a deleted and recycled interface node has no formatter.
+  Prove the path with interface rx/tx counters, the FIB entry and its ip4-lookup counter (test/topology/interfaces) or tcpdump
+  in the rig's netns instead (docs/lab/shared-host-rules.md §11):\n$(sed 's/\\/\\\\/g; s/^/    /' <<<"$hits")"  # fail prints with %b
+  say "ok: no packet trace (trace add / show trace / clear trace / tracedump API) outside docs and the generated bindings"
+}
+
 do_turbo() {
   step "lint · typecheck · unit tests · build (turbo)"
   run turbo pnpm turbo run lint typecheck test build --continue --output-logs=errors-only \
@@ -657,7 +686,7 @@ case $MODE in
   gen-check)
     init_logs; do_gen_check; end_step; say "gen-check PASSED ($(fmt_dur "$SECONDS"))" ;;
   check)
-    init_logs; [[ -z $BASE ]] || do_contract_guard; do_forbidden; end_step; say "check PASSED ($(fmt_dur "$SECONDS"))" ;;
+    init_logs; [[ -z $BASE ]] || do_contract_guard; do_forbidden; do_trace_ban; end_step; say "check PASSED ($(fmt_dur "$SECONDS"))" ;;
   quick|full)
     init_logs
     preflight
@@ -666,6 +695,7 @@ case $MODE in
     do_install
     do_gen_check
     do_forbidden
+    do_trace_ban
     do_turbo
     do_agent
     do_cli

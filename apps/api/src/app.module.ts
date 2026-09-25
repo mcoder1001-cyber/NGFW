@@ -45,6 +45,7 @@ import { UsersService } from './users/users.service.js';
 // wave-BC: F-ipfix-sflow
 // wave-BC: F-capture-trace
 // wave-BC: F-srv6
+import { srv6Feature } from './features/srv6/index.js';
 // wave-BC: F-lisp
 // wave-BC: F-bfd-redistribution
 // wave-BC: F-ra-vpn
@@ -128,6 +129,7 @@ export class AppModule {
         // wave-BC: F-ipfix-sflow
         // wave-BC: F-capture-trace
         // wave-BC: F-srv6
+        ...srv6Feature.controllers,
         // wave-BC: F-lisp
         // wave-BC: F-bfd-redistribution
         // wave-BC: F-ra-vpn
@@ -196,6 +198,7 @@ export class AppModule {
         // wave-BC: F-ipfix-sflow
         // wave-BC: F-capture-trace
         // wave-BC: F-srv6
+        ...srv6Feature.providers,
         // wave-BC: F-lisp
         // wave-BC: F-bfd-redistribution
         // wave-BC: F-ra-vpn

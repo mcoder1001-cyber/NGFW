@@ -38,6 +38,7 @@ import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { srv6FakeState } from '../features/srv6/fake.js'; // F-srv6 (P5)
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -638,10 +639,7 @@ export class FakeAgent {
       // wave-BC: F-ipfix-sflow
       // wave-BC: F-capture-trace
       // wave-BC: F-srv6
-      srv6State: (call, cb) => {
-        this.record('Srv6State', call.request);
-        cb({ code: status.UNIMPLEMENTED, details: 'Srv6State is not modelled by the fake yet (F-srv6 contract stub)' });
-      },
+      srv6State: srv6FakeState(this), // features/srv6/fake.ts
       // wave-BC: F-lisp
       // wave-BC: F-bfd-redistribution
       // wave-BC: F-ra-vpn

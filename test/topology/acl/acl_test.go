@@ -692,7 +692,9 @@ func TestACLTopology(t *testing.T) {
 func apiCleanup(t *testing.T, a *api, r rig) {
 	t.Helper()
 	a.t = t
-	r.peers(t, false)
+	if r.prefix != "" { // no rig: nothing to quiesce
+		r.peers(t, false)
+	}
 	a.call("POST", "/api/v1/config/discard", nil)
 	a.call("PUT", "/api/v1/config/acl", map[string]any{})
 	a.call("PUT", "/api/v1/config/objects", map[string]any{})

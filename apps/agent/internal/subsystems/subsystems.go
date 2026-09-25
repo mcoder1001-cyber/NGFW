@@ -36,6 +36,8 @@ import (
 	"ngfw/agent/internal/descriptors/ikev2"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/ipsec"
+	"ngfw/agent/internal/descriptors/policer"
+	"ngfw/agent/internal/descriptors/qos"
 	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
@@ -109,6 +111,15 @@ var Domains = map[string][]string{
 	// wave-BC: F-ikev2-native
 	// wave-BC: F-lb
 	// wave-BC: F-qos-flat
+	"services": { // F-qos-flat; the other `services` families join this one entry at merge
+		policer.NamePolicer,
+		policer.NameInterface,
+		qos.NameEgressMap,
+		qos.NameRecord,
+		qos.NameStore,
+		qos.NameMark,
+		qos.NameMeta,
+	},
 	// wave-BC: F-host-stack
 	// wave-BC: F-snmp
 	// wave-BC: F-ipfix-sflow
@@ -257,6 +268,10 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
+	// F-qos-flat (unanchored: no `wave-BC: F-qos-flat` anchor in this block)
+	if err := w.registerQoS(r); err != nil {
+		return nil, err
+	}
 	return w, nil
 }
 

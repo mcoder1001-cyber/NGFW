@@ -2,6 +2,7 @@ package policer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"go.fd.io/govpp/api"
@@ -69,7 +70,10 @@ func (d *InterfaceDescriptor) apply(ctx context.Context, swIfIndex uint32, a Att
 // D-080). VPP's apply is not idempotent — every policer_input(apply=1) enables the policer-input
 // feature again, which stacks a second instance of the node — so a re-application is skipped
 // while a record for (boot identity, sw_if_index, logical name) exists. The interface claim is
-// recorded only after VPP accepted the apply (review M1).
+// recorded BEFORE the apply and released when VPP refuses it (TD-11b claim-first, F-qos-flat):
+// a claim that cannot be recorded fails the Create with nothing written. When the applied-once
+// record cannot be written after VPP applied, the apply is taken back at once (it was applied in
+// this VPP lifetime, so apply=0 is safe) — a later resync would otherwise stack it a second time.
 func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	a, err := df7.DecodeValid[Attachment](obj)
 	if err != nil {
@@ -80,16 +84,30 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	if err != nil {
 		return nil, err
 	}
-	skipped, err := d.ApplyOnce(ctx, key, df7.IfaceValue(tg.Index, a.Interface), func() error { return d.apply(ctx, tg.Index, a, true) })
+	value := df7.IfaceValue(tg.Index, a.Interface)
+	meta := AttachMeta{SwIfIndex: tg.Index}
+	applied, err := d.AppliedNow(ctx, key, value)
 	if err != nil {
 		return nil, err
 	}
-	if !skipped {
-		if err := tg.Claim(); err != nil {
-			return nil, err
-		}
+	if applied {
+		return meta, nil // applied on this VPP instance already: never a second apply (D-076)
 	}
-	return AttachMeta{SwIfIndex: tg.Index}, nil
+	c, err := tg.ClaimFirst(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := d.apply(ctx, tg.Index, a, true); err != nil {
+		return nil, c.Undo(err)
+	}
+	if err := d.RecordNow(ctx, key, value); err != nil {
+		if uerr := d.apply(ctx, tg.Index, a, false); uerr != nil {
+			// still applied and unrecorded: journal it (the claim stays for the rollback's Delete)
+			return meta, scheduler.PartialCreate(errors.Join(err, uerr))
+		}
+		return nil, c.Undo(err)
+	}
+	return meta, nil
 }
 
 // Update implements scheduler.Descriptor: another policer on the same interface/direction —
@@ -306,10 +324,14 @@ func (d *ClassifyDescriptor) Create(ctx context.Context, obj proto.Message) (any
 	if err != nil {
 		return nil, err
 	}
-	if err := d.set(ctx, tg.Index, c, true); err != nil {
+	cl, err := tg.ClaimFirst(ctx) // TD-11b: the claim before the VPP write
+	if err != nil {
 		return nil, err
 	}
-	return AttachMeta{SwIfIndex: tg.Index}, tg.Claim()
+	if err := d.set(ctx, tg.Index, c, true); err != nil {
+		return nil, cl.Undo(err)
+	}
+	return AttachMeta{SwIfIndex: tg.Index}, nil
 }
 
 // Update implements scheduler.Descriptor: VPP keeps the first table of a kind while the feature

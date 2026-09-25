@@ -2,6 +2,7 @@ package policer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -138,6 +139,7 @@ func (d *Descriptor) Delete(ctx context.Context, obj proto.Message, meta any) er
 type owned struct {
 	Index uint32
 	Spec  Policer
+	Det   *policer.PolicerDetails
 }
 
 // Retrieve implements scheduler.Descriptor: policer_dump_v2 for every pool index. VPP's
@@ -194,7 +196,7 @@ func dumpOwned(ctx context.Context, c vpp.Client, owner string) ([]owned, error)
 		if !ok {
 			continue
 		}
-		out = append(out, owned{Index: idx, Spec: decode(name, dets[0])})
+		out = append(out, owned{Index: idx, Spec: decode(name, dets[0]), Det: dets[0]})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Spec.Name < out[j].Spec.Name })
 	return out, nil
@@ -232,13 +234,52 @@ func LookupIndex(ctx context.Context, c vpp.Client, owner, name string) (uint32,
 // Reset is the policer_reset action helper: refill the token buckets of this owner's policer
 // called name (looked up by name right before the call — never a stored index, review M5).
 func Reset(ctx context.Context, c vpp.Client, owner, name string) error {
+	_, err := ResetIndex(ctx, c, owner, name)
+	return err
+}
+
+// ErrNoPolicer is returned (wrapped) by ResetIndex when this owner has no policer of that name.
+var ErrNoPolicer = errors.New(NamePolicer + ": no such policer")
+
+// ResetIndex is Reset that also returns the pool index it reset (F-qos-flat's QosPolicerReset);
+// ErrNoPolicer when the owner has no policer of that name.
+func ResetIndex(ctx context.Context, c vpp.Client, owner, name string) (uint32, error) {
 	idx, found, err := LookupIndex(ctx, c, owner, name)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if !found {
-		return fmt.Errorf("%s: no policer %q of owner %q", NamePolicer, name, owner)
+		return 0, fmt.Errorf("%w: %q of owner %q", ErrNoPolicer, name, owner)
 	}
-	_, err = policer.NewServiceClient(c).PolicerReset(ctx, &policer.PolicerReset{PolicerIndex: idx})
-	return err
+	if _, err := policer.NewServiceClient(c).PolicerReset(ctx, &policer.PolicerReset{PolicerIndex: idx}); err != nil {
+		return 0, fmt.Errorf("%s: policer_reset %d (%s): %w", NamePolicer, idx, name, err)
+	}
+	return idx, nil
+}
+
+// State is one of this owner's policers as VPP reports it: the pool index, the configuration and
+// the token buckets (policer_details, VPP's internal token units). F-qos-flat's QosPolicerState.
+type State struct {
+	Index          uint32
+	Spec           Policer
+	CurrentBucket  uint32
+	CurrentLimit   uint32
+	ExtendedBucket uint32
+	ExtendedLimit  uint32
+}
+
+// States returns this owner's policers, sorted by name, with their pool index and token buckets:
+// the same walk as Retrieve (one full policer_dump_v2, then one per pool index until every
+// policer the full dump listed was seen). Read-only.
+func States(ctx context.Context, c vpp.Client, owner string) ([]State, error) {
+	list, err := dumpOwned(ctx, c, owner)
+	if err != nil {
+		return nil, fmt.Errorf("%s: policer_dump_v2: %w", NamePolicer, err)
+	}
+	out := make([]State, 0, len(list))
+	for _, o := range list {
+		out = append(out, State{Index: o.Index, Spec: o.Spec, CurrentBucket: o.Det.CurrentBucket, CurrentLimit: o.Det.CurrentLimit,
+			ExtendedBucket: o.Det.ExtendedBucket, ExtendedLimit: o.Det.ExtendedLimit})
+	}
+	return out, nil
 }

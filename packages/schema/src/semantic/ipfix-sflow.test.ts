@@ -24,6 +24,25 @@ describe('ipfix-sflow validators', () => {
     expect(new Set(ipfixSflowValidators.map((v) => v.name)).size).toBe(ipfixSflowValidators.length);
   });
 
+  it('schema default records ip4 only and is accepted', () => {
+    const cfg = RootConfig.parse({
+      services: { ipfix: { flowprobe: { interfaces: [{ interface: IF }] } } },
+    });
+    expect(cfg.services.ipfix.flowprobe.interfaces[0]).toMatchObject({ ip4: true, ip6: false });
+    expect(
+      run({ exporters: { lan: exporter('10.1.1.9') }, flowprobe: { interfaces: [{ interface: IF }] } }),
+    ).toEqual([]);
+  });
+
+  it('ip4 and ip6 on one interface point at its ip6 field', () => {
+    expect(run({ exporters: { lan: exporter('10.1.1.9') }, flowprobe: probe({ ip6: true }) })).toEqual([
+      {
+        pointer: '/services/ipfix/flowprobe/interfaces/0/ip6',
+        message: `VPP records one flowprobe variant per interface: ${IF} cannot record both IPv4 and IPv6 (turn one off)`,
+      },
+    ]);
+  });
+
   it('accepts flowprobe with an enabled IPv4 exporter', () => {
     expect(run({ exporters: { lan: exporter('10.1.1.9') }, flowprobe: probe() })).toEqual([]);
   });

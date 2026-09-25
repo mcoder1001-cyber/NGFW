@@ -35,8 +35,9 @@ their stats index when known.
 - **Record fields:** L2 (MACs, EtherType), L3 (addresses, protocol), L4 (ports, TCP flags).
 - **Monitored interfaces:** pick an interface, the **variant** and the **direction** (receive, transmit, both). VPP
   records **one variant per interface** — IPv4, IPv6 or L2.
-  **Under the configuration default (IPv4 and IPv6 both on) IPv6 flows are NOT recorded:** the entry is applied as
-  IPv4 only and the agent reports a warning. To record IPv6 on an interface, turn IPv4 off for it (D-146).
+  The default is IPv4 only. To record IPv6 on an interface, turn IPv4 off and IPv6 on for it; a commit with both
+  IPv4 and IPv6 on one interface is refused with *"VPP records one flowprobe variant per interface: … cannot record
+  both IPv4 and IPv6 (turn one off)"* at that interface's IPv6 field (D-150).
 
 Monitored interfaces need an enabled exporter with an IPv4 collector: a commit without one is refused with
 *"flowprobe records are sent through IPFIX exporter 0 only: enable an exporter with an IPv4 collector"*

@@ -8,8 +8,8 @@ import type { SemanticIssue, ValidatorDefinition } from './registry.js';
  * - flowprobe records leave the box only through IPFIX exporter 0, which takes an IPv4 collector: monitored
  *   interfaces need an enabled exporter with an IPv4 collector (the agent makes the first such exporter, by name,
  *   exporter 0);
- * (VPP enables one flowprobe variant per interface; the schema default `ip4` + `ip6` is realised by the agent as
- *  ip4 with a warning, not rejected here — the shipped examples use that default.)
+ * - VPP records one flowprobe variant per interface: `ip4` and `ip6` on the same interface are rejected at the
+ *   `ip6` field (D-150; the schema default is ip4 only, the agent keeps an ip4 + warning path as defence);
  * - VPP rounds the sFlow header size to a multiple of 32 silently, so any other value would drift forever;
  * - VPP identifies additional exporters by collector address alone: enabled exporters need distinct collector
  *   addresses.
@@ -36,6 +36,23 @@ const flowprobeNeedsExporter: ValidatorDefinition = {
               'flowprobe records are sent through IPFIX exporter 0 only: enable an exporter with an IPv4 collector',
           },
         ];
+  },
+};
+
+const flowprobeOneVariant: ValidatorDefinition = {
+  name: 'services.ipfix-sflow-flowprobe-one-variant',
+  domains: ['services'],
+  validate(config) {
+    const issues: SemanticIssue[] = [];
+    config.services.ipfix.flowprobe.interfaces.forEach((f, i) => {
+      if (f.ip4 && f.ip6) {
+        issues.push({
+          pointer: P('flowprobe', 'interfaces', i, 'ip6'),
+          message: `VPP records one flowprobe variant per interface: ${f.interface} cannot record both IPv4 and IPv6 (turn one off)`,
+        });
+      }
+    });
+    return issues;
   },
 };
 
@@ -78,6 +95,7 @@ const exporterCollectorUnique: ValidatorDefinition = {
 
 export const ipfixSflowValidators: readonly ValidatorDefinition[] = [
   flowprobeNeedsExporter,
+  flowprobeOneVariant,
   sflowHeaderBytes,
   exporterCollectorUnique,
 ];

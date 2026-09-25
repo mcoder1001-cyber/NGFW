@@ -111,9 +111,9 @@ afterEach(async () => {
 });
 
 describe('Services → Flow export', () => {
-  it('variantOf: the schema default ip4+ip6 is recorded as ip4', () => {
+  it('variantOf: the schema default records ip4', () => {
     expect(variantOf({ interface: 'x' })).toBe('ip4');
-    expect(variantOf({ interface: 'x', ip4: false })).toBe('ip6');
+    expect(variantOf({ interface: 'x', ip4: false, ip6: true })).toBe('ip6');
     expect(variantOf({ interface: 'x', ip4: false, ip6: false, l2: true })).toBe('l2');
   });
 

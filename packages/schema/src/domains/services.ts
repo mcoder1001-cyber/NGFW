@@ -739,7 +739,7 @@ export const IpfixFlowprobeInterfaceSchema = z
     }),
     l2: withUi(z.boolean().default(false), { title: 'L2 flows', widget: 'switch' }),
     ip4: withUi(z.boolean().default(true), { title: 'IPv4 flows', widget: 'switch' }),
-    ip6: withUi(z.boolean().default(true), { title: 'IPv6 flows', widget: 'switch' }),
+    ip6: withUi(z.boolean().default(false), { title: 'IPv6 flows', widget: 'switch' }),
   })
   .superRefine((f, ctx) => {
     if (!f.l2 && !f.ip4 && !f.ip6) add(ctx, ['ip4'], 'enable at least one of l2, ip4, ip6');

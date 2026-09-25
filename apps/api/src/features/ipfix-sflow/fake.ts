@@ -57,7 +57,7 @@ export function ipfixStateFake(
     const fp = obj(ix['flowprobe']);
     const fpIfs = ((fp['interfaces'] as Json[] | undefined) ?? []).map((f) => ({
       interface: String(f['interface'] ?? ''),
-      which: bool(f['ip4'], true) ? 'ip4' : bool(f['ip6'], true) ? 'ip6' : 'l2',
+      which: bool(f['ip4'], true) ? 'ip4' : bool(f['ip6'], false) ? 'ip6' : 'l2',
       direction: typeof f['direction'] === 'string' ? f['direction'] : 'both',
     }));
     const sf = obj(ix['sflow']);

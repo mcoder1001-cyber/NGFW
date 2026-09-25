@@ -4972,7 +4972,7 @@ export interface components {
             ip4: boolean;
             /**
              * IPv6 flows
-             * @default true
+             * @default false
              */
             ip6: boolean;
           }[];

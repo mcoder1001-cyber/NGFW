@@ -32,10 +32,10 @@ const newInterface = (name: string): FlowprobeInterfaceConfig => ({
   ip6: false,
 });
 
-/** The one variant VPP records on an interface (the agent realises ip4+ip6 as ip4). */
+/** The one variant VPP records on an interface (schema default ip4; ip4+ip6 is a semantic error, D-150). */
 export function variantOf(f: FlowprobeInterfaceConfig): Variant {
   if (f.ip4 !== false) return 'ip4';
-  if (f.ip6 !== false) return 'ip6';
+  if (f.ip6 === true) return 'ip6';
   return 'l2';
 }
 

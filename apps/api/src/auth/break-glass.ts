@@ -6,7 +6,6 @@ import {
   existsSync,
   fsyncSync,
   openSync,
-  readFileSync,
   renameSync,
   rmSync,
   writeSync,
@@ -17,8 +16,8 @@ import type { SystemEventsService } from '../audit/system-events.service.js';
 import type { Db } from '../db/db.js';
 import { appUser } from '../db/schema.js';
 import type { Valkey } from '../infra/valkey.js';
-import { checkKeyFile } from './key-file.js';
-import { parseKeyRing } from './tokens.service.js';
+import { localUser, readKeyFile, type KeyFileOwners } from './key-file.js';
+import { keyId, parseKeyRing } from './tokens.service.js';
 
 /**
  * TD-10b (review 2.3a): root-only break-glass operations on the box — `vrx-authctl` (break-glass-cli.ts,
@@ -149,23 +148,38 @@ export async function listLocks(d: BreakGlassDeps): Promise<LockRow[]> {
 export interface RotateResult {
   keys: number;
   created: boolean;
+  /** `kid` of the new signing key (a truncated hash; reveals nothing about the key) */
+  kid: string;
+  /** uid that owns the file now */
+  uid: number;
 }
+
+/** The API's system user on a product box (docs/01-architecture.md AD-6); `vrx-authctl` takes VRX_API_USER. */
+export const DEFAULT_API_USER = 'vrx';
 
 /**
  * P06 tech debt (JWT key rotation): put a new random signing key on top of the VRX_JWT_KEY_FILE ring and keep the
  * previous signing key (tokens it signed stay valid until they expire); older keys are dropped. Atomic (temp file,
  * fsync, rename), mode 0600, the existing file's owner kept. The API reloads the ring within 5 s.
+ * Review M1: the tool runs as root, the API as `apiUser` — so the file may belong to root or to the API user (the
+ * product layout: 0600 owned by `vrx`, the only way the API can read it); any other owner, a symlink, or group/other
+ * bits are refused. A new file is created for the API user when that user exists (else root, with a note).
  * Rotate at most once per VRX_ACCESS_TTL_SEC: a token signed by a dropped key is refused (the web UI and the CLI then
  * refresh, which does not depend on this key).
  */
-export function rotateKeyFile(path: string): RotateResult {
+export function rotateKeyFile(path: string, apiUser = DEFAULT_API_USER): RotateResult {
+  const api = localUser(apiUser);
+  const owners: KeyFileOwners = {
+    uids: [0, ...(api === undefined ? [] : [api.uid])],
+    label: `root or the API user '${apiUser}'${api === undefined ? ' (no such user on this host)' : ` (uid ${api.uid})`}`,
+  };
   const created = !existsSync(path);
   let previous: string[] = [];
-  let owner: { uid: number; gid: number } | undefined;
+  let owner: { uid: number; gid: number } | undefined = api;
   if (!created) {
-    const st = checkKeyFile(path);
+    const { text, st } = readKeyFile(path, owners);
     owner = { uid: st.uid, gid: st.gid };
-    previous = parseKeyRing(readFileSync(path, 'utf8'), path);
+    previous = parseKeyRing(text, path);
   }
   const ring = [randomBytes(48).toString('base64url'), ...previous.slice(0, 1)];
   const tmp = `${dirname(path)}/.${process.pid}.${randomBytes(4).toString('hex')}.jwtkeys`;
@@ -193,5 +207,40 @@ export function rotateKeyFile(path: string): RotateResult {
   } finally {
     closeSync(dfd);
   }
-  return { keys: ring.length, created };
+  return { keys: ring.length, created, kid: keyId(ring[0]!), uid: owner?.uid ?? 0 };
+}
+
+/**
+ * Review L5: a rotation is audited like an unlock — an `auth.jwt-key-rotated` audit row (no key, only its kid) and a
+ * JWT_KEY_RING_ROTATED system_event.
+ */
+export async function auditRotation(
+  d: Pick<BreakGlassDeps, 'audit' | 'events'>,
+  path: string,
+  r: RotateResult,
+): Promise<void> {
+  const after = {
+    file: path,
+    keys: r.keys,
+    created: r.created,
+    signingKid: r.kid,
+    ownerUid: r.uid,
+  };
+  await d.audit.write({
+    userId: null,
+    username: ACTOR,
+    sourceIp: null,
+    action: 'auth.jwt-key-rotated',
+    resource: 'jwt-key-ring',
+    after,
+    result: 'success',
+    status: null,
+  });
+  await d.events.record(
+    'warning',
+    'auth',
+    'JWT_KEY_RING_ROTATED',
+    `root rotated the access-token signing key (${path}); the API reloads it within 5 s`,
+    after,
+  );
 }

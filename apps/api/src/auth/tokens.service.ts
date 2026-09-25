@@ -1,12 +1,12 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { decodeProtectedHeader, jwtVerify, SignJWT, type JWTPayload } from 'jose';
 import { createHash, randomBytes } from 'node:crypto';
-import { readFileSync, type Stats } from 'node:fs';
+import { type Stats } from 'node:fs';
 import { ENV, type Env } from '../config.js';
 import { ROLES, type Role } from '../db/schema.js';
 import { Bus } from '../infra/bus.js';
 import { VALKEY, type Valkey } from '../infra/valkey.js';
-import { checkKeyFile, KeyFileError } from './key-file.js';
+import { checkKeyFile, KeyFileError, readKeyFile } from './key-file.js';
 
 const ISSUER = 'vrx-api';
 const AUDIENCE = 'vrx';
@@ -65,6 +65,11 @@ function ringKey(secret: string | Uint8Array): RingKey {
     kid: createHash('sha256').update('vrx-jwt-kid:').update(key).digest('hex').slice(0, 16),
     key,
   };
+}
+
+/** The `kid` a key of the ring signs with (vrx-authctl reports it after a rotation). */
+export function keyId(secret: string): string {
+  return ringKey(secret).kid;
 }
 
 /**
@@ -144,8 +149,9 @@ export class TokensService {
   }
 
   private readRing(path: string): RingKey[] {
-    const st = checkKeyFile(path);
-    const ring = parseKeyRing(readFileSync(path, 'utf8'), path).map((k) => ringKey(k));
+    // review L7: checked and read through ONE descriptor (no path swap between the two)
+    const { text, st } = readKeyFile(path);
+    const ring = parseKeyRing(text, path).map((k) => ringKey(k));
     this.ringStat = { mtimeMs: st.mtimeMs, size: st.size, ino: st.ino };
     return ring;
   }
@@ -305,7 +311,16 @@ export class TokensService {
   async consumeRefresh(token: string): Promise<ConsumedRefresh> {
     if (!REFRESH_TOKEN.test(token)) return null;
     const h = sha256(token);
-    const raw = await this.kv.getdel(`rt:${h}`);
+    // review L4: the token is taken AND marked used in one script — a logout racing this refresh always finds one of
+    // the two keys (before: between GETDEL and SET it found neither and ended nothing)
+    const raw = (await this.kv.eval(
+      CONSUME_SCRIPT,
+      2,
+      `rt:${h}`,
+      `rtused:${h}`,
+      token.split('.')[0]!,
+      String(this.refreshTtl),
+    )) as string | null;
     if (raw === null) {
       const fam = await this.kv.get(`rtused:${h}`);
       if (fam === null) return null;
@@ -314,7 +329,6 @@ export class TokensService {
       return { reuse: true, family: fam, ...(uid !== undefined ? { uid } : {}) };
     }
     const v = JSON.parse(raw) as { uid: number; fam: string };
-    await this.kv.set(`rtused:${h}`, v.fam, 'EX', this.refreshTtl);
     if ((await this.kv.exists(`rtfam:${v.fam}`)) === 0) return { ended: true, uid: v.uid };
     return { uid: v.uid, family: v.fam };
   }
@@ -529,6 +543,19 @@ redis.call('SET', KEYS[1], ARGV[1] .. ':' .. ARGV[3] .. ':' .. string.format('%d
 redis.call('SADD', KEYS[3], ARGV[6])
 redis.call('EXPIRE', KEYS[3], tonumber(ARGV[4]))
 return {tonumber(ARGV[3]), ttl, t0}
+`;
+
+/**
+ * KEYS: rt, rtused · ARGV: family, ttl. Takes the refresh token's record and marks the token used, atomically
+ * (review L4). Returns the record, or nil when the token is not current.
+ */
+const CONSUME_SCRIPT = `
+local raw = redis.call('GET', KEYS[1])
+if raw then
+  redis.call('DEL', KEYS[1])
+  redis.call('SET', KEYS[2], ARGV[1], 'EX', tonumber(ARGV[2]))
+end
+return raw
 `;
 
 /**

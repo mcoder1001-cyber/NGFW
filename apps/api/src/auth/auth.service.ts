@@ -16,6 +16,12 @@ import { apiKeyHash, newApiKeyToken, TokensService } from './tokens.service.js';
 import { tlsRequired } from './transport.js';
 
 /**
+ * PostgreSQL advisory lock (single 64-bit key space; TD-10a's commit lock uses the two-int space, which never overlaps)
+ * that serialises the account-wide lock decisions of `registerFailure` (review L1).
+ */
+const LOCK_DECISION_KEY = 7_310_100_001;
+
+/**
  * 403 `locked`: the step-up of a locked account (the caller is authenticated, so the state is not hidden). ONE body for
  * every `locked` answer (TD-4 review H1): whether the guess reached argon2 before the lock or not, the answer is the
  * same, so a burst of guesses learns nothing from which `locked` it got.
@@ -218,14 +224,20 @@ export class AuthService {
     const max = this.env.VRX_LOGIN_MAX_FAILURES;
     const hit = sql`${appUser.failedLogins} + 1 >= ${max}`;
     const last = sql`(${appUser.role} = 'admin' and not ${appUser.disabled} and not exists (select 1 from ${appUser} o where o.role = 'admin' and not o.disabled and o.id <> ${appUser.id} and (o.locked_until is null or o.locked_until <= now())))`;
-    const [row] = await this.db
-      .update(appUser)
-      .set({
-        failedLogins: sql`case when ${hit} then 0 else ${appUser.failedLogins} + 1 end`,
-        lockedUntil: sql`case when ${hit} and not ${last} then now() + make_interval(secs => ${this.env.VRX_LOGIN_LOCKOUT_SEC}) else ${appUser.lockedUntil} end`,
-      })
-      .where(eq(appUser.id, userId))
-      .returning({ lockedUntil: appUser.lockedUntil });
+    // review L1: lock decisions are serialised (one transaction-scoped advisory lock), so two concurrent failures of
+    // two admins cannot each see the other still unlocked and lock both; the UPDATE's snapshot is taken after the lock
+    const row = await this.db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(${LOCK_DECISION_KEY})`);
+      const [r] = await tx
+        .update(appUser)
+        .set({
+          failedLogins: sql`case when ${hit} then 0 else ${appUser.failedLogins} + 1 end`,
+          lockedUntil: sql`case when ${hit} and not ${last} then now() + make_interval(secs => ${this.env.VRX_LOGIN_LOCKOUT_SEC}) else ${appUser.lockedUntil} end`,
+        })
+        .where(eq(appUser.id, userId))
+        .returning({ lockedUntil: appUser.lockedUntil });
+      return r;
+    });
     return row?.lockedUntil != null && row.lockedUntil > new Date();
   }
 

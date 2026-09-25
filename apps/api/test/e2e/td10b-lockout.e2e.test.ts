@@ -1,5 +1,9 @@
 import { sql } from 'drizzle-orm';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { AuthService } from '../../src/auth/auth.service.js';
 import { hashPassword } from '../../src/auth/password.js';
 import { VALKEY, type Valkey } from '../../src/infra/valkey.js';
 import { runSecret, startHarness, type Harness } from '../support/harness.js';
@@ -182,6 +186,26 @@ describe('TD-10b 2.3a lockout per (user, client address), last admin throttled, 
     expect(states.filter((s) => s === 'lock').length).toBeLessThanOrEqual(1);
   });
 
+  it('review L1: concurrent in-session failures of the two admins lock at most ONE account-wide (serialised decision)', async () => {
+    const auth = h.app.get(AuthService);
+    const ids = [(await row('admin')).id, (await row('admin2')).id];
+    const lockedPerTrial: number[] = [];
+    for (let t = 0; t < 10; t++) {
+      await h.db.execute(
+        sql`update app_user set failed_logins = ${MAX - 1}, locked_until = null where role = 'admin'`,
+      );
+      const r = await Promise.all(ids.map((id) => auth.registerFailure(id)));
+      lockedPerTrial.push(r.filter(Boolean).length);
+    }
+    await h.db.execute(
+      sql`update app_user set failed_logins = 0, locked_until = null where role = 'admin'`,
+    );
+    console.log(
+      `L1 admins locked account-wide per trial (2 parallel failures at MAX-1): ${lockedPerTrial.join(',')}`,
+    );
+    expect(Math.max(...lockedPerTrial)).toBe(1);
+  });
+
   it('break-glass (root-only vrx-authctl): lists and clears every lock of a user — per-address and account-wide — audited', async () => {
     const { listLocks, unlockUser } = await import('../../src/auth/break-glass.js');
     const { main } = await import('../../src/auth/break-glass-cli.js');
@@ -252,5 +276,57 @@ describe('TD-10b 2.3a lockout per (user, client address), last admin throttled, 
       sql`select count(*)::int as n from system_event where code = 'BREAK_GLASS_UNLOCK'`,
     );
     expect(ev.rows[0]!['n']).toBe(2);
+  });
+
+  it('review L5: `vrx-authctl rotate-jwt-key` is audited like an unlock (audit row + system_event, the kid only — never a key)', async () => {
+    const { main } = await import('../../src/auth/break-glass-cli.js');
+    const dir = mkdtempSync(join(tmpdir(), 'vrx-td10b-rot-'));
+    const file = join(dir, 'jwt.keys');
+    const out: string[] = [];
+    const err: string[] = [];
+    try {
+      const code = await main(['rotate-jwt-key', file], {
+        getuid: () => 0,
+        env: {
+          VRX_DATABASE_URL: h.env.VRX_DATABASE_URL,
+          VRX_VALKEY_DB: String(h.env.VRX_VALKEY_DB),
+          VRX_VALKEY_PREFIX: h.env.VRX_VALKEY_PREFIX,
+          VRX_API_USER: 'nobody',
+        },
+        out: (l) => out.push(l),
+        err: (l) => err.push(l),
+      });
+      console.log(`L5 rotate: exit ${code}; ${out.join(' | ')}${err.join(' | ')}`);
+      expect(code).toBe(0);
+      expect(err).toEqual([]);
+      const key = readFileSync(file, 'utf8').split('\n')[1]!;
+      const rows = (
+        await h.db.execute(
+          sql`select user_id, username, resource, after, result from audit_log where action = 'auth.jwt-key-rotated'`,
+        )
+      ).rows;
+      expect(rows).toEqual([
+        {
+          user_id: null,
+          username: 'root (break-glass)',
+          resource: 'jwt-key-ring',
+          result: 'success',
+          after: {
+            file,
+            keys: 1,
+            created: true,
+            signingKid: expect.stringMatching(/^[0-9a-f]{16}$/),
+            ownerUid: 65534,
+          },
+        },
+      ]);
+      expect(JSON.stringify(rows)).not.toContain(key);
+      const ev = await h.db.execute(
+        sql`select count(*)::int as n from system_event where code = 'JWT_KEY_RING_ROTATED'`,
+      );
+      expect(ev.rows[0]!['n']).toBe(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

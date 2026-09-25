@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { TokensService } from '../../src/auth/tokens.service.js';
 import { Bus } from '../../src/infra/bus.js';
 import { VALKEY, type Valkey } from '../../src/infra/valkey.js';
@@ -131,6 +131,37 @@ describe('TD-10b sessions: per-sid logout, demotion/deletion revocation, audited
       result: 'failure',
       after: { aggregated: { count: 1 } },
     });
+  });
+
+  it('review L4: a logout racing a refresh of the same cookie still ends the session', async () => {
+    const s = await login('op');
+    const kv = h.app.get<Valkey>(VALKEY);
+    const set = kv.set.bind(kv) as (...a: unknown[]) => Promise<unknown>;
+    // widen the refresh's window between taking the token and marking it used (where the old code had one)
+    const spy = vi.spyOn(kv, 'set').mockImplementation((async (...a: unknown[]) => {
+      if (String(a[0]).startsWith('rtused:')) await new Promise((r) => setTimeout(r, 300));
+      return set(...a);
+    }) as never);
+    let r: Awaited<ReturnType<typeof refresh>> | undefined;
+    let out: Awaited<ReturnType<typeof logout>> | undefined;
+    try {
+      const refreshing = refresh(s.cookie);
+      await new Promise((res) => setTimeout(res, 100));
+      out = await logout({ cookie: s.cookie });
+      r = await refreshing;
+    } finally {
+      spy.mockRestore();
+    }
+    const after = {
+      logout: out!.status,
+      refresh: r!.status,
+      oldToken: await me(s.token),
+      newChain:
+        r!.status === 200 ? (await refresh(cookieOf(r!.headers, 'vrx_refresh')!)).status : 401,
+      newToken: r!.status === 200 ? await me(r!.body.accessToken as string) : 401,
+    };
+    console.log(`L4 logout racing a refresh: ${JSON.stringify(after)}`);
+    expect(after).toMatchObject({ logout: 204, oldToken: 401, newChain: 401, newToken: 401 });
   });
 
   it('2.3e refresh-token reuse: the family AND its access tokens die; the audit row names the user', async () => {

@@ -47,7 +47,7 @@ describe('JWT key ring (VRX_JWT_KEY_FILE)', () => {
     const kid1 = decodeProtectedHeader(t1).kid;
     expect(kid1).toMatch(/^[0-9a-f]{16}$/);
 
-    expect(rotateKeyFile(file)).toEqual({ keys: 2, created: false });
+    expect(rotateKeyFile(file)).toMatchObject({ keys: 2, created: false, uid: 0 });
     expect(statSync(file).mode & 0o777).toBe(0o600);
     const after = tokens(file);
     const t2 = await after.signAccess(claims);
@@ -126,6 +126,38 @@ describe('JWT key ring (VRX_JWT_KEY_FILE)', () => {
     // the owner check itself, for the other key file (secret store, TD-10b questions)
     expect(() => checkKeyFile(join(dir, 'missing'))).toThrow(/cannot be read \(ENOENT\)/);
   });
+
+  it.runIf(process.geteuid?.() === 0)(
+    'review M1: root rotates the PRODUCT layout — a 0600 ring owned by the API user — keeping owner and mode; foreign owners and group/other bits are still refused',
+    () => {
+      // `nobody` (65534) stands in for the API user `vrx`, which this host does not have
+      const file = join(dir, 'product');
+      write(file, `${key()}\n`);
+      chownSync(file, 65534, 65534);
+      const r = rotateKeyFile(file, 'nobody');
+      const st = statSync(file);
+      console.log(
+        `M1: rotate as root, file owned by the API user → ${JSON.stringify({ keys: r.keys, uid: st.uid, mode: (st.mode & 0o777).toString(8) })}`,
+      );
+      expect(r).toMatchObject({ keys: 2, created: false, uid: 65534 });
+      expect({ uid: st.uid, gid: st.gid, mode: st.mode & 0o777 }).toEqual({
+        uid: 65534,
+        gid: 65534,
+        mode: 0o600,
+      });
+      // the same file when the API user is somebody else: a foreign owner
+      expect(() => rotateKeyFile(file, 'td10b-no-such-user')).toThrow(
+        /owned by uid 65534; it must belong to root or the API user 'td10b-no-such-user' \(no such user on this host\)/,
+      );
+      // group-writable, even by the right owner
+      chmodSync(file, 0o620);
+      expect(() => rotateKeyFile(file, 'nobody')).toThrow(/mode 0620 lets group\/others access it/);
+      // a new ring is created for the API user, 0600
+      const fresh = join(dir, 'fresh');
+      expect(rotateKeyFile(fresh, 'nobody')).toMatchObject({ keys: 1, created: true, uid: 65534 });
+      expect(statSync(fresh).mode & 0o777).toBe(0o600);
+    },
+  );
 
   it('a key file that turns bad later does not replace the ring (reload refused, the old keys stay)', async () => {
     const file = join(dir, 'ring3');

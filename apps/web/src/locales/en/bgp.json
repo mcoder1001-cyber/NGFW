@@ -164,7 +164,7 @@
     },
     "passwordRef": {
       "title": "MD5 password",
-      "help": "a secret reference, e.g. password/bgp-upstream"
+      "help": "a secret reference, e.g. password/bgp-upstream — refused at commit until the API→agent secret channel exists (PENDING-secret-channel)"
     },
     "keepaliveSec": {
       "title": "Keepalive (s)"

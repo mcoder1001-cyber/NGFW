@@ -164,7 +164,7 @@
     },
     "passwordRef": {
       "title": "گذرواژهٔ MD5",
-      "help": "یک ارجاع رمز، مانند password/bgp-upstream"
+      "help": "یک ارجاع رمز، مانند password/bgp-upstream — تا وقتی کانال رمز میان API و عامل وجود ندارد، هنگام اعمال پذیرفته نمی‌شود (PENDING-secret-channel)"
     },
     "keepaliveSec": {
       "title": "زنده‌نگه‌دار (ثانیه)"

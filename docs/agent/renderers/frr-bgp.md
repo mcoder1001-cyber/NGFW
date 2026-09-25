@@ -62,6 +62,11 @@ domain; an `interfaces`-only Apply leaves the tap addresses to the next routing 
 - Assemble: `routing.bgp`, `routing.policy` and the viaFrr statics come back from the object when its status is
   `applied` (contract §5: a leaf the backend cannot vouch for stays unset).
 - TD-11b: `RecordsNoOwnership()` (no claim or boot records).
+- After an agent restart the last document is unknown, so Retrieve reports `unknown` and the first resync re-applies
+  (an empty frr-reload diff, sessions untouched); until then the assembled running view has no `routing.bgp` (review L3).
+  With a last document, Retrieve is *verified* against FRR's running configuration (`frr-reload.py --test`), not echoed.
+- RoutingState is serialised (one FRR + VPP walk in flight, `UNAVAILABLE` after 3 s, review M3); `/state/routes`
+  annotates FRR protocols only with `proto=`; the BGP screen refetches on `routing.events` at most every 30 s.
 
 ## State and events
 

@@ -303,6 +303,7 @@ func hasOwnContent(running string) bool {
 // tapGatedPairs is DF-8's lcp.itf-pair with one read saved: VPP's end of a linux-cp pair is a tap/tun interface
 // ("tap4096"…, lcp_interface.c auto_id_offset 4096), so while VPP has no such interface there is no pair and
 // Retrieve answers from sw_interface_dump alone, without lcp_itf_pair_get (a VPP without linux_cp, or none in use).
+// Any owner's tap opens the gate (review L4): on a shared VPP it rarely saves the call; on a product box it does.
 type tapGatedPairs struct {
 	*lcp.ItfPairDescriptor
 	client vpp.Client

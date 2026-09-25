@@ -64,14 +64,42 @@ describe('loopback / GSO / LLDP / mirroring / nsim e2e (PostgreSQL + fake agent)
       '/interfaces/loop16001',
       /reserved for the agent's quarantine holders/,
     );
+    process.env['VRX_NSIM'] = 'lab'; // the semantic bound is checked once the lab gate lets the commit through
     await commitExpect400(
       { services: { nsim: { delayMs: 10000, bandwidthMbps: 100000, packetSize: 64 } } },
       '/services/nsim/delayMs',
       /scheduler wheel/,
     );
+    delete process.env['VRX_NSIM'];
+  });
+
+  it('nsim is a lab tool: without VRX_NSIM=lab a commit that carries services.nsim is a 409 with its pointer (review M2)', async () => {
+    delete process.env['VRX_NSIM'];
+    expect(
+      (
+        await h.call(
+          admin,
+          'PATCH',
+          '/api/v1/config',
+          { services: { nsim: { delayMs: 20, bandwidthMbps: 100 } } },
+          MP,
+        )
+      ).status,
+    ).toBe(200);
+    const applies = h.fake.calls.filter((x) => x.method === 'Apply').length;
+    const c = await h.call(admin, 'POST', '/api/v1/config/commit');
+    expect(c.status).toBe(409);
+    expect(c.headers['content-type']).toMatch(/^application\/problem\+json/);
+    expect(c.body).toMatchObject({ status: 409, detail: expect.stringMatching(/VRX_NSIM=lab/) });
+    expect(c.body.errors).toEqual([expect.objectContaining({ pointer: '/services/nsim' })]);
+    expect(h.fake.calls.filter((x) => x.method === 'Apply')).toHaveLength(applies); // nothing reached the agent
+    expect((await h.call(admin, 'POST', '/api/v1/config/discard')).body).toEqual({
+      discarded: true,
+    });
   });
 
   it('commits a loopback BVI with GSO, mirroring, LLDP and nsim; state shows them', async () => {
+    process.env['VRX_NSIM'] = 'lab'; // the lab gate on (review M2)
     fake = await installLldpFake(h.fake, {
       heard: {
         [BVI]: { chassisId: '02:00:00:00:71:01', portId: 'Ethernet7', ttl: 120, agoSec: 7 },
@@ -165,6 +193,22 @@ describe('loopback / GSO / LLDP / mirroring / nsim e2e (PostgreSQL + fake agent)
     expect(h.fake.calls.filter((c) => c.method === 'LldpNeighbors').at(-1)?.request).toMatchObject({
       owner: h.prefix,
     });
+  });
+
+  it('with the gate off again, neither a commit nor a rollback may carry services.nsim (409)', async () => {
+    delete process.env['VRX_NSIM'];
+    const revs = await h.call(admin, 'GET', '/api/v1/config/revisions');
+    const items = (revs.body.items ?? revs.body) as { id: number }[];
+    const last = Math.max(...items.map((r) => r.id));
+    expect(
+      (await h.call(admin, 'PATCH', '/api/v1/config', { interfaces: { [MON]: { mtu: 1500 } } }, MP))
+        .status,
+    ).toBe(200);
+    expect((await h.call(admin, 'POST', '/api/v1/config/commit')).status).toBe(409);
+    expect((await h.call(admin, 'POST', '/api/v1/config/discard')).status).toBe(200);
+    const rb = await h.call(admin, 'POST', `/api/v1/config/rollback/${last}`);
+    expect(rb.status).toBe(409);
+    expect(rb.body.errors).toEqual([expect.objectContaining({ pointer: '/services/nsim' })]);
   });
 
   it('the readonly role cannot change LLDP; rollback removes every leaf', async () => {

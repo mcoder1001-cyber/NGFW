@@ -319,5 +319,29 @@ $ go test -race ./internal/{actions/...,desired,subsystems,agent,descriptors/acl
 No host run in this round (TD-25 pending; manager: host runs paused). Shared hunk added: `docs/vpp-code-track.md` V7 row
 (manager's request).
 
-### CI (fix round 1)
-(filled when the run finishes)
+### CI (fix round 1) — `TMPDIR=/tmp/g-w3 tools/ci.sh --base main` (HEAD 122306d4; later commits change only this status)
+```
+== VRX CI gate: quick ==
+branch    task/F-acl @ 122306d4   (base: main)
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m01s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   1m40s
+  forbidden patterns (+ gitleaks)                    0m04s
+  packet-trace ban on the shared VPP (D-128)         0m01s
+  lint · typecheck · unit tests · build (turbo)   1m49s
+  apps/agent: make lint test build                   0m52s
+  apps/cli: make lint test build                     0m09s
+  test/ Go modules, unit mode (test/integration/smoke test/topology/acl test/topology/interfaces test/topology/object-model)   0m11s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   0m09s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      review(F-acl): APPROVE WITH CHANGES
+      merge main (W-seed a303f0b + P08 squash) into task/F-object-model
+      review(F-object-model): architecture review — APPROVE WITH CHANGES
+      review(W-seed): verify
+  mode quick · wall time 5m00s · logs /root/ngfw-wt/logs/ci/F-acl-20260925-100259-760609
+
+CI GATE PASSED
+```

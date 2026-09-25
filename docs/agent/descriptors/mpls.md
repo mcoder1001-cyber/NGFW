@@ -57,3 +57,19 @@ our record (`dfkit.ErrNotOurs`). Other tables are owned by name (`<owner>:<id>`)
 the interface (an enabled interface is accepted only when tagged or claimed by us — never adopted); Delete sends one
 disable, and only while the dump lists it (a disable at 0 wraps the counter). References of other consumers are left
 alone.
+
+## F-mpls-srmpls (gap-only changes, each with a named test in `f_mpls_srmpls_test.go`)
+
+| Gap | Change | Test |
+|---|---|---|
+| D-071 role of table 0 | `NewTableFor(c, owner, globalsOwner)` / `RegisterFor`: the globals owner creates and deletes `mpls-table/0` (named `<owner>:0`, exempt from the id range: it is VPP's default table, not an allocated id); any other agent only **requires** it — Create succeeds while VPP has table 0 (whoever created it) and fails with `dfkit.ErrNotGlobalsOwner` otherwise, sending nothing; Delete never touches it; Retrieve reports `mpls-table/0` exactly while it is required and exists. `NewTable`/`Register` keep DF-7's (globals-owner) behaviour | `TestTableZeroRequiredByNonOwner` |
+| Table-0 label routes of a non-globals-owner | `mpls-route` reads and deletes table-0 routes whenever table 0 exists, whoever named it (still only the labels this owner recorded, review H2). DF-7 counted table 0 only when it carried this owner's name: such routes were never reported and Delete forgot them without removing them from VPP | `TestRouteTableZeroOfTheGlobalsOwner` |
+| TD-11b claim-first | `mpls-interface` claims an untagged interface before the enable (`Target.ClaimFirst`, `Undo`/`Adopt`); `mpls-route` writes its table-0 record before the add and drops it when the add fails | `TestInterfaceClaimFirst`, `TestRouteTableZeroRecordFirst` |
+| TD-11b declarations | `mpls-table`, `mpls-ip-bind`, `mpls-tunnel`: `RecordsNoOwnership` (name / tag / write-only); `mpls-interface`: `CheckPersistent` over the owner's DF-1 claim store; `mpls-route`: `CheckPersistent` over the DF-7 BootStore (`ownership.go`) | `TestOwnershipDeclarations` |
+| TD-11c creator obligation | `mpls-tunnel` provides `interface/<name>` (`scheduler.KeyProvider`): objects on or through the tunnel interface order after it on create and before it on delete. Remove `mpls.NameTunnel` from TD-11c's `knownAliasCreatorGaps` when both branches are on main | `TestTunnelProvidesInterfaceAlias` |
+| Missing dependencies | `mpls-ip-bind` in the default VRF no longer depends on `vrf/0` (nothing provides it: never plannable); `mpls-route` / `mpls-tunnel` depend on `vrf/<id>` for paths that resolve or look up in IP table `<id>` ≠ 0 | `TestDependenciesOfBindingsAndLookupPaths` |
+
+Product wiring (`subsystems/mpls_srmpls.go`): `mpls.RegisterFor(r, c, owner, Env.GlobalsOwner, df7.WithIDRange(<agent id range>))`
+after `df7.SetBootStore(owner, Wiring.BootStore())` and `iface.SetClaimStore(owner, IfaceClaims)`. The projection
+(`desired/mpls_srmpls.go`) declares `mpls-table/0` only when the configuration needs it (MPLS interfaces, bindings,
+SR-MPLS policies or a table-0 label route).

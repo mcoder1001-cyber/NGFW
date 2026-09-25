@@ -281,3 +281,43 @@ An aborted screenshot run (script failure) had left `w3:lan-in` and `w3:wan-l2` 
 janitor (`VRX_ACL_JANITOR=1 run.sh -run TestACLJanitor`: unbind first, then delete; preflight OK before and after), and
 the tests now clean up through the API in `t.Cleanup` (foreign ACL unbound before the interfaces are deleted, D-095c).
 The ACL counters flag stays on (V7, envelope). No test ran `show trace` (D-128) or swept classify indices (D-126).
+
+## Fix round 1 (review `d58b9105`, APPROVE WITH CHANGES) — 2026-09-25
+
+| finding | fix | test (fails on the old code) |
+|---|---|---|
+| **H1** DryRun rewrote the expansion record Retrieve/AclState/watcher read | New agent-local descriptor **`acl.config`** (`actions/acl/config.go`, registered first in `Domains["acl"]`): `acl.config/list/<name>`, `acl.config/macip/<name>`, `acl.config/attachments`, value = the configuration message holding that entry; only Create/Update/Delete of a transaction change it (a rolled-back Apply is reverted by the scheduler), in memory, rebuilt by the resync, `RecordsNoOwnership`. Record entries are keyed by name + VPP fingerprint + **configuration hash**; the applied configuration's entries are pinned (never evicted by DryRun entries or the rule budget; a list's newest entry is never dropped either). `AssembleACL`, `AclState` and the watcher use the entry of the APPLIED configuration only | `agent TestACLDryRunAndRollbackDoNotChangeTheAppliedView` (probe P1 with lists + attachments: Apply A, DryRun B with the same VPP content, then a rolled-back Apply of B → Retrieve == A and counters stay on sequences 10/20) · `actions TestRecordBoundsAndLookup` (20 DryRun entries do not evict the applied one) · `actions TestTrackerAndStateOnFake` (a recorded but unapplied projection does not explain VPP's content) |
+| **L10** no agent-level hand-edit test | — | same test: our ACL's rules replaced in VPP behind the agent's back → Retrieve reports VPP's rules (drift), a resync repairs them |
+| **M3** (review 3.4) binding→interface dependency optional | `acl.interface-binding` and `acl.macip-interface-binding` depend on their interface **mandatorily** (`descriptors/acl/register.go` `boundInterfaceDependency`; gap edit, DF-4 dependency tests updated); the ethertype whitelist keeps the optional one | `agent TestACLBindingAndInterfaceRemovedInOneCommit`: interface + binding removed in one commit → binding deleted first, nothing bound to the deleted index; a binding to an interface neither configured nor in VPP → `agent.dependency-missing` at `/acl/attachments/0` |
+| **M1** counters docs wrong | `docs/user/firewall/acl.md` (hits since the list last changed in VPP; VPP clears them on every `acl_add_replace`, incl. the watcher's re-projections; `enable=false` exists; 0 after every VPP restart; per-packet cost), `docs/agent/descriptors/acl.md`, `docs/vpp-code-track.md` V7 row | docs |
+| **M2** host tests flip a VPP-global | `test/topology/acl` `countersScope`: opt-in `flock -x` → save → on → `flock -s` while relied on → `flock -x` → restore EXACTLY the saved value → unlock (shared-host rules §7); the screenshot run too | vet/unit mode (no host run: TD-25) |
+| L2 | one `DumpStats` for all tracked lists | covered by the state tests |
+| L5 | resync requests ≥ 30 s apart | `TestACLWatcher` |
+| L6 | time-zone change reaches schedules after an agent restart (docs) | docs |
+| L8 | janitor re-reads each index's tag right before `acl_del` / `macip_acl_del`; MACIP pass uses the `w3:` / `w3-` predicate too | vet |
+| L13 | `F-acl-wip.md` updated | — |
+| M4, Q3, Q14 | at the rebase, when the manager says TD-23 / F-object-model / F-host-acl-nftables / F-rpf-adl-pbr are in | — |
+| M5/Q2, M6/Q11, Q12, L1, L3, L4, L7, L9, L11, L12 | owned elsewhere (manager: new TD rows / after WEB-1) or not in this round | — |
+
+The same tests against the old product code (the fix round's product files taken from `a6fcdff2` in a scratch copy of
+`apps/agent`, with the new tests and the fake's new helpers):
+```
+--- FAIL: TestACLDryRunAndRollbackDoNotChangeTheAppliedView (0.05s)
+    rpc_acl_test.go:438: after a DryRun of the candidate: Retrieve != the APPLIED configuration (false drift):
+--- FAIL: TestACLBindingAndInterfaceRemovedInOneCommit (0.02s)
+    rpc_acl_test.go:507: a binding to a missing interface must be refused at planning: <nil> ok:true  plan:{key:"acl.interface-binding/loop799"  op:APPLY_OPERATION_CREATE …}
+FAIL	ngfw/agent/internal/agent	0.166s
+```
+On the fix:
+```
+--- PASS: TestACLDryRunAndRollbackDoNotChangeTheAppliedView (0.05s)
+--- PASS: TestACLBindingAndInterfaceRemovedInOneCommit (0.01s)
+--- PASS: TestRecordBoundsAndLookup · TestTrackerAndStateOnFake · TestACLDescriptorsDeclareOwnership · TestACLWatcher · TestInterfaceBindingDependencies
+$ golangci-lint (actions, desired, subsystems, agent, descriptors/acl, descriptors/core) → 0 issues
+$ go test -race ./internal/{actions/...,desired,subsystems,agent,descriptors/acl,descriptors/core/...} → all ok
+```
+No host run in this round (TD-25 pending; manager: host runs paused). Shared hunk added: `docs/vpp-code-track.md` V7 row
+(manager's request).
+
+### CI (fix round 1)
+(filled when the run finishes)

@@ -1,24 +1,10 @@
 # F-acl — work in progress (slot 3)
 
-Updated 2026-09-25 04:20.
+Updated 2026-09-25, fix round 1 (review d58b9105). Final status and evidence: `F-acl.md` (incl. "Fix round 1").
 
-## Done (committed)
-- `contract(proto): acl state` (410b5471): AclState RPC + messages, fake stub, proto.md §11, F-acl-contract.md.
-- Merged main (TD-8 seams: Env.Resync is wired by the agent, so the re-projection watcher works; TD-7).
-- Agent: `desired/acl.go` (projection + AssembleACL), `actions/acl` (expansion record, tracker wrappers, AclState
-  runtime, counters flag via `show acl-plugin tables mask`), `subsystems/acl.go` (registration with
-  KeyedClaims("acl"), watcher: 60 s schedules, FQDN subscription → RequestResync), `agent/rpc_acl.go`,
-  `coretest/acl.go` (+ one line in coretest `New()`), `descriptors/acl/ownership.go` (TD-11b declarations).
-  Unit tests green (agent, desired, actions, subsystems), golangci-lint 0 issues.
-- API: `features/acl` (AclController + AclService + CSV + bulk + fake), agent client method, app.module hunks,
-  api-client + CLI table regenerated.
-
-## Running
-- Web UI (`apps/web/src/domains/firewall/acl/**`, locales, router/nav/i18n hunks) — sub-worker.
-
-## Next
-- API unit tests (rules, csv) + e2e (`apps/api/test/e2e/acl.e2e.test.ts`).
-- `test/topology/acl` on the host VPP (slot 3): commit → `vppctl show acl-plugin acl/interface`, Retrieve == desired,
-  counters via the rig ping (globals lock, opt-in), restart simulation with a foreign ACL, rollback, 400 for an empty
-  group, 10k then 100k (opt-in, NRestarts around each step), screenshots.
-- `docs/user/firewall/acl.md`, `docs/agent/descriptors/acl.md` (F-acl section), status file, CI.
+- Done: contract, agent, API, web, docs, host topology evidence (before the 04:27 VPP restart), CI green; fix round 1
+  (H1 apply-only `acl.config`, M3 mandatory binding→interface dependency, M1 docs + V7 row, M2 counters flag saved and
+  restored in the host tests, L2/L5/L6/L8/L10/L13).
+- Pending: screenshots (TD-25), the 100k host step (manager window + Q2 limits), the rebase work M4 (TD-23
+  `RegisterExtension`, PBR test through the agent, Q3 stand-in removal) and the Q14 fold with F-host-acl-nftables —
+  when the manager says the bases are in.

@@ -46,7 +46,7 @@ var (
 	wgCurrent  *wgFamily
 )
 
-// wireguardFixture fills the secret store in test builds (wireguard_fixture.go, -tags vrxtestsecrets);
+// wireguardFixture fills the secret store in test builds (wireguard_fixture.go and its build tag);
 // nil in the product agent (no material without the secret channel, PENDING-secret-channel).
 var wireguardFixture func(s *WireguardSecrets, log *slog.Logger) error
 

@@ -21,7 +21,7 @@ import (
 //
 // Nothing fills it in the product agent yet: the API→agent secret channel is PENDING-secret-channel,
 // so every WireGuard interface fails validation at privateKeyRef with agent.secret-unavailable. Tests
-// fill it directly (Put) and test builds (-tags vrxtestsecrets) from a slot-local fixture file.
+// fill it directly (Put) and test builds (wireguard_fixture.go's build tag) from a slot-local fixture file.
 //
 // The material sits behind a pointer and the type formats as "subsystems.WireguardSecrets(n
 // secrets)", so %v/%+v/slog of a Config that holds it never print bytes.

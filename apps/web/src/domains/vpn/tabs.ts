@@ -1,3 +1,4 @@
+import { lazy } from 'react';
 import type { DomainTab } from '../DomainTabsPage';
 
 /**
@@ -9,6 +10,11 @@ export const vpnTabs: readonly DomainTab[] = [
   // wave-BC: F-pki
   // wave-BC: F-ikev2-native
   // wave-BC: F-srv6
+  {
+    id: 'srv6',
+    labelKey: 'srv6:tab',
+    Component: lazy(() => import('./srv6/Srv6Page').then((m) => ({ default: m.Srv6Page }))),
+  },
   // wave-BC: F-lisp
   // wave-BC: F-ra-vpn
   // wave-A: P11

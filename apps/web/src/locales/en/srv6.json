@@ -1,0 +1,174 @@
+{
+  "tab": "SRv6",
+  "title": "Segment Routing over IPv6 (SRv6)",
+  "sections": "SRv6 sections",
+  "tabs": {
+    "sids": "Local SIDs",
+    "policies": "Policies",
+    "steering": "Steering"
+  },
+  "refresh": "Refresh",
+  "refreshHint": "The state is read from the data plane on demand (and every 30 s).",
+  "retrievedAt": "Data plane read at {{at}}",
+  "proxyNote": "Service-chaining proxies (End.AD, End.AM, End.AS) are not available: VPP 26.06 offers them only on its command line, without an API. SRv6-mobile and uSID are not supported either.",
+  "edit": "Edit",
+  "delete": "Delete",
+  "save": "Save to candidate",
+  "close": "Close",
+  "counters": "{{packets}} pkts / {{bytes}} B",
+  "behaviorPsp": "{{behavior}} (PSP)",
+  "status": {
+    "installed": "Installed",
+    "missing": "Not in the data plane",
+    "unmanaged": "Not configured"
+  },
+  "col": {
+    "sid": "SID",
+    "behavior": "Behavior",
+    "vrf": "VRF",
+    "target": "Target",
+    "status": "Status",
+    "good": "Processed",
+    "bad": "Dropped",
+    "bsid": "Binding SID",
+    "type": "Type",
+    "mode": "Mode",
+    "source": "Encapsulation source",
+    "sidLists": "Segment lists",
+    "match": "Match",
+    "traffic": "Traffic"
+  },
+  "sids": {
+    "title": "Local SIDs",
+    "add": "Add local SID",
+    "empty": "No local SID is configured.",
+    "editTitle": "Local SID {{sid}}",
+    "sid": "SID (IPv6 address)",
+    "sidHint": "An IPv6 address; it is saved in canonical form (lower case, shortest ::)",
+    "taken": "This address is already a local SID or a binding SID"
+  },
+  "policies": {
+    "title": "Policies",
+    "add": "Add policy",
+    "empty": "No SR policy is configured.",
+    "editTitle": "Policy {{bsid}}",
+    "bsid": "Binding SID (IPv6 address)",
+    "bsidHint": "An IPv6 address; it is saved in canonical form (lower case, shortest ::)",
+    "taken": "This address is already a binding SID or a local SID",
+    "inherited": "(global)",
+    "inUse": "Steering entries point at this policy: delete them first"
+  },
+  "policyType": {
+    "default": "Default (weighted)",
+    "spray": "Spray",
+    "tef": "TEF"
+  },
+  "mode": {
+    "encap": "Encapsulate",
+    "insert": "Insert SRH"
+  },
+  "globals": {
+    "title": "Encapsulation settings (VPP-wide)",
+    "note": "These two settings apply to the whole VPP and only the globals owner (the product agent) applies them. VPP cannot report them back, so they never show up as live state or drift. Every encapsulating policy uses its own source, or this one."
+  },
+  "sidLists": {
+    "title": "Segment lists",
+    "addList": "Add segment list",
+    "list": "Segment list {{n}}",
+    "weight": "Weight",
+    "removeList": "Remove segment list {{n}}",
+    "segment": "Segment {{n}} of list {{list}}",
+    "up": "Move up",
+    "down": "Move down",
+    "removeSid": "Remove segment",
+    "addSid": "Add segment (at most {{max}})",
+    "problem": {
+      "noList": "A policy needs at least one segment list.",
+      "empty": "A segment list needs at least one SID.",
+      "tooMany": "A segment list holds at most {{max}} SIDs.",
+      "badSid": "Every segment must be an IPv6 address.",
+      "badWeight": "The weight must be 1–65535."
+    }
+  },
+  "steering": {
+    "title": "Steering",
+    "add": "Add steering",
+    "empty": "No traffic is steered into a policy.",
+    "type": "Match",
+    "l3": "Prefix of a VRF (L3)",
+    "l2": "Everything received on an interface (L2)",
+    "prefix": "Prefix",
+    "prefixHint": "IPv4 or IPv6 network, e.g. 10.4.100.0/24; IPv4 needs an encapsulating policy",
+    "interface": "Interface",
+    "l2Hint": "VPP switches the interface to L2 cross-connect mode: it must not carry IP addresses",
+    "duplicate": "This prefix or interface is already steered."
+  },
+  "traffic": {
+    "ipv4": "IPv4",
+    "ipv6": "IPv6",
+    "l2": "L2"
+  },
+  "sidForm": {
+    "field": {
+      "behavior": {
+        "title": "Behavior",
+        "help": "end: endpoint · end.x: endpoint with L3 cross-connect · end.t: table lookup · end.dx2/dx4/dx6: decapsulate and cross-connect · end.dt4/dt6: decapsulate and look up in a VRF"
+      },
+      "psp": {
+        "title": "Penultimate segment pop (PSP)",
+        "help": "end, end.x and end.t only"
+      },
+      "vrf": {
+        "title": "VRF",
+        "help": "The IPv6 table the SID is installed in"
+      },
+      "interface": {
+        "title": "Interface",
+        "help": "end.x, end.dx2, end.dx4, end.dx6: the interface to cross-connect to"
+      },
+      "nextHop": {
+        "title": "Next hop",
+        "help": "end.x and end.dx6: IPv6; end.dx4: IPv4"
+      },
+      "lookupVrf": {
+        "title": "Lookup VRF",
+        "help": "end.t and end.dt6: the IPv6 table; end.dt4: the IPv4 table"
+      }
+    }
+  },
+  "policyForm": {
+    "field": {
+      "type": {
+        "title": "Type",
+        "help": "default: share the traffic over the segment lists by weight · spray: a copy on every list · tef: traffic engineering"
+      },
+      "encap": {
+        "title": "Encapsulate (H.Encaps)",
+        "help": "On: outer IPv6 header with the SRH (IPv4, IPv6 and L2 traffic). Off: the SRH is inserted into IPv6 traffic"
+      },
+      "vrf": {
+        "title": "VRF",
+        "help": "The IPv6 table the binding SID is installed in"
+      },
+      "encapSource": {
+        "title": "Encapsulation source",
+        "help": "Outer source address of this policy (encapsulating policies only); empty = the VPP-wide setting"
+      }
+    }
+  },
+  "globalsForm": {
+    "group": {
+      "srv6": "SRv6"
+    },
+    "field": {
+      "encapSource": {
+        "title": "Encapsulation source",
+        "help": "Outer source of encapsulating policies that set none, and VPP’s global default"
+      },
+      "encapHopLimit": {
+        "title": "Encapsulation hop limit",
+        "help": "Hop limit of the outer IPv6 header, 1–255 (VPP default 64)"
+      }
+    }
+  }
+}

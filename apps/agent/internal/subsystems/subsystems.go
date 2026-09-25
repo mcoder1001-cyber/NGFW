@@ -37,6 +37,7 @@ import (
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/ipsec"
 	"ngfw/agent/internal/descriptors/vpn"
+	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
@@ -111,6 +112,7 @@ var Domains = map[string][]string{
 	// wave-BC: F-qos-flat
 	// wave-BC: F-host-stack
 	// wave-BC: F-snmp
+	"services": {desired.SnmpDescriptorName},
 	// wave-BC: F-ipfix-sflow
 	// wave-BC: F-lisp
 	// wave-BC: F-dashboard-prom-alarms
@@ -241,6 +243,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-BC: F-mpls-ldp
 	// wave-BC: F-igmp-mfib
 	// wave-BC: F-ha-state-sync
+	registerSnmp(r, w) // F-snmp (unanchored: no wave-BC: F-snmp anchor in register())
 	// wave-A: F-bonding
 	// wave-A: F-bridge-l2
 	// wave-A: F-loopback-bvi-gso-lldp-span

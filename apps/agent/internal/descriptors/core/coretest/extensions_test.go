@@ -15,6 +15,8 @@ import (
 
 	"go.fd.io/govpp/api"
 
+	featureapi "ngfw/agent/binapi/feature"
+	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/vpp/fake"
 )
 
@@ -99,6 +101,61 @@ func TestOnSameExtensionReplacesItsOwnRegistration(t *testing.T) {
 	v.installingExt = "bridge-l2"
 	v.On("sw_interface_dump", func(api.Message) ([]api.Message, error) { return nil, nil }) // layer on core: fine
 	v.On("sw_interface_dump", func(api.Message) ([]api.Message, error) { return nil, nil }) // replace own: fine
+}
+
+// TestFeatureIsEnabledCompose is fix round 1's F5: a stub of F-rpf-adl-pbr's real arc/feature model
+// (rpf_adl_pbr.go, keyed by (ArcName, FeatureName)) and a stub of F-bridge-l2's real index-only
+// mactime model (bridge_l2.go, which ignores ArcName entirely) both answer their own
+// "feature_is_enabled" queries on the same VPP through RegisterFeatureIsEnabled — neither clobbers
+// the other the way two v.On("feature_is_enabled", ...) extension calls would — and an unregistered
+// feature name still gets VPP's own unknown-feature default (true).
+func TestFeatureIsEnabledCompose(t *testing.T) {
+	adlEnabled := map[uint32]bool{3: true} // stub of rpf-adl-pbr's model: per-sw_if_index, "adl-input" only
+	RegisterFeatureIsEnabled("adl-input", func(_ *VPP, req *featureapi.FeatureIsEnabled) *featureapi.FeatureIsEnabledReply {
+		return &featureapi.FeatureIsEnabledReply{IsEnabled: adlEnabled[uint32(req.SwIfIndex)]}
+	})
+	mactimeEnabled := map[uint32]bool{7: true} // stub of bridge-l2's model: per-sw_if_index, ArcName ignored
+	RegisterFeatureIsEnabled("mactime", func(_ *VPP, req *featureapi.FeatureIsEnabled) *featureapi.FeatureIsEnabledReply {
+		return &featureapi.FeatureIsEnabledReply{IsEnabled: mactimeEnabled[uint32(req.SwIfIndex)]}
+	})
+
+	v := New()
+	check := func(featureName string, swIfIndex uint32, want bool) {
+		t.Helper()
+		req := &featureapi.FeatureIsEnabled{
+			ArcName: "device-input", FeatureName: featureName,
+			SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
+		}
+		got := &featureapi.FeatureIsEnabledReply{}
+		if err := v.Invoke(context.Background(), req, got); err != nil {
+			t.Fatalf("Invoke(feature_is_enabled, %q, %d) = %v", featureName, swIfIndex, err)
+		}
+		if got.IsEnabled != want {
+			t.Errorf("feature_is_enabled(%q, sw_if_index=%d) = %v, want %v", featureName, swIfIndex, got.IsEnabled, want)
+		}
+	}
+
+	check("adl-input", 3, true)            // rpf-adl-pbr's own model
+	check("adl-input", 4, false)           // rpf-adl-pbr's own model, unset index
+	check("mactime", 7, true)              // bridge-l2's own model — composes, doesn't clobber adl-input's
+	check("mactime", 3, false)             // bridge-l2's own model at adl-input's *enabled* index: proves no bleed-through
+	check("unregistered-feature", 3, true) // VPP's own unknown-feature cast (F-rpf-adl-pbr's V23(a))
+}
+
+// TestRegisterFeatureIsEnabledDuplicatePanics mirrors TestRegisterExtensionDuplicatePanics for the
+// narrower seam: two features sharing a bare FeatureName is a bug caught immediately.
+func TestRegisterFeatureIsEnabledDuplicatePanics(t *testing.T) {
+	RegisterFeatureIsEnabled("td23-test-dup-feature", func(*VPP, *featureapi.FeatureIsEnabled) *featureapi.FeatureIsEnabledReply {
+		return &featureapi.FeatureIsEnabledReply{}
+	})
+	defer func() {
+		if recover() == nil {
+			t.Fatal("RegisterFeatureIsEnabled did not panic on a duplicate feature name")
+		}
+	}()
+	RegisterFeatureIsEnabled("td23-test-dup-feature", func(*VPP, *featureapi.FeatureIsEnabled) *featureapi.FeatureIsEnabledReply {
+		return &featureapi.FeatureIsEnabledReply{}
+	})
 }
 
 // TestRegisterExtensionDuplicatePanics: registering the same extension name twice (a copy-paste of

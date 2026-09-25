@@ -12,6 +12,7 @@ import (
 
 	"go.fd.io/govpp/api"
 
+	featureapi "ngfw/agent/binapi/feature"
 	"ngfw/agent/binapi/fib_types"
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
@@ -109,13 +110,23 @@ func New() *VPP {
 // editing New() or this registry — typically from the feature's own coretest/<slug>.go's init().
 // Modelled on F-nat44-ed-sessions' original ad hoc `var extensions []func(*VPP)` seam, generalised because three
 // wave-A branches each independently reinvented that same package-level slice (a guaranteed
-// redeclaration conflict at merge) and two of them — F-rpf-adl-pbr and F-bridge-l2 — both hook
-// "feature_is_enabled" (uRPF/ADL's arc checks vs. the mactime feature's), which plain fake.Client.On
-// silently lets the second one clobber. On (below) panics on that collision instead: two extensions
-// disagreeing about the same VPP message is a bug for them to resolve explicitly at rebase, not a
-// silently-broken model for whichever extension installed first.
+// redeclaration conflict at merge). On (below) panics when two *different* extensions claim the same
+// VPP message name instead of silently letting the second one clobber the first's model: two
+// extensions disagreeing about the same VPP message is a bug for them to resolve explicitly, not a
+// silently-broken model for whichever extension installed first. F-rpf-adl-pbr and F-bridge-l2 both
+// used to hook "feature_is_enabled" this way (uRPF/ADL's arc checks vs. the mactime feature's) — that
+// specific message now has its own narrower composable seam, RegisterFeatureIsEnabled (below), so
+// they no longer trip this panic at all; On's collision guard remains the backstop for every other
+// message, which every other feature read so far only ever owns alone.
 //
 //	func init() { coretest.RegisterExtension("bridge-l2", (*coretest.VPP).installBridgeL2) }
+//
+// Reset convention (F4/F6): this registry, like RegisterFeatureIsEnabled and fake-agent.ts's
+// actionHandlers, is a package-level global with no reset call — there is no Go-side equivalent of
+// fake-agent.ts's resetActionHandlersForTest(). A name registered anywhere (a feature's init(), or a
+// test) is permanent for the rest of that test binary's run. That's fine for a real feature's
+// init()-time registration (once, for the process's whole life) or a test-only name nothing else
+// queries; never register a real feature's slug or FeatureName from a test.
 
 type extension struct {
 	name    string
@@ -176,9 +187,69 @@ func (v *VPP) On(name string, h fake.Handler) *VPP {
 	return v
 }
 
+// --- feature_is_enabled composition seam (TD-23 fix round 1, F5) ---------------------------------
+//
+// README: features register here; never edit the dispatcher (the "feature_is_enabled" handler
+// install() installs above). "feature_is_enabled" is the one VPP message multiple features are
+// guaranteed to keep wanting to hook: it's a generic, arc-wide "is this feature stacked on this
+// interface" query, not naturally one-feature-owned like almost every other message coretest
+// models. The general extension-collision guard (VPP.On) would correctly panic the moment two
+// features both call v.On("feature_is_enabled", ...) — confirmed real, not hypothetical:
+// F-rpf-adl-pbr's device-input/adl-input model and F-bridge-l2's mactime model both need it. Rather
+// than let that panic surface for the first time live during a rebase, features register their own
+// answer here instead, keyed by FeatureName; install() (core, before any extension, so registering
+// here never itself claims a VPP message name and so never trips VPP.On's guard) dispatches to it.
+// An unregistered feature name answers IsEnabled: true — VPP's own cast of an unknown feature index
+// (F-rpf-adl-pbr's V23(a) comment).
+//
+//	func init() {
+//		coretest.RegisterFeatureIsEnabled("adl-input", func(v *coretest.VPP, req *feature.FeatureIsEnabled) *feature.FeatureIsEnabledReply {
+//			...
+//		})
+//	}
+//
+// Go-side registry reset convention (F4/F6): like RegisterExtension, this is a package-level
+// registry with no reset — a name registered by a test (or a feature's init()) is permanent for the
+// rest of that test binary. Harmless as long as every registered name is either a real feature's
+// unique FeatureName (registered once, for the life of the process) or a test-only synthetic name
+// that nothing else queries; do not reuse a real feature's FeatureName in a test.
+
+type featureIsEnabledFn func(*VPP, *featureapi.FeatureIsEnabled) *featureapi.FeatureIsEnabledReply
+
+var (
+	featMu  sync.Mutex
+	featAll = map[string]featureIsEnabledFn{}
+)
+
+// RegisterFeatureIsEnabled adds featureName's own feature_is_enabled answer, used by every model's
+// core-installed handler (install(), above). Registering the same featureName twice panics — two
+// features sharing a bare feature name is a bug to notice immediately, not silently resolve to
+// whichever registered last.
+func RegisterFeatureIsEnabled(featureName string, fn featureIsEnabledFn) {
+	featMu.Lock()
+	defer featMu.Unlock()
+	if _, dup := featAll[featureName]; dup {
+		panic(fmt.Sprintf("coretest: feature_is_enabled handler for %q already registered", featureName))
+	}
+	featAll[featureName] = fn
+}
+
 func reply(m api.Message) ([]api.Message, error) { return []api.Message{m}, nil }
 
 func (v *VPP) install() {
+	// feature_is_enabled is core-owned (TD-23 fix round 1, F5) so registering an answer through
+	// RegisterFeatureIsEnabled never itself trips VPP.On's collision guard — see the README comment
+	// above RegisterFeatureIsEnabled.
+	v.On("feature_is_enabled", func(m api.Message) ([]api.Message, error) {
+		req := m.(*featureapi.FeatureIsEnabled)
+		featMu.Lock()
+		fn := featAll[req.FeatureName]
+		featMu.Unlock()
+		if fn == nil {
+			return reply(&featureapi.FeatureIsEnabledReply{IsEnabled: true}) // VPP's own unknown-feature cast
+		}
+		return reply(fn(v, req))
+	})
 	v.On("show_version", func(api.Message) ([]api.Message, error) {
 		return reply(&vpe.ShowVersionReply{Program: "vpe", Version: "26.06-fake"})
 	})

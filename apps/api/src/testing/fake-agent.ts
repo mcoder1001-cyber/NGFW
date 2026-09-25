@@ -59,11 +59,24 @@ type Json = Record<string, unknown>;
 // other three lost Action support with no error. One handler per ActionRequest oneof case, keyed by
 // whichever field of the request is set — 'ping' | 'traceroute' | 'capture' today, plus whatever a
 // later contract PR adds to the oneof (ActionKind tracks it automatically via `keyof ActionRequest`).
+//
+// Reset convention (fix round 1, F4): actionHandlers is a module-level global, shared by every
+// FakeAgent in a test file (or worker) — registering under one agent's owner is visible to all of
+// them. Any test file that calls registerActionHandler MUST call resetActionHandlersForTest() in its
+// own afterEach, exactly as fake-agent-action.test.ts does; nothing enforces this globally (there is
+// no shared Vitest setupFiles hook), so it is a convention, not a guarantee. Vitest's default
+// per-file isolation keeps a forgotten reset from leaking across *files*, but not across the `it`
+// blocks of one file.
 
 /** The populated field of an ActionRequest, i.e. which oneof case it carries. */
 export type ActionKind = keyof ActionRequest;
 
-/** A feature's Action implementation for one oneof case; same shape as the RPC itself. */
+/**
+ * A feature's Action implementation for one oneof case; same shape as the RPC itself. May be async
+ * (fix round 1, F3): the dispatcher below awaits/catches a returned Promise the same way it catches a
+ * synchronous throw, so `async (call) => { ...; throw ... }` still ends the call with a status
+ * instead of hanging.
+ */
 export type ActionHandler = handleServerStreamingCall<ActionRequest, ActionOutput>;
 
 const actionHandlers: Partial<Record<ActionKind, ActionHandler>> = {};
@@ -663,9 +676,13 @@ export class FakeAgent {
 
     // Dispatcher — never edit this to add a feature's case; call registerActionHandler instead (see
     // the README comment near ActionKind above). It owns ending the call with a status on every path:
-    // no handler for the request's oneof case answers UNIMPLEMENTED, and a handler that throws
-    // answers with its own `code` or INTERNAL — either way through 'error', never destroy() (D-134:
-    // a destroyed stream never reaches the client with a status, so the caller hangs to its deadline).
+    // no handler for the request's oneof case answers UNIMPLEMENTED, and a handler that throws —
+    // synchronously, or asynchronously by rejecting (fix round 1, F3: ActionHandler's type says
+    // `void`, but TS lets an `async` function satisfy that, so a handler can return a Promise at
+    // runtime even though the type doesn't say so; `result instanceof Promise` catches it either
+    // way) — answers with its own `code` or INTERNAL. Every path ends the call through 'error', never
+    // destroy() (D-134: a destroyed stream never reaches the client with a status, so the caller
+    // hangs to its deadline).
     const action: handleServerStreamingCall<ActionRequest, ActionOutput> = (call) => {
       this.record('Action', call.request);
       const kind = actionKindOf(call.request);
@@ -680,7 +697,12 @@ export class FakeAgent {
         return;
       }
       try {
-        handler(call);
+        const result: unknown = handler(call);
+        if (result instanceof Promise) {
+          result.catch((err: unknown) => {
+            call.emit('error', asGrpcError(err, status.INTERNAL));
+          });
+        }
       } catch (err) {
         call.emit('error', asGrpcError(err, status.INTERNAL));
       }

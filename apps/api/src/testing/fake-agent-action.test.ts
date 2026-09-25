@@ -13,10 +13,15 @@ import {
 
 /**
  * Unit tests of the generic Action dispatch table (D-134/TD-23): a registered handler runs for its
- * oneof case, an unregistered case answers UNIMPLEMENTED, and a handler that throws still ends the
- * call with a status — all three over a real gRPC connection, so a regression to `call.destroy()`
- * (which never reaches the client — the bug F-nat44-ed-sessions found) shows up as a hang, not a pass.
+ * oneof case, an unregistered case answers UNIMPLEMENTED, a handler that throws synchronously or
+ * rejects asynchronously still ends the call with a status — all over a real gRPC connection, so a
+ * regression to `call.destroy()` (which never reaches the client — the bug F-nat44-ed-sessions found)
+ * shows up as a failure, not a pass. Every `action(...)` call below sets an explicit short deadline
+ * (fix round 1, F2) so a hang fails in ~2 s with a specific DEADLINE_EXCEEDED, not Vitest's global
+ * 30 s timeout (`apps/api/vitest.config.ts`) with a generic message.
  */
+const DEADLINE_MS = 2000;
+
 function collect(
   stream: ClientReadableStream<ActionOutput>,
 ): Promise<{ chunks: ActionOutput[]; err?: ServiceError }> {
@@ -60,17 +65,20 @@ describe('FakeAgent action dispatch', () => {
     };
     registerActionHandler('ping', ping);
 
-    const stream = client.action({
-      ping: {
-        target: '10.0.0.1',
-        vrf: '',
-        count: 1,
-        size: 0,
-        intervalMs: 0,
-        timeoutMs: 0,
-        source: '',
+    const stream = client.action(
+      {
+        ping: {
+          target: '10.0.0.1',
+          vrf: '',
+          count: 1,
+          size: 0,
+          intervalMs: 0,
+          timeoutMs: 0,
+          source: '',
+        },
       },
-    });
+      { deadline: Date.now() + DEADLINE_MS },
+    );
     const { chunks, err } = await collect(stream);
 
     expect(err).toBeUndefined();
@@ -81,9 +89,19 @@ describe('FakeAgent action dispatch', () => {
   });
 
   it('answers an unregistered kind with UNIMPLEMENTED, not a hung call', async () => {
-    const stream = client.action({
-      traceroute: { target: '10.0.0.1', vrf: '', maxHops: 0, probes: 0, timeoutMs: 0, source: '' },
-    });
+    const stream = client.action(
+      {
+        traceroute: {
+          target: '10.0.0.1',
+          vrf: '',
+          maxHops: 0,
+          probes: 0,
+          timeoutMs: 0,
+          source: '',
+        },
+      },
+      { deadline: Date.now() + DEADLINE_MS },
+    );
     const { chunks, err } = await collect(stream);
 
     expect(chunks).toHaveLength(0);
@@ -91,20 +109,57 @@ describe('FakeAgent action dispatch', () => {
     expect(err?.code).toBe(status.UNIMPLEMENTED);
   });
 
-  it('ends the call with a status when a handler throws, instead of hanging', async () => {
+  it('ends the call with a status when a handler throws synchronously, instead of hanging', async () => {
     const capture: ActionHandler = () => {
       throw new Error('boom');
     };
     registerActionHandler('capture', capture);
 
-    const stream = client.action({
-      capture: { interface: 'loop0', bpf: '', maxPackets: 0, seconds: 0, direction: 0, snaplen: 0 },
-    });
+    const stream = client.action(
+      {
+        capture: {
+          interface: 'loop0',
+          bpf: '',
+          maxPackets: 0,
+          seconds: 0,
+          direction: 0,
+          snaplen: 0,
+        },
+      },
+      { deadline: Date.now() + DEADLINE_MS },
+    );
     const { err } = await collect(stream);
 
     expect(err).toBeDefined();
     expect(err?.code).toBe(status.INTERNAL);
     expect(err?.details).toContain('boom');
+  });
+
+  it('ends the call with a status when a handler rejects asynchronously, instead of hanging (F3)', async () => {
+    const traceroute: ActionHandler = async () => {
+      await Promise.resolve(); // force a microtask turn, so this really is a post-`await` rejection
+      throw new Error('async boom');
+    };
+    registerActionHandler('traceroute', traceroute);
+
+    const stream = client.action(
+      {
+        traceroute: {
+          target: '10.0.0.1',
+          vrf: '',
+          maxHops: 0,
+          probes: 0,
+          timeoutMs: 0,
+          source: '',
+        },
+      },
+      { deadline: Date.now() + DEADLINE_MS },
+    );
+    const { err } = await collect(stream);
+
+    expect(err).toBeDefined();
+    expect(err?.code).toBe(status.INTERNAL);
+    expect(err?.details).toContain('async boom');
   });
 
   it('registerActionHandler throws on a duplicate kind instead of silently replacing it', () => {

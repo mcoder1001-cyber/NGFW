@@ -56,7 +56,7 @@
           "permittedPeers": ["collector.example.net"]
         }
       },
-      { "address": "collector2.example.net", "protocol": "tcp", "format": "rfc3164", "facilities": [] }
+      { "address": "collector2.example.net", "protocol": "tcp", "format": "rfc3164" }
     ]
   }
 }

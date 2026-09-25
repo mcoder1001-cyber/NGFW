@@ -3,11 +3,14 @@
 package gre
 
 import (
+	"ngfw/agent/internal/descriptors/kit"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
 
 // Register registers the gre descriptors (tunnel) with r.
 func Register(r scheduler.Registry, c vpp.Client, owner string) {
-	r.Register(NewTunnel(c, owner))
+	kit.Register(r, kit.Env{Client: c, Owner: owner},
+		func(e kit.Env) scheduler.Descriptor { return NewTunnel(e.Client, e.Owner) },
+	)
 }

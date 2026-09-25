@@ -33,7 +33,7 @@ const GLOBAL = 'global';
 const TRANSPORTS: readonly HostStackRule['transport'][] = ['tcp', 'udp'];
 const ACTIONS: readonly HostStackRule['action'][] = ['allow', 'deny'];
 const RULE_COLS = ['tag', 'scope', 'transport', 'local', 'remote', 'action', 'namespace'] as const;
-const RIGHT = { textAlign: 'right' } as const;
+const END = { textAlign: 'end' } as const;
 const BLOCK = { display: 'block' } as const;
 
 function portText(p: number | undefined, any: string): string {
@@ -130,7 +130,7 @@ export function HostStackTab() {
                 <TableCell>{id}</TableCell>
                 <TableCell>{n.vrf ?? DEFAULT_VRF}</TableCell>
                 <TableCell>{n.interface ?? ''}</TableCell>
-                <TableCell sx={RIGHT}>
+                <TableCell sx={END}>
                   <IconButton
                     aria-label={`${t('delete')} ${id}`}
                     disabled={ro}
@@ -204,7 +204,7 @@ export function HostStackTab() {
                 </TableCell>
                 <TableCell>{r.action}</TableCell>
                 <TableCell>{r.appNamespace ?? ''}</TableCell>
-                <TableCell sx={RIGHT}>
+                <TableCell sx={END}>
                   <IconButton
                     aria-label={`${t('delete')} ${r.tag}`}
                     disabled={ro}

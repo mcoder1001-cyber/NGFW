@@ -6,14 +6,18 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	ucsaction "ngfw/agent/internal/actions/unbound-chrony-syslog"
 	"ngfw/agent/internal/descriptors/core/coretest"
+	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/renderers"
+	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/subsystems"
 )
 
@@ -132,5 +136,102 @@ func TestSyslogEntriesRPC(t *testing.T) {
 	}
 	if _, err := g.SyslogEntries(context.Background(), &vrxv1.SyslogEntriesRequest{Severity: "loud"}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("bad severity: %v", err)
+	}
+}
+
+// actionStream is a minimal grpc.ServerStreamingServer[vrxv1.ActionOutput].
+type actionStream struct {
+	grpc.ServerStream
+	ctx context.Context
+	out []*vrxv1.ActionOutput
+}
+
+func (s *actionStream) Context() context.Context         { return s.ctx }
+func (s *actionStream) Send(o *vrxv1.ActionOutput) error { s.out = append(s.out, o); return nil }
+
+// newOwnerSvc is newSvc as the globals owner (the product agent): DF-8's dns.* descriptors are registered for real.
+func newOwnerSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
+	t.Helper()
+	owned, err := ownertable.Open(dir, testOwner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reg := scheduler.NewRegistry()
+	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs, GlobalsOwner: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.Connected(context.Background())
+	svc, err := NewService(ServiceConfig{Owner: testOwner, Version: "test", VPP: v, Scheduler: scheduler.New(reg, nil), StateDir: dir, BeforeTxn: w.BeforeTxn, NetdevKind: w.NetdevKind()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(svc.Close)
+	return svc
+}
+
+// Review H2/L6: dns_lookup readiness comes from DF-8's live fact, never from the stored document. The stored document
+// says "VPP cache enabled with an IPv4 upstream" (as after a VPP restart, or while a resync keeps failing), yet nothing
+// was applied on the running VPP: the lookup is refused and no dns.api message is sent — for a slot agent and for the
+// globals owner alike. The old guard (owner && stored enabled && upstreams) sent dns_resolve_name here.
+func TestDNSLookupReadinessIsLiveNotStored(t *testing.T) {
+	t.Setenv(subsystems.EnvHostServicesDir, t.TempDir())
+	cached := doc(t, `{"services": {"dns": {"vppCache": {"enabled": true, "upstreams": ["192.0.2.53"]}}}}`)
+	for name, mk := range map[string]func(*testing.T, *coretest.VPP, string) *Service{"slot agent": newSvc, "globals owner": newOwnerSvc} {
+		t.Run(name, func(t *testing.T) {
+			v := coretest.New()
+			s := mk(t, v, t.TempDir())
+			s.st.desired = cached // the stored document, as a VPP restart leaves it
+			v.Reset()
+			g := &server{svc: s, log: s.log}
+			st := &actionStream{ctx: context.Background()}
+			err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_DnsLookup{DnsLookup: &vrxv1.DnsLookupAction{Name: "gw.lab.example"}}}, st)
+			if grpcCode(err) != codes.FailedPrecondition || len(st.out) != 0 {
+				t.Fatalf("want FailedPrecondition and no output, got %v %v", err, st.out)
+			}
+			for _, m := range v.Calls() {
+				if n := m.GetMessageName(); strings.HasPrefix(n, "dns_") {
+					t.Fatalf("%s reached VPP", n)
+				}
+			}
+			dnsSt, err := g.DnsState(context.Background(), &vrxv1.DnsStateRequest{})
+			if err != nil || !dnsSt.GetVppCache().GetConfigured() || dnsSt.GetVppCache().GetAppliedByThisAgent() {
+				t.Fatalf("vppCache state %v %v", dnsSt.GetVppCache(), err)
+			}
+		})
+	}
+}
+
+// Review M3: one walk of a kind in flight; a second caller gets UNAVAILABLE after walkWait.
+func TestStateWalksAreSerialised(t *testing.T) {
+	t.Setenv(subsystems.EnvHostServicesDir, t.TempDir())
+	s := newSvc(t, coretest.New(), t.TempDir())
+	g := &server{svc: s, log: s.log}
+	prev := walkWait
+	walkWait = 50 * time.Millisecond
+	t.Cleanup(func() { walkWait = prev })
+	for name, w := range map[string]*walkLimit{"dns": dnsWalk, "ntp": ntpWalk, "syslog": syslogWalk, "journal": journalWalk} {
+		release, err := w.acquire(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		var callErr error
+		switch name {
+		case "dns":
+			_, callErr = g.DnsState(context.Background(), &vrxv1.DnsStateRequest{})
+		case "ntp":
+			_, callErr = g.NtpState(context.Background(), &vrxv1.NtpStateRequest{})
+		case "syslog":
+			_, callErr = g.SyslogState(context.Background(), &vrxv1.SyslogStateRequest{})
+		case "journal":
+			_, callErr = g.SyslogEntries(context.Background(), &vrxv1.SyslogEntriesRequest{})
+		}
+		release()
+		if grpcCode(callErr) != codes.Unavailable {
+			t.Fatalf("%s: a second walk while one is in flight: %v", name, callErr)
+		}
+	}
+	if _, err := g.DnsState(context.Background(), &vrxv1.DnsStateRequest{}); err != nil {
+		t.Fatalf("after the release: %v", err)
 	}
 }

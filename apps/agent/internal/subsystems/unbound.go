@@ -38,6 +38,9 @@ type HostServices struct {
 	Product bool
 	// GlobalsOwner is D-071's flag (the VPP DNS cache is applied, not only required).
 	GlobalsOwner bool
+	// DNSReadiness is DF-8's live D-137 fact: an IPv4 name server was added and the VPP DNS cache enabled on the running
+	// VPP by this agent. nil on a non-owner (never ready).
+	DNSReadiness *dns.Readiness
 }
 
 var (
@@ -111,7 +114,7 @@ func registerUnboundChronySyslog(r scheduler.Registry, env Env) error {
 	r.Register(hs.Unbound)
 	r.Register(hs.Chrony)
 	r.Register(hs.Rsyslog)
-	registerDNSCache(r, env)
+	hs.DNSReadiness = registerDNSCache(r, env)
 	hostServicesMu.Lock()
 	hostServices[env.Owner] = hs
 	hostServicesMu.Unlock()

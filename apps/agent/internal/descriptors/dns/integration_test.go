@@ -39,7 +39,7 @@ func TestDNSOnHost(t *testing.T) {
 	en := NewEnable(c, dfkit.GlobalsOwner(true))
 	v4 := NameServer{Address: fmt.Sprintf("10.%d.53.1", slot)}.Proto()
 	v6 := NameServer{Address: fmt.Sprintf("fd00:%d::53", slot)}.Proto()
-	on := Enable{Enabled: true}.Proto()
+	on := Enable{Enabled: true, Upstreams: []string{fmt.Sprintf("10.%d.53.1", slot), fmt.Sprintf("fd00:%d::53", slot)}}.Proto()
 	t.Cleanup(func() {
 		_ = en.Delete(context.Background(), on, nil)
 		_ = ns.Delete(context.Background(), v4, nil)

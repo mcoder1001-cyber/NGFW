@@ -48,6 +48,11 @@ func (g *server) DnsState(ctx context.Context, req *vrxv1.DnsStateRequest) (*vrx
 	if err != nil {
 		return nil, err
 	}
+	release, err := dnsWalk.acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	r := hs.Unbound.Renderer()
 	resp := &vrxv1.DnsStateResponse{Owner: g.svc.owner, RetrievedAt: timestamppb.New(g.svc.now()), ConfigPath: r.Paths().Conf()}
 	st, err := r.State(ctx)
@@ -73,26 +78,24 @@ func (g *server) DnsState(ctx context.Context, req *vrxv1.DnsStateRequest) (*vrx
 		return nil, err
 	}
 	vc := svc.GetDns().GetVppCache()
-	resp.VppCache = &vrxv1.DnsVppCacheState{Configured: vc.GetEnabled(), AppliedByThisAgent: vc.GetEnabled() && hs.GlobalsOwner, Upstreams: append([]string(nil), vc.GetUpstreams()...)}
+	// appliedByThisAgent is the live DF-8 fact (IPv4 server added + enabled on the running VPP), never the document
+	resp.VppCache = &vrxv1.DnsVppCacheState{Configured: vc.GetEnabled(), AppliedByThisAgent: hs.GlobalsOwner && hs.DNSReadiness.Ready(ctx), Upstreams: append([]string(nil), vc.GetUpstreams()...)}
 	sort.Strings(resp.VppCache.Upstreams)
 	return resp, nil
 }
 
-// dnsLookup runs the dns_lookup action (ActionRequest 7) — only where this agent enabled VPP's DNS cache itself: the
-// globals owner whose applied configuration enables it with an upstream (VPP 26.06 crashes on dns_resolve_name
-// otherwise; ucsaction.Lookup).
+// dnsLookup runs the dns_lookup action (ActionRequest 7) — only where VPP's DNS cache is live: this agent is the
+// globals owner, DF-8's readiness fact says it added an IPv4 name server and enabled the cache on the VPP instance that
+// runs now (review H2: never the stored document, which survives a VPP restart and a failed resync), and the agent is
+// not DEGRADED. VPP 26.06 crashes on dns_resolve_name otherwise (D-137, ucsaction.Lookup).
 func (g *server) dnsLookup(a *vrxv1.DnsLookupAction, stream grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
 	ctx := stream.Context()
 	hs, err := g.hostServices("")
 	if err != nil {
 		return err
 	}
-	svc, _, err := g.storedServices(ctx)
-	if err != nil {
-		return err
-	}
-	vc := svc.GetDns().GetVppCache()
-	ready := hs.GlobalsOwner && vc.GetEnabled() && len(vc.GetUpstreams()) > 0
-	g.log.Info("action dns_lookup", "name", a.GetName(), "timeout_ms", a.GetTimeoutMs(), "vpp_cache_ready", ready)
+	degraded := g.svc.Health().GetDegraded()
+	ready := hs.GlobalsOwner && !degraded && hs.DNSReadiness.Ready(ctx)
+	g.log.Info("action dns_lookup", "name", a.GetName(), "timeout_ms", a.GetTimeoutMs(), "vpp_cache_ready", ready, "degraded", degraded)
 	return ucsaction.Lookup(ctx, g.svc.vpp, a, ready, stream.Send)
 }

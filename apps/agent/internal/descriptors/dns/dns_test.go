@@ -78,11 +78,18 @@ func TestDNSLifecycle(t *testing.T) {
 	if len(f.Calls()) != 0 {
 		t.Fatalf("non-owner sent %d messages", len(f.Calls()))
 	}
-	on := Enable{Enabled: true}.Proto()
-	// enabling without a name server fails in VPP: the order matters
-	if _, err := en.Create(ctx, on); !dfkit.IsVPPError(err, api.NO_NAME_SERVERS) {
-		t.Fatalf("enable without servers: %v", err)
+	// D-137: enabling without an IPv4 upstream is refused before anything is sent (VPP would also refuse it without
+	// any server, NO_NAME_SERVERS, and crash with IPv6-only servers)
+	sent := len(f.Calls())
+	for _, v := range []Enable{{Enabled: true}, {Enabled: true, Upstreams: []string{"fd00:5::53"}}} {
+		if _, err := en.Create(ctx, v.Proto()); !errors.Is(err, ErrNoIPv4Upstream) {
+			t.Fatalf("enable %v: %v", v, err)
+		}
 	}
+	if len(f.Calls()) != sent {
+		t.Fatal("a refused enable sent a message")
+	}
+	on := Enable{Enabled: true, Upstreams: []string{"10.5.0.53", "fd00:5::53"}}.Proto()
 	v4 := NameServer{Address: "10.5.0.53"}.Proto()
 	v6 := NameServer{Address: "fd00:5::53"}.Proto()
 	if k := ns.KeyOf(v6); k != "dns.name-server/fd00:5::53" {

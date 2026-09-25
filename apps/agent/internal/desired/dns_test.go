@@ -76,6 +76,7 @@ func TestHostServicesProjection(t *testing.T) {
 	}
 	wantIssues := []string{
 		"W /services/dns/vppCache agent.unsupported-field", // write-only: never compared by /state/drift
+		"W /services/dns/vppCache/enabled services.dns-vpp-cache-exposure", // M5: answers on every VPP address
 		"W /services/snmp agent.unsupported-field",
 		"W /management/users agent.unsupported-field",
 	}
@@ -155,5 +156,27 @@ func TestHostServicesRoundTrip(t *testing.T) {
 	AssembleHostServices(out, drift, true, true)
 	if out.GetServices().GetDns() != nil {
 		t.Fatal("drift assembled as configuration")
+	}
+}
+
+// H1 (review): IPv6-only upstreams crash VPP 26.06 (NULL IPv4 server vector): the projection refuses them at the
+// upstreams pointer and emits no dns.* object. The old builder projected them.
+func TestVPPCacheNeedsAnIPv4Upstream(t *testing.T) {
+	d := doc()
+	d.Services.Dns.VppCache = &vrxv1.DnsService_VppCache{Enabled: proto.Bool(true), Upstreams: []string{"2001:db8::53", "2001:db8::54"}}
+	s := &recSink{}
+	HostServices(s, d, true, false)
+	if !strings.Contains(strings.Join(s.issues, "|"), "E /services/dns/vppCache/upstreams services.dns-vpp-cache-upstream") {
+		t.Fatalf("issues %v", s.issues)
+	}
+	if strings.Contains(s.keys(), dnsd.NameEnable) {
+		t.Fatalf("an IPv6-only cache was projected: %s", s.keys())
+	}
+	// one IPv4 upstream is enough (IPv6 ones may accompany it)
+	d.Services.Dns.VppCache.Upstreams = []string{"2001:db8::53", "192.0.2.53"}
+	s = &recSink{}
+	HostServices(s, d, true, false)
+	if strings.Contains(strings.Join(s.issues, "|"), "E ") || !strings.Contains(s.keys(), dnsd.NameEnable) {
+		t.Fatalf("issues %v keys %s", s.issues, s.keys())
 	}
 }

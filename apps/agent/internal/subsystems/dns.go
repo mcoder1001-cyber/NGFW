@@ -10,12 +10,15 @@ import (
 // write-only): as the globals owner through dns.RegisterGlobals (D-071); every other agent registers them in
 // require mode, so a document that enables the VPP cache fails there with dfkit.ErrNotGlobalsOwner (the plugin has
 // no getter to check the requirement) instead of being silently ignored — and nothing VPP-wide is ever set.
-func registerDNSCache(r scheduler.Registry, env Env) {
+//
+// It returns the D-137 readiness fact (IPv4 server added + enabled on the running VPP), nil for a non-owner, which is
+// never ready.
+func registerDNSCache(r scheduler.Registry, env Env) *dns.Readiness {
 	if env.GlobalsOwner {
-		dns.RegisterGlobals(r, env.Client)
-		return
+		return dns.RegisterGlobalsReady(r, env.Client)
 	}
 	g := dfkit.GlobalsOwner(false)
 	r.Register(dns.NewNameServer(env.Client, g))
 	r.Register(dns.NewEnable(env.Client, g))
+	return nil
 }

@@ -16,6 +16,11 @@ func (g *server) NtpState(ctx context.Context, req *vrxv1.NtpStateRequest) (*vrx
 	if err != nil {
 		return nil, err
 	}
+	release, err := ntpWalk.acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	r := hs.Chrony.Renderer()
 	resp := &vrxv1.NtpStateResponse{Owner: g.svc.owner, RetrievedAt: timestamppb.New(g.svc.now()), ConfigPath: r.Paths().Conf()}
 	st, err := r.State(ctx)

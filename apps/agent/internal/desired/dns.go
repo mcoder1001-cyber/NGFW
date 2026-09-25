@@ -14,9 +14,11 @@ package desired
 // does not compare it.
 
 import (
+	"fmt"
 	"net/netip"
 	"sort"
 	"strconv"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -67,6 +69,22 @@ func DNS(s Sink, ds *vrxv1.DesiredState) {
 		s.Errorf(Ptr("services", "dns", "vppCache", "upstreams"), "services.dns-vpp-cache-upstream", "the VPP DNS cache needs an upstream name server (VPP refuses to enable without one)")
 		return
 	}
+	hasV4 := false
+	for a := range seen {
+		hasV4 = hasV4 || netip.MustParseAddr(a).Is4()
+	}
+	if !hasV4 {
+		// VPP 26.06 dereferences a NULL IPv4 server vector on every request without one (dns.c:576-624) — API
+		// lookups and any client's IPv4 UDP-53 query to a VPP address (D-137, docs/vpp-code-track.md)
+		s.Errorf(Ptr("services", "dns", "vppCache", "upstreams"), "services.dns-vpp-cache-upstream",
+			"VPP DNS cache needs at least one IPv4 upstream (VPP 26.06 defect, D-137)")
+		return
+	}
+	// M5 (review): the dns plugin registers UDP 53 for every address VPP owns, in every VRF — there is no
+	// per-interface or per-client control in VPP 26.06 (request_node.c checks only is_enabled)
+	s.Warnf(Ptr("services", "dns", "vppCache", "enabled"), "services.dns-vpp-cache-exposure",
+		"the VPP DNS cache answers UDP 53 on every VPP address in every VRF, untrusted (WAN) interfaces included%s: VPP has no per-interface or client control for it — block UDP 53 towards VPP on untrusted interfaces with an ACL",
+		answeringAddresses(ds))
 	ups := make([]string, 0, len(seen))
 	for a := range seen {
 		ups = append(ups, a)
@@ -122,4 +140,22 @@ func servicesOf(ds *vrxv1.DesiredState) *vrxv1.ServicesConfig {
 		ds.Services = &vrxv1.ServicesConfig{}
 	}
 	return ds.Services
+}
+
+// answeringAddresses names the IPv4 interface addresses of the document that the VPP DNS cache would answer on (at most
+// eight), for the exposure warning.
+func answeringAddresses(ds *vrxv1.DesiredState) string {
+	var out []string
+	for _, name := range sortedKeys(ds.GetInterfaces()) {
+		for _, p := range ds.GetInterfaces()[name].GetIpv4() {
+			out = append(out, name+" "+p)
+		}
+	}
+	if len(out) == 0 {
+		return ""
+	}
+	if len(out) > 8 {
+		out = append(out[:8], fmt.Sprintf("… %d more", len(out)-8))
+	}
+	return " (" + strings.Join(out, ", ") + ")"
 }

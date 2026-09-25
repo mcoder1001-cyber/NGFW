@@ -34,6 +34,11 @@ func (g *server) SyslogState(ctx context.Context, req *vrxv1.SyslogStateRequest)
 	if err != nil {
 		return nil, err
 	}
+	release, err := syslogWalk.acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	r := hs.Rsyslog.Renderer()
 	resp := &vrxv1.SyslogStateResponse{Owner: g.svc.owner, RetrievedAt: timestamppb.New(g.svc.now()), ConfigPath: r.Paths().ConfFile, Inputs: map[string]int64{}}
 	st, err := r.State(ctx)
@@ -69,6 +74,11 @@ func (g *server) SyslogEntries(ctx context.Context, req *vrxv1.SyslogEntriesRequ
 	if err != nil {
 		return nil, err
 	}
+	release, err := journalWalk.acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	resp, err := ucsaction.Run(ctx, logRunner(), q)
 	if err != nil {
 		return nil, err

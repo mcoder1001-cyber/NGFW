@@ -21,15 +21,15 @@ const (
 )
 
 // ErrCacheNotReady explains the refusal of a lookup on a VPP whose dns plugin this agent has not set up.
-const ErrCacheNotReady = "dns_lookup needs the VPP DNS cache enabled with an upstream by this agent (the globals owner, D-071): " +
-	"VPP 26.06 crashes on dns_resolve_name while its dns plugin has no name server (SIGSEGV in ip4_sas, docs/vpp-code-track.md), " +
-	"so the lookup is never sent otherwise"
+const ErrCacheNotReady = "dns_lookup needs VPP's DNS cache live on this agent — the globals owner (D-071) that added an IPv4 upstream " +
+	"and enabled the cache on the running VPP, and is not DEGRADED: VPP 26.06 crashes on dns_resolve_name without an IPv4 name server " +
+	"(SIGSEGV in ip4_sas, D-137, docs/vpp-code-track.md), so the lookup is never sent otherwise"
 
 // Lookup resolves a.name through VPP's DNS cache (dns_resolve_name, DF-8 dns.ResolveName) with a deadline and
-// streams the result. cacheReady must say that this agent itself enabled the plugin with at least one name server
-// (the globals owner with services.dns.vppCache applied): VPP 26.06 dereferences a NULL name server in
-// vnet_dns_resolve_name → ip4_sas when it has none, so without that proof the request is refused with
-// FAILED_PRECONDITION and never reaches VPP (2026-09-25 04:27 incident, F-unbound-chrony-syslog questions Q2).
+// streams the result. cacheReady is DF-8's live readiness fact (dns.Readiness: an IPv4 server added and the cache
+// enabled by this agent on the running VPP, not DEGRADED): VPP 26.06 dereferences a NULL IPv4 name-server vector in
+// vnet_send_dns_request → ip4_sas otherwise, so without that proof the request is refused with FAILED_PRECONDITION and
+// never reaches VPP (2026-09-25 04:27 incident, D-137).
 // Output: one line per address ("A 192.0.2.1", "AAAA 2001:db8::1"), then done with exit_code 0 and the
 // stats "ipv4"/"ipv6"; a VPP error (the plugin disabled — only the globals owner enables it, D-071 — an unreachable
 // upstream, the deadline) ends the stream with done{exit_code 1} and the reason. An invalid request is

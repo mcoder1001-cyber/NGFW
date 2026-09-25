@@ -40,8 +40,10 @@ const (
 )
 
 // Enable is the dns.enable singleton: whether VPP's DNS resolver/proxy answers on UDP 53. Upstreams (canonical
-// addresses) are the name servers the enabled resolver needs: they make dns.enable depend on their dns.name-server
-// objects, and a change of the set re-applies the switch after the servers changed (see NameServerDescriptor.Delete).
+// addresses) are the name servers the enabled resolver uses. They are not scheduler dependencies (see Dependencies):
+// carrying them in the Value turns a changed set into an update that re-enables the switch after the new servers were
+// created (a server delete disables it first, NameServerDescriptor.Delete). The globals owner enables only after an
+// IPv4 server was added on the running VPP (Readiness, D-137).
 type Enable struct {
 	Enabled   bool     `json:"enabled"`
 	Upstreams []string `json:"upstreams,omitempty"`
@@ -68,9 +70,17 @@ var KeyEnable = scheduler.Join(NameEnable, EnableID)
 // globals owner (D-071). Call it only in the designated globals owner's agent (config
 // globalsOwner: true — never a test slot on the shared host), name servers first (see package doc).
 func RegisterGlobals(r scheduler.Registry, client vpp.Client) {
+	RegisterGlobalsReady(r, client)
+}
+
+// RegisterGlobalsReady is RegisterGlobals returning the D-137 readiness fact both descriptors maintain (the dns_lookup
+// action asks it before anything reaches VPP).
+func RegisterGlobalsReady(r scheduler.Registry, client vpp.Client) *Readiness {
 	g := dfkit.GlobalsOwner(true)
-	r.Register(NewNameServer(client, g))
-	r.Register(NewEnable(client, g))
+	ready := NewReadiness(client)
+	r.Register(NewNameServer(client, g).WithReadiness(ready))
+	r.Register(NewEnable(client, g).WithReadiness(ready))
+	return ready
 }
 
 // ---- dns.enable -----------------------------------------------------------------------------
@@ -80,7 +90,18 @@ func RegisterGlobals(r scheduler.Registry, client vpp.Client) {
 type EnableDescriptor struct {
 	client  vpp.Client
 	globals dfkit.Globals
+	ready   *Readiness
 }
+
+// WithReadiness makes the descriptor maintain (and consult) the D-137 readiness fact.
+func (d *EnableDescriptor) WithReadiness(r *Readiness) *EnableDescriptor {
+	d.ready = r
+	return d
+}
+
+// ErrNoIPv4Upstream refuses an enable without an IPv4 name server: VPP 26.06 dereferences a NULL IPv4 server vector on
+// every request otherwise (D-137, docs/vpp-code-track.md). Nothing is sent.
+var ErrNoIPv4Upstream = errors.New("dns: VPP's DNS cache needs at least one IPv4 upstream added on the running VPP before it is enabled (VPP 26.06 defect, D-137)")
 
 var _ scheduler.Descriptor = (*EnableDescriptor)(nil)
 
@@ -110,7 +131,22 @@ func (d *EnableDescriptor) set(ctx context.Context, on bool) error {
 	if _, err := dns.NewServiceClient(d.client).DNSEnableDisable(ctx, &dns.DNSEnableDisable{Enable: v}); err != nil {
 		return fmt.Errorf("dns_enable_disable(enable=%d): %w", v, err)
 	}
+	d.ready.setEnabled(ctx, on)
 	return nil
+}
+
+// hasIPv4 is the enable precondition: an IPv4 server added on the running VPP (the readiness fact), or — for a
+// descriptor built without one — an IPv4 address among the Value's upstreams.
+func (d *EnableDescriptor) hasIPv4(ctx context.Context, s Enable) bool {
+	if d.ready != nil {
+		return d.ready.hasIPv4(ctx)
+	}
+	for _, u := range s.Upstreams {
+		if a, err := netip.ParseAddr(u); err == nil && a.Unmap().Is4() {
+			return true
+		}
+	}
+	return false
 }
 
 func (d *EnableDescriptor) apply(ctx context.Context, obj proto.Message) error {
@@ -120,6 +156,9 @@ func (d *EnableDescriptor) apply(ctx context.Context, obj proto.Message) error {
 	}
 	if !d.globals.Owner() {
 		return d.globals.Require(ctx, NameEnable, obj, nil)
+	}
+	if s.Enabled && !d.hasIPv4(ctx, s) {
+		return ErrNoIPv4Upstream
 	}
 	return d.set(ctx, s.Enabled)
 }
@@ -154,6 +193,13 @@ func (*EnableDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
 type NameServerDescriptor struct {
 	client  vpp.Client
 	globals dfkit.Globals
+	ready   *Readiness
+}
+
+// WithReadiness makes the descriptor maintain the D-137 readiness fact.
+func (d *NameServerDescriptor) WithReadiness(r *Readiness) *NameServerDescriptor {
+	d.ready = r
+	return d
 }
 
 var _ scheduler.Descriptor = (*NameServerDescriptor)(nil)
@@ -210,6 +256,11 @@ func (d *NameServerDescriptor) set(ctx context.Context, obj proto.Message, add b
 	if _, err := dns.NewServiceClient(d.client).DNSNameServerAddDel(ctx, req); err != nil {
 		return fmt.Errorf("dns_name_server_add_del(%s, add=%t): %w", a, add, err)
 	}
+	if add {
+		d.ready.serverAdded(ctx, a)
+	} else {
+		d.ready.serverRemoved(a)
+	}
 	return nil
 }
 
@@ -233,6 +284,7 @@ func (d *NameServerDescriptor) Delete(ctx context.Context, obj proto.Message, _ 
 		if _, err := dns.NewServiceClient(d.client).DNSEnableDisable(ctx, &dns.DNSEnableDisable{Enable: 0}); err != nil {
 			return fmt.Errorf("dns_enable_disable(enable=0) before removing a name server: %w", err)
 		}
+		d.ready.setEnabled(ctx, false)
 	}
 	err := d.set(ctx, obj, false)
 	if dfkit.IsVPPError(err, api.NAME_SERVER_NOT_FOUND) {

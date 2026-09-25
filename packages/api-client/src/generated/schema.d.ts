@@ -8382,7 +8382,7 @@ export interface operations {
             /** @description sessions matching the filter (a lower bound when truncated) */
             total: number;
             totalUsers: number;
-            /** @description the agent stopped a filtered scan at its cap: total is a lower bound */
+            /** @description the agent stopped at a per-call cap (256 inside hosts, 200 000 sessions): with an address/port/protocol filter total is a lower bound and later pages may be empty; narrow the filter (e.g. by inside address) */
             truncated: boolean;
             retrievedAt?: string;
             items: {

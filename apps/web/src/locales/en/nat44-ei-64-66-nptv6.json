@@ -5,6 +5,7 @@
   "saved": "Saved to the candidate. Commit to apply it.",
   "cancel": "Cancel",
   "readonly": "Your role can view but not change NAT.",
+  "refresh": "Refresh",
   "tab": {
     "ei": "NAT44-EI",
     "nat64": "NAT64",
@@ -42,7 +43,8 @@
     "static": "static",
     "filter": "Session filter",
     "total": "{{sessions}} sessions from {{users}} inside hosts",
-    "truncated": "counts stopped at the agent's scan limit"
+    "truncated": "counts stopped at the agent's scan limit",
+    "manualRefresh": "refreshed by hand (a filter makes the agent scan sessions)"
   },
   "filter": {
     "inside": "Inside address",
@@ -85,32 +87,80 @@
     "writeOnly": "applied (write-only)"
   },
   "field": {
-    "enabled": { "title": "Enabled" },
-    "inside": { "title": "Inside" },
-    "outside": { "title": "Outside" },
-    "prefixes": { "title": "NAT64 prefixes" },
+    "enabled": {
+      "title": "Enabled"
+    },
+    "inside": {
+      "title": "Inside"
+    },
+    "outside": {
+      "title": "Outside"
+    },
+    "prefixes": {
+      "title": "NAT64 prefixes"
+    },
     "prefix": {
       "title": "NAT64 prefix",
       "help": "RFC 6052 length 32/40/48/56/64/96; 64:ff9b::/96 is the well-known prefix"
     },
-    "vrf": { "title": "VRF" },
-    "pools": { "title": "IPv4 pools" },
-    "range": { "title": "Address range", "help": "10.0.0.10-10.0.0.20 or one address" },
-    "staticBibs": { "title": "Static BIB entries" },
-    "description": { "title": "Description" },
-    "protocol": { "title": "Protocol" },
-    "ip": { "title": "Address" },
-    "port": { "title": "Port" },
-    "timeouts": { "title": "Session timeouts (seconds)" },
-    "udp": { "title": "UDP" },
-    "tcpEstablished": { "title": "TCP established" },
-    "tcpTransitory": { "title": "TCP transitory" },
-    "icmp": { "title": "ICMP" },
-    "staticMappings": { "title": "Static mappings" },
-    "local": { "title": "Local address" },
-    "external": { "title": "External" },
-    "bindings": { "title": "Bindings" },
-    "interface": { "title": "Interface" },
-    "internal": { "title": "Internal prefix", "help": "Network prefix, host bits zero" }
+    "vrf": {
+      "title": "VRF"
+    },
+    "pools": {
+      "title": "IPv4 pools"
+    },
+    "range": {
+      "title": "Address range",
+      "help": "10.0.0.10-10.0.0.20 or one address"
+    },
+    "staticBibs": {
+      "title": "Static BIB entries"
+    },
+    "description": {
+      "title": "Description"
+    },
+    "protocol": {
+      "title": "Protocol"
+    },
+    "ip": {
+      "title": "Address"
+    },
+    "port": {
+      "title": "Port"
+    },
+    "timeouts": {
+      "title": "Session timeouts (seconds)"
+    },
+    "udp": {
+      "title": "UDP"
+    },
+    "tcpEstablished": {
+      "title": "TCP established"
+    },
+    "tcpTransitory": {
+      "title": "TCP transitory"
+    },
+    "icmp": {
+      "title": "ICMP"
+    },
+    "staticMappings": {
+      "title": "Static mappings"
+    },
+    "local": {
+      "title": "Local address"
+    },
+    "external": {
+      "title": "External"
+    },
+    "bindings": {
+      "title": "Bindings"
+    },
+    "interface": {
+      "title": "Interface"
+    },
+    "internal": {
+      "title": "Internal prefix",
+      "help": "Network prefix, host bits zero"
+    }
   }
 }

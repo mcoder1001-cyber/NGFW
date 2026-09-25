@@ -167,7 +167,7 @@ func TestNatEIAndNat64SessionsOverGRPC(t *testing.T) {
 		t.Fatalf("EI page: %d sessions total %d users %d next %d variant %v", len(r.GetSessions()), r.GetTotalSessions(), r.GetTotalUsers(), r.GetNextOffset(), r.GetVariant())
 	}
 	first := r.GetSessions()[0]
-	if first.GetInsideAddress() != "10.7.1.12" || first.GetExternalNatAddress() != first.GetExternalAddress() || first.GetTwiceNat() || first.GetVrf() != "default" {
+	if first.GetInsideAddress() != "10.7.1.12" || first.GetExternalNatAddress() != "0.0.0.0" || first.GetTwiceNat() || first.GetVrf() != "default" {
 		t.Fatalf("EI session %v", first)
 	}
 	r, err = c.NatSessions(ctx, &vrxv1.NatSessionsRequest{Variant: eiV, Filter: &vrxv1.NatSessionFilter{Vrf: proto.String("cust")}})

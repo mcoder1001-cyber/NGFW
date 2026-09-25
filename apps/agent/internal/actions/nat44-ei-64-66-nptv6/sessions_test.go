@@ -58,7 +58,7 @@ func eiFixture() *fakeEI {
 
 func TestListEIPagesLikeED(t *testing.T) {
 	f := eiFixture()
-	p, err := ListEI(context.Background(), f, natcommon.ScopeFor("w4"), natsessions.Filter{}, 7, 5, 0)
+	p, err := ListEI(context.Background(), f, natcommon.ScopeFor("w4"), natsessions.Filter{}, 7, 5, natsessions.Caps{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,8 +69,8 @@ func TestListEIPagesLikeED(t *testing.T) {
 	if f.dumps != 2 || p.Rows[0].Inside.IP != "10.4.1.11" || p.Rows[0].Inside.Port != 1002 {
 		t.Fatalf("dumps %d first %+v", f.dumps, p.Rows[0])
 	}
-	// EI has no twice-NAT: the external host after NAT is the external host
-	if r := p.Rows[0]; r.ExtHostNAT != r.ExtHost || r.TwiceNAT {
+	// EI has no twice-NAT: the external host after NAT is 0.0.0.0/0 (as ED reports a session without twice-NAT)
+	if r := p.Rows[0]; r.ExtHostNAT.IP != "0.0.0.0" || r.ExtHostNAT.Port != 0 || r.TwiceNAT {
 		t.Fatalf("row %+v", r)
 	}
 }

@@ -29,8 +29,11 @@ type EISource interface {
 }
 
 // eiAdapter presents nat44-ei users and sessions to the ED pager (the same shape; EI has no twice-NAT, so the external
-// host after NAT equals the external host, and no timed-out flag).
+// host after NAT is "0.0.0.0"/0 as for an ED session without twice-NAT, and no timed-out flag). nat44-ei keeps each
+// user's sessions on a per-user list, so a per-user dump walks only that user's sessions (unlike nat44-ed's pool walk).
 type eiAdapter struct{ src EISource }
+
+var noTwiceNAT = nat44ed.Endpoint{IP: "0.0.0.0"}
 
 func (a eiAdapter) Users(ctx context.Context) ([]nat44ed.User, error) {
 	us, err := a.src.Users(ctx)
@@ -51,19 +54,36 @@ func (a eiAdapter) UserSessions(ctx context.Context, u nat44ed.User, offset, lim
 	}
 	out := make([]nat44ed.Session, 0, len(ss))
 	for _, s := range ss {
-		ext := nat44ed.Endpoint{IP: s.ExtHost.IP, Port: s.ExtHost.Port}
-		out = append(out, nat44ed.Session{
-			Inside: nat44ed.Endpoint{IP: s.Inside.IP, Port: s.Inside.Port}, Outside: nat44ed.Endpoint{IP: s.Outside.IP, Port: s.Outside.Port},
-			ExtHost: ext, ExtHostNAT: ext, Protocol: s.Protocol, Static: s.Static,
-			IdleSeconds: s.IdleSeconds, TotalBytes: s.TotalBytes, TotalPkts: s.TotalPkts,
-		})
+		out = append(out, edSession(s))
 	}
 	return out, nil
 }
 
-// ListEI returns one page of the owner's NAT44-EI sessions (same contract as natsessions.List).
-func ListEI(ctx context.Context, src EISource, scope natcommon.Scope, f natsessions.Filter, offset, limit, scanCap int) (natsessions.Page, error) {
-	return natsessions.List(ctx, eiAdapter{src}, scope, f, offset, limit, scanCap)
+// EachUserSession implements the pager's streaming read (one user's sessions, fn false = stop using them).
+func (a eiAdapter) EachUserSession(ctx context.Context, u nat44ed.User, fn func(nat44ed.Session) bool) error {
+	ss, err := a.src.UserSessions(ctx, nat44ei.User{IP: u.IP, VRF: u.VRF, Sessions: u.Sessions, StaticSessions: u.StaticSessions}, 0, 0)
+	if err != nil {
+		return err
+	}
+	for _, s := range ss {
+		if !fn(edSession(s)) {
+			return nil
+		}
+	}
+	return nil
+}
+
+func edSession(s nat44ei.Session) nat44ed.Session {
+	return nat44ed.Session{
+		Inside: nat44ed.Endpoint{IP: s.Inside.IP, Port: s.Inside.Port}, Outside: nat44ed.Endpoint{IP: s.Outside.IP, Port: s.Outside.Port},
+		ExtHost: nat44ed.Endpoint{IP: s.ExtHost.IP, Port: s.ExtHost.Port}, ExtHostNAT: noTwiceNAT, Protocol: s.Protocol, Static: s.Static,
+		IdleSeconds: s.IdleSeconds, TotalBytes: s.TotalBytes, TotalPkts: s.TotalPkts,
+	}
+}
+
+// ListEI returns one page of the owner's NAT44-EI sessions (same contract as natsessions.List, the same caps).
+func ListEI(ctx context.Context, src EISource, scope natcommon.Scope, f natsessions.Filter, offset, limit int, caps natsessions.Caps) (natsessions.Page, error) {
+	return natsessions.List(ctx, eiAdapter{src}, scope, f, offset, limit, caps)
 }
 
 // EIDeleter is the kill side of nat44-ei (nat44ei.Plugin implements it).

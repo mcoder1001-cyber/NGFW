@@ -18,6 +18,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useFormatters } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api-problem';
@@ -25,13 +26,14 @@ import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import {
   EMPTY_FILTER,
+  isSessionLevelFilter,
   sessionId,
   type Session,
   type SessionFilter,
 } from '../nat44-ed-sessions/model';
-import { NAT_POLL_MS, useCandidateNat, usePatchNat } from '../nat44-ed-sessions/queries';
+import { useCandidateNat, usePatchNat } from '../nat44-ed-sessions/queries';
 import { eiKillBodyOf, NS, type EiSessionsPage } from './model';
-import { fetchEiSessions, keys, useEiKill } from './queries';
+import { fetchEiSessions, keys, POLL_MS, useEiKill } from './queries';
 
 interface Row extends Session {
   id: string;
@@ -83,6 +85,7 @@ export function EiTab() {
   const perms = usePermissions();
   const candidate = useCandidateNat();
   const kill = useEiKill();
+  const qc = useQueryClient();
   const [draft, setDraft] = useState<SessionFilter>(EMPTY_FILTER);
   const [filter, setFilter] = useState<SessionFilter>(EMPTY_FILTER);
   const [meta, setMeta] = useState<Pick<
@@ -93,6 +96,8 @@ export function EiTab() {
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [killError, setKillError] = useState<unknown>(null);
   const mode = typeof candidate.data?.['mode'] === 'string' ? candidate.data['mode'] : 'ed';
+  // D-132: 30 s at most; a session-level filter makes the agent scan sessions: refreshed by hand only
+  const manual = isSessionLevelFilter(filter);
 
   const fetchPage = useCallback(
     async (req: ServerPageRequest, signal: AbortSignal) => {
@@ -268,6 +273,13 @@ export function EiTab() {
             {meta?.truncated && (
               <Chip size="small" color="warning" label={t('sessions.truncated')} />
             )}
+            <Button
+              size="small"
+              onClick={() => void qc.invalidateQueries({ queryKey: keys.eiSessions })}
+            >
+              {t('refresh')}
+            </Button>
+            {manual && <Chip size="small" variant="outlined" label={t('sessions.manualRefresh')} />}
           </Stack>
           {result && (
             <Alert
@@ -285,7 +297,7 @@ export function EiTab() {
               columns={columns}
               queryKey={[...keys.eiSessions, filter]}
               fetchPage={fetchPage}
-              refetchInterval={NAT_POLL_MS}
+              refetchInterval={manual ? false : POLL_MS}
               initialPageSize={100}
               pageSizeOptions={PAGE_SIZES}
               disableColumnFilter

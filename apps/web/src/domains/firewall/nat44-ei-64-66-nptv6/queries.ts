@@ -3,8 +3,13 @@ import { api } from '../../../api';
 import { call } from '../../../api-problem';
 import type { SessionFilter } from '../nat44-ed-sessions/model';
 import { filterQuery } from '../nat44-ed-sessions/model';
-import { NAT_POLL_MS } from '../nat44-ed-sessions/queries';
 import type { EiKillBody } from './model';
+
+/**
+ * D-132: a view that makes the agent walk a VPP table (NAT session tables, the Retrieve behind /state/drift) is
+ * refreshed at most every 30 s — and by hand (Refresh) — never faster; a session-level filter stops the timer.
+ */
+export const POLL_MS = 30_000;
 
 /** Query keys mirror the API paths. */
 export const keys = {
@@ -66,7 +71,8 @@ export function useNptv6State() {
     queryKey: keys.nptv6,
     queryFn: async ({ signal }) =>
       (await call(api.GET('/api/v1/state/nat/nptv6', { signal }))).data,
-    refetchInterval: NAT_POLL_MS,
+    refetchInterval: POLL_MS,
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -75,6 +81,7 @@ export function useDrift() {
   return useQuery({
     queryKey: keys.drift,
     queryFn: async ({ signal }) => (await call(api.GET('/api/v1/state/drift', { signal }))).data,
-    refetchInterval: NAT_POLL_MS,
+    refetchInterval: POLL_MS,
+    refetchIntervalInBackground: false,
   });
 }

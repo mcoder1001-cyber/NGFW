@@ -1,4 +1,5 @@
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
@@ -8,12 +9,12 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useFormatters } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { NAT_POLL_MS } from '../nat44-ed-sessions/queries';
 import { nat64SessionId, NS, type Nat64Session, type Nat64SessionsPage } from './model';
 import type { Subtree } from './model';
-import { fetchNat64Sessions, keys } from './queries';
+import { fetchNat64Sessions, keys, POLL_MS } from './queries';
 import { SubtreeForm } from './SubtreeForm';
 
 const SUBTREE: Subtree = 'nat64';
@@ -33,6 +34,7 @@ const ep = (a: string, p: number) => (a.includes(':') ? `[${a}]:${p}` : `${a}:${
 export function Nat64Tab() {
   const { t } = useTranslation(NS);
   const fmt = useFormatters();
+  const qc = useQueryClient();
   const [protocol, setProtocol] = useState('');
   const [meta, setMeta] = useState<Pick<
     Nat64SessionsPage,
@@ -126,6 +128,12 @@ export function Nat64Tab() {
             : t('loading')}
         </Typography>
         {meta?.truncated && <Chip size="small" color="warning" label={t('sessions.truncated')} />}
+        <Button
+          size="small"
+          onClick={() => void qc.invalidateQueries({ queryKey: keys.nat64Sessions })}
+        >
+          {t('refresh')}
+        </Button>
       </Stack>
       <Paper variant="outlined" sx={{ blockSize: 440 }}>
         <ServerDataGrid<Row>
@@ -133,7 +141,7 @@ export function Nat64Tab() {
           columns={columns}
           queryKey={[...keys.nat64Sessions, protocol]}
           fetchPage={fetchPage}
-          refetchInterval={NAT_POLL_MS}
+          refetchInterval={POLL_MS}
           initialPageSize={100}
           pageSizeOptions={PAGE_SIZES}
           disableColumnFilter

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -32,11 +33,17 @@ func natVariantOf(v vrxv1.NatSessionVariant) bool {
 	return v == vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_EI || v == vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64
 }
 
+// natVariantWalk serialises the EI / NAT64 table walks of this agent (D-132: one walk at a time; a NAT64 st dump and
+// a nat44-ei user dump hold the worker barrier while they run). A caller waits for the walk in progress.
+var natVariantWalk sync.Mutex
+
 // natSessionsVariant serves NatSessions for the EI and NAT64 tables.
 func (s *Service) natSessionsVariant(ctx context.Context, req *vrxv1.NatSessionsRequest) (*vrxv1.NatSessionsResponse, error) {
 	if err := s.natReady(req.GetOwner()); err != nil {
 		return nil, err
 	}
+	natVariantWalk.Lock()
+	defer natVariantWalk.Unlock()
 	limit := int(req.GetLimit())
 	switch {
 	case limit == 0:
@@ -51,7 +58,7 @@ func (s *Service) natSessionsVariant(ctx context.Context, req *vrxv1.NatSessions
 	if err != nil {
 		return nil, natErr("filter", err)
 	}
-	page, err := natvariants.ListEI(ctx, nat44ei.New(s.vpp, s.owner), natcommon.ScopeFor(s.owner), f, int(req.GetOffset()), limit, natScanCap)
+	page, err := natvariants.ListEI(ctx, nat44ei.New(s.vpp, s.owner), natcommon.ScopeFor(s.owner), f, int(req.GetOffset()), limit, natCaps)
 	if err != nil {
 		return nil, natErr("nat44-ei sessions", err)
 	}
@@ -88,7 +95,7 @@ func (s *Service) natSessionsNat64(ctx context.Context, req *vrxv1.NatSessionsRe
 		}
 		proto = p
 	}
-	page, err := natvariants.ListNat64(ctx, nat64.New(s.vpp, s.owner), nat64BIB{s.vpp}, natcommon.ScopeFor(s.owner), proto, int(req.GetOffset()), limit, natScanCap)
+	page, err := natvariants.ListNat64(ctx, nat64.New(s.vpp, s.owner), nat64BIB{s.vpp}, natcommon.ScopeFor(s.owner), proto, int(req.GetOffset()), limit, natCaps.ScanCap)
 	if err != nil {
 		return nil, natErr("nat64 sessions", err)
 	}

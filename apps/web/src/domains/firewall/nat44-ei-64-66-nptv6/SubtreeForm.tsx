@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { problemFor } from '../../interfaces/InterfaceDrawer';
-import { createMergePatch, dropPhantomOptionals } from '../../interfaces/model';
+import { createMergePatch } from '../../interfaces/model';
 import { useCandidateInterfaces } from '../../interfaces/queries';
 import { NAT_POINTER } from '../nat44-ed-sessions/model';
 import { useCandidateNat, usePatchNat } from '../nat44-ed-sessions/queries';
@@ -42,7 +42,7 @@ export function SubtreeForm({ subtree }: { subtree: Subtree }) {
   const save = async (value: unknown) => {
     setSaved(false);
     const base = opened ?? {};
-    const cleaned = dropPhantomOptionals(schema, base, value);
+    const cleaned = value as Record<string, unknown>; // WEB-1: no dropPhantomOptionals (deprecated no-op)
     const inner = createMergePatch(base, cleaned) as Record<string, unknown>;
     if (Object.keys(inner).length === 0) {
       setSaved(true);
@@ -50,7 +50,7 @@ export function SubtreeForm({ subtree }: { subtree: Subtree }) {
     }
     try {
       await patch.mutateAsync({ [subtree]: inner });
-      setOpened(cleaned as Record<string, unknown>);
+      setOpened(cleaned);
       setSaved(true);
     } catch {
       // shown from patch.error

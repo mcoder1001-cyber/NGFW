@@ -5,6 +5,7 @@
   "saved": "در پیش‌نویس ذخیره شد. برای اعمال، Commit کنید.",
   "cancel": "انصراف",
   "readonly": "نقش شما اجازهٔ مشاهده دارد، نه تغییر NAT.",
+  "refresh": "تازه‌سازی",
   "tab": {
     "ei": "NAT44-EI",
     "nat64": "NAT64",
@@ -42,7 +43,8 @@
     "static": "ایستا",
     "filter": "پالایهٔ نشست‌ها",
     "total": "{{sessions}} نشست از {{users}} میزبان داخلی",
-    "truncated": "شمارش در سقف پیمایش عامل متوقف شد"
+    "truncated": "شمارش در سقف پیمایش عامل متوقف شد",
+    "manualRefresh": "تازه‌سازی دستی (پالایه، عامل را به پیمایش نشست‌ها وامی‌دارد)"
   },
   "filter": {
     "inside": "نشانی داخلی",
@@ -85,32 +87,80 @@
     "writeOnly": "اعمال‌شده (فقط‌نوشتنی)"
   },
   "field": {
-    "enabled": { "title": "فعال" },
-    "inside": { "title": "داخلی" },
-    "outside": { "title": "بیرونی" },
-    "prefixes": { "title": "پیشوندهای NAT64" },
+    "enabled": {
+      "title": "فعال"
+    },
+    "inside": {
+      "title": "داخلی"
+    },
+    "outside": {
+      "title": "بیرونی"
+    },
+    "prefixes": {
+      "title": "پیشوندهای NAT64"
+    },
     "prefix": {
       "title": "پیشوند NAT64",
       "help": "طول‌های RFC 6052 یعنی 32/40/48/56/64/96؛ 64:ff9b::/96 پیشوند شناخته‌شده است"
     },
-    "vrf": { "title": "VRF" },
-    "pools": { "title": "Poolهای IPv4" },
-    "range": { "title": "بازهٔ نشانی", "help": "10.0.0.10-10.0.0.20 یا یک نشانی" },
-    "staticBibs": { "title": "ورودی‌های ایستای BIB" },
-    "description": { "title": "توضیح" },
-    "protocol": { "title": "پروتکل" },
-    "ip": { "title": "نشانی" },
-    "port": { "title": "پورت" },
-    "timeouts": { "title": "مهلت نشست‌ها (ثانیه)" },
-    "udp": { "title": "UDP" },
-    "tcpEstablished": { "title": "TCP برقرارشده" },
-    "tcpTransitory": { "title": "TCP گذرا" },
-    "icmp": { "title": "ICMP" },
-    "staticMappings": { "title": "نگاشت‌های ایستا" },
-    "local": { "title": "نشانی محلی" },
-    "external": { "title": "بیرونی" },
-    "bindings": { "title": "اتصال‌ها" },
-    "interface": { "title": "واسط" },
-    "internal": { "title": "پیشوند داخلی", "help": "پیشوند شبکه، با بیت‌های میزبان صفر" }
+    "vrf": {
+      "title": "VRF"
+    },
+    "pools": {
+      "title": "Poolهای IPv4"
+    },
+    "range": {
+      "title": "بازهٔ نشانی",
+      "help": "10.0.0.10-10.0.0.20 یا یک نشانی"
+    },
+    "staticBibs": {
+      "title": "ورودی‌های ایستای BIB"
+    },
+    "description": {
+      "title": "توضیح"
+    },
+    "protocol": {
+      "title": "پروتکل"
+    },
+    "ip": {
+      "title": "نشانی"
+    },
+    "port": {
+      "title": "پورت"
+    },
+    "timeouts": {
+      "title": "مهلت نشست‌ها (ثانیه)"
+    },
+    "udp": {
+      "title": "UDP"
+    },
+    "tcpEstablished": {
+      "title": "TCP برقرارشده"
+    },
+    "tcpTransitory": {
+      "title": "TCP گذرا"
+    },
+    "icmp": {
+      "title": "ICMP"
+    },
+    "staticMappings": {
+      "title": "نگاشت‌های ایستا"
+    },
+    "local": {
+      "title": "نشانی محلی"
+    },
+    "external": {
+      "title": "بیرونی"
+    },
+    "bindings": {
+      "title": "اتصال‌ها"
+    },
+    "interface": {
+      "title": "واسط"
+    },
+    "internal": {
+      "title": "پیشوند داخلی",
+      "help": "پیشوند شبکه، با بیت‌های میزبان صفر"
+    }
   }
 }

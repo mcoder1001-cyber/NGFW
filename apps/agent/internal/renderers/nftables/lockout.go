@@ -90,7 +90,11 @@ func (b *builder) checkLockout(chains []*chainPlan) {
 			b.warnf(pointer, RuleLockoutShadow, "%s would be dropped by %s, but the anti-lockout rule (acl.hostSettings.antiLockout) accepts it first", p, what)
 			return
 		}
-		b.errorf(pointer, RuleAntiLockout, "%s would be dropped by %s: the anti-lockout rule is off (acl.hostSettings.antiLockout.enabled), so the rules must accept management traffic before any drop — add an accept rule in front, narrow this one, or turn the anti-lockout rule on", p, what)
+		hint := ""
+		if len(b.lockout.sources) == 0 {
+			hint = "; with no acl.hostSettings.antiLockout.sources every source counts as management — set them to your management network"
+		}
+		b.errorf(pointer, RuleAntiLockout, "%s would be dropped by %s: the anti-lockout rule is off (acl.hostSettings.antiLockout.enabled), so the rules must accept management traffic before any drop — add an accept rule in front, narrow this one, or turn the anti-lockout rule on (matches through FQDN objects never count as protection)%s", p, what, hint)
 	}
 	for _, p := range b.probes() {
 		if r, c := dropperOf(chains, p, false); c != nil {
@@ -185,6 +189,9 @@ func srcRel(m addrMatch, family int, src netip.Prefix) rel {
 	if !m.on {
 		return relFull
 	}
+	if m.dynamic {
+		return relPartial // DNS answers: may or may not match, never protects (M2)
+	}
 	best := relNone
 	for _, q := range familyList(m, family) {
 		if q.Bits() <= src.Bits() && q.Contains(src.Addr()) {
@@ -201,6 +208,9 @@ func srcRel(m addrMatch, family int, src netip.Prefix) rel {
 func dstRel(m addrMatch, family int) rel {
 	if !m.on {
 		return relFull
+	}
+	if m.dynamic {
+		return relPartial
 	}
 	list := familyList(m, family)
 	if len(list) == 0 {

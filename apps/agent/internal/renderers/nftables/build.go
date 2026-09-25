@@ -149,6 +149,9 @@ func Build(in Input) (*HostTable, []Issue) {
 	for _, c := range chains {
 		ch := &Chain{Name: c.name, Hook: c.hook, Priority: c.priority, Policy: c.policy}
 		for _, r := range c.rules {
+			if r.ghost {
+				continue
+			}
 			ch.Rules = append(ch.Rules, r.toRule())
 			for _, s := range r.sets() {
 				used[s] = true
@@ -301,7 +304,13 @@ type addrMatch struct {
 	on     bool
 	object string         // "" for literal prefixes
 	p4, p6 []netip.Prefix // elements (literal: the prefixes)
+	// dynamic: the object is, or contains, an FQDN address object — its elements are the resolver's current
+	// answers, so the anti-lockout check never relies on them (fix round 1, M2).
+	dynamic bool
 }
+
+// canMatch: m may match family f at some time (it does now, or it follows DNS answers).
+func (m addrMatch) canMatch(f int) bool { return m.has(f) || m.dynamic }
 
 func (m addrMatch) has(family int) bool {
 	if !m.on {
@@ -354,6 +363,9 @@ type nrule struct {
 	dports   []uint16  // anti-lockout: tcp dport set
 	log      bool
 	verdict  string
+	// ghost: not rendered — a family variant of a rule whose FQDN-bearing object has no answer of that
+	// family now; it exists only for the anti-lockout simulation, which must not depend on DNS (M2).
+	ghost bool
 }
 
 func (r *nrule) sets() []string {
@@ -607,7 +619,7 @@ func (b *builder) chainRules(cr *configRule) []*nrule {
 	}
 	base := nrule{id: fmt.Sprintf("%s:%d", cr.list, r.GetSequence()), kind: KindRule, list: cr.list, seq: r.GetSequence(),
 		pointer: pt, ifaces: ifaces, src: src, dst: dst, log: r.GetLog(), verdict: verdict}
-	var rules []*nrule
+	var rules, ghosts []*nrule
 	add := func(family int, nfproto bool, g svcGroup) {
 		nr := base
 		nr.family, nr.nfproto, nr.n = family, nfproto, len(rules)
@@ -631,21 +643,49 @@ func (b *builder) chainRules(cr *configRule) []*nrule {
 		}
 	} else {
 		for _, f := range fams {
-			if !src.has(f) || !dst.has(f) {
+			rendered := src.has(f) && dst.has(f)
+			if !rendered && (!src.canMatch(f) || !dst.canMatch(f)) {
 				continue
 			}
 			for _, g := range groups {
 				if gf := g.family(); gf != 0 && gf != f {
 					continue
 				}
-				add(f, false, g)
+				if rendered {
+					add(f, false, g)
+					continue
+				}
+				gr := base
+				gr.family, gr.ghost = f, true
+				if g.proto != objects.ProtoAny {
+					gg := g
+					gr.svc = &gg
+				}
+				ghosts = append(ghosts, &gr)
 			}
 		}
 	}
 	if len(rules) == 0 {
 		b.warnf(pt, RuleEmpty, "the rule matches no packet (address families of its source, destination and service do not meet) and is not rendered")
 	}
-	return rules
+	return append(rules, ghosts...) // ghosts last: same verdict, same place among the other rules
+}
+
+// fqdnBearing reports whether address object or group name is, or contains, an FQDN address object.
+func (b *builder) fqdnBearing(name string, seen map[string]bool) bool {
+	if seen[name] {
+		return false
+	}
+	seen[name] = true
+	if a, ok := b.in.Objects.GetAddresses()[name]; ok {
+		return a.GetType() == "fqdn"
+	}
+	for _, m := range b.in.Objects.GetAddressGroups()[name].GetMembers() {
+		if b.fqdnBearing(m, seen) {
+			return true
+		}
+	}
+	return false
 }
 
 // expansion is one address object expanded once per Build.
@@ -679,7 +719,7 @@ func (b *builder) addr(m *vrxv1.AddressMatch, pt string) (addrMatch, bool) {
 		if e.err != nil {
 			return addrMatch{}, false
 		}
-		return addrMatch{on: true, object: name, p4: e.v4, p6: e.v6}, true
+		return addrMatch{on: true, object: name, p4: e.v4, p6: e.v6, dynamic: b.fqdnBearing(name, map[string]bool{})}, true
 	default:
 		b.errorf(pt+"/kind", RuleRule, "address match kind %q is not any, prefix or object", m.GetKind())
 		return addrMatch{}, false

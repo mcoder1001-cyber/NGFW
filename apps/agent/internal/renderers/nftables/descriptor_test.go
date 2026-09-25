@@ -391,7 +391,7 @@ func TestPathsFromEnv(t *testing.T) {
 	if err := (Paths{Table: "vrx", Mode: ModeApply, RulesFile: "/a", StoreFile: "/b"}).Validate("vrx", false); err == nil {
 		t.Error("apply without the globals owner accepted by Validate")
 	}
-// Only the product owner's table ever goes into the root netns, whatever builds the paths.
+	// Only the product owner's table ever goes into the root netns, whatever builds the paths.
 	if err := (Paths{Table: "vrx_w9", Mode: ModeApply, RulesFile: "/a", StoreFile: "/b"}).Validate("w9", true); err == nil {
 		t.Error("apply of a slot table in the root netns accepted")
 	}

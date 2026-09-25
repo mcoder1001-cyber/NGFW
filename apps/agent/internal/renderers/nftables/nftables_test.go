@@ -377,7 +377,7 @@ func TestAntiLockout(t *testing.T) {
 			t.Errorf("%s: unexpected %+v", c.name, got)
 		case c.wantRule != "" && (len(got) != 1 || got[0].Rule != c.wantRule || got[0].Pointer != c.wantPointer):
 			t.Errorf("%s: want %s at %s, got %+v", c.name, c.wantRule, c.wantPointer, got)
-		case c.wantRule == RuleAntiLockout && !strings.Contains(got[0].Message, "management TCP"):
+		case c.wantRule == RuleAntiLockout && (!strings.Contains(got[0].Message, "management TCP") || strings.Contains(got[0].Message, "set them to your management network")):
 			t.Errorf("%s: message %q", c.name, got[0].Message)
 		}
 		if v == nil {
@@ -409,26 +409,26 @@ func TestAntiLockoutAcrossChains(t *testing.T) {
 
 func TestBuildErrors(t *testing.T) {
 	cases := map[string]struct{ doc, pointer, rule string }{
-		"unknown list":      {`{"acl": {"hostAttachments": [{"list": "nope", "chain": "input"}]}}`, "/acl/hostAttachments/0/list", RuleAttachment},
-		"bad chain":         {`{"acl": {"host": {"l": {}}, "hostAttachments": [{"list": "l", "chain": "prerouting"}]}}`, "/acl/hostAttachments/0/chain", RuleAttachment},
-		"priority":          {`{"acl": {"host": {"l": {}}, "hostAttachments": [{"list": "l", "chain": "input", "priority": 900}]}}`, "/acl/hostAttachments/0/priority", RuleAttachment},
+		"unknown list": {`{"acl": {"hostAttachments": [{"list": "nope", "chain": "input"}]}}`, "/acl/hostAttachments/0/list", RuleAttachment},
+		"bad chain":    {`{"acl": {"host": {"l": {}}, "hostAttachments": [{"list": "l", "chain": "prerouting"}]}}`, "/acl/hostAttachments/0/chain", RuleAttachment},
+		"priority":     {`{"acl": {"host": {"l": {}}, "hostAttachments": [{"list": "l", "chain": "input", "priority": 900}]}}`, "/acl/hostAttachments/0/priority", RuleAttachment},
 		// H1 (fix round 1): an output chain at priority <= -200 runs before conntrack (NF_IP_PRI_CONNTRACK): its
 		// `ct state established,related accept` never matches and a drop cuts management replies.
 		"output before conntrack": {`{"acl": {"host": {"eg": {"rules": [{"sequence": 1, "action": "drop"}]}}, "hostAttachments": [{"list": "eg", "chain": "output", "priority": -300}]}}`, "/acl/hostAttachments/0/priority", RuleAttachment},
 		"output at conntrack":     {`{"acl": {"host": {"eg": {}}, "hostAttachments": [{"list": "eg", "chain": "output", "priority": -200}]}}`, "/acl/hostAttachments/0/priority", RuleAttachment},
-		"twice on a chain":  {`{"acl": {"host": {"l": {}}, "hostAttachments": [{"list": "l", "chain": "input"}, {"list": "l", "chain": "input", "priority": 5}]}}`, "/acl/hostAttachments/1/chain", RuleAttachment},
-		"unknown object":    {`{"objects": {}, "acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "source": {"kind": "object", "name": "x"}}]}}, "hostAttachments": [{"list": "l", "chain": "input"}]}}`, "/acl/host/l/rules/0/source/name", RuleObject},
-		"unknown service":   {`{"objects": {}, "acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "service": {"kind": "object", "name": "x"}}]}}, "hostAttachments": [{"list": "l", "chain": "input"}]}}`, "/acl/host/l/rules/0/service/name", RuleObject},
-		"bad action":        {`{"acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "permit"}]}}, "hostAttachments": [{"list": "l", "chain": "input"}]}}`, "/acl/host/l/rules/0/action", RuleRule},
-		"sequence twice":    {`{"acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop"}, {"sequence": 1, "action": "drop"}]}}}}`, "/acl/host/l/rules/1/sequence", RuleRule},
-		"default input":     {`{"acl": {"hostSettings": {"defaultInput": "reject"}}}`, "/acl/hostSettings/defaultInput", RuleSettings},
-		"lockout port":      {`{"acl": {"hostSettings": {"antiLockout": {"ports": [70000]}}}}`, "/acl/hostSettings/antiLockout/ports/0", RuleSettings},
-		"lockout source":    {`{"acl": {"hostSettings": {"antiLockout": {"sources": ["10.0.0.0/33"]}}}}`, "/acl/hostSettings/antiLockout/sources/0", RuleSettings},
-		"inline bad port":   {`{"acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "service": {"kind": "inline", "spec": {"protocol": "tcp", "destinationPorts": ["0"]}}}]}}}}`, "/acl/host/l/rules/0/service/spec", RuleObject},
-		"expansion limit":   {limitDoc(), "/acl/host/l/rules/0/source/name", RuleLimit},
-		"address kind":      {`{"acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "source": {"kind": "zone"}}]}}}}`, "/acl/host/l/rules/0/source/kind", RuleRule},
-		"ip version":        {`{"acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "ipVersion": "ipv5"}]}}, "hostAttachments": [{"list": "l", "chain": "input"}]}}`, "/acl/host/l/rules/0/ipVersion", RuleRule},
-		"no objects at all": {`{"acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "source": {"kind": "object", "name": "x"}}]}}, "hostAttachments": [{"list": "l", "chain": "input"}]}}`, "/acl/host/l/rules/0/source/name", RuleObject},
+		"twice on a chain":        {`{"acl": {"host": {"l": {}}, "hostAttachments": [{"list": "l", "chain": "input"}, {"list": "l", "chain": "input", "priority": 5}]}}`, "/acl/hostAttachments/1/chain", RuleAttachment},
+		"unknown object":          {`{"objects": {}, "acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "source": {"kind": "object", "name": "x"}}]}}, "hostAttachments": [{"list": "l", "chain": "input"}]}}`, "/acl/host/l/rules/0/source/name", RuleObject},
+		"unknown service":         {`{"objects": {}, "acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "service": {"kind": "object", "name": "x"}}]}}, "hostAttachments": [{"list": "l", "chain": "input"}]}}`, "/acl/host/l/rules/0/service/name", RuleObject},
+		"bad action":              {`{"acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "permit"}]}}, "hostAttachments": [{"list": "l", "chain": "input"}]}}`, "/acl/host/l/rules/0/action", RuleRule},
+		"sequence twice":          {`{"acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop"}, {"sequence": 1, "action": "drop"}]}}}}`, "/acl/host/l/rules/1/sequence", RuleRule},
+		"default input":           {`{"acl": {"hostSettings": {"defaultInput": "reject"}}}`, "/acl/hostSettings/defaultInput", RuleSettings},
+		"lockout port":            {`{"acl": {"hostSettings": {"antiLockout": {"ports": [70000]}}}}`, "/acl/hostSettings/antiLockout/ports/0", RuleSettings},
+		"lockout source":          {`{"acl": {"hostSettings": {"antiLockout": {"sources": ["10.0.0.0/33"]}}}}`, "/acl/hostSettings/antiLockout/sources/0", RuleSettings},
+		"inline bad port":         {`{"acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "service": {"kind": "inline", "spec": {"protocol": "tcp", "destinationPorts": ["0"]}}}]}}}}`, "/acl/host/l/rules/0/service/spec", RuleObject},
+		"expansion limit":         {limitDoc(), "/acl/host/l/rules/0/source/name", RuleLimit},
+		"address kind":            {`{"acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "source": {"kind": "zone"}}]}}}}`, "/acl/host/l/rules/0/source/kind", RuleRule},
+		"ip version":              {`{"acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "ipVersion": "ipv5"}]}}, "hostAttachments": [{"list": "l", "chain": "input"}]}}`, "/acl/host/l/rules/0/ipVersion", RuleRule},
+		"no objects at all":       {`{"acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "source": {"kind": "object", "name": "x"}}]}}, "hostAttachments": [{"list": "l", "chain": "input"}]}}`, "/acl/host/l/rules/0/source/name", RuleObject},
 	}
 	for name, c := range cases {
 		_, issues := build(t, doc(t, c.doc))
@@ -489,4 +489,64 @@ func TestGoldenDocsExample(t *testing.T) {
 		t.Fatal(err)
 	}
 	golden(t, "docs-example", text)
+}
+
+// M2 (fix round 1): the anti-lockout check is a pure function of the configuration, never of DNS answers,
+// so a config accepted at commit cannot fail a later resync (which would apply nothing for every domain).
+// An accept through an FQDN-bearing object never counts as protecting management; a drop through one
+// counts as possibly matching it.
+func TestAntiLockoutIgnoresFQDNAnswers(t *testing.T) {
+	const objs = `"objects": {"addresses": {"noc": {"type": "fqdn", "fqdn": "noc.example.net"}, "far": {"type": "fqdn", "fqdn": "far.example.net"}},
+	  "addressGroups": {"admins": {"members": ["noc"]}}}`
+	resolved := func(name string) ([]netip.Addr, bool) {
+		switch name {
+		case "noc":
+			return []netip.Addr{netip.MustParseAddr("10.0.0.5")}, true
+		case "far":
+			return []netip.Addr{netip.MustParseAddr("203.0.113.9")}, true
+		}
+		return nil, false
+	}
+	const lockoutOff = `"hostSettings": {"defaultInput": "drop", "antiLockout": {"enabled": false, "sources": ["10.0.0.5/32"], "ports": [22]}}`
+	cases := map[string]struct {
+		rules, pointer string
+	}{
+		// only an FQDN accept admits management: refused whatever the resolver answers
+		"fqdn accept":       {`{"sequence": 1, "action": "accept", "source": {"kind": "object", "name": "admins"}}`, "/acl/hostSettings/defaultInput"},
+		"fqdn accept (dst)": {`{"sequence": 1, "action": "accept", "destination": {"kind": "object", "name": "noc"}}`, "/acl/hostSettings/defaultInput"},
+		// a drop through an FQDN object may match management once the answer changes: refused now
+		"fqdn drop": {`{"sequence": 1, "action": "accept", "source": {"kind": "prefix", "prefix": "10.0.0.0/24"}, "service": {"kind": "inline", "spec": {"protocol": "tcp", "destinationPorts": ["443"]}}},
+		  {"sequence": 2, "action": "drop", "source": {"kind": "object", "name": "far"}}, {"sequence": 3, "action": "accept", "source": {"kind": "prefix", "prefix": "10.0.0.0/24"}}`, "/acl/host/l/rules/1"},
+	}
+	for name, c := range cases {
+		ds := doc(t, `{`+objs+`, "acl": {"host": {"l": {"rules": [`+c.rules+`]}}, "hostAttachments": [{"list": "l", "chain": "input"}], `+lockoutOff+`}}`)
+		for _, lookup := range []struct {
+			label string
+			f     func(string) ([]netip.Addr, bool)
+		}{{"resolved", resolved}, {"unresolved", nil}} {
+			_, issues := Build(Input{ACL: ds.GetAcl(), Objects: ds.GetObjects(), FQDN: lookup.f})
+			var got []string
+			for _, is := range errorsOf(issues) {
+				got = append(got, is.Rule+" "+is.Pointer)
+			}
+			if want := []string{RuleAntiLockout + " " + c.pointer}; !slices.Equal(got, want) {
+				t.Errorf("%s (%s): got %v, want %v", name, lookup.label, got, want)
+			}
+		}
+	}
+	// With the anti-lockout rule on, the same configs render (warnings only).
+	ds := doc(t, `{`+objs+`, "acl": {"host": {"l": {"rules": [`+cases["fqdn accept"].rules+`]}}, "hostAttachments": [{"list": "l", "chain": "input"}], "hostSettings": {"defaultInput": "drop", "antiLockout": {"sources": ["10.0.0.5/32"], "ports": [22]}}}}`)
+	if v, issues := Build(Input{ACL: ds.GetAcl(), Objects: ds.GetObjects(), FQDN: resolved}); v == nil || len(errorsOf(issues)) != 0 {
+		t.Errorf("anti-lockout on: %+v", issues)
+	}
+}
+
+// L1 (fix round 1): with no anti-lockout sources the advice to narrow the rule cannot help — say so.
+func TestAntiLockoutMessageWithoutSources(t *testing.T) {
+	_, issues := build(t, doc(t, `{"acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "source": {"kind": "prefix", "prefix": "198.51.100.7/32"}, "service": {"kind": "inline", "spec": {"protocol": "tcp", "destinationPorts": ["22"]}}}]}},
+	  "hostAttachments": [{"list": "l", "chain": "input"}], "hostSettings": {"antiLockout": {"enabled": false}}}}`))
+	errs := errorsOf(issues)
+	if len(errs) != 1 || !strings.Contains(errs[0].Message, "set them to your management network") {
+		t.Fatalf("%+v", errs)
+	}
 }

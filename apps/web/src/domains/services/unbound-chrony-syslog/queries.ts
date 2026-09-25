@@ -79,51 +79,58 @@ export function useDnsLookup() {
   });
 }
 
-/** A candidate node by path (`services/dns`, `services/ntp`, `management`). */
-export function useCandidate<T>(path: string) {
+type Json = Record<string, unknown>;
+
+async function fetchDomain(domain: string, signal: AbortSignal): Promise<Json> {
+  const r = await call(
+    api.GET('/api/v1/config/candidate/{path}', { params: { path: { path: domain } }, signal }),
+  );
+  return (r.data ?? {}) as Json;
+}
+
+/**
+ * One key of a candidate domain (`services` → `dns`, `ntp`; `management` → `syslog`). The pointer routes take one path
+ * segment through openapi-fetch (a nested pointer would be URL-encoded, D-P07b-5), so reads and writes go through the
+ * domain node; the query key is the domain's, shared with every other screen of that domain.
+ */
+export function useCandidateNode<T>(domain: 'services' | 'management', key: string) {
   return useQuery({
-    queryKey: qk.candidate(path),
-    queryFn: async ({ signal }) =>
-      (
-        await call(
-          api.GET('/api/v1/config/candidate/{path}', { params: { path: { path } }, signal }),
-        )
-      ).data as T,
+    queryKey: qk.candidate(domain),
+    queryFn: ({ signal }) => fetchDomain(domain, signal),
+    select: (d: Json) => d[key] as T | undefined,
   });
 }
 
-/** The candidate node right now (never write back a snapshot up to one poll old). */
-export function useFreshCandidate<T>(path: string) {
+/** The same node right now (never write back a snapshot up to one poll old). */
+export function useFreshNode<T>(domain: 'services' | 'management', key: string) {
   const qc = useQueryClient();
-  return () =>
-    qc.fetchQuery({
-      queryKey: qk.candidate(path),
-      queryFn: async ({ signal }) =>
-        (
-          await call(
-            api.GET('/api/v1/config/candidate/{path}', { params: { path: { path } }, signal }),
-          )
-        ).data as T,
-      staleTime: 0,
-    });
+  return async (): Promise<T | undefined> =>
+    (
+      await qc.fetchQuery({
+        queryKey: qk.candidate(domain),
+        queryFn: ({ signal }) => fetchDomain(domain, signal),
+        staleTime: 0,
+      })
+    )[key] as T | undefined;
 }
 
-/** A merge patch of one candidate node (the generic pointer route; RFC 7396 — `null` deletes a member). */
-export function usePatchCandidate(path: string) {
+/** An RFC 7396 merge patch of one candidate domain (the generic pointer route). */
+export function usePatchDomain(domain: 'services' | 'management') {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (patch: Record<string, unknown>) =>
-      call(api.PATCH('/api/v1/config/{path}', { params: { path: { path } }, body: patch })),
+    mutationFn: async (patch: Json) =>
+      call(api.PATCH('/api/v1/config/{path}', { params: { path: { path: domain } }, body: patch })),
     onSettled: () => invalidateConfig(qc),
   });
 }
 
-/** Replace one candidate node (PUT on the pointer route: lists such as management/syslog are replaced whole). */
-export function usePutCandidate(path: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (value: unknown) =>
-      call(api.PUT('/api/v1/config/{path}', { params: { path: { path } }, body: value as never })),
-    onSettled: () => invalidateConfig(qc),
-  });
+const isObj = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** The merge patch that turns `before` into exactly `after` (members `after` dropped become `null`; arrays replace). */
+export function replacePatch(before: unknown, after: unknown): unknown {
+  if (!isObj(before) || !isObj(after)) return after;
+  const out: Json = {};
+  for (const [k, v] of Object.entries(after)) out[k] = k in before ? replacePatch(before[k], v) : v;
+  for (const k of Object.keys(before)) if (!(k in after)) out[k] = null;
+  return out;
 }

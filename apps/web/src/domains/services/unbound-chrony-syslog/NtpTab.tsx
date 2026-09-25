@@ -15,9 +15,14 @@ import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { DaemonStatus, PendingActions, StateProblem } from './common';
 import { fieldKey, NS, ntpSchema, problemUnder, seconds, SOURCE_STATES } from './model';
-import { useCandidate, useNtpState, usePutCandidate, type ServicesNtpConfig } from './queries';
+import {
+  replacePatch,
+  useCandidateNode,
+  useNtpState,
+  usePatchDomain,
+  type ServicesNtpConfig,
+} from './queries';
 
-const NTP_PATH = 'services/ntp';
 const DAEMON = 'chronyd';
 const NTP_POINTER = '/services/ntp';
 
@@ -29,9 +34,9 @@ const NTP_POINTER = '/services/ntp';
 export default function NtpTab() {
   const { t } = useTranslation([NS, 'config']);
   const perms = usePermissions();
-  const cand = useCandidate<ServicesNtpConfig>(NTP_PATH);
+  const cand = useCandidateNode<ServicesNtpConfig>('services', 'ntp');
   const state = useNtpState();
-  const put = usePutCandidate(NTP_PATH);
+  const put = usePatchDomain('services');
   const schema = useMemo(() => ntpSchema(), []);
   const st = state.data;
   const tr = st?.tracking;
@@ -59,7 +64,9 @@ export default function NtpTab() {
                 value={cand.data}
                 readOnly={!perms.editConfig}
                 onSubmit={async (value) => {
-                  await put.mutateAsync(value).catch(() => undefined);
+                  await put
+                    .mutateAsync({ ntp: replacePatch(cand.data, value) })
+                    .catch(() => undefined);
                 }}
                 problem={problemUnder(put.error, NTP_POINTER)}
                 translateLabel={(p, f) => t(fieldKey('ntp', p), { defaultValue: f })}

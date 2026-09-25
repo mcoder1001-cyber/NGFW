@@ -42,16 +42,15 @@ import {
 } from './model';
 import {
   fetchLogs,
-  useCandidate,
-  useFreshCandidate,
-  usePutCandidate,
+  useCandidateNode,
+  useFreshNode,
+  usePatchDomain,
   useSyslogState,
   ucsKeys,
   type LogEntry,
   type SyslogTarget,
 } from './queries';
 
-const SYSLOG_PATH = 'management/syslog';
 const DAEMON = 'rsyslogd';
 
 type Row = LogEntry & { id: string };
@@ -64,10 +63,10 @@ type Row = LogEntry & { id: string };
 export default function LoggingTab() {
   const { t } = useTranslation([NS, 'config']);
   const perms = usePermissions();
-  const cand = useCandidate<SyslogTarget[]>(SYSLOG_PATH);
-  const fresh = useFreshCandidate<SyslogTarget[]>(SYSLOG_PATH);
+  const cand = useCandidateNode<SyslogTarget[]>('management', 'syslog');
+  const fresh = useFreshNode<SyslogTarget[]>('management', 'syslog');
   const state = useSyslogState();
-  const put = usePutCandidate(SYSLOG_PATH);
+  const put = usePatchDomain('management');
   const [editing, setEditing] = useState<{ index: number; value: SyslogTarget | null } | null>(
     null,
   );
@@ -76,7 +75,7 @@ export default function LoggingTab() {
   const st = state.data;
 
   const save = async (next: SyslogTarget[]) => {
-    await put.mutateAsync(next);
+    await put.mutateAsync({ syslog: next });
   };
   const submit = async (value: unknown) => {
     if (!editing) return;

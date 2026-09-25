@@ -28,16 +28,16 @@ import { ProblemAlert } from '../../../config/ProblemAlert';
 import { DaemonStatus, PendingActions, StateProblem } from './common';
 import { fieldKey, NS, problemUnder, resolverSchema, vppCacheSchema } from './model';
 import {
-  useCandidate,
+  replacePatch,
+  useCandidateNode,
   useDnsLookup,
   useDnsState,
-  useFreshCandidate,
-  usePatchCandidate,
+  useFreshNode,
+  usePatchDomain,
   type DnsResolver,
   type ServicesDnsConfig,
 } from './queries';
 
-const DNS_PATH = 'services/dns';
 const DAEMON = 'unbound';
 const CACHE_POINTER = '/services/dns/vppCache';
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/;
@@ -51,10 +51,10 @@ const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/;
 export default function DnsTab() {
   const { t } = useTranslation([NS, 'config']);
   const perms = usePermissions();
-  const cand = useCandidate<ServicesDnsConfig>(DNS_PATH);
-  const fresh = useFreshCandidate<ServicesDnsConfig>(DNS_PATH);
+  const cand = useCandidateNode<ServicesDnsConfig>('services', 'dns');
+  const fresh = useFreshNode<ServicesDnsConfig>('services', 'dns');
   const state = useDnsState();
-  const patch = usePatchCandidate(DNS_PATH);
+  const patch = usePatchDomain('services');
   const [editing, setEditing] = useState<{ name: string; value: DnsResolver | null } | null>(null);
   const [newName, setNewName] = useState('');
   const [cacheOpen, setCacheOpen] = useState(false);
@@ -67,14 +67,27 @@ export default function DnsTab() {
   const names = Object.keys(resolvers).sort();
   const st = state.data;
   const zonesUp = new Set((st?.localZones ?? []).map((z) => z.zone));
+  // the configured local zones (absolute, lower case): unbound's built-in zones (localhost, RFC 6761 reverse zones)
+  // are not shown
+  const configured = names.flatMap((n) =>
+    resolvers[n]!.localZones.map((z) =>
+      (z.zone.endsWith('.') ? z.zone : `${z.zone}.`).toLowerCase(),
+    ),
+  );
+  const inConfigured = (name: string) =>
+    configured.some((z) => name === z || name.endsWith(`.${z}`));
+  const liveZones = (st?.localZones ?? []).filter((z) => inConfigured(z.zone));
+  const liveData = (st?.localData ?? []).filter((l) => inConfigured(l.split(' ')[0] ?? ''));
 
   const submit = async (value: unknown) => {
     if (!editing) return;
     const name = editing.value ? editing.name : newName.trim();
-    const current = (await fresh()).resolvers ?? {};
+    const current = (await fresh())?.resolvers ?? {};
     if (!editing.value && name in current) return;
     try {
-      await patch.mutateAsync({ resolvers: { [name]: value } });
+      await patch.mutateAsync({
+        dns: { resolvers: { [name]: replacePatch(current[name], value) } },
+      });
       setEditing(null);
     } catch {
       // shown from patch.error on the form
@@ -82,7 +95,7 @@ export default function DnsTab() {
   };
 
   const remove = (name: string) =>
-    void patch.mutateAsync({ resolvers: { [name]: null } }).catch(() => undefined);
+    void patch.mutateAsync({ dns: { resolvers: { [name]: null } } }).catch(() => undefined);
 
   return (
     <Box>
@@ -195,7 +208,7 @@ export default function DnsTab() {
         </Table>
       </TableContainer>
 
-      {st && (st.forwards.length > 0 || st.localZones.length > 0) && (
+      {st && (st.forwards.length > 0 || liveZones.length > 0) && (
         <Box sx={{ mb: 3 }}>
           <Typography variant="h6" gutterBottom>
             {t('dns.live')}
@@ -208,29 +221,20 @@ export default function DnsTab() {
               variant="outlined"
             />
           ))}
-          {st.localZones
-            .filter(
-              (z) =>
-                names.length > 0 &&
-                z.type !== 'transparent' &&
-                !z.zone.endsWith('in-addr.arpa.') &&
-                !z.zone.endsWith('ip6.arpa.'),
-            )
-            .slice(0, 12)
-            .map((z) => (
-              <Chip
-                key={`z-${z.zone}`}
-                sx={{ mb: 1, marginInlineEnd: 1 }}
-                label={`${z.zone} (${z.type})`}
-              />
-            ))}
-          {st.localData.length > 0 && (
+          {liveZones.slice(0, 12).map((z) => (
+            <Chip
+              key={`z-${z.zone}`}
+              sx={{ mb: 1, marginInlineEnd: 1 }}
+              label={`${z.zone} (${z.type})`}
+            />
+          ))}
+          {liveData.length > 0 && (
             <Typography
               variant="body2"
               component="pre"
               sx={{ fontFamily: 'monospace', mt: 1, whiteSpace: 'pre-wrap' }}
             >
-              {st.localData.slice(0, 20).join('\n')}
+              {liveData.slice(0, 20).join('\n')}
             </Typography>
           )}
         </Box>
@@ -305,7 +309,9 @@ export default function DnsTab() {
             value={cand.data?.vppCache ?? undefined}
             onSubmit={async (value) => {
               try {
-                await patch.mutateAsync({ vppCache: value });
+                await patch.mutateAsync({
+                  dns: { vppCache: replacePatch(cand.data?.vppCache, value) },
+                });
                 setCacheOpen(false);
               } catch {
                 // shown on the form
@@ -321,7 +327,7 @@ export default function DnsTab() {
             <Button
               color="error"
               onClick={() =>
-                void patch.mutateAsync({ vppCache: null }).then(
+                void patch.mutateAsync({ dns: { vppCache: null } }).then(
                   () => setCacheOpen(false),
                   () => undefined,
                 )

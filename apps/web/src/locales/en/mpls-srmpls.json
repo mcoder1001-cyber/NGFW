@@ -160,8 +160,7 @@
         "help": "16–1048575"
       },
       "vrf": {
-        "title": "VRF",
-        "help": ""
+        "title": "VRF"
       },
       "prefix": {
         "title": "Prefix",
@@ -175,7 +174,6 @@
       },
       "paths": {
         "title": "Paths",
-        "help": "",
         "nextHop": {
           "title": "Next hop",
           "help": "next-hop address"
@@ -193,8 +191,7 @@
           "help": "1–255"
         },
         "vrf": {
-          "title": "Lookup VRF",
-          "help": ""
+          "title": "Lookup VRF"
         }
       },
       "l2Only": {
@@ -209,7 +206,6 @@
       },
       "segmentLists": {
         "title": "Segment lists",
-        "help": "",
         "labels": {
           "title": "Segments",
           "help": "segment labels, first segment first"
@@ -226,8 +222,7 @@
     },
     "steering": {
       "vrf": {
-        "title": "VRF",
-        "help": ""
+        "title": "VRF"
       },
       "prefix": {
         "title": "Prefix",

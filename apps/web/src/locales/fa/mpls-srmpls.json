@@ -160,8 +160,7 @@
         "help": "۱۶ تا ۱۰۴۸۵۷۵"
       },
       "vrf": {
-        "title": "VRF",
-        "help": ""
+        "title": "VRF"
       },
       "prefix": {
         "title": "پیشوند",
@@ -175,7 +174,6 @@
       },
       "paths": {
         "title": "مسیرها",
-        "help": "",
         "nextHop": {
           "title": "Next hop",
           "help": "نشانی next hop"
@@ -193,8 +191,7 @@
           "help": "۱ تا ۲۵۵"
         },
         "vrf": {
-          "title": "VRF جست‌وجو",
-          "help": ""
+          "title": "VRF جست‌وجو"
         }
       },
       "l2Only": {
@@ -209,7 +206,6 @@
       },
       "segmentLists": {
         "title": "فهرست‌های قطعه",
-        "help": "",
         "labels": {
           "title": "قطعه‌ها",
           "help": "برچسب‌های قطعه، اولین قطعه اول"
@@ -226,8 +222,7 @@
     },
     "steering": {
       "vrf": {
-        "title": "VRF",
-        "help": ""
+        "title": "VRF"
       },
       "prefix": {
         "title": "پیشوند",

@@ -55,7 +55,7 @@ function state(agent: FakeAgent, req: Partial<MplsStateRequest>) {
     limit: 0,
     ...req,
   };
-  return new Promise<{ err: Partial<ServiceError> | null; res?: MplsStateResponse }>((resolve) => {
+  return new Promise<{ err: Partial<ServiceError> | null; res?: MplsStateResponse | undefined }>((resolve) => {
     mplsState(
       { request } as never,
       ((err: Partial<ServiceError> | null, res?: MplsStateResponse) =>

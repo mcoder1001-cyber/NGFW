@@ -45,6 +45,8 @@ func MplsNeedsTableZero(m *vrxv1.MplsConfig) bool {
 			return true
 		}
 	}
+	// Needs added by later tasks (one condition each):
+	// wave-BC: F-mpls-ldp
 	return false
 }
 

@@ -464,6 +464,7 @@ export class AclService implements OnModuleInit {
         }
       }
     }
+    issues.sort((a, b) => a.line - b.line);
     const warnings = unknownReferences(candidate, rules).slice(0, 200);
     const result = {
       list: name,

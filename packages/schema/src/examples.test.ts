@@ -42,10 +42,41 @@ const GROUP_A: Record<string, Expectation> = {
   'invalid-semantic-no-admin.json': { semantic: '/management/users' },
 };
 
-/** File-name prefixes of the other groups' fixtures (optionally after `invalid-`). */
-const SIBLING = /^(?:invalid-)?(?:nat|objects|acl|vpn|tunnels|services|ha)-[a-z0-9-]+\.json$/;
+/** Group prefixes of the P02b/P02c fixtures. */
+const GROUPS = ['nat', 'objects', 'acl', 'vpn', 'tunnels', 'services', 'ha'];
+
+/**
+ * Feature rows' example files are named `<slug>-*.json` after their board id without `F-` (tech-debt: F-vrf-static-ecmp
+ * Q4, F-vlan-qinq Q3, F-bridge-l2 Q4, F-neighbors-ra Q5, F-loopback Q2; TD-22). The first word of a slug is accepted
+ * too (`loopback-*.json` for F-loopback-bvi-gso-lldp-span). Each feature tests its own fixtures; a file matching
+ * neither a group, a feature nor {@link GROUP_A} still fails.
+ */
+const FEATURE_SLUGS = [
+  'aaa', 'ab-upgrade', 'acl', 'backup-restore', 'bfd-redistribution', 'bonding', 'bridge-l2', 'capture-trace',
+  'dashboard-prom-alarms', 'det44-map-dslite-cnat', 'ha-state-sync', 'hardening-lite', 'host-acl-nftables', 'host-stack',
+  'igmp-mfib', 'ikev2-native', 'images', 'ipfix-sflow', 'isis-rip', 'kea-dhcp-relay', 'lb', 'licensing', 'lisp',
+  'loopback-bvi-gso-lldp-span', 'mpls-ldp', 'mpls-srmpls', 'nat44-ed-sessions', 'nat44-ei-64-66-nptv6', 'neighbors-ra',
+  'object-model', 'ospf', 'pki', 'qos-flat', 'ra-vpn', 'restconf-yang', 'rpf-adl-pbr', 'sdk-terraform-ansible', 'snmp',
+  'srv6', 'startup-apply', 'startup-gen', 'tunnels', 'unbound-chrony-syslog', 'vlan-qinq', 'vpp-debs', 'vrf-static-ecmp',
+  'vrrp-config-sync', 'wireguard',
+];
+
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const prefixes = [...new Set([...GROUPS, ...FEATURE_SLUGS, ...FEATURE_SLUGS.map((s) => s.split('-')[0]!)])];
+/** File names of the other groups' and the feature rows' fixtures (optionally after `invalid-`). */
+const SIBLING = new RegExp(`^(?:invalid-)?(?:${prefixes.map(escape).join('|')})-[a-z0-9-]+\\.json$`);
 
 const load = (file: string): unknown => JSON.parse(readFileSync(new URL(file, dir), 'utf8'));
+
+describe('SIBLING (TD-22)', () => {
+  it('accepts group and feature fixture names, rejects unknown prefixes and odd names', () => {
+    for (const f of ['nat-basic.json', 'invalid-vpn-inline-psk.json', 'vrf-static-ecmp-basic.json', 'vlan-qinq-semantic-invalid-tpid.json',
+      'bridge-l2-bvi.json', 'invalid-neighbors-ra-lifetime.json', 'loopback-bvi.json', 'loopback-bvi-gso-lldp-span-full.json'])
+      expect(SIBLING.test(f), f).toBe(true);
+    for (const f of ['typo-basic.json', 'nat.json', 'Nat-basic.json', 'nat-basic.JSON', 'vrfx-basic.json', '../nat-basic.json', 'nat-basic.json.bak'])
+      expect(SIBLING.test(f), f).toBe(false);
+  });
+});
 
 describe('examples (group a)', () => {
   it('every listed group (a) fixture exists', () => {

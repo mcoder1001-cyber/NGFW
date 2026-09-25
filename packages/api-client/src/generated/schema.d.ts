@@ -640,6 +640,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/lb/vips': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Load-balancer VIPs of the running configuration as VPP holds them: VPP entries (removed copies included), VIP type, servers in use or removed (agent LbState) */
+    get: operations['Lb_vips'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/lb/vips/{name}/flush': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Flush the sticky flow table of a load-balancer VIP (lb_flush_vip): established flows are re-hashed over the current servers. 409 unless the VIP is applied and has a server in use */
+    post: operations['Lb_flush'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -8360,6 +8394,206 @@ export interface operations {
       };
       /** @description Rate limited */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Lb_vips: {
+    parameters: {
+      query?: {
+        name?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt?: string;
+            /** @description lb_vip_dump entries in the whole VPP (every owner, removed ones included) */
+            totalVppVips: number;
+            items: {
+              /** @description services.lb.vips key */
+              name: string;
+              prefix: string;
+              /** @description any | tcp | udp (as configured; VPP 26.06 does not report it) */
+              protocol: string;
+              /** @description 0 = all ports */
+              port: number;
+              /** @description configured encapsulation */
+              encap: string;
+              /**
+               * @description active: in VPP with a server in use; not-applied: the agent has no record of creating it on this VPP instance; missing: recorded but VPP does not list it; no-servers: in VPP without a server in use
+               * @enum {string}
+               */
+              status: 'active' | 'not-applied' | 'missing' | 'no-servers';
+              /** @description the agent created the VIP on the running VPP instance (D-080 boot record) */
+              applied: boolean;
+              /** @description lb_vip_dump entries with this prefix and port; > 1 = "removed" copies until the garbage collection */
+              vppEntries: number;
+              /** @description encapsulation VPP reports (from the VIP type); "" = not in VPP */
+              vppEncap: string;
+              dscp: number;
+              targetPort: number;
+              servers: {
+                address: string;
+                /** @description LB_AS_FLAGS_USED; false = removed, waiting for the lb garbage collection (V20) */
+                inUse: boolean;
+                /** @description VPP clock (s) of the last use or removal */
+                inUseSince: number;
+                /** @description the running configuration lists this server for the VIP */
+                configured: boolean;
+              }[];
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Lb_flush: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description services.lb.vips key */
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description the flushed VIP (lb.vip/<prefix>/<protocol>/<port>) */
+            vip: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

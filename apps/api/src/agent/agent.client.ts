@@ -31,6 +31,7 @@ import {
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
   // wave-BC: F-lisp
+  type LispStateResponse,
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
@@ -159,6 +160,10 @@ export class AgentClient implements OnModuleDestroy {
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
   // wave-BC: F-lisp
+  /** Live LISP state (F-lisp); an agent without the RPC answers 501. */
+  lispState(): Promise<LispStateResponse> {
+    return this.unary(this.c.lispState, { owner: this.owner });
+  }
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp

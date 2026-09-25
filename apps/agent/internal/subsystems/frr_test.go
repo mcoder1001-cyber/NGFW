@@ -23,10 +23,10 @@ import (
 	"ngfw/agent/internal/descriptors/lcp"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/ownertable"
-	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/renderers/frr/bgp"
+	"ngfw/agent/internal/scheduler"
 )
 
 // fakeFRR is a recording runner playing vtysh and frr-reload.py: diff is what `frr-reload.py --test` prints,

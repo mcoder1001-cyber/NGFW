@@ -70,6 +70,12 @@ func TestCheck(t *testing.T) {
 	}
 }
 
+func TestEscapePointer(t *testing.T) {
+	if got := escapePointer("/interfaces/a b?c"); got != "/interfaces/a%20b%3Fc" {
+		t.Fatalf("escapePointer = %q", got)
+	}
+}
+
 func TestCheckRejectsRoot(t *testing.T) {
 	if _, err := (&Client{}).Check(context.Background(), "", nil); err == nil {
 		t.Fatal("root pointer accepted")
@@ -103,7 +109,15 @@ func TestReachabilityLoopback(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	c := &Client{BaseURL: base, Authorization: "Bearer " + tok}
-	if _, err := c.Check(ctx, "/interfaces/loop"+n, map[string]any{"enabled": true, "ipv4": []string{"198.18.99.1/32"}}); err != nil {
+	ptr := "/interfaces/loop" + n
+	t.Cleanup(func() {
+		cctx, ccancel := context.WithTimeout(context.Background(), time.Minute)
+		defer ccancel()
+		if err := c.Delete(cctx, ptr); err != nil {
+			t.Errorf("cleanup %s: %v", ptr, err)
+		}
+	})
+	if _, err := c.Check(ctx, ptr, map[string]any{"enabled": true, "ipv4": []string{"198.18.99.1/32"}}); err != nil {
 		t.Fatal(err)
 	}
 }

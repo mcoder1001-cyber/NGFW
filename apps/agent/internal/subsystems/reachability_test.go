@@ -6,8 +6,14 @@ package subsystems
 // the entry to wired (the test fails until it does) and lowers maxPending; adding a pending entry
 // means raising maxPending, which a reviewer sees.
 //
-//	descriptors: wired = a selector of the package is used inside subsystems' register() (the
-//	             registry, wave-A-hotspots A1); options-only uses in Wiring methods do not count.
+//	descriptors: wired = a call <pkg>.Register(…) or <pkg>.New*(…) inside subsystems' register() (the
+//	             registry, wave-A-hotspots A1), or inside a same-package function that register()
+//	             calls directly (one level deep). Option/setter uses (With*, Set*, constants) and uses
+//	             in Wiring methods do not count.
+//	library:     pinned too — the sorted set of library entries must equal libraryPins, so moving a
+//	             package from pending to library is a visible edit.
+//	row column:  the board row that owns the wiring (wired: the row that wired it; pending: the row
+//	             that will).
 //	renderers:   wired = <pkg>.New is called by non-test code outside internal/renderers.
 
 import (
@@ -50,7 +56,7 @@ var descriptorReach = map[string]reachEntry{
 	"bond":                {pending, "F-bonding"},
 	"classify":            {pending, "F-rpf-adl-pbr"},
 	"cnat":                {pending, "F-det44-map-dslite-cnat"},
-	"core":                {wired, "P05"},
+	"core":                {wired, "P08"},
 	"det44":               {pending, "F-det44-map-dslite-cnat"},
 	"df2":                 {library, "DF-2 shared helpers (keys, claims, canonicalisation)"},
 	"df6":                 {library, "DF-6 shared helpers"},
@@ -117,6 +123,13 @@ var rendererReach = map[string]reachEntry{
 	"vppstartup": {library, "startup.conf generator: cmd/vrx-startupgen (F-startup-gen), not an agent registry item"},
 }
 
+// libraryPins is the exact library set; change it only with a reason in the entry (and a D-entry for
+// a package that has descriptors, like D-141).
+var libraryPins = []string{
+	"descriptors/df2", "descriptors/df6", "descriptors/df7", "descriptors/dfkit", "descriptors/memif",
+	"descriptors/natcommon", "descriptors/tapv2", "descriptors/vpn", "renderers/rfkit", "renderers/vppstartup",
+}
+
 const modPath = "ngfw/agent/internal/"
 
 func TestReachabilityTable(t *testing.T) {
@@ -124,6 +137,7 @@ func TestReachabilityTable(t *testing.T) {
 	regUsed := registerSelectors(t)
 	newCalled := rendererNewCalls(t)
 	npending := 0
+	var libs []string
 	for _, kind := range []struct {
 		dir   string
 		table map[string]reachEntry
@@ -152,6 +166,8 @@ func TestReachabilityTable(t *testing.T) {
 				if !kind.used[name] {
 					t.Errorf("%s/%s: marked wired (%s) but not %s", kind.dir, name, e.row, kind.how)
 				}
+			case library:
+				libs = append(libs, kind.dir+"/"+name)
 			case pending:
 				npending++
 				if kind.used[name] {
@@ -162,6 +178,10 @@ func TestReachabilityTable(t *testing.T) {
 				}
 			}
 		}
+	}
+	sort.Strings(libs)
+	if strings.Join(libs, ",") != strings.Join(libraryPins, ",") {
+		t.Errorf("library set %v != libraryPins %v: a library entry needs a reason and a reviewed pin", libs, libraryPins)
 	}
 	if npending != maxPending {
 		t.Errorf("pending allowlist has %d entries, maxPending is %d: the allowlist only shrinks — set maxPending to %d when you wire a package; growing it needs a board row", npending, maxPending, npending)
@@ -209,8 +229,11 @@ func boardRows(t *testing.T) map[string]bool {
 	return rows
 }
 
-// importsOf maps the local names of a file's imports under internal/<sub>/ to their top-level package dir.
-func importsOf(f *ast.File, sub string) map[string]string {
+// importsOf maps the local names of a file's imports under internal/<sub>/ to their top-level package
+// dir. An unaliased import's local name is the imported package's own package clause (read from
+// srcRoot/<import path under ngfw/agent>), never the directory name (ip6_nd is package ip6nd).
+func importsOf(t *testing.T, f *ast.File, sub, srcRoot string) map[string]string {
+	t.Helper()
 	m := map[string]string{}
 	for _, im := range f.Imports {
 		p, _ := strconv.Unquote(im.Path.Value)
@@ -219,64 +242,140 @@ func importsOf(f *ast.File, sub string) map[string]string {
 			continue
 		}
 		top := strings.SplitN(rest, "/", 2)[0]
-		local := filepath.Base(p)
+		local := ""
 		if im.Name != nil {
 			local = im.Name.Name
-		} else if top == "interface" && local == "interface" {
-			local = "iface" // package iface lives in descriptors/interface
-		} else if top == "ip_session_redirect" {
-			local = "sessionredirect"
+		} else {
+			local = packageName(t, filepath.Join(srcRoot, strings.TrimPrefix(p, "ngfw/agent/")))
 		}
 		m[local] = top
 	}
 	return m
 }
 
-// registerSelectors returns the descriptor packages whose identifiers are used inside func register.
-func registerSelectors(t *testing.T) map[string]bool {
+// packageName returns the package clause of the non-test Go files in dir.
+func packageName(t *testing.T, dir string) string {
 	t.Helper()
-	used := map[string]bool{}
-	found := false
-	fset := token.NewFileSet()
-	files, _ := filepath.Glob("*.go")
+	files, _ := filepath.Glob(filepath.Join(dir, "*.go"))
 	for _, fn := range files {
 		if strings.HasSuffix(fn, "_test.go") {
 			continue
 		}
-		f, err := parser.ParseFile(fset, fn, nil, parser.SkipObjectResolution)
+		f, err := parser.ParseFile(token.NewFileSet(), fn, nil, parser.PackageClauseOnly)
 		if err != nil {
 			t.Fatal(err)
 		}
-		imps := importsOf(f, "descriptors")
+		return f.Name.Name
+	}
+	t.Fatalf("no Go files in %s", dir)
+	return ""
+}
+
+// agentRoot is apps/agent relative to this package.
+var agentRoot = filepath.Join("..", "..")
+
+// wiringCall reports whether call is <pkg>.Register(…) or <pkg>.New*(…) of an imported package.
+func wiringCall(call *ast.CallExpr, imps map[string]string) string {
+	se, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return ""
+	}
+	id, ok := se.X.(*ast.Ident)
+	if !ok || imps[id.Name] == "" {
+		return ""
+	}
+	if se.Sel.Name == "Register" || strings.HasPrefix(se.Sel.Name, "New") {
+		return imps[id.Name]
+	}
+	return ""
+}
+
+// registerSelectors returns the descriptor packages that register() wires (see the header).
+func registerSelectors(t *testing.T) map[string]bool {
+	t.Helper()
+	type fn struct {
+		decl *ast.FuncDecl
+		imps map[string]string
+	}
+	funcs := map[string]fn{}
+	fset := token.NewFileSet()
+	files, _ := filepath.Glob("*.go")
+	for _, name := range files {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, name, nil, parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatal(err)
+		}
+		imps := importsOf(t, f, "descriptors", agentRoot)
 		for _, d := range f.Decls {
-			fd, ok := d.(*ast.FuncDecl)
-			if !ok || fd.Recv != nil || fd.Name.Name != "register" {
-				continue
+			if fd, ok := d.(*ast.FuncDecl); ok && fd.Recv == nil {
+				funcs[fd.Name.Name] = fn{fd, imps}
 			}
-			found = true
-			ast.Inspect(fd.Body, func(n ast.Node) bool {
-				if se, ok := n.(*ast.SelectorExpr); ok {
-					if id, ok := se.X.(*ast.Ident); ok && imps[id.Name] != "" {
-						used[imps[id.Name]] = true
-					}
-				}
-				return true
-			})
 		}
 	}
-	if !found {
+	reg, ok := funcs["register"]
+	if !ok {
 		t.Fatal("func register not found in internal/subsystems — update the TD-11a reachability test")
 	}
-	// descriptor wrappers declared at file level (vethOnly, newDefaultTolerant) reach register through
-	// the packages already counted above.
+	used := map[string]bool{}
+	var helpers []fn
+	ast.Inspect(reg.decl.Body, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		if p := wiringCall(call, reg.imps); p != "" {
+			used[p] = true
+		}
+		if id, ok := call.Fun.(*ast.Ident); ok {
+			if h, ok := funcs[id.Name]; ok && id.Name != "register" {
+				helpers = append(helpers, h)
+			}
+		}
+		return true
+	})
+	for _, h := range helpers { // one level deep
+		ast.Inspect(h.decl.Body, func(n ast.Node) bool {
+			if call, ok := n.(*ast.CallExpr); ok {
+				if p := wiringCall(call, h.imps); p != "" {
+					used[p] = true
+				}
+			}
+			return true
+		})
+	}
 	return used
+}
+
+// TestImportsOfUnaliased: an unaliased import resolves to the package clause, not the dir name.
+func TestImportsOfUnaliased(t *testing.T) {
+	src := `package x
+import (
+	"ngfw/agent/internal/descriptors/ip6_nd"
+	"ngfw/agent/internal/descriptors/ip_neighbor"
+	"ngfw/agent/internal/descriptors/interface"
+	al "ngfw/agent/internal/descriptors/core"
+)`
+	f, err := parser.ParseFile(token.NewFileSet(), "x.go", src, parser.ImportsOnly)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := importsOf(t, f, "descriptors", agentRoot)
+	want := map[string]string{"ip6nd": "ip6_nd", "ipneighbor": "ip_neighbor", "iface": "interface", "al": "core"}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("importsOf[%q] = %q, want %q (all: %v)", k, got[k], v, got)
+		}
+	}
 }
 
 // rendererNewCalls returns the renderer packages whose New is called by non-test code outside internal/renderers.
 func rendererNewCalls(t *testing.T) map[string]bool {
 	t.Helper()
 	used := map[string]bool{}
-	root := filepath.Join("..", "..")
+	root := agentRoot
 	fset := token.NewFileSet()
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -296,7 +395,7 @@ func rendererNewCalls(t *testing.T) map[string]bool {
 		if err != nil {
 			return err
 		}
-		imps := importsOf(f, "renderers")
+		imps := importsOf(t, f, "renderers", agentRoot)
 		if len(imps) == 0 {
 			return nil
 		}

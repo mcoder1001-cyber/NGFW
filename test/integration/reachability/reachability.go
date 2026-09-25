@@ -71,11 +71,14 @@ var coverageRules = map[string]bool{"agent.unsupported-field": true, "agent.unim
 
 // Check sets pointer to value in the candidate (PUT, whole node), commits, and verifies the change
 // reached the data plane (see the package comment). It returns the commit result for further checks.
+//
+// value must be a non-empty leaf or node: an empty object/list is not compared by the drift endpoint
+// (proto3 has no presence for it), so Check would pass without proving anything.
 func (c *Client) Check(ctx context.Context, pointer string, value any) (*CommitResult, error) {
 	if !strings.HasPrefix(pointer, "/") || len(pointer) < 2 {
 		return nil, fmt.Errorf("reachability: pointer %q must be a non-root JSON pointer", pointer)
 	}
-	if err := c.do(ctx, http.MethodPut, "/api/v1/config"+pointer, value, nil); err != nil {
+	if err := c.do(ctx, http.MethodPut, "/api/v1/config"+escapePointer(pointer), value, nil); err != nil {
 		return nil, fmt.Errorf("edit candidate %s: %w", pointer, err)
 	}
 	var cr CommitResult
@@ -129,6 +132,30 @@ func VerifyDrift(pointer string, d *Drift) error {
 			ps = append(ps, ch.Op+" "+ch.Pointer)
 		}
 		return fmt.Errorf("%s: Retrieve() != desired after commit: %v", pointer, ps)
+	}
+	return nil
+}
+
+// escapePointer URL-escapes each segment of a JSON pointer (e.g. "vlan 10" or "a?b").
+func escapePointer(p string) string {
+	segs := strings.Split(p, "/")
+	for i, s := range segs {
+		segs[i] = url.PathEscape(s)
+	}
+	return strings.Join(segs, "/")
+}
+
+// Delete removes the candidate node at pointer and commits (test cleanup).
+func (c *Client) Delete(ctx context.Context, pointer string) error {
+	if err := c.do(ctx, http.MethodDelete, "/api/v1/config"+escapePointer(pointer), nil, nil); err != nil {
+		return err
+	}
+	var cr CommitResult
+	if err := c.do(ctx, http.MethodPost, "/api/v1/config/commit?comment="+url.QueryEscape("reachability cleanup "+pointer), nil, &cr); err != nil {
+		return err
+	}
+	if cr.Status != "applied" && cr.Status != "unchanged" {
+		return fmt.Errorf("cleanup commit %s: status %q", pointer, cr.Status)
 	}
 	return nil
 }

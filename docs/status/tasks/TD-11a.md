@@ -52,6 +52,27 @@ $ tools/ci.sh quick → fails at 'pnpm gen' (@ngfw/ui-kit#gen: Exec format error
 $ make -C apps/agent lint → golangci-lint here is built with go1.25 < go 1.26 target (container tool mismatch)
 ```
 
+## Review round 1 (BLOCK → fixed)
+
+1. `importsOf` takes an unaliased import's local name from the imported package clause (`parser.PackageClauseOnly`);
+   the hard-coded `iface`/`sessionredirect` cases are gone (ip6_nd→ip6nd, ip_neighbor→ipneighbor were missed).
+   `TestImportsOfUnaliased` covers it.
+2. Descriptor "wired" = a `<pkg>.Register(…)`/`<pkg>.New*(…)` call in `register()` or in a same-package function it
+   calls (one level); documented in the file header.
+3. Library set pinned exactly (`libraryPins`).
+4. Wired core row → P08; the header documents the row column as the owning row.
+5. `reachability.go` URL-escapes each pointer segment (`escapePointer`, `TestEscapePointer`).
+6. Live test: `t.Cleanup` deletes the loopback node and commits (`Client.Delete`).
+7. `Check` documents that the value must be non-empty.
+
+```
+$ go vet . && go test -count=1 -run 'Reachability|ImportsOf' ./internal/subsystems/
+ok  	ngfw/agent/internal/subsystems	0.122s
+$ go -C test/integration/reachability vet ./... && go test -count=1 ./...
+ok  	ngfw/test/integration/reachability	0.084s
+gofmt -l: clean
+```
+
 ## Out of scope
 
 The live API check on a lab slot; UI-level reachability; wiring any pending package (their rows); ci.sh edits.

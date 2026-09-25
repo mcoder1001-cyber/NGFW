@@ -262,6 +262,7 @@ export class AclService implements OnModuleInit {
       page: q.page,
       pageSize: q.pageSize,
       total,
+      size: rulesOf(list).length,
       applied: live.value !== undefined,
       mappingKnown: summary?.mappingKnown ?? false,
       countersAvailable: live.value?.countersAvailable ?? false,

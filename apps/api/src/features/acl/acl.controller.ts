@@ -122,6 +122,7 @@ const RulesOut = z.object({
   page: z.number().int(),
   pageSize: z.number().int(),
   total: z.number().int().describe('rules matching the filter'),
+  size: z.number().int().describe('rules of the list (its rules array length: PUT …/rules/<size> appends)'),
   applied: z.boolean().describe('the agent reported the list (it is in VPP)'),
   mappingKnown: z.boolean(),
   countersAvailable: z.boolean(),

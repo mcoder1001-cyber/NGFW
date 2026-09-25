@@ -8676,6 +8676,8 @@ export interface operations {
             pageSize: number;
             /** @description rules matching the filter */
             total: number;
+            /** @description rules of the list (its rules array length: PUT …/rules/<size> appends) */
+            size: number;
             /** @description the agent reported the list (it is in VPP) */
             applied: boolean;
             mappingKnown: boolean;

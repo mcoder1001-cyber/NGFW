@@ -48,6 +48,8 @@ Files you own (the envelope's list wins): DF-6's `apps/agent/internal/descriptor
 `test/topology/tunnels/**`. Shared files: one-line appends only, under your anchor (`domains/tunnels.ts` `TunnelsSchema` and
 `Domains["tunnels"]` are shared with F-lisp); `descriptors/df6/**` and `semantic/tunnels-common.ts` are read-only.
 
+- **TD-11c creator guard (2026-09-25):** every interface creator you add registers its VPP device class with `iface.RegisterKind` or provides the `interface/<name>` alias key (KeyProvider), and removes its own entry from the guard allowlist in the same branch; the allowlist only shrinks. Every descriptor also declares `RecordsNoOwnership()` or `CheckPersistent()` (TD-11b).
+
 ## Acceptance (paste the evidence)
 - [ ] After commit `Retrieve()` == desired; `vppctl show gre tunnel`, `show ipip tunnel`, `show vxlan tunnel`, `show vxlan-gpe` list them with addresses
 - [ ] `systemctl show vpp -p NRestarts` unchanged before/after your test run (pasted)

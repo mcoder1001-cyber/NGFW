@@ -797,7 +797,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D1.5
@@ -809,7 +809,8 @@ tasks:
   started: 2026-09-24T19:17
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-bonding.envelope.md (prep-waveA, D-109) | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125:
-    merge after TD-11c, or else a KeyProvider obligation in the envelope | SPECULATIVE from task/W-seed@df67a8e (contains P08 r2 + TD-5) | done 793d1f2d, CI green, host NRestarts 1→1; review running'
+    merge after TD-11c, or else a KeyProvider obligation in the envelope | SPECULATIVE from task/W-seed@df67a8e (contains P08 r2 + TD-5) | done 793d1f2d, CI green, host NRestarts 1→1; review running | review
+    APPROVE WITH CHANGES 7c7e9b0f; fix round 1 (F1-F6, Q1 drop broadcast - manager)'
 - id: F-bridge-l2
   title: 'Wave A (day 7-9): bridge domains, L2XC/L3XC, split-horizon, MAC aging, time-range MAC filter'
   prompt: prompts/features/F-bridge-l2.md
@@ -876,7 +877,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D2.1
@@ -893,7 +894,7 @@ tasks:
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-vrf-static-ecmp.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-vrf-static-ecmp.envelope.md
     | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125 merge acceptance: named cmd_op.go `action()` hunk + CLI test — ping/traceroute send
-    <host> (review 5.7a, +1 h) | fix round 1 (review 4435fcf: H1 ListRoutes barrier walks, M1 ping with workers, M2 window cap)'
+    <host> (review 5.7a, +1 h) | fix round 1 (review 4435fcf: H1 ListRoutes barrier walks, M1 ping with workers, M2 window cap) | fix round 1 8e779aad; verify APPROVE 19d250c0; D-134 hold until TD-23'
 - id: F-neighbors-ra
   title: 'Wave A (day 7-9): ARP/ND table, proxy-ND, IPv6 RA, DAD'
   prompt: prompts/features/F-neighbors-ra.md
@@ -1012,7 +1013,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 15
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D5.3
@@ -1025,7 +1026,7 @@ tasks:
   finished: ''
   notes: 'prompts-s4: suggested deps +F-object-model (host rules expand objects via internal/objects) — docs/status/tasks/prompts-s4.md | envelope draft docs/status/tasks/F-host-acl-nftables.envelope.md
     (prep-waveA, D-109) | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before
-    any VPP write) | D-125: est 10 → 15'
+    any VPP write) | D-125: est 10 → 15 | done e5e21afc (CI green on main''s ci.sh); security review running; Q5 manager: tools/app host-acl mode=check'
 - id: F-nat44-ed-sessions
   title: 'Wave A (day 7-9): NAT44-ED outbound/1:1/port-forward + session browser/kill'
   prompt: prompts/features/F-nat44-ed-sessions.md
@@ -2615,14 +2616,14 @@ tasks:
   deps: []
   priority: 2
   est_hours: 7
-  state: running
+  state: review
   scope: web-ahead (D-123)
   files_owned: packages/ui-kit/src/schema-form/** packages/ui-kit i18n/locales/{en,fa}.ts apps/web/src/pages/dev/{SchemaFormDemoPage.tsx,demoSchema.ts} docs/status/tasks/WEB-1*
   branch: task/WEB-1
   worktree: /root/ngfw-wt/WEB-1
   owner: ngfw-46 slot11
   started: 2026-09-25T00:14
-  notes: 'D-123 web-ahead | fix round 1 (review 595781c: H1 dropPhantomOptionals, M1–M3)'
+  notes: 'D-123 web-ahead | fix round 1 (review 595781c: H1 dropPhantomOptionals, M1–M3) | verify APPROVE + C1 follow-up 55b2f8fa (deprecated no-op); squashed c2e3eabb; queued after WEB-2'
 - template: ''
   parked_on: ''
   finished: ''
@@ -2662,7 +2663,7 @@ tasks:
   worktree: /root/ngfw-wt/WEB-3
   owner: ''
   started: 2026-09-25T00:14
-  notes: D-123
+  notes: D-123 | review APPROVE WITH CHANGES 0ea17400; fix round 1 (README teardown, live theme/lang)
 - template: ''
   parked_on: ''
   finished: ''
@@ -2735,7 +2736,7 @@ tasks:
   - P08
   priority: 2
   est_hours: 14.5
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.7
@@ -2752,7 +2753,8 @@ tasks:
   started: 2026-09-25T00:14
   finished: ''
   notes: 'D-125 | est 13 h review plan (10 h must-have) + 1.5 h audit ARCH-01 agent half | merge after TD-8 (preferred: one slot does TD-8 then TD-9), TD-12 (owns service_test.go) | not a wave-A gate; hard
-    dep of P10, INTEGRATE-E2E, SECURITY-REVIEW | reconciler.go hunks: TD-9 ApplyWith ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage; whichever merges second rebases'
+    dep of P10, INTEGRATE-E2E, SECURITY-REVIEW | reconciler.go hunks: TD-9 ApplyWith ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage; whichever merges second rebases |
+    done df4e4340 (quick gate green; --base main guard = main''s files); review running'
 - id: TD-10a
   title: API commit engine correctness (+ running vs Health.last_txn_id check on boot/reconnect)
   prompt: /root/ngfw-wt/TD-10a.envelope.md
@@ -2777,7 +2779,7 @@ tasks:
   started: 2026-09-24T19:17
   finished: ''
   notes: D-125 | est 11 h review plan + 3 h audit ARCH-01 API half | start from main now; merge after TD-4 | not a wave-A gate; gates INTEGRATE-E2E and any operator use of confirm windows on vrx-a | done
-    30381b6, CI green; review running
+    30381b6, CI green; review running | fix round 1 c365a95; verify APPROVE 00d3ab9f; queued with the merger
 - id: TD-10b
   title: API auth, session, audit
   prompt: ''
@@ -2865,7 +2867,7 @@ tasks:
   - P08
   priority: 2
   est_hours: 11
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.7
@@ -2881,7 +2883,7 @@ tasks:
   finished: ''
   notes: 'D-125 | gates the real F-startup-apply run, the first DPDK run (P10/P14 on real NICs) and INTEGRATE-E2E; lands before the F-nat44-ed-sessions and F-acl scale tests | F-bonding and F-bridge-l2
     merge after TD-11c (or carry a KeyProvider obligation in their envelopes) | reconciler.go hunks: TD-9 ApplyWith ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage; whichever
-    merges second rebases | fix round 1 (review ac313a1c: F1 claim journal D-133, F2 DEGRADED, F3 creator guard)'
+    merges second rebases | fix round 1 (review ac313a1c: F1 claim journal D-133, F2 DEGRADED, F3 creator guard) | fix round 1 08a95957 (D-133 journal, O1); verify APPROVE e83c6318; queued'
 - id: TD-13
   title: Scheduler tier-3 Validator + VPP→daemon stage (validate daemon config before any VPP write)
   prompt: ''
@@ -3054,7 +3056,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 8
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.10
@@ -3067,7 +3069,8 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: 'D-125 | merge after the ui-nav-collapse branch | the `// wave-A: UI-domain-editor` anchor goes into W-seed-BC''s scope (manager)'
+  notes: 'D-125 | merge after the ui-nav-collapse branch | the `// wave-A: UI-domain-editor` anchor goes into W-seed-BC''s scope (manager) | started 2026-09-25 04:15 slot 11, speculative base task/WEB-1
+    c2e3eabb (D-114)'
 - id: TEST-traffic-A
   title: Wave-A traffic scenario on the af_packet rig (VLAN, bridge/BVI, VRF/ECMP, uRPF/PBR, ACL, NAT44 ED/EI) with tcpdump evidence
   prompt: ''
@@ -3219,7 +3222,7 @@ tasks:
   owner: ''
   started: 2026-09-25T00:14
   finished: ''
-  state: running
+  state: review
   wbs: *id002
   prompt: ''
   id: TD-23
@@ -3230,7 +3233,8 @@ tasks:
   est_hours: 1.5
   scope: D-134 (merger request)
   files_owned: apps/api/src/testing/fake-agent.ts (dispatcher) apps/agent/internal/descriptors/core/coretest/{fakevpp.go (registry),extensions_test.go} docs/status/tasks/TD-23*
-  notes: state running; branch task/TD-23; lands before F-rpf-adl-pbr/F-neighbors-ra/F-bridge-l2/F-bonding/F-nat44-ed/F-vrf/F-nat44-ei merge
+  notes: state running; branch task/TD-23; lands before F-rpf-adl-pbr/F-neighbors-ra/F-bridge-l2/F-bonding/F-nat44-ed/F-vrf/F-nat44-ei merge | done, CI green; review running (feature_is_enabled clash F-rpf-adl-pbr
+    x F-bridge-l2)
 - template: ''
   parked_on: ''
   branch: ''
@@ -3238,7 +3242,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  state: ready
+  state: running
   wbs: *id002
   prompt: ''
   id: TD-8b
@@ -3251,7 +3255,7 @@ tasks:
   est_hours: 5
   scope: TD-8 verify V1/V2/V3 + review Q3 (D-129)
   files_owned: apps/agent/internal/agent/dynsource.go apps/agent/internal/subsystems/seams*.go tools/app (env line) test/topology/interfaces (env passthrough) docs/status/tasks/TD-8b*
-  notes: must merge before F-mpls-ldp and F-igmp-mfib
+  notes: must merge before F-mpls-ldp and F-igmp-mfib | started 2026-09-25 04:15 slot 5, base main d3a7c266 (+TD-9 deadline, TD-11c bracket addenda)
 - template: ''
   parked_on: ''
   branch: ''

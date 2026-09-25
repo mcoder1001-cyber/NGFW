@@ -640,6 +640,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/vpn/wireguard': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** WireGuard interfaces and peers: handshake state, learnt endpoint, last handshake, interface counters (no keys but public ones) */
+    get: operations['Wireguard_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/vpn/wireguard/keypair': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Generate a WireGuard key pair: the private key is stored as secret key/<name> (never returned); returns the reference and the public key */
+    post: operations['Wireguard_keypair'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -8272,6 +8306,178 @@ export interface operations {
       };
       /** @description Rate limited */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Wireguard_state: {
+    parameters: {
+      query?: {
+        interface?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            /** @description whether the agent watches peer events (live status, last handshake) */
+            eventsActive: boolean;
+            interfaces: {
+              /** @description interface name in the running configuration (null: not configured) */
+              name: string | null;
+              vppName: string;
+              instance: number;
+              swIfIndex: number;
+              /** @description the interface public key (the private key is never returned) */
+              publicKey: string;
+              listenAddress: string;
+              listenPort: number;
+              adminUp: boolean;
+              linkUp: boolean;
+              rxPackets: number;
+              rxBytes: number;
+              txPackets: number;
+              txBytes: number;
+              peers: {
+                /** @description peer name in the running configuration (null: not configured) */
+                name: string | null;
+                publicKey: string;
+                peerIndex: number;
+                /** @enum {string} */
+                status: 'established' | 'dead' | 'down';
+                established: boolean;
+                dead: boolean;
+                /** @description the endpoint VPP currently sends to (learnt); null = none yet */
+                endpoint: string | null;
+                endpointPort: number;
+                /** @description last time the agent saw the peer become established (VPP has no handshake timestamp) */
+                lastHandshake: string | null;
+                persistentKeepaliveSec: number;
+                allowedIps: string[];
+              }[];
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Wireguard_keypair: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description secret name: the private key is stored as key/<name> */
+          name: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description the reference to put into privateKeyRef (key/<name>) */
+            ref: string;
+            /** @description the public key to give to the peers */
+            publicKey: string;
+            version: number;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
         headers: {
           [name: string]: unknown;
         };

@@ -72,6 +72,7 @@ import { UsersService } from './users/users.service.js';
 // wave-A: F-nat44-ei-64-66-nptv6
 // wave-A: P11
 // wave-A: F-wireguard
+import { wireguardFeature } from './features/wireguard/index.js';
 // wave-A: P12
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
@@ -155,6 +156,7 @@ export class AppModule {
         // wave-A: F-nat44-ei-64-66-nptv6
         // wave-A: P11
         // wave-A: F-wireguard
+        ...wireguardFeature.controllers,
         // wave-A: P12
         // wave-A: F-kea-dhcp-relay
         // wave-A: F-unbound-chrony-syslog
@@ -223,6 +225,7 @@ export class AppModule {
         // wave-A: F-nat44-ei-64-66-nptv6
         // wave-A: P11
         // wave-A: F-wireguard
+        ...wireguardFeature.providers,
         // wave-A: P12
         // wave-A: F-kea-dhcp-relay
         // wave-A: F-unbound-chrony-syslog

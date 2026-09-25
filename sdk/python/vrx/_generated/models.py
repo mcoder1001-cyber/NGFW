@@ -306,6 +306,8 @@ __all__ = [
     "ServicesConfigSnmpListenItem",
     "ServicesConfigSnmpTrapReceiversItem",
     "ServicesConfigSnmpV3UsersValue",
+    "StateCountersResponse",
+    "StateCountersResponseCounters",
     "StateDriftResponse",
     "StateDriftResponseChangesItem",
     "StateDriftResponseIgnoredItem",
@@ -313,6 +315,8 @@ __all__ = [
     "StateEventsResponseItemsItem",
     "StateInterfacesResponse",
     "StateInterfacesResponseItemsItem",
+    "StateInterfacesResponseItemsItemCounters1",
+    "StateInterfacesResponseItemsItemState1",
     "StateRoutesResponse",
     "StateRoutesResponseItemsItem",
     "StateRoutesResponseItemsItemNextHopsItem",
@@ -360,6 +364,11 @@ __all__ = [
     "VpnConfigWireguardInterfacesValuePeersValueEndpoint",
     "VrfsConfig",
     "VrfsConfigValue",
+    "WireguardKeypairBody",
+    "WireguardKeypairResponse",
+    "WireguardStateResponse",
+    "WireguardStateResponseInterfacesItem",
+    "WireguardStateResponseInterfacesItemPeersItem",
 ]
 
 AclConfigAttachmentsItemTarget1 = TypedDict(
@@ -3340,6 +3349,7 @@ VpnConfigWireguardInterfacesValue = TypedDict(
         "mtu": NotRequired[int],
         "peers": NotRequired[dict[str, "VpnConfigWireguardInterfacesValuePeersValue"]],
         "privateKeyRef": Required[str],
+        "routeAllowedIps": NotRequired[bool],
         "underlayVrf": NotRequired[str],
         "vrf": NotRequired[str],
     },
@@ -3373,6 +3383,22 @@ VrfsConfigValue = TypedDict(
 )
 
 VrfsConfig = dict[str, "VrfsConfigValue"]
+
+WireguardKeypairBody = TypedDict(
+    "WireguardKeypairBody",
+    {
+        "name": Required[str],
+    },
+)
+
+WireguardKeypairResponse = TypedDict(
+    "WireguardKeypairResponse",
+    {
+        "publicKey": Required[str],
+        "ref": Required[str],
+        "version": Required[int],
+    },
+)
 
 AuditListResponseItemsItem = TypedDict(
     "AuditListResponseItemsItem",
@@ -4083,12 +4109,60 @@ StateEventsResponse = TypedDict(
     },
 )
 
+StateInterfacesResponseItemsItemCounters1 = TypedDict(
+    "StateInterfacesResponseItemsItemCounters1",
+    {
+        "drops": Required[str],
+        "errors": Required[str],
+        "name": Required[str],
+        "punts": Required[str],
+        "rxBytes": Required[str],
+        "rxMisses": Required[str],
+        "rxPackets": Required[str],
+        "swIfIndex": Required[int],
+        "txBytes": Required[str],
+        "txPackets": Required[str],
+    },
+)
+
+# live state from the agent (InterfaceState RPC, dumped from VPP)
+StateInterfacesResponseItemsItemState1 = TypedDict(
+    "StateInterfacesResponseItemsItemState1",
+    {
+        "adminUp": Required[bool],
+        "description": Required[str],
+        "innerVlanId": Required[int],
+        "ipv4": Required[list[str]],
+        "ipv6": Required[list[str]],
+        "linkMtu": Required[int],
+        "linkSpeedKbps": Required[str],
+        "linkUp": Required[bool],
+        "mac": Required[str],
+        "managed": Required[bool],
+        "mtu": Required[int],
+        "name": Required[str],
+        "parent": Required[str],
+        "rxMode": Required[str],
+        "swIfIndex": Required[int],
+        "tableId": Required[int],
+        "type": Required[str],
+        "vlanId": Required[int],
+        "vppName": Required[str],
+        "vrf": Required[str],
+    },
+)
+
 StateInterfacesResponseItemsItem = TypedDict(
     "StateInterfacesResponseItemsItem",
     {
-        "config": Required[dict[str, Any]],
-        "counters": Required[Union[dict[str, Any], None]],
+        "config": Required[Union[dict[str, Any], None]],
+        "counters": Required[Union["StateInterfacesResponseItemsItemCounters1", None]],
+        "hasPendingChange": Required[bool],
+        "kind": Required[Literal['interface', 'subinterface']],
         "name": Required[str],
+        "parent": Required[Union[str, None]],
+        "running": Required[Union[dict[str, Any], None]],
+        "state": Required[Union["StateInterfacesResponseItemsItemState1", None]],
     },
 )
 
@@ -4098,6 +4172,32 @@ StateInterfacesResponse = TypedDict(
         "countersAt": NotRequired[str],
         "items": Required[list["StateInterfacesResponseItemsItem"]],
         "retrievedAt": NotRequired[str],
+    },
+)
+
+StateCountersResponseCounters = TypedDict(
+    "StateCountersResponseCounters",
+    {
+        "drops": Required[str],
+        "errors": Required[str],
+        "name": Required[str],
+        "punts": Required[str],
+        "rxBytes": Required[str],
+        "rxMisses": Required[str],
+        "rxPackets": Required[str],
+        "swIfIndex": Required[int],
+        "txBytes": Required[str],
+        "txPackets": Required[str],
+    },
+)
+
+StateCountersResponse = TypedDict(
+    "StateCountersResponse",
+    {
+        "counters": Required["StateCountersResponseCounters"],
+        "name": Required[str],
+        "ts": NotRequired[str],
+        "vppName": Required[str],
     },
 )
 
@@ -4157,6 +4257,52 @@ StateSystemResponse = TypedDict(
         "pendingCommit": Required[Union[dict[str, Any], None]],
         "runningRevision": Required[Union[int, None]],
         "sync": Required["StateSystemResponseSync"],
+    },
+)
+
+WireguardStateResponseInterfacesItemPeersItem = TypedDict(
+    "WireguardStateResponseInterfacesItemPeersItem",
+    {
+        "allowedIps": Required[list[str]],
+        "dead": Required[bool],
+        "endpoint": Required[Union[str, None]],
+        "endpointPort": Required[int],
+        "established": Required[bool],
+        "lastHandshake": Required[Union[str, None]],
+        "name": Required[Union[str, None]],
+        "peerIndex": Required[int],
+        "persistentKeepaliveSec": Required[int],
+        "publicKey": Required[str],
+        "status": Required[Literal['established', 'dead', 'down']],
+    },
+)
+
+WireguardStateResponseInterfacesItem = TypedDict(
+    "WireguardStateResponseInterfacesItem",
+    {
+        "adminUp": Required[bool],
+        "instance": Required[int],
+        "linkUp": Required[bool],
+        "listenAddress": Required[str],
+        "listenPort": Required[int],
+        "name": Required[Union[str, None]],
+        "peers": Required[list["WireguardStateResponseInterfacesItemPeersItem"]],
+        "publicKey": Required[str],
+        "rxBytes": Required[float],
+        "rxPackets": Required[float],
+        "swIfIndex": Required[int],
+        "txBytes": Required[float],
+        "txPackets": Required[float],
+        "vppName": Required[str],
+    },
+)
+
+WireguardStateResponse = TypedDict(
+    "WireguardStateResponse",
+    {
+        "eventsActive": Required[bool],
+        "interfaces": Required[list["WireguardStateResponseInterfacesItem"]],
+        "retrievedAt": Required[Union[str, None]],
     },
 )
 

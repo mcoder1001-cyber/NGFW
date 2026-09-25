@@ -37,6 +37,8 @@ export function eventTopic(kind: EventKind): Topic {
     // wave-A: F-acl
     // wave-A: P11
     // wave-A: F-wireguard
+    case EventKind.EVENT_KIND_WIREGUARD_PEER_CHANGED:
+      return 'wireguard.events';
     // wave-A: P12
     default:
       return 'agent.events';

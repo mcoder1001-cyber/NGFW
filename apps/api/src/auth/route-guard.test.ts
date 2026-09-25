@@ -34,6 +34,7 @@ const ADMIN_ONLY = new Set([
   // Feature admin-only routes: one line under the feature's anchor (SY1).
   // wave-BC: F-aaa
   // wave-BC: F-backup-restore
+  'POST /api/v1/actions/vpn/wireguard/keypair', // F-wireguard (no anchor for it: end of the block)
 ]);
 
 function concrete(url: string): string {

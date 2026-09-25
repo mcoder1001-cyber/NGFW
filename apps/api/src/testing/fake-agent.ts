@@ -38,6 +38,7 @@ import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { wireguardFakeState } from '../features/wireguard/fake.js'; // F-wireguard (P5)
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -658,7 +659,7 @@ export class FakeAgent {
       // wave-A: F-nat44-ei-64-66-nptv6
       // wave-A: P11
       // wave-A: F-wireguard
-      wireguardState: (_call, cb) => cb({ code: status.UNIMPLEMENTED, details: 'WireguardState: not faked' }),
+      wireguardState: wireguardFakeState(this), // features/wireguard/fake.ts
       // wave-A: P12
       // wave-A: F-kea-dhcp-relay
       // wave-A: F-unbound-chrony-syslog

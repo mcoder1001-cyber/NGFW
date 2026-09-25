@@ -50,6 +50,7 @@ import {
   // wave-A: F-nat44-ei-64-66-nptv6
   // wave-A: P11
   // wave-A: F-wireguard
+  type WireguardStateResponse,
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
@@ -178,6 +179,10 @@ export class AgentClient implements OnModuleDestroy {
   // wave-A: F-nat44-ei-64-66-nptv6
   // wave-A: P11
   // wave-A: F-wireguard
+  /** F-wireguard: live WireGuard state (proto.md §11); callers do not poll faster than every 30 s (D-132). */
+  wireguardState(interfaces: string[] = []): Promise<WireguardStateResponse> {
+    return this.unary(this.c.wireguardState, { interfaces, owner: this.owner });
+  }
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog

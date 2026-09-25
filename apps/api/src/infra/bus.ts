@@ -25,6 +25,7 @@ export const TOPICS = [
   // wave-A: F-acl
   // wave-A: P11
   // wave-A: F-wireguard
+  'wireguard.events',
   // wave-A: P12
 ] as const;
 export type Topic = (typeof TOPICS)[number];

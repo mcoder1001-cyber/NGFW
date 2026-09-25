@@ -27,3 +27,8 @@
 - 04:38 CI: gitleaks false positive (Q16), fixed forward; TD-11b merged → svs undeclared (Q15, F-vrf's)
 - 04:44 topology run 4 PASS (link down 400 ms), run 5 PASS (cleanup fixed), 04:48 run 6 PASS (tap addresses kept)
 - 04:57 screenshots en/fa (API + fake agent), stack stopped by PID, DB dropped, Valkey keys removed
+- 05:10 Q17 lcp host alias (TD-11c); review 7931c596 APPROVE WITH CHANGES
+- fix round 1: H1 frr.config without pair deps; H2 Q16 reworded; H3 T2 removed, FIB proof = row P12-fib-proof (design in
+  P12.md); M2 descriptions + field pointers; M3 serialised RoutingState, 30 s event debounce, proto-only RIB lookups;
+  M4 netns warning; 09:56 ci.sh stops at gitleaks history (2 old P12 commits + P12-review.md:27, which I may not edit);
+  manual steps green (turbo 30/30, agent lint, cli, test modules); M1 waits for F-vrf-static-ecmp on main

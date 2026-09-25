@@ -10,9 +10,10 @@ import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/u
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetchMplsFib, mplsStateKeys, ON_DEMAND, useRefreshMpls, type MplsFibItem } from './api';
+import { fetchMplsFib, mplsStateKeys, ON_DEMAND, useRefreshMpls } from './api';
 import { Mono } from './common';
-import { NS, tableChoices } from './model';
+import { fibPathParts, NS, tableChoices, type PathPart } from './model';
+import { PathsView } from './PathsView';
 import { useMpls } from './useMpls';
 
 /** The label filter is a number, left-to-right in RTL too. */
@@ -23,7 +24,7 @@ interface FibRow {
   label: number;
   eos: string;
   payload: string;
-  paths: string;
+  paths: PathPart[][];
 }
 
 /**
@@ -44,25 +45,7 @@ export function FibTab() {
   );
   useEffect(() => qc.setQueryDefaults(mplsStateKeys.all, ON_DEMAND), [qc]);
   const labelNum = /^\d+$/.test(label) ? Number(label) : undefined;
-
-  const pathText = useCallback(
-    (e: MplsFibItem) =>
-      e.paths
-        .map((p) =>
-          [
-            p.type !== 'normal' ? p.type : '',
-            p.nextHop ?? '',
-            p.interface ? t('path.via', { interface: p.interface }) : '',
-            p.tableId && !p.nextHop && !p.interface ? t('path.table', { table: p.tableId }) : '',
-            p.outLabels.length ? t('path.push', { labels: p.outLabels.join(' ') }) : '',
-            p.weight !== 1 ? `×${p.weight}` : '',
-          ]
-            .filter(Boolean)
-            .join(' '),
-        )
-        .join(' · '),
-    [t],
-  );
+  const tr = useCallback((k: string, o?: Record<string, unknown>) => t(k, o ?? {}), [t]);
 
   const fetchPage = useCallback(
     async (req: ServerPageRequest) => {
@@ -79,11 +62,11 @@ export function FibTab() {
         label: e.label,
         eos: e.eos ? t('eos.yes') : t('eos.no'),
         payload: e.payload ?? '',
-        paths: pathText(e),
+        paths: e.paths.map((x) => fibPathParts(x, tr)),
       }));
       return { rows, total: r.total };
     },
-    [table, labelNum, pathText, t],
+    [table, labelNum, tr, t],
   );
 
   const columns = useMemo<GridColDef<FibRow>[]>(
@@ -96,7 +79,7 @@ export function FibTab() {
         sortable: false,
         renderCell: (p) => <Mono>{p.row.label}</Mono>,
       },
-      { field: 'eos', headerName: t('routes.col.eos'), width: 120, sortable: false },
+      { field: 'eos', headerName: t('routes.col.eos'), width: 150, sortable: false },
       { field: 'payload', headerName: t('routes.col.payload'), width: 110, sortable: false },
       {
         field: 'paths',
@@ -104,7 +87,7 @@ export function FibTab() {
         minWidth: 320,
         flex: 1,
         sortable: false,
-        renderCell: (p) => <Mono>{p.row.paths}</Mono>,
+        renderCell: (p) => <PathsView paths={p.row.paths} />,
       },
     ],
     [t],

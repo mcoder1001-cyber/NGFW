@@ -6,6 +6,7 @@ import { ProblemAlert } from '../../../config/ProblemAlert';
 import { useInterfaceNames } from './api';
 import { Mono } from './common';
 import { ListEditor, type EditorRow } from './ListEditor';
+import { PathsView } from './PathsView';
 import {
   itemSchema,
   labelRouteRows,
@@ -42,7 +43,13 @@ export function LabelRoutesTab() {
 
   const routeCols = useMemo<GridColDef<LabelRouteRow>[]>(
     () => [
-      { field: 'table', headerName: t('routes.col.table'), type: 'number', width: 110 },
+      {
+        field: 'table',
+        headerName: t('routes.col.table'),
+        type: 'number',
+        width: 110,
+        renderCell: (p) => <Mono>{p.row.table}</Mono>,
+      },
       {
         field: 'label',
         headerName: t('routes.col.label'),
@@ -50,14 +57,14 @@ export function LabelRoutesTab() {
         width: 110,
         renderCell: (p) => <Mono>{p.row.label}</Mono>,
       },
-      { field: 'eos', headerName: t('routes.col.eos'), width: 120 },
+      { field: 'eos', headerName: t('routes.col.eos'), width: 150 },
       { field: 'payload', headerName: t('routes.col.payload'), width: 110 },
       {
         field: 'paths',
         headerName: t('routes.col.paths'),
         minWidth: 300,
         flex: 1,
-        renderCell: (p) => <Mono>{p.row.paths}</Mono>,
+        renderCell: (p) => <PathsView paths={p.row.pathList} />,
       },
     ],
     [t],

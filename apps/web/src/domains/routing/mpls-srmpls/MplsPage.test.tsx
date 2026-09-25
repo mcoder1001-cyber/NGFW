@@ -13,6 +13,7 @@ import {
   labelRouteRows,
   mergePatchFor,
   mplsSchema,
+  pathParts,
   pathText,
   pickSchema,
   type MplsConfig,
@@ -144,16 +145,22 @@ describe('mpls model', () => {
     expect(mergePatchFor(MPLS, structuredClone(MPLS))).toBeUndefined();
   });
 
-  it('describes paths and rows in words', () => {
-    const t = (k: string, o?: Record<string, unknown>) => `${k}${o ? JSON.stringify(o) : ''}`;
+  it('describes paths as words and left-to-right tokens', () => {
+    const t = (k: string) => k;
     expect(
       pathText({ nextHop: '10.5.1.2', interface: 'loop5001', outLabels: [50017], weight: 3 }, t),
-    ).toBe('10.5.1.2 path.via{"interface":"loop5001"} path.push{"labels":"50017"} ×3');
-    expect(pathText({ vrf: 'red', outLabels: [], weight: 1 }, t)).toBe('path.lookup{"vrf":"red"}');
-    expect(labelRouteRows(MPLS, t).map((r) => [r.table, r.label, r.eos])).toEqual([
-      [5001, 50016, 'eos.yes'],
-      [0, 50020, 'eos.no'],
-      [0, 50030, 'eos.yes'],
+    ).toBe('10.5.1.2 path.via loop5001 path.push [50017] ×3');
+    expect(pathParts({ vrf: 'red', outLabels: [], weight: 1 }, t)).toEqual([
+      { text: 'path.lookupIn', mono: false },
+      { text: 'red', mono: true },
+    ]);
+    expect(pathText({ interface: 'loop5001', outLabels: [], weight: 1 }, t)).toBe(
+      'path.via loop5001 path.pop',
+    );
+    expect(labelRouteRows(MPLS, t).map((r) => [r.table, r.label, r.eos, r.payload])).toEqual([
+      [5001, 50016, 'eos.yes', 'ip4'],
+      [0, 50020, 'eos.no', ''],
+      [0, 50030, 'eos.yes', 'ip6'],
     ]);
   });
 
@@ -186,7 +193,7 @@ describe('MPLS screen', () => {
         { timeout: 15_000 },
       );
       await waitFor(() => expect(within(grid).getByText('50016')).toBeInTheDocument());
-      expect(within(grid).getByText(/push \[50017 50018\]/)).toBeInTheDocument();
+      expect(within(grid).getByText('[50017 50018]')).toBeInTheDocument();
       fireEvent.click(within(grid).getByText('50020'));
       const dialog = await screen.findByRole('dialog', { name: 'Label 50020 in MPLS table 0' });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));

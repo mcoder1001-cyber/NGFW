@@ -113,16 +113,69 @@ export function mergePatchFor(from: unknown, to: unknown): Json | undefined {
   return Object.keys(out).length === 0 ? undefined : out;
 }
 
-/** An MPLS label route or tunnel path as one line: `10.5.1.2 via loop5001 push [50017 50018] ×1`. */
+/** One piece of a path description: a word in the UI language, or a technical token kept left-to-right. */
+export interface PathPart {
+  text: string;
+  mono: boolean;
+}
+
+/** A configured path as parts: `10.5.1.2 via loop5001 push [50017 50018] ×2`, or `pop, look up in VRF red`. */
+export function pathParts(p: MplsPathConfig, t: Translate): PathPart[] {
+  const out: PathPart[] = [];
+  const word = (text: string) => out.push({ text, mono: false });
+  const token = (text: string) => out.push({ text, mono: true });
+  if (p.vrf !== undefined) {
+    word(t('path.lookupIn'));
+    token(p.vrf);
+  }
+  if (p.nextHop !== undefined) token(p.nextHop);
+  if (p.interface !== undefined) {
+    word(t('path.via'));
+    token(p.interface);
+  }
+  if (p.outLabels.length > 0) {
+    word(t('path.push'));
+    token(`[${p.outLabels.join(' ')}]`);
+  } else if (p.vrf === undefined) word(t('path.pop'));
+  if (p.weight !== 1) token(`×${p.weight}`);
+  return out;
+}
+
+/** A live FIB path (MplsState) as parts; a recursive MPLS path (an SR-MPLS segment) has no reported via label. */
+export function fibPathParts(
+  p: {
+    type: string;
+    nextHop?: string | undefined;
+    interface?: string | undefined;
+    tableId: number;
+    outLabels: number[];
+    weight: number;
+  },
+  t: Translate,
+): PathPart[] {
+  const out: PathPart[] = [];
+  if (p.type !== 'normal') out.push({ text: p.type, mono: true });
+  if (p.nextHop) out.push({ text: p.nextHop, mono: true });
+  if (p.interface)
+    out.push({ text: t('path.via'), mono: false }, { text: p.interface, mono: true });
+  if (p.tableId && !p.nextHop && !p.interface)
+    out.push({ text: t('path.table'), mono: false }, { text: String(p.tableId), mono: true });
+  if (p.outLabels.length > 0)
+    out.push(
+      { text: t('path.push'), mono: false },
+      { text: `[${p.outLabels.join(' ')}]`, mono: true },
+    );
+  if (out.length === 0) out.push({ text: t('path.recursive'), mono: false });
+  if (p.weight !== 1) out.push({ text: `×${p.weight}`, mono: true });
+  return out;
+}
+
+/** Parts as one searchable line. */
+export const partsText = (parts: PathPart[]) => parts.map((x) => x.text).join(' ');
+
+/** A configured path as one line (grid search text). */
 export function pathText(p: MplsPathConfig, t: Translate): string {
-  const parts: string[] = [];
-  if (p.vrf !== undefined) parts.push(t('path.lookup', { vrf: p.vrf }));
-  if (p.nextHop !== undefined) parts.push(p.nextHop);
-  if (p.interface !== undefined) parts.push(t('path.via', { interface: p.interface }));
-  if (p.outLabels.length > 0) parts.push(t('path.push', { labels: p.outLabels.join(' ') }));
-  else if (p.vrf === undefined) parts.push(t('path.pop'));
-  if (p.weight !== 1) parts.push(`×${p.weight}`);
-  return parts.join(' ');
+  return partsText(pathParts(p, t));
 }
 
 export interface LabelRouteRow {
@@ -133,6 +186,14 @@ export interface LabelRouteRow {
   eos: string;
   payload: string;
   paths: string;
+  pathList: PathPart[][];
+}
+
+/** The payload a route carries: its own, else the schema default (ip6 when a next hop is IPv6, else ip4). */
+export function effectivePayload(r: MplsLabelRouteConfig): string {
+  if (!r.eos) return '';
+  if (r.payload) return r.payload;
+  return r.paths.some((p) => p.nextHop?.includes(':')) ? 'ip6' : 'ip4';
 }
 
 export function labelRouteRows(m: MplsConfig | undefined, t: Translate): LabelRouteRow[] {
@@ -142,8 +203,9 @@ export function labelRouteRows(m: MplsConfig | undefined, t: Translate): LabelRo
     table: r.table,
     label: r.label,
     eos: r.eos ? t('eos.yes') : t('eos.no'),
-    payload: r.eos ? (r.payload ?? '') : '',
+    payload: effectivePayload(r),
     paths: r.paths.map((p) => pathText(p, t)).join(' · '),
+    pathList: r.paths.map((p) => pathParts(p, t)),
   }));
 }
 

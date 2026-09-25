@@ -10,12 +10,15 @@ import { ProblemAlert } from '../../../config/ProblemAlert';
 import { useInterfaceNames, useMplsTunnels, useRefreshMpls } from './api';
 import { Mono } from './common';
 import { ListEditor, type EditorRow } from './ListEditor';
+import { PathsView } from './PathsView';
 import {
   keyedSchema,
   localizeSchema,
   mplsSchema,
   NS,
+  pathParts,
   pathText,
+  type PathPart,
   type MplsTunnelConfig,
 } from './model';
 import { useMpls } from './useMpls';
@@ -23,6 +26,7 @@ import { useMpls } from './useMpls';
 type TunnelRow = EditorRow & {
   name: string;
   paths: string;
+  pathList: PathPart[][];
   l2Only: string;
   status: 'up' | 'down' | 'degraded';
   vpp: string;
@@ -64,6 +68,7 @@ export function TunnelsTab() {
         id: name,
         name,
         paths: tn.paths.map((p) => pathText(p, tr)).join(' · '),
+        pathList: tn.paths.map((p) => pathParts(p, tr)),
         l2Only: tn.l2Only ? t('yes') : t('no'),
         status: live.data === undefined ? 'degraded' : l ? 'up' : 'down',
         vpp: l ? `${l.interface} (#${l.swIfIndex})` : '',
@@ -82,7 +87,7 @@ export function TunnelsTab() {
         headerName: t('tunnels.col.paths'),
         minWidth: 260,
         flex: 1,
-        renderCell: (p) => <Mono>{p.row.paths}</Mono>,
+        renderCell: (p) => <PathsView paths={p.row.pathList} />,
       },
       { field: 'l2Only', headerName: t('tunnels.col.l2Only'), width: 100 },
       {

@@ -22,11 +22,12 @@
     "no": "not end of stack"
   },
   "path": {
-    "lookup": "pop, look up in VRF {{vrf}}",
-    "via": "via {{interface}}",
-    "push": "push [{{labels}}]",
+    "lookupIn": "pop, look up in VRF",
+    "via": "via",
+    "push": "push",
     "pop": "pop",
-    "table": "lookup table {{table}}"
+    "table": "look up in table",
+    "recursive": "recursive MPLS (VPP does not report the via label)"
   },
   "interfaces": {
     "intro": "Interfaces that accept labelled packets, and additional MPLS tables for label routes that should not live in the default MPLS table.",

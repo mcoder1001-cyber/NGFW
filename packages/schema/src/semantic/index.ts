@@ -43,6 +43,8 @@ import { managementValidators } from './management.js';
 // wave-A: P12
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
+// F-qos-flat (unanchored: no `wave-BC: F-qos-flat` anchor was seeded here)
+import { qosFlatValidators } from './qos-flat.js';
 
 export * from './registry.js';
 
@@ -94,6 +96,8 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
+  // F-qos-flat (unanchored)
+  ...qosFlatValidators,
 ];
 
 /** Process-wide registry populated from {@link SEMANTIC_VALIDATORS}. */

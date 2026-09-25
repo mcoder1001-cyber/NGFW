@@ -2,13 +2,13 @@
 
 Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 38.6% by hours (452/1172.5 h), 40.0% by tasks (52/130)**
+**Overall: 39.4% by hours (462/1172.5 h), 40.8% by tasks (53/130)**
 
 | state | tasks |
 |---|---|
-| merged | 52 |
+| merged | 53 |
 | review | 32 |
-| running | 6 |
+| running | 5 |
 | ready | 2 |
 | parked | 2 |
 | failed | 0 |
@@ -20,7 +20,7 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 260 / 274 | 94.9% | 27/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 59 / 605.0 | 9.8% | 10/70 | 5 | 1 | 0 |
+| S4 | 69 / 605.0 | 11.4% | 11/70 | 4 | 1 | 0 |
 | S5 | 38 / 147.5 | 25.8% | 4/15 | 1 | 1 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -44,7 +44,6 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 - F-unbound-chrony-syslog — Wave B (day 10-12): Unbound DNS, chrony NTP, syslog export + log explorer (review, unassigned)
 - F-mpls-srmpls — Wave C (day 13-15): static MPLS + SR-MPLS (LDP split to F-mpls-ldp, D-085/D-109) (running, unassigned)
 - F-srv6 — Wave C (day 13-15): SRv6 policies, network programming, service chaining proxies, SRv6-mobile (running, unassigned)
-- F-host-stack — Wave C (day 13-15): expose host-stack config: session layer, TCP/UDP tuning, TLS, QUIC, HTTP static, HTTP/3 proxy (running, unassigned)
 - F-lb — Wave C (day 13-15): Load Balancer plugin (GRE/NAT/L3DSR/maglev) (running, unassigned)
 - F-qos-flat — Wave C (day 13-15): policer, marking, QoS record/map, DSCP/dot1p (HQoS = V3, excluded) (running, unassigned)
 - F-snmp — Wave C (day 13-15): SNMP v2c/v3 via snmpd renderer + private MIB (review, unassigned)

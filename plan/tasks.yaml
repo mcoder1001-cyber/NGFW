@@ -1550,7 +1550,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D7.10
@@ -1562,7 +1562,7 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-09-25'
   notes: 'prompts-s4: suggested deps +F-startup-gen (TCP/UDP buffer tuning is startup.conf-only) — docs/status/tasks/prompts-s4.md'
 - id: F-lb
   title: 'Wave C (day 13-15): Load Balancer plugin (GRE/NAT/L3DSR/maglev)'

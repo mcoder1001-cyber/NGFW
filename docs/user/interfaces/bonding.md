@@ -9,9 +9,9 @@ builds it with VPP's bond and LACP plugins. Reference behaviour: TNSR "Bond inte
 | `xor` | static aggregation: the transmit hash picks the member (the switch needs a static LAG) | `l2` (default), `l23`, `l34` | — |
 | `active-backup` | one member transmits; the next one takes over when it goes down | — (VPP: active-backup) | `weight` (1–255; the highest up member is active) |
 | `round-robin` | members take turns per packet | — (VPP: round-robin) | — |
-| `broadcast` | every packet on every member | — (VPP: broadcast) | — |
 
-`loadBalance` hashes: `l2` = source/destination MAC, `l23` = MAC + IP, `l34` = IP addresses + TCP/UDP ports.
+`loadBalance` hashes: `l2` = source/destination MAC, `l23` = MAC + IP, `l34` = IP addresses + TCP/UDP ports. VPP's
+`broadcast` mode (every frame on every member) is not offered: a switch-side LAG would deliver every frame twice.
 
 ## Rules (checked before commit — `400 problem+json` with a `pointer` to the field)
 
@@ -20,7 +20,10 @@ builds it with VPP's bond and LACP plugins. Reference behaviour: TNSR "Bond inte
   not a bond, not a loopback, not a sub-interface.
 - A member belongs to at most one bond: a second membership is refused at
   `/interfaces/<second bond>/bond/members/<member>`.
-- A member has no addresses, DHCP client, IP unnumbered, VRF or sub-interfaces of its own — configure them on the bond.
+- A member is an Ethernet NIC: tunnels and other virtual L3 interfaces (`wg<N>`, `ipip<N>`, `gre<N>`, `vxlan_tunnel<N>`, …) are
+  refused; the agent also refuses, before it calls VPP, any member without an L2 address.
+- A member has no addresses, DHCP client, IP unnumbered, VRF, sub-interfaces or MAC address of its own — configure them on
+  the bond (the members take the bond's MAC).
 - `loadBalance` only for `lacp`/`xor`; `passive`/`longTimeout` only for `lacp`; `weight` only for `active-backup`.
 
 Changing the mode, the load balance or the id re-creates the bond: its members, addresses and sub-interfaces are
@@ -35,7 +38,8 @@ and the sub-interface (or the bond) in the next (the agent's delete ordering, tr
 
 **Interfaces → Bonds** (`/interfaces/bonds`) lists every bond with its mode, load balance, status, active members and one
 chip per member (for LACP bonds the member's LACP state: *detached* until a partner answers, *collecting/distributing*
-when aggregated). **Add bond** creates `BondEthernet<id>` with the next free id. Click a bond for its live state, the bond
+when aggregated). The live state refreshes every 30 s; **Refresh** (on the page and in the bond's panel) reads it now,
+for example to watch LACP converge after a commit. **Add bond** creates `BondEthernet<id>` with the next free id. Click a bond for its live state, the bond
 form (mode, load balance, NUMA, id) and the members table: **Eligible interface** offers only NICs that may join (no
 addresses, not in another bond); a NIC that is not configured yet is added to `interfaces` enabled. Everything goes to
 the candidate; the pending-change bar shows the diff and **Commit** applies it.

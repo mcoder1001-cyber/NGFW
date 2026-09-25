@@ -2,6 +2,7 @@ package df7
 
 import (
 	"net/netip"
+	"ngfw/agent/internal/descriptors/kit"
 	"sort"
 
 	"ngfw/agent/binapi/ip_types"
@@ -27,12 +28,9 @@ func CanonAddr(s string) (string, error) {
 
 // ParsePrefix parses a CIDR prefix and requires it to be canonical (host bits zero).
 func ParsePrefix(s string) (netip.Prefix, error) {
-	p, err := netip.ParsePrefix(s)
+	p, err := kit.ParsePrefix(s)
 	if err != nil {
-		return netip.Prefix{}, Specf("prefix %q: %v", s, err)
-	}
-	if p.Masked() != p {
-		return netip.Prefix{}, Specf("prefix %q has host bits set (canonical form %s)", s, p.Masked())
+		return netip.Prefix{}, Specf("%v", err)
 	}
 	return p, nil
 }

@@ -19,6 +19,7 @@ import (
 	"net/netip"
 	"sort"
 	"strconv"
+	"sync"
 
 	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
@@ -187,13 +188,16 @@ type ExporterMeta struct {
 type ExporterDescriptor struct {
 	client vpp.Client
 	o      options
+
+	mu   sync.Mutex
+	stat map[string]uint32 // collector → stats index VPP returned on create (F-ipfix-sflow, IpfixState)
 }
 
 var _ scheduler.Descriptor = (*ExporterDescriptor)(nil)
 
 // NewExporter returns the ipfix.exporter descriptor.
 func NewExporter(client vpp.Client, opts ...Option) *ExporterDescriptor {
-	return &ExporterDescriptor{client: client, o: buildOptions(opts)}
+	return &ExporterDescriptor{client: client, o: buildOptions(opts), stat: map[string]uint32{}}
 }
 
 // Name implements scheduler.Descriptor.
@@ -242,13 +246,37 @@ func (d *ExporterDescriptor) createDelete(ctx context.Context, obj proto.Message
 // Create implements scheduler.Descriptor. VPP updates an exporter with the same collector in
 // place, so a re-apply is idempotent.
 func (d *ExporterDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
-	return d.createDelete(ctx, obj, true)
+	meta, err := d.createDelete(ctx, obj, true)
+	return d.remember(obj, meta, err)
+}
+
+// remember records the stats index of a successful create (StatIndex).
+func (d *ExporterDescriptor) remember(obj proto.Message, meta any, err error) (any, error) {
+	if m, ok := meta.(ExporterMeta); ok && err == nil {
+		var s Exporter
+		if dfkit.Decode(obj, &s) == nil {
+			d.mu.Lock()
+			d.stat[s.Collector] = m.StatIndex
+			d.mu.Unlock()
+		}
+	}
+	return meta, err
+}
+
+// StatIndex is the stats index VPP returned when this descriptor created (or last reconfigured)
+// the exporter of collector; false when it did not in this process (Retrieve cannot learn it).
+func (d *ExporterDescriptor) StatIndex(collector string) (uint32, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	i, ok := d.stat[collector]
+	return i, ok
 }
 
 // Update implements scheduler.Descriptor: create_delete(is_create=1) on an existing collector
 // reconfigures it in place.
 func (d *ExporterDescriptor) Update(ctx context.Context, _, newObj proto.Message, _ any) (any, error) {
-	return d.createDelete(ctx, newObj, true)
+	meta, err := d.createDelete(ctx, newObj, true)
+	return d.remember(newObj, meta, err)
 }
 
 // Delete implements scheduler.Descriptor. It first checks that the exporter still exists (D-074:
@@ -263,13 +291,26 @@ func (d *ExporterDescriptor) Delete(ctx context.Context, obj proto.Message, _ an
 		found = found || kv.Key == d.KeyOf(obj)
 	}
 	if !found {
+		d.forget(obj)
 		return nil
 	}
 	_, err = d.createDelete(ctx, obj, false)
 	if dfkit.IsVPPError(err, api.NO_SUCH_ENTRY) {
-		return nil
+		err = nil
+	}
+	if err == nil {
+		d.forget(obj)
 	}
 	return err
+}
+
+func (d *ExporterDescriptor) forget(obj proto.Message) {
+	var s Exporter
+	if dfkit.Decode(obj, &s) == nil {
+		d.mu.Lock()
+		delete(d.stat, s.Collector)
+		d.mu.Unlock()
+	}
 }
 
 // allExporters reads every exporter (ipfix_all_exporter_get, cursor-paged); index 0 first.

@@ -24,6 +24,7 @@ import { managementValidators } from './management.js';
 // wave-BC: F-mpls-srmpls
 // wave-BC: F-srv6
 // wave-BC: F-lisp
+import { lispValidators } from './lisp.js';
 // wave-BC: F-bfd-redistribution
 // wave-BC: F-ra-vpn
 // wave-BC: F-mpls-ldp
@@ -43,6 +44,10 @@ import { managementValidators } from './management.js';
 // wave-A: P12
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
+import { snmpValidators } from './snmp.js'; // F-snmp (unanchored)
+import { hostStackValidators } from './host-stack.js'; // F-host-stack (unanchored)
+// wave-BC: F-ipfix-sflow (unanchored)
+import { ipfixSflowValidators } from './ipfix-sflow.js';
 
 export * from './registry.js';
 
@@ -75,6 +80,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-srv6
   // wave-BC: F-lisp
+  ...lispValidators,
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
@@ -94,6 +100,10 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
+  ...snmpValidators, // F-snmp (unanchored)
+  ...hostStackValidators, // F-host-stack (unanchored)
+  // wave-BC: F-ipfix-sflow (unanchored)
+  ...ipfixSflowValidators,
 ];
 
 /** Process-wide registry populated from {@link SEMANTIC_VALIDATORS}. */

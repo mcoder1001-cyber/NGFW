@@ -9,6 +9,7 @@ import (
 // Register registers the per-owner ip_neighbor descriptor (neighbor) with r. Pass the agent's
 // persisted claim store with df2.WithClaims so neighbours on physical ports survive a restart.
 // The VPP-global ip-neighbor.config is NOT registered here (D-071): see RegisterGlobals.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df2.Option) {
 	r.Register(NewNeighbor(c, owner, opts...))
 }

@@ -108,19 +108,22 @@ func (d *ClientDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 		return nil, err
 	}
 	idx := tg.Index
+	// claim before the write (TD-11b / D-133, TD-22): a claim that cannot be recorded fails the
+	// Create with nothing written to VPP; a failed add releases a claim this Create made.
+	c, err := tg.ClaimFirst(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if err := d.config(ctx, s, idx, true); err != nil {
 		if dfkit.IsVPPError(err, api.INVALID_VALUE) { // a client exists on the interface
-			if aerr := tg.Adopt(); aerr != nil { // never adopt a foreign client (review H1)
+			if aerr := c.Adopt(); aerr != nil { // never adopt a foreign client (review H1)
 				return nil, aerr
 			}
 			if cur, ok, rerr := d.retrieveOne(ctx, idx); rerr == nil && ok && proto.Equal(cur.Proto(), s.Proto()) {
 				return ClientMeta{SwIfIndex: idx}, nil
 			}
 		}
-		return nil, err
-	}
-	if err := tg.Claim(); err != nil { // only after VPP accepted the add
-		return nil, err
+		return nil, c.Undo(err)
 	}
 	return ClientMeta{SwIfIndex: idx}, nil
 }

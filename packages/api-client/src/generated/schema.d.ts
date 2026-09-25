@@ -640,6 +640,108 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/host-stack': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Host stack: session layer on/off, applied app namespaces, session rules (read-only) */
+    get: operations['HostStack_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/snmp': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** SNMP agent state: daemon read-back, pending daemon action, VRX-MIB subagent */
+    get: operations['SnmpState_snmp'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/ipfix': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** IPFIX exporters, flowprobe and sFlow interfaces and sampling counters as the data plane has them (agent IpfixState) */
+    get: operations['IpfixSflow_ipfix'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/lisp': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** LISP / LISP-GPE: switches, locator sets, local EIDs and map-cache, adjacencies, EID-table maps, resolvers (agent LispState) */
+    get: operations['Lisp_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/license': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Licence status, entitlements in force and days left (no signature) */
+    get: operations['Licensing_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/system/license': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Upload a .vrxlic licence file (verified before it is stored) */
+    put: operations['Licensing_put'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4031,6 +4133,180 @@ export interface components {
           dscp?: number;
         };
       };
+      /**
+       * LISP
+       * @description LISP / LISP-GPE (advanced): locators, EIDs, mappings, resolvers.
+       */
+      lisp?: {
+        /**
+         * Enable LISP
+         * @default false
+         */
+        enabled: boolean;
+        /**
+         * Enable LISP-GPE
+         * @default false
+         */
+        gpe: boolean;
+        /**
+         * Locator sets
+         * @default {}
+         */
+        locatorSets: {
+          [key: string]: {
+            /**
+             * Locators
+             * @default []
+             */
+            locators: {
+              /** Interface */
+              interface: string;
+              /**
+               * Priority
+               * @default 1
+               */
+              priority: number;
+              /**
+               * Weight
+               * @default 1
+               */
+              weight: number;
+            }[];
+          };
+        };
+        /**
+         * Local EIDs
+         * @default []
+         */
+        localEids: {
+          /**
+           * VNI
+           * @default 0
+           */
+          vni: number;
+          /** EID */
+          eid: string;
+          /** Locator set */
+          locatorSet: string;
+        }[];
+        /**
+         * EID tables
+         * @default {}
+         */
+        eidTables: {
+          [key: string]: {
+            /** VRF */
+            vrf?: string;
+            /** Bridge domain */
+            bridgeDomain?: number;
+          };
+        };
+        /**
+         * Remote mappings
+         * @default []
+         */
+        remoteMappings: {
+          /**
+           * VNI
+           * @default 0
+           */
+          vni: number;
+          /** EID */
+          eid: string;
+          /**
+           * RLOCs
+           * @default []
+           */
+          rlocs: {
+            /** RLOC address */
+            address: string;
+            /**
+             * Priority
+             * @default 1
+             */
+            priority: number;
+            /**
+             * Weight
+             * @default 1
+             */
+            weight: number;
+          }[];
+          /**
+           * Action
+           * @default no-action
+           * @enum {string}
+           */
+          action: 'no-action' | 'natively-forward' | 'send-map-request' | 'drop';
+        }[];
+        /**
+         * Adjacencies
+         * @default []
+         */
+        adjacencies: {
+          /**
+           * VNI
+           * @default 0
+           */
+          vni: number;
+          /** Remote EID */
+          reid: string;
+          /** Local EID */
+          leid: string;
+        }[];
+        /**
+         * GPE forwarding entries
+         * @default []
+         */
+        gpeEntries: {
+          /**
+           * VNI
+           * @default 0
+           */
+          vni: number;
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /** Remote EID */
+          reid: string;
+          /** Local EID */
+          leid: string;
+          /**
+           * Locator pairs
+           * @default []
+           */
+          pairs: {
+            /** Local RLOC */
+            local: string;
+            /** Remote RLOC */
+            remote: string;
+            /**
+             * Weight
+             * @default 1
+             */
+            weight: number;
+          }[];
+          /**
+           * Action
+           * @default no-action
+           * @enum {string}
+           */
+          action: 'no-action' | 'natively-forward' | 'send-map-request' | 'drop';
+        }[];
+        /**
+         * Map resolvers
+         * @default []
+         */
+        mapResolvers: string[];
+        /**
+         * Map servers
+         * @default []
+         */
+        mapServers: string[];
+        /** Proxy-ITR locator set */
+        pitr?: string;
+      };
     };
     /**
      * Services
@@ -4494,6 +4770,8 @@ export interface components {
              * @default []
              */
             sources: string[];
+            /** View */
+            view?: string;
           };
         };
         /**
@@ -4530,6 +4808,8 @@ export interface components {
              * @enum {string}
              */
             access: 'ro' | 'rw';
+            /** View */
+            view?: string;
           };
         };
         /**
@@ -4560,6 +4840,56 @@ export interface components {
            */
           inform: boolean;
         }[];
+        /** sysServices */
+        sysServices?: number;
+        /**
+         * Views
+         * @default {}
+         */
+        views: {
+          [key: string]: {
+            /** Included subtrees */
+            include: string[];
+            /**
+             * Excluded subtrees
+             * @default []
+             */
+            exclude: string[];
+          };
+        };
+        /** Monitors */
+        monitors?: {
+          /**
+           * Disks
+           * @default []
+           */
+          disks: {
+            /** Mount path */
+            path: string;
+            /**
+             * Minimum free %
+             * @default 10
+             */
+            minPercent: number;
+          }[];
+          /** Load average */
+          load?: {
+            /** 1-minute load */
+            max1: number;
+            /** 5-minute load */
+            max5: number;
+            /** 15-minute load */
+            max15: number;
+          };
+        };
+        /** Private MIB (VRX-MIB) */
+        subagent?: {
+          /**
+           * VRX-MIB subagent
+           * @default true
+           */
+          enabled: boolean;
+        };
       };
       /**
        * LLDP
@@ -4713,7 +5043,7 @@ export interface components {
             ip4: boolean;
             /**
              * IPv6 flows
-             * @default true
+             * @default false
              */
             ip6: boolean;
           }[];
@@ -5087,6 +5417,97 @@ export interface components {
               output: 'ext' | 'vlan' | 'mpls' | 'ip';
             };
           };
+        };
+      };
+      /**
+       * Host stack
+       * @description VPP host stack (advanced, T3): session layer, app namespaces, session rules, TCP source addresses
+       */
+      hostStack?: {
+        /**
+         * Session layer
+         * @default false
+         */
+        enabled: boolean;
+        /**
+         * App namespaces
+         * @default {}
+         */
+        namespaces: {
+          [key: string]: {
+            /** Secret */
+            secretRef?: string;
+            /** Interface */
+            interface?: string;
+            /**
+             * VRF
+             * @default default
+             */
+            vrf: string;
+          };
+        };
+        /**
+         * Session rules
+         * @default []
+         */
+        sessionRules: {
+          /** Id */
+          tag: string;
+          /**
+           * Scope
+           * @default global
+           * @enum {string}
+           */
+          scope: 'global' | 'local';
+          /**
+           * Transport
+           * @enum {string}
+           */
+          transport: 'tcp' | 'udp';
+          /** Local prefix */
+          local: string;
+          /** Local port */
+          localPort?: number;
+          /** Remote prefix */
+          remote: string;
+          /** Remote port */
+          remotePort?: number;
+          /**
+           * Action
+           * @enum {string}
+           */
+          action: 'allow' | 'deny' | 'redirect';
+          /** Redirect to app index */
+          redirectAppIndex?: number;
+          /** App namespace */
+          appNamespace?: string;
+        }[];
+        tcpSourceAddresses?: {
+          /** First address */
+          first: string;
+          /** Last address */
+          last: string;
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+        };
+        httpStatic?: {
+          /**
+           * Enabled
+           * @default false
+           */
+          enabled: boolean;
+          /** Web root */
+          wwwRootPath: string;
+          /** URI */
+          uri: string;
+          /**
+           * Cache size (MiB)
+           * @default 10
+           */
+          cacheSizeMb: number;
         };
       };
     };
@@ -6747,9 +7168,14 @@ export interface operations {
               /** @constant */
               redacted: true;
             }[];
+            /** @description the configuration document (redacted, D-046) */
             payload: {
               [key: string]: unknown;
             };
+            /** @description secret versions pinned by this revision, `<kind>/<name>` → version (no values; review M2); a rollback re-activates them */
+            secretVersions?: {
+              [key: string]: number;
+            } | null;
           };
         };
       };
@@ -8267,6 +8693,524 @@ export interface operations {
       };
       /** @description Rate limited */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  HostStack_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description the session layer answers the rules dump (VPP has no getter) */
+            sessionEnabled: boolean;
+            /** @description why the layer is off or unknown; empty when on */
+            sessionDetail: string;
+            /** @description app namespaces this agent applied on the running VPP */
+            namespaces: string[];
+            /** @description this owner's session rules */
+            ruleCount: number;
+            /** @description every session rule in VPP (all owners) */
+            ruleCountTotal: number;
+            rules: {
+              tag: string;
+              scope: string;
+              transport: string;
+              local: string;
+              localPort: number;
+              remote: string;
+              remotePort: number;
+              action: string;
+              appnsIndexes: number[];
+            }[];
+            retrievedAt: string | null;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  SnmpState_snmp: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description an enabled services.snmp is applied */
+            configured: boolean;
+            daemon: {
+              reachable: boolean;
+              endpoint: string;
+              /** @description credential used for the read-back, by name only */
+              credential: string;
+              sysName: string;
+              sysDescr: string;
+              sysLocation: string;
+              sysContact: string;
+              /** @description uint64 as decimal string (D-039) */
+              sysUpTimeCentiseconds: string;
+              error: string;
+            };
+            engineId: string;
+            /** @description daemon action the agent waits for (restart/start, D-079); empty = none */
+            pendingAction: string;
+            subagent: {
+              registered: boolean;
+              registrations: string;
+              error: string;
+            };
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  IpfixSflow_ipfix: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            exporters: {
+              /** @description services.ipfix.exporters key when the agent knows it, else "" */
+              name: string;
+              /** @description exporter 0 — the one flowprobe records use */
+              defaultExporter: boolean;
+              collector: string;
+              collectorPort: number;
+              sourceAddress: string;
+              vrf: string;
+              pathMtu: number;
+              templateIntervalSec: number;
+              udpChecksum: boolean;
+              /** @description stats index; null when not known (agent restart) */
+              statIndex: number | null;
+            }[];
+            flowprobe: {
+              /** @description null while VPP has no record flag set */
+              params: {
+                recordL2: boolean;
+                recordL3: boolean;
+                recordL4: boolean;
+                activeTimerSec: number;
+                passiveTimerSec: number;
+              } | null;
+              interfaces: {
+                interface: string;
+                /** @enum {string} */
+                which: 'ip4' | 'ip6' | 'l2';
+                /** @enum {string} */
+                direction: 'rx' | 'tx' | 'both';
+              }[];
+            };
+            sflow: {
+              global: {
+                samplingN: number;
+                pollingIntervalSec: number;
+                headerBytes: number;
+                direction: string;
+                dropMonitoring: boolean;
+              } | null;
+              interfaces: {
+                interface: string;
+                hwIfIndex: number;
+              }[];
+              /** @description sFlow node counters (/err/sflow/*) from the stats segment, summed over workers */
+              counters: {
+                name: string;
+                /** @description uint64 as a decimal string */
+                value: string;
+              }[];
+              /**
+               * @description VPP samples; export to collectors needs hsflowd, not shipped in this build
+               * @constant
+               */
+              exportsToCollectors: false;
+            };
+            /** @description the agent sets exporter 0 / flowprobe / sFlow globals (D-071) */
+            globalsOwner: boolean;
+            notes: string[];
+            retrievedAt: string | null;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Lisp_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description LISP control plane switch (VPP-global) */
+            enabled: boolean;
+            /** @description LISP-GPE data plane switch (VPP-global) */
+            gpeEnabled: boolean;
+            /** @description proxy-ITR locator set, "" when unset */
+            pitr: string;
+            locatorSets: {
+              name: string;
+              locators: {
+                interface: string;
+                swIfIndex: number;
+                priority: number;
+                weight: number;
+              }[];
+            }[];
+            /** @description local EIDs and the map-cache (static and learned remote mappings) */
+            mappings: {
+              vni: number;
+              eid: string;
+              local: boolean;
+              locatorSet: string;
+              rlocs: string[];
+              action: string;
+              authoritative: boolean;
+              ttl: number;
+            }[];
+            adjacencies: {
+              vni: number;
+              reid: string;
+              leid: string;
+            }[];
+            eidTables: {
+              vni: number;
+              dpTable: number;
+              isL2: boolean;
+            }[];
+            mapResolvers: string[];
+            mapServers: string[];
+            /** @description VNIs with LISP-GPE forwarding entries (their pairs cannot be read back, V13) */
+            gpeVnis: number[];
+            retrievedAt: string | null;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Licensing_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @enum {string} */
+            status: 'community' | 'valid' | 'grace' | 'expired' | 'invalid';
+            reason?: string;
+            licenseId?: string;
+            /** @description customer name only */
+            customer?: string;
+            issuedAt?: string;
+            notBefore?: string;
+            expiresAt?: string;
+            daysLeft: number;
+            graceDays: number;
+            bound: {
+              machineId: boolean;
+              serial: boolean;
+            };
+            entitlements: {
+              features: string[];
+              limits: {
+                [key: string]: number;
+              };
+            };
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Licensing_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @constant */
+          format: 'vrxlic/1';
+          license: {
+            [key: string]: unknown;
+          };
+          /** @description detached Ed25519 signature (base64); stored, never returned */
+          signature: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @enum {string} */
+            status: 'community' | 'valid' | 'grace' | 'expired' | 'invalid';
+            reason?: string;
+            licenseId?: string;
+            /** @description customer name only */
+            customer?: string;
+            issuedAt?: string;
+            notBefore?: string;
+            expiresAt?: string;
+            daysLeft: number;
+            graceDays: number;
+            bound: {
+              machineId: boolean;
+              serial: boolean;
+            };
+            entitlements: {
+              features: string[];
+              limits: {
+                [key: string]: number;
+              };
+            };
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
         headers: {
           [name: string]: unknown;
         };

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"ngfw/agent/internal/descriptors/kit"
 
 	"ngfw/agent/binapi/ip_types"
 )
@@ -46,12 +47,9 @@ func CanonicalAddress(s string) (string, error) {
 // ParsePrefix parses a CIDR prefix into the binapi prefix type. Host bits must be zero
 // ("10.4.1.0/24", not "10.4.1.7/24") so that desired and retrieved values compare equal.
 func ParsePrefix(s string) (ip_types.Prefix, error) {
-	p, err := netip.ParsePrefix(s)
+	p, err := kit.ParsePrefix(s)
 	if err != nil {
-		return ip_types.Prefix{}, fmt.Errorf("vpn: prefix %q: %w", s, err)
-	}
-	if p.Addr().Unmap() != p.Masked().Addr().Unmap() {
-		return ip_types.Prefix{}, fmt.Errorf("vpn: prefix %q has host bits set (want %s)", s, p.Masked())
+		return ip_types.Prefix{}, fmt.Errorf("vpn: %w", err)
 	}
 	addr, err := ParseAddress(p.Addr().String())
 	if err != nil {

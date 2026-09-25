@@ -18,7 +18,7 @@ import (
 // as a validation issue with the JSON path in the message.
 var ErrInput = errors.New("snmpd: invalid desired state")
 
-// DefaultView is the view every community and user gets unless it names one (stand-in).
+// DefaultView is the view every community and user gets unless it names one.
 const DefaultView = "vrx_all"
 
 // Model is the validated, fully resolved view of services.snmp: exactly what the template
@@ -182,10 +182,11 @@ var (
 	levels     = map[string]string{"noAuthNoPriv": "noauth", "authNoPriv": "auth", "authPriv": "priv"}
 )
 
-// BuildModel validates services.snmp (+ stand-ins, D-055) and resolves its secrets.
-func BuildModel(ds *vrxv1.DesiredState, ext *rfkit.Ext, sec *rfkit.Secrets, agentx string) (*Model, error) {
+// BuildModel validates services.snmp and resolves its secrets. The former D-055 stand-ins (views,
+// per-credential view, sysServices, monitors) are typed contract fields since F-snmp (D-086); ext is
+// kept for the signature and no longer read.
+func BuildModel(ds *vrxv1.DesiredState, _ *rfkit.Ext, sec *rfkit.Secrets, agentx string) (*Model, error) {
 	snmp := ds.GetServices().GetSnmp()
-	sx := ext.Get("services", "snmp")
 	m := &Model{Enabled: snmp.GetEnabled(), AgentX: agentx}
 	if !m.Enabled {
 		return m, nil
@@ -193,25 +194,22 @@ func BuildModel(ds *vrxv1.DesiredState, ext *rfkit.Ext, sec *rfkit.Secrets, agen
 	if vrf := snmp.GetVrf(); vrf != "" && vrf != "default" {
 		return nil, fmt.Errorf("%w: services.snmp.vrf %q: only the default VRF is supported until F-snmp binds snmpd to a VRF", ErrInput, vrf)
 	}
-	if err := buildSystem(m, snmp, sx); err != nil {
+	if err := buildSystem(m, snmp); err != nil {
 		return nil, err
 	}
 	if err := buildListen(m, snmp); err != nil {
 		return nil, err
 	}
-	views, err := buildViews(sx)
+	views, err := buildViews(snmp.GetViews())
 	if err != nil {
 		return nil, err
 	}
 	m.Views = views
-	viewOf := func(x *rfkit.Ext, path string) (string, error) {
-		v, ok, err := x.Get("view").String()
-		if err != nil {
-			return "", fmt.Errorf("%w: %w", ErrInput, err)
-		}
-		if !ok {
+	viewOf := func(view *string, path string) (string, error) {
+		if view == nil {
 			return DefaultView, nil
 		}
+		v := *view
 		if !slices.ContainsFunc(views, func(vw View) bool { return vw.Name == v }) {
 			return "", fmt.Errorf("%w: %s.view %q is not defined in services.snmp.views", ErrInput, path, v)
 		}
@@ -229,7 +227,7 @@ func BuildModel(ds *vrxv1.DesiredState, ext *rfkit.Ext, sec *rfkit.Secrets, agen
 			return nil, fmt.Errorf("%w: %s.secretRef: %w", ErrInput, path, err)
 		}
 		secretOf[name] = val
-		view, err := viewOf(sx.Get("communities", name), path)
+		view, err := viewOf(c.View, path)
 		if err != nil {
 			return nil, err
 		}
@@ -264,7 +262,7 @@ func BuildModel(ds *vrxv1.DesiredState, ext *rfkit.Ext, sec *rfkit.Secrets, agen
 		if err != nil {
 			return nil, err
 		}
-		if user.View, err = viewOf(sx.Get("v3Users", name), path); err != nil {
+		if user.View, err = viewOf(u.View, path); err != nil {
 			return nil, err
 		}
 		m.Users = append(m.Users, *user)
@@ -277,7 +275,7 @@ func BuildModel(ds *vrxv1.DesiredState, ext *rfkit.Ext, sec *rfkit.Secrets, agen
 		}
 		m.Traps = append(m.Traps, *tr)
 	}
-	if err := buildMonitors(m, sx.Get("monitors")); err != nil {
+	if err := buildMonitors(m, snmp.GetMonitors()); err != nil {
 		return nil, err
 	}
 	return m, nil
@@ -293,7 +291,7 @@ func access(a, path string) (bool, error) {
 	return false, fmt.Errorf("%w: %s.access %q must be ro or rw", ErrInput, path, a)
 }
 
-func buildSystem(m *Model, snmp *vrxv1.SnmpService, sx *rfkit.Ext) error {
+func buildSystem(m *Model, snmp *vrxv1.SnmpService) error {
 	if n := snmp.GetSysName(); n != "" {
 		if len(n) > 253 || !hostnameRe.MatchString(n) {
 			return fmt.Errorf("%w: services.snmp.sysName %q is not a hostname", ErrInput, n)
@@ -320,11 +318,10 @@ func buildSystem(m *Model, snmp *vrxv1.SnmpService, sx *rfkit.Ext) error {
 		}
 		m.EngineID = strings.ToLower(id)
 	}
-	svc, _, err := sx.Get("sysServices").Uint(0, 127)
-	if err != nil {
-		return fmt.Errorf("%w: %w", ErrInput, err)
+	if svc := snmp.GetSysServices(); svc > 127 {
+		return fmt.Errorf("%w: services.snmp.sysServices %d out of range 0..127", ErrInput, svc)
 	}
-	m.SysServices = svc
+	m.SysServices = snmp.GetSysServices()
 	return nil
 }
 
@@ -365,36 +362,24 @@ func buildListen(m *Model, snmp *vrxv1.SnmpService) error {
 	return nil
 }
 
-func buildViews(sx *rfkit.Ext) ([]View, error) {
+func buildViews(in map[string]*vrxv1.SnmpView) ([]View, error) {
 	views := []View{{Name: DefaultView, Include: []string{".1"}}}
-	vx := sx.Get("views")
-	names, err := vx.Keys()
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrInput, err)
-	}
-	slices.Sort(names)
-	for _, name := range names {
+	for _, name := range slices.Sorted(maps.Keys(in)) {
 		path := "services.snmp.views." + name
 		if _, err := Token(name); err != nil || name == DefaultView {
 			return nil, fmt.Errorf("%w: %s: view name must match %s and not be %s", ErrInput, path, tokenRe, DefaultView)
 		}
-		x := vx.Get(name)
-		if err := x.OnlyKeys("include", "exclude"); err != nil {
-			return nil, fmt.Errorf("%w: %w", ErrInput, err)
-		}
+		x := in[name]
 		v := View{Name: name}
 		for _, part := range []struct {
-			key string
-			dst *[]string
-		}{{"include", &v.Include}, {"exclude", &v.Exclude}} {
-			list, err := x.Get(part.key).Strings()
-			if err != nil {
-				return nil, fmt.Errorf("%w: %w", ErrInput, err)
-			}
-			if len(list) > 32 {
+			key  string
+			list []string
+			dst  *[]string
+		}{{"include", x.GetInclude(), &v.Include}, {"exclude", x.GetExclude(), &v.Exclude}} {
+			if len(part.list) > 32 {
 				return nil, fmt.Errorf("%w: %s.%s has more than 32 subtrees", ErrInput, path, part.key)
 			}
-			for _, o := range list {
+			for _, o := range part.list {
 				n, err := OID(o)
 				if err != nil {
 					return nil, fmt.Errorf("%s.%s: %w", path, part.key, err)
@@ -492,61 +477,44 @@ func buildTrap(i int, t *vrxv1.SnmpService_TrapReceiver, secretOf map[string]str
 	return tr, nil
 }
 
-func buildMonitors(m *Model, mx *rfkit.Ext) error {
-	if mx == nil {
+func buildMonitors(m *Model, mon *vrxv1.SnmpMonitors) error {
+	if mon == nil {
 		return nil
 	}
-	if err := mx.OnlyKeys("disks", "load"); err != nil {
-		return fmt.Errorf("%w: %w", ErrInput, err)
-	}
-	dx := mx.Get("disks")
-	n, err := dx.Len()
-	if err != nil {
-		return fmt.Errorf("%w: %w", ErrInput, err)
-	}
-	if n > 16 {
+	if len(mon.GetDisks()) > 16 {
 		return fmt.Errorf("%w: services.snmp.monitors.disks has more than 16 entries", ErrInput)
 	}
-	for i := range n {
-		d := dx.Index(i)
-		if err := d.OnlyKeys("path", "minPercent"); err != nil {
-			return fmt.Errorf("%w: %w", ErrInput, err)
-		}
-		p, _, err := d.Get("path").String()
-		if err != nil {
-			return fmt.Errorf("%w: %w", ErrInput, err)
-		}
+	for i, d := range mon.GetDisks() {
+		path := fmt.Sprintf("services.snmp.monitors.disks[%d]", i)
+		p := d.GetPath()
 		if !diskPathRe.MatchString(p) || strings.Contains(p, "//") || strings.Contains(p, "/../") || strings.HasSuffix(p, "/..") {
-			return fmt.Errorf("%w: %s.path %q must be an absolute clean path of [A-Za-z0-9_./-]", ErrInput, d.Path(), p)
+			return fmt.Errorf("%w: %s.path %q must be an absolute clean path of [A-Za-z0-9_./-]", ErrInput, path, p)
 		}
-		pct, ok, err := d.Get("minPercent").Uint(1, 99)
-		if err != nil {
-			return fmt.Errorf("%w: %w", ErrInput, err)
-		}
-		if !ok {
-			pct = 10
+		pct := uint32(10)
+		if d.MinPercent != nil {
+			pct = d.GetMinPercent()
+			if pct < 1 || pct > 99 {
+				return fmt.Errorf("%w: %s.minPercent %d out of range 1..99", ErrInput, path, pct)
+			}
 		}
 		m.Disks = append(m.Disks, Disk{Path: p, MinPercent: pct})
 	}
-	if lx := mx.Get("load"); lx != nil {
-		if err := lx.OnlyKeys("max1", "max5", "max15"); err != nil {
-			return fmt.Errorf("%w: %w", ErrInput, err)
-		}
-		l := &Load{}
+	if l := mon.GetLoad(); l != nil {
+		out := &Load{}
 		for _, f := range []struct {
 			k   string
+			v   *uint32
 			dst *uint32
-		}{{"max1", &l.Max1}, {"max5", &l.Max5}, {"max15", &l.Max15}} {
-			v, ok, err := lx.Get(f.k).Uint(1, 1000)
-			if err != nil {
-				return fmt.Errorf("%w: %w", ErrInput, err)
+		}{{"max1", l.Max1, &out.Max1}, {"max5", l.Max5, &out.Max5}, {"max15", l.Max15, &out.Max15}} {
+			if f.v == nil {
+				return fmt.Errorf("%w: services.snmp.monitors.load.%s is required", ErrInput, f.k)
 			}
-			if !ok {
-				return fmt.Errorf("%w: %s.%s is required", ErrInput, lx.Path(), f.k)
+			if *f.v < 1 || *f.v > 1000 {
+				return fmt.Errorf("%w: services.snmp.monitors.load.%s %d out of range 1..1000", ErrInput, f.k, *f.v)
 			}
-			*f.dst = v
+			*f.dst = *f.v
 		}
-		m.Load = l
+		m.Load = out
 	}
 	return nil
 }

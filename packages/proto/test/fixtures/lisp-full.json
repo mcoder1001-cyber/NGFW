@@ -1,0 +1,42 @@
+{
+  "vrfs": {
+    "overlay": { "id": 1100 }
+  },
+  "interfaces": {
+    "host-w11-eth0": { "enabled": true, "ipv4": ["10.11.1.1/24"] },
+    "loop1100": { "enabled": true, "vrf": "overlay", "ipv4": ["10.11.100.1/24"] }
+  },
+  "tunnels": {
+    "lisp": {
+      "enabled": true,
+      "gpe": true,
+      "locatorSets": {
+        "w11-rloc": { "locators": [{ "interface": "host-w11-eth0", "priority": 1, "weight": 1 }] }
+      },
+      "localEids": [{ "vni": 1100, "eid": "10.11.100.0/24", "locatorSet": "w11-rloc" }],
+      "eidTables": { "1100": { "vrf": "overlay" } },
+      "remoteMappings": [
+        {
+          "vni": 1100,
+          "eid": "10.11.200.0/24",
+          "rlocs": [{ "address": "10.11.1.2", "priority": 1, "weight": 1 }],
+          "action": "no-action"
+        }
+      ],
+      "adjacencies": [{ "vni": 1100, "reid": "10.11.200.0/24", "leid": "10.11.100.0/24" }],
+      "gpeEntries": [
+        {
+          "vni": 1101,
+          "vrf": "overlay",
+          "reid": "10.11.201.0/24",
+          "leid": "10.11.101.0/24",
+          "pairs": [{ "local": "10.11.1.1", "remote": "10.11.1.3", "weight": 1 }],
+          "action": "no-action"
+        }
+      ],
+      "mapResolvers": ["10.11.1.254"],
+      "mapServers": ["10.11.1.253"],
+      "pitr": "w11-rloc"
+    }
+  }
+}

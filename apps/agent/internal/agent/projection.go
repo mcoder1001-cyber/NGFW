@@ -301,6 +301,9 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-BC: F-mpls-srmpls
 	// wave-BC: F-srv6
 	// wave-BC: F-lisp
+	if in["tunnels"] {
+		desired.Lisp(p, ds.GetTunnels(), vrfID)
+	}
 	// wave-BC: F-bfd-redistribution
 	// wave-BC: F-igmp-mfib
 	// wave-BC: F-ha-state-sync
@@ -320,6 +323,16 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
+	if in["services"] { // F-snmp (unanchored)
+		desired.Snmp(p, ds.GetServices())
+	}
+	if in["services"] {
+		desired.HostStack(p, ds.GetServices().GetHostStack(), vrfID)
+	} // F-host-stack (unanchored)
+	// wave-BC: F-ipfix-sflow (unanchored)
+	if in["services"] {
+		desired.IpfixSflow(p, ds.GetServices(), vrfID)
+	}
 	return p
 }
 
@@ -424,6 +437,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-BC: F-mpls-srmpls
 	// wave-BC: F-srv6
 	// wave-BC: F-lisp
+	if in["tunnels"] {
+		desired.AssembleLisp(ds, kvs, nameOf)
+	}
 	// wave-BC: F-bfd-redistribution
 	// wave-BC: F-igmp-mfib
 	// wave-BC: F-ha-state-sync
@@ -443,6 +459,16 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
+	if in["services"] { // F-snmp (unanchored)
+		desired.AssembleSnmp(ds, kvs)
+	}
+	if in["services"] {
+		desired.HostStackAssemble(ds, kvs)
+	} // F-host-stack (unanchored)
+	// wave-BC: F-ipfix-sflow (unanchored)
+	if in["services"] {
+		desired.AssembleIpfixSflow(ds, kvs, nameOf)
+	}
 	return ds
 }
 

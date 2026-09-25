@@ -182,7 +182,7 @@ var (
 )
 
 // Render implements renderers.Renderer: snmpd.conf from services.snmp. desired is a
-// *vrxv1.DesiredState or (D-055 stand-ins) a *structpb.Struct holding the document. No I/O
+// *vrxv1.DesiredState or a *structpb.Struct holding the document (decoded into the typed message). No I/O
 // except the injected secret resolver; the file is marked Secret whenever it carries one.
 func (r *Renderer) Render(ctx context.Context, desired proto.Message) (renderers.Files, error) {
 	if err := r.check(); err != nil {

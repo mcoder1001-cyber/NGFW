@@ -35,9 +35,13 @@ import {
   type ValidationReport,
 } from '@ngfw/proto';
 import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
+import { snmpStateFake } from '../features/snmp/fake.js'; // F-snmp (unanchored import)
+import { ipfixStateFake } from '../features/ipfix-sflow/fake.js'; // F-ipfix-sflow
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { hostStackFake } from '../features/host-stack/fake.js'; // F-host-stack (P5)
+import { lispStateFake } from '../features/lisp/fake.js';
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -634,11 +638,15 @@ export class FakeAgent {
       // wave-BC: F-lb
       // wave-BC: F-qos-flat
       // wave-BC: F-host-stack
+      hostStackState: hostStackFake(this.owner, () => this.current),
       // wave-BC: F-snmp
+      snmpState: snmpStateFake(() => this.current),
       // wave-BC: F-ipfix-sflow
+      ipfixState: ipfixStateFake(this),
       // wave-BC: F-capture-trace
       // wave-BC: F-srv6
       // wave-BC: F-lisp
+      lispState: lispStateFake({ owner: this.owner, current: () => this.current, record: (m, r) => this.record(m, r), failWith: () => this.failAllWith }),
       // wave-BC: F-bfd-redistribution
       // wave-BC: F-ra-vpn
       // wave-BC: F-mpls-ldp

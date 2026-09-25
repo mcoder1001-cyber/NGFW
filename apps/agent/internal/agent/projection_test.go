@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
+	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -17,6 +18,10 @@ import (
 // no ERROR issue, and assemble(project(doc)) round-trips the implemented domains of the document
 // modulo the leaves the core descriptors cannot represent.
 func TestProjectSchemaExamples(t *testing.T) {
+	// F-snmp: no daemon parse run / secret resolution here (the examples hold refs only); restore after.
+	saved := desired.SnapshotSnmpChecks()
+	desired.RestoreSnmpChecks(nil)
+	t.Cleanup(func() { desired.RestoreSnmpChecks(saved) })
 	files, err := filepath.Glob("../../../../packages/schema/examples/*.json")
 	if err != nil || len(files) == 0 {
 		t.Skipf("no schema examples: %v", err)

@@ -752,6 +752,7 @@ func (d *IntfNatDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
 // Register constructs the per-object lb descriptors (VIPs, ASes, NAT interfaces). lb.vip
 // depends on lb.conf only optionally, so it works whether or not this agent is the globals
 // owner.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
 	r.Register(NewVIP(c, owner, opts...))
 	r.Register(NewAS(c, owner, opts...))

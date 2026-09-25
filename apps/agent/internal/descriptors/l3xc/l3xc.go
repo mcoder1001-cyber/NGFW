@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"ngfw/agent/internal/descriptors/kit"
 	"sort"
 	"strconv"
 
@@ -308,4 +309,6 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 }
 
 // Register registers the l3xc descriptor with r.
-func Register(r scheduler.Registry, c vpp.Client, owner string) { r.Register(New(c, owner)) }
+func Register(r scheduler.Registry, c vpp.Client, owner string) {
+	kit.Register(r, kit.Env{Client: c, Owner: owner}, func(e kit.Env) scheduler.Descriptor { return New(e.Client, e.Owner) })
+}

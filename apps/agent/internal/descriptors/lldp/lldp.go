@@ -361,6 +361,7 @@ func Neighbours(ctx context.Context, c vpp.Client) (map[uint32]Neighbour, error)
 
 // Register constructs the per-interface lldp descriptor. lldp.interface depends on lldp.global
 // only optionally, so it works whether or not this agent is the globals owner.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
 	r.Register(NewInterface(c, owner, opts...))
 }

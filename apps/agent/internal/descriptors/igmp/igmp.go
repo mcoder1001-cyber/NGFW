@@ -681,6 +681,7 @@ func ClearInterface(ctx context.Context, c vpp.Client, swIfIndex uint32) error {
 
 // Register constructs the per-interface igmp descriptors; interface and listen share one Modes
 // registry.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
 	modes := NewModes()
 	r.Register(NewInterface(c, owner, modes, opts...))

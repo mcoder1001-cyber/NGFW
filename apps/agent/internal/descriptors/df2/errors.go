@@ -3,6 +3,7 @@ package df2
 import (
 	"errors"
 	"fmt"
+	"ngfw/agent/internal/descriptors/kit"
 
 	"go.fd.io/govpp/adapter"
 	"go.fd.io/govpp/api"
@@ -16,7 +17,7 @@ var (
 	// ErrRetrieveUnsupported: VPP has no dump for this object type, so Retrieve cannot report
 	// actual state (adl, classify ip/l2 table bindings, output-acl). The descriptor is
 	// write-only; the doc table says so.
-	ErrRetrieveUnsupported = errors.New("vpp has no dump for this object type")
+	ErrRetrieveUnsupported = kit.ErrRetrieveUnsupported
 	// ErrNoSuchInterface: the named interface does not exist in VPP.
 	ErrNoSuchInterface = errors.New("no such interface")
 	// ErrBadMeta: Update/Delete received a Meta of the wrong type.

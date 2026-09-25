@@ -20,11 +20,12 @@ import { MinRole } from '../auth/decorators.js';
 import { getAt } from '../common/json.js';
 import { problems } from '../common/problem.js';
 import type { VrxRequest } from '../common/principal.js';
-import { Protected } from '../common/responses.js';
+import { ApiOut, Protected, type SameKeys } from '../common/responses.js';
 import { openapi, ref, ZodPipe } from '../common/zod.js';
 import { safeText } from '../common/text.js';
 import { CommitService } from '../commit/commit.service.js';
 import { DatastoreService, type EditResult } from '../datastore/datastore.service.js';
+import type { Revision, RevisionMeta, SyncStatus } from '../datastore/repo.js';
 import { markSecretChanges } from '../datastore/documents.js';
 import { pointerFromUrl } from './path.js';
 
@@ -97,12 +98,31 @@ const RevisionMetaOut = z.object({
     .array(SecretChangeOut)
     .describe('secret leaves this revision changed against its parent, without values (TD-2 #6)'),
 });
+const RevisionOut = RevisionMetaOut.extend({
+  payload: z
+    .record(z.string(), z.unknown())
+    .describe('the configuration document (redacted, D-046)'),
+  secretVersions: z
+    .record(z.string(), z.number().int())
+    .nullable()
+    .optional()
+    .describe(
+      'secret versions pinned by this revision, `<kind>/<name>` → version (no values; review M2); a rollback re-activates them',
+    ),
+});
+// ARCH-04 (TD-15): the documented DTOs and what the handlers return must not drift apart (compile-time).
+const _revisionMetaKeys: SameKeys<RevisionMeta, typeof RevisionMetaOut> = true;
+const _revisionKeys: SameKeys<Revision, typeof RevisionOut> = true;
+void _revisionMetaKeys;
+void _revisionKeys;
 const SyncOut = z.object({
   state: z.enum(['in-sync', 'unknown', 'degraded']),
   reason: z.string(),
   txnId: z.string().nullable(),
   since: z.string(),
 });
+const _syncKeys: SameKeys<SyncStatus, typeof SyncOut> = true;
+void _syncKeys;
 const CommitOut = z.object({
   status: z.enum([
     'applied',
@@ -216,12 +236,7 @@ export class ConfigController {
   @ApiOperation({
     summary: 'Structured candidate ↔ running diff (RFC 6902-style ops with JSON pointers)',
   })
-  @ApiOkResponse({
-    schema: openapi(
-      z.object({ baseRevision: z.number().int().nullable(), changes: z.array(ChangeOut) }),
-      'output',
-    ),
-  })
+  @ApiOut(z.object({ baseRevision: z.number().int().nullable(), changes: z.array(ChangeOut) }))
   diff() {
     return this.ds.diff();
   }
@@ -229,7 +244,7 @@ export class ConfigController {
   @Get('lock')
   @Protected()
   @ApiOperation({ summary: 'Candidate lock (single writer)' })
-  @ApiOkResponse({ schema: openapi(LockOut, 'output') })
+  @ApiOut(LockOut)
   lock() {
     return this.ds.lock();
   }
@@ -238,7 +253,7 @@ export class ConfigController {
   @MinRole('admin')
   @Protected()
   @ApiOperation({ summary: 'Admin: break the lock of another user (the candidate is discarded)' })
-  @ApiOkResponse({ schema: openapi(LockOut, 'output') })
+  @ApiOut(LockOut)
   async breakLock(@Req() req: VrxRequest) {
     const before = await this.ds.breakLock();
     req.audit = { resource: 'lock', before };
@@ -252,17 +267,14 @@ export class ConfigController {
     summary:
       'Three-tier validation of the candidate (schema → semantic → agent DryRun); nothing is applied',
   })
-  @ApiOkResponse({
-    schema: openapi(
-      z.object({
-        ok: z.literal(true),
-        warnings: z.array(Issue),
-        plan: z.array(PlanOut),
-        notApplied: z.array(z.string()),
-      }),
-      'output',
-    ),
-  })
+  @ApiOut(
+    z.object({
+      ok: z.literal(true),
+      warnings: z.array(Issue),
+      plan: z.array(PlanOut),
+      notApplied: z.array(z.string()),
+    }),
+  )
   validate(@Req() req: VrxRequest) {
     return this.commits.validateCandidate(req.principal!);
   }
@@ -280,7 +292,7 @@ export class ConfigController {
     summary:
       'Validate and apply the candidate; with ?confirm=<sec> the agent reverts unless confirmed',
   })
-  @ApiOkResponse({ schema: openapi(CommitOut, 'output') })
+  @ApiOut(CommitOut)
   async commit(
     @Query(new ZodPipe(CommitQuery)) q: z.output<typeof CommitQuery>,
     @Req() req: VrxRequest,
@@ -302,7 +314,7 @@ export class ConfigController {
   @ApiOperation({
     summary: 'Confirm the pending commit (cancels the auto-revert) and persist its revision',
   })
-  @ApiOkResponse({ schema: openapi(CommitOut, 'output') })
+  @ApiOut(CommitOut)
   async confirm(@Req() req: VrxRequest) {
     const r = await this.commits.confirm(req.principal!);
     req.audit = { resource: 'commit/confirm', after: { txnId: r.txnId, revision: r.revision?.id } };
@@ -312,7 +324,7 @@ export class ConfigController {
   @Get('commit/pending')
   @Protected()
   @ApiOperation({ summary: 'The commit waiting for confirmation, if any' })
-  @ApiOkResponse({ schema: openapi(PendingOut, 'output') })
+  @ApiOut(PendingOut)
   async pending() {
     return { pending: await this.commits.pendingInfo() };
   }
@@ -321,7 +333,7 @@ export class ConfigController {
   @HttpCode(200)
   @Protected(409)
   @ApiOperation({ summary: 'Drop the candidate and release the lock' })
-  @ApiOkResponse({ schema: openapi(z.object({ discarded: z.boolean() }), 'output') })
+  @ApiOut(z.object({ discarded: z.boolean() }))
   async discard(@Req() req: VrxRequest) {
     const r = await this.ds.discard(req.principal!);
     req.audit = { resource: 'candidate', after: r };
@@ -337,12 +349,7 @@ export class ConfigController {
   })
   @ApiQuery({ name: 'offset', required: false, schema: { type: 'integer', minimum: 0 } })
   @ApiOperation({ summary: 'Revision history, newest first' })
-  @ApiOkResponse({
-    schema: openapi(
-      z.object({ items: z.array(RevisionMetaOut), total: z.number().int() }),
-      'output',
-    ),
-  })
+  @ApiOut(z.object({ items: z.array(RevisionMetaOut), total: z.number().int() }))
   revisions(@Query(new ZodPipe(PageQuery)) q: z.output<typeof PageQuery>) {
     return this.ds.listRevisions(q.limit, q.offset);
   }
@@ -350,12 +357,7 @@ export class ConfigController {
   @Get('revisions/:rev')
   @Protected(404)
   @ApiOperation({ summary: 'One revision with its (redacted) payload' })
-  @ApiOkResponse({
-    schema: openapi(
-      RevisionMetaOut.extend({ payload: z.record(z.string(), z.unknown()) }),
-      'output',
-    ),
-  })
+  @ApiOut(RevisionOut)
   revision(@Param('rev', new ZodPipe(Rev)) rev: number) {
     return this.ds.getRevision(rev);
   }
@@ -366,16 +368,13 @@ export class ConfigController {
     summary:
       'What revision {rev} changed against its parent (redacted; secret leaves as `redacted: true` entries)',
   })
-  @ApiOkResponse({
-    schema: openapi(
-      z.object({
-        revision: z.number().int(),
-        parent: z.number().int().nullable(),
-        changes: z.array(ChangeOut),
-      }),
-      'output',
-    ),
-  })
+  @ApiOut(
+    z.object({
+      revision: z.number().int(),
+      parent: z.number().int().nullable(),
+      changes: z.array(ChangeOut),
+    }),
+  )
   revisionDiff(@Param('rev', new ZodPipe(Rev)) rev: number) {
     return this.ds.revisionDiff(rev);
   }
@@ -390,7 +389,7 @@ export class ConfigController {
   })
   @ApiQuery({ name: 'comment', required: false, schema: openapi(safeText(1024)) })
   @ApiOperation({ summary: 'Apply an old revision as a new revision (payload = the old one)' })
-  @ApiOkResponse({ schema: openapi(CommitOut, 'output') })
+  @ApiOut(CommitOut)
   async rollback(
     @Param('rev', new ZodPipe(Rev)) rev: number,
     @Query(new ZodPipe(CommitQuery)) q: z.output<typeof CommitQuery>,
@@ -421,7 +420,7 @@ export class ConfigController {
   @Protected(400, 409)
   @ApiOperation({ summary: 'Replace the candidate with a document (schema-checked; not applied)' })
   @ApiBody({ schema: ref('RootConfig') })
-  @ApiOkResponse({ schema: openapi(EditOut, 'output') })
+  @ApiOut(EditOut)
   async import(@Body() body: unknown, @Req() req: VrxRequest) {
     return this.edited(req, await this.ds.importCandidate(req.principal!, body), 'import');
   }
@@ -432,7 +431,7 @@ export class ConfigController {
   @Protected(400, 403, 409)
   @ApiOperation({ summary: 'RFC 7386 merge patch of the whole candidate' })
   @ApiBody({ schema: { type: 'object' } })
-  @ApiOkResponse({ schema: openapi(EditOut, 'output') })
+  @ApiOut(EditOut)
   async patchRoot(@Body() body: unknown, @Req() req: VrxRequest) {
     return this.edited(req, await this.ds.patchCandidate(req.principal!, '', body));
   }
@@ -454,7 +453,7 @@ export class ConfigController {
   @pathParam
   @ApiOperation({ summary: 'RFC 7386 merge patch of the candidate node at a JSON pointer' })
   @ApiBody({ schema: {} })
-  @ApiOkResponse({ schema: openapi(EditOut, 'output') })
+  @ApiOut(EditOut)
   async patchAt(@Body() body: unknown, @Req() req: VrxRequest) {
     const pointer = pointerFromUrl(req.url, PREFIX);
     return this.edited(req, await this.ds.patchCandidate(req.principal!, pointer, body));
@@ -465,7 +464,7 @@ export class ConfigController {
   @pathParam
   @ApiOperation({ summary: 'Replace the candidate node at a JSON pointer' })
   @ApiBody({ schema: {} })
-  @ApiOkResponse({ schema: openapi(EditOut, 'output') })
+  @ApiOut(EditOut)
   async putAt(@Body() body: unknown, @Req() req: VrxRequest) {
     const pointer = pointerFromUrl(req.url, PREFIX);
     if (body === undefined) throw problems.badRequest('PUT needs a JSON body');
@@ -476,7 +475,7 @@ export class ConfigController {
   @Protected(400, 403, 404, 409)
   @pathParam
   @ApiOperation({ summary: 'Remove the candidate node at a JSON pointer' })
-  @ApiOkResponse({ schema: openapi(EditOut, 'output') })
+  @ApiOut(EditOut)
   async deleteAt(@Req() req: VrxRequest) {
     const pointer = pointerFromUrl(req.url, PREFIX);
     return this.edited(req, await this.ds.deleteCandidate(req.principal!, pointer));

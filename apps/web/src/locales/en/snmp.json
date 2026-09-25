@@ -1,0 +1,55 @@
+{
+  "tab": "SNMP",
+  "save": "Save",
+  "add": "Add",
+  "remove": "Remove {{name}}",
+  "name": "Name",
+  "any": "any",
+  "yes": "yes",
+  "no": "no",
+  "adminOnly": "Only an administrator can write community strings and passphrases.",
+  "mibHint": "The private MIB (VRX-MIB: VPP interface counters, agent health) is in deploy/snmp/VRX-MIB.txt.",
+  "state": {
+    "title": "State",
+    "configured": "Configured: {{value}}",
+    "reachable": "Agent answers: {{value}}",
+    "sysName": "sysName: {{value}}",
+    "credential": "Read back with: {{value}}",
+    "subagent": "VRX-MIB subagent: {{value}}",
+    "registered": "registered",
+    "notRegistered": "not registered",
+    "pending": "snmpd needs an action before the change is fully active: {{action}}"
+  },
+  "general": {
+    "title": "General",
+    "enabled": "SNMP agent enabled",
+    "sysName": "sysName",
+    "sysLocation": "sysLocation",
+    "sysContact": "sysContact",
+    "engineId": "Engine id (hex)",
+    "subagent": "Serve VRX-MIB (VPP interface counters)"
+  },
+  "communities": {
+    "title": "Communities (v2c, read-only)",
+    "secret": "Community (secret reference)",
+    "value": "Community string",
+    "sources": "Allowed source prefixes"
+  },
+  "users": {
+    "title": "SNMPv3 users (authPriv)",
+    "level": "Security level",
+    "protocols": "Auth / privacy",
+    "auth": "Authentication",
+    "authPass": "Authentication passphrase",
+    "privPass": "Privacy passphrase (AES)"
+  },
+  "traps": {
+    "title": "Trap receivers",
+    "address": "Address",
+    "port": "Port",
+    "version": "Version",
+    "credential": "Community or user",
+    "community": "v2c community {{name}}",
+    "user": "v3 user {{name}}"
+  }
+}

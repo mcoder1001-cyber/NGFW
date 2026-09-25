@@ -11,6 +11,7 @@ import (
 // ip6-nd.proxy is deliberately NOT registered here (D-064): its first host run aborted the
 // shared VPP 26.06 (DF-2-questions.md #1); it is opt-in through RegisterProxyNd until the
 // crash is understood.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df2.Option) {
 	r.Register(NewRaConfig(c, owner, opts...))
 	r.Register(NewRaPrefix(c, owner, opts...))

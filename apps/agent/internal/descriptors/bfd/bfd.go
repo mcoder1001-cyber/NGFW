@@ -539,6 +539,7 @@ func (d *EchoSourceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, er
 }
 
 // Register constructs the per-object bfd descriptors (keys before sessions).
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, secrets Secrets, opts ...df7.Option) {
 	r.Register(NewAuthKey(c, owner, secrets, opts...))
 	r.Register(NewSession(c, owner, opts...))

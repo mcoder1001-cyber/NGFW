@@ -54,7 +54,10 @@ func TestAddresses(t *testing.T) {
 	if a6.String() != "2001:db8::1" || FromAddress(ToAddress(a6)) != a6 || FamilyOf(a6) != AddressFamily_IPV6 {
 		t.Fatal("v6 round trip")
 	}
-	p, err := ParsePrefix("2001:db8:3::5/64")
+	if _, err := ParsePrefix("2001:db8:3::5/64"); err == nil {
+		t.Fatal("prefix with host bits accepted (D-149)")
+	}
+	p, err := ParsePrefix(" 2001:DB8:3::/64 ")
 	if err != nil || p.String() != "2001:db8:3::/64" || FromPrefix(ToPrefix(p)) != p {
 		t.Fatalf("prefix = %v %v", p, err)
 	}

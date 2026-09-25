@@ -114,6 +114,8 @@ export class MemoryConfigRepo implements ConfigRepo {
       const tx: ConfigTx = {
         ...reads,
         lockCandidate: reads.candidate,
+        userHashes: () => this.hashesOf(s),
+        secretVersions: async (refs) => this.versionsOf(s, refs),
         saveCandidate: async (c) => {
           s.candidate = { ...structuredClone(c), updatedAt: new Date() };
         },
@@ -202,8 +204,12 @@ export class MemoryConfigRepo implements ConfigRepo {
   }
 
   async userHashes(): Promise<Map<string, string>> {
+    return this.hashesOf(this.state);
+  }
+
+  private async hashesOf(s: State): Promise<Map<string, string>> {
     const m = new Map<string, string>();
-    for (const [name, u] of this.state.users) if (u.hash !== null) m.set(name, u.hash);
+    for (const [name, u] of s.users) if (u.hash !== null) m.set(name, u.hash);
     return m;
   }
 
@@ -217,9 +223,13 @@ export class MemoryConfigRepo implements ConfigRepo {
   }
 
   async secretVersions(refs: readonly string[]): Promise<Record<string, number>> {
+    return this.versionsOf(this.state, refs);
+  }
+
+  private versionsOf(s: State, refs: readonly string[]): Record<string, number> {
     const out: Record<string, number> = {};
     for (const r of refs) {
-      const v = this.state.secretVersion.get(r);
+      const v = s.secretVersion.get(r);
       if (v !== undefined) out[r] = v;
     }
     return out;

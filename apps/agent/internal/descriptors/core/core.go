@@ -9,8 +9,9 @@
 //	ip.route              ip.route/<table id>/<prefix>         ip_route_add_del, ip_route_dump
 //
 // Cross-plugin keys (D-065): consumers reference an interface through the generic alias
-// "interface/<name>" owned by DF-1 (its Dependencies point at the creator key). Until that alias
-// descriptor is registered, Env.IfRef defaults to DirectInterfaceRef: the creator key
+// "interface/<name>" owned by DF-1 (its Dependencies point at the creator key). The product agent
+// registers that alias and passes Env.IfRef = AliasInterfaceRef (internal/subsystems, P08). A nil
+// IfRef (standalone core tests) falls back to DirectInterfaceRef: the creator key
 // "interface.loopback/<name>" for loopbacks, "interface/<name>" otherwise. A VRF is "vrf/<id>".
 //
 // Ownership (docs/contracts/proto.md §6): loopbacks carry the interface tag "<owner>:<name>";

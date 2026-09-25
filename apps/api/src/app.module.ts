@@ -41,11 +41,15 @@ import { UsersService } from './users/users.service.js';
 // wave-BC: F-lb
 // wave-BC: F-qos-flat
 // wave-BC: F-host-stack
+import { hostStackFeature } from './features/host-stack/index.js';
 // wave-BC: F-snmp
+import { snmpFeature } from './features/snmp/index.js';
 // wave-BC: F-ipfix-sflow
+import { ipfixSflowFeature } from './features/ipfix-sflow/index.js';
 // wave-BC: F-capture-trace
 // wave-BC: F-srv6
 // wave-BC: F-lisp
+import { lispFeature } from './features/lisp/index.js';
 // wave-BC: F-bfd-redistribution
 // wave-BC: F-ra-vpn
 // wave-BC: F-mpls-ldp
@@ -54,6 +58,7 @@ import { UsersService } from './users/users.service.js';
 // wave-BC: F-hardening-lite
 // wave-BC: F-aaa
 // wave-BC: F-licensing
+import { licensingFeature } from './features/licensing/index.js';
 // wave-BC: F-restconf-yang
 // wave-BC: F-ha-state-sync
 // wave-BC: F-ab-upgrade
@@ -124,11 +129,15 @@ export class AppModule {
         // wave-BC: F-lb
         // wave-BC: F-qos-flat
         // wave-BC: F-host-stack
+        ...hostStackFeature.controllers,
         // wave-BC: F-snmp
+        ...snmpFeature.controllers,
         // wave-BC: F-ipfix-sflow
+        ...ipfixSflowFeature.controllers,
         // wave-BC: F-capture-trace
         // wave-BC: F-srv6
         // wave-BC: F-lisp
+        ...lispFeature.controllers,
         // wave-BC: F-bfd-redistribution
         // wave-BC: F-ra-vpn
         // wave-BC: F-mpls-ldp
@@ -137,6 +146,7 @@ export class AppModule {
         // wave-BC: F-hardening-lite
         // wave-BC: F-aaa
         // wave-BC: F-licensing
+        ...licensingFeature.controllers,
         // wave-BC: F-restconf-yang
         // wave-BC: F-ha-state-sync
         // wave-BC: F-ab-upgrade
@@ -193,10 +203,13 @@ export class AppModule {
         // wave-BC: F-qos-flat
         // wave-BC: F-host-stack
         // wave-BC: F-snmp
+        ...snmpFeature.providers,
         // wave-BC: F-ipfix-sflow
+        ...ipfixSflowFeature.providers,
         // wave-BC: F-capture-trace
         // wave-BC: F-srv6
         // wave-BC: F-lisp
+        ...lispFeature.providers,
         // wave-BC: F-bfd-redistribution
         // wave-BC: F-ra-vpn
         // wave-BC: F-mpls-ldp
@@ -205,6 +218,7 @@ export class AppModule {
         // wave-BC: F-hardening-lite
         // wave-BC: F-aaa
         // wave-BC: F-licensing
+        ...licensingFeature.providers,
         // wave-BC: F-restconf-yang
         // wave-BC: F-ha-state-sync
         // wave-BC: F-ab-upgrade

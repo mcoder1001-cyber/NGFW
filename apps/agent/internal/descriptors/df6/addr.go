@@ -3,6 +3,7 @@ package df6
 import (
 	"fmt"
 	"net/netip"
+	"ngfw/agent/internal/descriptors/kit"
 	"strings"
 
 	"ngfw/agent/binapi/ethernet_types"
@@ -43,14 +44,13 @@ func ParseAddr6(s string) (netip.Addr, error) {
 	return a, nil
 }
 
-// ParsePrefix parses a prefix and masks it to its network address.
+// ParsePrefix is kit.ParsePrefix wrapped in ErrBadValue: host bits are rejected (D-149).
 func ParsePrefix(s string) (netip.Prefix, error) {
-	p, err := netip.ParsePrefix(strings.TrimSpace(s))
+	p, err := kit.ParsePrefix(s)
 	if err != nil {
-		return netip.Prefix{}, fmt.Errorf("%w: prefix %q: %w", ErrBadValue, s, err)
+		return netip.Prefix{}, fmt.Errorf("%w: %w", ErrBadValue, err)
 	}
-	p = netip.PrefixFrom(p.Addr().Unmap().WithZone(""), p.Bits())
-	return p.Masked(), nil
+	return p, nil
 }
 
 // Canonical returns the canonical string of an address string ("" stays "").
@@ -65,7 +65,7 @@ func Canonical(s string) (string, error) {
 	return a.String(), nil
 }
 
-// CanonicalPrefix returns the canonical (masked) string of a prefix string.
+// CanonicalPrefix returns the canonical string of a prefix string.
 func CanonicalPrefix(s string) (string, error) {
 	p, err := ParsePrefix(s)
 	if err != nil {

@@ -133,7 +133,7 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 	s := &Service{
 		owner: cfg.Owner, version: cfg.Version, log: cfg.Logger, vpp: cfg.VPP, sched: cfg.Scheduler,
 		st: st, bus: cfg.Events, metrics: cfg.Metrics, now: cfg.Now, txn: make(chan struct{}, 1),
-		retryMin: revertRetryMin, retryMax: revertRetryMax, beforeTxn: cfg.BeforeTxn, netdevKind: cfg.NetdevKind,
+		retryMin: revertRetryFloor, retryMax: revertRetryMax, beforeTxn: cfg.BeforeTxn, netdevKind: cfg.NetdevKind,
 	}
 	s.sources = newDynSources(cfg.Sources, s.metrics)
 	s.refreshSnapshotLocked()
@@ -202,6 +202,7 @@ func (s *Service) refreshSnapshotLocked() {
 	s.lastTxn = s.st.meta.LastTxnID
 	s.mu.Unlock()
 	s.metrics.setPending(s.st.meta.PendingTxnID != "")
+	desired.SetIpfixExporterNames(s.st.desired.GetServices()) // F-ipfix-sflow: names from the stored state only
 	if len(s.sources) > 0 {
 		doc := proto.Clone(s.st.desired).(*vrxv1.DesiredState)
 		s.mu.Lock()
@@ -546,8 +547,8 @@ func (s *Service) revertLocked(txnID string) {
 
 // Revert retry backoff (N2): independent of VPP reconnects.
 const (
-	revertRetryMin = 5 * time.Second
-	revertRetryMax = 60 * time.Second
+	revertRetryFloor = 5 * time.Second
+	revertRetryMax   = 60 * time.Second
 )
 
 // scheduleRetryLocked arms the owed-revert retry timer with exponential backoff and returns the delay.

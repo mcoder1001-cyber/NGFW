@@ -54,6 +54,10 @@ const (
 	Dataplane_Action_FullMethodName         = "/vrx.v1.Dataplane/Action"
 	Dataplane_Health_FullMethodName         = "/vrx.v1.Dataplane/Health"
 	Dataplane_InterfaceState_FullMethodName = "/vrx.v1.Dataplane/InterfaceState"
+	Dataplane_HostStackState_FullMethodName = "/vrx.v1.Dataplane/HostStackState"
+	Dataplane_SnmpState_FullMethodName      = "/vrx.v1.Dataplane/SnmpState"
+	Dataplane_IpfixState_FullMethodName     = "/vrx.v1.Dataplane/IpfixState"
+	Dataplane_LispState_FullMethodName      = "/vrx.v1.Dataplane/LispState"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -92,6 +96,20 @@ type DataplaneClient interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(ctx context.Context, in *InterfaceStateRequest, opts ...grpc.CallOption) (*InterfaceStateResponse, error)
+	// HostStackState reports the host stack as VPP sees it: session layer on/off (read-only probe),
+	// this owner's session rules (from session_rules_v2_dump) and the app namespaces it applied. Never mutates.
+	HostStackState(ctx context.Context, in *HostStackStateRequest, opts ...grpc.CallOption) (*HostStackStateResponse, error)
+	// SnmpState reports the snmpd renderer stage (F-snmp): daemon state read over SNMP, the pending
+	// daemon action, the VRX-MIB AgentX subagent. No credential value, ever. Never mutates.
+	SnmpState(ctx context.Context, in *SnmpStateRequest, opts ...grpc.CallOption) (*SnmpStateResponse, error)
+	// IpfixState reports the live flow-export state (F-ipfix-sflow): IPFIX exporters from Retrieve
+	// (exporter 0 read-only when this agent is not the globals owner), flowprobe and sFlow interfaces
+	// of this owner, the VPP-global flowprobe/sFlow parameters and the sFlow node counters from the
+	// stats segment. Dumps only; never mutates. UNAVAILABLE without VPP.
+	IpfixState(ctx context.Context, in *IpfixStateRequest, opts ...grpc.CallOption) (*IpfixStateResponse, error)
+	// LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
+	// adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
+	LispState(ctx context.Context, in *LispStateRequest, opts ...grpc.CallOption) (*LispStateResponse, error)
 }
 
 type dataplaneClient struct {
@@ -209,6 +227,46 @@ func (c *dataplaneClient) InterfaceState(ctx context.Context, in *InterfaceState
 	return out, nil
 }
 
+func (c *dataplaneClient) HostStackState(ctx context.Context, in *HostStackStateRequest, opts ...grpc.CallOption) (*HostStackStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HostStackStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_HostStackState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) SnmpState(ctx context.Context, in *SnmpStateRequest, opts ...grpc.CallOption) (*SnmpStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SnmpStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_SnmpState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) IpfixState(ctx context.Context, in *IpfixStateRequest, opts ...grpc.CallOption) (*IpfixStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IpfixStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_IpfixState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) LispState(ctx context.Context, in *LispStateRequest, opts ...grpc.CallOption) (*LispStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LispStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_LispState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -245,6 +303,20 @@ type DataplaneServer interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error)
+	// HostStackState reports the host stack as VPP sees it: session layer on/off (read-only probe),
+	// this owner's session rules (from session_rules_v2_dump) and the app namespaces it applied. Never mutates.
+	HostStackState(context.Context, *HostStackStateRequest) (*HostStackStateResponse, error)
+	// SnmpState reports the snmpd renderer stage (F-snmp): daemon state read over SNMP, the pending
+	// daemon action, the VRX-MIB AgentX subagent. No credential value, ever. Never mutates.
+	SnmpState(context.Context, *SnmpStateRequest) (*SnmpStateResponse, error)
+	// IpfixState reports the live flow-export state (F-ipfix-sflow): IPFIX exporters from Retrieve
+	// (exporter 0 read-only when this agent is not the globals owner), flowprobe and sFlow interfaces
+	// of this owner, the VPP-global flowprobe/sFlow parameters and the sFlow node counters from the
+	// stats segment. Dumps only; never mutates. UNAVAILABLE without VPP.
+	IpfixState(context.Context, *IpfixStateRequest) (*IpfixStateResponse, error)
+	// LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
+	// adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
+	LispState(context.Context, *LispStateRequest) (*LispStateResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -278,6 +350,18 @@ func (UnimplementedDataplaneServer) Health(context.Context, *HealthRequest) (*He
 }
 func (UnimplementedDataplaneServer) InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InterfaceState not implemented")
+}
+func (UnimplementedDataplaneServer) HostStackState(context.Context, *HostStackStateRequest) (*HostStackStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method HostStackState not implemented")
+}
+func (UnimplementedDataplaneServer) SnmpState(context.Context, *SnmpStateRequest) (*SnmpStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SnmpState not implemented")
+}
+func (UnimplementedDataplaneServer) IpfixState(context.Context, *IpfixStateRequest) (*IpfixStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method IpfixState not implemented")
+}
+func (UnimplementedDataplaneServer) LispState(context.Context, *LispStateRequest) (*LispStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LispState not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -423,6 +507,78 @@ func _Dataplane_InterfaceState_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_HostStackState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HostStackStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).HostStackState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_HostStackState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).HostStackState(ctx, req.(*HostStackStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_SnmpState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SnmpStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).SnmpState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_SnmpState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).SnmpState(ctx, req.(*SnmpStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_IpfixState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IpfixStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).IpfixState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_IpfixState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).IpfixState(ctx, req.(*IpfixStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_LispState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LispStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).LispState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_LispState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).LispState(ctx, req.(*LispStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -449,6 +605,22 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InterfaceState",
 			Handler:    _Dataplane_InterfaceState_Handler,
+		},
+		{
+			MethodName: "HostStackState",
+			Handler:    _Dataplane_HostStackState_Handler,
+		},
+		{
+			MethodName: "SnmpState",
+			Handler:    _Dataplane_SnmpState_Handler,
+		},
+		{
+			MethodName: "IpfixState",
+			Handler:    _Dataplane_IpfixState_Handler,
+		},
+		{
+			MethodName: "LispState",
+			Handler:    _Dataplane_LispState_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

@@ -131,10 +131,13 @@
     },
     "networks": {
       "title": "Networks",
-      "help": "prefixes originated by this router"
-    },
-    "redistribute": {
-      "title": "Redistribute"
+      "help": "prefixes originated by this router",
+      "prefix": {
+        "title": "Prefix"
+      },
+      "routeMap": {
+        "title": "Route map"
+      }
     },
     "gracefulRestart": {
       "title": "Graceful restart"
@@ -176,7 +179,67 @@
       "title": "Shut down"
     },
     "afi": {
-      "title": "Address families"
+      "title": "Address families",
+      "ipv4Unicast": {
+        "title": "IPv4 unicast",
+        "enabled": {
+          "title": "Enabled"
+        },
+        "routeMapIn": {
+          "title": "Route map in"
+        },
+        "routeMapOut": {
+          "title": "Route map out"
+        },
+        "prefixListIn": {
+          "title": "Prefix list in"
+        },
+        "prefixListOut": {
+          "title": "Prefix list out"
+        },
+        "nextHopSelf": {
+          "title": "Next-hop self"
+        },
+        "softReconfig": {
+          "title": "Soft reconfiguration inbound"
+        },
+        "maximumPrefixes": {
+          "title": "Maximum prefixes"
+        },
+        "defaultOriginate": {
+          "title": "Default originate"
+        }
+      },
+      "ipv6Unicast": {
+        "title": "IPv6 unicast",
+        "enabled": {
+          "title": "Enabled"
+        },
+        "routeMapIn": {
+          "title": "Route map in"
+        },
+        "routeMapOut": {
+          "title": "Route map out"
+        },
+        "prefixListIn": {
+          "title": "Prefix list in"
+        },
+        "prefixListOut": {
+          "title": "Prefix list out"
+        },
+        "nextHopSelf": {
+          "title": "Next-hop self"
+        },
+        "softReconfig": {
+          "title": "Soft reconfiguration inbound"
+        },
+        "maximumPrefixes": {
+          "title": "Maximum prefixes"
+        },
+        "defaultOriginate": {
+          "title": "Default originate"
+        }
+      }
     },
     "pl": {
       "description": {
@@ -186,7 +249,22 @@
         "title": "Address family"
       },
       "rules": {
-        "title": "Rules"
+        "title": "Rules",
+        "seq": {
+          "title": "Sequence"
+        },
+        "action": {
+          "title": "Action"
+        },
+        "prefix": {
+          "title": "Prefix"
+        },
+        "ge": {
+          "title": "Minimum length (ge)"
+        },
+        "le": {
+          "title": "Maximum length (le)"
+        }
       }
     },
     "rm": {
@@ -194,7 +272,68 @@
         "title": "Description"
       },
       "entries": {
-        "title": "Entries"
+        "title": "Entries",
+        "seq": {
+          "title": "Sequence"
+        },
+        "action": {
+          "title": "Action"
+        },
+        "description": {
+          "title": "Description"
+        },
+        "match": {
+          "title": "Match",
+          "help": "all given conditions must match; an empty match matches everything",
+          "prefixList": {
+            "title": "Prefix list"
+          },
+          "nextHopPrefixList": {
+            "title": "Next-hop prefix list"
+          },
+          "interface": {
+            "title": "Interface"
+          },
+          "community": {
+            "title": "Community"
+          },
+          "asPath": {
+            "title": "AS path regex"
+          },
+          "metric": {
+            "title": "Metric"
+          },
+          "tag": {
+            "title": "Tag"
+          }
+        },
+        "set": {
+          "title": "Set",
+          "localPref": {
+            "title": "Local preference"
+          },
+          "med": {
+            "title": "MED / metric"
+          },
+          "weight": {
+            "title": "Weight"
+          },
+          "nextHop": {
+            "title": "Next hop"
+          },
+          "community": {
+            "title": "Communities"
+          },
+          "communityAdditive": {
+            "title": "Additive"
+          },
+          "asPathPrepend": {
+            "title": "AS path prepend"
+          },
+          "tag": {
+            "title": "Tag"
+          }
+        }
       }
     },
     "lcp": {

@@ -44,12 +44,16 @@ export function bgpSchema(): JsonSchema {
   return need(props(domainSchemas.routing)['bgp'], 'routing.bgp');
 }
 
-/** The global part of `routing.bgp`: everything but the neighbour and peer-group records (edited in their own grids). */
+/**
+ * The global part of `routing.bgp`: everything but the neighbour and peer-group records (edited in their own grids) and
+ * `redistribute` (a record whose keys switch sources on: the screen's switches own it, a form would show every source).
+ */
 export function bgpGlobalSchema(): JsonSchema {
   const s = bgpSchema();
   const p = { ...props(s) };
   delete p['neighbors'];
   delete p['peerGroups'];
+  delete p['redistribute'];
   const required = (s.required as string[] | undefined)?.filter((r) => r in p);
   return { ...s, properties: p, ...(required ? { required } : {}) } as JsonSchema;
 }

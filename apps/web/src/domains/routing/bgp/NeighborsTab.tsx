@@ -186,7 +186,7 @@ export function NeighborsTab() {
         <SchemaForm
           key={routing.dataUpdatedAt}
           schema={globalSchema}
-          value={bgp ? { ...bgp, neighbors: undefined, peerGroups: undefined } : undefined}
+          value={bgp ? { ...bgp, neighbors: undefined, peerGroups: undefined, redistribute: undefined } : undefined}
           readOnly={!perms.editConfig}
           submitLabel={t('save')}
           resetLabel={t('reset')}

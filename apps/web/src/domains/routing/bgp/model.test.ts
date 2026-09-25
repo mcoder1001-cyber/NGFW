@@ -23,10 +23,11 @@ describe('bgp model', () => {
   it('takes every form from the one schema', () => {
     const g = bgpGlobalSchema().properties as Record<string, unknown>;
     expect(Object.keys(g)).toEqual(
-      expect.arrayContaining(['asn', 'routerId', 'networks', 'redistribute', 'ebgpRequiresPolicy']),
+      expect.arrayContaining(['asn', 'routerId', 'networks', 'ebgpRequiresPolicy']),
     );
     expect(g).not.toHaveProperty('neighbors');
     expect(g).not.toHaveProperty('peerGroups');
+    expect(g).not.toHaveProperty('redistribute');
     expect(Object.keys(bgpRecordItemSchema('neighbors').properties ?? {})).toEqual(
       expect.arrayContaining(['remoteAs', 'peerGroup', 'passwordRef', 'afi']),
     );

@@ -131,10 +131,13 @@
     },
     "networks": {
       "title": "شبکه‌ها",
-      "help": "پیشوندهایی که این روتر اعلام می‌کند"
-    },
-    "redistribute": {
-      "title": "بازتوزیع"
+      "help": "پیشوندهایی که این روتر اعلام می‌کند",
+      "prefix": {
+        "title": "پیشوند"
+      },
+      "routeMap": {
+        "title": "نقشهٔ مسیر"
+      }
     },
     "gracefulRestart": {
       "title": "راه‌اندازی مجدد نرم"
@@ -176,7 +179,67 @@
       "title": "خاموش"
     },
     "afi": {
-      "title": "خانواده‌های نشانی"
+      "title": "خانواده‌های نشانی",
+      "ipv4Unicast": {
+        "title": "IPv4 تک‌پخشی",
+        "enabled": {
+          "title": "فعال"
+        },
+        "routeMapIn": {
+          "title": "نقشهٔ مسیر ورودی"
+        },
+        "routeMapOut": {
+          "title": "نقشهٔ مسیر خروجی"
+        },
+        "prefixListIn": {
+          "title": "فهرست پیشوند ورودی"
+        },
+        "prefixListOut": {
+          "title": "فهرست پیشوند خروجی"
+        },
+        "nextHopSelf": {
+          "title": "گام بعدی خود"
+        },
+        "softReconfig": {
+          "title": "بازپیکربندی نرم ورودی"
+        },
+        "maximumPrefixes": {
+          "title": "بیشینهٔ پیشوندها"
+        },
+        "defaultOriginate": {
+          "title": "اعلام مسیر پیش‌فرض"
+        }
+      },
+      "ipv6Unicast": {
+        "title": "IPv6 تک‌پخشی",
+        "enabled": {
+          "title": "فعال"
+        },
+        "routeMapIn": {
+          "title": "نقشهٔ مسیر ورودی"
+        },
+        "routeMapOut": {
+          "title": "نقشهٔ مسیر خروجی"
+        },
+        "prefixListIn": {
+          "title": "فهرست پیشوند ورودی"
+        },
+        "prefixListOut": {
+          "title": "فهرست پیشوند خروجی"
+        },
+        "nextHopSelf": {
+          "title": "گام بعدی خود"
+        },
+        "softReconfig": {
+          "title": "بازپیکربندی نرم ورودی"
+        },
+        "maximumPrefixes": {
+          "title": "بیشینهٔ پیشوندها"
+        },
+        "defaultOriginate": {
+          "title": "اعلام مسیر پیش‌فرض"
+        }
+      }
     },
     "pl": {
       "description": {
@@ -186,7 +249,22 @@
         "title": "خانوادهٔ نشانی"
       },
       "rules": {
-        "title": "قواعد"
+        "title": "قواعد",
+        "seq": {
+          "title": "شماره ترتیب"
+        },
+        "action": {
+          "title": "اقدام"
+        },
+        "prefix": {
+          "title": "پیشوند"
+        },
+        "ge": {
+          "title": "کمینهٔ طول (ge)"
+        },
+        "le": {
+          "title": "بیشینهٔ طول (le)"
+        }
       }
     },
     "rm": {
@@ -194,7 +272,68 @@
         "title": "توضیح"
       },
       "entries": {
-        "title": "مدخل‌ها"
+        "title": "مدخل‌ها",
+        "seq": {
+          "title": "شماره ترتیب"
+        },
+        "action": {
+          "title": "اقدام"
+        },
+        "description": {
+          "title": "توضیح"
+        },
+        "match": {
+          "title": "تطبیق",
+          "help": "همهٔ شرط‌های داده‌شده باید برقرار باشند؛ تطبیق خالی همه چیز را تطبیق می‌دهد",
+          "prefixList": {
+            "title": "فهرست پیشوند"
+          },
+          "nextHopPrefixList": {
+            "title": "فهرست پیشوند گام بعدی"
+          },
+          "interface": {
+            "title": "اینترفیس"
+          },
+          "community": {
+            "title": "کامیونیتی"
+          },
+          "asPath": {
+            "title": "عبارت منظم مسیر AS"
+          },
+          "metric": {
+            "title": "متریک"
+          },
+          "tag": {
+            "title": "برچسب"
+          }
+        },
+        "set": {
+          "title": "تنظیم",
+          "localPref": {
+            "title": "اولویت محلی"
+          },
+          "med": {
+            "title": "MED / متریک"
+          },
+          "weight": {
+            "title": "وزن"
+          },
+          "nextHop": {
+            "title": "گام بعدی"
+          },
+          "community": {
+            "title": "کامیونیتی‌ها"
+          },
+          "communityAdditive": {
+            "title": "افزایشی"
+          },
+          "asPathPrepend": {
+            "title": "پیشوندگذاری مسیر AS"
+          },
+          "tag": {
+            "title": "برچسب"
+          }
+        }
       }
     },
     "lcp": {

@@ -9,7 +9,7 @@
     "grace": "Grace period",
     "expired": "Expired",
     "invalid": "Invalid",
-    "communityHelp": "No licence is installed: the community feature set applies.",
+    "communityHelp": "No licence is installed: licensed features (IPsec, WireGuard, BGP, OSPF, IS-IS, HA) cannot be added; the running configuration stays applied.",
     "expiredHelp": "The licence and its grace period have expired. The running configuration stays applied; new configuration that needs a licensed feature is rejected at commit."
   },
   "field": {

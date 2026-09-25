@@ -4,7 +4,7 @@
    SAMPLE: gated = ipsec, wireguard, bgp, ospf, isis, ha; community = wireguard (≤ 2 interfaces) + ospf. Consequence to
    note: after merge, a device **without** a licence rejects new commits that add IPsec tunnels, BGP, IS-IS or VRRP
    (existing running config is grandfathered). **Resolved for now:** community is permissive; the matrix is
-   `docs/decisions/PENDING-licensing-matrix.md`.
+   `docs/decisions/DEC-licensing-matrix.md`.
 2. **Host binding default.** Optional; `serial` (DMI product serial) recommended over `machineIdHash` because VM templates
    clone `/etc/machine-id` (vrx-a is VMware). Both supported; neither required.
 3. **Product signing key custody.** `licensing.config.ts` embeds a PLACEHOLDER public key whose private half was

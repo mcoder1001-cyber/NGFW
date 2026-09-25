@@ -1,5 +1,8 @@
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { AuditService } from '../../src/audit/audit.service.js';
+import { SystemEventsService } from '../../src/audit/system-events.service.js';
+import { VALKEY, type Valkey } from '../../src/infra/valkey.js';
 import { runSecret, startHarness, type Harness } from '../support/harness.js';
 
 /** Passwords of this run only — generated, never literal (gitleaks, 00-CONTEXT secrets rule). */
@@ -35,6 +38,21 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
     ]);
   });
   afterAll(async () => h?.close());
+
+  /** TD-10b: the login lock of `u` for `client` in Valkey (lockout.ts: lk:<uid>:<gen>:<client>). */
+  const lockAt = async (u: string, client: string) => {
+    const r = (
+      await h.db.execute(sql`select id, credential_gen as gen from app_user where username = ${u}`)
+    ).rows[0]!;
+    return h.app.get<Valkey>(VALKEY).get(`lk:${r['id']}:${r['gen']}:${client}`);
+  };
+  const breakGlass = () => ({
+    db: h.db,
+    kv: h.app.get<Valkey>(VALKEY),
+    prefix: h.env.VRX_VALKEY_PREFIX,
+    audit: h.app.get(AuditService),
+    events: h.app.get(SystemEventsService),
+  });
 
   it('bootstrap admin was seeded with an argon2id hash (D-048)', async () => {
     const rows = await h.db.execute(
@@ -190,14 +208,11 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
     );
     const reasons = audit.rows.map((x) => x['reason']);
     expect(reasons.slice(-2)).toEqual(['bad-password-locked', 'locked']);
-    const u = await h.db.execute(
-      sql`select locked_until > now() as locked from app_user where username = 'victim'`,
-    );
-    expect(u.rows[0]).toEqual({ locked: true });
-    // an admin can unlock by expiring the lock (no API for that in P06): the right password then works
-    await h.db.execute(
-      sql`update app_user set locked_until = now() - interval '1 second' where username = 'victim'`,
-    );
+    // TD-10b (review 2.3a): the login lock is per (user, client address) — here 127.0.0.1 — never account-wide
+    expect(await lockAt('victim', '127.0.0.1')).toBe('lock');
+    // root's break-glass unlocks (TD-10b; before: an UPDATE of locked_until): the right password then works
+    const { unlockUser } = await import('../../src/auth/break-glass.js');
+    await unlockUser(breakGlass(), 'victim');
     await h.login('victim', PW.victim);
   });
 
@@ -211,10 +226,8 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
       ),
     );
     expect(tries.every((t) => t.status === 401)).toBe(true);
-    const u = await h.db.execute(
-      sql`select locked_until > now() as locked from app_user where username = 'racer'`,
-    );
-    expect(u.rows[0]).toEqual({ locked: true });
+    // TD-10b: the (user, client address) lock of lockout.ts — one atomic script, so parallel failures lock it too
+    expect(await lockAt('racer', '127.0.0.1')).toBe('lock');
     const ok = await h.call(undefined, 'POST', '/api/v1/auth/login', {
       username: 'racer',
       password: PW.racer,

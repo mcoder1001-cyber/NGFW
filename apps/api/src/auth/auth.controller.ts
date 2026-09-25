@@ -29,11 +29,13 @@ import { safeText } from '../common/text.js';
 import { ROLES } from '../db/schema.js';
 import { AuthService, type LoginResult } from './auth.service.js';
 import { UsersService } from '../users/users.service.js';
+import { AuditUnavailableDoc } from '../audit/audit.interceptor.js';
+import { CommitBusyDoc } from '../users/commit-busy.js';
+import { clearSessionCookies, REFRESH_COOKIE, setSessionCookies } from './cookies.js';
 import { MinRole, NoAudit, Public } from './decorators.js';
 import { secureTransport } from './transport.js';
 
-export const REFRESH_COOKIE = 'vrx_refresh';
-const COOKIE_PATH = '/api/v1/auth';
+export { REFRESH_COOKIE } from './cookies.js';
 const TLS_REQUIRED =
   '`tls-required` (D-100): the password was sent over plain HTTP from a remote peer — connect through https; the attempt is not counted as a failed login';
 
@@ -105,14 +107,24 @@ export class AuthController {
     @Inject(ENV) private readonly env: Env,
   ) {}
 
-  private setRefresh(reply: FastifyReply, r: LoginResult): Omit<LoginResult, 'refreshToken'> {
-    void reply.setCookie(REFRESH_COOKIE, r.refreshToken, {
-      httpOnly: true,
-      sameSite: 'strict',
-      secure: this.env.VRX_COOKIE_SECURE,
-      path: COOKIE_PATH,
-      maxAge: this.env.VRX_REFRESH_TTL_SEC,
-    });
+  /**
+   * The refresh cookie (lifetime: the idle TTL capped by the session's end, TD-10b review 2.3d) and the docs cookie
+   * (the access token for /api/docs, TD-10b review 2.3g) — auth/cookies.ts.
+   */
+  private setRefresh(
+    reply: FastifyReply,
+    r: LoginResult,
+  ): Omit<LoginResult, 'refreshToken' | 'refreshMaxAge'> {
+    setSessionCookies(
+      reply,
+      {
+        refreshToken: r.refreshToken,
+        accessToken: r.accessToken,
+        refreshMaxAge: r.refreshMaxAge,
+        accessMaxAge: r.expiresIn,
+      },
+      { secure: this.env.VRX_COOKIE_SECURE },
+    );
     return {
       accessToken: r.accessToken,
       tokenType: r.tokenType,
@@ -166,13 +178,17 @@ export class AuthController {
   @HttpCode(204)
   @ApiCookieAuth('refreshCookie')
   @ApiOperation({ summary: 'Revoke the refresh cookie (and its rotation family)' })
-  @ApiNoContentResponse({ description: 'Logged out (also when the cookie was already invalid)' })
+  @ApiNoContentResponse({
+    description:
+      'Logged out: the login session of the refresh cookie (or of a Bearer token sent along) ends — its refresh chain and its access tokens; the user’s other sessions stay. Also 204 when there was no valid session',
+  })
   async logout(
     @Req() req: VrxRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<void> {
-    await this.auth.logout(req.cookies[REFRESH_COOKIE]);
-    void reply.clearCookie(REFRESH_COOKIE, { path: COOKIE_PATH });
+    // TD-10b (review 2.3c/2.3e): per-session revocation, audited in the service (the route is @NoAudit)
+    await this.auth.logout(req.cookies[REFRESH_COOKIE], req.headers.authorization, sourceIp(req));
+    clearSessionCookies(reply);
   }
 
   @Get('me')
@@ -188,6 +204,8 @@ export class AuthController {
   @MinRole('readonly')
   @HttpCode(204)
   @Protected(400, 429)
+  @CommitBusyDoc()
+  @AuditUnavailableDoc()
   @ApiOperation({
     summary:
       'Change the own password (argon2id); same as POST /api/v1/users/{name}/password for yourself',
@@ -232,6 +250,7 @@ export class AuthController {
     content: { 'application/problem+json': { schema: ref('Problem') } },
   })
   @Protected(400)
+  @AuditUnavailableDoc()
   @ApiOperation({
     summary: 'Create an API key (`Authorization: ApiKey <key>`); the key is shown once',
   })
@@ -269,6 +288,7 @@ export class AuthController {
   @Delete('api-keys/:id')
   @HttpCode(204)
   @Protected(400, 404)
+  @AuditUnavailableDoc()
   @ApiOperation({ summary: 'Delete an API key (own; admin: any)' })
   @ApiNoContentResponse({ description: 'Deleted' })
   async deleteApiKey(

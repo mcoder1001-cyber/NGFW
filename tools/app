@@ -112,8 +112,11 @@ cmd_up() {
   fi
 
   say "vrx-api"
+  # VRX_TRUST_PROXY=none (TD-10b review C1, D-137 proposed): the lab keeps main's behaviour until the product owner answers
+  # docs/decisions/PENDING-tools-app-transport.md — vite's loopback peer is the client, so plain-HTTP logins from other
+  # machines stay accepted (the recorded lab exception); the answer's listener hunk (TLS or loopback bind) removes this setting
   start_svc api env VRX_HTTP_HOST="$API_HOST" VRX_HTTP_PORT="$API_PORT" VRX_DATABASE_URL="$VRX_PG_DSN" \
-    VRX_VALKEY_DB=0 VRX_VALKEY_PREFIX=vrx:app: VRX_AGENT_SOCKET="$AGENT_SOCKET" VRX_COOKIE_SECURE=0 \
+    VRX_VALKEY_DB=0 VRX_VALKEY_PREFIX=vrx:app: VRX_AGENT_SOCKET="$AGENT_SOCKET" VRX_COOKIE_SECURE=0 VRX_TRUST_PROXY=none \
     VRX_SECRET_KEY_FILE="$STATE/secret.key" node "$ROOT/apps/api/dist/main.js"
   wait_port "$API_HOST" "$API_PORT" vrx-api api
 
@@ -138,7 +141,15 @@ cmd_status() {
   local ips; ips="$(ip -4 -o addr show scope global | awk '{print $4}' | cut -d/ -f1 | grep -v '^192\.168\.122\.' || true)"
   echo "web UI:"
   if [[ "$HOST" == 0.0.0.0 ]]; then for ip in $ips; do echo "  http://$ip:$WEB_PORT/"; done; else echo "  http://$HOST:$WEB_PORT/"; fi
-  echo "API docs: http://<host>:$WEB_PORT/api/docs   (API itself on $API_HOST:$API_PORT)"
+  # the API runs with VRX_TRUST_PROXY=none (see cmd_up): passwords from other machines cross the LAN in clear on this
+  # port — the recorded lab exception until PENDING-tools-app-transport is answered; an SSH tunnel avoids it
+  if [[ "$HOST" != 127.* && "$HOST" != localhost && "$HOST" != ::1 ]]; then
+    echo "  NOTE: plain HTTP — passwords cross the network in clear (lab exception, PENDING-tools-app-transport);"
+    echo "        encrypted: ssh -L $WEB_PORT:127.0.0.1:$WEB_PORT root@<this host>, then http://127.0.0.1:$WEB_PORT/"
+  fi
+  echo "API docs: http://<host>:$WEB_PORT/api/docs   (in a browser: log in to the web UI first; API itself on $API_HOST:$API_PORT)"
+  echo "locked out: VRX_VALKEY_DB=0 VRX_VALKEY_PREFIX=vrx:app: VRX_API_DIST=$ROOT/apps/api/dist \\"
+  echo "            $ROOT/deploy/sbin/vrx-authctl --env-file /run/vrx-test/app/pg.env unlock <user>   (root; audited)"
 }
 
 cmd_logs() { local s="${1:-}"; if [[ -n "$s" ]]; then tail -n 100 -f "$LOG/$s.log"; else tail -n 50 -f "$LOG"/*.log; fi; }

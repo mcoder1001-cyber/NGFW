@@ -1,16 +1,25 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { and, count, eq, isNull, lte, or, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
+import { SystemEventsService } from '../audit/system-events.service.js';
 import { Bus } from '../infra/bus.js';
+import { VALKEY, type Valkey } from '../infra/valkey.js';
 import { ENV, type Env } from '../config.js';
 import { problems, ProblemError } from '../common/problem.js';
-import { lowerRole, type Principal } from '../common/principal.js';
+import { clientKey, lowerRole, type Principal } from '../common/principal.js';
 import { DB, type Db } from '../db/db.js';
 import { apiKey, appUser, ROLES, type Role } from '../db/schema.js';
 import { releaseKeyLocks } from '../datastore/pg-repo.js';
+import { Lockout, type LockSubject } from './lockout.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { apiKeyHash, newApiKeyToken, TokensService } from './tokens.service.js';
 import { tlsRequired } from './transport.js';
+
+/**
+ * PostgreSQL advisory lock (single 64-bit key space; TD-10a's commit lock uses the two-int space, which never overlaps)
+ * that serialises the account-wide lock decisions of `registerFailure` (review L1).
+ */
+const LOCK_DECISION_KEY = 7_310_100_001;
 
 /**
  * 403 `locked`: the step-up of a locked account (the caller is authenticated, so the state is not hidden). ONE body for
@@ -36,18 +45,26 @@ export interface KeyStepUp {
 export interface LoginResult {
   accessToken: string;
   tokenType: 'Bearer';
+  /** Seconds the access token lives (≤ VRX_ACCESS_TTL_SEC, ≤ the session's end). */
   expiresIn: number;
   refreshToken: string;
+  /** Seconds the refresh cookie lives: the idle TTL capped by VRX_SESSION_MAX_SEC (TD-10b, review 2.3d). */
+  refreshMaxAge: number;
   user: { id: number; username: string; role: Role };
 }
 
 /**
- * Local users (argon2id), JWT access + rotating refresh, API keys, login rate limit and lockout (P06 §6).
+ * Local users (argon2id), JWT access + rotating refresh, API keys, login rate limit and lockout (P06 §6; TD-10b: the
+ * login lockout is per (user, client address), the last admin is only throttled — lockout.ts).
  * Every login outcome is audited here with the real reason; the client only ever sees "invalid credentials".
+ * TD-10b (review 2.3e): refresh failures and logouts are audited too (auth.refresh / auth.logout).
  */
 @Injectable()
 export class AuthService {
   private readonly log = new Logger('Auth');
+  private readonly lockout: Lockout;
+  /** last system_event per throttled last admin (ms), so an attack writes one event a minute, not one per guess */
+  private readonly throttleEventAt = new Map<number, number>();
 
   constructor(
     @Inject(DB) private readonly db: Db,
@@ -55,7 +72,11 @@ export class AuthService {
     private readonly tokens: TokensService,
     private readonly audit: AuditService,
     private readonly bus: Bus,
-  ) {}
+    @Inject(VALKEY) kv: Valkey,
+    private readonly events: SystemEventsService,
+  ) {
+    this.lockout = new Lockout(kv, db, env);
+  }
 
   /** D-048: the API seeds the first admin when there is no user at all. Returns true when it created one. */
   async seedBootstrapAdmin(): Promise<boolean> {
@@ -108,7 +129,8 @@ export class AuthService {
     // D-100 (1), TD-4: the transport check comes FIRST — before the rate limiter, the user lookup and argon2 — so a
     // password sent in clear by a remote peer is never acted on: no failed login counted, the lockout untouched
     if (!secure) throw await fail('tls-required', null, 403);
-    if ((await this.tokens.hit(`login:${ip}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
+    // TD-10b (review 2.3b): `ip` is the client behind the trusted proxy, so this bucket is per client, not global
+    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
       throw await fail('rate-limited', null, 429);
     }
     // D-097 (review H2, verify V1): hash and credential generation come from ONE row read, so the session below is
@@ -117,12 +139,27 @@ export class AuthService {
     const ok = await verifyPassword(u?.passwordHash, password);
     if (u === undefined) throw await fail('unknown-user', null);
     const now = new Date();
+    // account-wide: a wrong password checked INSIDE a session of this account locked it (step-up, own-password change)
     if (u.lockedUntil !== null && u.lockedUntil > now) throw await fail('locked', u.id);
+    // TD-10b (review 2.3a): the login lockout of this user FROM THIS CLIENT ADDRESS; locked/throttled attempts are
+    // refused without counting (the right password too — one answer, no oracle)
+    const st = await this.lockout.state(u, ip);
+    if (st !== 'open') throw await fail(st, u.id);
     if (!ok) {
-      const lockedNow = await this.registerFailure(u.id);
-      throw await fail(lockedNow ? 'bad-password-locked' : 'bad-password', u.id);
+      const r = await this.lockout.fail(u, ip);
+      if (r === 'throttled') this.lastAdminThrottled(u, ip);
+      throw await fail(
+        r === 'locked'
+          ? 'bad-password-locked'
+          : r === 'throttled'
+            ? 'bad-password-throttled'
+            : 'bad-password',
+        u.id,
+      );
     }
     if (u.disabled) throw await fail('disabled', u.id);
+    // P06 review H1 for the per-address lock: refused if a parallel wrong guess locked/throttled it since `state()`
+    if (!(await this.lockout.admit(u, ip))) throw await fail('locked', u.id);
     // success only if the account is not locked at THIS moment (a parallel failure may have just locked it) and the
     // password was not reset since the row was read (the reset's UPDATE bumps credential_gen; this one waits for it)
     const unlocked = await this.db
@@ -147,7 +184,7 @@ export class AuthService {
       );
     }
     const s = await this.session({ id: u.id, username: u.username, role: u.role }, u.credentialGen);
-    if (s === null) throw await fail('credentials-changed-during-login', u.id);
+    if (s === null || s === 'expired') throw await fail('credentials-changed-during-login', u.id);
     await this.audit.write({
       userId: u.id,
       username: u.username,
@@ -160,83 +197,195 @@ export class AuthService {
     return s;
   }
 
+  /** The last admin was throttled instead of locked: one system_event per admin and minute (visible, not a flood). */
+  private lastAdminThrottled(u: LockSubject & { username: string }, ip: string): void {
+    const now = Date.now();
+    if (now - (this.throttleEventAt.get(u.id) ?? 0) < 60_000) return;
+    this.throttleEventAt.set(u.id, now);
+    void this.events.record(
+      'warning',
+      'auth',
+      'LOGIN_THROTTLED',
+      `failed logins for '${u.username}' from ${clientKey(ip)}: the last admin who can log in from there is throttled, not locked`,
+      { user: u.username, client: clientKey(ip) },
+    );
+  }
+
   /**
-   * One failed password check for `userId` (login, or a wrong `current` on a password change — D-097, review M2).
-   * ONE atomic statement (P06 review H1): concurrent failures each add 1 — no read-modify-write race. PostgreSQL
-   * evaluates every SET expression against the old row, so both CASEs see the same pre-increment value. Returns
-   * whether the account is locked now.
+   * One failed password check for `userId` made INSIDE a session of that account (a wrong `current` on the API-key
+   * step-up or an own-password change — D-097, review M2; TD-4). ONE atomic statement (P06 review H1): concurrent
+   * failures each add 1 — no read-modify-write race. PostgreSQL evaluates every SET expression against the old row,
+   * so the CASEs see the same pre-increment value. Returns whether the account is locked now.
+   * TD-10b (review 2.3a): the LAST ADMIN is never locked here — an enabled admin with no other enabled admin who is
+   * not locked. Its checks stay bounded by the per-account budget (`pwset:<id>`, VRX_PASSWORD_RATE_PER_MIN) that runs
+   * before argon2 on both routes; a lock would shut the owner out of every login (this lock is account-wide).
    */
   async registerFailure(userId: number): Promise<boolean> {
     const max = this.env.VRX_LOGIN_MAX_FAILURES;
     const hit = sql`${appUser.failedLogins} + 1 >= ${max}`;
-    const [row] = await this.db
-      .update(appUser)
-      .set({
-        failedLogins: sql`case when ${hit} then 0 else ${appUser.failedLogins} + 1 end`,
-        lockedUntil: sql`case when ${hit} then now() + make_interval(secs => ${this.env.VRX_LOGIN_LOCKOUT_SEC}) else ${appUser.lockedUntil} end`,
-      })
-      .where(eq(appUser.id, userId))
-      .returning({ lockedUntil: appUser.lockedUntil });
+    const last = sql`(${appUser.role} = 'admin' and not ${appUser.disabled} and not exists (select 1 from ${appUser} o where o.role = 'admin' and not o.disabled and o.id <> ${appUser.id} and (o.locked_until is null or o.locked_until <= now())))`;
+    // review L1: lock decisions are serialised (one transaction-scoped advisory lock), so two concurrent failures of
+    // two admins cannot each see the other still unlocked and lock both; the UPDATE's snapshot is taken after the lock
+    const row = await this.db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(${LOCK_DECISION_KEY})`);
+      const [r] = await tx
+        .update(appUser)
+        .set({
+          failedLogins: sql`case when ${hit} then 0 else ${appUser.failedLogins} + 1 end`,
+          lockedUntil: sql`case when ${hit} and not ${last} then now() + make_interval(secs => ${this.env.VRX_LOGIN_LOCKOUT_SEC}) else ${appUser.lockedUntil} end`,
+        })
+        .where(eq(appUser.id, userId))
+        .returning({ lockedUntil: appUser.lockedUntil });
+      return r;
+    });
     return row?.lockedUntil != null && row.lockedUntil > new Date();
   }
 
   /**
-   * Refresh chain + access token under credential generation `gen` (from app_user), or null when the chain was
-   * revoked meanwhile (D-097). `family` continues a chain (refresh); without it a new one starts (login).
+   * Refresh chain + access token under credential generation `gen` (from app_user); null when the chain was revoked
+   * meanwhile (D-097), `expired` when the login session reached VRX_SESSION_MAX_SEC (TD-10b). `family` continues a
+   * chain (refresh); without it a new one starts (login). The access token never outlives the session.
    */
   private async session(
     user: { id: number; username: string; role: Role },
     gen: number,
     family?: string,
-  ): Promise<LoginResult | null> {
+  ): Promise<LoginResult | 'expired' | null> {
     const refresh = await this.tokens.issueRefresh(user.id, gen, family);
-    if (refresh === null) return null;
+    if (refresh === null || refresh === 'expired') return refresh;
+    const left = refresh.notAfter - Math.floor(Date.now() / 1000);
     return {
-      accessToken: await this.tokens.signAccess({ ...user, sid: refresh.family, gen: refresh.gen }),
+      accessToken: await this.tokens.signAccess(
+        { ...user, sid: refresh.family, gen: refresh.gen },
+        refresh.notAfter,
+      ),
       tokenType: 'Bearer',
-      expiresIn: this.tokens.accessTtl,
+      expiresIn: Math.max(1, Math.min(this.tokens.accessTtl, left)),
       refreshToken: refresh.token,
+      refreshMaxAge: refresh.maxAge,
       user,
     };
   }
 
+  /** Audit identity of a user id that may no longer exist (audit_log.user_id references app_user). */
+  private async who(
+    uid: number | undefined,
+  ): Promise<{ userId: number | null; username: string | null }> {
+    if (uid === undefined) return { userId: null, username: null };
+    const [u] = await this.db
+      .select({ id: appUser.id, username: appUser.username })
+      .from(appUser)
+      .where(eq(appUser.id, uid));
+    return { userId: u?.id ?? null, username: u?.username ?? null };
+  }
+
+  /**
+   * TD-10b (review 2.3e): every refused refresh is audited with its reason — per user where the token names one; an
+   * unknown token (junk, long expired) as an aggregated row per client and minute, so the table cannot be flooded.
+   * A request without any cookie (a page load before login) is not a failure and writes nothing. Successful refreshes
+   * are not audited (one per session every ~15 min; the login row starts the session).
+   */
   async refresh(token: string | undefined, ip: string): Promise<LoginResult> {
     if (!token) throw problems.unauthorized('no refresh token');
+    const refuse = async (reason: string, uid: number | undefined) => {
+      const w = await this.who(uid);
+      await this.audit.write({
+        ...w,
+        sourceIp: ip,
+        action: 'auth.refresh',
+        resource: w.username === null ? null : `user/${w.username}`,
+        after: { reason, ...(w.userId === null && uid !== undefined ? { uid } : {}) },
+        result: 'failure',
+        status: 401,
+      });
+      return problems.unauthorized('invalid refresh token');
+    };
     const r = await this.tokens.consumeRefresh(token);
-    if (r === null || 'reuse' in r) {
-      if (r !== null) {
-        await this.audit.write({
+    if (r === null) {
+      void this.audit.writeAggregated(
+        {
           userId: null,
           username: null,
           sourceIp: ip,
           action: 'auth.refresh',
           resource: null,
-          after: { reason: 'refresh-token-reuse: family revoked' },
+          after: { reason: 'unknown-token' },
           result: 'failure',
           status: 401,
-        });
-      }
+        },
+        `auth.refresh|unknown-token|${clientKey(ip)}`,
+      );
       throw problems.unauthorized('invalid refresh token');
     }
+    if ('reuse' in r) {
+      // theft detection: the family is gone — and (TD-10b) so are the access tokens of that session, both copies
+      await this.tokens.revokeSession(r.family);
+      this.bus.sessions({ sid: r.family });
+      throw await refuse('refresh-token-reuse: family revoked', r.uid);
+    }
+    if ('ended' in r) throw await refuse('session-ended', r.uid);
     const [u] = await this.db.select().from(appUser).where(eq(appUser.id, r.uid));
-    if (u === undefined || u.disabled || (u.lockedUntil !== null && u.lockedUntil > new Date())) {
-      throw problems.unauthorized('invalid refresh token');
-    }
+    if (u === undefined) throw await refuse('user-deleted', r.uid);
+    if (u.disabled) throw await refuse('disabled', u.id);
+    if (u.lockedUntil !== null && u.lockedUntil > new Date()) throw await refuse('locked', u.id);
     // verify V1/V3: the chain continues only under the generation PostgreSQL holds NOW (a reset commits it first)
     const s = await this.session(
       { id: u.id, username: u.username, role: u.role },
       u.credentialGen,
       r.family,
     );
-    if (s === null) throw problems.unauthorized('invalid refresh token');
+    if (s === 'expired') throw await refuse('session-expired', u.id);
+    if (s === null) throw await refuse('credentials-changed', u.id);
     return s;
   }
 
-  async logout(token: string | undefined): Promise<void> {
-    if (!token) return;
-    await this.tokens.revokeRefresh(token);
-    const sid = this.tokens.familyOf(token);
-    if (sid) this.bus.sessions({ sid });
+  /**
+   * TD-10b (review 2.3c/2.3e): logout ends the login session — its refresh chain AND its access tokens (per sid, not
+   * the user's other sessions) — and is audited. The session comes from the refresh cookie (the web UI) and/or a
+   * Bearer token (the CLI); a cookie the store does not know ends nothing (a forged `<family>.<x>` cannot log anyone
+   * out) and is only counted, aggregated. Always 204: logout never tells whether a session existed.
+   */
+  async logout(token: string | undefined, authorization: string | undefined, ip: string) {
+    const ended: { sid: string; uid: number | undefined; via: 'refresh-cookie' | 'bearer' }[] = [];
+    if (token) {
+      const e = await this.tokens.endSession(token);
+      if (e !== null) ended.push({ ...e, via: 'refresh-cookie' });
+      else
+        void this.audit.writeAggregated(
+          {
+            userId: null,
+            username: null,
+            sourceIp: ip,
+            action: 'auth.logout',
+            resource: null,
+            after: { reason: 'unknown-token' },
+            result: 'failure',
+            status: 204,
+          },
+          `auth.logout|unknown-token|${clientKey(ip)}`,
+        );
+    }
+    const [scheme, value] = authorization?.split(/\s+/, 2) ?? [];
+    if (scheme?.toLowerCase() === 'bearer' && value) {
+      const c = await this.tokens.verifyAccess(value);
+      if (c?.sid !== undefined && !ended.some((e) => e.sid === c.sid)) {
+        await this.tokens.endSid(c.sid, c.id);
+        ended.push({ sid: c.sid, uid: c.id, via: 'bearer' });
+      }
+    }
+    for (const e of ended) {
+      this.bus.sessions({ sid: e.sid });
+      const w = await this.who(e.uid);
+      await this.audit.write({
+        ...w,
+        sourceIp: ip,
+        action: 'auth.logout',
+        resource: w.username === null ? null : `user/${w.username}`,
+        after: { via: e.via },
+        result: 'success',
+        status: 204,
+      });
+    }
   }
 
   /** `Authorization: Bearer <jwt>` or `Authorization: ApiKey <key>` → principal, or null. */

@@ -2,17 +2,17 @@
 
 Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 42.8% by hours (501.5/1172.5 h), 45.4% by tasks (59/130)**
+**Overall: 43.8% by hours (513.5/1172.5 h), 46.2% by tasks (60/130)**
 
 | state | tasks |
 |---|---|
-| merged | 59 |
-| review | 26 |
+| merged | 60 |
+| review | 25 |
 | running | 5 |
-| ready | 3 |
+| ready | 4 |
 | parked | 2 |
 | failed | 0 |
-| todo | 35 |
+| todo | 34 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
@@ -20,7 +20,7 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 104.5 / 605.0 | 17.3% | 16/70 | 4 | 2 | 0 |
+| S4 | 116.5 / 605.0 | 19.3% | 17/70 | 4 | 3 | 0 |
 | S5 | 38 / 147.5 | 25.8% | 4/15 | 1 | 1 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -51,7 +51,6 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 - WEB-2 — Config screen kit (generic list+drawer+live-status over any candidate path) + data widgets + Secrets page (review, ngfw-46 slot1)
 - WEB-3 — Committed browser harness: e2e lib, shots.mjs, screens/_example.mjs (P08 screenshot script was lost, F6) (review, unassigned)
 - TD-9 — Agent core: bounded VPP calls + txn semantics (+ failed state save answers DEGRADED) (review, unassigned)
-- TD-10b — API auth, session, audit (review, unassigned)
 - TD-11c — Untagged NICs, alias-aware delete order, claim-store scale (review, unassigned)
 - TD-13 — Scheduler tier-3 Validator + VPP→daemon stage (validate daemon config before any VPP write) (review, unassigned)
 - UI-domain-editor — Advanced configuration editor: generic schema-driven page for any domain path (review, unassigned)

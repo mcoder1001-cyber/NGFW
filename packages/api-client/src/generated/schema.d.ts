@@ -6009,7 +6009,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Logged out (also when the cookie was already invalid) */
+      /** @description Logged out: the login session of the refresh cookie (or of a Bearer token sent along) ends — its refresh chain and its access tokens; the user’s other sessions stay. Also 204 when there was no valid session */
       204: {
         headers: {
           [name: string]: unknown;
@@ -6115,8 +6115,26 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem'];
         };
       };
+      /** @description `commit-busy` (TD-10b): a commit, rollback, confirm or reconcile held the commit lock for more than 1 s — nothing was changed; retry (`retryAfterSec`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
       /** @description Rate limited */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description `audit-unavailable` (TD-10b): the audit row could not be written before the change, so nothing was changed; also `unavailable` when the database or agent is down */
+      503: {
         headers: {
           [name: string]: unknown;
         };
@@ -6246,6 +6264,15 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem'];
         };
       };
+      /** @description `audit-unavailable` (TD-10b): the audit row could not be written before the change, so nothing was changed; also `unavailable` when the database or agent is down */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
     };
   };
   Auth_deleteApiKey: {
@@ -6295,6 +6322,15 @@ export interface operations {
       };
       /** @description Not found */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description `audit-unavailable` (TD-10b): the audit row could not be written before the change, so nothing was changed; also `unavailable` when the database or agent is down */
+      503: {
         headers: {
           [name: string]: unknown;
         };
@@ -8691,8 +8727,26 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem'];
         };
       };
+      /** @description `commit-busy` (TD-10b): a commit, rollback, confirm or reconcile held the commit lock for more than 1 s — nothing was changed; retry (`retryAfterSec`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
       /** @description Rate limited */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description `audit-unavailable` (TD-10b): the audit row could not be written before the change, so nothing was changed; also `unavailable` when the database or agent is down */
+      503: {
         headers: {
           [name: string]: unknown;
         };

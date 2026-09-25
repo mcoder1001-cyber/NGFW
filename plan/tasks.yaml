@@ -2799,7 +2799,7 @@ tasks:
   - TD-4
   priority: 3
   est_hours: 12
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D0.9
@@ -2813,7 +2813,7 @@ tasks:
   worktree: /root/ngfw-wt/TD-10b
   owner: ''
   started: 2026-09-25T00:14
-  finished: ''
+  finished: '2026-09-25'
   notes: 'D-125 | not a wave-A gate; dep of P10, F-aaa, SEC-auth | TD-4 Q3 (demote/delete revoke) is PENDING-session-revocation (policy #4): build the recommended option, only that hunk follows the answer
     | tools/app bind/TLS follows PENDING-tools-app-transport | review APPROVE WITH CHANGES 175bed1c; fix round 1 (C1 VRX_TRUST_PROXY=none in tools/app, C2 authctl, C3 split revocation hunk — PENDING-session-revocation)
     | fix round 1 c9f5d296; verify APPROVE faed447d; merger: after TD-10a; revert cb74843d before squash unless PENDING-session-revocation = option 1'
@@ -3045,7 +3045,7 @@ tasks:
   - TD-10b
   priority: 3
   est_hours: 5
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.9

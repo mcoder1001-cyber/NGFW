@@ -2,7 +2,7 @@
 
 Worker: slot 3, branch `task/F-acl`. Each entry says what I did meanwhile (never waiting).
 
-## Q1 (A5, core hunk requested) — wire `subsystems.Env.Resync` in `agent.go`
+## Q1 (A5) — wire `subsystems.Env.Resync` in `agent.go` — RESOLVED by TD-8 (merged into this branch at 6fe374ce)
 The re-projection trigger (schedules every 60 s, FQDN change events) lives in my `subsystems/acl.go` and calls
 `Wiring.RequestResync()`, which is a no-op while `Env.Resync` is nil. `agent.go` (read-only for me) builds `Env` before the
 `Service` exists, so the hook needs a late binding. Proposed hunk in `agent.Start` (3 lines, no behaviour change for
@@ -44,3 +44,19 @@ and resyncs alike — never a mix. Documented in `docs/user/firewall/acl.md`.
 builder through a registry that `subsystems/acl.go` sets at registration (`desired.SetACLEnv`); the last registered
 agent in a process wins. That is exact for the product (one agent per process) and for the tests (one agent at a time).
 Proposal for later: pass an env from `Service` through `project()` (core change) — no action needed now.
+
+## Q6 — TD-11b ownership declarations for the acl family (done, gap edit in descriptors/acl)
+TD-11b (merging) refuses to start an agent whose descriptors declare neither `RecordsNoOwnership()` nor
+`CheckPersistent() error`. TD-11b does not touch `descriptors/acl`, so I added `descriptors/acl/ownership.go`:
+acl.acl, acl.macip-acl, acl.interface-binding, acl.macip-interface-binding and acl.stats-enable declare
+`RecordsNoOwnership()` (owner tags; the stats switch is never deleted, V7); acl.etype-whitelist declares
+`CheckPersistent()` over its claim store (structural `Persistent() bool`, the dfkit/persist protocol) — on this branch
+`KeyedClaims` has no `Persistent()` yet (TD-11b adds it), so the guard passes only after TD-11b is merged; nothing on
+this branch calls the guard. Test: `subsystems.TestACLDescriptorsDeclareOwnership`. My tracker wrappers
+(`actions/acl.TrackedACL/TrackedMacip`) embed the DF-4 descriptors, so the declaration is promoted.
+
+## Q7 — one shared hunk outside an anchor: `coretest/fakevpp.go` `New()` calls `v.installACL()`
+Now that `acl` is an implemented domain, every agent-level test's Retrieve reaches `acl_dump`; the fake needs the
+acl plugin model from the start (the owned `coretest/acl.go`). There is no extension hook in `New()`, so it gets one
+line (like P08's `v.installIfExt()`). Also `agent/service_test.go` used `acl` as its example of an unimplemented
+domain; that assertion now uses `management` (one line, like F-object-model's Q5).

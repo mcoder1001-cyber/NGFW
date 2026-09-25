@@ -14,7 +14,9 @@ package desired
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
+	"strings"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -22,6 +24,8 @@ import (
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/lcpmap"
+	"ngfw/agent/internal/renderers/frr"
+	"ngfw/agent/internal/renderers/frr/policy"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -76,11 +80,12 @@ func FRRDoc(ds *vrxv1.DesiredState, selector func(i int, sr *vrxv1.StaticRoute) 
 		if doc.Interfaces == nil {
 			doc.Interfaces = map[string]*vrxv1.Interface{}
 		}
+		// no description (review M2): FRR does not need it, and the interface description is free text (Persian, '|', up
+		// to 255 characters) that FRR's LINE token cannot carry
 		doc.Interfaces[name] = &vrxv1.Interface{
-			Lcp:         proto.Clone(itf.GetLcp()).(*vrxv1.InterfaceLcp),
-			Ipv4:        append([]string(nil), itf.GetIpv4()...),
-			Ipv6:        append([]string(nil), itf.GetIpv6()...),
-			Description: itf.Description,
+			Lcp:  proto.Clone(itf.GetLcp()).(*vrxv1.InterfaceLcp),
+			Ipv4: append([]string(nil), itf.GetIpv4()...),
+			Ipv6: append([]string(nil), itf.GetIpv6()...),
 		}
 	}
 	if !content {
@@ -194,7 +199,7 @@ func FRR(s Sink, ds *vrxv1.DesiredState, in map[string]bool, o FRROptions) {
 	}
 	if o.Check != nil {
 		if err := o.Check(doc); err != nil {
-			s.Errorf(Ptr("routing"), "routing.bgp-render", "FRR configuration: %v", err)
+			s.Errorf(renderPointer(err), "routing.bgp-render", "FRR configuration: %v", err)
 			return
 		}
 	}
@@ -231,4 +236,24 @@ func AssembleFRR(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 		}
 		return
 	}
+}
+
+// staticPathRe is the framework's path of a static route error ("routing.static[3].nextHops[0].interface").
+var staticPathRe = regexp.MustCompile(`^routing\.static\[(\d+)\](?:\.nextHops\[(\d+)\])?`)
+
+// renderPointer is the JSON pointer of a render error (review M2): the field of a policy.FieldError (bgp, policy), the
+// static route of a framework error, else /routing.
+func renderPointer(err error) string {
+	var fe *policy.FieldError
+	if errors.As(err, &fe) {
+		return fe.Path.Pointer()
+	}
+	msg := strings.TrimPrefix(err.Error(), frr.ErrInput.Error()+": ")
+	if m := staticPathRe.FindStringSubmatch(msg); m != nil {
+		if m[2] != "" {
+			return Ptr("routing", "static", m[1], "nextHops", m[2])
+		}
+		return Ptr("routing", "static", m[1])
+	}
+	return Ptr("routing")
 }

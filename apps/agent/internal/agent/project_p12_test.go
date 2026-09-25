@@ -193,3 +193,43 @@ func TestP12RoutingWarningTable(t *testing.T) {
 		t.Fatalf("warnings %v (bgp is handled by P12)", ptrs)
 	}
 }
+
+// TestP12RenderErrorsPointAtTheField (review M2): what FRR cannot carry is refused at the field's pointer, never at
+// /routing; a Persian interface description is not FRR's (not rendered) and passes.
+func TestP12RenderErrorsPointAtTheField(t *testing.T) {
+	o := subsystems.FRRProjection()
+	o.Disabled = false
+	for name, tc := range map[string]struct {
+		doc  string
+		want string // pointer, "" = no error
+	}{
+		"persian interface description": {`{"interfaces":{"loop821":{"description":"لینک اصلی","ipv4":["10.8.21.1/24"],"lcp":{}}},
+			"routing":{"bgp":{"asn":65080}}}`, ""},
+		"persian neighbour description": {`{"routing":{"bgp":{"asn":65080,"neighbors":{"10.8.21.2":{"remoteAs":65081,"description":"همسایه"}}}}}`,
+			"/routing/bgp/neighbors/10.8.21.2/description"},
+		"pipe in a peer group description": {`{"routing":{"bgp":{"asn":65080,"peerGroups":{"pg":{"remoteAs":1,"description":"uplink | isp"}}}}}`,
+			"/routing/bgp/peerGroups/pg/description"},
+		"route-map seq above 65535 (document index kept)": {`{"routing":{"policy":{"routeMaps":{"rm":{"entries":[
+			{"seq":70000,"action":"permit"},{"seq":10,"action":"deny"}]}}}}}`,
+			"/routing/policy/routeMaps/rm/entries/0/seq"},
+		"prefix-list rule ge (document index kept)": {`{"routing":{"policy":{"prefixLists":{"pl":{"rules":[
+			{"seq":20,"action":"permit","prefix":"10.0.0.0/8","ge":8},{"seq":10,"action":"permit","prefix":"10.0.0.0/8"}]}}}}}`,
+			"/routing/policy/prefixLists/pl/rules/0"},
+		"unpaired update-source": {`{"routing":{"bgp":{"asn":65080,"neighbors":{"10.8.21.2":{"remoteAs":65081,"updateSource":"loop9"}}}}}`,
+			"/routing/bgp/neighbors/10.8.21.2/updateSource"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			pj := &projected{pointers: map[scheduler.Key]string{}}
+			desired.FRR(pj, doc(t, tc.doc), map[string]bool{"routing": true}, o)
+			if tc.want == "" {
+				if pj.hasErrors() || len(pj.kvs) != 1 {
+					t.Fatalf("want no error: %+v", pj.issues)
+				}
+				return
+			}
+			if len(pj.issues) != 1 || pj.issues[0].pointer != tc.want || pj.issues[0].rule != "routing.bgp-render" {
+				t.Fatalf("issues %+v, want one routing.bgp-render at %s", pj.issues, tc.want)
+			}
+		})
+	}
+}

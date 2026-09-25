@@ -81,14 +81,15 @@ func Render(b *vrxv1.BgpConfig, rc Secrets) ([]string, error) {
 	if b == nil {
 		return nil, nil
 	}
+	base := policy.P("routing", "bgp")
 	if b.GetAsn() == 0 {
-		return nil, fmt.Errorf("%w: routing.bgp.asn is required (1–4294967295)", frr.ErrInput)
+		return nil, policy.Errf(base.At("asn"), "asn is required (1–4294967295)")
 	}
 	head := fmt.Sprintf("router bgp %d", b.GetAsn())
 	if v := b.GetVrf(); v != "" && v != frr.DefaultVRF {
 		name, err := frr.VRFName(v)
 		if err != nil {
-			return nil, inputErr("routing.bgp.vrf", err)
+			return nil, policy.Wrap(base.At("vrf"), err)
 		}
 		head += " vrf " + name
 	}
@@ -96,7 +97,7 @@ func Render(b *vrxv1.BgpConfig, rc Secrets) ([]string, error) {
 	if rid := b.GetRouterId(); rid != "" {
 		a, err := netip.ParseAddr(rid)
 		if err != nil || !a.Is4() {
-			return nil, inputErr("routing.bgp.routerId", fmt.Errorf("%w: router id %q is not a dotted quad", renderers.ErrUnsafe, rid))
+			return nil, policy.Wrap(base.At("routerId"), fmt.Errorf("%w: router id %q is not a dotted quad", renderers.ErrUnsafe, rid))
 		}
 		out = append(out, " bgp router-id "+a.String())
 	}
@@ -111,9 +112,9 @@ func Render(b *vrxv1.BgpConfig, rc Secrets) ([]string, error) {
 	groups := b.GetPeerGroups()
 	groupNames := slices.Sorted(maps.Keys(groups))
 	for _, name := range groupNames {
-		path := "routing.bgp.peerGroups." + name
+		path := base.At("peerGroups", name)
 		if _, err := policy.ObjectName("peer group", name); err != nil {
-			return nil, inputErr(path, err)
+			return nil, policy.Wrap(path, err)
 		}
 		out = append(out, " neighbor "+name+" peer-group")
 		lines, err := peerLines(name, groups[name], path, rc)
@@ -122,19 +123,19 @@ func Render(b *vrxv1.BgpConfig, rc Secrets) ([]string, error) {
 		}
 		out = append(out, lines...)
 	}
-	nbrs, err := sortedNeighbors(b.GetNeighbors())
+	nbrs, err := sortedNeighbors(b.GetNeighbors(), base.At("neighbors"))
 	if err != nil {
 		return nil, err
 	}
 	for _, n := range nbrs {
-		path := "routing.bgp.neighbors." + n.key
+		path := base.At("neighbors", n.key)
 		nb := n.cfg
 		if pg := nb.GetPeerGroup(); pg != "" {
 			if _, ok := groups[pg]; !ok {
-				return nil, fmt.Errorf("%w: %s.peerGroup: peer group %q does not exist", frr.ErrInput, path, pg)
+				return nil, policy.Errf(path.At("peerGroup"), "peer group %q does not exist", pg)
 			}
 		} else if nb.GetRemoteAs() == 0 {
-			return nil, fmt.Errorf("%w: %s.remoteAs is required without a peer group", frr.ErrInput, path)
+			return nil, policy.Errf(path.At("remoteAs"), "remoteAs is required without a peer group")
 		}
 		// FRR prints remote-as before peer-group for a member with an AS of its own
 		if nb.GetRemoteAs() != 0 {
@@ -170,16 +171,16 @@ type neighbor struct {
 	cfg  *vrxv1.BgpNeighbor
 }
 
-func sortedNeighbors(m map[string]*vrxv1.BgpNeighbor) ([]neighbor, error) {
+func sortedNeighbors(m map[string]*vrxv1.BgpNeighbor, path policy.Path) ([]neighbor, error) {
 	out := make([]neighbor, 0, len(m))
 	seen := map[netip.Addr]string{}
 	for k, v := range m {
 		a, err := netip.ParseAddr(k)
 		if err != nil || a.Zone() != "" || a.IsUnspecified() || a.IsMulticast() || a.IsLoopback() {
-			return nil, fmt.Errorf("%w: routing.bgp.neighbors: key %q is not a unicast neighbour address", frr.ErrInput, k)
+			return nil, policy.Errf(path.At(k), "key %q is not a unicast neighbour address", k)
 		}
 		if prev, dup := seen[a]; dup {
-			return nil, fmt.Errorf("%w: routing.bgp.neighbors: %q and %q are the same address", frr.ErrInput, prev, k)
+			return nil, policy.Errf(path.At(k), "%q and %q are the same address", prev, k)
 		}
 		seen[a] = k
 		out = append(out, neighbor{key: k, addr: a.String(), ip: a, cfg: v})
@@ -189,7 +190,7 @@ func sortedNeighbors(m map[string]*vrxv1.BgpNeighbor) ([]neighbor, error) {
 }
 
 // peerLines renders the session attributes shared by neighbours and peer groups.
-func peerLines(id string, p peer, path string, rc Secrets) ([]string, error) {
+func peerLines(id string, p peer, path policy.Path, rc Secrets) ([]string, error) {
 	var out []string
 	add := func(format string, a ...any) {
 		out = append(out, fmt.Sprintf(" neighbor %s "+format, append([]any{id}, a...)...))
@@ -200,14 +201,14 @@ func peerLines(id string, p peer, path string, rc Secrets) ([]string, error) {
 	if d := p.GetDescription(); d != "" {
 		desc, err := frr.Description(d)
 		if err != nil {
-			return nil, inputErr(path+".description", err)
+			return nil, policy.Wrap(path.At("description"), err)
 		}
 		add("description %s", desc)
 	}
 	if h := p.GetEbgpMultihop(); h != 0 {
 		switch {
 		case h > 255:
-			return nil, fmt.Errorf("%w: %s.ebgpMultihop %d not in 1–255", frr.ErrInput, path, h)
+			return nil, policy.Errf(path.At("ebgpMultihop"), "ebgpMultihop %d not in 1–255", h)
 		case h == 255:
 			add("ebgp-multihop") // FRR prints the maximum TTL without a number
 		default:
@@ -217,7 +218,7 @@ func peerLines(id string, p peer, path string, rc Secrets) ([]string, error) {
 	if ref := p.GetPasswordRef(); ref != "" {
 		pw, err := rc.Secret(ref)
 		if err != nil {
-			return nil, inputErr(path+".passwordRef", err)
+			return nil, policy.Wrap(path.At("passwordRef"), err)
 		}
 		add("password %s", pw)
 	}
@@ -229,24 +230,24 @@ func peerLines(id string, p peer, path string, rc Secrets) ([]string, error) {
 			h = 3 * k
 		}
 		if k > 65535 || h > 65535 || (h != 0 && h < 3) || h <= k {
-			return nil, fmt.Errorf("%w: %s: timers keepalive %d hold %d (hold must be ≥ 3 and greater than keepalive, both ≤ 65535)", frr.ErrInput, path, k, h)
+			return nil, policy.Errf(path.At("holdTimeSec"), "timers keepalive %d hold %d (hold must be ≥ 3 and greater than keepalive, both ≤ 65535)", k, h)
 		}
 		add("timers %d %d", k, h)
 	}
 	if src := p.GetUpdateSource(); src != "" {
 		if a, err := netip.ParseAddr(src); err == nil {
 			if a.Zone() != "" || a.IsUnspecified() || a.IsMulticast() {
-				return nil, fmt.Errorf("%w: %s.updateSource %q is not a unicast address", frr.ErrInput, path, src)
+				return nil, policy.Errf(path.At("updateSource"), "updateSource %q is not a unicast address", src)
 			}
 			add("update-source %s", a)
 		} else {
 			linux, ok := rc.MapInterface(src)
 			if !ok {
-				return nil, fmt.Errorf("%w: %s.updateSource: interface %q has no Linux interface for FRR (interfaces.%s.lcp)", frr.ErrInput, path, src, src)
+				return nil, policy.Errf(path.At("updateSource"), "interface %q has no Linux interface for FRR (interfaces.%s.lcp)", src, src)
 			}
 			name, err := frr.IfName(linux)
 			if err != nil {
-				return nil, inputErr(path+".updateSource", err)
+				return nil, policy.Wrap(path.At("updateSource"), err)
 			}
 			add("update-source %s", name)
 		}
@@ -277,10 +278,10 @@ func afBlock(af afi, b *vrxv1.BgpConfig, groups []string, nbrs []neighbor) ([]st
 	slices.SortStableFunc(nets, func(x, y *vrxv1.BgpNetwork) int { return cmp.Compare(x.GetPrefix(), y.GetPrefix()) })
 	var pfxs []netip.Prefix
 	for i, n := range nets {
-		path := fmt.Sprintf("routing.bgp.networks[%d]", i)
+		path := policy.P("routing", "bgp", "networks").Index(i)
 		p, err := netip.ParsePrefix(n.GetPrefix())
 		if err != nil || p.Masked() != p {
-			return nil, fmt.Errorf("%w: %s.prefix %q is not a network prefix", frr.ErrInput, path, n.GetPrefix())
+			return nil, policy.Errf(path.At("prefix"), "prefix %q is not a network prefix", n.GetPrefix())
 		}
 		if p.Addr().Is6() != af.is6 {
 			continue
@@ -289,7 +290,7 @@ func afBlock(af afi, b *vrxv1.BgpConfig, groups []string, nbrs []neighbor) ([]st
 		line := "  network " + p.String()
 		if rm := n.GetRouteMap(); rm != "" {
 			if _, err := policy.ObjectName("route map", rm); err != nil {
-				return nil, inputErr(path+".routeMap", err)
+				return nil, policy.Wrap(path.At("routeMap"), err)
 			}
 			line += " route-map " + rm
 		}
@@ -304,7 +305,7 @@ func afBlock(af afi, b *vrxv1.BgpConfig, groups []string, nbrs []neighbor) ([]st
 	activeFamily := len(pfxs) > 0
 	var peers []string
 	for _, g := range groups {
-		lines, active, err := peerAF(g, af, b.GetPeerGroups()[g].GetAfi(), "routing.bgp.peerGroups."+g)
+		lines, active, err := peerAF(g, af, b.GetPeerGroups()[g].GetAfi(), policy.P("routing", "bgp", "peerGroups", g))
 		if err != nil {
 			return nil, err
 		}
@@ -312,7 +313,7 @@ func afBlock(af afi, b *vrxv1.BgpConfig, groups []string, nbrs []neighbor) ([]st
 		peers = append(peers, lines...)
 	}
 	for _, n := range nbrs {
-		lines, active, err := peerAF(n.addr, af, n.cfg.GetAfi(), "routing.bgp.neighbors."+n.key)
+		lines, active, err := peerAF(n.addr, af, n.cfg.GetAfi(), policy.P("routing", "bgp", "neighbors", n.key))
 		if err != nil {
 			return nil, err
 		}
@@ -367,25 +368,25 @@ func redistribute(r *vrxv1.Redistribute) ([]string, error) {
 		}
 		if rm := src.opt.GetRouteMap(); rm != "" {
 			if _, err := policy.ObjectName("route map", rm); err != nil {
-				return nil, inputErr("routing.bgp.redistribute."+src.name+".routeMap", err)
+				return nil, policy.Wrap(policy.P("routing", "bgp", "redistribute", src.name, "routeMap"), err)
 			}
 			line += " route-map " + rm
 		}
 		out = append(out, line)
 	}
 	if r.GetBgp() != nil {
-		return nil, fmt.Errorf("%w: routing.bgp.redistribute.bgp: BGP cannot redistribute into itself", frr.ErrInput)
+		return nil, policy.Errf(policy.P("routing", "bgp", "redistribute", "bgp"), "BGP cannot redistribute into itself")
 	}
 	return out, nil
 }
 
 // peerAF renders one peer's lines inside an address family; active reports whether the peer activates it.
-func peerAF(id string, af afi, a *vrxv1.BgpAfi, path string) ([]string, bool, error) {
+func peerAF(id string, af afi, a *vrxv1.BgpAfi, path policy.Path) ([]string, bool, error) {
 	f := af.get(a)
 	if f == nil || (f.Enabled != nil && !f.GetEnabled()) {
 		return nil, false, nil
 	}
-	path += ".afi." + af.key
+	path = path.At("afi", af.key)
 	out := []string{"  neighbor " + id + " activate"}
 	if f.GetNextHopSelf() {
 		out = append(out, "  neighbor "+id+" next-hop-self")
@@ -397,16 +398,16 @@ func peerAF(id string, af afi, a *vrxv1.BgpAfi, path string) ([]string, bool, er
 		out = append(out, "  neighbor "+id+" soft-reconfiguration inbound")
 	}
 	for _, x := range []struct {
-		name, dir, kind string
+		name, dir, kind, field string
 	}{
-		{f.GetPrefixListIn(), "in", "prefix-list"}, {f.GetPrefixListOut(), "out", "prefix-list"},
-		{f.GetRouteMapIn(), "in", "route-map"}, {f.GetRouteMapOut(), "out", "route-map"},
+		{f.GetPrefixListIn(), "in", "prefix-list", "prefixListIn"}, {f.GetPrefixListOut(), "out", "prefix-list", "prefixListOut"},
+		{f.GetRouteMapIn(), "in", "route-map", "routeMapIn"}, {f.GetRouteMapOut(), "out", "route-map", "routeMapOut"},
 	} {
 		if x.name == "" {
 			continue
 		}
 		if _, err := policy.ObjectName(x.kind, x.name); err != nil {
-			return nil, false, inputErr(path, err)
+			return nil, false, policy.Wrap(path.At(x.field), err)
 		}
 		out = append(out, fmt.Sprintf("  neighbor %s %s %s %s", id, x.kind, x.name, x.dir))
 	}
@@ -414,8 +415,4 @@ func peerAF(id string, af afi, a *vrxv1.BgpAfi, path string) ([]string, bool, er
 		out = append(out, fmt.Sprintf("  neighbor %s maximum-prefix %d", id, n))
 	}
 	return out, true, nil
-}
-
-func inputErr(path string, err error) error {
-	return fmt.Errorf("%w: %s: %w", frr.ErrInput, path, err)
 }

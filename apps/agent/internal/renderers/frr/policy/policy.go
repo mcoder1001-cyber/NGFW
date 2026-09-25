@@ -126,26 +126,24 @@ func Render(pol *vrxv1.RoutingPolicy, mapIf frr.InterfaceMapper) ([]string, erro
 }
 
 func prefixList(name string, pl *vrxv1.PrefixList) ([]string, error) {
-	path := "routing.policy.prefixLists." + name
+	path := P("routing", "policy", "prefixLists", name)
 	if _, err := ObjectName("prefix list", name); err != nil {
-		return nil, inputErr(path, err)
+		return nil, Wrap(path, err)
 	}
 	fam := family(pl)
 	var out []string
 	if d := pl.GetDescription(); d != "" {
 		desc, err := frr.Description(d)
 		if err != nil {
-			return nil, inputErr(path+".description", err)
+			return nil, Wrap(path.At("description"), err)
 		}
 		out = append(out, fmt.Sprintf("%s prefix-list %s description %s", fam, name, desc))
 	}
-	rules := slices.Clone(pl.GetRules())
-	slices.SortStableFunc(rules, func(a, b *vrxv1.PrefixListRule) int { return cmp.Compare(a.GetSeq(), b.GetSeq()) })
-	for i, r := range rules {
-		rp := fmt.Sprintf("%s.rules[%d]", path, i)
-		line, err := prefixListRule(fam, name, r)
+	rules := pl.GetRules()
+	for _, i := range bySeq(len(rules), func(i int) uint32 { return rules[i].GetSeq() }) {
+		line, err := prefixListRule(fam, name, rules[i])
 		if err != nil {
-			return nil, inputErr(rp, err)
+			return nil, Wrap(path.At("rules").Index(i), err) // the document's index, not the sorted one
 		}
 		out = append(out, line)
 	}
@@ -197,23 +195,22 @@ func prefixListRule(fam, name string, r *vrxv1.PrefixListRule) (string, error) {
 
 // routeMap returns the generated community / as-path lists and the route-map blocks of one route map.
 func routeMap(name string, rm *vrxv1.RouteMap, pls map[string]*vrxv1.PrefixList, mapIf frr.InterfaceMapper) (lists, blocks []string, err error) {
-	path := "routing.policy.routeMaps." + name
+	path := P("routing", "policy", "routeMaps", name)
 	if _, err := ObjectName("route map", name); err != nil {
-		return nil, nil, inputErr(path, err)
+		return nil, nil, Wrap(path, err)
 	}
-	entries := slices.Clone(rm.GetEntries())
-	slices.SortStableFunc(entries, func(a, b *vrxv1.RouteMapEntry) int { return cmp.Compare(a.GetSeq(), b.GetSeq()) })
-	for i := 1; i < len(entries); i++ {
-		if entries[i].GetSeq() == entries[i-1].GetSeq() {
-			return nil, nil, fmt.Errorf("%w: %s: sequence %d is used twice", frr.ErrInput, path, entries[i].GetSeq())
+	entries := rm.GetEntries()
+	order := bySeq(len(entries), func(i int) uint32 { return entries[i].GetSeq() })
+	for k := 1; k < len(order); k++ {
+		if entries[order[k]].GetSeq() == entries[order[k-1]].GetSeq() {
+			return nil, nil, Errf(path.At("entries").Index(order[k]).At("seq"), "sequence %d is used twice", entries[order[k]].GetSeq())
 		}
 	}
 	// The route map's description (FRR has none per map, only per entry) is not rendered.
-	for i, e := range entries {
-		ep := fmt.Sprintf("%s.entries[%d]", path, i)
-		l, b, err := routeMapEntry(name, e, pls, mapIf)
+	for _, i := range order {
+		l, b, err := routeMapEntry(name, entries[i], pls, mapIf, path.At("entries").Index(i))
 		if err != nil {
-			return nil, nil, inputErr(ep, err)
+			return nil, nil, err
 		}
 		lists = append(lists, l...)
 		blocks = append(blocks, b...)
@@ -226,20 +223,20 @@ func GeneratedListName(routeMap string, seq uint32) string {
 	return fmt.Sprintf("vrx-%s-%d", routeMap, seq)
 }
 
-func routeMapEntry(name string, e *vrxv1.RouteMapEntry, pls map[string]*vrxv1.PrefixList, mapIf frr.InterfaceMapper) (lists, block []string, err error) {
+func routeMapEntry(name string, e *vrxv1.RouteMapEntry, pls map[string]*vrxv1.PrefixList, mapIf frr.InterfaceMapper, ep Path) (lists, block []string, err error) {
 	if e.GetSeq() == 0 || e.GetSeq() > 65535 {
-		// FRR's route-map sequence is 1–65535 (the schema allows a uint32: refused here, not silently cut)
-		return nil, nil, fmt.Errorf("%w: seq %d: FRR route-map sequence numbers are 1–65535", frr.ErrInput, e.GetSeq())
+		// FRR's route-map sequence is 1–65535 (the schema allows a uint32; routing.bgp-route-map-seq says so first)
+		return nil, nil, Errf(ep.At("seq"), "seq %d: FRR route-map sequence numbers are 1–65535", e.GetSeq())
 	}
 	act, err := action(e.GetAction())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, Wrap(ep.At("action"), err)
 	}
 	block = append(block, fmt.Sprintf("route-map %s %s %d", name, act, e.GetSeq()))
 	if d := e.GetDescription(); d != "" {
 		desc, err := frr.Description(d)
 		if err != nil {
-			return nil, nil, fmt.Errorf("description: %w", err)
+			return nil, nil, Wrap(ep.At("description"), err)
 		}
 		block = append(block, " description "+desc)
 	}
@@ -261,14 +258,14 @@ func routeMapEntry(name string, e *vrxv1.RouteMapEntry, pls map[string]*vrxv1.Pr
 	if pl := m.GetPrefixList(); pl != "" {
 		fam, err := plFamily(pl)
 		if err != nil {
-			return nil, nil, fmt.Errorf("match.prefixList: %w", err)
+			return nil, nil, Wrap(ep.At("match", "prefixList"), err)
 		}
 		matches = append(matches, fmt.Sprintf(" match %s address prefix-list %s", fam, pl))
 	}
 	if pl := m.GetNextHopPrefixList(); pl != "" {
 		fam, err := plFamily(pl)
 		if err != nil {
-			return nil, nil, fmt.Errorf("match.nextHopPrefixList: %w", err)
+			return nil, nil, Wrap(ep.At("match", "nextHopPrefixList"), err)
 		}
 		matches = append(matches, fmt.Sprintf(" match %s next-hop prefix-list %s", fam, pl))
 	}
@@ -278,18 +275,18 @@ func routeMapEntry(name string, e *vrxv1.RouteMapEntry, pls map[string]*vrxv1.Pr
 		}
 		linux, ok := mapIf(itf)
 		if !ok {
-			return nil, nil, fmt.Errorf("%w: match.interface %q has no Linux interface for FRR (interfaces.%s.lcp)", frr.ErrInput, itf, itf)
+			return nil, nil, Errf(ep.At("match", "interface"), "interface %q has no Linux interface for FRR (interfaces.%s.lcp)", itf, itf)
 		}
 		n, err := frr.IfName(linux)
 		if err != nil {
-			return nil, nil, fmt.Errorf("match.interface: %w", err)
+			return nil, nil, Wrap(ep.At("match", "interface"), err)
 		}
 		matches = append(matches, " match interface "+n)
 	}
 	if c := m.GetCommunity(); c != "" {
 		v, err := Community(c)
 		if err != nil {
-			return nil, nil, fmt.Errorf("match.community: %w", err)
+			return nil, nil, Wrap(ep.At("match", "community"), err)
 		}
 		lists = append(lists, fmt.Sprintf("bgp community-list standard %s seq 5 permit %s", gen, v))
 		matches = append(matches, " match community "+gen)
@@ -297,7 +294,7 @@ func routeMapEntry(name string, e *vrxv1.RouteMapEntry, pls map[string]*vrxv1.Pr
 	if ap := m.GetAsPath(); ap != "" {
 		v, err := AsPath(ap)
 		if err != nil {
-			return nil, nil, fmt.Errorf("match.asPath: %w", err)
+			return nil, nil, Wrap(ep.At("match", "asPath"), err)
 		}
 		lists = append(lists, fmt.Sprintf("bgp as-path access-list %s seq 5 permit %s", gen, v))
 		matches = append(matches, " match as-path "+gen)
@@ -310,7 +307,7 @@ func routeMapEntry(name string, e *vrxv1.RouteMapEntry, pls map[string]*vrxv1.Pr
 	}
 	sets, err := setLines(e.GetSet())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, Wrap(ep.At("set"), err)
 	}
 	block = append(block, matches...)
 	block = append(block, sets...)
@@ -376,6 +373,12 @@ func setLines(s *vrxv1.RouteMapSet) ([]string, error) {
 	return out, nil
 }
 
-func inputErr(path string, err error) error {
-	return fmt.Errorf("%w: %s: %w", frr.ErrInput, path, err)
+// bySeq returns the indexes 0..n-1 sorted by seq (stable): render order, while errors keep the document's index.
+func bySeq(n int, seq func(int) uint32) []int {
+	idx := make([]int, n)
+	for i := range idx {
+		idx[i] = i
+	}
+	slices.SortStableFunc(idx, func(a, b int) int { return cmp.Compare(seq(a), seq(b)) })
+	return idx
 }

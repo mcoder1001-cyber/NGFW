@@ -2,7 +2,6 @@ package dhcp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/netip"
 	"sort"
@@ -97,8 +96,8 @@ func (d *ClientDescriptor) config(ctx context.Context, s Client, swIfIndex uint3
 // Create implements scheduler.Descriptor. VPP answers INVALID_VALUE when a client already exists on the interface;
 // Create then compares with the dump and succeeds only if it is identical.
 //
-// Claim first (TD-11b Q3, review 3.3): on an untagged interface the claim is recorded BEFORE the VPP add and
-// released when the add fails. With the old order (add, then claim) a failing claim left the client in VPP,
+// Claim first (TD-11b Q3, review 3.3; dfkit.Target.ClaimFirst): on an untagged interface the claim is recorded
+// BEFORE the VPP add and released when the add fails. With the old order (add, then claim) a failing claim left the client in VPP,
 // unclaimed: invisible to Retrieve, skipped by Delete, and every later Create failed with ErrNotOurs.
 func (d *ClientDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	s, err := decode[Client](obj)
@@ -113,29 +112,20 @@ func (d *ClientDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 		return nil, err
 	}
 	idx := tg.Index
-	had := tg.Claimed()                // ours before this Create (always true on our tagged interfaces)
-	if err := tg.Claim(); err != nil { // nothing written to VPP yet
+	claim, err := tg.ClaimFirst(ctx) // TD-11b: nothing written to VPP yet
+	if err != nil {
 		return nil, err
-	}
-	undo := func(err error) error { // release a claim this Create made; a claim that existed before stays
-		if had {
-			return err
-		}
-		if rerr := tg.Release(); rerr != nil {
-			return errors.Join(err, rerr)
-		}
-		return err
 	}
 	if err := d.config(ctx, s, idx, true); err != nil {
 		if dfkit.IsVPPError(err, api.INVALID_VALUE) { // a client exists on the interface
-			if !had { // never adopt a foreign client (review H1): a claim made by this Create proves nothing
-				return nil, undo(fmt.Errorf("%w: %s on untagged interface %q has no claim of %s", dfkit.ErrNotOurs, NameClient, s.Interface, d.owner))
+			if aerr := claim.Adopt(); aerr != nil { // never adopt a foreign client (review H1)
+				return nil, aerr
 			}
 			if cur, ok, rerr := d.retrieveOne(ctx, idx); rerr == nil && ok && proto.Equal(cur.Proto(), s.Proto()) {
 				return ClientMeta{SwIfIndex: idx}, nil
 			}
 		}
-		return nil, undo(err)
+		return nil, claim.Undo(err) // releases a claim this Create made; one that existed before stays
 	}
 	return ClientMeta{SwIfIndex: idx}, nil
 }

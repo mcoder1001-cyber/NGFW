@@ -9,22 +9,28 @@ VPP `policer` + `qos` (record/store/mark/egress-map). WBS D7.8 (policer, shaper,
 ## Inputs to read first
 - `packages/schema/src/domains/services.ts` — `services.qos` exists (D-052): `policers{<name>: {type 1r2c|1r3c|2r3c-*, rateUnit kbps|pps, cir/eir,
   cb/eb, round, colorAware, conform/exceed/violate actions + dscp}}`, `shapers{<name>: {rateKbps, burstBytes?}}`, `maps{<name>: {id, rows{ext,vlan,
-  mpls,ip}}}`, `interfaces{<vpp if>: {policer{input,output}, shaper, record, store{source,value}, mark{output, map}}}`. Extend only additively on
-  `contract/F-qos-flat` if a field is missing.
-- DF-7 descriptors (**branch** until merged: `git show task/DF-7:docs/agent/descriptors/policer.md` and `qos.md`): `policer.policer` (Retrieve via
+  mpls,ip}}}`, `interfaces{<vpp if>: {policer{input,output}, shaper, record, store{source,value}, mark{output, map}}}`. Extend only additively,
+  as separate `contract(schema|proto): …` commits on your task branch (no own branches; numbers from your envelope), if a field is missing.
+  Semantic rules that **already exist** in `packages/schema/src/semantic/services.ts`: `services.qos-references` (policers/shapers/maps/
+  interfaces exist) and `services.qos-consistency` (map ids unique, marked values fit the header) — do not duplicate them.
+- DF-7 descriptors (merged — use, do not rebuild, D-104; `docs/agent/descriptors/policer.md` and `qos.md`): `policer.policer` (Retrieve via
   per-index `policer_dump_v2`), `policer.interface` (**write-only**, applied once per VPP boot identity — D-063/D-076/D-080; never un-apply on
   an interface that had no policer since VPP start: out-of-bounds write in VPP), `policer.bind` (workers only → skip on this host),
   `policer.classify` (write-only; V20 broken `policer_classify_dump`), `qos.record`, `qos.store` (ip source only in 26.06), `qos.egress-map`,
   `qos.mark`. Binapi `apps/agent/binapi/{policer,qos}` (`policer_add/update/del`, `policer_input/output`, `qos_record_enable_disable`,
   `qos_store_enable_disable`, `qos_egress_map_update/delete`, `qos_mark_enable_disable` — verified present).
-- `docs/vpp-code-track.md` V3 (HQoS), V20 (policer_classify dump); D-071 (egress-map ids by id range; no globals).
+- `docs/vpp-code-track.md` V3 (HQoS), V20 (policer_classify dump); D-071 (egress-map ids by id range via `df7.WithIDRange` — tests use the
+  slot range <SLOT>000–<SLOT>999; no globals).
+- Registration: `policer.Register` + `qos.Register` yourself — **never `df7/registry.Register`** (it registers every DF-7 family: lb, mpls,
+  span, lldp, bfd, vrrp, igmp belong to other tasks; duplicates panic, D-030). P08 already installs the persisted DF-7 BootStore
+  (`df7.SetBootStore`); `policer.classify` gets DF-2's classify store through `Wiring.ClassifyStore()`.
 
 ## Scope — build exactly this
-Files you own: `apps/agent/internal/descriptors/{policer,qos}/**`, `docs/agent/descriptors/{policer,qos}.md`, `apps/agent/internal/agent/project_qos_flat*.go`,
-`apps/api/src/features/qos-flat/**`, `apps/web/src/domains/services/qos-flat/**`, `apps/web/src/locales/*/qos-flat.json`, `docs/user/services/qos-flat.md`,
-`test/topology/qos-flat/**`. Shared files: one-line appends only.
-1. **Schema** (semantic): referenced policers/shapers/maps exist; map ids unique; `store.source` = ip only (VPP 26.06); `mark.map` required with
-   `mark`; an interface uses either `shaper` or `policer.output`, not both (both become an egress policer).
+Files you own and shared hotspots: your TASK ENVELOPE is authoritative (the board's old `agent/project_qos_flat*.go` became
+`internal/desired/qos*.go` + `internal/subsystems/qos*.go` + `internal/agent/rpc_qos*.go`, wave-A hotspots A2). Shared files: registration
+lines under your anchor only.
+1. **Schema** (semantic, in your own `semantic/qos-flat.ts`; references and map-id uniqueness exist already): `store.source` = ip only
+   (VPP 26.06); `mark.map` required with `mark`; an interface uses either `shaper` or `policer.output`, not both (both become an egress policer).
 2. **Agent**: project `services.qos` → policer / qos objects (map → mark dependency; marks removed before maps). **Shaper = egress
    policer** (1r2c, cir = rateKbps, burst = burstBytes or ≈10 ms, exceed → drop) named `shaper:<name>`, documented as drop-based rate
    limiting, not queueing (V3). Retrieve for write-only types follows D-063 (skip in verification, re-apply once per boot identity).

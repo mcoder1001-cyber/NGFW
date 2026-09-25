@@ -135,6 +135,11 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   return NAV_GROUPS.map((id) => ({ id, labelKey: id === 'dev' ? DEV_GROUP_LABEL : `nav:groups.${id}`, items: groups.get(id)! })).filter((g) => g.items.length > 0);
 }
 
+/** Groups with more than one entry collapse under a header; single-entry groups render as a plain link. */
+export function isCollapsible(group: NavGroup): boolean {
+  return group.items.length > 1;
+}
+
 /** The single nav path to mark current for `pathname`: the longest item path equal to it or a parent of it. */
 export function currentNavPath(nav: readonly NavGroup[], pathname: string): string | undefined {
   let best: string | undefined;

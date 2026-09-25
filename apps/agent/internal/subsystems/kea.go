@@ -63,13 +63,16 @@ func DHCPFor(stateDir, owner string) *DHCPRuntime {
 // DHCP returns this agent's DHCP runtime.
 func (w *Wiring) DHCP() *DHCPRuntime { return DHCPFor(w.env.StateDir, w.env.Owner) }
 
-// registerKea registers the Kea singletons (unless off), the relay families scoped to the slot's table range, and
-// the DHCP runtime of this agent.
+// registerKea registers the Kea singletons (unless off), the relay families scoped to the agent's id range, and the
+// DHCP runtime of this agent.
 func (w *Wiring) registerKea(r scheduler.Registry) error {
 	c, owner := w.env.Client, w.env.Owner
-	rng, err := SlotIDRange()
+	// The relay families own the rx VRFs of this agent's id range (TD-8 seam, fail closed): a slot its N000–N999
+	// tables, the product (VRX_VPP_ID_RANGE=all) every VRF. Without a range they own none — relays are refused,
+	// nothing else is affected (the relay allocates no id, so the registration itself does not fail).
+	rng, err := w.IDRange()
 	if err != nil {
-		return err
+		w.env.Log.Warn("DHCP relay owns no VRF: the agent has no VPP id range", "err", err)
 	}
 	var opts []dhcp.Option
 	if rng != nil {

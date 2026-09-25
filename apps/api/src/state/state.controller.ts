@@ -22,6 +22,7 @@ import { SystemEventsService } from '../audit/system-events.service.js';
 import { ProblemError, problems } from '../common/problem.js';
 import { Protected } from '../common/responses.js';
 import { openapi, ZodPipe } from '../common/zod.js';
+import { safeText } from '../common/text.js';
 import { CommitService } from '../commit/commit.service.js';
 import { ValidationService } from '../commit/validation.service.js';
 import { DatastoreService } from '../datastore/datastore.service.js';
@@ -31,7 +32,7 @@ import { RelayService } from '../telemetry/relay.service.js';
 const startedAt = new Date();
 
 const RoutesQuery = z.object({
-  vrf: z.string().max(64).optional(),
+  vrf: safeText(64).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(1000).default(100),
 });
@@ -327,7 +328,7 @@ export class StateController {
 
   @Get('routes')
   @Protected(502, 503)
-  @ApiQuery({ name: 'vrf', required: false, schema: { type: 'string' } })
+  @ApiQuery({ name: 'vrf', required: false, schema: openapi(safeText(64)) })
   @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1 } })
   @ApiQuery({
     name: 'pageSize',

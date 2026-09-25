@@ -27,6 +27,7 @@ import (
 
 	ifapi "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
+	"ngfw/agent/internal/descriptors/dfkit/persist"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
@@ -52,14 +53,66 @@ func (b base) resolve(ctx context.Context, ref string) (uint32, error) {
 	return Resolve(ctx, b.client, b.owner, ref)
 }
 
-// claim records holder's claim on idx after a successful apply when idx is an untagged
-// (physical / pre-existing) interface, so Retrieve reports the object as ours (names.go).
-func (b base) claim(ctx context.Context, idx uint32, holder string) error {
+// lookup resolves ref in one interface dump and returns the dump with the index.
+func (b base) lookup(ctx context.Context, ref string) (*Table, uint32, error) {
 	t, err := Dump(ctx, b.client, b.owner)
 	if err != nil {
-		return err
+		return nil, 0, err
 	}
-	return t.ClaimIfUntagged(idx, holder)
+	idx, err := t.Index(ref)
+	if err != nil {
+		return nil, 0, err
+	}
+	return t, idx, nil
+}
+
+// ContextClaimStore is the optional context-bounded form of a ClaimStore (subsystems.IfaceClaims):
+// a persisted store binds a claim to the interface's current sw_if_index, and that lookup is
+// bounded by the caller's context — the transaction's deadline — not by a timeout of the store's
+// own (TD-11b, review R2-stores).
+type ContextClaimStore interface {
+	ClaimContext(ctx context.Context, ifName, holder string) error
+	ClaimedContext(ctx context.Context, ifName, holder string) bool
+}
+
+// claimFirst records holder's claim on idx BEFORE the VPP write when idx is an untagged (physical /
+// pre-existing) interface, so Retrieve reports the object as ours (names.go); t is the dump idx was
+// resolved from. A claim that cannot be recorded fails the Create with nothing written (TD-11b,
+// review 3.3: writing first and claiming after left an unjournaled value in VPP, invisible to
+// Retrieve, whenever the claim failed). The returned undo releases the claim when the write fails,
+// unless the claim existed before this Create (then it belongs to an earlier successful one). A crash
+// between claim and write leaves the claim until the next VPP boot-identity change (subsystems/
+// stores.go, "Claim-first leftovers": for admin-state a leftover claim can make a resync set a NIC
+// admin down that someone else brought up).
+func (b base) claimFirst(ctx context.Context, t *Table, idx uint32, holder string) (undo func(), err error) {
+	if !t.Untagged(idx) {
+		return func() {}, nil
+	}
+	s, name := Claims(b.owner), t.VPPName(idx)
+	var had bool
+	if cs, ok := s.(ContextClaimStore); ok {
+		had = cs.ClaimedContext(ctx, name, holder)
+		err = cs.ClaimContext(ctx, name, holder)
+	} else {
+		had = s.Claimed(name, holder)
+		err = s.Claim(name, holder)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%s: claim untagged interface %q: %w", holder, name, err)
+	}
+	return func() {
+		if !had {
+			_ = s.Release(name, holder)
+		}
+	}, nil
+}
+
+// CheckPersistent is the product agent's guard (dfkit/persist, TD-11b review 3.2): claims on untagged
+// interfaces live in the owner's ClaimStore (Claims), which must survive an agent restart — the
+// product wiring installs subsystems.IfaceClaims with SetClaimStore; the in-memory default is for
+// tests. Every DF-1 descriptor of an owner shares that store.
+func (b base) CheckPersistent() error {
+	return persist.Require("interface descriptors of owner "+b.owner+": claims on untagged interfaces (install a persisted store with iface.SetClaimStore)", Claims(b.owner))
 }
 
 // release drops holder's claim on the interface obj names (no-op for tagged interfaces).
@@ -127,14 +180,19 @@ func (d *AdminStateDescriptor) Create(ctx context.Context, obj proto.Message) (a
 	if !ok {
 		return nil, ErrEmptyValue
 	}
-	idx, err := d.resolve(ctx, o.GetInterface())
+	t, idx, err := d.lookup(ctx, o.GetInterface())
+	if err != nil {
+		return nil, err
+	}
+	undo, err := d.claimFirst(ctx, t, idx, AdminStateName)
 	if err != nil {
 		return nil, err
 	}
 	if err := d.setFlags(ctx, idx, true); err != nil {
+		undo()
 		return nil, err
 	}
-	return Meta{idx}, d.claim(ctx, idx, AdminStateName)
+	return Meta{idx}, nil
 }
 
 // Update has nothing to change in place: the object has no mutable field.
@@ -247,17 +305,22 @@ func (d *MtuDescriptor) Create(ctx context.Context, obj proto.Message) (any, err
 	if o.GetMtu() == 0 {
 		return nil, ErrZeroMtu
 	}
-	idx, det, err := d.resolveDetails(ctx, o.GetInterface())
+	t, idx, det, err := d.resolveTable(ctx, o.GetInterface())
 	if err != nil {
 		return nil, err
 	}
 	if mtuArr(o) == defaultMtu(det) {
 		return nil, ErrMtuDefault
 	}
-	if err := d.set(ctx, idx, mtuArr(o)); err != nil {
+	undo, err := d.claimFirst(ctx, t, idx, MtuName)
+	if err != nil {
 		return nil, err
 	}
-	return Meta{idx}, d.claim(ctx, idx, MtuName)
+	if err := d.set(ctx, idx, mtuArr(o)); err != nil {
+		undo()
+		return nil, err
+	}
+	return Meta{idx}, nil
 }
 
 func mtuArr(o *Mtu) [4]uint32 { return [4]uint32{o.GetMtu(), o.GetIp4(), o.GetIp6(), o.GetMpls()} }
@@ -405,14 +468,22 @@ func (d *MacAddressDescriptor) Create(ctx context.Context, obj proto.Message) (a
 	if !ok {
 		return nil, ErrEmptyValue
 	}
-	idx, err := d.resolve(ctx, o.GetInterface())
+	if _, err := ParseMAC(o.GetMac()); err != nil {
+		return nil, err // before the claim: an invalid address never claims the interface
+	}
+	t, idx, err := d.lookup(ctx, o.GetInterface())
+	if err != nil {
+		return nil, err
+	}
+	undo, err := d.claimFirst(ctx, t, idx, MacAddressName)
 	if err != nil {
 		return nil, err
 	}
 	if err := d.apply(ctx, idx, o.GetMac()); err != nil {
+		undo()
 		return nil, err
 	}
-	return Meta{idx}, d.claim(ctx, idx, MacAddressName)
+	return Meta{idx}, nil
 }
 
 // Update implements scheduler.Descriptor.
@@ -536,14 +607,19 @@ func (d *PromiscDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	if !ok {
 		return nil, ErrEmptyValue
 	}
-	idx, err := d.resolve(ctx, o.GetInterface())
+	t, idx, err := d.lookup(ctx, o.GetInterface())
+	if err != nil {
+		return nil, err
+	}
+	undo, err := d.claimFirst(ctx, t, idx, PromiscName)
 	if err != nil {
 		return nil, err
 	}
 	if err := d.set(ctx, idx, true); err != nil {
+		undo()
 		return nil, err
 	}
-	return Meta{idx}, d.claim(ctx, idx, PromiscName)
+	return Meta{idx}, nil
 }
 
 // Update implements scheduler.Descriptor.
@@ -623,16 +699,18 @@ func defaultRxMode(d *ifapi.SwInterfaceDetails) RxModeKind {
 
 // resolveDetails is resolve plus the interface's dump row.
 func (b base) resolveDetails(ctx context.Context, ref string) (uint32, *ifapi.SwInterfaceDetails, error) {
-	t, err := Dump(ctx, b.client, b.owner)
+	_, idx, det, err := b.resolveTable(ctx, ref)
+	return idx, det, err
+}
+
+// resolveTable is lookup plus the interface's dump row.
+func (b base) resolveTable(ctx context.Context, ref string) (*Table, uint32, *ifapi.SwInterfaceDetails, error) {
+	t, idx, err := b.lookup(ctx, ref)
 	if err != nil {
-		return 0, nil, err
-	}
-	idx, err := t.Index(ref)
-	if err != nil {
-		return 0, nil, err
+		return nil, 0, nil, err
 	}
 	det, _ := t.Details(idx)
-	return idx, det, nil
+	return t, idx, det, nil
 }
 
 // NewRxMode returns the descriptor for owner.
@@ -692,17 +770,22 @@ func (d *RxModeDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	if err != nil {
 		return nil, err
 	}
-	idx, det, err := d.resolveDetails(ctx, o.GetInterface())
+	t, idx, det, err := d.resolveTable(ctx, o.GetInterface())
 	if err != nil {
 		return nil, err
 	}
 	if o.GetMode() == defaultRxMode(det) {
 		return nil, ErrRxModeDefault
 	}
-	if err := d.set(ctx, idx, mode); err != nil {
+	undo, err := d.claimFirst(ctx, t, idx, RxModeName)
+	if err != nil {
 		return nil, err
 	}
-	return Meta{idx}, d.claim(ctx, idx, RxModeName)
+	if err := d.set(ctx, idx, mode); err != nil {
+		undo()
+		return nil, err
+	}
+	return Meta{idx}, nil
 }
 
 // Update implements scheduler.Descriptor.
@@ -843,14 +926,19 @@ func (d *RxPlacementDescriptor) Create(ctx context.Context, obj proto.Message) (
 	if !ok {
 		return nil, ErrEmptyValue
 	}
-	idx, err := d.resolve(ctx, o.GetInterface())
+	t, idx, err := d.lookup(ctx, o.GetInterface())
+	if err != nil {
+		return nil, err
+	}
+	undo, err := d.claimFirst(ctx, t, idx, RxPlacementName)
 	if err != nil {
 		return nil, err
 	}
 	if err := d.set(ctx, idx, o, false); err != nil {
+		undo()
 		return nil, err
 	}
-	return Meta{idx}, d.claim(ctx, idx, RxPlacementName)
+	return Meta{idx}, nil
 }
 
 // Update implements scheduler.Descriptor.

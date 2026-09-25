@@ -37,8 +37,9 @@
 //  5. Verify: after apply the reconciler re-Retrieves and compares; a mismatch is an error.
 //  6. Rollback: on any error the operations already applied in this transaction are
 //     reverted in reverse order (Create → Delete, Delete → Create, Update → Update back with
-//     the old value). The transaction result is ROLLED_BACK with one Result per key. A
-//     failed rollback marks the agent DEGRADED (AD-4).
+//     the old value). A Create that failed after changing VPP (Meta with PartialCreate(err))
+//     is journaled too and deleted by the rollback. The transaction result is
+//     ROLLED_BACK with one Result per key. A failed rollback marks the agent DEGRADED (AD-4).
 //
 // The reconciler runs one transaction at a time; Create/Update/Delete of a descriptor are
 // never called concurrently with each other. Retrieve may be called at any time (drift
@@ -127,6 +128,34 @@ type Dependency struct {
 	Optional bool
 }
 
+// ErrPartialCreate marks a Create error returned AFTER the Create changed VPP (see
+// Descriptor.Create): the Create is journaled — with the Meta returned alongside, nil included — and
+// the rollback Deletes the partial object. Wrap the error with PartialCreate; test with
+// IsPartialCreate.
+var ErrPartialCreate = errors.New("create failed after changing the data plane")
+
+// IsPartialCreate reports whether a Create error says VPP was changed (PartialCreate). It is the one
+// predicate the reconciler (journal the Create) and the claim-first descriptors (keep the claim for
+// the rollback's Delete) share, so they never disagree (TD-11b fix round 1, review M2). The marker
+// alone decides: a nil Meta is journaled too, and a Delete that needs a Meta then fails loudly
+// (DEGRADED) instead of leaving an unjournaled object behind silently.
+func IsPartialCreate(err error) bool { return errors.Is(err, ErrPartialCreate) }
+
+// PartialCreate marks err as a partial-Create failure (errors.Is(err, ErrPartialCreate)); the
+// message is err's own. nil stays nil.
+func PartialCreate(err error) error {
+	if err == nil {
+		return nil
+	}
+	return partialCreate{err}
+}
+
+type partialCreate struct{ err error }
+
+func (p partialCreate) Error() string        { return p.err.Error() }
+func (p partialCreate) Unwrap() error        { return p.err }
+func (p partialCreate) Is(target error) bool { return target == ErrPartialCreate }
+
 // ErrRecreate is returned by Descriptor.Update when the change cannot be applied in place
 // (an immutable field changed). The reconciler then Deletes the old object and Creates the
 // new one, re-creating dependents as well.
@@ -146,6 +175,18 @@ type Descriptor interface {
 	// Dependencies lists the keys obj depends on. Pure function of obj; may return nil.
 	Dependencies(obj proto.Message) []Dependency
 	// Create creates obj in VPP or the daemon and returns its Meta (e.g. sw_if_index).
+	//
+	// Create need not be atomic, but a failure must say what it left behind: a Create that
+	// fails AFTER it changed VPP (the add succeeded, then an event subscription or a claim
+	// record failed) returns the Meta of what it made (nil when it has none) together with
+	// PartialCreate(err); the reconciler journals that partial object and the rollback calls
+	// Delete(obj, meta), so Delete must accept it (keep any ownership claim until Delete releases
+	// it; a Delete that cannot work without the Meta fails, and the agent is DEGRADED). Any other
+	// error means nothing was changed, whatever Meta comes with it (many descriptors return a
+	// zero Meta value with a failed add; deleting after "address in use" would fail or, worse,
+	// remove an existing object). Ownership claims are recorded BEFORE the VPP call and released
+	// when the call fails (TD-11b, review 3.3): a claim that cannot be recorded then fails the
+	// Create with nothing written.
 	Create(ctx context.Context, obj proto.Message) (meta any, err error)
 	// Update changes an existing object from oldObj to newObj in place and returns the new
 	// Meta, or returns ErrRecreate when the change is not possible in place.

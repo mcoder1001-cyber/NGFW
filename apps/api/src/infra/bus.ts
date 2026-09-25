@@ -29,6 +29,13 @@ export const TOPICS = [
 ] as const;
 export type Topic = (typeof TOPICS)[number];
 
+export interface SessionsEvent {
+  sid?: string;
+  userId?: number;
+  exceptSid?: string;
+  usersChanged?: boolean;
+}
+
 export interface BusMessage {
   topic: Topic;
   data: unknown;
@@ -54,13 +61,14 @@ export class Bus {
     return () => this.ee.off('publish', fn);
   }
 
-  /** Sessions ended: a login session (sid), all sessions of a user (userId), or users changed by a commit. */
-  sessions(e: { sid?: string; userId?: number; usersChanged?: boolean }): void {
+  /**
+   * Sessions ended: a login session (sid), all sessions of a user (userId) except `exceptSid` (the caller's own, after
+   * changing their own password), or users changed by a commit.
+   */
+  sessions(e: SessionsEvent): void {
     this.ee.emit('sessions', e);
   }
-  onSessions(
-    fn: (e: { sid?: string; userId?: number; usersChanged?: boolean }) => void,
-  ): () => void {
+  onSessions(fn: (e: SessionsEvent) => void): () => void {
     this.ee.on('sessions', fn);
     return () => this.ee.off('sessions', fn);
   }

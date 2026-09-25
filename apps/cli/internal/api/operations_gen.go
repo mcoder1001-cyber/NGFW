@@ -15,7 +15,7 @@ var Operations = map[string]Operation{
 	"Auth_login":          {ID: "Auth_login", Method: "POST", Path: "/api/v1/auth/login", Summary: "Log in with a local user; sets the refresh cookie", PathParams: nil, QueryParams: nil, Body: true},
 	"Auth_logout":         {ID: "Auth_logout", Method: "POST", Path: "/api/v1/auth/logout", Summary: "Revoke the refresh cookie (and its rotation family)", PathParams: nil, QueryParams: nil, Body: false},
 	"Auth_me":             {ID: "Auth_me", Method: "GET", Path: "/api/v1/auth/me", Summary: "The authenticated user", PathParams: nil, QueryParams: nil, Body: false},
-	"Auth_password":       {ID: "Auth_password", Method: "POST", Path: "/api/v1/auth/password", Summary: "Change the own password (argon2id)", PathParams: nil, QueryParams: nil, Body: true},
+	"Auth_password":       {ID: "Auth_password", Method: "POST", Path: "/api/v1/auth/password", Summary: "Change the own password (argon2id); same as POST /api/v1/users/{name}/password for yourself", PathParams: nil, QueryParams: nil, Body: true},
 	"Auth_refresh":        {ID: "Auth_refresh", Method: "POST", Path: "/api/v1/auth/refresh", Summary: "Rotate the refresh cookie and get a new access token", PathParams: nil, QueryParams: nil, Body: false},
 	"Config_breakLock":    {ID: "Config_breakLock", Method: "DELETE", Path: "/api/v1/config/lock", Summary: "Admin: break the lock of another user (the candidate is discarded)", PathParams: nil, QueryParams: nil, Body: false},
 	"Config_candidate":    {ID: "Config_candidate", Method: "GET", Path: "/api/v1/config/candidate", Summary: "Whole candidate configuration (redacted); equals running when nobody edits", PathParams: nil, QueryParams: nil, Body: false},
@@ -33,6 +33,7 @@ var Operations = map[string]Operation{
 	"Config_pending":      {ID: "Config_pending", Method: "GET", Path: "/api/v1/config/commit/pending", Summary: "The commit waiting for confirmation, if any", PathParams: nil, QueryParams: nil, Body: false},
 	"Config_putAt":        {ID: "Config_putAt", Method: "PUT", Path: "/api/v1/config/{path}", Summary: "Replace the candidate node at a JSON pointer", PathParams: []string{"path"}, QueryParams: nil, Body: true},
 	"Config_revision":     {ID: "Config_revision", Method: "GET", Path: "/api/v1/config/revisions/{rev}", Summary: "One revision with its (redacted) payload", PathParams: []string{"rev"}, QueryParams: nil, Body: false},
+	"Config_revisionDiff": {ID: "Config_revisionDiff", Method: "GET", Path: "/api/v1/config/revisions/{rev}/diff", Summary: "What revision {rev} changed against its parent (redacted; secret leaves as `redacted: true` entries)", PathParams: []string{"rev"}, QueryParams: nil, Body: false},
 	"Config_revisions":    {ID: "Config_revisions", Method: "GET", Path: "/api/v1/config/revisions", Summary: "Revision history, newest first", PathParams: nil, QueryParams: []string{"limit", "offset"}, Body: false},
 	"Config_rollback":     {ID: "Config_rollback", Method: "POST", Path: "/api/v1/config/rollback/{rev}", Summary: "Apply an old revision as a new revision (payload = the old one)", PathParams: []string{"rev"}, QueryParams: []string{"comment", "confirm"}, Body: false},
 	"Config_running":      {ID: "Config_running", Method: "GET", Path: "/api/v1/config", Summary: "Whole running configuration (redacted)", PathParams: nil, QueryParams: nil, Body: false},
@@ -52,4 +53,5 @@ var Operations = map[string]Operation{
 	"State_neighbors":     {ID: "State_neighbors", Method: "GET", Path: "/api/v1/state/neighbors", Summary: "IP neighbours — needs an agent state RPC that the v1 contract does not have (501)", PathParams: nil, QueryParams: nil, Body: false},
 	"State_routes":        {ID: "State_routes", Method: "GET", Path: "/api/v1/state/routes", Summary: "Connected + static routes retrieved from VPP by the agent (server-side paged)", PathParams: nil, QueryParams: []string{"page", "pageSize", "vrf"}, Body: false},
 	"State_system":        {ID: "State_system", Method: "GET", Path: "/api/v1/state/system", Summary: "API + agent health, pending commit, running revision", PathParams: nil, QueryParams: nil, Body: false},
+	"Users_setPassword":   {ID: "Users_setPassword", Method: "POST", Path: "/api/v1/users/{name}/password", Summary: "Set a user's password (admin: any user; everyone: their own, with `current`). TLS only; argon2id server-side; ends the user's other sessions; an admin reset also revokes the user's API keys unless keepApiKeys", PathParams: []string{"name"}, QueryParams: nil, Body: true},
 }

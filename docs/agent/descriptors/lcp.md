@@ -63,3 +63,19 @@ fill it identically).
 - Host tests: `default-netns` is opt-in (`VRX_DF8_GLOBALS=1`: a nonexistent default netns would break other slots'
   pairs meanwhile), `replace helpers` is opt-in (`VRX_DF8_LCP_REPLACE=1`: `replace_end` deletes pairs other slots create
   meanwhile); both are unit-tested with the fake.
+
+## P12 wiring (`interfaces.<n>.lcp`)
+- The configuration leaf `interfaces.<name>.lcp{hostIfName?, hostIfType = tap, netns?}` (proto `Interface.lcp` 22) is
+  projected by `internal/desired/lcp.go` into `lcp.itf-pair/<name>` (depends on `interface/<name>`); the Linux name
+  defaults to the VPP name when that is a valid Linux name (else a validation error asks for `hostIfName`). Retrieve
+  assembles the leaf back (hostIfName left out when it equals the VPP name, netns when empty).
+- Registered in `internal/subsystems/frr.go` (Domains[interfaces]) behind a tap gate: VPP's end of every pair is an
+  auto-named tap/tun (`tap4096…`, lcp_interface.c `auto_id_offset 4096`), so while VPP has no such interface Retrieve
+  answers from the interface dump alone and never sends `lcp_itf_pair_get` (a VPP without pairs, or without linux_cp).
+- TD-11b: the wrapper declares `CheckPersistent()` (pairs on untagged NICs are claimed in DF-1's iface claim store).
+- L3 decided: the host tap stays untagged. It is VPP's end of the pair, created and deleted with the pair by
+  `lcp_itf_pair_add_del_v3`; no descriptor of this agent owns it separately (DF-1's tapv2 never sees a tagged one).
+- The linux-nl facts P12 depends on (VPP 26.06 source): linux_nl's netlink socket opens when the first pair of the whole
+  VPP is added, in the lcp default netns of that moment, and closes with the last pair; kernel table T → VPP table T
+  (254/255 → 0); FRR routes get FIB source `lcp-rt-dynamic`, kernel/static ones `lcp-rt`; VPP→Linux: the tap carrier
+  follows the phy's hardware link, admin state/MTU/addresses only at pair creation unless `lcp lcp-sync` is on.

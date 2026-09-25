@@ -126,3 +126,24 @@ F-bfd-redistribution sit in the table.
   `CheckPersistent()` (DF-1 iface claim store, `Persistent()` structural check) in `subsystems/frr.go`.
 - **Pre-existing red on this base (not P12):** `internal/agent` `TestSvsRangeFromSlot` fails on `74e5e24` too
   (`product range {0 0}`: SvsRange vs TD-8's fail-closed SlotIDRange) — F-vrf-static-ecmp's test, its fix round.
+
+## Q13 — VPP restart during my first topology run (NRestarts 1 → 2) — host runs STOPPED, as the envelope says
+
+- **When:** 2026-09-25 04:27:21 (+03:30), VPP pid 2006833, during `test/topology/bgp/run.sh` (T1, slot 8) — 25 s after
+  both BGP sessions came up over the linux-cp punt path (`both sessions Established after 3.7s`).
+- **Stack (journal):** `received signal SIGSEGV, PC …, faulting address 0x0` · `#0 ip4_sas + 0x31 (libvnet)` · `#1–#4
+  dns_plugin.so` · `#5 vl_msg_api_socket_handler` · `vl_socket_process_api_msg` — a **DNS plugin API message** on the API
+  socket. Nothing in P12 (agent, test, FRR) sends a DNS message; the agent of slot 8 registers no dns descriptor
+  (`Domains` has no dns family) and its log shows no call at that time. Another client of the shared VPP sent it.
+- **Effect on P12's run:** a `RoutingState` call started ~04:26:56 hit its 30 s deadline (04:27:26); cleanup ran after the
+  restart (rig down, pairs/af_packet gone with the restart, FRR harnesses stopped: no namespace, no daemon, no symlink left).
+- **Ask:** the DNS plugin crash is the manager's (V-item / owner of the dns API caller); tell me when slot 8 may run host
+  tests again. Until then P12 runs unit + e2e + CI quick only; the topology evidence in P12.md is from before the stop.
+- Also: the link-down acceptance item needs VPP→Linux admin-state sync, which is `lcp lcp-sync` (startup.conf / CLI only,
+  no binary API, off on this host) — with it off only a *hardware* link change reaches the tap; BGP then notices by its
+  hold timer. Product: F-startup-gen should render `linux-cp { lcp-sync }` (question for the manager / F-startup-gen).
+
+## Q14 — CLI `vrx show bgp summary`
+
+`apps/cli` (not P12's) has `show bgp summary` exiting 10 ("no REST endpoint yet"). It can now read `GET /api/v1/state/bgp`
+(operationId `Bgp_state`). Owner of apps/cli: wire it (one table row), or tell me to.

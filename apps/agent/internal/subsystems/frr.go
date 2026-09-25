@@ -166,9 +166,7 @@ func registerP12(r scheduler.Registry, w *Wiring) {
 	env.Publish = w.Publish // TD-8 event seam (A5): the agent's bus, nil-safe
 	rt := newFRR(env, frr.NewSystemRunner())
 	frrRuntimes.Store(w.env.Owner, rt)
-	if rt.enabled {
-		frrEnabled.Store(true)
-	}
+	frrEnabled.Store(rt.enabled) // the latest registration wins: one agent per process (tests re-register)
 	r.Register(&frrConfigDescriptor{rt: rt})
 }
 

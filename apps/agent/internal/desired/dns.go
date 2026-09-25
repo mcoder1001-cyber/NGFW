@@ -67,7 +67,13 @@ func DNS(s Sink, ds *vrxv1.DesiredState) {
 		s.Errorf(Ptr("services", "dns", "vppCache", "upstreams"), "services.dns-vpp-cache-upstream", "the VPP DNS cache needs an upstream name server (VPP refuses to enable without one)")
 		return
 	}
-	s.Add(dnsd.KeyEnable, dnsd.Enable{Enabled: true}.Proto(), Ptr("services", "dns", "vppCache", "enabled"))
+	ups := make([]string, 0, len(seen))
+	for a := range seen {
+		ups = append(ups, a)
+	}
+	sort.Strings(ups)
+	// the switch carries the upstream set: a changed set re-enables it after the new servers exist (dns.go, V-item)
+	s.Add(dnsd.KeyEnable, dnsd.Enable{Enabled: true, Upstreams: ups}.Proto(), Ptr("services", "dns", "vppCache", "enabled"))
 }
 
 // AssembleDNS adds the resolvers of a retrieved Unbound object to ds (a drifted configuration is reported by its

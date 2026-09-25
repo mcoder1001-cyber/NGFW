@@ -42,4 +42,9 @@ core `/var/lib/systemd/coredump/core.vpp_main.0.a93c0e7a….2006833.179029784100
 server — one guard. **Fallback implemented (agent, no VPP code):** `ActionRequest.dns_lookup` is refused with
 FAILED_PRECONDITION unless the agent is the globals owner and its applied configuration enables the VPP cache with an
 upstream (`internal/actions/unbound-chrony-syslog/lookup.go`, unit test `TestLookupRefusedWithoutAReadyCache`); DF-8's
-`dns.ResolveName` / `ResolveIP` must only be called under the same condition (docs/agent/descriptors/dns.md). Effort: 0.5 day.
+`dns.ResolveName` / `ResolveIP` must only be called under the same condition (docs/agent/descriptors/dns.md). The same
+NULL deref is reachable from the data plane (a UDP 53 request to a VPP address while enabled without a server), so the DF-8
+descriptors never leave the resolver enabled without one: a name-server delete disables the switch first, and
+`dns.enable` carries the upstream set so the transaction re-enables it after the new servers exist (fake-VPP model test
+`TestUpstreamChangesNeverLeaveAnEnabledResolverWithoutServers`). The DF-8 host test is opt-in twice (`VRX_DNS_VPP_HOST=1`
+and `VRX_DF8_GLOBALS=1`, D-064). Effort: 0.5 day.

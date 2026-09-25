@@ -8,9 +8,12 @@
 // returns ErrRetrieveUnsupported (D-063) and every Create is idempotent.
 //
 // Ordering: VPP refuses dns_enable_disable(enable=1) with NO_NAME_SERVERS while no name server
-// is configured, so dns.enable depends on nothing and dns.name-server is registered first (the
-// scheduler breaks ties by registration order); the DF-8 prompt's "name-server → enable" arrow
-// is reversed on purpose.
+// is configured, and crashes on a DNS request while enabled without one (V-item of
+// F-unbound-chrony-syslog). dns.enable depends on nothing and dns.name-server is registered first
+// (the scheduler breaks ties by registration order), so servers are created before the switch; a
+// server delete disables the switch first (NameServerDescriptor.Delete), and the switch carries the
+// upstream set (Enable.Upstreams), so the same transaction re-enables it after the new servers exist.
+// The DF-8 prompt's "name-server → enable" arrow is reversed on purpose.
 package dns
 
 import (
@@ -35,9 +38,12 @@ const (
 	NameNameServer = "dns.name-server"
 )
 
-// Enable is the dns.enable singleton: whether VPP's DNS resolver/proxy answers on UDP 53.
+// Enable is the dns.enable singleton: whether VPP's DNS resolver/proxy answers on UDP 53. Upstreams (canonical
+// addresses) are the name servers the enabled resolver needs: they make dns.enable depend on their dns.name-server
+// objects, and a change of the set re-applies the switch after the servers changed (see NameServerDescriptor.Delete).
 type Enable struct {
-	Enabled bool `json:"enabled"`
+	Enabled   bool     `json:"enabled"`
+	Upstreams []string `json:"upstreams,omitempty"`
 }
 
 // NameServer is one upstream name server (canonical IPv4 or IPv6 address).
@@ -88,7 +94,11 @@ func (*EnableDescriptor) Name() string { return NameEnable }
 // KeyOf implements scheduler.Descriptor.
 func (*EnableDescriptor) KeyOf(proto.Message) scheduler.Key { return KeyEnable }
 
-// Dependencies implements scheduler.Descriptor: none (see package doc on ordering).
+// Dependencies implements scheduler.Descriptor: none. A dependency on the name servers would make the scheduler
+// delete-and-recreate the switch around every server delete, re-enabling it before the replacement server exists
+// (VPP: NO_NAME_SERVERS). Order instead: name servers are registered first (the tie breaker creates them before the
+// switch), a server delete disables the switch first (NameServerDescriptor.Delete), and the switch carries the
+// upstream set, so a changed set updates — re-enables — it after the new servers were created.
 func (*EnableDescriptor) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 
 func (d *EnableDescriptor) set(ctx context.Context, on bool) error {
@@ -212,8 +222,17 @@ func (d *NameServerDescriptor) Update(ctx context.Context, _, newObj proto.Messa
 	return nil, d.set(ctx, newObj, true)
 }
 
-// Delete implements scheduler.Descriptor; NAME_SERVER_NOT_FOUND counts as deleted.
+// Delete implements scheduler.Descriptor; NAME_SERVER_NOT_FOUND counts as deleted. The globals owner disables the
+// resolver first: VPP 26.06 dereferences a NULL name server (ip4_sas from vnet_send_dns4_request) when a DNS request —
+// API or UDP 53 packet — arrives while it is enabled without a server (2026-09-25 04:27 crash, docs/vpp-code-track.md),
+// and the scheduler runs deletes before creates, so replacing the last server would open exactly that window. The
+// dns.enable object carries the upstream set, so the same transaction re-enables it after the new servers exist.
 func (d *NameServerDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
+	if d.globals.Owner() {
+		if _, err := dns.NewServiceClient(d.client).DNSEnableDisable(ctx, &dns.DNSEnableDisable{Enable: 0}); err != nil {
+			return fmt.Errorf("dns_enable_disable(enable=0) before removing a name server: %w", err)
+		}
+	}
 	err := d.set(ctx, obj, false)
 	if dfkit.IsVPPError(err, api.NAME_SERVER_NOT_FOUND) {
 		return nil

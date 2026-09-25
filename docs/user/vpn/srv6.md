@@ -82,6 +82,19 @@ Addresses and prefixes are written as the data plane reports them: lower case, s
   policy that steering entries point at cannot be deleted before them.
 - **Steering**: match (prefix or interface), VRF, traffic (IPv4, IPv6, L2), BSID and status.
 
+![Local SIDs with their counters](img/srv6-sids-en.png)
+
+![Policies and the VPP-wide settings](img/srv6-policies-en.png)
+
+![The segment-list editor of a policy](img/srv6-sid-list-editor-en.png)
+
+![Steering](img/srv6-steering-en.png)
+
+![Local SIDs in Persian (RTL)](img/srv6-sids-fa-rtl.png) ![The segment-list editor in Persian (RTL)](img/srv6-sid-list-editor-fa-rtl.png)
+
+(Screenshots of the production web build against the real vrx-api; the agent behind it was the API's test agent while
+host runs were closed, so the counters are sample values.)
+
 The lists show the configuration being edited (the candidate) joined with the data plane. Status: **Installed**
 (configured and in the data plane), **Not in the data plane** (configured, not created yet — e.g. before the commit),
 **Not configured** (in the data plane under this agent's ownership but not in the candidate — e.g. deleted and not

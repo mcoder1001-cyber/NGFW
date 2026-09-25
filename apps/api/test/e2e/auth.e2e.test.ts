@@ -178,6 +178,14 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
         })
       ).status,
     ).toBe(403);
+    // product rule (VRX_DEV_WEAK_PASSWORDS off): shorter than 12 → 400 on /password, before the current password is
+    // checked — a WRONG current, so a 403 here would mean the order changed (and a guess was counted)
+    const short = await h.call(ro, 'POST', '/api/v1/auth/password', {
+      current: runSecret(),
+      password: PW.ro2.slice(0, 11),
+    });
+    expect(short.status).toBe(400);
+    expect(short.body.errors.map((e: { pointer: string }) => e.pointer)).toEqual(['/password']);
     expect(
       (
         await h.call(ro, 'POST', '/api/v1/auth/password', {

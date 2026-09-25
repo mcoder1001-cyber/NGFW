@@ -5,14 +5,15 @@ import { AuditUnavailableDoc } from '../audit/audit.interceptor.js';
 import { MinRole } from '../auth/decorators.js';
 import type { VrxRequest } from '../common/principal.js';
 import { ApiOut, Protected } from '../common/responses.js';
-import { openapi, SafeParamPipe, ZodPipe } from '../common/zod.js';
+import { EnvZodPipe, openapi, SafeParamPipe } from '../common/zod.js';
 import { CommitBusyDoc } from './commit-busy.js';
+import { newPassword, PASSWORD_MIN } from './password-policy.js';
 import { UsersService } from './users.service.js';
 
-const SetPasswordBody = z.strictObject({
+export const SetPasswordBody = z.strictObject({
   password: z
     .string()
-    .min(12)
+    .min(PASSWORD_MIN)
     .max(1024)
     .describe('the new password (write-only; hashed with argon2id)'),
   current: z
@@ -27,6 +28,10 @@ const SetPasswordBody = z.strictObject({
     .describe(
       'admin reset only: keep the target’s API keys (service users); by default an admin reset revokes them (D-097)',
     ),
+});
+/** VRX_DEV_WEAK_PASSWORDS (development only): any non-empty password; the OpenAPI keeps documenting SetPasswordBody. */
+export const SetPasswordBodyWeak = SetPasswordBody.extend({
+  password: newPassword(true).describe('the new password (write-only; hashed with argon2id)'),
 });
 const SetPasswordOut = z.object({
   self: z.boolean(),
@@ -68,7 +73,8 @@ export class UsersController {
   @ApiOut(SetPasswordOut)
   async setPassword(
     @Param('name', new SafeParamPipe('name', 64)) name: string,
-    @Body(new ZodPipe(SetPasswordBody)) body: z.output<typeof SetPasswordBody>,
+    @Body(EnvZodPipe((env) => (env.VRX_DEV_WEAK_PASSWORDS ? SetPasswordBodyWeak : SetPasswordBody)))
+    body: z.output<typeof SetPasswordBody>,
     @Req() req: VrxRequest,
   ): Promise<z.output<typeof SetPasswordOut>> {
     req.audit = { resource: `user/${name}` };

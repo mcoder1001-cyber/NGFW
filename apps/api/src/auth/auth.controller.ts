@@ -24,10 +24,11 @@ import { ENV, type Env } from '../config.js';
 import { ApiOut, Protected, PublicDoc } from '../common/responses.js';
 import { sourceIp, type VrxRequest } from '../common/principal.js';
 import { ProblemError } from '../common/problem.js';
-import { openapi, ref, SafeParamPipe, ZodPipe } from '../common/zod.js';
+import { EnvZodPipe, openapi, ref, SafeParamPipe, ZodPipe } from '../common/zod.js';
 import { safeText } from '../common/text.js';
 import { ROLES } from '../db/schema.js';
 import { AuthService, type LoginResult } from './auth.service.js';
+import { newPassword, PASSWORD_MIN } from '../users/password-policy.js';
 import { UsersService } from '../users/users.service.js';
 import { AuditUnavailableDoc } from '../audit/audit.interceptor.js';
 import { CommitBusyDoc } from '../users/commit-busy.js';
@@ -43,10 +44,12 @@ const LoginBody = z.strictObject({
   username: safeText(64).min(1),
   password: z.string().min(1).max(1024),
 });
-const PasswordBody = z.strictObject({
+export const PasswordBody = z.strictObject({
   current: z.string().min(1).max(1024),
-  password: z.string().min(12).max(1024),
+  password: z.string().min(PASSWORD_MIN).max(1024),
 });
+/** VRX_DEV_WEAK_PASSWORDS (development only): any non-empty password; the OpenAPI keeps documenting PasswordBody. */
+export const PasswordBodyWeak = PasswordBody.extend({ password: newPassword(true) });
 const ApiKeyBody = z.strictObject({
   name: safeText(64).min(1),
   /** Role cap; the effective role is never above the owner's. */
@@ -213,7 +216,8 @@ export class AuthController {
   @ApiNoContentResponse({ description: 'Password changed' })
   @ApiBody({ schema: openapi(PasswordBody) })
   async password(
-    @Body(new ZodPipe(PasswordBody)) body: z.output<typeof PasswordBody>,
+    @Body(EnvZodPipe((env) => (env.VRX_DEV_WEAK_PASSWORDS ? PasswordBodyWeak : PasswordBody)))
+    body: z.output<typeof PasswordBody>,
     @Req() req: VrxRequest,
   ) {
     // TD-2 #1: one implementation with POST /api/v1/users/{name}/password (serialised with commits, stored

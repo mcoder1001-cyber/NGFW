@@ -11,6 +11,24 @@ describe('loadEnv', () => {
     expect(env.VRX_LOGIN_MAX_FAILURES).toBe(10);
   });
 
+  it('VRX_DEV_WEAK_PASSWORDS is off unless explicitly set', () => {
+    expect(loadEnv({}).VRX_DEV_WEAK_PASSWORDS).toBe(false);
+    expect(loadEnv({ VRX_DEV_WEAK_PASSWORDS: '' }).VRX_DEV_WEAK_PASSWORDS).toBe(false);
+    expect(loadEnv({ VRX_DEV_WEAK_PASSWORDS: '0' }).VRX_DEV_WEAK_PASSWORDS).toBe(false);
+    expect(loadEnv({ VRX_DEV_WEAK_PASSWORDS: 'false' }).VRX_DEV_WEAK_PASSWORDS).toBe(false);
+    expect(loadEnv({ VRX_DEV_WEAK_PASSWORDS: '1' }).VRX_DEV_WEAK_PASSWORDS).toBe(true);
+    expect(loadEnv({ VRX_DEV_WEAK_PASSWORDS: 'true' }).VRX_DEV_WEAK_PASSWORDS).toBe(true);
+    expect(() => loadEnv({ VRX_DEV_WEAK_PASSWORDS: 'yes' })).toThrow(/VRX_DEV_WEAK_PASSWORDS/);
+  });
+
+  it('refuses VRX_DEV_WEAK_PASSWORDS in a production process (the packaged unit sets NODE_ENV=production)', () => {
+    expect(() => loadEnv({ VRX_DEV_WEAK_PASSWORDS: '1', NODE_ENV: 'production' })).toThrow(
+      /VRX_DEV_WEAK_PASSWORDS: development only/,
+    );
+    expect(loadEnv({ VRX_DEV_WEAK_PASSWORDS: '0', NODE_ENV: 'production' }).VRX_DEV_WEAK_PASSWORDS).toBe(false);
+    expect(loadEnv({ NODE_ENV: 'production' }).VRX_DEV_WEAK_PASSWORDS).toBe(false);
+  });
+
   it('VRX_DATABASE_URL wins over the pg-test VRX_PG_DSN', () => {
     expect(databaseUrl(loadEnv({ VRX_PG_DSN: 'postgres://a/b' }))).toBe('postgres://a/b');
     expect(

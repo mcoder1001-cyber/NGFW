@@ -211,6 +211,7 @@ CLI `show dns|ntp|logs` commands (apps/cli is P13's); running the opt-in VPP dns
 - Fake-agent `action` chaining with F-vrf-static-ecmp (Q6).
 
 ## Cleanup
-Every process was started by the tests and stopped by PID. The slot database was dropped (pg-test). The slot directory
-`/run/vrx-test/w10` held only the test's own `ucs/` work dir, which is removed. `vppctl show interface | grep -c loop10` → 0.
-No systemd unit was touched. `dist/` and `apps/agent/bin` were deleted after the last CI run.
+Every process was started by the tests and stopped by PID. The slot database was dropped (pg-test). `vppctl show interface | grep -c loop10` → 0. No systemd unit was touched.
+`dist/` (apps and packages) and `apps/agent/bin` were deleted after the last CI run. **Not removed:** the permission prompt
+refused the `rm` of `/run/vrx-test/w10/ucs/` (48 KiB tmpfs: agent-state, agent/API logs, the run's test JWT/secret key file
+0600). Please delete it, or allow it and I will.

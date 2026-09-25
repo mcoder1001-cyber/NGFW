@@ -2,17 +2,17 @@
 
 Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 34.1% by hours (393/1151.5 h), 35.5% by tasks (44/124)**
+**Overall: 35.0% by hours (403/1151.5 h), 36.3% by tasks (45/124)**
 
 | state | tasks |
 |---|---|
-| merged | 44 |
+| merged | 45 |
 | review | 9 |
-| running | 17 |
-| ready | 17 |
+| running | 16 |
+| ready | 18 |
 | parked | 1 |
 | failed | 0 |
-| todo | 36 |
+| todo | 35 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
@@ -20,7 +20,7 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 257 / 270 | 95.2% | 26/28 | 0 | 0 | 1 |
 | S3 | 16 / 16 | 100.0% | 1/1 | 0 | 0 | 0 |
-| S4 | 13 / 591.0 | 2.2% | 4/66 | 17 | 15 | 0 |
+| S4 | 23 / 591.0 | 3.9% | 5/66 | 16 | 16 | 0 |
 | S5 | 28 / 147.5 | 19.0% | 3/15 | 0 | 2 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -49,7 +49,6 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 - TD-9 — Agent core: bounded VPP calls + txn semantics (+ failed state save answers DEGRADED) (running, unassigned)
 - TD-10a — API commit engine correctness (+ running vs Health.last_txn_id check on boot/reconnect) (review, ngfw-46 slot5)
 - TD-10b — API auth, session, audit (running, unassigned)
-- TD-11b — Claim safety: persistent stores + create-then-claim (running, unassigned)
 - TD-11c — Untagged NICs, alias-aware delete order, claim-store scale (running, unassigned)
 - TD-23 — Shared test seams: fake-agent action dispatch table + coretest fakevpp extension registry (no feature handlers) (running, unassigned)
 

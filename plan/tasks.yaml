@@ -2839,7 +2839,7 @@ tasks:
   - P08
   priority: 2
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D0.7
@@ -2853,7 +2853,8 @@ tasks:
   started: 2026-09-25T00:14
   finished: ''
   notes: 'D-125 | spawn right after P08 merges (DF-1 and dhcp.client are live then) | F-nat44-ed-sessions and F-nat44-ei-64-66-nptv6 merge after TD-11b (no escape hatch) | reconciler.go hunks: TD-9 ApplyWith
-    ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage; whichever merges second rebases | fix round 1 (review be3a57a5: M1 guard coverage, M2 silent orphan, L1 refresh cap)'
+    ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage; whichever merges second rebases | fix round 1 (review be3a57a5: M1 guard coverage, M2 silent orphan, L1 refresh cap)
+    | merged b5e74c08 (squash 14daf722, D-112), main gate green'
 - id: TD-11c
   title: Untagged NICs, alias-aware delete order, claim-store scale
   prompt: ''
@@ -2937,7 +2938,7 @@ tasks:
   - TD-11b
   priority: 3
   est_hours: 7
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.7

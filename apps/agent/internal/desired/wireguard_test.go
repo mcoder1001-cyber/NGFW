@@ -19,10 +19,10 @@ type sink struct {
 func (s *sink) Add(k scheduler.Key, _ proto.Message, pointer string) {
 	s.keys = append(s.keys, string(k)+"@"+pointer)
 }
-func (s *sink) Errorf(pointer, rule, format string, a ...any) {
+func (s *sink) Errorf(pointer, rule, _ string, _ ...any) {
 	s.issues = append(s.issues, "E "+rule+" "+pointer)
 }
-func (s *sink) Warnf(pointer, rule, format string, a ...any) {
+func (s *sink) Warnf(pointer, rule, _ string, _ ...any) {
 	s.issues = append(s.issues, "W "+rule+" "+pointer)
 }
 

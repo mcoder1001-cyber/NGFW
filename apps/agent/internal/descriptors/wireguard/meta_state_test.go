@@ -64,7 +64,7 @@ func TestMetaDescriptor(t *testing.T) {
 	if _, err := d.Create(ctx, wgd.MetaValue(wgd.MetaSpec{ID: "wg1"})); err == nil {
 		t.Fatal("an entry without a name must be refused")
 	}
-	raw, _ := os.ReadFile(path)
+	raw, _ := os.ReadFile(path) //nolint:gosec // G304: the test's own temp file
 	if strings.Contains(string(raw), "VRX_TEST") {
 		t.Fatal("the store holds references only")
 	}

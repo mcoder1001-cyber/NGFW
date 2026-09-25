@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -60,7 +61,7 @@ func TestWireguardSecrets(t *testing.T) {
 	slog.New(slog.NewTextHandler(&b, nil)).Info("x", "s", s)
 	out := fmt.Sprintf("%v %+v %#v %s", s, s, s, b.String())
 	for _, m := range [][]byte{priv[:], psk[:], other[:]} {
-		if strings.Contains(out, string(m)) || strings.Contains(out, fmt.Sprintf("%x", m)) || strings.Contains(out, fmt.Sprint(m)) {
+		if strings.Contains(out, string(m)) || strings.Contains(out, fmt.Sprintf("%x", m)) || strings.Contains(out, decimal(m)) {
 			t.Fatalf("material printed: %s", out)
 		}
 	}
@@ -79,4 +80,13 @@ func TestWireguardEventAndRequirementDeclaration(t *testing.T) {
 	if _, ok := d.(interface{ RecordsNoOwnership() }); !ok {
 		t.Fatal("requirement undeclared")
 	}
+}
+
+// decimal is how %v prints a byte slice ("[1 2 3]").
+func decimal(b []byte) string {
+	parts := make([]string, len(b))
+	for i, x := range b {
+		parts[i] = strconv.Itoa(int(x))
+	}
+	return "[" + strings.Join(parts, " ") + "]"
 }

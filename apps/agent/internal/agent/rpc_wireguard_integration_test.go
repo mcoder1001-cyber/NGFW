@@ -379,10 +379,10 @@ func TestWireguardHandshakeOnHost(t *testing.T) {
 	kernPub, vppPub := pubOf(t, kernPriv), pubOf(t, keys["key/"+owner+"-a"])
 
 	// the tap (TD-3: its sw_if_index is sanitized on creation) into the slot netns
-	_ = exec.Command("ip", "netns", "del", ns).Run()
+	_ = exec.Command("ip", "netns", "del", ns).Run() //nolint:gosec // G204: fixed argv, the slot netns name
 	run("ip", "netns", "add", ns)
-	t.Cleanup(func() { _ = exec.Command("ip", "netns", "del", ns).Run() })
-	tapd := tapv2.New(raw, owner+"t") // not the agent's owner: its authoritative `interfaces` would take the tap down
+	t.Cleanup(func() { _ = exec.Command("ip", "netns", "del", ns).Run() }) //nolint:gosec // G204: fixed argv, the slot netns name
+	tapd := tapv2.New(raw, owner+"t")                                      // not the agent's owner: its authoritative `interfaces` would take the tap down
 	tap := &tapv2.Tap{Name: "tap" + strconv.Itoa(int(vpptest.LoopbackInstance(t, 60))), Id: vpptest.LoopbackInstance(t, 60), HostIfName: hostIf, HostNamespace: ns,
 		HostIp4Prefix: fmt.Sprintf("10.%d.60.2/24", slot), RxRingSize: 256, TxRingSize: 256}
 	tmeta, err := tapd.Create(context.Background(), tap)

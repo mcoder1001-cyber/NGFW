@@ -35,7 +35,7 @@ type wgSecretStore struct {
 	refOf  map[string]string // D-051 ref → DF-5 ref
 }
 
-// ErrSecretUnavailable: the agent holds no material for a reference (PENDING-secret-channel).
+// ErrSecretUnavailable is returned when the agent holds no material for a reference (PENDING-secret-channel).
 var ErrSecretUnavailable = errors.New("no secret material in the agent (the API→agent secret channel is pending: PENDING-secret-channel)")
 
 var d051Ref = regexp.MustCompile(`^(key|psk)/[A-Za-z0-9_.-]{1,64}$`)

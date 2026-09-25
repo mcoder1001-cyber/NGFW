@@ -107,7 +107,17 @@ type FRR struct {
 	pollOnce sync.Once
 	stop     chan struct{}
 	stopOnce sync.Once
+
+	// stateSlot serialises State (review M3, D-132): one walk of FRR and VPP in flight; a caller that cannot get the slot
+	// within stateWait gets ErrStateBusy (UNAVAILABLE), like F-vrf-static-ecmp's route dump.
+	stateSlot chan struct{}
 }
+
+// stateWait is how long a RoutingState call waits for the one in flight (tests shorten it).
+var stateWait = 3 * time.Second
+
+// ErrStateBusy is returned when another RoutingState walk is in flight for longer than stateWait.
+var ErrStateBusy = errors.New("routing state: another read of FRR and VPP is in flight; retry")
 
 var frrRuntimes sync.Map // owner → *FRR
 
@@ -151,7 +161,7 @@ func newFRRAt(env Env, runner renderers.Runner, paths frr.Paths, ok bool, opts .
 		env.Log = slog.Default()
 	}
 	rt := &FRR{owner: env.Owner, client: env.Client, log: env.Log.With("component", "frr"), publish: env.Publish,
-		paths: paths, enabled: ok, mapper: &lcpmap.Mapper{}, stop: make(chan struct{})}
+		paths: paths, enabled: ok, mapper: &lcpmap.Mapper{}, stop: make(chan struct{}), stateSlot: make(chan struct{}, 1)}
 	if ok {
 		base := []frr.Option{frr.WithPaths(paths), frr.WithInterfaceMapper(rt.mapper.Map)}
 		rt.r = frr.New(runner, append(base, opts...)...)
@@ -475,6 +485,9 @@ type FRRState struct {
 	RIBCounts map[string]uint32
 	Readers   map[string]string
 	RIB       []*vrxv1.RoutingRibEntry
+	// LcpPairs are this owner's pairs (read from VPP inside the same serialised walk); PairsErr why they could not be.
+	LcpPairs []*vrxv1.RoutingLcpPair
+	PairsErr error
 }
 
 // State reads the live FRR state: version, BGP summary, RIB counts, the named registered readers and a RIB lookup of
@@ -507,6 +520,14 @@ func (rt *FRR) State(ctx context.Context, readers, prefixes []string, vrf string
 		return nil, fmt.Errorf("%w: rib_vrf: %v", ErrState, err)
 	}
 	st := &FRRState{RIBCounts: map[string]uint32{}, Readers: map[string]string{}}
+	release, err := rt.acquireState(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	if rt.client != nil {
+		st.LcpPairs, st.PairsErr = rt.LcpPairs(ctx)
+	}
 	ctx, cancel := context.WithTimeout(ctx, frrStateTimeout)
 	defer cancel()
 	switch {
@@ -619,6 +640,20 @@ func (rt *FRR) lookup(ctx context.Context, vrf string, p netip.Prefix) ([]*vrxv1
 
 // lcpPairsTimeout bounds the VPP part of RoutingState: a slow or stuck VPP API must not hold the FRR answer.
 const lcpPairsTimeout = 10 * time.Second
+
+// acquireState takes the one RoutingState slot, waiting at most stateWait.
+func (rt *FRR) acquireState(ctx context.Context) (func(), error) {
+	t := time.NewTimer(stateWait)
+	defer t.Stop()
+	select {
+	case rt.stateSlot <- struct{}{}:
+		return func() { <-rt.stateSlot }, nil
+	case <-t.C:
+		return nil, ErrStateBusy
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
 
 // LcpPairs returns this owner's linux-cp pairs from VPP (lcp_itf_pair_get + the owner's interface table).
 func (rt *FRR) LcpPairs(ctx context.Context) ([]*vrxv1.RoutingLcpPair, error) {

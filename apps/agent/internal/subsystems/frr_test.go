@@ -426,3 +426,41 @@ func (s *kvSink) Errorf(p, rule, format string, a ...any) {
 	s.errs = append(s.errs, p+" "+rule+": "+fmt.Sprintf(format, a...))
 }
 func (s *kvSink) Warnf(string, string, string, ...any) {}
+
+// TestStateIsSerialised (review M3, D-132): one RoutingState walk in flight; a second caller gets ErrStateBusy after
+// stateWait instead of a second concurrent walk of FRR and VPP.
+func TestStateIsSerialised(t *testing.T) {
+	old := stateWait
+	stateWait = 200 * time.Millisecond
+	defer func() { stateWait = old }()
+	f := newFakeFRR()
+	entered, block := make(chan struct{}, 8), make(chan struct{})
+	var calls sync.WaitGroup
+	f.On(frr.VtyshBin, func(c renderers.Command) (renderers.Output, error) {
+		entered <- struct{}{}
+		<-block
+		return renderers.Output{Stdout: []byte("FRRouting 10.7.1\n")}, nil
+	})
+	paths := tempPaths(t)
+	if err := os.WriteFile(filepath.Join(paths.SocketDir(), "zebra.vty"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rt := newFRRAt(Env{Owner: "w8"}, f, paths, true)
+	defer rt.Close()
+	calls.Add(1)
+	go func() { defer calls.Done(); _, _ = rt.State(context.Background(), nil, nil, "") }()
+	<-entered // the first walk is inside FRR now
+	start := time.Now()
+	_, err := rt.State(context.Background(), nil, nil, "")
+	if !errors.Is(err, ErrStateBusy) {
+		t.Fatalf("second concurrent State: %v, want ErrStateBusy", err)
+	}
+	if d := time.Since(start); d < 150*time.Millisecond || d > 2*time.Second {
+		t.Fatalf("busy after %v, want ≈ stateWait", d)
+	}
+	close(block)
+	calls.Wait()
+	if _, err := rt.State(context.Background(), nil, nil, ""); err != nil {
+		t.Fatalf("after the first walk ended: %v", err)
+	}
+}

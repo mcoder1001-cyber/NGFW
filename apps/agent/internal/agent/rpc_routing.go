@@ -37,8 +37,11 @@ func (g *server) RoutingState(ctx context.Context, req *vrxv1.RoutingStateReques
 	}
 	st, err := rt.State(ctx, req.GetReaders(), req.GetRibPrefixes(), vrf)
 	if err != nil {
-		if errors.Is(err, subsystems.ErrState) {
+		switch {
+		case errors.Is(err, subsystems.ErrState):
 			return nil, status.Error(codes.InvalidArgument, err.Error())
+		case errors.Is(err, subsystems.ErrStateBusy):
+			return nil, status.Error(codes.Unavailable, err.Error())
 		}
 		return nil, status.Errorf(codes.Internal, "routing state: %v", err)
 	}
@@ -61,7 +64,7 @@ func (g *server) RoutingState(ctx context.Context, req *vrxv1.RoutingStateReques
 		}
 		resp.Bgp = append(resp.Bgp, bi)
 	}
-	pairs, err := rt.LcpPairs(ctx)
+	pairs, err := st.LcpPairs, st.PairsErr // read inside the serialised walk (review M3)
 	switch {
 	case errors.Is(err, vpp.ErrDisconnected):
 		return nil, status.Error(codes.Unavailable, err.Error())

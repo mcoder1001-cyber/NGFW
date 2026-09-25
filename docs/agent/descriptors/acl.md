@@ -146,3 +146,30 @@ There is no per-interface or per-MACIP-ACL hit counter in the stats segment.
   re-applied (same value, idempotent on VPP) and re-claimed; a whitelist that was removed from the desired state
   *while the agent was down* stays on VPP until P05 passes a persisted store (`WithEtypeClaims`, e.g. in
   `VRX_AGENT_STATE_DIR`) — see DF-4-questions Q8. `local0` is never used.
+
+## F-acl: the product wiring of this family
+
+- **Registration** (`internal/subsystems/acl.go`, `Domains["acl"]`): the six descriptors in `Register`'s order, with
+  `WithEtypeClaims(Wiring.KeyedClaims("acl"))` (persisted, D-080). acl.acl and acl.macip-acl are wrapped by
+  `internal/actions/acl` (`TrackedACL`, `TrackedMacip`): same names, keys, values and behaviour; every successful
+  Create/Update/Delete/Retrieve updates a tracker (name → acl_index, rule count, content fingerprint), so the state RPC
+  never dumps a whole list.
+- **Ownership declarations** for TD-11b's guard (`ownership.go`): `RecordsNoOwnership()` on acl.acl, acl.macip-acl,
+  acl.interface-binding, acl.macip-interface-binding (owner tags) and acl.stats-enable (never deleted; its per-boot
+  memory only avoids re-sending an idempotent enable); `CheckPersistent()` on acl.etype-whitelist (its claim store must
+  survive a restart — structural `Persistent() bool`).
+- **Projection** (`internal/desired/acl.go`): `acl.lists.<name>` → `acl.acl/<name>` (object expansion from the request's
+  `objects`, v4/v6 families, disabled and inactive-schedule rules left out, 10 000 VPP rules per configuration rule and
+  100 000 per list), `acl.macip.<name>` → `acl.macip-acl/<name>` (a rule without a source prefix → one IPv4 and one IPv6
+  any rule), attachments (zones → member interfaces, ordered by attachment sequence) → `acl.interface-binding/<if>`,
+  MACIP attachments → `acl.macip-interface-binding/<if>`, `acl.stats-enable/global` only for the globals owner (D-071).
+  Each expansion is recorded by content fingerprint; Retrieve assembles the `acl` domain from the recorded configuration
+  that produced exactly what VPP holds, and reconstructs one rule per VPP rule otherwise (so drift shows).
+- **Counters flag getter**: `show acl-plugin tables mask` through `cli_inband` prints "Stats counters enabled for
+  interface ACLs: 0|1" (read-only; the `mask` qualifier prints no hash tables). The runtime reuses an "on" answer for 5 s.
+- **AclState** (`internal/agent/rpc_acl.go`, proto.md §11 F-acl): list summaries from the tracker, per-rule counters
+  from `/acl/<index>/matches` mapped to configuration rules through the recorded expansion, bindings from
+  `acl_interface_list_dump` + `macip_acl_interface_list_dump` (one `acl_dump` per foreign index for its tag).
+- **Re-projection**: a watcher asks for a resync of the stored desired state (`Wiring.RequestResync`, TD-8) when an
+  applied rule's schedule turned on or off (checked every 60 s, `VRX_ACL_REPROJECT_SEC`) or an FQDN object it uses
+  changed addresses; requests are coalesced (≥ 5 s apart).

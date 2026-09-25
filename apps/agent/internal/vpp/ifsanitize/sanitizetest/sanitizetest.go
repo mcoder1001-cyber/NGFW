@@ -9,6 +9,7 @@
 package sanitizetest
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -149,6 +150,15 @@ func (m *Model) growLocked() {
 			m.Free = append([]uint32{i}, m.Free...)
 		}
 	}
+}
+
+// Pool returns the classify table pool as vppinfra keeps it: the vector length (it never
+// shrinks) and a copy of the free list, bottom first (the last entry pops first).
+func (m *Model) Pool() (uint32, []uint32) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.growLocked()
+	return m.Len, append([]uint32(nil), m.Free...)
 }
 
 // Install registers the model's handlers on f (replacing earlier ones for these messages).
@@ -306,6 +316,47 @@ func (m *Model) Handlers() map[string]fake.Handler {
 		}
 		return one(&classifyapi.FlowClassifySetInterfaceReply{}), nil
 	})
+	// policer/flow_classify_dump as VPP 26.06 answers them (classify_api.c): the handler returns
+	// nothing unless sw_if_index < vec_len(vector), and walks vec_len(&vector[sw_if_index]) — for
+	// sw_if_index 0 that is the vector itself (every binding of every index, deleted ones
+	// included), for any other index a length read out of bounds (the model fails the test).
+	dump := func(name string, slots func(*Iface) []uint32, typ func(api.Message) (int, uint32), details func(idx, table uint32) api.Message) fake.Handler {
+		return func(req api.Message) ([]api.Message, error) {
+			i, filter := typ(req)
+			m.mu.Lock()
+			defer m.mu.Unlock()
+			switch filter {
+			case none:
+				return nil, nil
+			case 0:
+			default:
+				return nil, fmt.Errorf("sanitizetest: %s with sw_if_index %d reads out of bounds in VPP 26.06 (vec_len on a pointer into the vector)", name, filter)
+			}
+			var out []api.Message
+			for _, idx := range sortedIfs(m.Ifs) {
+				if t := slots(m.Ifs[idx])[i]; t != none {
+					out = append(out, details(idx, t))
+				}
+			}
+			return out, nil
+		}
+	}
+	f.On("policer_classify_dump", dump("policer_classify_dump", func(s *Iface) []uint32 { return s.Policer[:] },
+		func(req api.Message) (int, uint32) {
+			r := req.(*classifyapi.PolicerClassifyDump)
+			return int(r.Type), uint32(r.SwIfIndex)
+		},
+		func(idx, t uint32) api.Message {
+			return &classifyapi.PolicerClassifyDetails{SwIfIndex: interface_types.InterfaceIndex(idx), TableIndex: t}
+		}))
+	f.On("flow_classify_dump", dump("flow_classify_dump", func(s *Iface) []uint32 { return s.Flow[:] },
+		func(req api.Message) (int, uint32) {
+			r := req.(*classifyapi.FlowClassifyDump)
+			return int(r.Type), uint32(r.SwIfIndex)
+		},
+		func(idx, t uint32) api.Message {
+			return &classifyapi.FlowClassifyDetails{SwIfIndex: interface_types.InterfaceIndex(idx), TableIndex: t}
+		}))
 	f.On("adl_interface_enable_disable", func(req api.Message) ([]api.Message, error) {
 		r := req.(*adlapi.AdlInterfaceEnableDisable)
 		m.mu.Lock()
@@ -435,6 +486,7 @@ func Clean(f *fake.Client) *Model {
 var Messages = []string{
 	"classify_table_ids", "classify_set_interface_ip_table", "classify_set_interface_l2_tables",
 	"classify_table_by_interface", "input_acl_set_interface", "output_acl_set_interface",
+	"policer_classify_dump", "flow_classify_dump",
 	"classify_add_del_table", "classify_table_info", "sw_interface_set_l2_bridge",
 	"policer_classify_set_interface", "flow_classify_set_interface",
 	"adl_interface_enable_disable", "sw_interface_set_vxlan_bypass",

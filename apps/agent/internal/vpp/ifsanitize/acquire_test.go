@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -206,48 +207,41 @@ func TestQuarantineReservedRangeFull(t *testing.T) {
 	}
 }
 
-// TestAcquireCappedFailsClosed is TD-3 re-review M1: a classify pool whose free list needs more
-// placeholders than the cap (80 freed indices: more than MaxPlaceholders, 64) fails the create closed (ErrCapped, which is ErrNoCleanIndex):
-// the interface is deleted, nothing is reported created, there is no retry, the cap hit is
-// counted, and no quarantine holder is made for an index that is not known to be dirty.
-func TestAcquireCappedFailsClosed(t *testing.T) {
+// TestAcquireOnADeepFreeList is TD-25 (the shared VPP, 2026-09-25 05:05): a classify pool with 80
+// freed indices and no live table failed every create closed before (ErrCapped: the old run
+// resurrected every freed index and 8 fresh ones, more than 64). A clean index now needs only the
+// probe table, and the pool is unchanged.
+func TestAcquireOnADeepFreeList(t *testing.T) {
 	f, m := setup()
 	p := newPool(20)
 	p.install(f)
 	for id := uint32(0); id < 80; id++ {
 		m.Tables[id] = true
 	}
-	for id := uint32(0); id < 80; id++ { // deleted in creation order: pops 79, 78, … (never ascending)
+	for id := uint32(0); id < 80; id++ { // deleted in creation order: pops 79, 78, …
 		m.DeleteTable(id)
 	}
+	n0, free0 := m.Pool()
 	before := ifsanitize.Snapshot()
-	var created, deleted []uint32
-	_, err := ifsanitize.Acquire(context.Background(), f, "w2", "tap10",
-		func() (uint32, error) { i := p.get(); created = append(created, i); return i, nil },
-		func(i uint32) error { deleted = append(deleted, i); p.put(i); return nil })
-	if !errors.Is(err, ifsanitize.ErrCapped) || !errors.Is(err, ifsanitize.ErrNoCleanIndex) || errors.Is(err, ifsanitize.ErrUnclearable) {
-		t.Fatalf("err = %v", err)
-	}
-	if len(created) != 1 || len(deleted) != 1 || len(p.tags) != 0 {
-		t.Fatalf("created %v deleted %v holders %v", created, deleted, p.tags)
+	idx, err := ifsanitize.Acquire(context.Background(), f, "w2", "tap10",
+		func() (uint32, error) { return p.get(), nil },
+		func(i uint32) error { p.put(i); return nil })
+	if err != nil || idx != 20 {
+		t.Fatalf("idx %d err %v", idx, err)
 	}
 	after := ifsanitize.Snapshot()
-	if after.Capped["create"] != before.Capped["create"]+1 || after.Errors["create"] != before.Errors["create"]+1 || after.QuarantineTotal != before.QuarantineTotal {
-		t.Fatalf("counters %+v → %+v", before, after)
+	if after.Capped["create"] != before.Capped["create"] || after.Placeholders["create"] != before.Placeholders["create"]+1 || m.Created != 1 {
+		t.Fatalf("capped %v → %v, placeholders %v → %v, created %d", before.Capped, after.Capped, before.Placeholders, after.Placeholders, m.Created)
 	}
-	if n := m.Created; n != ifsanitize.MaxPlaceholders || len(m.Tables) != 0 {
-		t.Fatalf("placeholders created %d (cap %d), tables left %v", n, ifsanitize.MaxPlaceholders, m.Tables)
-	}
-	var b bytes.Buffer
-	ifsanitize.WriteMetrics(&b)
-	if !strings.Contains(b.String(), `vrx_agent_iface_sanitize_capped_total{phase="create"}`) {
-		t.Fatalf("metrics lack the capped counter:\n%s", b.String())
+	if n, free := m.Pool(); n != n0 || !slices.Equal(free, free0) || len(m.Tables) != 0 {
+		t.Fatalf("classify pool changed: vector %d→%d, tables %v", n0, n, m.Tables)
 	}
 }
 
-// TestAcquireCappedAndUnclearable: a capped run that also proves a binding unclearable (an input
-// ACL naming a freed table that was not reached) quarantines that index once and fails without a
-// retry — the next index would be capped as well, so retrying would only make more holders.
+// TestAcquireCappedAndUnclearable: an index whose input ACL names the bottom of an 80-deep free list
+// cannot be cleaned within MaxPlaceholders pops (ErrCapped with ErrUnclearable). That is a property
+// of this index's binding, not of the pool: the index is quarantined once, the create retried, and
+// the next index — clean — is reported created; the capped counter moves, the pool is unchanged.
 func TestAcquireCappedAndUnclearable(t *testing.T) {
 	f, m := setup()
 	p := newPool(8, 7)
@@ -259,13 +253,27 @@ func TestAcquireCappedAndUnclearable(t *testing.T) {
 		m.DeleteTable(id)
 	}
 	m.If(7).InACL = [3]uint32{0, none, none} // table 0 is at the bottom of the free list: never reached
-	_, err := ifsanitize.Acquire(context.Background(), f, "w2", "tap11",
+	n0, free0 := m.Pool()
+	before := ifsanitize.Snapshot()
+	idx, err := ifsanitize.Acquire(context.Background(), f, "w2", "tap11",
 		func() (uint32, error) { return p.get(), nil },
 		func(i uint32) error { p.put(i); return nil })
-	if !errors.Is(err, ifsanitize.ErrCapped) || !errors.Is(err, ifsanitize.ErrUnclearable) {
-		t.Fatalf("err = %v", err)
+	if err != nil || idx != 8 || m.Dirty(8) != "" {
+		t.Fatalf("idx %d err %v", idx, err)
 	}
 	if len(p.tags) != 1 || p.tags[7] != "quarantine:w2" || p.name[7] != "loop16383" {
 		t.Fatalf("holders %v names %v", p.tags, p.name)
+	}
+	after := ifsanitize.Snapshot()
+	if after.Capped["create"] != before.Capped["create"]+1 || after.QuarantineTotal != before.QuarantineTotal+1 || m.Created != ifsanitize.MaxPlaceholders+1 {
+		t.Fatalf("capped %v → %v, quarantines %d → %d, placeholders created %d", before.Capped, after.Capped, before.QuarantineTotal, after.QuarantineTotal, m.Created)
+	}
+	if n, free := m.Pool(); n != n0 || !slices.Equal(free, free0) {
+		t.Fatalf("classify pool changed: vector %d→%d", n0, n)
+	}
+	var b bytes.Buffer
+	ifsanitize.WriteMetrics(&b)
+	if !strings.Contains(b.String(), `vrx_agent_iface_sanitize_capped_total{phase="create"}`) {
+		t.Fatalf("metrics lack the capped counter:\n%s", b.String())
 	}
 }

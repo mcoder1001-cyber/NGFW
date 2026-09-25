@@ -43,11 +43,11 @@ var ErrNoCleanIndex = errors.New("no clean sw_if_index obtained (VPP V19 quarant
 // removed (ErrUnclearable) the index is quarantined: the interface is deleted with del, a
 // quarantine holder — an admin-down loopback tagged "quarantine:<owner>" — takes the freed
 // index (the sw_interface pool reuses the last freed index first), so the index is never handed
-// out again while the holder exists, and create is called again for a fresh index. Any other
-// sanitize failure deletes the interface and fails. A run that reaches the placeholder cap
-// (ErrCapped) fails closed: the interface is deleted, the index is quarantined only when a binding
-// was proven unclearable, and there is no retry — the cap is a property of the classify pool, not
-// of the index, so the next index would hit it as well. name is for logs.
+// out again while the holder exists, and create is called again for another index. A binding
+// whose freed table index is deeper in the classify pool's free list than MaxPlaceholders pops is
+// unclearable too (ErrCapped with ErrUnclearable): since TD-25 the cap is a property of that
+// binding, not of the pool, so it is quarantined and retried the same way. Any other sanitize
+// failure deletes the interface and fails. name is for logs.
 func Acquire(ctx context.Context, c vpp.Client, owner, name string, create func() (uint32, error), del func(idx uint32) error) (uint32, error) {
 	for attempt := 0; attempt < MaxAcquireAttempts; attempt++ {
 		idx, err := create()
@@ -66,9 +66,6 @@ func Acquire(ctx context.Context, c vpp.Client, owner, name string, create func(
 		}
 		if err := Quarantine(ctx, c, owner, idx); err != nil {
 			return 0, fmt.Errorf("%w; quarantine of sw_if_index %d failed: %v", serr, idx, err)
-		}
-		if errors.Is(serr, ErrCapped) {
-			return 0, serr
 		}
 	}
 	return 0, fmt.Errorf("%s: %w after %d attempts", name, ErrNoCleanIndex, MaxAcquireAttempts)

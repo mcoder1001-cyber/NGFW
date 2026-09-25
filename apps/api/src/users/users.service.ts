@@ -5,7 +5,7 @@ import { TokensService } from '../auth/tokens.service.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { CommitService } from '../commit/commit.service.js';
 import { ENV, type Env } from '../config.js';
-import { problems, ProblemError } from '../common/problem.js';
+import { problems } from '../common/problem.js';
 import type { Principal } from '../common/principal.js';
 import { replaceUserHash } from '../datastore/documents.js';
 import type { Doc } from '../datastore/repo.js';
@@ -13,24 +13,7 @@ import { DB, type Db } from '../db/db.js';
 import { apiKey, appUser, configCandidate, configPending } from '../db/schema.js';
 import { releaseKeyLocks } from '../datastore/pg-repo.js';
 import { AuthService } from '../auth/auth.service.js';
-
-/** Loopback peers: the local TLS terminator (nginx, docs/01-architecture.md), the dev proxy, tests. */
-function isLoopback(ip: string | undefined): boolean {
-  if (ip === undefined) return false;
-  return ip === '::1' || /^127\./.test(ip) || /^::ffff:127\./i.test(ip);
-}
-
-/**
- * "Plaintext over TLS only" (TD-2 #1): the API itself speaks plain HTTP on loopback behind the product nginx, which
- * terminates TLS. A password is therefore accepted over a TLS socket of this process or from a loopback peer; a
- * remote peer on plain HTTP (the API bound to a public address by mistake) is refused. The body has been parsed by
- * then — the check refuses to ACT on a password that crossed the network in clear. X-Forwarded-* are not trusted.
- * ASSUMPTION (review L1, questions): every local relay is TLS-terminated — the product nginx config (P10) must never
- * proxy `/api` from plain `:80` (redirect only); dev proxies and SSH tunnels count as loopback.
- */
-export function secureTransport(req: FastifyRequest): boolean {
-  return req.protocol === 'https' || isLoopback(req.ip);
-}
+import { secureTransport, tlsRequired } from '../auth/transport.js';
 
 export interface SetPasswordInput {
   password: string;
@@ -81,14 +64,7 @@ export class UsersService {
     if ((await this.tokens.hit(`pwset:${caller.id}`, 60)) > limit) {
       throw problems.tooMany('too many password changes; try again in a minute');
     }
-    if (!secureTransport(req)) {
-      throw new ProblemError(
-        403,
-        'tls-required',
-        'TLS required',
-        'passwords are accepted over TLS only (connect through https)',
-      );
-    }
+    if (!secureTransport(req)) throw tlsRequired();
     // authorise before the lookup: a non-admin learns nothing about other accounts
     if (name !== caller.username && caller.role !== 'admin') {
       throw problems.forbidden(`role '${caller.role}' may set its own password only`);

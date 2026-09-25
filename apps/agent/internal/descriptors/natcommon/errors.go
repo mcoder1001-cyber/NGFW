@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"go.fd.io/govpp/api"
+
+	"ngfw/agent/internal/descriptors/kit"
 )
 
 // ErrPluginNotLoaded is returned by Retrieve when the plugin's messages are unknown to this
@@ -16,9 +18,8 @@ var ErrPluginNotLoaded = errors.New("natcommon: plugin not loaded on this VPP")
 // reconciler treats such descriptors as write-only — it re-applies desired state on every
 // resync (Create is idempotent), never deletes on absence and skips them in post-apply
 // verification. A descriptor must not fake Retrieve by echoing cached desired state.
-// Same text as scheduler.ErrRetrieveUnsupported (task/P05); once P05 is merged this becomes
-// an alias of that variable (one line, DF-3-questions.md Q9).
-var ErrRetrieveUnsupported = errors.New("vpp has no dump for this object type")
+// Alias of the scheduler sentinel via descriptors/kit (DF-3-questions.md Q9, TD-16b), so errors.Is matches.
+var ErrRetrieveUnsupported = kit.ErrRetrieveUnsupported
 
 // ErrDuplicateKey is returned by Retrieve when two retrieved objects map to one key — the
 // scheduler contract requires unique keys (review finding 2). Descriptors that can meet

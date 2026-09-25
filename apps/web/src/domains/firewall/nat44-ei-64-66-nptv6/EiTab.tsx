@@ -122,7 +122,9 @@ export function EiTab() {
             ? ep(r.insideAddress, r.insidePort)
             : side === 'outside'
               ? ep(r.outsideAddress, r.outsidePort)
-              : ep(r.externalAddress, r.externalPort),
+              : r.externalAddress === '0.0.0.0' // nat44-ei keeps no remote end for most sessions
+                ? t('col.none')
+                : ep(r.externalAddress, r.externalPort),
         renderCell: (p) => <span dir="ltr">{p.value as string}</span>,
       })),
       { field: 'vrf', headerName: t('col.vrf'), width: 90, sortable: false },

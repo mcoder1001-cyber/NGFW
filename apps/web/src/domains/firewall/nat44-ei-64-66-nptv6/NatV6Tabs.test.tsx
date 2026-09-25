@@ -168,8 +168,15 @@ describe('nat44-ei-64-66-nptv6 model', () => {
           subsystems: ['nat'],
           ignored: [],
           changes: [
-            { op: 'replace', pointer: '/nat/nat66/staticMappings' },
-            { op: 'replace', pointer: '/nat/nat64' },
+            { op: 'replace', pointer: '/nat/nat66/staticMappings', from: [{ local: 'a' }], to: [] },
+            { op: 'replace', pointer: '/nat/nat64', from: true, to: false },
+            // only a description differs: not drift (VPP never stores descriptions)
+            {
+              op: 'replace',
+              pointer: '/nat/nat66/staticMappings',
+              from: [{ local: 'a', description: 'x' }],
+              to: [{ local: 'a' }],
+            },
           ],
         },
         '/nat/nat66',

@@ -87,9 +87,28 @@ export function nat64SessionId(s: Nat64Session): string {
   return `${s.tableId}|${s.protocol}|${s.client}:${s.clientPort}|${s.remote}:${s.remotePort}`;
 }
 
-/** Drift entries of `/nat/<subtree>` (the applied state differs from the running configuration there). */
+/** `v` without any `description` member, at every depth (VPP never stores descriptions: Retrieve cannot return them). */
+function withoutDescriptions(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(withoutDescriptions);
+  if (v !== null && typeof v === 'object') {
+    return Object.fromEntries(
+      Object.entries(v as Record<string, unknown>)
+        .filter(([k]) => k !== 'description')
+        .map(([k, x]) => [k, withoutDescriptions(x)]),
+    );
+  }
+  return v;
+}
+
+/**
+ * Drift entries of `/nat/<subtree>` (the applied state differs from the running configuration there). The API compares
+ * lists as a whole, so a list whose only difference is a `description` (configuration-only, never read back from VPP)
+ * is not drift.
+ */
 export function driftUnder(drift: Drift | undefined, pointer: string): Drift['changes'] {
   return (drift?.changes ?? []).filter(
-    (c) => c.pointer === pointer || c.pointer.startsWith(`${pointer}/`),
+    (c) =>
+      (c.pointer === pointer || c.pointer.startsWith(`${pointer}/`)) &&
+      JSON.stringify(withoutDescriptions(c.from)) !== JSON.stringify(withoutDescriptions(c.to)),
   );
 }

@@ -37,7 +37,8 @@
     "pool": "IPv4 pool",
     "remote": "IPv4 remote",
     "remoteIpv6": "Remote as IPv6",
-    "status": "Status"
+    "status": "Status",
+    "none": "—"
   },
   "sessions": {
     "static": "static",

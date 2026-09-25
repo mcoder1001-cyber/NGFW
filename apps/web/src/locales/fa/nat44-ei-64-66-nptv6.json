@@ -37,7 +37,8 @@
     "pool": "Pool نسخهٔ ۴",
     "remote": "مقصد IPv4",
     "remoteIpv6": "مقصد به شکل IPv6",
-    "status": "وضعیت"
+    "status": "وضعیت",
+    "none": "—"
   },
   "sessions": {
     "static": "ایستا",

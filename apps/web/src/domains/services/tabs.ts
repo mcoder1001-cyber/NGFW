@@ -1,3 +1,4 @@
+import { lazy } from 'react';
 import type { DomainTab } from '../DomainTabsPage';
 
 /**
@@ -9,6 +10,7 @@ export const servicesTabs: readonly DomainTab[] = [
   // wave-BC: F-host-stack
   // wave-BC: F-lb
   // wave-BC: F-qos-flat
+  { id: 'qos', labelKey: 'qos-flat:tab', Component: lazy(() => import('./qos-flat/QosPage')) },
   // wave-BC: F-snmp
   // wave-BC: F-ipfix-sflow
   // wave-A: F-kea-dhcp-relay

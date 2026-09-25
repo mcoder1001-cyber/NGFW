@@ -22,6 +22,11 @@ revert. Validation runs after planning and before the first operation, deletes i
 `Issue`. DryRun reports it (`ok = false`, no plan). Apply answers **FAILED** with nothing touched: no VPP call, no
 daemon write, no rollback. A plan with issues keeps no operation.
 
+`Scheduler.PlanWith(ctx, desired, scope, PlanOptions{SkipValidators: true})` plans without the validators. It is for
+TD-9's periodic drift check only. That check asks whether the running state matches the stored desired state, not
+whether a daemon would accept it. A rejection would also hide the drifted operations behind one issue. DryRun and
+Apply always validate.
+
 ## `Validator` (optional descriptor extension)
 
 ```go
@@ -42,12 +47,13 @@ A validator must keep this contract:
 
 | rule | why |
 |---|---|
-| **Read only.** No side effect outside a private temp dir it removes again (`renderers.Stage`). No daemon file written, no reload or restart, no VPP call, no ownership claim. | A plan may run a validator any number of times: DryRun, the drift check, and the retry without dynamic sources. |
+| **Read only.** No side effect outside a private temp dir it removes again (`renderers.Stage`). No daemon file written, no reload or restart, no VPP call, no ownership claim. | A plan may run a validator any number of times: DryRun, Apply, and the retry without dynamic sources. |
+| **Never call back into the Scheduler** (`Plan`, `Retrieve`, `Apply`). Use the view. | `Plan` holds the read lock and `Apply` the write lock. A call back deadlocks behind a waiting Apply, or stalls until the deadline and becomes a false finding. |
 | **Bounded by ctx.** The call gets a deadline: `Scheduler.ValidateTimeout`, where 0 means `DefaultValidateTimeout` (30 s) and a value below 0 means only the transaction's ctx. Start checkers with `renderers.Command{Timeout}` or `exec.CommandContext`. | The scheduler stops waiting at the deadline. The timeout is a finding (`validator did not return within 30s`), and nothing is applied. |
 | **Safe for concurrent use** with itself, with `Retrieve`, and, once abandoned at its deadline, with the next transaction's operations. | `Plan` holds only the read side of the scheduler lock. |
 | **Panics** are recovered on the validator's goroutine. | A panic is a finding (`validator panicked`). Its value and stack go to the agent log only. |
 | **Name the leaf:** `scheduler.InvalidAt(pointer, err)` when the value carries an RFC 6901 pointer (for example a rendered rule's `pointer`). | The finding points at that leaf instead of the whole object. |
-| **No secrets in the error.** A validator that resolved secret references masks the plaintexts (`rfkit.Redactor.Error`, the strongSwan and FRR `toolMessage`). | The scheduler also masks the secret leaves of `value` and caps the text at 2 KiB. Secret leaves are strings under fields or map keys named secret, password, passphrase, psk, preshared, private_key or community, and every D-051 reference `psk|key|cert|password|token/<name>`. |
+| **No secrets in the error.** A validator masks every plaintext it resolved from a reference (`rfkit.Redactor.Error`, the strongSwan and FRR `toolMessage`). The scheduler cannot know those plaintexts. | The scheduler masks the value's secret references and caps the text at 2 KiB. It masks every string with the D-051 form `psk\|key\|cert\|password\|token/<name>`, and every string field named `*_ref` (a malformed reference too; in a `google.protobuf.Struct` the keys are field names). By D-040 nothing else carries a secret across the API↔agent boundary. Object names, descriptions and BGP communities stay readable. The panic text is masked the same way before it is logged. |
 
 ### What a finding looks like
 
@@ -70,14 +76,17 @@ string (proto.md §3). The new stable rule id is `agent.validator`.
 func (*Descriptor) Stage() scheduler.Stage { return scheduler.StageDaemon } // default: StageVPP
 ```
 
-The stage is a tie-breaker only. Among operations that no dependency orders:
+The stage breaks ties in the dependency sort. It is the first tie-breaker of the topological order, before the
+registration order and the key:
 
-- every VPP-stage create and update runs before every daemon-stage one;
-- every daemon-stage delete runs before the VPP-stage deletes, because deletes run in the reverse order.
+- when a VPP-stage and a daemon-stage create or update are both ready, the VPP one goes first, so a daemon object
+  that no VPP object waits for runs after every VPP object ready by then;
+- deletes run in the reverse order, so daemon deletes go first when they are ready together.
 
-A real dependency always wins. A VPP object that depends on a daemon object is still created after it. The
-rollback undoes the journal in the exact reverse of what ran. DryRun's `plan` lists the operations in the same
-order.
+It is a greedy tie-break, not a phase split. A real dependency always wins: a VPP object that depends on a daemon
+object is created after it. A daemon object that such a VPP object waits for therefore runs early, and another
+ready daemon object may run before that VPP dependent. The rollback undoes the journal in the exact reverse of what
+ran. DryRun's `plan` lists the operations in the same order.
 
 ## Adoption recipe (a daemon descriptor implements Validator and declares StageDaemon)
 
@@ -111,11 +120,12 @@ func (d *Descriptor) Validate(ctx context.Context, _ scheduler.Key, value proto.
 | F-host-acl-nftables | `host-acl.nftables/vrx` | `r.Render(ctx, v)` → `r.Validate` (`nft -c -f <staged>`) | Do not take the descriptor's apply mutex for longer than the render. Never touch the store. |
 | P12 (FRR) | its frr descriptor(s) | `r.Render(ctx, doc)` → `r.Validate` (`vtysh -C -f <staged>`); `frr-reload.py --test` only for a diff | If several objects build one `frr.conf`, render it from `view.List(...)`. Password references are resolved and redacted by the renderer. |
 | P11 (strongSwan) | its swanctl descriptor(s) | `r.Render(ctx, doc)` → `r.Validate` (`swanctl --load-all --noprompt --file <staged> --uri <scratch charon>`) | Only the scratch charon is loaded (start_action rewritten to none), never the live one. PSKs are redacted by the renderer. |
-| F-snmp | `snmpd` descriptor | `r.Render` → `r.Validate` (`snmpd -C -c <staged check copy>`) | The check instance runs inside the staging dir and is stopped by its PID, never the live snmpd. The community is a secret leaf, masked by the renderer (`r.red`) and by the scheduler. |
+| F-snmp | `snmpd` descriptor | `r.Render` → `r.Validate` (`snmpd -C -c <staged check copy>`) | The check instance runs inside the staging dir and is stopped by its PID, never the live snmpd. The community plaintext is resolved from `Community.secret_ref` and masked by the renderer (`r.red`); the scheduler masks the reference. |
 
 **Test pattern.** Copy `validator_test.go`'s `fakeDaemon`: a failing Validate must leave the fake VPP with no write
-call and the answer FAILED. Also test the adopter's own `Validate` with a recording runner that fails the checker
-(no `config-set`, no file written).
+call and the answer FAILED. Also test the adopter's own `Validate` with a recording runner. It must make exactly one
+checker call, on a staged path, and nothing else: no `config-set`, no reload, no file written. Go cannot enforce side
+effect freedom, so this test plus review is the mechanism.
 
 ## Limits
 
@@ -123,5 +133,10 @@ call and the answer FAILED. Also test the adopter's own `Validate` with a record
   transaction by up to its bound, per Create/Update of that descriptor.
 - A checker validates syntax and what it can see offline. Semantic conflicts that only the live daemon sees at
   commit time still fail in Create and roll back, as before.
-- TD-9's drift check (`CheckDrift`, a Plan every 5 minutes) will also run the validators of drifted daemon objects
-  once TD-9 merges. This is read-only and bounded. See `TD-13-questions.md` Q2.
+- **Up to 3 checker runs per commit** for a changed daemon object: the commit engine's DryRun, Apply's plan, and
+  Create's own check (defence in depth). An Apply whose dynamic source was to blame runs again and adds more. Kea
+  costs about 100 ms per run. P11's scratch charon is the costly one; its review measures it.
+- TD-9's drift check (`CheckDrift`, a Plan every 5 minutes) must use `PlanWith(…, PlanOptions{SkipValidators: true})`.
+  That is a condition for TD-9's rebase (TD-13 review M2).
+- A validator that ignores ctx is abandoned, and its goroutine lives until it returns. There is no counter yet
+  (tech debt, review L9).

@@ -93,6 +93,9 @@ type ApplyOptions struct {
 	// even when this process applied the same value before — used on agent start and VPP
 	// reconnect, when VPP may have lost them.
 	Resync bool
+	// skipValidators plans without the Validators (PlanOptions.SkipValidators, TD-13; never set by
+	// Apply).
+	skipValidators bool
 }
 
 // ResultCode classifies the outcome of one operation (mirrors vrx.v1.ObjectResultCode).
@@ -510,7 +513,7 @@ func (s *Scheduler) plan(ctx context.Context, desired []KV, scope Scope, opts Ap
 		}
 	}
 	// TD-13: tier-3 validators, before the first operation of the plan (validator.go)
-	if err := s.validate(ctx, p, after); err != nil {
+	if err := s.validate(ctx, p, after, opts); err != nil {
 		return nil, err
 	}
 	return p, nil

@@ -6,9 +6,11 @@ package scheduler_test
 // descriptor over the fake VPP (example_descriptor_test.go).
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"strings"
 	"sync"
@@ -16,9 +18,11 @@ import (
 	"time"
 
 	"go.fd.io/govpp/api"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -231,7 +235,8 @@ func TestPlanRunsValidators(t *testing.T) {
 	s, v, d := td13Fixture(t)
 	ctx := context.Background()
 	desired := []scheduler.KV{d.kv("dns", "", nil), loopKV("loop200")}
-	d.setBad(errors.New("unbound-checkconf: syntax error"))
+	// a pointer that is not an RFC 6901 pointer ("/…") is ignored: the finding keeps the object's own
+	d.setBad(scheduler.InvalidAt("services/dns", errors.New("unbound-checkconf: syntax error")))
 	p, err := s.Plan(ctx, desired, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -359,24 +364,27 @@ func TestValidatorViewIsTheStateAfterAndReadOnly(t *testing.T) {
 // everything under a secret-named key are masked as whole tokens; a huge checker output is cut.
 func TestValidatorFindingRedactsSecretLeaves(t *testing.T) {
 	s, v, d := td13Fixture(t)
+	// *_ref fields (a well-formed and a malformed reference, one nested) and a D-051 reference in a
+	// field of another name are masked; a BGP community and the name "psk0" are not secrets (D-040).
 	extra := map[string]any{ //nolint:gosec // G101: test placeholders (VRX_TEST_PSK_<id>, 00-CONTEXT), no credential
-		"secret_ref": "psk/site-a",
-		"password":   "VRX_TEST_PSK_TD13",
-		"community":  "ro",
-		"auth":       map[string]any{"privateKey": "VRX_TEST_PSK_TD13_pk"},
-		"peer":       "10.0.0.2",
+		"secret_ref":   "psk/site-a",
+		"password_ref": "VRX_TEST_PSK_TD13",
+		"auth":         map[string]any{"private_key_ref": "VRX_TEST_PSK_TD13_pk", "psk0": "10.0.0.9"},
+		"ca":           "cert/lab-ca",
+		"community":    "65000:70000",
+		"peer":         "10.0.0.2",
 	}
 	d.setCheck(func(context.Context, scheduler.Key, proto.Message, scheduler.ReadOnlyView) error {
-		return errors.New(`line 7: "secret psk/site-a; password VRX_TEST_PSK_TD13; key VRX_TEST_PSK_TD13_pk" near router community ro peer 10.0.0.2`)
+		return errors.New(`line 7: "secret psk/site-a; password VRX_TEST_PSK_TD13; key VRX_TEST_PSK_TD13_pk; ca cert/lab-ca" near router community 65000:70000 peer 10.0.0.2 psk0 10.0.0.9`)
 	})
 	r := s.Apply(context.Background(), []scheduler.KV{d.kv("ipsec", "", extra)}, nil)
 	msg := onlyIssue(t, r.Plan).Message
-	for _, leak := range []string{"psk/site-a", "VRX_TEST_PSK_TD13", "VRX_TEST_PSK_TD13_pk", "community ro"} {
+	for _, leak := range []string{"psk/site-a", "VRX_TEST_PSK_TD13", "VRX_TEST_PSK_TD13_pk", "cert/lab-ca"} {
 		if strings.Contains(msg, leak) {
 			t.Fatalf("finding leaks %q: %s", leak, msg)
 		}
 	}
-	for _, keep := range []string{"router", "community <redacted>", "peer 10.0.0.2", "secret <redacted>;"} {
+	for _, keep := range []string{"router", "community 65000:70000", "peer 10.0.0.2", "psk0 10.0.0.9", "secret <redacted>;", "ca <redacted>\""} {
 		if !strings.Contains(msg, keep) {
 			t.Fatalf("finding lost %q: %s", keep, msg)
 		}
@@ -468,4 +476,93 @@ func (d *fakeDaemon) setCheck(f func(ctx context.Context, key scheduler.Key, val
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.check = f
+}
+
+// RedactLeaves on a real configuration document (review M1): by D-040 only *_ref references carry
+// secrets, so user object names (an interface named "psk0"), descriptions, addresses and BGP
+// communities stay readable in a finding; the SNMP community's secret reference is masked.
+func TestRedactLeavesKeepsNonSecrets(t *testing.T) {
+	ds := &vrxv1.DesiredState{}
+	if err := protojson.Unmarshal([]byte(`{
+	  "interfaces": {"psk0": {"description": "to branch", "ipv4": ["10.0.0.1/24"]}},
+	  "routing": {"policy": {"routeMaps": {"rm1": {"entries": [{"set": {"community": ["65000:70000"]}}]}}}},
+	  "services": {"snmp": {"communities": {"ro-lab": {"secretRef": "password/snmp-ro"}}}}
+	}`), ds); err != nil {
+		t.Fatal(err)
+	}
+	in := "interface psk0: address 10.0.0.1/24 overlaps (description to branch); route-map rm1: set community 65000:70000: malformed; community ro-lab uses password/snmp-ro"
+	want := "interface psk0: address 10.0.0.1/24 overlaps (description to branch); route-map rm1: set community 65000:70000: malformed; community ro-lab uses <redacted>"
+	if got := scheduler.RedactLeaves(in, ds); got != want {
+		t.Fatalf("RedactLeaves\n got %s\nwant %s", got, want)
+	}
+}
+
+// A validator's panic text is masked and bounded like a finding before it is logged (review L2).
+func TestValidatorPanicTextIsMaskedInTheLog(t *testing.T) {
+	var buf bytes.Buffer
+	var mu sync.Mutex
+	v := newFakeVPP()
+	d := newFakeDaemon(v)
+	reg := scheduler.NewRegistry()
+	reg.Register(d)
+	s := scheduler.New(reg, slog.New(slog.NewTextHandler(&lockedWriter{w: &buf, mu: &mu}, nil)))
+	d.setCheck(func(context.Context, scheduler.Key, proto.Message, scheduler.ReadOnlyView) error {
+		panic(fmt.Sprintf("bad line %q", "secret psk/site-a"))
+	})
+	ref := map[string]any{"secret_ref": "psk/site-a"} //nolint:gosec // G101: a D-051 reference, not a credential
+	r := s.Apply(context.Background(), []scheduler.KV{d.kv("ipsec", "", ref)}, nil)
+	if r.Outcome != scheduler.OutcomeFailed {
+		t.Fatalf("outcome %s", r.Outcome)
+	}
+	mu.Lock()
+	logged := buf.String()
+	mu.Unlock()
+	if !strings.Contains(logged, "validator panicked") || strings.Contains(logged, "psk/site-a") || !strings.Contains(logged, "<redacted>") {
+		t.Fatalf("log:\n%s", logged)
+	}
+}
+
+type lockedWriter struct {
+	w  *bytes.Buffer
+	mu *sync.Mutex
+}
+
+func (l *lockedWriter) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.w.Write(p)
+}
+
+// The periodic drift check (TD-9) plans with SkipValidators (review M2): a drifted daemon object
+// whose checker would now reject it counts as one operation, not one issue that hides every other
+// drifted operation, and no checker runs. Plan (DryRun) still validates.
+func TestPlanWithSkipValidators(t *testing.T) {
+	s, v, d := td13Fixture(t)
+	ctx := context.Background()
+	desired := []scheduler.KV{loopKV("loop200"), d.kv("dns", "", nil)}
+	mustApply(t, s.Apply(ctx, desired, nil))
+	// drift: the daemon's running configuration and a VPP interface changed behind the agent's back
+	d.mu.Lock()
+	d.conf["daemon.fake/dns"] = daemonConf("dns", "elsewhere", nil)
+	d.mu.Unlock()
+	for _, i := range v.ifaces {
+		if i.Tag == "w2:loop200" {
+			i.Mtu = 1500
+		}
+	}
+	d.setBad(errors.New("kea-dhcp4 -t: rejected"))
+	d.reset()
+	v.Reset() // forget the first Apply's calls: the plans below must write nothing
+
+	p, err := s.PlanWith(ctx, desired, nil, scheduler.PlanOptions{SkipValidators: true})
+	if err != nil || len(p.Issues) != 0 || len(p.Ops) != 2 {
+		t.Fatalf("drift plan: err %v issues %v ops %+v", err, p.Issues, p.Ops)
+	}
+	if got := d.log(); len(got) != 0 {
+		t.Fatalf("the drift plan ran the validator: %v", got)
+	}
+	if p, err = s.Plan(ctx, desired, nil); err != nil || len(p.Issues) != 1 || len(p.Ops) != 0 {
+		t.Fatalf("Plan must still validate: err %v issues %v ops %+v", err, p.Issues, p.Ops)
+	}
+	mustNoVPPWrite(t, v)
 }

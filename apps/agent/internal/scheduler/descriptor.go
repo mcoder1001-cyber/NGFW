@@ -62,22 +62,27 @@
 //   - read only: no side effect outside a private temp dir it removes again — no daemon file
 //     written, no reload or restart, no VPP call, no ownership claim; a plan may run it any
 //     number of times;
+//   - never call back into the Scheduler (Plan holds its read lock, Apply its write lock): what it
+//     needs of other objects is in the view;
 //   - bounded: it honours ctx, which carries a deadline (Scheduler.ValidateTimeout, default
 //     DefaultValidateTimeout = 30 s); the scheduler stops waiting at the deadline and a panic is
 //     recovered — both are findings;
 //   - safe for concurrent use with itself, Retrieve and (once abandoned at its deadline) the next
 //     transaction's operations;
 //   - its error names the offending leaf with InvalidAt(pointer, err) when the value carries a
-//     pointer, and never carries a secret: plaintexts it resolved are masked by the validator
-//     (rfkit.Redactor), and the scheduler masks the secret leaves of the value (RedactLeaves).
+//     pointer, and never carries a secret: every plaintext it resolved is masked by the validator
+//     (rfkit.Redactor); the scheduler masks the value's secret references — D-051 references and
+//     *_ref fields, the only secret leaves D-040 lets cross (RedactLeaves).
 //
 // A finding is an Issue with Rule RuleValidator; DryRun and a FAILED Apply report it as a
 // ValidationIssue (rule "agent.validator") with the key in its message. Create still validates
 // what it writes (defence in depth); it simply no longer finds a configuration the plan rejected.
 //
-// Stages break ties only: among operations no dependency orders, VPP-stage creates and updates run
-// before daemon-stage ones and daemon-stage deletes before VPP-stage ones. A real dependency always
-// wins, and the rollback is the exact reverse of what ran. See docs/agent/scheduler-validators.md.
+// The stage breaks ties in the dependency sort (the first tie-breaker, greedy): of the operations
+// ready at the same time, VPP-stage creates and updates go before daemon-stage ones, and deletes the
+// other way round. A real dependency always wins, and the rollback is the exact reverse of what
+// ran. The periodic drift check plans with PlanOptions.SkipValidators. See
+// docs/agent/scheduler-validators.md.
 //
 // # Meta
 //

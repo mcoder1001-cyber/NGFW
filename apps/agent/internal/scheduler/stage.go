@@ -1,11 +1,14 @@
 package scheduler
 
 // Stages (TD-13, audit ARCH-02, D-125): the risky backends go last (docs/01-architecture.md AD-4).
-// Among operations that no dependency orders, every VPP-stage create and update runs before every
-// daemon-stage one, and the deletes run the other way round (daemon-stage first), because a plan
-// runs its deletes in the reverse of the create order. A real dependency always wins: the stage
-// only breaks ties in the topological sort, before the descriptor registration order and the key.
-// The rollback undoes the journal in the exact reverse of what ran, as before.
+// The stage breaks ties in the dependency sort: it is the first tie-breaker of the topological
+// order, before the descriptor registration order and the key. Whenever a VPP-stage and a
+// daemon-stage operation are both ready, the VPP-stage one goes first; so a daemon object that no
+// VPP object waits for runs after every VPP object that is ready by then. It is a greedy tie-break,
+// not a phase split: a daemon object that a VPP object depends on runs early (the dependency wins),
+// and another ready daemon object may then run before that VPP dependent. Deletes run in the reverse
+// order (daemon-stage first when ready together). The rollback undoes the journal in the exact
+// reverse of what ran, as before.
 
 // Stage is the phase of a transaction a descriptor's operations belong to.
 type Stage int

@@ -43,8 +43,10 @@ import (
 //
 //   - Read only. No side effect outside a private temp dir the validator removes before it returns:
 //     no write to the daemon's files, no reload, no restart, no VPP call, no ownership claim. A
-//     plan must be free to run a validator any number of times (DryRun, the drift check, a retry
-//     without the dynamic sources).
+//     plan must be free to run a validator any number of times (DryRun, Apply, a retry without the
+//     dynamic sources). Never call back into the Scheduler (Plan, Retrieve, Apply): Plan holds the
+//     read lock and Apply the write lock, so the call deadlocks or stalls until the deadline. What
+//     the validator needs of the other objects is in the view.
 //   - Bounded by ctx. The scheduler gives every call a deadline (Scheduler.ValidateTimeout,
 //     DefaultValidateTimeout) and stops waiting when it passes; a checker is started with
 //     exec.CommandContext (or renderers.Command's Timeout) so it dies with ctx. A call that did not
@@ -55,8 +57,9 @@ import (
 //   - A non-nil error rejects the object. Wrap it with InvalidAt to name the offending leaf by its
 //     RFC 6901 pointer into the configuration document, when the value carries one.
 //   - No secrets in the error. A validator that resolves secret references (rfkit.Secrets) masks
-//     what it resolved (rfkit.Redactor.Error) before it returns. The scheduler additionally masks
-//     the secret leaves of value (secret-named fields and D-051 references) and bounds the text.
+//     every plaintext it resolved (rfkit.Redactor.Error) before it returns: the scheduler cannot
+//     know them. The scheduler additionally masks the secret references of value (RedactLeaves)
+//     and bounds the text.
 type Validator interface {
 	Validate(ctx context.Context, key Key, value proto.Message, view ReadOnlyView) error
 }
@@ -74,9 +77,9 @@ type ReadOnlyView interface {
 	List(descriptor string) []KV
 }
 
-// DefaultValidateTimeout bounds one Validate call when Scheduler.ValidateTimeout is 0. It is the
-// 30 s bound of one VPP reply (TD-9: vpp.DefaultReplyTimeout, not merged on this base — the rebase
-// may reuse that constant).
+// DefaultValidateTimeout bounds one Validate call when Scheduler.ValidateTimeout is 0. It is a
+// scheduler-local constant on purpose: the scheduler imports no ngfw package, and the bound is about
+// daemon checkers, not VPP replies (the same 30 s as TD-9's VPP reply bound, but independent of it).
 const DefaultValidateTimeout = 30 * time.Second
 
 // RuleValidator is the Issue.Rule of a Validator's finding: the ValidationIssue rule that DryRun
@@ -107,11 +110,30 @@ func InvalidAt(pointer string, err error) error {
 	return &ValidationError{Pointer: pointer, Err: err}
 }
 
+// PlanOptions tune a Plan (PlanWith).
+type PlanOptions struct {
+	// SkipValidators plans without running the Validators (TD-13 review M2). For the periodic drift
+	// check (TD-9 CheckDrift): it asks whether the running state matches the stored desired state,
+	// not whether a daemon would accept it, and a rejection would hide the drifted operations behind
+	// one issue (a plan with issues keeps no operation). DryRun and Apply never skip them.
+	SkipValidators bool
+}
+
+// PlanWith is Plan with options. It never mutates anything.
+func (s *Scheduler) PlanWith(ctx context.Context, desired []KV, scope Scope, opts PlanOptions) (*TxnPlan, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.plan(ctx, desired, scope, ApplyOptions{skipValidators: opts.SkipValidators})
+}
+
 // validate runs the Validators of p's Create and Update operations (plan order) against the state
 // after the transaction (after) and records every rejection as an Issue; a plan with issues keeps
 // no operation. It returns an error only when ctx ended: the transaction was cancelled, not the
 // configuration found invalid.
-func (s *Scheduler) validate(ctx context.Context, p *TxnPlan, after map[Key]KV) error {
+func (s *Scheduler) validate(ctx context.Context, p *TxnPlan, after map[Key]KV, opts ApplyOptions) error {
+	if opts.skipValidators {
+		return nil
+	}
 	var view *afterView
 	for _, op := range p.Ops {
 		if op.Op != OpCreate && op.Op != OpUpdate {
@@ -175,7 +197,8 @@ func (s *Scheduler) runValidator(ctx context.Context, v Validator, k Key, value 
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				s.log.Error("validator panicked", "key", k, "panic", fmt.Sprint(r), "stack", string(debug.Stack()))
+				// masked like a finding (review L2): a panic message may quote a configuration line
+				s.log.Error("validator panicked", "key", k, "panic", boundText(RedactLeaves(fmt.Sprint(r), value), maxValidatorMessage), "stack", string(debug.Stack()))
 				done <- errors.New("validator panicked (stack in the agent log)")
 			}
 		}()
@@ -232,34 +255,34 @@ func (v *afterView) List(descriptor string) []KV {
 // Redacted replaces a secret in validator findings (the marker rfkit and the renderers use).
 const Redacted = "<redacted>"
 
-// secretRefRe is a D-051 secret-store reference ("psk/site-a"). The value is not the secret, but a
-// checker that echoes a configuration line prints what stands next to it.
+// secretRefRe is a D-051 secret-store reference ("psk/site-a"; the schema's secretRefOf). The value
+// is not the secret, but a checker that echoes a configuration line prints what stands next to it.
 var secretRefRe = regexp.MustCompile(`^(psk|key|cert|password|token)/[A-Za-z0-9_.-]{1,64}$`)
 
-// secretNameParts mark a field (or a map key, e.g. a structpb field) as a secret leaf: every string
-// under it is masked.
-var secretNameParts = []string{"secret", "password", "passwd", "passphrase", "psk", "preshared", "pre_shared", "privatekey", "private_key", "community"}
+// structFullName is google.protobuf.Struct: its map keys are field names, not object names.
+const structFullName = "google.protobuf.Struct"
 
-func secretName(name string) bool {
-	n := strings.ToLower(name)
-	for _, p := range secretNameParts {
-		if strings.Contains(n, p) {
-			return true
-		}
-	}
-	return false
-}
+// refField reports whether a field name marks a secret reference (the proto side of the schema's
+// secretRefOf: password_ref, secret_ref, private_key_ref, …).
+func refField(name string) bool { return strings.HasSuffix(name, "_ref") }
 
-// RedactLeaves returns text with every secret leaf of value masked as Redacted: the strings held by
-// secret-named fields or map keys (secret, password, psk, private_key, community, …; everything
-// below such a field) and every D-051 secret reference anywhere in value. A leaf is masked only
-// where it stands as a whole token, so a short value never blanks part of an unrelated word.
+// RedactLeaves returns text with the secret references of value masked as Redacted:
+//
+//   - every string anywhere in value that has the D-051 reference form <kind>/<name>;
+//   - the value of every string field whose name ends in "_ref" — a malformed reference too (in a
+//     google.protobuf.Struct the map keys are the field names, so a "_ref" key counts as well).
+//
+// By D-040 nothing else in a value can carry a secret: schema leaves marked secret have no proto
+// field, every other secret crosses only as a *_ref reference. Map keys (user object names) and
+// other text (BGP communities, descriptions) stay readable. The plaintexts a validator resolved from
+// the references are the validator's to mask (rfkit.Redactor). A value is masked only where it
+// stands as a whole token, so a short one never blanks part of an unrelated word.
 func RedactLeaves(text string, value proto.Message) string {
 	if value == nil {
 		return text
 	}
 	set := map[string]bool{}
-	collectSecrets(value.ProtoReflect(), false, set)
+	collectRefs(value.ProtoReflect(), false, set)
 	if len(set) == 0 {
 		return text
 	}
@@ -267,7 +290,7 @@ func RedactLeaves(text string, value proto.Message) string {
 	for v := range set {
 		vals = append(vals, v)
 	}
-	sort.Slice(vals, func(i, j int) bool { // longest first, so a secret containing another stays whole
+	sort.Slice(vals, func(i, j int) bool { // longest first, so a reference containing another stays whole
 		if len(vals[i]) != len(vals[j]) {
 			return len(vals[i]) > len(vals[j])
 		}
@@ -279,30 +302,34 @@ func RedactLeaves(text string, value proto.Message) string {
 	return text
 }
 
-// collectSecrets adds the secret strings of m to set; secret says m sits under a secret-named field.
-func collectSecrets(m protoreflect.Message, secret bool, set map[string]bool) {
+// collectRefs adds the secret references of m to set. ref says m is the google.protobuf.Value (or
+// ListValue) of a Struct field named *_ref: its strings are the reference.
+func collectRefs(m protoreflect.Message, ref bool, set map[string]bool) {
 	if !m.IsValid() {
 		return
 	}
-	add := func(s string, under bool) {
-		if s != "" && (under || secretRefRe.MatchString(s)) {
+	isStruct := m.Descriptor().FullName() == structFullName
+	add := func(s string, isRef bool) {
+		if s != "" && (isRef || secretRefRe.MatchString(s)) {
 			set[s] = true
 		}
 	}
+	// a Value/ListValue below a *_ref key passes the mark on; any other message starts afresh
+	inherit := func(child protoreflect.Message) bool {
+		n := child.Descriptor().FullName()
+		return ref && (n == "google.protobuf.Value" || n == "google.protobuf.ListValue")
+	}
 	m.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
-		under := secret || secretName(string(fd.Name()))
+		isRef := ref || refField(string(fd.Name()))
 		switch {
 		case fd.IsMap():
 			v.Map().Range(func(mk protoreflect.MapKey, mv protoreflect.Value) bool {
-				entry := under
-				if fd.MapKey().Kind() == protoreflect.StringKind && secretName(mk.String()) {
-					entry = true
-				}
+				keyRef := isStruct && fd.MapKey().Kind() == protoreflect.StringKind && refField(mk.String())
 				switch fd.MapValue().Kind() {
 				case protoreflect.MessageKind, protoreflect.GroupKind:
-					collectSecrets(mv.Message(), entry, set)
+					collectRefs(mv.Message(), keyRef, set)
 				case protoreflect.StringKind:
-					add(mv.String(), entry)
+					add(mv.String(), keyRef)
 				}
 				return true
 			})
@@ -311,15 +338,15 @@ func collectSecrets(m protoreflect.Message, secret bool, set map[string]bool) {
 			for i := 0; i < l.Len(); i++ {
 				switch fd.Kind() {
 				case protoreflect.MessageKind, protoreflect.GroupKind:
-					collectSecrets(l.Get(i).Message(), under, set)
+					collectRefs(l.Get(i).Message(), inherit(l.Get(i).Message()), set)
 				case protoreflect.StringKind:
-					add(l.Get(i).String(), under)
+					add(l.Get(i).String(), isRef)
 				}
 			}
 		case fd.Kind() == protoreflect.MessageKind || fd.Kind() == protoreflect.GroupKind:
-			collectSecrets(v.Message(), under, set)
+			collectRefs(v.Message(), inherit(v.Message()), set)
 		case fd.Kind() == protoreflect.StringKind:
-			add(v.String(), under)
+			add(v.String(), isRef)
 		}
 		return true
 	})

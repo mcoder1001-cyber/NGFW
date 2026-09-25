@@ -20,7 +20,7 @@ import (
 	"ngfw/agent/internal/vpp"
 )
 
-var dumpTimeout = fmt.Errorf("ip_table_dump: %w", vpp.ErrTimeout)
+var errDumpTimeout = fmt.Errorf("ip_table_dump: %w", vpp.ErrTimeout)
 
 // M2: an outcome in which a VPP reply timeout took part is never stored under the txn_id — in the plan
 // (FAILED), in verify (ROLLED_BACK), or in verify and the rollback (DEGRADED). A retry with the same
@@ -33,13 +33,13 @@ func TestTimeoutOutcomesAreNeverStored(t *testing.T) {
 		stage func(fv *flakyVPP)
 	}{
 		{"plan", vrxv1.ApplyStatus_APPLY_STATUS_FAILED, func(fv *flakyVPP) {
-			fv.set(func(f *flakyVPP) { f.dumpErr = dumpTimeout })
+			fv.set(func(f *flakyVPP) { f.dumpErr = errDumpTimeout })
 		}},
 		{"verify", vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK, func(fv *flakyVPP) {
 			fv.set(func(f *flakyVPP) { // the dump after blue's last table add (verify) times out, once
 				f.onInvoke = func(m api.Message) {
 					if tableAdd(7002, true)(m) {
-						fv.set(func(f *flakyVPP) { f.dumpErr, f.dumpErrOnce, f.onInvoke = dumpTimeout, true, nil })
+						fv.set(func(f *flakyVPP) { f.dumpErr, f.dumpErrOnce, f.onInvoke = errDumpTimeout, true, nil })
 					}
 				}
 			})
@@ -48,7 +48,7 @@ func TestTimeoutOutcomesAreNeverStored(t *testing.T) {
 			fv.set(func(f *flakyVPP) { // every dump from verify on times out
 				f.onInvoke = func(m api.Message) {
 					if tableAdd(7002, true)(m) {
-						fv.set(func(f *flakyVPP) { f.dumpErr, f.onInvoke = dumpTimeout, nil })
+						fv.set(func(f *flakyVPP) { f.dumpErr, f.onInvoke = errDumpTimeout, nil })
 					}
 				}
 			})

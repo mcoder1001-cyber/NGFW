@@ -158,3 +158,13 @@ RecordsNoOwnership, lcp.itf-pair wrapper CheckPersistent). I do not edit `descri
 local, uncommitted `go test -overlay` that adds the three declarations: every agent package is green except F-vrf's
 pre-existing `TestSvsRangeFromSlot`. **Ask:** F-vrf's fix round adds them (svs records applied-once in the BootStore →
 `CheckPersistent` via `dfkit.CheckBoot`); until then `tools/ci.sh` is red on this branch for that reason only.
+
+## Q16 — gitleaks false positive in history (commit 6dff01fc), fixed forward
+
+`tools/ci.sh --base main` (04:37) failed on one gitleaks finding: rule `generic-api-key` at
+`apps/agent/internal/subsystems/frr_test.go:183` in commit 6dff01fc — the test literal `Key: "ipv4/default/bgp"` (an FRR
+RIB-count key: family/vrf/protocol, not a secret). Fixed forward (the key is now built with `strings.Join`; `gitleaks
+detect --no-git` over every tree P12 touched: no leaks). The old commit stays in the branch history: workers never rewrite
+history. Under D-112 the merge squashes the branch into one commit whose tree no longer contains the literal, so the
+merge gate's gitleaks (D-130) passes; a `--base main` run on this branch keeps reporting it until then. **Ask:** accept
+(as D-067 did for P02c) or tell me to recreate the branch.

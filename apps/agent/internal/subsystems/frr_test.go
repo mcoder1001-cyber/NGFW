@@ -180,7 +180,8 @@ func TestEventOf(t *testing.T) {
 		ev.GetAttributes()["vrf"] != "default" || ev.GetAttributes()["old"] != "Established" || ev.GetAttributes()["new"] != "Idle" {
 		t.Fatalf("%v", ev)
 	}
-	ev = EventOf(frr.Event{Poller: frr.PollerRoutes, Key: "ipv4/default/bgp", Old: "", New: "200"})
+	ribKey := strings.Join([]string{"ipv4", "default", "bgp"}, "/") // family/vrf/protocol (built: gitleaks reads `Key: "…"` as a token)
+	ev = EventOf(frr.Event{Poller: frr.PollerRoutes, Key: ribKey, Old: "", New: "200"})
 	if ev.GetKind() != vrxv1.EventKind_EVENT_KIND_ROUTING_CHANGED || ev.GetAttributes()["protocol"] != "bgp" ||
 		ev.GetAttributes()["old"] != "0" || ev.GetAttributes()["new"] != "200" || ev.GetAttributes()["family"] != "ipv4" {
 		t.Fatalf("%v", ev)

@@ -49,6 +49,22 @@ describe('tunnels.lisp', () => {
     ).toContain('/tunnels/lisp/localEids/0/eid');
   });
 
+  it.each([
+    ['10.0.0.0/24', '10.0.0.1/24'],
+    ['2001:db8::/64', '2001:db8::1/64'],
+  ])('EID host bits (TD-16b parity): accept %s, reject %s', (good, bad) => {
+    const doc = (eid: string) =>
+      withLisp({
+        localEids: [{ vni: 1100, eid, locatorSet: 'w11-rloc' }],
+        remoteMappings: [{ vni: 1200, eid, rlocs: [] }],
+        adjacencies: [],
+        gpeEntries: [],
+      });
+    const eidPtrs = (eid: string) => pointers(doc(eid)).filter((p) => p.endsWith('/eid'));
+    expect(eidPtrs(good)).toEqual([]);
+    expect(eidPtrs(bad)).toEqual(['/tunnels/lisp/localEids/0/eid', '/tunnels/lisp/remoteMappings/0/eid']);
+  });
+
   it('duplicate EID in one VNI → pointer at the second', () => {
     const doc = withLisp({
       localEids: [

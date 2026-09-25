@@ -5278,6 +5278,124 @@ export interface RemoteAccessProfile_Radius_Server {
   secretRef?: string | undefined;
 }
 
+/** IpfixStateRequest asks for the flow-export state. */
+export interface IpfixStateRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+}
+
+/** IpfixStateResponse is one snapshot of the flow-export state. */
+export interface IpfixStateResponse {
+  /** Exporters, exporter 0 first, then additional exporters by collector. */
+  exporters: IpfixExporterState[];
+  /** flowprobe.params as VPP has it; unset while no record flag is set. */
+  flowprobeParams:
+    | IpfixFlowprobeParamsState
+    | undefined;
+  /** Interfaces of this owner with flowprobe enabled, sorted by interface. */
+  flowprobeInterfaces: IpfixFlowprobeInterfaceState[];
+  /** sFlow global parameters as VPP has them (always reported; VPP defaults when never set). */
+  sflowGlobal:
+    | IpfixSflowGlobalState
+    | undefined;
+  /** Interfaces of this owner with sFlow enabled (learned mapping only, docs/vpp-code-track.md V17). */
+  sflowInterfaces: IpfixSflowInterfaceState[];
+  /** sFlow node counters from the stats segment (/err/sflow/*), summed over workers, sorted by name. */
+  sflowCounters: IpfixCounter[];
+  /**
+   * Whether this agent is the VPP-globals owner (D-071): it sets exporter 0, flowprobe.params and
+   * sflow.global; otherwise it only requires them.
+   */
+  globalsOwner: boolean;
+  /** Human-readable notes (e.g. stats segment unavailable, sFlow export needs hsflowd). */
+  notes: string[];
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the dump was taken (agent clock). */
+  retrievedAt: Date | undefined;
+}
+
+/** IpfixExporterState is one IPFIX exporter as VPP has it. */
+export interface IpfixExporterState {
+  /** Configuration key (services.ipfix.exporters.<name>) when the agent knows it; empty otherwise. */
+  name: string;
+  /** Exporter 0 (the one flowprobe records use). */
+  defaultExporter: boolean;
+  /** Collector address. */
+  collector: string;
+  /** Collector UDP port. */
+  collectorPort: number;
+  /** Source address. */
+  sourceAddress: string;
+  /** VRF name (table name of vrf_id; "default" for table 0). */
+  vrf: string;
+  /** Path MTU. */
+  pathMtu: number;
+  /** Template interval in seconds. */
+  templateIntervalSec: number;
+  /** UDP checksum. */
+  udpChecksum: boolean;
+  /**
+   * Stats index VPP returned when this agent created the exporter (additional exporters only);
+   * unset when not known (e.g. after an agent restart).
+   */
+  statIndex?: number | undefined;
+}
+
+/** IpfixFlowprobeParamsState is flowprobe_get_params. */
+export interface IpfixFlowprobeParamsState {
+  /** Record L2 fields. */
+  recordL2: boolean;
+  /** Record L3 fields. */
+  recordL3: boolean;
+  /** Record L4 fields. */
+  recordL4: boolean;
+  /** Active timer in seconds. */
+  activeTimerSec: number;
+  /** Passive timer in seconds. */
+  passiveTimerSec: number;
+}
+
+/** IpfixFlowprobeInterfaceState is flowprobe on one interface. */
+export interface IpfixFlowprobeInterfaceState {
+  /** Logical interface name (D-069). */
+  interface: string;
+  /** "ip4" | "ip6" | "l2". */
+  which: string;
+  /** "rx" | "tx" | "both". */
+  direction: string;
+}
+
+/** IpfixSflowGlobalState is the sFlow plugin's global parameters. */
+export interface IpfixSflowGlobalState {
+  /** Sampling rate 1 in N (0 = off). */
+  samplingN: number;
+  /** Counter polling interval in seconds. */
+  pollingIntervalSec: number;
+  /** Sampled header bytes. */
+  headerBytes: number;
+  /** "rx" | "tx" | "both". */
+  direction: string;
+  /** Drop monitoring. */
+  dropMonitoring: boolean;
+}
+
+/** IpfixSflowInterfaceState is sFlow sampling on one interface. */
+export interface IpfixSflowInterfaceState {
+  /** Logical interface name (D-069). */
+  interface: string;
+  /** VPP hw_if_index (sflow_interface_details). */
+  hwIfIndex: number;
+}
+
+/** IpfixCounter is one named counter. */
+export interface IpfixCounter {
+  /** Stats segment name, e.g. "/err/sflow/sflow packets processed". */
+  name: string;
+  /** Value, summed over workers. */
+  value: string;
+}
+
 /** LispConfig is `tunnels.lisp` (packages/schema domains/ext/lisp.ts). */
 export interface LispConfig {
   /** Global LISP switch (VPP-global: set by the globals owner only). */
@@ -42818,6 +42936,1163 @@ export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_R
   },
 };
 
+function createBaseIpfixStateRequest(): IpfixStateRequest {
+  return { owner: "" };
+}
+
+export const IpfixStateRequest: MessageFns<IpfixStateRequest> = {
+  encode(message: IpfixStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IpfixStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIpfixStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IpfixStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: IpfixStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IpfixStateRequest>): IpfixStateRequest {
+    return IpfixStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IpfixStateRequest>): IpfixStateRequest {
+    const message = createBaseIpfixStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseIpfixStateResponse(): IpfixStateResponse {
+  return {
+    exporters: [],
+    flowprobeParams: undefined,
+    flowprobeInterfaces: [],
+    sflowGlobal: undefined,
+    sflowInterfaces: [],
+    sflowCounters: [],
+    globalsOwner: false,
+    notes: [],
+    owner: "",
+    retrievedAt: undefined,
+  };
+}
+
+export const IpfixStateResponse: MessageFns<IpfixStateResponse> = {
+  encode(message: IpfixStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.exporters) {
+      IpfixExporterState.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.flowprobeParams !== undefined) {
+      IpfixFlowprobeParamsState.encode(message.flowprobeParams, writer.uint32(18).fork()).join();
+    }
+    for (const v of message.flowprobeInterfaces) {
+      IpfixFlowprobeInterfaceState.encode(v!, writer.uint32(26).fork()).join();
+    }
+    if (message.sflowGlobal !== undefined) {
+      IpfixSflowGlobalState.encode(message.sflowGlobal, writer.uint32(34).fork()).join();
+    }
+    for (const v of message.sflowInterfaces) {
+      IpfixSflowInterfaceState.encode(v!, writer.uint32(42).fork()).join();
+    }
+    for (const v of message.sflowCounters) {
+      IpfixCounter.encode(v!, writer.uint32(50).fork()).join();
+    }
+    if (message.globalsOwner !== false) {
+      writer.uint32(56).bool(message.globalsOwner);
+    }
+    for (const v of message.notes) {
+      writer.uint32(66).string(v!);
+    }
+    if (message.owner !== "") {
+      writer.uint32(74).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(82).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IpfixStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIpfixStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.exporters.push(IpfixExporterState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.flowprobeParams = IpfixFlowprobeParamsState.decode(reader, reader.uint32());
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.flowprobeInterfaces.push(IpfixFlowprobeInterfaceState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.sflowGlobal = IpfixSflowGlobalState.decode(reader, reader.uint32());
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.sflowInterfaces.push(IpfixSflowInterfaceState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.sflowCounters.push(IpfixCounter.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.globalsOwner = reader.bool();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.notes.push(reader.string());
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IpfixStateResponse {
+    return {
+      exporters: globalThis.Array.isArray(object?.exporters)
+        ? object.exporters.map((e: any) => IpfixExporterState.fromJSON(e))
+        : [],
+      flowprobeParams: isSet(object.flowprobeParams)
+        ? IpfixFlowprobeParamsState.fromJSON(object.flowprobeParams)
+        : isSet(object.flowprobe_params)
+        ? IpfixFlowprobeParamsState.fromJSON(object.flowprobe_params)
+        : undefined,
+      flowprobeInterfaces: globalThis.Array.isArray(object?.flowprobeInterfaces)
+        ? object.flowprobeInterfaces.map((e: any) => IpfixFlowprobeInterfaceState.fromJSON(e))
+        : globalThis.Array.isArray(object?.flowprobe_interfaces)
+        ? object.flowprobe_interfaces.map((e: any) => IpfixFlowprobeInterfaceState.fromJSON(e))
+        : [],
+      sflowGlobal: isSet(object.sflowGlobal)
+        ? IpfixSflowGlobalState.fromJSON(object.sflowGlobal)
+        : isSet(object.sflow_global)
+        ? IpfixSflowGlobalState.fromJSON(object.sflow_global)
+        : undefined,
+      sflowInterfaces: globalThis.Array.isArray(object?.sflowInterfaces)
+        ? object.sflowInterfaces.map((e: any) => IpfixSflowInterfaceState.fromJSON(e))
+        : globalThis.Array.isArray(object?.sflow_interfaces)
+        ? object.sflow_interfaces.map((e: any) => IpfixSflowInterfaceState.fromJSON(e))
+        : [],
+      sflowCounters: globalThis.Array.isArray(object?.sflowCounters)
+        ? object.sflowCounters.map((e: any) => IpfixCounter.fromJSON(e))
+        : globalThis.Array.isArray(object?.sflow_counters)
+        ? object.sflow_counters.map((e: any) => IpfixCounter.fromJSON(e))
+        : [],
+      globalsOwner: isSet(object.globalsOwner)
+        ? globalThis.Boolean(object.globalsOwner)
+        : isSet(object.globals_owner)
+        ? globalThis.Boolean(object.globals_owner)
+        : false,
+      notes: globalThis.Array.isArray(object?.notes)
+        ? object.notes.map((e: any) => globalThis.String(e))
+        : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: IpfixStateResponse): unknown {
+    const obj: any = {};
+    if (message.exporters?.length) {
+      obj.exporters = message.exporters.map((e) => IpfixExporterState.toJSON(e));
+    }
+    if (message.flowprobeParams !== undefined) {
+      obj.flowprobeParams = IpfixFlowprobeParamsState.toJSON(message.flowprobeParams);
+    }
+    if (message.flowprobeInterfaces?.length) {
+      obj.flowprobeInterfaces = message.flowprobeInterfaces.map((e) => IpfixFlowprobeInterfaceState.toJSON(e));
+    }
+    if (message.sflowGlobal !== undefined) {
+      obj.sflowGlobal = IpfixSflowGlobalState.toJSON(message.sflowGlobal);
+    }
+    if (message.sflowInterfaces?.length) {
+      obj.sflowInterfaces = message.sflowInterfaces.map((e) => IpfixSflowInterfaceState.toJSON(e));
+    }
+    if (message.sflowCounters?.length) {
+      obj.sflowCounters = message.sflowCounters.map((e) => IpfixCounter.toJSON(e));
+    }
+    if (message.globalsOwner !== false) {
+      obj.globalsOwner = message.globalsOwner;
+    }
+    if (message.notes?.length) {
+      obj.notes = message.notes;
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IpfixStateResponse>): IpfixStateResponse {
+    return IpfixStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IpfixStateResponse>): IpfixStateResponse {
+    const message = createBaseIpfixStateResponse();
+    message.exporters = object.exporters?.map((e) => IpfixExporterState.fromPartial(e)) || [];
+    message.flowprobeParams = (object.flowprobeParams !== undefined && object.flowprobeParams !== null)
+      ? IpfixFlowprobeParamsState.fromPartial(object.flowprobeParams)
+      : undefined;
+    message.flowprobeInterfaces = object.flowprobeInterfaces?.map((e) => IpfixFlowprobeInterfaceState.fromPartial(e)) ||
+      [];
+    message.sflowGlobal = (object.sflowGlobal !== undefined && object.sflowGlobal !== null)
+      ? IpfixSflowGlobalState.fromPartial(object.sflowGlobal)
+      : undefined;
+    message.sflowInterfaces = object.sflowInterfaces?.map((e) => IpfixSflowInterfaceState.fromPartial(e)) || [];
+    message.sflowCounters = object.sflowCounters?.map((e) => IpfixCounter.fromPartial(e)) || [];
+    message.globalsOwner = object.globalsOwner ?? false;
+    message.notes = object.notes?.map((e) => e) || [];
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseIpfixExporterState(): IpfixExporterState {
+  return {
+    name: "",
+    defaultExporter: false,
+    collector: "",
+    collectorPort: 0,
+    sourceAddress: "",
+    vrf: "",
+    pathMtu: 0,
+    templateIntervalSec: 0,
+    udpChecksum: false,
+    statIndex: undefined,
+  };
+}
+
+export const IpfixExporterState: MessageFns<IpfixExporterState> = {
+  encode(message: IpfixExporterState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.defaultExporter !== false) {
+      writer.uint32(16).bool(message.defaultExporter);
+    }
+    if (message.collector !== "") {
+      writer.uint32(26).string(message.collector);
+    }
+    if (message.collectorPort !== 0) {
+      writer.uint32(32).uint32(message.collectorPort);
+    }
+    if (message.sourceAddress !== "") {
+      writer.uint32(42).string(message.sourceAddress);
+    }
+    if (message.vrf !== "") {
+      writer.uint32(50).string(message.vrf);
+    }
+    if (message.pathMtu !== 0) {
+      writer.uint32(56).uint32(message.pathMtu);
+    }
+    if (message.templateIntervalSec !== 0) {
+      writer.uint32(64).uint32(message.templateIntervalSec);
+    }
+    if (message.udpChecksum !== false) {
+      writer.uint32(72).bool(message.udpChecksum);
+    }
+    if (message.statIndex !== undefined) {
+      writer.uint32(80).uint32(message.statIndex);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IpfixExporterState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIpfixExporterState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.defaultExporter = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.collector = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.collectorPort = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.sourceAddress = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.pathMtu = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.templateIntervalSec = reader.uint32();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.udpChecksum = reader.bool();
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.statIndex = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IpfixExporterState {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      defaultExporter: isSet(object.defaultExporter)
+        ? globalThis.Boolean(object.defaultExporter)
+        : isSet(object.default_exporter)
+        ? globalThis.Boolean(object.default_exporter)
+        : false,
+      collector: isSet(object.collector) ? globalThis.String(object.collector) : "",
+      collectorPort: isSet(object.collectorPort)
+        ? globalThis.Number(object.collectorPort)
+        : isSet(object.collector_port)
+        ? globalThis.Number(object.collector_port)
+        : 0,
+      sourceAddress: isSet(object.sourceAddress)
+        ? globalThis.String(object.sourceAddress)
+        : isSet(object.source_address)
+        ? globalThis.String(object.source_address)
+        : "",
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : "",
+      pathMtu: isSet(object.pathMtu)
+        ? globalThis.Number(object.pathMtu)
+        : isSet(object.path_mtu)
+        ? globalThis.Number(object.path_mtu)
+        : 0,
+      templateIntervalSec: isSet(object.templateIntervalSec)
+        ? globalThis.Number(object.templateIntervalSec)
+        : isSet(object.template_interval_sec)
+        ? globalThis.Number(object.template_interval_sec)
+        : 0,
+      udpChecksum: isSet(object.udpChecksum)
+        ? globalThis.Boolean(object.udpChecksum)
+        : isSet(object.udp_checksum)
+        ? globalThis.Boolean(object.udp_checksum)
+        : false,
+      statIndex: isSet(object.statIndex)
+        ? globalThis.Number(object.statIndex)
+        : isSet(object.stat_index)
+        ? globalThis.Number(object.stat_index)
+        : undefined,
+    };
+  },
+
+  toJSON(message: IpfixExporterState): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.defaultExporter !== false) {
+      obj.defaultExporter = message.defaultExporter;
+    }
+    if (message.collector !== "") {
+      obj.collector = message.collector;
+    }
+    if (message.collectorPort !== 0) {
+      obj.collectorPort = Math.round(message.collectorPort);
+    }
+    if (message.sourceAddress !== "") {
+      obj.sourceAddress = message.sourceAddress;
+    }
+    if (message.vrf !== "") {
+      obj.vrf = message.vrf;
+    }
+    if (message.pathMtu !== 0) {
+      obj.pathMtu = Math.round(message.pathMtu);
+    }
+    if (message.templateIntervalSec !== 0) {
+      obj.templateIntervalSec = Math.round(message.templateIntervalSec);
+    }
+    if (message.udpChecksum !== false) {
+      obj.udpChecksum = message.udpChecksum;
+    }
+    if (message.statIndex !== undefined) {
+      obj.statIndex = Math.round(message.statIndex);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IpfixExporterState>): IpfixExporterState {
+    return IpfixExporterState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IpfixExporterState>): IpfixExporterState {
+    const message = createBaseIpfixExporterState();
+    message.name = object.name ?? "";
+    message.defaultExporter = object.defaultExporter ?? false;
+    message.collector = object.collector ?? "";
+    message.collectorPort = object.collectorPort ?? 0;
+    message.sourceAddress = object.sourceAddress ?? "";
+    message.vrf = object.vrf ?? "";
+    message.pathMtu = object.pathMtu ?? 0;
+    message.templateIntervalSec = object.templateIntervalSec ?? 0;
+    message.udpChecksum = object.udpChecksum ?? false;
+    message.statIndex = object.statIndex ?? undefined;
+    return message;
+  },
+};
+
+function createBaseIpfixFlowprobeParamsState(): IpfixFlowprobeParamsState {
+  return { recordL2: false, recordL3: false, recordL4: false, activeTimerSec: 0, passiveTimerSec: 0 };
+}
+
+export const IpfixFlowprobeParamsState: MessageFns<IpfixFlowprobeParamsState> = {
+  encode(message: IpfixFlowprobeParamsState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.recordL2 !== false) {
+      writer.uint32(8).bool(message.recordL2);
+    }
+    if (message.recordL3 !== false) {
+      writer.uint32(16).bool(message.recordL3);
+    }
+    if (message.recordL4 !== false) {
+      writer.uint32(24).bool(message.recordL4);
+    }
+    if (message.activeTimerSec !== 0) {
+      writer.uint32(32).uint32(message.activeTimerSec);
+    }
+    if (message.passiveTimerSec !== 0) {
+      writer.uint32(40).uint32(message.passiveTimerSec);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IpfixFlowprobeParamsState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIpfixFlowprobeParamsState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.recordL2 = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.recordL3 = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.recordL4 = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.activeTimerSec = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.passiveTimerSec = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IpfixFlowprobeParamsState {
+    return {
+      recordL2: isSet(object.recordL2)
+        ? globalThis.Boolean(object.recordL2)
+        : isSet(object.record_l2)
+        ? globalThis.Boolean(object.record_l2)
+        : false,
+      recordL3: isSet(object.recordL3)
+        ? globalThis.Boolean(object.recordL3)
+        : isSet(object.record_l3)
+        ? globalThis.Boolean(object.record_l3)
+        : false,
+      recordL4: isSet(object.recordL4)
+        ? globalThis.Boolean(object.recordL4)
+        : isSet(object.record_l4)
+        ? globalThis.Boolean(object.record_l4)
+        : false,
+      activeTimerSec: isSet(object.activeTimerSec)
+        ? globalThis.Number(object.activeTimerSec)
+        : isSet(object.active_timer_sec)
+        ? globalThis.Number(object.active_timer_sec)
+        : 0,
+      passiveTimerSec: isSet(object.passiveTimerSec)
+        ? globalThis.Number(object.passiveTimerSec)
+        : isSet(object.passive_timer_sec)
+        ? globalThis.Number(object.passive_timer_sec)
+        : 0,
+    };
+  },
+
+  toJSON(message: IpfixFlowprobeParamsState): unknown {
+    const obj: any = {};
+    if (message.recordL2 !== false) {
+      obj.recordL2 = message.recordL2;
+    }
+    if (message.recordL3 !== false) {
+      obj.recordL3 = message.recordL3;
+    }
+    if (message.recordL4 !== false) {
+      obj.recordL4 = message.recordL4;
+    }
+    if (message.activeTimerSec !== 0) {
+      obj.activeTimerSec = Math.round(message.activeTimerSec);
+    }
+    if (message.passiveTimerSec !== 0) {
+      obj.passiveTimerSec = Math.round(message.passiveTimerSec);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IpfixFlowprobeParamsState>): IpfixFlowprobeParamsState {
+    return IpfixFlowprobeParamsState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IpfixFlowprobeParamsState>): IpfixFlowprobeParamsState {
+    const message = createBaseIpfixFlowprobeParamsState();
+    message.recordL2 = object.recordL2 ?? false;
+    message.recordL3 = object.recordL3 ?? false;
+    message.recordL4 = object.recordL4 ?? false;
+    message.activeTimerSec = object.activeTimerSec ?? 0;
+    message.passiveTimerSec = object.passiveTimerSec ?? 0;
+    return message;
+  },
+};
+
+function createBaseIpfixFlowprobeInterfaceState(): IpfixFlowprobeInterfaceState {
+  return { interface: "", which: "", direction: "" };
+}
+
+export const IpfixFlowprobeInterfaceState: MessageFns<IpfixFlowprobeInterfaceState> = {
+  encode(message: IpfixFlowprobeInterfaceState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== "") {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.which !== "") {
+      writer.uint32(18).string(message.which);
+    }
+    if (message.direction !== "") {
+      writer.uint32(26).string(message.direction);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IpfixFlowprobeInterfaceState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIpfixFlowprobeInterfaceState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.which = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.direction = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IpfixFlowprobeInterfaceState {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      which: isSet(object.which) ? globalThis.String(object.which) : "",
+      direction: isSet(object.direction) ? globalThis.String(object.direction) : "",
+    };
+  },
+
+  toJSON(message: IpfixFlowprobeInterfaceState): unknown {
+    const obj: any = {};
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.which !== "") {
+      obj.which = message.which;
+    }
+    if (message.direction !== "") {
+      obj.direction = message.direction;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IpfixFlowprobeInterfaceState>): IpfixFlowprobeInterfaceState {
+    return IpfixFlowprobeInterfaceState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IpfixFlowprobeInterfaceState>): IpfixFlowprobeInterfaceState {
+    const message = createBaseIpfixFlowprobeInterfaceState();
+    message.interface = object.interface ?? "";
+    message.which = object.which ?? "";
+    message.direction = object.direction ?? "";
+    return message;
+  },
+};
+
+function createBaseIpfixSflowGlobalState(): IpfixSflowGlobalState {
+  return { samplingN: 0, pollingIntervalSec: 0, headerBytes: 0, direction: "", dropMonitoring: false };
+}
+
+export const IpfixSflowGlobalState: MessageFns<IpfixSflowGlobalState> = {
+  encode(message: IpfixSflowGlobalState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.samplingN !== 0) {
+      writer.uint32(8).uint32(message.samplingN);
+    }
+    if (message.pollingIntervalSec !== 0) {
+      writer.uint32(16).uint32(message.pollingIntervalSec);
+    }
+    if (message.headerBytes !== 0) {
+      writer.uint32(24).uint32(message.headerBytes);
+    }
+    if (message.direction !== "") {
+      writer.uint32(34).string(message.direction);
+    }
+    if (message.dropMonitoring !== false) {
+      writer.uint32(40).bool(message.dropMonitoring);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IpfixSflowGlobalState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIpfixSflowGlobalState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.samplingN = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.pollingIntervalSec = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.headerBytes = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.direction = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.dropMonitoring = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IpfixSflowGlobalState {
+    return {
+      samplingN: isSet(object.samplingN)
+        ? globalThis.Number(object.samplingN)
+        : isSet(object.sampling_n)
+        ? globalThis.Number(object.sampling_n)
+        : 0,
+      pollingIntervalSec: isSet(object.pollingIntervalSec)
+        ? globalThis.Number(object.pollingIntervalSec)
+        : isSet(object.polling_interval_sec)
+        ? globalThis.Number(object.polling_interval_sec)
+        : 0,
+      headerBytes: isSet(object.headerBytes)
+        ? globalThis.Number(object.headerBytes)
+        : isSet(object.header_bytes)
+        ? globalThis.Number(object.header_bytes)
+        : 0,
+      direction: isSet(object.direction) ? globalThis.String(object.direction) : "",
+      dropMonitoring: isSet(object.dropMonitoring)
+        ? globalThis.Boolean(object.dropMonitoring)
+        : isSet(object.drop_monitoring)
+        ? globalThis.Boolean(object.drop_monitoring)
+        : false,
+    };
+  },
+
+  toJSON(message: IpfixSflowGlobalState): unknown {
+    const obj: any = {};
+    if (message.samplingN !== 0) {
+      obj.samplingN = Math.round(message.samplingN);
+    }
+    if (message.pollingIntervalSec !== 0) {
+      obj.pollingIntervalSec = Math.round(message.pollingIntervalSec);
+    }
+    if (message.headerBytes !== 0) {
+      obj.headerBytes = Math.round(message.headerBytes);
+    }
+    if (message.direction !== "") {
+      obj.direction = message.direction;
+    }
+    if (message.dropMonitoring !== false) {
+      obj.dropMonitoring = message.dropMonitoring;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IpfixSflowGlobalState>): IpfixSflowGlobalState {
+    return IpfixSflowGlobalState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IpfixSflowGlobalState>): IpfixSflowGlobalState {
+    const message = createBaseIpfixSflowGlobalState();
+    message.samplingN = object.samplingN ?? 0;
+    message.pollingIntervalSec = object.pollingIntervalSec ?? 0;
+    message.headerBytes = object.headerBytes ?? 0;
+    message.direction = object.direction ?? "";
+    message.dropMonitoring = object.dropMonitoring ?? false;
+    return message;
+  },
+};
+
+function createBaseIpfixSflowInterfaceState(): IpfixSflowInterfaceState {
+  return { interface: "", hwIfIndex: 0 };
+}
+
+export const IpfixSflowInterfaceState: MessageFns<IpfixSflowInterfaceState> = {
+  encode(message: IpfixSflowInterfaceState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== "") {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.hwIfIndex !== 0) {
+      writer.uint32(16).uint32(message.hwIfIndex);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IpfixSflowInterfaceState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIpfixSflowInterfaceState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.hwIfIndex = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IpfixSflowInterfaceState {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      hwIfIndex: isSet(object.hwIfIndex)
+        ? globalThis.Number(object.hwIfIndex)
+        : isSet(object.hw_if_index)
+        ? globalThis.Number(object.hw_if_index)
+        : 0,
+    };
+  },
+
+  toJSON(message: IpfixSflowInterfaceState): unknown {
+    const obj: any = {};
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.hwIfIndex !== 0) {
+      obj.hwIfIndex = Math.round(message.hwIfIndex);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IpfixSflowInterfaceState>): IpfixSflowInterfaceState {
+    return IpfixSflowInterfaceState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IpfixSflowInterfaceState>): IpfixSflowInterfaceState {
+    const message = createBaseIpfixSflowInterfaceState();
+    message.interface = object.interface ?? "";
+    message.hwIfIndex = object.hwIfIndex ?? 0;
+    return message;
+  },
+};
+
+function createBaseIpfixCounter(): IpfixCounter {
+  return { name: "", value: "0" };
+}
+
+export const IpfixCounter: MessageFns<IpfixCounter> = {
+  encode(message: IpfixCounter, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.value !== "0") {
+      writer.uint32(16).uint64(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IpfixCounter {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIpfixCounter();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.value = reader.uint64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IpfixCounter {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "0",
+    };
+  },
+
+  toJSON(message: IpfixCounter): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.value !== "0") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IpfixCounter>): IpfixCounter {
+    return IpfixCounter.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IpfixCounter>): IpfixCounter {
+    const message = createBaseIpfixCounter();
+    message.name = object.name ?? "";
+    message.value = object.value ?? "0";
+    return message;
+  },
+};
+
 function createBaseLispConfig(): LispConfig {
   return {
     enabled: undefined,
@@ -45364,6 +46639,21 @@ export const DataplaneService = {
     responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
   },
   /**
+   * IpfixState reports the live flow-export state (F-ipfix-sflow): IPFIX exporters from Retrieve
+   * (exporter 0 read-only when this agent is not the globals owner), flowprobe and sFlow interfaces
+   * of this owner, the VPP-global flowprobe/sFlow parameters and the sFlow node counters from the
+   * stats segment. Dumps only; never mutates. UNAVAILABLE without VPP.
+   */
+  ipfixState: {
+    path: "/vrx.v1.Dataplane/IpfixState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: IpfixStateRequest): Buffer => Buffer.from(IpfixStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): IpfixStateRequest => IpfixStateRequest.decode(value),
+    responseSerialize: (value: IpfixStateResponse): Buffer => Buffer.from(IpfixStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): IpfixStateResponse => IpfixStateResponse.decode(value),
+  },
+  /**
    * LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
    * adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
    */
@@ -45421,6 +46711,13 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
    */
   interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
+  /**
+   * IpfixState reports the live flow-export state (F-ipfix-sflow): IPFIX exporters from Retrieve
+   * (exporter 0 read-only when this agent is not the globals owner), flowprobe and sFlow interfaces
+   * of this owner, the VPP-global flowprobe/sFlow parameters and the sFlow node counters from the
+   * stats segment. Dumps only; never mutates. UNAVAILABLE without VPP.
+   */
+  ipfixState: handleUnaryCall<IpfixStateRequest, IpfixStateResponse>;
   /**
    * LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
    * adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
@@ -45555,6 +46852,27 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * IpfixState reports the live flow-export state (F-ipfix-sflow): IPFIX exporters from Retrieve
+   * (exporter 0 read-only when this agent is not the globals owner), flowprobe and sFlow interfaces
+   * of this owner, the VPP-global flowprobe/sFlow parameters and the sFlow node counters from the
+   * stats segment. Dumps only; never mutates. UNAVAILABLE without VPP.
+   */
+  ipfixState(
+    request: IpfixStateRequest,
+    callback: (error: ServiceError | null, response: IpfixStateResponse) => void,
+  ): ClientUnaryCall;
+  ipfixState(
+    request: IpfixStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: IpfixStateResponse) => void,
+  ): ClientUnaryCall;
+  ipfixState(
+    request: IpfixStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: IpfixStateResponse) => void,
   ): ClientUnaryCall;
   /**
    * LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,

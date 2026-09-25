@@ -82,6 +82,13 @@ service Dataplane {
   // wave-BC: F-host-stack
   // wave-BC: F-snmp
   // wave-BC: F-ipfix-sflow
+
+  // IpfixState reports the live flow-export state (F-ipfix-sflow): IPFIX exporters from Retrieve
+  // (exporter 0 read-only when this agent is not the globals owner), flowprobe and sFlow interfaces
+  // of this owner, the VPP-global flowprobe/sFlow parameters and the sFlow node counters from the
+  // stats segment. Dumps only; never mutates. UNAVAILABLE without VPP.
+  rpc IpfixState(IpfixStateRequest) returns (IpfixStateResponse);
+
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
   // wave-BC: F-lisp
@@ -3624,6 +3631,116 @@ message RemoteAccessProfile {
 // ----- F-snmp -----
 
 // ----- F-ipfix-sflow -----
+
+// IpfixStateRequest asks for the flow-export state.
+message IpfixStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+}
+
+// IpfixStateResponse is one snapshot of the flow-export state.
+message IpfixStateResponse {
+  // Exporters, exporter 0 first, then additional exporters by collector.
+  repeated IpfixExporterState exporters = 1;
+  // flowprobe.params as VPP has it; unset while no record flag is set.
+  IpfixFlowprobeParamsState flowprobe_params = 2;
+  // Interfaces of this owner with flowprobe enabled, sorted by interface.
+  repeated IpfixFlowprobeInterfaceState flowprobe_interfaces = 3;
+  // sFlow global parameters as VPP has them (always reported; VPP defaults when never set).
+  IpfixSflowGlobalState sflow_global = 4;
+  // Interfaces of this owner with sFlow enabled (learned mapping only, docs/vpp-code-track.md V17).
+  repeated IpfixSflowInterfaceState sflow_interfaces = 5;
+  // sFlow node counters from the stats segment (/err/sflow/*), summed over workers, sorted by name.
+  repeated IpfixCounter sflow_counters = 6;
+  // Whether this agent is the VPP-globals owner (D-071): it sets exporter 0, flowprobe.params and
+  // sflow.global; otherwise it only requires them.
+  bool globals_owner = 7;
+  // Human-readable notes (e.g. stats segment unavailable, sFlow export needs hsflowd).
+  repeated string notes = 8;
+  // The owner whose view was returned.
+  string owner = 9;
+  // When the dump was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 10;
+}
+
+// IpfixExporterState is one IPFIX exporter as VPP has it.
+message IpfixExporterState {
+  // Configuration key (services.ipfix.exporters.<name>) when the agent knows it; empty otherwise.
+  string name = 1;
+  // Exporter 0 (the one flowprobe records use).
+  bool default_exporter = 2;
+  // Collector address.
+  string collector = 3;
+  // Collector UDP port.
+  uint32 collector_port = 4;
+  // Source address.
+  string source_address = 5;
+  // VRF name (table name of vrf_id; "default" for table 0).
+  string vrf = 6;
+  // Path MTU.
+  uint32 path_mtu = 7;
+  // Template interval in seconds.
+  uint32 template_interval_sec = 8;
+  // UDP checksum.
+  bool udp_checksum = 9;
+  // Stats index VPP returned when this agent created the exporter (additional exporters only);
+  // unset when not known (e.g. after an agent restart).
+  optional uint32 stat_index = 10;
+}
+
+// IpfixFlowprobeParamsState is flowprobe_get_params.
+message IpfixFlowprobeParamsState {
+  // Record L2 fields.
+  bool record_l2 = 1;
+  // Record L3 fields.
+  bool record_l3 = 2;
+  // Record L4 fields.
+  bool record_l4 = 3;
+  // Active timer in seconds.
+  uint32 active_timer_sec = 4;
+  // Passive timer in seconds.
+  uint32 passive_timer_sec = 5;
+}
+
+// IpfixFlowprobeInterfaceState is flowprobe on one interface.
+message IpfixFlowprobeInterfaceState {
+  // Logical interface name (D-069).
+  string interface = 1;
+  // "ip4" | "ip6" | "l2".
+  string which = 2;
+  // "rx" | "tx" | "both".
+  string direction = 3;
+}
+
+// IpfixSflowGlobalState is the sFlow plugin's global parameters.
+message IpfixSflowGlobalState {
+  // Sampling rate 1 in N (0 = off).
+  uint32 sampling_n = 1;
+  // Counter polling interval in seconds.
+  uint32 polling_interval_sec = 2;
+  // Sampled header bytes.
+  uint32 header_bytes = 3;
+  // "rx" | "tx" | "both".
+  string direction = 4;
+  // Drop monitoring.
+  bool drop_monitoring = 5;
+}
+
+// IpfixSflowInterfaceState is sFlow sampling on one interface.
+message IpfixSflowInterfaceState {
+  // Logical interface name (D-069).
+  string interface = 1;
+  // VPP hw_if_index (sflow_interface_details).
+  uint32 hw_if_index = 2;
+}
+
+// IpfixCounter is one named counter.
+message IpfixCounter {
+  // Stats segment name, e.g. "/err/sflow/sflow packets processed".
+  string name = 1;
+  // Value, summed over workers.
+  uint64 value = 2;
+}
 
 // ----- F-capture-trace -----
 

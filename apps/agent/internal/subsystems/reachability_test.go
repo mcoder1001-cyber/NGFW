@@ -44,7 +44,7 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 56
+const maxPending = 53
 
 var descriptorReach = map[string]reachEntry{
 	"abf":                 {pending, "F-rpf-adl-pbr"},
@@ -65,7 +65,7 @@ var descriptorReach = map[string]reachEntry{
 	"kit":                 {library, "TD-16 shared helpers (atomic write, ParsePrefix, Register) — no descriptors"},
 	"dhcp":                {wired, "P08"},
 	"dns":                 {pending, "F-unbound-chrony-syslog"},
-	"flowprobe":           {pending, "F-ipfix-sflow"},
+	"flowprobe":           {wired, "F-ipfix-sflow"},
 	"gre":                 {pending, "F-tunnels"},
 	"gtpu":                {pending, "F-tunnels"},
 	"igmp":                {pending, "F-igmp-mfib"},
@@ -74,7 +74,7 @@ var descriptorReach = map[string]reachEntry{
 	"ip6_nd":              {pending, "F-neighbors-ra"},
 	"ip_neighbor":         {pending, "F-neighbors-ra"},
 	"ip_session_redirect": {pending, "F-rpf-adl-pbr"},
-	"ipfix":               {pending, "F-ipfix-sflow"},
+	"ipfix":               {wired, "F-ipfix-sflow"},
 	"ipip":                {pending, "F-tunnels"},
 	"ipsec":               {pending, "P11"},
 	"l2":                  {pending, "F-bridge-l2"},
@@ -97,7 +97,7 @@ var descriptorReach = map[string]reachEntry{
 	"policer":             {pending, "F-qos-flat"},
 	"pppoe":               {pending, "F-tunnels"},
 	"qos":                 {pending, "F-qos-flat"},
-	"sflow":               {pending, "F-ipfix-sflow"},
+	"sflow":               {wired, "F-ipfix-sflow"},
 	"span":                {pending, "F-loopback-bvi-gso-lldp-span"},
 	"sr":                  {pending, "F-srv6"},
 	"sr_mpls":             {pending, "F-mpls-srmpls"},

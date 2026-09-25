@@ -640,6 +640,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/ipfix': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** IPFIX exporters, flowprobe and sFlow interfaces and sampling counters as the data plane has them (agent IpfixState) */
+    get: operations['IpfixSflow_ipfix'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/lisp': {
     parameters: {
       query?: never;
@@ -8492,6 +8509,131 @@ export interface operations {
       };
       /** @description Rate limited */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  IpfixSflow_ipfix: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            exporters: {
+              /** @description services.ipfix.exporters key when the agent knows it, else "" */
+              name: string;
+              /** @description exporter 0 — the one flowprobe records use */
+              defaultExporter: boolean;
+              collector: string;
+              collectorPort: number;
+              sourceAddress: string;
+              vrf: string;
+              pathMtu: number;
+              templateIntervalSec: number;
+              udpChecksum: boolean;
+              /** @description stats index; null when not known (agent restart) */
+              statIndex: number | null;
+            }[];
+            flowprobe: {
+              /** @description null while VPP has no record flag set */
+              params: {
+                recordL2: boolean;
+                recordL3: boolean;
+                recordL4: boolean;
+                activeTimerSec: number;
+                passiveTimerSec: number;
+              } | null;
+              interfaces: {
+                interface: string;
+                /** @enum {string} */
+                which: 'ip4' | 'ip6' | 'l2';
+                /** @enum {string} */
+                direction: 'rx' | 'tx' | 'both';
+              }[];
+            };
+            sflow: {
+              global: {
+                samplingN: number;
+                pollingIntervalSec: number;
+                headerBytes: number;
+                direction: string;
+                dropMonitoring: boolean;
+              } | null;
+              interfaces: {
+                interface: string;
+                hwIfIndex: number;
+              }[];
+              /** @description sFlow node counters (/err/sflow/*) from the stats segment, summed over workers */
+              counters: {
+                name: string;
+                /** @description uint64 as a decimal string */
+                value: string;
+              }[];
+              /**
+               * @description VPP samples; export to collectors needs hsflowd, not shipped in this build
+               * @constant
+               */
+              exportsToCollectors: false;
+            };
+            /** @description the agent sets exporter 0 / flowprobe / sFlow globals (D-071) */
+            globalsOwner: boolean;
+            notes: string[];
+            retrievedAt: string | null;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

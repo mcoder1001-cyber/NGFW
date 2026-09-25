@@ -202,6 +202,7 @@ func (s *Service) refreshSnapshotLocked() {
 	s.lastTxn = s.st.meta.LastTxnID
 	s.mu.Unlock()
 	s.metrics.setPending(s.st.meta.PendingTxnID != "")
+	desired.SetIpfixExporterNames(s.st.desired.GetServices()) // F-ipfix-sflow: names from the stored state only
 	if len(s.sources) > 0 {
 		doc := proto.Clone(s.st.desired).(*vrxv1.DesiredState)
 		s.mu.Lock()

@@ -43,6 +43,7 @@ import { UsersService } from './users/users.service.js';
 // wave-BC: F-host-stack
 // wave-BC: F-snmp
 // wave-BC: F-ipfix-sflow
+import { ipfixSflowFeature } from './features/ipfix-sflow/index.js';
 // wave-BC: F-capture-trace
 // wave-BC: F-srv6
 // wave-BC: F-lisp
@@ -128,6 +129,7 @@ export class AppModule {
         // wave-BC: F-host-stack
         // wave-BC: F-snmp
         // wave-BC: F-ipfix-sflow
+        ...ipfixSflowFeature.controllers,
         // wave-BC: F-capture-trace
         // wave-BC: F-srv6
         // wave-BC: F-lisp
@@ -198,6 +200,7 @@ export class AppModule {
         // wave-BC: F-host-stack
         // wave-BC: F-snmp
         // wave-BC: F-ipfix-sflow
+        ...ipfixSflowFeature.providers,
         // wave-BC: F-capture-trace
         // wave-BC: F-srv6
         // wave-BC: F-lisp

@@ -379,3 +379,15 @@ that carry LISP-GPE forwarding entries (`gpe_fwd_entry_vnis_get`; the entries' l
 objects carry no owner tag, so the snapshot is VPP-wide, like `show lisp …`; `owner` echoes the request. Owner mismatch →
 `INVALID_ARGUMENT` (as every RPC), VPP not connected → `UNAVAILABLE`, LISP plugin missing → the response has `enabled: false` and empty
 lists. Config: `DesiredState.tunnels.lisp` (`TunnelsConfig` field **10**, `LispConfig`; docs/status/wave-BC-numbers.md).
+
+### F-ipfix-sflow: IpfixState
+
+`IpfixState(IpfixStateRequest{owner}) → IpfixStateResponse` (unanchored: no `wave-BC: F-ipfix-sflow` anchor in this
+file) is the state RPC of `services.ipfix`, behind `GET /api/v1/state/ipfix`. Dumps only, never mutates, `UNAVAILABLE`
+without VPP. `exporters[]`: exporter 0 first (`default_exporter`, read with `ipfix_exporter_dump` also when this agent
+is not the globals owner), then the additional exporters this agent owns (Retrieve of `ipfix.exporter`), with the
+configuration `name` when the agent knows it and `stat_index` only when this agent process created the exporter.
+`flowprobe_params` (unset while no record flag is set), `flowprobe_interfaces[]` and `sflow_interfaces[]` (Retrieve of
+this owner's objects; sFlow reports learned interfaces only, V17), `sflow_global` (always, VPP defaults included),
+`sflow_counters[]` (`/err/sflow/*` from the stats segment, summed over workers; empty with a note when the segment is
+unavailable), `globals_owner` (D-071), `notes[]`, `owner`, `retrieved_at`. Messages: `// ----- F-ipfix-sflow -----`.

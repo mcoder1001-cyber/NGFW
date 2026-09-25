@@ -639,6 +639,7 @@ export class FakeAgent {
       // wave-BC: F-capture-trace
       // wave-BC: F-srv6
       // wave-BC: F-lisp
+      lispState: (_call, cb) => cb(Object.assign(new Error('LispState is not implemented'), { code: status.UNIMPLEMENTED }), null),
       // wave-BC: F-bfd-redistribution
       // wave-BC: F-ra-vpn
       // wave-BC: F-mpls-ldp

@@ -1964,6 +1964,8 @@ export interface TunnelsConfig {
   vxlan: { [key: string]: VxlanTunnel };
   /** IPIP tunnels (ipip_add_tunnel), also the VTI of route-based IPsec. */
   ipip: { [key: string]: IpipTunnel };
+  /** LISP / LISP-GPE (F-lisp); unset = no LISP managed by this document. */
+  lisp: LispConfig | undefined;
 }
 
 export interface TunnelsConfig_GreEntry {
@@ -5274,6 +5276,187 @@ export interface RemoteAccessProfile_Radius_Server {
     | undefined;
   /** Reference to the shared secret. */
   secretRef?: string | undefined;
+}
+
+/** LispConfig is `tunnels.lisp` (packages/schema domains/ext/lisp.ts). */
+export interface LispConfig {
+  /** Global LISP switch (VPP-global: set by the globals owner only). */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Global LISP-GPE switch (requires enabled). */
+  gpe?:
+    | boolean
+    | undefined;
+  /** Local locator sets keyed by name. */
+  locatorSets: { [key: string]: LispLocatorSet };
+  /** Local EIDs. */
+  localEids: LispLocalEid[];
+  /** VNI (decimal string) → VRF (L3) or bridge domain (L2). */
+  eidTables: { [key: string]: LispEidTable };
+  /** Static remote mappings. */
+  remoteMappings: LispRemoteMapping[];
+  /** Adjacencies (remote EID ↔ local EID). */
+  adjacencies: LispAdjacency[];
+  /** Static LISP-GPE forwarding entries (write-only in VPP 26.06, V13). */
+  gpeEntries: LispGpeEntry[];
+  /** Map-resolver addresses. */
+  mapResolvers: string[];
+  /** Map-server addresses (authentication not modelled). */
+  mapServers: string[];
+  /** Proxy-ITR locator set (VPP-global). */
+  pitr?: string | undefined;
+}
+
+export interface LispConfig_LocatorSetsEntry {
+  key: string;
+  value: LispLocatorSet | undefined;
+}
+
+export interface LispConfig_EidTablesEntry {
+  key: string;
+  value: LispEidTable | undefined;
+}
+
+/** LispLocatorSet is `tunnels.lisp.locatorSets.<name>`. */
+export interface LispLocatorSet {
+  locators: LispLocator[];
+}
+
+/** LispLocator is one interface of a local locator set. */
+export interface LispLocator {
+  interface?: string | undefined;
+  priority?: number | undefined;
+  weight?: number | undefined;
+}
+
+/** LispLocalEid is one local EID. */
+export interface LispLocalEid {
+  vni?: number | undefined;
+  eid?: string | undefined;
+  locatorSet?: string | undefined;
+}
+
+/** LispEidTable maps one VNI to a VRF (L3) or a bridge domain (L2); exactly one is set. */
+export interface LispEidTable {
+  vrf?: string | undefined;
+  bridgeDomain?: number | undefined;
+}
+
+/** LispRloc is one remote locator of a mapping. */
+export interface LispRloc {
+  address?: string | undefined;
+  priority?: number | undefined;
+  weight?: number | undefined;
+}
+
+/**
+ * LispRemoteMapping is one static remote mapping; action (no-action, natively-forward,
+ * send-map-request, drop) applies when rlocs is empty.
+ */
+export interface LispRemoteMapping {
+  vni?: number | undefined;
+  eid?: string | undefined;
+  rlocs: LispRloc[];
+  action?: string | undefined;
+}
+
+/** LispAdjacency binds a remote and a local EID. */
+export interface LispAdjacency {
+  vni?: number | undefined;
+  reid?: string | undefined;
+  leid?: string | undefined;
+}
+
+/** LispLocatorPair is one (local, remote) RLOC pair of a GPE forwarding entry. */
+export interface LispLocatorPair {
+  local?: string | undefined;
+  remote?: string | undefined;
+  weight?: number | undefined;
+}
+
+/** LispGpeEntry is one static LISP-GPE forwarding entry. */
+export interface LispGpeEntry {
+  vni?: number | undefined;
+  vrf?: string | undefined;
+  reid?: string | undefined;
+  leid?: string | undefined;
+  pairs: LispLocatorPair[];
+  action?: string | undefined;
+}
+
+/** LispStateRequest asks for the live LISP state. */
+export interface LispStateRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+}
+
+/** LispStateLocator is one locator of a local locator set as VPP reports it. */
+export interface LispStateLocator {
+  /** Logical interface name ("" when the interface is not nameable by this agent). */
+  interface: string;
+  swIfIndex: number;
+  priority: number;
+  weight: number;
+}
+
+/** LispStateLocatorSet is one local locator set. */
+export interface LispStateLocatorSet {
+  name: string;
+  locators: LispStateLocator[];
+}
+
+/** LispStateMapping is one EID-table entry (local EID or map-cache entry). */
+export interface LispStateMapping {
+  vni: number;
+  eid: string;
+  /** true: a local EID; false: a remote mapping (static or learned, the map-cache). */
+  local: boolean;
+  /** Locator set of a local EID. */
+  locatorSet: string;
+  /** Remote locators of a remote mapping. */
+  rlocs: string[];
+  /** Negative-mapping action (no-action, natively-forward, send-map-request, drop). */
+  action: string;
+  /** Configured statically (true) or learned from a map-reply (false). */
+  isStatic: boolean;
+  /** TTL in minutes (learned mappings). */
+  ttl: number;
+}
+
+/** LispStateAdjacency is one adjacency. */
+export interface LispStateAdjacency {
+  vni: number;
+  reid: string;
+  leid: string;
+}
+
+/** LispStateEidTable is one VNI → table / bridge-domain map. */
+export interface LispStateEidTable {
+  vni: number;
+  dpTable: number;
+  isL2: boolean;
+}
+
+/**
+ * LispStateResponse is one snapshot of the LISP state. LISP objects carry no owner tag; the
+ * snapshot is VPP-wide (every owner's objects), like `show lisp …`.
+ */
+export interface LispStateResponse {
+  owner: string;
+  enabled: boolean;
+  gpeEnabled: boolean;
+  /** Proxy-ITR locator set ("" when unset). */
+  pitr: string;
+  locatorSets: LispStateLocatorSet[];
+  mappings: LispStateMapping[];
+  adjacencies: LispStateAdjacency[];
+  eidTables: LispStateEidTable[];
+  mapResolvers: string[];
+  mapServers: string[];
+  /** VNIs that have LISP-GPE forwarding entries. */
+  gpeVnis: number[];
+  retrievedAt: Date | undefined;
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -16861,7 +17044,7 @@ export const BfdConfig: MessageFns<BfdConfig> = {
 };
 
 function createBaseTunnelsConfig(): TunnelsConfig {
-  return { gre: {}, vxlan: {}, ipip: {} };
+  return { gre: {}, vxlan: {}, ipip: {}, lisp: undefined };
 }
 
 export const TunnelsConfig: MessageFns<TunnelsConfig> = {
@@ -16875,6 +17058,9 @@ export const TunnelsConfig: MessageFns<TunnelsConfig> = {
     globalThis.Object.entries(message.ipip).forEach(([key, value]: [string, IpipTunnel]) => {
       TunnelsConfig_IpipEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
     });
+    if (message.lisp !== undefined) {
+      LispConfig.encode(message.lisp, writer.uint32(82).fork()).join();
+    }
     return writer;
   },
 
@@ -16922,6 +17108,14 @@ export const TunnelsConfig: MessageFns<TunnelsConfig> = {
             if (entry3.value !== undefined) {
               message.ipip[entry3.key] = entry3.value;
             }
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.lisp = LispConfig.decode(reader, reader.uint32());
             continue;
           }
         }
@@ -16980,6 +17174,7 @@ export const TunnelsConfig: MessageFns<TunnelsConfig> = {
           {},
         )
         : {},
+      lisp: isSet(object.lisp) ? LispConfig.fromJSON(object.lisp) : undefined,
     };
   },
 
@@ -17011,6 +17206,9 @@ export const TunnelsConfig: MessageFns<TunnelsConfig> = {
           obj.ipip[k] = IpipTunnel.toJSON(v);
         });
       }
+    }
+    if (message.lisp !== undefined) {
+      obj.lisp = LispConfig.toJSON(message.lisp);
     }
     return obj;
   },
@@ -17047,6 +17245,9 @@ export const TunnelsConfig: MessageFns<TunnelsConfig> = {
       },
       {},
     );
+    message.lisp = (object.lisp !== undefined && object.lisp !== null)
+      ? LispConfig.fromPartial(object.lisp)
+      : undefined;
     return message;
   },
 };
@@ -42617,6 +42818,2440 @@ export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_R
   },
 };
 
+function createBaseLispConfig(): LispConfig {
+  return {
+    enabled: undefined,
+    gpe: undefined,
+    locatorSets: {},
+    localEids: [],
+    eidTables: {},
+    remoteMappings: [],
+    adjacencies: [],
+    gpeEntries: [],
+    mapResolvers: [],
+    mapServers: [],
+    pitr: undefined,
+  };
+}
+
+export const LispConfig: MessageFns<LispConfig> = {
+  encode(message: LispConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    if (message.gpe !== undefined) {
+      writer.uint32(16).bool(message.gpe);
+    }
+    globalThis.Object.entries(message.locatorSets).forEach(([key, value]: [string, LispLocatorSet]) => {
+      LispConfig_LocatorSetsEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
+    });
+    for (const v of message.localEids) {
+      LispLocalEid.encode(v!, writer.uint32(34).fork()).join();
+    }
+    globalThis.Object.entries(message.eidTables).forEach(([key, value]: [string, LispEidTable]) => {
+      LispConfig_EidTablesEntry.encode({ key: key as any, value }, writer.uint32(42).fork()).join();
+    });
+    for (const v of message.remoteMappings) {
+      LispRemoteMapping.encode(v!, writer.uint32(50).fork()).join();
+    }
+    for (const v of message.adjacencies) {
+      LispAdjacency.encode(v!, writer.uint32(58).fork()).join();
+    }
+    for (const v of message.gpeEntries) {
+      LispGpeEntry.encode(v!, writer.uint32(66).fork()).join();
+    }
+    for (const v of message.mapResolvers) {
+      writer.uint32(74).string(v!);
+    }
+    for (const v of message.mapServers) {
+      writer.uint32(82).string(v!);
+    }
+    if (message.pitr !== undefined) {
+      writer.uint32(90).string(message.pitr);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispConfig {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispConfig();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.gpe = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            const entry3 = LispConfig_LocatorSetsEntry.decode(reader, reader.uint32());
+            if (entry3.value !== undefined) {
+              message.locatorSets[entry3.key] = entry3.value;
+            }
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.localEids.push(LispLocalEid.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            const entry5 = LispConfig_EidTablesEntry.decode(reader, reader.uint32());
+            if (entry5.value !== undefined) {
+              message.eidTables[entry5.key] = entry5.value;
+            }
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.remoteMappings.push(LispRemoteMapping.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.adjacencies.push(LispAdjacency.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.gpeEntries.push(LispGpeEntry.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.mapResolvers.push(reader.string());
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.mapServers.push(reader.string());
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.pitr = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispConfig {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      gpe: isSet(object.gpe) ? globalThis.Boolean(object.gpe) : undefined,
+      locatorSets: isObject(object.locatorSets)
+        ? (globalThis.Object.entries(object.locatorSets) as [string, any][]).reduce(
+          (acc: { [key: string]: LispLocatorSet }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: LispLocatorSet.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : isObject(object.locator_sets)
+        ? (globalThis.Object.entries(object.locator_sets) as [string, any][]).reduce(
+          (acc: { [key: string]: LispLocatorSet }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: LispLocatorSet.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      localEids: globalThis.Array.isArray(object?.localEids)
+        ? object.localEids.map((e: any) => LispLocalEid.fromJSON(e))
+        : globalThis.Array.isArray(object?.local_eids)
+        ? object.local_eids.map((e: any) => LispLocalEid.fromJSON(e))
+        : [],
+      eidTables: isObject(object.eidTables)
+        ? (globalThis.Object.entries(object.eidTables) as [string, any][]).reduce(
+          (acc: { [key: string]: LispEidTable }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: LispEidTable.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : isObject(object.eid_tables)
+        ? (globalThis.Object.entries(object.eid_tables) as [string, any][]).reduce(
+          (acc: { [key: string]: LispEidTable }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: LispEidTable.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      remoteMappings: globalThis.Array.isArray(object?.remoteMappings)
+        ? object.remoteMappings.map((e: any) => LispRemoteMapping.fromJSON(e))
+        : globalThis.Array.isArray(object?.remote_mappings)
+        ? object.remote_mappings.map((e: any) => LispRemoteMapping.fromJSON(e))
+        : [],
+      adjacencies: globalThis.Array.isArray(object?.adjacencies)
+        ? object.adjacencies.map((e: any) => LispAdjacency.fromJSON(e))
+        : [],
+      gpeEntries: globalThis.Array.isArray(object?.gpeEntries)
+        ? object.gpeEntries.map((e: any) => LispGpeEntry.fromJSON(e))
+        : globalThis.Array.isArray(object?.gpe_entries)
+        ? object.gpe_entries.map((e: any) => LispGpeEntry.fromJSON(e))
+        : [],
+      mapResolvers: globalThis.Array.isArray(object?.mapResolvers)
+        ? object.mapResolvers.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.map_resolvers)
+        ? object.map_resolvers.map((e: any) => globalThis.String(e))
+        : [],
+      mapServers: globalThis.Array.isArray(object?.mapServers)
+        ? object.mapServers.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.map_servers)
+        ? object.map_servers.map((e: any) => globalThis.String(e))
+        : [],
+      pitr: isSet(object.pitr) ? globalThis.String(object.pitr) : undefined,
+    };
+  },
+
+  toJSON(message: LispConfig): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.gpe !== undefined) {
+      obj.gpe = message.gpe;
+    }
+    if (message.locatorSets) {
+      const entries = globalThis.Object.entries(message.locatorSets) as [string, LispLocatorSet][];
+      if (entries.length > 0) {
+        obj.locatorSets = {};
+        entries.forEach(([k, v]) => {
+          obj.locatorSets[k] = LispLocatorSet.toJSON(v);
+        });
+      }
+    }
+    if (message.localEids?.length) {
+      obj.localEids = message.localEids.map((e) => LispLocalEid.toJSON(e));
+    }
+    if (message.eidTables) {
+      const entries = globalThis.Object.entries(message.eidTables) as [string, LispEidTable][];
+      if (entries.length > 0) {
+        obj.eidTables = {};
+        entries.forEach(([k, v]) => {
+          obj.eidTables[k] = LispEidTable.toJSON(v);
+        });
+      }
+    }
+    if (message.remoteMappings?.length) {
+      obj.remoteMappings = message.remoteMappings.map((e) => LispRemoteMapping.toJSON(e));
+    }
+    if (message.adjacencies?.length) {
+      obj.adjacencies = message.adjacencies.map((e) => LispAdjacency.toJSON(e));
+    }
+    if (message.gpeEntries?.length) {
+      obj.gpeEntries = message.gpeEntries.map((e) => LispGpeEntry.toJSON(e));
+    }
+    if (message.mapResolvers?.length) {
+      obj.mapResolvers = message.mapResolvers;
+    }
+    if (message.mapServers?.length) {
+      obj.mapServers = message.mapServers;
+    }
+    if (message.pitr !== undefined) {
+      obj.pitr = message.pitr;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispConfig>): LispConfig {
+    return LispConfig.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispConfig>): LispConfig {
+    const message = createBaseLispConfig();
+    message.enabled = object.enabled ?? undefined;
+    message.gpe = object.gpe ?? undefined;
+    message.locatorSets = (globalThis.Object.entries(object.locatorSets ?? {}) as [string, LispLocatorSet][]).reduce(
+      (acc: { [key: string]: LispLocatorSet }, [key, value]: [string, LispLocatorSet]) => {
+        if (value !== undefined) {
+          acc[key] = LispLocatorSet.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.localEids = object.localEids?.map((e) => LispLocalEid.fromPartial(e)) || [];
+    message.eidTables = (globalThis.Object.entries(object.eidTables ?? {}) as [string, LispEidTable][]).reduce(
+      (acc: { [key: string]: LispEidTable }, [key, value]: [string, LispEidTable]) => {
+        if (value !== undefined) {
+          acc[key] = LispEidTable.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.remoteMappings = object.remoteMappings?.map((e) => LispRemoteMapping.fromPartial(e)) || [];
+    message.adjacencies = object.adjacencies?.map((e) => LispAdjacency.fromPartial(e)) || [];
+    message.gpeEntries = object.gpeEntries?.map((e) => LispGpeEntry.fromPartial(e)) || [];
+    message.mapResolvers = object.mapResolvers?.map((e) => e) || [];
+    message.mapServers = object.mapServers?.map((e) => e) || [];
+    message.pitr = object.pitr ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLispConfig_LocatorSetsEntry(): LispConfig_LocatorSetsEntry {
+  return { key: "", value: undefined };
+}
+
+export const LispConfig_LocatorSetsEntry: MessageFns<LispConfig_LocatorSetsEntry> = {
+  encode(message: LispConfig_LocatorSetsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      LispLocatorSet.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispConfig_LocatorSetsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispConfig_LocatorSetsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = LispLocatorSet.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispConfig_LocatorSetsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? LispLocatorSet.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: LispConfig_LocatorSetsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = LispLocatorSet.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispConfig_LocatorSetsEntry>): LispConfig_LocatorSetsEntry {
+    return LispConfig_LocatorSetsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispConfig_LocatorSetsEntry>): LispConfig_LocatorSetsEntry {
+    const message = createBaseLispConfig_LocatorSetsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? LispLocatorSet.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseLispConfig_EidTablesEntry(): LispConfig_EidTablesEntry {
+  return { key: "", value: undefined };
+}
+
+export const LispConfig_EidTablesEntry: MessageFns<LispConfig_EidTablesEntry> = {
+  encode(message: LispConfig_EidTablesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      LispEidTable.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispConfig_EidTablesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispConfig_EidTablesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = LispEidTable.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispConfig_EidTablesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? LispEidTable.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: LispConfig_EidTablesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = LispEidTable.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispConfig_EidTablesEntry>): LispConfig_EidTablesEntry {
+    return LispConfig_EidTablesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispConfig_EidTablesEntry>): LispConfig_EidTablesEntry {
+    const message = createBaseLispConfig_EidTablesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? LispEidTable.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseLispLocatorSet(): LispLocatorSet {
+  return { locators: [] };
+}
+
+export const LispLocatorSet: MessageFns<LispLocatorSet> = {
+  encode(message: LispLocatorSet, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.locators) {
+      LispLocator.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispLocatorSet {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispLocatorSet();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.locators.push(LispLocator.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispLocatorSet {
+    return {
+      locators: globalThis.Array.isArray(object?.locators)
+        ? object.locators.map((e: any) => LispLocator.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: LispLocatorSet): unknown {
+    const obj: any = {};
+    if (message.locators?.length) {
+      obj.locators = message.locators.map((e) => LispLocator.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispLocatorSet>): LispLocatorSet {
+    return LispLocatorSet.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispLocatorSet>): LispLocatorSet {
+    const message = createBaseLispLocatorSet();
+    message.locators = object.locators?.map((e) => LispLocator.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseLispLocator(): LispLocator {
+  return { interface: undefined, priority: undefined, weight: undefined };
+}
+
+export const LispLocator: MessageFns<LispLocator> = {
+  encode(message: LispLocator, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== undefined) {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.priority !== undefined) {
+      writer.uint32(16).uint32(message.priority);
+    }
+    if (message.weight !== undefined) {
+      writer.uint32(24).uint32(message.weight);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispLocator {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispLocator();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.priority = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispLocator {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      priority: isSet(object.priority) ? globalThis.Number(object.priority) : undefined,
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
+    };
+  },
+
+  toJSON(message: LispLocator): unknown {
+    const obj: any = {};
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.priority !== undefined) {
+      obj.priority = Math.round(message.priority);
+    }
+    if (message.weight !== undefined) {
+      obj.weight = Math.round(message.weight);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispLocator>): LispLocator {
+    return LispLocator.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispLocator>): LispLocator {
+    const message = createBaseLispLocator();
+    message.interface = object.interface ?? undefined;
+    message.priority = object.priority ?? undefined;
+    message.weight = object.weight ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLispLocalEid(): LispLocalEid {
+  return { vni: undefined, eid: undefined, locatorSet: undefined };
+}
+
+export const LispLocalEid: MessageFns<LispLocalEid> = {
+  encode(message: LispLocalEid, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vni !== undefined) {
+      writer.uint32(8).uint32(message.vni);
+    }
+    if (message.eid !== undefined) {
+      writer.uint32(18).string(message.eid);
+    }
+    if (message.locatorSet !== undefined) {
+      writer.uint32(26).string(message.locatorSet);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispLocalEid {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispLocalEid();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.vni = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.eid = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.locatorSet = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispLocalEid {
+    return {
+      vni: isSet(object.vni) ? globalThis.Number(object.vni) : undefined,
+      eid: isSet(object.eid) ? globalThis.String(object.eid) : undefined,
+      locatorSet: isSet(object.locatorSet)
+        ? globalThis.String(object.locatorSet)
+        : isSet(object.locator_set)
+        ? globalThis.String(object.locator_set)
+        : undefined,
+    };
+  },
+
+  toJSON(message: LispLocalEid): unknown {
+    const obj: any = {};
+    if (message.vni !== undefined) {
+      obj.vni = Math.round(message.vni);
+    }
+    if (message.eid !== undefined) {
+      obj.eid = message.eid;
+    }
+    if (message.locatorSet !== undefined) {
+      obj.locatorSet = message.locatorSet;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispLocalEid>): LispLocalEid {
+    return LispLocalEid.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispLocalEid>): LispLocalEid {
+    const message = createBaseLispLocalEid();
+    message.vni = object.vni ?? undefined;
+    message.eid = object.eid ?? undefined;
+    message.locatorSet = object.locatorSet ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLispEidTable(): LispEidTable {
+  return { vrf: undefined, bridgeDomain: undefined };
+}
+
+export const LispEidTable: MessageFns<LispEidTable> = {
+  encode(message: LispEidTable, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vrf !== undefined) {
+      writer.uint32(10).string(message.vrf);
+    }
+    if (message.bridgeDomain !== undefined) {
+      writer.uint32(16).uint32(message.bridgeDomain);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispEidTable {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispEidTable();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.bridgeDomain = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispEidTable {
+    return {
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      bridgeDomain: isSet(object.bridgeDomain)
+        ? globalThis.Number(object.bridgeDomain)
+        : isSet(object.bridge_domain)
+        ? globalThis.Number(object.bridge_domain)
+        : undefined,
+    };
+  },
+
+  toJSON(message: LispEidTable): unknown {
+    const obj: any = {};
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.bridgeDomain !== undefined) {
+      obj.bridgeDomain = Math.round(message.bridgeDomain);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispEidTable>): LispEidTable {
+    return LispEidTable.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispEidTable>): LispEidTable {
+    const message = createBaseLispEidTable();
+    message.vrf = object.vrf ?? undefined;
+    message.bridgeDomain = object.bridgeDomain ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLispRloc(): LispRloc {
+  return { address: undefined, priority: undefined, weight: undefined };
+}
+
+export const LispRloc: MessageFns<LispRloc> = {
+  encode(message: LispRloc, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== undefined) {
+      writer.uint32(10).string(message.address);
+    }
+    if (message.priority !== undefined) {
+      writer.uint32(16).uint32(message.priority);
+    }
+    if (message.weight !== undefined) {
+      writer.uint32(24).uint32(message.weight);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispRloc {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispRloc();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.priority = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispRloc {
+    return {
+      address: isSet(object.address) ? globalThis.String(object.address) : undefined,
+      priority: isSet(object.priority) ? globalThis.Number(object.priority) : undefined,
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
+    };
+  },
+
+  toJSON(message: LispRloc): unknown {
+    const obj: any = {};
+    if (message.address !== undefined) {
+      obj.address = message.address;
+    }
+    if (message.priority !== undefined) {
+      obj.priority = Math.round(message.priority);
+    }
+    if (message.weight !== undefined) {
+      obj.weight = Math.round(message.weight);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispRloc>): LispRloc {
+    return LispRloc.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispRloc>): LispRloc {
+    const message = createBaseLispRloc();
+    message.address = object.address ?? undefined;
+    message.priority = object.priority ?? undefined;
+    message.weight = object.weight ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLispRemoteMapping(): LispRemoteMapping {
+  return { vni: undefined, eid: undefined, rlocs: [], action: undefined };
+}
+
+export const LispRemoteMapping: MessageFns<LispRemoteMapping> = {
+  encode(message: LispRemoteMapping, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vni !== undefined) {
+      writer.uint32(8).uint32(message.vni);
+    }
+    if (message.eid !== undefined) {
+      writer.uint32(18).string(message.eid);
+    }
+    for (const v of message.rlocs) {
+      LispRloc.encode(v!, writer.uint32(26).fork()).join();
+    }
+    if (message.action !== undefined) {
+      writer.uint32(34).string(message.action);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispRemoteMapping {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispRemoteMapping();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.vni = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.eid = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.rlocs.push(LispRloc.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.action = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispRemoteMapping {
+    return {
+      vni: isSet(object.vni) ? globalThis.Number(object.vni) : undefined,
+      eid: isSet(object.eid) ? globalThis.String(object.eid) : undefined,
+      rlocs: globalThis.Array.isArray(object?.rlocs) ? object.rlocs.map((e: any) => LispRloc.fromJSON(e)) : [],
+      action: isSet(object.action) ? globalThis.String(object.action) : undefined,
+    };
+  },
+
+  toJSON(message: LispRemoteMapping): unknown {
+    const obj: any = {};
+    if (message.vni !== undefined) {
+      obj.vni = Math.round(message.vni);
+    }
+    if (message.eid !== undefined) {
+      obj.eid = message.eid;
+    }
+    if (message.rlocs?.length) {
+      obj.rlocs = message.rlocs.map((e) => LispRloc.toJSON(e));
+    }
+    if (message.action !== undefined) {
+      obj.action = message.action;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispRemoteMapping>): LispRemoteMapping {
+    return LispRemoteMapping.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispRemoteMapping>): LispRemoteMapping {
+    const message = createBaseLispRemoteMapping();
+    message.vni = object.vni ?? undefined;
+    message.eid = object.eid ?? undefined;
+    message.rlocs = object.rlocs?.map((e) => LispRloc.fromPartial(e)) || [];
+    message.action = object.action ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLispAdjacency(): LispAdjacency {
+  return { vni: undefined, reid: undefined, leid: undefined };
+}
+
+export const LispAdjacency: MessageFns<LispAdjacency> = {
+  encode(message: LispAdjacency, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vni !== undefined) {
+      writer.uint32(8).uint32(message.vni);
+    }
+    if (message.reid !== undefined) {
+      writer.uint32(18).string(message.reid);
+    }
+    if (message.leid !== undefined) {
+      writer.uint32(26).string(message.leid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispAdjacency {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispAdjacency();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.vni = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.reid = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.leid = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispAdjacency {
+    return {
+      vni: isSet(object.vni) ? globalThis.Number(object.vni) : undefined,
+      reid: isSet(object.reid) ? globalThis.String(object.reid) : undefined,
+      leid: isSet(object.leid) ? globalThis.String(object.leid) : undefined,
+    };
+  },
+
+  toJSON(message: LispAdjacency): unknown {
+    const obj: any = {};
+    if (message.vni !== undefined) {
+      obj.vni = Math.round(message.vni);
+    }
+    if (message.reid !== undefined) {
+      obj.reid = message.reid;
+    }
+    if (message.leid !== undefined) {
+      obj.leid = message.leid;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispAdjacency>): LispAdjacency {
+    return LispAdjacency.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispAdjacency>): LispAdjacency {
+    const message = createBaseLispAdjacency();
+    message.vni = object.vni ?? undefined;
+    message.reid = object.reid ?? undefined;
+    message.leid = object.leid ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLispLocatorPair(): LispLocatorPair {
+  return { local: undefined, remote: undefined, weight: undefined };
+}
+
+export const LispLocatorPair: MessageFns<LispLocatorPair> = {
+  encode(message: LispLocatorPair, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.local !== undefined) {
+      writer.uint32(10).string(message.local);
+    }
+    if (message.remote !== undefined) {
+      writer.uint32(18).string(message.remote);
+    }
+    if (message.weight !== undefined) {
+      writer.uint32(24).uint32(message.weight);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispLocatorPair {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispLocatorPair();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.local = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.remote = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispLocatorPair {
+    return {
+      local: isSet(object.local) ? globalThis.String(object.local) : undefined,
+      remote: isSet(object.remote) ? globalThis.String(object.remote) : undefined,
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
+    };
+  },
+
+  toJSON(message: LispLocatorPair): unknown {
+    const obj: any = {};
+    if (message.local !== undefined) {
+      obj.local = message.local;
+    }
+    if (message.remote !== undefined) {
+      obj.remote = message.remote;
+    }
+    if (message.weight !== undefined) {
+      obj.weight = Math.round(message.weight);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispLocatorPair>): LispLocatorPair {
+    return LispLocatorPair.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispLocatorPair>): LispLocatorPair {
+    const message = createBaseLispLocatorPair();
+    message.local = object.local ?? undefined;
+    message.remote = object.remote ?? undefined;
+    message.weight = object.weight ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLispGpeEntry(): LispGpeEntry {
+  return { vni: undefined, vrf: undefined, reid: undefined, leid: undefined, pairs: [], action: undefined };
+}
+
+export const LispGpeEntry: MessageFns<LispGpeEntry> = {
+  encode(message: LispGpeEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vni !== undefined) {
+      writer.uint32(8).uint32(message.vni);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(18).string(message.vrf);
+    }
+    if (message.reid !== undefined) {
+      writer.uint32(26).string(message.reid);
+    }
+    if (message.leid !== undefined) {
+      writer.uint32(34).string(message.leid);
+    }
+    for (const v of message.pairs) {
+      LispLocatorPair.encode(v!, writer.uint32(42).fork()).join();
+    }
+    if (message.action !== undefined) {
+      writer.uint32(50).string(message.action);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispGpeEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispGpeEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.vni = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.reid = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.leid = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.pairs.push(LispLocatorPair.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.action = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispGpeEntry {
+    return {
+      vni: isSet(object.vni) ? globalThis.Number(object.vni) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      reid: isSet(object.reid) ? globalThis.String(object.reid) : undefined,
+      leid: isSet(object.leid) ? globalThis.String(object.leid) : undefined,
+      pairs: globalThis.Array.isArray(object?.pairs) ? object.pairs.map((e: any) => LispLocatorPair.fromJSON(e)) : [],
+      action: isSet(object.action) ? globalThis.String(object.action) : undefined,
+    };
+  },
+
+  toJSON(message: LispGpeEntry): unknown {
+    const obj: any = {};
+    if (message.vni !== undefined) {
+      obj.vni = Math.round(message.vni);
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.reid !== undefined) {
+      obj.reid = message.reid;
+    }
+    if (message.leid !== undefined) {
+      obj.leid = message.leid;
+    }
+    if (message.pairs?.length) {
+      obj.pairs = message.pairs.map((e) => LispLocatorPair.toJSON(e));
+    }
+    if (message.action !== undefined) {
+      obj.action = message.action;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispGpeEntry>): LispGpeEntry {
+    return LispGpeEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispGpeEntry>): LispGpeEntry {
+    const message = createBaseLispGpeEntry();
+    message.vni = object.vni ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.reid = object.reid ?? undefined;
+    message.leid = object.leid ?? undefined;
+    message.pairs = object.pairs?.map((e) => LispLocatorPair.fromPartial(e)) || [];
+    message.action = object.action ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLispStateRequest(): LispStateRequest {
+  return { owner: "" };
+}
+
+export const LispStateRequest: MessageFns<LispStateRequest> = {
+  encode(message: LispStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: LispStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispStateRequest>): LispStateRequest {
+    return LispStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispStateRequest>): LispStateRequest {
+    const message = createBaseLispStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseLispStateLocator(): LispStateLocator {
+  return { interface: "", swIfIndex: 0, priority: 0, weight: 0 };
+}
+
+export const LispStateLocator: MessageFns<LispStateLocator> = {
+  encode(message: LispStateLocator, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== "") {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.swIfIndex !== 0) {
+      writer.uint32(16).uint32(message.swIfIndex);
+    }
+    if (message.priority !== 0) {
+      writer.uint32(24).uint32(message.priority);
+    }
+    if (message.weight !== 0) {
+      writer.uint32(32).uint32(message.weight);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispStateLocator {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispStateLocator();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.swIfIndex = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.priority = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispStateLocator {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      swIfIndex: isSet(object.swIfIndex)
+        ? globalThis.Number(object.swIfIndex)
+        : isSet(object.sw_if_index)
+        ? globalThis.Number(object.sw_if_index)
+        : 0,
+      priority: isSet(object.priority) ? globalThis.Number(object.priority) : 0,
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : 0,
+    };
+  },
+
+  toJSON(message: LispStateLocator): unknown {
+    const obj: any = {};
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.swIfIndex !== 0) {
+      obj.swIfIndex = Math.round(message.swIfIndex);
+    }
+    if (message.priority !== 0) {
+      obj.priority = Math.round(message.priority);
+    }
+    if (message.weight !== 0) {
+      obj.weight = Math.round(message.weight);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispStateLocator>): LispStateLocator {
+    return LispStateLocator.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispStateLocator>): LispStateLocator {
+    const message = createBaseLispStateLocator();
+    message.interface = object.interface ?? "";
+    message.swIfIndex = object.swIfIndex ?? 0;
+    message.priority = object.priority ?? 0;
+    message.weight = object.weight ?? 0;
+    return message;
+  },
+};
+
+function createBaseLispStateLocatorSet(): LispStateLocatorSet {
+  return { name: "", locators: [] };
+}
+
+export const LispStateLocatorSet: MessageFns<LispStateLocatorSet> = {
+  encode(message: LispStateLocatorSet, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    for (const v of message.locators) {
+      LispStateLocator.encode(v!, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispStateLocatorSet {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispStateLocatorSet();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.locators.push(LispStateLocator.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispStateLocatorSet {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      locators: globalThis.Array.isArray(object?.locators)
+        ? object.locators.map((e: any) => LispStateLocator.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: LispStateLocatorSet): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.locators?.length) {
+      obj.locators = message.locators.map((e) => LispStateLocator.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispStateLocatorSet>): LispStateLocatorSet {
+    return LispStateLocatorSet.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispStateLocatorSet>): LispStateLocatorSet {
+    const message = createBaseLispStateLocatorSet();
+    message.name = object.name ?? "";
+    message.locators = object.locators?.map((e) => LispStateLocator.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseLispStateMapping(): LispStateMapping {
+  return { vni: 0, eid: "", local: false, locatorSet: "", rlocs: [], action: "", isStatic: false, ttl: 0 };
+}
+
+export const LispStateMapping: MessageFns<LispStateMapping> = {
+  encode(message: LispStateMapping, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vni !== 0) {
+      writer.uint32(8).uint32(message.vni);
+    }
+    if (message.eid !== "") {
+      writer.uint32(18).string(message.eid);
+    }
+    if (message.local !== false) {
+      writer.uint32(24).bool(message.local);
+    }
+    if (message.locatorSet !== "") {
+      writer.uint32(34).string(message.locatorSet);
+    }
+    for (const v of message.rlocs) {
+      writer.uint32(42).string(v!);
+    }
+    if (message.action !== "") {
+      writer.uint32(50).string(message.action);
+    }
+    if (message.isStatic !== false) {
+      writer.uint32(56).bool(message.isStatic);
+    }
+    if (message.ttl !== 0) {
+      writer.uint32(64).uint32(message.ttl);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispStateMapping {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispStateMapping();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.vni = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.eid = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.local = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.locatorSet = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.rlocs.push(reader.string());
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.action = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.isStatic = reader.bool();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.ttl = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispStateMapping {
+    return {
+      vni: isSet(object.vni) ? globalThis.Number(object.vni) : 0,
+      eid: isSet(object.eid) ? globalThis.String(object.eid) : "",
+      local: isSet(object.local) ? globalThis.Boolean(object.local) : false,
+      locatorSet: isSet(object.locatorSet)
+        ? globalThis.String(object.locatorSet)
+        : isSet(object.locator_set)
+        ? globalThis.String(object.locator_set)
+        : "",
+      rlocs: globalThis.Array.isArray(object?.rlocs) ? object.rlocs.map((e: any) => globalThis.String(e)) : [],
+      action: isSet(object.action) ? globalThis.String(object.action) : "",
+      isStatic: isSet(object.isStatic)
+        ? globalThis.Boolean(object.isStatic)
+        : isSet(object.is_static)
+        ? globalThis.Boolean(object.is_static)
+        : false,
+      ttl: isSet(object.ttl) ? globalThis.Number(object.ttl) : 0,
+    };
+  },
+
+  toJSON(message: LispStateMapping): unknown {
+    const obj: any = {};
+    if (message.vni !== 0) {
+      obj.vni = Math.round(message.vni);
+    }
+    if (message.eid !== "") {
+      obj.eid = message.eid;
+    }
+    if (message.local !== false) {
+      obj.local = message.local;
+    }
+    if (message.locatorSet !== "") {
+      obj.locatorSet = message.locatorSet;
+    }
+    if (message.rlocs?.length) {
+      obj.rlocs = message.rlocs;
+    }
+    if (message.action !== "") {
+      obj.action = message.action;
+    }
+    if (message.isStatic !== false) {
+      obj.isStatic = message.isStatic;
+    }
+    if (message.ttl !== 0) {
+      obj.ttl = Math.round(message.ttl);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispStateMapping>): LispStateMapping {
+    return LispStateMapping.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispStateMapping>): LispStateMapping {
+    const message = createBaseLispStateMapping();
+    message.vni = object.vni ?? 0;
+    message.eid = object.eid ?? "";
+    message.local = object.local ?? false;
+    message.locatorSet = object.locatorSet ?? "";
+    message.rlocs = object.rlocs?.map((e) => e) || [];
+    message.action = object.action ?? "";
+    message.isStatic = object.isStatic ?? false;
+    message.ttl = object.ttl ?? 0;
+    return message;
+  },
+};
+
+function createBaseLispStateAdjacency(): LispStateAdjacency {
+  return { vni: 0, reid: "", leid: "" };
+}
+
+export const LispStateAdjacency: MessageFns<LispStateAdjacency> = {
+  encode(message: LispStateAdjacency, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vni !== 0) {
+      writer.uint32(8).uint32(message.vni);
+    }
+    if (message.reid !== "") {
+      writer.uint32(18).string(message.reid);
+    }
+    if (message.leid !== "") {
+      writer.uint32(26).string(message.leid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispStateAdjacency {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispStateAdjacency();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.vni = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.reid = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.leid = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispStateAdjacency {
+    return {
+      vni: isSet(object.vni) ? globalThis.Number(object.vni) : 0,
+      reid: isSet(object.reid) ? globalThis.String(object.reid) : "",
+      leid: isSet(object.leid) ? globalThis.String(object.leid) : "",
+    };
+  },
+
+  toJSON(message: LispStateAdjacency): unknown {
+    const obj: any = {};
+    if (message.vni !== 0) {
+      obj.vni = Math.round(message.vni);
+    }
+    if (message.reid !== "") {
+      obj.reid = message.reid;
+    }
+    if (message.leid !== "") {
+      obj.leid = message.leid;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispStateAdjacency>): LispStateAdjacency {
+    return LispStateAdjacency.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispStateAdjacency>): LispStateAdjacency {
+    const message = createBaseLispStateAdjacency();
+    message.vni = object.vni ?? 0;
+    message.reid = object.reid ?? "";
+    message.leid = object.leid ?? "";
+    return message;
+  },
+};
+
+function createBaseLispStateEidTable(): LispStateEidTable {
+  return { vni: 0, dpTable: 0, isL2: false };
+}
+
+export const LispStateEidTable: MessageFns<LispStateEidTable> = {
+  encode(message: LispStateEidTable, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vni !== 0) {
+      writer.uint32(8).uint32(message.vni);
+    }
+    if (message.dpTable !== 0) {
+      writer.uint32(16).uint32(message.dpTable);
+    }
+    if (message.isL2 !== false) {
+      writer.uint32(24).bool(message.isL2);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispStateEidTable {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispStateEidTable();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.vni = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.dpTable = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.isL2 = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispStateEidTable {
+    return {
+      vni: isSet(object.vni) ? globalThis.Number(object.vni) : 0,
+      dpTable: isSet(object.dpTable)
+        ? globalThis.Number(object.dpTable)
+        : isSet(object.dp_table)
+        ? globalThis.Number(object.dp_table)
+        : 0,
+      isL2: isSet(object.isL2)
+        ? globalThis.Boolean(object.isL2)
+        : isSet(object.is_l2)
+        ? globalThis.Boolean(object.is_l2)
+        : false,
+    };
+  },
+
+  toJSON(message: LispStateEidTable): unknown {
+    const obj: any = {};
+    if (message.vni !== 0) {
+      obj.vni = Math.round(message.vni);
+    }
+    if (message.dpTable !== 0) {
+      obj.dpTable = Math.round(message.dpTable);
+    }
+    if (message.isL2 !== false) {
+      obj.isL2 = message.isL2;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispStateEidTable>): LispStateEidTable {
+    return LispStateEidTable.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispStateEidTable>): LispStateEidTable {
+    const message = createBaseLispStateEidTable();
+    message.vni = object.vni ?? 0;
+    message.dpTable = object.dpTable ?? 0;
+    message.isL2 = object.isL2 ?? false;
+    return message;
+  },
+};
+
+function createBaseLispStateResponse(): LispStateResponse {
+  return {
+    owner: "",
+    enabled: false,
+    gpeEnabled: false,
+    pitr: "",
+    locatorSets: [],
+    mappings: [],
+    adjacencies: [],
+    eidTables: [],
+    mapResolvers: [],
+    mapServers: [],
+    gpeVnis: [],
+    retrievedAt: undefined,
+  };
+}
+
+export const LispStateResponse: MessageFns<LispStateResponse> = {
+  encode(message: LispStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.enabled !== false) {
+      writer.uint32(16).bool(message.enabled);
+    }
+    if (message.gpeEnabled !== false) {
+      writer.uint32(24).bool(message.gpeEnabled);
+    }
+    if (message.pitr !== "") {
+      writer.uint32(34).string(message.pitr);
+    }
+    for (const v of message.locatorSets) {
+      LispStateLocatorSet.encode(v!, writer.uint32(42).fork()).join();
+    }
+    for (const v of message.mappings) {
+      LispStateMapping.encode(v!, writer.uint32(50).fork()).join();
+    }
+    for (const v of message.adjacencies) {
+      LispStateAdjacency.encode(v!, writer.uint32(58).fork()).join();
+    }
+    for (const v of message.eidTables) {
+      LispStateEidTable.encode(v!, writer.uint32(66).fork()).join();
+    }
+    for (const v of message.mapResolvers) {
+      writer.uint32(74).string(v!);
+    }
+    for (const v of message.mapServers) {
+      writer.uint32(82).string(v!);
+    }
+    writer.uint32(90).fork();
+    for (const v of message.gpeVnis) {
+      writer.uint32(v);
+    }
+    writer.join();
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(98).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LispStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLispStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.gpeEnabled = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.pitr = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.locatorSets.push(LispStateLocatorSet.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.mappings.push(LispStateMapping.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.adjacencies.push(LispStateAdjacency.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.eidTables.push(LispStateEidTable.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.mapResolvers.push(reader.string());
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.mapServers.push(reader.string());
+            continue;
+          }
+          case 11: {
+            if (tag === 88) {
+              message.gpeVnis.push(reader.uint32());
+
+              continue;
+            }
+
+            if (tag === 90) {
+              const end2 = reader.uint32() + reader.pos;
+              while (reader.pos < end2) {
+                message.gpeVnis.push(reader.uint32());
+              }
+
+              continue;
+            }
+
+            break;
+          }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LispStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      gpeEnabled: isSet(object.gpeEnabled)
+        ? globalThis.Boolean(object.gpeEnabled)
+        : isSet(object.gpe_enabled)
+        ? globalThis.Boolean(object.gpe_enabled)
+        : false,
+      pitr: isSet(object.pitr) ? globalThis.String(object.pitr) : "",
+      locatorSets: globalThis.Array.isArray(object?.locatorSets)
+        ? object.locatorSets.map((e: any) => LispStateLocatorSet.fromJSON(e))
+        : globalThis.Array.isArray(object?.locator_sets)
+        ? object.locator_sets.map((e: any) => LispStateLocatorSet.fromJSON(e))
+        : [],
+      mappings: globalThis.Array.isArray(object?.mappings)
+        ? object.mappings.map((e: any) => LispStateMapping.fromJSON(e))
+        : [],
+      adjacencies: globalThis.Array.isArray(object?.adjacencies)
+        ? object.adjacencies.map((e: any) => LispStateAdjacency.fromJSON(e))
+        : [],
+      eidTables: globalThis.Array.isArray(object?.eidTables)
+        ? object.eidTables.map((e: any) => LispStateEidTable.fromJSON(e))
+        : globalThis.Array.isArray(object?.eid_tables)
+        ? object.eid_tables.map((e: any) => LispStateEidTable.fromJSON(e))
+        : [],
+      mapResolvers: globalThis.Array.isArray(object?.mapResolvers)
+        ? object.mapResolvers.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.map_resolvers)
+        ? object.map_resolvers.map((e: any) => globalThis.String(e))
+        : [],
+      mapServers: globalThis.Array.isArray(object?.mapServers)
+        ? object.mapServers.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.map_servers)
+        ? object.map_servers.map((e: any) => globalThis.String(e))
+        : [],
+      gpeVnis: globalThis.Array.isArray(object?.gpeVnis)
+        ? object.gpeVnis.map((e: any) => globalThis.Number(e))
+        : globalThis.Array.isArray(object?.gpe_vnis)
+        ? object.gpe_vnis.map((e: any) => globalThis.Number(e))
+        : [],
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: LispStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.enabled !== false) {
+      obj.enabled = message.enabled;
+    }
+    if (message.gpeEnabled !== false) {
+      obj.gpeEnabled = message.gpeEnabled;
+    }
+    if (message.pitr !== "") {
+      obj.pitr = message.pitr;
+    }
+    if (message.locatorSets?.length) {
+      obj.locatorSets = message.locatorSets.map((e) => LispStateLocatorSet.toJSON(e));
+    }
+    if (message.mappings?.length) {
+      obj.mappings = message.mappings.map((e) => LispStateMapping.toJSON(e));
+    }
+    if (message.adjacencies?.length) {
+      obj.adjacencies = message.adjacencies.map((e) => LispStateAdjacency.toJSON(e));
+    }
+    if (message.eidTables?.length) {
+      obj.eidTables = message.eidTables.map((e) => LispStateEidTable.toJSON(e));
+    }
+    if (message.mapResolvers?.length) {
+      obj.mapResolvers = message.mapResolvers;
+    }
+    if (message.mapServers?.length) {
+      obj.mapServers = message.mapServers;
+    }
+    if (message.gpeVnis?.length) {
+      obj.gpeVnis = message.gpeVnis.map((e) => Math.round(e));
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LispStateResponse>): LispStateResponse {
+    return LispStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LispStateResponse>): LispStateResponse {
+    const message = createBaseLispStateResponse();
+    message.owner = object.owner ?? "";
+    message.enabled = object.enabled ?? false;
+    message.gpeEnabled = object.gpeEnabled ?? false;
+    message.pitr = object.pitr ?? "";
+    message.locatorSets = object.locatorSets?.map((e) => LispStateLocatorSet.fromPartial(e)) || [];
+    message.mappings = object.mappings?.map((e) => LispStateMapping.fromPartial(e)) || [];
+    message.adjacencies = object.adjacencies?.map((e) => LispStateAdjacency.fromPartial(e)) || [];
+    message.eidTables = object.eidTables?.map((e) => LispStateEidTable.fromPartial(e)) || [];
+    message.mapResolvers = object.mapResolvers?.map((e) => e) || [];
+    message.mapServers = object.mapServers?.map((e) => e) || [];
+    message.gpeVnis = object.gpeVnis?.map((e) => e) || [];
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
@@ -42732,6 +45367,19 @@ export const DataplaneService = {
       Buffer.from(InterfaceStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
   },
+  /**
+   * LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
+   * adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
+   */
+  lispState: {
+    path: "/vrx.v1.Dataplane/LispState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: LispStateRequest): Buffer => Buffer.from(LispStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): LispStateRequest => LispStateRequest.decode(value),
+    responseSerialize: (value: LispStateResponse): Buffer => Buffer.from(LispStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): LispStateResponse => LispStateResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -42777,6 +45425,11 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
    */
   interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
+  /**
+   * LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
+   * adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
+   */
+  lispState: handleUnaryCall<LispStateRequest, LispStateResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -42906,6 +45559,25 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
+   * adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
+   */
+  lispState(
+    request: LispStateRequest,
+    callback: (error: ServiceError | null, response: LispStateResponse) => void,
+  ): ClientUnaryCall;
+  lispState(
+    request: LispStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: LispStateResponse) => void,
+  ): ClientUnaryCall;
+  lispState(
+    request: LispStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: LispStateResponse) => void,
   ): ClientUnaryCall;
 }
 

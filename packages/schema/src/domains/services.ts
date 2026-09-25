@@ -679,7 +679,7 @@ export const LldpSchema = z
     enabled: withUi(z.boolean().default(false), { title: 'Enabled', widget: 'switch' }),
     systemName: withUi(hostname, {
       title: 'System name',
-      help: 'Defaults to system.hostname',
+      help: "Empty keeps VPP's current system name (VPP starts without one)",
     }).optional(),
     txHold: withUi(z.int().min(1).max(10).default(4), {
       title: 'TX hold multiplier',

@@ -2492,7 +2492,7 @@ tasks:
   - TD-2
   priority: 3
   est_hours: 3
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D0.9
@@ -2507,7 +2507,8 @@ tasks:
   started: 2026-09-24T15:36
   finished: ''
   notes: 'D-100: from TD-2-questions.md Q1–Q3 | envelope draft docs/status/tasks/TD-4.envelope.md (prep-waveA, D-109) | SPECULATIVE from task/TD-2@4391a44 (D-114), envelope /root/ngfw-wt/TD-4.envelope.md
-    | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118) | done 2e66f40 (code e16b0f0, main merged after TD-2), CI green, api e2e 71/3; review spawned (security focus)'
+    | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118) | done 2e66f40 (code e16b0f0, main merged after TD-2), CI green, api e2e 71/3; review spawned (security focus) | merged 10059d57 (squash
+    64f12688, D-112), main gate green'
 - id: TD-5
   title: 'V24 + V19 follow-ups: af_packet Delete quiesces the Linux netdev (netlink link down) before af_packet_delete, also in Create rollback; restart-simulation fixtures do the same; ifsanitize placeholder
     cap = holes + 2×FreshRun, max 64 (TD-3 M1 option b)'
@@ -2913,7 +2914,7 @@ tasks:
   - TD-4
   priority: 3
   est_hours: 6
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.8

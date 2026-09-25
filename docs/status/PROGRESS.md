@@ -2,25 +2,25 @@
 
 Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 35.0% by hours (403/1151.5 h), 36.3% by tasks (45/124)**
+**Overall: 35.3% by hours (406/1151.5 h), 37.1% by tasks (46/124)**
 
 | state | tasks |
 |---|---|
-| merged | 45 |
-| review | 9 |
+| merged | 46 |
+| review | 8 |
 | running | 16 |
-| ready | 18 |
+| ready | 19 |
 | parked | 1 |
 | failed | 0 |
-| todo | 35 |
+| todo | 34 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
-| S2 | 257 / 270 | 95.2% | 26/28 | 0 | 0 | 1 |
+| S2 | 260 / 270 | 96.3% | 27/28 | 0 | 0 | 1 |
 | S3 | 16 / 16 | 100.0% | 1/1 | 0 | 0 | 0 |
-| S4 | 23 / 591.0 | 3.9% | 5/66 | 16 | 16 | 0 |
+| S4 | 23 / 591.0 | 3.9% | 5/66 | 16 | 17 | 0 |
 | S5 | 28 / 147.5 | 19.0% | 3/15 | 0 | 2 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -42,7 +42,6 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 - P12 — Wave B (day 10-12): FRR + linux-cp framework, BGP (running, unassigned)
 - F-kea-dhcp-relay — Wave B (day 10-12): Kea DHCPv4/v6 server + VPP DHCP relay/client (running, unassigned)
 - F-unbound-chrony-syslog — Wave B (day 10-12): Unbound DNS, chrony NTP, syslog export + log explorer (running, unassigned)
-- TD-4 — Auth hardening follow-ups from TD-2 (D-100): account disable bumps the credential generation; API-key creation from a JWT session requires the current password; login gets the same transport check as password set (review, ngfw-46 slot8)
 - WEB-1 — ui-kit SchemaForm gaps: presence toggle, port/ip-range, datetime/time/timezone/color widgets, LTR identifiers in RTL, per-path i18n, itemKey summaries + rule-editor table view (running, ngfw-46 slot11)
 - WEB-2 — Config screen kit (generic list+drawer+live-status over any candidate path) + data widgets + Secrets page (review, ngfw-46 slot1)
 - WEB-3 — Committed browser harness: e2e lib, shots.mjs, screens/_example.mjs (P08 screenshot script was lost, F6) (running, unassigned)

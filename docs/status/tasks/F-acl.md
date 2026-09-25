@@ -223,8 +223,35 @@ and stopped at the pager of the 5 000-rule editor (script fix done); it cleaned 
 Command once TD-25 lands:
 `VRX_ACL_STATS_GLOBALS=1 VRX_ACL_SHOTS=<scratch>/F-acl/acl-shots.mjs VRX_ACL_SHOTS_OUT=<dir> test/topology/acl/run.sh -run TestACLScreenshots`.
 
-### CI — `TMPDIR=/tmp/g-w3 tools/ci.sh --base main`
-(see the block below; filled when the run finishes)
+### CI — `TMPDIR=/tmp/g-w3 tools/ci.sh --base main` (HEAD c0b93aca; the next commits only change this status and the questions)
+```
+== VRX CI gate: quick ==
+branch    task/F-acl @ c0b93aca   (base: main)
+== contract guard: HEAD vs main ==  ok — contract commit on the branch: 410b5471 contract(proto): acl state
+== test/ Go modules, unit mode (test/integration/smoke test/topology/acl test/topology/interfaces test/topology/object-model) ==
+test/topology/acl: gofmt ok · go vet ok · ok  	ngfw/test/topology/acl	0.015s;
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m00s
+  generate + generated-output gate                   2m21s
+  forbidden patterns (+ gitleaks)                    0m07s
+  packet-trace ban on the shared VPP (D-128)         0m01s
+  lint · typecheck · unit tests · build (turbo)   4m11s      (Tasks: 30 successful, 30 total)
+  apps/agent: make lint test build                   0m57s
+  apps/cli: make lint test build                     0m23s
+  test/ Go modules, unit mode (…)                    0m15s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   5m11s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      merge main (W-seed a303f0b + P08 squash) into task/F-object-model
+      review(F-object-model): architecture review — APPROVE WITH CHANGES
+      review(W-seed): verify
+  mode quick · wall time 13m30s · logs /root/ngfw-wt/logs/ci/F-acl-20260925-050144-3949872
+
+CI GATE PASSED
+```
+The warnings are F-object-model's / W-seed's commits (inherited through the speculative base).
 
 ## Acceptance
 - [x] `vppctl show acl-plugin acl` and `show acl-plugin interface` reflect the committed lists/bindings (+ MACIP); `Retrieve()` == desired
@@ -235,7 +262,7 @@ Command once TD-25 lands:
 - [x] Rollback removes lists and bindings (Retrieve `{}`, VPP dump shows only the foreign ACL)
 - [x] Rule referencing an empty group → 400 problem+json with `pointer` (host + e2e)
 - [ ] UI screenshot pasted — pending TD-25
-- [ ] `tools/ci.sh --base main` green — see CI block
+- [x] `tools/ci.sh --base main` green (c0b93aca, 13m30s)
 
 ## Out of scope (not built)
 Host ACLs / nftables (F-host-acl-nftables), objects CRUD and FQDN resolution (F-object-model), ADL / Auto-SDL / uRPF / ABF

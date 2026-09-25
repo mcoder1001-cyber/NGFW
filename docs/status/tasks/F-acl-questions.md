@@ -106,3 +106,9 @@ cap 64). Manager: host runs paused until TD-25. The screenshot run is ready (`Te
 creates no interface and no MACIP classify tables). Also recorded: my first three passing topology runs deleted the rig
 interfaces while the test's foreign ACL was still bound to host-w3l0 (VPP cleared the list itself, NRestarts unchanged);
 the test now unbinds the foreign ACL first (D-095c) and cleans up through the API in `t.Cleanup` even when a step fails.
+
+## Q14 — fold with F-host-acl-nftables at the rebase (manager note)
+Both branches add an `ACL` constant and a `Domains["acl"]` entry in `subsystems.go`, and each reports the other's leaves as
+`agent.unsupported-field`. When F-host-acl-nftables is on main, I merge main and fold per its review Q8: one `ACL` const and
+one `Domains` entry (my six names + host-acl's), my VPP assembly first then host-acl's in `assemble()`, and both
+unsupported-field blocks removed (mine: `acl.host` / `acl.hostAttachments` in `desired/acl.go`).

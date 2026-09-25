@@ -65,3 +65,16 @@ fixed by WEB-1 in the merged tree.
 did (its Q9). My handler also answers `feature_is_enabled` for ip4-output/gso-ip4 and hands every other arc to
 F-bridge-l2's mactime answer (replicated, 3 lines) — one handler per message in the fake. At the rebase onto TD-23 this
 becomes one registration line in its extension registry.
+
+## Q9 — the drawer shows the raw group name for GSO / mirror
+P08's generated drawer translates fieldset titles in the `interfaces` namespace (`group.<hint>`), which I may not edit
+(W4). `gso` and `mirror` carry `group: 'loopback-bvi-gso-lldp-span'` (hotspots C1: group = slug), so the drawer shows that
+raw name (F-bridge-l2's `l2` shows `bridge-l2` the same way). Options: (a) the manager adds `group.<slug>` keys to
+`interfaces.json` at the merge; (b) ui-kit falls back to `<slug>:group.title`. Not decided by me.
+
+## Q10 — VPP crash 04:27:21 (NRestarts 1 → 2) — not slot 7
+systemd-coredump captured it (SIGSEGV PC 0x7c616b49adb1, faulting address 0x0). Slot 7 had no VPP client at that time: my
+CI gate ran 04:23:31–04:29:11 in unit mode (fake VPP; integration tests skip). The journal right before shows another slot's
+activity (af_packet deletes of host-w3l0/host-w3w0 with the V24 EBADF line at 04:26:33–34, `vnet_set_in_out_acl_intfc …
+intf_idx=8 … for delete` sweeps at 04:26:50). My runs before (last 04:11, NRestarts 1 → 1) and after (04:30, 2 → 2) were
+clean; no packet was sent by this task.

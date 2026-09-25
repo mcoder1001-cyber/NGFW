@@ -65,29 +65,433 @@ below: `show bridge-domain 7750 detail` → `BVI-Intf loop775`, restart and roll
 NRestarts 1 → 1 on every run.)
 
 ### Unit tests
-PLACEHOLDER-UNIT
+Targeted runs at c97508f3 (the full suites ran in the CI gate below):
+```
+packages/schema   vitest src/semantic/loopback-bvi-gso-lldp-span.test.ts   24 passed (24)
+packages/proto    vitest                                                  72 passed (72)   (round trip + drift corpus incl. the new fixture)
+apps/web          vitest nav 5 passed; loopback-bvi-gso-lldp-span/pages.test.tsx 4 passed (LLDP table + Refresh, mirroring remove patch, nsim fa/RTL)
+apps/agent        go test -run <feature tests>:
+--- PASS: TestProjectSchemaExamples (0.13s)
+--- PASS: TestLoopbackBviGsoLldpSpanSlotAgent (0.15s)
+--- PASS: TestLoopbackBviGsoLldpSpanGlobalsOwner (0.07s)
+--- PASS: TestLoopbackBviGsoLldpSpanValidation (0.01s)
+--- PASS: TestLldpNeighbors (0.02s)
+--- PASS: TestLldpIDFormat (0.00s)
+--- PASS: TestApplyRetrieveIdempotent (0.03s)
+ok  	ngfw/agent/internal/agent	0.491s
+--- PASS: TestMirrorRoundTripKeepsDocumentOrder (0.01s)
+--- PASS: TestMirrorAndGsoProjectionErrors (0.00s)
+--- PASS: TestLldpProjection (0.00s)
+--- PASS: TestNsimProjection (0.01s)
+--- PASS: TestServicesMembers (0.00s)
+ok  	ngfw/agent/internal/desired	0.044s
+--- PASS: TestLoopbackBviGsoLldpSpanWiring (0.00s)
+ok  	ngfw/agent/internal/subsystems	0.064s
+--- PASS: TestGSOAppliedOnce (0.00s)
+ok  	ngfw/agent/internal/descriptors/gso	0.029s
+--- PASS: TestConfigAppliedOncePerValue (0.00s)
+--- PASS: TestCrossConnectAndOutput (0.00s)
+ok  	ngfw/agent/internal/descriptors/nsim	0.021s
+--- PASS: TestMirror (0.00s)
+--- PASS: TestMirrorNoAdopt (0.00s)
+--- PASS: TestStaleDestinationCleared (0.00s)
+ok  	ngfw/agent/internal/descriptors/span	0.030s
+```
+The agent-level tests (`internal/agent/rpc_loopback_bvi_gso_lldp_span_test.go`, coretest model) cover: slot agent (DryRun notes
+`agent.write-only` /services/lldp, `agent.unsupported-field` for /services/lldp/{systemName,txHold,txIntervalSec}, /services/nsim,
+/services/snmp), apply, idempotent re-apply (no mutating message), resync without loss (GSO not stacked: count 1), restart
+simulation (dependents then loopbacks deleted behind the agent's back → a new agent recreates all), rollback (GSO/span/LLDP
+gone, then the loopbacks), validation pointers, globals owner (lldp.global + nsim applied once per value; resyncs never
+reconfigure; a changed model reconfigures once; rollback removes cross-connect and output), the LldpNeighbors RPC (paging,
+foreign owner's interface not reported, limit 1001 → INVALID_ARGUMENT, disconnected → UNAVAILABLE).
 
 ### Host checks (descriptor level, `VRX_INTEGRATION=1`)
-PLACEHOLDER-HOST
+`VRX_INTEGRATION=1 go test -run 'TestERSPANOnHost|TestSpanOnHost|TestLLDPOnHost' ./internal/descriptors/{span,lldp}` and
+`-run TestGSO ./internal/descriptors/gso` (03:52, NRestarts 1 → 1). ERSPAN uses DF-6's `gre.tunnel` descriptor directly; the
+nsim host test is opt-in (`VRX_NSIM_HOST=1`, globals lock exclusive) and was **not** run (no manager window) — the default
+gate's nsim evidence is the fake client.
+```
+=== RUN   TestERSPANOnHost
+    erspan_integration_test.go:32: ERSPAN fixture gre778 created by DF-6's gre descriptor (key gre.tunnel/gre778, owner tag w7:gre778)
+    erspan_integration_test.go:40: created loop745 sw_if_index 4 (tagged true, up true)
+    erspan_integration_test.go:43: created span.mirror/loop745/gre778/device (meta {From:4 To:10})
+    erspan_integration_test.go:45: span.mirror: re-apply plan for 1 desired object(s):
+          (empty plan)
+    erspan_integration_test.go:46: Retrieve == desired: span.mirror/loop745/gre778/device
+    erspan_integration_test.go:48: vppctl show interface span:
+        Source                           Destination                       Device       L2
+        loop745                          gre778                           (  both) (  none)
+=== RUN   TestERSPANOnHost/restart_simulation
+=== NAME  TestERSPANOnHost
+    erspan_integration_test.go:53: restart simulation (span.mirror): fresh connection, fresh descriptor
+    erspan_integration_test.go:53: span.mirror: re-apply plan for 1 desired object(s):
+          (empty plan)
+    erspan_integration_test.go:53: span.mirror: plan after simulated loss of 1 object(s):
+          create span.mirror/loop745/gre778/device
+    erspan_integration_test.go:53: span.mirror: recreated 1 object(s)
+    erspan_integration_test.go:53: span.mirror: re-apply plan for 1 desired object(s):
+          (empty plan)
+    erspan_integration_test.go:55: deleted span.mirror/loop745/gre778/device
+    erspan_integration_test.go:57: span.mirror: Retrieve after delete: nothing of ours
+--- PASS: TestERSPANOnHost (0.22s)
+    --- PASS: TestERSPANOnHost/restart_simulation (0.05s)
+=== RUN   TestSpanOnHost
+    integration_test.go:16: created loop740 sw_if_index 10 (tagged true, up true)
+    integration_test.go:17: created loop741 sw_if_index 4 (tagged true, up true)
+    integration_test.go:18: created loop742 sw_if_index 9 (tagged true, up true)
+    integration_test.go:26: created span.mirror/loop740/loop741/device (meta {From:10 To:4})
+    integration_test.go:26: created span.mirror/loop740/loop742/device (meta {From:10 To:9})
+    integration_test.go:26: created span.mirror/loop742/loop741/l2 (meta {From:9 To:4})
+    integration_test.go:27: span.mirror: re-apply plan for 3 desired object(s):
+          (empty plan)
+=== RUN   TestSpanOnHost/update_state_in_place
+=== NAME  TestSpanOnHost
+    integration_test.go:34: span.mirror: re-apply plan for 3 desired object(s):
+          (empty plan)
+=== RUN   TestSpanOnHost/restart_simulation
+=== NAME  TestSpanOnHost
+    integration_test.go:38: restart simulation (span.mirror): fresh connection, fresh descriptor
+    integration_test.go:38: span.mirror: re-apply plan for 3 desired object(s):
+          (empty plan)
+    integration_test.go:38: span.mirror: plan after simulated loss of 3 object(s):
+          create span.mirror/loop740/loop741/device
+          create span.mirror/loop740/loop742/device
+          create span.mirror/loop742/loop741/l2
+    integration_test.go:38: span.mirror: recreated 3 object(s)
+    integration_test.go:38: span.mirror: re-apply plan for 3 desired object(s):
+          (empty plan)
+    integration_test.go:40: deleted span.mirror/loop742/loop741/l2
+    integration_test.go:40: deleted span.mirror/loop740/loop742/device
+    integration_test.go:40: deleted span.mirror/loop740/loop741/device
+    integration_test.go:41: span.mirror: Retrieve after delete: nothing of ours
+--- PASS: TestSpanOnHost (0.10s)
+    --- PASS: TestSpanOnHost/update_state_in_place (0.00s)
+    --- PASS: TestSpanOnHost/restart_simulation (0.02s)
+PASS
+ok  	ngfw/agent/internal/descriptors/span	0.528s
+=== RUN   TestLLDPOnHost
+=== RUN   TestLLDPOnHost/global_(write-only,_globals_owner_only)
+    integration_test.go:23: skip: lldp.global is VPP-global — only the globals owner sets it (D-071); VRX_DF7_GLOBALS=1 to opt in
+=== RUN   TestLLDPOnHost/interface_(write-only,_verified_via_lldp_dump)
+=== NAME  TestLLDPOnHost
+    integration_test.go:33: created loop750 sw_if_index 10 (tagged true, up true)
+    integration_test.go:33: loop750: sw_if_index 10 hw_if_index 4 (found true)
+    integration_test.go:33: created loop751 sw_if_index 4 (tagged true, up true)
+    integration_test.go:33: loop751: sw_if_index 4 hw_if_index 3 (found true)
+    integration_test.go:33: created loop752 sw_if_index 9 (tagged true, up true)
+    integration_test.go:33: loop752: sw_if_index 9 hw_if_index 7 (found true)
+    integration_test.go:33: created loop753 sw_if_index 3 (tagged true, up true)
+    integration_test.go:33: loop753: sw_if_index 3 hw_if_index 8 (found true)
+    integration_test.go:33: created loop754 sw_if_index 5 (tagged true, up true)
+    integration_test.go:33: loop754: sw_if_index 5 hw_if_index 5 (found true)
+    integration_test.go:39: created lldp.interface/loop754 (meta {SwIfIndex:5})
+    integration_test.go:40: created lldp.interface/loop754 (meta {SwIfIndex:5})
+    integration_test.go:52: deleted lldp.interface/loop754
+=== NAME  TestLLDPOnHost/interface_(write-only,_verified_via_lldp_dump)
+    integration_test.go:59: lldp_dump after delete: loop754 not listed
+--- PASS: TestLLDPOnHost (0.06s)
+    --- SKIP: TestLLDPOnHost/global_(write-only,_globals_owner_only) (0.00s)
+    --- PASS: TestLLDPOnHost/interface_(write-only,_verified_via_lldp_dump) (0.04s)
+PASS
+ok  	ngfw/agent/internal/descriptors/lldp	0.097s
+=== RUN   TestGSOAppliedOnce
+--- PASS: TestGSOAppliedOnce (0.00s)
+=== RUN   TestGSOOnHost
+    integration_test.go:23: plugin gso loaded: 2 message(s) compatible
+    integration_test.go:25: created loop760 sw_if_index 10 tag "w7:loop760"
+    integration_test.go:48: Retrieve == desired: gso.interface/loop760 on loop760 (sw_if_index 10)
+    integration_test.go:60: after Delete: feature_is_enabled(ip4-output, gso-ip4, 10) = false, Retrieve empty
+--- PASS: TestGSOOnHost (0.04s)
+=== RUN   TestGSONotInheritedOnHost
+    integration_test.go:91: plugin gso loaded: 2 message(s) compatible
+    integration_test.go:106: created loop767 sw_if_index 10 tag "w7:loop767"
+    integration_test.go:114: GSO enabled on loop766 (sw_if_index 10), loopback deleted without disabling; loop767 reused the index: gso-ip4 off (feature arcs are cleared on delete)
+--- PASS: TestGSONotInheritedOnHost (0.02s)
+PASS
+ok  	ngfw/agent/internal/descriptors/gso	0.109s
+NRestarts=1
+```
 
 ### The ONE host integration check through the real API + agent + VPP (`test/topology/loopback-bvi-gso-lldp-span`)
-PLACEHOLDER-TOPO
+`eval "$(tools/lab env 7)"; test/topology/loopback-bvi-gso-lldp-span/run.sh -run TestLoopbackBviGsoLldpSpanOnHost` at c97508f3
+(04:30; shared lab lock during the run only; the long `show interface features` / L2 feature lists are condensed — only
+the arcs with a feature are kept). The agent runs as a slot agent (`VRX_GLOBALS_OWNER=0`). LLDP runs on `loop780`, a
+loopback the test found with sw_if_index == hw_if_index (V20) and handed to the agent by its owner tag; the ERSPAN
+fixture `gre778` is created with the same two messages DF-6's descriptor sends (`gre_tunnel_add_del_v2` + owner tag —
+`apps/agent/internal/**` cannot be imported from a test module; the descriptor itself is the ERSPAN host check above).
+The `/state/drift` entry for `/services/lldp` is the write-only leaf: it disappears with F-rpf-adl-pbr's
+`agent.write-only` coverage rule (Expected union 4).
+```
+=== RUN   TestLoopbackBviGsoLldpSpanOnHost
+    lbgs_test.go:101: systemctl show vpp -p NRestarts (before) = 2
+    lbgs_test.go:113: ERSPAN fixture gre778 (sw_if_index 2, tag w7:gre778): gre_tunnel_add_del_v2 type=erspan p2p 10.7.78.1 → 10.7.78.2 session 7
+    lbgs_test.go:114: LLDP probe loop780: sw_if_index 4 hw_if_index 4 (found true)
+    lbgs_test.go:117: LLDP interface: loop780 (sw_if_index 4 == hw_if_index): created untagged, tagged w7:loop780 right before rev A names it (the agent adopts it by its tag)
+    lbgs_test.go:122: create role vrx_w7
+        create database vrx_w7 (owner vrx_w7)
+        check  vrx_w7 as vrx_w7 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+        ok     env /run/vrx-test/w7/pg.env (0600) · DSN postgres://vrx_w7:<redacted>@127.0.0.1:5432/vrx_w7
+    lbgs_test.go:122: started vrx-agent pid 3554973 (log /run/vrx-test/w7/lbgs/agent.log)
+    lbgs_test.go:122: started vrx-api pid 3555048 (log /run/vrx-test/w7/lbgs/api.log)
+    lbgs_test.go:128: commit rev 0 (the ERSPAN fixture gre778 named, nothing else) → applied revision 1
+=== RUN   TestLoopbackBviGsoLldpSpanOnHost/validation
+    lbgs_test.go:134: commit of a mirror loop775 → loop775 → 400; body {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/interfaces/loop775/mirror/0/destination","message":"a mirror session cannot copy loop775 to itself"}]}
+=== RUN   TestLoopbackBviGsoLldpSpanOnHost/loopbacks
+    lbgs_test.go:156: commit rev A (loopbacks + BVI) → applied revision 2
+    lbgs_test.go:165: vppctl show interface:
+                      Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count
+        loop775                           5      up          9000/0/0/0
+        loop776                           6      up          9000/0/0/0
+=== RUN   TestLoopbackBviGsoLldpSpanOnHost/features
+    lbgs_test.go:179: candidate diff: {"baseRevision":2,"changes":[{"op":"add","pointer":"/interfaces/loop775/gso","to":true},{"op":"add","pointer":"/interfaces/loop775/mirror","to":[{"level":"device","direction":"both","destination":"loop776"},{"level":"device","direction":"rx","destination":"gre778"}]},{"op":"replace","pointer":"/services/lldp/enabled","from":false,"to":true},{"op":"replace","pointer":"/services/ll
+    lbgs_test.go:181: commit rev B → applied revision 3, 4 results
+    lbgs_test.go:185:   result create gso.interface/loop775 ok
+    lbgs_test.go:185:   result create span.mirror/loop775/gre778/device ok
+    lbgs_test.go:185:   result create span.mirror/loop775/loop776/device ok
+    lbgs_test.go:185:   result create lldp.interface/loop780 ok
+    lbgs_test.go:188: vppctl show interface span:
+        Source                           Destination                       Device       L2
+        loop775                          gre778                           (    rx) (  none)
+                                         loop776                          (  both) (  none)
+    lbgs_test.go:188: vppctl show lldp:
+        Local interface           Peer chassis ID           Remote port ID               Last heard      Last sent      Status
+        loop780                   de:ad:00:00:00:0c         loop780                       .1s ago         .1s ago       active
+    lbgs_test.go:188: vppctl show interface loop775:
+                      Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count
+        loop775                           5      up          9000/0/0/0
+    lbgs_test.go:188: vppctl show bridge-domain 7750 detail:
+          BD-ID   Index   BSN  Age(min)  Learning  U-Forwrd   UU-Flood   Flooding  ARP-Term  arp-ufwd Learn-co Learn-li   BVI-Intf
+          7750      1      0     off        on        on       flood        on       off       off        0    16777216   loop775
+                     … (L2 feature list elided)
+                   Interface           If-idx ISN  SHG  BVI  TxFlood        VLAN-Tag-Rewrite
+                    loop775              5     1    0    *      *                 none
+          BD-Tag: w7:7750/w7-lan
+    lbgs_test.go:188: vppctl show interface features loop775 (ip4-output):
+        ip4-output:
+          gso-ip4
+        l2-output-ip6:
+          gso-l2-ip6
+        l2-output-ip4:
+          gso-l2-ip4
+        interface-output:
+          span-output
+        port-rx-eth:
+          span-input
+        device-input:
+          span-input
+        l2-input:
+                      FWD (l2-fwd)
+                 UU_FLOOD (l2-flood)
+                    FLOOD (l2-flood)
+        l2-output:
+          OUTPUT_FEAT_ARC (l2-output-feat-arc)
+                   OUTPUT (interface-output)
+    lbgs_test.go:188: vppctl show nsim (VPP-global; a slot agent does not apply services.nsim):
+        show nsim: Network simulator not configured
+    lbgs_test.go:188: Retrieve == running for loop775: gso=true mirror=[{"destination":"loop776","direction":"both","level":"device"},{"destination":"gre778","direction":"rx","level":"device"}]
+    lbgs_test.go:188: GET /state/interfaces item loop775 config.gso=true config.mirror=[{"destination":"loop776","direction":"both","level":"device"},{"destination":"gre778","direction":"rx","level":"device"}]
+    lbgs_test.go:188: GET /state/lldp/neighbors → {"retrievedAt":"2026-09-25T01:00:20.940Z","page":1,"pageSize":100,"total":1,"items":[{"interface":"loop780","swIfIndex":4,"heard":true,"chassisId":"de:ad:00:00:00:0c","chassisIdSubtype":"mac-address","portId":"loop780","portIdSubtype":"interface-name","ttl":121,"lastHeardSecAgo":0.3918577522780424,"lastSentSecAgo":0.3919705991084186,"configured":true,"portDescription"
+    lbgs_test.go:188: GET /state/drift → {"subsystems":["interfaces","vrfs","routing","services"],"changes":[{"op":"remove","pointer":"/services/lldp","from":{"enabled":true,"txHold":4,"txIntervalSec":30,"interfaces":[{"interface":"loop780","portDescription":"w7 lab uplink"}]}}],"ignored":[{"pointer":"/management","rule":"agent.unimplemented-domain"},{"pointer":"/nat","rule":"agent.unimplemented-domain"},{"pointer":"
+=== RUN   TestLoopbackBviGsoLldpSpanOnHost/restart-safety
+    stack_test.go:200: stopped vrx-agent pid 3554973
+    lbgs_test.go:198: simulated loss: sw_interface_span_enable_disable 5→2 l2=false state=disabled → ok
+    lbgs_test.go:198: simulated loss: sw_interface_span_enable_disable 5→6 l2=false state=disabled → ok
+    lbgs_test.go:198: simulated loss: feature_gso_enable_disable loop775 (5) enable=false → ok
+    lbgs_test.go:198: simulated loss: sw_interface_set_l2_bridge loop775 L3 + bridge_domain_add_del_v2 del 7750 → ok
+    lbgs_test.go:198: simulated loss: delete_loopback loop775 (sw_if_index 5, tag "w7:loop775") → ok
+    lbgs_test.go:198: simulated loss: delete_loopback loop776 (sw_if_index 6, tag "w7:loop776") → ok
+    lbgs_test.go:202: simulated loss: sw_interface_set_lldp loop780 (4) enable=false → ok (the aligned loopback itself stays: V20)
+    lbgs_test.go:208: vppctl show interface span (after the loss):
+    lbgs_test.go:211: started vrx-agent pid 3559068 (log /run/vrx-test/w7/lbgs/agent.log)
+    lbgs_test.go:230: agent log: {"time":"2026-09-25T04:30:23.2194281+03:30","level":"INFO","msg":"vrx-agent starting","version":"dev","pid":3559068,"owner":"w7","socket":"/run/vrx-test/w7/agent.sock","vpp_api":"/run/vpp/api.sock"}
+    lbgs_test.go:235: agent log: {"time":"2026-09-25T04:30:23.220717596+03:30","level":"INFO","msg":"not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)","owner":"w7","component":"subsystems"}
+    lbgs_test.go:235: agent log: {"time":"2026-09-25T04:30:23.285328025+03:30","level":"INFO","msg":"reconcile start","owner":"w7","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing","services"]}
+    lbgs_test.go:235: agent log: {"time":"2026-09-25T04:30:23.647355319+03:30","level":"INFO","msg":"reconcile done","owner":"w7","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing","services"],"status":"APPLY_STATUS_APPLIED","summary":"created:13  unchanged:4","reapplied":0,"duration":362054284,"err":""}
+    lbgs_test.go:233: agent log: {"time":"2026-09-25T04:30:23.647407853+03:30","level":"INFO","msg":"resync finished","owner":"w7","status":"APPLY_STATUS_APPLIED","summary":"created:13  unchanged:4"}
+    lbgs_test.go:238: agent started at +0s; loopbacks, BVI, mirror sessions, GSO and LLDP back at +0.61s (no config API call)
+    lbgs_test.go:243: reconcile after simulated loss: 2026-09-25T04:30:23.2194281+03:30 → 2026-09-25T04:30:23.647407853+03:30 = 0.428s (agent log timestamps)
+    lbgs_test.go:245: vppctl show interface span:
+        Source                           Destination                       Device       L2
+        loop775                          gre778                           (    rx) (  none)
+                                         loop776                          (  both) (  none)
+    lbgs_test.go:245: vppctl show lldp:
+        Local interface           Peer chassis ID           Remote port ID               Last heard      Last sent      Status
+        loop780                   de:ad:00:00:00:0c         loop780                       .2s ago         .2s ago       active
+    lbgs_test.go:245: vppctl show interface loop775:
+                      Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count
+        loop775                           6      up          9000/0/0/0
+    lbgs_test.go:245: vppctl show bridge-domain 7750 detail:
+          BD-ID   Index   BSN  Age(min)  Learning  U-Forwrd   UU-Flood   Flooding  ARP-Term  arp-ufwd Learn-co Learn-li   BVI-Intf
+          7750      1      1     off        on        on       flood        on       off       off        0    16777216   loop775
+                     … (L2 feature list elided)
+                   Interface           If-idx ISN  SHG  BVI  TxFlood        VLAN-Tag-Rewrite
+                    loop775              6     1    0    *      *                 none
+          BD-Tag: w7:7750/w7-lan
+    lbgs_test.go:245: vppctl show interface features loop775 (ip4-output):
+        ip4-output:
+          gso-ip4
+        l2-output-ip6:
+          gso-l2-ip6
+        l2-output-ip4:
+          gso-l2-ip4
+        interface-output:
+          span-output
+        port-rx-eth:
+          span-input
+        device-input:
+          span-input
+        l2-input:
+                      FWD (l2-fwd)
+                 UU_FLOOD (l2-flood)
+                    FLOOD (l2-flood)
+        l2-output:
+          OUTPUT_FEAT_ARC (l2-output-feat-arc)
+                   OUTPUT (interface-output)
+    lbgs_test.go:245: vppctl show nsim (VPP-global; a slot agent does not apply services.nsim):
+        show nsim: Network simulator not configured
+    lbgs_test.go:245: Retrieve == running for loop775: gso=true mirror=[{"destination":"loop776","direction":"both","level":"device"},{"destination":"gre778","direction":"rx","level":"device"}]
+    lbgs_test.go:245: GET /state/interfaces item loop775 config.gso=true config.mirror=[{"destination":"loop776","direction":"both","level":"device"},{"destination":"gre778","direction":"rx","level":"device"}]
+    lbgs_test.go:245: GET /state/lldp/neighbors → {"retrievedAt":"2026-09-25T01:00:24.018Z","page":1,"pageSize":100,"total":1,"items":[{"interface":"loop780","swIfIndex":4,"heard":true,"chassisId":"de:ad:00:00:00:0c","chassisIdSubtype":"mac-address","portId":"loop780","portIdSubtype":"interface-name","ttl":121,"lastHeardSecAgo":0.43574159337629226,"lastSentSecAgo":0.4360645738089488,"configured":true,"portDescription
+    lbgs_test.go:245: GET /state/drift → {"subsystems":["interfaces","vrfs","routing","services"],"changes":[{"op":"remove","pointer":"/services/lldp","from":{"enabled":true,"txHold":4,"txIntervalSec":30,"interfaces":[{"interface":"loop780","portDescription":"w7 lab uplink"}]}}],"ignored":[{"pointer":"/management","rule":"agent.unimplemented-domain"},{"pointer":"/nat","rule":"agent.unimplemented-domain"},{"pointer":"
+=== RUN   TestLoopbackBviGsoLldpSpanOnHost/rollback
+    lbgs_test.go:254: POST /config/rollback/2 (rev A: loopbacks only) → status applied
+    lbgs_test.go:272: after the rollback to rev A: sw_interface_span_dump from loop775: none; feature_is_enabled(ip4-output, gso-ip4, 6) = false; lldp_dump lists loop780: false
+    lbgs_test.go:273: vppctl show interface span (after rollback):
+    lbgs_test.go:274: vppctl show lldp (after rollback):
+        Local interface           Peer chassis ID           Remote port ID               Last heard      Last sent      Status
+    lbgs_test.go:275: vppctl show interface features loop775 (ip4-output, after rollback):
+        l2-input:
+                      FWD (l2-fwd)
+                 UU_FLOOD (l2-flood)
+                    FLOOD (l2-flood)
+        l2-output:
+                   OUTPUT (interface-output)
+    lbgs_test.go:281: Retrieve after rollback: loop775 gso=<nil> mirror=[]
+    lbgs_test.go:284: POST /config/rollback/1 (first revision) → status applied
+    lbgs_test.go:294: vppctl show interface (after the rollback to the first revision):
+                      Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count
+        gre778                            2     down         8998/0/0/0
+        local0                            0     down          0/0/0/0
+        loop1053                          1      up          9000/0/0/0
+        loop789                           3     down         9000/0/0/0
+=== NAME  TestLoopbackBviGsoLldpSpanOnHost
+    stack_test.go:200: stopped vrx-api pid 3555048
+    stack_test.go:200: stopped vrx-agent pid 3559068
+    stack_test.go:507: pg-test drop w7: <nil>
+        drop   database vrx_w7
+        drop   role vrx_w7
+        ok     nothing named vrx_w7 / vrx_w7 remains
+    vpp_test.go:275: fixture gre778 deleted
+    lbgs_test.go:111: leftover check (loop775 loop776 gre778, loop780–loop789 and sub-interfaces, bridge domain 7750): []; all mirror sessions in VPP: []
+    lbgs_test.go:104: systemctl show vpp -p NRestarts (after) = 2
+--- PASS: TestLoopbackBviGsoLldpSpanOnHost (19.14s)
+    --- PASS: TestLoopbackBviGsoLldpSpanOnHost/validation (0.14s)
+    --- PASS: TestLoopbackBviGsoLldpSpanOnHost/loopbacks (0.60s)
+    --- PASS: TestLoopbackBviGsoLldpSpanOnHost/features (0.86s)
+    --- PASS: TestLoopbackBviGsoLldpSpanOnHost/restart-safety (3.09s)
+    --- PASS: TestLoopbackBviGsoLldpSpanOnHost/rollback (0.97s)
+PASS
+ok  	ngfw/test/topology/loopback-bvi-gso-lldp-span	19.172s
+```
 
 ### API e2e (host PostgreSQL + fake agent)
-PLACEHOLDER-E2E
+`cd apps/api && npx vitest run -c vitest.e2e.config.ts test/e2e/loopback-bvi-gso-lldp-span.e2e.test.ts` (04:30): 501 without
+the RPC; mirror destination = source → 400 problem+json pointer `/interfaces/loop7101/mirror/0/destination`; D-105
+`loop16001` → 400 `/interfaces/loop16001`; the nsim wheel bound → 400 `/services/nsim/delayMs`; commit of a loopback BVI with
+GSO, mirroring, LLDP and nsim (running defaults, `/state/interfaces` config carries gso/mirror, LLDP table paging,
+pageSize 1001 → 400, the API's own owner in the RPC); readonly cannot PATCH; rollback clears everything.
+```
+RUN  v3.2.7 /root/ngfw-wt/F-loopback-bvi-gso-lldp-span/apps/api
+create role vrx_w7
+create database vrx_w7 (owner vrx_w7)
+check  vrx_w7 as vrx_w7 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+ok     env /run/vrx-test/w7/pg.env (0600) · DSN postgres://vrx_w7:<redacted>@127.0.0.1:5432/vrx_w7
+ ✓ test/e2e/loopback-bvi-gso-lldp-span.e2e.test.ts (5 tests) 5672ms
+   ✓ loopback / GSO / LLDP / mirroring / nsim e2e (PostgreSQL + fake agent) > commits a loopback BVI with GSO, mirroring, LLDP and nsim; state shows them  647ms
+   ✓ loopback / GSO / LLDP / mirroring / nsim e2e (PostgreSQL + fake agent) > the readonly role cannot change LLDP; rollback removes every leaf  329ms
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  04:30:29
+   Duration  30.82s (transform 12.08s, setup 0ms, collect 21.93s, tests 5.67s, environment 1ms, prepare 488ms)
+e2e teardown: deleted 7 Valkey keys vrx:w7:e2e:* in db 7
+drop   database vrx_w7
+drop   role vrx_w7
+ok     nothing named vrx_w7 / vrx_w7 remains
+```
 
 ### UI — screenshots against the real endpoint (`TestLoopbackBviGsoLldpSpanScreenshots`)
 Production build under `vite preview` on the slot web port, real API + agent + VPP (loopbacks, the ERSPAN fixture, LLDP
 on an index-aligned loopback, a pending mirror change). Playwright is not installed: a node script with playwright-core
 from the npx cache and the Chrome-for-Testing headless shell from the session scratch drives the browser (P07a/P07b/P08
 approach; nothing installed, the script is not committed).
-PLACEHOLDER-SHOTS
+```
+    shots_test.go: screenshots:
+        lldp-en.png  html dir/lang=ltr/en  h2="LLDP"  pageErrors=0
+        mirroring-en.png  html dir/lang=ltr/en  h2="Port mirroring"  pageErrors=0
+        mirroring-edit-en.png  html dir/lang=ltr/en  h2="Port mirroring|Edit mirror session"  pageErrors=0
+        nsim-en.png  html dir/lang=ltr/en  h2="Network delay simulator"  pageErrors=0
+        interfaces-drawer-gso-mirror-en.png  html dir/lang=ltr/en  h2="Interfaces"  pageErrors=0
+        lldp-fa-dark-rtl.png  html dir/lang=rtl/fa  h2="LLDP"  pageErrors=0
+        mirroring-fa-dark-rtl.png  html dir/lang=rtl/fa  h2="آینه‌سازی پورت"  pageErrors=0
+        mirroring-edit-fa-dark-rtl.png  html dir/lang=rtl/fa  h2="آینه‌سازی پورت|ویرایش نشست آینه‌سازی"  pageErrors=0
+        nsim-fa-dark-rtl.png  html dir/lang=rtl/fa  h2="شبیه‌ساز تأخیر شبکه"  pageErrors=0
+    shots_test.go:96: rollback to 1 → applied
+    shots_test.go:36: leftover check (loop775 loop776 gre778, loop780–loop789 and sub-interfaces, bridge domain 7750): []; all mirror sessions in VPP: []
+--- PASS: TestLoopbackBviGsoLldpSpanScreenshots (57.64s)
+```
+Files: `docs/status/tasks/F-loopback-bvi-gso-lldp-span-screens/*.png` — LLDP settings + neighbour table (the loopback hears
+its own LLDPDUs: chassis `de:ad:00:00:00:0c`, port `loop780`, TTL 121, "10 s ago"); Port mirroring (two live sessions incl.
+the ERSPAN one to `gre778`, one pending change); the edit dialog; nsim under Tools with the "lab tool" mark; P08's
+interface drawer with the GSO switch and the mirror sessions (generated from the schema); the same in Persian RTL dark.
+The drawer's fieldset title is the raw group name `loopback-bvi-gso-lldp-span` (as `bridge-l2` for F-bridge-l2): the drawer
+translates groups in the `interfaces` namespace, which is not mine (questions Q9).
+
+![LLDP](F-loopback-bvi-gso-lldp-span-screens/lldp-en.png)
+![Port mirroring](F-loopback-bvi-gso-lldp-span-screens/mirroring-en.png)
+![nsim (fa, RTL, dark)](F-loopback-bvi-gso-lldp-span-screens/nsim-fa-dark-rtl.png)
+![Drawer: GSO and mirror sessions](F-loopback-bvi-gso-lldp-span-screens/interfaces-drawer-gso-mirror-en.png)
 
 ### CI
-PLACEHOLDER-CI
+`TMPDIR=/tmp/g-w7 tools/ci.sh --base main` at c97508f3. The branch's own copy failed its contract guard with the D-127
+SIGPIPE flake (a run at 04:12, "CONTRACT FILES CHANGED WITHOUT A CONTRACT COMMIT" although the branch carries three
+contract commits); main's copy (D-127 advice) fails on main's new trace-ban step (D-128) because of P08-r2's
+`test/topology/interfaces/interfaces_test.go:291-302` in my base (fixed on main by TD-20, not my file). So the gate ran as
+the branch's `tools/ci.sh` with exactly main's two guard fixes applied in a copy outside the tree (`/tmp/g-w7/ci-branch.sh`:
+the D-127 capture-then-grep and D-128b test-file exclusion; `tools/ci.sh` itself untouched):
+```
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   2m02s
+  forbidden patterns (+ gitleaks)                    0m04s
+  lint · typecheck · unit tests · build (turbo)   1m40s
+  apps/agent: make lint test build                   1m11s
+  apps/cli: make lint test build                     0m24s
+  test/ Go modules, unit mode (test/integration/smoke test/topology/bridge-l2 test/topology/interfaces test/topology/loopback-bvi-gso-lldp-span)   0m15s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      review(W-seed): verify
+  mode quick · wall time 5m40s · logs /root/ngfw-wt/logs/ci/F-loopback-bvi-gso-lldp-span-20260925-042331-3465101
+
+CI GATE PASSED
+exit=0
+```
 
 ## Acceptance
-PLACEHOLDER-ACCEPT
+- [x] `vppctl show interface span`, `show lldp`, `show interface loop775` and `show bridge-domain 7750 detail` (BVI loop775)
+  reflect the commit — host check above (VPP 26.06 names the span command `show interface span`)
+- [x] Agent-restart simulation → loopbacks, BVI, mirror sessions, GSO and LLDP back at +0.61 s (reconcile 0.428 s, agent log);
+  write-only types re-applied exactly once: LLDP enabled once on loop780 (lldp_dump), GSO applied once (after the rollback
+  ONE disable leaves `feature_is_enabled` false; the unit tests count stacked enables = 1)
+- [x] Rollback removes mirror/LLDP/GSO (Retrieve: `gso=<nil> mirror=[]`; binapi dumps; `show interface span` / `show lldp`
+  empty; `show interface features` without gso/span) and then the loopbacks (`show interface`); nsim is not applied by a
+  slot agent (reported unsupported, `show nsim` "not configured"); on the globals owner rollback removes cross-connect and
+  output feature (fake-client test) — VPP cannot unconfigure the model itself
+- [x] Mirror destination equal to its source → 400 problem+json, pointer `/interfaces/loop775/mirror/0/destination` (host) and
+  `/interfaces/loop7101/mirror/0/destination` (e2e)
+- [x] UI screenshots against the real endpoint (above)
+- [x] CI gate green in the worktree (above; see the note on the guard copy)
 
 ## Out of scope (not built)
 Bridge domains and BVI membership descriptors (F-bridge-l2), loopback creation (P08), GRE tunnel creation (F-tunnels — a

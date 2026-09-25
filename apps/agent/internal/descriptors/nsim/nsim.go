@@ -321,18 +321,29 @@ func (d *CrossConnectDescriptor) Create(ctx context.Context, obj proto.Message) 
 	if err != nil {
 		return nil, err
 	}
-	if !applied {
-		if err := d.set(ctx, a.Index, b.Index, true); err != nil {
-			return nil, err
-		}
-		if err := d.store.Put(dfkit.BootRecord{Key: string(CrossConnectKey()), Identity: id, Value: value}); err != nil {
-			return nil, fmt.Errorf("%s: record: %w", CrossConnectKey(), err)
-		}
-	}
-	if err := a.Claim(); err != nil {
+	// claim first (TD-11b, review M3): both claims are recorded before the VPP write
+	undoA, err := claimFirst(a)
+	if err != nil {
 		return nil, err
 	}
-	return meta, b.Claim()
+	undoB, err := claimFirst(b)
+	if err != nil {
+		return nil, undoA(err)
+	}
+	undo := func(err error) error { return undoA(undoB(err)) }
+	if !applied {
+		if err := d.set(ctx, a.Index, b.Index, true); err != nil {
+			return nil, undo(err)
+		}
+		if err := d.store.Put(dfkit.BootRecord{Key: string(CrossConnectKey()), Identity: id, Value: value}); err != nil {
+			err = fmt.Errorf("%s: record: %w", CrossConnectKey(), err)
+			if derr := d.set(ctx, a.Index, b.Index, false); derr != nil { // no unrecorded (stacking) enable left
+				err = errors.Join(err, derr)
+			}
+			return nil, undo(err)
+		}
+	}
+	return meta, nil
 }
 
 // Update implements scheduler.Descriptor: another pair is a recreate.
@@ -451,15 +462,23 @@ func (d *OutputDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	if err != nil {
 		return nil, err
 	}
+	undo, err := claimFirst(tg) // TD-11b, review M3
+	if err != nil {
+		return nil, err
+	}
 	if !applied {
 		if err := d.set(ctx, tg.Index, true); err != nil {
-			return nil, err
+			return nil, undo(err)
 		}
 		if err := d.store.Put(dfkit.BootRecord{Key: string(OutputKey(o.Interface)), Identity: id, Value: value}); err != nil {
-			return nil, fmt.Errorf("%s: record: %w", OutputKey(o.Interface), err)
+			err = fmt.Errorf("%s: record: %w", OutputKey(o.Interface), err)
+			if derr := d.set(ctx, tg.Index, false); derr != nil { // no unrecorded (stacking) enable left
+				err = errors.Join(err, derr)
+			}
+			return nil, undo(err)
 		}
 	}
-	return OutputMeta{SwIfIndex: tg.Index}, tg.Claim()
+	return OutputMeta{SwIfIndex: tg.Index}, nil
 }
 
 // Update implements scheduler.Descriptor: the value is only the interface (= the key).
@@ -509,4 +528,23 @@ func RegisterGlobals(r scheduler.Registry, c vpp.Client, owner string, store dfk
 	r.Register(NewConfig(c, store, opts...))
 	r.Register(NewCrossConnect(c, owner, store))
 	r.Register(NewOutput(c, owner, store))
+}
+
+// claimFirst records the claim on an untagged target before the VPP write and returns undo, which releases the claim
+// again when this Create made it (TD-11b's dfkit.Target.ClaimFirst, which this branch's base predates; the swap is
+// mechanical at the rebase — review M3). Our tagged interfaces need no claim.
+func claimFirst(tg dfkit.Target) (undo func(error) error, err error) {
+	had := tg.Claimed()
+	if err := tg.Claim(); err != nil {
+		return nil, err
+	}
+	return func(err error) error {
+		if had {
+			return err
+		}
+		if rerr := tg.Release(); rerr != nil {
+			return errors.Join(err, rerr)
+		}
+		return err
+	}, nil
 }

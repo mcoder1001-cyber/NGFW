@@ -141,10 +141,14 @@ func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error)
 			}
 		}
 	}
-	if err := d.set(ctx, meta, states[m.State], m.L2); err != nil {
+	undo, err := claimFirst(tg) // TD-11b, review M3: the claim before the VPP write
+	if err != nil {
 		return nil, err
 	}
-	return meta, tg.Claim()
+	if err := d.set(ctx, meta, states[m.State], m.L2); err != nil {
+		return nil, undo(err)
+	}
+	return meta, nil
 }
 
 // exists reports whether VPP mirrors meta.From to meta.To at the level.
@@ -282,4 +286,23 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 // Register registers the span descriptor.
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
 	r.Register(New(c, owner, opts...))
+}
+
+// claimFirst records the claim on an untagged target before the VPP write and returns undo, which releases the claim
+// again when this Create made it (TD-11b's dfkit.Target.ClaimFirst, which this branch's base predates; the swap is
+// mechanical at the rebase — review M3). Our tagged interfaces need no claim.
+func claimFirst(tg dfkit.Target) (undo func(error) error, err error) {
+	had := tg.Claimed()
+	if err := tg.Claim(); err != nil {
+		return nil, err
+	}
+	return func(err error) error {
+		if had {
+			return err
+		}
+		if rerr := tg.Release(); rerr != nil {
+			return errors.Join(err, rerr)
+		}
+		return err
+	}, nil
 }

@@ -20,6 +20,7 @@ package gso
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -167,29 +168,60 @@ func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error)
 		return nil, err
 	}
 	meta := Meta{SwIfIndex: tg.Index, Name: i.Interface}
+	// claim first (TD-11b, review M3): on an untagged interface the claim is recorded before any VPP write, so a
+	// failed claim writes nothing, and a failed write releases a claim this Create made
+	undo, err := claimFirst(tg)
+	if err != nil {
+		return nil, err
+	}
 	if applied && on {
-		return meta, tg.Claim()
+		return meta, nil
 	}
 	// no record of this boot: normalise to "off" first — one disable per stacked instance (a stale or
 	// inherited enable, V21), bounded; a no-op for an index the arc never reached
 	for n := 0; on && n < maxNormalise; n++ {
 		if err := d.set(ctx, tg.Index, false); err != nil {
-			return nil, err
+			return nil, undo(err)
 		}
 		if on, err = IsEnabled(ctx, d.client, tg.Index); err != nil {
-			return nil, err
+			return nil, undo(err)
 		}
 	}
 	if on {
-		return nil, fmt.Errorf("%s: GSO on %s (%d) is still enabled after %d disables; not stacking another enable", Name, i.Interface, tg.Index, maxNormalise)
+		return nil, undo(fmt.Errorf("%s: GSO on %s (%d) is still enabled after %d disables; not stacking another enable", Name, i.Interface, tg.Index, maxNormalise))
 	}
 	if err := d.set(ctx, tg.Index, true); err != nil {
-		return nil, err
+		return nil, undo(err)
 	}
 	if err := d.store.Put(dfkit.BootRecord{Key: string(key), Identity: id, Value: value}); err != nil {
-		return nil, fmt.Errorf("%s: record: %w", key, err)
+		// without the record the enable would be invisible to Retrieve and stacked by the next Create: take it back
+		// (review M3; TD-11b's PartialCreate is not on this branch's base)
+		err = fmt.Errorf("%s: record: %w", key, err)
+		if derr := d.set(ctx, tg.Index, false); derr != nil {
+			err = errors.Join(err, derr)
+		}
+		return nil, undo(err)
 	}
-	return meta, tg.Claim()
+	return meta, nil
+}
+
+// claimFirst records the claim on an untagged target before the VPP write and returns undo, which releases the claim
+// again when this Create made it (TD-11b's dfkit.Target.ClaimFirst, which this branch's base predates; the swap is
+// mechanical at the rebase — review M3). Our tagged interfaces need no claim.
+func claimFirst(tg dfkit.Target) (undo func(error) error, err error) {
+	had := tg.Claimed()
+	if err := tg.Claim(); err != nil {
+		return nil, err
+	}
+	return func(err error) error {
+		if had {
+			return err
+		}
+		if rerr := tg.Release(); rerr != nil {
+			return errors.Join(err, rerr)
+		}
+		return err
+	}, nil
 }
 
 // Update implements scheduler.Descriptor: the value is only the interface (= the key).

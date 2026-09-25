@@ -38,6 +38,7 @@ func newFake() *fakeGSO {
 			dfkittest.Iface{Index: 1, Name: "loop7001", Tag: "w7:loop7001"},
 			dfkittest.Iface{Index: 2, Name: "loop7002", Tag: "w7:loop7002"},
 			dfkittest.Iface{Index: 3, Name: "loop9", Tag: "w3:loop9"},
+			dfkittest.Iface{Index: 4, Name: "eth0"}, // untagged: ours only through a claim
 		),
 		count: map[uint32]int{}, reached: map[uint32]bool{},
 	}

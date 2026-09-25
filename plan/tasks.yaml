@@ -986,7 +986,7 @@ tasks:
   - TD-8
   priority: 3
   est_hours: 10
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D5.2
@@ -1000,7 +1000,8 @@ tasks:
   started: 2026-09-25T00:14
   finished: ''
   notes: 'prompts-s4: suggested deps soft +F-rpf-adl-pbr (ADL/Auto-SDL screens it links to) — docs/status/tasks/prompts-s4.md | envelope draft docs/status/tasks/F-acl.envelope.md (prep-waveA, D-109) | D-125:
-    merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125 envelope: mandatory interfaceDependency + same-commit-removal test (review 3.4, +1 h)'
+    merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125 envelope: mandatory interfaceDependency + same-commit-removal test (review 3.4, +1 h) | done
+    a6fcdff2 (CI green; screenshots pending TD-25); review running'
 - id: F-host-acl-nftables
   title: 'Wave A (day 7-9): local-in ACL + nftables host policy renderer'
   prompt: prompts/features/F-host-acl-nftables.md
@@ -1179,7 +1180,7 @@ tasks:
   - TD-8
   priority: 4
   est_hours: 10
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D6.5
@@ -1193,7 +1194,7 @@ tasks:
   started: 2026-09-25T00:14
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-wireguard.envelope.md (prep-waveA, D-109) | D-125 envelope: review 3.3b — peer.go must not return meta+error with the peer left in VPP (delete it, or best-effort
-    subscription), fake-VPP test (+1 h)'
+    subscription), fake-VPP test (+1 h) | done 0e19dcaf (CI green; e2e secret step waits PENDING-secret-channel); review running'
 - id: F-tunnels
   title: 'Wave B (day 10-12): GRE, IPIP, VXLAN(-GPE), GTP-U, L2TPv3, PPPoE'
   prompt: prompts/features/F-tunnels.md
@@ -1256,7 +1257,7 @@ tasks:
   - TD-8
   priority: 3
   est_hours: 16
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D3.1
@@ -1276,7 +1277,8 @@ tasks:
   notes: 'needs linux_cp/linux_nl enabled in startup.conf (handover) | D-060: un-parked (plugins enabled 2026-09-24) | envelope draft docs/status/tasks/P12.envelope.md (prep-waveA, D-109) | D-125: merge
     after TD-13 (audit ARCH-02, validate daemon config before any VPP write) | D-125 at spawn: S2 + S3 mandatory — drop ''only if the manager confirms'' (envelope:15, review 4.3); render derived bgp community-list
     / bgp as-path access-list lines (4.5); warning text ''not yet rendered by this agent build (FRR renderer pending P12)'' (4.4); name GET /api/v1/state/bgp/neighbors (6.3b); frr README.md + section.go:20
-    (4.6) | running on combined base W-seed-BC + TD-8 + F-vrf-static-ecmp (slot 8) | done b14d68d1 (topology run 6 PASS); review running; Q1 linux-nl window = manager decision after review'
+    (4.6) | running on combined base W-seed-BC + TD-8 + F-vrf-static-ecmp (slot 8) | done b14d68d1 (topology run 6 PASS); review running; Q1 linux-nl window = manager decision after review | review APPROVE
+    WITH CHANGES 7931c596; fix round 1 (H1 pair dependency, H2 gitleaks text, mediums); H3 VPP-FIB proof deferred to row P12-fib-proof (LAB-vpp-per-slot) — manager'
 - id: F-ospf
   title: 'Wave B (day 10-12): OSPFv2/v3 via FRR'
   prompt: prompts/features/F-ospf.md
@@ -1379,7 +1381,7 @@ tasks:
   started: 2026-09-25T00:14
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-kea-dhcp-relay.envelope.md (prep-waveA, D-109) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before any VPP write) | review APPROVE WITH
-    CHANGES bfedc2b8; fix round 1 f6c41176; verify running; D-136 no TD-13 wait'
+    CHANGES bfedc2b8; fix round 1 f6c41176; verify running; D-136 no TD-13 wait | fix round 1 f6c41176; verify APPROVE 26a85d1b; D-136'
 - id: F-unbound-chrony-syslog
   title: 'Wave B (day 10-12): Unbound DNS, chrony NTP, syslog export + log explorer'
   prompt: prompts/features/F-unbound-chrony-syslog.md
@@ -1392,7 +1394,7 @@ tasks:
   - W-seed
   priority: 4
   est_hours: 10
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D7.3
@@ -1408,7 +1410,8 @@ tasks:
   owner: ''
   started: 2026-09-25T00:14
   finished: ''
-  notes: ' | envelope draft docs/status/tasks/F-unbound-chrony-syslog.envelope.md (prep-waveA, D-109) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before any VPP write)'
+  notes: ' | envelope draft docs/status/tasks/F-unbound-chrony-syslog.envelope.md (prep-waveA, D-109) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before any VPP write) | done c94e90d9
+    (CI green; 04:27 dns crash guarded, D-137); review running'
 - id: F-mpls-srmpls
   title: 'Wave C (day 13-15): static MPLS + SR-MPLS (LDP split to F-mpls-ldp, D-085/D-109)'
   prompt: prompts/features/F-mpls-srmpls.md
@@ -2792,7 +2795,7 @@ tasks:
   - TD-4
   priority: 3
   est_hours: 12
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.9
@@ -2808,7 +2811,8 @@ tasks:
   started: 2026-09-25T00:14
   finished: ''
   notes: 'D-125 | not a wave-A gate; dep of P10, F-aaa, SEC-auth | TD-4 Q3 (demote/delete revoke) is PENDING-session-revocation (policy #4): build the recommended option, only that hunk follows the answer
-    | tools/app bind/TLS follows PENDING-tools-app-transport | review APPROVE WITH CHANGES 175bed1c; fix round 1 (C1 VRX_TRUST_PROXY=none in tools/app, C2 authctl, C3 split revocation hunk — PENDING-session-revocation)'
+    | tools/app bind/TLS follows PENDING-tools-app-transport | review APPROVE WITH CHANGES 175bed1c; fix round 1 (C1 VRX_TRUST_PROXY=none in tools/app, C2 authctl, C3 split revocation hunk — PENDING-session-revocation)
+    | fix round 1 c9f5d296; verify APPROVE faed447d; merger: after TD-10a; revert cb74843d before squash unless PENDING-session-revocation = option 1'
 - id: TD-11a
   title: 'Agent reachability check: desired state to data plane'
   prompt: ''
@@ -2896,7 +2900,7 @@ tasks:
   - P08
   priority: 3
   est_hours: 8
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D0.7
@@ -2910,7 +2914,7 @@ tasks:
   finished: ''
   notes: 'D-125 (audit ARCH-02; est by the plan review, the audit gave none) | P11, P12, F-kea-dhcp-relay, F-unbound-chrony-syslog, F-snmp and F-host-acl-nftables merge after TD-13 | reconciler.go hunks:
     TD-9 ApplyWith ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage; whichever merges second rebases | done 3a83c96b (CI green; 11 tests base-first, 13 mutations caught);
-    review running'
+    review running | review APPROVE WITH CHANGES c8b34d4e; fix round 1 (M1 mask only refs, M2 SkipValidators for TD-9 drift)'
 - id: TD-15
   title: 'API hygiene: z.output response DTOs, ConfigTx userHashes/secretVersions + pool timeout, secret refs from the schema'
   prompt: ''
@@ -3259,8 +3263,8 @@ tasks:
   est_hours: 5
   scope: TD-8 verify V1/V2/V3 + review Q3 (D-129)
   files_owned: apps/agent/internal/agent/dynsource.go apps/agent/internal/subsystems/seams*.go tools/app (env line) test/topology/interfaces (env passthrough) docs/status/tasks/TD-8b*
-  notes: must merge before F-mpls-ldp and F-igmp-mfib | started 2026-09-25 04:15 slot 5, base main d3a7c266 (+TD-9 deadline, TD-11c bracket addenda) | done 699156dc (CI green, topology slot 5 NRestarts
-    2->2); review running
+  notes: 'must merge before F-mpls-ldp and F-igmp-mfib | started 2026-09-25 04:15 slot 5, base main d3a7c266 (+TD-9 deadline, TD-11c bracket addenda) | done 699156dc (CI green, topology slot 5 NRestarts
+    2->2); review running | review APPROVE f39560f3; merger: TD-10a → TD-11c → TD-8b → TD-9'
 - template: ''
   parked_on: ''
   branch: ''
@@ -3303,3 +3307,125 @@ tasks:
   files_owned: apps/agent/internal/descriptors/dhcp/** (client claim order) apps/web/src/domains/interfaces/InterfaceDrawer.tsx (saveSub) apps/web/src/components/CommitDialog.tsx packages/schema/src/examples.test.ts
     docs/status/tasks/TD-22*
   notes: merge after WEB-1 (it also edits InterfaceDrawer.tsx) and TD-10a
+- template: ''
+  parked_on: ''
+  branch: task/TD-24
+  worktree: /root/ngfw-wt/TD-24
+  owner: ''
+  started: 2026-09-25T05:00
+  finished: ''
+  state: review
+  wbs: &id003
+  - D0.1
+  prompt: ''
+  id: TD-24
+  title: interface-ip reconcile must not delete a DHCP-leased address (Retrieve skips the dhcp_client_dump lease)
+  stage: S4
+  deps:
+  - TD-11c
+  priority: 1
+  est_hours: 3
+  scope: F-kea review Q5 (H, bug on main)
+  files_owned: apps/agent/internal/descriptors/core/ifaddr.go (Retrieve) core/*_test.go coretest/dhcp.go test/topology/interfaces/dhcplease_test.go docs/status/tasks/TD-24*
+  notes: done d80cf4bf (CI green; host proof written, pending TD-25); review running; speculative base task/TD-11c
+- template: ''
+  parked_on: ''
+  branch: task/TD-25
+  worktree: /root/ngfw-wt/TD-25
+  owner: ''
+  started: 2026-09-25T05:15
+  finished: ''
+  state: running
+  wbs: *id003
+  prompt: ''
+  id: TD-25
+  title: 'ifsanitize: stop the classify-pool hole ratchet (resurrect only indices a binding names; never pop fresh indices)'
+  stage: S2
+  deps: []
+  priority: 1
+  est_hours: 4
+  scope: 'incident 2026-09-25 05:05: every af_packet create fails closed (placeholder cap 64 < 122 freed indices); tech-debt TD-3 re-review M3'
+  files_owned: apps/agent/internal/vpp/ifsanitize/** docs/vpp-code-track.md (V19/V23) docs/status/tasks/TD-25*
+  notes: URGENT; blocks all host runs that create interfaces
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: todo
+  wbs: *id003
+  prompt: ''
+  id: TD-8c
+  title: Two-phase resync for dynamic sources (config first, then dynamic objects) — per-key reruns must not re-create the whole transaction
+  stage: S4
+  deps:
+  - TD-8b
+  - TD-9
+  priority: 2
+  est_hours: 4
+  scope: TD-8b review C1 (M)
+  files_owned: apps/agent/internal/agent/dynsource.go apps/agent/internal/agent/service.go (resync) docs/status/tasks/TD-8c*
+  notes: gate before F-mpls-ldp and F-igmp-mfib
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: todo
+  wbs: *id003
+  prompt: ''
+  id: TD-26
+  title: 'Core VRF tolerant delete: a table VPP keeps locked (nat64 never releases its FIB locks) is left, recorded and warned, not a failed transaction'
+  stage: S4
+  deps:
+  - TD-11c
+  priority: 3
+  est_hours: 4
+  scope: F-nat44-ei review H1/H2
+  files_owned: apps/agent/internal/descriptors/core/vrf*.go docs/status/tasks/TD-26*
+  notes: V-new (c) of F-nat44-ei-64-66-nptv6
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: todo
+  wbs: *id003
+  prompt: ''
+  id: TD-27
+  title: 'ifsanitize: clear inherited SPAN source state and LLDP entries on interface create (V19 family)'
+  stage: S4
+  deps:
+  - TD-25
+  priority: 3
+  est_hours: 3
+  scope: F-loopback review (manager action)
+  files_owned: apps/agent/internal/vpp/ifsanitize/** docs/status/tasks/TD-27*
+  notes: a reused sw_if_index silently mirrors nothing / keeps a stray LLDP enable
+- template: ''
+  parked_on: PENDING-vpp-host-hardening (via LAB-vpp-per-slot)
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: parked
+  wbs: *id003
+  prompt: ''
+  id: P12-fib-proof
+  title: Prove BGP routes reach the VPP FIB through linux-nl on a private per-slot VPP
+  stage: S3
+  deps:
+  - P12
+  - LAB-vpp-per-slot
+  priority: 2
+  est_hours: 3
+  scope: 'P12 review H3; manager decision: no global lcp default-netns window on the shared VPP'
+  files_owned: test/topology/frr-linuxcp/** docs/status/tasks/P12-fib-proof*
+  notes: test design in docs/status/tasks/P12.md (fix round 1)

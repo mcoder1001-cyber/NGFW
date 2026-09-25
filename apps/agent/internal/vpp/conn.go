@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -25,6 +27,20 @@ const DefaultReplyTimeout = 30 * time.Second
 // a descriptor's error: the request may have reached VPP, so its outcome is unknown (the scheduler reports the
 // transaction DEGRADED and the agent owes a resync).
 var ErrTimeout = fmt.Errorf("vpp: no reply in time: %w", context.DeadlineExceeded)
+
+// IsTimeout reports whether err means that VPP did not answer in time: ErrTimeout, a deadline, or govpp's
+// own reply timeout — matched by text too, for errors a descriptor formatted with %v. Such an outcome is
+// never certain (the request may have been applied) and never stored under a txn_id (TD-9 fix round 1).
+func IsTimeout(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, core.ErrReplyTimeout) {
+		return true
+	}
+	msg := err.Error()
+	return strings.Contains(msg, context.DeadlineExceeded.Error()) || strings.Contains(msg, core.ErrReplyTimeout.Error())
+}
 
 // govpp's health-check defaults (250 ms reply timeout, 2 misses) disconnect on hypervisor jitter: on vrx-a an idle VPP
 // answers a control ping in 0.4 ms median but spikes to ~300 ms with nothing else running (ESXi memory reclaim, P08 review
@@ -242,17 +258,43 @@ func (c *Conn) current() (*core.Connection, error) {
 }
 
 // Invoke implements Client. The round trip is bounded by ReplyTimeout (TD-9): a caller's earlier deadline
-// wins, a ctx without one gets it. A missed deadline is ErrTimeout.
+// wins, a ctx without one gets it. A missed deadline is ErrTimeout. It is govpp's Connection.Invoke on a
+// stream of this Conn's own reply timeout: govpp's Invoke uses the process-wide core.DefaultReplyTimeout,
+// which would cut a larger VRX_AGENT_VPP_REPLY_TIMEOUT short (TD-9 review M1).
 func (c *Conn) Invoke(ctx context.Context, req, reply api.Message) error {
 	conn, err := c.current()
 	if err != nil {
 		return err
 	}
-	return invokeWithin(ctx, c.opts.ReplyTimeout, req, reply, conn.Invoke)
+	return invokeWithin(ctx, c.opts.ReplyTimeout, req, reply, func(ctx context.Context, req, reply api.Message) error {
+		return invokeStream(ctx, conn, c.opts.ReplyTimeout, req, reply)
+	})
+}
+
+// invokeStream is one request/reply round trip on a stream whose reply timeout is timeout.
+func invokeStream(ctx context.Context, conn *core.Connection, timeout time.Duration, req, reply api.Message) error {
+	st, err := conn.NewStream(ctx, core.WithReplyTimeout(timeout))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = st.Close() }()
+	if err := st.SendMsg(req); err != nil {
+		return err
+	}
+	m, err := st.RecvMsg()
+	if err != nil {
+		return err
+	}
+	dv, sv := reflect.ValueOf(reply), reflect.ValueOf(m)
+	if dv.Kind() != reflect.Pointer || dv.IsNil() || dv.Type() != sv.Type() {
+		return fmt.Errorf("vpp: %s: VPP answered %T, want %T", req.GetMessageName(), m, reply)
+	}
+	dv.Elem().Set(sv.Elem())
+	return nil
 }
 
 // invokeWithin runs one request/reply round trip with its ctx bounded by timeout and turns the bound's own
-// expiry into ErrTimeout (a caller's cancel or deadline stays ctx.Err()).
+// expiry — or govpp's own reply timeout — into ErrTimeout (a caller's cancel or deadline stays ctx.Err()).
 func invokeWithin(ctx context.Context, timeout time.Duration, req, reply api.Message, invoke func(context.Context, api.Message, api.Message) error) error {
 	if timeout <= 0 {
 		return invoke(ctx, req, reply)
@@ -260,8 +302,13 @@ func invokeWithin(ctx context.Context, timeout time.Duration, req, reply api.Mes
 	tctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	err := invoke(tctx, req, reply)
-	if err != nil && ctx.Err() == nil && tctx.Err() != nil {
+	switch {
+	case err == nil || ctx.Err() != nil:
+		return err
+	case tctx.Err() != nil:
 		return fmt.Errorf("%w: %s: %s", ErrTimeout, req.GetMessageName(), timeout)
+	case errors.Is(err, core.ErrReplyTimeout):
+		return fmt.Errorf("%w: %s: %w", ErrTimeout, req.GetMessageName(), err)
 	}
 	return err
 }

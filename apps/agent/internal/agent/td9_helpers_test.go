@@ -46,6 +46,12 @@ func setLinkRetry(lo, hi time.Duration) (restore func()) {
 	return func() { linkRetryMin, linkRetryMax = oldLo, oldHi }
 }
 
+func setDriftPlanTimeout(d time.Duration) (restore func()) {
+	old := driftPlanTimeout
+	driftPlanTimeout = d
+	return func() { driftPlanTimeout = old }
+}
+
 func setConnectHookTimeout(d time.Duration) (restore func()) {
 	old := connectHookTimeout
 	connectHookTimeout = d
@@ -55,7 +61,7 @@ func setConnectHookTimeout(d time.Duration) (restore func()) {
 // VRX_AGENT_VPP_REPLY_TIMEOUT reaches the VPP connection; VRX_METRICS_ALLOW_REMOTE opts in to a
 // non-loopback /metrics (new settings: no base equivalent).
 func TestConfigReplyTimeoutAndMetricsOptIn(t *testing.T) {
-	for in, want := range map[string]time.Duration{"": 0, "5": 5 * time.Second, "1500ms": 1500 * time.Millisecond, "2m": 2 * time.Minute} {
+	for in, want := range map[string]time.Duration{"": 0, "20": 20 * time.Second, "15500ms": 15500 * time.Millisecond, "2m": 2 * time.Minute} {
 		t.Setenv("VRX_AGENT_VPP_REPLY_TIMEOUT", in)
 		c := ConfigFromEnv()
 		c.StateDir = t.TempDir()
@@ -63,13 +69,13 @@ func TestConfigReplyTimeoutAndMetricsOptIn(t *testing.T) {
 			t.Errorf("%q: %v %v", in, c.VPPReplyTimeout, err)
 		}
 	}
-	for _, in := range []string{"0", "-5s", "abc", "0s"} {
+	for _, in := range []string{"0", "-5s", "abc", "0s", "5"} {
 		t.Setenv("VRX_AGENT_VPP_REPLY_TIMEOUT", in)
 		if err := ConfigFromEnv().Validate(); err == nil || !strings.Contains(err.Error(), "VRX_AGENT_VPP_REPLY_TIMEOUT") {
 			t.Errorf("%q accepted: %v", in, err)
 		}
 	}
-	t.Setenv("VRX_AGENT_VPP_REPLY_TIMEOUT", "7")
+	t.Setenv("VRX_AGENT_VPP_REPLY_TIMEOUT", "70")
 	t.Setenv("VRX_METRICS_ADDR", "0.0.0.0:9171")
 	if err := ConfigFromEnv().Validate(); err == nil {
 		t.Fatal("non-loopback metrics without the opt-in")
@@ -92,7 +98,7 @@ func TestConfigReplyTimeoutAndMetricsOptIn(t *testing.T) {
 		t.Fatal(err)
 	}
 	a.Stop()
-	if got.ReplyTimeout != 7*time.Second {
+	if got.ReplyTimeout != 70*time.Second {
 		t.Fatalf("ConnOptions.ReplyTimeout = %s", got.ReplyTimeout)
 	}
 }

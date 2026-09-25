@@ -264,9 +264,14 @@ func (s *Scheduler) guard(call string, key Key, fn func() error) (err error) {
 	return fn()
 }
 
+// govppReplyTimeout is the text of govpp's core.ErrReplyTimeout (v0.13), which a VPP reply timeout that did
+// not go through vpp.Conn's mapping carries (TD-9 fix round 1, M1).
+const govppReplyTimeout = "no reply received within the timeout period"
+
 // uncertain reports whether an operation that failed with err may still have taken effect: its call
-// was cut off by a deadline or a cancel (a VPP reply timeout wraps context.DeadlineExceeded) — matched
-// by text too, for descriptors that format errors with %v — or its descriptor panicked.
+// was cut off by a deadline or a cancel (a VPP reply timeout wraps context.DeadlineExceeded; govpp's own
+// reply timeout counts too) — matched by text as well, for descriptors that format errors with %v — or its
+// descriptor panicked.
 func uncertain(err error) bool {
 	if err == nil {
 		return false
@@ -275,7 +280,8 @@ func uncertain(err error) bool {
 		return true
 	}
 	msg := err.Error()
-	return strings.Contains(msg, context.DeadlineExceeded.Error()) || strings.Contains(msg, context.Canceled.Error())
+	return strings.Contains(msg, context.DeadlineExceeded.Error()) || strings.Contains(msg, context.Canceled.Error()) ||
+		strings.Contains(msg, govppReplyTimeout)
 }
 
 // markPanicked records a recovered panic of op on its result (the first one added since index from, as

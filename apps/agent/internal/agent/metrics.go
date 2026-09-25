@@ -32,7 +32,7 @@ type metrics struct {
 	woDescs      atomic.Int64
 	woObjects    atomic.Int64
 	drift        atomic.Int64    // TD-9: objects the last drift check found
-	panics       [3]atomic.Int64 // TD-9: recovered panics by panicWhere
+	panics       [4]atomic.Int64 // TD-9: recovered panics by panicWhere
 
 	mu       sync.Mutex
 	byStatus map[string]int64
@@ -59,9 +59,9 @@ func newMetrics() *metrics {
 	return &metrics{byStatus: map[string]int64{}, buckets: make([]int64, len(durationBuckets)), ops: map[string]int64{}}
 }
 
-// panicWhere are the places a panic is recovered (TD-9, review 1.1d/1.1e): a gRPC handler, a
-// descriptor call (the scheduler), the agent's own transaction code.
-var panicWhere = [3]string{"grpc", "descriptor", "transaction"}
+// panicWhere are the places a panic is recovered (TD-9, review 1.1d/1.1e and L2): a gRPC handler, a
+// descriptor call (the scheduler), the agent's own transaction code, a wiring hook or the link watcher.
+var panicWhere = [4]string{"grpc", "descriptor", "transaction", "hook"}
 
 // panicked counts a recovered panic.
 func (m *metrics) panicked(where string) {
@@ -201,7 +201,7 @@ func (m *metrics) writeAgent(w io.Writer) {
 	p("# HELP vrx_agent_retrieve_unsupported_descriptors Write-only descriptors (no VPP dump, D-063).\n# TYPE vrx_agent_retrieve_unsupported_descriptors gauge\nvrx_agent_retrieve_unsupported_descriptors %d\n", m.woDescs.Load())
 	p("# HELP vrx_agent_retrieve_unsupported_objects Objects of write-only descriptors applied by this process (D-063).\n# TYPE vrx_agent_retrieve_unsupported_objects gauge\nvrx_agent_retrieve_unsupported_objects %d\n", m.woObjects.Load())
 	p("# HELP vrx_agent_drift_objects Objects of the stored desired state that differ from VPP at the last drift check (a Plan, nothing applied).\n# TYPE vrx_agent_drift_objects gauge\nvrx_agent_drift_objects %d\n", m.drift.Load())
-	p("# HELP vrx_agent_panics_total Panics recovered: in a gRPC handler, a descriptor call, or the agent's transaction code.\n# TYPE vrx_agent_panics_total counter\n")
+	p("# HELP vrx_agent_panics_total Panics recovered: in a gRPC handler, a descriptor call, the agent's transaction code, or a wiring hook / the link watcher.\n# TYPE vrx_agent_panics_total counter\n")
 	for i, w := range panicWhere {
 		p("vrx_agent_panics_total{where=%q} %d\n", w, m.panics[i].Load())
 	}

@@ -468,7 +468,9 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 		if res.Uncertain {
 			resp.Message += "; the outcome of that operation is unknown (VPP did not answer in time, or its descriptor panicked): the agent owes a resync of the stored desired state"
 		}
-		retryable = res.Uncertain || (ctx.Err() != nil && resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+		// Not stored (proto.md §2 item 3): an unknown outcome, one in which a VPP reply timeout took part
+		// anywhere — plan, an operation, verify, the rollback (review M2) — or a transaction the deadline cut.
+		retryable = res.Uncertain || timedOut(res) || (ctx.Err() != nil && resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
 		// Review 1.2: the projection's warnings (unimplemented domains, unsupported fields) reach an
 		// APPLIED or ROLLED_BACK answer too, not only DryRun.
 		if st := resp.GetStatus(); resp.Validation == nil && len(pj.issues) > 0 &&
@@ -492,7 +494,7 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 				s.st.meta.ConfirmDeadline = nil
 				s.st.meta.Reverting = false
 			}
-			covers := len(minus(s.st.meta.Managed, domains)) == 0
+			covers := len(minus(implementedOnly(s.st.meta.Managed), domains)) == 0
 			s.st.desired = mergeDomains(s.st.desired, ds, domains)
 			s.st.meta.Managed = union(s.st.meta.Managed, domains)
 			if confirmSec > 0 {
@@ -508,9 +510,13 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 				s.st.meta.ConfirmedManaged = append([]string(nil), s.st.meta.Managed...)
 				s.st.meta.LastTxnID = txnID
 			}
-			// An owed resync (TD-9) is paid only by a transaction over every managed domain.
+			// An owed resync (TD-9) is paid only by a transaction over every managed domain. A narrower one
+			// leaves DEGRADED — and when it just superseded an owed revert, whose retry stood in for the
+			// resync, the owed resync is armed now (review M3).
 			if covers {
 				s.setDegraded(false, "")
+			} else if s.isDegraded() {
+				s.oweResyncLocked()
 			}
 		case modeRevert:
 			s.setDegraded(false, "")
@@ -529,7 +535,11 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	// TD-11c's per-transaction claim flush joins here: after the outcome, before the save; a failed
 	// flush — like a failed save (ARCH-01) — turns APPLIED into DEGRADED.
 	if s.flushClaims != nil {
-		if err := s.flushClaims(ctx); err != nil {
+		// on a context of its own (review L3): not cut by what is left of the transaction's deadline
+		fctx, fcancel := context.WithTimeout(context.WithoutCancel(ctx), flushClaimsTimeout)
+		err := s.flushClaims(fctx)
+		fcancel()
+		if err != nil {
 			log.Error("flush claims", "err", err)
 			retryable = s.notSavedLocked(resp, "its claims could not be flushed: "+err.Error()) || retryable
 		}
@@ -571,6 +581,34 @@ func (s *Service) notSavedLocked(resp *vrxv1.ApplyResponse, why string) bool {
 	resp.Message = "applied to the data plane, but " + why
 	s.setDegraded(true, resp.Message)
 	return true
+}
+
+// flushClaimsTimeout bounds the per-transaction claim flush (TD-11c's hook; review L3).
+const flushClaimsTimeout = 30 * time.Second
+
+// timedOut reports whether a VPP reply timeout or a deadline took part in res (its error or any result's:
+// plan, an operation, verify, an undo).
+func timedOut(res *scheduler.TxnResult) bool {
+	if vpp.IsTimeout(res.Err) {
+		return true
+	}
+	for _, r := range res.Results {
+		if vpp.IsTimeout(r.Err) {
+			return true
+		}
+	}
+	return false
+}
+
+// implementedOnly returns the domains of ds this agent build implements.
+func implementedOnly(ds []string) []string {
+	var out []string
+	for _, d := range ds {
+		if implemented(d) {
+			out = append(out, d)
+		}
+	}
+	return out
 }
 
 // minus returns the elements of a that are not in b.
@@ -814,6 +852,10 @@ func (s *Service) resyncLocked(ctx context.Context) *vrxv1.ApplyResponse {
 	return resp
 }
 
+// driftPlanTimeout bounds the drift check's Plan, which holds the transaction lock (review L5; a var for
+// the tests).
+var driftPlanTimeout = 60 * time.Second
+
 // CheckDrift is the periodic drift check (TD-9, review 1.1b): a Plan — never an apply — of the stored
 // desired state of every managed domain against VPP. Its count of objects that differ is the
 // vrx_agent_drift_objects gauge; when it becomes non-zero or changes, an ERROR event (attributes
@@ -841,7 +883,7 @@ func (s *Service) CheckDrift(ctx context.Context) {
 	if pj.hasErrors() {
 		return
 	}
-	tctx, cancel := context.WithTimeout(ctx, s.txnTimeout)
+	tctx, cancel := context.WithTimeout(ctx, driftPlanTimeout) // not the transaction's minutes (review L5)
 	defer cancel()
 	plan, err := s.planSources(tctx, pj, domains, s.st.desired)
 	if err != nil {

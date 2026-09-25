@@ -125,14 +125,20 @@ func (c Config) Validate() error {
 		return c.idsErr
 	case c.replyErr != nil:
 		return c.replyErr
-	case c.VPPReplyTimeout < 0:
-		return fmt.Errorf("invalid VRX_AGENT_VPP_REPLY_TIMEOUT %s", c.VPPReplyTimeout)
+	case c.VPPReplyTimeout < 0 || (c.VPPReplyTimeout > 0 && c.VPPReplyTimeout < MinVPPReplyTimeout):
+		return fmt.Errorf("invalid VRX_AGENT_VPP_REPLY_TIMEOUT %s: at least %s (govpp's health-check window)", c.VPPReplyTimeout, MinVPPReplyTimeout)
 	}
 	if _, err := ParseLogLevel(c.LogLevel); err != nil {
 		return err
 	}
 	return c.checkMetricsAddr()
 }
+
+// MinVPPReplyTimeout is the least VRX_AGENT_VPP_REPLY_TIMEOUT (review L6): govpp's health check (a probe
+// every 1 s, 2 s reply timeout, 5 misses — vpp/conn.go) reconnects a dead or hung VPP within about 15 s,
+// which drops late replies. A shorter reply timeout would return a channel id to govpp's pool while VPP may
+// still answer on it, and govpp's Invoke does not check which message a reply answers.
+const MinVPPReplyTimeout = 15 * time.Second
 
 // ParseLogLevel parses VRX_LOG_LEVEL (debug, info, warn, error; "" = info). An unknown level is an
 // error: the agent refuses to start rather than run at a level nobody asked for (TD-9, review 1.5c).
@@ -412,7 +418,7 @@ func (a *Agent) safely(what string, fn func()) {
 		if r := recover(); r != nil {
 			a.log.Error("panic recovered", "in", what, "panic", fmt.Sprint(r), "stack", string(debug.Stack()))
 			if a.metrics != nil {
-				a.metrics.panicked("transaction")
+				a.metrics.panicked("hook") // review L2: not a transaction panic
 			}
 		}
 	}()

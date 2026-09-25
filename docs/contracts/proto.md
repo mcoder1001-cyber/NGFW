@@ -135,11 +135,11 @@ applied). Any other combination is `INVALID_ARGUMENT`. A confirm-and-apply while
 3. Transactions are serialised: one at a time per agent. A second `Apply` while one is running blocks until it finishes
    (bounded by the caller's deadline), it is never interleaved. **The caller's deadline and cancel bound only that wait
    (TD-9).** Once a transaction holds the lock it runs to its end on the agent's own clock, whether or not the caller is
-   still there: every VPP reply is bounded by `VRX_AGENT_VPP_REPLY_TIMEOUT` (default 30 s; one request/reply, or one
-   message of a dump), the transaction by 5 min and its rollback by 2 min. A caller that gave up retries with the same
-   `txn_id`: it waits for the lock and gets the stored response (item 2). **An outcome that a timeout decided is never
-   stored** — a VPP call that did not answer in time (the request may have been applied), or the transaction's own
-   deadline — and neither is an answer turned `DEGRADED` because the agent could not save its state: a retry with the
+   still there: every VPP reply is bounded by `VRX_AGENT_VPP_REPLY_TIMEOUT` (default 30 s, at least 15 s — govpp's
+   health-check window; one request/reply, or one message of a dump), the transaction by 5 min and its rollback by 2 min. A caller that gave up retries with the same
+   `txn_id`: it waits for the lock and gets the stored response (item 2). **An outcome in which a timeout took part is
+   never stored** — a VPP call that did not answer in time, in the plan, an operation (the request may have been
+   applied), verify or the rollback, or the transaction's own deadline — and neither is an answer turned `DEGRADED` because the agent could not save its state: a retry with the
    same `txn_id` runs the transaction again, which is safe because it is declarative (item 1). A caller that gives up
    while still waiting for the lock gets `DEADLINE_EXCEEDED`/`CANCELLED` and nothing is stored.
 
@@ -171,7 +171,7 @@ extension). `DryRun` applies the same table when planning.
 | `APPLIED` | converged and verified (unconfirmed if a timer runs) | OK |
 | `FAILED` | untouched — validation/planning failed; `validation` explains | OK |
 | `ROLLED_BACK` | back at the previous state; `results` lists what failed and what was reverted | OK |
-| `DEGRADED` | intermediate — an operation and its rollback both failed; **or the failed operation's outcome is unknown** (its VPP call timed out or was cut off after the request was sent, or its descriptor panicked: no rollback can undo what was never journaled; `message` says so); **or the data plane was changed but the agent could not save its state** (ARCH-01). `Health.degraded = true`, Event `DEGRADED` (AD-4). The agent owes a resync of the stored desired state and retries it with backoff (5 s doubling to 60 s) until one succeeds; a resync, a confirm revert or an `Apply` over every managed domain that ends `APPLIED` clears it (TD-9) | OK |
+| `DEGRADED` | intermediate — an operation and its rollback both failed; **or the failed operation's outcome is unknown** (its VPP call timed out or was cut off after the request was sent, or its descriptor panicked: no rollback can undo what was never journaled; `message` says so); **or the data plane was changed but the agent could not save its state** (ARCH-01). `Health.degraded = true`, Event `DEGRADED` (AD-4). The agent owes a resync of the stored desired state and retries it with backoff (5 s doubling to 60 s) until one succeeds; a resync, a confirm revert or an `Apply` over every managed domain that ends `APPLIED` clears it; a narrower `Apply` leaves it, and the owed resync keeps retrying (TD-9) | OK |
 | `CONFIRMED` | unchanged — pure confirm | OK |
 | — | malformed request, owner mismatch, unknown subsystem | `INVALID_ARGUMENT` |
 | — | confirm of a txn that is not pending; new apply while another txn is pending confirmation (§4) | `FAILED_PRECONDITION` |

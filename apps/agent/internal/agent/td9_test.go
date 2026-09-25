@@ -43,7 +43,13 @@ type flakyVPP struct {
 	slow      func(api.Message) bool // VPP answers only after delay
 	delay     time.Duration
 	failDumps bool // every dump fails (a resync that cannot read VPP)
-	released  chan struct{}
+	// fix round 1: a dump fails with dumpErr (once: only the next one); a dump waits dumpDelay (or its ctx);
+	// onInvoke sees every request before it is served
+	dumpErr     error
+	dumpErrOnce bool
+	dumpDelay   time.Duration
+	onInvoke    func(api.Message)
+	released    chan struct{}
 }
 
 func newFlaky() *flakyVPP { return &flakyVPP{VPP: coretest.New(), released: make(chan struct{})} }
@@ -65,8 +71,11 @@ func (f *flakyVPP) hangOn(p func(api.Message) bool) { f.set(func(f *flakyVPP) { 
 // nothing else) or the test's end ends the wait.
 func (f *flakyVPP) Invoke(ctx context.Context, req, reply api.Message) error {
 	f.mu.Lock()
-	hang, slow, delay := f.hang, f.slow, f.delay
+	hang, slow, delay, on := f.hang, f.slow, f.delay, f.onInvoke
 	f.mu.Unlock()
+	if on != nil {
+		on(req)
+	}
 	if hang != nil && hang(req) {
 		_ = f.VPP.Invoke(context.WithoutCancel(ctx), req, reply)
 		select {
@@ -88,10 +97,23 @@ func (f *flakyVPP) Invoke(ctx context.Context, req, reply api.Message) error {
 
 func (f *flakyVPP) NewStream(ctx context.Context, opts ...api.StreamOption) (api.Stream, error) {
 	f.mu.Lock()
-	fail := f.failDumps
+	fail, derr, delay := f.failDumps, f.dumpErr, f.dumpDelay
+	if f.dumpErrOnce {
+		f.dumpErr, f.dumpErrOnce = nil, false
+	}
 	f.mu.Unlock()
 	if fail {
 		return nil, errors.New("fake vpp: dump refused")
+	}
+	if derr != nil {
+		return nil, derr
+	}
+	if delay > 0 {
+		select {
+		case <-time.After(delay):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
 	}
 	return f.VPP.NewStream(ctx, opts...)
 }

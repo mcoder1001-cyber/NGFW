@@ -11,7 +11,7 @@
 //	VRX_METRICS_ADDR / _PORT    Prometheus                  (127.0.0.1:9101; "off" disables)
 //	VRX_METRICS_ALLOW_REMOTE    1 = a non-loopback VRX_METRICS_ADDR is meant (/metrics is unauthenticated)
 //	VRX_LOG_LEVEL               debug|info|warn|error       (info; anything else refuses to start)
-//	VRX_AGENT_VPP_REPLY_TIMEOUT bound of one VPP reply      (30 s; seconds or a Go duration)
+//	VRX_AGENT_VPP_REPLY_TIMEOUT bound of one VPP reply      (30 s; seconds or a Go duration; at least 15 s)
 //
 // An invalid setting refuses to start (exit status 1) instead of running with a default nobody asked for.
 package main

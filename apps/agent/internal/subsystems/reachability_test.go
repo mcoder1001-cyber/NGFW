@@ -62,6 +62,7 @@ var descriptorReach = map[string]reachEntry{
 	"df6":                 {library, "DF-6 shared helpers"},
 	"df7":                 {library, "DF-7 shared helpers (codec, boot store, registry)"},
 	"dfkit":               {library, "DF-8 / descriptor kit (D-077)"},
+	"kit":                 {library, "TD-16 shared helpers (atomic write, ParsePrefix, Register) — no descriptors"},
 	"dhcp":                {wired, "P08"},
 	"dns":                 {pending, "F-unbound-chrony-syslog"},
 	"flowprobe":           {pending, "F-ipfix-sflow"},
@@ -126,7 +127,7 @@ var rendererReach = map[string]reachEntry{
 // libraryPins is the exact library set; change it only with a reason in the entry (and a D-entry for
 // a package that has descriptors, like D-141).
 var libraryPins = []string{
-	"descriptors/df2", "descriptors/df6", "descriptors/df7", "descriptors/dfkit", "descriptors/memif",
+	"descriptors/df2", "descriptors/df6", "descriptors/df7", "descriptors/dfkit", "descriptors/kit", "descriptors/memif",
 	"descriptors/natcommon", "descriptors/tapv2", "descriptors/vpn", "renderers/rfkit", "renderers/vppstartup",
 }
 

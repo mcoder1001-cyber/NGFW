@@ -101,13 +101,16 @@ func TestBondsBuilderErrors(t *testing.T) {
 		`{"lag0": {"bond": {"mode": "xor"}}}`:                                                                                                           "/interfaces/lag0/bond interfaces.bonding-name",
 		`{"BondEthernet1": {"bond": {"mode": "xor", "id": 2}}}`:                                                                                         "/interfaces/BondEthernet1/bond/id interfaces.bonding-name",
 		`{"BondEthernet1": {"bond": {"mode": "802.3ad"}}}`:                                                                                              "/interfaces/BondEthernet1/bond/mode interfaces.bonding-mode",
-		`{"BondEthernet1": {"bond": {"mode": "broadcast", "loadBalance": "l2"}}}`:                                                                       "/interfaces/BondEthernet1/bond/loadBalance interfaces.bonding-load-balance",
+		`{"BondEthernet1": {"bond": {"mode": "round-robin", "loadBalance": "l2"}}}`:                                                                     "/interfaces/BondEthernet1/bond/loadBalance interfaces.bonding-load-balance",
 		`{"BondEthernet1": {"bond": {"mode": "xor", "loadBalance": "l4"}}}`:                                                                             "/interfaces/BondEthernet1/bond/loadBalance interfaces.bonding-load-balance",
 		`{"BondEthernet1": {"bond": {"mode": "xor", "members": {"x": {}}}}}`:                                                                            "/interfaces/BondEthernet1/bond/members/x interfaces.bonding-member-exists",
 		`{"BondEthernet1": {"bond": {"mode": "xor", "members": {"loop1": {}}}}, "loop1": {}}`:                                                           "/interfaces/BondEthernet1/bond/members/loop1 interfaces.bonding-member-kind",
 		`{"BondEthernet1": {"bond": {"mode": "xor", "members": {"BondEthernet2": {}}}}, "BondEthernet2": {}}`:                                           "/interfaces/BondEthernet1/bond/members/BondEthernet2 interfaces.bonding-member-kind",
 		`{"BondEthernet1": {"bond": {"mode": "xor", "members": {"a": {}}}}, "BondEthernet2": {"bond": {"mode": "xor", "members": {"a": {}}}}, "a": {}}`: "/interfaces/BondEthernet2/bond/members/a interfaces.bonding-member-unique",
 		`{"BondEthernet1": {"bond": {"mode": "xor", "members": {"a": {"passive": true}}}}, "a": {}}`:                                                    "/interfaces/BondEthernet1/bond/members/a interfaces.bonding-lacp-options",
+		`{"BondEthernet1": {"bond": {"mode": "broadcast"}}}`:                                                                                            "/interfaces/BondEthernet1/bond/mode interfaces.bonding-mode",               // Q1
+		`{"BondEthernet1": {"bond": {"mode": "xor", "members": {"wg0": {}}}}, "wg0": {}}`:                                                               "/interfaces/BondEthernet1/bond/members/wg0 interfaces.bonding-member-kind", // F4
+		`{"BondEthernet1": {"bond": {"mode": "xor", "members": {"a": {}}}}, "a": {"mac": "02:00:00:00:00:01"}}`:                                         "/interfaces/a/mac interfaces.bonding-member-mac",                           // F5
 		`{"BondEthernet1": {"bond": {"mode": "lacp", "members": {"a": {"weight": 1}}}}, "a": {}}`:                                                       "/interfaces/BondEthernet1/bond/members/a/weight interfaces.bonding-weight",
 	} {
 		s := &sink{}
@@ -150,7 +153,7 @@ func TestAssembleBonds(t *testing.T) {
 	if n, ok := BondID("BondEthernet4294967294"); !ok || n != 4294967294 {
 		t.Fatal(n, ok)
 	}
-	if BondModeName(bond.Mode_MODE_UNSPECIFIED) != "" || BondLBName(bond.LoadBalance_LOAD_BALANCE_BROADCAST) != "broadcast" {
+	if BondModeName(bond.Mode_MODE_UNSPECIFIED) != "" || BondModeName(bond.Mode_MODE_BROADCAST) != "broadcast" || BondLBName(bond.LoadBalance_LOAD_BALANCE_BROADCAST) != "broadcast" {
 		t.Fatal("names")
 	}
 }

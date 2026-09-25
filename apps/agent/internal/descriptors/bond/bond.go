@@ -51,6 +51,10 @@ func (*BondDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 // Dependencies implements scheduler.Descriptor.
 func (*BondDescriptor) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 
+// RecordsNoOwnership declares for the product agent's ownership guard (TD-11b, dfkit/persist): a bond is ours by the owner
+// tag VPP carries on the bond interface; nothing is recorded in a claim or boot store.
+func (*BondDescriptor) RecordsNoOwnership() {}
+
 // ProvidedKeys implements the scheduler's KeyProvider (F-bonding, D-125): a bond also satisfies the alias
 // "interface/<name>" that its members, addresses and attributes depend on. Without it a plan that only deletes
 // (a rollback) has no edge from those objects to bond.bond — the alias object is observe-only and never planned —

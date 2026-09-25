@@ -6,12 +6,14 @@ package coretest
 // algorithm is forced for round-robin / active-backup / broadcast and only l2/l34/l23 are accepted in
 // a request, a bond interface cannot be a member, an interface is a member of at most one bond, a
 // new membership has weight 0, weights are accepted on active-backup bonds only, deleting a bond
-// detaches its members and deletes its sub-interfaces. Installed by New (one line in fakevpp.go).
+// detaches its members and deletes its sub-interfaces. Installed by New through the D-129 extensions seam (init below).
 
 import (
 	"fmt"
 	"sort"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"go.fd.io/govpp/api"
 
@@ -50,6 +52,10 @@ type ModelMember struct {
 type bondModel struct {
 	bonds   map[uint32]*ModelBond   // bond sw_if_index →
 	members map[uint32]*ModelMember // member sw_if_index →
+	// dump probe (SetBondDumpDelay): each sw_bond_interface_dump waits delay before answering; inFlight/maxInFlight
+	// count concurrent dumps (D-132 single-walk tests).
+	delay                 atomic.Int64
+	inFlight, maxInFlight atomic.Int32
 }
 
 // bondModels holds each VPP model's bond state (the VPP struct lives in fakevpp.go; guarded by VPP.mu).
@@ -76,6 +82,8 @@ func (b *bondModel) syncLocked(v *VPP) {
 		}
 	}
 }
+
+func init() { extensions = append(extensions, (*VPP).installBonding) }
 
 func (v *VPP) installBonding() {
 	b := v.bondModel()
@@ -186,6 +194,15 @@ func (v *VPP) installBonding() {
 	})
 	v.On("sw_bond_interface_dump", func(m api.Message) ([]api.Message, error) {
 		req := m.(*bondapi.SwBondInterfaceDump)
+		n := b.inFlight.Add(1)
+		defer b.inFlight.Add(-1)
+		for {
+			prev := b.maxInFlight.Load()
+			if n <= prev || b.maxInFlight.CompareAndSwap(prev, n) {
+				break
+			}
+		}
+		time.Sleep(time.Duration(b.delay.Load()))
 		v.mu.Lock()
 		defer v.mu.Unlock()
 		b.syncLocked(v)
@@ -302,3 +319,21 @@ func (v *VPP) BondCount() int {
 	b.syncLocked(v)
 	return len(b.bonds)
 }
+
+// AddNIC adds an untagged Ethernet-like interface (a stand-in for a DPDK NIC or a fixture tap): MAC 02:fe:00:00:00:<idx>,
+// link MTU 9000, admin down.
+func (v *VPP) AddNIC(name, devType string) uint32 {
+	idx := v.AddInterface(name, devType, "")
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	i := v.Ifaces[idx]
+	i.L2 = [6]uint8{0x02, 0xfe, 0, 0, 0, uint8(idx)} //nolint:gosec // G115: a fake MAC byte; test indexes are small
+	i.LinkMtu, i.Mtu, i.RxMode = 9000, [4]uint32{9000}, interface_types.RX_MODE_API_POLLING
+	return idx
+}
+
+// SetBondDumpDelay makes every later sw_bond_interface_dump wait d before it answers (the dump probe).
+func (v *VPP) SetBondDumpDelay(d time.Duration) { v.bondModel().delay.Store(int64(d)) }
+
+// MaxBondDumpsInFlight is the highest number of sw_bond_interface_dump calls the model has seen at the same time.
+func (v *VPP) MaxBondDumpsInFlight() int { return int(v.bondModel().maxInFlight.Load()) }

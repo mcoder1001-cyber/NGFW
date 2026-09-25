@@ -11,6 +11,7 @@ import (
 	"net"
 	"sort"
 	"strconv"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -40,6 +41,11 @@ func (s *Service) BondState(ctx context.Context, req *vrxv1.BondStateRequest) (*
 	if !s.vpp.Connected() {
 		return nil, status.Error(codes.Unavailable, "VPP binary API is not connected")
 	}
+	release, err := acquireBondWalk(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	bonds, err := bondTable(ctx, s.vpp, s.owner)
 	if err != nil {
 		if errors.Is(err, vpp.ErrDisconnected) {
@@ -58,6 +64,26 @@ func (s *Service) BondState(ctx context.Context, req *vrxv1.BondStateRequest) (*
 		}
 	}
 	return resp, nil
+}
+
+// bondWalk admits one BondState walk at a time in this agent (D-132: one walk of a VPP table in flight); bondWalkWait is how
+// long a second caller waits for it before it gets UNAVAILABLE (a variable for tests).
+var (
+	bondWalk     = make(chan struct{}, 1)
+	bondWalkWait = 3 * time.Second
+)
+
+func acquireBondWalk(ctx context.Context) (func(), error) {
+	t := time.NewTimer(bondWalkWait)
+	defer t.Stop()
+	select {
+	case bondWalk <- struct{}{}:
+		return func() { <-bondWalk }, nil
+	case <-t.C:
+		return nil, status.Errorf(codes.Unavailable, "a bond state walk is already in flight (one at a time, D-132); retry in a moment")
+	case <-ctx.Done():
+		return nil, status.FromContextError(ctx.Err()).Err()
+	}
 }
 
 // bondTable dumps this owner's bonds, sorted by name, members sorted by interface.

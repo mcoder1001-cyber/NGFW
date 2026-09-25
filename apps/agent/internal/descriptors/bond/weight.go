@@ -61,6 +61,10 @@ func NewWeight(c vpp.Client, owner string) *WeightDescriptor {
 // Name implements scheduler.Descriptor.
 func (*WeightDescriptor) Name() string { return WeightName }
 
+// RecordsNoOwnership declares for the product agent's ownership guard (TD-11b, dfkit/persist): the weight lives in a
+// membership that bond.member owns (Retrieve reads bond.member's claims); this descriptor records nothing itself.
+func (*WeightDescriptor) RecordsNoOwnership() {}
+
 func weightOf(obj proto.Message) Weight {
 	w, _ := WeightFromProto(obj) // an undecodable value fails in Create; its key is then "bond.member-weight//"
 	return w

@@ -3,7 +3,12 @@ package agent
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
+	"time"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -48,9 +53,9 @@ const canonicalBondDoc = `{
 func bondFake(t *testing.T) (*coretest.VPP, *Service) {
 	t.Helper()
 	v := coretest.New()
-	v.AddInterface("tap6000", "virtio", "") // fixture taps: untagged, like physical NICs
-	v.AddInterface("tap6001", "virtio", "")
-	v.AddInterface("tap6002", "virtio", "")
+	v.AddNIC("tap6000", "virtio") // fixture taps: untagged, like physical NICs
+	v.AddNIC("tap6001", "virtio")
+	v.AddNIC("tap6002", "virtio")
 	return v, newSvc(t, v, t.TempDir())
 }
 
@@ -292,3 +297,53 @@ func TestBondingValidation(t *testing.T) {
 }
 
 func ifIndex(i uint32) interface_types.InterfaceIndex { return interface_types.InterfaceIndex(i) }
+
+// TestBondStateOneWalkAtATime (D-132, F-bonding fix round 1 F2): concurrent BondState callers never walk VPP at the same
+// time; a caller that cannot get the walk within the wait gets UNAVAILABLE instead of a second walk.
+func TestBondStateOneWalkAtATime(t *testing.T) {
+	v, s := bondFake(t)
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "c1", DesiredState: doc(t, bondDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	v.SetBondDumpDelay(50 * time.Millisecond)
+	var wg sync.WaitGroup
+	errs := make(chan error, 6)
+	for i := 0; i < 6; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := s.BondState(context.Background(), &vrxv1.BondStateRequest{})
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("BondState: %v", err)
+		}
+	}
+	if n := v.MaxBondDumpsInFlight(); n != 1 {
+		t.Fatalf("%d bond walks in flight at once, want 1", n)
+	}
+
+	// a walk that holds longer than the wait: the second caller gets UNAVAILABLE
+	old := bondWalkWait
+	bondWalkWait = 100 * time.Millisecond
+	t.Cleanup(func() { bondWalkWait = old })
+	v.SetBondDumpDelay(600 * time.Millisecond)
+	first := make(chan error, 1)
+	go func() {
+		_, err := s.BondState(context.Background(), &vrxv1.BondStateRequest{})
+		first <- err
+	}()
+	time.Sleep(150 * time.Millisecond) // the first walk is in its dump
+	_, err := s.BondState(context.Background(), &vrxv1.BondStateRequest{})
+	if status.Code(err) != codes.Unavailable {
+		t.Fatalf("second caller: %v, want UNAVAILABLE", err)
+	}
+	if err := <-first; err != nil {
+		t.Fatalf("first caller: %v", err)
+	}
+	if n := v.MaxBondDumpsInFlight(); n != 1 {
+		t.Fatalf("%d bond walks in flight at once, want 1", n)
+	}
+}

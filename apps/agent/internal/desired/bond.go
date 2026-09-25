@@ -43,13 +43,17 @@ func BondID(name string) (uint32, bool) {
 	return uint32(id), true
 }
 
+// bondModes are the configurable modes. VPP's broadcast mode is not offered (manager decision Q1); BondModeName still
+// names it, for a bond VPP reports.
 var bondModes = map[string]bond.Mode{
 	"lacp":          bond.Mode_MODE_LACP,
 	"xor":           bond.Mode_MODE_XOR,
 	"round-robin":   bond.Mode_MODE_ROUND_ROBIN,
 	"active-backup": bond.Mode_MODE_ACTIVE_BACKUP,
-	"broadcast":     bond.Mode_MODE_BROADCAST,
 }
+
+// nonEthernetRe mirrors packages/schema NON_ETHERNET_INTERFACE_RE: names that are never Ethernet NICs (review F4).
+var nonEthernetRe = regexp.MustCompile(`^(?:loop|wg|ipip|gre|ipsec|vxlan_tunnel|vxlan_gpe_tunnel|gtpu_tunnel|geneve_tunnel|l2tpv3_tunnel|pppoe_session|mpls-tunnel|bvi|lisp_gpe|sr-tunnel)[0-9]+$`)
 
 var bondHashes = map[string]bond.LoadBalance{
 	"l2":  bond.LoadBalance_LOAD_BALANCE_L2,
@@ -64,8 +68,12 @@ var forcedLB = map[bond.Mode]bond.LoadBalance{
 	bond.Mode_MODE_BROADCAST:     bond.LoadBalance_LOAD_BALANCE_BROADCAST,
 }
 
-// BondModeName is the configuration spelling of a bond mode ("" for an unknown value).
+// BondModeName is the configuration spelling of a bond mode ("" for an unknown value); "broadcast" names VPP's mode that
+// the configuration does not offer.
 func BondModeName(m bond.Mode) string {
+	if m == bond.Mode_MODE_BROADCAST {
+		return "broadcast"
+	}
 	for n, v := range bondModes {
 		if v == m {
 			return n
@@ -116,7 +124,7 @@ func Bonds(s Sink, ifs map[string]*vrxv1.Interface) {
 		}
 		mode, ok := bondModes[b.GetMode()]
 		if !ok {
-			s.Errorf(Ptr("interfaces", name, "bond", "mode"), "interfaces.bonding-mode", "bond mode %q is not lacp, xor, round-robin, active-backup or broadcast", b.GetMode())
+			s.Errorf(Ptr("interfaces", name, "bond", "mode"), "interfaces.bonding-mode", "bond mode %q is not lacp, xor, round-robin or active-backup", b.GetMode())
 			continue
 		}
 		lb, forced := forcedLB[mode]
@@ -146,8 +154,12 @@ func Bonds(s Sink, ifs map[string]*vrxv1.Interface) {
 				s.Errorf(mp, "interfaces.bonding-member-kind", "%q is a bond; bond members must be physical interfaces", m)
 				continue
 			}
-			if kind, _ := KindOf(m); kind == KindLoopback || kind == KindBond {
-				s.Errorf(mp, "interfaces.bonding-member-kind", "%q is not a physical interface; it cannot be a bond member", m)
+			if kind, _ := KindOf(m); kind == KindLoopback || kind == KindBond || nonEthernetRe.MatchString(m) {
+				s.Errorf(mp, "interfaces.bonding-member-kind", "%q is not a physical (Ethernet) interface; it cannot be a bond member", m)
+				continue
+			}
+			if ifs[m].Mac != nil {
+				s.Errorf(Ptr("interfaces", m, "mac"), "interfaces.bonding-member-mac", "%s is a member of %s: members take the bond's MAC address; set mac on the bond instead", m, name)
 				continue
 			}
 			if other, dup := member[m]; dup {

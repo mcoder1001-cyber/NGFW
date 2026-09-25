@@ -157,8 +157,13 @@ export class AuditService {
 
   private failed(action: string, err: unknown): void {
     this.failures += 1;
-    // the driver's message names the constraint/connection problem, never row values
-    this.log.error(`audit write failed for ${action}: ${(err as Error).message}`);
+    // drizzle wraps the driver error, and its own message repeats the query WITH its parameters (the row): log the
+    // driver's cause, which names the constraint/connection problem, never row values
+    const cause = ((err as { cause?: unknown } | null)?.cause ?? err) as {
+      message?: unknown;
+      code?: unknown;
+    } | null;
+    this.log.error(`audit write failed for ${action}: ${String(cause?.message ?? cause)}`);
     const now = Date.now();
     if (now - this.lastFailureEvent < FAILURE_EVENT_MS) {
       this.folded += 1;
@@ -174,7 +179,7 @@ export class AuditService {
       `an audit_log row could not be written (${action}); the action itself was not blocked unless it is privileged`,
       {
         action,
-        code: (err as { code?: unknown } | null)?.code ?? null,
+        code: cause?.code ?? null,
         failuresTotal: this.failures,
         foldedSinceLastEvent: folded,
       },

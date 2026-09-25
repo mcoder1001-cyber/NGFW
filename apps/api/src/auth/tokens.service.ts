@@ -493,7 +493,8 @@ function uidOf(v: string | null): number | undefined {
  * KEYS: rtfam, rt, rtuser · ARGV: uid, mode (new|continue), gen, idle ttl, record, family, now, session max.
  * `rtfam` = `<uid>:<gen>:<login time>`; a chain from before TD-10b (`<uid>:<gen>`) starts its clock now.
  * Returns {gen, token ttl, login time}, {-1} when the chain is revoked (continue: gone or of another generation),
- * {-2} when the session is older than the maximum (the chain is deleted).
+ * {-2} when the session is older than the maximum (the chain is deleted). The token ttl (= the cookie's max-age) never
+ * passes the session's end; the Valkey records stay up to 5 min longer so that a late refresh is recognised.
  */
 const ISSUE_SCRIPT = `
 local now = tonumber(ARGV[7])
@@ -515,9 +516,16 @@ if left <= 0 then
   return {-2}
 end
 local ttl = tonumber(ARGV[4])
-if left < ttl then ttl = left end
-redis.call('SET', KEYS[2], ARGV[5], 'EX', ttl)
-redis.call('SET', KEYS[1], ARGV[1] .. ':' .. ARGV[3] .. ':' .. string.format('%d', t0), 'EX', ttl)
+local keep = ttl
+if left < ttl then
+  ttl = left
+  -- the records outlive the session by 5 min (this script refuses them): a late refresh is audited as
+  -- session-expired, not as an unknown token
+  keep = left + 300
+  if keep > tonumber(ARGV[4]) then keep = tonumber(ARGV[4]) end
+end
+redis.call('SET', KEYS[2], ARGV[5], 'EX', keep)
+redis.call('SET', KEYS[1], ARGV[1] .. ':' .. ARGV[3] .. ':' .. string.format('%d', t0), 'EX', keep)
 redis.call('SADD', KEYS[3], ARGV[6])
 redis.call('EXPIRE', KEYS[3], tonumber(ARGV[4]))
 return {tonumber(ARGV[3]), ttl, t0}

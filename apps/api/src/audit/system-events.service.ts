@@ -24,7 +24,9 @@ export class SystemEventsService {
         .insert(systemEvent)
         .values({ severity, subsystem, code, message, data: data ?? null });
     } catch (err) {
-      this.log.error(`system_event write failed (${code}): ${(err as Error).message}`);
+      // TD-10b: the driver's cause — drizzle's own message repeats the query with its parameters
+      const cause = ((err as { cause?: unknown } | null)?.cause ?? err) as { message?: unknown };
+      this.log.error(`system_event write failed (${code}): ${String(cause?.message ?? cause)}`);
     }
   }
 

@@ -164,9 +164,15 @@ describe('TD-4 auth hardening e2e (D-100)', () => {
 
   // ------------------------------------------------------------------------------------------------ (1)
   it('(1) login from a remote plain-HTTP peer → 403 tls-required, checked first: no failed login, lockout and rate limit untouched; audited without the password; loopback unchanged', async () => {
-    // one real failure from loopback first, so "unchanged" is a visible 1, not a default 0
+    // one real failure from loopback first, so "unchanged" is a visible 1, not a default 0 — TD-10b: a failed LOGIN
+    // counts in the (user, client address) lockout in Valkey (lockout.ts), app_user.failed_logins stays 0
+    const kv = h.app.get<Valkey>(VALKEY);
+    const fails = async (client: string) => {
+      const r = await userRow('tlsuser');
+      return kv.get(`lkf:${r.id}:${r.credential_gen}:${client}`);
+    };
     expect((await login('tlsuser', `wrong-${runSecret()}`)).status).toBe(401);
-    expect((await userRow('tlsuser')).failed_logins).toBe(1);
+    expect(await fails('127.0.0.1')).toBe('1');
     const wrong = `wrong-${runSecret()}`;
     // more attempts than VRX_LOGIN_MAX_FAILURES, right and wrong passwords alike
     for (let i = 0; i < MAX_FAILURES + 2; i++) {
@@ -181,12 +187,13 @@ describe('TD-4 auth hardening e2e (D-100)', () => {
     console.log(
       `(1) after ${MAX_FAILURES + 2} remote plain-HTTP logins: failed_logins ${after.failed_logins}, locked_until ${after.locked_until}`,
     );
-    expect({ failed: after.failed_logins, locked: after.locked_until }).toEqual({
-      failed: 1,
-      locked: null,
-    });
+    expect({
+      failed: after.failed_logins,
+      locked: after.locked_until,
+      loopbackFails: await fails('127.0.0.1'),
+      remoteFails: await fails(REMOTE),
+    }).toEqual({ failed: 0, locked: null, loopbackFails: '1', remoteFails: null });
     // the per-IP rate limiter never counted the remote peer
-    const kv = h.app.get<Valkey>(VALKEY);
     expect(await kv.exists(`rl:login:${REMOTE}:${Math.floor(Date.now() / 60_000)}`)).toBe(0);
     const rows = await h.db.execute(
       sql`select user_id, username, source_ip, resource, after, result, status from audit_log
@@ -204,7 +211,7 @@ describe('TD-4 auth hardening e2e (D-100)', () => {
     });
     // loopback: exactly as before (the success clears the one real failure)
     expect((await login('tlsuser')).status).toBe(200);
-    expect((await userRow('tlsuser')).failed_logins).toBe(0);
+    expect(await fails('127.0.0.1')).toBeNull();
   });
 
   // ------------------------------------------------------------------------------------------------ (2)

@@ -1,13 +1,21 @@
 import Paper from '@mui/material/Paper';
+import Stack from '@mui/material/Stack';
+import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
-import { useController, useWatch, type ReactNode } from './rhf.js';
+import { useTranslation } from 'react-i18next';
+import { UI_KIT_NS } from '../../i18n/index.js';
+import { useController, useFormContext, useWatch, type ReactNode } from './rhf.js';
 import { useSchemaFormContext } from '../context.js';
-import { formPathFor } from '../form-value.js';
+import { formPathFor, toFormValue } from '../form-value.js';
 import { ROOT_FIELD } from '../resolver.js';
 import {
+  acceptsNull,
+  defaultValueFor,
   dependencyMet,
   dependsOnOf,
+  FORM_DEFAULTS,
   hintsOf,
+  isOptionalObject,
   isRecordSchema,
   joinPath,
   mergeAllOf,
@@ -19,7 +27,8 @@ import {
 } from '../schema-utils.js';
 import type { JsonSchema, UiDependsOn, UiHints } from '../types.js';
 import { ArrayField, ObjectField, RecordField, VariantField } from './composites.js';
-import { useFieldError, useHelpText } from './hooks.js';
+import { prose } from './bidi.js';
+import { useEnumHints, useFieldError, useHelpText, useSchemaText } from './hooks.js';
 import { PrimitiveInput } from './inputs.js';
 
 export interface SchemaFieldProps {
@@ -31,6 +40,8 @@ export interface SchemaFieldProps {
   /** RHF path of the enclosing object — `dependsOn` siblings resolve against it. */
   parentName: string;
   label?: string | undefined;
+  /** Default label when no per-path translation exists (the sibling-disambiguated schema title; see `propertyTitles`). */
+  fallbackTitle?: string | undefined;
   required?: boolean | undefined;
   /** Render objects/records without their own titled panel (used by unions and record values). */
   bare?: boolean | undefined;
@@ -71,14 +82,16 @@ function SchemaFieldBody({
   propPath,
   parentName,
   label: givenLabel,
+  fallbackTitle,
   required = false,
   bare = false,
 }: SchemaFieldProps & { hints: UiHints }) {
   const ctx = useSchemaFormContext();
+  const text = useSchemaText();
   if (hints.widget === 'hidden') return null;
   const readOnly = ctx.readOnly || schema.readOnly === true;
   const lastKey = propPath.split('.').pop() ?? '';
-  const label = givenLabel ?? ctx.translateLabel(propPath, titleOf(schema, lastKey));
+  const label = givenLabel ?? ctx.translateLabel(propPath, text.title(propPath, fallbackTitle ?? titleOf(schema, lastKey)));
   const bound: BoundFieldProps = { schema, name, propPath, parentName, label, required, hints, readOnly };
 
   const Custom = hints.widget ? ctx.widgets[hints.widget] : undefined;
@@ -97,9 +110,38 @@ function SchemaFieldBody({
   const t = typeOf(schema);
   if (t === 'array') return <ArrayField {...bound} />;
   if (t === 'object') {
-    const help = hints.help ?? schema.description;
     const inner = isRecordSchema(schema) ? <RecordField {...bound} /> : <ObjectField {...bound} />;
     if (bare) return inner;
+    return (
+      <ObjectSection {...bound} optional={isOptionalObject(schema, required, ctx.root)}>
+        {inner}
+      </ObjectSection>
+    );
+  }
+  return <PrimitiveField {...bound} />;
+}
+
+/**
+ * Titled panel of an object member. An optional object (`isOptionalObject`) gets a presence switch: absent until the
+ * user switches it on (then filled with its defaults), removed again when switched off — never invented by the form
+ * (P08-questions Q2). Its fields are neither rendered, validated nor submitted while it is absent.
+ */
+function ObjectSection({ schema, name, propPath, label, hints, readOnly, optional, children }: BoundFieldProps & { optional: boolean; children: ReactNode }) {
+  const ctx = useSchemaFormContext();
+  const { t } = useTranslation(UI_KIT_NS);
+  const help = useHelpText(schema, hints, propPath);
+  const { setValue, clearErrors } = useFormContext();
+  const value: unknown = useWatch({ name, disabled: !optional });
+  const present = !optional || value !== undefined;
+  const toggle = (on: boolean) => {
+    if (on) {
+      setValue(name, toFormValue(schema, defaultValueFor(schema, ctx.root, FORM_DEFAULTS), ctx.root), { shouldDirty: true });
+    } else {
+      clearErrors(name);
+      setValue(name, undefined, { shouldDirty: true });
+    }
+  };
+  if (!optional) {
     return (
       <Paper variant="outlined" component="section" sx={{ p: 2 }}>
         <Typography component="h3" variant="subtitle2" gutterBottom={!help}>
@@ -107,14 +149,46 @@ function SchemaFieldBody({
         </Typography>
         {help && (
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            {help}
+            {prose(help)}
           </Typography>
         )}
-        {inner}
+        {children}
       </Paper>
     );
   }
-  return <PrimitiveField {...bound} />;
+  // Same structure (the heading stays a direct child of the section), with the switch in a second grid column.
+  const full = { gridColumn: '1 / -1' } as const;
+  return (
+    <Paper
+      variant="outlined"
+      component="section"
+      sx={{ p: 2, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', columnGap: 1 }}
+    >
+      <Typography component="h3" variant="subtitle2">
+        {label}
+      </Typography>
+      <Switch
+        checked={present}
+        onChange={(e) => toggle(e.target.checked)}
+        disabled={readOnly}
+        slotProps={{ input: { 'aria-label': t('form.presence', { label }) } }}
+      />
+      {help && (
+        <Typography variant="body2" color="text.secondary" gutterBottom sx={full}>
+          {prose(help)}
+        </Typography>
+      )}
+      <Stack sx={full}>
+        {present ? (
+          children
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            {t('form.notConfigured')}
+          </Typography>
+        )}
+      </Stack>
+    </Paper>
+  );
 }
 
 /** A union of same-typed primitives (e.g. ipv4 | ipv6) renders as one input; a union of consts as a select. */
@@ -133,18 +207,26 @@ function mergePrimitiveUnion(schema: JsonSchema, variants: JsonSchema[], hints: 
 }
 
 /** One registered field bound to a presentational input. */
-export function PrimitiveField({ schema, name, label, required, hints, readOnly }: BoundFieldProps) {
+export function PrimitiveField({ schema, name, propPath, label, required, hints, readOnly }: BoundFieldProps) {
   const ctx = useSchemaFormContext();
+  const text = useSchemaText();
   const { field, fieldState } = useController({ name });
-  const help = useHelpText(schema, hints);
+  const help = useHelpText(schema, hints, propPath);
+  const enumHints = useEnumHints(hints, propPath);
+  const placeholder = text.placeholder(propPath, typeof hints.placeholder === 'string' ? hints.placeholder : undefined);
+  const shownHints = placeholder === undefined || placeholder === hints.placeholder ? enumHints : { ...enumHints, placeholder };
   const err = fieldState.error?.message;
+  // react-hook-form shows a field's mount-time value again once its value becomes `undefined` (useController → useWatch
+  // falls back to the default), so a cleared input would snap back to its old text and typing would append to it.
+  // "Cleared" is therefore stored as `null`; fromFormValue turns it into "absent" unless the schema allows null.
+  const nullable = acceptsNull(schema, ctx.root);
   return (
     <PrimitiveInput
       schema={schema}
-      hints={hints}
+      hints={shownHints}
       widget={hints.widget}
-      value={field.value}
-      onChange={field.onChange}
+      value={field.value === null && !nullable ? undefined : field.value}
+      onChange={(v) => field.onChange(v === undefined ? null : v)}
       onBlur={field.onBlur}
       inputRef={field.ref}
       label={label}

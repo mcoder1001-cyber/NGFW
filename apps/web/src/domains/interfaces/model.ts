@@ -1,6 +1,6 @@
 import type { paths } from '@ngfw/api-client';
 import type { InterfaceConfig, SubinterfaceConfig } from '@ngfw/schema';
-import { withDefaults, type JsonSchema } from '@ngfw/ui-kit/schema-form';
+import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
 import type { VrxStatus } from '@ngfw/ui-kit';
 import { domainSchemas } from '../../schema/registry';
 
@@ -106,18 +106,12 @@ export function addressesOf(it: InterfaceItem): string[] {
 }
 
 /**
- * SchemaForm fills an absent OPTIONAL object member with its defaults (`dhcpClient` → `{setBroadcastFlag:false}`), which
- * would silently turn a DHCP client on. An optional object member that was absent before and comes back holding exactly
- * its defaults is dropped again (P08-questions Q2: to be fixed in ui-kit).
+ * @deprecated WEB-1: presence toggle replaced it; returns input unchanged
+ *
+ * SchemaForm keeps an optional object absent until its presence switch is on, so there is no phantom to drop, and
+ * dropping "default-only" objects would delete one the user just enabled (WEB-1 review H1). Kept only so that branches
+ * importing it keep compiling (WEB-1 verify C1); remove the calls, then this, in a later TD.
  */
-export function dropPhantomOptionals(schema: JsonSchema, before: unknown, after: unknown): unknown {
-  if (!isObject(after)) return after;
-  const prev = isObject(before) ? before : {};
-  const required = new Set(Array.isArray(schema.required) ? schema.required : []);
-  const out: Record<string, unknown> = { ...after };
-  for (const [k, ps] of Object.entries((schema.properties ?? {}) as Record<string, JsonSchema>)) {
-    if (required.has(k) || k in prev || !isObject(out[k])) continue;
-    if (JSON.stringify(out[k]) === JSON.stringify(withDefaults(ps, undefined, schema))) delete out[k];
-  }
-  return out;
+export function dropPhantomOptionals(_schema: JsonSchema, _before: unknown, after: unknown): unknown {
+  return after;
 }

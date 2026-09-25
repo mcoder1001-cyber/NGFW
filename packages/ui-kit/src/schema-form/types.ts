@@ -59,7 +59,10 @@ export interface UiDependsOn {
 /**
  * Hints emitted by `withUi()` in packages/schema. `widget` names understood here:
  * text · textarea · password · select · radio · number · slider · switch · checkbox · cidr · ip · mac ·
- * interface-picker · chips · multiselect · list · json · hidden. Unknown widgets fall back to the type default.
+ * interface-picker · chips · multiselect · list · json · hidden · port-range · ip-range · time · datetime ·
+ * timezone-picker (alias timezone) · color · rule-editor (array of objects as a table) · tag-picker (chips).
+ * Identifier widgets without a picker yet (vrf-picker, object-picker, host-interface-picker, secret-ref) render as
+ * LTR text. Unknown widgets fall back to the type default.
  */
 export interface UiHints {
   widget?: string;
@@ -69,6 +72,10 @@ export interface UiHints {
   help?: string;
   dependsOn?: string | UiDependsOn;
   placeholder?: string;
+  /** Arrays of objects: the member(s) identifying an item — the row summary and the first table columns. */
+  itemKey?: readonly string[];
+  /** Literal labels for enum values (`{ admin: 'Administrator' }`); per-path i18n keys win over these. */
+  enumLabels?: Readonly<Record<string, string>>;
   [hint: string]: unknown;
 }
 

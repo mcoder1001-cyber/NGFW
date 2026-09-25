@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import {
+  acceptsNull,
   defaultValueFor,
   dependencyMet,
   dependsOnOf,
   getIn,
   hintsOf,
+  isOptionalObject,
   isRecordSchema,
   mergeAllOf,
   parsePointer,
@@ -12,6 +14,7 @@ import {
   resolveRef,
   typeOf,
   variantsOf,
+  type DefaultsOptions,
 } from './schema-utils.js';
 import type { JsonPath, JsonSchema } from './types.js';
 
@@ -196,6 +199,8 @@ export function hiddenByDependsOn(
  */
 export function fromFormValue(raw: JsonSchema, formValue: unknown, root: JsonSchema, formRoot?: unknown): unknown {
   const schema = mergeAllOf(resolveRef(raw, root), root);
+  // `null` is how a bound field stores "cleared" (see PrimitiveField): absent, unless the schema allows null.
+  if (formValue === null) return acceptsNull(schema, root) ? null : undefined;
   const variants = variantsOf(schema);
   if (variants && typeOf(schema) === undefined) {
     for (const rawVariant of variants) {
@@ -366,26 +371,30 @@ function isEmptyContainer(v: unknown): boolean {
 /**
  * Fill schema `default`/`const` values into the gaps of an existing JSON value (objects only, recursively),
  * so the form shows what the server will apply. Empty containers are not invented for absent keys.
+ * With `{ presence: true }` (what `<SchemaForm>` uses) an absent optional object member stays absent
+ * (`isOptionalObject`, P08-questions Q2); without it the historical fill-in behaviour is kept.
  */
-export function withDefaults(raw: JsonSchema, value: unknown, root: JsonSchema): unknown {
+export function withDefaults(raw: JsonSchema, value: unknown, root: JsonSchema, options: DefaultsOptions = {}): unknown {
   const schema = mergeAllOf(resolveRef(raw, root), root);
-  if (value === undefined) return defaultValueFor(schema, root);
+  if (value === undefined) return defaultValueFor(schema, root, options);
   const variants = variantsOf(schema);
   if (variants && typeOf(schema) === undefined) {
     const i = matchVariant(variants, value, root);
-    return i < 0 ? value : withDefaults(variants[i]!, value, root);
+    return i < 0 ? value : withDefaults(variants[i]!, value, root, options);
   }
   const t = typeOf(schema);
   if (t === 'object' && isPlainObject(value)) {
     if (isRecordSchema(schema)) {
       const vs = recordValueSchema(schema);
-      return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, withDefaults(vs, v, root)]));
+      return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, withDefaults(vs, v, root, options)]));
     }
     const out: Record<string, unknown> = { ...value };
+    const required = new Set(schema.required ?? []);
     for (const [k, ps] of Object.entries(schema.properties ?? {})) {
-      if (k in out) out[k] = withDefaults(ps, out[k], root);
-      else {
-        const d = defaultValueFor(ps, root);
+      if (options.presence && out[k] === undefined) delete out[k];
+      if (k in out) out[k] = withDefaults(ps, out[k], root, options);
+      else if (!(options.presence && isOptionalObject(ps, required.has(k), root))) {
+        const d = defaultValueFor(ps, root, options);
         if (d !== undefined && !isEmptyContainer(d)) out[k] = d;
       }
     }
@@ -393,7 +402,7 @@ export function withDefaults(raw: JsonSchema, value: unknown, root: JsonSchema):
   }
   if (t === 'array' && Array.isArray(value) && schema.items) {
     const items = schema.items;
-    return value.map((v) => withDefaults(items, v, root));
+    return value.map((v) => withDefaults(items, v, root, options));
   }
   return value;
 }

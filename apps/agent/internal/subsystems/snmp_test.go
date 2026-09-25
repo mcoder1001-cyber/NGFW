@@ -251,14 +251,16 @@ func fmtS(format string, a ...any) string { return fmt.Sprintf(format, a...) }
 // TestServicesUnsupportedByReflection: every set services field not marked handled is reported,
 // including fields added later; a field marked by its feature is not.
 func TestServicesUnsupportedByReflection(t *testing.T) {
+	lldp := &vrxv1.LldpService{Interfaces: []*vrxv1.LldpService_Interface{{Interface: proto.String("loop0")}}}
 	sink := &recSink{}
 	desired.Snmp(sink, &vrxv1.ServicesConfig{
 		Dhcp: &vrxv1.DhcpService{Servers: map[string]*vrxv1.DhcpServer{"a": {}}},
-		Lldp: &vrxv1.LldpService{},
-		Ntp:  &vrxv1.NtpService{},
+		Lldp: lldp,
+		Ntp:  &vrxv1.NtpService{}, // prefaulted {}: not a finding
+		Qos:  &vrxv1.QosService{},
 		Snmp: &vrxv1.SnmpService{Enabled: proto.Bool(false)},
 	})
-	want := []string{"/services/dhcp", "/services/lldp", "/services/ntp"}
+	want := []string{"/services/dhcp", "/services/lldp"}
 	if len(sink.warns) != len(want) {
 		t.Fatalf("warnings %v", sink.warns)
 	}
@@ -267,9 +269,12 @@ func TestServicesUnsupportedByReflection(t *testing.T) {
 			t.Fatalf("warning %d = %q, want %s", i, sink.warns[i], w)
 		}
 	}
-	desired.MarkServicesHandled("lldp")
+	if !desired.ServicesHandled("lldp") {
+		desired.MarkServicesHandled("lldp")
+		t.Cleanup(func() { desired.UnmarkServicesHandled("lldp") })
+	}
 	sink = &recSink{}
-	desired.Snmp(sink, &vrxv1.ServicesConfig{Lldp: &vrxv1.LldpService{}})
+	desired.Snmp(sink, &vrxv1.ServicesConfig{Lldp: lldp})
 	if len(sink.warns) != 0 {
 		t.Fatalf("handled field still reported: %v", sink.warns)
 	}

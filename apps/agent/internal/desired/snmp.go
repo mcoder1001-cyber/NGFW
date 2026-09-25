@@ -34,6 +34,11 @@ var (
 	snmpChecks = map[string]SnmpCheck{} // owner → check (one stage per agent owner)
 )
 
+// Lifecycle limitation: the check is removed by SnmpStage.Close, but the agent's shutdown path
+// (internal/agent/service.go, agent core, not F-snmp's file) does not call it yet; in the product one
+// agent runs per process and the registration ends with the process. Wiring Close into the shutdown
+// (with the other Wiring teardown) is left to the agent-core owner (docs/status/tasks/F-snmp-questions.md).
+
 // SetSnmpCheck installs the check of an owner's stage; nil removes it (stage Close).
 func SetSnmpCheck(owner string, f SnmpCheck) {
 	snmpMu.Lock()
@@ -98,6 +103,16 @@ func MarkServicesHandled(field string) {
 	handled[field] = true
 }
 
+// UnmarkServicesHandled removes a mark (tests restore their marks with t.Cleanup).
+func UnmarkServicesHandled(field string) {
+	handledMu.Lock()
+	defer handledMu.Unlock()
+	delete(handled, field)
+}
+
+// ServicesHandled reports whether a feature marked services.<field> handled.
+func ServicesHandled(field string) bool { return servicesHandled(field) }
+
 func servicesHandled(field string) bool {
 	handledMu.RLock()
 	defer handledMu.RUnlock()
@@ -121,7 +136,11 @@ func SnmpPointer(msg string) string {
 // Snmp projects services (the `services` domain is authoritative in this transaction).
 func Snmp(p Sink, svc *vrxv1.ServicesConfig) {
 	// Every set field of services that no feature marked handled is reported (never silently dropped).
-	svc.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, _ protoreflect.Value) bool {
+	// A message field that is present but empty ({}: the schema prefaults every services subtree) counts as unset.
+	svc.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+		if fd.Message() != nil && !fd.IsList() && !fd.IsMap() && proto.Size(v.Message().Interface()) == 0 {
+			return true
+		}
 		if name := string(fd.Name()); !servicesHandled(name) {
 			json := fd.JSONName()
 			p.Warnf(Ptr("services", json), "agent.unsupported-field", "services.%s is not implemented by this agent build and is not applied", json)

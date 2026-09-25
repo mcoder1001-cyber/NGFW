@@ -35,3 +35,6 @@
     are now `agent.unsupported-field` warnings instead of one `agent.unimplemented-domain` warning. F-kea / F-unbound /
     F-ipfix etc. remove their own names from that list in `desired/snmp.go` when they land (or the manager moves the
     list to a shared place).
+11. **Stage shutdown (agent core).** `SnmpStage.Close` (stops the subagent, unregisters the per-owner check) is not
+    called by the agent's shutdown path — `internal/agent/service.go` is agent core, outside F-snmp's files. Harmless in
+    the product (one agent per process); please wire it with the other Wiring teardown. Documented in `desired/snmp.go`.

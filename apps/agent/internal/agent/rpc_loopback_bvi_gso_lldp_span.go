@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -29,6 +30,10 @@ const (
 	lldpNeighborsDefaultLimit = 100
 	lldpNeighborsMaxLimit     = 1000
 )
+
+// lldpWalk serialises the LLDP table walks (D-132: one walk of a VPP table at a time; the page polls at
+// most every 30 s and has a Refresh button).
+var lldpWalk sync.Mutex
 
 // LldpNeighbors implements the LldpNeighbors RPC.
 func (g *server) LldpNeighbors(ctx context.Context, req *vrxv1.LldpNeighborsRequest) (*vrxv1.LldpNeighborsResponse, error) {
@@ -135,11 +140,13 @@ func (s *Service) LldpNeighbors(ctx context.Context, req *vrxv1.LldpNeighborsReq
 	if !s.vpp.Connected() {
 		return nil, status.Error(codes.Unavailable, "VPP binary API is not connected")
 	}
+	lldpWalk.Lock()
 	table, err := lldp.Neighbours(ctx, s.vpp)
-	if err != nil {
-		return nil, grpcVPPError(err, "lldp_dump")
+	var t *iface.Table
+	if err == nil {
+		t, err = iface.Dump(ctx, s.vpp, s.owner)
 	}
-	t, err := iface.Dump(ctx, s.vpp, s.owner)
+	lldpWalk.Unlock()
 	if err != nil {
 		return nil, grpcVPPError(err, "lldp neighbours")
 	}

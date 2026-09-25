@@ -1,4 +1,6 @@
+import RefreshIcon from '@mui/icons-material/Refresh';
 import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
@@ -7,6 +9,7 @@ import Typography from '@mui/material/Typography';
 import { StatusChip } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api-problem';
@@ -14,7 +17,7 @@ import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { PageHeader } from '../../../shell/PageHeader';
 import { problemFor } from '../InterfaceDrawer';
-import { createMergePatch, dropPhantomOptionals, localizeSchema } from '../model';
+import { createMergePatch, localizeSchema } from '../model';
 import { useCandidateInterfaces } from '../queries';
 import {
   ageText,
@@ -29,7 +32,7 @@ import {
 } from './model';
 import {
   fetchNeighbors,
-  LLDP_POLL_MS,
+  WALK_POLL_MS,
   lldpKeys,
   useCandidateServices,
   usePatchServices,
@@ -47,6 +50,7 @@ export function LldpPage() {
   const services = useCandidateServices();
   const ifs = useCandidateInterfaces();
   const patch = usePatchServices();
+  const qc = useQueryClient();
   const [unavailable, setUnavailable] = useState(false);
   const schema = useMemo(() => formSchemas.lldp(), []);
   const current = services.data?.lldp;
@@ -147,9 +151,8 @@ export function LldpPage() {
   );
 
   const save = async (v: unknown) => {
-    const next = dropPhantomOptionals(schema, current, v);
     await patch
-      .mutateAsync({ lldp: current === undefined ? next : createMergePatch(current, next) })
+      .mutateAsync({ lldp: current === undefined ? v : createMergePatch(current, v) })
       .catch(() => undefined);
   };
 
@@ -181,9 +184,18 @@ export function LldpPage() {
           />
         </Paper>
       )}
-      <Typography component="h3" variant="h6" gutterBottom>
-        {t('lldp.neighbors')}
-      </Typography>
+      <Stack direction="row" gap={1} alignItems="center" sx={{ mb: 1 }}>
+        <Typography component="h3" variant="h6">
+          {t('lldp.neighbors')}
+        </Typography>
+        <Button
+          size="small"
+          startIcon={<RefreshIcon />}
+          onClick={() => void qc.invalidateQueries({ queryKey: lldpKeys.neighbors })}
+        >
+          {t('refresh')}
+        </Button>
+      </Stack>
       {unavailable && (
         <Alert severity="info" sx={{ mb: 1 }}>
           {t('unavailable')}
@@ -195,7 +207,7 @@ export function LldpPage() {
           columns={columns}
           queryKey={[...lldpKeys.neighbors, 'grid']}
           fetchPage={fetchPage}
-          refetchInterval={LLDP_POLL_MS}
+          refetchInterval={WALK_POLL_MS}
           initialPageSize={25}
         />
       </Paper>

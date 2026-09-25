@@ -1,6 +1,7 @@
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
@@ -28,7 +29,8 @@ import { ProblemAlert } from '../../../config/ProblemAlert';
 import { PageHeader } from '../../../shell/PageHeader';
 import { problemFor } from '../InterfaceDrawer';
 import { localizeSchema } from '../model';
-import { useCandidateInterfaces, useInterfacesState, usePatchInterfaces } from '../queries';
+import { useCandidateInterfaces, usePatchInterfaces } from '../queries';
+import { useInterfacesStateSlow } from './queries';
 import {
   allNames,
   END_CELL,
@@ -60,7 +62,7 @@ export function MirroringPage() {
   const { t } = useTranslation(NS);
   const perms = usePermissions();
   const ifs = useCandidateInterfaces();
-  const state = useInterfacesState();
+  const state = useInterfacesStateSlow();
   const patch = usePatchInterfaces();
   const [editing, setEditing] = useState<Editing>(null);
   const rows = sessionsOf(ifs.data, state.data?.items);
@@ -75,19 +77,23 @@ export function MirroringPage() {
       <Typography color="text.secondary" sx={{ mb: 2 }}>
         {t('mirror.intro')}
       </Typography>
-      <Tooltip title={perms.editConfig ? '' : t('readonly')}>
-        <span>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            sx={{ mb: 1 }}
-            disabled={!perms.editConfig}
-            onClick={() => setEditing({ source: null, index: -1 })}
-          >
-            {t('mirror.add')}
-          </Button>
-        </span>
-      </Tooltip>
+      <Stack direction="row" gap={1} sx={{ mb: 1 }}>
+        <Tooltip title={perms.editConfig ? '' : t('readonly')}>
+          <span>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              disabled={!perms.editConfig}
+              onClick={() => setEditing({ source: null, index: -1 })}
+            >
+              {t('mirror.add')}
+            </Button>
+          </span>
+        </Tooltip>
+        <Button startIcon={<RefreshIcon />} onClick={() => void state.refetch()}>
+          {t('refresh')}
+        </Button>
+      </Stack>
       {patch.isError && editing === null && <ProblemAlert error={patch.error} sx={{ mb: 1 }} />}
       {rows.length === 0 ? (
         <Typography color="text.secondary">{t('mirror.none')}</Typography>

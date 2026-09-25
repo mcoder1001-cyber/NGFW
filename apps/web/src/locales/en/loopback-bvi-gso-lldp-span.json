@@ -9,6 +9,7 @@
   "cancel": "Cancel",
   "edit": "Edit",
   "remove": "Remove",
+  "refresh": "Refresh",
   "pending": "pending",
   "readonly": "Your role cannot change the configuration",
   "unavailable": "The data-plane agent does not serve this view yet (it is older than this screen).",

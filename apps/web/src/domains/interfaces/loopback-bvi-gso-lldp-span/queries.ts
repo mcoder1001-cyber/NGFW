@@ -2,15 +2,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../api';
 import { call } from '../../../api-problem';
 import { invalidateConfig, qk } from '../../../config/queries';
-import { ifaceKeys } from '../queries';
+import { fetchInterfacesState, ifaceKeys as ifaceStateKeys } from '../queries';
 import type { LldpConfig, NeighborsPage, NsimConfig } from './model';
 
 export const lldpKeys = {
   neighbors: ['state', 'lldp', 'neighbors'] as const,
 };
 
-/** Live table refresh of the LLDP table (VPP hears a peer every tx interval, 30 s by default). */
-export const LLDP_POLL_MS = 5_000;
+/**
+ * Live refresh of the tables that walk VPP (the LLDP table; `/state/interfaces` on the mirroring page): at most every
+ * 30 s, plus a Refresh button (D-132: a walk holds VPP's worker barrier; one walk at a time in the agent).
+ */
+export const WALK_POLL_MS = 30_000;
 
 export async function fetchNeighbors(
   page: number,
@@ -55,7 +58,16 @@ export function usePatchServices() {
       Promise.all([
         invalidateConfig(qc),
         qc.invalidateQueries({ queryKey: lldpKeys.neighbors }),
-        qc.invalidateQueries({ queryKey: ifaceKeys.state }),
+        qc.invalidateQueries({ queryKey: ifaceStateKeys.state }),
       ]),
+  });
+}
+
+/** `/state/interfaces` (the agent's Retrieve view carries the mirror sessions VPP has), polled every 30 s (D-132). */
+export function useInterfacesStateSlow() {
+  return useQuery({
+    queryKey: ifaceStateKeys.state,
+    queryFn: ({ signal }) => fetchInterfacesState(signal),
+    refetchInterval: WALK_POLL_MS,
   });
 }

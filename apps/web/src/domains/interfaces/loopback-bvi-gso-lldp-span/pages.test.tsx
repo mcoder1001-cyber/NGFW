@@ -182,6 +182,14 @@ describe('LLDP, mirroring and nsim screens', () => {
       expect(within(grid).getByText('nothing heard')).toBeTruthy();
       expect(within(grid).getByText('not in the configuration')).toBeTruthy();
       expect(within(grid).getByText('12 s ago')).toBeTruthy();
+      // D-132: no fast polling of the walk; a Refresh button asks again
+      const before = api.calls.filter((c) => c.path === '/api/v1/state/lldp/neighbors').length;
+      fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+      await waitFor(() =>
+        expect(
+          api.calls.filter((c) => c.path === '/api/v1/state/lldp/neighbors').length,
+        ).toBeGreaterThan(before),
+      );
       expect(
         api.calls.some(
           (c) => c.path === '/api/v1/state/lldp/neighbors' && c.search.includes('pageSize=25'),

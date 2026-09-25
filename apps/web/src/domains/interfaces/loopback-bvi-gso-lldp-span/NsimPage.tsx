@@ -11,7 +11,7 @@ import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { PageHeader } from '../../../shell/PageHeader';
 import { problemFor } from '../InterfaceDrawer';
-import { createMergePatch, dropPhantomOptionals, localizeSchema } from '../model';
+import { createMergePatch, localizeSchema } from '../model';
 import { useCandidateInterfaces } from '../queries';
 import { formSchemas, localizeAll, NSIM_POINTER, parentNames } from './model';
 import { useCandidateServices, usePatchServices } from './queries';
@@ -33,9 +33,8 @@ export function NsimPage() {
   const current = services.data?.nsim;
 
   const save = async (v: unknown) => {
-    const next = dropPhantomOptionals(schema, current, v);
     await patch
-      .mutateAsync({ nsim: current === undefined ? next : createMergePatch(current, next) })
+      .mutateAsync({ nsim: current === undefined ? v : createMergePatch(current, v) })
       .catch(() => undefined);
   };
 

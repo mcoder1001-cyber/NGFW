@@ -9,6 +9,7 @@ import {
   SECRET_KINDS,
   secretPointers,
 } from '@ngfw/schema';
+import { z } from 'zod';
 import { problems, type ProblemIssue } from '../common/problem.js';
 import { getAt } from '../common/json.js';
 import type { Doc } from './repo.js';
@@ -254,8 +255,69 @@ export function markSecretChanges(
 
 const SECRET_REF = new RegExp(`^(?:${SECRET_KINDS.join('|')})/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$`);
 
-/** Every secret reference in a document (`*Ref` members, D-051) with its pointer. */
+type SchemaNode = Record<string, unknown>;
+
+/**
+ * ARCH-05 (TD-15): the member names that hold secret references, read from the root schema — every property whose
+ * schema (through `$ref`, `anyOf`/`oneOf`/`allOf`, `.optional()`, array `items`) is a `secretRefOf(…)` field
+ * (`x-vrx-ui.widget: 'secret-ref'`, D-051). No naming convention involved: a ref field named anything is found, and
+ * a `…Ref`-named field that is not a secret reference is not.
+ *
+ * Pinned: a secret-ref schema reachable only as a record value (`additionalProperties`) or a bare array item has no
+ * member name to key on — that throws here on first use, so such a schema change fails the unit tests instead of
+ * silently hiding the reference from the existence check and the admin-only rule.
+ */
+export function secretRefMembers(): ReadonlySet<string> {
+  if (refMembers !== undefined) return refMembers;
+  const root = z.toJSONSchema(RootConfig, { io: 'output', unrepresentable: 'any' }) as SchemaNode;
+  const defs: SchemaNode = isPlainObject(root['$defs']) ? root['$defs'] : {};
+  const resolve = (n: unknown): unknown => {
+    if (!isPlainObject(n) || typeof n['$ref'] !== 'string') return n;
+    return n['$ref'] === '#' ? root : defs[n['$ref'].replace('#/$defs/', '')];
+  };
+  // does `n` (or a branch / array item of it) describe a secret reference?
+  const isRef = (n: unknown, seen: Set<unknown>): boolean => {
+    const x = resolve(n);
+    if (!isPlainObject(x) || seen.has(x)) return false;
+    seen.add(x);
+    if ((x['x-vrx-ui'] as { widget?: unknown } | undefined)?.widget === 'secret-ref') return true;
+    for (const k of ['anyOf', 'oneOf', 'allOf'] as const) {
+      const list = x[k];
+      if (Array.isArray(list) && list.some((b) => isRef(b, seen))) return true;
+    }
+    return isRef(x['items'], seen);
+  };
+  const names = new Set<string>();
+  const visited = new Set<unknown>();
+  const walk = (n: unknown, where: string): void => {
+    if (Array.isArray(n)) {
+      n.forEach((x) => walk(x, where));
+      return;
+    }
+    if (!isPlainObject(n) || visited.has(n)) return;
+    visited.add(n);
+    for (const [k, v] of Object.entries(n)) {
+      if (k === 'properties' && isPlainObject(v)) {
+        for (const [name, sub] of Object.entries(v)) {
+          if (isRef(sub, new Set())) names.add(name);
+          else walk(sub, `${where}/${name}`);
+        }
+      } else if ((k === 'additionalProperties' || k === 'items') && isRef(v, new Set())) {
+        throw new Error(
+          `secret reference at ${where || '/'} (${k}) has no member name; secretRefs() cannot find it (ARCH-05)`,
+        );
+      } else walk(v, where);
+    }
+  };
+  walk(root, '');
+  refMembers = names;
+  return names;
+}
+let refMembers: ReadonlySet<string> | undefined;
+
+/** Every secret reference in a document (members typed `secretRefOf(…)` in the schema, D-051) with its pointer. */
 export function secretRefs(doc: unknown): { pointer: string; ref: string }[] {
+  const members = secretRefMembers();
   const out: { pointer: string; ref: string }[] = [];
   const walk = (node: unknown, path: (string | number)[], refKey: boolean): void => {
     if (typeof node === 'string') {
@@ -263,7 +325,7 @@ export function secretRefs(doc: unknown): { pointer: string; ref: string }[] {
     } else if (Array.isArray(node)) {
       node.forEach((x, i) => walk(x, [...path, i], refKey));
     } else if (isPlainObject(node)) {
-      for (const [k, v] of Object.entries(node)) walk(v, [...path, k], /Refs?$/.test(k));
+      for (const [k, v] of Object.entries(node)) walk(v, [...path, k], members.has(k));
     }
   };
   walk(doc, [], false);

@@ -20,7 +20,7 @@ import { z } from 'zod';
 import { AgentClient } from '../agent/agent.client.js';
 import { SystemEventsService } from '../audit/system-events.service.js';
 import { ProblemError, problems } from '../common/problem.js';
-import { Protected } from '../common/responses.js';
+import { ApiOut, Protected } from '../common/responses.js';
 import { openapi, ZodPipe } from '../common/zod.js';
 import { safeText } from '../common/text.js';
 import { CommitService } from '../commit/commit.service.js';
@@ -180,7 +180,7 @@ export class StateController {
   @Get('system')
   @Protected()
   @ApiOperation({ summary: 'API + agent health, pending commit, running revision' })
-  @ApiOkResponse({ schema: openapi(SystemOut, 'output') })
+  @ApiOut(SystemOut)
   async system() {
     const [health, pending, running] = await Promise.all([
       this.agent.health().then(
@@ -232,7 +232,7 @@ export class StateController {
     summary:
       'Interfaces: live state from VPP (agent InterfaceState), what the agent retrieved (config), the running configuration, the latest counters and pending candidate changes',
   })
-  @ApiOkResponse({ schema: openapi(InterfacesOut, 'output') })
+  @ApiOut(InterfacesOut)
   async interfaces() {
     // P08: merged view — live state (InterfaceState, dumped from VPP by the agent), what the agent retrieved as
     // configured (Retrieve → `config`, its pre-P08 meaning, D-105), the running configuration (`running`), the
@@ -303,17 +303,14 @@ export class StateController {
     summary:
       'Latest counters of one interface (absolute; rates come from consecutive samples or the WS iface.counters topic)',
   })
-  @ApiOkResponse({
-    schema: openapi(
-      z.object({
-        name: z.string(),
-        vppName: z.string(),
-        ts: z.string().optional(),
-        counters: CountersOut,
-      }),
-      'output',
-    ),
-  })
+  @ApiOut(
+    z.object({
+      name: z.string(),
+      vppName: z.string(),
+      ts: z.string().optional(),
+      counters: CountersOut,
+    }),
+  )
   async counters(@Param('name', new ZodPipe(InterfaceNameParam)) name: string) {
     const live = await this.liveState();
     const vppName = live?.find((s) => s.name === name)?.vppName ?? name;
@@ -338,17 +335,14 @@ export class StateController {
   @ApiOperation({
     summary: 'Connected + static routes retrieved from VPP by the agent (server-side paged)',
   })
-  @ApiOkResponse({
-    schema: openapi(
-      z.object({
-        page: z.number().int(),
-        pageSize: z.number().int(),
-        total: z.number().int(),
-        items: z.array(RouteOut),
-      }),
-      'output',
-    ),
-  })
+  @ApiOut(
+    z.object({
+      page: z.number().int(),
+      pageSize: z.number().int(),
+      total: z.number().int(),
+      items: z.array(RouteOut),
+    }),
+  )
   async routes(@Query(new ZodPipe(RoutesQuery)) q: z.output<typeof RoutesQuery>) {
     const r = await this.agent.retrieve(['interfaces', 'routing']);
     const actual = DesiredState.toJSON(r.desiredState ?? DesiredState.fromPartial({})) as Json;
@@ -377,7 +371,7 @@ export class StateController {
   @Get('drift')
   @Protected(502, 503)
   @ApiOperation({ summary: 'Running configuration vs what the agent retrieves (proto.md §5)' })
-  @ApiOkResponse({ schema: openapi(DriftOut, 'output') })
+  @ApiOut(DriftOut)
   async drift() {
     const [running, r, impl] = await Promise.all([
       this.ds.getRunning(),
@@ -404,7 +398,7 @@ export class StateController {
   @ApiOperation({
     summary: 'System events (commits, confirm reverts, agent degradation), newest first',
   })
-  @ApiOkResponse({ schema: openapi(EventsOut, 'output') })
+  @ApiOut(EventsOut)
   events(@Query(new ZodPipe(PageQuery)) q: z.output<typeof PageQuery>) {
     return this.sysEvents.list(q.limit, q.offset);
   }

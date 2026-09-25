@@ -19,6 +19,13 @@ export interface DbHandle {
 }
 
 /**
+ * ARCH-11 (TD-15): how long a query waits for a pool client (or a new connection) before it fails. pg's default is
+ * 0 = wait forever, so an exhausted pool (e.g. N concurrent edits each wanting a second client) hung every request
+ * instead of failing one of them.
+ */
+export const POOL_CONNECT_TIMEOUT_MS = 10_000;
+
+/**
  * Lazy: `pg.Pool` does not connect until the first query, so the OpenAPI generator and the route-guard test build the
  * whole application without a database. Without a DSN every query fails with 503 (never with a stack trace).
  */
@@ -42,7 +49,11 @@ export function createDb(env: Env): DbHandle {
     ) as Db;
     return { db: unavailable, pool: undefined, close: async () => undefined };
   }
-  const pool = new pg.Pool({ connectionString: url, max: env.VRX_DB_POOL_MAX });
+  const pool = new pg.Pool({
+    connectionString: url,
+    max: env.VRX_DB_POOL_MAX,
+    connectionTimeoutMillis: POOL_CONNECT_TIMEOUT_MS,
+  });
   // idle-client errors (server restart) must not crash the process; the next query reconnects
   pool.on('error', () => undefined);
   return { db: drizzle(pool, { schema }), pool, close: () => pool.end() };

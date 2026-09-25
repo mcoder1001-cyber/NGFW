@@ -14,7 +14,6 @@ import {
   ApiBody,
   ApiCookieAuth,
   ApiNoContentResponse,
-  ApiOkResponse,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -22,7 +21,7 @@ import {
 import type { FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { ENV, type Env } from '../config.js';
-import { Protected, PublicDoc } from '../common/responses.js';
+import { ApiOut, Protected, PublicDoc } from '../common/responses.js';
 import { sourceIp, type VrxRequest } from '../common/principal.js';
 import { ProblemError } from '../common/problem.js';
 import { openapi, ref, SafeParamPipe, ZodPipe } from '../common/zod.js';
@@ -128,7 +127,7 @@ export class AuthController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Log in with a local user; sets the refresh cookie' })
   @ApiBody({ schema: openapi(LoginBody) })
-  @ApiOkResponse({ schema: openapi(SessionOut, 'output') })
+  @ApiOut(SessionOut)
   @ApiResponse({
     status: 403,
     description: TLS_REQUIRED,
@@ -152,7 +151,7 @@ export class AuthController {
   @HttpCode(200)
   @ApiCookieAuth('refreshCookie')
   @ApiOperation({ summary: 'Rotate the refresh cookie and get a new access token' })
-  @ApiOkResponse({ schema: openapi(SessionOut, 'output') })
+  @ApiOut(SessionOut)
   @PublicDoc(401)
   async refresh(@Req() req: VrxRequest, @Res({ passthrough: true }) reply: FastifyReply) {
     return this.setRefresh(
@@ -179,7 +178,7 @@ export class AuthController {
   @Get('me')
   @Protected()
   @ApiOperation({ summary: 'The authenticated user' })
-  @ApiOkResponse({ schema: openapi(MeOut, 'output') })
+  @ApiOut(MeOut)
   me(@Req() req: VrxRequest) {
     return this.auth.me(req.principal!);
   }
@@ -214,7 +213,7 @@ export class AuthController {
   @Get('api-keys')
   @Protected()
   @ApiOperation({ summary: 'API keys of the authenticated user' })
-  @ApiOkResponse({ schema: openapi(z.array(ApiKeyOut), 'output') })
+  @ApiOut(z.array(ApiKeyOut))
   apiKeys(@Req() req: VrxRequest) {
     return this.auth.listApiKeys(req.principal!);
   }
@@ -237,7 +236,7 @@ export class AuthController {
     summary: 'Create an API key (`Authorization: ApiKey <key>`); the key is shown once',
   })
   @ApiBody({ schema: openapi(ApiKeyBody) })
-  @ApiOkResponse({ schema: openapi(ApiKeyCreated, 'output') })
+  @ApiOut(ApiKeyCreated)
   async createApiKey(
     @Body(new ZodPipe(ApiKeyBody)) body: z.output<typeof ApiKeyBody>,
     @Req() req: VrxRequest,

@@ -10,3 +10,7 @@
   deadline), 1.1b (owed-resync retry via Env.Resync path + drift gauge), 1.1c, 1.1d/e, 1.2, 1.3, 1.4, 1.5a/b/c/e,
   ARCH-01, owed-revert tech-debt; FlushClaims hook for TD-11c (manager's coordination note). Unit tests green (-race).
   next: base-first evidence (shims), proto.md §2, TD-9.md, CI.
+- 03:41 resumed after the usage-limit stop (CONTINUE note read: TD-8/TD-7 merged, TD-11b ownership rule — TD-9 registers
+  no descriptor). proto.md §2 done; base-first evidence done (all new tests fail on the base); TD-9 diff applied to a
+  main copy: clean + green; host runs (core + agent integration, NRestarts 1 → 1); quick CI PASSED (the --base main
+  contract guard only sees main's own changes since the speculative base). TD-9.md + TD-9-questions.md written. Done.

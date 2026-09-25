@@ -1,0 +1,39 @@
+{
+  "tab": "LISP (پیشرفته)",
+  "advanced": "پیشرفته: LISP / LISP-GPE یک قابلیت سراسری VPP است. کلیدهای روشن/خاموش و proxy-ITR فقط توسط مالک تنظیمات سراسری اعمال می‌شوند؛ هر بار روشن/خاموش کردن یک مجموعه‌ی مکان‌یاب <remote-N> و واسط‌های lisp_gpe را در VPP باقی می‌گذارد (V14) و ورودی‌های ارسال GPE قابل بازخوانی نیستند (V13).",
+  "sections": "بخش‌های LISP",
+  "section": {
+    "locators": "مکان‌یاب‌ها",
+    "eids": "EIDها",
+    "mappings": "نگاشت‌ها",
+    "resolvers": "حل‌کننده‌ها"
+  },
+  "status": {
+    "title": "اشیای پیکربندی‌شده و وضعیت صفحه‌ی داده",
+    "applied": "در VPP",
+    "missing": "در VPP نیست",
+    "writeOnly": "فقط‌نوشتنی (VNI موجود)"
+  },
+  "col": {
+    "kind": "نوع",
+    "id": "شیء",
+    "detail": "جزئیات",
+    "status": "وضعیت"
+  },
+  "kind": {
+    "switch": "کلید",
+    "locatorSet": "مجموعه‌ی مکان‌یاب",
+    "localEid": "EID محلی",
+    "eidTable": "جدول EID (VNI)",
+    "remoteMapping": "نگاشت راه‌دور",
+    "adjacency": "همجواری",
+    "gpeEntry": "ورودی GPE",
+    "mapResolver": "حل‌کننده‌ی نگاشت",
+    "mapServer": "سرور نگاشت",
+    "pitr": "Proxy-ITR"
+  },
+  "empty": "در این بخش چیزی پیکربندی نشده است.",
+  "loading": "در حال بارگذاری…",
+  "save": "ذخیره در نامزد",
+  "reset": "بازنشانی"
+}

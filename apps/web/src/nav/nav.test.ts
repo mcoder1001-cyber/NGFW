@@ -45,6 +45,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-vrrp-config-sync
       // wave-BC: F-srv6
       // wave-BC: F-lisp
+      'vpn',
       // wave-A: F-bonding
       // wave-A: F-bridge-l2
       // wave-A: F-loopback-bvi-gso-lldp-span

@@ -54,6 +54,7 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-srv6
   // wave-BC: F-lisp
+  'vpn',
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-object-model
   // wave-A: F-acl

@@ -41,6 +41,8 @@ import faVpn from './locales/fa/vpn.json';
 // wave-BC: F-capture-trace
 // wave-BC: F-srv6
 // wave-BC: F-lisp
+import enLisp from './locales/en/lisp.json';
+import faLisp from './locales/fa/lisp.json';
 // wave-BC: F-bfd-redistribution
 // wave-BC: F-ra-vpn
 // wave-BC: F-mpls-ldp
@@ -103,6 +105,7 @@ export const NAMESPACES = [
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
   // wave-BC: F-lisp
+  'lisp',
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
@@ -167,6 +170,7 @@ const en = {
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
   // wave-BC: F-lisp
+  lisp: enLisp,
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
@@ -228,6 +232,7 @@ const fa = {
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
   // wave-BC: F-lisp
+  lisp: faLisp,
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp

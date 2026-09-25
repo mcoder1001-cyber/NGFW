@@ -1,0 +1,39 @@
+{
+  "tab": "LISP (advanced)",
+  "advanced": "Advanced: LISP / LISP-GPE is a VPP-global feature. The switches and the proxy-ITR are set by the globals owner only; every enable/disable cycle leaks a <remote-N> locator set and lisp_gpe interfaces in VPP (V14), and GPE forwarding entries cannot be read back (V13).",
+  "sections": "LISP sections",
+  "section": {
+    "locators": "Locators",
+    "eids": "EIDs",
+    "mappings": "Mappings",
+    "resolvers": "Resolvers"
+  },
+  "status": {
+    "title": "Configured objects and data-plane status",
+    "applied": "In VPP",
+    "missing": "Not in VPP",
+    "writeOnly": "Write-only (VNI present)"
+  },
+  "col": {
+    "kind": "Type",
+    "id": "Object",
+    "detail": "Detail",
+    "status": "Status"
+  },
+  "kind": {
+    "switch": "Switch",
+    "locatorSet": "Locator set",
+    "localEid": "Local EID",
+    "eidTable": "EID table (VNI)",
+    "remoteMapping": "Remote mapping",
+    "adjacency": "Adjacency",
+    "gpeEntry": "GPE entry",
+    "mapResolver": "Map resolver",
+    "mapServer": "Map server",
+    "pitr": "Proxy-ITR"
+  },
+  "empty": "Nothing configured in this section.",
+  "loading": "Loading…",
+  "save": "Save to candidate",
+  "reset": "Reset"
+}

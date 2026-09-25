@@ -79,6 +79,11 @@ type VPP struct {
 	Internal map[routeKey]uint8
 	// mtuFilter (P08, SetMtuFilter) rewrites the MTU a sw_interface_set_mtu stores (fault injection).
 	mtuFilter func(swIfIndex uint32, mtu [4]uint32) [4]uint32
+	// installingExt/onOwner (see On, below) are the extension-collision guard: which extension (if
+	// any) is currently being installed on this model, and which extension last claimed each VPP
+	// message name.
+	installingExt string
+	onOwner       map[string]string
 }
 
 // New returns a model with local0 and the default tables.
@@ -94,6 +99,80 @@ func New() *VPP {
 	v.install()
 	v.installIfExt()             // P08: DF-1 attributes, af_packet, sub-interfaces, DHCP client dump
 	sanitizetest.Clean(v.Client) // interface creators sanitize the new sw_if_index (D-095)
+	v.installExtensions()        // TD-23/D-134: every feature registered with RegisterExtension
+	return v
+}
+
+// --- Extension registry (TD-23/D-134) ------------------------------------------------------------
+//
+// README: features register here; never edit the dispatcher. Call RegisterExtension instead of
+// editing New() or this registry — typically from the feature's own coretest/<slug>.go's init().
+// Modelled on F-nat44-ed-sessions' original ad hoc `var extensions []func(*VPP)` seam, generalised because three
+// wave-A branches each independently reinvented that same package-level slice (a guaranteed
+// redeclaration conflict at merge) and two of them — F-rpf-adl-pbr and F-bridge-l2 — both hook
+// "feature_is_enabled" (uRPF/ADL's arc checks vs. the mactime feature's), which plain fake.Client.On
+// silently lets the second one clobber. On (below) panics on that collision instead: two extensions
+// disagreeing about the same VPP message is a bug for them to resolve explicitly at rebase, not a
+// silently-broken model for whichever extension installed first.
+//
+//	func init() { coretest.RegisterExtension("bridge-l2", (*coretest.VPP).installBridgeL2) }
+
+type extension struct {
+	name    string
+	install func(*VPP)
+}
+
+var (
+	extMu  sync.Mutex
+	extAll []extension
+)
+
+// RegisterExtension adds a feature's model installer, applied by every New() in registration order.
+// name identifies the feature (its slug) for the collision panic in On; registering the same name
+// twice panics immediately — a copy-paste of the one-liner, not a second feature reusing it.
+func RegisterExtension(name string, install func(*VPP)) {
+	extMu.Lock()
+	defer extMu.Unlock()
+	for _, e := range extAll {
+		if e.name == name {
+			panic(fmt.Sprintf("coretest: extension %q already registered", name))
+		}
+	}
+	extAll = append(extAll, extension{name, install})
+}
+
+// installExtensions applies every registered extension to v, in registration order.
+func (v *VPP) installExtensions() {
+	extMu.Lock()
+	all := append([]extension(nil), extAll...)
+	extMu.Unlock()
+	for _, e := range all {
+		v.installingExt = e.name
+		e.install(v)
+	}
+	v.installingExt = ""
+}
+
+// On registers h for VPP messages named name, like the embedded fake.Client.On, but — while an
+// extension is being installed (installExtensions, above) — panics if a *different* extension
+// already claimed name instead of silently replacing its handler (the F-rpf-adl-pbr × F-bridge-l2
+// mactime case: both model "feature_is_enabled"). Core setup (install, installIfExt, run before any
+// extension) and an extension replacing its own earlier registration are unaffected: only two
+// distinct extension names claiming the same message name panics.
+func (v *VPP) On(name string, h fake.Handler) *VPP {
+	if v.installingExt != "" {
+		if v.onOwner == nil {
+			v.onOwner = map[string]string{}
+		}
+		if owner, claimed := v.onOwner[name]; claimed && owner != v.installingExt {
+			panic(fmt.Sprintf(
+				"coretest: extension %q replaces VPP message %q already modelled by extension %q — compose them explicitly (e.g. dispatch on the request) instead of both calling On",
+				v.installingExt, name, owner,
+			))
+		}
+		v.onOwner[name] = v.installingExt
+	}
+	v.Client.On(name, h)
 	return v
 }
 

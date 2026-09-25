@@ -50,7 +50,12 @@ the edit. Terraform recognises its own leftover edit and re-uses it on the next 
 ## Credentials
 
 Automation uses **API keys**, not passwords: create one in the web UI or with
-`POST /api/v1/auth/api-keys {"name": "ci", "role": "operator", "expiresInDays": 90}` — the key is shown once.
+`POST /api/v1/auth/api-keys {"name": "ci", "role": "operator", "expiresInDays": 90, "current": "<your password>"}` —
+the key is shown once. From a login session (`Authorization: Bearer …`) `current` is required: it is your current
+password (over https only; a few checks per minute per account, then 429; a wrong one counts toward the login lockout,
+D-100). A request made with an existing API key (`Authorization: ApiKey …`) sends no `current`: it is refused with 400
+(`current-not-allowed-with-api-key`, D-124), never checked. CLI: `vrx api-key create ci role operator expires 90 file ci.key`
+asks for the current password without echo (or reads `--password-file`).
 The role caps what the key can do: `readonly` (GET only), `operator` (configuration, not users/AAA/secrets),
 `admin` (everything). Keep the key in a file or in the environment (`VRX_API_KEY`), never in code or in a Terraform
 file. Use `https://`: plain `http://` is refused for anything but a loopback address unless you set

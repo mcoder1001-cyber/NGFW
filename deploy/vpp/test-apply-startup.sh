@@ -73,15 +73,17 @@ ok() {
   FAIL=$((FAIL + 1)); echo "  FAIL $2"
   # a failure explains itself: the verdict lines the script printed in this case + the host load (CI shares the host)
   echo "       load $(cut -d' ' -f1-3 /proc/loadavg) on $(nproc) CPUs; last verdicts in $T:"
-  grep -hE 'ROLLBACK|REFUSED|CONSOLE NEEDED|SUPERSEDED|COMMITTED|FORCED|failed or hung|NONE VIABLE|took the locks|still owns' \
-    "$T"/out "$T"/run.out "$T"/run1.out 2>/dev/null | tail -n 6 | cut -c1-220 | sed 's/^/       | /' || true
+  grep -hE 'ROLLBACK|REFUSED|CONSOLE NEEDED|SUPERSEDED|COMMITTED|FORCED|failed or hung|NONE VIABLE|took the locks|still owns|already running' \
+    "$T"/out "$T"/run.out "$T"/run1.out "$T"/rb1.out "$T"/rb2.out 2>/dev/null | tail -n 6 | cut -c1-220 | sed 's/^/       | /' || true
 }
 elapsed() { echo $((SECONDS - T0)); }
 # "bounded" checks prove a hang costs the configured timeouts, not the fake's sleep (300–1000 s). Everything else in
 # a scenario is fork-heavy shell whose wall time grows with the host's load (CI runs next to up to 11 workers; measured:
 # 3.6× the idle time at load 32 on 32 CPUs), so the limit is the idle-host limit × a load factor 1 + 3·min(load/CPUs, 1.6):
-# 1 idle, 4 at load = CPUs, 5.8 at load ≥ 1.6×CPUs (51 on 32). Idle-host limits are ~1.5–2× the idle time; even ×5.8
-# every limit stays below the unbounded case it guards against (named in the check).
+# 1 idle, 4 at load = CPUs, 5.8 at load ≥ 1.6×CPUs (51 on 32). Idle-host limits are ~1.5–2× the idle time. A time bound
+# is used only where the unbounded case is a `sleep 300–1000` (named in the check): even ×5.8 (at most 174 s) stays below
+# it. Where the regression costs only a few × the idle time, a load factor hides it (TD-6 review F2: scenario 40's
+# pre-V8 poll took 26 s against a limit of 27 s at load 18), so that check counts the fake's calls instead (TD-7).
 load_limit() {  # <idle-host limit in s> → the limit for the current load
   awk -v b="$1" -v l="$(cut -d' ' -f1 /proc/loadavg)" -v n="$(nproc)" 'BEGIN { r = l / n; if (r > 1.6) r = 1.6; printf "%d\n", b * (1 + 3 * r) + 0.5 }'
 }
@@ -297,6 +299,26 @@ state_line() {  # <work dir> <rc> → one evidence line (what the host looks lik
   echo "    state: rc=$2 finished=[${m% }] vpp=$(cat "$T/state/vpp") locks-free=$(locks_free && echo y || echo n) timer-cancelled=$(grep -q "systemctl stop vrx-startup-apply-deadman-$(basename "$w").timer" "$T/calls" && echo y || echo n) live==new=$(cmp -s "$T/etc/vpp/startup.conf" "$w/new.conf" 2>/dev/null && echo y || echo n) live==orig=$(unchanged 2>/dev/null && echo y || echo n)"
 }
 restarts() { grep -cE "^systemctl (restart|start) vpp" "$T/calls" || true; }   # VPP (re)starts done by the script
+# TD-7 F1: two `--stage rollback` of one work dir $W at once. Rollback 1 runs in the background and is held inside its
+# `systemctl stop vpp` (the fake's first stop blocks until state/release-stop, ≤ 60 s); rollback 2 runs meanwhile in the
+# foreground, then rollback 1 is released. Evidence is taken from the calls after the "== rollbacks" line.
+since_mark() { sed -n '/^== rollbacks$/,$p' "$T/calls" | grep -cE "$1" || true; }   # <ERE> → matching calls since the mark
+line_since_mark() { grep -nE "$1" "$T/calls" | awk -F: -v m="$(grep -n '^== rollbacks$' "$T/calls" | cut -d: -f1)" '$1 > m { print $1; exit }'; }
+two_rollbacks() {
+  echo "== rollbacks" >> "$T/calls"
+  hook stop 'if [[ ! -e $FAKE/state/stopped-once ]]; then touch "$FAKE/state/stopped-once" "$FAKE/state/in-stop"
+for ((i = 0; i < 600; i++)); do [[ -e $FAKE/state/release-stop ]] && break; sleep 0.1; done; fi'
+  "$W/bin/apply-startup.sh" --stage rollback --work "$W" > "$T/rb1.out" 2>&1 & RB1=$!; PIDS+=("$RB1")
+  waitfor "$T/state/in-stop" 300 || true
+  RB1_IN_STOP=$([[ -e $T/state/in-stop ]] && echo y || echo n)
+  RC2=0; timeout -k 5 120 "$W/bin/apply-startup.sh" --stage rollback --work "$W" > "$T/rb2.out" 2>&1 || RC2=$?
+  RB1_HELD=$([[ ! -e $T/state/release-stop ]] && kill -0 "$RB1" 2>/dev/null && echo y || echo n)
+  touch "$T/state/release-stop"
+  RC1=0; wait "$RB1" || RC1=$?
+  STOPS=$(since_mark '^systemctl stop vpp$') STARTS=$(since_mark '^systemctl start vpp$')
+  echo "    rollback 1 (pid $RB1): rc=$RC1, inside its VPP stop while rollback 2 ran: $RB1_IN_STOP/$RB1_HELD; rollback 2: rc=$RC2; VPP stops=$STOPS starts=$STARTS"
+  grep -hE 'already running|still owns|took the locks|FORCED|ROLLBACK|rolled back to|nothing to do' "$T/rb2.out" | head -n 4 | cut -c1-200 | sed 's/^/    | rollback 2: /' || true
+}
 
 if scen 1; then
 echo "== 1. dry run (default) changes nothing; prints diffs, drivers, management restore plan, reachability check, preflight, gate, both sha256"
@@ -712,6 +734,7 @@ ok '[[ -e $W1/installed ]] && ! finished_dir "$W1" && cmp -s "$T/etc/vpp/startup
 rc=0; apply2 "$(sha256sum "$T/etc/vpp/startup.conf" | awk '{print $1}')" > "$T/out" 2>&1 || rc=$?
 state_line "$W1" "$rc"
 ok '[[ $rc == 3 ]] && grep -q "REFUSED: an earlier apply has not finished: $W1 (dead-man vrx-startup-apply-deadman-.*\.timer)" "$T/out" && cmp -s "$T/etc/vpp/startup.conf" "$W1/new.conf" && [[ $(find "$T/apply" -mindepth 1 -maxdepth 1 -type d | wc -l) == 1 ]]' "a new apply is refused while run 1 is unfinished (exit $rc; dir and timer named), nothing changed"
+ok 'grep -qF "through the dead-man'"'"'s own unit: systemctl start $(cat "$W1/deadman-unit").service" "$T/out"' "TD-7 F1: the refusal points at the safe command, the dead-man's own unit (systemctl start <unit>.service), not a second rollback by hand"
 rc=0; "$W1/bin/apply-startup.sh" --stage rollback --work "$W1" > "$T/dm1.out" 2>&1 || rc=$?
 ok '[[ $rc == 1 && -e $W1/rolled-back ]] && unchanged' "run 1's dead-man makes its one rollback (exit $rc): original file back"
 rc=0; apply2 "$ORIG" > "$T/out" 2>&1 || rc=$?
@@ -834,10 +857,14 @@ echo "    $(grep -E "^  (will use:|NONE VIABLE)" <<<"$out")"
 ok '[[ $rc == 0 ]] && grep -q "will use: neigh (passes now)" <<<"$out" && grep -q "tcpconnect fe80::1%ens192 9" "$T/calls"' "dual stack, gateway fe80::1: nudged as fe80::1%ens192, neigh viable (exit $rc)"
 setup
 touch "$T/state/neigh-hang"
-rc=0; out="$("$SCRIPT" --doc "$DOCF" --cmd-timeout 3 "${APPROVE[@]}" "${HOSTARGS[@]}" 2>&1)" || rc=$?
-echo "    elapsed $(elapsed)s: $(grep -E "NONE VIABLE" <<<"$out" | cut -c1-120)"
+# (the outer timeout only turns a regression into an unbounded loop into a failure instead of a stuck harness)
+rc=0; out="$(timeout -k 5 300 "$SCRIPT" --doc "$DOCF" --cmd-timeout 3 "${APPROVE[@]}" "${HOSTARGS[@]}" 2>&1)" || rc=$?
+reads=$(grep -c '^ip -j neigh show 10.0.0.1 dev ens192$' "$T/calls" || true)
+echo "    elapsed $(elapsed)s at load $(cut -d' ' -f1 /proc/loadavg), $reads \`ip neigh\` read(s): $(grep -E "NONE VIABLE" <<<"$out" | cut -c1-120)"
 ok '[[ $rc == 3 ]] && grep -q "is not REACHABLE" <<<"$out"' "ip neigh hangs (cmd-timeout 3s): refused (exit $rc)"
-bounded 10 "the pre-V8 poll bounded by count: 2×cmd-timeout reads × (3 s + 0.5 s) = 21 s + the same load-scaled overhead (28–29 s measured)"
+# TD-7 F2: load-independent. Every read hangs until the 3 s cmd-timeout kills it, so a poll bounded by a 3 s deadline
+# makes one read (two at most); the pre-V8 poll bounded by count makes 2 × cmd-timeout = 6, however fast or slow the host
+ok '(( reads >= 1 && reads <= 2 ))' "the poll is bounded by time, not by count: $reads hanging \`ip neigh\` read(s) of 3 s within the 3 s deadline (pre-V8: 2 × cmd-timeout = 6 reads) — independent of the host load"
 fi
 if scen 41; then
 echo "== 41. V9: the dry run exits 3 when --apply would be refused by the gate, 0 when the approval covers this rendering"
@@ -846,6 +873,39 @@ rc=0; out="$("$SCRIPT" --doc "$DOCF" --cmd-timeout "$CT" "${HOSTARGS[@]}" 2>&1)"
 ok '[[ $rc == 3 ]] && grep -q "REFUSED: docs/lab/host-vrx-a.md says handover: pending" <<<"$out" && grep -qx "$NEW" <<<"$out"' "handover pending, no approval: exit $rc (sums still printed)"
 rc=0; out="$("$SCRIPT" --doc "$DOCF" --cmd-timeout "$CT" "${APPROVE[@]}" "${HOSTARGS[@]}" 2>&1)" || rc=$?
 ok '[[ $rc == 0 ]] && grep -q "PRODUCT-OWNER APPROVAL PENDING-fake-change" <<<"$out"' "approval names this rendering: exit $rc"
+fi
+# ---------------------------------------------------------------- TD-7 (D-116): F1 of the TD-6 review
+if scen 42; then
+echo "== 42. F1: two \`--stage rollback\` of one apply at once, holder gone (the operator finishes it by hand while its dead-man fires) → the second is refused at once; VPP stopped and started exactly once, never FORCED"
+setup
+TIMING_SAVE=("${TIMING[@]}"); TIMING=(--window 2 --interval 1 --settle 1 --api-wait 2 --lock-timeout 2 --cmd-timeout "$CT" --svc-timeout 120 --deadman-lock-timeout 1)
+rc=0; apply > "$T/run1.out" 2>&1 || rc=$?   # --svc-timeout 120: the held stop below must not time out
+TIMING=("${TIMING_SAVE[@]}")
+W="$(work)"; rm -f "$W/committed"   # as in 28: the run died after installing and before a result; its holder is gone
+ok '[[ $rc == 0 && -e $W/installed ]] && ! finished_dir "$W" && locks_free && cmp -s "$T/etc/vpp/startup.conf" "$W/new.conf"' "the apply installed and has no result; its holder is gone"
+two_rollbacks
+state_line "$W" "$RC1"
+ok '[[ $RB1_IN_STOP == y && $RB1_HELD == y && $RC2 == 0 ]] && grep -q "a rollback of $W is already running (pid $RB1) — nothing to do" "$T/rb2.out" && ! grep -qE "ROLLBACK|dead-man fired|FORCED" "$T/rb2.out"' "the second rollback, started while the first is inside its VPP stop, is refused at once and touches nothing (exit $RC2)"
+ok '[[ $RC1 == 1 && -e $W/rolled-back && ! -e $W/console-needed ]] && unchanged && [[ $(cat "$T/state/vpp") == active ]] && locks_free' "the first one rolls back alone (exit $RC1): original file, VPP active, locks released"
+ok '[[ $STOPS == 1 && $STARTS == 1 ]] && grep -q "took the locks exclusively" "$T/rb1.out" && ! grep -q FORCED "$T/rb1.out" "$T/rb2.out"' "VPP stopped and started exactly once (stops=$STOPS starts=$STARTS); the locks taken exclusively, never FORCED"
+fi
+if scen 43; then
+echo "== 43. F1: the same overlap while the holder is alive (the run hangs in \`systemctl restart\`, its dead-man armed) → the rollback disarms the timer first; the second is refused; VPP stopped and started exactly once"
+setup
+hook restart 'echo $$ >> "$FAKE/state/pids"; exec sleep 1000'
+TIMING_SAVE=("${TIMING[@]}"); TIMING=(--window 2 --interval 1 --settle 1 --api-wait 2 --lock-timeout 2 --cmd-timeout "$CT" --svc-timeout 600 --deadman-lock-timeout 1)
+apply > "$T/run1.out" 2>&1 & RUNNER=$!; PIDS+=("$RUNNER")
+TIMING=("${TIMING_SAVE[@]}")
+W="$(work_wait)"; waitfor "$W/installed" 150 || true; sleep 0.3
+read -r RUNPID < "$W/run-pid"; PIDS+=("$RUNPID"); HOLD="$(cat "$W/locks-held")"; DM="$(cat "$W/deadman-unit")"
+ok 'kill -0 "$RUNPID" && kill -0 "$HOLD" && ! finished_dir "$W" && ! grep -q "^systemctl stop $DM.timer" "$T/calls"' "the run is stuck in 'systemctl restart'; holder $HOLD owns the locks; the dead-man $DM is armed"
+two_rollbacks
+state_line "$W" "$RC1"
+c=$(line_since_mark "^systemctl stop $DM\\.timer$"); s=$(line_since_mark '^systemctl stop vpp$')
+ok '[[ $RB1_IN_STOP == y && $RB1_HELD == y && $RC2 == 0 ]] && grep -q "a rollback of $W is already running (pid $RB1) — nothing to do" "$T/rb2.out" && ! grep -qE "ROLLBACK|dead-man fired|still owns" "$T/rb2.out"' "the second rollback (the timer firing while the operator's runs) is refused at once and touches nothing (exit $RC2)"
+ok '[[ -n $c && -n $s ]] && (( c < s ))' "the rollback disarmed the armed dead-man timer (calls line ${c:-none}) before it stopped VPP (line ${s:-none})"
+ok '[[ $RC1 == 1 && -e $W/rolled-back ]] && unchanged && grep -q "lock holder $HOLD still owns the locks" "$T/rb1.out" && ! kill -0 "$RUNPID" 2>/dev/null && ! kill -0 "$HOLD" 2>/dev/null && locks_free' "the first one killed the run and rolled back alone (exit $RC1) under the holder's locks, then released them"
+ok '[[ $STOPS == 1 && $STARTS == 1 ]]' "VPP stopped and started exactly once (stops=$STOPS starts=$STARTS)"
 fi
 
 echo

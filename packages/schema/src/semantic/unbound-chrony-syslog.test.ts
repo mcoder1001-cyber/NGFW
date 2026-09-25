@@ -194,3 +194,28 @@ describe('management.unbound-chrony-syslog-tls', () => {
     ).toEqual([]);
   });
 });
+
+describe('services.dns.vppCache (D-137)', () => {
+  it('an enabled cache needs at least one IPv4 upstream (400 at the upstreams pointer)', () => {
+    const r = RootConfig.safeParse({
+      services: {
+        dns: { vppCache: { enabled: true, upstreams: ['2001:db8::53', '2001:db8::54'] } },
+      },
+    });
+    expect(r.success).toBe(false);
+    expect(r.error!.issues).toContainEqual(
+      expect.objectContaining({
+        path: ['services', 'dns', 'vppCache', 'upstreams'],
+        message: 'VPP DNS cache needs at least one IPv4 upstream (VPP 26.06 defect, D-137)',
+      }),
+    );
+  });
+  it('one IPv4 upstream is enough; a disabled cache is not checked', () => {
+    for (const vppCache of [
+      { enabled: true, upstreams: ['2001:db8::53', '192.0.2.53'] },
+      { enabled: false, upstreams: ['2001:db8::53'] },
+    ]) {
+      expect(RootConfig.safeParse({ services: { dns: { vppCache } } }).success).toBe(true);
+    }
+  });
+});

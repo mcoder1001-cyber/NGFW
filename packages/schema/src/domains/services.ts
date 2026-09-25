@@ -509,13 +509,25 @@ export const DnsResolverSchema = z
     });
   });
 
-export const DnsVppCacheSchema = z.strictObject({
-  enabled: withUi(z.boolean().default(false), { title: 'VPP DNS cache', widget: 'switch' }),
-  upstreams: withUi(z.array(ipAddress).min(1).max(8), {
-    title: 'Upstream name servers',
-    help: 'Servers the VPP dns plugin resolves through',
-  }),
-});
+export const DnsVppCacheSchema = z
+  .strictObject({
+    enabled: withUi(z.boolean().default(false), { title: 'VPP DNS cache', widget: 'switch' }),
+    upstreams: withUi(z.array(ipAddress).min(1).max(8), {
+      title: 'Upstream name servers',
+      help: 'Servers the VPP dns plugin resolves through (at least one IPv4 while enabled)',
+    }),
+  })
+  .superRefine((c, ctx) => {
+    // F-unbound-chrony-syslog / D-137: VPP 26.06 dereferences a NULL IPv4 name-server vector on every request while
+    // no IPv4 server exists (plugins/dns/dns.c:576-624) — an API lookup or any client's IPv4 UDP-53 query crashes VPP
+    if (c.enabled && !c.upstreams.some((u) => !u.includes(':'))) {
+      add(
+        ctx,
+        ['upstreams'],
+        'VPP DNS cache needs at least one IPv4 upstream (VPP 26.06 defect, D-137)',
+      );
+    }
+  });
 
 export const ServicesDnsSchema = z.strictObject({
   resolvers: withUi(z.record(objectName, DnsResolverSchema).default({}), {

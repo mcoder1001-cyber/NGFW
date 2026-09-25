@@ -1,4 +1,4 @@
-import { Injectable, type OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, type OnModuleInit } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { AclRuleStatus, type AclBoundAcl, type AclStateResponse } from '@ngfw/proto';
 import { isPlainObject } from '@ngfw/schema';
@@ -7,7 +7,8 @@ import { Readable } from 'node:stream';
 import { AgentClient } from '../../agent/agent.client.js';
 import { ProblemError, problems } from '../../common/problem.js';
 import type { Principal } from '../../common/principal.js';
-import { DatastoreService } from '../../datastore/datastore.service.js';
+import { CONFIG_REPO, DatastoreService } from '../../datastore/datastore.service.js';
+import type { ConfigRepo } from '../../datastore/repo.js';
 import {
   CsvError,
   csvHeader,
@@ -96,6 +97,7 @@ export class AclService implements OnModuleInit {
     private readonly ds: DatastoreService,
     private readonly agent: AgentClient,
     private readonly host: HttpAdapterHost,
+    @Inject(CONFIG_REPO) private readonly repo: ConfigRepo,
   ) {}
 
   /** `text/csv` bodies reach the import route as the raw request stream (streamed parse, own size cap). */
@@ -110,7 +112,14 @@ export class AclService implements OnModuleInit {
   private runningCache: { id: number | null; doc: Json } | undefined;
 
   async doc(source: Source): Promise<Json> {
-    if (source === 'candidate') return await this.ds.getCandidate();
+    if (source === 'candidate') {
+      // Only the acl and objects subtrees, read without redactSecrets: neither schema has a secret leaf (acl.test.ts
+      // checks it), and the full-document redaction costs seconds at 100 000 rules. Nothing else of the candidate is
+      // read or returned here. No candidate (null) = nobody edits = running.
+      const c = await this.repo.candidate();
+      if (c.payload === null) return this.doc('running');
+      return { acl: c.payload['acl'], objects: c.payload['objects'] };
+    }
     const latest = (await this.ds.listRevisions(1, 0)).items[0]?.id ?? null;
     if (this.runningCache !== undefined && this.runningCache.id === latest)
       return this.runningCache.doc;
@@ -455,7 +464,7 @@ export class AclService implements OnModuleInit {
         { pointer: '/csv/1', message: 'no header row' },
       ]);
 
-    const candidate = await this.ds.getCandidate();
+    const candidate = await this.doc('candidate');
     const existing = listsOf(candidate)[name];
     const existingRules = rulesOf(existing);
     if (opts.mode === 'append') {
@@ -511,7 +520,7 @@ export class AclService implements OnModuleInit {
   // ---- bulk ---------------------------------------------------------------------------------------------------------
 
   async bulk(user: Principal, name: string, op: BulkOp) {
-    const candidate = await this.ds.getCandidate();
+    const candidate = await this.doc('candidate');
     const list = listsOf(candidate)[name];
     if (list === undefined)
       throw problems.notFound(`access list '${name}' does not exist in the candidate`);

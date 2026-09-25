@@ -150,3 +150,15 @@ describe('acl CSV', () => {
     await expect(big.next()).rejects.toThrow(/larger than 50 bytes/);
   });
 });
+
+describe('acl candidate reads', () => {
+  it('the acl and objects schemas have no secret leaf (the candidate subtrees are read without redaction)', async () => {
+    const { z } = await import('zod');
+    const { AclSchema, ObjectsSchema } = await import('@ngfw/schema');
+    for (const s of [AclSchema, ObjectsSchema]) {
+      const js = JSON.stringify(z.toJSONSchema(s, { io: 'input', unrepresentable: 'any' }));
+      expect(js).not.toContain('"writeOnly":true');
+      expect(js).not.toContain('"secret":true');
+    }
+  });
+});

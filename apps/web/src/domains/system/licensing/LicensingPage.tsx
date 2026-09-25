@@ -3,6 +3,7 @@ import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
+import Link from '@mui/material/Link';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
@@ -69,7 +70,14 @@ export function LicensingPage(): ReactElement {
               <Typography component="h3" variant="h6">
                 {t('status.heading')}
               </Typography>
-              <Chip label={t(`status.${st.status}`)} color={COLOR[st.status]} size="small" data-testid="license-status" />
+              <Chip
+                label={t(`status.${st.status}`)}
+                color={COLOR[st.status]}
+                size="small"
+                role="status"
+                aria-label={t('status.aria', { status: t(`status.${st.status}`) })}
+                data-testid="license-status"
+              />
             </Stack>
             {st.reason && <Alert severity="error">{st.reason}</Alert>}
             <Table size="small" aria-label={t('status.heading')}>
@@ -106,9 +114,29 @@ export function LicensingPage(): ReactElement {
                 )}
               </TableBody>
             </Table>
-            {st.status === 'community' && <Typography sx={{ mt: 1 }}>{t('status.communityHelp')}</Typography>}
+            {st.status === 'community' && (
+              <Alert severity="warning" sx={{ mt: 1 }} data-testid="license-community-help">
+                {t('status.communityHelp')}
+                {perms.manageUsers && (
+                  <>
+                    {' '}
+                    <Link href="#license-upload">{t('upload.link')}</Link>
+                  </>
+                )}
+              </Alert>
+            )}
             {st.status === 'grace' && <Alert severity="warning" sx={{ mt: 1 }}>{t('banner.grace', { days: st.daysLeft })}</Alert>}
-            {st.status === 'expired' && <Alert severity="error" sx={{ mt: 1 }}>{t('status.expiredHelp')}</Alert>}
+            {(st.status === 'expired' || st.status === 'invalid') && (
+              <Alert severity="error" sx={{ mt: 1 }}>
+                {t('status.expiredHelp')}
+                {perms.manageUsers && (
+                  <>
+                    {' '}
+                    <Link href="#license-upload">{t('upload.link')}</Link>
+                  </>
+                )}
+              </Alert>
+            )}
           </Paper>
 
           <Paper sx={{ p: 2 }}>
@@ -142,8 +170,8 @@ export function LicensingPage(): ReactElement {
           </Paper>
 
           {perms.manageUsers && (
-            <Paper sx={{ p: 2 }}>
-              <Typography component="h3" variant="h6" gutterBottom>
+            <Paper sx={{ p: 2 }} id="license-upload" component="section" aria-labelledby="license-upload-heading">
+              <Typography component="h3" variant="h6" gutterBottom id="license-upload-heading">
                 {t('upload.heading')}
               </Typography>
               <Typography sx={{ mb: 1 }}>{t('upload.help')}</Typography>

@@ -84,4 +84,24 @@ describe('System → Licence', () => {
     await i18n.changeLanguage('fa');
     await waitFor(() => expect(screen.getByTestId('license-banner')).toHaveTextContent('دورهٔ مهلت'));
   });
+  it('community (no licence, D-151): explains that gated config is refused and links to the upload section; shell banner too', async () => {
+    const api = installFakeApi('admin');
+    await signIn();
+    api.on('GET /api/v1/state/license', { body: { status: 'community', daysLeft: 0, graceDays: 30, bound: { machineId: false, serial: false }, entitlements: { features: [], limits: {} } } });
+    render(app('/system/licensing'));
+    const help = await screen.findByTestId('license-community-help');
+    expect(help).toHaveTextContent('is refused until a licence is installed');
+    expect(screen.getByRole('link', { name: 'Install a licence' })).toHaveAttribute('href', '#license-upload');
+    expect(screen.getByRole('region', { name: 'Install a licence' })).toHaveAttribute('id', 'license-upload');
+    expect(screen.getByRole('status', { name: 'Licence status: Community (no licence)' })).toBeInTheDocument();
+    expect(await screen.findByTestId('license-banner')).toHaveTextContent('No licence is installed');
+  });
+
+  it('shows the problem when the licence state cannot be loaded', async () => {
+    const api = installFakeApi('admin');
+    await signIn();
+    api.on('GET /api/v1/state/license', { status: 503, body: { type: 'https://vrx.dev/problems/agent-unavailable', title: 'Agent unavailable', status: 503, detail: 'licence store unreachable' } });
+    render(app('/system/licensing'));
+    expect(await screen.findByText(/licence store unreachable/)).toBeInTheDocument();
+  });
 });

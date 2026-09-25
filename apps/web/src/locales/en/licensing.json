@@ -9,8 +9,9 @@
     "grace": "Grace period",
     "expired": "Expired",
     "invalid": "Invalid",
-    "communityHelp": "No licence is installed: licensed features (IPsec, WireGuard, BGP, OSPF, IS-IS, HA) cannot be added; the running configuration stays applied.",
-    "expiredHelp": "The licence and its grace period have expired. The running configuration stays applied; new configuration that needs a licensed feature is rejected at commit."
+    "communityHelp": "No licence is installed. Every licensed feature (IPsec, WireGuard, BGP, OSPF, IS-IS, HA) is locked: a commit that adds new configuration for any of them is refused until a licence is installed. The running configuration stays applied.",
+    "expiredHelp": "The licence is not usable (expired past its grace period, or invalid). The running configuration stays applied; new configuration for a licensed feature is refused at commit until a valid licence is installed.",
+    "aria": "Licence status: {{status}}"
   },
   "field": {
     "customer": "Customer",
@@ -20,7 +21,10 @@
     "graceLeft": "Grace days left",
     "binding": "Bound to"
   },
-  "binding": { "machineId": "machine ID", "serial": "serial number" },
+  "binding": {
+    "machineId": "machine ID",
+    "serial": "serial number"
+  },
   "entitlements": {
     "heading": "Entitlements in force",
     "feature": "Feature",
@@ -46,12 +50,14 @@
     "help": "Choose the .vrxlic file you received from support. It is verified before it is stored.",
     "button": "Upload licence file",
     "done": "Licence installed.",
-    "notJson": "This file is not a VRX licence file."
+    "notJson": "This file is not a VRX licence file.",
+    "link": "Install a licence"
   },
   "banner": {
     "grace": "The licence has expired. Grace period: {{days}} day(s) left.",
-    "expired": "The licence has expired. New licensed features cannot be committed.",
-    "invalid": "The installed licence is not valid for this system.",
-    "link": "Licence details"
+    "expired": "The licence has expired. New configuration for licensed features is refused at commit until a valid licence is installed.",
+    "invalid": "The installed licence is not valid for this system. New configuration for licensed features is refused at commit.",
+    "link": "Install or view the licence",
+    "community": "No licence is installed: new configuration for licensed features (IPsec, WireGuard, BGP, OSPF, IS-IS, HA) is refused until a licence is installed."
   }
 }

@@ -10,3 +10,10 @@
 - 23:37 API feature + e2e (6/6) + api-client / CLI table regenerated.
 - next: web tabs (EI, NAT64, NAT66, NPTv6), docs, topology test on the af_packet rig (EI / NAT64 / NPTv6 packets,
   NAT66 mapping, restart, rollback), screenshots, CI.
+- 23:40–00:32 topology runs 1–5: EI port forward pool rule (builder), IPv6 rig scope, IPv6 capture filter, NAT64
+  tenant VRF on the inside only; run 5: NAT64 end to end, API ports wrong → VPP st_details defect (agent correction).
+- 00:57 second usage-limit stop; 03:40 resumed (CONTINUE notes: TD-8 seams, TD-11b, D-132, WEB-1).
+- 03:45 merged ED fix round (base), adapted pager API; D-132 walks serialised + 30-s refresh; WEB-1.
+- 03:58–04:02 runs 7–9: leftover slot-VRF route (from run 5) removed; nat64 FIB lock leak → VRF kept; run 9 PASS.
+- 04:19 screenshots (en + fa/RTL). 04:25 docs, example, CI (main's ci.sh: packet-trace ban trips on P08's old
+  test/topology/interfaces copy inherited from the base; branch quick gate run separately).

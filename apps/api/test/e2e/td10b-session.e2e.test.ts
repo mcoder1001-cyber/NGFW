@@ -8,19 +8,16 @@ import { runSecret, startHarness, type Harness } from '../support/harness.js';
 import { cookieOf, eventually } from '../support/proxy.js';
 
 /**
- * TD-10b on the host PostgreSQL + Valkey — review 2.3c (logout ends the session's access tokens, per sid; demotion and
- * deletion end the user's sessions: PENDING-session-revocation option 1) and 2.3e (logout and refresh failures are
- * audited).
+ * TD-10b on the host PostgreSQL + Valkey — review 2.3c (logout ends the session's access tokens, per sid) and 2.3e
+ * (logout and refresh failures are audited). Demotion/deletion (PENDING-session-revocation option 1) is in its own
+ * suite and commit: td10b-session-revocation.e2e.test.ts.
  */
 const PW: Record<string, string> = {
   op: runSecret(),
-  demo: runSecret(),
-  promo: runSecret(),
-  gone: runSecret(),
   off: runSecret(),
 };
 
-describe('TD-10b sessions: per-sid logout, demotion/deletion revocation, audited refresh/logout', () => {
+describe('TD-10b sessions: per-sid logout, audited refresh/logout', () => {
   let h: Harness;
   let admin: string;
 
@@ -62,9 +59,6 @@ describe('TD-10b sessions: per-sid logout, demotion/deletion revocation, audited
     admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [
       { username: 'op', role: 'operator', password: PW['op']! },
-      { username: 'demo', role: 'operator', password: PW['demo']! },
-      { username: 'promo', role: 'readonly', password: PW['promo']! },
-      { username: 'gone', role: 'operator', password: PW['gone']! },
       { username: 'off', role: 'operator', password: PW['off']! },
     ]);
   });
@@ -205,51 +199,5 @@ describe('TD-10b sessions: per-sid logout, demotion/deletion revocation, audited
         (r) => (r['after'] as { reason: string }).reason,
       ),
     ).toEqual(['session-ended']);
-  });
-
-  it('PENDING-session-revocation option 1: a DEMOTED user’s old token dies at once (it carried the old role); a promotion ends nothing', async () => {
-    const d = await login('demo');
-    const p = await login('promo');
-    await patchUser('demo', { role: 'readonly' });
-    await patchUser('promo', { role: 'operator' });
-    await commit();
-    const after = {
-      demoMe: await me(d.token),
-      demoRefresh: (await refresh(d.cookie)).status,
-      promoMe: await me(p.token),
-    };
-    console.log(`demotion: ${JSON.stringify(after)}`);
-    expect(after).toEqual({ demoMe: 401, demoRefresh: 401, promoMe: 200 });
-    const again = await h.call(undefined, 'POST', '/api/v1/auth/login', {
-      username: 'demo',
-      password: PW['demo'],
-    });
-    expect(again.body.user).toMatchObject({ username: 'demo', role: 'readonly' });
-    // the promoted user gets the new role at the next refresh
-    const pr = await refresh(p.cookie);
-    expect(pr.body.user).toMatchObject({ role: 'operator' });
-  });
-
-  it('PENDING-session-revocation option 1: a DELETED user’s access token dies at once', async () => {
-    const g = await login('gone');
-    expect((await h.call(g.token, 'GET', '/api/v1/config')).status).toBe(200);
-    const users = (await h.call(admin, 'GET', '/api/v1/config/management/users')).body as {
-      username: string;
-    }[];
-    expect(
-      (
-        await h.call(
-          admin,
-          'PUT',
-          '/api/v1/config/management/users',
-          users.filter((u) => u.username !== 'gone'),
-        )
-      ).status,
-    ).toBe(200);
-    await commit();
-    const after = (await h.call(g.token, 'GET', '/api/v1/config')).status;
-    console.log(`deletion: the deleted user's token on GET /api/v1/config → ${after}`);
-    expect(after).toBe(401);
-    expect((await refresh(g.cookie)).status).toBe(401);
   });
 });

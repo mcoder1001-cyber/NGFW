@@ -87,11 +87,8 @@ export interface PasswordReset {
   apiKeysRevoked: { id: string; name: string }[];
   /** A candidate locked by one of those keys was discarded with its lock. */
   discardedCandidate: boolean;
-  /**
-   * Why the generation moved: `password` (D-102 reset) and/or `disabled` (D-100 (3)); TD-10b (PENDING-session-
-   * revocation option 1): `demoted` (a lower role) or `deleted` (the user is gone; `gen` = its generation + 1).
-   */
-  reasons: ('password' | 'disabled' | 'demoted' | 'deleted')[];
+  /** Why the generation moved: `password` (D-102 reset) and/or `disabled` (D-100 (3)). */
+  reasons: ('password' | 'disabled')[];
 }
 
 /** Does running (PostgreSQL) match the data plane? (review M3) */

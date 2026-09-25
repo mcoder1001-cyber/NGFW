@@ -111,18 +111,35 @@ vrx commit comment "lldp"
 - LLDP has no getter in VPP: the configuration is applied write-only and is never read back; the **neighbour table**
   (`GET /api/v1/state/lldp/neighbors`, the LLDP page) shows every LLDP interface with the peer heard on it — chassis id,
   port id, TTL and when it was last heard (`vppctl show lldp` shows the same).
-- VPP 26.06 addresses LLDP by the hardware interface index. On interfaces created at start-up (the product's NICs) the
-  software and hardware indexes are equal; where they differ the agent refuses the interface loudly
-  (`ErrIndexMismatch`) instead of enabling LLDP on another interface.
+- **Use LLDP only on interfaces created at start-up (the data NICs).** VPP 26.06 enables LLDP by the *hardware*
+  interface index but is given the *software* index. On interfaces created at start-up both are equal. On an interface
+  created later (loopbacks, tunnels, anything after sub-interfaces were made) they can differ, and then **VPP enables
+  LLDP on another hardware interface** — possibly another port of the box. The agent detects it right after the enable
+  and reports `ErrIndexMismatch` (the commit fails), but it cannot undo it: no API message addresses that entry, so LLDP
+  keeps running on the other interface until VPP restarts. The binary API exposes no hardware index, so the agent
+  cannot check before the enable.
 
 The table refreshes every 30 s (a walk of the VPP table holds its workers briefly); **Refresh** asks at once.
 
 ## The delay simulator (lab tool)
 
 VPP's `nsim` adds delay, a bandwidth limit and random loss between two cross-connected interfaces or on the output of
-interfaces — for lab tests of timeouts, retransmission and VPN behaviour, **not a product feature**. It is VPP-wide (one
-model, one cross-connect pair), so only the agent that owns the VPP-global settings applies it; VPP cannot read it back,
-and it cannot unconfigure the model: removing `services.nsim` detaches the interfaces and leaves the model inert.
+interfaces — for lab tests of timeouts, retransmission and VPN behaviour, **not a product feature**, and **off by
+default**:
+
+- It is VPP-wide (one model, one cross-connect pair), so only the agent that owns the VPP-global settings applies it,
+  and only with the lab switch **`VRX_NSIM=lab`** in the environment of the agent and of the API. Without it the API
+  refuses a commit (or a rollback) that carries `services.nsim` with **409** (pointer `/services/nsim`), and an agent
+  reports it as not applied.
+- **Configuring it keeps VPP's main thread polling (one busy core) until VPP restarts** — VPP sets the simulator's
+  input node to polling and never back. VPP cannot read the model back and cannot unconfigure it: removing
+  `services.nsim` only detaches the interfaces.
+- On a VPP with worker threads, VPP gives the main thread no scheduler wheel unless startup.conf carries
+  `nsim { poll-main-thread }`, and a frame the main thread sends through the simulator (a ping from the API, other
+  control traffic) would then crash VPP. The agent refuses nsim on a VPP with workers unless the operator confirms that
+  setting with `VRX_NSIM_POLL_MAIN_THREAD=1`.
+- The model is bounded (at most 2^20 scheduler slots, 32 MiB per thread); VPP would crash on a failed allocation, so
+  both the API and the agent refuse more.
 
 ```json
 { "services": { "nsim": { "delayMs": 50, "bandwidthMbps": 100, "dropFraction": 0.001,
@@ -134,10 +151,10 @@ vrx merge services nsim '{"delayMs":50,"bandwidthMbps":100,"crossConnect":{"a":"
 vrx delete services nsim
 ```
 
-`vppctl show nsim` shows the model and the cross-connect.
+`vppctl show nsim` shows the model and the cross-connect. Run it in a lab, ideally shortly before a planned VPP restart.
 
 ## After a restart
 
 The agent restores loopbacks, the BVI membership, mirror sessions, GSO and LLDP by itself: in the host check the agent
-was stopped, every one of them deleted from VPP behind its back, and the next start converged the data plane again in
-0.26 s (agent log) with no API call. GSO and nsim are applied once per VPP instance (VPP would otherwise stack them).
+was stopped, every one of them deleted from VPP behind its back, and everything was back 0.61 s after the agent
+started (reconcile 0.428 s in the agent log) with no API call. GSO and nsim are applied once per VPP instance (VPP would otherwise stack them).

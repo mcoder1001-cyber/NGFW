@@ -16,4 +16,5 @@ deleted behind the agent's back leaves the session in VPP's span bookkeeping of 
 interface-delete hook — V-new (F-loopback-bvi-gso-lldp-span)); Retrieve reports it as `span.mirror/<src>/#<sw_if_index>/…`
 and Delete clears exactly that bit of our source (`TestStaleDestinationCleared`). ERSPAN: the destination is a GRE tunnel
 of type erspan by its logical name (host check `TestERSPANOnHost` with DF-6's `gre.tunnel` descriptor). Ownership
-declaration (TD-11b): `CheckPersistent` over the owner's claim store.
+declaration (TD-11b): `CheckPersistent` over the owner's claim store; Create records the claim on an untagged source
+**before** the VPP enable and releases it when the enable fails (claim first, review M3).

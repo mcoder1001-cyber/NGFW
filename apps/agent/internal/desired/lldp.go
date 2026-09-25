@@ -16,8 +16,8 @@ package desired
 //
 // An unset systemName leaves VPP's current system name (VPP's default is none; the API cannot unset it).
 // It is not taken from system.hostname here: the agent stores only its implemented domains, so a resync
-// after a restart would not know the hostname and would change the value (the screen offers the hostname
-// as the value to save instead — questions file Q5).
+// after a restart would not know the hostname and would change the value. Set systemName explicitly; neither
+// the agent nor the API fills it in (questions file Q5, review L1).
 
 import (
 	"net/netip"

@@ -55,6 +55,14 @@ func retryQuarantinedNow(t *testing.T, s *Service, name string) {
 	s.retryKeys(ds, gen)
 }
 
+// keyRetryArmed reports whether the key retry timer of the source name is armed.
+func keyRetryArmed(s *Service, name string) bool {
+	ds := s.source(name)
+	_ = s.lock(context.Background())
+	defer s.unlock()
+	return ds.keyRetry != nil
+}
+
 // isQuarantinedErr reports whether a sync's error says that it applied all but quarantined keys.
 func isQuarantinedErr(err error) bool { return errors.Is(err, subsystems.ErrQuarantined) }
 

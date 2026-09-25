@@ -227,8 +227,8 @@ func sameValue(a, b proto.Message) bool {
 	return proto.Equal(a, b)
 }
 
-// quarantined returns the number of quarantined keys and a description of them (sync's error).
-func (ds *dynSource) quarantined() (int, string) {
+// quarantineSummary returns the number of quarantined keys and a description of them (sync's error).
+func (ds *dynSource) quarantineSummary() (int, string) {
 	ds.qmu.Lock()
 	defer ds.qmu.Unlock()
 	var parts []string
@@ -283,6 +283,23 @@ func (s *Service) settleReleasedLocked(ds *dynSource, released map[scheduler.Key
 	}
 }
 
+// postponeDueLocked doubles the backoff of ds's due quarantined keys (caller holds txn): a key retry
+// that could not run never leaves them due, so the timer cannot spin.
+func (s *Service) postponeDueLocked(ds *dynSource) {
+	ds.qmu.Lock()
+	defer ds.qmu.Unlock()
+	now := s.now()
+	for _, q := range ds.quarantine {
+		if now.Before(q.due) {
+			continue
+		}
+		if q.delay = 2 * q.delay; q.delay > s.retryMax || q.delay <= 0 {
+			q.delay = s.retryMax
+		}
+		q.due = now.Add(q.delay)
+	}
+}
+
 // armKeyRetryLocked (re)arms the retry of ds's quarantined keys at the earliest due (caller holds
 // txn). None after Close, once Run stopped, or with an empty quarantine.
 func (s *Service) armKeyRetryLocked(ds *dynSource) {
@@ -325,6 +342,11 @@ func (s *Service) retryKeys(ds *dynSource, gen uint64) {
 	}
 	ds.keyRetry = nil
 	if s.closed || ds.stopped || !ds.inSync.Load() {
+		return
+	}
+	if !s.vpp.Connected() { // the reconnect resync keeps them held: try again after their backoff
+		s.postponeDueLocked(ds)
+		s.armKeyRetryLocked(ds)
 		return
 	}
 	defer func() {
@@ -876,7 +898,7 @@ func (s *Service) syncLocked(parent context.Context, ds *dynSource, retryDue boo
 		ds.inSync.Store(!ds.stopped)
 		s.stopSourceRetryLocked(ds)
 		s.armKeyRetryLocked(ds)
-		if n, which := ds.quarantined(); n > 0 {
+		if n, which := ds.quarantineSummary(); n > 0 {
 			return fmt.Errorf("dynamic source %s: %w: %d object(s) held back and retried with backoff, the rest applied: %s", ds.Name, subsystems.ErrQuarantined, n, which)
 		}
 		return nil

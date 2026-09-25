@@ -188,6 +188,28 @@ func TestDynamicSourceQuarantineBackoffAndRelease(t *testing.T) {
 	}
 }
 
+// V1: a key retry that fires while VPP is disconnected backs the key off and stays armed (it neither
+// spins nor gets lost until the next sync).
+func TestDynamicSourceKeyRetryWhileDisconnected(t *testing.T) {
+	v := coretest.New()
+	s, md, src := syncedSrcSvc(t, v, "loop701")
+	s.retryMin, s.retryMax = time.Hour, 4*time.Hour
+	md.failOn("loop703", errors.New(errLabelInUse))
+	src.set("loop701", "loop703")
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	v.SetConnected(false)
+	retryQuarantinedNow(t, s, "test-sync")
+	if got := quarantineDelay(s, "test-sync", dynDesc+"/loop703"); got != 2*time.Hour || !keyRetryArmed(s, "test-sync") {
+		t.Fatalf("key retry while disconnected: backoff %v (want 2h), timer armed %v", got, keyRetryArmed(s, "test-sync"))
+	}
+	v.SetConnected(true)
+	md.failOn("loop703", nil)
+	retryQuarantinedNow(t, s, "test-sync")
+	if md.list() != "loop701,loop703" || len(quarantinedKeys(s, "test-sync")) != 0 {
+		t.Fatalf("key retry after the reconnect: dynamic %q, quarantined %v", md.list(), quarantinedKeys(s, "test-sync"))
+	}
+}
+
 // V1: quarantine is bounded (maxKeyReruns per transaction). Past it the commit falls back to the
 // configuration alone and keeps the keys found so far; the source's rejoin sync then finds the next.
 func TestDynamicSourceQuarantineIsBounded(t *testing.T) {

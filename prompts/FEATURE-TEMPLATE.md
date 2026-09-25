@@ -22,6 +22,9 @@ branch against those changes — do not wait. Renaming/reshaping existing fields
 2. **Agent**: wire descriptors for `<objects>` into the `<subsystem>` apply path; `Retrieve` covers every object; unit tests with the fake
    client; ONE integration check on the host VPP (`VRX_INTEGRATION=1`, shared lock, prefixed objects): after Apply `Retrieve()` == desired and
    `vppctl show <x>` contains it; after rollback nothing remains; agent-restart simulation recreates it.
+   **A daemon descriptor implements `scheduler.Validator` and declares `StageDaemon`** (TD-13, D-125; recipe and contract in
+   `docs/agent/scheduler-validators.md`): `Validate` = render + the renderer's staged checker, read-only and bounded by ctx, so a
+   configuration the daemon refuses fails DryRun and Apply before any VPP write.
 3. **API**: config via the generic pointer routes; state under `/api/v1/state/<path>` (server-side paging if a list can exceed 1k rows);
    OpenAPI; regenerate `packages/api-client`.
 4. **UI**: list page + schema-driven edit form + live status column; en + fa strings; pending-change bar shows the diff; **screenshot of the

@@ -62,6 +62,8 @@ strongSwan `kernel-vpp` plugin README (in the VPP repo under `extras/strongswan/
    host behind the peer namespace; `tcpdump` on the inter-namespace veth shows **ESP only**; agent-restart simulation → SAs re-established
    without API calls; rollback removes SAs (Retrieve). The VRX-A↔VRX-B `tri` test is deferred to INTEGRATE-E2E when VMs exist.
 
+- **VPP dns crash rule (D-137/D-139/D-140, 2026-09-25):** the ikev2 plugin calls the dns plugin's resolver when `ikev2_initiate_sa_init` runs on a profile with a responder HOSTNAME, and VPP 26.06 crashes (NULL deref in ip4_sas) unless an IPv4 name server was added since VPP started. Accept a responder hostname only while the agent's `dns.Readiness` fact holds, or resolve the name in the agent and send an address; refuse otherwise at build time with a pointer. Never call dns.api directly.
+
 ## Acceptance
 - [ ] ESP visible on the wire, plaintext not; `vppctl show ipsec sa` shows byte counters increasing
 - [ ] `grep -rn "exec.Command" apps/agent/internal/renderers/strongswan` shows only the allow-listed fixed-argv runner (VICI for load/state)

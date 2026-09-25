@@ -46,6 +46,8 @@ Files you own (the envelope's list wins): `apps/agent/internal/descriptors/ikev2
 `apps/web/src/locales/*/ikev2-native.json`, `docs/user/vpn/ikev2-native.md`, `test/topology/ikev2-native/**`.
 Shared files: one-line appends only (app.module.ts, router/nav, agent registry); `descriptors/ipsec/**` belongs to P11 — request changes via questions.
 
+- **VPP dns crash rule (D-137/D-139/D-140, 2026-09-25):** the ikev2 plugin calls the dns plugin's resolver when `ikev2_initiate_sa_init` runs on a profile with a responder HOSTNAME, and VPP 26.06 crashes (NULL deref in ip4_sas) unless an IPv4 name server was added since VPP started. Accept a responder hostname only while the agent's `dns.Readiness` fact holds, or resolve the name in the agent and send an address; refuse otherwise at build time with a pointer. Never call dns.api directly.
+
 ## Acceptance (paste the evidence)
 - [ ] Packet-level (path recorded: `af_packet` rig): a stock strongSwan initiator in `ns-<p>-wan` (debs unpacked under
       `/run/vrx-test/<p>/`, D-083 — never installed) negotiates with VPP's responder;

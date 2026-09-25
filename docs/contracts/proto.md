@@ -367,3 +367,24 @@ never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
 <!-- wave-A: P12 -->
 <!-- wave-A: F-kea-dhcp-relay -->
 <!-- wave-A: F-unbound-chrony-syslog -->
+
+### F-srv6: Srv6State
+
+- `RoutingConfig.srv6 = 17` (`routing.srv6`, `Srv6Config{encap_source, encap_hop_limit, local_sids, policies, steering}`,
+  `Srv6LocalSid`, `Srv6Policy`, `Srv6SidList`, `Srv6Steering` — the steering entry is one message for the
+  `type: "l3" | "l2"` discriminated union, §1). The agent projects it onto DF-6's `sr.*` descriptors
+  (docs/agent/descriptors/sr.md). `encap_source` / `encap_hop_limit` are VPP-wide and write-only: only the globals
+  owner applies them (D-071), and Retrieve never carries them (§5, "a leaf the backend cannot report is left unset";
+  DryRun notes both as `agent.unsupported-field` so the running-vs-actual diff skips them). An encapsulating policy's
+  `encap_source` is set in a Retrieve result only when it differs from the global source this agent applied (the
+  policy inherited it otherwise).
+- `rpc Srv6State(Srv6StateRequest) returns (Srv6StateResponse)` — read-only, never mutates. Per call: one
+  `sr_localsids_dump`, one `sr_localsids_with_packet_stats_dump` (only when there is a local SID), one
+  `sr_policies_v2_dump`, one `sr_steering_pol_dump`, `sw_interface_dump` for interface names and a `control_ping`
+  (boot identity of the claims). Only the objects this owner's Creates claimed (DF-6 ClaimStore, D-071): another
+  owner's or an operator's SIDs are never reported. `Srv6StateLocalSid` carries the local SID's `good_*` (processed)
+  and `bad_*` (dropped) packet/byte counters; policies and steering carry VPP's view (table ids, not VRF names — the
+  API joins them with the running configuration). One SR walk in flight per agent (D-132): a second caller waits at
+  most 3 s, then `UNAVAILABLE`; callers refresh on demand or at most every 30 s. `UNIMPLEMENTED` when the build has
+  no sr family, `FAILED_PRECONDITION` when VPP does not know the `sr` messages.
+- No `EventKind`, no `ActionRequest` member.

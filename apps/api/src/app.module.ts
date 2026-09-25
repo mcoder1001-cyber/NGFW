@@ -54,6 +54,7 @@ import { UsersService } from './users/users.service.js';
 // wave-BC: F-hardening-lite
 // wave-BC: F-aaa
 // wave-BC: F-licensing
+import { licensingFeature } from './features/licensing/index.js';
 // wave-BC: F-restconf-yang
 // wave-BC: F-ha-state-sync
 // wave-BC: F-ab-upgrade
@@ -137,6 +138,7 @@ export class AppModule {
         // wave-BC: F-hardening-lite
         // wave-BC: F-aaa
         // wave-BC: F-licensing
+        ...licensingFeature.controllers,
         // wave-BC: F-restconf-yang
         // wave-BC: F-ha-state-sync
         // wave-BC: F-ab-upgrade
@@ -205,6 +207,7 @@ export class AppModule {
         // wave-BC: F-hardening-lite
         // wave-BC: F-aaa
         // wave-BC: F-licensing
+        ...licensingFeature.providers,
         // wave-BC: F-restconf-yang
         // wave-BC: F-ha-state-sync
         // wave-BC: F-ab-upgrade

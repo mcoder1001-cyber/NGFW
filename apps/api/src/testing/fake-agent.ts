@@ -35,6 +35,7 @@ import {
   type ValidationReport,
 } from '@ngfw/proto';
 import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
+import { snmpStateFake } from '../features/snmp/fake.js'; // F-snmp (unanchored import)
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -635,7 +636,7 @@ export class FakeAgent {
       // wave-BC: F-qos-flat
       // wave-BC: F-host-stack
       // wave-BC: F-snmp
-      snmpState: (_call, cb) => cb({ code: status.UNIMPLEMENTED, details: 'SnmpState' }),
+      snmpState: snmpStateFake(() => this.current),
       // wave-BC: F-ipfix-sflow
       // wave-BC: F-capture-trace
       // wave-BC: F-srv6

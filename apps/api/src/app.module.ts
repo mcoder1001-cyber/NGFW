@@ -42,6 +42,7 @@ import { UsersService } from './users/users.service.js';
 // wave-BC: F-qos-flat
 // wave-BC: F-host-stack
 // wave-BC: F-snmp
+import { snmpFeature } from './features/snmp/index.js';
 // wave-BC: F-ipfix-sflow
 // wave-BC: F-capture-trace
 // wave-BC: F-srv6
@@ -125,6 +126,7 @@ export class AppModule {
         // wave-BC: F-qos-flat
         // wave-BC: F-host-stack
         // wave-BC: F-snmp
+        ...snmpFeature.controllers,
         // wave-BC: F-ipfix-sflow
         // wave-BC: F-capture-trace
         // wave-BC: F-srv6
@@ -193,6 +195,7 @@ export class AppModule {
         // wave-BC: F-qos-flat
         // wave-BC: F-host-stack
         // wave-BC: F-snmp
+        ...snmpFeature.providers,
         // wave-BC: F-ipfix-sflow
         // wave-BC: F-capture-trace
         // wave-BC: F-srv6

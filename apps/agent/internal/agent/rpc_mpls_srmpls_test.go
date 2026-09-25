@@ -129,16 +129,16 @@ func TestMplsProjection(t *testing.T) {
 		t.Errorf("issue %+v", is)
 	}
 	want := map[scheduler.Key]string{
-		"mpls-table/0":                         "/routing/mpls",
-		"mpls-table/5001":                      "/routing/mpls/tables/5001",
-		"mpls-interface/loop5001":              "/routing/mpls/interfaces/0",
-		"mpls-route/5001/50016/eos":            "/routing/mpls/labelRoutes/0/label",
-		"mpls-route/0/50020/neos":              "/routing/mpls/labelRoutes/1/label",
-		"mpls-route/0/50030/eos":               "/routing/mpls/labelRoutes/2/label",
+		"mpls-table/0":                           "/routing/mpls",
+		"mpls-table/5001":                        "/routing/mpls/tables/5001",
+		"mpls-interface/loop5001":                "/routing/mpls/interfaces/0",
+		"mpls-route/5001/50016/eos":              "/routing/mpls/labelRoutes/0/label",
+		"mpls-route/0/50020/neos":                "/routing/mpls/labelRoutes/1/label",
+		"mpls-route/0/50030/eos":                 "/routing/mpls/labelRoutes/2/label",
 		"mpls-ip-bind/0/50040/5010/10.5.40.0/24": "/routing/mpls/ipBindings/0/label",
-		"mpls-tunnel/t1":                       "/routing/mpls/tunnels/t1",
-		"sr-mpls.policy/50100":                 "/routing/mpls/sr/policies/50100",
-		"sr-mpls.steering/0/10.5.60.0/24":      "/routing/mpls/sr/steering/0/prefix",
+		"mpls-tunnel/t1":                         "/routing/mpls/tunnels/t1",
+		"sr-mpls.policy/50100":                   "/routing/mpls/sr/policies/50100",
+		"sr-mpls.steering/0/10.5.60.0/24":        "/routing/mpls/sr/steering/0/prefix",
 	}
 	got := map[scheduler.Key]string{}
 	for _, kv := range pj.kvs {

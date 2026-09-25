@@ -38,6 +38,7 @@ import { UsersService } from './users/users.service.js';
 // wave-BC: F-isis-rip
 // wave-BC: P14
 // wave-BC: F-mpls-srmpls
+import { mplsSrmplsFeature } from './features/mpls-srmpls/index.js';
 // wave-BC: F-lb
 // wave-BC: F-qos-flat
 // wave-BC: F-host-stack
@@ -121,6 +122,7 @@ export class AppModule {
         // wave-BC: F-isis-rip
         // wave-BC: P14
         // wave-BC: F-mpls-srmpls
+        ...mplsSrmplsFeature.controllers,
         // wave-BC: F-lb
         // wave-BC: F-qos-flat
         // wave-BC: F-host-stack
@@ -189,6 +191,7 @@ export class AppModule {
         // wave-BC: F-isis-rip
         // wave-BC: P14
         // wave-BC: F-mpls-srmpls
+        ...mplsSrmplsFeature.providers,
         // wave-BC: F-lb
         // wave-BC: F-qos-flat
         // wave-BC: F-host-stack

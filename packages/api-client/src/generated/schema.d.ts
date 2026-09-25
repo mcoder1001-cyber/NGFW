@@ -640,6 +640,43 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/routing/mpls/fib': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Live MPLS FIB of one MPLS table, paged by the agent, with each entry’s paths
+     * @description Table 0 is the default MPLS table (VPP-global: every entry, VPP’s reserved labels 0–15 included); other tables must be this system’s. One full walk of the table in VPP per call: refresh on demand, do not poll.
+     */
+    get: operations['MplsSrmpls_fib'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/mpls/tunnels': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Live MPLS tunnels (this system’s and untagged ones) with their paths and out labels */
+    get: operations['MplsSrmpls_tunnels'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -8417,6 +8454,207 @@ export interface operations {
       };
       /** @description Rate limited */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  MplsSrmpls_fib: {
+    parameters: {
+      query?: {
+        pageSize?: number;
+        /** @description page × pageSize ≤ 100000 (the agent's listing window) */
+        page?: number;
+        label?: number;
+        table?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            page: number;
+            pageSize: number;
+            /** @description entries that matched (the agent reads the whole table) */
+            total: number;
+            tableId: number;
+            /** @description the MPLS tables this system can read (0 when it exists) */
+            tables: {
+              tableId: number;
+              name: string;
+            }[];
+            retrievedAt?: string;
+            items: {
+              label: number;
+              /** @description end of stack */
+              eos: boolean;
+              /** @description EOS payload: ip4, ip6, ethernet, mpls */
+              payload?: string;
+              paths: {
+                /** @description normal, local, drop, icmp-unreach, … (fib_api_path_type) */
+                type: string;
+                /** @description next-hop protocol: ip4, ip6, mpls, ethernet */
+                proto: string;
+                nextHop?: string;
+                /** @description logical interface name, else VPP’s */
+                interface?: string;
+                /** @description table the next hop or the payload is looked up in */
+                tableId: number;
+                /** @description pushed labels, outermost first */
+                outLabels: number[];
+                weight: number;
+                preference: number;
+              }[];
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  MplsSrmpls_tunnels: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            tables: {
+              tableId: number;
+              name: string;
+            }[];
+            retrievedAt?: string;
+            items: {
+              /** @description configuration name (routing.mpls.tunnels key), else VPP’s interface name */
+              name: string;
+              /** @description VPP interface name (mpls-tunnel<N>) */
+              interface: string;
+              swIfIndex: number;
+              tunnelIndex: number;
+              l2Only: boolean;
+              multicast: boolean;
+              /** @description created by this system (routing.mpls.tunnels) */
+              owned: boolean;
+              paths: {
+                /** @description normal, local, drop, icmp-unreach, … (fib_api_path_type) */
+                type: string;
+                /** @description next-hop protocol: ip4, ip6, mpls, ethernet */
+                proto: string;
+                nextHop?: string;
+                /** @description logical interface name, else VPP’s */
+                interface?: string;
+                /** @description table the next hop or the payload is looked up in */
+                tableId: number;
+                /** @description pushed labels, outermost first */
+                outLabels: number[];
+                weight: number;
+                preference: number;
+              }[];
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

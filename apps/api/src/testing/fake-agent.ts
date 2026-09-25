@@ -38,6 +38,7 @@ import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { mplsSrmplsFake } from '../features/mpls-srmpls/fake.js';
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -631,8 +632,7 @@ export class FakeAgent {
       // wave-BC: F-ospf
       // wave-BC: F-isis-rip
       // wave-BC: F-mpls-srmpls
-      mplsState: (_call, cb) =>
-        cb({ code: status.UNIMPLEMENTED, details: 'MplsState: contract stub (F-mpls-srmpls)' }),
+      ...mplsSrmplsFake(this), // MplsState over the applied document (features/mpls-srmpls/fake.ts)
       // wave-BC: F-lb
       // wave-BC: F-qos-flat
       // wave-BC: F-host-stack

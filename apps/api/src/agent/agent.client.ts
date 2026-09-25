@@ -23,6 +23,8 @@ import {
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
+  type MplsStateRequest,
+  type MplsStateResponse,
   // wave-BC: F-lb
   // wave-BC: F-qos-flat
   // wave-BC: F-host-stack
@@ -151,6 +153,10 @@ export class AgentClient implements OnModuleDestroy {
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
+  /** Live MPLS state (F-mpls-srmpls; proto.md "F-mpls-srmpls: MplsState"): the FIB paged in the agent, or the tunnels. */
+  mplsState(req: Omit<MplsStateRequest, 'owner'>): Promise<MplsStateResponse> {
+    return this.unary(this.c.mplsState, { ...req, owner: this.owner });
+  }
   // wave-BC: F-lb
   // wave-BC: F-qos-flat
   // wave-BC: F-host-stack

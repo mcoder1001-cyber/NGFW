@@ -12,4 +12,4 @@
 | 00:15 | 2e71ecf gso host checks green (NRestarts 1 → 1), nsim opt-in, span stale-destination cleanup |
 | 00:20 | usage-limit stop |
 | 03:45 | resumed: eaa556b TD-11b declarations, D-132 polls/Refresh/serialised walk, WEB-1 dropPhantomOptionals removed |
-| next | ERSPAN host test (DF-6 gre descriptor), topology test (API + agent + VPP), screenshots, docs, CI |
+| 04:40 | done: CI gate green at c97508f (guard-fixed copy, see status), host check + e2e + screenshots re-run at HEAD, status with evidence, cleanup |

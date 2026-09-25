@@ -505,3 +505,22 @@ system.hostname in the agent; Q6 TD-11b declarations; Q7 D-132 / WEB-1; Q8 coret
 questions: LLDP on slot agents — `lldp.global` is registered only on the globals owner; the host evidence shows
 `/services/lldp/txHold|txIntervalSec` reported `agent.unsupported-field` and VPP keeps its timers (show lldp); nsim stays
 in the product UI under Tools, marked "lab tool" (default kept; product owner to confirm).
+
+## Cleanup (04:35)
+```
+$ vppctl show interface   # slot 7 names: loop7xx, loop7xxx, gre7xx, host-w7*
+(nothing)
+$ vppctl show interface span
+(no mirror session at all)
+$ vppctl show lldp
+Local interface           Peer chassis ID           Remote port ID               Last heard      Last sent      Status  
+$ vppctl show bridge-domain   # ids 7000-7999
+(nothing)
+$ systemctl show vpp -p NRestarts
+NRestarts=2
+```
+Processes: every agent / API / vite preview started by the tests was stopped by PID (logs above); no process of slot 7 is
+running; the lab lock is not held; database `vrx_w7` dropped by the harness ("nothing named vrx_w7 / vrx_w7 remains");
+no rig was used; GSO / LLDP disabled on everything enabled (rollbacks + leftover check); `dist/` and `apps/agent/bin`
+removed; the test work dir /run/vrx-test/w7/lbgs (logs, agent state) is left in the slot run dir. nsim was never applied
+on the shared VPP (slot agent; opt-in host test not run).

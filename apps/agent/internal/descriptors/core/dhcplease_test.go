@@ -165,13 +165,12 @@ func TestReconcileAndResyncKeepDHCPLease(t *testing.T) {
 	r := newLeaseRig(t)
 	r.applyBound(t)
 	r.vpp.Reset()
-	for i, run := range []func() *scheduler.TxnResult{
-		func() *scheduler.TxnResult { return r.s.Apply(ctx, leaseDesired(), nil) },
-		func() *scheduler.TxnResult { return r.s.ApplyWith(ctx, leaseDesired(), nil, scheduler.ApplyOptions{Resync: true}) },
-		func() *scheduler.TxnResult { return r.s.ApplyWith(ctx, leaseDesired(), nil, scheduler.ApplyOptions{Resync: true}) },
-	} {
-		if res := run(); res.Outcome != scheduler.OutcomeApplied {
-			t.Fatalf("run %d: %s %v", i, res.Outcome, res.Err)
+	if res := r.s.Apply(ctx, leaseDesired(), nil); res.Outcome != scheduler.OutcomeApplied {
+		t.Fatalf("reconcile: %s %v", res.Outcome, res.Err)
+	}
+	for i := range 2 {
+		if res := r.s.ApplyWith(ctx, leaseDesired(), nil, scheduler.ApplyOptions{Resync: true}); res.Outcome != scheduler.OutcomeApplied {
+			t.Fatalf("resync %d: %s %v", i, res.Outcome, res.Err)
 		}
 	}
 	// agent restart: a new process (fresh registry and scheduler) resyncs twice against the same VPP

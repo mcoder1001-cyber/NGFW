@@ -120,7 +120,7 @@ describe('services.hostStack semantics', () => {
 });
 
 describe('services.hostStack.httpStatic uri', () => {
-  it.each(['tcp://0.0.0.0/80', 'tcp://::/80', 'tls://0000::/443', 'tcp://999.1.1.1/80'])(
+  it.each(['tcp://0.0.0.0/80', 'tcp://::/80', 'tls://0000::/443', 'tcp://::ffff:0.0.0.0/80', 'tcp://::FFFF:0:0/80', 'tcp://999.1.1.1/80'])(
     'refuses %s',
     (uri) => {
       const d = base();

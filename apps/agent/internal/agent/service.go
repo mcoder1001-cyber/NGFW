@@ -133,7 +133,7 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 	s := &Service{
 		owner: cfg.Owner, version: cfg.Version, log: cfg.Logger, vpp: cfg.VPP, sched: cfg.Scheduler,
 		st: st, bus: cfg.Events, metrics: cfg.Metrics, now: cfg.Now, txn: make(chan struct{}, 1),
-		retryMin: revertRetryMin, retryMax: revertRetryMax, beforeTxn: cfg.BeforeTxn, netdevKind: cfg.NetdevKind,
+		retryMin: revertRetryFloor, retryMax: revertRetryMax, beforeTxn: cfg.BeforeTxn, netdevKind: cfg.NetdevKind,
 	}
 	s.sources = newDynSources(cfg.Sources, s.metrics)
 	s.refreshSnapshotLocked()
@@ -547,8 +547,8 @@ func (s *Service) revertLocked(txnID string) {
 
 // Revert retry backoff (N2): independent of VPP reconnects.
 const (
-	revertRetryMin = 5 * time.Second
-	revertRetryMax = 60 * time.Second
+	revertRetryFloor = 5 * time.Second
+	revertRetryMax   = 60 * time.Second
 )
 
 // scheduleRetryLocked arms the owed-revert retry timer with exponential backoff and returns the delay.

@@ -75,3 +75,22 @@ FQDN machinery (a later row).
 `scheduler.PartialCreate`; `TestPeerCreatePartialWhenEventRegistrationFails` runs it through the reconciler: the
 transaction fails, the peer is journaled and the rollback deletes it. On the old code the test fails ("peer result is not
 a partial Create"; the peer stays in VPP).
+
+## Q12 — gitleaks false positive in an intermediate commit (history)
+`efcf783a` (API commit) has `const peerKey = '<a WireGuard PUBLIC example key>'` in `apps/api/test/e2e/wireguard.e2e.test.ts`;
+gitleaks' `generic-api-key` rule flags it (variable name contains "key", high entropy). It is the public key the schema
+examples already use (`HIgo9…ykw=`), not a secret. Renamed in `5a5e19fe`; the working tree scans clean (`gitleaks dir`:
+no leaks found). The history finding disappears with the D-112 squash; `tools/ci.sh --base main` over the branch history
+fails on it, so the gate evidence was taken against a squash commit object (`git commit-tree`, no ref, no history rewrite)
+passed as `VRX_CI_HEAD_REF` — the exact tree and single commit the merge produces. Workers may not rewrite history, so I did
+not; if the manager prefers, the squash at merge is where it goes away.
+
+## Q13 — Shared-VPP V19 quarantine cap blocked a stack rerun (environment)
+At 04:52 every interface create on the shared VPP failed in TD-3's sanitizer: "no clean sw_if_index obtained (VPP V19
+quarantine): placeholder cap reached before every freed classify table index was resurrected (64 placeholders, cap 64 for
+128 freed indices seen)" — other slots' classify churn. The agent refused (correct), the run cleaned up. The manager's
+nightly cleanup / a VPP restart after handover clears it; F-wireguard's evidence (run 2, 04:48–04:50) was taken before.
+
+## Q14 — No `vrx show wireguard` CLI command
+apps/cli is not this row's. The REST operations exist (`Wireguard_state`, `Wireguard_keypair`, in the regenerated operations
+table); a `show wireguard [<interface>]` command is a small follow-up for the CLI owner.

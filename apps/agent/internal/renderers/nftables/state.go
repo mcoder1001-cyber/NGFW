@@ -69,7 +69,7 @@ func (rt *Runtime) State(ctx context.Context, now time.Time) (*vrxv1.HostAclStat
 
 func stripConfig(v *HostTable) *HostTable {
 	c := proto.Clone(v).(*HostTable)
-	c.Config = nil
+	c.Config, c.KernelHashes = nil, nil
 	return c
 }
 

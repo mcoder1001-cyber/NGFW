@@ -110,11 +110,28 @@ func (d *Descriptor) apply(ctx context.Context, obj proto.Message) error {
 	if err := d.r.Apply(ctx, files); err != nil {
 		return err
 	}
-	if err := d.st.Save(v); err != nil {
+	if err := d.st.Save(d.withKernelHashes(ctx, v)); err != nil {
 		return err
 	}
 	d.log.Info("host firewall rendered", "table", d.r.paths.Table, "mode", d.r.paths.Mode, "chains", len(v.GetChains()), "sets", len(v.GetSets()))
 	return nil
+}
+
+// withKernelHashes is v plus the kernel's own rule-body hashes read back right after the load (M1): a
+// later hand edit of a rule body that keeps the comment is then visible to Retrieve. Without a kernel
+// table (mode check, nothing rendered) or when the read-back fails, v is stored as it is.
+func (d *Descriptor) withKernelHashes(ctx context.Context, v *HostTable) *HostTable {
+	if d.r.paths.Mode == ModeCheck || len(v.GetChains()) == 0 {
+		return v
+	}
+	k, err := d.r.Kernel(ctx)
+	if err != nil || k == nil {
+		d.log.Warn("host firewall: read-back after load failed; rule bodies are paired by comment only until the next apply", "err", err)
+		return v
+	}
+	out := proto.Clone(v).(*HostTable)
+	out.KernelHashes = k.Hashes()
+	return out
 }
 
 // Retrieve implements scheduler.Descriptor.
@@ -148,26 +165,36 @@ func (d *Descriptor) actual(ctx context.Context) (*HostTable, *KernelTable, erro
 	}
 	if k != nil {
 		kt := k.Table()
-		v.Sets, v.Chains = kt.GetSets(), kt.GetChains()
-		annotate(v, stored)
+		v.Sets, v.Chains, v.Dormant = kt.GetSets(), kt.GetChains(), kt.GetDormant()
+		annotate(v, stored, k)
 	}
 	return v, k, nil
 }
 
 // annotate copies text, kind, list, sequence, pointer and verdict from the stored rule with the same
-// comment (the comment ends in the hash of the text, so equal comments mean the same rendered rule).
-func annotate(v, stored *HostTable) {
+// comment (the comment ends in the hash of the rendered text) — but only while the kernel rule is still
+// that rule (fix round 1, M1): its verdict equals the stored one, and its body hashes as it did right after
+// the last `nft -f` (stored kernel_hashes; a store without them pairs by comment and verdict). A rule edited
+// by hand keeps the kernel's verdict and no text, so the value differs from the desired one → Update.
+// v's chains and rules are k's, in k's order.
+func annotate(v, stored *HostTable, k *KernelTable) {
 	byComment := map[string]*Rule{}
 	for _, c := range stored.GetChains() {
 		for _, r := range c.GetRules() {
 			byComment[r.GetComment()] = r
 		}
 	}
-	for _, c := range v.GetChains() {
-		for _, r := range c.GetRules() {
-			if s, ok := byComment[r.GetComment()]; ok && r.GetComment() != "" {
-				r.Text, r.Kind, r.List, r.Sequence, r.Pointer, r.Verdict = s.GetText(), s.GetKind(), s.GetList(), s.GetSequence(), s.GetPointer(), s.GetVerdict()
+	hashes := stored.GetKernelHashes()
+	for ci, c := range v.GetChains() {
+		for ri, r := range c.GetRules() {
+			s, ok := byComment[r.GetComment()]
+			if !ok || r.GetComment() == "" || r.GetVerdict() != s.GetVerdict() {
+				continue
 			}
+			if want, recorded := hashes[c.GetName()+"/"+r.GetComment()]; recorded && k != nil && ci < len(k.Chains) && ri < len(k.Chains[ci].Rules) && k.Chains[ci].Rules[ri].ExprHash != want {
+				continue
+			}
+			r.Text, r.Kind, r.List, r.Sequence, r.Pointer, r.Verdict = s.GetText(), s.GetKind(), s.GetList(), s.GetSequence(), s.GetPointer(), s.GetVerdict()
 		}
 	}
 }

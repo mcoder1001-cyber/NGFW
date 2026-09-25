@@ -38,7 +38,13 @@ type HostTable struct {
 	Sets []*Set `protobuf:"bytes,2,rep,name=sets,proto3" json:"sets,omitempty"`
 	// Base chains in evaluation order (hook input, output, forward; then priority; then name).
 	// Retrieve: from the kernel, in the same order.
-	Chains        []*Chain `protobuf:"bytes,3,rep,name=chains,proto3" json:"chains,omitempty"`
+	Chains []*Chain `protobuf:"bytes,3,rep,name=chains,proto3" json:"chains,omitempty"`
+	// Retrieve only: the kernel table carries `flags dormant` (it exists but filters nothing). Desired: false.
+	Dormant bool `protobuf:"varint,4,opt,name=dormant,proto3" json:"dormant,omitempty"`
+	// Store only (never desired, never retrieved): the kernel's own rule bodies right after the last `nft -f`,
+	// "<chain>/<comment>" → sha256 of the rule's `expr` JSON with counter values stripped. Retrieve pairs a
+	// kernel rule with its stored annotations only while its body still hashes the same (fix round 1, M1).
+	KernelHashes  map[string]string `protobuf:"bytes,5,rep,name=kernel_hashes,json=kernelHashes,proto3" json:"kernel_hashes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -90,6 +96,20 @@ func (x *HostTable) GetSets() []*Set {
 func (x *HostTable) GetChains() []*Chain {
 	if x != nil {
 		return x.Chains
+	}
+	return nil
+}
+
+func (x *HostTable) GetDormant() bool {
+	if x != nil {
+		return x.Dormant
+	}
+	return false
+}
+
+func (x *HostTable) GetKernelHashes() map[string]string {
+	if x != nil {
+		return x.KernelHashes
 	}
 	return nil
 }
@@ -346,11 +366,16 @@ var File_nftables_model_proto protoreflect.FileDescriptor
 
 const file_nftables_model_proto_rawDesc = "" +
 	"\n" +
-	"\x14nftables_model.proto\x12\x12vrx.agent.nftables\x1a\x16vrx/v1/dataplane.proto\"\x96\x01\n" +
+	"\x14nftables_model.proto\x12\x12vrx.agent.nftables\x1a\x16vrx/v1/dataplane.proto\"\xc7\x02\n" +
 	"\tHostTable\x12)\n" +
 	"\x06config\x18\x01 \x01(\v2\x11.vrx.v1.AclConfigR\x06config\x12+\n" +
 	"\x04sets\x18\x02 \x03(\v2\x17.vrx.agent.nftables.SetR\x04sets\x121\n" +
-	"\x06chains\x18\x03 \x03(\v2\x19.vrx.agent.nftables.ChainR\x06chains\"I\n" +
+	"\x06chains\x18\x03 \x03(\v2\x19.vrx.agent.nftables.ChainR\x06chains\x12\x18\n" +
+	"\adormant\x18\x04 \x01(\bR\adormant\x12T\n" +
+	"\rkernel_hashes\x18\x05 \x03(\v2/.vrx.agent.nftables.HostTable.KernelHashesEntryR\fkernelHashes\x1a?\n" +
+	"\x11KernelHashesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"I\n" +
 	"\x03Set\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x1a\n" +
@@ -382,24 +407,26 @@ func file_nftables_model_proto_rawDescGZIP() []byte {
 	return file_nftables_model_proto_rawDescData
 }
 
-var file_nftables_model_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_nftables_model_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_nftables_model_proto_goTypes = []any{
 	(*HostTable)(nil),    // 0: vrx.agent.nftables.HostTable
 	(*Set)(nil),          // 1: vrx.agent.nftables.Set
 	(*Chain)(nil),        // 2: vrx.agent.nftables.Chain
 	(*Rule)(nil),         // 3: vrx.agent.nftables.Rule
-	(*v1.AclConfig)(nil), // 4: vrx.v1.AclConfig
+	nil,                  // 4: vrx.agent.nftables.HostTable.KernelHashesEntry
+	(*v1.AclConfig)(nil), // 5: vrx.v1.AclConfig
 }
 var file_nftables_model_proto_depIdxs = []int32{
-	4, // 0: vrx.agent.nftables.HostTable.config:type_name -> vrx.v1.AclConfig
+	5, // 0: vrx.agent.nftables.HostTable.config:type_name -> vrx.v1.AclConfig
 	1, // 1: vrx.agent.nftables.HostTable.sets:type_name -> vrx.agent.nftables.Set
 	2, // 2: vrx.agent.nftables.HostTable.chains:type_name -> vrx.agent.nftables.Chain
-	3, // 3: vrx.agent.nftables.Chain.rules:type_name -> vrx.agent.nftables.Rule
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	4, // 3: vrx.agent.nftables.HostTable.kernel_hashes:type_name -> vrx.agent.nftables.HostTable.KernelHashesEntry
+	3, // 4: vrx.agent.nftables.Chain.rules:type_name -> vrx.agent.nftables.Rule
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_nftables_model_proto_init() }
@@ -413,7 +440,7 @@ func file_nftables_model_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nftables_model_proto_rawDesc), len(file_nftables_model_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -21,6 +21,12 @@ message HostTable {
   // Base chains in evaluation order (hook input, output, forward; then priority; then name).
   // Retrieve: from the kernel, in the same order.
   repeated Chain chains = 3;
+  // Retrieve only: the kernel table carries `flags dormant` (it exists but filters nothing). Desired: false.
+  bool dormant = 4;
+  // Store only (never desired, never retrieved): the kernel's own rule bodies right after the last `nft -f`,
+  // "<chain>/<comment>" → sha256 of the rule's `expr` JSON with counter values stripped. Retrieve pairs a
+  // kernel rule with its stored annotations only while its body still hashes the same (fix round 1, M1).
+  map<string, string> kernel_hashes = 5;
 }
 
 // Set is one named interval set of addresses (an expanded address object or group).

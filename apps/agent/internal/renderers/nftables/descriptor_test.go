@@ -40,9 +40,15 @@ func TestKernelRoundTrip(t *testing.T) {
 		}
 		got := k.Table()
 		got.Config = v.GetConfig()
-		annotate(got, v)
+		stored := proto.Clone(v).(*HostTable)
+		stored.KernelHashes = k.Hashes()
+		annotate(got, stored, k)
 		if !proto.Equal(got, v) {
 			t.Errorf("%s: kernel view differs from the rendered value:\n got %v\nwant %v", name, got, v)
+		}
+		annotate(got, v, k) // a store written before fix round 1 (no kernel hashes) still pairs by comment
+		if !proto.Equal(got, v) {
+			t.Errorf("%s: without stored hashes", name)
 		}
 	}
 }
@@ -50,6 +56,13 @@ func TestKernelRoundTrip(t *testing.T) {
 func TestKernelDriftIsVisible(t *testing.T) {
 	v, _ := build(t, doc(t, fullDoc))
 	raw := kernelJSON(t, "full")
+	orig, err := ParseKernel(raw, "vrx_w9")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored := proto.Clone(v).(*HostTable)
+	stored.KernelHashes = orig.Hashes() // what apply records right after `nft -f`
+	lastRule := bytes.Index(raw, []byte(`vrx:local-in:1000/0:54750c03`))
 	for name, edit := range map[string]func([]byte) []byte{
 		"set element": func(b []byte) []byte { return bytes.Replace(b, []byte(`"192.0.2.10"`), []byte(`"192.0.2.11"`), 1) },
 		"rule comment": func(b []byte) []byte {
@@ -59,14 +72,35 @@ func TestKernelDriftIsVisible(t *testing.T) {
 			return bytes.Replace(b, []byte(`"policy": "drop"`), []byte(`"policy": "accept"`), 1)
 		},
 		"prio": func(b []byte) []byte { return bytes.Replace(b, []byte(`"prio": -100`), []byte(`"prio": -99`), 1) },
+		// M1 (fix round 1): a hand `nft replace rule` that keeps the comment — the verdict flip drop → accept …
+		"verdict flip, comment kept": func(b []byte) []byte {
+			i := lastRule + bytes.Index(b[lastRule:], []byte(`"drop": null`))
+			return append(append(append([]byte{}, b[:i]...), []byte(`"accept": null`)...), b[i+len(`"drop": null`):]...)
+		},
+		// … a body edit (a port) …
+		"port edit, comment kept": func(b []byte) []byte { return bytes.Replace(b, []byte(`"right": 2905`), []byte(`"right": 2906`), 1) },
+		// … and a table that exists but is switched off.
+		"dormant table": func(b []byte) []byte {
+			return bytes.Replace(b, []byte(`"handle": 2,
+    "comment": "vrx-agent host firewall"`), []byte(`"handle": 2,
+    "flags": ["dormant"],
+    "comment": "vrx-agent host firewall"`), 1)
+		},
+		"chain not hooked": func(b []byte) []byte {
+			return bytes.Replace(b, []byte(`"hook": "forward",`), []byte(``), 1)
+		},
 	} {
-		k, err := ParseKernel(edit(slices.Clone(raw)), "vrx_w9")
+		edited := edit(slices.Clone(raw))
+		if bytes.Equal(edited, raw) {
+			t.Fatalf("%s: the edit did not apply", name)
+		}
+		k, err := ParseKernel(edited, "vrx_w9")
 		if err != nil {
 			t.Fatal(err)
 		}
 		got := k.Table()
 		got.Config = v.GetConfig()
-		annotate(got, v)
+		annotate(got, stored, k)
 		if proto.Equal(got, v) {
 			t.Errorf("%s: drift not visible", name)
 		}
@@ -169,7 +203,9 @@ func TestDescriptorLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := rec.Calls()
-	if len(calls) != 3 || calls[1].Args[0] != "-c" || calls[1].Args[2] == p.RulesFile || !slices.Equal(calls[2].Args, []string{"-f", p.RulesFile}) {
+	// Retrieve (plan) · nft -c on the staged copy · nft -f · read-back of the rule bodies (M1)
+	if len(calls) != 4 || calls[1].Args[0] != "-c" || calls[1].Args[2] == p.RulesFile || !slices.Equal(calls[2].Args, []string{"-f", p.RulesFile}) ||
+		!slices.Equal(calls[3].Args, []string{"-j", "list", "table", "inet", "vrx_w9"}) {
 		t.Fatalf("argv: %v", calls)
 	}
 	written, _ := os.ReadFile(p.RulesFile)
@@ -183,6 +219,9 @@ func TestDescriptorLifecycle(t *testing.T) {
 	kvs, err := d.Retrieve(ctx)
 	if err != nil || len(kvs) != 1 || !proto.Equal(kvs[0].Value, full) {
 		t.Fatalf("Retrieve after Create must equal desired: %v %v", kvs, err)
+	}
+	if st, _ := d.st.Load(); len(st.GetKernelHashes()) == 0 {
+		t.Error("apply must record the kernel's rule-body hashes in the store")
 	}
 
 	// A failed load leaves the old file (and the old kernel table) in place and the store unchanged.

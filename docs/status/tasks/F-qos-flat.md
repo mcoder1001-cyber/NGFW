@@ -108,7 +108,13 @@ $ TMPDIR=/tmp/g-w1 tools/ci.sh --base main          (tip 28ea8d20; log /root/ngf
 
 CI GATE PASSED
 ```
-The final commit (status docs + the vlan e2e case) is re-checked at the end: see "Final CI" below.
+Final CI on the last code commit before this line (6392a891, status docs + the vlan e2e case):
+
+```
+$ TMPDIR=/tmp/g-w1 tools/ci.sh --base main          (log /root/ngfw-wt/logs/F-qos-flat-ci-2.log)
+  mode quick · wall time 5m41s · logs /root/ngfw-wt/logs/ci/F-qos-flat-20260925-112934-1260183
+CI GATE PASSED
+```
 
 ## Obligations from the decisions (each with where it is honoured)
 

@@ -22,6 +22,7 @@ import { managementValidators } from './management.js';
 // wave-BC: F-ospf
 // wave-BC: F-isis-rip
 // wave-BC: F-mpls-srmpls
+import { mplsSrmplsValidators } from './mpls-srmpls.js';
 // wave-BC: F-srv6
 // wave-BC: F-lisp
 // wave-BC: F-bfd-redistribution
@@ -73,6 +74,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
+  ...mplsSrmplsValidators,
   // wave-BC: F-srv6
   // wave-BC: F-lisp
   // wave-BC: F-bfd-redistribution

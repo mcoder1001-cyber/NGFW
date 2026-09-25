@@ -73,6 +73,7 @@ export * from './domains/management.js';
 // wave-BC: F-ospf
 // wave-BC: F-isis-rip
 // wave-BC: F-mpls-srmpls
+export * from './domains/ext/mpls-srmpls.js';
 // wave-BC: F-srv6
 // wave-BC: F-lisp
 // wave-BC: F-bfd-redistribution

@@ -25,6 +25,19 @@ Branch `task/F-licensing` (base be53867). Cloud container run: no PostgreSQL, Va
 - **Docs** `docs/user/system/licensing.md`. OpenAPI → `packages/api-client` regenerated; `make -C apps/cli gen docs`
   (operations_gen.go +2 ops; reference.md unchanged).
 
+## Review fixes (coordinator BLOCK)
+1. `COMMUNITY` is now permissive (every gated feature, no limits); the restrictive set is `SAMPLE_COMMUNITY` (tests via
+   `LicensingOptions.community`, docs table). `docs/decisions/PENDING-licensing-matrix.md` (matrix + real signing key;
+   nothing parked).
+2. Unreadable / non-verifying stored licence: `Logger.warn` with path + error class only (no content/signature);
+   state `invalid` with reason (test asserts the log has no signature).
+3. `wiring.test.ts`: offline AppModule — `ValidationService.licensing` is the `LicensingService` singleton.
+4. LOG.md D-142 (file storage), D-143 (403), D-144 (grandfathering), D-145 (invalid → community fallback).
+
+Re-run: api `tsc` ok, eslint 0 errors, `Test Files 14 passed (14) · Tests 126 passed (126)` (licensing 24);
+web `tsc` ok, eslint 0 errors, `Test Files 15 passed (15) · Tests 102 passed (102)`;
+`tools/ci.sh check --base be53867` → `check PASSED`.
+
 ## Shared hunks
 - `apps/api/src/app.module.ts` — under the three `// wave-BC: F-licensing` anchors (import, controllers, providers).
 - `apps/web/src/i18n.ts` — under the four anchors.
@@ -91,7 +104,7 @@ D-040: no licence data to the agent (no proto/schema change; stage runs before D
 no private key in repo/fixtures/logs; signature never returned or logged. D-046 minimisation: GET returns name, status,
 entitlements, days left, `bound` booleans only. RBAC: upload admin-only; audited. RFC 9457: 403 with pointer; tampered 400.
 
-## Decisions taken (to log)
+## Decisions taken (logged D-142..D-145)
 - Licence storage: file vs PostgreSQL table → **file** (no migration conflicts with F-dashboard/F-aaa; single blob).
 - Rejection status: 403 vs 422 → **403** `license-required` (authorisation-like; 422 is the apply-failure code here).
 - Grandfathering against the running revision (vs rejecting any unlicensed node) → so expiry never forces removal.

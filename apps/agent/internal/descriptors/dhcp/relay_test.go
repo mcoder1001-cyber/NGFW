@@ -124,3 +124,27 @@ func TestOwnershipDeclarations(t *testing.T) {
 		t.Fatal("file store")
 	}
 }
+
+// Review L3: an unreadable store file is treated as empty (the records are re-creatable metadata) instead of failing
+// every transaction that touches `services`; the next Put rewrites it.
+func TestFileRelayStoreCorruptFile(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "relays.json")
+	if err := os.WriteFile(p, []byte("{not json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := &FileRelayStore{Path: p}
+	m, err := s.Load()
+	if err != nil || len(m) != 0 {
+		t.Fatalf("corrupt file: %v %v", m, err)
+	}
+	f, _ := newProxyFake()
+	if kvs, err := NewRelay(f, s).Retrieve(context.Background()); err != nil || len(kvs) != 0 {
+		t.Fatalf("retrieve over a corrupt store: %v %v", kvs, err)
+	}
+	if err := s.Put(Relay{Name: "a", Servers: []string{}}); err != nil {
+		t.Fatal(err)
+	}
+	if m, err := s.Load(); err != nil || len(m) != 1 {
+		t.Fatalf("after put: %v %v", m, err)
+	}
+}

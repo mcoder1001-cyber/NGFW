@@ -116,7 +116,12 @@ vrx commit comment wan-dhcp
 ```
 
 The state (DISCOVER / REQUEST / BOUND, leased address, router, DNS servers) is on
-`GET /api/v1/state/interfaces/GigabitEthernet0~1a~10/dhcp-client` (`vppctl show dhcp client`). The DHCPv6 client (IA_NA /
+`GET /api/v1/state/interfaces/GigabitEthernet0~1a~10/dhcp-client` (`vppctl show dhcp client`).
+
+**Known issue (until the core fix lands):** on a sub-interface, an af_packet (`host-…`) or a loopback interface created by
+the agent, the next reconcile of `interfaces` (any commit, or the agent's resync) removes the leased address again,
+because the interface-address reconcile does not yet know it came from DHCP. A DHCP client on a physical NIC is not
+affected. The DHCPv6 client (IA_NA /
 prefix delegation) has no configuration leaf in this release.
 
 ## Leases and pool usage

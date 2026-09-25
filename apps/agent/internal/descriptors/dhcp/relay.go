@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -130,7 +129,9 @@ func (s *FileRelayStore) load() (map[string]Relay, error) {
 		return nil, err
 	}
 	if err := json.Unmarshal(b, &out); err != nil {
-		return nil, fmt.Errorf("dhcp relay store %s: %w", s.Path, err)
+		// The records are re-creatable metadata (review L3): an unreadable file must not fail every transaction
+		// that touches `services`. Treat it as empty — the next reconcile re-creates the records and rewrites it.
+		return map[string]Relay{}, nil
 	}
 	return out, nil
 }
@@ -144,10 +145,30 @@ func (s *FileRelayStore) save(m map[string]Relay) error {
 		return err
 	}
 	tmp := s.Path + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600) //nolint:gosec // the agent's own state file
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, s.Path)
+	if _, err := f.Write(b); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil { // the data before the rename (review L3)
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, s.Path); err != nil {
+		return err
+	}
+	d, err := os.Open(filepath.Dir(s.Path))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = d.Close() }()
+	return d.Sync() // the rename itself
 }
 
 // Put implements RelayStore.

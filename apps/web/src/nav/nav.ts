@@ -61,6 +61,7 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   // wave-A: P11
   // wave-A: F-wireguard
   // wave-A: F-kea-dhcp-relay
+  'services',
   // wave-A: F-unbound-chrony-syslog
 ]);
 

@@ -1,3 +1,4 @@
+import { lazy } from 'react';
 import type { DomainTab } from '../DomainTabsPage';
 
 /**
@@ -12,5 +13,10 @@ export const servicesTabs: readonly DomainTab[] = [
   // wave-BC: F-snmp
   // wave-BC: F-ipfix-sflow
   // wave-A: F-kea-dhcp-relay
+  {
+    id: 'dhcp',
+    labelKey: 'kea-dhcp-relay:tab',
+    Component: lazy(() => import('./kea-dhcp-relay/DhcpPage')),
+  },
   // wave-A: F-unbound-chrony-syslog
 ];

@@ -71,6 +71,8 @@ import faVpn from './locales/fa/vpn.json';
 // wave-A: F-wireguard
 // wave-A: P12
 // wave-A: F-kea-dhcp-relay
+import enKeaDhcpRelay from './locales/en/kea-dhcp-relay.json';
+import faKeaDhcpRelay from './locales/fa/kea-dhcp-relay.json';
 // wave-A: F-unbound-chrony-syslog
 import { loadSettings } from './settings/storage';
 
@@ -133,6 +135,7 @@ export const NAMESPACES = [
   // wave-A: F-wireguard
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
+  'kea-dhcp-relay',
   // wave-A: F-unbound-chrony-syslog
   'dev',
   UI_KIT_NS,
@@ -197,6 +200,7 @@ const en = {
   // wave-A: F-wireguard
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
+  'kea-dhcp-relay': enKeaDhcpRelay,
   // wave-A: F-unbound-chrony-syslog
 };
 const fa = {
@@ -258,6 +262,7 @@ const fa = {
   // wave-A: F-wireguard
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
+  'kea-dhcp-relay': faKeaDhcpRelay,
   // wave-A: F-unbound-chrony-syslog
 };
 

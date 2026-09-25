@@ -375,6 +375,6 @@ never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
 state read back over SNMP (`configured`, `reachable`, `endpoint`, `credential` by name, `sys_*`, `error` redacted),
 `engine_id`, `pending_action` (D-079 restart/start request the agent waits for; it never restarts snmpd itself) and
 the VRX-MIB AgentX subagent (`subagent_registered`, `subagent_registrations`, `subagent_error`). Owner check as
-Retrieve (`FAILED_PRECONDITION` on mismatch); `UNAVAILABLE` when the agent build has no snmpd stage. No credential
+Retrieve (`INVALID_ARGUMENT` on mismatch); `UNAVAILABLE` when the agent build has no snmpd stage. No credential
 value is ever part of the response. Additive fields of `services.snmp` (D-086): see
 docs/status/tasks/F-snmp-contract.md.

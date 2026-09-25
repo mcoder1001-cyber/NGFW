@@ -331,7 +331,7 @@ function LocalSidDialog({
       <DialogTitle>
         {target.isNew ? t('sids.add') : t('sids.editTitle', { sid: target.sid })}
       </DialogTitle>
-      <DialogContent>
+      <DialogContent dividers>
         {target.isNew && (
           <TextField
             label={t('sids.sid')}
@@ -599,7 +599,7 @@ function PolicyDialog({
       <DialogTitle>
         {target.isNew ? t('policies.add') : t('policies.editTitle', { bsid: target.bsid })}
       </DialogTitle>
-      <DialogContent>
+      <DialogContent dividers>
         {target.isNew && (
           <TextField
             label={t('policies.bsid')}
@@ -910,7 +910,7 @@ function SteeringDialog({ cfg, onClose }: { cfg: Srv6View; onClose: () => void }
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>{t('steering.add')}</DialogTitle>
-      <DialogContent>
+      <DialogContent dividers>
         <TextField
           select
           label={t('steering.type')}

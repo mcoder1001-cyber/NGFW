@@ -436,7 +436,7 @@ func TestStateIsSerialised(t *testing.T) {
 	f := newFakeFRR()
 	entered, block := make(chan struct{}, 8), make(chan struct{})
 	var calls sync.WaitGroup
-	f.On(frr.VtyshBin, func(c renderers.Command) (renderers.Output, error) {
+	f.On(frr.VtyshBin, func(renderers.Command) (renderers.Output, error) {
 		entered <- struct{}{}
 		<-block
 		return renderers.Output{Stdout: []byte("FRRouting 10.7.1\n")}, nil

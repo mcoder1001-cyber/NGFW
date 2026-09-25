@@ -924,10 +924,19 @@ func (x *executor) fail(k Key, idx int, op string, err error) error {
 	return fmt.Errorf("%s %s: %w", op, k, err)
 }
 
-// create creates k and journals it under result idx.
+// create creates k and journals it under result idx. A Create that failed after it changed VPP
+// returns PartialCreate(err), with the Meta of what it made or nil (Descriptor.Create): that partial
+// object is journaled and live too — on the marker alone (IsPartialCreate, TD-11b review M2) — so
+// the rollback Deletes it instead of leaving it in VPP unjournaled (review 3.3). Any other failed
+// Create changed nothing.
 func (x *executor) create(ctx context.Context, k Key, v proto.Message, idx int) error {
 	meta, err := x.descriptor(k).Create(ctx, v)
 	if err != nil {
+		if IsPartialCreate(err) {
+			x.journal = append(x.journal, journalEntry{key: k, op: OpCreate, newValue: v, newMeta: meta, result: idx})
+			x.live[k] = KV{Key: k, Value: v, Meta: meta}
+			x.s.log.Warn("create failed after changing the data plane; the rollback deletes it", "key", k)
+		}
 		return x.fail(k, idx, OpCreate, err)
 	}
 	x.journal = append(x.journal, journalEntry{key: k, op: OpCreate, newValue: v, newMeta: meta, result: idx})

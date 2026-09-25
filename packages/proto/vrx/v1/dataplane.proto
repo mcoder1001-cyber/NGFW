@@ -1758,6 +1758,8 @@ message SnmpService {
     repeated string sources = 3;
 
     // wave-BC: F-snmp
+    // View name in SnmpService.views; unset = the built-in all-OIDs view (F-snmp, D-086).
+    optional string view = 4;
   }
   // SNMPv3 USM user.
   message V3User {
@@ -1775,6 +1777,8 @@ message SnmpService {
     optional string access = 6;
 
     // wave-BC: F-snmp
+    // View name in SnmpService.views; unset = the built-in all-OIDs view (F-snmp, D-086).
+    optional string view = 7;
   }
   // Trap / inform receiver.
   message TrapReceiver {
@@ -1815,6 +1819,14 @@ message SnmpService {
   repeated TrapReceiver trap_receivers = 11;
 
   // wave-BC: F-snmp
+  // sysServices (0–127); unset = not rendered (F-snmp, D-086).
+  optional uint32 sys_services = 12;
+  // VACM views keyed by name (F-snmp, D-086).
+  map<string, SnmpView> views = 13;
+  // UCD-SNMP disk and load monitors (F-snmp, D-086).
+  SnmpMonitors monitors = 14;
+  // Private VRX-MIB AgentX subagent (F-snmp).
+  SnmpSubagent subagent = 15;
 }
 
 // LldpService is `services.lldp`.
@@ -3614,6 +3626,46 @@ message RemoteAccessProfile {
 // ----- F-host-stack -----
 
 // ----- F-snmp -----
+
+// SnmpView is one VACM view of `services.snmp.views` (F-snmp, D-086).
+message SnmpView {
+  // Included subtrees (numeric OID or a symbolic name of the renderer's allow-list).
+  repeated string include = 1;
+  // Excluded subtrees.
+  repeated string exclude = 2;
+}
+
+// SnmpMonitors is `services.snmp.monitors` (UCD-SNMP dskTable / laTable thresholds).
+message SnmpMonitors {
+  // Disk monitors.
+  repeated SnmpMonitorDisk disks = 1;
+  // Load-average monitor.
+  SnmpMonitorLoad load = 2;
+}
+
+// SnmpMonitorDisk is one `disk <path> <min>%` monitor.
+message SnmpMonitorDisk {
+  // Absolute mount path.
+  optional string path = 1;
+  // Minimum free space in percent (1–99); unset = 10.
+  optional uint32 min_percent = 2;
+}
+
+// SnmpMonitorLoad is the `load <1m> <5m> <15m>` monitor.
+message SnmpMonitorLoad {
+  // 1-minute load threshold.
+  optional uint32 max1 = 1;
+  // 5-minute load threshold.
+  optional uint32 max5 = 2;
+  // 15-minute load threshold.
+  optional uint32 max15 = 3;
+}
+
+// SnmpSubagent is `services.snmp.subagent`: the VRX-MIB AgentX subagent of the agent.
+message SnmpSubagent {
+  // Register VRX-MIB with snmpd over AgentX (default true when SNMP is enabled).
+  optional bool enabled = 1;
+}
 
 // ----- F-ipfix-sflow -----
 

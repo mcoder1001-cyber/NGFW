@@ -11,5 +11,5 @@
 - [x] UI tab, en/fa, screenshots (full stack, run 2)
 - [x] docs/user/vpn/wireguard.md, descriptor doc, vpp-code-track V-new
 - [x] status file, questions
-- [ ] CI green (running: D-112 squash simulation; the plain run fails on a gitleaks false positive in intermediate commit efcf783a)
-- [ ] optional: full-stack rerun with the real-agent rollback step (blocked 04:52 by the shared VPP's V19 quarantine cap)
+- [x] CI green on the D-112 squash simulation (df8c9235 = tree of dcdbd40c); the plain run fails on a gitleaks false positive in intermediate commit efcf783a (Q12)
+- [ ] optional: full-stack rerun with the real-agent rollback step — waits for TD-25 (manager: no host runs that create interfaces)

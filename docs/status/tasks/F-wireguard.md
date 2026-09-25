@@ -135,7 +135,7 @@ Contract: `docs/status/tasks/F-wireguard-contract.md`. Questions: `docs/status/t
   route returns `{ref, publicKey, version}` only (e2e asserts the body keys and that the private key is in neither the
   response nor `GET /secrets`); test vectors are SHA-256 of `VRX_TEST_PSK_F-wireguard_*` labels, the stack run's fixture
   file lives in `/run/vrx-test/w6/wg` (0600) and is removed by the run; every pasted `vppctl` output went through the filter.
-- [ ] **`tools/ci.sh --base main` green** — see "CI" below.
+- [x] **`tools/ci.sh --base main` green** — on the D-112 squash of the branch (see "CI" below).
 
 ### Screenshot (real endpoint: test-build agent + API + `vite preview` of the production web build, host VPP)
 `docs/user/vpn/img/wireguard-list-en.png` (peer **Established** from the live event, last handshake, learnt endpoint;
@@ -188,4 +188,33 @@ provisioning; the API→agent secret channel itself (PENDING-secret-channel); a 
 (apps/cli is not this row's; REST operations `Wireguard_state` / `Wireguard_keypair` exist); hostname endpoints.
 
 ## CI
-(filled in below after the run)
+`TMPDIR=/tmp/g-w6 VRX_CI_HEAD_REF=<squash> tools/ci.sh --base main`, where `<squash>` = `git commit-tree HEAD^{tree} -p
+$(git merge-base main HEAD)` with a `contract(schema,proto): …` subject: a commit object only (no ref, no history
+rewrite) with exactly the tree and the single commit the D-112 merge produces. Every step checks the working tree (= that
+tree); the contract guard and gitleaks read the squash commit. Why not over the branch history: gitleaks flags the
+intermediate commit `efcf783a` (a public example key in a variable named `peerKey`, questions Q12); the plain run
+(`logs/ci/F-wireguard-20260925-045442-3832129`) stops there.
+```
+branch    task/F-wireguard @ dcdbd40c   (base: main)   (tip: df8c9235aa936fc76157f4d01fd8b3949daa8e60)
+ok — contract commit(s) on the branch:
+ok: gitleaks — scanned ~343486 bytes (343.49 KB) in 1.53s no leaks found
+ok: no packet trace (trace add / show trace / clear trace / tracedump API) outside docs and the generated bindings
+== summary (quick) ==
+  contract guard: df8c9235aa936fc76157f4d01fd8b3949daa8e60 vs main   0m00s
+  tools (golangci-lint, gitleaks)                    0m03s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m00s
+  generate + generated-output gate                   2m19s
+  forbidden patterns (+ gitleaks)                    0m05s
+  packet-trace ban on the shared VPP (D-128)         0m01s
+  lint · typecheck · unit tests · build (turbo)   1m58s
+  apps/agent: make lint test build                   1m17s
+  apps/cli: make lint test build                     0m18s
+  test/ Go modules, unit mode (test/integration/smoke test/topology/interfaces)   0m08s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   4m49s
+  mode quick · wall time 10m59s · logs /root/ngfw-wt/logs/ci/F-wireguard-20260925-050828-4093048
+
+CI GATE PASSED
+```
+Also run on this tree: API e2e `test/e2e/wireguard.e2e.test.ts` 5/5 (slot DB), web vitest 15 files / 103 tests, agent
+`go test -race` of the touched packages, host checks (above). Host runs stopped after 05:05 on the manager's order (TD-25:
+interface creates fail closed on the shared VPP); the real-agent rollback step of `stack.sh` is to be rerun once TD-25 lands.

@@ -117,6 +117,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-host-acl-nftables
   // wave-A: P12
+  groups.get('routing')!.push({ id: 'bgp', path: '/routing/bgp', labelKey: 'bgp:nav.bgp', fallbackLabel: 'BGP', available: true });
   // web: WEB-2
   groups.get('system')!.push(
     { id: 'users', path: '/system/users', labelKey: 'nav:users', fallbackLabel: 'Users', available: true },

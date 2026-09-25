@@ -54,6 +54,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-A: F-neighbors-ra
       // wave-A: F-rpf-adl-pbr
       // wave-A: P12
+      'bgp',
       // wave-A: F-nat44-ed-sessions
       // wave-A: F-object-model
       // wave-A: F-acl

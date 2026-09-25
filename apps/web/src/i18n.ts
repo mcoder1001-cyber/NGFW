@@ -72,6 +72,8 @@ import faVrfStaticEcmp from './locales/fa/vrf-static-ecmp.json';
 // wave-A: P11
 // wave-A: F-wireguard
 // wave-A: P12
+import enBgp from './locales/en/bgp.json';
+import faBgp from './locales/fa/bgp.json';
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
 import { loadSettings } from './settings/storage';
@@ -135,6 +137,7 @@ export const NAMESPACES = [
   // wave-A: P11
   // wave-A: F-wireguard
   // wave-A: P12
+  'bgp',
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
   'dev',
@@ -200,6 +203,7 @@ const en = {
   // wave-A: P11
   // wave-A: F-wireguard
   // wave-A: P12
+  bgp: enBgp,
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
 };
@@ -262,6 +266,7 @@ const fa = {
   // wave-A: P11
   // wave-A: F-wireguard
   // wave-A: P12
+  bgp: faBgp,
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
 };

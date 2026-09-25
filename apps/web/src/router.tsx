@@ -102,6 +102,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-A: P11
         // wave-A: F-wireguard
         // wave-A: P12
+        { path: 'routing/bgp', lazy: async () => ({ Component: (await import('./domains/routing/bgp/BgpPage')).BgpPage }) },
         // wave-A: F-kea-dhcp-relay
         // wave-A: F-unbound-chrony-syslog
         { path: 'system/users', lazy: async () => ({ Component: (await import('./pages/UsersPage')).UsersPage }) },

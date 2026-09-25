@@ -1,0 +1,213 @@
+{
+  "title": "BGP",
+  "tabs": "BGP sections",
+  "loading": "Loading…",
+  "readonly": "Your role can view but not change the configuration",
+  "save": "Save to candidate",
+  "reset": "Reset",
+  "remove": "Remove",
+  "refresh": "Refresh",
+  "badName": "Letters, digits, _ . - only (up to 63, starting with a letter or digit)",
+  "intro": "BGP runs in FRR on the Linux side of the router; the routes it learns reach the data plane (VPP) through linux-cp. Changes go into the candidate; commit them from the bar at the bottom.",
+  "frrDown": "FRR does not answer, so the live session state is not available: {{error}}",
+  "frrVersion": "FRR {{version}}",
+  "nav": {
+    "bgp": "BGP"
+  },
+  "tab": {
+    "neighbors": "BGP",
+    "prefixLists": "Prefix lists",
+    "routeMaps": "Route maps",
+    "pairs": "Linux pairs"
+  },
+  "global": {
+    "title": "Global settings",
+    "absent": "BGP is not configured. Enter the local AS and save to enable it.",
+    "remove": "Remove BGP",
+    "redistribute": "Redistribute into BGP",
+    "source": {
+      "connected": "Connected",
+      "static": "Static",
+      "ospf": "OSPF",
+      "isis": "IS-IS",
+      "rip": "RIP"
+    }
+  },
+  "neighbors": {
+    "title": "Neighbours",
+    "intro": "Each neighbour is keyed by its address. A neighbour in a peer group inherits what it does not set itself. The state columns are live.",
+    "add": "Add neighbour",
+    "addTitle": "New neighbour",
+    "editTitle": "Neighbour {{key}}",
+    "key": "Neighbour address",
+    "badKey": "An IPv4 or IPv6 address",
+    "exists": "This neighbour already exists",
+    "shutdown": "Shut down",
+    "unknown": "No state",
+    "col": {
+      "address": "Address",
+      "remoteAs": "Remote AS",
+      "peerGroup": "Peer group",
+      "families": "Families",
+      "state": "State",
+      "uptime": "Uptime",
+      "rx": "Prefixes in",
+      "tx": "Prefixes out",
+      "flaps": "Flaps",
+      "description": "Description"
+    }
+  },
+  "peerGroups": {
+    "title": "Peer groups",
+    "intro": "Settings shared by several neighbours.",
+    "add": "Add peer group",
+    "addTitle": "New peer group",
+    "editTitle": "Peer group {{key}}",
+    "key": "Name",
+    "exists": "This peer group already exists",
+    "col": {
+      "name": "Name",
+      "remoteAs": "Remote AS",
+      "members": "Members",
+      "description": "Description"
+    }
+  },
+  "prefixLists": {
+    "title": "Prefix lists",
+    "intro": "Ordered rules that match prefixes (with optional length ranges). Referenced by route maps and BGP neighbours.",
+    "add": "Add prefix list",
+    "addTitle": "New prefix list",
+    "editTitle": "Prefix list {{key}}",
+    "key": "Name",
+    "exists": "This prefix list already exists"
+  },
+  "routeMaps": {
+    "title": "Route maps",
+    "intro": "Ordered entries that match routes and change their attributes. An entry without match conditions matches everything.",
+    "add": "Add route map",
+    "addTitle": "New route map",
+    "editTitle": "Route map {{key}}",
+    "key": "Name",
+    "exists": "This route map already exists"
+  },
+  "policy": {
+    "col": {
+      "name": "Name",
+      "family": "Family",
+      "rules": "Rules",
+      "entries": "Entries",
+      "usedBy": "Used by",
+      "description": "Description"
+    }
+  },
+  "pairs": {
+    "title": "Linux pairs (linux-cp)",
+    "intro": "A pair mirrors a VPP interface into Linux, so FRR can run its sessions on it. The live column shows whether the pair exists in VPP.",
+    "add": "Add pair",
+    "addTitle": "New linux-cp pair",
+    "editTitle": "Linux pair of {{key}}",
+    "key": "VPP interface",
+    "exists": "This interface already has a pair",
+    "unknownInterface": "Not an interface of the configuration",
+    "present": "In VPP",
+    "absent": "Not in VPP",
+    "col": {
+      "interface": "VPP interface",
+      "hostIfName": "Linux interface",
+      "hostIfType": "Type",
+      "netns": "Namespace",
+      "live": "Live"
+    }
+  },
+  "field": {
+    "asn": {
+      "title": "Local AS"
+    },
+    "routerId": {
+      "title": "Router ID"
+    },
+    "vrf": {
+      "title": "VRF"
+    },
+    "networks": {
+      "title": "Networks",
+      "help": "prefixes originated by this router"
+    },
+    "redistribute": {
+      "title": "Redistribute"
+    },
+    "gracefulRestart": {
+      "title": "Graceful restart"
+    },
+    "ebgpRequiresPolicy": {
+      "title": "eBGP requires policy",
+      "help": "RFC 8212: eBGP sessions without an in and out policy accept and announce nothing"
+    },
+    "remoteAs": {
+      "title": "Remote AS"
+    },
+    "peerGroup": {
+      "title": "Peer group"
+    },
+    "description": {
+      "title": "Description"
+    },
+    "updateSource": {
+      "title": "Update source",
+      "help": "local address, or an interface with a Linux pair"
+    },
+    "ebgpMultihop": {
+      "title": "eBGP multihop"
+    },
+    "passwordRef": {
+      "title": "MD5 password",
+      "help": "a secret reference, e.g. password/bgp-upstream"
+    },
+    "keepaliveSec": {
+      "title": "Keepalive (s)"
+    },
+    "holdTimeSec": {
+      "title": "Hold time (s)"
+    },
+    "bfd": {
+      "title": "BFD"
+    },
+    "shutdown": {
+      "title": "Shut down"
+    },
+    "afi": {
+      "title": "Address families"
+    },
+    "pl": {
+      "description": {
+        "title": "Description"
+      },
+      "family": {
+        "title": "Address family"
+      },
+      "rules": {
+        "title": "Rules"
+      }
+    },
+    "rm": {
+      "description": {
+        "title": "Description"
+      },
+      "entries": {
+        "title": "Entries"
+      }
+    },
+    "lcp": {
+      "hostIfName": {
+        "title": "Linux interface name",
+        "help": "default: the VPP name (max 15 characters)"
+      },
+      "hostIfType": {
+        "title": "Host interface type"
+      },
+      "netns": {
+        "title": "Network namespace"
+      }
+    }
+  }
+}

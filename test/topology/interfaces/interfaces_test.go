@@ -147,12 +147,12 @@ func newStack(t *testing.T, s slot) *stack {
 	}
 	st := &stack{s: s, agentBin: bin, stateDir: filepath.Join(work, "agent-state"), agentLog: filepath.Join(work, "agent.log")}
 
-	t.Log(mustRun(t, filepath.Join(s.repo, "deploy", "dev", "pg-test.sh"), "create", s.prefix))
+	t.Log(mustRun(t, filepath.Join(s.repo, "deploy", "dev", "pg-test.sh"), "create", s.pgName))
 	t.Cleanup(func() {
-		out, err := run(t, filepath.Join(s.repo, "deploy", "dev", "pg-test.sh"), "drop", s.prefix)
-		t.Logf("pg-test drop %s: %v\n%s", s.prefix, err, out)
+		out, err := run(t, filepath.Join(s.repo, "deploy", "dev", "pg-test.sh"), "drop", s.pgName)
+		t.Logf("pg-test drop %s: %v\n%s", s.pgName, err, out)
 	})
-	pg := readEnvFile(t, filepath.Join(s.runDir, "pg.env"))
+	pg := readEnvFile(t, filepath.Join(filepath.Dir(s.runDir), s.pgName, "pg.env")) // pg-test.sh's /run/vrx-test/<name>/pg.env
 
 	base := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME")}
 	st.agentEnv = append(append([]string{}, base...),

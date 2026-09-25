@@ -36,6 +36,7 @@ type slot struct {
 	metricsPort string
 	valkeyDB    string
 	tableBase   string // VRX_VPP_TABLE_BASE: the agent's id range (TD-8b: it refuses to start without one)
+	pgName      string // pg-test.sh name (database vrx_<pgName>): VRX_P08_PG_NAME, default the prefix (TD-8b)
 	runDir      string // /run/vrx-test/<prefix>
 	socket      string
 	repo        string
@@ -63,6 +64,7 @@ func slotFromEnv(t *testing.T) slot {
 		metricsPort: env("VRX_METRICS_PORT", strconv.Itoa(9100+10*n+1)),
 		valkeyDB:    env("VRX_VALKEY_DB", strconv.Itoa(n)),
 		tableBase:   env("VRX_VPP_TABLE_BASE", strconv.Itoa(1000*n)),
+		pgName:      env("VRX_P08_PG_NAME", p),
 		runDir:      "/run/vrx-test/" + p,
 		repo:        repoRoot(t),
 	}

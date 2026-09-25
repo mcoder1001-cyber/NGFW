@@ -27,7 +27,7 @@ func requirePersistent(what string, stores ...any) error {
 // claimsOf is the owner's DF-1 claim store (claims on untagged interfaces, dfkit.Target.Claim).
 func claimsOf(owner string) any { return iface.Claims(owner) }
 
-// CheckPersistent: GSO on an untagged interface is ours through the owner's claim store, and the
+// CheckPersistent requires persisted stores: GSO on an untagged interface is ours through the owner's claim store, and the
 // applied-once records (D-076/D-080) live in the owner's BootStore; both must survive a restart.
 func (d *Descriptor) CheckPersistent() error {
 	return requirePersistent(Name+": claims on untagged interfaces and applied-once records", claimsOf(d.owner), d.store)

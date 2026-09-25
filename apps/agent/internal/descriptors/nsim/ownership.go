@@ -27,17 +27,17 @@ func requirePersistent(what string, stores ...any) error {
 // claimsOf is the owner's DF-1 claim store (claims on untagged interfaces, dfkit.Target.Claim).
 func claimsOf(owner string) any { return iface.Claims(owner) }
 
-// CheckPersistent: the model's applied-once record lives in the owner's BootStore.
+// CheckPersistent requires a persisted boot store: the model's applied-once record lives in the owner's BootStore.
 func (d *ConfigDescriptor) CheckPersistent() error {
 	return requirePersistent(ConfigName+": applied-once record", d.store)
 }
 
-// CheckPersistent: claims on untagged interfaces and the applied-once record.
+// CheckPersistent requires persisted stores: claims on untagged interfaces and the applied-once record.
 func (d *CrossConnectDescriptor) CheckPersistent() error {
 	return requirePersistent(CrossConnectName+": claims on untagged interfaces and applied-once record", claimsOf(d.owner), d.store)
 }
 
-// CheckPersistent: claims on untagged interfaces and the applied-once records.
+// CheckPersistent requires persisted stores: claims on untagged interfaces and the applied-once records.
 func (d *OutputDescriptor) CheckPersistent() error {
 	return requirePersistent(OutputName+": claims on untagged interfaces and applied-once records", claimsOf(d.owner), d.store)
 }

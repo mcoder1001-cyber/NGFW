@@ -27,11 +27,11 @@ func requirePersistent(what string, stores ...any) error {
 // claimsOf is the owner's DF-1 claim store (claims on untagged interfaces, dfkit.Target.Claim).
 func claimsOf(owner string) any { return iface.Claims(owner) }
 
-// RecordsNoOwnership: lldp.global is a VPP-global singleton (globals owner only, D-071); it records
-// nothing.
+// RecordsNoOwnership declares that lldp.global records nothing: it is a VPP-global singleton (globals
+// owner only, D-071).
 func (*GlobalDescriptor) RecordsNoOwnership() {}
 
-// CheckPersistent: LLDP on an untagged interface is ours through the owner's claim store.
+// CheckPersistent requires a persisted claim store: LLDP on an untagged interface is ours through the owner's claim store.
 func (d *InterfaceDescriptor) CheckPersistent() error {
 	return requirePersistent(NameInterface+": claims on untagged interfaces", claimsOf(d.Owner))
 }

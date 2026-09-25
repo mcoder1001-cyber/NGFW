@@ -27,7 +27,7 @@ func requirePersistent(what string, stores ...any) error {
 // claimsOf is the owner's DF-1 claim store (claims on untagged interfaces, dfkit.Target.Claim).
 func claimsOf(owner string) any { return iface.Claims(owner) }
 
-// CheckPersistent: a mirror on an untagged source interface is ours through the owner's claim store.
+// CheckPersistent requires a persisted claim store: a mirror on an untagged source interface is ours through the owner's claim store.
 func (d *Descriptor) CheckPersistent() error {
 	return requirePersistent(NameMirror+": claims on untagged source interfaces", claimsOf(d.Owner))
 }

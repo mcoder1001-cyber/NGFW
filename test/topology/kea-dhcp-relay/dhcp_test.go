@@ -850,6 +850,9 @@ func runShots(t *testing.T, s slot, st *stack, tp *topo) error {
 	}) {
 		return errors.New("vite preview did not come up")
 	}
+	// a pending (uncommitted) edit, so the pending-change bar shows its diff on the screenshots; discarded afterwards
+	st.api.call("PATCH", "/api/v1/config/services/dhcp/servers/lan", map[string]any{"description": "LAN (pending edit)"}, "content-type", "application/merge-patch+json")
+	defer st.api.call("POST", "/api/v1/config/discard", nil)
 	o, err := run(t, "node", script, "http://127.0.0.1:"+webPort, out, pwFile)
 	sc := bufio.NewScanner(strings.NewReader(o))
 	for sc.Scan() {

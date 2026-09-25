@@ -1,0 +1,245 @@
+{
+  "title": "MPLS",
+  "nav": "MPLS",
+  "tabs": "MPLS sections",
+  "loading": "Loading…",
+  "tab": {
+    "interfaces": "Interfaces & tables",
+    "routes": "Label routes",
+    "tunnels": "Tunnels",
+    "sr": "SR-MPLS",
+    "fib": "MPLS FIB"
+  },
+  "save": "Save to candidate",
+  "reset": "Reset",
+  "remove": "Delete",
+  "refresh": "Refresh",
+  "readonly": "Your role cannot change the configuration",
+  "yes": "yes",
+  "no": "no",
+  "eos": {
+    "yes": "end of stack",
+    "no": "not end of stack"
+  },
+  "path": {
+    "lookup": "pop, look up in VRF {{vrf}}",
+    "via": "via {{interface}}",
+    "push": "push [{{labels}}]",
+    "pop": "pop",
+    "table": "lookup table {{table}}"
+  },
+  "interfaces": {
+    "intro": "Interfaces that accept labelled packets, and additional MPLS tables for label routes that should not live in the default MPLS table.",
+    "table0": "MPLS table 0 is the default MPLS table. It is shared by the whole system: enabling MPLS on an interface, label bindings and SR-MPLS policies need it, and only the system's globals owner creates it."
+  },
+  "routes": {
+    "title": "Static label routes",
+    "intro": "A local label arriving in an MPLS table is forwarded on the route's paths: swap or push out labels towards a next hop, pop, or pop and look the IP packet up in a VRF.",
+    "add": "Add label route",
+    "addTitle": "New label route",
+    "editTitle": "Label {{label}} in MPLS table {{table}}",
+    "col": {
+      "table": "MPLS table",
+      "label": "Label",
+      "eos": "End of stack",
+      "payload": "Payload",
+      "paths": "Paths"
+    }
+  },
+  "bindings": {
+    "title": "Label bindings",
+    "intro": "Binds a local label to an IP prefix; the label is installed in the default MPLS table.",
+    "add": "Add binding",
+    "addTitle": "New label binding",
+    "editTitle": "Label {{label}} → {{prefix}}",
+    "col": {
+      "vrf": "VRF",
+      "prefix": "Prefix"
+    }
+  },
+  "tunnels": {
+    "title": "MPLS tunnels",
+    "intro": "Head-end LSPs as tunnel interfaces. The name is the tunnel interface's name: label routes can send packets into it.",
+    "add": "Add tunnel",
+    "addTitle": "New MPLS tunnel",
+    "editTitle": "MPLS tunnel {{name}}",
+    "col": {
+      "name": "Name",
+      "paths": "Paths",
+      "l2Only": "L2 only",
+      "status": "In VPP",
+      "vpp": "VPP interface"
+    },
+    "status": {
+      "up": "present",
+      "down": "missing",
+      "degraded": "unknown"
+    }
+  },
+  "sr": {
+    "writeOnly": "VPP has no way to read SR-MPLS policies and steering back: they are applied once per VPP start and are not shown in the live state or the drift view.",
+    "policies": "SR-MPLS policies",
+    "intro": "A policy is identified by its binding SID and sends traffic over one or more segment lists.",
+    "addPolicy": "Add policy",
+    "addPolicyTitle": "New SR-MPLS policy",
+    "editPolicyTitle": "SR-MPLS policy {{bsid}}",
+    "steering": "Steering",
+    "steeringIntro": "Traffic to a prefix enters the policy with this binding SID.",
+    "addSteering": "Add steering",
+    "addSteeringTitle": "New steering entry",
+    "editSteeringTitle": "Steering of {{prefix}} (VRF {{vrf}})",
+    "col": {
+      "bsid": "Binding SID",
+      "lists": "Segment lists",
+      "spray": "Spray",
+      "steered": "Steered prefixes",
+      "vpnLabel": "VPN label"
+    }
+  },
+  "fib": {
+    "title": "MPLS FIB",
+    "intro": "The live MPLS forwarding table of one MPLS table, read from VPP on demand (each read walks the whole table; nothing refreshes by itself).",
+    "table": "MPLS table",
+    "table0": "0 (default)",
+    "label": "Label",
+    "meta": "{{total}} entries · read at {{at}}"
+  },
+  "field": {
+    "interfaces": {
+      "title": "MPLS interfaces",
+      "help": "interfaces that accept labelled packets"
+    },
+    "tables": {
+      "title": "MPLS tables",
+      "help": "additional MPLS tables by id (1–4294967295)"
+    },
+    "table": {
+      "title": "MPLS table",
+      "help": "0 = the default MPLS table"
+    },
+    "label": {
+      "title": "Local label",
+      "help": "16–1048575"
+    },
+    "eos": {
+      "title": "End of stack",
+      "help": "off: the label has more labels under it"
+    },
+    "payload": {
+      "title": "Payload",
+      "help": "end-of-stack routes: ip4, ip6 or ethernet"
+    },
+    "paths": {
+      "title": "Paths",
+      "help": "several paths share the traffic by weight",
+      "nextHop": {
+        "title": "Next hop",
+        "help": "next-hop address"
+      },
+      "interface": {
+        "title": "Interface",
+        "help": "egress interface or MPLS tunnel"
+      },
+      "outLabels": {
+        "title": "Out labels",
+        "help": "pushed labels, outermost first; empty = pop"
+      },
+      "weight": {
+        "title": "Weight",
+        "help": "1–255"
+      },
+      "vrf": {
+        "title": "Lookup VRF",
+        "help": "pop and look the IP packet up in this VRF"
+      }
+    },
+    "binding": {
+      "label": {
+        "title": "Local label",
+        "help": "16–1048575"
+      },
+      "vrf": {
+        "title": "VRF",
+        "help": ""
+      },
+      "prefix": {
+        "title": "Prefix",
+        "help": "IP prefix the label is bound to"
+      }
+    },
+    "tunnel": {
+      "name": {
+        "title": "Name",
+        "help": "letters, digits, _ and -"
+      },
+      "paths": {
+        "title": "Paths",
+        "help": "",
+        "nextHop": {
+          "title": "Next hop",
+          "help": "next-hop address"
+        },
+        "interface": {
+          "title": "Interface",
+          "help": "egress interface"
+        },
+        "outLabels": {
+          "title": "Out labels",
+          "help": "pushed labels, outermost first"
+        },
+        "weight": {
+          "title": "Weight",
+          "help": "1–255"
+        },
+        "vrf": {
+          "title": "Lookup VRF",
+          "help": ""
+        }
+      },
+      "l2Only": {
+        "title": "L2 only",
+        "help": "a layer-2 tunnel (pseudowire head end)"
+      }
+    },
+    "policy": {
+      "name": {
+        "title": "Binding SID",
+        "help": "the policy's label, 16–1048575"
+      },
+      "segmentLists": {
+        "title": "Segment lists",
+        "help": "",
+        "labels": {
+          "title": "Segments",
+          "help": "segment labels, first segment first"
+        },
+        "weight": {
+          "title": "Weight",
+          "help": "1–255"
+        }
+      },
+      "spray": {
+        "title": "Spray",
+        "help": "send on every list instead of load-balancing"
+      }
+    },
+    "steering": {
+      "vrf": {
+        "title": "VRF",
+        "help": ""
+      },
+      "prefix": {
+        "title": "Prefix",
+        "help": "traffic to this prefix enters the policy"
+      },
+      "bsid": {
+        "title": "Binding SID",
+        "help": "the policy"
+      },
+      "vpnLabel": {
+        "title": "VPN label",
+        "help": "optional label under the segments"
+      }
+    }
+  }
+}

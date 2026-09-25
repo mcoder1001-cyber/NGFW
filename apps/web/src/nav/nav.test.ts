@@ -39,6 +39,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-isis-rip
       // wave-BC: F-bfd-redistribution
       // wave-BC: F-mpls-srmpls
+      'mpls',
       // wave-BC: F-igmp-mfib
       // wave-BC: F-capture-trace
       // wave-BC: F-tunnels

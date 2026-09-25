@@ -106,6 +106,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // wave-BC: F-isis-rip
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-mpls-srmpls
+  groups.get('routing')!.push({ id: 'mpls', path: '/routing/mpls', labelKey: 'mpls-srmpls:nav', fallbackLabel: 'MPLS', available: true });
   // wave-BC: F-igmp-mfib
   // wave-BC: F-capture-trace
   // wave-A: F-bonding

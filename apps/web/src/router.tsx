@@ -76,6 +76,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-BC: F-isis-rip
         // wave-BC: P14
         // wave-BC: F-mpls-srmpls
+        { path: 'routing/mpls', lazy: async () => ({ Component: (await import('./domains/routing/mpls-srmpls/MplsPage')).MplsPage }) },
         // wave-BC: F-capture-trace
         // wave-BC: F-bfd-redistribution
         // wave-BC: F-igmp-mfib

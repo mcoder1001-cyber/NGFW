@@ -6,7 +6,8 @@ package subsystems
 //
 // Where the table goes (nftables.PathsFromEnv):
 //
-//	owner "vrx" (product)              table inet vrx      in the root network namespace (mode apply)
+//	owner "vrx" + globals owner        table inet vrx      in the root network namespace (mode apply)
+//	owner "vrx", VRX_GLOBALS_OWNER=0   table inet vrx      never loaded: `nft -c` only (mode check; tools/app)
 //	other owners (test slots)          table inet vrx_<o>  never loaded: `nft -c` only (mode check) …
 //	  … with VRX_HOST_ACL_NETNS=ns-…   loaded inside that namespace (mode netns; setns on a locked thread)
 //	VRX_HOST_ACL_MODE=check            validate only, for any owner (a product stack on a shared host)
@@ -26,7 +27,7 @@ func hostACLDescriptors() []string { return []string{nftables.DescriptorName} }
 // and gives the builder the objects runtime's FQDN answers. Registered after the objects family: an FQDN
 // answer change asks the agent for a resync (Env.Resync), which re-renders the table.
 func (w *Wiring) registerHostACL(r scheduler.Registry) error {
-	paths, err := nftables.PathsFromEnv(w.env.StateDir, w.env.Owner)
+	paths, err := nftables.PathsFromEnv(w.env.StateDir, w.env.Owner, w.env.GlobalsOwner)
 	if err != nil {
 		return err
 	}

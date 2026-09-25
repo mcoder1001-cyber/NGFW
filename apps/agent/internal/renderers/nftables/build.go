@@ -58,6 +58,9 @@ const (
 	KindUnknown     = "unknown"
 )
 
+// ConntrackPriority is NF_IP_PRI_CONNTRACK: an output chain must run after it (priority > -200).
+const ConntrackPriority = -200
+
 // DefaultManagementPorts are the anti-lockout ports when none are configured: SSH and HTTPS.
 var DefaultManagementPorts = []uint32{22, 443}
 
@@ -98,6 +101,12 @@ func Build(in Input) (*HostTable, []Issue) {
 		}
 		if p := a.GetPriority(); p < -500 || p > 500 {
 			b.errorf(pt+"/priority", RuleAttachment, "priority %d is outside -500…500", p)
+			continue
+		}
+		if p := a.GetPriority(); hook == "output" && p <= ConntrackPriority {
+			// H1: before conntrack no packet has a ct entry, so `ct state established,related accept` never matches
+			// and a drop cuts the replies of the management session the anti-lockout rule admitted.
+			b.errorf(pt+"/priority", RuleAttachment, "an output chain at priority %d runs before connection tracking (%d): it would see the replies of established management sessions as new traffic and could cut them; use a priority above %d", p, ConntrackPriority, ConntrackPriority)
 			continue
 		}
 		rules, ok := lists[a.GetList()]

@@ -313,15 +313,22 @@ func TestPathsFromEnv(t *testing.T) {
 	dir := "/var/lib/vrx/agent"
 	cases := []struct {
 		owner, mode, ns string
+		globals         bool
 		want            Paths
 		err             bool
 	}{
-		{owner: "vrx", want: Paths{Table: "vrx", Mode: ModeApply}},
+		{owner: "vrx", globals: true, want: Paths{Table: "vrx", Mode: ModeApply}},
+		// H2 (fix round 1): the root-netns firewall is host-wide (D-071): without the globals owner (tools/app's
+		// VRX_GLOBALS_OWNER=0 product stack on the shared host) the product owner only checks, and apply is refused.
+		{owner: "vrx", globals: false, want: Paths{Table: "vrx", Mode: ModeCheck}},
+		{owner: "vrx", mode: "apply", globals: false, err: true},
+		{owner: "vrx", mode: "apply", globals: true, want: Paths{Table: "vrx", Mode: ModeApply}},
 		{owner: "w9", want: Paths{Table: "vrx_w9", Mode: ModeCheck}},
+		{owner: "w9", globals: true, want: Paths{Table: "vrx_w9", Mode: ModeCheck}},
 		{owner: "w9", ns: "ns-w9-hacl", want: Paths{Table: "vrx_w9", Mode: ModeNetns, Netns: "ns-w9-hacl"}},
-		{owner: "vrx", mode: "check", want: Paths{Table: "vrx", Mode: ModeCheck}},
-		{owner: "w9", mode: "apply", err: true},
-		{owner: "vrx", mode: "apply", ns: "ns-w9-hacl", err: true},
+		{owner: "vrx", mode: "check", globals: true, want: Paths{Table: "vrx", Mode: ModeCheck}},
+		{owner: "w9", mode: "apply", globals: true, err: true},
+		{owner: "vrx", mode: "apply", ns: "ns-w9-hacl", globals: true, err: true},
 		{owner: "w9", mode: "netns", err: true},
 		{owner: "w9", mode: "bogus", err: true},
 		{owner: "w9", ns: "../../proc/1/ns/net", err: true},
@@ -330,7 +337,7 @@ func TestPathsFromEnv(t *testing.T) {
 	for _, c := range cases {
 		t.Setenv(EnvMode, c.mode)
 		t.Setenv(EnvNetns, c.ns)
-		p, err := PathsFromEnv(dir, c.owner)
+		p, err := PathsFromEnv(dir, c.owner, c.globals)
 		if c.err {
 			if err == nil {
 				t.Errorf("%+v: accepted %+v", c, p)
@@ -342,8 +349,11 @@ func TestPathsFromEnv(t *testing.T) {
 			t.Errorf("%+v: got %+v %v", c, p, err)
 		}
 	}
-	// Only the product owner's table ever goes into the root netns, whatever builds the paths.
-	if err := (Paths{Table: "vrx_w9", Mode: ModeApply, RulesFile: "/a", StoreFile: "/b"}).Validate("w9"); err == nil {
+	if err := (Paths{Table: "vrx", Mode: ModeApply, RulesFile: "/a", StoreFile: "/b"}).Validate("vrx", false); err == nil {
+		t.Error("apply without the globals owner accepted by Validate")
+	}
+// Only the product owner's table ever goes into the root netns, whatever builds the paths.
+	if err := (Paths{Table: "vrx_w9", Mode: ModeApply, RulesFile: "/a", StoreFile: "/b"}).Validate("w9", true); err == nil {
 		t.Error("apply of a slot table in the root netns accepted")
 	}
 	if !slices.Equal(Binaries().Paths(), []string{NftBin}) {

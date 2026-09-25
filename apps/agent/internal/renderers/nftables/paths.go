@@ -66,16 +66,18 @@ func TableFor(owner string) string {
 	return ProductTable + "_" + owner
 }
 
-// ProductPaths are the paths of owner's host firewall with its files in stateDir, in mode apply for the
-// product owner and mode check for every other owner (a slot agent never touches the root netns).
-func ProductPaths(stateDir, owner string) Paths {
+// ProductPaths are the paths of owner's host firewall with its files in stateDir: mode apply only for the
+// product owner that is also the globals owner (D-071: the root-netns firewall is a host-wide singleton,
+// like VPP's globals; fix round 1, H2), mode check for everyone else — a slot agent, and a product stack
+// on a shared host that runs with VRX_GLOBALS_OWNER=0 (tools/app), never touch the root netns.
+func ProductPaths(stateDir, owner string, globalsOwner bool) Paths {
 	p := Paths{
 		Table:     TableFor(owner),
 		Mode:      ModeApply,
 		RulesFile: filepath.Join(stateDir, "host-acl-"+owner+".nft"),
 		StoreFile: filepath.Join(stateDir, "host-acl-"+owner+".json"),
 	}
-	if owner != ProductTable {
+	if owner != ProductTable || !globalsOwner {
 		p.Mode = ModeCheck
 	}
 	return p
@@ -95,11 +97,12 @@ func TestPaths(prefix, netns, dir string) Paths {
 
 // PathsFromEnv are ProductPaths adjusted by EnvMode and EnvNetns:
 //   - EnvNetns set → mode netns in that namespace (any owner);
-//   - EnvMode=check → mode check; EnvMode=apply is refused for any owner but "vrx" (the root netns of a
-//     shared host is never a test slot's to change);
+//   - EnvMode=check → mode check; EnvMode=apply is refused for any owner but "vrx" and without the
+//     globals owner (the root netns of a shared host is never a test slot's, nor a non-globals agent's,
+//     to change);
 //   - nothing set → ProductPaths.
-func PathsFromEnv(stateDir, owner string) (Paths, error) {
-	p := ProductPaths(stateDir, owner)
+func PathsFromEnv(stateDir, owner string, globalsOwner bool) (Paths, error) {
+	p := ProductPaths(stateDir, owner, globalsOwner)
 	ns := strings.TrimSpace(os.Getenv(EnvNetns))
 	mode := strings.TrimSpace(os.Getenv(EnvMode))
 	if ns != "" {
@@ -117,18 +120,22 @@ func PathsFromEnv(stateDir, owner string) (Paths, error) {
 		if owner != ProductTable {
 			return p, fmt.Errorf("%s=apply is only for the product owner %q (owner %q): use %s", EnvMode, ProductTable, owner, EnvNetns)
 		}
+		if !globalsOwner {
+			return p, fmt.Errorf("%s=apply needs the globals owner (VRX_GLOBALS_OWNER): the root-netns firewall is host-wide (D-071)", EnvMode)
+		}
 		if ns != "" {
 			return p, fmt.Errorf("%s=apply contradicts %s=%s", EnvMode, EnvNetns, ns)
 		}
+		p.Mode = ModeApply
 	default:
 		return p, fmt.Errorf("%s=%q: want apply, netns or check", EnvMode, mode)
 	}
-	return p, p.Validate(owner)
+	return p, p.Validate(owner, globalsOwner)
 }
 
 // Validate checks the paths: table and namespace names, absolute clean files, and that only the product
-// owner's table may be loaded into the root network namespace.
-func (p Paths) Validate(owner string) error {
+// owner's table, and only by the globals owner, may be loaded into the root network namespace.
+func (p Paths) Validate(owner string, globalsOwner bool) error {
 	switch {
 	case !tableRe.MatchString(p.Table):
 		return fmt.Errorf("nftables: table name %q is not vrx or vrx_<prefix>", p.Table)
@@ -138,6 +145,8 @@ func (p Paths) Validate(owner string) error {
 		return fmt.Errorf("nftables: namespace %q set in mode %s", p.Netns, p.Mode)
 	case p.Mode == ModeApply && (owner != ProductTable || p.Table != ProductTable):
 		return fmt.Errorf("nftables: only the product owner loads table %q into the root network namespace (owner %q, table %q)", ProductTable, owner, p.Table)
+	case p.Mode == ModeApply && !globalsOwner:
+		return fmt.Errorf("nftables: mode apply needs the globals owner (D-071): the root-netns firewall is host-wide")
 	case p.Mode != ModeApply && p.Mode != ModeNetns && p.Mode != ModeCheck:
 		return fmt.Errorf("nftables: unknown mode %q", p.Mode)
 	}

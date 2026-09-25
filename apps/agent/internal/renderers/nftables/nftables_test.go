@@ -412,6 +412,10 @@ func TestBuildErrors(t *testing.T) {
 		"unknown list":      {`{"acl": {"hostAttachments": [{"list": "nope", "chain": "input"}]}}`, "/acl/hostAttachments/0/list", RuleAttachment},
 		"bad chain":         {`{"acl": {"host": {"l": {}}, "hostAttachments": [{"list": "l", "chain": "prerouting"}]}}`, "/acl/hostAttachments/0/chain", RuleAttachment},
 		"priority":          {`{"acl": {"host": {"l": {}}, "hostAttachments": [{"list": "l", "chain": "input", "priority": 900}]}}`, "/acl/hostAttachments/0/priority", RuleAttachment},
+		// H1 (fix round 1): an output chain at priority <= -200 runs before conntrack (NF_IP_PRI_CONNTRACK): its
+		// `ct state established,related accept` never matches and a drop cuts management replies.
+		"output before conntrack": {`{"acl": {"host": {"eg": {"rules": [{"sequence": 1, "action": "drop"}]}}, "hostAttachments": [{"list": "eg", "chain": "output", "priority": -300}]}}`, "/acl/hostAttachments/0/priority", RuleAttachment},
+		"output at conntrack":     {`{"acl": {"host": {"eg": {}}, "hostAttachments": [{"list": "eg", "chain": "output", "priority": -200}]}}`, "/acl/hostAttachments/0/priority", RuleAttachment},
 		"twice on a chain":  {`{"acl": {"host": {"l": {}}, "hostAttachments": [{"list": "l", "chain": "input"}, {"list": "l", "chain": "input", "priority": 5}]}}`, "/acl/hostAttachments/1/chain", RuleAttachment},
 		"unknown object":    {`{"objects": {}, "acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "source": {"kind": "object", "name": "x"}}]}}, "hostAttachments": [{"list": "l", "chain": "input"}]}}`, "/acl/host/l/rules/0/source/name", RuleObject},
 		"unknown service":   {`{"objects": {}, "acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "service": {"kind": "object", "name": "x"}}]}}, "hostAttachments": [{"list": "l", "chain": "input"}]}}`, "/acl/host/l/rules/0/service/name", RuleObject},
@@ -431,6 +435,19 @@ func TestBuildErrors(t *testing.T) {
 		errs := errorsOf(issues)
 		if len(errs) == 0 || errs[0].Pointer != c.pointer || errs[0].Rule != c.rule {
 			t.Errorf("%s: want %s at %s, got %+v", name, c.rule, c.pointer, issues)
+		}
+	}
+}
+
+// H1: output chains after conntrack, and chains of the other hooks at any priority, are fine.
+func TestOutputPriorityAfterConntrack(t *testing.T) {
+	for _, js := range []string{
+		`{"acl": {"host": {"eg": {"rules": [{"sequence": 1, "action": "drop"}]}}, "hostAttachments": [{"list": "eg", "chain": "output", "priority": -199}]}}`,
+		`{"acl": {"host": {"eg": {}}, "hostAttachments": [{"list": "eg", "chain": "input", "priority": -500}, {"list": "eg", "chain": "forward", "priority": -300}]}}`,
+		`{"acl": {"host": {"eg": {}}, "hostAttachments": [{"list": "eg", "chain": "output", "priority": -300, "enabled": false}]}}`,
+	} {
+		if _, issues := build(t, doc(t, js)); len(errorsOf(issues)) != 0 {
+			t.Errorf("%s: %+v", js, issues)
 		}
 	}
 }

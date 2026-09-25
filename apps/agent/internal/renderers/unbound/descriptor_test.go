@@ -48,7 +48,7 @@ func TestDescriptorLifecycle(t *testing.T) {
 		t.Fatalf("nothing written yet, got %v", v)
 	}
 	// a foreign unbound.conf (Debian's default, no embedded input) is never reported
-	if err := os.WriteFile(p.Conf(), []byte("server:\n\tverbosity: 1\n"), 0o640); err != nil {
+	if err := os.WriteFile(p.Conf(), []byte("server:\n\tverbosity: 1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if v := retrieveOne(t, d); v != nil {
@@ -71,7 +71,7 @@ func TestDescriptorLifecycle(t *testing.T) {
 	}
 	// drift: a hand edit is a Value that never equals the desired one
 	conf, _ := os.ReadFile(p.Conf())
-	if err := os.WriteFile(p.Conf(), []byte(strings.Replace(string(conf), "verbosity: 1", "verbosity: 5", 1)), 0o640); err != nil {
+	if err := os.WriteFile(p.Conf(), []byte(strings.Replace(string(conf), "verbosity: 1", "verbosity: 5", 1)), 0o600); err != nil { //nolint:gosec // the test's own temp dir
 		t.Fatal(err)
 	}
 	drift, ok := retrieveOne(t, d).(*structpb.Struct)

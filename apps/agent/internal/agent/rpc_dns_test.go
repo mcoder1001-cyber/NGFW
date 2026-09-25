@@ -98,7 +98,7 @@ func TestHostServicesApplyRetrieveRollback(t *testing.T) {
 	if err != nil || got.GetDesiredState().GetServices() != nil || got.GetDesiredState().GetManagement() != nil {
 		t.Fatalf("after removal: %v %v", got.GetDesiredState(), err)
 	}
-	conf, _ := os.ReadFile(filepath.Join(base, "unbound/unbound.conf"))
+	conf, _ := os.ReadFile(filepath.Join(base, "unbound/unbound.conf")) //nolint:gosec // the test's own temp dir
 	if !strings.Contains(string(conf), "# no enabled resolver") {
 		t.Fatalf("unbound not idle:\n%s", conf)
 	}

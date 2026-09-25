@@ -42,8 +42,8 @@ func (g *server) storedServices(ctx context.Context) (*vrxv1.ServicesConfig, *vr
 	return svc, mgmt, nil
 }
 
-// DnsState implements the DnsState RPC.
-func (g *server) DnsState(ctx context.Context, req *vrxv1.DnsStateRequest) (*vrxv1.DnsStateResponse, error) {
+// DnsState implements the DnsState RPC (the name is fixed by the generated DataplaneServer interface).
+func (g *server) DnsState(ctx context.Context, req *vrxv1.DnsStateRequest) (*vrxv1.DnsStateResponse, error) { //nolint:revive // generated interface name
 	hs, err := g.hostServices(req.GetOwner())
 	if err != nil {
 		return nil, err

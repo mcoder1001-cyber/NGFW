@@ -31,11 +31,11 @@ func (r *recSink) Add(k scheduler.Key, v proto.Message, pointer string) {
 	r.ptrs[k] = pointer
 }
 
-func (r *recSink) Errorf(pointer, rule, format string, a ...any) {
+func (r *recSink) Errorf(pointer, rule, _ string, _ ...any) {
 	r.issues = append(r.issues, fmt.Sprintf("E %s %s", pointer, rule))
 }
 
-func (r *recSink) Warnf(pointer, rule, format string, a ...any) {
+func (r *recSink) Warnf(pointer, rule, _ string, _ ...any) {
 	r.issues = append(r.issues, fmt.Sprintf("W %s %s", pointer, rule))
 }
 

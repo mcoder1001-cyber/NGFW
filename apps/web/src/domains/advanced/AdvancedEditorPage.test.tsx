@@ -46,10 +46,12 @@ describe('advanced editor — record domains (a map of named entries)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove eth0' }));
     await waitFor(() => expect(patched).toEqual({ eth0: null }));
 
-    // add a key the candidate does not have yet: it opens a fresh (defaulted) form, not the record list
+    // add a key the candidate does not have yet: it opens a fresh (defaulted) form, not the record list. Its own
+    // GET (D-UDE-1: the exact pointer, not the whole domain again) answers 404 — read as "not created yet", not
+    // an error.
     fireEvent.change(screen.getByLabelText('New key'), { target: { value: 'eth1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
-    expect(await screen.findByRole('button', { name: 'Save to candidate' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Save to candidate' }, { timeout: 15_000 })).toBeInTheDocument();
     expect(screen.queryByText('eth0')).toBeNull();
     // a node that does not exist in the candidate has nothing to remove
     expect(screen.queryByRole('button', { name: 'Remove this node' })).toBeNull();
@@ -57,10 +59,17 @@ describe('advanced editor — record domains (a map of named entries)', () => {
 });
 
 describe('advanced editor — a record item (JSON-pointer subtree two levels deep)', () => {
-  it('saves a field as a merge patch scoped to the domain, wrapped at the item\'s key', { timeout: 60_000 }, async () => {
+  it('reads and saves at the pointer\'s real depth (D-UDE-1), not the whole domain', { timeout: 60_000 }, async () => {
     const api = installFakeApi();
-    api.on('GET /api/v1/config/candidate/interfaces', { body: { eth0: eth0Config } });
+    // the exact node, not the whole `interfaces` domain — proof that the generic route now addresses the real
+    // depth (`/api/v1/config/candidate/interfaces/eth0`), not `/api/v1/config/candidate/interfaces` + a client-side
+    // walk.
+    api.on('GET /api/v1/config/candidate/interfaces/eth0', { body: eth0Config });
     let patched: unknown;
+    api.on('PATCH /api/v1/config/interfaces/eth0', (_r, body) => {
+      patched = body;
+      return { body: { pointer: '/interfaces/eth0', before: null, after: null } };
+    });
     api.on('PATCH /api/v1/config/interfaces', (_r, body) => {
       patched = body;
       return { body: { pointer: '/interfaces', before: null, after: null } };
@@ -71,9 +80,10 @@ describe('advanced editor — a record item (JSON-pointer subtree two levels dee
     const mtu = await screen.findByLabelText('MTU', {}, { timeout: 15_000 });
     fireEvent.change(mtu, { target: { value: '1400' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save to candidate' }));
-    await waitFor(() => expect(patched).toEqual({ eth0: { mtu: 1400 } }));
+    // exactly the item's own merge patch, at its own pointer — no more `{ eth0: { mtu: 1400 } }` wrapper
+    await waitFor(() => expect(patched).toEqual({ mtu: 1400 }));
 
-    // and removing the whole item is the same wrap with a null body
+    // removing the whole item is still a merge patch of its PARENT (the record), `{ eth0: null }`
     fireEvent.click(screen.getByRole('button', { name: 'Remove this node' }));
     await waitFor(() => expect(patched).toEqual({ eth0: null }));
   });
@@ -105,16 +115,19 @@ describe('advanced editor — a fixed-shape domain root (nested containers becom
     await waitFor(() => expect(patched).toEqual({ hostname: 'vrx-b' }));
   });
 
-  it('opening a nested container navigates the breadcrumb one level down', { timeout: 60_000 }, async () => {
+  it('opening a nested container navigates the breadcrumb one level down and reads that node directly', { timeout: 60_000 }, async () => {
     const api = installFakeApi();
     api.on('GET /api/v1/config/candidate/system', {
       body: { hostname: 'vrx', timezone: 'UTC', banner: { login: 'welcome' }, dns: { servers: [], searchDomains: [], vrf: 'default' } },
     });
+    // the banner sub-page reads `/system/banner` directly (D-UDE-1), not the whole `system` domain again
+    api.on('GET /api/v1/config/candidate/system/banner', { body: { login: 'welcome' } });
     await signIn();
     render(app('/config/system'));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Banners' }, { timeout: 15_000 }));
-    expect(await screen.findByLabelText('Pre-login banner')).toBeInTheDocument();
+    const login = await screen.findByLabelText('Pre-login banner');
+    expect(login).toHaveValue('welcome');
     const nav = screen.getByLabelText('Configuration path');
     expect(within(nav).getByText('System')).toBeInTheDocument();
     expect(within(nav).getByText('Banners')).toBeInTheDocument();

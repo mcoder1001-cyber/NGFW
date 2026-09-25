@@ -124,11 +124,6 @@ export function valueAt(value: unknown, segments: readonly string[]): unknown {
   return cur;
 }
 
-/** Nest `body` under `segments` (`['a','b'], v` → `{ a: { b: v } }`); `[]` returns `body` itself. */
-export function wrapAtPath(segments: readonly string[], body: unknown): unknown {
-  return segments.reduceRight<unknown>((acc, seg) => ({ [seg]: acc }), body);
-}
-
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }

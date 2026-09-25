@@ -25,7 +25,7 @@ import { useConfirmState } from '../../config/confirm-store';
 import { ProblemAlert } from '../../config/ProblemAlert';
 import { domainByKey, domainSchemas, domains, ROOT_KEYS, type RootKey } from '../../schema/registry';
 import { PageHeader } from '../../shell/PageHeader';
-import { usePatchDomain, useDomainCandidate } from './queries';
+import { usePatchConfigNode, useConfigNode } from './queries';
 import {
   childPropertyKeys,
   configPathTo,
@@ -35,7 +35,6 @@ import {
   valueAt,
   withoutChildProperties,
   withoutChildValues,
-  wrapAtPath,
   type ResolvedNode,
 } from './schemaPath';
 import { absolutePointer, inSubtree, notAppliedForDomain } from './subtree';
@@ -89,9 +88,12 @@ export function AdvancedEditorPage() {
   const segments = useMemo(() => cfgPath?.segments ?? [], [cfgPath]);
   const domainSchema = domainKey ? domainSchemas[domainKey] : undefined;
   const node = useMemo(() => (domainSchema ? resolveNode(domainSchema, segments) : null), [domainSchema, segments]);
+  // The exact JSON pointer of this route (D-UDE-1: the generic route now addresses it directly, not the whole
+  // domain) — computed before the early returns below so the hooks that need it stay unconditional.
+  const pointer = useMemo(() => (domainKey ? absolutePointer(domainKey, segments) : ''), [domainKey, segments]);
 
-  const candidate = useDomainCandidate((domainKey ?? 'system') as RootKey, domainKey !== undefined);
-  const patch = usePatchDomain((domainKey ?? 'system') as RootKey);
+  const candidate = useConfigNode(pointer, domainKey !== undefined);
+  const patch = usePatchConfigNode();
   const diffQuery = useDiff();
   const confirmState = useConfirmState();
 
@@ -118,8 +120,9 @@ export function AdvancedEditorPage() {
   }
 
   const domainTitle = t(`nav:domains.${domainKey}`, { defaultValue: domainByKey(domainKey)?.title ?? domainKey });
-  const pointer = absolutePointer(domainKey, segments);
   const parentSegments = segments.slice(0, -1);
+  const parentPointer = absolutePointer(domainKey, parentSegments);
+  const lastSegment = segments[segments.length - 1];
 
   if (!node) {
     return (
@@ -134,8 +137,10 @@ export function AdvancedEditorPage() {
     );
   }
 
-  const candidateDomainValue = candidate.data;
-  const candidateNodeValue = valueAt(candidateDomainValue, segments);
+  // `useConfigNode` answers `null` for a pointer the candidate does not have yet (a query function may never
+  // resolve `undefined`); the rest of this screen already treats a genuinely absent node as `undefined` (a new,
+  // not-yet-created form) exactly like every other domain screen (`domains/interfaces/model.ts`), so normalise here.
+  const candidateNodeValue = candidate.data === null ? undefined : candidate.data;
   const changesHere = inSubtree(diffQuery.data?.changes ?? [], pointer);
   const summary = confirmState.tracked?.summary ?? confirmState.outcome?.summary;
   const notAppliedHere = summary ? notAppliedForDomain(summary.notApplied, domainKey) : false;
@@ -153,13 +158,15 @@ export function AdvancedEditorPage() {
     setSaved(false);
     const base = withoutChildValues(candidateNodeValue, childKeys);
     const body = base === undefined ? value : createMergePatch(base, value);
-    await patch.mutateAsync(wrapAtPath(segments, body));
+    await patch.mutateAsync({ pointer, body });
     setSaved(true);
   };
 
-  const removeAt = async (atSegments: readonly string[]) => {
+  /** Remove one child of the node at `at` (a record entry, or this node's own key from its parent) — a merge patch
+   * of `at` itself, `{ [key]: null }` (RFC 7386 remove), addressed at its own depth (D-UDE-1). */
+  const removeChild = async (at: string, key: string) => {
     setSaved(false);
-    await patch.mutateAsync(wrapAtPath(atSegments, null));
+    await patch.mutateAsync({ pointer: at, body: { [key]: null } });
   };
 
   const goto = (extra: readonly string[]) => navigate(`/${configPathTo(domainKey, [...segments, ...extra])}`);
@@ -255,7 +262,7 @@ export function AdvancedEditorPage() {
             goto([key]);
           }}
           onOpen={(key) => goto([key])}
-          onRemove={(key) => void removeAt([...segments, key])}
+          onRemove={(key) => void removeChild(pointer, key)}
         />
       )}
 
@@ -275,7 +282,8 @@ export function AdvancedEditorPage() {
           onOpenChild={(key) => goto([key])}
           onSave={(value) => void save(value)}
           onRemove={() => {
-            void removeAt(segments).then(() => navigate(`/${configPathTo(domainKey, parentSegments)}`));
+            if (lastSegment === undefined) return; // guarded by canRemove (segments.length > 0)
+            void removeChild(parentPointer, lastSegment).then(() => navigate(`/${configPathTo(domainKey, parentSegments)}`));
           }}
         />
       )}

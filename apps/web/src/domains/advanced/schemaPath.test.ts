@@ -9,7 +9,6 @@ import {
   valueAt,
   withoutChildProperties,
   withoutChildValues,
-  wrapAtPath,
 } from './schemaPath';
 
 const ROOT_KEYS = ['interfaces', 'system'] as const;
@@ -133,19 +132,6 @@ describe('valueAt', () => {
   });
   it('the empty path is the whole document', () => {
     expect(valueAt(doc, [])).toBe(doc);
-  });
-});
-
-describe('wrapAtPath (subtree PATCH/DELETE as a merge patch of the domain root)', () => {
-  it('nests the body under every segment', () => {
-    expect(wrapAtPath(['eth0', 'mtu'], 1500)).toEqual({ eth0: { mtu: 1500 } });
-  });
-  it('an empty path returns the body itself (editing the domain root)', () => {
-    expect(wrapAtPath([], { mtu: 1500 })).toEqual({ mtu: 1500 });
-  });
-  it('DELETE is the same wrap with a null body (RFC 7386 remove)', () => {
-    expect(wrapAtPath(['eth0'], null)).toEqual({ eth0: null });
-    expect(wrapAtPath(['eth0', 'subinterfaces', '100'], null)).toEqual({ eth0: { subinterfaces: { '100': null } } });
   });
 });
 

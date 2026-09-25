@@ -24,6 +24,22 @@ resolved URL string directly and skipping `openapi-fetch`'s path templating for 
 small follow-up task if a screen ever needs a *server-side* pointer walk deeper than one segment (e.g. for a huge
 domain where fetching the whole thing is wasteful). Flagging for the log; not blocking.
 
+**RESOLVED, fix round 1 (review 3ac4825e, Medium).** The review confirmed the server side of this analysis exactly
+(the wildcard route + `pointerFromUrl` already split a real URL of any depth) and asked for the client-side fix
+rather than leaving it as a flagged limitation. Added `packages/api-client/src/config-path.ts`
+(`configPointerPath`/`configUrl`, hand-written, not generated, exported from the package's `index.ts`): it splits a
+pointer on its own segment boundaries and percent-encodes each one separately, keeping the real `/` between them.
+`domains/advanced/queries.ts`'s `useConfigNode`/`usePatchConfigNode` now GET/PATCH the generic route at the
+pointer's own depth; `AdvancedEditorPage.tsx` no longer fetches or patches the whole domain, and `schemaPath.ts`'s
+`wrapAtPath` (nest a body under a domain-relative path) is gone, since nothing patches at the domain root unless the
+domain root is the pointer being edited. Unit-tested in `apps/web/src/domains/advanced/configPath.test.ts` (nested
+pointers, the unchanged single-segment case, the root pointer, `~0`/`~1` escapes surviving untouched, a literal `%`
+and non-ASCII segment percent-encoded) — `packages/api-client` itself has no vitest (its own "test" script only
+type-checks `test/consumer.ts` against the built package), so this runs from `@ngfw/web`, which already depends on
+both packages; no dependency added anywhere. Full detail and verification output: `UI-domain-editor.md` "Fix round 1".
+`createMergePatch` → `@ngfw/schema` and the WEB-2 config-kit overlap were explicitly left to the manager, not
+touched here.
+
 ## D-UDE-2 — no `// wave-A: UI-domain-editor` anchor existed in router.tsx / i18n.ts
 The envelope says to put the router/i18n hunks "under the existing `// wave-A: UI-domain-editor` anchors". W-seed
 (`docs/status/wave-A-hotspots.md` §1) seeded one `// wave-A: <task-id>` anchor per **wave-A hotspot task** at the time

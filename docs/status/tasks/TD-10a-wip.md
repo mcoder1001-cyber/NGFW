@@ -7,3 +7,4 @@
 | 2026-09-24 20:57 | session-limit stop; manager salvaged the web hunk as 5374c4a |
 | 2026-09-24 21:10 | resumed: web hunk re-applied on the original formatting (the salvage carried a whole-file prettier reformat of RevisionsPage.tsx/net.ts); web tests 8/8 fail on main, pass here. Next: rebase on main (P08, W-seed, TD-2 merged), full checks, TD-10a.md |
 | 2026-09-24 21:45 | main merged (P08, W-seed); api unit 113/113, api e2e 67/67 (w5), web 106/106, cli ok; main-failure evidence re-run on `git archive main` (869c580); `tools/ci.sh --base main` → CI GATE PASSED; TD-10a.md + questions written. Done. |
+| 2026-09-25 01:00 | fix round 1 (review 3abfd0a): H1/M1/M2/L1–L4 fixed with tests (pre-fix failures pasted), td10a e2e 5/5 on w5 (:3500 free), api unit 119/119, web 12/12 new, CLI ok; CI GATE PASSED on 574d7a6. Done. |

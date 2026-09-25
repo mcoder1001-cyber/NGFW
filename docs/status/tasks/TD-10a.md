@@ -121,3 +121,71 @@ CI GATE PASSED
 - `commit-busy` handling in the pending-change bar (CommitDialog / queries.ts are not in files_owned). The bar already shows the 409 problem as the server sends it, and the outcome lookup for commits from the bar is a one-line reuse of `applyOutcome` in CommitDialog, left for its owner. The CLI shows commit-busy as its problem detail.
 - A tombstone or refusal for secrets still pinned by old revisions (D-TD10a-5).
 - The users.service / auth / state files (TD-4, TD-10b, P08).
+
+## Fix round 1 (TD-10a-review.md @ 3abfd0a: APPROVE WITH CHANGES)
+
+Commits: 2809b1a (API + web), 2cfae25 (H1 e2e, CLI L3/L4, budget note, tech-debt). main merged twice (ba34e80, 574d7a6), no conflicts.
+
+| finding | fix |
+|---|---|
+| **H1** the lock client is checked out with no `error` listener, so a PG restart or a dropped connection crashes vrx-api | `pg-lock.ts`: `watched(client)` attaches our own `error` listener from checkout to release. `release()` gives the client back first and only then removes the listener, so the client is never without one. A lost client is destroyed (`release(err)`) and never re-pooled. `mutex.ts`: `ProcessLock` returns `Held { release(), lost() }`, and `CommitLock` calls `opts.onLost` after the section. `commit.service.ts` `lockLost()` records the system event `COMMIT_LOCK_LOST`, sets sync `unknown`, and the reconcile re-checks the agent. The section itself finishes normally. |
+| **M1** the web says "not applied, try again" while the server's budget can still be running | `net.ts`: `COMMIT_BUDGET_MS = 111_000` and `OUTCOME_WAIT` (budget + 5 s, poll every 3 s). `applyOutcome()` answers `running` rather than `not-applied` until the budget has passed. `RevisionsPage.tsx` `followOutcome()` polls `/state/system` and the newest revision until an outcome is decisive or the budget has passed; closing or resubmitting the dialog ends the follow-up. The `looking` string now says "do not start another one meanwhile". Tech-debt line for P10: nginx `proxy_read_timeout ≥ 130 s` on the apply paths. |
+| **M2** secret delete waited without bound behind commits | `CommitService.userExclusive()` = `userSection`: after the 1 s wait it answers 409 `commit-busy` with `retryAfterSec: 2`. `SecretsService.delete` uses it. The same change for `users.service.ts:134` is handed to TD-10b (tech-debt line). |
+| **L1** a second API process could undo the other's lost-answer recovery | `checkAgentTxn` re-reads `config_sync` from the database inside the lock and does nothing unless it says `in-sync`. |
+| **L2** the lock wait was not bounded by pool exhaustion | `tryAcquire` races `pool.connect()` against the wait; a late client goes back to the pool. The cross-process wait gets at least 250 ms. `budget.ts` states that the DB 15 s margin is an assumption; tech-debt goes to TD-15 (pool `connectionTimeoutMillis`, `statement_timeout`). |
+| **L3** outcome heuristics could name the wrong commit | Web: a pending commit counts only if `createdAt ≥ sentAt − 5 s`; an older one is someone else's. CLI: reads the newest revision id before a commit, rollback or confirm and reports "new since the request: revision N … it was applied" by id, not by the server clock. A pending commit is reported as a fact ("a commit IS pending: txn …, created …"), not as "yours". |
+| **L4** test gaps | New unit test for the confirm path "no answer and no Health → `running-unknown` → reconcile finds it confirmed → revision saved". The CLI outcome test is now driven by `c.ApplyTimeout = 300ms` (the per-request deadline) instead of `http.Client.Timeout`. The H1 tests are below. |
+| L5 | Confirm-banner retry on `commit-busy`: tech-debt line for the owner of `apps/web/src/config/**`, together with CommitDialog reusing `followOutcome`. |
+
+D-132 does not apply: the follow-up polls `/state/system` (agent Health, an in-memory snapshot with no VPP walk) and `/config/revisions` (database).
+
+### Evidence
+
+Tests fail before the fix (log `/root/ngfw-wt/logs/TD-10a-fix1-prefix-fail.log`, run on 2809b1a's tests with the pre-fix code):
+```
+   × H1: losing the lock connection mid-section > run: the process survives, the section finishes, …
+   × H1: losing the lock connection mid-section > tryRun: the process survives, the section finishes, …
+   × H1: losing the lock connection mid-section > CommitService: a commit whose lock connection drops completes; …
+   × fix round 1 > M2: a secret delete during a commit is 409 commit-busy after the lock wait, not queued      → Error: expected a problem
+   × fix round 1 > L1: a second API process does not undo the first one’s lost-answer recovery                → expected 'unknown' to be 'in-sync'
+   ✓ fix round 1 > L4: confirm with no answer and no Health → running-unknown; …                               (coverage for an existing path)
+H1 failures: uncaught "Connection terminated unexpectedly" (pg Client error event without listener) → expected [ …(1) ] to deeply equal []
+```
+H1 on real PostgreSQL (`pg_terminate_backend` of the session that holds the advisory lock while the agent Apply runs), with the pre-fix API code (`TD-10a-fix1-e2e-H1-prefix.log`):
+```
+   × TD-10a commit engine on PostgreSQL > H1 (fix round 1) the PostgreSQL backend holding the commit lock is terminated mid-commit …
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+error: terminating connection due to administrator command
+Error: Connection terminated unexpectedly
+      Tests  1 failed | 4 skipped (5)      Errors  2 errors
+```
+Web, new tests against the pre-fix net.ts and RevisionsPage.tsx (`TD-10a-fix1-web-prefix-fail.log`), then restored:
+```
+   × M1: nothing new while the server may still be working (early network error, proxy 504): running, never not-applied → expected { kind: 'not-applied' } to deeply equal { kind: 'running' }
+   × L3: a pending commit older than the request is someone else’s, not this one → expected { kind: 'pending', …(2) } to deeply equal { kind: 'not-applied' }
+   × the budget constant matches the server → expected undefined to be 111000
+   × reports "not applied" when nothing changed — only after the server budget has passed → Unable to find … /following up what became of the rollback/i
+   × M1: an early network error while the rollback still runs → never "not applied"; the late revision is reported → Unable to find … /revision 3 was created/i
+      Tests  5 failed | 7 passed (12)
+```
+After the fix:
+```
+apps/api  vitest run (unit)                  Test Files 12 passed (12)   Tests 119 passed (119)   (tsc + eslint clean)
+apps/api  td10a e2e (w5, :3500 free, flock -s)
+ ✓ 2.4b a second API process gets 409 commit-busy while the first one commits
+ ✓ H1 (fix round 1) the PostgreSQL backend holding the commit lock is terminated mid-commit: the API survives, running is re-checked
+ ✓ 2.2 + 2.5 a confirmed rollback confirmed by a restarted API restores the secret versions; warnings survive
+ ✓ 2.3f a secret delete with a commit landing between its reads never leaves running on a deleted secret
+      Tests  5 passed (5)       (2.3f race: commit 409, delete 409, running references it: false, secret exists: true)
+apps/web  net.test.ts + RevisionsPage.test.tsx  Tests 12 passed (12)   (tsc + eslint clean)
+apps/cli  go vet + golangci-lint 0 issues; go test ./... all ok
+```
+(5 of 5 passed: the fifth, the 2.1 case, ran in under 300 ms, and vitest's default reporter lists only slower tests by name.)
+
+CI (`TMPDIR=/tmp/g-w5a tools/ci.sh --base main` on 574d7a6, log `/root/ngfw-wt/logs/TD-10a-fix1-ci.log`):
+```
+no contract files changed in the 11 commit(s) of HEAD since main (ae359680)
+== lint · typecheck · unit tests · build (turbo) ==  == apps/agent ==  == apps/cli ==  == test/ Go modules ==  == deploy/vpp ==
+== summary (quick) ==
+CI GATE PASSED
+```

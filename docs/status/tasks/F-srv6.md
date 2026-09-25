@@ -242,3 +242,35 @@ See `F-srv6-questions.md`:
 - Q8: the coretest hook until TD-23 merges.
 - Q9: sdk regeneration.
 - Q10: interim screenshots.
+
+## CI (final)
+
+`TMPDIR=/tmp/g-w4 tools/ci.sh --base main` at 287a644a (main@0f17e320), log `/root/ngfw-wt/logs/F-srv6-ci-2.log`:
+
+```
+ok — contract commit(s) on the branch:
+  d66ec5ec contract(api-client): regenerate — GET /api/v1/state/srv6 (Srv6_state)
+  2ae829d7 contract(proto): routing srv6, Srv6State
+  c9ccc8db contract(schema): routing srv6
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   1m36s
+  forbidden patterns (+ gitleaks)                    0m04s
+  packet-trace ban on the shared VPP (D-128)         0m01s
+  lint · typecheck · unit tests · build (turbo)   3m00s
+  apps/agent: make lint test build                   0m31s
+  apps/cli: make lint test build                     0m09s
+  test/ Go modules, unit mode (test/integration/smoke test/topology/interfaces)   0m05s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   0m09s
+  mode quick · wall time 5m39s · logs /root/ngfw-wt/logs/ci/F-srv6-20260925-113721-1340111
+CI GATE PASSED
+```
+(The first run, at bff24fec, also passed: 11m42s, turbo 30/30 tasks, `/root/ngfw-wt/logs/F-srv6-ci-1.log`.)
+
+## Cleanup (non-host parts)
+
+Every process started for the e2e and screenshot runs was stopped by PID (fake agent, vrx-api, vite preview). The
+databases vrx_w4 (e2e harness) and vrx_w4srshot were dropped. No VPP object was created (host runs are closed). No
+`apps/agent/bin` was built. The CI build outputs (`dist/`) are git-ignored and are left to the CI cache.

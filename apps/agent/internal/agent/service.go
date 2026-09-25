@@ -50,6 +50,7 @@ type Service struct {
 	bus        *bus
 	metrics    *metrics
 	now        func() time.Time
+	claimsTxn  func() (flush func() error) // TD-11c: Wiring.ClaimsTxn, set by Start (nil = none)
 
 	// txn serialises transactions (Apply, resync, revert) and guards st and timer.
 	txn      chan struct{}
@@ -373,6 +374,8 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_RECONCILE_START, TxnId: txnID, Message: fmt.Sprintf("%s %v", modeName(m), domains)})
 	log := s.log.With("txn_id", txnID, "mode", modeName(m), "domains", domains)
 	log.Info("reconcile start")
+	flushClaims, endClaims := s.claimsBatch() // TD-11c: one keyed-claim batch per transaction
+	defer endClaims()
 
 	resp := &vrxv1.ApplyResponse{TxnId: txnID}
 	if s.beforeTxn != nil {
@@ -398,6 +401,14 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	}
 	resp.AppliedAt = timestamppb.New(s.now())
 
+	// TD-11c (review F2): the claims reach the snapshot before the outcome is recorded. A failed write
+	// is never APPLIED: DEGRADED, so the desired state is not merged and the API re-applies running;
+	// the records stay in memory and in the journal and are written at the next transaction end.
+	claimsErr := flushClaims()
+	if claimsErr != nil {
+		log.Error("persist claim stores", "err", claimsErr)
+		claimsNotPersisted(resp, claimsErr)
+	}
 	switch resp.Status {
 	case vrxv1.ApplyStatus_APPLY_STATUS_APPLIED:
 		s.setDegraded(false, "")
@@ -424,6 +435,9 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 			s.st.meta.Reverting = false
 		}
 	case vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED:
+		s.setDegraded(true, resp.GetMessage())
+	}
+	if claimsErr != nil { // a rolled-back or refused transaction keeps its status, the agent is DEGRADED
 		s.setDegraded(true, resp.GetMessage())
 	}
 	s.refreshSnapshotLocked()
@@ -836,4 +850,37 @@ func report(txnID string, pj *projected, plan *scheduler.TxnPlan) *vrxv1.Validat
 		rep.Summary = summaryPB(plan.Summary())
 	}
 	return rep
+}
+
+// claimsBatch opens one batch of the keyed claim stores for a transaction (TD-11c, D-133: claims are
+// journaled before the VPP write and compacted into the snapshot by end) and returns end and a
+// function the caller defers: it ends the batch when the transaction panicked before end ran
+// (review F4), so the stores never stay in batch mode. applyLocked and TD-8's syncLocked both use it
+// (review F5). No hook (unit tests of other domains): both are no-ops.
+func (s *Service) claimsBatch() (end func() error, cleanup func()) {
+	if s.claimsTxn == nil {
+		return func() error { return nil }, func() {}
+	}
+	flush, ended := s.claimsTxn(), false
+	end = func() error { ended = true; return flush() }
+	cleanup = func() {
+		if !ended {
+			_ = flush()
+		}
+	}
+	return end, cleanup
+}
+
+// claimsNotPersisted records a failed end of the claim batch in resp (review F2): APPLIED becomes
+// DEGRADED — the caller must not record the outcome as applied — and the message says why. The
+// records stay in memory and in the journal; the next transaction end writes them.
+func claimsNotPersisted(resp *vrxv1.ApplyResponse, err error) {
+	msg := "claim stores not persisted: " + err.Error()
+	if resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+		resp.Status = vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED
+	}
+	if resp.GetMessage() != "" {
+		msg = resp.GetMessage() + "; " + msg
+	}
+	resp.Message = msg
 }

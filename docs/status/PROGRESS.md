@@ -2,17 +2,17 @@
 
 Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 43.8% by hours (513.5/1172.5 h), 46.2% by tasks (60/130)**
+**Overall: 44.7% by hours (524.5/1172.5 h), 46.9% by tasks (61/130)**
 
 | state | tasks |
 |---|---|
-| merged | 60 |
-| review | 25 |
+| merged | 61 |
+| review | 24 |
 | running | 5 |
-| ready | 4 |
+| ready | 6 |
 | parked | 2 |
 | failed | 0 |
-| todo | 34 |
+| todo | 32 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
@@ -20,7 +20,7 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 116.5 / 605.0 | 19.3% | 17/70 | 4 | 3 | 0 |
+| S4 | 127.5 / 605.0 | 21.1% | 18/70 | 4 | 5 | 0 |
 | S5 | 38 / 147.5 | 25.8% | 4/15 | 1 | 1 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -51,7 +51,6 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 - WEB-2 — Config screen kit (generic list+drawer+live-status over any candidate path) + data widgets + Secrets page (review, ngfw-46 slot1)
 - WEB-3 — Committed browser harness: e2e lib, shots.mjs, screens/_example.mjs (P08 screenshot script was lost, F6) (review, unassigned)
 - TD-9 — Agent core: bounded VPP calls + txn semantics (+ failed state save answers DEGRADED) (review, unassigned)
-- TD-11c — Untagged NICs, alias-aware delete order, claim-store scale (review, unassigned)
 - TD-13 — Scheduler tier-3 Validator + VPP→daemon stage (validate daemon config before any VPP write) (review, unassigned)
 - UI-domain-editor — Advanced configuration editor: generic schema-driven page for any domain path (review, unassigned)
 - TD-8b — Agent seams follow-up: quarantine only the failing dynamic object (not the whole source), SyncFunc doc for goroutines, ID-range flip to refuse start-up (tools/app VRX_VPP_TABLE_BASE=13000, topology harness passthrough, P10 unit `all`, df7.WithIDs + feature-prompt rule) (review, unassigned)

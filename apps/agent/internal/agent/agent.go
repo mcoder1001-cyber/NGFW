@@ -178,6 +178,7 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 	}
 	a := &Agent{cfg: cfg, log: log, conn: conn, svc: svc, metrics: m, stats: newStatsReader(cfg.VPPStatsSocket, log), wiring: wiring, resyncs: resyncs}
 
+	svc.claimsTxn = wiring.ClaimsTxn // TD-11c (review 3.2): keyed claim stores write once per transaction
 	l, err := listenUnix(cfg.Socket, cfg.SocketGroup, log)
 	if err != nil {
 		conn.Close()

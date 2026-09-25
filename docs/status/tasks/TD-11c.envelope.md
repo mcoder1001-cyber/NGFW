@@ -1,0 +1,12 @@
+# TASK ENVELOPE — TD-11c untagged NICs, alias-aware delete order, claim-store scale (REVIEW-2026-09-24 §3, verified; D-125)
+id: TD-11c   branch: task/TD-11c   worktree: /root/ngfw-wt/TD-11c   base: task/P08@998e391 (SPECULATIVE D-114; P08 merging now)   started: 2026-09-24T19:37
+slot: 10 → eval "$(tools/lab env 10)" (w10, tables 10000-10999); host tests one package at a time under flock -s, NRestarts before/after
+read first: /root/ngfw-wt/REVIEW-2026-09-24-verdicts.md, /root/ngfw-wt/REVIEW-2026-09-24-verified-plan.md (section A "TD-11c", B), /root/ngfw-wt/REVIEW-2026-09-24-verify-results.json (section s3), LOG D-071, D-080, D-105, D-110, D-126; F-vlan-qinq's Q1 (delete-order gap: sub-interface before its admin state/address; ProvidedKeys fix in /root/ngfw-wt/F-vlan-qinq, commit e771ecb — read it, the scheduler-level fix is yours).
+scope (exactly): 3.1b core interface-ip / interface-ip.table accept an UNTAGGED NIC through Wiring.IfaceClaims() (D-071 claim path, D-080 boot identity) so an address/VRF binding on a non-loopback NIC applies; 3.1c the scheduler's topological order follows a dependency THROUGH the interface/<name> alias to its creator, so deletes run dependents-first for every interface kind (not only by registration order) — prove with sub-interface + address + admin-state delete, and bond/bridge-member shapes on the fake; 3.2 flush-per-txn: KeyedClaims batches writes and flushes once per transaction (atomic, fsync'd). Tests fail on the base first (paste).
+host proof: an address on an af_packet NIC (w10 veth, quiesced delete per TD-5) applies through the agent and Retrieve == desired; restart keeps the claim. No packets, no classify sweeps (D-126).
+files you own: apps/agent/internal/descriptors/core/{core,ifaddr}.go apps/agent/internal/subsystems/subsystems.go (core.Register hunk only) apps/agent/internal/scheduler/reconciler.go (topo hunk ONLY) apps/agent/internal/subsystems/stores.go (KeyedClaims batching only; TD-11b owns the refresh bound) docs/status/tasks/TD-11c*
+must not touch: reconciler.go ApplyWith/recover (TD-9), executor.create (TD-11b), Validator (TD-13); feature files.
+CI: `TMPDIR=/tmp/g-w10 tools/ci.sh --base main`. Ports 3000/8080/9101 belong to tools/app.
+GIT RULE: git only as `git -C /root/ngfw-wt/TD-11c …`; NEVER in /root/ngfw.
+time box: 11 h (WIP commits every 45 min). finish: TD-11c.md with pasted evidence; commit; final message = 10-line summary.
+never: merge · restart/kill VPP · pkill

@@ -15,9 +15,15 @@
 // "interface.loopback/<name>" for loopbacks, "interface/<name>" otherwise. A VRF is "vrf/<id>".
 //
 // Ownership (docs/contracts/proto.md §6): loopbacks carry the interface tag "<owner>:<name>";
-// addresses and table bindings belong to us when their interface does; VRF tables are named
-// "<owner>:<vrf name>" in VPP; routes (no tag field) are recorded in the owner table in the state
-// dir (internal/ownertable) and Retrieve reports only recorded routes that exist in VPP.
+// addresses and table bindings belong to us when their interface does — or, on an UNTAGGED interface
+// (a DPDK NIC named by F-startup-gen, anything no descriptor created; its logical name is VPP's name),
+// when Env.Claims holds our claim on it (D-071 claim path, TD-11c): Create claims before it writes,
+// Delete releases after it removed, Retrieve reports only claimed objects. The product store binds
+// each claim to the VPP boot identity and the sw_if_index (D-080), so a re-created or foreign
+// interface of the same name is never adopted. Without a store an untagged interface is refused;
+// another owner's interface always is. VRF tables are named "<owner>:<vrf name>" in VPP; routes (no
+// tag field) are recorded in the owner table in the state dir (internal/ownertable) and Retrieve
+// reports only recorded routes that exist in VPP.
 package core
 
 import (
@@ -63,6 +69,28 @@ type Env struct {
 	// IfRef maps an interface name to the key core objects depend on (nil = DirectInterfaceRef;
 	// AliasInterfaceRef once DF-1's "interface" alias descriptor is registered, D-065).
 	IfRef func(name string) scheduler.Key
+	// Claims is the owner's interface claim store (the product agent: the persisted
+	// subsystems.IfaceClaims, D-071/D-080). nil = untagged interfaces are refused (ErrNotOwned).
+	Claims ClaimStore
+}
+
+// ClaimStore records which holder configured which untagged interface (iface.ClaimStore's shape;
+// subsystems.IfaceClaims implements it). Holders: InterfaceTableName for a table binding,
+// AddrHolder(prefix) for one address.
+type ClaimStore interface {
+	Claim(ifName, holder string) error
+	Release(ifName, holder string) error
+	Claimed(ifName, holder string) bool
+}
+
+// AddrHolder is the claim holder of one interface address: "interface-ip|<canonical prefix>". Claims
+// are per address, so an address somebody else put on the NIC (linux-nl, a DHCP lease, vppctl) is
+// never reported or removed.
+func AddrHolder(prefix string) string {
+	if c, err := CanonAddrPrefix(prefix); err == nil {
+		prefix = c
+	}
+	return InterfaceAddrName + "|" + prefix
 }
 
 // DirectInterfaceRef references loopbacks by their creator key and every other interface by the
@@ -173,6 +201,8 @@ type ifInfo struct {
 	VPPName string
 	DevType string
 	ID      string // owner-tag id; "" when not owned by us
+	// Untagged: no tag at all (not local0): a physical / pre-existing interface (TD-11c claim path).
+	Untagged bool
 }
 
 // ifTable indexes one dump.
@@ -198,6 +228,7 @@ func dumpInterfaces(ctx context.Context, c vpp.Client, owner string) (*ifTable, 
 			return nil, fmt.Errorf("sw_interface_dump: %w", err)
 		}
 		in := ifInfo{Index: uint32(d.SwIfIndex), VPPName: trimNul(d.InterfaceName), DevType: trimNul(d.InterfaceDevType)}
+		in.Untagged = trimNul(d.Tag) == "" && in.Index != 0 && in.VPPName != "local0"
 		if id, ok := vpp.ParseOwnerTag(d.Tag, owner); ok {
 			in.ID = id
 			t.byID[id] = in
@@ -216,6 +247,54 @@ func (t *ifTable) owned(name string) (ifInfo, error) {
 		return ifInfo{}, fmt.Errorf("%w: %q", ErrNotOwned, name)
 	}
 	return in, nil
+}
+
+// target resolves the interface a per-interface object (address, table binding) names: our tagged
+// interface by tag id first, else — with a claim store — an untagged interface of that VPP name (its
+// logical name, D-069). Another owner's interface, local0 and unknown names are ErrNotOwned.
+func (e Env) target(t *ifTable, name string) (ifInfo, error) {
+	if in, ok := t.byID[name]; ok {
+		return in, nil
+	}
+	if in, ok := t.byName[name]; ok && in.Untagged && e.Claims != nil {
+		return in, nil
+	}
+	return ifInfo{}, fmt.Errorf("%w: %q", ErrNotOwned, name)
+}
+
+// logical returns the name under which in's per-interface objects of holder are ours: the tag id of
+// our interface, VPP's name of an untagged interface we hold holder's claim on; false otherwise.
+func (e Env) logical(in ifInfo, holder string) (string, bool) {
+	switch {
+	case in.ID != "":
+		return in.ID, true
+	case in.Untagged && e.Claims != nil && e.Claims.Claimed(in.VPPName, holder):
+		return in.VPPName, true
+	}
+	return "", false
+}
+
+// claim records holder's claim on an untagged target BEFORE the object is written (a crash or a
+// failed write can leave a claim on nothing, never an unrecorded object in VPP); tagged: no-op.
+func (e Env) claim(in ifInfo, holder string) error {
+	if !in.Untagged {
+		return nil
+	}
+	if err := e.Claims.Claim(in.VPPName, holder); err != nil {
+		return fmt.Errorf("claim %s on untagged interface %q (D-071): %w", holder, in.VPPName, err)
+	}
+	return nil
+}
+
+// release drops holder's claim on the untagged interface name (no-op when there is none).
+func (e Env) release(name, holder string) error {
+	if e.Claims == nil {
+		return nil
+	}
+	if err := e.Claims.Release(name, holder); err != nil {
+		return fmt.Errorf("release claim %s on %q: %w", holder, name, err)
+	}
+	return nil
 }
 
 // any resolves an interface by document name: an owned one by tag id first, else by VPP name.

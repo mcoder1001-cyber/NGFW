@@ -65,6 +65,7 @@ func newSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
 		t.Fatal(err)
 	}
 	svc.retryMin, svc.retryMax = time.Hour, time.Hour // tests drive retries explicitly
+	svc.claimsTxn = w.ClaimsTxn                       // as Start wires it (TD-11c)
 	t.Cleanup(svc.Close)
 	return svc
 }

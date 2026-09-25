@@ -30,6 +30,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -101,6 +102,25 @@ type fileClaims struct {
 	id    IdentitySource
 	index IndexResolver
 	recs  map[string]claimRecord
+	// batch: a transaction is open (Begin … Flush, TD-11c review 3.2): writes change recs in memory
+	// and mark it dirty; Flush writes it once. Outside a batch every write goes to disk first.
+	batch, dirty bool
+	writes       int // atomic file writes so far (tests, diagnostics)
+	// journal (KeyedClaims, TD-11c fix round 1, D-133): inside a batch every Claim/Release is appended
+	// here with one write(2) BEFORE it returns — so before the descriptor writes VPP (TD-11b's
+	// claim-first order) — and survives the death of the agent process in the page cache. No fsync:
+	// what loses the page cache (kernel crash, power loss) restarts VPP too, which voids every claim
+	// (D-080). Every snapshot write (Flush: one atomic, fsync'd write per transaction) empties it;
+	// opening the store replays it over the snapshot. "" = no journal (IfaceClaims never batches).
+	journal string
+	jf      *os.File // open while the current batch appends
+	jsize   int64    // bytes of whole lines in the journal (a failed append is cut back to it)
+}
+
+// journalLine is one journal record: a claim (Set) or a release (Del).
+type journalLine struct {
+	Set *claimRecord `json:"set,omitempty"`
+	Del string       `json:"del,omitempty"`
 }
 
 func openClaims(path string, id IdentitySource, index IndexResolver) (*fileClaims, error) {
@@ -153,13 +173,7 @@ func (c *fileClaims) claim(ctx context.Context, key, ifName string) error {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	next := c.copyLocked()
-	next[key] = r
-	if err := c.flushLocked(next); err != nil {
-		return err
-	}
-	c.recs = next
-	return nil
+	return c.setLocked(key, &r)
 }
 
 func (c *fileClaims) release(key string) error {
@@ -168,13 +182,7 @@ func (c *fileClaims) release(key string) error {
 	if _, ok := c.recs[key]; !ok {
 		return nil
 	}
-	next := c.copyLocked()
-	delete(next, key)
-	if err := c.flushLocked(next); err != nil {
-		return err
-	}
-	c.recs = next
-	return nil
+	return c.setLocked(key, nil)
 }
 
 func (c *fileClaims) claimed(ctx context.Context, key, ifName string) bool {
@@ -213,10 +221,9 @@ func (c *fileClaims) Prune() (int, error) {
 	if n == 0 {
 		return 0, nil
 	}
-	if err := c.flushLocked(next); err != nil {
+	if err := c.replaceLocked(next); err != nil {
 		return 0, err
 	}
-	c.recs = next
 	return n, nil
 }
 
@@ -238,6 +245,69 @@ func (c *fileClaims) copyLocked() map[string]claimRecord {
 	return out
 }
 
+// setLocked records rec under key (nil: removes key): in a batch in memory only, otherwise through
+// replaceLocked.
+func (c *fileClaims) setLocked(key string, rec *claimRecord) error {
+	if c.batch {
+		if err := c.appendLocked(key, rec); err != nil {
+			return err // nothing recorded: the caller must not write VPP
+		}
+		if rec == nil {
+			delete(c.recs, key)
+		} else {
+			c.recs[key] = *rec
+		}
+		c.dirty = true
+		return nil
+	}
+	next := c.copyLocked()
+	if rec == nil {
+		delete(next, key)
+	} else {
+		next[key] = *rec
+	}
+	return c.replaceLocked(next)
+}
+
+// replaceLocked makes next the record set: in a batch at once (Flush writes it), otherwise only once
+// it is on disk, so outside a batch memory never runs ahead of the file.
+func (c *fileClaims) replaceLocked(next map[string]claimRecord) error {
+	if c.batch {
+		c.recs, c.dirty = next, true
+		return nil
+	}
+	if err := c.flushLocked(next); err != nil {
+		return err
+	}
+	c.recs, c.dirty = next, false
+	return nil
+}
+
+// begin opens a batch: until flush, Claim/Release/Prune change the in-memory set only.
+func (c *fileClaims) begin() {
+	c.mu.Lock()
+	c.batch = true
+	c.mu.Unlock()
+}
+
+// flush ends the batch and writes the set once when it changed. A failed write keeps the records in
+// memory and dirty, and in the journal: the next write (the next flush, or any write outside a
+// batch) persists them.
+func (c *fileClaims) flush() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	defer c.closeJournalLocked()
+	c.batch = false
+	if !c.dirty {
+		return nil
+	}
+	if err := c.flushLocked(c.recs); err != nil {
+		return err
+	}
+	c.dirty = false
+	return nil
+}
+
 func (c *fileClaims) flushLocked(m map[string]claimRecord) error {
 	recs := make([]claimRecord, 0, len(m))
 	for _, r := range m {
@@ -248,7 +318,132 @@ func (c *fileClaims) flushLocked(m map[string]claimRecord) error {
 	if err != nil {
 		return err
 	}
-	return atomicWrite(c.path, raw)
+	if err := atomicWrite(c.path, raw); err != nil {
+		return err
+	}
+	c.writes++
+	c.truncateJournalLocked() // the snapshot is durable: the journal's records are in it
+	return nil
+}
+
+// appendLocked appends key's claim (rec) or release (nil) to the journal with one write(2); a failed
+// or short write is cut back so the journal only ever holds whole lines.
+func (c *fileClaims) appendLocked(key string, rec *claimRecord) error {
+	if c.journal == "" {
+		return nil
+	}
+	line := journalLine{Del: key}
+	if rec != nil {
+		line = journalLine{Set: rec}
+	}
+	raw, err := json.Marshal(line)
+	if err != nil {
+		return err
+	}
+	raw = append(raw, '\n')
+	if c.jf == nil {
+		f, err := os.OpenFile(c.journal, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600) //nolint:gosec // the agent's own state file
+		if err != nil {
+			return fmt.Errorf("claim journal %s: %w", filepath.Base(c.journal), err)
+		}
+		fi, err := f.Stat()
+		if err != nil {
+			_ = f.Close()
+			return fmt.Errorf("claim journal %s: %w", filepath.Base(c.journal), err)
+		}
+		c.jf, c.jsize = f, fi.Size()
+	}
+	n, err := c.jf.Write(raw)
+	if err == nil && n != len(raw) {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
+		_ = c.jf.Truncate(c.jsize)
+		return fmt.Errorf("claim journal %s: %w", filepath.Base(c.journal), err)
+	}
+	c.jsize += int64(n)
+	return nil
+}
+
+// truncateJournalLocked empties the journal after a durable snapshot. A failure is harmless: the
+// replay of lines the snapshot already holds is idempotent.
+func (c *fileClaims) truncateJournalLocked() {
+	switch {
+	case c.journal == "":
+	case c.jf != nil:
+		if c.jf.Truncate(0) == nil {
+			c.jsize = 0
+		}
+	default:
+		if err := os.Truncate(c.journal, 0); err == nil || errors.Is(err, os.ErrNotExist) {
+			c.jsize = 0
+		}
+	}
+}
+
+func (c *fileClaims) closeJournalLocked() {
+	if c.jf != nil {
+		_ = c.jf.Close()
+		c.jf = nil
+	}
+}
+
+// splitLines splits raw at every newline (a final segment without one is the torn tail).
+func splitLines(raw []byte) [][]byte {
+	var out [][]byte
+	for start, i := 0, 0; i <= len(raw); i++ {
+		if i == len(raw) || raw[i] == '\n' {
+			out = append(out, raw[start:i])
+			start = i + 1
+		}
+	}
+	return out
+}
+
+// replayJournal applies the journal at path over the loaded snapshot (the agent died inside a
+// transaction) and compacts it into the snapshot. A torn last line — the process died inside
+// write(2) — is dropped; a bad line before it fails closed like a corrupt snapshot.
+func (c *fileClaims) replayJournal(path string) error {
+	c.journal = path
+	raw, err := os.ReadFile(path) //nolint:gosec // the agent's own state file
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		return nil
+	case err != nil:
+		return fmt.Errorf("claim journal %s: %w", path, err)
+	}
+	lines, whole := splitLines(raw), 0
+	for i, l := range lines {
+		if len(l) == 0 {
+			continue
+		}
+		var jl journalLine
+		if err := json.Unmarshal(l, &jl); err != nil || (jl.Set == nil) == (jl.Del == "") {
+			if i == len(lines)-1 { // torn tail (no trailing newline): never completed
+				break
+			}
+			return fmt.Errorf("claim journal %s is corrupt at line %d (move it aside to drop the claims of the interrupted transaction): %v", path, i+1, err)
+		}
+		if jl.Set != nil {
+			c.recs[jl.Set.Key] = *jl.Set
+		} else {
+			delete(c.recs, jl.Del)
+		}
+		whole += len(l) + 1
+	}
+	if len(raw) == 0 {
+		return nil
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.flushLocked(c.recs); err != nil {
+		// keep the journal (its whole lines hold the records) and write the snapshot at the next flush
+		if whole < len(raw) {
+			_ = os.Truncate(path, int64(whole))
+		}
+		c.dirty = true
+	}
+	return nil
 }
 
 // atomicWrite writes raw to path via a fsynced temp file and a rename (0600).
@@ -344,6 +539,9 @@ func OpenKeyedClaims(dir, family, owner string, id IdentitySource) (*KeyedClaims
 	if err != nil {
 		return nil, err
 	}
+	if err := c.replayJournal(filepath.Join(dir, "claims-"+family+"-"+owner+".journal")); err != nil {
+		return nil, err
+	}
 	return &KeyedClaims{c}, nil
 }
 
@@ -378,6 +576,40 @@ func (c *PairClaims) Release(id, holder string) error { return c.release(pairKey
 // Claimed implements df6.ClaimStore.
 func (c *PairClaims) Claimed(id, holder string) bool {
 	return c.claimed(context.Background(), pairKey(id, holder), "")
+}
+
+// Begin opens a transaction on the store (TD-11c, review 3.2): Claim, Release and Prune change only
+// the in-memory set — Claimed reads it, so the transaction sees its own claims — until Flush writes
+// it once (the same atomic, fsync'd replace as an immediate write). The agent brackets every
+// transaction with Wiring.ClaimsTxn. Trade-off: an agent process that dies inside a transaction loses
+// that transaction's keyed claims (an untagged object it created stays in VPP unclaimed, invisible,
+// until VPP restarts); before, it paid a whole-file rewrite with two fsyncs per claim (O(n²)).
+func (c *KeyedClaims) Begin() { c.begin() }
+
+// Flush ends the transaction Begin opened: one write when the set changed, none otherwise. A failed
+// write keeps the records in memory and dirty; the next write persists them.
+func (c *KeyedClaims) Flush() error { return c.flush() }
+
+// ClaimsTxn opens one transaction on every keyed claim store opened so far and returns the function
+// that ends it: each store that changed is written once (KeyedClaims.Begin/Flush). The agent calls it
+// around every transaction (Service: ClaimsTxn); a store opened later writes immediately.
+func (w *Wiring) ClaimsTxn() (flush func() error) {
+	w.storesMu.Lock()
+	open := make([]*KeyedClaims, 0, len(w.keyed))
+	for _, k := range w.keyed {
+		k.Begin()
+		open = append(open, k)
+	}
+	w.storesMu.Unlock()
+	return func() error {
+		var errs []error
+		for _, k := range open {
+			if err := k.Flush(); err != nil {
+				errs = append(errs, fmt.Errorf("claim store %s: %w", filepath.Base(k.path), err))
+			}
+		}
+		return errors.Join(errs...)
+	}
 }
 
 // IndexCache is an IndexResolver over a cached name → sw_if_index map refreshed at most every ttl.

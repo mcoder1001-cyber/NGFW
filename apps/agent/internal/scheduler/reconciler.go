@@ -467,7 +467,7 @@ func (s *Scheduler) plan(ctx context.Context, desired []KV, scope Scope, opts Ap
 	for k, kv := range deletes {
 		nodes[k] = kv
 	}
-	order, cyc := s.topo(nodes)
+	order, cyc := s.topoThrough(nodes, actual) // TD-11c: edges through non-node objects (observe-only aliases)
 	if len(cyc) > 0 {
 		for _, k := range cyc {
 			p.Issues = append(p.Issues, Issue{Key: k, Code: CodeInvalid, Message: "dependency cycle"})
@@ -537,11 +537,58 @@ func (s *Scheduler) resolvesIn(dep Key, objs map[Key]KV) bool {
 // precedes its dependent. Ties: descriptor registration order, then key. Returns the keys left
 // in a cycle, if any.
 func (s *Scheduler) topo(nodes map[Key]KV) (order []Key, cycle []Key) {
+	return s.topoThrough(nodes, nil)
+}
+
+// topoThrough is topo where a dependency on an object that is not a node — one of through, e.g. the
+// observe-only "interface/<name>" alias (D-065) of an interface this transaction deletes, which is
+// never a plan node once it has left the desired state — is followed through that object's own
+// dependencies (transitively, through further non-node objects and the aliases they provide) to
+// the nodes behind it (TD-11c, review 3.1c). So every attribute of an interface (admin state, MTU,
+// address, VRF binding, bond or bridge membership) is created after the interface's creator and
+// deleted before it, for every interface kind — not only when the creator is registered before its
+// attributes or provides the alias itself (KeyProvider). Only dependencies that exist become
+// edges: an alias without a creator (a physical NIC) adds none.
+func (s *Scheduler) topoThrough(nodes, through map[Key]KV) (order []Key, cycle []Key) {
 	rank := make(map[string]int)
 	for i, n := range s.reg.Names() {
 		rank[n] = i
 	}
 	alias := s.aliases(nodes)
+	var throughAlias map[Key]Key
+	if len(through) > 0 {
+		throughAlias = s.aliases(through)
+	}
+	// targets returns the nodes dep resolves to: itself, the node providing it, or the nodes behind
+	// the non-node object it names (seen ends a cycle among non-node objects).
+	var targets func(dep Key, seen map[Key]bool) []Key
+	targets = func(dep Key, seen map[Key]bool) []Key {
+		if _, ok := nodes[dep]; ok {
+			return []Key{dep}
+		}
+		if a, ok := alias[dep]; ok {
+			return []Key{a}
+		}
+		k := dep
+		if _, ok := through[k]; !ok {
+			if k, ok = throughAlias[dep]; !ok {
+				return nil
+			}
+		}
+		d, ok := s.reg.ForKey(k)
+		if !ok || seen[k] {
+			return nil
+		}
+		if seen == nil {
+			seen = map[Key]bool{}
+		}
+		seen[k] = true
+		var out []Key
+		for _, next := range d.Dependencies(through[k].Value) {
+			out = append(out, targets(next.Key, seen)...)
+		}
+		return out
+	}
 	deps := make(map[Key]map[Key]bool, len(nodes))
 	users := make(map[Key][]Key)
 	for k, kv := range nodes {
@@ -551,19 +598,13 @@ func (s *Scheduler) topo(nodes map[Key]KV) (order []Key, cycle []Key) {
 			continue
 		}
 		for _, dep := range d.Dependencies(kv.Value) {
-			target := dep.Key
-			if _, ok := nodes[target]; !ok {
-				a, ok := alias[target]
-				if !ok {
+			for _, target := range targets(dep.Key, nil) {
+				if target == k || deps[k][target] {
 					continue
 				}
-				target = a
+				deps[k][target] = true
+				users[target] = append(users[target], k)
 			}
-			if target == k || deps[k][target] {
-				continue
-			}
-			deps[k][target] = true
-			users[target] = append(users[target], k)
 		}
 	}
 	less := func(a, b Key) bool {

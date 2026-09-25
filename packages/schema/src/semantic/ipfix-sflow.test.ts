@@ -43,19 +43,6 @@ describe('ipfix-sflow validators', () => {
     expect(run({ exporters: { v6: exporter('2001:db8::9') }, flowprobe: probe() })).toEqual(want);
   });
 
-  it('exactly one flowprobe variant per interface', () => {
-    const issues = run({
-      exporters: { lan: exporter('10.1.1.9') },
-      flowprobe: {
-        interfaces: [{ interface: IF }, { interface: 'loop1', l2: true, ip4: true, ip6: false }],
-      },
-    });
-    expect(issues.map((i) => i.pointer)).toEqual([
-      '/services/ipfix/flowprobe/interfaces/0',
-      '/services/ipfix/flowprobe/interfaces/1',
-    ]);
-  });
-
   it('sFlow header bytes in steps of 32', () => {
     const sflow = (headerBytes: number) => ({
       enabled: true,

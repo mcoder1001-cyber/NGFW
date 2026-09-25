@@ -64,4 +64,8 @@ message RoutePath {
   string interface = 2;
   // ECMP weight (>= 1).
   uint32 weight = 3;
+  // F-vrf-static-ecmp: FIB table the next-hop address is resolved in (VPP path table_id) when it is not the route's
+  // own table; unset = the route's table. Canonical: set only for a path with an address and no interface, and only
+  // when it differs from Route.table_id.
+  optional uint32 next_hop_table = 4;
 }

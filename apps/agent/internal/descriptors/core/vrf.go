@@ -212,7 +212,9 @@ func (d *VRFDescriptor) dump(ctx context.Context) ([]*Table, error) {
 			return nil, fmt.Errorf("ip_table_dump: %w", err)
 		}
 		vrf, ok := vpp.ParseOwnerTag(trimNul(t.Table.Name), d.Owner)
-		if !ok || t.Table.TableID == 0 || strings.ContainsAny(vrf, "\x00") {
+		// A VRF name never contains ":" (schema objectName); "<owner>:svs:<id>" is a source-VRF-select
+		// table of the svs descriptors (F-vrf-static-ecmp), not a VRF.
+		if !ok || t.Table.TableID == 0 || strings.ContainsAny(vrf, "\x00:") {
 			continue
 		}
 		f := byID[t.Table.TableID]

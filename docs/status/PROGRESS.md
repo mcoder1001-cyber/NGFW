@@ -2,17 +2,17 @@
 
 Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 48.8% by hours (572.0/1172.5 h), 51.5% by tasks (67/130)**
+**Overall: 49.6% by hours (582.0/1172.5 h), 52.3% by tasks (68/130)**
 
 | state | tasks |
 |---|---|
-| merged | 67 |
-| review | 18 |
+| merged | 68 |
+| review | 17 |
 | running | 5 |
-| ready | 7 |
+| ready | 8 |
 | parked | 2 |
 | failed | 0 |
-| todo | 31 |
+| todo | 30 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
@@ -20,7 +20,7 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 175.0 / 605.0 | 28.9% | 24/70 | 4 | 6 | 0 |
+| S4 | 185.0 / 605.0 | 30.6% | 25/70 | 4 | 7 | 0 |
 | S5 | 38 / 147.5 | 25.8% | 4/15 | 1 | 1 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -30,7 +30,6 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 - F-bonding — Wave A (day 7-9): LACP/XOR/RR/active-backup bonds (review, ngfw-46 slot6)
 - F-bridge-l2 — Wave A (day 7-9): bridge domains, L2XC/L3XC, split-horizon, MAC aging, time-range MAC filter (review, ngfw-46 slot7)
 - F-loopback-bvi-gso-lldp-span — Wave A (day 7-9): loopback/BVI, GSO/offload flags, LLDP, SPAN/ERSPAN, nsim (review, unassigned)
-- F-vrf-static-ecmp — Wave A (day 7-9): VRF mgmt, static routes, ECMP, FIB browser (paged), ping/traceroute actions (review, ngfw-46 slot2)
 - F-neighbors-ra — Wave A (day 7-9): ARP/ND table, proxy-ND, IPv6 RA, DAD (review, ngfw-46 slot9)
 - F-rpf-adl-pbr — Wave A (day 7-9): uRPF strict/loose, ADL, ABF policy-based routing (review, ngfw-46 slot10)
 - F-acl — Wave A (day 7-9): MACIP/L3/L4 ACLs, attachments, hit counters, 100k-rule editor, ADL/Auto-SDL (review, unassigned)

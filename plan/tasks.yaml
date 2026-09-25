@@ -878,7 +878,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D2.1
@@ -892,7 +892,7 @@ tasks:
   worktree: /root/ngfw-wt/F-vrf-static-ecmp
   owner: ngfw-46 slot2
   started: 2026-09-24T17:28
-  finished: ''
+  finished: '2026-09-25'
   notes: ' | envelope draft docs/status/tasks/F-vrf-static-ecmp.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-vrf-static-ecmp.envelope.md
     | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125 merge acceptance: named cmd_op.go `action()` hunk + CLI test — ping/traceroute send
     <host> (review 5.7a, +1 h) | fix round 1 (review 4435fcf: H1 ListRoutes barrier walks, M1 ping with workers, M2 window cap) | fix round 1 8e779aad; verify APPROVE 19d250c0; D-134 hold until TD-23'
@@ -1713,7 +1713,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D8.2

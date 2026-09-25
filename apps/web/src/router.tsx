@@ -91,6 +91,8 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-A: F-bridge-l2
         // wave-A: F-loopback-bvi-gso-lldp-span
         // wave-A: F-vrf-static-ecmp
+        { path: domainPath('vrfs').slice(1), lazy: async () => ({ Component: (await import('./domains/routing/vrf-static-ecmp/VrfsPage')).VrfsPage }) },
+        { path: domainPath('routing').slice(1), lazy: async () => ({ Component: (await import('./domains/routing/vrf-static-ecmp/RoutingPage')).RoutingPage }) },
         // wave-A: F-neighbors-ra
         // wave-A: F-rpf-adl-pbr
         // wave-A: F-object-model

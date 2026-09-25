@@ -150,7 +150,7 @@ describe('DesiredState mirrors RootConfig', () => {
     expect(sub?.vrf).toBe('customer-a');
 
     expect(ds.vrfs['default']?.id).toBe(0);
-    expect(ds.vrfs['customer-a']).toEqual({ id: 10, description: 'customer A' });
+    expect(ds.vrfs['customer-a']).toMatchObject({ id: 10, description: 'customer A' });
 
     const route: StaticRoute | undefined = ds.routing?.static[0];
     expect(route?.prefix).toBe('0.0.0.0/0');

@@ -42,13 +42,21 @@ func (*RouteDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return RouteKey(v.GetTableId(), v.GetPrefix())
 }
 
-// Dependencies implements scheduler.Descriptor: the VRF table (unless table 0) and, optionally,
-// every egress interface (ordering only — physical interfaces are not objects of this agent).
+// Dependencies implements scheduler.Descriptor: the VRF table (unless table 0), the table of every
+// next hop resolved in another VRF (F-vrf-static-ecmp; unless table 0) and, optionally, every egress
+// interface (ordering only — physical interfaces are not objects of this agent).
 func (d *RouteDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	v := asRoute(obj)
 	var deps []scheduler.Dependency
 	if v.GetTableId() != 0 {
 		deps = append(deps, scheduler.Dependency{Key: VRFKey(v.GetTableId())})
+	}
+	nhTables := map[uint32]bool{v.GetTableId(): true}
+	for _, p := range v.GetPaths() {
+		if t := p.GetNextHopTable(); p.NextHopTable != nil && t != 0 && !nhTables[t] {
+			nhTables[t] = true
+			deps = append(deps, scheduler.Dependency{Key: VRFKey(t)})
+		}
 	}
 	seen := map[string]bool{}
 	for _, p := range v.GetPaths() {
@@ -86,6 +94,12 @@ func (d *RouteDescriptor) encode(ctx context.Context, v *Route) (ip.IPRoute, err
 	var ifs *ifTable
 	for _, p := range v.GetPaths() {
 		fp := fib_types.FibPath{SwIfIndex: ^uint32(0), TableID: v.GetTableId(), Type: fib_types.FIB_API_PATH_TYPE_NORMAL, Proto: proto, Preference: uint8(pref)}
+		if p.NextHopTable != nil {
+			if p.GetAddress() == "" || p.GetInterface() != "" {
+				return ip.IPRoute{}, fmt.Errorf("%w: a next-hop table needs a next-hop address and no egress interface", ErrBadValue)
+			}
+			fp.TableID = p.GetNextHopTable() // resolve the next hop in that table (F-vrf-static-ecmp)
+		}
 		w := p.GetWeight()
 		if w == 0 {
 			w = 1
@@ -388,6 +402,9 @@ func decodeRoute(r ip.IPRoute, prefix string, ifs *ifTable) *Route {
 			if n, ok := ifs.nameOf(fp.SwIfIndex); ok {
 				p.Interface = n
 			}
+		} else if p.Address != "" && fp.TableID != r.TableID {
+			// a recursive next hop resolved in another table (the dump reports the resolution table)
+			p.NextHopTable = proto.Uint32(fp.TableID)
 		}
 		paths = append(paths, p)
 	}
@@ -399,7 +416,8 @@ func decodeRoute(r ip.IPRoute, prefix string, ifs *ifTable) *Route {
 	return v
 }
 
-// SortPaths sorts paths canonically by (address, interface, weight).
+// SortPaths sorts paths canonically by (address, interface, weight, next-hop table; a path in the
+// route's own table — unset — first).
 func SortPaths(paths []*RoutePath) {
 	sort.Slice(paths, func(i, j int) bool {
 		a, b := paths[i], paths[j]
@@ -409,7 +427,13 @@ func SortPaths(paths []*RoutePath) {
 		if a.GetInterface() != b.GetInterface() {
 			return a.GetInterface() < b.GetInterface()
 		}
-		return a.GetWeight() < b.GetWeight()
+		if a.GetWeight() != b.GetWeight() {
+			return a.GetWeight() < b.GetWeight()
+		}
+		if (a.NextHopTable == nil) != (b.NextHopTable == nil) {
+			return a.NextHopTable == nil
+		}
+		return a.GetNextHopTable() < b.GetNextHopTable()
 	})
 }
 

@@ -1,0 +1,42 @@
+{
+  "interfaces": {
+    "lan": { "enabled": true, "ipv4": ["10.2.1.1/24"], "vrf": "red" },
+    "wan": { "enabled": true, "ipv4": ["10.2.2.1/24"], "ipv6": ["2001:db8:2::1/64"] }
+  },
+  "vrfs": {
+    "red": {
+      "id": 2001,
+      "description": "customer red",
+      "sourceSelect": [
+        { "prefix": "10.2.50.0/24", "interface": "wan" },
+        { "prefix": "2001:db8:2:50::/64", "interface": "wan" }
+      ]
+    },
+    "blue": { "id": 2002 }
+  },
+  "routing": {
+    "static": [
+      {
+        "prefix": "0.0.0.0/0",
+        "vrf": "red",
+        "nextHops": [
+          { "address": "10.2.1.2", "weight": 3 },
+          { "address": "10.2.1.3", "weight": 1 }
+        ],
+        "distance": 1
+      },
+      {
+        "prefix": "10.2.60.0/24",
+        "vrf": "red",
+        "nextHops": [{ "address": "10.2.2.2", "vrf": "default" }]
+      },
+      { "prefix": "10.2.70.0/24", "vrf": "blue", "blackhole": true },
+      {
+        "prefix": "10.2.80.0/24",
+        "nextHops": [{ "address": "10.2.2.2" }],
+        "viaFrr": true,
+        "description": "redistributed by FRR (D-072)"
+      }
+    ]
+  }
+}

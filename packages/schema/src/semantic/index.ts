@@ -34,6 +34,7 @@ import { lispValidators } from './lisp.js';
 // wave-A: F-bridge-l2
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
+import { vrfStaticEcmpValidators } from './vrf-static-ecmp.js';
 // wave-A: F-neighbors-ra
 // wave-A: F-rpf-adl-pbr
 // wave-A: F-object-model
@@ -90,6 +91,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
+  ...vrfStaticEcmpValidators,
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model

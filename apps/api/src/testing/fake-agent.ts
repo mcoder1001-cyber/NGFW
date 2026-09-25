@@ -44,6 +44,7 @@ import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { hostStackFake } from '../features/host-stack/fake.js'; // F-host-stack (P5)
 import { lispStateFake } from '../features/lisp/fake.js';
+import { vrfStaticEcmpFake, vrfStaticEcmpPingHandler } from '../features/vrf-static-ecmp/fake.js';
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -104,6 +105,13 @@ export function resetActionHandlersForTest(): void {
     delete actionHandlers[kind];
   }
 }
+
+// F-vrf-static-ecmp registers its ping handler through the seam (it predates the seam and used to
+// spread a whole `action` into impl(); ported to registerActionHandler at rebase). Module-load
+// registration is safe here — actionHandlers/registerActionHandler are defined above, and the
+// feature module only exports the handler (no self-registration, which would hit the fake-agent ↔
+// feature import cycle before actionHandlers is initialised).
+registerActionHandler('ping', vrfStaticEcmpPingHandler);
 
 /** Which oneof case request carries, or undefined if none is set (an empty/malformed request). */
 function actionKindOf(request: ActionRequest): ActionKind | undefined {
@@ -797,6 +805,7 @@ export class FakeAgent {
       // wave-A: F-bridge-l2
       // wave-A: F-loopback-bvi-gso-lldp-span
       // wave-A: F-vrf-static-ecmp
+      ...vrfStaticEcmpFake(this), // listRoutes (its ping Action is registered via the seam above; traceroute/others stay UNIMPLEMENTED)
       // wave-A: F-neighbors-ra
       // wave-A: F-rpf-adl-pbr
       // wave-A: F-object-model

@@ -68,6 +68,7 @@ import { licensingFeature } from './features/licensing/index.js';
 // wave-A: F-bridge-l2
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
+import { vrfStaticEcmpFeature } from './features/vrf-static-ecmp/index.js';
 // wave-A: F-neighbors-ra
 // wave-A: F-rpf-adl-pbr
 // wave-A: F-object-model
@@ -157,6 +158,7 @@ export class AppModule {
         // wave-A: F-bridge-l2
         // wave-A: F-loopback-bvi-gso-lldp-span
         // wave-A: F-vrf-static-ecmp
+        ...vrfStaticEcmpFeature.controllers,
         // wave-A: F-neighbors-ra
         // wave-A: F-rpf-adl-pbr
         // wave-A: F-object-model
@@ -230,6 +232,7 @@ export class AppModule {
         // wave-A: F-bridge-l2
         // wave-A: F-loopback-bvi-gso-lldp-span
         // wave-A: F-vrf-static-ecmp
+        ...vrfStaticEcmpFeature.providers,
         // wave-A: F-neighbors-ra
         // wave-A: F-rpf-adl-pbr
         // wave-A: F-object-model

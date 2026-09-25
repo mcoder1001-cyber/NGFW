@@ -102,6 +102,7 @@ var descriptorReach = map[string]reachEntry{
 	"span":                {pending, "F-loopback-bvi-gso-lldp-span"},
 	"sr":                  {pending, "F-srv6"},
 	"sr_mpls":             {pending, "F-mpls-srmpls"},
+	"svs":                 {wired, "F-vrf-static-ecmp"},
 	"tapv2":               {library, "D-141: test rig creator (integration tests); no product domain"},
 	"trace":               {pending, "F-capture-trace"},
 	"urpf":                {pending, "F-rpf-adl-pbr"},

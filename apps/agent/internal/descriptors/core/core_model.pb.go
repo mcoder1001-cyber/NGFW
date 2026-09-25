@@ -345,7 +345,11 @@ type RoutePath struct {
 	// Egress interface name; empty = resolved through the FIB.
 	Interface string `protobuf:"bytes,2,opt,name=interface,proto3" json:"interface,omitempty"`
 	// ECMP weight (>= 1).
-	Weight        uint32 `protobuf:"varint,3,opt,name=weight,proto3" json:"weight,omitempty"`
+	Weight uint32 `protobuf:"varint,3,opt,name=weight,proto3" json:"weight,omitempty"`
+	// F-vrf-static-ecmp: FIB table the next-hop address is resolved in (VPP path table_id) when it is not the route's
+	// own table; unset = the route's table. Canonical: set only for a path with an address and no interface, and only
+	// when it differs from Route.table_id.
+	NextHopTable  *uint32 `protobuf:"varint,4,opt,name=next_hop_table,json=nextHopTable,proto3,oneof" json:"next_hop_table,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -401,6 +405,13 @@ func (x *RoutePath) GetWeight() uint32 {
 	return 0
 }
 
+func (x *RoutePath) GetNextHopTable() uint32 {
+	if x != nil && x.NextHopTable != nil {
+		return *x.NextHopTable
+	}
+	return 0
+}
+
 var File_core_model_proto protoreflect.FileDescriptor
 
 const file_core_model_proto_rawDesc = "" +
@@ -428,11 +439,13 @@ const file_core_model_proto_rawDesc = "" +
 	"\x05paths\x18\x03 \x03(\v2\x19.vrx.agent.core.RoutePathR\x05paths\x12\x1e\n" +
 	"\n" +
 	"preference\x18\x04 \x01(\rR\n" +
-	"preference\"[\n" +
+	"preference\"\x99\x01\n" +
 	"\tRoutePath\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x1c\n" +
 	"\tinterface\x18\x02 \x01(\tR\tinterface\x12\x16\n" +
-	"\x06weight\x18\x03 \x01(\rR\x06weightB+Z)ngfw/agent/internal/descriptors/core;coreb\x06proto3"
+	"\x06weight\x18\x03 \x01(\rR\x06weight\x12)\n" +
+	"\x0enext_hop_table\x18\x04 \x01(\rH\x00R\fnextHopTable\x88\x01\x01B\x11\n" +
+	"\x0f_next_hop_tableB+Z)ngfw/agent/internal/descriptors/core;coreb\x06proto3"
 
 var (
 	file_core_model_proto_rawDescOnce sync.Once
@@ -469,6 +482,7 @@ func file_core_model_proto_init() {
 	if File_core_model_proto != nil {
 		return
 	}
+	file_core_model_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

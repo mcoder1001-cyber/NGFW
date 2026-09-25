@@ -1,0 +1,165 @@
+{
+  "title": "Routing",
+  "tabs": "Routing sections",
+  "loading": "Loading…",
+  "readonly": "Your role can view but not change the configuration",
+  "cancel": "Cancel",
+  "next": "Next",
+  "save": "Save to candidate",
+  "reset": "Reset",
+  "remove": "Remove",
+  "tab": {
+    "static": "Static routes",
+    "fib": "FIB browser",
+    "ping": "Ping"
+  },
+  "vrfs": {
+    "title": "VRFs",
+    "intro": "Each VRF is an IPv4 and an IPv6 FIB table with its own table ID; `default` is table 0. Source VRF select routes packets from chosen source prefixes, arriving on chosen interfaces, in this VRF. Changes go into the candidate; commit them from the bar at the bottom.",
+    "add": "Add VRF",
+    "addTitle": "New VRF",
+    "badName": "Letters, digits, _ . - only (up to 63)",
+    "editTitle": "VRF {{name}}",
+    "newTitle": "New VRF {{name}}",
+    "sourceSelectHelp": "Source VRF select: a packet arriving on the interface with a source address in the prefix is routed in this VRF instead of the VRF its interface belongs to.",
+    "notInDataplane": "not in the data plane",
+    "fibEntries_one": "{{count}} FIB entry",
+    "fibEntries_other": "{{count}} FIB entries",
+    "col": {
+      "name": "Name",
+      "table": "Table ID",
+      "description": "Description",
+      "sourceSelect": "Source selects",
+      "live": "Live FIB"
+    },
+    "refreshCounts": "Refresh FIB counts",
+    "fibUnknown": "count unavailable"
+  },
+  "routes": {
+    "title": "Static routes",
+    "intro": "Static routes per VRF. Several next hops make an equal-cost multipath (ECMP) route; the weight of each next hop sets its share of the traffic. A route without next hops is a blackhole (drops matching traffic).",
+    "add": "Add route",
+    "addTitle": "New static route",
+    "editTitle": "Route {{prefix}} in {{vrf}}",
+    "editorHelp": "Next hops are the ECMP paths: add one row per path and give each a weight (1–255). A next hop can be resolved in another VRF (address only, no interface). VRFs: {{vrfs}}.",
+    "blackhole": "blackhole",
+    "ecmp": "ECMP",
+    "col": {
+      "vrf": "VRF",
+      "prefix": "Destination",
+      "paths": "Next hops",
+      "distance": "Distance",
+      "status": "Data plane",
+      "description": "Description"
+    },
+    "status": {
+      "installed": "installed",
+      "missing": "not in FIB",
+      "frr": "FRR programs it",
+      "unknown": "unknown"
+    },
+    "statusHelp": "Installed: the prefix's best FIB source in its VRF is a static (API) route. A route shadowed by a better source for the same prefix shows as not in FIB. Read once a minute."
+  },
+  "fib": {
+    "title": "FIB",
+    "intro": "The live forwarding table of one VRF as VPP has it, read page by page (the agent pages it, so even a million routes load one page at a time). Each entry shows its best source and its paths. Every page is a full walk of the table in VPP, so the view is read on demand: refresh it with the button; the prefix filter applies on Enter.",
+    "vrf": "VRF",
+    "family": "Family",
+    "any": "any",
+    "prefix": "Within prefix",
+    "badPrefix": "e.g. 10.2.0.0/16",
+    "source": "Source",
+    "table": "table {{id}}",
+    "col": {
+      "prefix": "Prefix",
+      "source": "Source",
+      "paths": "Paths (next hop, interface, weight, table)",
+      "stats": "Stats index"
+    },
+    "ipv4": "IPv4",
+    "ipv6": "IPv6",
+    "prefixApply": "Press Enter to apply",
+    "retrievedAt": "read at {{time}}",
+    "refresh": "Refresh",
+    "refreshHelp": "Read the FIB again (each read walks the whole table in VPP)"
+  },
+  "ping": {
+    "intro": "Ping from the data plane (VPP), not from the management host.",
+    "target": "Target address",
+    "targetHelp": "IPv4 or IPv6 address",
+    "badTarget": "Not an IP address",
+    "count": "Count",
+    "interval": "Interval (ms)",
+    "run": "Ping",
+    "running": "Pinging…",
+    "limits": "VPP's ping API pings from the default VRF only, without a source address or payload size, and holds VPP's API while it runs: count × interval is limited to 5 seconds.",
+    "result": "Ping result",
+    "reachable": "reachable",
+    "unreachable": "no reply",
+    "stats": {
+      "transmitted": "Transmitted",
+      "received": "Received",
+      "loss_pct": "Loss (%)"
+    }
+  },
+  "group": {
+    "vrf-static-ecmp": "Source VRF select, next-hop VRF, FRR"
+  },
+  "field": {
+    "id": {
+      "title": "Table ID",
+      "help": "VPP FIB table id (0 is the default VRF)"
+    },
+    "description": {
+      "title": "Description"
+    },
+    "sourceSelect": {
+      "title": "Source VRF select",
+      "help": "route packets from these source prefixes, arriving on these interfaces, in this VRF",
+      "prefix": {
+        "title": "Source prefix",
+        "help": "e.g. 10.20.0.0/16"
+      },
+      "interface": {
+        "title": "Ingress interface"
+      }
+    },
+    "prefix": {
+      "title": "Destination",
+      "help": "network prefix, e.g. 0.0.0.0/0 or 2001:db8::/32"
+    },
+    "vrf": {
+      "title": "VRF"
+    },
+    "nextHops": {
+      "title": "Next hops (ECMP paths)",
+      "help": "more than one = equal-cost multipath; empty only for a blackhole route",
+      "address": {
+        "title": "Next-hop address"
+      },
+      "interface": {
+        "title": "Interface"
+      },
+      "weight": {
+        "title": "Weight",
+        "help": "share of the traffic among the next hops (1–255)"
+      },
+      "vrf": {
+        "title": "Next-hop VRF",
+        "help": "resolve the next-hop address in this VRF (default: the route's VRF)"
+      }
+    },
+    "blackhole": {
+      "title": "Blackhole",
+      "help": "drop matching traffic; requires no next hops"
+    },
+    "distance": {
+      "title": "Distance",
+      "help": "administrative distance (1–255)"
+    },
+    "viaFrr": {
+      "title": "Program via FRR",
+      "help": "FRR (staticd) programs this route instead of the agent, e.g. to redistribute it"
+    }
+  }
+}

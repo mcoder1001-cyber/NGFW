@@ -45,13 +45,15 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-vrrp-config-sync
       // wave-BC: F-srv6
       // wave-BC: F-lisp
+      // wave-A: F-vrf-static-ecmp (routing group sorts before the firewall and vpn groups)
+      'vrfs',
+      'routing',
       // wave-A: F-object-model (firewall group sorts before the vpn group)
       'objects',
       'vpn',
       // wave-A: F-bonding
       // wave-A: F-bridge-l2
       // wave-A: F-loopback-bvi-gso-lldp-span
-      // wave-A: F-vrf-static-ecmp
       // wave-A: F-neighbors-ra
       // wave-A: F-rpf-adl-pbr
       // wave-A: P12

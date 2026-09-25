@@ -378,9 +378,8 @@ describe('config e2e (PostgreSQL + fake agent)', () => {
   });
 
   it('actions answer 501; unknown ones 404', async () => {
-    expect((await h.call(op, 'POST', '/api/v1/actions/ping', { target: '10.1.0.1' })).status).toBe(
-      501,
-    );
+    // ping runs since F-vrf-static-ecmp (the Action bridge, vrf-static-ecmp.e2e.test.ts); reboot has no agent action yet
+    expect((await h.call(op, 'POST', '/api/v1/actions/reboot')).status).toBe(501);
     expect((await h.call(op, 'POST', '/api/v1/actions/format-disk')).status).toBe(404);
     expect((await h.call(ro, 'GET', '/api/v1/state/neighbors')).status).toBe(501);
   });

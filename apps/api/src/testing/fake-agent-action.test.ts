@@ -43,6 +43,9 @@ describe('FakeAgent action dispatch', () => {
     fake = new FakeAgent({ owner: 'w1' });
     await fake.start(socket);
     client = new DataplaneClient(`unix:${socket}`, credentials.createInsecure());
+    // Features (e.g. F-vrf-static-ecmp) register real handlers at module load; this suite drives the
+    // dispatcher with its own stubs, so start each case from an empty registry.
+    resetActionHandlersForTest();
   });
 
   afterEach(async () => {

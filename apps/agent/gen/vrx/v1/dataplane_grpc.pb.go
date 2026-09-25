@@ -58,6 +58,7 @@ const (
 	Dataplane_SnmpState_FullMethodName       = "/vrx.v1.Dataplane/SnmpState"
 	Dataplane_IpfixState_FullMethodName      = "/vrx.v1.Dataplane/IpfixState"
 	Dataplane_LispState_FullMethodName       = "/vrx.v1.Dataplane/LispState"
+	Dataplane_ListRoutes_FullMethodName      = "/vrx.v1.Dataplane/ListRoutes"
 	Dataplane_FqdnObjectState_FullMethodName = "/vrx.v1.Dataplane/FqdnObjectState"
 )
 
@@ -111,6 +112,9 @@ type DataplaneClient interface {
 	// LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
 	// adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
 	LispState(ctx context.Context, in *LispStateRequest, opts ...grpc.CallOption) (*LispStateResponse, error)
+	// ListRoutes pages the live FIB of one VRF (ip_route_v2_dump read once, filtered and paged in the agent; only the
+	// page crosses this boundary). Read-only state (docs/contracts/proto.md §11 F-vrf-static-ecmp: ListRoutes).
+	ListRoutes(ctx context.Context, in *ListRoutesRequest, opts ...grpc.CallOption) (*ListRoutesResponse, error)
 	// FqdnObjectState reports the agent's resolver state of every FQDN address object
 	// (objects.addresses.<name> with type "fqdn"): the addresses in use (last-good answers survive a
 	// failed refresh), when they were last resolved, the next scheduled refresh and the latest error.
@@ -273,6 +277,16 @@ func (c *dataplaneClient) LispState(ctx context.Context, in *LispStateRequest, o
 	return out, nil
 }
 
+func (c *dataplaneClient) ListRoutes(ctx context.Context, in *ListRoutesRequest, opts ...grpc.CallOption) (*ListRoutesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListRoutesResponse)
+	err := c.cc.Invoke(ctx, Dataplane_ListRoutes_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *dataplaneClient) FqdnObjectState(ctx context.Context, in *FqdnObjectStateRequest, opts ...grpc.CallOption) (*FqdnObjectStateResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(FqdnObjectStateResponse)
@@ -333,6 +347,9 @@ type DataplaneServer interface {
 	// LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
 	// adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
 	LispState(context.Context, *LispStateRequest) (*LispStateResponse, error)
+	// ListRoutes pages the live FIB of one VRF (ip_route_v2_dump read once, filtered and paged in the agent; only the
+	// page crosses this boundary). Read-only state (docs/contracts/proto.md §11 F-vrf-static-ecmp: ListRoutes).
+	ListRoutes(context.Context, *ListRoutesRequest) (*ListRoutesResponse, error)
 	// FqdnObjectState reports the agent's resolver state of every FQDN address object
 	// (objects.addresses.<name> with type "fqdn"): the addresses in use (last-good answers survive a
 	// failed refresh), when they were last resolved, the next scheduled refresh and the latest error.
@@ -383,6 +400,9 @@ func (UnimplementedDataplaneServer) IpfixState(context.Context, *IpfixStateReque
 }
 func (UnimplementedDataplaneServer) LispState(context.Context, *LispStateRequest) (*LispStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method LispState not implemented")
+}
+func (UnimplementedDataplaneServer) ListRoutes(context.Context, *ListRoutesRequest) (*ListRoutesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListRoutes not implemented")
 }
 func (UnimplementedDataplaneServer) FqdnObjectState(context.Context, *FqdnObjectStateRequest) (*FqdnObjectStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method FqdnObjectState not implemented")
@@ -603,6 +623,24 @@ func _Dataplane_LispState_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_ListRoutes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListRoutesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).ListRoutes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_ListRoutes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).ListRoutes(ctx, req.(*ListRoutesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Dataplane_FqdnObjectState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(FqdnObjectStateRequest)
 	if err := dec(in); err != nil {
@@ -663,6 +701,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "LispState",
 			Handler:    _Dataplane_LispState_Handler,
+		},
+		{
+			MethodName: "ListRoutes",
+			Handler:    _Dataplane_ListRoutes_Handler,
 		},
 		{
 			MethodName: "FqdnObjectState",

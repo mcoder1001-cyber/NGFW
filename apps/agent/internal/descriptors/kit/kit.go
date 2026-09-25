@@ -29,23 +29,6 @@ func RetrieveUnsupported(name string) error {
 // validation sentinel.
 var ErrBadPrefix = errors.New("invalid prefix")
 
-// MaskPrefix parses like ParsePrefix but masks host bits instead of rejecting them. It exists only
-// for the df2/df6 legacy callers that still canonicalise keys from messy input (TD-16 open
-// question); new code uses ParsePrefix.
-func MaskPrefix(s string) (netip.Prefix, error) {
-	p, err := netip.ParsePrefix(strings.TrimSpace(s))
-	if err != nil {
-		return netip.Prefix{}, fmt.Errorf("%w %q: %w", ErrBadPrefix, s, err)
-	}
-	if p.Addr().Zone() != "" {
-		return netip.Prefix{}, fmt.Errorf("%w %q: zones are not supported", ErrBadPrefix, s)
-	}
-	if p.Addr().Is4In6() {
-		return netip.Prefix{}, fmt.Errorf("%w %q: IPv4-mapped IPv6 prefixes are not supported", ErrBadPrefix, s)
-	}
-	return p.Masked(), nil
-}
-
 // ParsePrefix is the one prefix policy: surrounding space trimmed, zones and IPv4-mapped IPv6
 // prefixes rejected, and host bits rejected (the caller must send the canonical network form;
 // silently masking hides typos such as 10.0.0.1/24 meant as a host route).

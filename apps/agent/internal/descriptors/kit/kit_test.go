@@ -40,7 +40,7 @@ func TestWriteFileAtomic(t *testing.T) {
 		if err := WriteFileAtomic(p, []byte(s), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		b, err := os.ReadFile(p)
+		b, err := os.ReadFile(p) //nolint:gosec // test temp dir
 		if err != nil || string(b) != s {
 			t.Fatalf("read %q, %v; want %q", b, err, s)
 		}
@@ -79,17 +79,5 @@ func TestRegister(t *testing.T) {
 	Register(r, Env{Owner: "o"}, c, c)
 	if len(r.n) != 2 || owners[0] != "o" || owners[1] != "o" {
 		t.Fatalf("%v %v", r.n, owners)
-	}
-}
-
-func TestMaskPrefix(t *testing.T) {
-	p, err := MaskPrefix(" 2001:db8:3::5/64")
-	if err != nil || p.String() != "2001:db8:3::/64" {
-		t.Fatalf("%v %v", p, err)
-	}
-	for _, in := range []string{"::ffff:10.0.0.0/104", "fe80::/64%eth0", "x"} {
-		if _, err := MaskPrefix(in); !errors.Is(err, ErrBadPrefix) {
-			t.Errorf("MaskPrefix(%q) = %v", in, err)
-		}
 	}
 }

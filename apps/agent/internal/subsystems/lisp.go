@@ -28,23 +28,16 @@ func registerLisp(r scheduler.Registry, w *Wiring) error {
 //   - Retrieve on a VPP without the lisp plugin reports no objects instead of failing the whole
 //     Retrieve / plan of every domain (a VPP that does not know LISP holds no LISP object); creating
 //     one still fails with df6.ErrPluginNotLoaded;
-//   - the three VPP-global singletons declare, for the persistence guard (dfkit/persist, TD-11b), that
-//     they record no ownership: they belong to the globals owner by role (D-071), not by a claim. df6's
-//     singleton / require descriptors do not declare it themselves (df6 is read-only here — see
-//     F-lisp-questions.md).
+//
+// The three VPP-global singletons need no decoration for the persistence guard (dfkit/persist): df6's
+// singleton / require descriptors declare it themselves (TD-16b).
 type lispRegistry struct {
 	scheduler.Registry
 	c vpp.Client
 }
 
 func (g lispRegistry) Register(d scheduler.Descriptor) {
-	t := lispTolerant{Descriptor: d, c: g.c}
-	switch d.Name() {
-	case lisp.EnableName, lisp.GpeEnableName, lisp.PitrName:
-		g.Registry.Register(lispGlobal{t})
-	default:
-		g.Registry.Register(t)
-	}
+	g.Registry.Register(lispTolerant{Descriptor: d, c: g.c})
 }
 
 type lispTolerant struct {
@@ -71,11 +64,6 @@ func (t lispTolerant) DeleteOnAbsence() bool {
 	}
 	return true
 }
-
-type lispGlobal struct{ lispTolerant }
-
-// RecordsNoOwnership implements persist.NoOwnership.
-func (lispGlobal) RecordsNoOwnership() {}
 
 // lispPluginAbsent: the VPP does not know the lisp messages — govpp's unknown-message error
 // (df6.ErrPluginNotLoaded), or a client that can tell it has no handler for show_lisp_status (the

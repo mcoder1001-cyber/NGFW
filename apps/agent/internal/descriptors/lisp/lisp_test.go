@@ -448,11 +448,14 @@ func TestLISP(t *testing.T) {
 	if got := mustRetrieve(t, steps[0].d); len(got) != 1 {
 		t.Fatalf("locator sets = %v (other slot's must be filtered)", got)
 	}
-	// Canonicalisation: unsorted rlocs / unmasked prefixes produce the same key and value.
+	// Canonicalisation: unsorted rlocs / non-canonical spelling produce the same key and value.
 	rm := steps[8].d
-	messy := &lisp.RemoteMapping{Vni: 11100, Eid: "10.11.15.7/24", Rlocs: []*lisp.Rloc{{Address: "10.11.14.3", Priority: 2, Weight: 5}, {Address: "10.11.14.2", Priority: 1, Weight: 1}}}
+	messy := &lisp.RemoteMapping{Vni: 11100, Eid: " 10.11.15.0/24", Rlocs: []*lisp.Rloc{{Address: "10.11.14.3", Priority: 2, Weight: 5}, {Address: "10.11.14.2", Priority: 1, Weight: 1}}}
 	if rm.KeyOf(messy) != steps[8].key {
 		t.Fatalf("messy key = %s", rm.KeyOf(messy))
+	}
+	if _, err := rm.Create(ctx, &lisp.RemoteMapping{Vni: 11100, Eid: "10.11.15.7/24", Action: 3}); err == nil {
+		t.Fatal("EID with host bits accepted (D-149)")
 	}
 	// Delete in reverse order, twice each (second is a no-op).
 	for i := len(steps) - 1; i >= 0; i-- {

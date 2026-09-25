@@ -3,6 +3,7 @@ package df6
 import (
 	"errors"
 	"fmt"
+	"ngfw/agent/internal/descriptors/kit"
 
 	"go.fd.io/govpp/adapter"
 
@@ -17,7 +18,7 @@ var (
 	// ErrRetrieveUnsupported: VPP has no dump for this object type, so Retrieve cannot report
 	// actual state (vxlan/gtpu bypass, l2tpv3 enable, pppoe cp, SR encap globals). The
 	// descriptor is write-only; the doc table says so.
-	ErrRetrieveUnsupported = errors.New("vpp has no dump for this object type")
+	ErrRetrieveUnsupported = kit.ErrRetrieveUnsupported
 	// ErrNoDelete: VPP has no delete message for this object type (l2tpv3 tunnels).
 	ErrNoDelete = errors.New("vpp has no delete message for this object type")
 	// ErrNoSuchInterface: the named interface does not exist in VPP.

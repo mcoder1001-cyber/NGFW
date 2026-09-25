@@ -162,9 +162,12 @@ func TestPolicySteeringEndpointColor(t *testing.T) {
 	if deps := p.Dependencies(pol); len(deps) != 1 || deps[0].Key != "mpls-table/0" {
 		t.Fatalf("deps = %+v", deps)
 	}
-	st := &sr_mpls.Steering{Prefix: "10.11.13.9/24", TableId: 11012, Bsid: 11600, VpnLabel: 11800}
+	st := &sr_mpls.Steering{Prefix: "10.11.13.0/24", TableId: 11012, Bsid: 11600, VpnLabel: 11800}
 	if k := s.KeyOf(st); k != "sr-mpls.steering/11012/10.11.13.0/24" {
 		t.Fatalf("steering KeyOf = %s", k)
+	}
+	if _, err := s.Create(ctx, &sr_mpls.Steering{Prefix: "10.11.13.9/24", TableId: 11012, Bsid: 11600}); err == nil {
+		t.Fatal("prefix with host bits accepted (D-149)")
 	}
 	if deps := s.Dependencies(st); len(deps) != 2 || deps[0].Key != "sr-mpls.policy/11600" || deps[1].Key != "vrf/11012" {
 		t.Fatalf("steering deps = %+v", deps)

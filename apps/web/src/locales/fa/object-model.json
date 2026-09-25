@@ -1,0 +1,218 @@
+{
+  "title": "اشیا",
+  "intro": "آدرس‌ها، گروه‌ها، سرویس‌ها، زمان‌بندی‌ها، زون‌ها و برچسب‌های قابل استفاده‌ی مجدد که قوانین ACL و NAT با نام به آن‌ها ارجاع می‌دهند. تغییرات در پیکربندی کاندید ذخیره می‌شوند؛ آن‌ها را از نوار تغییرات در انتظار اعمال کنید.",
+  "tabsLabel": "انواع شیء",
+  "tabs": {
+    "addresses": "آدرس‌ها",
+    "addressGroups": "گروه‌های آدرس",
+    "services": "سرویس‌ها",
+    "serviceGroups": "گروه‌های سرویس",
+    "schedules": "زمان‌بندی‌ها",
+    "zones": "زون‌ها",
+    "tags": "برچسب‌ها"
+  },
+  "kindOne": {
+    "addresses": "آدرس",
+    "addressGroups": "گروه آدرس",
+    "services": "سرویس",
+    "serviceGroups": "گروه سرویس",
+    "schedules": "زمان‌بندی",
+    "zones": "زون",
+    "tags": "برچسب"
+  },
+  "listSeparator": "، ",
+  "add": "افزودن {{kind}}",
+  "filter": "فیلتر",
+  "readonly": "نقش شما اجازه‌ی تغییر پیکربندی را ندارد",
+  "loading": "در حال بارگذاری",
+  "close": "بستن",
+  "pending": "در انتظار",
+  "empty": "هنوز هیچ موردی در {{kind}} نیست.",
+  "noMatch": "هیچ موردی با فیلتر مطابقت ندارد.",
+  "whereUsed": "محل استفاده",
+  "whereUsedOf": "{{name}} کجا استفاده شده است",
+  "deleteNamed": "حذف {{name}}",
+  "col": {
+    "name": "نام",
+    "type": "نوع",
+    "value": {
+      "addresses": "آدرس",
+      "addressGroups": "اعضا",
+      "services": "پروتکل و پورت‌ها",
+      "serviceGroups": "اعضا",
+      "schedules": "بازه",
+      "zones": "رابط‌ها",
+      "tags": "برچسب"
+    },
+    "resolved": "تفکیک نام",
+    "tags": "برچسب‌ها",
+    "description": "توضیحات",
+    "actions": "عملیات"
+  },
+  "variant": {
+    "host": "میزبان",
+    "network": "شبکه",
+    "range": "بازه",
+    "fqdn": "نام دامنه (FQDN)",
+    "tcp": "TCP",
+    "tcp-udp": "TCP و UDP",
+    "udp": "UDP",
+    "sctp": "SCTP",
+    "icmp": "ICMP",
+    "icmp6": "ICMPv6",
+    "any": "هر پروتکل",
+    "other": "پروتکل IP دیگر",
+    "tcp|tcp-udp": "TCP / TCP و UDP",
+    "udp|sctp": "UDP / SCTP",
+    "icmp|icmp6": "ICMP / ICMPv6",
+    "recurring": "تکرارشونده",
+    "once": "یک‌باره"
+  },
+  "fqdn": {
+    "unavailable": "وضعیت تفکیک‌گر در دسترس نیست",
+    "notResolved": "هنوز تفکیک نشده",
+    "notApplied": "هنوز اعمال نشده",
+    "resolvedAgo": "تفکیک‌شده {{when}}",
+    "keptLastGood": "آخرین پاسخ معتبر نگه داشته شد",
+    "failed": "تفکیک نام ناموفق بود"
+  },
+  "usage": {
+    "title": "{{name}} کجا استفاده شده است؟",
+    "sourceLabel": "پیکربندی مورد جست‌وجو",
+    "source": {
+      "candidate": "کاندید",
+      "running": "در حال اجرا"
+    },
+    "definedAs": "تعریف‌شده به‌عنوان: {{kinds}}",
+    "notDefined": "شیئی با این نام وجود ندارد.",
+    "none": "هیچ جا به آن ارجاع داده نشده است.",
+    "listLabel": "ارجاع‌ها",
+    "kind": {
+      "address-group-member": "عضو یک گروه آدرس",
+      "service-group-member": "عضو یک گروه سرویس",
+      "tag": "برچسب یک شیء یا فهرست",
+      "acl-rule-source": "مبدأ قانون ACL",
+      "acl-rule-destination": "مقصد قانون ACL",
+      "acl-rule-service": "سرویس قانون ACL",
+      "acl-rule-schedule": "زمان‌بندی قانون ACL",
+      "acl-attachment-zone": "ACL متصل به زون",
+      "zone-interface": "رابط یک زون"
+    }
+  },
+  "dialog": {
+    "addTitle": "{{kind}} جدید",
+    "editTitle": "ویرایش {{kind}} {{name}}",
+    "name": "نام",
+    "nameHelp": "حروف، ارقام، نقطه، خط تیره و زیرخط؛ حداکثر ۶۳ نویسه",
+    "exists": "شیئی از این نوع با این نام از قبل وجود دارد",
+    "groupHint": "گروه در حین ساخت می‌تواند خالی باشد، اما قانون ACL نمی‌تواند از گروه خالی استفاده کند.",
+    "save": "ذخیره در کاندید",
+    "reset": "بازنشانی",
+    "remove": "حذف",
+    "cancel": "انصراف"
+  },
+  "picker": {
+    "option": "{{name}} — {{kind}}: {{detail}}"
+  },
+  "field": {
+    "address": {
+      "title": "آدرس"
+    },
+    "prefix": {
+      "title": "پیشوند",
+      "help": "مثلاً 10.0.0.0/24 یا 2001:db8::/32"
+    },
+    "start": {
+      "title": "شروع"
+    },
+    "end": {
+      "title": "پایان"
+    },
+    "addresses": {
+      "start": {
+        "title": "نخستین آدرس"
+      },
+      "end": {
+        "title": "آخرین آدرس"
+      }
+    },
+    "schedules": {
+      "start": {
+        "title": "شروع",
+        "help": "HH:MM (تکرارشونده) یا تاریخ و ساعت همراه با اختلاف زمانی (یک‌باره)"
+      },
+      "end": {
+        "title": "پایان",
+        "help": "دیرتر از شروع؛ بازه‌ی شبانه دو زمان‌بندی است"
+      }
+    },
+    "fqdn": {
+      "title": "نام دامنه (FQDN)",
+      "help": "عامل آن را تفکیک می‌کند (پاسخ‌های IPv4 و IPv6)؛ نامی که تفکیک نشود با هیچ چیز مطابقت ندارد"
+    },
+    "description": {
+      "title": "توضیحات"
+    },
+    "tags": {
+      "title": "برچسب‌ها",
+      "help": "برچسب‌های زبانه‌ی برچسب‌ها"
+    },
+    "members": {
+      "title": "اعضا"
+    },
+    "protocol": {
+      "title": "پروتکل"
+    },
+    "destinationPorts": {
+      "title": "پورت‌های مقصد",
+      "help": "443 یا 8000-8080؛ خالی = هر پورت"
+    },
+    "sourcePorts": {
+      "title": "پورت‌های مبدأ",
+      "help": "خالی = هر پورت"
+    },
+    "tcpFlags": {
+      "title": "پرچم‌های TCP"
+    },
+    "mask": {
+      "title": "ماسک"
+    },
+    "value": {
+      "title": "مقدار"
+    },
+    "type": {
+      "title": "نوع ICMP",
+      "help": "خالی = هر نوع"
+    },
+    "code": {
+      "title": "کد ICMP",
+      "help": "به نوع نیاز دارد؛ خالی = هر کد"
+    },
+    "number": {
+      "title": "شماره‌ی پروتکل IP",
+      "help": "مثلاً 47 = GRE، 50 = ESP، 89 = OSPF"
+    },
+    "days": {
+      "title": "روزها"
+    },
+    "interfaces": {
+      "title": "رابط‌ها"
+    },
+    "color": {
+      "title": "رنگ",
+      "help": "#rrggbb"
+    },
+    "addressGroups": {
+      "members": {
+        "title": "اعضا",
+        "help": "آدرس‌ها و گروه‌های آدرس؛ گروه در حین ساخت می‌تواند خالی باشد، اما قانون ACL نمی‌تواند از گروه خالی استفاده کند"
+      }
+    },
+    "serviceGroups": {
+      "members": {
+        "title": "اعضا",
+        "help": "سرویس‌ها و گروه‌های سرویس؛ گروه در حین ساخت می‌تواند خالی باشد، اما قانون ACL نمی‌تواند از گروه خالی استفاده کند"
+      }
+    }
+  }
+}

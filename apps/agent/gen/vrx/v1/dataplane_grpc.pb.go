@@ -46,18 +46,19 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Dataplane_Apply_FullMethodName          = "/vrx.v1.Dataplane/Apply"
-	Dataplane_Retrieve_FullMethodName       = "/vrx.v1.Dataplane/Retrieve"
-	Dataplane_DryRun_FullMethodName         = "/vrx.v1.Dataplane/DryRun"
-	Dataplane_StreamStats_FullMethodName    = "/vrx.v1.Dataplane/StreamStats"
-	Dataplane_StreamEvents_FullMethodName   = "/vrx.v1.Dataplane/StreamEvents"
-	Dataplane_Action_FullMethodName         = "/vrx.v1.Dataplane/Action"
-	Dataplane_Health_FullMethodName         = "/vrx.v1.Dataplane/Health"
-	Dataplane_InterfaceState_FullMethodName = "/vrx.v1.Dataplane/InterfaceState"
-	Dataplane_HostStackState_FullMethodName = "/vrx.v1.Dataplane/HostStackState"
-	Dataplane_SnmpState_FullMethodName      = "/vrx.v1.Dataplane/SnmpState"
-	Dataplane_IpfixState_FullMethodName     = "/vrx.v1.Dataplane/IpfixState"
-	Dataplane_LispState_FullMethodName      = "/vrx.v1.Dataplane/LispState"
+	Dataplane_Apply_FullMethodName           = "/vrx.v1.Dataplane/Apply"
+	Dataplane_Retrieve_FullMethodName        = "/vrx.v1.Dataplane/Retrieve"
+	Dataplane_DryRun_FullMethodName          = "/vrx.v1.Dataplane/DryRun"
+	Dataplane_StreamStats_FullMethodName     = "/vrx.v1.Dataplane/StreamStats"
+	Dataplane_StreamEvents_FullMethodName    = "/vrx.v1.Dataplane/StreamEvents"
+	Dataplane_Action_FullMethodName          = "/vrx.v1.Dataplane/Action"
+	Dataplane_Health_FullMethodName          = "/vrx.v1.Dataplane/Health"
+	Dataplane_InterfaceState_FullMethodName  = "/vrx.v1.Dataplane/InterfaceState"
+	Dataplane_HostStackState_FullMethodName  = "/vrx.v1.Dataplane/HostStackState"
+	Dataplane_SnmpState_FullMethodName       = "/vrx.v1.Dataplane/SnmpState"
+	Dataplane_IpfixState_FullMethodName      = "/vrx.v1.Dataplane/IpfixState"
+	Dataplane_LispState_FullMethodName       = "/vrx.v1.Dataplane/LispState"
+	Dataplane_FqdnObjectState_FullMethodName = "/vrx.v1.Dataplane/FqdnObjectState"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -110,6 +111,11 @@ type DataplaneClient interface {
 	// LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
 	// adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
 	LispState(ctx context.Context, in *LispStateRequest, opts ...grpc.CallOption) (*LispStateResponse, error)
+	// FqdnObjectState reports the agent's resolver state of every FQDN address object
+	// (objects.addresses.<name> with type "fqdn"): the addresses in use (last-good answers survive a
+	// failed refresh), when they were last resolved, the next scheduled refresh and the latest error.
+	// Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve). Never mutates.
+	FqdnObjectState(ctx context.Context, in *FqdnObjectStateRequest, opts ...grpc.CallOption) (*FqdnObjectStateResponse, error)
 }
 
 type dataplaneClient struct {
@@ -267,6 +273,16 @@ func (c *dataplaneClient) LispState(ctx context.Context, in *LispStateRequest, o
 	return out, nil
 }
 
+func (c *dataplaneClient) FqdnObjectState(ctx context.Context, in *FqdnObjectStateRequest, opts ...grpc.CallOption) (*FqdnObjectStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FqdnObjectStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_FqdnObjectState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -317,6 +333,11 @@ type DataplaneServer interface {
 	// LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
 	// adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
 	LispState(context.Context, *LispStateRequest) (*LispStateResponse, error)
+	// FqdnObjectState reports the agent's resolver state of every FQDN address object
+	// (objects.addresses.<name> with type "fqdn"): the addresses in use (last-good answers survive a
+	// failed refresh), when they were last resolved, the next scheduled refresh and the latest error.
+	// Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve). Never mutates.
+	FqdnObjectState(context.Context, *FqdnObjectStateRequest) (*FqdnObjectStateResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -362,6 +383,9 @@ func (UnimplementedDataplaneServer) IpfixState(context.Context, *IpfixStateReque
 }
 func (UnimplementedDataplaneServer) LispState(context.Context, *LispStateRequest) (*LispStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method LispState not implemented")
+}
+func (UnimplementedDataplaneServer) FqdnObjectState(context.Context, *FqdnObjectStateRequest) (*FqdnObjectStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method FqdnObjectState not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -579,6 +603,24 @@ func _Dataplane_LispState_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_FqdnObjectState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FqdnObjectStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).FqdnObjectState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_FqdnObjectState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).FqdnObjectState(ctx, req.(*FqdnObjectStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -621,6 +663,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "LispState",
 			Handler:    _Dataplane_LispState_Handler,
+		},
+		{
+			MethodName: "FqdnObjectState",
+			Handler:    _Dataplane_FqdnObjectState_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

@@ -961,7 +961,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D5.1
@@ -971,7 +971,7 @@ tasks:
   worktree: /root/ngfw-wt/F-object-model
   owner: ngfw-46 slot3
   started: 2026-09-24T17:28
-  finished: ''
+  finished: '2026-09-25'
   notes: ' | envelope draft docs/status/tasks/F-object-model.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-object-model.envelope.md
     | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | APPROVED (verify 24df718); queued | TD-11b declarations 8f5d90b8 (manager-checked); queued'
 - id: F-acl

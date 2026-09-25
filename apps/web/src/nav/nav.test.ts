@@ -45,6 +45,8 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-vrrp-config-sync
       // wave-BC: F-srv6
       // wave-BC: F-lisp
+      // wave-A: F-object-model (firewall group sorts before the vpn group)
+      'objects',
       'vpn',
       // wave-A: F-bonding
       // wave-A: F-bridge-l2

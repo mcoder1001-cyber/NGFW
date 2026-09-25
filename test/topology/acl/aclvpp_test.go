@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -186,7 +188,8 @@ func macipBindings(t *testing.T, conn vppapi.Connection) []macipBinding {
 	return out
 }
 
-func ownMacips(t *testing.T, conn vppapi.Connection, owner string) map[string]aclEntry {
+// macipDump returns every MACIP ACL in VPP (all owners).
+func macipDump(t *testing.T, conn vppapi.Connection) []aclEntry {
 	t.Helper()
 	ctx, cancel := apiCtx()
 	defer cancel()
@@ -194,11 +197,19 @@ func ownMacips(t *testing.T, conn vppapi.Connection, owner string) map[string]ac
 	if err != nil {
 		t.Fatal(err)
 	}
-	out := map[string]aclEntry{}
+	var out []aclEntry
 	for _, d := range drainDump(t, "macip_acl_dump", st.Recv) {
-		tag := strings.TrimRight(d.Tag, "\x00")
-		if n, ok := strings.CutPrefix(tag, owner+":"); ok {
-			out[n] = aclEntry{idx: d.ACLIndex, tag: tag, rules: len(d.R)}
+		out = append(out, aclEntry{idx: d.ACLIndex, tag: strings.TrimRight(d.Tag, "\x00"), rules: len(d.R)})
+	}
+	return out
+}
+
+func ownMacips(t *testing.T, conn vppapi.Connection, owner string) map[string]aclEntry {
+	t.Helper()
+	out := map[string]aclEntry{}
+	for _, m := range macipDump(t, conn) {
+		if n, ok := strings.CutPrefix(m.tag, owner+":"); ok {
+			out[n] = m
 		}
 	}
 	return out
@@ -241,9 +252,9 @@ func countersFlag(t *testing.T, conn vppapi.Connection) bool {
 	return n != 0
 }
 
-// enableCounters switches the per-rule counters on (V7: VPP answers with acl_del_reply, so the request goes on a raw
-// stream and either reply is accepted). Only under flock -x on the globals lock, never switched off (envelope, V7).
-func enableCounters(t *testing.T, conn vppapi.Connection) {
+// setCounters switches the per-rule counters on or off (acl_stats_intf_counters_enable; VPP 26.06 answers with
+// acl_del_reply, so the request goes on a raw stream and either reply is accepted, V7).
+func setCounters(t *testing.T, conn vppapi.Connection, on bool) {
 	t.Helper()
 	ctx, cancel := apiCtx()
 	defer cancel()
@@ -252,8 +263,8 @@ func enableCounters(t *testing.T, conn vppapi.Connection) {
 		t.Fatal(err)
 	}
 	defer func() { _ = st.Close() }()
-	if err := st.SendMsg(&vppacl.ACLStatsIntfCountersEnable{Enable: true}); err != nil {
-		t.Fatalf("acl_stats_intf_counters_enable: %v", err)
+	if err := st.SendMsg(&vppacl.ACLStatsIntfCountersEnable{Enable: on}); err != nil {
+		t.Fatalf("acl_stats_intf_counters_enable %v: %v", on, err)
 	}
 	m, err := st.RecvMsg()
 	if err != nil {
@@ -272,6 +283,49 @@ func enableCounters(t *testing.T, conn vppapi.Connection) {
 		t.Fatalf("acl_stats_intf_counters_enable: unexpected reply %T", m)
 	}
 }
+
+// countersScope makes the test rely on the VPP-wide ACL counters flag under the globals lock (shared-host rules §7,
+// D-082) until t ends: with change (opt-in VRX_ACL_STATS_GLOBALS=1) it takes flock -x, saves the current value and
+// switches the counters on, then holds flock -s while the test relies on them; at the end it takes flock -x again and
+// restores EXACTLY the saved value (off only if it was off), then unlocks. Without change it holds flock -s. It returns
+// whether the counters are on for the test.
+func countersScope(t *testing.T, conn vppapi.Connection, change bool) bool {
+	t.Helper()
+	f, err := os.OpenFile(globalsLockPath, os.O_RDONLY|os.O_CREATE, 0o666) //nolint:gosec // the shared globals lock
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock := func(how int) {
+		if err := syscall.Flock(int(f.Fd()), how); err != nil {
+			t.Fatalf("flock %s: %v", globalsLockPath, err)
+		}
+	}
+	if !change {
+		lock(syscall.LOCK_SH)
+		t.Cleanup(func() { lock(syscall.LOCK_UN); _ = f.Close() })
+		return countersFlag(t, conn)
+	}
+	lock(syscall.LOCK_EX)
+	prev := countersFlag(t, conn)
+	if !prev {
+		setCounters(t, conn, true)
+	}
+	on := countersFlag(t, conn)
+	t.Logf("counters flag: saved %v, now %v (flock -x %s, then -s while the test relies on it)", prev, on, globalsLockPath)
+	lock(syscall.LOCK_SH)
+	t.Cleanup(func() {
+		lock(syscall.LOCK_EX)
+		if countersFlag(t, conn) != prev {
+			setCounters(t, conn, prev)
+		}
+		t.Logf("counters flag restored to the saved value %v (now %v)", prev, countersFlag(t, conn))
+		lock(syscall.LOCK_UN)
+		_ = f.Close()
+	})
+	return on
+}
+
+const globalsLockPath = "/run/lock/vrx-globals.lock"
 
 // showOwnACLs keeps the blocks of `vppctl show acl-plugin acl` whose tag starts with one of the prefixes (the command
 // prints every owner's ACLs).

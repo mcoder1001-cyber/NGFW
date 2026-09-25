@@ -40,7 +40,8 @@ One configuration rule expands to **sources × destinations × services per addr
   prefix is IPv4 only; `icmp` exists only in IPv4, `icmp6` only in IPv6);
 - `tcp-udp` becomes a TCP and a UDP rule; several port ranges become one rule each;
 - **disabled** rules and rules whose **schedule is not active now** are left out (the box re-checks schedules every 60 s
-  and re-applies when one turns on or off; schedules use the box's time zone);
+  and re-applies when one turns on or off; schedules use the box's time zone, and a change of the time zone reaches them
+  after the agent restarts);
 - an **FQDN** object uses the addresses the box resolved last; a change of the answer re-applies the lists that use it
   (a name that never resolved matches nothing — a warning at validation);
 - limits: **10 000** VPP rules for one configuration rule, **100 000** for one list — above that the commit is refused at
@@ -55,11 +56,20 @@ The rule editor shows, per configuration rule, how many VPP rules it became and 
 ## Hit counters (caveat)
 
 Each configuration rule shows **packets / bytes**: the sum over the VPP rules it expanded to, from VPP's stats segment
-(`/acl/<index>/matches`). They count only while the VPP-wide switch *acl.stats-enable* is on. That switch belongs to the
-product box's agent (the "globals owner"); test agents never set it. VPP has no way to switch it off from the API and no
-getter (tracked as V7) — the box reads it from `show acl-plugin tables mask`. When it is off, the screen says *counters
-unavailable* with the reason. Counters restart at 0 when a list is re-created (e.g. after a VPP restart), not when it is
-changed in place. There are no per-interface ACL counters in VPP.
+(`/acl/<index>/matches`) — **hits since the list last changed in VPP**. They count only while the VPP-wide switch
+*acl.stats-enable* is on:
+
+- The switch belongs to the product box's agent (the "globals owner"), which switches it on and never off (other owners
+  on the same VPP may rely on it); test agents never set it. The API *can* switch it off
+  (`acl_stats_intf_counters_enable` with `enable=false`), but VPP has no getter for it and answers that request with the
+  wrong reply id (V7); the box reads it from `show acl-plugin tables mask`. It is **off after every VPP restart** until
+  the globals owner applies it again. When it is off, the screen says *counters unavailable* with the reason.
+- Counters **restart at 0 whenever the list changes in VPP**: VPP clears a list's counters on every `acl_add_replace`,
+  new or in place. That happens on a commit that changes the list's VPP rules, when the box re-applies it because a
+  schedule turned on or off or an FQDN object it uses got new addresses, and after a VPP restart. A commit that changes
+  only descriptions, tags, sequences or attachments does not touch the list's rules and keeps its counters.
+- Counters cost VPP a little per matching packet on the interfaces that carry an ACL.
+- There are no per-interface ACL counters in VPP.
 
 The screen refreshes the counters of the rows you see every 30 s and on *Refresh* (only the stats segment is read; a
 100 000-rule list is never dumped for a refresh).

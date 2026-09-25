@@ -6,8 +6,9 @@
 //	                  on a zone + MACIP list on the wan port (rev 2) → `vppctl show acl-plugin acl|interface|macip …`,
 //	                  Retrieve (vrx-agentctl) == running, /state/drift clean under /acl, /state/acl/* live views
 //	  traffic         V19 pre-flight → ping lan→wan permitted (rule 10), ping to the wan gateway denied (rule 30); with the
-//	                  counters flag on (opt-in VRX_ACL_STATS_GLOBALS=1: flock -x on the globals lock, never switched off,
-//	                  V7) the API's per-rule counters rise by exactly the echo requests sent
+//	                  counters flag on (opt-in VRX_ACL_STATS_GLOBALS=1: flock -x on the globals lock, the previous value
+//	                  saved and restored exactly at the end, flock -s while relied on — shared-host rules §7) the API's
+//	                  per-rule counters rise by exactly the echo requests sent
 //	  validation      a rule naming an empty address group → 400 problem+json with the rule's pointer, nothing applied
 //	  restart-safety  stop the agent → unbind + delete our ACL and MACIP ACL via binapi (foreign ACL kept) → start → back
 //	                  within 30 s, foreign ACL still first and unchanged, ping works
@@ -31,7 +32,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -313,18 +313,6 @@ func packetsOf(live map[string]any) float64 {
 	return p
 }
 
-func globalsLock(t *testing.T) func() {
-	t.Helper()
-	f, err := os.OpenFile("/run/lock/vrx-globals.lock", os.O_RDONLY|os.O_CREATE, 0o666) //nolint:gosec // the shared globals lock
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
-		t.Fatal(err)
-	}
-	return func() { _ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN); _ = f.Close() }
-}
-
 func TestACLTopology(t *testing.T) {
 	if os.Getenv("VRX_INTEGRATION") != "1" {
 		t.Skip("F-acl topology test: set VRX_INTEGRATION=1 (host VPP, rig, PostgreSQL) — run.sh does")
@@ -497,16 +485,8 @@ func TestACLTopology(t *testing.T) {
 
 	t.Run("traffic-and-counters", func(t *testing.T) {
 		a.t = t
-		countersOn := countersFlag(t, conn)
-		if !countersOn && os.Getenv("VRX_ACL_STATS_GLOBALS") == "1" {
-			unlock := globalsLock(t) // D-082: flock -x while changing a VPP-wide setting
-			if !countersFlag(t, conn) {
-				enableCounters(t, conn)
-			}
-			countersOn = countersFlag(t, conn)
-			unlock()
-			t.Logf("counters flag switched on under flock -x /run/lock/vrx-globals.lock (VRX_ACL_STATS_GLOBALS=1); left on (V7): now %v", countersOn)
-		}
+		// shared-host rules §7: the flag is VPP-wide; save, (opt-in) switch on, rely under flock -s, restore exactly
+		countersOn := countersScope(t, conn, os.Getenv("VRX_ACL_STATS_GLOBALS") == "1")
 		t.Logf("VPP counters flag (show acl-plugin tables mask): %v", countersOn)
 		st.preflight(t)
 		r.peers(t, true)

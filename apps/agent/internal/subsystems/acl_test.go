@@ -33,7 +33,7 @@ func TestACLDescriptorsDeclareOwnership(t *testing.T) {
 	t.Cleanup(rt.Close)
 	c := fake.New()
 	all := []scheduler.Descriptor{
-		rt.Tracker().WrapACL(descacl.NewACL(c, "w3")), rt.Tracker().WrapMacip(descacl.NewMacipACL(c, "w3")),
+		rt.ConfigDescriptor(), rt.Tracker().WrapACL(descacl.NewACL(c, "w3")), rt.Tracker().WrapMacip(descacl.NewMacipACL(c, "w3")),
 		descacl.NewInterfaceBinding(c, "w3"), descacl.NewEtypeWhitelist(c, "w3"), descacl.NewMacipBinding(c, "w3"), descacl.NewStatsEnable(c),
 	}
 	for _, d := range all {
@@ -49,7 +49,7 @@ func TestACLDescriptorsDeclareOwnership(t *testing.T) {
 	if err := descacl.NewEtypeWhitelist(c, "w3", descacl.WithEtypeClaims(persistedClaims{})).CheckPersistent(); err != nil {
 		t.Fatalf("persisted store refused: %v", err)
 	}
-	if got := strings.Join(aclDescriptors(), ","); got != "acl.acl,acl.macip-acl,acl.interface-binding,acl.etype-whitelist,acl.macip-interface-binding,acl.stats-enable" {
+	if got := strings.Join(aclDescriptors(), ","); got != "acl.config,acl.acl,acl.macip-acl,acl.interface-binding,acl.etype-whitelist,acl.macip-interface-binding,acl.stats-enable" {
 		t.Fatalf("Domains[acl] = %s", got)
 	}
 }
@@ -71,7 +71,11 @@ func TestACLWatcher(t *testing.T) {
 	rules := []descacl.Rule{{Action: descacl.ActionPermit, Src: descacl.AnyV4, Dst: descacl.AnyV4, SrcPortLast: 65535, DstPortLast: 65535}}
 	fp := aclstate.Fingerprint(rules)
 	office := &vrxv1.Schedule{Type: proto.String("recurring"), Days: []string{"mon", "tue", "wed", "thu", "fri", "sat", "sun"}, Start: proto.String("08:00"), End: proto.String("18:00")}
-	rec.PutACL(&aclstate.Expansion{Name: "l", Fingerprint: fp, VPPRules: 1, Schedules: map[string]*vrxv1.Schedule{"office": office}, Rules: []aclstate.RuleInfo{
+	cfg := &vrxv1.AclList{Description: proto.String("applied")}
+	if _, err := rt.ConfigDescriptor().Create(context.Background(), aclstate.ConfigList("l", cfg)); err != nil {
+		t.Fatal(err)
+	}
+	rec.PutACL(&aclstate.Expansion{Name: "l", Fingerprint: fp, ConfigHash: aclstate.ConfigHash(cfg), VPPRules: 1, Schedules: map[string]*vrxv1.Schedule{"office": office}, Rules: []aclstate.RuleInfo{
 		{Sequence: 10, Status: vrxv1.AclRuleStatus_ACL_RULE_STATUS_APPLIED, Count: 1, Schedule: "office"},
 		{Sequence: 20, Status: vrxv1.AclRuleStatus_ACL_RULE_STATUS_APPLIED, Count: 0, FQDN: []string{"cdn"}},
 	}})

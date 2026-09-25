@@ -44,6 +44,37 @@ type ACLModel struct {
 	countersEnabled bool
 	// Stats is the stats segment: /acl/<index>/matches vectors (tests set hits with SetHits).
 	Stats *FakeStats
+	// failNext: message name → retval returned once (fault injection, FailNext).
+	failNext map[string]int32
+}
+
+// FailNext makes the next request named message (acl_add_replace, acl_interface_set_acl_list)
+// answer retval instead of being applied (fault injection for rollback tests).
+func (m *ACLModel) FailNext(message string, retval int32) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.failNext == nil {
+		m.failNext = map[string]int32{}
+	}
+	m.failNext[message] = retval
+}
+
+// takeFailLocked returns and clears the injected retval of message (0 = none).
+func (m *ACLModel) takeFailLocked(message string) int32 {
+	rv := m.failNext[message]
+	delete(m.failNext, message)
+	return rv
+}
+
+// SetRules replaces the rules of ACL idx behind the agent's back (a hand edit in VPP).
+func (m *ACLModel) SetRules(idx uint32, rules ...acl_types.ACLRule) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	a, ok := m.acls[idx]
+	if ok {
+		a.R = append([]acl_types.ACLRule(nil), rules...)
+	}
+	return ok
 }
 
 var (
@@ -89,6 +120,9 @@ func (v *VPP) installACL() {
 		r := req.(*vppacl.ACLAddReplace)
 		m.mu.Lock()
 		defer m.mu.Unlock()
+		if rv := m.takeFailLocked("acl_add_replace"); rv != 0 {
+			return reply(&vppacl.ACLAddReplaceReply{Retval: rv})
+		}
 		if len(r.Tag) >= 64 {
 			return reply(&vppacl.ACLAddReplaceReply{Retval: RetvalInvalidValue})
 		}
@@ -150,6 +184,9 @@ func (v *VPP) installACL() {
 		}
 		m.mu.Lock()
 		defer m.mu.Unlock()
+		if rv := m.takeFailLocked("acl_interface_set_acl_list"); rv != 0 {
+			return reply(&vppacl.ACLInterfaceSetACLListReply{Retval: rv})
+		}
 		if int(r.NInput) > len(r.Acls) {
 			return reply(&vppacl.ACLInterfaceSetACLListReply{Retval: RetvalInvalidValue})
 		}

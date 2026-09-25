@@ -138,14 +138,7 @@ func TestACLScreenshots(t *testing.T) {
 			"macipAttachments": []any{map[string]any{"list": "wan-l2", "interface": r.wanIf}},
 		})
 		a.commit("acl-shots")
-		if !countersFlag(t, conn) && os.Getenv("VRX_ACL_STATS_GLOBALS") == "1" {
-			unlock := globalsLock(t) // D-082; never switched off (V7)
-			if !countersFlag(t, conn) {
-				enableCounters(t, conn)
-			}
-			unlock()
-			t.Logf("counters flag switched on under flock -x (VRX_ACL_STATS_GLOBALS=1): %v", countersFlag(t, conn))
-		}
+		countersScope(t, conn, os.Getenv("VRX_ACL_STATS_GLOBALS") == "1") // §7: save, switch on, restore at the end
 		if countersFlag(t, conn) {
 			st.preflight(t)
 			r.peers(t, true)

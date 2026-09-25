@@ -45,14 +45,23 @@ func TestACLJanitor(t *testing.T) {
 			t.Logf("unbound %v from %s (sw_if_index %d), kept %v", acls, name, i.idx, keep)
 		}
 	}
+	// D-071 (review L8): re-read the identity of each index immediately before the delete by index
+	now := map[uint32]string{}
+	for _, a := range aclDump(t, conn) {
+		now[a.idx] = a.tag
+	}
 	for idx, tag := range ours {
+		if now[idx] != tag {
+			t.Logf("acl %d is no longer %q (now %q): not deleted", idx, tag, now[idx])
+			continue
+		}
 		delACL(t, conn, idx)
 		t.Logf("acl_del %d (%s)", idx, tag)
 	}
 	macs := map[uint32]string{}
-	for _, p := range []string{s.prefix} {
-		for name, e := range ownMacips(t, conn, p) {
-			macs[e.idx] = p + ":" + name
+	for _, m := range macipDump(t, conn) {
+		if mine(m.tag) {
+			macs[m.idx] = m.tag
 		}
 	}
 	for _, b := range macipBindings(t, conn) {
@@ -61,7 +70,15 @@ func TestACLJanitor(t *testing.T) {
 			t.Logf("macip unbind %d from sw_if_index %d", b.acl, b.swif)
 		}
 	}
+	nowMacip := map[uint32]string{}
+	for _, m := range macipDump(t, conn) {
+		nowMacip[m.idx] = m.tag
+	}
 	for idx, tag := range macs {
+		if nowMacip[idx] != tag {
+			t.Logf("MACIP acl %d is no longer %q: not deleted", idx, tag)
+			continue
+		}
 		macipDel(t, conn, idx)
 		t.Logf("macip_acl_del %d (%s)", idx, tag)
 	}

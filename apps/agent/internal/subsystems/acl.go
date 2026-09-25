@@ -38,14 +38,15 @@ const (
 	aclReprojectDefault = 60 * time.Second
 	aclReprojectMin     = 5 * time.Second
 	aclReprojectMax     = time.Hour
-	// aclResyncGap is the minimum time between two resync requests (bursts are coalesced).
-	aclResyncGap = 5 * time.Second
+	// aclResyncGap is the minimum time between two resync requests (bursts are coalesced; review L5:
+	// a resync re-reads every ACL, so FQDN churn must not trigger one more often than D-132's 30 s).
+	aclResyncGap = 30 * time.Second
 )
 
-// aclDescriptors is Domains["acl"] (DF-4's registration order).
+// aclDescriptors is Domains["acl"]: the applied-configuration record, then DF-4's six in registration order.
 func aclDescriptors() []string {
 	return []string{
-		descacl.NameACL, descacl.NameMacipACL, descacl.NameInterfaceBinding, descacl.NameEtypeWhitelist,
+		aclstate.NameConfig, descacl.NameACL, descacl.NameMacipACL, descacl.NameInterfaceBinding, descacl.NameEtypeWhitelist,
 		descacl.NameMacipInterfaceBinding, descacl.NameStatsEnable,
 	}
 }
@@ -69,6 +70,7 @@ func (w *Wiring) registerACL(r scheduler.Registry) error {
 	}
 	rt := aclstate.Open(aclstate.Config{StateDir: w.env.StateDir, Owner: owner, Client: c, StatsSocket: statsSock, GlobalsOwner: w.env.GlobalsOwner, Log: log})
 	opts := []descacl.Option{descacl.WithEtypeClaims(claims)}
+	r.Register(rt.ConfigDescriptor()) // the applied acl configuration (review H1)
 	r.Register(rt.Tracker().WrapACL(descacl.NewACL(c, owner)))
 	r.Register(rt.Tracker().WrapMacip(descacl.NewMacipACL(c, owner)))
 	r.Register(descacl.NewInterfaceBinding(c, owner, opts...))
@@ -186,7 +188,7 @@ func (w *aclWatcher) check() {
 // scheduleChanged reports the first applied rule whose schedule state differs from the projection.
 func (w *aclWatcher) scheduleChanged(now time.Time) (string, bool) {
 	for _, a := range w.rt.Tracker().ACLs() {
-		exp, ok := w.rt.Record().ACL(a.Name, a.Fingerprint)
+		exp, ok := w.rt.AppliedExpansion(a.Name, a.Fingerprint)
 		if !ok {
 			continue
 		}
@@ -217,7 +219,7 @@ func (w *aclWatcher) fqdnChanged(ch objects.Change) {
 		changed[o] = true
 	}
 	for _, a := range w.rt.Tracker().ACLs() {
-		exp, ok := w.rt.Record().ACL(a.Name, a.Fingerprint)
+		exp, ok := w.rt.AppliedExpansion(a.Name, a.Fingerprint)
 		if !ok {
 			continue
 		}

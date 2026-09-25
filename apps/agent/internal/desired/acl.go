@@ -307,7 +307,7 @@ func (x *aclExpander) list(name string, l *vrxv1.AclList) {
 		rules[i] = indexedRule{i, r}
 	}
 	sort.SliceStable(rules, func(a, b int) bool { return rules[a].r.GetSequence() < rules[b].r.GetSequence() })
-	exp := &aclstate.Expansion{Name: name, Config: l, Rules: make([]aclstate.RuleInfo, 0, len(rules))}
+	exp := &aclstate.Expansion{Name: name, Rules: make([]aclstate.RuleInfo, 0, len(rules))}
 	rulesPtr := Ptr("acl", "lists", name, "rules") + "/" // Ptr builds a replacer per call: once per list
 	var out []descacl.Rule
 	var logs int
@@ -447,8 +447,10 @@ func (x *aclExpander) list(name string, l *vrxv1.AclList) {
 	}
 	exp.VPPRules = len(out)
 	exp.Fingerprint = aclstate.Fingerprint(out)
-	x.env.Record.PutACL(exp)
+	exp.ConfigHash = aclstate.ConfigHash(l)
+	x.env.Record.PutACL(exp) // every projection records; readers use the APPLIED configuration's entry (H1)
 	x.s.Add(descacl.KeyACL(name), descacl.ACL{Name: name, Rules: out}.Proto(), lp)
+	x.s.Add(aclstate.KeyConfigList(name), aclstate.ConfigList(name, l), lp)
 }
 
 func unionSorted(a, b []string) []string {
@@ -540,8 +542,9 @@ func (x *aclExpander) macip(name string, l *vrxv1.MacipList) {
 	if failed {
 		return
 	}
-	x.env.Record.PutMacip(&aclstate.MacipExpansion{Name: name, Fingerprint: aclstate.MacipFingerprint(out), Config: l})
+	x.env.Record.PutMacip(&aclstate.MacipExpansion{Name: name, Fingerprint: aclstate.MacipFingerprint(out), ConfigHash: aclstate.ConfigHash(l)})
 	x.s.Add(descacl.KeyMacipACL(name), descacl.MacipACL{Name: name, Rules: out}.Proto(), lp)
+	x.s.Add(aclstate.KeyConfigMacip(name), aclstate.ConfigMacip(name, l), lp)
 }
 
 type bindEntry struct {
@@ -641,10 +644,12 @@ func (x *aclExpander) bindings(cfg *vrxv1.AclConfig) {
 		macips = append(macips, v)
 		x.s.Add(descacl.KeyMacipBinding(a.GetInterface()), v.Proto(), ap)
 	}
-	x.env.Record.PutAttachments(&aclstate.Attachments{
-		Fingerprint: aclstate.BindingsFingerprint(all, macips),
-		Attachments: cfg.GetAttachments(), Macip: cfg.GetMacipAttachments(),
-	})
+	if len(cfg.GetAttachments())+len(cfg.GetMacipAttachments()) == 0 {
+		return
+	}
+	att := aclstate.ConfigAttachments(cfg.GetAttachments(), cfg.GetMacipAttachments())
+	x.env.Record.PutAttachments(&aclstate.Attachments{Fingerprint: aclstate.BindingsFingerprint(all, macips), ConfigHash: aclstate.ConfigHash(att)})
+	x.s.Add(aclstate.KeyConfigAttachments, att, Ptr("acl", "attachments"))
 }
 
 // ordered sorts a direction's entries by attachment sequence (then position) and rejects a list
@@ -673,12 +678,21 @@ func (x *aclExpander) ordered(es []bindEntry, ifn, dir string, ok bool) ([]strin
 // ---- assemble ---------------------------------------------------------------------------------------
 
 // AssembleACL builds the `acl` domain from retrieved objects (nil when this owner has none). A list
-// whose VPP rules are exactly what a recorded projection produced is reported as that
-// configuration; anything else is reconstructed from the VPP rules (one rule per VPP rule, sequences
-// 10, 20, …), so a difference shows as drift.
+// whose VPP rules are exactly what the APPLIED configuration of that list produced (acl.config, the
+// record entry of its fingerprint and configuration hash) is reported as that configuration;
+// anything else is reconstructed from the VPP rules (one rule per VPP rule, sequences 10, 20, …), so a
+// difference shows as drift. A DryRun never changes the result (review H1).
 func AssembleACL(kvs []scheduler.KV) *vrxv1.AclConfig {
 	env := CurrentACLEnv()
 	out := &vrxv1.AclConfig{}
+	applied := map[scheduler.Key]*vrxv1.AclConfig{}
+	for _, kv := range kvs {
+		if kv.Key.Descriptor() == aclstate.NameConfig {
+			if c, ok := kv.Value.(*vrxv1.AclConfig); ok {
+				applied[kv.Key] = c
+			}
+		}
+	}
 	var binds []descacl.InterfaceBinding
 	var macips []descacl.MacipBinding
 	for _, kv := range kvs {
@@ -691,11 +705,14 @@ func AssembleACL(kvs []scheduler.KV) *vrxv1.AclConfig {
 			if out.Lists == nil {
 				out.Lists = map[string]*vrxv1.AclList{}
 			}
-			if e, ok := env.Record.ACL(a.Name, aclstate.Fingerprint(a.Rules)); ok {
-				out.Lists[a.Name] = proto.Clone(e.Config).(*vrxv1.AclList)
-			} else {
-				out.Lists[a.Name] = reconstructList(a)
+			cfg := applied[aclstate.KeyConfigList(a.Name)].GetLists()[a.Name]
+			if cfg != nil {
+				if _, ok := env.Record.ACL(a.Name, aclstate.Fingerprint(a.Rules), aclstate.ConfigHash(cfg)); ok {
+					out.Lists[a.Name] = proto.Clone(cfg).(*vrxv1.AclList)
+					continue
+				}
 			}
+			out.Lists[a.Name] = reconstructList(a)
 		case descacl.NameMacipACL:
 			a, err := descacl.MacipACLFromProto(kv.Value)
 			if err != nil || isDupName(a.Name) {
@@ -704,11 +721,14 @@ func AssembleACL(kvs []scheduler.KV) *vrxv1.AclConfig {
 			if out.Macip == nil {
 				out.Macip = map[string]*vrxv1.MacipList{}
 			}
-			if e, ok := env.Record.Macip(a.Name, aclstate.MacipFingerprint(a.Rules)); ok {
-				out.Macip[a.Name] = proto.Clone(e.Config).(*vrxv1.MacipList)
-			} else {
-				out.Macip[a.Name] = reconstructMacip(a)
+			cfg := applied[aclstate.KeyConfigMacip(a.Name)].GetMacip()[a.Name]
+			if cfg != nil {
+				if _, ok := env.Record.Macip(a.Name, aclstate.MacipFingerprint(a.Rules), aclstate.ConfigHash(cfg)); ok {
+					out.Macip[a.Name] = proto.Clone(cfg).(*vrxv1.MacipList)
+					continue
+				}
 			}
+			out.Macip[a.Name] = reconstructMacip(a)
 		case descacl.NameInterfaceBinding:
 			if b, err := descacl.InterfaceBindingFromProto(kv.Value); err == nil {
 				binds = append(binds, b)
@@ -719,11 +739,12 @@ func AssembleACL(kvs []scheduler.KV) *vrxv1.AclConfig {
 			}
 		}
 	}
-	if rec, ok := env.Record.Attachments(aclstate.BindingsFingerprint(binds, macips)); ok {
-		for _, a := range rec.Attachments {
+	att := applied[aclstate.KeyConfigAttachments]
+	if att != nil && env.Record.Attachments(aclstate.BindingsFingerprint(binds, macips), aclstate.ConfigHash(att)) {
+		for _, a := range att.GetAttachments() {
 			out.Attachments = append(out.Attachments, proto.Clone(a).(*vrxv1.AclAttachment))
 		}
-		for _, a := range rec.Macip {
+		for _, a := range att.GetMacipAttachments() {
 			out.MacipAttachments = append(out.MacipAttachments, proto.Clone(a).(*vrxv1.MacipAttachment))
 		}
 	} else {

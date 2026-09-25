@@ -1,8 +1,14 @@
 // Package acl is F-acl's runtime-state side of the acl domain: the record of how each configured
-// list expanded into VPP rules (so hit counters map back to configuration rules), the tracker of
-// what the acl.acl / acl.macip-acl descriptors last saw in VPP, the counter reader and the
-// AclState mapping (pure functions, tested on the fake client). The projection itself lives in
-// internal/desired/acl.go; the wiring in internal/subsystems/acl.go.
+// list expanded into VPP rules (so hit counters map back to configuration rules), the applied
+// configuration (the agent-local acl.config descriptor: written only by Apply, reverted by rollback),
+// the tracker of what the acl.acl / acl.macip-acl descriptors last saw in VPP, the counter reader
+// and the AclState mapping (pure functions, tested on the fake client). The projection itself lives
+// in internal/desired/acl.go; the wiring in internal/subsystems/acl.go.
+//
+// Review H1: every projection (DryRun, validate, drift, Apply) records its expansion, keyed by list
+// name + VPP content fingerprint + CONFIGURATION hash; readers look up the entry of the APPLIED
+// configuration (acl.config), so a DryRun of a candidate never changes what Retrieve, AclState or the
+// watcher see.
 package acl
 
 import (
@@ -11,6 +17,8 @@ import (
 	"encoding/hex"
 	"sort"
 	"sync"
+
+	"google.golang.org/protobuf/proto"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	descacl "ngfw/agent/internal/descriptors/acl"
@@ -33,12 +41,12 @@ type RuleInfo struct {
 type Expansion struct {
 	Name        string
 	Fingerprint string
+	// ConfigHash identifies the configuration list that produced it (ConfigHash of the AclList).
+	ConfigHash string
 	// Rules are the configuration rules in sequence order (also those that rendered nothing).
 	Rules []RuleInfo
 	// VPPRules is the number of VPP rules (the sum of the Counts).
 	VPPRules int
-	// Config is the configuration list that produced it (Retrieve assembles the domain from it).
-	Config *vrxv1.AclList
 	// Schedules are the definitions of the schedules the rules name (as projected).
 	Schedules map[string]*vrxv1.Schedule
 }
@@ -47,14 +55,23 @@ type Expansion struct {
 type MacipExpansion struct {
 	Name        string
 	Fingerprint string
-	Config      *vrxv1.MacipList
+	ConfigHash  string
 }
 
-// Attachments is the configuration that produced a set of interface bindings.
+// Attachments says which attachments configuration produced a set of interface bindings.
 type Attachments struct {
 	Fingerprint string
-	Attachments []*vrxv1.AclAttachment
-	Macip       []*vrxv1.MacipAttachment
+	ConfigHash  string
+}
+
+// ConfigHash identifies a configuration message: SHA-256 over its deterministic protobuf encoding.
+func ConfigHash(m proto.Message) string {
+	b, err := proto.MarshalOptions{Deterministic: true}.Marshal(m)
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
 }
 
 // Fingerprint identifies the VPP content of an ACL: SHA-256 over its rules in order. Two
@@ -122,53 +139,98 @@ func writeString(h hashWriter, s string) {
 
 // ---- the expansion record ------------------------------------------------------------------------
 
-// Record keeps the most recent expansions per list (and binding sets), keyed by content
-// fingerprint, so what VPP holds (seen by the descriptors) can be attributed to the configuration
-// that produced it. A projection that is never applied (DryRun) only adds a record nobody finds.
-// Bounded: per name the last keepPerName fingerprints, and at most maxRules configuration rules
-// over all L3/L4 records (a 100 000-rule list keeps about four versions).
+// Record keeps the expansions of recent projections per list (and binding sets), keyed by VPP
+// content fingerprint and configuration hash, so what VPP holds can be attributed to the APPLIED
+// configuration (Pin, set by the acl.config descriptor) and its VPP rules mapped to configuration
+// rules. A projection that is never applied (DryRun, validate, drift) only adds entries nobody looks
+// up. Bounded: per name at most keepPinned entries of the applied configuration (its expansion
+// changes with schedules and FQDN answers) and keepOther others, and at most maxRules configuration
+// rules over all L3/L4 entries (the newest entry of the applied configuration is never dropped).
 type Record struct {
 	mu       sync.Mutex
 	acls     map[string][]*Expansion // name → newest first
 	macips   map[string][]*MacipExpansion
-	bindings []*Attachments // newest first
+	bindings []*Attachments    // newest first
+	pinned   map[string]string // "acl/<name>", "macip/<name>", "attachments" → applied configuration hash
 	maxRules int
 }
 
 const (
-	keepPerName = 3
-	keepSets    = 4
+	keepPinned = 4
+	keepOther  = 4
+	keepSets   = 8
 	// DefaultMaxRules bounds the configuration rules kept over all records.
 	DefaultMaxRules = 400_000
 )
+
+// Pin keys of the applied configurations.
+func pinACL(name string) string   { return "acl/" + name }
+func pinMacip(name string) string { return "macip/" + name }
+
+const pinAttachments = "attachments"
 
 // NewRecord returns an empty record bounded by maxRules configuration rules (≤ 0: DefaultMaxRules).
 func NewRecord(maxRules int) *Record {
 	if maxRules <= 0 {
 		maxRules = DefaultMaxRules
 	}
-	return &Record{acls: map[string][]*Expansion{}, macips: map[string][]*MacipExpansion{}, maxRules: maxRules}
+	return &Record{acls: map[string][]*Expansion{}, macips: map[string][]*MacipExpansion{}, pinned: map[string]string{}, maxRules: maxRules}
 }
 
 // Default is the process-wide record the projection writes and the runtime reads.
 var Default = NewRecord(0)
 
-// PutACL records e (replacing an older record with the same fingerprint).
+// pin records the applied configuration hash of a key ("" removes it).
+func (r *Record) pin(key, hash string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if hash == "" {
+		delete(r.pinned, key)
+		return
+	}
+	r.pinned[key] = hash
+}
+
+// Pinned returns the applied configuration hash of an L3/L4 list ("" when none is applied).
+func (r *Record) Pinned(name string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.pinned[pinACL(name)]
+}
+
+// PutACL records e (replacing an entry with the same fingerprint and configuration hash).
 func (r *Record) PutACL(e *Expansion) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	applied := r.pinned[pinACL(e.Name)]
 	list := []*Expansion{e}
+	nPinned, nOther := 0, 0
+	if e.ConfigHash == applied {
+		nPinned++
+	} else {
+		nOther++
+	}
 	for _, old := range r.acls[e.Name] {
-		if old.Fingerprint != e.Fingerprint && len(list) < keepPerName {
-			list = append(list, old)
+		if old.Fingerprint == e.Fingerprint && old.ConfigHash == e.ConfigHash {
+			continue
 		}
+		switch {
+		case old.ConfigHash == applied && nPinned < keepPinned:
+			nPinned++
+		case old.ConfigHash != applied && nOther < keepOther:
+			nOther++
+		default:
+			continue
+		}
+		list = append(list, old)
 	}
 	r.acls[e.Name] = list
 	r.trimLocked()
 }
 
-// trimLocked drops older records (never a list's newest) until the rule budget holds, the largest
-// old record first.
+// trimLocked drops older entries until the rule budget holds: entries of unapplied configurations
+// first (largest first), then older entries of applied ones. A list's newest entry (the projection
+// that is being applied right now) and the newest entry of its applied configuration are never dropped.
 func (r *Record) trimLocked() {
 	total := 0
 	for _, l := range r.acls {
@@ -177,51 +239,82 @@ func (r *Record) trimLocked() {
 		}
 	}
 	for total > r.maxRules {
-		victim, n := "", -1
+		victim, at, n, applied := "", -1, -1, true
 		for name, l := range r.acls {
-			if len(l) > 1 && len(l[len(l)-1].Rules) > n {
-				victim, n = name, len(l[len(l)-1].Rules)
+			hash := r.pinned[pinACL(name)]
+			newestApplied := true
+			for i, e := range l {
+				isApplied := e.ConfigHash == hash
+				if isApplied && newestApplied {
+					newestApplied = false
+					continue
+				}
+				if i == 0 {
+					continue
+				}
+				better := (!isApplied && applied) || (isApplied == applied && len(e.Rules) > n)
+				if better {
+					victim, at, n, applied = name, i, len(e.Rules), isApplied
+				}
 			}
 		}
 		if victim == "" {
-			return // only the newest record of each list is left
+			return
 		}
-		r.acls[victim] = r.acls[victim][:len(r.acls[victim])-1]
+		l := r.acls[victim]
+		r.acls[victim] = append(l[:at:at], l[at+1:]...)
 		total -= n
 	}
 }
 
-// ACL returns the record of list name with this fingerprint.
-func (r *Record) ACL(name, fp string) (*Expansion, bool) {
+// ACL returns the entry of list name with this VPP fingerprint and configuration hash.
+func (r *Record) ACL(name, fp, configHash string) (*Expansion, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, e := range r.acls[name] {
-		if e.Fingerprint == fp {
+		if e.Fingerprint == fp && e.ConfigHash == configHash {
 			return e, true
 		}
 	}
 	return nil, false
 }
 
+// AppliedACL returns the entry that explains VPP content fp by the applied configuration of name.
+func (r *Record) AppliedACL(name, fp string) (*Expansion, bool) {
+	hash := r.Pinned(name)
+	if hash == "" {
+		return nil, false
+	}
+	return r.ACL(name, fp, hash)
+}
+
 // PutMacip records e.
 func (r *Record) PutMacip(e *MacipExpansion) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	applied := r.pinned[pinMacip(e.Name)]
 	list := []*MacipExpansion{e}
+	n := 0
 	for _, old := range r.macips[e.Name] {
-		if old.Fingerprint != e.Fingerprint && len(list) < keepPerName {
+		if old.Fingerprint == e.Fingerprint && old.ConfigHash == e.ConfigHash {
+			continue
+		}
+		if old.ConfigHash == applied || n < keepOther {
+			if old.ConfigHash != applied {
+				n++
+			}
 			list = append(list, old)
 		}
 	}
 	r.macips[e.Name] = list
 }
 
-// Macip returns the record of MACIP list name with this fingerprint.
-func (r *Record) Macip(name, fp string) (*MacipExpansion, bool) {
+// Macip returns the MACIP entry with this fingerprint and configuration hash.
+func (r *Record) Macip(name, fp, configHash string) (*MacipExpansion, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, e := range r.macips[name] {
-		if e.Fingerprint == fp {
+		if e.Fingerprint == fp && e.ConfigHash == configHash {
 			return e, true
 		}
 	}
@@ -232,23 +325,32 @@ func (r *Record) Macip(name, fp string) (*MacipExpansion, bool) {
 func (r *Record) PutAttachments(a *Attachments) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	applied := r.pinned[pinAttachments]
 	list := []*Attachments{a}
+	n := 0
 	for _, old := range r.bindings {
-		if old.Fingerprint != a.Fingerprint && len(list) < keepSets {
+		if old.Fingerprint == a.Fingerprint && old.ConfigHash == a.ConfigHash {
+			continue
+		}
+		if old.ConfigHash == applied || n < keepSets {
+			if old.ConfigHash != applied {
+				n++
+			}
 			list = append(list, old)
 		}
 	}
 	r.bindings = list
 }
 
-// Attachments returns the attachments that produced the binding set with this fingerprint.
-func (r *Record) Attachments(fp string) (*Attachments, bool) {
+// Attachments reports whether the binding set with this fingerprint was produced by the attachments
+// configuration with this hash.
+func (r *Record) Attachments(fp, configHash string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, a := range r.bindings {
-		if a.Fingerprint == fp {
-			return a, true
+		if a.Fingerprint == fp && a.ConfigHash == configHash {
+			return true
 		}
 	}
-	return nil, false
+	return false
 }

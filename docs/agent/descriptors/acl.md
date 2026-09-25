@@ -76,9 +76,9 @@ ranges and wildcards).
 |---|---|---|---|---|---|---|
 | `acl.acl` | `acl_add_replace` (`acl_index=~0`, `tag`, `r[]`) | `acl_add_replace` on `Meta.ACLIndex` (index kept, bindings/ABF stay valid); name change → `ErrRecreate` | `acl_del` | `acl_dump` (`acl_index=~0`) → `acl_details` | `tag` parses as `<owner>:<name>` | none |
 | `acl.macip-acl` | `macip_acl_add_replace` (`acl_index=~0`) | `macip_acl_add_replace` on index | `macip_acl_del` | `macip_acl_dump` (`~0`) → `macip_acl_details` | tag | none |
-| `acl.interface-binding` | `acl_interface_list_dump` for the interface, then `acl_interface_set_acl_list` (`acls` = input ++ output, `n_input`; other owners' entries kept first per direction) | same (reorder = update) | same with only the other owners' entries left (empty list if none) | `acl_interface_list_dump` (`~0`) → `acl_interface_list_details`; `sw_interface_dump` for index→name | the entries whose ACL is ours (others skipped); no binding if none | interface (optional, `WithInterfaceKey`), every listed `acl.acl` (mandatory) |
+| `acl.interface-binding` | `acl_interface_list_dump` for the interface, then `acl_interface_set_acl_list` (`acls` = input ++ output, `n_input`; other owners' entries kept first per direction) | same (reorder = update) | same with only the other owners' entries left (empty list if none) | `acl_interface_list_dump` (`~0`) → `acl_interface_list_details`; `sw_interface_dump` for index→name | the entries whose ACL is ours (others skipped); no binding if none | interface (**mandatory** since F-acl, review 3.4; `WithInterfaceKey`), every listed `acl.acl` (mandatory) |
 | `acl.etype-whitelist` | `acl_interface_set_etype_whitelist` (`whitelist` = input ++ output, `n_input`) | same | same with empty list | `acl_interface_etype_whitelist_dump` (`~0`) → `…_details` | interface tag parses as `<owner>:…`, or interface untagged **and** claimed by this descriptor (ClaimStore); Create refuses another owner's interface (`ErrForeignInterface`) | interface (optional) |
-| `acl.macip-interface-binding` | `macip_acl_interface_add_del` (`is_add=1`) | `macip_acl_interface_add_del` add with the new index (VPP unapplies the old one) | `is_add=0` | `macip_acl_interface_list_dump` (`~0`) → `…_details` (VPP reports `~0` for an interface whose MACIP ACL was removed) | the bound MACIP ACL is ours; Create refuses an interface with another owner's MACIP ACL (`ErrForeignMacipBinding`) | interface (optional), `acl.macip-acl` (mandatory, for ordering — see caveat) |
+| `acl.macip-interface-binding` | `macip_acl_interface_add_del` (`is_add=1`) | `macip_acl_interface_add_del` add with the new index (VPP unapplies the old one) | `is_add=0` | `macip_acl_interface_list_dump` (`~0`) → `…_details` (VPP reports `~0` for an interface whose MACIP ACL was removed) | the bound MACIP ACL is ours; Create refuses an interface with another owner's MACIP ACL (`ErrForeignMacipBinding`) | interface (**mandatory** since F-acl), `acl.macip-acl` (mandatory, for ordering — see caveat) |
 | `acl.stats-enable` | `acl_stats_intf_counters_enable` (`enable=1`) via raw stream, see caveat | same | **no-op** (never disables) | last value applied by this process **to the running VPP** (identity = D-080 boot identity from `internal/vpp/bootid`: boot_id, vpe_pid, start time; VPP has no getter) | n/a (global) | none |
 | hit counters (`acl.StatsReader`, not a descriptor) | – | – | – | stats segment `/acl/<acl_index>/matches` (combined counters, one slot per rule + 1 spare, per worker) via `adapter.StatsAPI.DumpStats`; ACL names via `acl_dump` | tag | reads `acl.acl` objects |
 | health (`acl.GetPluginInfo`) | – | – | – | `acl_plugin_get_version`, `acl_plugin_get_conn_table_max_entries` | – | – |
@@ -102,8 +102,10 @@ There is no per-interface or per-MACIP-ACL hit counter in the stats segment.
   id, so `acl.EnableCounters` sends the request on a raw `NewStream` and accepts either reply type. A VPP fix would be
   a one-line C change — not allowed in this plan (configuration-only fallback in place; recorded for
   `docs/vpp-code-track.md` by the manager).
-- **No getter for the counters flag** (only `vppctl show acl-plugin tables` prints "Stats counters enabled for
-  interface ACLs"). Retrieve of `acl.stats-enable` reports what this process applied, tied to the VPP identity
+- **No API getter for the counters flag** (only `vppctl show acl-plugin tables` prints "Stats counters enabled for
+  interface ACLs"; F-acl reads it with `show acl-plugin tables mask` through `cli_inband`). `enable=false` does switch
+  it off, and every VPP restart resets it to 0. VPP clears an ACL's counter vector on every `acl_add_replace` (acl.c
+  `validate_and_reset_acl_counters`), so hits count since the list last changed in VPP. Retrieve of `acl.stats-enable` reports what this process applied, tied to the VPP identity
   (D-080 boot identity `bootid.Current`: kernel boot_id, control_ping vpe_pid, VPP start time; read *before* the enable request): after `restart-vpp` /
   `kill -9 vpp` the identity changes, Retrieve reports nothing and the scheduler enables the counters again. After an
   agent restart the scheduler also enables once more (idempotent on VPP). `StatsEnableDescriptor.Reset()` forgets
@@ -149,7 +151,7 @@ There is no per-interface or per-MACIP-ACL hit counter in the stats segment.
 
 ## F-acl: the product wiring of this family
 
-- **Registration** (`internal/subsystems/acl.go`, `Domains["acl"]`): the six descriptors in `Register`'s order, with
+- **Registration** (`internal/subsystems/acl.go`, `Domains["acl"]`): `acl.config` (below) and the six descriptors in `Register`'s order, with
   `WithEtypeClaims(Wiring.KeyedClaims("acl"))` (persisted, D-080). acl.acl and acl.macip-acl are wrapped by
   `internal/actions/acl` (`TrackedACL`, `TrackedMacip`): same names, keys, values and behaviour; every successful
   Create/Update/Delete/Retrieve updates a tracker (name → acl_index, rule count, content fingerprint), so the state RPC
@@ -170,6 +172,11 @@ There is no per-interface or per-MACIP-ACL hit counter in the stats segment.
 - **AclState** (`internal/agent/rpc_acl.go`, proto.md §11 F-acl): list summaries from the tracker, per-rule counters
   from `/acl/<index>/matches` mapped to configuration rules through the recorded expansion, bindings from
   `acl_interface_list_dump` + `macip_acl_interface_list_dump` (one `acl_dump` per foreign index for its tag).
+- **Applied configuration** (`acl.config`, agent-local, fix round 1 / review H1): one object per list, per MACIP list
+  and one for the attachments, value = the configuration message holding that entry; changed only by Apply (reverted
+  by rollback), in memory, rebuilt by the resync. Record entries are keyed by name + VPP content fingerprint +
+  configuration hash, and Retrieve, AclState and the watcher use the entry of the APPLIED configuration, so a DryRun
+  (validate, drift) never changes what they report.
 - **Re-projection**: a watcher asks for a resync of the stored desired state (`Wiring.RequestResync`, TD-8) when an
   applied rule's schedule turned on or off (checked every 60 s, `VRX_ACL_REPROJECT_SEC`) or an FQDN object it uses
-  changed addresses; requests are coalesced (≥ 5 s apart).
+  changed addresses; requests are coalesced (≥ 30 s apart, D-132).

@@ -210,7 +210,7 @@ func TestACLFQDNUnresolvedAndFamilies(t *testing.T) {
 	if len(a.Rules) != 1 || a.Rules[0].Dst != "2001:db8::1/128" || a.Rules[0].Src != descacl.AnyV6 {
 		t.Fatalf("rules %+v", a.Rules)
 	}
-	exp, ok := rec.ACL("l", aclstate.Fingerprint(a.Rules))
+	exp, ok := rec.ACL("l", aclstate.Fingerprint(a.Rules), aclstate.ConfigHash(ds.Acl.Lists["l"]))
 	if !ok || exp.Rules[0].Status != vrxv1.AclRuleStatus_ACL_RULE_STATUS_EMPTY || strings.Join(exp.Rules[0].FQDN, ",") != "cdn" || exp.Rules[1].Count != 1 {
 		t.Fatalf("record %+v", exp)
 	}

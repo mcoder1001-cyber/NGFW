@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"go.fd.io/govpp/adapter"
 	"go.fd.io/govpp/adapter/statsclient"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -66,6 +67,7 @@ type Runtime struct {
 	key     string
 	tracker *Tracker
 	record  *Record
+	applied *appliedStore
 
 	statsMu sync.Mutex
 	stats   descacl.StatsSource
@@ -96,7 +98,7 @@ func Open(cfg Config) *Runtime {
 	if cfg.Record == nil {
 		cfg.Record = Default
 	}
-	rt := &Runtime{cfg: cfg, key: runtimeKey(cfg.StateDir, cfg.Owner), tracker: NewTracker(), record: cfg.Record, stats: cfg.Stats}
+	rt := &Runtime{cfg: cfg, key: runtimeKey(cfg.StateDir, cfg.Owner), tracker: NewTracker(), record: cfg.Record, stats: cfg.Stats, applied: newAppliedStore()}
 	runtimesMu.Lock()
 	prev := runtimes[rt.key]
 	runtimes[rt.key] = rt
@@ -138,6 +140,21 @@ func (rt *Runtime) Tracker() *Tracker { return rt.tracker }
 
 // Record returns the expansion record.
 func (rt *Runtime) Record() *Record { return rt.record }
+
+// ConfigDescriptor returns the acl.config descriptor of this runtime (the applied configuration).
+func (rt *Runtime) ConfigDescriptor() *ConfigDescriptor {
+	return &ConfigDescriptor{store: rt.applied, record: rt.record}
+}
+
+// AppliedExpansion returns the record entry that explains VPP content fp of list name by the
+// APPLIED configuration of that list (acl.config), never by a DryRun's candidate (review H1).
+func (rt *Runtime) AppliedExpansion(name, fp string) (*Expansion, bool) {
+	_, hash, ok := rt.applied.applied(KeyConfigList(name))
+	if !ok {
+		return nil, false
+	}
+	return rt.record.ACL(name, fp, hash)
+}
 
 // statsSource returns the stats segment, connecting on first use.
 func (rt *Runtime) statsSource() (descacl.StatsSource, error) {
@@ -212,17 +229,35 @@ func (rt *Runtime) readCounters(indexes []uint32) (map[uint32][]descacl.RuleCoun
 		parts[i] = strconv.FormatUint(uint64(idx), 10)
 	}
 	pattern := `^/acl/(` + strings.Join(parts, "|") + `)/matches$`
-	r := descacl.NewStatsReader(src, rt.cfg.Client, rt.cfg.Owner)
+	entries, err := src.DumpStats(pattern) // one stats-directory scan for every list (review L2)
+	if err != nil {
+		rt.dropStats()
+		return nil, fmt.Errorf("stats dump %s: %w", pattern, err)
+	}
+	want := map[string]uint32{}
 	for _, idx := range indexes {
-		c, err := r.ReadIndex(idx)
-		switch {
-		case err == nil:
-			out[idx] = c
-		case errors.Is(err, descacl.ErrNoCounters):
-		default:
-			rt.dropStats()
-			return nil, fmt.Errorf("%s: %w", pattern, err)
+		want[descacl.StatsPath(idx)] = idx
+	}
+	for _, e := range entries {
+		idx, ok := want[string(e.Name)]
+		if !ok {
+			continue
 		}
+		cc, ok := e.Data.(adapter.CombinedCounterStat)
+		if !ok {
+			return nil, fmt.Errorf("stats %s is %T, want a combined counter vector", e.Name, e.Data)
+		}
+		var sum []descacl.RuleCounter
+		for _, worker := range cc {
+			for i, c := range worker {
+				for len(sum) <= i {
+					sum = append(sum, descacl.RuleCounter{})
+				}
+				sum[i].Packets += c.Packets()
+				sum[i].Bytes += c.Bytes()
+			}
+		}
+		out[idx] = sum
 	}
 	return out, nil
 }
@@ -274,12 +309,12 @@ func (rt *Runtime) State(ctx context.Context, req *vrxv1.AclStateRequest) (*vrxv
 	}
 
 	for _, a := range tracked {
-		exp, _ := rt.record.ACL(a.Name, a.Fingerprint)
+		exp, _ := rt.AppliedExpansion(a.Name, a.Fingerprint)
 		resp.Lists = append(resp.Lists, ListState(a, exp, counters[a.Index]))
 	}
 	if req.GetList() != "" {
 		a := tracked[0]
-		if exp, ok := rt.record.ACL(a.Name, a.Fingerprint); ok {
+		if exp, ok := rt.AppliedExpansion(a.Name, a.Fingerprint); ok {
 			var c []descacl.RuleCounter
 			if resp.CountersAvailable {
 				c = counters[a.Index]

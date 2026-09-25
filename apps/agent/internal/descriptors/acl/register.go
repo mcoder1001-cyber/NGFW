@@ -50,9 +50,17 @@ func WithEtypeClaims(s ClaimStore) Option {
 	}
 }
 
-// interfaceDependency is the optional dependency of a binding on its interface object.
+// interfaceDependency is the optional dependency of an ethertype whitelist on its interface object.
 func (o options) interfaceDependency(ifName string) scheduler.Dependency {
 	return scheduler.Dependency{Key: o.ifaceKey(ifName), Optional: true}
+}
+
+// boundInterfaceDependency is the MANDATORY dependency of an ACL / MACIP binding on its interface
+// (review 3.4, F-acl fix round 1): the scheduler then always unbinds before it deletes the interface
+// in one transaction, and a binding whose interface key does not resolve fails planning instead of
+// losing the ordering silently (V23b: binding vectors survive an interface delete, V19 family).
+func (o options) boundInterfaceDependency(ifName string) scheduler.Dependency {
+	return scheduler.Dependency{Key: o.ifaceKey(ifName)}
 }
 
 // Register constructs every descriptor of the acl plugin with the shared client and owner and

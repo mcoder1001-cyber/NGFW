@@ -48,12 +48,12 @@ func (*InterfaceBindingDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return KeyInterfaceBinding(b.Interface)
 }
 
-// Dependencies implements scheduler.Descriptor: the interface (optional; see WithInterfaceKey)
+// Dependencies implements scheduler.Descriptor: the interface (mandatory, review 3.4; see WithInterfaceKey)
 // and every acl.acl the lists name (mandatory: an ACL is created before it is bound and unbound
 // before it is deleted — VPP refuses acl_del while bound).
 func (d *InterfaceBindingDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	b, _ := InterfaceBindingFromProto(obj)
-	deps := []scheduler.Dependency{d.opts.interfaceDependency(b.Interface)}
+	deps := []scheduler.Dependency{d.opts.boundInterfaceDependency(b.Interface)}
 	seen := map[string]struct{}{}
 	for _, name := range append(append([]string{}, b.Input...), b.Output...) {
 		if _, dup := seen[name]; dup {

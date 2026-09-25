@@ -15,7 +15,7 @@ func TestInterfaceBindingDependencies(t *testing.T) {
 	b := InterfaceBinding{Interface: "loop1040", Input: []string{"a", "b"}, Output: []string{"a", "c"}}
 	deps := d.Dependencies(b.Proto())
 	want := []scheduler.Dependency{
-		{Key: "interface/loop1040", Optional: true},
+		{Key: "interface/loop1040"}, // mandatory (review 3.4)
 		{Key: KeyACL("a")}, {Key: KeyACL("b")}, {Key: KeyACL("c")},
 	}
 	if len(deps) != len(want) {
@@ -27,7 +27,7 @@ func TestInterfaceBindingDependencies(t *testing.T) {
 		}
 	}
 	custom := NewInterfaceBinding(newFakeVPP(), owner, WithInterfaceKey(func(n string) scheduler.Key { return scheduler.Join("interface.loopback", n) }))
-	if deps := custom.Dependencies(b.Proto()); deps[0].Key != "interface.loopback/loop1040" || !deps[0].Optional {
+	if deps := custom.Dependencies(b.Proto()); deps[0].Key != "interface.loopback/loop1040" || deps[0].Optional {
 		t.Fatalf("custom interface key: %+v", deps[0])
 	}
 	if d.KeyOf(b.Proto()) != "acl.interface-binding/loop1040" {

@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/acl_types"
+	"ngfw/agent/binapi/ip_types"
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	aclstate "ngfw/agent/internal/actions/acl"
 	descacl "ngfw/agent/internal/descriptors/acl"
@@ -375,3 +376,134 @@ func hasIssue(rep *vrxv1.ValidationReport, pointer, rule string) bool {
 }
 
 func itoa3(i int) string { return fmt.Sprintf("%03d", i) }
+
+const h1Applied = `{
+  "interfaces": {"loop701": {"ipv4": ["10.7.1.1/24"]}},
+  "objects": {},
+  "acl": {
+    "lists": {"l": {"description": "applied", "tags": [], "rules": [
+      {"sequence": 10, "action": "permit", "enabled": true, "ipVersion": "ipv4", "source": {"kind": "prefix", "prefix": "10.7.1.0/24"}, "log": false},
+      {"sequence": 20, "action": "deny", "enabled": true, "ipVersion": "ipv4", "log": false}
+    ]}},
+    "attachments": [{"list": "l", "target": {"kind": "interface", "interface": "loop701"}, "direction": "in", "sequence": 1, "enabled": true}]
+  }
+}`
+
+// h1Candidate has exactly the same VPP content as h1Applied (same rules in the same order, same
+// binding) but a different configuration: renumbered rules, another description, another attachment
+// sequence.
+func h1Candidate(t *testing.T) *vrxv1.DesiredState {
+	ds := doc(t, h1Applied)
+	l := ds.Acl.Lists["l"]
+	l.Description = proto.String("candidate")
+	l.Rules[0].Sequence = proto.Uint32(100)
+	l.Rules[1].Sequence = proto.Uint32(200)
+	ds.Acl.Attachments[0].Sequence = proto.Uint32(5)
+	return ds
+}
+
+// Review H1 (probe P1): a DryRun of a candidate whose VPP content equals the applied one — what
+// `POST /config/validate` and `GET /state/drift` do — and a rolled-back Apply of it change neither
+// Retrieve (no false drift) nor the counter mapping (counters stay on the running rules 10/20).
+// L10: a hand edit of our ACL in VPP shows in Retrieve (reconstructed) and a resync repairs it.
+func TestACLDryRunAndRollbackDoNotChangeTheAppliedView(t *testing.T) {
+	v := coretest.New()
+	s, rt := newACLSvc(t, v, t.TempDir(), false)
+	want := doc(t, h1Applied)
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "h1-a", DesiredState: want}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	idx := ownedACL(t, v, "l")
+	v.ACL().SetCountersEnabled(true)
+	rt.ForgetCountersFlag()
+	v.ACL().SetHits(idx, 0, 4, 400)
+	v.ACL().SetHits(idx, 1, 6, 600)
+	check := func(stage string) {
+		t.Helper()
+		if got := retrieveACL(t, s); !proto.Equal(got, want.GetAcl()) {
+			t.Fatalf("%s: Retrieve != the APPLIED configuration (false drift):\n%s", stage, protojson.Format(got))
+		}
+		st, err := s.ACLState(context.Background(), &vrxv1.AclStateRequest{List: "l", Filter: &vrxv1.AclStateFilter{Sequences: []uint32{10, 20}}})
+		if err != nil || st.GetTotal() != 2 || st.GetRules()[0].GetPackets() != 4 || st.GetRules()[1].GetPackets() != 6 || !st.GetLists()[0].GetMappingKnown() {
+			t.Fatalf("%s: counters no longer map to the running rules 10/20: %v %v", stage, err, st)
+		}
+		if st, _ := s.ACLState(context.Background(), &vrxv1.AclStateRequest{List: "l", Filter: &vrxv1.AclStateFilter{Sequences: []uint32{100, 200}}}); st.GetTotal() != 0 {
+			t.Fatalf("%s: the candidate's rules got the counters: %v", stage, st)
+		}
+	}
+	check("after apply")
+
+	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{DesiredState: h1Candidate(t)})
+	if err != nil || !rep.GetOk() {
+		t.Fatalf("dry run: %v %v", err, rep)
+	}
+	check("after a DryRun of the candidate")
+
+	// the same candidate plus a new list whose creation fails in VPP: the Apply rolls back
+	cand := h1Candidate(t)
+	cand.Acl.Lists["m"] = &vrxv1.AclList{Rules: []*vrxv1.AclRule{{Sequence: proto.Uint32(1), Action: proto.String("deny"), IpVersion: proto.String("ipv6")}}}
+	v.ACL().FailNext("acl_add_replace", coretest.RetvalInvalidValue)
+	if r := apply(t, s, &vrxv1.ApplyRequest{TxnId: "h1-b", DesiredState: cand}); r.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+		t.Fatalf("the failing apply was applied: %v", r)
+	}
+	check("after a rolled-back Apply of the candidate")
+
+	// L10: a hand edit behind the agent's back is drift (reconstructed from VPP), and a resync repairs it
+	v.ACL().SetRules(idx, acl_types.ACLRule{IsPermit: acl_types.ACL_ACTION_API_PERMIT,
+		SrcPrefix: ip_types.Prefix{Address: ip_types.Address{Af: ip_types.ADDRESS_IP4}}, DstPrefix: ip_types.Prefix{Address: ip_types.Address{Af: ip_types.ADDRESS_IP4}},
+		SrcportOrIcmptypeLast: 65535, DstportOrIcmpcodeLast: 65535})
+	got := retrieveACL(t, s).GetLists()["l"]
+	if len(got.GetRules()) != 1 || got.GetRules()[0].GetSequence() != 10 || got.GetRules()[0].GetAction() != "permit" || got.GetDescription() != "" {
+		t.Fatalf("a hand-edited ACL must be reported as VPP holds it: %s", protojson.Format(got))
+	}
+	if r := s.Resync(context.Background()); r.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetUpdated() == 0 {
+		t.Fatalf("resync: %v", r)
+	}
+	if got := retrieveACL(t, s); !proto.Equal(got, want.GetAcl()) {
+		t.Fatalf("after the resync: %s", protojson.Format(got))
+	}
+}
+
+// Review 3.4 (M3): an interface and the ACL binding on it removed in ONE commit — the binding goes
+// first (mandatory dependency), nothing stays bound to the deleted interface; and a binding to an
+// interface that neither the configuration nor VPP has is refused at planning.
+func TestACLBindingAndInterfaceRemovedInOneCommit(t *testing.T) {
+	v := coretest.New()
+	s, _ := newACLSvc(t, v, t.TempDir(), false)
+	const withBinding = `{
+	  "interfaces": {"loop701": {"ipv4": ["10.7.1.1/24"]}, "loop702": {"ipv4": ["10.7.2.1/24"]}},
+	  "objects": {},
+	  "acl": {"lists": {"l": {"rules": [{"sequence": 1, "action": "deny", "ipVersion": "ipv4"}]}},
+	          "attachments": [{"list": "l", "target": {"kind": "interface", "interface": "loop702"}, "direction": "out", "sequence": 1}]}
+	}`
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "r1", DesiredState: doc(t, withBinding)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	lo := loopIndex(t, v, "loop702")
+	if _, acls := v.ACL().Binding(lo); len(acls) != 1 {
+		t.Fatalf("binding on loop702: %v", acls)
+	}
+	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "r2", DesiredState: doc(t, `{
+	  "interfaces": {"loop701": {"ipv4": ["10.7.1.1/24"]}},
+	  "objects": {},
+	  "acl": {"lists": {"l": {"rules": [{"sequence": 1, "action": "deny", "ipVersion": "ipv4"}]}}}
+	}`)})
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	pos := map[string]int{}
+	for i, r := range resp.GetResults() {
+		pos[r.GetKey()] = i
+	}
+	bi, ok1 := pos["acl.interface-binding/loop702"]
+	li, ok2 := pos["interface.loopback/loop702"]
+	if !ok1 || !ok2 || bi > li {
+		t.Fatalf("the binding must be deleted before the interface: %v", resp.GetResults())
+	}
+	if _, acls := v.ACL().Binding(lo); len(acls) != 0 {
+		t.Fatalf("an ACL is still bound to the deleted sw_if_index %d: %v", lo, acls)
+	}
+	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{DesiredState: doc(t, `{
+	  "interfaces": {"loop701": {"ipv4": ["10.7.1.1/24"]}},
+	  "objects": {},
+	  "acl": {"lists": {"l": {"rules": [{"sequence": 1, "action": "deny", "ipVersion": "ipv4"}]}},
+	          "attachments": [{"list": "l", "target": {"kind": "interface", "interface": "loop799"}, "direction": "in", "sequence": 1}]}
+	}`)})
+	if err != nil || rep.GetOk() || !hasIssue(rep, "/acl/attachments/0", "agent.dependency-missing") {
+		t.Fatalf("a binding to a missing interface must be refused at planning: %v %v", err, rep)
+	}
+}

@@ -2,8 +2,11 @@ package acl
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/acl_types"
 	vrxv1 "ngfw/agent/gen/vrx/v1"
@@ -47,32 +50,38 @@ func TestRulePageMapsCounters(t *testing.T) {
 	}
 }
 
-// The record keeps the newest expansions per list and evicts old ones over the rule budget, never a
-// list's newest.
+// The record keeps entries by fingerprint AND configuration hash: the applied configuration's entries
+// (Pin) survive any number of DryRun entries and the rule budget; others are bounded.
 func TestRecordBoundsAndLookup(t *testing.T) {
 	r := NewRecord(10)
-	mk := func(name, fp string, n int) *Expansion {
-		return &Expansion{Name: name, Fingerprint: fp, Rules: make([]RuleInfo, n)}
+	mk := func(name, fp, hash string, n int) *Expansion {
+		return &Expansion{Name: name, Fingerprint: fp, ConfigHash: hash, Rules: make([]RuleInfo, n)}
 	}
-	r.PutACL(mk("a", "1", 6))
-	r.PutACL(mk("a", "2", 6)) // 12 > 10: a/1 evicted
-	if _, ok := r.ACL("a", "1"); ok {
-		t.Fatal("old record kept over budget")
+	r.pin(pinACL("a"), "applied")
+	r.PutACL(mk("a", "1", "applied", 6))
+	for i := 0; i < 20; i++ { // many DryRuns of candidates with the same VPP content
+		r.PutACL(mk("a", "1", fmt.Sprintf("candidate-%d", i), 1))
 	}
-	r.PutACL(mk("b", "1", 8)) // newest records are never evicted
-	if _, ok := r.ACL("a", "2"); !ok {
-		t.Fatal("newest a evicted")
+	if e, ok := r.AppliedACL("a", "1"); !ok || e.ConfigHash != "applied" {
+		t.Fatal("the applied configuration's entry was evicted or replaced by DryRun entries")
 	}
-	if _, ok := r.ACL("b", "1"); !ok {
-		t.Fatal("newest b evicted")
+	if n := len(r.acls["a"]); n > keepPinned+keepOther {
+		t.Fatalf("%d entries kept", n)
 	}
-	r.PutACL(mk("b", "1", 8)) // same fingerprint replaces
+	r.PutACL(mk("b", "1", "x", 8)) // over the budget: unapplied entries go first, never the applied newest
+	if _, ok := r.ACL("a", "1", "applied"); !ok {
+		t.Fatal("applied newest evicted by the rule budget")
+	}
+	if _, ok := r.ACL("b", "1", "x"); !ok {
+		t.Fatal("the newest entry of b evicted")
+	}
+	r.PutACL(mk("b", "1", "x", 8)) // same fingerprint and hash replaces
 	if len(r.acls["b"]) != 1 {
-		t.Fatalf("duplicate fingerprint kept: %d", len(r.acls["b"]))
+		t.Fatalf("duplicate entry kept: %d", len(r.acls["b"]))
 	}
-	a := &Attachments{Fingerprint: BindingsFingerprint([]descacl.InterfaceBinding{{Interface: "i2", Input: []string{"x"}}, {Interface: "i1", Output: []string{"y"}}}, nil)}
+	a := &Attachments{Fingerprint: BindingsFingerprint([]descacl.InterfaceBinding{{Interface: "i2", Input: []string{"x"}}, {Interface: "i1", Output: []string{"y"}}}, nil), ConfigHash: "h"}
 	r.PutAttachments(a)
-	if got, ok := r.Attachments(BindingsFingerprint([]descacl.InterfaceBinding{{Interface: "i1", Output: []string{"y"}}, {Interface: "i2", Input: []string{"x"}}}, nil)); !ok || got != a {
+	if !r.Attachments(BindingsFingerprint([]descacl.InterfaceBinding{{Interface: "i1", Output: []string{"y"}}, {Interface: "i2", Input: []string{"x"}}}, nil), "h") {
 		t.Fatal("binding fingerprint must not depend on order")
 	}
 	if Fingerprint([]descacl.Rule{{Action: "permit", Src: "10.0.0.0/8", Dst: "0.0.0.0/0"}}) == Fingerprint([]descacl.Rule{{Action: "permit", Src: "10.0.0.0/80", Dst: ".0.0.0/0"}}) {
@@ -103,7 +112,14 @@ func TestTrackerAndStateOnFake(t *testing.T) {
 		t.Fatalf("tracked %+v", got)
 	}
 	// State without a recorded expansion: the summary is there, the mapping is not
-	rec.PutACL(&Expansion{Name: "web", Fingerprint: Fingerprint(a.Rules), VPPRules: 2, Rules: []RuleInfo{info(5, 0, 1, applied), info(7, 1, 1, applied)}})
+	cfg := &vrxv1.AclList{Description: proto.String("web")}
+	rec.PutACL(&Expansion{Name: "web", Fingerprint: Fingerprint(a.Rules), ConfigHash: ConfigHash(cfg), VPPRules: 2, Rules: []RuleInfo{info(5, 0, 1, applied), info(7, 1, 1, applied)}})
+	if st, _ := rt.State(ctx, &vrxv1.AclStateRequest{List: "web"}); st.GetLists()[0].GetMappingKnown() {
+		t.Fatal("a recorded projection that was never applied (acl.config) must not explain VPP's content")
+	}
+	if _, err := rt.ConfigDescriptor().Create(ctx, ConfigList("web", cfg)); err != nil { // what Apply does
+		t.Fatal(err)
+	}
 	v.ACL().SetCountersEnabled(true)
 	v.ACL().SetHits(got.Index, 1, 9, 900)
 	foreign := v.ACL().AddACL("w9:other", acl_types.ACLRule{})

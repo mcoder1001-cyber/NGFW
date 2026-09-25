@@ -20,10 +20,10 @@ func ParseAddr(s string) (netip.Addr, error) {
 	return a.Unmap().WithZone(""), nil
 }
 
-// ParsePrefix is kit.MaskPrefix: host bits are still masked here because key canonicalisation
-// in dependent families relies on it (TD-16 open question); kit.ParsePrefix is the target policy.
+// ParsePrefix is kit.ParsePrefix: host bits are rejected (D-149), so every prefix has exactly one
+// spelling and Validate refuses non-canonical input instead of silently masking it.
 func ParsePrefix(s string) (netip.Prefix, error) {
-	return kit.MaskPrefix(s)
+	return kit.ParsePrefix(s)
 }
 
 // FamilyOf returns the desired-state address family of a.

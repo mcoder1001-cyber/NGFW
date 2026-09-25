@@ -81,15 +81,3 @@ func TestRegister(t *testing.T) {
 		t.Fatalf("%v %v", r.n, owners)
 	}
 }
-
-func TestMaskPrefix(t *testing.T) {
-	p, err := MaskPrefix(" 2001:db8:3::5/64")
-	if err != nil || p.String() != "2001:db8:3::/64" {
-		t.Fatalf("%v %v", p, err)
-	}
-	for _, in := range []string{"::ffff:10.0.0.0/104", "fe80::/64%eth0", "x"} {
-		if _, err := MaskPrefix(in); !errors.Is(err, ErrBadPrefix) {
-			t.Errorf("MaskPrefix(%q) = %v", in, err)
-		}
-	}
-}

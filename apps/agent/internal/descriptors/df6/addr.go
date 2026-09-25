@@ -44,9 +44,9 @@ func ParseAddr6(s string) (netip.Addr, error) {
 	return a, nil
 }
 
-// ParsePrefix is kit.MaskPrefix wrapped in ErrBadValue (host bits still masked; TD-16 open question).
+// ParsePrefix is kit.ParsePrefix wrapped in ErrBadValue: host bits are rejected (D-149).
 func ParsePrefix(s string) (netip.Prefix, error) {
-	p, err := kit.MaskPrefix(s)
+	p, err := kit.ParsePrefix(s)
 	if err != nil {
 		return netip.Prefix{}, fmt.Errorf("%w: %w", ErrBadValue, err)
 	}
@@ -65,7 +65,7 @@ func Canonical(s string) (string, error) {
 	return a.String(), nil
 }
 
-// CanonicalPrefix returns the canonical (masked) string of a prefix string.
+// CanonicalPrefix returns the canonical string of a prefix string.
 func CanonicalPrefix(s string) (string, error) {
 	p, err := ParsePrefix(s)
 	if err != nil {

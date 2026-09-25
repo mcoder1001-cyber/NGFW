@@ -9,6 +9,7 @@ import (
 	"sort"
 	"sync"
 
+	"ngfw/agent/internal/descriptors/kit"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/bootid"
@@ -147,23 +148,8 @@ func (s *FileBootStore) flush(m map[string]BootRecord) error {
 	if err != nil {
 		return err
 	}
-	tmp := s.path + ".tmp"
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600) //nolint:gosec // agent state file
-	if err != nil {
-		return fmt.Errorf("boot store: %w", err)
-	}
-	if _, err := f.Write(raw); err != nil {
-		_ = f.Close()
-		return fmt.Errorf("boot store: %w", err)
-	}
-	if err := f.Sync(); err != nil {
-		_ = f.Close()
-		return fmt.Errorf("boot store: %w", err)
-	}
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("boot store: %w", err)
-	}
-	if err := os.Rename(tmp, s.path); err != nil {
+	// temp file, fsync, rename, then fsync the directory so the rename survives a host crash (TD-16b)
+	if err := kit.WriteFileAtomic(s.path, raw, 0o600); err != nil {
 		return fmt.Errorf("boot store: %w", err)
 	}
 	return nil

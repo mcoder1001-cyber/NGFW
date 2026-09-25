@@ -367,11 +367,14 @@ func TestPolicyAndSteering(t *testing.T) {
 		t.Fatalf("Retrieve = %v", got)
 	}
 
-	l3 := &sr.Steering{TrafficType: sr.SteerType_IPV4, Prefix: "10.11.9.7/24", TableId: 11002, Bsid: "fd11:b::1"}
+	l3 := &sr.Steering{TrafficType: sr.SteerType_IPV4, Prefix: "10.11.9.0/24", TableId: 11002, Bsid: "fd11:b::1"}
 	l3v6 := &sr.Steering{TrafficType: sr.SteerType_IPV6, Prefix: "fd11:9::/64", Bsid: "fd11:b::2"}
 	l2 := &sr.Steering{TrafficType: sr.SteerType_L2, Interface: "loop1101", Bsid: "fd11:b::1"}
 	if k := s.KeyOf(l3); k != "sr.steering/ipv4/11002/10.11.9.0/24" {
 		t.Fatalf("KeyOf = %s", k)
+	}
+	if _, err := s.Create(ctx, &sr.Steering{TrafficType: sr.SteerType_IPV4, Prefix: "10.11.9.7/24", TableId: 11002, Bsid: "fd11:b::1"}); err == nil {
+		t.Fatal("prefix with host bits accepted (D-149)")
 	}
 	deps := s.Dependencies(l3)
 	if len(deps) != 2 || deps[0].Key != "sr.policy/fd11:b::1" || deps[1].Key != "vrf/11002" {

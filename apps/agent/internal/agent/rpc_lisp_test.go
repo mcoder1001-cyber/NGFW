@@ -237,7 +237,7 @@ func TestLispProjectionWarnsForTunnelKindsNotWired(t *testing.T) {
 	if len(p.issues) != 1 || p.issues[0].rule != "agent.unsupported-field" || p.issues[0].pointer != "/tunnels/gre" {
 		t.Fatalf("issues %+v", p.issues)
 	}
-	p = project(doc(t, `{"tunnels": {"lisp": {"enabled": true, "localEids": [{"vni": 1, "eid": "10.1.2.3/24", "locatorSet": "x"}]}}}`), []string{"tunnels"}, nil, nil)
+	p = project(doc(t, `{"tunnels": {"lisp": {"enabled": true, "localEids": [{"vni": 1, "eid": "10.1.2.0/24", "locatorSet": "x"}]}}}`), []string{"tunnels"}, nil, nil)
 	var warned bool
 	for _, is := range p.issues {
 		warned = warned || is.rule == "tunnels.lisp-gpe-implied"
@@ -247,6 +247,15 @@ func TestLispProjectionWarnsForTunnelKindsNotWired(t *testing.T) {
 	}
 	if k := p.kvs[1].Key; k != "lisp.local-eid/1/10.1.2.0/24" {
 		t.Fatalf("EID not canonicalised in the key: %s", k)
+	}
+	// host bits are rejected, not masked (TD-16b, D-149)
+	p = project(doc(t, `{"tunnels": {"lisp": {"enabled": true, "localEids": [{"vni": 1, "eid": "10.1.2.3/24", "locatorSet": "x"}]}}}`), []string{"tunnels"}, nil, nil)
+	var rejected bool
+	for _, is := range p.issues {
+		rejected = rejected || (is.rule == "tunnels.lisp-eid-canonical" && is.pointer == "/tunnels/lisp/localEids/0/eid")
+	}
+	if !rejected {
+		t.Fatalf("host-bit EID accepted: issues %+v", p.issues)
 	}
 }
 

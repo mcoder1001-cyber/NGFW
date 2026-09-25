@@ -165,7 +165,9 @@ func registerP12(r scheduler.Registry, w *Wiring) {
 	env := w.env
 	env.Publish = w.Publish // TD-8 event seam (A5): the agent's bus, nil-safe
 	rt := newFRR(env, frr.NewSystemRunner())
-	frrRuntimes.Store(w.env.Owner, rt)
+	if old, ok := frrRuntimes.Swap(w.env.Owner, rt); ok {
+		old.(*FRR).Close() // a re-registration (an agent restarted in-process) stops the previous poller
+	}
 	frrEnabled.Store(rt.enabled) // the latest registration wins: one agent per process (tests re-register)
 	r.Register(&frrConfigDescriptor{rt: rt})
 }
@@ -456,6 +458,9 @@ func zero(s string) string {
 
 // ---- state (RoutingState RPC) -----------------------------------------------------------------------
 
+// frrStateTimeout bounds the FRR part of RoutingState (each vtysh call has its own 15 s bound as well).
+const frrStateTimeout = 20 * time.Second
+
 // MaxRIBLookups bounds RoutingStateRequest.rib_prefixes (one scoped vtysh call each).
 const MaxRIBLookups = 100
 
@@ -503,6 +508,8 @@ func (rt *FRR) State(ctx context.Context, readers, prefixes []string, vrf string
 		return nil, fmt.Errorf("%w: rib_vrf: %v", ErrState, err)
 	}
 	st := &FRRState{RIBCounts: map[string]uint32{}, Readers: map[string]string{}}
+	ctx, cancel := context.WithTimeout(ctx, frrStateTimeout)
+	defer cancel()
 	switch {
 	case !rt.Enabled():
 		st.Err = fmt.Sprintf("FRR is not available to this agent (owner %q)", rt.owner)
@@ -608,8 +615,13 @@ func (rt *FRR) lookup(ctx context.Context, vrf string, p netip.Prefix) ([]*vrxv1
 	return out, nil
 }
 
+// lcpPairsTimeout bounds the VPP part of RoutingState: a slow or stuck VPP API must not hold the FRR answer.
+const lcpPairsTimeout = 10 * time.Second
+
 // LcpPairs returns this owner's linux-cp pairs from VPP (lcp_itf_pair_get + the owner's interface table).
 func (rt *FRR) LcpPairs(ctx context.Context) ([]*vrxv1.RoutingLcpPair, error) {
+	ctx, cancel := context.WithTimeout(ctx, lcpPairsTimeout)
+	defer cancel()
 	kvs, err := lcp.NewItfPair(rt.client, rt.owner).Retrieve(ctx)
 	if err != nil {
 		if errors.Is(err, dfkit.ErrPluginNotLoaded) {

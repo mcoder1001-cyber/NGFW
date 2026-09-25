@@ -7,3 +7,4 @@
 - 11:17 web: Load balancer tab (table, sub-table, flush, forms, notice, en/fa), tests green.
 - 11:25 docs: user page, descriptor doc, V20 follow-up; questions; CI run 1.
 - Left for the host window (TD-25): TestLbOnHost, TestLbGarbageCollectOnHost (manager window), UI screenshot, optional GRE tcpdump.
+- 11:35 CI run 1 red (golangci-lint in F-lb files) → fixed (ae9e7f70); CI run 2 GREEN (9m24s).

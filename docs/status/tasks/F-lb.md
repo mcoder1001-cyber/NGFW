@@ -137,7 +137,28 @@ resource `services/lb/vips/web`), 501 without the RPC, removal.
 ```
 
 ### CI
-CI_RESULT_PLACEHOLDER
+```
+$ TMPDIR=/tmp/g-w2 tools/ci.sh --base main          # task/F-lb @ ae9e7f70 (the code of the final commit; later commits are docs only)
+== contract guard: HEAD vs main ==
+ok — contract commit(s) on the branch:
+  63ea12c5 contract(api-client): regenerate for the F-lb routes (+ CLI operation table)
+  bbdcd36a contract(schema): services.lb — VIPs in 0.0.0.0/8 are reserved (lb garbage-collection sentinel, D-090) (F-lb)
+  6e0d2dec contract(proto): LbService (ServicesConfig 11), LbState and LbFlushVip RPCs (F-lb)
+  87244806 contract(schema): services.lb — VPP lb plugin VIPs, servers, NAT interfaces and rules (F-lb)
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   1m28s
+  forbidden patterns (+ gitleaks)                    0m04s
+  packet-trace ban on the shared VPP (D-128)         0m01s
+  lint · typecheck · unit tests · build (turbo)   1m30s
+  apps/agent: make lint test build                   1m06s
+  apps/cli: make lint test build                     0m17s
+  test/ Go modules, unit mode (test/integration/smoke test/topology/interfaces)   0m07s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   4m46s
+  mode quick · wall time 9m24s · logs /root/ngfw-wt/logs/ci/F-lb-20260925-112534-1229930
+
+CI GATE PASSED
+```
+(Run 1 at f0172e9d failed on golangci-lint — 7 gosec G115/G302, 1 ineffassign, 1 revive in F-lb files; fixed in ae9e7f70.)
 
 ## Shared hunks (append-only)
 Anchored (directly below `wave-BC: F-lb`): `dataplane.proto` (RPCs, `ServicesConfig` field), `subsystems.go`
@@ -182,4 +203,5 @@ Health checks, L7, weights; NAT44-ED LB static mappings; CNAT VIPs; VRRP of VIPs
 
 ## Cleanup
 No process left running (the e2e harness created and dropped `vrx_w2`); no VPP object created (no host run); no
-`dist/` or `apps/agent/bin` committed.
+`dist/` or `apps/agent/bin` committed. A 14 MB scratch copy of the agent module used for the base-failure run is left in
+`/tmp/g-w2/base-lb` (deleting it was refused by the session's permission policy; safe to remove).

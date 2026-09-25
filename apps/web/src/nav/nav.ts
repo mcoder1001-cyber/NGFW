@@ -50,6 +50,7 @@ export interface NavGroup {
 export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   'interfaces',
   // Feature domains: one line under the feature's anchor (wave-A-hotspots W2).
+  'services', // F-snmp (unanchored: no wave-BC: F-snmp anchor in BUILT_DOMAINS)
   // wave-BC: F-tunnels
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-srv6

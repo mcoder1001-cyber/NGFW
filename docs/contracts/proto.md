@@ -368,6 +368,17 @@ never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
 <!-- wave-A: F-kea-dhcp-relay -->
 <!-- wave-A: F-unbound-chrony-syslog -->
 
+<!-- F-snmp (unanchored: no wave-BC anchor in this list) -->
+### F-snmp: SnmpState
+
+`rpc SnmpState(SnmpStateRequest) returns (SnmpStateResponse)` — read-only state of the snmpd renderer stage: daemon
+state read back over SNMP (`configured`, `reachable`, `endpoint`, `credential` by name, `sys_*`, `error` redacted),
+`engine_id`, `pending_action` (D-079 restart/start request the agent waits for; it never restarts snmpd itself) and
+the VRX-MIB AgentX subagent (`subagent_registered`, `subagent_registrations`, `subagent_error`). Owner check as
+Retrieve (`INVALID_ARGUMENT` on mismatch); `UNAVAILABLE` when the agent build has no snmpd stage. No credential
+value is ever part of the response. Additive fields of `services.snmp` (D-086): see
+docs/status/tasks/F-snmp-contract.md.
+
 <!-- F-host-stack (unanchored: no wave-BC anchor in this file) -->
 ### F-host-stack: HostStackState
 

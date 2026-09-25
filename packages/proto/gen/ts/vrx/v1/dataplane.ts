@@ -2588,6 +2588,21 @@ export interface SnmpService {
   v3Users: { [key: string]: SnmpService_V3User };
   /** Trap receivers. */
   trapReceivers: SnmpService_TrapReceiver[];
+  /**
+   * wave-BC: F-snmp
+   * sysServices (0–127); unset = not rendered (F-snmp, D-086).
+   */
+  sysServices?:
+    | number
+    | undefined;
+  /** VACM views keyed by name (F-snmp, D-086). */
+  views: { [key: string]: SnmpView };
+  /** UCD-SNMP disk and load monitors (F-snmp, D-086). */
+  monitors:
+    | SnmpMonitors
+    | undefined;
+  /** Private VRX-MIB AgentX subagent (F-snmp). */
+  subagent: SnmpSubagent | undefined;
 }
 
 /** Community (v1/v2c). */
@@ -2602,6 +2617,11 @@ export interface SnmpService_Community {
     | undefined;
   /** Allowed source prefixes (CIDR); empty = any. */
   sources: string[];
+  /**
+   * wave-BC: F-snmp
+   * View name in SnmpService.views; unset = the built-in all-OIDs view (F-snmp, D-086).
+   */
+  view?: string | undefined;
 }
 
 /** SNMPv3 USM user. */
@@ -2627,7 +2647,14 @@ export interface SnmpService_V3User {
     | string
     | undefined;
   /** "ro" | "rw". */
-  access?: string | undefined;
+  access?:
+    | string
+    | undefined;
+  /**
+   * wave-BC: F-snmp
+   * View name in SnmpService.views; unset = the built-in all-OIDs view (F-snmp, D-086).
+   */
+  view?: string | undefined;
 }
 
 /** Trap / inform receiver. */
@@ -2664,6 +2691,11 @@ export interface SnmpService_CommunitiesEntry {
 export interface SnmpService_V3UsersEntry {
   key: string;
   value: SnmpService_V3User | undefined;
+}
+
+export interface SnmpService_ViewsEntry {
+  key: string;
+  value: SnmpView | undefined;
 }
 
 /** LldpService is `services.lldp`. */
@@ -5435,6 +5467,89 @@ export interface HostStackStateResponse {
   ruleCountTotal: number;
   /** Snapshot time. */
   retrievedAt: Date | undefined;
+}
+
+/** SnmpView is one VACM view of `services.snmp.views` (F-snmp, D-086). */
+export interface SnmpView {
+  /** Included subtrees (numeric OID or a symbolic name of the renderer's allow-list). */
+  include: string[];
+  /** Excluded subtrees. */
+  exclude: string[];
+}
+
+/** SnmpMonitors is `services.snmp.monitors` (UCD-SNMP dskTable / laTable thresholds). */
+export interface SnmpMonitors {
+  /** Disk monitors. */
+  disks: SnmpMonitorDisk[];
+  /** Load-average monitor. */
+  load: SnmpMonitorLoad | undefined;
+}
+
+/** SnmpMonitorDisk is one `disk <path> <min>%` monitor. */
+export interface SnmpMonitorDisk {
+  /** Absolute mount path. */
+  path?:
+    | string
+    | undefined;
+  /** Minimum free space in percent (1–99); unset = 10. */
+  minPercent?: number | undefined;
+}
+
+/** SnmpMonitorLoad is the `load <1m> <5m> <15m>` monitor. */
+export interface SnmpMonitorLoad {
+  /** 1-minute load threshold. */
+  max1?:
+    | number
+    | undefined;
+  /** 5-minute load threshold. */
+  max5?:
+    | number
+    | undefined;
+  /** 15-minute load threshold. */
+  max15?: number | undefined;
+}
+
+/** SnmpSubagent is `services.snmp.subagent`: the VRX-MIB AgentX subagent of the agent. */
+export interface SnmpSubagent {
+  /** Register VRX-MIB with snmpd over AgentX (default true when SNMP is enabled). */
+  enabled?: boolean | undefined;
+}
+
+/** SnmpStateRequest selects the agent (owner check as in Retrieve). */
+export interface SnmpStateRequest {
+  /** Expected agent owner; empty = any. */
+  owner: string;
+}
+
+/** SnmpStateResponse is the snmpd stage state (F-snmp). Credentials are named, never shown. */
+export interface SnmpStateResponse {
+  /** An enabled services.snmp is applied. */
+  configured: boolean;
+  /** The local agent answered the state query. */
+  reachable: boolean;
+  /** Endpoint the query used ("127.0.0.1:161"). */
+  endpoint: string;
+  /** Credential the query used, by name ("v3 user noc", "v2c community"). */
+  credential: string;
+  /** System group values read back from snmpd. */
+  sysName: string;
+  sysDescr: string;
+  sysLocation: string;
+  sysContact: string;
+  /** sysUpTime in hundredths of a second. */
+  sysUpTime: string;
+  /** Query error (redacted), when not reachable. */
+  error: string;
+  /** Configured engine id (hex; empty = daemon default). */
+  engineId: string;
+  /** Daemon action the agent is waiting for ("snmpd needs restart …", D-079); empty = none. */
+  pendingAction: string;
+  /** VRX-MIB subagent registered with the AgentX master. */
+  subagentRegistered: boolean;
+  /** Registrations since the agent started (re-registrations after snmpd restarts included). */
+  subagentRegistrations: string;
+  /** Last subagent session error. */
+  subagentError: string;
 }
 
 /** IpfixStateRequest asks for the flow-export state. */
@@ -22021,6 +22136,10 @@ function createBaseSnmpService(): SnmpService {
     communities: {},
     v3Users: {},
     trapReceivers: [],
+    sysServices: undefined,
+    views: {},
+    monitors: undefined,
+    subagent: undefined,
   };
 }
 
@@ -22058,6 +22177,18 @@ export const SnmpService: MessageFns<SnmpService> = {
     });
     for (const v of message.trapReceivers) {
       SnmpService_TrapReceiver.encode(v!, writer.uint32(90).fork()).join();
+    }
+    if (message.sysServices !== undefined) {
+      writer.uint32(96).uint32(message.sysServices);
+    }
+    globalThis.Object.entries(message.views).forEach(([key, value]: [string, SnmpView]) => {
+      SnmpService_ViewsEntry.encode({ key: key as any, value }, writer.uint32(106).fork()).join();
+    });
+    if (message.monitors !== undefined) {
+      SnmpMonitors.encode(message.monitors, writer.uint32(114).fork()).join();
+    }
+    if (message.subagent !== undefined) {
+      SnmpSubagent.encode(message.subagent, writer.uint32(122).fork()).join();
     }
     return writer;
   },
@@ -22169,6 +22300,41 @@ export const SnmpService: MessageFns<SnmpService> = {
             message.trapReceivers.push(SnmpService_TrapReceiver.decode(reader, reader.uint32()));
             continue;
           }
+          case 12: {
+            if (tag !== 96) {
+              break;
+            }
+
+            message.sysServices = reader.uint32();
+            continue;
+          }
+          case 13: {
+            if (tag !== 106) {
+              break;
+            }
+
+            const entry13 = SnmpService_ViewsEntry.decode(reader, reader.uint32());
+            if (entry13.value !== undefined) {
+              message.views[entry13.key] = entry13.value;
+            }
+            continue;
+          }
+          case 14: {
+            if (tag !== 114) {
+              break;
+            }
+
+            message.monitors = SnmpMonitors.decode(reader, reader.uint32());
+            continue;
+          }
+          case 15: {
+            if (tag !== 122) {
+              break;
+            }
+
+            message.subagent = SnmpSubagent.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -22253,6 +22419,27 @@ export const SnmpService: MessageFns<SnmpService> = {
         : globalThis.Array.isArray(object?.trap_receivers)
         ? object.trap_receivers.map((e: any) => SnmpService_TrapReceiver.fromJSON(e))
         : [],
+      sysServices: isSet(object.sysServices)
+        ? globalThis.Number(object.sysServices)
+        : isSet(object.sys_services)
+        ? globalThis.Number(object.sys_services)
+        : undefined,
+      views: isObject(object.views)
+        ? (globalThis.Object.entries(object.views) as [string, any][]).reduce(
+          (acc: { [key: string]: SnmpView }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: SnmpView.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      monitors: isSet(object.monitors) ? SnmpMonitors.fromJSON(object.monitors) : undefined,
+      subagent: isSet(object.subagent) ? SnmpSubagent.fromJSON(object.subagent) : undefined,
     };
   },
 
@@ -22303,6 +22490,24 @@ export const SnmpService: MessageFns<SnmpService> = {
     if (message.trapReceivers?.length) {
       obj.trapReceivers = message.trapReceivers.map((e) => SnmpService_TrapReceiver.toJSON(e));
     }
+    if (message.sysServices !== undefined) {
+      obj.sysServices = Math.round(message.sysServices);
+    }
+    if (message.views) {
+      const entries = globalThis.Object.entries(message.views) as [string, SnmpView][];
+      if (entries.length > 0) {
+        obj.views = {};
+        entries.forEach(([k, v]) => {
+          obj.views[k] = SnmpView.toJSON(v);
+        });
+      }
+    }
+    if (message.monitors !== undefined) {
+      obj.monitors = SnmpMonitors.toJSON(message.monitors);
+    }
+    if (message.subagent !== undefined) {
+      obj.subagent = SnmpSubagent.toJSON(message.subagent);
+    }
     return obj;
   },
 
@@ -22336,12 +22541,28 @@ export const SnmpService: MessageFns<SnmpService> = {
       {},
     );
     message.trapReceivers = object.trapReceivers?.map((e) => SnmpService_TrapReceiver.fromPartial(e)) || [];
+    message.sysServices = object.sysServices ?? undefined;
+    message.views = (globalThis.Object.entries(object.views ?? {}) as [string, SnmpView][]).reduce(
+      (acc: { [key: string]: SnmpView }, [key, value]: [string, SnmpView]) => {
+        if (value !== undefined) {
+          acc[key] = SnmpView.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.monitors = (object.monitors !== undefined && object.monitors !== null)
+      ? SnmpMonitors.fromPartial(object.monitors)
+      : undefined;
+    message.subagent = (object.subagent !== undefined && object.subagent !== null)
+      ? SnmpSubagent.fromPartial(object.subagent)
+      : undefined;
     return message;
   },
 };
 
 function createBaseSnmpService_Community(): SnmpService_Community {
-  return { secretRef: undefined, access: undefined, sources: [] };
+  return { secretRef: undefined, access: undefined, sources: [], view: undefined };
 }
 
 export const SnmpService_Community: MessageFns<SnmpService_Community> = {
@@ -22354,6 +22575,9 @@ export const SnmpService_Community: MessageFns<SnmpService_Community> = {
     }
     for (const v of message.sources) {
       writer.uint32(26).string(v!);
+    }
+    if (message.view !== undefined) {
+      writer.uint32(34).string(message.view);
     }
     return writer;
   },
@@ -22395,6 +22619,14 @@ export const SnmpService_Community: MessageFns<SnmpService_Community> = {
             message.sources.push(reader.string());
             continue;
           }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.view = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -22416,6 +22648,7 @@ export const SnmpService_Community: MessageFns<SnmpService_Community> = {
         : undefined,
       access: isSet(object.access) ? globalThis.String(object.access) : undefined,
       sources: globalThis.Array.isArray(object?.sources) ? object.sources.map((e: any) => globalThis.String(e)) : [],
+      view: isSet(object.view) ? globalThis.String(object.view) : undefined,
     };
   },
 
@@ -22430,6 +22663,9 @@ export const SnmpService_Community: MessageFns<SnmpService_Community> = {
     if (message.sources?.length) {
       obj.sources = message.sources;
     }
+    if (message.view !== undefined) {
+      obj.view = message.view;
+    }
     return obj;
   },
 
@@ -22441,6 +22677,7 @@ export const SnmpService_Community: MessageFns<SnmpService_Community> = {
     message.secretRef = object.secretRef ?? undefined;
     message.access = object.access ?? undefined;
     message.sources = object.sources?.map((e) => e) || [];
+    message.view = object.view ?? undefined;
     return message;
   },
 };
@@ -22453,6 +22690,7 @@ function createBaseSnmpService_V3User(): SnmpService_V3User {
     privProtocol: undefined,
     privRef: undefined,
     access: undefined,
+    view: undefined,
   };
 }
 
@@ -22475,6 +22713,9 @@ export const SnmpService_V3User: MessageFns<SnmpService_V3User> = {
     }
     if (message.access !== undefined) {
       writer.uint32(50).string(message.access);
+    }
+    if (message.view !== undefined) {
+      writer.uint32(58).string(message.view);
     }
     return writer;
   },
@@ -22540,6 +22781,14 @@ export const SnmpService_V3User: MessageFns<SnmpService_V3User> = {
             message.access = reader.string();
             continue;
           }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.view = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -22580,6 +22829,7 @@ export const SnmpService_V3User: MessageFns<SnmpService_V3User> = {
         ? globalThis.String(object.priv_ref)
         : undefined,
       access: isSet(object.access) ? globalThis.String(object.access) : undefined,
+      view: isSet(object.view) ? globalThis.String(object.view) : undefined,
     };
   },
 
@@ -22603,6 +22853,9 @@ export const SnmpService_V3User: MessageFns<SnmpService_V3User> = {
     if (message.access !== undefined) {
       obj.access = message.access;
     }
+    if (message.view !== undefined) {
+      obj.view = message.view;
+    }
     return obj;
   },
 
@@ -22617,6 +22870,7 @@ export const SnmpService_V3User: MessageFns<SnmpService_V3User> = {
     message.privProtocol = object.privProtocol ?? undefined;
     message.privRef = object.privRef ?? undefined;
     message.access = object.access ?? undefined;
+    message.view = object.view ?? undefined;
     return message;
   },
 };
@@ -22946,6 +23200,93 @@ export const SnmpService_V3UsersEntry: MessageFns<SnmpService_V3UsersEntry> = {
     message.key = object.key ?? "";
     message.value = (object.value !== undefined && object.value !== null)
       ? SnmpService_V3User.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseSnmpService_ViewsEntry(): SnmpService_ViewsEntry {
+  return { key: "", value: undefined };
+}
+
+export const SnmpService_ViewsEntry: MessageFns<SnmpService_ViewsEntry> = {
+  encode(message: SnmpService_ViewsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      SnmpView.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SnmpService_ViewsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSnmpService_ViewsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = SnmpView.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SnmpService_ViewsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? SnmpView.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: SnmpService_ViewsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = SnmpView.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SnmpService_ViewsEntry>): SnmpService_ViewsEntry {
+    return SnmpService_ViewsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SnmpService_ViewsEntry>): SnmpService_ViewsEntry {
+    const message = createBaseSnmpService_ViewsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? SnmpView.fromPartial(object.value)
       : undefined;
     return message;
   },
@@ -44429,6 +44770,851 @@ export const HostStackStateResponse: MessageFns<HostStackStateResponse> = {
   },
 };
 
+function createBaseSnmpView(): SnmpView {
+  return { include: [], exclude: [] };
+}
+
+export const SnmpView: MessageFns<SnmpView> = {
+  encode(message: SnmpView, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.include) {
+      writer.uint32(10).string(v!);
+    }
+    for (const v of message.exclude) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SnmpView {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSnmpView();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.include.push(reader.string());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.exclude.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SnmpView {
+    return {
+      include: globalThis.Array.isArray(object?.include) ? object.include.map((e: any) => globalThis.String(e)) : [],
+      exclude: globalThis.Array.isArray(object?.exclude) ? object.exclude.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: SnmpView): unknown {
+    const obj: any = {};
+    if (message.include?.length) {
+      obj.include = message.include;
+    }
+    if (message.exclude?.length) {
+      obj.exclude = message.exclude;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SnmpView>): SnmpView {
+    return SnmpView.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SnmpView>): SnmpView {
+    const message = createBaseSnmpView();
+    message.include = object.include?.map((e) => e) || [];
+    message.exclude = object.exclude?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseSnmpMonitors(): SnmpMonitors {
+  return { disks: [], load: undefined };
+}
+
+export const SnmpMonitors: MessageFns<SnmpMonitors> = {
+  encode(message: SnmpMonitors, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.disks) {
+      SnmpMonitorDisk.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.load !== undefined) {
+      SnmpMonitorLoad.encode(message.load, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SnmpMonitors {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSnmpMonitors();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.disks.push(SnmpMonitorDisk.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.load = SnmpMonitorLoad.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SnmpMonitors {
+    return {
+      disks: globalThis.Array.isArray(object?.disks) ? object.disks.map((e: any) => SnmpMonitorDisk.fromJSON(e)) : [],
+      load: isSet(object.load) ? SnmpMonitorLoad.fromJSON(object.load) : undefined,
+    };
+  },
+
+  toJSON(message: SnmpMonitors): unknown {
+    const obj: any = {};
+    if (message.disks?.length) {
+      obj.disks = message.disks.map((e) => SnmpMonitorDisk.toJSON(e));
+    }
+    if (message.load !== undefined) {
+      obj.load = SnmpMonitorLoad.toJSON(message.load);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SnmpMonitors>): SnmpMonitors {
+    return SnmpMonitors.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SnmpMonitors>): SnmpMonitors {
+    const message = createBaseSnmpMonitors();
+    message.disks = object.disks?.map((e) => SnmpMonitorDisk.fromPartial(e)) || [];
+    message.load = (object.load !== undefined && object.load !== null)
+      ? SnmpMonitorLoad.fromPartial(object.load)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseSnmpMonitorDisk(): SnmpMonitorDisk {
+  return { path: undefined, minPercent: undefined };
+}
+
+export const SnmpMonitorDisk: MessageFns<SnmpMonitorDisk> = {
+  encode(message: SnmpMonitorDisk, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== undefined) {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.minPercent !== undefined) {
+      writer.uint32(16).uint32(message.minPercent);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SnmpMonitorDisk {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSnmpMonitorDisk();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.path = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.minPercent = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SnmpMonitorDisk {
+    return {
+      path: isSet(object.path) ? globalThis.String(object.path) : undefined,
+      minPercent: isSet(object.minPercent)
+        ? globalThis.Number(object.minPercent)
+        : isSet(object.min_percent)
+        ? globalThis.Number(object.min_percent)
+        : undefined,
+    };
+  },
+
+  toJSON(message: SnmpMonitorDisk): unknown {
+    const obj: any = {};
+    if (message.path !== undefined) {
+      obj.path = message.path;
+    }
+    if (message.minPercent !== undefined) {
+      obj.minPercent = Math.round(message.minPercent);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SnmpMonitorDisk>): SnmpMonitorDisk {
+    return SnmpMonitorDisk.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SnmpMonitorDisk>): SnmpMonitorDisk {
+    const message = createBaseSnmpMonitorDisk();
+    message.path = object.path ?? undefined;
+    message.minPercent = object.minPercent ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSnmpMonitorLoad(): SnmpMonitorLoad {
+  return { max1: undefined, max5: undefined, max15: undefined };
+}
+
+export const SnmpMonitorLoad: MessageFns<SnmpMonitorLoad> = {
+  encode(message: SnmpMonitorLoad, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.max1 !== undefined) {
+      writer.uint32(8).uint32(message.max1);
+    }
+    if (message.max5 !== undefined) {
+      writer.uint32(16).uint32(message.max5);
+    }
+    if (message.max15 !== undefined) {
+      writer.uint32(24).uint32(message.max15);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SnmpMonitorLoad {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSnmpMonitorLoad();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.max1 = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.max5 = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.max15 = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SnmpMonitorLoad {
+    return {
+      max1: isSet(object.max1) ? globalThis.Number(object.max1) : undefined,
+      max5: isSet(object.max5) ? globalThis.Number(object.max5) : undefined,
+      max15: isSet(object.max15) ? globalThis.Number(object.max15) : undefined,
+    };
+  },
+
+  toJSON(message: SnmpMonitorLoad): unknown {
+    const obj: any = {};
+    if (message.max1 !== undefined) {
+      obj.max1 = Math.round(message.max1);
+    }
+    if (message.max5 !== undefined) {
+      obj.max5 = Math.round(message.max5);
+    }
+    if (message.max15 !== undefined) {
+      obj.max15 = Math.round(message.max15);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SnmpMonitorLoad>): SnmpMonitorLoad {
+    return SnmpMonitorLoad.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SnmpMonitorLoad>): SnmpMonitorLoad {
+    const message = createBaseSnmpMonitorLoad();
+    message.max1 = object.max1 ?? undefined;
+    message.max5 = object.max5 ?? undefined;
+    message.max15 = object.max15 ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSnmpSubagent(): SnmpSubagent {
+  return { enabled: undefined };
+}
+
+export const SnmpSubagent: MessageFns<SnmpSubagent> = {
+  encode(message: SnmpSubagent, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SnmpSubagent {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSnmpSubagent();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SnmpSubagent {
+    return { enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined };
+  },
+
+  toJSON(message: SnmpSubagent): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SnmpSubagent>): SnmpSubagent {
+    return SnmpSubagent.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SnmpSubagent>): SnmpSubagent {
+    const message = createBaseSnmpSubagent();
+    message.enabled = object.enabled ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSnmpStateRequest(): SnmpStateRequest {
+  return { owner: "" };
+}
+
+export const SnmpStateRequest: MessageFns<SnmpStateRequest> = {
+  encode(message: SnmpStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SnmpStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSnmpStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SnmpStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: SnmpStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SnmpStateRequest>): SnmpStateRequest {
+    return SnmpStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SnmpStateRequest>): SnmpStateRequest {
+    const message = createBaseSnmpStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseSnmpStateResponse(): SnmpStateResponse {
+  return {
+    configured: false,
+    reachable: false,
+    endpoint: "",
+    credential: "",
+    sysName: "",
+    sysDescr: "",
+    sysLocation: "",
+    sysContact: "",
+    sysUpTime: "0",
+    error: "",
+    engineId: "",
+    pendingAction: "",
+    subagentRegistered: false,
+    subagentRegistrations: "0",
+    subagentError: "",
+  };
+}
+
+export const SnmpStateResponse: MessageFns<SnmpStateResponse> = {
+  encode(message: SnmpStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.configured !== false) {
+      writer.uint32(8).bool(message.configured);
+    }
+    if (message.reachable !== false) {
+      writer.uint32(16).bool(message.reachable);
+    }
+    if (message.endpoint !== "") {
+      writer.uint32(26).string(message.endpoint);
+    }
+    if (message.credential !== "") {
+      writer.uint32(34).string(message.credential);
+    }
+    if (message.sysName !== "") {
+      writer.uint32(42).string(message.sysName);
+    }
+    if (message.sysDescr !== "") {
+      writer.uint32(50).string(message.sysDescr);
+    }
+    if (message.sysLocation !== "") {
+      writer.uint32(58).string(message.sysLocation);
+    }
+    if (message.sysContact !== "") {
+      writer.uint32(66).string(message.sysContact);
+    }
+    if (message.sysUpTime !== "0") {
+      writer.uint32(72).uint64(message.sysUpTime);
+    }
+    if (message.error !== "") {
+      writer.uint32(82).string(message.error);
+    }
+    if (message.engineId !== "") {
+      writer.uint32(90).string(message.engineId);
+    }
+    if (message.pendingAction !== "") {
+      writer.uint32(98).string(message.pendingAction);
+    }
+    if (message.subagentRegistered !== false) {
+      writer.uint32(104).bool(message.subagentRegistered);
+    }
+    if (message.subagentRegistrations !== "0") {
+      writer.uint32(112).uint64(message.subagentRegistrations);
+    }
+    if (message.subagentError !== "") {
+      writer.uint32(122).string(message.subagentError);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SnmpStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSnmpStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.configured = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.reachable = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.endpoint = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.credential = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.sysName = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.sysDescr = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.sysLocation = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.sysContact = reader.string();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.sysUpTime = reader.uint64().toString();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.error = reader.string();
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.engineId = reader.string();
+            continue;
+          }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.pendingAction = reader.string();
+            continue;
+          }
+          case 13: {
+            if (tag !== 104) {
+              break;
+            }
+
+            message.subagentRegistered = reader.bool();
+            continue;
+          }
+          case 14: {
+            if (tag !== 112) {
+              break;
+            }
+
+            message.subagentRegistrations = reader.uint64().toString();
+            continue;
+          }
+          case 15: {
+            if (tag !== 122) {
+              break;
+            }
+
+            message.subagentError = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SnmpStateResponse {
+    return {
+      configured: isSet(object.configured) ? globalThis.Boolean(object.configured) : false,
+      reachable: isSet(object.reachable) ? globalThis.Boolean(object.reachable) : false,
+      endpoint: isSet(object.endpoint) ? globalThis.String(object.endpoint) : "",
+      credential: isSet(object.credential) ? globalThis.String(object.credential) : "",
+      sysName: isSet(object.sysName)
+        ? globalThis.String(object.sysName)
+        : isSet(object.sys_name)
+        ? globalThis.String(object.sys_name)
+        : "",
+      sysDescr: isSet(object.sysDescr)
+        ? globalThis.String(object.sysDescr)
+        : isSet(object.sys_descr)
+        ? globalThis.String(object.sys_descr)
+        : "",
+      sysLocation: isSet(object.sysLocation)
+        ? globalThis.String(object.sysLocation)
+        : isSet(object.sys_location)
+        ? globalThis.String(object.sys_location)
+        : "",
+      sysContact: isSet(object.sysContact)
+        ? globalThis.String(object.sysContact)
+        : isSet(object.sys_contact)
+        ? globalThis.String(object.sys_contact)
+        : "",
+      sysUpTime: isSet(object.sysUpTime)
+        ? globalThis.String(object.sysUpTime)
+        : isSet(object.sys_up_time)
+        ? globalThis.String(object.sys_up_time)
+        : "0",
+      error: isSet(object.error) ? globalThis.String(object.error) : "",
+      engineId: isSet(object.engineId)
+        ? globalThis.String(object.engineId)
+        : isSet(object.engine_id)
+        ? globalThis.String(object.engine_id)
+        : "",
+      pendingAction: isSet(object.pendingAction)
+        ? globalThis.String(object.pendingAction)
+        : isSet(object.pending_action)
+        ? globalThis.String(object.pending_action)
+        : "",
+      subagentRegistered: isSet(object.subagentRegistered)
+        ? globalThis.Boolean(object.subagentRegistered)
+        : isSet(object.subagent_registered)
+        ? globalThis.Boolean(object.subagent_registered)
+        : false,
+      subagentRegistrations: isSet(object.subagentRegistrations)
+        ? globalThis.String(object.subagentRegistrations)
+        : isSet(object.subagent_registrations)
+        ? globalThis.String(object.subagent_registrations)
+        : "0",
+      subagentError: isSet(object.subagentError)
+        ? globalThis.String(object.subagentError)
+        : isSet(object.subagent_error)
+        ? globalThis.String(object.subagent_error)
+        : "",
+    };
+  },
+
+  toJSON(message: SnmpStateResponse): unknown {
+    const obj: any = {};
+    if (message.configured !== false) {
+      obj.configured = message.configured;
+    }
+    if (message.reachable !== false) {
+      obj.reachable = message.reachable;
+    }
+    if (message.endpoint !== "") {
+      obj.endpoint = message.endpoint;
+    }
+    if (message.credential !== "") {
+      obj.credential = message.credential;
+    }
+    if (message.sysName !== "") {
+      obj.sysName = message.sysName;
+    }
+    if (message.sysDescr !== "") {
+      obj.sysDescr = message.sysDescr;
+    }
+    if (message.sysLocation !== "") {
+      obj.sysLocation = message.sysLocation;
+    }
+    if (message.sysContact !== "") {
+      obj.sysContact = message.sysContact;
+    }
+    if (message.sysUpTime !== "0") {
+      obj.sysUpTime = message.sysUpTime;
+    }
+    if (message.error !== "") {
+      obj.error = message.error;
+    }
+    if (message.engineId !== "") {
+      obj.engineId = message.engineId;
+    }
+    if (message.pendingAction !== "") {
+      obj.pendingAction = message.pendingAction;
+    }
+    if (message.subagentRegistered !== false) {
+      obj.subagentRegistered = message.subagentRegistered;
+    }
+    if (message.subagentRegistrations !== "0") {
+      obj.subagentRegistrations = message.subagentRegistrations;
+    }
+    if (message.subagentError !== "") {
+      obj.subagentError = message.subagentError;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SnmpStateResponse>): SnmpStateResponse {
+    return SnmpStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SnmpStateResponse>): SnmpStateResponse {
+    const message = createBaseSnmpStateResponse();
+    message.configured = object.configured ?? false;
+    message.reachable = object.reachable ?? false;
+    message.endpoint = object.endpoint ?? "";
+    message.credential = object.credential ?? "";
+    message.sysName = object.sysName ?? "";
+    message.sysDescr = object.sysDescr ?? "";
+    message.sysLocation = object.sysLocation ?? "";
+    message.sysContact = object.sysContact ?? "";
+    message.sysUpTime = object.sysUpTime ?? "0";
+    message.error = object.error ?? "";
+    message.engineId = object.engineId ?? "";
+    message.pendingAction = object.pendingAction ?? "";
+    message.subagentRegistered = object.subagentRegistered ?? false;
+    message.subagentRegistrations = object.subagentRegistrations ?? "0";
+    message.subagentError = object.subagentError ?? "";
+    return message;
+  },
+};
+
 function createBaseIpfixStateRequest(): IpfixStateRequest {
   return { owner: "" };
 }
@@ -48147,6 +49333,19 @@ export const DataplaneService = {
     responseDeserialize: (value: Buffer): HostStackStateResponse => HostStackStateResponse.decode(value),
   },
   /**
+   * SnmpState reports the snmpd renderer stage (F-snmp): daemon state read over SNMP, the pending
+   * daemon action, the VRX-MIB AgentX subagent. No credential value, ever. Never mutates.
+   */
+  snmpState: {
+    path: "/vrx.v1.Dataplane/SnmpState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: SnmpStateRequest): Buffer => Buffer.from(SnmpStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): SnmpStateRequest => SnmpStateRequest.decode(value),
+    responseSerialize: (value: SnmpStateResponse): Buffer => Buffer.from(SnmpStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): SnmpStateResponse => SnmpStateResponse.decode(value),
+  },
+  /**
    * IpfixState reports the live flow-export state (F-ipfix-sflow): IPFIX exporters from Retrieve
    * (exporter 0 read-only when this agent is not the globals owner), flowprobe and sFlow interfaces
    * of this owner, the VPP-global flowprobe/sFlow parameters and the sFlow node counters from the
@@ -48224,6 +49423,11 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * this owner's session rules (from session_rules_v2_dump) and the app namespaces it applied. Never mutates.
    */
   hostStackState: handleUnaryCall<HostStackStateRequest, HostStackStateResponse>;
+  /**
+   * SnmpState reports the snmpd renderer stage (F-snmp): daemon state read over SNMP, the pending
+   * daemon action, the VRX-MIB AgentX subagent. No credential value, ever. Never mutates.
+   */
+  snmpState: handleUnaryCall<SnmpStateRequest, SnmpStateResponse>;
   /**
    * IpfixState reports the live flow-export state (F-ipfix-sflow): IPFIX exporters from Retrieve
    * (exporter 0 read-only when this agent is not the globals owner), flowprobe and sFlow interfaces
@@ -48384,6 +49588,25 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: HostStackStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * SnmpState reports the snmpd renderer stage (F-snmp): daemon state read over SNMP, the pending
+   * daemon action, the VRX-MIB AgentX subagent. No credential value, ever. Never mutates.
+   */
+  snmpState(
+    request: SnmpStateRequest,
+    callback: (error: ServiceError | null, response: SnmpStateResponse) => void,
+  ): ClientUnaryCall;
+  snmpState(
+    request: SnmpStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: SnmpStateResponse) => void,
+  ): ClientUnaryCall;
+  snmpState(
+    request: SnmpStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: SnmpStateResponse) => void,
   ): ClientUnaryCall;
   /**
    * IpfixState reports the live flow-export state (F-ipfix-sflow): IPFIX exporters from Retrieve

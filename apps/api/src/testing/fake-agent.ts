@@ -35,6 +35,7 @@ import {
   type ValidationReport,
 } from '@ngfw/proto';
 import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
+import { snmpStateFake } from '../features/snmp/fake.js'; // F-snmp (unanchored import)
 import { ipfixStateFake } from '../features/ipfix-sflow/fake.js'; // F-ipfix-sflow
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
@@ -639,6 +640,7 @@ export class FakeAgent {
       // wave-BC: F-host-stack
       hostStackState: hostStackFake(this.owner, () => this.current),
       // wave-BC: F-snmp
+      snmpState: snmpStateFake(() => this.current),
       // wave-BC: F-ipfix-sflow
       ipfixState: ipfixStateFake(this),
       // wave-BC: F-capture-trace

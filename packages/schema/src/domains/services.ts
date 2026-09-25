@@ -1,5 +1,12 @@
 import { z } from 'zod';
 import { withUi } from '../ui.js';
+import {
+  snmpMonitorsField,
+  snmpSubagentField,
+  snmpSysServicesField,
+  snmpViewRefField,
+  snmpViewsField,
+} from './ext/snmp.js';
 import { HostStackSchema } from './ext/host-stack.js'; // F-host-stack (unanchored)
 import { hostname, ipAddress, macAddress, objectName, vppInterfaceName } from '../primitives.js';
 import {
@@ -545,6 +552,7 @@ export const SnmpCommunitySchema = z.strictObject({
     title: 'Allowed sources',
     help: 'Empty = any',
   }),
+  view: snmpViewRefField, // F-snmp (unanchored)
 });
 
 export const SnmpV3UserSchema = z
@@ -568,6 +576,7 @@ export const SnmpV3UserSchema = z
       title: 'Privacy passphrase (reference)',
     }).optional(),
     access: snmpAccess,
+    view: snmpViewRefField, // F-snmp (unanchored)
   })
   .superRefine((u, ctx) => {
     const needAuth = u.securityLevel !== 'noAuthNoPriv';
@@ -634,6 +643,11 @@ export const SnmpSchema = z
     trapReceivers: withUi(z.array(SnmpTrapReceiverSchema).max(16).default([]), {
       title: 'Trap receivers',
     }),
+    // F-snmp (unanchored): D-086 stand-ins, sub-schemas in ext/snmp.ts
+    sysServices: snmpSysServicesField,
+    views: snmpViewsField,
+    monitors: snmpMonitorsField,
+    subagent: snmpSubagentField,
   })
   .superRefine((s, ctx) => {
     checkUnique(ctx, s.listen, (l) => `${l.address}:${l.port}`, ['listen'], 'listen address');

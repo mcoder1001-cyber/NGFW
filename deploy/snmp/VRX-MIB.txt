@@ -1,0 +1,165 @@
+VRX-MIB DEFINITIONS ::= BEGIN
+
+--
+-- VRX private MIB (F-snmp, WBS D7.5): VPP interface counters and agent health, served read-only by the
+-- vrx-agent AgentX subagent (apps/agent/internal/snmpagent).
+--
+-- PLACEHOLDER OID: vrxMIB lives under net-snmp's netSnmpPlaypen (1.3.6.1.4.1.8072.9999.9999, "for local
+-- experiments") until the product owner registers an IANA Private Enterprise Number. When that happens,
+-- change the MODULE-IDENTITY below and snmpagent.VRXMIBOID together.
+--
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, Integer32, Counter32, Counter64
+        FROM SNMPv2-SMI
+    DisplayString, TruthValue
+        FROM SNMPv2-TC
+    netSnmpPlaypen
+        FROM NET-SNMP-MIB;
+
+vrxMIB MODULE-IDENTITY
+    LAST-UPDATED "202609250000Z"
+    ORGANIZATION "VRX project"
+    CONTACT-INFO "see docs/user/services/snmp.md"
+    DESCRIPTION  "VPP interface counters and vrx-agent health. Read-only."
+    REVISION     "202609250000Z"
+    DESCRIPTION  "Initial version (F-snmp); placeholder OID under netSnmpPlaypen."
+    ::= { netSnmpPlaypen 7853 }
+
+vrxAgent   OBJECT IDENTIFIER ::= { vrxMIB 1 }
+
+vrxAgentVersion OBJECT-TYPE
+    SYNTAX      DisplayString
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "vrx-agent version."
+    ::= { vrxAgent 1 }
+
+vrxVppConnected OBJECT-TYPE
+    SYNTAX      TruthValue
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "true(1) while the agent holds a VPP binary-API connection."
+    ::= { vrxAgent 2 }
+
+vrxRunningRevision OBJECT-TYPE
+    SYNTAX      DisplayString
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Transaction id of the last configuration the agent applied."
+    ::= { vrxAgent 3 }
+
+vrxCommitCounter OBJECT-TYPE
+    SYNTAX      Counter32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Applied configuration transactions observed by the subagent (seeded from the agent's
+                 persisted history at start)."
+    ::= { vrxAgent 4 }
+
+vrxAgentDegraded OBJECT-TYPE
+    SYNTAX      TruthValue
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "true(1) when the agent reports DEGRADED (reserved; currently always false(2))."
+    ::= { vrxAgent 5 }
+
+vrxIfTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF VrxIfEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "VPP interfaces (not the Linux ones: those are in IF-MIB from net-snmp)."
+    ::= { vrxMIB 2 }
+
+vrxIfEntry OBJECT-TYPE
+    SYNTAX      VrxIfEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "One VPP interface; the index is sw_if_index + 1."
+    INDEX       { vrxIfIndex }
+    ::= { vrxIfTable 1 }
+
+VrxIfEntry ::= SEQUENCE {
+    vrxIfIndex        Integer32,
+    vrxIfName         DisplayString,
+    vrxIfAdminStatus  INTEGER,
+    vrxIfOperStatus   INTEGER,
+    vrxIfInOctets     Counter64,
+    vrxIfOutOctets    Counter64,
+    vrxIfInPkts       Counter64,
+    vrxIfOutPkts      Counter64,
+    vrxIfInErrors     Counter64,
+    vrxIfOutErrors    Counter64
+}
+
+vrxIfIndex OBJECT-TYPE
+    SYNTAX      Integer32 (1..2147483647)
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "sw_if_index + 1 (readable for plain walks)."
+    ::= { vrxIfEntry 1 }
+
+vrxIfName OBJECT-TYPE
+    SYNTAX      DisplayString
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "VPP interface name."
+    ::= { vrxIfEntry 2 }
+
+vrxIfAdminStatus OBJECT-TYPE
+    SYNTAX      INTEGER { up(1), down(2) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Administrative state."
+    ::= { vrxIfEntry 3 }
+
+vrxIfOperStatus OBJECT-TYPE
+    SYNTAX      INTEGER { up(1), down(2) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Link state."
+    ::= { vrxIfEntry 4 }
+
+vrxIfInOctets OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Received bytes (stats segment /if/rx)."
+    ::= { vrxIfEntry 5 }
+
+vrxIfOutOctets OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Transmitted bytes (/if/tx)."
+    ::= { vrxIfEntry 6 }
+
+vrxIfInPkts OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Received packets (/if/rx)."
+    ::= { vrxIfEntry 7 }
+
+vrxIfOutPkts OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Transmitted packets (/if/tx)."
+    ::= { vrxIfEntry 8 }
+
+vrxIfInErrors OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Receive errors (/if/rx-error)."
+    ::= { vrxIfEntry 9 }
+
+vrxIfOutErrors OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Transmit errors (/if/tx-error)."
+    ::= { vrxIfEntry 10 }
+
+END

@@ -86,6 +86,11 @@ service Dataplane {
   rpc HostStackState(HostStackStateRequest) returns (HostStackStateResponse);
 
   // wave-BC: F-snmp
+
+  // SnmpState reports the snmpd renderer stage (F-snmp): daemon state read over SNMP, the pending
+  // daemon action, the VRX-MIB AgentX subagent. No credential value, ever. Never mutates.
+  rpc SnmpState(SnmpStateRequest) returns (SnmpStateResponse);
+
   // wave-BC: F-ipfix-sflow
 
   // IpfixState reports the live flow-export state (F-ipfix-sflow): IPFIX exporters from Retrieve
@@ -1782,6 +1787,8 @@ message SnmpService {
     repeated string sources = 3;
 
     // wave-BC: F-snmp
+    // View name in SnmpService.views; unset = the built-in all-OIDs view (F-snmp, D-086).
+    optional string view = 4;
   }
   // SNMPv3 USM user.
   message V3User {
@@ -1799,6 +1806,8 @@ message SnmpService {
     optional string access = 6;
 
     // wave-BC: F-snmp
+    // View name in SnmpService.views; unset = the built-in all-OIDs view (F-snmp, D-086).
+    optional string view = 7;
   }
   // Trap / inform receiver.
   message TrapReceiver {
@@ -1839,6 +1848,14 @@ message SnmpService {
   repeated TrapReceiver trap_receivers = 11;
 
   // wave-BC: F-snmp
+  // sysServices (0–127); unset = not rendered (F-snmp, D-086).
+  optional uint32 sys_services = 12;
+  // VACM views keyed by name (F-snmp, D-086).
+  map<string, SnmpView> views = 13;
+  // UCD-SNMP disk and load monitors (F-snmp, D-086).
+  SnmpMonitors monitors = 14;
+  // Private VRX-MIB AgentX subagent (F-snmp).
+  SnmpSubagent subagent = 15;
 }
 
 // LldpService is `services.lldp`.
@@ -3752,6 +3769,83 @@ message HostStackStateResponse {
 }
 
 // ----- F-snmp -----
+
+// SnmpView is one VACM view of `services.snmp.views` (F-snmp, D-086).
+message SnmpView {
+  // Included subtrees (numeric OID or a symbolic name of the renderer's allow-list).
+  repeated string include = 1;
+  // Excluded subtrees.
+  repeated string exclude = 2;
+}
+
+// SnmpMonitors is `services.snmp.monitors` (UCD-SNMP dskTable / laTable thresholds).
+message SnmpMonitors {
+  // Disk monitors.
+  repeated SnmpMonitorDisk disks = 1;
+  // Load-average monitor.
+  SnmpMonitorLoad load = 2;
+}
+
+// SnmpMonitorDisk is one `disk <path> <min>%` monitor.
+message SnmpMonitorDisk {
+  // Absolute mount path.
+  optional string path = 1;
+  // Minimum free space in percent (1–99); unset = 10.
+  optional uint32 min_percent = 2;
+}
+
+// SnmpMonitorLoad is the `load <1m> <5m> <15m>` monitor.
+message SnmpMonitorLoad {
+  // 1-minute load threshold.
+  optional uint32 max1 = 1;
+  // 5-minute load threshold.
+  optional uint32 max5 = 2;
+  // 15-minute load threshold.
+  optional uint32 max15 = 3;
+}
+
+// SnmpSubagent is `services.snmp.subagent`: the VRX-MIB AgentX subagent of the agent.
+message SnmpSubagent {
+  // Register VRX-MIB with snmpd over AgentX (default true when SNMP is enabled).
+  optional bool enabled = 1;
+}
+
+// SnmpStateRequest selects the agent (owner check as in Retrieve).
+message SnmpStateRequest {
+  // Expected agent owner; empty = any.
+  string owner = 1;
+}
+
+// SnmpStateResponse is the snmpd stage state (F-snmp). Credentials are named, never shown.
+message SnmpStateResponse {
+  // An enabled services.snmp is applied.
+  bool configured = 1;
+  // The local agent answered the state query.
+  bool reachable = 2;
+  // Endpoint the query used ("127.0.0.1:161").
+  string endpoint = 3;
+  // Credential the query used, by name ("v3 user noc", "v2c community").
+  string credential = 4;
+  // System group values read back from snmpd.
+  string sys_name = 5;
+  string sys_descr = 6;
+  string sys_location = 7;
+  string sys_contact = 8;
+  // sysUpTime in hundredths of a second.
+  uint64 sys_up_time = 9;
+  // Query error (redacted), when not reachable.
+  string error = 10;
+  // Configured engine id (hex; empty = daemon default).
+  string engine_id = 11;
+  // Daemon action the agent is waiting for ("snmpd needs restart …", D-079); empty = none.
+  string pending_action = 12;
+  // VRX-MIB subagent registered with the AgentX master.
+  bool subagent_registered = 13;
+  // Registrations since the agent started (re-registrations after snmpd restarts included).
+  uint64 subagent_registrations = 14;
+  // Last subagent session error.
+  string subagent_error = 15;
+}
 
 // ----- F-ipfix-sflow -----
 

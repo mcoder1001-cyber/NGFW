@@ -44,7 +44,7 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 53
+const maxPending = 52
 
 var descriptorReach = map[string]reachEntry{
 	"abf":                 {pending, "F-rpf-adl-pbr"},
@@ -119,7 +119,7 @@ var rendererReach = map[string]reachEntry{
 	"keepalived": {pending, "F-vrrp-config-sync"},
 	"rfkit":      {library, "RF-4 shared daemon-renderer kit"},
 	"rsyslog":    {pending, "F-unbound-chrony-syslog"},
-	"snmpd":      {pending, "F-snmp"},
+	"snmpd":      {wired, "F-snmp"},
 	"strongswan": {pending, "P11"},
 	"unbound":    {pending, "F-unbound-chrony-syslog"},
 	"vppstartup": {library, "startup.conf generator: cmd/vrx-startupgen (F-startup-gen), not an agent registry item"},

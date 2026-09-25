@@ -657,6 +657,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/snmp': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** SNMP agent state: daemon read-back, pending daemon action, VRX-MIB subagent */
+    get: operations['SnmpState_snmp'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/ipfix': {
     parameters: {
       query?: never;
@@ -4753,6 +4770,8 @@ export interface components {
              * @default []
              */
             sources: string[];
+            /** View */
+            view?: string;
           };
         };
         /**
@@ -4789,6 +4808,8 @@ export interface components {
              * @enum {string}
              */
             access: 'ro' | 'rw';
+            /** View */
+            view?: string;
           };
         };
         /**
@@ -4819,6 +4840,56 @@ export interface components {
            */
           inform: boolean;
         }[];
+        /** sysServices */
+        sysServices?: number;
+        /**
+         * Views
+         * @default {}
+         */
+        views: {
+          [key: string]: {
+            /** Included subtrees */
+            include: string[];
+            /**
+             * Excluded subtrees
+             * @default []
+             */
+            exclude: string[];
+          };
+        };
+        /** Monitors */
+        monitors?: {
+          /**
+           * Disks
+           * @default []
+           */
+          disks: {
+            /** Mount path */
+            path: string;
+            /**
+             * Minimum free %
+             * @default 10
+             */
+            minPercent: number;
+          }[];
+          /** Load average */
+          load?: {
+            /** 1-minute load */
+            max1: number;
+            /** 5-minute load */
+            max5: number;
+            /** 15-minute load */
+            max15: number;
+          };
+        };
+        /** Private MIB (VRX-MIB) */
+        subagent?: {
+          /**
+           * VRX-MIB subagent
+           * @default true
+           */
+          enabled: boolean;
+        };
       };
       /**
        * LLDP
@@ -8709,6 +8780,67 @@ export interface operations {
       };
       /** @description Agent or database unavailable */
       503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  SnmpState_snmp: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description an enabled services.snmp is applied */
+            configured: boolean;
+            daemon: {
+              reachable: boolean;
+              endpoint: string;
+              /** @description credential used for the read-back, by name only */
+              credential: string;
+              sysName: string;
+              sysDescr: string;
+              sysLocation: string;
+              sysContact: string;
+              /** @description uint64 as decimal string (D-039) */
+              sysUpTimeCentiseconds: string;
+              error: string;
+            };
+            engineId: string;
+            /** @description daemon action the agent waits for (restart/start, D-079); empty = none */
+            pendingAction: string;
+            subagent: {
+              registered: boolean;
+              registrations: string;
+              error: string;
+            };
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
         headers: {
           [name: string]: unknown;
         };

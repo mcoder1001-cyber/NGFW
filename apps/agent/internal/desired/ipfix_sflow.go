@@ -153,6 +153,7 @@ func IpfixSflow(s Sink, svc *vrxv1.ServicesConfig, vrfID func(string) (uint32, b
 var servicesHandled = map[protoreflect.Name]bool{
 	"ipfix":      true, // F-ipfix-sflow
 	"host_stack": true, // F-host-stack
+	"snmp":       true, // F-snmp
 }
 
 // unsupportedServices reports the services sub-trees this build does not implement: every

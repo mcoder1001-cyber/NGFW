@@ -39,6 +39,7 @@ import (
 	"ngfw/agent/internal/descriptors/ipsec"
 	"ngfw/agent/internal/descriptors/lisp"
 	"ngfw/agent/internal/descriptors/vpn"
+	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
@@ -116,7 +117,8 @@ var Domains = map[string][]string{
 	// wave-BC: F-snmp
 	// wave-BC: F-ipfix-sflow
 	"services": append(append([]string{}, ipfixSflowDescriptors...), // other services families: extend ipfixSflowDescriptors' slice here
-		hoststack.NameSession, hoststack.NameNamespace, hoststack.NameSessionRule, hoststack.NameTCPSrc, hoststack.NameHTTPStatic), // F-host-stack
+		hoststack.NameSession, hoststack.NameNamespace, hoststack.NameSessionRule, hoststack.NameTCPSrc, hoststack.NameHTTPStatic, // F-host-stack
+		desired.SnmpDescriptorName), // F-snmp
 	// wave-BC: F-lisp
 	Tunnels: {
 		lisp.EnableName, lisp.GpeEnableName, lisp.LocatorSetName, lisp.LocatorName, lisp.LocalEidName,
@@ -254,6 +256,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-BC: F-mpls-ldp
 	// wave-BC: F-igmp-mfib
 	// wave-BC: F-ha-state-sync
+	registerSnmp(r, w) // F-snmp (unanchored: no wave-BC: F-snmp anchor in register())
 	// wave-A: F-bonding
 	// wave-A: F-bridge-l2
 	// wave-A: F-loopback-bvi-gso-lldp-span

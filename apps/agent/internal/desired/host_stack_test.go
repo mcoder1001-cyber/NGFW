@@ -115,10 +115,11 @@ func TestUnsupportedServicesNoSilentDrop(t *testing.T) {
 	unsupportedServices(s, &vrxv1.ServicesConfig{
 		Snmp:      &vrxv1.SnmpService{Enabled: proto.Bool(true)},
 		Dns:       &vrxv1.DnsService{}, // empty: not reported
+		Lldp:      &vrxv1.LldpService{Interfaces: []*vrxv1.LldpService_Interface{{Interface: proto.String("loop0")}}},
 		HostStack: &vrxv1.HostStackService{Enabled: proto.Bool(true)},
 		Ipfix:     &vrxv1.IpfixService{Exporters: map[string]*vrxv1.IpfixService_Exporter{"x": {}}},
 	})
-	if got := strings.Join(s.warns, ","); got != "/services/snmp agent.unsupported-field" {
+	if got := strings.Join(s.warns, ","); got != "/services/lldp agent.unsupported-field" {
 		t.Fatalf("got %q", got)
 	}
 }

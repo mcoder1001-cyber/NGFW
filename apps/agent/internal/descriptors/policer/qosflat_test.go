@@ -6,6 +6,7 @@ package policer
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 
@@ -98,8 +99,11 @@ func TestAttachmentClaimFirst(t *testing.T) {
 	claims := &persistedClaims{m: map[[2]string]bool{}}
 	iface.SetClaimStore(owner, claims)
 	t.Cleanup(func() { iface.SetClaimStore(owner, nil) })
-	f := df7test.NewFake()
+	f, _ := fakePolicers(t)
 	ctx := t.Context()
+	if _, err := NewPolicer(f, owner).Create(ctx, df7.Encode(gold)); err != nil {
+		t.Fatal(err)
+	}
 	var order []string
 	refuse := false
 	f.On("policer_input", func(api.Message) ([]api.Message, error) {
@@ -168,5 +172,77 @@ func TestStatesAndResetIndex(t *testing.T) {
 	// names are owner-scoped: the other agent's "gold" is its own, never ours
 	if idx, err := ResetIndex(ctx, f, df7test.Other, "gold"); err != nil || idx != 40 {
 		t.Fatalf("other owner: %d %v", idx, err)
+	}
+}
+
+// TestAttachmentRepointsAfterPolicerLoss: VPP binds an attachment to the policer's pool index (policer_op.c) and
+// policer_del leaves the binding dangling. When the policer is re-created behind the agent's back (new pool index),
+// the resync's Create re-points the attachment — un-apply + apply, still exactly one feature instance — instead of
+// skipping it on the applied-once record; a Delete once the policer is gone for good tolerates NO_SUCH_ENTRY.
+func TestAttachmentRepointsAfterPolicerLoss(t *testing.T) {
+	f, pool := fakePolicers(t)
+	ctx := t.Context()
+	pd := NewPolicer(f, df7test.Owner)
+	if _, err := pd.Create(ctx, df7.Encode(gold)); err != nil {
+		t.Fatal(err)
+	}
+	stack, bound := 0, uint32(0)
+	var ops []string
+	f.On("policer_input", func(m api.Message) ([]api.Message, error) {
+		r := m.(*policer.PolicerInput)
+		idx, ok := uint32(0), false
+		for i, p := range pool {
+			if p.Name == r.Name {
+				idx, ok = i, true
+			}
+		}
+		if !ok {
+			return []api.Message{&policer.PolicerInputReply{Retval: int32(api.NO_SUCH_ENTRY)}}, nil
+		}
+		if r.Apply {
+			stack++
+			bound = idx
+			ops = append(ops, "apply")
+		} else {
+			stack--
+			bound = ^uint32(0)
+			ops = append(ops, "unapply")
+		}
+		return []api.Message{&policer.PolicerInputReply{}}, nil
+	})
+	d := NewInterface(f, df7test.Owner)
+	in := df7.Encode(Attachment{Interface: "loop0", Direction: DirInput, Policer: "gold"})
+	if _, err := d.Create(ctx, in); err != nil || stack != 1 || bound != 0 {
+		t.Fatalf("first apply: %v stack %d bound %d", err, stack, bound)
+	}
+	if _, err := d.Create(ctx, in); err != nil || len(ops) != 1 { // resync, same policer: skipped (D-076)
+		t.Fatalf("resync re-applied: %v %v", err, ops)
+	}
+	// the policer is deleted and re-created behind the agent's back: a new pool index
+	delete(pool, 0)
+	if _, err := pd.Create(ctx, df7.Encode(gold)); err != nil {
+		t.Fatal(err)
+	}
+	newIdx, _, _ := LookupIndex(ctx, f, df7test.Owner, "gold")
+	if newIdx == 0 {
+		t.Fatal("the fake must give the re-created policer another index")
+	}
+	ops = nil
+	if _, err := d.Create(ctx, in); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(ops, ",") != "unapply,apply" || stack != 1 || bound != newIdx {
+		t.Fatalf("re-point: ops %v stack %d bound %d (want %d)", ops, stack, bound, newIdx)
+	}
+	if _, err := d.Create(ctx, in); err != nil || len(ops) != 2 {
+		t.Fatalf("after the re-point a resync must skip again: %v %v", err, ops)
+	}
+	// gone for good: the un-apply cannot run (NO_SUCH_ENTRY) and Delete still succeeds and forgets the record
+	delete(pool, newIdx)
+	if err := d.Delete(ctx, in, nil); err != nil {
+		t.Fatalf("delete with the policer gone: %v", err)
+	}
+	if ok, _, _ := d.appliedHere(ctx, string(KeyInterface("loop0", DirInput)), df7.IfaceValue(1, "loop0")); ok {
+		t.Fatal("record kept after delete")
 	}
 }

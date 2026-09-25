@@ -46,6 +46,9 @@ type qosModel struct {
 	features map[string]int
 	seen     map[string]bool
 	unseen   int
+	// bound is the policer pool index an attachment points at (policer_index_by_sw_if_index): policer_del
+	// leaves it dangling, like VPP
+	bound    map[string]uint32
 	records  map[qosKey]int
 	stores   map[qosKey]int
 	storeVal map[qosKey]uint8
@@ -61,7 +64,7 @@ func (v *VPP) qosModel() *qosModel {
 }
 
 func newQoSModel() *qosModel {
-	return &qosModel{policers: map[uint32]*QoSPolicer{}, features: map[string]int{}, seen: map[string]bool{},
+	return &qosModel{policers: map[uint32]*QoSPolicer{}, features: map[string]int{}, seen: map[string]bool{}, bound: map[string]uint32{},
 		records: map[qosKey]int{}, stores: map[qosKey]int{}, storeVal: map[qosKey]uint8{}, maps: map[uint32]qos.QosEgressMap{}, marks: map[qosKey]uint32{}}
 }
 
@@ -71,7 +74,7 @@ func (v *VPP) QoSRestart() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.next, m.unseen = 0, 0
-	m.policers, m.features, m.seen = map[uint32]*QoSPolicer{}, map[string]int{}, map[string]bool{}
+	m.policers, m.features, m.seen, m.bound = map[uint32]*QoSPolicer{}, map[string]int{}, map[string]bool{}, map[string]uint32{}
 	m.records, m.stores, m.storeVal = map[qosKey]int{}, map[qosKey]int{}, map[qosKey]uint8{}
 	m.maps, m.marks = map[uint32]qos.QosEgressMap{}, map[qosKey]uint32{}
 }
@@ -109,6 +112,16 @@ func (v *VPP) PolicerFeatures(dir string, swIfIndex uint32) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.features[dir+"/"+itoa(swIfIndex)]
+}
+
+// PolicerBinding returns the pool index the attachment of dir ("in"/"out") on swIfIndex points at (possibly a
+// deleted policer's: VPP keeps it dangling), false when none was ever applied.
+func (v *VPP) PolicerBinding(dir string, swIfIndex uint32) (uint32, bool) {
+	m := v.qosModel()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	i, ok := m.bound[dir+"/"+itoa(swIfIndex)]
+	return i, ok
 }
 
 // UnseenUnapplies counts apply=0 on an interface that had no policer since the modelled VPP start (VPP writes out
@@ -255,9 +268,11 @@ func (v *VPP) installQoSFlat() {
 		}
 		m.mu.Lock()
 		defer m.mu.Unlock()
-		found := false
-		for _, p := range m.policers {
-			found = found || p.Details.Name == name
+		found, pi := false, uint32(0)
+		for i, p := range m.policers {
+			if p.Details.Name == name {
+				found, pi = true, i
+			}
 		}
 		if !found {
 			return RetvalNoSuchEntry
@@ -267,10 +282,12 @@ func (v *VPP) installQoSFlat() {
 		case on:
 			m.features[k]++
 			m.seen[k] = true
+			m.bound[k] = pi
 		case !m.seen[k]:
 			m.unseen++ // VPP: out-of-bounds write
 		case m.features[k] > 0:
 			m.features[k]--
+			m.bound[k] = ^uint32(0)
 		}
 		return 0
 	}

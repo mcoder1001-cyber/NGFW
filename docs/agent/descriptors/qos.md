@@ -20,3 +20,25 @@ maps by id range. FIB entries: none.
 Reference counts (review L1): `qos.record` / `qos.store` enables are counted by VPP. Create enables only when the dump
 does not list the interface/source (an existing one is accepted only when tagged or claimed by us); Delete sends one
 disable — our one reference — and leaves other consumers' references alone.
+
+## F-qos-flat additions (2026-09-25)
+
+- **Registered by F-qos-flat** (`subsystems/qos.go`: `qos.Register` with the agent's id range, `df7.WithIDRange`;
+  without a range the family owns no egress map id — fail closed). All four belong to `Domains["services"]`.
+- **TD-11b ownership declarations** (`ownership.go`): record / store / mark `CheckPersistent()` = DF-1 claim store;
+  `qos.egress-map` `RecordsNoOwnership()` (ownership by id range).
+- **Claim-first Creates:** record and store adopt an existing enable only with a claim that existed before (unchanged);
+  otherwise they — and mark — claim before the VPP enable and release the claim when VPP refuses it.
+- **`qos.meta` (new, `meta.go`)** — key `qos.meta/services.qos`, one agent-local record of what the document says about
+  `services.qos` that VPP cannot hold: descriptions (D-073b), the egress map names ↔ ids and whether the document fixed
+  the id, whether a shaper's burst was explicit, and each map row's recorded values in document order. Create / Update
+  write `<state dir>/qos-<owner>.json` (0600, temp file + fsync + rename), Delete removes it, Retrieve reads it (an
+  unreadable file counts as absent: re-creatable metadata). It is not a VPP object and is never used to report an
+  object VPP does not have: the assembler only names and decorates what VPP returned. `CheckPersistent()` requires
+  the file store.
+
+| Object type | Key | Create / Update / Delete | Retrieve | Notes |
+|---|---|---|---|---|
+| `qos.meta` | `qos.meta/services.qos` | write / rewrite / remove the record file | the record file | agent-local; desired only when the document has maps, descriptions or explicit shaper bursts |
+
+Tests: `qosflat_test.go` (TestOwnershipDeclared, TestClaimFirst, TestMetaRecord).

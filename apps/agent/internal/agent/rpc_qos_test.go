@@ -218,10 +218,15 @@ func TestQoSAgentRestartRecreates(t *testing.T) {
 	if resp.GetSummary().GetCreated() < 2 {
 		t.Fatalf("resync recreated %d objects", resp.GetSummary().GetCreated())
 	}
-	if _, ok := v.QoSPolicers()["w7:gold"]; !ok || len(v.QoSMaps()) != 2 {
+	gold, ok := v.QoSPolicers()["w7:gold"]
+	if !ok || len(v.QoSMaps()) != 2 {
 		t.Fatalf("not rebuilt: %v %v", v.QoSPolicers(), v.QoSMaps())
 	}
 	features(t, v, 1)
+	// VPP binds by pool index and the re-created policer has a new one: the attachment was re-pointed
+	if b, ok := v.PolicerBinding("in", ifIndex(t, v, "loop7101")); !ok || b != gold.Index {
+		t.Fatalf("loop7101 input still bound to pool index %d, gold is now %d", b, gold.Index)
+	}
 	sameQoS(t, retrieveQoS(t, s2), qosRetrieved)
 }
 

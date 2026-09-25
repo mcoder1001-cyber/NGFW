@@ -1,6 +1,7 @@
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -132,9 +133,23 @@ export function HostAclPage() {
   const state = useHostAclState();
   return (
     <PageHeader title={t('title')}>
-      <Typography color="text.secondary" sx={{ mb: 2 }}>
-        {t('intro')}
-      </Typography>
+      <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'flex-start' }}>
+        <Typography color="text.secondary" sx={{ flex: 1 }}>
+          {t('intro')}
+        </Typography>
+        {/* D-132: the state polls every 30 s; Refresh reads it (and the configuration) now */}
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<RefreshIcon />}
+          disabled={state.isFetching}
+          onClick={() =>
+            void Promise.all([state.refetch(), candidate.refetch(), running.refetch()])
+          }
+        >
+          {t('refresh')}
+        </Button>
+      </Stack>
       <Banners settings={settingsOf(running.data)} state={state.data} running={running.data} />
       {state.isError && <ProblemAlert error={state.error} sx={{ mb: 1 }} />}
       <Tabs

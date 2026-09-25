@@ -52,7 +52,7 @@ func hostDoc(t *testing.T, peer string, extra string) *vrxv1.DesiredState {
 
 func value(t *testing.T, ds *vrxv1.DesiredState) *nftables.HostTable {
 	t.Helper()
-	v, issues := nftables.Build(nftables.Input{Acl: ds.GetAcl(), Objects: ds.GetObjects()})
+	v, issues := nftables.Build(nftables.Input{ACL: ds.GetAcl(), Objects: ds.GetObjects()})
 	for _, is := range issues {
 		if !is.Warning {
 			t.Fatalf("build: %+v", is)

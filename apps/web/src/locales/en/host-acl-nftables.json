@@ -10,6 +10,7 @@
     "rendered": "Rendered table"
   },
   "loading": "Loading",
+  "refresh": "Refresh",
   "readonly": "Your role cannot change the configuration",
   "pending": "pending",
   "yes": "yes",

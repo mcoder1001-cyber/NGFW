@@ -14,12 +14,13 @@ import (
 	"ngfw/agent/internal/renderers/nftables"
 )
 
+//nolint:revive // the generated gRPC method name (vrx.v1.Dataplane/HostAclState)
 func (g *server) HostAclState(ctx context.Context, req *vrxv1.HostAclStateRequest) (*vrxv1.HostAclStateResponse, error) {
-	return g.svc.HostAclState(ctx, req)
+	return g.svc.HostACLState(ctx, req)
 }
 
-// HostAclState implements the RPC.
-func (s *Service) HostAclState(ctx context.Context, req *vrxv1.HostAclStateRequest) (*vrxv1.HostAclStateResponse, error) {
+// HostACLState implements the HostAclState RPC.
+func (s *Service) HostACLState(ctx context.Context, req *vrxv1.HostAclStateRequest) (*vrxv1.HostAclStateResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}

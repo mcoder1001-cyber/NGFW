@@ -112,7 +112,7 @@ func fqdn(name string) ([]netip.Addr, bool) {
 
 func build(t *testing.T, ds *vrxv1.DesiredState) (*HostTable, []Issue) {
 	t.Helper()
-	return Build(Input{Acl: ds.GetAcl(), Objects: ds.GetObjects(), FQDN: fqdn})
+	return Build(Input{ACL: ds.GetAcl(), Objects: ds.GetObjects(), FQDN: fqdn})
 }
 
 func errorsOf(issues []Issue) []Issue {

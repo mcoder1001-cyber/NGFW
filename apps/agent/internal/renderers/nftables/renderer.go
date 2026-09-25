@@ -226,6 +226,13 @@ func (v *HostTable) Validate() error {
 	return nil
 }
 
+// quotable reports whether c may appear inside a quoted string of a rule text (interface names and the
+// log prefix only need these).
+func quotable(c byte) bool {
+	return c == ' ' || c == ':' || c == '_' || c == '.' || c == '-' || c == '@' ||
+		(c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
 // checkRuleText is the backstop for rule texts: printable ASCII, no statement separators or comments
 // (`;`, `#`), no escapes, quoted strings only of nft-safe tokens, braces balanced and flat, and a verdict
 // at the end. Build only produces texts that pass; a text from anywhere else that does not is refused.
@@ -244,8 +251,7 @@ func checkRuleText(t string) error {
 			return bad(fmt.Sprintf("character %q", c))
 		case c == '"':
 			inQuote = !inQuote
-		case inQuote && !(c == ' ' || c == ':' || c == '_' || c == '.' || c == '-' || c == '@' ||
-			(c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')):
+		case inQuote && !quotable(c):
 			return bad(fmt.Sprintf("character %q inside quotes", c))
 		case !inQuote && c == '{':
 			if depth++; depth > 1 {

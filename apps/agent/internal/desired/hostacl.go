@@ -52,7 +52,7 @@ func HostACL(s Sink, acl *vrxv1.AclConfig, objs *vrxv1.ObjectsConfig, objectsInT
 			s.Warnf(Ptr("acl", leaf.name), "agent.unsupported-field", "acl.%s is realised by the VPP acl plugin (F-acl), not by this agent build; it is not applied", leaf.name)
 		}
 	}
-	in := nftables.Input{Acl: acl, Objects: objs}
+	in := nftables.Input{ACL: acl, Objects: objs}
 	if env := hostACLEnv.Load(); env != nil {
 		in.FQDN = env.FQDN
 		if !objectsInTxn && env.Applied != nil {

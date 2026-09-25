@@ -53,6 +53,12 @@ func NewDescriptor(r *Renderer, st *Store, log *slog.Logger) *Descriptor {
 // Name implements scheduler.Descriptor.
 func (d *Descriptor) Name() string { return DescriptorName }
 
+// RecordsNoOwnership declares, for the TD-11b ownership guard (dfkit/persist.NoOwnership), that this
+// descriptor records no ownership claim: what is ours is the owner-specific table name itself (`inet vrx`,
+// `inet vrx_<owner>`), the kernel's equivalent of an owner-prefixed name. Its store (the value last
+// applied, for Retrieve's configuration and annotations) is always a file in the state dir.
+func (*Descriptor) RecordsNoOwnership() {}
+
 // KeyOf implements scheduler.Descriptor: there is one object.
 func (d *Descriptor) KeyOf(proto.Message) scheduler.Key { return Key }
 

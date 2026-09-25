@@ -76,7 +76,7 @@ func TestHostACLDomainOnFake(t *testing.T) {
 		t.Errorf("second Apply is not empty: %v", again.GetSummary())
 	}
 
-	st, err := s.HostAclState(context.Background(), &vrxv1.HostAclStateRequest{})
+	st, err := s.HostACLState(context.Background(), &vrxv1.HostAclStateRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}

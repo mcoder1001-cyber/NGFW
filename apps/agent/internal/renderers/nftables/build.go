@@ -21,7 +21,7 @@ import (
 // document the rules reference and the FQDN answers of the running agent (nil: FQDN objects expand to
 // nothing).
 type Input struct {
-	Acl     *vrxv1.AclConfig
+	ACL     *vrxv1.AclConfig
 	Objects *vrxv1.ObjectsConfig
 	FQDN    objects.FQDNLookup
 }
@@ -77,7 +77,7 @@ var hookPrefix = map[string]string{"input": "in", "output": "out", "forward": "f
 // nil when the document configures no host firewall at all (no host list, attachment or settings). Errors
 // and warnings carry the pointer of the offending leaf; with an error the value must not be applied.
 func Build(in Input) (*HostTable, []Issue) {
-	acl := in.Acl
+	acl := in.ACL
 	if len(acl.GetHost()) == 0 && len(acl.GetHostAttachments()) == 0 && acl.GetHostSettings() == nil {
 		return nil, nil
 	}
@@ -190,7 +190,7 @@ type lockoutPlan struct {
 
 // settings reads acl.hostSettings (defaults when unset).
 func (b *builder) settings() {
-	s := b.in.Acl.GetHostSettings()
+	s := b.in.ACL.GetHostSettings()
 	pt := ptr("acl", "hostSettings")
 	b.defaultInput = "accept"
 	switch d := s.GetDefaultInput(); d {
@@ -250,7 +250,7 @@ type configRule struct {
 // enabled rules in sequence order — templates that each attachment copies for its hook.
 func (b *builder) lists() map[string][]*nrule {
 	out := map[string][]*nrule{}
-	for _, name := range sortedKeys(b.in.Acl.GetHost()) {
+	for _, name := range sortedKeys(b.in.ACL.GetHost()) {
 		pt := ptr("acl", "host", name)
 		if !objectNameRe.MatchString(name) {
 			b.errorf(pt, RuleListName, "host access list name %q: letters, digits, `_`, `.` and `-` only (max 63)", name)
@@ -258,7 +258,7 @@ func (b *builder) lists() map[string][]*nrule {
 		}
 		var rules []*configRule
 		seq := map[uint32]int{}
-		for i, r := range b.in.Acl.GetHost()[name].GetRules() {
+		for i, r := range b.in.ACL.GetHost()[name].GetRules() {
 			rp := fmt.Sprintf("%s/rules/%d", pt, i)
 			if r.GetSequence() == 0 {
 				b.errorf(rp+"/sequence", RuleRule, "sequence must be 1 or more")
@@ -350,12 +350,8 @@ type nrule struct {
 func (r *nrule) sets() []string {
 	var out []string
 	for _, m := range []addrMatch{r.src, r.dst} {
-		if m.on && m.object != "" {
-			if r.family == 4 {
-				out = append(out, setName(4, m.object))
-			} else if r.family == 6 {
-				out = append(out, setName(6, m.object))
-			}
+		if m.on && m.object != "" && (r.family == 4 || r.family == 6) {
+			out = append(out, setName(r.family, m.object))
 		}
 	}
 	return out
@@ -769,7 +765,7 @@ func groupSpecs(specs []objects.PortSpec) []svcGroup {
 	var order []key
 	byKey := map[key]*svcGroup{}
 	var out []svcGroup
-	full := func(s span, max uint16) bool { return s.first == 0 && s.last == max }
+	full := func(s span, hi uint16) bool { return s.first == 0 && s.last == hi }
 	for _, p := range specs {
 		switch p.Proto {
 		case objects.ProtoAny:

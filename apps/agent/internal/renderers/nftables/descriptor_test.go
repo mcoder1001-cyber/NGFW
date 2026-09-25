@@ -233,6 +233,17 @@ func TestDescriptorLifecycle(t *testing.T) {
 	}
 }
 
+// The TD-11b guard (dfkit/persist.Declared) needs exactly one of RecordsNoOwnership and CheckPersistent.
+func TestDescriptorDeclaresOwnership(t *testing.T) {
+	var d any = &Descriptor{}
+	if _, ok := d.(interface{ RecordsNoOwnership() }); !ok {
+		t.Error("host-acl.nftables must declare RecordsNoOwnership")
+	}
+	if _, ok := d.(interface{ CheckPersistent() error }); ok {
+		t.Error("host-acl.nftables must not declare both")
+	}
+}
+
 func TestDescriptorCheckMode(t *testing.T) {
 	ctx := context.Background()
 	fake := &fakeNft{}

@@ -112,7 +112,8 @@ export class AclService implements OnModuleInit {
   async doc(source: Source): Promise<Json> {
     if (source === 'candidate') return await this.ds.getCandidate();
     const latest = (await this.ds.listRevisions(1, 0)).items[0]?.id ?? null;
-    if (this.runningCache !== undefined && this.runningCache.id === latest) return this.runningCache.doc;
+    if (this.runningCache !== undefined && this.runningCache.id === latest)
+      return this.runningCache.doc;
     const r = await this.ds.getRunning();
     this.runningCache = { id: r.revision?.id ?? null, doc: r.doc };
     return r.doc;

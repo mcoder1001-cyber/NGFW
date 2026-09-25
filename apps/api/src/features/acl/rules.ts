@@ -111,21 +111,22 @@ function stable(v: unknown): string {
 }
 
 export function sameJson(a: unknown, b: unknown): boolean {
-  return stable(a) === stable(b);
+  // fast path: documents from the datastore (jsonb) share one key order; the canonical form only when they differ
+  return a === b || JSON.stringify(a) === JSON.stringify(b) || stable(a) === stable(b);
 }
 
 export type Pending = 'added' | 'changed' | null;
 
 /** Pending mark of a candidate rule against the running rule with the same sequence. */
 export function pendingBySequence(running: Json | undefined): (rule: Json) => Pending {
-  const bySeq = new Map<number, string>();
+  const bySeq = new Map<number, Json>(); // compared lazily: only the rules of the page are serialised
   for (const r of rulesOf(running)) {
-    if (typeof r['sequence'] === 'number') bySeq.set(r['sequence'], stable(r));
+    if (typeof r['sequence'] === 'number') bySeq.set(r['sequence'], r);
   }
   return (rule) => {
     const prev = typeof rule['sequence'] === 'number' ? bySeq.get(rule['sequence']) : undefined;
     if (prev === undefined) return 'added';
-    return prev === stable(rule) ? null : 'changed';
+    return prev === rule || stable(prev) === stable(rule) ? null : 'changed';
   };
 }
 

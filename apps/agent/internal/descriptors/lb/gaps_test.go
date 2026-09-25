@@ -113,7 +113,7 @@ func asRow(vip, port, addr string, used bool) *lb.LbAsDetails {
 	if p.Addr().Is4() {
 		pfx.Len += 96
 	}
-	n, _ := strconv.Atoi(port)
+	n, _ := strconv.ParseUint(port, 10, 16)
 	var flags uint8
 	if used {
 		flags = ASFlagUsed

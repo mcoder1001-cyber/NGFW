@@ -32,7 +32,7 @@ func (s *lbSink) Add(k scheduler.Key, v proto.Message, p string) { s.kvs[k] = v;
 func (s *lbSink) Errorf(p, rule, f string, a ...any) {
 	s.notes = append(s.notes, "E "+p+" "+rule+" "+fmt.Sprintf(f, a...))
 }
-func (s *lbSink) Warnf(p, rule, f string, a ...any) { s.notes = append(s.notes, "W "+p+" "+rule) }
+func (s *lbSink) Warnf(p, rule, _ string, _ ...any) { s.notes = append(s.notes, "W "+p+" "+rule) }
 
 func (s *lbSink) keys() []string {
 	out := make([]string, 0, len(s.kvs))

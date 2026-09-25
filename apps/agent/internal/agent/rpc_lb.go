@@ -117,7 +117,7 @@ func (s *Service) LbState(ctx context.Context, req *vrxv1.LbStateRequest) (*vrxv
 	}
 	sort.Strings(names)
 	vd := lb.NewVIP(s.vpp, s.owner)
-	resp := &vrxv1.LbStateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now()), TotalVppVips: uint32(len(vips))}
+	resp := &vrxv1.LbStateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now()), TotalVppVips: uint32(len(vips))} //nolint:gosec // a VPP table dump, far below 2^32 entries
 	for _, name := range names {
 		v := cfg.GetVips()[name]
 		st := &vrxv1.LbVipState{Name: name, Prefix: v.GetPrefix(), Protocol: v.GetProtocol(), Port: v.GetPort()}

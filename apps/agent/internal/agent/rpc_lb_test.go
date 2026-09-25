@@ -98,7 +98,7 @@ func installLbModel(t *testing.T, v *coretest.VPP) *lbModel {
 			return rv(api.VALUE_EXIST), nil
 		}
 		v4 := r.Pfx.Address.Af == ip_types.ADDRESS_IP4
-		vt := map[uint32]lb_types.LbVipType{}
+		var vt map[uint32]lb_types.LbVipType
 		if v4 {
 			vt = map[uint32]lb_types.LbVipType{0: lb_types.LB_API_VIP_TYPE_IP4_GRE4, 1: lb_types.LB_API_VIP_TYPE_IP4_GRE6, 2: lb_types.LB_API_VIP_TYPE_IP4_L3DSR, 3: lb_types.LB_API_VIP_TYPE_IP4_NAT4}
 		} else {

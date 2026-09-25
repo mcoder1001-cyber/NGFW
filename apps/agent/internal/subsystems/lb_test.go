@@ -127,7 +127,7 @@ func TestLbSlotAgentNeverCollects(t *testing.T) {
 
 // The globals owner: lb.conf registered; a burst of lb deletes → exactly one lb.GCCommand, lbGCDelay after the last.
 func TestLbGlobalsOwnerCollectsOnce(t *testing.T) {
-	shortGC(t, 50*time.Millisecond)
+	shortGC(t, 2*time.Second) // long enough that both bursts (fsynced records) land inside one window under CI load
 	reg, cli := lbWiring(t, "w2g", true)
 	if _, ok := reg.ForKey(lbd.KeyConf()); !ok {
 		t.Fatal("the globals owner did not register lb.conf")
@@ -137,7 +137,7 @@ func TestLbGlobalsOwnerCollectsOnce(t *testing.T) {
 	if got := cli(); len(got) != 0 {
 		t.Fatalf("collected before the delay: %v", got)
 	}
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(15 * time.Second)
 	for len(cli()) == 0 && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}

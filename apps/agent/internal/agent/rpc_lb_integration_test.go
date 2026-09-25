@@ -223,7 +223,7 @@ func TestLbGarbageCollectOnHost(t *testing.T) {
 		t.Skip("the lb garbage collection is VPP-global: opt-in VRX_LB_GLOBALS=1, manager window only (D-082)")
 	}
 	vpptest.LockLab(t)
-	lock, err := os.OpenFile("/run/lock/vrx-globals.lock", os.O_CREATE|os.O_RDWR, 0o644)
+	lock, err := os.OpenFile("/run/lock/vrx-globals.lock", os.O_CREATE|os.O_RDWR, 0o644) //nolint:gosec // the shared globals lock of every slot (flock), readable by all
 	if err != nil {
 		t.Fatal(err)
 	}

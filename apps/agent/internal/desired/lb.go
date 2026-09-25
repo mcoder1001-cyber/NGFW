@@ -59,12 +59,15 @@ func LbVIPOf(v *vrxv1.LbVip) (lb.VIPSpec, error) {
 	if proto == "" {
 		proto = lb.ProtoAny
 	}
+	if v.GetPort() > 65535 || v.GetTargetPort() > 65535 || v.GetNodePort() > 65535 || v.GetDscp() > 63 {
+		return lb.VIPSpec{}, fmt.Errorf("port, target port, node port or dscp out of range")
+	}
 	s := lb.VIPSpec{
-		VIP:                 lb.VIP{Prefix: p.String(), Protocol: proto, Port: uint16(v.GetPort())},
+		VIP:                 lb.VIP{Prefix: p.String(), Protocol: proto, Port: uint16(v.GetPort())}, //nolint:gosec // range-checked above
 		Encap:               v.GetEncap(),
-		DSCP:                uint8(v.GetDscp()),
-		TargetPort:          uint16(v.GetTargetPort()),
-		NodePort:            uint16(v.GetNodePort()),
+		DSCP:                uint8(v.GetDscp()),        //nolint:gosec // range-checked above
+		TargetPort:          uint16(v.GetTargetPort()), //nolint:gosec // range-checked above
+		NodePort:            uint16(v.GetNodePort()),   //nolint:gosec // range-checked above
 		NewFlowsTableLength: v.GetNewFlowsTableLength(),
 		SrcIPSticky:         v.GetSrcIpSticky(),
 	}
@@ -76,9 +79,6 @@ func LbVIPOf(v *vrxv1.LbVip) (lb.VIPSpec, error) {
 	}
 	if s.NewFlowsTableLength == 0 {
 		s.NewFlowsTableLength = 1024 // schema default
-	}
-	if v.GetPort() > 65535 || v.GetTargetPort() > 65535 || v.GetNodePort() > 65535 || v.GetDscp() > 63 {
-		return s, fmt.Errorf("port, target port, node port or dscp out of range")
 	}
 	return s, s.Validate()
 }

@@ -89,6 +89,7 @@ export * from './domains/management.js';
 // wave-A: P12
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
+export * from './domains/ext/snmp.js'; // F-snmp (unanchored)
 export * from './primitives.js';
 export * from './ip.js';
 export * from './ui.js';

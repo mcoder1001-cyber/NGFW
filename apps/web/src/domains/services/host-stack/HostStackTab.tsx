@@ -3,6 +3,7 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import IconButton from '@mui/material/IconButton';
+import LinearProgress from '@mui/material/LinearProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -69,15 +70,20 @@ export function HostStackTab() {
       <Alert severity="info" data-testid="host-stack-banner">
         {t('banner')}
       </Alert>
+      {(cand.isPending || live.isPending) && <LinearProgress aria-label={t('loading')} />}
+      {cand.isError && <ProblemAlert error={cand.error} />}
       {put.error !== null && <ProblemAlert error={put.error} />}
 
       <Paper sx={{ p: 2 }} aria-label={t('live')}>
         <Typography variant="subtitle1">{t('live')}</Typography>
         {live.isError ? (
-          <Alert severity="warning">{t('stateError')}</Alert>
+          <>
+            <Alert severity="warning">{t('stateError')}</Alert>
+            <ProblemAlert error={live.error} sx={{ mt: 1 }} />
+          </>
         ) : (
           live.data && (
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap role="status">
               <Chip
                 color={live.data.sessionEnabled ? 'success' : 'default'}
                 label={live.data.sessionEnabled ? t('sessionOn') : t('sessionOff')}

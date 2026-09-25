@@ -2,6 +2,7 @@ import type { InterfaceConfig } from '../domains/interfaces.js';
 import {
   BOND_HASH_MODES,
   bondIdOf,
+  NON_ETHERNET_INTERFACE_RE,
   type BondConfig,
   type BondMemberConfig,
 } from '../domains/ext/bonding.js';
@@ -39,10 +40,12 @@ function memberPtr(bond: string, member: string, ...rest: string[]): string {
   return jsonPointer('interfaces', bond, 'bond', 'members', member, ...rest);
 }
 
-/** Is this interface (by name and configuration) a bond or a loopback — never a bond member? */
+/** Is this interface (by name and configuration) a bond, a loopback or another non-Ethernet interface — never a member? */
 function notMemberKind(name: string, itf: InterfaceConfig | undefined): string | undefined {
   if (itf?.bond !== undefined || bondIdOf(name) !== undefined) return 'a bond';
   if (/^loop[0-9]+$/.test(name)) return 'a loopback';
+  if (NON_ETHERNET_INTERFACE_RE.test(name))
+    return 'not an Ethernet interface (a tunnel or virtual L3 interface)';
   return undefined;
 }
 
@@ -164,6 +167,28 @@ export const bondingValidators: readonly ValidatorDefinition[] = [
               message: `${member} is a member of ${b.name}: configure ${leaf[1]} on the bond, not on a member`,
             });
           }
+        }
+      }
+      return issues;
+    },
+  },
+  {
+    // F-bonding review F5: bond_add_member gives the members the bond's MAC (and restores theirs on detach); a member MAC of
+    // its own would fight it (permanent drift, and a re-apply would take the member off the bond's MAC).
+    name: 'interfaces.bonding-member-mac',
+    domains: ['interfaces'],
+    validate: (config) => {
+      const issues: SemanticIssue[] = [];
+      const seen = new Set<string>();
+      for (const b of bonds(config)) {
+        for (const member of Object.keys(b.bond.members)) {
+          const itf = config.interfaces[member];
+          if (itf?.mac === undefined || seen.has(member)) continue;
+          seen.add(member);
+          issues.push({
+            pointer: jsonPointer('interfaces', member, 'mac'),
+            message: `${member} is a member of ${b.name}: members take the bond's MAC address; set mac on the bond instead`,
+          });
         }
       }
       return issues;

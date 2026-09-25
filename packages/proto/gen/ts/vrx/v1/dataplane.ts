@@ -5285,7 +5285,7 @@ export interface RemoteAccessProfile_Radius_Server {
  * bond_add_member + sw_interface_set_bond_weight.
  */
 export interface Bond {
-  /** "lacp" | "xor" | "round-robin" | "active-backup" | "broadcast". */
+  /** "lacp" | "xor" | "round-robin" | "active-backup".  (VPP's broadcast mode is not offered, Q1.) */
   mode?:
     | string
     | undefined;
@@ -5346,9 +5346,9 @@ export interface BondStatus {
   swIfIndex: number;
   /** VPP bond id. */
   id: number;
-  /** "lacp" | "xor" | "round-robin" | "active-backup" | "broadcast". */
+  /** "lacp" | "xor" | "round-robin" | "active-backup". */
   mode: string;
-  /** "l2" | "l23" | "l34" | "round-robin" | "active-backup" | "broadcast" (the value VPP reports; forced for rr/ab/broadcast). */
+  /** "l2" | "l23" | "l34" | "round-robin" | "active-backup" (the value VPP reports; forced for rr/ab). */
   loadBalance: string;
   numaOnly: boolean;
   /** Administrative and link state of the bond interface. */

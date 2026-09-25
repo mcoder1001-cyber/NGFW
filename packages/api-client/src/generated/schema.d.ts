@@ -852,7 +852,7 @@ export interface components {
            * Mode
            * @enum {string}
            */
-          mode: 'lacp' | 'xor' | 'round-robin' | 'active-backup' | 'broadcast';
+          mode: 'lacp' | 'xor' | 'round-robin' | 'active-backup';
           /**
            * Load balance
            * @enum {string}
@@ -8007,9 +8007,9 @@ export interface operations {
                 vppName: string;
                 swIfIndex: number;
                 id: number;
-                /** @description lacp | xor | round-robin | active-backup | broadcast */
+                /** @description lacp | xor | round-robin | active-backup */
                 mode: string;
-                /** @description l2 | l23 | l34, or the algorithm VPP forces: round-robin | active-backup | broadcast */
+                /** @description l2 | l23 | l34, or the algorithm VPP forces: round-robin | active-backup */
                 loadBalance: string;
                 numaOnly: boolean;
                 adminUp: boolean;

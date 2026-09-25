@@ -362,7 +362,7 @@ when the running document sets it or VPP's value is not l2 (absent ≡ l2); `id`
 
 - **`BondState(names, owner)`** — read-only, like `InterfaceState` (§8a): one `BondStatus` per bond interface that carries this
   agent's owner tag (`names` empty = all), sorted by name: VPP name, sw_if_index, id, `mode` and `load_balance` in the
-  configuration spelling (`load_balance` is VPP's forced value `round-robin|active-backup|broadcast` for those modes), admin
+  configuration spelling (`load_balance` is VPP's forced value `round-robin|active-backup` for those modes; VPP's `broadcast` mode is not offered, Q1), admin
   and link state, member and active-member counts, and per member (sorted by interface): logical name, sw_if_index,
   passive / long-timeout, weight, NUMA locality, admin/link state and — for LACP bonds — `BondLacpState` (rx/tx/mux/ptx state
   machine names from the lacp plugin, actor and partner system/key/port/state octet + decoded flags). Bounded: bonds and

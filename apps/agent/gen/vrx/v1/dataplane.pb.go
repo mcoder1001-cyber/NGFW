@@ -15335,7 +15335,7 @@ func (x *RemoteAccessProfile) GetUnderlayVrf() string {
 // bond_add_member + sw_interface_set_bond_weight.
 type Bond struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// "lacp" | "xor" | "round-robin" | "active-backup" | "broadcast".
+	// "lacp" | "xor" | "round-robin" | "active-backup".  (VPP's broadcast mode is not offered, Q1.)
 	Mode *string `protobuf:"bytes,1,opt,name=mode,proto3,oneof" json:"mode,omitempty"`
 	// Transmit hash of xor / lacp bonds: "l2" | "l23" | "l34"; unset = l2 (VPP forces the algorithm of the other modes).
 	LoadBalance *string `protobuf:"bytes,2,opt,name=load_balance,json=loadBalance,proto3,oneof" json:"load_balance,omitempty"`
@@ -15604,9 +15604,9 @@ type BondStatus struct {
 	SwIfIndex uint32 `protobuf:"varint,3,opt,name=sw_if_index,json=swIfIndex,proto3" json:"sw_if_index,omitempty"`
 	// VPP bond id.
 	Id uint32 `protobuf:"varint,4,opt,name=id,proto3" json:"id,omitempty"`
-	// "lacp" | "xor" | "round-robin" | "active-backup" | "broadcast".
+	// "lacp" | "xor" | "round-robin" | "active-backup".
 	Mode string `protobuf:"bytes,5,opt,name=mode,proto3" json:"mode,omitempty"`
-	// "l2" | "l23" | "l34" | "round-robin" | "active-backup" | "broadcast" (the value VPP reports; forced for rr/ab/broadcast).
+	// "l2" | "l23" | "l34" | "round-robin" | "active-backup" (the value VPP reports; forced for rr/ab).
 	LoadBalance string `protobuf:"bytes,6,opt,name=load_balance,json=loadBalance,proto3" json:"load_balance,omitempty"`
 	NumaOnly    bool   `protobuf:"varint,7,opt,name=numa_only,json=numaOnly,proto3" json:"numa_only,omitempty"`
 	// Administrative and link state of the bond interface.

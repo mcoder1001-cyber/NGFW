@@ -58,6 +58,7 @@ describe('interfaces.<name>.bond schema', () => {
       { mode: 'lacp', id: 4294967295 },
       { mode: 'lacp', mac: '02:00:00:00:00:01' },
       { members: {} },
+      { mode: 'broadcast' }, // Q1 (manager): not offered
     ]) {
       expect(BondSchema.safeParse(bad).success, JSON.stringify(bad)).toBe(false);
     }
@@ -281,5 +282,62 @@ describe('full documents', () => {
       `/interfaces/BondEthernet1/bond/members/${T0}`,
       `/interfaces/BondEthernet1/bond/members/${T1}`,
     ]);
+  });
+});
+
+describe('fix round 1', () => {
+  it('F4: tunnels and other virtual L3 interfaces are not members (a 400 with the membership pointer)', () => {
+    const issues = run('interfaces.bonding-member-kind', {
+      interfaces: {
+        BondEthernet0: {
+          bond: {
+            mode: 'xor',
+            members: { wg0: {}, ipip3: {}, gre1: {}, vxlan_tunnel2: {}, eth9: {} },
+          },
+        },
+        wg0: {},
+        ipip3: {},
+        gre1: {},
+        vxlan_tunnel2: {},
+        eth9: {},
+      },
+    });
+    expect(issues.map((i) => i.pointer)).toEqual([
+      '/interfaces/BondEthernet0/bond/members/wg0',
+      '/interfaces/BondEthernet0/bond/members/ipip3',
+      '/interfaces/BondEthernet0/bond/members/gre1',
+      '/interfaces/BondEthernet0/bond/members/vxlan_tunnel2',
+    ]);
+    expect(issues[0]!.message).toBe(
+      "'wg0' is not an Ethernet interface (a tunnel or virtual L3 interface); bond members must be physical interfaces",
+    );
+  });
+
+  it('F5: a member has no MAC of its own (the bond gives it one)', () => {
+    const doc: RootConfigInput = {
+      interfaces: {
+        BondEthernet0: {
+          mac: '02:00:00:00:00:01',
+          bond: { mode: 'lacp', members: { a: {}, b: {} } },
+        },
+        a: { mac: '02:00:00:00:00:0a' },
+        b: {},
+      },
+    };
+    expect(run('interfaces.bonding-member-mac', doc)).toEqual([
+      {
+        pointer: '/interfaces/a/mac',
+        message:
+          "a is a member of BondEthernet0: members take the bond's MAC address; set mac on the bond instead",
+      },
+    ]);
+    expect(all(doc).map((i) => i.pointer)).toEqual(['/interfaces/a/mac']);
+  });
+
+  it('Q1: broadcast is not a mode', () => {
+    expect(
+      RootConfig.safeParse({ interfaces: { BondEthernet0: { bond: { mode: 'broadcast' } } } })
+        .success,
+    ).toBe(false);
   });
 });

@@ -3450,7 +3450,7 @@ message RemoteAccessProfile {
 // Bond mirrors `interfaces.<BondEthernet<id>>.bond` (packages/schema/src/domains/ext/bonding.ts): bond_create2 +
 // bond_add_member + sw_interface_set_bond_weight.
 message Bond {
-  // "lacp" | "xor" | "round-robin" | "active-backup" | "broadcast".
+  // "lacp" | "xor" | "round-robin" | "active-backup".  (VPP's broadcast mode is not offered, Q1.)
   optional string mode = 1;
   // Transmit hash of xor / lacp bonds: "l2" | "l23" | "l34"; unset = l2 (VPP forces the algorithm of the other modes).
   optional string load_balance = 2;
@@ -3496,9 +3496,9 @@ message BondStatus {
   uint32 sw_if_index = 3;
   // VPP bond id.
   uint32 id = 4;
-  // "lacp" | "xor" | "round-robin" | "active-backup" | "broadcast".
+  // "lacp" | "xor" | "round-robin" | "active-backup".
   string mode = 5;
-  // "l2" | "l23" | "l34" | "round-robin" | "active-backup" | "broadcast" (the value VPP reports; forced for rr/ab/broadcast).
+  // "l2" | "l23" | "l34" | "round-robin" | "active-backup" (the value VPP reports; forced for rr/ab).
   string load_balance = 6;
   bool numa_only = 7;
   // Administrative and link state of the bond interface.

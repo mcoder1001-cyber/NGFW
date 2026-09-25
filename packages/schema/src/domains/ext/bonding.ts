@@ -20,8 +20,12 @@ import { withUi } from '../../ui.js';
 
 const UI_GROUP = 'bonding';
 
-/** Bond modes (VPP `bond_mode`): LACP (802.3ad), static XOR hash, round-robin, active-backup, broadcast. */
-export const BondMode = z.enum(['lacp', 'xor', 'round-robin', 'active-backup', 'broadcast']);
+/**
+ * Bond modes (VPP `bond_mode`): LACP (802.3ad), static XOR hash, round-robin, active-backup. VPP's `broadcast` mode is not
+ * offered (manager decision Q1, as TNSR): it duplicates every frame on every member, which a switch-side LAG delivers twice.
+ * Adding it later is additive.
+ */
+export const BondMode = z.enum(['lacp', 'xor', 'round-robin', 'active-backup']);
 export type BondMode = z.infer<typeof BondMode>;
 
 /** Transmit hash of xor and lacp bonds (VPP `bond_lb_algo` l2 / l23 / l34); absent = l2. */
@@ -30,6 +34,15 @@ export type BondLoadBalance = z.infer<typeof BondLoadBalance>;
 
 /** Modes that choose a transmit hash; VPP forces its own algorithm for the others. */
 export const BOND_HASH_MODES: readonly BondMode[] = ['lacp', 'xor'];
+
+/**
+ * Interface names that are never Ethernet NICs, so never bond members (F-bonding review F4): VPP 26.06 `bond_add_member`
+ * refuses only a bond and copies the member's hardware address, which a tunnel or other L3 interface does not have. The
+ * agent refuses any member without an L2 address, loopbacks and sub-interfaces before it calls VPP; this list gives the
+ * user a 400 with a pointer for the names it can recognise.
+ */
+export const NON_ETHERNET_INTERFACE_RE =
+  /^(?:loop|wg|ipip|gre|ipsec|vxlan_tunnel|vxlan_gpe_tunnel|gtpu_tunnel|geneve_tunnel|l2tpv3_tunnel|pppoe_session|mpls-tunnel|bvi|lisp_gpe|sr-tunnel)[0-9]+$/;
 
 /** A bond interface's configuration key: `BondEthernet<id>` (VPP's name). */
 export const BOND_INTERFACE_RE = /^BondEthernet(0|[1-9][0-9]{0,9})$/;
@@ -86,7 +99,7 @@ export type BondMemberConfig = z.infer<typeof BondMemberSchema>;
 export const BondSchema = z.strictObject({
   mode: withUi(BondMode, {
     title: 'Mode',
-    help: 'lacp (802.3ad), xor, round-robin, active-backup or broadcast; changing it re-creates the bond',
+    help: 'lacp (802.3ad), xor, round-robin or active-backup; changing it re-creates the bond',
     widget: 'select',
     group: UI_GROUP,
     order: 1,

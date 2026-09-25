@@ -1,11 +1,9 @@
 # TD-10b — questions and hand-offs for the manager
 
-1. **Merge order with PENDING-tools-app-transport (read first).** With TD-10b, the API believes X-Forwarded-For/-Proto from
-   loopback (`VRX_TRUST_PROXY=loopback`) and the vite proxy sends them (`xfwd`). A browser on another machine that logs in
-   through `tools/app`'s plain-HTTP `:8080` now gets **403 `tls-required`** (D-100: the password crossed the LAN in clear) —
-   exactly what the PENDING file predicted. An SSH tunnel works (`ssh -L 8080:127.0.0.1:8080 …`, the client is then loopback);
-   `tools/app status` prints that. The listener hunk (TLS or loopback bind) is NOT built here (board note: it follows the
-   product owner's answer). Merge TD-10b together with, or after, that hunk if remote lab logins must keep working.
+1. **PENDING-tools-app-transport — resolved for the merge by review C1 (fix round 1, `fe41a982`).** `tools/app` starts its API
+   with `VRX_TRUST_PROXY=none`: vite's loopback peer is the client again, exactly main's behaviour (plain-HTTP lab logins from
+   other machines stay accepted, the recorded exception). The banner says so. The answer's listener hunk (TLS or loopback bind)
+   removes the setting. Without that line the default (`loopback`) + vite `xfwd` would have refused every remote lab login.
 
 2. **Rebase onto TD-10a (`userExclusive`).** TD-10a's `CommitService.userExclusive()` (409 `commit-busy` after the 1 s lock
    wait, also across API processes) is not on my base. `users.service.ts` uses a local equivalent,
@@ -16,7 +14,8 @@
    the e2e `td10b-audit` "manager addendum" case tests the route and must stay green.
 
 3. **`configResets` does not write rows for `demoted`/`deleted` (commit/**, not mine).** PENDING-session-revocation option 1
-   is built in the `syncUsers` hunk: the resets come back with `reasons: ['demoted']` / `['deleted']`, and `configResets`
+   is ONE commit since fix round 1 (`cb74843d`; drop it with `git revert cb74843d` if the product owner picks another option)
+   and lives in the `syncUsers` hunk: the resets come back with `reasons: ['demoted']` / `['deleted']`, and `configResets`
    already calls `revokeUser` for every reset — so the sessions end. It writes `config.password-reset` /
    `config.user-disabled` rows only for those two reasons; the commit's own audit row and the revision diff record the change.
    Suggest `config.user-demoted` / `config.user-deleted` rows in `configResets` (TD-10a's file; ~10 lines). Note: TD-10a's
@@ -32,9 +31,12 @@
 
 6. **P10 packaging of the break-glass.** `deploy/sbin/vrx-authctl` (root check, then `node $VRX_API_DIST/auth/break-glass-cli.js`;
    default dist `/usr/lib/vrx/api/dist`, default settings file `/etc/vrx/api.env` when readable — both P10's choice) and a
-   `docs/user/` page for operators (unlock, locks, rotate-jwt-key). Also P10's nginx must set `X-Forwarded-For
-   $proxy_add_x_forwarded_for` and `X-Forwarded-Proto $scheme`: without the latter every login through nginx is refused
-   (a trusted hop that does not say how the client connected counts as plain HTTP).
+   `docs/user/` page for operators (unlock, locks, rotate-jwt-key; the key ring is `vrx:vrx 0600` and `vrx-authctl` takes
+   `VRX_API_USER`, default `vrx`). P10's nginx (review L3): **overwrite** `proxy_set_header X-Forwarded-Proto $scheme;` (a hop
+   that passes the client's own X-Forwarded-Proto through would let a forged `https` count; without the header every login
+   through nginx is refused) and `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`; set X-Forwarded-Host too, or
+   keep the API from ever reading host/origin (it reads neither today); suggestion: nginx reaches the API from a dedicated
+   address (e.g. 127.0.0.2) and `VRX_TRUST_PROXY=127.0.0.2`, so other local processes are not trusted proxies.
 
 7. **Password reset from the box is not part of the break-glass** (unlock only). A root-side password reset would have to
    repeat `UsersService.setPassword` (candidate/pending/in-flight hashes, commit lock) outside the API process; with only one

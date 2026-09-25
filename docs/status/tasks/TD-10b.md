@@ -4,7 +4,8 @@ branch `task/TD-10b` · worktree `/root/ngfw-wt/TD-10b` · slot 5 (e2e run as pr
 `task/TD-4@c05183a` (speculative, D-114) · started 2026-09-24 23:41 · paused by the usage limit 01:0x–03:40, resumed.
 Commits: `5c71be8b` (implementation), `e19d9102` (unit + first e2e), `62d53507` **`contract(api-client)`**
 (additive: 409/503 responses, logout description — `TD-10b-contract.md`), `bd48f747` (remaining e2e, older e2e follow the
-new lockout store), then this file.
+new lockout store), then this file. **Review `175bed1c`: APPROVE WITH CHANGES → Fix round 1 (C1, C2/M1+L5, C3, L1, L4, L7) at
+the end of this file.**
 
 ## What was built (per review item)
 
@@ -202,3 +203,83 @@ Valkey `vrx:w5b:*` deleted by the e2e teardown, database and role `vrx_w5b` drop
 `/run/vrx-test/w5b` absent; the worktree's `dist/` directories and `apps/agent/bin` removed (rebuild with
 `pnpm --filter "@ngfw/api^..." run build` before an e2e re-run); no process of mine is running; ports 3000/8080/9101 and the
 running `tools/app` were not touched; no pkill.
+
+## Fix round 1 (review `175bed1c`, APPROVE WITH CHANGES → manager's list)
+
+Worked on `task/TD-10b` after `175bed1c`, no rebase (the merger: `reset --soft c05183a6`, `rebase --onto main`). Commits:
+`fe41a982` C1 · `89e5ee5f` M1+L5, L1, L4, L7 · `f3011e01` + `cb74843d` C3 · `37611df9` test flake + lint · this file.
+
+| item | fix | test that fails on the old code |
+|---|---|---|
+| **C1** (H1) | `tools/app` starts the API with **`VRX_TRUST_PROXY=none`** (the API env line + a comment naming `docs/decisions/PENDING-tools-app-transport.md`): vite's loopback peer is the client again = main's behaviour; the listener hunk of the answer removes it. The banner line I added in round 0 ("remote logins are refused") would have become false; it now says passwords cross the LAN in clear (lab exception) and how to tunnel. Nothing else in tools/app changed; tools/app was not run. | `transport.test.ts` "review C1": vite's xfwd headers for a remote plain-HTTP browser under `none` → accepted, and the tools/app API line carries `VRX_TRUST_PROXY=none` — on the previous tools/app: `expected 'VRX_HTTP_HOST="$API_HOST" VRX_HTTP_PO…' to match /(^|\s)VRX_TRUST_PROXY=none(\s|\\|$)/` |
+| **C2** (M1) | `rotateKeyFile(path, apiUser)`: the ring may belong to **root or the API user** (`VRX_API_USER`, default `vrx`, from /etc/passwd); owner and group kept, mode 0600; a foreign owner, a symlink or any group/other bit is still refused; a new ring is created for the API user. | `tokens.keyring.test.ts` "review M1" (ring 0600 owned by 65534, API user `nobody`) — old: `key file …/product: is owned by uid 65534; it must belong to uid 0 or root` |
+| **L5** | `vrx-authctl rotate-jwt-key` writes an `auth.jwt-key-rotated` audit row (`root (break-glass)`; file, key count, new signing **kid**, owner uid — never a key) and a `JWT_KEY_RING_ROTATED` system_event; warns if the row cannot be written. | lockout e2e "review L5" — old: `expected [] to deeply equal [ { user_id: null, …(4) } ]` |
+| **C3** | The demotion/deletion hunk (PENDING-session-revocation option 1) is ONE commit: `f3011e01` takes it out (datastore/pg-repo.ts + repo.ts back to the base, its two e2e cases leave td10b-session), `cb74843d` puts it back **byte-identical to the reviewed code** (`git diff --quiet 89e5ee5f -- apps/api/src/datastore/` → identical) with its own suite `td10b-session-revocation.e2e.test.ts`. Drop it: `git revert cb74843d`. Nothing else changed in it (the local `rank` nit, L10, stays for that reason). | the new suite at `f3011e01` (hunk out): `demotion: {"demoMe":200,"demoRefresh":200,"promoMe":200}` → `expected {…} to deeply equal { demoMe: 401, demoRefresh: 401, …(1) }`; `deletion: … → 200` → `expected 200 to be 401` · with `cb74843d`: 2 passed |
+| **L1** | `registerFailure` takes a transaction-scoped advisory lock (single-bigint key space; TD-10a's commit lock uses the two-int space) before its UPDATE, so the "last admin" test sees the other admin's committed lock. | lockout e2e "review L1" (10 trials, two admins at MAX−1 failing in parallel) — old: `admins locked account-wide per trial: 2,2,1,2,2,1,1,2,2,1` → `expected 2 to be 1`; fixed: `1,1,1,1,1,1,1,1,1,1` |
+| **L4** | `consumeRefresh` takes the token AND sets `rtused` in one Lua script (`CONSUME_SCRIPT`). | session e2e "review L4" (the `rtused` write delayed 300 ms, logout 100 ms into the refresh) — old: `{"logout":204,"refresh":200,"oldToken":200,"newChain":200,"newToken":200}`; fixed: `{"logout":204,"refresh":200,"oldToken":401,"newChain":401,"newToken":401}` |
+| **L7** | `key-file.ts`: open once with `O_NOFOLLOW`, `fstat` and read through that descriptor (`readKeyFile`); the JWT ring and the rotation use it. | `key-file.swap.test.ts` (path check sees a clean 0600 file, the file read is 0644) — old: `expected [Function] to throw an error` |
+| test flake | `td10b-audit` "rate limit per client" failed once at a minute boundary (fixed-window counter split: `7 logins from P: 401 ×7`); the test now waits out the last 10 s of a minute. | — |
+
+### Hand-offs (not fixed here; owner in bold)
+| review item | what | owner |
+|---|---|---|
+| M2 | accepted residual: distributed guessing gets VRX_LOGIN_MAX_FAILURES per address (IPv4) or per /64 per lockout window — account-wide soft backstop (addresses without a recent success of that user get the progressive throttle after N failures/h across all addresses) and a second IPv6 key at /56 or /48 | **SEC-auth** (tech-debt row) |
+| L3 | P10's nginx: **overwrite** `X-Forwarded-Proto $scheme`, `X-Forwarded-For $proxy_add_x_forwarded_for`, set X-Forwarded-Host (the API reads no host/origin today — keep it so); dedicated nginx→API address (127.0.0.2) + `VRX_TRUST_PROXY=127.0.0.2` | **P10** (questions 6) |
+| L6 | the `vrx_docs` cookie holds a full access token (HttpOnly/SameSite=Strict/Path=/api/docs, accepted only by the docs hook) — mint a docs-only token (`typ: 'docs'`) that `verifyAccess` refuses | **SEC-auth** (with P10's cookie/nginx review) |
+| L2 | optional: count an attempt before argon2 (in-flight key), the probe could not exploit the gap | **SEC-auth** |
+| L8 | `checkKeyFile` for `VRX_SECRET_KEY_FILE` (symlink refusal, clear message) once TD-10a is on main | **TD-22** |
+| L9 | aggregated audit rows: a closing row per minute with the exact count and top-N sources | **SEC-auth** |
+| L10 | `writeFailures` exported as a metric → **F-dashboard-prom-alarms / P10**; config-path user changes stay fail-open for the audit row (the revision row of the promote is their record) → **D-line text**; "last admin" counts an enabled admin without a usable password → **SEC-auth**; per-sid revocations reloaded only at boot (second API process) → known D-111 limit; secrets routes' 503 in OpenAPI → **contract follow-up after TD-10a + TD-10b** (whoever merges second) | as listed |
+| questions 2 | `userExclusive` swap (mechanical, pre-reviewed) | whichever of **TD-10a/TD-10b merges second** |
+
+### Evidence
+Unit — `pnpm --filter @ngfw/api test` (typecheck and lint clean):
+```
+ Test Files  16 passed (16)
+      Tests  134 passed (134)
+```
+The same new tests with the five changed implementation files put back to `175bed1c` (tests kept; HEAD restored afterwards):
+```
+ × key file: check and read are one descriptor (review L7) … → expected [Function] to throw an error
+ × JWT key ring … review M1: root rotates the PRODUCT layout … → key file …/product: is owned by uid 65534; it must belong to uid 0 or root
+ × lockout … review L1 … → expected 2 to be 1   (L1 admins locked account-wide per trial: 2,2,1,2,2,1,1,2,2,1)
+ × lockout … review L5 … → expected [] to deeply equal [ { user_id: null, …(4) } ]
+ × sessions … review L4 … → {"logout":204,"refresh":200,"oldToken":200,"newChain":200,"newToken":200}
+```
+e2e on HEAD — td10b ×5, td4 ×2, auth (slot 5 as `w5b`, ports 3500/3550 checked free, shared lab lock, 05:12–05:17):
+```
+$ eval "$(tools/lab env 5)"; export VRX_TEST_PREFIX=w5b VRX_VALKEY_DB=5 VRX_HTTP_PORT=3550
+$ tools/lab lock shared pnpm --filter @ngfw/api test:integration test/e2e/td10b-{lockout,session,session-max,audit,session-revocation}.e2e.test.ts test/e2e/td4-{auth-hardening,stepup-burst}.e2e.test.ts test/e2e/auth.e2e.test.ts
+L1 admins locked account-wide per trial (2 parallel failures at MAX-1): 1,1,1,1,1,1,1,1,1,1
+L5 rotate: exit 0; rotated …/jwt.keys: 1 key(s), new signing key 35b1d675b844435b first, owner uid 65534; the API reloads it within 5 s
+ ✓ test/e2e/td10b-lockout.e2e.test.ts (7 tests)
+ ✓ test/e2e/td10b-session-max.e2e.test.ts (1 test)
+secrets: 17 passwords checked against {"audit":56,"events":6} rows and 1 API log lines → found in: []
+ ✓ test/e2e/td4-auth-hardening.e2e.test.ts (10 tests)
+2.3b 7 logins from P: 401,401,401,401,401,401,429; then one from Q: 401
+commit-busy: 409 https://vrx.dev/problems/commit-busy after 1206 ms (lock held 3 s)
+ ✓ test/e2e/td10b-audit.e2e.test.ts (7 tests)
+L4 logout racing a refresh: {"logout":204,"refresh":200,"oldToken":401,"newChain":401,"newToken":401}
+ ✓ test/e2e/td10b-session.e2e.test.ts (7 tests)
+ ✓ test/e2e/td4-stepup-burst.e2e.test.ts (1 test)
+demotion: {"demoMe":401,"demoRefresh":401,"promoMe":200}
+deletion: the deleted user's token on GET /api/v1/config → 401
+ ✓ test/e2e/td10b-session-revocation.e2e.test.ts (2 tests)
+ ✓ test/e2e/auth.e2e.test.ts (10 tests)
+ Test Files  8 passed (8)
+      Tests  45 passed (45)
+ok     nothing named vrx_w5b / vrx_w5b remains
+```
+CI — `TMPDIR=/tmp/g-td10b tools/ci.sh --base main` on `37611df9` (05:11–05:17):
+```
+ok — contract commit(s) on the branch: 62d53507 contract(api-client): TD-10b … · c05183a6 contract(api-client): TD-4 …
+clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated
+ok: gitleaks — scanned ~384837 bytes (384.84 KB) in 1.4s no leaks found
+Tasks:    30 successful, 30 total Cached:    12 cached, 30 total Time:    2m47.435s
+  warnings: commit subject(s) not in Conventional Commits form: review(TD-10b): APPROVE WITH CHANGES   (the reviewer's commit)
+  mode quick · wall time 5m58s · logs /root/ngfw-wt/logs/ci/TD-10b-20260925-051144-4155108
+CI GATE PASSED
+```
+After the CI run only `docs/status/tasks/TD-10b*` changed. Cleanup: `vrx_w5b` dropped and its Valkey keys deleted by the
+teardown, the worktree's `dist/` and `apps/agent/bin` removed, no process of mine left; tools/app was never run, ports
+3000/8080/9101 and `/run/vrx/agent.sock` untouched.

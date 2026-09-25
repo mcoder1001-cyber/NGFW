@@ -61,7 +61,10 @@ equal to the lease would otherwise fail at apply (VPP `DUPLICATE_IF_ADDRESS`). K
 change on a DHCP interface with a bound lease is refused by VPP (`ADDRESS_FOUND_FOR_INTERFACE`) until `dhcp.client`
 declares an optional dependency on `interface-ip.table/<if>`. IPv6 addresses VPP installs itself (SLAAC via
 `ip6_nd_address_autoconfig`, the DHCPv6 IA_NA client, `ip6_add_del_address_using_prefix`) have no dump in 26.06. No
-product path enables them today.
+product path enables them today. The two dumps are not atomic, which leaves a narrow race that heals itself (TD-24
+review). A renewal to a new address can land between `ip_address_dump` and `dhcp_client_dump`. One Retrieve then
+reports the superseded address as ours. Its delete fails because VPP already removed it, that one transaction rolls
+back, and the next Retrieve is consistent. D-132 rules out dumping the leases first, unconditionally.
 
 ## Owner table recovery (L2)
 

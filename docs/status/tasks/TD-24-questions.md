@@ -54,6 +54,17 @@
     that feature's object exists.
 - I do not own `docs/vpp-code-track.md`.
 
+## Q3b (L, known race, documented per review 50fb951d; the code stays as it is)
+
+- **The race.** Retrieve reads `ip_address_dump` first and then, lazily, `dhcp_client_dump`. The two calls are not
+  atomic. A renewal to a new address can land between them (`dhcp_client_addr_callback`: release, then acquire,
+  `client.c:219-225`). One Retrieve then reports the superseded address as ours.
+- **The effect.** The reconcile's delete of that address fails, because VPP already removed it
+  (`ADDRESS_NOT_FOUND_FOR_INTERFACE`). That one transaction rolls back. Nothing is wrongly deleted, and the next
+  Retrieve (retry or resync) is consistent.
+- **Why the code stays.** Dumping the leases first, unconditionally, would break D-132's "no dump without an address
+  of ours".
+
 ## Q4 (info): the schema rule "no static IPv4 next to dhcpClient" is F-kea's, reused and not duplicated
 
 - `interfaces.kea-dhcp-relay-dhcp-client-no-static` is on `task/F-kea-dhcp-relay`, not on main.

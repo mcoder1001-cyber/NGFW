@@ -811,7 +811,14 @@ func report(txnID string, pj *projected, plan *scheduler.TxnPlan) *vrxv1.Validat
 			if is.Code == scheduler.CodeDependencyMissing {
 				rule = "agent.dependency-missing"
 			}
-			rep.Errors = append(rep.Errors, &vrxv1.ValidationIssue{Pointer: pj.pointers[is.Key], Message: is.String(), Severity: vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR, Rule: rule})
+			pointer := pj.pointers[is.Key]
+			if is.Rule != "" { // TD-13: a Validator's finding (agent.validator) and the leaf it names
+				rule = is.Rule
+			}
+			if is.Pointer != "" {
+				pointer = is.Pointer
+			}
+			rep.Errors = append(rep.Errors, &vrxv1.ValidationIssue{Pointer: pointer, Message: is.String(), Severity: vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR, Rule: rule})
 		}
 	}
 	sort.SliceStable(rep.Errors, func(i, j int) bool {

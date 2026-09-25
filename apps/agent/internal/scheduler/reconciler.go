@@ -5,6 +5,7 @@ package scheduler
 //	desired []KV ─┐
 //	              ├─ validate (descriptor exists, in scope, no duplicate, mandatory deps satisfied)
 //	Retrieve() ───┘   → plan (Delete in reverse topological order, then Create/Update in topological order)
+//	                  → validate (TD-13: every Create/Update of a Validator, before any write; validator.go)
 //	                  → apply (journal every successful operation)
 //	                  → verify (re-Retrieve the scope, proto.Equal against desired)
 //	                  → on any error: undo the journal in reverse order → ROLLED_BACK (or DEGRADED)
@@ -175,6 +176,10 @@ type Issue struct {
 	Key     Key
 	Code    ResultCode // CodeDependencyMissing or CodeInvalid
 	Message string
+	// Rule and Pointer are set by a Validator's finding (TD-13, validator.go): RuleValidator and the
+	// RFC 6901 pointer the validator named with InvalidAt ("" = the object's own pointer).
+	Rule    string
+	Pointer string
 }
 
 func (i Issue) String() string { return fmt.Sprintf("%s: %s", i.Key, i.Message) }
@@ -269,6 +274,9 @@ type Scheduler struct {
 	writeOnly map[Key]KV
 	// woDescriptors are the descriptors that reported ErrRetrieveUnsupported; guarded by mu.
 	woDescriptors map[string]bool
+	// ValidateTimeout bounds one Validator call (TD-13): 0 = DefaultValidateTimeout, < 0 = only the
+	// transaction's own ctx.
+	ValidateTimeout time.Duration
 }
 
 // New returns a scheduler over reg. log may be nil.
@@ -501,6 +509,10 @@ func (s *Scheduler) plan(ctx context.Context, desired []KV, scope Scope, opts Ap
 			p.Ops = append(p.Ops, PlannedOp{Key: k, Op: OpUpdate, Value: kv.Value, Old: &c})
 		}
 	}
+	// TD-13: tier-3 validators, before the first operation of the plan (validator.go)
+	if err := s.validate(ctx, p, after); err != nil {
+		return nil, err
+	}
 	return p, nil
 }
 
@@ -534,8 +546,8 @@ func (s *Scheduler) resolvesIn(dep Key, objs map[Key]KV) bool {
 }
 
 // topo sorts nodes so that every dependency (resolved through aliases, only among nodes)
-// precedes its dependent. Ties: descriptor registration order, then key. Returns the keys left
-// in a cycle, if any.
+// precedes its dependent. Ties: stage (StageVPP first), descriptor registration order, then key.
+// Returns the keys left in a cycle, if any.
 func (s *Scheduler) topo(nodes map[Key]KV) (order []Key, cycle []Key) {
 	rank := make(map[string]int)
 	for i, n := range s.reg.Names() {
@@ -566,7 +578,11 @@ func (s *Scheduler) topo(nodes map[Key]KV) (order []Key, cycle []Key) {
 			users[target] = append(users[target], k)
 		}
 	}
+	stage := s.stages() // TD-13 (stage.go): VPP before daemons, then registration order, then key
 	less := func(a, b Key) bool {
+		if sa, sb := stage[a.Descriptor()], stage[b.Descriptor()]; sa != sb {
+			return sa < sb
+		}
 		ra, rb := rank[a.Descriptor()], rank[b.Descriptor()]
 		if ra != rb {
 			return ra < rb

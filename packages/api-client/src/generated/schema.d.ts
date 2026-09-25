@@ -5089,6 +5089,97 @@ export interface components {
           };
         };
       };
+      /**
+       * Host stack
+       * @description VPP host stack (advanced, T3): session layer, app namespaces, session rules, TCP source addresses
+       */
+      hostStack?: {
+        /**
+         * Session layer
+         * @default false
+         */
+        enabled: boolean;
+        /**
+         * App namespaces
+         * @default {}
+         */
+        namespaces: {
+          [key: string]: {
+            /** Secret */
+            secretRef?: string;
+            /** Interface */
+            interface?: string;
+            /**
+             * VRF
+             * @default default
+             */
+            vrf: string;
+          };
+        };
+        /**
+         * Session rules
+         * @default []
+         */
+        sessionRules: {
+          /** Id */
+          tag: string;
+          /**
+           * Scope
+           * @default global
+           * @enum {string}
+           */
+          scope: 'global' | 'local';
+          /**
+           * Transport
+           * @enum {string}
+           */
+          transport: 'tcp' | 'udp';
+          /** Local prefix */
+          local: string;
+          /** Local port */
+          localPort?: number;
+          /** Remote prefix */
+          remote: string;
+          /** Remote port */
+          remotePort?: number;
+          /**
+           * Action
+           * @enum {string}
+           */
+          action: 'allow' | 'deny' | 'redirect';
+          /** Redirect to app index */
+          redirectAppIndex?: number;
+          /** App namespace */
+          appNamespace?: string;
+        }[];
+        tcpSourceAddresses?: {
+          /** First address */
+          first: string;
+          /** Last address */
+          last: string;
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+        };
+        httpStatic?: {
+          /**
+           * Enabled
+           * @default false
+           */
+          enabled: boolean;
+          /** Web root */
+          wwwRootPath: string;
+          /** URI */
+          uri: string;
+          /**
+           * Cache size (MiB)
+           * @default 10
+           */
+          cacheSizeMb: number;
+        };
+      };
     };
     /**
      * High availability

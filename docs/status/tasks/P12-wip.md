@@ -11,8 +11,8 @@
 5. [x] API: features/bgp (state endpoints), /state/routes FRR annotation + proto filter, client/fake/bus
 6. [x] UI: routing/bgp screen (global, neighbours live, prefix lists, route maps, redistribution), en/fa
 7. [x] docs: user/routing/bgp.md, agent/renderers/frr-bgp.md, frr.md, descriptors/lcp.md
-8. [ ] topology test test/topology/bgp (T1; T2 opt-in)
-9. [ ] CI green, P12.md
+8. [x] topology test test/topology/bgp (T1; T2 opt-in)
+9. [~] CI (gitleaks false positive Q16, svs/TD-11b Q15), [x] P12.md
 
 ## Log
 - 23:16 read context, envelope, framework, DF-8, TD-8, F-vrf-static-ecmp
@@ -24,3 +24,6 @@
 - 04:04 API feature + e2e green; 04:18 web screen
 - 04:27 topology run 1: sessions Established over linux-cp in 3.7 s, then VPP SIGSEGV in dns_plugin (not P12) —
   NRestarts 1→2, host runs stopped (Q13)
+- 04:38 CI: gitleaks false positive (Q16), fixed forward; TD-11b merged → svs undeclared (Q15, F-vrf's)
+- 04:44 topology run 4 PASS (link down 400 ms), run 5 PASS (cleanup fixed), 04:48 run 6 PASS (tap addresses kept)
+- 04:57 screenshots en/fa (API + fake agent), stack stopped by PID, DB dropped, Valkey keys removed

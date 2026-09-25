@@ -40,7 +40,7 @@ func TestWriteFileAtomic(t *testing.T) {
 		if err := WriteFileAtomic(p, []byte(s), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		b, err := os.ReadFile(p)
+		b, err := os.ReadFile(p) // #nosec G304 -- p is under t.TempDir()
 		if err != nil || string(b) != s {
 			t.Fatalf("read %q, %v; want %q", b, err, s)
 		}

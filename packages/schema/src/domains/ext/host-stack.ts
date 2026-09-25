@@ -120,7 +120,8 @@ export const HostStackHttpStaticSchema = z.strictObject({
       .refine((u) => {
         const addr = u.replace(/^(tcp|tls):\/\//, '').replace(/\/[0-9]+$/, '');
         const c = canonicalIp(addr);
-        return c !== undefined && c !== '0.0.0.0' && c !== '::';
+        // ::ffff:0.0.0.0 (IPv4-mapped unspecified) binds every IPv4 address too
+        return c !== undefined && c !== '0.0.0.0' && c !== '::' && c !== '::ffff:0:0';
       }, 'listen address must be a specific, valid address (not 0.0.0.0 or ::): http_static would serve on every interface'),
     {
       title: 'URI',

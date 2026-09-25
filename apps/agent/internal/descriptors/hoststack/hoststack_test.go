@@ -296,7 +296,7 @@ func TestHTTPStaticOptIn(t *testing.T) {
 			t.Fatalf("www root %q: %v", bad, err)
 		}
 	}
-	for _, bad := range []string{"tcp://0.0.0.0/80", "tcp://::/80", "http://10.1.1.1/80", "tcp://10.1.1.1/0"} {
+	for _, bad := range []string{"tcp://0.0.0.0/80", "tcp://::/80", "tcp://::ffff:0.0.0.0/80", "tcp://::ffff:0:0/80", "http://10.1.1.1/80", "tcp://10.1.1.1/0"} {
 		if _, err := d.Create(ctx, HTTPStatic{WWWRoot: "/var/lib/vrx/www/site", URI: bad}.Proto()); !errors.Is(err, dfkit.ErrSpec) {
 			t.Fatalf("uri %q: %v", bad, err)
 		}

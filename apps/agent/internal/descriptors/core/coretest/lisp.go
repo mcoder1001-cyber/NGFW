@@ -17,7 +17,7 @@ import (
 
 // handle registers a handler that runs under f.mu.
 func (f *Lisp) handle(name string, h func(api.Message) ([]api.Message, error)) {
-	f.VPP.On(name, func(m api.Message) ([]api.Message, error) {
+	f.On(name, func(m api.Message) ([]api.Message, error) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		return h(m)

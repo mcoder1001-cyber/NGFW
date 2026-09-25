@@ -158,7 +158,7 @@ func ValidURI(u string) error {
 	if err != nil {
 		return err
 	}
-	if a.IsUnspecified() {
+	if a.Unmap().IsUnspecified() { // ::ffff:0.0.0.0 is 0.0.0.0 too
 		return dfkit.Specf("http_static uri %q: the unspecified address would serve on every interface", u)
 	}
 	if p, err := strconv.Atoi(rest[i+1:]); err != nil || p < 1 || p > 65535 {

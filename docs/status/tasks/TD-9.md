@@ -268,3 +268,86 @@ ok  	ngfw/agent/internal/agent	16.226s
   (VPP dead or hung), the agent accepts this.
 - `docs/tech-debt.md:16` ("P05 verify: a new Apply that itself FAILS still drops an owed revert") can be ticked; I do
   not own that file.
+
+## Fix round 1 (review `b30547fb`, APPROVE WITH CHANGES)
+
+- Commits: `4409d1e8` (code, tests, proto.md) and `fe2dd46f` (lint), on top of `df4e4340`. Nothing is squashed.
+  The merger uses `reset --soft 8a96a9ce` + `rebase --onto main 8a96a9ce`.
+- 2026-09-25 04:25–04:45.
+
+| # | fix | test (fails on `df4e4340`, passes now) |
+|---|---|---|
+| M1 | `vpp/conn.go`: `Conn.Invoke` runs govpp's Invoke sequence on a stream opened with `core.WithReplyTimeout(ReplyTimeout)` (`invokeStream`), so govpp's process-wide `core.DefaultReplyTimeout` no longer cuts a larger `VRX_AGENT_VPP_REPLY_TIMEOUT` short. `invokeWithin` also maps govpp's `core.ErrReplyTimeout` to `ErrTimeout`. New `vpp.IsTimeout`. `scheduler.uncertain` also matches govpp's reply-timeout text. | `TestInvokeHonoursAReplyTimeoutAboveGovppsGlobal`, `TestInvokeDecodesTheReply` (vpp); `TestGovppReplyTimeoutIsUncertain` (scheduler) |
+| M2 | `service.go`: `retryable = res.Uncertain \|\| timedOut(res) \|\| (ctx deadline && !APPLIED)`. `timedOut` checks `res.Err` and every result's `Err` with `vpp.IsTimeout`, which covers plan, operations, verify and undo. No outcome in which a timeout took part is stored. | `TestTimeoutOutcomesAreNeverStored` / plan (FAILED), verify (ROLLED_BACK), verify+rollback (DEGRADED) |
+| M3 | The APPLIED `modeTxn` branch now reads `if covers { clear } else if degraded { oweResyncLocked() }`. After a narrower supersede, `Reverting` is false, so the owed resync is armed. `covers` counts only implemented managed domains. | `TestNarrowerSupersedeOfAnOwedRevertStillResyncs` |
+| L2 | `safely()` counts `vrx_agent_panics_total{where="hook"}` (4 labels), and the HELP text says so. | `TestHookPanicsHaveTheirOwnLabel` |
+| L3 | `FlushClaims` runs on `WithTimeout(WithoutCancel(txnCtx), 30 s)`, not on what is left of the transaction's deadline. Its failure is DEGRADED and is not stored. TD-11c still owns the `syncLocked` flush (D-133). | `TestFlushClaimsContextAndFailure` |
+| L5 | The drift Plan is bounded by `driftPlanTimeout = 60 s` instead of the transaction's 5 min. | `TestDriftPlanIsBoundedTightly` (old code: held the lock 17.0 s) |
+| L6 | `Config.Validate` refuses a `VRX_AGENT_VPP_REPLY_TIMEOUT` below `MinVPPReplyTimeout = 15 s` (govpp's health-check window). This is documented in main.go and proto.md §2 item 3. | `TestReplyTimeoutBelowTheHealthCheckWindowRefused`; `TestConfigReplyTimeoutAndMetricsOptIn` updated |
+
+Not done here, as the manager asked:
+- L7 → TD-8b.
+- L8 → TD-10a.
+- M4 is the manager's decision.
+- The D-entries use the reviewer's corrected texts (a)–(c).
+- L1 and L4 need no code.
+
+proto.md §2 was updated as follows:
+- item 3: "at least 15 s", and "an outcome in which a timeout took part … plan, an operation, verify or the rollback";
+- the DEGRADED row: "a narrower Apply leaves it, and the owed resync keeps retrying".
+
+### Evidence
+
+**Old code first.** A `git archive df4e4340` copy with the new test files. `setDriftPlanTimeout` is shimmed to a no-op
+there: the old code has only the 5-min transaction deadline.
+```
+TestInvokeHonoursAReplyTimeoutAboveGovppsGlobal: conn_fix1_test.go:32: err = no reply received within the timeout period 200ms, want ErrTimeout
+TestInvokeDecodesTheReply:                       conn_fix1_test.go:58: Bounded: err = no reply received within the timeout period 30s, want ErrTimeout
+TestGovppReplyTimeoutIsUncertain:                reconciler_fix1_test.go:27: outcome ROLLED_BACK uncertain false, want DEGRADED (×2)
+TestTimeoutOutcomesAreNeverStored:               td9_fix1_test.go:70: status APPLY_STATUS_FAILED, want APPLY_STATUS_APPLIED: retrieve vrf: ip_table_dump: … vpp: no reply in time …   (plan)
+                                                 td9_fix1_test.go:70: status APPLY_STATUS_ROLLED_BACK, want APPLY_STATUS_APPLIED: verify: … no reply in time …   (verify)
+                                                 td9_fix1_test.go:70: status APPLY_STATUS_DEGRADED, want APPLY_STATUS_APPLIED: verify: … no reply in time …   (verify+rollback)
+TestNarrowerSupersedeOfAnOwedRevertStillResyncs: td9_fix1_test.go:105: not within 5s: the owed resync restored the baseline route and cleared DEGRADED
+TestHookPanicsHaveTheirOwnLabel:                 td9_fix1_test.go:117: hook panic counted as: … (no where="hook")
+TestFlushClaimsContextAndFailure:                td9_fix1_test.go:142: flush deadline … m=+3600.05…: want a short bound of its own, not the transaction's hour
+TestDriftPlanIsBoundedTightly:                   td9_fix1_test.go:161: the drift Plan held the transaction lock for 17.020195581s
+TestReplyTimeoutBelowTheHealthCheckWindowRefused: td9_fix1_test.go:171: "5" accepted: <nil> | "1500ms" accepted: <nil> | "14s" accepted: <nil>
+```
+
+**Branch.**
+```
+$ cd apps/agent && env -u VRX_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/scheduler/... ./internal/vpp/... ./internal/ownertable/... ./internal/descriptors/dfkit/... ./internal/subsystems/... ./cmd/vrx-agent/
+ok  	ngfw/agent/internal/agent	21.249s
+ok  	ngfw/agent/internal/scheduler	1.703s
+ok  	ngfw/agent/internal/vpp	3.246s
+ok  	ngfw/agent/internal/vpp/bootid	1.143s
+ok  	ngfw/agent/internal/vpp/fake	1.150s
+ok  	ngfw/agent/internal/vpp/ifsanitize	8.150s
+ok  	ngfw/agent/internal/vpp/vpptest	1.082s
+ok  	ngfw/agent/internal/ownertable	1.131s
+ok  	ngfw/agent/internal/descriptors/dfkit	1.085s
+ok  	ngfw/agent/internal/descriptors/dfkit/restarttest	1.157s
+ok  	ngfw/agent/internal/subsystems	1.182s
+$ TMPDIR=/tmp/g-w1 tools/ci.sh            (task/TD-9 @ fe2dd46f)
+  apps/agent: make lint test build    0m53s   ← golangci-lint "0 issues"; go test -race ./... 89 packages ok, 0 FAIL
+  mode quick · wall time 4m49s · logs /root/ngfw-wt/logs/ci/TD-9-20260925-043740-3672044
+CI GATE PASSED
+```
+The first quick run of this round found one revive finding: the error var `dumpTimeout` has to be named
+`errDumpTimeout`. It is fixed in `fe2dd46f`.
+
+**Host.** `Conn.Invoke`'s real-VPP path changed, so I ran it again on slot 1, one package at a time.
+- VPP restarted at 04:27:36, before these runs and not by this worker: `NRestarts` was 1 during the first round.
+- During these runs: `NRestarts 2 → 2`, `MainPID 3513245` unchanged.
+```
+$ TMPDIR=/tmp/g-w1 VRX_INTEGRATION=1 flock -s /run/lock/vrx-lab.lock go test -count=1 -v -run 'TestCoreOnHost|TestClaimRulesOnHost|TestRouteOverVPPEntriesOnHost' ./internal/descriptors/core/
+--- PASS: TestCoreOnHost (0.38s)
+--- PASS: TestClaimRulesOnHost (0.12s)
+--- PASS: TestRouteOverVPPEntriesOnHost (0.14s)
+$ TMPDIR=/tmp/g-w1 VRX_INTEGRATION=1 go test -count=1 -v -run 'TestAgentOnHost|TestAgentProcessOnHost' ./internal/agent/
+    agent_integration_test.go:282: restart after loss: converged in 251.962303ms
+--- PASS: TestAgentOnHost (5.55s)
+    agent_integration_test.go:414: restart after kill -9 + loss: converged in 1.219520633s
+--- PASS: TestAgentProcessOnHost (9.01s)
+```
+No slot-1 loopback is left in VPP afterwards.

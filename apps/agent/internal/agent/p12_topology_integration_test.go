@@ -30,6 +30,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -511,8 +513,13 @@ func TestP12TopologyOnHost(t *testing.T) {
 		e.peers(false)
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
-		resp, err := e.c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: prefix + "-p12-cleanup", Subsystems: []string{"interfaces", "routing"}})
-		t.Logf("cleanup apply: %v %s", err, protojson.Format(resp))
+		// a client of its own: the dialAgent clients are closed by their cleanups (LIFO) before this one runs
+		cc, err := grpc.NewClient("unix://"+e.cfg.Socket, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err == nil {
+			resp, aerr := vrxv1.NewDataplaneClient(cc).Apply(ctx, &vrxv1.ApplyRequest{TxnId: prefix + "-p12-cleanup", Subsystems: []string{"interfaces", "routing"}})
+			t.Logf("cleanup apply: %v %s", aerr, protojson.Format(resp.GetSummary()))
+			_ = cc.Close()
+		}
 		e.a.Stop()
 	})
 

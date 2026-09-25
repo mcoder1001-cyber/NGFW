@@ -139,9 +139,11 @@ F-bfd-redistribution sit in the table.
   restart (rig down, pairs/af_packet gone with the restart, FRR harnesses stopped: no namespace, no daemon, no symlink left).
 - **Ask:** the DNS plugin crash is the manager's (V-item / owner of the dns API caller); tell me when slot 8 may run host
   tests again. Until then P12 runs unit + e2e + CI quick only; the topology evidence in P12.md is from before the stop.
-- Also: the link-down acceptance item needs VPP→Linux admin-state sync, which is `lcp lcp-sync` (startup.conf / CLI only,
-  no binary API, off on this host) — with it off only a *hardware* link change reaches the tap; BGP then notices by its
-  hold timer. Product: F-startup-gen should render `linux-cp { lcp-sync }` (question for the manager / F-startup-gen).
+- ~~link-down needs `lcp-sync`~~ — measured instead (run 4, 04:44): `enabled: false` on `host-w8l0` (VPP admin down of
+  the af_packet interface) took the tap's carrier down after 400 ms and BGP noticed after 400 ms (state Idle): VPP brings
+  the af_packet hardware link down with the admin state, and linux-cp copies the hardware link to the tap carrier
+  (`lcp_itf_pair_link_up_down`). `lcp-sync` stays useful for admin state/MTU/addresses VPP→Linux (a F-startup-gen note).
+- **Update (manager, 2026-09-25):** not P12's; host runs resumed with NRestarts 2 as the new "before" value.
 
 ## Q14 — CLI `vrx show bgp summary`
 

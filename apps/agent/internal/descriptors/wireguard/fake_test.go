@@ -36,6 +36,7 @@ type fakeVPP struct {
 	nextPeer   uint32
 	peers      map[uint32]wireguard.WireguardPeerV2
 	registered map[uint32]bool // peer index → event client registered
+	flags      map[uint32]wireguard.WireguardPeerFlags
 	async      []bool
 }
 
@@ -48,6 +49,7 @@ func newFakeVPP() *fakeVPP {
 		nextPeer:   3,
 		peers:      map[uint32]wireguard.WireguardPeerV2{},
 		registered: map[uint32]bool{},
+		flags:      map[uint32]wireguard.WireguardPeerFlags{},
 	}
 	v.On("sw_interface_dump", func(api.Message) ([]api.Message, error) {
 		out := make([]api.Message, 0, len(v.ifaces))
@@ -163,6 +165,7 @@ func newFakeVPP() *fakeVPP {
 			out = append(out, &wireguard.WireguardPeersDetails{Peer: wireguard.WireguardPeer{
 				PeerIndex: p.PeerIndex, PublicKey: p.PublicKey, Port: p.Port, SwIfIndex: p.SwIfIndex,
 				Endpoint: p.Endpoint, NAllowedIps: p.NAllowedIps, AllowedIps: p.AllowedIps,
+				PersistentKeepalive: p.PersistentKeepalive, TableID: p.TableID, Flags: v.flags[idx],
 			}})
 		}
 		return out, nil

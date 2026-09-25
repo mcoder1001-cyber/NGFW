@@ -37,6 +37,10 @@ func NewInterface(cfg Config) *Interface { return &Interface{cfg: cfg} }
 // Name implements scheduler.Descriptor.
 func (*Interface) Name() string { return InterfaceName }
 
+// RecordsNoOwnership declares the TD-11b ownership protocol (dfkit/persist): the interface is ours by
+// its owner tag "<owner>:wg<instance>", which VPP itself carries; nothing is recorded in a store.
+func (*Interface) RecordsNoOwnership() {}
+
 // KeyOf implements scheduler.Descriptor: wireguard.interface/wg<instance>.
 func (*Interface) KeyOf(obj proto.Message) scheduler.Key {
 	o, _ := obj.(*vpnpb.WireguardInterface)

@@ -29,6 +29,10 @@ func NewAsyncMode(cfg Config) *AsyncMode { return &AsyncMode{cfg: cfg} }
 // Name implements scheduler.Descriptor.
 func (*AsyncMode) Name() string { return AsyncModeName }
 
+// RecordsNoOwnership declares the TD-11b ownership protocol: a VPP-global has no owner record (D-071
+// decides who may set it).
+func (*AsyncMode) RecordsNoOwnership() {}
+
 // KeyOf implements scheduler.Descriptor.
 func (*AsyncMode) KeyOf(proto.Message) scheduler.Key { return AsyncModeKey }
 

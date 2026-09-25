@@ -21,8 +21,8 @@ import (
 
 // Peer manages WireGuard peers (wireguard_peer_add_v2 / wireguard_peer_remove; dump
 // wireguard_peers_v2_dump). VPP has no peer update message, so every change is ErrRecreate.
-// The preshared key is a "sha256:<hex>" reference; wireguard_peers_v2_dump returns the key in
-// clear, Retrieve hashes it into the reference and zeroes the buffer. The peer's status flags
+// The preshared key is an "hmac:<hex>" reference (keyed, D-096); wireguard_peers_v2_dump returns
+// the key in clear, Retrieve fingerprints it into the reference and zeroes the buffer. The peer's status flags
 // (dead / established) are state, not configuration: they are reported through Events, never in
 // the Value.
 //
@@ -59,6 +59,10 @@ func NewPeer(cfg Config) *Peer { return &Peer{cfg: cfg} }
 
 // Name implements scheduler.Descriptor.
 func (*Peer) Name() string { return PeerName }
+
+// RecordsNoOwnership declares the TD-11b ownership protocol: a peer is ours when it sits on one of
+// our tagged WireGuard interfaces (the tag VPP carries); nothing is recorded in a store.
+func (*Peer) RecordsNoOwnership() {}
 
 // KeyOf implements scheduler.Descriptor: wireguard.peer/<interface>/<public_key> (std base64, may
 // contain "/"; Key.ID() is everything after the descriptor name).

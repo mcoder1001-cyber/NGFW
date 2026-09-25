@@ -251,9 +251,24 @@ export function unboundChronySyslogFake(
   ) => {
     const lookup = call.request.dnsLookup;
     if (!lookup) {
-      call.destroy(
-        Object.assign(new Error('actions are not implemented'), { code: status.UNIMPLEMENTED }),
-      );
+      call.emit('error', {
+        code: status.UNIMPLEMENTED,
+        details: 'fake agent: actions are not implemented',
+      });
+      return;
+    }
+    // the real agent refuses unless its applied configuration enables the VPP cache with an upstream (VPP 26.06
+    // crashes on dns_resolve_name otherwise); the fake mirrors the refusal and otherwise acts as the globals owner
+    const vc = (((host.current['services'] ?? {}) as Json)['dns'] as Json | undefined)?.[
+      'vppCache'
+    ] as Json | undefined;
+    if (vc?.['enabled'] !== true || ((vc['upstreams'] ?? []) as unknown[]).length === 0) {
+      // grpc-js: a server-streaming error status is emitted, not thrown
+      call.emit('error', {
+        code: status.FAILED_PRECONDITION,
+        details:
+          'fake agent: dns_lookup needs the VPP DNS cache enabled with an upstream by this agent',
+      });
       return;
     }
     const want = absolute(lookup.name);

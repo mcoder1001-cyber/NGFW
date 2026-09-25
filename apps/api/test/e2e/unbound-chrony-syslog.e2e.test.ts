@@ -29,7 +29,7 @@ describe('unbound-chrony-syslog e2e (PostgreSQL + fake agent)', () => {
   afterAll(async () => h?.close());
 
   const resolver = {
-    listen: [{ address: '10.10.53.1', port: 53 }],
+    listen: [{ address: '10.10.53.1', port: 5353 }],
     forwardZones: [{ zone: 'corp.example.', forwarders: [{ address: '10.10.99.53' }] }],
     localZones: [
       {
@@ -154,7 +154,22 @@ describe('unbound-chrony-syslog e2e (PostgreSQL + fake agent)', () => {
     }
   });
 
-  it('dns-lookup resolves through the (fake) VPP cache; operators only; name validated', async () => {
+  it('dns-lookup resolves through the (fake) VPP cache; refused without it; operators only; name validated', async () => {
+    // without the VPP cache applied the agent refuses (VPP 26.06 crashes on dns_resolve_name without a name server)
+    const refused = await h.call(op, 'POST', '/api/v1/actions/dns-lookup', {
+      name: 'gw.lab.example',
+    });
+    expect(refused.status).toBe(409);
+    expect(refused.body.detail).toMatch(/VPP DNS cache/);
+    expect(
+      (
+        await h.call(op, 'PUT', '/api/v1/config/services/dns/vppCache', {
+          enabled: true,
+          upstreams: ['10.10.99.53'],
+        })
+      ).status,
+    ).toBe(200);
+    expect((await h.call(op, 'POST', '/api/v1/config/commit?comment=vpp-cache')).status).toBe(200);
     const ok = await h.call(op, 'POST', '/api/v1/actions/dns-lookup', { name: 'gw.lab.example' });
     expect(ok.status).toBe(200);
     expect(ok.body).toEqual({
@@ -184,7 +199,7 @@ describe('unbound-chrony-syslog e2e (PostgreSQL + fake agent)', () => {
   it('forwarder equal to a listen address → 400 problem+json with the pointer', async () => {
     const loop = await h.call(op, 'PUT', '/api/v1/config/services/dns/resolvers/lan', {
       ...resolver,
-      forwarders: [{ address: '10.10.53.1', port: 53 }],
+      forwarders: [{ address: '10.10.53.1', port: 5353 }],
     });
     expect(loop.status).toBe(400);
     expect(loop.headers['content-type']).toMatch(/^application\/problem\+json/);
@@ -199,7 +214,9 @@ describe('unbound-chrony-syslog e2e (PostgreSQL + fake agent)', () => {
       (
         await h.call(op, 'PUT', '/api/v1/config/services/dns/resolvers/lan', {
           ...resolver,
-          forwardZones: [{ zone: 'corp.example.', forwarders: [{ address: '10.10.53.1' }] }],
+          forwardZones: [
+            { zone: 'corp.example.', forwarders: [{ address: '10.10.53.1', port: 5353 }] },
+          ],
         })
       ).status,
     ).toBe(200);

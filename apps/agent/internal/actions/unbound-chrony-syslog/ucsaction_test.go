@@ -126,7 +126,7 @@ func TestLookup(t *testing.T) {
 	})
 	var out []*vrxv1.ActionOutput
 	send := func(o *vrxv1.ActionOutput) error { out = append(out, o); return nil }
-	if err := Lookup(context.Background(), f, &vrxv1.DnsLookupAction{Name: "gw.lab.example"}, send); err != nil {
+	if err := Lookup(context.Background(), f, &vrxv1.DnsLookupAction{Name: "gw.lab.example"}, true, send); err != nil {
 		t.Fatal(err)
 	}
 	if len(out) != 3 || out[0].GetLine() != "A 192.0.2.1" || out[1].GetLine() != "AAAA 2001:db8::1" ||
@@ -134,18 +134,33 @@ func TestLookup(t *testing.T) {
 		t.Fatalf("output %v", out)
 	}
 	out = nil
-	if err := Lookup(context.Background(), f, &vrxv1.DnsLookupAction{Name: "fail.example", TimeoutMs: 1000}, send); err != nil {
+	if err := Lookup(context.Background(), f, &vrxv1.DnsLookupAction{Name: "fail.example", TimeoutMs: 1000}, true, send); err != nil {
 		t.Fatal(err)
 	}
 	if len(out) != 1 || out[0].GetDone().GetExitCode() != 1 || !strings.Contains(out[0].GetDone().GetSummary(), "lookup failed") {
 		t.Fatalf("failure output %v", out)
 	}
 	for _, bad := range []*vrxv1.DnsLookupAction{{Name: "a b"}, {Name: "$(id)"}, {Name: ""}, {Name: "x.example", TimeoutMs: 30001}} {
-		if err := Lookup(context.Background(), f, bad, send); code(err) != codes.InvalidArgument {
+		if err := Lookup(context.Background(), f, bad, true, send); code(err) != codes.InvalidArgument {
 			t.Errorf("%v: %v", bad, err)
 		}
 	}
-	if err := Lookup(context.Background(), nil, &vrxv1.DnsLookupAction{Name: "x.example"}, send); code(err) != codes.Unavailable {
+	if err := Lookup(context.Background(), nil, &vrxv1.DnsLookupAction{Name: "x.example"}, true, send); code(err) != codes.Unavailable {
 		t.Errorf("no VPP: %v", err)
+	}
+}
+
+// The 2026-09-25 04:27 incident: dns_resolve_name on a VPP whose dns plugin has no name server crashes VPP. Without
+// the proof that this agent enabled the cache, the request must never be sent.
+func TestLookupRefusedWithoutAReadyCache(t *testing.T) {
+	f := dfkittest.NewFake()
+	f.On("dns_resolve_name", func(api.Message) ([]api.Message, error) {
+		t.Fatal("dns_resolve_name reached VPP although the cache is not ready")
+		return nil, nil
+	})
+	send := func(*vrxv1.ActionOutput) error { t.Fatal("output sent"); return nil }
+	err := Lookup(context.Background(), f, &vrxv1.DnsLookupAction{Name: "gw.lab.example"}, false, send)
+	if code(err) != codes.FailedPrecondition || !strings.Contains(err.Error(), "ip4_sas") {
+		t.Fatalf("want FailedPrecondition naming the crash, got %v", err)
 	}
 }

@@ -361,12 +361,12 @@ func TestUnboundChronySyslog(t *testing.T) {
 	// ---- chronyc -h <slot sock> sources lists (and selects) the server ---------------------------------------
 	var sources string
 	if !waitFor(60*time.Second, func() bool {
-		sources, _ = run(chronycBin, "-h", chSock, "sources")
+		sources, _ = run(chronycBin, "-n", "-h", chSock, "sources")
 		return strings.Contains(sources, "^*")
 	}) {
 		t.Logf("chronyc sources (not selected yet):\n%s", sources)
 	}
-	t.Logf("$ chronyc -h %s sources\n%s", chSock, sources)
+	t.Logf("$ chronyc -n -h %s sources\n%s", chSock, sources)
 	if !strings.Contains(sources, "127.0.0.1") {
 		t.Fatalf("the server is not listed:\n%s", sources)
 	}
@@ -408,8 +408,10 @@ func TestUnboundChronySyslog(t *testing.T) {
 		delete(b, "sourceStats")
 		t.Logf("GET %s →\n%s", p, jsonOf(b))
 	}
-	lk := a.must(200, "POST", "/api/v1/actions/dns-lookup", map[string]any{"name": "gw.lab.example", "timeoutMs": 2000})
-	t.Logf("POST /api/v1/actions/dns-lookup (real agent; VPP's dns plugin is not enabled on the shared VPP — only the globals owner enables it) → %s", lk.raw)
+	// A slot agent is never the globals owner: it refuses the lookup BEFORE anything reaches VPP (VPP 26.06 crashes on
+	// dns_resolve_name while its dns plugin has no name server — the 2026-09-25 04:27 incident of this task).
+	lk := a.must(409, "POST", "/api/v1/actions/dns-lookup", map[string]any{"name": "gw.lab.example", "timeoutMs": 2000})
+	t.Logf("POST /api/v1/actions/dns-lookup (slot agent, not the globals owner) → 409 %s", lk.raw)
 
 	// ---- a listen-port change needs a restart (D-079) → pending; agent restart with the renderings deleted -----
 	a.must(200, "PUT", "/api/v1/config/services/dns/resolvers/lab", resolver(dnsPort2))

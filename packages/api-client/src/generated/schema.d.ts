@@ -717,7 +717,7 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Resolve a name through the VPP DNS cache (dns_resolve_name, with a deadline); needs the VPP DNS cache enabled by the globals owner */
+    /** Resolve a name through the VPP DNS cache (dns_resolve_name, with a deadline); 409 unless this agent (the globals owner) enabled the VPP DNS cache with an upstream */
     post: operations['UnboundChronySyslog_dnsLookup'];
     delete?: never;
     options?: never;
@@ -8885,6 +8885,15 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
         headers: {
           [name: string]: unknown;
         };

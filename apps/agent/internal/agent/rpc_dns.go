@@ -78,8 +78,21 @@ func (g *server) DnsState(ctx context.Context, req *vrxv1.DnsStateRequest) (*vrx
 	return resp, nil
 }
 
-// dnsLookup runs the dns_lookup action (ActionRequest 7).
+// dnsLookup runs the dns_lookup action (ActionRequest 7) — only where this agent enabled VPP's DNS cache itself: the
+// globals owner whose applied configuration enables it with an upstream (VPP 26.06 crashes on dns_resolve_name
+// otherwise; ucsaction.Lookup).
 func (g *server) dnsLookup(a *vrxv1.DnsLookupAction, stream grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
-	g.log.Info("action dns_lookup", "name", a.GetName(), "timeout_ms", a.GetTimeoutMs())
-	return ucsaction.Lookup(stream.Context(), g.svc.vpp, a, stream.Send)
+	ctx := stream.Context()
+	hs, err := g.hostServices("")
+	if err != nil {
+		return err
+	}
+	svc, _, err := g.storedServices(ctx)
+	if err != nil {
+		return err
+	}
+	vc := svc.GetDns().GetVppCache()
+	ready := hs.GlobalsOwner && vc.GetEnabled() && len(vc.GetUpstreams()) > 0
+	g.log.Info("action dns_lookup", "name", a.GetName(), "timeout_ms", a.GetTimeoutMs(), "vpp_cache_ready", ready)
+	return ucsaction.Lookup(ctx, g.svc.vpp, a, ready, stream.Send)
 }

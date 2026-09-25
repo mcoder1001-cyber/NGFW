@@ -21,6 +21,11 @@ never a shell), `ResolveIP(ctx, client, addr)` (`dns_resolve_ip`).
   scheduler breaks ties by registration order); deletes run in reverse (disable first).
 - `dns_resolve_name` replies only after the upstream answers or VPP's retries give up: pass a ctx with a deadline
   (a host run without one blocked for minutes against unreachable upstreams).
+- **`dns_resolve_name` / `dns_resolve_ip` crash VPP 26.06 when the plugin has no name server** (never enabled): SIGSEGV in
+  `ip4_sas` from `vnet_send_dns4_request` — the shared VPP went down on 2026-09-25 04:27:21 from exactly that call
+  (F-unbound-chrony-syslog questions Q2, V-item in `docs/vpp-code-track.md`). `ResolveName` / `ResolveIP` must only be
+  called by an agent that enabled the plugin itself with at least one server: the agent's `dns_lookup` action
+  (`internal/actions/unbound-chrony-syslog`) refuses with FAILED_PRECONDITION otherwise, and nothing else calls them.
 - VPP CLI bug seen in the evidence: `show dns servers` prints the IPv6 list from the IPv4 vector (`fd00:5::53` is shown
   as `a05:3501::`, the bytes of `10.5.53.1`); the API state is right.
 - Ownership: servers have no tag; production owns the resolver. The singleton is VPP-global; nobody else on the

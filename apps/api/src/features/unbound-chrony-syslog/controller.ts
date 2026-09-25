@@ -110,10 +110,10 @@ export class UnboundChronySyslogController {
 
   @Post('actions/dns-lookup')
   @HttpCode(200)
-  @Protected(400, 501, 502, 503)
+  @Protected(400, 409, 501, 502, 503)
   @ApiOperation({
     summary:
-      'Resolve a name through the VPP DNS cache (dns_resolve_name, with a deadline); needs the VPP DNS cache enabled by the globals owner',
+      'Resolve a name through the VPP DNS cache (dns_resolve_name, with a deadline); 409 unless this agent (the globals owner) enabled the VPP DNS cache with an upstream',
   })
   @ApiBody({ schema: openapi(DnsLookupBody) })
   @ApiOkResponse({ schema: openapi(DnsLookupOut, 'output') })

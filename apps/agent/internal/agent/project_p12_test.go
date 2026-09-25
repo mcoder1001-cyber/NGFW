@@ -119,6 +119,22 @@ func TestP12ProjectionWithFRR(t *testing.T) {
 		t.Fatalf("render check: %+v", pj.issues)
 	}
 
+	// paired interfaces alone are FRR content: the tap addresses stay while the pair exists (linux-nl would otherwise
+	// mirror their removal into VPP); an agent without FRR says nothing about them
+	lcpOnly := doc(t, `{"interfaces":{"loop821":{"ipv4":["10.8.21.1/24"],"lcp":{}}},"routing":{}}`)
+	pj = &projected{pointers: map[scheduler.Key]string{}}
+	desired.FRR(pj, lcpOnly, map[string]bool{"routing": true}, o)
+	if len(pj.kvs) != 1 || len(pj.issues) != 0 {
+		t.Fatalf("lcp-only: %v %+v", pj.kvs, pj.issues)
+	}
+	off := o
+	off.Disabled = true
+	pj = &projected{pointers: map[scheduler.Key]string{}}
+	desired.FRR(pj, lcpOnly, map[string]bool{"routing": true}, off)
+	if len(pj.kvs) != 0 || len(pj.issues) != 0 {
+		t.Fatalf("lcp-only without FRR: %v %+v", pj.kvs, pj.issues)
+	}
+
 	// no FRR content: no object
 	pj = &projected{pointers: map[scheduler.Key]string{}}
 	desired.FRR(pj, doc(t, `{"routing":{"static":[{"prefix":"10.0.0.0/8","blackhole":true}]}}`), map[string]bool{"routing": true}, o)

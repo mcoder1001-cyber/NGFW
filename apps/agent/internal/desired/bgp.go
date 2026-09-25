@@ -45,8 +45,10 @@ const (
 	FRRUnknown     = "unknown"     // FRR holds configuration this agent has not applied since it started
 )
 
-// FRRDoc returns the FRR-relevant subset of ds, or nil when ds has no FRR content (no bgp, no policy object, no
-// viaFrr static route). Interfaces are included only with a linux-cp pair (their Linux side is what FRR sees).
+// FRRDoc returns the FRR-relevant subset of ds, or nil when ds has no FRR content: no bgp, no policy object, no viaFrr
+// static route and no interface with a linux-cp pair. A paired interface alone is FRR content: FRR puts the VPP
+// addresses on its Linux side (lcpmap, S2) for as long as the pair exists — were they removed with the last BGP line,
+// linux-nl would mirror the removal into VPP and take the addresses off the VPP interface as well.
 // selector reports whether routing.static[i] belongs to FRR (frr.StaticOwnedByFRR, D-072).
 func FRRDoc(ds *vrxv1.DesiredState, selector func(i int, sr *vrxv1.StaticRoute) bool) *vrxv1.DesiredState {
 	rt := ds.GetRouting()
@@ -66,14 +68,12 @@ func FRRDoc(ds *vrxv1.DesiredState, selector func(i int, sr *vrxv1.StaticRoute) 
 			content = true
 		}
 	}
-	if !content {
-		return nil
-	}
 	doc := &vrxv1.DesiredState{Routing: out}
 	for name, itf := range ds.GetInterfaces() {
 		if itf.Lcp == nil {
 			continue
 		}
+		content = true
 		if doc.Interfaces == nil {
 			doc.Interfaces = map[string]*vrxv1.Interface{}
 		}
@@ -84,7 +84,16 @@ func FRRDoc(ds *vrxv1.DesiredState, selector func(i int, sr *vrxv1.StaticRoute) 
 			Description: itf.Description,
 		}
 	}
+	if !content {
+		return nil
+	}
 	return doc
+}
+
+// hasRouting reports whether doc carries routing content (not only paired interfaces).
+func hasRouting(doc *vrxv1.DesiredState) bool {
+	rt := doc.GetRouting()
+	return rt.GetBgp() != nil || rt.GetPolicy() != nil || len(rt.GetStatic()) > 0
 }
 
 // FRRValue wraps doc with a status into the frr.config value.
@@ -155,7 +164,9 @@ func FRR(s Sink, ds *vrxv1.DesiredState, in map[string]bool, o FRROptions) {
 		return
 	}
 	if o.Disabled {
-		s.Warnf(Ptr("routing"), "agent.unsupported-field", "this agent drives no FRR (VRX_FRR / VRX_FRR_PATHSPACE): routing.bgp, routing.policy and viaFrr routes are not applied")
+		if hasRouting(doc) {
+			s.Warnf(Ptr("routing"), "agent.unsupported-field", "this agent drives no FRR (VRX_FRR / VRX_FRR_PATHSPACE): routing.bgp, routing.policy and viaFrr routes are not applied")
+		}
 		return
 	}
 	bad := false

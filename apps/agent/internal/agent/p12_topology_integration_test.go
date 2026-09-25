@@ -619,6 +619,10 @@ func TestP12TopologyOnHost(t *testing.T) {
 	if st := e.state(); len(st.GetBgp()) != 0 {
 		t.Errorf("BGP instance left after rollback: %v", st.GetBgp())
 	}
+	// the pairs stay, and so do the VPP addresses on their Linux side (FRR keeps rendering them without BGP)
+	if addrs, _ := e.cmd("ip", "-n", e.frrNS, "-br", "addr", "show", prefix+"-l0"); !strings.Contains(addrs, fmt.Sprintf("10.%d.1.1/24", slot)) {
+		t.Errorf("tap %s-l0 lost its address with the BGP rollback: %s", prefix, addrs)
+	}
 	running, _ := e.vrxFRR.Renderer().Show(context.Background(), frr.ShowRunningConfig)
 	if strings.Contains(string(running), "router bgp") || strings.Contains(string(running), "route-map") {
 		t.Errorf("FRR still runs BGP/policy after rollback:\n%s", running)

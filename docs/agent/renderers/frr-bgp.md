@@ -40,7 +40,12 @@ proven by `bgp/integration_test.go` with the fixture resolver (`VRX_TEST_PSK_P12
 
 One singleton scheduler object in `Domains["routing"]`, value = the FRR-relevant subset of the document
 (`desired.FRRDoc`: bgp, policy, viaFrr statics, paired interfaces' lcp/addresses/description — references, never secret
-values) plus a status.
+values) plus a status. It exists while any of these exists — **a paired interface alone counts**: FRR keeps the VPP
+addresses on the Linux side for as long as the pair exists, because with linux-nl listening in FRR's netns a removal of
+the tap address would be mirrored into VPP and take the address off the VPP interface. Removing a pair is safe: the
+scheduler deletes first (the pair and its tap go), then updates FRR. The object belongs to the `routing` domain, so an
+address change of a paired interface reaches the tap in a transaction that includes `routing` (the API sends every
+domain; an `interfaces`-only Apply leaves the tap addresses to the next routing transaction).
 
 - **Create/Update**: render (all registered sections + interface-line producers, linux-cp mapping of the document's own
   pairs) → `vtysh -C` → `frr-reload.py --reload` → convergence check (`--test` must show no diff). The daemons are never

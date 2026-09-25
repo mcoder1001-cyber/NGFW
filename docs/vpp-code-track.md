@@ -58,3 +58,31 @@ address) with summed counts; users that share an address partition that address'
 dump per address in scans; per-call caps; the user page documents the possible VRF mislabel. VPP fix: also match
 `s->in2out.fib_index == ukey.fib_index`, walk every worker, and add the FIB to the details (or add a paged,
 cursor-based session dump) — est. 0.5–1 day.
+
+### V-new (F-nat44-ei-64-66-nptv6)
+**(a) npt66 has no dump (`npt66_binding_dump`).** VPP 26.06's npt66 plugin has one message, `npt66_binding_add_del`;
+bindings can be listed only with the CLI `show npt66 bindings` (without the interface). The agent's `npt66.binding`
+descriptor is therefore write-only (D-063): it re-applies every desired binding on each resync (safe: VPP's add
+overwrites the interface's binding and enables the features only for a new one, so no D-076 record is needed), but it
+cannot see drift, cannot delete a binding that left the configuration while the agent was down, and Retrieve never
+reports NPTv6. Proposed: `npt66_binding_dump` → `npt66_binding_details {sw_if_index, internal, external}` (+ an
+interface-delete hook that frees the binding: today a binding survives its interface, and a later interface reusing the
+index silently gets no npt66 feature on its first add) — est. 0.5 day.
+**(b) `nat64_st_details` report the wrong ports.** `nat64_api_st_walk` (`plugins/nat/nat64/nat64_api.c` ~316-320) sets
+`il_port` twice — the second time to `ste->r_port` — and never sets `r_port`: every NAT64 session row carries the remote
+port as the inside port and 0 as the remote port (seen on slot 4, 2026-09-25 00:46: CLI `fd00:4:1::2 46001 … 10.4.2.2
+8000`, API il_port 8000, r_port 0). Fallback implemented: the agent's NAT64 pager takes the remote port from `il_port`
+when `r_port` is 0 and the inside port from the BIB (`nat64_bib_dump`, by the outside endpoint). Fix: one line
+(`rmp->r_port = ste->r_port;`) — est. 0.1 day.
+**(c) nat64 leaks FIB locks on tenant VRFs.** `nat64_add_del_prefix` locks the VRF's IPv6 table on add and never unlocks
+it on delete ("TODO: missing fib_table_unlock"), and `nat64_add_del_static_bib_entry` calls
+`fib_table_find_or_create_and_lock` on every add AND delete without an unlock; disabling the plugin does not release them
+either. A VRF that carried a NAT64 prefix or static BIB can therefore not be deleted until VPP restarts (its IPv6 table
+stays with `nat64-hi` locks; the agent's VRF delete then fails its verify → DEGRADED). Seen on slot 4 (`show ip6 fib
+table 4064`: `locks:[nat64-hi:24]` after a few runs). Fallback: documented (user page: keep NAT64 in the default VRF
+on a box, or keep the tenant VRF); the topology test keeps its slot VRF in the configuration. Fix: unlock on prefix
+delete, lock only on BIB add and unlock on BIB delete — est. 0.5 day.
+**(d) (not a bug, noted for users) nat44-ei port forwards need a pool address.** `nat44_ei_add_static_mapping` reserves
+the external port on a pool address (`nat44_ei_reserve_port`) unless static-mapping-only is on, and answers
+NO_SUCH_ENTRY for an address outside the pool (unlike nat44-ed). The builder refuses such a mapping with a pointer
+(`nat.ei-port-forward-pool`).

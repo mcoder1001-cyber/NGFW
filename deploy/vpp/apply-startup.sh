@@ -45,6 +45,10 @@
 #       process tree, and — only if no rollback has finished — makes at most one rollback, then writes the
 #       result marker and releases the locks. If the holder is gone it takes the locks itself, exclusively and
 #       bounded, before touching the run; only a foreign holder makes it roll back without them (FORCED, logged).
+#       A rollback stage first takes a per-apply lock (flock on the apply's work dir, non-blocking): a second rollback
+#       of the same apply is refused while one runs. It then disarms the timer. An unfinished apply is finished by hand
+#       through the dead-man's own unit: systemctl start vrx-startup-apply-deadman-<stamp>.service (systemd runs a
+#       unit only once).
 #   apply-startup.sh --stage run|rollback|hold --work <dir>     internal
 #
 # Options: --vm NAME (vrx-a) · --window S (60, ≥ --interval) · --interval S (5, > 0) · --settle S (10) ·
@@ -55,7 +59,7 @@
 #
 # Logs and state: /var/lib/vrx/startup-apply/<stamp>/ (log, settings, gate, plan.sha256, doc.json, bin/, new.conf,
 # backup.conf, drivers, mgmt.ifs, mgmt/<if>.*, probe, ident.*, unit.*, plugins.before, installed, rollback-started,
-# committed | rolled-back | console-needed). Syslog tag vrx-startup-apply.
+# rollback-pid, committed | rolled-back | console-needed | superseded). Syslog tag vrx-startup-apply.
 # Exit: 0 ok / nothing to do · 1 failed (rolled back or console needed) · 2 usage · 3 refused before any change.
 #
 # Every system path and command is overridable through VRX_* variables (below) so the script is tested against a
@@ -183,11 +187,12 @@ sha() { sha256sum "$1" | awk '{print $1}'; }
 ere_escape() { sed -E 's/[][\.^$*+?(){}|/]/\\&/g' <<<"$1"; }
 
 # Every external call that can block goes through one of these (re-review N1). timeout(1) kills the
-# command's whole process group; fds 8/9 are closed so a child never holds a lock.
-tmo() { timeout -k 2 "$CMD_TIMEOUT" "$@" 8>&- 9>&-; }
-svc() { timeout -k 5 "$SVC_TIMEOUT" "$VRX_SYSTEMCTL" "$@" 8>&- 9>&-; }
-vppcheck() { timeout -k 2 $((CMD_TIMEOUT + 2)) "$VPPCHECK_BIN" --socket "$VRX_VPP_API_SOCKET" --timeout "${CMD_TIMEOUT}s" "$@" 8>&- 9>&-; }
-sysfs_write() { printf '%s\n' "$1" | timeout -k 2 "$CMD_TIMEOUT" tee "$2" >/dev/null 8>&- 9>&-; }  # <value> <file>
+# command's whole process group; fds 7/8/9 are closed so a child never holds a lock (7 = the per-apply rollback
+# lock, TD-7 F1: an orphaned child that kept it would make a later rollback of the same apply refuse).
+tmo() { timeout -k 2 "$CMD_TIMEOUT" "$@" 7>&- 8>&- 9>&-; }
+svc() { timeout -k 5 "$SVC_TIMEOUT" "$VRX_SYSTEMCTL" "$@" 7>&- 8>&- 9>&-; }
+vppcheck() { timeout -k 2 $((CMD_TIMEOUT + 2)) "$VPPCHECK_BIN" --socket "$VRX_VPP_API_SOCKET" --timeout "${CMD_TIMEOUT}s" "$@" 7>&- 8>&- 9>&-; }
+sysfs_write() { printf '%s\n' "$1" | timeout -k 2 "$CMD_TIMEOUT" tee "$2" >/dev/null 7>&- 8>&- 9>&-; }  # <value> <file>
 syslog() { tmo "$VRX_LOGGER" -t "$UNIT_PREFIX" -- "$*" >/dev/null 2>&1 || true; }
 
 # ---------------------------------------------------------------- facts
@@ -286,9 +291,9 @@ snapshot_mgmt() {  # <if> [dir] → <dir>/<if>.* ; fails when the snapshot canno
 # ---------------------------------------------------------------- management reachability (review H2, re-review N1)
 tcp_connect() {  # <host> <port> [seconds]
   local t="${3:-$CMD_TIMEOUT}"
-  if [[ -n $VRX_TCPCONNECT ]]; then timeout -k 1 "$t" "$VRX_TCPCONNECT" "$1" "$2" 8>&- 9>&-; return; fi
+  if [[ -n $VRX_TCPCONNECT ]]; then timeout -k 1 "$t" "$VRX_TCPCONNECT" "$1" "$2" 7>&- 8>&- 9>&-; return; fi
   # shellcheck disable=SC2016  # $0/$1 expand in the child bash
-  timeout -k 1 "$t" bash -c 'exec 3<>"/dev/tcp/$0/$1"' "$1" "$2" 8>&- 9>&-
+  timeout -k 1 "$t" bash -c 'exec 3<>"/dev/tcp/$0/$1"' "$1" "$2" 7>&- 8>&- 9>&-
 }
 nudge() {  # <dev> <gw> — any packet to the next hop makes the kernel resolve it (ARP/ND); the SYN itself may be dropped
   # TD-6 V8: a link-local gateway (fe80::/10, the usual RA default) needs its scope, or connect() fails and nothing is
@@ -443,7 +448,7 @@ dry_run() {
   if ! gate | sed 's/^/  /'; then rc=3; fi   # TD-6 V9: exit 3 = --apply would refuse, the gate included
   command -v "$VRX_SYSTEMD_RUN" >/dev/null 2>&1 || { echo "  systemd-run not found — --apply will refuse"; rc=3; }
   p="$(unfinished_applies)"
-  [[ -z $p ]] || { echo "  an earlier apply has not finished — --apply will refuse: $(tr '\n' ' ' <<<"$p")"; rc=3; }
+  [[ -z $p ]] || { echo "  an earlier apply has not finished — --apply will refuse: $(tr '\n' ' ' <<<"$p")— finish it: $(finish_hint "$p")"; rc=3; }
   echo "== sha256 of $VRX_STARTUP_CONF (--expect-sha256)"
   sha "$VRX_STARTUP_CONF"
   echo "== sha256 of the rendering (--expect-new-sha256)"
@@ -509,7 +514,7 @@ secure_locks() {  # <who> — before VPP is touched: the holder's locks, or both
   if holder_alive; then say "$1: lock holder $(cat "$WORK/locks-held") still owns the locks"; return 0; fi
   exec 8>"$VRX_VPP_LOCK" 9>"$VRX_LAB_LOCK"
   OWN_LOCKS=1
-  if flock -x -w "$DEADMAN_LOCK_TIMEOUT" 8 && flock -x -w "$DEADMAN_LOCK_TIMEOUT" 9; then
+  if flock -x -w "$DEADMAN_LOCK_TIMEOUT" 8 7>&- && flock -x -w "$DEADMAN_LOCK_TIMEOUT" 9 7>&-; then
     say "$1: lock holder gone — took the locks exclusively before touching VPP"
   else
     say "$1: FORCED — locks held by someone else for ${DEADMAN_LOCK_TIMEOUT}s (${VRX_LSLOCKS}: $(lock_holders)); rolling back without them (a lost management path outranks the lock)"
@@ -660,6 +665,19 @@ unfinished_applies() {  # → "<dir> (dead-man <unit>.timer)" for every OTHER wo
     [[ -e $w/committed || -e $w/rolled-back || -e $w/console-needed || -e $w/superseded ]] && continue
     echo "$w (dead-man $(cat "$w/deadman-unit" 2>/dev/null || echo none).timer)"
   done
+}
+finish_hint() {  # <unfinished_applies output> → the safe way to finish each of them now (TD-7 F1)
+  # the dead-man's own unit: systemd starts a unit only once, so it can never run next to the timer's own start. Running
+  # the rollback stage by hand is only the fallback when no unit was recorded (it refuses a second rollback of the apply).
+  local line w u out=""
+  while IFS= read -r line; do
+    [[ -n $line ]] || continue
+    w="${line%% (dead-man *}"
+    u="$(cat "$w/deadman-unit" 2>/dev/null || true)"
+    if [[ -n $u ]]; then out+="${out:+; }systemctl start $u.service"
+    else out+="${out:+; }$w/bin/apply-startup.sh --stage rollback --work $w"; fi
+  done <<<"$1"
+  echo "$out"
 }
 claim_current() {  # under the locks, just before the new file goes in: this apply owns startup.conf now (V1)
   local w u
@@ -866,7 +884,7 @@ stage_run() {
   RUN_LOCKED=1
   say "locks held by holder pid $(cat "$WORK/locks-held"): $VRX_VPP_LOCK, $VRX_LAB_LOCK"
   local busy; busy="$(unfinished_applies)"   # TD-6 V1, checked again under the locks
-  [[ -z $busy ]] || { refuse "an earlier apply has not finished: $(tr '\n' ' ' <<<"$busy")— its dead-man may still roll back; wait for it or finish it now (apply-startup.sh --stage rollback --work <dir>)"; return 3; }
+  [[ -z $busy ]] || { refuse "an earlier apply has not finished: $(tr '\n' ' ' <<<"$busy")— its dead-man may still roll back; wait for it, or run that one rollback now through the dead-man's own unit: $(finish_hint "$busy") (systemd starts a unit only once; a second rollback of the same apply is refused)"; return 3; }
   local now; now="$(sha "$VRX_STARTUP_CONF")"
   [[ $now == "$EXPECT" ]] || { refuse "$VRX_STARTUP_CONF changed since the review (sha256 $now, expected $EXPECT) — dry-run again"; return 3; }
   render "$WORK/new.conf" || { refuse "rendering failed"; return 3; }
@@ -978,11 +996,24 @@ kill_run() {  # the run is stuck or dead: kill it and everything it started (the
   done
 }
 
-stage_rollback() {  # the dead-man: at most one rollback, then always finish
+stage_rollback() {  # the dead-man (or its unit started by hand): at most one rollback, then always finish
   [[ -d $WORK ]] || die "--work $WORK missing"
   log_to_work
   load_settings
+  # TD-7 F1: one rollback stage per apply at a time. The timer can fire while the operator finishes the same apply by
+  # hand; two rollbacks would each stop and start VPP (a second outage, and one's health check lands in the other's
+  # stop). The lock is the work dir itself (keyed by the apply id; nothing to create, so a full disk cannot stop the
+  # dead-man), taken without waiting: whoever holds it does the one rollback. Opened after log_to_work, so the log's
+  # tee never inherits it; every child that can outlive this process closes fd 7 (tmo, svc, vppcheck, …).
+  exec 7<"$WORK"
+  if ! flock -n 7; then
+    say "a rollback of $WORK is already running (pid $(cat "$WORK/rollback-pid" 2>/dev/null || echo '?')) — nothing to do"
+    syslog "second rollback of $WORK refused: one is already running"
+    return 0
+  fi
+  { echo "$$" > "$WORK/rollback-pid"; } 2>/dev/null || true
   if finished; then say "dead-man: nothing to do (the apply already finished)"; return 0; fi
+  cancel_deadman   # TD-7 F1: disarm the timer before a rollback started by hand; harmless in the timer's own service
   touch "$WORK/deadman-fired"
   say "dead-man fired: the run did not finish in time"
   # review M1: the locks must never go free between the run and the rollback (taken before the run is touched)
@@ -1023,10 +1054,10 @@ main() {
         command -v "$VRX_SYSTEMD_RUN" >/dev/null 2>&1 || { echo "apply-startup: REFUSED: systemd-run not found (there is no fallback)" >&2; exit 3; }
         if ! GATE="$(gate)"; then echo "apply-startup: $GATE" >&2; exit 3; fi
         # TD-6 V1: an apply that installed a file and has no result yet still has an armed dead-man that would roll back
-        # over this one — finish it first (its dead-man, or the same one rollback by hand)
+        # over this one — finish it first (its dead-man, or that same one rollback now through the dead-man's unit: TD-7 F1)
         local busy; busy="$(unfinished_applies)"
         if [[ -n $busy ]]; then
-          echo "apply-startup: REFUSED: an earlier apply has not finished: $(tr '\n' ' ' <<<"$busy")— wait for its dead-man, or finish it now with the same single rollback: $0 --stage rollback --work <dir>" >&2
+          echo "apply-startup: REFUSED: an earlier apply has not finished: $(tr '\n' ' ' <<<"$busy")— wait for its dead-man, or run that one rollback now through the dead-man's own unit: $(finish_hint "$busy") (systemd starts a unit only once; a second rollback of the same apply is refused)" >&2
           exit 3
         fi
         say "$GATE"

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"ngfw/agent/internal/descriptors/dfkit/persist"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/vpp/bootid"
 )
@@ -18,9 +19,14 @@ import (
 // ClaimStore.Claim(id, holder) with holder = descriptor name. Retrieve reports claimed ids only,
 // Create refuses to take over an existing unclaimed object, Delete never touches an unclaimed one.
 //
-// The store is DF-1's per-owner ClaimStore (iface.Claims(owner)); P05/P08 install one persisted
-// in the agent state dir with iface.SetClaimStore so claims survive an agent restart
-// (FileClaimStore below is such a store).
+// Two stores are involved. Per-interface claims (an untagged interface a bypass/toggle configures)
+// always go to DF-1's per-owner ClaimStore (iface.Claims(owner)), which the product wiring persists
+// with iface.SetClaimStore (subsystems.IfaceClaims, bound to the interface's sw_if_index). Keyed and
+// per-boot claims go to Options.Claims: their ids are not interface names, so the product wiring
+// passes a persisted store keyed by id — df6.WithClaims(Wiring.PairClaims("df6")) — and the
+// product agent refuses to start otherwise (CheckPersistent, TD-11b; re-review N7 "claims split
+// across two stores"). The default (iface.Claims(owner)) serves tests with an in-memory or
+// FileClaimStore installed for the owner.
 
 // ErrNotOurs means the object exists in VPP but carries no claim of this owner: another owner's
 // or an operator's object, never taken over (D-071).
@@ -107,23 +113,63 @@ func (s *FileClaimStore) save() error {
 	return os.Rename(tmp, s.path)
 }
 
-// Claim implements ClaimStore.
+// Claim implements ClaimStore. Memory changes only when the file was written (TD-11b; re-review
+// N7): a claim kept in memory after a failed write made the retry report success, and the claim
+// was then lost on the next agent restart.
 func (s *FileClaimStore) Claim(id, holder string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.m[holder][id] {
+		return nil
+	}
 	if s.m[holder] == nil {
 		s.m[holder] = map[string]bool{}
 	}
 	s.m[holder][id] = true
-	return s.save()
+	if err := s.save(); err != nil {
+		delete(s.m[holder], id)
+		if len(s.m[holder]) == 0 {
+			delete(s.m, holder)
+		}
+		return err
+	}
+	return nil
 }
 
-// Release implements ClaimStore.
+// Release implements ClaimStore (memory changes only when the file was written, as Claim).
 func (s *FileClaimStore) Release(id, holder string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if !s.m[holder][id] {
+		return nil
+	}
 	delete(s.m[holder], id)
-	return s.save()
+	if err := s.save(); err != nil {
+		s.m[holder][id] = true
+		return err
+	}
+	return nil
+}
+
+// Persistent marks FileClaimStore as a store that survives an agent restart (dfkit/persist).
+func (*FileClaimStore) Persistent() bool { return true }
+
+// ErrClaimStoreKind means a DF-6 descriptor was given a claim store that binds every claim to an
+// interface's sw_if_index (subsystems.IfaceClaims): keyed and per-boot DF-6 claims are keyed by an
+// object id ("<sid>", "<iface>@<idx>/ip4"), which is not an interface name, so every Claim of such
+// a store fails (ErrClaimUnbound). The product wiring passes df6.WithClaims(Wiring.PairClaims("df6")).
+var ErrClaimStoreKind = errors.New("df6: claim store binds claims to interface indexes; keyed claims need a store keyed by id")
+
+// checkIDClaims is the persistence check (dfkit/persist) of the store DF-6 keyed and per-boot
+// claims go to: it must survive an agent restart and must not bind claims to interface indexes.
+func checkIDClaims(name string, s ClaimStore) error {
+	if err := persist.Require("df6 "+name+": keyed claims (pass df6.WithClaims(Wiring.PairClaims(\"df6\")))", s); err != nil {
+		return err
+	}
+	if b, ok := s.(interface{ BindsInterfaceIndex() bool }); ok && b.BindsInterfaceIndex() {
+		return fmt.Errorf("%w: df6 %s: %T (pass df6.WithClaims(Wiring.PairClaims(\"df6\")))", ErrClaimStoreKind, name, s)
+	}
+	return nil
 }
 
 // Claimed implements ClaimStore.
@@ -131,4 +177,10 @@ func (s *FileClaimStore) Claimed(id, holder string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.m[holder][id]
+}
+
+// checkIfaceClaims is the persistence check of the owner's DF-1 store, where per-interface DF-6
+// claims go (Interfaces.ClaimIfUntagged).
+func checkIfaceClaims(name, owner string) error {
+	return persist.Require("df6 "+name+": claims on untagged interfaces of owner "+owner+" (install a persisted store with iface.SetClaimStore)", iface.Claims(owner))
 }

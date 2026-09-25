@@ -7,13 +7,26 @@ package subsystems
 // interface that was deleted and re-created under the same name within one VPP instance is not
 // silently adopted.
 //
-//	<state dir>/claims-iface-<owner>.json   iface.ClaimStore (DF-1 attributes on untagged interfaces;
-//	                                        df6.ClaimStore is the same type)
-//	<state dir>/claims-<family>-<owner>.json KeyedClaims for acl/df2 (acl.ClaimStore), natcommon
+//	<state dir>/claims-iface-<owner>.json   iface.ClaimStore (DF-1 attributes on untagged interfaces,
+//	                                        and every per-interface claim of df6/dfkit families)
+//	<state dir>/claims-<family>-<owner>.json KeyedClaims for acl/df2 (acl.ClaimStore), natcommon;
+//	                                        PairClaims for df6 keyed / per-boot claims (df6.ClaimStore)
 //	<state dir>/boot-<owner>.json           dfkit.FileBootStore (df7.SetBootStore, pcap, …)
 //	<state dir>/classify-<owner>.json       classify.FileStore (DF-2 classify tables, ipfix, redirect)
+//
+// Claim-first leftovers (TD-11b, review 3.3 / fix round 1 L5). Descriptors claim BEFORE the VPP write
+// and release when the write fails; an agent crash between the claim and the write (or a failed
+// release) leaves a claim on nothing. That never blocks a later Create — the claim is reused, the
+// absent object is simply written — but within one VPP instance nothing removes it: the only
+// cleanup is Prune on a VPP boot-identity change (Connected). While it stays, the claimed holder
+// counts as ours on that untagged interface. For interface.admin-state that is visible: if someone
+// else sets the NIC admin-up, Retrieve reports the admin state as ours, and a resync whose desired
+// state does not name it Deletes it — sets the NIC admin DOWN, a state we never wrote. The cost is
+// accepted (it replaces the worse orphan of write-then-claim: an object in VPP nobody owns);
+// tech-debt: after the first successful resync, drop claims whose key is neither desired nor present.
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,6 +36,8 @@ import (
 	"sync"
 	"time"
 
+	"ngfw/agent/internal/descriptors/dfkit/persist"
+	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp/bootid"
 )
 
@@ -37,11 +52,18 @@ type IdentitySource interface {
 var ErrClaimUnbound = errors.New("claim store: interface has no sw_if_index in VPP")
 
 // IndexResolver maps an untagged interface's VPP name to its current sw_if_index. Resolve may
-// answer from a short-lived cache; Invalidate forces the next Resolve to dump again.
+// answer from a short-lived cache; a refresh is bounded by ctx — the caller's transaction, not a
+// timeout of the store's own (TD-11b, review R2-stores). Invalidate forces the next Resolve to
+// dump again.
 type IndexResolver interface {
-	Resolve(name string) (uint32, bool)
+	Resolve(ctx context.Context, name string) (uint32, bool)
 	Invalidate()
 }
+
+// legacyBound caps the sw_if_index lookup of the context-less ClaimStore methods (Claim, Claimed),
+// which callers without a context use (iface.Table.Owns in Retrieve); callers with one use
+// ClaimContext / ClaimedContext (iface.ContextClaimStore: the DF-1 attributes, dfkit.ClaimFirst).
+const legacyBound = 5 * time.Second
 
 // Identity is the agent's current VPP boot identity (IdentitySource), set on every VPP connect.
 type Identity struct {
@@ -109,7 +131,7 @@ func (c *fileClaims) current() (string, bool) {
 	return id.String(), true
 }
 
-func (c *fileClaims) claim(key, ifName string) error {
+func (c *fileClaims) claim(ctx context.Context, key, ifName string) error {
 	boot, ok := c.current()
 	if !ok {
 		return ErrNoIdentity
@@ -117,10 +139,13 @@ func (c *fileClaims) claim(key, ifName string) error {
 	r := claimRecord{Key: key, Boot: boot}
 	if ifName != "" && c.index != nil {
 		c.index.Invalidate() // a claim binds to the index VPP has right now
-		idx, ok := c.index.Resolve(ifName)
+		idx, ok := c.index.Resolve(ctx, ifName)
 		if !ok {
 			// fail closed like the loader (review N7): a claim without its sw_if_index would make
 			// Claimed trust any interface of that name, e.g. one re-created by someone else
+			if err := ctx.Err(); err != nil {
+				return fmt.Errorf("%w: %q (claim %s not recorded): %w", ErrClaimUnbound, ifName, key, err)
+			}
 			return fmt.Errorf("%w: %q (claim %s not recorded)", ErrClaimUnbound, ifName, key)
 		}
 		v := int64(idx)
@@ -152,7 +177,7 @@ func (c *fileClaims) release(key string) error {
 	return nil
 }
 
-func (c *fileClaims) claimed(key, ifName string) bool {
+func (c *fileClaims) claimed(ctx context.Context, key, ifName string) bool {
 	boot, ok := c.current()
 	if !ok {
 		return false
@@ -164,7 +189,7 @@ func (c *fileClaims) claimed(key, ifName string) bool {
 		return false
 	}
 	if r.SwIfIndex != nil && ifName != "" && c.index != nil {
-		idx, ok := c.index.Resolve(ifName)
+		idx, ok := c.index.Resolve(ctx, ifName)
 		return ok && int64(idx) == *r.SwIfIndex
 	}
 	return true
@@ -194,6 +219,9 @@ func (c *fileClaims) Prune() (int, error) {
 	c.recs = next
 	return n, nil
 }
+
+// Persistent marks the claim stores as surviving an agent restart (dfkit/persist, TD-11b).
+func (*fileClaims) Persistent() bool { return true }
 
 // Len returns the number of records (tests, diagnostics).
 func (c *fileClaims) Len() int {
@@ -271,9 +299,18 @@ func OpenIfaceClaims(dir, owner string, id IdentitySource, index IndexResolver) 
 
 func ifaceKey(ifName, holder string) string { return ifName + "|" + holder }
 
-// Claim implements iface.ClaimStore.
+// Claim implements iface.ClaimStore (for callers without a context: the lookup is capped at
+// legacyBound).
 func (c *IfaceClaims) Claim(ifName, holder string) error {
-	return c.claim(ifaceKey(ifName, holder), ifName)
+	ctx, cancel := context.WithTimeout(context.Background(), legacyBound)
+	defer cancel()
+	return c.ClaimContext(ctx, ifName, holder)
+}
+
+// ClaimContext implements iface.ContextClaimStore: the claim binds to the interface's current
+// sw_if_index, looked up within ctx (R2-stores).
+func (c *IfaceClaims) ClaimContext(ctx context.Context, ifName, holder string) error {
+	return c.claim(ctx, ifaceKey(ifName, holder), ifName)
 }
 
 // Release implements iface.ClaimStore.
@@ -281,10 +318,21 @@ func (c *IfaceClaims) Release(ifName, holder string) error {
 	return c.release(ifaceKey(ifName, holder))
 }
 
-// Claimed implements iface.ClaimStore.
+// Claimed implements iface.ClaimStore (for callers without a context, as Claim).
 func (c *IfaceClaims) Claimed(ifName, holder string) bool {
-	return c.claimed(ifaceKey(ifName, holder), ifName)
+	ctx, cancel := context.WithTimeout(context.Background(), legacyBound)
+	defer cancel()
+	return c.ClaimedContext(ctx, ifName, holder)
 }
+
+// ClaimedContext implements iface.ContextClaimStore.
+func (c *IfaceClaims) ClaimedContext(ctx context.Context, ifName, holder string) bool {
+	return c.claimed(ctx, ifaceKey(ifName, holder), ifName)
+}
+
+// BindsInterfaceIndex reports that every claim of this store is bound to an interface's
+// sw_if_index: ids that are not interface names cannot be claimed here (df6 checks it, TD-11b).
+func (*IfaceClaims) BindsInterfaceIndex() bool { return true }
 
 // KeyedClaims is the persisted single-key claim store (acl.ClaimStore = df2.ClaimStore,
 // natcommon.ClaimStore), bound to the VPP boot identity.
@@ -300,13 +348,37 @@ func OpenKeyedClaims(dir, family, owner string, id IdentitySource) (*KeyedClaims
 }
 
 // Claim implements the single-key claim stores.
-func (c *KeyedClaims) Claim(key string) error { return c.claim(key, "") }
+func (c *KeyedClaims) Claim(key string) error { return c.claim(context.Background(), key, "") }
 
 // Release implements the single-key claim stores.
 func (c *KeyedClaims) Release(key string) error { return c.release(key) }
 
 // Claimed implements the single-key claim stores.
-func (c *KeyedClaims) Claimed(key string) bool { return c.claimed(key, "") }
+func (c *KeyedClaims) Claimed(key string) bool { return c.claimed(context.Background(), key, "") }
+
+// Pairs returns the (id, holder) view of this store (PairClaims), sharing its file.
+func (c *KeyedClaims) Pairs() *PairClaims { return &PairClaims{c.fileClaims} }
+
+// PairClaims is the persisted (id, holder) claim store for claims whose id is NOT an interface
+// name — df6's keyed and per-boot claims (df6.ClaimStore, df6.WithClaims(Wiring.PairClaims("df6"))).
+// It is bound to the VPP boot identity like KeyedClaims, never to an interface index: through
+// IfaceClaims every such claim failed with ErrClaimUnbound (TD-11b).
+type PairClaims struct{ *fileClaims }
+
+func pairKey(id, holder string) string { return id + "|" + holder }
+
+// Claim implements df6.ClaimStore.
+func (c *PairClaims) Claim(id, holder string) error {
+	return c.claim(context.Background(), pairKey(id, holder), "")
+}
+
+// Release implements df6.ClaimStore.
+func (c *PairClaims) Release(id, holder string) error { return c.release(pairKey(id, holder)) }
+
+// Claimed implements df6.ClaimStore.
+func (c *PairClaims) Claimed(id, holder string) bool {
+	return c.claimed(context.Background(), pairKey(id, holder), "")
+}
 
 // IndexCache is an IndexResolver over a cached name → sw_if_index map refreshed at most every ttl.
 type IndexCache struct {
@@ -314,21 +386,30 @@ type IndexCache struct {
 	ttl     time.Duration
 	at      time.Time
 	m       map[string]uint32
-	refresh func() (map[string]uint32, error)
+	refresh func(ctx context.Context) (map[string]uint32, error)
 	now     func() time.Time
 }
 
-// NewIndexCache returns a cache that calls refresh at most every ttl.
-func NewIndexCache(ttl time.Duration, refresh func() (map[string]uint32, error)) *IndexCache {
+// NewIndexCache returns a cache that calls refresh at most every ttl; refresh gets the context of
+// the Resolve that triggered it (the caller's deadline, R2-stores).
+func NewIndexCache(ttl time.Duration, refresh func(ctx context.Context) (map[string]uint32, error)) *IndexCache {
 	return &IndexCache{ttl: ttl, refresh: refresh, now: time.Now}
 }
 
-// Resolve implements IndexResolver.
-func (c *IndexCache) Resolve(name string) (uint32, bool) {
+// Resolve implements IndexResolver. A refresh runs within ctx's deadline; a ctx without one (the
+// resync on a VPP connect runs on the agent's run context, and govpp's reply timeout may be 0) is
+// capped at legacyBound, so a stalled VPP never holds the cache mutex — and every Claimed waiting
+// on it — forever (TD-11b fix round 1, review L1; TD-9's global reply timeout does not replace it).
+func (c *IndexCache) Resolve(ctx context.Context, name string) (uint32, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.m == nil || c.now().Sub(c.at) > c.ttl {
-		m, err := c.refresh()
+		if _, ok := ctx.Deadline(); !ok {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, legacyBound)
+			defer cancel()
+		}
+		m, err := c.refresh(ctx)
 		if err != nil {
 			return 0, false
 		}
@@ -343,4 +424,83 @@ func (c *IndexCache) Invalidate() {
 	c.mu.Lock()
 	c.m = nil
 	c.mu.Unlock()
+}
+
+// PairClaims opens (once per family, sharing KeyedClaims' file) the persisted (id, holder) claim
+// store of a descriptor family whose claim ids are not interface names: "df6" (df6.WithClaims).
+func (w *Wiring) PairClaims(family string) (*PairClaims, error) {
+	k, err := w.KeyedClaims(family)
+	if err != nil {
+		return nil, err
+	}
+	return k.Pairs(), nil
+}
+
+// Register builds every store (persisted in env.StateDir), installs the process-wide ones for
+// env.Owner, and registers the descriptors of this build with r in dependency-friendly order (the
+// scheduler's tie breaker): VRFs, interface creators, alias, attributes, addresses, routes.
+//
+// It refuses to start the agent when a registered descriptor does not declare how it records
+// ownership (CheckPersistent or RecordsNoOwnership, TD-11b fix round 1) or records ownership claims
+// or applied-once records in a store that does not survive an agent restart (TD-11b, review 3.2;
+// D-075): the in-memory defaults of the descriptor families are for unit tests, and in the product
+// agent they forget, on every agent restart, which objects on untagged interfaces are ours — which
+// are then neither reported nor ever deleted. Every descriptor that implements CheckPersistent
+// (dfkit/persist) is checked, through wrappers.
+func Register(r scheduler.Registry, env Env) (*Wiring, error) {
+	g := &guardRegistry{Registry: r}
+	w, err := register(g, env)
+	if err != nil {
+		return nil, err
+	}
+	if err := RequirePersistent(g.ds); err != nil {
+		return nil, err
+	}
+	return w, nil
+}
+
+// guardRegistry records every descriptor registered through it.
+type guardRegistry struct {
+	scheduler.Registry
+	ds []scheduler.Descriptor
+}
+
+// Register implements scheduler.Registry.
+func (g *guardRegistry) Register(d scheduler.Descriptor) {
+	g.Registry.Register(d)
+	g.ds = append(g.ds, d)
+}
+
+// ErrVolatileStores is returned (wrapping every persist.ErrVolatile / df6.ErrClaimStoreKind finding)
+// when the product wiring registered a descriptor with an in-memory ownership store.
+var ErrVolatileStores = errors.New("subsystems: refusing to start: a descriptor records ownership in a store that does not survive an agent restart")
+
+// ErrUndeclaredDescriptors is returned (wrapping persist.ErrUndeclared / ErrConflictingDeclaration)
+// when the product wiring registered a descriptor that does not declare how it records ownership
+// (TD-11b fix round 1, review M1): a feature row registering a family under its anchor must give
+// every descriptor CheckPersistent or RecordsNoOwnership.
+var ErrUndeclaredDescriptors = errors.New("subsystems: refusing to start: a descriptor does not declare how it records ownership (CheckPersistent or RecordsNoOwnership)")
+
+// RequirePersistent runs the completeness and persistence checks (dfkit/persist) of every
+// descriptor in ds: each must declare how it records ownership, and every store it records in
+// must survive an agent restart.
+func RequirePersistent(ds []scheduler.Descriptor) error {
+	var undeclared, volatile []error
+	for _, d := range ds {
+		if err := persist.Declared(d); err != nil {
+			undeclared = append(undeclared, fmt.Errorf("%s (%T): %w", d.Name(), d, err))
+			continue
+		}
+		if err := persist.Check(d); err != nil {
+			volatile = append(volatile, err)
+		}
+	}
+	var errs []error
+	if len(undeclared) > 0 {
+		errs = append(errs, fmt.Errorf("%w: %w", ErrUndeclaredDescriptors, errors.Join(undeclared...)))
+	}
+	if len(volatile) > 0 {
+		errs = append(errs, fmt.Errorf("%w: %w", ErrVolatileStores, errors.Join(volatile...)))
+	}
+	return errors.Join(errs...)
 }

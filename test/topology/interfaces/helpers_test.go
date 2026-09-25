@@ -3,7 +3,6 @@ package interfaces
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"testing"
 )
@@ -42,28 +41,65 @@ func TestMkdirSharedModes(t *testing.T) {
 	}
 }
 
-// TestOurTraceOnlyOurBlock (review N3): a trace buffer without our run-unique echo request is "not found", and the
-// block returned is exactly ours (nodes of other packets never count).
-func TestOurTraceOnlyOurBlock(t *testing.T) {
-	other := `Packet 1
-
-00:00:01:000001: af-packet-input
-  af_packet: hw_if_index 2 rx-queue 0 next-index 4
-00:00:01:000002: ip4-input
-  ICMP: 10.1.1.2 -> 10.1.2.2
-    tos 0x00, ttl 64, length 84, checksum 0x0000 dscp CS0 ecn NON_ECN
-  ICMP echo_request checksum 0x1 id 1
-00:00:01:000003: ip4-lookup
-00:00:01:000004: ip4-rewrite
-00:00:01:000005: host-w1w0-output
-`
-	if blk, ok := ourTrace(other, "10.1.1.2", "10.1.2.2", 693); ok {
-		t.Fatalf("found a block for another packet:\n%s", blk)
+// TestEchoFramesExactlyN (D-128, replaces the trace-block test): the interface counters admit exactly n echo-sized frames
+// plus a few small ARP frames — a missing echo, an extra echo-sized frame or too many extra frames all fail.
+func TestEchoFramesExactlyN(t *testing.T) {
+	const n, frame = 5, 1042 // the smallest echo frame the test sends (size 1000)
+	for _, c := range []struct {
+		name       string
+		pkts, byts uint64
+		ok         bool
+	}{
+		{"exactly n echo frames", n, n * frame, true},
+		{"n echo + 2 ARP (42 B)", n + 2, n*frame + 84, true},
+		{"n echo + 4 ARP (60 B)", n + 4, n*frame + 240, true},
+		{"one echo missing, ARP makes up the count", n, (n-1)*frame + 42, false},
+		{"one echo missing, 5 small frames", n + 4, (n-1)*frame + 5*200, false},
+		{"an extra echo-sized frame", n + 1, (n + 1) * frame, false},
+		{"too many extra frames", n + 5, n*frame + 5*42, false},
+		{"fewer frames than echoes", n - 1, (n - 1) * frame, false},
+		{"bytes of a larger frame", n, n*frame + 1, false},
+	} {
+		err := echoFrames(c.pkts, c.byts, n, frame)
+		if (err == nil) != c.ok {
+			t.Errorf("%s: echoFrames(%d, %d) = %v, want ok=%v", c.name, c.pkts, c.byts, err, c.ok)
+		}
 	}
-	ours := strings.ReplaceAll(strings.ReplaceAll(other, "Packet 1", "Packet 2"), "length 84,", "length 693,")
-	ours = strings.Replace(ours, "host-w1w0-output", "error-drop", 1)
-	blk, ok := ourTrace(other+"\n"+ours, "10.1.1.2", "10.1.2.2", 693)
-	if !ok || !strings.HasPrefix(blk, "Packet 2") || strings.Contains(blk, "host-w1w0-output") {
-		t.Fatalf("ok=%v block:\n%s", ok, blk)
+	if err := echoFrames(n, n*800, n, 800); err == nil {
+		t.Error("an echo frame of 800 bytes cannot be told from 4 small frames: want an error")
+	}
+}
+
+// TestPingCounts: iputils ping summary lines.
+func TestPingCounts(t *testing.T) {
+	for in, want := range map[string][2]int{
+		"5 packets transmitted, 5 received, 0% packet loss, time 1205ms":              {5, 5},
+		"3 packets transmitted, 2 received, 33.3333% packet loss, time 602ms":         {3, 2},
+		"2 packets transmitted, 0 received, +2 errors, 100% packet loss, time 1001ms": {2, 0},
+		"1 packets transmitted, 1 packets received, 0.0% packet loss":                 {1, 1},
+		"ping: sendmsg: Network is unreachable":                                       {-1, -1},
+	} {
+		if tx, rx := pingCounts(in); tx != want[0] || rx != want[1] {
+			t.Errorf("pingCounts(%q) = %d, %d; want %v", in, tx, rx, want)
+		}
+	}
+}
+
+// TestShowIntCountersRegex: `vppctl show interface` rows (header row and continuation rows), bytes included.
+func TestShowIntCountersRegex(t *testing.T) {
+	out := `              Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count
+host-w1l0                         3      up          9000/0/0/0     rx packets                    26
+                                                                    rx bytes                    2484
+                                                                    tx packets                    24
+                                                                    tx bytes                    2296
+                                                                    drops                          2
+`
+	got := map[string]string{}
+	for _, m := range counterRe.FindAllStringSubmatch(out, -1) {
+		got[m[2]] = m[3]
+	}
+	want := map[string]string{"rx packets": "26", "rx bytes": "2484", "tx packets": "24", "tx bytes": "2296"}
+	if js(got) != js(want) {
+		t.Fatalf("counterRe: %v, want %v", got, want)
 	}
 }

@@ -269,7 +269,10 @@ Designed for ≤ 1000 interfaces at 1 Hz (≈ 100 KB/s); `worker_cpu` is only pr
 current snapshot: degraded, pending confirm, last reconcile). Ordering promises across kinds: `RECONCILE_START`
 precedes every `RECONCILE_DONE` with the same `txn_id`; `CONFIRM_REVERTED` precedes the `RECONCILE_START` of the revert;
 `VPP_DISCONNECTED`/`VPP_CONNECTED` alternate and a `VPP_CONNECTED` is followed by a resync `RECONCILE_START/DONE`
-(empty `txn_id`); `LINK_UP`/`LINK_DOWN` reflect `want_interface_events` and are filtered by `interfaces`. The event
+(empty `txn_id`); a `RECONCILE_START/DONE` pair whose `attributes.source` is set is a dynamic desired source's own
+sync (S1, TD-8: empty `txn_id`, emitted once the sync finished, never for a sync that changed nothing), and an `ERROR`
+event with `attributes.source` names a source that a transaction left out or whose loop stopped (`attributes.reason`,
+and `attributes.key` when one object caused it); `LINK_UP`/`LINK_DOWN` reflect `want_interface_events` and are filtered by `interfaces`. The event
 buffer is bounded; on overflow the agent drops the oldest events and emits one `ERROR` event `"dropped N events"` so
 the gap is visible. Filters (`kinds`, `interfaces`) are applied before buffering.
 

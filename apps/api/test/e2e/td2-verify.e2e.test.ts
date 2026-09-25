@@ -89,7 +89,10 @@ describe('TD-2 verify fixes e2e (round 2, D-102)', () => {
     const jwts = [await token(user), await token(user)];
     const seeds = [];
     for (const n of ['seed-a', 'seed-b']) {
-      const k = await h.call(jwts[0], 'POST', '/api/v1/auth/api-keys', { name: n });
+      const k = await h.call(jwts[0], 'POST', '/api/v1/auth/api-keys', {
+        name: n,
+        current: PW[user],
+      });
       expect(k.status).toBe(201);
       seeds.push(k.body.key as string);
     }
@@ -99,7 +102,10 @@ describe('TD-2 verify fixes e2e (round 2, D-102)', () => {
     const jwtLoop = async (t: string) => {
       while (!stop && !signal.aborted) {
         const start = performance.now();
-        const r = await h.call(t, 'POST', '/api/v1/auth/api-keys', { name: `m${n++}` });
+        const r = await h.call(t, 'POST', '/api/v1/auth/api-keys', {
+          name: `m${n++}`,
+          current: PW[user],
+        });
         if (r.status === 201)
           minted.push({ key: r.body.key, start, end: performance.now(), via: 'jwt' });
         else await sleep(1);
@@ -167,7 +173,10 @@ describe('TD-2 verify fixes e2e (round 2, D-102)', () => {
       expect(tot.rows).toBe(0);
       // with the NEW password the user mints keys normally again
       const fresh = await token('minter');
-      const k = await h.call(fresh, 'POST', '/api/v1/auth/api-keys', { name: 'after' });
+      const k = await h.call(fresh, 'POST', '/api/v1/auth/api-keys', {
+        name: 'after',
+        current: PW['minter'],
+      });
       expect(k.status).toBe(201);
       expect(await works(k.body.key)).toBe(true);
     }),
@@ -185,8 +194,18 @@ describe('TD-2 verify fixes e2e (round 2, D-102)', () => {
     });
     expect(self.status).toBe(200);
     PW['selfk'] = next;
-    expect((await h.call(other, 'POST', '/api/v1/auth/api-keys', { name: 'x' })).status).toBe(401);
-    const k = await h.call(mineTok, 'POST', '/api/v1/auth/api-keys', { name: 'kept-session' });
+    expect(
+      (
+        await h.call(other, 'POST', '/api/v1/auth/api-keys', {
+          name: 'x',
+          current: PW['selfk'],
+        })
+      ).status,
+    ).toBe(401);
+    const k = await h.call(mineTok, 'POST', '/api/v1/auth/api-keys', {
+      name: 'kept-session',
+      current: PW['selfk'],
+    });
     expect(k.status).toBe(201);
     // the kept chain was moved to the new generation: it refreshes, and the new token mints too
     const rf = await h.call(undefined, 'POST', '/api/v1/auth/refresh', undefined, {
@@ -194,8 +213,12 @@ describe('TD-2 verify fixes e2e (round 2, D-102)', () => {
     });
     expect(rf.status).toBe(200);
     expect(
-      (await h.call(rf.body.accessToken, 'POST', '/api/v1/auth/api-keys', { name: 'refreshed' }))
-        .status,
+      (
+        await h.call(rf.body.accessToken, 'POST', '/api/v1/auth/api-keys', {
+          name: 'refreshed',
+          current: PW['selfk'],
+        })
+      ).status,
     ).toBe(201);
   });
 
@@ -215,7 +238,10 @@ describe('TD-2 verify fixes e2e (round 2, D-102)', () => {
       const l = await login('cfgv');
       const tok = l.body.accessToken as string;
       const cookie = cookieOf(l.headers);
-      const k = await h.call(tok, 'POST', '/api/v1/auth/api-keys', { name: 'cfg-key' });
+      const k = await h.call(tok, 'POST', '/api/v1/auth/api-keys', {
+        name: 'cfg-key',
+        current: PW['cfgv'],
+      });
       expect(k.status).toBe(201);
       const old = PW['cfgv']!;
       const next = await stageHash('cfgv');
@@ -270,7 +296,10 @@ describe('TD-2 verify fixes e2e (round 2, D-102)', () => {
     it('confirmed commit: sessions live while pending, end at confirm; a NEW user with a hash is no reset', async () => {
       const l = await login('cfgc');
       const tok = l.body.accessToken as string;
-      const k = await h.call(tok, 'POST', '/api/v1/auth/api-keys', { name: 'cfgc-key' });
+      const k = await h.call(tok, 'POST', '/api/v1/auth/api-keys', {
+        name: 'cfgc-key',
+        current: PW['cfgc'],
+      });
       const next = await stageHash('cfgc');
       // plus a brand-new user with a hash in the same commit
       const users = (await h.call(admin, 'GET', '/api/v1/config/management/users'))
@@ -457,8 +486,8 @@ describe('TD-2 verify fixes e2e (round 2, D-102)', () => {
   // ------------------------------------------------------------------------------------------------ V5
   it('V5 — keepApiKeys and a discarded key-owned candidate are audited (and the discard is answered)', async () => {
     const t = await token('svc');
-    await h.call(t, 'POST', '/api/v1/auth/api-keys', { name: 'svc-1' });
-    await h.call(t, 'POST', '/api/v1/auth/api-keys', { name: 'svc-2' });
+    await h.call(t, 'POST', '/api/v1/auth/api-keys', { name: 'svc-1', current: PW['svc'] });
+    await h.call(t, 'POST', '/api/v1/auth/api-keys', { name: 'svc-2', current: PW['svc'] });
     expect((await reset('svc', { keepApiKeys: true })).status).toBe(200);
     const a1 = await h.db.execute(
       sql`select after from audit_log where action = 'POST /api/v1/users/:name/password'
@@ -473,7 +502,10 @@ describe('TD-2 verify fixes e2e (round 2, D-102)', () => {
     });
 
     const lt = await token('lockkey');
-    const k = await h.call(lt, 'POST', '/api/v1/auth/api-keys', { name: 'lock-holder' });
+    const k = await h.call(lt, 'POST', '/api/v1/auth/api-keys', {
+      name: 'lock-holder',
+      current: PW['lockkey'],
+    });
     expect(
       (
         await h.call(

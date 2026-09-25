@@ -65,8 +65,11 @@ F-nat44-ei-64-66-nptv6) and mention it in status. Nothing else is parked on it.
   resolvable), `git reset --soft "$(git merge-base main HEAD)" && git commit` with one Conventional-Commits subject
   (`contract(<pkg>): …` when the branch touches contract files, else the contract guard fails; never `wip:`) and a body listing
   what was built, the review verdict and the D-ids, then `git rebase main` (resolve conflicts in the worktree). The branch is now
-  exactly one commit on top of the current `main`; if `main` gets a non-board commit before the merge, rebase again. Then run
-  `tools/ci.sh --base main` (unit-only quick gate; this script *is* the CI). Then `git -C /root/ngfw merge --no-ff task/<id>`;
+  exactly one commit on top of the current `main`; if `main` gets a non-board commit before the merge, rebase again. The branch tree is
+  then the merged tree, so the pre-merge-commit hook's quick gate is the branch gate (D-130); run `tools/ci.sh --base main`
+  in the worktree only when the hook is not installed. Every git-mutating command in /root/ngfw runs under
+  `flock /run/lock/vrx-main.lock env VRX_MAIN_LOCK_HELD=1 …` (the local pre-commit guard refuses commits there without it),
+  and one lock covers merge → main gate → board. Then `git -C /root/ngfw merge --no-ff task/<id>`;
   if the merge touches `pnpm-lock.yaml` or `--frozen-lockfile` fails, run `pnpm install` once on `main` and commit the lockfile.
   Then `tools/ci.sh` on `main`; red → `git revert -m 1 <merge>` and reopen the task with the log attached.
   Integration (`tools/ci.sh full`, needs VPP + rig) runs on `main` serialized under `flock /run/lock/vrx-lab.lock`, at most once per

@@ -54,19 +54,31 @@ function isUnicast6(text: string): boolean {
 /** Every IPv6 address of the SRv6 section that names a SID or a source, with its pointer segments. */
 function sidAddresses(s: Srv6Config): { path: Path; text: string; what: string }[] {
   const out: { path: Path; text: string; what: string }[] = [];
-  for (const sid of Object.keys(s.localSids)) out.push({ path: ['localSids', sid], text: sid, what: 'local SID' });
+  for (const sid of Object.keys(s.localSids))
+    out.push({ path: ['localSids', sid], text: sid, what: 'local SID' });
   for (const [bsid, p] of Object.entries(s.policies)) {
     out.push({ path: ['policies', bsid], text: bsid, what: 'binding SID' });
     p.sidLists.forEach((l, i) =>
       l.sids.forEach((seg, j) =>
-        out.push({ path: ['policies', bsid, 'sidLists', i, 'sids', j], text: seg, what: 'segment' }),
+        out.push({
+          path: ['policies', bsid, 'sidLists', i, 'sids', j],
+          text: seg,
+          what: 'segment',
+        }),
       ),
     );
     if (p.encapSource !== undefined)
-      out.push({ path: ['policies', bsid, 'encapSource'], text: p.encapSource, what: 'encapsulation source' });
+      out.push({
+        path: ['policies', bsid, 'encapSource'],
+        text: p.encapSource,
+        what: 'encapsulation source',
+      });
   }
-  if (s.encapSource !== undefined) out.push({ path: ['encapSource'], text: s.encapSource, what: 'encapsulation source' });
-  s.steering.forEach((st, i) => out.push({ path: ['steering', i, 'bsid'], text: st.bsid, what: 'binding SID' }));
+  if (s.encapSource !== undefined)
+    out.push({ path: ['encapSource'], text: s.encapSource, what: 'encapsulation source' });
+  s.steering.forEach((st, i) =>
+    out.push({ path: ['steering', i, 'bsid'], text: st.bsid, what: 'binding SID' }),
+  );
   return out;
 }
 
@@ -83,7 +95,8 @@ const canonical: ValidatorDefinition = {
     };
     for (const a of sidAddresses(s)) check(a.text, canonicalIp(a.text), a.path);
     for (const [sid, l] of Object.entries(s.localSids))
-      if (l.nextHop !== undefined) check(l.nextHop, canonicalIp(l.nextHop), ['localSids', sid, 'nextHop']);
+      if (l.nextHop !== undefined)
+        check(l.nextHop, canonicalIp(l.nextHop), ['localSids', sid, 'nextHop']);
     s.steering.forEach((st, i) => {
       if (st.type === 'l3') check(st.prefix, canonicalPrefix(st.prefix), ['steering', i, 'prefix']);
     });
@@ -138,19 +151,24 @@ const behaviorFields: ValidatorDefinition = {
       const at = (field: string, message: string) =>
         issues.push({ pointer: P('localSids', sid, field), message });
       const needsIf = SRV6_INTERFACE_BEHAVIORS.includes(b);
-      if (needsIf && l.interface === undefined) at('interface', `${b} needs an interface to cross-connect to`);
-      if (!needsIf && l.interface !== undefined) at('interface', `${b} takes no interface (only end.x, end.dx2, end.dx4, end.dx6)`);
+      if (needsIf && l.interface === undefined)
+        at('interface', `${b} needs an interface to cross-connect to`);
+      if (!needsIf && l.interface !== undefined)
+        at('interface', `${b} takes no interface (only end.x, end.dx2, end.dx4, end.dx6)`);
       const needsNh = SRV6_NEXT_HOP_BEHAVIORS.includes(b);
       if (needsNh && l.nextHop === undefined) at('nextHop', `${b} needs a next hop`);
-      if (!needsNh && l.nextHop !== undefined) at('nextHop', `${b} takes no next hop (only end.x, end.dx4, end.dx6)`);
+      if (!needsNh && l.nextHop !== undefined)
+        at('nextHop', `${b} takes no next hop (only end.x, end.dx4, end.dx6)`);
       if (needsNh && l.nextHop !== undefined) {
         const want = b === 'end.dx4' ? 4 : 6;
         if (ipFamily(l.nextHop) !== want) at('nextHop', `${b} needs an IPv${want} next hop`);
       }
       const needsLookup = SRV6_LOOKUP_BEHAVIORS.includes(b);
       if (needsLookup && l.lookupVrf === undefined) at('lookupVrf', `${b} needs a lookup VRF`);
-      if (!needsLookup && l.lookupVrf !== undefined) at('lookupVrf', `${b} takes no lookup VRF (only end.t, end.dt4, end.dt6)`);
-      if (l.psp && !SRV6_PSP_BEHAVIORS.includes(b)) at('psp', `${b} does not support PSP (only end, end.x, end.t)`);
+      if (!needsLookup && l.lookupVrf !== undefined)
+        at('lookupVrf', `${b} takes no lookup VRF (only end.t, end.dt4, end.dt6)`);
+      if (l.psp && !SRV6_PSP_BEHAVIORS.includes(b))
+        at('psp', `${b} does not support PSP (only end, end.x, end.t)`);
     }
     return issues;
   },
@@ -190,7 +208,8 @@ const interfacesExist: ValidatorDefinition = {
       if (name !== undefined && !interfaceExists(config, name))
         issues.push({ pointer: P(...path), message: `interface '${name}' is not configured` });
     };
-    for (const [sid, l] of Object.entries(s.localSids)) check(l.interface, ['localSids', sid, 'interface']);
+    for (const [sid, l] of Object.entries(s.localSids))
+      check(l.interface, ['localSids', sid, 'interface']);
     s.steering.forEach((st, i) => {
       if (st.type === 'l2') check(st.interface, ['steering', i, 'interface']);
     });
@@ -238,7 +257,10 @@ const steeringBsid: ValidatorDefinition = {
     const issues: SemanticIssue[] = [];
     s.steering.forEach((st, i) => {
       if (policyOf(s, st.bsid) === undefined)
-        issues.push({ pointer: P('steering', i, 'bsid'), message: `no policy with binding SID ${st.bsid}` });
+        issues.push({
+          pointer: P('steering', i, 'bsid'),
+          message: `no policy with binding SID ${st.bsid}`,
+        });
     });
     return issues;
   },
@@ -278,7 +300,10 @@ const steeringUnique: ValidatorDefinition = {
     const indexed = s.steering.map((st, i) => ({ st, i }));
     return duplicateIssues(
       indexed,
-      ({ st }) => (st.type === 'l2' ? `l2|${st.interface}` : `l3|${st.vrf}|${canonicalPrefix(st.prefix) ?? st.prefix}`),
+      ({ st }) =>
+        st.type === 'l2'
+          ? `l2|${st.interface}`
+          : `l3|${st.vrf}|${canonicalPrefix(st.prefix) ?? st.prefix}`,
       ({ i }) => ['routing', 'srv6', 'steering', i],
       ({ st }) =>
         st.type === 'l2'

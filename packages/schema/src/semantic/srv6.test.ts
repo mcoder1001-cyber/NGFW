@@ -27,18 +27,26 @@ function issues(edit: (d: Doc) => void = () => undefined): Record<string, string
   return out;
 }
 
-const srv6 = (d: Doc) => d.routing.srv6 as {
-  encapSource?: string;
-  localSids: Record<string, Record<string, unknown>>;
-  policies: Record<string, Record<string, unknown> & { sidLists: { sids: string[]; weight?: number }[] }>;
-  steering: Record<string, unknown>[];
-};
+const srv6 = (d: Doc) =>
+  d.routing.srv6 as {
+    encapSource?: string;
+    localSids: Record<string, Record<string, unknown>>;
+    policies: Record<
+      string,
+      Record<string, unknown> & { sidLists: { sids: string[]; weight?: number }[] }
+    >;
+    steering: Record<string, unknown>[];
+  };
 
 describe('routing.srv6 schema', () => {
   it('the fixture is schema-valid and semantically clean (whole registry)', () => {
     const parsed = RootConfig.parse(fixture());
     expect(validateSemantics(parsed)).toEqual([]);
-    expect(parsed.routing.srv6?.localSids['fd00:4:ff::1']).toEqual({ behavior: 'end', psp: true, vrf: 'default' });
+    expect(parsed.routing.srv6?.localSids['fd00:4:ff::1']).toEqual({
+      behavior: 'end',
+      psp: true,
+      vrf: 'default',
+    });
   });
 
   it('fills the defaults (psp off, default VRF, encap on, weight 1, l3 VRF default)', () => {
@@ -86,12 +94,37 @@ describe('routing.srv6 schema', () => {
   });
 
   it.each([
-    ['a policy without segment lists', (d: Doc) => void (srv6(d).policies['fd00:4:bb::1']!.sidLists = [])],
-    ['an IPv4 local SID key', (d: Doc) => void (srv6(d).localSids['10.0.0.1'] = { behavior: 'end' })],
-    ['an unknown behaviour (end.ad proxy)', (d: Doc) => void (srv6(d).localSids['fd00:4:ff::9'] = { behavior: 'end.ad' })],
-    ['a steering entry without a type', (d: Doc) => void srv6(d).steering.push({ prefix: '10.0.0.0/8', bsid: 'fd00:4:bb::1' })],
-    ['an L2 entry with a prefix', (d: Doc) => void srv6(d).steering.push({ type: 'l2', interface: 'host-w4l0', prefix: '10.0.0.0/8', bsid: 'fd00:4:bb::1' })],
-    ['an L3 prefix with host bits', (d: Doc) => void srv6(d).steering.push({ type: 'l3', prefix: '10.4.0.1/16', bsid: 'fd00:4:bb::1' })],
+    [
+      'a policy without segment lists',
+      (d: Doc) => void (srv6(d).policies['fd00:4:bb::1']!.sidLists = []),
+    ],
+    [
+      'an IPv4 local SID key',
+      (d: Doc) => void (srv6(d).localSids['10.0.0.1'] = { behavior: 'end' }),
+    ],
+    [
+      'an unknown behaviour (end.ad proxy)',
+      (d: Doc) => void (srv6(d).localSids['fd00:4:ff::9'] = { behavior: 'end.ad' }),
+    ],
+    [
+      'a steering entry without a type',
+      (d: Doc) => void srv6(d).steering.push({ prefix: '10.0.0.0/8', bsid: 'fd00:4:bb::1' }),
+    ],
+    [
+      'an L2 entry with a prefix',
+      (d: Doc) =>
+        void srv6(d).steering.push({
+          type: 'l2',
+          interface: 'host-w4l0',
+          prefix: '10.0.0.0/8',
+          bsid: 'fd00:4:bb::1',
+        }),
+    ],
+    [
+      'an L3 prefix with host bits',
+      (d: Doc) =>
+        void srv6(d).steering.push({ type: 'l3', prefix: '10.4.0.1/16', bsid: 'fd00:4:bb::1' }),
+    ],
     ['hop limit 0', (d: Doc) => void (d.routing.srv6['encapHopLimit'] = 0)],
   ])('rejects %s', (_, edit) => {
     const doc = fixture() as Doc;
@@ -112,10 +145,12 @@ describe('routing.srv6 semantic rules', () => {
       srv6(d).localSids['fd00:4:ff::2']!['nextHop'] = 'FD00:4:1::2';
     });
     expect(got).toEqual({
-      'routing.srv6-canonical /routing/srv6/localSids/FD00:4:ff:0::7': 'write FD00:4:ff:0::7 in canonical form: fd00:4:ff::7',
+      'routing.srv6-canonical /routing/srv6/localSids/FD00:4:ff:0::7':
+        'write FD00:4:ff:0::7 in canonical form: fd00:4:ff::7',
       'routing.srv6-canonical /routing/srv6/policies/fd00:4:bb::1/sidLists/0/sids/0':
         'write fd00:4:ee:0:0::1 in canonical form: fd00:4:ee::1',
-      'routing.srv6-canonical /routing/srv6/localSids/fd00:4:ff::2/nextHop': 'write FD00:4:1::2 in canonical form: fd00:4:1::2',
+      'routing.srv6-canonical /routing/srv6/localSids/fd00:4:ff::2/nextHop':
+        'write FD00:4:1::2 in canonical form: fd00:4:1::2',
     });
   });
 
@@ -145,21 +180,32 @@ describe('routing.srv6 semantic rules', () => {
       l['fd00:4:ff::10'] = { behavior: 'end.x' }; // no interface, no next hop
       l['fd00:4:ff::11'] = { behavior: 'end.dx4', interface: 'host-w4l0', nextHop: 'fd00:4:1::2' }; // v6 next hop
       l['fd00:4:ff::12'] = { behavior: 'end.dt6' }; // no lookup VRF
-      l['fd00:4:ff::13'] = { behavior: 'end', interface: 'host-w4l0', nextHop: 'fd00:4:1::2', lookupVrf: 'cust-a' };
+      l['fd00:4:ff::13'] = {
+        behavior: 'end',
+        interface: 'host-w4l0',
+        nextHop: 'fd00:4:1::2',
+        lookupVrf: 'cust-a',
+      };
       l['fd00:4:ff::14'] = { behavior: 'end.dt4', lookupVrf: 'cust-a', psp: true };
       l['fd00:4:ff::15'] = { behavior: 'end.dx2', interface: 'host-w4l1', nextHop: 'fd00:4:1::2' };
     });
     expect(got).toEqual({
-      'routing.srv6-behavior-fields /routing/srv6/localSids/fd00:4:ff::10/interface': 'end.x needs an interface to cross-connect to',
-      'routing.srv6-behavior-fields /routing/srv6/localSids/fd00:4:ff::10/nextHop': 'end.x needs a next hop',
-      'routing.srv6-behavior-fields /routing/srv6/localSids/fd00:4:ff::11/nextHop': 'end.dx4 needs an IPv4 next hop',
-      'routing.srv6-behavior-fields /routing/srv6/localSids/fd00:4:ff::12/lookupVrf': 'end.dt6 needs a lookup VRF',
+      'routing.srv6-behavior-fields /routing/srv6/localSids/fd00:4:ff::10/interface':
+        'end.x needs an interface to cross-connect to',
+      'routing.srv6-behavior-fields /routing/srv6/localSids/fd00:4:ff::10/nextHop':
+        'end.x needs a next hop',
+      'routing.srv6-behavior-fields /routing/srv6/localSids/fd00:4:ff::11/nextHop':
+        'end.dx4 needs an IPv4 next hop',
+      'routing.srv6-behavior-fields /routing/srv6/localSids/fd00:4:ff::12/lookupVrf':
+        'end.dt6 needs a lookup VRF',
       'routing.srv6-behavior-fields /routing/srv6/localSids/fd00:4:ff::13/interface':
         'end takes no interface (only end.x, end.dx2, end.dx4, end.dx6)',
-      'routing.srv6-behavior-fields /routing/srv6/localSids/fd00:4:ff::13/nextHop': 'end takes no next hop (only end.x, end.dx4, end.dx6)',
+      'routing.srv6-behavior-fields /routing/srv6/localSids/fd00:4:ff::13/nextHop':
+        'end takes no next hop (only end.x, end.dx4, end.dx6)',
       'routing.srv6-behavior-fields /routing/srv6/localSids/fd00:4:ff::13/lookupVrf':
         'end takes no lookup VRF (only end.t, end.dt4, end.dt6)',
-      'routing.srv6-behavior-fields /routing/srv6/localSids/fd00:4:ff::14/psp': 'end.dt4 does not support PSP (only end, end.x, end.t)',
+      'routing.srv6-behavior-fields /routing/srv6/localSids/fd00:4:ff::14/psp':
+        'end.dt4 does not support PSP (only end, end.x, end.t)',
       'routing.srv6-behavior-fields /routing/srv6/localSids/fd00:4:ff::15/nextHop':
         'end.dx2 takes no next hop (only end.x, end.dx4, end.dx6)',
     });
@@ -189,7 +235,9 @@ describe('routing.srv6 semantic rules', () => {
       'routing.srv6-encap-source /routing/srv6/policies/fd00:4:bb::1/encapSource':
         'an encapsulating policy needs an outer source address: set encapSource here or routing.srv6.encapSource (VPP’s global default cannot be read back, D-074)',
     });
-    expect(issues((d) => void (srv6(d).policies['fd00:4:bb::3']!['encapSource'] = 'fd00:4::3'))).toEqual({
+    expect(
+      issues((d) => void (srv6(d).policies['fd00:4:bb::3']!['encapSource'] = 'fd00:4::3')),
+    ).toEqual({
       'routing.srv6-encap-source /routing/srv6/policies/fd00:4:bb::3/encapSource':
         'an insert policy (encap off) has no outer header: remove encapSource',
     });
@@ -205,7 +253,8 @@ describe('routing.srv6 semantic rules', () => {
       st.push({ type: 'l2', interface: 'host-w4l1', bsid: 'fd00:4:bb::1' }); // 7: duplicate of 2
     });
     expect(got).toEqual({
-      'routing.srv6-steering-bsid /routing/srv6/steering/3/bsid': 'no policy with binding SID fd00:4:bb::99',
+      'routing.srv6-steering-bsid /routing/srv6/steering/3/bsid':
+        'no policy with binding SID fd00:4:bb::99',
       'routing.srv6-steering-encap /routing/srv6/steering/4/bsid':
         'IPv4 steering needs an encapsulating policy; fd00:4:bb::3 inserts (encap off)',
       'routing.srv6-steering-encap /routing/srv6/steering/5/bsid':

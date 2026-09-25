@@ -18,10 +18,31 @@
       "encapHopLimit": 32,
       "localSids": {
         "fd00:4:ff::1": { "behavior": "end", "psp": true, "vrf": "default" },
-        "fd00:4:ff::2": { "behavior": "end.x", "psp": false, "vrf": "default", "interface": "host-w4l0", "nextHop": "fd00:4:1::2" },
-        "fd00:4:ff::a": { "behavior": "end.dt4", "psp": false, "vrf": "default", "lookupVrf": "cust-a" },
-        "fd00:4:ff::b": { "behavior": "end.dt6", "psp": false, "vrf": "default", "lookupVrf": "cust-a" },
-        "fd00:4:ff::c": { "behavior": "end.dx2", "psp": false, "vrf": "default", "interface": "host-w4l1" }
+        "fd00:4:ff::2": {
+          "behavior": "end.x",
+          "psp": false,
+          "vrf": "default",
+          "interface": "host-w4l0",
+          "nextHop": "fd00:4:1::2"
+        },
+        "fd00:4:ff::a": {
+          "behavior": "end.dt4",
+          "psp": false,
+          "vrf": "default",
+          "lookupVrf": "cust-a"
+        },
+        "fd00:4:ff::b": {
+          "behavior": "end.dt6",
+          "psp": false,
+          "vrf": "default",
+          "lookupVrf": "cust-a"
+        },
+        "fd00:4:ff::c": {
+          "behavior": "end.dx2",
+          "psp": false,
+          "vrf": "default",
+          "interface": "host-w4l1"
+        }
       },
       "policies": {
         "fd00:4:bb::1": {

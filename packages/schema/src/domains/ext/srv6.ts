@@ -47,7 +47,12 @@ export const Srv6Behavior = withUi(
 export type Srv6Behavior = z.infer<typeof Srv6Behavior>;
 
 /** Behaviours that cross-connect to an interface (need `interface`). */
-export const SRV6_INTERFACE_BEHAVIORS: readonly Srv6Behavior[] = ['end.x', 'end.dx2', 'end.dx4', 'end.dx6'];
+export const SRV6_INTERFACE_BEHAVIORS: readonly Srv6Behavior[] = [
+  'end.x',
+  'end.dx2',
+  'end.dx4',
+  'end.dx6',
+];
 /** Behaviours that forward to a next hop (need `nextHop`; IPv4 for end.dx4, IPv6 otherwise). */
 export const SRV6_NEXT_HOP_BEHAVIORS: readonly Srv6Behavior[] = ['end.x', 'end.dx4', 'end.dx6'];
 /** Behaviours that look the inner packet up in a VRF (need `lookupVrf`). */
@@ -152,7 +157,11 @@ export const Srv6SteeringL3Schema = z.strictObject({
 
 /** L2 steering: every frame received on an interface is encapsulated into the policy (encapsulating policies only). */
 export const Srv6SteeringL2Schema = z.strictObject({
-  type: withUi(z.literal('l2'), { title: 'Match', help: 'l2: every frame received on an interface', order: 1 }),
+  type: withUi(z.literal('l2'), {
+    title: 'Match',
+    help: 'l2: every frame received on an interface',
+    order: 1,
+  }),
   interface: withUi(vppInterfaceName, {
     title: 'Interface',
     help: 'VPP switches it to L2 cross-connect mode: it must not carry IP addresses',
@@ -166,9 +175,12 @@ export const Srv6SteeringL2Schema = z.strictObject({
 });
 
 /** One steering entry (`routing.srv6.steering[]`), unique by (vrf, prefix) or by interface. */
-export const Srv6SteeringSchema = withUi(z.discriminatedUnion('type', [Srv6SteeringL3Schema, Srv6SteeringL2Schema]), {
-  title: 'Steering',
-});
+export const Srv6SteeringSchema = withUi(
+  z.discriminatedUnion('type', [Srv6SteeringL3Schema, Srv6SteeringL2Schema]),
+  {
+    title: 'Steering',
+  },
+);
 export type Srv6SteeringConfig = z.infer<typeof Srv6SteeringSchema>;
 
 /** `routing.srv6` — absent = SRv6 not configured. */
@@ -215,4 +227,8 @@ export const Srv6Schema = withUi(
 export type Srv6Config = z.infer<typeof Srv6Schema>;
 
 /** The `routing.srv6` key (one key line under the F-srv6 anchor in `RoutingSchema`). */
-export const srv6Field = withUi(Srv6Schema.optional(), { title: 'SRv6', group: SRV6_GROUP, order: 20 });
+export const srv6Field = withUi(Srv6Schema.optional(), {
+  title: 'SRv6',
+  group: SRV6_GROUP,
+  order: 20,
+});

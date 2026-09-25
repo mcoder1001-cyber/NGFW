@@ -111,8 +111,11 @@ func TestConfigFromEnvIDRange(t *testing.T) {
 	t.Setenv(subsystems.EnvTableBase, "")
 	t.Setenv(subsystems.EnvIDRange, "")
 	cfg := ConfigFromEnv()
-	if cfg.IDs != (subsystems.IDScope{}) || cfg.Validate() != nil {
-		t.Fatalf("unset: %+v %v (want no id, start allowed: families fail closed)", cfg.IDs, cfg.Validate())
+	// TD-8b (D-129 Q3): neither variable set refuses start-up; the error cites the host rule (V5: §12,
+	// §11 is the trace ban).
+	if err := cfg.Validate(); cfg.IDs != (subsystems.IDScope{}) || !errors.Is(err, subsystems.ErrNoIDRange) ||
+		!strings.Contains(err.Error(), "shared-host-rules.md §12") || strings.Contains(err.Error(), "§11") {
+		t.Fatalf("unset: %+v %v (want no id and start-up refused with ErrNoIDRange citing §12)", cfg.IDs, err)
 	}
 	t.Setenv(subsystems.EnvTableBase, "3000")
 	if cfg := ConfigFromEnv(); cfg.IDs.Range == nil || *cfg.IDs.Range != (subsystems.IDRange{Lo: 3000, Hi: 3999}) || cfg.Validate() != nil {

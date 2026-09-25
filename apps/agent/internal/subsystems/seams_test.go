@@ -132,6 +132,32 @@ func TestWiringIDRangeFailsClosed(t *testing.T) {
 	}
 }
 
+// TD-8b (TD-8 verify V2): the Register-line pattern of an id-allocating df7 family —
+// df7.WithIDs(ids.DF7()) from w.IDRange(), never nil or a missing option — owns nothing with NoIDs(),
+// exactly the slot's range with one, and every id only with VRX_VPP_ID_RANGE=all.
+func TestDF7FamilyTakesItsRangeFromTheWiring(t *testing.T) {
+	opts := func(env Env) df7.Options {
+		ids, _ := (&Wiring{env: env}).IDRange() // a family that fails on the error never gets here
+		return df7.BuildOptions([]df7.Option{df7.WithIDs(ids.DF7())})
+	}
+	none := opts(Env{})
+	for _, id := range []uint32{0, 1, 5000, 13000, ^uint32(0)} {
+		if none.IDs.Owns(id) || none.CheckID("egress map", id) == nil {
+			t.Errorf("NoIDs(): id %d is owned", id)
+		}
+	}
+	if o := df7.BuildOptions([]df7.Option{df7.WithIDs(NoIDs().DF7())}); o.IDs.Owns(1) || o.IDs.Owns(0) {
+		t.Error("df7.WithIDs(NoIDs().DF7()) owns an id")
+	}
+	slot := opts(Env{IDs: IDScope{Range: &IDRange{Lo: 5000, Hi: 5999}}})
+	if !slot.IDs.Owns(5000) || !slot.IDs.Owns(5999) || slot.IDs.Owns(4999) || slot.IDs.Owns(6000) {
+		t.Errorf("slot 5: %+v", slot.IDs)
+	}
+	if all := opts(Env{IDs: IDScope{All: true}}); all.IDs != nil || !all.IDs.Owns(^uint32(0)) {
+		t.Errorf("all: %+v, want every id", all.IDs)
+	}
+}
+
 // S1: AddDynamicSource keeps sources out of the configuration domains and apart from each other.
 func TestAddDynamicSourceValidation(t *testing.T) {
 	desired := func(*vrxv1.DesiredState) []scheduler.KV { return nil }

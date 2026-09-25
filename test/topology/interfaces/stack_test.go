@@ -35,6 +35,7 @@ type slot struct {
 	httpPort    string
 	metricsPort string
 	valkeyDB    string
+	tableBase   string // VRX_VPP_TABLE_BASE: the agent's id range (TD-8b: it refuses to start without one)
 	runDir      string // /run/vrx-test/<prefix>
 	socket      string
 	repo        string
@@ -61,6 +62,7 @@ func slotFromEnv(t *testing.T) slot {
 		httpPort:    env("VRX_HTTP_PORT", strconv.Itoa(3000+100*n)),
 		metricsPort: env("VRX_METRICS_PORT", strconv.Itoa(9100+10*n+1)),
 		valkeyDB:    env("VRX_VALKEY_DB", strconv.Itoa(n)),
+		tableBase:   env("VRX_VPP_TABLE_BASE", strconv.Itoa(1000*n)),
 		runDir:      "/run/vrx-test/" + p,
 		repo:        repoRoot(t),
 	}

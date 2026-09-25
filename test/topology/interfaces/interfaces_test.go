@@ -157,7 +157,8 @@ func newStack(t *testing.T, s slot) *stack {
 	base := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME")}
 	st.agentEnv = append(append([]string{}, base...),
 		"VRX_AGENT_SOCKET="+s.socket, "VRX_OWNER="+s.prefix, "VRX_GLOBALS_OWNER=0", // D-071: test slots never own globals
-		"VRX_AGENT_STATE_DIR="+st.stateDir, "VRX_METRICS_PORT="+s.metricsPort, "VRX_SOCKET_GROUP=root", "VRX_LOG_LEVEL=info")
+		"VRX_AGENT_STATE_DIR="+st.stateDir, "VRX_METRICS_PORT="+s.metricsPort, "VRX_SOCKET_GROUP=root", "VRX_LOG_LEVEL=info",
+		"VRX_VPP_TABLE_BASE="+s.tableBase) // TD-8b: the agent refuses to start without an id range (shared-host-rules §12)
 	st.startAgent(t)
 	t.Cleanup(func() { st.agent.stop(t) })
 
